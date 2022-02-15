@@ -1,14 +1,19 @@
 #LISA: LISA Is Sets Automated
 
+LISA is a Proof Assistant based on first order logic, Sequent Calculus and Set Theory. To get started, look at the [Reference Manual](/LISA Reference Manual.pdf).
 
-## Kernel
+EPFL-LARA Website: https://lara.epfl.ch/w/
+
+## Project Organisation
+
+### Kernel
 The kernel package contains the trusted code of LISA, in the sense that it only can produce theorem and verify proof. Any bug or error in code written outside this package should not possibly break soundness.
 The kernel contains essentially two elements: Formalisation of First Order Logic, and Formalisation of Proofs through Sequent Calculus.
 
-## Proven
+### Proven
 The proven package contains tactics and proofs
 
-## TPTP
+### TPTP
 The TPTP package contains a parser from the TPTP file format to LISA. The simplest way to use it is to download the TPTP library and put it inside main/resources.
 
 ## Commands
@@ -18,7 +23,7 @@ The TPTP package contains a parser from the TPTP file format to LISA. The simple
 * `sbt doc` to generate the Scala documentation
 
 
-#LICENSE
+# LICENSE
    Copyright [2022] [EPFL]
 
    Licensed under the Apache License, Version 2.0 (the "License");
