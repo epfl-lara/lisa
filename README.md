@@ -23,7 +23,7 @@ The TPTP package contains a parser from the TPTP file format to LISA. The simple
 * `sbt doc` to generate the Scala documentation
 
 
-# LICENSE
+## LICENSE
    Copyright [2022] [EPFL]
 
    Licensed under the Apache License, Version 2.0 (the "License");
