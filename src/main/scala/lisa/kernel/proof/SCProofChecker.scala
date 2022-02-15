@@ -1,7 +1,8 @@
 package lisa.kernel.proof
 
-import lisa.kernel.fol.FOL._
-import lisa.kernel.proof.SequentCalculus._
+import lisa.kernel.Printer
+import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.SequentCalculus.*
 
 object SCProofChecker {
 
@@ -27,9 +28,9 @@ object SCProofChecker {
 
         val r: (Boolean, List[Int], String) =
             if (false_premise.nonEmpty)
-                return (false, Nil, "A step can't refer to a step with a higher or equal number as a premise.")
+                return (false, Nil, s"Step no $no can't refer to higher number ${false_premise.get} as a premise.")
             if (false_premise2.nonEmpty)
-                return (false, Nil, "A step can't refer to a step with a lower number than minus the number of imports.")
+                return (false, Nil, s"A step can't refer to step ${false_premise2.get}, imports only contains ${importsSize.get} elements.")
             else step match {
                 /*
                  *    Γ |- Δ
@@ -57,8 +58,8 @@ object SCProofChecker {
                 case Cut(b, t1, t2, phi) =>
                         if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left))
                             if (isSameSet(b.right + phi, ref(t2).right union ref(t1).right))
-                                if (ref(t2).left.contains(phi))
-                                    if (ref(t1).right.contains(phi))
+                                if (contains(ref(t2).left, phi))
+                                    if (contains(ref(t1).right, phi))
                                         (true, Nil, "")
                                     else (false, Nil, s"Right-hand side of first premise does not contain φ as claimed.")
                                 else (false, Nil, s"Left-hand side of second premise does not contain φ as claimed.")
@@ -322,7 +323,7 @@ object SCProofChecker {
                     phi match {
                         case PredicateFormula(`equality`, Seq(left, right)) =>
                             if (isSame(left, right))
-                                if (b.right.contains(phi))
+                                if (contains(b.right, phi))
                                     (true, Nil, "")
                                 else (false, Nil, s"Right-Hand side of conclusion does not contain φ")
                             else (false, Nil, s"φ is not an instance of reflexivity.")

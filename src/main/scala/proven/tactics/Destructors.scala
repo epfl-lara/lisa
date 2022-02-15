@@ -8,11 +8,12 @@ import lisa.kernel.proof.SCProof
 
 object Destructors {
   def destructRightOr(p: SCProof, a: Formula, b: Formula): SCProof = {
-    require(contains(p.conclusion.right, a \/ b))
+    val mat = p.conclusion.right.find(f => isSame(f, a \/ b))
+    require(mat.nonEmpty)
     val p0 = hypothesis(a)
     val p1 = hypothesis(b)
     val p2 = LeftOr(emptySeq +< (a \/ b) +> a +> b, Seq(p.length, p.length + 1), Seq(a, b))
-    val p3 = Cut(p.conclusion -> (a \/ b) +> a +> b, p.length - 1, p.length + 2, a \/ b)
+    val p3 = Cut(p.conclusion -> mat.get +> a +> b, p.length - 1, p.length + 2, a \/ b)
     p withNewSteps IndexedSeq(p0, p1, p2, p3)
   }
   def destructRightAnd(p: SCProof, f: Formula, g: Formula): SCProof = {

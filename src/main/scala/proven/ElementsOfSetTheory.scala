@@ -2,11 +2,13 @@ package proven
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.KernelHelpers.{*, given}
+import lisa.kernel.Printer
 import proven.tactics.ProofTactics.*
 import proven.tactics.Destructors.*
 import lisa.settheory.AxiomaticSetTheory.*
+
 import scala.collection.immutable.SortedSet
-import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.{SCProof, SCProofChecker}
 
 import scala.collection.immutable
 
@@ -64,25 +66,25 @@ object ElementsOfSetTheory {
     val pxy = pair(x, y)
     val pxy1 = pair(x1, y1)
     val zexy = (z === x) \/ (z === y)
-    val p0 = SCSubproof {
+    val p0 = SCSubproof({
       val p0 = SCSubproof({
         val zf = in(z, pxy)
         val p1_0 = hypothesis(zf)
         val p1_1 = RightImplies(emptySeq +> (zf ==> zf), 0, zf, zf)
         val p1_2 = RightIff(emptySeq +> (zf <=> zf), 1, 1, zf, zf) //  |- (z in {x,y} <=> z in {x,y})
         val p1_3 = RightSubstEq(emptySeq +< (pxy === pxy1) +> (zf <=> in(z, pxy1)), 2, pxy, pxy1, zf <=> in(z, g()), g)
-        SCProof(p1_0, p1_1, p1_2, p1_3)
-      }, display = false) //  ({x,y}={x',y'}) |- ((z∈{x,y})↔(z∈{x',y'}))
+        SCProof(IndexedSeq(p1_0, p1_1, p1_2, p1_3), IndexedSeq(()|-pairAxiom))
+      }, Seq(-1), display = true) //  ({x,y}={x',y'}) |- ((z∈{x,y})↔(z∈{x',y'}))
       val p1 = SCSubproof({
         val p1_0 = Rewrite(()|-pairAxiom, -1) //  |- ∀∀∀((z$1∈{x$3,y$2})↔((x$3=z$1)∨(y$2=z$1)))
         val p1_1 = instantiateForall(SCProof(IndexedSeq(p1_0), IndexedSeq(()|-pairAxiom)), x, y, z)
         p1_1
-      }, display = false) //  |- (z in {x,y}) <=> (z=x \/ z=y)
+      }, Seq(-1), display = true) //  |- (z in {x,y}) <=> (z=x \/ z=y)
       val p2 = SCSubproof({
         val p2_0 = Rewrite(()|-pairAxiom, -1) //  |- ∀∀∀((z$1∈{x$3,y$2})↔((x$3=z$1)∨(y$2=z$1)))
         val p2_1 = instantiateForall(SCProof(IndexedSeq(p2_0), IndexedSeq(()|-pairAxiom)), x1, y1, z)
         p2_1
-      }, display = false) //  |- (z in {x',y'}) <=> (z=x' \/ z=y')
+      }, Seq(-1), display = true) //  |- (z in {x',y'}) <=> (z=x' \/ z=y')
       val p3 = RightSubstEq(
         emptySeq +< (pxy === pxy1) +> (in(z, pxy1) <=> ((z === x) \/ (z === y))), 1, pxy, pxy1, in(z, g()) <=> ((z === x) \/ (z === y)), g
       ) //   ({x,y}={x',y'}) |- ((z∈{x',y'})↔((z=x)∨(z=y)))
@@ -95,8 +97,8 @@ object ElementsOfSetTheory {
         h
       ) //  ((z∈{x',y'})↔((x'=z)∨(y'=z))), ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
       val p5 = Cut(emptySeq ++< p3.bot ++> p4.bot, 2, 4, p2.bot.right.head)
-      SCProof(p0, p1, p2, p3, p4, p5)
-    } //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
+      SCProof(IndexedSeq(p0, p1, p2, p3, p4, p5), IndexedSeq(()|-pairAxiom))
+    }, Seq(-1)) //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
 
     val p1 = SCSubproof(
       SCProof(byCase(x === x1)(
@@ -181,9 +183,9 @@ object ElementsOfSetTheory {
             val rd0_1_1 = instantiateForall(SCProof(IndexedSeq(pd0_1_0), IndexedSeq(pd0_m1.bot)), x1) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
             rd0_1_1
           }, IndexedSeq(-1)) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
-          val rd0_2 = byEquiv(pd0_1.bot.right.head, pd0_0.bot.right.head)(pd0_1, pd0_0)
-          val pd0_3 = SCSubproof(SCProof(rd0_2.steps, IndexedSeq(pd0_m1.bot)), IndexedSeq(-1)) //  ({x,y}={x',y'}) |- (x=x' \/ y=x')
-          destructRightOr(SCProof(IndexedSeq(pd0_0, pd0_1, pd0_3), IndexedSeq(pd0_m1.bot)), x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
+          val pd0_2 = RightSubstIff(pd0_1.bot.right |- ((x1===x) \/ (x1===y)), 0,(x1===x) \/ (x1===y), (x1===x1) \/ (x1===y1),SchematicPredicateLabel("h", 0)(), SchematicPredicateLabel("h", 0) ) // (x'=x \/ x'=y) <=> (x'=x' \/ x'=y') |- (x'=x \/ x'=y)
+          val pd0_3 = Cut(pd0_1.bot.left |- pd0_2.bot.right, 1,2, pd0_1.bot.right.head) //  ({x,y}={x',y'}) |- (x=x' \/ y=x')
+          destructRightOr(SCProof(IndexedSeq(pd0_0, pd0_1, pd0_2, pd0_3), IndexedSeq(pd0_m1.bot)), x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
         }, IndexedSeq(-1)) //  ({x,y}={x',y'}) |- x=x',  y=x' --
         val pd1 = SCSubproof({
           val pd1_m1 = pdm1
@@ -213,7 +215,7 @@ object ElementsOfSetTheory {
     ) //  ({x,y}={x',y'}) |- (x=x' /\ y=y')\/(x=y' /\ y=x')
 
     val p2 = RightImplies(emptySeq +> (p1.bot.left.head ==> p1.bot.right.head), 1, p1.bot.left.head, p1.bot.right.head) //   |- ({x,y}={x',y'}) ==> (x=x' /\ y=y')\/(x=y' /\ y=x')
-    generalizeToForall(SCProof(p0, p1, p2), x, y, x1, y1)
+    generalizeToForall(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(()|-pairAxiom)), x, y, x1, y1)
   } // |- ∀∀∀∀(({x$4,y$3}={x'$2,y'$1})⇒(((y'$1=y$3)∧(x'$2=x$4))∨((x$4=y'$1)∧(y$3=x'$2))))
 
 

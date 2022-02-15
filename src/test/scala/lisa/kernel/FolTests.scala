@@ -120,7 +120,7 @@ class FolTests extends AnyFunSuite {
 
   test("Fresh variables should be fresh") {
     val y1 = VariableLabel(freshId(equ(VariableTerm(x), VariableTerm(x)).freeVariables.map(_.name), x.name))
-    //println(x1, y1)
+
     assert(!isSame(x, y1))
   }
 }

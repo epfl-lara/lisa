@@ -81,7 +81,6 @@ object ProofTactics {
       val fo = forall(x, prev._2)
       (prev._1 appended RightForall(emptySeq +> fo, prev._3, prev._2, x), fo, prev._3 + 1)
     })
-    //val p6 = MakeFunctionDefinition(fdef._1.size - 1, f, args, x, x === t)
     SCProof(fdef._1 )
   }
   // p1 is a proof of psi given phi, p2 is a proof of psi given !phi
