@@ -403,12 +403,12 @@ object SCProofChecker {
                     else (false, Nil, "Predicate schema ?q must have arity 0.")
                 /**
                  * <pre>
-                 *    Γ |- Δ
-                 * ---------------------
-                 *  Γ[?f/r(a)] |- Δ[?f/r(a)]
+                 *           Γ |- Δ
+                 * --------------------------
+                 *  Γ[r(a)/?f] |- Δ[r(a)/?f]
                  * </pre>
                  */
-                case InstantiateSchematicFunction(bot, t1, f, r, a) =>
+                case InstFunSchema(bot, t1, f, r, a) =>
                     val expected = (ref(t1).left.map(phi => instantiateFunctionSchema(phi, f, r, a)), ref(t1).right.map(phi => instantiateFunctionSchema(phi, f, r, a)))
                     if (isSameSet(bot.left, expected._1))
                         if (isSameSet(bot.right, expected._2))
@@ -418,12 +418,12 @@ object SCProofChecker {
 
                 /**
                  * <pre>
-                 *    Γ |- Δ
-                 * ---------------------
-                 *  Γ[?p/ψ(a)] |- Δ[?p/ψ(a)]
+                 *           Γ |- Δ
+                 * --------------------------
+                 *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
                  * </pre>
                  */
-                case InstantiateSchematicPredicate(bot, t1, p, psi, a) =>
+                case InstPredSchema(bot, t1, p, psi, a) =>
                     val expected = (ref(t1).left.map(phi => instantiatePredicateSchema(phi, p, psi, a)), ref(t1).right.map(phi => instantiatePredicateSchema(phi, p, psi, a)))
                     if (isSameSet(bot.left, expected._1))
                         if (isSameSet(bot.right, expected._2))
