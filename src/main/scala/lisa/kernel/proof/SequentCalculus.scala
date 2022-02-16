@@ -263,17 +263,17 @@ object SequentCalculus {
     case class RightSubstEq(bot: Sequent, t1: Int, s: Term, t: Term, phi: Formula, f: SchematicFunctionLabel) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
-     *    Γ, φ[a/h] |- Δ
+     *    Γ, φ[a/?p] |- Δ
      * ---------------------
-     *  Γ, a↔b, φ[b/h] |- Δ
+     *  Γ, a↔b, φ[b/?p] |- Δ
      * </pre>
      */
     case class LeftSubstIff(bot: Sequent, t1: Int, fa: Formula, fb: Formula, phi: Formula, h: SchematicPredicateLabel) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
-     *    Γ |- φ[a/h], Δ
+     *    Γ |- φ[a/?p], Δ
      * ---------------------
-     *  Γ, a↔b |- φ[b/h], Δ
+     *  Γ, a↔b |- φ[b/?p], Δ
      * </pre>
      */
     case class RightSubstIff(bot: Sequent, t1: Int, fa: Formula, fb: Formula, phi: Formula, h: SchematicPredicateLabel) extends SCProofStep{val premises = Seq(t1)}
@@ -281,7 +281,7 @@ object SequentCalculus {
      * <pre>
      *    Γ |- Δ
      * ---------------------
-     *  Γ[?f/r(a)] |- Δ[?f/r(a)]
+     *  Γ[r(a)/?f] |- Δ[r(a)/?f]
      * </pre>
      */
     case class InstantiateSchematicFunction(bot:Sequent, t1:Int, f:SchematicFunctionLabel, r:Term, a: Seq[VariableLabel] )
@@ -289,7 +289,7 @@ object SequentCalculus {
      * <pre>
      *    Γ |- Δ
      * ---------------------
-     *  Γ[?p/ψ(a)] |- Δ[?p/ψ(a)]
+     *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
      * </pre>
      */
     case class InstantiateSchematicPredicate(bot:Sequent, t1:Int, p:SchematicPredicateLabel, psi:Formula, a: Seq[VariableLabel] )
