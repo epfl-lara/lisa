@@ -90,7 +90,16 @@ object Printer {
                     val leftParenthesized = if(isLeftParentheses) prettyParentheses(leftString) else leftString
                     val rightParenthesized = if(isRightParentheses) prettyParentheses(rightString) else rightString
                     prettyInfix(label.id, leftParenthesized, rightParenthesized, compact)
-                case _ => label.id+"("+args.map(a => prettyFormulaInternal(a, isRightMost, compact)).mkString(",")+")" //throw new Exception // Invalid number of arguments, cannot print
+                case (nary @ (And | Or), args) if args.nonEmpty =>
+                    // Rewriting to match the above case; namely op(a) --> a, and op(a, ...rest) --> op(a, op(...rest))
+                    // Empty args aren't allowed here
+                    // Invariant: args.size > 2
+                    if(args.sizeIs == 1) {
+                        prettyFormulaInternal(args.head, isRightMost, compact)
+                    } else {
+                        prettyFormulaInternal(ConnectorFormula(nary, Seq(args.head, ConnectorFormula(nary, args.tail))), isRightMost, compact)
+                    }
+                case _ => prettyFunction(label.id, args.map(a => prettyFormulaInternal(a, isRightMost, compact)), compact)
             }
         case BinderFormula(label, bound, inner) =>
             def accumulateNested(f: Formula, acc: Seq[VariableLabel]): (Seq[VariableLabel], Formula) = f match {
@@ -102,25 +111,25 @@ object Printer {
     }
 
     /**
-     * Returns a string representation of this formula. See also {@link prettyTerm}.
+     * Returns a string representation of this formula. See also [[prettyTerm]].
      * Example output:
      * <pre>
      * ∀x, y. (∀z. (z ∈ x) ↔ (z ∈ y)) ↔ (x = y)
      * </pre>
      * @param formula the formula
-     * @param compact if spaces should be omitted between separators
+     * @param compact whether spaces should be omitted between tokens
      * @return the string representation of this formula
      */
     def prettyFormula(formula: Formula, compact: Boolean = false): String = prettyFormulaInternal(formula, true, compact)
 
     /**
-     * Returns a string representation of this term. See also {@link prettyFormula}.
+     * Returns a string representation of this term. See also [[prettyFormula]].
      * Example output:
      * <pre>
      * f({w, (x, y)}, z)
      * </pre>
      * @param term the term
-     * @param compact if spaces should be omitted between separators
+     * @param compact whether spaces should be omitted between tokens
      * @return the string representation of this term
      */
     def prettyTerm(term: Term, compact: Boolean = false): String = term match {
@@ -162,7 +171,7 @@ object Printer {
      * ⊢ ∀x, y. (∀z. (z ∈ x) ↔ (z ∈ y)) ↔ (x = y)
      * </pre>
      * @param sequent the sequent
-     * @param compact if spaces should be omitted between separators
+     * @param compact whether spaces should be omitted between tokens
      * @return the string representation of this sequent
      */
     def prettySequent(sequent: Sequent, compact: Boolean = false): String = {
@@ -221,17 +230,9 @@ object Printer {
                         Seq(stepName, topSteps.mkString(commaSeparator(compact = false))).filter(_.nonEmpty).mkString(" "),
                         prettySequent(step.bot)
                     )
-                def prettyDefinition(stepName: String, left: String, right: String, condition: Option[String] = None): (Boolean, String, String, String) =
-                    ( // This method is an alternative to print something more meaningful for definitions
-                        showErrorForLine,
-                        prefixString,
-                        stepName,
-                        Seq(Seq(left, ":=", right) ++ condition.toSeq).filter(_.nonEmpty).map(_.mkString(" ")).mkString(", ")
-                    )
                 step match {
                     case sp @ SCSubproof(_, _, true) => pretty("Subproof", sp.premises*) +: prettySCProofRecursive(sp.sp, level + 1, currentTree, (if(i == 0) topMostIndices else IndexedSeq.empty) :+ i)
                     case other =>
-
                         val line = other match {
                             case Rewrite(_, t1) => pretty("Rewrite", t1)
                             case Hypothesis(_, _) => pretty("Hypo.")
@@ -245,14 +246,14 @@ object Printer {
                             case LeftOr(_, l, _) => pretty("Left ∨", l*)
                             case RightExists(_, t1, _, _, _) => pretty("Right ∃", t1)
                             case RightForall(_, t1, _, _) => pretty("Right ∀", t1)
-                            case RightAnd(_, l,_) => pretty("Right ∧", l*)
+                            case RightAnd(_, l, _) => pretty("Right ∧", l*)
                             case RightIff(_, t1, t2, _, _) => pretty("Right ↔", t1, t2)
                             case RightImplies(_, t1, _, _) => pretty("Right →", t1)
                             case Weakening(_, t1) => pretty("Weakening", t1)
                             case LeftImplies(_, t1, t2, _, _) => pretty("Left →", t1, t2)
                             case LeftIff(_, t1, _, _) => pretty("Left ↔", t1)
-                            case LeftRefl(_, t1, _) => pretty("L. Axiom", t1)
-                            case RightRefl(_, _) => pretty("R. Axiom")
+                            case LeftRefl(_, t1, _) => pretty("L. Refl", t1)
+                            case RightRefl(_, _) => pretty("R. Refl")
                             case LeftSubstEq(_, t1, _, _, _, _) => pretty("L. SubstEq", t1)
                             case RightSubstEq(_, t1, _, _, _, _) => pretty("R. SubstEq", t1)
                             case LeftSubstIff(_, t1, _, _, _, _) => pretty("L. SubstIff", t1)
@@ -275,7 +276,7 @@ object Printer {
                 val suffix = Seq(indices, rightPadSpaces(stepName, maxStepNameLength), sequent)
                 val full = if(showError.nonEmpty) (if(isMarked) marker else leftPadSpaces("", marker.length)) +: suffix else suffix
                 full.mkString(" ")
-        }.mkString("\n")+(if (showError.nonEmpty) s"\nProof checker has reported error at line ${showError.get._1}: ${showError.get._2}" else "")
+        }.mkString("\n") + (if (showError.nonEmpty) s"\nProof checker has reported error at line ${showError.get._1}: ${showError.get._2}" else "")
     }
 
 }
