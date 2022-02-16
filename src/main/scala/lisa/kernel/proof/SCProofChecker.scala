@@ -401,6 +401,35 @@ object SCProofChecker {
                             else (false, Nil, s"Right-hand side of the premise and the conclusion should be the same with each containing one of φ[τ/?q] and φ[ψ/?q], but it isn't the case." )
                         else (false, Nil, "Left-hand sides of the premise + ψ↔τ must be the same as left-hand side of the premise.")
                     else (false, Nil, "Predicate schema ?q must have arity 0.")
+                /**
+                 * <pre>
+                 *           Γ |- Δ
+                 * --------------------------
+                 *  Γ[r(a)/?f] |- Δ[r(a)/?f]
+                 * </pre>
+                 */
+                case InstFunSchema(bot, t1, f, r, a) =>
+                    val expected = (ref(t1).left.map(phi => instantiateFunctionSchema(phi, f, r, a)), ref(t1).right.map(phi => instantiateFunctionSchema(phi, f, r, a)))
+                    if (isSameSet(bot.left, expected._1))
+                        if (isSameSet(bot.right, expected._2))
+                            (true, Nil, "")
+                        else (false, Nil, "Right-hand side of premise instantiated with [?f/r(a)] must be the same as right-hand side of conclusion.")
+                    else  (false, Nil, "Left-hand side of premise instantiated with [?f/r(a)] must be the same as left-hand side of conclusion.")
+
+                /**
+                 * <pre>
+                 *           Γ |- Δ
+                 * --------------------------
+                 *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
+                 * </pre>
+                 */
+                case InstPredSchema(bot, t1, p, psi, a) =>
+                    val expected = (ref(t1).left.map(phi => instantiatePredicateSchema(phi, p, psi, a)), ref(t1).right.map(phi => instantiatePredicateSchema(phi, p, psi, a)))
+                    if (isSameSet(bot.left, expected._1))
+                        if (isSameSet(bot.right, expected._2))
+                            (true, Nil, "")
+                        else (false, Nil, "Right-hand side of premise instantiated with [?p/ψ(a)] must be the same as right-hand side of conclusion.")
+                    else  (false, Nil, "Left-hand side of premise instantiated with [?p/ψ(a)] must be the same as left-hand side of conclusion.")
 
                 case SCSubproof(sp, premises, _) =>
                     if (premises.size == sp.imports.size){
@@ -409,7 +438,7 @@ object SCProofChecker {
                             val r_subproof = checkSCProof(sp)
                             if (r_subproof._1)
                                 (true, Nil, "")
-                            else (false, r_subproof._2, "Subproof reports an error:\n"+r_subproof._3)
+                            else (false, r_subproof._2, r_subproof._3)
                         } else (false, Nil, s"Premise number ${invalid.get._1} (refering to step ${invalid.get}) is not the same as import number ${invalid.get._1} of the subproof.")
                     } else (false, Nil, "Number of premises and imports don't match: "+premises.size+" "+sp.imports.size)
 

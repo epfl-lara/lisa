@@ -1,6 +1,7 @@
 package lisa.kernel.proof
 
-import lisa.kernel.fol.FOL._
+import lisa.kernel.fol.FOL.*
+
 import scala.collection.immutable.Set
 
 
@@ -262,20 +263,36 @@ object SequentCalculus {
     case class RightSubstEq(bot: Sequent, t1: Int, s: Term, t: Term, phi: Formula, f: SchematicFunctionLabel) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
-     *    Γ, φ[a/h] |- Δ
+     *    Γ, φ[a/?p] |- Δ
      * ---------------------
-     *  Γ, a↔b, φ[b/h] |- Δ
+     *  Γ, a↔b, φ[b/?p] |- Δ
      * </pre>
      */
     case class LeftSubstIff(bot: Sequent, t1: Int, fa: Formula, fb: Formula, phi: Formula, h: SchematicPredicateLabel) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
-     *    Γ |- φ[a/h], Δ
+     *    Γ |- φ[a/?p], Δ
      * ---------------------
-     *  Γ, a↔b |- φ[b/h], Δ
+     *  Γ, a↔b |- φ[b/?p], Δ
      * </pre>
      */
     case class RightSubstIff(bot: Sequent, t1: Int, fa: Formula, fb: Formula, phi: Formula, h: SchematicPredicateLabel) extends SCProofStep{val premises = Seq(t1)}
+    /**
+     * <pre>
+     *           Γ |- Δ
+     * --------------------------
+     *  Γ[r(a)/?f] |- Δ[r(a)/?f]
+     * </pre>
+     */
+    case class InstFunSchema(bot:Sequent, t1:Int, f:SchematicFunctionLabel, r:Term, a: Seq[VariableLabel] )
+    /**
+     * <pre>
+     *           Γ |- Δ
+     * --------------------------
+     *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
+     * </pre>
+     */
+    case class InstPredSchema(bot:Sequent, t1:Int, p:SchematicPredicateLabel, psi:Formula, a: Seq[VariableLabel] )
 
     // Proof Organisation rules
     case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty, display:Boolean = true) extends SCProofStep {
