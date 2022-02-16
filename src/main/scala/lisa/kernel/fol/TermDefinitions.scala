@@ -87,7 +87,7 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
    *          Those variables are replaced by the actual arguments of f.
    * @return t[r(a1,..., an)/f]
    */
-  def instantiateFunctionSchema(t: Term, f: SchematicFunctionLabel, r: Term, a: List[VariableLabel]): Term = {
+  def instantiateFunctionSchema(t: Term, f: SchematicFunctionLabel, r: Term, a: Seq[VariableLabel]): Term = {
     require(a.length == f.arity)
     t match {
       case VariableTerm(label) => t

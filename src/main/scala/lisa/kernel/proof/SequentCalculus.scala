@@ -1,6 +1,7 @@
 package lisa.kernel.proof
 
-import lisa.kernel.fol.FOL._
+import lisa.kernel.fol.FOL.*
+
 import scala.collection.immutable.Set
 
 
@@ -276,6 +277,22 @@ object SequentCalculus {
      * </pre>
      */
     case class RightSubstIff(bot: Sequent, t1: Int, fa: Formula, fb: Formula, phi: Formula, h: SchematicPredicateLabel) extends SCProofStep{val premises = Seq(t1)}
+    /**
+     * <pre>
+     *    Γ |- Δ
+     * ---------------------
+     *  Γ[?f/r(a)] |- Δ[?f/r(a)]
+     * </pre>
+     */
+    case class InstantiateSchematicFunction(bot:Sequent, t1:Int, f:SchematicFunctionLabel, r:Term, a: Seq[VariableLabel] )
+    /**
+     * <pre>
+     *    Γ |- Δ
+     * ---------------------
+     *  Γ[?p/ψ(a)] |- Δ[?p/ψ(a)]
+     * </pre>
+     */
+    case class InstantiateSchematicPredicate(bot:Sequent, t1:Int, p:SchematicPredicateLabel, psi:Formula, a: Seq[VariableLabel] )
 
     // Proof Organisation rules
     case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty, display:Boolean = true) extends SCProofStep {

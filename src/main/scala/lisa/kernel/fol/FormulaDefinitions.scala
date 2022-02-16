@@ -112,7 +112,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    *            Those variables are replaced by the actual arguments of p.
    * @return phi[psi(a1,..., an)/p]
    */
-  def instantiatePredicateSchema(phi: Formula, p: SchematicPredicateLabel, psi: Formula, a: List[VariableLabel]): Formula = {
+  def instantiatePredicateSchema(phi: Formula, p: SchematicPredicateLabel, psi: Formula, a: Seq[VariableLabel]): Formula = {
     require(a.length == p.arity)
     phi match {
       case PredicateFormula(label, args) =>
@@ -139,7 +139,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    *            Those variables are replaced by the actual arguments of f.
    * @return phi[r(a1,..., an)/f]
    */
-  def instantiateFunctionSchema(phi: Formula, f: SchematicFunctionLabel, r: Term, a: List[VariableLabel]): Formula = {
+  def instantiateFunctionSchema(phi: Formula, f: SchematicFunctionLabel, r: Term, a: Seq[VariableLabel]): Formula = {
     require(a.length == f.arity)
     phi match {
       case PredicateFormula(label, args) => PredicateFormula(label, args.map(instantiateFunctionSchema(_, f, r, a)))
