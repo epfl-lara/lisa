@@ -21,6 +21,8 @@ The TPTP package contains a parser from the TPTP file format to LISA. The simple
 * `sbt test` to compile and execute the test suite
 * `sbt assembly` to package it as a library
 * `sbt doc` to generate the Scala documentation
+* `sbt scalafix` to lint the while codebase
+* `sbt scalafmt` to format the whole codebase
 
 
 ## LICENSE

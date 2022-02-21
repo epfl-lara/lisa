@@ -13,8 +13,9 @@ import proven.tactics.SimplePropositionalSolver as SPS
 
 
 class SimpleProverTests extends AnyFunSuite {
-    
-    test("Simple propositional logic proofs") {
+
+    // Requires files that are not provided in this repository, thus the test is disabled by default
+    ignore("Simple propositional logic proofs") {
         val problems = getPRPproblems.take(1)
 
         problems.foreach( pr => {
