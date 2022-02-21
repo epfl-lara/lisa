@@ -7,6 +7,4 @@ package lisa.kernel.fol
  * import lisa.fol.FOL._
  * </pre>
  */
-object FOL extends FormulaDefinitions with EquivalenceChecker {
-
-}
+object FOL extends FormulaDefinitions with EquivalenceChecker {}

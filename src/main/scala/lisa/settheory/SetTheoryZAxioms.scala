@@ -1,8 +1,9 @@
 package lisa.settheory
 
+import lisa.KernelHelpers.{_, given}
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
-import lisa.KernelHelpers.{given, _}
+
 /**
  * Axioms for the Zermelo theory (Z)
  */
@@ -15,15 +16,12 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
   final val powerAxiom: Axiom = forall(x, forall(y, in(x, powerSet(y)) <=> subset(x, y)))
   final val foundationAxiom: Axiom = forall(x, !(x === emptySet()) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
 
-
-  final val comprehensionSchema: Axiom = forall(z, exists(y, forall(x, in(x,y) <=> (in(x,y) /\ sPhi(x,z)))))
+  final val comprehensionSchema: Axiom = forall(z, exists(y, forall(x, in(x, y) <=> (in(x, y) /\ sPhi(x, z)))))
 
   private val zAxioms: Set[Axiom] = Set(emptySetAxiom, extensionalityAxiom, pairAxiom, unionAxiom, powerAxiom, foundationAxiom)
 
-
-  
   zAxioms.foreach(a => runningSetTheory.addAxiom(a))
-    
+
   override def axioms: Set[Axiom] = super.axioms ++ zAxioms
 
 }

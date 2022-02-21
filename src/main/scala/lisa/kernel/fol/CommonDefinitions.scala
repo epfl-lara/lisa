@@ -5,6 +5,7 @@ package lisa.kernel.fol
  */
 private[fol] trait CommonDefinitions {
   val MaxArity: Int = 1000000
+
   /**
    * An object with arity information for tree-like structures.
    */
@@ -14,7 +15,6 @@ private[fol] trait CommonDefinitions {
 
   /**
    * An labelled node for tree-like structures.
-   *
    */
   protected trait Label[A <: Label[A]] extends Ordered[A] {
     val id: String

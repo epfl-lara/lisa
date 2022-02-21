@@ -1,4 +1,4 @@
-package proven
+package lisa.proven
 
 import lisa.kernel.Printer.*
 import lisa.kernel.proof.{RunningTheory, SCProofChecker}

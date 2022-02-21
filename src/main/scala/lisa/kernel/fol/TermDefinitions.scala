@@ -13,14 +13,12 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
     def functions: Set[ConstantFunctionLabel]
   }
 
-
   /**
    * The parent classes of terms.
    * A term is a tree with nodes labeled by functions labels or variables.
    * The number of children of a node is restricted by the arity imposed by the label.
    */
   sealed abstract class Term extends TreeWithLabel[TermLabel]
-
 
   /**
    * A term which consists of a single variable.
@@ -45,8 +43,8 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
     override def functions: Set[ConstantFunctionLabel] = label match {
-      case l:ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions) + l
-      case l:SchematicFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions)
+      case l: ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions) + l
+      case l: SchematicFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions)
     }
 
     val arity: Int = args.size

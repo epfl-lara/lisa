@@ -1,10 +1,10 @@
-
-import lisa.KernelHelpers.{*, given}
+import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer.*
 import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.kernel.proof.{SCProof, SCProofChecker}
 import proven.tactics.SimplePropositionalSolver.solveSequent
 import tptp.KernelParser.*
 import tptp.ProblemGatherer.getPRPproblems
@@ -13,8 +13,8 @@ import tptp.ProblemGatherer.getPRPproblems
  * Discover some of the elements of LISA to get started.
  */
 object Example {
-  def main(args: Array[String]):Unit = {
-    //proofExample() //uncomment when exercise finished
+  def main(args: Array[String]): Unit = {
+    // proofExample() //uncomment when exercise finished
     solverExample()
     tptpExample()
   }
@@ -25,20 +25,21 @@ object Example {
    * The last two lines don't need to be changed.
    */
   def proofExample(): Unit = {
-    val proof: SCProof = SCProof(Vector(
-      ???,
-      ???,
-      ?????(  Set(P(x), P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))),     1, 0, ????, ???? ),
-      Hypothesis(  Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x),   P(f(f(x)))), P(x) ),
-      LeftImplies(  ???? |- ????,     3,  2,  ????,  ???? ),
-      LeftForall(  Set(????, ????, ????) |- ????,     4,  ????,  x,  x ),
-      LeftForall(  Set(????, ????) |- ????,     5,  P(x) ==> P(f(x)),  x,  f(x) ),
-      RightImplies( forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))),     6,  P(x),  P(f(f(x))) ),
-      RightForall( forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))),    7,  P(x) ==> P(f(f(x))),  x )
-    ))
+    val proof: SCProof = SCProof(
+      Vector(
+        ???,
+        ???,
+        ?????(Set(P(x), P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))), 1, 0, ????, ????),
+        Hypothesis(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))), P(x)),
+        LeftImplies(???? |- ????, 3, 2, ????, ????),
+        LeftForall(Set(????, ????, ????) |- ????, 4, ????, x, x),
+        LeftForall(Set(????, ????) |- ????, 5, P(x) ==> P(f(x)), x, f(x)),
+        RightImplies(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))), 6, P(x), P(f(f(x)))),
+        RightForall(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))), 7, P(x) ==> P(f(f(x))), x)
+      )
+    )
     checkProof(proof)
   }
-
 
   /**
    * An example of how to use the simple propositional solver.
@@ -62,10 +63,13 @@ object Example {
       () |- ((T /\ Q) \/ (!T /\ R)) <=> ((T ==> Q) /\ (!T ==> R))
     )
     println("\n   --- Wrong ---")
-    tests.map(solveSequent).zipWithIndex.foreach(p => {
-      println(s"\nPropositional statement no ${p._2}")
-      checkProof(p._1)
-    })
+    tests
+      .map(solveSequent)
+      .zipWithIndex
+      .foreach(p => {
+        println(s"\nPropositional statement no ${p._2}")
+        checkProof(p._1)
+      })
   }
 
   /**
@@ -85,7 +89,7 @@ object Example {
       "\nfof(pel24_2,axiom,\n    ( ! [X] :\n        ( big_p(X)\n       => ( big_q(X)\n          | big_r(X) ) ) )).",
       "fof(pel24_3,axiom,\n    ( ~ ( ? [X] : big_p(X) )\n   => ? [Y] : big_q(Y) )).",
       "fof(pel24_4,axiom,\n    ( ! [X] :\n        ( ( big_q(X)\n          | big_r(X) )\n       => big_s(X) ) )).",
-      "fof(pel24,conjecture,\n    ( ? [X] :\n        ( big_p(X)\n        & big_r(X) ) )).",
+      "fof(pel24,conjecture,\n    ( ? [X] :\n        ( big_p(X)\n        & big_r(X) ) ))."
     )
 
     println("\n---Individual Fetched Formulas---")
@@ -99,11 +103,9 @@ object Example {
 
     try {
       val probs = getPRPproblems
-      probs.foreach(p =>
-        println("Problem: "+p.name+" ("+p.domain+") --- "+p.file)
-      )
+      probs.foreach(p => println("Problem: " + p.name + " (" + p.domain + ") --- " + p.file))
 
-      println("Number of problems found with PRP spc: "+probs.size)
+      println("Number of problems found with PRP spc: " + probs.size)
 
       if (probs.nonEmpty) {
         println(" - First problem as illustration:")
@@ -112,32 +114,23 @@ object Example {
         println("\n---Sequent---")
         println(prettySequent(seq))
       }
+    } catch {
+      case error: NullPointerException => println("You can download the tptp library at http://www.tptp.org/ and put it in main/resources")
     }
-    catch {
-      case error:NullPointerException => println("You can download the tptp library at http://www.tptp.org/ and put it in main/resources")
-    }
-
-
 
   }
 
-
-
-
-
-
-
   // Utility
-  def printAnnotatedFormula(a:AnnotatedFormula):Unit = {
+  def printAnnotatedFormula(a: AnnotatedFormula): Unit = {
     if (a.role == "axiom") println("Given " + a.name + ": " + prettyFormula(a.formula))
     else if (a.role == "conjecture") println("Prove " + a.name + ": " + prettyFormula(a.formula))
     else println(a.role + " " + a.name + ": " + prettyFormula(a.formula))
   }
 
-  def printProblem(p:Problem) : Unit = {
-    println("Problem: "+p.name+" ("+p.domain+") ---")
-    println("Status: "+p.status)
-    println("SPC: "+p.spc.mkString(", "))
+  def printProblem(p: Problem): Unit = {
+    println("Problem: " + p.name + " (" + p.domain + ") ---")
+    println("Status: " + p.status)
+    println("SPC: " + p.spc.mkString(", "))
     p.formulas.foreach(printAnnotatedFormula)
   }
   private def checkProof(proof: SCProof): Unit = {
@@ -157,7 +150,6 @@ object Example {
   val x = VariableLabel("x")
   val f = ConstantFunctionLabel("f", 1)
 
-
-  def ???? :Formula = ???
+  def ???? : Formula = ???
   def ?????(args: Any*) = ???
 }

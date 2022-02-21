@@ -1,6 +1,5 @@
 package lisa
 
-
 object KernelHelpers {
 
   import lisa.kernel.proof.SequentCalculus.Sequent
@@ -17,17 +16,13 @@ object KernelHelpers {
   def existsOne(label: VariableLabel, body: Formula): Formula = BinderFormula(ExistsOne, label, body)
   def equ(l: Term, r: Term): Formula = PredicateFormula(equality, Seq(l, r))
 
-  extension (label: PredicateLabel)
-    def apply(args: Term*): Formula = PredicateFormula(label, args)
+  extension (label: PredicateLabel) def apply(args: Term*): Formula = PredicateFormula(label, args)
 
-  extension (label: ConnectorLabel)
-    def apply(args: Formula*): Formula = ConnectorFormula(label, args)
+  extension (label: ConnectorLabel) def apply(args: Formula*): Formula = ConnectorFormula(label, args)
 
-  extension (label: FunctionLabel)
-    def apply(args: Term*): Term = FunctionTerm(label, args)
+  extension (label: FunctionLabel) def apply(args: Term*): Term = FunctionTerm(label, args)
 
-  extension (label: BinderLabel)
-    def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
+  extension (label: BinderLabel) def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
 
   // Infix
   extension (f: Formula) {
@@ -38,8 +33,7 @@ object KernelHelpers {
     infix def \/(g: Formula): Formula = or(f, g)
   }
 
-  extension (t: Term)
-    infix def ===(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
+  extension (t: Term) infix def ===(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
 
   // Other
   given Conversion[VariableLabel, VariableTerm] = VariableTerm.apply
@@ -63,8 +57,6 @@ object KernelHelpers {
   // given Conversion[Tuple, List[Union[_.type]]] = _.toList
 
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
-
-
 
   extension (s: Sequent) {
     infix def +<(f: Formula): Sequent = s.copy(left = s.left + f)

@@ -1,13 +1,14 @@
 package lisa.settheory
 
+import lisa.KernelHelpers.{_, given}
 import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.RunningTheory
-import lisa.KernelHelpers.{given, _}
+
 /**
  * Base trait for set theoretical axiom systems.
  * Defines the symbols used in set theory.
  */
-private[settheory] trait SetTheoryDefinitions{
+private[settheory] trait SetTheoryDefinitions {
   type Axiom = Formula
   def axioms: Set[Axiom] = Set.empty
   private[settheory] final val (x, y, z, a, b) =
@@ -31,7 +32,7 @@ private[settheory] trait SetTheoryDefinitions{
   final val universe: FunctionLabel = ConstantFunctionLabel("universe", 1)
   final val functions = Set(emptySet, pair, singleton, powerSet, union, universe)
 
-  val runningSetTheory:RunningTheory = new RunningTheory()
+  val runningSetTheory: RunningTheory = new RunningTheory()
   given RunningTheory = runningSetTheory
 
   predicates.foreach(s => runningSetTheory.addSymbol(s))

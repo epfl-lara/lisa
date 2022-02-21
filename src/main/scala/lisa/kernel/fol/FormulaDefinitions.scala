@@ -13,7 +13,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   sealed abstract class Formula extends TreeWithLabel[FormulaLabel] {
     def predicates: Set[ConstantPredicateLabel]
     def functions: Set[ConstantFunctionLabel]
-    //def predicatesSchemas: Set[PredicateLabel] = predicates filter { case _: ConstantPredicateLabel => false; case _: SchematicPredicateLabel => true }
+    // def predicatesSchemas: Set[PredicateLabel] = predicates filter { case _: ConstantPredicateLabel => false; case _: SchematicPredicateLabel => true }
   }
 
   /**
@@ -29,7 +29,6 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
 
     override def functions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions)
   }
-
 
   /**
    * The formula counterpart of [[ConnectorLabel]].
@@ -73,12 +72,11 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
           val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
           val newInner = substituteVariable(inner, bound, VariableTerm(newBoundVariable))
           BinderFormula(label, newBoundVariable, substituteVariable(newInner, x, r))
-        }
-        else BinderFormula(label, bound, substituteVariable(inner, x, r))
+        } else BinderFormula(label, bound, substituteVariable(inner, x, r))
       }
   }
 
-  def bindAll(binder: BinderLabel, vars: Seq[VariableLabel], phi:Formula): Formula =
+  def bindAll(binder: BinderLabel, vars: Seq[VariableLabel], phi: Formula): Formula =
     vars.sortBy(_.name).foldLeft(phi)((f, v) => BinderFormula(binder, v, f))
 
   /**
@@ -98,8 +96,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
         val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
         val newInner = substituteVariable(inner, bound, VariableTerm(newBoundVariable))
         BinderFormula(label, newBoundVariable, simultaneousSubstitution(newInner, newSubst))
-      }
-      else BinderFormula(label, bound, simultaneousSubstitution(inner, newSubst))
+      } else BinderFormula(label, bound, simultaneousSubstitution(inner, newSubst))
   }
 
   /**

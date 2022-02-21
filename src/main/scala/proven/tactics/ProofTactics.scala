@@ -1,12 +1,12 @@
 package proven.tactics
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.KernelHelpers.{*, given}
+import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer.*
+import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.*
 
 import scala.collection.immutable.Set
-import lisa.kernel.proof.SCProof
 
 /**
  * SCProof tactics are a set of strategies that help the user write proofs in a more expressive way
@@ -31,10 +31,15 @@ object ProofTactics {
     }
   }
   def instantiateForall(p: SCProof, phi: Formula, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
-    t.foldLeft((p, phi)) { case ((p, f), t1) => (instantiateForall(p, f, t1), f match {
-      case b @ BinderFormula(Forall, _, _) => instantiateBinder(b, t1)
-      case _ => throw new Exception
-    }) }._1
+    t.foldLeft((p, phi)) { case ((p, f), t1) =>
+      (
+        instantiateForall(p, f, t1),
+        f match {
+          case b @ BinderFormula(Forall, _, _) => instantiateBinder(b, t1)
+          case _ => throw new Exception
+        }
+      )
+    }._1
   }
   def instantiateForall(p: SCProof, t: Term): SCProof = instantiateForall(p, p.conclusion.right.head, t) // if a single formula on the right
   def instantiateForall(p: SCProof, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
@@ -68,20 +73,19 @@ object ProofTactics {
   def simpleFunctionDefinition(f: FunctionLabel, t: Term, args: Seq[VariableLabel]): SCProof = {
     assert(t.freeVariables subsetOf args.toSet)
     val x = VariableLabel(freshId(t.freeVariables.map(_.id), "x"))
-    val y = VariableLabel(freshId(t.freeVariables.map(_.id)+x.id, "x"))
+    val y = VariableLabel(freshId(t.freeVariables.map(_.id) + x.id, "x"))
     val p0 = RightRefl(emptySeq +> (t === t), t === t) // |- t===t
     val p1 = hypothesis(y === t) // (t===y)|-(t===y)
     val p2 = RightImplies(emptySeq +> ((t === y) ==> (t === y)), 1, t === y, t === y) // |- (t===y)==>(t===y)
     val p3 = RightForall(emptySeq +> forall(y, (t === y) ==> (t === y)), 2, p2.bot.right.head, y) // |- ∀y (t===y)==>(t===y)
     val p4 = RightAnd(emptySeq +> p0.bot.right.head /\ p3.bot.right.head, Seq(0, 3), Seq(p0.bot.right.head, p3.bot.right.head)) // |- t===t /\ ∀y(t===y)==>(t===y)
-    val p5 = RightExists(emptySeq +> exists(x, (x === t) /\ forall(y, (t === y) ==> (x === y))), 4,
-      (x === t) /\ forall(y, (t === y) ==> (x === y)), x, t) // |- ∃x x === t /\ ∀y(t===y)==>(x===y)
+    val p5 = RightExists(emptySeq +> exists(x, (x === t) /\ forall(y, (t === y) ==> (x === y))), 4, (x === t) /\ forall(y, (t === y) ==> (x === y)), x, t) // |- ∃x x === t /\ ∀y(t===y)==>(x===y)
     val definition = SCProof(IndexedSeq(p0, p1, p2, p3, p4, p5))
     val fdef = args.foldLeft((definition.steps, p5.bot.right.head, 5))((prev, x) => {
       val fo = forall(x, prev._2)
       (prev._1 appended RightForall(emptySeq +> fo, prev._3, prev._2, x), fo, prev._3 + 1)
     })
-    SCProof(fdef._1 )
+    SCProof(fdef._1)
   }
   // p1 is a proof of psi given phi, p2 is a proof of psi given !phi
   def byCase(phi: Formula)(pa: SCProofStep, pb: SCProofStep): SCProof = {
@@ -112,19 +116,23 @@ object ProofTactics {
       SCProof(pa, pb, p2, p3, p4)
     }
   }
-  
+
   def detectSubstitution(x: VariableLabel, f: Formula, s: Formula, c: Option[Term] = None): (Option[Term], Boolean) = (f, s) match {
     case (PredicateFormula(la1, args1), PredicateFormula(la2, args2)) if isSame(la1, la2) => {
-      args1.zip(args2).foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
-        val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
-        (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
-      })
+      args1
+        .zip(args2)
+        .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
+          val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+        })
     }
     case (ConnectorFormula(la1, args1), ConnectorFormula(la2, args2)) if isSame(la1, la2) => {
-      args1.zip(args2).foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
-        val r2 = detectSubstitution(x, a._1, a._2, r1._1)
-        (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
-      })
+      args1
+        .zip(args2)
+        .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
+          val r2 = detectSubstitution(x, a._1, a._2, r1._1)
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+        })
     }
     case (BinderFormula(la1, bound1, inner1), BinderFormula(la2, bound2, inner2)) if la1 == la2 && bound1 == bound2 => { // TODO renaming
       detectSubstitution(x, inner1, inner2, c)
@@ -136,18 +144,18 @@ object ProofTactics {
       if (isSame(y.label, x)) {
         if (c.isDefined) {
           (c, isSame(c.get, z))
-        }
-        else {
+        } else {
           (Some(z), true)
         }
-      }
-      else (c, isSame(y, z))
+      } else (c, isSame(y, z))
     }
     case (FunctionTerm(la1, args1), FunctionTerm(la2, args2)) if isSame(la1, la2) => {
-      args1.zip(args2).foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
-        val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
-        (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
-      })
+      args1
+        .zip(args2)
+        .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
+          val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+        })
     }
     case _ => (c, false)
   }

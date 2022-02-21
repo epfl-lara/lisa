@@ -1,10 +1,10 @@
 package proven.tactics
 
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.kernel.fol.FOL.*
 import lisa.KernelHelpers.*
-import proven.tactics.ProofTactics.hypothesis
+import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.*
+import proven.tactics.ProofTactics.hypothesis
 
 object Destructors {
   def destructRightOr(p: SCProof, a: Formula, b: Formula): SCProof = {

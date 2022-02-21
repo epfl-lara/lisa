@@ -1,10 +1,11 @@
 package proven.tactics
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
-import scala.collection.mutable.Set as mSet
 import lisa.KernelHelpers.*
+import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.*
+
+import scala.collection.mutable.Set as mSet
 
 /**
  * A simple but complete solver for propositional logic. Will not terminate for large problems
@@ -19,7 +20,7 @@ object SimplePropositionalSolver {
     val others: mSet[Formula] = mSet()
 
     def updateFormula(phi: Formula, add: Boolean): Unit = (phi match {
-      case phi@ConnectorFormula(label, args) =>
+      case phi @ ConnectorFormula(label, args) =>
         label match {
           case Neg => if (add) negs.add(phi) else negs.remove(phi)
           case Implies => if (add) impliess.add(phi) else impliess.remove(phi)
@@ -50,22 +51,20 @@ object SimplePropositionalSolver {
       right.updateFormula(f.args.head, true)
       val proof = solveOrganisedSequent(left, right, s -< f +> phi, offset)
       LeftNot(s, proof.length - 1 + offset, phi) :: proof
-    }
-    else if (left.impliess.nonEmpty) {
+    } else if (left.impliess.nonEmpty) {
       val f = left.impliess.head
       val phi = f.args(0)
       val psi = f.args(1)
 
-      left.updateFormula(f, false) //gamma
-      val rl = left.copy() //sigma
-      val rr = right.copy() //pi
-      right.updateFormula(phi, true) //delta
+      left.updateFormula(f, false) // gamma
+      val rl = left.copy() // sigma
+      val rr = right.copy() // pi
+      right.updateFormula(phi, true) // delta
       rl.updateFormula(psi, true)
       val proof1 = solveOrganisedSequent(left, right, s -< f +> phi, offset)
       val proof2 = solveOrganisedSequent(rl, rr, s -< f +< psi, offset + proof1.size)
       LeftImplies(s, proof1.size + offset - 1, proof1.size + proof2.size + offset - 1, phi, psi) :: (proof2 ++ proof1)
-    }
-    else if (left.iffs.nonEmpty)
+    } else if (left.iffs.nonEmpty)
       val f = left.iffs.head
       val phi = f.args(0)
       val psi = f.args(1)
@@ -84,22 +83,20 @@ object SimplePropositionalSolver {
       val proof = solveOrganisedSequent(left, right, s -< f +< phi +< psi, offset)
       LeftAnd(s, proof.length - 1 + offset, phi, psi) :: proof
 
-    }
-    else if (left.ors.nonEmpty) {
+    } else if (left.ors.nonEmpty) {
       val f = left.ors.head
       val phi = f.args(0)
       val psi = f.args(1)
 
-      left.updateFormula(f, false) //gamma
-      val rl = left.copy() //sigma
-      val rr = right.copy() //pi
-      left.updateFormula(phi, true) //delta
+      left.updateFormula(f, false) // gamma
+      val rl = left.copy() // sigma
+      val rr = right.copy() // pi
+      left.updateFormula(phi, true) // delta
       rl.updateFormula(psi, true)
       val proof1 = solveOrganisedSequent(left, right, s -< f +< phi, offset)
       val proof2 = solveOrganisedSequent(rl, rr, s -< f +< psi, offset + proof1.size)
       LeftOr(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
-    }
-    else if (right.negs.nonEmpty)
+    } else if (right.negs.nonEmpty)
       val f = right.negs.head
       val phi = f.args.head
       right.updateFormula(f, false)
@@ -115,15 +112,14 @@ object SimplePropositionalSolver {
       right.updateFormula(psi, true)
       val proof = solveOrganisedSequent(left, right, s -> f +< phi +> psi, offset)
       RightImplies(s, proof.length - 1 + offset, phi, psi) :: proof
-    }
-    else if (right.iffs.nonEmpty)
+    } else if (right.iffs.nonEmpty)
       val f = right.iffs.head
       val phi = f.args(0)
       val psi = f.args(1)
-      right.updateFormula(f, false) //gamma
-      val rl = left.copy() //sigma
-      val rr = right.copy() //pi
-      right.updateFormula(phi ==> psi, true) //delta
+      right.updateFormula(f, false) // gamma
+      val rl = left.copy() // sigma
+      val rr = right.copy() // pi
+      right.updateFormula(phi ==> psi, true) // delta
       rr.updateFormula(psi ==> phi, true)
       val proof1 = solveOrganisedSequent(left, right, s -> f +> (phi ==> psi), offset)
       val proof2 = solveOrganisedSequent(rl, rr, s -> f +> (psi ==> phi), offset + proof1.size)
@@ -133,16 +129,15 @@ object SimplePropositionalSolver {
       val phi = f.args(0)
       val psi = f.args(1)
 
-      right.updateFormula(f, false) //gamma
-      val rl = left.copy() //sigma
-      val rr = right.copy() //pi
-      right.updateFormula(phi, true) //delta
+      right.updateFormula(f, false) // gamma
+      val rl = left.copy() // sigma
+      val rr = right.copy() // pi
+      right.updateFormula(phi, true) // delta
       rr.updateFormula(psi, true)
       val proof1 = solveOrganisedSequent(left, right, s -> f +> phi, offset)
       val proof2 = solveOrganisedSequent(rl, rr, s -> f +> psi, offset + proof1.size)
       RightAnd(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
-    }
-    else if (right.ors.nonEmpty) {
+    } else if (right.ors.nonEmpty) {
       val f = right.ors.head
       val phi = f.args(0)
       val psi = f.args(1)
@@ -152,8 +147,7 @@ object SimplePropositionalSolver {
       val proof = solveOrganisedSequent(left, right, s -> f +> phi +> psi, offset)
       RightOr(s, proof.length - 1 + offset, phi, psi) :: proof
 
-    }
-    else {
+    } else {
       val f = s.left.find(f => s.right.contains(f))
       List(Hypothesis(s, if (f.nonEmpty) f.get else PredicateFormula(SchematicPredicateLabel("P", 0), Seq())))
     }
