@@ -31,14 +31,14 @@ class ProofTests  extends AnyFunSuite {
     val s3 = LeftImplies((a ==> b) ==> a |- a, 2, 0, a ==> b, a)
     val s4 = RightImplies(() |- (a ==> b) ==> a ==> a, 3, (a ==> b) ==> a, a)
     val ppl: SCProof = SCProof(IndexedSeq(s0, s1, s2, s3, s4))
-    assert(predicateVerifier(ppl)._1)
+    assert(predicateVerifier(ppl).isValid)
   }
 
   test("Verification of substitution") {
     val t0 = Hypothesis(fp(x)|-fp(x), fp(x))
     val t1 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, x, y, fp(sT()), sT)
     val pr = new SCProof(IndexedSeq(t0, t1))
-    assert(predicateVerifier(pr)._1)
+    assert(predicateVerifier(pr).isValid)
   }
 
   test("Commutativity on a random large formula") {
@@ -58,6 +58,6 @@ class ProofTests  extends AnyFunSuite {
     val orig = subformulas.next().head
     val swapped = subformulasSwapped.next().head
     val prf = SCProof(Vector(Hypothesis(Sequent(Set(orig), Set(orig)), orig), Rewrite(Sequent(Set(orig), Set(swapped)), 0)))
-    assert(predicateVerifier(prf)._1)
+    assert(predicateVerifier(prf).isValid)
   }
 }

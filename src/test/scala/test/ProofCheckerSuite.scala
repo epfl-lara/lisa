@@ -26,12 +26,12 @@ abstract class ProofCheckerSuite extends AnyFunSuite {
   }
 
   def checkProof(proof: SCProof, expected: Sequent): Unit = {
-    val error = checkSCProof(proof)
-    assert(error._1, "\n"+Printer.prettySCProof(proof, error))
+    val judgement = checkSCProof(proof)
+    assert(judgement.isValid, "\n"+Printer.prettySCProof(proof, judgement))
     assert(isSameSequent(proof.conclusion, expected), s"(${Printer.prettySequent(proof.conclusion)} did not equal ${Printer.prettySequent(expected)})")
   }
 
   def checkIncorrectProof(incorrectProof: SCProof): Unit = {
-    assert(!checkSCProof(incorrectProof)._1, s"(incorrect proof with conclusion '${Printer.prettySequent(incorrectProof.conclusion)}' was accepted by the proof checker)\nSequent: ${incorrectProof.conclusion}")
+    assert(!checkSCProof(incorrectProof).isValid, s"(incorrect proof with conclusion '${Printer.prettySequent(incorrectProof.conclusion)}' was accepted by the proof checker)\nSequent: ${incorrectProof.conclusion}")
   }
 }

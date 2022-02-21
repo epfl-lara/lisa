@@ -13,7 +13,7 @@ import proven.tactics.SimplePropositionalSolver as SPS
 
 
 class SimpleProverTests extends AnyFunSuite {
-    
+
     test("Simple propositional logic proofs") {
         val problems = getPRPproblems.take(1)
 
@@ -24,7 +24,7 @@ class SimpleProverTests extends AnyFunSuite {
             val proof = SPS.solveSequent(sq)
             if (!Seq("Unsatisfiable", "Theorem", "Satisfiable").contains(pr.status)) println("Unknown status: "+pr.status+", "+pr.file)
 
-            assert(SCProofChecker.checkSCProof(proof)._1 == (pr.status =="Unsatisfiable" || pr.status == "Theorem"))
+            assert(SCProofChecker.checkSCProof(proof).isValid == (pr.status =="Unsatisfiable" || pr.status == "Theorem"))
 
         })
 
