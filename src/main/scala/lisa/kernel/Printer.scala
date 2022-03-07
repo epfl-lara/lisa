@@ -56,7 +56,12 @@ object Printer {
                 case Seq(l, r) => prettyInfix("~", prettyTerm(l), prettyTerm(r), compact)
                 case _ => throw new Exception
             }
-            case _ => prettyFunction(label.id, args.map(prettyTerm(_, compact)), compact)
+            case _ =>
+                val labelString = label match {
+                    case ConstantPredicateLabel(id, _) => id
+                    case SchematicPredicateLabel(id, _) => s"?$id"
+                }
+                prettyFunction(labelString, args.map(prettyTerm(_, compact)), compact)
         }
         case ConnectorFormula(label, args) =>
             (label, args) match {
@@ -161,7 +166,12 @@ object Printer {
                     case Seq(s) => prettyFunction("U", Seq(prettyTerm(s)), compact)
                     case _ => throw new Exception
                 }
-                case _ => prettyFunction(label.id, args.map(prettyTerm(_, compact)), compact)
+                case _ =>
+                    val labelString = label match {
+                        case ConstantFunctionLabel(id, _) => id
+                        case SchematicFunctionLabel(id, _) => s"?$id"
+                    }
+                    prettyFunction(labelString, args.map(prettyTerm(_, compact)), compact)
             }
     }
 
