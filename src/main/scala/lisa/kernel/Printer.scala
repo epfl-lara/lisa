@@ -1,8 +1,9 @@
 package lisa.kernel
 
 import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus._
-import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SCProofCheckerJudgement.*
+import lisa.kernel.proof.{SCProof, SCProofCheckerJudgement}
 
 /**
  * A set of methods to pretty-print kernel trees.
@@ -55,7 +56,12 @@ object Printer {
                 case Seq(l, r) => prettyInfix("~", prettyTerm(l), prettyTerm(r), compact)
                 case _ => throw new Exception
             }
-            case _ => prettyFunction(label.id, args.map(prettyTerm(_, compact)), compact)
+            case _ =>
+                val labelString = label match {
+                    case ConstantPredicateLabel(id, _) => id
+                    case SchematicPredicateLabel(id, _) => s"?$id"
+                }
+                prettyFunction(labelString, args.map(prettyTerm(_, compact)), compact)
         }
         case ConnectorFormula(label, args) =>
             (label, args) match {
@@ -160,7 +166,12 @@ object Printer {
                     case Seq(s) => prettyFunction("U", Seq(prettyTerm(s)), compact)
                     case _ => throw new Exception
                 }
-                case _ => prettyFunction(label.id, args.map(prettyTerm(_, compact)), compact)
+                case _ =>
+                    val labelString = label match {
+                        case ConstantFunctionLabel(id, _) => id
+                        case SchematicFunctionLabel(id, _) => s"?$id"
+                    }
+                    prettyFunction(labelString, args.map(prettyTerm(_, compact)), compact)
             }
     }
 
@@ -180,19 +191,30 @@ object Printer {
     }
 
     /**
+     * Returns a string representation of the line number in a proof.
+     * Example output:
+     * <pre>
+     * 0:2:1
+     * </pre>
+     * @param line the line number
+     * @return the string representation of this line number
+     */
+    def prettyLineNumber(line: Seq[Int]): String = line.mkString(":")
+
+    /**
      * Returns a string representation of this proof.
      * @param proof the proof
-     * @param showError if set, marks that particular step in the proof (`->`) as an error
+     * @param judgement optionally provide a proof checking judgement that will mark a particular step in the proof
+     *                  (`->`) as an error. The proof is considered to be valid by default
      * @return a string where each indented line corresponds to a step in the proof
      */
-    def prettySCProof(proof: SCProof, showError: Option[(Seq[Int], String)] = None): String = {
-        def computeMaxNumbering(proof: SCProof, level: Int, result: IndexedSeq[Int]): IndexedSeq[Int] = {
-            val resultWithCurrent = result.updated(level, Math.max(proof.steps.size - 1, result(level)))
-            proof.steps.collect { case sp: SCSubproof => sp }.foldLeft(resultWithCurrent)((acc, sp) => computeMaxNumbering(sp.sp, level + 1, if(acc.size <= level + 1) acc :+ 0 else acc))
+    def prettySCProof(proof: SCProof, judgement: SCProofCheckerJudgement = SCValidProof, forceDisplaySubproofs: Boolean = false): String = {
+        def computeMaxNumberingLengths(proof: SCProof, level: Int, result: IndexedSeq[Int]): IndexedSeq[Int] = {
+          val resultWithCurrent = result.updated(level, (Seq((proof.steps.size - 1).toString.length, result(level)) ++ (if(proof.imports.nonEmpty) Seq((-proof.imports.size).toString.length) else Seq.empty)).max)
+          proof.steps.collect { case sp: SCSubproof => sp }.foldLeft(resultWithCurrent)((acc, sp) => computeMaxNumberingLengths(sp.sp, level + 1, if(acc.size <= level + 1) acc :+ 0 else acc))
         }
-        val maxNumbering = computeMaxNumbering(proof, 0, IndexedSeq(0)) // The maximum value for each number column
-        val maxNumberingLengths = maxNumbering.map(_.toString.length)
-        val maxLevel = maxNumbering.size - 1
+        val maxNumberingLengths = computeMaxNumberingLengths(proof, 0, IndexedSeq(0)) // The maximum value for each number column
+        val maxLevel = maxNumberingLengths.size - 1
 
         def leftPadSpaces(v: Any, n: Int): String = {
             val s = String.valueOf(v)
@@ -205,7 +227,10 @@ object Printer {
         def prettySCProofRecursive(proof: SCProof, level: Int, tree: IndexedSeq[Int], topMostIndices: IndexedSeq[Int]): Seq[(Boolean, String, String, String)] = {
             val printedImports = proof.imports.zipWithIndex.reverse.flatMap { case (imp, i) =>
                 val currentTree = tree :+ (-i-1)
-                val showErrorForLine = showError.exists((position, reason) => currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0))
+                val showErrorForLine = judgement match {
+                    case SCValidProof => false
+                    case SCInvalidProof(position, _) => currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0)
+                }
                 val prefix = (Seq.fill(level - topMostIndices.size)(None) ++  Seq.fill(topMostIndices.size)(None) :+ Some(-i-1)) ++ Seq.fill(maxLevel - level)(None)
                 val prefixString = prefix.map(_.map(_.toString).getOrElse("")).zipWithIndex.map { case (v, i1) => leftPadSpaces(v, maxNumberingLengths(i1)) }.mkString(" ")
                 def pretty(stepName: String, topSteps: Int*): (Boolean, String, String, String) =
@@ -220,7 +245,10 @@ object Printer {
             }
             printedImports ++ proof.steps.zipWithIndex.flatMap { case (step, i) =>
                 val currentTree = tree :+ i
-                val showErrorForLine = showError.exists((position, reason) => currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0))
+                val showErrorForLine = judgement match {
+                    case SCValidProof => false
+                    case SCInvalidProof(position, _) => currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0)
+                }
                 val prefix = (Seq.fill(level - topMostIndices.size)(None) ++  Seq.fill(topMostIndices.size)(None) :+ Some(i)) ++ Seq.fill(maxLevel - level)(None)
                 val prefixString = prefix.map(_.map(_.toString).getOrElse("")).zipWithIndex.map { case (v, i1) => leftPadSpaces(v, maxNumberingLengths(i1)) }.mkString(" ")
                 def pretty(stepName: String, topSteps: Int*): (Boolean, String, String, String) =
@@ -231,7 +259,8 @@ object Printer {
                         prettySequent(step.bot)
                     )
                 step match {
-                    case sp @ SCSubproof(_, _, true) => pretty("Subproof", sp.premises*) +: prettySCProofRecursive(sp.sp, level + 1, currentTree, (if(i == 0) topMostIndices else IndexedSeq.empty) :+ i)
+                    case sp @ SCSubproof(_, _, display) if display || forceDisplaySubproofs =>
+                        pretty("Subproof", sp.premises*) +: prettySCProofRecursive(sp.sp, level + 1, currentTree, (if(i == 0) topMostIndices else IndexedSeq.empty) :+ i)
                     case other =>
                         val line = other match {
                             case Rewrite(_, t1) => pretty("Rewrite", t1)
@@ -260,7 +289,7 @@ object Printer {
                             case RightSubstIff(_, t1, _, _, _, _) => pretty("R. SubstIff", t1)
                             case InstFunSchema(_, t1, _, _, _) => pretty("?Fun Instantiation", t1)
                             case InstPredSchema(_, t1, _, _, _) => pretty("?Pred Instantiation", t1)
-                            case SCSubproof(_, _, false) => pretty("SCSubproof (hidden)")
+                            case SCSubproof(_, _, false) => pretty("Subproof (hidden)")
                             case other => throw new Exception(s"No available method to print this proof step, consider updating Printer.scala\n$other")
                         }
                         Seq(line)
@@ -276,9 +305,12 @@ object Printer {
         lines.map {
             case (isMarked, indices, stepName, sequent) =>
                 val suffix = Seq(indices, rightPadSpaces(stepName, maxStepNameLength), sequent)
-                val full = if(showError.nonEmpty) (if(isMarked) marker else leftPadSpaces("", marker.length)) +: suffix else suffix
+                val full = if(!judgement.isValid) (if(isMarked) marker else leftPadSpaces("", marker.length)) +: suffix else suffix
                 full.mkString(" ")
-        }.mkString("\n") + (if (showError.nonEmpty) s"\nProof checker has reported error at line ${showError.get._1}: ${showError.get._2}" else "")
+        }.mkString("\n") + (judgement match {
+            case SCValidProof => ""
+            case SCInvalidProof(path, message) => s"\nProof checker has reported an error at line ${path.mkString(".")}: $message"
+        })
     }
 
 }
