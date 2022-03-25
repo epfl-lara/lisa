@@ -256,25 +256,31 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
                     parent.normalForm = Some(NLiteral(true))
                     parent.normalForm.get :: acc
                 case SOr(children) =>
-                    val T = children.sortBy(_.size)
-                    val r1 = T.tail.foldLeft(List[NormalFormula]())((p, a) => pDisj(a, p))
-                    val r2 = r1 zip (r1 map (_.code))
-                    val r3 = r2.sortBy(_._2).distinctBy(_._2).filterNot(_._2 == 0)
-                    if (r3.isEmpty) pNeg(T.head, parent, acc)
+                    if (children.isEmpty) {
+                        parent.normalForm = Some(NLiteral(true))
+                        parent.normalForm.get :: acc
+                    }
                     else {
-                        val s1 = pDisj(T.head, r1)
-                        val s2 = s1 zip (s1 map (_.code))
-                        val s3 = s2.sortBy(_._2).distinctBy(_._2).filterNot(_._2 == 0)
-                        if (s3.exists(_._2 == 1) || checkForContradiction(s3) ) {
-                            phi.normalForm=Some(NLiteral(true))
-                            parent.normalForm = Some(NLiteral(false))
-                            parent.normalForm.get :: acc
-                        } else if (s3.length == 1) {
-                            pNegNormal(s3.head._1, parent, acc)
-                        } else {
-                            phi.normalForm = Some(NOr(s3.map(_._1), updateCodesSig(("or", s3.map(_._2)))))
-                            parent.normalForm = Some(NNeg(phi.normalForm.get, updateCodesSig(("neg", List(phi.normalForm.get.code)))))
-                            parent.normalForm.get :: acc
+                        val T = children.sortBy(_.size)
+                        val r1 = T.tail.foldLeft(List[NormalFormula]())((p, a) => pDisj(a, p))
+                        val r2 = r1 zip (r1 map (_.code))
+                        val r3 = r2.sortBy(_._2).distinctBy(_._2).filterNot(_._2 == 0)
+                        if (r3.isEmpty) pNeg(T.head, parent, acc)
+                        else {
+                            val s1 = pDisj(T.head, r1)
+                            val s2 = s1 zip (s1 map (_.code))
+                            val s3 = s2.sortBy(_._2).distinctBy(_._2).filterNot(_._2 == 0)
+                            if (s3.exists(_._2 == 1) || checkForContradiction(s3)) {
+                                phi.normalForm = Some(NLiteral(true))
+                                parent.normalForm = Some(NLiteral(false))
+                                parent.normalForm.get :: acc
+                            } else if (s3.length == 1) {
+                                pNegNormal(s3.head._1, parent, acc)
+                            } else {
+                                phi.normalForm = Some(NOr(s3.map(_._1), updateCodesSig(("or", s3.map(_._2)))))
+                                parent.normalForm = Some(NNeg(phi.normalForm.get, updateCodesSig(("neg", List(phi.normalForm.get.code)))))
+                                parent.normalForm.get :: acc
+                            }
                         }
                     }
             }

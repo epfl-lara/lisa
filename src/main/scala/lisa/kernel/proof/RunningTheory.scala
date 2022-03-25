@@ -121,8 +121,9 @@ class RunningTheory {
         
             proof.conclusion match{
                 case Sequent(l, r)  if l.isEmpty && r.size == 1 =>
-                    val subst = bindAll(ExistsOne, args, phi)
-                    if (isSame(r.head, subst)){
+                    val subst = bindAll(Forall, args, BinderFormula(ExistsOne, out, phi))
+                    val subst2 = bindAll(Forall, args.reverse, BinderFormula(ExistsOne, out, phi))
+                    if (isSame(r.head, subst) || isSame(r.head, subst2)){
                         val newDef = FunctionDefinition(label, args, out, phi)
                         funDefinitions.update(label, Some(newDef))
                         Some(newDef)

@@ -65,23 +65,22 @@ object ProofTactics {
       case _ => throw new Error("not applicable")
     }
   }
-  def simpleFunctionDefinition(f: FunctionLabel, t: Term, args: Seq[VariableLabel]): SCProof = {
-    assert(t.freeVariables subsetOf args.toSet)
+
+  def simpleFunctionDefinition(t: Term, args: Seq[VariableLabel]): SCProof = {
     val x = VariableLabel(freshId(t.freeVariables.map(_.id), "x"))
-    val y = VariableLabel(freshId(t.freeVariables.map(_.id)+x.id, "x"))
-    val p0 = RightRefl(emptySeq +> (t === t), t === t) // |- t===t
-    val p1 = hypothesis(y === t) // (t===y)|-(t===y)
-    val p2 = RightImplies(emptySeq +> ((t === y) ==> (t === y)), 1, t === y, t === y) // |- (t===y)==>(t===y)
-    val p3 = RightForall(emptySeq +> forall(y, (t === y) ==> (t === y)), 2, p2.bot.right.head, y) // |- ∀y (t===y)==>(t===y)
-    val p4 = RightAnd(emptySeq +> p0.bot.right.head /\ p3.bot.right.head, Seq(0, 3), Seq(p0.bot.right.head, p3.bot.right.head)) // |- t===t /\ ∀y(t===y)==>(t===y)
-    val p5 = RightExists(emptySeq +> exists(x, (x === t) /\ forall(y, (t === y) ==> (x === y))), 4,
-      (x === t) /\ forall(y, (t === y) ==> (x === y)), x, t) // |- ∃x x === t /\ ∀y(t===y)==>(x===y)
-    val definition = SCProof(IndexedSeq(p0, p1, p2, p3, p4, p5))
-    val fdef = args.foldLeft((definition.steps, p5.bot.right.head, 5))((prev, x) => {
+    val y = VariableLabel(freshId(t.freeVariables.map(_.id), "y"))
+    val s0 = RightRefl(() |- t === t, t === t)
+    val s1 = Rewrite(() |- (x === t) <=> (x === t), 0)
+    val s2 = RightForall(() |- forall(x, (x === t) <=> (x === t)), 1, (x === t) <=> (x === t), x)
+    val s3 = RightExists(() |- exists(y, forall(x, (x === y) <=> (x === t))), 2, forall(x, (x === y) <=> (x === t)), y, t)
+    val s4 = Rewrite(() |- existsOne(x, x === t), 3)
+    val v = Vector(s0, s1, s2, s3, s4)
+    val v2 = args.foldLeft((v, s4.bot.right.head, 4))((prev, x) => {
       val fo = forall(x, prev._2)
       (prev._1 appended RightForall(emptySeq +> fo, prev._3, prev._2, x), fo, prev._3 + 1)
     })
-    SCProof(fdef._1 )
+    SCProof(v2._1)
+
   }
   // p1 is a proof of psi given phi, p2 is a proof of psi given !phi
   def byCase(phi: Formula)(pa: SCProofStep, pb: SCProofStep): SCProof = {
@@ -112,7 +111,7 @@ object ProofTactics {
       SCProof(pa, pb, p2, p3, p4)
     }
   }
-  
+
   def detectSubstitution(x: VariableLabel, f: Formula, s: Formula, c: Option[Term] = None): (Option[Term], Boolean) = (f, s) match {
     case (PredicateFormula(la1, args1), PredicateFormula(la2, args2)) if isSame(la1, la2) => {
       args1.zip(args2).foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {

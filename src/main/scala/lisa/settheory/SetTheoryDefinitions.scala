@@ -12,8 +12,8 @@ private[settheory] trait SetTheoryDefinitions{
   def axioms: Set[Axiom] = Set.empty
   private[settheory] final val (x, y, z, a, b) =
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"), VariableLabel("A"), VariableLabel("B"))
-  private[settheory] final val sPhi = SchematicPredicateLabel("P", 2)
-  private[settheory] final val sPsi = SchematicPredicateLabel("P", 3)
+  final val sPhi = SchematicPredicateLabel("P", 2)
+  final val sPsi = SchematicPredicateLabel("P", 3)
   // Predicates
   final val in: PredicateLabel = ConstantPredicateLabel("set_membership", 2)
   final val subset: PredicateLabel = ConstantPredicateLabel("subset_of", 2)

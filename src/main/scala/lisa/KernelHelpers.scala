@@ -136,4 +136,14 @@ object KernelHelpers {
   extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1])
     infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
 
+
+  def instantiatePredicateSchemaInSequent(s: Sequent, p: SchematicPredicateLabel, psi: Formula, a: Seq[VariableLabel]): Sequent = {
+    s.left.map(phi => instantiatePredicateSchema(phi, p, psi, a)) |- s.right.map(phi => instantiatePredicateSchema(phi, p, psi, a))
+  }
+  def instantiateFunctionSchemaInSequent(s: Sequent, f: SchematicFunctionLabel, r: Term, a: Seq[VariableLabel]): Sequent = {
+    s.left.map(phi => instantiateFunctionSchema(phi, f, r, a)) |- s.right.map(phi => instantiateFunctionSchema(phi, f, r, a))
+  }
+  
+  
+
 }

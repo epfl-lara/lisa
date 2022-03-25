@@ -79,7 +79,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   }
 
   def bindAll(binder: BinderLabel, vars: Seq[VariableLabel], phi:Formula): Formula =
-    vars.sortBy(_.name).foldLeft(phi)((f, v) => BinderFormula(binder, v, f))
+    vars.foldLeft(phi)((f, v) => BinderFormula(binder, v, f))
 
   /**
    * Performs simultaneous substitution of multiple variables by multiple terms in a formula f.

@@ -16,9 +16,9 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
   final val foundationAxiom: Axiom = forall(x, !(x === emptySet()) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
 
 
-  final val comprehensionSchema: Axiom = forall(z, exists(y, forall(x, in(x,y) <=> (in(x,y) /\ sPhi(x,z)))))
+  final val comprehensionSchema: Axiom = forall(z, exists(y, forall(x, in(x,y) <=> (in(x,z) /\ sPhi(x,z)))))
 
-  private val zAxioms: Set[Axiom] = Set(emptySetAxiom, extensionalityAxiom, pairAxiom, unionAxiom, powerAxiom, foundationAxiom)
+  private val zAxioms: Set[Axiom] = Set(emptySetAxiom, extensionalityAxiom, pairAxiom, unionAxiom, powerAxiom, foundationAxiom, comprehensionSchema)
 
 
   
