@@ -429,7 +429,8 @@ object SCProofChecker {
                     if (isSameSet(bot.left, expected._1))
                         if (isSameSet(bot.right, expected._2))
                             SCValidProof
-                        else SCInvalidProof(Nil, "Right-hand side of premise instantiated with [?p/ψ(a)] must be the same as right-hand side of conclusion.")
+                        else
+                            SCInvalidProof(Nil, "Right-hand side of premise instantiated with [?p/ψ(a)] must be the same as right-hand side of conclusion.")
                     else  SCInvalidProof(Nil, "Left-hand side of premise instantiated with [?p/ψ(a)] must be the same as left-hand side of conclusion.")
 
                 case SCSubproof(sp, premises, _) =>

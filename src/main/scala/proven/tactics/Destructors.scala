@@ -19,7 +19,7 @@ object Destructors {
   def destructRightAnd(p: SCProof, f: Formula, g: Formula): SCProof = {
     val p0 = hypothesis(f) // n
     val p1 = LeftAnd(emptySeq +< (f /\ g) +> f, p.length, f, g) // n+1
-    val p2 = Cut(p.conclusion -> (f /\ g) +> f, p.length - 1, p.length + 1, f /\ g)
+    val p2 = Cut(p.conclusion -> (f /\ g) ->(g/\f) +> f, p.length - 1, p.length + 1, f /\ g)
     p withNewSteps IndexedSeq(p0, p1, p2)
   }
   def destructRightImplies(p: SCProof, f: Formula, g: Formula): SCProof = { //   |- f=>g

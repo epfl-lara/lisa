@@ -9,6 +9,7 @@ import lisa.settheory.AxiomaticSetTheory.*
 
 import scala.collection.immutable.SortedSet
 import lisa.kernel.proof.{SCProof, SCProofChecker}
+import lisa.settheory.AxiomaticSetTheory
 
 import scala.collection.immutable
 
@@ -16,6 +17,9 @@ import scala.collection.immutable
  * Some proofs in set theory. See it as a proof of concept.
  */
 object ElementsOfSetTheory {
+
+  val theory = AxiomaticSetTheory.runningSetTheory
+  def axiom(f:Formula) = theory.getAxioms.find(c => c.ax == f).get
 
   private val x = VariableLabel("x")
   private val y = VariableLabel("y")
@@ -25,9 +29,9 @@ object ElementsOfSetTheory {
   private val g = SchematicFunctionLabel("g", 0)
   private val h = SchematicPredicateLabel("h", 0)
 
-  val oPair: FunctionLabel = ConstantFunctionLabel("ordered_pair", 2)
-  val oPairFirstElement: FunctionLabel = ConstantFunctionLabel("ordered_pair_first_element", 1)
-  val oPairSecondElement: FunctionLabel = ConstantFunctionLabel("ordered_pair_second_element", 1)
+  val oPair: ConstantFunctionLabel = ConstantFunctionLabel("ordered_pair", 2)
+  val oPairFirstElement: ConstantFunctionLabel = ConstantFunctionLabel("ordered_pair_first_element", 1)
+  val oPairSecondElement: ConstantFunctionLabel = ConstantFunctionLabel("ordered_pair_second_element", 1)
 
   val proofUnorderedPairSymmetry: SCProof = {
     val imps: IndexedSeq[Sequent] = IndexedSeq(() |- extensionalityAxiom, () |- pairAxiom)
@@ -61,6 +65,8 @@ object ElementsOfSetTheory {
     val fin4 = generalizeToForall(fin3, fin3.conclusion.right.head, y)
     fin4.copy(imports = imps)
   } //   |- ∀∀({x$1,y$2}={y$2,x$1})
+  val thm_proofUnorderedPairSymmetry = theory.proofToTheorem(proofUnorderedPairSymmetry, Seq(axiom(extensionalityAxiom), axiom(pairAxiom))).get
+
 
   val proofUnorderedPairDeconstruction: SCProof = {
     val pxy = pair(x, y)
@@ -217,11 +223,14 @@ object ElementsOfSetTheory {
     val p2 = RightImplies(emptySeq +> (p1.bot.left.head ==> p1.bot.right.head), 1, p1.bot.left.head, p1.bot.right.head) //   |- ({x,y}={x',y'}) ==> (x=x' /\ y=y')\/(x=y' /\ y=x')
     generalizeToForall(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(()|-pairAxiom)), x, y, x1, y1)
   } // |- ∀∀∀∀(({x$4,y$3}={x'$2,y'$1})⇒(((y'$1=y$3)∧(x'$2=x$4))∨((x$4=y'$1)∧(y$3=x'$2))))
-
+  val thm_proofUnorderedPairDeconstruction = theory.proofToTheorem(proofUnorderedPairDeconstruction, Seq(axiom(pairAxiom))).get
 
   // i2, i1, p0, p1, p2, p3
 
-  val orderedPairDefinition: SCProof = simpleFunctionDefinition(oPair, pair(pair(x, y), pair(x, x)), Seq(x, y))
+  val orderedPairDefinition: SCProof = simpleFunctionDefinition(pair(pair(x, y), pair(x, x)), Seq(x, y))
+
+  println("def_oPair")
+  val def_oPair = theory.makeFunctionDefinition(orderedPairDefinition, Nil, oPair, Seq(x, y), x1, x1 === pair(pair(x, y), pair(x, x)))
 
 /*
   val proofOrderedPairDeconstruction: SCProof = {

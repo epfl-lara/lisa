@@ -11,6 +11,9 @@ private[settheory] trait SetTheoryZFAxioms extends SetTheoryZAxioms {
     forall(x, (in(x, a)) ==> existsOne(y, sPsi(a,x,y))) ==>
     exists(b, forall(x, in(x, a) ==> exists(y, in(y, b) /\ sPsi(a,x,y))))
   )
+  runningSetTheory.addAxiom(replacementSchema)
+
+  override def axioms: Set[Axiom] = super.axioms + replacementSchema
 
 
 }
