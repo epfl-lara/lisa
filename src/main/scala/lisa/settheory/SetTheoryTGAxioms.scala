@@ -12,8 +12,8 @@ private[settheory] trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
     )
   )
 
-  runningSetTheory.addAxiom(tarskiAxiom)
+  runningSetTheory.addAxiom("TarskiAxiom", tarskiAxiom)
 
-  override def axioms: Set[Axiom] = super.axioms + tarskiAxiom
+  override def axioms: Set[(String, Axiom)] = super.axioms + (("TarskiAxiom", tarskiAxiom))
 
 }

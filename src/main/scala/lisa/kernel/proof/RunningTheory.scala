@@ -7,6 +7,7 @@ import lisa.kernel.fol.FOL.*
 import scala.collection.mutable.Map as mMap
 import scala.collection.mutable.Set as mSet
 import scala.collection.immutable.Set
+import lisa.kernel.proof.RunningTheoryJudgement.*
 
 /**
  * This class describes the theory, i.e. the context and language, in which theorems are proven.
@@ -26,11 +27,11 @@ class RunningTheory {
     /**
      * A theorem encapsulate a sequent and assert that this sequent has been correctly proven and may be used safely in further proofs.
      */
-    final case class Theorem private[RunningTheory](proposition: Sequent) extends Justification
+    final case class Theorem private[RunningTheory](name:String, proposition: Sequent) extends Justification
     /**
      * An axiom is any formula that is assumed and considered true within the theory. It can freely be used later in any proof.
      */
-    final case class Axiom private[RunningTheory](ax: Formula) extends Justification
+    final case class Axiom private[RunningTheory](name:String, ax: Formula) extends Justification
 
     /**
      * A definition can be either a PredicateDefinition or a FunctionDefinition.
@@ -57,7 +58,8 @@ class RunningTheory {
     final case class FunctionDefinition private[RunningTheory](label: ConstantFunctionLabel, args: Seq[VariableLabel], out: VariableLabel, phi: Formula) extends Definition
 
 
-    private[proof] val theoryAxioms : mSet[Axiom] = mSet.empty
+    private[proof] val theoryAxioms : mMap[String, Axiom] = mMap.empty
+    private[proof] val theorems : mMap[String, Theorem] = mMap.empty
     private[proof] val funDefinitions: mMap[FunctionLabel, Option[FunctionDefinition]] = mMap.empty
     private[proof] val predDefinitions: mMap[PredicateLabel, Option[PredicateDefinition]] = mMap(equality -> None)
 
@@ -71,17 +73,27 @@ class RunningTheory {
     def isAcceptedPredicateLabel(label:PredicateLabel): Boolean = predDefinitions.contains(label)
 
     /**
-     * From a given proof, if it is true in the Running theory, returns a theorem that is valid in the given theory.
+     * From a given proof, if it is true in the Running theory, add that theorem to the theory and returns it.
      * The proof's imports must be justified by the list of justification, and the conclusion of the theorem
      * can't contain symbols that do not belong to the theory.
      * @param justifications The list of justifications of the proof's imports.
      * @param p The proof of the desired Theorem.
      * @return A Theorem if the proof is correct, None else
      */
-    def proofToTheorem(p: SCProof, justifications:Seq[Justification]): Option[this.Theorem] =
-        if (checkProofWithinTheory(p, justifications) && belongsToTheory(p.conclusion))
-            Some(Theorem(p.conclusion))
-        else None
+    def proofToTheorem(name:String, proof: SCProof, justifications:Seq[Justification]): RunningTheoryJudgement[this.Theorem] =
+        if (proof.imports.forall(i => justifications.exists( j => isSameSequent(i, sequentFromJustification(j)))))
+            if (belongsToTheory(proof.conclusion))
+                val r = SCProofChecker.checkSCProof(proof)
+                r match {
+                    case SCProofCheckerJudgement.SCValidProof =>
+                        val thm = Theorem(name, proof.conclusion)
+                        theorems.update(name, thm)
+                        RunningTheoryJudgement.ValidJustification(thm)
+                    case r @ SCProofCheckerJudgement.SCInvalidProof(path, message) =>
+                        InvalidJustification("The given proof is incorrect: " + message, Some(r))
+                }
+            else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
+        else InvalidJustification("Not all imports of the proof are correctly justified.", None)
 
 
     /**
@@ -92,14 +104,16 @@ class RunningTheory {
      * @param phi The formula defining the predicate.
      * @return A definition object if the parameters are correct,
      */
-    def makePredicateDefinition(label: ConstantPredicateLabel, args: Seq[VariableLabel], phi: Formula): Option[this.PredicateDefinition] = {
-        if (belongsToTheory(phi) && !isAcceptedPredicateLabel(label)) {
-            val newDef = PredicateDefinition(label, args, phi)
-            predDefinitions.update(label, Some(newDef))
-            Some(newDef)
-        } else {
-            None
-        }
+    def makePredicateDefinition(label: ConstantPredicateLabel, args: Seq[VariableLabel], phi: Formula): RunningTheoryJudgement[this.PredicateDefinition] = {
+        if (belongsToTheory(phi))
+            if (!isAcceptedPredicateLabel(label))
+                if (phi.freeVariables.isEmpty && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
+                    val newDef = PredicateDefinition(label, args, phi)
+                    predDefinitions.update(label, Some(newDef))
+                    RunningTheoryJudgement.ValidJustification(newDef)
+                else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
+            else InvalidJustification("The specified symbol is already part of the theory and can't be redefined.", None)
+        else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
     }
 
     /**
@@ -116,49 +130,38 @@ class RunningTheory {
      * @param phi The formula defining the predicate.
      * @return A definition object if the parameters are correct,
      */
-    def makeFunctionDefinition(proof: SCProof, justifications:Seq[Justification], label: ConstantFunctionLabel, args: Seq[VariableLabel], out: VariableLabel, phi: Formula): Option[this.FunctionDefinition] = {
-        if (belongsToTheory(phi) && !isAcceptedFunctionLabel(label) && checkProofWithinTheory(proof, justifications)) {
-        
-            proof.conclusion match{
-                case Sequent(l, r)  if l.isEmpty && r.size == 1 =>
-                    val subst = bindAll(Forall, args, BinderFormula(ExistsOne, out, phi))
-                    val subst2 = bindAll(Forall, args.reverse, BinderFormula(ExistsOne, out, phi))
-                    if (isSame(r.head, subst) || isSame(r.head, subst2)){
-                        val newDef = FunctionDefinition(label, args, out, phi)
-                        funDefinitions.update(label, Some(newDef))
-                        Some(newDef)
-                    }
-                    else None
-                  
-                case _ => None
-            }
-        } else {
-            None
-        }
+    def makeFunctionDefinition(proof: SCProof, justifications:Seq[Justification], label: ConstantFunctionLabel, args: Seq[VariableLabel], out: VariableLabel, phi: Formula): RunningTheoryJudgement[this.FunctionDefinition] = {
+        if (belongsToTheory(phi))
+            if (!isAcceptedFunctionLabel(label))
+                if (phi.freeVariables.isEmpty && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
+                    if (proof.imports.forall(i => justifications.exists( j => isSameSequent(i, sequentFromJustification(j)))))
+                        val r = SCProofChecker.checkSCProof(proof)
+                        r match {
+                            case SCProofCheckerJudgement.SCValidProof =>
+                                proof.conclusion match{
+                                    case Sequent(l, r)  if l.isEmpty && r.size == 1 =>
+                                        val subst = bindAll(Forall, args, BinderFormula(ExistsOne, out, phi))
+                                        val subst2 = bindAll(Forall, args.reverse, BinderFormula(ExistsOne, out, phi))
+                                        if (isSame(r.head, subst) || isSame(r.head, subst2)){
+                                            val newDef = FunctionDefinition(label, args, out, phi)
+                                            funDefinitions.update(label, Some(newDef))
+                                            RunningTheoryJudgement.ValidJustification(newDef)
+                                        }
+                                        else InvalidJustification("The proof is correct but its conclusion does not correspond to a definition for for the formula phi.", None)
+                                    case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
+                                }
+                            case r @ SCProofCheckerJudgement.SCInvalidProof(path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
+                        }
+                    else InvalidJustification("Not all imports of the proof are correctly justified.", None)
+                else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
+            else InvalidJustification("The specified symbol is already part of the theory and can't be redefined.", None)
+        else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
     }
 
-
-
-    /**
-     * Verify is a proof is correct withing a given Theory. It separately verifies if the proof is correct from
-     * a pure sequent calculus point of view, and if definitions and theorem imported into the proof are indeed
-     * part of the theory.
-     * 
-     */
-    def checkProofWithinTheory(proof: SCProof, justifications: Seq[Justification]): Boolean = {
-    
-        if (belongsToTheory(proof.conclusion)){
-            if (proof.imports.forall(i => justifications.exists( j => isSameSequent(i, sequentFromJustification(j))) ))
-                true
-            else
-                false
-        }
-        else false
-    }
 
     private def sequentFromJustification(j:Justification): Sequent = j match {
-        case Theorem(proposition) => proposition
-        case Axiom(ax) => Sequent(Set.empty, Set(ax))
+        case Theorem(name, proposition) => proposition
+        case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
         case PredicateDefinition(label, args, phi) =>
             val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, args.map(VariableTerm.apply)), phi))
             Sequent(Set(), Set(bindAll(Forall, args, inner)))
@@ -194,8 +197,8 @@ class RunningTheory {
     }
 
     def makeFormulaBelongToTheory(phi:Formula) : Unit = {
-        phi.predicates.foreach(addSymbol)
-        phi.functions.foreach(addSymbol)
+        phi.constantPredicates.foreach(addSymbol)
+        phi.constantFunctions.foreach(addSymbol)
     }
     /**
      * Verify if a given term belongs to some language
@@ -232,9 +235,9 @@ class RunningTheory {
      * @param f the new axiom to be added.
      * @return true if the axiom was added to the theory, false else.
      */
-    def addAxiom(f:Formula):Boolean = {
+    def addAxiom(name:String, f:Formula):Boolean = {
         if (belongsToTheory(f)){
-            theoryAxioms.add(Axiom(f))
+            theoryAxioms.update(name, Axiom(name, f))
             true
         }
         else false
@@ -258,14 +261,17 @@ class RunningTheory {
      * Public accessor to the current set of axioms of the theory
      * @return the current set of axioms of the theory
      */
-    def getAxioms: List[Axiom] = theoryAxioms.toList
+    def axiomsList: Iterable[Axiom] = theoryAxioms.values
 
     /**
      * Verify if a given formula is an axiom of the theory
      * @param f the candidate axiom
      * @return wether f is an axiom of the theory
      */
-    def isAxiom(f:Formula): Boolean = theoryAxioms.exists(a => isSame(a.ax,f))
+    def isAxiom(f:Formula): Boolean = theoryAxioms.exists(a => isSame(a._2.ax,f))
+    def getAxiom(f:Formula): Option[Axiom] = theoryAxioms.find(a => isSame(a._2.ax,f)).map(_._2)
+    def getAxiom(name:String): Option[Axiom] = theoryAxioms.get(name)
+    def getTheorem(name:String): Option[Theorem] = theorems.get(name)
 
 }
 object RunningTheory {

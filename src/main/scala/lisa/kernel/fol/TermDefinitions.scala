@@ -10,7 +10,8 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
 
     def freeVariables: Set[VariableLabel]
 
-    def functions: Set[ConstantFunctionLabel]
+    def constantFunctions: Set[ConstantFunctionLabel]
+    def schematicFunctions: Set[SchematicFunctionLabel]
   }
 
 
@@ -30,7 +31,8 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
   final case class VariableTerm(label: VariableLabel) extends Term {
     override def freeVariables: Set[VariableLabel] = Set(label)
 
-    override def functions: Set[ConstantFunctionLabel] = Set.empty
+    override def constantFunctions: Set[ConstantFunctionLabel] = Set.empty
+    override def schematicFunctions: Set[SchematicFunctionLabel] = Set.empty
   }
 
   /**
@@ -44,9 +46,13 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
 
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
-    override def functions: Set[ConstantFunctionLabel] = label match {
-      case l:ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions) + l
-      case l:SchematicFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions)
+    override def constantFunctions: Set[ConstantFunctionLabel] = label match {
+      case l:ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions) + l
+      case l:SchematicFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
+    }
+    override def schematicFunctions: Set[SchematicFunctionLabel] = label match {
+      case l:ConstantFunctionLabel => args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
+      case l:SchematicFunctionLabel => args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions) + l
     }
 
     val arity: Int = args.size

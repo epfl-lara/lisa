@@ -9,7 +9,7 @@ import lisa.KernelHelpers.{given, _}
  */
 private[settheory] trait SetTheoryDefinitions{
   type Axiom = Formula
-  def axioms: Set[Axiom] = Set.empty
+  def axioms: Set[(String, Axiom)] = Set.empty
   private[settheory] final val (x, y, z, a, b) =
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"), VariableLabel("A"), VariableLabel("B"))
   final val sPhi = SchematicPredicateLabel("P", 2)

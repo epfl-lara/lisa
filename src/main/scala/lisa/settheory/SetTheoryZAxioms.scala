@@ -18,12 +18,20 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
 
   final val comprehensionSchema: Axiom = forall(z, exists(y, forall(x, in(x,y) <=> (in(x,z) /\ sPhi(x,z)))))
 
-  private val zAxioms: Set[Axiom] = Set(emptySetAxiom, extensionalityAxiom, pairAxiom, unionAxiom, powerAxiom, foundationAxiom, comprehensionSchema)
+  private val zAxioms: Set[(String, Axiom)] = Set(
+    ("EmptySet", emptySetAxiom),
+    ("extensionalityAxiom", extensionalityAxiom),
+    ("pairAxiom", pairAxiom),
+    ("unionAxiom", unionAxiom),
+    ("powerAxiom", powerAxiom),
+    ("foundationAxiom", foundationAxiom),
+    ("comprehensionSchema", comprehensionSchema)
+  )
 
 
   
-  zAxioms.foreach(a => runningSetTheory.addAxiom(a))
+  zAxioms.foreach(a => runningSetTheory.addAxiom(a._1, a._2))
     
-  override def axioms: Set[Axiom] = super.axioms ++ zAxioms
+  override def axioms: Set[(String, Axiom)] = super.axioms ++ zAxioms
 
 }
