@@ -14,9 +14,9 @@ import proven.tactics.SimplePropositionalSolver as SPS
 
 class SimpleProverTests extends AnyFunSuite {
 
+    /*
     test("Simple propositional logic proofs") {
         val problems = getPRPproblems.take(1)
-
         problems.foreach( pr => {
             println("--- Problem "+pr.file)
             val sq = problemToSequent(pr)
@@ -29,4 +29,5 @@ class SimpleProverTests extends AnyFunSuite {
         })
 
     }
+    */
 }

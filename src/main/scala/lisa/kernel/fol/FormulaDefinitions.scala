@@ -11,9 +11,12 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    * A formula is a tree whose nodes are either terms or labeled by predicates or logical connectors.
    */
   sealed abstract class Formula extends TreeWithLabel[FormulaLabel] {
-    def predicates: Set[ConstantPredicateLabel]
-    def functions: Set[ConstantFunctionLabel]
-    //def predicatesSchemas: Set[PredicateLabel] = predicates filter { case _: ConstantPredicateLabel => false; case _: SchematicPredicateLabel => true }
+
+    def constantFunctions: Set[ConstantFunctionLabel]
+    def schematicFunctions: Set[SchematicFunctionLabel]
+
+    def constantPredicates: Set[ConstantPredicateLabel]
+    def schematicPredicates: Set[SchematicPredicateLabel]
   }
 
   /**
@@ -22,12 +25,17 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   final case class PredicateFormula(label: PredicateLabel, args: Seq[Term]) extends Formula {
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
-    override def predicates: Set[ConstantPredicateLabel] = label match {
+    override def constantPredicates: Set[ConstantPredicateLabel] = label match {
       case l: ConstantPredicateLabel => Set(l)
       case l: SchematicPredicateLabel => Set()
     }
+    override def schematicPredicates: Set[SchematicPredicateLabel] = label match {
+      case l: ConstantPredicateLabel => Set()
+      case l: SchematicPredicateLabel => Set(l)
+    }
 
-    override def functions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions)
+    override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
+    override def schematicFunctions: Set[SchematicFunctionLabel] = args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
   }
 
 
@@ -37,9 +45,12 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   final case class ConnectorFormula(label: ConnectorLabel, args: Seq[Formula]) extends Formula {
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
-    override def predicates: Set[ConstantPredicateLabel] = args.foldLeft(Set.empty[ConstantPredicateLabel])((prev, next) => prev union next.predicates)
 
-    override def functions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.functions)
+    override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
+    override def schematicFunctions: Set[SchematicFunctionLabel] = args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
+
+    override def constantPredicates: Set[ConstantPredicateLabel] = args.foldLeft(Set.empty[ConstantPredicateLabel])((prev, next) => prev union next.constantPredicates)
+    override def schematicPredicates: Set[SchematicPredicateLabel] = args.foldLeft(Set.empty[SchematicPredicateLabel])((prev, next) => prev union next.schematicPredicates)
   }
 
   /**
@@ -48,9 +59,11 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   final case class BinderFormula(label: BinderLabel, bound: VariableLabel, inner: Formula) extends Formula {
     override def freeVariables: Set[VariableLabel] = inner.freeVariables - bound
 
-    override def predicates: Set[ConstantPredicateLabel] = inner.predicates
+    override def constantFunctions: Set[ConstantFunctionLabel] = inner.constantFunctions
+    override def schematicFunctions: Set[SchematicFunctionLabel] = inner.schematicFunctions
 
-    override def functions: Set[ConstantFunctionLabel] = inner.functions
+    override def constantPredicates: Set[ConstantPredicateLabel] = inner.constantPredicates
+    override def schematicPredicates: Set[SchematicPredicateLabel] = inner.schematicPredicates
   }
 
   /**
