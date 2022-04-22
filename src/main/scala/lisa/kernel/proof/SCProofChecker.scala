@@ -38,14 +38,14 @@ object SCProofChecker {
                  * ------------
                  *    Γ |- Δ
                  */
-                case Rewrite(s, t1) =>
+              case Rewrite(s, t1) =>
                     if (isSameSequent(s, ref(t1))) SCValidProof else SCInvalidProof(Nil, s"The premise and the conclusion are not trivially equivalent.")
                 /*
                  *
                  * --------------
                  *   Γ, φ |- φ, Δ
                  */
-                case Hypothesis(Sequent(left, right), phi) =>
+              case Hypothesis(Sequent(left, right), phi) =>
                     if (contains(left, phi))
                         if (contains(right, phi)) SCValidProof
 
@@ -56,7 +56,7 @@ object SCProofChecker {
                  * ------------------------
                  *       Γ, Σ |-Δ, Π
                  */
-                case Cut(b, t1, t2, phi) =>
+              case Cut(b, t1, t2, phi) =>
                         if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left))
                             if (isSameSet(b.right + phi, ref(t2).right union ref(t1).right))
                                 if (contains(ref(t2).left, phi))
@@ -73,7 +73,7 @@ object SCProofChecker {
                  * --------------     or     -------------
                  *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
                  */
-                case LeftAnd(b, t1, phi, psi) =>
+              case LeftAnd(b, t1, phi, psi) =>
                     if (isSameSet(ref(t1).right, b.right))
                         val phiAndPsi = ConnectorFormula(And, Seq(phi, psi))
                         if (isSameSet(b.left + phi, ref(t1).left + phiAndPsi) ||
@@ -87,7 +87,7 @@ object SCProofChecker {
                  * ------------------------
                  *    Γ, Σ, φ∨ψ |- Δ, Π
                  */
-                case LeftOr(b, t, disjuncts) =>
+              case LeftOr(b, t, disjuncts) =>
                     if (isSameSet(b.right, t.map(ref(_).right).reduce(_ union _)) )
                         val phiOrPsi = ConnectorFormula(Or, disjuncts)
                         if (isSameSet(disjuncts.foldLeft(b.left)(_ + _), t.map(ref(_).left).reduce(_ union _) + phiOrPsi))
@@ -99,7 +99,7 @@ object SCProofChecker {
                  * ------------------------
                  *    Γ, Σ, φ→ψ |- Δ, Π
                  */
-                case LeftImplies(b, t1, t2, phi, psi) =>
+              case LeftImplies(b, t1, t2, phi, psi) =>
                     val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
                     if (isSameSet(b.right + phi, ref(t1).right union ref(t2).right))
                         if (isSameSet(b.left + psi, ref(t1).left union ref(t2).left + phiImpPsi))
@@ -111,7 +111,7 @@ object SCProofChecker {
                  * --------------    or     ---------------
                  *  Γ, φ↔ψ |- Δ              Γ, φ↔ψ |- Δ
                  */
-                case LeftIff(b, t1, phi, psi) =>
+              case LeftIff(b, t1, phi, psi) =>
                     val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
                     val psiImpPhi = ConnectorFormula(Implies, Seq(psi, phi))
                     val phiIffPsi = ConnectorFormula(Iff, Seq(phi, psi))
@@ -128,7 +128,7 @@ object SCProofChecker {
                  * --------------
                  *   Γ, ¬φ |- Δ
                  */
-                case LeftNot(b, t1, phi) =>
+              case LeftNot(b, t1, phi) =>
                     val nPhi = ConnectorFormula(Neg, Seq(phi))
                     if (isSameSet(b.left, ref(t1).left + nPhi))
                         if (isSameSet(b.right + phi, ref(t1).right))
@@ -141,9 +141,9 @@ object SCProofChecker {
                  * -------------------
                  *  Γ, ∀x. φ |- Δ
                  */
-                case LeftForall(b, t1, phi, x, t) =>
+              case LeftForall(b, t1, phi, x, t) =>
                     if (isSameSet(b.right, ref(t1).right))
-                        if (isSameSet(b.left + substituteVariable(phi, x, t), ref(t1).left + BinderFormula(Forall, x, phi)))
+                        if (isSameSet(b.left + substituteVariables(phi, Map(x -> t)), ref(t1).left + BinderFormula(Forall, x, phi)))
                             SCValidProof
                         else SCInvalidProof(Nil, "Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ")
                     else SCInvalidProof(Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
@@ -153,7 +153,7 @@ object SCProofChecker {
                  * ------------------- if x is not free in the resulting sequent
                  *  Γ, ∃x. φ|- Δ
                  */
-                case LeftExists(b, t1, phi, x) =>
+              case LeftExists(b, t1, phi, x) =>
                     if (isSameSet(b.right, ref(t1).right))
                         if (isSameSet(b.left + phi, ref(t1).left + BinderFormula(Exists, x, phi)))
                             if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
@@ -167,7 +167,7 @@ object SCProofChecker {
                  * ---------------------------- if y is not free in φ
                  *      Γ, ∃!x. φ |- Δ
                  */
-                case LeftExistsOne(b, t1, phi, x) =>
+              case LeftExistsOne(b, t1, phi, x) =>
                     val y = VariableLabel(freshId(phi.freeVariables.map(_.id) + x.id, "y"))
                     val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredicateFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
                     if (isSameSet(b.right, ref(t1).right))
@@ -182,7 +182,7 @@ object SCProofChecker {
                  * ------------------------
                  *    Γ, Σ |- φ∧ψ, Π, Δ
                  */
-                case RightAnd(b, t, cunjuncts) =>
+              case RightAnd(b, t, cunjuncts) =>
                     val phiAndPsi = ConnectorFormula(And, cunjuncts)
                     if (isSameSet(b.left, t.map(ref(_).left).reduce(_ union _)))
                         if (isSameSet(cunjuncts.foldLeft(b.right)(_ + _), t.map(ref(_).right).reduce(_ union _) + phiAndPsi))
@@ -194,7 +194,7 @@ object SCProofChecker {
                  * --------------    or    ---------------
                  *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
                  */
-                case RightOr(b, t1, phi, psi) =>
+              case RightOr(b, t1, phi, psi) =>
                     val phiOrPsi = ConnectorFormula(Or, Seq(phi, psi))
                     if (isSameSet(ref(t1).left, b.left))
                         if (isSameSet(b.right + phi, ref(t1).right + phiOrPsi) ||
@@ -208,7 +208,7 @@ object SCProofChecker {
                  * --------------
                  *  Γ |- φ→ψ, Δ
                  */
-                case RightImplies(b, t1, phi, psi) =>
+              case RightImplies(b, t1, phi, psi) =>
                     val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
                     if (isSameSet(ref(t1).left, b.left + phi))
                         if (isSameSet(b.right + psi, ref(t1).right + phiImpPsi))
@@ -220,7 +220,7 @@ object SCProofChecker {
                  * ----------------------------
                  *      Γ, Σ |- φ↔b, Π, Δ
                  */
-                case RightIff(b, t1, t2, phi, psi) =>
+              case RightIff(b, t1, t2, phi, psi) =>
                     val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
                     val psiImpPhi = ConnectorFormula(Implies, Seq(psi, phi))
                     val phiIffPsi = ConnectorFormula(Iff, Seq(phi, psi))
@@ -234,7 +234,7 @@ object SCProofChecker {
                  * --------------
                  *   Γ |- ¬φ, Δ
                  */
-                case RightNot(b, t1, phi) =>
+              case RightNot(b, t1, phi) =>
                     val nPhi = ConnectorFormula(Neg, Seq(phi))
                     if (isSameSet(b.right, ref(t1).right + nPhi))
                         if (isSameSet(b.left + phi, ref(t1).left))
@@ -246,7 +246,7 @@ object SCProofChecker {
                  * ------------------- if x is not free in the resulting sequent
                  *  Γ |- ∀x. φ, Δ
                  */
-                case RightForall(b, t1, phi, x) =>
+              case RightForall(b, t1, phi, x) =>
                     if (isSameSet(b.left, ref(t1).left))
                         if (isSameSet(b.right + phi, ref(t1).right + BinderFormula(Forall, x ,phi)))
                             if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
@@ -259,9 +259,9 @@ object SCProofChecker {
                  * -------------------
                  *  Γ |- ∃x. φ, Δ
                  */
-                case RightExists(b, t1, phi, x, t) =>
+              case RightExists(b, t1, phi, x, t) =>
                     if (isSameSet(b.left, ref(t1).left))
-                        if (isSameSet(b.right + substituteVariable(phi, x, t), ref(t1).right + BinderFormula(Exists, x ,phi)))
+                        if (isSameSet(b.right + substituteVariables(phi, Map(x -> t)), ref(t1).right + BinderFormula(Exists, x ,phi)))
                             SCValidProof
                         else SCInvalidProof(Nil, "Right-hand side of the conclusion + φ[t/x] must be the same as right-hand side of the premise + ∃x. φ")
                     else SCInvalidProof(Nil, "Left-hand sides or conclusion and premise must be the same.")
@@ -273,7 +273,7 @@ object SCProofChecker {
                  *      Γ|- ∃!x. φ,  Δ
                  * </pre>
                  */
-                case RightExistsOne(b, t1, phi, x) =>
+              case RightExistsOne(b, t1, phi, x) =>
                     val y = VariableLabel(freshId(phi.freeVariables.map(_.id), "x"))
                     val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredicateFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
                     if (isSameSet(b.left, ref(t1).left))
@@ -289,7 +289,7 @@ object SCProofChecker {
                  * --------------
                  *   Γ, Σ |- Δ
                  */
-                case Weakening(b, t1) =>
+              case Weakening(b, t1) =>
                     if (isSubset(ref(t1).left, b.left))
                         if (isSubset(ref(t1).right, b.right))
                             SCValidProof
@@ -302,7 +302,7 @@ object SCProofChecker {
                  * --------------
                  *     Γ |- Δ
                  */
-                case LeftRefl(b, t1, phi) =>
+              case LeftRefl(b, t1, phi) =>
                     phi match {
                         case PredicateFormula(`equality`, Seq(left, right)) =>
                             if (isSame(left, right))
@@ -320,7 +320,7 @@ object SCProofChecker {
                  * --------------
                  *     |- s=s
                  */
-                case RightRefl(b, phi) =>
+              case RightRefl(b, phi) =>
                     phi match {
                         case PredicateFormula(`equality`, Seq(left, right)) =>
                             if (isSame(left, right))
@@ -336,7 +336,8 @@ object SCProofChecker {
                  * ---------------------
                  *  Γ, s=t, φ[t/?f] |- Δ
                  */
-                case LeftSubstEq(b, t1, s, t, phi, f) =>
+              case LeftSubstEq(b, t1, s, t, phi, f) =>
+              case LeftSubstEq(b, t1, equals, lambdaPhi) =>
                     val sEqT = PredicateFormula(equality, Seq(s, t))
                     val phi_s_for_f = instantiateFunctionSchema(phi, f, s, Nil)
                     val phi_t_for_f = instantiateFunctionSchema(phi, f, t, Nil)
@@ -355,7 +356,7 @@ object SCProofChecker {
                  * ---------------------
                  *  Γ, s=t |- φ[t/?f], Δ
                  */
-                case RightSubstEq(b, t1, s, t, phi, f) =>
+              case RightSubstEq(b, t1, s, t, phi, f) =>
                     val sEqt = PredicateFormula(equality, Seq(s, t))
                     if (f.arity == 0)
                         if (isSameSet(ref(t1).left + sEqt, b.left))
@@ -372,7 +373,7 @@ object SCProofChecker {
                  * ---------------------
                  *  Γ, ψ↔τ, φ[τ/?q] |- Δ
                  */
-                case LeftSubstIff(b, t1, psi, tau, phi, q) =>
+              case LeftSubstIff(b, t1, psi, tau, phi, q) =>
                     val psiIffTau = ConnectorFormula(Iff, Seq(psi, tau))
                     val phi_tau_for_q = instantiatePredicateSchema(phi, q, tau, Nil)
                     val phi_psi_for_q = instantiatePredicateSchema(phi, q, psi, Nil)
@@ -390,7 +391,7 @@ object SCProofChecker {
                  * ---------------------
                  *  Γ, ψ↔τ |- φ[τ/?p], Δ
                  */
-                case RightSubstIff(b, t1, psi, tau, phi, q) =>
+              case RightSubstIff(b, t1, psi, tau, phi, q) =>
                     val psiIffTau = ConnectorFormula(Iff, Seq(psi, tau))
                     val phi_tau_for_q = instantiatePredicateSchema(phi, q, tau, Nil)
                     val phi_psi_for_q = instantiatePredicateSchema(phi, q, psi, Nil)
@@ -409,7 +410,7 @@ object SCProofChecker {
                  *  Γ[r(a)/?f] |- Δ[r(a)/?f]
                  * </pre>
                  */
-                case InstFunSchema(bot, t1, f, r, a) =>
+              case InstFunSchema(bot, t1, f, r, a) =>
                     val expected = (ref(t1).left.map(phi => instantiateFunctionSchema(phi, f, r, a)), ref(t1).right.map(phi => instantiateFunctionSchema(phi, f, r, a)))
                     if (isSameSet(bot.left, expected._1))
                         if (isSameSet(bot.right, expected._2))
@@ -424,7 +425,7 @@ object SCProofChecker {
                  *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
                  * </pre>
                  */
-                case InstPredSchema(bot, t1, p, psi, a) =>
+              case InstPredSchema(bot, t1, p, psi, a) =>
                     val expected = (ref(t1).left.map(phi => instantiatePredicateSchema(phi, p, psi, a)), ref(t1).right.map(phi => instantiatePredicateSchema(phi, p, psi, a)))
                     if (isSameSet(bot.left, expected._1))
                         if (isSameSet(bot.right, expected._2))
@@ -433,7 +434,7 @@ object SCProofChecker {
                             SCInvalidProof(Nil, "Right-hand side of premise instantiated with [?p/ψ(a)] must be the same as right-hand side of conclusion.")
                     else  SCInvalidProof(Nil, "Left-hand side of premise instantiated with [?p/ψ(a)] must be the same as left-hand side of conclusion.")
 
-                case SCSubproof(sp, premises, _) =>
+              case SCSubproof(sp, premises, _) =>
                     if (premises.size == sp.imports.size){
                         val invalid = premises.zipWithIndex.find((no, p) => !isSameSequent(ref(no), sp.imports(p)) )
                         if (invalid.isEmpty){
