@@ -10,6 +10,7 @@ import lisa.settheory.AxiomaticSetTheory.*
 import scala.collection.immutable.SortedSet
 import lisa.kernel.proof.{SCProof, SCProofChecker}
 import lisa.settheory.AxiomaticSetTheory
+import proven.ElementsOfSetTheory.theory
 
 import scala.collection.immutable
 
@@ -52,10 +53,8 @@ object ElementsOfSetTheory {
     val pr0 = SCSubproof(pairSame13, Seq(-1, -2))
     val pr1 = SCSubproof(pairSame23, Seq(-1, -2))
     val pr2 = RightSubstIff(Sequent(pr1.bot.right, Set(in(z, pair(x, y)) <=> in(z, pair(y, x)))), 0,
-      (x === z) \/ (y === z),
-      in(z, pair(y, x)),
-      in(z, pair(x, y)) <=> h(),
-      h)
+      List(((x === z) \/ (y === z),  in(z, pair(y, x)))),
+      LambdaFormulaFormula(Seq(h), in(z, pair(x, y)) <=> h()))
     val pr3 = Cut(Sequent(pr1.bot.left, pr2.bot.right), 1, 2, pr2.bot.left.head)
     //val pr4 = LeftAxiom(Sequent(Set(), pr2.bot.right), 3, pr1.bot.left.head, "")
     val pr4 = RightForall(Sequent(Set(), Set(forall(z, pr2.bot.right.head))), 3, pr2.bot.right.head, z)
@@ -65,7 +64,7 @@ object ElementsOfSetTheory {
     val fin4 = generalizeToForall(fin3, fin3.conclusion.right.head, y)
     fin4.copy(imports = imps)
   } //   |- ∀∀({x$1,y$2}={y$2,x$1})
-  val thm_proofUnorderedPairSymmetry = theory.proofToTheorem("proofUnorderedPairSymmetry", proofUnorderedPairSymmetry, Seq(axiom(extensionalityAxiom), axiom(pairAxiom))).get
+  val thm_proofUnorderedPairSymmetry: theory.Theorem = theory.proofToTheorem("proofUnorderedPairSymmetry", proofUnorderedPairSymmetry, Seq(axiom(extensionalityAxiom), axiom(pairAxiom))).get
 
 
   val proofUnorderedPairDeconstruction: SCProof = {
@@ -78,7 +77,7 @@ object ElementsOfSetTheory {
         val p1_0 = hypothesis(zf)
         val p1_1 = RightImplies(emptySeq +> (zf ==> zf), 0, zf, zf)
         val p1_2 = RightIff(emptySeq +> (zf <=> zf), 1, 1, zf, zf) //  |- (z in {x,y} <=> z in {x,y})
-        val p1_3 = RightSubstEq(emptySeq +< (pxy === pxy1) +> (zf <=> in(z, pxy1)), 2, pxy, pxy1, zf <=> in(z, g()), g)
+        val p1_3 = RightSubstEq(emptySeq +< (pxy === pxy1) +> (zf <=> in(z, pxy1)), 2, List((pxy, pxy1)), LambdaTermFormula(Seq(g), zf <=> in(z, g())))
         SCProof(IndexedSeq(p1_0, p1_1, p1_2, p1_3), IndexedSeq(()|-pairAxiom))
       }, Seq(-1), display = true) //  ({x,y}={x',y'}) |- ((z∈{x,y})↔(z∈{x',y'}))
       val p1 = SCSubproof({
@@ -92,15 +91,13 @@ object ElementsOfSetTheory {
         p2_1
       }, Seq(-1), display = true) //  |- (z in {x',y'}) <=> (z=x' \/ z=y')
       val p3 = RightSubstEq(
-        emptySeq +< (pxy === pxy1) +> (in(z, pxy1) <=> ((z === x) \/ (z === y))), 1, pxy, pxy1, in(z, g()) <=> ((z === x) \/ (z === y)), g
+        emptySeq +< (pxy === pxy1) +> (in(z, pxy1) <=> ((z === x) \/ (z === y))), 1, List((pxy, pxy1)), LambdaTermFormula(Seq(g), in(z, g()) <=> ((z === x) \/ (z === y)) )
       ) //   ({x,y}={x',y'}) |- ((z∈{x',y'})↔((z=x)∨(z=y)))
       val p4 = RightSubstIff(
         emptySeq +< p3.bot.left.head +< p2.bot.right.head +> (((z === x) \/ (z === y)) <=> ((z === x1) \/ (z === y1))),
         3,
-        (z === x1) \/ (z === y1),
-        in(z, pxy1),
-        h() <=> ((z === x) \/ (z === y)),
-        h
+        List(((z === x1) \/ (z === y1), in(z, pxy1))),
+        LambdaFormulaFormula(Seq(h), h() <=> ((z === x) \/ (z === y)))
       ) //  ((z∈{x',y'})↔((x'=z)∨(y'=z))), ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
       val p5 = Cut(emptySeq ++< p3.bot ++> p4.bot, 2, 4, p2.bot.right.head)
       SCProof(IndexedSeq(p0, p1, p2, p3, p4, p5), IndexedSeq(()|-pairAxiom))
@@ -126,8 +123,8 @@ object ElementsOfSetTheory {
                 val r = SCProof(pa0_0_0, pa0_1_1, pa0_1_2, pa0_1_3, pa0_1_4, pa0_1_5)
                 r
               }, display = false) //   |- (((z=x)∨(z=x))↔(z=x))
-              val pa0_1 = RightSubstEq(emptySeq +< (pxy === pxy1) +< (x === y) +> ((f1 \/ f1) <=> (z === x1) \/ (z === y1)), -1, x, y, (f1 \/ (z === g())) <=> ((z === x1) \/ (z === y1)), g) //  ({x,y}={x',y'}) y=x|- (z=x)\/(z=x) <=> (z=x' \/ z=y')
-              val pa0_2 = RightSubstIff(emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1))), 1, f1, f1 \/ f1, h() <=> ((z === x1) \/ (z === y1)), h)
+              val pa0_1 = RightSubstEq(emptySeq +< (pxy === pxy1) +< (x === y) +> ((f1 \/ f1) <=> (z === x1) \/ (z === y1)), -1, List((x, y)), LambdaTermFormula(Seq(g), (f1 \/ (z === g())) <=> ((z === x1) \/ (z === y1))) ) //  ({x,y}={x',y'}) y=x|- (z=x)\/(z=x) <=> (z=x' \/ z=y')
+              val pa0_2 = RightSubstIff(emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1))), 1, List((f1, f1 \/ f1)), LambdaFormulaFormula(Seq(h), h() <=> ((z === x1) \/ (z === y1))))
               val pa0_3 = Cut(emptySeq +< (pxy === pxy1) +< (x === y) +> (f1 <=> ((z === x1) \/ (z === y1))), 0, 2, f1 <=> (f1 \/ f1)) //  (x=y), ({x,y}={x',y'}) |- ((z=x)↔((z=x')∨(z=y')))
               val pa0_4 = RightForall(emptySeq +< (pxy === pxy1) +< (x === y) +> forall(z, f1 <=> ((z === x1) \/ (z === y1))), 3, f1 <=> ((z === x1) \/ (z === y1)), z)
               val ra0_0 = instantiateForall(SCProof(IndexedSeq(pa0_0, pa0_1, pa0_2, pa0_3, pa0_4), IndexedSeq(pa0_m1.bot)), y1) //  (x=y), ({x,y}={x',y'}) |- ((y'=x)↔((y'=x')∨(y'=y')))
@@ -139,7 +136,7 @@ object ElementsOfSetTheory {
               SCProof(pa1_0, pa1_1)
             }, display = false) //  |- (y'=x' \/ y'=y')
             val ra3 = byEquiv(pa0.bot.right.head, pa1.bot.right.head)(pa0, pa1) // ({x,y}={x',y'}) y=x|- ((y'=x)
-            val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), ra3.length - 1, x, y, y1 === g(), g)
+            val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), ra3.length - 1, List((x, y)), LambdaTermFormula(Seq(g), y1 === g()))
             SCProof(ra3.steps, IndexedSeq(pam1.bot)) appended pal // (x=y), ({x,y}={x',y'}) |- (y'=y)
           }, IndexedSeq(-1)) //  (x=y), ({x,y}={x',y'}) |- (y'=y)
           ,
@@ -155,7 +152,7 @@ object ElementsOfSetTheory {
               SCProof(pa1_0, pa1_1)
             }, display = false) //  |- (y=x)∨(y=y)
             val rb0 = byEquiv(pb0_0.bot.right.head, pb0_1.bot.right.head)(pb0_0, pb0_1) //  ({x,y}={x',y'}) |- (y=x')∨(y=y')
-            val pb1 = RightSubstEq(emptySeq ++< rb0.conclusion +< (x === x1) +> ((y === x) \/ (y === y1)), rb0.length - 1, x, x1, (y === g()) \/ (y === y1), g)
+            val pb1 = RightSubstEq(emptySeq ++< rb0.conclusion +< (x === x1) +> ((y === x) \/ (y === y1)), rb0.length - 1, List((x, x1)), LambdaTermFormula(Seq(g), (y === g()) \/ (y === y1)))
             val rb1 = destructRightOr(
               rb0 appended pb1, //  ({x,y}={x',y'}) , x=x'|- (y=x)∨(y=y')
               y === x, y === y1
@@ -167,7 +164,7 @@ object ElementsOfSetTheory {
         ).steps, IndexedSeq(pcm1.bot)), IndexedSeq(-1)) // (x=x'), ({x,y}={x',y'}) |- (y'=y)
         val pc1 = RightRefl(emptySeq +> (x === x), x === x)
         val pc2 = RightAnd(emptySeq ++< pc0.bot +> ((y1 === y) /\ (x === x)), Seq(0, 1), Seq(y1 === y, x === x)) // ({x,y}={x',y'}), x=x' |- (x=x /\ y=y')
-        val pc3 = RightSubstEq(emptySeq ++< pc2.bot +> ((y1 === y) /\ (x1 === x)), 2, x, x1, (y1 === y) /\ (g() === x), g) // ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')
+        val pc3 = RightSubstEq(emptySeq ++< pc2.bot +> ((y1 === y) /\ (x1 === x)), 2, List((x, x1)), LambdaTermFormula(Seq(g), (y1 === y) /\ (g() === x))) // ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')
         val pc4 = RightOr(emptySeq ++< pc3.bot +> (pc3.bot.right.head \/ ((x === y1) /\ (y === x1))), 3, pc3.bot.right.head, (x === y1) /\ (y === x1)) //  ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
         val r = SCProof(IndexedSeq(pc0, pc1, pc2, pc3, pc4), IndexedSeq(pcm1.bot))
         r
@@ -189,7 +186,7 @@ object ElementsOfSetTheory {
             val rd0_1_1 = instantiateForall(SCProof(IndexedSeq(pd0_1_0), IndexedSeq(pd0_m1.bot)), x1) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
             rd0_1_1
           }, IndexedSeq(-1)) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
-          val pd0_2 = RightSubstIff(pd0_1.bot.right |- ((x1===x) \/ (x1===y)), 0,(x1===x) \/ (x1===y), (x1===x1) \/ (x1===y1),SchematicPredicateLabel("h", 0)(), SchematicPredicateLabel("h", 0) ) // (x'=x \/ x'=y) <=> (x'=x' \/ x'=y') |- (x'=x \/ x'=y)
+          val pd0_2 = RightSubstIff(pd0_1.bot.right |- ((x1===x) \/ (x1===y)), 0, List(((x1===x) \/ (x1===y), (x1===x1) \/ (x1===y1))), LambdaFormulaFormula(Seq(h), h()) ) // (x'=x \/ x'=y) <=> (x'=x' \/ x'=y') |- (x'=x \/ x'=y)
           val pd0_3 = Cut(pd0_1.bot.left |- pd0_2.bot.right, 1,2, pd0_1.bot.right.head) //  ({x,y}={x',y'}) |- (x=x' \/ y=x')
           destructRightOr(SCProof(IndexedSeq(pd0_0, pd0_1, pd0_2, pd0_3), IndexedSeq(pd0_m1.bot)), x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
         }, IndexedSeq(-1)) //  ({x,y}={x',y'}) |- x=x',  y=x' --

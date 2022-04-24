@@ -52,7 +52,7 @@ sealed abstract class RunningTheoryJudgement[J<:RunningTheory#Justification] {
     }
     def get:J = this match {
         case ValidJustification(just) => just
-        case InvalidJustification(message, error) => None.get
+        case InvalidJustification(message, error) => throw new NoSuchElementException("InvalidJustification.get")
     }
 }
 

@@ -247,36 +247,36 @@ object SequentCalculus {
     case class RightRefl(bot: Sequent, fa: Formula) extends SCProofStep{val premises = Seq()}
     /**
      * <pre>
-     *    Γ, φ[s/?f] |- Δ
+     *    Γ, φ(s1,...,sn) |- Δ
      * ---------------------
-     *  Γ, s=t, φ[t/?f ] |- Δ
+     *  Γ, s1=t1, ..., sn=tn, φ(t1,...tn) |- Δ
      * </pre>
      */
-    case class LeftSubstEq(bot: Sequent, t1: Int, s: Term, t: Term, phi: Formula, f: SchematicFunctionLabel) extends SCProofStep{val premises = Seq(t1)}
+    case class LeftSubstEq(bot: Sequent, t1: Int, equals: List[(Term, Term)], lambdaPhi:LambdaTermFormula) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
-     *    Γ |- φ[s/?f], Δ
+     *    Γ |- φ(s1,...,sn), Δ
      * ---------------------
-     *  Γ, s=t |- φ[t/?f], Δ
+     *  Γ, s1=t1, ..., sn=tn |- φ(t1,...tn), Δ
      * </pre>
      */
-    case class RightSubstEq(bot: Sequent, t1: Int, s: Term, t: Term, phi: Formula, f: SchematicFunctionLabel) extends SCProofStep{val premises = Seq(t1)}
+    case class RightSubstEq(bot: Sequent, t1: Int, equals: List[(Term, Term)] ,lambdaPhi:LambdaTermFormula) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
-     *    Γ, φ[a/?p] |- Δ
+     *    Γ, φ(a1,...an) |- Δ
      * ---------------------
-     *  Γ, a↔b, φ[b/?p] |- Δ
+     *  Γ, a1↔b1, ..., an↔bn, φ(b1,...bn) |- Δ
      * </pre>
      */
-    case class LeftSubstIff(bot: Sequent, t1: Int, fa: Formula, fb: Formula, phi: Formula, h: SchematicPredicateLabel) extends SCProofStep{val premises = Seq(t1)}
+    case class LeftSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi:LambdaFormulaFormula) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
-     *    Γ |- φ[a/?p], Δ
+     *    Γ |- φ(a1,...an), Δ
      * ---------------------
-     *  Γ, a↔b |- φ[b/?p], Δ
+     *  Γ, a1↔b1, ..., an↔bn |- φ(b1,...bn), Δ
      * </pre>
      */
-    case class RightSubstIff(bot: Sequent, t1: Int, fa: Formula, fb: Formula, phi: Formula, h: SchematicPredicateLabel) extends SCProofStep{val premises = Seq(t1)}
+    case class RightSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi:LambdaFormulaFormula) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
      *           Γ |- Δ
@@ -284,7 +284,7 @@ object SequentCalculus {
      *  Γ[r(a)/?f] |- Δ[r(a)/?f]
      * </pre>
      */
-    case class InstFunSchema(bot:Sequent, t1:Int, f:SchematicFunctionLabel, r:Term, a: Seq[VariableLabel] ) extends SCProofStep{val premises = Seq(t1)}
+    case class InstFunSchema(bot:Sequent, t1:Int, insts: Map[SchematicFunctionLabel, LambdaTermTerm]) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
      *           Γ |- Δ
@@ -292,7 +292,7 @@ object SequentCalculus {
      *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
      * </pre>
      */
-    case class InstPredSchema(bot:Sequent, t1:Int, p:SchematicPredicateLabel, psi:Formula, a: Seq[VariableLabel] ) extends SCProofStep{val premises = Seq(t1)}
+    case class InstPredSchema(bot:Sequent, t1:Int, insts: Map[SchematicPredicateLabel, LambdaTermFormula]) extends SCProofStep{val premises = Seq(t1)}
 
     // Proof Organisation rules
     case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty, display:Boolean = true) extends SCProofStep {

@@ -50,10 +50,8 @@ class ElementsOfSetTheoryTests extends ProofCheckerSuite {
     val xy = u === v
     val h = SchematicPredicateLabel("h", 0)
     val t2 = RightSubstIff(Sequent(Set((xy \/ xy) <=> xy), Set(xy <=> in(u, pair(v, v)))), 0,
-      (v === u) \/ (v === u),
-      v === u,
-      in(u, pair(v, v)) <=> PredicateFormula(h, Seq.empty),
-      h)
+      List(((v === u) \/ (v === u),  v === u)),
+      LambdaFormulaFormula(Seq(h), in(u, pair(v, v)) <=> PredicateFormula(h, Seq.empty)))
     val t3 = Cut(Sequent(Set(), Set(xy <=> in(u, pair(v, v)))), 1, 2, (xy \/ xy) <=> xy)
 
     val p0 = SCProof(IndexedSeq(t0, t1, t2, t3), IndexedSeq(() |- pairAxiom))
