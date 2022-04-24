@@ -284,7 +284,7 @@ object SequentCalculus {
      *  Γ[r(a)/?f] |- Δ[r(a)/?f]
      * </pre>
      */
-    case class InstFunSchema(bot:Sequent, t1:Int, f:SchematicFunctionLabel, lambdaT: LambdaTermTerm ) extends SCProofStep{val premises = Seq(t1)}
+    case class InstFunSchema(bot:Sequent, t1:Int, insts: Map[SchematicFunctionLabel, LambdaTermTerm]) extends SCProofStep{val premises = Seq(t1)}
     /**
      * <pre>
      *           Γ |- Δ
@@ -292,7 +292,7 @@ object SequentCalculus {
      *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
      * </pre>
      */
-    case class InstPredSchema(bot:Sequent, t1:Int, p:SchematicPredicateLabel, lambdaPhi:LambdaTermFormula ) extends SCProofStep{val premises = Seq(t1)}
+    case class InstPredSchema(bot:Sequent, t1:Int, insts: Map[SchematicPredicateLabel, LambdaTermFormula]) extends SCProofStep{val premises = Seq(t1)}
 
     // Proof Organisation rules
     case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty, display:Boolean = true) extends SCProofStep {

@@ -287,8 +287,8 @@ object Printer {
                             case RightSubstEq(_, t1, _, _) => pretty("R. SubstEq", t1)
                             case LeftSubstIff(_, t1, _, _) => pretty("L. SubstIff", t1)
                             case RightSubstIff(_, t1, _, _) => pretty("R. SubstIff", t1)
-                            case InstFunSchema(_, t1, _, _) => pretty("?Fun Instantiation", t1)
-                            case InstPredSchema(_, t1, _, _) => pretty("?Pred Instantiation", t1)
+                            case InstFunSchema(_, t1, _) => pretty("?Fun Instantiation", t1)
+                            case InstPredSchema(_, t1, _) => pretty("?Pred Instantiation", t1)
                             case SCSubproof(_, _, false) => pretty("Subproof (hidden)")
                             case other => throw new Exception(s"No available method to print this proof step, consider updating Printer.scala\n$other")
                         }

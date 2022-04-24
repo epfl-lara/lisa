@@ -137,11 +137,11 @@ object KernelHelpers {
     infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
 
 
-  def instantiatePredicateSchemaInSequent(s: Sequent, p: SchematicPredicateLabel, psi: Formula, a: Seq[VariableLabel]): Sequent = {
-    s.left.map(phi => instantiatePredicateSchema(phi, p, psi, a)) |- s.right.map(phi => instantiatePredicateSchema(phi, p, psi, a))
+  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicPredicateLabel, LambdaTermFormula]): Sequent = {
+    s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
-  def instantiateFunctionSchemaInSequent(s: Sequent, f: SchematicFunctionLabel, r: Term, a: Seq[VariableLabel]): Sequent = {
-    s.left.map(phi => instantiateFunctionSchema(phi, f, r, a)) |- s.right.map(phi => instantiateFunctionSchema(phi, f, r, a))
+  def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicFunctionLabel, LambdaTermTerm]): Sequent = {
+    s.left.map(phi => instantiateFunctionSchemas(phi, m)) |- s.right.map(phi => instantiateFunctionSchemas(phi, m))
   }
   
   
