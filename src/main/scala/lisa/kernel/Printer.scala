@@ -272,9 +272,11 @@ object Printer {
                             case RightNot(_, t1, _) => pretty("Right ¬", t1)
                             case LeftExists(_, t1, _, _) => pretty("Left ∃", t1)
                             case LeftForall(_, t1, _, _, _) => pretty("Left ∀", t1)
+                            case LeftExistsOne(_, t1, _, _) => pretty("Left ∃!", t1)
                             case LeftOr(_, l, _) => pretty("Left ∨", l*)
                             case RightExists(_, t1, _, _, _) => pretty("Right ∃", t1)
                             case RightForall(_, t1, _, _) => pretty("Right ∀", t1)
+                            case RightExistsOne(_, t1, _, _) => pretty("Right ∃!", t1)
                             case RightAnd(_, l, _) => pretty("Right ∧", l*)
                             case RightIff(_, t1, t2, _, _) => pretty("Right ↔", t1, t2)
                             case RightImplies(_, t1, _, _) => pretty("Right →", t1)
@@ -292,7 +294,6 @@ object Printer {
                             case SCSubproof(_, _, false) => pretty("Subproof (hidden)")
                             case other => throw new Exception(s"No available method to print this proof step, consider updating Printer.scala\n$other")
                         }
-                        Seq(line)
                 }
             }
         }
