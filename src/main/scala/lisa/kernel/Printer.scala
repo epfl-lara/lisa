@@ -294,6 +294,7 @@ object Printer {
                             case SCSubproof(_, _, false) => pretty("Subproof (hidden)")
                             case other => throw new Exception(s"No available method to print this proof step, consider updating Printer.scala\n$other")
                         }
+                        Seq(line)
                 }
             }
         }
