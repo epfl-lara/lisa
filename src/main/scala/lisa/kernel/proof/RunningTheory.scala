@@ -107,7 +107,7 @@ class RunningTheory {
     def makePredicateDefinition(label: ConstantPredicateLabel, args: Seq[VariableLabel], phi: Formula): RunningTheoryJudgement[this.PredicateDefinition] = {
         if (belongsToTheory(phi))
             if (!isAcceptedPredicateLabel(label))
-                if (phi.freeVariables.isEmpty && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
+                if (phi.freeVariables.subsetOf(args.toSet) && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
                     val newDef = PredicateDefinition(label, args, phi)
                     predDefinitions.update(label, Some(newDef))
                     RunningTheoryJudgement.ValidJustification(newDef)
@@ -133,7 +133,7 @@ class RunningTheory {
     def makeFunctionDefinition(proof: SCProof, justifications:Seq[Justification], label: ConstantFunctionLabel, args: Seq[VariableLabel], out: VariableLabel, phi: Formula): RunningTheoryJudgement[this.FunctionDefinition] = {
         if (belongsToTheory(phi))
             if (!isAcceptedFunctionLabel(label))
-                if (phi.freeVariables.isEmpty && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
+                if (phi.freeVariables.subsetOf(args.toSet + out) && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
                     if (proof.imports.forall(i => justifications.exists( j => isSameSequent(i, sequentFromJustification(j)))))
                         val r = SCProofChecker.checkSCProof(proof)
                         r match {
