@@ -135,7 +135,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
         })
         */
         def checkForContradiction(children:List[(NormalFormula, Int)]): Boolean = {
-            val (negatives_temp, positives) = children.foldLeft[(List[NormalFormula], List[NormalFormula])]((Nil, Nil))(
+            val (negatives_temp, positives_temp) = children.foldLeft[(List[NormalFormula], List[NormalFormula])]((Nil, Nil))(
                 (acc, ch) => acc match {
                     case (negatives, positives) => ch._1 match {
                         case NNeg(child, c) =>(child::negatives, positives)
@@ -143,7 +143,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
                     }
                 }
             )
-            val negatives = negatives_temp.sortBy(_.code)
+            val (negatives, positives) = (negatives_temp.sortBy(_.code), positives_temp.reverse)
             var i, j = 0
             while (i<positives.size && j<negatives.size){ //checks if there is a positive and negative nodes with same code.
                 val (c1, c2) = (positives(i).code, negatives(j).code)
