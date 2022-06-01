@@ -104,6 +104,25 @@ object KernelParser {
         }
     }
 
+    /**
+     * Helper for the aceToTptp function.
+     *
+     * @param URL String
+     * @return the corresponding content (String)
+     */
+    def get(url: String) = scala.io.Source.fromURL(url).mkString
+
+    /**
+     * Send a request to the Attempto Webservice and get the TPTP formula.
+     *
+     * @param ACE (Attempto Controlled English) String
+     * @return the TPTP formula (String) corresponding to the ACE input
+     */
+    def aceToTptp(text: String) : String = {
+        var query = text.replaceAll("\\s", "+")
+        return get(s"http://attempto.ifi.uzh.ch/ws/ape/apews.perl?text=$query&ctptp=on&solo=tptp")
+    }
+
     private def problemToKernel(problemFile: File, md: ProblemMetadata): Problem = {
         val file = io.Source.fromFile(problemFile)
         val pattern = "SPC\\s*:\\s*[A-z]{3}(_[A-z]{3})*".r
@@ -126,7 +145,7 @@ object KernelParser {
 
     /**
      *
-     * @param problemFile a file containning a tptp problem
+     * @param problemFile a file containing a tptp problem
      * @return a Problem object containing the data of the tptp problem in LISA representation
      */
     def problemToKernel(problemFile: File): Problem = {
