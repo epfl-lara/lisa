@@ -20,6 +20,11 @@ private[fol] trait CommonDefinitions {
     val id: String
   }
 
+  /**
+   * Marks classes that can represent symbols in a theory
+   */
+  trait TheorySymbol
+
   def freshId(taken: Set[String], base: String): String = {
     var i = 0;
     while (taken contains base + "_" + i) i += 1

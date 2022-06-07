@@ -62,18 +62,12 @@ class RunningTheory {
 
   private[proof] val theoryAxioms: mMap[String, Axiom] = mMap.empty
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
-  private[proof] val funDefinitions: mMap[FunctionLabel, Option[FunctionDefinition]] = mMap.empty
-  private[proof] val predDefinitions: mMap[PredicateLabel, Option[PredicateDefinition]] = mMap(equality -> None)
+  private[proof] val definitions: mMap[TheorySymbol, Option[Definition]] = mMap(equality -> None)
 
   /**
    * Check if a label is a symbol of the theory
    */
-  def isAcceptedFunctionLabel(label: FunctionLabel): Boolean = funDefinitions.contains(label)
-
-  /**
-   * Check if a label is a symbol of the theory
-   */
-  def isAcceptedPredicateLabel(label: PredicateLabel): Boolean = predDefinitions.contains(label)
+  def isSymbol(label: TheorySymbol): Boolean = definitions.contains(label)
 
   /**
    * From a given proof, if it is true in the Running theory, add that theorem to the theory and returns it.
@@ -108,10 +102,10 @@ class RunningTheory {
    */
   def makePredicateDefinition(label: ConstantPredicateLabel, args: Seq[VariableLabel], phi: Formula): RunningTheoryJudgement[this.PredicateDefinition] = {
     if (belongsToTheory(phi))
-      if (!isAcceptedPredicateLabel(label))
+      if (!isSymbol(label))
         if (phi.freeVariables.subsetOf(args.toSet) && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
           val newDef = PredicateDefinition(label, args, phi)
-          predDefinitions.update(label, Some(newDef))
+          definitions.update(label, Some(newDef))
           RunningTheoryJudgement.ValidJustification(newDef)
         else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
       else InvalidJustification("The specified symbol is already part of the theory and can't be redefined.", None)
@@ -141,7 +135,7 @@ class RunningTheory {
       phi: Formula
   ): RunningTheoryJudgement[this.FunctionDefinition] = {
     if (belongsToTheory(phi))
-      if (!isAcceptedFunctionLabel(label))
+      if (!isSymbol(label))
         if (phi.freeVariables.subsetOf(args.toSet + out) && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
           if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j)))))
             val r = SCProofChecker.checkSCProof(proof)
@@ -153,7 +147,7 @@ class RunningTheory {
                     val subst2 = bindAll(Forall, args.reverse, BinderFormula(ExistsOne, out, phi))
                     if (isSame(r.head, subst) || isSame(r.head, subst2)) {
                       val newDef = FunctionDefinition(label, args, out, phi)
-                      funDefinitions.update(label, Some(newDef))
+                      definitions.update(label, Some(newDef))
                       RunningTheoryJudgement.ValidJustification(newDef)
                     } else InvalidJustification("The proof is correct but its conclusion does not correspond to a definition for for the formula phi.", None)
                   case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
@@ -201,7 +195,7 @@ class RunningTheory {
   def belongsToTheory(phi: Formula): Boolean = phi match {
     case PredicateFormula(label, args) =>
       label match {
-        case _: ConstantPredicateLabel => isAcceptedPredicateLabel(label) && args.forall(belongsToTheory)
+        case l: ConstantPredicateLabel => isSymbol(l) && args.forall(belongsToTheory)
         case _: SchematicPredicateLabel => args.forall(belongsToTheory)
       }
     case ConnectorFormula(label, args) => args.forall(belongsToTheory)
@@ -222,7 +216,7 @@ class RunningTheory {
     case VariableTerm(label) => true
     case FunctionTerm(label, args) =>
       label match {
-        case _: ConstantFunctionLabel => isAcceptedFunctionLabel(label) && args.forall(belongsToTheory(_))
+        case l: ConstantFunctionLabel => isSymbol(l) && args.forall(belongsToTheory(_))
         case _: SchematicFunctionLabel => args.forall(belongsToTheory(_))
       }
 
@@ -261,14 +255,13 @@ class RunningTheory {
    * For example, This function can add the empty set symbol to a theory, and then an axiom asserting
    * the it is empty can be introduced as well.
    */
-  def addSymbol(l: FunctionLabel): Unit = funDefinitions.update(l, None)
-  def addSymbol(l: PredicateLabel): Unit = predDefinitions.update(l, None)
+  def addSymbol(s: TheorySymbol): Unit = definitions.update(s, None)
 
   /**
    * Public accessor to the set of symbol currently in the theory's language.
    * @return the set of symbol currently in the theory's language.
    */
-  def language: (List[(FunctionLabel, Option[FunctionDefinition])], List[(PredicateLabel, Option[PredicateDefinition])]) = (funDefinitions.toList, predDefinitions.toList)
+  def language: List[(TheorySymbol, Option[Definition])] = definitions.toList
 
   /**
    * Public accessor to the current set of axioms of the theory

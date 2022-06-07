@@ -37,7 +37,7 @@ object Printer {
     ConstantFunctionLabel("power_set", 1),
     ConstantFunctionLabel("union", 1)
   )
-  private val nonAtomicPredicates = Set(equality, membership, subsetOf, sameCardinality) // Predicates which require parentheses (for readability)
+  private val nonAtomicPredicates: Set[PredicateLabel] = Set(equality, membership, subsetOf, sameCardinality) // Predicates which require parentheses (for readability)
 
   private def prettyFormulaInternal(formula: Formula, isRightMost: Boolean, compact: Boolean): String = formula match {
     case PredicateFormula(label, args) =>
