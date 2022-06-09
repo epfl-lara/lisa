@@ -1,6 +1,6 @@
 package lisa.kernel
 
-import lisa.KernelHelpers.*
+import utilities.KernelHelpers.*
 import lisa.kernel.Printer
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*

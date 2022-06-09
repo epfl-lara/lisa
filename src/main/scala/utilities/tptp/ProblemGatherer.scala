@@ -1,6 +1,6 @@
-package tptp
+package utilities.tptp
 
-import tptp.KernelParser._
+import KernelParser._
 
 object ProblemGatherer {
 

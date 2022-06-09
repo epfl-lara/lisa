@@ -1,7 +1,9 @@
 package proven.tactics
 
-import lisa.KernelHelpers.*
+import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.fol.FOL.*
+import utilities.KernelHelpers.*
+import proven.tactics.ProofTactics.hypothesis
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import proven.tactics.ProofTactics.hypothesis

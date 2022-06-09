@@ -1,6 +1,6 @@
 package lisa.kernel
 
-import lisa.KernelHelpers.{_, given}
+import utilities.KernelHelpers.{_, given}
 import lisa.kernel.Printer
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory

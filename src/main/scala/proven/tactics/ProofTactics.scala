@@ -1,10 +1,11 @@
 package proven.tactics
 
-import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import utilities.KernelHelpers.{*, given}
+import lisa.kernel.Printer.*
 
 import scala.collection.immutable.Set
 

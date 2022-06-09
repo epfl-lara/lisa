@@ -1,10 +1,11 @@
 package proven
 
-import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.fol.FOL.*
+import utilities.KernelHelpers.{*, given}
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.settheory.AxiomaticSetTheory.*
 import proven.ElementsOfSetTheory.*

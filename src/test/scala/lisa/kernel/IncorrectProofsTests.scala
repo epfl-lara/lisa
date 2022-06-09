@@ -1,7 +1,7 @@
 package lisa.kernel
 
 //import lisa.settheory.AxiomaticSetTheory.{emptySet, emptySetAxiom, pair, pairAxiom, useAxiom}
-import lisa.KernelHelpers.*
+import utilities.KernelHelpers.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
