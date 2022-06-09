@@ -7,7 +7,8 @@ import lisa.kernel.fol.FOL.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.MapView
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 class EquivalenceCheckerTests extends AnyFunSuite {

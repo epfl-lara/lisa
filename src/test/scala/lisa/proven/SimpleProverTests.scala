@@ -1,15 +1,16 @@
 package proven
 
-import lisa.kernel.Printer.*
-import lisa.kernel.proof.{RunningTheory, SCProofChecker}
-import lisa.kernel.fol.FOL.*
 import lisa.KernelHelpers.*
 import lisa.kernel.Printer
+import lisa.kernel.Printer.*
+import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.PredicateLogic
+import lisa.kernel.proof.SCProofChecker
 import org.scalatest.funsuite.AnyFunSuite
-import tptp.ProblemGatherer.getPRPproblems
-import tptp.KernelParser.*
 import proven.tactics.SimplePropositionalSolver as SPS
+import tptp.KernelParser.*
+import tptp.ProblemGatherer.getPRPproblems
 
 class SimpleProverTests extends AnyFunSuite {
 

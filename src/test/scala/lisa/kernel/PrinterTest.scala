@@ -1,8 +1,7 @@
 package lisa.kernel
 
-import lisa.kernel.fol.FOL._
 import lisa.kernel.Printer._
-
+import lisa.kernel.fol.FOL._
 import org.scalatest.funsuite.AnyFunSuite
 
 class PrinterTest extends AnyFunSuite {

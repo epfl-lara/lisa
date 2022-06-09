@@ -1,15 +1,17 @@
 package tptp
 
-import leo.modules.input.TPTPParser as Parser
-import Parser.TPTPParseException
 import leo.datastructures.TPTP
-import leo.datastructures.TPTP.{CNF, FOF}
+import leo.datastructures.TPTP.CNF
+import leo.datastructures.TPTP.FOF
+import leo.modules.input.TPTPParser as Parser
+import lisa.KernelHelpers.*
 import lisa.kernel.fol.FOL as K
 import lisa.kernel.proof.SequentCalculus as SK
-import lisa.KernelHelpers.*
 
 import java.io.File
 import scala.util.matching.Regex
+
+import Parser.TPTPParseException
 
 object KernelParser {
 

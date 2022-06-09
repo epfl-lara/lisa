@@ -1,9 +1,10 @@
 package lisa.kernel
 
 import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SCProofCheckerJudgement.*
-import lisa.kernel.proof.{SCProof, SCProofCheckerJudgement}
+import lisa.kernel.proof.SequentCalculus.*
 
 /**
  * A set of methods to pretty-print kernel trees.
