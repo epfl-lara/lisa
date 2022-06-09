@@ -62,12 +62,12 @@ class RunningTheory {
 
   private[proof] val theoryAxioms: mMap[String, Axiom] = mMap.empty
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
-  private[proof] val definitions: mMap[TheorySymbol, Option[Definition]] = mMap(equality -> None)
+  private[proof] val definitions: mMap[ConstantLabel, Option[Definition]] = mMap(equality -> None)
 
   /**
    * Check if a label is a symbol of the theory
    */
-  def isSymbol(label: TheorySymbol): Boolean = definitions.contains(label)
+  def isSymbol(label: ConstantLabel): Boolean = definitions.contains(label)
 
   /**
    * From a given proof, if it is true in the Running theory, add that theorem to the theory and returns it.
@@ -255,13 +255,13 @@ class RunningTheory {
    * For example, This function can add the empty set symbol to a theory, and then an axiom asserting
    * the it is empty can be introduced as well.
    */
-  def addSymbol(s: TheorySymbol): Unit = definitions.update(s, None)
+  def addSymbol(s: ConstantLabel): Unit = definitions.update(s, None)
 
   /**
    * Public accessor to the set of symbol currently in the theory's language.
    * @return the set of symbol currently in the theory's language.
    */
-  def language: List[(TheorySymbol, Option[Definition])] = definitions.toList
+  def language: List[(ConstantLabel, Option[Definition])] = definitions.toList
 
   /**
    * Public accessor to the current set of axioms of the theory
