@@ -1,4 +1,12 @@
-*.iml
+# IDEs
 .idea
-target
+.metals
+.vscode
+project/metals.sbt
+
+# build-related
 .bsp
+.bloop
+target
+
+*.iml
