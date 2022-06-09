@@ -11,10 +11,9 @@ import tptp.ProblemGatherer.getPRPproblems
 import tptp.KernelParser.*
 import proven.tactics.SimplePropositionalSolver as SPS
 
-
 class SimpleProverTests extends AnyFunSuite {
 
-    /*
+  /*
     test("Simple propositional logic proofs") {
         val problems = getPRPproblems.take(1)
         problems.foreach( pr => {
@@ -29,5 +28,5 @@ class SimpleProverTests extends AnyFunSuite {
         })
 
     }
-    */
+   */
 }

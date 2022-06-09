@@ -11,8 +11,7 @@ import lisa.kernel.proof.{SCProof, SCProofChecker}
 
 import scala.util.Random
 
-
-class ProofTests  extends AnyFunSuite {
+class ProofTests extends AnyFunSuite {
   val predicateVerifier = SCProofChecker.checkSCProof
 
   private val x = VariableLabel("x")
@@ -23,11 +22,10 @@ class ProofTests  extends AnyFunSuite {
   private val fp = ConstantPredicateLabel("F", 1)
   val sT = SchematicFunctionLabel("t", 0)
 
-
   test("Verification of Pierce law") {
-    val s0 = Hypothesis( a |- a, a)
-    val s1 = Weakening(a |- Set(a,b), 0)
-    val s2 = RightImplies(() |- Set(a,a==>b), 1, a, b)
+    val s0 = Hypothesis(a |- a, a)
+    val s1 = Weakening(a |- Set(a, b), 0)
+    val s2 = RightImplies(() |- Set(a, a ==> b), 1, a, b)
     val s3 = LeftImplies((a ==> b) ==> a |- a, 2, 0, a ==> b, a)
     val s4 = RightImplies(() |- (a ==> b) ==> a ==> a, 3, (a ==> b) ==> a, a)
     val ppl: SCProof = SCProof(IndexedSeq(s0, s1, s2, s3, s4))
@@ -35,7 +33,7 @@ class ProofTests  extends AnyFunSuite {
   }
 
   test("Verification of substitution") {
-    val t0 = Hypothesis(fp(x)|-fp(x), fp(x))
+    val t0 = Hypothesis(fp(x) |- fp(x), fp(x))
     val t1 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, List((x, y)), LambdaTermFormula(Seq(sT), fp(sT())))
     val pr = new SCProof(IndexedSeq(t0, t1))
     assert(predicateVerifier(pr).isValid)
