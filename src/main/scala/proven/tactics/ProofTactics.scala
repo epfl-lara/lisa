@@ -1,12 +1,12 @@
 package proven.tactics
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.KernelHelpers.{*, given}
+import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer.*
+import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.*
 
 import scala.collection.immutable.Set
-import lisa.kernel.proof.SCProof
 
 /**
  * SCProof tactics are a set of strategies that help the user write proofs in a more expressive way

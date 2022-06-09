@@ -1,15 +1,15 @@
 package proven
 
+import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer
-import lisa.settheory.AxiomaticSetTheory.*
-import test.ProofCheckerSuite
-import proven.tactics.ProofTactics
-import lisa.kernel.proof.SCProof
-import proven.ElementsOfSetTheory.*
-import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.fol.FOL.*
-import lisa.KernelHelpers.{*, given}
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.settheory.AxiomaticSetTheory.*
+import proven.ElementsOfSetTheory.*
+import proven.tactics.ProofTactics
+import test.ProofCheckerSuite
 
 class ElementsOfSetTheoryTests extends ProofCheckerSuite {
 

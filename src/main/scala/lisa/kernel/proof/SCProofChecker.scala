@@ -2,8 +2,8 @@ package lisa.kernel.proof
 
 import lisa.kernel.Printer
 import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.proof.SCProofCheckerJudgement.*
+import lisa.kernel.proof.SequentCalculus.*
 
 object SCProofChecker {
 

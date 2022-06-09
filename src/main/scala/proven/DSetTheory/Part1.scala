@@ -1,20 +1,22 @@
 package proven.DSetTheory
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.KernelHelpers.{*, given}
+import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer
-import lisa.kernel.Printer.{prettyFormula, prettySCProof}
+import lisa.kernel.Printer.prettyFormula
+import lisa.kernel.Printer.prettySCProof
 import lisa.kernel.fol.FOL
-import proven.tactics.ProofTactics.*
-import proven.tactics.Destructors.*
-import lisa.settheory.AxiomaticSetTheory.*
-import proven.ElementsOfSetTheory.{oPair, orderedPairDefinition}
-
-import scala.collection.immutable.SortedSet
-import lisa.kernel.proof.{SCProof, SCProofChecker}
+import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofChecker
+import lisa.kernel.proof.SequentCalculus.*
 import lisa.settheory.AxiomaticSetTheory
+import lisa.settheory.AxiomaticSetTheory.*
+import proven.ElementsOfSetTheory.oPair
+import proven.ElementsOfSetTheory.orderedPairDefinition
+import proven.tactics.Destructors.*
+import proven.tactics.ProofTactics.*
 
 import scala.collection.immutable
+import scala.collection.immutable.SortedSet
 object Part1 {
   val theory = AxiomaticSetTheory.runningSetTheory
   def axiom(f: Formula): theory.Axiom = theory.getAxiom(f).get

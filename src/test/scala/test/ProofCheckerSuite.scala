@@ -1,13 +1,14 @@
 package test
 
-import lisa.kernel.Printer
-import lisa.kernel.proof.SequentCalculus.{Sequent, isSameSequent}
-import lisa.kernel.proof.SCProofChecker._
-import lisa.settheory.AxiomaticSetTheory
-import org.scalatest.funsuite.AnyFunSuite
-import lisa.kernel.proof.SCProof
 import lisa.KernelHelpers._
 import lisa.KernelHelpers.given_Conversion_Boolean_List_String_Option
+import lisa.kernel.Printer
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofChecker._
+import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.proof.SequentCalculus.isSameSequent
+import lisa.settheory.AxiomaticSetTheory
+import org.scalatest.funsuite.AnyFunSuite
 
 abstract class ProofCheckerSuite extends AnyFunSuite {
   import lisa.kernel.fol.FOL.*

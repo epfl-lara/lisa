@@ -1,13 +1,13 @@
 package lisa.kernel.proof
 
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.RunningTheoryJudgement.*
+import lisa.kernel.proof.SCProofChecker.*
+import lisa.kernel.proof.SequentCalculus.*
 
+import scala.collection.immutable.Set
 import scala.collection.mutable.Map as mMap
 import scala.collection.mutable.Set as mSet
-import scala.collection.immutable.Set
-import lisa.kernel.proof.RunningTheoryJudgement.*
 
 /**
  * This class describes the theory, i.e. the context and language, in which theorems are proven.

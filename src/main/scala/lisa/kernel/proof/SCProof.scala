@@ -1,7 +1,7 @@
 package lisa.kernel.proof
 
-import lisa.kernel.proof.SequentCalculus._
 import lisa.kernel.proof.SCProofChecker._
+import lisa.kernel.proof.SequentCalculus._
 
 /**
  * A SCPRoof (for Sequent Calculus Proof) is a (dependant) proof. While technically a proof is an Directed Acyclic Graph,

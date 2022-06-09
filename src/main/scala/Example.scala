@@ -1,9 +1,10 @@
-import lisa.KernelHelpers.{*, given}
+import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer.*
 import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.kernel.proof.{SCProof, SCProofChecker}
 import proven.tactics.SimplePropositionalSolver.solveSequent
 import tptp.KernelParser.*
 import tptp.ProblemGatherer.getPRPproblems
