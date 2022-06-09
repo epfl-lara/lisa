@@ -4,6 +4,7 @@ package lisa.kernel.fol
  * Definitions of term labels.
  */
 private[fol] trait TermLabelDefinitions extends CommonDefinitions {
+
   /**
    * The parent class of term labels.
    * These are labels that can be applied to nodes that form the tree of a term.

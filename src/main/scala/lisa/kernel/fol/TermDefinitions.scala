@@ -14,14 +14,12 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
     def schematicFunctions: Set[SchematicFunctionLabel]
   }
 
-
   /**
    * The parent classes of terms.
    * A term is a tree with nodes labeled by functions labels or variables.
    * The number of children of a node is restricted by the arity imposed by the label.
    */
   sealed abstract class Term extends TreeWithLabel[TermLabel]
-
 
   /**
    * A term which consists of a single variable.
@@ -47,17 +45,15 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
     override def constantFunctions: Set[ConstantFunctionLabel] = label match {
-      case l:ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions) + l
-      case l:SchematicFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
+      case l: ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions) + l
+      case l: SchematicFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
     }
     override def schematicFunctions: Set[SchematicFunctionLabel] = label match {
-      case l:ConstantFunctionLabel => args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
-      case l:SchematicFunctionLabel => args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions) + l
+      case l: ConstantFunctionLabel => args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
+      case l: SchematicFunctionLabel => args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions) + l
     }
 
     val arity: Int = args.size
   }
-
-
 
 }

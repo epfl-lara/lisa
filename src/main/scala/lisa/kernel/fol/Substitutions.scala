@@ -1,6 +1,6 @@
 package lisa.kernel.fol
 
-trait Substitutions extends FormulaDefinitions{
+trait Substitutions extends FormulaDefinitions {
 
   /**
    * A lambda term to express a "term with holes". Main use is to be substituted in place of a function schema.
@@ -8,9 +8,9 @@ trait Substitutions extends FormulaDefinitions{
    * @param vars The names of the "holes" in the term, necessarily of arity 0. The bound variables of the functional term.
    * @param body The term represented by the object, up to instantiation of the bound schematic variables in args.
    */
-  case class LambdaTermTerm(vars:Seq[SchematicFunctionLabel], body:Term){
+  case class LambdaTermTerm(vars: Seq[SchematicFunctionLabel], body: Term) {
     require(vars.forall(_.arity == 0))
-    def apply(args:Seq[Term]): Term = instantiateNullaryFunctionSchemas(body, (vars zip args).toMap)
+    def apply(args: Seq[Term]): Term = instantiateNullaryFunctionSchemas(body, (vars zip args).toMap)
   }
 
   /**
@@ -19,12 +19,12 @@ trait Substitutions extends FormulaDefinitions{
    * @param vars The names of the "holes" in a formula, necessarily of arity 0. The bound variables of the functional formula.
    * @param body The formula represented by the object, up to instantiation of the bound schematic variables in args.
    */
-  case class LambdaTermFormula(vars:Seq[SchematicFunctionLabel], body:Formula){
+  case class LambdaTermFormula(vars: Seq[SchematicFunctionLabel], body: Formula) {
     require(vars.forall(_.arity == 0))
-    def apply(args:Seq[Term]):Formula ={
-      instantiateFunctionSchemas(body, (vars zip (args map(LambdaTermTerm(Nil, _)))).toMap)
+    def apply(args: Seq[Term]): Formula = {
+      instantiateFunctionSchemas(body, (vars zip (args map (LambdaTermTerm(Nil, _)))).toMap)
     }
-    //def instantiateFunctionSchemas(phi: Formula, m: Map[SchematicFunctionLabel, LambdaTermTerm]):Formula = ???
+    // def instantiateFunctionSchemas(phi: Formula, m: Map[SchematicFunctionLabel, LambdaTermTerm]):Formula = ???
   }
 
   /**
@@ -33,9 +33,9 @@ trait Substitutions extends FormulaDefinitions{
    * @param vars The names of the "holes" in a formula, necessarily of arity 0.
    * @param body The formula represented by the object, up to instantiation of the bound schematic variables in args.
    */
-  case class LambdaFormulaFormula(vars:Seq[SchematicPredicateLabel], body:Formula){
+  case class LambdaFormulaFormula(vars: Seq[SchematicPredicateLabel], body: Formula) {
     require(vars.forall(_.arity == 0))
-    def apply(args:Seq[Formula]):Formula = instantiatePredicateSchemas(body, (vars zip (args map(LambdaTermFormula(Nil, _)))).toMap)
+    def apply(args: Seq[Formula]): Formula = instantiatePredicateSchemas(body, (vars zip (args map (LambdaTermFormula(Nil, _)))).toMap)
   }
 
   //////////////////////////
@@ -62,12 +62,13 @@ trait Substitutions extends FormulaDefinitions{
    * @return t[m]
    */
   private def instantiateNullaryFunctionSchemas(t: Term, m: Map[SchematicFunctionLabel, Term]): Term = {
-    require(m.forall{ case (symbol, term) => symbol.arity == 0})
+    require(m.forall { case (symbol, term) => symbol.arity == 0 })
     t match {
       case VariableTerm(_) => t
-      case FunctionTerm(label, args) => label match
-        case label: SchematicFunctionLabel if label.arity == 0 => m.getOrElse(label, t)
-        case label => FunctionTerm(label, args.map(instantiateNullaryFunctionSchemas(_, m)))
+      case FunctionTerm(label, args) =>
+        label match
+          case label: SchematicFunctionLabel if label.arity == 0 => m.getOrElse(label, t)
+          case label => FunctionTerm(label, args.map(instantiateNullaryFunctionSchemas(_, m)))
     }
   }
 
@@ -81,7 +82,7 @@ trait Substitutions extends FormulaDefinitions{
    * @return t[m]
    */
   def instantiateFunctionSchemas(t: Term, m: Map[SchematicFunctionLabel, LambdaTermTerm]): Term = {
-    require(m.forall{case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity})
+    require(m.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     t match {
       case VariableTerm(_) => t
       case FunctionTerm(label, args) =>
@@ -90,9 +91,8 @@ trait Substitutions extends FormulaDefinitions{
           case label: ConstantFunctionLabel => FunctionTerm(label, newArgs)
           case label: SchematicFunctionLabel =>
             if (m.contains(label))
-              m(label)(newArgs) //= instantiateNullaryFunctionSchemas(m(label).body, (m(label).vars zip newArgs).toMap)
+              m(label)(newArgs) // = instantiateNullaryFunctionSchemas(m(label).body, (m(label).vars zip newArgs).toMap)
             else FunctionTerm(label, newArgs)
-
 
     }
   }
@@ -118,8 +118,7 @@ trait Substitutions extends FormulaDefinitions{
         val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
         val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
         BinderFormula(label, newBoundVariable, substituteVariables(newInner, newSubst))
-      }
-      else BinderFormula(label, bound, substituteVariables(inner, newSubst))
+      } else BinderFormula(label, bound, substituteVariables(inner, newSubst))
   }
 
   /**
@@ -138,7 +137,7 @@ trait Substitutions extends FormulaDefinitions{
       case PredicateFormula(label, args) => PredicateFormula(label, args.map(instantiateFunctionSchemas(_, m)))
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiateFunctionSchemas(_, m)))
       case BinderFormula(label, bound, inner) =>
-        val fv: Set[VariableLabel] = (m.flatMap {case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables}).toSet
+        val fv: Set[VariableLabel] = (m.flatMap { case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }).toSet
         if (fv.contains(bound)) {
           val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
           val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
@@ -146,7 +145,6 @@ trait Substitutions extends FormulaDefinitions{
         } else BinderFormula(label, bound, instantiateFunctionSchemas(inner, m))
     }
   }
-
 
   /**
    * Instantiate a schematic predicate symbol in a formula, using higher-order instantiation.
@@ -167,7 +165,7 @@ trait Substitutions extends FormulaDefinitions{
           case label => phi
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiatePredicateSchemas(_, m)))
       case BinderFormula(label, bound, inner) =>
-        val fv: Set[VariableLabel] = (m.flatMap {case (symbol, LambdaTermFormula(arguments, body)) => body.freeVariables}).toSet
+        val fv: Set[VariableLabel] = (m.flatMap { case (symbol, LambdaTermFormula(arguments, body)) => body.freeVariables }).toSet
         if (fv.contains(bound)) {
           val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
           val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
@@ -175,7 +173,6 @@ trait Substitutions extends FormulaDefinitions{
         } else BinderFormula(label, bound, instantiatePredicateSchemas(inner, m))
     }
   }
-
 
   def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 

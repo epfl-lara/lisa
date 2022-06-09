@@ -7,7 +7,4 @@ package lisa.kernel.fol
  * import lisa.fol.FOL._
  * </pre>
  */
-object FOL extends FormulaDefinitions with EquivalenceChecker with Substitutions {
-
-
-}
+object FOL extends FormulaDefinitions with EquivalenceChecker with Substitutions {}

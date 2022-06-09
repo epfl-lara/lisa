@@ -24,17 +24,13 @@ object KernelHelpers {
   def existsOne(label: VariableLabel, body: Formula): Formula = BinderFormula(ExistsOne, label, body)
   def equ(l: Term, r: Term): Formula = PredicateFormula(equality, Seq(l, r))
 
-  extension (label: PredicateLabel)
-    def apply(args: Term*): Formula = PredicateFormula(label, args)
+  extension (label: PredicateLabel) def apply(args: Term*): Formula = PredicateFormula(label, args)
 
-  extension (label: ConnectorLabel)
-    def apply(args: Formula*): Formula = ConnectorFormula(label, args)
+  extension (label: ConnectorLabel) def apply(args: Formula*): Formula = ConnectorFormula(label, args)
 
-  extension (label: FunctionLabel)
-    def apply(args: Term*): Term = FunctionTerm(label, args)
+  extension (label: FunctionLabel) def apply(args: Term*): Term = FunctionTerm(label, args)
 
-  extension (label: BinderLabel)
-    def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
+  extension (label: BinderLabel) def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
 
   /* Infix syntax */
 
@@ -46,8 +42,7 @@ object KernelHelpers {
     infix def \/(g: Formula): Formula = or(f, g)
   }
 
-  extension (t: Term)
-    infix def ===(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
+  extension (t: Term) infix def ===(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
 
   /* Pattern matching extractors */
 
@@ -133,9 +128,7 @@ object KernelHelpers {
 
   private def any2set[S, A, T <: A](any: T)(using SetConverter[S, T]): Set[S] = summon[SetConverter[S, T]].apply(any)
 
-  extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1])
-    infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
-
+  extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
 
   def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicPredicateLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
@@ -143,7 +136,5 @@ object KernelHelpers {
   def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicFunctionLabel, LambdaTermTerm]): Sequent = {
     s.left.map(phi => instantiateFunctionSchemas(phi, m)) |- s.right.map(phi => instantiateFunctionSchemas(phi, m))
   }
-  
-  
 
 }
