@@ -1,10 +1,17 @@
 package proven
-import lisa.KernelHelpers.{_, given}
 import lisa.kernel.Printer
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
+import utilities.KernelHelpers.{*, given}
+import lisa.kernel.Printer
+import proven.tactics.ProofTactics.*
+import proven.tactics.Destructors.*
+import lisa.settheory.AxiomaticSetTheory.*
+
+import scala.collection.immutable.SortedSet
+import lisa.kernel.proof.{SCProof, SCProofChecker}
 import lisa.settheory.AxiomaticSetTheory
 import lisa.settheory.AxiomaticSetTheory.*
 import proven.ElementsOfSetTheory.theory

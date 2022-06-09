@@ -1,5 +1,5 @@
 package proven.DSetTheory
-import lisa.KernelHelpers.{_, given}
+import utilities.KernelHelpers.{_, given}
 import lisa.kernel.Printer
 import lisa.kernel.Printer.prettyFormula
 import lisa.kernel.Printer.prettySCProof

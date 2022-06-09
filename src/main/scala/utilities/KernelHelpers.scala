@@ -1,4 +1,4 @@
-package lisa
+package utilities
 
 /**
  * A helper file that provides various syntactic sugars for LISA.
@@ -9,8 +9,8 @@ package lisa
  */
 object KernelHelpers {
 
-  import lisa.kernel.proof.SequentCalculus.Sequent
   import lisa.kernel.fol.FOL.*
+  import lisa.kernel.proof.SequentCalculus.Sequent
 
   /* Prefix syntax */
 

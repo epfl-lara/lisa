@@ -1,12 +1,13 @@
-package tptp
+package utilities.tptp
 
 import leo.datastructures.TPTP
 import leo.datastructures.TPTP.CNF
 import leo.datastructures.TPTP.FOF
+import utilities.tptp.*
 import leo.modules.input.TPTPParser as Parser
-import lisa.KernelHelpers.*
 import lisa.kernel.fol.FOL as K
-import lisa.kernel.proof.SequentCalculus as SK
+import lisa.kernel.proof.SequentCalculus as LK
+import utilities.KernelHelpers.*
 
 import java.io.File
 import scala.util.matching.Regex
@@ -14,12 +15,6 @@ import scala.util.matching.Regex
 import Parser.TPTPParseException
 
 object KernelParser {
-
-  case class AnnotatedFormula(role: String, name: String, formula: K.Formula)
-
-  case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedFormula])
-
-  case class FileNotAcceptedException(msg: String, file: String) extends Exception(msg + " File: " + file)
 
   private case class ProblemMetadata(file: String, domain: String, problem: String, status: String, spc: Seq[String])
 
@@ -152,10 +147,10 @@ object KernelParser {
    * @param problem a problem, containing a list of annotated formulas from a tptp file
    * @return a sequent with axioms of the problem on the left, and the conjecture on the right
    */
-  def problemToSequent(problem: Problem): SK.Sequent = {
+  def problemToSequent(problem: Problem): LK.Sequent = {
     if (problem.spc.contains("CNF")) problem.formulas.map(_.formula) |- ()
     else
-      problem.formulas.foldLeft[SK.Sequent](() |- ())((s, f) =>
+      problem.formulas.foldLeft[LK.Sequent](() |- ())((s, f) =>
         if (f._1 == "axiom") s +< f._3
         else if (f._1 == "conjecture" && s.right.isEmpty) s +> f._3
         else throw Exception("Can only agglomerate axioms and one conjecture into a sequents")

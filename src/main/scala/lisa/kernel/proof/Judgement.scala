@@ -53,7 +53,7 @@ sealed abstract class RunningTheoryJudgement[J <: RunningTheory#Justification] {
   def get: J = this match {
     case ValidJustification(just) => just
     case InvalidJustification(message, error) =>
-      throw new InvalidJustificationException(message, error)
+      throw InvalidJustificationException(message, error)
   }
 }
 
