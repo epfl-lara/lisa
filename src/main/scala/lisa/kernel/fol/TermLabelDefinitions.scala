@@ -54,7 +54,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
    */
-  final case class ConstantFunctionLabel(id: String, arity: Int) extends FunctionLabel with TheorySymbol
+  final case class ConstantFunctionLabel(id: String, arity: Int) extends FunctionLabel with ConstantLabel
 
   /**
    * A schematic function symbol that can be substituted.

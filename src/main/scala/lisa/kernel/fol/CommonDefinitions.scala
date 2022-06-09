@@ -21,9 +21,15 @@ private[fol] trait CommonDefinitions {
   }
 
   /**
-   * Marks classes that can represent symbols in a theory
+   * Constant label can represent a symbol of a theory
    */
-  trait TheorySymbol
+  trait ConstantLabel extends Label
+
+  /**
+   * Schematic label in a formula can be substituted by any constant label of the respective
+   * kind (predicate or function)
+   */
+  trait SchematicLabel extends Label
 
   def freshId(taken: Set[String], base: String): String = {
     var i = 0;

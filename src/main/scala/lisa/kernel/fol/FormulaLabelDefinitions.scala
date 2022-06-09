@@ -41,7 +41,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A standard predicate symbol. Typical example are equality (=) and membership (∈)
    */
-  final case class ConstantPredicateLabel(id: String, arity: Int) extends PredicateLabel with TheorySymbol
+  final case class ConstantPredicateLabel(id: String, arity: Int) extends PredicateLabel with ConstantLabel
 
   /**
    * The equality symbol (=) for first order logic.
