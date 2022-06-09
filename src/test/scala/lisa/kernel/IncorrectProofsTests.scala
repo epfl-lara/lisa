@@ -26,7 +26,6 @@ class IncorrectProofsTests extends ProofCheckerSuite {
     val emptySetAxiom = lisa.settheory.AxiomaticSetTheory.emptySetAxiom
     val pairAxiom = lisa.settheory.AxiomaticSetTheory.pairAxiom
 
-
     val incorrectProofs: Seq[SCProof] = List(
       SCProof(
         Hypothesis(emptySeq +< (x === x) +> (x === x), x === x),
@@ -40,22 +39,22 @@ class IncorrectProofsTests extends ProofCheckerSuite {
       RightRefl(emptySeq +> f, x === x),
       RightRefl(emptySeq +> (x === x), f),
       // Correct proof would be: x=y |- x=y \ x=y,x=z |- z=y
-      
+
       SCProof(
         Hypothesis(emptySeq +< (x === y) +> (x === y), x === y),
-        RightSubstEq(emptySeq +< (x === y) +< (x === z) +> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(yl),  x === y)) // wrong variable replaced
+        RightSubstEq(emptySeq +< (x === y) +< (x === z) +> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(yl), x === y)) // wrong variable replaced
       ),
       SCProof(
         Hypothesis(emptySeq +< (x === y) +> (x === y), x === y),
-        RightSubstEq(emptySeq +< (x === y) +> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(xl),  x === y)) // missing hypothesis
+        RightSubstEq(emptySeq +< (x === y) +> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(xl), x === y)) // missing hypothesis
       ),
       SCProof(
         Hypothesis(emptySeq +< (x === y) +> (x === y), x === y),
-        RightSubstEq(emptySeq +< (x === y) +< (x === z) +> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(xl),  x === z)) // replacement mismatch
+        RightSubstEq(emptySeq +< (x === y) +< (x === z) +> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(xl), x === z)) // replacement mismatch
       ),
       SCProof(
         Hypothesis(emptySeq +< (x === y) +> (x === y), x === y),
-        LeftSubstEq(emptySeq +< (z === y) +< (x === z) +> (x === y), 0, List((x, z)), LambdaTermFormula(Seq(yl),  x === y))
+        LeftSubstEq(emptySeq +< (z === y) +< (x === z) +> (x === y), 0, List((x, z)), LambdaTermFormula(Seq(yl), x === y))
       ),
       SCProof(
         Hypothesis(emptySeq +< (f <=> g) +> (f <=> g), f <=> g),
@@ -88,7 +87,6 @@ class IncorrectProofsTests extends ProofCheckerSuite {
         Hypothesis(emptySeq +< f +> f, f),
         RightOr(emptySeq +< f +> (f \/ g) +> g, 0, f, g) // supplemental right g
       )
-
     )
 
     incorrectProofs.foreach(checkIncorrectProof)

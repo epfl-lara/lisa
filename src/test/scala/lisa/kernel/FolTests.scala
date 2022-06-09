@@ -25,30 +25,30 @@ class FolTests extends AnyFunSuite {
     if (maxDepth <= 1) {
       val r = gen.between(0, 3)
       if (r == 0) {
-        val name = "" + ('a' to 'e') (gen.between(0, 5))
+        val name = "" + ('a' to 'e')(gen.between(0, 5))
         FunctionTerm(ConstantFunctionLabel(name, 0), List())
-      }
-      else {
-        val name = "" + ('v' to 'z') (gen.between(0, 5))
+      } else {
+        val name = "" + ('v' to 'z')(gen.between(0, 5))
         VariableTerm(VariableLabel(name))
       }
     } else {
       val r = gen.between(0, 8)
-      val name = "" + ('f' to 'j') (gen.between(0, 5))
+      val name = "" + ('f' to 'j')(gen.between(0, 5))
       if (r == 0) {
-        val name = "" + ('a' to 'e') (gen.between(0, 5))
+        val name = "" + ('a' to 'e')(gen.between(0, 5))
         FunctionTerm(ConstantFunctionLabel(name, 0), List())
-      }
-      else if (r == 1) {
-        val name = "" + ('v' to 'z') (gen.between(0, 5))
+      } else if (r == 1) {
+        val name = "" + ('v' to 'z')(gen.between(0, 5))
         VariableTerm(VariableLabel(name))
       }
       if (r <= 3) FunctionTerm(ConstantFunctionLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
       else if (r <= 5) FunctionTerm(ConstantFunctionLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
-      else if (r == 6) FunctionTerm(ConstantFunctionLabel(name, 3),
-        Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
-      else FunctionTerm(ConstantFunctionLabel(name,  4),
-        Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+      else if (r == 6) FunctionTerm(ConstantFunctionLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+      else
+        FunctionTerm(
+          ConstantFunctionLabel(name, 4),
+          Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen))
+        )
 
     }
   }
@@ -57,42 +57,34 @@ class FolTests extends AnyFunSuite {
     if (maxDepth <= 2 || (gen.nextBoolean() && gen.nextBoolean())) {
       val r = gen.between(0, 7)
       if (r <= 1) {
-        val name = "" + ('A' to 'E') (gen.between(0, 5))
+        val name = "" + ('A' to 'E')(gen.between(0, 5))
         PredicateFormula(ConstantPredicateLabel(name, 0), Seq())
-      }
-
-      else if (r <= 3) {
-        val name = "" + ('A' to 'E') (gen.between(0, 5))
+      } else if (r <= 3) {
+        val name = "" + ('A' to 'E')(gen.between(0, 5))
         PredicateFormula(ConstantPredicateLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
-      }
-
-      else if (r <= 5) {
+      } else if (r <= 5) {
         val s = gen.between(0, 3)
         if (s == 0) PredicateFormula(equality, Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
         else {
-          val name = "" + ('A' to 'E') (gen.between(0, 5))
+          val name = "" + ('A' to 'E')(gen.between(0, 5))
           PredicateFormula(ConstantPredicateLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
         }
-      }
-      else {
-        val name = "" + ('A' to 'E') (gen.between(0, 5))
-        PredicateFormula(ConstantPredicateLabel(name, 3),
-          Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+      } else {
+        val name = "" + ('A' to 'E')(gen.between(0, 5))
+        PredicateFormula(ConstantPredicateLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
       }
 
-    }
-    else {
+    } else {
       val r = gen.between(0, 7)
       if (r <= 1) neg(formulaGenerator(maxDepth - 1, gen))
       else if (r == 2) and(formulaGenerator(maxDepth - 1, gen), formulaGenerator(maxDepth - 1, gen))
       else if (r == 3) or(formulaGenerator(maxDepth - 1, gen), formulaGenerator(maxDepth - 1, gen))
-      else if (r == 4) implies(formulaGenerator(maxDepth - 1, gen),formulaGenerator(maxDepth - 1, gen))
+      else if (r == 4) implies(formulaGenerator(maxDepth - 1, gen), formulaGenerator(maxDepth - 1, gen))
       else if (r == 5) {
         val f = formulaGenerator(maxDepth - 1, gen)
         val l = f.freeVariables.toSeq ++ Seq(x)
         forall(l(gen.between(0, l.size)), f)
-      }
-      else {
+      } else {
         val f = formulaGenerator(maxDepth - 1, gen)
         val l = f.freeVariables.toSeq ++ Seq(x)
         exists(l(gen.between(0, l.size)), f)
@@ -116,7 +108,6 @@ class FolTests extends AnyFunSuite {
   test("Random formulas well-constructed") {
     (0 to 50).foreach(_ => formulaGenerator(10))
   }
-
 
   test("Fresh variables should be fresh") {
     val y1 = VariableLabel(freshId(equ(VariableTerm(x), VariableTerm(x)).freeVariables.map(_.name), x.name))
