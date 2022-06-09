@@ -31,10 +31,15 @@ object ProofTactics {
     }
   }
   def instantiateForall(p: SCProof, phi: Formula, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
-    t.foldLeft((p, phi)) { case ((p, f), t1) => (instantiateForall(p, f, t1), f match {
-      case b @ BinderFormula(Forall, _, _) => instantiateBinder(b, t1)
-      case _ => throw new Exception
-    }) }._1
+    t.foldLeft((p, phi)) { case ((p, f), t1) =>
+      (
+        instantiateForall(p, f, t1),
+        f match {
+          case b @ BinderFormula(Forall, _, _) => instantiateBinder(b, t1)
+          case _ => throw new Exception
+        }
+      )
+    }._1
   }
   def instantiateForall(p: SCProof, t: Term): SCProof = instantiateForall(p, p.conclusion.right.head, t) // if a single formula on the right
   def instantiateForall(p: SCProof, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
@@ -114,16 +119,20 @@ object ProofTactics {
 
   def detectSubstitution(x: VariableLabel, f: Formula, s: Formula, c: Option[Term] = None): (Option[Term], Boolean) = (f, s) match {
     case (PredicateFormula(la1, args1), PredicateFormula(la2, args2)) if isSame(la1, la2) => {
-      args1.zip(args2).foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
-        val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
-        (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
-      })
+      args1
+        .zip(args2)
+        .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
+          val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+        })
     }
     case (ConnectorFormula(la1, args1), ConnectorFormula(la2, args2)) if isSame(la1, la2) => {
-      args1.zip(args2).foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
-        val r2 = detectSubstitution(x, a._1, a._2, r1._1)
-        (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
-      })
+      args1
+        .zip(args2)
+        .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
+          val r2 = detectSubstitution(x, a._1, a._2, r1._1)
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+        })
     }
     case (BinderFormula(la1, bound1, inner1), BinderFormula(la2, bound2, inner2)) if la1 == la2 && bound1 == bound2 => { // TODO renaming
       detectSubstitution(x, inner1, inner2, c)
@@ -135,18 +144,18 @@ object ProofTactics {
       if (isSame(y.label, x)) {
         if (c.isDefined) {
           (c, isSame(c.get, z))
-        }
-        else {
+        } else {
           (Some(z), true)
         }
-      }
-      else (c, isSame(y, z))
+      } else (c, isSame(y, z))
     }
     case (FunctionTerm(la1, args1), FunctionTerm(la2, args2)) if isSame(la1, la2) => {
-      args1.zip(args2).foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
-        val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
-        (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
-      })
+      args1
+        .zip(args2)
+        .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
+          val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+        })
     }
     case _ => (c, false)
   }

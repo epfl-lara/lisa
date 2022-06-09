@@ -38,13 +38,11 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def schematicFunctions: Set[SchematicFunctionLabel] = args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
   }
 
-
   /**
    * The formula counterpart of [[ConnectorLabel]].
    */
   final case class ConnectorFormula(label: ConnectorLabel, args: Seq[Formula]) extends Formula {
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
-
 
     override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
     override def schematicFunctions: Set[SchematicFunctionLabel] = args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
@@ -66,8 +64,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def schematicPredicates: Set[SchematicPredicateLabel] = inner.schematicPredicates
   }
 
-  def bindAll(binder: BinderLabel, vars: Seq[VariableLabel], phi:Formula): Formula =
+  def bindAll(binder: BinderLabel, vars: Seq[VariableLabel], phi: Formula): Formula =
     vars.foldLeft(phi)((f, v) => BinderFormula(binder, v, f))
 
-  
 }
