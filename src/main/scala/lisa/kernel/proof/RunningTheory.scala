@@ -74,10 +74,15 @@ class RunningTheory {
    * The proof's imports must be justified by the list of justification, and the conclusion of the theorem
    * can't contain symbols that do not belong to the theory.
    * @param justifications The list of justifications of the proof's imports.
-   * @param p The proof of the desired Theorem.
+   * @param proof The proof of the desired Theorem.
    * @return A Theorem if the proof is correct, None else
    */
-  def proofToTheorem(name: String, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] =
+  def makeTheorem(name: String, statement:Sequent, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] = {
+    if (proof.conclusion == statement) proofToTheorem(name, proof, justifications)
+    else InvalidJustification("The proof does not prove the claimed statement", None)
+  }
+
+  private def proofToTheorem(name: String, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] =
     if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j)))))
       if (belongsToTheory(proof.conclusion))
         val r = SCProofChecker.checkSCProof(proof)
@@ -85,7 +90,7 @@ class RunningTheory {
           case SCProofCheckerJudgement.SCValidProof =>
             val thm = Theorem(name, proof.conclusion)
             theorems.update(name, thm)
-            RunningTheoryJudgement.ValidJustification(thm)
+            ValidJustification(thm)
           case r @ SCProofCheckerJudgement.SCInvalidProof(path, message) =>
             InvalidJustification("The given proof is incorrect: " + message, Some(r))
         }
@@ -149,7 +154,7 @@ class RunningTheory {
                       val newDef = FunctionDefinition(label, args, out, phi)
                       definitions.update(label, Some(newDef))
                       RunningTheoryJudgement.ValidJustification(newDef)
-                    } else InvalidJustification("The proof is correct but its conclusion does not correspond to a definition for for the formula phi.", None)
+                    } else InvalidJustification("The proof is correct but its conclusion does not correspond to a definition for the formula phi.", None)
                   case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
                 }
               case r @ SCProofCheckerJudgement.SCInvalidProof(path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))

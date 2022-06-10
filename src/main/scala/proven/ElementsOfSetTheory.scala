@@ -5,7 +5,9 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
 import utilities.KernelHelpers.{*, given}
+import utilities.TheoriesHelpers.{*, given}
 import lisa.kernel.Printer
+import lisa.kernel.Printer.*
 import proven.tactics.ProofTactics.*
 import proven.tactics.Destructors.*
 import lisa.settheory.AxiomaticSetTheory.*
@@ -74,7 +76,8 @@ object ElementsOfSetTheory {
     val fin4 = generalizeToForall(fin3, fin3.conclusion.right.head, y)
     fin4.copy(imports = imps)
   } //   |- ∀∀({x$1,y$2}={y$2,x$1})
-  val thm_proofUnorderedPairSymmetry: theory.Theorem = theory.proofToTheorem("proofUnorderedPairSymmetry", proofUnorderedPairSymmetry, Seq(axiom(extensionalityAxiom), axiom(pairAxiom))).get
+  println(prettySequent(proofUnorderedPairSymmetry.conclusion))
+  val thm_proofUnorderedPairSymmetry: theory.Theorem = theory.theorem("proofUnorderedPairSymmetry", "⊢ ∀y, x. {x, y} = {y, x}", proofUnorderedPairSymmetry, Seq(axiom(extensionalityAxiom), axiom(pairAxiom))).get
 
   val proofUnorderedPairDeconstruction: SCProof = {
     val pxy = pair(x, y)
@@ -324,8 +327,8 @@ object ElementsOfSetTheory {
     val p2 = RightImplies(emptySeq +> (p1.bot.left.head ==> p1.bot.right.head), 1, p1.bot.left.head, p1.bot.right.head) //   |- ({x,y}={x',y'}) ==> (x=x' /\ y=y')\/(x=y' /\ y=x')
     generalizeToForall(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(() |- pairAxiom)), x, y, x1, y1)
   } // |- ∀∀∀∀(({x$4,y$3}={x'$2,y'$1})⇒(((y'$1=y$3)∧(x'$2=x$4))∨((x$4=y'$1)∧(y$3=x'$2))))
-
-  val thm_proofUnorderedPairDeconstruction = theory.proofToTheorem("proofUnorderedPairDeconstruction", proofUnorderedPairDeconstruction, Seq(axiom(pairAxiom))).get
+  println(prettySequent(proofUnorderedPairDeconstruction.conclusion))
+  val thm_proofUnorderedPairDeconstruction = theory.theorem("proofUnorderedPairDeconstruction", "⊢ ∀x, y, x', y'. ({x, y} = {x', y'}) ⇒ (y' = y) ∧ (x' = x) ∨ (x = y') ∧ (y = x')", proofUnorderedPairDeconstruction, Seq(axiom(pairAxiom))).get
 
   // i2, i1, p0, p1, p2, p3
 
@@ -455,4 +458,15 @@ object ElementsOfSetTheory {
     ???
   } // |- (x,y)=(x', y')  ===>  x=x' /\ y=y'
    */
+
+  def main(args: Array[String]): Unit = {
+    def checkProof(proof: SCProof): Unit = {
+      val error = SCProofChecker.checkSCProof(proof)
+      println(prettySCProof(proof, error))
+    }
+    println("\nproofUnorderedPairSymmetry")
+    checkProof(proofUnorderedPairSymmetry)
+    println("\nproofUnorderedPairDeconstruction")
+    checkProof(proofUnorderedPairDeconstruction)
+  }
 }
