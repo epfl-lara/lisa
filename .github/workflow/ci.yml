@@ -16,8 +16,9 @@ jobs:
       - name: Compile
         run: sbt compile
       - name: Check style
-        run: sbt "scalafix --check"
+        run: sbt "scalafixAll --check"
       - name: Check format
-        run: sbt scalafmtCheck
+        run: sbt scalafmtCheckAll
       - name: Run tests
         run: sbt test
+
