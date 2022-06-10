@@ -1,8 +1,8 @@
 package proven.DSetTheory
 import utilities.KernelHelpers.{_, given}
+import utilities.TheoriesHelpers.{*, given}
 import lisa.kernel.Printer
-import lisa.kernel.Printer.prettyFormula
-import lisa.kernel.Printer.prettySCProof
+import lisa.kernel.Printer.{prettyFormula, prettySCProof, prettySequent}
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
@@ -45,7 +45,8 @@ object Part1 {
     // val s4 = Rewrite(() |- !exists(y1, forall(x1, in(x1,y1) <=> !in(x1, x1))), 3)
     SCProof(s0, s1, s2)
   }
-  val thm_russelParadox = theory.proofToTheorem("russelParadox", russelParadox, Nil).get
+  println(prettySequent(russelParadox.conclusion))
+  val thm_russelParadox = theory.theorem("russelParadox", "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢", russelParadox, Nil).get
 
   val thm4: SCProof = {
     // forall(z, exists(y, forall(x, in(x,y) <=> (in(x,y) /\ sPhi(x,z)))))
@@ -70,7 +71,8 @@ object Part1 {
     val s10 = Cut(forall(x1, in(x1, z)) |- (), 0, 9, exists(y1, forall(x1, in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1)))))
     SCProof(Vector(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10), Vector(i1, i2))
   }
-  val thm_thm4 = theory.proofToTheorem("thm4", thm4, Seq(axiom(comprehensionSchema), thm_russelParadox)).get
+  println(prettySequent(thm4.conclusion))
+  val thm_thm4 = theory.theorem("thm4", "∀x. x ∈ ?z ⊢", thm4, Seq(axiom(comprehensionSchema), thm_russelParadox)).get
 
   val thmMapFunctional: SCProof = {
     val a = VariableLabel("a")
@@ -303,7 +305,13 @@ object Part1 {
     val steps = Vector(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22)
     SCProof(steps, Vector(i1, i2, i3))
   }
-  val thm_thmMapFunctional = theory.proofToTheorem("thmMapFunctional", thmMapFunctional, Seq(axiom(replacementSchema), axiom(comprehensionSchema), axiom(extensionalityAxiom))).get
+  println(prettySequent(thmMapFunctional.conclusion))
+  val thm_thmMapFunctional = theory.theorem("thmMapFunctional",
+    "∀a. (a ∈ ?A) ⇒ ∃!x. ?phi(x, a) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ ?A) ∧ ?phi(x, a)",
+    thmMapFunctional,
+    Seq(axiom(replacementSchema),
+      axiom(comprehensionSchema), axiom(extensionalityAxiom))
+  ).get
 
   /**
    * ∀ b. (b ∈ B) ⇒ ∀a. (a ∈ A) ⇒ ∃!x. ?psi(x, a, b)    |-    ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ A) ∧ ?psi(x1, a, b)
@@ -373,7 +381,13 @@ object Part1 {
     // by thmMapFunctional have ∀b. (b ∈ B) ⇒ ∃!x. ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ A) ∧ ?psi(x1, a, b) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ A) ∧ ?psi(x1, a, b)        phi(x, b) = ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ A) ∧ ?psi(x1, a, b)    s6
     // have ∀b. (b ∈ B) ⇒ ∀a. (a ∈ A) ⇒ ∃!x. ?psi(x, a, b)    |-    ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ A) ∧ ?psi(x1, a, b)   s7
   }
-  val thm_lemma1 = theory.proofToTheorem("lemma1", lemma1, Seq(thm_thmMapFunctional)).get
+  println(prettySequent(lemma1.conclusion))
+  val thm_lemma1 = theory.theorem(
+    "lemma1",
+    "∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)",
+    lemma1,
+    Seq(thm_thmMapFunctional)
+  ).get
 
   /*
     val lemma2 = SCProof({
@@ -454,7 +468,8 @@ object Part1 {
     // redGoal2 x=x1 <=> phi(x), z=F(x), x=x1   ⊢   F(x1)=z  g2.s1
     // redGoal2 x=x1 <=> phi(x), z=F(x1), x=x1   ⊢   F(x1)=z TRUE  g2.s0
   }
-  val thm_lemmaApplyFToObject = theory.proofToTheorem("lemmaApplyFToObject", lemmaApplyFToObject, Nil).get
+  println(prettySequent(lemmaApplyFToObject.conclusion))
+  val thm_lemmaApplyFToObject = theory.theorem("lemmaApplyFToObject", "∃!x. ?phi(x) ⊢ ∃!z. ∃x. (z = ?F(x)) ∧ ?phi(x)", lemmaApplyFToObject, Nil).get
 
   /**
    * ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)
@@ -485,7 +500,13 @@ object Part1 {
     val s2 = Cut(i1.left |- seq1.right, -1, 1, seq1.left.head)
     SCProof(Vector(s0, s1, s2), Vector(i1, i2))
   }
-  val thm_lemmaMapTwoArguments = theory.proofToTheorem("lemmaMapTwoArguments", lemmaMapTwoArguments, Seq(thm_lemma1, thm_lemmaApplyFToObject)).get
+  println(prettySequent(lemmaMapTwoArguments.conclusion))
+  val thm_lemmaMapTwoArguments = theory.theorem(
+    "lemmaMapTwoArguments",
+    "∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)",
+    lemmaMapTwoArguments,
+    Seq(thm_lemma1, thm_lemmaApplyFToObject)
+  ).get
 
   /**
    *  ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ (x1 = (a, b))
@@ -541,7 +562,6 @@ object Part1 {
     SCProof(Vector(s0, s1, s2, s3, s4, s5, s6), Vector(i1))
 
   }
-  println("cartesian")
   /*
     val thm_lemmaCartesianProduct = theory.proofToTheorem("lemmaCartesianProduct", lemmaCartesianProduct, Seq(thm_lemmaMapTwoArguments)).get
 
