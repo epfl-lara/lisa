@@ -11,7 +11,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * For example, Powerset is not a term itself, it's a label for a node with a single child in a tree corresponding to a term.
    * In logical terms, those labels are essentially symbols of sme language.
    */
-  sealed abstract class TermLabel extends Label[TermLabel] {
+  sealed abstract class TermLabel extends Label with Ordered[TermLabel] {
     def priority: Int = this match {
       case _: VariableLabel => 1
       case _: ConstantFunctionLabel => 2

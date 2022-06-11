@@ -8,5 +8,6 @@ project/metals.sbt
 .bsp
 .bloop
 target
+*.scala.semanticdb
 
 *.iml
