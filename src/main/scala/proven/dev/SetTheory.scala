@@ -7,9 +7,10 @@ import lisa.settheory.AxiomaticSetTheory
 import lisa.settheory.AxiomaticSetTheory.*
 import proven.DSetTheory.Part1.{russelParadox, theory}
 import utilities.KernelHelpers.{*, given}
-import utilities.TheoriesHelpers.{*, given}
+import lisa.kernel.proof.RunningTheory
 
 trait SetTheory extends MainLibrary{
+  /*
   private val x = SchematicFunctionLabel("x", 0)
   private val y = SchematicFunctionLabel("y", 0)
   private val z = SchematicFunctionLabel("z", 0)
@@ -19,19 +20,22 @@ trait SetTheory extends MainLibrary{
   private val f = SchematicFunctionLabel("f", 0)
   private val g = SchematicFunctionLabel("g", 0)
   private val h = SchematicPredicateLabel("h", 0)
+  */
+
+  private val `s?` = "sd"
 
   given Conversion[SchematicFunctionLabel, Term] with
-    def apply(s: SchematicFunctionLabel): Term = s()
+    def apply(s: SchematicFunctionLabel): Term = s.apply()
 
-  /**
-   */
+
+
   val russelParadox: SCProof = {
-    val contra = (in(y, y)) <=> !(in(y, y))
+    val contra = (in(?y, ?y)) <=> !(in(?y, ?y))
     val s0 = Hypothesis(contra |- contra, contra)
-    val s1 = LeftForall(forall(x1, in(x1, y) <=> !in(x1, x1)) |- contra, 0, in(x1, y) <=> !in(x1, x1), x1, y)
-    val s2 = Rewrite(forall(x1, in(x1, y) <=> !in(x1, x1)) |- (), 1)
+    val s1 = LeftForall(forall(x, in(x, ?y) <=> !in(x, x)) |- contra, 0, in(x, ?y) <=> !in(x, x), x, ?y)
+    val s2 = Rewrite(forall(x, in(x, ?y) <=> !in(x, x)) |- (), 1)
     SCProof(s0, s1, s2)
   }
-  import AxiomaticSetTheory.runningSetTheory.*
-  theorem(AxiomaticSetTheory.runningSetTheory)("russelParadox", "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢", russelParadox, Nil).get
+  theorem("russelParadox", "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢", russelParadox, Nil).get
+
 }
