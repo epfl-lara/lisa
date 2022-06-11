@@ -10,7 +10,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    * It similar as with terms; they denote the Predicates and logical connector themselves, and not the terms they help forming.
    * They label the nodes of a tree that defines a formula.
    */
-  sealed abstract class FormulaLabel extends Label[FormulaLabel] {
+  sealed abstract class FormulaLabel extends Label with Ordered[FormulaLabel] {
     def priority: Int = this match {
       case _: ConstantPredicateLabel => 1
       case _: SchematicPredicateLabel => 2
