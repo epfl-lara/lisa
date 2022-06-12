@@ -1,11 +1,11 @@
 package lisa.kernel
 
 //import lisa.settheory.AxiomaticSetTheory.{emptySet, emptySetAxiom, pair, pairAxiom, useAxiom}
-import utilities.KernelHelpers.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import test.ProofCheckerSuite
+import utilities.KernelHelpers.*
 
 import scala.collection.immutable.SortedSet
 import scala.language.implicitConversions

@@ -1,6 +1,5 @@
 package lisa.kernel
 
-import utilities.KernelHelpers.{_, given}
 import lisa.kernel.Printer
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
@@ -9,6 +8,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
 import org.scalatest.funsuite.AnyFunSuite
+import utilities.KernelHelpers.{_, given}
 
 import scala.collection.immutable.SortedSet
 import scala.util.Random

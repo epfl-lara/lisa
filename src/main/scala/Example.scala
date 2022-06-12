@@ -1,7 +1,3 @@
-import utilities.KernelHelpers.{_, given}
-import utilities.tptp.ProblemGatherer.*
-import utilities.tptp.KernelParser.*
-import utilities.tptp.*
 import lisa.kernel.Printer.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
@@ -9,6 +5,10 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
 import proven.tactics.SimplePropositionalSolver.solveSequent
+import utilities.KernelHelpers.{_, given}
+import utilities.tptp.KernelParser.*
+import utilities.tptp.ProblemGatherer.*
+import utilities.tptp.*
 
 /**
  * Discover some of the elements of LISA to get started.

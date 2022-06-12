@@ -1,8 +1,11 @@
 package utilities
 
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
-import lisa.kernel.proof.{RunningTheory, RunningTheoryJudgement, SCProof}
-import lisa.kernel.proof.SequentCalculus.{Rewrite, isSameSequent}
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.Rewrite
+import lisa.kernel.proof.SequentCalculus.isSameSequent
 
 /**
  * A helper file that provides various syntactic sugars for LISA.
@@ -140,5 +143,5 @@ object KernelHelpers {
   def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicFunctionLabel, LambdaTermTerm]): Sequent = {
     s.left.map(phi => instantiateFunctionSchemas(phi, m)) |- s.right.map(phi => instantiateFunctionSchemas(phi, m))
   }
-  
+
 }

@@ -4,8 +4,7 @@ import lisa.kernel.Printer.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import utilities.KernelHelpers.{*, given}
-import lisa.kernel.Printer.*
+import utilities.KernelHelpers.{_, given}
 
 import scala.collection.immutable.Set
 
