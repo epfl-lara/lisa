@@ -1,6 +1,5 @@
 package proven
 
-import utilities.KernelHelpers.*
 import lisa.kernel.Printer
 import lisa.kernel.Printer.*
 import lisa.kernel.fol.FOL.*
@@ -8,9 +7,10 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.PredicateLogic
 import lisa.kernel.proof.SCProofChecker
 import org.scalatest.funsuite.AnyFunSuite
-import utilities.tptp.ProblemGatherer.getPRPproblems
-import utilities.tptp.KernelParser.*
 import proven.tactics.SimplePropositionalSolver as SPS
+import utilities.KernelHelpers.*
+import utilities.tptp.KernelParser.*
+import utilities.tptp.ProblemGatherer.getPRPproblems
 
 class SimpleProverTests extends AnyFunSuite {
 

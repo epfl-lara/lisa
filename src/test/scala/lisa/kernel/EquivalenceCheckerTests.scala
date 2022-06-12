@@ -1,10 +1,10 @@
 package lisa.kernel
 
-import utilities.KernelHelpers.*
 import lisa.kernel.Printer
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import org.scalatest.funsuite.AnyFunSuite
+import utilities.KernelHelpers.*
 
 import scala.collection.MapView
 import scala.collection.mutable.ArrayBuffer

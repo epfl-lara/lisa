@@ -7,7 +7,6 @@ import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus.isSameSequent
 import lisa.settheory.AxiomaticSetTheory
 import org.scalatest.funsuite.AnyFunSuite
-import lisa.kernel.proof.SCProof
 import utilities.KernelHelpers._
 import utilities.KernelHelpers.given_Conversion_Boolean_List_String_Option
 

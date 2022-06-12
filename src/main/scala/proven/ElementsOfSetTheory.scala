@@ -1,24 +1,20 @@
 package proven
 import lisa.kernel.Printer
+import lisa.kernel.Printer.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
-import utilities.KernelHelpers.{*, given}
-import utilities.TheoriesHelpers.{*, given}
-import lisa.kernel.Printer
-import lisa.kernel.Printer.*
-import proven.tactics.ProofTactics.*
-import proven.tactics.Destructors.*
-import lisa.settheory.AxiomaticSetTheory.*
-
-import scala.collection.immutable.SortedSet
-import lisa.kernel.proof.{SCProof, SCProofChecker}
 import lisa.settheory.AxiomaticSetTheory
+import lisa.settheory.AxiomaticSetTheory.*
 import lisa.settheory.AxiomaticSetTheory.*
 import proven.ElementsOfSetTheory.theory
 import proven.tactics.Destructors.*
+import proven.tactics.Destructors.*
 import proven.tactics.ProofTactics.*
+import proven.tactics.ProofTactics.*
+import utilities.KernelHelpers.{_, given}
+import utilities.TheoriesHelpers.{_, given}
 
 import scala.collection.immutable
 import scala.collection.immutable.SortedSet
@@ -77,7 +73,8 @@ object ElementsOfSetTheory {
     fin4.copy(imports = imps)
   } //   |- ∀∀({x$1,y$2}={y$2,x$1})
   println(prettySequent(proofUnorderedPairSymmetry.conclusion))
-  val thm_proofUnorderedPairSymmetry: theory.Theorem = theory.theorem("proofUnorderedPairSymmetry", "⊢ ∀y, x. {x, y} = {y, x}", proofUnorderedPairSymmetry, Seq(axiom(extensionalityAxiom), axiom(pairAxiom))).get
+  val thm_proofUnorderedPairSymmetry: theory.Theorem =
+    theory.theorem("proofUnorderedPairSymmetry", "⊢ ∀y, x. {x, y} = {y, x}", proofUnorderedPairSymmetry, Seq(axiom(extensionalityAxiom), axiom(pairAxiom))).get
 
   val proofUnorderedPairDeconstruction: SCProof = {
     val pxy = pair(x, y)
@@ -328,7 +325,14 @@ object ElementsOfSetTheory {
     generalizeToForall(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(() |- pairAxiom)), x, y, x1, y1)
   } // |- ∀∀∀∀(({x$4,y$3}={x'$2,y'$1})⇒(((y'$1=y$3)∧(x'$2=x$4))∨((x$4=y'$1)∧(y$3=x'$2))))
   println(prettySequent(proofUnorderedPairDeconstruction.conclusion))
-  val thm_proofUnorderedPairDeconstruction = theory.theorem("proofUnorderedPairDeconstruction", "⊢ ∀x, y, x', y'. ({x, y} = {x', y'}) ⇒ (y' = y) ∧ (x' = x) ∨ (x = y') ∧ (y = x')", proofUnorderedPairDeconstruction, Seq(axiom(pairAxiom))).get
+  val thm_proofUnorderedPairDeconstruction = theory
+    .theorem(
+      "proofUnorderedPairDeconstruction",
+      "⊢ ∀x, y, x', y'. ({x, y} = {x', y'}) ⇒ (y' = y) ∧ (x' = x) ∨ (x = y') ∧ (y = x')",
+      proofUnorderedPairDeconstruction,
+      Seq(axiom(pairAxiom))
+    )
+    .get
 
   // i2, i1, p0, p1, p2, p3
 

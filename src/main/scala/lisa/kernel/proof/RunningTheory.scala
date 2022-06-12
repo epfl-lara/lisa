@@ -77,7 +77,7 @@ class RunningTheory {
    * @param proof The proof of the desired Theorem.
    * @return A Theorem if the proof is correct, None else
    */
-  def makeTheorem(name: String, statement:Sequent, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] = {
+  def makeTheorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] = {
     if (proof.conclusion == statement) proofToTheorem(name, proof, justifications)
     else InvalidJustification("The proof does not prove the claimed statement", None)
   }

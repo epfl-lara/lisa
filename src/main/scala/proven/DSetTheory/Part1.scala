@@ -1,8 +1,8 @@
 package proven.DSetTheory
-import utilities.KernelHelpers.{_, given}
-import utilities.TheoriesHelpers.{*, given}
 import lisa.kernel.Printer
-import lisa.kernel.Printer.{prettyFormula, prettySCProof, prettySequent}
+import lisa.kernel.Printer.prettyFormula
+import lisa.kernel.Printer.prettySCProof
+import lisa.kernel.Printer.prettySequent
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
@@ -14,6 +14,8 @@ import proven.ElementsOfSetTheory.oPair
 import proven.ElementsOfSetTheory.orderedPairDefinition
 import proven.tactics.Destructors.*
 import proven.tactics.ProofTactics.*
+import utilities.KernelHelpers.{_, given}
+import utilities.TheoriesHelpers.{_, given}
 
 import scala.collection.immutable
 import scala.collection.immutable.SortedSet
@@ -306,12 +308,14 @@ object Part1 {
     SCProof(steps, Vector(i1, i2, i3))
   }
   println(prettySequent(thmMapFunctional.conclusion))
-  val thm_thmMapFunctional = theory.theorem("thmMapFunctional",
-    "∀a. (a ∈ ?A) ⇒ ∃!x. ?phi(x, a) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ ?A) ∧ ?phi(x, a)",
-    thmMapFunctional,
-    Seq(axiom(replacementSchema),
-      axiom(comprehensionSchema), axiom(extensionalityAxiom))
-  ).get
+  val thm_thmMapFunctional = theory
+    .theorem(
+      "thmMapFunctional",
+      "∀a. (a ∈ ?A) ⇒ ∃!x. ?phi(x, a) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ ?A) ∧ ?phi(x, a)",
+      thmMapFunctional,
+      Seq(axiom(replacementSchema), axiom(comprehensionSchema), axiom(extensionalityAxiom))
+    )
+    .get
 
   /**
    * ∀ b. (b ∈ B) ⇒ ∀a. (a ∈ A) ⇒ ∃!x. ?psi(x, a, b)    |-    ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ A) ∧ ?psi(x1, a, b)
@@ -382,12 +386,14 @@ object Part1 {
     // have ∀b. (b ∈ B) ⇒ ∀a. (a ∈ A) ⇒ ∃!x. ?psi(x, a, b)    |-    ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ A) ∧ ?psi(x1, a, b)   s7
   }
   println(prettySequent(lemma1.conclusion))
-  val thm_lemma1 = theory.theorem(
-    "lemma1",
-    "∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)",
-    lemma1,
-    Seq(thm_thmMapFunctional)
-  ).get
+  val thm_lemma1 = theory
+    .theorem(
+      "lemma1",
+      "∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)",
+      lemma1,
+      Seq(thm_thmMapFunctional)
+    )
+    .get
 
   /*
     val lemma2 = SCProof({
@@ -501,12 +507,14 @@ object Part1 {
     SCProof(Vector(s0, s1, s2), Vector(i1, i2))
   }
   println(prettySequent(lemmaMapTwoArguments.conclusion))
-  val thm_lemmaMapTwoArguments = theory.theorem(
-    "lemmaMapTwoArguments",
-    "∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)",
-    lemmaMapTwoArguments,
-    Seq(thm_lemma1, thm_lemmaApplyFToObject)
-  ).get
+  val thm_lemmaMapTwoArguments = theory
+    .theorem(
+      "lemmaMapTwoArguments",
+      "∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)",
+      lemmaMapTwoArguments,
+      Seq(thm_lemma1, thm_lemmaApplyFToObject)
+    )
+    .get
 
   /**
    *  ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ (x1 = (a, b))

@@ -3,10 +3,9 @@ package proven.tactics
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import utilities.KernelHelpers.*
 
 import scala.collection.mutable.Set as mSet
-import utilities.KernelHelpers.*
-import lisa.kernel.proof.SCProof
 
 /**
  * A simple but complete solver for propositional logic. Will not terminate for large problems
