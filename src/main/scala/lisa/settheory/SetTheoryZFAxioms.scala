@@ -1,7 +1,7 @@
 package lisa.settheory
 
 import lisa.kernel.fol.FOL._
-import utilities.KernelHelpers.{_, given}
+import utilities.Helpers.{_, given}
 
 /**
  * Axioms for the Zermelo-Fraenkel theory (ZF)

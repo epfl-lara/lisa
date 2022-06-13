@@ -1,20 +1,17 @@
 package proven
-import lisa.kernel.Printer
-import lisa.kernel.Printer.*
+
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.settheory.AxiomaticSetTheory
 import lisa.settheory.AxiomaticSetTheory.*
-import lisa.settheory.AxiomaticSetTheory.*
 import proven.ElementsOfSetTheory.theory
 import proven.tactics.Destructors.*
-import proven.tactics.Destructors.*
 import proven.tactics.ProofTactics.*
-import proven.tactics.ProofTactics.*
-import utilities.KernelHelpers.{_, given}
-import utilities.TheoriesHelpers.{_, given}
+import utilities.Helpers.{_, given}
+import utilities.Printer
+import utilities.Printer.*
 
 import scala.collection.immutable
 import scala.collection.immutable.SortedSet
@@ -72,7 +69,7 @@ object ElementsOfSetTheory {
     val fin4 = generalizeToForall(fin3, fin3.conclusion.right.head, y)
     fin4.copy(imports = imps)
   } //   |- ∀∀({x$1,y$2}={y$2,x$1})
-  println(prettySequent(proofUnorderedPairSymmetry.conclusion))
+
   val thm_proofUnorderedPairSymmetry: theory.Theorem =
     theory.theorem("proofUnorderedPairSymmetry", "⊢ ∀y, x. {x, y} = {y, x}", proofUnorderedPairSymmetry, Seq(axiom(extensionalityAxiom), axiom(pairAxiom))).get
 
@@ -324,7 +321,7 @@ object ElementsOfSetTheory {
     val p2 = RightImplies(emptySeq +> (p1.bot.left.head ==> p1.bot.right.head), 1, p1.bot.left.head, p1.bot.right.head) //   |- ({x,y}={x',y'}) ==> (x=x' /\ y=y')\/(x=y' /\ y=x')
     generalizeToForall(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(() |- pairAxiom)), x, y, x1, y1)
   } // |- ∀∀∀∀(({x$4,y$3}={x'$2,y'$1})⇒(((y'$1=y$3)∧(x'$2=x$4))∨((x$4=y'$1)∧(y$3=x'$2))))
-  println(prettySequent(proofUnorderedPairDeconstruction.conclusion))
+
   val thm_proofUnorderedPairDeconstruction = theory
     .theorem(
       "proofUnorderedPairDeconstruction",
@@ -342,7 +339,6 @@ object ElementsOfSetTheory {
 
   /*
   val proofOrderedPairDeconstruction: SCProof = {
-
     val opairxy = pair(pair(x, y), pair(x, x))
     val opairxx = pair(pair(x, x), pair(x, x))
     val opairxy1 = pair(pair(x1, y1), pair(x1, x1))
@@ -351,11 +347,8 @@ object ElementsOfSetTheory {
     val pairxx = pair(x, x)
     val pairxy1 = pair(x1, y1)
     val pairxx1 = pair(x1, x1)
-
-
     val p0 = SCSubproof(orderedPairDefinition, display = false)
     val p1 = SCSubproof(proofUnorderedPairDeconstruction) //  |- ∀∀∀∀(({x$4,y$3}={x'$2,y'$1})⇒(((y'$1=y$3)∧(x'$2=x$4))∨((x$4=y'$1)∧(y$3=x'$2))))
-
     val p2: SCSubproof = SCSubproof(SCProof(byCase(x === y)(
       {
         val p2_0 = SCSubproof(SCProof({
@@ -388,7 +381,6 @@ object ElementsOfSetTheory {
         }, IndexedSeq(-2)) //   {x',y'}={x,x}, x=y |- x=x' /\ x=y'
         val p2_2 = Cut(emptySeq ++< p2_0.bot ++> p2_1.bot, 0, 1, p2_0.bot.right.head) //   ((x,y)=(x',y')), x=y |- x=x' /\ x=y'
         val p2_3 = RightSubstEq(emptySeq +< (oPair(x, y) === oPair(x1, y1)) +< (x === y) +> ((x === x1) /\ (y === y1)), 2, x, y, (x === x1) /\ (z === y1), z)
-
         SCSubproof(SCProof(IndexedSeq(p2_0, p2_1, p2_2, p2_3), IndexedSeq(p0, p1)), IndexedSeq(-1, -2))
       } //   ((x,y)=(x',y')), x=y |- x=x' /\ y=y'
       ,
@@ -398,10 +390,8 @@ object ElementsOfSetTheory {
           val p2_0_1 = UseFunctionDefinition(emptySeq +> (oPair(x1, y1) === opairxy1), oPair, Seq(x1, y1)) // |- (x1, y1) === {{x1,y1}, {x1,x1}}
           val p2_0_2 = RightSubstEq(emptySeq +< (oPair(x, y) === oPair(x1, y1)) +> (oPair(x1, y1) === pair(pair(x, y), pair(x, x))),
             0, oPair(x, y), oPair(x1, y1), z === pair(pair(x, y), pair(x, x)), z) //  (x1,y1)=(x,y) |- ((x1,y1)={{x,y},{x,x}})
-
           val p2_0_3 = RightSubstEq(emptySeq +< (oPair(x, y) === oPair(x1, y1)) +< (opairxy1 === oPair(x1, y1)) +> (pair(pair(x, y), pair(x, x)) === pair(pair(x1, y1), pair(x1, x1))),
             2, opairxy1, oPair(x1, y1), z === pair(pair(x, y), pair(x, x)), z) //  (x1,y1)=(x,y), (x1,y1)={{x1,y1}, {x1,x1}} |- {{x1,y1}, {x1,x1}}={{x,y},{x,x}})
-
           val p2_0_4 = Cut(emptySeq +< (oPair(x, y) === oPair(x1, y1)) +> (pair(pair(x, y), pair(x, x)) === pair(pair(x1, y1), pair(x1, x1))),
             1, 3, opairxy1 === oPair(x1, y1))
           SCProof(IndexedSeq(p2_0_0, p2_0_1, p2_0_2, p2_0_3, p2_0_4), IndexedSeq(p0))
@@ -414,7 +404,6 @@ object ElementsOfSetTheory {
           case BinaryConnectorFormula(`or`, l, r) => (l, r)
         }
         val pr2_1: SCProof = destructRightOr(pr2_0, f, g) // ((x,y)=(x',y')) |- (({x',x'}={x,y})∧({x',y'}={x,x})), (({x,x}={x',x'})∧({x,y}={x',y'}))
-
         val pb2_0 = SCSubproof({
           val prb2_0_0 = instantiateForall(SCProof(IndexedSeq(), IndexedSeq(p1)), x, y, x1, x1) //  |- (({x,y}={x',x'}) ⇒ (((x'=y)∧(x'=x))∨((x=x')∧(y=x'))))
           val f = (x1 === y) /\ (x1 === x)
@@ -427,10 +416,8 @@ object ElementsOfSetTheory {
           SCProof(IndexedSeq(pb3_0_0, pb3_0_1, pb3_0_2, pb3_0_3, pb3_0_4), IndexedSeq(p1))
         }, IndexedSeq(-2)) // {x',x'}={x,y} |- x=y
         val pb2_1 = SCSubproof(destructRightAnd(pr2_1, pairxx1 === pairxy, pairxx === pairxy1), IndexedSeq(-1, -2)) // ((x,y)=(x',y')) |- (({x',x'}={x,y}), (({x,x}={x',x'})∧({x,y}={x',y'}))
-
         val pb2_2 = Cut(pb2_1.bot -> pb2_0.bot.left.head +> (x === y), 1, 0, pb2_0.bot.left.head) // ((x,y)=(x',y')) |- x=y, (({x,x}={x',x'})∧({x,y}={x',y'}))
         val pc2_0 = SCSubproof(SCProof(IndexedSeq(pb2_0, pb2_1, pb2_2), IndexedSeq(p0, p1)), IndexedSeq(-1, -2)) // ((x,y)=(x',y')) |- x=y, (({x,x}={x',x'})∧({x,y}={x',y'}))
-
         val pc2_1 = SCSubproof({
           val pc2_1_0 = SCSubproof(destructRightAnd(SCProof(IndexedSeq(), IndexedSeq(pc2_0)), pairxy === pairxy1, pairxx === pairxx1), IndexedSeq(-2)) // ((x,y)=(x',y')) |- x=y, {x,y}={x',y'}
           val pc2_1_1 = SCSubproof(instantiateForall(SCProof(IndexedSeq(), IndexedSeq(p1)), x, y, x1, y1), IndexedSeq(-1)) //   (({x,y}={x',y'})⇒(((y'=y)∧(x'=x))∨((x=y')∧(y=x'))))
@@ -450,7 +437,6 @@ object ElementsOfSetTheory {
           val prc2_2_4 = destructRightAnd(prc2_2_3, x === x1, x === x1) // ((x,y)=(x',y')) |- x=y, x'=x
           SCProof(prc2_2_4.steps, IndexedSeq(p1, pc2_0))
         }, IndexedSeq(-2, 0)) // ((x,y)=(x',y')) |- x=y, x'=x
-
         val pc2_3 = RightSubstEq(pc2_1.bot -> (x1 === y) +> (x === y) +< (x1 === x), 1, x, x1, z === y, z) // ((x,y)=(x',y')), x=x' |- x=y, ((y=y')∧(x=x')))
         val pc2_4 = Cut(pc2_3.bot -< (x === x1), 2, 3, x === x1) // ((x,y)=(x',y')) |- x=y, ((y=y')∧(x=x')))
         val pc2_5 = LeftNot(pc2_4.bot +< !(x === y) -> (x === y), 4, x === y) // ((x,y)=(x',y')), !x=y |-  ((y=y')∧(x=x')))
@@ -458,16 +444,12 @@ object ElementsOfSetTheory {
       } //   ((x,y)=(x',y')), !x=y |- x=x' /\ y=y'
     ).steps, IndexedSeq(p0, p1)), IndexedSeq(0, 1)) //   ((x,y)=(x',y')) |- x=x' /\ y=y'
     SCProof(p0, p1, p2)
-
     ???
   } // |- (x,y)=(x', y')  ===>  x=x' /\ y=y'
    */
 
   def main(args: Array[String]): Unit = {
-    def checkProof(proof: SCProof): Unit = {
-      val error = SCProofChecker.checkSCProof(proof)
-      println(prettySCProof(proof, error))
-    }
+
     println("\nproofUnorderedPairSymmetry")
     checkProof(proofUnorderedPairSymmetry)
     println("\nproofUnorderedPairDeconstruction")
