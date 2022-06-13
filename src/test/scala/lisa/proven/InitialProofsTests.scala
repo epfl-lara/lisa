@@ -1,18 +1,18 @@
 package lisa.proven
 
-import utilities.Printer
-import test.ProofCheckerSuite
+import lisa.utils.Printer
+import lisa.test.ProofCheckerSuite
 
 class InitialProofsTests extends ProofCheckerSuite {
-  import proven.SetTheoryLibrary.*
+  import lisa.proven.SetTheoryLibrary.*
 
   test("File SetTheory initialize well") {
-    proven.mathematics.SetTheory
+    lisa.proven.mathematics.SetTheory
     succeed
   }
 
   test("File Mapping initialize well") {
-    proven.mathematics.Mapping
+    lisa.proven.mathematics.Mapping
     succeed
   }
 
