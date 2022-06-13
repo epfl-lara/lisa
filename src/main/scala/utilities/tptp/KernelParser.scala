@@ -6,7 +6,7 @@ import leo.datastructures.TPTP.FOF
 import leo.modules.input.TPTPParser as Parser
 import lisa.kernel.fol.FOL as K
 import lisa.kernel.proof.SequentCalculus as LK
-import utilities.KernelHelpers.*
+import utilities.Helpers.*
 import utilities.tptp.*
 
 import java.io.File

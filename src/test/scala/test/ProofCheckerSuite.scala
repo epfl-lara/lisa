@@ -1,14 +1,14 @@
 package test
 
-import lisa.kernel.Printer
+import utilities.Printer
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker._
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus.isSameSequent
 import lisa.settheory.AxiomaticSetTheory
 import org.scalatest.funsuite.AnyFunSuite
-import utilities.KernelHelpers._
-import utilities.KernelHelpers.given_Conversion_Boolean_List_String_Option
+import utilities.Helpers._
+import utilities.Helpers.given_Conversion_Boolean_List_String_Option
 
 abstract class ProofCheckerSuite extends AnyFunSuite {
   import lisa.kernel.fol.FOL.*
@@ -39,14 +39,14 @@ abstract class ProofCheckerSuite extends AnyFunSuite {
 
   val axioms = AxiomaticSetTheory.axioms
   def checkProof(proof: SCProof): Unit = {
-    val error = checkSCProof(proof)
-    println(Printer.prettySCProof(proof, error))
+    val judgement = checkSCProof(proof)
+    println(Printer.prettySCProof(judgement))
     println(s"\n(${proof.totalLength} proof steps in total)")
   }
 
   def checkProof(proof: SCProof, expected: Sequent): Unit = {
     val judgement = checkSCProof(proof)
-    assert(judgement.isValid, "\n" + Printer.prettySCProof(proof, judgement))
+    assert(judgement.isValid, "\n" + Printer.prettySCProof( judgement))
     assert(isSameSequent(proof.conclusion, expected), s"(${Printer.prettySequent(proof.conclusion)} did not equal ${Printer.prettySequent(expected)})")
   }
 

@@ -3,7 +3,7 @@ package proven.tactics
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import utilities.KernelHelpers.*
+import utilities.Helpers.*
 
 import scala.collection.mutable.Set as mSet
 
