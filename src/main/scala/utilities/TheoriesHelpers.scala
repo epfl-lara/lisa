@@ -34,15 +34,17 @@ trait TheoriesHelpers extends KernelHelpers {
     }
 
   extension [J <: RunningTheory#Justification](theoryJudgement: RunningTheoryJudgement[J]) {
+
     def showAndGet(output: String => Unit = println): J = {
       theoryJudgement match
         case RunningTheoryJudgement.ValidJustification(just) =>
           just.show(output)
         case InvalidJustification(message, error) =>
-          output(s"$message\n${error match
+          output(s"$message\n${
+            error match
               case Some(judgement) => Printer.prettySCProof(judgement)
               case None => ""
-            }")
+          }")
           theoryJudgement.get
     }
   }
