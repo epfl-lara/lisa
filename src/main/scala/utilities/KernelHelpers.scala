@@ -88,6 +88,8 @@ trait KernelHelpers {
 
   given Conversion[FunctionTerm, FunctionLabel] = _.label
 
+  given Conversion[SchematicFunctionLabel, Term] = _.apply()
+
   // given Conversion[Tuple, List[Union[_.type]]] = _.toList
 
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
