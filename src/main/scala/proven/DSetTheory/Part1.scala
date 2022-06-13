@@ -1,8 +1,5 @@
 package proven.DSetTheory
-import lisa.kernel.Printer
-import lisa.kernel.Printer.prettyFormula
-import lisa.kernel.Printer.prettySCProof
-import lisa.kernel.Printer.prettySequent
+
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
@@ -14,8 +11,11 @@ import proven.ElementsOfSetTheory.oPair
 import proven.ElementsOfSetTheory.orderedPairDefinition
 import proven.tactics.Destructors.*
 import proven.tactics.ProofTactics.*
-import utilities.KernelHelpers.{_, given}
-import utilities.TheoriesHelpers.{_, given}
+import utilities.Helpers.{_, given}
+import utilities.Printer
+import utilities.Printer.prettyFormula
+import utilities.Printer.prettySCProof
+import utilities.Printer.prettySequent
 
 import scala.collection.immutable
 import scala.collection.immutable.SortedSet
@@ -397,8 +397,6 @@ object Part1 {
 
   /*
     val lemma2 = SCProof({
-
-
         // goal ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b)   ⊢   ∃!Z. ∃X. Z=UX /\ ∀x. (x ∈ X) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)
         // redGoal ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b)   ⊢   ∃Z1. ∀Z. Z=Z1 <=> ∃X. Z=UX /\ ∀x. (x ∈ X) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)
         // redGoal ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b)   ⊢   ∀Z. Z=UX <=> ∃X. Z=UX /\ ∀x. (x ∈ X) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)
@@ -572,13 +570,10 @@ object Part1 {
   }
   /*
     val thm_lemmaCartesianProduct = theory.proofToTheorem("lemmaCartesianProduct", lemmaCartesianProduct, Seq(thm_lemmaMapTwoArguments)).get
-
     val vA = VariableLabel("A")
     val vB = VariableLabel("B")
     val cart_product = ConstantFunctionLabel("cart_cross", 2)
     val def_oPair = theory.makeFunctionDefinition(lemmaCartesianProduct, Seq(thm_lemmaMapTwoArguments), cart_product, Seq(vA, vB), VariableLabel("z"), innerOfDefinition(lemmaCartesianProduct.conclusion.right.head)).get
-
-
    */
 
   def innerOfDefinition(f: Formula): Formula = f match {
@@ -600,10 +595,7 @@ object Part1 {
   }
 
   def main(args: Array[String]): Unit = {
-    def checkProof(proof: SCProof): Unit = {
-      val error = SCProofChecker.checkSCProof(proof)
-      println(prettySCProof(proof, error))
-    }
+
     println("\nthmMapFunctional")
     checkProof(thmMapFunctional)
     println("\nlemma1")

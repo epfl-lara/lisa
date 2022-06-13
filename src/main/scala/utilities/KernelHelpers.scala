@@ -14,7 +14,7 @@ import lisa.kernel.proof.SequentCalculus.isSameSequent
  * import lisa.KernelHelpers.*
  * </pre>
  */
-object KernelHelpers {
+trait KernelHelpers {
 
   import lisa.kernel.fol.FOL.*
   import lisa.kernel.proof.SequentCalculus.Sequent

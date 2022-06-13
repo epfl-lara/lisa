@@ -1,11 +1,11 @@
-import lisa.kernel.Printer.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
 import proven.tactics.SimplePropositionalSolver.solveSequent
-import utilities.KernelHelpers.{_, given}
+import utilities.Helpers.{_, given}
+import utilities.Printer.*
 import utilities.tptp.KernelParser.*
 import utilities.tptp.ProblemGatherer.*
 import utilities.tptp.*
@@ -139,10 +139,6 @@ object Example {
     println("Status: " + p.status)
     println("SPC: " + p.spc.mkString(", "))
     p.formulas.foreach(printAnnotatedFormula)
-  }
-  private def checkProof(proof: SCProof): Unit = {
-    val error = SCProofChecker.checkSCProof(proof)
-    println(prettySCProof(proof, error))
   }
 
   val P = SchematicPredicateLabel("P", 1)

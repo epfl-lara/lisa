@@ -2,7 +2,7 @@ package lisa.settheory
 
 import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.RunningTheory
-import utilities.KernelHelpers.{_, given}
+import utilities.Helpers.{_, given}
 
 /**
  * Base trait for set theoretical axiom systems.
