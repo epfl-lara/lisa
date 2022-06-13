@@ -1,6 +1,6 @@
 package lisa.kernel
 
-import lisa.kernel.Printer._
+import utilities.Printer._
 import lisa.kernel.fol.FOL._
 import org.scalatest.funsuite.AnyFunSuite
 

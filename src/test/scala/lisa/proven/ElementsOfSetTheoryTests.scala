@@ -1,6 +1,6 @@
-package proven
+package lisa.proven
 
-import lisa.kernel.Printer
+import utilities.Printer
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
@@ -10,8 +10,8 @@ import lisa.settheory.AxiomaticSetTheory.*
 import proven.ElementsOfSetTheory.*
 import proven.tactics.ProofTactics
 import test.ProofCheckerSuite
-import utilities.KernelHelpers.{_, given}
-import utilities.KernelHelpers.{_, given}
+import utilities.Helpers.{_, given}
+import utilities.Helpers.{_, given}
 
 class ElementsOfSetTheoryTests extends ProofCheckerSuite {
 
