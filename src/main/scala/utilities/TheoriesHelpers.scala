@@ -1,10 +1,10 @@
 package utilities
 
+import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.proof.*
 import utilities.Printer
-import lisa.kernel.fol.FOL.*
 
 trait TheoriesHelpers extends KernelHelpers {
 
@@ -18,33 +18,34 @@ trait TheoriesHelpers extends KernelHelpers {
     }
 
   extension (just: RunningTheory#Justification)
-    def show(output:String => Unit = println): just.type = {
+    def show(output: String => Unit = println): just.type = {
       just match
         case thm: RunningTheory#Theorem => output(s"Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}")
         case axiom: RunningTheory#Axiom => output(s"Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}")
-        case d: RunningTheory#Definition => d match
-          case pd: RunningTheory#PredicateDefinition => output(s"Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.args.map(VariableTerm(_))*) <=> pd.phi)}")  //(label, args, phi)
-          case fd: RunningTheory#FunctionDefinition => output(s"Definition of function symbol ${fd.label.id} := ${Printer.prettyFormula((fd.label(fd.args.map(VariableTerm(_))*) === fd.out) <=> fd.phi)})")
-          //output(Printer.prettySequent(thm.proposition))
-          //thm
+        case d: RunningTheory#Definition =>
+          d match
+            case pd: RunningTheory#PredicateDefinition =>
+              output(s"Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.args.map(VariableTerm(_))*) <=> pd.phi)}") // (label, args, phi)
+            case fd: RunningTheory#FunctionDefinition =>
+              output(s"Definition of function symbol ${fd.label.id} := ${Printer.prettyFormula((fd.label(fd.args.map(VariableTerm(_))*) === fd.out) <=> fd.phi)})")
+          // output(Printer.prettySequent(thm.proposition))
+          // thm
       just
     }
 
-  extension[J<:RunningTheory#Justification] (theoryJudgement: RunningTheoryJudgement[J]){
+  extension [J <: RunningTheory#Justification](theoryJudgement: RunningTheoryJudgement[J]) {
     def showAndGet(output: String => Unit = println): J = {
       theoryJudgement match
         case RunningTheoryJudgement.ValidJustification(just) =>
           just.show(output)
         case InvalidJustification(message, error) =>
-          output(s"$message\n${
-            error match
+          output(s"$message\n${error match
               case Some(judgement) => Printer.prettySCProof(judgement)
               case None => ""
-          }")
+            }")
           theoryJudgement.get
     }
   }
-
 
   def checkProof(proof: SCProof, output: String => Unit = println): Unit = {
     val judgement = SCProofChecker.checkSCProof(proof)

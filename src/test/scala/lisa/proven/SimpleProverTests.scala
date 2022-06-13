@@ -1,14 +1,14 @@
 package proven
 
-import lisa.kernel.Printer
-import lisa.kernel.Printer.*
+import utilities.Printer
+import utilities.Printer.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.PredicateLogic
 import lisa.kernel.proof.SCProofChecker
 import org.scalatest.funsuite.AnyFunSuite
 import proven.tactics.SimplePropositionalSolver as SPS
-import utilities.KernelHelpers.*
+import utilities.Helpers.*
 import utilities.tptp.KernelParser.*
 import utilities.tptp.ProblemGatherer.getPRPproblems
 

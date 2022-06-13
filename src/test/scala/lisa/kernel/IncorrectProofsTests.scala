@@ -5,7 +5,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import test.ProofCheckerSuite
-import utilities.KernelHelpers.*
+import utilities.Helpers.*
 
 import scala.collection.immutable.SortedSet
 import scala.language.implicitConversions
