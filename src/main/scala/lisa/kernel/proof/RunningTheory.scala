@@ -29,12 +29,12 @@ class RunningTheory {
   /**
    * A theorem encapsulate a sequent and assert that this sequent has been correctly proven and may be used safely in further proofs.
    */
-  final case class Theorem private[RunningTheory](name: String, proposition: Sequent) extends Justification
+  final case class Theorem private[RunningTheory] (name: String, proposition: Sequent) extends Justification
 
   /**
    * An axiom is any formula that is assumed and considered true within the theory. It can freely be used later in any proof.
    */
-  final case class Axiom private[RunningTheory](name: String, ax: Formula) extends Justification
+  final case class Axiom private[RunningTheory] (name: String, ax: Formula) extends Justification
 
   /**
    * A definition can be either a PredicateDefinition or a FunctionDefinition.
@@ -48,7 +48,7 @@ class RunningTheory {
    * @param args  The variables representing the arguments of the predicate in the formula phi.
    * @param phi   The formula defining the predicate.
    */
-  final case class PredicateDefinition private[RunningTheory](label: ConstantPredicateLabel, args: Seq[VariableLabel], phi: Formula) extends Definition
+  final case class PredicateDefinition private[RunningTheory] (label: ConstantPredicateLabel, args: Seq[VariableLabel], phi: Formula) extends Definition
 
   /**
    * Define a function symbol as the unique element that has some property. The existence and uniqueness
@@ -60,7 +60,7 @@ class RunningTheory {
    * @param out   The variable representing the result of the function in phi
    * @param phi   The formula defining the function.
    */
-  final case class FunctionDefinition private[RunningTheory](label: ConstantFunctionLabel, args: Seq[VariableLabel], out: VariableLabel, phi: Formula) extends Definition
+  final case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel, args: Seq[VariableLabel], out: VariableLabel, phi: Formula) extends Definition
 
   private[proof] val theoryAxioms: mMap[String, Axiom] = mMap.empty
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
@@ -103,7 +103,7 @@ class RunningTheory {
             val thm = Theorem(name, proof.conclusion)
             theorems.update(name, thm)
             ValidJustification(thm)
-          case r@SCProofCheckerJudgement.SCInvalidProof(_, _, message) =>
+          case r @ SCProofCheckerJudgement.SCInvalidProof(_, _, message) =>
             InvalidJustification("The given proof is incorrect: " + message, Some(r))
         }
       else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
@@ -147,13 +147,13 @@ class RunningTheory {
    * @return A definition object if the parameters are correct,
    */
   def makeFunctionDefinition(
-                                proof: SCProof,
-                                justifications: Seq[Justification],
-                                label: ConstantFunctionLabel,
-                                args: Seq[VariableLabel],
-                                out: VariableLabel,
-                                phi: Formula
-                            ): RunningTheoryJudgement[this.FunctionDefinition] = {
+      proof: SCProof,
+      justifications: Seq[Justification],
+      label: ConstantFunctionLabel,
+      args: Seq[VariableLabel],
+      out: VariableLabel,
+      phi: Formula
+  ): RunningTheoryJudgement[this.FunctionDefinition] = {
     if (belongsToTheory(phi))
       if (isAvailable(label))
         if (phi.freeVariables.subsetOf(args.toSet + out) && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
@@ -173,7 +173,7 @@ class RunningTheory {
                     } else InvalidJustification("The proof is correct but its conclusion does not correspond to a definition for the formula phi.", None)
                   case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
                 }
-              case r@SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
+              case r @ SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
             }
           else InvalidJustification("Not all imports of the proof are correctly justified.", None)
         else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
@@ -282,7 +282,7 @@ class RunningTheory {
    */
 
   def addSymbol(s: ConstantLabel): Unit = {
-    if (isAvailable(s)){
+    if (isAvailable(s)) {
       knownSymbols.update(s.id, s)
       s match
         case c: ConstantFunctionLabel => funDefinitions.update(c, None)
