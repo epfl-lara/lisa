@@ -81,11 +81,12 @@ abstract class Library(val theory: RunningTheory) {
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
   case class TheoremNameWithProof(name: String, statement: String, proof: Proof)(using String => Unit) {
-    infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match
+    infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
         just
       case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+    }
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
@@ -98,18 +99,20 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * Allows to create a definition by shortcut of a function symbol:
    */
-  def simpleDefinition(symbol: String, expression: LambdaTermTerm): Judgement[theory.FunctionDefinition] =
+  def simpleDefinition(symbol: String, expression: LambdaTermTerm): Judgement[theory.FunctionDefinition] = {
     val LambdaTermTerm(vars, body) = expression
     val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicFunctions.map(_.id)).toSet, "y"))
     val proof: Proof = simpleFunctionDefinition(expression, out)
     theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, Nil)
+  }
 
   /**
    * Allows to create a definition by existential uniqueness of a function symbol:
    */
-  def complexDefinition(symbol: String, vars: Seq[SchematicFunctionLabel], v: SchematicFunctionLabel, f: Formula, proof: Proof, just: Seq[Justification]): Judgement[theory.FunctionDefinition] =
+  def complexDefinition(symbol: String, vars: Seq[SchematicFunctionLabel], v: SchematicFunctionLabel, f: Formula, proof: Proof, just: Seq[Justification]): Judgement[theory.FunctionDefinition] = {
     val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ f.schematicFunctions.map(_.id)).toSet, "y"))
     theory.functionDefinition(symbol, LambdaTermFormula(vars, instantiateFunctionSchemas(f, Map(v -> LambdaTermTerm(Nil, out)))), out, proof, just)
+  }
 
   /**
    * Allows to create a definition by shortcut of a function symbol:
@@ -127,24 +130,28 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(t: Term)(using String => Unit): ConstantFunctionLabel =
-      val definition = simpleDefinition(symbol, LambdaTermTerm(vars, t)) match
+    infix def as(t: Term)(using String => Unit): ConstantFunctionLabel = {
+      val definition = simpleDefinition(symbol, LambdaTermTerm(vars, t)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
         case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+      }
       definition.label
+    }
 
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(f: Formula)(using String => Unit): ConstantPredicateLabel =
-      val definition = simpleDefinition(symbol, LambdaTermFormula(vars, f)) match
+    infix def as(f: Formula)(using String => Unit): ConstantPredicateLabel = {
+      val definition = simpleDefinition(symbol, LambdaTermFormula(vars, f)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
         case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+      }
       definition.label
+    }
 
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
@@ -182,13 +189,15 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(justifications: theory.Justification*)(using String => Unit): ConstantFunctionLabel =
-      val definition = complexDefinition(symbol, vars, out, f, proof, justifications) match
+    infix def using(justifications: theory.Justification*)(using String => Unit): ConstantFunctionLabel = {
+      val definition = complexDefinition(symbol, vars, out, f, proof, justifications) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
         case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+      }
       definition.label
+    }
 
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
@@ -239,41 +248,46 @@ abstract class Library(val theory: RunningTheory) {
    * Fetch a Theorem by its name.
    */
   def getTheorem(name: String): theory.Theorem =
-    theory.getTheorem(name) match
+    theory.getTheorem(name) match {
       case Some(value) => value
       case None => throw java.util.NoSuchElementException(s"No theorem with name \"$name\" was found.")
+    }
 
   /**
    * Fetch an Axiom by its name.
    */
   def getAxiom(name: String): theory.Axiom =
-    theory.getAxiom(name) match
+    theory.getAxiom(name) match {
       case Some(value) => value
       case None => throw java.util.NoSuchElementException(s"No axiom with name \"$name\" was found.")
+    }
 
   /**
    * Fetch a Definition by its symbol.
    */
   def getDefinition(name: String): theory.Definition =
-    theory.getDefinition(name) match
+    theory.getDefinition(name) match {
       case Some(value) => value
       case None => throw java.util.NoSuchElementException(s"No definition for symbol \"$name\" was found.")
+    }
 
   /**
    * Prints a short representation of the last theorem or definition introduced
    */
-  def show(using String => Unit): Justification = last match
+  def show(using String => Unit): Justification = last match {
     case Some(value) => value.show
     case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
+  }
   // given Conversion[String, theory.Justification] = name => theory.getJustification(name).get
 
   /**
    * Converts different class that have a natural interpretation as a Sequent
    */
-  private def sequantableToSequent(s: Sequentable): Sequent = s match
+  private def sequantableToSequent(s: Sequentable): Sequent = s match {
     case j: Justification => theory.sequentFromJustification(j)
     case f: Formula => () |- f
     case s: Sequent => s
+  }
 
   given Conversion[Sequentable, Sequent] = sequantableToSequent
   given Conversion[Axiom, Formula] = theory.sequentFromJustification(_).right.head

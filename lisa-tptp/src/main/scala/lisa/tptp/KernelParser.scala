@@ -6,8 +6,8 @@ import leo.datastructures.TPTP.FOF
 import leo.modules.input.TPTPParser as Parser
 import lisa.kernel.fol.FOL as K
 import lisa.kernel.proof.SequentCalculus as LK
-import lisa.utils.Helpers.*
 import lisa.tptp.*
+import lisa.utils.Helpers.*
 
 import java.io.File
 import scala.util.matching.Regex
@@ -189,11 +189,11 @@ object KernelParser {
       } else throw new Exception("Specified path is not a directory.")
     } else throw new Exception("Specified path does not exist.")
 
-    val r = probfiles.foldRight(List.empty[Problem])((p, current) =>
+    val r = probfiles.foldRight(List.empty[Problem])((p, current) => {
       val md = getProblemInfos(p)
       if (md.spc.exists(spc.contains)) problemToKernel(p, md) :: current
       else current
-    )
+    })
     r
   }
 

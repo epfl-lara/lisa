@@ -64,7 +64,7 @@ object SimplePropositionalSolver {
       val proof1 = solveOrganisedSequent(left, right, s -< f +> phi, offset)
       val proof2 = solveOrganisedSequent(rl, rr, s -< f +< psi, offset + proof1.size)
       LeftImplies(s, proof1.size + offset - 1, proof1.size + proof2.size + offset - 1, phi, psi) :: (proof2 ++ proof1)
-    } else if (left.iffs.nonEmpty)
+    } else if (left.iffs.nonEmpty) {
       val f = left.iffs.head
       val phi = f.args(0)
       val psi = f.args(1)
@@ -73,7 +73,7 @@ object SimplePropositionalSolver {
       left.updateFormula(psi ==> phi, true)
       val proof = solveOrganisedSequent(left, right, s -< f +< (phi ==> psi) +< (psi ==> phi), offset)
       LeftIff(s, proof.length - 1 + offset, phi, psi) :: proof
-    else if (left.ands.nonEmpty) {
+    } else if (left.ands.nonEmpty) {
       val f = left.ands.head
       val phi = f.args(0)
       val psi = f.args(1)
@@ -96,14 +96,14 @@ object SimplePropositionalSolver {
       val proof1 = solveOrganisedSequent(left, right, s -< f +< phi, offset)
       val proof2 = solveOrganisedSequent(rl, rr, s -< f +< psi, offset + proof1.size)
       LeftOr(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
-    } else if (right.negs.nonEmpty)
+    } else if (right.negs.nonEmpty) {
       val f = right.negs.head
       val phi = f.args.head
       right.updateFormula(f, false)
       left.updateFormula(phi, true)
       val proof = solveOrganisedSequent(left, right, s -> f +< phi, offset)
       RightNot(s, proof.length - 1 + offset, phi) :: proof
-    else if (right.impliess.nonEmpty) {
+    } else if (right.impliess.nonEmpty) {
       val f = right.impliess.head
       val phi = f.args(0)
       val psi = f.args(1)
@@ -112,7 +112,7 @@ object SimplePropositionalSolver {
       right.updateFormula(psi, true)
       val proof = solveOrganisedSequent(left, right, s -> f +< phi +> psi, offset)
       RightImplies(s, proof.length - 1 + offset, phi, psi) :: proof
-    } else if (right.iffs.nonEmpty)
+    } else if (right.iffs.nonEmpty) {
       val f = right.iffs.head
       val phi = f.args(0)
       val psi = f.args(1)
@@ -124,7 +124,7 @@ object SimplePropositionalSolver {
       val proof1 = solveOrganisedSequent(left, right, s -> f +> (phi ==> psi), offset)
       val proof2 = solveOrganisedSequent(rl, rr, s -> f +> (psi ==> phi), offset + proof1.size)
       RightIff(s, proof1.size + offset - 1, proof1.size + proof2.size + offset - 1, phi, psi) :: (proof2 ++ proof1)
-    else if (right.ands.nonEmpty) {
+    } else if (right.ands.nonEmpty) {
       val f = right.ands.head
       val phi = f.args(0)
       val psi = f.args(1)

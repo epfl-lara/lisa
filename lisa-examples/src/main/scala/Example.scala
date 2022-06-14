@@ -1,14 +1,14 @@
-import lisa.utils.Printer.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.proven.tactics.SimplePropositionalSolver.solveSequent
-import lisa.utils.Helpers.{_, given}
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
+import lisa.utils.Helpers.{_, given}
+import lisa.utils.Printer.*
 
 /**
  * Discover some of the elements of LISA to get started.

@@ -1,14 +1,15 @@
 package lisa.kernel
 
-import lisa.utils.Printer
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
-import org.scalatest.funsuite.AnyFunSuite
 import lisa.utils.Helpers.*
+import lisa.utils.Printer
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.MapView
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
+import scala.language.adhocExtensions
 import scala.util.Random
 
 class EquivalenceCheckerTests extends AnyFunSuite {
@@ -364,10 +365,10 @@ class EquivalenceCheckerTests extends AnyFunSuite {
 
   test("All allowed transformations") {
     val transformations: Seq[Random => Formula => Formula] = IndexedSeq(
-      r => commutativeShuffle(1)(r) _,
-      r => associativeShuffle(1)(r) _,
-      r => addDoubleNegations(0.02)(r) _,
-      r => addDeMorgans(0.05)(r) _
+      r => commutativeShuffle(1)(r),
+      r => associativeShuffle(1)(r),
+      r => addDoubleNegations(0.02)(r),
+      r => addDeMorgans(0.05)(r)
     )
     def randomTransformations(random: Random)(f: Formula): Formula = {
       val n = random.nextInt(50)
