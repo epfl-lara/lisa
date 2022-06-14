@@ -1,16 +1,18 @@
 package lisa.proven
 
-import lisa.utils.Printer
-import lisa.utils.Printer.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.PredicateLogic
 import lisa.kernel.proof.SCProofChecker
-import org.scalatest.funsuite.AnyFunSuite
 import lisa.proven.tactics.SimplePropositionalSolver as SPS
-import lisa.utils.Helpers.*
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.getPRPproblems
+import lisa.utils.Helpers.*
+import lisa.utils.Printer
+import lisa.utils.Printer.*
+import org.scalatest.funsuite.AnyFunSuite
+
+import scala.language.adhocExtensions
 
 class SimpleProverTests extends AnyFunSuite {
 

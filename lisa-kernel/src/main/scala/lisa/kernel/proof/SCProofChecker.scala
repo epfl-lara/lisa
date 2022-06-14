@@ -76,8 +76,8 @@ object SCProofChecker {
               val phiAndPsi = ConnectorFormula(And, Seq(phi, psi))
               if (
                 isSameSet(b.left + phi, ref(t1).left + phiAndPsi) ||
-                  isSameSet(b.left + psi, ref(t1).left + phiAndPsi) ||
-                  isSameSet(b.left + phi + psi, ref(t1).left + phiAndPsi)
+                isSameSet(b.left + psi, ref(t1).left + phiAndPsi) ||
+                isSameSet(b.left + phi + psi, ref(t1).left + phiAndPsi)
               )
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
@@ -118,8 +118,8 @@ object SCProofChecker {
             if (isSameSet(ref(t1).right, b.right))
               if (
                 isSameSet(b.left + phiImpPsi, ref(t1).left + phiIffPsi) ||
-                  isSameSet(b.left + psiImpPhi, ref(t1).left + phiIffPsi) ||
-                  isSameSet(b.left + phiImpPsi + psiImpPhi, ref(t1).left + phiIffPsi)
+                isSameSet(b.left + psiImpPhi, ref(t1).left + phiIffPsi) ||
+                isSameSet(b.left + phiImpPsi + psiImpPhi, ref(t1).left + phiIffPsi)
               )
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ↔ψ must be same as left-hand side of premise + either φ→ψ, ψ→φ or both.")
@@ -201,8 +201,8 @@ object SCProofChecker {
             if (isSameSet(ref(t1).left, b.left))
               if (
                 isSameSet(b.right + phi, ref(t1).right + phiOrPsi) ||
-                  isSameSet(b.right + psi, ref(t1).right + phiOrPsi) ||
-                  isSameSet(b.right + phi + psi, ref(t1).right + phiOrPsi)
+                isSameSet(b.right + psi, ref(t1).right + phiOrPsi) ||
+                isSameSet(b.right + phi + psi, ref(t1).right + phiOrPsi)
               )
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both.")
@@ -348,7 +348,7 @@ object SCProofChecker {
             if (isSameSet(b.right, ref(t1).right))
               if (
                 isSameSet(b.left + phi_t_for_f, ref(t1).left ++ sEqT_es + phi_s_for_f) ||
-                  isSameSet(b.left + phi_s_for_f, ref(t1).left ++ sEqT_es + phi_t_for_f)
+                isSameSet(b.left + phi_s_for_f, ref(t1).left ++ sEqT_es + phi_t_for_f)
               )
                 SCValidProof(SCProof(step))
               else
@@ -372,7 +372,7 @@ object SCProofChecker {
               val phi_t_for_f = lambdaPhi(t_es)
               if (
                 isSameSet(b.right + phi_s_for_f, ref(t1).right + phi_t_for_f) ||
-                  isSameSet(b.right + phi_t_for_f, ref(t1).right + phi_s_for_f)
+                isSameSet(b.right + phi_t_for_f, ref(t1).right + phi_s_for_f)
               )
                 SCValidProof(SCProof(step))
               else

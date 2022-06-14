@@ -1,8 +1,10 @@
 package lisa.utils
 
-import lisa.utils.Printer._
-import lisa.kernel.fol.FOL._
+import lisa.kernel.fol.FOL.*
+import lisa.utils.Printer.*
 import org.scalatest.funsuite.AnyFunSuite
+
+import scala.language.adhocExtensions
 
 class PrinterTest extends AnyFunSuite {
 

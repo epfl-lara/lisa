@@ -105,8 +105,7 @@ class RunningTheory {
           case r @ SCProofCheckerJudgement.SCInvalidProof(_, _, message) =>
             InvalidJustification("The given proof is incorrect: " + message, Some(r))
         }
-      }
-      else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
+      } else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
     else InvalidJustification("Not all imports of the proof are correctly justified.", None)
 
   /**

@@ -1,16 +1,17 @@
 package lisa.kernel
 
-import lisa.utils.Printer
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
-import org.scalatest.funsuite.AnyFunSuite
 import lisa.utils.Helpers.{_, given}
+import lisa.utils.Printer
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.SortedSet
+import scala.language.adhocExtensions
 import scala.util.Random
 
 class FolTests extends AnyFunSuite {

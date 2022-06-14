@@ -1,6 +1,6 @@
 package lisa.settheory
 
-import lisa.kernel.fol.FOL._
+import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.Helpers.{_, given}
 

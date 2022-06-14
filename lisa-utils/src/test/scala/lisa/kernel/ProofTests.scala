@@ -1,15 +1,16 @@
 package lisa.kernel
 
-import lisa.utils.Printer
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
-import org.scalatest.funsuite.AnyFunSuite
 import lisa.utils.Helpers.{_, given}
+import lisa.utils.Printer
+import org.scalatest.funsuite.AnyFunSuite
 
+import scala.language.adhocExtensions
 import scala.util.Random
 
 class ProofTests extends AnyFunSuite {
@@ -50,7 +51,7 @@ class ProofTests extends AnyFunSuite {
     var subformulas = pairs.map(p => or(p.head, p.last)).grouped(2)
     var subformulasSwapped = sPairs.map(p => if (r.nextBoolean()) or(p.head, p.last) else or(p.last, p.head)).grouped(2)
     for (i <- 1 until k) {
-      val op = if (i % 2 == 0) or _ else and _
+      val op = if (i % 2 == 0) or else and
       subformulas = subformulas.map(sf => op(sf.head, sf.last)).grouped(2)
       subformulasSwapped = subformulasSwapped.map(sf => if (r.nextBoolean()) op(sf.head, sf.last) else op(sf.last, sf.head)).grouped(2)
     }

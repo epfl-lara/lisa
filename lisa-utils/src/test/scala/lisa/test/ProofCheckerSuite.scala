@@ -1,12 +1,14 @@
 package lisa.test
 
-import lisa.utils.Printer
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SCProofChecker._
+import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus.isSameSequent
-import org.scalatest.funsuite.AnyFunSuite
 import lisa.utils.Helpers.{_, given}
+import lisa.utils.Printer
+import org.scalatest.funsuite.AnyFunSuite
+
+import scala.language.adhocExtensions
 
 abstract class ProofCheckerSuite extends AnyFunSuite {
   import lisa.kernel.fol.FOL.*
@@ -43,7 +45,7 @@ abstract class ProofCheckerSuite extends AnyFunSuite {
 
   def checkProof(proof: SCProof, expected: Sequent): Unit = {
     val judgement = checkSCProof(proof)
-    assert(judgement.isValid, "\n" + Printer.prettySCProof( judgement))
+    assert(judgement.isValid, "\n" + Printer.prettySCProof(judgement))
     assert(isSameSequent(proof.conclusion, expected), s"(${Printer.prettySequent(proof.conclusion)} did not equal ${Printer.prettySequent(expected)})")
   }
 

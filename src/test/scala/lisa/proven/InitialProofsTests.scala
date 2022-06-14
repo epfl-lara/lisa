@@ -1,7 +1,7 @@
 package lisa.proven
 
-import lisa.utils.Printer
 import lisa.test.ProofCheckerSuite
+import lisa.utils.Printer
 
 class InitialProofsTests extends ProofCheckerSuite {
   import lisa.proven.SetTheoryLibrary.*
@@ -15,6 +15,5 @@ class InitialProofsTests extends ProofCheckerSuite {
     lisa.proven.mathematics.Mapping
     succeed
   }
-
 
 }

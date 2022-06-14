@@ -120,20 +120,25 @@ trait KernelHelpers {
     def apply(t: T): Set[S]
   }
 
-  given [S]: SetConverter[S, Unit] with
+  given [S]: SetConverter[S, Unit] with {
     override def apply(u: Unit): Set[S] = Set.empty
+  }
 
-  given [S]: SetConverter[S, EmptyTuple] with
+  given [S]: SetConverter[S, EmptyTuple] with {
     override def apply(t: EmptyTuple): Set[S] = Set.empty
+  }
 
-  given [S, H <: S, T <: Tuple](using SetConverter[S, T]): SetConverter[S, H *: T] with
+  given [S, H <: S, T <: Tuple](using SetConverter[S, T]): SetConverter[S, H *: T] with {
     override def apply(t: H *: T): Set[S] = summon[SetConverter[S, T]].apply(t.tail) + t.head
+  }
 
-  given [S, T <: S]: SetConverter[S, T] with
+  given [S, T <: S]: SetConverter[S, T] with {
     override def apply(f: T): Set[S] = Set(f)
+  }
 
-  given [S, I <: Iterable[S]]: SetConverter[S, I] with
+  given [S, I <: Iterable[S]]: SetConverter[S, I] with {
     override def apply(s: I): Set[S] = s.toSet
+  }
 
   private def any2set[S, A, T <: A](any: T)(using SetConverter[S, T]): Set[S] = summon[SetConverter[S, T]].apply(any)
 
