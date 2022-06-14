@@ -19,7 +19,7 @@ import utilities.Printer.prettySequent
 
 import scala.collection.immutable
 import scala.collection.immutable.SortedSet
-object Part1 {
+trait Part1 {
   val theory = AxiomaticSetTheory.runningSetTheory
   def axiom(f: Formula): theory.Axiom = theory.getAxiom(f).get
 
@@ -32,6 +32,9 @@ object Part1 {
   private val f = SchematicFunctionLabel("f", 0)
   private val g = SchematicFunctionLabel("g", 0)
   private val h = SchematicPredicateLabel("h", 0)
+
+  val sPhi = SchematicPredicateLabel("P", 2)
+  val sPsi = SchematicPredicateLabel("P", 3)
 
   given Conversion[SchematicFunctionLabel, Term] with
     def apply(s: SchematicFunctionLabel): Term = s()
@@ -92,6 +95,9 @@ object Part1 {
     val B = VariableLabel("B")
     val B1 = VariableLabel("B1")
     val phi = SchematicPredicateLabel("phi", 2)
+    val sPhi = SchematicPredicateLabel("P", 2)
+    val sPsi = SchematicPredicateLabel("P", 3)
+
     val H = existsOne(x, phi(x, a))
     val H1 = forall(a, in(a, A) ==> H)
     val s0 = hypothesis(H) // () |- existsOne(x, phi(x, a)))

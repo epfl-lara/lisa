@@ -16,8 +16,8 @@ trait TheoriesHelpers extends KernelHelpers {
       else if (isSameSequent(expected, proof.conclusion)) theory.makeTheorem(name, expected, proof.appended(Rewrite(expected, proof.length - 1)), justifications)
       else InvalidJustification("The proof does not prove the claimed statement", None)
     }
-    
-    def getJustification(name:String) : Option[theory.Justification] = theory.getAxiom(name).orElse(theory.getTheorem(name)).orElse(theory.getDefinition(name))
+
+    def getJustification(name: String): Option[theory.Justification] = theory.getAxiom(name).orElse(theory.getTheorem(name)).orElse(theory.getDefinition(name))
 
   extension (just: RunningTheory#Justification)
     def show(output: String => Unit = println): just.type = {

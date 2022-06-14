@@ -8,13 +8,11 @@ import utilities.Helpers.{_, given}
  * Base trait for set theoretical axiom systems.
  * Defines the symbols used in set theory.
  */
-private[settheory] trait SetTheoryDefinitions {
-  type Axiom = Formula
-  def axioms: Set[(String, Axiom)] = Set.empty
-  private[settheory] final val (x, y, z, a, b) =
-    (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"), VariableLabel("A"), VariableLabel("B"))
-  final val sPhi = SchematicPredicateLabel("P", 2)
-  final val sPsi = SchematicPredicateLabel("P", 3)
+trait SetTheoryDefinitions {
+
+  private val tete = "tete"
+  def axioms: Set[(String, Formula)] = Set.empty
+
   // Predicates
   final val in = ConstantPredicateLabel("set_membership", 2)
   final val subset = ConstantPredicateLabel("subset_of", 2)
@@ -33,7 +31,7 @@ private[settheory] trait SetTheoryDefinitions {
   final val functions = Set(emptySet, pair, singleton, powerSet, union, universe)
 
   val runningSetTheory: RunningTheory = new RunningTheory()
-  given RunningTheory = runningSetTheory
+  // given RunningTheory = runningSetTheory
 
   predicates.foreach(s => runningSetTheory.addSymbol(s))
   functions.foreach(s => runningSetTheory.addSymbol(s))

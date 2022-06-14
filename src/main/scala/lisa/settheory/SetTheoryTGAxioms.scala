@@ -6,9 +6,11 @@ import utilities.Helpers.{_, given}
 /**
  * Axioms for the Tarski-Grothendieck theory (TG)
  */
-private[settheory] trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
+trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
+  private val (x, y, z) =
+    (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
 
-  final val tarskiAxiom: Axiom = forall(
+  final val tarskiAxiom: Formula = forall(
     x,
     in(x, universe(x)) /\
       forall(
@@ -20,6 +22,6 @@ private[settheory] trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
 
   runningSetTheory.addAxiom("TarskiAxiom", tarskiAxiom)
 
-  override def axioms: Set[(String, Axiom)] = super.axioms + (("TarskiAxiom", tarskiAxiom))
+  override def axioms: Set[(String, Formula)] = super.axioms + (("TarskiAxiom", tarskiAxiom))
 
 }
