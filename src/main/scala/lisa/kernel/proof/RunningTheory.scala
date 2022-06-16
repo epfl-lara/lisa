@@ -45,10 +45,9 @@ class RunningTheory {
    * Define a predicate symbol as a shortcut for a formula. Example : P(x,y) :=   ∃!z. (x=y+z)
    *
    * @param label The name and arity of the new symbol
-   * @param args  The variables representing the arguments of the predicate in the formula phi.
-   * @param phi   The formula defining the predicate.
+   * @param expression The formula, depending on terms, that define the symbol.
    */
-  final case class PredicateDefinition private[RunningTheory] (label: ConstantPredicateLabel, args: Seq[VariableLabel], phi: Formula) extends Definition
+  final case class PredicateDefinition private[RunningTheory] (label: ConstantPredicateLabel, expression: LambdaTermFormula) extends Definition
 
   /**
    * Define a function symbol as the unique element that has some property. The existence and uniqueness
@@ -56,11 +55,10 @@ class RunningTheory {
    * f(x,y) := the "z" s.t. x=y+z
    *
    * @param label The name and arity of the new symbol
-   * @param args  The variables representing the arguments of the predicate in the formula phi.
    * @param out   The variable representing the result of the function in phi
-   * @param phi   The formula defining the function.
+   * @param expression   The formula, with term parameters, defining the function.
    */
-  final case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel, args: Seq[VariableLabel], out: VariableLabel, phi: Formula) extends Definition
+  final case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel, out: VariableLabel, expression: LambdaTermFormula) extends Definition
 
   private[proof] val theoryAxioms: mMap[String, Axiom] = mMap.empty
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
@@ -118,11 +116,12 @@ class RunningTheory {
    * @param phi   The formula defining the predicate.
    * @return A definition object if the parameters are correct,
    */
-  def makePredicateDefinition(label: ConstantPredicateLabel, args: Seq[VariableLabel], phi: Formula): RunningTheoryJudgement[this.PredicateDefinition] = {
-    if (belongsToTheory(phi))
+  def makePredicateDefinition(label: ConstantPredicateLabel, expression:LambdaTermFormula): RunningTheoryJudgement[this.PredicateDefinition] = {
+    val LambdaTermFormula(vars, body) = expression
+    if (belongsToTheory(body))
       if (isAvailable(label))
-        if (phi.freeVariables.subsetOf(args.toSet) && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
-          val newDef = PredicateDefinition(label, args, phi)
+        if (body.freeVariables.isEmpty && body.schematicFunctions.subsetOf(vars.toSet) && body.schematicPredicates.isEmpty)
+          val newDef = PredicateDefinition(label, expression)
           predDefinitions.update(label, Some(newDef))
           knownSymbols.update(label.id, label)
           RunningTheoryJudgement.ValidJustification(newDef)
@@ -150,23 +149,22 @@ class RunningTheory {
       proof: SCProof,
       justifications: Seq[Justification],
       label: ConstantFunctionLabel,
-      args: Seq[VariableLabel],
       out: VariableLabel,
-      phi: Formula
+      expression: LambdaTermFormula
   ): RunningTheoryJudgement[this.FunctionDefinition] = {
-    if (belongsToTheory(phi))
+    val LambdaTermFormula(vars, body) = expression
+    if (belongsToTheory(body))
       if (isAvailable(label))
-        if (phi.freeVariables.subsetOf(args.toSet + out) && phi.schematicFunctions.isEmpty && phi.schematicPredicates.isEmpty)
+        if (body.freeVariables.subsetOf(Set(out)) && body.schematicFunctions.subsetOf(vars.toSet) && body.schematicPredicates.isEmpty)
           if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j)))))
             val r = SCProofChecker.checkSCProof(proof)
             r match {
               case SCProofCheckerJudgement.SCValidProof(_) =>
                 proof.conclusion match {
                   case Sequent(l, r) if l.isEmpty && r.size == 1 =>
-                    val subst = bindAll(Forall, args, BinderFormula(ExistsOne, out, phi))
-                    val subst2 = bindAll(Forall, args.reverse, BinderFormula(ExistsOne, out, phi))
-                    if (isSame(r.head, subst) || isSame(r.head, subst2)) {
-                      val newDef = FunctionDefinition(label, args, out, phi)
+                    val subst = BinderFormula(ExistsOne, out, body)
+                    if (isSame(r.head, subst)) {
+                      val newDef = FunctionDefinition(label, out, expression)
                       funDefinitions.update(label, Some(newDef))
                       knownSymbols.update(label.id, label)
                       RunningTheoryJudgement.ValidJustification(newDef)
@@ -181,30 +179,18 @@ class RunningTheory {
     else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
   }
 
-  private def sequentFromJustification(j: Justification): Sequent = j match {
+  def sequentFromJustification(j: Justification): Sequent = j match {
     case Theorem(name, proposition) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
-    case PredicateDefinition(label, args, phi) =>
-      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, args.map(VariableTerm.apply)), phi))
-      Sequent(Set(), Set(bindAll(Forall, args, inner)))
-    case FunctionDefinition(label, args, out, phi) =>
-      val inner = BinderFormula(
-        Forall,
-        out,
-        ConnectorFormula(
-          Iff,
-          Seq(
-            PredicateFormula(equality, Seq(FunctionTerm(label, args.map(VariableTerm.apply)), VariableTerm(out))),
-            phi
-          )
-        )
-      )
-      Sequent(
-        Set(),
-        Set(
-          bindAll(Forall, args, inner)
-        )
-      )
+    case PredicateDefinition(label, LambdaTermFormula(vars, body)) =>
+      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(FunctionTerm(_, Seq()))), body))
+      Sequent(Set(), Set(inner))
+    case FunctionDefinition(label, out, LambdaTermFormula(vars, body)) =>
+      val inner = BinderFormula(Forall, out, ConnectorFormula(Iff, Seq(
+        PredicateFormula(equality, Seq(FunctionTerm(label, vars.map(FunctionTerm.apply(_, Seq()))), VariableTerm(out))),
+        body
+      )))
+      Sequent(Set(), Set(inner))
 
   }
 

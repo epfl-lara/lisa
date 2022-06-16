@@ -17,19 +17,28 @@ trait TheoriesHelpers extends KernelHelpers {
       else InvalidJustification("The proof does not prove the claimed statement", None)
     }
 
+    def functionDefinition(symbol:String, expression:LambdaTermFormula, out:VariableLabel, proof:SCProof, justifications:Seq[theory.Justification] ): RunningTheoryJudgement[theory.FunctionDefinition] = {
+      val label = ConstantFunctionLabel(symbol, expression.vars.size)
+      theory.makeFunctionDefinition(proof, justifications, label, out, expression)
+    }
+    def predicateDefinition(symbol:String, expression:LambdaTermFormula): RunningTheoryJudgement[theory.PredicateDefinition] = {
+      val label = ConstantPredicateLabel(symbol, expression.vars.size)
+      theory.makePredicateDefinition(label, expression)
+    }
+
     def getJustification(name: String): Option[theory.Justification] = theory.getAxiom(name).orElse(theory.getTheorem(name)).orElse(theory.getDefinition(name))
 
   extension (just: RunningTheory#Justification)
-    def show(output: String => Unit = println): just.type = {
+    def show(implicit output: String => Unit ): just.type = {
       just match
-        case thm: RunningTheory#Theorem => output(s"Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}")
-        case axiom: RunningTheory#Axiom => output(s"Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}")
+        case thm: RunningTheory#Theorem => output(s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n")
+        case axiom: RunningTheory#Axiom => output(s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n")
         case d: RunningTheory#Definition =>
           d match
             case pd: RunningTheory#PredicateDefinition =>
-              output(s"Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.args.map(VariableTerm(_))*) <=> pd.phi)}") // (label, args, phi)
+              output(s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(_())*) <=> pd.expression.body)}\n") // (label, args, phi)
             case fd: RunningTheory#FunctionDefinition =>
-              output(s"Definition of function symbol ${fd.label.id} := ${Printer.prettyFormula((fd.label(fd.args.map(VariableTerm(_))*) === fd.out) <=> fd.phi)})")
+              output(s" Definition of function symbol ${fd.label.id} := ${Printer.prettyFormula(( fd.out === fd.label(fd.expression.vars.map(_())*)) <=> fd.expression.body)})\n")
         // output(Printer.prettySequent(thm.proposition))
         // thm
       just
@@ -54,4 +63,10 @@ trait TheoriesHelpers extends KernelHelpers {
     val judgement = SCProofChecker.checkSCProof(proof)
     output(Printer.prettySCProof(judgement))
   }
+
+
+
+
+
+
 }

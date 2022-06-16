@@ -1,9 +1,7 @@
 package utilities
 
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.RunningTheoryJudgement
+import lisa.kernel.proof.{RunningTheory, RunningTheoryJudgement, SCProof, SequentCalculus}
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
-import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Rewrite
 import lisa.kernel.proof.SequentCalculus.isSameSequent
 
@@ -94,6 +92,7 @@ trait KernelHelpers {
 
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
 
+  given Conversion[Formula, Sequent] = () |- _
   /* Sequents */
 
   val emptySeq: Sequent = Sequent(Set.empty, Set.empty)
@@ -126,7 +125,7 @@ trait KernelHelpers {
   given [S]: SetConverter[S, EmptyTuple] with
     override def apply(t: EmptyTuple): Set[S] = Set.empty
 
-  given [S, H <: S, T <: Tuple, C1](using SetConverter[S, T]): SetConverter[S, H *: T] with
+  given [S, H <: S, T <: Tuple](using SetConverter[S, T]): SetConverter[S, H *: T] with
     override def apply(t: H *: T): Set[S] = summon[SetConverter[S, T]].apply(t.tail) + t.head
 
   given [S, T <: S]: SetConverter[S, T] with
