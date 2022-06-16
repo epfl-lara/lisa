@@ -65,8 +65,8 @@ case class SCProof(steps: IndexedSeq[SCProofStep], imports: IndexedSeq[Sequent] 
    * Can be undefined if the proof is empty.
    */
   def conclusion: Sequent = {
-    if (steps.isEmpty) throw new NoSuchElementException("conclusion of an empty proof")
-    this(length - 1).bot
+    if (steps.isEmpty && imports.isEmpty) throw new NoSuchElementException("conclusion of an empty proof")
+    this.getSequent(length - 1)
   }
 
   /**

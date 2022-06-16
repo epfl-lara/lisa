@@ -3,7 +3,7 @@ package proven.tactics
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import utilities.Helpers.{_, given}
+import utilities.Helpers.{*, given}
 import utilities.Printer.*
 
 import scala.collection.immutable.Set
@@ -71,21 +71,23 @@ object ProofTactics {
     }
   }
 
-  def simpleFunctionDefinition(t: Term, args: Seq[VariableLabel]): SCProof = {
-    val x = VariableLabel(freshId(t.freeVariables.map(_.id), "x"))
-    val y = VariableLabel(freshId(t.freeVariables.map(_.id), "y"))
-    val s0 = RightRefl(() |- t === t, t === t)
-    val s1 = Rewrite(() |- (x === t) <=> (x === t), 0)
-    val s2 = RightForall(() |- forall(x, (x === t) <=> (x === t)), 1, (x === t) <=> (x === t), x)
-    val s3 = RightExists(() |- exists(y, forall(x, (x === y) <=> (x === t))), 2, forall(x, (x === y) <=> (x === t)), y, t)
-    val s4 = Rewrite(() |- existsOne(x, x === t), 3)
-    val v = Vector(s0, s1, s2, s3, s4)
+  @deprecated
+  def simpleFunctionDefinition(expression:LambdaTermTerm, out:VariableLabel): SCProof = {
+    val x = out
+    val LambdaTermTerm(vars, body) = expression
+    val xeb = x===body
+    val y = VariableLabel(freshId(body.freeVariables.map(_.id)++vars.map(_.id), "y"))
+    val s0 = RightRefl(() |- body === body, body === body)
+    val s1 = Rewrite(() |- (xeb) <=> (xeb), 0)
+    val s2 = RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
+    val s3 = RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
+    val s4 = Rewrite(() |- existsOne(x, xeb), 3)
+    val v = Vector(s0, s1, s2, s3, s4)/*
     val v2 = args.foldLeft((v, s4.bot.right.head, 4))((prev, x) => {
       val fo = forall(x, prev._2)
       (prev._1 appended RightForall(emptySeq +> fo, prev._3, prev._2, x), fo, prev._3 + 1)
-    })
-    SCProof(v2._1)
-
+    })*/
+    SCProof(v)
   }
   // p1 is a proof of psi given phi, p2 is a proof of psi given !phi
   def byCase(phi: Formula)(pa: SCProofStep, pb: SCProofStep): SCProof = {

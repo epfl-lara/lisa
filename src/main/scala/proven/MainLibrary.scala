@@ -2,11 +2,11 @@ package proven
 
 import lisa.kernel.proof.RunningTheory
 import lisa.settheory.AxiomaticSetTheory
-import lisa.settheory.SetTheoryTGAxioms
+import lisa.settheory.SetTheoryDefinitions
 import utilities.Library
 
-abstract class MainLibrary extends Library(AxiomaticSetTheory.runningSetTheory) with SetTheoryTGAxioms {
+abstract class MainLibrary extends Library(AxiomaticSetTheory.runningSetTheory) with SetTheoryDefinitions {
   import AxiomaticSetTheory.*
-  override val output: String => Unit = println
+  override val realOutput: String => Unit = println
 
 }

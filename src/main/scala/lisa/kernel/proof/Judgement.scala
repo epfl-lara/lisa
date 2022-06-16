@@ -39,7 +39,7 @@ object SCProofCheckerJudgement {
 /**
  * The judgement (or verdict) of a running theory.
  */
-sealed abstract class RunningTheoryJudgement[J <: RunningTheory#Justification] {
+sealed abstract class RunningTheoryJudgement[+J <: RunningTheory#Justification] {
   import RunningTheoryJudgement.*
 
   /**
