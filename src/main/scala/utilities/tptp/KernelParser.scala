@@ -125,7 +125,7 @@ object KernelParser {
   }
 
   /**
-   * @param problemFile a file containning a tptp problem
+   * @param problemFile a file containing a tptp problem
    * @return a Problem object containing the data of the tptp problem in LISA representation
    */
   def problemToKernel(problemFile: File): Problem = {
