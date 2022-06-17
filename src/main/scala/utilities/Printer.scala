@@ -346,8 +346,6 @@ object Printer {
     })
   }
 
-  def prettySCProof(proof:SCProof): String = prettySCProof(SCValidProof(proof), false)
-
-  // def prettyTheoryJudgement((proof: SCProof, judgement: SCProofCheckerJudgement = SCValidProof, forceDisplaySubproofs: Boolean = false))
+  def prettySCProof(proof: SCProof): String = prettySCProof(SCValidProof(proof), false)
 
 }

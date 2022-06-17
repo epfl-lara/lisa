@@ -15,15 +15,9 @@ import utilities.tptp.*
  */
 object Example {
   def main(args: Array[String]): Unit = {
-    // proofExample() //uncomment when exercise finished
+    proofExample() // uncomment when exercise finished
     // solverExample()
     // tptpExample()
-
-    /*
-    val a = ConstantPredicateLabel("a",0)
-    val x = ConstantPredicateLabel("x",0)
-    val r = isSame(iff(a(), a()), or(iff(a(), a()), x()))
-    println(r)*/
   }
 
   /**
@@ -32,20 +26,24 @@ object Example {
    * The last two lines don't need to be changed.
    */
   def proofExample(): Unit = {
-    val proof: SCProof = SCProof(
-      Vector(
-        ???,
-        ???,
-        ?????(Set(P(x), P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))), 1, 0, ????, ????),
-        Hypothesis(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))), P(x)),
-        LeftImplies(???? |- ????, 3, 2, ????, ????),
-        LeftForall(Set(????, ????, ????) |- ????, 4, ????, x, x),
-        LeftForall(Set(????, ????) |- ????, 5, P(x) ==> P(f(x)), x, f(x)),
-        RightImplies(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))), 6, P(x), P(f(f(x)))),
-        RightForall(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))), 7, P(x) ==> P(f(f(x))), x)
-      )
-    )
-    checkProof(proof)
+    object Ex extends proven.Main {
+      THEOREM("fixedPointDoubleApplication") of "" PROOF {
+        steps(
+          ???,
+          ???,
+          ?????(Set(P(x), P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))), 1, 0, ????, ????),
+          Hypothesis(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))), P(x)),
+          LeftImplies(???? |- ????, 3, 2, ????, ????),
+          LeftForall(Set(????, ????, ????) |- ????, 4, ????, x, x),
+          LeftForall(Set(????, ????) |- ????, 5, P(x) ==> P(f(x)), x, f(x)),
+          RightImplies(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))), 6, P(x), P(f(f(x)))),
+          RightForall(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))), 7, P(x) ==> P(f(f(x))), x)
+        )
+      } using ()
+      show
+
+    }
+    Ex.main(Array(""))
   }
 
   /**
