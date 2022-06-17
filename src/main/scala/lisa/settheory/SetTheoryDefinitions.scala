@@ -8,9 +8,8 @@ import utilities.Helpers.{_, given}
  * Base trait for set theoretical axiom systems.
  * Defines the symbols used in set theory.
  */
-trait SetTheoryDefinitions {
+private[settheory] trait SetTheoryDefinitions {
 
-  private val tete = "tete"
   def axioms: Set[(String, Formula)] = Set.empty
 
   // Predicates

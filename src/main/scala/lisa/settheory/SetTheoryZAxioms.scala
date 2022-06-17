@@ -7,7 +7,7 @@ import utilities.Helpers.{_, given}
 /**
  * Axioms for the Zermelo theory (Z)
  */
-trait SetTheoryZAxioms extends SetTheoryDefinitions {
+private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
 
   private val (x, y, z) =
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))

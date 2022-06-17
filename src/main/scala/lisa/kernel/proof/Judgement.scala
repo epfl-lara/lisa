@@ -71,6 +71,6 @@ object RunningTheoryJudgement {
    * @param message The error message that hints about the first error encountered
    */
   case class InvalidJustification[J <: RunningTheory#Justification](message: String, error: Option[SCProofCheckerJudgement.SCInvalidProof]) extends RunningTheoryJudgement[J]
-}
 
-case class InvalidJustificationException(message: String, error: Option[SCProofCheckerJudgement.SCInvalidProof]) extends Exception(message)
+  case class InvalidJustificationException(message: String, error: Option[SCProofCheckerJudgement.SCInvalidProof]) extends Exception(message)
+}

@@ -6,7 +6,7 @@ import utilities.Helpers.{_, given}
 /**
  * Axioms for the Zermelo-Fraenkel theory (ZF)
  */
-trait SetTheoryZFAxioms extends SetTheoryZAxioms {
+private[settheory] trait SetTheoryZFAxioms extends SetTheoryZAxioms {
   private val (x, y, a, b) =
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("A"), VariableLabel("B"))
   private final val sPsi = SchematicPredicateLabel("P", 3)

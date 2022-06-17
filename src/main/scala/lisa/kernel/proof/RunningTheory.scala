@@ -116,7 +116,7 @@ class RunningTheory {
    * @param phi   The formula defining the predicate.
    * @return A definition object if the parameters are correct,
    */
-  def makePredicateDefinition(label: ConstantPredicateLabel, expression:LambdaTermFormula): RunningTheoryJudgement[this.PredicateDefinition] = {
+  def makePredicateDefinition(label: ConstantPredicateLabel, expression: LambdaTermFormula): RunningTheoryJudgement[this.PredicateDefinition] = {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label))
@@ -186,10 +186,17 @@ class RunningTheory {
       val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(FunctionTerm(_, Seq()))), body))
       Sequent(Set(), Set(inner))
     case FunctionDefinition(label, out, LambdaTermFormula(vars, body)) =>
-      val inner = BinderFormula(Forall, out, ConnectorFormula(Iff, Seq(
-        PredicateFormula(equality, Seq(FunctionTerm(label, vars.map(FunctionTerm.apply(_, Seq()))), VariableTerm(out))),
-        body
-      )))
+      val inner = BinderFormula(
+        Forall,
+        out,
+        ConnectorFormula(
+          Iff,
+          Seq(
+            PredicateFormula(equality, Seq(FunctionTerm(label, vars.map(FunctionTerm.apply(_, Seq()))), VariableTerm(out))),
+            body
+          )
+        )
+      )
       Sequent(Set(), Set(inner))
 
   }

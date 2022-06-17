@@ -1,15 +1,22 @@
 package utilities
 
-import lisa.kernel.proof.{RunningTheory, RunningTheoryJudgement, SCProof, SequentCalculus}
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus
 import lisa.kernel.proof.SequentCalculus.Rewrite
 import lisa.kernel.proof.SequentCalculus.isSameSequent
 
 /**
- * A helper file that provides various syntactic sugars for LISA.
+ * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
  * Usage:
  * <pre>
- * import lisa.KernelHelpers.*
+ * import utilities.Helpers.*
+ * </pre>
+ * or
+ * <pre>
+ * extends utilities.KernelHelpers.*
  * </pre>
  */
 trait KernelHelpers {
@@ -81,18 +88,12 @@ trait KernelHelpers {
 
   given Conversion[VariableLabel, VariableTerm] = VariableTerm.apply
   given Conversion[VariableTerm, VariableLabel] = _.label
-
   given Conversion[PredicateFormula, PredicateLabel] = _.label
-
   given Conversion[FunctionTerm, FunctionLabel] = _.label
-
   given Conversion[SchematicFunctionLabel, Term] = _.apply()
-
-  // given Conversion[Tuple, List[Union[_.type]]] = _.toList
-
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
-
   given Conversion[Formula, Sequent] = () |- _
+
   /* Sequents */
 
   val emptySeq: Sequent = Sequent(Set.empty, Set.empty)

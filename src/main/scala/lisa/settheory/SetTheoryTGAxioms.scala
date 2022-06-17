@@ -6,7 +6,7 @@ import utilities.Helpers.{_, given}
 /**
  * Axioms for the Tarski-Grothendieck theory (TG)
  */
-trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
+private[settheory] trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
   private val (x, y, z) =
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
 
