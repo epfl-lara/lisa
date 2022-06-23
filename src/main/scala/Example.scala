@@ -4,6 +4,7 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
 import proven.tactics.SimplePropositionalSolver.solveSequent
+import utilities.Attempto.*
 import utilities.Helpers.{_, given}
 import utilities.Printer.*
 import utilities.tptp.KernelParser.*
@@ -48,10 +49,10 @@ object Example {
 
   /**
    * An example of how to use the simple propositional solver.
-   * The solver is complete (for propositional logic) but naive and won't succede on large formulas.
+   * The solver is complete (for propositional logic) but naive and won't succeed on large formulas.
    */
   def solverExample(): Unit = {
-    println("\n   --- Pierce's Law ---")
+    println("\n   --- Peirce's Law ---")
     checkProof(solveSequent(emptySeq +> ((A ==> B) ==> A ==> A)))
     println("\n   --- Various Tautologies ---")
     val tests: List[Sequent] = List(
@@ -103,6 +104,13 @@ object Example {
 
     println("\n---Annotated Formulas---")
     anStatements.map(annotatedFormulaToKernel).foreach(printAnnotatedFormula)
+
+    println("\n---ACE to TPTP---")
+    var ace1 = aceToTptp("Socrates is mortal.")
+    var ace2 = aceToTptp("Every man is mortal.")
+    var ace3 = aceToTptp("Socrates is a man.")
+    val aceStatements = List(ace1, ace2, ace3)
+    aceStatements.map(annotatedFormulaToKernel).foreach(printAnnotatedFormula)
 
     println("\n---Problems---")
 
