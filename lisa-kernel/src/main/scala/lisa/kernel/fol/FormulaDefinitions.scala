@@ -22,7 +22,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   /**
    * The formula counterpart of [[PredicateLabel]].
    */
-  final case class PredicateFormula(label: PredicateLabel, args: Seq[Term]) extends Formula {
+  sealed case class PredicateFormula(label: PredicateLabel, args: Seq[Term]) extends Formula {
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
     override def constantPredicates: Set[ConstantPredicateLabel] = label match {
@@ -41,7 +41,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   /**
    * The formula counterpart of [[ConnectorLabel]].
    */
-  final case class ConnectorFormula(label: ConnectorLabel, args: Seq[Formula]) extends Formula {
+  sealed case class ConnectorFormula(label: ConnectorLabel, args: Seq[Formula]) extends Formula {
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
     override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
@@ -54,7 +54,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   /**
    * The formula counterpart of [[BinderLabel]].
    */
-  final case class BinderFormula(label: BinderLabel, bound: VariableLabel, inner: Formula) extends Formula {
+  sealed case class BinderFormula(label: BinderLabel, bound: VariableLabel, inner: Formula) extends Formula {
     override def freeVariables: Set[VariableLabel] = inner.freeVariables - bound
 
     override def constantFunctions: Set[ConstantFunctionLabel] = inner.constantFunctions
