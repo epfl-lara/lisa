@@ -96,59 +96,71 @@ object Attempto {
 
       breakable {
 
-      for(i <- 0 to tokens.length-1) {
+        for(i <- 0 to tokens.length-1) {
 
-        if (errorCode) {
-          translation = "Cannot translate the TPTP formula "
-          break
-        }
+          if (errorCode) {
+            translation = "Cannot translate the TPTP formula "
+            break
+          }
 
-        tokens(i) match {
-          case "!" => translation = appendFormatStr("for all", translation)
-          case "?" => translation = appendFormatStr("there exists", translation)
-          case "~" => translation = appendFormatStr("it is not the case that", translation)
-          case "=" => translation += "equals"
-          case "!=" => translation += "does not equal"
-          case squareBracket(x) =>
-            {
-              bracketVars.findAllIn(x).foreach(a =>
-                if (a.length > 1) { // change 'there exists' to plural
-                  translation = translation.dropRight(2) + ' '
-                  translation += a + ' '
-                } else {
-                  translation += a + ' '
-                }
-              )
-            }
-          case parenthesis(x) =>
-            {
-              bracketVars.findAllIn(x).foreach(a => translation += a + " is ")
-              translation += extractString(propertyName, x)._1 + ' '
-              errorCode = extractString(propertyName, x)._2
-            }
-          case axiom(x) =>
-            {
-              translation += "Given " + extractString(lineName, x)._1 + ": "
-              errorCode = extractString(propertyName, x)._2
-            }
-          case conjecture(x) =>
-            {
-              translation += "Prove " + extractString(lineName, x)._1 + ": "
-              errorCode = extractString(propertyName, x)._2
-            }
-          case "&" => translation += "and "
-          case "|" => translation += "or "
-          case "=>" =>
-            {
-              translation = translation.dropRight(1) + ", and it follows that "
-            }
-          case space(x) => translation += ""
-          case ":" => translation += "such that "
-          case x => translation += x // unknown symbol
+          tokens(i) match {
+            case "!" => translation = appendFormatStr("for all", translation)
+            case "?" => translation = appendFormatStr("there exists", translation)
+            case "~" => translation = appendFormatStr("it is not the case that", translation)
+            case "=" => translation += "equals"
+            case "!=" => translation += "does not equal"
+            case squareBracket(x) =>
+              {
+                bracketVars.findAllIn(x).foreach(a =>
+                  if (a.contains(',')) { // handle plural
+                    if (translation(translation.length-2) == 's') { // change 'there exists' to plural
+                      translation = translation.dropRight(2) + ' '
+                    }
+                    if (a.count(_ == ',') == 1) {
+                      translation += a.replaceAll(",", " and ") + ' '
+                    } else {
+                      translation += a.replaceAll(",", ", ") + ' '
+                    }
+                  } else {
+                    translation += a + ' '
+                  }
+                )
+              }
+            case parenthesis(x) =>
+              {
+                bracketVars.findAllIn(x).foreach(a =>
+                  if (a.contains(',')) {
+                    translation += a.replaceAll(",", " and ") + " are "
+                  } else {
+                    translation += a + " is "
+                  }
+                )
+                translation += extractString(propertyName, x)._1 + ' '
+                errorCode = extractString(propertyName, x)._2
+              }
+            case axiom(x) =>
+              {
+                translation += "Given " + extractString(lineName, x)._1 + ": "
+                errorCode = extractString(propertyName, x)._2
+              }
+            case conjecture(x) =>
+              {
+                translation += "Prove " + extractString(lineName, x)._1 + ": "
+                errorCode = extractString(propertyName, x)._2
+              }
+            case "&" => translation += "and "
+            case "|" => translation += "or "
+            case "=>" =>
+              {
+                translation = translation.dropRight(1) + ", it follows that "
+              }
+            case space(x) => translation += ""
+            case ":" => translation += "such that "
+            case x => translation += x // unknown symbol
           }
         }
-        }
-      translation = translation.dropRight(1) + '.'
-      return translation
-    }
+      }
+    translation = translation.dropRight(1) + '.'
+    return translation
+  }
 }
