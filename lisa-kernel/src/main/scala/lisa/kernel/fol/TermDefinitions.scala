@@ -26,7 +26,7 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
    *
    * @param label The label of the variable.
    */
-  final case class VariableTerm(label: VariableLabel) extends Term {
+  sealed case class VariableTerm(label: VariableLabel) extends Term {
     override def freeVariables: Set[VariableLabel] = Set(label)
 
     override def constantFunctions: Set[ConstantFunctionLabel] = Set.empty
@@ -39,7 +39,7 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
    * @param label The label of the node
    * @param args  children of the node. The number of argument must be equal to the arity of the function.
    */
-  final case class FunctionTerm(label: FunctionLabel, args: Seq[Term]) extends Term {
+  sealed case class FunctionTerm(label: FunctionLabel, args: Seq[Term]) extends Term {
     require(label.arity == args.size)
 
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)

@@ -29,12 +29,12 @@ class RunningTheory {
   /**
    * A theorem encapsulate a sequent and assert that this sequent has been correctly proven and may be used safely in further proofs.
    */
-  final case class Theorem private[RunningTheory] (name: String, proposition: Sequent) extends Justification
+  sealed case class Theorem private[RunningTheory] (name: String, proposition: Sequent) extends Justification
 
   /**
    * An axiom is any formula that is assumed and considered true within the theory. It can freely be used later in any proof.
    */
-  final case class Axiom private[RunningTheory] (name: String, ax: Formula) extends Justification
+  sealed case class Axiom private[RunningTheory] (name: String, ax: Formula) extends Justification
 
   /**
    * A definition can be either a PredicateDefinition or a FunctionDefinition.
@@ -47,7 +47,7 @@ class RunningTheory {
    * @param label The name and arity of the new symbol
    * @param expression The formula, depending on terms, that define the symbol.
    */
-  final case class PredicateDefinition private[RunningTheory] (label: ConstantPredicateLabel, expression: LambdaTermFormula) extends Definition
+  sealed case class PredicateDefinition private[RunningTheory] (label: ConstantPredicateLabel, expression: LambdaTermFormula) extends Definition
 
   /**
    * Define a function symbol as the unique element that has some property. The existence and uniqueness
@@ -58,7 +58,7 @@ class RunningTheory {
    * @param out   The variable representing the result of the function in phi
    * @param expression   The formula, with term parameters, defining the function.
    */
-  final case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel, out: VariableLabel, expression: LambdaTermFormula) extends Definition
+  sealed case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel, out: VariableLabel, expression: LambdaTermFormula) extends Definition
 
   private[proof] val theoryAxioms: mMap[String, Axiom] = mMap.empty
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty

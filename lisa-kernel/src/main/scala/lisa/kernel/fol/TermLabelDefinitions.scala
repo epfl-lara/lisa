@@ -34,7 +34,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    *
    * @param id The name of the variable, for example "x" or "y".
    */
-  final case class VariableLabel(id: String) extends TermLabel {
+  sealed case class VariableLabel(id: String) extends TermLabel {
     val name: String = id
   }
 
@@ -54,7 +54,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
    */
-  final case class ConstantFunctionLabel(id: String, arity: Int) extends FunctionLabel with ConstantLabel
+  sealed case class ConstantFunctionLabel(id: String, arity: Int) extends FunctionLabel with ConstantLabel
 
   /**
    * A schematic function symbol that can be substituted.
@@ -62,7 +62,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
    */
-  final case class SchematicFunctionLabel(id: String, arity: Int) extends FunctionLabel
+  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends FunctionLabel
 
   /**
    * A function returning true if and only if the two symbols are considered "the same".

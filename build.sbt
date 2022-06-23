@@ -37,7 +37,7 @@ def withTests(project: Project): ClasspathDependency =
 
 lazy val root = Project(
   id = "lisa",
-  base = file("lisa"),
+  base = file("."),
 )
   .settings(commonSettings3)
   .settings(
