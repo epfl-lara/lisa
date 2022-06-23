@@ -77,12 +77,17 @@ object Attempto {
     def tptpToAce(formalInput : String) : String = {
       val regex = " \\(| \\)|\\( |\\(\\(|\\)\\)|fof\\(|cnf\\(|\n".r // matches the elements to be deleted
       val bracketVars = "(?<=[\\[|\\(]).+?(?=[\\]|\\)])".r // matches the content in brackets
-      val squareBracket = "(\\[.*)".r
-      val parenthesis = "(.*\\(.*)".r
-      val lineName = "[^\\(].*[^,axiom|conjecture]".r
+      val (squareBracket, parenthesis) = ("(\\[.*)".r, "(.*\\(.*)".r)
+      val lineName = """[^\\(].*[^,axiom|hypothesis|definition|assumption|lemma|
+        theorem|corollary|conjecture|negated_conjecture|plain|type|fi_domain
+        fi_functors|fi_predicates|unknown]""".r
       val propertyName = "^[^\\(,]*".r
-      val axiom = "(.*axiom.*)".r
-      val conjecture = "(.*conjecture.*)".r
+      val (axiom, hypothesis, definition, assumption, theorem, corollary,
+        conjecture, negated_conjecture, plain, type1, fi_domain, fi_functors) =
+        ("(.*axiom.*)".r, "(.*hypothesis.*)".r, "(.*definition.*)".r,
+        "(.*assumption.*)".r, "(.*theorem.*)".r, "(.*corrolary.*)".r,
+        "(.*conjecture.*)".r, "(.*negated_conjecture.*)".r, "(.*plain.*)".r,
+        "(.*type.*)".r, "(.*fi_domain.*)".r, "(.*fi_functors.*)".r)
       val space = "( *)".r
       var str = regex.replaceAllIn(formalInput, "")
       var tokens = str.split(" ").toSeq
@@ -100,9 +105,21 @@ object Attempto {
 
         tokens(i) match {
           case "!" => translation = appendFormatStr("for all", translation)
-          case "?" => translation = appendFormatStr("there exist(s)", translation)
+          case "?" => translation = appendFormatStr("there exists", translation)
           case "~" => translation = appendFormatStr("it is not the case that", translation)
-          case squareBracket(x) => bracketVars.findAllIn(x).foreach(a => translation += a + ' ')
+          case "=" => translation += "equals"
+          case "!=" => translation += "does not equal"
+          case squareBracket(x) =>
+            {
+              bracketVars.findAllIn(x).foreach(a =>
+                if (a.length > 1) { // change 'there exists' to plural
+                  translation = translation.dropRight(2) + ' '
+                  translation += a + ' '
+                } else {
+                  translation += a + ' '
+                }
+              )
+            }
           case parenthesis(x) =>
             {
               bracketVars.findAllIn(x).foreach(a => translation += a + " is ")
