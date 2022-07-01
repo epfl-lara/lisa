@@ -162,4 +162,38 @@ object ProofTactics {
     case _ => (c, false)
   }
 
+  /**
+   * Г |- phi <-> psi
+   * ----------------
+   * Г |- phi -> psi
+   *
+   * @param iffFormula       phi <-> psi
+   * @param impliesFormula  phi -> psi or psi -> phi
+   * @param pIff      proof of phi <-> psi
+   * @return          proof of singleIf
+   */
+  def iffToImplies(iffFormula: Formula, impliesFormula: Formula)(pIff: SCSubproof): SCSubproof = {
+    require(iffFormula.isInstanceOf[ConnectorFormula])
+    require(impliesFormula.isInstanceOf[ConnectorFormula])
+    val iff = iffFormula.asInstanceOf[ConnectorFormula]
+    val implies = impliesFormula.asInstanceOf[ConnectorFormula]
+    require(iff.label == Iff)
+    require(implies.label == Implies)
+    require(
+      iff.args.length == 2 && implies.args.length == 2 &&
+        (isSame(iff.args.head, implies.args.head) && isSame(iff.args(1), implies.args(1))) ||
+        (isSame(iff.args.head, implies.args(1)) && isSame(iff.args(1), implies.args.head))
+    )
+    val (phi, psi) = implies match {
+      case ConnectorFormula(Implies, Seq(l, r)) => (l, r)
+      // TODO: throw an exception
+      case _ => ???
+    }
+    val subproofSteps = pIff.sp.steps.length
+    val hyp0 = hypothesis(implies)
+    val and1 = LeftAnd(implies /\ (psi ==> phi) |- implies, subproofSteps, implies, psi ==> phi)
+    val rewrite2 = Rewrite(iff |- implies, subproofSteps + 1)
+    val cut3 = Cut(pIff.bot.left |- implies, subproofSteps - 1, subproofSteps + 2, implies)
+    SCSubproof(pIff.sp withNewSteps IndexedSeq(hyp0, and1, rewrite2, cut3), pIff.premises)
+  }
 }
