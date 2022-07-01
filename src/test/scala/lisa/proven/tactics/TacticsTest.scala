@@ -9,47 +9,36 @@ import lisa.utils.Helpers.emptySeq
 
 class TacticsTest extends ProofCheckerSuite {
   export TestTheoryLibrary.*
-  /* A (overcomplicated for the sake of the test) proof that f1(fixedElement) = fixedElement in test theory
+  /* test theory |- p2(fixedElement) using modus ponens
    *
    *
-   *                                                         -------------------------------------- hypothesis
-   *                                                         fixed point axiom |- fixed point axiom
-   *                                                  ------------------------------------------------------------------------------------ instantiate forall
-   *                                                  fixed point axiom |- f1(fixedElement) = fixedElement <-> fixedElement = fixedElement
-   * -------------------------------- RightRefl       ------------------------------------------------------------------------------------ weaken <-> to ->
-   *  |- fixedElement = fixedElement                  fixed point axiom |- fixedElement = fixedElement -> f1(fixedElement) = fixedElement
-   * ------------------------------------------------------------------------------------------------------------------------------------- modus ponens
-   *                                     fixed point axiom |- f1(fixedElement) = fixedElement
+   *                                                                  -------------------------------------------- hypothesis
+   *                                                                   p1_implies_p2 axiom |- p1_implies_p2 axiom
+   *  ----------------------------------------- hypothesis        ----------------------------------------------------------------- instantiate forall
+   *          axiom 2 |- p1(fixedElement)                           p1_implies_p2 axiom |- p1(fixedElement) => p2(fixedElement)
+   * ------------------------------------------------------------------------------------------------------------------------------ modus ponens
+   *                                     ∀x p1(x) => p2(x), p1(fixedElement) |- p2(fixedElement)
    *
    * */
   test("modus ponens") {
-    val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), fixed_point, fixedElement())
-    val weakenIffToImplies = iffToImplies(
-      (f1(fixedElement()) === fixedElement()) <=> (fixedElement() === fixedElement()),
-      (fixedElement() === fixedElement()) ==> (f1(fixedElement()) === fixedElement())
-    )(
-      SCSubproof(instantiate0, IndexedSeq(-1))
-    )
-    val eq2 = RightRefl(() |- fixedElement() === fixedElement(), fixedElement() === fixedElement())
-    val proof = modusPonens(fixedElement() === fixedElement())(eq2, weakenIffToImplies)
-    assert(checkSCProof(proof).isValid, "application of modus ponens yields an invalid proof")
+    val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(p1_implies_p2)), IndexedSeq(ax"p1_implies_p2")), p1_implies_p2, fixedElement())
+    val hypothesis1 = hypothesis(ax2)
+    val proof = modusPonens(p1(fixedElement()))(hypothesis1, SCSubproof(instantiate0, Seq(-1)))
+    checkProof(proof)
   }
 
-  test("explicit modus ponens") {
-    val eq0 = RightRefl(() |- fixedElement() === fixedElement(), fixedElement() === fixedElement())
-    val instantiate1: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), fixed_point, fixedElement())
-    val weakenIffToImplies1 = iffToImplies(
-      (f1(fixedElement()) === fixedElement()) <=> (fixedElement() === fixedElement()),
-      (fixedElement() === fixedElement()) ==> (f1(fixedElement()) === fixedElement())
-    )(SCSubproof(instantiate1, IndexedSeq(-1)))
-    val pa = eq0
-    val pb = weakenIffToImplies1
-    val phi = fixedElement() === fixedElement()
-    val psi = f1(fixedElement()) === fixedElement()
-    val p2 = hypothesis(psi)
-    val p3 = LeftImplies(emptySeq ++ (pa.bot -> phi) +< (phi ==> psi) +> psi, 0, 2, phi, psi)
-    val p4 = Cut(emptySeq ++ (pa.bot -> phi) ++< pb.bot +> psi ++> (pb.bot -> psi), 1, 3, phi ==> psi)
-    val proof = Proof(IndexedSeq(eq0, weakenIffToImplies1, p2, p3, p4), IndexedSeq(ax"fixed_point"))
+  // illustrate by copying the body of modusPonens and making applicable changes that the claim can be proved by using modus ponens
+  test("manual modus ponens") {
+    val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(p1_implies_p2)), IndexedSeq(ax"p1_implies_p2")), p1_implies_p2, fixedElement())
+    val hypothesis1 = hypothesis(ax2)
+    val pa = hypothesis1
+    val pb = SCSubproof(instantiate0, Seq(-1))
+    val phi = p1(fixedElement())
+    val psi = p2(fixedElement())
+    val mp2 = hypothesis(psi)
+    val mp3 = LeftImplies(emptySeq ++ (pa.bot -> phi) +< (phi ==> psi) +> psi, 0, 2, phi, psi)
+    val mp4 = Cut(emptySeq ++ (pa.bot -> phi) ++< pb.bot +> psi ++> (pb.bot -> (phi ==> psi)), 1, 3, phi ==> psi)
+    val proof = Proof(IndexedSeq(pa, pb, mp2, mp3, mp4), IndexedSeq(ax"p1_implies_p2", ax"A2"))
     checkProof(proof)
   }
 
