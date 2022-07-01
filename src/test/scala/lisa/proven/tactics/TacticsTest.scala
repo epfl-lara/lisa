@@ -1,10 +1,12 @@
 package lisa.proven.tactics
 
+import lisa.kernel.fol.FOL.isSame
+import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.proven.tactics.ProofTactics.*
 import lisa.test.ProofCheckerSuite
 import lisa.test.TestTheoryLibrary
-import lisa.utils.Helpers._
+import lisa.utils.Helpers.*
 import lisa.utils.Helpers.emptySeq
 
 class TacticsTest extends ProofCheckerSuite {
@@ -42,5 +44,44 @@ class TacticsTest extends ProofCheckerSuite {
     checkProof(proof)
   }
 
-  test("byEquiv") {}
+  /* test theory |- f1(fixedElement) = fixedElement using byEquiv
+   *
+   *                                                          -------------------------------------- hypothesis
+   *                                                         fixed point axiom |- fixed point axiom
+   * -------------------------------- RightRefl       ------------------------------------------------------------------------------------ instantiate forall
+   * |- fixedElement = fixedElement                   fixed point axiom |- f1(fixedElement) = fixedElement <=> fixedElement = fixedElement
+   * ------------------------------------------------------------------------------------------------------------------------------------- byEquiv
+   *                          fixed point axiom |- f1(fixedElement) = fixedElement
+   * */
+  test("byEquiv") {
+    val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), fixed_point, fixedElement())
+    val eq1 = RightRefl(() |- fixedElement() === fixedElement(), fixedElement() === fixedElement())
+    val proof = byEquiv(instantiate0.conclusion.right.head, eq1.bot.right.head)(SCSubproof(instantiate0, IndexedSeq(-1)), eq1)
+    checkProof(proof)
+  }
+
+  // illustrate by copying the body of byEquiv and making applicable changes that the claim can be proved by using byEquiv
+  test("manual byEquiv") {
+    val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), fixed_point, fixedElement())
+    val eq1 = RightRefl(() |- fixedElement() === fixedElement(), fixedElement() === fixedElement())
+    val f = instantiate0.conclusion.right.head
+    val f1 = eq1.bot.right.head
+    val pEq = SCSubproof(instantiate0, IndexedSeq(-1))
+    val pr1 = eq1
+    require(pEq.bot.right.contains(f))
+    require(pr1.bot.right.contains(f1))
+    val proof = f match {
+      case ConnectorFormula(Iff, Seq(fl, fr)) =>
+        val f2 = if (isSame(f1, fl)) fr else if (isSame(f1, fr)) fl else throw new Error("not applicable")
+        val p2 = hypothesis(f1)
+        val p3 = hypothesis(f2)
+        val p4 = LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 2, 3, f1, f2)
+        val p5 = LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 4, f1, f2)
+        val p6 = Cut(pEq.bot -> (f1 <=> f2) +< f1 +> f2, 0, 5, f1 <=> f2)
+        val p7 = Cut(p6.bot -< f1 ++ pr1.bot -> f1, 1, 6, f1)
+        new SCProof(IndexedSeq(pEq, pr1, p2, p3, p4, p5, p6, p7), IndexedSeq(ax"fixed_point"))
+      case _ => throw new Error("not applicable")
+    }
+    checkProof(proof)
+  }
 }
