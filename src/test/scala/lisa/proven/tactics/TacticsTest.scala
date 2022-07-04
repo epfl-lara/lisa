@@ -6,8 +6,8 @@ import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.proven.tactics.ProofTactics.*
 import lisa.test.ProofCheckerSuite
 import lisa.test.TestTheoryLibrary
-import lisa.utils.Helpers.*
 import lisa.utils.Helpers.emptySeq
+import lisa.utils.Helpers.{_, given}
 
 class TacticsTest extends ProofCheckerSuite {
   export TestTheoryLibrary.*
@@ -82,6 +82,39 @@ class TacticsTest extends ProofCheckerSuite {
         new SCProof(IndexedSeq(pEq, pr1, p2, p3, p4, p5, p6, p7), IndexedSeq(ax"fixed_point"))
       case _ => throw new Error("not applicable")
     }
+    checkProof(proof)
+  }
+
+  /* test theory |- f1(another_element) = fixed_element using byEquiv.
+   * The proof is intentionally less succinct than possible to illustrate byEquiv usage when subproofs use axioms and have more than one step
+   *
+   *                                                          -------------------------------------- hypothesis
+   *                                                          fixed point axiom |- fixed point axiom
+   *  ---------------------------------- RightRefl         ----------------------------------------------------------------------------------------- instantiate forall
+   *    |- fixed_element = fixed_element                   fixed point axiom |- f1(fixed_element) = fixed_element <=> fixed_element = fixed_element
+   *  ----------------------------------right subst =    -------------------------------------------------------------------------------------------------------- right subst =
+   *   same_fixed |- another_element = fixed_element     fixed point, same_fixed axioms |- f1(another_element) = fixed_element <=> another_element = fixed_element
+   * --------------------------------------------------------------------------------------------------------------------------------------------------------- byEquiv
+   *                          fixed point axiom |- f1(another_element) = fixed_element
+   * */
+
+  test("longer byEquiv") {
+    val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), fixed_point, fixed_element())
+    val substEq1 = RightSubstEq(
+      Set(fixed_point, same_fixed) |- (f1(another_fixed()) === fixed_element()) <=> (another_fixed() === fixed_element()),
+      0,
+      (fixed_element(), another_fixed()) :: Nil,
+      LambdaTermFormula(Seq(xl), (f1(xl) === fixed_element()) <=> (xl === fixed_element()))
+    )
+    val eq2 = RightRefl(() |- fixed_element() === fixed_element(), fixed_element() === fixed_element())
+    val substEq3 = RightSubstEq(
+      same_fixed |- another_fixed() === fixed_element(),
+      2,
+      (fixed_element(), another_fixed()) :: Nil,
+      LambdaTermFormula(Seq(xl), xl === fixed_element())
+    )
+
+    val proof = byEquiv(substEq1.bot.right.head, substEq3.bot.right.head)(substEq1, substEq3)
     checkProof(proof)
   }
 }
