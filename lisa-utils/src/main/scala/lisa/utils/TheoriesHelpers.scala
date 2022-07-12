@@ -1,7 +1,7 @@
 package lisa.utils
 
 import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
+import lisa.kernel.proof.RunningTheoryJudgement.{InvalidJustification, InvalidJustificationException}
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.proof.*
 import lisa.utils.Printer
@@ -75,13 +75,11 @@ trait TheoriesHelpers extends KernelHelpers {
         case d: RunningTheory#Definition =>
           d match {
             case pd: RunningTheory#PredicateDefinition =>
-              output(s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(_())*) <=> pd.expression.body)}\n") // (label, args, phi)
+              output(s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm)*) <=> pd.expression.body)}\n") // (label, args, phi)
             case fd: RunningTheory#FunctionDefinition =>
-              output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(_())*))} := the ${fd.out.id} such that ${Printer
-                  .prettyFormula((fd.out === fd.label(fd.expression.vars.map(_())*)) <=> fd.expression.body)})\n")
+              output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm)*))} := the ${fd.out.id} such that ${Printer
+                  .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm)*)) <=> fd.expression.body)})\n")
           }
-        // output(Printer.prettySequent(thm.proposition))
-        // thm
       }
       just
     }
@@ -93,7 +91,7 @@ trait TheoriesHelpers extends KernelHelpers {
      * If the Judgement is valid, show the inner justification and returns it.
      * Otherwise, output the error leading to the invalid justification and throw an error.
      */
-    def showAndGet(using output: String => Unit): J = {
+    def showAndGet(using output: String => Unit)(using finishOutput:Throwable => Nothing): J = {
       theoryJudgement match {
         case RunningTheoryJudgement.ValidJustification(just) =>
           just.show
@@ -102,7 +100,7 @@ trait TheoriesHelpers extends KernelHelpers {
               case Some(judgement) => Printer.prettySCProof(judgement)
               case None => ""
             }}")
-          theoryJudgement.get
+          finishOutput(InvalidJustificationException(message, error))
       }
     }
   }

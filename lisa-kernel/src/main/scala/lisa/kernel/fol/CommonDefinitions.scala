@@ -17,6 +17,7 @@ private[fol] trait CommonDefinitions {
    * An labelled node for tree-like structures.
    */
   protected trait Label {
+    val arity: Int
     val id: String
   }
 

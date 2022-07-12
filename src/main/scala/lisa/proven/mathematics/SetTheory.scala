@@ -9,12 +9,12 @@ import lisa.proven.tactics.ProofTactics.*
 object SetTheory extends lisa.proven.Main {
 
   THEOREM("russelParadox") of "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢" PROOF {
-    val y = SchematicFunctionLabel("y", 0)
-    val x_ = VariableLabel("x")
+    val y = VariableLabel("y")
+    val x = VariableLabel("x")
     val contra = in(y, y) <=> !in(y, y)
     val s0 = Hypothesis(contra |- contra, contra)
-    val s1 = LeftForall(forall(x_, in(x_, y) <=> !in(x_, x_)) |- contra, 0, in(x_, y) <=> !in(x_, x_), x_, y)
-    val s2 = Rewrite(forall(x_, in(x_, y) <=> !in(x_, x_)) |- (), 1)
+    val s1 = LeftForall(forall(x, in(x, y) <=> !in(x, x)) |- contra, 0, in(x, y) <=> !in(x, x), x, y)
+    val s2 = Rewrite(forall(x, in(x, y) <=> !in(x, x)) |- (), 1)
     Proof(s0, s1, s2)
   } using ()
   thm"russelParadox".show
@@ -80,7 +80,7 @@ object SetTheory extends lisa.proven.Main {
       val x1 = VariableLabel("x'")
       val y1 = VariableLabel("y'")
       val z = VariableLabel("z")
-      val g = SchematicFunctionLabel("g", 0)
+      val g = VariableLabel("g")
       val h = SchematicPredicateLabel("h", 0)
       val pxy = pair(x, y)
       val pxy1 = pair(x1, y1)
@@ -92,7 +92,7 @@ object SetTheory extends lisa.proven.Main {
               val p1_0 = hypothesis(zf)
               val p1_1 = RightImplies(emptySeq +> (zf ==> zf), 0, zf, zf)
               val p1_2 = RightIff(emptySeq +> (zf <=> zf), 1, 1, zf, zf) //  |- (z in {x,y} <=> z in {x,y})
-              val p1_3 = RightSubstEq(emptySeq +< (pxy === pxy1) +> (zf <=> in(z, pxy1)), 2, List((pxy, pxy1)), LambdaTermFormula(Seq(g), zf <=> in(z, g())))
+              val p1_3 = RightSubstEq(emptySeq +< (pxy === pxy1) +> (zf <=> in(z, pxy1)), 2, List((pxy, pxy1)), LambdaTermFormula(Seq(g), zf <=> in(z, g)))
               Proof(IndexedSeq(p1_0, p1_1, p1_2, p1_3), IndexedSeq(() |- pairAxiom))
             },
             Seq(-1),
@@ -119,7 +119,7 @@ object SetTheory extends lisa.proven.Main {
             emptySeq +< (pxy === pxy1) +> (in(z, pxy1) <=> ((z === x) \/ (z === y))),
             1,
             List((pxy, pxy1)),
-            LambdaTermFormula(Seq(g), in(z, g()) <=> ((z === x) \/ (z === y)))
+            LambdaTermFormula(Seq(g), in(z, g) <=> ((z === x) \/ (z === y)))
           ) //   ({x,y}={x',y'}) |- ((z∈{x',y'})↔((z=x)∨(z=y)))
           val p4 = RightSubstIff(
             emptySeq +< p3.bot.left.head +< p2.bot.right.head +> (((z === x) \/ (z === y)) <=> ((z === x1) \/ (z === y1))),
@@ -166,7 +166,7 @@ object SetTheory extends lisa.proven.Main {
                                 emptySeq +< (pxy === pxy1) +< (x === y) +> ((f1 \/ f1) <=> (z === x1) \/ (z === y1)),
                                 -1,
                                 List((x, y)),
-                                LambdaTermFormula(Seq(g), (f1 \/ (z === g())) <=> ((z === x1) \/ (z === y1)))
+                                LambdaTermFormula(Seq(g), (f1 \/ (z === g)) <=> ((z === x1) \/ (z === y1)))
                               ) //  ({x,y}={x',y'}) y=x|- (z=x)\/(z=x) <=> (z=x' \/ z=y')
                               val pa0_2 = RightSubstIff(
                                 emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1))),
@@ -191,7 +191,7 @@ object SetTheory extends lisa.proven.Main {
                             display = false
                           ) //  |- (y'=x' \/ y'=y')
                           val ra3 = byEquiv(pa0.bot.right.head, pa1.bot.right.head)(pa0, pa1) // ({x,y}={x',y'}) y=x|- ((y'=x)
-                          val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), ra3.length - 1, List((x, y)), LambdaTermFormula(Seq(g), y1 === g()))
+                          val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), ra3.length - 1, List((x, y)), LambdaTermFormula(Seq(g), y1 === g))
                           Proof(ra3.steps, IndexedSeq(pam1.bot)).appended(pal) // (x=y), ({x,y}={x',y'}) |- (y'=y)
                         },
                         IndexedSeq(-1)
@@ -217,7 +217,7 @@ object SetTheory extends lisa.proven.Main {
                           ) //  |- (y=x)∨(y=y)
                           val rb0 = byEquiv(pb0_0.bot.right.head, pb0_1.bot.right.head)(pb0_0, pb0_1) //  ({x,y}={x',y'}) |- (y=x')∨(y=y')
                           val pb1 =
-                            RightSubstEq(emptySeq ++< rb0.conclusion +< (x === x1) +> ((y === x) \/ (y === y1)), rb0.length - 1, List((x, x1)), LambdaTermFormula(Seq(g), (y === g()) \/ (y === y1)))
+                            RightSubstEq(emptySeq ++< rb0.conclusion +< (x === x1) +> ((y === x) \/ (y === y1)), rb0.length - 1, List((x, x1)), LambdaTermFormula(Seq(g), (y === g) \/ (y === y1)))
                           val rb1 = destructRightOr(
                             rb0.appended(pb1), //  ({x,y}={x',y'}) , x=x'|- (y=x)∨(y=y')
                             y === x,
@@ -237,7 +237,7 @@ object SetTheory extends lisa.proven.Main {
                 val pc1 = RightRefl(emptySeq +> (x === x), x === x)
                 val pc2 = RightAnd(emptySeq ++< pc0.bot +> ((y1 === y) /\ (x === x)), Seq(0, 1), Seq(y1 === y, x === x)) // ({x,y}={x',y'}), x=x' |- (x=x /\ y=y')
                 val pc3 =
-                  RightSubstEq(emptySeq ++< pc2.bot +> ((y1 === y) /\ (x1 === x)), 2, List((x, x1)), LambdaTermFormula(Seq(g), (y1 === y) /\ (g() === x))) // ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')
+                  RightSubstEq(emptySeq ++< pc2.bot +> ((y1 === y) /\ (x1 === x)), 2, List((x, x1)), LambdaTermFormula(Seq(g), (y1 === y) /\ (g === x))) // ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')
                 val pc4 = RightOr(
                   emptySeq ++< pc3.bot +> (pc3.bot.right.head \/ ((x === y1) /\ (y === x1))),
                   3,
@@ -330,40 +330,38 @@ object SetTheory extends lisa.proven.Main {
   thm"unorderedPair_deconstruction".show
 
   THEOREM("noUniversalSet") of "∀x. x ∈ ?z ⊢" PROOF {
-    val x = SchematicFunctionLabel("x", 0)
-    val z = SchematicFunctionLabel("z", 0)
-    val x1 = VariableLabel("x")
-    val y1 = VariableLabel("y")
-    val z1 = VariableLabel("z")
+    val x = VariableLabel("x")
+    val y = VariableLabel("y")
+    val z = VariableLabel("z")
     val h = SchematicPredicateLabel("h", 0)
     val sPhi = SchematicPredicateLabel("P", 2)
     // forall(z, exists(y, forall(x, in(x,y) <=> (in(x,y) /\ sPhi(x,z)))))
     val i1 = () |- comprehensionSchema
     val i2 = thm"russelParadox" // forall(x1, in(x1,y) <=> !in(x1, x1)) |- ()
-    val p0 = InstPredSchema(() |- forall(z1, exists(y1, forall(x1, in(x1, y1) <=> (in(x1, z1) /\ !in(x1, x1))))), -1, Map(sPhi -> LambdaTermFormula(Seq(x, z), !in(x(), x()))))
+    val p0 = InstPredSchema(() |- forall(z, exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))))), -1, Map(sPhi -> LambdaTermFormula(Seq(x, z), !in(x, x))))
     val s0 = SCSubproof(instantiateForall(Proof(IndexedSeq(p0), IndexedSeq(i1)), z), Seq(-1)) // exists(y1, forall(x1, in(x1,y1) <=> (in(x1,z1) /\ !in(x1, x1))))
-    val s1 = hypothesis(in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1))) // in(x,y) <=> (in(x,z) /\ in(x, x)) |- in(x,y) <=> (in(x,z) /\ in(x, x))
+    val s1 = hypothesis(in(x, y) <=> (in(x, z) /\ !in(x, x))) // in(x,y) <=> (in(x,z) /\ in(x, x)) |- in(x,y) <=> (in(x,z) /\ in(x, x))
     val s2 = RightSubstIff(
-      (in(x1, z) <=> And(), in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1))) |- in(x1, y1) <=> (And() /\ !in(x1, x1)),
+      (in(x, z) <=> And(), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> (And() /\ !in(x, x)),
       1,
-      List((in(x1, z), And())),
-      LambdaFormulaFormula(Seq(h), in(x1, y1) <=> (h() /\ !in(x1, x1)))
+      List((in(x, z), And())),
+      LambdaFormulaFormula(Seq(h), in(x, y) <=> (h() /\ !in(x, x)))
     ) // in(x1,y1) <=> (in(x1,z1) /\ in(x1, x1)) |- in(x,y) <=> (And() /\ in(x1, x1))
-    val s3 = Rewrite((in(x1, z), in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1))) |- in(x1, y1) <=> !in(x1, x1), 2)
-    val s4 = LeftForall((forall(x1, in(x1, z)), in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1))) |- in(x1, y1) <=> !in(x1, x1), 3, in(x1, z), x1, x1)
-    val s5 = LeftForall((forall(x1, in(x1, z)), forall(x1, in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1)))) |- in(x1, y1) <=> !in(x1, x1), 4, in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1)), x1, x1)
-    val s6 = RightForall((forall(x1, in(x1, z)), forall(x1, in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1)))) |- forall(x1, in(x1, y1) <=> !in(x1, x1)), 5, in(x1, y1) <=> !in(x1, x1), x1)
-    val s7 = InstFunSchema(forall(x1, in(x1, y1) <=> !in(x1, x1)) |- (), -2, Map(SchematicFunctionLabel("y", 0) -> LambdaTermTerm(Nil, y1)))
-    val s8 = Cut((forall(x1, in(x1, z)), forall(x1, in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1)))) |- (), 6, 7, forall(x1, in(x1, y1) <=> !in(x1, x1)))
-    val s9 = LeftExists((forall(x1, in(x1, z)), exists(y1, forall(x1, in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1))))) |- (), 8, forall(x1, in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1))), y1)
-    val s10 = Cut(forall(x1, in(x1, z)) |- (), 0, 9, exists(y1, forall(x1, in(x1, y1) <=> (in(x1, z) /\ !in(x1, x1)))))
+    val s3 = Rewrite((in(x, z), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> !in(x, x), 2)
+    val s4 = LeftForall((forall(x, in(x, z)), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> !in(x, x), 3, in(x, z), x, x)
+    val s5 = LeftForall((forall(x, in(x, z)), forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))) |- in(x, y) <=> !in(x, x), 4, in(x, y) <=> (in(x, z) /\ !in(x, x)), x, x)
+    val s6 = RightForall((forall(x, in(x, z)), forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))) |- forall(x, in(x, y) <=> !in(x, x)), 5, in(x, y) <=> !in(x, x), x)
+    val s7 = InstFunSchema(forall(x, in(x, y) <=> !in(x, x)) |- (), -2, Map(y -> LambdaTermTerm(Nil, y)))
+    val s8 = Cut((forall(x, in(x, z)), forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))) |- (), 6, 7, forall(x, in(x, y) <=> !in(x, x)))
+    val s9 = LeftExists((forall(x, in(x, z)), exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))))) |- (), 8, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))), y)
+    val s10 = Cut(forall(x, in(x, z)) |- (), 0, 9, exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))))
     Proof(steps(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10), imports(i1, i2))
   } using (ax"comprehensionSchema", thm"russelParadox")
   show
 
-  private val sx = SchematicFunctionLabel("x", 0)
-  private val sy = SchematicFunctionLabel("y", 0)
-  val oPair: ConstantFunctionLabel = DEFINE("", sx, sy) as pair(pair(sx, sy), pair(sx, sx))
+  private val x = VariableLabel("x")
+  private val y = VariableLabel("y")
+  val oPair: ConstantFunctionLabel = DEFINE("", x, y) as pair(pair(x, y), pair(x, x))
   show
 
 }
