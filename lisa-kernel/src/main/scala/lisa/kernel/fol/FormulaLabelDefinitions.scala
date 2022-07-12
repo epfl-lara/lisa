@@ -73,7 +73,9 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * The label for a binder, namely an object with a body that has the ability to bind variables in it.
    */
-  sealed abstract class BinderLabel(val id: String) extends FormulaLabel
+  sealed abstract class BinderLabel(val id: String) extends FormulaLabel {
+    val arity = 1
+  }
 
   case object Forall extends BinderLabel(id = "∀")
 

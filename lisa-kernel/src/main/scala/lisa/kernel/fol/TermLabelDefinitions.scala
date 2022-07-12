@@ -30,15 +30,6 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
   }
 
   /**
-   * The label of a term which is a variable.
-   *
-   * @param id The name of the variable, for example "x" or "y".
-   */
-  sealed case class VariableLabel(id: String) extends TermLabel {
-    val name: String = id
-  }
-
-  /**
    * The label of a function-like term. Constants are functions of arity 0.
    * There are two kinds of function symbols: Standards and schematic.
    * Standard function symbols denote a particular function. Schematic function symbols
@@ -56,13 +47,25 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    */
   sealed case class ConstantFunctionLabel(id: String, arity: Int) extends FunctionLabel with ConstantLabel
 
+  sealed trait SchematicTermLabel extends TermLabel {
+  }
   /**
    * A schematic function symbol that can be substituted.
    *
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
    */
-  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends FunctionLabel
+  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends FunctionLabel with SchematicTermLabel
+
+  /**
+   * The label of a term which is a variable.
+   *
+   * @param id The name of the variable, for example "x" or "y".
+   */
+  sealed case class VariableLabel(id: String) extends SchematicTermLabel {
+    val name: String = id
+    val arity = 0
+  }
 
   /**
    * A function returning true if and only if the two symbols are considered "the same".

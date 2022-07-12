@@ -147,8 +147,8 @@ trait KernelHelpers {
   def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicPredicateLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
-  def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicFunctionLabel, LambdaTermTerm]): Sequent = {
-    s.left.map(phi => instantiateFunctionSchemas(phi, m)) |- s.right.map(phi => instantiateFunctionSchemas(phi, m))
+  def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {
+    s.left.map(phi => instantiateTermSchemas(phi, m)) |- s.right.map(phi => instantiateTermSchemas(phi, m))
   }
 
 }

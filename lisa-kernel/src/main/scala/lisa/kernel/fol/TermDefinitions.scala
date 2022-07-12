@@ -8,10 +8,20 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
   protected trait TreeWithLabel[A] {
     val label: A
 
+    /**
+     * @return The list of free variables in the term
+     */
     def freeVariables: Set[VariableLabel]
 
+    /**
+     * @return The list of constant (i.e. non schematic) function symbols, including of arity 0.
+     */
     def constantFunctions: Set[ConstantFunctionLabel]
-    def schematicFunctions: Set[SchematicFunctionLabel]
+
+    /**
+     * @return The list of schematic function symbols (including free variables) in the term
+     */
+    def schematicTerms: Set[SchematicTermLabel]
   }
 
   /**
@@ -30,7 +40,7 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
     override def freeVariables: Set[VariableLabel] = Set(label)
 
     override def constantFunctions: Set[ConstantFunctionLabel] = Set.empty
-    override def schematicFunctions: Set[SchematicFunctionLabel] = Set.empty
+    override def schematicTerms: Set[SchematicTermLabel] = Set(label)
   }
 
   /**
@@ -48,9 +58,9 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
       case l: ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions) + l
       case l: SchematicFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
     }
-    override def schematicFunctions: Set[SchematicFunctionLabel] = label match {
-      case l: ConstantFunctionLabel => args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
-      case l: SchematicFunctionLabel => args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions) + l
+    override def schematicTerms: Set[SchematicTermLabel] = label match {
+      case l: ConstantFunctionLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms)
+      case l: SchematicFunctionLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms) + l
     }
 
     val arity: Int = args.size

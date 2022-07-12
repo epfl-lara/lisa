@@ -438,7 +438,7 @@ object SCProofChecker {
            * </pre>
            */
           case InstFunSchema(bot, t1, insts) =>
-            val expected = (ref(t1).left.map(phi => instantiateFunctionSchemas(phi, insts)), ref(t1).right.map(phi => instantiateFunctionSchemas(phi, insts)))
+            val expected = (ref(t1).left.map(phi => instantiateTermSchemas(phi, insts)), ref(t1).right.map(phi => instantiateTermSchemas(phi, insts)))
             if (isSameSet(bot.left, expected._1))
               if (isSameSet(bot.right, expected._2))
                 SCValidProof(SCProof(step))
