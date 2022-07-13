@@ -139,15 +139,15 @@ object Example {
     p.formulas.foreach(printAnnotatedFormula)
   }
 
-  val P = SchematicPredicateLabel("P", 1)
+  val P = SchematicNPredicateLabel("P", 1)
 
-  val Q = PredicateFormula(SchematicPredicateLabel("Q", 0), Seq())
-  val R = PredicateFormula(SchematicPredicateLabel("R", 0), Seq())
-  val S = PredicateFormula(SchematicPredicateLabel("S", 0), Seq())
-  val T = PredicateFormula(SchematicPredicateLabel("T", 0), Seq())
-  val A = PredicateFormula(SchematicPredicateLabel("A", 0), Seq())
-  val B = PredicateFormula(SchematicPredicateLabel("B", 0), Seq())
-  val C = PredicateFormula(SchematicPredicateLabel("C", 0), Seq())
+  val Q = PredicateFormula(VariableFormulaLabel("Q"), Seq())
+  val R = PredicateFormula(VariableFormulaLabel("R"), Seq())
+  val S = PredicateFormula(VariableFormulaLabel("S"), Seq())
+  val T = PredicateFormula(VariableFormulaLabel("T"), Seq())
+  val A = PredicateFormula(VariableFormulaLabel("A"), Seq())
+  val B = PredicateFormula(VariableFormulaLabel("B"), Seq())
+  val C = PredicateFormula(VariableFormulaLabel("C"), Seq())
   val x = VariableLabel("x")
   val f = ConstantFunctionLabel("f", 1)
 
