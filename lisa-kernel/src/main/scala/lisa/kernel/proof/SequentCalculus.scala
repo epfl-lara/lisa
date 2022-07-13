@@ -2,7 +2,6 @@ package lisa.kernel.proof
 
 import lisa.kernel.fol.FOL._
 
-
 /**
  * The concrete implementation of sequent calculus (with equality).
  * This file specifies the sequents and the allowed operations on them, the deduction rules of sequent calculus.

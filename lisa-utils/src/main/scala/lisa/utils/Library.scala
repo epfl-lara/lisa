@@ -53,12 +53,12 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(proof: Proof)(using String => Unit)(using Throwable =>Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
+    def PROOF(proof: Proof)(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using Throwable =>Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, Proof(steps))
+    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, Proof(steps))
   }
 
   /**
@@ -80,7 +80,7 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithProof(name: String, statement: String, proof: Proof)(using String => Unit)(using Throwable =>Nothing) {
+  case class TheoremNameWithProof(name: String, statement: String, proof: Proof)(using String => Unit)(using Throwable => Nothing) {
     infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
@@ -111,7 +111,7 @@ abstract class Library(val theory: RunningTheory) {
    */
   def complexDefinition(symbol: String, vars: Seq[VariableLabel], v: VariableLabel, f: Formula, proof: Proof, just: Seq[Justification]): Judgement[theory.FunctionDefinition] = {
     theory.functionDefinition(symbol, LambdaTermFormula(vars, f), v, proof, just)
-    //theory.functionDefinition(symbol, LambdaTermFormula(vars, instantiateTermSchemas(f, Map(v -> LambdaTermTerm(Nil, out)))), out, proof, just)
+    // theory.functionDefinition(symbol, LambdaTermFormula(vars, instantiateTermSchemas(f, Map(v -> LambdaTermTerm(Nil, out)))), out, proof, just)
   }
 
   /**
@@ -130,7 +130,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(t: Term)(using String => Unit)(using Throwable =>Nothing): ConstantFunctionLabel = {
+    infix def as(t: Term)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = {
       val definition = simpleDefinition(symbol, LambdaTermTerm(vars, t)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -143,7 +143,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(f: Formula)(using String => Unit)(using Throwable =>Nothing): ConstantPredicateLabel = {
+    infix def as(f: Formula)(using String => Unit)(using Throwable => Nothing): ConstantPredicateLabel = {
       val definition = simpleDefinition(symbol, LambdaTermFormula(vars, f)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -189,7 +189,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(justifications: theory.Justification*)(using String => Unit)(using Throwable =>Nothing): ConstantFunctionLabel = {
+    infix def using(justifications: theory.Justification*)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = {
       val definition = complexDefinition(symbol, vars, out, f, proof, justifications) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -202,7 +202,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(u: Unit)(using String => Unit)(using Throwable =>Nothing): ConstantFunctionLabel = using()
+    infix def using(u: Unit)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = using()
   }
 
   /**

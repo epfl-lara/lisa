@@ -1,7 +1,8 @@
 package lisa.utils
 
 import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.RunningTheoryJudgement.{InvalidJustification, InvalidJustificationException}
+import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
+import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.proof.*
 import lisa.utils.Printer
@@ -91,7 +92,7 @@ trait TheoriesHelpers extends KernelHelpers {
      * If the Judgement is valid, show the inner justification and returns it.
      * Otherwise, output the error leading to the invalid justification and throw an error.
      */
-    def showAndGet(using output: String => Unit)(using finishOutput:Throwable => Nothing): J = {
+    def showAndGet(using output: String => Unit)(using finishOutput: Throwable => Nothing): J = {
       theoryJudgement match {
         case RunningTheoryJudgement.ValidJustification(just) =>
           just.show

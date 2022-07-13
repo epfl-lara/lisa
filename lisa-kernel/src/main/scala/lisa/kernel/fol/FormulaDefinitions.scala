@@ -58,7 +58,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def freeVariables: Set[VariableLabel] = inner.freeVariables - bound
 
     override def constantFunctions: Set[ConstantFunctionLabel] = inner.constantFunctions
-    override def schematicTerms: Set[SchematicTermLabel] = inner.schematicTerms -bound
+    override def schematicTerms: Set[SchematicTermLabel] = inner.schematicTerms - bound
 
     override def constantPredicates: Set[ConstantPredicateLabel] = inner.constantPredicates
     override def schematicPredicates: Set[SchematicPredicateLabel] = inner.schematicPredicates
