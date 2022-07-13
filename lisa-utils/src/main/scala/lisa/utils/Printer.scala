@@ -67,7 +67,7 @@ object Printer {
         case _ =>
           val labelString = label match {
             case ConstantPredicateLabel(id, _) => id
-            case s:SchematicPredicateLabel => s"?${s.id}"
+            case s: SchematicPredicateLabel => s"?${s.id}"
           }
           prettyFunction(labelString, args.map(prettyTerm(_, compact)), compact)
       }
@@ -150,7 +150,7 @@ object Printer {
    * @return the string representation of this term
    */
   def prettyTerm(term: Term, compact: Boolean = false): String = term match {
-    case VariableTerm(label) => label.id
+    case VariableTerm(label) => s"?${label.id}"
     case FunctionTerm(label, args) =>
       label match {
         case `emptySet` =>

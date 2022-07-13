@@ -50,7 +50,6 @@ trait Substitutions extends FormulaDefinitions {
     case FunctionTerm(label, args) => FunctionTerm(label, args.map(substituteVariables(_, m)))
   }
 
-
   /**
    * Performs simultaneous substitution of schematic function symbol by "functional" terms, or terms with holes.
    * If the arity of one of the function symbol to substitute doesn't match the corresponding number of arguments, it will produce an error.
@@ -112,7 +111,7 @@ trait Substitutions extends FormulaDefinitions {
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiateTermSchemas(_, m)))
       case BinderFormula(label, bound, inner) =>
         val newSubst = m - bound
-        val fv: Set[VariableLabel] = newSubst.flatMap{ case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }.toSet
+        val fv: Set[VariableLabel] = newSubst.flatMap { case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }.toSet
         if (fv.contains(bound)) {
           val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
           val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))

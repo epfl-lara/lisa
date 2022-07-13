@@ -47,15 +47,15 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    */
   sealed case class ConstantFunctionLabel(id: String, arity: Int) extends FunctionLabel with ConstantLabel
 
-  sealed trait SchematicTermLabel extends TermLabel {
-  }
+  sealed trait SchematicTermLabel extends TermLabel {}
+
   /**
    * A schematic function symbol that can be substituted.
    *
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
    */
-  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends FunctionLabel with SchematicTermLabel{
+  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends FunctionLabel with SchematicTermLabel {
     require(arity >= 1 && arity < MaxArity)
   }
 
