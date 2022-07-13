@@ -91,6 +91,7 @@ trait KernelHelpers {
   given Conversion[PredicateFormula, PredicateLabel] = _.label
   given Conversion[FunctionTerm, FunctionLabel] = _.label
   given Conversion[SchematicFunctionLabel, Term] = _.apply()
+  given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula.apply(_, Nil)
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
   given Conversion[Formula, Sequent] = () |- _
 

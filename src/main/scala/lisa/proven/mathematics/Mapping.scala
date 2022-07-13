@@ -14,19 +14,18 @@ object Mapping extends lisa.proven.Main {
     THEOREM("functionalMapping") of
         "∀a. (a ∈ ?A) ⇒ ∃!x. ?phi(x, a) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ ?A) ∧ ?phi(x, a)" PROOF {
         val a = VariableLabel("a")
-        val b = VariableLabel("b")
         val x = VariableLabel("x")
         val y = VariableLabel("y")
         val z = VariableLabel("z")
         val f = VariableLabel("f")
-        val h = SchematicPredicateLabel("h", 0)
+        val h = VariableFormulaLabel("h")
         val A = VariableLabel("A")
         val X = VariableLabel("X")
         val B = VariableLabel("B")
         val B1 = VariableLabel("B1")
-        val phi = SchematicPredicateLabel("phi", 2)
-        val sPhi = SchematicPredicateLabel("P", 2)
-        val sPsi = SchematicPredicateLabel("P", 3)
+        val phi = SchematicNPredicateLabel("phi", 2)
+        val sPhi = SchematicNPredicateLabel("P", 2)
+        val sPsi = SchematicNPredicateLabel("P", 3)
 
         val H = existsOne(x, phi(x, a))
         val H1 = forall(a, in(a, A) ==> H)
@@ -244,13 +243,13 @@ object Mapping extends lisa.proven.Main {
         val y = VariableLabel("y")
         val z = VariableLabel("z")
         val f = VariableLabel("f")
-        val h = SchematicPredicateLabel("h", 0)
+        val h = VariableFormulaLabel("h")
         val A = VariableLabel("A")
         val X = VariableLabel("X")
         val B = VariableLabel("B")
         val B1 = VariableLabel("B1")
-        val phi = SchematicPredicateLabel("phi", 2)
-        val psi = SchematicPredicateLabel("psi", 3)
+        val phi = SchematicNPredicateLabel("phi", 2)
+        val psi = SchematicNPredicateLabel("psi", 3)
         val H = existsOne(x, phi(x, a))
         val H1 = forall(a, in(a, A) ==> H)
         val i1 = thm"functionalMapping"
@@ -270,7 +269,7 @@ object Mapping extends lisa.proven.Main {
         val s6 = InstFunSchema(
             forall(b, in(b, B) ==> existsOne(X, phi(X, b))) |- instantiateTermSchemas(i1.right.head, Map(A -> LambdaTermTerm(Nil, B))),
             -1,
-            Map(SchematicFunctionLabel("A", 0) -> LambdaTermTerm(Nil, B))
+            Map(A -> LambdaTermTerm(Nil, B))
         )
         val s7 = InstPredSchema(
             forall(b, in(b, B) ==> existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ psi(x, a, b))))) |- existsOne(
@@ -307,13 +306,13 @@ object Mapping extends lisa.proven.Main {
         val z1 = VariableLabel("z1")
         val F = SchematicFunctionLabel("F", 1)
         val f = VariableLabel("f")
-        val phi = SchematicPredicateLabel("phi", 1)
-        val g = SchematicPredicateLabel("g", 0)
+        val phi = SchematicNPredicateLabel("phi", 1)
+        val g = VariableFormulaLabel("g")
 
         val g2 = SCSubproof({
             val s0 = hypothesis(F(x1) === z)
             val s1 = LeftSubstEq((x === x1, F(x) === z) |- F(x1) === z, 0, List((x, x1)), LambdaTermFormula(Seq(f), F(f) === z))
-            val s2 = LeftSubstIff(Set(phi(x) <=> (x === x1), phi(x), F(x) === z) |- F(x1) === z, 1, List((x === x1, phi(x))), LambdaFormulaFormula(Seq(g), g()))
+            val s2 = LeftSubstIff(Set(phi(x) <=> (x === x1), phi(x), F(x) === z) |- F(x1) === z, 1, List((x === x1, phi(x))), LambdaFormulaFormula(Seq(g), g))
             val s3 = LeftForall(Set(forall(x, phi(x) <=> (x === x1)), phi(x), F(x) === z) |- F(x1) === z, 2, phi(x) <=> (x === x1), x, x)
             val s4 = Rewrite(Set(forall(x, phi(x) <=> (x === x1)), phi(x) /\ (F(x) === z)) |- F(x1) === z, 3)
             val s5 = LeftExists(Set(forall(x, phi(x) <=> (x === x1)), exists(x, phi(x) /\ (F(x) === z))) |- F(x1) === z, 4, phi(x) /\ (F(x) === z), x)
@@ -358,8 +357,8 @@ object Mapping extends lisa.proven.Main {
         val F = SchematicFunctionLabel("F", 1)
         val A = VariableLabel("A")
         val B = VariableLabel("B")
-        val phi = SchematicPredicateLabel("phi", 1)
-        val psi = SchematicPredicateLabel("psi", 3)
+        val phi = SchematicNPredicateLabel("phi", 1)
+        val psi = SchematicNPredicateLabel("psi", 3)
 
         val i1 = thm"lemmaLayeredTwoArgumentsMap"
         val i2 = thm"applyFunctionToUniqueObject"
@@ -403,7 +402,7 @@ object Mapping extends lisa.proven.Main {
             val x = VariableLabel("x")
             val A = VariableLabel("A")
             val B = VariableLabel("B")
-            val psi = SchematicPredicateLabel("psi", 3)
+            val psi = SchematicNPredicateLabel("psi", 3)
 
             val i1 = thm"mapTwoArguments" // ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)
 

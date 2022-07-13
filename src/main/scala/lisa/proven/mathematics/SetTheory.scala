@@ -24,7 +24,7 @@ object SetTheory extends lisa.proven.Main {
       val x = VariableLabel("x")
       val y = VariableLabel("y")
       val z = VariableLabel("z")
-      val h = SchematicPredicateLabel("h", 0)
+      val h = VariableFormulaLabel("h")
       val fin = SCSubproof(
         {
           val pr0 = SCSubproof(
@@ -47,7 +47,7 @@ object SetTheory extends lisa.proven.Main {
             Sequent(pr1.bot.right, Set(in(z, pair(x, y)) <=> in(z, pair(y, x)))),
             0,
             List(((x === z) \/ (y === z), in(z, pair(y, x)))),
-            LambdaFormulaFormula(Seq(h), in(z, pair(x, y)) <=> h())
+            LambdaFormulaFormula(Seq(h), in(z, pair(x, y)) <=> h)
           )
           val pr3 = Cut(Sequent(pr1.bot.left, pr2.bot.right), 1, 2, pr2.bot.left.head)
           val pr4 = RightForall(Sequent(Set(), Set(forall(z, pr2.bot.right.head))), 3, pr2.bot.right.head, z)
@@ -81,7 +81,7 @@ object SetTheory extends lisa.proven.Main {
       val y1 = VariableLabel("y'")
       val z = VariableLabel("z")
       val g = VariableLabel("g")
-      val h = SchematicPredicateLabel("h", 0)
+      val h = VariableFormulaLabel("h")
       val pxy = pair(x, y)
       val pxy1 = pair(x1, y1)
       val p0 = SCSubproof(
@@ -125,7 +125,7 @@ object SetTheory extends lisa.proven.Main {
             emptySeq +< p3.bot.left.head +< p2.bot.right.head +> (((z === x) \/ (z === y)) <=> ((z === x1) \/ (z === y1))),
             3,
             List(((z === x1) \/ (z === y1), in(z, pxy1))),
-            LambdaFormulaFormula(Seq(h), h() <=> ((z === x) \/ (z === y)))
+            LambdaFormulaFormula(Seq(h), h <=> ((z === x) \/ (z === y)))
           ) //  ((z∈{x',y'})↔((x'=z)∨(y'=z))), ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
           val p5 = Cut(emptySeq ++< p3.bot ++> p4.bot, 2, 4, p2.bot.right.head)
           Proof(IndexedSeq(p0, p1, p2, p3, p4, p5), IndexedSeq(() |- pairAxiom))
@@ -172,7 +172,7 @@ object SetTheory extends lisa.proven.Main {
                                 emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1))),
                                 1,
                                 List((f1, f1 \/ f1)),
-                                LambdaFormulaFormula(Seq(h), h() <=> ((z === x1) \/ (z === y1)))
+                                LambdaFormulaFormula(Seq(h), h <=> ((z === x1) \/ (z === y1)))
                               )
                               val pa0_3 =
                                 Cut(emptySeq +< (pxy === pxy1) +< (x === y) +> (f1 <=> ((z === x1) \/ (z === y1))), 0, 2, f1 <=> (f1 \/ f1)) //  (x=y), ({x,y}={x',y'}) |- ((z=x)↔((z=x')∨(z=y')))
@@ -275,7 +275,7 @@ object SetTheory extends lisa.proven.Main {
                       pd0_1.bot.right |- ((x1 === x) \/ (x1 === y)),
                       0,
                       List(((x1 === x) \/ (x1 === y), (x1 === x1) \/ (x1 === y1))),
-                      LambdaFormulaFormula(Seq(h), h())
+                      LambdaFormulaFormula(Seq(h), h)
                     ) // (x'=x \/ x'=y) <=> (x'=x' \/ x'=y') |- (x'=x \/ x'=y)
                     val pd0_3 = Cut(pd0_1.bot.left |- pd0_2.bot.right, 1, 2, pd0_1.bot.right.head) //  ({x,y}={x',y'}) |- (x=x' \/ y=x')
                     destructRightOr(Proof(IndexedSeq(pd0_0, pd0_1, pd0_2, pd0_3), IndexedSeq(pd0_m1.bot)), x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
@@ -333,8 +333,8 @@ object SetTheory extends lisa.proven.Main {
     val x = VariableLabel("x")
     val y = VariableLabel("y")
     val z = VariableLabel("z")
-    val h = SchematicPredicateLabel("h", 0)
-    val sPhi = SchematicPredicateLabel("P", 2)
+    val h = VariableFormulaLabel("h")
+    val sPhi = SchematicNPredicateLabel("P", 2)
     // forall(z, exists(y, forall(x, in(x,y) <=> (in(x,y) /\ sPhi(x,z)))))
     val i1 = () |- comprehensionSchema
     val i2 = thm"russelParadox" // forall(x1, in(x1,y) <=> !in(x1, x1)) |- ()
@@ -345,7 +345,7 @@ object SetTheory extends lisa.proven.Main {
       (in(x, z) <=> And(), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> (And() /\ !in(x, x)),
       1,
       List((in(x, z), And())),
-      LambdaFormulaFormula(Seq(h), in(x, y) <=> (h() /\ !in(x, x)))
+      LambdaFormulaFormula(Seq(h), in(x, y) <=> (h /\ !in(x, x)))
     ) // in(x1,y1) <=> (in(x1,z1) /\ in(x1, x1)) |- in(x,y) <=> (And() /\ in(x1, x1))
     val s3 = Rewrite((in(x, z), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> !in(x, x), 2)
     val s4 = LeftForall((forall(x, in(x, z)), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> !in(x, x), 3, in(x, z), x, x)

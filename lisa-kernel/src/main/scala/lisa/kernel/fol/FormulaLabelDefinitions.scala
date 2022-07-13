@@ -51,7 +51,19 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A predicate symbol that can be instantiated with any formula.
    */
-  sealed case class SchematicPredicateLabel(id: String, arity: Int) extends PredicateLabel
+  sealed abstract class SchematicPredicateLabel extends PredicateLabel with SchematicLabel
+
+  /**
+   * A predicate symbol of non-zero arity that can be instantiated with any formula taking arguments.
+   */
+  sealed case class SchematicNPredicateLabel(id: String, arity: Int) extends SchematicPredicateLabel
+
+  /**
+   * A predicate symbol of arity 0 that can be instantiated with any formula.
+   */
+  sealed case class VariableFormulaLabel(id: String) extends SchematicPredicateLabel {
+    val arity = 0
+  }
 
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
