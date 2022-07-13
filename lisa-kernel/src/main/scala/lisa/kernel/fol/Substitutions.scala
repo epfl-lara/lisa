@@ -31,8 +31,7 @@ trait Substitutions extends FormulaDefinitions {
    * @param vars The names of the "holes" in a formula, necessarily of arity 0.
    * @param body The formula represented by the object, up to instantiation of the bound schematic variables in args.
    */
-  case class LambdaFormulaFormula(vars: Seq[SchematicPredicateLabel], body: Formula) {
-    require(vars.forall(_.arity == 0))
+  case class LambdaFormulaFormula(vars: Seq[VariableFormulaLabel], body: Formula) {
     def apply(args: Seq[Formula]): Formula = instantiatePredicateSchemas(body, (vars zip (args map (LambdaTermFormula(Nil, _)))).toMap)
   }
 
