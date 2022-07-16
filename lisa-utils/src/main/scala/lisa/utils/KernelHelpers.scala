@@ -4,9 +4,8 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus
-import lisa.kernel.proof.SequentCalculus.Rewrite
-import lisa.kernel.proof.SequentCalculus.isSameSequent
+import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
+import lisa.kernel.proof.SequentCalculus._
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -151,6 +150,27 @@ trait KernelHelpers {
   }
   def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {
     s.left.map(phi => instantiateTermSchemas(phi, m)) |- s.right.map(phi => instantiateTermSchemas(phi, m))
+  }
+
+  extension (sp: SCSubproof) {
+    def followPath(path: Seq[Int]): SCProofStep = path match {
+      case Nil => sp
+      case n :: Nil => sp.sp(n)
+      case n :: ns =>
+        assert(sp.sp.steps(n).isInstanceOf[SCSubproof], s"Got $path but next step is not a subproof: ${sp.sp.steps(n).getClass}")
+        sp.sp.steps(n).asInstanceOf[SCSubproof].followPath(ns)
+    }
+  }
+
+  extension (p: SCProof) {
+    def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
+  }
+
+  extension (judgement: SCInvalidProof) {
+    def errorMsg: String =
+      s"""Failed to prove
+         |${lisa.utils.Printer.prettySequent(judgement.proof.followPath(judgement.path).bot)}
+         |(step ${judgement.path.mkString("->")}): ${judgement.message}""".stripMargin
   }
 
 }
