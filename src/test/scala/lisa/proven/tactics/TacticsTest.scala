@@ -25,7 +25,8 @@ class TacticsTest extends ProofCheckerSuite {
   test("modus ponens") {
     val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(p1_implies_p2)), IndexedSeq(ax"p1_implies_p2")), p1_implies_p2, fixedElement())
     val hypothesis1 = hypothesis(ax2)
-    val proof = modusPonens(p1(fixedElement()))(hypothesis1, SCSubproof(instantiate0, Seq(-1)))
+    val sp = modusPonens(p1(fixedElement()))(SCSubproof(Proof(IndexedSeq(hypothesis1), IndexedSeq(ax"A2")), Seq(-2)), SCSubproof(instantiate0, Seq(-1)))
+    val proof = Proof(IndexedSeq(sp), IndexedSeq(ax"p1_implies_p2", ax"A2"))
     checkProof(proof)
   }
 

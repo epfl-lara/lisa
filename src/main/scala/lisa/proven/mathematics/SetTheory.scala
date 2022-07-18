@@ -135,189 +135,186 @@ object SetTheory extends lisa.proven.Main {
 
       val p1 = SCSubproof(
         Proof(
-          byCase(x === x1)(
-            SCSubproof(
-              {
-                val pcm1 = p0
-                val pc0 = SCSubproof(
-                  Proof(
-                    byCase(y === x)(
-                      SCSubproof(
-                        {
-                          val pam1 = pcm1
-                          val pa0 = SCSubproof(
-                            {
-                              val f1 = z === x
-                              val pa0_m1 = pcm1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
-                              val pa0_0 = SCSubproof(
-                                {
-                                  val pa0_0_0 = hypothesis(f1)
-                                  val pa0_1_1 = RightOr(emptySeq +< f1 +> (f1 \/ f1), 0, f1, f1)
-                                  val pa0_1_2 = RightImplies(emptySeq +> (f1 ==> (f1 \/ f1)), 1, f1, f1 \/ f1)
-                                  val pa0_1_3 = LeftOr(emptySeq +< (f1 \/ f1) +> f1, Seq(0, 0), Seq(f1, f1))
-                                  val pa0_1_4 = RightImplies(emptySeq +> ((f1 \/ f1) ==> f1), 3, f1 \/ f1, f1)
-                                  val pa0_1_5 = RightIff(emptySeq +> ((f1 \/ f1) <=> f1), 2, 4, (f1 \/ f1), f1)
-                                  val r = Proof(pa0_0_0, pa0_1_1, pa0_1_2, pa0_1_3, pa0_1_4, pa0_1_5)
-                                  r
-                                },
-                                display = false
-                              ) //   |- (((z=x)∨(z=x))↔(z=x))
-                              val pa0_1 = RightSubstEq(
-                                emptySeq +< (pxy === pxy1) +< (x === y) +> ((f1 \/ f1) <=> (z === x1) \/ (z === y1)),
-                                -1,
-                                List((x, y)),
-                                LambdaTermFormula(Seq(g), (f1 \/ (z === g)) <=> ((z === x1) \/ (z === y1)))
-                              ) //  ({x,y}={x',y'}) y=x|- (z=x)\/(z=x) <=> (z=x' \/ z=y')
-                              val pa0_2 = RightSubstIff(
-                                emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1))),
-                                1,
-                                List((f1, f1 \/ f1)),
-                                LambdaFormulaFormula(Seq(h), h <=> ((z === x1) \/ (z === y1)))
-                              )
-                              val pa0_3 =
-                                Cut(emptySeq +< (pxy === pxy1) +< (x === y) +> (f1 <=> ((z === x1) \/ (z === y1))), 0, 2, f1 <=> (f1 \/ f1)) //  (x=y), ({x,y}={x',y'}) |- ((z=x)↔((z=x')∨(z=y')))
-                              val pa0_4 = RightForall(emptySeq +< (pxy === pxy1) +< (x === y) +> forall(z, f1 <=> ((z === x1) \/ (z === y1))), 3, f1 <=> ((z === x1) \/ (z === y1)), z)
-                              val ra0_0 = instantiateForall(Proof(IndexedSeq(pa0_0, pa0_1, pa0_2, pa0_3, pa0_4), IndexedSeq(pa0_m1.bot)), y1) //  (x=y), ({x,y}={x',y'}) |- ((y'=x)↔((y'=x')∨(y'=y')))
-                              ra0_0
-                            },
-                            IndexedSeq(-1)
-                          ) //  ({x,y}={x',y'}) y=x|- ((y'=x)↔((y'=x')∨(y'=y')))
-                          val pa1 = SCSubproof(
-                            {
-                              val pa1_0 = RightRefl(emptySeq +> (y1 === y1), y1 === y1)
-                              val pa1_1 = RightOr(emptySeq +> ((y1 === y1) \/ (y1 === x1)), 0, y1 === y1, y1 === x1)
-                              Proof(pa1_0, pa1_1)
-                            },
-                            display = false
-                          ) //  |- (y'=x' \/ y'=y')
-                          val ra3 = byEquiv(pa0.bot.right.head, pa1.bot.right.head)(pa0, pa1) // ({x,y}={x',y'}) y=x|- ((y'=x)
-                          val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), 0, List((x, y)), LambdaTermFormula(Seq(g), y1 === g))
-                          Proof(IndexedSeq(ra3, pal), IndexedSeq(pam1.bot)) // (x=y), ({x,y}={x',y'}) |- (y'=y)
-                        },
-                        IndexedSeq(-1)
-                      ) //  (x=y), ({x,y}={x',y'}) |- (y'=y)
-                      ,
-                      SCSubproof(
-                        {
-                          val pbm1 = pcm1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
-                          val pb0_0 = SCSubproof(
-                            {
-                              val pb0_0 = RightForall(emptySeq ++< pcm1.bot +> forall(z, pcm1.bot.right.head), -1, pcm1.bot.right.head, z)
-                              instantiateForall(Proof(IndexedSeq(pb0_0), IndexedSeq(pcm1.bot)), y)
-                            },
-                            IndexedSeq(-1)
-                          ) //  ({x,y}={x',y'}) |- (((y=x)∨(y=y))↔((y=x')∨(y=y')))
-                          val pb0_1 = SCSubproof(
-                            {
-                              val pa1_0 = RightRefl(emptySeq +> (y === y), y === y)
-                              val pa1_1 = RightOr(emptySeq +> ((y === y) \/ (y === x)), 0, y === y, y === x)
-                              Proof(pa1_0, pa1_1)
-                            },
-                            display = false
-                          ) //  |- (y=x)∨(y=y)
-                          val rb0 = byEquiv(pb0_0.bot.right.head, pb0_1.bot.right.head)(pb0_0, pb0_1) //  ({x,y}={x',y'}) |- (y=x')∨(y=y')
-                          val pb1 =
-                            RightSubstEq(emptySeq ++< rb0.bot +< (x === x1) +> ((y === x) \/ (y === y1)), 0, List((x, x1)), LambdaTermFormula(Seq(g), (y === g) \/ (y === y1)))
-                          val rb1 = destructRightOr(
-                            Proof(IndexedSeq(rb0, pb1), IndexedSeq(pcm1.bot)), //  ({x,y}={x',y'}) , x=x'|- (y=x)∨(y=y')
-                            y === x,
-                            y === y1
-                          )
-                          val rb2 = rb1.appended(LeftNot(rb1.conclusion +< !(y === x) -> (y === x), rb1.length - 1, y === x)) //  (x=x'), ({x,y}={x',y'}), ¬(y=x) |- (y=y')
-                          Proof(rb2.steps, IndexedSeq(pbm1.bot))
+          IndexedSeq(
+            byCase(x === x1)(
+              SCSubproof(
+                {
+                  val pcm1 = p0
+                  val pc0 = byCase(y === x)(
+                    SCSubproof(
+                      {
+                        val pam1 = pcm1
+                        val pa0 = SCSubproof(
+                          {
+                            val f1 = z === x
+                            val pa0_m1 = pcm1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
+                            val pa0_0 = SCSubproof(
+                              {
+                                val pa0_0_0 = hypothesis(f1)
+                                val pa0_1_1 = RightOr(emptySeq +< f1 +> (f1 \/ f1), 0, f1, f1)
+                                val pa0_1_2 = RightImplies(emptySeq +> (f1 ==> (f1 \/ f1)), 1, f1, f1 \/ f1)
+                                val pa0_1_3 = LeftOr(emptySeq +< (f1 \/ f1) +> f1, Seq(0, 0), Seq(f1, f1))
+                                val pa0_1_4 = RightImplies(emptySeq +> ((f1 \/ f1) ==> f1), 3, f1 \/ f1, f1)
+                                val pa0_1_5 = RightIff(emptySeq +> ((f1 \/ f1) <=> f1), 2, 4, (f1 \/ f1), f1)
+                                val r = Proof(pa0_0_0, pa0_1_1, pa0_1_2, pa0_1_3, pa0_1_4, pa0_1_5)
+                                r
+                              },
+                              display = false
+                            ) //   |- (((z=x)∨(z=x))↔(z=x))
+                            val pa0_1 = RightSubstEq(
+                              emptySeq +< (pxy === pxy1) +< (x === y) +> ((f1 \/ f1) <=> (z === x1) \/ (z === y1)),
+                              -1,
+                              List((x, y)),
+                              LambdaTermFormula(Seq(g), (f1 \/ (z === g)) <=> ((z === x1) \/ (z === y1)))
+                            ) //  ({x,y}={x',y'}) y=x|- (z=x)\/(z=x) <=> (z=x' \/ z=y')
+                            val pa0_2 = RightSubstIff(
+                              emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1))),
+                              1,
+                              List((f1, f1 \/ f1)),
+                              LambdaFormulaFormula(Seq(h), h <=> ((z === x1) \/ (z === y1)))
+                            )
+                            val pa0_3 =
+                              Cut(emptySeq +< (pxy === pxy1) +< (x === y) +> (f1 <=> ((z === x1) \/ (z === y1))), 0, 2, f1 <=> (f1 \/ f1)) //  (x=y), ({x,y}={x',y'}) |- ((z=x)↔((z=x')∨(z=y')))
+                            val pa0_4 = RightForall(emptySeq +< (pxy === pxy1) +< (x === y) +> forall(z, f1 <=> ((z === x1) \/ (z === y1))), 3, f1 <=> ((z === x1) \/ (z === y1)), z)
+                            val ra0_0 =
+                              instantiateForall(Proof(IndexedSeq(pa0_0, pa0_1, pa0_2, pa0_3, pa0_4), IndexedSeq(pa0_m1.bot)), y1) //  (x=y), ({x,y}={x',y'}) |- ((y'=x)↔((y'=x')∨(y'=y')))
+                            ra0_0
+                          },
+                          IndexedSeq(-1)
+                        ) //  ({x,y}={x',y'}) y=x|- ((y'=x)↔((y'=x')∨(y'=y')))
+                        val pa1 = SCSubproof(
+                          {
+                            val pa1_0 = RightRefl(emptySeq +> (y1 === y1), y1 === y1)
+                            val pa1_1 = RightOr(emptySeq +> ((y1 === y1) \/ (y1 === x1)), 0, y1 === y1, y1 === x1)
+                            Proof(pa1_0, pa1_1)
+                          },
+                          display = false
+                        ) //  |- (y'=x' \/ y'=y')
+                        val ra3 = byEquiv(pa0.bot.right.head, pa1.bot.right.head)(pa0, pa1) // ({x,y}={x',y'}) y=x|- ((y'=x)
+                        val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), 0, List((x, y)), LambdaTermFormula(Seq(g), y1 === g))
+                        Proof(IndexedSeq(ra3, pal), IndexedSeq(pam1.bot)) // (x=y), ({x,y}={x',y'}) |- (y'=y)
+                      },
+                      IndexedSeq(-1)
+                    ) //  (x=y), ({x,y}={x',y'}) |- (y'=y)
+                    ,
+                    SCSubproof(
+                      {
+                        val pbm1 = pcm1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
+                        val pb0_0 = SCSubproof(
+                          {
+                            val pb0_0 = RightForall(emptySeq ++< pcm1.bot +> forall(z, pcm1.bot.right.head), -1, pcm1.bot.right.head, z)
+                            instantiateForall(Proof(IndexedSeq(pb0_0), IndexedSeq(pcm1.bot)), y)
+                          },
+                          IndexedSeq(-1)
+                        ) //  ({x,y}={x',y'}) |- (((y=x)∨(y=y))↔((y=x')∨(y=y')))
+                        val pb0_1 = SCSubproof(
+                          {
+                            val pa1_0 = RightRefl(emptySeq +> (y === y), y === y)
+                            val pa1_1 = RightOr(emptySeq +> ((y === y) \/ (y === x)), 0, y === y, y === x)
+                            Proof(pa1_0, pa1_1)
+                          },
+                          display = false
+                        ) //  |- (y=x)∨(y=y)
+                        val rb0 = byEquiv(pb0_0.bot.right.head, pb0_1.bot.right.head)(pb0_0, pb0_1) //  ({x,y}={x',y'}) |- (y=x')∨(y=y')
+                        val pb1 =
+                          RightSubstEq(emptySeq ++< rb0.bot +< (x === x1) +> ((y === x) \/ (y === y1)), 0, List((x, x1)), LambdaTermFormula(Seq(g), (y === g) \/ (y === y1)))
+                        val rb1 = destructRightOr(
+                          Proof(IndexedSeq(rb0, pb1), IndexedSeq(pcm1.bot)), //  ({x,y}={x',y'}) , x=x'|- (y=x)∨(y=y')
+                          y === x,
+                          y === y1
+                        )
+                        val rb2 = rb1.appended(LeftNot(rb1.conclusion +< !(y === x) -> (y === x), rb1.length - 1, y === x)) //  (x=x'), ({x,y}={x',y'}), ¬(y=x) |- (y=y')
+                        Proof(rb2.steps, IndexedSeq(pbm1.bot))
 
+                      },
+                      IndexedSeq(-1)
+                    )
+                  ) // (x=x'), ({x,y}={x',y'}) |- (y'=y)
+                  val pc1 = RightRefl(emptySeq +> (x === x), x === x)
+                  val pc2 = RightAnd(emptySeq ++< pc0.bot +> ((y1 === y) /\ (x === x)), Seq(0, 1), Seq(y1 === y, x === x)) // ({x,y}={x',y'}), x=x' |- (x=x /\ y=y')
+                  val pc3 =
+                    RightSubstEq(emptySeq ++< pc2.bot +> ((y1 === y) /\ (x1 === x)), 2, List((x, x1)), LambdaTermFormula(Seq(g), (y1 === y) /\ (g === x))) // ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')
+                  val pc4 = RightOr(
+                    emptySeq ++< pc3.bot +> (pc3.bot.right.head \/ ((x === y1) /\ (y === x1))),
+                    3,
+                    pc3.bot.right.head,
+                    (x === y1) /\ (y === x1)
+                  ) //  ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
+                  val r = Proof(IndexedSeq(pc0, pc1, pc2, pc3, pc4), IndexedSeq(pcm1.bot))
+                  r
+                },
+                IndexedSeq(-1)
+              ) //  ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
+              ,
+              SCSubproof(
+                {
+                  val pdm1 = p0
+                  val pd0 = SCSubproof(
+                    {
+                      val pd0_m1 = pdm1
+                      val pd0_0 = SCSubproof {
+                        val ex1x1 = x1 === x1
+                        val pd0_0_0 = RightRefl(emptySeq +> ex1x1, ex1x1) //  |- x'=x'
+                        val pd0_0_1 = RightOr(emptySeq +> (ex1x1 \/ (x1 === y1)), 0, ex1x1, x1 === y1) //  |- (x'=x' \/ x'=y')
+                        Proof(IndexedSeq(pd0_0_0, pd0_0_1))
+                      } //  |- (x'=x' \/ x'=y')
+                      val pd0_1 = SCSubproof(
+                        {
+                          val pd0_1_m1 = pd0_m1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
+                          val pd0_1_0 = RightForall(emptySeq ++< pd0_1_m1.bot +> forall(z, pd0_1_m1.bot.right.head), -1, pd0_1_m1.bot.right.head, z)
+                          val rd0_1_1 = instantiateForall(Proof(IndexedSeq(pd0_1_0), IndexedSeq(pd0_m1.bot)), x1) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
+                          rd0_1_1
                         },
                         IndexedSeq(-1)
-                      ) //  ({x,y}={x',y'}), x=x', !y=x |- y=y'
-                    ).steps,
-                    IndexedSeq(pcm1.bot)
-                  ),
-                  IndexedSeq(-1)
-                ) // (x=x'), ({x,y}={x',y'}) |- (y'=y)
-                val pc1 = RightRefl(emptySeq +> (x === x), x === x)
-                val pc2 = RightAnd(emptySeq ++< pc0.bot +> ((y1 === y) /\ (x === x)), Seq(0, 1), Seq(y1 === y, x === x)) // ({x,y}={x',y'}), x=x' |- (x=x /\ y=y')
-                val pc3 =
-                  RightSubstEq(emptySeq ++< pc2.bot +> ((y1 === y) /\ (x1 === x)), 2, List((x, x1)), LambdaTermFormula(Seq(g), (y1 === y) /\ (g === x))) // ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')
-                val pc4 = RightOr(
-                  emptySeq ++< pc3.bot +> (pc3.bot.right.head \/ ((x === y1) /\ (y === x1))),
-                  3,
-                  pc3.bot.right.head,
-                  (x === y1) /\ (y === x1)
-                ) //  ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
-                val r = Proof(IndexedSeq(pc0, pc1, pc2, pc3, pc4), IndexedSeq(pcm1.bot))
-                r
-              },
-              IndexedSeq(-1)
-            ) //  ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
-            ,
-            SCSubproof(
-              {
-                val pdm1 = p0
-                val pd0 = SCSubproof(
-                  {
-                    val pd0_m1 = pdm1
-                    val pd0_0 = SCSubproof {
-                      val ex1x1 = x1 === x1
-                      val pd0_0_0 = RightRefl(emptySeq +> ex1x1, ex1x1) //  |- x'=x'
-                      val pd0_0_1 = RightOr(emptySeq +> (ex1x1 \/ (x1 === y1)), 0, ex1x1, x1 === y1) //  |- (x'=x' \/ x'=y')
-                      Proof(IndexedSeq(pd0_0_0, pd0_0_1))
-                    } //  |- (x'=x' \/ x'=y')
-                    val pd0_1 = SCSubproof(
-                      {
-                        val pd0_1_m1 = pd0_m1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
-                        val pd0_1_0 = RightForall(emptySeq ++< pd0_1_m1.bot +> forall(z, pd0_1_m1.bot.right.head), -1, pd0_1_m1.bot.right.head, z)
-                        val rd0_1_1 = instantiateForall(Proof(IndexedSeq(pd0_1_0), IndexedSeq(pd0_m1.bot)), x1) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
-                        rd0_1_1
-                      },
-                      IndexedSeq(-1)
-                    ) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
-                    val pd0_2 = RightSubstIff(
-                      pd0_1.bot.right |- ((x1 === x) \/ (x1 === y)),
-                      0,
-                      List(((x1 === x) \/ (x1 === y), (x1 === x1) \/ (x1 === y1))),
-                      LambdaFormulaFormula(Seq(h), h)
-                    ) // (x'=x \/ x'=y) <=> (x'=x' \/ x'=y') |- (x'=x \/ x'=y)
-                    val pd0_3 = Cut(pd0_1.bot.left |- pd0_2.bot.right, 1, 2, pd0_1.bot.right.head) //  ({x,y}={x',y'}) |- (x=x' \/ y=x')
-                    destructRightOr(Proof(IndexedSeq(pd0_0, pd0_1, pd0_2, pd0_3), IndexedSeq(pd0_m1.bot)), x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
-                  },
-                  IndexedSeq(-1)
-                ) //  ({x,y}={x',y'}) |- x=x',  y=x' --
-                val pd1 = SCSubproof(
-                  {
-                    val pd1_m1 = pdm1
-                    val pd1_0 = SCSubproof {
-                      val exx = x === x
-                      val pd1_0_0 = RightRefl(emptySeq +> exx, exx) //  |- x=x
-                      val pd1_0_1 = RightOr(emptySeq +> (exx \/ (x === y)), 0, exx, x === y) //  |- (x=x \/ x=y)
-                      Proof(IndexedSeq(pd1_0_0, pd1_0_1))
-                    } //  |- (x=x \/ x=y)
-                    val pd1_1 = SCSubproof(
-                      {
-                        val pd1_1_m1 = pd1_m1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
-                        val pd1_1_0 = RightForall(emptySeq ++< pd1_1_m1.bot +> forall(z, pd1_1_m1.bot.right.head), -1, pd1_1_m1.bot.right.head, z)
-                        val rd1_1_1 = instantiateForall(Proof(IndexedSeq(pd1_1_0), IndexedSeq(pd1_m1.bot)), x) //  ({x,y}={x',y'}) |- (x=x \/ x=y) <=> (x=x' \/ x=y')
-                        rd1_1_1
-                      },
-                      IndexedSeq(-1)
-                    ) //  //  ({x,y}={x',y'}) |- (x=x \/ x=y) <=> (x=x' \/ x=y')
-                    val rd1_2 = byEquiv(pd1_1.bot.right.head, pd1_0.bot.right.head)(pd1_1, pd1_0)
-                    destructRightOr(Proof(IndexedSeq(pd1_0, pd1_1, rd1_2), IndexedSeq(pd1_m1.bot)), x === x1, x === y1) //  ({x,y}={x',y'}) |- x=x',  x=y'
-                  },
-                  IndexedSeq(-1)
-                ) //  ({x,y}={x',y'}) |- x=x',  x=y' --
-                val pd2 = RightAnd(emptySeq ++< pd1.bot +> (x === x1) +> ((x === y1) /\ (y === x1)), Seq(0, 1), Seq(x === y1, y === x1)) //  ({x,y}={x',y'})  |- x=x', (x=y' /\ y=x') ---
-                val pd3 = LeftNot(emptySeq ++< pd2.bot +< !(x === x1) +> ((x === y1) /\ (y === x1)), 2, x === x1) //  ({x,y}={x',y'}), !x===x1 |- (x=y' /\ y=x')
-                val pd4 = RightOr(
-                  emptySeq ++< pd3.bot +> (pd3.bot.right.head \/ ((x === x1) /\ (y === y1))),
-                  3,
-                  pd3.bot.right.head,
-                  (x === x1) /\ (y === y1)
-                ) //  ({x,y}={x',y'}), !x===x1 |- (x=x' /\ y=y')\/(x=y' /\ y=x')
-                Proof(IndexedSeq(pd0, pd1, pd2, pd3, pd4), IndexedSeq(pdm1.bot))
-              },
-              IndexedSeq(-1)
-            ) //  ({x,y}={x',y'}), !x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
-          ).steps,
+                      ) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
+                      val pd0_2 = RightSubstIff(
+                        pd0_1.bot.right |- ((x1 === x) \/ (x1 === y)),
+                        0,
+                        List(((x1 === x) \/ (x1 === y), (x1 === x1) \/ (x1 === y1))),
+                        LambdaFormulaFormula(Seq(h), h)
+                      ) // (x'=x \/ x'=y) <=> (x'=x' \/ x'=y') |- (x'=x \/ x'=y)
+                      val pd0_3 = Cut(pd0_1.bot.left |- pd0_2.bot.right, 1, 2, pd0_1.bot.right.head) //  ({x,y}={x',y'}) |- (x=x' \/ y=x')
+                      destructRightOr(Proof(IndexedSeq(pd0_0, pd0_1, pd0_2, pd0_3), IndexedSeq(pd0_m1.bot)), x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
+                    },
+                    IndexedSeq(-1)
+                  ) //  ({x,y}={x',y'}) |- x=x',  y=x' --
+                  val pd1 = SCSubproof(
+                    {
+                      val pd1_m1 = pdm1
+                      val pd1_0 = SCSubproof {
+                        val exx = x === x
+                        val pd1_0_0 = RightRefl(emptySeq +> exx, exx) //  |- x=x
+                        val pd1_0_1 = RightOr(emptySeq +> (exx \/ (x === y)), 0, exx, x === y) //  |- (x=x \/ x=y)
+                        Proof(IndexedSeq(pd1_0_0, pd1_0_1))
+                      } //  |- (x=x \/ x=y)
+                      val pd1_1 = SCSubproof(
+                        {
+                          val pd1_1_m1 = pd1_m1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
+                          val pd1_1_0 = RightForall(emptySeq ++< pd1_1_m1.bot +> forall(z, pd1_1_m1.bot.right.head), -1, pd1_1_m1.bot.right.head, z)
+                          val rd1_1_1 = instantiateForall(Proof(IndexedSeq(pd1_1_0), IndexedSeq(pd1_m1.bot)), x) //  ({x,y}={x',y'}) |- (x=x \/ x=y) <=> (x=x' \/ x=y')
+                          rd1_1_1
+                        },
+                        IndexedSeq(-1)
+                      ) //  //  ({x,y}={x',y'}) |- (x=x \/ x=y) <=> (x=x' \/ x=y')
+                      val rd1_2 = byEquiv(pd1_1.bot.right.head, pd1_0.bot.right.head)(pd1_1, pd1_0)
+                      destructRightOr(Proof(IndexedSeq(pd1_0, pd1_1, rd1_2), IndexedSeq(pd1_m1.bot)), x === x1, x === y1) //  ({x,y}={x',y'}) |- x=x',  x=y'
+                    },
+                    IndexedSeq(-1)
+                  ) //  ({x,y}={x',y'}) |- x=x',  x=y' --
+                  val pd2 = RightAnd(emptySeq ++< pd1.bot +> (x === x1) +> ((x === y1) /\ (y === x1)), Seq(0, 1), Seq(x === y1, y === x1)) //  ({x,y}={x',y'})  |- x=x', (x=y' /\ y=x') ---
+                  val pd3 = LeftNot(emptySeq ++< pd2.bot +< !(x === x1) +> ((x === y1) /\ (y === x1)), 2, x === x1) //  ({x,y}={x',y'}), !x===x1 |- (x=y' /\ y=x')
+                  val pd4 = RightOr(
+                    emptySeq ++< pd3.bot +> (pd3.bot.right.head \/ ((x === x1) /\ (y === y1))),
+                    3,
+                    pd3.bot.right.head,
+                    (x === x1) /\ (y === y1)
+                  ) //  ({x,y}={x',y'}), !x===x1 |- (x=x' /\ y=y')\/(x=y' /\ y=x')
+                  Proof(IndexedSeq(pd0, pd1, pd2, pd3, pd4), IndexedSeq(pdm1.bot))
+                },
+                IndexedSeq(-1)
+              ) //  ({x,y}={x',y'}), !x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
+            )
+          ),
           IndexedSeq(p0.bot)
         ),
         IndexedSeq(0)
