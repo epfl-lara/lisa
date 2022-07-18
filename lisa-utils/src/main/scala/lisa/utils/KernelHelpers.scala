@@ -98,17 +98,21 @@ trait KernelHelpers {
 
   val emptySeq: Sequent = Sequent(Set.empty, Set.empty)
 
+  private def removeFormula(s: Set[Formula], f: Formula): Set[Formula] = {
+    if (s.contains(f)) s - f else s.filterNot(isSame(_, f))
+  }
+
   extension (s: Sequent) {
     infix def +<(f: Formula): Sequent = s.copy(left = s.left + f)
-    infix def -<(f: Formula): Sequent = s.copy(left = s.left - f)
+    infix def -<(f: Formula): Sequent = s.copy(left = removeFormula(s.left, f))
     infix def +>(f: Formula): Sequent = s.copy(right = s.right + f)
-    infix def ->(f: Formula): Sequent = s.copy(right = s.right - f)
+    infix def ->(f: Formula): Sequent = s.copy(right = removeFormula(s.right, f))
     infix def ++<(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left)
-    infix def --<(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left)
+    infix def --<(s1: Sequent): Sequent = s.copy(left = s1.left.foldLeft(s.left)(removeFormula))
     infix def ++>(s1: Sequent): Sequent = s.copy(right = s.right ++ s1.right)
-    infix def -->(s1: Sequent): Sequent = s.copy(right = s.right -- s1.right)
+    infix def -->(s1: Sequent): Sequent = s.copy(right = s1.right.foldLeft(s.right)(removeFormula))
     infix def ++(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left, right = s.right ++ s1.right)
-    infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
+    infix def --(s1: Sequent): Sequent = s.copy(left = s1.left.foldLeft(s.left)(removeFormula), right = s1.right.foldLeft(s.right)(removeFormula))
   }
 
   /**
