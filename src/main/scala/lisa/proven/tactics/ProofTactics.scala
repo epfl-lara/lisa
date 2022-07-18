@@ -1,5 +1,6 @@
 package lisa.proven.tactics
 
+import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
@@ -13,6 +14,7 @@ import scala.collection.immutable.Set
  * by focusing on the final goal rather on the individual steps.
  */
 object ProofTactics {
+  class TacticNotApplicable(msg: String) extends RuntimeException(msg)
 
   def hypothesis(f: Formula): SCProofStep = Hypothesis(emptySeq +< f +> f, f)
 
@@ -45,6 +47,7 @@ object ProofTactics {
   def instantiateForall(p: SCProof, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
     t.foldLeft(p)((p1, t1) => instantiateForall(p1, t1))
   }
+  def instantiateForall(sp: SCSubproof, phi: Formula, t: Term): SCSubproof = SCSubproof(instantiateForall(sp.sp, phi, t), sp.premises)
   def generalizeToForall(p: SCProof, phi: Formula, x: VariableLabel): SCProof = {
     require(p.conclusion.right.contains(phi))
     val p1 = RightForall(p.conclusion -> phi +> forall(x, phi), p.length - 1, phi, x)
@@ -54,21 +57,43 @@ object ProofTactics {
   def generalizeToForall(p: SCProof, x: VariableLabel*): SCProof = { // given a proof with a formula on the right, extend the proof to the same formula with variables universally quantified.
     x.foldRight(p)((x1, p1) => generalizeToForall(p1, x1))
   }
-  def byEquiv(f: Formula, f1: Formula)(pEq: SCProofStep, pr1: SCProofStep): SCProof = {
-    require(pEq.bot.right.contains(f))
-    require(pr1.bot.right.contains(f1))
-    f match {
-      case ConnectorFormula(Iff, Seq(fl, fr)) =>
-        val f2 = if (isSame(f1, fl)) fr else if (isSame(f1, fr)) fl else throw new Error("not applicable")
-        val p2 = hypothesis(f1)
-        val p3 = hypothesis(f2)
-        val p4 = LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 2, 3, f1, f2)
-        val p5 = LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 4, f1, f2)
-        val p6 = Cut(pEq.bot -> (f1 <=> f2) +< f1 +> f2, 0, 5, f1 <=> f2)
-        val p7 = Cut(p6.bot -< f1 ++ pr1.bot -> f1, 1, 6, f1)
-        new SCProof(IndexedSeq(pEq, pr1, p2, p3, p4, p5, p6, p7))
-      case _ => throw new Error("not applicable")
+  def generalizeToForall(sp: SCSubproof, phi: Formula, x: VariableLabel): SCSubproof = SCSubproof(generalizeToForall(sp.sp, phi, x), sp.premises)
+
+  def byEquiv(equiv: FOL.Formula, equivSide: FOL.Formula)(pEq: SCSubproof, pSide: SCSubproof): SCSubproof = {
+    require(pEq.bot.right.contains(equiv))
+    require(pSide.bot.right.contains(equivSide))
+    require(equiv.isInstanceOf[ConnectorFormula])
+    require(equiv.asInstanceOf[ConnectorFormula].label == Iff)
+    require(equiv.asInstanceOf[ConnectorFormula].args.length == 2)
+    val (fl, fr) = equiv match {
+      case ConnectorFormula(Iff, Seq(fl, fr)) => (fl, fr)
+      case _ => throw TacticNotApplicable(s"$equiv is not an Iff on two arguments")
     }
+    val otherSide = if (isSame(equivSide, fl)) fr else if (isSame(equivSide, fr)) fl else throw new Error("not applicable")
+    val p2 = hypothesis(equivSide)
+    val p3 = hypothesis(otherSide)
+    val p4 = LeftImplies(Sequent(Set(equivSide, equivSide ==> otherSide), Set(otherSide)), 2, 3, equivSide, otherSide)
+    val p5 = LeftIff(Sequent(Set(equivSide, equivSide <=> otherSide), Set(otherSide)), 4, equivSide, otherSide)
+    val p6 = Cut(pEq.bot -> equiv +< equivSide +> otherSide, 0, 5, equiv)
+    val p7 = Cut(p6.bot -< equivSide ++ pSide.bot -> equivSide, 1, 6, equivSide)
+    // pEq and pSide become steps of this subproof instead of the encompassing proof, hence their imports stay the same
+    // but the premises change the numbering
+    SCSubproof(
+      SCProof(
+        IndexedSeq(
+          pEq.withPremises(-1 to -pEq.premises.length by -1),
+          pSide.withPremises(-(pEq.premises.length + 1) to -(pEq.premises.length + pSide.premises.length) by -1),
+          p2,
+          p3,
+          p4,
+          p5,
+          p6,
+          p7
+        ),
+        pEq.sp.imports ++ pSide.sp.imports
+      ),
+      pEq.premises ++ pSide.premises
+    )
   }
 
   @deprecated

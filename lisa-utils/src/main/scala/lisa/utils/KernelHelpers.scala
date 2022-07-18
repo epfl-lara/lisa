@@ -162,6 +162,8 @@ trait KernelHelpers {
         assert(sp.sp.steps(n).isInstanceOf[SCSubproof], s"Got $path but next step is not a subproof: ${sp.sp.steps(n).getClass}")
         sp.sp.steps(n).asInstanceOf[SCSubproof].followPath(ns)
     }
+
+    def withPremises(premises: IndexedSeq[Int]): SCSubproof = SCSubproof(sp.sp, premises)
   }
 
   extension (p: SCProof) {
