@@ -4,9 +4,8 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus
-import lisa.kernel.proof.SequentCalculus.Rewrite
-import lisa.kernel.proof.SequentCalculus.isSameSequent
+import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
+import lisa.kernel.proof.SequentCalculus._
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -157,4 +156,7 @@ trait KernelHelpers {
     s.left.map(phi => instantiateTermSchemas(phi, m)) |- s.right.map(phi => instantiateTermSchemas(phi, m))
   }
 
+  extension (sp: SCSubproof) {
+    def withPremises(premises: IndexedSeq[Int]): SCSubproof = SCSubproof(sp.sp, premises)
+  }
 }

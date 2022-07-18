@@ -66,9 +66,9 @@ object SetTheory extends lisa.proven.Main {
         pairExt.bot.right.head,
         fin.bot.right.head
       )(pairExt, fin)
-      val fin3 = generalizeToForall(fin2, fin2.conclusion.right.head, x)
-      val fin4 = generalizeToForall(fin3, fin3.conclusion.right.head, y)
-      fin4.copy(imports = imports(ax"extensionalityAxiom", ax"pairAxiom"))
+      val fin3 = generalizeToForall(fin2, fin2.bot.right.head, x)
+      val fin4 = generalizeToForall(fin3, fin3.bot.right.head, y)
+      fin4.sp
     } using (ax"extensionalityAxiom", AxiomaticSetTheory.pairAxiom)
   show
 
@@ -191,8 +191,8 @@ object SetTheory extends lisa.proven.Main {
                             display = false
                           ) //  |- (y'=x' \/ y'=y')
                           val ra3 = byEquiv(pa0.bot.right.head, pa1.bot.right.head)(pa0, pa1) // ({x,y}={x',y'}) y=x|- ((y'=x)
-                          val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), ra3.length - 1, List((x, y)), LambdaTermFormula(Seq(g), y1 === g))
-                          Proof(ra3.steps, IndexedSeq(pam1.bot)).appended(pal) // (x=y), ({x,y}={x',y'}) |- (y'=y)
+                          val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), 0, List((x, y)), LambdaTermFormula(Seq(g), y1 === g))
+                          Proof(IndexedSeq(ra3, pal), IndexedSeq(pam1.bot)) // (x=y), ({x,y}={x',y'}) |- (y'=y)
                         },
                         IndexedSeq(-1)
                       ) //  (x=y), ({x,y}={x',y'}) |- (y'=y)
@@ -217,9 +217,9 @@ object SetTheory extends lisa.proven.Main {
                           ) //  |- (y=x)∨(y=y)
                           val rb0 = byEquiv(pb0_0.bot.right.head, pb0_1.bot.right.head)(pb0_0, pb0_1) //  ({x,y}={x',y'}) |- (y=x')∨(y=y')
                           val pb1 =
-                            RightSubstEq(emptySeq ++< rb0.conclusion +< (x === x1) +> ((y === x) \/ (y === y1)), rb0.length - 1, List((x, x1)), LambdaTermFormula(Seq(g), (y === g) \/ (y === y1)))
+                            RightSubstEq(emptySeq ++< rb0.bot +< (x === x1) +> ((y === x) \/ (y === y1)), 0, List((x, x1)), LambdaTermFormula(Seq(g), (y === g) \/ (y === y1)))
                           val rb1 = destructRightOr(
-                            rb0.appended(pb1), //  ({x,y}={x',y'}) , x=x'|- (y=x)∨(y=y')
+                            Proof(IndexedSeq(rb0, pb1), IndexedSeq(pcm1.bot)), //  ({x,y}={x',y'}) , x=x'|- (y=x)∨(y=y')
                             y === x,
                             y === y1
                           )
@@ -301,8 +301,7 @@ object SetTheory extends lisa.proven.Main {
                       IndexedSeq(-1)
                     ) //  //  ({x,y}={x',y'}) |- (x=x \/ x=y) <=> (x=x' \/ x=y')
                     val rd1_2 = byEquiv(pd1_1.bot.right.head, pd1_0.bot.right.head)(pd1_1, pd1_0)
-                    val pd1_3 = SCSubproof(Proof(rd1_2.steps, IndexedSeq(pd1_m1.bot)), IndexedSeq(-1)) //  //  ({x,y}={x',y'}) |- x=x' \/ x=y'
-                    destructRightOr(Proof(IndexedSeq(pd1_0, pd1_1, pd1_3), IndexedSeq(pd1_m1.bot)), x === x1, x === y1) //  ({x,y}={x',y'}) |- x=x',  x=y'
+                    destructRightOr(Proof(IndexedSeq(pd1_0, pd1_1, rd1_2), IndexedSeq(pd1_m1.bot)), x === x1, x === y1) //  ({x,y}={x',y'}) |- x=x',  x=y'
                   },
                   IndexedSeq(-1)
                 ) //  ({x,y}={x',y'}) |- x=x',  x=y' --

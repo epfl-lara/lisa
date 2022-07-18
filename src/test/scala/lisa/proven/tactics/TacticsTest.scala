@@ -54,10 +54,13 @@ class TacticsTest extends ProofCheckerSuite {
    *                          fixed point axiom |- f1(fixedElement) = fixedElement
    * */
   test("byEquiv") {
-    val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), fixed_point, fixedElement())
+    val instantiate0proof: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), fixed_point, fixedElement())
+    val instantiate0 = SCSubproof(instantiate0proof, IndexedSeq(-1))
     val eq1 = RightRefl(() |- fixedElement() === fixedElement(), fixedElement() === fixedElement())
-    val proof = byEquiv(instantiate0.conclusion.right.head, eq1.bot.right.head)(SCSubproof(instantiate0, IndexedSeq(-1)), eq1)
+    val useEquiv = byEquiv(instantiate0proof.conclusion.right.head, eq1.bot.right.head)(instantiate0, SCSubproof(SCProof(eq1)))
+    val proof: SCProof = Proof(IndexedSeq(useEquiv), IndexedSeq(ax"fixed_point"))
     checkProof(proof)
+    checkProof(useEquiv.sp)
   }
 
   // illustrate by copying the body of byEquiv and making applicable changes that the claim can be proved by using byEquiv
@@ -85,7 +88,7 @@ class TacticsTest extends ProofCheckerSuite {
     checkProof(proof)
   }
 
-  /* test theory |- f1(another_element) = fixedElement using byEquiv.
+  /* test theory |- f1(anotherFixed) = fixedElement using byEquiv.
    * The proof is intentionally less succinct than possible to illustrate byEquiv usage when subproofs use axioms and have more than one step
    *
    *                                                          -------------------------------------- hypothesis
@@ -93,28 +96,36 @@ class TacticsTest extends ProofCheckerSuite {
    *  ---------------------------------- RightRefl         ----------------------------------------------------------------------------------------- instantiate forall
    *    |- fixedElement = fixedElement                   fixed point axiom |- f1(fixedElement) = fixedElement <=> fixedElement = fixedElement
    *  ----------------------------------right subst =    -------------------------------------------------------------------------------------------------------- right subst =
-   *   same_fixed |- another_element = fixedElement     fixed point, same_fixed axioms |- f1(another_element) = fixedElement <=> another_element = fixedElement
+   *   same_fixed |- anotherFixed = fixedElement     fixed point, same_fixed axioms |- f1(anotherFixed) = fixedElement <=> anotherFixed = fixedElement
    * --------------------------------------------------------------------------------------------------------------------------------------------------------- byEquiv
-   *                          fixed point axiom |- f1(another_element) = fixedElement
+   *                          fixed point axiom |- f1(anotherFixed) = fixedElement
    * */
 
   test("longer byEquiv") {
-    val instantiate0: Proof = instantiateForall(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), fixed_point, fixedElement())
+    val outerProofAxioms = IndexedSeq(ax"fixed_point", ax"same_fixed")
+
+    val instantiate0 = instantiateForall(SCSubproof(Proof(IndexedSeq(hypothesis(fixed_point)), IndexedSeq(ax"fixed_point")), IndexedSeq(-2)), fixed_point, fixedElement())
     val substEq1 = RightSubstEq(
       Set(fixed_point, same_fixed) |- (f1(anotherFixed()) === fixedElement()) <=> (anotherFixed() === fixedElement()),
       0,
       (fixedElement(), anotherFixed()) :: Nil,
       LambdaTermFormula(Seq(xl), (f1(xl) === fixedElement()) <=> (xl === fixedElement()))
     )
-    val eq2 = RightRefl(() |- fixedElement() === fixedElement(), fixedElement() === fixedElement())
-    val substEq3 = RightSubstEq(
+    val subproofEquiv = SCSubproof(SCProof(IndexedSeq(instantiate0, substEq1), IndexedSeq(ax"same_fixed", ax"fixed_point")), IndexedSeq(-2, -1))
+    val eq0 = RightRefl(() |- fixedElement() === fixedElement(), fixedElement() === fixedElement())
+    val subst1 = RightSubstEq(
       same_fixed |- anotherFixed() === fixedElement(),
-      2,
+      0,
       (fixedElement(), anotherFixed()) :: Nil,
       LambdaTermFormula(Seq(xl), xl === fixedElement())
     )
-
-    val proof = byEquiv(substEq1.bot.right.head, substEq3.bot.right.head)(substEq1, substEq3)
+    val subproofSide = SCSubproof(SCProof(IndexedSeq(eq0, subst1), IndexedSeq(ax"same_fixed")), IndexedSeq(-2))
+    val useEquiv = byEquiv(substEq1.bot.right.head, subst1.bot.right.head)(
+      subproofEquiv,
+      subproofSide
+    )
+    val proof = Proof(IndexedSeq(useEquiv), outerProofAxioms)
     checkProof(proof)
+    checkProof(useEquiv.sp)
   }
 }
