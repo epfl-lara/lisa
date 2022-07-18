@@ -4,8 +4,8 @@ import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.{*, given}
-import lisa.utils.Printer.*
+import lisa.utils.Helpers.{_, given}
+import lisa.utils.Printer
 
 import scala.collection.immutable.Set
 
@@ -43,7 +43,7 @@ object ProofTactics {
         val p2 = LeftForall(Sequent(Set(b), Set(in)), p.length, instantiateBinder(b, tempVar), tempVar, t)
         val p3 = Cut(Sequent(c.left, c.right - phi + in), p.length - 1, p.length + 1, phi)
         p withNewSteps IndexedSeq(p1, p2, p3)
-      case _ => throw new Exception("not a forall")
+      case _ => throw TacticNotApplicable("given formula is not a forall")
     }
   }
   def instantiateForall(p: SCProof, phi: Formula, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
@@ -83,7 +83,10 @@ object ProofTactics {
       case ConnectorFormula(Iff, Seq(fl, fr)) => (fl, fr)
       case _ => throw TacticNotApplicable(s"$equiv is not an Iff on two arguments")
     }
-    val otherSide = if (isSame(equivSide, fl)) fr else if (isSame(equivSide, fr)) fl else throw new Error("not applicable")
+    val otherSide =
+      if (isSame(equivSide, fl)) fr
+      else if (isSame(equivSide, fr)) fl
+      else throw TacticNotApplicable(s"Given formula ${Printer.prettyFormula(equivSide)} does not appear on either side of the equivalence ${Printer.prettyFormula(equiv)}")
     val p2 = hypothesis(equivSide)
     val p3 = hypothesis(otherSide)
     val p4 = LeftImplies(Sequent(Set(equivSide, equivSide ==> otherSide), Set(otherSide)), 2, 3, equivSide, otherSide)
