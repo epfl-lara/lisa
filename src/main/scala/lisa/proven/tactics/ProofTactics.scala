@@ -4,7 +4,7 @@ import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.Printer.*
 
 import scala.collection.immutable.Set
@@ -15,6 +15,20 @@ import scala.collection.immutable.Set
  */
 object ProofTactics {
   class TacticNotApplicable(msg: String) extends RuntimeException(msg)
+
+  private def combineTwoSubproofs(sp1: SCSubproof, sp2: SCSubproof, otherSteps: SCProofStep*): SCSubproof =
+    // sp1 and sp2 become steps of this subproof instead of the encompassing proof, hence their imports stay the same
+    // but the premises change the numbering
+    SCSubproof(
+      SCProof(
+        IndexedSeq(
+          sp1.withPremises(-1 to -sp1.premises.length by -1),
+          sp2.withPremises(-(sp1.premises.length + 1) to -(sp1.premises.length + sp2.premises.length) by -1)
+        ) ++ otherSteps.toIndexedSeq,
+        sp1.sp.imports ++ sp2.sp.imports
+      ),
+      sp1.premises ++ sp2.premises
+    )
 
   def hypothesis(f: Formula): SCProofStep = Hypothesis(emptySeq +< f +> f, f)
 
@@ -76,24 +90,7 @@ object ProofTactics {
     val p5 = LeftIff(Sequent(Set(equivSide, equivSide <=> otherSide), Set(otherSide)), 4, equivSide, otherSide)
     val p6 = Cut(pEq.bot -> equiv +< equivSide +> otherSide, 0, 5, equiv)
     val p7 = Cut(p6.bot -< equivSide ++ pSide.bot -> equivSide, 1, 6, equivSide)
-    // pEq and pSide become steps of this subproof instead of the encompassing proof, hence their imports stay the same
-    // but the premises change the numbering
-    SCSubproof(
-      SCProof(
-        IndexedSeq(
-          pEq.withPremises(-1 to -pEq.premises.length by -1),
-          pSide.withPremises(-(pEq.premises.length + 1) to -(pEq.premises.length + pSide.premises.length) by -1),
-          p2,
-          p3,
-          p4,
-          p5,
-          p6,
-          p7
-        ),
-        pEq.sp.imports ++ pSide.sp.imports
-      ),
-      pEq.premises ++ pSide.premises
-    )
+    combineTwoSubproofs(pEq, pSide, p2, p3, p4, p5, p6, p7)
   }
 
   @deprecated
@@ -114,33 +111,32 @@ object ProofTactics {
     })*/
     SCProof(v)
   }
-  // p1 is a proof of psi given phi, p2 is a proof of psi given !phi
-  def byCase(phi: Formula)(pa: SCProofStep, pb: SCProofStep): SCProof = {
+  def byCase(phi: FOL.Formula)(psiGivenPhi: SCSubproof, psiGivenNotPhi: SCSubproof): SCSubproof = {
     val nphi = !phi
-    val (leftAphi, leftBnphi) = (pa.bot.left.find(isSame(_, phi)), pb.bot.left.find(isSame(_, nphi)))
+    val (leftAphi, leftBnphi) = (psiGivenPhi.bot.left.find(isSame(_, phi)), psiGivenNotPhi.bot.left.find(isSame(_, nphi)))
 
     require(leftAphi.nonEmpty && leftBnphi.nonEmpty)
-    val p2 = RightNot(pa.bot -< leftAphi.get +> nphi, 0, phi)
-    val p3 = Cut(pa.bot -< leftAphi.get ++ (pb.bot -< leftBnphi.get), 2, 1, nphi)
-    SCProof(IndexedSeq(pa, pb, p2, p3))
+    val p2 = RightNot(psiGivenPhi.bot -< leftAphi.get +> nphi, 0, phi)
+    val p3 = Cut(psiGivenPhi.bot -< leftAphi.get ++ (psiGivenNotPhi.bot -< leftBnphi.get), 2, 1, nphi)
+    combineTwoSubproofs(psiGivenPhi, psiGivenNotPhi, p2, p3)
   }
-  // pa is a proof of phi, pb is a proof of phi ==> ???
-  // |- phi ==> psi, phi===>gamma            |- phi
+  // |- phi ==> psi           |- phi
   // -------------------------------------
-  //          |- psi, gamma
-  def modusPonens(phi: Formula)(pa: SCProofStep, pb: SCProofStep): SCProof = {
-    require(pa.bot.right.contains(phi))
-    val opsi = pb.bot.right.find {
-      case ConnectorFormula(Implies, Seq(l, _)) if isSame(l, phi) => true
-      case _ => false
-    }
-    if (opsi.isEmpty) SCProof(pa, pb)
-    else {
-      val psi = opsi.get.asInstanceOf[ConnectorFormula].args(1)
+  //          |- psi
+  def modusPonens(phi: FOL.Formula)(proofPhi: SCSubproof, proofPhiImpliesPsi: SCSubproof): SCSubproof = {
+    require(proofPhi.bot.right.contains(phi))
+    val opsi = proofPhiImpliesPsi.bot.right.collectFirst({
+      case ConnectorFormula(Implies, Seq(l, r)) if isSame(l, phi) => r
+    })
+    if (opsi.isEmpty) {
+      throw TacticNotApplicable(s"Second proof does not prove any formula of form phi => psi")
+    } else {
+      val psi = opsi.get
       val p2 = hypothesis(psi)
-      val p3 = LeftImplies(emptySeq ++ (pa.bot -> phi) +< (phi ==> psi) +> psi, 0, 2, phi, psi)
-      val p4 = Cut(emptySeq ++ (pa.bot -> phi) ++< pb.bot +> psi ++> (pb.bot -> (phi ==> psi)), 1, 3, phi ==> psi)
-      SCProof(pa, pb, p2, p3, p4)
+      val p3 = LeftImplies(emptySeq ++ (proofPhi.bot -> phi) +< (phi ==> psi) +> psi, 0, 2, phi, psi)
+      val p4 = Cut(emptySeq ++ (proofPhi.bot -> phi) ++< proofPhiImpliesPsi.bot +> psi ++> (proofPhiImpliesPsi.bot -> (phi ==> psi)), 1, 3, phi ==> psi)
+
+      combineTwoSubproofs(proofPhi, proofPhiImpliesPsi, p2, p3, p4)
     }
   }
 
