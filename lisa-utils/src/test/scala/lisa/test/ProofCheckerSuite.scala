@@ -2,6 +2,8 @@ package lisa.test
 
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker.*
+import lisa.kernel.proof.SCProofCheckerJudgement
+import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus.isSameSequent
 import lisa.utils.Helpers.{_, given}
@@ -39,8 +41,9 @@ abstract class ProofCheckerSuite extends AnyFunSuite {
 
   def checkProof(proof: SCProof): Unit = {
     val judgement = checkSCProof(proof)
-    println(Printer.prettySCProof(judgement))
-    println(s"\n(${proof.totalLength} proof steps in total)")
+    if (!judgement.isValid) {
+      fail(judgement.asInstanceOf[SCInvalidProof].errorMsg)
+    }
   }
 
   def checkProof(proof: SCProof, expected: Sequent): Unit = {

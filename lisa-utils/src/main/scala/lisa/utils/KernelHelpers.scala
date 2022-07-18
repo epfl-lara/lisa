@@ -4,9 +4,8 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus
-import lisa.kernel.proof.SequentCalculus.Rewrite
-import lisa.kernel.proof.SequentCalculus.isSameSequent
+import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
+import lisa.kernel.proof.SequentCalculus._
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -98,17 +97,21 @@ trait KernelHelpers {
 
   val emptySeq: Sequent = Sequent(Set.empty, Set.empty)
 
+  private def removeFormula(s: Set[Formula], f: Formula): Set[Formula] = {
+    if (s.contains(f)) s - f else s.filterNot(isSame(_, f))
+  }
+
   extension (s: Sequent) {
     infix def +<(f: Formula): Sequent = s.copy(left = s.left + f)
-    infix def -<(f: Formula): Sequent = s.copy(left = s.left - f)
+    infix def -<(f: Formula): Sequent = s.copy(left = removeFormula(s.left, f))
     infix def +>(f: Formula): Sequent = s.copy(right = s.right + f)
-    infix def ->(f: Formula): Sequent = s.copy(right = s.right - f)
+    infix def ->(f: Formula): Sequent = s.copy(right = removeFormula(s.right, f))
     infix def ++<(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left)
-    infix def --<(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left)
+    infix def --<(s1: Sequent): Sequent = s.copy(left = s1.left.foldLeft(s.left)(removeFormula))
     infix def ++>(s1: Sequent): Sequent = s.copy(right = s.right ++ s1.right)
-    infix def -->(s1: Sequent): Sequent = s.copy(right = s.right -- s1.right)
+    infix def -->(s1: Sequent): Sequent = s.copy(right = s1.right.foldLeft(s.right)(removeFormula))
     infix def ++(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left, right = s.right ++ s1.right)
-    infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
+    infix def --(s1: Sequent): Sequent = s.copy(left = s1.left.foldLeft(s.left)(removeFormula), right = s1.right.foldLeft(s.right)(removeFormula))
   }
 
   /**
@@ -149,6 +152,29 @@ trait KernelHelpers {
   }
   def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicFunctionLabel, LambdaTermTerm]): Sequent = {
     s.left.map(phi => instantiateFunctionSchemas(phi, m)) |- s.right.map(phi => instantiateFunctionSchemas(phi, m))
+  }
+
+  extension (sp: SCSubproof) {
+    def followPath(path: Seq[Int]): SCProofStep = path match {
+      case Nil => sp
+      case n :: Nil => sp.sp(n)
+      case n :: ns =>
+        assert(sp.sp.steps(n).isInstanceOf[SCSubproof], s"Got $path but next step is not a subproof: ${sp.sp.steps(n).getClass}")
+        sp.sp.steps(n).asInstanceOf[SCSubproof].followPath(ns)
+    }
+
+    def withPremises(premises: IndexedSeq[Int]): SCSubproof = SCSubproof(sp.sp, premises)
+  }
+
+  extension (p: SCProof) {
+    def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
+  }
+
+  extension (judgement: SCInvalidProof) {
+    def errorMsg: String =
+      s"""Failed to prove
+         |${lisa.utils.Printer.prettySequent(judgement.proof.followPath(judgement.path).bot)}
+         |(step ${judgement.path.mkString("->")}): ${judgement.message}""".stripMargin
   }
 
 }

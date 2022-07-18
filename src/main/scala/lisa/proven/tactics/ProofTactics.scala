@@ -1,10 +1,11 @@
 package lisa.proven.tactics
 
+import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.{_, given}
-import lisa.utils.Printer.*
+import lisa.utils.Printer
 
 import scala.collection.immutable.Set
 
@@ -13,6 +14,21 @@ import scala.collection.immutable.Set
  * by focusing on the final goal rather on the individual steps.
  */
 object ProofTactics {
+  class TacticNotApplicable(msg: String) extends RuntimeException(msg)
+
+  private def combineTwoSubproofs(sp1: SCSubproof, sp2: SCSubproof, otherSteps: SCProofStep*): SCSubproof =
+    // sp1 and sp2 become steps of this subproof instead of the encompassing proof, hence their imports stay the same
+    // but the premises change the numbering
+    SCSubproof(
+      SCProof(
+        IndexedSeq(
+          sp1.withPremises(-1 to -sp1.premises.length by -1),
+          sp2.withPremises(-(sp1.premises.length + 1) to -(sp1.premises.length + sp2.premises.length) by -1)
+        ) ++ otherSteps.toIndexedSeq,
+        sp1.sp.imports ++ sp2.sp.imports
+      ),
+      sp1.premises ++ sp2.premises
+    )
 
   def hypothesis(f: Formula): SCProofStep = Hypothesis(emptySeq +< f +> f, f)
 
@@ -27,7 +43,7 @@ object ProofTactics {
         val p2 = LeftForall(Sequent(Set(b), Set(in)), p.length, instantiateBinder(b, tempVar), tempVar, t)
         val p3 = Cut(Sequent(c.left, c.right - phi + in), p.length - 1, p.length + 1, phi)
         p withNewSteps IndexedSeq(p1, p2, p3)
-      case _ => throw new Exception("not a forall")
+      case _ => throw TacticNotApplicable("given formula is not a forall")
     }
   }
   def instantiateForall(p: SCProof, phi: Formula, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
@@ -45,6 +61,7 @@ object ProofTactics {
   def instantiateForall(p: SCProof, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
     t.foldLeft(p)((p1, t1) => instantiateForall(p1, t1))
   }
+  def instantiateForall(sp: SCSubproof, phi: Formula, t: Term): SCSubproof = SCSubproof(instantiateForall(sp.sp, phi, t), sp.premises)
   def generalizeToForall(p: SCProof, phi: Formula, x: VariableLabel): SCProof = {
     require(p.conclusion.right.contains(phi))
     val p1 = RightForall(p.conclusion -> phi +> forall(x, phi), p.length - 1, phi, x)
@@ -54,21 +71,29 @@ object ProofTactics {
   def generalizeToForall(p: SCProof, x: VariableLabel*): SCProof = { // given a proof with a formula on the right, extend the proof to the same formula with variables universally quantified.
     x.foldRight(p)((x1, p1) => generalizeToForall(p1, x1))
   }
-  def byEquiv(f: Formula, f1: Formula)(pEq: SCProofStep, pr1: SCProofStep): SCProof = {
-    require(pEq.bot.right.contains(f))
-    require(pr1.bot.right.contains(f1))
-    f match {
-      case ConnectorFormula(Iff, Seq(fl, fr)) =>
-        val f2 = if (isSame(f1, fl)) fr else if (isSame(f1, fr)) fl else throw new Error("not applicable")
-        val p2 = hypothesis(f1)
-        val p3 = hypothesis(f2)
-        val p4 = LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 2, 3, f1, f2)
-        val p5 = LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 4, f1, f2)
-        val p6 = Cut(pEq.bot -> (f1 <=> f2) +< f1 +> f2, 0, 5, f1 <=> f2)
-        val p7 = Cut(p6.bot -< f1 ++ pr1.bot -> f1, 1, 6, f1)
-        new SCProof(IndexedSeq(pEq, pr1, p2, p3, p4, p5, p6, p7))
-      case _ => throw new Error("not applicable")
+  def generalizeToForall(sp: SCSubproof, phi: Formula, x: VariableLabel): SCSubproof = SCSubproof(generalizeToForall(sp.sp, phi, x), sp.premises)
+
+  def byEquiv(equiv: FOL.Formula, equivSide: FOL.Formula)(pEq: SCSubproof, pSide: SCSubproof): SCSubproof = {
+    require(pEq.bot.right.contains(equiv))
+    require(pSide.bot.right.contains(equivSide))
+    require(equiv.isInstanceOf[ConnectorFormula])
+    require(equiv.asInstanceOf[ConnectorFormula].label == Iff)
+    require(equiv.asInstanceOf[ConnectorFormula].args.length == 2)
+    val (fl, fr) = equiv match {
+      case ConnectorFormula(Iff, Seq(fl, fr)) => (fl, fr)
+      case _ => throw TacticNotApplicable(s"$equiv is not an Iff on two arguments")
     }
+    val otherSide =
+      if (isSame(equivSide, fl)) fr
+      else if (isSame(equivSide, fr)) fl
+      else throw TacticNotApplicable(s"Given formula ${Printer.prettyFormula(equivSide)} does not appear on either side of the equivalence ${Printer.prettyFormula(equiv)}")
+    val p2 = hypothesis(equivSide)
+    val p3 = hypothesis(otherSide)
+    val p4 = LeftImplies(Sequent(Set(equivSide, equivSide ==> otherSide), Set(otherSide)), 2, 3, equivSide, otherSide)
+    val p5 = LeftIff(Sequent(Set(equivSide, equivSide <=> otherSide), Set(otherSide)), 4, equivSide, otherSide)
+    val p6 = Cut(pEq.bot -> equiv +< equivSide +> otherSide, 0, 5, equiv)
+    val p7 = Cut(p6.bot -< equivSide ++ pSide.bot -> equivSide, 1, 6, equivSide)
+    combineTwoSubproofs(pEq, pSide, p2, p3, p4, p5, p6, p7)
   }
 
   @deprecated
@@ -89,33 +114,32 @@ object ProofTactics {
     })*/
     SCProof(v)
   }
-  // p1 is a proof of psi given phi, p2 is a proof of psi given !phi
-  def byCase(phi: Formula)(pa: SCProofStep, pb: SCProofStep): SCProof = {
+  def byCase(phi: FOL.Formula)(psiGivenPhi: SCSubproof, psiGivenNotPhi: SCSubproof): SCSubproof = {
     val nphi = !phi
-    val (leftAphi, leftBnphi) = (pa.bot.left.find(isSame(_, phi)), pb.bot.left.find(isSame(_, nphi)))
+    val (leftAphi, leftBnphi) = (psiGivenPhi.bot.left.find(isSame(_, phi)), psiGivenNotPhi.bot.left.find(isSame(_, nphi)))
 
     require(leftAphi.nonEmpty && leftBnphi.nonEmpty)
-    val p2 = RightNot(pa.bot -< leftAphi.get +> nphi, 0, phi)
-    val p3 = Cut(pa.bot -< leftAphi.get ++ (pb.bot -< leftBnphi.get), 2, 1, nphi)
-    SCProof(IndexedSeq(pa, pb, p2, p3))
+    val p2 = RightNot(psiGivenPhi.bot -< leftAphi.get +> nphi, 0, phi)
+    val p3 = Cut(psiGivenPhi.bot -< leftAphi.get ++ (psiGivenNotPhi.bot -< leftBnphi.get), 2, 1, nphi)
+    combineTwoSubproofs(psiGivenPhi, psiGivenNotPhi, p2, p3)
   }
-  // pa is a proof of phi, pb is a proof of phi ==> ???
-  // |- phi ==> psi, phi===>gamma            |- phi
+  // |- phi ==> psi           |- phi
   // -------------------------------------
-  //          |- psi, gamma
-  def modusPonens(phi: Formula)(pa: SCProofStep, pb: SCProofStep): SCProof = {
-    require(pa.bot.right.contains(phi))
-    val opsi = pb.bot.right.find {
-      case ConnectorFormula(Implies, Seq(l, _)) if isSame(l, phi) => true
-      case _ => false
-    }
-    if (opsi.isEmpty) SCProof(pa, pb)
-    else {
-      val psi = opsi.get.asInstanceOf[ConnectorFormula].args(1)
+  //          |- psi
+  def modusPonens(phi: FOL.Formula)(proofPhi: SCSubproof, proofPhiImpliesPsi: SCSubproof): SCSubproof = {
+    require(proofPhi.bot.right.contains(phi))
+    val opsi = proofPhiImpliesPsi.bot.right.collectFirst({
+      case ConnectorFormula(Implies, Seq(l, r)) if isSame(l, phi) => r
+    })
+    if (opsi.isEmpty) {
+      throw TacticNotApplicable(s"Second proof does not prove any formula of form phi => psi")
+    } else {
+      val psi = opsi.get
       val p2 = hypothesis(psi)
-      val p3 = LeftImplies(emptySeq ++ (pa.bot -> phi) +< (phi ==> psi) +> psi, 0, 2, phi, psi)
-      val p4 = Cut(emptySeq ++ (pa.bot -> phi) ++< pb.bot +> psi ++> (pb.bot -> (phi ==> psi)), 1, 3, phi ==> psi)
-      SCProof(pa, pb, p2, p3, p4)
+      val p3 = LeftImplies(emptySeq ++ (proofPhi.bot -> phi) +< (phi ==> psi) +> psi, 0, 2, phi, psi)
+      val p4 = Cut(emptySeq ++ (proofPhi.bot -> phi) ++< proofPhiImpliesPsi.bot +> psi ++> (proofPhiImpliesPsi.bot -> (phi ==> psi)), 1, 3, phi ==> psi)
+
+      combineTwoSubproofs(proofPhi, proofPhiImpliesPsi, p2, p3, p4)
     }
   }
 
@@ -162,4 +186,37 @@ object ProofTactics {
     case _ => (c, false)
   }
 
+  /**
+   * Г |- phi <-> psi
+   * ----------------
+   * Г |- phi -> psi
+   *
+   * @param iffFormula       phi <-> psi
+   * @param impliesFormula  phi -> psi or psi -> phi
+   * @param pIff      proof of phi <-> psi
+   * @return          proof of singleIf
+   */
+  def iffToImplies(iffFormula: Formula, impliesFormula: Formula)(pIff: SCSubproof): SCSubproof = {
+    require(iffFormula.isInstanceOf[ConnectorFormula])
+    require(impliesFormula.isInstanceOf[ConnectorFormula])
+    val iff = iffFormula.asInstanceOf[ConnectorFormula]
+    val implies = impliesFormula.asInstanceOf[ConnectorFormula]
+    require(iff.label == Iff)
+    require(implies.label == Implies)
+    require(
+      iff.args.length == 2 && implies.args.length == 2 &&
+        (isSame(iff.args.head, implies.args.head) && isSame(iff.args(1), implies.args(1))) ||
+        (isSame(iff.args.head, implies.args(1)) && isSame(iff.args(1), implies.args.head))
+    )
+    val (phi, psi) = implies match {
+      case ConnectorFormula(Implies, Seq(l, r)) => (l, r)
+      case _ => throw TacticNotApplicable(s"Second argument is not an implication")
+    }
+    val subproofSteps = pIff.sp.steps.length
+    val hyp0 = hypothesis(implies)
+    val and1 = LeftAnd(implies /\ (psi ==> phi) |- implies, subproofSteps, implies, psi ==> phi)
+    val rewrite2 = Rewrite(iff |- implies, subproofSteps + 1)
+    val cut3 = Cut(pIff.bot.left |- implies, subproofSteps - 1, subproofSteps + 2, implies)
+    SCSubproof(pIff.sp withNewSteps IndexedSeq(hyp0, and1, rewrite2, cut3), pIff.premises)
+  }
 }
