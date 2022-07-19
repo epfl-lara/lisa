@@ -34,7 +34,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    * The label for a predicate, namely a function taking a fixed number of terms and returning a formula.
    * In logical terms it is a predicate symbol.
    */
-  sealed abstract class PredicateLabel extends FormulaLabel with Arity {
+  sealed abstract class PredicateLabel extends FormulaLabel {
     require(arity < MaxArity && arity >= 0)
   }
 
@@ -68,7 +68,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
    */
-  sealed abstract class ConnectorLabel(val id: String, val arity: Int) extends FormulaLabel with Arity {
+  sealed abstract class ConnectorLabel(val id: String, val arity: Int) extends FormulaLabel {
     require(arity < MaxArity && arity >= -1)
   }
 

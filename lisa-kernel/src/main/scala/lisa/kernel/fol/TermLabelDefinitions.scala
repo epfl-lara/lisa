@@ -35,7 +35,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * Standard function symbols denote a particular function. Schematic function symbols
    * can be instantiated with any term. This is particularly useful to express axiom schemas.
    */
-  sealed abstract class FunctionLabel extends TermLabel with Arity {
+  sealed abstract class FunctionLabel extends TermLabel {
     require(arity >= 0 && arity < MaxArity)
   }
 
