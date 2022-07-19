@@ -89,6 +89,7 @@ trait KernelHelpers {
   given Conversion[VariableLabel, VariableTerm] = VariableTerm.apply
   given Conversion[VariableTerm, VariableLabel] = _.label
   given Conversion[PredicateFormula, PredicateLabel] = _.label
+  given Conversion[PredicateLabel, Formula] = _.apply()
   given Conversion[FunctionTerm, FunctionLabel] = _.label
   given Conversion[SchematicFunctionLabel, Term] = _.apply()
   given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula.apply(_, Nil)
