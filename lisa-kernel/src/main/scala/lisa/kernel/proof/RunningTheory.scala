@@ -121,7 +121,7 @@ class RunningTheory {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label))
-        if (body.freeVariables.isEmpty && body.schematicFunctions.subsetOf(vars.toSet) && body.schematicPredicates.isEmpty) {
+        if (body.schematicTerms.subsetOf(vars.toSet) && body.schematicPredicates.isEmpty) {
           val newDef = PredicateDefinition(label, expression)
           predDefinitions.update(label, Some(newDef))
           knownSymbols.update(label.id, label)
@@ -155,8 +155,8 @@ class RunningTheory {
   ): RunningTheoryJudgement[this.FunctionDefinition] = {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
-      if (isAvailable(label))
-        if (body.freeVariables.subsetOf(Set(out)) && body.schematicFunctions.subsetOf(vars.toSet) && body.schematicPredicates.isEmpty)
+      if (isAvailable(label)) {
+        if (body.schematicTerms.subsetOf((vars appended out).toSet) && body.schematicPredicates.isEmpty)
           if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
             val r = SCProofChecker.checkSCProof(proof)
             r match {
@@ -176,7 +176,7 @@ class RunningTheory {
             }
           } else InvalidJustification("Not all imports of the proof are correctly justified.", None)
         else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
-      else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
+      } else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
     else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
   }
 
@@ -184,7 +184,7 @@ class RunningTheory {
     case Theorem(name, proposition) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
     case PredicateDefinition(label, LambdaTermFormula(vars, body)) =>
-      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(FunctionTerm(_, Seq()))), body))
+      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(VariableTerm)), body))
       Sequent(Set(), Set(inner))
     case FunctionDefinition(label, out, LambdaTermFormula(vars, body)) =>
       val inner = BinderFormula(
@@ -193,7 +193,7 @@ class RunningTheory {
         ConnectorFormula(
           Iff,
           Seq(
-            PredicateFormula(equality, Seq(FunctionTerm(label, vars.map(FunctionTerm.apply(_, Seq()))), VariableTerm(out))),
+            PredicateFormula(equality, Seq(FunctionTerm(label, vars.map(VariableTerm)), VariableTerm(out))),
             body
           )
         )

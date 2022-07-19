@@ -13,7 +13,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   sealed abstract class Formula extends TreeWithLabel[FormulaLabel] {
 
     def constantFunctions: Set[ConstantFunctionLabel]
-    def schematicFunctions: Set[SchematicFunctionLabel]
+    def schematicTerms: Set[SchematicTermLabel]
 
     def constantPredicates: Set[ConstantPredicateLabel]
     def schematicPredicates: Set[SchematicPredicateLabel]
@@ -35,7 +35,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     }
 
     override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
-    override def schematicFunctions: Set[SchematicFunctionLabel] = args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
+    override def schematicTerms: Set[SchematicTermLabel] = args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms)
   }
 
   /**
@@ -45,7 +45,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
     override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
-    override def schematicFunctions: Set[SchematicFunctionLabel] = args.foldLeft(Set.empty[SchematicFunctionLabel])((prev, next) => prev union next.schematicFunctions)
+    override def schematicTerms: Set[SchematicTermLabel] = args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms)
 
     override def constantPredicates: Set[ConstantPredicateLabel] = args.foldLeft(Set.empty[ConstantPredicateLabel])((prev, next) => prev union next.constantPredicates)
     override def schematicPredicates: Set[SchematicPredicateLabel] = args.foldLeft(Set.empty[SchematicPredicateLabel])((prev, next) => prev union next.schematicPredicates)
@@ -58,7 +58,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def freeVariables: Set[VariableLabel] = inner.freeVariables - bound
 
     override def constantFunctions: Set[ConstantFunctionLabel] = inner.constantFunctions
-    override def schematicFunctions: Set[SchematicFunctionLabel] = inner.schematicFunctions
+    override def schematicTerms: Set[SchematicTermLabel] = inner.schematicTerms - bound
 
     override def constantPredicates: Set[ConstantPredicateLabel] = inner.constantPredicates
     override def schematicPredicates: Set[SchematicPredicateLabel] = inner.schematicPredicates

@@ -2,8 +2,6 @@ package lisa.kernel.proof
 
 import lisa.kernel.fol.FOL._
 
-import scala.collection.immutable.Set
-
 /**
  * The concrete implementation of sequent calculus (with equality).
  * This file specifies the sequents and the allowed operations on them, the deduction rules of sequent calculus.
@@ -301,7 +299,7 @@ object SequentCalculus {
    *  Γ[r(a)/?f] |- Δ[r(a)/?f]
    * </pre>
    */
-  case class InstFunSchema(bot: Sequent, t1: Int, insts: Map[SchematicFunctionLabel, LambdaTermTerm]) extends SCProofStep { val premises = Seq(t1) }
+  case class InstFunSchema(bot: Sequent, t1: Int, insts: Map[SchematicTermLabel, LambdaTermTerm]) extends SCProofStep { val premises = Seq(t1) }
 
   /**
    * <pre>

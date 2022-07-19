@@ -11,27 +11,28 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.language.adhocExtensions
 
 abstract class ProofCheckerSuite extends AnyFunSuite {
+
   import lisa.kernel.fol.FOL.*
 
   protected val (xl, yl, zl, wl, xpl, ypl, zpl, wpl) = (
-    SchematicFunctionLabel("x", 0),
-    SchematicFunctionLabel("y", 0),
-    SchematicFunctionLabel("z", 0),
-    SchematicFunctionLabel("w", 0),
-    SchematicFunctionLabel("x'", 0),
-    SchematicFunctionLabel("y'", 0),
-    SchematicFunctionLabel("z'", 0),
-    SchematicFunctionLabel("w'", 0)
+    VariableLabel("x"),
+    VariableLabel("y"),
+    VariableLabel("z"),
+    VariableLabel("w"),
+    VariableLabel("x'"),
+    VariableLabel("y'"),
+    VariableLabel("z'"),
+    VariableLabel("w'")
   )
   protected val (x, y, z, w, xp, yp, zp, wp) = (
-    FunctionTerm(xl, Seq.empty),
-    FunctionTerm(yl, Seq.empty),
-    FunctionTerm(zl, Seq.empty),
-    FunctionTerm(wl, Seq.empty),
-    FunctionTerm(xpl, Seq.empty),
-    FunctionTerm(ypl, Seq.empty),
-    FunctionTerm(zpl, Seq.empty),
-    FunctionTerm(wpl, Seq.empty)
+    VariableTerm(xl),
+    VariableTerm(yl),
+    VariableTerm(zl),
+    VariableTerm(wl),
+    VariableTerm(xpl),
+    VariableTerm(ypl),
+    VariableTerm(zpl),
+    VariableTerm(wpl)
   )
 
   protected val (sl, tl, ul, vl) = (VariableLabel("s"), VariableLabel("t"), VariableLabel("u"), VariableLabel("v"))
