@@ -101,7 +101,7 @@ class FolTests extends AnyFunSuite {
   private val a = PredicateFormula(ConstantPredicateLabel("A", 0), Seq())
   private val b = PredicateFormula(ConstantPredicateLabel("B", 0), Seq())
   private val fp = ConstantPredicateLabel("F", 1)
-  private val sT = SchematicFunctionLabel("t", 0)
+  private val sT = VariableLabel("t")
 
   def test_some_random_formulas(n: Int, maxDepth: Int): Unit = {
     (0 to n).foreach(_ => println(formulaGenerator(maxDepth)))

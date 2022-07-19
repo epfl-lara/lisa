@@ -149,7 +149,7 @@ object SimplePropositionalSolver {
 
     } else {
       val f = s.left.find(f => s.right.contains(f))
-      List(Hypothesis(s, if (f.nonEmpty) f.get else PredicateFormula(SchematicPredicateLabel("P", 0), Seq())))
+      List(Hypothesis(s, if (f.nonEmpty) f.get else PredicateFormula(VariableFormulaLabel("P"), Seq())))
     }
   }
 

@@ -11,7 +11,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
 
   private val (x, y, z) =
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
-  private final val sPhi = SchematicPredicateLabel("P", 2)
+  private final val sPhi = SchematicNPredicateLabel("P", 2)
 
   final val emptySetAxiom: Formula = forall(x, !in(x, emptySet()))
   final val extensionalityAxiom: Formula = forall(x, forall(y, forall(z, in(z, x) <=> in(z, y)) <=> (x === y)))

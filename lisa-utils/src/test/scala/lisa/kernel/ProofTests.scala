@@ -22,7 +22,7 @@ class ProofTests extends AnyFunSuite {
   private val a = PredicateFormula(ConstantPredicateLabel("A", 0), Seq())
   private val b = PredicateFormula(ConstantPredicateLabel("B", 0), Seq())
   private val fp = ConstantPredicateLabel("F", 1)
-  val sT = SchematicFunctionLabel("t", 0)
+  val sT = VariableLabel("t")
 
   test("Verification of Pierce law") {
     val s0 = Hypothesis(a |- a, a)
@@ -36,7 +36,7 @@ class ProofTests extends AnyFunSuite {
 
   test("Verification of substitution") {
     val t0 = Hypothesis(fp(x) |- fp(x), fp(x))
-    val t1 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, List((x, y)), LambdaTermFormula(Seq(sT), fp(sT())))
+    val t1 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, List((x, y)), LambdaTermFormula(Seq(sT), fp(sT)))
     val pr = new SCProof(IndexedSeq(t0, t1))
     assert(predicateVerifier(pr).isValid)
   }

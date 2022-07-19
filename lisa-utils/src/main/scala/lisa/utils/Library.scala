@@ -53,12 +53,12 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(proof: Proof)(using String => Unit): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
+    def PROOF(proof: Proof)(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit): TheoremNameWithProof = TheoremNameWithProof(name, statement, Proof(steps))
+    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, Proof(steps))
   }
 
   /**
@@ -80,7 +80,7 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithProof(name: String, statement: String, proof: Proof)(using String => Unit) {
+  case class TheoremNameWithProof(name: String, statement: String, proof: Proof)(using String => Unit)(using Throwable => Nothing) {
     infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
@@ -101,7 +101,7 @@ abstract class Library(val theory: RunningTheory) {
    */
   def simpleDefinition(symbol: String, expression: LambdaTermTerm): Judgement[theory.FunctionDefinition] = {
     val LambdaTermTerm(vars, body) = expression
-    val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicFunctions.map(_.id)).toSet, "y"))
+    val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTerms.map(_.id)).toSet, "y"))
     val proof: Proof = simpleFunctionDefinition(expression, out)
     theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, Nil)
   }
@@ -109,9 +109,9 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * Allows to create a definition by existential uniqueness of a function symbol:
    */
-  def complexDefinition(symbol: String, vars: Seq[SchematicFunctionLabel], v: SchematicFunctionLabel, f: Formula, proof: Proof, just: Seq[Justification]): Judgement[theory.FunctionDefinition] = {
-    val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ f.schematicFunctions.map(_.id)).toSet, "y"))
-    theory.functionDefinition(symbol, LambdaTermFormula(vars, instantiateFunctionSchemas(f, Map(v -> LambdaTermTerm(Nil, out)))), out, proof, just)
+  def complexDefinition(symbol: String, vars: Seq[VariableLabel], v: VariableLabel, f: Formula, proof: Proof, just: Seq[Justification]): Judgement[theory.FunctionDefinition] = {
+    theory.functionDefinition(symbol, LambdaTermFormula(vars, f), v, proof, just)
+    // theory.functionDefinition(symbol, LambdaTermFormula(vars, instantiateTermSchemas(f, Map(v -> LambdaTermTerm(Nil, out)))), out, proof, just)
   }
 
   /**
@@ -125,12 +125,12 @@ abstract class Library(val theory: RunningTheory) {
    * or
    * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
    */
-  case class FunSymbolDefine(symbol: String, vars: Seq[SchematicFunctionLabel]) {
+  case class FunSymbolDefine(symbol: String, vars: Seq[VariableLabel]) {
 
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(t: Term)(using String => Unit): ConstantFunctionLabel = {
+    infix def as(t: Term)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = {
       val definition = simpleDefinition(symbol, LambdaTermTerm(vars, t)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -143,7 +143,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(f: Formula)(using String => Unit): ConstantPredicateLabel = {
+    infix def as(f: Formula)(using String => Unit)(using Throwable => Nothing): ConstantPredicateLabel = {
       val definition = simpleDefinition(symbol, LambdaTermFormula(vars, f)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -156,13 +156,13 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def asThe(out: SchematicFunctionLabel): DefinitionNameAndOut = DefinitionNameAndOut(symbol, vars, out)
+    infix def asThe(out: VariableLabel): DefinitionNameAndOut = DefinitionNameAndOut(symbol, vars, out)
   }
 
   /**
    * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
    */
-  case class DefinitionNameAndOut(symbol: String, vars: Seq[SchematicFunctionLabel], out: SchematicFunctionLabel) {
+  case class DefinitionNameAndOut(symbol: String, vars: Seq[VariableLabel], out: VariableLabel) {
 
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
@@ -173,7 +173,7 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
    */
-  case class DefinitionWaitingProof(symbol: String, vars: Seq[SchematicFunctionLabel], out: SchematicFunctionLabel, f: Formula) {
+  case class DefinitionWaitingProof(symbol: String, vars: Seq[VariableLabel], out: VariableLabel, f: Formula) {
 
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
@@ -184,12 +184,12 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
    */
-  case class DefinitionWithProof(symbol: String, vars: Seq[SchematicFunctionLabel], out: SchematicFunctionLabel, f: Formula, proof: Proof) {
+  case class DefinitionWithProof(symbol: String, vars: Seq[VariableLabel], out: VariableLabel, f: Formula, proof: Proof) {
 
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(justifications: theory.Justification*)(using String => Unit): ConstantFunctionLabel = {
+    infix def using(justifications: theory.Justification*)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = {
       val definition = complexDefinition(symbol, vars, out, f, proof, justifications) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -202,13 +202,13 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(u: Unit)(using String => Unit): ConstantFunctionLabel = using()
+    infix def using(u: Unit)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = using()
   }
 
   /**
    * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
    */
-  def DEFINE(symbol: String, vars: SchematicFunctionLabel*): FunSymbolDefine = FunSymbolDefine(symbol, vars)
+  def DEFINE(symbol: String, vars: VariableLabel*): FunSymbolDefine = FunSymbolDefine(symbol, vars)
 
   /**
    * For a definition of the type f(x) := term, construct the required proof ∃!y. y = term.

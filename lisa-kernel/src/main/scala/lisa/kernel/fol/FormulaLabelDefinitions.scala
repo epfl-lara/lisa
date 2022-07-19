@@ -34,7 +34,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    * The label for a predicate, namely a function taking a fixed number of terms and returning a formula.
    * In logical terms it is a predicate symbol.
    */
-  sealed abstract class PredicateLabel extends FormulaLabel with Arity {
+  sealed abstract class PredicateLabel extends FormulaLabel {
     require(arity < MaxArity && arity >= 0)
   }
 
@@ -51,12 +51,24 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A predicate symbol that can be instantiated with any formula.
    */
-  sealed case class SchematicPredicateLabel(id: String, arity: Int) extends PredicateLabel
+  sealed abstract class SchematicPredicateLabel extends PredicateLabel with SchematicLabel
+
+  /**
+   * A predicate symbol of non-zero arity that can be instantiated with any formula taking arguments.
+   */
+  sealed case class SchematicNPredicateLabel(id: String, arity: Int) extends SchematicPredicateLabel
+
+  /**
+   * A predicate symbol of arity 0 that can be instantiated with any formula.
+   */
+  sealed case class VariableFormulaLabel(id: String) extends SchematicPredicateLabel {
+    val arity = 0
+  }
 
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
    */
-  sealed abstract class ConnectorLabel(val id: String, val arity: Int) extends FormulaLabel with Arity {
+  sealed abstract class ConnectorLabel(val id: String, val arity: Int) extends FormulaLabel {
     require(arity < MaxArity && arity >= -1)
   }
 
@@ -73,7 +85,9 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * The label for a binder, namely an object with a body that has the ability to bind variables in it.
    */
-  sealed abstract class BinderLabel(val id: String) extends FormulaLabel
+  sealed abstract class BinderLabel(val id: String) extends FormulaLabel {
+    val arity = 1
+  }
 
   case object Forall extends BinderLabel(id = "∀")
 

@@ -7,16 +7,10 @@ private[fol] trait CommonDefinitions {
   val MaxArity: Int = 1000000
 
   /**
-   * An object with arity information for tree-like structures.
-   */
-  protected trait Arity {
-    val arity: Int
-  }
-
-  /**
    * An labelled node for tree-like structures.
    */
   protected trait Label {
+    val arity: Int
     val id: String
   }
 

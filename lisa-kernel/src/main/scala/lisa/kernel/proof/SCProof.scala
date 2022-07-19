@@ -1,6 +1,5 @@
 package lisa.kernel.proof
 
-import lisa.kernel.proof.SCProofChecker._
 import lisa.kernel.proof.SequentCalculus._
 
 /**
