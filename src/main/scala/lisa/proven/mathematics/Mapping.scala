@@ -10,6 +10,7 @@ import SetTheory.*
  * Leads to the definition of the cartesian product.
  */
 object Mapping extends lisa.proven.Main {
+  export lisa.proven.SetTheoryLibrary.{*, given}
 
   THEOREM("functionalMapping") of
     "∀a. (a ∈ ?A) ⇒ ∃!x. ?phi(x, a) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ ?A) ∧ ?phi(x, a)" PROOF {

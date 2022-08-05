@@ -4,8 +4,6 @@ package lisa.proven
  * The parent trait of all theory files containing mathematical development
  */
 trait Main {
-  export lisa.proven.SetTheoryLibrary.{*, given}
-
   private val realOutput: String => Unit = println
   private var outString: List[String] = List()
   private val lineBreak = "\n"

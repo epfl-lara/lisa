@@ -7,6 +7,7 @@ import lisa.proven.tactics.ProofTactics.*
  * An embryo of mathematical development, containing a few example theorems and the definition of the ordered pair.
  */
 object SetTheory extends lisa.proven.Main {
+  export lisa.proven.SetTheoryLibrary.{*, given}
 
   THEOREM("russelParadox") of "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢" PROOF {
     val y = VariableLabel("y")
