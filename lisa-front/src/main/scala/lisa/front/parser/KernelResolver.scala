@@ -63,7 +63,7 @@ private[parser] object KernelResolver {
     }
   }
   private object PredicateMap {
-    def unapplySeq(trees: Seq[ParsedTopTermOrFormula]): Option[Seq[(SchematicPredicateLabel, LambdaTermFormula)]] = {
+    def unapplySeq(trees: Seq[ParsedTopTermOrFormula]): Option[Seq[(SchematicFormulaLabel, LambdaTermFormula)]] = {
       all(trees.map {
         case ParsedTopTermOrFormula(freeVariables, ParsedIff(left, term)) =>
           val opt = left match {

@@ -9,7 +9,7 @@ trait FormulaLabelDefinitions extends CommonDefinitions {
   sealed abstract class PredicateLabel[N <: Arity] extends FormulaLabel with WithArity[N]
   /** @see [[lisa.kernel.fol.FOL.ConstantPredicateLabel]] */
   final case class ConstantPredicateLabel[N <: Arity] protected(id: String, arity: N) extends PredicateLabel[N]
-  /** @see [[lisa.kernel.fol.FOL.SchematicPredicateLabel]] */
+  /** @see [[lisa.kernel.fol.FOL.SchematicFormulaLabel]] */
   final case class SchematicPredicateLabel[N <: Arity] protected(id: String, arity: N) extends PredicateLabel[N] with SchematicLabel
 
   object ConstantPredicateLabel {

@@ -22,7 +22,6 @@ trait Substitutions extends FormulaDefinitions {
     def apply(args: Seq[Term]): Formula = {
       substituteVariables(body, (vars zip args).toMap)
     }
-    // def instantiateFunctionSchemas(phi: Formula, m: Map[SchematicFunctionLabel, LambdaTermTerm]):Formula = ???
   }
 
   /**
@@ -32,7 +31,10 @@ trait Substitutions extends FormulaDefinitions {
    * @param body The formula represented by the object, up to instantiation of the bound schematic variables in args.
    */
   case class LambdaFormulaFormula(vars: Seq[VariableFormulaLabel], body: Formula) {
-    def apply(args: Seq[Formula]): Formula = instantiatePredicateSchemas(body, (vars zip (args map (LambdaTermFormula(Nil, _)))).toMap)
+    def apply(args: Seq[Formula]): Formula = {
+      substituteFormulaVariables(body, (vars zip args).toMap)
+      //instantiatePredicateSchemas(body, (vars zip (args map (LambdaTermFormula(Nil, _)))).toMap)
+    }
   }
 
   //////////////////////////
@@ -77,13 +79,13 @@ trait Substitutions extends FormulaDefinitions {
   /////////////////////////////
 
   /**
-   * Performs simultaneous substitution of multiple variables by multiple terms in a formula f.
+   * Performs simultaneous substitution of multiple variables by multiple terms in a formula phi.
    *
    * @param f The base formula
    * @param m A map from variables to terms.
    * @return t[m]
    */
-  def substituteVariables(f: Formula, m: Map[VariableLabel, Term]): Formula = f match {
+  def substituteVariables(phi: Formula, m: Map[VariableLabel, Term]): Formula = phi match {
     case PredicateFormula(label, args) => PredicateFormula(label, args.map(substituteVariables(_, m)))
     case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteVariables(_, m)))
     case BinderFormula(label, bound, inner) =>
@@ -96,13 +98,25 @@ trait Substitutions extends FormulaDefinitions {
       } else BinderFormula(label, bound, substituteVariables(inner, newSubst))
   }
 
+  def substituteFormulaVariables(phi: Formula, m: Map[VariableFormulaLabel, Formula]): Formula = phi match {
+    case PredicateFormula(label: VariableFormulaLabel, _) => m.getOrElse(label, phi)
+    case _: PredicateFormula => phi
+    case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteFormulaVariables(_, m)))
+    case BinderFormula(label, bound, inner) =>
+      val fv = m.values.flatMap(_.freeVariables).toSet
+      if (fv.contains(bound)) {
+        val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
+        val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
+        BinderFormula(label, newBoundVariable, substituteFormulaVariables(newInner, m))
+      } else BinderFormula(label, bound, substituteFormulaVariables(inner, m))
+  }
+
   /**
    * Performs simultaneous substitution of schematic function symbol by "functional" terms, or terms with holes.
    * If the arity of one of the function symbol to substitute doesn't match the corresponding number of arguments, it will produce an error.
    * @param phi The base formula
-   * @param m The map from schematic function symbols to "terms with holes". A such term is a pair containing a list of
-   *          variable symbols (holes) and a term that is the body of the functional term.
-   * @return t[m]
+   * @param m The map from schematic function symbols to lambda expressions Term(s) -> Term.
+   * @return phi[m]
    */
   def instantiateTermSchemas(phi: Formula, m: Map[SchematicTermLabel, LambdaTermTerm]): Formula = {
     require(m.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
@@ -124,9 +138,8 @@ trait Substitutions extends FormulaDefinitions {
    * Instantiate a schematic predicate symbol in a formula, using higher-order instantiation.
    *
    * @param phi The base formula
-   * @param m The map from schematic function symbols to "terms with holes". A such term is a pair containing a list of
-   *          variable symbols (holes) and a term that is the body of the functional term.
-   * @return t[m]
+   * @param m The map from schematic predicate symbols to lambda expressions Term(s) -> Formula.
+   * @return phi[m]
    */
   def instantiatePredicateSchemas(phi: Formula, m: Map[SchematicPredicateLabel, LambdaTermFormula]): Formula = {
     require(m.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
@@ -134,7 +147,7 @@ trait Substitutions extends FormulaDefinitions {
       case PredicateFormula(label, args) =>
         label match {
           case label: SchematicPredicateLabel if m.contains(label) => m(label)(args)
-          case label => phi
+          case _ => phi
         }
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiatePredicateSchemas(_, m)))
       case BinderFormula(label, bound, inner) =>
@@ -144,6 +157,32 @@ trait Substitutions extends FormulaDefinitions {
           val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiatePredicateSchemas(newInner, m))
         } else BinderFormula(label, bound, instantiatePredicateSchemas(inner, m))
+    }
+  }
+
+  /**
+   * Instantiate a schematic connector symbol in a formula, using higher-order instantiation.
+   *
+   * @param phi The base formula
+   * @param m The map from schematic function symbols to lambda expressions Formula(s) -> Formula.
+   * @return phi[m]
+   */
+  def instantiateConnectorSchemas(phi: Formula, m: Map[SchematicConnectorLabel, LambdaFormulaFormula]): Formula = {
+    require(m.forall { case (symbol, LambdaFormulaFormula(arguments, body)) => arguments.length == symbol.arity })
+    phi match {
+      case _: PredicateFormula => phi
+      case ConnectorFormula(label, args) =>
+        label match {
+          case label: SchematicConnectorLabel  if m.contains(label) => m(label)(args)
+          case _ => ConnectorFormula(label, args.map(instantiateConnectorSchemas(_, m)))
+        }
+      case BinderFormula(label, bound, inner) =>
+        val fv: Set[VariableLabel] = (m.flatMap { case (symbol, LambdaFormulaFormula(arguments, body)) => body.freeVariables }).toSet
+        if (fv.contains(bound)) {
+          val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
+          val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
+          BinderFormula(label, newBoundVariable, instantiateConnectorSchemas(newInner, m))
+        } else BinderFormula(label, bound, instantiateConnectorSchemas(inner, m))
     }
   }
 

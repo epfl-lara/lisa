@@ -168,10 +168,10 @@ object ProofsShrink {
   def simplifyProof(proof: SCProof): SCProof = {
     def isSequentSubset(subset: Sequent, superset: Sequent): Boolean =
       isSubset(subset.left, superset.left) && isSubset(subset.right, superset.right)
-    def schematicPredicates(sequent: Sequent): Set[SchematicPredicateLabel] =
+    def schematicPredicates(sequent: Sequent): Set[SchematicFormulaLabel] =
       (sequent.left ++ sequent.right).flatMap(_.schematicPredicates)
     def schematicTerms(sequent: Sequent): Set[SchematicTermLabel] =
-      (sequent.left ++ sequent.right).flatMap(_.schematicTerms)
+      (sequent.left ++ sequent.right).flatMap(_.schematicTermsLabels)
     val (newSteps, _) = proof.steps.zipWithIndex.foldLeft((IndexedSeq.empty[SCProofStep], IndexedSeq.empty[Int])) { case ((acc, map), (oldStep, i)) =>
       def resolveLocal(j: Int): Int = {
         require(j < i)

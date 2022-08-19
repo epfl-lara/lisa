@@ -121,7 +121,7 @@ class RunningTheory {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label))
-        if (body.schematicTerms.subsetOf(vars.toSet) && body.schematicPredicates.isEmpty) {
+        if (body.schematicTermsLabels.subsetOf(vars.toSet) && body.schematicPredicates.isEmpty) {
           val newDef = PredicateDefinition(label, expression)
           predDefinitions.update(label, Some(newDef))
           knownSymbols.update(label.id, label)
@@ -156,7 +156,7 @@ class RunningTheory {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label)) {
-        if (body.schematicTerms.subsetOf((vars appended out).toSet) && body.schematicPredicates.isEmpty)
+        if (body.schematicTermsLabels.subsetOf((vars appended out).toSet) && body.schematicPredicates.isEmpty)
           if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
             val r = SCProofChecker.checkSCProof(proof)
             r match {
@@ -220,7 +220,7 @@ class RunningTheory {
 
   def makeFormulaBelongToTheory(phi: Formula): Unit = {
     phi.constantPredicates.foreach(addSymbol)
-    phi.constantFunctions.foreach(addSymbol)
+    phi.constantTermLabels.foreach(addSymbol)
   }
 
   /**

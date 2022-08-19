@@ -21,6 +21,9 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
   case class SimplePredicate(id: PredicateLabel, args: List[Term]) extends SimpleFormula {
     val size = 1
   }
+  case class SimpleConnector(id: ConnectorLabel, args: List[SimpleFormula]) extends SimpleFormula {
+    val size = 1
+  }
   case class SNeg(child: SimpleFormula) extends SimpleFormula {
     val size: Int = 1 + child.size
   }
@@ -41,6 +44,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     val code: Int
   }
   case class NormalPredicate(id: PredicateLabel, args: List[Term], code: Int) extends NormalFormula
+  case class NormalConnector(id: ConnectorLabel, args: List[NormalFormula], code: Int) extends NormalFormula
   case class NNeg(child: NormalFormula, code: Int) extends NormalFormula
   case class NOr(children: List[NormalFormula], code: Int) extends NormalFormula
   case class NForall(x: String, inner: NormalFormula, code: Int) extends NormalFormula
@@ -76,6 +80,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
               case And =>
                 SNeg(SOr(args.map(c => SNeg(removeSugar(c))).toList))
               case Or => SOr((args map removeSugar).toList)
+              case _ => SimpleConnector(label, args.toList.map(removeSugar))
             }
           case BinderFormula(label, bound, inner) =>
             label match {
@@ -102,6 +107,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
 
     def toLocallyNameless(phi: SimpleFormula, subst: Map[VariableLabel, Int], i: Int): SimpleFormula = phi match {
       case SimplePredicate(id, args) => SimplePredicate(id, args.map(c => toLocallyNameless(c, subst, i)))
+      case SimpleConnector(id, args) => SimpleConnector(id, args.map(f => toLocallyNameless(f, subst, i)))
       case SNeg(child) => SNeg(toLocallyNameless(child, subst, i))
       case SOr(children) => SOr(children.map(toLocallyNameless(_, subst, i)))
       case SForall(x, inner) => SForall("", toLocallyNameless(inner, subst + (VariableLabel(x) -> i), i + 1))
@@ -204,6 +210,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
             phi.normalForm = Some(NormalPredicate(id, args, updateCodesSig((lab, args map codesOfTerm))))
           }
           phi.normalForm.get :: acc
+        case SimpleConnector(id, args) =>
+          val lab = "conn_" + id.id + "_" + id.arity
+          phi.normalForm = Some(NormalConnector(id, args.map(_.normalForm.get), updateCodesSig((lab, args map OCBSLCode))))
+          phi.normalForm.get :: acc
         case SNeg(child) => pNeg(child, phi, acc)
         case SOr(children) => children.foldLeft(acc)((p, a) => pDisj(a, p))
         case SForall(x, inner) =>
@@ -240,7 +250,13 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
           } else {
             phi.normalForm = Some(NormalPredicate(id, args, updateCodesSig((lab, args map codesOfTerm))))
             parent.normalForm = Some(NNeg(phi.normalForm.get, updateCodesSig(("neg", List(phi.normalForm.get.code)))))
+          //phi.normalForm = Some(NormalPredicate(id, args, updateCodesSig((lab, args map codesOfTerm))))
           }
+          parent.normalForm.get :: acc
+        case SimpleConnector(id, args) =>
+          val lab = "conn_" + id.id + "_" + id.arity
+          phi.normalForm = Some(NormalConnector(id, args.map(_.normalForm.get), updateCodesSig((lab, args map OCBSLCode))))
+          parent.normalForm = Some(NNeg(phi.normalForm.get, updateCodesSig(("neg", List(phi.normalForm.get.code)))))
           parent.normalForm.get :: acc
         case SNeg(child) => pDisj(child, acc)
         case SForall(x, inner) =>

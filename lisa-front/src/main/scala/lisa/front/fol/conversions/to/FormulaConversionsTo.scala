@@ -19,7 +19,7 @@ trait FormulaConversionsTo extends FormulaDefinitions with TermConversionsTo wit
     lisa.kernel.fol.FOL.VariableFormulaLabel(label.id)
   }
 
-  def toKernel(label: SchematicPredicateLabel[?]): lisa.kernel.fol.FOL.SchematicPredicateLabel = {
+  def toKernel(label: SchematicPredicateLabel[?]): lisa.kernel.fol.FOL.SchematicFormulaLabel = {
     if (label.arity == 0) lisa.kernel.fol.FOL.VariableFormulaLabel(label.id)
     else lisa.kernel.fol.FOL.SchematicNPredicateLabel(label.id, label.arity)
   }
@@ -68,7 +68,7 @@ trait FormulaConversionsTo extends FormulaDefinitions with TermConversionsTo wit
   given Conversion[Formula, lisa.kernel.fol.FOL.Formula] = toKernel
   given Conversion[ConstantPredicateLabel[?], lisa.kernel.fol.FOL.ConstantPredicateLabel] = toKernel
   given Conversion[SchematicPredicateLabel[0], lisa.kernel.fol.FOL.VariableFormulaLabel] = toKernel
-  given Conversion[SchematicPredicateLabel[?], lisa.kernel.fol.FOL.SchematicPredicateLabel] = toKernel
+  given Conversion[SchematicPredicateLabel[?], lisa.kernel.fol.FOL.SchematicFormulaLabel] = toKernel
   given Conversion[PredicateLabel[?], lisa.kernel.fol.FOL.PredicateLabel] = toKernel
   given Conversion[ConnectorLabel[?], lisa.kernel.fol.FOL.ConnectorLabel] = toKernel
   given Conversion[BinderLabel, lisa.kernel.fol.FOL.BinderLabel] = toKernel
