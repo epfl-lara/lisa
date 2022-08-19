@@ -1,12 +1,10 @@
-package lisa.proven.tactics
+package lisa.automation.kernel
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.Printer.*
-
-import scala.collection.immutable.Set
 
 /**
  * SCProof tactics are a set of strategies that help the user write proofs in a more expressive way
@@ -19,7 +17,7 @@ object ProofTactics {
   def instantiateForall(p: SCProof, phi: Formula, t: Term): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
     require(p.conclusion.right.contains(phi))
     phi match {
-      case b @ BinderFormula(Forall, _, _) =>
+      case b@BinderFormula(Forall, _, _) =>
         val c = p.conclusion
         val tempVar = VariableLabel(freshId(b.freeVariables.map(_.id), "x"))
         val in = instantiateBinder(b, t)
@@ -30,30 +28,37 @@ object ProofTactics {
       case _ => throw new Exception("not a forall")
     }
   }
+
   def instantiateForall(p: SCProof, phi: Formula, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
     t.foldLeft((p, phi)) { case ((p, f), t1) =>
       (
         instantiateForall(p, f, t1),
         f match {
-          case b @ BinderFormula(Forall, _, _) => instantiateBinder(b, t1)
+          case b@BinderFormula(Forall, _, _) => instantiateBinder(b, t1)
           case _ => throw new Exception
         }
       )
     }._1
   }
+
   def instantiateForall(p: SCProof, t: Term): SCProof = instantiateForall(p, p.conclusion.right.head, t) // if a single formula on the right
+
   def instantiateForall(p: SCProof, t: Term*): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
     t.foldLeft(p)((p1, t1) => instantiateForall(p1, t1))
   }
+
   def generalizeToForall(p: SCProof, phi: Formula, x: VariableLabel): SCProof = {
     require(p.conclusion.right.contains(phi))
     val p1 = RightForall(p.conclusion -> phi +> forall(x, phi), p.length - 1, phi, x)
     p appended p1
   }
+
   def generalizeToForall(p: SCProof, x: VariableLabel): SCProof = generalizeToForall(p, p.conclusion.right.head, x)
+
   def generalizeToForall(p: SCProof, x: VariableLabel*): SCProof = { // given a proof with a formula on the right, extend the proof to the same formula with variables universally quantified.
     x.foldRight(p)((x1, p1) => generalizeToForall(p1, x1))
   }
+
   def byEquiv(f: Formula, f1: Formula)(pEq: SCProofStep, pr1: SCProofStep): SCProof = {
     require(pEq.bot.right.contains(f))
     require(pr1.bot.right.contains(f1))
@@ -89,6 +94,7 @@ object ProofTactics {
     })*/
     SCProof(v)
   }
+
   // p1 is a proof of psi given phi, p2 is a proof of psi given !phi
   def byCase(phi: Formula)(pa: SCProofStep, pb: SCProofStep): SCProof = {
     val nphi = !phi
@@ -99,6 +105,7 @@ object ProofTactics {
     val p3 = Cut(pa.bot -< leftAphi.get ++ (pb.bot -< leftBnphi.get), 2, 1, nphi)
     SCProof(IndexedSeq(pa, pb, p2, p3))
   }
+
   // pa is a proof of phi, pb is a proof of phi ==> ???
   // |- phi ==> psi, phi===>gamma            |- phi
   // -------------------------------------
@@ -141,8 +148,9 @@ object ProofTactics {
     }
     case _ => (c, false)
   }
+
   def detectSubstitutionT(x: VariableLabel, t: Term, s: Term, c: Option[Term] = None): (Option[Term], Boolean) = (t, s) match {
-    case (y: VariableTerm, z: Term) => {
+    case (y@ Term(l:VariableLabel, _), z: Term) => {
       if (isSame(y.label, x)) {
         if (c.isDefined) {
           (c, isSame(c.get, z))
@@ -151,7 +159,7 @@ object ProofTactics {
         }
       } else (c, isSame(y, z))
     }
-    case (FunctionTerm(la1, args1), FunctionTerm(la2, args2)) if isSame(la1, la2) => {
+    case (Term(la1, args1), Term(la2, args2)) if isSame(la1, la2) => {
       args1
         .zip(args2)
         .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {

@@ -46,8 +46,8 @@ trait Substitutions extends FormulaDefinitions {
    * @return t[m]
    */
   def substituteVariables(t: Term, m: Map[VariableLabel, Term]): Term = t match {
-    case VariableTerm(label) => m.getOrElse(label, t)
-    case FunctionTerm(label, args) => FunctionTerm(label, args.map(substituteVariables(_, m)))
+    case Term(label: VariableLabel, _) => m.getOrElse(label, t)
+    case Term(label, args) => Term(label, args.map(substituteVariables(_, m)))
   }
 
   /**
@@ -61,13 +61,13 @@ trait Substitutions extends FormulaDefinitions {
   def instantiateTermSchemas(t: Term, m: Map[SchematicTermLabel, LambdaTermTerm]): Term = {
     require(m.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     t match {
-      case VariableTerm(label) => m.get(label).map(_.apply(Nil)).getOrElse(t)
-      case FunctionTerm(label, args) =>
+      case Term(label: VariableLabel, _) => m.get(label).map(_.apply(Nil)).getOrElse(t)
+      case Term(label, args) =>
         val newArgs = args.map(instantiateTermSchemas(_, m))
         label match {
-          case label: ConstantFunctionLabel => FunctionTerm(label, newArgs)
-          case label: SchematicFunctionLabel =>
-            m.get(label).map(_(newArgs)).getOrElse(FunctionTerm(label, newArgs))
+          case label: ConstantFunctionLabel => Term(label, newArgs)
+          case label: SchematicTermLabel =>
+            m.get(label).map(_(newArgs)).getOrElse(Term(label, newArgs))
         }
     }
   }

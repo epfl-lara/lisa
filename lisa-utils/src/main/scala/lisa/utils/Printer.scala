@@ -150,8 +150,7 @@ object Printer {
    * @return the string representation of this term
    */
   def prettyTerm(term: Term, compact: Boolean = false): String = term match {
-    case VariableTerm(label) => s"?${label.id}"
-    case FunctionTerm(label, args) =>
+    case Term(label, args) =>
       label match {
         case `emptySet` =>
           args match {
@@ -185,8 +184,8 @@ object Printer {
           }
         case _ =>
           val labelString = label match {
-            case ConstantFunctionLabel(id, _) => id
-            case SchematicFunctionLabel(id, _) => s"?$id"
+            case l: ConstantFunctionLabel => l.id
+            case l: SchematicTermLabel => s"?${l.id}"
           }
           prettyFunction(labelString, args.map(prettyTerm(_, compact)), compact)
       }

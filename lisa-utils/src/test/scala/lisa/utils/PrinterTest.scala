@@ -12,7 +12,7 @@ class PrinterTest extends AnyFunSuite {
   val (x, y, z) = (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
 
   given Conversion[PredicateLabel, PredicateFormula] = PredicateFormula(_, Seq.empty)
-  given Conversion[VariableLabel, VariableTerm] = VariableTerm.apply
+  given Conversion[VariableLabel, Term] = VariableTerm.apply
 
   test("Minimal parenthesization") {
     assert(prettyFormula(ConnectorFormula(And, Seq(a, b))) == "a ∧ b")

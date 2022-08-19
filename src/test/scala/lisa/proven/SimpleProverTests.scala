@@ -4,7 +4,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.PredicateLogic
 import lisa.kernel.proof.SCProofChecker
-import lisa.proven.tactics.SimplePropositionalSolver as SPS
+import lisa.automation.kernel.SimplePropositionalSolver as SPS
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.getPRPproblems
 import lisa.utils.Helpers.*

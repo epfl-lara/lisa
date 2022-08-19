@@ -53,6 +53,10 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    */
   sealed abstract class SchematicPredicateLabel extends PredicateLabel with SchematicLabel
 
+  def SchematicPredicateLabel(id:String, arity: Int): SchematicPredicateLabel = {
+    if (arity == 0) VariableFormulaLabel(id)
+    else SchematicNPredicateLabel(id, arity)
+  }
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any formula taking arguments.
    */

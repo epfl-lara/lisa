@@ -1,7 +1,7 @@
 package lisa.proven.mathematics
 
-import lisa.proven.tactics.Destructors.*
-import lisa.proven.tactics.ProofTactics.*
+import lisa.automation.kernel.Destructors.*
+import lisa.automation.kernel.ProofTactics.*
 
 import SetTheory.*
 

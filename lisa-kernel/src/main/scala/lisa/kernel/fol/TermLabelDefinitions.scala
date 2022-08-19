@@ -12,6 +12,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * In logical terms, those labels are essentially symbols of sme language.
    */
   sealed abstract class TermLabel extends Label with Ordered[TermLabel] {
+    require(arity >= 0 && arity < MaxArity)
     def priority: Int = this match {
       case _: VariableLabel => 1
       case _: ConstantFunctionLabel => 2
@@ -29,15 +30,6 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
     }
   }
 
-  /**
-   * The label of a function-like term. Constants are functions of arity 0.
-   * There are two kinds of function symbols: Standards and schematic.
-   * Standard function symbols denote a particular function. Schematic function symbols
-   * can be instantiated with any term. This is particularly useful to express axiom schemas.
-   */
-  sealed abstract class FunctionLabel extends TermLabel {
-    require(arity >= 0 && arity < MaxArity)
-  }
 
   /**
    * A function symbol.
@@ -45,7 +37,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
    */
-  sealed case class ConstantFunctionLabel(id: String, arity: Int) extends FunctionLabel with ConstantLabel
+  sealed case class ConstantFunctionLabel(id: String, arity: Int) extends TermLabel with ConstantLabel
 
   sealed trait SchematicTermLabel extends TermLabel {}
 
@@ -55,7 +47,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
    */
-  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends FunctionLabel with SchematicTermLabel {
+  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends SchematicTermLabel {
     require(arity >= 1 && arity < MaxArity)
   }
 

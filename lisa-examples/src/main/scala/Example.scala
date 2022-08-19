@@ -3,7 +3,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.proven.tactics.SimplePropositionalSolver.solveSequent
+import lisa.automation.kernel.SimplePropositionalSolver.solveSequent
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*

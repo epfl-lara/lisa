@@ -6,7 +6,7 @@ import lisa.kernel.proof.RunningTheory.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.Printer
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -28,7 +28,7 @@ class FolTests extends AnyFunSuite {
       val r = gen.between(0, 3)
       if (r == 0) {
         val name = "" + ('a' to 'e')(gen.between(0, 5))
-        FunctionTerm(ConstantFunctionLabel(name, 0), List())
+        Term(ConstantFunctionLabel(name, 0), List())
       } else {
         val name = "" + ('v' to 'z')(gen.between(0, 5))
         VariableTerm(VariableLabel(name))
@@ -38,16 +38,16 @@ class FolTests extends AnyFunSuite {
       val name = "" + ('f' to 'j')(gen.between(0, 5))
       if (r == 0) {
         val name = "" + ('a' to 'e')(gen.between(0, 5))
-        FunctionTerm(ConstantFunctionLabel(name, 0), List())
+        Term(ConstantFunctionLabel(name, 0), List())
       } else if (r == 1) {
         val name = "" + ('v' to 'z')(gen.between(0, 5))
         VariableTerm(VariableLabel(name))
       }
-      if (r <= 3) FunctionTerm(ConstantFunctionLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
-      else if (r <= 5) FunctionTerm(ConstantFunctionLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
-      else if (r == 6) FunctionTerm(ConstantFunctionLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+      if (r <= 3) Term(ConstantFunctionLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
+      else if (r <= 5) Term(ConstantFunctionLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+      else if (r == 6) Term(ConstantFunctionLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
       else
-        FunctionTerm(
+        Term(
           ConstantFunctionLabel(name, 4),
           Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen))
         )

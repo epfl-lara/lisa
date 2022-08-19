@@ -184,7 +184,7 @@ class RunningTheory {
     case Theorem(name, proposition) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
     case PredicateDefinition(label, LambdaTermFormula(vars, body)) =>
-      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(VariableTerm)), body))
+      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(VariableTerm.apply)), body))
       Sequent(Set(), Set(inner))
     case FunctionDefinition(label, out, LambdaTermFormula(vars, body)) =>
       val inner = BinderFormula(
@@ -193,7 +193,7 @@ class RunningTheory {
         ConnectorFormula(
           Iff,
           Seq(
-            PredicateFormula(equality, Seq(FunctionTerm(label, vars.map(VariableTerm)), VariableTerm(out))),
+            PredicateFormula(equality, Seq(Term(label, vars.map(VariableTerm.apply)), VariableTerm(out))),
             body
           )
         )
@@ -230,11 +230,10 @@ class RunningTheory {
    * @return Weather t belongs to the specified language
    */
   def belongsToTheory(t: Term): Boolean = t match {
-    case VariableTerm(label) => true
-    case FunctionTerm(label, args) =>
+    case Term(label, args) =>
       label match {
         case l: ConstantFunctionLabel => isSymbol(l) && args.forall(belongsToTheory(_))
-        case _: SchematicFunctionLabel => args.forall(belongsToTheory(_))
+        case _: SchematicTermLabel => args.forall(belongsToTheory(_))
       }
 
   }

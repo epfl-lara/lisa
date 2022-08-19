@@ -5,7 +5,7 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
-import lisa.kernel.proof.SequentCalculus._
+import lisa.kernel.proof.SequentCalculus.*
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -39,7 +39,7 @@ trait KernelHelpers {
 
   extension (label: ConnectorLabel) def apply(args: Formula*): Formula = ConnectorFormula(label, args)
 
-  extension (label: FunctionLabel) def apply(args: Term*): Term = FunctionTerm(label, args)
+  extension (label: TermLabel) def apply(args: Term*): Term = Term(label, args)
 
   extension (label: BinderLabel) def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
 
@@ -85,11 +85,10 @@ trait KernelHelpers {
 
   /* Conversions */
 
-  given Conversion[VariableLabel, VariableTerm] = VariableTerm.apply
-  given Conversion[VariableTerm, VariableLabel] = _.label
+  given Conversion[VariableLabel, Term] = Term(_, Seq())
   given Conversion[PredicateFormula, PredicateLabel] = _.label
   given Conversion[PredicateLabel, Formula] = _.apply()
-  given Conversion[FunctionTerm, FunctionLabel] = _.label
+  given Conversion[Term, TermLabel] = _.label
   given Conversion[SchematicFunctionLabel, Term] = _.apply()
   given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula.apply(_, Nil)
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)

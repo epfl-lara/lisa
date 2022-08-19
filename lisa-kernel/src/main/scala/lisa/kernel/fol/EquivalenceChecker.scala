@@ -94,10 +94,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     )
 
     def toLocallyNameless(t: Term, subst: Map[VariableLabel, Int], i: Int): Term = t match {
-      case VariableTerm(label) =>
+      case Term(label:VariableLabel, _) =>
         if (subst.contains(label)) VariableTerm(VariableLabel("x" + (i - subst(label))))
         else VariableTerm(VariableLabel("_" + label))
-      case FunctionTerm(label, args) => FunctionTerm(label, args.map(c => toLocallyNameless(c, subst, i)))
+      case Term(label, args) => Term(label, args.map(c => toLocallyNameless(c, subst, i)))
     }
 
     def toLocallyNameless(phi: SimpleFormula, subst: Map[VariableLabel, Int], i: Int): SimpleFormula = phi match {
@@ -119,9 +119,9 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     def codesOfTerm(t: Term): Int = codesTerms.getOrElseUpdate(
       t,
       t match {
-        case VariableTerm(label) =>
+        case Term(label:VariableLabel, _) =>
           codesSigTerms.getOrElseUpdate((label, Nil), codesSigTerms.size)
-        case FunctionTerm(label, args) =>
+        case Term(label, args) =>
           val c = args map codesOfTerm
 
           codesSigTerms.getOrElseUpdate((label, c), codesSigTerms.size)

@@ -76,10 +76,10 @@ trait TheoriesHelpers extends KernelHelpers {
         case d: RunningTheory#Definition =>
           d match {
             case pd: RunningTheory#PredicateDefinition =>
-              output(s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm)*) <=> pd.expression.body)}\n") // (label, args, phi)
+              output(s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n") // (label, args, phi)
             case fd: RunningTheory#FunctionDefinition =>
-              output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm)*))} := the ${fd.out.id} such that ${Printer
-                  .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm)*)) <=> fd.expression.body)})\n")
+              output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
+                  .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n")
           }
       }
       just

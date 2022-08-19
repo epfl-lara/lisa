@@ -1,4 +1,4 @@
-package lisa.proven.tactics
+package lisa.automation.kernel
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
@@ -20,7 +20,7 @@ object SimplePropositionalSolver {
     val others: mSet[Formula] = mSet()
 
     def updateFormula(phi: Formula, add: Boolean): Unit = (phi match {
-      case phi @ ConnectorFormula(label, args) =>
+      case phi@ConnectorFormula(label, args) =>
         label match {
           case Neg => if (add) negs.add(phi) else negs.remove(phi)
           case Implies => if (add) impliess.add(phi) else impliess.remove(phi)

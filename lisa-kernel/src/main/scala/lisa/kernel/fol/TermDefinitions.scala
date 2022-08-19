@@ -25,22 +25,16 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
   }
 
   /**
-   * The parent classes of terms.
-   * A term is a tree with nodes labeled by functions labels or variables.
-   * The number of children of a node is restricted by the arity imposed by the label.
-   */
-  sealed abstract class Term extends TreeWithLabel[TermLabel]
-
-  /**
    * A term which consists of a single variable.
    *
    * @param label The label of the variable.
    */
-  sealed case class VariableTerm(label: VariableLabel) extends Term {
-    override def freeVariables: Set[VariableLabel] = Set(label)
-
-    override def constantFunctions: Set[ConstantFunctionLabel] = Set.empty
-    override def schematicTerms: Set[SchematicTermLabel] = Set(label)
+  object VariableTerm extends (VariableLabel => Term){
+    def apply(label: VariableLabel) : Term = Term(label, Seq())
+    def unapply(t:Term): Option[VariableLabel] = t.label match {
+      case l: VariableLabel => Some(l)
+      case _ => None
+    }
   }
 
   /**
@@ -49,18 +43,20 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
    * @param label The label of the node
    * @param args  children of the node. The number of argument must be equal to the arity of the function.
    */
-  sealed case class FunctionTerm(label: FunctionLabel, args: Seq[Term]) extends Term {
+  sealed case class Term(label: TermLabel, args: Seq[Term]) extends TreeWithLabel[TermLabel] {
     require(label.arity == args.size)
-
-    override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
+    override def freeVariables: Set[VariableLabel] = label match {
+      case l: VariableLabel => Set(l)
+      case _ => args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
+    }
 
     override def constantFunctions: Set[ConstantFunctionLabel] = label match {
       case l: ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions) + l
-      case l: SchematicFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
+      case l: SchematicTermLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
     }
     override def schematicTerms: Set[SchematicTermLabel] = label match {
       case l: ConstantFunctionLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms)
-      case l: SchematicFunctionLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms) + l
+      case l: SchematicTermLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms) + l
     }
 
     val arity: Int = args.size
