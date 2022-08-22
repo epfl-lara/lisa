@@ -45,36 +45,36 @@ object Peano {
 
     // result: ax4plusSuccessor |- 0+Sx = S(0 + x)
     val instanceAx4_4 = SCSubproof(
-      instantiateForall(SCProof(IndexedSeq[SCProofStep](Hypothesis(ax4plusSuccessor |- ax4plusSuccessor, ax4plusSuccessor)), IndexedSeq(() |- ax4plusSuccessor)), zero, x),
+      instantiateForall(instantiateForallAxiom(ax"ax4plusSuccessor", zero), x),
       Seq(-1)
     )
-    val cut5 = Cut(ax4plusSuccessor |- (x === plus(zero, x)) ==> (s(x) === plus(zero, s(x))), 4, 3, plus(zero, s(x)) === s(plus(zero, x)))
+    val cut5 = Cut(() |- (x === plus(zero, x)) ==> (s(x) === plus(zero, s(x))), 4, 3, plus(zero, s(x)) === s(plus(zero, x)))
 
     val transform6 = RightSubstEq(
-      Set(ax4plusSuccessor, plus(x, zero) === x, plus(s(x), zero) === s(x)) |- (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))),
+      Set(plus(x, zero) === x, plus(s(x), zero) === s(x)) |- (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))),
       5,
       (plus(x, zero), x) :: (plus(s(x), zero), s(x)) :: Nil,
       LambdaTermFormula(Seq(y, z), (y === plus(zero, x)) ==> (z === plus(zero, s(x))))
     )
     val leftAnd7 = LeftAnd(
-      Set(ax4plusSuccessor, (plus(x, zero) === x) /\ (plus(s(x), zero) === s(x))) |- (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))),
+      (plus(x, zero) === x) /\ (plus(s(x), zero) === s(x)) |- (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))),
       6,
       plus(x, zero) === x,
       plus(s(x), zero) === s(x)
     )
 
     val instancePlusZero8 = SCSubproof(
-      instantiateForall(SCProof(IndexedSeq[SCProofStep](Hypothesis(ax3neutral |- ax3neutral, ax3neutral)), IndexedSeq(() |- ax3neutral)), x),
+      instantiateForallAxiom(ax"ax3neutral", x),
       Seq(-2)
     )
     val instancePlusZero9 = SCSubproof(
-      instantiateForall(SCProof(IndexedSeq[SCProofStep](Hypothesis(ax3neutral |- ax3neutral, ax3neutral)), IndexedSeq(() |- ax3neutral)), s(x)),
+      instantiateForallAxiom(ax"ax3neutral", s(x)),
       Seq(-2)
     )
-    val rightAnd10 = RightAnd(ax3neutral |- (plus(x, zero) === x) /\ (plus(s(x), zero) === s(x)), Seq(8, 9), Seq(plus(x, zero) === x, plus(s(x), zero) === s(x)))
+    val rightAnd10 = RightAnd(() |- (plus(x, zero) === x) /\ (plus(s(x), zero) === s(x)), Seq(8, 9), Seq(plus(x, zero) === x, plus(s(x), zero) === s(x)))
 
     val cut11 = Cut(
-      Set(ax4plusSuccessor, ax3neutral) |- (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))),
+      () |- (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))),
       10,
       7,
       (plus(x, zero) === x) /\ (plus(s(x), zero) === s(x))
@@ -89,7 +89,7 @@ object Peano {
 
     val hypConclusion13 = hypothesis(forall(x, plus(x, zero) === plus(zero, x)))
     val inductionLhs14 = LeftImplies(
-      Set(ax4plusSuccessor, ax3neutral, forall(x, (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x)))) ==> forall(x, plus(x, zero) === plus(zero, x))) |- forall(
+      forall(x, (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x)))) ==> forall(x, plus(x, zero) === plus(zero, x)) |- forall(
         x,
         plus(x, zero) === plus(zero, x)
       ),
@@ -107,7 +107,7 @@ object Peano {
       Map(sPhi -> LambdaTermFormula(Seq(x), plus(x, zero) === plus(zero, x)))
     )
     val commutesWithZero16 = Cut(
-      Set(ax4plusSuccessor, ax3neutral) |- forall(x, plus(x, zero) === plus(zero, x)),
+      () |- forall(x, plus(x, zero) === plus(zero, x)),
       15,
       14,
       ((plus(zero, zero) === plus(zero, zero)) /\ forall(x, (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))))) ==> forall(
