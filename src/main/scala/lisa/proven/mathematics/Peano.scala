@@ -64,6 +64,9 @@ object Peano {
     IndexedSeq(base0, step1, instance2, inductionPremise3, hypConclusion4, inductionInstanceOnTheLeft5, cutInductionInstance6)
   }
 
+  val (y1, z1) =
+    (VariableLabel("y1"), VariableLabel("z1"))
+
   THEOREM("x + 0 = 0 + x") of "∀x. plus(x, zero) === plus(zero, x)" PROOF {
     val refl0: SCProofStep = RightRefl(() |- s(x) === s(x), s(x) === s(x))
     val subst1 = RightSubstEq((x === plus(zero, x)) |- s(x) === s(plus(zero, x)), 0, (x, plus(zero, x)) :: Nil, LambdaTermFormula(Seq(y), s(x) === s(y)))
@@ -182,9 +185,6 @@ object Peano {
       )
     }
 
-    val (x1, y1, z1) =
-      (VariableLabel("x1"), VariableLabel("y1"), VariableLabel("z1"))
-
     /////////////// Induction step: ∀y. (x + Sy === Sx + y) ==> (x + SSy === Sx + Sy) ////////////////////
     val inductionStep1 = {
       // x + SSy = S(x + Sy)
@@ -255,5 +255,86 @@ object Peano {
     )
     proof
   } using (ax"ax3neutral", ax"ax4plusSuccessor", ax"ax7induction")
+  show
+
+  THEOREM("additivity of addition") of "" PROOF {
+    val base0 = SCSubproof(instantiateForallImport(thm"x + 0 = 0 + x", x), Seq(-3))
+    val inductionStep1 = {
+      val start0 = RightRefl(() |- plus(x, s(y)) === plus(x, s(y)), plus(x, s(y)) === plus(x, s(y)))
+      val applyPlusSuccAx1 =
+        RightSubstEq(plus(x, s(y)) === s(plus(x, y)) |- plus(x, s(y)) === s(plus(x, y)), 0, (plus(x, s(y)), s(plus(x, y))) :: Nil, LambdaTermFormula(Seq(z1), plus(x, s(y)) === z1))
+      val applyInductionPremise2 =
+        RightSubstEq(
+          Set(plus(x, s(y)) === s(plus(x, y)), plus(x, y) === plus(y, x)) |- plus(x, s(y)) === s(plus(y, x)),
+          1,
+          (plus(x, y), plus(y, x)) :: Nil,
+          LambdaTermFormula(Seq(z1), plus(x, s(y)) === s(z1))
+        )
+      val applyPlusSuccAx3 =
+        RightSubstEq(
+          Set(plus(x, s(y)) === s(plus(x, y)), plus(x, y) === plus(y, x), s(plus(y, x)) === plus(y, s(x))) |- plus(x, s(y)) === plus(y, s(x)),
+          2,
+          (s(plus(y, x)), plus(y, s(x))) :: Nil,
+          LambdaTermFormula(Seq(z1), plus(x, s(y)) === z1)
+        )
+      val applySwitchSuccessor4 =
+        RightSubstEq(
+          Set(plus(x, s(y)) === s(plus(x, y)), plus(x, y) === plus(y, x), s(plus(y, x)) === plus(y, s(x)), plus(y, s(x)) === plus(s(y), x)) |- plus(x, s(y)) === plus(s(y), x),
+          3,
+          (plus(y, s(x)), plus(s(y), x)) :: Nil,
+          LambdaTermFormula(Seq(z1), plus(x, s(y)) === z1)
+        )
+
+      val xPlusSYInstance5 = SCSubproof(instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", x), y), Seq(-1))
+      val cutXPlusSY6 = Cut(Set(plus(x, y) === plus(y, x), s(plus(y, x)) === plus(y, s(x)), plus(y, s(x)) === plus(s(y), x)) |- plus(x, s(y)) === plus(s(y), x), 5, 4, plus(x, s(y)) === s(plus(x, y)))
+      val yPlusSXInstance7 = SCSubproof(instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", y), x), Seq(-1))
+      val cutYPlusSX8 = Cut(Set(plus(x, y) === plus(y, x), plus(y, s(x)) === plus(s(y), x)) |- plus(x, s(y)) === plus(s(y), x), 7, 6, s(plus(y, x)) === plus(y, s(x)))
+      val swichSuccessorInstance9 = SCSubproof(instantiateForall(instantiateForallImport(thm"switch successor", y), x), Seq(-2))
+      val cutSwitchSuccessor10 = Cut(plus(x, y) === plus(y, x) |- plus(x, s(y)) === plus(s(y), x), 9, 8, plus(y, s(x)) === plus(s(y), x))
+      val rightImplies11 = RightImplies(() |- (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x)), 10, plus(x, y) === plus(y, x), plus(x, s(y)) === plus(s(y), x))
+      val forall12 = RightForall(() |- forall(y, (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x))), 11, (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x)), y)
+      SCSubproof(
+        Proof(
+          IndexedSeq(
+            start0,
+            applyPlusSuccAx1,
+            applyInductionPremise2,
+            applyPlusSuccAx3,
+            applySwitchSuccessor4,
+            xPlusSYInstance5,
+            cutXPlusSY6,
+            yPlusSXInstance7,
+            cutYPlusSX8,
+            swichSuccessorInstance9,
+            cutSwitchSuccessor10,
+            rightImplies11,
+            forall12
+          ),
+          IndexedSeq(ax"ax4plusSuccessor", thm"switch successor")
+        ),
+        IndexedSeq(-1, -4)
+      )
+    }
+
+    val inductionInstance = {
+      val inductionOnY0 = Rewrite(() |- (sPhi(zero) /\ forall(y, sPhi(y) ==> sPhi(s(y)))) ==> forall(y, sPhi(y)), -1)
+      val inductionInstance1 = InstPredSchema(
+        () |-
+          ((plus(x, zero) === plus(zero, x)) /\
+            forall(y, (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x)))) ==>
+          forall(y, plus(x, y) === plus(y, x)),
+        0,
+        Map(sPhi -> LambdaTermFormula(Seq(y), plus(x, y) === plus(y, x)))
+      )
+      SCSubproof(SCProof(IndexedSeq(inductionOnY0, inductionInstance1), IndexedSeq(ax"ax7induction")), Seq(-2))
+    }
+    val inductionApplication = applyInduction(base0, inductionStep1, inductionInstance)
+    val addForall = RightForall(() |- forall(x, forall(y, plus(x, y) === plus(y, x))), inductionApplication.size - 1, forall(y, plus(x, y) === plus(y, x)), x)
+    val proof: SCProof = Proof(
+      inductionApplication :+ addForall,
+      IndexedSeq(ax"ax4plusSuccessor", ax"ax7induction", thm"x + 0 = 0 + x", thm"switch successor")
+    )
+    proof
+  } using (ax"ax4plusSuccessor", ax"ax7induction", thm"x + 0 = 0 + x", thm"switch successor")
   show
 }
