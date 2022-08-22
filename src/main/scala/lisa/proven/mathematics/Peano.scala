@@ -6,8 +6,9 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.proven.PeanoArithmeticsLibrary
 import lisa.proven.tactics.ProofTactics.*
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.Library
+import lisa.utils.Printer
 
 object Peano {
   export lisa.proven.PeanoArithmeticsLibrary.{*, given}
@@ -30,6 +31,36 @@ object Peano {
     val p2 = LeftForall(formula |- instantiated, 0, instantiateBinder(forall, tempVar), tempVar, t)
     val p3 = Cut(() |- instantiated, -1, 1, formula)
     Proof(IndexedSeq(p1, p2, p3), IndexedSeq(ax))
+  }
+
+  def applyInduction(baseProof: SCSubproof, inductionStepProof: SCSubproof, inductionInstance: SCProofStep): IndexedSeq[SCProofStep] = {
+    require(baseProof.bot.right.size == 1, s"baseProof should prove exactly one formula, got ${Printer.prettySequent(baseProof.bot)}")
+    require(inductionStepProof.bot.right.size == 1, s"inductionStepProof should prove exactly one formula, got ${Printer.prettySequent(inductionStepProof.bot)}")
+    require(
+      inductionInstance.bot.left.isEmpty && inductionInstance.bot.right.size == 1,
+      s"induction instance step should have nothing on the left and exactly one formula on the right, got ${Printer.prettySequent(inductionInstance.bot)}"
+    )
+    val (premise, conclusion) = (inductionInstance.bot.right.head match {
+      case ConnectorFormula(Implies, Seq(premise, conclusion)) => (premise, conclusion)
+      case _ => require(false, s"induction instance should be of the form A => B, got ${Printer.prettyFormula(inductionInstance.bot.right.head)}")
+    })
+    val baseFormula = baseProof.bot.right.head
+    val stepFormula = inductionStepProof.bot.right.head
+    require(
+      isSame(baseFormula /\ stepFormula, premise),
+      "induction instance premise should be of the form base /\\ step, got " +
+        s"premise: ${Printer.prettyFormula(premise)}, base: ${Printer.prettyFormula(baseFormula)}, step: ${Printer.prettyFormula(stepFormula)}"
+    )
+
+    val lhs: Set[Formula] = baseProof.bot.left ++ inductionStepProof.bot.left
+    val base0 = baseProof
+    val step1 = inductionStepProof
+    val instance2 = inductionInstance
+    val inductionPremise3 = RightAnd(lhs |- baseFormula /\ stepFormula, Seq(0, 1), Seq(baseFormula, stepFormula))
+    val hypConclusion4 = hypothesis(conclusion)
+    val inductionInstanceOnTheLeft5 = LeftImplies(lhs + (premise ==> conclusion) |- conclusion, 3, 4, premise, conclusion)
+    val cutInductionInstance6 = Cut(lhs |- conclusion, 2, 5, premise ==> conclusion)
+    IndexedSeq(base0, step1, instance2, inductionPremise3, hypConclusion4, inductionInstanceOnTheLeft5, cutInductionInstance6)
   }
 
   THEOREM("x + 0 = 0 + x") of "∀x. plus(x, zero) === plus(zero, x)" PROOF {
@@ -87,18 +118,7 @@ object Peano {
       x
     )
 
-    val hypConclusion13 = hypothesis(forall(x, plus(x, zero) === plus(zero, x)))
-    val inductionLhs14 = LeftImplies(
-      forall(x, (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x)))) ==> forall(x, plus(x, zero) === plus(zero, x)) |- forall(
-        x,
-        plus(x, zero) === plus(zero, x)
-      ),
-      12,
-      13,
-      forall(x, (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x)))),
-      forall(x, plus(x, zero) === plus(zero, x))
-    )
-    val inductionInstance15: SCProofStep = InstPredSchema(
+    val inductionInstance: SCProofStep = InstPredSchema(
       () |- ((plus(zero, zero) === plus(zero, zero)) /\ forall(x, (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))))) ==> forall(
         x,
         plus(x, zero) === plus(zero, x)
@@ -106,35 +126,18 @@ object Peano {
       -3,
       Map(sPhi -> LambdaTermFormula(Seq(x), plus(x, zero) === plus(zero, x)))
     )
-    val commutesWithZero16 = Cut(
-      () |- forall(x, plus(x, zero) === plus(zero, x)),
-      15,
-      14,
-      ((plus(zero, zero) === plus(zero, zero)) /\ forall(x, (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))))) ==> forall(
-        x,
-        plus(x, zero) === plus(zero, x)
-      )
-    )
 
     SCProof(
-      IndexedSeq(
-        refl0,
-        subst1,
-        implies2,
-        transform3,
-        instanceAx4_4,
-        cut5,
-        transform6,
-        leftAnd7,
-        instancePlusZero8,
-        instancePlusZero9,
-        rightAnd10,
-        cut11,
-        forall12,
-        hypConclusion13,
-        inductionLhs14,
-        inductionInstance15,
-        commutesWithZero16
+      applyInduction(
+        SCSubproof(SCProof(RightRefl(() |- zero === zero, zero === zero))),
+        SCSubproof(
+          SCProof(
+            IndexedSeq(refl0, subst1, implies2, transform3, instanceAx4_4, cut5, transform6, leftAnd7, instancePlusZero8, instancePlusZero9, rightAnd10, cut11, forall12),
+            IndexedSeq(ax"ax4plusSuccessor", ax"ax3neutral")
+          ),
+          Seq(-1, -2)
+        ),
+        inductionInstance
       ),
       IndexedSeq(ax"ax4plusSuccessor", ax"ax3neutral", ax"ax7induction")
     )
@@ -231,41 +234,22 @@ object Peano {
       )
     }
 
-    val inductionOnY2 = Rewrite(() |- (sPhi(zero) /\ forall(y, sPhi(y) ==> sPhi(s(y)))) ==> forall(y, sPhi(y)), -3)
-    val inductionInstance3 = InstPredSchema(
-      () |-
-        ((plus(s(x), zero) === plus(x, s(zero))) /\
-          forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y))))) ==>
-        forall(y, plus(x, s(y)) === plus(s(x), y)),
-      2,
-      Map(sPhi -> LambdaTermFormula(Seq(y), plus(x, s(y)) === plus(s(x), y)))
-    )
-    val inductionPremise4 = RightAnd(
-      () |- (plus(x, s(zero)) === plus(s(x), zero)) /\
-        forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y)))),
-      Seq(0, 1),
-      Seq(plus(x, s(zero)) === plus(s(x), zero), forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y)))))
-    )
-    val conclusion5 = hypothesis(forall(y, plus(x, s(y)) === plus(s(x), y)))
-    val inductionInstanceOnTheLeft6 = LeftImplies(
-      ((plus(s(x), zero) === plus(x, s(zero))) /\
-        forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y))))) ==>
-        forall(y, plus(x, s(y)) === plus(s(x), y))
-        |- forall(y, plus(x, s(y)) === plus(s(x), y)),
-      4,
-      5,
-      (plus(x, s(zero)) === plus(s(x), zero)) /\ forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y)))),
-      forall(y, plus(x, s(y)) === plus(s(x), y))
-    )
-    val inductionResult7 = Cut(
-      () |- forall(y, plus(x, s(y)) === plus(s(x), y)),
-      3,
-      6,
-      ((plus(x, s(zero)) === plus(s(x), zero)) /\ forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y))))) ==> forall(y, plus(x, s(y)) === plus(s(x), y))
-    )
-    val addForall8 = RightForall(() |- forall(x, forall(y, plus(x, s(y)) === plus(s(x), y))), 7, forall(y, plus(x, s(y)) === plus(s(x), y)), x)
+    val inductionInstance = {
+      val inductionOnY0 = Rewrite(() |- (sPhi(zero) /\ forall(y, sPhi(y) ==> sPhi(s(y)))) ==> forall(y, sPhi(y)), -1)
+      val inductionInstance1 = InstPredSchema(
+        () |-
+          ((plus(s(x), zero) === plus(x, s(zero))) /\
+            forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y))))) ==>
+          forall(y, plus(x, s(y)) === plus(s(x), y)),
+        0,
+        Map(sPhi -> LambdaTermFormula(Seq(y), plus(x, s(y)) === plus(s(x), y)))
+      )
+      SCSubproof(SCProof(IndexedSeq(inductionOnY0, inductionInstance1), IndexedSeq(ax"ax7induction")), Seq(-3))
+    }
+    val inductionApplication = applyInduction(base0, inductionStep1, inductionInstance)
+    val addForall = RightForall(() |- forall(x, forall(y, plus(x, s(y)) === plus(s(x), y))), inductionApplication.size - 1, forall(y, plus(x, s(y)) === plus(s(x), y)), x)
     val proof: SCProof = Proof(
-      IndexedSeq(base0, inductionStep1, inductionOnY2, inductionInstance3, inductionPremise4, conclusion5, inductionInstanceOnTheLeft6, inductionResult7, addForall8),
+      inductionApplication :+ addForall,
       IndexedSeq(ax"ax3neutral", ax"ax4plusSuccessor", ax"ax7induction")
     )
     proof
