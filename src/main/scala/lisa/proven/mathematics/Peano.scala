@@ -20,17 +20,18 @@ object Peano {
   def main(args: Array[String]): Unit = {}
   /////////////////////////////////////////////////////////////////////
 
-  def instantiateForallAxiom(ax: Axiom, t: Term): SCProof = {
-    val formula = ax.ax
+  def instantiateForallImport(proofImport: Sequent, t: Peano.Term): SCProof = {
+    require(proofImport.right.size == 1)
+    val formula = proofImport.right.head
     require(formula.isInstanceOf[BinderFormula] && formula.asInstanceOf[BinderFormula].label == Forall)
-    val forall = ax.ax.asInstanceOf[BinderFormula]
-    instantiateForall(SCProof(IndexedSeq(), IndexedSeq(ax)))
+    val forall = formula.asInstanceOf[BinderFormula]
+    instantiateForall(SCProof(IndexedSeq(), IndexedSeq(proofImport)))
     val tempVar = VariableLabel(freshId(formula.freeVariables.map(_.id), "x"))
     val instantiated = instantiateBinder(forall, t)
     val p1 = Hypothesis(instantiated |- instantiated, instantiated)
     val p2 = LeftForall(formula |- instantiated, 0, instantiateBinder(forall, tempVar), tempVar, t)
     val p3 = Cut(() |- instantiated, -1, 1, formula)
-    Proof(IndexedSeq(p1, p2, p3), IndexedSeq(ax))
+    Proof(IndexedSeq(p1, p2, p3), IndexedSeq(proofImport))
   }
 
   def applyInduction(baseProof: SCSubproof, inductionStepProof: SCSubproof, inductionInstance: SCProofStep): IndexedSeq[SCProofStep] = {
@@ -76,7 +77,7 @@ object Peano {
 
     // result: ax4plusSuccessor |- 0+Sx = S(0 + x)
     val instanceAx4_4 = SCSubproof(
-      instantiateForall(instantiateForallAxiom(ax"ax4plusSuccessor", zero), x),
+      instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", zero), x),
       Seq(-1)
     )
     val cut5 = Cut(() |- (x === plus(zero, x)) ==> (s(x) === plus(zero, s(x))), 4, 3, plus(zero, s(x)) === s(plus(zero, x)))
@@ -95,11 +96,11 @@ object Peano {
     )
 
     val instancePlusZero8 = SCSubproof(
-      instantiateForallAxiom(ax"ax3neutral", x),
+      instantiateForallImport(ax"ax3neutral", x),
       Seq(-2)
     )
     val instancePlusZero9 = SCSubproof(
-      instantiateForallAxiom(ax"ax3neutral", s(x)),
+      instantiateForallImport(ax"ax3neutral", s(x)),
       Seq(-2)
     )
     val rightAnd10 = RightAnd(() |- (plus(x, zero) === x) /\ (plus(s(x), zero) === s(x)), Seq(8, 9), Seq(plus(x, zero) === x, plus(s(x), zero) === s(x)))
@@ -148,11 +149,11 @@ object Peano {
     //////////////////////////////////// Base: x + S0 = Sx + 0 ///////////////////////////////////////////////
     val base0 = {
       // x + 0 = x
-      val xEqXPlusZero0 = SCSubproof(instantiateForallAxiom(ax"ax3neutral", x), IndexedSeq(-1))
+      val xEqXPlusZero0 = SCSubproof(instantiateForallImport(ax"ax3neutral", x), IndexedSeq(-1))
       // Sx + 0 = Sx
-      val succXEqSuccXPlusZero1 = SCSubproof(instantiateForallAxiom(ax"ax3neutral", s(x)), IndexedSeq(-1))
+      val succXEqSuccXPlusZero1 = SCSubproof(instantiateForallImport(ax"ax3neutral", s(x)), IndexedSeq(-1))
       // x + S0 = S(x + 0)
-      val xPlusSuccZero2 = SCSubproof(instantiateForall(instantiateForallAxiom(ax"ax4plusSuccessor", x), zero), IndexedSeq(-2))
+      val xPlusSuccZero2 = SCSubproof(instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", x), zero), IndexedSeq(-2))
 
       // ------------------- x + 0 = x, Sx + 0 = Sx, x + S0 = S(x + 0) |- Sx + 0 = x + S0 ---------------------
       val succX3 = RightRefl(() |- s(x) === s(x), s(x) === s(x))
@@ -187,10 +188,10 @@ object Peano {
     /////////////// Induction step: ∀y. (x + Sy === Sx + y) ==> (x + SSy === Sx + Sy) ////////////////////
     val inductionStep1 = {
       // x + SSy = S(x + Sy)
-      val moveSuccessor0 = SCSubproof(instantiateForall(instantiateForallAxiom(ax"ax4plusSuccessor", x), s(y)), IndexedSeq(-2))
+      val moveSuccessor0 = SCSubproof(instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", x), s(y)), IndexedSeq(-2))
 
       // Sx + Sy = S(Sx + y)
-      val moveSuccessor1 = SCSubproof(instantiateForall(instantiateForallAxiom(ax"ax4plusSuccessor", s(x)), y), IndexedSeq(-2))
+      val moveSuccessor1 = SCSubproof(instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", s(x)), y), IndexedSeq(-2))
 
       // ----------- x + SSy = S(x + Sy), x + Sy = Sx + y, S(Sx + y) = Sx + Sy |- x + SSy = Sx + Sy ------------
       val middleEq2 = RightRefl(() |- s(plus(x, s(y))) === s(plus(x, s(y))), s(plus(x, s(y))) === s(plus(x, s(y))))
