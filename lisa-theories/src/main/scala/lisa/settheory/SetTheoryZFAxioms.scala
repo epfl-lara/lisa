@@ -9,7 +9,7 @@ import lisa.utils.Helpers.{*, given}
 private[settheory] trait SetTheoryZFAxioms extends SetTheoryZAxioms {
   private val (x, y, a, b) =
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("A"), VariableLabel("B"))
-  private final val sPsi = SchematicNPredicateLabel("P", 3)
+  private final val sPsi = SchematicPredicateLabel("P", 3)
 
   final val replacementSchema: Formula = forall(
     a,

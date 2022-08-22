@@ -22,12 +22,12 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
     /**
      * @return The list of schematic term symbols (including free and bound variables) in the term
      */
-    def schematicTermsLabels: Set[SchematicTermLabel]
+    def schematicTermLabels: Set[SchematicTermLabel]
 
     /**
      * @return The list of schematic term symbols (including free variables and excluding bound variables) in the term
      */
-    def freeSchematicTermsLabels: Set[SchematicTermLabel]
+    def freeSchematicTermLabels: Set[SchematicTermLabel]
   }
 
   /**
@@ -49,11 +49,11 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
       case l: ConstantFunctionLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantTermLabels) + l
       case l: SchematicTermLabel => args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantTermLabels)
     }
-    override def schematicTermsLabels: Set[SchematicTermLabel] = label match {
-      case l: ConstantFunctionLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTermsLabels)
-      case l: SchematicTermLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTermsLabels) + l
+    override def schematicTermLabels: Set[SchematicTermLabel] = label match {
+      case l: ConstantFunctionLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTermLabels)
+      case l: SchematicTermLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTermLabels) + l
     }
-    override def freeSchematicTermsLabels: Set[SchematicTermLabel] = schematicTermsLabels
+    override def freeSchematicTermLabels: Set[SchematicTermLabel] = schematicTermLabels
   }
 
   /**

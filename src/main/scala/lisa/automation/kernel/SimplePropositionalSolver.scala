@@ -27,6 +27,7 @@ object SimplePropositionalSolver {
           case Iff => if (add) iffs.add(phi) else iffs.remove(phi)
           case And => if (add) ands.add(phi) else ands.remove(phi)
           case Or => if (add) ors.add(phi) else ors.remove(phi)
+          case _ => if (add) others.add(phi) else others.remove(phi)
         }
       case _ => if (add) others.add(phi) else others.remove(phi)
     })

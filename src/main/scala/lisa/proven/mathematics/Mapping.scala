@@ -23,9 +23,9 @@ object Mapping extends lisa.proven.Main {
       val X = VariableLabel("X")
       val B = VariableLabel("B")
       val B1 = VariableLabel("B1")
-      val phi = SchematicNPredicateLabel("phi", 2)
-      val sPhi = SchematicNPredicateLabel("P", 2)
-      val sPsi = SchematicNPredicateLabel("P", 3)
+      val phi = SchematicPredicateLabel("phi", 2)
+      val sPhi = SchematicPredicateLabel("P", 2)
+      val sPsi = SchematicPredicateLabel("P", 3)
 
       val H = existsOne(x, phi(x, a))
       val H1 = forall(a, in(a, A) ==> H)
@@ -248,8 +248,8 @@ object Mapping extends lisa.proven.Main {
       val X = VariableLabel("X")
       val B = VariableLabel("B")
       val B1 = VariableLabel("B1")
-      val phi = SchematicNPredicateLabel("phi", 2)
-      val psi = SchematicNPredicateLabel("psi", 3)
+      val phi = SchematicPredicateLabel("phi", 2)
+      val psi = SchematicPredicateLabel("psi", 3)
       val H = existsOne(x, phi(x, a))
       val H1 = forall(a, in(a, A) ==> H)
       val i1 = thm"functionalMapping"
@@ -306,7 +306,7 @@ object Mapping extends lisa.proven.Main {
       val z1 = VariableLabel("z1")
       val F = SchematicFunctionLabel("F", 1)
       val f = VariableLabel("f")
-      val phi = SchematicNPredicateLabel("phi", 1)
+      val phi = SchematicPredicateLabel("phi", 1)
       val g = VariableFormulaLabel("g")
 
       val g2 = SCSubproof({
@@ -357,8 +357,8 @@ object Mapping extends lisa.proven.Main {
       val F = SchematicFunctionLabel("F", 1)
       val A = VariableLabel("A")
       val B = VariableLabel("B")
-      val phi = SchematicNPredicateLabel("phi", 1)
-      val psi = SchematicNPredicateLabel("psi", 3)
+      val phi = SchematicPredicateLabel("phi", 1)
+      val psi = SchematicPredicateLabel("psi", 3)
 
       val i1 = thm"lemmaLayeredTwoArgumentsMap"
       val i2 = thm"applyFunctionToUniqueObject"
@@ -402,7 +402,7 @@ object Mapping extends lisa.proven.Main {
       val x = VariableLabel("x")
       val A = VariableLabel("A")
       val B = VariableLabel("B")
-      val psi = SchematicNPredicateLabel("psi", 3)
+      val psi = SchematicPredicateLabel("psi", 3)
 
       val i1 = thm"mapTwoArguments" // ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)
 

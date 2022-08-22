@@ -58,16 +58,20 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    * We distinguish arity-0 schematic formula labels, arity->1 schematic predicates and arity->1 schematic connectors.
    */
   sealed trait SchematicFormulaLabel extends FormulaLabel with SchematicLabel
+  sealed trait SchematicVarOrPredLabel extends SchematicFormulaLabel with PredicateLabel
+
   /**
    * A predicate symbol of arity 0 that can be instantiated with any formula.
    */
-  sealed case class VariableFormulaLabel(id: String) extends SchematicFormulaLabel with PredicateLabel {
+  sealed case class VariableFormulaLabel(id: String) extends SchematicVarOrPredLabel {
     val arity = 0
   }
+
+
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking term arguments.
    */
-  sealed case class SchematicPredicateLabel(id: String, arity: Int) extends SchematicFormulaLabel with PredicateLabel
+  sealed case class SchematicPredicateLabel(id: String, arity: Int) extends SchematicVarOrPredLabel
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking formula arguments.
    */

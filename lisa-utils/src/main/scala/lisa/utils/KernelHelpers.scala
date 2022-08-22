@@ -86,11 +86,11 @@ trait KernelHelpers {
   /* Conversions */
 
   given Conversion[VariableLabel, Term] = Term(_, Seq())
+  given Conversion[Term, TermLabel] = _.label
+
   given Conversion[PredicateFormula, PredicateLabel] = _.label
   given Conversion[PredicateLabel, Formula] = _.apply()
-  given Conversion[Term, TermLabel] = _.label
-  given Conversion[SchematicFunctionLabel, Term] = _.apply()
-  given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula.apply(_, Nil)
+  given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula(_, Nil)
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
   given Conversion[Formula, Sequent] = () |- _
 
@@ -144,7 +144,7 @@ trait KernelHelpers {
 
   extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
 
-  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicFormulaLabel, LambdaTermFormula]): Sequent = {
+  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
   def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {

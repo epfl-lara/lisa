@@ -38,7 +38,7 @@ class PrinterTest extends AnyFunSuite {
 
     assert(prettyFormula(BinderFormula(Forall, x, BinderFormula(Exists, y, BinderFormula(ExistsOne, z, a)))) == "∀x. ∃y. ∃!z. a")
 
-    assert(prettyFormula(PredicateFormula(ConstantPredicateLabel("f", 2), Seq(x, y, z))) == "f(?x, ?y, ?z)")
+    assert(prettyFormula(PredicateFormula(ConstantPredicateLabel("f", 3), Seq(x, y, z))) == "f(?x, ?y, ?z)")
   }
 
 }

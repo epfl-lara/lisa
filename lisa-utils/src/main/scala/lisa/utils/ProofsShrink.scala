@@ -168,10 +168,12 @@ object ProofsShrink {
   def simplifyProof(proof: SCProof): SCProof = {
     def isSequentSubset(subset: Sequent, superset: Sequent): Boolean =
       isSubset(subset.left, superset.left) && isSubset(subset.right, superset.right)
-    def schematicPredicates(sequent: Sequent): Set[SchematicFormulaLabel] =
-      (sequent.left ++ sequent.right).flatMap(_.schematicPredicates)
-    def schematicTerms(sequent: Sequent): Set[SchematicTermLabel] =
-      (sequent.left ++ sequent.right).flatMap(_.schematicTermsLabels)
+    def schematicPredicatesLabels(sequent: Sequent): Set[SchematicVarOrPredLabel] =
+      (sequent.left ++ sequent.right).flatMap(_.schematicPredicateLabels)
+    def schematicTermLabels(sequent: Sequent): Set[SchematicTermLabel] =
+      (sequent.left ++ sequent.right).flatMap(_.schematicTermLabels)
+    def freeSchematicTerms(sequent: Sequent): Set[SchematicTermLabel] =
+      (sequent.left ++ sequent.right).flatMap(_.freeSchematicTermLabels)
     val (newSteps, _) = proof.steps.zipWithIndex.foldLeft((IndexedSeq.empty[SCProofStep], IndexedSeq.empty[Int])) { case ((acc, map), (oldStep, i)) =>
       def resolveLocal(j: Int): Int = {
         require(j < i)
@@ -229,11 +231,11 @@ object ProofsShrink {
         case InstFunSchema(bot, t1, _) if isSameSequent(bot, getSequentLocal(t1)) =>
           Left(Rewrite(bot, t1))
         // Instantiation simplification
-        case InstPredSchema(bot, t1, insts) if !insts.keySet.subsetOf(schematicPredicates(getSequentLocal(t1))) =>
-          val newInsts = insts -- insts.keySet.diff(schematicPredicates(getSequentLocal(t1)))
+        case InstPredSchema(bot, t1, insts) if !insts.keySet.subsetOf(schematicPredicatesLabels(getSequentLocal(t1))) =>
+          val newInsts = insts -- insts.keySet.diff(schematicPredicatesLabels(getSequentLocal(t1)))
           Left(InstPredSchema(bot, t1, newInsts))
-        case InstFunSchema(bot, t1, insts) if !insts.keySet.subsetOf(schematicTerms(getSequentLocal(t1))) =>
-          val newInsts = insts -- insts.keySet.diff(schematicTerms(getSequentLocal(t1)))
+        case InstFunSchema(bot, t1, insts) if !insts.keySet.subsetOf(schematicTermLabels(getSequentLocal(t1))) =>
+          val newInsts = insts -- insts.keySet.diff(schematicTermLabels(getSequentLocal(t1)))
           Left(InstFunSchema(bot, t1, newInsts))
         case other => Left(other)
       }

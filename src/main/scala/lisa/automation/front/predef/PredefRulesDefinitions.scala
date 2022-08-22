@@ -306,7 +306,7 @@ trait PredefRulesDefinitions  {
           val cBot = bot -> forall(xlab, px)
           val pBot = cBot +> px
           require(!(bot.left ++ bot.right).flatMap(_.freeVariables).contains(ctx(x)))
-          require(!(pBot.left ++ pBot.right).flatMap(_.schematicTerms).contains(pl))
+          require(!(pBot.left ++ pBot.right).flatMap(_.freeSchematicTermLabels).contains(pl))
           IndexedSeq(
             InstFunSchema(pBot, -1, Map(toKernel(pl) -> LambdaFunction(vx))),
             RightForall(bot, 0, px, xlab),
@@ -328,7 +328,7 @@ trait PredefRulesDefinitions  {
           val cBot = bot -< exists(xlab, px)
           val pBot = cBot +< px
           require(!(bot.left ++ bot.right).flatMap(_.freeVariables).contains(ctx(x)))
-          require(!(pBot.left ++ pBot.right).flatMap(_.schematicTerms).contains(pl))
+          require(!(pBot.left ++ pBot.right).flatMap(_.freeSchematicTermLabels).contains(pl))
           IndexedSeq(
             InstFunSchema(pBot, -1, Map(toKernel(pl) -> LambdaFunction(vx))),
             LeftExists(bot, 0, px, xlab),

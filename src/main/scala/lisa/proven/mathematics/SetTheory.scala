@@ -334,7 +334,7 @@ object SetTheory extends lisa.proven.Main {
     val y = VariableLabel("y")
     val z = VariableLabel("z")
     val h = VariableFormulaLabel("h")
-    val sPhi = SchematicNPredicateLabel("P", 2)
+    val sPhi = SchematicPredicateLabel("P", 2)
     // forall(z, exists(y, forall(x, in(x,y) <=> (in(x,y) /\ sPhi(x,z)))))
     val i1 = () |- comprehensionSchema
     val i2 = thm"russelParadox" // forall(x1, in(x1,y) <=> !in(x1, x1)) |- ()

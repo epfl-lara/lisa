@@ -19,9 +19,9 @@ trait FormulaConversionsTo extends FormulaDefinitions with TermConversionsTo wit
     lisa.kernel.fol.FOL.VariableFormulaLabel(label.id)
   }
 
-  def toKernel(label: SchematicPredicateLabel[?]): lisa.kernel.fol.FOL.SchematicFormulaLabel = {
+  def toKernel(label: SchematicPredicateLabel[?]): lisa.kernel.fol.FOL.SchematicVarOrPredLabel = {
     if (label.arity == 0) lisa.kernel.fol.FOL.VariableFormulaLabel(label.id)
-    else lisa.kernel.fol.FOL.SchematicNPredicateLabel(label.id, label.arity)
+    else lisa.kernel.fol.FOL.SchematicPredicateLabel(label.id, label.arity)
   }
 
   def toKernel(label: PredicateLabel[?]): lisa.kernel.fol.FOL.PredicateLabel = label match {

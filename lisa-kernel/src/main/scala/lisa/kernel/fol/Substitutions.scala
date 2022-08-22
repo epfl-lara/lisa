@@ -141,7 +141,7 @@ trait Substitutions extends FormulaDefinitions {
    * @param m The map from schematic predicate symbols to lambda expressions Term(s) -> Formula.
    * @return phi[m]
    */
-  def instantiatePredicateSchemas(phi: Formula, m: Map[SchematicPredicateLabel, LambdaTermFormula]): Formula = {
+  def instantiatePredicateSchemas(phi: Formula, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Formula = {
     require(m.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
     phi match {
       case PredicateFormula(label, args) =>
