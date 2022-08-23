@@ -10,7 +10,7 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
     val arity: Int
 
     /**
-     * @return The list of free variables in the term.
+     * @return The list of free variables in the tree.
      */
     def freeVariables: Set[VariableLabel]
 
@@ -20,19 +20,19 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
     def constantTermLabels: Set[ConstantFunctionLabel]
 
     /**
-     * @return The list of schematic term symbols (including free and bound variables) in the term
+     * @return The list of schematic term symbols (including free and bound variables) in the tree.
      */
     def schematicTermLabels: Set[SchematicTermLabel]
 
     /**
-     * @return The list of schematic term symbols (including free variables and excluding bound variables) in the term
+     * @return The list of schematic term symbols (excluding bound variables) in the tree.
      */
     def freeSchematicTermLabels: Set[SchematicTermLabel]
   }
 
   /**
-   * A term labelled by a function symbol. It must contain a number of children equal to the arity of the symbol
-   *
+   * A term labelled by a function symbol. It must contain a number of children equal to the arity of the symbol.
+   * The label can be a constant or schematic term label of any arity, including a variable label.
    * @param label The label of the node
    * @param args  children of the node. The number of argument must be equal to the arity of the function.
    */
@@ -57,7 +57,7 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
   }
 
   /**
-   * A VariableTerm is exactly an arity-0 schematic term, but we provide specific constructors and destructors.
+   * A VariableTerm is exactly an arity-0 term whose label is a variable label, but we provide specific constructors and destructors.
    */
   object VariableTerm extends (VariableLabel => Term){
     /**

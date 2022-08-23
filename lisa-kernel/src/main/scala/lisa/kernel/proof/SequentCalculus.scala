@@ -227,7 +227,7 @@ object SequentCalculus {
    */
   case class RightExistsOne(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel) extends SCProofStep { val premises = Seq(t1) }
 
-  // Structural rules
+  // Structural rule
   /**
    * <pre>
    *     Γ |- Δ
@@ -292,6 +292,7 @@ object SequentCalculus {
    */
   case class RightSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends SCProofStep { val premises = Seq(t1) }
 
+  // Rules for schemas
   /**
    * <pre>
    *           Γ |- Δ
@@ -311,6 +312,14 @@ object SequentCalculus {
   case class InstPredSchema(bot: Sequent, t1: Int, insts: Map[SchematicVarOrPredLabel, LambdaTermFormula]) extends SCProofStep { val premises = Seq(t1) }
 
   // Proof Organisation rules
+
+  /**
+   * Encapsulate a proof into a single step. The imports of the subproof correspond to the premisces of the step.
+   * @param sp The encapsulated subproof.
+   * @param premises The indices of steps on the outside proof that are equivalent to the import of the subproof.
+   * @param display A boolean value indicating whether the subproof needs to be expanded when printed. Should probably go and
+   *                be replaced by encapsulation.
+   */
   case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty, display: Boolean = true) extends SCProofStep {
     // premises is a list of ints similar to t1, t2... that verifies that imports of the subproof sp are justified by previous steps.
     val bot: Sequent = sp.conclusion

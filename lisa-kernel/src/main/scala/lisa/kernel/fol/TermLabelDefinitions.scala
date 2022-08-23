@@ -16,7 +16,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
   }
 
   /**
-   * A function symbol.
+   * A fixed function symbol. If arity is 0, it is just a regular constant symbol.
    *
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant

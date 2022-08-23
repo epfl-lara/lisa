@@ -12,13 +12,28 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    */
   sealed trait Formula extends TreeWithLabel[FormulaLabel] {
     val arity: Int = label.arity
-    def constantTermLabels: Set[ConstantFunctionLabel]
-    def schematicTermLabels: Set[SchematicTermLabel]
-    def freeSchematicTermLabels: Set[SchematicTermLabel]
-    def freeVariables: Set[VariableLabel]
+    override def constantTermLabels: Set[ConstantFunctionLabel]
+    override def schematicTermLabels: Set[SchematicTermLabel]
+    override def freeSchematicTermLabels: Set[SchematicTermLabel]
+    override def freeVariables: Set[VariableLabel]
+
+    /**
+     * @return The list of constant predicate symbols in the formula.
+     */
     def constantPredicateLabels: Set[ConstantPredicateLabel]
+    /**
+     * @return The list of schematic predicate symbols in the formula, including variable formulas .
+     */
     def schematicPredicateLabels: Set[SchematicVarOrPredLabel]
+
+    /**
+     * @return The list of schematic connector symbols in the formula.
+     */
     def schematicConnectorLabels: Set[SchematicConnectorLabel]
+
+    /**
+     * @return The list of schematic connector, predicate and formula variable symbols in the formula.
+     */
     def schematicFormulaLabels: Set[SchematicFormulaLabel] =
       (schematicPredicateLabels.toSet:Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet:Set[SchematicFormulaLabel])
 

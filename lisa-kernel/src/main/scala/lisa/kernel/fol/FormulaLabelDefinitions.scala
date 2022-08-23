@@ -54,10 +54,14 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
 
 
   /**
-   * A predicate symbol that can be instantiated with any formula.
+   * A schematic symbol that can be instantiated with some formula.
    * We distinguish arity-0 schematic formula labels, arity->1 schematic predicates and arity->1 schematic connectors.
    */
   sealed trait SchematicFormulaLabel extends FormulaLabel with SchematicLabel
+
+  /**
+   * A schematic symbol whose arguments are any number of Terms. This means the symbol is either a variable formula or a predicate schema
+   */
   sealed trait SchematicVarOrPredLabel extends SchematicFormulaLabel with PredicateLabel
 
   /**
@@ -86,12 +90,22 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
     val arity = 1
   }
 
+  /**
+   * The symbol of the universal quantifier ∀
+   */
   case object Forall extends BinderLabel(id = "∀")
-
+  /**
+   * The symbol of the existential quantifier ∃
+   */
   case object Exists extends BinderLabel(id = "∃")
-
+  /**
+   * The symbol of the quantifier for existence and unicity ∃!
+   */
   case object ExistsOne extends BinderLabel(id = "∃!")
 
+  /**
+   * A function returning true if and only if the two symbols are considered "the same", i.e. same category, same arity and same id.
+   */
   def isSame(l: FormulaLabel, r: FormulaLabel): Boolean = l == r
 
 }

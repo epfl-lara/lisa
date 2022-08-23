@@ -12,6 +12,7 @@ import scala.math.Numeric.IntIsIntegral
  * For soundness, this relation should always be a subrelation of the usual FOL implication.
  * The implementation checks for Orthocomplemented Bismeilatices equivalence, plus symetry and reflexivity
  * of equality and alpha-equivalence.
+ * See https://github.com/epfl-lara/OCBSL for more informations
  */
 private[fol] trait EquivalenceChecker extends FormulaDefinitions {
   sealed abstract class SimpleFormula {
