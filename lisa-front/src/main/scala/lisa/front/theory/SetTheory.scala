@@ -23,7 +23,7 @@ object SetTheory {
 
   val emptySet: ConstantFunctionLabel[0] = fromKernel(AxiomaticSetTheory.emptySet).asInstanceOf[ConstantFunctionLabel[0]]
   val unorderedPairSet: ConstantFunctionLabel[2] = fromKernel(AxiomaticSetTheory.pair).asInstanceOf[ConstantFunctionLabel[2]]
-  val singletonSet: ConstantFunctionLabel[1] = fromKernel(AxiomaticSetTheory.singleton).asInstanceOf[ConstantFunctionLabel[1]]
+  //val singletonSet: ConstantFunctionLabel[1] = fromKernel(AxiomaticSetTheory.singleton).asInstanceOf[ConstantFunctionLabel[1]]
   val powerSet: ConstantFunctionLabel[1] = fromKernel(AxiomaticSetTheory.powerSet).asInstanceOf[ConstantFunctionLabel[1]]
   val unionSet: ConstantFunctionLabel[1] = fromKernel(AxiomaticSetTheory.union).asInstanceOf[ConstantFunctionLabel[1]]
   val universeSet: ConstantFunctionLabel[1] = fromKernel(AxiomaticSetTheory.universe).asInstanceOf[ConstantFunctionLabel[1]]

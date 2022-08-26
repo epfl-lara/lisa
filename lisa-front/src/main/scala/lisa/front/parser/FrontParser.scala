@@ -85,7 +85,7 @@ private[parser] object FrontParser extends Parsers {
       case Some(t1 ~ opt2) =>
         opt2 match {
           case Some(t2) => ParsedSet2(t1, t2)
-          case None => ParsedSet1(t1)
+          case None => ParsedSet2(t1, t1)
         }
       case None => ParsedSet0()
     }

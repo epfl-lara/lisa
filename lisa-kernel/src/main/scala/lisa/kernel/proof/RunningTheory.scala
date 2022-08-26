@@ -69,17 +69,6 @@ class RunningTheory {
   private[proof] val knownSymbols: mMap[String, ConstantLabel] = mMap(equality.id -> equality)
 
   /**
-   * Check if a label is a symbol of the theory
-   */
-
-  def isSymbol(label: ConstantLabel): Boolean = label match {
-    case c: ConstantFunctionLabel => funDefinitions.contains(c)
-    case c: ConstantPredicateLabel => predDefinitions.contains(c)
-  }
-
-  def isAvailable(label: ConstantLabel): Boolean = !knownSymbols.contains(label.id)
-
-  /**
    * From a given proof, if it is true in the Running theory, add that theorem to the theory and returns it.
    * The proof's imports must be justified by the list of justification, and the conclusion of the theorem
    * can't contain symbols that do not belong to the theory.
@@ -184,7 +173,7 @@ class RunningTheory {
     else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
   }
 
-  private def sequentFromJustification(j: Justification): Sequent = j match {
+  def sequentFromJustification(j: Justification): Sequent = j match {
     case Theorem(name, proposition) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
     case PredicateDefinition(label, LambdaTermFormula(vars, body)) =>
@@ -205,46 +194,6 @@ class RunningTheory {
       Sequent(Set(), Set(inner))
 
   }
-
-  /**
-   * Verify if a given formula belongs to some language
-   *
-   * @param phi The formula to check
-   * @return Weather phi belongs to the specified language
-   */
-  def belongsToTheory(phi: Formula): Boolean = phi match {
-    case PredicateFormula(label, args) =>
-      label match {
-        case l: ConstantPredicateLabel => isSymbol(l) && args.forall(belongsToTheory)
-        case _ => args.forall(belongsToTheory)
-      }
-    case ConnectorFormula(label, args) => args.forall(belongsToTheory)
-    case BinderFormula(label, bound, inner) => belongsToTheory(inner)
-  }
-
-  /**
-   * Verify if a given term belongs to the language of the theory.
-   *
-   * @param t The term to check
-   * @return Weather t belongs to the specified language.
-   */
-  def belongsToTheory(t: Term): Boolean = t match {
-    case Term(label, args) =>
-      label match {
-        case l: ConstantFunctionLabel => isSymbol(l) && args.forall(belongsToTheory)
-        case _: SchematicTermLabel => args.forall(belongsToTheory)
-      }
-
-  }
-
-  /**
-   * Verify if a given sequent belongs to the language of the theory.
-   *
-   * @param s The sequent to check
-   * @return Weather s belongs to the specified language
-   */
-  def belongsToTheory(s: Sequent): Boolean =
-    s.left.forall(belongsToTheory) && s.right.forall(belongsToTheory)
 
   /**
    * Add a new axiom to the Theory. For example, if the theory contains the language and theorems
@@ -294,19 +243,76 @@ class RunningTheory {
     s.right.foreach(makeFormulaBelongToTheory)
   }
 
+
+
+  /**
+   * Verify if a given formula belongs to some language
+   *
+   * @param phi The formula to check
+   * @return Weather phi belongs to the specified language
+   */
+  def belongsToTheory(phi: Formula): Boolean = phi match {
+    case PredicateFormula(label, args) =>
+      label match {
+        case l: ConstantPredicateLabel => isSymbol(l) && args.forall(belongsToTheory)
+        case _ => args.forall(belongsToTheory)
+      }
+    case ConnectorFormula(label, args) => args.forall(belongsToTheory)
+    case BinderFormula(label, bound, inner) => belongsToTheory(inner)
+  }
+
+  /**
+   * Verify if a given term belongs to the language of the theory.
+   *
+   * @param t The term to check
+   * @return Weather t belongs to the specified language.
+   */
+  def belongsToTheory(t: Term): Boolean = t match {
+    case Term(label, args) =>
+      label match {
+        case l: ConstantFunctionLabel => isSymbol(l) && args.forall(belongsToTheory)
+        case _: SchematicTermLabel => args.forall(belongsToTheory)
+      }
+
+  }
+
+  /**
+   * Verify if a given sequent belongs to the language of the theory.
+   *
+   * @param s The sequent to check
+   * @return Weather s belongs to the specified language
+   */
+  def belongsToTheory(s: Sequent): Boolean =
+    s.left.forall(belongsToTheory) && s.right.forall(belongsToTheory)
+
+
   /**
    * Public accessor to the set of symbol currently in the theory's language.
    *
    * @return the set of symbol currently in the theory's language.
    */
-  def language: List[(ConstantLabel, Option[Definition])] = funDefinitions.toList ++ predDefinitions.toList
+  def language(): List[(ConstantLabel, Option[Definition])] = funDefinitions.toList ++ predDefinitions.toList
+
+  /**
+   * Check if a label is a symbol of the theory.
+   */
+  def isSymbol(label: ConstantLabel): Boolean = label match {
+    case c: ConstantFunctionLabel => funDefinitions.contains(c)
+    case c: ConstantPredicateLabel => predDefinitions.contains(c)
+  }
+
+  /**
+   * Check if a label is not already used in the theory.
+   * @return
+   */
+  def isAvailable(label: ConstantLabel): Boolean = !knownSymbols.contains(label.id)
 
   /**
    * Public accessor to the current set of axioms of the theory
    *
    * @return the current set of axioms of the theory
    */
-  def axiomsList: Iterable[Axiom] = theoryAxioms.values
+  def axiomsList(): Iterable[Axiom] = theoryAxioms.values
 
   /**
    * Verify if a given formula is an axiom of the theory

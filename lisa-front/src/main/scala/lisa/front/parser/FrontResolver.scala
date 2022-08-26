@@ -67,8 +67,8 @@ private[parser] object FrontResolver {
       ConstantFunctionLabel[2]("ordered_pair")(resolveTermContext(left), resolveTermContext(right))
     case ParsedSet2(left, right) =>
       SetTheory.unorderedPairSet(resolveTermContext(left), resolveTermContext(right))
-    case ParsedSet1(subtree) =>
-      SetTheory.singletonSet(resolveTermContext(subtree))
+    //case ParsedSet1(subtree) =>
+    //  SetTheory.singletonSet(resolveTermContext(subtree))
     case ParsedSet0() =>
       SetTheory.emptySet
     case ParsedPower(subtree) =>

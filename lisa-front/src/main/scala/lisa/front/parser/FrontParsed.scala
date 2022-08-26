@@ -49,7 +49,7 @@ private[parser] object FrontParsed {
   }
   case class ParsedOrderedPair(left: ParsedTermOrFormula, right: ParsedTermOrFormula) extends ParsedProduct
   case class ParsedSet2(left: ParsedTermOrFormula, right: ParsedTermOrFormula) extends ParsedProduct
-  case class ParsedSet1(termOrFormula: ParsedTermOrFormula) extends ParsedTermOrFormula
+  //case class ParsedSet1(termOrFormula: ParsedTermOrFormula) extends ParsedTermOrFormula
   case class ParsedSet0() extends ParsedTermOrFormula
 
   sealed abstract class ParsedBinder extends ParsedTermOrFormula {

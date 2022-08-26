@@ -89,11 +89,11 @@ object FrontPositionedPrinter {
     SetTheory.subset,
     SetTheory.sameCardinality
   )
-  private val (emptySet, unorderedPair, orderedPair, singleton, powerSet, unionSet) = (
+  private val (emptySet, unorderedPair, orderedPair,  powerSet, unionSet) = (
     SetTheory.emptySet,
     SetTheory.unorderedPairSet,
     ConstantFunctionLabel[2]("ordered_pair"),
-    SetTheory.singletonSet,
+    //SetTheory.singletonSet,
     SetTheory.powerSet,
     SetTheory.unionSet,
   )
@@ -234,10 +234,7 @@ object FrontPositionedPrinter {
           case Seq(l, r) => FrontBranch(p.s.ParenthesisOpen, positionedTermInternal(l), commaSeparator, positionedTermInternal(r), p.s.ParenthesisClose)
           case _ => throw new Error
         }
-        case `singleton` => args match {
-          case Seq(s) => FrontBranch(p.s.CurlyBracketOpen, positionedTermInternal(s), p.s.CurlyBracketClose)
-          case _ => throw new Error
-        }
+
         case `powerSet` => args match {
           case Seq(s) => positionedFunction(p.s.PowerSet, Seq(positionedTermInternal(s)))
           case _ => throw new Error
