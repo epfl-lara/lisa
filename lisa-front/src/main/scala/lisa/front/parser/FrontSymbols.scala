@@ -18,6 +18,8 @@ private[front] sealed abstract class FrontSymbols {
   val Subset: String
   val Membership: String
   val EmptySet: String
+  val Top: String = "⊤"
+  val Bot: String = "⊥"
   val Equal: String = "="
   val Tilde: String = "~"
   val Backslash: String = "\\"

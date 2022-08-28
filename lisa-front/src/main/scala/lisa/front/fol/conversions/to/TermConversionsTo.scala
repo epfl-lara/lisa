@@ -4,7 +4,6 @@ import lisa.front.fol.definitions.TermDefinitions
 
 trait TermConversionsTo extends TermDefinitions {
 
-
   def toKernel(label: ConstantFunctionLabel[?]): lisa.kernel.fol.FOL.ConstantFunctionLabel =
     lisa.kernel.fol.FOL.ConstantFunctionLabel(label.id, label.arity)
 
@@ -34,7 +33,6 @@ trait TermConversionsTo extends TermDefinitions {
    */
   def toKernel(term: Term): lisa.kernel.fol.FOL.Term =
     lisa.kernel.fol.FOL.Term(toKernel(term.label), term.args.map(toKernel))
-
 
   given Conversion[VariableLabel, lisa.kernel.fol.FOL.VariableLabel] = toKernel
   given Conversion[ConstantFunctionLabel[?], lisa.kernel.fol.FOL.ConstantFunctionLabel] = toKernel

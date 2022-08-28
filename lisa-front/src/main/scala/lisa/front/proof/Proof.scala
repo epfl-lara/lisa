@@ -6,8 +6,7 @@ import lisa.front.proof.state.*
 /**
  * The proof package.
  */
-object Proof
-  extends ProofInterfaceDefinitions with RuleDefinitions {
+object Proof extends ProofInterfaceDefinitions with RuleDefinitions {
 
   override protected def pretty(sequent: Sequent): String = FrontPositionedPrinter.prettySequent(sequent)
   override protected def pretty(sequent: PartialSequent): String = FrontPositionedPrinter.prettyPartialSequent(sequent)

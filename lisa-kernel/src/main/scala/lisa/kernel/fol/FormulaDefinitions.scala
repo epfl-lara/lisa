@@ -21,6 +21,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
      * @return The list of constant predicate symbols in the formula.
      */
     def constantPredicateLabels: Set[ConstantPredicateLabel]
+
     /**
      * @return The list of schematic predicate symbols in the formula, including variable formulas .
      */
@@ -35,7 +36,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
      * @return The list of schematic connector, predicate and formula variable symbols in the formula.
      */
     def schematicFormulaLabels: Set[SchematicFormulaLabel] =
-      (schematicPredicateLabels.toSet:Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet:Set[SchematicFormulaLabel])
+      (schematicPredicateLabels.toSet: Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet: Set[SchematicFormulaLabel])
 
   }
 

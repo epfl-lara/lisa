@@ -11,6 +11,7 @@ trait FormulaConversionsFrom extends FormulaDefinitions with TermConversionsFrom
     SchematicPredicateLabel.unsafe(label.id, label.arity)
   def fromKernel(label: lisa.kernel.fol.FOL.VariableFormulaLabel): SchematicPredicateLabel[?] =
     SchematicPredicateLabel.unsafe(label.id, 0)
+
   /**
    * Lifts a predicate label from the kernel to the front.
    * @param label the label in the kernel

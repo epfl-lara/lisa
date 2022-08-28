@@ -14,9 +14,9 @@ private[front] case class KernelRuleIdentifiers(symbols: FrontSymbols) {
   private val Instantiation: String = "Instantiation"
   private val Subproof: String = "Subproof"
 
-  private def symbol(s: String): String = if(isLatex) s"{$s}" else s
-  private def text(s: String): String = if(isLatex) raw"\text{$s}" else s
-  private def space: String = if(isLatex) "~" else " "
+  private def symbol(s: String): String = if (isLatex) s"{$s}" else s
+  private def text(s: String): String = if (isLatex) raw"\text{$s}" else s
+  private def space: String = if (isLatex) "~" else " "
   private def left(s: String): String = s"${text(Left)}$space${symbol(s)}"
   private def right(s: String): String = s"${text(Right)}$space${symbol(s)}"
   private def leftSubst(s: String): String = s"${text(s"$Left $Subst")}$space${symbol(s)}"
@@ -25,6 +25,7 @@ private[front] case class KernelRuleIdentifiers(symbols: FrontSymbols) {
   val Hypothesis: String = text("Hypo.")
   val Cut: String = text("Cut")
   val Rewrite: String = text("Rewrite")
+  val RewriteTrue: String = text("Rewrite " + symbols.Top)
   val Weakening: String = text("Weakening")
   val LeftAnd: String = left(symbols.And)
   val RightAnd: String = right(symbols.And)
@@ -58,6 +59,7 @@ private[front] case class KernelRuleIdentifiers(symbols: FrontSymbols) {
     case _: SC.Hypothesis => Hypothesis
     case _: SC.Cut => Cut
     case _: SC.Rewrite => Rewrite
+    case _: SC.RewriteTrue => RewriteTrue
     case _: SC.Weakening => Weakening
     case _: SC.LeftAnd => LeftAnd
     case _: SC.RightAnd => RightAnd

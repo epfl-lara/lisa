@@ -100,7 +100,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     )
 
     def toLocallyNameless(t: Term, subst: Map[VariableLabel, Int], i: Int): Term = t match {
-      case Term(label:VariableLabel, _) =>
+      case Term(label: VariableLabel, _) =>
         if (subst.contains(label)) VariableTerm(VariableLabel("x" + (i - subst(label))))
         else VariableTerm(VariableLabel("_" + label))
       case Term(label, args) => Term(label, args.map(c => toLocallyNameless(c, subst, i)))
@@ -126,7 +126,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     def codesOfTerm(t: Term): Int = codesTerms.getOrElseUpdate(
       t,
       t match {
-        case Term(label:VariableLabel, _) =>
+        case Term(label: VariableLabel, _) =>
           codesSigTerms.getOrElseUpdate((label, Nil), codesSigTerms.size)
         case Term(label, args) =>
           val c = args map codesOfTerm
@@ -202,7 +202,11 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val r: List[NormalFormula] = phi match {
         case SimplePredicate(id, args) =>
           val lab = "pred_" + id.id + "_" + id.arity
-          if (id == equality) {
+          if (id == top) {
+            phi.normalForm = Some(NLiteral(true))
+          } else if (id == bot) {
+            phi.normalForm = Some(NLiteral(false))
+          } else if (id == equality) {
             if (codesOfTerm(args(0)) == codesOfTerm(args(1)))
               phi.normalForm = Some(NLiteral(true))
             else
@@ -240,7 +244,13 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val r: List[NormalFormula] = phi match {
         case SimplePredicate(id, args) =>
           val lab = "pred_" + id.id + "_" + id.arity
-          if (id == equality) {
+          if (id == top) {
+            phi.normalForm = Some(NLiteral(true))
+            parent.normalForm = Some(NLiteral(false))
+          } else if (id == bot) {
+            phi.normalForm = Some(NLiteral(false))
+            parent.normalForm = Some(NLiteral(true))
+          } else if (id == equality) {
             if (codesOfTerm(args(0)) == codesOfTerm(args(1))) {
               phi.normalForm = Some(NLiteral(true))
               parent.normalForm = Some(NLiteral(false))
@@ -251,7 +261,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
           } else {
             phi.normalForm = Some(NormalPredicate(id, args, updateCodesSig((lab, args map codesOfTerm))))
             parent.normalForm = Some(NNeg(phi.normalForm.get, updateCodesSig(("neg", List(phi.normalForm.get.code)))))
-          //phi.normalForm = Some(NormalPredicate(id, args, updateCodesSig((lab, args map codesOfTerm))))
+            // phi.normalForm = Some(NormalPredicate(id, args, updateCodesSig((lab, args map codesOfTerm))))
           }
           parent.normalForm.get :: acc
         case SimpleConnector(id, args) =>

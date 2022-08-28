@@ -1,11 +1,11 @@
 package lisa.front
 
+import lisa.front.parser.FrontReader
+import lisa.front.printer.FrontPositionedPrinter
+import lisa.front.printer.FrontPrintStyle
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
-
-import lisa.front.parser.FrontReader
-import lisa.front.printer.{FrontPositionedPrinter, FrontPrintStyle}
 
 class ParserPrinterTests extends AnyFunSuite {
   test("formula parsing and printing (ASCII)") {
@@ -31,18 +31,17 @@ class ParserPrinterTests extends AnyFunSuite {
     }
   }
 
-
   test("sequent parsing and printing (ASCII)") {
     Seq[String](
       "|-",
       "|- a",
       "a |- b",
       "a; b |- c; d",
-      raw"a /\ b; c \/ d |- e; f => g; h",
+      raw"a /\ b; c \/ d |- e; f => g; h"
     ).foreach { s =>
       val sequent = FrontReader.readSequent(s)
       val printed = FrontPositionedPrinter.prettySequent(sequent, symbols = FrontPrintStyle.Ascii)
-      //println(printed)
+      // println(printed)
       assert(printed == s)
     }
   }
@@ -58,11 +57,11 @@ class ParserPrinterTests extends AnyFunSuite {
       "a |- b; ...",
       "...; a |- b",
       "...; a |- b; ...",
-      "...; a; b |- b; c; ...",
+      "...; a; b |- b; c; ..."
     ).foreach { s =>
       val sequent = FrontReader.readPartialSequent(s)
       val printed = FrontPositionedPrinter.prettyPartialSequent(sequent, symbols = FrontPrintStyle.Ascii)
-      //println(printed)
+      // println(printed)
       assert(printed == s)
     }
   }

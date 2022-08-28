@@ -10,7 +10,8 @@ trait ProofInterfaceDefinitions extends ProofEnvironmentDefinitions {
     val maxLength = lines.map(_.length).max
     val bottomAndTop = (corner +: Seq.fill(maxLength + 2 * horizontalPadding)(horizontal) :+ corner).mkString
     val bottomAndTopMargin = (vertical +: Seq.fill(maxLength + 2 * horizontalPadding)(space) :+ vertical).mkString
-    val linesMargin = lines.map(line => Seq(vertical) ++ Seq.fill(horizontalPadding)(space) ++ line.toCharArray ++ Seq.fill(maxLength - line.length + horizontalPadding)(space) ++ Seq(vertical)).map(_.mkString)
+    val linesMargin =
+      lines.map(line => Seq(vertical) ++ Seq.fill(horizontalPadding)(space) ++ line.toCharArray ++ Seq.fill(maxLength - line.length + horizontalPadding)(space) ++ Seq(vertical)).map(_.mkString)
     (Seq(bottomAndTop) ++ Seq.fill(verticalPadding)(bottomAndTopMargin) ++ linesMargin ++ Seq.fill(verticalPadding)(bottomAndTopMargin) ++ Seq(bottomAndTop)).mkString("\n")
   }
 
@@ -20,7 +21,7 @@ trait ProofInterfaceDefinitions extends ProofEnvironmentDefinitions {
    * It is interactive, in the sense that the command applications print information in the standard output.
    * When no proof goal remains, a theorem can be obtained with [[asTheorem]].
    */
-  case class ProofMode private(private var currentState: ProofModeState) {
+  case class ProofMode private (private var currentState: ProofModeState) {
     def state: ProofState = currentState.state
     def proving: ProofState = currentState.proving
     def apply(mutator: ProofModeStateMutator): Boolean = {

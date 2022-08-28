@@ -1,8 +1,9 @@
 package lisa.front.proof.state
 
-import lisa.kernel.proof.SequentCalculus.{SCProofStep, SCSubproof}
 import lisa.front.fol.FOL.*
 import lisa.front.proof.unification.UnificationUtils
+import lisa.kernel.proof.SequentCalculus.SCProofStep
+import lisa.kernel.proof.SequentCalculus.SCSubproof
 
 import scala.collection.View
 
@@ -12,18 +13,18 @@ trait RuleDefinitions extends ProofEnvironmentDefinitions with UnificationUtils 
 
   /**
    * The parameters to instantiate a rule into a tactic (see [[RuleTactic]]).
-   * @param selectors the correspondence between patterns and values, can be partial 
+   * @param selectors the correspondence between patterns and values, can be partial
    * @param functions a partial assignment of functions
    * @param predicates a partial assignment of predicates
    * @param connectors a partial assignment of connectors
    * @param variables a partial assignment of free variables
    */
   case class RuleParameters(
-    selectors: Map[Int, SequentSelector] = Map.empty,
-    functions: Seq[AssignedFunction] = Seq.empty,
-    predicates: Seq[AssignedPredicate] = Seq.empty,
-    connectors: Seq[AssignedConnector] = Seq.empty,
-    variables: Map[VariableLabel, VariableLabel] = Map.empty,
+      selectors: Map[Int, SequentSelector] = Map.empty,
+      functions: Seq[AssignedFunction] = Seq.empty,
+      predicates: Seq[AssignedPredicate] = Seq.empty,
+      connectors: Seq[AssignedConnector] = Seq.empty,
+      variables: Map[VariableLabel, VariableLabel] = Map.empty
   ) {
     def withIndices(i: Int)(left: Int*)(right: Int*): RuleParameters = {
       val pair = (left.toIndexedSeq, right.toIndexedSeq)
@@ -31,20 +32,23 @@ trait RuleDefinitions extends ProofEnvironmentDefinitions with UnificationUtils 
     }
 
     def withFunction[N <: Arity](
-      label: SchematicTermLabel[N], f: FillArgs[SchematicTermLabel[0], N] => Term
+        label: SchematicTermLabel[N],
+        f: FillArgs[SchematicTermLabel[0], N] => Term
     )(using ValueOf[N]): RuleParameters =
       copy(functions = functions :+ AssignedFunction(label, LambdaFunction[N](f)))
     def withFunction(label: SchematicTermLabel[0], value: Term): RuleParameters =
       withFunction(label, _ => value)
 
     def withPredicate[N <: Arity](
-      label: SchematicPredicateLabel[N], f: FillArgs[SchematicTermLabel[0], N] => Formula
+        label: SchematicPredicateLabel[N],
+        f: FillArgs[SchematicTermLabel[0], N] => Formula
     )(using ValueOf[N]): RuleParameters = copy(predicates = predicates :+ AssignedPredicate(label, LambdaPredicate(f)))
     def withPredicate(label: SchematicPredicateLabel[0], value: Formula): RuleParameters =
       withPredicate(label, _ => value)
 
     def withConnector[N <: Arity](
-      label: SchematicConnectorLabel[N], f: FillArgs[SchematicPredicateLabel[0], N] => Formula
+        label: SchematicConnectorLabel[N],
+        f: FillArgs[SchematicPredicateLabel[0], N] => Formula
     )(using ValueOf[N]): RuleParameters = {
       require(label.arity > 0, "For consistency, use nullary predicate schemas instead of connectors")
       copy(connectors = connectors :+ AssignedConnector(label, LambdaConnector(f)))
@@ -55,22 +59,24 @@ trait RuleDefinitions extends ProofEnvironmentDefinitions with UnificationUtils 
   }
   object RuleParameters {
     def apply(args: (AssignedFunction | AssignedPredicate | AssignedConnector | (VariableLabel, VariableLabel))*): RuleParameters =
-      args.foldLeft(new RuleParameters())((acc, e) => e match {
-        case assigned: AssignedFunction => acc.copy(functions = acc.functions :+ assigned)
-        case assigned: AssignedPredicate => acc.copy(predicates = acc.predicates :+ assigned)
-        case assigned: AssignedConnector => acc.copy(connectors = acc.connectors :+ assigned)
-        case pair @ (_: VariableLabel, _: VariableLabel) => acc.copy(variables = acc.variables + pair)
-      })
+      args.foldLeft(new RuleParameters())((acc, e) =>
+        e match {
+          case assigned: AssignedFunction => acc.copy(functions = acc.functions :+ assigned)
+          case assigned: AssignedPredicate => acc.copy(predicates = acc.predicates :+ assigned)
+          case assigned: AssignedConnector => acc.copy(connectors = acc.connectors :+ assigned)
+          case pair @ (_: VariableLabel, _: VariableLabel) => acc.copy(variables = acc.variables + pair)
+        }
+      )
   }
 
   protected def applyRuleInference(
-    parameters: RuleParameters,
-    patternsFrom: IndexedSeq[PartialSequent],
-    patternsTo: IndexedSeq[PartialSequent],
-    valuesFrom: IndexedSeq[Sequent],
+      parameters: RuleParameters,
+      patternsFrom: IndexedSeq[PartialSequent],
+      patternsTo: IndexedSeq[PartialSequent],
+      valuesFrom: IndexedSeq[Sequent]
   ): Option[(IndexedSeq[Sequent], UnificationContext)] = {
     def parametersView: View[IndexedSeq[SequentSelector]] =
-      if(patternsFrom.size == valuesFrom.size) {
+      if (patternsFrom.size == valuesFrom.size) {
         matchIndices(parameters.selectors, patternsFrom, valuesFrom)
       } else {
         View.empty
@@ -80,7 +86,8 @@ trait RuleDefinitions extends ProofEnvironmentDefinitions with UnificationUtils 
       val ctx = UnificationContext(
         parameters.predicates.map(r => r.schema -> r.lambda).toMap,
         parameters.functions.map(r => r.schema -> r.lambda).toMap,
-        parameters.connectors.map(r => r.schema -> r.lambda).toMap)
+        parameters.connectors.map(r => r.schema -> r.lambda).toMap
+      )
       unifyAndResolve(patternsFrom, valuesFrom, patternsTo, ctx, selectors)
     }.headOption
   }
@@ -90,12 +97,11 @@ trait RuleDefinitions extends ProofEnvironmentDefinitions with UnificationUtils 
    * @param rule the original rule
    * @param parameters the parameters used for the instantiation
    */
-  case class RuleTactic private[RuleDefinitions](rule: Rule, parameters: RuleParameters) extends TacticGoalFunctional {
+  case class RuleTactic private[RuleDefinitions] (rule: Rule, parameters: RuleParameters) extends TacticGoalFunctional {
     override def apply(proofGoal: Sequent): Option[(IndexedSeq[Sequent], ReconstructSteps)] = {
-      applyRuleInference(parameters, IndexedSeq(rule.conclusion), rule.hypotheses, IndexedSeq(proofGoal)).flatMap {
-        case (newGoals, ctx) =>
-          val stepsOption = rule.reconstruct.andThen(Some.apply).applyOrElse((proofGoal, ctx), _ => None)
-          stepsOption.map(steps => (newGoals, () => steps))
+      applyRuleInference(parameters, IndexedSeq(rule.conclusion), rule.hypotheses, IndexedSeq(proofGoal)).flatMap { case (newGoals, ctx) =>
+        val stepsOption = rule.reconstruct.andThen(Some.apply).applyOrElse((proofGoal, ctx), _ => None)
+        stepsOption.map(steps => (newGoals, () => steps))
       }
     }
 

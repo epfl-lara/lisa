@@ -16,7 +16,7 @@ trait CommonUtils extends CommonDefinitions with CommonOps {
   def freshId(taken: Set[String], base: String = "x"): String = {
     def findFirst(i: Int): String = {
       val id = s"${base}_$i"
-      if(taken.contains(id)) findFirst(i + 1) else id
+      if (taken.contains(id)) findFirst(i + 1) else id
     }
     findFirst(0)
   }
@@ -30,9 +30,9 @@ trait CommonUtils extends CommonDefinitions with CommonOps {
   def freshIds(taken: Set[String], n: Int, base: String = "x"): Seq[String] = {
     require(n >= 0)
     def findMany(i: Int, n: Int, taken: Set[String], acc: Seq[String]): Seq[String] = {
-      if(n > 0) {
+      if (n > 0) {
         val id = s"${base}_$i"
-        if(taken.contains(id)) findMany(i + 1, n, taken, acc) else findMany(i + 1, n - 1, taken + id, id +: acc)
+        if (taken.contains(id)) findMany(i + 1, n, taken, acc) else findMany(i + 1, n - 1, taken + id, id +: acc)
       } else {
         acc
       }
@@ -45,7 +45,7 @@ trait CommonUtils extends CommonDefinitions with CommonOps {
    * @param from the label that should be renamed
    * @param to the label it should be renamed to
    */
-  case class RenamedLabel[L <: Label & WithArity[?], A <: L & SchematicLabel, B <: L] private(from: A, to: B)
+  case class RenamedLabel[L <: Label & WithArity[?], A <: L & SchematicLabel, B <: L] private (from: A, to: B)
   object RenamedLabel {
     @targetName("applySafe")
     def apply[N <: Arity, L <: Label & WithArity[N], A <: L & SchematicLabel, B <: L](from: A, to: B): RenamedLabel[L, A, B] = new RenamedLabel(from, to)

@@ -54,10 +54,19 @@ object SequentCalculus {
    * <pre>
    *    Γ |- Δ
    * ------------
-   *    Γ |- Δ
+   *    Γ |- Δ  (OCBSL rewrite)
    * </pre>
    */
   case class Rewrite(bot: Sequent, t1: Int) extends SCProofStep { val premises = Seq(t1) }
+
+  /**
+   * <pre>
+   *
+   * ------------
+   *    Γ |- Γ  (OCBSL tautology)
+   * </pre>
+   */
+  case class RewriteTrue(bot: Sequent) extends SCProofStep { val premises = Seq() }
 
   /**
    * <pre>

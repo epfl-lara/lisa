@@ -22,8 +22,7 @@ trait TermUtils extends TermDefinitions with TermConversionsTo with CommonOps wi
     lisa.kernel.fol.FOL.LambdaTermTerm(lambda.parameters.map(toKernel), lambda.body)
   given Conversion[LambdaFunction[?], lisa.kernel.fol.FOL.LambdaTermTerm] = toKernel
 
-
-  case class LambdaFunction[N <: Arity] private(parameters: Seq[SchematicTermLabel[0]], body: Term) extends LambdaDefinition[N, SchematicTermLabel[0], Term] {
+  case class LambdaFunction[N <: Arity] private (parameters: Seq[SchematicTermLabel[0]], body: Term) extends LambdaDefinition[N, SchematicTermLabel[0], Term] {
     override type U = Term
     override protected def instantiate(args: Seq[Term]): Term =
       instantiateTermSchemas(body, parameters.zip(args).map { case (from, to) => AssignedFunction(from, LambdaFunction(_ => to)) })
@@ -40,8 +39,7 @@ trait TermUtils extends TermDefinitions with TermConversionsTo with CommonOps wi
     def unsafe(parameters: Seq[SchematicTermLabel[0]], body: Term): LambdaFunction[?] = new LambdaFunction(parameters, body)
   }
 
-  case class AssignedFunction private(schema: SchematicTermLabel[?], lambda: LambdaFunction[?])
-    extends AssignedSchema[SchematicTermLabel[?], SchematicTermLabel[0]] {
+  case class AssignedFunction private (schema: SchematicTermLabel[?], lambda: LambdaFunction[?]) extends AssignedSchema[SchematicTermLabel[?], SchematicTermLabel[0]] {
     override type L = LambdaFunction[?]
   }
   object AssignedFunction {
@@ -54,11 +52,15 @@ trait TermUtils extends TermDefinitions with TermConversionsTo with CommonOps wi
   given lambdaToLambdaFunction1: Conversion[SchematicTermLabel[0] => Term, LambdaFunction[1]] = LambdaFunction.apply
   given lambdaToLambdaFunction2: Conversion[((SchematicTermLabel[0], SchematicTermLabel[0])) => Term, LambdaFunction[2]] = LambdaFunction.apply
 
-  /** @see [[lisa.kernel.fol.FOL.isSame]] */
+  /**
+   * @see [[lisa.kernel.fol.FOL.isSame]]
+   */
   def isSame(t1: Term, t2: Term): Boolean =
     lisa.kernel.fol.FOL.isSame(t1, t2)
 
-  /** @see [[lisa.kernel.fol.FOL.Term#freeVariables]] */
+  /**
+   * @see [[lisa.kernel.fol.FOL.Term#freeVariables]]
+   */
   def freeVariablesOf(term: Term): Set[VariableLabel] = term match {
     case VariableTerm(label) => Set(label)
     case Term(label, args) => args.flatMap(freeVariablesOf).toSet
@@ -68,7 +70,9 @@ trait TermUtils extends TermDefinitions with TermConversionsTo with CommonOps wi
     case Term(label, args) => args.flatMap(termLabelsOf).toSet + label
   }
 
-  /** @see [[lisa.kernel.fol.FOL.Term#schematicFunctions]] */
+  /**
+   * @see [[lisa.kernel.fol.FOL.Term#schematicFunctions]]
+   */
   def schematicTermLabelsOf(term: Term): Set[SchematicTermLabel[?]] =
     termLabelsOf(term).collect { case schematic: SchematicTermLabel[?] => schematic }
 

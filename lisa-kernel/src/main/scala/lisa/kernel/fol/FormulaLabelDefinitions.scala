@@ -19,6 +19,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   sealed trait PredicateLabel extends FormulaLabel {
     require(arity < MaxArity && arity >= 0)
   }
+
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
    */
@@ -36,6 +37,8 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    * It is represented as any other predicate symbol but has unique semantic and deduction rules.
    */
   val equality: ConstantPredicateLabel = ConstantPredicateLabel("=", 2)
+  val top: ConstantPredicateLabel = ConstantPredicateLabel("⊤", 0)
+  val bot: ConstantPredicateLabel = ConstantPredicateLabel("⊥", 0)
 
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
@@ -50,8 +53,6 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   case object And extends ConstantConnectorLabel("∧", -1)
 
   case object Or extends ConstantConnectorLabel("∨", -1)
-
-
 
   /**
    * A schematic symbol that can be instantiated with some formula.
@@ -71,17 +72,15 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
     val arity = 0
   }
 
-
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking term arguments.
    */
   sealed case class SchematicPredicateLabel(id: String, arity: Int) extends SchematicVarOrPredLabel
+
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking formula arguments.
    */
   sealed case class SchematicConnectorLabel(id: String, arity: Int) extends SchematicFormulaLabel with ConnectorLabel
-
-
 
   /**
    * The label for a binder, namely an object with a body that has the ability to bind variables in it.
@@ -94,10 +93,12 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    * The symbol of the universal quantifier ∀
    */
   case object Forall extends BinderLabel(id = "∀")
+
   /**
    * The symbol of the existential quantifier ∃
    */
   case object Exists extends BinderLabel(id = "∃")
+
   /**
    * The symbol of the quantifier for existence and unicity ∃!
    */

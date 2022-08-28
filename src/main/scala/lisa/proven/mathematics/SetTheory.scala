@@ -6,16 +6,14 @@ import lisa.automation.kernel.ProofTactics.*
 /**
  * An embryo of mathematical development, containing a few example theorems and the definition of the ordered pair.
  */
-object SetTheory extends lisa.proven.Main {
+object SetTheory extends lisa.Main {
 
   THEOREM("russelParadox") of "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢" PROOF {
     val y = VariableLabel("y")
     val x = VariableLabel("x")
-    val contra = in(y, y) <=> !in(y, y)
-    val s0 = Hypothesis(contra |- contra, contra)
-    val s1 = LeftForall(forall(x, in(x, y) <=> !in(x, x)) |- contra, 0, in(x, y) <=> !in(x, x), x, y)
-    val s2 = Rewrite(forall(x, in(x, y) <=> !in(x, x)) |- (), 1)
-    Proof(s0, s1, s2)
+    val s0 = RewriteTrue(in(y, y) <=> !in(y, y) |- ())
+    val s1 = LeftForall(forall(x, in(x, y) <=> !in(x, x)) |- (), 0, in(x, y) <=> !in(x, x), x, y)
+    Proof(s0, s1)
   } using ()
   thm"russelParadox".show
 

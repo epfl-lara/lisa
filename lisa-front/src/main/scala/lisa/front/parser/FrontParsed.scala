@@ -1,6 +1,7 @@
 package lisa.front.parser
 
-import scala.util.parsing.input.{Position, Positional}
+import scala.util.parsing.input.Position
+import scala.util.parsing.input.Positional
 
 sealed abstract class FrontParsed extends Positional
 
@@ -49,7 +50,7 @@ private[parser] object FrontParsed {
   }
   case class ParsedOrderedPair(left: ParsedTermOrFormula, right: ParsedTermOrFormula) extends ParsedProduct
   case class ParsedSet2(left: ParsedTermOrFormula, right: ParsedTermOrFormula) extends ParsedProduct
-  //case class ParsedSet1(termOrFormula: ParsedTermOrFormula) extends ParsedTermOrFormula
+  // case class ParsedSet1(termOrFormula: ParsedTermOrFormula) extends ParsedTermOrFormula
   case class ParsedSet0() extends ParsedTermOrFormula
 
   sealed abstract class ParsedBinder extends ParsedTermOrFormula {
@@ -60,7 +61,8 @@ private[parser] object FrontParsed {
   case class ParsedExists(bound: Seq[String], termOrFormula: ParsedTermOrFormula) extends ParsedBinder
   case class ParsedExistsOne(bound: Seq[String], termOrFormula: ParsedTermOrFormula) extends ParsedBinder
 
-  case class ParsedProofStep(stepPosition: Position, indentation: Int, line: Int, ruleName: String, premises: Seq[Int], conclusion: ParsedSequent, parameters: Seq[ParsedTopTermOrFormula]) extends FrontParsed
+  case class ParsedProofStep(stepPosition: Position, indentation: Int, line: Int, ruleName: String, premises: Seq[Int], conclusion: ParsedSequent, parameters: Seq[ParsedTopTermOrFormula])
+      extends FrontParsed
   case class ParsedProof(steps: IndexedSeq[ParsedProofStep]) extends FrontParsed
 
 }

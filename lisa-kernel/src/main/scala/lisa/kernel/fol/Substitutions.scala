@@ -36,7 +36,7 @@ trait Substitutions extends FormulaDefinitions {
   case class LambdaFormulaFormula(vars: Seq[VariableFormulaLabel], body: Formula) {
     def apply(args: Seq[Formula]): Formula = {
       substituteFormulaVariables(body, (vars zip args).toMap)
-      //instantiatePredicateSchemas(body, (vars zip (args map (LambdaTermFormula(Nil, _)))).toMap)
+      // instantiatePredicateSchemas(body, (vars zip (args map (LambdaTermFormula(Nil, _)))).toMap)
     }
   }
 
@@ -182,7 +182,7 @@ trait Substitutions extends FormulaDefinitions {
       case _: PredicateFormula => phi
       case ConnectorFormula(label, args) =>
         label match {
-          case label: SchematicConnectorLabel  if m.contains(label) => m(label)(args)
+          case label: SchematicConnectorLabel if m.contains(label) => m(label)(args)
           case _ => ConnectorFormula(label, args.map(instantiateConnectorSchemas(_, m)))
         }
       case BinderFormula(label, bound, inner) =>

@@ -243,8 +243,6 @@ class RunningTheory {
     s.right.foreach(makeFormulaBelongToTheory)
   }
 
-
-
   /**
    * Verify if a given formula belongs to some language
    *
@@ -285,7 +283,6 @@ class RunningTheory {
   def belongsToTheory(s: Sequent): Boolean =
     s.left.forall(belongsToTheory) && s.right.forall(belongsToTheory)
 
-
   /**
    * Public accessor to the set of symbol currently in the theory's language.
    *
@@ -318,26 +315,32 @@ class RunningTheory {
    * Verify if a given formula is an axiom of the theory
    */
   def isAxiom(f: Formula): Boolean = theoryAxioms.exists(a => isSame(a._2.ax, f))
+
   /**
    * Get the Axiom that is the same as the given formula, if it exists in the theory.
    */
   def getAxiom(f: Formula): Option[Axiom] = theoryAxioms.find(a => isSame(a._2.ax, f)).map(_._2)
+
   /**
    * Get the definition of the given label, if it is defined in the theory.
    */
   def getDefinition(label: ConstantPredicateLabel): Option[PredicateDefinition] = predDefinitions.get(label).flatten
+
   /**
    * Get the definition of the given label, if it is defined in the theory.
    */
   def getDefinition(label: ConstantFunctionLabel): Option[FunctionDefinition] = funDefinitions.get(label).flatten
+
   /**
    * Get the Axiom with the given name, if it exists in the theory.
    */
   def getAxiom(name: String): Option[Axiom] = theoryAxioms.get(name)
+
   /**
    * Get the Theorem with the given name, if it exists in the theory.
    */
   def getTheorem(name: String): Option[Theorem] = theorems.get(name)
+
   /**
    * Get the definition for the given identifier, if it is defined in the theory.
    */

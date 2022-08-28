@@ -3,7 +3,7 @@ package lisa.front.printer
 import lisa.front.parser.FrontSymbols
 
 private[printer] case class FrontPrintParameters(s: FrontSymbols, symbols: FrontPrintStyle, compact: Boolean) {
-  //export S.*
+  // export S.*
 }
 
 private[printer] object FrontPrintParameters {

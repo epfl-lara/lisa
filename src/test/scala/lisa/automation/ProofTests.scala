@@ -1,11 +1,11 @@
 package lisa.automation
 
-import lisa.front.fol.FOL.*
 import lisa.automation.Proof2.*
+import lisa.front.fol.FOL.*
 import lisa.kernel.proof.SCProofChecker
 import lisa.utils.Printer
-
 import org.scalatest.funsuite.AnyFunSuite
+
 import scala.language.adhocExtensions
 
 class ProofTests extends AnyFunSuite {
@@ -34,83 +34,83 @@ class ProofTests extends AnyFunSuite {
       Proof(
         (a, b /\ c) |- (b /\ c, b)
       )(
-        RuleHypothesis(RuleParameters().withIndices(0)(1)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(1)(0))
       ),
       Proof(
         (a /\ b) |- a
       )(
         RuleIntroductionLeftAnd(),
-        RuleHypothesis(RuleParameters().withIndices(0)(0)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(0)(0))
       ),
       Proof(
         (a, b) |- (a /\ b)
       )(
         RuleIntroductionRightAnd(RuleParameters().withIndices(0)()(0)),
         RuleHypothesis(RuleParameters().withIndices(0)(0)(0)),
-        RuleHypothesis(RuleParameters().withIndices(0)(1)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(1)(0))
       ),
       Proof(
         (a \/ b) |- (a, b)
       )(
         RuleIntroductionLeftOr(RuleParameters().withIndices(0)(0)()),
         RuleHypothesis(RuleParameters().withIndices(0)(0)(0)),
-        RuleHypothesis(RuleParameters().withIndices(0)(0)(1)),
+        RuleHypothesis(RuleParameters().withIndices(0)(0)(1))
       ),
       Proof(
         a |- (a \/ b)
       )(
         RuleIntroductionRightOr(RuleParameters().withIndices(0)()(0)),
-        RuleHypothesis(RuleParameters().withIndices(0)(0)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(0)(0))
       ),
       Proof(
         (a ==> b, a) |- b
       )(
         RuleIntroductionLeftImplies(RuleParameters().withIndices(0)(0)()),
         RuleHypothesis(RuleParameters().withIndices(0)(0)(1)),
-        RuleHypothesis(RuleParameters().withIndices(0)(1)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(1)(0))
       ),
       Proof(
         () |- (a ==> a)
       )(
         RuleIntroductionRightImplies(RuleParameters().withIndices(0)()(0)),
-        RuleHypothesis(RuleParameters().withIndices(0)(0)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(0)(0))
       ),
       Proof(
         (a <=> b) |- (b ==> a)
       )(
         RuleIntroductionLeftIff(RuleParameters().withIndices(0)(0)()),
-        RuleHypothesis(RuleParameters().withIndices(0)(1)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(1)(0))
       ),
       Proof(
         (a ==> b, b ==> a) |- (a <=> b)
       )(
         RuleIntroductionRightIff(RuleParameters().withIndices(0)()(0)),
         RuleHypothesis(RuleParameters().withIndices(0)(0)(0)),
-        RuleHypothesis(RuleParameters().withIndices(0)(1)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(1)(0))
       ),
       Proof(
         (a, !a) |- b
       )(
         RuleIntroductionLeftNot(RuleParameters().withIndices(0)(1)()),
-        RuleHypothesis(RuleParameters().withIndices(0)(0)(1)), // FIXME shouldn't it be 0?
+        RuleHypothesis(RuleParameters().withIndices(0)(0)(1)) // FIXME shouldn't it be 0?
       ),
       Proof(
         () |- (!a, a)
       )(
         RuleIntroductionRightNot(RuleParameters().withIndices(0)()(0)),
-        RuleHypothesis(RuleParameters().withIndices(0)(0)(0)),
+        RuleHypothesis(RuleParameters().withIndices(0)(0)(0))
       ),
       Proof(
         () |- (t === t)
       )(
         RuleEliminationLeftRefl(RuleParameters().withFunction(Notations.s, t)),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         () |- (t === t)
       )(
-        RuleIntroductionRightRefl(RuleParameters().withFunction(Notations.s, t)),
-      ),
+        RuleIntroductionRightRefl(RuleParameters().withFunction(Notations.s, t))
+      )
     )
   }
 
@@ -124,7 +124,7 @@ class ProofTests extends AnyFunSuite {
             .withPredicate(Notations.p, x => u === x)
             .withFunction(Notations.t, s)
         ),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         a |- forall(x, (u === x) \/ a)
@@ -134,7 +134,7 @@ class ProofTests extends AnyFunSuite {
             .withPredicate(Notations.p, x => (u === x) \/ a)
         ),
         RuleIntroductionRightOr(),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         exists(x, (s === x) /\ a) |- a
@@ -144,7 +144,7 @@ class ProofTests extends AnyFunSuite {
             .withPredicate(Notations.p, x => (s === x) /\ a)
         ),
         RuleIntroductionLeftAnd(),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         (s === t) |- exists(x, s === x)
@@ -154,7 +154,7 @@ class ProofTests extends AnyFunSuite {
             .withPredicate(Notations.p, s === _)
             .withFunction(Notations.t, t)
         ),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         (s === t, u === t) |- (u === s)
@@ -163,7 +163,7 @@ class ProofTests extends AnyFunSuite {
           RuleParameters()
             .withPredicate(Notations.p, u === _)
         ),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         (s === t, u === s) |- (u === t)
@@ -172,7 +172,7 @@ class ProofTests extends AnyFunSuite {
           RuleParameters()
             .withPredicate(Notations.p, u === _)
         ),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         (a <=> b, c <=> b) |- (c <=> a)
@@ -181,7 +181,7 @@ class ProofTests extends AnyFunSuite {
           RuleParameters()
             .withConnector(Notations.f, c <=> _)
         ),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         (a <=> b, c <=> a) |- (c <=> b)
@@ -190,8 +190,8 @@ class ProofTests extends AnyFunSuite {
           RuleParameters()
             .withConnector(Notations.f, c <=> _)
         ),
-        RuleHypothesis(),
-      ),
+        RuleHypothesis()
+      )
     )
 
     // TODO remaining rules
@@ -210,7 +210,7 @@ class ProofTests extends AnyFunSuite {
         ),
         RuleHypothesis(),
         TacticalRewrite((s === t) |- (s === t)),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         (s === t) |- (t === s)
@@ -223,7 +223,7 @@ class ProofTests extends AnyFunSuite {
         ),
         RuleHypothesis(),
         TacticalRewrite((s === t) |- (s === t)),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         (s === t, t === u) |- (s === u)
@@ -235,7 +235,7 @@ class ProofTests extends AnyFunSuite {
             .withFunction(Notations.t, t)
         ),
         RuleHypothesis(),
-        RuleHypothesis(),
+        RuleHypothesis()
       ),
       Proof(
         (s === t, t === u) |- (s === u)
@@ -248,8 +248,8 @@ class ProofTests extends AnyFunSuite {
         ),
         RuleHypothesis(),
         TacticalRewrite((s === t, t === u) |- (s === t)),
-        RuleHypothesis(),
-      ),
+        RuleHypothesis()
+      )
     )
   }
 
@@ -260,7 +260,7 @@ class ProofTests extends AnyFunSuite {
       Proof(
         () |- ((a /\ b) ==> (b /\ a))
       )(
-        TacticSolverNative,
+        TacticSolverNative
       )
     )
 
@@ -268,7 +268,7 @@ class ProofTests extends AnyFunSuite {
       Proof(
         () |- ((b /\ a) ==> (a /\ b))
       )(
-        TacticSolverNative,
+        TacticSolverNative
       )
     )
 

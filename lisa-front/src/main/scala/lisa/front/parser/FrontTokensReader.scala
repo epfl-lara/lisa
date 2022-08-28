@@ -1,6 +1,8 @@
 package lisa.front.parser
 
-import scala.util.parsing.input.{Reader, Position, NoPosition}
+import scala.util.parsing.input.NoPosition
+import scala.util.parsing.input.Position
+import scala.util.parsing.input.Reader
 
 private[parser] class FrontTokensReader(tokens: Seq[FrontToken]) extends Reader[FrontToken] {
   override def first: FrontToken = tokens.head

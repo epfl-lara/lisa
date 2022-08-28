@@ -17,7 +17,7 @@ object ProofTactics {
   def instantiateForall(p: SCProof, phi: Formula, t: Term): SCProof = { // given a proof with a formula quantified with \forall on the right, extend the proof to the same formula with something instantiated instead.
     require(p.conclusion.right.contains(phi))
     phi match {
-      case b@BinderFormula(Forall, _, _) =>
+      case b @ BinderFormula(Forall, _, _) =>
         val c = p.conclusion
         val tempVar = VariableLabel(freshId(b.freeVariables.map(_.id), "x"))
         val in = instantiateBinder(b, t)
@@ -34,7 +34,7 @@ object ProofTactics {
       (
         instantiateForall(p, f, t1),
         f match {
-          case b@BinderFormula(Forall, _, _) => instantiateBinder(b, t1)
+          case b @ BinderFormula(Forall, _, _) => instantiateBinder(b, t1)
           case _ => throw new Exception
         }
       )
@@ -150,7 +150,7 @@ object ProofTactics {
   }
 
   def detectSubstitutionT(x: VariableLabel, t: Term, s: Term, c: Option[Term] = None): (Option[Term], Boolean) = (t, s) match {
-    case (y@ Term(l:VariableLabel, _), z: Term) => {
+    case (y @ Term(l: VariableLabel, _), z: Term) => {
       if (isSame(y.label, x)) {
         if (c.isDefined) {
           (c, isSame(c.get, z))

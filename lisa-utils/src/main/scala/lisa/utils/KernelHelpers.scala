@@ -26,6 +26,8 @@ trait KernelHelpers {
   /* Prefix syntax */
 
   def neg(f: Formula): Formula = ConnectorFormula(Neg, Seq(f))
+  def and(list: Formula*): Formula = ConnectorFormula(And, list)
+  def or(list: Formula*): Formula = ConnectorFormula(Or, list)
   def and(l: Formula, r: Formula): Formula = ConnectorFormula(And, Seq(l, r))
   def or(l: Formula, r: Formula): Formula = ConnectorFormula(Or, Seq(l, r))
   def implies(l: Formula, r: Formula): Formula = ConnectorFormula(Implies, Seq(l, r))
@@ -87,7 +89,6 @@ trait KernelHelpers {
 
   given Conversion[VariableLabel, Term] = Term(_, Seq())
   given Conversion[Term, TermLabel] = _.label
-
   given Conversion[PredicateFormula, PredicateLabel] = _.label
   given Conversion[PredicateLabel, Formula] = _.apply()
   given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula(_, Nil)
@@ -152,6 +153,11 @@ trait KernelHelpers {
   }
 
   extension (sp: SCSubproof) {
+
+    /**
+     * Explore a proof with a specific path and returns the pointed proofstep.
+     * @param path A path through subproofs of a proof.
+     */
     def followPath(path: Seq[Int]): SCProofStep = path match {
       case Nil => sp
       case n :: Nil => sp.sp(n)

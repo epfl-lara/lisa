@@ -9,7 +9,7 @@ import SetTheory.*
  * This file contains theorem related to the replacement schema, i.e. how to "map" a set through a functional symbol.
  * Leads to the definition of the cartesian product.
  */
-object Mapping extends lisa.proven.Main {
+object Mapping extends lisa.Main {
 
   THEOREM("functionalMapping") of
     "∀a. (a ∈ ?A) ⇒ ∃!x. ?phi(x, a) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ ?A) ∧ ?phi(x, a)" PROOF {
@@ -376,54 +376,64 @@ object Mapping extends lisa.proven.Main {
   val B = VariableLabel("B")
   private val z = VariableLabel("z")
   val cartesianProduct: ConstantFunctionLabel =
-    DEFINE("cartProd", A, B) asThe z suchThat {
-      val a = VariableLabel("a")
-      val b = VariableLabel("b")
-      val x = VariableLabel("x")
-      val x0 = VariableLabel("x0")
-      val x1 = VariableLabel("x1")
-      val A = VariableLabel("A")
-      val B = VariableLabel("B")
-      exists(x, (z === union(x)) /\ forall(x0, in(x0, x) <=> exists(b, in(b, B) /\ forall(x1, in(x1, x0) <=> exists(a, in(a, A) /\ (x1 === oPair(a, b)))))))
-    } PROOF {
-      def makeFunctional(t: Term): Proof = {
-        val x = VariableLabel(freshId(t.freeVariables.map(_.id), "x"))
-        val y = VariableLabel(freshId(t.freeVariables.map(_.id), "y"))
-        val s0 = RightRefl(() |- t === t, t === t)
-        val s1 = Rewrite(() |- (x === t) <=> (x === t), 0)
-        val s2 = RightForall(() |- forall(x, (x === t) <=> (x === t)), 1, (x === t) <=> (x === t), x)
-        val s3 = RightExists(() |- exists(y, forall(x, (x === y) <=> (x === t))), 2, forall(x, (x === y) <=> (x === t)), y, t)
-        val s4 = Rewrite(() |- existsOne(x, x === t), 3)
-        Proof(s0, s1, s2, s3, s4)
-      }
+    DEFINE("cartProd", A, B) asThe
+      z suchThat {
+        val a = VariableLabel("a")
+        val b = VariableLabel("b")
+        val x = VariableLabel("x")
+        val x0 = VariableLabel("x0")
+        val x1 = VariableLabel("x1")
+        val A = VariableLabel("A")
+        val B = VariableLabel("B")
+        exists(x, (z === union(x)) /\ forall(x0, in(x0, x) <=> exists(b, in(b, B) /\ forall(x1, in(x1, x0) <=> exists(a, in(a, A) /\ (x1 === oPair(a, b)))))))
+      } PROOF {
+        def makeFunctional(t: Term): Proof = {
+          val x = VariableLabel(freshId(t.freeVariables.map(_.id), "x"))
+          val y = VariableLabel(freshId(t.freeVariables.map(_.id), "y"))
+          val s0 = RightRefl(() |- t === t, t === t)
+          val s1 = Rewrite(() |- (x === t) <=> (x === t), 0)
+          val s2 = RightForall(() |- forall(x, (x === t) <=> (x === t)), 1, (x === t) <=> (x === t), x)
+          val s3 = RightExists(() |- exists(y, forall(x, (x === y) <=> (x === t))), 2, forall(x, (x === y) <=> (x === t)), y, t)
+          val s4 = Rewrite(() |- existsOne(x, x === t), 3)
+          Proof(s0, s1, s2, s3, s4)
+        }
 
-      val a = VariableLabel("a")
-      val b = VariableLabel("b")
-      val x = VariableLabel("x")
-      val A = VariableLabel("A")
-      val B = VariableLabel("B")
-      val psi = SchematicPredicateLabel("psi", 3)
+        val a = VariableLabel("a")
+        val b = VariableLabel("b")
+        val x = VariableLabel("x")
+        val A = VariableLabel("A")
+        val B = VariableLabel("B")
+        val psi = SchematicPredicateLabel("psi", 3)
 
-      val i1 = thm"mapTwoArguments" // ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)
+        val i1 = thm"mapTwoArguments" // ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)
 
-      val s0 = SCSubproof({
-        val s0 = SCSubproof(makeFunctional(oPair(a, b)))
-        val s1 = Weakening((in(b, B), in(a, A)) |- s0.bot.right, 0)
-        val s2 = Rewrite(in(b, B) |- in(a, A) ==> s0.bot.right.head, 1)
-        val s3 = RightForall(in(b, B) |- forall(a, in(a, A) ==> s0.bot.right.head), 2, in(a, A) ==> s0.bot.right.head, a)
-        val s4 = Rewrite(() |- in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head), 3)
-        val s5 = RightForall(() |- forall(b, in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head)), 4, in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head), b)
-        Proof(steps(s0, s1, s2, s3, s4, s5))
-      }) // ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. x= (a, b)
+        val s0 = SCSubproof({
+          val s0 = SCSubproof(makeFunctional(oPair(a, b)))
+          val s1 = Weakening((in(b, B), in(a, A)) |- s0.bot.right, 0)
+          val s2 = Rewrite(in(b, B) |- in(a, A) ==> s0.bot.right.head, 1)
+          val s3 = RightForall(in(b, B) |- forall(a, in(a, A) ==> s0.bot.right.head), 2, in(a, A) ==> s0.bot.right.head, a)
+          val s4 = Rewrite(() |- in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head), 3)
+          val s5 = RightForall(() |- forall(b, in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head)), 4, in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head), b)
+          Proof(steps(s0, s1, s2, s3, s4, s5))
+        }) // ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. x= (a, b)
 
-      val s1 = InstPredSchema(
-        instantiatePredicateSchemaInSequent(i1, Map(psi -> LambdaTermFormula(Seq(x, a, b), x === oPair(a, b)))),
-        -1,
-        Map(psi -> LambdaTermFormula(Seq(x, a, b), x === oPair(a, b)))
-      )
-      val s2 = Cut(() |- s1.bot.right, 0, 1, s1.bot.left.head)
-      Proof(steps(s0, s1, s2), imports(i1))
-    } using (thm"mapTwoArguments")
+        val s1 = InstPredSchema(
+          instantiatePredicateSchemaInSequent(i1, Map(psi -> LambdaTermFormula(Seq(x, a, b), x === oPair(a, b)))),
+          -1,
+          Map(psi -> LambdaTermFormula(Seq(x, a, b), x === oPair(a, b)))
+        )
+        val s2 = Cut(() |- s1.bot.right, 0, 1, s1.bot.left.head)
+        Proof(steps(s0, s1, s2), imports(i1))
+      } using (thm"mapTwoArguments")
   show
+
+  val property: Formula = ???
+  val pr: Proof = ???
+  val th: Theorem = ???
+
+  val testdef: ConstantFunctionLabel =
+    DEFINE("symbol", A, B) asThe z suchThat property PROOF {
+      pr
+    } using (th)
 
 }

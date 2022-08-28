@@ -59,14 +59,15 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
   /**
    * A VariableTerm is exactly an arity-0 term whose label is a variable label, but we provide specific constructors and destructors.
    */
-  object VariableTerm extends (VariableLabel => Term){
+  object VariableTerm extends (VariableLabel => Term) {
+
     /**
      * A term which consists of a single variable.
      *
      * @param label The label of the variable.
      */
-    def apply(label: VariableLabel) : Term = Term(label, Seq())
-    def unapply(t:Term): Option[VariableLabel] = t.label match {
+    def apply(label: VariableLabel): Term = Term(label, Seq())
+    def unapply(t: Term): Option[VariableLabel] = t.label match {
       case l: VariableLabel => Some(l)
       case _ => None
     }

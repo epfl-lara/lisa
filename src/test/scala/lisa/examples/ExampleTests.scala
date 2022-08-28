@@ -25,5 +25,5 @@ class ExampleTests extends AnyFunSuite {
   test("front solver") {
     frontSolver()
   }
-  */
+   */
 }

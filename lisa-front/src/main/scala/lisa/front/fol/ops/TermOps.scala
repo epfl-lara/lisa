@@ -4,12 +4,12 @@ import lisa.front.fol.definitions.TermDefinitions
 
 trait TermOps extends TermDefinitions with CommonOps {
 
-  extension[N <: Arity] (label: TermLabel[N]) {
+  extension [N <: Arity](label: TermLabel[N]) {
     def apply(args: FillArgs[Term, N]): Term = Term.unsafe(label, tuple2seq(args))
   }
-  //extension (label: TermLabel[2])
+  // extension (label: TermLabel[2])
   //  def apply(a: Term, b: Term): Term = Term.unsafe(label, Seq(a, b))
-  //extension (label: TermLabel[1])
+  // extension (label: TermLabel[1])
   //  def apply(a: Term): Term = Term.unsafe(label, Seq(a))
   extension (label: TermLabel[0]) { def apply(): Term = Term.unsafe(label, Seq.empty) }
 

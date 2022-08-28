@@ -15,6 +15,17 @@ private[fol] trait CommonDefinitions {
   }
 
   /**
+   * \begin{lstlisting}[language=Scala, frame=single]
+   * object MyTheoryName extends lisa.Main {
+   *
+   *  THEOREM("theoremName") of "desired conclusion" PROOF {
+   *
+   *    ... : Proof
+   *
+   *  } using (listOfJustifications)
+   *  show
+   * }
+   * \end{lstlisting}
    * A constant label can represent a fixed symbol of a theory or a logical symbol
    */
   trait ConstantLabel extends Label

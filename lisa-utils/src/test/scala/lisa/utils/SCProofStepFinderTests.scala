@@ -1,6 +1,7 @@
 package lisa.utils
 
 import org.scalatest.funsuite.AnyFunSuite
+
 import scala.language.adhocExtensions
 /*
 import utilities.Helpers.*
@@ -15,9 +16,9 @@ import me.cassayre.florian.masterproject.util.SCProofBuilder.{*, given}
 
 import util.chaining.*
 import scala.util.{Failure, Success, Try}
-*/
+ */
 class SCProofStepFinderTests extends AnyFunSuite {
-/*
+  /*
   test("proof steps reconstruction") {
     // These tests ensure that all the kernel proof steps can be generated
     // To achieve that, we design proofs that require these steps to be used at some point
@@ -185,5 +186,5 @@ class SCProofStepFinderTests extends AnyFunSuite {
       }
     }
   }
-*/
+   */
 }
