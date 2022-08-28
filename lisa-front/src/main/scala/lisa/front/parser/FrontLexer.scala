@@ -1,9 +1,9 @@
 package lisa.front.parser
 
 import lisa.front.parser.FrontReadingException.LexingException
+import lisa.front.parser.FrontSymbols
 import lisa.front.parser.FrontToken
 import lisa.front.parser.FrontToken.*
-import lisa.front.parser.FrontSymbols
 
 import scala.util.matching.Regex
 import scala.util.parsing.combinator.RegexParsers
@@ -124,7 +124,9 @@ object FrontLexer {
       )
 
     override protected def tokens: Parser[Seq[FrontToken]] =
-      phrase(initialIndentation ~ rep(rules | integerLiteral | (S.SquareBracketOpen ^^^ SquareBracketOpen()) | (S.SquareBracketClose ^^^ SquareBracketClose()) | standardTokens) ^^ { case h ~ t => h +: t })
+      phrase(initialIndentation ~ rep(rules | integerLiteral | (S.SquareBracketOpen ^^^ SquareBracketOpen()) | (S.SquareBracketClose ^^^ SquareBracketClose()) | standardTokens) ^^ { case h ~ t =>
+        h +: t
+      })
   }
 
   private trait FrontLexerAscii extends FrontLexer {
@@ -138,7 +140,6 @@ object FrontLexer {
   private object FrontLexerStandardUnicode extends FrontLexerUnicode
   private object FrontLexerExtendedUnicode extends FrontLexerUnicode with FrontLexerExtended // Order of inheritance matter
 
-
   private def postProcessor(lines: Boolean, indentation: Boolean)(tokens: Seq[FrontToken]): Seq[FrontToken] = {
     val tokensWithEnd = tokens :+ End()
     tokensWithEnd.flatMap {
@@ -147,16 +148,16 @@ object FrontLexer {
         tokenLine.pos = token.pos
         val tokenIndentation = Indentation(n)
         tokenIndentation.pos = token.pos
-        if(indentation)
+        if (indentation)
           Seq(tokenLine, tokenIndentation)
-        else if(lines)
+        else if (lines)
           Seq(tokenLine)
         else
           Seq.empty
       case token @ InitialIndentation(n) =>
         val newToken = Indentation(n)
         newToken.pos = token.pos
-        if(indentation) Seq(newToken) else Seq.empty
+        if (indentation) Seq(newToken) else Seq.empty
       case other => Seq(other)
     }
   }

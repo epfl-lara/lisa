@@ -1,3 +1,4 @@
+import lisa.Main
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
@@ -7,7 +8,7 @@ import lisa.automation.kernel.SimplePropositionalSolver.solveSequent
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.Printer.*
 
 /**
@@ -26,7 +27,7 @@ object Example {
    * The last two lines don't need to be changed.
    */
   def proofExample(): Unit = {
-    object Ex extends lisa.proven.Main {
+    object Ex extends Main {
       THEOREM("fixedPointDoubleApplication") of "" PROOF {
         steps(
           ???,

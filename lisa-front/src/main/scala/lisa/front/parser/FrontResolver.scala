@@ -1,14 +1,17 @@
 package lisa.front.parser
 
 import lisa.front.fol.FOL.*
-import lisa.front.proof.Proof.*
 import lisa.front.parser.FrontParsed.*
 import lisa.front.parser.FrontReadingException.ResolutionException
+import lisa.front.proof.Proof.*
 import lisa.front.theory.SetTheory
 
-import scala.util.{Failure, Success, Try}
-import scala.util.parsing.input.{Position, Positional}
 import scala.collection.View
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+import scala.util.parsing.input.Position
+import scala.util.parsing.input.Positional
 
 /**
  * Resolves the intermediate representation ([[FrontParsed]]) into actual first order logic or sequent elements.
@@ -27,7 +30,7 @@ private[parser] object FrontResolver {
   private def resolveFunctionTermLabel(name: ParsedName, arity: Int): TermLabel[?] = name match {
     case ParsedConstant(identifier) => ConstantFunctionLabel.unsafe(identifier, arity)
     case ParsedSchema(identifier, connector) =>
-      if(!connector)
+      if (!connector)
         SchematicTermLabel.unsafe(identifier, arity)
       else
         throw ResolutionException("Type error: expected term, got schematic connector formula", name.pos)
@@ -36,7 +39,7 @@ private[parser] object FrontResolver {
   private def resolvePredicateOrConnectorFormulaLabel(name: ParsedName, arity: Int): PredicateLabel[?] | SchematicConnectorLabel[?] = name match {
     case ParsedConstant(identifier) => ConstantPredicateLabel.unsafe(identifier, arity)
     case ParsedSchema(identifier, connector) =>
-      if(connector)
+      if (connector)
         SchematicConnectorLabel.unsafe(identifier, arity)
       else
         SchematicPredicateLabel.unsafe(identifier, arity)
@@ -47,19 +50,19 @@ private[parser] object FrontResolver {
       name match {
         case ParsedConstant(identifier) =>
           // If the name in context then it must be a variable. Otherwise we fallback to a constant function
-          if(ctx.variables.contains(identifier)) {
+          if (ctx.variables.contains(identifier)) {
             VariableTerm(VariableLabel(identifier))
           } else {
             ConstantFunctionLabel[0](identifier)
           }
         case ParsedSchema(identifier, connector) =>
-          if(!connector) {
+          if (!connector) {
             SchematicTermLabel[0](identifier)
           } else {
             throw ResolutionException("Type error: expected term, got schematic connector formula", tree.pos)
           }
       }
-      // If the name is in the context, we decide that it is a variable
+    // If the name is in the context, we decide that it is a variable
 
     case ParsedApplication(name, args) =>
       Term.unsafe(resolveFunctionTermLabel(name, args.size), args.map(resolveTermContext(_)))
@@ -67,8 +70,8 @@ private[parser] object FrontResolver {
       ConstantFunctionLabel[2]("ordered_pair")(resolveTermContext(left), resolveTermContext(right))
     case ParsedSet2(left, right) =>
       SetTheory.unorderedPairSet(resolveTermContext(left), resolveTermContext(right))
-    case ParsedSet1(subtree) =>
-      SetTheory.singletonSet(resolveTermContext(subtree))
+    // case ParsedSet1(subtree) =>
+    //  SetTheory.singletonSet(resolveTermContext(subtree))
     case ParsedSet0() =>
       SetTheory.emptySet
     case ParsedPower(subtree) =>
@@ -118,8 +121,8 @@ private[parser] object FrontResolver {
         case _: ParsedExists => exists
         case _: ParsedExistsOne => existsOne
       }
-      binder.bound.foldRight(resolveFormulaContext(binder.termOrFormula)(ctx.copy(boundVariables = ctx.boundVariables ++ binder.bound)))(
-        (bound, body) => BinderFormula(label, VariableLabel(bound), body)
+      binder.bound.foldRight(resolveFormulaContext(binder.termOrFormula)(ctx.copy(boundVariables = ctx.boundVariables ++ binder.bound)))((bound, body) =>
+        BinderFormula(label, VariableLabel(bound), body)
       )
     case _ => throw ResolutionException("Type error: expected formula, got term", tree.pos)
   }
@@ -135,7 +138,7 @@ private[parser] object FrontResolver {
 
   private def freeVariablesToContext(freeVariables: Seq[String], position: Position): ScopedContext = {
     val repeated = freeVariables.diff(freeVariables.distinct).distinct
-    if(repeated.isEmpty) {
+    if (repeated.isEmpty) {
       ScopedContext(Set.empty, freeVariables.toSet)
     } else {
       throw ResolutionException(s"Repeated free variable declaration: ${repeated.mkString(", ")}", position)
@@ -152,7 +155,12 @@ private[parser] object FrontResolver {
 
   def resolvePartialSequent(tree: ParsedPartialSequent): PartialSequent = {
     val ctx = freeVariablesToContext(tree.freeVariables, tree.pos)
-    PartialSequent(tree.left.map(resolveFormulaContext(_)(ctx)).toIndexedSeq, tree.right.map(resolveFormulaContext(_)(ctx)).toIndexedSeq, tree.partialLeft, tree.partialRight)
+    PartialSequent(
+      tree.left.map(resolveFormulaContext(_)(ctx)).toIndexedSeq,
+      tree.right.map(resolveFormulaContext(_)(ctx)).toIndexedSeq,
+      tree.partialLeft,
+      tree.partialRight
+    )
   }
 
 }

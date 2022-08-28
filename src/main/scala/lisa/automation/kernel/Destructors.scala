@@ -1,9 +1,9 @@
 package lisa.automation.kernel
 
+import lisa.automation.kernel.ProofTactics.hypothesis
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.automation.kernel.ProofTactics.hypothesis
 import lisa.utils.Helpers.*
 
 object Destructors {

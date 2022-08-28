@@ -19,9 +19,12 @@ object FrontPrintNode {
     def locate(pos: Seq[Int]): (Int, Int) = {
       def locate(that: FrontBranch, pos: Seq[Int], start: Int): (Int, Int) = pos match {
         case h +: t =>
-          val (child, index) = that.children.view.zipWithIndex.collect {
-            case (branch: FrontBranch, i) => (branch, i)
-          }.drop(h).head
+          val (child, index) = that.children.view.zipWithIndex
+            .collect { case (branch: FrontBranch, i) =>
+              (branch, i)
+            }
+            .drop(h)
+            .head
           val newStart = start + that.children.take(index).map(_.print.length).sum
           locate(child, t, newStart)
         case _ =>

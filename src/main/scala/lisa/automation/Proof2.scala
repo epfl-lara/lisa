@@ -48,5 +48,4 @@ object Proof2 {
 
   val justificationInst: TacticInstantiateApplyJustification.type = TacticInstantiateApplyJustification
 
-
 }

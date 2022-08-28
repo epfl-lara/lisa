@@ -1,10 +1,13 @@
 package lisa.front.proof.state
 
-import lisa.utils.Printer
-import lisa.kernel.proof.{RunningTheory, SCProof, SCProofChecker}
-import lisa.kernel.proof.RunningTheoryJudgement.*
-import lisa.kernel.proof.SequentCalculus.{SCSubproof, sequentToFormula}
 import lisa.front.fol.FOL.*
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.RunningTheoryJudgement.*
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofChecker
+import lisa.kernel.proof.SequentCalculus.SCSubproof
+import lisa.kernel.proof.SequentCalculus.sequentToFormula
+import lisa.utils.Printer
 import lisa.utils.ProofsShrink
 
 trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
@@ -16,12 +19,13 @@ trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
    * It is analogous to the kernel's [[RunningTheory]], but adapted to the front and with additional safety guarantees and utilities.
    * @param runningTheory the kernel's theory
    */
-  final class ProofEnvironment(val runningTheory: RunningTheory, // For now, doesn't need to be generically typed
+  final class ProofEnvironment(
+      val runningTheory: RunningTheory // For now, doesn't need to be generically typed
   ) extends ReadableProofEnvironment {
     private[ProofEnvironmentDefinitions] val proven: mutable.Map[Sequent, Seq[(Justified, runningTheory.Justification)]] = mutable.Map.empty
 
     private def addOne(sequent: Sequent, justified: Justified, kernelJustification: runningTheory.Justification): Unit = {
-      if(!proven.contains(sequent)) {
+      if (!proven.contains(sequent)) {
         proven.addOne(sequent, Seq.empty)
       }
       proven.addOne(sequent, proven(sequent) :+ (justified, kernelJustification))
@@ -46,13 +50,14 @@ trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
       sequent.left.forall(belongsToTheory) && sequent.right.forall(belongsToTheory)
 
     private def addSequentToEnvironment(sequent: Sequent, scProof: SCProof, justifiedImports: Map[Int, Sequent]): Theorem = {
-      require(scProof.imports.size == justifiedImports.size && scProof.imports.indices.forall(justifiedImports.contains),
-        "All imports must be justified")
+      require(scProof.imports.size == justifiedImports.size && scProof.imports.indices.forall(justifiedImports.contains), "All imports must be justified")
       require(isAcceptedSequent(sequent)(this), "Invalid conclusion")
-      require(lisa.kernel.proof.SequentCalculus.isSameSequent(sequentToKernel(sequent), scProof.conclusion),
-        "Error: the proof conclusion does not match the provided sequent")
+      require(
+        lisa.kernel.proof.SequentCalculus.isSameSequent(sequentToKernel(sequent), scProof.conclusion),
+        "Error: the proof conclusion does not match the provided sequent"
+      )
       val judgement = SCProofChecker.checkSCProof(scProof)
-      if(!judgement.isValid) {
+      if (!judgement.isValid) {
         throw new AssertionError(
           Seq(
             "Error: the theorem was found to produce an invalid proof; this could indicate a problem with a tactic or a bug in the implementation",
@@ -90,10 +95,10 @@ trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
       require(runningTheory.isAxiom(formula))
       Axiom(this, formula)
     }
-    //def mkDefinition() // TODO
+    // def mkDefinition() // TODO
     def mkTheorem(sequent: Sequent, scProof: SCProof, theorems: IndexedSeq[Justified]): Theorem =
       addSequentToEnvironment(sequent, scProof, theorems.map(_.sequent).zipWithIndex.map(_.swap).toMap)
-    //override def toString: String = proven.keySet.toSeq.map(Theorem(this, _)).map(_.toString).mkString("\n")
+    // override def toString: String = proven.keySet.toSeq.map(Theorem(this, _)).map(_.toString).mkString("\n")
   }
 
   def newEmptyEnvironment(): ProofEnvironment = new ProofEnvironment(new RunningTheory)
@@ -112,7 +117,7 @@ trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
    * It is guaranteed that this sequent has exactly one conclusion and no assumptions.
    * @param formula the original formula
    */
-  case class Axiom private[ProofEnvironmentDefinitions](environment: ProofEnvironment, formula: Formula) extends Justified {
+  case class Axiom private[ProofEnvironmentDefinitions] (environment: ProofEnvironment, formula: Formula) extends Justified {
     override def sequent: Sequent = () |- formula
     override def toString: String = s"Axiom: $sequent"
   }
@@ -122,14 +127,9 @@ trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
    * @param proof the proof of this theorem
    * @param justifications the dependencies of this theorem (= assumptions)
    */
-  case class Theorem private[ProofEnvironmentDefinitions](
-    environment: ProofEnvironment,
-    sequent: Sequent,
-    proof: SCProof,
-    justifications: IndexedSeq[Justified]) extends Justified {
+  case class Theorem private[ProofEnvironmentDefinitions] (environment: ProofEnvironment, sequent: Sequent, proof: SCProof, justifications: IndexedSeq[Justified]) extends Justified {
     override def toString: String = s"Theorem: $sequent"
   }
-
 
   // Borrowed from past work: https://github.com/FlorianCassayre/competitive-scala
   private def topologicalSort[U](start: U, adjacency: Map[U, Set[U]]): Seq[U] = {
@@ -168,32 +168,45 @@ trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
   def reconstructSCProofForTheorem(theorem: Theorem): SCProof = {
     // Inefficient, no need to traverse/reconstruct the whole graph
     val environment = theorem.environment
-    val theorems = environment.proven.values.flatMap(_.collect {
-      case (theorem: Theorem, _) => theorem
-    }).toSeq
-    val sortedTheorems = topologicalSort(theorem, theorems.map(theorem =>
-      (theorem, theorem.justifications.collect { case other: Theorem => other }.toSet) // This will have to be updated for definitions
-    ).toMap.withDefaultValue(Set.empty)).reverse
+    val theorems = environment.proven.values
+      .flatMap(_.collect { case (theorem: Theorem, _) =>
+        theorem
+      })
+      .toSeq
+    val sortedTheorems = topologicalSort(
+      theorem,
+      theorems
+        .map(theorem => (theorem, theorem.justifications.collect { case other: Theorem => other }.toSet) // This will have to be updated for definitions
+        )
+        .toMap
+        .withDefaultValue(Set.empty)
+    ).reverse
     val sortedAxioms = sortedTheorems
-      .flatMap(_.justifications.collect { case ax: Axiom => ax }).toSet
-      .map(_.sequent).toIndexedSeq.sortBy(_.toString)
+      .flatMap(_.justifications.collect { case ax: Axiom => ax })
+      .toSet
+      .map(_.sequent)
+      .toIndexedSeq
+      .sortBy(_.toString)
     val sequentToImport = sortedAxioms.zipWithIndex.toMap.view.mapValues(i => -(i + 1)).toMap
 
     assert(sortedTheorems.lastOption.contains(theorem))
-    val sequentToIndex = sortedTheorems.map(_.sequent).zipWithIndex
+    val sequentToIndex = sortedTheorems
+      .map(_.sequent)
+      .zipWithIndex
       .reverse // This step is important: in case of duplicate nodes, this ensures we have no forward references
       .toMap ++ sequentToImport
 
     assert(sortedTheorems.zipWithIndex.forall { case (thm, i) => thm.justifications.map(_.sequent).forall(s => sequentToIndex.get(s).exists(_ < i)) })
 
-    val scProof = SCProof(sortedTheorems.map(theorem =>
-      SCSubproof(theorem.proof, theorem.justifications.map(_.sequent).map(sequentToIndex))
-    ).toIndexedSeq, sortedAxioms.map(sequentToKernel))
+    val scProof = SCProof(
+      sortedTheorems.map(theorem => SCSubproof(theorem.proof, theorem.justifications.map(_.sequent).map(sequentToIndex))).toIndexedSeq,
+      sortedAxioms.map(sequentToKernel)
+    )
 
     assert(scProof.conclusion == sequentToKernel(theorem.sequent))
 
     val judgement = SCProofChecker.checkSCProof(scProof)
-    if(!judgement.isValid) {
+    if (!judgement.isValid) {
       throw new AssertionError(
         Seq(
           "Error: the reconstructed proof was found to be invalid; this could indicate a bug in the implementation of this very method",

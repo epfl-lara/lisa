@@ -1,25 +1,28 @@
 package lisa.front.parser
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.kernel.proof.SCProof
 import lisa.front.parser.FrontParsed.*
 import lisa.front.parser.FrontReadingException.ResolutionException
 import lisa.front.parser.FrontResolver.*
+import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.*
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 import scala.util.parsing.input.Position
 
 private[parser] object KernelResolver {
 
   private def tryResolve[T](t: => T): Option[T] = Try(t) match {
     case Success(value) => Some(value)
-    case Failure(exception) => exception match {
-      case _: ResolutionException => None
-      case _ => throw new Exception(exception)
-    }
+    case Failure(exception) =>
+      exception match {
+        case _: ResolutionException => None
+        case _ => throw new Exception(exception)
+      }
   }
-  private def all[T](t: => Seq[Option[T]]): Option[Seq[T]] = if(t.forall(_.nonEmpty)) Some(t.flatten) else None
+  private def all[T](t: => Seq[Option[T]]): Option[Seq[T]] = if (t.forall(_.nonEmpty)) Some(t.flatten) else None
 
   private object Formula {
     def unapply(tree: ParsedTopTermOrFormula): Option[Formula] = tryResolve(resolveFormula(tree))
@@ -54,7 +57,8 @@ private[parser] object KernelResolver {
               case ParsedSchema(arg, false) => Some(VariableLabel(arg))
               case _ => None
             }).flatMap(arguments =>
-              Term.unapply(ParsedTopTermOrFormula(freeVariables, term))
+              Term
+                .unapply(ParsedTopTermOrFormula(freeVariables, term))
                 .map(body => SchematicFunctionLabel(identifier, args.size) -> LambdaTermTerm(arguments, body))
             )
           }
@@ -76,7 +80,8 @@ private[parser] object KernelResolver {
               case ParsedSchema(arg, false) => Some(VariableLabel(arg))
               case _ => None
             }).flatMap(arguments =>
-              Formula.unapply(ParsedTopTermOrFormula(freeVariables, term))
+              Formula
+                .unapply(ParsedTopTermOrFormula(freeVariables, term))
                 .map(body => SchematicPredicateLabel(identifier, args.size) -> LambdaTermFormula(arguments, body))
             )
           }
@@ -98,6 +103,7 @@ private[parser] object KernelResolver {
       case (R.Hypothesis, Seq(), Seq(Formula(phi))) => Hypothesis(bot, phi)
       case (R.Cut, Seq(t1, t2), Seq(Formula(phi))) => Cut(bot, t1, t2, phi)
       case (R.Rewrite, Seq(t1), Seq()) => Rewrite(bot, t1)
+      case (R.RewriteTrue, Seq(), Seq()) => RewriteTrue(bot)
       case (R.Weakening, Seq(t1), Seq()) => Weakening(bot, t1)
       case (R.LeftAnd, Seq(t1), Seq(Formula(phi), Formula(psi))) => LeftAnd(bot, t1, phi, psi)
       case (R.RightAnd, premises, FormulaSeq(conjuncts*)) if conjuncts.size == premises.size => RightAnd(bot, premises, conjuncts)
@@ -183,7 +189,7 @@ private[parser] object KernelResolver {
           case Some(proof) => entry.steps :+ proof.copy(premises = premises)
           case None => entry.steps
         }
-        if(newSteps.isEmpty) {
+        if (newSteps.isEmpty) {
           throw ResolutionException("This proof or subproof is incomplete", position)
         }
         Some(SCSubproof(SCProof(newSteps, entry.imports)))
@@ -197,14 +203,14 @@ private[parser] object KernelResolver {
       val rightIndentation = parsedStep.indentation + parsedStep.line.toString.length
 
       val newStack =
-        if(expectedDeeperIndentation) { // Either the first line of a subproof or the first line of the proof
+        if (expectedDeeperIndentation) { // Either the first line of a subproof or the first line of the proof
           stack match {
             case entry +: _ => // First step inside a subproof
               if (rightIndentation <= entry.indentation) {
                 throw ResolutionException("The content of this subproof must be indented further", parsedStep.stepPosition)
               }
               val importsSize = entry.subproofPremises.size
-              if(-parsedStep.line != importsSize) {
+              if (-parsedStep.line != importsSize) {
                 throw ResolutionException(s"The parent subproof declared $importsSize premise(s), therefore this line must start with index ${-importsSize}", parsedStep.stepPosition)
               }
             case _ => // Very first line of the proof
@@ -222,7 +228,8 @@ private[parser] object KernelResolver {
           indentationIndex match {
             case Some(delta) =>
               val previousEntry: StackEntry = stack(delta)
-              previousEntry.copy(steps = previousEntry.steps ++ foldSubproofs(stack.take(delta), parsedStep.stepPosition).map(sp => sp.copy(premises = previousEntry.subproofPremises)).toSeq) +: stack.drop(delta + 1)
+              previousEntry.copy(steps = previousEntry.steps ++ foldSubproofs(stack.take(delta), parsedStep.stepPosition).map(sp => sp.copy(premises = previousEntry.subproofPremises)).toSeq) +: stack
+                .drop(delta + 1)
             case None =>
               throw ResolutionException("This step is not properly indented", parsedStep.stepPosition)
           }
@@ -240,27 +247,27 @@ private[parser] object KernelResolver {
       val isImport = parsedStep.ruleName == R.Import
       val isSubproof = parsedStep.ruleName == R.SubproofShown // Hidden is excluded from this
 
-      if(parsedStep.ruleName == R.SubproofHidden) {
+      if (parsedStep.ruleName == R.SubproofHidden) {
         throw ResolutionException("Cannot parse a hidden subproof", parsedStep.stepPosition)
       }
 
-      if(parsedStep.line < 0) {
-        if(!isImport) {
+      if (parsedStep.line < 0) {
+        if (!isImport) {
           throw ResolutionException("Negative step indices must necessarily be import statements", parsedStep.stepPosition)
         }
       } else {
-        if(isImport) {
+        if (isImport) {
           throw ResolutionException("Import statements can only appear on negative indices steps", parsedStep.stepPosition)
         }
       }
 
-      if(isImport && parsedStep.premises.nonEmpty) {
+      if (isImport && parsedStep.premises.nonEmpty) {
         throw ResolutionException("Import statements cannot have premises", parsedStep.stepPosition)
       }
 
-      if(!isImport) {
+      if (!isImport) {
         parsedStep.premises.foreach { premise =>
-          if((premise < 0 && -premise > entry.imports.size) || (premise >= 0 && premise >= entry.steps.size)) {
+          if ((premise < 0 && -premise > entry.imports.size) || (premise >= 0 && premise >= entry.steps.size)) {
             throw ResolutionException(s"Premise $premise is out of bounds", parsedStep.stepPosition)
           }
         }
@@ -270,9 +277,9 @@ private[parser] object KernelResolver {
 
       val newEntry = entry.copy(nextLineNumber = entry.nextLineNumber + 1, subproofPremises = Seq.empty)
 
-      if(isImport) {
+      if (isImport) {
         (newEntry.copy(imports = sequent +: newEntry.imports) +: tail, false)
-      } else if(isSubproof) {
+      } else if (isSubproof) {
         (newEntry.copy(subproofPremises = parsedStep.premises) +: tail, true)
       } else {
         val newStep = resolveProofStep(parsedStep, R)
@@ -281,7 +288,7 @@ private[parser] object KernelResolver {
     }
 
     val lastPosition = tree.steps.last.stepPosition
-    if(finalExpectedDeeperIndentation) {
+    if (finalExpectedDeeperIndentation) {
       throw ResolutionException("Empty trailing subproof", lastPosition)
     }
 

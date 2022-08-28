@@ -1,13 +1,13 @@
 package lisa.front
 
+import lisa.front.{*, given}
 import org.scalatest.funsuite.AnyFunSuite
+
 import scala.language.adhocExtensions
 
-import lisa.front.{*, given}
-
 class FrontMacroTests extends AnyFunSuite {
-  //TODO Front macros are not working du to changes to variables.
-/*
+  // TODO Front macros are not working du to changes to variables.
+  /*
   test("string interpolation macros") {
     term"g(x, y)"
     formula"a /\ b \/ c => d"
@@ -28,5 +28,5 @@ class FrontMacroTests extends AnyFunSuite {
     assert(sequent" |-  $p0".toString == "⊢ p")
     assert(partial"\ $v. $v = {}; f($y0)  |- $p0 /\ b; ...".toString == raw"\x. f(?y); x = ∅ ⊢ p ∧ b; …")
   }
-*/
+   */
 }

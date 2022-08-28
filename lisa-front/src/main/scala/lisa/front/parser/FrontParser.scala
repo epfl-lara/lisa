@@ -1,10 +1,10 @@
 package lisa.front.parser
 
+import lisa.front.parser.FrontParsed
+import lisa.front.parser.FrontParsed.*
 import lisa.front.parser.FrontReadingException.ParsingException
 import lisa.front.parser.FrontToken
 import lisa.front.parser.FrontToken.*
-import lisa.front.parser.FrontParsed
-import lisa.front.parser.FrontParsed.*
 
 import scala.util.parsing.combinator.Parsers
 
@@ -51,11 +51,15 @@ private[parser] object FrontParser extends Parsers {
   private def termOrFormulaAnd: Parser[ParsedTermOrFormula] =
     positioned(termOrFormulaPredicate ~ rep(And() ~> termOrFormulaPredicate) ^^ { case h ~ t => (h +: t).reduceRight(ParsedAnd.apply) })
   private def termOrFormulaPredicate: Parser[ParsedTermOrFormula] =
-    positioned(termNotBinder ~
-      rep((Membership() ^^^ ParsedMembership.apply | Subset() ^^^ ParsedSubset.apply | SameCardinality() ^^^ ParsedSameCardinality.apply | Equal() ^^^ ParsedEqual.apply) ~
-        termNotBinder) ^^ {
-      case t1 ~ ts => ts.foldRight(t1) { case (f ~ tr, tl) => f(tl, tr) }
-    })
+    positioned(
+      termNotBinder ~
+        rep(
+          (Membership() ^^^ ParsedMembership.apply | Subset() ^^^ ParsedSubset.apply | SameCardinality() ^^^ ParsedSameCardinality.apply | Equal() ^^^ ParsedEqual.apply) ~
+            termNotBinder
+        ) ^^ { case t1 ~ ts =>
+          ts.foldRight(t1) { case (f ~ tr, tl) => f(tl, tr) }
+        }
+    )
 
   private def termNotBinder: Parser[ParsedTermOrFormula] =
     positioned(
@@ -65,11 +69,10 @@ private[parser] object FrontParser extends Parsers {
     )
 
   private def atom: Parser[ParsedTermOrFormula] = positioned(
-    (Identifier("P") ^^^ ParsedPower.apply | Identifier("U") ^^^ ParsedUnion.apply) ~ ParenthesisOpen() ~ termOrFormula ~ ParenthesisClose() ^^ {
-      case f ~ _ ~ t ~ _ => f(t)
+    (Identifier("P") ^^^ ParsedPower.apply | Identifier("U") ^^^ ParsedUnion.apply) ~ ParenthesisOpen() ~ termOrFormula ~ ParenthesisClose() ^^ { case f ~ _ ~ t ~ _ =>
+      f(t)
     }
-      | identifierOrSchematic ~ (ParenthesisOpen() ~> rep1sep(termOrFormula, Comma()) <~ ParenthesisClose()).? ^^ {
-      case v ~ argsOpt =>
+      | identifierOrSchematic ~ (ParenthesisOpen() ~> rep1sep(termOrFormula, Comma()) <~ ParenthesisClose()).? ^^ { case v ~ argsOpt =>
         val name = v match {
           case Identifier(identifier) => ParsedConstant(identifier)
           case SchematicIdentifier(identifier) => ParsedSchema(identifier, connector = false)
@@ -77,18 +80,20 @@ private[parser] object FrontParser extends Parsers {
         }
         argsOpt.map(ParsedApplication(name, _)).getOrElse(name)
       }
-      | ParenthesisOpen() ~ termOrFormula ~ (Comma() ~> termOrFormula <~ ParenthesisClose()).? ~ ParenthesisClose() ^^ { case _ ~ t1 ~ opt ~ _ => opt match {
-      case Some(t2) => ParsedOrderedPair(t1, t2)
-      case None => t1
-    } }
-      | CurlyBracketOpen() ~> (termOrFormula ~ (Comma() ~> termOrFormula).?).? <~ CurlyBracketClose() ^^ {
-      case Some(t1 ~ opt2) =>
-        opt2 match {
-          case Some(t2) => ParsedSet2(t1, t2)
-          case None => ParsedSet1(t1)
+      | ParenthesisOpen() ~ termOrFormula ~ (Comma() ~> termOrFormula <~ ParenthesisClose()).? ~ ParenthesisClose() ^^ { case _ ~ t1 ~ opt ~ _ =>
+        opt match {
+          case Some(t2) => ParsedOrderedPair(t1, t2)
+          case None => t1
         }
-      case None => ParsedSet0()
-    }
+      }
+      | CurlyBracketOpen() ~> (termOrFormula ~ (Comma() ~> termOrFormula).?).? <~ CurlyBracketClose() ^^ {
+        case Some(t1 ~ opt2) =>
+          opt2 match {
+            case Some(t2) => ParsedSet2(t1, t2)
+            case None => ParsedSet2(t1, t1)
+          }
+        case None => ParsedSet0()
+      }
       | EmptySet() ^^^ ParsedSet0()
   )
 
@@ -106,30 +111,29 @@ private[parser] object FrontParser extends Parsers {
     positioned(localBinderOptional ~ termOrFormulaSequence ~ Turnstile() ~ termOrFormulaSequence ^^ { case fv ~ l ~ _ ~ r => ParsedSequent(fv, l, r) })
 
   private def partialSequent: Parser[ParsedPartialSequent] =
-    positioned(localBinderOptional ~ (
-      ((Ellipsis() ~> (Semicolon() ~> rep1sep(termOrFormula, Semicolon())).?) ^^ (opt => (opt.getOrElse(Seq.empty), true))) |
-        termOrFormulaSequence ^^ (seq => (seq, false))
+    positioned(
+      localBinderOptional ~ (
+        ((Ellipsis() ~> (Semicolon() ~> rep1sep(termOrFormula, Semicolon())).?) ^^ (opt => (opt.getOrElse(Seq.empty), true))) |
+          termOrFormulaSequence ^^ (seq => (seq, false))
       ) ~ Turnstile() ~
-      ((Ellipsis() ^^^ Seq.empty | (rep1sep(termOrFormula, Semicolon()) <~ (Semicolon() ~ Ellipsis()))) ^^ (seq => (seq, true)) |
-        termOrFormulaSequence ^^ (seq => (seq, false))
-      ) ^^ {
-        case fv ~ (l, pl) ~ _ ~ (r, pr) => ParsedPartialSequent(fv, l, r, pl, pr)
-    })
-
+        ((Ellipsis() ^^^ Seq.empty | (rep1sep(termOrFormula, Semicolon()) <~ (Semicolon() ~ Ellipsis()))) ^^ (seq => (seq, true)) |
+          termOrFormulaSequence ^^ (seq => (seq, false))) ^^ { case fv ~ (l, pl) ~ _ ~ (r, pr) =>
+          ParsedPartialSequent(fv, l, r, pl, pr)
+        }
+    )
 
   private def proofStepParameters: Parser[Seq[ParsedTopTermOrFormula]] =
     SquareBracketOpen() ~> repsep(topTermOrFormula, Semicolon()) <~ SquareBracketClose() ^^ (_.toSeq)
 
   private def proofStep: Parser[ParsedProofStep] = positioned(
-    indentation ~ integerLiteral ~ ruleName ~ repsep(integerLiteral, Comma()) ~ sequent ~ proofStepParameters.? ^^ {
-      case i ~ l ~ r ~ p ~ s ~ ps => ParsedProofStep(l.pos, i.spaces, l.value, r.name, p.map(_.value), s, ps.getOrElse(Seq.empty))
+    indentation ~ integerLiteral ~ ruleName ~ repsep(integerLiteral, Comma()) ~ sequent ~ proofStepParameters.? ^^ { case i ~ l ~ r ~ p ~ s ~ ps =>
+      ParsedProofStep(l.pos, i.spaces, l.value, r.name, p.map(_.value), s, ps.getOrElse(Seq.empty))
     }
   )
 
   private def proof: Parser[ParsedProof] = positioned(
     (indentation ~ newLine).* ~> rep1sep(proofStep, newLine) <~ (newLine ~ indentation).* ^^ (steps => ParsedProof(steps.toIndexedSeq))
   )
-
 
   private def parse[T](parser: Parser[T])(tokens: Seq[FrontToken]): T = {
     val reader = new FrontTokensReader(tokens)

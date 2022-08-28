@@ -12,10 +12,10 @@ trait UnificationDefinitions {
    * @param variables the assigned variables
    */
   case class UnificationContext(
-    predicates: Map[SchematicPredicateLabel[?], LambdaPredicate[?]] = Map.empty,
-    functions: Map[SchematicTermLabel[?], LambdaFunction[?]] = Map.empty,
-    connectors: Map[SchematicConnectorLabel[?], LambdaConnector[?]] = Map.empty,
-    variables: Map[VariableLabel, VariableLabel] = Map.empty,
+      predicates: Map[SchematicPredicateLabel[?], LambdaPredicate[?]] = Map.empty,
+      functions: Map[SchematicTermLabel[?], LambdaFunction[?]] = Map.empty,
+      connectors: Map[SchematicConnectorLabel[?], LambdaConnector[?]] = Map.empty,
+      variables: Map[VariableLabel, VariableLabel] = Map.empty
   ) {
     infix def +(predicate: AssignedPredicate): UnificationContext = copy(predicates = predicates + (predicate.schema -> predicate.lambda))
     infix def +(function: AssignedFunction): UnificationContext = copy(functions = functions + (function.schema -> function.lambda))
@@ -28,7 +28,6 @@ trait UnificationDefinitions {
 
     def apply(predicate: SchematicPredicateLabel[0]): Formula = predicates(predicate).body
     def apply(function: SchematicTermLabel[0]): Term = functions(function).body
-    
 
     def assignedPredicates: Seq[AssignedPredicate] = predicates.map { case (k, v) => AssignedPredicate.unsafe(k, v) }.toSeq
     def assignedFunctions: Seq[AssignedFunction] = functions.map { case (k, v) => AssignedFunction.unsafe(k, v) }.toSeq
@@ -43,10 +42,10 @@ trait UnificationDefinitions {
    * @param variables the renamed free variables
    */
   case class RenamingContext(
-    predicates: Seq[RenamedPredicateSchema] = Seq.empty,
-    functions: Seq[RenamedFunctionSchema] = Seq.empty,
-    connectors: Seq[RenamedConnectorSchema] = Seq.empty,
-    variables: Map[VariableLabel, VariableLabel] = Map.empty,
+      predicates: Seq[RenamedPredicateSchema] = Seq.empty,
+      functions: Seq[RenamedFunctionSchema] = Seq.empty,
+      connectors: Seq[RenamedConnectorSchema] = Seq.empty,
+      variables: Map[VariableLabel, VariableLabel] = Map.empty
   )
 
 }

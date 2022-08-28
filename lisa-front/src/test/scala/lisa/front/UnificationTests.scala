@@ -1,10 +1,11 @@
 package lisa.front
 
-import org.scalatest.funsuite.AnyFunSuite
-import scala.language.adhocExtensions
-
-import lisa.front.fol.FOL.{LabelType, WithArityType}
+import lisa.front.fol.FOL.LabelType
+import lisa.front.fol.FOL.WithArityType
 import lisa.front.{*, given}
+import org.scalatest.funsuite.AnyFunSuite
+
+import scala.language.adhocExtensions
 
 class UnificationTests extends AnyFunSuite {
 
@@ -40,14 +41,14 @@ class UnificationTests extends AnyFunSuite {
 
   def contextsEqual(ctx1: UnificationContext, ctx2: UnificationContext): Boolean = {
     def names(lambda: WithArityType[?]): Seq[String] = (0 until lambda.arity).map(i => s"unique_name_$i")
-    def normalizeFunction[N<:Arity](lambda: LambdaFunction[N]) = {
+    def normalizeFunction[N <: Arity](lambda: LambdaFunction[N]) = {
       val newParams = names(lambda).map(SchematicTermLabel.apply[0])
       LambdaFunction.unsafe(
         newParams,
         instantiateTermSchemas(lambda.body, lambda.parameters.zip(newParams).map { case (l1, l2) => RenamedLabel.unsafe(l1, l2).toAssignment })
       )
     }
-    //val x:Nothing = normalizeFunction
+    // val x:Nothing = normalizeFunction
     def normalizePredicate(lambda: LambdaPredicate[?]): LambdaPredicate[?] = {
       val newParams = names(lambda).map(SchematicTermLabel.apply[0])
       LambdaPredicate.unsafe(
@@ -67,7 +68,7 @@ class UnificationTests extends AnyFunSuite {
         ctx.predicates.view.mapValues(normalizePredicate).toMap,
         ctx.functions.view.mapValues(normalizeFunction).toMap,
         ctx.connectors.view.mapValues(normalizeConnector).toMap,
-        ctx.variables,
+        ctx.variables
       )
     normalizeContext(ctx1) == normalizeContext(ctx2)
   }
@@ -115,7 +116,12 @@ class UnificationTests extends AnyFunSuite {
     checkUnifiesAs(sg1(sa), b, U + AssignedConnector(sg1, LambdaConnector(x => x)), U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b))
     checkUnifiesAs(sg1(sa), b, U + AssignedPredicate(sa, b), U + AssignedPredicate(sa, b) + AssignedConnector(sg1, LambdaConnector(x => x)))
 
-    checkUnifiesAs(sg1(sa), b, U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b), U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b))
+    checkUnifiesAs(
+      sg1(sa),
+      b,
+      U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b),
+      U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b)
+    )
     checkDoesNotUnify(sg1(sa), b, U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, a))
     checkDoesNotUnify(sg1(sa), b, U + AssignedConnector(sg1, LambdaConnector(_ => a)) + AssignedPredicate(sa, b))
 

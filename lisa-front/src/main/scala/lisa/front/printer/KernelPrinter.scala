@@ -1,14 +1,18 @@
 package lisa.front.printer
 
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SCProofCheckerJudgement.*
-import lisa.kernel.proof.{SCProofCheckerJudgement, SequentCalculus as SC}
-import lisa.kernel.fol.FOL
-import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.front.*
-import lisa.front.parser.{FrontSymbols, KernelRuleIdentifiers}
+import lisa.front.parser.FrontSymbols
+import lisa.front.parser.KernelRuleIdentifiers
 import lisa.front.printer.FrontPositionedPrinter
-import lisa.front.printer.FrontPrintStyle.{Ascii, Latex, Unicode}
+import lisa.front.printer.FrontPrintStyle.Ascii
+import lisa.front.printer.FrontPrintStyle.Latex
+import lisa.front.printer.FrontPrintStyle.Unicode
+import lisa.kernel.fol.FOL
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofCheckerJudgement
+import lisa.kernel.proof.SCProofCheckerJudgement.*
+import lisa.kernel.proof.SequentCalculus.SCProofStep
+import lisa.kernel.proof.{SequentCalculus as SC}
 import lisa.utils.ProofsShrink
 
 object KernelPrinter {
@@ -43,7 +47,7 @@ object KernelPrinter {
       case _ => name
     }
     def prettyParameters(parameters: Seq[String]): String =
-      if(parameters.isEmpty) "" else s"${p.s.SquareBracketOpen}${parameters.mkString(p.s.Semicolon + (if(compact) "" else " "))}${p.s.SquareBracketClose}"
+      if (parameters.isEmpty) "" else s"${p.s.SquareBracketOpen}${parameters.mkString(p.s.Semicolon + (if (compact) "" else " "))}${p.s.SquareBracketClose}"
     def prettyFormula(f: FOL.Formula): String = FrontPositionedPrinter.prettyFormula(fromKernel(f), style, compact)
     def prettyTerm(t: FOL.Term): String = FrontPositionedPrinter.prettyTerm(fromKernel(t), style, compact)
     def prettyFunction(label: FOL.TermLabel, lambda: FOL.LambdaTermTerm): String =
@@ -78,25 +82,30 @@ object KernelPrinter {
           case s: SC.RightExistsOne => Seq(prettyFormula(s.phi), s.x.id)
           case s: SC.LeftRefl => Seq(prettyFormula(s.fa))
           case s: SC.RightRefl => Seq(prettyFormula(s.fa))
-          case s: SC.LeftSubstEq => s.equals.flatMap { case (l, r) => Seq(l, r) }.map(prettyTerm)
-            :+ prettyPredicate(FOL.ConstantPredicateLabel(placeholder, s.lambdaPhi.vars.size), s.lambdaPhi)
-          case s: SC.RightSubstEq => s.equals.flatMap { case (l, r) => Seq(l, r) }.map(prettyTerm)
-            :+ prettyPredicate(FOL.ConstantPredicateLabel(placeholder, s.lambdaPhi.vars.size), s.lambdaPhi)
-          case s: SC.LeftSubstIff => s.equals.flatMap { case (l, r) => Seq(l, r) }.map(prettyFormula)
-            :+ prettyPredicate(
-              FOL.ConstantPredicateLabel(placeholder, s.lambdaPhi.vars.size),
-              FOL.LambdaTermFormula(s.lambdaPhi.vars.map(v => FOL.VariableLabel(v.id)), s.lambdaPhi.body)
-            )
-          case s: SC.RightSubstIff => s.equals.flatMap { case (l, r) => Seq(l, r) }.map(prettyFormula)
-            :+ prettyPredicate(
-            FOL.ConstantPredicateLabel(placeholder, s.lambdaPhi.vars.size),
-            FOL.LambdaTermFormula(s.lambdaPhi.vars.map(v => FOL.VariableLabel(v.id)), s.lambdaPhi.body)
-          )
-          case s: SC.InstFunSchema => s.insts.toSeq.map { case (label, lambda) =>
-            label match {
-              case l: FOL.SchematicTermLabel => prettyFunction(l, lambda)
+          case s: SC.LeftSubstEq =>
+            s.equals.flatMap { case (l, r) => Seq(l, r) }.map(prettyTerm)
+              :+ prettyPredicate(FOL.ConstantPredicateLabel(placeholder, s.lambdaPhi.vars.size), s.lambdaPhi)
+          case s: SC.RightSubstEq =>
+            s.equals.flatMap { case (l, r) => Seq(l, r) }.map(prettyTerm)
+              :+ prettyPredicate(FOL.ConstantPredicateLabel(placeholder, s.lambdaPhi.vars.size), s.lambdaPhi)
+          case s: SC.LeftSubstIff =>
+            s.equals.flatMap { case (l, r) => Seq(l, r) }.map(prettyFormula)
+              :+ prettyPredicate(
+                FOL.ConstantPredicateLabel(placeholder, s.lambdaPhi.vars.size),
+                FOL.LambdaTermFormula(s.lambdaPhi.vars.map(v => FOL.VariableLabel(v.id)), s.lambdaPhi.body)
+              )
+          case s: SC.RightSubstIff =>
+            s.equals.flatMap { case (l, r) => Seq(l, r) }.map(prettyFormula)
+              :+ prettyPredicate(
+                FOL.ConstantPredicateLabel(placeholder, s.lambdaPhi.vars.size),
+                FOL.LambdaTermFormula(s.lambdaPhi.vars.map(v => FOL.VariableLabel(v.id)), s.lambdaPhi.body)
+              )
+          case s: SC.InstFunSchema =>
+            s.insts.toSeq.map { case (label, lambda) =>
+              label match {
+                case l: FOL.SchematicTermLabel => prettyFunction(l, lambda)
+              }
             }
-          }
           case s: SC.InstPredSchema => s.insts.toSeq.map { case (label, lambda) => prettyPredicate(label, lambda) }
           case SC.SCSubproof(_, _, true) => Seq.empty
           case SC.SCSubproof(_, _, false) => Seq.empty
@@ -105,7 +114,7 @@ object KernelPrinter {
           case SC.SCSubproof(sp, premises, true) =>
             SubproofStepWrapper(name, wrap(sp), premises)
           case _ =>
-            NormalStepWrapper(name, step.premises, sequentFromKernel(step.bot), if(explicit) parameters else Seq.empty)
+            NormalStepWrapper(name, step.premises, sequentFromKernel(step.bot), if (explicit) parameters else Seq.empty)
         }
       }
 
@@ -117,8 +126,8 @@ object KernelPrinter {
     def prettyStepName(step: StepWrapper): String =
       Seq(
         step.name,
-        if(style == Latex) "~" else " ",
-        step.premises.map(i => if(style == Latex && i < 0) s"{$i}" else i).mkString(", "),
+        if (style == Latex) "~" else " ",
+        step.premises.map(i => if (style == Latex && i < 0) s"{$i}" else i).mkString(", ")
       ).mkString
 
     val columnInterleaving = style match {
@@ -130,11 +139,13 @@ object KernelPrinter {
       val maxCharCount = Seq(-proof.imports.size, proof.steps.size - 1).map(_.toString.length).max
       val columnEnd = nextColumnStart + maxCharCount - 1
       val newNextColumnStart = columnEnd + 1 + columnInterleaving.length
-      proof.steps.zipWithIndex.map {
-        case (SubproofStepWrapper(_, subProof, _), i) =>
-          computeNumberColumnEnds(subProof, newNextColumnStart, i +: path)
-        case _ => Map.empty
-      }.fold(Map.empty)(_ ++ _) + (path -> columnEnd)
+      proof.steps.zipWithIndex
+        .map {
+          case (SubproofStepWrapper(_, subProof, _), i) =>
+            computeNumberColumnEnds(subProof, newNextColumnStart, i +: path)
+          case _ => Map.empty
+        }
+        .fold(Map.empty)(_ ++ _) + (path -> columnEnd)
     }
     val numberColumnEnds = computeNumberColumnEnds(proof, 0, Seq.empty)
     val maximumNumberColumnEnd = numberColumnEnds.values.max
@@ -172,7 +183,7 @@ object KernelPrinter {
 
         val prefix = judgement match {
           case SCValidProof(_) => ""
-          case SCInvalidProof(_, errorPath, _) => if(errorPath.reverse == fullPath) proofStepIndicator else proofStepNoIndicator
+          case SCInvalidProof(_, errorPath, _) => if (errorPath.reverse == fullPath) proofStepIndicator else proofStepNoIndicator
         }
 
         prefix +
@@ -204,7 +215,7 @@ object KernelPrinter {
     val allLinesPairs = recursivePrint(proof, Seq.empty)
     val maximumLengthFirst = allLinesPairs.map { case (first, _) => first.length }.max
     val contentProof = allLinesPairs.map { case (first, second) =>
-      Seq(first, " " * (maximumLengthFirst - first.length), if(explicit) columnInterleaving else "", second).mkString.replaceAll("\\s+$", "")
+      Seq(first, " " * (maximumLengthFirst - first.length), if (explicit) columnInterleaving else "", second).mkString.replaceAll("\\s+$", "")
     }
     val content = (contentProof ++ errorSeq).mkString(lineSeparator)
 
@@ -212,10 +223,10 @@ object KernelPrinter {
       case FrontPrintStyle.Latex =>
         Seq(
           raw"\tiny",
-          raw"$$\begin{array}{${(0 to maximumNumberColumnDepth).map(i => raw"r${if(i < maximumNumberColumnDepth) raw"@{\hskip 0.1cm}" else ""}").mkString}ll${if(explicit) "l" else ""}}",
+          raw"$$\begin{array}{${(0 to maximumNumberColumnDepth).map(i => raw"r${if (i < maximumNumberColumnDepth) raw"@{\hskip 0.1cm}" else ""}").mkString}ll${if (explicit) "l" else ""}}",
           content,
           raw"\end{array}$$",
-          raw"\normalsize",
+          raw"\normalsize"
         ).mkString("\n")
       case _ => content
     }
@@ -226,11 +237,11 @@ object KernelPrinter {
     val flatProof = ProofsShrink.flattenProof(scProof)
     def postOrder(step: SCProofStep): Seq[Either[SCProofStep, SC.Sequent]] =
       step.premises.flatMap { i =>
-        if(i >= 0) postOrder(flatProof.steps(i)) else Seq(Right(flatProof.imports(-(i + 1))))
+        if (i >= 0) postOrder(flatProof.steps(i)) else Seq(Right(flatProof.imports(-(i + 1))))
       } :+ Left(step)
     val orderedSteps = postOrder(flatProof.steps.last)
     val orderedStepsOptionals: Seq[Either[SCProofStep, Option[SC.Sequent]]] = orderedSteps.flatMap {
-      case Left(step) => (if(step.premises.isEmpty) Seq(Right(None)) else Seq.empty) ++ Seq(Left(step))
+      case Left(step) => (if (step.premises.isEmpty) Seq(Right(None)) else Seq.empty) ++ Seq(Left(step))
       case Right(sequent) => Seq(Right(Some(sequent)))
     }
 

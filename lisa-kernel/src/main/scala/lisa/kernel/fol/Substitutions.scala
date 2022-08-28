@@ -3,7 +3,8 @@ package lisa.kernel.fol
 trait Substitutions extends FormulaDefinitions {
 
   /**
-   * A lambda term to express a "term with holes". Main use is to be substituted in place of a function schema.
+   * A lambda term to express a "term with holes". Main use is to be substituted in place of a function schema or variable.
+   * Also used for some deduction rules.
    * Morally equivalent to a 2-tuples containing the same informations.
    * @param vars The names of the "holes" in the term, necessarily of arity 0. The bound variables of the functional term.
    * @param body The term represented by the object, up to instantiation of the bound schematic variables in args.
@@ -13,7 +14,8 @@ trait Substitutions extends FormulaDefinitions {
   }
 
   /**
-   * A lambda formula to express a "formula with holes". Main use is to be substituted in place of a predicate schema.
+   * A lambda formula to express a "formula with term holes". Main use is to be substituted in place of a predicate schema.
+   * Also used for some deduction rules.
    * Morally equivalent to a 2-tuples containing the same informations.
    * @param vars The names of the "holes" in a formula, necessarily of arity 0. The bound variables of the functional formula.
    * @param body The formula represented by the object, up to instantiation of the bound schematic variables in args.
@@ -25,7 +27,8 @@ trait Substitutions extends FormulaDefinitions {
   }
 
   /**
-   * A lambda formula to express a "formula with holes". Usefull for rules such as Iff substitution
+   * A lambda formula to express a "formula with formula holes". Main use is to be substituted in place of a connector schema.
+   * Also used for some deduction rules.
    * Morally equivalent to a 2-tuples containing the same informations.
    * @param vars The names of the "holes" in a formula, necessarily of arity 0.
    * @param body The formula represented by the object, up to instantiation of the bound schematic variables in args.
@@ -33,7 +36,7 @@ trait Substitutions extends FormulaDefinitions {
   case class LambdaFormulaFormula(vars: Seq[VariableFormulaLabel], body: Formula) {
     def apply(args: Seq[Formula]): Formula = {
       substituteFormulaVariables(body, (vars zip args).toMap)
-      //instantiatePredicateSchemas(body, (vars zip (args map (LambdaTermFormula(Nil, _)))).toMap)
+      // instantiatePredicateSchemas(body, (vars zip (args map (LambdaTermFormula(Nil, _)))).toMap)
     }
   }
 
@@ -42,7 +45,7 @@ trait Substitutions extends FormulaDefinitions {
   //////////////////////////
 
   /**
-   * Performs simultaneous substitution of multiple variables by multiple terms in a term t.
+   * Performs simultaneous substitution of multiple variables by multiple terms in a term.
    * @param t The base term
    * @param m A map from variables to terms.
    * @return t[m]
@@ -56,8 +59,7 @@ trait Substitutions extends FormulaDefinitions {
    * Performs simultaneous substitution of schematic function symbol by "functional" terms, or terms with holes.
    * If the arity of one of the function symbol to substitute doesn't match the corresponding number of arguments, it will produce an error.
    * @param t The base term
-   * @param m The map from schematic function symbols to "terms with holes". A such term is a pair containing a list of
-   *          variable symbols (holes) and a term that is the body of the functional term.
+   * @param m The map from schematic function symbols to lambda expressions Term(s) -> Term [[LambdaTermTerm]].
    * @return t[m]
    */
   def instantiateTermSchemas(t: Term, m: Map[SchematicTermLabel, LambdaTermTerm]): Term = {
@@ -79,10 +81,10 @@ trait Substitutions extends FormulaDefinitions {
   /////////////////////////////
 
   /**
-   * Performs simultaneous substitution of multiple variables by multiple terms in a formula phi.
+   * Performs simultaneous substitution of multiple variables by multiple terms in a formula.
    *
-   * @param f The base formula
-   * @param m A map from variables to terms.
+   * @param phi The base formula
+   * @param m A map from variables to terms
    * @return t[m]
    */
   def substituteVariables(phi: Formula, m: Map[VariableLabel, Term]): Formula = phi match {
@@ -98,6 +100,13 @@ trait Substitutions extends FormulaDefinitions {
       } else BinderFormula(label, bound, substituteVariables(inner, newSubst))
   }
 
+  /**
+   * Performs simultaneous substitution of multiple formula variables by multiple formula terms in a formula.
+   *
+   * @param phi The base formula
+   * @param m A map from variables to terms
+   * @return t[m]
+   */
   def substituteFormulaVariables(phi: Formula, m: Map[VariableFormulaLabel, Formula]): Formula = phi match {
     case PredicateFormula(label: VariableFormulaLabel, _) => m.getOrElse(label, phi)
     case _: PredicateFormula => phi
@@ -113,9 +122,9 @@ trait Substitutions extends FormulaDefinitions {
 
   /**
    * Performs simultaneous substitution of schematic function symbol by "functional" terms, or terms with holes.
-   * If the arity of one of the function symbol to substitute doesn't match the corresponding number of arguments, it will produce an error.
+   * If the arity of one of the predicate symbol to substitute doesn't match the corresponding number of arguments, it will produce an error.
    * @param phi The base formula
-   * @param m The map from schematic function symbols to lambda expressions Term(s) -> Term.
+   * @param m The map from schematic function symbols to lambda expressions Term(s) -> Term [[LambdaTermTerm]].
    * @return phi[m]
    */
   def instantiateTermSchemas(phi: Formula, m: Map[SchematicTermLabel, LambdaTermTerm]): Formula = {
@@ -136,9 +145,9 @@ trait Substitutions extends FormulaDefinitions {
 
   /**
    * Instantiate a schematic predicate symbol in a formula, using higher-order instantiation.
-   *
+   * If the arity of one of the connector symbol to substitute doesn't match the corresponding number of arguments, it will produce an error.
    * @param phi The base formula
-   * @param m The map from schematic predicate symbols to lambda expressions Term(s) -> Formula.
+   * @param m The map from schematic predicate symbols to lambda expressions Term(s) -> Formula [[LambdaTermFormula]].
    * @return phi[m]
    */
   def instantiatePredicateSchemas(phi: Formula, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Formula = {
@@ -164,7 +173,7 @@ trait Substitutions extends FormulaDefinitions {
    * Instantiate a schematic connector symbol in a formula, using higher-order instantiation.
    *
    * @param phi The base formula
-   * @param m The map from schematic function symbols to lambda expressions Formula(s) -> Formula.
+   * @param m The map from schematic function symbols to lambda expressions Formula(s) -> Formula [[LambdaFormulaFormula]].
    * @return phi[m]
    */
   def instantiateConnectorSchemas(phi: Formula, m: Map[SchematicConnectorLabel, LambdaFormulaFormula]): Formula = {
@@ -173,7 +182,7 @@ trait Substitutions extends FormulaDefinitions {
       case _: PredicateFormula => phi
       case ConnectorFormula(label, args) =>
         label match {
-          case label: SchematicConnectorLabel  if m.contains(label) => m(label)(args)
+          case label: SchematicConnectorLabel if m.contains(label) => m(label)(args)
           case _ => ConnectorFormula(label, args.map(instantiateConnectorSchemas(_, m)))
         }
       case BinderFormula(label, bound, inner) =>
@@ -186,6 +195,7 @@ trait Substitutions extends FormulaDefinitions {
     }
   }
 
+  @deprecated
   def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 
 }

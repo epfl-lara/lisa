@@ -1,10 +1,13 @@
 package lisa.front.proof.state
 
-import lisa.kernel.proof.SCProof
 import lisa.front.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.{Rewrite, SCProofStep, SCSubproof}
-import lisa.utils.{ProofsShrink}
-import lisa.front.proof.sequent.{SequentDefinitions, SequentOps}
+import lisa.front.proof.sequent.SequentDefinitions
+import lisa.front.proof.sequent.SequentOps
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SequentCalculus.Rewrite
+import lisa.kernel.proof.SequentCalculus.SCProofStep
+import lisa.kernel.proof.SequentCalculus.SCSubproof
+import lisa.utils.ProofsShrink
 
 trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
 
@@ -27,8 +30,7 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
   final case class ProofState(goals: IndexedSeq[Sequent]) {
     override def toString: String =
       ((if (goals.nonEmpty) s"${goals.size} goal${if (goals.sizeIs > 1) "s" else ""}" else "[zero goals]") +:
-        goals.map(_.toString).map(s => s"- $s")
-        ).mkString("\n")
+        goals.map(_.toString).map(s => s"- $s")).mkString("\n")
   }
   object ProofState {
     def apply(goals: Sequent*): ProofState = ProofState(goals.toIndexedSeq)
@@ -67,15 +69,20 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
   }
   case class TacticFocusGoal(goal: Int) extends Tactic {
     override private[ProofStateDefinitions] def applySnapshot(snapshot: ProofStateSnapshot, env: ProofEnvironment): TacticResult = {
-      if(snapshot.proofState.goals.indices.contains(goal)) {
+      if (snapshot.proofState.goals.indices.contains(goal)) {
         // This function moves the element of index `goal` to the front
         def bringToFront[T](goals: IndexedSeq[T]): IndexedSeq[T] =
           goals(goal) +: (goals.take(goal) ++ goals.drop(goal + 1))
         val newProofState = ProofState(bringToFront(snapshot.proofState.goals))
         val newShadowProofState = bringToFront(snapshot.shadowProofState)
-        Some(Seq((
-          AppliedTactic(-1, this, () => IndexedSeq.empty, false, Map.empty), ProofStateSnapshot(newProofState, newShadowProofState, snapshot.nextId)
-        )))
+        Some(
+          Seq(
+            (
+              AppliedTactic(-1, this, () => IndexedSeq.empty, false, Map.empty),
+              ProofStateSnapshot(newProofState, newShadowProofState, snapshot.nextId)
+            )
+          )
+        )
       } else {
         None
       }
@@ -88,7 +95,7 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
           case Some(seq) if seq.nonEmpty =>
             val reversed = seq.reverse
             repeat(reversed.head._2, reversed ++ acc, true)
-          case _ => if(executed) Some(acc.reverse) else None
+          case _ => if (executed) Some(acc.reverse) else None
         }
       }
       repeat(snapshot, Seq.empty, true)
@@ -141,8 +148,8 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
                 case Left(sequent) => sequent
                 case Right(justified) => justified.sequent
               }
-              val newGoalsShown = newGoalsOrJustifications.collect {
-                case Left(sequent) => sequent
+              val newGoalsShown = newGoalsOrJustifications.collect { case Left(sequent) =>
+                sequent
               }
               // We prepend the newly created goals
               val newProofState = ProofState(newGoalsShown ++ tailGoals)
@@ -168,7 +175,7 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
   }
   case class TacticApplyJustification(justified: Justified) extends TacticGoal {
     override def applyGoal(proofGoal: Sequent, env: ProofEnvironment): Option[Option[(IndexedSeq[Either[Sequent, Justified]], ReconstructSteps)]] = {
-      if(justified.environment == env && justified.sequent == proofGoal && env.contains(proofGoal)) {
+      if (justified.environment == env && justified.sequent == proofGoal && env.contains(proofGoal)) {
         Some(None)
       } else {
         None
@@ -193,7 +200,6 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
     def apply(proofGoal: Sequent): Option[(IndexedSeq[Sequent], ReconstructSteps)]
   }
 
-
   trait ReadableProofEnvironment {
     def contains(sequent: Sequent): Boolean
     def belongsToTheory(sequent: SequentBase): Boolean
@@ -208,9 +214,9 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
   type Justified <: ReadableJustified
 
   private[ProofStateDefinitions] case class ProofStateSnapshot(
-    proofState: ProofState,
-    shadowProofState: IndexedSeq[Int],
-    nextId: Int,
+      proofState: ProofState,
+      shadowProofState: IndexedSeq[Int],
+      nextId: Int
   )
 
   private[ProofStateDefinitions] case class AppliedTactic(id: Int, tactic: Tactic, reconstruct: ReconstructSteps, isTheorem: Boolean, toClose: Map[Int, Justified])
@@ -224,19 +230,18 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
    * @param steps
    * @param environment
    */
-  case class ProofModeState private[ProofStateDefinitions](
-    private[ProofStateDefinitions] val initialSnapshot: ProofStateSnapshot,
-    private[ProofStateDefinitions] val steps: Seq[Seq[(AppliedTactic, ProofStateSnapshot)]], // Steps are in reverse direction (the first element is the latest)
-    environment: ProofEnvironment,
+  case class ProofModeState private[ProofStateDefinitions] (
+      private[ProofStateDefinitions] val initialSnapshot: ProofStateSnapshot,
+      private[ProofStateDefinitions] val steps: Seq[Seq[(AppliedTactic, ProofStateSnapshot)]], // Steps are in reverse direction (the first element is the latest)
+      environment: ProofEnvironment
   ) {
     private[ProofStateDefinitions] def lastSnapshot: ProofStateSnapshot =
       steps.view.flatMap(_.lastOption).headOption.map { case (_, snapshot) => snapshot }.getOrElse(initialSnapshot)
     private[ProofStateDefinitions] def zippedSteps: Seq[(ProofStateSnapshot, AppliedTactic, ProofStateSnapshot)] = {
       val flatSteps = steps.flatMap(_.reverse)
       val snapshots = flatSteps.map { case (_, snapshot) => snapshot } :+ initialSnapshot
-      snapshots.zip(snapshots.tail).zip(flatSteps.map { case (applied, _) => applied }).map {
-        case ((snapshotAfter, snapshotBefore), applied) =>
-          (snapshotBefore, applied, snapshotAfter)
+      snapshots.zip(snapshots.tail).zip(flatSteps.map { case (applied, _) => applied }).map { case ((snapshotAfter, snapshotBefore), applied) =>
+        (snapshotBefore, applied, snapshotAfter)
       }
     }
     private[ProofStateDefinitions] def withNewSteps(step: Seq[(AppliedTactic, ProofStateSnapshot)]): ProofModeState =
@@ -302,30 +307,32 @@ trait ProofStateDefinitions extends SequentDefinitions with SequentOps {
 
         val premises = (snapshotBefore.nextId until snapshotAfter.nextId).map(newTranslation)
         val reconstructedAndRemappedStep =
-          if(reconstructedSteps.nonEmpty)
-            Some(SCSubproof(
-              SCProof(reconstructedSteps, premises.map(newProof0.getSequent)),
-              premises,
-            ))
+          if (reconstructedSteps.nonEmpty)
+            Some(
+              SCSubproof(
+                SCProof(reconstructedSteps, premises.map(newProof0.getSequent)),
+                premises
+              )
+            )
           else
             None
         val newProof = newProof0.withNewSteps(reconstructedAndRemappedStep.toIndexedSeq)
 
         // We return the expanded proof, along with the information to recover the last (= current) step as a premise
-        if(isTheorem) {
+        if (isTheorem) {
           val importId = newProof.imports.size
           val translatedId = -(importId + 1)
           (
             newProof.copy(imports = newProof.imports :+ sequentToKernel(updatedGoal)),
             newTranslation + (id -> translatedId),
-            newTheorems + (importId -> updatedGoal),
+            newTheorems + (importId -> updatedGoal)
           )
         } else {
           val translatedId = newProof.steps.size - 1
           (
             newProof,
             newTranslation + (id -> translatedId),
-            newTheorems,
+            newTheorems
           )
         }
     }

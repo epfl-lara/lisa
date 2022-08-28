@@ -9,15 +9,15 @@ trait FrontKernelMappings extends FormulaDefinitions {
     implies -> lisa.kernel.fol.FOL.Implies,
     iff -> lisa.kernel.fol.FOL.Iff,
     and -> lisa.kernel.fol.FOL.And,
-    or -> lisa.kernel.fol.FOL.Or,
+    or -> lisa.kernel.fol.FOL.Or
   )
   protected val bindersTo: Map[BinderLabel, lisa.kernel.fol.FOL.BinderLabel] = Map(
     forall -> lisa.kernel.fol.FOL.Forall,
     exists -> lisa.kernel.fol.FOL.Exists,
-    existsOne -> lisa.kernel.fol.FOL.ExistsOne,
+    existsOne -> lisa.kernel.fol.FOL.ExistsOne
   )
   protected val predicatesTo: Map[ConstantPredicateLabel[?], lisa.kernel.fol.FOL.ConstantPredicateLabel] = Map(
-    equality -> lisa.kernel.fol.FOL.equality.asInstanceOf[lisa.kernel.fol.FOL.ConstantPredicateLabel], // Sadly...
+    equality -> lisa.kernel.fol.FOL.equality.asInstanceOf[lisa.kernel.fol.FOL.ConstantPredicateLabel] // Sadly...
   )
 
   private def reverseMap[U, V](map: Map[U, V]): Map[V, U] = {

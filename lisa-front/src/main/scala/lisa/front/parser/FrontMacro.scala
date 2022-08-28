@@ -1,8 +1,8 @@
 package lisa.front.parser
 
 import lisa.front.fol.FOL.*
-import lisa.front.proof.Proof.*
 import lisa.front.printer.FrontPositionedPrinter
+import lisa.front.proof.Proof.*
 
 // Note: on Intellij you may want to disable syntax highlighting for this file
 // ("File Types" => "Text" => "Ignored Files and Folders", add "FrontMacro.scala")
@@ -28,7 +28,7 @@ object FrontMacro {
 
   class TermParts[P <: Tuple](parts: P) {
     transparent inline def apply(inline args: Any*): Term = ${ termApplyMacro('parts, 'args) }
-    //transparent inline def unapplySeq(inline arg: Any): Option[Seq[Any]] = ${ termUnapplyMacro('parts, 'arg) }
+    // transparent inline def unapplySeq(inline arg: Any): Option[Seq[Any]] = ${ termUnapplyMacro('parts, 'arg) }
   }
   class FormulaParts[P <: Tuple](parts: P) {
     transparent inline def apply(inline args: Any*): Formula = ${ formulaApplyMacro('parts, 'args) }
@@ -45,7 +45,7 @@ object FrontMacro {
     def scMacro[SI[_ <: Tuple]](sc: Expr[StringContext])(using Quotes, Type[SI]): Expr[Any] = {
       import quotes.reflect.*
       val args = sc match {
-        case '{StringContext(${Varargs(args)}*)} => args
+        case '{ StringContext(${ Varargs(args) }*) } => args
       }
       val tplExpr = Expr.ofTupleFromSeq(args)
       val tplTpe = tplExpr.asTerm.tpe
@@ -61,7 +61,6 @@ object FrontMacro {
       siTree.asExpr
     }
   }
-
 
   /*private def termUnapplyMacro[P <: Tuple](parts: Expr[P], arg: Expr[Any])(using Quotes, Type[P]): Expr[Option[Seq[Any]]] = {
     '{ None: Option[Seq[Term]] }
@@ -89,13 +88,13 @@ object FrontMacro {
     // throw new Error(s"illegal interpolation variable: ${TypeTree.of[other]}")
     // TypeTree[ConstantType(Constant({))]
     def evaluateParts[Q <: Tuple](scrutiny: Type[Q], acc: Seq[String]): Seq[String] = scrutiny match {
-      case '[ EmptyTuple ] => acc
-      case '[ head *: tail ] =>
+      case '[EmptyTuple] => acc
+      case '[head *: tail] =>
         val string = TypeTree.of[head].tpe.asInstanceOf[TypeRepr & Matchable] match {
           case ConstantType(cst) => cst.value.asInstanceOf[String] // Should always match and succeed
         }
         evaluateParts(Type.of[tail], string +: acc)
-      }
+    }
     // `Type.of[P]` is equivalent to `summon[Type[P]]`
     val evaluatedParts: Seq[String] = evaluateParts(Type.of[P], Seq.empty).reverse
 
@@ -118,22 +117,27 @@ object FrontMacro {
         case _ => report.errorAndAbort(s"loosely typed label variable, the arity must be known at compile time: ${Type.show[N]}", expr)
       }
 
-    val idsAndVariables: Seq[(String, Variable)] = argsSeq.zipWithIndex.foldLeft((Seq.empty[(String, Variable)], Map.empty[Any, String], takenNames)) { case ((acc, hashmap, taken), (expr, i)) =>
-      val id = hashmap.getOrElse(expr.asTerm.toString, { // FIXME: `asTerm.toString` is not a safe way to check whether two expressions are `=:=`
-        val base = s"x$i"
-        if(taken.contains(base)) freshId(taken, base) else base
-      })
-      val variable = expr match {
-        case '{ $label: TermLabel[n] } => FunctionLabelVariable(label, SchematicTermLabel.unsafe(id, resolveArity(label)))
-        case '{ $label: PredicateLabel[n] } => PredicateLabelVariable(label, SchematicPredicateLabel.unsafe(id, resolveArity(label)))
-        case '{ $label: ConnectorLabel[n] } => ConnectorLabelVariable(label, SchematicConnectorLabel.unsafe(id, resolveArity(label)))
-        case '{ $label: VariableLabel } => VariableLabelVariable(label, VariableLabel(id))
-        case '{ $term: Term } => TermVariable(term, SchematicTermLabel[0](id))
-        case '{ $formula: Formula } => FormulaVariable(formula, SchematicPredicateLabel[0](id))
-        case '{ $t: q } => report.errorAndAbort(s"unsupported variable type: ${Type.show[q]}", expr)
+    val idsAndVariables: Seq[(String, Variable)] = argsSeq.zipWithIndex
+      .foldLeft((Seq.empty[(String, Variable)], Map.empty[Any, String], takenNames)) { case ((acc, hashmap, taken), (expr, i)) =>
+        val id = hashmap.getOrElse(
+          expr.asTerm.toString, { // FIXME: `asTerm.toString` is not a safe way to check whether two expressions are `=:=`
+            val base = s"x$i"
+            if (taken.contains(base)) freshId(taken, base) else base
+          }
+        )
+        val variable = expr match {
+          case '{ $label: TermLabel[n] } => FunctionLabelVariable(label, SchematicTermLabel.unsafe(id, resolveArity(label)))
+          case '{ $label: PredicateLabel[n] } => PredicateLabelVariable(label, SchematicPredicateLabel.unsafe(id, resolveArity(label)))
+          case '{ $label: ConnectorLabel[n] } => ConnectorLabelVariable(label, SchematicConnectorLabel.unsafe(id, resolveArity(label)))
+          case '{ $label: VariableLabel } => VariableLabelVariable(label, VariableLabel(id))
+          case '{ $term: Term } => TermVariable(term, SchematicTermLabel[0](id))
+          case '{ $formula: Formula } => FormulaVariable(formula, SchematicPredicateLabel[0](id))
+          case '{ $t: q } => report.errorAndAbort(s"unsupported variable type: ${Type.show[q]}", expr)
+        }
+        ((id, variable) +: acc, hashmap + (expr.asTerm.toString -> id), taken + id)
       }
-      ((id, variable) +: acc, hashmap + (expr.asTerm.toString -> id), taken + id)
-    }._1.reverse
+      ._1
+      .reverse
 
     val variables = idsAndVariables.map { case (_, variable) => variable }
 
@@ -151,46 +155,41 @@ object FrontMacro {
     Interpolator(idsAndVariables, tokens)
   }
 
-  private def getRenaming(variables: Seq[Variable])(using Quotes):
-  Expr[(
-    Seq[AssignedFunction],
-      Seq[AssignedPredicate],
-      Seq[AssignedConnector],
-      Map[VariableLabel, VariableLabel],
-    )] = {
+  private def getRenaming(variables: Seq[Variable])(using Quotes): Expr[
+    (
+        Seq[AssignedFunction],
+        Seq[AssignedPredicate],
+        Seq[AssignedConnector],
+        Map[VariableLabel, VariableLabel]
+    )
+  ] = {
     import LiftFOL.{*, given}
 
     def substMap[T, U](seq: Seq[(Expr[T], Expr[U])])(using Quotes, Type[T], Type[U]): Expr[Map[T, U]] = {
       val list: Seq[Expr[(T, U)]] = seq.map { case (k, v) =>
         '{ $k -> $v }
       }
-      '{ ${liftSeq(list)}.toMap }
+      '{ ${ liftSeq(list) }.toMap }
     }
 
-    val functionsMap: Expr[Seq[AssignedFunction]] = liftSeq(variables.collect {
-      case FunctionLabelVariable(label, placeholder) =>
-        '{ RenamedLabel.unsafe(${Expr(placeholder)}, $label).toAssignment }
+    val functionsMap: Expr[Seq[AssignedFunction]] = liftSeq(variables.collect { case FunctionLabelVariable(label, placeholder) =>
+      '{ RenamedLabel.unsafe(${ Expr(placeholder) }, $label).toAssignment }
     })
-    val predicatesMap: Expr[Seq[AssignedPredicate]] = liftSeq(variables.collect {
-      case PredicateLabelVariable(label, placeholder) =>
-        '{ RenamedLabel.unsafe(${Expr(placeholder)}, $label).toAssignment }
+    val predicatesMap: Expr[Seq[AssignedPredicate]] = liftSeq(variables.collect { case PredicateLabelVariable(label, placeholder) =>
+      '{ RenamedLabel.unsafe(${ Expr(placeholder) }, $label).toAssignment }
     })
-    val connectorsMap: Expr[Seq[AssignedConnector]] = liftSeq(variables.collect {
-      case ConnectorLabelVariable(label, placeholder) =>
-        '{ RenamedLabel.unsafe(${Expr(placeholder)}, $label).toAssignment }
+    val connectorsMap: Expr[Seq[AssignedConnector]] = liftSeq(variables.collect { case ConnectorLabelVariable(label, placeholder) =>
+      '{ RenamedLabel.unsafe(${ Expr(placeholder) }, $label).toAssignment }
     })
-    val variablesMap: Expr[Map[VariableLabel, VariableLabel]] = substMap(variables.collect {
-      case VariableLabelVariable(label, placeholder) =>
-        Expr(placeholder) -> label
+    val variablesMap: Expr[Map[VariableLabel, VariableLabel]] = substMap(variables.collect { case VariableLabelVariable(label, placeholder) =>
+      Expr(placeholder) -> label
     })
 
-    val termsMap: Expr[Seq[AssignedFunction]] = liftSeq(variables.collect {
-      case TermVariable(term, placeholder) =>
-        '{ AssignedFunction.unsafe(${Expr(placeholder)(using toExprFunction0)}, LambdaFunction.unsafe(Seq.empty, $term)) }
+    val termsMap: Expr[Seq[AssignedFunction]] = liftSeq(variables.collect { case TermVariable(term, placeholder) =>
+      '{ AssignedFunction.unsafe(${ Expr(placeholder)(using toExprFunction0) }, LambdaFunction.unsafe(Seq.empty, $term)) }
     })
-    val formulasMap: Expr[Seq[AssignedPredicate]] = liftSeq(variables.collect {
-      case FormulaVariable(formula, placeholder) =>
-        '{ AssignedPredicate.unsafe(${Expr(placeholder)(using toExprPredicate0)}, LambdaPredicate.unsafe(Seq.empty, $formula)) }
+    val formulasMap: Expr[Seq[AssignedPredicate]] = liftSeq(variables.collect { case FormulaVariable(formula, placeholder) =>
+      '{ AssignedPredicate.unsafe(${ Expr(placeholder)(using toExprPredicate0) }, LambdaPredicate.unsafe(Seq.empty, $formula)) }
     })
 
     '{ ($functionsMap ++ $termsMap, $predicatesMap ++ $formulasMap, $connectorsMap, $variablesMap) }
@@ -198,20 +197,26 @@ object FrontMacro {
 
   def unsafeFixPointTermInstantiate(term: Term, functions: Seq[AssignedFunction], map: Map[VariableLabel, VariableLabel]): Term = {
     val next = instantiateTermSchemas(unsafeRenameVariables(term, map), functions)
-    if(next == term) term else unsafeFixPointTermInstantiate(next, functions, map)
+    if (next == term) term else unsafeFixPointTermInstantiate(next, functions, map)
   }
 
-  def unsafeFixPointFormulaInstantiate(formula: Formula, functions: Seq[AssignedFunction], predicates: Seq[AssignedPredicate], connectors: Seq[AssignedConnector], map: Map[VariableLabel, VariableLabel]): Formula = {
+  def unsafeFixPointFormulaInstantiate(
+      formula: Formula,
+      functions: Seq[AssignedFunction],
+      predicates: Seq[AssignedPredicate],
+      connectors: Seq[AssignedConnector],
+      map: Map[VariableLabel, VariableLabel]
+  ): Formula = {
     val next = instantiateFormulaSchemas(unsafeRenameVariables(formula, map), functions, predicates, connectors)
-    if(next == formula) formula else unsafeFixPointFormulaInstantiate(next, functions, predicates, connectors, map)
+    if (next == formula) formula else unsafeFixPointFormulaInstantiate(next, functions, predicates, connectors, map)
   }
 
   private def typeCheck(
-    interpolator: Interpolator,
-    functions: Set[TermLabel[?]],
-    predicates: Set[PredicateLabel[?]],
-    connectors: Set[SchematicConnectorLabel[?]],
-    variables: Set[VariableLabel],
+      interpolator: Interpolator,
+      functions: Set[TermLabel[?]],
+      predicates: Set[PredicateLabel[?]],
+      connectors: Set[SchematicConnectorLabel[?]],
+      variables: Set[VariableLabel]
   )(using Quotes): Unit = {
     import quotes.reflect.*
 
@@ -222,11 +227,11 @@ object FrontMacro {
     functions.flatMap(f => interpolator.map.get(f.id).map(f -> _)).foreach { case (f, variable) =>
       variable match {
         case FunctionLabelVariable(label, placeholder) =>
-          if(f.arity != placeholder.arity) {
+          if (f.arity != placeholder.arity) {
             reportArityMismatch(label, placeholder.arity, f.arity)
           }
         case TermVariable(label, placeholder) =>
-          if(f.arity != placeholder.arity) {
+          if (f.arity != placeholder.arity) {
             report.errorAndAbort("variable term does not expect any arguments", label)
           }
         case VariableLabelVariable(label, _) => report.errorAndAbort("undeclared free variable", label)
@@ -237,11 +242,11 @@ object FrontMacro {
     predicates.flatMap(f => interpolator.map.get(f.id).map(f -> _)).foreach { case (f, variable) =>
       variable match {
         case PredicateLabelVariable(label, placeholder) =>
-          if(f.arity != placeholder.arity) {
+          if (f.arity != placeholder.arity) {
             reportArityMismatch(label, placeholder.arity, f.arity)
           }
         case FormulaVariable(label, placeholder) =>
-          if(f.arity != placeholder.arity) {
+          if (f.arity != placeholder.arity) {
             report.errorAndAbort("variable formula does not expect any arguments", label)
           }
         case VariableLabelVariable(label, _) => report.errorAndAbort("undeclared free variable", label)
@@ -252,7 +257,7 @@ object FrontMacro {
     connectors.flatMap(f => interpolator.map.get(f.id).map(f -> _)).foreach { case (f, variable) =>
       variable match {
         case ConnectorLabelVariable(label, placeholder) =>
-          if(f.arity != placeholder.arity) {
+          if (f.arity != placeholder.arity) {
             reportArityMismatch(label, placeholder.arity, f.arity)
           }
         case other => throw new Error // Shouldn't happen
@@ -277,8 +282,8 @@ object FrontMacro {
     typeCheck(interpolator, termLabelsOf(resolved), Set.empty, Set.empty, freeVariablesOf(resolved))
 
     '{
-      val (functionsMap, _, _, variablesMap) = ${getRenaming(interpolator.variables)}
-      unsafeFixPointTermInstantiate(${Expr(resolved)}, functionsMap, variablesMap)
+      val (functionsMap, _, _, variablesMap) = ${ getRenaming(interpolator.variables) }
+      unsafeFixPointTermInstantiate(${ Expr(resolved) }, functionsMap, variablesMap)
     }
   }
   private def formulaApplyMacro[P <: Tuple](parts: Expr[P], args: Expr[Seq[Any]])(using Quotes, Type[P]): Expr[Formula] = {
@@ -291,8 +296,8 @@ object FrontMacro {
     typeCheck(interpolator, termLabelsOf(resolved), predicatesOf(resolved), schematicConnectorsOf(resolved), freeVariablesOf(resolved))
 
     '{
-      val (functionsMap, predicatesMap, connectorsMap, variablesMap) = ${getRenaming(interpolator.variables)}
-      unsafeFixPointFormulaInstantiate(${Expr(resolved)}, functionsMap, predicatesMap, connectorsMap, variablesMap)
+      val (functionsMap, predicatesMap, connectorsMap, variablesMap) = ${ getRenaming(interpolator.variables) }
+      unsafeFixPointFormulaInstantiate(${ Expr(resolved) }, functionsMap, predicatesMap, connectorsMap, variablesMap)
     }
   }
   private def sequentApplyMacro[P <: Tuple](parts: Expr[P], args: Expr[Seq[Any]])(using Quotes, Type[P]): Expr[Sequent] = {
@@ -305,10 +310,10 @@ object FrontMacro {
     typeCheck(interpolator, functionsOfSequent(resolved), predicatesOfSequent(resolved), schematicConnectorsOfSequent(resolved), freeVariablesOfSequent(resolved))
 
     '{
-      val (functionsMap, predicatesMap, connectorsMap, variablesMap) = ${getRenaming(interpolator.variables)}
+      val (functionsMap, predicatesMap, connectorsMap, variablesMap) = ${ getRenaming(interpolator.variables) }
       def rename(formula: Formula): Formula =
         unsafeFixPointFormulaInstantiate(formula, functionsMap, predicatesMap, connectorsMap, variablesMap)
-      Sequent(${liftSeq(resolved.left.toSeq.map(Expr.apply))}.toIndexedSeq.map(rename), ${liftSeq(resolved.right.toSeq.map(Expr.apply))}.toIndexedSeq.map(rename))
+      Sequent(${ liftSeq(resolved.left.toSeq.map(Expr.apply)) }.toIndexedSeq.map(rename), ${ liftSeq(resolved.right.toSeq.map(Expr.apply)) }.toIndexedSeq.map(rename))
     }
   }
   private def partialSequentApplyMacro[P <: Tuple](parts: Expr[P], args: Expr[Seq[Any]])(using Quotes, Type[P]): Expr[PartialSequent] = {
@@ -321,13 +326,17 @@ object FrontMacro {
     typeCheck(interpolator, functionsOfSequent(resolved), predicatesOfSequent(resolved), schematicConnectorsOfSequent(resolved), freeVariablesOfSequent(resolved))
 
     '{
-      val (functionsMap, predicatesMap, connectorsMap, variablesMap) = ${getRenaming(interpolator.variables)}
+      val (functionsMap, predicatesMap, connectorsMap, variablesMap) = ${ getRenaming(interpolator.variables) }
       def rename(formula: Formula): Formula =
         unsafeFixPointFormulaInstantiate(formula, functionsMap, predicatesMap, connectorsMap, variablesMap)
-      PartialSequent(${liftSeq(resolved.left.toSeq.map(Expr.apply))}.toIndexedSeq.map(rename), ${liftSeq(resolved.right.toSeq.map(Expr.apply))}.toIndexedSeq.map(rename), ${Expr(resolved.partialLeft)}, ${Expr(resolved.partialRight)})
+      PartialSequent(
+        ${ liftSeq(resolved.left.toSeq.map(Expr.apply)) }.toIndexedSeq.map(rename),
+        ${ liftSeq(resolved.right.toSeq.map(Expr.apply)) }.toIndexedSeq.map(rename),
+        ${ Expr(resolved.partialLeft) },
+        ${ Expr(resolved.partialRight) }
+      )
     }
   }
-
 
   private object LiftFOL {
     def liftSeq[T](seq: Seq[Expr[T]])(using Quotes, Type[T]): Expr[Seq[T]] =
@@ -337,27 +346,27 @@ object FrontMacro {
 
     given ToExpr[SchematicTermLabel[?]] with {
       def apply(f: SchematicTermLabel[?])(using Quotes): Expr[SchematicTermLabel[?]] =
-        '{ SchematicTermLabel.unsafe(${Expr(f.id)}, ${Expr(f.arity.asInstanceOf[Int])}) }
+        '{ SchematicTermLabel.unsafe(${ Expr(f.id) }, ${ Expr(f.arity.asInstanceOf[Int]) }) }
     }
     given ToExpr[ConstantFunctionLabel[?]] with {
       def apply(f: ConstantFunctionLabel[?])(using Quotes): Expr[ConstantFunctionLabel[?]] =
-        '{ ConstantFunctionLabel.unsafe(${Expr(f.id)}, ${Expr(f.arity.asInstanceOf[Int])}) }
+        '{ ConstantFunctionLabel.unsafe(${ Expr(f.id) }, ${ Expr(f.arity.asInstanceOf[Int]) }) }
     }
     given ToExpr[SchematicPredicateLabel[?]] with {
       def apply(f: SchematicPredicateLabel[?])(using Quotes) =
-        '{ SchematicPredicateLabel.unsafe(${Expr(f.id)}, ${Expr(f.arity.asInstanceOf[Int])}) }
+        '{ SchematicPredicateLabel.unsafe(${ Expr(f.id) }, ${ Expr(f.arity.asInstanceOf[Int]) }) }
     }
     given ToExpr[ConstantPredicateLabel[?]] with {
       def apply(f: ConstantPredicateLabel[?])(using Quotes): Expr[ConstantPredicateLabel[?]] =
-        '{ ConstantPredicateLabel.unsafe(${Expr(f.id)}, ${Expr(f.arity.asInstanceOf[Int])}) }
+        '{ ConstantPredicateLabel.unsafe(${ Expr(f.id) }, ${ Expr(f.arity.asInstanceOf[Int]) }) }
     }
     given ToExpr[SchematicConnectorLabel[?]] with {
       def apply(f: SchematicConnectorLabel[?])(using Quotes) =
-        '{ SchematicConnectorLabel.unsafe(${Expr(f.id)}, ${Expr(f.arity.asInstanceOf[Int])}) }
+        '{ SchematicConnectorLabel.unsafe(${ Expr(f.id) }, ${ Expr(f.arity.asInstanceOf[Int]) }) }
     }
     given ToExpr[VariableLabel] with {
       def apply(l: VariableLabel)(using Quotes) =
-        '{ VariableLabel(${Expr(l.id)}) }
+        '{ VariableLabel(${ Expr(l.id) }) }
     }
     given ToExpr[BinderLabel] with {
       def apply(l: BinderLabel)(using Quotes) =
@@ -371,11 +380,11 @@ object FrontMacro {
     // FIXME "hack" otherwise the two givens would clash
     val toExprFunction0: ToExpr[SchematicTermLabel[0]] = new {
       def apply(f: SchematicTermLabel[0])(using Quotes): Expr[SchematicTermLabel[0]] =
-        '{ SchematicTermLabel[0](${Expr(f.id)}) }
+        '{ SchematicTermLabel[0](${ Expr(f.id) }) }
     }
     val toExprPredicate0: ToExpr[SchematicPredicateLabel[0]] = new {
       def apply(f: SchematicPredicateLabel[0])(using Quotes): Expr[SchematicPredicateLabel[0]] =
-        '{ SchematicPredicateLabel[0](${Expr(f.id)}) }
+        '{ SchematicPredicateLabel[0](${ Expr(f.id) }) }
     }
 
     given ToExpr[TermLabel[?]] with {
@@ -392,28 +401,29 @@ object FrontMacro {
     }
     given ToExpr[ConnectorLabel[?]] with {
       def apply(f: ConnectorLabel[?])(using Quotes): Expr[ConnectorLabel[?]] = f match {
-        case constant: ConstantConnectorLabel[?] => constant match {
-          case `neg` => '{ neg }
-          case `implies` => '{ implies }
-          case `iff` => '{ iff }
-          case `and` => '{ and }
-          case `or` => '{ or }
-        }
+        case constant: ConstantConnectorLabel[?] =>
+          constant match {
+            case `neg` => '{ neg }
+            case `implies` => '{ implies }
+            case `iff` => '{ iff }
+            case `and` => '{ and }
+            case `or` => '{ or }
+          }
         case schematic: SchematicConnectorLabel[?] => Expr(schematic)(using summon[ToExpr[SchematicConnectorLabel[?]]])
       }
     }
 
     given ToExpr[Term] with {
       def apply(t: Term)(using Quotes): Expr[Term] = t match {
-        case VariableTerm(label) => '{ VariableTerm(${Expr(label)}) }
-        case Term(label, args) => '{ Term.unsafe(${Expr(label)}, ${liftSeq(args.map(Expr.apply(_)))}) }
+        case VariableTerm(label) => '{ VariableTerm(${ Expr(label) }) }
+        case Term(label, args) => '{ Term.unsafe(${ Expr(label) }, ${ liftSeq(args.map(Expr.apply(_))) }) }
       }
     }
     given ToExpr[Formula] with {
       def apply(f: Formula)(using Quotes): Expr[Formula] = f match {
-        case PredicateFormula(label, args) => '{ PredicateFormula.unsafe(${Expr(label)}, ${liftSeq(args.map(Expr.apply(_)))}) }
-        case ConnectorFormula(label, args) => '{ ConnectorFormula.unsafe(${Expr(label)}, ${liftSeq(args.map(Expr.apply(_)))}) }
-        case BinderFormula(label, bound, inner) => '{ BinderFormula(${Expr(label)}, ${Expr(bound)}, ${Expr(inner)}) }
+        case PredicateFormula(label, args) => '{ PredicateFormula.unsafe(${ Expr(label) }, ${ liftSeq(args.map(Expr.apply(_))) }) }
+        case ConnectorFormula(label, args) => '{ ConnectorFormula.unsafe(${ Expr(label) }, ${ liftSeq(args.map(Expr.apply(_))) }) }
+        case BinderFormula(label, bound, inner) => '{ BinderFormula(${ Expr(label) }, ${ Expr(bound) }, ${ Expr(inner) }) }
       }
     }
   }

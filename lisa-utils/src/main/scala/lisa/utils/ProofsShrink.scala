@@ -45,6 +45,7 @@ object ProofsShrink {
    */
   def mapPremises(step: SCProofStep, mapping: Int => Int): SCProofStep = step match {
     case s: Rewrite => s.copy(t1 = mapping(s.t1))
+    case s: RewriteTrue => s
     case s: Hypothesis => s
     case s: Cut => s.copy(t1 = mapping(s.t1), t2 = mapping(s.t2))
     case s: LeftAnd => s.copy(t1 = mapping(s.t1))
@@ -85,13 +86,13 @@ object ProofsShrink {
   def flattenProof(proof: SCProof): SCProof = {
     def flattenProofRecursive(steps: IndexedSeq[SCProofStep], topPremises: IndexedSeq[(Int, Sequent)], offset: Int): IndexedSeq[SCProofStep] = {
       val (finalAcc, _) = steps.foldLeft((IndexedSeq.empty[SCProofStep], IndexedSeq.empty[(Int, Sequent)])) { case ((acc, localToGlobal), step) =>
-        def resolve(i: Int): (Int, Sequent) = if(i >= 0) localToGlobal(i) else topPremises(-i - 1)
+        def resolve(i: Int): (Int, Sequent) = if (i >= 0) localToGlobal(i) else topPremises(-i - 1)
         val newAcc = step match {
           case SCSubproof(subProof, subPremises, _) =>
             val (rewrittenPremises, rewrittenSeq) = subPremises.zipWithIndex.flatMap { case (i, j) =>
               val (k, sequent) = resolve(i)
               val imported = subProof.imports(j)
-              if(sequent != imported) {
+              if (sequent != imported) {
                 Some((Rewrite(imported, k), -(j - 1) -> imported))
               } else {
                 None
@@ -130,7 +131,7 @@ object ProofsShrink {
       val graph = processedSteps.map(_.premises)
       val nodes = graph.indices
       def bfs(visited: Set[Int], toVisit: Set[Int]): Set[Int] = {
-        if(toVisit.nonEmpty) {
+        if (toVisit.nonEmpty) {
           val next = toVisit.flatMap(graph).diff(visited)
           bfs(visited ++ next, next.filter(_ >= 0))
         } else {
@@ -177,16 +178,16 @@ object ProofsShrink {
     val (newSteps, _) = proof.steps.zipWithIndex.foldLeft((IndexedSeq.empty[SCProofStep], IndexedSeq.empty[Int])) { case ((acc, map), (oldStep, i)) =>
       def resolveLocal(j: Int): Int = {
         require(j < i)
-        if(j >= 0) map(j) else j
+        if (j >= 0) map(j) else j
       }
       def getSequentLocal(j: Int): Sequent = {
         require(j < i)
-        if(j >= 0) acc(map(j)).bot else proof.getSequent(j)
+        if (j >= 0) acc(map(j)).bot else proof.getSequent(j)
       }
       object LocalStep {
         def unapply(j: Int): Option[SCProofStep] = {
           require(j < i)
-          if(j >= 0) Some(acc(map(j))) else None
+          if (j >= 0) Some(acc(map(j))) else None
         }
       }
       val step = mapPremises(oldStep, resolveLocal)
@@ -196,8 +197,9 @@ object ProofsShrink {
           Right(step.premises.head)
         case _ if !step.isInstanceOf[Rewrite] && step.premises.sizeIs == 1 && isSameSequent(getSequentLocal(step.premises.head), step.bot) =>
           Left(Rewrite(step.bot, step.premises.head))
-        case _ if !step.isInstanceOf[Rewrite] && !step.isInstanceOf[Weakening]
-          && step.premises.sizeIs == 1 && isSequentSubset(getSequentLocal(step.premises.head), step.bot) =>
+        case _
+            if !step.isInstanceOf[Rewrite] && !step.isInstanceOf[Weakening]
+              && step.premises.sizeIs == 1 && isSequentSubset(getSequentLocal(step.premises.head), step.bot) =>
           Left(Weakening(step.bot, step.premises.head))
         // Recursive
         case SCSubproof(sp, premises, display) =>
@@ -286,7 +288,7 @@ object ProofsShrink {
   def optimizeProofIteratively(proof: SCProof): SCProof = {
     def optimizeFixedPoint(proof: SCProof): SCProof = {
       val optimized = deadStepsElimination(factorProof(simplifyProof(proof)))
-      if(optimized == proof) optimized else optimizeFixedPoint(optimized)
+      if (optimized == proof) optimized else optimizeFixedPoint(optimized)
     }
     optimizeFixedPoint(flattenProof(proof))
   }

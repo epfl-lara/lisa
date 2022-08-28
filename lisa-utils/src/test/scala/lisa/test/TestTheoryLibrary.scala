@@ -1,5 +1,7 @@
 package lisa.test
 
-object TestTheoryLibrary extends lisa.utils.Library(TestTheory.runningTestTheory) {
+import lisa.utils.Library
+
+object TestTheoryLibrary extends Library(TestTheory.runningTestTheory) {
   export TestTheory.*
 }

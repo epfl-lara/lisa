@@ -8,6 +8,7 @@ trait CommonDefinitions {
   private[fol] trait Label {
     val id: String
   }
+
   /**
    * A label node that is considered schematic (namely one that can be instantiated).
    */
@@ -33,7 +34,7 @@ trait CommonDefinitions {
   private[fol] trait WithArity[N <: Arity] {
     val arity: N
   }
-  
+
   private[fol] def isLegalApplication(withArity: WithArity[?], args: Seq[?]): Boolean =
     withArity.arity == -1 || withArity.arity == args.size
 

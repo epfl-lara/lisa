@@ -1,10 +1,10 @@
 package lisa.proven
 
+import lisa.automation.kernel.SimplePropositionalSolver as SPS
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.PredicateLogic
 import lisa.kernel.proof.SCProofChecker
-import lisa.automation.kernel.SimplePropositionalSolver as SPS
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.getPRPproblems
 import lisa.utils.Helpers.*

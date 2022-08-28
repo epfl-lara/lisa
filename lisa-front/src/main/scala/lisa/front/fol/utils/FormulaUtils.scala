@@ -23,7 +23,7 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
     }
   }
 
-  case class LambdaPredicate[N <: Arity] private(parameters: Seq[SchematicTermLabel[0]], body: Formula) extends LambdaDefinition[N, SchematicTermLabel[0], Formula] {
+  case class LambdaPredicate[N <: Arity] private (parameters: Seq[SchematicTermLabel[0]], body: Formula) extends LambdaDefinition[N, SchematicTermLabel[0], Formula] {
     override type U = Term
     override protected def instantiate(args: Seq[Term]): Formula =
       instantiateFormulaSchemas(body, functions = parameters.zip(args).map { case (from, to) => AssignedFunction(from, LambdaFunction(_ => to)) })
@@ -40,8 +40,7 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
     def unsafe(parameters: Seq[SchematicTermLabel[0]], body: Formula): LambdaPredicate[?] = new LambdaPredicate(parameters, body)
   }
 
-  case class AssignedPredicate private(schema: SchematicPredicateLabel[?], lambda: LambdaPredicate[?])
-    extends AssignedSchema[SchematicPredicateLabel[?], SchematicTermLabel[0]] {
+  case class AssignedPredicate private (schema: SchematicPredicateLabel[?], lambda: LambdaPredicate[?]) extends AssignedSchema[SchematicPredicateLabel[?], SchematicTermLabel[0]] {
     override type L = LambdaPredicate[?]
   }
   object AssignedPredicate {
@@ -53,11 +52,11 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
     val formula: Formula = t
     formula
   }
-  //given lambdaToLambdaPredicate[N <: Arity](using ValueOf[N]): Conversion[FillArgs[SchematicTermLabel[0], N] => Formula, LambdaPredicate[N]] = LambdaPredicate.apply
+  // given lambdaToLambdaPredicate[N <: Arity](using ValueOf[N]): Conversion[FillArgs[SchematicTermLabel[0], N] => Formula, LambdaPredicate[N]] = LambdaPredicate.apply
   given lambdaToLambdaPredicate1: Conversion[SchematicTermLabel[0] => Formula, LambdaPredicate[1]] = LambdaPredicate.apply
   given lambdaToLambdaPredicate2: Conversion[((SchematicTermLabel[0], SchematicTermLabel[0])) => Formula, LambdaPredicate[2]] = LambdaPredicate.apply
 
-  case class LambdaConnector[N <: Arity] private(parameters: Seq[SchematicPredicateLabel[0]], body: Formula) extends LambdaDefinition[N, SchematicPredicateLabel[0], Formula] {
+  case class LambdaConnector[N <: Arity] private (parameters: Seq[SchematicPredicateLabel[0]], body: Formula) extends LambdaDefinition[N, SchematicPredicateLabel[0], Formula] {
     override type U = Formula
     override protected def instantiate(args: Seq[Formula]): Formula =
       instantiateFormulaSchemas(body, predicates = parameters.zip(args).map { case (from, to) => AssignedPredicate(from, LambdaPredicate(_ => to)) })
@@ -78,8 +77,7 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
   given lambdaToLambdaConnector1: Conversion[SchematicPredicateLabel[0] => Formula, LambdaConnector[1]] = LambdaConnector.apply
   given lambdaToLambdaConnector2: Conversion[((SchematicPredicateLabel[0], SchematicPredicateLabel[0])) => Formula, LambdaConnector[2]] = LambdaConnector.apply
 
-  case class AssignedConnector private(schema: SchematicConnectorLabel[?], lambda: LambdaConnector[?])
-    extends AssignedSchema[SchematicConnectorLabel[?], SchematicPredicateLabel[0]] {
+  case class AssignedConnector private (schema: SchematicConnectorLabel[?], lambda: LambdaConnector[?]) extends AssignedSchema[SchematicConnectorLabel[?], SchematicPredicateLabel[0]] {
     override type L = LambdaConnector[?]
   }
   object AssignedConnector {
@@ -94,10 +92,13 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
   }
 
   def toKernel(lambda: LambdaPredicate[?]): lisa.kernel.fol.FOL.LambdaTermFormula =
-    lisa.kernel.fol.FOL.LambdaTermFormula(lambda.parameters.map((label: SchematicTermLabel[0]) => {
-      val r = toKernel(label)
-      r
-    }), lambda.body)
+    lisa.kernel.fol.FOL.LambdaTermFormula(
+      lambda.parameters.map((label: SchematicTermLabel[0]) => {
+        val r = toKernel(label)
+        r
+      }),
+      lambda.body
+    )
   given Conversion[LambdaPredicate[?], lisa.kernel.fol.FOL.LambdaTermFormula] = toKernel
 
   def toKernel(lambda: LambdaConnector[?]): lisa.kernel.fol.FOL.LambdaFormulaFormula =
@@ -111,8 +112,11 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
    * @return new formulas that have been adapted
    */
   def adaptConnectorSchemas(formulas: IndexedSeq[Formula]): IndexedSeq[Formula] = {
-    def recursive(formula: Formula, predicates: Set[SchematicPredicateLabel[?]], translation: Map[ConnectorFormula, SchematicPredicateLabel[?]]):
-    (Formula, Set[SchematicPredicateLabel[?]], Map[ConnectorFormula, SchematicPredicateLabel[?]]) = formula match {
+    def recursive(
+        formula: Formula,
+        predicates: Set[SchematicPredicateLabel[?]],
+        translation: Map[ConnectorFormula, SchematicPredicateLabel[?]]
+    ): (Formula, Set[SchematicPredicateLabel[?]], Map[ConnectorFormula, SchematicPredicateLabel[?]]) = formula match {
       case other: PredicateFormula => (other, predicates, translation)
       case connector @ ConnectorFormula(label, args) =>
         label match {
@@ -125,10 +129,9 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
                 (PredicateFormula.unsafe(newLabel, Seq.empty), predicates + newLabel, translation + (connector -> newLabel))
             }
           case _ =>
-            val (newFormulas, newAllPredicates, newAllTranslation) = args.foldLeft((Seq.empty[Formula], predicates, translation)) {
-              case ((acc, accPredicates, accTranslation), arg) =>
-                val (newFormula, np, nt) = recursive(arg, accPredicates, accTranslation)
-                (acc :+ newFormula, np, nt)
+            val (newFormulas, newAllPredicates, newAllTranslation) = args.foldLeft((Seq.empty[Formula], predicates, translation)) { case ((acc, accPredicates, accTranslation), arg) =>
+              val (newFormula, np, nt) = recursive(arg, accPredicates, accTranslation)
+              (acc :+ newFormula, np, nt)
             }
             (ConnectorFormula.unsafe(label, newFormulas), newAllPredicates, newAllTranslation)
         }
@@ -145,7 +148,9 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
     translatedFormulas
   }
 
-  /** @see [[lisa.kernel.fol.FOL.isSame]] */
+  /**
+   * @see [[lisa.kernel.fol.FOL.isSame]]
+   */
   def isSame(f1: Formula, f2: Formula): Boolean =
     adaptConnectorSchemas(IndexedSeq(f1, f2)) match {
       case IndexedSeq(af1, af2) =>
@@ -153,7 +158,9 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
       case e => throw new MatchError(e)
     }
 
-  /** @see [[lisa.kernel.fol.FOL.Formula#freeVariables]] */
+  /**
+   * @see [[lisa.kernel.fol.FOL.Formula#freeVariables]]
+   */
   def freeVariablesOf(formula: Formula): Set[VariableLabel] = formula match {
     case PredicateFormula(_, args) => args.flatMap(freeVariablesOf).toSet
     case ConnectorFormula(_, args) => args.flatMap(freeVariablesOf).toSet
@@ -171,7 +178,9 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
     case BinderFormula(_, bound, inner) => termLabelsOf(inner)
   }
 
-  /** @see [[lisa.kernel.fol.FOL.Formula#schematicFunctions]] */
+  /**
+   * @see [[lisa.kernel.fol.FOL.Formula#schematicFunctions]]
+   */
   def freeSchematicTermLabelsOf(formula: Formula): Set[SchematicTermLabel[?]] =
     freeTermLabelsOf(formula).collect { case schematic: SchematicTermLabel[?] => schematic }
 
@@ -184,7 +193,9 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
     case BinderFormula(_, _, inner) => predicatesOf(inner)
   }
 
-  /** @see [[lisa.kernel.fol.FOL.Formula#schematicPredicates]] */
+  /**
+   * @see [[lisa.kernel.fol.FOL.Formula#schematicPredicates]]
+   */
   def schematicPredicatesOf(formula: Formula): Set[SchematicPredicateLabel[?]] =
     predicatesOf(formula).collect { case schematic: SchematicPredicateLabel[?] => schematic }
 
@@ -205,7 +216,6 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
     case BinderFormula(_, bound, inner) => declaredBoundVariablesOf(inner) + bound
   }
 
-
   protected def isFormulaWellFormed(formula: Formula)(using ctx: Scope): Boolean = formula match {
     case PredicateFormula(label, args) => args.forall(isWellFormed)
     case ConnectorFormula(_: SchematicConnectorLabel[?], Seq()) => false // Use nullary predicates instead
@@ -215,7 +225,6 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
   }
 
   def isWellFormed(formula: Formula): Boolean = isFormulaWellFormed(formula)(using Scope())
-
 
   def substituteVariables(formula: Formula, map: Map[VariableLabel, Term]): Formula = formula match {
     case PredicateFormula(label, args) => PredicateFormula.unsafe(label, args.map(substituteVariables(_, map)))
@@ -233,10 +242,10 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
   }
 
   def instantiateFormulaSchemas(
-    formula: Formula,
-    functions: Seq[AssignedFunction] = Seq.empty,
-    predicates: Seq[AssignedPredicate] = Seq.empty,
-    connectors: Seq[AssignedConnector] = Seq.empty,
+      formula: Formula,
+      functions: Seq[AssignedFunction] = Seq.empty,
+      predicates: Seq[AssignedPredicate] = Seq.empty,
+      connectors: Seq[AssignedConnector] = Seq.empty
   ): Formula = {
     val predicatesMap: Map[SchematicPredicateLabel[?], LambdaPredicate[?]] = predicates.map(i => i.schema -> i.lambda).toMap
     val connectorsMap: Map[SchematicConnectorLabel[?], LambdaConnector[?]] = connectors.map(i => i.schema -> i.lambda).toMap
@@ -254,7 +263,7 @@ trait FormulaUtils extends TermUtils with FormulaDefinitions with FormulaConvers
           case _ => ConnectorFormula.unsafe(label, newArgs)
         }
       case BinderFormula(label, bound, inner) =>
-        //TODO Requires testing. Match against substituteVariables
+        // TODO Requires testing. Match against substituteVariables
         val newFuns = functions.filterNot(i => i.schema == bound)
         val fv = newFuns.flatMap(f => freeVariablesOf(f.lambda.body)).toSet
         if (fv.contains(bound)) {
