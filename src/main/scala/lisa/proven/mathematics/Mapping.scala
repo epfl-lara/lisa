@@ -427,13 +427,7 @@ object Mapping extends lisa.Main {
       } using (thm"mapTwoArguments")
   show
 
-  val property: Formula = ???
-  val pr: Proof = ???
-  val th: Theorem = ???
 
-  val testdef: ConstantFunctionLabel =
-    DEFINE("symbol", A, B) asThe z suchThat property PROOF {
-      pr
-    } using (th)
+
 
 }
