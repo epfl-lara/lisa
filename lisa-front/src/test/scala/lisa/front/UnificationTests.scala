@@ -100,12 +100,14 @@ class UnificationTests extends AnyFunSuite {
   val emptyContext: UnificationContext = UnificationContext()
   val emptyResult: UnificationContext = UnificationContext()
 
-  test("unification 2") {
+  test("boolean constant") {
     checkUnifiesAs(a, a)(emptyResult)
     checkDoesNotUnify(a, b)
     checkDoesNotUnify(a, sa)
     checkUnifiesAs(a /\ b, a /\ b)(emptyResult)
+  }
 
+  test("schematic boolean constant") {
     checkUnifiesAs(sa, a)(emptyResult + AssignedPredicate(sa, a))
     checkUnifiesAs(sa, sa)(emptyResult + AssignedPredicate(sa, sa))
     checkUnifiesAs(sa /\ b, a /\ b)(emptyResult + AssignedPredicate(sa, a))
@@ -116,11 +118,19 @@ class UnificationTests extends AnyFunSuite {
     checkUnifiesAs(sa /\ sa, (a \/ b) /\ (b \/ a))(emptyResult + AssignedPredicate(sa, a \/ b))
     checkDoesNotUnify(sa /\ sa, a /\ b)
 
-    checkUnifiesAs(sa, a /\ b, emptyContext + AssignedPredicate(sa, b /\ a))(emptyResult + AssignedPredicate(sa, b /\ a))
+    checkUnifiesAs(sa, a /\ b, emptyContext + AssignedPredicate(sa, b /\ a))(
+      emptyResult + AssignedPredicate(
+        sa,
+        b /\
+          a
+      )
+    )
     checkUnifiesAs(sa, a, emptyContext + AssignedPredicate(sa, a))(emptyResult + AssignedPredicate(sa, a))
     checkDoesNotUnify(sa, a, emptyContext + AssignedPredicate(sa, b))
     checkDoesNotUnify(sa, a, emptyContext + AssignedPredicate(sb, a))
+  }
 
+  test("schematic predicate") {
     checkUnifiesAs(p1(t), p1(t))(emptyResult)
     checkUnifiesAs(p1(st), p1(u))(emptyResult + AssignedFunction(st, u))
     checkUnifiesAs(sp1(t), p1(t))(emptyResult + AssignedPredicate(sp1, LambdaPredicate(x => p1(x))))
@@ -128,8 +138,14 @@ class UnificationTests extends AnyFunSuite {
 
     checkUnifiesAs(sg1(a), b)(emptyResult + AssignedConnector(sg1, LambdaConnector(_ => b)))
     checkDoesNotUnify(sg1(sa), a)
-    checkUnifiesAs(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)))(emptyResult + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b))
-    checkUnifiesAs(sg1(sa), b, emptyContext + AssignedPredicate(sa, b))(emptyResult + AssignedPredicate(sa, b) + AssignedConnector(sg1, LambdaConnector(x => x)))
+    checkUnifiesAs(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)))(
+      emptyResult +
+        AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b)
+    )
+    checkUnifiesAs(sg1(sa), b, emptyContext + AssignedPredicate(sa, b))(
+      emptyResult + AssignedPredicate(sa, b) +
+        AssignedConnector(sg1, LambdaConnector(x => x))
+    )
 
     checkUnifiesAs(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b))(
       emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b)
@@ -137,25 +153,33 @@ class UnificationTests extends AnyFunSuite {
     checkDoesNotUnify(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, a))
     checkDoesNotUnify(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(_ => a)) + AssignedPredicate(sa, b))
 
-    checkUnifiesAs(exists(x, a), exists(x, a))(emptyResult + (x -> x))
-    checkUnifiesAs(exists(x, a), exists(y, a))(emptyResult + (x -> y))
-    checkUnifiesAs(exists(x, p1(x)), exists(y, p1(y)))(emptyResult + (x -> y))
-    checkDoesNotUnify(exists(x, p1(x)), exists(y, p1(z)))
     checkUnifiesAs(p1(x), p1(x))(emptyResult + (x -> x))
     checkUnifiesAs(p1(x), p1(y))(emptyResult + (x -> y))
     checkUnifiesAs(p1(x), p1(y), emptyContext + (x -> y))(emptyResult + (x -> y))
     checkDoesNotUnify(p1(x), p1(y), emptyContext + (x -> z))
+  }
+
+  test("exists") {
+    checkUnifiesAs(exists(x, a), exists(x, a))(emptyResult + (x -> x))
+    checkUnifiesAs(exists(x, a), exists(y, a))(emptyResult + (x -> y))
+    checkUnifiesAs(exists(x, p1(x)), exists(y, p1(y)))(emptyResult + (x -> y))
+    checkDoesNotUnify(exists(x, p1(x)), exists(y, p1(z)))
 
     checkUnifiesAs(exists(x, sp1(x)), exists(y, p1(y) /\ a))(emptyResult + (x -> y) + AssignedPredicate(sp1, LambdaPredicate(v => p1(v) /\ a)))
     checkUnifiesAs(exists(x, sa), exists(x, p1(t)))(emptyResult + (x -> x) + AssignedPredicate(sa, p1(t)))
     checkDoesNotUnify(exists(x, sa), exists(x, p1(x)))
     checkDoesNotUnify(exists(x, sp1(x)), exists(x, p1(x)), emptyContext + (x -> x) + AssignedPredicate(sp1, LambdaPredicate(_ => p1(x))))
 
+    checkUnifiesAs(exists(x, exists(y, p1(x) /\ p1(y))), exists(y, exists(x, p1(y) /\ p1(x))))(
+      emptyResult + (x -> y)
+        + (y -> x)
+    )
+  }
+
+  test("schematic predicate expressions") {
     checkUnifiesAs(p1(st) /\ p1(su), p1(x) /\ p1(x))(emptyResult + AssignedFunction(st, x) + AssignedFunction(su, x))
     checkDoesNotUnify(p1(st) /\ p1(st), p1(x) /\ p1(y))
     checkDoesNotUnify(p1(st) /\ p1(st), p1(su) /\ p1(sv))
     checkUnifiesAs(p1(st) /\ p1(st), p1(su) /\ p1(su))(emptyResult + AssignedFunction(st, su))
-
-    checkUnifiesAs(exists(x, exists(y, p1(x) /\ p1(y))), exists(y, exists(x, p1(y) /\ p1(x))))(emptyResult + (x -> y) + (y -> x))
   }
 }
