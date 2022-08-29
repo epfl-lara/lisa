@@ -2,6 +2,8 @@ package lisa.front
 
 import lisa.front.fol.FOL.LabelType
 import lisa.front.fol.FOL.WithArityType
+import lisa.front.printer.FrontPositionedPrinter
+import lisa.front.printer.FrontPrintStyle
 import lisa.front.{*, given}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -21,7 +23,7 @@ class UnificationTests extends AnyFunSuite {
 
   val (x, y, z) = (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
 
-  def unify(pattern: Formula, target: Formula, partial: UnificationContext = UnificationContext()): Option[(IndexedSeq[Sequent], UnificationContext)] =
+  def unify(pattern: Formula, target: Formula, partial: UnificationContext = emptyContext): Option[(IndexedSeq[Sequent], UnificationContext)] =
     unifyAndResolve(
       IndexedSeq(PartialSequent(IndexedSeq(pattern), IndexedSeq.empty)),
       IndexedSeq(Sequent(IndexedSeq(target), IndexedSeq.empty)),
@@ -31,12 +33,20 @@ class UnificationTests extends AnyFunSuite {
     )
 
   @deprecated
-  def checkUnifies(pattern: Formula, target: Formula, partial: UnificationContext = UnificationContext()): Unit = {
-    assert(unify(pattern, target, partial).nonEmpty, "It did not unify")
+  def checkUnifies(pattern: Formula, target: Formula, partial: UnificationContext = emptyContext): Unit = {
+    assert(
+      unify(pattern, target, partial).nonEmpty,
+      s"Pattern ${FrontPositionedPrinter.prettyFormula(pattern, symbols = FrontPrintStyle.Unicode)} and " +
+        s"target ${FrontPositionedPrinter.prettyFormula(target, symbols = FrontPrintStyle.Unicode)} did not unify"
+    )
   }
 
-  def checkDoesNotUnify(pattern: Formula, target: Formula, partial: UnificationContext = UnificationContext()): Unit = {
-    assert(unify(pattern, target, partial).isEmpty, "It did unify")
+  def checkDoesNotUnify(pattern: Formula, target: Formula, partial: UnificationContext = emptyContext): Unit = {
+    assert(
+      unify(pattern, target, partial).isEmpty,
+      s"Pattern ${FrontPositionedPrinter.prettyFormula(pattern, symbols = FrontPrintStyle.Unicode)} and " +
+        s"target ${FrontPositionedPrinter.prettyFormula(target, symbols = FrontPrintStyle.Unicode)} did unify"
+    )
   }
 
   def contextsEqual(ctx1: UnificationContext, ctx2: UnificationContext): Boolean = {
@@ -73,77 +83,79 @@ class UnificationTests extends AnyFunSuite {
     normalizeContext(ctx1) == normalizeContext(ctx2)
   }
 
-  def checkUnifiesAs(pattern: Formula, target: Formula, partial: UnificationContext, ctx: UnificationContext): Unit = {
+  def checkUnifiesAs(pattern: Formula, target: Formula, partial: UnificationContext)(expected: UnificationContext): Unit = {
     unify(pattern, target, partial) match {
-      case Some((_, resultCtx)) => assert(contextsEqual(resultCtx, ctx), resultCtx)
-      case None => throw new AssertionError("It did not unify")
+      case Some((_, resultCtx)) => assert(contextsEqual(resultCtx, expected), resultCtx)
+      case None =>
+        fail(
+          s"Pattern ${FrontPositionedPrinter.prettyFormula(pattern, symbols = FrontPrintStyle.Unicode)} and " +
+            s"target ${FrontPositionedPrinter.prettyFormula(target, symbols = FrontPrintStyle.Unicode)} did not unify"
+        )
     }
   }
 
-  def checkUnifiesAs(pattern: Formula, target: Formula, ctx: UnificationContext): Unit =
-    checkUnifiesAs(pattern, target, UnificationContext(), ctx)
+  def checkUnifiesAs(pattern: Formula, target: Formula)(expected: UnificationContext): Unit =
+    checkUnifiesAs(pattern, target, emptyContext)(expected)
 
-  val U: UnificationContext = UnificationContext()
+  val emptyContext: UnificationContext = UnificationContext()
+  val emptyResult: UnificationContext = UnificationContext()
 
   test("unification 2") {
-    checkUnifiesAs(a, a, UnificationContext())
+    checkUnifiesAs(a, a)(emptyResult)
     checkDoesNotUnify(a, b)
     checkDoesNotUnify(a, sa)
-    checkUnifiesAs(a /\ b, a /\ b, U)
+    checkUnifiesAs(a /\ b, a /\ b)(emptyResult)
 
-    checkUnifiesAs(sa, a, U + AssignedPredicate(sa, a))
-    checkUnifiesAs(sa, sa, U + AssignedPredicate(sa, sa))
-    checkUnifiesAs(sa /\ b, a /\ b, U + AssignedPredicate(sa, a))
-    checkUnifiesAs(sa /\ sb, a /\ b, U + AssignedPredicate(sa, a) + AssignedPredicate(sb, b))
-    checkUnifiesAs(sa /\ b, sb /\ b, U + AssignedPredicate(sa, sb))
-    checkUnifiesAs(sa /\ sb, (a ==> b) /\ (c \/ a), U + AssignedPredicate(sa, a ==> b) + AssignedPredicate(sb, c \/ a))
-    checkUnifiesAs(sa /\ sa, b /\ b, U + AssignedPredicate(sa, b))
-    checkUnifiesAs(sa /\ sa, (a \/ b) /\ (b \/ a), U + AssignedPredicate(sa, a \/ b))
+    checkUnifiesAs(sa, a)(emptyResult + AssignedPredicate(sa, a))
+    checkUnifiesAs(sa, sa)(emptyResult + AssignedPredicate(sa, sa))
+    checkUnifiesAs(sa /\ b, a /\ b)(emptyResult + AssignedPredicate(sa, a))
+    checkUnifiesAs(sa /\ sb, a /\ b)(emptyResult + AssignedPredicate(sa, a) + AssignedPredicate(sb, b))
+    checkUnifiesAs(sa /\ b, sb /\ b)(emptyResult + AssignedPredicate(sa, sb))
+    checkUnifiesAs(sa /\ sb, (a ==> b) /\ (c \/ a))(emptyResult + AssignedPredicate(sa, a ==> b) + AssignedPredicate(sb, c \/ a))
+    checkUnifiesAs(sa /\ sa, b /\ b)(emptyResult + AssignedPredicate(sa, b))
+    checkUnifiesAs(sa /\ sa, (a \/ b) /\ (b \/ a))(emptyResult + AssignedPredicate(sa, a \/ b))
     checkDoesNotUnify(sa /\ sa, a /\ b)
 
-    checkUnifiesAs(sa, a /\ b, U + AssignedPredicate(sa, b /\ a), U + AssignedPredicate(sa, b /\ a))
-    checkUnifiesAs(sa, a, U + AssignedPredicate(sa, a), U + AssignedPredicate(sa, a))
-    checkDoesNotUnify(sa, a, U + AssignedPredicate(sa, b))
-    checkDoesNotUnify(sa, a, U + AssignedPredicate(sb, a))
+    checkUnifiesAs(sa, a /\ b, emptyContext + AssignedPredicate(sa, b /\ a))(emptyResult + AssignedPredicate(sa, b /\ a))
+    checkUnifiesAs(sa, a, emptyContext + AssignedPredicate(sa, a))(emptyResult + AssignedPredicate(sa, a))
+    checkDoesNotUnify(sa, a, emptyContext + AssignedPredicate(sa, b))
+    checkDoesNotUnify(sa, a, emptyContext + AssignedPredicate(sb, a))
 
-    checkUnifiesAs(p1(t), p1(t), U)
-    checkUnifiesAs(p1(st), p1(u), U + AssignedFunction(st, u))
-    checkUnifiesAs(sp1(t), p1(t), U + AssignedPredicate(sp1, LambdaPredicate(x => p1(x))))
-    checkUnifiesAs(sp1(t), p1(t) /\ p1(u), U + AssignedPredicate(sp1, LambdaPredicate(x => p1(x) /\ p1(u))))
+    checkUnifiesAs(p1(t), p1(t))(emptyResult)
+    checkUnifiesAs(p1(st), p1(u))(emptyResult + AssignedFunction(st, u))
+    checkUnifiesAs(sp1(t), p1(t))(emptyResult + AssignedPredicate(sp1, LambdaPredicate(x => p1(x))))
+    checkUnifiesAs(sp1(t), p1(t) /\ p1(u))(emptyResult + AssignedPredicate(sp1, LambdaPredicate(x => p1(x) /\ p1(u))))
 
-    checkUnifiesAs(sg1(a), b, U + AssignedConnector(sg1, LambdaConnector(_ => b)))
+    checkUnifiesAs(sg1(a), b)(emptyResult + AssignedConnector(sg1, LambdaConnector(_ => b)))
     checkDoesNotUnify(sg1(sa), a)
-    checkUnifiesAs(sg1(sa), b, U + AssignedConnector(sg1, LambdaConnector(x => x)), U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b))
-    checkUnifiesAs(sg1(sa), b, U + AssignedPredicate(sa, b), U + AssignedPredicate(sa, b) + AssignedConnector(sg1, LambdaConnector(x => x)))
+    checkUnifiesAs(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)))(emptyResult + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b))
+    checkUnifiesAs(sg1(sa), b, emptyContext + AssignedPredicate(sa, b))(emptyResult + AssignedPredicate(sa, b) + AssignedConnector(sg1, LambdaConnector(x => x)))
 
-    checkUnifiesAs(
-      sg1(sa),
-      b,
-      U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b),
-      U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b)
+    checkUnifiesAs(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b))(
+      emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, b)
     )
-    checkDoesNotUnify(sg1(sa), b, U + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, a))
-    checkDoesNotUnify(sg1(sa), b, U + AssignedConnector(sg1, LambdaConnector(_ => a)) + AssignedPredicate(sa, b))
+    checkDoesNotUnify(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(x => x)) + AssignedPredicate(sa, a))
+    checkDoesNotUnify(sg1(sa), b, emptyContext + AssignedConnector(sg1, LambdaConnector(_ => a)) + AssignedPredicate(sa, b))
 
-    checkUnifiesAs(exists(x, a), exists(x, a), U + (x -> x))
-    checkUnifiesAs(exists(x, a), exists(y, a), U + (x -> y))
-    checkUnifiesAs(exists(x, p1(x)), exists(y, p1(y)), U + (x -> y))
+    checkUnifiesAs(exists(x, a), exists(x, a))(emptyResult + (x -> x))
+    checkUnifiesAs(exists(x, a), exists(y, a))(emptyResult + (x -> y))
+    checkUnifiesAs(exists(x, p1(x)), exists(y, p1(y)))(emptyResult + (x -> y))
     checkDoesNotUnify(exists(x, p1(x)), exists(y, p1(z)))
-    checkUnifiesAs(p1(x), p1(x), U + (x -> x))
-    checkUnifiesAs(p1(x), p1(y), U + (x -> y))
-    checkUnifiesAs(p1(x), p1(y), U + (x -> y), U + (x -> y))
-    checkDoesNotUnify(p1(x), p1(y), U + (x -> z))
+    checkUnifiesAs(p1(x), p1(x))(emptyResult + (x -> x))
+    checkUnifiesAs(p1(x), p1(y))(emptyResult + (x -> y))
+    checkUnifiesAs(p1(x), p1(y), emptyContext + (x -> y))(emptyResult + (x -> y))
+    checkDoesNotUnify(p1(x), p1(y), emptyContext + (x -> z))
 
-    checkUnifiesAs(exists(x, sp1(x)), exists(y, p1(y) /\ a), U + (x -> y) + AssignedPredicate(sp1, LambdaPredicate(v => p1(v) /\ a)))
-    checkUnifiesAs(exists(x, sa), exists(x, p1(t)), U + (x -> x) + AssignedPredicate(sa, p1(t)))
+    checkUnifiesAs(exists(x, sp1(x)), exists(y, p1(y) /\ a))(emptyResult + (x -> y) + AssignedPredicate(sp1, LambdaPredicate(v => p1(v) /\ a)))
+    checkUnifiesAs(exists(x, sa), exists(x, p1(t)))(emptyResult + (x -> x) + AssignedPredicate(sa, p1(t)))
     checkDoesNotUnify(exists(x, sa), exists(x, p1(x)))
-    checkDoesNotUnify(exists(x, sp1(x)), exists(x, p1(x)), U + (x -> x) + AssignedPredicate(sp1, LambdaPredicate(_ => p1(x))))
+    checkDoesNotUnify(exists(x, sp1(x)), exists(x, p1(x)), emptyContext + (x -> x) + AssignedPredicate(sp1, LambdaPredicate(_ => p1(x))))
 
-    checkUnifiesAs(p1(st) /\ p1(su), p1(x) /\ p1(x), U + AssignedFunction(st, x) + AssignedFunction(su, x))
+    checkUnifiesAs(p1(st) /\ p1(su), p1(x) /\ p1(x))(emptyResult + AssignedFunction(st, x) + AssignedFunction(su, x))
     checkDoesNotUnify(p1(st) /\ p1(st), p1(x) /\ p1(y))
     checkDoesNotUnify(p1(st) /\ p1(st), p1(su) /\ p1(sv))
-    checkUnifiesAs(p1(st) /\ p1(st), p1(su) /\ p1(su), U + AssignedFunction(st, su))
+    checkUnifiesAs(p1(st) /\ p1(st), p1(su) /\ p1(su))(emptyResult + AssignedFunction(st, su))
 
-    checkUnifiesAs(exists(x, exists(y, p1(x) /\ p1(y))), exists(y, exists(x, p1(y) /\ p1(x))), U + (x -> y) + (y -> x))
+    checkUnifiesAs(exists(x, exists(y, p1(x) /\ p1(y))), exists(y, exists(x, p1(y) /\ p1(x))))(emptyResult + (x -> y) + (y -> x))
   }
 }
