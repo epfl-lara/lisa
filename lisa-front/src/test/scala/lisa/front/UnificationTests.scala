@@ -5,10 +5,12 @@ import lisa.front.fol.FOL.WithArityType
 import lisa.front.printer.FrontPositionedPrinter
 import lisa.front.printer.FrontPrintStyle
 import lisa.front.{*, given}
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
 
+@Ignore
 class UnificationTests extends AnyFunSuite {
 
   val (sa, sb, sc) = (SchematicPredicateLabel[0]("a"), SchematicPredicateLabel[0]("b"), SchematicPredicateLabel[0]("c"))
