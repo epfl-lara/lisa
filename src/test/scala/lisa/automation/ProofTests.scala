@@ -4,14 +4,15 @@ import lisa.automation.Proof2.*
 import lisa.front.fol.FOL.*
 import lisa.kernel.proof.SCProofChecker
 import lisa.utils.Printer
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
 
+// Not working while the front's unifier is not repaired.
+@Ignore
 class ProofTests extends AnyFunSuite {
 
-  //Not working while the front's unifier is not repaired.
-  /*
   val (a, b, c) = (SchematicPredicateLabel[0]("a"), SchematicPredicateLabel[0]("b"), SchematicPredicateLabel[0]("c"))
   val (s, t, u) = (SchematicTermLabel[0]("s"), SchematicTermLabel[0]("t"), SchematicTermLabel[0]("u"))
   val (x, y) = (VariableLabel("x"), VariableLabel("y"))
@@ -282,5 +283,4 @@ class ProofTests extends AnyFunSuite {
 
     assert(SCProofChecker.checkSCProof(reconstructed).isValid)
   }
-*/
 }
