@@ -23,6 +23,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    * The formula counterpart of [[PredicateLabel]].
    */
   sealed case class PredicateFormula(label: PredicateLabel, args: Seq[Term]) extends Formula {
+    require(label.arity == args.size)
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
     override def constantPredicates: Set[ConstantPredicateLabel] = label match {
@@ -42,6 +43,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    * The formula counterpart of [[ConnectorLabel]].
    */
   sealed case class ConnectorFormula(label: ConnectorLabel, args: Seq[Formula]) extends Formula {
+    require(label.arity == -1 || label.arity == args.length)
     override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
 
     override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
