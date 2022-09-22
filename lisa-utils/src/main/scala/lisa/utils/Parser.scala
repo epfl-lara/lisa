@@ -12,25 +12,22 @@ object Parser {
   class ParserException(msg: String) extends Exception(msg)
   object UnreachableException extends ParserException("Internal error: expected unreachable")
 
-  def parseSequent(s: String): Sequent = s.split("⊢") match {
-    case Array(fs) => Sequent(Set(), fs.split(";").map(parseFormula).toSet)
-    case Array(fsl, fsr) => Sequent(fsl.split(";").map(parseFormula).toSet, fsr.split(";").map(parseFormula).toSet)
-    case _ => throw ParserException("Invalid sequent")
-  }
-
-  private def extractParseResult[T](r: FormulaParser.ParseResult[T]): T = r match {
-    case FormulaParser.Parsed(value, _) => value
-    // TODO: at position
-    // TODO: leaking implementation? Should I sugar tokens?
-    case FormulaParser.UnexpectedToken(token, _) => throw ParserException(s"Unexpected input: $token")
-    case FormulaParser.UnexpectedEnd(_) => throw ParserException(s"Unexpected end of input")
-  }
+  def parseSequent(s: String): Sequent =
+    extractParseResult(SequentParser.parseSequent(SequentLexer(s.iterator)))
 
   def parseFormula(s: String): Formula =
-    extractParseResult(FormulaParser(FormulaLexer(s.iterator)))
+    extractParseResult(SequentParser.parseFormula(SequentLexer(s.iterator)))
 
   def parseTerm(s: String): Term =
-    extractParseResult(FormulaParser.parseTerm(FormulaLexer(s.iterator)))
+    extractParseResult(SequentParser.parseTerm(SequentLexer(s.iterator)))
+
+  private def extractParseResult[T](r: SequentParser.ParseResult[T]): T = r match {
+    case SequentParser.Parsed(value, _) => value
+    // TODO: at position
+    // TODO: leaking implementation? Should I sugar tokens? -- Lexer.unapply once it's implemented
+    case SequentParser.UnexpectedToken(token, _) => throw ParserException(s"Unexpected input: $token")
+    case SequentParser.UnexpectedEnd(_) => throw ParserException(s"Unexpected end of input")
+  }
 
   private[Parser] sealed abstract class FormulaToken
   case object ForallToken extends FormulaToken
@@ -49,9 +46,11 @@ object Parser {
   case class SchematicToken(id: String) extends FormulaToken
   case class ParenthesisToken(isOpen: Boolean) extends FormulaToken
   case object CommaToken extends FormulaToken
+  case object SemicolonToken extends FormulaToken
+  case object SequentToken extends FormulaToken
   case object SpaceToken extends FormulaToken
 
-  private[Parser] object FormulaLexer extends Lexers with CharLexers {
+  private[Parser] object SequentLexer extends Lexers with CharLexers {
     type Token = FormulaToken
     // TODO: add positions ==> ranges to tokens
     type Position = Unit
@@ -70,6 +69,8 @@ object Parser {
       elem('(') |> ParenthesisToken(true),
       elem(')') |> ParenthesisToken(false),
       elem(',') |> CommaToken,
+      elem(';') |> SemicolonToken,
+      elem('⊢') | word("|-") |> SequentToken,
       many1(whiteSpace) |> SpaceToken,
       elem('?') ~ many1(elem(_.isLetter) | elem('_') | elem(_.isDigit) | elem('\'')) |> { cs =>
         // drop the '?'
@@ -86,7 +87,7 @@ object Parser {
     }
   }
 
-  private[Parser] object FormulaParser extends Parsers {
+  private[Parser] object SequentParser extends Parsers {
     sealed abstract class TokenKind
     // and, or are both (left) associative and bind tighter than implies, iff
     case object AndKind extends TokenKind
@@ -101,6 +102,8 @@ object Parser {
     case class ParenthesisKind(isOpen: Boolean) extends TokenKind
     case object BinderKind extends TokenKind
     case object DotKind extends TokenKind
+    case object SemicolonKind extends TokenKind
+    case object SequentSymbolKind extends TokenKind
     case object OtherKind extends TokenKind
 
     type Token = lisa.utils.Parser.FormulaToken
@@ -120,6 +123,8 @@ object Parser {
       case ParenthesisToken(isOpen) => ParenthesisKind(isOpen)
       case ExistsToken | ExistsOneToken | ForallToken => BinderKind
       case DotToken => DotKind
+      case SemicolonToken => SemicolonKind
+      case SequentToken => SequentSymbolKind
       case SpaceToken => OtherKind
     }
 
@@ -134,6 +139,10 @@ object Parser {
     val comma: Syntax[Unit] = elem(CommaKind).unit(CommaToken)
 
     val eq: Syntax[Unit] = elem(EqualityKind).unit(EqualityToken)
+
+    val semicolon: Syntax[Unit] = elem(SemicolonKind).unit(SemicolonToken)
+
+    val sequentSymbol: Syntax[Unit] = elem(SequentSymbolKind).unit(SequentToken)
     ///////////////////////////////////////////////////////////////////
 
     //////////////////////// LABELS ///////////////////////////////////
@@ -237,14 +246,22 @@ object Parser {
       }
     }
     ///////////////////////////////////////////////////////////////////
+    val sequent: Syntax[Sequent] = repsep(formula, semicolon) ~ opt(sequentSymbol.skip ~ repsep(formula, semicolon)) map {
+      case left ~ Some(right) => Sequent(left.toSet, right.toSet)
+      case right ~ None => Sequent(Set(), right.toSet)
+    }
 
-    val parser: FormulaParser.Parser[FOL.Formula] = Parser(formula)
+    val parser: Parser[Sequent] = Parser(sequent)
 
-    val termParser: FormulaParser.Parser[FOL.Term] = Parser(term)
+    val formulaParser: SequentParser.Parser[FOL.Formula] = Parser(formula)
 
-    def apply(it: Iterator[Token]): ParseResult[Formula] = parseFormula(it)
+    val termParser: SequentParser.Parser[FOL.Term] = Parser(term)
 
-    def parseFormula(it: Iterator[Token]): ParseResult[Formula] = parser(it)
+    def apply(it: Iterator[Token]): ParseResult[Sequent] = parseSequent(it)
+
+    def parseSequent(it: Iterator[Token]): ParseResult[Sequent] = parser(it)
+
+    def parseFormula(it: Iterator[Token]): ParseResult[Formula] = formulaParser(it)
 
     def parseTerm(it: Iterator[Token]): ParseResult[Term] = termParser(it)
   }

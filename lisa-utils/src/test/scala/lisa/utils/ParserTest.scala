@@ -1,15 +1,20 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
+import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.utils.Helpers.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class ParserTest extends AnyFunSuite {
 
   val (a, b, c) = (ConstantPredicateLabel("a", 0), ConstantPredicateLabel("b", 0), ConstantPredicateLabel("c", 0))
   val (x, y, z) = (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
+  val (x1, y1, z1) = (VariableLabel("x1"), VariableLabel("y1"), VariableLabel("z1"))
+  val (xPrime, yPrime, zPrime) = (VariableLabel("x'"), VariableLabel("y'"), VariableLabel("z'"))
   val (cx, cy, cz) = (ConstantFunctionLabel("x", 0), ConstantFunctionLabel("y", 0), ConstantFunctionLabel("z", 0))
   val (f0, f1, f2, f3) = (ConstantFunctionLabel("f", 0), ConstantFunctionLabel("f", 1), ConstantFunctionLabel("f", 2), ConstantFunctionLabel("f", 3))
   val (sf1, sf2, sf3) = (SchematicFunctionLabel("f", 1), SchematicFunctionLabel("f", 2), SchematicFunctionLabel("f", 3))
+  val (sPhi1, sPhi2) = (SchematicNPredicateLabel("phi", 1), SchematicNPredicateLabel("phi", 2))
 
   given Conversion[PredicateLabel, PredicateFormula] = PredicateFormula(_, Seq.empty)
 
@@ -178,15 +183,43 @@ class ParserTest extends AnyFunSuite {
   }
 
   test("sequent") {
-    fail("not implemented")
+    val forallEq = BinderFormula(Forall, x, PredicateFormula(equality, Seq(x, x)))
+    assert(Parser.parseSequent("∀x. ?x = ?x") == Sequent(Set(), Set(forallEq)))
+    assert(Parser.parseSequent("⊢ ∀x. ?x = ?x") == Sequent(Set(), Set(forallEq)))
+    assert(Parser.parseSequent("∀x. ?x = ?x ⊢ ∀x. ?x = ?x") == Sequent(Set(forallEq), Set(forallEq)))
+    val existsXEq = BinderFormula(Exists, x, PredicateFormula(equality, Seq(x, x)))
+    assert(Parser.parseSequent("∀x. ?x = ?x ⊢ ∃x. ?x = ?x") == Sequent(Set(forallEq), Set(existsXEq)))
+    val existsYEq = BinderFormula(Exists, y, PredicateFormula(equality, Seq(y, y)))
+    assert(Parser.parseSequent("∀x. ?x = ?x ⊢ ∃x. ?x = ?x; ∃y. ?y = ?y") == Sequent(Set(forallEq), Set(existsYEq, existsXEq)))
+    assert(
+      Parser.parseSequent("p ; ∀x. ?x = ?x ⊢ ∃x. ?x = ?x; ∃y. ?y = ?y") ==
+        Sequent(Set(forallEq, PredicateFormula(ConstantPredicateLabel("p", 0), Seq())), Set(existsYEq, existsXEq))
+    )
   }
 
-  test("sequents from Mapping proof") {
-    fail("not implemented")
-  }
+  test("sequents from Mapping and SetTheory") {
+    val va = VariableLabel("a")
+    val leftAndRight = BinderFormula(ExistsOne, x, PredicateFormula(sPhi2, Seq(x, va)))
+    assert(Parser.parseSequent("∃!x. ?phi(?x, ?a) ⊢ ∃!x. ?phi(?x, ?a)") == Sequent(Set(leftAndRight), Set(leftAndRight)))
 
-  test("sequents from Peano proof") {
-    fail("not implemented")
+    assert(
+      Parser.parseSequent("∀x. (?x = ?x1) ↔ ?phi(?x) ⊢ (?z = ?f(?x1)) ⇒ (∃x. (?z = ?f(?x)) ∧ ?phi(?x))") == Sequent(
+        Set(BinderFormula(Forall, x, ConnectorFormula(Iff, Seq(x === x1, sPhi1(x))))),
+        Set((z === sf1(x1)) ==> exists(x, (z === sf1(x)) /\ sPhi1(x)))
+      )
+    )
+    assert(
+      Parser.parseSequent("∃x1. ∀x. (?x = ?x1) ↔ ?phi(?x) ⊢ ∃z1. ∀z. (?z = ?z1) ↔ (∃x. (?z = ?f(?x)) ∧ ?phi(?x))") == (exists(x1, forall(x, (x === x1) <=> (sPhi1(x)))) |- exists(
+        z1,
+        forall(z, (z === z1) <=> exists(x, (z === sf1(x)) /\ sPhi1(x)))
+      ))
+    )
+    assert(Parser.parseSequent("⊢ (?x = ?x) ∨ (?x = ?y)") == (() |- (x === x) \/ (x === y)))
+    assert(
+      Parser.parseSequent("(?x = ?x) ∨ (?x = ?y); (?x = ?x) ∨ (?x = ?y) ↔ (?x = ?x') ∨ (?x = ?y') ⊢ (?x = ?x') ∨ (?x = ?y')") == (Set(
+        (x === x) \/ (x === y),
+        ((x === x) \/ (x === y)) <=> ((x === xPrime) \/ (x === yPrime))
+      ) |- (x === xPrime) \/ (x === yPrime))
+    )
   }
-
 }
