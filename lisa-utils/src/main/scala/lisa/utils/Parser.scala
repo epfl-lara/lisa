@@ -222,26 +222,26 @@ object Parser {
       }
     )
 
-    def getBinderFormulaConstructor(binders: Seq[BinderLabel ~ VariableLabel]): Formula => Formula = binders match {
-      case Seq() => f => f
-      case (binder ~ boundVar) +: rest => f => BinderFormula(binder, boundVar, getBinderFormulaConstructor(rest)(f))
-    }
-
     // consume binders and return a function that constructs a BinderFormula given the inner formula
-    val binders: Syntax[Formula => Formula] = many(accept(BinderKind) {
+    val binder: Syntax[(BinderLabel, VariableLabel)] = (accept(BinderKind) {
       case ExistsToken => Exists
       case ExistsOneToken => ExistsOne
       case ForallToken => Forall
     } ~ accept(FunctionOrPredicateKind) {
       case ConstantToken(id) => VariableLabel(id)
       case SchematicToken(id) => VariableLabel(id)
-    } ~ elem(DotKind).unit(DotToken).skip) map getBinderFormulaConstructor
+    } ~ elem(DotKind).unit(DotToken).skip) map { case b ~ v =>
+      (b, v)
+    }
 
     lazy val formula: Syntax[Formula] = recursive {
-      (binders ~ connectorFormula ~ opt(toplevelConnector ~ connectorFormula)) map { case binderFormulaConstructor ~ f ~ rest =>
-        rest match {
-          case Some(conn ~ f2) => binderFormulaConstructor(ConnectorFormula(conn, Seq(f, f2)))
-          case None => binderFormulaConstructor(f)
+      (many(binder) ~ connectorFormula ~ opt(toplevelConnector ~ connectorFormula)) map { case binders ~ f ~ rest =>
+        val inner = rest match {
+          case Some(conn ~ f2) => ConnectorFormula(conn, Seq(f, f2))
+          case None => f
+        }
+        binders.foldRight(inner) { case ((binder, v), f) =>
+          BinderFormula(binder, v, f)
         }
       }
     }
