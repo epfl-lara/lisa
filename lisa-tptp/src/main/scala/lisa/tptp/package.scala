@@ -1,8 +1,8 @@
 package lisa.tptp
 
-import lisa.kernel.fol.FOL as K
+import lisa.kernel.fol.FOL
 
-case class AnnotatedFormula(role: String, name: String, formula: K.Formula)
+case class AnnotatedFormula(role: String, name: String, formula: lisa.kernel.fol.FOL.Formula)
 
 case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedFormula])
 
