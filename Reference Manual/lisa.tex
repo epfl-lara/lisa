@@ -1,0 +1,68 @@
+\documentclass[11pt,a4paper]{book}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{amsthm}
+\usepackage{csquotes}
+\usepackage[strings]{underscore}
+\usepackage{url}
+\usepackage{bussproofs}
+\usepackage{makecell}
+
+
+\newtheorem{thm}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{defin}{Definition}
+\newtheorem{ex}{Example}
+
+\newtheorem{axz}{}
+\renewcommand\theaxz{Z\arabic{axz}}
+\newtheorem{axzf}{}
+\renewcommand\theaxzf{ZF\arabic{axzf}}
+\newtheorem{axtg}{}
+\renewcommand\theaxtg{TG\arabic{axtg}}
+
+\lstset{
+language=Scala,
+escapeinside={(*@}{@*)}
+}
+
+%\lstdefinelanguage{scala}{
+%  alsoletter={@,=,>},
+%  morekeywords={abstract, case, class, def, do, Input, Output, then,
+%        else, extends, false, free, if, implicit, match,
+%        object, true, val, var, while, sealed, or, given,
+%        for, dependent, null, type, with, try, catch, finally,
+%        import, final, return, new, override, this, trait,
+%        private, public, protected, package, throw, using},
+%  sensitive=true,  
+%  morecomment=[l]{//},
+%  morecomment=[s]{/*}{*/},
+%  morestring=[b]",  
+%}
+%\lstset{mathescape,escapeinside={!*}{*!},columns=fullflexible,morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def}}
+
+
+
+\title{LISA Reference Manual (WIP)}
+\author{Simon Guilloud\\Laboratory for Automated Reasoning and Analysis, EPFL}
+\date{}
+
+\begin{document}
+\maketitle
+\chapter*{Introduction}
+This document aims to give a complete documentation on LISA. Tentatively, every chapter and section will explain a part or concept of LISA, and explains both its implementation and its theoretical foundations.
+\cite{DBLP:conf/tacas/GuilloudK22}
+
+\input{part1.tex}
+
+\input{part2.tex}
+
+\bibliographystyle{plain}
+\bibliography{biblio.bib}
+\end{document}
