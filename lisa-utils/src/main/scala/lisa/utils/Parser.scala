@@ -1,10 +1,11 @@
 package lisa.utils
 
 import lisa.kernel.fol.FOL
-import lisa.kernel.fol.FOL._
+import lisa.kernel.fol.FOL.*
 import lisa.kernel.fol.FOL.equality
 import lisa.kernel.proof.SequentCalculus.*
 import scallion.*
+import scallion.util.Unfolds.unfoldRight
 import silex.*
 
 object Parser {
@@ -28,6 +29,12 @@ object Parser {
     case SequentParser.UnexpectedToken(token, _) => throw ParserException(s"Unexpected input: $token")
     case SequentParser.UnexpectedEnd(_) => throw ParserException(s"Unexpected end of input")
   }
+
+  def printSequent(s: Sequent): String = SequentParser.printSequent(s).get
+
+  def printFormula(f: Formula): String = SequentParser.printFormula(f).get
+
+  def printTerm(t: Term): String = SequentParser.printTerm(t).get
 
   private[Parser] sealed abstract class FormulaToken
   case object ForallToken extends FormulaToken
@@ -85,6 +92,27 @@ object Parser {
       val source = Source.fromIterator(it, NoPositioner)
       lexer(source).filter(_ != SpaceToken)
     }
+
+    // TODO: add spaces as needed
+    def unapply(tokens: Iterator[Token]): String = tokens.map {
+      case ForallToken => Forall.id
+      case ExistsOneToken => ExistsOne.id
+      case ExistsToken => Exists.id
+      case DotToken => "."
+      case AndToken => And.id
+      case OrToken => Or.id
+      case ImpliesToken => Implies.id
+      case IffToken => Iff.id
+      case NegationToken => Neg.id
+      case EqualityToken => equality.id
+      case ConstantToken(id) => id
+      case SchematicToken(id) => "?" + id
+      case ParenthesisToken(isOpen) => if (isOpen) "(" else ")"
+      case CommaToken => ","
+      case SemicolonToken => ";"
+      case SequentToken => "⊢"
+      case SpaceToken => " "
+    }.mkString
   }
 
   private[Parser] object SequentParser extends Parsers {
@@ -146,25 +174,49 @@ object Parser {
     ///////////////////////////////////////////////////////////////////
 
     //////////////////////// LABELS ///////////////////////////////////
-    val toplevelConnector: Syntax[Implies.type | Iff.type] = accept(TopLevelConnectorKind) {
-      case ImpliesToken => Implies
-      case IffToken => Iff
-    }
+    val toplevelConnector: Syntax[Implies.type | Iff.type] = accept(TopLevelConnectorKind)(
+      {
+        case ImpliesToken => Implies
+        case IffToken => Iff
+      },
+      {
+        case Implies => Seq(ImpliesToken)
+        case Iff => Seq(IffToken)
+      }
+    )
 
-    val negation: Syntax[Neg.type] = accept(NegationKind) { case NegationToken => Neg }
+    val negation: Syntax[Neg.type] = accept(NegationKind)({ case NegationToken => Neg }, { case Neg => Seq(NegationToken) })
     ///////////////////////////////////////////////////////////////////
 
     //////////////////////// TERMS ////////////////////////////////////
     lazy val args: Syntax[Seq[Term]] = recursive(open.skip ~ repsep(term, comma) ~ closed.skip)
 
-    lazy val term: Syntax[Term] = recursive((elem(FunctionOrPredicateKind) ~ opt(args)).map {
-      case ConstantToken(id) ~ maybeArgs =>
-        val args = maybeArgs.getOrElse(Seq())
-        FunctionTerm(ConstantFunctionLabel(id, args.length), args)
-      case SchematicToken(id) ~ Some(args) => FunctionTerm(SchematicFunctionLabel(id, args.length), args)
-      case SchematicToken(id) ~ None => VariableTerm(VariableLabel(id))
-      case _ => throw UnreachableException
-    })
+    def invertTerm(t: Term): Token ~ Option[Seq[Term]] = t match {
+      case VariableTerm(label) => SchematicToken(label.id) ~ None
+      case FunctionTerm(label, args) =>
+        val optArgs = args match {
+          case Seq() => None
+          case _ => Some(args)
+        }
+        label match {
+          case ConstantFunctionLabel(id, _) => ConstantToken(id) ~ optArgs
+          case SchematicFunctionLabel(id, _) => SchematicToken(id) ~ optArgs
+        }
+    }
+
+    lazy val term: Syntax[Term] = recursive(
+      (elem(FunctionOrPredicateKind) ~ opt(args)).map(
+        {
+          case ConstantToken(id) ~ maybeArgs =>
+            val args = maybeArgs.getOrElse(Seq())
+            FunctionTerm(ConstantFunctionLabel(id, args.length), args)
+          case SchematicToken(id) ~ Some(args) => FunctionTerm(SchematicFunctionLabel(id, args.length), args)
+          case SchematicToken(id) ~ None => VariableTerm(VariableLabel(id))
+          case _ => throw UnreachableException
+        },
+        t => Seq(invertTerm(t))
+      )
+    )
     ///////////////////////////////////////////////////////////////////
 
     //////////////////////// FORMULAS /////////////////////////////////
@@ -182,87 +234,164 @@ object Parser {
       case _ => throw UnreachableException
     }
 
-    val predicate: Syntax[PredicateFormula] = (elem(FunctionOrPredicateKind) ~ opt(args) ~ opt(eq.skip ~ elem(FunctionOrPredicateKind) ~ opt(args))).map {
-      // predicate application
-      case ConstantToken(id) ~ maybeArgs ~ None =>
-        val args = maybeArgs.getOrElse(Seq())
-        PredicateFormula(ConstantPredicateLabel(id, args.size), args)
-      case SchematicToken(id) ~ Some(args) ~ None => PredicateFormula(SchematicNPredicateLabel(id, args.size), args)
-      case SchematicToken(id) ~ None ~ None => PredicateFormula(VariableFormulaLabel(id), Seq())
+    val predicate: Syntax[PredicateFormula] = (elem(FunctionOrPredicateKind) ~ opt(args) ~ opt(eq.skip ~ elem(FunctionOrPredicateKind) ~ opt(args))).map(
+      {
+        // predicate application
+        case ConstantToken(id) ~ maybeArgs ~ None =>
+          val args = maybeArgs.getOrElse(Seq())
+          PredicateFormula(ConstantPredicateLabel(id, args.size), args)
+        case SchematicToken(id) ~ Some(args) ~ None => PredicateFormula(SchematicNPredicateLabel(id, args.size), args)
+        case SchematicToken(id) ~ None ~ None =>
+          PredicateFormula(VariableFormulaLabel(id), Seq())
 
-      // equality of two function applications
-      case fun1 ~ args1 ~ Some(fun2 ~ args2) =>
-        PredicateFormula(FOL.equality, Seq(createFunctionTerm(fun1, args1.getOrElse(Seq())), createFunctionTerm(fun2, args2.getOrElse(Seq()))))
+        // equality of two function applications
+        case fun1 ~ args1 ~ Some(fun2 ~ args2) =>
+          PredicateFormula(FOL.equality, Seq(createFunctionTerm(fun1, args1.getOrElse(Seq())), createFunctionTerm(fun2, args2.getOrElse(Seq()))))
 
-      case _ => throw UnreachableException
-    }
+        case _ => throw UnreachableException
+      },
+      { case PredicateFormula(label, args) =>
+        label match {
+          case FOL.equality =>
+            args match {
+              case Seq(first, second) => Seq(invertTerm(first) ~ Some(invertTerm(second)))
+              case _ => Seq()
+            }
+          case other =>
+            val predicateApp = other match {
+              case ConstantPredicateLabel(id, 0) => ConstantToken(id) ~ None
+              case ConstantPredicateLabel(id, _) => ConstantToken(id) ~ Some(args)
+              case VariableFormulaLabel(id) => SchematicToken(id) ~ None
+              case SchematicNPredicateLabel(id, _) => SchematicToken(id) ~ Some(args)
+            }
+            Seq(predicateApp ~ None)
+        }
+      }
+    )
 
     val negated: Syntax[ConnectorFormula] = recursive {
-      (negation ~ subformula).map { case n ~ f =>
-        ConnectorFormula(n, Seq(f))
-      }
+      (negation ~ subformula).map(
+        { case n ~ f =>
+          ConnectorFormula(n, Seq(f))
+        },
+        {
+          case ConnectorFormula(Neg, Seq(f)) => Seq(Neg ~ f)
+          case _ => throw UnreachableException
+        }
+      )
     }
+
+    val and: Syntax[ConnectorLabel] = elem(AndKind).map[ConnectorLabel](
+      {
+        case AndToken => And
+        case _ => throw UnreachableException
+      },
+      {
+        case And => Seq(AndToken)
+        case _ => throw UnreachableException
+      }
+    )
+
+    val or: Syntax[ConnectorLabel] = elem(OrKind).map[ConnectorLabel](
+      {
+        case OrToken => Or
+        case _ => throw UnreachableException
+      },
+      {
+        case Or => Seq(OrToken)
+        case _ => throw UnreachableException
+      }
+    )
 
     // 'and' has higher priority than 'or'
     val connectorFormula: Syntax[Formula] = operators(subformula)(
-      elem(AndKind) map {
-        case AndToken => And
-        case _ => throw UnreachableException
-      } is LeftAssociative,
-      elem(OrKind) map {
-        case OrToken => Or
-        case _ => throw UnreachableException
-      } is LeftAssociative
+      and is LeftAssociative,
+      or is LeftAssociative
     )(
-      { case (l, conn, r) =>
-        ConnectorFormula(conn, Seq(l, r))
-      },
+      (l, conn, r) => ConnectorFormula(conn, Seq(l, r)),
       { case ConnectorFormula(conn, Seq(l, r)) =>
         (l, conn, r)
       }
     )
 
-    // consume binders and return a function that constructs a BinderFormula given the inner formula
-    val binder: Syntax[(BinderLabel, VariableLabel)] = (accept(BinderKind) {
-      case ExistsToken => Exists
-      case ExistsOneToken => ExistsOne
-      case ForallToken => Forall
-    } ~ accept(FunctionOrPredicateKind) {
-      case ConstantToken(id) => VariableLabel(id)
-      case SchematicToken(id) => VariableLabel(id)
-    } ~ elem(DotKind).unit(DotToken).skip) map { case b ~ v =>
-      (b, v)
-    }
+    val binderLabel: Syntax[BinderLabel] = accept(BinderKind)(
+      {
+        case ExistsToken => Exists
+        case ExistsOneToken => ExistsOne
+        case ForallToken => Forall
+      },
+      {
+        case Exists => Seq(ExistsToken)
+        case ExistsOne => Seq(ExistsOneToken)
+        case Forall => Seq(ForallToken)
+      }
+    )
+
+    val boundVariable: Syntax[VariableLabel] = accept(FunctionOrPredicateKind)(
+      {
+        case ConstantToken(id) => VariableLabel(id)
+        case SchematicToken(id) => VariableLabel(id)
+      },
+      { case VariableLabel(id) =>
+        Seq(SchematicToken(id))
+      }
+    )
+
+    val binder: Syntax[BinderLabel ~ VariableLabel] = binderLabel ~ boundVariable ~ elem(DotKind).unit(DotToken).skip
+
+    val iffImpliesFormula: Syntax[Formula] = (connectorFormula ~ opt(toplevelConnector ~ connectorFormula)).map[Formula](
+      {
+        case left ~ Some(c ~ right) => ConnectorFormula(c, Seq(left, right))
+        case f ~ None => f
+      },
+      {
+        case ConnectorFormula(c @ (Iff | Implies), Seq(left, right)) => Seq(left ~ Some(c ~ right))
+        case f => Seq(f ~ None)
+      }
+    )
 
     lazy val formula: Syntax[Formula] = recursive {
-      (many(binder) ~ connectorFormula ~ opt(toplevelConnector ~ connectorFormula)) map { case binders ~ f ~ rest =>
-        val inner = rest match {
-          case Some(conn ~ f2) => ConnectorFormula(conn, Seq(f, f2))
-          case None => f
+      prefixes(binder, iffImpliesFormula)(
+        { case (label ~ variable, f) => BinderFormula(label, variable, f) },
+        { case BinderFormula(label, variable, f) =>
+          (label ~ variable, f)
         }
-        binders.foldRight(inner) { case ((binder, v), f) =>
-          BinderFormula(binder, v, f)
-        }
-      }
+      )
     }
     ///////////////////////////////////////////////////////////////////
-    val sequent: Syntax[Sequent] = repsep(formula, semicolon) ~ opt(sequentSymbol.skip ~ repsep(formula, semicolon)) map {
-      case left ~ Some(right) => Sequent(left.toSet, right.toSet)
-      case right ~ None => Sequent(Set(), right.toSet)
-    }
+
+    val sequent: Syntax[Sequent] = (repsep(formula, semicolon) ~ opt(sequentSymbol.skip ~ repsep(formula, semicolon))).map[Sequent](
+      {
+        case left ~ Some(right) => Sequent(left.toSet, right.toSet)
+        case right ~ None => Sequent(Set(), right.toSet)
+      },
+      {
+        case Sequent(Seq(), right) => Seq(right.toSeq ~ None)
+        case Sequent(left, right) => Seq(left.toSeq ~ Some(right.toSeq))
+      }
+    )
 
     val parser: Parser[Sequent] = Parser(sequent)
+    val printer: PrettyPrinter[Sequent] = PrettyPrinter(sequent)
 
-    val formulaParser: SequentParser.Parser[FOL.Formula] = Parser(formula)
+    val formulaParser: SequentParser.Parser[Formula] = Parser(formula)
+    val formulaPrinter: SequentParser.PrettyPrinter[Formula] = PrettyPrinter(formula)
 
-    val termParser: SequentParser.Parser[FOL.Term] = Parser(term)
+    val termParser: SequentParser.Parser[Term] = Parser(term)
+    val termPrinter: SequentParser.PrettyPrinter[Term] = PrettyPrinter(term)
 
     def apply(it: Iterator[Token]): ParseResult[Sequent] = parseSequent(it)
 
+    def unapply(s: Sequent): Option[String] = printSequent(s)
+
     def parseSequent(it: Iterator[Token]): ParseResult[Sequent] = parser(it)
+    def printSequent(s: Sequent): Option[String] = printer(s).map(SequentLexer.unapply)
 
     def parseFormula(it: Iterator[Token]): ParseResult[Formula] = formulaParser(it)
+    def printFormula(f: Formula): Option[String] = formulaPrinter(f).map(SequentLexer.unapply)
 
     def parseTerm(it: Iterator[Token]): ParseResult[Term] = termParser(it)
+
+    def printTerm(t: Term): Option[String] = termPrinter(t).map(SequentLexer.unapply)
   }
 }
