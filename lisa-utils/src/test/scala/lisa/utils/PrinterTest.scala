@@ -16,9 +16,9 @@ class PrinterTest extends AnyFunSuite {
 
   test("Minimal parenthesization") {
     assert(prettyFormula(ConnectorFormula(And, Seq(a, b))) == "a ∧ b")
-    assert(prettyFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "(a ∧ b) ∧ c")
-    assert(prettyFormula(ConnectorFormula(And, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ∧ b ∧ c")
-    assert(prettyFormula(ConnectorFormula(Or, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ∨ b ∧ c")
+    assert(prettyFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ∧ c")
+    assert(prettyFormula(ConnectorFormula(And, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ∧ (b ∧ c)")
+    assert(prettyFormula(ConnectorFormula(Or, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ∨ (b ∧ c)")
     assert(prettyFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ∨ c")
     assert(prettyFormula(ConnectorFormula(And, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "(a ∨ b) ∧ c")
     assert(prettyFormula(ConnectorFormula(And, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ∧ (b ∨ c)")
@@ -26,14 +26,15 @@ class PrinterTest extends AnyFunSuite {
     assert(prettyFormula(ConnectorFormula(Neg, Seq(a))) == "¬a")
     assert(prettyFormula(ConnectorFormula(Neg, Seq(ConnectorFormula(Neg, Seq(a))))) == "¬¬a")
     assert(prettyFormula(ConnectorFormula(Neg, Seq(ConnectorFormula(Neg, Seq(ConnectorFormula(And, Seq(a, b))))))) == "¬¬(a ∧ b)")
-    assert(prettyFormula(ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(b)), ConnectorFormula(Neg, Seq(c))))))) == "¬a ∧ ¬b ∧ ¬c")
+    assert(prettyFormula(ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(b)), ConnectorFormula(Neg, Seq(c))))))) == "¬a ∧ (¬b ∧ ¬c)")
+    assert(prettyFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(Neg, Seq(b)))), ConnectorFormula(Neg, Seq(c))))) == "¬a ∧ ¬b ∧ ¬c")
 
     assert(prettyFormula(ConnectorFormula(And, Seq(a, PredicateFormula(equality, Seq(x, x))))) == "a ∧ (?x = ?x)")
 
     assert(prettyFormula(BinderFormula(Forall, x, PredicateFormula(equality, Seq(x, x)))) == "∀x. ?x = ?x")
     assert(prettyFormula(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, PredicateFormula(equality, Seq(x, x)))))) == "a ∧ ∀x. ?x = ?x")
     assert(prettyFormula(ConnectorFormula(And, Seq(BinderFormula(Forall, x, b), a))) == "(∀x. b) ∧ a")
-    assert(prettyFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "(a ∧ ∀x. b) ∧ a")
+    assert(prettyFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "a ∧ (∀x. b) ∧ a")
     assert(prettyFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "a ∧ (∀x. b) ∨ a")
 
     assert(prettyFormula(BinderFormula(Forall, x, BinderFormula(Exists, y, BinderFormula(ExistsOne, z, a)))) == "∀x. ∃y. ∃!z. a")
