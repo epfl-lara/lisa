@@ -8,8 +8,12 @@ import lisa.utils.Printer
 
 class SimpleProofTransformer (pr : SCProof) extends Transformer {
 
+    //val (neg_premises) = dfs(pr.steps.last, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
     val (neg_premises) = dependency_finder(pr.steps, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
     var appended_steps = IndexedSeq[SCProofStep]()
+    println(neg_premises.values)
+
+
     /**
      * 
      * pr : Int => SCProofStep
@@ -66,7 +70,6 @@ class SimpleProofTransformer (pr : SCProof) extends Transformer {
                 val h = Hypothesis((se.left + sequentToFormula(se)) |- (se.right + sequentToFormula(se)), sequentToFormula(se))
                 h
                 })
-            println(neg_premises(p))
             val rewrites  = hypothesis.zipWithIndex.map((h, i) => {
                     val r = Rewrite(h.bot.left |- (h.bot.right - sequentToFormula(premises(i))), i)
                     r
