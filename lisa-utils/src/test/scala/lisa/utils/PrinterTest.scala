@@ -7,13 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
 
-class PrinterTest extends AnyFunSuite {
-
-  val (a, b, c) = (ConstantPredicateLabel("a", 0), ConstantPredicateLabel("b", 0), ConstantPredicateLabel("c", 0))
-  val (x, y, z) = (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
-
-  given Conversion[PredicateLabel, PredicateFormula] = PredicateFormula(_, Seq.empty)
-  given Conversion[VariableLabel, VariableTerm] = VariableTerm.apply
+class PrinterTest extends AnyFunSuite with TestUtils {
 
   test("Minimal parenthesization") {
     assert(Parser.printFormula(ConnectorFormula(And, Seq(a, b))) == "a ∧ b")
