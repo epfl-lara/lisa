@@ -68,7 +68,11 @@ object TransformersTests extends lisa.proven.Main {
     val rew = Rewrite((A, A ==> (B \/ C)) |- (B, C), 0)
     
     val prpr = SCProof(IndexedSeq(hypo, rew), IndexedSeq())
-    
-    print(Printer.prettySCProof(SCProofChecker.checkSCProof(tr)))
+    val res = SCProofChecker.checkSCProof(tr)
+    if (res.isValid) {
+        println("Proof is valid")
+    } else {
+        println(Printer.prettySCProof(pr))
+    }
 
     }
