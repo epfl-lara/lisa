@@ -36,30 +36,47 @@ object Parser {
 
   def printTerm(t: Term): String = SequentParser.printTerm(t).get
 
-  private[Parser] sealed abstract class FormulaToken(stringRepr: String) {
-    override def toString: String = stringRepr
-  }
-  case object ForallToken extends FormulaToken(Forall.id)
-  case object ExistsOneToken extends FormulaToken(ExistsOne.id)
-  case object ExistsToken extends FormulaToken(Exists.id)
-  case object DotToken extends FormulaToken(".")
-  case object AndToken extends FormulaToken(And.id)
-  case object OrToken extends FormulaToken(Or.id)
-  case object ImpliesToken extends FormulaToken(Implies.id)
-  case object IffToken extends FormulaToken(Iff.id)
-  case object NegationToken extends FormulaToken(Neg.id)
-  case object EqualityToken extends FormulaToken(equality.id)
-  // Constant functions and predicates
-  case class ConstantToken(id: String) extends FormulaToken(id)
-  // Variables, schematic functions and predicates
-  case class SchematicToken(id: String) extends FormulaToken("?" + id)
-  case class ParenthesisToken(isOpen: Boolean) extends FormulaToken(if (isOpen) "(" else ")")
-  case object CommaToken extends FormulaToken(",")
-  case object SemicolonToken extends FormulaToken(";")
-  case object SequentToken extends FormulaToken("⊢")
-  case object SpaceToken extends FormulaToken(" ")
-
   private[Parser] object SequentLexer extends Lexers with CharLexers {
+    sealed abstract class FormulaToken(stringRepr: String) {
+      override def toString: String = stringRepr
+    }
+
+    case object ForallToken extends FormulaToken(Forall.id)
+
+    case object ExistsOneToken extends FormulaToken(ExistsOne.id)
+
+    case object ExistsToken extends FormulaToken(Exists.id)
+
+    case object DotToken extends FormulaToken(".")
+
+    case object AndToken extends FormulaToken(And.id)
+
+    case object OrToken extends FormulaToken(Or.id)
+
+    case object ImpliesToken extends FormulaToken(Implies.id)
+
+    case object IffToken extends FormulaToken(Iff.id)
+
+    case object NegationToken extends FormulaToken(Neg.id)
+
+    case object EqualityToken extends FormulaToken(equality.id)
+
+    // Constant functions and predicates
+    case class ConstantToken(id: String) extends FormulaToken(id)
+
+    // Variables, schematic functions and predicates
+    case class SchematicToken(id: String) extends FormulaToken("?" + id)
+
+    case class ParenthesisToken(isOpen: Boolean) extends FormulaToken(if (isOpen) "(" else ")")
+
+    case object CommaToken extends FormulaToken(",")
+
+    case object SemicolonToken extends FormulaToken(";")
+
+    case object SequentToken extends FormulaToken("⊢")
+
+    case object SpaceToken extends FormulaToken(" ")
+
     type Token = FormulaToken
     // TODO: add positions ==> ranges to tokens
     type Position = Unit
@@ -134,7 +151,8 @@ object Parser {
     case object SequentSymbolKind extends TokenKind
     case object OtherKind extends TokenKind
 
-    type Token = lisa.utils.Parser.FormulaToken
+    import SequentLexer._
+    type Token = FormulaToken
     type Kind = TokenKind
 
     // can safely skip tokens which were mapped to unit with elem(kind).unit(token)
