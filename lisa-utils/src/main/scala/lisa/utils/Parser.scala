@@ -12,6 +12,7 @@ object Parser {
 
   class ParserException(msg: String) extends Exception(msg)
   object UnreachableException extends ParserException("Internal error: expected unreachable")
+  class PrintFailedException(inp: Sequent | Formula | Term) extends ParserException(s"Printing of $inp failed unexpectedly")
 
   def parseSequent(s: String): Sequent =
     extractParseResult(SequentParser.parseSequent(SequentLexer(s.iterator)))
@@ -30,11 +31,11 @@ object Parser {
     case SequentParser.UnexpectedEnd(_) => throw ParserException(s"Unexpected end of input")
   }
 
-  def printSequent(s: Sequent): String = SequentParser.printSequent(s).get
+  def printSequent(s: Sequent): String = SequentParser.printSequent(s).getOrElse(throw PrintFailedException(s))
 
-  def printFormula(f: Formula): String = SequentParser.printFormula(f).get
+  def printFormula(f: Formula): String = SequentParser.printFormula(f).getOrElse(throw PrintFailedException(f))
 
-  def printTerm(t: Term): String = SequentParser.printTerm(t).get
+  def printTerm(t: Term): String = SequentParser.printTerm(t).getOrElse(throw PrintFailedException(t))
 
   private[Parser] object SequentLexer extends Lexers with CharLexers {
     sealed abstract class FormulaToken(stringRepr: String) {
