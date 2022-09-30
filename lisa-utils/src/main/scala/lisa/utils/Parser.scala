@@ -36,26 +36,28 @@ object Parser {
 
   def printTerm(t: Term): String = SequentParser.printTerm(t).get
 
-  private[Parser] sealed abstract class FormulaToken
-  case object ForallToken extends FormulaToken
-  case object ExistsOneToken extends FormulaToken
-  case object ExistsToken extends FormulaToken
-  case object DotToken extends FormulaToken
-  case object AndToken extends FormulaToken
-  case object OrToken extends FormulaToken
-  case object ImpliesToken extends FormulaToken
-  case object IffToken extends FormulaToken
-  case object NegationToken extends FormulaToken
-  case object EqualityToken extends FormulaToken
+  private[Parser] sealed abstract class FormulaToken(stringRepr: String) {
+    override def toString: String = stringRepr
+  }
+  case object ForallToken extends FormulaToken(Forall.id)
+  case object ExistsOneToken extends FormulaToken(ExistsOne.id)
+  case object ExistsToken extends FormulaToken(Exists.id)
+  case object DotToken extends FormulaToken(".")
+  case object AndToken extends FormulaToken(And.id)
+  case object OrToken extends FormulaToken(Or.id)
+  case object ImpliesToken extends FormulaToken(Implies.id)
+  case object IffToken extends FormulaToken(Iff.id)
+  case object NegationToken extends FormulaToken(Neg.id)
+  case object EqualityToken extends FormulaToken(equality.id)
   // Constant functions and predicates
-  case class ConstantToken(id: String) extends FormulaToken
+  case class ConstantToken(id: String) extends FormulaToken(id)
   // Variables, schematic functions and predicates
-  case class SchematicToken(id: String) extends FormulaToken
-  case class ParenthesisToken(isOpen: Boolean) extends FormulaToken
-  case object CommaToken extends FormulaToken
-  case object SemicolonToken extends FormulaToken
-  case object SequentToken extends FormulaToken
-  case object SpaceToken extends FormulaToken
+  case class SchematicToken(id: String) extends FormulaToken("?" + id)
+  case class ParenthesisToken(isOpen: Boolean) extends FormulaToken(if (isOpen) "(" else ")")
+  case object CommaToken extends FormulaToken(",")
+  case object SemicolonToken extends FormulaToken(";")
+  case object SequentToken extends FormulaToken("⊢")
+  case object SpaceToken extends FormulaToken(" ")
 
   private[Parser] object SequentLexer extends Lexers with CharLexers {
     type Token = FormulaToken
@@ -93,26 +95,24 @@ object Parser {
       lexer(source).filter(_ != SpaceToken)
     }
 
-    // TODO: add spaces as needed
-    def unapply(tokens: Iterator[Token]): String = tokens.map {
-      case ForallToken => Forall.id
-      case ExistsOneToken => ExistsOne.id
-      case ExistsToken => Exists.id
-      case DotToken => "."
-      case AndToken => And.id
-      case OrToken => Or.id
-      case ImpliesToken => Implies.id
-      case IffToken => Iff.id
-      case NegationToken => Neg.id
-      case EqualityToken => equality.id
-      case ConstantToken(id) => id
-      case SchematicToken(id) => "?" + id
-      case ParenthesisToken(isOpen) => if (isOpen) "(" else ")"
-      case CommaToken => ","
-      case SemicolonToken => ";"
-      case SequentToken => "⊢"
-      case SpaceToken => " "
-    }.mkString
+    def unapply(tokens: Iterator[Token]): String = {
+      val space = " "
+      tokens
+        .foldLeft(Nil: List[String]) {
+          // Sequent token is the only separator that can have an empty left side; in this case, omit the space before
+          case (Nil, SequentToken) => SequentToken.toString :: space :: Nil
+          case (l, t) =>
+            t match {
+              // do not require spaces
+              case NegationToken | ConstantToken(_) | SchematicToken(_) | ParenthesisToken(_) | SpaceToken => l :+ t.toString
+              // space after: quantifiers and separators
+              case ForallToken | ExistsToken | ExistsOneToken | DotToken | CommaToken | SemicolonToken => l :+ t.toString :+ space
+              // space before and after: equality, connectors, sequent symbol
+              case EqualityToken | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.toString :+ space
+            }
+        }
+        .mkString
+    }
   }
 
   private[Parser] object SequentParser extends Parsers {
