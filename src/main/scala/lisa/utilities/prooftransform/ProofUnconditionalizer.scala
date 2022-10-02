@@ -1,12 +1,28 @@
-package lisa.transformers
-
+package lisa.utilities.prooftransform
 import lisa.kernel.proof.SCProof
 import lisa.utils.Helpers.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.fol.FOL.*
 import lisa.utils.Printer
 
-class SimpleProofTransformer (pr : SCProof) extends Transformer {
+class ProofUnconditionalizer (pr : SCProof) {
+    def dependency_finder[A](top_sort :  IndexedSeq[A], children: A => Seq[A], imports : A => Seq[Int]) : Map[A, Set[Int]] = {
+    def is_leaf(node: A): Boolean = imports(node).isEmpty | imports(node).forall(_ < 0)
+    var cache = scala.collection.mutable.Map[A, Set[Int]]().withDefault(_ => Set())
+
+    val rev = top_sort.reverse
+    def inner(v : A) : Seq[Int] = v match {
+        case _ if is_leaf(v) =>  imports(v)
+        case _ => {
+            val res = children(v).flatMap(inner) ++ imports(v).filter(_ < 0)
+            cache(v) = res.toSet
+            res
+            }
+    }
+    
+    inner(rev.head)
+    cache.toMap
+}
 
     //val (neg_premises) = dfs(pr.steps.last, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
     val (neg_premises) = dependency_finder(pr.steps, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
@@ -117,12 +133,6 @@ class SimpleProofTransformer (pr : SCProof) extends Transformer {
             case InstFunSchema(bot, t1, insts)              => InstFunSchema(f(bot.left)|- bot.right, fi(pS.premises).head, insts)
             case InstPredSchema(bot, t1, insts)             => InstPredSchema( f( bot.left )|- bot.right, fi(pS.premises).head, insts)
             case SCSubproof(pp, t, b)                       => {
-                SCSubproof(SimpleProofTransformer(pp).transform(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t), b)}
+                SCSubproof(ProofUnconditionalizer(pp).transform(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t), b)}
     }
 }
-
-/**
-* If a theory prooves the original theorem, that means we have a proof that proves each imports, we can then cut the premises at the 
-* conclusion to get to the original theorem proposition using them to get to the original statement that has been proven.
-* The opposite is obviously not the case as we cannot always split the aassumptionns from the conclusion.
-**/
