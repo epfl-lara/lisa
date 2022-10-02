@@ -5,103 +5,128 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.fol.FOL.*
 import lisa.utils.Printer
 
-class ProofUnconditionalizer (pr : SCProof) {
-    def dependency_finder[A](top_sort :  IndexedSeq[A], children: A => Seq[A], imports : A => Seq[Int]) : Map[A, Set[Int]] = {
-    def is_leaf(node: A): Boolean = imports(node).isEmpty | imports(node).forall(_ < 0)
-    var cache = scala.collection.mutable.Map[A, Set[Int]]().withDefault(_ => Set())
-
-    val rev = top_sort.reverse
-    def inner(v : A) : Seq[Int] = v match {
-        case _ if is_leaf(v) =>  imports(v)
-        case _ => {
-            val res = children(v).flatMap(inner) ++ imports(v).filter(_ < 0)
-            cache(v) = res.toSet
-            res
-            }
-    }
+case class ProofUnconditionalizer (pr : SCProof) {
     
-    inner(rev.head)
-    cache.toMap
-}
-
-    //val (neg_premises) = dfs(pr.steps.last, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
-    val (neg_premises) = dependency_finder(pr.steps, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
-    var appended_steps = IndexedSeq[SCProofStep]()
-    println(neg_premises.values)
-
-
+    //ATTRIBUTES#########################################################################################################################
+    private val (neg_premises) = dependency_finder(pr.steps, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
+    //We use a var because Subproofs require the results of precedent steps, topological order on proofs ensure we can always do this
+    private var appended_steps = IndexedSeq[SCProofStep]()
+    
+    //PREDICATES#########################################################################################################################
     /**
-     * 
-     * pr : Int => SCProofStep
-     * 
-     * cache : SCProofStep => [Int]
-     * 
-     * 
-     * 
-     **/
-    def is_problematic(sc : SCProofStep): Boolean = sc.premises.exists(_ < 0)
-    def transform_premises(pS : SCProofStep, b : Set[Formula]) = neg_premises.getOrElse(pS, Set[Int]()).map(i => sequentToFormula(pr.imports(-i-1))) ++ b 
-    def transform( keep : IndexedSeq[Sequent] = IndexedSeq.empty)  : SCProof = {
+      * Wether a step needs to be more modified than just appending hypothesis on the left of the conclusion
+      *
+      * @param sc the step to analyse
+      * @return whether the step has a negative premise
+      */ 
+    private def is_problematic(sc : SCProofStep): Boolean = sc.premises.exists(_ < 0)
+
+    //PUBLIC FUNCTIONS###################################################################################################################
+    /**
+      * Maps a proof to a new proof where all imports are made into suppositions on the left of the conclusion
+      *
+      * @return A proof where each steps has the necessary imports added as suppostitions on the left of their bottom
+      */
+    def transform() : SCProof = transformPrivate(IndexedSeq.empty)
+
+    //PRIVATE FUNCTIONS##################################################################################################################
+    /**
+      * Assigns to each node of a DAG all the imports (as defined in the parameters) attainable from it
+      * Executes in liniear time
+      * @param top_sort a topologically sorted array representing the DAG
+      * @param children returns a list of all nodes linked to a given node
+      * @param imports implementation dependent
+      * @return node -> [imports(v) | exists a path between node and v]
+      */
+    private def dependency_finder[A](top_sort :  IndexedSeq[A], children: A => Seq[A], imports : A => Seq[Int]) : Map[A, Set[Int]] = {
+        var cache = scala.collection.mutable.Map[A, Set[Int]]().withDefault(_ => Set())
+        def is_leaf(node: A): Boolean = imports(node).isEmpty | imports(node).forall(_ < 0)
+
+        val rev = top_sort.reverse
+        def inner(v : A) : Seq[Int] = v match {
+            case _ if is_leaf(v) =>  imports(v)
+            case _ => {
+                val res = children(v).flatMap(inner) ++ imports(v).filter(_ < 0)
+                cache(v) = res.toSet
+                res
+                }
+        }
+        
+        inner(rev.head)
+        cache.toMap
+    }
+
+    
+    /**
+      * Private version used to keep track of imports that should not be removed, useful for SubProofs
+      *
+      * @param keep The indices not to be removed from the transformed proof
+      * @return a proof zhose imports have been removed except for those present in keep
+      */
+    private def transformPrivate( keep : IndexedSeq[Sequent])  : SCProof = {
         pr.steps.zipWithIndex.foreach((pS, i) => {
             appended_steps = appended_steps.appended( 
             if(is_problematic(pS)) {
                 mapProb(pS)
             } else {
-                mapStep(pS, b => transform_premises(pS, b))
+                mapStep(pS, b => neg_premises.getOrElse(pS, Set[Int]()).map(i => sequentToFormula(pr.imports(-i-1))) ++ b )
             })
         })
         SCProof(appended_steps.toIndexedSeq, keep)
     }
+    
+    /**
+      * Deals with steps that have a negative premise
+      * The strategy is to systematically add an hypothesis to introduce the import, rewrite it
+      * to remove unwanted clutter and apply strictly the same transformation as if there was no negative premise.
+      * To not mess with indices of proof and to keep a clearer proof structure all those steps are wrapped into a SubProof
+      *
+      * @param pS thestep to be modified
+      * @return a subproof whose conclusion is the same step as in the argument but with changed premises and a left side bottom modified as
+      * in the general algorithm
+      */
+    private def mapProb(pS : SCProofStep) = {
+        val premises = pS.premises.filter(_ < 0)
+                .map(i => pr.imports(-i-1))
+        val hypothesis = premises
+                .map((se) => {
+                val h = Hypothesis((se.left + sequentToFormula(se)) |- (se.right + sequentToFormula(se)), sequentToFormula(se))
+                h
+                })
+        val rewrites = hypothesis.zipWithIndex.map((h, i) => {
+                    val r = Rewrite(h.bot.left |- (h.bot.right - sequentToFormula(premises(i))), i)
+                    r
+                })
         
-    def mapProb(pS : SCProofStep) = pS match {
-        case SCSubproof(_,_,_) => {
-            val p = pS
-            val premises = p.premises.filter(_ < 0)
-                .map(i => pr.imports(-i-1))
-            val hypothesis = premises
-                .map((se) => {
-                val h = Hypothesis((se.left + sequentToFormula(se)) |- (se.right + sequentToFormula(se)), sequentToFormula(se))
-                h
-                })
+        //We must separate the case for subproofs for they need to use the modified version of the precedent 
+        val inner = pS match {
+            case SCSubproof(_,_,_) => SCProof(hypothesis.toIndexedSeq ++ rewrites.toIndexedSeq ++ IndexedSeq(
+                    mapStep(pS, b => neg_premises(pS).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, s => s.map(i => i match {
+                        case i if i < 0 => -i-2 + hypothesis.length
+                        case i => -i
+                    } ), rewrites.map(_.bot))) , pS.premises.filter(_>= 0).map(pr(_).bot).toIndexedSeq)
+               
+            
+            case _ => SCProof(hypothesis.toIndexedSeq ++ rewrites.toIndexedSeq ++ IndexedSeq(
+                    mapStep(pS, b => neg_premises(pS).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, s => s.map(i => i match {
+                        case i if i < 0 => -i-1 + hypothesis.length
+                        case i => -i
+                    } ))) , pS.premises.filter(_>= 0).map(pr(_).bot).toIndexedSeq)
+            
+        }
 
-            val rewrites = hypothesis.zipWithIndex.map((h, i) => {
-                    val r = Rewrite(h.bot.left |- (h.bot.right - sequentToFormula(premises(i))), i)
-                    r
-                })
-            
-            val inner = SCProof(hypothesis.toIndexedSeq ++ rewrites.toIndexedSeq ++ IndexedSeq(
-                mapStep(p, b => neg_premises(p).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, s => s.map(i => i match {
-                    case i if i < 0 => -i-2 + hypothesis.length
-                    case i => -i
-                } ), rewrites.map(_.bot))
-            ) , p.premises.filter(_>= 0).map(pr(_).bot).toIndexedSeq)
-            val res = SCSubproof(inner, p.premises.filter(_ >= 0))
-            res
-        }
-        case p => {
-            val premises = p.premises.filter(_ < 0)
-                .map(i => pr.imports(-i-1))
-            val hypothesis = premises
-                .map((se) => {
-                val h = Hypothesis((se.left + sequentToFormula(se)) |- (se.right + sequentToFormula(se)), sequentToFormula(se))
-                h
-                })
-            val rewrites  = hypothesis.zipWithIndex.map((h, i) => {
-                    val r = Rewrite(h.bot.left |- (h.bot.right - sequentToFormula(premises(i))), i)
-                    r
-                })
-            
-            val inner = SCProof(hypothesis.toIndexedSeq ++ rewrites.toIndexedSeq ++ IndexedSeq(
-                mapStep(p, b => neg_premises(p).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, s => s.map(i => i match {
-                    case i if i < 0 => -i-1 + hypothesis.length
-                    case i => -i
-                } ))
-            ) , p.premises.filter(_>= 0).map(pr(_).bot).toIndexedSeq)
-            val res = SCSubproof(inner, p.premises.filter(_ >= 0))
-            res
-        }
+        SCSubproof(inner, pS.premises.filter(_ >= 0))
     }
-    // a -> b |- !a \/ b
+    
+    /**
+      * This function transform generically a proof step into another one
+      *
+      * @param pS the proofstep to modify
+      * @param f the transformation on left side of bottom
+      * @param fi transformation on premises
+      * @param fsub sequents to keep on subproofs
+      * @return a proofstep where each function is applied to the corresponding 
+      */
     def mapStep(pS : SCProofStep, f : Set[Formula] => Set[Formula], fi : Seq[Int] => Seq[Int] = identity, fsub : Seq[Sequent] = Nil) : SCProofStep= pS match
     {
             case Rewrite(bot, t1)                           => Rewrite(f(bot.left)|- bot.right, fi(pS.premises).head)
@@ -133,6 +158,6 @@ class ProofUnconditionalizer (pr : SCProof) {
             case InstFunSchema(bot, t1, insts)              => InstFunSchema(f(bot.left)|- bot.right, fi(pS.premises).head, insts)
             case InstPredSchema(bot, t1, insts)             => InstPredSchema( f( bot.left )|- bot.right, fi(pS.premises).head, insts)
             case SCSubproof(pp, t, b)                       => {
-                SCSubproof(ProofUnconditionalizer(pp).transform(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t), b)}
+                SCSubproof(ProofUnconditionalizer(pp).transformPrivate(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t), b)}
     }
 }
