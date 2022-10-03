@@ -51,8 +51,8 @@ case class ProofUnconditionalizer (pr : SCProof) {
                 res
                 }
         }
-        
-        inner(rev.head)
+        //Checks for empty proof
+        rev.headOption.map(inner)
         cache.toMap
     }
 
