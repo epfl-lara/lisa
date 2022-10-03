@@ -2,9 +2,9 @@ package lisa.kernel
 
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.kernel.proof._
+import lisa.kernel.proof.*
 import lisa.test.ProofCheckerSuite
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 
 class InvalidProofPathTests extends ProofCheckerSuite {
   def checkPath(invalidProof: SCProof, expectedPath: Seq[Int]): Unit = {

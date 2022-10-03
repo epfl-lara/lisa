@@ -85,7 +85,7 @@ abstract class Library(val theory: RunningTheory) {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
         just
-      case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+      case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
     }
 
     /**
@@ -135,7 +135,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }
@@ -148,7 +148,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }
@@ -194,7 +194,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }

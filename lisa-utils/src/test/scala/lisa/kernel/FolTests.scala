@@ -6,7 +6,7 @@ import lisa.kernel.proof.RunningTheory.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.Printer
 import org.scalatest.funsuite.AnyFunSuite
 

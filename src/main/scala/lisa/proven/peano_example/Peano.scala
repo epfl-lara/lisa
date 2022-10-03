@@ -5,7 +5,7 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.proven.tactics.ProofTactics.*
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.Library
 import lisa.utils.Printer
 
@@ -43,7 +43,7 @@ object Peano {
     val (premise, conclusion) = (inductionInstance.bot.right.head match {
       case ConnectorFormula(Implies, Seq(premise, conclusion)) => (premise, conclusion)
       case _ => require(false, s"induction instance should be of the form A => B, got ${Printer.prettyFormula(inductionInstance.bot.right.head)}")
-    })
+    }): @unchecked
     val baseFormula = baseProof.bot.right.head
     val stepFormula = inductionStepProof.bot.right.head
     require(

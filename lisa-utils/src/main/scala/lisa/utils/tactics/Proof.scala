@@ -1,5 +1,7 @@
 package lisa.utils.tactics
 
+import lisa.kernel.proof.SequentCalculus.{SCProofStep, Sequent}
+import lisa.kernel.proof.SequentCalculus as SC
 import lisa.kernel.proof.SCProof
 
 
@@ -13,6 +15,7 @@ case class Proof(steps: IndexedSeq[ProofStep], imports: IndexedSeq[Sequent] = In
         else throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
     }
 
+    /*
     def getSequent(i: Int): Sequent = {
         if (i >= 0)
             if (i >= steps.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
@@ -22,10 +25,10 @@ case class Proof(steps: IndexedSeq[ProofStep], imports: IndexedSeq[Sequent] = In
             if (i2 >= imports.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the imports Seq")
             else imports(i2)
         }
-    }
+    }*/
 
     def toSCProof:SCProof = {
-        Proof(steps.map(ps => ps.tact.asProofStep(ps.bot, steps.getSequent)))
+        steps.foldLeft(SCProof())((p, ps) => p.appended(ps.asSCProofStep(p.getSequent)))
     }
 
 
