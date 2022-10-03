@@ -342,11 +342,11 @@ object SetTheory extends lisa.proven.Main {
     val s0 = SCSubproof(instantiateForall(Proof(IndexedSeq(p0), IndexedSeq(i1)), z), Seq(-1)) // exists(y1, forall(x1, in(x1,y1) <=> (in(x1,z1) /\ !in(x1, x1))))
     val s1 = hypothesis(in(x, y) <=> (in(x, z) /\ !in(x, x))) // in(x,y) <=> (in(x,z) /\ in(x, x)) |- in(x,y) <=> (in(x,z) /\ in(x, x))
     val s2 = RightSubstIff(
-      (in(x, z) <=> And(), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> (And() /\ !in(x, x)),
+      (in(x, z) <=> True, in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> (True /\ !in(x, x)),
       1,
       List((in(x, z), And())),
       LambdaFormulaFormula(Seq(h), in(x, y) <=> (h /\ !in(x, x)))
-    ) // in(x1,y1) <=> (in(x1,z1) /\ in(x1, x1)) |- in(x,y) <=> (And() /\ in(x1, x1))
+    ) // in(x1,y1) <=> (in(x1,z1) /\ in(x1, x1)) |- in(x,y) <=> (True /\ in(x1, x1))
     val s3 = Rewrite((in(x, z), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> !in(x, x), 2)
     val s4 = LeftForall((forall(x, in(x, z)), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> !in(x, x), 3, in(x, z), x, x)
     val s5 = LeftForall((forall(x, in(x, z)), forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))) |- in(x, y) <=> !in(x, x), 4, in(x, y) <=> (in(x, z) /\ !in(x, x)), x, x)
