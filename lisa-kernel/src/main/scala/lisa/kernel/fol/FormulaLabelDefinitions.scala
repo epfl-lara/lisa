@@ -76,7 +76,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
 
   case object Implies extends ConnectorLabel("⇒", 2)
 
-  case object Iff extends ConnectorLabel("↔", 2)
+  case object Iff extends ConnectorLabel("⇔", 2)
 
   case object And extends ConnectorLabel("∧", -1)
 
