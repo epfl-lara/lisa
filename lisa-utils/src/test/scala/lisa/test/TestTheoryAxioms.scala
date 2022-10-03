@@ -2,7 +2,7 @@ package lisa.test
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 
 trait TestTheoryAxioms {
   final val p1 = ConstantPredicateLabel("p1", 1)
