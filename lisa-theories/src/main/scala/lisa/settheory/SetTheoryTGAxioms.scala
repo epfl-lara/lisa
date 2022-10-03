@@ -1,7 +1,7 @@
 package lisa.settheory
 
 import lisa.kernel.fol.FOL.*
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{_{_, given}
 
 /**
  * Axioms for the Tarski-Grothendieck theory (TG)

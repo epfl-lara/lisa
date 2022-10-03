@@ -13,7 +13,7 @@ abstract class Library(val theory: RunningTheory) {
   export lisa.kernel.proof.SequentCalculus.*
   export lisa.kernel.proof.SCProof as Proof
   export theory.{Justification, Theorem, Definition, Axiom, PredicateDefinition, FunctionDefinition}
-  export lisa.utils.Helpers.{*, given}
+  export lisa.utils.Helpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
   /**

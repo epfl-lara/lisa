@@ -163,7 +163,7 @@ object FrontMacro {
         Map[VariableLabel, VariableLabel]
     )
   ] = {
-    import LiftFOL.{*, given}
+    import LiftFOL.{_, given}
 
     def substMap[T, U](seq: Seq[(Expr[T], Expr[U])])(using Quotes, Type[T], Type[U]): Expr[Map[T, U]] = {
       val list: Seq[Expr[(T, U)]] = seq.map { case (k, v) =>
@@ -274,7 +274,7 @@ object FrontMacro {
 
   private def termApplyMacro[P <: Tuple](parts: Expr[P], args: Expr[Seq[Any]])(using Quotes, Type[P]): Expr[Term] = {
     import quotes.reflect.*
-    import LiftFOL.{*, given}
+    import LiftFOL.{_, given}
 
     val interpolator = toTokens(parts, args)
     val resolved = FrontResolver.resolveTerm(FrontParser.parseTopTermOrFormula(interpolator.tokens))
@@ -288,7 +288,7 @@ object FrontMacro {
   }
   private def formulaApplyMacro[P <: Tuple](parts: Expr[P], args: Expr[Seq[Any]])(using Quotes, Type[P]): Expr[Formula] = {
     import quotes.reflect.*
-    import LiftFOL.{*, given}
+    import LiftFOL.{_, given}
 
     val interpolator = toTokens(parts, args)
     val resolved = FrontResolver.resolveFormula(FrontParser.parseTopTermOrFormula(interpolator.tokens))
@@ -302,7 +302,7 @@ object FrontMacro {
   }
   private def sequentApplyMacro[P <: Tuple](parts: Expr[P], args: Expr[Seq[Any]])(using Quotes, Type[P]): Expr[Sequent] = {
     import quotes.reflect.*
-    import LiftFOL.{*, given}
+    import LiftFOL.{_, given}
 
     val interpolator = toTokens(parts, args)
     val resolved = FrontResolver.resolveSequent(FrontParser.parseSequent(interpolator.tokens))
@@ -318,7 +318,7 @@ object FrontMacro {
   }
   private def partialSequentApplyMacro[P <: Tuple](parts: Expr[P], args: Expr[Seq[Any]])(using Quotes, Type[P]): Expr[PartialSequent] = {
     import quotes.reflect.*
-    import LiftFOL.{*, given}
+    import LiftFOL.{_, given}
 
     val interpolator = toTokens(parts, args)
     val resolved = FrontResolver.resolvePartialSequent(FrontParser.parsePartialSequent(interpolator.tokens))

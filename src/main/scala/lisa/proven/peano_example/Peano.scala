@@ -5,12 +5,12 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
 import lisa.utils.Printer
 
 object Peano {
-  export PeanoArithmeticsLibrary.{*, given}
+  export PeanoArithmeticsLibrary.{_, given}
 
   /////////////////////////// OUTPUT CONTROL //////////////////////////
   given output: (String => Unit) = println

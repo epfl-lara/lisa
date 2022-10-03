@@ -8,7 +8,7 @@ import lisa.automation.kernel.SimplePropositionalSolver.solveSequent
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{_, given}
 import lisa.utils.Printer.*
 
 /**

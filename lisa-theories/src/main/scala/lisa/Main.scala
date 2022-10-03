@@ -4,7 +4,7 @@ package lisa
  * The parent trait of all theory files containing mathematical development
  */
 trait Main {
-  export lisa.settheory.SetTheoryLibrary.{*, given}
+  export lisa.settheory.SetTheoryLibrary.{_, given}
 
   private val realOutput: String => Unit = println
   private var outString: List[String] = List()
