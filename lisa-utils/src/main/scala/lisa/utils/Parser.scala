@@ -4,6 +4,7 @@ import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.fol.FOL.equality
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.utils.Helpers.False
 import scallion.*
 import scallion.util.Unfolds.unfoldRight
 import silex.*
@@ -60,6 +61,10 @@ object Parser {
 
     case object NegationToken extends FormulaToken(Neg.id)
 
+    case object TrueToken extends FormulaToken("⊤")
+
+    case object FalseToken extends FormulaToken("⊥")
+
     case object EqualityToken extends FormulaToken(equality.id)
 
     // Constant functions and predicates
@@ -92,6 +97,8 @@ object Parser {
       elem('∨') | word("\\/") |> { _ => OrToken },
       elem('⇒') | word("=>") | word("==>") |> { _ => ImpliesToken },
       elem('↔') | word("<=>") | word("<==>") |> { _ => IffToken },
+      elem('⊤') | elem('T') | word("True") | word("true") |> { _ => TrueToken },
+      elem('⊥') | elem('F') | word("False") | word("false") |> { _ => FalseToken },
       elem('¬') | elem('!') |> { _ => NegationToken },
       elem('(') |> ParenthesisToken(true),
       elem(')') |> ParenthesisToken(false),
@@ -122,7 +129,7 @@ object Parser {
           case (l, t) =>
             t match {
               // do not require spaces
-              case NegationToken | ConstantToken(_) | SchematicToken(_) | ParenthesisToken(_) | SpaceToken => l :+ t.toString
+              case NegationToken | ConstantToken(_) | SchematicToken(_) | TrueToken | FalseToken | ParenthesisToken(_) | SpaceToken => l :+ t.toString
               // space after: quantifiers and separators
               case ForallToken | ExistsToken | ExistsOneToken | DotToken | CommaToken | SemicolonToken => l :+ t.toString :+ space
               // space before and after: equality, connectors, sequent symbol
@@ -139,9 +146,9 @@ object Parser {
     case object AndKind extends TokenKind
     case object OrKind extends TokenKind
     // implies, iff are both non-associative and are of equal priority, lower than and, or
-
     case object TopLevelConnectorKind extends TokenKind
     case object NegationKind extends TokenKind
+    case object BooleanConstantKind extends TokenKind
     case object FunctionOrPredicateKind extends TokenKind
     case object EqualityKind extends TokenKind
     case object CommaKind extends TokenKind
@@ -164,6 +171,7 @@ object Parser {
       case OrToken => OrKind
       case IffToken | ImpliesToken => TopLevelConnectorKind
       case NegationToken => NegationKind
+      case TrueToken | FalseToken => BooleanConstantKind
       case _: ConstantToken | _: SchematicToken => FunctionOrPredicateKind
       case EqualityToken => EqualityKind
       case CommaToken => CommaKind
@@ -240,7 +248,7 @@ object Parser {
 
     //////////////////////// FORMULAS /////////////////////////////////
     // can appear without parentheses
-    lazy val simpleFormula: Syntax[Formula] = predicate.up[Formula] | negated.up[Formula]
+    lazy val simpleFormula: Syntax[Formula] = predicate.up[Formula] | negated.up[Formula] | bool.up[Formula]
     lazy val subformula: Syntax[Formula] = simpleFormula | open.skip ~ formula ~ closed.skip
 
     def createFunctionTerm(label: Token, args: Seq[Term]): Term = label match {
@@ -252,6 +260,18 @@ object Parser {
         }
       case _ => throw UnreachableException
     }
+
+    val bool: Syntax[ConnectorFormula] = accept(BooleanConstantKind)(
+      {
+        case TrueToken => ConnectorFormula(And, Seq())
+        case FalseToken => ConnectorFormula(Or, Seq())
+      },
+      {
+        case ConnectorFormula(And, Seq()) => Seq(TrueToken)
+        case ConnectorFormula(Or, Seq()) => Seq(FalseToken)
+        case _ => throw UnreachableException
+      }
+    )
 
     val predicate: Syntax[PredicateFormula] = (elem(FunctionOrPredicateKind) ~ opt(args) ~ opt(eq.skip ~ elem(FunctionOrPredicateKind) ~ opt(args))).map(
       {
@@ -393,6 +413,8 @@ object Parser {
       },
       {
         case Sequent(Seq(), right) => Seq(right.toSeq ~ None)
+        // TODO: use constant
+        case Sequent(left, Seq()) => Seq(left.toSeq ~ Some(Seq(False)))
         case Sequent(left, right) => Seq(left.toSeq ~ Some(right.toSeq))
       }
     )
