@@ -28,6 +28,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
     ("extensionalityAxiom", extensionalityAxiom),
     ("pairAxiom", pairAxiom),
     ("unionAxiom", unionAxiom),
+    ("subsetAxiom", subsetAxiom),
     ("powerAxiom", powerAxiom),
     ("foundationAxiom", foundationAxiom),
     ("comprehensionSchema", comprehensionSchema)

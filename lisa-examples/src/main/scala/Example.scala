@@ -140,7 +140,7 @@ object Example {
     p.formulas.foreach(printAnnotatedFormula)
   }
 
-  val P = SchematicNPredicateLabel("P", 1)
+  val P = SchematicPredicateLabel("P", 1)
 
   val Q = PredicateFormula(VariableFormulaLabel("Q"), Seq())
   val R = PredicateFormula(VariableFormulaLabel("R"), Seq())
