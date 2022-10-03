@@ -30,7 +30,7 @@ object Peano {
     val p1 = Hypothesis(instantiated |- instantiated, instantiated)
     val p2 = LeftForall(formula |- instantiated, 0, instantiateBinder(forall, tempVar), tempVar, t)
     val p3 = Cut(() |- instantiated, -1, 1, formula)
-    Proof(IndexedSeq(p1, p2, p3), IndexedSeq(proofImport))
+    SCProof(IndexedSeq(p1, p2, p3), IndexedSeq(proofImport))
   }
 
   def applyInduction(baseProof: SCSubproof, inductionStepProof: SCSubproof, inductionInstance: SCProofStep): IndexedSeq[SCProofStep] = {
@@ -248,7 +248,7 @@ object Peano {
     }
     val inductionApplication = applyInduction(base0, inductionStep1, inductionInstance)
     val addForall = RightForall(() |- forall(x, forall(y, plus(x, s(y)) === plus(s(x), y))), inductionApplication.size - 1, forall(y, plus(x, s(y)) === plus(s(x), y)), x)
-    val proof: SCProof = Proof(
+    val proof: SCProof = SCProof(
       inductionApplication :+ addForall,
       IndexedSeq(ax"ax3neutral", ax"ax4plusSuccessor", ax"ax7induction")
     )
@@ -293,7 +293,7 @@ object Peano {
       val rightImplies11 = RightImplies(() |- (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x)), 10, plus(x, y) === plus(y, x), plus(x, s(y)) === plus(s(y), x))
       val forall12 = RightForall(() |- forall(y, (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x))), 11, (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x)), y)
       SCSubproof(
-        Proof(
+        SCProof(
           IndexedSeq(
             start0,
             applyPlusSuccAx1,
@@ -329,7 +329,7 @@ object Peano {
     }
     val inductionApplication = applyInduction(base0, inductionStep1, inductionInstance)
     val addForall = RightForall(() |- forall(x, forall(y, plus(x, y) === plus(y, x))), inductionApplication.size - 1, forall(y, plus(x, y) === plus(y, x)), x)
-    val proof: SCProof = Proof(
+    val proof: SCProof = SCProof(
       inductionApplication :+ addForall,
       IndexedSeq(ax"ax4plusSuccessor", ax"ax7induction", thm"x + 0 = 0 + x", thm"switch successor")
     )

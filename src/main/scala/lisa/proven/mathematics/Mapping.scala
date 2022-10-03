@@ -40,7 +40,7 @@ object Mapping extends lisa.proven.Main {
         -1,
         Map(sPsi -> LambdaTermFormula(Seq(y, a, x), phi(x, a)))
       )
-      val p1 = instantiateForall(Proof(steps(p0), imports(i1)), A)
+      val p1 = instantiateForall(SCProof(steps(p0), imports(i1)), A)
       val s4 = SCSubproof(p1, Seq(-1)) //
       val s5 = Rewrite(s3.bot.right.head |- exists(B, forall(x, in(x, A) ==> exists(y, in(y, B) /\ (phi(y, x))))), 4)
       val s6 = Cut((H1) |- exists(B, forall(x, in(x, A) ==> exists(y, in(y, B) /\ (phi(y, x))))), 3, 5, s3.bot.right.head) // ⊢ ∃B. ∀x. (x ∈ A) ⇒ ∃y. (y ∈ B) ∧ (y = (x, b))
@@ -51,9 +51,9 @@ object Mapping extends lisa.proven.Main {
         -1,
         Map(sPhi -> LambdaTermFormula(Seq(x, z), exists(a, in(a, A) /\ phi(x, a))))
       )
-      val q1 = instantiateForall(Proof(steps(q0), imports(i2)), B)
+      val q1 = instantiateForall(SCProof(steps(q0), imports(i2)), B)
       val s7 = SCSubproof(q1, Seq(-2)) // ∃y. ∀x. (x ∈ y) ↔ (x ∈ B) ∧ ∃a. a ∈ A /\ x = (a, b)      := exists(y, F(y) )
-      Proof(steps(s0, s1, s2, s3, s4, s5, s6, s7), imports(i1, i2))
+      SCProof(steps(s0, s1, s2, s3, s4, s5, s6, s7), imports(i1, i2))
       val s8 = SCSubproof({
         val y1 = VariableLabel("y1")
         val s0 = hypothesis(in(y1, B))
@@ -102,7 +102,7 @@ object Mapping extends lisa.proven.Main {
         )
         val truc = forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B)))
         val s17 = Rewrite(Set(forall(a, in(a, A) ==> existsOne(x, phi(x, a))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), exists(a, phi(x, a) /\ in(a, A))) |- in(x, B), 16)
-        Proof(steps(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17))
+        SCProof(steps(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17))
         // goal H, ∀a. (a ∈ A) ⇒ ∃y. y ∈ B ∧ phi(y, a), ∃a. a ∈ A ∧ phi(x, a) |- (x ∈ B)
         // redGoal ∀a.(a ∈ A) => ∃!x. phi(x, a), ∀a. (a ∈ A) ⇒ ∃y. y ∈ B ∧ phi(y, a), ∃a. a ∈ A ∧ phi(x, a) |- (x ∈ B)    s17
         // redGoal ∀a.(a ∈ A) => ∃y. ∀x. (x=y) ↔ phi(x, a), ∀a. (a ∈ A) ⇒ ∃y. y ∈ B ∧ phi(y, a), ∃a. a ∈ A ∧ phi(x, a) |- (x ∈ B)    s16
@@ -129,7 +129,7 @@ object Mapping extends lisa.proven.Main {
       val G = forall(a, in(a, A) ==> exists(y, in(y, B) /\ (phi(y, a))))
       val F = forall(x, iff(in(x, B1), in(x, B) /\ exists(a, in(a, A) /\ (phi(x, a)))))
       val s9 = SCSubproof({
-        val p0 = instantiateForall(Proof(hypothesis(F)), x)
+        val p0 = instantiateForall(SCProof(hypothesis(F)), x)
         val left = in(x, B1)
         val right = in(x, B) /\ exists(a, in(a, A) /\ (phi(x, a)))
         val p1 = p0.withNewSteps(Vector(Rewrite(F |- (left ==> right) /\ (right ==> left), p0.length - 1)))
@@ -140,7 +140,7 @@ object Mapping extends lisa.proven.Main {
       val s10 = Cut(Set(F, G, H1, exists(a, in(a, A) /\ (phi(x, a)))) |- in(x, B1), 8, 9, in(x, B)) // redGoal F, ∃a. a ∈ A ∧ x = (a, b), ∀a. (a ∈ A) ⇒ ∃y. y ∈ B ∧ y = (a, b) |- (x ∈ B1)
       val s11 = Rewrite(Set(H1, G, F) |- exists(a, in(a, A) /\ (phi(x, a))) ==> in(x, B1), 10) // F |- ∃a. a ∈ A ∧ x = (a, b) => (x ∈ B1)   --- half
       val s12 = SCSubproof({
-        val p0 = instantiateForall(Proof(hypothesis(F)), x)
+        val p0 = instantiateForall(SCProof(hypothesis(F)), x)
         val left = in(x, B1)
         val right = in(x, B) /\ exists(a, in(a, A) /\ (phi(x, a)))
         val p1 = p0.withNewSteps(Vector(Rewrite(F |- (left ==> right) /\ (right ==> left), p0.length - 1)))
@@ -179,7 +179,7 @@ object Mapping extends lisa.proven.Main {
           ) // redGoal2  F, [∀x. (x ∈ X) <=> ∃a. a ∈ A ∧ x = (a, b)] |- (z ∈ X) <=> (z ∈ B1)
           val t2 = RightForall(t1.bot.left |- forall(x, in(x, X) <=> in(x, B1)), 1, in(x, X) <=> in(x, B1), x) // redGoal2  F, [∀x. (x ∈ X) <=> ∃a. a ∈ A ∧ x = (a, b)] |- ∀z. (z ∈ X) <=> (z ∈ B1)
           val t3 =
-            SCSubproof(instantiateForall(Proof(steps(Rewrite(() |- extensionalityAxiom, -1)), imports(() |- extensionalityAxiom)), X, B1), Vector(-2)) // (∀z. (z ∈ X) <=> (z ∈ B1)) <=> (X === B1)))
+            SCSubproof(instantiateForall(SCProof(steps(Rewrite(() |- extensionalityAxiom, -1)), imports(() |- extensionalityAxiom)), X, B1), Vector(-2)) // (∀z. (z ∈ X) <=> (z ∈ B1)) <=> (X === B1)))
           val t4 = RightSubstIff(
             t1.bot.left ++ t3.bot.right |- X === B1,
             2,
@@ -207,7 +207,7 @@ object Mapping extends lisa.proven.Main {
             forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))
           ) // goal  F |- X=B1 <=> [∀x. (x ∈ X) <=> ∃a. a ∈ A ∧ x = (a, b)]
 
-          Proof(steps(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9), imports(i1, i2, i3))
+          SCProof(steps(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9), imports(i1, i2, i3))
         },
         Vector(13, -3, 14)
       ) // goal  F |- X=B1 <=> [∀x. (x ∈ X) <=> ∃a. a ∈ A ∧ x = (a, b)]
@@ -230,7 +230,7 @@ object Mapping extends lisa.proven.Main {
       val s21 = LeftExists((H1, exists(B, G)) |- existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))), 20, G, B)
       val s22 = Cut(H1 |- existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ phi(x, a)))), 6, 21, exists(B, G))
       val res = steps(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22)
-      Proof(res, imports(i1, i2, i3))
+      SCProof(res, imports(i1, i2, i3))
     } using (ax"replacementSchema", ax"comprehensionSchema", ax"extensionalityAxiom")
   show
 
@@ -285,7 +285,7 @@ object Mapping extends lisa.proven.Main {
         7,
         forall(b, in(b, B) ==> existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ psi(x, a, b)))))
       )
-      Proof(Vector(s0, s1, s2, s3, s4, s5, s6, s7, s8), Vector(i1))
+      SCProof(Vector(s0, s1, s2, s3, s4, s5, s6, s7, s8), Vector(i1))
       // have ∀a. (a ∈ A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ A) ∧ ?psi(x, a, b)    s0
       // have (b ∈ B), ∀a. (a ∈ A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ A) ∧ ?psi(x, a, b)    s1
       // have (b ∈ B), (b ∈ B) ⇒ ∀a. (a ∈ A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ A) ∧ ?psi(x, a, b)    s2
@@ -317,7 +317,7 @@ object Mapping extends lisa.proven.Main {
         val s4 = Rewrite(Set(forall(x, phi(x) <=> (x === x1)), phi(x) /\ (F(x) === z)) |- F(x1) === z, 3)
         val s5 = LeftExists(Set(forall(x, phi(x) <=> (x === x1)), exists(x, phi(x) /\ (F(x) === z))) |- F(x1) === z, 4, phi(x) /\ (F(x) === z), x)
         val s6 = Rewrite(forall(x, phi(x) <=> (x === x1)) |- exists(x, phi(x) /\ (F(x) === z)) ==> (F(x1) === z), 5)
-        Proof(steps(s0, s1, s2, s3, s4, s5, s6))
+        SCProof(steps(s0, s1, s2, s3, s4, s5, s6))
       }) // redGoal2 ∀x. x=x1 <=> phi(x)   ⊢   ∃x. z=F(x) /\ phi(x) ==> F(x1)=z  g2.s5
 
       val g1 = SCSubproof({
@@ -327,7 +327,7 @@ object Mapping extends lisa.proven.Main {
         val s3 = RightAnd((forall(x, (x === x1) <=> phi(x)), z === F(x1)) |- (z === F(x1)) /\ phi(x1), Seq(2, 1), Seq(z === F(x1), phi(x1)))
         val s4 = RightExists((forall(x, (x === x1) <=> phi(x)), z === F(x1)) |- exists(x, (z === F(x)) /\ phi(x)), 3, (z === F(x)) /\ phi(x), x, x1)
         val s5 = Rewrite(forall(x, (x === x1) <=> phi(x)) |- z === F(x1) ==> exists(x, (z === F(x)) /\ phi(x)), 4)
-        Proof(steps(s0, s1, s2, s3, s4, s5))
+        SCProof(steps(s0, s1, s2, s3, s4, s5))
       })
 
       val s0 = g1
@@ -343,7 +343,7 @@ object Mapping extends lisa.proven.Main {
       )
       val s5 = LeftExists(exists(x1, forall(x, (x === x1) <=> phi(x))) |- exists(z1, forall(z, (z === z1) <=> exists(x, (z === F(x)) /\ phi(x)))), 4, forall(x, (x === x1) <=> phi(x)), x1)
       val s6 = Rewrite(existsOne(x, phi(x)) |- existsOne(z, exists(x, (z === F(x)) /\ phi(x))), 5) // goal ∃!x. phi(x)   ⊢   ∃!z. ∃x. z=F(x) /\ phi(x)
-      Proof(Vector(s0, s1, s2, s3, s4, s5, s6))
+      SCProof(Vector(s0, s1, s2, s3, s4, s5, s6))
     } using ()
   show
 
@@ -368,7 +368,7 @@ object Mapping extends lisa.proven.Main {
       val seq1 = instantiateFunctionSchemaInSequent(seq0, Map(F -> LambdaTermTerm(Seq(x), union(x))))
       val s1 = InstFunSchema(seq1, 0, Map(F -> LambdaTermTerm(Seq(x), union(x))))
       val s2 = Cut(i1.left |- seq1.right, -1, 1, seq1.left.head)
-      Proof(steps(s0, s1, s2), imports(i1, i2))
+      SCProof(steps(s0, s1, s2), imports(i1, i2))
     } using (thm"lemmaLayeredTwoArgumentsMap", thm"applyFunctionToUniqueObject")
   show
 
@@ -386,7 +386,7 @@ object Mapping extends lisa.proven.Main {
       val B = VariableLabel("B")
       exists(x, (z === union(x)) /\ forall(x0, in(x0, x) <=> exists(b, in(b, B) /\ forall(x1, in(x1, x0) <=> exists(a, in(a, A) /\ (x1 === oPair(a, b)))))))
     } PROOF {
-      def makeFunctional(t: Term): Proof = {
+      def makeFunctional(t: Term): SCProof = {
         val x = VariableLabel(freshId(t.freeVariables.map(_.id), "x"))
         val y = VariableLabel(freshId(t.freeVariables.map(_.id), "y"))
         val s0 = RightRefl(() |- t === t, t === t)
@@ -394,7 +394,7 @@ object Mapping extends lisa.proven.Main {
         val s2 = RightForall(() |- forall(x, (x === t) <=> (x === t)), 1, (x === t) <=> (x === t), x)
         val s3 = RightExists(() |- exists(y, forall(x, (x === y) <=> (x === t))), 2, forall(x, (x === y) <=> (x === t)), y, t)
         val s4 = Rewrite(() |- existsOne(x, x === t), 3)
-        Proof(s0, s1, s2, s3, s4)
+        SCProof(s0, s1, s2, s3, s4)
       }
 
       val a = VariableLabel("a")
@@ -413,7 +413,7 @@ object Mapping extends lisa.proven.Main {
         val s3 = RightForall(in(b, B) |- forall(a, in(a, A) ==> s0.bot.right.head), 2, in(a, A) ==> s0.bot.right.head, a)
         val s4 = Rewrite(() |- in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head), 3)
         val s5 = RightForall(() |- forall(b, in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head)), 4, in(b, B) ==> forall(a, in(a, A) ==> s0.bot.right.head), b)
-        Proof(steps(s0, s1, s2, s3, s4, s5))
+        SCProof(steps(s0, s1, s2, s3, s4, s5))
       }) // ∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. x= (a, b)
 
       val s1 = InstPredSchema(
@@ -422,7 +422,7 @@ object Mapping extends lisa.proven.Main {
         Map(psi -> LambdaTermFormula(Seq(x, a, b), x === oPair(a, b)))
       )
       val s2 = Cut(() |- s1.bot.right, 0, 1, s1.bot.left.head)
-      Proof(steps(s0, s1, s2), imports(i1))
+      SCProof(steps(s0, s1, s2), imports(i1))
     } using (thm"mapTwoArguments")
   show
 

@@ -6,7 +6,7 @@ import lisa.kernel.fol.FOL.*
 trait ProofStepWithoutBot  {
     val premises: Seq[Int]
     def asSCProofStep(bot: Sequent, references:Int => Sequent): SCProofStep
-    def asProofStep(bot: Sequent): (Int => Sequent) => SCProofStep = asSCProofStep(bot, _)
+    def asProofStep(bot: Sequent): ProofStep = ProofStepWithBot(asSCProofStep(bot, _), premises)
 
 }
 

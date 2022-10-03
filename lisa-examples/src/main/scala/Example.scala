@@ -2,7 +2,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.proven.tactics.SimplePropositionalSolver.solveSequent
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
@@ -15,7 +15,7 @@ import lisa.utils.Printer.*
  */
 object Example {
   def main(args: Array[String]): Unit = {
-    //proofExample() // uncomment when exercise finished
+    proofExample() // uncomment when exercise finished
     // solverExample()
     // tptpExample()
   }
@@ -27,6 +27,7 @@ object Example {
    */
   def proofExample(): Unit = {
     object Ex extends lisa.proven.Main {
+      /*
       THEOREM("fixedPointDoubleApplication") of "" PROOF {
         steps(
           ???,
@@ -38,6 +39,22 @@ object Example {
           LeftForall(Set(????, ????) |- ????, 5, P(x) ==> P(f(x)), x, f(x)),
           RightImplies(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))), 6, P(x), P(f(f(x)))),
           RightForall(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))), 7, P(x) ==> P(f(f(x))), x)
+        )
+      } using ()
+      show*/
+
+
+      THEOREM("fixedPointDoubleApplicationSolution") of "" NPROOF {
+        Nsteps(
+          have(Set(P(x), P(f(x)), P(f(f(x)))) |- P(f(f(x))))                                           by   Trivial,
+          have(Set(P(x), P(f(x))) |- Set(P(f(x)), P(f(f(x)))))                                         by   N.Hypothesis(),
+          have(Set(P(x), P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                               by   N.LeftImplies(1, 0, P(f(x)), P(f(f(x)))),
+          have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                             by   N.Hypothesis(),
+          have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   N.LeftImplies(3, 2, P(x), P(f(x))),
+          have(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )          by   N.LeftForall(4, P(x) ==> P(f(x)), x, x),
+          have(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))) )                                  by   N.LeftForall(5, P(x) ==> P(f(x)), x, f(x)),
+          have(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))))                                     by   N.RightImplies(6, P(x), P(f(f(x)))),
+          have(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))))                          by   N.RightForall(7, P(x) ==> P(f(f(x))), x)
         )
       } using ()
       show
@@ -149,7 +166,7 @@ object Example {
   val B = PredicateFormula(VariableFormulaLabel("B"), Seq())
   val C = PredicateFormula(VariableFormulaLabel("C"), Seq())
   val x = VariableLabel("x")
-  val f = ConstantFunctionLabel("f", 1)
+  val f = SchematicFunctionLabel("f", 1)
 
   def ???? : Formula = ???
   def ?????(args: Any*) = ???

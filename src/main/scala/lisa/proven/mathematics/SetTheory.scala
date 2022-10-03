@@ -15,7 +15,7 @@ object SetTheory extends lisa.proven.Main {
     val s0 = Hypothesis(contra |- contra, contra)
     val s1 = LeftForall(forall(x, in(x, y) <=> !in(x, x)) |- contra, 0, in(x, y) <=> !in(x, x), x, y)
     val s2 = Rewrite(forall(x, in(x, y) <=> !in(x, x)) |- (), 1)
-    Proof(s0, s1, s2)
+    SCProof(s0, s1, s2)
   } using ()
   thm"russelParadox".show
 
@@ -29,7 +29,7 @@ object SetTheory extends lisa.proven.Main {
         {
           val pr0 = SCSubproof(
             {
-              val pairSame11 = instantiateForall(new Proof(steps(), imports(ax"pairAxiom")), pairAxiom, x)
+              val pairSame11 = instantiateForall(new SCProof(steps(), imports(ax"pairAxiom")), pairAxiom, x)
               val pairSame12 = instantiateForall(pairSame11, pairSame11.conclusion.right.head, y)
               instantiateForall(pairSame12, pairSame12.conclusion.right.head, z)
             },
@@ -37,7 +37,7 @@ object SetTheory extends lisa.proven.Main {
           )
           val pr1 = SCSubproof(
             {
-              val pairSame21 = instantiateForall(new Proof(steps(), imports(ax"pairAxiom")), pairAxiom, y)
+              val pairSame21 = instantiateForall(new SCProof(steps(), imports(ax"pairAxiom")), pairAxiom, y)
               val pairSame22 = instantiateForall(pairSame21, pairSame21.conclusion.right.head, x)
               instantiateForall(pairSame22, pairSame22.conclusion.right.head, z)
             },
@@ -51,13 +51,13 @@ object SetTheory extends lisa.proven.Main {
           )
           val pr3 = Cut(Sequent(pr1.bot.left, pr2.bot.right), 1, 2, pr2.bot.left.head)
           val pr4 = RightForall(Sequent(Set(), Set(forall(z, pr2.bot.right.head))), 3, pr2.bot.right.head, z)
-          Proof(steps(pr0, pr1, pr2, pr3, pr4), imports(ax"pairAxiom"))
+          SCProof(steps(pr0, pr1, pr2, pr3, pr4), imports(ax"pairAxiom"))
         },
         Seq(-2)
       )
       val pairExt = SCSubproof(
         {
-          val pairExt1 = instantiateForall(Proof(steps(), imports(ax"extensionalityAxiom")), ax"extensionalityAxiom", pair(x, y))
+          val pairExt1 = instantiateForall(SCProof(steps(), imports(ax"extensionalityAxiom")), ax"extensionalityAxiom", pair(x, y))
           instantiateForall(pairExt1, pairExt1.conclusion.right.head, pair(y, x))
         },
         Seq(-1)
@@ -93,7 +93,7 @@ object SetTheory extends lisa.proven.Main {
               val p1_1 = RightImplies(emptySeq +> (zf ==> zf), 0, zf, zf)
               val p1_2 = RightIff(emptySeq +> (zf <=> zf), 1, 1, zf, zf) //  |- (z in {x,y} <=> z in {x,y})
               val p1_3 = RightSubstEq(emptySeq +< (pxy === pxy1) +> (zf <=> in(z, pxy1)), 2, List((pxy, pxy1)), LambdaTermFormula(Seq(g), zf <=> in(z, g)))
-              Proof(IndexedSeq(p1_0, p1_1, p1_2, p1_3), IndexedSeq(() |- pairAxiom))
+              SCProof(IndexedSeq(p1_0, p1_1, p1_2, p1_3), IndexedSeq(() |- pairAxiom))
             },
             Seq(-1),
             display = true
@@ -101,7 +101,7 @@ object SetTheory extends lisa.proven.Main {
           val p1 = SCSubproof(
             {
               val p1_0 = Rewrite(() |- pairAxiom, -1) //  |- ∀∀∀((z$1∈{x$3,y$2})↔((x$3=z$1)∨(y$2=z$1)))
-              val p1_1 = instantiateForall(Proof(IndexedSeq(p1_0), IndexedSeq(() |- pairAxiom)), x, y, z)
+              val p1_1 = instantiateForall(SCProof(IndexedSeq(p1_0), IndexedSeq(() |- pairAxiom)), x, y, z)
               p1_1
             },
             Seq(-1),
@@ -110,7 +110,7 @@ object SetTheory extends lisa.proven.Main {
           val p2 = SCSubproof(
             {
               val p2_0 = Rewrite(() |- pairAxiom, -1) //  |- ∀∀∀((z$1∈{x$3,y$2})↔((x$3=z$1)∨(y$2=z$1)))
-              val p2_1 = instantiateForall(Proof(IndexedSeq(p2_0), IndexedSeq(() |- pairAxiom)), x1, y1, z)
+              val p2_1 = instantiateForall(SCProof(IndexedSeq(p2_0), IndexedSeq(() |- pairAxiom)), x1, y1, z)
               p2_1
             },
             Seq(-1)
@@ -128,19 +128,19 @@ object SetTheory extends lisa.proven.Main {
             LambdaFormulaFormula(Seq(h), h <=> ((z === x) \/ (z === y)))
           ) //  ((z∈{x',y'})↔((x'=z)∨(y'=z))), ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
           val p5 = Cut(emptySeq ++< p3.bot ++> p4.bot, 2, 4, p2.bot.right.head)
-          Proof(IndexedSeq(p0, p1, p2, p3, p4, p5), IndexedSeq(() |- pairAxiom))
+          SCProof(IndexedSeq(p0, p1, p2, p3, p4, p5), IndexedSeq(() |- pairAxiom))
         },
         Seq(-1)
       ) //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
 
       val p1 = SCSubproof(
-        Proof(
+        SCProof(
           byCase(x === x1)(
             SCSubproof(
               {
                 val pcm1 = p0
                 val pc0 = SCSubproof(
-                  Proof(
+                  SCProof(
                     byCase(y === x)(
                       SCSubproof(
                         {
@@ -157,7 +157,7 @@ object SetTheory extends lisa.proven.Main {
                                   val pa0_1_3 = LeftOr(emptySeq +< (f1 \/ f1) +> f1, Seq(0, 0), Seq(f1, f1))
                                   val pa0_1_4 = RightImplies(emptySeq +> ((f1 \/ f1) ==> f1), 3, f1 \/ f1, f1)
                                   val pa0_1_5 = RightIff(emptySeq +> ((f1 \/ f1) <=> f1), 2, 4, (f1 \/ f1), f1)
-                                  val r = Proof(pa0_0_0, pa0_1_1, pa0_1_2, pa0_1_3, pa0_1_4, pa0_1_5)
+                                  val r = SCProof(pa0_0_0, pa0_1_1, pa0_1_2, pa0_1_3, pa0_1_4, pa0_1_5)
                                   r
                                 },
                                 display = false
@@ -177,7 +177,7 @@ object SetTheory extends lisa.proven.Main {
                               val pa0_3 =
                                 Cut(emptySeq +< (pxy === pxy1) +< (x === y) +> (f1 <=> ((z === x1) \/ (z === y1))), 0, 2, f1 <=> (f1 \/ f1)) //  (x=y), ({x,y}={x',y'}) |- ((z=x)↔((z=x')∨(z=y')))
                               val pa0_4 = RightForall(emptySeq +< (pxy === pxy1) +< (x === y) +> forall(z, f1 <=> ((z === x1) \/ (z === y1))), 3, f1 <=> ((z === x1) \/ (z === y1)), z)
-                              val ra0_0 = instantiateForall(Proof(IndexedSeq(pa0_0, pa0_1, pa0_2, pa0_3, pa0_4), IndexedSeq(pa0_m1.bot)), y1) //  (x=y), ({x,y}={x',y'}) |- ((y'=x)↔((y'=x')∨(y'=y')))
+                              val ra0_0 = instantiateForall(SCProof(IndexedSeq(pa0_0, pa0_1, pa0_2, pa0_3, pa0_4), IndexedSeq(pa0_m1.bot)), y1) //  (x=y), ({x,y}={x',y'}) |- ((y'=x)↔((y'=x')∨(y'=y')))
                               ra0_0
                             },
                             IndexedSeq(-1)
@@ -186,13 +186,13 @@ object SetTheory extends lisa.proven.Main {
                             {
                               val pa1_0 = RightRefl(emptySeq +> (y1 === y1), y1 === y1)
                               val pa1_1 = RightOr(emptySeq +> ((y1 === y1) \/ (y1 === x1)), 0, y1 === y1, y1 === x1)
-                              Proof(pa1_0, pa1_1)
+                              SCProof(pa1_0, pa1_1)
                             },
                             display = false
                           ) //  |- (y'=x' \/ y'=y')
                           val ra3 = byEquiv(pa0.bot.right.head, pa1.bot.right.head)(pa0, pa1) // ({x,y}={x',y'}) y=x|- ((y'=x)
                           val pal = RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), ra3.length - 1, List((x, y)), LambdaTermFormula(Seq(g), y1 === g))
-                          Proof(ra3.steps, IndexedSeq(pam1.bot)).appended(pal) // (x=y), ({x,y}={x',y'}) |- (y'=y)
+                          SCProof(ra3.steps, IndexedSeq(pam1.bot)).appended(pal) // (x=y), ({x,y}={x',y'}) |- (y'=y)
                         },
                         IndexedSeq(-1)
                       ) //  (x=y), ({x,y}={x',y'}) |- (y'=y)
@@ -203,7 +203,7 @@ object SetTheory extends lisa.proven.Main {
                           val pb0_0 = SCSubproof(
                             {
                               val pb0_0 = RightForall(emptySeq ++< pcm1.bot +> forall(z, pcm1.bot.right.head), -1, pcm1.bot.right.head, z)
-                              instantiateForall(Proof(IndexedSeq(pb0_0), IndexedSeq(pcm1.bot)), y)
+                              instantiateForall(SCProof(IndexedSeq(pb0_0), IndexedSeq(pcm1.bot)), y)
                             },
                             IndexedSeq(-1)
                           ) //  ({x,y}={x',y'}) |- (((y=x)∨(y=y))↔((y=x')∨(y=y')))
@@ -211,7 +211,7 @@ object SetTheory extends lisa.proven.Main {
                             {
                               val pa1_0 = RightRefl(emptySeq +> (y === y), y === y)
                               val pa1_1 = RightOr(emptySeq +> ((y === y) \/ (y === x)), 0, y === y, y === x)
-                              Proof(pa1_0, pa1_1)
+                              SCProof(pa1_0, pa1_1)
                             },
                             display = false
                           ) //  |- (y=x)∨(y=y)
@@ -224,7 +224,7 @@ object SetTheory extends lisa.proven.Main {
                             y === y1
                           )
                           val rb2 = rb1.appended(LeftNot(rb1.conclusion +< !(y === x) -> (y === x), rb1.length - 1, y === x)) //  (x=x'), ({x,y}={x',y'}), ¬(y=x) |- (y=y')
-                          Proof(rb2.steps, IndexedSeq(pbm1.bot))
+                          SCProof(rb2.steps, IndexedSeq(pbm1.bot))
 
                         },
                         IndexedSeq(-1)
@@ -244,7 +244,7 @@ object SetTheory extends lisa.proven.Main {
                   pc3.bot.right.head,
                   (x === y1) /\ (y === x1)
                 ) //  ({x,y}={x',y'}), x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
-                val r = Proof(IndexedSeq(pc0, pc1, pc2, pc3, pc4), IndexedSeq(pcm1.bot))
+                val r = SCProof(IndexedSeq(pc0, pc1, pc2, pc3, pc4), IndexedSeq(pcm1.bot))
                 r
               },
               IndexedSeq(-1)
@@ -260,13 +260,13 @@ object SetTheory extends lisa.proven.Main {
                       val ex1x1 = x1 === x1
                       val pd0_0_0 = RightRefl(emptySeq +> ex1x1, ex1x1) //  |- x'=x'
                       val pd0_0_1 = RightOr(emptySeq +> (ex1x1 \/ (x1 === y1)), 0, ex1x1, x1 === y1) //  |- (x'=x' \/ x'=y')
-                      Proof(IndexedSeq(pd0_0_0, pd0_0_1))
+                      SCProof(IndexedSeq(pd0_0_0, pd0_0_1))
                     } //  |- (x'=x' \/ x'=y')
                     val pd0_1 = SCSubproof(
                       {
                         val pd0_1_m1 = pd0_m1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
                         val pd0_1_0 = RightForall(emptySeq ++< pd0_1_m1.bot +> forall(z, pd0_1_m1.bot.right.head), -1, pd0_1_m1.bot.right.head, z)
-                        val rd0_1_1 = instantiateForall(Proof(IndexedSeq(pd0_1_0), IndexedSeq(pd0_m1.bot)), x1) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
+                        val rd0_1_1 = instantiateForall(SCProof(IndexedSeq(pd0_1_0), IndexedSeq(pd0_m1.bot)), x1) //  ({x,y}={x',y'}) |- (x'=x \/ x'=y) <=> (x'=x' \/ x'=y')
                         rd0_1_1
                       },
                       IndexedSeq(-1)
@@ -278,7 +278,7 @@ object SetTheory extends lisa.proven.Main {
                       LambdaFormulaFormula(Seq(h), h)
                     ) // (x'=x \/ x'=y) <=> (x'=x' \/ x'=y') |- (x'=x \/ x'=y)
                     val pd0_3 = Cut(pd0_1.bot.left |- pd0_2.bot.right, 1, 2, pd0_1.bot.right.head) //  ({x,y}={x',y'}) |- (x=x' \/ y=x')
-                    destructRightOr(Proof(IndexedSeq(pd0_0, pd0_1, pd0_2, pd0_3), IndexedSeq(pd0_m1.bot)), x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
+                    destructRightOr(SCProof(IndexedSeq(pd0_0, pd0_1, pd0_2, pd0_3), IndexedSeq(pd0_m1.bot)), x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
                   },
                   IndexedSeq(-1)
                 ) //  ({x,y}={x',y'}) |- x=x',  y=x' --
@@ -289,20 +289,20 @@ object SetTheory extends lisa.proven.Main {
                       val exx = x === x
                       val pd1_0_0 = RightRefl(emptySeq +> exx, exx) //  |- x=x
                       val pd1_0_1 = RightOr(emptySeq +> (exx \/ (x === y)), 0, exx, x === y) //  |- (x=x \/ x=y)
-                      Proof(IndexedSeq(pd1_0_0, pd1_0_1))
+                      SCProof(IndexedSeq(pd1_0_0, pd1_0_1))
                     } //  |- (x=x \/ x=y)
                     val pd1_1 = SCSubproof(
                       {
                         val pd1_1_m1 = pd1_m1 //  ({x,y}={x',y'}) |- (((z=x)∨(z=y))↔((z=x')∨(z=y')))
                         val pd1_1_0 = RightForall(emptySeq ++< pd1_1_m1.bot +> forall(z, pd1_1_m1.bot.right.head), -1, pd1_1_m1.bot.right.head, z)
-                        val rd1_1_1 = instantiateForall(Proof(IndexedSeq(pd1_1_0), IndexedSeq(pd1_m1.bot)), x) //  ({x,y}={x',y'}) |- (x=x \/ x=y) <=> (x=x' \/ x=y')
+                        val rd1_1_1 = instantiateForall(SCProof(IndexedSeq(pd1_1_0), IndexedSeq(pd1_m1.bot)), x) //  ({x,y}={x',y'}) |- (x=x \/ x=y) <=> (x=x' \/ x=y')
                         rd1_1_1
                       },
                       IndexedSeq(-1)
                     ) //  //  ({x,y}={x',y'}) |- (x=x \/ x=y) <=> (x=x' \/ x=y')
                     val rd1_2 = byEquiv(pd1_1.bot.right.head, pd1_0.bot.right.head)(pd1_1, pd1_0)
-                    val pd1_3 = SCSubproof(Proof(rd1_2.steps, IndexedSeq(pd1_m1.bot)), IndexedSeq(-1)) //  //  ({x,y}={x',y'}) |- x=x' \/ x=y'
-                    destructRightOr(Proof(IndexedSeq(pd1_0, pd1_1, pd1_3), IndexedSeq(pd1_m1.bot)), x === x1, x === y1) //  ({x,y}={x',y'}) |- x=x',  x=y'
+                    val pd1_3 = SCSubproof(SCProof(rd1_2.steps, IndexedSeq(pd1_m1.bot)), IndexedSeq(-1)) //  //  ({x,y}={x',y'}) |- x=x' \/ x=y'
+                    destructRightOr(SCProof(IndexedSeq(pd1_0, pd1_1, pd1_3), IndexedSeq(pd1_m1.bot)), x === x1, x === y1) //  ({x,y}={x',y'}) |- x=x',  x=y'
                   },
                   IndexedSeq(-1)
                 ) //  ({x,y}={x',y'}) |- x=x',  x=y' --
@@ -314,7 +314,7 @@ object SetTheory extends lisa.proven.Main {
                   pd3.bot.right.head,
                   (x === x1) /\ (y === y1)
                 ) //  ({x,y}={x',y'}), !x===x1 |- (x=x' /\ y=y')\/(x=y' /\ y=x')
-                Proof(IndexedSeq(pd0, pd1, pd2, pd3, pd4), IndexedSeq(pdm1.bot))
+                SCProof(IndexedSeq(pd0, pd1, pd2, pd3, pd4), IndexedSeq(pdm1.bot))
               },
               IndexedSeq(-1)
             ) //  ({x,y}={x',y'}), !x=x' |- (x=x' /\ y=y')\/(x=y' /\ y=x')
@@ -325,7 +325,7 @@ object SetTheory extends lisa.proven.Main {
       ) //  ({x,y}={x',y'}) |- (x=x' /\ y=y')\/(x=y' /\ y=x')
 
       val p2 = RightImplies(emptySeq +> (p1.bot.left.head ==> p1.bot.right.head), 1, p1.bot.left.head, p1.bot.right.head) //   |- ({x,y}={x',y'}) ==> (x=x' /\ y=y')\/(x=y' /\ y=x')
-      generalizeToForall(Proof(IndexedSeq(p0, p1, p2), IndexedSeq(() |- pairAxiom)), x, y, x1, y1)
+      generalizeToForall(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(() |- pairAxiom)), x, y, x1, y1)
     } using ax"pairAxiom"
   thm"unorderedPair_deconstruction".show
 
@@ -339,7 +339,7 @@ object SetTheory extends lisa.proven.Main {
     val i1 = () |- comprehensionSchema
     val i2 = thm"russelParadox" // forall(x1, in(x1,y) <=> !in(x1, x1)) |- ()
     val p0 = InstPredSchema(() |- forall(z, exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))))), -1, Map(sPhi -> LambdaTermFormula(Seq(x, z), !in(x, x))))
-    val s0 = SCSubproof(instantiateForall(Proof(IndexedSeq(p0), IndexedSeq(i1)), z), Seq(-1)) // exists(y1, forall(x1, in(x1,y1) <=> (in(x1,z1) /\ !in(x1, x1))))
+    val s0 = SCSubproof(instantiateForall(SCProof(IndexedSeq(p0), IndexedSeq(i1)), z), Seq(-1)) // exists(y1, forall(x1, in(x1,y1) <=> (in(x1,z1) /\ !in(x1, x1))))
     val s1 = hypothesis(in(x, y) <=> (in(x, z) /\ !in(x, x))) // in(x,y) <=> (in(x,z) /\ in(x, x)) |- in(x,y) <=> (in(x,z) /\ in(x, x))
     val s2 = RightSubstIff(
       (in(x, z) <=> And(), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> (And() /\ !in(x, x)),
@@ -355,7 +355,7 @@ object SetTheory extends lisa.proven.Main {
     val s8 = Cut((forall(x, in(x, z)), forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))) |- (), 6, 7, forall(x, in(x, y) <=> !in(x, x)))
     val s9 = LeftExists((forall(x, in(x, z)), exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))))) |- (), 8, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))), y)
     val s10 = Cut(forall(x, in(x, z)) |- (), 0, 9, exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))))
-    Proof(steps(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10), imports(i1, i2))
+    SCProof(steps(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10), imports(i1, i2))
   } using (ax"comprehensionSchema", thm"russelParadox")
   show
 
