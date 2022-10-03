@@ -209,7 +209,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     val existsYEq = BinderFormula(Exists, y, PredicateFormula(equality, Seq(y, y)))
     assert(
       Parser.printSequent(Sequent(Set(forallEq), Set(existsYEq, existsXEq))) == "∀ ?x. ?x = ?x ⊢ ∃ ?y. ?y = ?y; " +
-          "∃ ?x. ?x = ?x"
+        "∃ ?x. ?x = ?x"
     )
     assert(
       Parser.printSequent(Sequent(Set(forallEq, PredicateFormula(ConstantPredicateLabel("p", 0), Seq())), Set(existsYEq, existsXEq))) == "∀ ?x. ?x = ?x; p ⊢ ∃ ?y. ?y = ?y; ∃ ?x. ?x = ?x"

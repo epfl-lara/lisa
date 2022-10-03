@@ -97,10 +97,10 @@ object Printer {
 
         def pretty(stepName: String, topSteps: Int*): (Boolean, String, String, String) =
           (
-              showErrorForLine,
-              prefixString,
-              Seq(stepName, topSteps.mkString(commaSeparator(compact = false))).filter(_.nonEmpty).mkString(" "),
-              prettySequent(imp)
+            showErrorForLine,
+            prefixString,
+            Seq(stepName, topSteps.mkString(commaSeparator(compact = false))).filter(_.nonEmpty).mkString(" "),
+            prettySequent(imp)
           )
 
         Seq(pretty("Import", 0))
@@ -116,10 +116,10 @@ object Printer {
 
         def pretty(stepName: String, topSteps: Int*): (Boolean, String, String, String) =
           (
-              showErrorForLine,
-              prefixString,
-              Seq(stepName, topSteps.mkString(commaSeparator(compact = false))).filter(_.nonEmpty).mkString(" "),
-              prettySequent(step.bot)
+            showErrorForLine,
+            prefixString,
+            Seq(stepName, topSteps.mkString(commaSeparator(compact = false))).filter(_.nonEmpty).mkString(" "),
+            prettySequent(step.bot)
           )
 
         step match {
@@ -168,12 +168,12 @@ object Printer {
     val lines = prettySCProofRecursive(proof, 0, IndexedSeq.empty, IndexedSeq.empty)
     val maxStepNameLength = lines.map { case (_, _, stepName, _) => stepName.length }.maxOption.getOrElse(0)
     lines
-        .map { case (isMarked, indices, stepName, sequent) =>
-          val suffix = Seq(indices, rightPadSpaces(stepName, maxStepNameLength), sequent)
-          val full = if (!judgement.isValid) (if (isMarked) marker else leftPadSpaces("", marker.length)) +: suffix else suffix
-          full.mkString(" ")
-        }
-        .mkString("\n") + (judgement match {
+      .map { case (isMarked, indices, stepName, sequent) =>
+        val suffix = Seq(indices, rightPadSpaces(stepName, maxStepNameLength), sequent)
+        val full = if (!judgement.isValid) (if (isMarked) marker else leftPadSpaces("", marker.length)) +: suffix else suffix
+        full.mkString(" ")
+      }
+      .mkString("\n") + (judgement match {
       case SCValidProof(_) => ""
       case SCInvalidProof(proof, path, message) => s"\nProof checker has reported an error at line ${path.mkString(".")}: $message"
     })
