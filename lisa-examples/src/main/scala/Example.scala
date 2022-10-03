@@ -8,7 +8,7 @@ import lisa.automation.kernel.SimplePropositionalSolver.solveSequent
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{_, given}
 import lisa.utils.Printer.*
 
 /**
@@ -140,7 +140,7 @@ object Example {
     p.formulas.foreach(printAnnotatedFormula)
   }
 
-  val P = SchematicNPredicateLabel("P", 1)
+  val P = SchematicPredicateLabel("P", 1)
 
   val Q = PredicateFormula(VariableFormulaLabel("Q"), Seq())
   val R = PredicateFormula(VariableFormulaLabel("R"), Seq())

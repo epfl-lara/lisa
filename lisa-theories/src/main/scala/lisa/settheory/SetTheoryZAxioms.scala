@@ -2,7 +2,7 @@ package lisa.settheory
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{_, given}
 
 /**
  * Axioms for the Zermelo theory (Z)
@@ -28,6 +28,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
     ("extensionalityAxiom", extensionalityAxiom),
     ("pairAxiom", pairAxiom),
     ("unionAxiom", unionAxiom),
+    ("subsetAxiom", subsetAxiom),
     ("powerAxiom", powerAxiom),
     ("foundationAxiom", foundationAxiom),
     ("comprehensionSchema", comprehensionSchema)

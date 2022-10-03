@@ -12,7 +12,7 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.settheory.AxiomaticSetTheory.*
 import lisa.kernel.proof.SCProofCheckerJudgement.*
 import org.scalatest.funsuite.AnyFunSuite
-import me.cassayre.florian.masterproject.util.SCProofBuilder.{*, given}
+import me.cassayre.florian.masterproject.util.SCProofBuilder.{_{_, given}
 
 import util.chaining.*
 import scala.util.{Failure, Success, Try}

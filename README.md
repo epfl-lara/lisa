@@ -1,6 +1,6 @@
 # LISA = LISA Is Sets Automated
 
-LISA is a Proof Assistant based on first order logic, sequent calculus and set theory. To get started, look at the [Reference Manual](/LISA%20Reference%20Manual.pdf).
+LISA is a Proof Assistant based on first order logic, sequent calculus and set theory. To get started, look at the [Reference Manual](Reference%20Manual/lisa.pdf).
 
 EPFL-LARA Website: https://lara.epfl.ch/w/
 

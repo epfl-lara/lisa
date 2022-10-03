@@ -13,7 +13,7 @@ abstract class Library(val theory: RunningTheory) {
   export lisa.kernel.proof.SequentCalculus.*
   export lisa.kernel.proof.SCProof as Proof
   export theory.{Justification, Theorem, Definition, Axiom, PredicateDefinition, FunctionDefinition}
-  export lisa.utils.Helpers.{*, given}
+  export lisa.utils.Helpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
   /**
@@ -211,7 +211,7 @@ abstract class Library(val theory: RunningTheory) {
   def DEFINE(symbol: String, vars: VariableLabel*): FunSymbolDefine = FunSymbolDefine(symbol, vars)
 
   /**
-   * For a definition of the type f(x) := term, construct the required proof ∃!y. y = term.
+   * For a definition of the type f(x) := term, construct the required proof ?!y. y = term.
    */
   private def simpleFunctionDefinition(expression: LambdaTermTerm, out: VariableLabel): Proof = {
     val x = out
