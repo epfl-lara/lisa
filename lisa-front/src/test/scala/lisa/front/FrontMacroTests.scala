@@ -1,6 +1,6 @@
 package lisa.front
 
-import lisa.front.{_, given}
+import lisa.front.{*, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
@@ -21,12 +21,12 @@ class FrontMacroTests extends AnyFunSuite {
     val y0:Term = SchematicTermLabel[0]("y")()
     term"$y0"
     assert(term"{$f(x, $y0)}".toString == "{?f(x, ?y)}")
-    assert(formula"{} = {$f(x, $y0)}".toString == "∅ = {?f(x, ?y)}")
+    assert(formula"{} = {$f(x, $y0)}".toString == "? = {?f(x, ?y)}")
 
     val p0 = ConstantPredicateLabel[0]("p")
     val v = VariableLabel("x")
-    assert(sequent" |-  $p0".toString == "⊢ p")
-    assert(partial"\ $v. $v = {}; f($y0)  |- $p0 /\ b; ...".toString == raw"\x. f(?y); x = ∅ ⊢ p ∧ b; …")
+    assert(sequent" |-  $p0".toString == "? p")
+    assert(partial"\ $v. $v = {}; f($y0)  |- $p0 /\ b; ...".toString == raw"\x. f(?y); x = ? ? p ? b; ?")
   }
    */
 }
