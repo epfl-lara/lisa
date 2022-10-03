@@ -45,6 +45,18 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(Parser.parseFormula("a()") == PredicateFormula(ConstantPredicateLabel("a", 0), Seq()))
   }
 
+  test("boolean constants") {
+    assert(Parser.parseFormula("true") == True)
+    assert(Parser.parseFormula("True") == True)
+    assert(Parser.parseFormula("T") == True)
+    assert(Parser.parseFormula("⊤") == True)
+
+    assert(Parser.parseFormula("false") == False)
+    assert(Parser.parseFormula("False") == False)
+    assert(Parser.parseFormula("F") == False)
+    assert(Parser.parseFormula("⊥") == False)
+  }
+
   test("predicate application") {
     assert(Parser.parseFormula("p(x, y, z)") == PredicateFormula(ConstantPredicateLabel("p", 3), Seq(cx, cy, cz)))
     assert(Parser.parseFormula("p(?x, ?y, ?z)") == PredicateFormula(ConstantPredicateLabel("p", 3), Seq(x, y, z)))

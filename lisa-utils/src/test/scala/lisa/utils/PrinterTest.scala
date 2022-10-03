@@ -108,6 +108,11 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     assert(Parser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, b, c)), ConnectorFormula(And, Seq(c, b, a))))) == "a ∧ b ∧ c ∨ c ∧ b ∧ a")
   }
 
+  test("connectors with no arguments") {
+    assert(Parser.printFormula(ConnectorFormula(And, Seq())) == "⊤")
+    assert(Parser.printFormula(ConnectorFormula(Or, Seq())) == "⊥")
+  }
+
   test("connector priority") {
     // a ∨ (b ∧ c)
     assert(Parser.printFormula(ConnectorFormula(Or, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ∨ b ∧ c")
