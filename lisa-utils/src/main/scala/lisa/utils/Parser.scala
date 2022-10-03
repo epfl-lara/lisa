@@ -27,16 +27,39 @@ object Parser {
   private def extractParseResult[T](r: SequentParser.ParseResult[T]): T = r match {
     case SequentParser.Parsed(value, _) => value
     // TODO: at position
-    // TODO: leaking implementation? Should I sugar tokens? -- Lexer.unapply once it's implemented
-    case SequentParser.UnexpectedToken(token, _) => throw ParserException(s"Unexpected input: $token")
+    case SequentParser.UnexpectedToken(token, _) => throw ParserException(s"Unexpected input: ${SequentLexer.unapply(Iterator(token))}")
     case SequentParser.UnexpectedEnd(_) => throw ParserException(s"Unexpected end of input")
   }
 
-  def printSequent(s: Sequent): String = SequentParser.printSequent(s).getOrElse(throw PrintFailedException(s))
+  def printSequent(s: Sequent): String = SequentParser
+    .printSequent(s)
+    .getOrElse({
+      // attempt to print individual formulas. It might throw a more detailed PrintFailedException
+      s.left.foreach(printFormula)
+      s.right.foreach(printFormula)
+      throw PrintFailedException(s)
+    })
 
-  def printFormula(f: Formula): String = SequentParser.printFormula(f).getOrElse(throw PrintFailedException(f))
+  def printFormula(f: Formula): String = SequentParser
+    .printFormula(f)
+    .getOrElse({
+      f match {
+        case PredicateFormula(_, args) => args.foreach(printTerm)
+        case ConnectorFormula(_, args) => args.foreach(printFormula)
+        case BinderFormula(_, _, inner) => printFormula(inner)
+      }
+      throw PrintFailedException(f)
+    })
 
-  def printTerm(t: Term): String = SequentParser.printTerm(t).getOrElse(throw PrintFailedException(t))
+  def printTerm(t: Term): String = SequentParser
+    .printTerm(t)
+    .getOrElse({
+      t match {
+        case FunctionTerm(_, args) => args.foreach(printTerm)
+        case VariableTerm(_) => ()
+      }
+      throw PrintFailedException(t)
+    })
 
   private[Parser] object SequentLexer extends Lexers with CharLexers {
     sealed abstract class FormulaToken(stringRepr: String) {
