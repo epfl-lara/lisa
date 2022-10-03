@@ -328,8 +328,15 @@ object Parser {
       or is LeftAssociative
     )(
       (l, conn, r) => ConnectorFormula(conn, Seq(l, r)),
-      { case ConnectorFormula(conn, Seq(l, r)) =>
-        (l, conn, r)
+      {
+        case ConnectorFormula(conn, Seq(l, r)) =>
+          (l, conn, r)
+        case ConnectorFormula(conn, l +: rest) if rest.nonEmpty =>
+          val last = rest.last
+          val leftSide = rest.dropRight(1)
+          // parser only knows about connector formulas of two arguments, so we unfold the formula of many arguments to
+          // multiple nested formulas of two arguments
+          (leftSide.foldLeft(l)((f1, f2) => ConnectorFormula(conn, Seq(f1, f2))), conn, last)
       }
     )
 
