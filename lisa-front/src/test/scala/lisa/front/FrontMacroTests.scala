@@ -1,6 +1,6 @@
 package lisa.front
 
-import lisa.front.{*, given}
+import lisa.front.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions

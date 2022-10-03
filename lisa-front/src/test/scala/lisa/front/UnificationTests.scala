@@ -4,7 +4,7 @@ import lisa.front.fol.FOL.LabelType
 import lisa.front.fol.FOL.WithArityType
 import lisa.front.printer.FrontPositionedPrinter
 import lisa.front.printer.FrontPrintStyle
-import lisa.front.{*, given}
+import lisa.front.{_, given}
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 

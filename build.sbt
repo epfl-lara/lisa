@@ -27,7 +27,7 @@ val commonSettings3 = Seq(
     //"-source:future", re-enable when liancheng/scalafix-organize-imports#221 is fixed
     "-no-indent",
     "-old-syntax",
-    "-source:future-migration",
+    //"-source:future-migration",
     //"-rewrite",
   ),
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
