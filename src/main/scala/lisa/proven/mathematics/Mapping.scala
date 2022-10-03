@@ -427,7 +427,4 @@ object Mapping extends lisa.Main {
       } using (thm"mapTwoArguments")
   show
 
-
-
-
 }

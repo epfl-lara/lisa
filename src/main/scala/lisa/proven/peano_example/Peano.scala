@@ -1,11 +1,11 @@
 package lisa.proven.peano_example
 
+import lisa.automation.kernel.ProofTactics.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.automation.kernel.ProofTactics.*
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
 import lisa.utils.Printer
 
