@@ -15,116 +15,6 @@ object Printer {
 
   private def commaSeparator(compact: Boolean, symbol: String = ","): String = s"$symbol${spaceSeparator(compact)}"
 
-  private def prettyParentheses(content: String): String = s"(${content})"
-
-  private def prettyFunction(name: String, args: Seq[String], compact: Boolean, dropParentheses: Boolean = true): String = {
-    if (dropParentheses && args.isEmpty) name else s"$name(${args.mkString(commaSeparator(compact))})"
-  }
-
-  private def prettyInfix(operator: String, left: String, right: String, compact: Boolean): String =
-    Seq(left, operator, right).mkString(spaceSeparator(compact))
-
-  // Special symbols that aren't defined in this theory
-  private val (membership, subsetOf, sameCardinality) = (
-    ConstantPredicateLabel("set_membership", 2),
-    ConstantPredicateLabel("subset_of", 2),
-    ConstantPredicateLabel("same_cardinality", 2)
-  )
-  private val (emptySet, unorderedPair, orderedPair, singleton, powerSet, unionSet) = (
-    ConstantFunctionLabel("empty_set", 0),
-    ConstantFunctionLabel("unordered_pair", 2),
-    ConstantFunctionLabel("ordered_pair", 2),
-    ConstantFunctionLabel("singleton", 1),
-    ConstantFunctionLabel("power_set", 1),
-    ConstantFunctionLabel("union", 1)
-  )
-
-  private val nonAtomicPredicates: Set[PredicateLabel] = Set(equality, membership, subsetOf, sameCardinality) // Predicates which require parentheses (for readability)
-
-  private def prettyFormulaInternal(formula: Formula, isRightMost: Boolean, compact: Boolean): String = formula match {
-    case PredicateFormula(label, args) =>
-      label match {
-        case `equality` =>
-          args match {
-            case Seq(l, r) => prettyInfix(label.id, prettyTerm(l), prettyTerm(r), compact)
-            case _ => throw new Exception
-          }
-        case `membership` =>
-          args match {
-            case Seq(l, r) => prettyInfix("∈", prettyTerm(l), prettyTerm(r), compact)
-            case _ => throw new Exception
-          }
-        case `subsetOf` =>
-          args match {
-            case Seq(l, r) => prettyInfix("⊆", prettyTerm(l), prettyTerm(r), compact)
-            case _ => throw new Exception
-          }
-        case `sameCardinality` =>
-          args match {
-            case Seq(l, r) => prettyInfix("~", prettyTerm(l), prettyTerm(r), compact)
-            case _ => throw new Exception
-          }
-        case _ =>
-          val labelString = label match {
-            case ConstantPredicateLabel(id, _) => id
-            case s: SchematicPredicateLabel => s"?${s.id}"
-          }
-          prettyFunction(labelString, args.map(prettyTerm(_, compact)), compact)
-      }
-    case ConnectorFormula(label, args) =>
-      (label, args) match {
-        case (Neg, Seq(arg)) =>
-          val isAtomic = arg match {
-            case PredicateFormula(label, _) => !nonAtomicPredicates.contains(label)
-            case ConnectorFormula(Neg, _) => true
-            case _ => false
-          }
-          val bodyString = prettyFormulaInternal(arg, isRightMost, compact)
-          val bodyParenthesized = if (isAtomic) bodyString else prettyParentheses(bodyString)
-          s"${label.id}${bodyParenthesized}"
-        case (binary @ (Implies | Iff | And | Or), Seq(l, r)) =>
-          val precedences: Map[ConnectorLabel, Int] = Map(
-            And -> 1,
-            Or -> 2,
-            Implies -> 3,
-            Iff -> 4
-          )
-          val precedence = precedences(binary)
-          val isLeftParentheses = l match {
-            case _: BinderFormula => true
-            case PredicateFormula(leftLabel, _) => nonAtomicPredicates.contains(leftLabel)
-            case ConnectorFormula(leftLabel, _) => precedences.get(leftLabel).exists(_ >= precedence)
-          }
-          val isRightParentheses = r match {
-            case _: BinderFormula => !isRightMost
-            case PredicateFormula(leftLabel, _) => nonAtomicPredicates.contains(leftLabel)
-            case ConnectorFormula(rightLabel, _) => precedences.get(rightLabel).exists(_ > precedence)
-          }
-          val (leftString, rightString) = (prettyFormulaInternal(l, isLeftParentheses, compact), prettyFormulaInternal(r, isRightMost || isRightParentheses, compact))
-          val leftParenthesized = if (isLeftParentheses) prettyParentheses(leftString) else leftString
-          val rightParenthesized = if (isRightParentheses) prettyParentheses(rightString) else rightString
-          prettyInfix(label.id, leftParenthesized, rightParenthesized, compact)
-        case (nary @ (And | Or), args) if args.nonEmpty =>
-          // Rewriting to match the above case; namely op(a) --> a, and op(a, ...rest) --> op(a, op(...rest))
-          // Empty args aren't allowed here
-          // Invariant: args.size > 2
-          if (args.sizeIs == 1) {
-            prettyFormulaInternal(args.head, isRightMost, compact)
-          } else {
-            prettyFormulaInternal(ConnectorFormula(nary, Seq(args.head, ConnectorFormula(nary, args.tail))), isRightMost, compact)
-          }
-        case _ => prettyFunction(label.id, args.map(a => prettyFormulaInternal(a, isRightMost, compact)), compact)
-      }
-    case BinderFormula(label, bound, inner) =>
-      def accumulateNested(f: Formula, acc: Seq[VariableLabel]): (Seq[VariableLabel], Formula) = f match {
-        case BinderFormula(`label`, nestBound, nestInner) => accumulateNested(nestInner, nestBound +: acc)
-        case _ => (acc, f)
-      }
-
-      val (bounds, innerNested) = accumulateNested(inner, Seq(bound))
-      Seq(s"${label.id}${bounds.reverse.map(_.id).mkString(commaSeparator(compact))}.", prettyFormulaInternal(innerNested, true, compact)).mkString(spaceSeparator(compact))
-  }
-
   /**
    * Returns a string representation of this formula. See also [[prettyTerm]].
    * Example output:
@@ -136,7 +26,7 @@ object Printer {
    * @param compact whether spaces should be omitted between tokens
    * @return the string representation of this formula
    */
-  def prettyFormula(formula: Formula, compact: Boolean = false): String = prettyFormulaInternal(formula, true, compact)
+  def prettyFormula(formula: Formula, compact: Boolean = false): String = Parser.printFormula(formula)
 
   /**
    * Returns a string representation of this term. See also [[prettyFormula]].
@@ -149,48 +39,7 @@ object Printer {
    * @param compact whether spaces should be omitted between tokens
    * @return the string representation of this term
    */
-  def prettyTerm(term: Term, compact: Boolean = false): String = term match {
-    case VariableTerm(label) => s"?${label.id}"
-    case FunctionTerm(label, args) =>
-      label match {
-        case `emptySet` =>
-          args match {
-            case Seq() => prettyFunction("∅", Seq.empty, compact, dropParentheses = true)
-            case _ => throw new Exception
-          }
-        case `unorderedPair` =>
-          args match {
-            case Seq(l, r) => s"{${Seq(l, r).map(prettyTerm(_, compact)).mkString(commaSeparator(compact))}}"
-            case _ => throw new Exception
-          }
-        case `orderedPair` =>
-          args match {
-            case Seq(l, r) => s"(${Seq(l, r).map(prettyTerm(_, compact)).mkString(commaSeparator(compact))})"
-            case _ => throw new Exception
-          }
-        case `singleton` =>
-          args match {
-            case Seq(s) => s"{${prettyTerm(s)}}"
-            case _ => throw new Exception
-          }
-        case `powerSet` =>
-          args match {
-            case Seq(s) => prettyFunction("P", Seq(prettyTerm(s)), compact)
-            case _ => throw new Exception
-          }
-        case `unionSet` =>
-          args match {
-            case Seq(s) => prettyFunction("U", Seq(prettyTerm(s)), compact)
-            case _ => throw new Exception
-          }
-        case _ =>
-          val labelString = label match {
-            case ConstantFunctionLabel(id, _) => id
-            case SchematicFunctionLabel(id, _) => s"?$id"
-          }
-          prettyFunction(labelString, args.map(prettyTerm(_, compact)), compact)
-      }
-  }
+  def prettyTerm(term: Term, compact: Boolean = false): String = Parser.printTerm(term)
 
   /**
    * Returns a string representation of this sequent.
@@ -203,23 +52,7 @@ object Printer {
    * @param compact whether spaces should be omitted between tokens
    * @return the string representation of this sequent
    */
-  def prettySequent(sequent: Sequent, compact: Boolean = false): String = {
-    def prettyFormulas(set: Set[Formula]): String = set.toSeq.map(prettyFormula(_, compact)).sorted.mkString(commaSeparator(compact, ";"))
-
-    Seq(prettyFormulas(sequent.left), "⊢", prettyFormulas(sequent.right)).filter(_.nonEmpty).mkString(spaceSeparator(compact))
-  }
-
-  /**
-   * Returns a string representation of the line number in a proof.
-   * Example output:
-   * <pre>
-   * 0:2:1
-   * </pre>
-   *
-   * @param line the line number
-   * @return the string representation of this line number
-   */
-  def prettyLineNumber(line: Seq[Int]): String = line.mkString(":")
+  def prettySequent(sequent: Sequent, compact: Boolean = false): String = Parser.printSequent(sequent)
 
   /**
    * Returns a string representation of this proof.
@@ -347,5 +180,4 @@ object Printer {
   }
 
   def prettySCProof(proof: SCProof): String = prettySCProof(SCValidProof(proof), false)
-
 }
