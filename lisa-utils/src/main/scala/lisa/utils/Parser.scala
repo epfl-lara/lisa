@@ -15,12 +15,40 @@ object Parser {
   object UnreachableException extends ParserException("Internal error: expected unreachable")
   class PrintFailedException(inp: Sequent | Formula | Term) extends ParserException(s"Printing of $inp failed unexpectedly")
 
+  /**
+   * Parses a sequent from a string. A sequent consists of the left and right side, separated by `⊢` or `|-`.
+   * Left and right sides consist of formulas, separated by `;`.
+   *
+   * @see Parser#parseFormula
+   * @param s string representation of the sequent
+   * @return parsed sequent on success, throws an exception when unexpected input or end of input.
+   */
   def parseSequent(s: String): Sequent =
     extractParseResult(SequentParser.parseSequent(SequentLexer(s.iterator)))
 
+  /**
+   * Parses a formula from a string. A formula can be:
+   * <p> - a bound formula: `∀ ?x. f`, `∃ ?x. f`, `∃! ?x. f`. A binder binds the entire formula until the end of the scope (a closing parenthesis or the end of string).
+   * <p> - two formulas, connected by `↔` or `⇒`. Iff / implies bind less tight than and / or.
+   * <p> - a conjunction or disjunction of arbitrary number of formulas. `∧` binds tighter than `∨`.
+   * <p> - negated formula.
+   * <p> - equality of two formulas: `f1 = f2`.
+   * <p> - a constant `p(a)` or schematic `?p(a)` predicate application to arbitrary number of term arguments.
+   * <p> - boolean constant: `⊤` or `⊥`.
+   *
+   * @param s string representation of the formula
+   * @return parsed formula on success, throws an exception when unexpected input or end of input.
+   */
   def parseFormula(s: String): Formula =
     extractParseResult(SequentParser.parseFormula(SequentLexer(s.iterator)))
 
+  /**
+   * Parses a term from a string. A term is a constant `c`, a schematic variable `?x` or an application of a constant `f(a)`
+   * or a schematic `?f(a)` function to other terms.
+   *
+   * @param s string representation of the term
+   * @return parsed term on success, throws an exception when unexpected input or end of input.
+   */
   def parseTerm(s: String): Term =
     extractParseResult(SequentParser.parseTerm(SequentLexer(s.iterator)))
 
@@ -31,6 +59,13 @@ object Parser {
     case SequentParser.UnexpectedEnd(_) => throw ParserException(s"Unexpected end of input")
   }
 
+  /**
+   * Returns a string representation of the sequent. Empty set of formulas on the left side is not printed.
+   * Empty set of formulas on the right side is represented as `⊥` (false).
+   *
+   * @param s sequent to print
+   * @return string representation of the sequent, or the smallest component thereof, on which printing failed
+   */
   def printSequent(s: Sequent): String = SequentParser
     .printSequent(s)
     .getOrElse({
@@ -40,6 +75,10 @@ object Parser {
       throw PrintFailedException(s)
     })
 
+  /**
+   * @param f formula to print
+   * @return string representation of the formula, or the smallest component thereof, on which printing failed
+   */
   def printFormula(f: Formula): String = SequentParser
     .printFormula(f)
     .getOrElse({
@@ -51,6 +90,10 @@ object Parser {
       throw PrintFailedException(f)
     })
 
+  /**
+   * @param t term to print
+   * @return string representation of the term, or the smallest component thereof, on which printing failed
+   */
   def printTerm(t: Term): String = SequentParser
     .printTerm(t)
     .getOrElse({
