@@ -211,7 +211,7 @@ abstract class Library(val theory: RunningTheory) {
   def DEFINE(symbol: String, vars: VariableLabel*): FunSymbolDefine = FunSymbolDefine(symbol, vars)
 
   /**
-   * For a definition of the type f(x) := term, construct the required proof ∃!y. y = term.
+   * For a definition of the type f(x) := term, construct the required proof ?!y. y = term.
    */
   private def simpleFunctionDefinition(expression: LambdaTermTerm, out: VariableLabel): Proof = {
     val x = out
