@@ -1,16 +1,17 @@
 package lisa.proven.peano_example
 
+import lisa.automation.kernel.ProofTactics.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.proven.tactics.ProofTactics.*
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
 import lisa.utils.Printer
 
 object Peano {
-  export PeanoArithmeticsLibrary.{*, given}
+  export PeanoArithmeticsLibrary.{_, given}
 
   /////////////////////////// OUTPUT CONTROL //////////////////////////
   given output: (String => Unit) = println
@@ -66,7 +67,7 @@ object Peano {
   val (y1, z1) =
     (VariableLabel("y1"), VariableLabel("z1"))
 
-  THEOREM("x + 0 = 0 + x") of "∀x. plus(x, zero) === plus(zero, x)" PROOF {
+  THEOREM("x + 0 = 0 + x") of "?x. plus(x, zero) === plus(zero, x)" PROOF {
     val refl0: SCProofStep = RightRefl(() |- s(x) === s(x), s(x) === s(x))
     val subst1 = RightSubstEq((x === plus(zero, x)) |- s(x) === s(plus(zero, x)), 0, (x, plus(zero, x)) :: Nil, LambdaTermFormula(Seq(y), s(x) === s(y)))
     val implies2 = RightImplies(() |- (x === plus(zero, x)) ==> (s(x) === s(plus(zero, x))), 1, x === plus(zero, x), s(x) === s(plus(zero, x)))
@@ -147,7 +148,7 @@ object Peano {
   } using (ax"ax4plusSuccessor", ax"ax3neutral", ax"ax7induction")
   show
 
-  THEOREM("switch successor") of "∀y. ∀x. plus(x, s(y)) === plus(s(x), y)" PROOF {
+  THEOREM("switch successor") of "?y. ?x. plus(x, s(y)) === plus(s(x), y)" PROOF {
     //////////////////////////////////// Base: x + S0 = Sx + 0 ///////////////////////////////////////////////
     val base0 = {
       // x + 0 = x
@@ -184,7 +185,7 @@ object Peano {
       )
     }
 
-    /////////////// Induction step: ∀y. (x + Sy === Sx + y) ==> (x + SSy === Sx + Sy) ////////////////////
+    /////////////// Induction step: ?y. (x + Sy === Sx + y) ==> (x + SSy === Sx + Sy) ////////////////////
     val inductionStep1 = {
       // x + SSy = S(x + Sy)
       val moveSuccessor0 = SCSubproof(instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", x), s(y)), IndexedSeq(-2))

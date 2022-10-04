@@ -6,19 +6,15 @@ import lisa.kernel.proof.SequentCalculus._
 
 object SCProofChecker {
 
-  private object Set {
-    def unapplySeq[T](s: Set[T]): Option[Seq[T]] = Some(s.toSeq)
-  }
-
   /**
-   * This function verifies that a single SCProofStep is correctly applied. It verify that the step only refers to sequents with a lower number, and that
-   * the type and parameters of the proofstep correspond to the sequent claimed sequent.
+   * This function verifies that a single SCProofStep is correctly applied. It verifies that the step only refers to sequents with a lower number,
+   * and that the type, premises and parameters of the proof step correspond to the claimed conclusion.
    *
    * @param no         The number of the given proof step. Needed to vewrify that the proof step doesn't refer to posterior sequents.
    * @param step       The proof step whose correctness needs to be checked
    * @param references A function that associates sequents to a range of positive and negative integers that the proof step may refer to. Typically,
    *                   a proof's [[SCProof.getSequent]] function.
-   * @return
+   * @return           A Judgement about the correctness of the proof step.
    */
   def checkSingleSCStep(no: Int, step: SCProofStep, references: Int => Sequent, importsSize: Option[Int] = None): SCProofCheckerJudgement = {
     val ref = references
@@ -39,6 +35,15 @@ object SCProofChecker {
            */
           case Rewrite(s, t1) =>
             if (isSameSequent(s, ref(t1))) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The premise and the conclusion are not trivially equivalent.")
+
+          /*
+           *
+           * ------------
+           *    Γ |- Γ
+           */
+          case RewriteTrue(s) =>
+            val truth = Sequent(Set(), Set(PredicateFormula(top, Nil)))
+            if (isSameSequent(s, truth)) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The desired conclusion is not a trivial tautology")
           /*
            *
            * --------------
@@ -480,7 +485,7 @@ object SCProofChecker {
 
   /**
    * Verifies if a given pure SequentCalculus is conditionally correct, as the imported sequents are assumed.
-   * If the proof is not correct, the functrion will report the faulty line and a brief explanation.
+   * If the proof is not correct, the function will report the faulty line and a brief explanation.
    *
    * @param proof A SC proof to check
    * @return SCValidProof(SCProof(step)) if the proof is correct, else SCInvalidProof with the path to the incorrect proof step

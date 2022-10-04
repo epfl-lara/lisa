@@ -10,13 +10,34 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    * The parent class of formulas.
    * A formula is a tree whose nodes are either terms or labeled by predicates or logical connectors.
    */
-  sealed abstract class Formula extends TreeWithLabel[FormulaLabel] {
+  sealed trait Formula extends TreeWithLabel[FormulaLabel] {
+    val arity: Int = label.arity
+    override def constantTermLabels: Set[ConstantFunctionLabel]
+    override def schematicTermLabels: Set[SchematicTermLabel]
+    override def freeSchematicTermLabels: Set[SchematicTermLabel]
+    override def freeVariables: Set[VariableLabel]
 
-    def constantFunctions: Set[ConstantFunctionLabel]
-    def schematicTerms: Set[SchematicTermLabel]
+    /**
+     * @return The list of constant predicate symbols in the formula.
+     */
+    def constantPredicateLabels: Set[ConstantPredicateLabel]
 
-    def constantPredicates: Set[ConstantPredicateLabel]
-    def schematicPredicates: Set[SchematicPredicateLabel]
+    /**
+     * @return The list of schematic predicate symbols in the formula, including variable formulas .
+     */
+    def schematicPredicateLabels: Set[SchematicVarOrPredLabel]
+
+    /**
+     * @return The list of schematic connector symbols in the formula.
+     */
+    def schematicConnectorLabels: Set[SchematicConnectorLabel]
+
+    /**
+     * @return The list of schematic connector, predicate and formula variable symbols in the formula.
+     */
+    def schematicFormulaLabels: Set[SchematicFormulaLabel] =
+      (schematicPredicateLabels.toSet: Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet: Set[SchematicFormulaLabel])
+
   }
 
   /**
@@ -24,48 +45,68 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    */
   sealed case class PredicateFormula(label: PredicateLabel, args: Seq[Term]) extends Formula {
     require(label.arity == args.size)
-    override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
-
-    override def constantPredicates: Set[ConstantPredicateLabel] = label match {
+    override def constantTermLabels: Set[ConstantFunctionLabel] =
+      args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantTermLabels)
+    override def schematicTermLabels: Set[SchematicTermLabel] =
+      args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTermLabels)
+    override def freeSchematicTermLabels: Set[SchematicTermLabel] =
+      args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.freeSchematicTermLabels)
+    override def freeVariables: Set[VariableLabel] =
+      args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
+    override def constantPredicateLabels: Set[ConstantPredicateLabel] = label match {
       case l: ConstantPredicateLabel => Set(l)
-      case l: SchematicPredicateLabel => Set()
+      case _ => Set()
     }
-    override def schematicPredicates: Set[SchematicPredicateLabel] = label match {
-      case l: ConstantPredicateLabel => Set()
-      case l: SchematicPredicateLabel => Set(l)
+    override def schematicPredicateLabels: Set[SchematicVarOrPredLabel] = label match {
+      case l: SchematicVarOrPredLabel => Set(l)
+      case _ => Set()
     }
-
-    override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
-    override def schematicTerms: Set[SchematicTermLabel] = args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms)
+    override def schematicConnectorLabels: Set[SchematicConnectorLabel] = Set()
   }
 
   /**
    * The formula counterpart of [[ConnectorLabel]].
    */
   sealed case class ConnectorFormula(label: ConnectorLabel, args: Seq[Formula]) extends Formula {
-    require(label.arity == -1 || label.arity == args.length)
-    override def freeVariables: Set[VariableLabel] = args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
-
-    override def constantFunctions: Set[ConstantFunctionLabel] = args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantFunctions)
-    override def schematicTerms: Set[SchematicTermLabel] = args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTerms)
-
-    override def constantPredicates: Set[ConstantPredicateLabel] = args.foldLeft(Set.empty[ConstantPredicateLabel])((prev, next) => prev union next.constantPredicates)
-    override def schematicPredicates: Set[SchematicPredicateLabel] = args.foldLeft(Set.empty[SchematicPredicateLabel])((prev, next) => prev union next.schematicPredicates)
+    require(label.arity == args.size || label.arity == -1)
+    require(label.arity != 0)
+    override def constantTermLabels: Set[ConstantFunctionLabel] =
+      args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantTermLabels)
+    override def schematicTermLabels: Set[SchematicTermLabel] =
+      args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTermLabels)
+    override def freeSchematicTermLabels: Set[SchematicTermLabel] =
+      args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.freeSchematicTermLabels)
+    override def freeVariables: Set[VariableLabel] =
+      args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
+    override def constantPredicateLabels: Set[ConstantPredicateLabel] =
+      args.foldLeft(Set.empty[ConstantPredicateLabel])((prev, next) => prev union next.constantPredicateLabels)
+    override def schematicPredicateLabels: Set[SchematicVarOrPredLabel] =
+      args.foldLeft(Set.empty[SchematicVarOrPredLabel])((prev, next) => prev union next.schematicPredicateLabels)
+    override def schematicConnectorLabels: Set[SchematicConnectorLabel] = label match {
+      case l: ConstantConnectorLabel =>
+        args.foldLeft(Set.empty[SchematicConnectorLabel])((prev, next) => prev union next.schematicConnectorLabels)
+      case l: SchematicConnectorLabel =>
+        args.foldLeft(Set(l))((prev, next) => prev union next.schematicConnectorLabels)
+    }
   }
 
   /**
    * The formula counterpart of [[BinderLabel]].
    */
   sealed case class BinderFormula(label: BinderLabel, bound: VariableLabel, inner: Formula) extends Formula {
+    override def constantTermLabels: Set[ConstantFunctionLabel] = inner.constantTermLabels
+    override def schematicTermLabels: Set[SchematicTermLabel] = inner.schematicTermLabels
+    override def freeSchematicTermLabels: Set[SchematicTermLabel] = inner.freeSchematicTermLabels - bound
     override def freeVariables: Set[VariableLabel] = inner.freeVariables - bound
-
-    override def constantFunctions: Set[ConstantFunctionLabel] = inner.constantFunctions
-    override def schematicTerms: Set[SchematicTermLabel] = inner.schematicTerms - bound
-
-    override def constantPredicates: Set[ConstantPredicateLabel] = inner.constantPredicates
-    override def schematicPredicates: Set[SchematicPredicateLabel] = inner.schematicPredicates
+    override def constantPredicateLabels: Set[ConstantPredicateLabel] = inner.constantPredicateLabels
+    override def schematicPredicateLabels: Set[SchematicVarOrPredLabel] = inner.schematicPredicateLabels
+    override def schematicConnectorLabels: Set[SchematicConnectorLabel] = inner.schematicConnectorLabels
   }
 
+  /**
+   * Binds multiple variables at the same time
+   */
+  @deprecated
   def bindAll(binder: BinderLabel, vars: Seq[VariableLabel], phi: Formula): Formula =
     vars.foldLeft(phi)((f, v) => BinderFormula(binder, v, f))
 
