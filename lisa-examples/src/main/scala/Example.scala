@@ -3,7 +3,6 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
-
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.automation.kernel.SimplePropositionalSolver.solveSequent
 import lisa.tptp.KernelParser.*
@@ -11,6 +10,7 @@ import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
 import lisa.utils.Helpers.{*, given}
 import lisa.utils.Printer.*
+import lisa.utils.tactics.ProofStepLib.ProofStep
 
 /**
  * Discover some of the elements of LISA to get started.
@@ -48,17 +48,16 @@ object Example {
       */
 
       THEOREM("fixedPointDoubleApplication") of "∀ ?x. ?P(?x) ⇒ ?P(?f(?x)) ⊢ ∀ ?x. ?P(?x) ⇒ ?P(?f(?f(?x)))" NPROOF {
-        Nsteps(
-          have("?P(?x); ?P(?f(?x)); ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                             by   Trivial,
-          have("?P(?x); ?P(?f(?x)) ⊢ ?P(?f(?x)); ?P(?f(?f(?x)))")                                 by   Trivial,
-          have(Set(P(x), P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                               by   LeftImplies(P(f(x)), P(f(f(x))))(1, 0 ),
-          have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                             by   Hypothesis(),
-          have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   LeftImplies(P(x), P(f(x)))(3, 2),
-          have(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )          by   LeftForall(P(x) ==> P(f(x)), x, x)(4),
-          have(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                                   by   LeftForall(P(x) ==> P(f(x)), x, f(x))(5),
-          have(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))))                                     by   Trivial(6),
-          have(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))))                          by   RightForall(P(x) ==> P(f(f(x))), x) (7)
-        )
+        have("?P(?x); ?P(?f(?x)); ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                             by   Trivial
+        have("?P(?x); ?P(?f(?x)) ⊢ ?P(?f(?x)); ?P(?f(?f(?x)))")                                 by   Trivial
+        have("?P(?x); ?P(?f(?x)); ?P(?f(?x)) ⇒ ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                by   LeftImplies(P(f(x)), P(f(f(x))))(1, 0 )
+        have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                             by   Hypothesis()
+        have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   LeftImplies(P(x), P(f(x)))(3, 2)
+        andThen(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )       by   LeftForall(P(x) ==> P(f(x)), x, x)
+        andThen(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                                by   LeftForall(P(x) ==> P(f(x)), x, f(x))
+        andThen(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))))                                  by   Trivial
+        showCurrentProof()
+        andThen(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))))                       by   RightForall(P(x) ==> P(f(f(x))), x)
       } using ()
 
       show

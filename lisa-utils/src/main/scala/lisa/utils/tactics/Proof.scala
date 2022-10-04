@@ -6,6 +6,7 @@ import lisa.kernel.proof.SCProof
 import lisa.utils.tactics.ProofStepLib.ProofStep
 
 
+
 case class Proof(steps: IndexedSeq[ProofStep], imports: IndexedSeq[Sequent] = IndexedSeq.empty) {
     def numberedSteps: Seq[(ProofStep, Int)] = steps.zipWithIndex
 
@@ -29,7 +30,7 @@ case class Proof(steps: IndexedSeq[ProofStep], imports: IndexedSeq[Sequent] = In
     }*/
 
     def toSCProof:SCProof = {
-        steps.foldLeft(SCProof())((p, ps) => p.appended(ps.asSCProofStep(p.getSequent)))
+        steps.foldLeft(SCProof())((p, ps) => p.appended(ps.asSCProofStep(p.getSequent, p.length)))
     }
 
 

@@ -3,6 +3,7 @@ package lisa.utils
 import lisa.kernel.proof.{RunningTheory, SequentCalculus}
 import lisa.utils.tactics.Proof
 import lisa.utils.tactics.ProofStepLib.ProofStep
+import scala.collection.mutable.Seq as mSeq
 
 /**
  * A class abstracting a [[lisa.kernel.proof.RunningTheory]] providing utility functions and a convenient syntax
@@ -11,6 +12,7 @@ import lisa.utils.tactics.ProofStepLib.ProofStep
  */
 abstract class Library(val theory: RunningTheory) {
   given RunningTheory = theory
+  given Library = this
   export lisa.kernel.fol.FOL.*
   val SC: SequentCalculus.type =  lisa.kernel.proof.SequentCalculus
   export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
@@ -26,6 +28,8 @@ abstract class Library(val theory: RunningTheory) {
   type Sequentable = Justification | Formula | Sequent
 
   private var last: Option[Justification] = None
+
+  var currentProofSteps: List[List[ProofStep]] = List()
 
   /**
    * A function intended for use to construct a proof:
@@ -63,9 +67,15 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, SCProof(steps))
-    def NPROOF(steps: IndexedSeq[ProofStep])(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, Proof(steps).toSCProof)
-
+    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof =
+      TheoremNameWithProof(name, statement, SCProof(steps))
+    def NPROOF(computeProof: => Unit)(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = {
+      currentProofSteps = List()::currentProofSteps
+      computeProof
+      val r = TheoremNameWithProof(name, statement, Proof(currentProofSteps.head.reverse.toIndexedSeq).toSCProof)
+      currentProofSteps = currentProofSteps.tail
+      r
+    }
   }
 
   /**
@@ -235,7 +245,11 @@ abstract class Library(val theory: RunningTheory) {
     SCProof(v)
   }
 
-  // Implicit conversions
+
+
+  //////////////////////////////////////////
+  //      Tools for proof development     //
+  //////////////////////////////////////////
 
   given Conversion[TheoremNameWithProof, theory.Theorem] = _.using()
 
@@ -310,6 +324,13 @@ abstract class Library(val theory: RunningTheory) {
     val builder = bf.newBuilder(cc)
     cc.foreach(builder += _.size)
     builder.result
+  }
+
+  def showCurrentProof()(using output: String => Unit) = {
+    val proof = Proof(currentProofSteps.head.reverse.toIndexedSeq).toSCProof
+    output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
+
+
   }
 
 }

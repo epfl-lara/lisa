@@ -3,6 +3,7 @@ package lisa.utils.tactics
 import lisa.kernel.proof.SequentCalculus.{SCProofStep, Sequent}
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.{SCProof, SequentCalculus as SC}
+import lisa.utils.Library
 import lisa.utils.tactics.ProofStepLib.*
 
 object BasicStepTactic {
@@ -333,9 +334,9 @@ object BasicStepTactic {
   }
 
   // Proof Organisation rules
-  case class SCSubproof(sp: Proof|SCProof, premises: Seq[Int] = Seq.empty, display: Boolean = true) extends ProofStep{
+  case class SCSubproof(sp: Proof|SCProof, premises: Seq[Int] = Seq.empty, display: Boolean = true)(using l:Library) extends ProofStep{
     // premises is a list of ints that verifies that imports of the subproof sp are justified by previous steps.
-    def asSCProofStep(references:Int => Sequent): SCProofStep =
+    def asSCProofStep(references:Int => Sequent, currentIndice:Int): SCProofStep =
       sp match {
         case sp:Proof => SC.SCSubproof(sp.toSCProof, premises, display)
         case sp:SCProof => SC.SCSubproof(sp, premises, display)
