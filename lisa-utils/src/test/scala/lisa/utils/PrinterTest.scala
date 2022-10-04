@@ -90,7 +90,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     assert(Parser.printFormula(ConnectorFormula(And, Seq(a, b))) == "a ∧ b")
     assert(Parser.printFormula(ConnectorFormula(Or, Seq(a, b))) == "a ∨ b")
     assert(Parser.printFormula(ConnectorFormula(Implies, Seq(a, b))) == "a ⇒ b")
-    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(a, b))) == "a ↔ b")
+    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(a, b))) == "a ⇔ b")
   }
 
   test("connector associativity") {
@@ -129,13 +129,13 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     assert(Parser.printFormula(ConnectorFormula(Implies, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ⇒ b ∨ c")
 
     // (a ∧ b) <=> c
-    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ↔ c")
+    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ⇔ c")
     // a <=> (b ∧ c)
-    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ↔ b ∧ c")
+    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ⇔ b ∧ c")
     // (a ∨ b) <=> c
-    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "a ∨ b ↔ c")
+    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "a ∨ b ⇔ c")
     // a <=> (b ∨ c)
-    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ↔ b ∨ c")
+    assert(Parser.printFormula(ConnectorFormula(Iff, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ⇔ b ∨ c")
   }
 
   test("connector parentheses") {
@@ -228,7 +228,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
           Set(BinderFormula(Forall, x, ConnectorFormula(Iff, Seq(x === x1, sPhi1(x))))),
           Set((z === sf1(x1)) ==> exists(x, (z === sf1(x)) /\ sPhi1(x)))
         )
-      ) == "∀ ?x. ?x = ?x1 ↔ ?phi(?x) ⊢ ?z = ?f(?x1) ⇒ (∃ ?x. ?z = ?f(?x) ∧ ?phi(?x))"
+      ) == "∀ ?x. ?x = ?x1 ⇔ ?phi(?x) ⊢ ?z = ?f(?x1) ⇒ (∃ ?x. ?z = ?f(?x) ∧ ?phi(?x))"
     )
     assert(
       Parser.printSequent(
@@ -236,7 +236,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
           z1,
           forall(z, (z === z1) <=> exists(x, (z === sf1(x)) /\ sPhi1(x)))
         )
-      ) == "∃ ?x1. ∀ ?x. ?x = ?x1 ↔ ?phi(?x) ⊢ ∃ ?z1. ∀ ?z. ?z = ?z1 ↔ (∃ ?x. ?z = ?f(?x) ∧ ?phi(?x))"
+      ) == "∃ ?x1. ∀ ?x. ?x = ?x1 ⇔ ?phi(?x) ⊢ ∃ ?z1. ∀ ?z. ?z = ?z1 ⇔ (∃ ?x. ?z = ?f(?x) ∧ ?phi(?x))"
     )
     assert(Parser.printSequent((() |- (x === x) \/ (x === y))) == "⊢ ?x = ?x ∨ ?x = ?y")
     assert(
@@ -245,7 +245,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
           (x === x) \/ (x === y),
           ((x === x) \/ (x === y)) <=> ((x === xPrime) \/ (x === yPrime))
         ) |- (x === xPrime) \/ (x === yPrime)
-      ) == "?x = ?x ∨ ?x = ?y; ?x = ?x ∨ ?x = ?y ↔ ?x = ?x' ∨ ?x = ?y' ⊢ ?x = ?x' ∨ ?x = ?y'"
+      ) == "?x = ?x ∨ ?x = ?y; ?x = ?x ∨ ?x = ?y ⇔ ?x = ?x' ∨ ?x = ?y' ⊢ ?x = ?x' ∨ ?x = ?y'"
     )
   }
 }
