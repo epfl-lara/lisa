@@ -44,9 +44,13 @@ case class ProofUnconditionalizer (pr : SCProof) {
 
         val rev = top_sort.reverse
         def inner(v : A) : Seq[Int] = v match {
-            case _ if is_leaf(v) =>  imports(v)
+            case _ if is_leaf(v) =>  {
+              cache(v) = imports(v).toSet
+              imports(v)
+            }
             case _ => {
-                val res = children(v).flatMap(inner) ++ imports(v).filter(_ < 0)
+                val current = imports(v).filter(_ < 0)
+                val res = children(v).flatMap(inner) ++ current
                 cache(v) = res.toSet
                 res
                 }
@@ -97,24 +101,20 @@ case class ProofUnconditionalizer (pr : SCProof) {
                     val r = Rewrite(h.bot.left |- (h.bot.right - sequentToFormula(premises(i))), i)
                     r
                 })
-        
         //We must separate the case for subproofs for they need to use the modified version of the precedent 
         val inner = pS match {
             case SCSubproof(_,_,_) => SCProof(hypothesis.toIndexedSeq ++ rewrites.toIndexedSeq ++ IndexedSeq(
                     mapStep(pS, b => neg_premises(pS).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, s => s.map(i => i match {
                         case i if i < 0 => -i-2 + hypothesis.length
                         case i => -i
-                    } ), rewrites.map(_.bot))) , pS.premises.filter(_>= 0).map(pr(_).bot).toIndexedSeq)
-               
+                    } ), rewrites.map(_.bot))) , pS.premises.filter(_>= 0).map(appended_steps(_).bot).toIndexedSeq)
             
-            case _ => SCProof(hypothesis.toIndexedSeq ++ rewrites.toIndexedSeq ++ IndexedSeq(
-                    mapStep(pS, b => neg_premises(pS).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, s => s.map(i => i match {
-                        case i if i < 0 => -i-1 + hypothesis.length
-                        case i => -i
-                    } ))) , pS.premises.filter(_>= 0).map(pr(_).bot).toIndexedSeq)
-            
+            case _ => SCProof(hypothesis.toIndexedSeq ++ IndexedSeq(
+                    mapStep(pS, b => neg_premises(pS).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, premise => premise.zipWithIndex.map((i,j) => i match {
+                        case i if i < 0 => j
+                        case i => -j
+                    } ))) , pS.premises.filter(_>= 0).map(appended_steps(_).bot).toIndexedSeq)   
         }
-
         SCSubproof(inner, pS.premises.filter(_ >= 0))
     }
     
@@ -155,8 +155,8 @@ case class ProofUnconditionalizer (pr : SCProof) {
             case RightSubstEq(bot,  t1, equals, lambdaPhi)  => RightSubstEq(f(bot.left)|- bot.right, fi(pS.premises).head, equals, lambdaPhi)
             case LeftSubstIff(bot, t1, equals, lambdaPhi)   => LeftSubstIff(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
             case RightSubstIff(bot, t1, equals, lambdaPhi)  => RightSubstIff(f(bot.left)|- bot.right, fi(pS.premises).head, equals, lambdaPhi)
-            case InstFunSchema(bot, t1, insts)              => InstFunSchema(f(bot.left)|- bot.right, fi(pS.premises).head, insts)
-            case InstPredSchema(bot, t1, insts)             => InstPredSchema( f( bot.left )|- bot.right, fi(pS.premises).head, insts)
+            case InstFunSchema(bot, t1, insts)              => InstFunSchema(instantiateFunctionSchemaInSequent(f(bot.left)|- bot.right, insts).left |- bot.right, fi(pS.premises).head, insts)
+            case InstPredSchema(bot, t1, insts)             => InstPredSchema(instantiatePredicateSchemaInSequent(f(bot.left) |- bot.right,insts).left |- bot.right, fi(pS.premises).head, insts)
             case SCSubproof(pp, t, b)                       => {
                 SCSubproof(ProofUnconditionalizer(pp).transformPrivate(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t), b)}
     }
