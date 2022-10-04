@@ -66,7 +66,7 @@ object Peano {
   val (y1, z1) =
     (VariableLabel("y1"), VariableLabel("z1"))
 
-  THEOREM("x + 0 = 0 + x") of "?x. plus(x, zero) === plus(zero, x)" PROOF {
+  THEOREM("x + 0 = 0 + x") of "∀'x. +('x, 0) = +(0, 'x)" PROOF {
     val refl0: SCProofStep = RightRefl(() |- s(x) === s(x), s(x) === s(x))
     val subst1 = RightSubstEq((x === plus(zero, x)) |- s(x) === s(plus(zero, x)), 0, (x, plus(zero, x)) :: Nil, LambdaTermFormula(Seq(y), s(x) === s(y)))
     val implies2 = RightImplies(() |- (x === plus(zero, x)) ==> (s(x) === s(plus(zero, x))), 1, x === plus(zero, x), s(x) === s(plus(zero, x)))
@@ -147,7 +147,7 @@ object Peano {
   } using (ax"ax4plusSuccessor", ax"ax3neutral", ax"ax7induction")
   show
 
-  THEOREM("switch successor") of "?y. ?x. plus(x, s(y)) === plus(s(x), y)" PROOF {
+  THEOREM("switch successor") of "∀'x. ∀'y. +('x, S('y)) = +(S('x), 'y)" PROOF {
     //////////////////////////////////// Base: x + S0 = Sx + 0 ///////////////////////////////////////////////
     val base0 = {
       // x + 0 = x
@@ -256,7 +256,7 @@ object Peano {
   } using (ax"ax3neutral", ax"ax4plusSuccessor", ax"ax7induction")
   show
 
-  THEOREM("additivity of addition") of "" PROOF {
+  THEOREM("additivity of addition") of "∀'x. ∀'y. +('x, 'y) = +('y, 'x)" PROOF {
     val base0 = SCSubproof(instantiateForallImport(thm"x + 0 = 0 + x", x), Seq(-3))
     val inductionStep1 = {
       val start0 = RightRefl(() |- plus(x, s(y)) === plus(x, s(y)), plus(x, s(y)) === plus(x, s(y)))

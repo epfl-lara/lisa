@@ -12,7 +12,7 @@ import SetTheory.*
 object Mapping extends lisa.Main {
 
   THEOREM("functionalMapping") of
-    "∀a. (a ∈ ?A) ⇒ ∃!x. ?phi(x, a) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃a. (a ∈ ?A) ∧ ?phi(x, a)" PROOF {
+    "∀ 'a. elem('a, 'A) ⇒ (∃! 'x. 'phi('x, 'a)) ⊢ ∃! 'X. ∀ 'x. elem('x, 'X) ↔ (∃ 'a. elem('a, 'A) ∧ 'phi('x, 'a))" PROOF {
       val a = VariableLabel("a")
       val x = VariableLabel("x")
       val y = VariableLabel("y")
@@ -235,7 +235,8 @@ object Mapping extends lisa.Main {
   show
 
   THEOREM("lemmaLayeredTwoArgumentsMap") of
-    "∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!X. ∀x. (x ∈ X) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)" PROOF {
+    "∀ 'b. elem('b, 'B) ⇒ (∀ 'a. elem('a, 'A) ⇒ (∃! 'x. 'psi('x, 'a, 'b))) ⊢ " +
+    "∃! 'X. ∀ 'x. elem('x, 'X) ↔ (∃ 'b. elem('b, 'B) ∧ (∀ 'x1. elem('x1, 'x) ↔ (∃ 'a. elem('a, 'A) ∧ 'psi('x1, 'a, 'b))))" PROOF {
       val a = VariableLabel("a")
       val b = VariableLabel("b")
       val x = VariableLabel("x")
@@ -299,7 +300,7 @@ object Mapping extends lisa.Main {
   show
 
   THEOREM("applyFunctionToUniqueObject") of
-    "∃!x. ?phi(x) ⊢ ∃!z. ∃x. (z = ?F(x)) ∧ ?phi(x)" PROOF {
+    "∃! 'x. 'phi('x) ⊢ ∃! 'z. ∃ 'x. ('z = 'F('x)) ∧ 'phi('x)" PROOF {
       val x = VariableLabel("x")
       val x1 = VariableLabel("x1")
       val z = VariableLabel("z")
@@ -348,7 +349,8 @@ object Mapping extends lisa.Main {
   show
 
   THEOREM("mapTwoArguments") of
-    "∀b. (b ∈ ?B) ⇒ ∀a. (a ∈ ?A) ⇒ ∃!x. ?psi(x, a, b) ⊢ ∃!z. ∃x. (z = U(x)) ∧ ∀x_0. (x_0 ∈ x) ↔ ∃b. (b ∈ ?B) ∧ ∀x1. (x1 ∈ x_0) ↔ ∃a. (a ∈ ?A) ∧ ?psi(x1, a, b)" PROOF {
+    "∀ 'b. elem('b, 'B) ⇒ (∀ 'a. elem('a, 'A) ⇒ (∃! 'x. 'psi('x, 'a, 'b))) ⊢ " +
+    "∃! 'z. ∃ 'x. 'z = union('x) ∧ (∀ 'x_0. elem('x_0, 'x) ↔ (∃ 'b. elem('b, 'B) ∧ (∀ 'x1. elem('x1, 'x_0) ↔ (∃ 'a. elem('a, 'A) ∧ 'psi('x1, 'a, 'b)))))" PROOF {
       val a = VariableLabel("a")
       val b = VariableLabel("b")
       val x = VariableLabel("x")
