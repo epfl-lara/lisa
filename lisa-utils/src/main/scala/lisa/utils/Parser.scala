@@ -98,7 +98,7 @@ object Parser {
     .printTerm(t)
     .getOrElse({
       t match {
-        case FunctionTerm(_, args) => args.foreach(printTerm)
+        case Term(_, args) => args.foreach(printTerm)
         case VariableTerm(_) => ()
       }
       throw PrintFailedException(t)
@@ -286,7 +286,7 @@ object Parser {
 
     def invertTerm(t: Term): Token ~ Option[Seq[Term]] = t match {
       case VariableTerm(label) => SchematicToken(label.id) ~ None
-      case FunctionTerm(label, args) =>
+      case Term(label, args) =>
         val optArgs = args match {
           case Seq() => None
           case _ => Some(args)
@@ -302,8 +302,8 @@ object Parser {
         {
           case ConstantToken(id) ~ maybeArgs =>
             val args = maybeArgs.getOrElse(Seq())
-            FunctionTerm(ConstantFunctionLabel(id, args.length), args)
-          case SchematicToken(id) ~ Some(args) => FunctionTerm(SchematicFunctionLabel(id, args.length), args)
+            Term(ConstantFunctionLabel(id, args.length), args)
+          case SchematicToken(id) ~ Some(args) => Term(SchematicFunctionLabel(id, args.length), args)
           case SchematicToken(id) ~ None => VariableTerm(VariableLabel(id))
           case _ => throw UnreachableException
         },
@@ -317,12 +317,12 @@ object Parser {
     lazy val simpleFormula: Syntax[Formula] = predicate.up[Formula] | negated.up[Formula] | bool.up[Formula]
     lazy val subformula: Syntax[Formula] = simpleFormula | open.skip ~ formula ~ closed.skip
 
-    def createFunctionTerm(label: Token, args: Seq[Term]): Term = label match {
-      case ConstantToken(id) => FunctionTerm(ConstantFunctionLabel(id, args.size), args)
+    def createTerm(label: Token, args: Seq[Term]): Term = label match {
+      case ConstantToken(id) => Term(ConstantFunctionLabel(id, args.size), args)
       case SchematicToken(id) =>
         args match {
           case Seq() => VariableTerm(VariableLabel(id))
-          case _ => FunctionTerm(SchematicFunctionLabel(id, args.size), args)
+          case _ => Term(SchematicFunctionLabel(id, args.size), args)
         }
       case _ => throw UnreachableException
     }
@@ -345,13 +345,13 @@ object Parser {
         case ConstantToken(id) ~ maybeArgs ~ None =>
           val args = maybeArgs.getOrElse(Seq())
           PredicateFormula(ConstantPredicateLabel(id, args.size), args)
-        case SchematicToken(id) ~ Some(args) ~ None => PredicateFormula(SchematicNPredicateLabel(id, args.size), args)
+        case SchematicToken(id) ~ Some(args) ~ None => PredicateFormula(SchematicPredicateLabel(id, args.size), args)
         case SchematicToken(id) ~ None ~ None =>
           PredicateFormula(VariableFormulaLabel(id), Seq())
 
         // equality of two function applications
         case fun1 ~ args1 ~ Some(fun2 ~ args2) =>
-          PredicateFormula(FOL.equality, Seq(createFunctionTerm(fun1, args1.getOrElse(Seq())), createFunctionTerm(fun2, args2.getOrElse(Seq()))))
+          PredicateFormula(FOL.equality, Seq(createTerm(fun1, args1.getOrElse(Seq())), createTerm(fun2, args2.getOrElse(Seq()))))
 
         case _ => throw UnreachableException
       },
@@ -367,7 +367,7 @@ object Parser {
               case ConstantPredicateLabel(id, 0) => ConstantToken(id) ~ None
               case ConstantPredicateLabel(id, _) => ConstantToken(id) ~ Some(args)
               case VariableFormulaLabel(id) => SchematicToken(id) ~ None
-              case SchematicNPredicateLabel(id, _) => SchematicToken(id) ~ Some(args)
+              case SchematicPredicateLabel(id, _) => SchematicToken(id) ~ Some(args)
             }
             Seq(predicateApp ~ None)
         }

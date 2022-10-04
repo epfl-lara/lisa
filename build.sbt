@@ -17,7 +17,7 @@ inThisBuild(
 )
 
 val scala2 = "2.13.8"
-val scala3 = "3.1.3"
+val scala3 = "3.2.1-RC1-bin-20220619-4cb967f-NIGHTLY"
 
 val commonSettings2 = Seq(
   scalaVersion := scala2
@@ -26,11 +26,14 @@ val commonSettings3 = Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
+
     // "-source:future", re-enable when liancheng/scalafix-organize-imports#221 is fixed
     "-old-syntax",
     "-no-indent"
+
   ),
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
+  libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
   Test / parallelExecution := false
 )
 
@@ -50,8 +53,8 @@ lazy val root = Project(
   .settings(
     version := "0.1"
   )
-  .dependsOn(kernel, withTests(utils), theories, tptp) // Everything but `examples`
-  .aggregate(kernel, utils, theories, tptp) // To run tests on all modules
+  .dependsOn(kernel, withTests(utils), theories, tptp, front) // Everything but `examples`
+  .aggregate(kernel, utils, theories, tptp, front) // To run tests on all modules
 
 lazy val kernel = Project(
   id = "lisa-kernel",
@@ -66,6 +69,7 @@ lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")
 )
+
   .settings(commonSettings3)
   .dependsOn(kernel)
   .dependsOn(silex)
@@ -87,6 +91,14 @@ lazy val tptp = Project(
     libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4"
   )
   .dependsOn(withTests(utils))
+
+lazy val front = Project(
+  id = "lisa-front",
+  base = file("lisa-front"),
+)
+    .settings(commonSettings3)
+    .dependsOn(kernel, utils, theories)
+
 
 lazy val examples = Project(
   id = "lisa-examples",

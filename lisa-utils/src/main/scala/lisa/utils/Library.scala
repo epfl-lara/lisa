@@ -13,7 +13,7 @@ abstract class Library(val theory: RunningTheory) {
   export lisa.kernel.proof.SequentCalculus.*
   export lisa.kernel.proof.SCProof as Proof
   export theory.{Justification, Theorem, Definition, Axiom, PredicateDefinition, FunctionDefinition}
-  export lisa.utils.Helpers.{*, given}
+  export lisa.utils.Helpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
   /**
@@ -85,7 +85,7 @@ abstract class Library(val theory: RunningTheory) {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
         just
-      case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+      case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
     }
 
     /**
@@ -101,7 +101,7 @@ abstract class Library(val theory: RunningTheory) {
    */
   def simpleDefinition(symbol: String, expression: LambdaTermTerm): Judgement[theory.FunctionDefinition] = {
     val LambdaTermTerm(vars, body) = expression
-    val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTerms.map(_.id)).toSet, "y"))
+    val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTermLabels.map(_.id)).toSet, "y"))
     val proof: Proof = simpleFunctionDefinition(expression, out)
     theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, Nil)
   }
@@ -135,7 +135,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }
@@ -148,7 +148,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }
@@ -194,7 +194,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }
@@ -211,7 +211,7 @@ abstract class Library(val theory: RunningTheory) {
   def DEFINE(symbol: String, vars: VariableLabel*): FunSymbolDefine = FunSymbolDefine(symbol, vars)
 
   /**
-   * For a definition of the type f(x) := term, construct the required proof ∃!y. y = term.
+   * For a definition of the type f(x) := term, construct the required proof ?!y. y = term.
    */
   private def simpleFunctionDefinition(expression: LambdaTermTerm, out: VariableLabel): Proof = {
     val x = out

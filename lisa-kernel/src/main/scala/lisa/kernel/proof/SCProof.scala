@@ -28,7 +28,7 @@ case class SCProof(steps: IndexedSeq[SCProofStep], imports: IndexedSeq[Sequent] 
 
   /**
    * Get the ith sequent of the proof. If the index is positive, give the bottom sequent of proof step number i.
-   * If the index is positive, return the (-i-1)th imported sequent.
+   * If the index is negative, return the <code>(-i-1)</code>th imported sequent.
    *
    * @param i The reference number of a sequent in the proof
    * @return A sequent, either imported or reached during the proof.
