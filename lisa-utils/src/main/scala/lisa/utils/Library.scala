@@ -1,7 +1,8 @@
 package lisa.utils
 
-import lisa.kernel.proof.RunningTheory
-import lisa.utils.tactics.{Proof, ProofStep}
+import lisa.kernel.proof.{RunningTheory, SequentCalculus}
+import lisa.utils.tactics.Proof
+import lisa.utils.tactics.ProofStepLib.ProofStep
 
 /**
  * A class abstracting a [[lisa.kernel.proof.RunningTheory]] providing utility functions and a convenient syntax
@@ -11,10 +12,12 @@ import lisa.utils.tactics.{Proof, ProofStep}
 abstract class Library(val theory: RunningTheory) {
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.*
-  export lisa.kernel.proof.SequentCalculus.*
+  val SC: SequentCalculus.type =  lisa.kernel.proof.SequentCalculus
+  export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
   export lisa.kernel.proof.SCProof
   export theory.{Justification, Theorem, Definition, Axiom, PredicateDefinition, FunctionDefinition}
   export lisa.utils.Helpers.{_, given}
+  export lisa.utils.tactics.ProofsHelpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
   /**
@@ -120,7 +123,7 @@ abstract class Library(val theory: RunningTheory) {
   }
 
   /**
-   * Allows to create a definition by shortcut of a function symbol:
+   * Allows to create a definition by shortcut of a predicate symbol:
    */
   def simpleDefinition(symbol: String, expression: LambdaTermFormula): Judgement[theory.PredicateDefinition] =
     theory.predicateDefinition(symbol, expression)
@@ -223,11 +226,11 @@ abstract class Library(val theory: RunningTheory) {
     val LambdaTermTerm(vars, body) = expression
     val xeb = x === body
     val y = VariableLabel(freshId(body.freeVariables.map(_.id) ++ vars.map(_.id) + out.id, "y"))
-    val s0 = RightRefl(() |- body === body, body === body)
-    val s1 = Rewrite(() |- (xeb) <=> (xeb), 0)
-    val s2 = RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
-    val s3 = RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
-    val s4 = Rewrite(() |- existsOne(x, xeb), 3)
+    val s0 = SC.RightRefl(() |- body === body, body === body)
+    val s1 = SC.Rewrite(() |- (xeb) <=> (xeb), 0)
+    val s2 = SC.RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
+    val s3 = SC.RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
+    val s4 = SC.Rewrite(() |- existsOne(x, xeb), 3)
     val v = Vector(s0, s1, s2, s3, s4)
     SCProof(v)
   }

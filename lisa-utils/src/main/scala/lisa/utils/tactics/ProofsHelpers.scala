@@ -1,9 +1,11 @@
 package lisa.utils.tactics
 
 import lisa.kernel.proof.SequentCalculus.{SCProofStep, Sequent}
+import lisa.utils.tactics.ProofStepLib.*
+import lisa.utils.Parser.{parseTerm, parseFormula, parseSequent}
 
-trait ProofsHelpers {
-    val N: BasicStepTactic.type = BasicStepTactic
+object ProofsHelpers {
+    export BasicStepTactic.*
     export SimpleDeducedSteps.*
 
 
@@ -12,8 +14,14 @@ trait ProofsHelpers {
         infix def by(just: ProofStepWithoutBot): ProofStep = just.asProofStep(bot)
     }
 
-    def have(bot:Sequent): HaveSequent = HaveSequent(bot)
+    def have(res:Sequent): HaveSequent = HaveSequent(res)
+    def have(res:String): HaveSequent = HaveSequent(parseSequent(res))
 
 
+    extension[N <: Int & Singleton] (swbnp: ProofStepWithoutBotNorPrem[N]) {
+        def apply(prem: Int*) :ProofStepWithoutBot = new ProofStepWithoutBotWithPrem[N](swbnp, prem)
+    }
+
+    given Conversion[ProofStepWithoutBotNorPrem[0], ProofStepWithoutBot] = _.asProofStepWithoutBot(Seq())
 
 }

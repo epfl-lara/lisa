@@ -2,14 +2,18 @@ package lisa.utils.tactics
 
 import lisa.kernel.proof.SequentCalculus.{SCProofStep, Sequent}
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.utils.tactics.ProofStepLib.*
 
 object SimpleDeducedSteps {
 
-    case class Trivial(t1: Int) extends ProofStepWithoutBot {
-        override val premises: Seq[Int] = Seq(t1)
-        def asSCProofStep(bot: Sequent, references:Int => Sequent): SCProofStep =
-            SC.Rewrite(bot, t1)
+    case object Trivial extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(1) {
+      override val premises: Seq[Int] = Seq()
+      def asSCProofStep(bot: Sequent, references:Int => Sequent): SCProofStep =
+        SC.RewriteTrue(bot)
+
+      def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+        SC.Rewrite(bot, premises(0))
+
     }
-    //def Trivial: ProofStepWithoutBot = ???
 
 }

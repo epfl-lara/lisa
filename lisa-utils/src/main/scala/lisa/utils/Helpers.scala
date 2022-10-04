@@ -7,4 +7,4 @@ package lisa.utils
  * import utilities.Helpers.*
  * </pre>
  */
-object Helpers extends TheoriesHelpers with tactics.ProofsHelpers
+object Helpers extends TheoriesHelpers

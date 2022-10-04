@@ -285,13 +285,13 @@ object Parser {
     lazy val args: Syntax[Seq[Term]] = recursive(open.skip ~ repsep(term, comma) ~ closed.skip)
 
     def invertTerm(t: Term): Token ~ Option[Seq[Term]] = t match {
-      case VariableTerm(label) => SchematicToken(label.id) ~ None
       case Term(label, args) =>
         val optArgs = args match {
           case Seq() => None
           case _ => Some(args)
         }
         label match {
+          case VariableLabel(id) => SchematicToken(id) ~ None
           case ConstantFunctionLabel(id, _) => ConstantToken(id) ~ optArgs
           case SchematicFunctionLabel(id, _) => SchematicToken(id) ~ optArgs
         }

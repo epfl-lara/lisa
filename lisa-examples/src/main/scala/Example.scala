@@ -47,19 +47,20 @@ object Example {
       show
       */
 
-      THEOREM("fixedPointDoubleApplicationSolution") of "" NPROOF {
+      THEOREM("fixedPointDoubleApplication") of "∀ ?x. ?P(?x) ⇒ ?P(?f(?x)) ⊢ ∀ ?x. ?P(?x) ⇒ ?P(?f(?f(?x)))" NPROOF {
         Nsteps(
-          have(Set(P(x), P(f(x)), P(f(f(x)))) |- P(f(f(x))))                                           by   Trivial,
-          have(Set(P(x), P(f(x))) |- Set(P(f(x)), P(f(f(x)))))                                         by   N.Hypothesis(),
-          have(Set(P(x), P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                               by   N.LeftImplies(1, 0, P(f(x)), P(f(f(x)))),
-          have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                             by   N.Hypothesis(),
-          have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   N.LeftImplies(3, 2, P(x), P(f(x))),
-          have(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )          by   N.LeftForall(4, P(x) ==> P(f(x)), x, x),
-          have(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))) )                                  by   N.LeftForall(5, P(x) ==> P(f(x)), x, f(x)),
-          have(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))))                                     by   N.RightImplies(6, P(x), P(f(f(x)))),
-          have(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))))                          by   N.RightForall(7, P(x) ==> P(f(f(x))), x)
+          have("?P(?x); ?P(?f(?x)); ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                             by   Trivial,
+          have("?P(?x); ?P(?f(?x)) ⊢ ?P(?f(?x)); ?P(?f(?f(?x)))")                                 by   Trivial,
+          have(Set(P(x), P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                               by   LeftImplies(P(f(x)), P(f(f(x))))(1, 0 ),
+          have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                             by   Hypothesis(),
+          have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   LeftImplies(P(x), P(f(x)))(3, 2),
+          have(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )          by   LeftForall(P(x) ==> P(f(x)), x, x)(4),
+          have(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                                   by   LeftForall(P(x) ==> P(f(x)), x, f(x))(5),
+          have(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))))                                     by   Trivial(6),
+          have(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))))                          by   RightForall(P(x) ==> P(f(f(x))), x) (7)
         )
       } using ()
+
       show
 
     }

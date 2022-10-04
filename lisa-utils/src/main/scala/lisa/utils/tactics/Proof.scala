@@ -3,6 +3,7 @@ package lisa.utils.tactics
 import lisa.kernel.proof.SequentCalculus.{SCProofStep, Sequent}
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.kernel.proof.SCProof
+import lisa.utils.tactics.ProofStepLib.ProofStep
 
 
 case class Proof(steps: IndexedSeq[ProofStep], imports: IndexedSeq[Sequent] = IndexedSeq.empty) {

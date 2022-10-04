@@ -2,15 +2,15 @@ package lisa.automation.kernel
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.{*, given}
+import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Printer.*
 
 /**
  * SCProof tactics are a set of strategies that help the user write proofs in a more expressive way
  * by focusing on the final goal rather on the individual steps.
  */
-object ProofTactics {
+object ProofTactics  {
 
   def hypothesis(f: Formula): SCProofStep = Hypothesis(emptySeq +< f +> f, f)
 
