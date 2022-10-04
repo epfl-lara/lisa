@@ -4,6 +4,7 @@ import lisa.utils.Printer
 
 import lisa.proven.tactics.Destructors.*
 import lisa.proven.tactics.ProofTactics.*
+import lisa.utils.Helpers.given_Conversion_VariableLabel_VariableTerm
 
 import lisa.kernel.proof.SCProof
 import org.scalatest.funsuite.AnyFunSuite
@@ -13,58 +14,10 @@ import scala.collection.immutable.NumericRange
 class Transformations extends ProofCheckerSuite {
     import lisa.proven.SetTheoryLibrary.*
 
-    trait Tree {
-        val head : Any
-        val children : Seq[Tree]
-    }
-
-    case class Leaf() extends Tree {
-        val children = Seq.empty
-        val head = Seq.empty
-    }
-
-    case class Node(h : Any, c: Array[Tree]) extends Tree {
-        val children = c.toSeq
-        val head = h
-    }
-
-    implicit def nullToLeaf(x: Seq[_]) : Leaf =Leaf()
-
-    extension (x: Any){
-        def -> (y: Array[Tree]): Tree = Node(x, y) 
-    }
-    val * = Seq.empty
-    implicit 
-    val test : Tree = * -> Array(*,* -> Array(*,*,*,*))
-
-
-    def dummyProof(depth : NumericRange[Long], nVars : NumericRange[Long], withImports : Boolean) : SCProof = {
-        val rand = new scala.util.Random
-        val trueDepth = rand.between(depth.start, depth.end)
-        
-
-        def leaf (ind : Seq[Int]) = {
-            val le = SchematicNPredicateLabel("phi_" + ind.mkString("_"), 0)()
-            Hypothesis(le |- le, le) }
-
-        def parent (children : Seq[SCProofStep]) = {
-            val cunjuncts = children.zipWithIndex.filter(_ => rand.nextBoolean())
-            val nCunjuncts = children.zipWithIndex.filterNot(_ => rand.nextBoolean())
-
-            if ( rand.nextBoolean()) {
-                RightAnd(children.flatMap(_.bot.left) |- (nCunjuncts.map(_._1.bot.right).flatten :+ ConnectorFormula(And, cunjuncts.flatMap(_._1.bot.right))), cunjuncts.map(_._2), cunjuncts.map(_._1.bot.right).flatten)
-            } else {
-                LeftOr((ConnectorFormula(Or, cunjuncts.flatMap(_._1.bot.left)) +: nCunjuncts.map(_._1.bot.left).flatten) |- (children.flatMap(_.bot.right)), cunjuncts.map(_._2), cunjuncts.map(_._1.bot.left).flatten)
-            }
-        }
-        
-        SCProof()
-    }
     
     test("Trasnsformation initialises well with empty proof and returns an empty proof") {
         val nullSCProof = SCProof()
         val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(nullSCProof)
-        (checkProof(dummyProof((5L to 6L), (1L to 2L), false)))
         assert(transf.transform() == nullSCProof)
         
     }
@@ -85,17 +38,79 @@ class Transformations extends ProofCheckerSuite {
         checkProof(noImpProof)
     }
 
-   test("A proof with an imports is to be modified") {
+   test("A proof with imports is to be modified") {
         val phi = SchematicNPredicateLabel("phi", 0)
 
-        val intro = Rewrite(() |- (phi()), -1)
-        val outro = Weakening(phi() |- (phi()), 0)
+        val intro = Rewrite(() |- phi(), -1)
+        val outro = Weakening(intro.bot.right|- intro.bot.right, 0)
         
         val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
         val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
-        info(Printer.prettySequent(transf.steps.head.bot))
-        assert(transf != noImpProof )
         
+        checkProof(transf)
+        assert(transf != noImpProof )
+        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
     }
 
+    test("A proof with imports and a step taking multiple premises should be modified accordingly") {
+        val phi = SchematicNPredicateLabel("phi", 0)()
+        val psi = SchematicNPredicateLabel("psi", 0)()
+
+        val into1 = Rewrite(() |- phi, -2)
+        val into2 = Rewrite(() |- psi, -1)
+        val merge = RightAnd(() |- ConnectorFormula(And,(into1.bot.right ++ into2.bot.right).toSeq), Seq(-2,0), (into1.bot.right ++ into2.bot.right).toSeq)
+
+        val noImpProof = SCProof(IndexedSeq(into2, merge), IndexedSeq(into2.bot, into1.bot))
+        val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
+        checkProof(transf)
+        assert(transf != noImpProof )
+        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(into1.bot)) |- into1.bot.right))
+    }
+
+    test("A proof with imports and a subproof should be modified accordingly") {
+        val phi = SchematicNPredicateLabel("phi", 0)()
+        val intro = Rewrite(() |- phi, -1)
+        val outro = SCSubproof(SCProof(IndexedSeq(Weakening(intro.bot.right|- intro.bot.right, -1)), IndexedSeq(intro.bot)), IndexedSeq(0))
+        val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
+        val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
+        
+        checkProof(transf)
+        assert(transf != noImpProof )
+        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
+
+    }
+
+    test("A proof with imports and a complete instantiation should be modified accordingly") {
+        val phi = SchematicNPredicateLabel("phi", 0)
+        val psi = SchematicNPredicateLabel("psi", 2)
+        val x = VariableLabel("x")
+        val y = VariableLabel("y")
+
+        val intro = Rewrite(() |- phi(), -1)
+        val outro = InstPredSchema(() |- psi(x, y), 0,  Map((phi , LambdaTermFormula(Seq(), psi(x, y)))))
+        val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
+        val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
+        checkProof(transf)
+        assert(transf != noImpProof )
+        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
+
+
+    }
+
+    test("A proof with imports and two partial instantiations should be modified accordingly") {
+        val phi = SchematicNPredicateLabel("phi", 0)
+        val psi = SchematicNPredicateLabel("psi", 2)
+        val x = VariableLabel("x")
+        val y = VariableLabel("y")
+
+        val intro = Rewrite(() |- phi(), -1)
+        val mid = InstPredSchema(() |- psi(x, y) <=> phi(), 0,  Map((phi , LambdaTermFormula(Seq(), psi(x, y) <=> phi()))))
+        val outro = InstPredSchema(() |- psi(x, y) <=> psi(x, y), 1,  Map((phi , LambdaTermFormula(Seq(), psi(x, y)))))
+        val noImpProof = SCProof(IndexedSeq(intro, mid, outro), IndexedSeq(intro.bot))
+        val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
+        info(Printer.prettySCProof(noImpProof))
+        checkProof(transf)
+        assert(transf != noImpProof )
+        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
+    }
 }
