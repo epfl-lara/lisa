@@ -153,6 +153,7 @@ object Parser {
     // TODO: add positions ==> ranges to tokens
     type Position = Unit
 
+    private val allowedIdentifierCharacters = elem(_.isLetter) | elem(_.isDigit) | oneOf("_\\@#$%^&*><:|_+-=")
     private val schematicSymbol = "'"
 
     private val lexer = Lexer(
@@ -174,11 +175,11 @@ object Parser {
       elem(';') |> SemicolonToken,
       elem('⊢') | word("|-") |> SequentToken,
       many1(whiteSpace) |> SpaceToken,
-      word(schematicSymbol) ~ many1(elem(_.isLetter) | elem('_') | elem(_.isDigit) | elem('\'')) |> { cs =>
+      word(schematicSymbol) ~ many1(allowedIdentifierCharacters) |> { cs =>
         // drop the '
         SchematicToken(cs.drop(1).mkString)
       },
-      many1(elem(_.isLetter) | elem('_') | elem(_.isDigit)) |> { cs => ConstantToken(cs.mkString) }
+      many1(allowedIdentifierCharacters) |> { cs => ConstantToken(cs.mkString) }
     ) onError { (cs, _) =>
       throw ParserException(s"Unexpected input: ${cs.mkString}")
     }
