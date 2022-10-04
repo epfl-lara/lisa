@@ -45,6 +45,9 @@ trait KernelHelpers {
 
   extension (label: BinderLabel) def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
 
+  val True: Formula = And()
+  val False: Formula = Or()
+
   /* Infix syntax */
 
   extension (f: Formula) {
