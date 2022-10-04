@@ -74,6 +74,7 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(Parser.parseFormula("a ∨ b") == ConnectorFormula(Or, Seq(a, b)))
     assert(Parser.parseFormula("a ⇒ b") == ConnectorFormula(Implies, Seq(a, b)))
     assert(Parser.parseFormula("a ↔ b") == ConnectorFormula(Iff, Seq(a, b)))
+    assert(Parser.parseFormula("a ⇔ b") == ConnectorFormula(Iff, Seq(a, b)))
   }
 
   test("ascii connectors") {
