@@ -197,9 +197,9 @@ object Parser {
           case (l, t) =>
             t match {
               // do not require spaces
-              case NegationToken | ConstantToken(_) | SchematicToken(_) | TrueToken | FalseToken | ParenthesisToken(_) | SpaceToken => l :+ t.toString
-              // space after: quantifiers and separators
-              case ForallToken | ExistsToken | ExistsOneToken | DotToken | CommaToken | SemicolonToken => l :+ t.toString :+ space
+              case ForallToken | ExistsToken | ExistsOneToken | NegationToken | ConstantToken(_) | SchematicToken(_) | TrueToken | FalseToken | ParenthesisToken(_) | SpaceToken => l :+ t.toString
+              // space after: separators
+              case DotToken | CommaToken | SemicolonToken => l :+ t.toString :+ space
               // space before and after: equality, connectors, sequent symbol
               case EqualityToken | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.toString :+ space
             }
