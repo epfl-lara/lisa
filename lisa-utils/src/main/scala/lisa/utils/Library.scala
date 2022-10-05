@@ -13,6 +13,7 @@ import scala.collection.mutable.Seq as mSeq
 abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithProofs {
   val library:Library = this
   given RunningTheory = theory
+  given Library = this
   export lisa.kernel.fol.FOL.*
   val SC: SequentCalculus.type =  lisa.kernel.proof.SequentCalculus
   export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
@@ -39,6 +40,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
    * Must contains [[SCProofStep]]'s
    */
   inline def steps(sts: SCProofStep*): IndexedSeq[SCProofStep] = sts.toIndexedSeq
+  inline def Nsteps(sts: ProofStep*): IndexedSeq[ProofStep] = sts.toIndexedSeq
 
   /**
    * A function intended for use to construct a proof:
