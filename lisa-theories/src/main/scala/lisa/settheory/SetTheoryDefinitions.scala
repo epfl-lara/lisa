@@ -42,7 +42,7 @@ private[settheory] trait SetTheoryDefinitions {
   /**
    * The symbol for the unordered pair function.
    */
-  final val pair = ConstantFunctionLabel("unordered_pair", 2)
+  final val unorderedPair = ConstantFunctionLabel("unordered_pair", 2)
 
   /**
    * The symbol for the powerset function.
@@ -62,7 +62,7 @@ private[settheory] trait SetTheoryDefinitions {
   /**
    * Set Theory basic functions.
    */
-  final val functions = Set(emptySet, pair, powerSet, union, universe)
+  final val functions = Set(emptySet, unorderedPair, powerSet, union, universe)
 
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
