@@ -42,10 +42,10 @@ object SetTheory extends lisa.Main {
             Seq(-1)
           )
           val pr2 = RightSubstIff(
-            Sequent(pr1.bot.right, Set(in(z, pair(x, y)) <=> in(z, pair(y, x)))),
+            Sequent(pr1.bot.right, Set(in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))),
             0,
-            List(((x === z) \/ (y === z), in(z, pair(y, x)))),
-            LambdaFormulaFormula(Seq(h), in(z, pair(x, y)) <=> h)
+            List(((x === z) \/ (y === z), in(z, unorderedPair(y, x)))),
+            LambdaFormulaFormula(Seq(h), in(z, unorderedPair(x, y)) <=> h)
           )
           val pr3 = Cut(Sequent(pr1.bot.left, pr2.bot.right), 1, 2, pr2.bot.left.head)
           val pr4 = RightForall(Sequent(Set(), Set(forall(z, pr2.bot.right.head))), 3, pr2.bot.right.head, z)
@@ -55,8 +55,8 @@ object SetTheory extends lisa.Main {
       )
       val pairExt = SCSubproof(
         {
-          val pairExt1 = instantiateForall(Proof(steps(), imports(ax"extensionalityAxiom")), ax"extensionalityAxiom", pair(x, y))
-          instantiateForall(pairExt1, pairExt1.conclusion.right.head, pair(y, x))
+          val pairExt1 = instantiateForall(Proof(steps(), imports(ax"extensionalityAxiom")), ax"extensionalityAxiom", unorderedPair(x, y))
+          instantiateForall(pairExt1, pairExt1.conclusion.right.head, unorderedPair(y, x))
         },
         Seq(-1)
       )
@@ -80,8 +80,8 @@ object SetTheory extends lisa.Main {
       val z = VariableLabel("z")
       val g = VariableLabel("g")
       val h = VariableFormulaLabel("h")
-      val pxy = pair(x, y)
-      val pxy1 = pair(x1, y1)
+      val pxy = unorderedPair(x, y)
+      val pxy1 = unorderedPair(x1, y1)
       val p0 = SCSubproof(
         {
           val p0 = SCSubproof(
