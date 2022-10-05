@@ -69,17 +69,6 @@ class RunningTheory {
   private[proof] val knownSymbols: mMap[String, ConstantLabel] = mMap(equality.id -> equality)
 
   /**
-   * Check if a label is a symbol of the theory
-   */
-
-  def isSymbol(label: ConstantLabel): Boolean = label match {
-    case c: ConstantFunctionLabel => funDefinitions.contains(c)
-    case c: ConstantPredicateLabel => predDefinitions.contains(c)
-  }
-
-  def isAvailable(label: ConstantLabel): Boolean = !knownSymbols.contains(label.id)
-
-  /**
    * From a given proof, if it is true in the Running theory, add that theorem to the theory and returns it.
    * The proof's imports must be justified by the list of justification, and the conclusion of the theorem
    * can't contain symbols that do not belong to the theory.
@@ -113,15 +102,14 @@ class RunningTheory {
    * and the formula can't contain symbols that are not in the theory.
    *
    * @param label The desired label.
-   * @param args  The variables representing the arguments of the predicate in the formula phi.
-   * @param phi   The formula defining the predicate.
+   * @param expression The functional formula defining the predicate.
    * @return A definition object if the parameters are correct,
    */
   def makePredicateDefinition(label: ConstantPredicateLabel, expression: LambdaTermFormula): RunningTheoryJudgement[this.PredicateDefinition] = {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label))
-        if (body.schematicTerms.subsetOf(vars.toSet) && body.schematicPredicates.isEmpty) {
+        if (body.freeSchematicTermLabels.subsetOf(vars.toSet) && body.schematicPredicateLabels.isEmpty) {
           val newDef = PredicateDefinition(label, expression)
           predDefinitions.update(label, Some(newDef))
           knownSymbols.update(label.id, label)
@@ -141,9 +129,8 @@ class RunningTheory {
    * @param proof          The proof of existence and uniqueness
    * @param justifications The justifications of the proof.
    * @param label          The desired label.
-   * @param args           The variables representing the arguments of the predicate in the formula phi.
+   * @param expression     The functional term defining the function symbol.
    * @param out            The variable representing the function's result in the formula
-   * @param phi            The formula defining the predicate.
    * @return A definition object if the parameters are correct,
    */
   def makeFunctionDefinition(
@@ -156,7 +143,7 @@ class RunningTheory {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label)) {
-        if (body.schematicTerms.subsetOf((vars appended out).toSet) && body.schematicPredicates.isEmpty)
+        if (body.freeSchematicTermLabels.subsetOf((vars appended out).toSet) && body.schematicPredicateLabels.isEmpty) {
           if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
             val r = SCProofChecker.checkSCProof(proof)
             r match {
@@ -175,7 +162,13 @@ class RunningTheory {
               case r @ SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
             }
           } else InvalidJustification("Not all imports of the proof are correctly justified.", None)
-        else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
+        } else {
+          println(body.schematicTermLabels.subsetOf((vars appended out).toSet))
+          println(body.schematicTermLabels)
+          println((vars appended out).toSet)
+          println(body.schematicPredicateLabels.isEmpty)
+          InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
+        }
       } else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
     else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
   }
@@ -184,7 +177,7 @@ class RunningTheory {
     case Theorem(name, proposition) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
     case PredicateDefinition(label, LambdaTermFormula(vars, body)) =>
-      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(VariableTerm)), body))
+      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(VariableTerm.apply)), body))
       Sequent(Set(), Set(inner))
     case FunctionDefinition(label, out, LambdaTermFormula(vars, body)) =>
       val inner = BinderFormula(
@@ -193,7 +186,7 @@ class RunningTheory {
         ConnectorFormula(
           Iff,
           Seq(
-            PredicateFormula(equality, Seq(FunctionTerm(label, vars.map(VariableTerm)), VariableTerm(out))),
+            PredicateFormula(equality, Seq(Term(label, vars.map(VariableTerm.apply)), VariableTerm(out))),
             body
           )
         )
@@ -203,59 +196,8 @@ class RunningTheory {
   }
 
   /**
-   * Verify if a given formula belongs to some language
-   *
-   * @param phi The formula to check
-   * @return Weather phi belongs to the specified language
-   */
-  def belongsToTheory(phi: Formula): Boolean = phi match {
-    case PredicateFormula(label, args) =>
-      label match {
-        case l: ConstantPredicateLabel => isSymbol(l) && args.forall(belongsToTheory)
-        case _: SchematicPredicateLabel => args.forall(belongsToTheory)
-      }
-    case ConnectorFormula(label, args) => args.forall(belongsToTheory)
-    case BinderFormula(label, bound, inner) => belongsToTheory(inner)
-  }
-
-  def makeFormulaBelongToTheory(phi: Formula): Unit = {
-    phi.constantPredicates.foreach(addSymbol)
-    phi.constantFunctions.foreach(addSymbol)
-  }
-
-  /**
-   * Verify if a given term belongs to some language
-   *
-   * @param t The term to check
-   * @return Weather t belongs to the specified language
-   */
-  def belongsToTheory(t: Term): Boolean = t match {
-    case VariableTerm(label) => true
-    case FunctionTerm(label, args) =>
-      label match {
-        case l: ConstantFunctionLabel => isSymbol(l) && args.forall(belongsToTheory(_))
-        case _: SchematicFunctionLabel => args.forall(belongsToTheory(_))
-      }
-
-  }
-
-  /**
-   * Verify if a given sequent belongs to some language
-   *
-   * @param s The sequent to check
-   * @return Weather s belongs to the specified language
-   */
-  def belongsToTheory(s: Sequent): Boolean =
-    s.left.forall(belongsToTheory(_)) && s.right.forall(belongsToTheory(_))
-
-  def makeSequentBelongToTheory(s: Sequent): Unit = {
-    s.left.foreach(makeFormulaBelongToTheory)
-    s.right.foreach(makeFormulaBelongToTheory)
-  }
-
-  /**
    * Add a new axiom to the Theory. For example, if the theory contains the language and theorems
-   * of Zermelo-Fraenkel Set Theory, this function can add the axiom of choice to it.
+   * of Zermelo-Fraenkel Set Theory, this function may add the axiom of choice to it.
    * If the axiom belongs to the language of the theory, adds it and return true. Else, returns false.
    *
    * @param f the new axiom to be added.
@@ -272,7 +214,7 @@ class RunningTheory {
    * Add a new symbol to the theory, without providing a definition. An ad-hoc definition can be
    * added via an axiom, typically if the desired object is not derivable in the base theory itself.
    * For example, This function can add the empty set symbol to a theory, and then an axiom asserting
-   * the it is empty can be introduced as well.
+   * that it is empty can be introduced as well.
    */
 
   def addSymbol(s: ConstantLabel): Unit = {
@@ -286,38 +228,122 @@ class RunningTheory {
   }
 
   /**
+   * Add all constant symbols in the sequent. Note that this can't be reversed and will prevent from giving them a definition later.
+   */
+  def makeFormulaBelongToTheory(phi: Formula): Unit = {
+    phi.constantPredicateLabels.foreach(addSymbol)
+    phi.constantTermLabels.foreach(addSymbol)
+  }
+
+  /**
+   * Add all constant symbols in the sequent. Note that this can't be reversed and will prevent from giving them a definition later.
+   */
+  def makeSequentBelongToTheory(s: Sequent): Unit = {
+    s.left.foreach(makeFormulaBelongToTheory)
+    s.right.foreach(makeFormulaBelongToTheory)
+  }
+
+  /**
+   * Verify if a given formula belongs to some language
+   *
+   * @param phi The formula to check
+   * @return Weather phi belongs to the specified language
+   */
+  def belongsToTheory(phi: Formula): Boolean = phi match {
+    case PredicateFormula(label, args) =>
+      label match {
+        case l: ConstantPredicateLabel => isSymbol(l) && args.forall(belongsToTheory)
+        case _ => args.forall(belongsToTheory)
+      }
+    case ConnectorFormula(label, args) => args.forall(belongsToTheory)
+    case BinderFormula(label, bound, inner) => belongsToTheory(inner)
+  }
+
+  /**
+   * Verify if a given term belongs to the language of the theory.
+   *
+   * @param t The term to check
+   * @return Weather t belongs to the specified language.
+   */
+  def belongsToTheory(t: Term): Boolean = t match {
+    case Term(label, args) =>
+      label match {
+        case l: ConstantFunctionLabel => isSymbol(l) && args.forall(belongsToTheory)
+        case _: SchematicTermLabel => args.forall(belongsToTheory)
+      }
+
+  }
+
+  /**
+   * Verify if a given sequent belongs to the language of the theory.
+   *
+   * @param s The sequent to check
+   * @return Weather s belongs to the specified language
+   */
+  def belongsToTheory(s: Sequent): Boolean =
+    s.left.forall(belongsToTheory) && s.right.forall(belongsToTheory)
+
+  /**
    * Public accessor to the set of symbol currently in the theory's language.
    *
    * @return the set of symbol currently in the theory's language.
    */
+  def language(): List[(ConstantLabel, Option[Definition])] = funDefinitions.toList ++ predDefinitions.toList
 
-  def language: List[(ConstantLabel, Option[Definition])] = funDefinitions.toList ++ predDefinitions.toList
+  /**
+   * Check if a label is a symbol of the theory.
+   */
+  def isSymbol(label: ConstantLabel): Boolean = label match {
+    case c: ConstantFunctionLabel => funDefinitions.contains(c)
+    case c: ConstantPredicateLabel => predDefinitions.contains(c)
+  }
+
+  /**
+   * Check if a label is not already used in the theory.
+   * @return
+   */
+  def isAvailable(label: ConstantLabel): Boolean = !knownSymbols.contains(label.id)
 
   /**
    * Public accessor to the current set of axioms of the theory
    *
    * @return the current set of axioms of the theory
    */
-  def axiomsList: Iterable[Axiom] = theoryAxioms.values
+  def axiomsList(): Iterable[Axiom] = theoryAxioms.values
 
   /**
    * Verify if a given formula is an axiom of the theory
-   *
-   * @param f the candidate axiom
-   * @return wether f is an axiom of the theory
    */
   def isAxiom(f: Formula): Boolean = theoryAxioms.exists(a => isSame(a._2.ax, f))
 
+  /**
+   * Get the Axiom that is the same as the given formula, if it exists in the theory.
+   */
   def getAxiom(f: Formula): Option[Axiom] = theoryAxioms.find(a => isSame(a._2.ax, f)).map(_._2)
 
+  /**
+   * Get the definition of the given label, if it is defined in the theory.
+   */
   def getDefinition(label: ConstantPredicateLabel): Option[PredicateDefinition] = predDefinitions.get(label).flatten
 
+  /**
+   * Get the definition of the given label, if it is defined in the theory.
+   */
   def getDefinition(label: ConstantFunctionLabel): Option[FunctionDefinition] = funDefinitions.get(label).flatten
 
+  /**
+   * Get the Axiom with the given name, if it exists in the theory.
+   */
   def getAxiom(name: String): Option[Axiom] = theoryAxioms.get(name)
 
+  /**
+   * Get the Theorem with the given name, if it exists in the theory.
+   */
   def getTheorem(name: String): Option[Theorem] = theorems.get(name)
 
+  /**
+   * Get the definition for the given identifier, if it is defined in the theory.
+   */
   def getDefinition(name: String): Option[Definition] = knownSymbols.get(name).flatMap {
     case f: ConstantPredicateLabel => getDefinition(f)
     case f: ConstantFunctionLabel => getDefinition(f)

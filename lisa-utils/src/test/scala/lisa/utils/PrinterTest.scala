@@ -40,7 +40,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("constant") {
-    assert(Parser.printTerm(FunctionTerm(cx, Seq())) == "x")
+    assert(Parser.printTerm(Term(cx, Seq())) == "x")
   }
 
   test("variable") {
@@ -48,27 +48,27 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("constant function application") {
-    assert(Parser.printTerm(FunctionTerm(f1, Seq(cx))) == "f(x)")
-    assert(Parser.printTerm(FunctionTerm(f2, Seq(cx, cy))) == "f(x, y)")
-    assert(Parser.printTerm(FunctionTerm(f3, Seq(cx, cy, cz))) == "f(x, y, z)")
+    assert(Parser.printTerm(Term(f1, Seq(cx))) == "f(x)")
+    assert(Parser.printTerm(Term(f2, Seq(cx, cy))) == "f(x, y)")
+    assert(Parser.printTerm(Term(f3, Seq(cx, cy, cz))) == "f(x, y, z)")
 
-    assert(Parser.printTerm(FunctionTerm(f1, Seq(x))) == "f(?x)")
-    assert(Parser.printTerm(FunctionTerm(f2, Seq(x, y))) == "f(?x, ?y)")
-    assert(Parser.printTerm(FunctionTerm(f3, Seq(x, y, z))) == "f(?x, ?y, ?z)")
+    assert(Parser.printTerm(Term(f1, Seq(x))) == "f(?x)")
+    assert(Parser.printTerm(Term(f2, Seq(x, y))) == "f(?x, ?y)")
+    assert(Parser.printTerm(Term(f3, Seq(x, y, z))) == "f(?x, ?y, ?z)")
   }
 
   test("schematic function application") {
-    assert(Parser.printTerm(FunctionTerm(sf1, Seq(cx))) == "?f(x)")
-    assert(Parser.printTerm(FunctionTerm(sf2, Seq(cx, cy))) == "?f(x, y)")
-    assert(Parser.printTerm(FunctionTerm(sf3, Seq(cx, cy, cz))) == "?f(x, y, z)")
+    assert(Parser.printTerm(Term(sf1, Seq(cx))) == "?f(x)")
+    assert(Parser.printTerm(Term(sf2, Seq(cx, cy))) == "?f(x, y)")
+    assert(Parser.printTerm(Term(sf3, Seq(cx, cy, cz))) == "?f(x, y, z)")
 
-    assert(Parser.printTerm(FunctionTerm(sf1, Seq(x))) == "?f(?x)")
-    assert(Parser.printTerm(FunctionTerm(sf2, Seq(x, y))) == "?f(?x, ?y)")
-    assert(Parser.printTerm(FunctionTerm(sf3, Seq(x, y, z))) == "?f(?x, ?y, ?z)")
+    assert(Parser.printTerm(Term(sf1, Seq(x))) == "?f(?x)")
+    assert(Parser.printTerm(Term(sf2, Seq(x, y))) == "?f(?x, ?y)")
+    assert(Parser.printTerm(Term(sf3, Seq(x, y, z))) == "?f(?x, ?y, ?z)")
   }
 
   test("nested function application") {
-    assert(Parser.printTerm(FunctionTerm(sf2, Seq(FunctionTerm(sf1, Seq(x)), y))) == "?f(?f(?x), ?y)")
+    assert(Parser.printTerm(Term(sf2, Seq(Term(sf1, Seq(x)), y))) == "?f(?f(?x), ?y)")
   }
 
   test("0-ary predicate") {

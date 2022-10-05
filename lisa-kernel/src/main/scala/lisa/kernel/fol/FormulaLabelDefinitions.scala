@@ -7,35 +7,24 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
 
   /**
    * The parent class of formula labels.
-   * It similar as with terms; they denote the Predicates and logical connector themselves, and not the terms they help forming.
-   * They label the nodes of a tree that defines a formula.
+   * These are labels that can be applied to nodes that form the tree of a formula.
+   * In logical terms, those labels are FOL symbols or predicate symbols, including equality.
    */
-  sealed abstract class FormulaLabel extends Label with Ordered[FormulaLabel] {
-    def priority: Int = this match {
-      case _: ConstantPredicateLabel => 1
-      case _: SchematicPredicateLabel => 2
-      case _: ConnectorLabel => 3
-      case _: BinderLabel => 4
-    }
-
-    /**
-     * Compare two formula labels by type, then by arity, then by id.
-     */
-    def compare(that: FormulaLabel): Int = (this, that) match {
-      case (thi: ConstantPredicateLabel, tha: ConstantPredicateLabel) => (2 * (thi.arity compare tha.arity) + (thi.id compare tha.id)).sign
-      case (thi: SchematicPredicateLabel, tha: SchematicPredicateLabel) => (2 * (thi.arity compare tha.arity) + (thi.id compare tha.id)).sign
-      case (thi: ConnectorLabel, tha: ConnectorLabel) => thi.id compare tha.id
-      case (thi: BinderLabel, tha: BinderLabel) => thi.id compare tha.id
-      case _ => this.priority - that.priority
-    }
-  }
+  sealed abstract class FormulaLabel extends Label
 
   /**
    * The label for a predicate, namely a function taking a fixed number of terms and returning a formula.
    * In logical terms it is a predicate symbol.
    */
-  sealed abstract class PredicateLabel extends FormulaLabel {
+  sealed trait PredicateLabel extends FormulaLabel {
     require(arity < MaxArity && arity >= 0)
+  }
+
+  /**
+   * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
+   */
+  sealed trait ConnectorLabel extends FormulaLabel {
+    require(arity < MaxArity && arity >= -1)
   }
 
   /**
@@ -45,42 +34,53 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
 
   /**
    * The equality symbol (=) for first order logic.
+   * It is represented as any other predicate symbol but has unique semantic and deduction rules.
    */
   val equality: ConstantPredicateLabel = ConstantPredicateLabel("=", 2)
-
-  /**
-   * A predicate symbol that can be instantiated with any formula.
-   */
-  sealed abstract class SchematicPredicateLabel extends PredicateLabel with SchematicLabel
-
-  /**
-   * A predicate symbol of non-zero arity that can be instantiated with any formula taking arguments.
-   */
-  sealed case class SchematicNPredicateLabel(id: String, arity: Int) extends SchematicPredicateLabel
-
-  /**
-   * A predicate symbol of arity 0 that can be instantiated with any formula.
-   */
-  sealed case class VariableFormulaLabel(id: String) extends SchematicPredicateLabel {
-    val arity = 0
-  }
+  val top: ConstantPredicateLabel = ConstantPredicateLabel("⊤", 0)
+  val bot: ConstantPredicateLabel = ConstantPredicateLabel("⊥", 0)
 
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
    */
-  sealed abstract class ConnectorLabel(val id: String, val arity: Int) extends FormulaLabel {
-    require(arity < MaxArity && arity >= -1)
+  sealed abstract class ConstantConnectorLabel(val id: String, val arity: Int) extends ConnectorLabel with ConstantLabel
+  case object Neg extends ConstantConnectorLabel("¬", 1)
+
+  case object Implies extends ConstantConnectorLabel("⇒", 2)
+
+  case object Iff extends ConstantConnectorLabel("⇔", 2)
+
+  case object And extends ConstantConnectorLabel("∧", -1)
+
+  case object Or extends ConstantConnectorLabel("∨", -1)
+
+  /**
+   * A schematic symbol that can be instantiated with some formula.
+   * We distinguish arity-0 schematic formula labels, arity->1 schematic predicates and arity->1 schematic connectors.
+   */
+  sealed trait SchematicFormulaLabel extends FormulaLabel with SchematicLabel
+
+  /**
+   * A schematic symbol whose arguments are any number of Terms. This means the symbol is either a variable formula or a predicate schema
+   */
+  sealed trait SchematicVarOrPredLabel extends SchematicFormulaLabel with PredicateLabel
+
+  /**
+   * A predicate symbol of arity 0 that can be instantiated with any formula.
+   */
+  sealed case class VariableFormulaLabel(id: String) extends SchematicVarOrPredLabel {
+    val arity = 0
   }
 
-  case object Neg extends ConnectorLabel("¬", 1)
+  /**
+   * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking term arguments.
+   */
+  sealed case class SchematicPredicateLabel(id: String, arity: Int) extends SchematicVarOrPredLabel
 
-  case object Implies extends ConnectorLabel("⇒", 2)
-
-  case object Iff extends ConnectorLabel("⇔", 2)
-
-  case object And extends ConnectorLabel("∧", -1)
-
-  case object Or extends ConnectorLabel("∨", -1)
+  /**
+   * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking formula arguments.
+   */
+  sealed case class SchematicConnectorLabel(id: String, arity: Int) extends SchematicFormulaLabel with ConnectorLabel
 
   /**
    * The label for a binder, namely an object with a body that has the ability to bind variables in it.
@@ -89,12 +89,24 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
     val arity = 1
   }
 
+  /**
+   * The symbol of the universal quantifier ∀
+   */
   case object Forall extends BinderLabel(id = "∀")
 
+  /**
+   * The symbol of the existential quantifier ∃
+   */
   case object Exists extends BinderLabel(id = "∃")
 
+  /**
+   * The symbol of the quantifier for existence and unicity ∃!
+   */
   case object ExistsOne extends BinderLabel(id = "∃!")
 
-  def isSame(l: FormulaLabel, r: FormulaLabel): Boolean = (l compare r) == 0
+  /**
+   * A function returning true if and only if the two symbols are considered "the same", i.e. same category, same arity and same id.
+   */
+  def isSame(l: FormulaLabel, r: FormulaLabel): Boolean = l == r
 
 }

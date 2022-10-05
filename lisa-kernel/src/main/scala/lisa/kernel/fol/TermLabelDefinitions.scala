@@ -9,58 +9,38 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * The parent class of term labels.
    * These are labels that can be applied to nodes that form the tree of a term.
    * For example, Powerset is not a term itself, it's a label for a node with a single child in a tree corresponding to a term.
-   * In logical terms, those labels are essentially symbols of sme language.
+   * In logical terms, those labels are essentially symbols of some language.
    */
-  sealed abstract class TermLabel extends Label with Ordered[TermLabel] {
-    def priority: Int = this match {
-      case _: VariableLabel => 1
-      case _: ConstantFunctionLabel => 2
-      case _: SchematicFunctionLabel => 3
-    }
-
-    /**
-     * Sorts labels according to first whether the term is a variable or function, then according to arity, then to the id.
-     */
-    def compare(that: TermLabel): Int = (this, that) match {
-      case (thi: VariableLabel, tha: VariableLabel) => thi.id compare tha.id
-      case (thi: ConstantFunctionLabel, tha: ConstantFunctionLabel) => (2 * (thi.arity compare tha.arity) + (thi.id compare tha.id)).sign
-      case (thi: SchematicFunctionLabel, tha: SchematicFunctionLabel) => (2 * (thi.arity compare tha.arity) + (thi.id compare tha.id)).sign
-      case _ => this.priority - that.priority
-    }
-  }
-
-  /**
-   * The label of a function-like term. Constants are functions of arity 0.
-   * There are two kinds of function symbols: Standards and schematic.
-   * Standard function symbols denote a particular function. Schematic function symbols
-   * can be instantiated with any term. This is particularly useful to express axiom schemas.
-   */
-  sealed abstract class FunctionLabel extends TermLabel {
+  sealed abstract class TermLabel extends Label {
     require(arity >= 0 && arity < MaxArity)
   }
 
   /**
-   * A function symbol.
+   * A fixed function symbol. If arity is 0, it is just a regular constant symbol.
    *
    * @param id    The name of the function symbol.
    * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
    */
-  sealed case class ConstantFunctionLabel(id: String, arity: Int) extends FunctionLabel with ConstantLabel
+  sealed case class ConstantFunctionLabel(id: String, arity: Int) extends TermLabel with ConstantLabel
 
-  sealed trait SchematicTermLabel extends TermLabel {}
+  /**
+   * A schematic symbol which is uninterpreted and can be substituted by functional term of the same arity.
+   * We distinguish arity 0 schematic term labels which we call variables and can be bound, and arity>1 schematic symbols.
+   */
+  sealed trait SchematicTermLabel extends TermLabel with SchematicLabel {}
 
   /**
    * A schematic function symbol that can be substituted.
    *
    * @param id    The name of the function symbol.
-   * @param arity The arity of the function symbol. A function symbol of arity 0 is a constant
+   * @param arity The arity of the function symbol. Must be greater than 1.
    */
-  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends FunctionLabel with SchematicTermLabel {
+  sealed case class SchematicFunctionLabel(id: String, arity: Int) extends SchematicTermLabel {
     require(arity >= 1 && arity < MaxArity)
   }
 
   /**
-   * The label of a term which is a variable.
+   * The label of a term which is a variable. Can be bound in a formulas, or substituted for an arbitrary term.
    *
    * @param id The name of the variable, for example "x" or "y".
    */
@@ -70,7 +50,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
   }
 
   /**
-   * A function returning true if and only if the two symbols are considered "the same".
+   * A function returning true if and only if the two symbols are considered "the same", i.e. same category, same arity and same id.
    */
-  def isSame(l: TermLabel, r: TermLabel): Boolean = (l compare r) == 0
+  def isSame(l: TermLabel, r: TermLabel): Boolean = l == r
 }

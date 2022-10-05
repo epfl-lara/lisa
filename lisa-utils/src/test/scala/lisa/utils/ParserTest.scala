@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ParserTest extends AnyFunSuite with TestUtils {
   test("constant") {
-    assert(Parser.parseTerm("x") == FunctionTerm(cx, Seq()))
+    assert(Parser.parseTerm("x") == Term(cx, Seq()))
   }
 
   test("variable") {
@@ -15,29 +15,29 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("constant function application") {
-    assert(Parser.parseTerm("f()") == FunctionTerm(f0, Seq()))
-    assert(Parser.parseTerm("f(x)") == FunctionTerm(f1, Seq(cx)))
-    assert(Parser.parseTerm("f(x, y)") == FunctionTerm(f2, Seq(cx, cy)))
-    assert(Parser.parseTerm("f(x, y, z)") == FunctionTerm(f3, Seq(cx, cy, cz)))
+    assert(Parser.parseTerm("f()") == Term(f0, Seq()))
+    assert(Parser.parseTerm("f(x)") == Term(f1, Seq(cx)))
+    assert(Parser.parseTerm("f(x, y)") == Term(f2, Seq(cx, cy)))
+    assert(Parser.parseTerm("f(x, y, z)") == Term(f3, Seq(cx, cy, cz)))
 
-    assert(Parser.parseTerm("f(?x)") == FunctionTerm(f1, Seq(x)))
-    assert(Parser.parseTerm("f(?x, ?y)") == FunctionTerm(f2, Seq(x, y)))
-    assert(Parser.parseTerm("f(?x, ?y, ?z)") == FunctionTerm(f3, Seq(x, y, z)))
+    assert(Parser.parseTerm("f(?x)") == Term(f1, Seq(x)))
+    assert(Parser.parseTerm("f(?x, ?y)") == Term(f2, Seq(x, y)))
+    assert(Parser.parseTerm("f(?x, ?y, ?z)") == Term(f3, Seq(x, y, z)))
   }
 
   test("schematic function application") {
     // Parser.parseTerm("?f()") -- schematic functions of 0 arguments do not exist, those are variables
-    assert(Parser.parseTerm("?f(x)") == FunctionTerm(sf1, Seq(cx)))
-    assert(Parser.parseTerm("?f(x, y)") == FunctionTerm(sf2, Seq(cx, cy)))
-    assert(Parser.parseTerm("?f(x, y, z)") == FunctionTerm(sf3, Seq(cx, cy, cz)))
+    assert(Parser.parseTerm("?f(x)") == Term(sf1, Seq(cx)))
+    assert(Parser.parseTerm("?f(x, y)") == Term(sf2, Seq(cx, cy)))
+    assert(Parser.parseTerm("?f(x, y, z)") == Term(sf3, Seq(cx, cy, cz)))
 
-    assert(Parser.parseTerm("?f(?x)") == FunctionTerm(sf1, Seq(x)))
-    assert(Parser.parseTerm("?f(?x, ?y)") == FunctionTerm(sf2, Seq(x, y)))
-    assert(Parser.parseTerm("?f(?x, ?y, ?z)") == FunctionTerm(sf3, Seq(x, y, z)))
+    assert(Parser.parseTerm("?f(?x)") == Term(sf1, Seq(x)))
+    assert(Parser.parseTerm("?f(?x, ?y)") == Term(sf2, Seq(x, y)))
+    assert(Parser.parseTerm("?f(?x, ?y, ?z)") == Term(sf3, Seq(x, y, z)))
   }
 
   test("nested function application") {
-    assert(Parser.parseTerm("?f(?f(?x), ?y)") == FunctionTerm(sf2, Seq(FunctionTerm(sf1, Seq(x)), y)))
+    assert(Parser.parseTerm("?f(?f(?x), ?y)") == Term(sf2, Seq(Term(sf1, Seq(x)), y)))
   }
 
   test("0-ary predicate") {

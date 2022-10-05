@@ -5,7 +5,7 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
-import lisa.kernel.proof.SequentCalculus._
+import lisa.kernel.proof.SequentCalculus.*
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -26,6 +26,8 @@ trait KernelHelpers {
   /* Prefix syntax */
 
   def neg(f: Formula): Formula = ConnectorFormula(Neg, Seq(f))
+  def and(list: Formula*): Formula = ConnectorFormula(And, list)
+  def or(list: Formula*): Formula = ConnectorFormula(Or, list)
   def and(l: Formula, r: Formula): Formula = ConnectorFormula(And, Seq(l, r))
   def or(l: Formula, r: Formula): Formula = ConnectorFormula(Or, Seq(l, r))
   def implies(l: Formula, r: Formula): Formula = ConnectorFormula(Implies, Seq(l, r))
@@ -39,7 +41,7 @@ trait KernelHelpers {
 
   extension (label: ConnectorLabel) def apply(args: Formula*): Formula = ConnectorFormula(label, args)
 
-  extension (label: FunctionLabel) def apply(args: Term*): Term = FunctionTerm(label, args)
+  extension (label: TermLabel) def apply(args: Term*): Term = Term(label, args)
 
   extension (label: BinderLabel) def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
 
@@ -88,13 +90,11 @@ trait KernelHelpers {
 
   /* Conversions */
 
-  given Conversion[VariableLabel, VariableTerm] = VariableTerm.apply
-  given Conversion[VariableTerm, VariableLabel] = _.label
+  given Conversion[VariableLabel, Term] = Term(_, Seq())
+  given Conversion[Term, TermLabel] = _.label
   given Conversion[PredicateFormula, PredicateLabel] = _.label
   given Conversion[PredicateLabel, Formula] = _.apply()
-  given Conversion[FunctionTerm, FunctionLabel] = _.label
-  given Conversion[SchematicFunctionLabel, Term] = _.apply()
-  given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula.apply(_, Nil)
+  given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula(_, Nil)
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
   given Conversion[Formula, Sequent] = () |- _
 
@@ -148,7 +148,7 @@ trait KernelHelpers {
 
   extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
 
-  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicPredicateLabel, LambdaTermFormula]): Sequent = {
+  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
   def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {
@@ -156,6 +156,11 @@ trait KernelHelpers {
   }
 
   extension (sp: SCSubproof) {
+
+    /**
+     * Explore a proof with a specific path and returns the pointed proofstep.
+     * @param path A path through subproofs of a proof.
+     */
     def followPath(path: Seq[Int]): SCProofStep = path match {
       case Nil => sp
       case n :: Nil => sp.sp(n)

@@ -13,22 +13,60 @@ private[settheory] trait SetTheoryDefinitions {
   def axioms: Set[(String, Formula)] = Set.empty
 
   // Predicates
+  /**
+   * The symbol for the set membership predicate.
+   */
   final val in = ConstantPredicateLabel("set_membership", 2)
+
+  /**
+   * The symbol for the subset predicate.
+   */
   final val subset = ConstantPredicateLabel("subset_of", 2)
+
+  /**
+   * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
+   */
   final val sim = ConstantPredicateLabel("same_cardinality", 2) // Equicardinality
+  /**
+   * Set Theory basic predicates
+   */
   final val predicates = Set(in, subset, sim)
-  // val application
-  // val pick
+  // val choice
 
   // Functions
+  /**
+   * The symbol for the empty set constant.
+   */
   final val emptySet = ConstantFunctionLabel("empty_set", 0)
-  final val pair = ConstantFunctionLabel("unordered_pair", 2)
-  final val singleton = ConstantFunctionLabel("singleton", 1)
-  final val powerSet = ConstantFunctionLabel("power_set", 1)
-  final val union = ConstantFunctionLabel("union", 1)
-  final val universe = ConstantFunctionLabel("universe", 1)
-  final val functions = Set(emptySet, pair, singleton, powerSet, union, universe)
 
+  /**
+   * The symbol for the unordered pair function.
+   */
+  final val pair = ConstantFunctionLabel("unordered_pair", 2)
+
+  /**
+   * The symbol for the powerset function.
+   */
+  final val powerSet = ConstantFunctionLabel("power_set", 1)
+
+  /**
+   * The symbol for the set union function.
+   */
+  final val union = ConstantFunctionLabel("union", 1)
+
+  /**
+   * The symbol for the universe function. Defined in TG set theory.
+   */
+  final val universe = ConstantFunctionLabel("universe", 1)
+
+  /**
+   * Set Theory basic functions.
+   */
+  final val functions = Set(emptySet, pair, powerSet, union, universe)
+
+  /**
+   * The kernel theory loaded with Set Theory symbols and axioms.
+   */
   val runningSetTheory: RunningTheory = new RunningTheory()
   // given RunningTheory = runningSetTheory
 

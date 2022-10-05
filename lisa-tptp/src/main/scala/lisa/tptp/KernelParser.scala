@@ -74,7 +74,7 @@ object KernelParser {
    * @return the same term in LISA
    */
   def convertTermToKernel(term: CNF.Term): K.Term = term match {
-    case CNF.AtomicTerm(f, args) => K.FunctionTerm(K.ConstantFunctionLabel(f, args.size), args map convertTermToKernel)
+    case CNF.AtomicTerm(f, args) => K.Term(K.ConstantFunctionLabel(f, args.size), args map convertTermToKernel)
     case CNF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
     case CNF.DistinctObject(name) => ???
   }
@@ -85,7 +85,7 @@ object KernelParser {
    */
   def convertTermToKernel(term: FOF.Term): K.Term = term match {
     case FOF.AtomicTerm(f, args) =>
-      K.FunctionTerm(K.ConstantFunctionLabel(f, args.size), args map convertTermToKernel)
+      K.Term(K.ConstantFunctionLabel(f, args.size), args map convertTermToKernel)
     case FOF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
     case FOF.DistinctObject(name) => ???
     case FOF.NumberTerm(value) => ???
