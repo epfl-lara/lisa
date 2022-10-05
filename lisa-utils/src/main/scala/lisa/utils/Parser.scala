@@ -137,7 +137,7 @@ object Parser {
     case class ConstantToken(id: String) extends FormulaToken(id)
 
     // Variables, schematic functions and predicates
-    case class SchematicToken(id: String) extends FormulaToken("?" + id)
+    case class SchematicToken(id: String) extends FormulaToken(schematicSymbol + id)
 
     case class ParenthesisToken(isOpen: Boolean) extends FormulaToken(if (isOpen) "(" else ")")
 
@@ -152,6 +152,8 @@ object Parser {
     type Token = FormulaToken
     // TODO: add positions ==> ranges to tokens
     type Position = Unit
+
+    private val schematicSymbol = "'"
 
     private val lexer = Lexer(
       elem('∀') |> { _ => ForallToken },
@@ -172,8 +174,8 @@ object Parser {
       elem(';') |> SemicolonToken,
       elem('⊢') | word("|-") |> SequentToken,
       many1(whiteSpace) |> SpaceToken,
-      elem('?') ~ many1(elem(_.isLetter) | elem('_') | elem(_.isDigit) | elem('\'')) |> { cs =>
-        // drop the '?'
+      word(schematicSymbol) ~ many1(elem(_.isLetter) | elem('_') | elem(_.isDigit) | elem('\'')) |> { cs =>
+        // drop the '
         SchematicToken(cs.drop(1).mkString)
       },
       many1(elem(_.isLetter) | elem('_') | elem(_.isDigit)) |> { cs => ConstantToken(cs.mkString) }

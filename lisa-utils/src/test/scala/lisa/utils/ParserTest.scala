@@ -11,7 +11,7 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("variable") {
-    assert(Parser.parseTerm("?x") == VariableTerm(x))
+    assert(Parser.parseTerm("'x") == VariableTerm(x))
   }
 
   test("constant function application") {
@@ -20,24 +20,24 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(Parser.parseTerm("f(x, y)") == Term(f2, Seq(cx, cy)))
     assert(Parser.parseTerm("f(x, y, z)") == Term(f3, Seq(cx, cy, cz)))
 
-    assert(Parser.parseTerm("f(?x)") == Term(f1, Seq(x)))
-    assert(Parser.parseTerm("f(?x, ?y)") == Term(f2, Seq(x, y)))
-    assert(Parser.parseTerm("f(?x, ?y, ?z)") == Term(f3, Seq(x, y, z)))
+    assert(Parser.parseTerm("f('x)") == Term(f1, Seq(x)))
+    assert(Parser.parseTerm("f('x, 'y)") == Term(f2, Seq(x, y)))
+    assert(Parser.parseTerm("f('x, 'y, 'z)") == Term(f3, Seq(x, y, z)))
   }
 
   test("schematic function application") {
     // Parser.parseTerm("?f()") -- schematic functions of 0 arguments do not exist, those are variables
-    assert(Parser.parseTerm("?f(x)") == Term(sf1, Seq(cx)))
-    assert(Parser.parseTerm("?f(x, y)") == Term(sf2, Seq(cx, cy)))
-    assert(Parser.parseTerm("?f(x, y, z)") == Term(sf3, Seq(cx, cy, cz)))
+    assert(Parser.parseTerm("'f(x)") == Term(sf1, Seq(cx)))
+    assert(Parser.parseTerm("'f(x, y)") == Term(sf2, Seq(cx, cy)))
+    assert(Parser.parseTerm("'f(x, y, z)") == Term(sf3, Seq(cx, cy, cz)))
 
-    assert(Parser.parseTerm("?f(?x)") == Term(sf1, Seq(x)))
-    assert(Parser.parseTerm("?f(?x, ?y)") == Term(sf2, Seq(x, y)))
-    assert(Parser.parseTerm("?f(?x, ?y, ?z)") == Term(sf3, Seq(x, y, z)))
+    assert(Parser.parseTerm("'f('x)") == Term(sf1, Seq(x)))
+    assert(Parser.parseTerm("'f('x, 'y)") == Term(sf2, Seq(x, y)))
+    assert(Parser.parseTerm("'f('x, 'y, 'z)") == Term(sf3, Seq(x, y, z)))
   }
 
   test("nested function application") {
-    assert(Parser.parseTerm("?f(?f(?x), ?y)") == Term(sf2, Seq(Term(sf1, Seq(x)), y)))
+    assert(Parser.parseTerm("'f('f('x), 'y)") == Term(sf2, Seq(Term(sf1, Seq(x)), y)))
   }
 
   test("0-ary predicate") {
@@ -59,13 +59,13 @@ class ParserTest extends AnyFunSuite with TestUtils {
 
   test("predicate application") {
     assert(Parser.parseFormula("p(x, y, z)") == PredicateFormula(ConstantPredicateLabel("p", 3), Seq(cx, cy, cz)))
-    assert(Parser.parseFormula("p(?x, ?y, ?z)") == PredicateFormula(ConstantPredicateLabel("p", 3), Seq(x, y, z)))
+    assert(Parser.parseFormula("p('x, 'y, 'z)") == PredicateFormula(ConstantPredicateLabel("p", 3), Seq(x, y, z)))
   }
 
   test("equality") {
     assert(Parser.parseFormula("(x = x)") == PredicateFormula(equality, Seq(cx, cx)))
     assert(Parser.parseFormula("x = x") == PredicateFormula(equality, Seq(cx, cx)))
-    assert(Parser.parseFormula("a ∧ (?x = ?x)") == ConnectorFormula(And, Seq(a, PredicateFormula(equality, Seq(x, x)))))
+    assert(Parser.parseFormula("a ∧ ('x = 'x)") == ConnectorFormula(And, Seq(a, PredicateFormula(equality, Seq(x, x)))))
   }
 
   test("unicode connectors") {
@@ -122,13 +122,13 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("quantifiers") {
-    assert(Parser.parseFormula("∀ ?x. (p)") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
-    assert(Parser.parseFormula("∃ ?x. (p)") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
-    assert(Parser.parseFormula("∃! ?x. (p)") == BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
+    assert(Parser.parseFormula("∀ 'x. (p)") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
+    assert(Parser.parseFormula("∃ 'x. (p)") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
+    assert(Parser.parseFormula("∃! 'x. (p)") == BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
 
-    assert(Parser.parseFormula("∀ ?x. p") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
-    assert(Parser.parseFormula("∃ ?x. p") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
-    assert(Parser.parseFormula("∃! ?x. p") == BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
+    assert(Parser.parseFormula("∀ 'x. p") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
+    assert(Parser.parseFormula("∃ 'x. p") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
+    assert(Parser.parseFormula("∃! 'x. p") == BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
   }
 
   test("nested quantifiers") {
@@ -138,7 +138,7 @@ class ParserTest extends AnyFunSuite with TestUtils {
   test("quantifier parentheses") {
     assert(Parser.parseFormula("∀x. b ∧ a") == BinderFormula(Forall, x, ConnectorFormula(And, Seq(b, a))))
     assert(
-      Parser.parseFormula("∀ ?x. p(?x) ∧ q(?x)") == BinderFormula(
+      Parser.parseFormula("∀ 'x. p('x) ∧ q('x)") == BinderFormula(
         Forall,
         x,
         ConnectorFormula(And, Seq(PredicateFormula(ConstantPredicateLabel("p", 1), Seq(x)), PredicateFormula(ConstantPredicateLabel("q", 1), Seq(x))))
@@ -148,7 +148,7 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(Parser.parseFormula("(∀x. b) ∧ a") == ConnectorFormula(And, Seq(BinderFormula(Forall, x, b), a)))
 
     assert(
-      Parser.parseFormula("(∀ ?x. p(?x)) ∧ q(?x)") == ConnectorFormula(
+      Parser.parseFormula("(∀ 'x. p('x)) ∧ q('x)") == ConnectorFormula(
         And,
         Seq(
           BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 1), Seq(x))),
@@ -170,7 +170,7 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("complex formulas") {
-    assert(Parser.parseFormula("∀x. ?x = ?x") == BinderFormula(Forall, x, PredicateFormula(equality, Seq(x, x))))
+    assert(Parser.parseFormula("∀x. 'x = 'x") == BinderFormula(Forall, x, PredicateFormula(equality, Seq(x, x))))
   }
 
   test("parser limitations") {
@@ -181,15 +181,15 @@ class ParserTest extends AnyFunSuite with TestUtils {
 
   test("sequent") {
     val forallEq = BinderFormula(Forall, x, PredicateFormula(equality, Seq(x, x)))
-    assert(Parser.parseSequent("∀x. ?x = ?x") == Sequent(Set(), Set(forallEq)))
-    assert(Parser.parseSequent("⊢ ∀x. ?x = ?x") == Sequent(Set(), Set(forallEq)))
-    assert(Parser.parseSequent("∀x. ?x = ?x ⊢ ∀x. ?x = ?x") == Sequent(Set(forallEq), Set(forallEq)))
+    assert(Parser.parseSequent("∀x. 'x = 'x") == Sequent(Set(), Set(forallEq)))
+    assert(Parser.parseSequent("⊢ ∀x. 'x = 'x") == Sequent(Set(), Set(forallEq)))
+    assert(Parser.parseSequent("∀x. 'x = 'x ⊢ ∀x. 'x = 'x") == Sequent(Set(forallEq), Set(forallEq)))
     val existsXEq = BinderFormula(Exists, x, PredicateFormula(equality, Seq(x, x)))
-    assert(Parser.parseSequent("∀x. ?x = ?x ⊢ ∃x. ?x = ?x") == Sequent(Set(forallEq), Set(existsXEq)))
+    assert(Parser.parseSequent("∀x. 'x = 'x ⊢ ∃x. 'x = 'x") == Sequent(Set(forallEq), Set(existsXEq)))
     val existsYEq = BinderFormula(Exists, y, PredicateFormula(equality, Seq(y, y)))
-    assert(Parser.parseSequent("∀x. ?x = ?x ⊢ ∃x. ?x = ?x; ∃y. ?y = ?y") == Sequent(Set(forallEq), Set(existsYEq, existsXEq)))
+    assert(Parser.parseSequent("∀x. 'x = 'x ⊢ ∃x. 'x = 'x; ∃y. 'y = 'y") == Sequent(Set(forallEq), Set(existsYEq, existsXEq)))
     assert(
-      Parser.parseSequent("p ; ∀x. ?x = ?x ⊢ ∃x. ?x = ?x; ∃y. ?y = ?y") ==
+      Parser.parseSequent("p ; ∀x. 'x = 'x ⊢ ∃x. 'x = 'x; ∃y. 'y = 'y") ==
         Sequent(Set(forallEq, PredicateFormula(ConstantPredicateLabel("p", 0), Seq())), Set(existsYEq, existsXEq))
     )
   }
@@ -197,23 +197,23 @@ class ParserTest extends AnyFunSuite with TestUtils {
   test("sequents from Mapping and SetTheory") {
     val va = VariableLabel("a")
     val leftAndRight = BinderFormula(ExistsOne, x, PredicateFormula(sPhi2, Seq(x, va)))
-    assert(Parser.parseSequent("∃!x. ?phi(?x, ?a) ⊢ ∃!x. ?phi(?x, ?a)") == Sequent(Set(leftAndRight), Set(leftAndRight)))
+    assert(Parser.parseSequent("∃!x. 'phi('x, 'a) ⊢ ∃!x. 'phi('x, 'a)") == Sequent(Set(leftAndRight), Set(leftAndRight)))
 
     assert(
-      Parser.parseSequent("∀x. (?x = ?x1) ↔ ?phi(?x) ⊢ (?z = ?f(?x1)) ⇒ (∃x. (?z = ?f(?x)) ∧ ?phi(?x))") == Sequent(
+      Parser.parseSequent("∀x. ('x = 'x1) ↔ 'phi('x) ⊢ ('z = 'f('x1)) ⇒ (∃x. ('z = 'f('x)) ∧ 'phi('x))") == Sequent(
         Set(BinderFormula(Forall, x, ConnectorFormula(Iff, Seq(x === x1, sPhi1(x))))),
         Set((z === sf1(x1)) ==> exists(x, (z === sf1(x)) /\ sPhi1(x)))
       )
     )
     assert(
-      Parser.parseSequent("∃x1. ∀x. (?x = ?x1) ↔ ?phi(?x) ⊢ ∃z1. ∀z. (?z = ?z1) ↔ (∃x. (?z = ?f(?x)) ∧ ?phi(?x))") == (exists(x1, forall(x, (x === x1) <=> (sPhi1(x)))) |- exists(
+      Parser.parseSequent("∃x1. ∀x. ('x = 'x1) ↔ 'phi('x) ⊢ ∃z1. ∀z. ('z = 'z1) ↔ (∃x. ('z = 'f('x)) ∧ 'phi('x))") == (exists(x1, forall(x, (x === x1) <=> (sPhi1(x)))) |- exists(
         z1,
         forall(z, (z === z1) <=> exists(x, (z === sf1(x)) /\ sPhi1(x)))
       ))
     )
-    assert(Parser.parseSequent("⊢ (?x = ?x) ∨ (?x = ?y)") == (() |- (x === x) \/ (x === y)))
+    assert(Parser.parseSequent("⊢ ('x = 'x) ∨ ('x = 'y)") == (() |- (x === x) \/ (x === y)))
     assert(
-      Parser.parseSequent("(?x = ?x) ∨ (?x = ?y); (?x = ?x) ∨ (?x = ?y) ↔ (?x = ?x') ∨ (?x = ?y') ⊢ (?x = ?x') ∨ (?x = ?y')") == (Set(
+      Parser.parseSequent("('x = 'x) ∨ ('x = 'y); ('x = 'x) ∨ ('x = 'y) ↔ ('x = 'x') ∨ ('x = 'y') ⊢ ('x = 'x') ∨ ('x = 'y')") == (Set(
         (x === x) \/ (x === y),
         ((x === x) \/ (x === y)) <=> ((x === xPrime) \/ (x === yPrime))
       ) |- (x === xPrime) \/ (x === yPrime))
