@@ -8,22 +8,14 @@ import lisa.automation.kernel.ProofTactics.*
  */
 object SetTheory extends lisa.Main {
 
-  THEOREM("russelParadox") of "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢" PROOF {
+  THEOREM("russelParadox") of "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢" NPROOF {
     val y = VariableLabel("y")
     val x = VariableLabel("x")
-
-    /*
-    val contra = in(y, y) <=> !in(y, y)
-    val s0 = SC.Hypothesis(contra |- contra, contra)
-    val s1 = SC.LeftForall(forall(x, in(x, y) <=> !in(x, x)) |- contra, 0, in(x, y) <=> !in(x, x), x, y)
-    val s2 = SC.Rewrite(forall(x, in(x, y) <=> !in(x, x)) |- (), 1)
-    SCProof(s0, s1, s2)*/
-
-    val s0 = SC.RewriteTrue(in(y, y) <=> !in(y, y) |- ())
-    val s1 = SC.LeftForall(forall(x, in(x, y) <=> !in(x, x)) |- (), 0, in(x, y) <=> !in(x, x), x, y)
-    SCProof(s0, s1)
-  } using ()
-  thm"russelParadox".show
+    
+    have( in(y, y) <=> !in(y, y) |- () )   by Trivial
+    andThen(forall(x, in(x, y) <=> !in(x, x)) |- () )    by LeftForall( in(x, y) <=> !in(x, x), x, y)
+  }
+  show
 
   THEOREM("unorderedPair_symmetry") of
     "⊢ ∀y, x. {x, y} = {y, x}" PROOF {

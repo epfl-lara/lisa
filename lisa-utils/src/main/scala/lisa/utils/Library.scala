@@ -3,7 +3,7 @@ package lisa.utils
 import lisa.kernel.proof.{RunningTheory, SequentCalculus}
 import lisa.utils.tactics.ProofStepLib.ProofStep
 
-import scala.collection.mutable.Seq as mSeq
+import scala.collection.mutable.Stack as stack
 
 /**
  * A class abstracting a [[lisa.kernel.proof.RunningTheory]] providing utility functions and a convenient syntax
@@ -13,8 +13,7 @@ import scala.collection.mutable.Seq as mSeq
 abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithProofs {
   val library:Library = this
   given RunningTheory = theory
-  given Library = this
-  export lisa.kernel.fol.FOL.*
+  export lisa.kernel.fol.FOL.{Formula, *}
   val SC: SequentCalculus.type =  lisa.kernel.proof.SequentCalculus
   export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
   export lisa.kernel.proof.SCProof
@@ -29,10 +28,8 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
 
   private var last: Option[Justification] = None
 
-  var currentProofSteps: List[Proof] = List()
-  def newProof():Unit = {
-    currentProofSteps = Proof.empty::currentProofSteps
-  }
+  val proofStack: stack[Proof] = stack()
+
 
   /**
    * A function intended for use to construct a proof:
@@ -73,17 +70,17 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using finishOutput: Throwable => Nothing) : TheoremNameWithProof =
       TheoremNameWithProof(name, statement, SCProof(steps))
     def NPROOF(computeProof: => Unit)(using String => Unit)(using finishOutput: Throwable => Nothing) : theory.Theorem = {
-      newProof()
+      proofStack.push(if (proofStack.isEmpty) Proof.empty else new Proof(proofStack.head.assumptions))
       computeProof
-      val r = TheoremNameWithProof(name, statement, currentProofSteps.head.toSCProof)
-      val r2 = theory.theorem(r.name, r.statement, r.proof, currentProofSteps.head.imports.map(_._2.asInstanceOf[theory.Justification])) match {
+      val r = TheoremNameWithProof(name, statement, proofStack.head.toSCProof)
+      val r2 = theory.theorem(r.name, r.statement, r.proof, proofStack.head.imports.map(_._2.asInstanceOf[theory.Justification])) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
         case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
 
-      currentProofSteps = currentProofSteps.tail
+      proofStack.pop
       r2
 
     }
@@ -338,7 +335,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   }
 
   def showCurrentProof()(using output: String => Unit)  = {
-    val proof = currentProofSteps.head.toSCProof
+    val proof = proofStack.head.toSCProof
     output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
 
   }

@@ -13,23 +13,21 @@ trait ProofsHelpers {
 
 
     case class HaveSequent(bot:Sequent) {
-        infix def by(just: ProofStepWithoutBot)(using String => Unit)(using finishOutput: Throwable => Nothing) : ProofStep = {
+        infix def by(just: ProofStepWithoutBot)(using String => Unit)(using finishOutput: Throwable => Nothing) : library.Proof#DoubleStep = {
             val r = just.asProofStep(bot)
-            r.validate()
-            r
+            r.validate(library)
         }
-        infix def by(just:library.theory.Axiom)(using String => Unit)(using finishOutput: Throwable => Nothing) :ProofStep = {
+        infix def by(just:library.theory.Axiom)(using String => Unit)(using finishOutput: Throwable => Nothing) :library.Proof#DoubleStep = {
             withImport(just)
-            val ps = this.by(Rewrite(-library.currentProofSteps.head.imports.length))
+            val ps = this.by(Rewrite(-library.proofStack.head.imports.length))
             ps
         }
     }
 
     case class AndThenSequent(bot:Sequent) {
-        infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using String => Unit)(using finishOutput: Throwable => Nothing) : ProofStep = {
+        infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using String => Unit)(using finishOutput: Throwable => Nothing) : library.Proof#DoubleStep = {
             val r = just.asProofStepWithoutBot(Seq(Prev)).asProofStep(bot)
-            r.validate()
-            r
+            r.validate(library)
         }
     }
 
@@ -39,11 +37,17 @@ trait ProofsHelpers {
     def andThen(res:Sequent): AndThenSequent = AndThenSequent(res)
     def andThen(res:String): AndThenSequent = AndThenSequent(parseSequent(res))
 
-    def withImport(just:theory.Axiom):Sequent = {
-        val ji : JustifiedImport = (theory.sequentFromJustification(just), just)
-        currentProofSteps = currentProofSteps.head.addImport((theory.sequentFromJustification(just), just))::currentProofSteps.tail
-        ji._1
+    def withImport(just:theory.Axiom):library.Proof#JustifiedImport = {
+        proofStack.head.JustifiedImport.newJustifiedImport(just)
+
     }
+
+    def assume(f:Formula):Formula = {
+        proofStack.head.addAssumption(f)
+        f
+    }
+
+
 
 
     extension[N <: Int & Singleton] (swbnp: ProofStepWithoutBotNorPrem[N]) {

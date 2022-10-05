@@ -6,12 +6,10 @@ import lisa.kernel.proof.RunningTheoryJudgement.{InvalidJustification, InvalidJu
 import lisa.kernel.proof.SequentCalculus.{SCProofStep, Sequent}
 import lisa.utils.{Library, Printer}
 import lisa.utils.tactics.ProofStepJudgement.*
+import lisa.utils.Helpers.*
 
 object ProofStepLib {
-  
-  type Justification
-  type DoubleStep = (ProofStep, SCProofStep)
-  type JustifiedImport = (Sequent, RunningTheory#Justification)
+
 
   object Prev
   object SecondPrev
@@ -25,38 +23,30 @@ object ProofStepLib {
 
   trait ProofStep{
     val premises: Seq[Index]
-    def validate()(using l:Library)(using output: String => Unit)(using finishOutput: Throwable => Nothing) :Unit = {
-      val prevs = l.currentProofSteps.head
-      val references: Int => Sequent = prevs.getSequent
-      val judgement = asSCProofStep(references, prevs.length)
-      judgement match {
-        case ValidProofStep(scps) => l.currentProofSteps = (prevs.addStep(this, scps))::l.currentProofSteps.tail
-        case InvalidProofStep(ps, message) =>
-          output(s"$message\n")
-          finishOutput(EarlyProofStepException(message))
-      }
+    def validate(l:Library)(using output: String => Unit)(using finishOutput: Throwable => Nothing): l.Proof#DoubleStep = {
+      l.proofStack.head.DoubleStep.newDoubleStep(this)
     }
 
-    def asSCProofStep(references: Int => Sequent, currentIndice:Int):ProofStepJudgement
+    def asSCProofStep(currentProof: Library#Proof):ProofStepJudgement
 
   }
 
   trait ProofStepWithoutBot{
     val premises: Seq[Index]
-    def asSCProofStep(bot: Sequent, references:Int => Sequent, currentIndice:Int): ProofStepJudgement
+    def asSCProofStep(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement
     def asProofStep(bot: Sequent): ProofStep = new ProofStepWithBot(this, bot)
   }
 
   class ProofStepWithBot(
                                                 val underlying: ProofStepWithoutBot,
-                                                val bot:Sequent
+                                                val givenBot:Sequent
                                               ) extends ProofStep{
     override val premises: Seq[Index] = underlying.premises
-    override def asSCProofStep(references: Int => Sequent, currentIndice:Int): ProofStepJudgement = underlying.asSCProofStep(bot, references, currentIndice)
+    override def asSCProofStep(currentProof: Library#Proof): ProofStepJudgement = underlying.asSCProofStep(givenBot ++< (currentProof.assumptions|-()), currentProof)
   }
 
   trait ProofStepWithoutBotNorPrem[N <: Int & Singleton](val numbPrem: N)  {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement
     def asProofStepWithoutBot(premises:Seq[Index]):ProofStepWithoutBot =
       new ProofStepWithoutBotWithPrem[N](this, premises)
   }
@@ -67,8 +57,8 @@ object ProofStepLib {
                                                            override val premises: Seq[Index]
                                                          ) extends ProofStepWithoutBot {
     val numbPrem: N = underlying.numbPrem
-    def asSCProofStep(bot: Sequent, references:Int => Sequent, currentIndex:Int): ProofStepJudgement =
-      underlying.asSCProofStep(bot, premises.map(indexToInt(currentIndex, _)), references)
+    def asSCProofStep(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement =
+      underlying.asSCProofStep(bot, premises.map(indexToInt(currentProof.length, _)), currentProof: Library#Proof)
 
   }
 

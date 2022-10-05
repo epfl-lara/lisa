@@ -17,6 +17,7 @@ import lisa.utils.tactics.ProofStepLib.ProofStep
  */
 object Example {
   def main(args: Array[String]): Unit = {
+
     proofExample() // uncomment when exercise finished
     // solverExample()
     // tptpExample()
@@ -50,19 +51,19 @@ object Example {
       THEOREM("fixedPointDoubleApplication") of "∀ ?x. ?P(?x) ⇒ ?P(?f(?x)) ⊢ ∀ ?x. ?P(?x) ⇒ ?P(?f(?f(?x)))" NPROOF {
         have("?P(?x); ?P(?f(?x)); ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                             by   Trivial
         have("?P(?x); ?P(?f(?x)) ⊢ ?P(?f(?x)); ?P(?f(?f(?x)))")                                 by   Trivial
-        have("?P(?x); ?P(?f(?x)); ?P(?f(?x)) ⇒ ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                by   LeftImplies(P(f(x)), P(f(f(x))))(1, 0 )
+        have("?P(?x); ?P(?f(?x)); ?P(?f(?x)) ⇒ ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")               by   LeftImplies(P(f(x)), P(f(f(x))))(1, 0 )
         have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                             by   Hypothesis()
+        withImport(ax"pairAxiom")
         have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   LeftImplies(P(x), P(f(x)))(3, 2)
         andThen(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )       by   LeftForall(P(x) ==> P(f(x)), x, x)
         andThen(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                                by   LeftForall(P(x) ==> P(f(x)), x, f(x))
-        andThen(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))))                                  by   Trivial
-        withImport(ax"pairAxiom")
+        assume(forall(x, P(x) ==> P(f(x))))
+        andThen(() |- P(x) ==> P(f(f(x))))                                                           by   Trivial
+        withImport(ax"extensionalityAxiom")
+        andThen(() |- forall(x, P(x) ==> P(f(f(x)))))                                                by   RightForall(P(x) ==> P(f(f(x))), x)
         showCurrentProof()
-        andThen(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))))                       by   RightForall(P(x) ==> P(f(f(x))), x)
       }
-
       show
-
     }
     Ex.main(Array(""))
   }

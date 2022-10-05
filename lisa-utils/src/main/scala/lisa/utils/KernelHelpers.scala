@@ -192,10 +192,11 @@ trait KernelHelpers {
     def t(args: Any*): Term = parseTerm(sc.parts.mkString(""))
 
   }
-/*
+
   given Conversion[String, Sequent] = parseSequent(_)
   given Conversion[String, Formula] = parseFormula(_)
   given Conversion[String, Term] = parseTerm(_)
- */
+  given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head=='?') s.tail else s)
+
 
 }
