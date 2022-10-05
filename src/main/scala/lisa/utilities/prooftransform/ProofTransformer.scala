@@ -5,10 +5,22 @@ import lisa.kernel.proof.SCProof
 import lisa.utils.Helpers.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.fol.FOL.*
+import java.text.Normalizer.Form
+import lisa.utils.Printer
+/**
+ * A generic transformation on a proof with some useful utilities functions. 
+ *  
+ * Beware that the parameter should really be the same proof you will mainly work on
+ * @param pr the proof to apply the transformation on
+ */
 abstract class ProofTransformer(pr : SCProof) {
     
     //PUBLIC FUNCTIONS###################################################################################################################
-
+    /**
+      * Main transformation function, should be the only function needed to be called by the user
+      *
+      * @return the transformed proof
+      */
     def transform() : SCProof
         
     //PRIVATE FUNCTIONS##################################################################################################################
@@ -75,11 +87,19 @@ abstract class ProofTransformer(pr : SCProof) {
                 val res = children(v).flatMap(inner) ++ current
                 cache(v) = res.toSet
                 res
-                }
+            }
         }
         //Checks for empty proof
         val roots = adjMat.filter((i, s) => s.isEmpty).keySet.map(top_sort(_))
         roots.foreach(inner)
         cache.toMap
     }  
+
+    protected def sequentToFormulaNullable(s : Sequent) : Formula = (s.left.toSeq, s.right.toSeq) match {
+    
+        case (Nil, _) => ConnectorFormula(Or, s.right.toSeq)
+        case (_, Nil) => ConnectorFormula(And, s.left.toSeq)
+        case (_, _)   => sequentToFormula(s)
+    
+    }
 }

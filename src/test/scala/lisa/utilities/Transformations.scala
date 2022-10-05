@@ -18,6 +18,7 @@ class Transformations extends ProofCheckerSuite {
     test("Trasnsformation initialises well with empty proof and returns an empty proof") {
         val nullSCProof = SCProof()
         val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(nullSCProof)
+
         assert(transf.transform() == nullSCProof)
         
     }
@@ -34,6 +35,7 @@ class Transformations extends ProofCheckerSuite {
         
         val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq.empty)
         val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof)
+
         assert((transf.transform() == noImpProof))
         checkProof(noImpProof)
     }
@@ -49,7 +51,7 @@ class Transformations extends ProofCheckerSuite {
         
         checkProof(transf)
         assert(transf != noImpProof )
-        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
+        assert(isSameSequent(transf.steps.last.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
     }
 
     test("A proof with imports and a step taking multiple premises should be modified accordingly") {
@@ -62,9 +64,10 @@ class Transformations extends ProofCheckerSuite {
 
         val noImpProof = SCProof(IndexedSeq(into2, merge), IndexedSeq(into2.bot, into1.bot))
         val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
+
         checkProof(transf)
         assert(transf != noImpProof )
-        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(into1.bot)) |- into1.bot.right))
+        assert(isSameSequent(transf.steps.last.bot, (sequentToFormula(into1.bot), sequentToFormula(into2.bot)) |- merge.bot.right))
     }
 
     test("A proof with imports and a subproof should be modified accordingly") {
@@ -76,7 +79,7 @@ class Transformations extends ProofCheckerSuite {
         
         checkProof(transf)
         assert(transf != noImpProof )
-        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
+        assert(isSameSequent(transf.steps.last.bot, (outro.bot.left + sequentToFormula(intro.bot) ) |- outro.bot.right))
 
     }
 
@@ -90,9 +93,10 @@ class Transformations extends ProofCheckerSuite {
         val outro = InstPredSchema(() |- psi(x, y), 0,  Map((phi , LambdaTermFormula(Seq(), psi(x, y)))))
         val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
         val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
+
         checkProof(transf)
         assert(transf != noImpProof )
-        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
+        assert(isSameSequent(transf.steps.last.bot, (sequentToFormula(outro.bot)) |- outro.bot.right))
 
 
     }
@@ -100,16 +104,35 @@ class Transformations extends ProofCheckerSuite {
     test("A proof with imports and two partial instantiations should be modified accordingly") {
         val phi = SchematicNPredicateLabel("phi", 0)
         val psi = SchematicNPredicateLabel("psi", 2)
+        val lambda = SchematicNPredicateLabel("lambda", 2)
         val x = VariableLabel("x")
         val y = VariableLabel("y")
 
         val intro = Rewrite(() |- phi(), -1)
         val mid = InstPredSchema(() |- psi(x, y) <=> phi(), 0,  Map((phi , LambdaTermFormula(Seq(), psi(x, y) <=> phi()))))
-        val outro = InstPredSchema(() |- psi(x, y) <=> psi(x, y), 1,  Map((phi , LambdaTermFormula(Seq(), psi(x, y)))))
-        val noImpProof = SCProof(IndexedSeq(intro, mid, outro), IndexedSeq(intro.bot))
+        val outro = InstPredSchema(() |- psi(x, y) <=> lambda(x, y), 1,  Map((phi , LambdaTermFormula(Seq(), lambda(x, y)))))
+        val weak = Weakening((psi(x,y)) |- psi(x, y) <=> lambda(x, y), 2)
+        val noImpProof = SCProof(IndexedSeq(intro, mid, outro, weak), IndexedSeq(intro.bot))
         val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
-        info(Printer.prettySCProof(transf))
+        
+        checkProof(transf )
         assert(transf != noImpProof )
-        assert(isSameSequent(transf.steps.head.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
+        assert(isSameSequent(transf.steps.last.bot, ((weak.bot.left + sequentToFormula(outro.bot))) |- weak.bot.right))
+    }
+
+    test("A proof with instantiation can be transformed into one with a rewrite and an import") {
+        val phi = SchematicNPredicateLabel("phi", 0)
+        val psi = SchematicNPredicateLabel("psi", 2)
+        val x = VariableLabel("x")
+        val y = VariableLabel("y")
+
+        val intro = Rewrite(() |- phi(), -1)
+        val outro = InstPredSchema(() |- psi(x, y), 0,  Map((phi , LambdaTermFormula(Seq(), psi(x, y)))))
+        val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
+        val transf = lisa.utilities.prooftransform.ProofInstantiationRemover(noImpProof).transform()
+
+        checkProof(transf)
+        assert(transf != noImpProof )
+        assert(isSameSequent(transf.steps.last.bot, () |- outro.bot.right))
     }
 }
