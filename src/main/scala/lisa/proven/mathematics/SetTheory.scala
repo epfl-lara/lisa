@@ -359,7 +359,7 @@ object SetTheory extends lisa.Main {
 
   private val x = VariableLabel("x")
   private val y = VariableLabel("y")
-  val oPair: ConstantFunctionLabel = DEFINE("", x, y) as pair(pair(x, y), pair(x, x))
+  val oPair: ConstantFunctionLabel = DEFINE("pair", x, y) as unorderedPair(unorderedPair(x, y), unorderedPair(x, x))
   show
 
 }
