@@ -1,17 +1,14 @@
 package lisa.utilities
 import lisa.kernel.fol.*
 import lisa.kernel.proof.SCProof
-import lisa.proven.tactics.Destructors.*
-import lisa.proven.tactics.ProofTactics.*
+import lisa.automation.kernel.Destructors.*
+import lisa.automation.kernel.ProofTactics.*
 import lisa.test.ProofCheckerSuite
-import lisa.utils.Helpers.given_Conversion_VariableLabel_VariableTerm
+import lisa.utils.Helpers.given_Conversion_VariableLabel_Term
 import lisa.utils.Printer
-import org.scalatest.funsuite.AnyFunSuite
 
-import scala.collection.immutable.NumericRange
-import scala.language.adhocExtensions
 class Transformations extends ProofCheckerSuite {
-  import lisa.proven.SetTheoryLibrary.*
+  import lisa.settheory.SetTheoryLibrary.*
 
   test("Trasnsformation initialises well with empty proof and returns an empty proof") {
     val nullSCProof = SCProof()
@@ -26,7 +23,7 @@ class Transformations extends ProofCheckerSuite {
    * Dummy proofs of varying size should be tested
    */
   test("A proof with no imports is not modified") {
-    val phi = SchematicNPredicateLabel("phi", 0)
+    val phi = SchematicPredicateLabel("phi", 0)
 
     val intro = Hypothesis((phi()) |- (phi()), phi())
     val outro = Rewrite((phi()) |- (phi()), 0)
@@ -39,7 +36,7 @@ class Transformations extends ProofCheckerSuite {
   }
 
   test("A proof with imports is to be modified") {
-    val phi = SchematicNPredicateLabel("phi", 0)
+    val phi = SchematicPredicateLabel("phi", 0)
 
     val intro = Rewrite(() |- phi(), -1)
     val outro = Weakening(intro.bot.right |- intro.bot.right, 0)
@@ -53,8 +50,8 @@ class Transformations extends ProofCheckerSuite {
   }
 
   test("A proof with imports and a step taking multiple premises should be modified accordingly") {
-    val phi = SchematicNPredicateLabel("phi", 0)()
-    val psi = SchematicNPredicateLabel("psi", 0)()
+    val phi = SchematicPredicateLabel("phi", 0)()
+    val psi = SchematicPredicateLabel("psi", 0)()
 
     val into1 = Rewrite(() |- phi, -2)
     val into2 = Rewrite(() |- psi, -1)
@@ -69,7 +66,7 @@ class Transformations extends ProofCheckerSuite {
   }
 
   test("A proof with imports and a subproof should be modified accordingly") {
-    val phi = SchematicNPredicateLabel("phi", 0)()
+    val phi = SchematicPredicateLabel("phi", 0)()
     val intro = Rewrite(() |- phi, -1)
     val outro = SCSubproof(SCProof(IndexedSeq(Weakening(intro.bot.right |- intro.bot.right, -1)), IndexedSeq(intro.bot)), IndexedSeq(0))
     val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
@@ -82,8 +79,8 @@ class Transformations extends ProofCheckerSuite {
   }
 
   test("A proof with imports and a complete instantiation should be modified accordingly") {
-    val phi = SchematicNPredicateLabel("phi", 0)
-    val psi = SchematicNPredicateLabel("psi", 2)
+    val phi = SchematicPredicateLabel("phi", 0)
+    val psi = SchematicPredicateLabel("psi", 2)
     val x = VariableLabel("x")
     val y = VariableLabel("y")
 
@@ -99,9 +96,9 @@ class Transformations extends ProofCheckerSuite {
   }
 
   test("A proof with imports and two partial instantiations should be modified accordingly") {
-    val phi = SchematicNPredicateLabel("phi", 0)
-    val psi = SchematicNPredicateLabel("psi", 2)
-    val lambda = SchematicNPredicateLabel("lambda", 2)
+    val phi = SchematicPredicateLabel("phi", 0)
+    val psi = SchematicPredicateLabel("psi", 2)
+    val lambda = SchematicPredicateLabel("lambda", 2)
     val x = VariableLabel("x")
     val y = VariableLabel("y")
 
@@ -118,8 +115,8 @@ class Transformations extends ProofCheckerSuite {
   }
 
   test("A proof with instantiation can be transformed into one with a rewrite and an import") {
-    val phi = SchematicNPredicateLabel("phi", 0)
-    val psi = SchematicNPredicateLabel("psi", 2)
+    val phi = SchematicPredicateLabel("phi", 0)
+    val psi = SchematicPredicateLabel("psi", 2)
     val x = VariableLabel("x")
     val y = VariableLabel("y")
 
