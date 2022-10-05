@@ -1,8 +1,8 @@
 package lisa.utils
 
 import lisa.kernel.proof.{RunningTheory, SequentCalculus}
-import lisa.utils.tactics.Proof
 import lisa.utils.tactics.ProofStepLib.ProofStep
+
 import scala.collection.mutable.Seq as mSeq
 
 /**
@@ -10,7 +10,8 @@ import scala.collection.mutable.Seq as mSeq
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library(val theory: RunningTheory) {
+abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithProofs {
+  val library:Library = this
   given RunningTheory = theory
   given Library = this
   export lisa.kernel.fol.FOL.*
@@ -19,7 +20,6 @@ abstract class Library(val theory: RunningTheory) {
   export lisa.kernel.proof.SCProof
   export theory.{Justification, Theorem, Definition, Axiom, PredicateDefinition, FunctionDefinition}
   export lisa.utils.Helpers.{_, given}
-  export lisa.utils.tactics.ProofsHelpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
   /**
@@ -29,7 +29,10 @@ abstract class Library(val theory: RunningTheory) {
 
   private var last: Option[Justification] = None
 
-  var currentProofSteps: List[List[ProofStep]] = List()
+  var currentProofSteps: List[Proof] = List()
+  def newProof():Unit = {
+    currentProofSteps = Proof.empty::currentProofSteps
+  }
 
   /**
    * A function intended for use to construct a proof:
@@ -62,19 +65,27 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(proof: SCProof)(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
+    def PROOF(proof: SCProof)(using String => Unit)(using finishOutput: Throwable => Nothing) : TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof =
+    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using finishOutput: Throwable => Nothing) : TheoremNameWithProof =
       TheoremNameWithProof(name, statement, SCProof(steps))
-    def NPROOF(computeProof: => Unit)(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = {
-      currentProofSteps = List()::currentProofSteps
+    def NPROOF(computeProof: => Unit)(using String => Unit)(using finishOutput: Throwable => Nothing) : theory.Theorem = {
+      newProof()
       computeProof
-      val r = TheoremNameWithProof(name, statement, Proof(currentProofSteps.head.reverse.toIndexedSeq).toSCProof)
+      val r = TheoremNameWithProof(name, statement, currentProofSteps.head.toSCProof)
+      val r2 = theory.theorem(r.name, r.statement, r.proof, currentProofSteps.head.imports.map(_._2.asInstanceOf[theory.Justification])) match {
+        case Judgement.ValidJustification(just) =>
+          last = Some(just)
+          just
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
+      }
+
       currentProofSteps = currentProofSteps.tail
-      r
+      r2
+
     }
   }
 
@@ -148,7 +159,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(t: Term)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = {
+    infix def as(t: Term)(using String => Unit)(using finishOutput: Throwable => Nothing) : ConstantFunctionLabel = {
       val definition = simpleDefinition(symbol, LambdaTermTerm(vars, t)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -161,7 +172,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(f: Formula)(using String => Unit)(using Throwable => Nothing): ConstantPredicateLabel = {
+    infix def as(f: Formula)(using String => Unit)(using finishOutput: Throwable => Nothing) : ConstantPredicateLabel = {
       val definition = simpleDefinition(symbol, LambdaTermFormula(vars, f)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -207,7 +218,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(justifications: theory.Justification*)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = {
+    infix def using(justifications: theory.Justification*)(using String => Unit)(using finishOutput: Throwable => Nothing) : ConstantFunctionLabel = {
       val definition = complexDefinition(symbol, vars, out, f, proof, justifications) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -220,7 +231,7 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(u: Unit)(using String => Unit)(using Throwable => Nothing): ConstantFunctionLabel = using()
+    infix def using(u: Unit)(using String => Unit)(using finishOutput: Throwable => Nothing) : ConstantFunctionLabel = using()
   }
 
   /**
@@ -296,7 +307,7 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * Prints a short representation of the last theorem or definition introduced
    */
-  def show(using String => Unit): Justification = last match {
+  def show(using String => Unit)(using finishOutput: Throwable => Nothing) : Justification = last match {
     case Some(value) => value.show
     case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
   }
@@ -326,11 +337,11 @@ abstract class Library(val theory: RunningTheory) {
     builder.result
   }
 
-  def showCurrentProof()(using output: String => Unit) = {
-    val proof = Proof(currentProofSteps.head.reverse.toIndexedSeq).toSCProof
+  def showCurrentProof()(using output: String => Unit)  = {
+    val proof = currentProofSteps.head.toSCProof
     output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
 
-
   }
+
 
 }
