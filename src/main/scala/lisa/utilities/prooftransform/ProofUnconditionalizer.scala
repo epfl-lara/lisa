@@ -5,13 +5,13 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.fol.FOL.*
 import lisa.utils.Printer
 
-case class ProofUnconditionalizer (pr : SCProof) {
-    
+case class ProofUnconditionalizer (prOrig : SCProof) extends ProofTransformer(prOrig) {
+
     //ATTRIBUTES#########################################################################################################################
-    private val (neg_premises) = dependency_finder(pr.steps, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
+    private val pr = ProofInstantiationRemover(prOrig).transform()
+    private val neg_premises = dependency_finder(pr.steps, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
     //We use a var because Subproofs require the results of precedent steps, topological order on proofs ensure we can always do this
-    private var appended_steps = IndexedSeq[SCProofStep]()
-    
+    private var appended_steps = IndexedSeq[SCProofStep]()    
     //PREDICATES#########################################################################################################################
     /**
       * Wether a step needs to be more modified than just appending hypothesis on the left of the conclusion
@@ -30,37 +30,6 @@ case class ProofUnconditionalizer (pr : SCProof) {
     def transform() : SCProof = transformPrivate(IndexedSeq.empty)
 
     //PRIVATE FUNCTIONS##################################################################################################################
-    /**
-      * Assigns to each node of a DAG all the imports (as defined in the parameters) attainable from it
-      * Executes in liniear time
-      * @param top_sort a topologically sorted array representing the DAG
-      * @param children returns a list of all nodes linked to a given node
-      * @param imports implementation dependent
-      * @return node -> [imports(v) | exists a path between node and v]
-      */
-    private def dependency_finder[A](top_sort :  IndexedSeq[A], children: A => Seq[A], imports : A => Seq[Int]) : Map[A, Set[Int]] = {
-        var cache = scala.collection.mutable.Map[A, Set[Int]]().withDefault(_ => Set())
-        def is_leaf(node: A): Boolean = imports(node).isEmpty | imports(node).forall(_ < 0)
-
-        val rev = top_sort.reverse
-        def inner(v : A) : Seq[Int] = v match {
-            case _ if is_leaf(v) =>  {
-              cache(v) = imports(v).toSet
-              imports(v)
-            }
-            case _ => {
-                val current = imports(v).filter(_ < 0)
-                val res = children(v).flatMap(inner) ++ current
-                cache(v) = res.toSet
-                res
-                }
-        }
-        //Checks for empty proof
-        rev.headOption.map(inner)
-        cache.toMap
-    }
-
-    
     /**
       * Private version used to keep track of imports that should not be removed, useful for SubProofs
       *
@@ -117,7 +86,6 @@ case class ProofUnconditionalizer (pr : SCProof) {
         }
         SCSubproof(inner, pS.premises.filter(_ >= 0))
     }
-    
     /**
       * This function transform generically a proof step into another one
       *
@@ -127,7 +95,7 @@ case class ProofUnconditionalizer (pr : SCProof) {
       * @param fsub sequents to keep on subproofs
       * @return a proofstep where each function is applied to the corresponding 
       */
-    def mapStep(pS : SCProofStep, f : Set[Formula] => Set[Formula], fi : Seq[Int] => Seq[Int] = identity, fsub : Seq[Sequent] = Nil) : SCProofStep= pS match
+    protected def mapStep(pS : SCProofStep, f : Set[Formula] => Set[Formula], fi : Seq[Int] => Seq[Int] = identity, fsub : Seq[Sequent] = Nil) : SCProofStep= pS match
     {
             case Rewrite(bot, t1)                           => Rewrite(f(bot.left)|- bot.right, fi(pS.premises).head)
             case Hypothesis(bot, phi)                       => Hypothesis(f(bot.left)|- bot.right, phi)
@@ -160,4 +128,5 @@ case class ProofUnconditionalizer (pr : SCProof) {
             case SCSubproof(pp, t, b)                       => {
                 SCSubproof(ProofUnconditionalizer(pp).transformPrivate(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t), b)}
     }
+  
 }
