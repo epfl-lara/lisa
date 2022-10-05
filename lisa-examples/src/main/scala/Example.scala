@@ -56,9 +56,10 @@ object Example {
         andThen(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )       by   LeftForall(P(x) ==> P(f(x)), x, x)
         andThen(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                                by   LeftForall(P(x) ==> P(f(x)), x, f(x))
         andThen(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))))                                  by   Trivial
+        withImport(ax"pairAxiom")
         showCurrentProof()
         andThen(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))))                       by   RightForall(P(x) ==> P(f(f(x))), x)
-      } using ()
+      }
 
       show
 

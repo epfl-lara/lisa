@@ -4,22 +4,22 @@ import lisa.kernel.proof.SequentCalculus.{SCProofStep, Sequent}
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.{SCProof, SequentCalculus as SC}
 import lisa.utils.Library
-import lisa.utils.tactics.ProofStepLib.*
+import lisa.utils.tactics.ProofStepLib.{*, given}
 
 object BasicStepTactic {
 
   case object Hypothesis extends ProofStepWithoutBotNorPrem(0) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.Hypothesis(bot, bot.left.intersect(bot.right).head)
   }
 
   case object Rewrite extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.Rewrite(bot, premises(0))
   }
 
   case class Cut(phi: Formula) extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.Cut(bot, premises(0), premises(1), phi)
   }
 
@@ -32,7 +32,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftAnd(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftAnd(bot, premises(0), phi, psi)
   }
 
@@ -44,7 +44,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftOr(t: Seq[Int], disjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep = {
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement = {
       SC.LeftOr(bot, t, disjuncts)
     }
   }
@@ -57,7 +57,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftImplies(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(2){
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftImplies(bot, premises(0), premises(1), phi, psi)
   }
 
@@ -69,7 +69,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftIff(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftIff(bot, premises(0), phi, psi)
   }
 
@@ -81,7 +81,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftNot(phi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftNot(bot, premises(0), phi)
   }
 
@@ -94,7 +94,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftForall(phi: Formula, x: VariableLabel, t: Term) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftForall(bot, premises(0), phi, x, t)
   }
 
@@ -107,7 +107,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftExists(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftExists(bot, premises(0), phi, x)
   }
 
@@ -119,7 +119,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftExistsOne( t1: Int, phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftExistsOne(bot, premises(0), phi, x)
   }
 
@@ -133,7 +133,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightAnd(t: Seq[Int], cunjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightAnd(bot, t, cunjuncts)
   }
 
@@ -145,7 +145,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightOr(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightOr(bot, premises(0), phi, psi)
   }
 
@@ -157,7 +157,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightImplies(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightImplies(bot, premises(0), phi, psi)
   }
 
@@ -169,7 +169,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightIff(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightIff(bot, premises(0), premises(1), phi, psi)
   }
 
@@ -181,7 +181,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightNot(phi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightNot(bot, premises(0), phi)
   }
 
@@ -193,7 +193,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightForall(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightForall(bot, premises(0), phi, x)
   }
 
@@ -207,7 +207,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightExists(phi: Formula, x: VariableLabel, t: Term) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightExists(bot, premises(0), phi, x, t)
   }
 
@@ -219,7 +219,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightExistsOne(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightExistsOne(bot, premises(0), phi, x)
   }
 
@@ -232,7 +232,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class Weakening(t1: Int) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.Weakening(bot, t1)
   }
 
@@ -245,7 +245,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftRefl(fa: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftRefl(bot, premises(0), fa)
   }
 
@@ -257,7 +257,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightRefl(fa: Formula) extends ProofStepWithoutBotNorPrem(0) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightRefl(bot, fa)
   }
 
@@ -269,7 +269,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftSubstEq(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftSubstEq(bot, premises(0), equals, lambdaPhi)
   }
 
@@ -281,7 +281,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightSubstEq(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightSubstEq(bot, premises(0), equals, lambdaPhi)
   }
 
@@ -293,7 +293,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftSubstIff(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.LeftSubstIff(bot, premises(0), equals, lambdaPhi)
   }
 
@@ -305,7 +305,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightSubstIff(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.RightSubstIff(bot, premises(0), equals, lambdaPhi)
   }
 
@@ -317,7 +317,7 @@ object BasicStepTactic {
    * </pre>
    */
   case class InstFunSchema(insts: Map[SchematicTermLabel, LambdaTermTerm]) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.InstFunSchema(bot, premises(0), insts)
   }
 
@@ -329,16 +329,19 @@ object BasicStepTactic {
    * </pre>
    */
   case class InstPredSchema(insts: Map[SchematicVarOrPredLabel, LambdaTermFormula]) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): SCProofStep =
+    def asSCProofStep(bot: Sequent, premises:Seq[Int], references:Int => Sequent): ProofStepJudgement =
       SC.InstPredSchema(bot, premises(0), insts)
   }
 
   // Proof Organisation rules
-  case class SCSubproof(sp: Proof|SCProof, premises: Seq[Int] = Seq.empty, display: Boolean = true)(using l:Library) extends ProofStep{
-    // premises is a list of ints that verifies that imports of the subproof sp are justified by previous steps.
-    def asSCProofStep(references:Int => Sequent, currentIndice:Int): SCProofStep =
+  case class SCSubproof(sp: WithProofs#Proof|SCProof,
+                        premises: Seq[Int] = Seq.empty,
+                        display: Boolean = true
+                       )(using l:Library)(using String => Unit)(using finishOutput: Throwable => Nothing) extends ProofStep{
+    this.validate()
+    def asSCProofStep(references:Int => Sequent, currentIndice:Int): ProofStepJudgement =
       sp match {
-        case sp:Proof => SC.SCSubproof(sp.toSCProof, premises, display)
+        case sp:WithProofs#Proof => SC.SCSubproof(sp.toSCProof, premises, display)
         case sp:SCProof => SC.SCSubproof(sp, premises, display)
       }
   }
