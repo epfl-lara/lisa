@@ -26,14 +26,11 @@ val commonSettings3 = Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
-
     // "-source:future", re-enable when liancheng/scalafix-organize-imports#221 is fixed
     "-old-syntax",
     "-no-indent"
-
   ),
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
-  libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
   Test / parallelExecution := false
 )
 
