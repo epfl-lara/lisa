@@ -4,7 +4,7 @@ import lisa.test.ProofCheckerSuite
 import lisa.utils.Printer
 
 class InitialProofsTests extends ProofCheckerSuite {
-  import lisa.proven.SetTheoryLibrary.*
+  import lisa.settheory.SetTheoryLibrary.*
 
   test("File SetTheory initialize well") {
     lisa.proven.mathematics.SetTheory

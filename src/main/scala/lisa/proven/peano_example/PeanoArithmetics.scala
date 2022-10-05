@@ -2,7 +2,7 @@ package lisa.proven.peano_example
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 
 object PeanoArithmetics {
   final val (x, y, z) =
@@ -12,7 +12,7 @@ object PeanoArithmetics {
   final val s = ConstantFunctionLabel("S", 1)
   final val plus = ConstantFunctionLabel("+", 2)
   final val times = ConstantFunctionLabel("*", 2)
-  final val sPhi: SchematicPredicateLabel = SchematicNPredicateLabel("?p", 1)
+  final val sPhi: SchematicPredicateLabel = SchematicPredicateLabel("?p", 1)
 
   final val ax1ZeroSuccessor: Formula = forall(x, !(s(x) === zero))
   final val ax2Injectivity: Formula = forall(x, forall(y, (s(x) === s(y)) ==> (x === y)))

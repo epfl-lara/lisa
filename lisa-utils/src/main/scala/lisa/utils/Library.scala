@@ -1,6 +1,9 @@
 package lisa.utils
 
-import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.{RunningTheory, SequentCalculus}
+import lisa.utils.tactics.Proof
+import lisa.utils.tactics.ProofStepLib.ProofStep
+import scala.collection.mutable.Seq as mSeq
 
 /**
  * A class abstracting a [[lisa.kernel.proof.RunningTheory]] providing utility functions and a convenient syntax
@@ -9,11 +12,14 @@ import lisa.kernel.proof.RunningTheory
  */
 abstract class Library(val theory: RunningTheory) {
   given RunningTheory = theory
+  given Library = this
   export lisa.kernel.fol.FOL.*
-  export lisa.kernel.proof.SequentCalculus.*
-  export lisa.kernel.proof.SCProof as Proof
+  val SC: SequentCalculus.type =  lisa.kernel.proof.SequentCalculus
+  export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
+  export lisa.kernel.proof.SCProof
   export theory.{Justification, Theorem, Definition, Axiom, PredicateDefinition, FunctionDefinition}
-  export lisa.utils.Helpers.{*, given}
+  export lisa.utils.Helpers.{_, given}
+  export lisa.utils.tactics.ProofsHelpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
   /**
@@ -23,16 +29,19 @@ abstract class Library(val theory: RunningTheory) {
 
   private var last: Option[Justification] = None
 
-  /**
-   * A function intended for use to construct a proof:
-   * <pre> Proof(steps(...), imports(...))</pre>
-   * Must contains [[SCProofStep]]'s
-   */
-  inline def steps(sts: SCProofStep*): IndexedSeq[SCProofStep] = sts.toIndexedSeq
+  var currentProofSteps: List[List[ProofStep]] = List()
 
   /**
    * A function intended for use to construct a proof:
-   * <pre> Proof(steps(...), imports(...))</pre>
+   * <pre> SCProof(steps(...), imports(...))</pre>
+   * Must contains [[SCProofStep]]'s
+   */
+  inline def steps(sts: SCProofStep*): IndexedSeq[SCProofStep] = sts.toIndexedSeq
+  inline def Nsteps(sts: ProofStep*): IndexedSeq[ProofStep] = sts.toIndexedSeq
+
+  /**
+   * A function intended for use to construct a proof:
+   * <pre> SCProof(steps(...), imports(...))</pre>
    * Must contains [[Justification]]'s, [[Formula]]'s or [[Sequent]], all of which are converted adequatly automatically.
    */
   inline def imports(sqs: Sequentable*): IndexedSeq[Sequent] = sqs.map(sequantableToSequent).toIndexedSeq
@@ -42,7 +51,7 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * An alias to create a Theorem
    */
-  def makeTheorem(name: String, statement: String, proof: Proof, justifications: Seq[theory.Justification]): Judgement[theory.Theorem] =
+  def makeTheorem(name: String, statement: String, proof: SCProof, justifications: Seq[theory.Justification]): Judgement[theory.Theorem] =
     theory.theorem(name, statement, proof, justifications)
 
   /**
@@ -53,12 +62,20 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(proof: Proof)(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
+    def PROOF(proof: SCProof)(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, Proof(steps))
+    def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof =
+      TheoremNameWithProof(name, statement, SCProof(steps))
+    def NPROOF(computeProof: => Unit)(using String => Unit)(using Throwable => Nothing): TheoremNameWithProof = {
+      currentProofSteps = List()::currentProofSteps
+      computeProof
+      val r = TheoremNameWithProof(name, statement, Proof(currentProofSteps.head.reverse.toIndexedSeq).toSCProof)
+      currentProofSteps = currentProofSteps.tail
+      r
+    }
   }
 
   /**
@@ -80,12 +97,12 @@ abstract class Library(val theory: RunningTheory) {
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithProof(name: String, statement: String, proof: Proof)(using String => Unit)(using Throwable => Nothing) {
+  case class TheoremNameWithProof(name: String, statement: String, proof: SCProof)(using String => Unit)(using Throwable => Nothing) {
     infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
         just
-      case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+      case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
     }
 
     /**
@@ -101,21 +118,22 @@ abstract class Library(val theory: RunningTheory) {
    */
   def simpleDefinition(symbol: String, expression: LambdaTermTerm): Judgement[theory.FunctionDefinition] = {
     val LambdaTermTerm(vars, body) = expression
-    val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTerms.map(_.id)).toSet, "y"))
-    val proof: Proof = simpleFunctionDefinition(expression, out)
+
+    val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTermLabels.map(_.id)).toSet, "y"))
+    val proof: SCProof = simpleFunctionDefinition(expression, out)
     theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, Nil)
   }
 
   /**
    * Allows to create a definition by existential uniqueness of a function symbol:
    */
-  def complexDefinition(symbol: String, vars: Seq[VariableLabel], v: VariableLabel, f: Formula, proof: Proof, just: Seq[Justification]): Judgement[theory.FunctionDefinition] = {
+  def complexDefinition(symbol: String, vars: Seq[VariableLabel], v: VariableLabel, f: Formula, proof: SCProof, just: Seq[Justification]): Judgement[theory.FunctionDefinition] = {
     theory.functionDefinition(symbol, LambdaTermFormula(vars, f), v, proof, just)
     // theory.functionDefinition(symbol, LambdaTermFormula(vars, instantiateTermSchemas(f, Map(v -> LambdaTermTerm(Nil, out)))), out, proof, just)
   }
 
   /**
-   * Allows to create a definition by shortcut of a function symbol:
+   * Allows to create a definition by shortcut of a predicate symbol:
    */
   def simpleDefinition(symbol: String, expression: LambdaTermFormula): Judgement[theory.PredicateDefinition] =
     theory.predicateDefinition(symbol, expression)
@@ -135,7 +153,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }
@@ -148,7 +166,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }
@@ -178,13 +196,13 @@ abstract class Library(val theory: RunningTheory) {
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def PROOF(proof: Proof): DefinitionWithProof = DefinitionWithProof(symbol, vars, out, f, proof)
+    infix def PROOF(proof: SCProof): DefinitionWithProof = DefinitionWithProof(symbol, vars, out, f, proof)
   }
 
   /**
    * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
    */
-  case class DefinitionWithProof(symbol: String, vars: Seq[VariableLabel], out: VariableLabel, f: Formula, proof: Proof) {
+  case class DefinitionWithProof(symbol: String, vars: Seq[VariableLabel], out: VariableLabel, f: Formula, proof: SCProof) {
 
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
@@ -194,7 +212,7 @@ abstract class Library(val theory: RunningTheory) {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just
-        case wrongJudgement: Judgement.InvalidJustification[_] => wrongJudgement.showAndGet
+        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
       }
       definition.label
     }
@@ -211,23 +229,27 @@ abstract class Library(val theory: RunningTheory) {
   def DEFINE(symbol: String, vars: VariableLabel*): FunSymbolDefine = FunSymbolDefine(symbol, vars)
 
   /**
-   * For a definition of the type f(x) := term, construct the required proof ∃!y. y = term.
+   * For a definition of the type f(x) := term, construct the required proof ?!y. y = term.
    */
-  private def simpleFunctionDefinition(expression: LambdaTermTerm, out: VariableLabel): Proof = {
+  private def simpleFunctionDefinition(expression: LambdaTermTerm, out: VariableLabel): SCProof = {
     val x = out
     val LambdaTermTerm(vars, body) = expression
     val xeb = x === body
     val y = VariableLabel(freshId(body.freeVariables.map(_.id) ++ vars.map(_.id) + out.id, "y"))
-    val s0 = RightRefl(() |- body === body, body === body)
-    val s1 = Rewrite(() |- (xeb) <=> (xeb), 0)
-    val s2 = RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
-    val s3 = RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
-    val s4 = Rewrite(() |- existsOne(x, xeb), 3)
+    val s0 = SC.RightRefl(() |- body === body, body === body)
+    val s1 = SC.Rewrite(() |- (xeb) <=> (xeb), 0)
+    val s2 = SC.RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
+    val s3 = SC.RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
+    val s4 = SC.Rewrite(() |- existsOne(x, xeb), 3)
     val v = Vector(s0, s1, s2, s3, s4)
-    Proof(v)
+    SCProof(v)
   }
 
-  // Implicit conversions
+
+
+  //////////////////////////////////////////
+  //      Tools for proof development     //
+  //////////////////////////////////////////
 
   given Conversion[TheoremNameWithProof, theory.Theorem] = _.using()
 
@@ -302,6 +324,13 @@ abstract class Library(val theory: RunningTheory) {
     val builder = bf.newBuilder(cc)
     cc.foreach(builder += _.size)
     builder.result
+  }
+
+  def showCurrentProof()(using output: String => Unit) = {
+    val proof = Proof(currentProofSteps.head.reverse.toIndexedSeq).toSCProof
+    output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
+
+
   }
 
 }

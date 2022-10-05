@@ -7,7 +7,7 @@ private[fol] trait CommonDefinitions {
   val MaxArity: Int = 1000000
 
   /**
-   * An labelled node for tree-like structures.
+   * A labelled node for tree-like structures.
    */
   protected trait Label {
     val arity: Int
@@ -15,16 +15,32 @@ private[fol] trait CommonDefinitions {
   }
 
   /**
-   * Constant label can represent a symbol of a theory
+   * \begin{lstlisting}[language=Scala, frame=single]
+   * object MyTheoryName extends lisa.Main {
+   *
+   *  THEOREM("theoremName") of "desired conclusion" PROOF {
+   *
+   *    ... : Proof
+   *
+   *  } using (listOfJustifications)
+   *  show
+   * }
+   * \end{lstlisting}
+   * A constant label can represent a fixed symbol of a theory or a logical symbol
    */
   trait ConstantLabel extends Label
 
   /**
-   * Schematic label in a formula can be substituted by any constant label of the respective
-   * kind (predicate or function)
+   * A schematic label in a formula or a term can be substituted by any formula or term of the adequate kind.
    */
   trait SchematicLabel extends Label
 
+  /**
+   * return am identifier that is different from a set of give identifier.
+   * @param taken ids which are not available
+   * @param base prefix of the new id
+   * @return a fresh id.
+   */
   def freshId(taken: Set[String], base: String): String = {
     var i = 0;
     while (taken contains base + "_" + i) i += 1

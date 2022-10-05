@@ -1,21 +1,23 @@
+import lisa.Main
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.proven.tactics.SimplePropositionalSolver.solveSequent
+import lisa.automation.kernel.SimplePropositionalSolver.solveSequent
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.Printer.*
+import lisa.utils.tactics.ProofStepLib.ProofStep
 
 /**
  * Discover some of the elements of LISA to get started.
  */
 object Example {
   def main(args: Array[String]): Unit = {
-    //proofExample() // uncomment when exercise finished
+    proofExample() // uncomment when exercise finished
     // solverExample()
     // tptpExample()
   }
@@ -26,7 +28,9 @@ object Example {
    * The last two lines don't need to be changed.
    */
   def proofExample(): Unit = {
-    object Ex extends lisa.proven.Main {
+
+    object Ex extends Main {
+      /*
       THEOREM("fixedPointDoubleApplication") of "" PROOF {
         steps(
           ???,
@@ -40,6 +44,22 @@ object Example {
           RightForall(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))), 7, P(x) ==> P(f(f(x))), x)
         )
       } using ()
+      show
+      */
+
+      THEOREM("fixedPointDoubleApplication") of "∀ ?x. ?P(?x) ⇒ ?P(?f(?x)) ⊢ ∀ ?x. ?P(?x) ⇒ ?P(?f(?f(?x)))" NPROOF {
+        have("?P(?x); ?P(?f(?x)); ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                             by   Trivial
+        have("?P(?x); ?P(?f(?x)) ⊢ ?P(?f(?x)); ?P(?f(?f(?x)))")                                 by   Trivial
+        have("?P(?x); ?P(?f(?x)); ?P(?f(?x)) ⇒ ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                by   LeftImplies(P(f(x)), P(f(f(x))))(1, 0 )
+        have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                             by   Hypothesis()
+        have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   LeftImplies(P(x), P(f(x)))(3, 2)
+        andThen(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )       by   LeftForall(P(x) ==> P(f(x)), x, x)
+        andThen(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                                by   LeftForall(P(x) ==> P(f(x)), x, f(x))
+        andThen(forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x))))                                  by   Trivial
+        showCurrentProof()
+        andThen(forall(x, P(x) ==> P(f(x))) |- forall(x, P(x) ==> P(f(f(x)))))                       by   RightForall(P(x) ==> P(f(f(x))), x)
+      } using ()
+
       show
 
     }
@@ -139,7 +159,7 @@ object Example {
     p.formulas.foreach(printAnnotatedFormula)
   }
 
-  val P = SchematicNPredicateLabel("P", 1)
+  val P = SchematicPredicateLabel("P", 1)
 
   val Q = PredicateFormula(VariableFormulaLabel("Q"), Seq())
   val R = PredicateFormula(VariableFormulaLabel("R"), Seq())
@@ -149,7 +169,7 @@ object Example {
   val B = PredicateFormula(VariableFormulaLabel("B"), Seq())
   val C = PredicateFormula(VariableFormulaLabel("C"), Seq())
   val x = VariableLabel("x")
-  val f = ConstantFunctionLabel("f", 1)
+  val f = SchematicFunctionLabel("f", 1)
 
   def ???? : Formula = ???
   def ?????(args: Any*) = ???
