@@ -16,7 +16,7 @@ private[settheory] trait SetTheoryDefinitions {
   /**
    * The symbol for the set membership predicate.
    */
-  final val in = ConstantPredicateLabel("set_membership", 2)
+  final val in = ConstantPredicateLabel("elem", 2)
 
   /**
    * The symbol for the subset predicate.
