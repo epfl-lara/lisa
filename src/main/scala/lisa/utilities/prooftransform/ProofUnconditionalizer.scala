@@ -10,6 +10,7 @@ case class ProofUnconditionalizer (prOrig : SCProof) extends ProofTransformer(pr
     //ATTRIBUTES#########################################################################################################################
     private val pr = ProofInstantiationRemover(prOrig).transform()
     private val neg_premises = dependency_finder(pr.steps, ps => ps.premises.filter(_>=0).map(pr.steps(_)), ps => ps.premises)
+
     //We use a var because Subproofs require the results of precedent steps, topological order on proofs ensure we can always do this
     private var appended_steps = IndexedSeq[SCProofStep]()    
     //PREDICATES#########################################################################################################################
@@ -42,7 +43,7 @@ case class ProofUnconditionalizer (prOrig : SCProof) extends ProofTransformer(pr
             if(is_problematic(pS)) {
                 mapProb(pS)
             } else {
-                mapStep(pS, b => neg_premises.getOrElse(pS, Set[Int]()).map(i => sequentToFormula(pr.imports(-i-1))) ++ b )
+                mapStep(pS, b => neg_premises.getOrElse(pS, Set[Int]()).map(i => sequentToFormulaNullable(pr.imports(-i-1))) ++ b )
             })
         })
         SCProof(appended_steps.toIndexedSeq, keep)
@@ -63,23 +64,23 @@ case class ProofUnconditionalizer (prOrig : SCProof) extends ProofTransformer(pr
                 .map(i => pr.imports(-i-1))
         val hypothesis = premises
                 .map((se) => {
-                val h = Hypothesis((se.left + sequentToFormula(se)) |- (se.right + sequentToFormula(se)), sequentToFormula(se))
+                val h = Hypothesis((se.left + sequentToFormulaNullable(se)) |- (se.right + sequentToFormulaNullable(se)), sequentToFormulaNullable(se))
                 h
                 })
         val rewrites = hypothesis.zipWithIndex.map((h, i) => {
-                    val r = Rewrite(h.bot.left |- (h.bot.right - sequentToFormula(premises(i))), i)
+                    val r = Rewrite(h.bot.left |- (h.bot.right - sequentToFormulaNullable(premises(i))), i)
                     r
                 })
         //We must separate the case for subproofs for they need to use the modified version of the precedent 
         val inner = pS match {
             case SCSubproof(_,_,_) => SCProof(hypothesis.toIndexedSeq ++ rewrites.toIndexedSeq ++ IndexedSeq(
-                    mapStep(pS, b => neg_premises(pS).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, s => s.map(i => i match {
+                    mapStep(pS, b => neg_premises(pS).map(i => sequentToFormulaNullable(pr.imports(-i-1))) ++ b, s => s.map(i => i match {
                         case i if i < 0 => -i-2 + hypothesis.length
                         case i => -i
                     } ), rewrites.map(_.bot))) , pS.premises.filter(_>= 0).map(appended_steps(_).bot).toIndexedSeq)
             
             case _ => SCProof(hypothesis.toIndexedSeq ++ IndexedSeq(
-                    mapStep(pS, b => neg_premises(pS).map(i => sequentToFormula(pr.imports(-i-1))) ++ b, premise => premise.zipWithIndex.map((i,j) => i match {
+                    mapStep(pS, b => neg_premises(pS).map(i => sequentToFormulaNullable(pr.imports(-i-1))) ++ b, premise => premise.zipWithIndex.map((i,j) => i match {
                         case i if i < 0 => j
                         case i => -j
                     } ))) , pS.premises.filter(_>= 0).map(appended_steps(_).bot).toIndexedSeq)   
