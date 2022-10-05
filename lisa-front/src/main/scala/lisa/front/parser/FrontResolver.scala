@@ -96,7 +96,7 @@ private[parser] object FrontResolver {
     case operator: ParsedBinaryOperator =>
       val label: Either[PredicateLabel[?], ConnectorLabel[?]] = operator match {
         case _: ParsedEqual => Left(equality)
-        case _: ParsedMembership => Left(ConstantPredicateLabel[2]("set_membership"))
+        case _: ParsedMembership => Left(ConstantPredicateLabel[2]("elem"))
         case _: ParsedSubset => Left(ConstantPredicateLabel[2]("subset_of"))
         case _: ParsedSameCardinality => Left(ConstantPredicateLabel[2]("same_cardinality"))
         case _: ParsedAnd => Right(and)
