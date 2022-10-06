@@ -59,20 +59,35 @@ object Example {
         have(() |- P(x) ==> P(f(f(x))))                                                              by   Trivial(test)
         andThen(() |- forall(x, P(x) ==> P(f(f(x)))))                                                by   RightForall(P(x) ==> P(f(f(x))), x)
         Discharge(ax"extensionalityAxiom")
-        showCurrentProof()
       }
       show
 
-      /*
-      THEOREM("Try") of "subset_of(?x, ?y) /\\ subset_of(?x, ?y) <-> ?x = ?y" NPROOF {
-        withImport(ax"extensionalityAxiom")
-        withImport(ax"subsetAxiom")
-        have("subset_of(?x, ?y) ; subset_of(?y, ?x) |- ")
+      THEOREM("Try") of "subset_of(?x, ?y) /\\ subset_of(?x, ?y) ⇒ ?x = ?y" NPROOF {
+        have((in(z, y)==>in(z, x), in(z, x)==>in(z, y)) |- in(z, y)<=>in(z, x)) by Trivial
+        andThen((forall(z, in(z, y)==>in(z, x)), in(z, x)==>in(z, y)) |- in(z, y)<=>in(z, x))    by    LeftForall(in(z, y)==>in(z, x), z, z)
+        andThen((forall(z, in(z, y)==>in(z, x)), forall(z, in(z, x)==>in(z, y))) |- in(z, y)<=>in(z, x))    by     LeftForall(in(z, x)==>in(z, y), z, z)
+        val n1 = andThen((forall(z, in(z, y)==>in(z, x)), forall(z, in(z, x)==>in(z, y))) |- forall(z, in(z, y)<=>in(z, x)))    by     RightForall(in(z, y)<=>in(z, x), z)
+
+        assume("subset_of(?x, ?y)")
+        have("|- subset_of(?x, ?y)")    by    Trivial
+        assume(subsetAxiom2)
+        val n2 = andThen(()|- forall(z, in(z, x)==>in(z, y)))     by   RightSubstIff(List(("subset_of(?x, ?y)", forall(z, in(z, x) ==> in(z, y)))), LambdaFormulaFormula(Seq(H), H()))
+
+        assume("subset_of(?y, ?x)")
+        have("|- subset_of(?y, ?x)")    by    Trivial
+        assume(subsetAxiom2(x->y, y->x))
+        val n3 = andThen(()|- forall(z, in(z, y)==>in(z, x)))     by   RightSubstIff(List(("subset_of(?y, ?x)", forall(z, in(z, y) ==> in(z, x)))), LambdaFormulaFormula(Seq(H), H()))
+
+        val n4 = have(forall(z, in(z, x)==>in(z, y)) |- forall(z, in(z, y)<=>in(z, x)))     by    Cut(forall(z, in(z, y)==>in(z, x)))(n3, n1)
+        val n5 = have( () |- forall(z, in(z, y)<=>in(z, x)))     by    Cut(forall(z, in(z, x)==>in(z, y)))(n2, n4)
+
+        showCurrentProof()
+
+
         showCurrentProof()
 
       }
       show
-      */
     }
 
 
@@ -186,7 +201,10 @@ object Example {
   val A = PredicateFormula(VariableFormulaLabel("A"), Seq())
   val B = PredicateFormula(VariableFormulaLabel("B"), Seq())
   val C = PredicateFormula(VariableFormulaLabel("C"), Seq())
+  val H = VariableFormulaLabel("H")
   val x = VariableLabel("x")
+  val y = VariableLabel("y")
+  val z = VariableLabel("z")
   val f = SchematicFunctionLabel("f", 1)
 
   def ???? : Formula = ???
