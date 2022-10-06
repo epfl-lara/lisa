@@ -10,6 +10,7 @@ trait ProofsHelpers {
     given Library = library
     export BasicStepTactic.*
     export SimpleDeducedSteps.*
+    def proof = proofStack.head
 
 
     case class HaveSequent(bot:Sequent) {
@@ -37,7 +38,7 @@ trait ProofsHelpers {
     def andThen(res:Sequent): AndThenSequent = AndThenSequent(res)
     def andThen(res:String): AndThenSequent = AndThenSequent(parseSequent(res))
 
-    def withImport(just:theory.Axiom):library.Proof#JustifiedImport = {
+    def withImport(just:theory.Justification):library.Proof#JustifiedImport = {
         proofStack.head.JustifiedImport.newJustifiedImport(just)
 
     }
@@ -47,11 +48,12 @@ trait ProofsHelpers {
         f
     }
 
-
-
-
-    extension[N <: Int & Singleton] (swbnp: ProofStepWithoutBotNorPrem[N]) {
-        def apply(prem: Int*) :ProofStepWithoutBot = new ProofStepWithoutBotWithPrem[N](swbnp, prem)
+    def endDischarge(ji: Library#Proof#JustifiedImport):Unit = {
+        val p = proof
+        if (p.validInThisProof(ji)){
+            val p = proof
+            p.addDischarge(ji.asInstanceOf[p.JustifiedImport])
+        }
     }
 
 

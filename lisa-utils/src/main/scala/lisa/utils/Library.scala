@@ -334,7 +334,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     builder.result
   }
 
-  def showCurrentProof()(using output: String => Unit)  = {
+  def showCurrentProof()(using output: String => Unit)(using finishOutput: Throwable => Nothing)  = {
     val proof = proofStack.head.toSCProof
     output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
 

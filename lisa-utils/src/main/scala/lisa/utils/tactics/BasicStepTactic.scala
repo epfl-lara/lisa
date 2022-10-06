@@ -18,6 +18,13 @@ object BasicStepTactic {
       SC.Rewrite(bot, premises(0))
   }
 
+  /**
+   * <pre>
+   *  Γ |- Δ, φ    φ, Σ |- Π
+   * ------------------------
+   *       Γ, Σ |-Δ, Π
+   * </pre>
+   */
   case class Cut(phi: Formula) extends ProofStepWithoutBotNorPrem(2) {
     def asSCProofStep(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.Cut(bot, premises(0), premises(1), phi)

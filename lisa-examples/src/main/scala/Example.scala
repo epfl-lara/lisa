@@ -8,7 +8,7 @@ import lisa.automation.kernel.SimplePropositionalSolver.solveSequent
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{show, *, given}
 import lisa.utils.Printer.*
 import lisa.utils.tactics.ProofStepLib.ProofStep
 
@@ -49,22 +49,38 @@ object Example {
       */
 
       THEOREM("fixedPointDoubleApplication") of "∀ ?x. ?P(?x) ⇒ ?P(?f(?x)) ⊢ ∀ ?x. ?P(?x) ⇒ ?P(?f(?f(?x)))" NPROOF {
-        have("?P(?x); ?P(?f(?x)); ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")                             by   Trivial
-        have("?P(?x); ?P(?f(?x)) ⊢ ?P(?f(?x)); ?P(?f(?f(?x)))")                                 by   Trivial
-        have("?P(?x); ?P(?f(?x)); ?P(?f(?x)) ⇒ ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")               by   LeftImplies(P(f(x)), P(f(f(x))))(1, 0 )
-        have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                             by   Hypothesis()
-        withImport(ax"pairAxiom")
-        have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   LeftImplies(P(x), P(f(x)))(3, 2)
+        assume(ax"extensionalityAxiom")
+        val n0 = have("?P(?x); ?P(?f(?x)); ?P(?f(?x)) ⇒ ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")       by   Trivial
+        val n1 = have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                    by   Trivial
+        have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   LeftImplies(P(x), P(f(x)))(1, n0)
         andThen(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )       by   LeftForall(P(x) ==> P(f(x)), x, x)
-        andThen(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                                by   LeftForall(P(x) ==> P(f(x)), x, f(x))
+        val test = andThen(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                     by   LeftForall(P(x) ==> P(f(x)), x, f(x))
         assume(forall(x, P(x) ==> P(f(x))))
-        andThen(() |- P(x) ==> P(f(f(x))))                                                           by   Trivial
-        withImport(ax"extensionalityAxiom")
+        have(() |- P(x) ==> P(f(f(x))))                                                              by   Trivial(test)
         andThen(() |- forall(x, P(x) ==> P(f(f(x)))))                                                by   RightForall(P(x) ==> P(f(f(x))), x)
+        Discharge(ax"extensionalityAxiom")
         showCurrentProof()
       }
       show
+
+      /*
+      THEOREM("Try") of "subset_of(?x, ?y) /\\ subset_of(?x, ?y) <-> ?x = ?y" NPROOF {
+        withImport(ax"extensionalityAxiom")
+        withImport(ax"subsetAxiom")
+        have("subset_of(?x, ?y) ; subset_of(?y, ?x) |- ")
+        showCurrentProof()
+
+      }
+      show
+      */
     }
+
+
+
+
+
+
+
     Ex.main(Array(""))
   }
 

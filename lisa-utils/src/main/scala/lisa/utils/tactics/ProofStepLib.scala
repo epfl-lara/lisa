@@ -22,7 +22,7 @@ object ProofStepLib {
   }
 
   trait ProofStep{
-    val premises: Seq[Index]
+    val premises: Seq[Library#Proof#InnerJustification]
     def validate(l:Library)(using output: String => Unit)(using finishOutput: Throwable => Nothing): l.Proof#DoubleStep = {
       l.proofStack.head.DoubleStep.newDoubleStep(this)
     }
@@ -32,34 +32,59 @@ object ProofStepLib {
   }
 
   trait ProofStepWithoutBot{
-    val premises: Seq[Index]
+    val premises: Seq[Library#Proof#InnerJustification]
     def asSCProofStep(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement
     def asProofStep(bot: Sequent): ProofStep = new ProofStepWithBot(this, bot)
   }
 
   class ProofStepWithBot(
-                                                val underlying: ProofStepWithoutBot,
-                                                val givenBot:Sequent
-                                              ) extends ProofStep{
-    override val premises: Seq[Index] = underlying.premises
+                          val underlying: ProofStepWithoutBot,
+                          val givenBot:Sequent
+                        ) extends ProofStep{
+    override val premises: Seq[Library#Proof#InnerJustification] = underlying.premises
     override def asSCProofStep(currentProof: Library#Proof): ProofStepJudgement = underlying.asSCProofStep(givenBot ++< (currentProof.assumptions|-()), currentProof)
+  }
+
+  trait ProofStepWithoutPrem{
+    def asSCProofStep(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement
+    def asProofStep(premises: Seq[Library#Proof#InnerJustification]): ProofStep = new ProofStepWithPrem(this, premises)
+    def by(premises: Seq[Library#Proof#InnerJustification]): ProofStep = asProofStep(premises)
+  }
+
+  class ProofStepWithPrem(
+                          val underlying: ProofStepWithoutPrem,
+                          val premises: Seq[Library#Proof#InnerJustification]
+                        ) extends ProofStep{
+    override def asSCProofStep(currentProof: Library#Proof): ProofStepJudgement =
+      if (premises.forall(prem => currentProof.validInThisProof(prem))) {
+        underlying.asSCProofStep(premises.map(prem => currentProof.getSequentAndInt(prem.asInstanceOf[currentProof.InnerJustification])._2), currentProof)
+      }
+      else {
+        ProofStepJudgement.InvalidProofStep(this, "Illegal reference to a previous step outside of this Proof's scope.")
+      }
   }
 
   trait ProofStepWithoutBotNorPrem[N <: Int & Singleton](val numbPrem: N)  {
     def asSCProofStep(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement
-    def asProofStepWithoutBot(premises:Seq[Index]):ProofStepWithoutBot =
+    def asProofStepWithoutBot(premises:Seq[Library#Proof#InnerJustification]):ProofStepWithoutBot =
       new ProofStepWithoutBotWithPrem[N](this, premises)
+    def apply(premises:Library#Proof#InnerJustification*) :ProofStepWithoutBot = asProofStepWithoutBot(premises)
   }
 
 
   class ProofStepWithoutBotWithPrem[N <: Int & Singleton](
                                                            val underlying: ProofStepWithoutBotNorPrem[N],
-                                                           override val premises: Seq[Index]
+                                                           override val premises: Seq[Library#Proof#InnerJustification]
                                                          ) extends ProofStepWithoutBot {
     val numbPrem: N = underlying.numbPrem
-    def asSCProofStep(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement =
-      underlying.asSCProofStep(bot, premises.map(indexToInt(currentProof.length, _)), currentProof: Library#Proof)
-
+    def asSCProofStep(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement = {
+      if (premises.forall(prem => currentProof.validInThisProof(prem))) {
+        underlying.asSCProofStep(bot, premises.map(prem => currentProof.getSequentAndInt(prem.asInstanceOf[currentProof.InnerJustification])._2), currentProof)
+      }
+      else {
+        ProofStepJudgement.InvalidProofStep(asProofStep(bot), "Illegal reference to a previous step outside of this Proof's scope.")
+      }
+    }
   }
 
   given Conversion[SCProofStep, ProofStepJudgement] = ProofStepJudgement.ValidProofStep(_)

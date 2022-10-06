@@ -16,5 +16,7 @@ object ProofStepJudgement{
   case class EarlyProofStepException(message: String) extends Exception(message)
 
   case class ValidProofStep(scps:SCProofStep) extends ProofStepJudgement
-  case class InvalidProofStep(ps: ProofStep, message:String) extends ProofStepJudgement
+  case class InvalidProofStep(ps: ProofStep, message:String) extends ProofStepJudgement {
+    def launch: Nothing = throw EarlyProofStepException(message)
+  }
 }
