@@ -14,13 +14,14 @@ trait WithProofs extends ProofsHelpers {
   library: Library =>
 
 
-  case class Proof(assumpts:List[Formula] = Nil) {
+  class Proof(assumpts:List[Formula] = Nil) {
 
-    val that: Proof = this
-    var steps: List[DoubleStep] = Nil
-    var imports: List[JustifiedImport] = Nil
-    var assumptions: List[Formula] = assumpts
-    var discharges: List[Int] = Nil
+    // Maintaining the current state of the proof if an imperatice environment //
+    private val that: Proof = this
+    private var steps: List[DoubleStep] = Nil
+    private var imports: List[JustifiedImport] = Nil
+    private var assumptions: List[Formula] = assumpts
+    private var discharges: List[Int] = Nil
 
     private val justMap: mMap[theory.Justification, JustifiedImport] = mMap()
 
@@ -85,6 +86,28 @@ trait WithProofs extends ProofsHelpers {
 
     //  Getters  //
 
+    /**
+     * Favour using getSequent when applicable.
+     * @return The list of ValidatedSteps (containing a high level ProofStep and the corresponding SCProofStep).
+     */
+    def getSteps: List[DoubleStep] = steps.reverse
+    /**
+     * Favour using getSequent when applicable.
+     * @return The list of Imports validated in the formula, with their original justification.
+     */
+    def getImports: List[JustifiedImport] = imports
+    /**
+     * @return The list of formulas that are assumed for the reminder of the proof.
+     */
+    def getAssumptions: List[Formula] = assumptions
+    /**
+     * @return The list of Formula, typically proved by outer theorems or axioms that will get discharged in the end of the proof.
+     */
+    def getDischarges: List[Int] = discharges
+
+    /**
+     * Tell if a justification for a ProofStep (an Index, and ProofStep, a theory Justification) is usable in the current proof
+     */
     def validInThisProof(ij:Library#Proof#InnerJustification): Boolean = ij match {
       case ds: library.Proof#DoubleStep => ds.isInstanceOf[this.DoubleStep]
       case ji: library.Proof#JustifiedImport => ji.isInstanceOf[this.JustifiedImport]
@@ -93,22 +116,27 @@ trait WithProofs extends ProofsHelpers {
       case _: theory.Justification => true
       case _ => false
     }
+    /**
+     * Tell if a justification for a ProofStep (an Index, and ProofStep, a theory Justification) is usable in the current proof
+     */
     def validInThisProof(ji:Library#Proof#JustifiedImport): Boolean = ji.isInstanceOf[this.JustifiedImport]
+    /**
+     * Tell if a justification for a ProofStep (an Index, and ProofStep, a theory Justification) is usable in the current proof
+     */
     def validInThisProof(ds:Library#Proof#DoubleStep): Boolean = ds.isInstanceOf[this.DoubleStep]
 
 
-    def apply(i: Int): DoubleStep = {
-      if (i >= 0)
-        if (i >= steps.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
-        else steps(steps.length-i-1)
-      else throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
-    }
-
+    /**
+     * Compute the final, Kernel-pure, SCProof.
+     */
     def toSCProof(using String => Unit)(using finishOutput: Throwable => Nothing): (lisa.kernel.proof.SCProof) = {
       discharges.foreach(i => Discharge(i))
       SCProof(steps.map(_._2).reverse.toIndexedSeq, imports.map(_._1).toIndexedSeq)
     }
 
+    /**
+     * Return the Sequent that a given justification proves as well as it's integer position in the steps or imports lists.
+     */
     def getSequentAndInt(ij: InnerJustification): (Sequent, Int) = {
       ij match {
         case ds: DoubleStep =>
@@ -138,10 +166,19 @@ trait WithProofs extends ProofsHelpers {
             , i)
       }
     }
+    /**
+     * Return the Sequent that a given justification proves in the proof.
+     */
     def getSequent(ij: InnerJustification):  Sequent = {
       ij match {
         case ds: DoubleStep => ds.scps.bot
-        case j: theory.Justification => getSequent(justMap(j)) //TODO what if not present? Can it be?
+        case just: theory.Justification =>
+          val r = justMap.get(just)
+          r match {
+            case Some(ji) => getSequent(ji)
+            case None =>
+              getSequent(JustifiedImport.newJustifiedImport(just))
+          }
         case ji: JustifiedImport => ji.seq
         case Prev => getSequent(steps.length-1)
         case SecondPrev => getSequent(steps.length-2)
@@ -157,17 +194,22 @@ trait WithProofs extends ProofsHelpers {
       }
     }
 
+    /**
+     * @return the most recently added proofstep.
+     */
     def mostRecentStep: (DoubleStep, Int) = (steps.head, steps.length-1)
+    /**
+     * @return Current number of steps in the proof.
+     */
     def length: Int = steps.length
+    /**
+     * @return a Set of symbols free in the assumption and which shouldn't be bound or instantiated.
+     */
     def lockedSymbols: Set[SchematicLabel] = assumptions.toSet.flatMap(f => f.schematicFormulaLabels.toSet[SchematicLabel] ++ f.schematicTermLabels.toSet[SchematicLabel])
-    def assumed: Set[Formula] = assumptions.toSet
-    val references: InnerJustification => (Sequent, Int) = getSequentAndInt
-
-  }
-
-  object Proof {
-
-    def empty: Proof = Proof()
+    /**
+     * @return The sequent and integer position of a justification in the proof. Alias for [[getSequentAndInt]]
+     */
+    def references(ij: InnerJustification): (Sequent, Int) = getSequentAndInt(ij)
 
   }
 

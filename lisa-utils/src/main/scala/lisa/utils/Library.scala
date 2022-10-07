@@ -70,10 +70,10 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     def PROOF(steps: IndexedSeq[SCProofStep])(using String => Unit)(using finishOutput: Throwable => Nothing) : TheoremNameWithProof =
       TheoremNameWithProof(name, statement, SCProof(steps))
     def NPROOF(computeProof: => Unit)(using String => Unit)(using finishOutput: Throwable => Nothing) : theory.Theorem = {
-      proofStack.push(if (proofStack.isEmpty) Proof.empty else new Proof(proofStack.head.assumptions))
+      proofStack.push(if (proofStack.isEmpty) new Proof() else new Proof(proofStack.head.getAssumptions))
       computeProof
       val r = TheoremNameWithProof(name, statement, proofStack.head.toSCProof)
-      val r2 = theory.theorem(r.name, r.statement, r.proof, proofStack.head.imports.map(_._2.asInstanceOf[theory.Justification])) match {
+      val r2 = theory.theorem(r.name, r.statement, r.proof, proofStack.head.getImports.map(_._2.asInstanceOf[theory.Justification])) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
           just

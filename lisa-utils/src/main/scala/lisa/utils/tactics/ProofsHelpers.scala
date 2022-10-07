@@ -18,11 +18,6 @@ trait ProofsHelpers {
             val r = just.asProofStep(bot)
             r.validate(library)
         }
-        infix def by(just:library.theory.Axiom)(using String => Unit)(using finishOutput: Throwable => Nothing) :library.Proof#DoubleStep = {
-            withImport(just)
-            val ps = this.by(Rewrite(-library.proofStack.head.imports.length))
-            ps
-        }
     }
 
     case class AndThenSequent(bot:Sequent) {

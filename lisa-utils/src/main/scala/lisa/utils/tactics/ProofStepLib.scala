@@ -42,7 +42,7 @@ object ProofStepLib {
                           val givenBot:Sequent
                         ) extends ProofStep{
     override val premises: Seq[Library#Proof#InnerJustification] = underlying.premises
-    override def asSCProofStep(currentProof: Library#Proof): ProofStepJudgement = underlying.asSCProofStep(givenBot ++< (currentProof.assumptions|-()), currentProof)
+    override def asSCProofStep(currentProof: Library#Proof): ProofStepJudgement = underlying.asSCProofStep(givenBot ++< (currentProof.getAssumptions|-()), currentProof)
   }
 
   trait ProofStepWithoutPrem{

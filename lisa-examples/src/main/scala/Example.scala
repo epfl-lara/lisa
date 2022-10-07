@@ -50,16 +50,19 @@ object Example {
 
       THEOREM("fixedPointDoubleApplication") of "∀ ?x. ?P(?x) ⇒ ?P(?f(?x)) ⊢ ∀ ?x. ?P(?x) ⇒ ?P(?f(?f(?x)))" NPROOF {
         assume(ax"extensionalityAxiom")
+        withImport(ax"subsetAxiom")
         val n0 = have("?P(?x); ?P(?f(?x)); ?P(?f(?x)) ⇒ ?P(?f(?f(?x))) ⊢ ?P(?f(?f(?x)))")       by   Trivial
         val n1 = have(Set(P(x), P(f(x)) ==> P(f(f(x)))) |- Set(P(x), P(f(f(x)))))                    by   Trivial
-        have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))                      by   LeftImplies(P(x), P(f(x)))(1, n0)
-        andThen(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )       by   LeftForall(P(x) ==> P(f(x)), x, x)
+        val n2 = have(Set(P(x), P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))))             by   LeftImplies(P(x), P(f(x)))(n1, n0)
+        have(Set(forall(x, P(x) ==> P(f(x))), P(x), P(f(x)) ==> P(f(f(x)))) |- P(f(f(x))) )          by   LeftForall(P(x) ==> P(f(x)), x, x)(n2)
         val test = andThen(Set(forall(x, P(x) ==> P(f(x))), P(x)) |- P(f(f(x))))                     by   LeftForall(P(x) ==> P(f(x)), x, f(x))
+
+        showCurrentProof()
+
         assume(forall(x, P(x) ==> P(f(x))))
         have(() |- P(x) ==> P(f(f(x))))                                                              by   Trivial(test)
         andThen(() |- forall(x, P(x) ==> P(f(f(x)))))                                                by   RightForall(P(x) ==> P(f(f(x))), x)
         Discharge(ax"extensionalityAxiom")
-        showCurrentProof()
       }
       show
 
