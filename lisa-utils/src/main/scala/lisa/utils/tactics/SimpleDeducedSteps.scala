@@ -12,19 +12,19 @@ object SimpleDeducedSteps {
 
   case object Trivial extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(1) {
     override val premises: Seq[Int] = Seq()
-    def asSCProofStep(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement =
       SC.RewriteTrue(bot)
 
-    def asSCProofStep(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.Rewrite(bot, premises(0))
 
     }
 
   case class FormulaDischarge(f:FOL.Formula) extends ProofStepWithoutPrem {
-    override def asSCProofStep(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+    override def asSCProof(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
       val t1 = premises(0)
       val (lastStep, t2) = currentProof.mostRecentStep
-      SC.Cut((lastStep.scps.bot -< f) ++ (currentProof.getSequent(t1) -> f),
+      SC.Cut((lastStep.bot -< f) ++ (currentProof.getSequent(t1) -> f),
         t1,
         t2,
         f)
@@ -32,13 +32,13 @@ object SimpleDeducedSteps {
   }
 
   case object Discharge extends ProofStepWithoutPrem {
-    override def asSCProofStep(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+    override def asSCProof(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
       val s = currentProof.getSequent(premises(0))
       if (s.right.size==1) {
         val f = s.right.head
         val t1 = premises(0)
         val (lastStep, t2) = currentProof.mostRecentStep
-        SC.Cut((lastStep.scps.bot -< f) ++ (currentProof.getSequent(t1) -> f),
+        SC.Cut((lastStep.bot -< f) ++ (currentProof.getSequent(t1) -> f),
           t1,
           t2,
           f)

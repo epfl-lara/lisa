@@ -5,7 +5,7 @@ import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.fol.FOL.*
 import lisa.utils.Library
 import lisa.utils.tactics.ProofStepJudgement.{EarlyProofStepException, InvalidProofStep, ValidProofStep}
-import lisa.utils.tactics.ProofStepLib.{Prev, ProofStep, SecondPrev, Index}
+import lisa.utils.tactics.ProofStepLib.{ProofStep}
 
 import scala.collection.mutable.Buffer as mBuf
 import scala.collection.mutable.Map as mMap
@@ -16,26 +16,36 @@ trait WithProofs extends ProofsHelpers {
 
   class Proof(assumpts:List[Formula] = Nil) {
 
-    // Maintaining the current state of the proof if an imperatice environment //
+    // Maintaining the current state of the proof if an imperative environment //
     private val that: Proof = this
     private var steps: List[DoubleStep] = Nil
     private var imports: List[JustifiedImport] = Nil
     private var assumptions: List[Formula] = assumpts
-    private var discharges: List[Int] = Nil
+    private var discharges: List[InnerJustification] = Nil
 
     private val justMap: mMap[theory.Justification, JustifiedImport] = mMap()
 
-    case class DoubleStep private(ps:ProofStep, scps:SCProofStep){
-      def _1: ProofStep = ps
-      def _2: SCProofStep = scps
+
+
+    /**
+     * A step that has been added to a proof and its equivalent in pure sequent calculus.
+     */
+    case class DoubleStep private(ps:ProofStep, scps:Seq[SCProofStep], position:Int){
+      val bot: Sequent = scps.last.bot
     }
 
-    case class JustifiedImport(just:theory.Justification, seq:Sequent) {
+    /**
+     * An import (theorem, axiom or definition) that has been added to the current proof.
+     */
+    case class JustifiedImport private(just:theory.Justification, seq:Sequent) {
       def _1: Sequent = seq
       def _2: theory.Justification = just
     }
 
-    type InnerJustification = DoubleStep | theory.Justification | JustifiedImport | Index
+    /**
+     * The type of object which can be used as premises of proofsteps, similar to integers in pure sequent calculus.
+     */
+    type InnerJustification = DoubleStep | theory.Justification | JustifiedImport | Int
 
     private def addStep(ds:DoubleStep):Unit = steps = ds::steps
     private def addImport(ji:JustifiedImport):Unit = {
@@ -49,23 +59,26 @@ trait WithProofs extends ProofsHelpers {
 
     //  Setters  //
 
+    /**
+     * @param f add the formula f as an assumption on the left handsides of all further (manually written) proofsteps in the proof.
+     */
     def addAssumption(f:Formula):Unit = {
       if (!assumptions.contains(f)) assumptions = f::assumptions
     }
-    def addDischarge(i:Int):Unit = {
-      if (!discharges.contains(i)) discharges = i::discharges
-    }
+
+    /**
+     * @param ji Automatically discharge (by applying Cut rule) the given justification at the end of the proof.
+     */
     def addDischarge(ji:InnerJustification):Unit = {
-      val i = getSequentAndInt(ji)._2
-      addDischarge(i)
+      if (!discharges.contains(ji)) discharges = ji::discharges
     }
 
-    object DoubleStep {
+    private object DoubleStep {
       def newDoubleStep(ps:ProofStep)(using output: String => Unit)(using finishOutput: Throwable => Nothing): DoubleStep = {
-        val judgement = ps.asSCProofStep(that)
+        val judgement = ps.asSCProof(that)
         judgement match {
           case ValidProofStep(scps) =>
-            val ds = DoubleStep(ps, scps)
+            val ds = DoubleStep(ps, scps, steps.length+scps.length-1)
             addStep(ds)
             ds
           case InvalidProofStep(ps, message) =>
@@ -75,13 +88,25 @@ trait WithProofs extends ProofsHelpers {
       }
     }
 
-    object JustifiedImport {
+    /**
+     * Add a new proof step to the proof
+     */
+    def newDoubleStep(ps:ProofStep)(using output: String => Unit)(using finishOutput: Throwable => Nothing): DoubleStep =
+      DoubleStep.newDoubleStep(ps:ProofStep)
+
+    private object JustifiedImport {
       def newJustifiedImport(just:theory.Justification): JustifiedImport = {
         val ji : JustifiedImport = JustifiedImport(just, theory.sequentFromJustification(just))
         addImport(ji)
         ji
       }
     }
+
+    /**
+     * Add a new import to the proof.
+     */
+    def newJustifiedImport(just:theory.Justification): JustifiedImport = JustifiedImport.newJustifiedImport(just)
+
 
 
     //  Getters  //
@@ -103,7 +128,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * @return The list of Formula, typically proved by outer theorems or axioms that will get discharged in the end of the proof.
      */
-    def getDischarges: List[Int] = discharges
+    def getDischarges: List[InnerJustification] = discharges
 
     /**
      * Tell if a justification for a ProofStep (an Index, and ProofStep, a theory Justification) is usable in the current proof
@@ -112,16 +137,15 @@ trait WithProofs extends ProofsHelpers {
       case ds: library.Proof#DoubleStep => ds.isInstanceOf[this.DoubleStep]
       case ji: library.Proof#JustifiedImport => ji.isInstanceOf[this.JustifiedImport]
       case _: Int => true
-      case _: Index => true
       case _: theory.Justification => true
       case _ => false
     }
     /**
-     * Tell if a justification for a ProofStep (an Index, and ProofStep, a theory Justification) is usable in the current proof
+     * Tell if a justification for a ProofStep (ad ProofStep, a theory Justification) is usable in the current proof
      */
     def validInThisProof(ji:Library#Proof#JustifiedImport): Boolean = ji.isInstanceOf[this.JustifiedImport]
     /**
-     * Tell if a justification for a ProofStep (an Index, and ProofStep, a theory Justification) is usable in the current proof
+     * Tell if a justification for a ProofStep (ad ProofStep, a theory Justification) is usable in the current proof
      */
     def validInThisProof(ds:Library#Proof#DoubleStep): Boolean = ds.isInstanceOf[this.DoubleStep]
 
@@ -130,8 +154,8 @@ trait WithProofs extends ProofsHelpers {
      * Compute the final, Kernel-pure, SCProof.
      */
     def toSCProof(using String => Unit)(using finishOutput: Throwable => Nothing): (lisa.kernel.proof.SCProof) = {
-      discharges.foreach(i => Discharge(i))
-      SCProof(steps.map(_._2).reverse.toIndexedSeq, imports.map(_._1).toIndexedSeq)
+      discharges.foreach(i => Discharge(getSequentAndInt(i)._2))
+      SCProof(steps.reverse.flatMap(_.scps).toIndexedSeq, imports.map(_._1).toIndexedSeq)
     }
 
     /**
@@ -140,7 +164,7 @@ trait WithProofs extends ProofsHelpers {
     def getSequentAndInt(ij: InnerJustification): (Sequent, Int) = {
       ij match {
         case ds: DoubleStep =>
-          val (sq, i) = (ds.scps.bot, steps.indexOf(ds))
+          val (sq, i) = (ds.bot, steps.indexOf(ds))
           (sq, steps.length-i-1)
         case just: theory.Justification =>
           val r = justMap.get(just)
@@ -152,12 +176,10 @@ trait WithProofs extends ProofsHelpers {
         case ji: JustifiedImport =>
           val (sq, i) = (ji.seq, imports.indexOf(ji))
           (sq, -i-1)
-        case Prev => getSequentAndInt(steps.length-1)
-        case SecondPrev => getSequentAndInt(steps.length-2)
         case i:Int =>
           (if (i >= 0)
             if (i >= steps.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
-            else steps(steps.length-i-1)._2.bot
+            else steps(steps.length-i-1).bot
           else{
             val i2 = -(i + 1)
             if (i2 >= imports.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the imports Seq")
@@ -171,7 +193,7 @@ trait WithProofs extends ProofsHelpers {
      */
     def getSequent(ij: InnerJustification):  Sequent = {
       ij match {
-        case ds: DoubleStep => ds.scps.bot
+        case ds: DoubleStep => ds.bot
         case just: theory.Justification =>
           val r = justMap.get(just)
           r match {
@@ -180,12 +202,10 @@ trait WithProofs extends ProofsHelpers {
               getSequent(JustifiedImport.newJustifiedImport(just))
           }
         case ji: JustifiedImport => ji.seq
-        case Prev => getSequent(steps.length-1)
-        case SecondPrev => getSequent(steps.length-2)
         case i:Int =>
           if (i >= 0)
             if (i >= steps.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
-            else steps(steps.length-i-1)._2.bot
+            else steps(steps.length-i-1).bot
           else{
             val i2 = -(i + 1)
             if (i2 >= imports.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the imports Seq")
