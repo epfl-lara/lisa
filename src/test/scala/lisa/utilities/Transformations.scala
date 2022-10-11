@@ -1,8 +1,8 @@
 package lisa.utilities
-import lisa.kernel.fol.*
-import lisa.kernel.proof.SCProof
 import lisa.automation.kernel.Destructors.*
 import lisa.automation.kernel.ProofTactics.*
+import lisa.kernel.fol.*
+import lisa.kernel.proof.SCProof
 import lisa.test.ProofCheckerSuite
 import lisa.utils.Helpers.given_Conversion_VariableLabel_Term
 import lisa.utils.Printer

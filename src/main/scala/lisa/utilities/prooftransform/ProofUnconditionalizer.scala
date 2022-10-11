@@ -97,13 +97,12 @@ abstract class ProofTransformer(pr: SCProof) {
 
     case (Nil, _) => ConnectorFormula(Or, s.right.toSeq)
     case (_, Nil) => ConnectorFormula(And, s.left.toSeq)
-    case (h::Nil, _) => ConnectorFormula(Implies, List(h, ConnectorFormula(Or, s.right.toSeq)))
-    case (_, h::Nil) => ConnectorFormula(Implies, List(ConnectorFormula(And, s.left.toSeq), h))
+    case (h :: Nil, _) => ConnectorFormula(Implies, List(h, ConnectorFormula(Or, s.right.toSeq)))
+    case (_, h :: Nil) => ConnectorFormula(Implies, List(ConnectorFormula(And, s.left.toSeq), h))
     case (_, _) => sequentToFormula(s)
 
   }
 }
-
 
 /**
  * A transformation that ensures its result is a proof where no instantiaiton are left, rreplaced by imports and rewrites of their conclusion
