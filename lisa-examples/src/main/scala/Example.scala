@@ -16,7 +16,7 @@ import lisa.utils.Printer.*
  */
 object Example {
   def main(args: Array[String]): Unit = {
-    // proofExample() // uncomment when exercise finished
+    //proofExample() // uncomment when exercise finished
     // solverExample()
     // tptpExample()
   }

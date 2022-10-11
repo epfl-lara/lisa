@@ -13,9 +13,7 @@ class Transformations extends ProofCheckerSuite {
   test("Trasnsformation initialises well with empty proof and returns an empty proof") {
     val nullSCProof = SCProof()
     val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(nullSCProof)
-
     assert(transf.transform() == nullSCProof)
-
   }
 
   /**

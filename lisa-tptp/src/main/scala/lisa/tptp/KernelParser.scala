@@ -3,9 +3,9 @@ package lisa.tptp
 import leo.datastructures.TPTP
 import leo.datastructures.TPTP.CNF
 import leo.datastructures.TPTP.FOF
-import leo.modules.input.{TPTPParser => Parser}
-import lisa.kernel.fol.{FOL => K}
-import lisa.kernel.proof.{SequentCalculus => LK}
+import leo.modules.input.TPTPParser as Parser
+import lisa.kernel.fol.FOL as K
+import lisa.kernel.proof.SequentCalculus as LK
 import lisa.tptp.*
 import lisa.utils.Helpers.*
 
