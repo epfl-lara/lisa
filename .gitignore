@@ -11,5 +11,3 @@ target
 *.scala.semanticdb
 
 *.iml
-project/project/project/metals.sbt
-project/project/metals.sbt
