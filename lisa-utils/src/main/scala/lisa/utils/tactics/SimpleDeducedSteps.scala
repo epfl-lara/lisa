@@ -206,7 +206,7 @@ object SimpleDeducedSteps {
       }
       else {
         val emptyProof = SCProof(IndexedSeq(), IndexedSeq(currentProof.getSequent(premises(0))))
-        val j = ProofStepJudgement.ValidProofStep(Seq())
+        val j = ProofStepJudgement.ValidProofStep(SC.SCSubproof(emptyProof))
         
         // some unfortunate code reuse
         // DoubleStep tactics cannot be composed easily at the moment
@@ -281,7 +281,7 @@ object SimpleDeducedSteps {
 
       res match {
         case ProofStepJudgement.InvalidProofStep(_, _) => res
-        case ProofStepJudgement.ValidProofStep(List(SC.SCSubproof(proof: SCProof, _, _))) => {
+        case ProofStepJudgement.ValidProofStep(SC.SCSubproof(proof: SCProof, _, _)) => {
           // check if the same sequent was obtained
           SC.SCSubproof(
             proof withNewSteps IndexedSeq(SC.Rewrite(bot, proof.length-1)),
