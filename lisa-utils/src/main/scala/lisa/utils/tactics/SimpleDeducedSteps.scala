@@ -357,4 +357,75 @@ object SimpleDeducedSteps {
     def apply(t: FOL.Term*) = InstantiateForallMultipleWithoutFormula(t: _*)
   }
 
+  /**
+   * Performs a cut when the formula to be used as pivot for the cut is
+   * inside a conjunction, preserving the conjunction structure
+   * 
+   * PartialCut(ϕ, ϕ ∧ ψ)(left, right) :
+   * 
+   *     left: Γ ⊢ ϕ ∧ ψ, Δ      right: ϕ, Σ ⊢ γ1 , γ2, …, γn
+   * -----------------------------------------------------------
+   *            Γ, Σ ⊢ Δ, ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn
+   * 
+   */
+  case class PartialCut(phi: FOL.Formula, conjunction: FOL.Formula) extends ProofStepWithoutBotNorPrem(2) {
+    override def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+
+      def invalid(message: String) = ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), message)
+
+      val leftSequent = currentProof.getSequent(premises(0))
+      val rightSequent = currentProof.getSequent(premises(1))
+
+      if (leftSequent.right.contains(conjunction)) {
+        
+        if (rightSequent.left.contains(phi)) {
+          // check conjunction matches with phi
+          conjunction match {
+            case FOL.ConnectorFormula(FOL.And, s: Seq[FOL.Formula]) => {
+              if(s.contains(phi)) {
+                // construct proof
+
+                val psi: Seq[FOL.Formula] = s.filterNot(_ == phi)
+                val newConclusions: Set[FOL.Formula] = rightSequent.right.map((f: FOL.Formula) => FOL.ConnectorFormula(FOL.And, f +: psi))
+
+                val Sigma: Set[FOL.Formula] = rightSequent.left - phi
+
+                val p0 = SC.Weakening(rightSequent ++< (psi |- ()), -2)
+                val p1 = SC.Rewrite(Sigma + conjunction |- newConclusions, 0)
+                val p2 = SC.Cut(leftSequent -> conjunction ++ (Sigma |- newConclusions), -1, 1, conjunction)
+
+                /**
+                 * 
+                 * newConclusions = ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn
+                 *
+                 * left   = Γ ⊢ ϕ ∧ ψ, Δ                              Premise
+                 * right  = ϕ, Σ ⊢ γ1 , γ2, …, γn                     Premise
+                 * 
+                 * p0     = ϕ, Σ, ψ ⊢ γ1 , γ2, …, γn                  Weakening on right
+                 * p1     = ϕ ∧ ψ, Σ ⊢ ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn     Rewrite on p0
+                 * p2     = Γ, Σ ⊢ Δ, ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn      Cut on left, p1 with ϕ ∧ ψ
+                 * 
+                 * p2 is the result
+                 * 
+                 */
+
+                SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(leftSequent, rightSequent)), premises.take(2))
+              }
+              else{
+                invalid("Input conjunction does not contain the pivot.")
+              }
+            }
+            case _ => invalid("Input not a conjunction.")
+          }
+        }
+        else {
+          invalid("Input pivot formula not found in right premise.")
+        }
+      }
+      else {
+        invalid("Input conjunction not found in first premise.")
+      }
+    }
+  }
+
 }
