@@ -361,11 +361,15 @@ object SimpleDeducedSteps {
    * Performs a cut when the formula to be used as pivot for the cut is
    * inside a conjunction, preserving the conjunction structure
    * 
+   * <pre>
+   * 
    * PartialCut(ϕ, ϕ ∧ ψ)(left, right) :
    * 
    *     left: Γ ⊢ ϕ ∧ ψ, Δ      right: ϕ, Σ ⊢ γ1 , γ2, …, γn
    * -----------------------------------------------------------
    *            Γ, Σ ⊢ Δ, ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn
+   * 
+   * </pre>
    * 
    */
   case class PartialCut(phi: FOL.Formula, conjunction: FOL.Formula) extends ProofStepWithoutBotNorPrem(2) {
@@ -391,8 +395,21 @@ object SimpleDeducedSteps {
                 val Sigma: Set[FOL.Formula] = rightSequent.left - phi
 
                 val p0 = SC.Weakening(rightSequent ++< (psi |- ()), -2)
-                val p1 = SC.Rewrite(Sigma + conjunction |- newConclusions, 0)
-                val p2 = SC.Cut(leftSequent -> conjunction ++ (Sigma |- newConclusions), -1, 1, conjunction)
+                val p1 = SC.RewriteTrue(psi |- psi)
+                
+
+                // TODO: can be abstracted into a RightAndAll step
+                val emptyProof = SCProof(IndexedSeq(), IndexedSeq(p0.bot, p1.bot))
+                val proofRightAndAll = rightSequent.right.foldLeft(emptyProof) {
+                  case (p, gamma) => p withNewSteps IndexedSeq(SC.RightAnd(
+                                                      p.conclusion -> gamma +> FOL.ConnectorFormula(FOL.And, gamma +: psi),
+                                                      Seq(p.length - 1, -2),
+                                                      gamma +: psi))
+                }
+
+                val p2 = SC.SCSubproof(proofRightAndAll, Seq(0, 1))
+                val p3 = SC.Rewrite(Sigma + conjunction |- newConclusions, 2) // sanity check and correct form
+                val p4 = SC.Cut(bot, -1, 3, conjunction)
 
                 /**
                  * 
@@ -402,14 +419,21 @@ object SimpleDeducedSteps {
                  * right  = ϕ, Σ ⊢ γ1 , γ2, …, γn                     Premise
                  * 
                  * p0     = ϕ, Σ, ψ ⊢ γ1 , γ2, …, γn                  Weakening on right
-                 * p1     = ϕ ∧ ψ, Σ ⊢ ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn     Rewrite on p0
+                 * p1     = ψ ⊢ ψ                                     Hypothesis
+                 * p2     = Subproof:
+                 *          2.1 = ϕ, Σ, ψ ⊢ ψ ∧ γ1 , γ2, …, γn        RightAnd on p0 and p1 with ψ ∧ γ1
+                 *          2.2 = ϕ, Σ, ψ ⊢ ψ ∧ γ1 , ψ ∧ γ2, …, γn    RightAnd on 2.1 and p1 ψ ∧ γ2
+                 *          ...
+                 *          2.n = ϕ, Σ, ψ ⊢ ψ ∧ γ1, ψ ∧ γ2, …, ψ ∧ γn RightAnd on 2.(n-1) and p1 with ψ ∧ γn
+                 *
+                 * p3     = ϕ ∧ ψ, Σ ⊢ ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn     Rewrite on p2 (just to have a cleaner form)
                  * p2     = Γ, Σ ⊢ Δ, ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn      Cut on left, p1 with ϕ ∧ ψ
                  * 
                  * p2 is the result
                  * 
                  */
 
-                SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(leftSequent, rightSequent)), premises.take(2))
+                SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2, p3, p4), IndexedSeq(leftSequent, rightSequent)), premises.take(2))
               }
               else{
                 invalid("Input conjunction does not contain the pivot.")
