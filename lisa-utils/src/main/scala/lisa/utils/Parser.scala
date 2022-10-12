@@ -461,6 +461,7 @@ object Parser {
       },
       {
         case ConnectorFormula(c @ (Iff | Implies), Seq(left, right)) => Seq(left ~ Some(c ~ right))
+        case ConnectorFormula((And | Or), Seq(f)) => Seq(f ~ None)
         case f => Seq(f ~ None)
       }
     )

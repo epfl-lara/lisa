@@ -98,6 +98,15 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     assert(Parser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "a ∨ b ∨ c")
   }
 
+  test("and/or of 1 argument") {
+    assert(Parser.printFormula(ConnectorFormula(And, Seq(a))) == "a")
+    assert(Parser.printFormula(ConnectorFormula(Or, Seq(a))) == "a")
+
+    assert(Parser.printFormula(ConnectorFormula(Implies, Seq(ConnectorFormula(Or, Seq(a)), ConnectorFormula(And, Seq(a))))) == "(a) ⇒ (a)")
+    assert(Parser.printFormula(ConnectorFormula(Implies, Seq(a, a))) == "a ⇒ a")
+    assert(Parser.printFormula(BinderFormula(Forall, x, ConnectorFormula(Or, Seq(a)))) == "∀'x. a")
+  }
+
   test("connectors of >2 arguments") {
     assert(Parser.printFormula(ConnectorFormula(And, Seq(a, b, c))) == "a ∧ b ∧ c")
     assert(Parser.printFormula(ConnectorFormula(Or, Seq(a, b, c))) == "a ∨ b ∨ c")
