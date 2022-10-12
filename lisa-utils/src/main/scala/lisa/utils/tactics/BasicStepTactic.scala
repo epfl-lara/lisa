@@ -139,9 +139,9 @@ object BasicStepTactic {
    *    Γ, Σ |- φ∧ψ∧..., Π, Δ
    * </pre>
    */
-  case class RightAnd(t: Seq[Int], cunjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
+  case class RightAnd(cunjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.RightAnd(bot, t, cunjuncts)
+      SC.RightAnd(bot, premises, cunjuncts)
   }
 
   /**

@@ -48,6 +48,35 @@ object Example {
       show
       */
 
+      THEOREM("weakeningTest") of "∀ ?x. set_membership(?x, ?X) ⊢ set_membership(?y, ?X)" NPROOF {
+
+        val x = VariableLabel("x")
+        val X = VariableLabel("X")
+        val y = VariableLabel("y")
+
+        // have(forall(x, in(x, X)) |- forall(x, in(x, X))) by Trivial
+        // val s1 = have(forall(x, forall(X, in(x, X))) |- forall(x, forall(X, in(x, X)))) by Trivial
+        // have(forall(x, in(x, X)) |- in(y, X)) by InstantiateForall(forall(x, in(x, X)), y)(0)
+        // by InstantiateForall(forall(x, in(x, X)), y)(0)
+        // have(forall(x, in(x, X)) |- in(y, X)) by InstantiateForall(y)(0)
+        // by InstantiateForall(y)(0)
+        // have(forall(x, forall(X, in(x, X))) |- in(y, x)) by InstantiateForall(forall(x, forall(X, in(x, X))), y, x)(1)
+        // by InstantiateForall(forall(x, forall(X, in(x, X))), y, x)(1)
+        // have(forall(x, forall(X, in(x, X))) |- in(y, x)) by InstantiateForall(y, x)(1)
+        // by InstantiateForall(y, x)(1)
+        // andThen(forall(x, forall(X, in(x, X))) |- Set(forall(x, forall(X, in(x, X))), in(y, x), in(x, y))) by Weakening
+        // andThen(forall(x, forall(X, in(x, X))) |- forall(x, forall(X, in(x, X))) \/ in(y, x) \/ in(x, y)) by Rewrite
+        // andThen(forall(x, forall(X, in(x, X))) |- Set(forall(x, forall(X, in(x, X))), in(y, x), in(x, y))) by Rewrite
+        // andThen(Set(forall(x, forall(X, in(x, X))), in(x, X)) |- Set(forall(x, forall(X, in(x, X))), in(y, x), in(x, y))) by Weakening
+        // andThen(forall(x, forall(X, in(x, X))) /\ in(x, X) |- Set(forall(x, forall(X, in(x, X))), in(y, x), in(x, y))) by Rewrite
+
+        withImport(ax"EmptySet")
+        have(() |- !in(x, emptySet())) by InstantiateForall(x)(-1)
+
+        showCurrentProof()
+      }
+      show
+
       THEOREM("fixedPointDoubleApplication") of "∀ ?x. ?P(?x) ⇒ ?P(?f(?x)) ⊢ ∀ ?x. ?P(?x) ⇒ ?P(?f(?f(?x)))" NPROOF {
         assume(ax"extensionalityAxiom")
         withImport(ax"subsetAxiom")
@@ -66,16 +95,49 @@ object Example {
       }
       show
 
-      /*
-      THEOREM("Try") of "subset_of(?x, ?y) /\\ subset_of(?x, ?y) <-> ?x = ?y" NPROOF {
+      THEOREM("inclusionEquivalence") of "subset_of(?x, ?y) /\\ subset_of(?y, ?x) <-> ?x = ?y" NPROOF {
+
+        val x = VariableLabel("x")
+        val y = VariableLabel("y")
+        val z = VariableLabel("z")
+
         withImport(ax"extensionalityAxiom")
         withImport(ax"subsetAxiom")
-        have("subset_of(?x, ?y) ; subset_of(?y, ?x) |- ")
+        val hypo = have("subset_of(?x, ?y) ; subset_of(?y, ?x) |- subset_of(?x, ?y) /\\ subset_of(?y, ?x)")  by Trivial
+        
+        have(() |- (subset(x, y) <=> forall(z, in(z, x) ==> in(z, y)))) by InstantiateForall(x, y)(-1)
+        val subx = andThen(() |- (subset(x, y) ==> (forall(z, in(z, x) ==> in(z, y)))) /\ ((forall(z, in(z, x) ==> in(z, y))) ==> subset(x, y))) by Rewrite
+
+        have(() |- (subset(y, x) <=> forall(z, in(z, y) ==> in(z, x)))) by InstantiateForall(y, x)(-1)
+        val suby = andThen(() |- (subset(y, x) ==> (forall(z, in(z, y) ==> in(z, x)))) /\ ((forall(z, in(z, y) ==> in(z, x))) ==> subset(y, x))) by Rewrite
+
+        val prem = Set(subset(x, y), subset(y, x))
+        val excess = subset(x, y) /\ subset(y, x) /\ 
+              (
+                (subset(x, y) ==> (forall(z, in(z, x) ==> in(z, y)))) /\ ((forall(z, in(z, x) ==> in(z, y))) ==> subset(x, y))
+              ) /\
+              (
+                (subset(y, x) ==> (forall(z, in(z, y) ==> in(z, x)))) /\ ((forall(z, in(z, y) ==> in(z, x))) ==> subset(y, x))
+              )
+
+        have(prem |- excess)  by RightAnd(
+                Seq(
+                  subset(x, y) /\ subset(y, x)
+              , (
+                (subset(x, y) ==> (forall(z, in(z, x) ==> in(z, y)))) /\ ((forall(z, in(z, x) ==> in(z, y))) ==> subset(x, y))
+              )
+              , (
+                (subset(y, x) ==> (forall(z, in(z, y) ==> in(z, x)))) /\ ((forall(z, in(z, y) ==> in(z, x))) ==> subset(y, x))
+              )
+                )
+        )(hypo, subx, suby)
+
+        andThen((prem |- excess /\ forall(z, in(z, x) ==> in(z, y)) /\ forall(z, in(z, x) ==> in(z, y)))) by Rewrite
+
         showCurrentProof()
 
       }
       show
-      */
     }
 
 
