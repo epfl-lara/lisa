@@ -65,24 +65,7 @@ object Example {
         Discharge(ax"extensionalityAxiom")
       }
       show
-
-      /*
-      THEOREM("Try") of "subset_of(?x, ?y) /\\ subset_of(?x, ?y) <-> ?x = ?y" NPROOF {
-        withImport(ax"extensionalityAxiom")
-        withImport(ax"subsetAxiom")
-        have("subset_of(?x, ?y) ; subset_of(?y, ?x) |- ")
-        showCurrentProof()
-
-      }
-      show
-      */
     }
-
-
-
-
-
-
 
     Ex.main(Array(""))
   }
@@ -189,7 +172,10 @@ object Example {
   val A = PredicateFormula(VariableFormulaLabel("A"), Seq())
   val B = PredicateFormula(VariableFormulaLabel("B"), Seq())
   val C = PredicateFormula(VariableFormulaLabel("C"), Seq())
+  val H = VariableFormulaLabel("H")
   val x = VariableLabel("x")
+  val y = VariableLabel("y")
+  val z = VariableLabel("z")
   val f = SchematicFunctionLabel("f", 1)
 
   def ???? : Formula = ???

@@ -16,7 +16,7 @@ object ProofStepLib {
    * A proofstep is an object that relies on a step of premises and which can be translated into pure Sequent Calculus.
    */
   trait ProofStep{
-    val premises: Seq[Library#Proof#InnerJustification]
+    val premises: Seq[Library#Proof#Fact]
 
     /**
      * Add the proofstep to the current proof of the given library.
@@ -36,7 +36,7 @@ object ProofStepLib {
    * A proof step lacking a bottom/conclusion sequent. Once given a conclusion sequent, it can become a ProofStep.
    */
   trait ProofStepWithoutBot{
-    val premises: Seq[Library#Proof#InnerJustification]
+    val premises: Seq[Library#Proof#Fact]
     /**
      * An abstract function transforming the ProofStepWithoutBot into a SCProofStep in pure Sequent Calculus,
      * by being given access to a target conclusive sequent and the current state of the proof.
@@ -56,7 +56,7 @@ object ProofStepLib {
                           val underlying: ProofStepWithoutBot,
                           val givenBot:Sequent
                         ) extends ProofStep{
-    override val premises: Seq[Library#Proof#InnerJustification] = underlying.premises
+    override val premises: Seq[Library#Proof#Fact] = underlying.premises
     override def asSCProof(currentProof: Library#Proof): ProofStepJudgement = underlying.asSCProof(givenBot ++< (currentProof.getAssumptions|-()), currentProof)
   }
 
@@ -72,11 +72,11 @@ object ProofStepLib {
     /**
      * Gives the premises of the ProofStep, as a partial application towards the SC transformation.
      */
-    def asProofStep(premises: Seq[Library#Proof#InnerJustification]): ProofStep = new ProofStepWithPrem(this, premises)
+    def asProofStep(premises: Seq[Library#Proof#Fact]): ProofStep = new ProofStepWithPrem(this, premises)
     /**
      * Alias for [[asProofStep]]
      */
-    def by(premises: Seq[Library#Proof#InnerJustification]): ProofStep = asProofStep(premises)
+    def by(premises: Seq[Library#Proof#Fact]): ProofStep = asProofStep(premises)
   }
 
   /**
@@ -84,11 +84,11 @@ object ProofStepLib {
    */
   class ProofStepWithPrem protected[ProofStepLib](
                           val underlying: ProofStepWithoutPrem,
-                          val premises: Seq[Library#Proof#InnerJustification]
+                          val premises: Seq[Library#Proof#Fact]
                         ) extends ProofStep{
     override def asSCProof(currentProof: Library#Proof): ProofStepJudgement =
       if (premises.forall(prem => currentProof.validInThisProof(prem))) {
-        underlying.asSCProof(premises.map(prem => currentProof.getSequentAndInt(prem.asInstanceOf[currentProof.InnerJustification])._2), currentProof)
+        underlying.asSCProof(premises.map(prem => currentProof.getSequentAndInt(prem.asInstanceOf[currentProof.Fact])._2), currentProof)
       }
       else {
         ProofStepJudgement.InvalidProofStep(this, "Illegal reference to a previous step outside of this Proof's scope.")
@@ -105,9 +105,9 @@ object ProofStepLib {
      * a list of premises, a targeted bottom sequent and the current proof.
      */
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement
-    def asProofStepWithoutBot(premises:Seq[Library#Proof#InnerJustification]):ProofStepWithoutBot =
+    def asProofStepWithoutBot(premises:Seq[Library#Proof#Fact]):ProofStepWithoutBot =
       new ProofStepWithoutBotWithPrem[N](this, premises)
-    def apply(premises:Library#Proof#InnerJustification*) :ProofStepWithoutBot = asProofStepWithoutBot(premises)
+    def apply(premises:Library#Proof#Fact*) :ProofStepWithoutBot = asProofStepWithoutBot(premises)
   }
 
   /**
@@ -115,13 +115,13 @@ object ProofStepLib {
    */
   class ProofStepWithoutBotWithPrem[N <: Int & Singleton] protected[ProofStepLib](
                                                            val underlying: ProofStepWithoutBotNorPrem[N],
-                                                           override val premises: Seq[Library#Proof#InnerJustification]
+                                                           override val premises: Seq[Library#Proof#Fact]
                                                          ) extends ProofStepWithoutBot {
     val numbPrem: N = underlying.numbPrem
 
     def asSCProof(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement = {
       if (premises.forall(prem => currentProof.validInThisProof(prem))) {
-        underlying.asSCProof(bot, premises.map(prem => currentProof.getSequentAndInt(prem.asInstanceOf[currentProof.InnerJustification])._2), currentProof)
+        underlying.asSCProof(bot, premises.map(prem => currentProof.getSequentAndInt(prem.asInstanceOf[currentProof.Fact])._2), currentProof)
       }
       else {
         ProofStepJudgement.InvalidProofStep(asProofStep(bot), "Illegal reference to a previous step outside of this Proof's scope.")
@@ -129,7 +129,7 @@ object ProofStepLib {
     }
   }
 
-  given Conversion[SCProofStep, ProofStepJudgement] = c => ProofStepJudgement.ValidProofStep(Seq(c))
+  given Conversion[SCProofStep, ProofStepJudgement] = c => ProofStepJudgement.ValidProofStep(c)
 
 
 

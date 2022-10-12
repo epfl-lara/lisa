@@ -48,7 +48,7 @@ object SimpleDeducedSteps {
       }
     }
     def apply(f:FOL.Formula): FormulaDischarge = FormulaDischarge(f)
-    def apply(ij: Library#Proof#InnerJustification)(using library:Library)(using String => Unit)(using finishOutput: Throwable => Nothing): Unit = {
+    def apply(ij: Library#Proof#Fact)(using library:Library)(using String => Unit)(using finishOutput: Throwable => Nothing): Unit = {
       if (library.proofStack.head.validInThisProof(ij)){
         Discharge.asProofStep(Seq(ij)).validate(library)
       } else {

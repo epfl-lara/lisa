@@ -11,7 +11,7 @@ object SetTheory extends lisa.Main {
   THEOREM("russelParadox") of "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢" NPROOF {
     val y = VariableLabel("y")
     val x = VariableLabel("x")
-    
+
     have( in(y, y) <=> !in(y, y) |- () )   by Trivial
     andThen(forall(x, in(x, y) <=> !in(x, x)) |- () )    by LeftForall( in(x, y) <=> !in(x, x), x, y)
   }

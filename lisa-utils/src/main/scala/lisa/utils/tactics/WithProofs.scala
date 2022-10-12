@@ -19,25 +19,25 @@ trait WithProofs extends ProofsHelpers {
     // Maintaining the current state of the proof if an imperative environment //
     private val that: Proof = this
     private var steps: List[DoubleStep] = Nil
-    private var imports: List[JustifiedImport] = Nil
+    private var imports: List[ImportedFact] = Nil
     private var assumptions: List[Formula] = assumpts
-    private var discharges: List[InnerJustification] = Nil
+    private var discharges: List[Fact] = Nil
 
-    private val justMap: mMap[theory.Justification, JustifiedImport] = mMap()
+    private val justMap: mMap[theory.Justification, ImportedFact] = mMap()
 
 
 
     /**
      * A step that has been added to a proof and its equivalent in pure sequent calculus.
      */
-    case class DoubleStep private(ps:ProofStep, scps:Seq[SCProofStep], position:Int){
-      val bot: Sequent = scps.last.bot
+    case class DoubleStep private(ps:ProofStep, scps:SCProofStep, position:Int){
+      val bot: Sequent = scps.bot
     }
 
     /**
      * An import (theorem, axiom or definition) that has been added to the current proof.
      */
-    case class JustifiedImport private(just:theory.Justification, seq:Sequent) {
+    case class ImportedFact private(just:theory.Justification, seq:Sequent) {
       def _1: Sequent = seq
       def _2: theory.Justification = just
     }
@@ -45,10 +45,10 @@ trait WithProofs extends ProofsHelpers {
     /**
      * The type of object which can be used as premises of proofsteps, similar to integers in pure sequent calculus.
      */
-    type InnerJustification = DoubleStep | theory.Justification | JustifiedImport | Int
+    type Fact = DoubleStep | theory.Justification | ImportedFact | Int
 
     private def addStep(ds:DoubleStep):Unit = steps = ds::steps
-    private def addImport(ji:JustifiedImport):Unit = {
+    private def addImport(ji:ImportedFact):Unit = {
       justMap.update(ji.just, ji)
       imports= ji::imports
     }
@@ -69,7 +69,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * @param ji Automatically discharge (by applying Cut rule) the given justification at the end of the proof.
      */
-    def addDischarge(ji:InnerJustification):Unit = {
+    def addDischarge(ji:Fact):Unit = {
       if (!discharges.contains(ji)) discharges = ji::discharges
     }
 
@@ -78,7 +78,7 @@ trait WithProofs extends ProofsHelpers {
         val judgement = ps.asSCProof(that)
         judgement match {
           case ValidProofStep(scps) =>
-            val ds = DoubleStep(ps, scps, steps.length+scps.length-1)
+            val ds = DoubleStep(ps, scps, steps.length)
             addStep(ds)
             ds
           case InvalidProofStep(ps, message) =>
@@ -94,9 +94,9 @@ trait WithProofs extends ProofsHelpers {
     def newDoubleStep(ps:ProofStep)(using output: String => Unit)(using finishOutput: Throwable => Nothing): DoubleStep =
       DoubleStep.newDoubleStep(ps:ProofStep)
 
-    private object JustifiedImport {
-      def newJustifiedImport(just:theory.Justification): JustifiedImport = {
-        val ji : JustifiedImport = JustifiedImport(just, theory.sequentFromJustification(just))
+    private object ImportedFact {
+      def newJustifiedImport(just:theory.Justification): ImportedFact = {
+        val ji : ImportedFact = ImportedFact(just, theory.sequentFromJustification(just))
         addImport(ji)
         ji
       }
@@ -105,7 +105,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * Add a new import to the proof.
      */
-    def newJustifiedImport(just:theory.Justification): JustifiedImport = JustifiedImport.newJustifiedImport(just)
+    def newJustifiedImport(just:theory.Justification): ImportedFact = ImportedFact.newJustifiedImport(just)
 
 
 
@@ -120,7 +120,7 @@ trait WithProofs extends ProofsHelpers {
      * Favour using getSequent when applicable.
      * @return The list of Imports validated in the formula, with their original justification.
      */
-    def getImports: List[JustifiedImport] = imports
+    def getImports: List[ImportedFact] = imports
     /**
      * @return The list of formulas that are assumed for the reminder of the proof.
      */
@@ -128,14 +128,14 @@ trait WithProofs extends ProofsHelpers {
     /**
      * @return The list of Formula, typically proved by outer theorems or axioms that will get discharged in the end of the proof.
      */
-    def getDischarges: List[InnerJustification] = discharges
+    def getDischarges: List[Fact] = discharges
 
     /**
      * Tell if a justification for a ProofStep (an Index, and ProofStep, a theory Justification) is usable in the current proof
      */
-    def validInThisProof(ij:Library#Proof#InnerJustification): Boolean = ij match {
+    def validInThisProof(ij:Library#Proof#Fact): Boolean = ij match {
       case ds: library.Proof#DoubleStep => ds.isInstanceOf[this.DoubleStep]
-      case ji: library.Proof#JustifiedImport => ji.isInstanceOf[this.JustifiedImport]
+      case ji: library.Proof#ImportedFact => ji.isInstanceOf[this.ImportedFact]
       case _: Int => true
       case _: theory.Justification => true
       case _ => false
@@ -143,7 +143,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * Tell if a justification for a ProofStep (ad ProofStep, a theory Justification) is usable in the current proof
      */
-    def validInThisProof(ji:Library#Proof#JustifiedImport): Boolean = ji.isInstanceOf[this.JustifiedImport]
+    def validInThisProof(ji:Library#Proof#ImportedFact): Boolean = ji.isInstanceOf[this.ImportedFact]
     /**
      * Tell if a justification for a ProofStep (ad ProofStep, a theory Justification) is usable in the current proof
      */
@@ -155,13 +155,13 @@ trait WithProofs extends ProofsHelpers {
      */
     def toSCProof(using String => Unit)(using finishOutput: Throwable => Nothing): (lisa.kernel.proof.SCProof) = {
       discharges.foreach(i => Discharge(getSequentAndInt(i)._2))
-      SCProof(steps.reverse.flatMap(_.scps).toIndexedSeq, imports.map(_._1).toIndexedSeq)
+      SCProof(steps.reverse.map(_.scps).toIndexedSeq, imports.map(_._1).toIndexedSeq)
     }
 
     /**
      * Return the Sequent that a given justification proves as well as it's integer position in the steps or imports lists.
      */
-    def getSequentAndInt(ij: InnerJustification): (Sequent, Int) = {
+    def getSequentAndInt(ij: Fact): (Sequent, Int) = {
       ij match {
         case ds: DoubleStep =>
           val (sq, i) = (ds.bot, steps.indexOf(ds))
@@ -171,9 +171,9 @@ trait WithProofs extends ProofsHelpers {
           r match {
             case Some(ji) => getSequentAndInt(ji)
             case None =>
-              getSequentAndInt(JustifiedImport.newJustifiedImport(just))
+              getSequentAndInt(ImportedFact.newJustifiedImport(just))
           }
-        case ji: JustifiedImport =>
+        case ji: ImportedFact =>
           val (sq, i) = (ji.seq, imports.indexOf(ji))
           (sq, -i-1)
         case i:Int =>
@@ -191,7 +191,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * Return the Sequent that a given justification proves in the proof.
      */
-    def getSequent(ij: InnerJustification):  Sequent = {
+    def getSequent(ij: Fact):  Sequent = {
       ij match {
         case ds: DoubleStep => ds.bot
         case just: theory.Justification =>
@@ -199,9 +199,9 @@ trait WithProofs extends ProofsHelpers {
           r match {
             case Some(ji) => getSequent(ji)
             case None =>
-              getSequent(JustifiedImport.newJustifiedImport(just))
+              getSequent(ImportedFact.newJustifiedImport(just))
           }
-        case ji: JustifiedImport => ji.seq
+        case ji: ImportedFact => ji.seq
         case i:Int =>
           if (i >= 0)
             if (i >= steps.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
@@ -229,7 +229,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * @return The sequent and integer position of a justification in the proof. Alias for [[getSequentAndInt]]
      */
-    def references(ij: InnerJustification): (Sequent, Int) = getSequentAndInt(ij)
+    def references(ij: Fact): (Sequent, Int) = getSequentAndInt(ij)
 
   }
 
