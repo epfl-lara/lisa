@@ -125,7 +125,7 @@ object BasicStepTactic {
    *      Γ, ∃!x. φ |- Δ
    * </pre>
    */
-  case class LeftExistsOne( t1: Int, phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
+  case class LeftExistsOne(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.LeftExistsOne(bot, premises(0), phi, x)
   }
@@ -139,9 +139,9 @@ object BasicStepTactic {
    *    Γ, Σ |- φ∧ψ∧..., Π, Δ
    * </pre>
    */
-  case class RightAnd(t: Seq[Int], cunjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
+  case class RightAnd(cunjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.RightAnd(bot, t, cunjuncts)
+      SC.RightAnd(bot, premises, cunjuncts)
   }
 
   /**
@@ -238,9 +238,9 @@ object BasicStepTactic {
    *   Γ, Σ |- Δ, Π
    * </pre>
    */
-  case class Weakening(t1: Int) extends ProofStepWithoutBotNorPrem(1) {
+  case object Weakening extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.Weakening(bot, t1)
+      SC.Weakening(bot, premises(0))
   }
 
   // Equality Rules
