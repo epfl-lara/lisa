@@ -280,9 +280,7 @@ object BasicStepTactic {
 
       if(pivot.tail.isEmpty){
         pivot.head match {
-          case psi @ BinderFormula(Forall, x, _) => {
-            SC.LeftForall(bot, premises(0), instantiateBinder(psi, t), x, t)
-          }
+          case BinderFormula(Forall, x, phi) => SC.LeftForall(bot, premises(0), phi, x, t)
           case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
                                               "Could not infer a universally quantified pivot from premise and conclusion.")
         }
@@ -654,6 +652,39 @@ object BasicStepTactic {
       SC.RightExists(bot, premises(0), phi, x, t)
   }
 
+  case class RightExistsWithoutFormula(t: Term) extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.right.diff(premiseSequent.right)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case BinderFormula(Exists, x, phi) => SC.RightExists(bot, premises(0), phi, x, t)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer an existentially quantified pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Right-hand side of the conclusion + φ[t/x] must be the same as right-hand side of the premise + ∃x. φ.")
+      }
+    }
+  }
+
+  case object RightExists {
+    // default construction:
+    // def apply(phi: Formula, x: VariableLabel, t: Term) = new RightExists(phi, x, t)
+    def apply(t: Term) = new RightExistsWithoutFormula(t)
+
+    // TODO: will require unification to infer input Term:
+    // def apply() = new RightExistsWithoutFormulaOrTerm()
+
+    // usage without an argument list
+    // TODO: add `extends ProofStepWithoutBotNorPrem(1)` to object when uncommenting
+    // def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    //   this().asSCProof(bot, premises, currentProof)
+  }
+
   /**
    * <pre>
    *  Γ |- ∃y.∀x. (x=y) ↔ φ, Δ
@@ -664,6 +695,35 @@ object BasicStepTactic {
   case class RightExistsOne(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.RightExistsOne(bot, premises(0), phi, x)
+  }
+
+  case class RightExistsOneWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.right.diff(premiseSequent.right)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case BinderFormula(ExistsOne, x, phi) => SC.RightExistsOne(bot, premises(0), phi, x)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer an existentially quantified pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Right-hand side of conclusion + ∃y.∀x. (x=y) ↔ φ must be the same as right-hand side of premise + ∃!x. φ.")
+      }
+    }
+  }
+
+  case object RightExistsOne extends ProofStepWithoutBotNorPrem(1){
+    // default construction:
+    // def apply(phi: Formula, x: VariableLabel) = new RightExistsOne(phi, x)
+    def apply() = new RightExistsOneWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
   }
 
   // Structural rules
