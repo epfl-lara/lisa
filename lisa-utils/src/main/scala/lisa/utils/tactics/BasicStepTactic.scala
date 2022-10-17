@@ -54,10 +54,14 @@ object BasicStepTactic {
     }
   }
 
-  case object Cut {
+  case object Cut extends ProofStepWithoutBotNorPrem(2) {
     // default construction:
     // def apply(phi: Formula) = new Cut(phi)
     def apply() = new CutWithoutFormula()
+    
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
     
   }
 
