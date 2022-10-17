@@ -74,6 +74,31 @@ object BasicStepTactic {
       SC.LeftAnd(bot, premises(0), phi, psi)
   }
 
+  case class LeftAndWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.left.diff(premiseSequent.left)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case ConnectorFormula(And, Seq(phi, psi)) => SC.LeftAnd(bot, premises(0), phi, psi)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
+      }      
+    }
+  }
+
+  case object LeftAnd {
+    // default construction:
+    // def apply(phi: Formula, psi: Formula) = new LeftAnd(phi, psi)
+    def apply() = new LeftAndWithoutFormula()
+  }
+
   /**
    * <pre>
    *  Γ, φ |- Δ    Σ, ψ |- Π    ...
