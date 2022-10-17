@@ -752,6 +752,35 @@ object BasicStepTactic {
       SC.LeftRefl(bot, premises(0), fa)
   }
 
+  case class LeftReflWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = premiseSequent.left.diff(bot.left)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case PredicateFormula(`equality`, _) => SC.LeftRefl(bot, premises(0), pivot.head)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer a reflexive pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Left-hand sides of the conclusion + φ must be the same as left-hand side of the premise.")
+      }
+    }
+  }
+
+  case object LeftRefl extends ProofStepWithoutBotNorPrem(1){
+    // default construction:
+    // def apply(fa: Formula) = new LeftRefl(fa)
+    def apply() = new LeftReflWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
+  }
+
   /**
    * <pre>
    *
@@ -762,6 +791,28 @@ object BasicStepTactic {
   case class RightRefl(fa: Formula) extends ProofStepWithoutBotNorPrem(0) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.RightRefl(bot, fa)
+  }
+
+  case class RightReflWithoutFormula() extends ProofStepWithoutBotNorPrem(0) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val pivot = bot.right
+
+      pivot.head match {
+        case PredicateFormula(`equality`, _) => SC.RightRefl(bot, pivot.head)
+        case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                            "Could not infer a reflexive pivot from premise and conclusion.")
+      }
+    }
+  }
+
+  case object RightRefl extends ProofStepWithoutBotNorPrem(0){
+    // default construction:
+    // def apply(fa: Formula) = new RightRefl(fa)
+    def apply() = new RightReflWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
   }
 
   /**
