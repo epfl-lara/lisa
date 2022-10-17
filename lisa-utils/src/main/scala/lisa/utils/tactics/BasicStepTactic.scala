@@ -269,6 +269,40 @@ object BasicStepTactic {
       SC.LeftForall(bot, premises(0), phi, x, t)
   }
 
+  case class LeftForallWithoutFormula(t: Term) extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.left.diff(premiseSequent.left)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case psi @ BinderFormula(Forall, x, _) => {
+            SC.LeftForall(bot, premises(0), instantiateBinder(psi, t), x, t)
+          }
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer a universally quantified pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ.")
+      }
+    }
+  }
+
+  case object LeftForall extends ProofStepWithoutBotNorPrem(1) {
+    // default construction:
+    // def apply(phi: Formula, x: VariableLabel, t: Term) = new LeftForall(phi, x, t)
+    def apply(t: Term) = new LeftForallWithoutFormula(t)
+
+    // TODO: will require unification to infer input Term:
+    // def apply() = new LeftForallWithoutFormulaOrTerm()
+
+    // usage without an argument list
+    // def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    //   this().asSCProof(bot, premises, currentProof)
+  }
+
   /**
    * <pre>
    *    Γ, φ |- Δ
@@ -282,6 +316,37 @@ object BasicStepTactic {
       SC.LeftExists(bot, premises(0), phi, x)
   }
 
+  case class LeftExistsWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.left.diff(premiseSequent.left)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case BinderFormula(Exists, x, phi) => {
+            SC.LeftExists(bot, premises(0), phi, x)
+          }
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer an existentially quantified pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
+      }
+    }
+  }
+
+  case object LeftExists extends ProofStepWithoutBotNorPrem(1) {
+    // default construction:
+    // def apply(phi: Formula, x: VariableLabel) = new LeftExists(phi, x)
+    def apply() = new LeftExistsWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
+  }
+
   /**
    * <pre>
    *  Γ, ∃y.∀x. (x=y) ↔ φ |-  Δ
@@ -292,6 +357,37 @@ object BasicStepTactic {
   case class LeftExistsOne(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.LeftExistsOne(bot, premises(0), phi, x)
+  }
+
+  case class LeftExistsOneWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.left.diff(premiseSequent.left)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case BinderFormula(ExistsOne, x, phi) => {
+            SC.LeftExistsOne(bot, premises(0), phi, x)
+          }
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer an existentially quantified pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
+      }
+    }
+  }
+
+  case object LeftExistsOne extends ProofStepWithoutBotNorPrem(1) {
+    // default construction:
+    // def apply(phi: Formula, x: VariableLabel) = new LeftExistsOne(phi, x)
+    def apply() = new LeftExistsOneWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
   }
 
 
