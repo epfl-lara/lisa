@@ -58,7 +58,7 @@ object BasicStepTactic {
     // default construction:
     // def apply(phi: Formula) = new Cut(phi)
     def apply() = new CutWithoutFormula()
-    
+
     // usage without an argument list
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
@@ -87,7 +87,7 @@ object BasicStepTactic {
         pivot.head match {
           case ConnectorFormula(And, Seq(phi, psi)) => SC.LeftAnd(bot, premises(0), phi, psi)
           case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
-                                              "Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
+                                              "Could not infer a conjunction as pivot from premise and conclusion.")
         }
       }
       else{
@@ -303,6 +303,7 @@ object BasicStepTactic {
     // def apply() = new LeftForallWithoutFormulaOrTerm()
 
     // usage without an argument list
+    // TODO: add `extends ProofStepWithoutBotNorPrem(1)` to object when uncommenting
     // def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
     //   this().asSCProof(bot, premises, currentProof)
   }
@@ -407,6 +408,32 @@ object BasicStepTactic {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.RightAnd(bot, premises, cunjuncts)
   }
+  case class RightAndWithoutFormula() extends ProofStepWithoutBotNorPrem(-1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequents = premises.map(currentProof.getSequent(_))
+      val pivots = premiseSequents.map(_.right.diff(bot.right))
+
+      if(pivots.forall(_.tail.isEmpty)){
+        val conjuncts = pivots.map(_.head)
+        SC.RightAnd(bot, premises, conjuncts)
+      }
+      else{
+        // some extraneous formulae
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")
+      }
+    }
+  }
+
+  case object RightAnd extends ProofStepWithoutBotNorPrem(-1) {
+    // default construction:
+    // def apply(conjuncts: Seq[Formula]) = new RightAnd(conjuncts)
+    def apply() = new RightAndWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
+  }
 
   /**
    * <pre>
@@ -418,6 +445,35 @@ object BasicStepTactic {
   case class RightOr(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.RightOr(bot, premises(0), phi, psi)
+  }
+
+  case class RightOrWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.right.diff(premiseSequent.right)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case ConnectorFormula(Or, Seq(phi, psi)) => SC.RightOr(bot, premises(0), phi, psi)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer a disjunction as pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both.")
+      }      
+    }
+  }
+
+  case object RightOr extends ProofStepWithoutBotNorPrem(1) {
+    // default construction:
+    // def apply(phi: Formula, psi: Formula) = new RightOr(phi, psi)
+    def apply() = new RightOrWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
   }
 
   /**
@@ -432,9 +488,38 @@ object BasicStepTactic {
       SC.RightImplies(bot, premises(0), phi, psi)
   }
 
+  case class RightImpliesWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.right.diff(premiseSequent.right)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case ConnectorFormula(Implies, Seq(phi, psi)) => SC.RightImplies(bot, premises(0), phi, psi)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer an implication as pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ→ψ.")
+      }      
+    }
+  }
+
+  case object RightImplies extends ProofStepWithoutBotNorPrem(1) {
+    // default construction:
+    // def apply(phi: Formula, psi: Formula) = new RightImplies(phi, psi)
+    def apply() = new RightImpliesWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
+  }
+
   /**
    * <pre>
-   *  Γ |- a→ψ, Δ    Σ |- ψ→φ, Π
+   *  Γ |- φ→ψ, Δ    Σ |- ψ→φ, Π
    * ----------------------------
    *      Γ, Σ |- φ↔ψ, Π, Δ
    * </pre>
@@ -442,6 +527,35 @@ object BasicStepTactic {
   case class RightIff(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(2) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.RightIff(bot, premises(0), premises(1), phi, psi)
+  }
+
+  case class RightIffWithoutFormula() extends ProofStepWithoutBotNorPrem(2) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = premiseSequent.right.diff(bot.right)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case ConnectorFormula(Implies, Seq(phi, psi)) => SC.RightIff(bot, premises(0), premises(1), phi, psi)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer an implication as pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises φ↔ψ.")
+      }      
+    }
+  }
+
+  case object RightIff extends ProofStepWithoutBotNorPrem(2) {
+    // default construction:
+    // def apply(phi: Formula, psi: Formula) = new RightIff(phi, psi)
+    def apply() = new RightIffWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
   }
 
   /**
@@ -456,6 +570,35 @@ object BasicStepTactic {
       SC.RightNot(bot, premises(0), phi)
   }
 
+  case class RightNotWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.right.diff(premiseSequent.right)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case ConnectorFormula(Neg, Seq(phi)) => SC.RightNot(bot, premises(0), phi)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer a negation as pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Right-hand side of conclusion must be the same as right-hand side of premise + ¬φ.")
+      }      
+    }
+  }
+
+  case object RightNot extends ProofStepWithoutBotNorPrem(1) {
+    // default construction:
+    // def apply(phi: Formula) = new RightNot(phi)
+    def apply() = new RightNotWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
+  }
+
   /**
    * <pre>
    *    Γ |- φ, Δ
@@ -466,6 +609,35 @@ object BasicStepTactic {
   case class RightForall(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
       SC.RightForall(bot, premises(0), phi, x)
+  }
+
+  case class RightForallWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val premiseSequent = currentProof.getSequent(premises(0))
+      val pivot = bot.right.diff(premiseSequent.right)
+
+      if(pivot.tail.isEmpty){
+        pivot.head match {
+          case BinderFormula(Forall, x, phi) => SC.RightForall(bot, premises(0), phi, x)
+          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Could not infer a universally quantified formula as pivot from premise and conclusion.")
+        }
+      }
+      else{
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∀x. φ.")
+      }      
+    }
+  }
+
+  case object RightForall extends ProofStepWithoutBotNorPrem(1) {
+    // default construction:
+    // def apply(phi: Formula, x: VariableLabel) = new RightForall(phi, x)
+    def apply() = new RightForallWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
   }
 
   /**
