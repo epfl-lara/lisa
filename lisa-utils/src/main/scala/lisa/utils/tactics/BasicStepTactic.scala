@@ -93,10 +93,14 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftAnd {
+  case object LeftAnd extends ProofStepWithoutBotNorPrem(1) {
     // default construction:
     // def apply(phi: Formula, psi: Formula) = new LeftAnd(phi, psi)
     def apply() = new LeftAndWithoutFormula()
+
+    // usage without an argument list
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+      this().asSCProof(bot, premises, currentProof)
   }
 
   /**
