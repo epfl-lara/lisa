@@ -290,7 +290,7 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftForall extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftForall {
     // default construction:
     // def apply(phi: Formula, x: VariableLabel, t: Term) = new LeftForall(phi, x, t)
     def apply(t: Term) = new LeftForallWithoutFormula(t)
