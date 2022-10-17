@@ -30,6 +30,37 @@ object BasicStepTactic {
       SC.Cut(bot, premises(0), premises(1), phi)
   }
 
+  case class CutWithoutFormula() extends ProofStepWithoutBotNorPrem(2) {
+    def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val leftSequent = currentProof.getSequent(premises(0))
+      val rightSequent = currentProof.getSequent(premises(1))
+      val cutSetRight = rightSequent.left.diff(bot.left)
+      val cutSetLeft = leftSequent.right.diff(bot.right)
+
+      if(cutSetLeft == cutSetRight) {
+        if(cutSetLeft.tail.isEmpty){
+          SC.Cut(bot, premises(0), premises(1), cutSetLeft.head)
+        }
+        else {
+          ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                                "Inferred cut pivot is not a singleton set.")
+        }
+      }
+      else {
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), 
+                                              "A consistent cut pivot cannot be inferred from the premises. Possibly a missing or extraneous clause.")
+      }
+
+    }
+  }
+
+  case object Cut {
+    // default construction:
+    // def apply(phi: Formula) = new Cut(phi)
+    def apply() = new CutWithoutFormula()
+    
+  }
+
   // Left rules
   /**
    * <pre>
