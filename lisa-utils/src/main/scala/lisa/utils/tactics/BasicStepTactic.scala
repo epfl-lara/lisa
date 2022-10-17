@@ -132,7 +132,7 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftOr extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftOr extends ProofStepWithoutBotNorPrem(-1) {
     // default construction:
     // def apply(disjuncts: Seq[Formula]) = new LeftOr(disjuncts)
     def apply() = new LeftOrWithoutFormula()
@@ -169,7 +169,7 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftImplies extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftImplies extends ProofStepWithoutBotNorPrem(2) {
     // default construction:
     // def apply(phi: Formula, psi: Formula) = new LeftImplies(phi, psi)
     def apply() = new LeftImpliesWithoutFormula()
