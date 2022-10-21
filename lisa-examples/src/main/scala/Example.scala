@@ -1,14 +1,15 @@
 import lisa.Main
+import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
-import lisa.utils.Helpers.{show, *, given}
+import lisa.utils.Helpers.show
+import lisa.utils.Helpers.{_, given}
 import lisa.utils.Printer.*
 import lisa.utils.tactics.ProofStepLib.ProofStep
 
@@ -34,10 +35,10 @@ object Example {
 
       THEOREM("fixedPointDoubleApplication") of "∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))" PROOF {
         assume(forall(x, P(x) ==> P(f(x))))
-        val base = have( (P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x))))            by   Trivial
+        val base = have((P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x)))) by Trivial
         have(() |- P(x) ==> P(f(f(x)))) by SUBPROOF {
-          have(P(f(x)) ==> P(f(f(x))) |- P(x) ==> P(f(f(x))) )   by   LeftForall(P(x) ==> P(f(x)), x, x)(base)
-          andThen(() |- P(x) ==> P(f(f(x))))   by   LeftForall(P(x) ==> P(f(x)), x, f(x))
+          have(P(f(x)) ==> P(f(f(x))) |- P(x) ==> P(f(f(x)))) by LeftForall(x)(base)
+          andThen(() |- P(x) ==> P(f(f(x)))) by LeftForall(f(x))
         }
       }
       show

@@ -240,7 +240,7 @@ object Peano {
         () |-
           ((plus(s(x), zero) === plus(x, s(zero))) /\
             forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y))))) ==>
-            forall(y, plus(x, s(y)) === plus(s(x), y)),
+          forall(y, plus(x, s(y)) === plus(s(x), y)),
         0,
         Map(sPhi -> LambdaTermFormula(Seq(y), plus(x, s(y)) === plus(s(x), y)))
       )
@@ -285,7 +285,8 @@ object Peano {
         )
 
       val xPlusSYInstance5 = SC.SCSubproof(instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", x), y), Seq(-1))
-      val cutXPlusSY6 = SC.Cut(Set(plus(x, y) === plus(y, x), s(plus(y, x)) === plus(y, s(x)), plus(y, s(x)) === plus(s(y), x)) |- plus(x, s(y)) === plus(s(y), x), 5, 4, plus(x, s(y)) === s(plus(x, y)))
+      val cutXPlusSY6 =
+        SC.Cut(Set(plus(x, y) === plus(y, x), s(plus(y, x)) === plus(y, s(x)), plus(y, s(x)) === plus(s(y), x)) |- plus(x, s(y)) === plus(s(y), x), 5, 4, plus(x, s(y)) === s(plus(x, y)))
       val yPlusSXInstance7 = SC.SCSubproof(instantiateForall(instantiateForallImport(ax"ax4plusSuccessor", y), x), Seq(-1))
       val cutYPlusSX8 = SC.Cut(Set(plus(x, y) === plus(y, x), plus(y, s(x)) === plus(s(y), x)) |- plus(x, s(y)) === plus(s(y), x), 7, 6, s(plus(y, x)) === plus(y, s(x)))
       val swichSuccessorInstance9 = SC.SCSubproof(instantiateForall(instantiateForallImport(thm"switch successor", y), x), Seq(-2))
@@ -321,7 +322,7 @@ object Peano {
         () |-
           ((plus(x, zero) === plus(zero, x)) /\
             forall(y, (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x)))) ==>
-            forall(y, plus(x, y) === plus(y, x)),
+          forall(y, plus(x, y) === plus(y, x)),
         0,
         Map(sPhi -> LambdaTermFormula(Seq(y), plus(x, y) === plus(y, x)))
       )

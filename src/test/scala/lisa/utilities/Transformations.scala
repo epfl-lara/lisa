@@ -6,11 +6,11 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.test.ProofCheckerSuite
-import lisa.utils.Helpers.{*, given}
+import lisa.utils.Helpers.{_, given}
 import lisa.utils.Printer
 
 class Transformations extends ProofCheckerSuite {
-  //import lisa.settheory.SetTheoryLibrary.*
+  // import lisa.settheory.SetTheoryLibrary.*
 
   test("Trasnsformation initialises well with empty proof and returns an empty proof") {
     val nullSCProof = SCProof()

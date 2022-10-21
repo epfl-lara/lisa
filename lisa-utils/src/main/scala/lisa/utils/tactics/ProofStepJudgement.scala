@@ -21,7 +21,8 @@ sealed abstract class ProofStepJudgement {
 
 }
 
-object ProofStepJudgement{
+object ProofStepJudgement {
+
   /**
    * Indicates an error in the building of a proof that was caught before the proof is passed to the logical kernel.
    * May indicate a faulty tactic application.
@@ -31,12 +32,12 @@ object ProofStepJudgement{
   /**
    * A Sequent Calculus proof step that has been correctly produced.
    */
-  case class ValidProofStep(scps:SCProofStep) extends ProofStepJudgement
+  case class ValidProofStep(scps: SCProofStep) extends ProofStepJudgement
 
   /**
    * A proof step which led to an error when computing the corresponding Sequent Calculus proof step.
    */
-  case class InvalidProofStep(ps: ProofStep, message:String) extends ProofStepJudgement {
+  case class InvalidProofStep(ps: ProofStep, message: String) extends ProofStepJudgement {
     def launch: Nothing = throw EarlyProofStepException(message)
   }
 

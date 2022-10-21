@@ -38,12 +38,12 @@ trait TheoriesHelpers extends KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check. See [[lisa.kernel.proof.RunningTheory.makeFunctionDefinition]]
      */
     def functionDefinition(
-                            symbol: String,
-                            expression: LambdaTermFormula,
-                            out: VariableLabel,
-                            proof: SCProof,
-                            justifications: Seq[theory.Justification]
-                          ): RunningTheoryJudgement[theory.FunctionDefinition] = {
+        symbol: String,
+        expression: LambdaTermFormula,
+        out: VariableLabel,
+        proof: SCProof,
+        justifications: Seq[theory.Justification]
+    ): RunningTheoryJudgement[theory.FunctionDefinition] = {
       val label = ConstantFunctionLabel(symbol, expression.vars.size)
       theory.makeFunctionDefinition(proof, justifications, label, out, expression)
     }
@@ -81,7 +81,7 @@ trait TheoriesHelpers extends KernelHelpers {
               ) // (label, args, phi)
             case fd: RunningTheory#FunctionDefinition =>
               output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
-                .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n")
+                  .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n")
           }
       }
       just
@@ -100,9 +100,9 @@ trait TheoriesHelpers extends KernelHelpers {
           just.show
         case InvalidJustification(message, error) =>
           output(s"$message\n${error match {
-            case Some(judgement) => Printer.prettySCProof(judgement)
-            case None => ""
-          }}")
+              case Some(judgement) => Printer.prettySCProof(judgement)
+              case None => ""
+            }}")
           finishOutput(InvalidJustificationException(message, error))
       }
     }
@@ -119,7 +119,7 @@ trait TheoriesHelpers extends KernelHelpers {
         case SCProofCheckerJudgement.SCValidProof(proof) =>
           output(Printer.prettySCProof(proofJudgement))
           proof
-        case ip@ SCProofCheckerJudgement.SCInvalidProof(proof, path, message) =>
+        case ip @ SCProofCheckerJudgement.SCInvalidProof(proof, path, message) =>
           output(s"$message\n${Printer.prettySCProof(proofJudgement)}")
           finishOutput(InvalidJustificationException("", Some(ip)))
       }

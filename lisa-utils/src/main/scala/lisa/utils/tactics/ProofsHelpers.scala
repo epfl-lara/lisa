@@ -2,50 +2,53 @@ package lisa.utils.tactics
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SequentCalculus.{SCProofStep, Sequent}
+import lisa.kernel.proof.SequentCalculus.SCProofStep
+import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.Library
-import lisa.utils.Parser.{parseFormula, parseSequent, parseTerm}
+import lisa.utils.Parser.parseFormula
+import lisa.utils.Parser.parseSequent
+import lisa.utils.Parser.parseTerm
 import lisa.utils.tactics.ProofStepLib.*
 
 trait ProofsHelpers {
-    library: Library & WithProofs =>
-    given Library = library
-    export BasicStepTactic.*
-    export SimpleDeducedSteps.*
-    private def proof: Proof = proofStack.head
+  library: Library & WithProofs =>
+  given Library = library
+  export BasicStepTactic.*
+  export SimpleDeducedSteps.*
+  private def proof: Proof = proofStack.head
 
-
-    case class HaveSequent private[ProofsHelpers](bot:Sequent) {
-        infix def by(just: ProofStepWithoutBot)(using String => Unit)(using finishOutput: Throwable => Nothing) : library.Proof#DoubleStep = {
-            val r = just.asProofStep(bot)
-            r.validate(library)
-        }
+  case class HaveSequent private[ProofsHelpers] (bot: Sequent) {
+    infix def by(just: ProofStepWithoutBot)(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
+      val r = just.asProofStep(bot)
+      r.validate(library)
     }
+  }
 
-    case class AndThenSequent private[ProofsHelpers](bot:Sequent) {
-        infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using String => Unit)(using finishOutput: Throwable => Nothing) : library.Proof#DoubleStep = {
-            val r = just.asProofStepWithoutBot(Seq(proof.mostRecentStep._2)).asProofStep(bot)
-            r.validate(library)
-        }
+  case class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
+    infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
+      val r = just.asProofStepWithoutBot(Seq(proof.mostRecentStep._2)).asProofStep(bot)
+      r.validate(library)
     }
+  }
 
-    /**
-     * Claim the given Sequent as a ProofStep, which may require a justification by a proof tactic and premises.
-     */
-    def have(res:Sequent): HaveSequent = HaveSequent(res)
-    /**
-     * Claim the given Sequent as a ProofStep, which may require a justification by a proof tactic and premises.
-     */
-    def have(res:String): HaveSequent = HaveSequent(parseSequent(res))
+  /**
+   * Claim the given Sequent as a ProofStep, which may require a justification by a proof tactic and premises.
+   */
+  def have(res: Sequent): HaveSequent = HaveSequent(res)
 
-    /**
-     * Claim the given known Theorem, Definition or Axiom as a Sequent.
-     */
-    def have(just:theory.Justification)(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
-        have(theory.sequentFromJustification(just)) by Restate(just.asInstanceOf[Library#Proof#Fact])
-    }
+  /**
+   * Claim the given Sequent as a ProofStep, which may require a justification by a proof tactic and premises.
+   */
+  def have(res: String): HaveSequent = HaveSequent(parseSequent(res))
 
-    /* //TODO: After reviewing substitutions
+  /**
+   * Claim the given known Theorem, Definition or Axiom as a Sequent.
+   */
+  def have(just: theory.Justification)(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
+    have(theory.sequentFromJustification(just)) by Restate(just.asInstanceOf[Library#Proof#Fact])
+  }
+
+  /* //TODO: After reviewing substitutions
     def have(instJust: InstantiatedJustification)(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
         val just = instJust.just
         val (seq, ref) = proof.getSequentAndInt(just)
@@ -63,55 +66,52 @@ trait ProofsHelpers {
             ???
         }
     }
-    */
+   */
 
+  /**
+   * Claim the given Sequent as a ProofStep directly following the previously proven tactic,
+   * which may require a justification by a proof tactic.
+   */
+  def andThen(res: Sequent): AndThenSequent = AndThenSequent(res)
 
-    /**
-     * Claim the given Sequent as a ProofStep directly following the previously proven tactic,
-     * which may require a justification by a proof tactic.
-     */
-    def andThen(res:Sequent): AndThenSequent = AndThenSequent(res)
-    /**
-     * Claim the given Sequent as a ProofStep directly following the previously proven tactic,
-     * which may require a justification by a proof tactic.
-     */
-    def andThen(res:String): AndThenSequent = AndThenSequent(parseSequent(res))
+  /**
+   * Claim the given Sequent as a ProofStep directly following the previously proven tactic,
+   * which may require a justification by a proof tactic.
+   */
+  def andThen(res: String): AndThenSequent = AndThenSequent(parseSequent(res))
 
-    /**
-     * Import the given justification (Axiom, Theorem or Definition) into the current proof.
-     */
-    def withImport(just:theory.Justification):library.Proof#ImportedFact = {
-        proofStack.head.newImportedFact(just)
+  /**
+   * Import the given justification (Axiom, Theorem or Definition) into the current proof.
+   */
+  def withImport(just: theory.Justification): library.Proof#ImportedFact = {
+    proofStack.head.newImportedFact(just)
 
+  }
+
+  /**
+   * Assume the given formula in all future left hand-side of claimed sequents.
+   */
+  def assume(f: Formula): Formula = {
+    proofStack.head.addAssumption(f)
+    f
+  }
+
+  /**
+   * Store the given import and use it to discharge the proof of one of its assumption at the very end.
+   */
+  def endDischarge(ji: Library#Proof#ImportedFact): Unit = {
+    val p: Proof = proof
+    if (p.validInThisProof(ji)) {
+      val p = proof
+      p.addDischarge(ji.asInstanceOf[p.ImportedFact])
     }
+  }
 
-    /**
-     * Assume the given formula in all future left hand-side of claimed sequents.
-     */
-    def assume(f:Formula):Formula = {
-        proofStack.head.addAssumption(f)
-        f
-    }
+  given Conversion[ProofStepWithoutBotNorPrem[0], ProofStepWithoutBot] = _.asProofStepWithoutBot(Seq())
 
-    /**
-     * Store the given import and use it to discharge the proof of one of its assumption at the very end.
-     */
-    def endDischarge(ji: Library#Proof#ImportedFact):Unit = {
-        val p: Proof = proof
-        if (p.validInThisProof(ji)){
-            val p = proof
-            p.addDischarge(ji.asInstanceOf[p.ImportedFact])
-        }
-    }
+  // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
 
-
-    given Conversion[ProofStepWithoutBotNorPrem[0], ProofStepWithoutBot] = _.asProofStepWithoutBot(Seq())
-
-
-    //case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
-
-
-    /* //TODO: After reviewing the substitutions
+  /* //TODO: After reviewing the substitutions
     extension (just: theory.Justification) {/*
         def apply(insts: ((SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term)*): InstantiatedJustification = {
             val instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula] = insts.filter(isLTT).asInstanceOf[Seq[(SchematicVarOrPredLabel, LambdaTermFormula)]].toMap
@@ -129,6 +129,6 @@ trait ProofsHelpers {
     private def isLTT(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermTerm]
     private def isLTF(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermFormula]
 
-     */
+   */
 
 }
