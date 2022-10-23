@@ -178,9 +178,9 @@ class SubstitutionTests extends ProofCheckerSuite {
       SchematicFunctionLabel("g", 1) -> LambdaFormulaTerm(Seq(xl), u),
       SchematicFunctionLabel("test", 1)  -> LambdaFormulaTerm(Seq(xl), u)
     )) // h(g(f(x, y), w), w)
-
+  
     assert(isSame(t, h))
-
+  
   }
 
   test("Verifying instantiateConnectorSchemas on Connectors") {
@@ -188,7 +188,7 @@ class SubstitutionTests extends ProofCheckerSuite {
     val g = ConstantPredicateLabel("G", 1) // \u, v. g(u, v)
     val h = SchematicConnectorLabel("conn", 2) // \u, v. h(u, v)
     val t = instantiateConnectorSchemas(h(f(a), g(b)), Map[SchematicConnectorLabel, LambdaTermFormula](
-      
+      h -> LambdaTermFormula()
 
     )) // h(f(a), g(b))
 
