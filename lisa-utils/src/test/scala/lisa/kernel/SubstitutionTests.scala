@@ -169,6 +169,7 @@ class SubstitutionTests extends ProofCheckerSuite {
 
   }
    
+  test("Verifying predicates on instantiatePredicateSchemas") {
     val f = constant_symbol("f", Seq(x, y)) // \u, v. f(u, v), f(x, y)
     val g = schematic_symbol("g", Seq(f, z)) // \u, v. g(u, v), g(f(x, y), z)
     val h = constant_symbol("h", Seq(g, w)) // \u, v. h(u, v), h(g(f(x, y), z), w)
@@ -182,9 +183,21 @@ class SubstitutionTests extends ProofCheckerSuite {
 
   }
 
-  test("Verifying instantiateConnectorSchemas on Connectors") {}
+  test("Verifying instantiateConnectorSchemas on Connectors") {
+    val f = ConstantPredicateLabel("F", 1) // \u, v. f(u, v)
+    val g = ConstantPredicateLabel("G", 1) // \u, v. g(u, v)
+    val h = SchematicConnectorLabel("conn", 2) // \u, v. h(u, v)
+    val t = instantiateConnectorSchemas(h(f(a), g(b)), Map[SchematicConnectorLabel, LambdaTermFormula](
+      
 
-  test("Verifying instantiatePredicateSchemas & instantiateConnectorSchemas on Binders") {}
+    )) // h(f(a), g(b))
+
+    assert(isSame(t, h))
+  }
+
+  test("Verifying instantiatePredicateSchemas & instantiateConnectorSchemas on Binders") {
+
+  }
   
   test("Verifying instantiateTermSchemas") {
 
