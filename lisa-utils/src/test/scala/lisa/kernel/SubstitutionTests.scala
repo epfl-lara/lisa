@@ -168,6 +168,25 @@ class SubstitutionTests extends ProofCheckerSuite {
     assert(!isSame(form, form2))
 
   }
+   
+    val f = constant_symbol("f", Seq(x, y)) // \u, v. f(u, v), f(x, y)
+    val g = schematic_symbol("g", Seq(f, z)) // \u, v. g(u, v), g(f(x, y), z)
+    val h = constant_symbol("h", Seq(g, w)) // \u, v. h(u, v), h(g(f(x, y), z), w)
+    val t = instantiatePredicateSchemas(h, Map[SchematicVarOrPredLabel, LambdaTermFormula](
+      SchematicFunctionLabel("f", 2) -> LambdaFormulaTerm(Seq(xl, yl), u),
+      SchematicFunctionLabel("g", 1) -> LambdaFormulaTerm(Seq(xl), u),
+      SchematicFunctionLabel("test", 1)  -> LambdaFormulaTerm(Seq(xl), u)
+    )) // h(g(f(x, y), w), w)
+
+    assert(isSame(t, h))
+
+  }
+
+  test("Verifying instantiateConnectorSchemas on Connectors") {}
+
+  test("Verifying instantiatePredicateSchemas & instantiateConnectorSchemas on Binders") {}
   
-  
+  test("Verifying instantiateTermSchemas") {
+
+  }
 }
