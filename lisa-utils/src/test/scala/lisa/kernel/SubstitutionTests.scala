@@ -79,6 +79,7 @@ class SubstitutionTests extends ProofCheckerSuite {
     val h = constant_symbol("h", Seq(g, w)) // \u, v. h(u, v), h(g(f(x, y), z), w)
     val t = instantiateTermSchemas(h, Map[SchematicTermLabel, LambdaTermTerm](
       vl  -> LambdaTermTerm(Nil, u),
+      SchematicFunctionLabel("g\u0000", 2) -> LambdaTermTerm(Seq(xl, yl), u),
       SchematicFunctionLabel("f", 2) -> LambdaTermTerm(Seq(xl, yl), u),
       SchematicFunctionLabel("g", 1) -> LambdaTermTerm(Seq(xl), u),
       SchematicFunctionLabel("test", 1)  -> LambdaTermTerm(Seq(xl), u)
@@ -160,26 +161,25 @@ class SubstitutionTests extends ProofCheckerSuite {
       VariableFormulaLabel("a") -> bn(),
       VariableFormulaLabel("b") -> cp,
     )) 
-
-    println(Printer.prettyFormula(form))
-    println(Printer.prettyFormula(form2))
-
-
     assert(!isSame(form, form2))
 
   }
    
   test("Verifying predicates on instantiatePredicateSchemas") {
-    val f = constant_symbol("f", Seq(x, y)) // \u, v. f(u, v), f(x, y)
-    val g = schematic_symbol("g", Seq(f, z)) // \u, v. g(u, v), g(f(x, y), z)
-    val h = constant_symbol("h", Seq(g, w)) // \u, v. h(u, v), h(g(f(x, y), z), w)
+    val f = SchematicPredicateLabel("F", 1) // \u, v. f(u, v)
+
+    val ap = VariableFormulaLabel("a")
+    val bp = VariableFormulaLabel("b")
+    val h = ( f(x) <=> ap()) // \u, v. h(u, v)
+
     val t = instantiatePredicateSchemas(h, Map[SchematicVarOrPredLabel, LambdaTermFormula](
-      SchematicFunctionLabel("f", 2) -> LambdaFormulaTerm(Seq(xl, yl), u),
-      SchematicFunctionLabel("g", 1) -> LambdaFormulaTerm(Seq(xl), u),
-      SchematicFunctionLabel("test", 1)  -> LambdaFormulaTerm(Seq(xl), u)
-    )) // h(g(f(x, y), w), w)
-  
-    assert(isSame(t, h))
+
+      f -> LambdaTermFormula(Seq(xl), ((x === x) <=> ap() )),
+      ap -> LambdaTermFormula(Seq(), bp()),
+
+    )) // h(f(a), g(b))
+    println(Printer.prettyFormula(t))
+    assert(isSame(t, (( ((x === x)  <=> ap()) <=> bp()))))
   
   }
 
@@ -187,19 +187,59 @@ class SubstitutionTests extends ProofCheckerSuite {
     val f = ConstantPredicateLabel("F", 1) // \u, v. f(u, v)
     val g = ConstantPredicateLabel("G", 1) // \u, v. g(u, v)
     val h = SchematicConnectorLabel("conn", 2) // \u, v. h(u, v)
-    val t = instantiateConnectorSchemas(h(f(a), g(b)), Map[SchematicConnectorLabel, LambdaTermFormula](
-      h -> LambdaTermFormula()
+
+    val ap = VariableFormulaLabel("a")
+    val bp = VariableFormulaLabel("b")
+
+
+    val t = instantiateConnectorSchemas(h(f(x), g(y)), Map[SchematicConnectorLabel, LambdaFormulaFormula](
+      h -> LambdaFormulaFormula(Seq(ap, bp), (ap()  <=> bp()))
 
     )) // h(f(a), g(b))
-
-    assert(isSame(t, h))
+    assert(isSame(t, (f(x) <=> g(y))))
   }
 
   test("Verifying instantiatePredicateSchemas & instantiateConnectorSchemas on Binders") {
+    val f = SchematicPredicateLabel("F", 1) // \u, v. f(u, v)
+    val g = ConstantPredicateLabel("G", 1) // \u, v. g(u, v)
+    val h = SchematicConnectorLabel("conn", 2) // \u, v. h(u, v)
 
+    val ap = VariableFormulaLabel("a")
+    val bp = VariableFormulaLabel("b")
+
+    val t = instantiatePredicateSchemas(exists(xl, h(f(x), forall(yl, g(y)))) , Map[SchematicVarOrPredLabel, LambdaTermFormula](
+
+      f -> LambdaTermFormula(Seq(xl), ((x === x) <=> ap() )),
+      ap -> LambdaTermFormula(Seq(), bp()),
+
+    ))
+
+    val t2 = instantiateConnectorSchemas(t, Map[SchematicConnectorLabel, LambdaFormulaFormula](
+      h -> LambdaFormulaFormula(Seq(ap, bp), (ap()  <=> bp()))
+
+    )) // h(f(a), g(b))
+  println(Printer.prettyFormula(t2))
+    assert(isSame(t2, (f(x) <=> g(y))))
   }
   
   test("Verifying instantiateTermSchemas") {
+    val f = SchematicFunctionLabel("F", 1) // \u, v. f(u, v)
+    val g = SchematicFunctionLabel("G", 1) // \u, v. g(u, v)
+    val p = ConstantPredicateLabel("P", 2) // \u, v. h(u, v)
+    val h = SchematicConnectorLabel("conn", 2) // \u, v. h(u, v)
 
+    val ap = VariableFormulaLabel("a")
+    val bp = VariableFormulaLabel("b")
+
+    val t = instantiateTermSchemas(h(p(f(g(x)), g(y)) , (x === y)), Map[SchematicTermLabel, LambdaTermTerm](
+
+      f -> LambdaTermTerm(Seq(xl), (g(x))),
+      g -> LambdaTermTerm(Seq(xl), f(g(x))),
+      xl -> LambdaTermTerm(Seq(), y),
+      yl -> LambdaTermTerm(Seq(), f(x)),
+
+    )) // h(f(a), g(b))
+
+    println(Printer.prettyFormula(t))
   }
 }
