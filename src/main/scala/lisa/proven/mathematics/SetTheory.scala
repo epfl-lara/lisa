@@ -8,7 +8,7 @@ import lisa.automation.kernel.ProofTactics.*
  */
 object SetTheory extends lisa.Main {
 
-  THEOREM("russelParadox") of "∀x. (x ∈ ?y) ↔ ¬(x ∈ x) ⊢" PROOF {
+  THEOREM("russelParadox") of "∀'x. elem('x, 'y) ↔ ¬elem('x, 'x) ⊢" PROOF {
     val y = VariableLabel("y")
     val x = VariableLabel("x")
     val s0 = RewriteTrue(in(y, y) <=> !in(y, y) |- ())
@@ -18,7 +18,7 @@ object SetTheory extends lisa.Main {
   thm"russelParadox".show
 
   THEOREM("unorderedPair_symmetry") of
-    "⊢ ∀y, x. {x, y} = {y, x}" PROOF {
+    "⊢ ∀'y. ∀'x. unordered_pair('x, 'y) = unordered_pair('y, 'x)" PROOF {
       val x = VariableLabel("x")
       val y = VariableLabel("y")
       val z = VariableLabel("z")
@@ -72,7 +72,7 @@ object SetTheory extends lisa.Main {
 
   // This proof is old and very unoptimised
   THEOREM("unorderedPair_deconstruction") of
-    "⊢ ∀x, y, x', y'. ({x, y} = {x', y'}) ⇒ (y' = y) ∧ (x' = x) ∨ (x = y') ∧ (y = x')" PROOF {
+    "⊢ ∀'x. ∀'y. ∀ 'x1. ∀ 'y1. unordered_pair('x, 'y) = unordered_pair('x1, 'y1) ⇒ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1" PROOF {
       val x = VariableLabel("x")
       val y = VariableLabel("y")
       val x1 = VariableLabel("x'")
@@ -327,7 +327,7 @@ object SetTheory extends lisa.Main {
     } using ax"pairAxiom"
   thm"unorderedPair_deconstruction".show
 
-  THEOREM("noUniversalSet") of "∀x. x ∈ ?z ⊢" PROOF {
+  THEOREM("noUniversalSet") of "∀'x. elem('x, 'z) ⊢ " PROOF {
     val x = VariableLabel("x")
     val y = VariableLabel("y")
     val z = VariableLabel("z")

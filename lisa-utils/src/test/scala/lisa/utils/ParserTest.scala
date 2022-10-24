@@ -213,10 +213,10 @@ class ParserTest extends AnyFunSuite with TestUtils {
     )
     assert(Parser.parseSequent("⊢ ('x = 'x) ∨ ('x = 'y)") == (() |- (x === x) \/ (x === y)))
     assert(
-      Parser.parseSequent("('x = 'x) ∨ ('x = 'y); ('x = 'x) ∨ ('x = 'y) ↔ ('x = 'x') ∨ ('x = 'y') ⊢ ('x = 'x') ∨ ('x = 'y')") == (Set(
+      Parser.parseSequent("('x = 'x) ∨ ('x = 'y); ('x = 'x) ∨ ('x = 'y) ↔ ('x = 'x1) ∨ ('x = 'y1) ⊢ ('x = 'x1) ∨ ('x = 'y1)") == (Set(
         (x === x) \/ (x === y),
-        ((x === x) \/ (x === y)) <=> ((x === xPrime) \/ (x === yPrime))
-      ) |- (x === xPrime) \/ (x === yPrime))
+        ((x === x) \/ (x === y)) <=> ((x === x1) \/ (x === y1))
+      ) |- (x === x1) \/ (x === y1))
     )
   }
 }
