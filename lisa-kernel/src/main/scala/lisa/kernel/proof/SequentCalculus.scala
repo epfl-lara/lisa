@@ -329,7 +329,7 @@ object SequentCalculus {
    * @param display A boolean value indicating whether the subproof needs to be expanded when printed. Should probably go and
    *                be replaced by encapsulation.
    */
-  case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty, display: Boolean = true) extends SCProofStep {
+  case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty) extends SCProofStep {
     // premises is a list of ints similar to t1, t2... that verifies that imports of the subproof sp are justified by previous steps.
     val bot: Sequent = sp.conclusion
   }

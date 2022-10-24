@@ -123,7 +123,7 @@ object Printer {
           )
 
         step match {
-          case sp @ SCSubproof(_, _, display) if display || forceDisplaySubproofs =>
+          case sp @ SCSubproof(_, _) =>
             pretty("Subproof", sp.premises*) +: prettySCProofRecursive(sp.sp, level + 1, currentTree, (if (i == 0) topMostIndices else IndexedSeq.empty) :+ i)
           case other =>
             val line = other match {
@@ -155,7 +155,6 @@ object Printer {
               case RightSubstIff(_, t1, _, _) => pretty("R. SubstIff", t1)
               case InstFunSchema(_, t1, _) => pretty("?Fun Instantiation", t1)
               case InstPredSchema(_, t1, _) => pretty("?Pred Instantiation", t1)
-              case SCSubproof(_, _, false) => pretty("Subproof (hidden)")
               case other => throw new Exception(s"No available method to print this proof step, consider updating Printer.scala\n$other")
             }
             Seq(line)
