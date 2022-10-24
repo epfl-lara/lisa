@@ -179,8 +179,6 @@ object SimplePropositionalSolver {
         {
           val premsFormulas = premises.map(p => (p, sequentToFormula(currentProof.getSequent(p))))
           val initProof = premsFormulas.map(s => Rewrite(() |- s._2, s._1)).toList
-
-          println("I was called! " + initProof.length)
           val sqToProve = bot ++< (() |- premsFormulas.map(s => s._2).toSet)
           val subpr = SCSubproof(solveSequent(sqToProve))
           val n = initProof.length - 1
