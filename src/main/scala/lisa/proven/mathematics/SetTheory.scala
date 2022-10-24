@@ -93,8 +93,7 @@ object SetTheory extends lisa.Main {
               val p1_3 = SC.RightSubstEq(emptySeq +< (pxy === pxy1) +> (zf <=> in(z, pxy1)), 2, List((pxy, pxy1)), LambdaTermFormula(Seq(g), zf <=> in(z, g)))
               SCProof(IndexedSeq(p1_0, p1_1, p1_2, p1_3), IndexedSeq(() |- pairAxiom))
             },
-            Seq(-1),
-            display = true
+            Seq(-1)
           ) //  ({x,y}={x',y'}) |- ((z∈{x,y})↔(z∈{x',y'}))
           val p1 = SC.SCSubproof(
             {
@@ -102,8 +101,7 @@ object SetTheory extends lisa.Main {
               val p1_1 = instantiateForall(SCProof(IndexedSeq(p1_0), IndexedSeq(() |- pairAxiom)), x, y, z)
               p1_1
             },
-            Seq(-1),
-            display = true
+            Seq(-1)
           ) //  |- (z in {x,y}) <=> (z=x \/ z=y)
           val p2 = SC.SCSubproof(
             {
@@ -157,8 +155,7 @@ object SetTheory extends lisa.Main {
                                   val pa0_1_5 = SC.RightIff(emptySeq +> ((f1 \/ f1) <=> f1), 2, 4, (f1 \/ f1), f1)
                                   val r = SCProof(pa0_0_0, pa0_1_1, pa0_1_2, pa0_1_3, pa0_1_4, pa0_1_5)
                                   r
-                                },
-                                display = false
+                                }
                               ) //   |- (((z=x)∨(z=x))↔(z=x))
                               val pa0_1 = SC.RightSubstEq(
                                 emptySeq +< (pxy === pxy1) +< (x === y) +> ((f1 \/ f1) <=> (z === x1) \/ (z === y1)),
@@ -185,8 +182,7 @@ object SetTheory extends lisa.Main {
                               val pa1_0 = SC.RightRefl(emptySeq +> (y1 === y1), y1 === y1)
                               val pa1_1 = SC.RightOr(emptySeq +> ((y1 === y1) \/ (y1 === x1)), 0, y1 === y1, y1 === x1)
                               SCProof(pa1_0, pa1_1)
-                            },
-                            display = false
+                            }
                           ) //  |- (y'=x' \/ y'=y')
                           val ra3 = byEquiv(pa0.bot.right.head, pa1.bot.right.head)(pa0, pa1) // ({x,y}={x',y'}) y=x|- ((y'=x)
                           val pal = SC.RightSubstEq(emptySeq ++< pa0.bot +> (y1 === y), ra3.length - 1, List((x, y)), LambdaTermFormula(Seq(g), y1 === g))
@@ -210,8 +206,7 @@ object SetTheory extends lisa.Main {
                               val pa1_0 = SC.RightRefl(emptySeq +> (y === y), y === y)
                               val pa1_1 = SC.RightOr(emptySeq +> ((y === y) \/ (y === x)), 0, y === y, y === x)
                               SCProof(pa1_0, pa1_1)
-                            },
-                            display = false
+                            }
                           ) //  |- (y=x)∨(y=y)
                           val rb0 = byEquiv(pb0_0.bot.right.head, pb0_1.bot.right.head)(pb0_0, pb0_1) //  ({x,y}={x',y'}) |- (y=x')∨(y=y')
                           val pb1 =

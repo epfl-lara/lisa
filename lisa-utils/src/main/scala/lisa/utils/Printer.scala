@@ -128,6 +128,7 @@ object Printer {
           case other =>
             val line = other match {
               case Rewrite(_, t1) => pretty("Rewrite", t1)
+              case RewriteTrue(_) => pretty("RewriteTrue")
               case Hypothesis(_, _) => pretty("Hypo.")
               case Cut(_, t1, t2, _) => pretty("Cut", t1, t2)
               case LeftAnd(_, t1, _, _) => pretty("Left ∧", t1)
