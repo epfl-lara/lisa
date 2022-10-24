@@ -155,7 +155,7 @@ trait Substitutions extends FormulaDefinitions {
     phi match {
       case PredicateFormula(label, args) =>
         label match {
-          case label: SchematicPredicateLabel if m.contains(label) => m(label)(args)
+          case label: SchematicVarOrPredLabel if m.contains(label) => m(label)(args)
           case _ => phi
         }
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiatePredicateSchemas(_, m)))
