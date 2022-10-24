@@ -6,6 +6,9 @@ import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.utils.Parser.parseFormula
+import lisa.utils.Parser.parseSequent
+import lisa.utils.Parser.parseTerm
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -180,5 +183,20 @@ trait KernelHelpers {
          |${lisa.utils.Printer.prettySequent(judgement.proof.followPath(judgement.path).bot)}
          |(step ${judgement.path.mkString("->")}): ${judgement.message}""".stripMargin
   }
+
+  implicit class Parsing(val sc: StringContext) {
+
+    def seq(args: Any*): Sequent = parseSequent(sc.parts.mkString(""))
+
+    def f(args: Any*): Formula = parseFormula(sc.parts.mkString(""))
+
+    def t(args: Any*): Term = parseTerm(sc.parts.mkString(""))
+
+  }
+
+  given Conversion[String, Sequent] = parseSequent(_)
+  given Conversion[String, Formula] = parseFormula(_)
+  given Conversion[String, Term] = parseTerm(_)
+  given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
 }
