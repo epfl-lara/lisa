@@ -958,7 +958,7 @@ object BasicStepTactic {
   case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty, display: Boolean = true) extends ProofStep {
     def asSCProof(currentProof: Library#Proof): ProofStepJudgement =
       sp match {
-        case sp: SCProof => SC.SCSubproof(sp, premises, display)
+        case sp: SCProof => SC.SCSubproof(sp, premises)
       }
   }
 

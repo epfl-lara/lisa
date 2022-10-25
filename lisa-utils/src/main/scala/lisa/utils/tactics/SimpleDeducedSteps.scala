@@ -278,7 +278,7 @@ object SimpleDeducedSteps {
 
       res match {
         case ProofStepJudgement.InvalidProofStep(_, _) => res
-        case ProofStepJudgement.ValidProofStep(SC.SCSubproof(proof: SCProof, _, _)) => {
+        case ProofStepJudgement.ValidProofStep(SC.SCSubproof(proof: SCProof, _)) => {
           // check if the same sequent was obtained
           SC.SCSubproof(
             proof withNewSteps IndexedSeq(SC.Rewrite(bot, proof.length - 1)),

@@ -201,7 +201,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       if (phi.normalForm.nonEmpty) return pDisjNormal(phi.normalForm.get, acc)
       val r: List[NormalFormula] = phi match {
         case SimplePredicate(id, args) =>
-          val lab = "pred_" + id.id + "_" + id.arity
+          val lab = id match {
+            case _: ConstantPredicateLabel => "cons_pred_" + id.id + "_" + id.arity
+            case _: SchematicVarOrPredLabel => "schem_pred_" + id.id + "_" + id.arity
+          }
           if (id == top) {
             phi.normalForm = Some(NLiteral(true))
           } else if (id == bot) {
@@ -216,7 +219,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
           }
           phi.normalForm.get :: acc
         case SimpleConnector(id, args) =>
-          val lab = "conn_" + id.id + "_" + id.arity
+          val lab = id match {
+            case _: ConstantConnectorLabel => "cons_conn_" + id.id + "_" + id.arity
+            case _: SchematicConnectorLabel => "schem_conn_" + id.id + "_" + id.arity
+          }
           phi.normalForm = Some(NormalConnector(id, args.map(_.normalForm.get), updateCodesSig((lab, args map OCBSLCode))))
           phi.normalForm.get :: acc
         case SNeg(child) => pNeg(child, phi, acc)
@@ -243,7 +249,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       if (phi.normalForm.nonEmpty) return pNegNormal(phi.normalForm.get, parent, acc)
       val r: List[NormalFormula] = phi match {
         case SimplePredicate(id, args) =>
-          val lab = "pred_" + id.id + "_" + id.arity
+          val lab = id match {
+            case _: ConstantPredicateLabel => "cons_pred_" + id.id + "_" + id.arity
+            case _: SchematicVarOrPredLabel => "schem_pred_" + id.id + "_" + id.arity
+          }
           if (id == top) {
             phi.normalForm = Some(NLiteral(true))
             parent.normalForm = Some(NLiteral(false))
@@ -265,7 +274,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
           }
           parent.normalForm.get :: acc
         case SimpleConnector(id, args) =>
-          val lab = "conn_" + id.id + "_" + id.arity
+          val lab = id match {
+            case _: ConstantConnectorLabel => "cons_conn_" + id.id + "_" + id.arity
+            case _: SchematicConnectorLabel => "schem_conn_" + id.id + "_" + id.arity
+          }
           phi.normalForm = Some(NormalConnector(id, args.map(_.normalForm.get), updateCodesSig((lab, args map OCBSLCode))))
           parent.normalForm = Some(NNeg(phi.normalForm.get, updateCodesSig(("neg", List(phi.normalForm.get.code)))))
           parent.normalForm.get :: acc
