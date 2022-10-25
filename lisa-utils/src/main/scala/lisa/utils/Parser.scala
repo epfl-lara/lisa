@@ -153,8 +153,17 @@ object Parser {
     // TODO: add positions ==> ranges to tokens
     type Position = Unit
 
-    private val allowedIdentifierCharacters = elem(_.isLetter) | elem(_.isDigit) | oneOf("_\\@#$%^&*><:|_+-=")
+    val escapeChar = '`'
+    val pathSeparator = '$'
     private val schematicSymbol = "'"
+
+    private val letter = elem(_.isLetter)
+    private val variableLike = letter ~ many(elem(c => c.isLetterOrDigit || c == '_'))
+    private val number = many1(elem(_.isDigit))
+    private val escaped = elem(escapeChar) ~ many1(elem(_ != escapeChar)) ~ elem(escapeChar)
+    private val arbitrarySymbol = elem(!_.isWhitespace)
+    private val symbolSequence = many1(oneOf("*/+-^:<>#%&@"))
+    private val path = many1(many1(letter) ~ elem(pathSeparator))
 
     private val lexer = Lexer(
       elem('∀') |> { _ => ForallToken },
@@ -175,11 +184,13 @@ object Parser {
       elem(';') |> SemicolonToken,
       elem('⊢') | word("|-") |> SequentToken,
       many1(whiteSpace) |> SpaceToken,
-      word(schematicSymbol) ~ many1(allowedIdentifierCharacters) |> { cs =>
+      word(schematicSymbol) ~ variableLike |> { cs =>
         // drop the '
         SchematicToken(cs.drop(1).mkString)
       },
-      many1(allowedIdentifierCharacters) |> { cs => ConstantToken(cs.mkString) }
+      // Currently the path is merged into the id on the lexer level. When qualified ids are supported, this should be
+      // lifted into the parser.
+      opt(path) ~ (variableLike | number | arbitrarySymbol | symbolSequence | escaped) |> { cs => ConstantToken(cs.filter(_ != escapeChar).mkString) }
     ) onError { (cs, _) =>
       throw ParserException(s"Unexpected input: ${cs.mkString}")
     }
