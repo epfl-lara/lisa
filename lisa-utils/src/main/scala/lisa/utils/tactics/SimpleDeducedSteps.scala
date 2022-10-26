@@ -7,12 +7,11 @@ import lisa.kernel.proof.SequentCalculus.RewriteTrue
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.{SequentCalculus => SC}
+import lisa.utils.Helpers.*
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
 import lisa.utils.tactics.BasicStepTactic.SCSubproof
 import lisa.utils.tactics.ProofStepLib.{_, given}
-
-import lisa.utils.Helpers.*
 
 object SimpleDeducedSteps {
 

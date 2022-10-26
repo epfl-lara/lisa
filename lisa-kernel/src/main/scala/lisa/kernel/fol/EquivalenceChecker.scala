@@ -121,7 +121,6 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       }
     }
 
-
     def removeSugar(phi: Formula): SimpleFormula = {
       unsugaredVersion.getOrElseUpdate(phi, toLocallyNameless(removeSugar1(phi), Map.empty, 0))
     }
@@ -229,9 +228,9 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
           phi.normalForm.get :: acc
         case SimpleConnector(id, args) =>
           val lab = id match {
-          case _: ConstantConnectorLabel => "cons_conn_" + id.id + "_" + id.arity
-          case _: SchematicConnectorLabel => "schem_conn_" + id.id + "_" + id.arity
-        }
+            case _: ConstantConnectorLabel => "cons_conn_" + id.id + "_" + id.arity
+            case _: SchematicConnectorLabel => "schem_conn_" + id.id + "_" + id.arity
+          }
           phi.normalForm = Some(NormalConnector(id, args.map(_.normalForm.get), updateCodesSig((lab, args map OCBSLCode))))
           phi.normalForm.get :: acc
         case SNeg(child) => pNeg(child, phi, acc)
@@ -259,7 +258,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val r: List[NormalFormula] = phi match {
         case SimplePredicate(id, args) =>
           val lab = id match {
-            case _: ConstantPredicateLabel=> "cons_pred_" + id.id + "_" + id.arity
+            case _: ConstantPredicateLabel => "cons_pred_" + id.id + "_" + id.arity
             case _: SchematicVarOrPredLabel => "schem_pred_" + id.id + "_" + id.arity
           }
           if (id == top) {
@@ -372,7 +371,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val codesFormula = this.getCode(f)
       codesSet.contains(codesFormula)
     }
-    def normalForm(phi:Formula): NormalFormula = {
+    def normalForm(phi: Formula): NormalFormula = {
       getCode(phi)
       removeSugar(phi).normalForm.get
     }

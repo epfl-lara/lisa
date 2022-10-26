@@ -195,6 +195,4 @@ trait Substitutions extends FormulaDefinitions {
     }
   }
 
-
-
 }

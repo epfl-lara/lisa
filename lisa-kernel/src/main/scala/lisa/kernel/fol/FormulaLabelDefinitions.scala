@@ -18,7 +18,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    */
   sealed trait PredicateLabel extends FormulaLabel {
 
-      require(arity < MaxArity && arity >= 0)
+    require(arity < MaxArity && arity >= 0)
   }
 
   /**
