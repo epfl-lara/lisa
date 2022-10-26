@@ -199,4 +199,17 @@ trait KernelHelpers {
   given Conversion[String, Term] = parseTerm(_)
   given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
+  def lambda(x: VariableLabel, t:Term) = LambdaTermTerm(Seq(x), t)
+  def lambda(xs: Seq[VariableLabel], t:Term) = LambdaTermTerm(xs, t)
+
+  def lambda(x: VariableLabel, phi:Formula) = LambdaTermFormula(Seq(x), phi)
+  def lambda(xs: Seq[VariableLabel], phi:Formula) = LambdaTermFormula(xs, phi)
+
+  def lambda(X: VariableFormulaLabel, phi:Formula) = LambdaFormulaFormula(Seq(X), phi)
+  def lambda(Xs: Seq[VariableFormulaLabel], phi:Formula) = LambdaFormulaFormula(Xs, phi)
+
+
+
+
+  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 }

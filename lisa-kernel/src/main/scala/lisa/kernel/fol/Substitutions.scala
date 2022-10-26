@@ -195,7 +195,6 @@ trait Substitutions extends FormulaDefinitions {
     }
   }
 
-  @deprecated
-  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
+
 
 }

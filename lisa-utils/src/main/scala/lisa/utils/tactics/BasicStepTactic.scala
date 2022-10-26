@@ -6,6 +6,7 @@ import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.{SequentCalculus => SC}
 import lisa.utils.Library
+import lisa.utils.Helpers.*
 import lisa.utils.tactics.ProofStepLib.{_, given}
 
 object BasicStepTactic {

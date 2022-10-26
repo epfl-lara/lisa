@@ -87,6 +87,10 @@ trait ProofsHelpers {
     proofStack.head.newImportedFact(just)
 
   }
+  def andThen(pswp:ProofStepWithoutPrem)(using String => Unit)(using Throwable => Nothing): library.Proof#DoubleStep = {
+    val r = pswp.asProofStep(Seq(proof.mostRecentStep._2))
+    r.validate(library)
+  }
 
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
@@ -106,6 +110,13 @@ trait ProofsHelpers {
       p.addDischarge(ji.asInstanceOf[p.ImportedFact])
     }
   }
+
+  extension (pswp: ProofStepWithoutPrem) {
+    def by(premises: Seq[Library#Proof#Fact])(using String => Unit)(using Throwable => Nothing) = pswp.asProofStep(premises).validate(library)
+  }
+
+
+
 
   given Conversion[ProofStepWithoutBotNorPrem[0], ProofStepWithoutBot] = _.asProofStepWithoutBot(Seq())
 

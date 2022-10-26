@@ -12,6 +12,8 @@ import lisa.utils.Library
 import lisa.utils.tactics.BasicStepTactic.SCSubproof
 import lisa.utils.tactics.ProofStepLib.{_, given}
 
+import lisa.utils.Helpers.*
+
 object SimpleDeducedSteps {
 
   case object Restate extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(1) {
@@ -90,7 +92,7 @@ object SimpleDeducedSteps {
 
       phi match {
         case psi @ FOL.BinderFormula(FOL.Forall, _, _) => {
-          val in = FOL.instantiateBinder(psi, t)
+          val in = instantiateBinder(psi, t)
 
           this.asSCProof(currentProof.getSequent(premises(0)) -> phi +> in, premises, currentProof)
         }
@@ -112,11 +114,11 @@ object SimpleDeducedSteps {
             val tempVar = FOL.VariableLabel(FOL.freshId(psi.freeVariables.map(_.id), "x"))
 
             // instantiate the formula with input
-            val in = FOL.instantiateBinder(psi, t)
+            val in = instantiateBinder(psi, t)
 
             // construct proof
             val p0 = SC.Hypothesis(in |- in, in)
-            val p1 = SC.LeftForall(phi |- in, 0, FOL.instantiateBinder(psi, tempVar), tempVar, t)
+            val p1 = SC.LeftForall(phi |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
             val p2 = SC.Cut(bot, -1, 1, phi)
 
             /**
@@ -226,12 +228,12 @@ object SimpleDeducedSteps {
                     val tempVar = FOL.VariableLabel(FOL.freshId(psi.freeVariables.map(_.id), "x"))
 
                     // instantiate the formula with input
-                    val in = FOL.instantiateBinder(psi, t)
+                    val in = instantiateBinder(psi, t)
                     val bot = p.conclusion -> f +> in
 
                     // construct proof
                     val p0 = SC.Hypothesis(in |- in, in)
-                    val p1 = SC.LeftForall(f |- in, 0, FOL.instantiateBinder(psi, tempVar), tempVar, t)
+                    val p1 = SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
                     val p2 = SC.Cut(bot, -1, 1, f)
 
                     /**
