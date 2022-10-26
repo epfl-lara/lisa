@@ -19,7 +19,7 @@ object ProofsShrink {
    */
   def proofSize(proof: SCProof): Int =
     proof.steps.map {
-      case SCSubproof(sp, _, _) => 1 + proofSize(sp)
+      case SCSubproof(sp, _) => 1 + proofSize(sp)
       case _ => 1
     }.sum
 
@@ -30,7 +30,7 @@ object ProofsShrink {
    */
   def proofDepth(proof: SCProof): Int =
     proof.steps.map {
-      case SCSubproof(sp, _, _) => 1 + proofDepth(sp)
+      case SCSubproof(sp, _) => 1 + proofDepth(sp)
       case _ => 1
     }.max
 
@@ -88,7 +88,7 @@ object ProofsShrink {
       val (finalAcc, _) = steps.foldLeft((IndexedSeq.empty[SCProofStep], IndexedSeq.empty[(Int, Sequent)])) { case ((acc, localToGlobal), step) =>
         def resolve(i: Int): (Int, Sequent) = if (i >= 0) localToGlobal(i) else topPremises(-i - 1)
         val newAcc = step match {
-          case SCSubproof(subProof, subPremises, _) =>
+          case SCSubproof(subProof, subPremises) =>
             val (rewrittenPremises, rewrittenSeq) = subPremises.zipWithIndex.flatMap { case (i, j) =>
               val (k, sequent) = resolve(i)
               val imported = subProof.imports(j)
@@ -123,9 +123,9 @@ object ProofsShrink {
     def deadStepsEliminationInternal(proof: SCProof, eliminateDeadImports: Boolean): (SCProof, IndexedSeq[Int]) = {
       // We process the leaves first, otherwise we could miss dead branches (subproofs that more imports than necessary)
       val processedSteps = proof.steps.map {
-        case SCSubproof(sp, premises, display) =>
+        case SCSubproof(sp, premises) =>
           val (newSubProof, newImportsIndices) = deadStepsEliminationInternal(sp, true)
-          SCSubproof(newSubProof, newImportsIndices.map(premises), display)
+          SCSubproof(newSubProof, newImportsIndices.map(premises))
         case other => other
       }
       val graph = processedSteps.map(_.premises)
@@ -202,8 +202,8 @@ object ProofsShrink {
               && step.premises.sizeIs == 1 && isSequentSubset(getSequentLocal(step.premises.head), step.bot) =>
           Left(Weakening(step.bot, step.premises.head))
         // Recursive
-        case SCSubproof(sp, premises, display) =>
-          Left(SCSubproof(simplifyProof(sp), premises, display))
+        case SCSubproof(sp, premises) =>
+          Left(SCSubproof(simplifyProof(sp), premises))
         // Double rewrite
         case Rewrite(bot1, LocalStep(Rewrite(bot2, t2))) if isSameSequent(bot1, bot2) =>
           Left(Rewrite(bot1, t2))
@@ -267,8 +267,8 @@ object ProofsShrink {
     val (newSteps, _, _) = proof.steps.zipWithIndex.foldLeft((IndexedSeq.empty[SCProofStep], initialMap, initialCache)) { case ((acc, map, cache), (step, i)) =>
       val sequent = step.bot
       val mappedStep = mapPremises(step, map) match {
-        case SCSubproof(sp, premises, display) =>
-          SCSubproof(factorProof(sp), premises, display)
+        case SCSubproof(sp, premises) =>
+          SCSubproof(factorProof(sp), premises)
         case other => other
       }
       val (newMap, newCache) = cache.get(sequent) match {

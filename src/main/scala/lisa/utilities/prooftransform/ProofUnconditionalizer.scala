@@ -224,7 +224,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
     })
     // We must separate the case for subproofs for they need to use the modified version of the precedent
     val inner = pS match {
-      case SCSubproof(_, _, _) =>
+      case SCSubproof(_, _) =>
         SCProof(
           hypothesis.toIndexedSeq ++ rewrites.toIndexedSeq ++ IndexedSeq(
             mapStep(
@@ -275,6 +275,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
    */
   protected def mapStep(pS: SCProofStep, f: Set[Formula] => Set[Formula], fi: Seq[Int] => Seq[Int] = identity, fsub: Seq[Sequent] = Nil): SCProofStep = pS match {
     case Rewrite(bot, t1) => Rewrite(f(bot.left) |- bot.right, fi(pS.premises).head)
+    case RewriteTrue(bot) => RewriteTrue(f(bot.left) |- bot.right)
     case Hypothesis(bot, phi) => Hypothesis(f(bot.left) |- bot.right, phi)
     case Cut(bot, t1, t2, phi) => Cut(f(bot.left) |- bot.right, fi(pS.premises).head, fi(pS.premises).last, phi)
     case LeftAnd(bot, t1, phi, psi) => LeftAnd(f(bot.left) |- bot.right, fi(pS.premises).head, phi, psi)
@@ -302,8 +303,8 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
     case RightSubstIff(bot, t1, equals, lambdaPhi) => RightSubstIff(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
     case InstFunSchema(bot, t1, insts) => InstFunSchema(instantiateFunctionSchemaInSequent(f(bot.left) |- bot.right, insts).left |- bot.right, fi(pS.premises).head, insts)
     case InstPredSchema(bot, t1, insts) => InstPredSchema(instantiatePredicateSchemaInSequent(f(bot.left) |- bot.right, insts).left |- bot.right, fi(pS.premises).head, insts)
-    case SCSubproof(pp, t, b) => {
-      SCSubproof(ProofUnconditionalizer(pp).transformPrivate(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t), b)
+    case SCSubproof(pp, t) => {
+      SCSubproof(ProofUnconditionalizer(pp).transformPrivate(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t))
     }
   }
 

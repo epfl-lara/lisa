@@ -211,7 +211,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val r: List[NormalFormula] = phi match {
         case SimplePredicate(id, args) =>
           val lab = id match {
-            case _: ConstantPredicateLabel=> "cons_pred_" + id.id + "_" + id.arity
+            case _: ConstantPredicateLabel => "cons_pred_" + id.id + "_" + id.arity
             case _: SchematicVarOrPredLabel => "schem_pred_" + id.id + "_" + id.arity
           }
           if (id == top) {
