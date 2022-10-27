@@ -7,6 +7,7 @@ import lisa.kernel.proof.SequentCalculus.RewriteTrue
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.{SequentCalculus => SC}
+import lisa.utils.Helpers.*
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
 import lisa.utils.tactics.BasicStepTactic.SCSubproof
@@ -90,7 +91,7 @@ object SimpleDeducedSteps {
 
       phi match {
         case psi @ FOL.BinderFormula(FOL.Forall, _, _) => {
-          val in = FOL.instantiateBinder(psi, t)
+          val in = instantiateBinder(psi, t)
 
           this.asSCProof(currentProof.getSequent(premises(0)) -> phi +> in, premises, currentProof)
         }
@@ -112,11 +113,11 @@ object SimpleDeducedSteps {
             val tempVar = FOL.VariableLabel(FOL.freshId(psi.freeVariables.map(_.id), "x"))
 
             // instantiate the formula with input
-            val in = FOL.instantiateBinder(psi, t)
+            val in = instantiateBinder(psi, t)
 
             // construct proof
             val p0 = SC.Hypothesis(in |- in, in)
-            val p1 = SC.LeftForall(phi |- in, 0, FOL.instantiateBinder(psi, tempVar), tempVar, t)
+            val p1 = SC.LeftForall(phi |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
             val p2 = SC.Cut(bot, -1, 1, phi)
 
             /**
@@ -226,12 +227,12 @@ object SimpleDeducedSteps {
                     val tempVar = FOL.VariableLabel(FOL.freshId(psi.freeVariables.map(_.id), "x"))
 
                     // instantiate the formula with input
-                    val in = FOL.instantiateBinder(psi, t)
+                    val in = instantiateBinder(psi, t)
                     val bot = p.conclusion -> f +> in
 
                     // construct proof
                     val p0 = SC.Hypothesis(in |- in, in)
-                    val p1 = SC.LeftForall(f |- in, 0, FOL.instantiateBinder(psi, tempVar), tempVar, t)
+                    val p1 = SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
                     val p2 = SC.Cut(bot, -1, 1, f)
 
                     /**

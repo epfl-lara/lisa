@@ -58,62 +58,71 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
    * A class that encapsulate "runtime" information of the equivalence checker. It performs memoization for efficiency.
    */
   class LocalEquivalenceChecker {
+
     private val unsugaredVersion = scala.collection.mutable.HashMap[Formula, SimpleFormula]()
-
     // transform a LISA formula into a simpler, desugarised version with less symbols. Conjunction, implication, iff, existsOne are treated as alliases and translated.
-    def removeSugar(phi: Formula): SimpleFormula = unsugaredVersion.getOrElseUpdate(
-      phi, {
-        phi match {
-          case PredicateFormula(label, args) => SimplePredicate(label, args.toList)
-          case ConnectorFormula(label, args) =>
-            label match {
-              case Neg => SNeg(removeSugar(args(0)))
-              case Implies =>
-                val l = removeSugar(args(0))
-                val r = removeSugar(args(1))
-                SOr(List(SNeg(l), r))
-              case Iff =>
-                val l = removeSugar(args(0))
-                val r = removeSugar(args(1))
-                val c1 = SNeg(SOr(List(SNeg(l), r)))
-                val c2 = SNeg(SOr(List(SNeg(r), l)))
-                SNeg(SOr(List(c1, c2)))
-              case And =>
-                SNeg(SOr(args.map(c => SNeg(removeSugar(c))).toList))
-              case Or => SOr((args map removeSugar).toList)
-              case _ => SimpleConnector(label, args.toList.map(removeSugar))
-            }
-          case BinderFormula(label, bound, inner) =>
-            label match {
-              case Forall => SForall(bound.id, removeSugar(inner))
-              case Exists => SExists(bound.id, removeSugar(inner))
-              case ExistsOne =>
-                val y = VariableLabel(freshId(inner.freeVariables.map(_.id), bound.id))
-                val c1 = SimplePredicate(equality, List(VariableTerm(bound), VariableTerm(y)))
-                val c2 = removeSugar(inner)
-                val c1_c2 = SOr(List(SNeg(c1), c2))
-                val c2_c1 = SOr(List(SNeg(c2), c1))
-                SExists(y.id, SForall(bound.id, SNeg(SOr(List(SNeg(c1_c2), SNeg(c2_c1))))))
-            }
-        }
+    def removeSugar1(phi: Formula): SimpleFormula = {
+      phi match {
+        case PredicateFormula(label, args) =>
+          if (label == top) SLiteral(true)
+          else if (label == bot) SLiteral(false)
+          else SimplePredicate(label, args.toList)
+        case ConnectorFormula(label, args) =>
+          label match {
+            case Neg => SNeg(removeSugar1(args(0)))
+            case Implies =>
+              val l = removeSugar1(args(0))
+              val r = removeSugar1(args(1))
+              SOr(List(SNeg(l), r))
+            case Iff =>
+              val l = removeSugar1(args(0))
+              val r = removeSugar1(args(1))
+              val c1 = SNeg(SOr(List(SNeg(l), r)))
+              val c2 = SNeg(SOr(List(SNeg(r), l)))
+              SNeg(SOr(List(c1, c2)))
+            case And =>
+              SNeg(SOr(args.map(c => SNeg(removeSugar1(c))).toList))
+            case Or => SOr((args map removeSugar1).toList)
+            case _ => SimpleConnector(label, args.toList.map(removeSugar1))
+          }
+        case BinderFormula(label, bound, inner) =>
+          label match {
+            case Forall => SForall(bound.id, removeSugar1(inner))
+            case Exists => SExists(bound.id, removeSugar1(inner))
+            case ExistsOne =>
+              val y = VariableLabel(freshId(inner.freeVariables.map(_.id), bound.id))
+              val c1 = SimplePredicate(equality, List(VariableTerm(bound), VariableTerm(y)))
+              val c2 = removeSugar1(inner)
+              val c1_c2 = SOr(List(SNeg(c1), c2))
+              val c2_c1 = SOr(List(SNeg(c2), c1))
+              SExists(y.id, SForall(bound.id, SNeg(SOr(List(SNeg(c1_c2), SNeg(c2_c1))))))
+          }
       }
-    )
-
-    def toLocallyNameless(t: Term, subst: Map[VariableLabel, Int], i: Int): Term = t match {
-      case Term(label: VariableLabel, _) =>
-        if (subst.contains(label)) VariableTerm(VariableLabel("x" + (i - subst(label))))
-        else VariableTerm(VariableLabel("_" + label))
-      case Term(label, args) => Term(label, args.map(c => toLocallyNameless(c, subst, i)))
     }
 
-    def toLocallyNameless(phi: SimpleFormula, subst: Map[VariableLabel, Int], i: Int): SimpleFormula = phi match {
-      case SimplePredicate(id, args) => SimplePredicate(id, args.map(c => toLocallyNameless(c, subst, i)))
-      case SimpleConnector(id, args) => SimpleConnector(id, args.map(f => toLocallyNameless(f, subst, i)))
-      case SNeg(child) => SNeg(toLocallyNameless(child, subst, i))
-      case SOr(children) => SOr(children.map(toLocallyNameless(_, subst, i)))
-      case SForall(x, inner) => SForall("", toLocallyNameless(inner, subst + (VariableLabel(x) -> i), i + 1))
-      case SExists(x, inner) => SExists("", toLocallyNameless(inner, subst + (VariableLabel(x) -> i), i + 1))
-      case SLiteral(b) => phi
+    def toLocallyNameless(t: Term, subst: Map[VariableLabel, Int], i: Int): Term = {
+      t match {
+        case Term(label: VariableLabel, _) =>
+          if (subst.contains(label)) VariableTerm(VariableLabel("x" + (i - subst(label))))
+          else VariableTerm(VariableLabel("_" + label.id))
+        case Term(label, args) => Term(label, args.map(c => toLocallyNameless(c, subst, i)))
+      }
+    }
+
+    def toLocallyNameless(phi: SimpleFormula, subst: Map[VariableLabel, Int], i: Int): SimpleFormula = {
+      phi match {
+        case SimplePredicate(id, args) => SimplePredicate(id, args.map(c => toLocallyNameless(c, subst, i)))
+        case SimpleConnector(id, args) => SimpleConnector(id, args.map(f => toLocallyNameless(f, subst, i)))
+        case SNeg(child) => SNeg(toLocallyNameless(child, subst, i))
+        case SOr(children) => SOr(children.map(toLocallyNameless(_, subst, i)))
+        case SForall(x, inner) => SForall("", toLocallyNameless(inner, subst + (VariableLabel(x) -> i), i + 1))
+        case SExists(x, inner) => SExists("", toLocallyNameless(inner, subst + (VariableLabel(x) -> i), i + 1))
+        case SLiteral(b) => phi
+      }
+    }
+
+    def removeSugar(phi: Formula): SimpleFormula = {
+      unsugaredVersion.getOrElseUpdate(phi, toLocallyNameless(removeSugar1(phi), Map.empty, 0))
     }
 
     private val codesSig: mutable.HashMap[(String, Seq[Int]), Int] = mutable.HashMap()
@@ -130,7 +139,6 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
           codesSigTerms.getOrElseUpdate((label, Nil), codesSigTerms.size)
         case Term(label, args) =>
           val c = args map codesOfTerm
-
           codesSigTerms.getOrElseUpdate((label, c), codesSigTerms.size)
       }
     )
@@ -274,10 +282,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
           }
           parent.normalForm.get :: acc
         case SimpleConnector(id, args) =>
-          val lab = id match {
-            case _: ConstantConnectorLabel => "cons_conn_" + id.id + "_" + id.arity
-            case _: SchematicConnectorLabel => "schem_conn_" + id.id + "_" + id.arity
-          }
+          val lab = "conn_" + id.id + "_" + id.arity
           phi.normalForm = Some(NormalConnector(id, args.map(_.normalForm.get), updateCodesSig((lab, args map OCBSLCode))))
           parent.normalForm = Some(NNeg(phi.normalForm.get, updateCodesSig(("neg", List(phi.normalForm.get.code)))))
           parent.normalForm.get :: acc
@@ -343,7 +348,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     def check(formula1: Formula, formula2: Formula): Boolean = {
       getCode(formula1) == getCode(formula2)
     }
-    def getCode(formula: Formula): Int = OCBSLCode(toLocallyNameless(removeSugar(formula), Map.empty, 0))
+    def getCode(formula: Formula): Int = OCBSLCode(removeSugar(formula))
 
     def isSame(term1: Term, term2: Term): Boolean = codesOfTerm(term1) == codesOfTerm(term2)
 
@@ -359,12 +364,16 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val codesSet1 = s1.map(this.getCode)
       val codesSet2 = s2.map(this.getCode)
       codesSet1.subsetOf(codesSet2)
-
     }
+
     def contains(s: Set[Formula], f: Formula): Boolean = {
       val codesSet = s.map(this.getCode)
       val codesFormula = this.getCode(f)
       codesSet.contains(codesFormula)
+    }
+    def normalForm(phi: Formula): NormalFormula = {
+      getCode(phi)
+      removeSugar(phi).normalForm.get
     }
 
   }
@@ -377,4 +386,5 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
   def isSubset(s1: Set[Formula], s2: Set[Formula]): Boolean = (new LocalEquivalenceChecker).isSubset(s1, s2)
 
   def contains(s: Set[Formula], f: Formula): Boolean = (new LocalEquivalenceChecker).contains(s, f)
+
 }

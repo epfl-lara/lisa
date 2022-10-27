@@ -1,5 +1,6 @@
 import lisa.Main
 import lisa.automation.kernel.SimplePropositionalSolver.*
+import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
