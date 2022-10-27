@@ -15,6 +15,8 @@ object Parser {
   object UnreachableException extends ParserException("Internal error: expected unreachable")
   class PrintFailedException(inp: Sequent | Formula | Term) extends ParserException(s"Printing of $inp failed unexpectedly")
 
+  def isInfixPredicate(id: String): Boolean = Set("=", "∊", "⊂", "⊆").contains(id)
+
   /**
    * Parses a sequent from a string. A sequent consists of the left and right side, separated by `⊢` or `|-`.
    * Left and right sides consist of formulas, separated by `;`.
@@ -131,7 +133,7 @@ object Parser {
 
     case object FalseToken extends FormulaToken("⊥")
 
-    case object EqualityToken extends FormulaToken(equality.id)
+    case class InfixPredicateToken(id: String) extends FormulaToken(id)
 
     // Constant functions and predicates
     case class ConstantToken(id: String) extends FormulaToken(id)
@@ -170,7 +172,6 @@ object Parser {
       word("∃!") |> { _ => ExistsOneToken },
       elem('∃') |> { _ => ExistsToken },
       elem('.') |> { _ => DotToken },
-      elem('=') |> { _ => EqualityToken },
       elem('∧') | word("/\\") |> { _ => AndToken },
       elem('∨') | word("\\/") |> { _ => OrToken },
       word(Implies.id) | word("=>") | word("==>") | elem('→') |> { _ => ImpliesToken },
@@ -197,7 +198,12 @@ object Parser {
 
     def apply(it: Iterator[Char]): Iterator[Token] = {
       val source = Source.fromIterator(it, NoPositioner)
-      lexer(source).filter(_ != SpaceToken)
+      lexer(source)
+        .filter(_ != SpaceToken)
+        .map({
+          case ConstantToken(id) if isInfixPredicate(id) => InfixPredicateToken(id)
+          case t => t
+        })
     }
 
     def unapply(tokens: Iterator[Token]): String = {
@@ -213,7 +219,7 @@ object Parser {
               // space after: separators
               case DotToken | CommaToken | SemicolonToken => l :+ t.toString :+ space
               // space before and after: equality, connectors, sequent symbol
-              case EqualityToken | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.toString :+ space
+              case InfixPredicateToken(_) | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.toString :+ space
             }
         }
         .mkString
@@ -230,7 +236,7 @@ object Parser {
     case object NegationKind extends TokenKind
     case object BooleanConstantKind extends TokenKind
     case object FunctionOrPredicateKind extends TokenKind
-    case object EqualityKind extends TokenKind
+    case object InfixPredicateKind extends TokenKind
     case object CommaKind extends TokenKind
     case class ParenthesisKind(isOpen: Boolean) extends TokenKind
     case object BinderKind extends TokenKind
@@ -253,7 +259,7 @@ object Parser {
       case NegationToken => NegationKind
       case TrueToken | FalseToken => BooleanConstantKind
       case _: ConstantToken | _: SchematicToken => FunctionOrPredicateKind
-      case EqualityToken => EqualityKind
+      case _: InfixPredicateToken => InfixPredicateKind
       case CommaToken => CommaKind
       case ParenthesisToken(isOpen) => ParenthesisKind(isOpen)
       case ExistsToken | ExistsOneToken | ForallToken => BinderKind
@@ -273,7 +279,17 @@ object Parser {
 
     val comma: Syntax[Unit] = elem(CommaKind).unit(CommaToken)
 
-    val eq: Syntax[Unit] = elem(EqualityKind).unit(EqualityToken)
+    val INFIX_ARITY = 2
+    val infixPredicateLabel: Syntax[ConstantPredicateLabel] = accept(InfixPredicateKind)(
+      {
+        case InfixPredicateToken(id) => ConstantPredicateLabel(id, INFIX_ARITY)
+        case _ => throw UnreachableException
+      },
+      {
+        case ConstantPredicateLabel(id, INFIX_ARITY) if isInfixPredicate(id) => Seq(InfixPredicateToken(id))
+        case _ => throw UnreachableException
+      }
+    )
 
     val semicolon: Syntax[Unit] = elem(SemicolonKind).unit(SemicolonToken)
 
@@ -353,7 +369,7 @@ object Parser {
       }
     )
 
-    val predicate: Syntax[PredicateFormula] = (elem(FunctionOrPredicateKind) ~ opt(args) ~ opt(eq.skip ~ term)).map(
+    val predicate: Syntax[PredicateFormula] = (elem(FunctionOrPredicateKind) ~ opt(args) ~ opt(infixPredicateLabel ~ term)).map(
       {
         // predicate application
         case ConstantToken(id) ~ maybeArgs ~ None =>
@@ -364,27 +380,21 @@ object Parser {
           PredicateFormula(VariableFormulaLabel(id), Seq())
 
         // equality of two function applications
-        case fun1 ~ args1 ~ Some(term2) =>
-          PredicateFormula(FOL.equality, Seq(createTerm(fun1, args1.getOrElse(Seq())), term2))
+        case fun1 ~ args1 ~ Some(pred ~ term2) =>
+          PredicateFormula(pred, Seq(createTerm(fun1, args1.getOrElse(Seq())), term2))
 
         case _ => throw UnreachableException
       },
-      { case PredicateFormula(label, args) =>
-        label match {
-          case FOL.equality =>
-            args match {
-              case Seq(first, second) => Seq(invertTerm(first) ~ Some(second))
-              case _ => Seq()
-            }
-          case other =>
-            val predicateApp = other match {
-              case ConstantPredicateLabel(id, 0) => ConstantToken(id) ~ None
-              case ConstantPredicateLabel(id, _) => ConstantToken(id) ~ Some(args)
-              case VariableFormulaLabel(id) => SchematicToken(id) ~ None
-              case SchematicPredicateLabel(id, _) => SchematicToken(id) ~ Some(args)
-            }
-            Seq(predicateApp ~ None)
-        }
+      {
+        case PredicateFormula(label @ ConstantPredicateLabel(id, INFIX_ARITY), Seq(first, second)) if isInfixPredicate(id) => Seq(invertTerm(first) ~ Some(label ~ second))
+        case PredicateFormula(label, args) =>
+          val prefixApp = label match {
+            case VariableFormulaLabel(id) => SchematicToken(id) ~ None
+            case SchematicPredicateLabel(id, _) => SchematicToken(id) ~ Some(args)
+            case ConstantPredicateLabel(id, 0) => ConstantToken(id) ~ None
+            case ConstantPredicateLabel(id, _) => ConstantToken(id) ~ Some(args)
+          }
+          Seq(prefixApp ~ None)
       }
     )
 
