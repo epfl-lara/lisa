@@ -14,7 +14,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
   private final val sPhi = SchematicPredicateLabel("P", 2)
 
   final val emptySetAxiom: Formula = !in(x, emptySet())
-  final val extensionalityAxiom: Formula = forall(y, forall(z, in(z, x) <=> in(z, y)) <=> (x === y))
+  final val extensionalityAxiom: Formula =  forall(z, in(z, x) <=> in(z, y)) <=> (x === y)
   final val subsetAxiom: Formula = subset(x, y) <=> forall(z, in(z, x) ==> in(z, y))
   final val pairAxiom: Formula = in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z)
   final val unionAxiom: Formula = in(x, union(z)) <=> exists(y, in(x, y) /\ in(y, z))
