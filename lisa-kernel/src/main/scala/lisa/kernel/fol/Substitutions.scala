@@ -155,7 +155,7 @@ trait Substitutions extends FormulaDefinitions {
     phi match {
       case PredicateFormula(label, args) =>
         label match {
-          case label: SchematicPredicateLabel if m.contains(label) => m(label)(args)
+          case label: SchematicVarOrPredLabel if m.contains(label) => m(label)(args)
           case _ => phi
         }
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiatePredicateSchemas(_, m)))
@@ -194,8 +194,5 @@ trait Substitutions extends FormulaDefinitions {
         } else BinderFormula(label, bound, instantiateConnectorSchemas(inner, m))
     }
   }
-
-  @deprecated
-  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 
 }

@@ -108,6 +108,26 @@ trait TheoriesHelpers extends KernelHelpers {
     }
   }
 
+  extension (proofJudgement: SCProofCheckerJudgement) {
+
+    /**
+     * If the SCProof is valid, show the inner proof and returns it.
+     * Otherwise, output the error leading to the invalid justification and throw an error.
+     */
+    def showAndGet(using output: String => Unit)(using finishOutput: Throwable => Nothing): SCProof = {
+      proofJudgement match {
+        case SCProofCheckerJudgement.SCValidProof(proof) =>
+          output(Printer.prettySCProof(proofJudgement))
+          proof
+        case ip @ SCProofCheckerJudgement.SCInvalidProof(proof, path, message) =>
+          output(s"$message\n${Printer.prettySCProof(proofJudgement)}")
+          finishOutput(InvalidJustificationException("", Some(ip)))
+      }
+    }
+  }
+
+  case class InvalidProofException(proofJudgement: SCProofCheckerJudgement.SCInvalidProof) extends Exception(proofJudgement.message)
+
   /**
    * Output a readable representation of a proof.
    */

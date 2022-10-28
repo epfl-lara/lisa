@@ -3,7 +3,10 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.*
+import lisa.utils.Helpers.{_, given}
+import lisa.utils.Library
+import lisa.utils.tactics.ProofStepJudgement
+import lisa.utils.tactics.ProofStepLib.{_, given}
 
 import scala.collection.mutable.Set as mSet
 
@@ -163,6 +166,32 @@ object SimplePropositionalSolver {
     val r3 = r2.reverse.toVector
     val r4 = SCProof(r3)
     r4
+  }
+
+  case object Trivial extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(-1) {
+    override val premises: Seq[Int] = Seq()
+    def asSCProof(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement = {
+      ProofStepJudgement.ValidProofStep(SCSubproof(solveSequent(bot)))
+    }
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+
+      val sp = SCSubproof(
+        {
+          val premsFormulas = premises.map(p => (p, sequentToFormula(currentProof.getSequent(p))))
+          val initProof = premsFormulas.map(s => Rewrite(() |- s._2, s._1)).toList
+          val sqToProve = bot ++< (() |- premsFormulas.map(s => s._2).toSet)
+          val subpr = SCSubproof(solveSequent(sqToProve))
+          val n = initProof.length - 1
+          val stepsList = premsFormulas.zipWithIndex.foldLeft[List[SCProofStep]](subpr :: initProof)((prev: List[SCProofStep], cur) => {
+            val ((prem, form), position) = cur
+            Cut(prev.head.bot -< form, position, prev.length - 1, form) :: prev
+          })
+          SCProof(stepsList.reverse.toIndexedSeq, premises.map(p => currentProof.getSequent(p)).toIndexedSeq)
+        },
+        premises
+      )
+      ProofStepJudgement.ValidProofStep(sp)
+    }
   }
 
 }

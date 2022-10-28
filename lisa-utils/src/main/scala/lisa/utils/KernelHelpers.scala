@@ -6,6 +6,9 @@ import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.utils.Parser.parseFormula
+import lisa.utils.Parser.parseSequent
+import lisa.utils.Parser.parseTerm
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -181,4 +184,29 @@ trait KernelHelpers {
          |(step ${judgement.path.mkString("->")}): ${judgement.message}""".stripMargin
   }
 
+  implicit class Parsing(val sc: StringContext) {
+
+    def seq(args: Any*): Sequent = parseSequent(sc.parts.mkString(""))
+
+    def f(args: Any*): Formula = parseFormula(sc.parts.mkString(""))
+
+    def t(args: Any*): Term = parseTerm(sc.parts.mkString(""))
+
+  }
+
+  given Conversion[String, Sequent] = parseSequent(_)
+  given Conversion[String, Formula] = parseFormula(_)
+  given Conversion[String, Term] = parseTerm(_)
+  given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
+
+  def lambda(x: VariableLabel, t: Term) = LambdaTermTerm(Seq(x), t)
+  def lambda(xs: Seq[VariableLabel], t: Term) = LambdaTermTerm(xs, t)
+
+  def lambda(x: VariableLabel, phi: Formula) = LambdaTermFormula(Seq(x), phi)
+  def lambda(xs: Seq[VariableLabel], phi: Formula) = LambdaTermFormula(xs, phi)
+
+  def lambda(X: VariableFormulaLabel, phi: Formula) = LambdaFormulaFormula(Seq(X), phi)
+  def lambda(Xs: Seq[VariableFormulaLabel], phi: Formula) = LambdaFormulaFormula(Xs, phi)
+
+  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 }
