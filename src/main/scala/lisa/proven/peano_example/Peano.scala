@@ -7,14 +7,17 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
+import lisa.utils.OutputManager
 import lisa.utils.Printer
 
 object Peano {
   export PeanoArithmeticsLibrary.{_, given}
 
   /////////////////////////// OUTPUT CONTROL //////////////////////////
-  given output: (String => Unit) = println
-  given finishOutput: (Throwable => Nothing) = e => throw e
+  given om:OutputManager = new OutputManager {
+    override val output: String => Unit = println
+    override val finishOutput: Throwable => Nothing = e => throw e
+  }
 
   def main(args: Array[String]): Unit = {}
   /////////////////////////////////////////////////////////////////////

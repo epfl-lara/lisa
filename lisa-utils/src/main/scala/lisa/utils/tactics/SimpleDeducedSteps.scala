@@ -10,6 +10,7 @@ import lisa.kernel.proof.{SequentCalculus => SC}
 import lisa.utils.Helpers.*
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
+import lisa.utils.OutputManager
 import lisa.utils.tactics.BasicStepTactic.SCSubproof
 import lisa.utils.tactics.ProofStepLib.{_, given}
 
@@ -33,7 +34,7 @@ object SimpleDeducedSteps {
     }
   }
 
-  class SUBPROOF(computeProof: => Unit)(using String => Unit)(using finishOutput: Throwable => Nothing) extends ProofStepWithoutBot {
+  class SUBPROOF(computeProof: => Unit)(using om:OutputManager) extends ProofStepWithoutBot {
     private def cp(): Unit = computeProof
     val premises: Seq[lisa.utils.Library#Proof#Fact] = Seq()
 
@@ -59,12 +60,12 @@ object SimpleDeducedSteps {
       }
     }
     def apply(f: FOL.Formula): FormulaDischarge = FormulaDischarge(f)
-    def apply(ij: Library#Proof#Fact)(using library: Library)(using String => Unit)(using finishOutput: Throwable => Nothing): Unit = {
+    def apply(ij: Library#Proof#Fact)(using library: Library)(using om:OutputManager): Unit = {
       if (library.proofStack.head.validInThisProof(ij)) {
         Discharge.asProofStep(Seq(ij)).validate(library)
       } else {
         val inv = ProofStepJudgement.InvalidProofStep(Discharge.asProofStep(Seq(ij)), "Illegal reference to justification from another proof in proofstep Discharge.")
-        finishOutput(inv.launch)
+        om.finishOutput(inv.launch)
       }
     }
   }
