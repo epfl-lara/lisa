@@ -36,8 +36,8 @@ object Parser {
    */
   def getInternalName(id: String): String = SynonymToCanonical.get(id).map(_.internal).getOrElse(id)
   /////////////////////////////////////////////////////////////////////////////////////////////////
-  // TODO: support more infix predicates, potentially determine if a predicate is infix without listing all infix ones
-  def isInfixPredicate(id: String): Boolean = Set("=", "∊", "⊂", "⊆").contains(id)
+  // TODO: support more infix ops, potentially determine if an op is infix without listing all infix ones
+  def isInfix(id: String): Boolean = Set("=", "∊", "⊂", "⊆", "+", "<").contains(id)
 
   class ParserException(msg: String) extends Exception(msg)
   object UnreachableException extends ParserException("Internal error: expected unreachable")
@@ -160,7 +160,7 @@ object Parser {
 
     case object FalseToken extends FormulaToken("⊥")
 
-    case class InfixPredicateToken(id: String) extends FormulaToken(id)
+    case class InfixToken(id: String) extends FormulaToken(id)
 
     // Constant functions and predicates
     case class ConstantToken(id: String) extends FormulaToken(id)
@@ -235,7 +235,7 @@ object Parser {
       lexer(source)
         .filter(_ != SpaceToken)
         .map({
-          case ConstantToken(id) if isInfixPredicate(id) => InfixPredicateToken(id)
+          case ConstantToken(id) if isInfix(id) => InfixToken(id)
           case t => t
         })
     }
@@ -255,11 +255,72 @@ object Parser {
               // space after: separators
               case DotToken | CommaToken | SemicolonToken => l :+ t.toString :+ space
               // space before and after: equality, connectors, sequent symbol
-              case InfixPredicateToken(_) | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.toString :+ space
+              case InfixToken(_) | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.toString :+ space
             }
         }
         .mkString
     }
+  }
+
+  /**
+   * Termula represents parser-level union of terms and formulas.
+   * After parsing, the termula can be converted either to a term or to a formula:
+   * <p> - to be converted to a term, termula must consist only of function applications;
+   * <p> - to be converted to a formula, `args` of the termula are interpreted as formulas until a predicate application is observed;
+   * `args` of the predicate application are terms.
+   *
+   * <p> Convention: since the difference between `TermLabel`s and `PredicateLabel`s is purely semantic and Termula needs
+   * FormulaLabels (because of connector and binder labels), all TermLabels are translated to the corresponding
+   * PredicateLabels (see [[toTermula]]).
+   *
+   * @param label `PredicateLabel` for predicates and functions, `ConnectorLabel` or `BinderLabel`
+   * @param args Predicate / function arguments for `PredicateLabel`, connected formulas for `ConnectorLabel`,
+   *             `Seq(VariableFormulaLabel(bound), inner)` for `BinderLabel`
+   */
+  case class Termula(label: FOL.FormulaLabel, args: Seq[Termula]) {
+    def toTerm: Term = label match {
+      case t: ConstantPredicateLabel => Term(ConstantFunctionLabel(t.id, t.arity), args.map(_.toTerm))
+      case t: SchematicPredicateLabel => Term(SchematicFunctionLabel(t.id, t.arity), args.map(_.toTerm))
+      case v: VariableFormulaLabel => Term(VariableLabel(v.id), Seq())
+      case _ => throw ParserException(s"Expected term, got $this")
+    }
+
+    def toFormula: Formula = label match {
+      case p: PredicateLabel => PredicateFormula(p, args.map(_.toTerm))
+      case c: ConnectorLabel => ConnectorFormula(c, args.map(_.toFormula))
+      case b: BinderLabel =>
+        args match {
+          case Seq(Termula(v: VariableFormulaLabel, Seq()), f) => BinderFormula(b, VariableLabel(v.id), f.toFormula)
+          case _ => throw ParserException(s"Wrong binder format: expected 2 arguments: bound VariableFormulaLabel and inner termula, got $args")
+        }
+    }
+  }
+
+  extension (f: Formula) {
+    def toTermula: Termula = f match {
+      case PredicateFormula(label, args) => Termula(label, args.map(_.toTermula))
+      case ConnectorFormula(label, args) => Termula(label, args.map(_.toTermula))
+      case BinderFormula(label, bound, inner) => Termula(label, Seq(Termula(VariableFormulaLabel(bound.id), Seq()), inner.toTermula))
+    }
+  }
+
+  extension (t: Term) {
+    def toTermula: Termula = {
+      val newLabel = t.label match {
+        case ConstantFunctionLabel(id, arity) => ConstantPredicateLabel(id, arity)
+        case SchematicFunctionLabel(id, arity) => SchematicPredicateLabel(id, arity)
+        case VariableLabel(id) => VariableFormulaLabel(id)
+      }
+      Termula(newLabel, t.args.map(_.toTermula))
+    }
+  }
+
+  case class TermulaSequent(left: Set[Termula], right: Set[Termula]) {
+    def toSequent: Sequent = Sequent(left.map(_.toFormula), right.map(_.toFormula))
+  }
+
+  extension (s: Sequent) {
+    def toTermulaSequent: TermulaSequent = TermulaSequent(s.left.map(_.toTermula), s.right.map(_.toTermula))
   }
 
   private[Parser] object SequentParser extends Parsers {
@@ -271,9 +332,9 @@ object Parser {
     case object TopLevelConnectorKind extends TokenKind
     case object NegationKind extends TokenKind
     case object BooleanConstantKind extends TokenKind
-    case object FunctionOrPredicateKind extends TokenKind
-    case object InfixPredicateKind extends TokenKind
     case object SchematicConnectorKind extends TokenKind
+    case object IdKind extends TokenKind
+    case object InfixKind extends TokenKind
     case object CommaKind extends TokenKind
     case class ParenthesisKind(isOpen: Boolean) extends TokenKind
     case object BinderKind extends TokenKind
@@ -295,9 +356,9 @@ object Parser {
       case IffToken | ImpliesToken => TopLevelConnectorKind
       case NegationToken => NegationKind
       case TrueToken | FalseToken => BooleanConstantKind
-      case _: ConstantToken | _: SchematicToken => FunctionOrPredicateKind
-      case _: InfixPredicateToken => InfixPredicateKind
       case _: SchematicConnectorToken => SchematicConnectorKind
+      case _: ConstantToken | _: SchematicToken => IdKind
+      case _: InfixToken => InfixKind
       case CommaToken => CommaKind
       case ParenthesisToken(isOpen) => ParenthesisKind(isOpen)
       case ExistsToken | ExistsOneToken | ForallToken => BinderKind
@@ -317,20 +378,6 @@ object Parser {
 
     val comma: Syntax[Unit] = elem(CommaKind).unit(CommaToken)
 
-    val INFIX_ARITY = 2
-    val infixPredicateLabel: Syntax[ConstantPredicateLabel] = accept(InfixPredicateKind)(
-      {
-        case InfixPredicateToken(id) => ConstantPredicateLabel(getInternalName(id), INFIX_ARITY)
-        case _ => throw UnreachableException
-      },
-      {
-        case ConstantPredicateLabel(id, INFIX_ARITY) if isInfixPredicate(getPrintName(id)) =>
-          val printName = getPrintName(id)
-          Seq(InfixPredicateToken(printName))
-        case _ => throw UnreachableException
-      }
-    )
-
     val semicolon: Syntax[Unit] = elem(SemicolonKind).unit(SemicolonToken)
 
     val sequentSymbol: Syntax[Unit] = elem(SequentSymbolKind).unit(SequentToken)
@@ -349,111 +396,100 @@ object Parser {
     )
 
     val negation: Syntax[Neg.type] = accept(NegationKind)({ case NegationToken => Neg }, { case Neg => Seq(NegationToken) })
-    ///////////////////////////////////////////////////////////////////
 
-    //////////////////////// TERMS ////////////////////////////////////
-    lazy val args: Syntax[Seq[Term]] = recursive(open.skip ~ repsep(term, comma) ~ closed.skip)
-
-    def invertTerm(t: Term): Token ~ Option[Seq[Term]] = t match {
-      case VariableTerm(label) => SchematicToken(label.id) ~ None
-      case Term(label, args) =>
-        val optArgs = args match {
-          case Seq() => None
-          case _ => Some(args)
-        }
-        label match {
-          case ConstantFunctionLabel(id, _) => ConstantToken(id) ~ optArgs
-          case SchematicFunctionLabel(id, _) => SchematicToken(id) ~ optArgs
-        }
-    }
-
-    lazy val term: Syntax[Term] = recursive(
-      (elem(FunctionOrPredicateKind) ~ opt(args)).map(
-        {
-          case ConstantToken(id) ~ maybeArgs =>
-            val args = maybeArgs.getOrElse(Seq())
-            Term(ConstantFunctionLabel(id, args.length), args)
-          case SchematicToken(id) ~ Some(args) => Term(SchematicFunctionLabel(id, args.length), args)
-          case SchematicToken(id) ~ None => VariableTerm(VariableLabel(id))
-          case _ => throw UnreachableException
-        },
-        t => Seq(invertTerm(t))
-      )
+    val INFIX_ARITY = 2
+    val infixLabel: Syntax[ConstantPredicateLabel] = accept(InfixKind)(
+      {
+        case InfixToken(id) => ConstantPredicateLabel(getInternalName(id), INFIX_ARITY)
+        case _ => throw UnreachableException
+      },
+      {
+        case ConstantPredicateLabel(id, INFIX_ARITY) if isInfix(getPrintName(id)) =>
+          val printName = getPrintName(id)
+          Seq(InfixToken(printName))
+        case _ => throw UnreachableException
+      }
     )
     ///////////////////////////////////////////////////////////////////
 
-    //////////////////////// FORMULAS /////////////////////////////////
+    //////////////////////// TERMULAS /////////////////////////////////
     // can appear without parentheses
-    lazy val simpleFormula: Syntax[Formula] = predicate.up[Formula] | negated.up[Formula] | bool.up[Formula] | schematicConnectorFormula.up[Formula]
-    lazy val subformula: Syntax[Formula] = simpleFormula | open.skip ~ formula ~ closed.skip
-
-    def createTerm(label: Token, args: Seq[Term]): Term = label match {
-      case ConstantToken(id) => Term(ConstantFunctionLabel(id, args.size), args)
-      case SchematicToken(id) =>
-        args match {
-          case Seq() => VariableTerm(VariableLabel(id))
-          case _ => Term(SchematicFunctionLabel(id, args.size), args)
+    lazy val simpleTermula: Syntax[Termula] = application | negated | bool | schematicConnectorFormula
+    lazy val subtermula: Syntax[Termula] = simpleTermula | startsWithParenthesis
+    lazy val startsWithParenthesis: Syntax[Termula] = recursive(
+      (open.skip ~ termula ~ closed.skip ~ opt(infixLabel ~ subtermula)).map(
+        {
+          case f ~ None => f
+          case f1 ~ Some(label ~ f2) => Termula(label, Seq(f1, f2))
+        },
+        {
+          case Termula(c @ ConstantPredicateLabel(id, INFIX_ARITY), Seq(f1, f2)) if isInfix(getPrintName(id)) => Seq(f1 ~ Some(c ~ f2))
+          case f => Seq(f ~ None)
         }
+      )
+    )
+
+    val bool: Syntax[Termula] = accept(BooleanConstantKind)(
+      {
+        case TrueToken => Termula(And, Seq())
+        case FalseToken => Termula(Or, Seq())
+      },
+      {
+        case Termula(And, Seq()) => Seq(TrueToken)
+        case Termula(Or, Seq()) => Seq(FalseToken)
+        case _ => throw UnreachableException
+      }
+    )
+
+    lazy val args: Syntax[Seq[Termula]] = recursive(open.skip ~ repsep(termula, comma) ~ closed.skip)
+
+    def reconstructPrefixApplication(t: Termula): Token ~ Option[Seq[Termula]] = t.label match {
+      case VariableFormulaLabel(id) => SchematicToken(id) ~ None
+      case SchematicPredicateLabel(id, _) => SchematicToken(id) ~ Some(t.args)
+      case ConstantPredicateLabel(id, arity) => ConstantToken(getPrintName(id)) ~ (if (arity == 0) None else Some(t.args))
       case _ => throw UnreachableException
     }
 
-    val bool: Syntax[ConnectorFormula] = accept(BooleanConstantKind)(
-      {
-        case TrueToken => ConnectorFormula(And, Seq())
-        case FalseToken => ConnectorFormula(Or, Seq())
+    val prefixApplication: Syntax[Termula] = (elem(IdKind) ~ opt(args)).map(
+      { case p ~ optArgs =>
+        val args = optArgs.getOrElse(Seq())
+        val l = p match {
+          case ConstantToken(id) => ConstantPredicateLabel(getInternalName(id), args.size)
+          case SchematicToken(id) =>
+            if (args.isEmpty) VariableFormulaLabel(id) else SchematicPredicateLabel(id, args.size)
+          case _ => throw UnreachableException
+        }
+        Termula(l, args)
       },
       {
-        case ConnectorFormula(And, Seq()) => Seq(TrueToken)
-        case ConnectorFormula(Or, Seq()) => Seq(FalseToken)
+        case t @ Termula(_: PredicateLabel, _) => Seq(reconstructPrefixApplication(t))
         case _ => throw UnreachableException
       }
     )
 
-    val predicate: Syntax[PredicateFormula] = (elem(FunctionOrPredicateKind) ~ opt(args) ~ opt(infixPredicateLabel ~ term)).map(
-      {
-        // predicate application
-        case ConstantToken(id) ~ maybeArgs ~ None =>
-          val args = maybeArgs.getOrElse(Seq())
-          PredicateFormula(ConstantPredicateLabel(getInternalName(id), args.size), args)
-        case SchematicToken(id) ~ Some(args) ~ None => PredicateFormula(SchematicPredicateLabel(getInternalName(id), args.size), args)
-        case SchematicToken(id) ~ None ~ None =>
-          PredicateFormula(VariableFormulaLabel(getInternalName(id)), Seq())
-
-        // infix relation of two function applications
-        case fun1 ~ args1 ~ Some(pred ~ term2) =>
-          PredicateFormula(pred, Seq(createTerm(fun1, args1.getOrElse(Seq())), term2))
-
-        case _ => throw UnreachableException
-      },
-      {
-        case PredicateFormula(label @ ConstantPredicateLabel(id, INFIX_ARITY), Seq(first, second)) if isInfixPredicate(getPrintName(id)) =>
-          Seq(invertTerm(first) ~ Some(label ~ second))
-        case PredicateFormula(label, args) =>
-          val printName = getPrintName(label.id)
-          if (isInfixPredicate(printName) && args.size == INFIX_ARITY) {
-            args match {
-              case Seq(first, second) => Seq(invertTerm(first) ~ Some(ConstantPredicateLabel(getPrintName(label.id), INFIX_ARITY) ~ second))
-              case _ => throw UnreachableException
-            }
-          } else {
-            val prefixApp = label match {
-              case VariableFormulaLabel(_) => SchematicToken(printName) ~ None
-              case SchematicPredicateLabel(_, _) => SchematicToken(printName) ~ Some(args)
-              case ConstantPredicateLabel(_, 0) => ConstantToken(printName) ~ None
-              case ConstantPredicateLabel(_, _) => ConstantToken(printName) ~ Some(args)
-            }
-            Seq(prefixApp ~ None)
+    lazy val application: Syntax[Termula] =
+      recursive(
+        (prefixApplication ~ opt(infixLabel ~ subtermula)).map(
+          {
+            case p ~ None => p
+            case p1 ~ Some(label ~ p2) => Termula(label, Seq(p1, p2))
+          },
+          {
+            case Termula(c @ ConstantPredicateLabel(id, INFIX_ARITY), Seq(f1 @ Termula(_: PredicateLabel, _), f2)) if isInfix(getPrintName(id)) =>
+              Seq(f1 ~ Some(c ~ f2))
+            case t @ Termula(_: PredicateLabel, _) => Seq(t ~ None)
+            case _ => throw UnreachableException
           }
-      }
-    )
+        )
+      )
 
-    val negated: Syntax[ConnectorFormula] = recursive {
-      (negation ~ subformula).map(
+    val negated: Syntax[Termula] = recursive {
+      (negation ~ subtermula).map(
         { case n ~ f =>
-          ConnectorFormula(n, Seq(f))
+          Termula(n, Seq(f))
         },
         {
-          case ConnectorFormula(Neg, Seq(f)) => Seq(Neg ~ f)
+          case Termula(Neg, Seq(f)) => Seq(Neg ~ f)
           case _ => throw UnreachableException
         }
       )
@@ -482,32 +518,30 @@ object Parser {
     )
 
     // 'and' has higher priority than 'or'
-    val connectorFormula: Syntax[Formula] = operators(subformula)(
+    val connectorTermula: Syntax[Termula] = operators(subtermula)(
       and is LeftAssociative,
       or is LeftAssociative
     )(
-      (l, conn, r) => ConnectorFormula(conn, Seq(l, r)),
+      (l, conn, r) => Termula(conn, Seq(l, r)),
       {
-        case ConnectorFormula(conn, Seq(l, r)) =>
+        case Termula(conn: ConnectorLabel, Seq(l, r)) =>
           (l, conn, r)
-        case ConnectorFormula(conn, l +: rest) if rest.nonEmpty =>
+        case Termula(conn: ConnectorLabel, l +: rest) if rest.nonEmpty =>
           val last = rest.last
           val leftSide = rest.dropRight(1)
           // parser only knows about connector formulas of two arguments, so we unfold the formula of many arguments to
           // multiple nested formulas of two arguments
-          (leftSide.foldLeft(l)((f1, f2) => ConnectorFormula(conn, Seq(f1, f2))), conn, last)
+          (leftSide.foldLeft(l)((f1, f2) => Termula(conn, Seq(f1, f2))), conn, last)
       }
     )
 
-    lazy val formulaArgs: Syntax[Seq[Formula]] = recursive(open.skip ~ repsep(formula, comma) ~ closed.skip)
-
-    lazy val schematicConnectorFormula: Syntax[ConnectorFormula] = (elem(SchematicConnectorKind) ~ formulaArgs).map(
+    lazy val schematicConnectorFormula: Syntax[Termula] = (elem(SchematicConnectorKind) ~ args).map(
       {
-        case SchematicConnectorToken(id) ~ args => ConnectorFormula(SchematicConnectorLabel(id, args.size), args)
+        case SchematicConnectorToken(id) ~ args => Termula(SchematicConnectorLabel(id, args.size), args)
         case _ => throw UnreachableException
       },
       {
-        case ConnectorFormula(SchematicConnectorLabel(id, _), args) => Seq(SchematicConnectorToken(id) ~ args)
+        case Termula(SchematicConnectorLabel(id, _), args) => Seq(SchematicConnectorToken(id) ~ args)
         case _ => throw UnreachableException
       }
     )
@@ -525,74 +559,70 @@ object Parser {
       }
     )
 
-    val boundVariable: Syntax[VariableLabel] = accept(FunctionOrPredicateKind)(
+    val boundVariable: Syntax[VariableFormulaLabel] = accept(IdKind)(
       {
-        case ConstantToken(id) => VariableLabel(id)
-        case SchematicToken(id) => VariableLabel(id)
+        case ConstantToken(id) => VariableFormulaLabel(id)
+        case SchematicToken(id) => VariableFormulaLabel(id)
       },
-      { case VariableLabel(id) =>
+      { case VariableFormulaLabel(id) =>
         Seq(SchematicToken(id))
       }
     )
 
-    val binder: Syntax[BinderLabel ~ VariableLabel] = binderLabel ~ boundVariable ~ elem(DotKind).unit(DotToken).skip
+    val binder: Syntax[BinderLabel ~ VariableFormulaLabel] = binderLabel ~ boundVariable ~ elem(DotKind).unit(DotToken).skip
 
-    val iffImpliesFormula: Syntax[Formula] = (connectorFormula ~ opt(toplevelConnector ~ connectorFormula)).map[Formula](
+    val iffImpliesTermula: Syntax[Termula] = (connectorTermula ~ opt(toplevelConnector ~ connectorTermula)).map[Termula](
       {
-        case left ~ Some(c ~ right) => ConnectorFormula(c, Seq(left, right))
+        case left ~ Some(c ~ right) => Termula(c, Seq(left, right))
         case f ~ None => f
       },
       {
-        case ConnectorFormula(c @ (Iff | Implies), Seq(left, right)) => Seq(left ~ Some(c ~ right))
-        case ConnectorFormula((And | Or), Seq(f)) => Seq(f ~ None)
+        case Termula(c @ (Iff | Implies), Seq(left, right)) => Seq(left ~ Some(c ~ right))
+        case Termula((And | Or), Seq(f)) => Seq(f ~ None)
         case f => Seq(f ~ None)
       }
     )
 
-    lazy val formula: Syntax[Formula] = recursive {
-      prefixes(binder, iffImpliesFormula)(
-        { case (label ~ variable, f) => BinderFormula(label, variable, f) },
-        { case BinderFormula(label, variable, f) =>
+    lazy val termula: Syntax[Termula] = recursive {
+      prefixes(binder, iffImpliesTermula)(
+        { case (label ~ variable, f) => Termula(label, Seq(Termula(variable, Seq()), f)) },
+        { case Termula(label: BinderLabel, Seq(Termula(variable: VariableFormulaLabel, Seq()), f)) =>
           (label ~ variable, f)
         }
       )
     }
     ///////////////////////////////////////////////////////////////////
 
-    val sequent: Syntax[Sequent] = (repsep(formula, semicolon) ~ opt(sequentSymbol.skip ~ repsep(formula, semicolon))).map[Sequent](
+    val sequent: Syntax[TermulaSequent] = (repsep(termula, semicolon) ~ opt(sequentSymbol.skip ~ repsep(termula, semicolon))).map[TermulaSequent](
       {
-        case left ~ Some(right) => Sequent(left.toSet, right.toSet)
-        case right ~ None => Sequent(Set(), right.toSet)
+        case left ~ Some(right) => TermulaSequent(left.toSet, right.toSet)
+        case right ~ None => TermulaSequent(Set(), right.toSet)
       },
       {
-        case Sequent(Seq(), right) => Seq(right.toSeq ~ None)
-        // TODO: use constant
-        case Sequent(left, Seq()) => Seq(left.toSeq ~ Some(Seq(False)))
-        case Sequent(left, right) => Seq(left.toSeq ~ Some(right.toSeq))
+        case TermulaSequent(Seq(), right) => Seq(right.toSeq ~ None)
+        case TermulaSequent(left, Seq()) => Seq(left.toSeq ~ Some(Seq(False.toTermula)))
+        case TermulaSequent(left, right) => Seq(left.toSeq ~ Some(right.toSeq))
       }
     )
 
-    val parser: Parser[Sequent] = Parser(sequent)
-    val printer: PrettyPrinter[Sequent] = PrettyPrinter(sequent)
+    val parser: Parser[TermulaSequent] = Parser(sequent)
+    val printer: PrettyPrinter[TermulaSequent] = PrettyPrinter(sequent)
 
-    val formulaParser: SequentParser.Parser[Formula] = Parser(formula)
-    val formulaPrinter: SequentParser.PrettyPrinter[Formula] = PrettyPrinter(formula)
-
-    val termParser: SequentParser.Parser[Term] = Parser(term)
-    val termPrinter: SequentParser.PrettyPrinter[Term] = PrettyPrinter(term)
+    val termulaParser: SequentParser.Parser[Termula] = Parser(termula)
+    val termulaPrinter: SequentParser.PrettyPrinter[Termula] = PrettyPrinter(termula)
 
     def apply(it: Iterator[Token]): ParseResult[Sequent] = parseSequent(it)
 
     def unapply(s: Sequent): Option[String] = printSequent(s)
 
-    def parseSequent(it: Iterator[Token]): ParseResult[Sequent] = parser(it)
-    def printSequent(s: Sequent): Option[String] = printer(s).map(SequentLexer.unapply)
+    def parseSequent(it: Iterator[Token]): ParseResult[Sequent] = parser(it).map(_.toSequent)
+    def printSequent(s: Sequent): Option[String] = printer(s.toTermulaSequent).map(SequentLexer.unapply)
 
-    def parseFormula(it: Iterator[Token]): ParseResult[Formula] = formulaParser(it)
-    def printFormula(f: Formula): Option[String] = formulaPrinter(f).map(SequentLexer.unapply)
+    def parseFormula(it: Iterator[Token]): ParseResult[Formula] = termulaParser(it).map(_.toFormula)
+    def printFormula(f: Formula): Option[String] = termulaPrinter(f.toTermula).map(SequentLexer.unapply)
 
-    def parseTerm(it: Iterator[Token]): ParseResult[Term] = termParser(it)
+    def parseTerm(it: Iterator[Token]): ParseResult[Term] = termulaParser(it).map(_.toTerm)
 
-    def printTerm(t: Term): Option[String] = termPrinter(t).map(SequentLexer.unapply)
+    def printTerm(t: Term): Option[String] = termulaPrinter(t.toTermula).map(SequentLexer.unapply)
   }
 }
