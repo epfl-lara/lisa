@@ -10,36 +10,38 @@ import scallion.util.Unfolds.unfoldRight
 import silex.*
 
 object Parser {
-  enum Notation {
-    case Prefix, Infix
-  }
+  //////////////////////////////// EQUIVALENT LABELS, INFIX CONTROL ///////////////////////////////
+  case class CanonicalId(print: String, internal: String)
 
-  abstract class Label(val id: String, val notation: Notation)
+  def equivalentLabelsToMap(equivalentLabels: List[String], print: String, internal: String): Map[String, CanonicalId] =
+    (print :: internal :: equivalentLabels).map(_ -> CanonicalId(print, internal)).toMap
 
-  case class InfixLabel(override val id: String) extends Label(id, Notation.Infix)
+  // TODO: grow the mapping as we discover / introduce more synonyms
+  // The mapping stores the information about synonymous strings for the same id, mapping a string to its canonical
+  // form (the id that is used to construct the `ConstantLabel`) and the printable form (the preferred synonym to
+  // display in strings).
+  private val SynonymToCanonical: Map[String, CanonicalId] =
+    equivalentLabelsToMap("elem" :: "in" :: Nil, "∊", "elem") ++
+      equivalentLabelsToMap("subset_of" :: "subset" :: Nil, "⊆", "subset_of") ++
+      equivalentLabelsToMap("sim" :: "same_cardinality" :: Nil, "≈", "same_cardinality")
 
-  case class PrefixLabel(override val id: String) extends Label(id, Notation.Prefix)
+  /**
+   * @return the preferred way to output this id, if available, otherwise the id itself.
+   */
+  def getPrintName(id: String): String = SynonymToCanonical.get(id).map(_.print).getOrElse(id)
 
-  case class CanonicalLabel(print: Label, internal: Label)
-
-  def equivalentLabelsToMap(labels: List[String], print: Label, internal: Label): Map[String, CanonicalLabel] =
-    labels.map(_ -> CanonicalLabel(print, internal)).toMap
-
-  private val mapping: Map[String, CanonicalLabel] =
-    equivalentLabelsToMap("elem" :: "in" :: "∊" :: Nil, InfixLabel("∊"), PrefixLabel("elem")) ++
-      equivalentLabelsToMap("subset_of" :: "subset" :: "⊆" :: Nil, InfixLabel("⊆"), PrefixLabel("subset_of")) ++
-      equivalentLabelsToMap("sim" :: "same_cardinality" :: "≈" :: Nil, InfixLabel("≈"), PrefixLabel("same_cardinality")) ++
-      equivalentLabelsToMap("=" :: Nil, InfixLabel("="), InfixLabel("="))
-
-  def getPrintName(id: String): Option[Label] = mapping.get(id).map(_.print)
-
-  def getInternalName(id: String): String = mapping.get(id).map(_.internal.id).getOrElse(id)
+  /**
+   * @return the synonym of `id` that is used to construct the corresponding `ConstantPredicateLabel` or
+   *         `ConstantFunctionLabel`. If not available, `id` has no known synonyms, so return `id` itself.
+   */
+  def getInternalName(id: String): String = SynonymToCanonical.get(id).map(_.internal).getOrElse(id)
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  // TODO: support more infix predicates, potentially determine if a predicate is infix without listing all infix ones
+  def isInfixPredicate(id: String): Boolean = Set("=", "∊", "⊂", "⊆").contains(id)
 
   class ParserException(msg: String) extends Exception(msg)
   object UnreachableException extends ParserException("Internal error: expected unreachable")
   class PrintFailedException(inp: Sequent | Formula | Term) extends ParserException(s"Printing of $inp failed unexpectedly")
-
-  def isInfixPredicate(id: String): Boolean = Set("=", "∊", "⊂", "⊆").contains(id)
 
   /**
    * Parses a sequent from a string. A sequent consists of the left and right side, separated by `⊢` or `|-`.
@@ -310,8 +312,8 @@ object Parser {
         case _ => throw UnreachableException
       },
       {
-        case ConstantPredicateLabel(id, INFIX_ARITY) if getPrintName(id).map(_.notation == Notation.Infix).getOrElse(isInfixPredicate(id)) =>
-          val printName = getPrintName(id).map(_.id).getOrElse(id)
+        case ConstantPredicateLabel(id, INFIX_ARITY) if isInfixPredicate(getPrintName(id)) =>
+          val printName = getPrintName(id)
           Seq(InfixPredicateToken(printName))
         case _ => throw UnreachableException
       }
@@ -412,21 +414,21 @@ object Parser {
         case _ => throw UnreachableException
       },
       {
-        case PredicateFormula(label @ ConstantPredicateLabel(id, INFIX_ARITY), Seq(first, second)) if getPrintName(id).map(_.notation == Notation.Infix).getOrElse(isInfixPredicate(id)) =>
+        case PredicateFormula(label @ ConstantPredicateLabel(id, INFIX_ARITY), Seq(first, second)) if isInfixPredicate(getPrintName(id)) =>
           Seq(invertTerm(first) ~ Some(label ~ second))
         case PredicateFormula(label, args) =>
-          val (canonicalId, isInfix) = getPrintName(label.id).map(l => (l.id, l.notation == Notation.Infix)).getOrElse(label.id, false)
-          if (isInfix && args.size == INFIX_ARITY) {
+          val printName = getPrintName(label.id)
+          if (isInfixPredicate(printName) && args.size == INFIX_ARITY) {
             args match {
-              case Seq(first, second) => Seq(invertTerm(first) ~ Some(ConstantPredicateLabel(canonicalId, INFIX_ARITY) ~ second))
+              case Seq(first, second) => Seq(invertTerm(first) ~ Some(ConstantPredicateLabel(getPrintName(label.id), INFIX_ARITY) ~ second))
               case _ => throw UnreachableException
             }
           } else {
             val prefixApp = label match {
-              case VariableFormulaLabel(id) => SchematicToken(canonicalId) ~ None
-              case SchematicPredicateLabel(id, _) => SchematicToken(canonicalId) ~ Some(args)
-              case ConstantPredicateLabel(id, 0) => ConstantToken(canonicalId) ~ None
-              case ConstantPredicateLabel(id, _) => ConstantToken(canonicalId) ~ Some(args)
+              case VariableFormulaLabel(_) => SchematicToken(printName) ~ None
+              case SchematicPredicateLabel(_, _) => SchematicToken(printName) ~ Some(args)
+              case ConstantPredicateLabel(_, 0) => ConstantToken(printName) ~ None
+              case ConstantPredicateLabel(_, _) => ConstantToken(printName) ~ Some(args)
             }
             Seq(prefixApp ~ None)
           }
