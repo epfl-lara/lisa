@@ -14,6 +14,7 @@ trait TestUtils {
   val (sf1, sf2, sf3) = (SchematicFunctionLabel("f", 1), SchematicFunctionLabel("f", 2), SchematicFunctionLabel("f", 3))
   val (sPhi1, sPhi2) = (SchematicPredicateLabel("phi", 1), SchematicPredicateLabel("phi", 2))
   val (sc1, sc2) = (SchematicConnectorLabel("c", 1), SchematicConnectorLabel("c", 2))
+  val (in, plus) = (ConstantPredicateLabel("elem", 2), ConstantFunctionLabel("+", 2))
 
   given Conversion[PredicateLabel, PredicateFormula] = PredicateFormula(_, Seq.empty)
 

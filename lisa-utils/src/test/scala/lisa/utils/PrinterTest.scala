@@ -276,4 +276,22 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     assert(Parser.printFormula(ConnectorFormula(And, Seq(PredicateFormula(prefixIn, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
     assert(Parser.printFormula(ConnectorFormula(Or, Seq(a, PredicateFormula(prefixIn, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
   }
+
+  test("infix functions") {
+    assert(Parser.printTerm(Term(plus, Seq(cx, cy))) == "x + y")
+    assert(Parser.printTerm(Term(plus, Seq(Term(plus, Seq(cx, cy)), cz))) == "(x + y) + z")
+  }
+
+  test("mix of infix functions and infix predicates") {
+    assert(Parser.printFormula(PredicateFormula(in, Seq(Term(plus, Seq(cx, cy)), cz))) == "(x + y) ∊ z")
+    assert(
+      Parser.printFormula(
+        ConnectorFormula(
+          And,
+          Seq(ConnectorFormula(And, Seq(PredicateFormula(in, Seq(cx, cy)), PredicateFormula(in, Seq(cx, cz)))), PredicateFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
+        )
+      ) == "x ∊ y ∧ x ∊ z ∧ (x + y) ∊ z"
+    )
+
+  }
 }

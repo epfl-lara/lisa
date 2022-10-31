@@ -227,12 +227,26 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("equivalent names") {
-    val in = ConstantPredicateLabel("elem", 2)
     assert(Parser.parseFormula("x∊y") == PredicateFormula(in, Seq(cx, cy)))
     assert(Parser.parseFormula("x ∊ y") == PredicateFormula(in, Seq(cx, cy)))
     assert(Parser.parseFormula("'x ∊ 'y") == PredicateFormula(in, Seq(x, y)))
     assert(Parser.parseFormula("('x ∊ 'y) /\\ a") == ConnectorFormula(And, Seq(PredicateFormula(in, Seq(x, y)), a)))
     assert(Parser.parseFormula("a \\/ ('x ∊ 'y)") == ConnectorFormula(Or, Seq(a, PredicateFormula(in, Seq(x, y)))))
+  }
+
+  test("infix functions") {
+    assert(Parser.parseTerm("x + y") == Term(plus, Seq(cx, cy)))
+    assert(Parser.parseTerm("(x + y) + z") == Term(plus, Seq(Term(plus, Seq(cx, cy)), cz)))
+  }
+
+  test("mix of infix functions and infix predicates") {
+    assert(Parser.parseFormula("(x + y) ∊ z") == PredicateFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
+    assert(
+      Parser.parseFormula("x ∊ y /\\ x ∊ z /\\ (x + y) ∊ z") == ConnectorFormula(
+        And,
+        Seq(ConnectorFormula(And, Seq(PredicateFormula(in, Seq(cx, cy)), PredicateFormula(in, Seq(cx, cz)))), PredicateFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
+      )
+    )
 
   }
 }
