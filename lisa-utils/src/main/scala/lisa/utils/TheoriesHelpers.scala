@@ -67,20 +67,20 @@ trait TheoriesHelpers extends KernelHelpers {
   extension (just: RunningTheory#Justification) {
 
     /**
-     * Outputs, with an implicit output function, a readable representation of the Axiom, Theorem or Definition.
+     * Outputs, with an implicit om.output function, a readable representation of the Axiom, Theorem or Definition.
      */
-    def show(using output: String => Unit): just.type = {
+    def show(using om: OutputManager): just.type = {
       just match {
-        case thm: RunningTheory#Theorem => output(s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n")
-        case axiom: RunningTheory#Axiom => output(s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n")
+        case thm: RunningTheory#Theorem => om.output(s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n")
+        case axiom: RunningTheory#Axiom => om.output(s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n")
         case d: RunningTheory#Definition =>
           d match {
             case pd: RunningTheory#PredicateDefinition =>
-              output(
+              om.output(
                 s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
               ) // (label, args, phi)
             case fd: RunningTheory#FunctionDefinition =>
-              output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
+              om.output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
                   .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n")
           }
       }
@@ -92,18 +92,18 @@ trait TheoriesHelpers extends KernelHelpers {
 
     /**
      * If the Judgement is valid, show the inner justification and returns it.
-     * Otherwise, output the error leading to the invalid justification and throw an error.
+     * Otherwise, om.output the error leading to the invalid justification and throw an error.
      */
-    def showAndGet(using output: String => Unit)(using finishOutput: Throwable => Nothing): J = {
+    def showAndGet(using om: OutputManager): J = {
       theoryJudgement match {
         case RunningTheoryJudgement.ValidJustification(just) =>
           just.show
         case InvalidJustification(message, error) =>
-          output(s"$message\n${error match {
+          om.output(s"$message\n${error match {
               case Some(judgement) => Printer.prettySCProof(judgement)
               case None => ""
             }}")
-          finishOutput(InvalidJustificationException(message, error))
+          om.finishOutput(InvalidJustificationException(message, error))
       }
     }
   }
@@ -112,16 +112,16 @@ trait TheoriesHelpers extends KernelHelpers {
 
     /**
      * If the SCProof is valid, show the inner proof and returns it.
-     * Otherwise, output the error leading to the invalid justification and throw an error.
+     * Otherwise, om.output the error leading to the invalid justification and throw an error.
      */
-    def showAndGet(using output: String => Unit)(using finishOutput: Throwable => Nothing): SCProof = {
+    def showAndGet(using om: OutputManager): SCProof = {
       proofJudgement match {
         case SCProofCheckerJudgement.SCValidProof(proof) =>
-          output(Printer.prettySCProof(proofJudgement))
+          om.output(Printer.prettySCProof(proofJudgement))
           proof
         case ip @ SCProofCheckerJudgement.SCInvalidProof(proof, path, message) =>
-          output(s"$message\n${Printer.prettySCProof(proofJudgement)}")
-          finishOutput(InvalidJustificationException("", Some(ip)))
+          om.output(s"$message\n${Printer.prettySCProof(proofJudgement)}")
+          om.finishOutput(InvalidJustificationException("", Some(ip)))
       }
     }
   }
@@ -129,7 +129,7 @@ trait TheoriesHelpers extends KernelHelpers {
   case class InvalidProofException(proofJudgement: SCProofCheckerJudgement.SCInvalidProof) extends Exception(proofJudgement.message)
 
   /**
-   * Output a readable representation of a proof.
+   * om.output a readable representation of a proof.
    */
   def checkProof(proof: SCProof, output: String => Unit = println): Unit = {
     val judgement = SCProofChecker.checkSCProof(proof)

@@ -5,6 +5,7 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.Library
+import lisa.utils.OutputManager
 import lisa.utils.Parser.parseFormula
 import lisa.utils.Parser.parseSequent
 import lisa.utils.Parser.parseTerm
@@ -18,14 +19,14 @@ trait ProofsHelpers {
   private def proof: Proof = proofStack.head
 
   case class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    infix def by(just: ProofStepWithoutBot)(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
+    infix def by(just: ProofStepWithoutBot)(using om: OutputManager): library.Proof#DoubleStep = {
       val r = just.asProofStep(bot)
       r.validate(library)
     }
   }
 
   case class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
-    infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
+    infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using om: OutputManager): library.Proof#DoubleStep = {
       val r = just.asProofStepWithoutBot(Seq(proof.mostRecentStep._2)).asProofStep(bot)
       r.validate(library)
     }
@@ -44,12 +45,12 @@ trait ProofsHelpers {
   /**
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
-  def have(just: theory.Justification)(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
+  def have(just: theory.Justification)(using om: OutputManager): library.Proof#DoubleStep = {
     have(theory.sequentFromJustification(just)) by Restate(just.asInstanceOf[Library#Proof#Fact])
   }
 
   /* //TODO: After reviewing substitutions
-    def have(instJust: InstantiatedJustification)(using String => Unit)(using finishOutput: Throwable => Nothing): library.Proof#DoubleStep = {
+    def have(instJust: InstantiatedJustification)(using om:OutputManager): library.Proof#DoubleStep = {
         val just = instJust.just
         val (seq, ref) = proof.getSequentAndInt(just)
         if (instJust.instsPred.isEmpty && instJust.instsTerm.isEmpty && instJust.instForall.isEmpty){
@@ -87,7 +88,7 @@ trait ProofsHelpers {
     proofStack.head.newImportedFact(just)
 
   }
-  def andThen(pswp: ProofStepWithoutPrem)(using String => Unit)(using Throwable => Nothing): library.Proof#DoubleStep = {
+  def andThen(pswp: ProofStepWithoutPrem)(using om: OutputManager): library.Proof#DoubleStep = {
     val r = pswp.asProofStep(Seq(proof.mostRecentStep._2))
     r.validate(library)
   }
@@ -112,7 +113,7 @@ trait ProofsHelpers {
   }
 
   extension (pswp: ProofStepWithoutPrem) {
-    def by(premises: Seq[Library#Proof#Fact])(using String => Unit)(using Throwable => Nothing) = pswp.asProofStep(premises).validate(library)
+    def by(premises: Seq[Library#Proof#Fact])(using om: OutputManager) = pswp.asProofStep(premises).validate(library)
   }
 
   given Conversion[ProofStepWithoutBotNorPrem[0], ProofStepWithoutBot] = _.asProofStepWithoutBot(Seq())

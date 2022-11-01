@@ -5,6 +5,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
+import lisa.utils.Printer
 import lisa.utils.tactics.ProofStepJudgement
 import lisa.utils.tactics.ProofStepLib.{_, given}
 
@@ -89,17 +90,33 @@ object SimplePropositionalSolver {
 
     } else if (left.ors.nonEmpty) {
       val f = left.ors.head
-      val phi = f.args(0)
-      val psi = f.args(1)
+      if (f.args.length == 2) {
+        val phi = f.args(0)
+        val psi = f.args(1)
 
-      left.updateFormula(f, false) // gamma
-      val rl = left.copy() // sigma
-      val rr = right.copy() // pi
-      left.updateFormula(phi, true) // delta
-      rl.updateFormula(psi, true)
-      val proof1 = solveOrganisedSequent(left, right, s -< f +< phi, offset)
-      val proof2 = solveOrganisedSequent(rl, rr, s -< f +< psi, offset + proof1.size)
-      LeftOr(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
+        left.updateFormula(f, false) // gamma
+        val rl = left.copy() // sigma
+        val rr = right.copy() // pi
+        left.updateFormula(phi, true) // delta
+        rl.updateFormula(psi, true)
+        val proof1 = solveOrganisedSequent(left, right, s -< f +< phi, offset)
+        val proof2 = solveOrganisedSequent(rl, rr, s -< f +< psi, offset + proof1.size)
+        LeftOr(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
+      } else {
+        val phis = f.args
+
+        left.updateFormula(f, false) // gamma
+        val pr = phis.foldLeft[(List[Int], List[SCProofStep])]((Nil, Nil))((prev, phi) => {
+          val (pInts, pProof) = prev
+          val (rl, rr) = (left.copy(), right.copy())
+          rl.updateFormula(phi, true)
+          val proof = solveOrganisedSequent(rl, rr, s -< f +< phi, offset + prev._2.size)
+          val res = proof ++ pProof
+          (pInts appended res.size + offset - 1, proof ++ pProof)
+        })
+        LeftOr(s, pr._1, phis) :: pr._2
+      }
+
     } else if (right.negs.nonEmpty) {
       val f = right.negs.head
       val phi = f.args.head
@@ -130,17 +147,34 @@ object SimplePropositionalSolver {
       RightIff(s, proof1.size + offset - 1, proof1.size + proof2.size + offset - 1, phi, psi) :: (proof2 ++ proof1)
     } else if (right.ands.nonEmpty) {
       val f = right.ands.head
-      val phi = f.args(0)
-      val psi = f.args(1)
+      if (f.args.length == 2) {
+        val phi = f.args(0)
+        val psi = f.args(1)
 
-      right.updateFormula(f, false) // gamma
-      val rl = left.copy() // sigma
-      val rr = right.copy() // pi
-      right.updateFormula(phi, true) // delta
-      rr.updateFormula(psi, true)
-      val proof1 = solveOrganisedSequent(left, right, s -> f +> phi, offset)
-      val proof2 = solveOrganisedSequent(rl, rr, s -> f +> psi, offset + proof1.size)
-      RightAnd(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
+        right.updateFormula(f, false) // gamma
+
+        val rl = left.copy() // sigma
+        val rr = right.copy() // pi
+        right.updateFormula(phi, true) // delta
+        rr.updateFormula(psi, true)
+        val proof1 = solveOrganisedSequent(left, right, s -> f +> phi, offset)
+        val proof2 = solveOrganisedSequent(rl, rr, s -> f +> psi, offset + proof1.size)
+        RightAnd(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
+      } else {
+        val phis = f.args
+
+        right.updateFormula(f, false) // gamma
+        val pr = phis.foldLeft[(List[Int], List[SCProofStep])]((Nil, Nil))((prev, phi) => {
+          val (pInts, pProof) = prev
+          val (rl, rr) = (left.copy(), right.copy())
+          rr.updateFormula(phi, true)
+          val proof = solveOrganisedSequent(rl, rr, s -> f +> phi, offset + prev._2.size)
+          val res = proof ++ pProof
+          (pInts appended res.size + offset - 1, proof ++ pProof)
+        })
+        RightAnd(s, pr._1, phis) :: pr._2
+      }
+
     } else if (right.ors.nonEmpty) {
       val f = right.ors.head
       val phi = f.args(0)
@@ -177,16 +211,15 @@ object SimplePropositionalSolver {
 
       val sp = SCSubproof(
         {
-          val premsFormulas = premises.map(p => (p, sequentToFormula(currentProof.getSequent(p))))
-          val initProof = premsFormulas.map(s => Rewrite(() |- s._2, s._1)).toList
-          val sqToProve = bot ++< (() |- premsFormulas.map(s => s._2).toSet)
+          val premsFormulas = premises.map(p => (p, sequentToFormula(currentProof.getSequent(p)))).zipWithIndex
+          val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
+          val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
           val subpr = SCSubproof(solveSequent(sqToProve))
-          val n = initProof.length - 1
-          val stepsList = premsFormulas.zipWithIndex.foldLeft[List[SCProofStep]](subpr :: initProof)((prev: List[SCProofStep], cur) => {
+          val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
             val ((prem, form), position) = cur
-            Cut(prev.head.bot -< form, position, prev.length - 1, form) :: prev
+            Cut(prev.head.bot -< form, position, initProof.length + prev.length - 1, form) :: prev
           })
-          SCProof(stepsList.reverse.toIndexedSeq, premises.map(p => currentProof.getSequent(p)).toIndexedSeq)
+          SCProof((initProof ++ stepsList.reverse).toIndexedSeq, premises.map(p => currentProof.getSequent(p)).toIndexedSeq)
         },
         premises
       )
