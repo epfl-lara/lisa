@@ -6,4 +6,5 @@ abstract class OutputManager {
 
   val finishOutput: (Throwable => Nothing) 
 
+  val lisaThrow:(LisaException => Nothing) = finishOutput
 }

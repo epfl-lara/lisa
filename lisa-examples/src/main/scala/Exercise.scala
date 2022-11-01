@@ -17,7 +17,7 @@ object Exercise extends lisa.Main {
   /////////////////////////
 
   THEOREM("double_negation_elim") of "|- 'a ⇔ ¬¬'a" PROOF {
-    val hyp = have("'a |- 'a") by Hypothesis
+    val hyp = have("'a. |- 'a") by Hypothesis
 
     andThen("|- !'a; 'a") by RightNot
     andThen("!!'a |- 'a") by LeftNot

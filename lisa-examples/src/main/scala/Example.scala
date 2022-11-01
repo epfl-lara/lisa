@@ -47,7 +47,7 @@ object Example {
       */
 
       THEOREM("fixed_Point_Double_Application") of "'P('x) ⊢ 'P('x)" PROOF {
-        have("'P('x) ⊢  'P('x)") by Hypothesis
+        have(extensionalityAxiom)
         andThen("'P('f('x)) ⇒ 'P('f('f('x))) ⊢  'P('f('x)) ⇒ 'P('f('f('x)))") by Trivial
 
         have("'P('x) ⊢ 'P('x)") by Restate

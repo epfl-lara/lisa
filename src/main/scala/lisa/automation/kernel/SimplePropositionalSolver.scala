@@ -7,6 +7,7 @@ import lisa.utils.Helpers.{*, given}
 import lisa.utils.{Library, Printer}
 import lisa.utils.tactics.ProofStepJudgement
 import lisa.utils.tactics.ProofStepLib.{*, given}
+import lisa.utils.tactics.SimpleDeducedSteps.Restate
 
 import scala.collection.mutable.Set as mSet
 
@@ -89,7 +90,18 @@ object SimplePropositionalSolver {
 
     } else if (left.ors.nonEmpty) {
       val f = left.ors.head
-      if (f.args.length==2) {
+      if (f.args.isEmpty) {
+        List(RewriteTrue(s))
+      }
+      else if (f.args.length==1) {
+        val phi = f.args(0)
+
+        left.updateFormula(f, false) // gamma
+        left.updateFormula(phi, true) // delta
+        val proof1 = solveOrganisedSequent(left, right, s -< f +< phi, offset)
+        LeftOr(s, Seq(proof1.size + offset - 1, proof1.size + offset - 1), Seq(phi)) :: (proof1)
+      }
+      else if (f.args.length==2) {
         val phi = f.args(0)
         val psi = f.args(1)
 
@@ -147,7 +159,18 @@ object SimplePropositionalSolver {
       RightIff(s, proof1.size + offset - 1, proof1.size + proof2.size + offset - 1, phi, psi) :: (proof2 ++ proof1)
     } else if (right.ands.nonEmpty) {
       val f = right.ands.head
-      if (f.args.length==2) {
+      if (f.args.isEmpty) {
+        List(RewriteTrue(s))
+      }
+      else if (f.args.length==1) {
+        val phi = f.args(0)
+
+        right.updateFormula(f, false) // gamma
+        right.updateFormula(phi, true) // delta
+        val proof1 = solveOrganisedSequent(left, right, s -> f +> phi, offset)
+        RightAnd(s, Seq(proof1.size + offset - 1, proof1.size + offset - 1), Seq(phi)) :: (proof1)
+      }
+      else if (f.args.length==2) {
         val phi = f.args(0)
         val psi = f.args(1)
 
