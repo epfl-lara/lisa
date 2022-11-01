@@ -12,13 +12,34 @@ import lisa.utils.tactics.ProofStepLib.{_, given}
 object BasicStepTactic {
 
   case object Hypothesis extends ProofStepWithoutBotNorPrem(0) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.Hypothesis(bot, bot.left.intersect(bot.right).head)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val intersectedPivot = bot.left.intersect(bot.right)
+
+      if (!intersectedPivot.isEmpty)
+        SC.Hypothesis(bot, intersectedPivot.head)
+      else
+        ProofStepJudgement.InvalidProofStep(
+          this.asProofStepWithoutBot(premises).asProofStep(bot),
+          "A formula for input to hypothesis could not be inferred from left and right side of sequent."
+        )
+    }
   }
 
   case object Rewrite extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.Rewrite(bot, premises(0))
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      if (premises.length != 1)
+        ProofStepJudgement.InvalidProofStep(
+          this.asProofStepWithoutBot(premises).asProofStep(bot),
+          s"One premise expected, ${premises.length} received."
+        )
+      else if (SC.isSameSequent(bot, currentProof.getSequent(premises(0))))
+        SC.Rewrite(bot, premises(0))
+      else
+        ProofStepJudgement.InvalidProofStep(
+          this.asProofStepWithoutBot(premises).asProofStep(bot),
+          "The premise and the conclusion are not trivially equivalent."
+        )
+    }
   }
 
   /**
@@ -29,30 +50,54 @@ object BasicStepTactic {
    * </pre>
    */
   case class Cut(phi: Formula) extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.Cut(bot, premises(0), premises(1), phi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val leftSequent = currentProof.getSequent(premises(0))
+      lazy val rightSequent = currentProof.getSequent(premises(1))
+
+      if (premises.length != 2)
+        invalid(s"Two premises expected, ${premises.length} received.")
+      else if (!contains(leftSequent.right, phi))
+        invalid("Right-hand side of first premise does not contain φ as claimed.")
+      else if (!contains(rightSequent.left, phi))
+        invalid("Left-hand side of second premise does not contain φ as claimed.")
+      else if (!isSameSet(bot.left, leftSequent.left ++ rightSequent.left.filterNot(isSame(_, phi))))
+        invalid("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
+      else if (!isSameSet(bot.right, leftSequent.right.filterNot(isSame(_, phi)) ++ rightSequent.right))
+        invalid("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
+      else
+        SC.Cut(bot, premises(0), premises(1), phi)
+    }
   }
 
   case object CutWithoutFormula extends ProofStepWithoutBotNorPrem(2) {
     def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val leftSequent = currentProof.getSequent(premises(0))
-      val rightSequent = currentProof.getSequent(premises(1))
-      val cutSet = rightSequent.left.diff(bot.left) ++ leftSequent.right.diff(bot.right)
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val leftSequent = currentProof.getSequent(premises(0))
+      lazy val rightSequent = currentProof.getSequent(premises(1))
+      lazy val cutSet = rightSequent.left.diff(bot.left) ++ leftSequent.right.diff(bot.right)
       lazy val intersectedCutSet = rightSequent.left & leftSequent.right
 
-      if (!cutSet.isEmpty)
-        if (cutSet.tail.isEmpty) {
-          SC.Cut(bot, premises(0), premises(1), cutSet.head)
-        } else
-          ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), "Inferred cut pivot is not a singleton set.")
+      if (premises.length != 2)
+        invalid(s"Two premises expected, ${premises.length} received.")
+      else if (!cutSet.isEmpty)
+        if (cutSet.tail.isEmpty)
+          Cut(cutSet.head).asSCProof(bot, premises, currentProof)
+        else
+          invalid("Inferred cut pivot is not a singleton set.")
       else if (!intersectedCutSet.isEmpty && intersectedCutSet.tail.isEmpty)
         // can still find a pivot
-        SC.Cut(bot, premises(0), premises(1), intersectedCutSet.head)
+        Cut(intersectedCutSet.head).asSCProof(bot, premises, currentProof)
       else
-        ProofStepJudgement.InvalidProofStep(
-          this.asProofStepWithoutBot(premises).asProofStep(bot),
-          "A consistent cut pivot cannot be inferred from the premises. Possibly a missing or extraneous clause."
-        )
+        invalid("A consistent cut pivot cannot be inferred from the premises. Possibly a missing or extraneous clause.")
     }
   }
 
@@ -76,33 +121,57 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftAnd(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.LeftAnd(bot, premises(0), phi, psi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val phiAndPsi = ConnectorFormula(And, Seq(phi, psi))
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.right, premiseSequent.right))
+        invalid("Right-hand sides of the premise and the conclusion must be the same.")
+      else if (
+        !isSameSet(bot.left + phi, premiseSequent.left + phiAndPsi) &&
+        !isSameSet(bot.left + psi, premiseSequent.left + phiAndPsi) &&
+        !isSameSet(bot.left + phi + psi, premiseSequent.left + phiAndPsi)
+      )
+        invalid("Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
+      else
+        SC.LeftAnd(bot, premises(0), phi, psi)
+    }
   }
 
   case object LeftAndWithoutFormula extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val premiseSequent = currentProof.getSequent(premises(0))
-      val pivot = bot.left.diff(premiseSequent.left)
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+      
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val pivot = bot.left.diff(premiseSequent.left)
 
-      if (!pivot.isEmpty && pivot.tail.isEmpty)
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!pivot.isEmpty && pivot.tail.isEmpty)
         pivot.head match {
           case ConnectorFormula(And, Seq(phi, psi)) =>
             if (premiseSequent.left.contains(phi))
-              SC.LeftAnd(bot, premises(0), phi, psi)
+              LeftAnd(phi, psi).asSCProof(bot, premises, currentProof)
             else
-              SC.LeftAnd(bot, premises(0), psi, phi)
-          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), "Could not infer a conjunction as pivot from premise and conclusion.")
+              LeftAnd(psi, phi).asSCProof(bot, premises, currentProof)
+          case _ => invalid("Could not infer a conjunction as pivot from premise and conclusion.")
         }
       else
-      // try a rewrite, if it works, go ahead with it, otherwise malformed
-      if (SC.isSameSequent(premiseSequent, bot))
-        SC.Rewrite(bot, premises(0))
-      else
-        ProofStepJudgement.InvalidProofStep(
-          this.asProofStepWithoutBot(premises).asProofStep(bot),
-          "Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both."
-        )
+        // try a rewrite, if it works, go ahead with it, otherwise malformed
+        if (SC.isSameSequent(premiseSequent, bot))
+          Rewrite.asSCProof(bot, premises, currentProof)
+        else
+          invalid("Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
     }
   }
 
@@ -125,24 +194,44 @@ object BasicStepTactic {
    */
   case class LeftOr(disjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
     def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      SC.LeftOr(bot, premises, disjuncts)
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequents = premises.map(currentProof.getSequent(_))
+      lazy val disjunction = ConnectorFormula(Or, disjuncts)
+      
+
+      if (premises.length == 0)
+        invalid(s"Premises expected, ${premises.length} received.")
+      else if (!isSameSet(bot.right, premiseSequents.map(_.right).reduce(_ union _)))
+        invalid("Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
+      else if (!isSameSet(disjuncts.foldLeft(bot.left)(_ + _), premiseSequents.map(_.left).reduce(_ union _) + disjunction))
+        invalid("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
+      else
+        SC.LeftOr(bot, premises, disjuncts)
     }
   }
   case class LeftOrWithoutFormula() extends ProofStepWithoutBotNorPrem(-1) {
     def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val premiseSequents = premises.map(currentProof.getSequent(_))
-      val pivots = premiseSequents.map(_.left.diff(bot.left))
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
 
-      if (pivots.exists(_.isEmpty))
-        SC.Weakening(bot, premises(pivots.indexWhere(_.isEmpty)))
+      lazy val premiseSequents = premises.map(currentProof.getSequent(_))
+      lazy val pivots = premiseSequents.map(_.left.diff(bot.left))
+
+      if (premises.length == 0)
+        invalid(s"Premises expected, ${premises.length} received.")
+      else if (pivots.exists(_.isEmpty))
+        Weakening.asSCProof(bot, Seq(premises(pivots.indexWhere(_.isEmpty))), currentProof)
       else if (pivots.forall(_.tail.isEmpty))
-        SC.LeftOr(bot, premises, pivots.map(_.head))
+        LeftOr(pivots.map(_.head)).asSCProof(bot, premises, currentProof)
       else
         // some extraneous formulae
-        ProofStepJudgement.InvalidProofStep(
-          this.asProofStepWithoutBot(premises).asProofStep(bot),
-          "Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ."
-        )
+        invalid("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
     }
   }
 
@@ -164,23 +253,48 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftImplies(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.LeftImplies(bot, premises(0), premises(1), phi, psi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val leftSequent = currentProof.getSequent(premises(0))
+      lazy val rightSequent = currentProof.getSequent(premises(1))
+      lazy val implication = ConnectorFormula(Implies, Seq(phi, psi))
+      
+
+      if (premises.length != 2)
+        invalid(s"Two premises expected, ${premises.length} received.")
+      else if (!isSameSet(bot.right + phi, leftSequent.right union rightSequent.right))
+        invalid("Right-hand side of conclusion + φ must be identical to union of right-hand sides of premises.")
+      else if (!isSameSet(bot.left + psi, leftSequent.left union rightSequent.left + implication))
+        invalid("Left-hand side of conclusion + ψ must be identical to union of left-hand sides of premises + φ→ψ.")
+      else
+        SC.LeftImplies(bot, premises(0), premises(1), phi, psi)
+    }
   }
 
   case object LeftImpliesWithoutFormula extends ProofStepWithoutBotNorPrem(2) {
     def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val leftSequent = currentProof.getSequent(premises(0))
-      val rightSequent = currentProof.getSequent(premises(1))
-      val pivotLeft = leftSequent.right.diff(bot.right)
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val leftSequent = currentProof.getSequent(premises(0))
+      lazy val rightSequent = currentProof.getSequent(premises(1))
+      lazy val pivotLeft = leftSequent.right.diff(bot.right)
       lazy val pivotRight = rightSequent.left.diff(bot.left)
 
-      if (pivotLeft.isEmpty)
-        SC.Weakening(bot, premises(0))
+      if (premises.length != 2)
+        invalid(s"Two premises expected, ${premises.length} received.")
+      else if (pivotLeft.isEmpty)
+        Weakening.asSCProof(bot, premises, currentProof)
       else if (pivotRight.isEmpty)
-        SC.Weakening(bot, premises(1))
+        Weakening.asSCProof(bot, premises, currentProof)
       else if (pivotLeft.tail.isEmpty && pivotRight.tail.isEmpty)
-        SC.LeftImplies(bot, premises(0), premises(1), pivotLeft.head, pivotRight.head)
+        LeftImplies(pivotLeft.head, pivotRight.head).asSCProof(bot, premises, currentProof)
       else
         ProofStepJudgement.InvalidProofStep(
           this.asProofStepWithoutBot(premises).asProofStep(bot),
@@ -207,21 +321,51 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftIff(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.LeftIff(bot, premises(0), phi, psi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val implication = ConnectorFormula(Iff, Seq(phi, psi))
+      lazy val impLeft = ConnectorFormula(Implies, Seq(phi, psi))
+      lazy val impRight = ConnectorFormula(Implies, Seq(psi, phi))
+      
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.right, premiseSequent.right))
+        invalid("Right-hand sides of premise and conclusion must be the same.")
+      else if (
+                !isSameSet(bot.left + impLeft, premiseSequent.left + implication) &&
+                !isSameSet(bot.left + impRight, premiseSequent.left + implication) &&
+                !isSameSet(bot.left + impLeft + impRight, premiseSequent.left + implication)
+        )
+        invalid("Left-hand side of conclusion + φ↔ψ must be same as left-hand side of premise + either φ→ψ, ψ→φ or both.")
+      else
+        SC.LeftIff(bot, premises(0), phi, psi)
+    }
   }
 
   case class LeftIffWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val premiseSequent = currentProof.getSequent(premises(0))
-      val pivot = premiseSequent.left.diff(bot.left)
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
 
-      if (pivot.isEmpty)
-        SC.Weakening(bot, premises(0))
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val pivot = premiseSequent.left.diff(bot.left)
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (pivot.isEmpty)
+        Weakening.asSCProof(bot, premises, currentProof)
       else
         pivot.head match {
-          case ConnectorFormula(Implies, Seq(phi, psi)) => SC.LeftIff(bot, premises(0), phi, psi)
-          case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), "Could not infer a pivot implication from premise.")
+          case ConnectorFormula(Implies, Seq(phi, psi)) => LeftIff(phi, psi).asSCProof(bot, premises, currentProof)
+          case _ => invalid("Could not infer a pivot implication from premise.")
         }
     }
   }
@@ -244,21 +388,44 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftNot(phi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.LeftNot(bot, premises(0), phi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val negation = ConnectorFormula(Neg, Seq(phi))
+      
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.right + phi, premiseSequent.right))
+        invalid("Right-hand side of conclusion + φ must be the same as right-hand side of premise.")
+      else if (!isSameSet(bot.left, premiseSequent.left + negation))
+        invalid("Left-hand side of conclusion must be the same as left-hand side of premise + ¬φ.")
+      else
+        SC.LeftNot(bot, premises(0), phi)
+    }
   }
 
   case class LeftNotWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
     def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val premiseSequent = currentProof.getSequent(premises(0))
-      val pivot = premiseSequent.right.diff(bot.right)
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
 
-      if (pivot.isEmpty)
-        SC.Weakening(bot, premises(0))
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val pivot = premiseSequent.right.diff(bot.right)
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (pivot.isEmpty)
+        Weakening.asSCProof(bot, premises, currentProof)
       else if (pivot.tail.isEmpty)
-        SC.LeftNot(bot, premises(0), pivot.head)
+        LeftNot(pivot.head).asSCProof(bot, premises, currentProof)
       else
-        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), "Right-hand side of conclusion + φ must be the same as right-hand side of premise.")
+        invalid("Right-hand side of conclusion + φ must be the same as right-hand side of premise.")
 
     }
   }
