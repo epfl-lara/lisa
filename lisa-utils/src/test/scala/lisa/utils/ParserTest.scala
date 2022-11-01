@@ -241,6 +241,13 @@ class ParserTest extends AnyFunSuite with TestUtils {
         Seq(ConnectorFormula(And, Seq(PredicateFormula(in, Seq(cx, cy)), PredicateFormula(in, Seq(cx, cz)))), PredicateFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
       )
     )
+  }
 
+  test("infix function and predicate priority") {
+    assert(Parser.parseFormula("(x + y) = (y + x)") == PredicateFormula(equality, Seq(plus(cx, cy), plus(cy, cx))))
+    // The parser does not distinguish functions and predicates and has no notion of priority. Therefore, it parses
+    // this string as left-associative:
+    assert(Parser.parseFormula("x + y = y + x") != PredicateFormula(equality, Seq(plus(cx, cy), plus(cy, cz))))
+    println(Parser.parseFormula("x + y = y + x"))
   }
 }
