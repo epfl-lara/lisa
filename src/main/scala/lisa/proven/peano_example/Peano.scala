@@ -14,7 +14,7 @@ object Peano {
   export PeanoArithmeticsLibrary.{_, given}
 
   /////////////////////////// OUTPUT CONTROL //////////////////////////
-  given om:OutputManager = new OutputManager {
+  given om: OutputManager = new OutputManager {
     override val output: String => Unit = println
     override val finishOutput: Throwable => Nothing = e => throw e
   }

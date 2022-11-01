@@ -2,8 +2,8 @@ package lisa.utils
 
 abstract class OutputManager {
 
-  val output: (String => Unit) 
+  val output: (String => Unit)
 
-  val finishOutput: (Throwable => Nothing) 
+  val finishOutput: (Throwable => Nothing)
 
 }

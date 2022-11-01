@@ -34,7 +34,7 @@ object SimpleDeducedSteps {
     }
   }
 
-  class SUBPROOF(computeProof: => Unit)(using om:OutputManager) extends ProofStepWithoutBot {
+  class SUBPROOF(computeProof: => Unit)(using om: OutputManager) extends ProofStepWithoutBot {
     private def cp(): Unit = computeProof
     val premises: Seq[lisa.utils.Library#Proof#Fact] = Seq()
 
@@ -60,7 +60,7 @@ object SimpleDeducedSteps {
       }
     }
     def apply(f: FOL.Formula): FormulaDischarge = FormulaDischarge(f)
-    def apply(ij: Library#Proof#Fact)(using library: Library)(using om:OutputManager): Unit = {
+    def apply(ij: Library#Proof#Fact)(using library: Library)(using om: OutputManager): Unit = {
       if (library.proofStack.head.validInThisProof(ij)) {
         Discharge.asProofStep(Seq(ij)).validate(library)
       } else {

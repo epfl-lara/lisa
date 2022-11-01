@@ -12,7 +12,7 @@ trait Main {
   private var outString: List[String] = List()
   private val lineBreak = "\n"
 
-  given om:OutputManager = new OutputManager {
+  given om: OutputManager = new OutputManager {
     override val output: String => Unit = s => outString = lineBreak :: s :: outString
     override val finishOutput: Throwable => Nothing = e => {
       main(Array[String]())

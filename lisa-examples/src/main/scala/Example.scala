@@ -44,7 +44,7 @@ object Example {
         }
       }
       show
-      */
+       */
 
       THEOREM("fixed_Point_Double_Application") of "'P('x) ⊢ 'P('x)" PROOF {
         have("'P('x) ⊢  'P('x)") by Hypothesis

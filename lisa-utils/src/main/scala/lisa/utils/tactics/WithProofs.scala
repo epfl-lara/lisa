@@ -70,7 +70,7 @@ trait WithProofs extends ProofsHelpers {
     }
 
     private object DoubleStep {
-      def newDoubleStep(ps: ProofStep)(using om:OutputManager): DoubleStep = {
+      def newDoubleStep(ps: ProofStep)(using om: OutputManager): DoubleStep = {
         val judgement = ps.asSCProof(that)
         judgement match {
           case ValidProofStep(scps) =>
@@ -87,7 +87,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * Add a new proof step to the proof
      */
-    def newDoubleStep(ps: ProofStep)(using om:OutputManager): DoubleStep =
+    def newDoubleStep(ps: ProofStep)(using om: OutputManager): DoubleStep =
       DoubleStep.newDoubleStep(ps: ProofStep)
 
     private object ImportedFact {
@@ -162,7 +162,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * Compute the final, Kernel-pure, SCProof.
      */
-    def toSCProof(using om:OutputManager): lisa.kernel.proof.SCProof = {
+    def toSCProof(using om: OutputManager): lisa.kernel.proof.SCProof = {
       discharges.foreach(i => Discharge(getSequentAndInt(i)._2))
       SCProof(steps.reverse.map(_.scps).toIndexedSeq, imports.reverse.map(_.seq).toIndexedSeq)
     }

@@ -3,10 +3,11 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.{*, given}
-import lisa.utils.{Library, Printer}
+import lisa.utils.Helpers.{_, given}
+import lisa.utils.Library
+import lisa.utils.Printer
 import lisa.utils.tactics.ProofStepJudgement
-import lisa.utils.tactics.ProofStepLib.{*, given}
+import lisa.utils.tactics.ProofStepLib.{_, given}
 
 import scala.collection.mutable.Set as mSet
 
@@ -89,7 +90,7 @@ object SimplePropositionalSolver {
 
     } else if (left.ors.nonEmpty) {
       val f = left.ors.head
-      if (f.args.length==2) {
+      if (f.args.length == 2) {
         val phi = f.args(0)
         val psi = f.args(1)
 
@@ -101,8 +102,7 @@ object SimplePropositionalSolver {
         val proof1 = solveOrganisedSequent(left, right, s -< f +< phi, offset)
         val proof2 = solveOrganisedSequent(rl, rr, s -< f +< psi, offset + proof1.size)
         LeftOr(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
-      }
-      else {
+      } else {
         val phis = f.args
 
         left.updateFormula(f, false) // gamma
@@ -111,8 +111,8 @@ object SimplePropositionalSolver {
           val (rl, rr) = (left.copy(), right.copy())
           rl.updateFormula(phi, true)
           val proof = solveOrganisedSequent(rl, rr, s -< f +< phi, offset + prev._2.size)
-          val res = proof++pProof
-          (pInts appended res.size+offset-1, proof++pProof)
+          val res = proof ++ pProof
+          (pInts appended res.size + offset - 1, proof ++ pProof)
         })
         LeftOr(s, pr._1, phis) :: pr._2
       }
@@ -147,7 +147,7 @@ object SimplePropositionalSolver {
       RightIff(s, proof1.size + offset - 1, proof1.size + proof2.size + offset - 1, phi, psi) :: (proof2 ++ proof1)
     } else if (right.ands.nonEmpty) {
       val f = right.ands.head
-      if (f.args.length==2) {
+      if (f.args.length == 2) {
         val phi = f.args(0)
         val psi = f.args(1)
 
@@ -160,8 +160,7 @@ object SimplePropositionalSolver {
         val proof1 = solveOrganisedSequent(left, right, s -> f +> phi, offset)
         val proof2 = solveOrganisedSequent(rl, rr, s -> f +> psi, offset + proof1.size)
         RightAnd(s, Seq(proof1.size + offset - 1, proof1.size + proof2.size + offset - 1), Seq(phi, psi)) :: (proof2 ++ proof1)
-      }
-      else {
+      } else {
         val phis = f.args
 
         right.updateFormula(f, false) // gamma
@@ -170,8 +169,8 @@ object SimplePropositionalSolver {
           val (rl, rr) = (left.copy(), right.copy())
           rr.updateFormula(phi, true)
           val proof = solveOrganisedSequent(rl, rr, s -> f +> phi, offset + prev._2.size)
-          val res = proof++pProof
-          (pInts appended res.size+offset-1, proof++pProof)
+          val res = proof ++ pProof
+          (pInts appended res.size + offset - 1, proof ++ pProof)
         })
         RightAnd(s, pr._1, phis) :: pr._2
       }
@@ -213,14 +212,14 @@ object SimplePropositionalSolver {
       val sp = SCSubproof(
         {
           val premsFormulas = premises.map(p => (p, sequentToFormula(currentProof.getSequent(p)))).zipWithIndex
-          val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1+s._2))).toList
-          val sqToProve = bot ++< ( premsFormulas.map(s => s._1._2).toSet |- ())
+          val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
+          val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
           val subpr = SCSubproof(solveSequent(sqToProve))
           val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
             val ((prem, form), position) = cur
-            Cut(prev.head.bot -< form, position, initProof.length+prev.length - 1, form) :: prev
+            Cut(prev.head.bot -< form, position, initProof.length + prev.length - 1, form) :: prev
           })
-          SCProof((initProof++stepsList.reverse).toIndexedSeq, premises.map(p => currentProof.getSequent(p)).toIndexedSeq)
+          SCProof((initProof ++ stepsList.reverse).toIndexedSeq, premises.map(p => currentProof.getSequent(p)).toIndexedSeq)
         },
         premises
       )

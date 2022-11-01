@@ -25,7 +25,7 @@ object ProofStepLib {
     /**
      * Add the proofstep to the current proof of the given library.
      */
-    def validate(l: Library)(using om:OutputManager): l.Proof#DoubleStep = {
+    def validate(l: Library)(using om: OutputManager): l.Proof#DoubleStep = {
       l.proofStack.head.newDoubleStep(this)
     }
 
