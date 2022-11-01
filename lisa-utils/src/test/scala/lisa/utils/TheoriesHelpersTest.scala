@@ -2,6 +2,7 @@ package lisa.utils
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
+import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Hypothesis
 import lisa.test.TestTheory
@@ -18,7 +19,12 @@ class TheoriesHelpersTest extends AnyFunSuite {
     val (c0, c1) = (s0(), s1())
     val judgement = runningTestTheory.theorem("False theorem", "1 = 0", SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq())
     assert(!judgement.isValid)
-    assert(judgement == InvalidJustification("The proof does not prove the claimed statement", None))
+    try {
+      judgement.get
+      fail("Shouldn't be able to get a theorem from an invalid judgement")
+    } catch {
+      case InvalidJustificationException(msg, None) => assert(msg.matches("The proof proves .* instead of .*"))
+    }
 
     // same theorem but with correct statement
     assert(runningTestTheory.theorem("True theorem", "1 = 0 |- 1 = 0", SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid)
