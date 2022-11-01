@@ -37,22 +37,22 @@ object Peano { /*
   }
 
   def applyInduction(baseProof: SC.SCSubproof, inductionStepProof: SC.SCSubproof, inductionInstance: SCProofStep): IndexedSeq[SCProofStep] = {
-    require(baseProof.bot.right.size == 1, s"baseProof should prove exactly one formula, got ${Printer.prettySequent(baseProof.bot)}")
-    require(inductionStepProof.bot.right.size == 1, s"inductionStepProof should prove exactly one formula, got ${Printer.prettySequent(inductionStepProof.bot)}")
+    require(baseProof.bot.right.size == 1, s"baseProof should prove exactly one formula, got ${FOLPrinter.prettySequent(baseProof.bot)}")
+    require(inductionStepProof.bot.right.size == 1, s"inductionStepProof should prove exactly one formula, got ${FOLPrinter.prettySequent(inductionStepProof.bot)}")
     require(
       inductionInstance.bot.left.isEmpty && inductionInstance.bot.right.size == 1,
-      s"induction instance step should have nothing on the left and exactly one formula on the right, got ${Printer.prettySequent(inductionInstance.bot)}"
+      s"induction instance step should have nothing on the left and exactly one formula on the right, got ${FOLPrinter.prettySequent(inductionInstance.bot)}"
     )
     val (premise, conclusion) = (inductionInstance.bot.right.head match {
       case ConnectorFormula(Implies, Seq(premise, conclusion)) => (premise, conclusion)
-      case _ => require(false, s"induction instance should be of the form A => B, got ${Printer.prettyFormula(inductionInstance.bot.right.head)}")
+      case _ => require(false, s"induction instance should be of the form A => B, got ${FOLPrinter.prettyFormula(inductionInstance.bot.right.head)}")
     }): @unchecked
     val baseFormula = baseProof.bot.right.head
     val stepFormula = inductionStepProof.bot.right.head
     require(
       isSame(baseFormula /\ stepFormula, premise),
       "induction instance premise should be of the form base /\\ step, got " +
-        s"premise: ${Printer.prettyFormula(premise)}, base: ${Printer.prettyFormula(baseFormula)}, step: ${Printer.prettyFormula(stepFormula)}"
+        s"premise: ${FOLPrinter.prettyFormula(premise)}, base: ${FOLPrinter.prettyFormula(baseFormula)}, step: ${FOLPrinter.prettyFormula(stepFormula)}"
     )
 
     val lhs: Set[Formula] = baseProof.bot.left ++ inductionStepProof.bot.left

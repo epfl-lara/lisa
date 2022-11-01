@@ -170,7 +170,7 @@ class SCProofStepFinderTests extends AnyFunSuite {
           SCProofChecker.checkSCProof(proof) match {
             case SCValidProof(_) => // OK
               println(testname)
-              println(Printer.prettySCProof(proof))
+              println(FOLPrinter.prettySCProof(proof))
               println()
               // Dirty, but only way to test that
               val proofWithoutLast = proof.copy(steps = proof.steps.init)
@@ -180,7 +180,7 @@ class SCProofStepFinderTests extends AnyFunSuite {
                   assert(view.exists(filter), s"The proof step finder was not able to find the step '$testname'")
                 case SCExplicitProofStep(step) => assert(false)
               }
-            case invalid: SCInvalidProof => throw new AssertionError(s"The reconstructed proof for '$testname' is incorrect:\n${Printer.prettySCProof(invalid)}")
+            case invalid: SCInvalidProof => throw new AssertionError(s"The reconstructed proof for '$testname' is incorrect:\n${FOLPrinter.prettySCProof(invalid)}")
           }
         case Failure(exception) => throw new AssertionError(s"Couldn't reconstruct the proof for '$testname'", exception) // Couldn't reconstruct this proof
       }

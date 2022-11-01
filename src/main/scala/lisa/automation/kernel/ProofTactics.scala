@@ -3,8 +3,8 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.utils.FOLPrinter
 import lisa.utils.Helpers.{_, given}
-import lisa.utils.Printer.*
 
 /**
  * SCProof tactics are a set of strategies that help the user write proofs in a more expressive way
