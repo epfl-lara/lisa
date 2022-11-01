@@ -215,9 +215,7 @@ object SimplePropositionalSolver {
           val premsFormulas = premises.map(p => (p, sequentToFormula(currentProof.getSequent(p)))).zipWithIndex
           val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1+s._2))).toList
           val sqToProve = bot ++< ( premsFormulas.map(s => s._1._2).toSet |- ())
-          println(Printer.prettySequent(sqToProve))
           val subpr = SCSubproof(solveSequent(sqToProve))
-          checkProof(subpr.sp)
           val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
             val ((prem, form), position) = cur
             Cut(prev.head.bot -< form, position, initProof.length+prev.length - 1, form) :: prev
