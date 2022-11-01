@@ -23,7 +23,9 @@ object Parser {
   private val SynonymToCanonical: Map[String, CanonicalId] =
     equivalentLabelsToMap("elem" :: "in" :: Nil, "∊", "elem") ++
       equivalentLabelsToMap("subset_of" :: "subset" :: Nil, "⊆", "subset_of") ++
-      equivalentLabelsToMap("sim" :: "same_cardinality" :: Nil, "≈", "same_cardinality")
+      equivalentLabelsToMap("sim" :: "same_cardinality" :: Nil, "≈", "same_cardinality") ++
+      equivalentLabelsToMap(Nil, "+", "plus") ++
+      equivalentLabelsToMap(Nil, "*", "times")
 
   /**
    * @return the preferred way to output this id, if available, otherwise the id itself.
@@ -37,7 +39,7 @@ object Parser {
   def getInternalName(id: String): String = SynonymToCanonical.get(id).map(_.internal).getOrElse(id)
   /////////////////////////////////////////////////////////////////////////////////////////////////
   // TODO: support more infix ops, potentially determine if an op is infix without listing all infix ones
-  def isInfix(id: String): Boolean = Set("=", "∊", "⊂", "⊆", "+", "<").contains(id)
+  def isInfix(id: String): Boolean = Set("=", "∊", "⊂", "⊆", "+", "*").contains(id)
 
   class ParserException(msg: String) extends Exception(msg)
   object UnreachableException extends ParserException("Internal error: expected unreachable")

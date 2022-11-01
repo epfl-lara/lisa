@@ -12,7 +12,7 @@ trait TestUtils {
   val (f0, f1, f2, f3) = (ConstantFunctionLabel("f", 0), ConstantFunctionLabel("f", 1), ConstantFunctionLabel("f", 2), ConstantFunctionLabel("f", 3))
   val (sf1, sf2, sf3) = (SchematicFunctionLabel("f", 1), SchematicFunctionLabel("f", 2), SchematicFunctionLabel("f", 3))
   val (sPhi1, sPhi2) = (SchematicPredicateLabel("phi", 1), SchematicPredicateLabel("phi", 2))
-  val (in, plus) = (ConstantPredicateLabel("elem", 2), ConstantFunctionLabel("+", 2))
+  val (in, plus) = (ConstantPredicateLabel("elem", 2), ConstantFunctionLabel("plus", 2))
 
   given Conversion[PredicateLabel, PredicateFormula] = PredicateFormula(_, Seq.empty)
 

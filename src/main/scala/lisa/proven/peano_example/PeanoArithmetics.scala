@@ -10,8 +10,8 @@ object PeanoArithmetics {
 
   final val zero: Term = ConstantFunctionLabel("0", 0)()
   final val s = ConstantFunctionLabel("S", 1)
-  final val plus = ConstantFunctionLabel("+", 2)
-  final val times = ConstantFunctionLabel("*", 2)
+  final val plus = ConstantFunctionLabel("plus", 2)
+  final val times = ConstantFunctionLabel("times", 2)
   final val sPhi: SchematicPredicateLabel = SchematicPredicateLabel("?p", 1)
 
   final val ax1ZeroSuccessor: Formula = forall(x, !(s(x) === zero))
