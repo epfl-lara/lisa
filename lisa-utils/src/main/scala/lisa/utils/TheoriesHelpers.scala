@@ -30,7 +30,7 @@ trait TheoriesHelpers extends KernelHelpers {
       val expected = Parser.parseSequent(statement)
       if (expected == proof.conclusion) theory.makeTheorem(name, expected, proof, justifications)
       else if (isSameSequent(expected, proof.conclusion)) theory.makeTheorem(name, expected, proof.appended(Rewrite(expected, proof.length - 1)), justifications)
-      else InvalidJustification("The proof does not prove the claimed statement", None)
+      else InvalidJustification(s"The proof proves ${Printer.prettySequent(proof.conclusion)} instead of claimed ${Printer.prettySequent(expected)}", None)
     }
 
     /**
