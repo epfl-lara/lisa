@@ -3,7 +3,7 @@ package lisa.automation
 import lisa.automation.Proof2.*
 import lisa.front.fol.FOL.*
 import lisa.kernel.proof.SCProofChecker
-import lisa.utils.Printer
+import lisa.utils.FOLPrinter
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -23,11 +23,11 @@ class ProofTests extends AnyFunSuite {
     assert(result.nonEmpty, s"kernel proof was empty for $proof")
     val scProof = result.get._1
     val judgement = SCProofChecker.checkSCProof(scProof)
-    assert(judgement.isValid, Printer.prettySCProof(judgement))
-    assert(scProof.imports.isEmpty, s"proof unexpectedly uses imports: ${Printer.prettySCProof(judgement)}")
+    assert(judgement.isValid, FOLPrinter.prettySCProof(judgement))
+    assert(scProof.imports.isEmpty, s"proof unexpectedly uses imports: ${FOLPrinter.prettySCProof(judgement)}")
     assert(
       lisa.kernel.proof.SequentCalculus.isSameSequent(scProof.conclusion, proof.initialState.goals.head),
-      s"proof does not prove ${Printer.prettySequent(proof.initialState.goals.head)}:\nPrinter.prettySCProof(judgement)"
+      s"proof does not prove ${FOLPrinter.prettySequent(proof.initialState.goals.head)}:\nPrinter.prettySCProof(judgement)"
     )
   }
 

@@ -6,7 +6,6 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Library
 import lisa.utils.OutputManager
-import lisa.utils.Parser.*
 import lisa.utils.ProofPrinter
 import lisa.utils.tactics.ProofTacticLib.*
 import lisa.utils.tactics.SimpleDeducedSteps.*
@@ -62,7 +61,7 @@ trait ProofsHelpers {
   /**
    * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
    */
-  def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(parseSequent(res))
+  def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(lisa.utils.FOLParser.parseSequent(res))
 
   /**
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
@@ -97,7 +96,7 @@ trait ProofsHelpers {
     f
   }
   def assume(using proof: library.Proof)(fstring: String): Formula = {
-    val f = lisa.utils.Parser.parseFormula(fstring)
+    val f = lisa.utils.FOLParser.parseFormula(fstring)
     assume(f)
   }
   /*

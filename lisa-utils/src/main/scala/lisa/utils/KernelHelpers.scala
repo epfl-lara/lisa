@@ -6,9 +6,7 @@ import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Parser.parseFormula
-import lisa.utils.Parser.parseSequent
-import lisa.utils.Parser.parseTerm
+import lisa.utils.FOLParser
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -177,26 +175,19 @@ trait KernelHelpers {
     def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
   }
 
-  extension (judgement: SCInvalidProof) {
-    def errorMsg: String =
-      s"""Failed to prove
-         |${lisa.utils.Printer.prettySequent(judgement.proof.followPath(judgement.path).bot)}
-         |(step ${judgement.path.mkString("->")}): ${judgement.message}""".stripMargin
-  }
-
   implicit class Parsing(val sc: StringContext) {
 
-    def seq(args: Any*): Sequent = parseSequent(sc.parts.mkString(""))
+    def seq(args: Any*): Sequent = FOLParser.parseSequent(sc.parts.mkString(""))
 
-    def f(args: Any*): Formula = parseFormula(sc.parts.mkString(""))
+    def f(args: Any*): Formula = FOLParser.parseFormula(sc.parts.mkString(""))
 
-    def t(args: Any*): Term = parseTerm(sc.parts.mkString(""))
+    def t(args: Any*): Term = FOLParser.parseTerm(sc.parts.mkString(""))
 
   }
 
-  given Conversion[String, Sequent] = parseSequent(_)
-  given Conversion[String, Formula] = parseFormula(_)
-  given Conversion[String, Term] = parseTerm(_)
+  given Conversion[String, Sequent] = FOLParser.parseSequent(_)
+  given Conversion[String, Formula] = FOLParser.parseFormula(_)
+  given Conversion[String, Term] = FOLParser.parseTerm(_)
   given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
   def lambda(x: VariableLabel, t: Term) = LambdaTermTerm(Seq(x), t)

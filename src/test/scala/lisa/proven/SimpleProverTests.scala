@@ -7,9 +7,8 @@ import lisa.kernel.proof.RunningTheory.PredicateLogic
 import lisa.kernel.proof.SCProofChecker
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.getPRPproblems
+import lisa.utils.FOLPrinter
 import lisa.utils.Helpers.*
-import lisa.utils.Printer
-import lisa.utils.Printer.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
@@ -22,7 +21,7 @@ class SimpleProverTests extends AnyFunSuite {
         problems.foreach( pr => {
             println("--- Problem "+pr.file)
             val sq = problemToSequent(pr)
-            println(prettySequent(sq))
+            println(FOLPrinter.prettySequent(sq))
             val proof = SPS.solveSequent(sq)
             if (!Seq("Unsatisfiable", "Theorem", "Satisfiable").contains(pr.status)) println("Unknown status: "+pr.status+", "+pr.file)
 
