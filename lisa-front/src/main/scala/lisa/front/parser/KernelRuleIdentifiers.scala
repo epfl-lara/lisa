@@ -85,8 +85,7 @@ private[front] case class KernelRuleIdentifiers(symbols: FrontSymbols) {
     case _: SC.RightSubstIff => RightSubstIff
     case _: SC.InstFunSchema => FunInstantiation
     case _: SC.InstPredSchema => PredInstantiation
-    case SC.SCSubproof(_, _, true) => SubproofShown
-    case SC.SCSubproof(_, _, false) => SubproofHidden
+    case _: SC.SCSubproof => SubproofShown
   }
 
 }

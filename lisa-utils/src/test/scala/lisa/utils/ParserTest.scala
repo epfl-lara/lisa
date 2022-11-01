@@ -213,10 +213,20 @@ class ParserTest extends AnyFunSuite with TestUtils {
     )
     assert(Parser.parseSequent("⊢ ('x = 'x) ∨ ('x = 'y)") == (() |- (x === x) \/ (x === y)))
     assert(
-      Parser.parseSequent("('x = 'x) ∨ ('x = 'y); ('x = 'x) ∨ ('x = 'y) ↔ ('x = 'x') ∨ ('x = 'y') ⊢ ('x = 'x') ∨ ('x = 'y')") == (Set(
+      Parser.parseSequent("('x = 'x) ∨ ('x = 'y); ('x = 'x) ∨ ('x = 'y) ↔ ('x = 'x1) ∨ ('x = 'y1) ⊢ ('x = 'x1) ∨ ('x = 'y1)") == (Set(
         (x === x) \/ (x === y),
-        ((x === x) \/ (x === y)) <=> ((x === xPrime) \/ (x === yPrime))
-      ) |- (x === xPrime) \/ (x === yPrime))
+        ((x === x) \/ (x === y)) <=> ((x === x1) \/ (x === y1))
+      ) |- (x === x1) \/ (x === y1))
     )
+  }
+
+  test("equivalent names") {
+    val in = ConstantPredicateLabel("elem", 2)
+    assert(Parser.parseFormula("x∊y") == PredicateFormula(in, Seq(cx, cy)))
+    assert(Parser.parseFormula("x ∊ y") == PredicateFormula(in, Seq(cx, cy)))
+    assert(Parser.parseFormula("'x ∊ 'y") == PredicateFormula(in, Seq(x, y)))
+    assert(Parser.parseFormula("('x ∊ 'y) /\\ a") == ConnectorFormula(And, Seq(PredicateFormula(in, Seq(x, y)), a)))
+    assert(Parser.parseFormula("a \\/ ('x ∊ 'y)") == ConnectorFormula(Or, Seq(a, PredicateFormula(in, Seq(x, y)))))
+
   }
 }

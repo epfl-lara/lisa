@@ -257,4 +257,18 @@ class PrinterTest extends AnyFunSuite with TestUtils {
       ) == "'x = 'x ∨ 'x = 'y; 'x = 'x ∨ 'x = 'y ⇔ 'x = 'x' ∨ 'x = 'y' ⊢ 'x = 'x' ∨ 'x = 'y'"
     )
   }
+
+  test("infix predicates") {
+    val in = ConstantPredicateLabel("∊", 2)
+    val prefixIn = ConstantPredicateLabel("elem", 2)
+    assert(Parser.printFormula(PredicateFormula(in, Seq(cx, cy))) == "x ∊ y")
+    assert(Parser.printFormula(PredicateFormula(in, Seq(x, y))) == "'x ∊ 'y")
+    assert(Parser.printFormula(ConnectorFormula(And, Seq(PredicateFormula(in, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
+    assert(Parser.printFormula(ConnectorFormula(Or, Seq(a, PredicateFormula(in, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
+
+    assert(Parser.printFormula(PredicateFormula(prefixIn, Seq(cx, cy))) == "x ∊ y")
+    assert(Parser.printFormula(PredicateFormula(prefixIn, Seq(x, y))) == "'x ∊ 'y")
+    assert(Parser.printFormula(ConnectorFormula(And, Seq(PredicateFormula(prefixIn, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
+    assert(Parser.printFormula(ConnectorFormula(Or, Seq(a, PredicateFormula(prefixIn, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
+  }
 }

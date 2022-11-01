@@ -466,7 +466,7 @@ object SCProofChecker {
                 SCInvalidProof(SCProof(step), Nil, "Right-hand side of premise instantiated with the map 'insts' must be the same as right-hand side of conclusion.")
             else SCInvalidProof(SCProof(step), Nil, "Left-hand side of premise instantiated with the map 'insts' must be the same as left-hand side of conclusion.")
 
-          case SCSubproof(sp, premises, _) =>
+          case SCSubproof(sp, premises) =>
             if (premises.size == sp.imports.size) {
               val invalid = premises.zipWithIndex.find { case (no, p) => !isSameSequent(ref(no), sp.imports(p)) }
               if (invalid.isEmpty) {

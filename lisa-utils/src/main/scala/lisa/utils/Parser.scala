@@ -10,10 +10,36 @@ import scallion.util.Unfolds.unfoldRight
 import silex.*
 
 object Parser {
+  enum Notation {
+    case Prefix, Infix
+  }
+
+  abstract class Label(val id: String, val notation: Notation)
+
+  case class InfixLabel(override val id: String) extends Label(id, Notation.Infix)
+
+  case class PrefixLabel(override val id: String) extends Label(id, Notation.Prefix)
+
+  case class CanonicalLabel(print: Label, internal: Label)
+
+  def equivalentLabelsToMap(labels: List[String], print: Label, internal: Label): Map[String, CanonicalLabel] =
+    labels.map(_ -> CanonicalLabel(print, internal)).toMap
+
+  private val mapping: Map[String, CanonicalLabel] =
+    equivalentLabelsToMap("elem" :: "in" :: "∊" :: Nil, InfixLabel("∊"), PrefixLabel("elem")) ++
+      equivalentLabelsToMap("subset_of" :: "subset" :: "⊆" :: Nil, InfixLabel("⊆"), PrefixLabel("subset_of")) ++
+      equivalentLabelsToMap("sim" :: "same_cardinality" :: "≈" :: Nil, InfixLabel("≈"), PrefixLabel("same_cardinality")) ++
+      equivalentLabelsToMap("=" :: Nil, InfixLabel("="), InfixLabel("="))
+
+  def getPrintName(id: String): Option[Label] = mapping.get(id).map(_.print)
+
+  def getInternalName(id: String): String = mapping.get(id).map(_.internal.id).getOrElse(id)
 
   class ParserException(msg: String) extends Exception(msg)
   object UnreachableException extends ParserException("Internal error: expected unreachable")
   class PrintFailedException(inp: Sequent | Formula | Term) extends ParserException(s"Printing of $inp failed unexpectedly")
+
+  def isInfixPredicate(id: String): Boolean = Set("=", "∊", "⊂", "⊆").contains(id)
 
   /**
    * Parses a sequent from a string. A sequent consists of the left and right side, separated by `⊢` or `|-`.
@@ -131,7 +157,7 @@ object Parser {
 
     case object FalseToken extends FormulaToken("⊥")
 
-    case object EqualityToken extends FormulaToken(equality.id)
+    case class InfixPredicateToken(id: String) extends FormulaToken(id)
 
     // Constant functions and predicates
     case class ConstantToken(id: String) extends FormulaToken(id)
@@ -153,14 +179,23 @@ object Parser {
     // TODO: add positions ==> ranges to tokens
     type Position = Unit
 
+    val escapeChar = '`'
+    val pathSeparator = '$'
     private val schematicSymbol = "'"
+
+    private val letter = elem(_.isLetter)
+    private val variableLike = letter ~ many(elem(c => c.isLetterOrDigit || c == '_'))
+    private val number = many1(elem(_.isDigit))
+    private val escaped = elem(escapeChar) ~ many1(elem(_ != escapeChar)) ~ elem(escapeChar)
+    private val arbitrarySymbol = elem(!_.isWhitespace)
+    private val symbolSequence = many1(oneOf("*/+-^:<>#%&@"))
+    private val path = many1(many1(letter) ~ elem(pathSeparator))
 
     private val lexer = Lexer(
       elem('∀') |> { _ => ForallToken },
       word("∃!") |> { _ => ExistsOneToken },
       elem('∃') |> { _ => ExistsToken },
       elem('.') |> { _ => DotToken },
-      elem('=') |> { _ => EqualityToken },
       elem('∧') | word("/\\") |> { _ => AndToken },
       elem('∨') | word("\\/") |> { _ => OrToken },
       word(Implies.id) | word("=>") | word("==>") | elem('→') |> { _ => ImpliesToken },
@@ -174,18 +209,25 @@ object Parser {
       elem(';') |> SemicolonToken,
       elem('⊢') | word("|-") |> SequentToken,
       many1(whiteSpace) |> SpaceToken,
-      word(schematicSymbol) ~ many1(elem(_.isLetter) | elem('_') | elem(_.isDigit) | elem('\'')) |> { cs =>
+      word(schematicSymbol) ~ variableLike |> { cs =>
         // drop the '
         SchematicToken(cs.drop(1).mkString)
       },
-      many1(elem(_.isLetter) | elem('_') | elem(_.isDigit)) |> { cs => ConstantToken(cs.mkString) }
+      // Currently the path is merged into the id on the lexer level. When qualified ids are supported, this should be
+      // lifted into the parser.
+      opt(path) ~ (variableLike | number | arbitrarySymbol | symbolSequence | escaped) |> { cs => ConstantToken(cs.filter(_ != escapeChar).mkString) }
     ) onError { (cs, _) =>
       throw ParserException(s"Unexpected input: ${cs.mkString}")
     }
 
     def apply(it: Iterator[Char]): Iterator[Token] = {
       val source = Source.fromIterator(it, NoPositioner)
-      lexer(source).filter(_ != SpaceToken)
+      lexer(source)
+        .filter(_ != SpaceToken)
+        .map({
+          case ConstantToken(id) if isInfixPredicate(id) => InfixPredicateToken(id)
+          case t => t
+        })
     }
 
     def unapply(tokens: Iterator[Token]): String = {
@@ -201,7 +243,7 @@ object Parser {
               // space after: separators
               case DotToken | CommaToken | SemicolonToken => l :+ t.toString :+ space
               // space before and after: equality, connectors, sequent symbol
-              case EqualityToken | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.toString :+ space
+              case InfixPredicateToken(_) | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.toString :+ space
             }
         }
         .mkString
@@ -218,7 +260,7 @@ object Parser {
     case object NegationKind extends TokenKind
     case object BooleanConstantKind extends TokenKind
     case object FunctionOrPredicateKind extends TokenKind
-    case object EqualityKind extends TokenKind
+    case object InfixPredicateKind extends TokenKind
     case object CommaKind extends TokenKind
     case class ParenthesisKind(isOpen: Boolean) extends TokenKind
     case object BinderKind extends TokenKind
@@ -241,7 +283,7 @@ object Parser {
       case NegationToken => NegationKind
       case TrueToken | FalseToken => BooleanConstantKind
       case _: ConstantToken | _: SchematicToken => FunctionOrPredicateKind
-      case EqualityToken => EqualityKind
+      case _: InfixPredicateToken => InfixPredicateKind
       case CommaToken => CommaKind
       case ParenthesisToken(isOpen) => ParenthesisKind(isOpen)
       case ExistsToken | ExistsOneToken | ForallToken => BinderKind
@@ -261,7 +303,19 @@ object Parser {
 
     val comma: Syntax[Unit] = elem(CommaKind).unit(CommaToken)
 
-    val eq: Syntax[Unit] = elem(EqualityKind).unit(EqualityToken)
+    val INFIX_ARITY = 2
+    val infixPredicateLabel: Syntax[ConstantPredicateLabel] = accept(InfixPredicateKind)(
+      {
+        case InfixPredicateToken(id) => ConstantPredicateLabel(getInternalName(id), INFIX_ARITY)
+        case _ => throw UnreachableException
+      },
+      {
+        case ConstantPredicateLabel(id, INFIX_ARITY) if getPrintName(id).map(_.notation == Notation.Infix).getOrElse(isInfixPredicate(id)) =>
+          val printName = getPrintName(id).map(_.id).getOrElse(id)
+          Seq(InfixPredicateToken(printName))
+        case _ => throw UnreachableException
+      }
+    )
 
     val semicolon: Syntax[Unit] = elem(SemicolonKind).unit(SemicolonToken)
 
@@ -341,38 +395,41 @@ object Parser {
       }
     )
 
-    val predicate: Syntax[PredicateFormula] = (elem(FunctionOrPredicateKind) ~ opt(args) ~ opt(eq.skip ~ elem(FunctionOrPredicateKind) ~ opt(args))).map(
+    val predicate: Syntax[PredicateFormula] = (elem(FunctionOrPredicateKind) ~ opt(args) ~ opt(infixPredicateLabel ~ term)).map(
       {
         // predicate application
         case ConstantToken(id) ~ maybeArgs ~ None =>
           val args = maybeArgs.getOrElse(Seq())
-          PredicateFormula(ConstantPredicateLabel(id, args.size), args)
-        case SchematicToken(id) ~ Some(args) ~ None => PredicateFormula(SchematicPredicateLabel(id, args.size), args)
+          PredicateFormula(ConstantPredicateLabel(getInternalName(id), args.size), args)
+        case SchematicToken(id) ~ Some(args) ~ None => PredicateFormula(SchematicPredicateLabel(getInternalName(id), args.size), args)
         case SchematicToken(id) ~ None ~ None =>
-          PredicateFormula(VariableFormulaLabel(id), Seq())
+          PredicateFormula(VariableFormulaLabel(getInternalName(id)), Seq())
 
-        // equality of two function applications
-        case fun1 ~ args1 ~ Some(fun2 ~ args2) =>
-          PredicateFormula(FOL.equality, Seq(createTerm(fun1, args1.getOrElse(Seq())), createTerm(fun2, args2.getOrElse(Seq()))))
+        // infix relation of two function applications
+        case fun1 ~ args1 ~ Some(pred ~ term2) =>
+          PredicateFormula(pred, Seq(createTerm(fun1, args1.getOrElse(Seq())), term2))
 
         case _ => throw UnreachableException
       },
-      { case PredicateFormula(label, args) =>
-        label match {
-          case FOL.equality =>
+      {
+        case PredicateFormula(label @ ConstantPredicateLabel(id, INFIX_ARITY), Seq(first, second)) if getPrintName(id).map(_.notation == Notation.Infix).getOrElse(isInfixPredicate(id)) =>
+          Seq(invertTerm(first) ~ Some(label ~ second))
+        case PredicateFormula(label, args) =>
+          val (canonicalId, isInfix) = getPrintName(label.id).map(l => (l.id, l.notation == Notation.Infix)).getOrElse(label.id, false)
+          if (isInfix && args.size == INFIX_ARITY) {
             args match {
-              case Seq(first, second) => Seq(invertTerm(first) ~ Some(invertTerm(second)))
-              case _ => Seq()
+              case Seq(first, second) => Seq(invertTerm(first) ~ Some(ConstantPredicateLabel(canonicalId, INFIX_ARITY) ~ second))
+              case _ => throw UnreachableException
             }
-          case other =>
-            val predicateApp = other match {
-              case ConstantPredicateLabel(id, 0) => ConstantToken(id) ~ None
-              case ConstantPredicateLabel(id, _) => ConstantToken(id) ~ Some(args)
-              case VariableFormulaLabel(id) => SchematicToken(id) ~ None
-              case SchematicPredicateLabel(id, _) => SchematicToken(id) ~ Some(args)
+          } else {
+            val prefixApp = label match {
+              case VariableFormulaLabel(id) => SchematicToken(canonicalId) ~ None
+              case SchematicPredicateLabel(id, _) => SchematicToken(canonicalId) ~ Some(args)
+              case ConstantPredicateLabel(id, 0) => ConstantToken(canonicalId) ~ None
+              case ConstantPredicateLabel(id, _) => ConstantToken(canonicalId) ~ Some(args)
             }
-            Seq(predicateApp ~ None)
-        }
+            Seq(prefixApp ~ None)
+          }
       }
     )
 

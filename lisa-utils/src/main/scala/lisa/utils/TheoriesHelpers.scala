@@ -27,7 +27,7 @@ trait TheoriesHelpers extends KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check.
      */
     def theorem(name: String, statement: String, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
-      val expected = proof.conclusion // parse(statement)
+      val expected = Parser.parseSequent(statement)
       if (expected == proof.conclusion) theory.makeTheorem(name, expected, proof, justifications)
       else if (isSameSequent(expected, proof.conclusion)) theory.makeTheorem(name, expected, proof.appended(Rewrite(expected, proof.length - 1)), justifications)
       else InvalidJustification("The proof does not prove the claimed statement", None)
@@ -107,6 +107,26 @@ trait TheoriesHelpers extends KernelHelpers {
       }
     }
   }
+
+  extension (proofJudgement: SCProofCheckerJudgement) {
+
+    /**
+     * If the SCProof is valid, show the inner proof and returns it.
+     * Otherwise, output the error leading to the invalid justification and throw an error.
+     */
+    def showAndGet(using output: String => Unit)(using finishOutput: Throwable => Nothing): SCProof = {
+      proofJudgement match {
+        case SCProofCheckerJudgement.SCValidProof(proof) =>
+          output(Printer.prettySCProof(proofJudgement))
+          proof
+        case ip @ SCProofCheckerJudgement.SCInvalidProof(proof, path, message) =>
+          output(s"$message\n${Printer.prettySCProof(proofJudgement)}")
+          finishOutput(InvalidJustificationException("", Some(ip)))
+      }
+    }
+  }
+
+  case class InvalidProofException(proofJudgement: SCProofCheckerJudgement.SCInvalidProof) extends Exception(proofJudgement.message)
 
   /**
    * Output a readable representation of a proof.
