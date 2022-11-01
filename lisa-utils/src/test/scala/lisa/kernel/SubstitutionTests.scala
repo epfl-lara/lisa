@@ -223,7 +223,8 @@ class SubstitutionTests extends ProofCheckerSuite {
     assert(isSame(t, (f(x) <=> g(y))))
   }
 
-  // FIXME: depends on printer error reported in issue 81
+
+ // FIXME: depends on printer error reported in issue 81
   /**
   test("Verifying instantiatePredicateSchemas & instantiateConnectorSchemas on Binders") {
     val f = SchematicPredicateLabel("F", 1)
