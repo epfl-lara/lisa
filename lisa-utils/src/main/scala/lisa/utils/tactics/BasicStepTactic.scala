@@ -961,16 +961,16 @@ object BasicStepTactic {
       if (premises.length != 1)
         invalid(s"One premise expected, ${premises.length} received.")
       else if (!isSameSet(bot.left + phi, premiseSequent.left))
-        invalid("Left-hand side of conclusion + φ must be the same as left-hand side of premise.")
+        invalid("Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
       else if (!isSameSet(bot.right, premiseSequent.right + negation))
-        invalid("Right-hand side of conclusion must be the same as right-hand side of premise + ¬φ.")
+        invalid("Right-hand side of conclusion is not the same as right-hand side of premise + ¬φ.")
       else
         SC.RightNot(bot, premises(0), phi)
     }
   }
 
   case object RightNotWithoutFormula extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
       def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
                                     this.asProofStepWithoutBot(premises).asProofStep(bot),
                                     msg
@@ -986,7 +986,7 @@ object BasicStepTactic {
       else if (pivot.tail.isEmpty)
         RightNot(pivot.head).asSCProof(bot, premises, currentProof)
       else
-        invalid("Left-hand side of conclusion + φ must be the same as left-hand side of premise.")
+        invalid("Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
 
     }
   }
@@ -1546,8 +1546,23 @@ object BasicStepTactic {
    * </pre>
    */
   case class InstFunSchema(insts: Map[SchematicTermLabel, LambdaTermTerm]) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.InstFunSchema(bot, premises(0), insts)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.left, premiseSequent.left.map(instantiateTermSchemas(_, insts))))
+        invalid("Left-hand side of premise instantiated with the map 'insts' is not the same as left-hand side of conclusion.")
+      else if (!isSameSet(bot.right, premiseSequent.right.map(instantiateTermSchemas(_, insts))))
+        invalid("Right-hand side of premise instantiated with the map 'insts' is not the same as right-hand side of conclusion.")
+      else
+        SC.InstFunSchema(bot, premises(0), insts)
+    }
   }
 
   /**
@@ -1558,16 +1573,43 @@ object BasicStepTactic {
    * </pre>
    */
   case class InstPredSchema(insts: Map[SchematicVarOrPredLabel, LambdaTermFormula]) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.InstPredSchema(bot, premises(0), insts)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.left, premiseSequent.left.map(instantiatePredicateSchemas(_, insts))))
+        invalid("Left-hand side of premise instantiated with the map 'insts' is not the same as left-hand side of conclusion.")
+      else if (!isSameSet(bot.right, premiseSequent.right.map(instantiatePredicateSchemas(_, insts))))
+        invalid("Right-hand side of premise instantiated with the map 'insts' is not the same as right-hand side of conclusion.")
+      else
+        SC.InstPredSchema(bot, premises(0), insts)
+    }
   }
 
   // Proof Organisation rules
   case class SCSubproof(sp: SCProof, premises: Seq[Int] = Seq.empty, display: Boolean = true) extends ProofStep {
-    def asSCProof(currentProof: Library#Proof): ProofStepJudgement =
-      sp match {
-        case sp: SCProof => SC.SCSubproof(sp, premises)
-      }
+    def asSCProof(currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this,
+                                    msg
+                                  )
+
+      lazy val premiseSequents = premises.map(currentProof.getSequent(_))
+      lazy val invalidPremise = premises.zipWithIndex.find( (no, p) => !SC.isSameSequent(premiseSequents(no), sp.imports(p)))
+
+      if (premises.length != sp.imports.length)
+        invalid(s"Subproof expected ${sp.imports.length} premises, ${premises.length} received.")
+      else if (!invalidPremise.isEmpty)
+        invalid(s"Premise number ${invalidPremise.get._1} (refering to step ${invalidPremise.get}) is not the same as import number ${invalidPremise.get._1} of the subproof.")
+      else
+        SC.SCSubproof(sp, premises)
+    }
   }
 
 }
