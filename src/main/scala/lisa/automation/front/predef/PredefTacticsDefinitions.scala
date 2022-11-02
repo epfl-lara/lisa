@@ -9,7 +9,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus as KSC
 
 trait PredefTacticsDefinitions {
-
+/*
   case object TacticSolverNative extends TacticGoalFunctional {
     import Notations.*
 
@@ -17,7 +17,7 @@ trait PredefTacticsDefinitions {
       val steps = SimplePropositionalSolver.solveSequent(proofGoal).steps
       Some((IndexedSeq.empty, () => steps))
     }
-  }
+  }*/
   case class TacticRewritePartial(left: Map[Int, Formula] = Map.empty, right: Map[Int, Formula] = Map.empty) extends TacticGoalFunctional {
     override def apply(proofGoal: Sequent): Option[(IndexedSeq[Sequent], ReconstructSteps)] = {
       if (left.keySet.forall(proofGoal.left.indices.contains) && right.keySet.forall(proofGoal.right.indices.contains)) {

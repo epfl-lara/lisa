@@ -10,7 +10,7 @@ import lisa.utils.Library
 import lisa.utils.OutputManager
 import lisa.utils.Printer
 
-object Peano {
+object Peano {/*
   export PeanoArithmeticsLibrary.{_, given}
 
   /////////////////////////// OUTPUT CONTROL //////////////////////////
@@ -340,4 +340,6 @@ object Peano {
     proof
   } using (ax"ax4plusSuccessor", ax"ax7induction", thm"x + 0 = 0 + x", thm"switch successor")
   show
+
+  */
 }

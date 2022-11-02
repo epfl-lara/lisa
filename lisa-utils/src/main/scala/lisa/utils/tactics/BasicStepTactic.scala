@@ -11,15 +11,17 @@ import lisa.utils.tactics.ProofStepLib.{_, given}
 
 object BasicStepTactic {
 
-  case object Hypothesis extends ProofStepWithoutBotNorPrem(0) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  final class Hypothesis(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(0)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.Hypothesis(bot, bot.left.intersect(bot.right).head)
   }
+  def Hypothesis(using proof: Library#ProofEnvironment#Proof) = new Hypothesis
 
-  case object Rewrite extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  final class Rewrite(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.Rewrite(bot, premises(0))
   }
+  def Rewrite(using proof: Library#ProofEnvironment#Proof) = new Rewrite
 
   /**
    * <pre>
@@ -28,15 +30,15 @@ object BasicStepTactic {
    *       Γ, Σ |-Δ, Π
    * </pre>
    */
-  case class Cut(phi: Formula) extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  final class Cut(phi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(2)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.Cut(bot, premises(0), premises(1), phi)
   }
 
-  case object CutWithoutFormula extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val leftSequent = currentProof.getSequent(premises(0))
-      val rightSequent = currentProof.getSequent(premises(1))
+  final class CutWithoutFormula(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(2)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
+      val leftSequent = proof.getSequent(premises(0))
+      val rightSequent = proof.getSequent(premises(1))
       val cutSet = rightSequent.left.diff(bot.left) ++ leftSequent.right.diff(bot.right)
       lazy val intersectedCutSet = rightSequent.left & leftSequent.right
 
@@ -56,17 +58,10 @@ object BasicStepTactic {
     }
   }
 
-  case object Cut extends ProofStepWithoutBotNorPrem(2) {
-    // default construction:
-    // def apply(phi: Formula) = new Cut(phi)
-    def apply() = CutWithoutFormula
+  def Cut(using proof: Library#ProofEnvironment#Proof) = new CutWithoutFormula
 
-    // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      this().asSCProof(bot, premises, currentProof)
 
-  }
-
+  /*
   // Left rules
   /**
    * <pre>
@@ -75,13 +70,13 @@ object BasicStepTactic {
    *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
    * </pre>
    */
-  case class LeftAnd(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftAnd(phi: Formula, psi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftAnd(bot, premises(0), phi, psi)
   }
 
-  case object LeftAndWithoutFormula extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case object LeftAndWithoutFormula(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = bot.left.diff(premiseSequent.left)
 
@@ -106,13 +101,13 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftAnd extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftAnd(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula, psi: Formula) = new LeftAnd(phi, psi)
     def apply() = LeftAndWithoutFormula
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -124,12 +119,12 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftOr(disjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       SC.LeftOr(bot, premises, disjuncts)
     }
   }
   case class LeftOrWithoutFormula() extends ProofStepWithoutBotNorPrem(-1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequents = premises.map(currentProof.getSequent(_))
       val pivots = premiseSequents.map(_.left.diff(bot.left))
 
@@ -152,7 +147,7 @@ object BasicStepTactic {
     def apply() = new LeftOrWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -163,13 +158,13 @@ object BasicStepTactic {
    *    Γ, Σ, φ→ψ |- Δ, Π
    * </pre>
    */
-  case class LeftImplies(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftImplies(phi: Formula, psi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(2)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftImplies(bot, premises(0), premises(1), phi, psi)
   }
 
-  case object LeftImpliesWithoutFormula extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case object LeftImpliesWithoutFormula(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(2)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val leftSequent = currentProof.getSequent(premises(0))
       val rightSequent = currentProof.getSequent(premises(1))
       val pivotLeft = leftSequent.right.diff(bot.right)
@@ -189,13 +184,13 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftImplies extends ProofStepWithoutBotNorPrem(2) {
+  case object LeftImplies(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(2)(proof) {
     // default construction:
     // def apply(phi: Formula, psi: Formula) = new LeftImplies(phi, psi)
     def apply() = LeftImpliesWithoutFormula
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -206,13 +201,13 @@ object BasicStepTactic {
    *  Γ, φ↔ψ |- Δ                 Γ, φ↔ψ |- Δ
    * </pre>
    */
-  case class LeftIff(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftIff(phi: Formula, psi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftIff(bot, premises(0), phi, psi)
   }
 
-  case class LeftIffWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class LeftIffWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = premiseSequent.left.diff(bot.left)
 
@@ -226,13 +221,13 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftIff extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftIff(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula, psi: Formula) = new LeftIff(phi, psi)
     def apply() = new LeftIffWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -243,13 +238,13 @@ object BasicStepTactic {
    *   Γ, ¬φ |- Δ
    * </pre>
    */
-  case class LeftNot(phi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftNot(phi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftNot(bot, premises(0), phi)
   }
 
-  case class LeftNotWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class LeftNotWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = premiseSequent.right.diff(bot.right)
 
@@ -263,13 +258,13 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftNot extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftNot(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula) = new LeftNot(phi)
     def apply() = new LeftNotWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -281,13 +276,13 @@ object BasicStepTactic {
    *
    * </pre>
    */
-  case class LeftForall(phi: Formula, x: VariableLabel, t: Term) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftForall(phi: Formula, x: VariableLabel, t: Term)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftForall(bot, premises(0), phi, x, t)
   }
 
-  case class LeftForallWithoutFormula(t: Term) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class LeftForallWithoutFormula(t: Term)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
@@ -330,7 +325,7 @@ object BasicStepTactic {
 
     // usage without an argument list
     // TODO: add `extends ProofStepWithoutBotNorPrem(1)` to object when uncommenting
-    // def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    // def asSCProof(bot: Sequent, premises:Seq[Int]): ProofStepJudgement =
     //   this().asSCProof(bot, premises, currentProof)
   }
 
@@ -342,13 +337,13 @@ object BasicStepTactic {
    *
    * </pre>
    */
-  case class LeftExists(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftExists(phi: Formula, x: VariableLabel)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftExists(bot, premises(0), phi, x)
   }
 
-  case class LeftExistsWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class LeftExistsWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
@@ -379,13 +374,13 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftExists extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftExists(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula, x: VariableLabel) = new LeftExists(phi, x)
     def apply() = new LeftExistsWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -396,13 +391,13 @@ object BasicStepTactic {
    *      Γ, ∃!x. φ |- Δ
    * </pre>
    */
-  case class LeftExistsOne(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftExistsOne(phi: Formula, x: VariableLabel)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftExistsOne(bot, premises(0), phi, x)
   }
 
-  case class LeftExistsOneWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class LeftExistsOneWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
@@ -428,13 +423,13 @@ object BasicStepTactic {
     }
   }
 
-  case object LeftExistsOne extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftExistsOne(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula, x: VariableLabel) = new LeftExistsOne(phi, x)
     def apply() = new LeftExistsOneWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -447,11 +442,11 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightAnd(cunjuncts: Seq[Formula]) extends ProofStepWithoutBotNorPrem(-1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightAnd(bot, premises, cunjuncts)
   }
   case object RightAndWithoutFormula extends ProofStepWithoutBotNorPrem(-1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequents = premises.map(currentProof.getSequent(_))
       val pivots = premiseSequents.map(_.right.diff(bot.right))
 
@@ -474,7 +469,7 @@ object BasicStepTactic {
     def apply() = RightAndWithoutFormula
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -485,13 +480,13 @@ object BasicStepTactic {
    *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
    * </pre>
    */
-  case class RightOr(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightOr(phi: Formula, psi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightOr(bot, premises(0), phi, psi)
   }
 
-  case class RightOrWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class RightOrWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = bot.right.diff(premiseSequent.right)
 
@@ -516,13 +511,13 @@ object BasicStepTactic {
     }
   }
 
-  case object RightOr extends ProofStepWithoutBotNorPrem(1) {
+  case object RightOr(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula, psi: Formula) = new RightOr(phi, psi)
     def apply() = new RightOrWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -533,13 +528,13 @@ object BasicStepTactic {
    *  Γ |- φ→ψ, Δ
    * </pre>
    */
-  case class RightImplies(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightImplies(phi: Formula, psi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightImplies(bot, premises(0), phi, psi)
   }
 
-  case class RightImpliesWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class RightImpliesWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val leftPivot = premiseSequent.left.diff(bot.left)
       val rightPivot = premiseSequent.right.diff(bot.right)
@@ -554,13 +549,13 @@ object BasicStepTactic {
     }
   }
 
-  case object RightImplies extends ProofStepWithoutBotNorPrem(1) {
+  case object RightImplies(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula, psi: Formula) = new RightImplies(phi, psi)
     def apply() = new RightImpliesWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -571,13 +566,13 @@ object BasicStepTactic {
    *      Γ, Σ |- φ↔ψ, Π, Δ
    * </pre>
    */
-  case class RightIff(phi: Formula, psi: Formula) extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightIff(phi: Formula, psi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(2)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightIff(bot, premises(0), premises(1), phi, psi)
   }
 
-  case class RightIffWithoutFormula() extends ProofStepWithoutBotNorPrem(2) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class RightIffWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(2)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = premiseSequent.right.diff(bot.right)
 
@@ -596,13 +591,13 @@ object BasicStepTactic {
     }
   }
 
-  case object RightIff extends ProofStepWithoutBotNorPrem(2) {
+  case object RightIff(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(2)(proof) {
     // default construction:
     // def apply(phi: Formula, psi: Formula) = new RightIff(phi, psi)
     def apply() = new RightIffWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -613,13 +608,13 @@ object BasicStepTactic {
    *   Γ |- ¬φ, Δ
    * </pre>
    */
-  case class RightNot(phi: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightNot(phi: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightNot(bot, premises(0), phi)
   }
 
-  case class RightNotWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class RightNotWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = premiseSequent.left.diff(bot.left)
 
@@ -633,13 +628,13 @@ object BasicStepTactic {
     }
   }
 
-  case object RightNot extends ProofStepWithoutBotNorPrem(1) {
+  case object RightNot(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula) = new RightNot(phi)
     def apply() = new RightNotWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -650,13 +645,13 @@ object BasicStepTactic {
    *  Γ |- ∀x. φ, Δ
    * </pre>
    */
-  case class RightForall(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightForall(phi: Formula, x: VariableLabel)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightForall(bot, premises(0), phi, x)
   }
 
-  case class RightForallWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class RightForallWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = bot.right.diff(premiseSequent.right)
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
@@ -687,13 +682,13 @@ object BasicStepTactic {
     }
   }
 
-  case object RightForall extends ProofStepWithoutBotNorPrem(1) {
+  case object RightForall(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula, x: VariableLabel) = new RightForall(phi, x)
     def apply() = new RightForallWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -706,13 +701,13 @@ object BasicStepTactic {
    * (ln-x stands for locally nameless x)
    * </pre>
    */
-  case class RightExists(phi: Formula, x: VariableLabel, t: Term) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightExists(phi: Formula, x: VariableLabel, t: Term)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightExists(bot, premises(0), phi, x, t)
   }
 
-  case class RightExistsWithoutFormula(t: Term) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class RightExistsWithoutFormula(t: Term)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = bot.right.diff(premiseSequent.right)
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
@@ -762,7 +757,7 @@ object BasicStepTactic {
 
     // usage without an argument list
     // TODO: add `extends ProofStepWithoutBotNorPrem(1)` to object when uncommenting
-    // def asSCProof(bot: Sequent, premises:Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    // def asSCProof(bot: Sequent, premises:Seq[Int]): ProofStepJudgement =
     //   this().asSCProof(bot, premises, currentProof)
   }
 
@@ -773,13 +768,13 @@ object BasicStepTactic {
    *      Γ|- ∃!x. φ,  Δ
    * </pre>
    */
-  case class RightExistsOne(phi: Formula, x: VariableLabel) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightExistsOne(phi: Formula, x: VariableLabel)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightExistsOne(bot, premises(0), phi, x)
   }
 
-  case class RightExistsOneWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  case class RightExistsOneWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
       val premiseSequent = currentProof.getSequent(premises(0))
       val pivot = bot.right.diff(premiseSequent.right)
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
@@ -805,13 +800,13 @@ object BasicStepTactic {
     }
   }
 
-  case object RightExistsOne extends ProofStepWithoutBotNorPrem(1) {
+  case object RightExistsOne(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(phi: Formula, x: VariableLabel) = new RightExistsOne(phi, x)
     def apply() = new RightExistsOneWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -823,8 +818,8 @@ object BasicStepTactic {
    *   Γ, Σ |- Δ, Π
    * </pre>
    */
-  case object Weakening extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case object Weakening(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.Weakening(bot, premises(0))
   }
 
@@ -836,23 +831,23 @@ object BasicStepTactic {
    *     Γ |- Δ
    * </pre>
    */
-  case class LeftRefl(fa: Formula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftRefl(fa: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftRefl(bot, premises(0), fa)
   }
 
-  case class LeftReflWithoutFormula() extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftReflWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.Rewrite(bot, premises(0))
   }
 
-  case object LeftRefl extends ProofStepWithoutBotNorPrem(1) {
+  case object LeftRefl(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
     // default construction:
     // def apply(fa: Formula) = new LeftRefl(fa)
     def apply() = new LeftReflWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -863,23 +858,23 @@ object BasicStepTactic {
    *     |- s=s
    * </pre>
    */
-  case class RightRefl(fa: Formula) extends ProofStepWithoutBotNorPrem(0) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightRefl(fa: Formula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(0)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightRefl(bot, fa)
   }
 
-  case class RightReflWithoutFormula() extends ProofStepWithoutBotNorPrem(0) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightReflWithoutFormula()(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(0)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RewriteTrue(bot)
   }
 
-  case object RightRefl extends ProofStepWithoutBotNorPrem(0) {
+  case object RightRefl(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(0)(proof) {
     // default construction:
     // def apply(fa: Formula) = new RightRefl(fa)
     def apply() = new RightReflWithoutFormula()
 
     // usage without an argument list
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       this().asSCProof(bot, premises, currentProof)
   }
 
@@ -890,8 +885,8 @@ object BasicStepTactic {
    *  Γ, s1=premises(0), ..., sn=tn, φ(premises(0),...tn) |- Δ
    * </pre>
    */
-  case class LeftSubstEq(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftSubstEq(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftSubstEq(bot, premises(0), equals, lambdaPhi)
   }
 
@@ -902,8 +897,8 @@ object BasicStepTactic {
    *  Γ, s1=premises(0), ..., sn=tn |- φ(premises(0),...tn), Δ
    * </pre>
    */
-  case class RightSubstEq(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightSubstEq(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightSubstEq(bot, premises(0), equals, lambdaPhi)
   }
 
@@ -914,8 +909,8 @@ object BasicStepTactic {
    *  Γ, a1↔b1, ..., an↔bn, φ(b1,...bn) |- Δ
    * </pre>
    */
-  case class LeftSubstIff(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class LeftSubstIff(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.LeftSubstIff(bot, premises(0), equals, lambdaPhi)
   }
 
@@ -926,8 +921,8 @@ object BasicStepTactic {
    *  Γ, a1↔b1, ..., an↔bn |- φ(b1,...bn), Δ
    * </pre>
    */
-  case class RightSubstIff(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class RightSubstIff(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula)(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.RightSubstIff(bot, premises(0), equals, lambdaPhi)
   }
 
@@ -938,8 +933,8 @@ object BasicStepTactic {
    *  Γ[r(a)/?f] |- Δ[r(a)/?f]
    * </pre>
    */
-  case class InstFunSchema(insts: Map[SchematicTermLabel, LambdaTermTerm]) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class InstFunSchema(insts: Map[SchematicTermLabel, LambdaTermTerm])(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.InstFunSchema(bot, premises(0), insts)
   }
 
@@ -950,8 +945,8 @@ object BasicStepTactic {
    *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
    * </pre>
    */
-  case class InstPredSchema(insts: Map[SchematicVarOrPredLabel, LambdaTermFormula]) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
+  case class InstPredSchema(insts: Map[SchematicVarOrPredLabel, LambdaTermFormula])(using proof: Library#ProofEnvironment#Proof) extends ProofStepWithoutBotNorPrem(1)(proof) {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.InstPredSchema(bot, premises(0), insts)
   }
 
@@ -962,5 +957,5 @@ object BasicStepTactic {
         case sp: SCProof => SC.SCSubproof(sp, premises)
       }
   }
-
+*/
 }

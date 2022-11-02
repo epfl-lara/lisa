@@ -7,7 +7,7 @@ import lisa.utils.Helpers.{*, given}
 import lisa.utils.{Library, Printer}
 import lisa.utils.tactics.ProofStepJudgement
 import lisa.utils.tactics.ProofStepLib.{*, given}
-import lisa.utils.tactics.SimpleDeducedSteps.Restate
+//import lisa.utils.tactics.SimpleDeducedSteps.Restate
 
 import scala.collection.mutable.Set as mSet
 
@@ -15,6 +15,7 @@ import scala.collection.mutable.Set as mSet
  * A simple but complete solver for propositional logic. Will not terminate for large problems
  */
 object SimplePropositionalSolver {
+  /*
   class OrganisedFormulaSet {
     val negs: mSet[ConnectorFormula] = mSet()
     val impliess: mSet[ConnectorFormula] = mSet()
@@ -252,5 +253,5 @@ object SimplePropositionalSolver {
       ProofStepJudgement.ValidProofStep(sp)
     }
   }
-
+*/
 }

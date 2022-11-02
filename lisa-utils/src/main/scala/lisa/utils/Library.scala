@@ -13,7 +13,7 @@ import scala.collection.mutable.Stack as stack
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithProofs {
+abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithTheorems {
   val library: Library = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}
@@ -28,9 +28,8 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
    */
   type Sequentable = theory.Justification | Formula | Sequent
 
-  private var last: Option[theory.Justification] = None
+  var last: Option[theory.Justification] = None
 
-  val proofStack: stack[Proof] = stack()
 
   /**
    * A function intended for use to construct a proof:
@@ -52,13 +51,13 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * An alias to create a Theorem
    */
-  def makeTheorem(name: String, statement: String, proof: SCProof, justifications: Seq[theory.Justification]): Judgement[theory.Theorem] =
+  def makeTheorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): Judgement[theory.Theorem] =
     theory.theorem(name, statement, proof, justifications)
 
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithStatement(name: String, statement: String) {
+  case class TheoremNameWithStatement(name: String, statement: Sequent) {
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
@@ -71,35 +70,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     def PROOF2(steps: IndexedSeq[SCProofStep])(using om:OutputManager): TheoremNameWithProof =
       TheoremNameWithProof(name, statement, SCProof(steps))
 
-    def PROOF(computeProof: => Unit)(using om:OutputManager): theory.Theorem = {
-      if (proofStack.isEmpty)
-        om.lisaThrow(new LisaException.ProofStatusException("New theorem started while a proof is ongoing."))
-
-      proofStack.push(if (proofStack.isEmpty) new Proof() else new Proof(proofStack.head.getAssumptions))
-      try {
-        computeProof
-      } catch {
-        case e: NotImplementedError => om.lisaThrow(new LisaException.EmptyProofException("Closed empty proof."))
-        case e: LisaException.ParsingException => om.lisaThrow(e)
-        case e: LisaException.FaultyProofStepException => om.lisaThrow(e)
-        case e: LisaException => om.lisaThrow(e)
-      }
-      val proof = proofStack.head
-
-      if (proof.length == 0)
-        om.lisaThrow(new LisaException.EmptyProofException("Closed empty proof."))
-
-      val r = TheoremNameWithProof(name, statement, proof.toSCProof)
-      val r2 = theory.theorem(r.name, r.statement, r.proof, proofStack.head.getImports.map(_.reference.asInstanceOf[theory.Justification])) match {
-        case Judgement.ValidJustification(just) =>
-          last = Some(just)
-          just
-        case wrongJudgement: Judgement.InvalidJustification[?] => om.finishOutput(LisaException.InvalidKernelJustificationComputation("The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.", wrongJudgement))
-          wrongJudgement.showAndGet
-      }
-      proofStack.pop
-      r2
-    }
   }
 
   /**
@@ -110,7 +80,8 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    infix def of(statement: String): TheoremNameWithStatement = TheoremNameWithStatement(name, statement)
+    infix def of(statement: Sequent): TheoremNameWithStatement = TheoremNameWithStatement(name, statement)
+    infix def of(statement: String): TheoremNameWithStatement = TheoremNameWithStatement(name, Parser.parseSequent(statement))
   }
 
   /**
@@ -121,7 +92,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithProof(name: String, statement: String, proof: SCProof)(using om:OutputManager) {
+  case class TheoremNameWithProof(name: String, statement: Sequent, proof: SCProof)(using om:OutputManager) {
     infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
@@ -346,12 +317,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     val builder = bf.newBuilder(cc)
     cc.foreach(builder += _.size)
     builder.result
-  }
-
-  def showCurrentProof()(using om:OutputManager): Unit = {
-    val proof = proofStack.head.toSCProof
-    om.output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
-
   }
 
 

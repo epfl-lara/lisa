@@ -12,7 +12,8 @@ import lisa.utils.Parser.parseTerm
 import lisa.utils.tactics.ProofStepLib.*
 
 trait ProofsHelpers {
-  library: Library & WithProofs =>
+  /*
+  library: Library & WithTheorems =>
   given Library = library
   export BasicStepTactic.*
   export SimpleDeducedSteps.*
@@ -139,5 +140,5 @@ trait ProofsHelpers {
     private def isLTF(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermFormula]
 
    */
-
+*/
 }

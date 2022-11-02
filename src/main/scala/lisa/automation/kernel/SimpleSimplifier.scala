@@ -11,7 +11,7 @@ import lisa.utils.tactics.ProofStepLib.*
 import scala.collection
 
 object SimpleSimplifier {
-
+/*
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
   def nFreshId(froms: Iterable[String], n: Int): IndexedSeq[String] = {
@@ -204,5 +204,5 @@ object SimpleSimplifier {
 
     ???
   }
-
+*/
 }

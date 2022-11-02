@@ -46,15 +46,6 @@ object Example {
       show
       */
 
-      THEOREM("fixed_Point_Double_Application") of "'P('x) ⊢ 'P('x)" PROOF {
-        have(extensionalityAxiom)
-        andThen("'P('f('x)) ⇒ 'P('f('f('x))) ⊢  'P('f('x)) ⇒ 'P('f('f('x)))") by Trivial
-
-        have("'P('x) ⊢ 'P('x)") by Restate
-        showCurrentProof()
-      }
-      show
-
     }
 
     Ex.main(Array(""))

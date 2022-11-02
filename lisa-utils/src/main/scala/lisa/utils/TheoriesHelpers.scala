@@ -26,10 +26,9 @@ trait TheoriesHelpers extends KernelHelpers {
      * Add a theorem to the theory, but also asks explicitely for the desired conclusion
      * of the theorem to have more explicit writing and for sanity check.
      */
-    def theorem(name: String, statement: String, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
-      val expected = Parser.parseSequent(statement)
-      if (expected == proof.conclusion) theory.makeTheorem(name, expected, proof, justifications)
-      else if (isSameSequent(expected, proof.conclusion)) theory.makeTheorem(name, expected, proof.appended(Rewrite(expected, proof.length - 1)), justifications)
+    def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
+      if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
+      else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Rewrite(statement, proof.length - 1)), justifications)
       else InvalidJustification("The proof does not prove the claimed statement", None)
     }
 
