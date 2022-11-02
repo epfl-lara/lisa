@@ -7,9 +7,7 @@ object Lab03 extends lisa.Main{
   private val x = VariableLabel("x")
   private val y = VariableLabel("y")
   private val z = VariableLabel("z")
-  private val f = SchematicFunctionLabel("f", 1)
-  private val P = VariableFormulaLabel("P")
-  private val Q = SchematicPredicateLabel("Q", 1)
+  private val Q = SchematicPredicateLabel("P", 1)
   private val H = SchematicPredicateLabel("R", 2)
 
   ///////////////////////
@@ -39,7 +37,7 @@ object Lab03 extends lisa.Main{
     //TODO
   }
 
-  THEOREM("Unique_Exist_Variant") of "∃'y. ∀'x. ('P('x) ⇔ 'x='y) ⊢ ∃'y. 'P('y) ∧ (∀'x. 'P(x) ⇒ 'x='y)" PROOF {
+  THEOREM("Unique_Exist_Variant") of "∃'y. ∀'x. ('P('x) ⇔ 'x='y) ⊢ ∃'y. 'P('y) ∧ (∀'x. 'P('x) ⇒ 'x='y)" PROOF {
     //TODO
   }
 
@@ -50,9 +48,11 @@ object Lab03 extends lisa.Main{
   // Set Theory //
   ////////////////
 
+
+  //This one is given as an example
   THEOREM("Subset_Reflexivity") of " ⊢ subset_of('x, 'x)" PROOF {
     val subs = have(subsetAxiom) //  ⊢ ∀'x. ∀'y. (∀'z. 'z ∊ 'x ⇔ 'z ∊ 'y) ⇔ 'x = 'y
-    showCurrentProof() //shows the current sequent calculus proof
+    showCurrentProof()               //shows the current sequent calculus proof
     val r1 = andThen(() |- forall(z, in(z, x) ==> in(z, x)) <=> subset(x, x)) by InstantiateForall(x, x)    //InstantiateForall will instantiate a universally bound formula on the right of a sequent with the given terms.
     have(() |- in(z, x) ==> in(z, x)) by Restate                                                            //Restate solves automatically a class of easy proposition, including reflexivity of equality, alpha-equivalence of formulas, and some propositional logic properties
     andThen(() |- forall(z, in(z, x) ==> in(z, x))) by RightForall
@@ -65,7 +65,7 @@ object Lab03 extends lisa.Main{
     //TODO
   }
 
-  THEOREM("Subset_Antisymmetry") of "subset_of('x, 'y); subset_of('y, 'x)  ⊢ x=y " PROOF {
+  THEOREM("Subset_Antisymmetry") of "subset_of('x, 'y); subset_of('y, 'x)  ⊢ 'x='y " PROOF {
     val ext = have(extensionalityAxiom)    //  ⊢ ∀'x. ∀'y. 'x ⊆ 'y ⇔ (∀'z. 'z ∊ 'x ⇒ 'z ∊ 'y)
     val subs = have(subsetAxiom)           //  ⊢ ∀'x. ∀'y. (∀'z. 'z ∊ 'x ⇔ 'z ∊ 'y) ⇔ 'x = 'y
     //TODO
