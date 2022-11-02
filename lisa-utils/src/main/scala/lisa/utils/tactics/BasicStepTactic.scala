@@ -1410,8 +1410,30 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftSubstEq(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.LeftSubstEq(bot, premises(0), equals, lambdaPhi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val (s_es, t_es) = equals.unzip
+      lazy val phi_s = lambdaPhi(s_es)
+      lazy val phi_t = lambdaPhi(t_es)
+      lazy val equalities = equals map { case (s, t) => PredicateFormula(equality, Seq(s, t)) }
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.right, premiseSequent.right))
+        invalid("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
+      else if (
+          !isSameSet(bot.left + phi_s, premiseSequent.left ++ equalities + phi_t) &&
+          !isSameSet(bot.left + phi_t, premiseSequent.left ++ equalities + phi_s)
+        )
+        invalid("Left-hand side of the conclusion + φ(s_) is not the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped).")
+      else
+        SC.LeftSubstEq(bot, premises(0), equals, lambdaPhi)
+    }
   }
 
   /**
@@ -1422,8 +1444,30 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightSubstEq(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.RightSubstEq(bot, premises(0), equals, lambdaPhi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val (s_es, t_es) = equals.unzip
+      lazy val phi_s = lambdaPhi(s_es)
+      lazy val phi_t = lambdaPhi(t_es)
+      lazy val equalities = equals map { case (s, t) => PredicateFormula(equality, Seq(s, t)) }
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.left, premiseSequent.left ++ equalities))
+        invalid("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (s=t)_.")
+      else if (
+          !isSameSet(bot.left + phi_s, premiseSequent.left + phi_t) &&
+          !isSameSet(bot.left + phi_t, premiseSequent.left + phi_s)
+        )
+        invalid("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
+      else
+        SC.RightSubstEq(bot, premises(0), equals, lambdaPhi)
+    }
   }
 
   /**
@@ -1434,8 +1478,30 @@ object BasicStepTactic {
    * </pre>
    */
   case class LeftSubstIff(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.LeftSubstIff(bot, premises(0), equals, lambdaPhi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val (psi_es, tau_es) = equals.unzip
+      lazy val phi_psi = lambdaPhi(psi_es)
+      lazy val phi_tau = lambdaPhi(tau_es)
+      lazy val implications = equals map { case (s, t) => ConnectorFormula(Iff, Seq(s, t)) }
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.right, premiseSequent.right))
+        invalid("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
+      else if (
+          !isSameSet(bot.left + phi_psi, premiseSequent.left ++ implications + phi_tau) &&
+          !isSameSet(bot.left + phi_tau, premiseSequent.left ++ implications + phi_psi)
+        )
+        invalid("Left-hand side of the conclusion + φ(ψ_) is not the same as left-hand side of the premise + (ψ ↔ τ)_ + φ(τ_) (or with ψ_ and τ_ swapped).")
+      else
+        SC.LeftSubstIff(bot, premises(0), equals, lambdaPhi)
+    }
   }
 
   /**
@@ -1446,8 +1512,30 @@ object BasicStepTactic {
    * </pre>
    */
   case class RightSubstIff(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends ProofStepWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement =
-      SC.RightSubstIff(bot, premises(0), equals, lambdaPhi)
+    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      def invalid(msg: String) = ProofStepJudgement.InvalidProofStep(
+                                    this.asProofStepWithoutBot(premises).asProofStep(bot),
+                                    msg
+                                  )
+
+      lazy val premiseSequent = currentProof.getSequent(premises(0))
+      lazy val (psi_es, tau_es) = equals.unzip
+      lazy val phi_psi = lambdaPhi(psi_es)
+      lazy val phi_tau = lambdaPhi(tau_es)
+      lazy val implications = equals map { case (s, t) => ConnectorFormula(Iff, Seq(s, t)) }
+
+      if (premises.length != 1)
+        invalid(s"One premise expected, ${premises.length} received.")
+      else if (!isSameSet(bot.left, premiseSequent.left ++ implications))
+        invalid("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ↔ τ)_.")
+      else if (
+          !isSameSet(bot.left + phi_psi, premiseSequent.left + phi_tau) &&
+          !isSameSet(bot.left + phi_tau, premiseSequent.left + phi_psi)
+        )
+        invalid("Right-hand side of the conclusion + φ(ψ_) is not the same as right-hand side of the premise + φ(τ_) (or with ψ_ and τ_ swapped).")
+      else
+        SC.RightSubstIff(bot, premises(0), equals, lambdaPhi)
+    }
   }
 
   /**
