@@ -18,7 +18,7 @@ object Lab03 extends lisa.Main{
   // you may need to use the following proof tactics:
   // have("_____ |- _____") by Restate
   // have("_____ |- _____") by Trivial
-  // have("_____ |- _____") by Weakening     (Restate and Weakening can replace all single-premise Sequent Calculus proof steps. Try them before Trivial.)
+  // have("_____ |- _____") by Weakening     (Restate and Weakening can replace all single-premise Sequent Calculus proof steps. Try them before using Trivial.)
   // have("_____ |- _____") by LeftForall(term)(premise)
   // have("_____ |- _____") by RightForall(premise)
   // have("_____ |- _____") by LeftExists(premise)
@@ -28,9 +28,11 @@ object Lab03 extends lisa.Main{
   // have("_____ |- _____") by LeftImplies(premise1, premise2)
   // have("_____ |- _____") by RightIff(premise1, premise2)
   // have("_____ |- _____") by RightAnd(premise1, premise2)
+  // andThen(applySubst(P <=> Q))      (replaces instances of P by instances of Q in the current sequent)
+  // andThen(applySubst(x = y))        (replaces instances of x by instances of y in the current sequent)
   //
   // andThen("_____ |- _____") by Tactic    may be use instead of "have" and (premise). In that case, the premise is replaced by the previously proven step.
-
+  //
   //Details about Sequent Calculus in LISA can be found here: https://github.com/epfl-lara/lisa/blob/main/Reference%20Manual/lisa.pdf
 
   THEOREM("Ex_All_implies_All_Ex") of "∃'x. ∀'y. 'R('x, 'y) ⊢ ∀'x. ∃'y. 'R('x, 'y)" PROOF {
