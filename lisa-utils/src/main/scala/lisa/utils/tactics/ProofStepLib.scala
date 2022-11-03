@@ -16,10 +16,13 @@ import lisa.utils.tactics.ProofStepJudgement.*
 
 object ProofStepLib {
 
+  type UniqueProof = Library#ProofEnvironment#Proof & Singleton
+  type Arity = Int & Singleton
+
   /**
    * A proofstep is an object that relies on a step of premises and which can be translated into pure Sequent Calculus.
    */
-  trait ProofStep(val proof: Library#ProofEnvironment#Proof) {
+  trait ProofStep[P <: UniqueProof](val proof: P) {
     val premises: Seq[proof.Fact]
 
     /**
@@ -39,7 +42,7 @@ object ProofStepLib {
   /**
    * A proof step lacking a bottom/conclusion sequent. Once given a conclusion sequent, it can become a ProofStep.
    */
-  trait ProofStepWithoutBot(val proof: Library#ProofEnvironment#Proof) {
+  trait ProofStepWithoutBot[P <: UniqueProof](val proof: P) {
     val premises: Seq[proof.Fact]
 
     /**
@@ -51,16 +54,16 @@ object ProofStepLib {
     /**
      * Gives a targeted bottom sequent, as a partial application towards the SC transformation.
      */
-    def asProofStep(bot: Sequent): ProofStep = new ProofStepWithBot(this, bot)
+    def asProofStep(bot: Sequent): ProofStep[P] = new ProofStepWithBot(this, bot)
   }
 
   /**
    * Intermediate datatype corresponding to a ProofStepWithoutBot once a targetted bottom sequent has been given to it.
    */
-  class ProofStepWithBot protected[ProofStepLib] (
-                                                     val underlying: ProofStepWithoutBot,
+  class ProofStepWithBot[P <: UniqueProof] protected[ProofStepLib] (
+                                                     val underlying: ProofStepWithoutBot[P],
                                                      val givenBot: Sequent
-                                                 ) extends ProofStep(underlying.proof) {
+                                                 ) extends ProofStep[P](underlying.proof) {
     override val premises: Seq[proof.Fact] = underlying.premises.asInstanceOf[Seq[proof.Fact]]
     override def asSCProof: ProofStepJudgement = underlying.asSCProof(givenBot ++< (proof.getAssumptions |- ()))
   }
@@ -68,7 +71,7 @@ object ProofStepLib {
   /**
    * Represent a ProofStep lacking the list of its premises, for partial application.
    */
-  trait ProofStepWithoutPrem(val proof: Library#ProofEnvironment#Proof) {
+  trait ProofStepWithoutPrem[N <: Arity, P <: UniqueProof](val numbPrem: N)(val proof: P) {
 
     /**
      * An abstract function transforming the ProofStepWithoutPrem innto a SCProofStep in pure Sequent Calculus.
@@ -78,21 +81,21 @@ object ProofStepLib {
     /**
      * Gives the premises of the ProofStep, as a partial application towards the SC transformation.
      */
-    def asProofStep(premises: Seq[proof.Fact]): ProofStep = new ProofStepWithPrem(this, premises)
+    def asProofStep(premises: Seq[proof.Fact]): ProofStep[P] = new ProofStepWithPrem(this, premises)
 
     /**
      * Alias for [[asProofStep]]
      */
-    def by(premises: Seq[proof.Fact]): ProofStep = asProofStep(premises)
+    def by(premises: Seq[proof.Fact]): ProofStep[P] = asProofStep(premises)
   }
 
   /**
    * Intermediate datatype corresponding to a [[ProofStepWithoutPrem]] once a sequence of premises has been given to it.
    */
-  class ProofStepWithPrem protected[ProofStepLib] (
-                                                      val underlying: ProofStepWithoutPrem,
+  class ProofStepWithPrem[N <: Arity, P <: UniqueProof] protected[ProofStepLib] (
+                                                      val underlying: ProofStepWithoutPrem[N, P],
                                                       _premises: Seq[underlying.proof.Fact]
-                                                  ) extends ProofStep(underlying.proof) {
+                                                  ) extends ProofStep[P](underlying.proof) {
     val premises: Seq[proof.Fact] = _premises.asInstanceOf[Seq[proof.Fact]]
     override def asSCProof: ProofStepJudgement =
       underlying.asSCProof(premises.map(prem => proof.sequentAndIntOfFact(prem)._2))
@@ -103,25 +106,25 @@ object ProofStepLib {
    * A ProofStep without premises nor targeted bottom sequent.
    * Contains a tactic to reconstruct a partial Sequent Calculus proof if given those elements and the current proof.
    */
-  trait ProofStepWithoutBotNorPrem[N <: Int & Singleton](val numbPrem: N)(val proof: Library#ProofEnvironment#Proof) {
+  trait ProofStepWithoutBotNorPrem[N <: Arity, P <: UniqueProof](val numbPrem:N)(val proof: P) {
 
     /**
      * Contains a tactic to reconstruct a partial Sequent Calculus proof if given
      * a list of premises, a targeted bottom sequent and the current proof.
      */
     def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement
-    def asProofStepWithoutBot(premises: Seq[proof.Fact]): ProofStepWithoutBot =
-      new ProofStepWithoutBotWithPrem[N](this, premises)
-    def apply(premises: proof.Fact*): ProofStepWithoutBot = asProofStepWithoutBot(premises)
+    def asProofStepWithoutBot(premises: Seq[proof.Fact]): ProofStepWithoutBot[P] =
+      new ProofStepWithoutBotWithPrem[N, P](this, premises)
+    def apply(premises: proof.Fact*): ProofStepWithoutBot[P] = asProofStepWithoutBot(premises)
   }
 
   /**
    * Intermediate datatype corresponding to a [[ProofStepWithoutBotNorPrem]] once a sequence of premises has been given to it.
    */
-  class ProofStepWithoutBotWithPrem[N <: Int & Singleton] protected[ProofStepLib] (
-                                                                                      val underlying: ProofStepWithoutBotNorPrem[N],
+  class ProofStepWithoutBotWithPrem[N <: Arity, P <: UniqueProof] protected[ProofStepLib] (
+                                                                                      val underlying: ProofStepWithoutBotNorPrem[N, P],
                                                                                       _premises: Seq[underlying.proof.Fact]
-                                                                                  ) extends ProofStepWithoutBot(underlying.proof) {
+                                                                                  ) extends ProofStepWithoutBot[P](underlying.proof) {
     val premises: Seq[proof.Fact] = _premises.asInstanceOf[Seq[proof.Fact]]
     val numbPrem: N = underlying.numbPrem
 

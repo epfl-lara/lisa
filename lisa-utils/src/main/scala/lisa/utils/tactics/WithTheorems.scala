@@ -40,11 +40,11 @@ trait WithTheorems {
       private var assumptions: List[Formula] = assump
       private var discharges: List[Fact] = Nil
 
-      case class DoubleStep private (ps: ProofStep, scps: SCProofStep, position: Int) {
+      case class DoubleStep private (ps: ProofStep[_], scps: SCProofStep, position: Int) {
         val bot: Sequent = scps.bot
       }
       private object DoubleStep {
-        def newDoubleStep(ps: ProofStep)(using om:OutputManager): DoubleStep = {
+        def newDoubleStep(ps: ProofStep[_])(using om:OutputManager): DoubleStep = {
           val judgement = ps.asSCProof
           judgement match {
             case ValidProofStep(scps) =>
@@ -57,8 +57,8 @@ trait WithTheorems {
           }
         }
       }
-      def newDoubleStep(ps: ProofStep)(using om:OutputManager): DoubleStep =
-        DoubleStep.newDoubleStep(ps: ProofStep)
+      def newDoubleStep(ps: ProofStep[_])(using om:OutputManager): DoubleStep =
+        DoubleStep.newDoubleStep(ps: ProofStep[_])
 
 
       type Fact = DoubleStep | OutsideFact | Int
@@ -181,17 +181,17 @@ trait WithTheorems {
 
   }
 
-  @nowarn("cat=deprecation")
-  abstract class THM(statement: Sequent | String)(using om:OutputManager)  extends ProofEnvironment( statement match {
+  abstract class THM(using om:OutputManager)(statement: Sequent | String)(computeProof: ProofEnvironment ?=> Unit)
+    extends ProofEnvironment( statement match {
     case s:Sequent => s
     case s:String => lisa.utils.Parser.parseSequent(s)
-  }) with DelayedInit {
+  }) {
     val name:String = this.getClass.getSimpleName.stripSuffix("$")
-    private var innerThm: theory.Theorem = null
-    def innerTheorem:theory.Theorem = innerThm
+    val innerThm: theory.Theorem = show(computeProof)
 
-    def delayedInit(computeProof: => Unit): Unit = {
+    def show(computeProof: ProofEnvironment ?=> Unit): theory.Theorem = {
       try {
+        given ProofEnvironment = this
         computeProof
       } catch {
         case e: NotImplementedError => om.lisaThrow(new LisaException.EmptyProofException("Closed empty proof."))
@@ -212,6 +212,7 @@ trait WithTheorems {
         case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
           om.finishOutput(LisaException.InvalidKernelJustificationComputation("The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.", wrongJudgement))
       }
+      r2
     }
   }
 

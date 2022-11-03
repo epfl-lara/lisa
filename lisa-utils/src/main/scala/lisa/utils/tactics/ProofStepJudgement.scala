@@ -37,7 +37,7 @@ object ProofStepJudgement {
   /**
    * A proof step which led to an error when computing the corresponding Sequent Calculus proof step.
    */
-  case class InvalidProofStep(ps: ProofStep, message: String) extends ProofStepJudgement {
+  case class InvalidProofStep(ps: ProofStep[_], message: String) extends ProofStepJudgement {
     def launch: Nothing = throw EarlyProofStepException(message)
   }
 

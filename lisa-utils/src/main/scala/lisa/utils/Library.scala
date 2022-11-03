@@ -37,7 +37,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
    * Must contains [[SCProofStep]]'s
    */
   inline def steps(sts: SCProofStep*): IndexedSeq[SCProofStep] = sts.toIndexedSeq
-  inline def Nsteps(sts: ProofStep*): IndexedSeq[ProofStep] = sts.toIndexedSeq
 
   /**
    * A function intended for use to construct a proof:

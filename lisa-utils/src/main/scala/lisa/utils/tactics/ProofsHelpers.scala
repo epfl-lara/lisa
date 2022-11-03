@@ -16,11 +16,10 @@ trait ProofsHelpers {
   library: Library & WithTheorems =>
   given Library = library
   export BasicStepTactic.*
-  export SimpleDeducedSteps.*
-  private def proof: Proof = proofStack.head
+  //export SimpleDeducedSteps.*
 
   case class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    infix def by(just: ProofStepWithoutBot)(using om:OutputManager): library.Proof#DoubleStep = {
+    infix def by(just: ProofStepWithoutBot)(using om:OutputManager): just.proof.DoubleStep = {
       val r = just.asProofStep(bot)
       r.validate(library)
     }
@@ -94,6 +93,7 @@ trait ProofsHelpers {
     r.validate(library)
   }
 
+
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
@@ -140,5 +140,6 @@ trait ProofsHelpers {
     private def isLTF(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermFormula]
 
    */
-*/
+
+   */
 }

@@ -3,7 +3,7 @@ import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.utils.Printer
 
 object Exercise extends lisa.Main {
-
+/*
   private val x = VariableLabel("x")
   private val y = VariableLabel("y")
   private val z = VariableLabel("z")
@@ -31,7 +31,7 @@ object Exercise extends lisa.Main {
     showCurrentProof()
   }
   show
-
+*/
   /*
   THEOREM("pierce-law") of "|- ((('A ==> 'B) ==> 'A) ==> 'A)" PROOF {
     ???

@@ -34,6 +34,11 @@ object Example {
 
     object Ex extends Main {
 
+      object fixed_point_double_application extends THM("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))")({
+        have("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))") by Trivial
+      })
+      show
+
       /*
       THEOREM("fixedPointDoubleApplication") of "∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))" PROOF {
         assume(forall(x, P(x) ==> P(f(x))))

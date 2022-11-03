@@ -15,7 +15,7 @@ import scala.collection.mutable.Set as mSet
  * A simple but complete solver for propositional logic. Will not terminate for large problems
  */
 object SimplePropositionalSolver {
-  /*
+
   class OrganisedFormulaSet {
     val negs: mSet[ConnectorFormula] = mSet()
     val impliess: mSet[ConnectorFormula] = mSet()
@@ -227,16 +227,19 @@ object SimplePropositionalSolver {
     r4
   }
 
-  case object Trivial extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(-1) {
+  final class Trivial[P<:UniqueProof](using _proof: P)
+                                      extends ProofStepWithoutBot[P](_proof) with ProofStepWithoutBotNorPrem[-1, P](-1)(_proof) {
     override val premises: Seq[Int] = Seq()
-    def asSCProof(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement = {
+
+    override val proof: P = _proof
+    def asSCProof(bot: Sequent): ProofStepJudgement = {
       ProofStepJudgement.ValidProofStep(SCSubproof(solveSequent(bot)))
     }
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
 
       val sp = SCSubproof(
         {
-          val premsFormulas = premises.map(p => (p, sequentToFormula(currentProof.getSequent(p)))).zipWithIndex
+          val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
           val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1+s._2))).toList
           val sqToProve = bot ++< ( premsFormulas.map(s => s._1._2).toSet |- ())
           println(Printer.prettySequent(sqToProve))
@@ -246,12 +249,13 @@ object SimplePropositionalSolver {
             val ((prem, form), position) = cur
             Cut(prev.head.bot -< form, position, initProof.length+prev.length - 1, form) :: prev
           })
-          SCProof((initProof++stepsList.reverse).toIndexedSeq, premises.map(p => currentProof.getSequent(p)).toIndexedSeq)
+          SCProof((initProof++stepsList.reverse).toIndexedSeq, premises.map(p => proof.sequentOfFact(p)).toIndexedSeq)
         },
         premises
       )
       ProofStepJudgement.ValidProofStep(sp)
     }
   }
-*/
+  def Trivial(using proof: UniqueProof) = new Trivial
+
 }
