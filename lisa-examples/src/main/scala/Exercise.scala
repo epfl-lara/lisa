@@ -76,27 +76,4 @@ object Exercise extends lisa.Main {
   show
    */
 
-  ////////////////////
-  //   Set Theory   //
-  ////////////////////
-
-  /*
-  THEOREM("SubsetRefl") of " ⊢ subset_of('x, 'x)" PROOF {
-    have(subsetAxiom)
-    val r1 = andThen(() |- forall(z, in(z, x) ==> in(z, x)) <=> subset(x, x)) by InstantiateForallMultipleWithoutFormula(x, x)
-    have(() |- in(z, x) ==> in(z, x)) by Restate
-    andThen(() |- forall(z, in(z, x) ==> in(z, x))) by RightForall
-    andThen(applySubst(forall(z, in(z, x) ==> in(z, x)) <=> subset(x, x)))
-    Discharge(r1)
-  }
-  show
-   */
-
-  /*
-  THEOREM("SubsetRefl") of " subset_of('x, 'y); subset_of('y, 'z) ⊢ subset_of('x, 'z)" PROOF {
-   ???
-  }
-  show
-   */
-
 }
