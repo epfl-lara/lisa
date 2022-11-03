@@ -28,6 +28,7 @@ object Lab03 extends lisa.Main{
   // have("_____ |- _____") by LeftImplies(premise1, premise2)
   // have("_____ |- _____") by RightIff(premise1, premise2)
   // have("_____ |- _____") by RightAnd(premise1, premise2)
+  // have("_____ |- _____") by Cut(premise1, premise2)
   // andThen(applySubst(P <=> Q))      (replaces instances of P by instances of Q in the current sequent)
   // andThen(applySubst(x = y))        (replaces instances of x by instances of y in the current sequent)
   //
@@ -68,8 +69,8 @@ object Lab03 extends lisa.Main{
   }
 
   THEOREM("Subset_Antisymmetry") of "subset_of('x, 'y); subset_of('y, 'x)  ⊢ 'x='y " PROOF {
-    val ext = have(extensionalityAxiom)    //  ⊢ ∀'x. ∀'y. 'x ⊆ 'y ⇔ (∀'z. 'z ∊ 'x ⇒ 'z ∊ 'y)
-    val subs = have(subsetAxiom)           //  ⊢ ∀'x. ∀'y. (∀'z. 'z ∊ 'x ⇔ 'z ∊ 'y) ⇔ 'x = 'y
+    val ext = have(extensionalityAxiom)    //  ⊢ ∀'x. ∀'y. (∀'z. 'z ∊ 'x ⇔ 'z ∊ 'y) ⇔ 'x = 'y
+    val subs = have(subsetAxiom)           //  ⊢ ∀'x. ∀'y. 'x ⊆ 'y ⇔ (∀'z. 'z ∊ 'x ⇒ 'z ∊ 'y)
     //TODO
   }
 
