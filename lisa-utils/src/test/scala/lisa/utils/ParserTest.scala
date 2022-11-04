@@ -121,6 +121,12 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(Parser.parseFormula("a ∧ (b ∨ c)") == ConnectorFormula(And, Seq(a, ConnectorFormula(Or, Seq(b, c)))))
   }
 
+  test("schematic connectors") {
+    assert(Parser.parseFormula("?c(p(x), p(y))") == ConnectorFormula(sc2, Seq(p(cx), p(cy))))
+    assert(Parser.parseFormula("?c('phi('x)) <=> ?c('phi('y))") == iff(sc1(sPhi1(x)), sc1(sPhi1(y))))
+    assert(Parser.parseFormula("?c(p(x), p(x)) /\\ ?c(p(y), p(y))") == and(sc2(p(cx), p(cx)), sc2(p(cy), p(cy))))
+  }
+
   test("quantifiers") {
     assert(Parser.parseFormula("∀ 'x. (p)") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
     assert(Parser.parseFormula("∃ 'x. (p)") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq())))
