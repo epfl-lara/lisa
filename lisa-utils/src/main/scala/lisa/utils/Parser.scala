@@ -44,13 +44,13 @@ class Parser(
 
   /**
    * Parses a formula from a string. A formula can be:
-   * <p> - a bound formula: `∀ ?x. f`, `∃ ?x. f`, `∃! ?x. f`. A binder binds the entire formula until the end of the scope (a closing parenthesis or the end of string).
+   * <p> - a bound formula: `∀'x. f`, `∃'x. f`, `∃!'x. f`. A binder binds the entire formula until the end of the scope (a closing parenthesis or the end of string).
    * <p> - two formulas, connected by `↔` or `⇒`. Iff / implies bind less tight than and / or.
    * <p> - a conjunction or disjunction of arbitrary number of formulas. `∧` binds tighter than `∨`.
    * <p> - negated formula.
    * <p> - schematic connector formula: `?c(f1, f2, f3)`.
    * <p> - equality of two formulas: `f1 = f2`.
-   * <p> - a constant `p(a)` or schematic `?p(a)` predicate application to arbitrary number of term arguments.
+   * <p> - a constant `p(a)` or schematic `'p(a)` predicate application to arbitrary number of term arguments.
    * <p> - boolean constant: `⊤` or `⊥`.
    *
    * @param s string representation of the formula
@@ -60,8 +60,8 @@ class Parser(
     extractParseResult(SequentParser.parseFormula(SequentLexer(s.iterator)))
 
   /**
-   * Parses a term from a string. A term is a constant `c`, a schematic variable `?x` or an application of a constant `f(a)`
-   * or a schematic `?f(a)` function to other terms.
+   * Parses a term from a string. A term is a constant `c`, a schematic variable `'x` or an application of a constant `f(a)`
+   * or a schematic `'f(a)` function to other terms.
    *
    * @param s string representation of the term
    * @return parsed term on success, throws an exception when unexpected input or end of input.
