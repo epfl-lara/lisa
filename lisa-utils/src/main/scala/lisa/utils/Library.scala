@@ -13,7 +13,7 @@ import scala.collection.mutable.Stack as stack
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithTheorems {
+abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithTheorems with lisa.utils.tactics.ProofsHelpers  {
   val library: Library = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}

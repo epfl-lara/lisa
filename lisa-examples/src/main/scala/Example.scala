@@ -18,6 +18,10 @@ import lisa.utils.tactics.ProofStepLib.ProofStep
  * Discover some of the elements of LISA to get started.
  */
 object Example {
+
+  trait Simp(s:String){
+
+  }
   def main(args: Array[String]): Unit = {
 
     proofExample() // uncomment when exercise finished
@@ -34,10 +38,35 @@ object Example {
 
     object Ex extends Main {
 
-      object fixed_point_double_application extends THM("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))")({
+/*
+      object fixedpointdoubleapplication extends THM("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))")({
         have("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))") by Trivial
       })
+
+ */
+
+      trait Simp(s:String){
+        thm: THM =>
+      }
+
+      object fixedpointdoubleapplication extends THM("'P('f('x)) ⊢ 'P('f('x))")({
+        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
+      }) with Simp("truc")
+
+      makeTHM("'P('f('x)) ⊢ 'P('f('x))"){
+        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
+      }
+
+
+
+
+
+      val thm = new (THM("'P('f('x)) ⊢ 'P('f('x))"){
+        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
+      } with Simp("truc"))
+
       show
+      println(thm)
 
       /*
       THEOREM("fixedPointDoubleApplication") of "∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))" PROOF {

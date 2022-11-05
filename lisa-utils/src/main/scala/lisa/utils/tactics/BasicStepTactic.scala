@@ -11,18 +11,21 @@ import lisa.utils.tactics.ProofStepLib.{_, given}
 
 object BasicStepTactic {
 
-  final class Hypothesis[P<:UniqueProof](using _proof: P) extends ProofStepWithoutBotNorPrem[0, P](0)(_proof) {
-    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
+  final class Hypothesis(using val proof: Library#Proof) extends ProofStepWithoutBot {
+    val premises: Seq[proof.Fact] = Seq()
+    def asSCProof(bot: Sequent): ProofStepJudgement =
       SC.Hypothesis(bot, bot.left.intersect(bot.right).head)
   }
-  def Hypothesis(using _proof: UniqueProof) = new Hypothesis
 
-  final class Rewrite[P<:UniqueProof](using _proof: P) extends ProofStepWithoutBotNorPrem[1, P](1)(_proof) {
+  def Hypothesis(using proof: Library#Proof) = new Hypothesis
+/*
+  final class Rewrite(using val proof: Library#Proof) extends ProofStepWithoutBotNorPrem[1](1) {
     def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.Rewrite(bot, premises(0))
   }
-  def Rewrite(using _proof: UniqueProof) = new Rewrite
-
+  def Rewrite(using _proof: Library#Proof) = new Rewrite
+*/
+  /*
   /**
    * <pre>
    *  Γ |- Δ, φ    φ, Σ |- Π
@@ -60,7 +63,7 @@ object BasicStepTactic {
 
   def Cut[P<:UniqueProof](using _proof: P) = new CutWithoutFormula
 
-/*
+
 
   // Left rules
   /**

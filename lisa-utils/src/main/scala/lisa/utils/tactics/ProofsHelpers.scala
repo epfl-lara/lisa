@@ -12,10 +12,9 @@ import lisa.utils.Parser.parseTerm
 import lisa.utils.tactics.ProofStepLib.*
 
 trait ProofsHelpers {
-  /*
   library: Library & WithTheorems =>
   given Library = library
-  export BasicStepTactic.*
+  //export BasicStepTactic.*
   //export SimpleDeducedSteps.*
 
   case class HaveSequent private[ProofsHelpers] (bot: Sequent) {
@@ -26,8 +25,8 @@ trait ProofsHelpers {
   }
 
   case class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
-    infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using om:OutputManager): library.Proof#DoubleStep = {
-      val r = just.asProofStepWithoutBot(Seq(proof.mostRecentStep._2)).asProofStep(bot)
+    infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using om:OutputManager): just.proof.DoubleStep = {
+      val r = just.asProofStepWithoutBot(Seq(just.proof.mostRecentStep._2)).asProofStep(bot)
       r.validate(library)
     }
   }
@@ -42,13 +41,14 @@ trait ProofsHelpers {
    */
   def have(res: String): HaveSequent = HaveSequent(parseSequent(res))
 
+  /*
   /**
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
   def have(just: theory.Justification)(using om:OutputManager): library.Proof#DoubleStep = {
     have(theory.sequentFromJustification(just)) by Restate(just.asInstanceOf[Library#Proof#Fact])
   }
-
+*/
   /* //TODO: After reviewing substitutions
     def have(instJust: InstantiatedJustification)(using om:OutputManager): library.Proof#DoubleStep = {
         val just = instJust.just
@@ -69,6 +69,7 @@ trait ProofsHelpers {
     }
    */
 
+  /*
   /**
    * Claim the given Sequent as a ProofStep directly following the previously proven tactic,
    * which may require a justification by a proof tactic.
@@ -80,7 +81,8 @@ trait ProofsHelpers {
    * which may require a justification by a proof tactic.
    */
   def andThen(res: String): AndThenSequent = AndThenSequent(parseSequent(res))
-
+*/
+  /*
   /**
    * Import the given justification (Axiom, Theorem or Definition) into the current proof.
    */
@@ -113,11 +115,10 @@ trait ProofsHelpers {
     }
   }
 
-  extension (pswp: ProofStepWithoutPrem) {
-    def by(premises: Seq[Library#Proof#Fact])(using om:OutputManager) = pswp.asProofStep(premises).validate(library)
-  }
-
   given Conversion[ProofStepWithoutBotNorPrem[0], ProofStepWithoutBot] = _.asProofStepWithoutBot(Seq())
+
+  */
+
 
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
 
@@ -141,5 +142,5 @@ trait ProofsHelpers {
 
    */
 
-   */
+
 }

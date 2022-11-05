@@ -227,11 +227,9 @@ object SimplePropositionalSolver {
     r4
   }
 
-  final class Trivial[P<:UniqueProof](using _proof: P)
-                                      extends ProofStepWithoutBot[P](_proof) with ProofStepWithoutBotNorPrem[-1, P](-1)(_proof) {
+  final class Trivial(using val proof: Library#Proof) extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(-1) {
     override val premises: Seq[Int] = Seq()
 
-    override val proof: P = _proof
     def asSCProof(bot: Sequent): ProofStepJudgement = {
       ProofStepJudgement.ValidProofStep(SCSubproof(solveSequent(bot)))
     }
@@ -256,6 +254,6 @@ object SimplePropositionalSolver {
       ProofStepJudgement.ValidProofStep(sp)
     }
   }
-  def Trivial(using proof: UniqueProof) = new Trivial
+  def Trivial(using proof: Library#Proof) = new Trivial
 
 }
