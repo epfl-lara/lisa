@@ -123,7 +123,7 @@ object SimpleSimplifier {
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val newleft = isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) + phi
+          val newleft = isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right)))
           val newright = isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right)))
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(And, newright.toSeq)
@@ -133,7 +133,7 @@ object SimpleSimplifier {
               Rewrite(leftOrigin |- rightOrigin, -1),
               LeftSubstEq(result1, 0, List(left -> right), LambdaTermFormula(Seq(v), leftForm)),
               RightSubstEq(result2, 1, List(left -> right), LambdaTermFormula(Seq(v), rightForm)),
-              Rewrite(newleft |- newright, 2)
+              Rewrite(newleft+phi |- newright, 2)
             ),
             IndexedSeq(originSequent)
           )
@@ -154,7 +154,7 @@ object SimpleSimplifier {
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val newleft = isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) + phi
+          val newleft = isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right)))
           val newright = isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right)))
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
@@ -164,7 +164,7 @@ object SimpleSimplifier {
               Rewrite(leftOrigin |- rightOrigin, -1),
               LeftSubstIff(result1, 0, List(left -> right), LambdaFormulaFormula(Seq(H), leftForm)),
               RightSubstIff(result2, 1, List(left -> right), LambdaFormulaFormula(Seq(H), rightForm)),
-              Rewrite(newleft |- newright, 2)
+              Rewrite(newleft+phi |- newright, 2)
             ),
             IndexedSeq(originSequent)
           )
