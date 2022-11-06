@@ -1,16 +1,5 @@
 package lisa.proven.mathematics
 
-import lisa.automation.kernel.SimplePropositionalSolver.*
-import lisa.automation.kernel.SimpleSimplifier.*
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SCProofChecker.*
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.show
-import lisa.utils.Helpers.{_, given}
-import lisa.utils.Printer.*
-import lisa.utils.tactics.ProofStepLib.ProofStep
 import lisa.automation.kernel.Destructors.*
 import lisa.automation.kernel.ProofTactics.*
 
@@ -28,7 +17,8 @@ object SetTheory extends lisa.Main {
   }
   show
 
-  val pr =  {
+  THEOREM("unorderedPair_symmetry") of
+    "⊢ ∀'y. ∀'x. unordered_pair('x, 'y) = unordered_pair('y, 'x)" PROOF2 {
       val x = VariableLabel("x")
       val y = VariableLabel("y")
       val z = VariableLabel("z")
@@ -77,18 +67,8 @@ object SetTheory extends lisa.Main {
       val fin3 = generalizeToForall(fin2, fin2.conclusion.right.head, x)
       val fin4 = generalizeToForall(fin3, fin3.conclusion.right.head, y)
       fin4.copy(imports = imports(ax"extensionalityAxiom", ax"pairAxiom"))
-    } 
-  val new_pr1 = {
-      val x = VariableLabel("x")
-      val y = VariableLabel("y")
-      val z = VariableLabel("z")
-      val h = VariableFormulaLabel("h")
-      have((in(z, unordered_pair(x,y)) <=> in(z, unordered_pair(y,x))) <=> (unordered_pair(x, y) === unordered_pair(y,x))) by SUBPROOF {
-        
-      }
-      
-  }
-    checkProof(pr, println)
+    } using (ax"extensionalityAxiom", AxiomaticSetTheory.pairAxiom)
+  show
 
   // This proof is old and very unoptimised
   THEOREM("unorderedPair_deconstruction") of
