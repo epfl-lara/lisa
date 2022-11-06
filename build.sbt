@@ -34,6 +34,7 @@ val commonSettings3 = Seq(
 
   ),
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
+  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.3.0",
   libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
   Test / parallelExecution := false
 )

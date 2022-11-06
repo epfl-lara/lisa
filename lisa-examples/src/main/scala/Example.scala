@@ -38,38 +38,7 @@ object Example {
 
     object Ex extends Main {
 
-/*
-      object fixedpointdoubleapplication extends THM("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))")({
-        have("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))") by Trivial
-      })
-
- */
-
-      trait Simp(s:String){
-        thm: THM =>
-      }
-
-      object fixedpointdoubleapplication extends THM("'P('f('x)) ⊢ 'P('f('x))")({
-        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
-      }) with Simp("truc")
-
-      makeTHM("'P('f('x)) ⊢ 'P('f('x))"){
-        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
-      }
-
-
-
-
-
-      val thm = new (THM("'P('f('x)) ⊢ 'P('f('x))"){
-        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
-      } with Simp("truc"))
-
-      show
-      println(thm)
-
-      /*
-      THEOREM("fixedPointDoubleApplication") of "∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))" PROOF {
+      val fixedPointDoubleApplication = makeTHM("∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))") {
         assume(forall(x, P(x) ==> P(f(x))))
         val base = have((P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x)))) by Trivial
         have(() |- P(x) ==> P(f(f(x)))) by SUBPROOF {
@@ -78,7 +47,39 @@ object Example {
         }
       }
       show
-      */
+
+
+/*
+      object fixedpointdoubleapplication extends THM("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))")({
+        have("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))") by Trivial
+      })
+
+ */
+
+      /*
+      trait Simplification(s:String){
+        thm: THM =>
+      }
+
+      object Thm1 extends THM("'P('f('x)) ⊢ 'P('f('x))")({
+        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
+      }) with Simplification("thing")
+
+      val th2 = makeTHM("'P('f('x)) ⊢ 'P('f('x))"){
+        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
+      } //with simp    a function
+
+
+
+
+      val thm3 = new THM("'P('f('x)) ⊢ 'P('f('x))")({
+        have("'P('f('x)) ⊢ 'P('f('x))") by Hypothesis
+      }) with Simplification("thing")
+
+      show
+      println(thm)
+*/
+
 
     }
 

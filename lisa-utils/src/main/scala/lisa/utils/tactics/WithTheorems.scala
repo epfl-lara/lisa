@@ -10,6 +10,8 @@ import lisa.utils.tactics.ProofStepJudgement.ValidProofStep
 import lisa.utils.tactics.ProofStepLib.ProofStep
 import lisa.utils.LisaException
 
+
+
 import scala.collection.mutable.Buffer as mBuf
 import scala.collection.mutable.Map as mMap
 import scala.collection.mutable.Stack as stack
@@ -170,13 +172,15 @@ trait WithTheorems {
   }
 
 
-  class THM(using om:OutputManager)(statement: Sequent | String)(computeProof: Proof ?=> Unit){
+  class THM (using om:OutputManager)(statement: Sequent | String, val fullName:String, val line:Int, val file:String)(computeProof: Proof ?=> Unit){
 
     val goal:Sequent = statement match {
       case s: Sequent => s
       case s: String => lisa.utils.Parser.parseSequent(s)
     }
-    val name:String = this.getClass.getName//.split("\\$").last
+    val name:String = fullName
+
+
     val proof:BaseProof = new BaseProof(goal)
     val innerThm: theory.Theorem = show(computeProof)
 
@@ -207,6 +211,8 @@ trait WithTheorems {
     }
   }
 
-  def makeTHM(using om:OutputManager)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM = new THM(statement)(computeProof) {}
+  def makeVar(using name: sourcecode.FullName) : VariableLabel = VariableLabel(name.value)
+
+  def makeTHM(using om:OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM = new THM(statement, name.value, line.value, file.value)(computeProof) {}
 
 }
