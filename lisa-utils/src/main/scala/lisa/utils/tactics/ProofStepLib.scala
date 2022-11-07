@@ -28,14 +28,14 @@ object ProofStepLib {
     /**
      * Add the proofstep to the current proof of the given library.
      */
-    def validate(l: Library)(using om:OutputManager): proof.DoubleStep = {
+    def validate(using om:OutputManager): proof.DoubleStep = {
       proof.newDoubleStep(this.asInstanceOf)
     }
 
     /**
      * An abstract function transforming the ProofStep innto a SCProofStep in pure Sequent Calculus.
      */
-    def asSCProof: ProofStepJudgement
+    def asSCProof(premMap: proof.Fact => Int): ProofStepJudgement
 
   }
 
@@ -51,7 +51,7 @@ object ProofStepLib {
      * An abstract function transforming the ProofStepWithoutBot into a SCProofStep in pure Sequent Calculus,
      * by being given access to a target conclusive sequent and the current state of the proof.
      */
-    def asSCProof(bot: Sequent): ProofStepJudgement
+    def asSCProof(premMap: proof.Fact => Int, bot: Sequent): ProofStepJudgement
 
     /**
      * Gives a targeted bottom sequent, as a partial application towards the SC transformation.
@@ -69,7 +69,7 @@ object ProofStepLib {
                                                  ) extends ProofStep {
     val proof:underlying.proof.type = underlying.proof
     override val premises: Seq[proof.Fact] = underlying.premises
-    override def asSCProof: ProofStepJudgement = underlying.asSCProof(givenBot ++< (proof.getAssumptions |- ()))
+    override def asSCProof(premMap: proof.Fact => Int): ProofStepJudgement = underlying.asSCProof(premMap, givenBot ++< (proof.getAssumptions |- ()))
   }
 
   /**
@@ -82,7 +82,7 @@ object ProofStepLib {
     /**
      * An abstract function transforming the ProofStepWithoutPrem innto a SCProofStep in pure Sequent Calculus.
      */
-    def asSCProof(premises: Seq[Int]): ProofStepJudgement
+    def asSCProof(premises:Seq[Int]): ProofStepJudgement
 
     /**
      * Gives the premises of the ProofStep, as a partial application towards the SC transformation.
@@ -105,8 +105,8 @@ object ProofStepLib {
                                                   ) extends ProofStep {
     val proof:underlying.proof.type = underlying.proof
     val premises: Seq[proof.Fact] = _premises.asInstanceOf[Seq[proof.Fact]]
-    override def asSCProof: ProofStepJudgement =
-      underlying.asSCProof(premises.map(prem => proof.sequentAndIntOfFact(prem)._2))
+    override def asSCProof(premMap: proof.Fact => Int): ProofStepJudgement =
+      underlying.asSCProof(premises.map(premMap))
   }
 
 
@@ -143,8 +143,8 @@ object ProofStepLib {
      * Contains a tactic to reconstruct a partial Sequent Calculus proof if given
      * a targeted bottom sequent and the current proof.
      */
-    def asSCProof(bot: Sequent): ProofStepJudgement = {
-      underlying.asSCProof(bot, premises.map(prem => proof.sequentAndIntOfFact(prem)._2))
+    def asSCProof(premMap: proof.Fact => Int, bot: Sequent): ProofStepJudgement = {
+      underlying.asSCProof(bot, premises.map(premMap))
     }
   }
 

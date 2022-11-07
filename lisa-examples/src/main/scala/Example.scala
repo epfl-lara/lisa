@@ -19,9 +19,6 @@ import lisa.utils.tactics.ProofStepLib.ProofStep
  */
 object Example {
 
-  trait Simp(s:String){
-
-  }
   def main(args: Array[String]): Unit = {
 
     proofExample() // uncomment when exercise finished
@@ -38,6 +35,19 @@ object Example {
 
     object Ex extends Main {
 
+
+
+      val x = variable
+
+      println(x)
+
+      val fixedpointdoubleapplication = makeTHM("'P('f('x)) ⊢ 'P('f('x))")({
+        have("'P('f('x)) |- 'P('f('x))") by Trivial
+      })
+      show
+
+      /*
+
       val fixedPointDoubleApplication = makeTHM("∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))") {
         assume(forall(x, P(x) ==> P(f(x))))
         val base = have((P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x)))) by Trivial
@@ -48,7 +58,7 @@ object Example {
       }
       show
 
-
+*/
 /*
       object fixedpointdoubleapplication extends THM("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))")({
         have("'P(x); 'P('x) ⇒ 'P('f('x)) ⊢ 'P('f('x))") by Trivial

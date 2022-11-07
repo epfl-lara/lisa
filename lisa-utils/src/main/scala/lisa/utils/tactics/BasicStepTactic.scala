@@ -6,7 +6,7 @@ import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.utils.Helpers.*
-import lisa.utils.Library
+import lisa.utils.{Library, LisaException, OutputManager}
 import lisa.utils.tactics.BasicStepTactic.LeftForallWithoutFormula
 import lisa.utils.tactics.ProofStepLib.{*, given}
 
@@ -14,7 +14,7 @@ object BasicStepTactic {
 
   final class Hypothesis(using val proof: Library#Proof) extends ProofStepWithoutBot {
     val premises: Seq[proof.Fact] = Seq()
-    def asSCProof(bot: Sequent): ProofStepJudgement =
+    def asSCProof(premMap: proof.Fact => Int, bot: Sequent): ProofStepJudgement =
       SC.Hypothesis(bot, bot.left.intersect(bot.right).head)
   }
   def Hypothesis(using proof: Library#Proof) = new Hypothesis
@@ -806,12 +806,34 @@ object BasicStepTactic {
       SC.InstPredSchema(bot, premises(0), insts)
   }
 
-  // Proof Organisation rules
-  final class SCSubproof(using val proof: Library#Proof)(sp: SCProof, val premises: Seq[Int] = Seq.empty, display: Boolean = true) extends ProofStep {
-    def asSCProof: ProofStepJudgement =
-      sp match {
-        case sp: SCProof => SC.SCSubproof(sp, premises)
+  class SUBPROOF (using val proof: Library#Proof, om:OutputManager)
+                 (statement: Sequent | String, val fullName:String, val line:Int, val file:String)
+                 (computeProof: Library#Proof ?=> Unit) extends ProofStep{
+    val bot:Sequent = statement match {
+      case s: Sequent => s
+      case s: String => lisa.utils.Parser.parseSequent(s)
+    }
+
+    val name:String = fullName
+    val iProof:proof.InnerProof = new proof.InnerProof(bot)
+    val scproof: SCProof = {
+      try {
+        computeProof(using iProof)
+      } catch {
+        case e: NotImplementedError => om.lisaThrow(new LisaException.EmptyProofException("Closed empty subproof."))
+        case e: LisaException.ParsingException => om.lisaThrow(e)
+        case e: LisaException.FaultyProofStepException => om.lisaThrow(e)
+        case e: LisaException => om.lisaThrow(e)
       }
+      if (proof.length == 0)
+        om.lisaThrow(new LisaException.EmptyProofException("Closed empty subproof."))
+      iProof.toSCProof
+    }
+    val premises = iProof.getImports.map(of => of._1)
+
+    override def asSCProof(premMap: proof.Fact => Int): ProofStepJudgement = {
+      ProofStepJudgement.ValidProofStep(SC.SCSubproof(scproof, premises map premMap))
+    }
   }
 
 }

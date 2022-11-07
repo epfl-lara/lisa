@@ -230,7 +230,7 @@ object SimplePropositionalSolver {
   final class Trivial(using val proof: Library#Proof) extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(-1) {
     override val premises: Seq[Int] = Seq()
 
-    def asSCProof(bot: Sequent): ProofStepJudgement = {
+    def asSCProof(premMap: proof.Fact => Int, bot: Sequent): ProofStepJudgement = {
       ProofStepJudgement.ValidProofStep(SCSubproof(solveSequent(bot)))
     }
     def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {

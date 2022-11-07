@@ -26,7 +26,7 @@ trait WithTheorems {
     type SelfType = this.type
     type OutsideFact
 
-    private val that: Proof = this
+    private val that: this.type = this
     private var steps: List[DoubleStep] = Nil
     private var imports: List[(OutsideFact, Sequent)] = Nil
     private var assumptions: List[Formula] = assump
@@ -153,23 +153,40 @@ trait WithTheorems {
     def length:Int = steps.length
 
     def lockedSymbols: Set[SchematicLabel] = assumptions.toSet.flatMap(f => f.schematicFormulaLabels.toSet[SchematicLabel] ++ f.schematicTermLabels.toSet[SchematicLabel])
+
+    def asOutsideFact(j:theory.Justification) : OutsideFact
+
+
+    final class InnerProof (val goal:Sequent) extends Proof(this.getAssumptions) {
+      val parent: Proof.this.type = Proof.this
+      type OutsideFact = parent.Fact
+      override def asOutsideFact(j:theory.Justification): OutsideFact = parent.asOutsideFact(j)
+
+      override def sequentOfOutsideFact(of: parent.Fact): Sequent = of match {
+        case j: theory.Justification => theory.sequentFromJustification(j)
+        case ds:Proof#DoubleStep => ds.bot
+        case _ => parent.sequentOfFact(of)
+      }
+    }
   }
 
   sealed class BaseProof(val goal:Sequent) extends Proof(Nil) {
+
     type OutsideFact = theory.Justification
+    override def asOutsideFact(j:theory.Justification): OutsideFact = j
+    val t1:theory.Justification = ???
+    asOutsideFact(t1)
+
+    //val t1:OutsideFact = ???
+    //val t2:theory.Justification = ???
+    //asOutsideFact(t1)
+    //asOutsideFact(t2)
+
+
 
     override def sequentOfOutsideFact(of: theory.Justification): Sequent = theory.sequentFromJustification(of)
-
   }
-  sealed class InnerProof[J<:Proof](val parent:J, val goal:Sequent) extends Proof(parent.getAssumptions) {
-    type OutsideFact = parent.Fact
 
-    override def sequentOfOutsideFact(of: parent.Fact): Sequent = of match {
-      case j: theory.Justification => theory.sequentFromJustification(j)
-      case ds:Proof#DoubleStep => ds.bot
-      case _ => parent.sequentOfFact(of)
-    }
-  }
 
 
   class THM (using om:OutputManager)(statement: Sequent | String, val fullName:String, val line:Int, val file:String)(computeProof: Proof ?=> Unit){

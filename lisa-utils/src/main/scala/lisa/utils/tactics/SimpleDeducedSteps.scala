@@ -6,43 +6,25 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.RewriteTrue
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
-import lisa.kernel.proof.{SequentCalculus => SC}
+import lisa.kernel.proof.SequentCalculus as SC
 import lisa.utils.Helpers.*
-import lisa.utils.Helpers.{_, given}
-import lisa.utils.Library
-import lisa.utils.OutputManager
-import lisa.utils.tactics.BasicStepTactic.SCSubproof
-import lisa.utils.tactics.ProofStepLib.{_, given}
+import lisa.utils.Helpers.{*, given}
+import lisa.utils.{Library, LisaException, OutputManager}
+import lisa.utils.tactics.ProofStepLib.{*, given}
 
 object SimpleDeducedSteps {
 
   final class Restate(using val proof: Library#Proof) extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(1) {
     override val premises: Seq[Int] = Seq()
-    def asSCProof(bot: Sequent): ProofStepJudgement =
+    def asSCProof(premMap: proof.Fact => Int, bot: Sequent): ProofStepJudgement =
       SC.RewriteTrue(bot)
 
     def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement =
       SC.Rewrite(bot, premises(0))
 
   }
-  def Restate(using proof: Library#Proof) = new Restate
+  def Restate(using _proof: Library#Proof): Restate{val proof: _proof.type} = (new Restate(using _proof)).asInstanceOf
 
-
-
-
-/*
-  class SUBPROOF(computeProof: => Unit)(using om:OutputManager) extends ProofStepWithoutBot {
-    private def cp(): Unit = computeProof
-    val premises: Seq[lisa.utils.Library#Proof#Fact] = Seq()
-
-    override def asSCProof(bot: Sequent): ProofStepJudgement = {
-      val proof = proof.subproof(cp())
-      val scproof = proof.toSCProof
-      val check = SCProofChecker.checkSCProof(scproof)
-      if (!check.isValid) check.showAndGet
-      SC.SCSubproof(scproof, proof.getImports.map(imf => imf.reference.asInstanceOf[Int]))
-    }
-  }*/
 
   final class DischargeFormula(using val proof: Library#Proof)(f: FOL.Formula) extends ProofStepWithoutPrem(1) {
     override def asSCProof(premises: Seq[Int]): ProofStepJudgement = {
