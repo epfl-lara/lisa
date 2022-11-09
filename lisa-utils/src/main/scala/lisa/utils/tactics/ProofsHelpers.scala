@@ -95,29 +95,25 @@ trait ProofsHelpers {
     r.validate(library)
   }
 
-
+*/
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
-  def assume(f: Formula): Formula = {
-    proofStack.head.addAssumption(f)
+  def assume(using proof: library.Proof)(f: Formula): Formula = {
+    proof.addAssumption(f)
     f
   }
 
   /**
    * Store the given import and use it to discharge the proof of one of its assumption at the very end.
    */
-  def endDischarge(ji: Library#Proof#ImportedFact): Unit = {
-    val p: Proof = proof
-    if (p.validInThisProof(ji)) {
-      val p = proof
-      p.addDischarge(ji.asInstanceOf[p.ImportedFact])
-    }
+  def endDischarge(using proof: library.Proof)(ji: proof.OutsideFact): Unit = {
+    proof.addDischarge(ji)
   }
 
   given Conversion[ProofStepWithoutBotNorPrem[0], ProofStepWithoutBot] = _.asProofStepWithoutBot(Seq())
 
-  */
+
 
 
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])

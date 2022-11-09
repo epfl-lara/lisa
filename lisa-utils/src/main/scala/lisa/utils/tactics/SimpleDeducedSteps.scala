@@ -30,27 +30,20 @@ object SimpleDeducedSteps {
 
 
 
-/*
-  class SUBPROOF(computeProof: => Unit)(using om:OutputManager) extends ProofStepWithoutBot {
+
+  class SUBPROOF(computeProof: => Unit)(using om:OutputManager, proof: Library#Proof) extends ProofStepWithoutBot {
     private def cp(): Unit = computeProof
     val premises: Seq[lisa.utils.Library#Proof#Fact] = Seq()
 
     override def asSCProof(bot: Sequent): ProofStepJudgement = {
-      val proof = proof.subproof(cp())
+      val subproof = proof.subproof(cp())
       val scproof = proof.toSCProof
       val check = SCProofChecker.checkSCProof(scproof)
       if (!check.isValid) check.showAndGet
       SC.SCSubproof(scproof, proof.getImports.map(imf => imf.reference.asInstanceOf[Int]))
     }
-  }*/
-
-  final class DischargeFormula(using val proof: Library#Proof)(f: FOL.Formula) extends ProofStepWithoutPrem(1) {
-    override def asSCProof(premises: Seq[Int]): ProofStepJudgement = {
-      val t1 = premises(0)
-      val (lastStep, t2) = proof.mostRecentStep
-      SC.Cut((lastStep.bot -< f) ++ (proof.getSequent(t1) -> f), t1, t2, f)
-    }
   }
+
 
   final class Discharge(using val proof: Library#Proof) extends ProofStepWithoutPrem(1) {
     override def asSCProof(premises: Seq[Int]): ProofStepJudgement = {
@@ -66,7 +59,6 @@ object SimpleDeducedSteps {
     }
   }
 
-  def Discharge(using proof: Library#Proof)(f:FOL.Formula) = new DischargeFormula(f)
   def Discharge(using proof: Library#Proof)(ij: Library#Proof#Fact) = new Discharge
 
   /**

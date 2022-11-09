@@ -2,7 +2,7 @@ package lisa.utils.tactics
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.{RunningTheory, RunningTheoryJudgement, SCProof}
-import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.proof.SequentCalculus.{Cut, Sequent}
 import lisa.utils.{Library, OutputManager}
 import lisa.utils.tactics.ProofStepJudgement.EarlyProofStepException
 import lisa.utils.tactics.ProofStepJudgement.InvalidProofStep
@@ -10,12 +10,9 @@ import lisa.utils.tactics.ProofStepJudgement.ValidProofStep
 import lisa.utils.tactics.ProofStepLib.ProofStep
 import lisa.utils.LisaException
 
-
-
 import scala.collection.mutable.Buffer as mBuf
 import scala.collection.mutable.Map as mMap
 import scala.collection.mutable.Stack as stack
-
 import scala.annotation.nowarn
 
 trait WithTheorems {
@@ -94,8 +91,20 @@ trait WithTheorems {
     def getDischarges: List[Fact] = discharges
 
     def toSCProof(using om:OutputManager): lisa.kernel.proof.SCProof = {
-      //discharges.foreach(i => Discharge(getSequentAndInt(i)._2))
-      SCProof(steps.reverse.map(_.scps).toIndexedSeq, getImports.map(of => of._2).toIndexedSeq)
+      discharges.foreach(i => {
+        val (s, t1) = sequentAndIntOfFact(i)
+        val (lastStep, t2) = mostRecentStep
+        SC.Cut((lastStep.bot -< s.right.head) ++ (s -> s.right.head), t1, t2, s.right.head)
+      })
+      val finalSteps = discharges.foldLeft(steps.map(_.scps))((cumul, next) => {
+        val (s, t1) = sequentAndIntOfFact(next)
+        val lastStep = cumul.head
+        val t2 = cumul.length-1
+        SC.Cut((lastStep.bot -< s.right.head) ++ (s -> s.right.head), t1, t2, s.right.head)::cumul
+      })
+
+
+      SCProof(finalSteps.reverse.toIndexedSeq, getImports.map(of => of._2).toIndexedSeq)
     }
 
     def sequentAndIntOfFact(fact:Fact): (Sequent, Int) = fact match {
