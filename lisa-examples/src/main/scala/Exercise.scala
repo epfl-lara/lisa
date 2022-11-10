@@ -20,6 +20,7 @@ object Exercise extends lisa.Main {
       andThen(() |- P(x) ==> P(f(f(x)))) by LeftForall(f(x))
       ()
     }
+    showCurrentProof()
   }
   show
 

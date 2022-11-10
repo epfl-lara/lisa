@@ -319,7 +319,4 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   }
 
 
-  def variable(using name:sourcecode.Name):VariableLabel = VariableLabel(name.value)
-
-
 }

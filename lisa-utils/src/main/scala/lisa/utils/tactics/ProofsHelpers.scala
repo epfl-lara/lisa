@@ -4,8 +4,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
-import lisa.utils.Library
-import lisa.utils.OutputManager
+import lisa.utils.{Library, OutputManager, ProofPrinter}
 import lisa.utils.Parser.parseFormula
 import lisa.utils.Parser.parseSequent
 import lisa.utils.Parser.parseTerm
@@ -89,6 +88,12 @@ trait ProofsHelpers {
   }
 
   given Conversion[ProofTacticWithoutBotNorPrem[0], ProofTacticWithoutBot] = _.asProofTacticWithoutBot(Seq())
+
+  def showCurrentProof(using om:OutputManager, _proof: library.Proof)():Unit = {
+    om.output({
+      ProofPrinter.prettyProof(_proof)
+    })
+  }
 
 
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
