@@ -4,10 +4,10 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.{RunningTheory, RunningTheoryJudgement, SCProof}
 import lisa.kernel.proof.SequentCalculus.{Cut, Sequent}
 import lisa.utils.{Library, OutputManager}
-import lisa.utils.tactics.ProofStepJudgement.EarlyProofStepException
-import lisa.utils.tactics.ProofStepJudgement.InvalidProofStep
-import lisa.utils.tactics.ProofStepJudgement.ValidProofStep
-import lisa.utils.tactics.ProofStepLib.ProofStep
+import lisa.utils.tactics.ProofTacticJudgement.EarlyProofTacticException
+import lisa.utils.tactics.ProofTacticJudgement.InvalidProofTactic
+import lisa.utils.tactics.ProofTacticJudgement.ValidProofTactic
+import lisa.utils.tactics.ProofTacticLib.ProofTactic
 import lisa.utils.LisaException
 
 import scala.collection.mutable.Buffer as mBuf
@@ -23,36 +23,36 @@ trait WithTheorems {
     type SelfType = this.type
     type OutsideFact
 
-    private val that: Proof = this
-    private var steps: List[DoubleStep] = Nil
+    private val that: this.type = this
+    private var steps: List[ProofStep] = Nil
     private var imports: List[(OutsideFact, Sequent)] = Nil
     private var assumptions: List[Formula] = assump
     private var discharges: List[Fact] = Nil
 
-    case class DoubleStep private (ps: ProofStep{val proof: SelfType}, scps: SCProofStep, position: Int) {
+    case class ProofStep private(ps: ProofTactic{val proof: SelfType}, scps: SCProofStep, position: Int) {
       val bot: Sequent = scps.bot
     }
-    private object DoubleStep {
-      def newDoubleStep(ps: ProofStep{val proof: SelfType})(using om:OutputManager): DoubleStep = {
-        val judgement = ps.asSCProof
+    private object ProofStep {
+      def newProofStep(ps: ProofTactic{val proof: SelfType})(using om:OutputManager): ProofStep = {
+        val judgement = ps.asSCProof(sequentAndIntOfFact(_)._2)
         judgement match {
-          case ValidProofStep(scps) =>
-            val ds = DoubleStep(ps, scps, steps.length)
+          case ValidProofTactic(scps) =>
+            val ds = ProofStep(ps, scps, steps.length)
             addStep(ds)
             ds
-          case InvalidProofStep(ps, message) =>
+          case InvalidProofTactic(ps, message) =>
             om.output(s"$message\n")
-            om.finishOutput(EarlyProofStepException(message))
+            om.finishOutput(EarlyProofTacticException(message))
         }
       }
     }
-    def newDoubleStep(ps: ProofStep{val proof: SelfType})(using om:OutputManager): DoubleStep =
-      DoubleStep.newDoubleStep(ps)
+    def newProofStep(ps: ProofTactic{val proof: SelfType})(using om:OutputManager): ProofStep =
+      ProofStep.newProofStep(ps)
 
 
-    type Fact = DoubleStep | OutsideFact | Int
+    type Fact = ProofStep | OutsideFact | Int
 
-    private def addStep(ds: DoubleStep): Unit = steps = ds :: steps
+    private def addStep(ds: ProofStep): Unit = steps = ds :: steps
     private def addImport(imp: OutsideFact, seq: Sequent): Unit = {
       imports = (imp, seq):: imports
     }
@@ -70,9 +70,9 @@ trait WithTheorems {
 
     /**
      * Favour using getSequent when applicable.
-     * @return The list of ValidatedSteps (containing a high level ProofStep and the corresponding SCProofStep).
+     * @return The list of ValidatedSteps (containing a high level ProofTactic and the corresponding SCProofStep).
      */
-    def getSteps: List[DoubleStep] = steps.reverse
+    def getSteps: List[ProofStep] = steps.reverse
 
     /**
      * Favour using getSequent when applicable.
@@ -119,7 +119,7 @@ trait WithTheorems {
           },
           i
       )
-      case ds:DoubleStep => (ds.bot, ds.position)
+      case ds:ProofStep => (ds.bot, ds.position)
       case of: OutsideFact @unchecked =>
         val r = imports.indexWhere(of == _._1)
         if (r != -1){
@@ -142,7 +142,7 @@ trait WithTheorems {
             if (i2 >= imports.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the imports Seq")
             else imports(imports.length + i)._2
           }
-      case ds:DoubleStep => ds.bot
+      case ds:ProofStep => ds.bot
       case of:OutsideFact @unchecked =>
         val r = imports.find(of == _._1)
         if (r.nonEmpty){
@@ -157,28 +157,38 @@ trait WithTheorems {
 
 
     def getSequent(f:Fact):Sequent = sequentOfFact(f)
-    def mostRecentStep: (DoubleStep, Int) = (steps.head, steps.length - 1)
+    def mostRecentStep: (ProofStep, Int) = (steps.head, steps.length - 1)
 
     def length:Int = steps.length
 
     def lockedSymbols: Set[SchematicLabel] = assumptions.toSet.flatMap(f => f.schematicFormulaLabels.toSet[SchematicLabel] ++ f.schematicTermLabels.toSet[SchematicLabel])
+
+    def asOutsideFact(j:theory.Justification) : OutsideFact
+
+
+    final class InnerProof (val goal:Sequent) extends Proof(this.getAssumptions) {
+      val parent: Proof.this.type = Proof.this
+      type OutsideFact = parent.Fact
+      override def asOutsideFact(j:theory.Justification): OutsideFact = parent.asOutsideFact(j)
+
+      override def sequentOfOutsideFact(of: parent.Fact): Sequent = of match {
+        case j: theory.Justification => theory.sequentFromJustification(j)
+        case ds:Proof#ProofStep => ds.bot
+        case _ => parent.sequentOfFact(of)
+      }
+    }
   }
 
   sealed class BaseProof(val goal:Sequent) extends Proof(Nil) {
+
     type OutsideFact = theory.Justification
+    override def asOutsideFact(j:theory.Justification): OutsideFact = j
+
+
 
     override def sequentOfOutsideFact(of: theory.Justification): Sequent = theory.sequentFromJustification(of)
-
   }
-  sealed class InnerProof[J<:Proof](val parent:J, val goal:Sequent) extends Proof(parent.getAssumptions) {
-    type OutsideFact = parent.Fact
 
-    override def sequentOfOutsideFact(of: parent.Fact): Sequent = of match {
-      case j: theory.Justification => theory.sequentFromJustification(j)
-      case ds:Proof#DoubleStep => ds.bot
-      case _ => parent.sequentOfFact(of)
-    }
-  }
 
 
   class THM (using om:OutputManager)(statement: Sequent | String, val fullName:String, val line:Int, val file:String)(computeProof: Proof ?=> Unit){
@@ -200,7 +210,7 @@ trait WithTheorems {
       } catch {
         case e: NotImplementedError => om.lisaThrow(new LisaException.EmptyProofException("Closed empty proof."))
         case e: LisaException.ParsingException => om.lisaThrow(e)
-        case e: LisaException.FaultyProofStepException => om.lisaThrow(e)
+        case e: LisaException.FaultyProofTacticException => om.lisaThrow(e)
         case e: LisaException => om.lisaThrow(e)
       }
 

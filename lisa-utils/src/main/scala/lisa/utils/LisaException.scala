@@ -7,7 +7,7 @@ abstract class LisaException(errorMessage:String) extends Exception(errorMessage
 object LisaException {
 
   class InvalidKernelJustificationComputation(errorMessage: String, underlying:lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification[?]) extends LisaException(errorMessage)
-  class FaultyProofStepException(errorMessage: String) extends LisaException(errorMessage)
+  class FaultyProofTacticException(errorMessage: String) extends LisaException(errorMessage)
   class ProofStatusException(errorMessage: String) extends LisaException(errorMessage)
   class EmptyProofException(errorMessage: String) extends LisaException(errorMessage)
 

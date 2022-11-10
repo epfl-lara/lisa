@@ -7,7 +7,7 @@ import lisa.utils.OutputManager
  */
 trait Main {
   export lisa.settheory.SetTheoryLibrary.{_, given}
-  export lisa.utils.tactics.BasicStepTactic.*
+  export lisa.utils.tactics.Exports.*
 
   private val realOutput: String => Unit = println
   private var outString: List[String] = List()

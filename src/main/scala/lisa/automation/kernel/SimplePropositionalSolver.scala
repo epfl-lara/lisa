@@ -5,8 +5,8 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.{*, given}
 import lisa.utils.{Library, Printer}
-import lisa.utils.tactics.ProofStepJudgement
-import lisa.utils.tactics.ProofStepLib.{*, given}
+import lisa.utils.tactics.ProofTacticJudgement
+import lisa.utils.tactics.ProofTacticLib.{*, given}
 //import lisa.utils.tactics.SimpleDeducedSteps.Restate
 
 import scala.collection.mutable.Set as mSet
@@ -227,13 +227,13 @@ object SimplePropositionalSolver {
     r4
   }
 
-  final class Trivial(using val proof: Library#Proof) extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(-1) {
+  final class Trivial(using val proof: Library#Proof) extends ProofTacticWithoutBot with ProofTacticWithoutBotNorPrem(-1) {
     override val premises: Seq[Int] = Seq()
 
-    def asSCProof(bot: Sequent): ProofStepJudgement = {
-      ProofStepJudgement.ValidProofStep(SCSubproof(solveSequent(bot)))
+    def asSCProof(premMap: proof.Fact => Int, bot: Sequent): ProofTacticJudgement = {
+      ProofTacticJudgement.ValidProofTactic(SCSubproof(solveSequent(bot)))
     }
-    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofStepJudgement = {
+    def asSCProof(bot: Sequent, premises: Seq[Int]): ProofTacticJudgement = {
 
       val sp = SCSubproof(
         {
@@ -251,9 +251,9 @@ object SimplePropositionalSolver {
         },
         premises
       )
-      ProofStepJudgement.ValidProofStep(sp)
+      ProofTacticJudgement.ValidProofTactic(sp)
     }
   }
-  def Trivial(using proof: Library#Proof) = new Trivial
+  def Trivial(using _proof: Library#Proof): Trivial{val proof: _proof.type} = (new Trivial).asInstanceOf
 
 }

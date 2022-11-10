@@ -2,43 +2,43 @@ package lisa.utils.tactics
 
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus.SCProofStep
-import lisa.utils.tactics.ProofStepLib.ProofStep
+import lisa.utils.tactics.ProofTacticLib.ProofTactic
 
 /**
- * Contains the result of a tactic computing a SCProofStep.
+ * Contains the result of a tactic computing a SCProofTactic.
  * Can be successful or unsuccessful.
  */
-sealed abstract class ProofStepJudgement {
-  import ProofStepJudgement.*
+sealed abstract class ProofTacticJudgement {
+  import ProofTacticJudgement.*
 
   /**
    * Returns true if and only if the jusdgement is valid.
    */
   def isValid: Boolean = this match {
-    case ValidProofStep(scps) => true
-    case InvalidProofStep(ps, error) => false
+    case ValidProofTactic(scps) => true
+    case InvalidProofTactic(ps, error) => false
   }
 
 }
 
-object ProofStepJudgement {
+object ProofTacticJudgement {
 
   /**
    * Indicates an error in the building of a proof that was caught before the proof is passed to the logical kernel.
    * May indicate a faulty tactic application.
    */
-  case class EarlyProofStepException(message: String) extends Exception(message)
+  case class EarlyProofTacticException(message: String) extends Exception(message)
 
   /**
    * A Sequent Calculus proof step that has been correctly produced.
    */
-  case class ValidProofStep(scps: SCProofStep) extends ProofStepJudgement
+  case class ValidProofTactic(scps: SCProofStep) extends ProofTacticJudgement
 
   /**
    * A proof step which led to an error when computing the corresponding Sequent Calculus proof step.
    */
-  case class InvalidProofStep(ps: ProofStep, message: String) extends ProofStepJudgement {
-    def launch: Nothing = throw EarlyProofStepException(message)
+  case class InvalidProofTactic(ps: ProofTactic, message: String) extends ProofTacticJudgement {
+    def launch: Nothing = throw EarlyProofTacticException(message)
   }
 
 }

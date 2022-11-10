@@ -4,7 +4,7 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
-import lisa.utils.tactics.ProofStepLib.ProofStep
+import lisa.utils.tactics.ProofTacticLib.ProofTactic
 
 import scala.collection.mutable.Stack as stack
 
@@ -318,6 +318,8 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     builder.result
   }
 
+
+  def variable(using name:sourcecode.Name):VariableLabel = VariableLabel(name.value)
 
 
 }

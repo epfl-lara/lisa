@@ -5,8 +5,8 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.*
 import lisa.utils.Printer
-import lisa.utils.tactics.ProofStepJudgement
-import lisa.utils.tactics.ProofStepLib.*
+import lisa.utils.tactics.ProofTacticJudgement
+import lisa.utils.tactics.ProofTacticLib.*
 
 import scala.collection
 
@@ -104,8 +104,8 @@ object SimpleSimplifier {
     else None
   }
 
-  case class applySubst(phi: Formula) extends ProofStepWithoutPrem {
-    override def asSCProof(premises: Seq[Int], currentProof: lisa.utils.Library#Proof): ProofStepJudgement = {
+  case class applySubst(phi: Formula) extends ProofTacticWithoutPrem {
+    override def asSCProof(premises: Seq[Int], currentProof: lisa.utils.Library#Proof): ProofTacticJudgement = {
       val originSequent = currentProof.getSequent(premises.head)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -119,7 +119,7 @@ object SimpleSimplifier {
           val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
           val isolatedRight = originSequent.right.map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
           if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
-            return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), s"There is no instance of ${Printer.prettyTerm(left)} to replace.")
+            return ProofTacticJudgement.InvalidProofTactic(this.asProofTactic(premises), s"There is no instance of ${Printer.prettyTerm(left)} to replace.")
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -141,7 +141,7 @@ object SimpleSimplifier {
             proof,
             Seq(premises.head)
           )
-          ProofStepJudgement.ValidProofStep(subproof)
+          ProofTacticJudgement.ValidProofTactic(subproof)
         case ConnectorFormula(label, args) if label == Iff =>
           val left = args(0)
           val right = args(1)
@@ -150,7 +150,7 @@ object SimpleSimplifier {
           val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           val isolatedRight = originSequent.right.map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
-            return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), s"There is no instance of ${Printer.prettyFormula(left)} to replace.")
+            return ProofTacticJudgement.InvalidProofTactic(this.asProofTactic(premises), s"There is no instance of ${Printer.prettyFormula(left)} to replace.")
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -172,8 +172,8 @@ object SimpleSimplifier {
             proof,
             Seq(premises.head)
           )
-          ProofStepJudgement.ValidProofStep(subproof)
-        case _ => ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), s"Formula in applySingleSimp need to be of the form a=b or q<=>p and not ${phi.label}")
+          ProofTacticJudgement.ValidProofTactic(subproof)
+        case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTactic(premises), s"Formula in applySingleSimp need to be of the form a=b or q<=>p and not ${phi.label}")
       }
 
     }
