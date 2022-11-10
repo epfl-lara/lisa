@@ -33,20 +33,19 @@ trait WithTheorems {
       val bot: Sequent = scps.bot
     }
     private object ProofStep {
-      def newProofStep(ps: ProofTactic{val proof: SelfType})(using om:OutputManager): ProofStep = {
-        val judgement = ps.asSCProof(sequentAndIntOfFact(_)._2)
+      def newProofStep(pt: ProofTactic{val proof: SelfType}): ProofStep|InvalidProofTactic = {
+        val judgement = pt.asSCProof(sequentAndIntOfFact(_)._2)
         judgement match {
           case ValidProofTactic(scps) =>
-            val ds = ProofStep(ps, scps, steps.length)
-            addStep(ds)
-            ds
-          case InvalidProofTactic(ps, message) =>
-            om.output(s"$message\n")
-            om.finishOutput(EarlyProofTacticException(message))
+            val ps = ProofStep(pt, scps, steps.length)
+            addStep(ps)
+            ps
+          case ipt: InvalidProofTactic =>
+            ipt
         }
       }
     }
-    def newProofStep(ps: ProofTactic{val proof: SelfType})(using om:OutputManager): ProofStep =
+    def newProofStep(ps: ProofTactic{val proof: SelfType}): ProofStep|InvalidProofTactic =
       ProofStep.newProofStep(ps)
 
 
@@ -209,8 +208,6 @@ trait WithTheorems {
         computeProof
       } catch {
         case e: NotImplementedError => om.lisaThrow(new LisaException.EmptyProofException("Closed empty proof."))
-        case e: LisaException.ParsingException => om.lisaThrow(e)
-        case e: LisaException.FaultyProofTacticException => om.lisaThrow(e)
         case e: LisaException => om.lisaThrow(e)
       }
 

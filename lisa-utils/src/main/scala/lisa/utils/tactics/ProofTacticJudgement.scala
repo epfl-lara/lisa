@@ -16,7 +16,7 @@ sealed abstract class ProofTacticJudgement {
    */
   def isValid: Boolean = this match {
     case ValidProofTactic(scps) => true
-    case InvalidProofTactic(ps, error) => false
+    case InvalidProofTactic(error) => false
   }
 
 }
@@ -37,7 +37,7 @@ object ProofTacticJudgement {
   /**
    * A proof step which led to an error when computing the corresponding Sequent Calculus proof step.
    */
-  case class InvalidProofTactic(tactic: ProofTactic, message: String) extends ProofTacticJudgement {
+  case class InvalidProofTactic(message: String) extends ProofTacticJudgement {
     def launch: Nothing = throw EarlyProofTacticException(message)
   }
 

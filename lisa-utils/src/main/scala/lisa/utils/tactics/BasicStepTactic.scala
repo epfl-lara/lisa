@@ -48,15 +48,12 @@ object BasicStepTactic {
         if (cutSet.tail.isEmpty) {
           SC.Cut(bot, premises(0), premises(1), cutSet.head)
         } else
-          ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Inferred cut pivot is not a singleton set.")
+          ProofTacticJudgement.InvalidProofTactic("Inferred cut pivot is not a singleton set.")
       else if (!intersectedCutSet.isEmpty && intersectedCutSet.tail.isEmpty)
       // can still find a pivot
         SC.Cut(bot, premises(0), premises(1), intersectedCutSet.head)
       else
-        ProofTacticJudgement.InvalidProofTactic(
-          this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-          "A consistent cut pivot cannot be inferred from the premises. Possibly a missing or extraneous clause."
-        )
+        ProofTacticJudgement.InvalidProofTactic("A consistent cut pivot cannot be inferred from the premises. Possibly a missing or extraneous clause.")
     }
   }
 
@@ -88,17 +85,14 @@ object BasicStepTactic {
               SC.LeftAnd(bot, premises(0), phi, psi)
             else
               SC.LeftAnd(bot, premises(0), psi, phi)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer a conjunction as pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer a conjunction as pivot from premise and conclusion.")
         }
       else
       // try a rewrite, if it works, go ahead with it, otherwise malformed
         if (SC.isSameSequent(premiseSequent, bot))
           SC.Rewrite(bot, premises(0))
         else
-          ProofTacticJudgement.InvalidProofTactic(
-            this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-            "Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both."
-          )
+          ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
     }
   }
 
@@ -126,10 +120,7 @@ object BasicStepTactic {
         SC.LeftOr(bot, premises, pivots.map(_.head))
       else
       // some extraneous formulae
-        ProofTacticJudgement.InvalidProofTactic(
-          this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-          "Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ."
-        )
+        ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
     }
   }
 
@@ -160,10 +151,7 @@ object BasicStepTactic {
       else if (pivotLeft.tail.isEmpty && pivotRight.tail.isEmpty)
         SC.LeftImplies(bot, premises(0), premises(1), pivotLeft.head, pivotRight.head)
       else
-        ProofTacticJudgement.InvalidProofTactic(
-          this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-          "Could not infer an implication as a pivot from the premises and conclusion, possible extraneous formulae in premises."
-        )
+        ProofTacticJudgement.InvalidProofTactic("Could not infer an implication as a pivot from the premises and conclusion, possible extraneous formulae in premises.")
     }
   }
 
@@ -190,7 +178,7 @@ object BasicStepTactic {
       else
         pivot.head match {
           case ConnectorFormula(Implies, Seq(phi, psi)) => SC.LeftIff(bot, premises(0), phi, psi)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer a pivot implication from premise.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer a pivot implication from premise.")
         }
     }
   }
@@ -218,7 +206,7 @@ object BasicStepTactic {
       else if (pivot.tail.isEmpty)
         SC.LeftNot(bot, premises(0), pivot.head)
       else
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Right-hand side of conclusion + φ must be the same as right-hand side of premise.")
+        ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ must be the same as right-hand side of premise.")
 
     }
   }
@@ -248,10 +236,10 @@ object BasicStepTactic {
         if (pivot.tail.isEmpty)
           pivot.head match {
             case BinderFormula(Forall, x, phi) => SC.LeftForall(bot, premises(0), phi, x, t)
-            case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer a universally quantified pivot from premise and conclusion.")
+            case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
           }
         else
-          ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ.")
+          ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ.")
       else if (instantiatedPivot.isEmpty) SC.Weakening(bot, premises(0))
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
@@ -266,9 +254,9 @@ object BasicStepTactic {
 
         quantifiedPhi match {
           case Some(BinderFormula(Forall, x, phi)) => SC.LeftForall(bot, premises(0), phi, x, t)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer a universally quantified pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
         }
-      } else ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ.")
+      } else ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ.")
     }
   }
 
@@ -307,16 +295,16 @@ object BasicStepTactic {
 
           quantifiedPhi match {
             case Some(BinderFormula(Exists, x, phi)) => SC.LeftExists(bot, premises(0), phi, x)
-            case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an existensially quantified pivot from premise and conclusion.")
+            case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an existensially quantified pivot from premise and conclusion.")
           }
-        } else ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
+        } else ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
           case BinderFormula(Exists, x, phi) => SC.LeftExists(bot, premises(0), phi, x)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an existentially quantified pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       else
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
+        ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
     }
   }
 
@@ -346,17 +334,17 @@ object BasicStepTactic {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ↔ φ == extract ==> x, phi
             case BinderFormula(Exists, _, BinderFormula(Forall, x, ConnectorFormula(Iff, Seq(_, phi)))) => SC.LeftExistsOne(bot, premises(0), phi, x)
-            case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an existentially quantified pivot from premise and conclusion.")
+            case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
         } else
-          ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
+          ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
           case BinderFormula(ExistsOne, x, phi) => SC.LeftExistsOne(bot, premises(0), phi, x)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an existentially quantified pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       else
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
+        ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ.")
     }
   }
 
@@ -385,10 +373,7 @@ object BasicStepTactic {
         SC.RightAnd(bot, premises, pivots.map(_.head))
       else
       // some extraneous formulae
-        ProofTacticJudgement.InvalidProofTactic(
-          this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-          "Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ."
-        )
+        ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")
     }
   }
 
@@ -417,17 +402,14 @@ object BasicStepTactic {
               SC.RightOr(bot, premises(0), phi, psi)
             else
               SC.RightOr(bot, premises(0), psi, phi)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer a disjunction as pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer a disjunction as pivot from premise and conclusion.")
         }
       else
       // try a rewrite, if it works, go ahead with it, otherwise malformed
         if (SC.isSameSequent(premiseSequent, bot))
           SC.Rewrite(bot, premises(0))
         else
-          ProofTacticJudgement.InvalidProofTactic(
-            this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-            "Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both."
-          )
+          ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both.")
     }
   }
 
@@ -456,7 +438,7 @@ object BasicStepTactic {
       )
         SC.RightImplies(bot, premises(0), leftPivot.head, rightPivot.head)
       else
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ→ψ.")
+        ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ→ψ.")
     }
   }
 
@@ -483,13 +465,10 @@ object BasicStepTactic {
       else if (pivot.tail.isEmpty)
         pivot.head match {
           case ConnectorFormula(Implies, Seq(phi, psi)) => SC.RightIff(bot, premises(0), premises(1), phi, psi)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an implication as pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an implication as pivot from premise and conclusion.")
         }
       else
-        ProofTacticJudgement.InvalidProofTactic(
-          this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-          "Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises φ↔ψ."
-        )
+        ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises φ↔ψ.")
     }
   }
 
@@ -516,7 +495,7 @@ object BasicStepTactic {
       else if (pivot.tail.isEmpty)
         SC.RightNot(bot, premises(0), pivot.head)
       else
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Left-hand side of conclusion + φ must be the same as left-hand side of premise.")
+        ProofTacticJudgement.InvalidProofTactic("Left-hand side of conclusion + φ must be the same as left-hand side of premise.")
 
     }
   }
@@ -553,16 +532,16 @@ object BasicStepTactic {
 
           quantifiedPhi match {
             case Some(BinderFormula(Forall, x, phi)) => SC.RightForall(bot, premises(0), phi, x)
-            case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer a universally quantified pivot from premise and conclusion.")
+            case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
           }
-        } else ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∃x. φ.")
+        } else ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∃x. φ.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
           case BinderFormula(Forall, x, phi) => SC.RightForall(bot, premises(0), phi, x)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer a universally quantified pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
         }
       else
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∃x. φ.")
+        ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∃x. φ.")
     }
   }
 
@@ -590,13 +569,10 @@ object BasicStepTactic {
         if (pivot.tail.isEmpty)
           pivot.head match {
             case BinderFormula(Exists, x, phi) => SC.RightExists(bot, premises(0), phi, x, t)
-            case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an existentially quantified pivot from premise and conclusion.")
+            case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
         else
-          ProofTacticJudgement.InvalidProofTactic(
-            this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-            "Right-hand side of conclusion + φ[t/x] must be the same as right-hand side of premise + ∀x. φ."
-          )
+          ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] must be the same as right-hand side of premise + ∀x. φ.")
       else if (instantiatedPivot.isEmpty) SC.Weakening(bot, premises(0))
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
@@ -611,13 +587,10 @@ object BasicStepTactic {
 
         quantifiedPhi match {
           case Some(BinderFormula(Exists, x, phi)) => SC.RightExists(bot, premises(0), phi, x, t)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an existentially quantified pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       } else
-        ProofTacticJudgement.InvalidProofTactic(
-          this.asProofTacticWithoutBot(premises).asProofTactic(bot),
-          "Right-hand side of conclusion + φ[t/x] must be the same as right-hand side of premise + ∀x. φ."
-        )
+        ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] must be the same as right-hand side of premise + ∀x. φ.")
     }
   }
   // def RightExists() = new RightExistsWithoutFormulaOrTerm
@@ -648,17 +621,17 @@ object BasicStepTactic {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ↔ φ == extract ==> x, phi
             case BinderFormula(Exists, _, BinderFormula(Forall, x, ConnectorFormula(Iff, Seq(_, phi)))) => SC.RightExistsOne(bot, premises(0), phi, x)
-            case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an existentially quantified pivot from premise and conclusion.")
+            case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
         } else
-          ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∃x. φ.")
+          ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∃x. φ.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
           case BinderFormula(ExistsOne, x, phi) => SC.RightExistsOne(bot, premises(0), phi, x)
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Could not infer an existentially quantified pivot from premise and conclusion.")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       else
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∃x. φ.")
+        ProofTacticJudgement.InvalidProofTactic("Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∃x. φ.")
     }
   }
 
@@ -799,8 +772,6 @@ object BasicStepTactic {
         computeProof(using iProof)
       } catch {
         case e: NotImplementedError => om.lisaThrow(new LisaException.EmptyProofException("Closed empty subproof."))
-        case e: LisaException.ParsingException => om.lisaThrow(e)
-        case e: LisaException.FaultyProofTacticException => om.lisaThrow(e)
         case e: LisaException => om.lisaThrow(e)
       }
       if (proof.length == 0)

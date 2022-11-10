@@ -64,31 +64,53 @@ trait TheoriesHelpers extends KernelHelpers {
   }
 
   extension (just: RunningTheory#Justification) {
+    def repr:String = just match {
+      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n"
+      case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n"
+      case d: RunningTheory#Definition =>
+        d match {
+          case pd: RunningTheory#PredicateDefinition =>
+            s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
+          case fd: RunningTheory#FunctionDefinition =>
+            s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
+                .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n"
+        }
+    }
 
     /**
      * Outputs, with an implicit om.output function, a readable representation of the Axiom, Theorem or Definition.
      */
     def show(using om:OutputManager): just.type = {
-      just match {
-        case thm: RunningTheory#Theorem => om.output(s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n")
-        case axiom: RunningTheory#Axiom => om.output(s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n")
-        case d: RunningTheory#Definition =>
-          d match {
-            case pd: RunningTheory#PredicateDefinition =>
-              om.output(
-                s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
-              ) // (label, args, phi)
-            case fd: RunningTheory#FunctionDefinition =>
-              om.output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
-                  .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n")
-          }
-      }
+      om.output(repr)
       just
+
     }
   }
 
   extension [J <: RunningTheory#Justification](theoryJudgement: RunningTheoryJudgement[J]) {
+    /**
+     * If the Judgement is valid, show the inner justification and returns it.
+     * Otherwise, om.output the error leading to the invalid justification and throw an error.
+     */
+    def repr: String = {
+      theoryJudgement match {
+        case RunningTheoryJudgement.ValidJustification(just) =>
+          just.repr
+        case InvalidJustification(message, error) =>
+          s"$message\n${error match {
+            case Some(judgement) => Printer.prettySCProof(judgement)
+            case None => ""
+          }}"
+      }
+    }
 
+    /**
+     * If the Judgement is valid, show the inner justification and returns it.
+     * Otherwise, om.output the error leading to the invalid justification and throw an error.
+     */
+    def show(using om:OutputManager): Unit = {
+      om.output(repr)
+    }
     /**
      * If the Judgement is valid, show the inner justification and returns it.
      * Otherwise, om.output the error leading to the invalid justification and throw an error.
@@ -99,9 +121,9 @@ trait TheoriesHelpers extends KernelHelpers {
           just.show
         case InvalidJustification(message, error) =>
           om.output(s"$message\n${error match {
-              case Some(judgement) => Printer.prettySCProof(judgement)
-              case None => ""
-            }}")
+            case Some(judgement) => Printer.prettySCProof(judgement)
+            case None => ""
+          }}")
           om.finishOutput(InvalidJustificationException(message, error))
       }
     }

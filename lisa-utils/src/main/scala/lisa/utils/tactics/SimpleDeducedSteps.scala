@@ -35,7 +35,7 @@ object SimpleDeducedSteps {
         val (lastStep, t2) = proof.mostRecentStep
         SC.Cut((lastStep.bot -< f) ++ (proof.getSequent(t1) -> f), t1, t2, f)
       } else {
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTactic(premises), "When discharging this way, the target sequent must have only a single formula on the right handside.")
+        ProofTacticJudgement.InvalidProofTactic("When discharging this way, the target sequent must have only a single formula on the right handside.")
       }
     }
   }
@@ -67,7 +67,7 @@ object SimpleDeducedSteps {
           val in = instantiateBinder(psi, t)
           this.asSCProof(proof.getSequent(premises(0)) -> phi +> in, premises)
         }
-        case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(() |- ()), "Input formula is not universally quantified")
+        case _ => ProofTacticJudgement.InvalidProofTactic("Input formula is not universally quantified")
       }
     }
 
@@ -96,9 +96,9 @@ object SimpleDeducedSteps {
              */
             SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(premiseSequent)), Seq(premises(0)))
           }
-          case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Input formula is not universally quantified")
+          case _ => ProofTacticJudgement.InvalidProofTactic("Input formula is not universally quantified")
         }
-      } else ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Input formula was not found in the RHS of the premise sequent.")
+      } else ProofTacticJudgement.InvalidProofTactic("Input formula was not found in the RHS of the premise sequent.")
     }
   }
 
@@ -132,7 +132,7 @@ object SimpleDeducedSteps {
       if (premiseSequent.right.tail.isEmpty)
         new InstantiateForall(premiseSequent.right.head, t).asSCProof(premises)
       else
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTactic(premises), "RHS of premise sequent is not a singleton.")
+        ProofTacticJudgement.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
 
     override def asSCProof(bot: Sequent, premises: Seq[Int]): ProofTacticJudgement = {
@@ -141,7 +141,7 @@ object SimpleDeducedSteps {
       if (premiseSequent.right.tail.isEmpty) {
         // well formed
         new InstantiateForall(premiseSequent.right.head, t).asSCProof(bot, premises)
-      } else ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "RHS of premise sequent is not a singleton.")
+      } else ProofTacticJudgement.InvalidProofTactic("RHS of premise sequent is not a singleton.")
 
     }
   }
@@ -172,7 +172,7 @@ object SimpleDeducedSteps {
       val premiseSequent = proof.getSequent(premises(0))
 
       if (!premiseSequent.right.contains(phi)) {
-        ProofTacticJudgement.InvalidProofTactic(this.asProofTactic(premises), "Input formula was not found in the RHS of the premise sequent.")
+        ProofTacticJudgement.InvalidProofTactic("Input formula was not found in the RHS of the premise sequent.")
       } else {
         val emptyProof = SCProof(IndexedSeq(), IndexedSeq(proof.getSequent(premises(0))))
         val j = ProofTacticJudgement.ValidProofTactic(SC.Rewrite(premiseSequent, premises(0)))
@@ -183,7 +183,7 @@ object SimpleDeducedSteps {
         val res = t.foldLeft((emptyProof, phi, j: ProofTacticJudgement)) {
           case ((p, f, j), t) => {
             j match {
-              case ProofTacticJudgement.InvalidProofTactic(_, _) => (p, f, j) // propagate error
+              case ProofTacticJudgement.InvalidProofTactic(_) => (p, f, j) // propagate error
               case ProofTacticJudgement.ValidProofTactic(_) => {
                 // good state, continue instantiating
 
@@ -227,7 +227,7 @@ object SimpleDeducedSteps {
                     (
                       p,
                       f,
-                      ProofTacticJudgement.InvalidProofTactic(this.asProofTactic(premises), "Input formula is not universally quantified")
+                      ProofTacticJudgement.InvalidProofTactic("Input formula is not universally quantified")
                     )
                   }
                 }
@@ -237,7 +237,7 @@ object SimpleDeducedSteps {
         }
 
         res._3 match {
-          case ProofTacticJudgement.InvalidProofTactic(_, _) => res._3
+          case ProofTacticJudgement.InvalidProofTactic(_) => res._3
           case ProofTacticJudgement.ValidProofTactic(_) => SC.SCSubproof(res._1, Seq(premises(0)))
         }
       }
@@ -247,7 +247,7 @@ object SimpleDeducedSteps {
       val res = this.asSCProof(premises)
 
       res match {
-        case ProofTacticJudgement.InvalidProofTactic(_, _) => res
+        case ProofTacticJudgement.InvalidProofTactic(_) => res
         case ProofTacticJudgement.ValidProofTactic(SC.SCSubproof(proof: SCProof, _)) => {
           // check if the same sequent was obtained
           SC.SCSubproof(
@@ -255,7 +255,7 @@ object SimpleDeducedSteps {
             Seq(premises(0))
           )
         }
-        case _ => ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "Unreachable pattern match")
+        case _ => ProofTacticJudgement.InvalidProofTactic("Unreachable pattern match")
       }
     }
 
@@ -288,7 +288,7 @@ object SimpleDeducedSteps {
       if (prem.right.tail.isEmpty) {
         // well formed
         InstantiateForall(using proof)(prem.right.head, t: _*).asSCProof(premises)
-      } else ProofTacticJudgement.InvalidProofTactic(this.asProofTactic(premises), "RHS of premise sequent is not a singleton.")
+      } else ProofTacticJudgement.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
 
     override def asSCProof(bot: Sequent, premises: Seq[Int]): ProofTacticJudgement = {
@@ -296,7 +296,7 @@ object SimpleDeducedSteps {
       if (prem.right.tail.isEmpty) {
         // well formed
         InstantiateForall(using proof)(prem.right.head, t: _*).asSCProof(bot, premises)
-      } else ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), "RHS of premise sequent is not a singleton.")
+      } else ProofTacticJudgement.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
   }
 
@@ -322,7 +322,7 @@ object SimpleDeducedSteps {
   final class PartialCut(using val proof: Library#Proof)(phi: FOL.Formula, conjunction: FOL.Formula) extends ProofTacticWithoutBotNorPrem(2) {
     override def asSCProof(bot: Sequent, premises: Seq[Int]): ProofTacticJudgement = {
 
-      def invalid(message: String) = ProofTacticJudgement.InvalidProofTactic(this.asProofTacticWithoutBot(premises).asProofTactic(bot), message)
+      def invalid(message: String) = ProofTacticJudgement.InvalidProofTactic(message)
 
       val leftSequent = proof.getSequent(premises(0))
       val rightSequent = proof.getSequent(premises(1))

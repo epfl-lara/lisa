@@ -82,7 +82,7 @@ object ProofPrinter {
             val topSteps : Seq[Int] = sp.premises.map((f:sp.proof.Fact) => sp.proof.sequentAndIntOfFact(f)._2)
             pretty("Subproof", topSteps*) +: prettyProofRecursive(sp.iProof, level + 1, currentTree, (if (i == 0) topMostIndices else IndexedSeq.empty) :+ i)
           case other =>
-            val line = pretty(other.getClass.getSimpleName, other.premises.map((f:printedProof.Fact) => printedProof.sequentAndIntOfFact(f)._2)*)
+            val line = pretty(other.name, other.premises.map((f:printedProof.Fact) => printedProof.sequentAndIntOfFact(f)._2)*)
             Seq(line)
         }
       }
@@ -106,6 +106,6 @@ object ProofPrinter {
 
   def prettyProof(proof: Library#Proof): String = prettyProof(proof, None)
   
-  def prettyProof(judgement: InvalidProofTactic): String = prettyProof(judgement.tactic.proof)
+  //def prettyProof(judgement: InvalidProofTactic): String = prettyProof(judgement.tactic.proof)
 
 }
