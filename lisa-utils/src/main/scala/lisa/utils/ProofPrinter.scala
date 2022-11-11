@@ -2,7 +2,6 @@ package lisa.utils
 
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.utils.tactics.BasicStepTactic.SUBPROOF
-import lisa.utils.tactics.ProofTacticJudgement.InvalidProofTactic
 
 
 //temporary - get merged wit regular printer in time

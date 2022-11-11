@@ -3,12 +3,8 @@ package lisa.utils.tactics
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.{RunningTheory, RunningTheoryJudgement, SCProof}
 import lisa.kernel.proof.SequentCalculus.{Cut, Sequent}
-import lisa.utils.{Library, OutputManager}
-import lisa.utils.tactics.ProofTacticJudgement.EarlyProofTacticException
-import lisa.utils.tactics.ProofTacticJudgement.InvalidProofTactic
-import lisa.utils.tactics.ProofTacticJudgement.ValidProofTactic
+import lisa.utils.{Library, LisaException, OutputManager, UserLisaException}
 import lisa.utils.tactics.ProofTacticLib.ProofTactic
-import lisa.utils.LisaException
 
 import scala.collection.mutable.Buffer as mBuf
 import scala.collection.mutable.Map as mMap
@@ -29,15 +25,17 @@ trait WithTheorems {
     private var assumptions: List[Formula] = assump
     private var discharges: List[Fact] = Nil
 
+    def owningTheorem:THM
+
     case class ProofStep private(ps: ProofTactic{val proof: SelfType}, scps: SCProofStep, position: Int) {
       val bot: Sequent = scps.bot
     }
     private object ProofStep {
       def newProofStep(pt: ProofTactic{val proof: SelfType}): ProofStep|InvalidProofTactic = {
-        val judgement = pt.asSCProof(sequentAndIntOfFact(_)._2)
+        val judgement = pt.asSCProof
         judgement match {
-          case ValidProofTactic(scps) =>
-            val ps = ProofStep(pt, scps, steps.length)
+          case ValidProofTactic(scps, imports) =>
+            val ps = ProofStep(pt, SC.SCSubproof(SCProof(scps.toIndexedSeq, imports.map(sequentOfFact).toIndexedSeq)), steps.length) //TODO import the imports
             addStep(ps)
             ps
           case ipt: InvalidProofTactic =>
@@ -53,7 +51,7 @@ trait WithTheorems {
 
     private def addStep(ds: ProofStep): Unit = steps = ds :: steps
     private def addImport(imp: OutsideFact, seq: Sequent): Unit = {
-      imports = (imp, seq):: imports
+      imports = (imp, seq) :: imports
     }
 
     def addAssumption(f: Formula): Unit = {
@@ -167,6 +165,7 @@ trait WithTheorems {
 
     final class InnerProof (val goal:Sequent) extends Proof(this.getAssumptions) {
       val parent: Proof.this.type = Proof.this
+      val owningTheorem:THM = parent.owningTheorem
       type OutsideFact = parent.Fact
       override def asOutsideFact(j:theory.Justification): OutsideFact = parent.asOutsideFact(j)
 
@@ -176,10 +175,37 @@ trait WithTheorems {
         case _ => parent.sequentOfFact(of)
       }
     }
+
+    /**
+     * Contains the result of a tactic computing a SCProofTactic.
+     * Can be successful or unsuccessful.
+     */
+    sealed abstract class ProofTacticJudgement {
+      /**
+       * Returns true if and only if the jusdgement is valid.
+       */
+      def isValid: Boolean = this match {
+        case ValidProofTactic(_, _) => true
+        case InvalidProofTactic(_) => false
+      }
+
+    }
+
+    /**
+     * A Sequent Calculus proof step that has been correctly produced.
+     */
+    case class ValidProofTactic(scps: Seq[SCProofStep], imports: Seq[Fact]) extends ProofTacticJudgement
+
+    /**
+     * A proof step which led to an error when computing the corresponding Sequent Calculus proof step.
+     */
+    case class InvalidProofTactic(message: String) extends ProofTacticJudgement {
+
+      }
   }
 
-  sealed class BaseProof(val goal:Sequent) extends Proof(Nil) {
-
+  sealed class BaseProof(val owningTheorem:THM) extends Proof(Nil) {
+    val goal:Sequent = owningTheorem.goal
     type OutsideFact = theory.Justification
     override def asOutsideFact(j:theory.Justification): OutsideFact = j
 
@@ -199,7 +225,7 @@ trait WithTheorems {
     val name:String = fullName
 
 
-    val proof:BaseProof = new BaseProof(goal)
+    val proof:BaseProof = new BaseProof(this)
     val innerThm: theory.Theorem = show(computeProof)
 
     def show(computeProof: Proof ?=> Unit): theory.Theorem = {
@@ -207,12 +233,12 @@ trait WithTheorems {
         given Proof = proof
         computeProof
       } catch {
-        case e: NotImplementedError => om.lisaThrow(new LisaException.EmptyProofException("Closed empty proof."))
+        case e: NotImplementedError => om.lisaThrow(new UserLisaException.UnimplementedProof(this))
         case e: LisaException => om.lisaThrow(e)
       }
 
       if (proof.length == 0)
-        om.lisaThrow(new LisaException.EmptyProofException("Closed empty proof."))
+        om.lisaThrow(new UserLisaException.UnimplementedProof(this))
 
       val r = TheoremNameWithProof(name, goal, proof.toSCProof)
       val r2 = theory.theorem(r.name, r.statement, r.proof, proof.getImports.map(_._1)) match {

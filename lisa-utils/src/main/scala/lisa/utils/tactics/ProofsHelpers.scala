@@ -87,6 +87,7 @@ trait ProofsHelpers {
     proof.addDischarge(ji)
   }
 
+  //TODO: Fishy
   given Conversion[ProofTacticWithoutBotNorPrem[0], ProofTacticWithoutBot] = _.asProofTacticWithoutBot(Seq())
 
   def showCurrentProof(using om:OutputManager, _proof: library.Proof)():Unit = {
