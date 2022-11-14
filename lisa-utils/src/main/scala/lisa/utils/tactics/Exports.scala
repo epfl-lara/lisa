@@ -2,16 +2,16 @@ package lisa.utils.tactics
 
 import lisa.utils.tactics.BasicStepTactic.*
 import lisa.kernel.fol.FOL.*
-import lisa.utils.tactics.SimpleDeducedSteps.Restate
+//import lisa.utils.tactics.SimpleDeducedSteps.Restate
 import lisa.utils.Helpers.{*, given}
 import lisa.utils.{Library, LisaException, OutputManager}
 
 object Exports {
+  export lisa.utils.tactics.BasicStepTactic.{Hypothesis, Cut, LeftAnd}
 
-  def Hypothesis(using _proof: Library#Proof): Hypothesis{val proof: _proof.type} = (new Hypothesis).asInstanceOf
-  def Cut(using _proof: Library#Proof): CutWithoutFormula{val proof: _proof.type} = (new CutWithoutFormula).asInstanceOf
-  def Restate(using _proof: Library#Proof): Restate{val proof: _proof.type} = (new Restate).asInstanceOf
+  //def Restate(using _proof: Library#Proof): Restate{val proof: _proof.type} = (new Restate).asInstanceOf
 
+  /*
   def LeftAnd(using _proof: Library#Proof): LeftAndWithoutFormula{val proof: _proof.type} = (new LeftAndWithoutFormula).asInstanceOf
   def LeftOr(using _proof: Library#Proof): LeftOrWithoutFormula{val proof: _proof.type} = (new LeftOrWithoutFormula).asInstanceOf
   def LeftImplies(using _proof: Library#Proof): LeftImpliesWithoutFormula{val proof: _proof.type} = (new LeftImpliesWithoutFormula).asInstanceOf
@@ -41,5 +41,5 @@ object Exports {
 
   def InstFunSchema(insts: Map[SchematicTermLabel, LambdaTermTerm])(using _proof: Library#Proof): InstFunSchema{val proof: _proof.type} = (new InstFunSchema(insts)).asInstanceOf
   def InstPredSchema(insts: Map[SchematicTermLabel, LambdaTermTerm])(using _proof: Library#Proof): InstFunSchema{val proof: _proof.type} = (new InstFunSchema(insts)).asInstanceOf
-
+*/
 }

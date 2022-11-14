@@ -1,5 +1,5 @@
 package lisa.utils
-import lisa.kernel.proof.RunningTheoryJudgement
+import lisa.kernel.proof.{RunningTheoryJudgement, SCProof}
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.utils.tactics.ProofTacticLib.ProofTactic
 import lisa.utils.Helpers.repr
@@ -8,7 +8,7 @@ abstract class LisaException(errorMessage:String)(using val line: sourcecode.Lin
   def showError: String
 }
 object LisaException {
-  class InvalidKernelJustificationComputation(errorMessage: String, underlying: RunningTheoryJudgement.InvalidJustification[?])
+  case class InvalidKernelJustificationComputation(proof: Library#Proof, errorMessage: String, underlying: RunningTheoryJudgement.InvalidJustification[?])
                                              (using sourcecode.Line, sourcecode.FileName) extends LisaException(errorMessage) {
     def showError: String = "Construction of proof succedded, but the resulting proof or definition has been reported to be faulty. This may be due to an internal bug.\n" +
       "The resulting fauly proof is:\n" +
@@ -20,10 +20,10 @@ object LisaException {
       }"
   }
 
-  class UnexpectedProofTacticFailureException(tactic: ProofTactic, errorMessage: String)(using sourcecode.Line, sourcecode.FileName) extends LisaException(errorMessage) {
+  case class UnexpectedProofTacticFailureException(failure: Library#Proof#InvalidProofTactic, errorMessage: String)(using sourcecode.Line, sourcecode.FileName) extends LisaException(errorMessage) {
     def showError: String = "A proof tactic used in another proof tactic returned an unexpected error. This may indicate an implementation error in either of the two tactics.\n" +
       "Status of the proof at time of the error is:" +
-      ProofPrinter.prettyProof(tactic.proof)
+      ProofPrinter.prettyProof(failure.proof)
   }
   /*
   class ProofStatusException(errorMessage: String)(using sourcecode.Line, sourcecode.FileName) extends LisaException(errorMessage){

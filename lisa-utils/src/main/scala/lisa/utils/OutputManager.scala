@@ -1,10 +1,17 @@
 package lisa.utils
+import lisa.utils.Helpers.show
 
 abstract class OutputManager {
+  given OutputManager = this
 
-  val output: (String => Unit) 
+  def output(s: String): Unit
 
-  val finishOutput: (Throwable => Nothing) 
+  def finishOutput(t:Throwable): Nothing
 
-  val lisaThrow:(LisaException => Nothing) = finishOutput
+  def lisaThrow(le: LisaException): Nothing = le match {
+    case e: LisaException.InvalidKernelJustificationComputation =>
+      output(ProofPrinter.prettyProof(e.proof))
+      e.underlying.show
+      finishOutput(e)
+  }
 }

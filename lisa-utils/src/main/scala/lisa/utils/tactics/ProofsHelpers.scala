@@ -16,20 +16,21 @@ trait ProofsHelpers {
   given Library = library
 
   case class HaveSequent private[ProofsHelpers](bot: Sequent) {
-    infix def by(just: ProofTacticWithoutBot)(using om:OutputManager): just.proof.ProofStep = {
-      just.asProofTactic(bot).validate
-    }
-
-    infix def bySP(using proof: Library#Proof, om:OutputManager)(using line:sourcecode.Line, file:sourcecode.File)(computeProof: proof.InnerProof ?=> Unit) = {
-      new BasicStepTactic.SUBPROOF(bot, line.value, file.value)(computeProof).validate
+    inline infix def by(using proof:Library#Proof, om:OutputManager)(tactic: Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
+      tactic(bot).validate
     }
   }
 
   case class AndThenSequent private[ProofsHelpers](bot: Sequent) {
-    infix def by[N <: Int & Singleton](just: ProofTacticWithoutBotNorPrem[N])(using om:OutputManager): just.proof.ProofStep = {
-      just.asProofTacticWithoutBot(Seq(just.proof.mostRecentStep._2)).asProofTactic(bot).validate
+    inline infix def by(using proof:Library#Proof, om:OutputManager)(tactic: proof.Fact => Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
+      tactic(proof.mostRecentStep)(bot).validate
+    }
+
+    inline infix def by1[A, B, C, D](a:A,b:B, c:C)(tactic: ProofTactic{def apply(using proof:A)(premise:B)(bot:C): D}): D = {
+      tactic(using a)(b)(c)
     }
   }
+  given [A, B]: Conversion[ProofTactic{def apply(a:A):B}, A => B] = pt => (a:A) => pt(a)
 
   /**
    * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
@@ -40,7 +41,7 @@ trait ProofsHelpers {
    * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
    */
   def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(parseSequent(res))
-
+/*
   /**
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
@@ -53,13 +54,13 @@ trait ProofsHelpers {
    */
   def withImport(using om:OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = have(just)
 
-
+*/
   /**
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
    * which may require a justification by a proof tactic.
    */
   def andThen(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
-
+/*
   /**
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
    * which may require a justification by a proof tactic.
@@ -96,7 +97,7 @@ trait ProofsHelpers {
     })
   }
 
-
+*/
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
 
   /* //TODO: After reviewing the substitutions

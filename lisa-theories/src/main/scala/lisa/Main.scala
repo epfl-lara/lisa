@@ -14,10 +14,10 @@ trait Main {
   private val lineBreak = "\n"
 
   given om:OutputManager = new OutputManager {
-    override val output: String => Unit = s => outString = lineBreak :: s :: outString
-    override val finishOutput: Throwable => Nothing = e => {
+    def output(s: String): Unit = outString = lineBreak :: s :: outString
+    def finishOutput(t: Throwable): Nothing = {
       main(Array[String]())
-      throw e
+      throw t
     }
   }
 

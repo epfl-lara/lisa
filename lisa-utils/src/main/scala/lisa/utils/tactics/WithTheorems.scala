@@ -27,24 +27,22 @@ trait WithTheorems {
 
     def owningTheorem:THM
 
-    case class ProofStep private(ps: ProofTactic{val proof: SelfType}, scps: SCProofStep, position: Int) {
-      val bot: Sequent = scps.bot
+    case class ProofStep private(judgement: ValidProofTactic, scps: SCProofStep, position: Int) {
+      def bot: Sequent = scps.bot
+
+      def tactic: ProofTactic = judgement.tactic
+
     }
     private object ProofStep {
-      def newProofStep(pt: ProofTactic{val proof: SelfType}): ProofStep|InvalidProofTactic = {
-        val judgement = pt.asSCProof
-        judgement match {
-          case ValidProofTactic(scps, imports) =>
-            val ps = ProofStep(pt, SC.SCSubproof(SCProof(scps.toIndexedSeq, imports.map(sequentOfFact).toIndexedSeq)), steps.length) //TODO import the imports
-            addStep(ps)
-            ps
-          case ipt: InvalidProofTactic =>
-            ipt
-        }
+      def newProofStep(judgement: ValidProofTactic): ProofStep = {
+        val ps = ProofStep(judgement, SC.SCSubproof(SCProof(judgement.scps.toIndexedSeq, judgement.imports.map(sequentOfFact).toIndexedSeq), judgement.imports.map(sequentAndIntOfFact(_)._2)), steps.length) //TODO import the imports
+        addStep(ps)
+        ps
+
       }
     }
-    def newProofStep(ps: ProofTactic{val proof: SelfType}): ProofStep|InvalidProofTactic =
-      ProofStep.newProofStep(ps)
+    def newProofStep(judgement: ValidProofTactic): ProofStep =
+      ProofStep.newProofStep(judgement)
 
 
     type Fact = ProofStep | OutsideFact | Int
@@ -90,8 +88,7 @@ trait WithTheorems {
     def toSCProof(using om:OutputManager): lisa.kernel.proof.SCProof = {
       discharges.foreach(i => {
         val (s, t1) = sequentAndIntOfFact(i)
-        val (lastStep, t2) = mostRecentStep
-        SC.Cut((lastStep.bot -< s.right.head) ++ (s -> s.right.head), t1, t2, s.right.head)
+        SC.Cut((mostRecentStep.bot -< s.right.head) ++ (s -> s.right.head), t1, steps.length-1, s.right.head)
       })
       val finalSteps = discharges.foldLeft(steps.map(_.scps))((cumul, next) => {
         val (s, t1) = sequentAndIntOfFact(next)
@@ -154,7 +151,7 @@ trait WithTheorems {
 
 
     def getSequent(f:Fact):Sequent = sequentOfFact(f)
-    def mostRecentStep: (ProofStep, Int) = (steps.head, steps.length - 1)
+    def mostRecentStep: ProofStep = steps.head
 
     def length:Int = steps.length
 
@@ -181,6 +178,8 @@ trait WithTheorems {
      * Can be successful or unsuccessful.
      */
     sealed abstract class ProofTacticJudgement {
+      val tactic:ProofTactic
+      val proof: Proof = Proof.this
       /**
        * Returns true if and only if the jusdgement is valid.
        */
@@ -189,17 +188,26 @@ trait WithTheorems {
         case InvalidProofTactic(_) => false
       }
 
+      def validate(using line: sourcecode.Line, file: sourcecode.FileName): ProofStep = {
+        this match {
+          case vpt: ValidProofTactic => newProofStep(vpt)
+          case InvalidProofTactic(message) => throw UserLisaException.UnapplicableProofTactic(tactic, message)(using line, file)
+        }
+      }
+
     }
 
     /**
      * A Sequent Calculus proof step that has been correctly produced.
      */
-    case class ValidProofTactic(scps: Seq[SCProofStep], imports: Seq[Fact]) extends ProofTacticJudgement
+    case class ValidProofTactic(scps: Seq[SCProofStep], imports: Seq[Fact])(using val tactic:ProofTactic) extends ProofTacticJudgement {
+
+    }
 
     /**
      * A proof step which led to an error when computing the corresponding Sequent Calculus proof step.
      */
-    case class InvalidProofTactic(message: String) extends ProofTacticJudgement {
+    case class InvalidProofTactic(message: String)(using val tactic:ProofTactic) extends ProofTacticJudgement {
 
       }
   }
@@ -232,8 +240,8 @@ trait WithTheorems {
       try {
         given Proof = proof
         computeProof
-      } catch {
-        case e: NotImplementedError => om.lisaThrow(new UserLisaException.UnimplementedProof(this))
+      } catch {/*
+        case e: NotImplementedError => om.lisaThrow(new UserLisaException.UnimplementedProof(this))*/
         case e: LisaException => om.lisaThrow(e)
       }
 
@@ -246,7 +254,10 @@ trait WithTheorems {
           library.last = Some(just)
           just
         case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
-          om.finishOutput(LisaException.InvalidKernelJustificationComputation("The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.", wrongJudgement))
+          om.lisaThrow(LisaException.InvalidKernelJustificationComputation(
+            proof,
+            "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
+            wrongJudgement))
       }
       library.last = Some(r2)
       r2

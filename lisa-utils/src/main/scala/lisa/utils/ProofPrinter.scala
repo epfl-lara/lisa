@@ -18,7 +18,7 @@ object ProofPrinter {
         level,
         (Seq((proof.getSteps.size - 1).toString.length, result(level)) ++ (if (proof.getImports.nonEmpty) Seq((-proof.getImports.size).toString.length) else Seq.empty)).max
       )
-      proof.getSteps.collect { case ps: proof.ProofStep if ps.ps.isInstanceOf[SUBPROOF] => ps.ps.asInstanceOf[SUBPROOF]}
+      proof.getSteps.collect { case ps: proof.ProofStep if ps.tactic.isInstanceOf[SUBPROOF] => ps.tactic.asInstanceOf[SUBPROOF]}
         .foldLeft(resultWithCurrent)((acc, sp) => computeMaxNumberingLengths(sp.iProof, level + 1, if (acc.size <= level + 1) acc :+ 0 else acc))
     }
 
@@ -76,12 +76,12 @@ object ProofPrinter {
             Printer.prettySequent(step.bot)
           )
 
-        step.ps match {
+        step.tactic match {
           case sp: SUBPROOF =>
             val topSteps : Seq[Int] = sp.premises.map((f:sp.proof.Fact) => sp.proof.sequentAndIntOfFact(f)._2)
             pretty("Subproof", topSteps*) +: prettyProofRecursive(sp.iProof, level + 1, currentTree, (if (i == 0) topMostIndices else IndexedSeq.empty) :+ i)
           case other =>
-            val line = pretty(other.name, other.premises.map((f:printedProof.Fact) => printedProof.sequentAndIntOfFact(f)._2)*)
+            val line = pretty(other.name)
             Seq(line)
         }
       }

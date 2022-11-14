@@ -5,7 +5,6 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.*
 import lisa.utils.Printer
-import lisa.utils.tactics.ProofTacticJudgement
 import lisa.utils.tactics.ProofTacticLib.*
 
 import scala.collection
