@@ -188,7 +188,7 @@ trait WithTheorems {
         case InvalidProofTactic(_) => false
       }
 
-      def validate(using line: sourcecode.Line, file: sourcecode.FileName): ProofStep = {
+      def validate(line: sourcecode.Line, file: sourcecode.FileName): ProofStep = {
         this match {
           case vpt: ValidProofTactic => newProofStep(vpt)
           case InvalidProofTactic(message) => throw UserLisaException.UnapplicableProofTactic(tactic, message)(using line, file)

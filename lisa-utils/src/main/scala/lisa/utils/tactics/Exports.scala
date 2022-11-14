@@ -8,6 +8,7 @@ import lisa.utils.{Library, LisaException, OutputManager}
 
 object Exports {
   export lisa.utils.tactics.BasicStepTactic.{Hypothesis, Cut, LeftAnd}
+  export lisa.utils.tactics.SimpleDeducedSteps.{Restate}
 
   //def Restate(using _proof: Library#Proof): Restate{val proof: _proof.type} = (new Restate).asInstanceOf
 

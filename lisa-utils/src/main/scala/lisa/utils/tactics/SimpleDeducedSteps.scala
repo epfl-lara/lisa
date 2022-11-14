@@ -12,27 +12,30 @@ import lisa.utils.{Library, LisaException, OutputManager}
 import lisa.utils.tactics.ProofTacticLib.{*, given}
 
 object SimpleDeducedSteps {
-/*
-  final class Restate(using val proof: Library#Proof) extends ProofTacticWithoutBot with ProofTacticWithoutBotNorPrem(1) {
-    def asSCProof(bot: Sequent): proof.ProofTacticJudgement =
-      SC.RewriteTrue(bot)
 
-    def asSCProof(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement =
-      SC.Rewrite(bot, -1)
+  object Restate extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
+    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement =
+      proof.ValidProofTactic(Seq(SC.RewriteTrue(bot)), Nil)
+
+    
+    //(proof.ProofStep | proof.OutsideFact | Int)     is definitionally equal to proof.Fact, but for some reason
+    // scala compiler doesn't resolve the overload with a type alias, dependant type and implicit parameter
+    
+    def apply(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
+      proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
 
   }
-  def Restate(using _proof: Library#Proof): Restate{val proof: _proof.type} = (new Restate(using _proof)).asInstanceOf
 
+/*
 
-
-  final class Discharge(using val proof: Library#Proof) extends ProofTacticWithoutPrem(1) {
-    override def asSCProof(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+  object Discharge(using proof: Library#Proof) extends ProofTacticWithoutPrem(1) {
+    override def apply(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
       val s = proof.getSequent(-1)
       if (s.right.size == 1) {
         val f = s.right.head
         val t1 = -1
         val (lastStep, t2) = proof.mostRecentStep
-        SC.Cut((lastStep.bot -< f) ++ (proof.getSequent(t1) -> f), t1, t2, f)
+        proof.ValidProofTactic(Seq(SC.Cut((lastStep.bot -< f) ++ (proof.getSequent(t1) -> f), t1, t2, f)
       } else {
         proof.InvalidProofTactic("When discharging this way, the target sequent must have only a single formula on the right handside.")
       }
@@ -57,20 +60,20 @@ object SimpleDeducedSteps {
    *
    * Returns a subproof containing the instantiation steps
    */
-  final class InstantiateForall[P<:Library#Proof & Singleton](using val proof: P)(phi: FOL.Formula, t: FOL.Term) extends ProofTacticWithoutPrem(1) with ProofTacticWithoutBotNorPrem(1) {
+  object InstantiateForall[P<:Library#Proof & Singleton](using val proof: P)(phi: FOL.Formula, t: FOL.Term) extends ProofTacticWithoutPrem(1) with ProofTacticWithoutBotNorPrem(1) {
     override val numbPrem = 1
 
-    override def asSCProof(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+    override def apply(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
       phi match {
         case psi @ FOL.BinderFormula(FOL.Forall, _, _) => {
           val in = instantiateBinder(psi, t)
-          this.asSCProof(proof.getSequent(-1) -> phi +> in, premises)
+          this.apply(proof.getSequent(-1) -> phi +> in, premises)
         }
         case _ => proof.InvalidProofTactic("Input formula is not universally quantified")
       }
     }
 
-    override def asSCProof(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+    override def apply(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(-1)
       if (premiseSequent.right.contains(phi)) {
         // valid derivation, construct proof
@@ -80,9 +83,9 @@ object SimpleDeducedSteps {
             // instantiate the formula with input
             val in = instantiateBinder(psi, t)
             // construct proof
-            val p0 = SC.Hypothesis(in |- in, in)
-            val p1 = SC.LeftForall(phi |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
-            val p2 = SC.Cut(bot, -1, 1, phi)
+            val p0 = proof.ValidProofTactic(Seq(SC.Hypothesis(in |- in, in)
+            val p1 = proof.ValidProofTactic(Seq(SC.LeftForall(phi |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
+            val p2 = proof.ValidProofTactic(Seq(SC.Cut(bot, -1, 1, phi)
             /**
              * in  = ψ[t/x]
              *
@@ -93,7 +96,7 @@ object SimpleDeducedSteps {
              * p1  = ∀x.ψ ⊢ ψ[t/x]      LeftForall p0
              * p2  = Γ ⊢ ψ[t/x], Δ      Cut s1, p1
              */
-            SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(premiseSequent)), Seq(-1))
+            proof.ValidProofTactic(Seq(SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(premiseSequent)), Seq(-1))
           }
           case _ => proof.InvalidProofTactic("Input formula is not universally quantified")
         }
@@ -121,25 +124,25 @@ object SimpleDeducedSteps {
    *
    * Returns a subproof containing the instantiation steps
    */
-  final class InstantiateForallWithoutFormula[P<:Library#Proof & Singleton](using val proof: P)(t: FOL.Term) extends ProofTacticWithoutPrem(1) with ProofTacticWithoutBotNorPrem(1) {
+  object InstantiateForallWithoutFormula[P<:Library#Proof & Singleton](using val proof: P)(t: FOL.Term) extends ProofTacticWithoutPrem(1) with ProofTacticWithoutBotNorPrem(1) {
 
     override val numbPrem = 1
 
-    override def asSCProof(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+    override def apply(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(-1)
 
       if (premiseSequent.right.tail.isEmpty)
-        new InstantiateForall(premiseSequent.right.head, t).asSCProof(premises).asInstanceOf
+        new InstantiateForall(premiseSequent.right.head, t).apply(premises).asInstanceOf
       else
         proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
 
-    override def asSCProof(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+    override def apply(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(-1)
 
       if (premiseSequent.right.tail.isEmpty) {
         // well formed
-        new InstantiateForall(premiseSequent.right.head, t).asSCProof(bot, premises).asInstanceOf
+        new InstantiateForall(premiseSequent.right.head, t).apply(bot, premises).asInstanceOf
       } else proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
 
     }
@@ -163,10 +166,10 @@ object SimpleDeducedSteps {
    *
    * </pre>
    */
-  final class InstantiateForallMultiple[P<:Library#Proof & Singleton](using val proof: P)(phi: FOL.Formula, t: FOL.Term*) extends ProofTacticWithoutPrem(1) with ProofTacticWithoutBotNorPrem(1) {
+  object InstantiateForallMultiple[P<:Library#Proof & Singleton](using val proof: P)(phi: FOL.Formula, t: FOL.Term*) extends ProofTacticWithoutPrem(1) with ProofTacticWithoutBotNorPrem(1) {
     override val numbPrem = 1
 
-    override def asSCProof(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+    override def apply(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
 
       val premiseSequent = proof.getSequent(-1)
 
@@ -199,9 +202,9 @@ object SimpleDeducedSteps {
                     val bot = p.conclusion -> f +> in
 
                     // construct proof
-                    val p0 = SC.Hypothesis(in |- in, in)
-                    val p1 = SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
-                    val p2 = SC.Cut(bot, -1, 1, f)
+                    val p0 = proof.ValidProofTactic(Seq(SC.Hypothesis(in |- in, in)
+                    val p1 = proof.ValidProofTactic(Seq(SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
+                    val p2 = proof.ValidProofTactic(Seq(SC.Cut(bot, -1, 1, f)
 
                     /**
                      * in  = ψ[t/x]
@@ -214,7 +217,7 @@ object SimpleDeducedSteps {
                      * p2  = Γ ⊢ ψ[t/x], Δ      Cut s1, p1
                      */
 
-                    val newStep = SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(p.conclusion)), Seq(p.length - 1))
+                    val newStep = proof.ValidProofTactic(Seq(SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(p.conclusion)), Seq(p.length - 1))
 
                     (
                       p withNewSteps IndexedSeq(newStep),
@@ -237,19 +240,19 @@ object SimpleDeducedSteps {
 
         res._3 match {
           case proof.InvalidProofTactic(_) => res._3
-          case proof.ValidProofTactic(_, _) => SC.SCSubproof(res._1, Seq(-1))
+          case proof.ValidProofTactic(_, _) => proof.ValidProofTactic(Seq(SC.SCSubproof(res._1, Seq(-1))
         }
       }
     }
 
-    override def asSCProof(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
-      val res = this.asSCProof(premises)
+    override def apply(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+      val res = this.apply(premises)
 
       res match {
         case proof.InvalidProofTactic(_) => res
         case proof.ValidProofTactic(SC.SCSubproof(proof: SCProof, _), imports) => { //TODO: Fix
           // check if the same sequent was obtained
-          SC.SCSubproof(
+          proof.ValidProofTactic(Seq(SC.SCSubproof(
             proof withNewSteps IndexedSeq(SC.Rewrite(bot, proof.length - 1)),
             Seq(-1)
           )
@@ -280,21 +283,21 @@ object SimpleDeducedSteps {
    *
    * </pre>
    */
-  final class InstantiateForallMultipleWithoutFormula[P<:Library#Proof & Singleton](using val proof: P)(t: FOL.Term*) extends ProofTacticWithoutPrem(1) with ProofTacticWithoutBotNorPrem(1) {
+  object InstantiateForallMultipleWithoutFormula[P<:Library#Proof & Singleton](using val proof: P)(t: FOL.Term*) extends ProofTacticWithoutPrem(1) with ProofTacticWithoutBotNorPrem(1) {
     override val numbPrem = 1
-    override def asSCProof(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+    override def apply(premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
       val prem = proof.getSequent(-1)
       if (prem.right.tail.isEmpty) {
         // well formed
-        InstantiateForall(using proof)(prem.right.head, t*).asSCProof(premises).asInstanceOf
+        InstantiateForall(using proof)(prem.right.head, t*).apply(premises).asInstanceOf
       } else proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
 
-    override def asSCProof(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+    override def apply(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
       val prem = proof.getSequent(-1)
       if (prem.right.tail.isEmpty) {
         // well formed
-        InstantiateForall(using proof)(prem.right.head, t*).asSCProof(bot, premises).asInstanceOf
+        InstantiateForall(using proof)(prem.right.head, t*).apply(bot, premises).asInstanceOf
       } else proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
   }
@@ -318,8 +321,8 @@ object SimpleDeducedSteps {
    *
    * </pre>
    */
-  final class PartialCut(using val proof: Library#Proof)(phi: FOL.Formula, conjunction: FOL.Formula) extends ProofTacticWithoutBotNorPrem(2) {
-    override def asSCProof(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
+  object PartialCut(using proof: Library#Proof)(phi: FOL.Formula, conjunction: FOL.Formula) extends ProofTacticWithoutBotNorPrem(2) {
+    override def apply(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement = {
 
       def invalid(message: String) = proof.InvalidProofTactic(message)
 
@@ -340,8 +343,8 @@ object SimpleDeducedSteps {
 
                 val Sigma: Set[FOL.Formula] = rightSequent.left - phi
 
-                val p0 = SC.Weakening(rightSequent ++< (psi |- ()), -2)
-                val p1 = SC.RewriteTrue(psi |- psi)
+                val p0 = proof.ValidProofTactic(Seq(SC.Weakening(rightSequent ++< (psi |- ()), -2)
+                val p1 = proof.ValidProofTactic(Seq(SC.RewriteTrue(psi |- psi)
 
                 // TODO: can be abstracted into a RightAndAll step
                 val emptyProof = SCProof(IndexedSeq(), IndexedSeq(p0.bot, p1.bot))
@@ -349,9 +352,9 @@ object SimpleDeducedSteps {
                   p withNewSteps IndexedSeq(SC.RightAnd(p.conclusion -> gamma +> FOL.ConnectorFormula(FOL.And, gamma +: psi), Seq(p.length - 1, -2), gamma +: psi))
                 }
 
-                val p2 = SC.SCSubproof(proofRightAndAll, Seq(0, 1))
-                val p3 = SC.Rewrite(Sigma + conjunction |- newConclusions, 2) // sanity check and correct form
-                val p4 = SC.Cut(bot, -1, 3, conjunction)
+                val p2 = proof.ValidProofTactic(Seq(SC.SCSubproof(proofRightAndAll, Seq(0, 1))
+                val p3 = proof.ValidProofTactic(Seq(SC.Rewrite(Sigma + conjunction |- newConclusions, 2) // sanity check and correct form
+                val p4 = proof.ValidProofTactic(Seq(SC.Cut(bot, -1, 3, conjunction)
 
                 /**
                  * newConclusions = ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn

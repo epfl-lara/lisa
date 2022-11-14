@@ -4,7 +4,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.{*, given}
-import lisa.utils.tactics.ProofTacticLib.ProofTactic
+import lisa.utils.tactics.ProofTacticLib.{ParameterlessAndThen, ParameterlessHave, ProofTactic}
 import lisa.utils.{Library, Printer}
 //import lisa.utils.tactics.SimpleDeducedSteps.Restate
 
@@ -226,12 +226,16 @@ object SimplePropositionalSolver {
     r4
   }
 
-  object Trivial extends ProofTactic{
+  object Trivial extends ProofTactic with ParameterlessAndThen {
 
-    def apply()(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(bot: Sequent)(using proof: Library#Proof): proof.ProofTacticJudgement = {
       proof.ValidProofTactic(solveSequent(bot).steps, Seq())
     }
-    def apply(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+
+    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+      apply2(using proof)(Seq(premise)*)(bot)
+
+    def apply2(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       val steps = {
         val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
         val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1+s._2))).toList

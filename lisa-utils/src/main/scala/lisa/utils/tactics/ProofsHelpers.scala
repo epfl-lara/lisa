@@ -1,13 +1,11 @@
 package lisa.utils.tactics
 
 import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof
 import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SequentCalculus.SCProofStep
-import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.{Library, OutputManager, ProofPrinter}
-import lisa.utils.Parser.parseFormula
-import lisa.utils.Parser.parseSequent
-import lisa.utils.Parser.parseTerm
+import lisa.utils.Parser.*
 import lisa.utils.tactics.ProofTacticLib.*
 import lisa.utils.tactics.SimpleDeducedSteps.*
 
@@ -16,21 +14,30 @@ trait ProofsHelpers {
   given Library = library
 
   case class HaveSequent private[ProofsHelpers](bot: Sequent) {
-    inline infix def by(using proof:Library#Proof, om:OutputManager)(tactic: Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
-      tactic(bot).validate
+    inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
+                       (tactic: Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
+      tactic(bot).validate(line, file)
+    }
+    inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
+                       (tactic: ParameterlessHave): proof.ProofStep = {
+      tactic(bot).validate(line, file)
     }
   }
 
   case class AndThenSequent private[ProofsHelpers](bot: Sequent) {
-    inline infix def by(using proof:Library#Proof, om:OutputManager)(tactic: proof.Fact => Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
-      tactic(proof.mostRecentStep)(bot).validate
+    inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
+                       (tactic: proof.Fact => Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
+      tactic(proof.mostRecentStep)(bot).validate(line, file)
     }
-
-    inline infix def by1[A, B, C, D](a:A,b:B, c:C)(tactic: ProofTactic{def apply(using proof:A)(premise:B)(bot:C): D}): D = {
-      tactic(using a)(b)(c)
+    inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
+                       (tactic: ParameterlessAndThen): proof.ProofStep = {
+      tactic(proof.mostRecentStep)(bot).validate(line, file)
     }
+    //inline infix def by1[A, B, C, D](a:A,b:B, c:C)(tactic: ProofTactic{def apply(using proof:A)(premise:B)(bot:C): D}): D = {
+    //  tactic(using a)(b)(c)
+    //}
   }
-  given [A, B]: Conversion[ProofTactic{def apply(a:A):B}, A => B] = pt => (a:A) => pt(a)
+
 
   /**
    * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
