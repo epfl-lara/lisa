@@ -18,21 +18,17 @@ object Exercise extends lisa.Main {
   }
   show
 
-
-/*
-
-
   val fixedPointDoubleApplication = makeTHM("∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))") {
     assume(forall(x, P(x) ==> P(f(x))))
     val base = have((P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x)))) by Trivial
+
     have(() |- P(x) ==> P(f(f(x)))) bySP {
       have(P(f(x)) ==> P(f(f(x))) |- P(x) ==> P(f(f(x)))) by LeftForall(x)(base)
-      andThen(() |- P(x) ==> P(f(f(x)))) by LeftForall(f(x))
+      andThen(() |- P(x) ==> P(f(f(x)))).by(LeftForall(f(x)))
     }
-    showCurrentProof()
+    //showCurrentProof()
   }
   show
-*/
 
 
 }

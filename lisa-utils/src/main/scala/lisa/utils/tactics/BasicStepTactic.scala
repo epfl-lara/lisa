@@ -721,7 +721,7 @@ object BasicStepTactic {
 
 
   class SUBPROOF (using val proof: Library#Proof, om:OutputManager)
-                 (statement: Sequent | String, val line:Int, val file:String)
+                 (statement: Sequent | String, val line:sourcecode.Line, val file:sourcecode.FileName)
                  (computeProof: proof.InnerProof ?=> Unit) extends ProofTactic {
     val bot:Sequent = statement match {
       case s: Sequent => s
@@ -740,7 +740,8 @@ object BasicStepTactic {
         om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
       iProof.toSCProof
     }
-    val premises = iProof.getImports.map(of => of._1)
+    val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
+    def judgement: proof.ValidProofTactic = proof.ValidProofTactic(scproof.steps, premises)
   }
 
 

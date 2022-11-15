@@ -9,6 +9,8 @@ import lisa.utils.Parser.*
 import lisa.utils.tactics.ProofTacticLib.*
 import lisa.utils.tactics.SimpleDeducedSteps.*
 
+import scala.annotation.targetName
+
 trait ProofsHelpers {
   library: Library & WithTheorems =>
   given Library = library
@@ -22,6 +24,13 @@ trait ProofsHelpers {
                        (tactic: ParameterlessHave): proof.ProofStep = {
       tactic(bot).validate(line, file)
     }
+
+    inline infix def bySP(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
+                       (tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
+
+      val sp = (new BasicStepTactic.SUBPROOF(using proof, om)(bot, line, file)(tactic))
+      sp.judgement.validate(line, file).asInstanceOf
+    }
   }
 
   case class AndThenSequent private[ProofsHelpers](bot: Sequent) {
@@ -29,9 +38,11 @@ trait ProofsHelpers {
                        (tactic: proof.Fact => Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
       tactic(proof.mostRecentStep)(bot).validate(line, file)
     }
+
     inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
                        (tactic: ParameterlessAndThen): proof.ProofStep = {
       tactic(proof.mostRecentStep)(bot).validate(line, file)
+
     }
     //inline infix def by1[A, B, C, D](a:A,b:B, c:C)(tactic: ProofTactic{def apply(using proof:A)(premise:B)(bot:C): D}): D = {
     //  tactic(using a)(b)(c)
@@ -79,7 +90,7 @@ trait ProofsHelpers {
     pswp.asProofTactic(Seq(pswp.proof.mostRecentStep._2)).validate
   }
 
-
+*/
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
@@ -87,7 +98,7 @@ trait ProofsHelpers {
     proof.addAssumption(f)
     f
   }
-
+/*
   /**
    * Store the given import and use it to discharge the proof of one of its assumption at the very end.
    */
@@ -98,13 +109,13 @@ trait ProofsHelpers {
   //TODO: Fishy
   given Conversion[ProofTacticWithoutBotNorPrem[0], ProofTacticWithoutBot] = _.asProofTacticWithoutBot(Seq())
 
+*/
   def showCurrentProof(using om:OutputManager, _proof: library.Proof)():Unit = {
     om.output({
       ProofPrinter.prettyProof(_proof)
     })
   }
 
-*/
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
 
   /* //TODO: After reviewing the substitutions
