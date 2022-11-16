@@ -292,7 +292,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     case Some(value) => value.show
     case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
   }
-  // given Conversion[String, theory.Justification] = name => theory.getJustification(name).get
 
   /**
    * Converts different class that have a natural interpretation as a Sequent
@@ -303,7 +302,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     case s: Sequent => s
   }
 
-  given Conversion[Sequentable, Sequent] = sequantableToSequent
+  //given Conversion[Sequentable, Sequent] = sequantableToSequent
   given Conversion[theory.Axiom, Formula] = theory.sequentFromJustification(_).right.head
   given Conversion[Formula, theory.Axiom] = (f: Formula) => theory.getAxiom(f).get
   given convJustSequent[C <: Iterable[Sequentable], D](using bf: scala.collection.BuildFrom[C, Sequent, D]): Conversion[C, D] = cc => {

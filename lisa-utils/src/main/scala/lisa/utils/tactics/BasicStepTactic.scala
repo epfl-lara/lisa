@@ -734,10 +734,10 @@ object BasicStepTactic {
         computeProof(using iProof)
       } catch {/*
         case e: NotImplementedError => om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))*/
-        case e: LisaException => om.lisaThrow(e)
+        case e: LisaException => throw e
       }
       if (proof.length == 0)
-        om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
+        throw (new UserLisaException.UnimplementedProof(proof.owningTheorem))
       iProof.toSCProof
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)

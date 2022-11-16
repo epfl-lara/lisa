@@ -15,7 +15,7 @@ object ProofTacticLib {
    * A ProofTactic is an object that relies on a step of premises and which can be translated into pure Sequent Calculus.
    */
   trait ProofTactic {
-    val name: String = this.getClass.getSimpleName
+    val name: String = this.getClass.getName.split('$').last
     given ProofTactic = this
 
   }

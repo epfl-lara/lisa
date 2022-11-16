@@ -13,5 +13,10 @@ abstract class OutputManager {
       output(ProofPrinter.prettyProof(e.proof))
       e.underlying.show
       finishOutput(e)
+    case e: UserLisaException.UnapplicableProofTactic =>
+      output(e.showError)
+      finishOutput(e)
+    case _ =>
+      finishOutput(le)
   }
 }

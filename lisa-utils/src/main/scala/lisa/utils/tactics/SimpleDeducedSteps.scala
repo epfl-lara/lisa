@@ -20,8 +20,11 @@ object SimpleDeducedSteps {
     
     //(proof.ProofStep | proof.OutsideFact | Int)     is definitionally equal to proof.Fact, but for some reason
     // scala compiler doesn't resolve the overload with a type alias, dependant type and implicit parameter
-    
-    def apply(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
+
+    def apply(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int )(bot: Sequent): proof.ProofTacticJudgement =
+      proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+
+    def apply2(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
 
   }

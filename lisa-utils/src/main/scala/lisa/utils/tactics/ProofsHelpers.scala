@@ -16,37 +16,38 @@ trait ProofsHelpers {
   given Library = library
 
   case class HaveSequent private[ProofsHelpers](bot: Sequent) {
-    inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
-                       (tactic: Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
-      tactic(bot).validate(line, file)
-    }
-    inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
-                       (tactic: ParameterlessHave): proof.ProofStep = {
-      tactic(bot).validate(line, file)
+    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName): By {val _proof: proof.type} = By(proof, om, line, file).asInstanceOf
+
+    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName) {
+      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
+        tactic(bot).validate(line, file)
+      }
+      inline infix def apply(tactic: ParameterlessHave): _proof.ProofStep = {
+        tactic(using _proof)(bot).validate(line, file)
+      }
     }
 
-    inline infix def bySP(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
-                       (tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
-
-      val sp = (new BasicStepTactic.SUBPROOF(using proof, om)(bot, line, file)(tactic))
-      sp.judgement.validate(line, file).asInstanceOf
+    inline infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName)(tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
+      (new BasicStepTactic.SUBPROOF(using proof, om)(bot, line, file)(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
     }
+
   }
 
   case class AndThenSequent private[ProofsHelpers](bot: Sequent) {
-    inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
-                       (tactic: proof.Fact => Sequent => proof.ProofTacticJudgement): proof.ProofStep = {
-      tactic(proof.mostRecentStep)(bot).validate(line, file)
-    }
 
-    inline infix def by(using proof:Library#Proof, om:OutputManager, line: sourcecode.Line, file: sourcecode.FileName)
-                       (tactic: ParameterlessAndThen): proof.ProofStep = {
-      tactic(proof.mostRecentStep)(bot).validate(line, file)
+    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName): By {val _proof: proof.type} = By(proof, om, line, file).asInstanceOf[By {val _proof: proof.type}]
+
+    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName) {
+
+      inline infix def apply(tactic: _proof.Fact => Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
+        tactic(_proof.mostRecentStep)(bot).validate(line, file)
+      }
+
+      inline infix def apply(tactic: ParameterlessAndThen): _proof.ProofStep = {
+        tactic(using _proof)(_proof.mostRecentStep)(bot).validate(line, file)
+      }
 
     }
-    //inline infix def by1[A, B, C, D](a:A,b:B, c:C)(tactic: ProofTactic{def apply(using proof:A)(premise:B)(bot:C): D}): D = {
-    //  tactic(using a)(b)(c)
-    //}
   }
 
 
@@ -59,20 +60,14 @@ trait ProofsHelpers {
    * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
    */
   def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(parseSequent(res))
-/*
+
   /**
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
   def have(using om:OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
-    have(theory.sequentFromJustification(just)) by Restate(_proof.asOutsideFact(just))
+    have(theory.sequentFromJustification(just)) by Restate(just: _proof.OutsideFact)
   }
 
-  /**
-   * Import the given justification (Axiom, Theorem or Definition) into the current proof.
-   */
-  def withImport(using om:OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = have(just)
-
-*/
   /**
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
    * which may require a justification by a proof tactic.

@@ -17,7 +17,7 @@ trait WithTheorems {
   sealed abstract class Proof(assump: List[Formula]) {
     val goal:Sequent
     type SelfType = this.type
-    type OutsideFact
+    type OutsideFact >: theory.Justification
 
     private val that: this.type = this
     private var steps: List[ProofStep] = Nil

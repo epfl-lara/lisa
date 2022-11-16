@@ -37,16 +37,16 @@ object LisaException {
 /**
  * Error made by the user, should be "explained"
  */
-abstract class UserLisaException(errorMessage:String)(using line: sourcecode.Line, file:sourcecode.FileName) extends LisaException(errorMessage)
+abstract class UserLisaException(val errorMessage:String)(using line: sourcecode.Line, file:sourcecode.FileName) extends LisaException(errorMessage)
 object UserLisaException {
-  class UnapplicableProofTactic(tactic:ProofTactic, errorMessage: String)(using sourcecode.Line, sourcecode.FileName) extends UserLisaException(errorMessage){
+  class UnapplicableProofTactic(val tactic:ProofTactic, errorMessage: String)(using sourcecode.Line, sourcecode.FileName) extends UserLisaException(errorMessage){
     def showError: String = s"Proof tactic ${tactic.name} used in $file:$line did not succeed:\n" +
       errorMessage
   }
-  class UnimplementedProof(theorem: Library#THM)(using sourcecode.Line, sourcecode.FileName) extends LisaException("Unimplemented Theorem"){
+  class UnimplementedProof(val theorem: Library#THM)(using sourcecode.Line, sourcecode.FileName) extends LisaException("Unimplemented Theorem"){
     def showError: String = s"Theorem ${theorem.name}"
   }
-  class UserParsingException(parsedString:String, errorMessage:String) extends UserLisaException(errorMessage){
+  class UserParsingException(val parsedString:String, errorMessage:String) extends UserLisaException(errorMessage){
     def showError: String = ""
   }
 }

@@ -14,7 +14,7 @@ object Exercise extends lisa.Main {
   val testThm = makeTHM("'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('x))") {
     val i1 = have(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate;
     have(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate(i1)
-    andThen(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate
+    //andThen(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate
   }
   show
 
@@ -22,9 +22,12 @@ object Exercise extends lisa.Main {
     assume(forall(x, P(x) ==> P(f(x))))
     val base = have((P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x)))) by Trivial
 
-    have(() |- P(x) ==> P(f(f(x)))) bySP {
-      have(P(f(x)) ==> P(f(f(x))) |- P(x) ==> P(f(f(x)))) by LeftForall(x)(base)
-      andThen(() |- P(x) ==> P(f(f(x)))).by(LeftForall(f(x)))
+    val fo = forall(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
+    have(fo) subproof {
+
+      have((forall(x, P(x) ==> P(f(x))), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x)))) by LeftForall(x)(base)
+      andThen((forall(x, P(x) ==> P(f(x)))) |- P(x) ==> P(f(f(x)))) by (LeftForall(f(x)))
+
     }
     //showCurrentProof()
   }
