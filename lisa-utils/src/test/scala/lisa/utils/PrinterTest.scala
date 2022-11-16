@@ -152,6 +152,11 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     assert(Parser.printFormula(ConnectorFormula(And, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ∧ (b ∨ c)")
   }
 
+  test("schematic connectors") {
+    assert(Parser.printFormula(sc1(p(x))) == "?c(p('x))")
+    assert(Parser.printFormula(iff(sc1(p(x)), sc2(p(y), p(y)))) == "?c(p('x)) ⇔ ?c(p('y), p('y))")
+  }
+
   test("quantifiers") {
     assert(Parser.printFormula(BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq()))) == "∀'x. p")
     assert(Parser.printFormula(BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantPredicateLabel("p", 0), Seq()))) == "∃'x. p")
