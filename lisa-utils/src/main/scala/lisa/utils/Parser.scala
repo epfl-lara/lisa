@@ -58,6 +58,7 @@ object Parser {
    * <p> - two formulas, connected by `↔` or `⇒`. Iff / implies bind less tight than and / or.
    * <p> - a conjunction or disjunction of arbitrary number of formulas. `∧` binds tighter than `∨`.
    * <p> - negated formula.
+   * <p> - schematic connector formula: `?c(f1, f2, f3)`.
    * <p> - equality of two formulas: `f1 = f2`.
    * <p> - a constant `p(a)` or schematic `?p(a)` predicate application to arbitrary number of term arguments.
    * <p> - boolean constant: `⊤` or `⊥`.
@@ -165,6 +166,9 @@ object Parser {
     // Variables, schematic functions and predicates
     case class SchematicToken(id: String) extends FormulaToken(schematicSymbol + id)
 
+    // Schematic connector (prefix notation is expected)
+    case class SchematicConnectorToken(id: String) extends FormulaToken(schematicConnectorSymbol + id)
+
     case class ParenthesisToken(isOpen: Boolean) extends FormulaToken(if (isOpen) "(" else ")")
 
     case object CommaToken extends FormulaToken(",")
@@ -182,6 +186,7 @@ object Parser {
     val escapeChar = '`'
     val pathSeparator = '$'
     private val schematicSymbol = "'"
+    private val schematicConnectorSymbol = "?"
 
     private val letter = elem(_.isLetter)
     private val variableLike = letter ~ many(elem(c => c.isLetterOrDigit || c == '_'))
@@ -213,6 +218,9 @@ object Parser {
         // drop the '
         SchematicToken(cs.drop(1).mkString)
       },
+      word(schematicConnectorSymbol) ~ variableLike |> { cs =>
+        SchematicConnectorToken(cs.drop(1).mkString)
+      },
       // Currently the path is merged into the id on the lexer level. When qualified ids are supported, this should be
       // lifted into the parser.
       opt(path) ~ (variableLike | number | arbitrarySymbol | symbolSequence | escaped) |> { cs => ConstantToken(cs.filter(_ != escapeChar).mkString) }
@@ -239,7 +247,9 @@ object Parser {
           case (l, t) =>
             t match {
               // do not require spaces
-              case ForallToken | ExistsToken | ExistsOneToken | NegationToken | ConstantToken(_) | SchematicToken(_) | TrueToken | FalseToken | ParenthesisToken(_) | SpaceToken => l :+ t.toString
+              case ForallToken | ExistsToken | ExistsOneToken | NegationToken | ConstantToken(_) | SchematicToken(_) | SchematicConnectorToken(_) | TrueToken | FalseToken | ParenthesisToken(_) |
+                  SpaceToken =>
+                l :+ t.toString
               // space after: separators
               case DotToken | CommaToken | SemicolonToken => l :+ t.toString :+ space
               // space before and after: equality, connectors, sequent symbol
@@ -261,6 +271,7 @@ object Parser {
     case object BooleanConstantKind extends TokenKind
     case object FunctionOrPredicateKind extends TokenKind
     case object InfixPredicateKind extends TokenKind
+    case object SchematicConnectorKind extends TokenKind
     case object CommaKind extends TokenKind
     case class ParenthesisKind(isOpen: Boolean) extends TokenKind
     case object BinderKind extends TokenKind
@@ -284,6 +295,7 @@ object Parser {
       case TrueToken | FalseToken => BooleanConstantKind
       case _: ConstantToken | _: SchematicToken => FunctionOrPredicateKind
       case _: InfixPredicateToken => InfixPredicateKind
+      case _: SchematicConnectorToken => SchematicConnectorKind
       case CommaToken => CommaKind
       case ParenthesisToken(isOpen) => ParenthesisKind(isOpen)
       case ExistsToken | ExistsOneToken | ForallToken => BinderKind
@@ -370,7 +382,7 @@ object Parser {
 
     //////////////////////// FORMULAS /////////////////////////////////
     // can appear without parentheses
-    lazy val simpleFormula: Syntax[Formula] = predicate.up[Formula] | negated.up[Formula] | bool.up[Formula]
+    lazy val simpleFormula: Syntax[Formula] = predicate.up[Formula] | negated.up[Formula] | bool.up[Formula] | schematicConnectorFormula.up[Formula]
     lazy val subformula: Syntax[Formula] = simpleFormula | open.skip ~ formula ~ closed.skip
 
     def createTerm(label: Token, args: Seq[Term]): Term = label match {
@@ -482,6 +494,19 @@ object Parser {
           // parser only knows about connector formulas of two arguments, so we unfold the formula of many arguments to
           // multiple nested formulas of two arguments
           (leftSide.foldLeft(l)((f1, f2) => ConnectorFormula(conn, Seq(f1, f2))), conn, last)
+      }
+    )
+
+    lazy val formulaArgs: Syntax[Seq[Formula]] = recursive(open.skip ~ repsep(formula, comma) ~ closed.skip)
+
+    lazy val schematicConnectorFormula: Syntax[ConnectorFormula] = (elem(SchematicConnectorKind) ~ formulaArgs).map(
+      {
+        case SchematicConnectorToken(id) ~ args => ConnectorFormula(SchematicConnectorLabel(id, args.size), args)
+        case _ => throw UnreachableException
+      },
+      {
+        case ConnectorFormula(SchematicConnectorLabel(id, _), args) => Seq(SchematicConnectorToken(id) ~ args)
+        case _ => throw UnreachableException
       }
     )
 
