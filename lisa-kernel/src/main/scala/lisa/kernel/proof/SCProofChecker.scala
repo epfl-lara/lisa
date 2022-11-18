@@ -93,9 +93,9 @@ object SCProofChecker {
            *    Γ, Σ, φ∨ψ |- Δ, Π
            */
           case LeftOr(b, t, disjuncts) =>
-            if (isSameSet(b.right, t.map(ref(_).right).reduce(_ union _))) {
+            if (isSameSet(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _))) {
               val phiOrPsi = ConnectorFormula(Or, disjuncts)
-              if (isSameSet(disjuncts.foldLeft(b.left)(_ + _), t.map(ref(_).left).reduce(_ union _) + phiOrPsi))
+              if (isSameSet(disjuncts.foldLeft(b.left)(_ + _), t.map(ref(_).left).fold(Set.empty)(_ union _) + phiOrPsi))
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
             } else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
@@ -191,8 +191,8 @@ object SCProofChecker {
            */
           case RightAnd(b, t, cunjuncts) =>
             val phiAndPsi = ConnectorFormula(And, cunjuncts)
-            if (isSameSet(b.left, t.map(ref(_).left).reduce(_ union _)))
-              if (isSameSet(cunjuncts.foldLeft(b.right)(_ + _), t.map(ref(_).right).reduce(_ union _) + phiAndPsi))
+            if (isSameSet(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _)))
+              if (isSameSet(cunjuncts.foldLeft(b.right)(_ + _), t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi))
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises φ∧ψ.")
             else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")

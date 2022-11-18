@@ -64,15 +64,15 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF2(proof: SCProof)(using String => Unit)(using finishOutput: Throwable => Nothing): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
+    def PROOF2(proof: SCProof)(using om: OutputManager): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF2(steps: IndexedSeq[SCProofStep])(using String => Unit)(using finishOutput: Throwable => Nothing): TheoremNameWithProof =
+    def PROOF2(steps: IndexedSeq[SCProofStep])(using om: OutputManager): TheoremNameWithProof =
       TheoremNameWithProof(name, statement, SCProof(steps))
 
-    def PROOF(computeProof: => Unit)(using String => Unit)(using finishOutput: Throwable => Nothing): theory.Theorem = {
+    def PROOF(computeProof: => Unit)(using om: OutputManager): theory.Theorem = {
       require(proofStack.isEmpty) // TODO: More explicit error
       proofStack.push(if (proofStack.isEmpty) new Proof() else new Proof(proofStack.head.getAssumptions))
       computeProof
@@ -107,7 +107,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithProof(name: String, statement: String, proof: SCProof)(using String => Unit)(using Throwable => Nothing) {
+  case class TheoremNameWithProof(name: String, statement: String, proof: SCProof)(using om: OutputManager) {
     infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
@@ -158,7 +158,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(t: Term)(using String => Unit)(using finishOutput: Throwable => Nothing): ConstantFunctionLabel = {
+    infix def as(t: Term)(using om: OutputManager): ConstantFunctionLabel = {
       val definition = simpleDefinition(symbol, LambdaTermTerm(vars, t)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -171,7 +171,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(f: Formula)(using String => Unit)(using finishOutput: Throwable => Nothing): ConstantPredicateLabel = {
+    infix def as(f: Formula)(using om: OutputManager): ConstantPredicateLabel = {
       val definition = simpleDefinition(symbol, LambdaTermFormula(vars, f)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -217,7 +217,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(justifications: theory.Justification*)(using String => Unit)(using finishOutput: Throwable => Nothing): ConstantFunctionLabel = {
+    infix def using(justifications: theory.Justification*)(using om: OutputManager): ConstantFunctionLabel = {
       val definition = complexDefinition(symbol, vars, out, f, proof, justifications) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -230,7 +230,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(u: Unit)(using String => Unit)(using finishOutput: Throwable => Nothing): ConstantFunctionLabel = using()
+    infix def using(u: Unit)(using om: OutputManager): ConstantFunctionLabel = using()
   }
 
   /**
@@ -304,7 +304,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * Prints a short representation of the last theorem or definition introduced
    */
-  def show(using String => Unit)(using finishOutput: Throwable => Nothing): Justification = last match {
+  def show(using om: OutputManager): Justification = last match {
     case Some(value) => value.show
     case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
   }
@@ -334,9 +334,9 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     builder.result
   }
 
-  def showCurrentProof()(using output: String => Unit)(using finishOutput: Throwable => Nothing) = {
+  def showCurrentProof()(using om: OutputManager) = {
     val proof = proofStack.head.toSCProof
-    output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
+    om.output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
 
   }
 

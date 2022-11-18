@@ -34,6 +34,7 @@ object Example {
 
     object Ex extends Main {
 
+      /*
       THEOREM("fixedPointDoubleApplication") of "∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))" PROOF {
         assume(forall(x, P(x) ==> P(f(x))))
         val base = have((P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x)))) by Trivial
@@ -43,6 +44,17 @@ object Example {
         }
       }
       show
+       */
+
+      THEOREM("fixed_Point_Double_Application") of "'P('x) ⊢ 'P('x)" PROOF {
+        have("'P('x) ⊢  'P('x)") by Hypothesis
+        andThen("'P('f('x)) ⇒ 'P('f('f('x))) ⊢  'P('f('x)) ⇒ 'P('f('f('x)))") by Trivial
+
+        have("'P('x) ⊢ 'P('x)") by Restate
+        showCurrentProof()
+      }
+      show
+
     }
 
     Ex.main(Array(""))

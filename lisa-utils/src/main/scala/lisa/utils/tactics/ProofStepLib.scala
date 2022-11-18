@@ -10,6 +10,7 @@ import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.Helpers.*
 import lisa.utils.Library
+import lisa.utils.OutputManager
 import lisa.utils.Printer
 import lisa.utils.tactics.ProofStepJudgement.*
 
@@ -24,7 +25,7 @@ object ProofStepLib {
     /**
      * Add the proofstep to the current proof of the given library.
      */
-    def validate(l: Library)(using output: String => Unit)(using finishOutput: Throwable => Nothing): l.Proof#DoubleStep = {
+    def validate(l: Library)(using om: OutputManager): l.Proof#DoubleStep = {
       l.proofStack.head.newDoubleStep(this)
     }
 

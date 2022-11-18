@@ -5,13 +5,14 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.Library
+import lisa.utils.OutputManager
 import lisa.utils.tactics.ProofStepJudgement.EarlyProofStepException
 import lisa.utils.tactics.ProofStepJudgement.InvalidProofStep
 import lisa.utils.tactics.ProofStepJudgement.ValidProofStep
 import lisa.utils.tactics.ProofStepLib.ProofStep
 
-import scala.collection.mutable.{Buffer => mBuf}
-import scala.collection.mutable.{Map => mMap}
+import scala.collection.mutable.Buffer as mBuf
+import scala.collection.mutable.Map as mMap
 
 trait WithProofs extends ProofsHelpers {
   library: Library =>
@@ -69,7 +70,7 @@ trait WithProofs extends ProofsHelpers {
     }
 
     private object DoubleStep {
-      def newDoubleStep(ps: ProofStep)(using output: String => Unit)(using finishOutput: Throwable => Nothing): DoubleStep = {
+      def newDoubleStep(ps: ProofStep)(using om: OutputManager): DoubleStep = {
         val judgement = ps.asSCProof(that)
         judgement match {
           case ValidProofStep(scps) =>
@@ -77,8 +78,8 @@ trait WithProofs extends ProofsHelpers {
             addStep(ds)
             ds
           case InvalidProofStep(ps, message) =>
-            output(s"$message\n")
-            finishOutput(EarlyProofStepException(message))
+            om.output(s"$message\n")
+            om.finishOutput(EarlyProofStepException(message))
         }
       }
     }
@@ -86,7 +87,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * Add a new proof step to the proof
      */
-    def newDoubleStep(ps: ProofStep)(using output: String => Unit)(using finishOutput: Throwable => Nothing): DoubleStep =
+    def newDoubleStep(ps: ProofStep)(using om: OutputManager): DoubleStep =
       DoubleStep.newDoubleStep(ps: ProofStep)
 
     private object ImportedFact {
@@ -161,7 +162,7 @@ trait WithProofs extends ProofsHelpers {
     /**
      * Compute the final, Kernel-pure, SCProof.
      */
-    def toSCProof(using String => Unit)(using finishOutput: Throwable => Nothing): lisa.kernel.proof.SCProof = {
+    def toSCProof(using om: OutputManager): lisa.kernel.proof.SCProof = {
       discharges.foreach(i => Discharge(getSequentAndInt(i)._2))
       SCProof(steps.reverse.map(_.scps).toIndexedSeq, imports.reverse.map(_.seq).toIndexedSeq)
     }
