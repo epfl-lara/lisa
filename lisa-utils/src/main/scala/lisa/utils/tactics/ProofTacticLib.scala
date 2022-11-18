@@ -3,10 +3,15 @@ package lisa.utils.tactics
 import lisa.kernel.proof
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheoryJudgement
-import lisa.kernel.proof.RunningTheoryJudgement.{InvalidJustification, InvalidJustificationException}
+import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
+import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.*
-import lisa.utils.{Library, LisaException, OutputManager, Printer, UserLisaException}
+import lisa.utils.Library
+import lisa.utils.LisaException
+import lisa.utils.OutputManager
+import lisa.utils.Printer
+import lisa.utils.UserLisaException
 
 object ProofTacticLib {
   type Arity = Int & Singleton
@@ -20,7 +25,6 @@ object ProofTacticLib {
 
   }
 
-
   trait ParameterlessHave {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement
   }
@@ -29,10 +33,7 @@ object ProofTacticLib {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement
   }
 
-
-
-
-/*
+  /*
 
   /**
    * A proof step lacking a bottom/conclusion sequent. Once given a conclusion sequent, it can become a ProofTactic.
@@ -53,13 +54,13 @@ object ProofTacticLib {
     val nameWP: String = this.getClass.getSimpleName
 
     /**
-     * An abstract function transforming the ProofTacticWithoutPrem innto a SCProofStep in pure Sequent Calculus.
-     */
+   * An abstract function transforming the ProofTacticWithoutPrem innto a SCProofStep in pure Sequent Calculus.
+   */
     def asSCProof(givenPremises:Seq[proof.Fact]): proof.ProofTacticJudgement
 
     /**
-     * Gives the premises of the ProofTactic, as a partial application towards the SC transformation.
-     */
+   * Gives the premises of the ProofTactic, as a partial application towards the SC transformation.
+   */
     def asProofTactic(premises: Seq[proof.Fact]): ProofTactic{val proof:P} =
       (new ProofTactic{
         override val proof: P = ProofTacticWithoutPrem.this.proof
@@ -68,8 +69,8 @@ object ProofTacticLib {
       }).asInstanceOf
 
     /**
-     * Alias for [[asProofTactic]]
-     */
+   * Alias for [[asProofTactic]]
+   */
     def by(premises: Seq[proof.Fact]): ProofTactic{val proof:P} = asProofTactic(premises)
   }
 
@@ -85,9 +86,9 @@ object ProofTacticLib {
     val nameWBNP: String = this.getClass.getSimpleName
 
     /**
-     * Contains a tactic to reconstruct a partial Sequent Calculus proof if given
-     * a list of premises, a targeted bottom sequent and the current proof.
-     */
+   * Contains a tactic to reconstruct a partial Sequent Calculus proof if given
+   * a list of premises, a targeted bottom sequent and the current proof.
+   */
     def asSCProof(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement
     def asProofTacticWithoutBot(premises: Seq[proof.Fact]): ProofTacticWithoutBot{val proof:P} =
       (new ProofTacticWithoutBot[N]{
@@ -111,12 +112,12 @@ object ProofTacticLib {
     val numbPrem: N = underlying.numbPrem
 
     /**
-     * Contains a tactic to reconstruct a partial Sequent Calculus proof if given
-     * a targeted bottom sequent and the current proof.
-     */
+   * Contains a tactic to reconstruct a partial Sequent Calculus proof if given
+   * a targeted bottom sequent and the current proof.
+   */
     def asSCProof(bot: Sequent): proof.ProofTacticJudgement = {
       underlying.asSCProof(bot, givenPremises)
     }
   }
-*/
+   */
 }

@@ -179,7 +179,7 @@ trait KernelHelpers {
 
   extension (judgement: SCInvalidProof) {
     def errorMsg: String =
-      s"""Failed to prove
+      s"""Failed to prove∀'x. 'P('x) ⇒ 'P('f('x))
          |${lisa.utils.Printer.prettySequent(judgement.proof.followPath(judgement.path).bot)}
          |(step ${judgement.path.mkString("->")}): ${judgement.message}""".stripMargin
   }
@@ -210,9 +210,9 @@ trait KernelHelpers {
 
   def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 
-  def variable(using name:sourcecode.Name):VariableLabel = VariableLabel(name.value)
-  def function(arity:Integer)(using name:sourcecode.Name):SchematicFunctionLabel = SchematicFunctionLabel(name.value, arity)
-  def formulaVariable(using name:sourcecode.Name):VariableFormulaLabel = VariableFormulaLabel(name.value)
-  def predicate(arity:Integer)(using name:sourcecode.Name):SchematicPredicateLabel = SchematicPredicateLabel(name.value, arity)
-  def connector(arity:Integer)(using name:sourcecode.Name):SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
+  def variable(using name: sourcecode.Name): VariableLabel = VariableLabel(name.value)
+  def function(arity: Integer)(using name: sourcecode.Name): SchematicFunctionLabel = SchematicFunctionLabel(name.value, arity)
+  def formulaVariable(using name: sourcecode.Name): VariableFormulaLabel = VariableFormulaLabel(name.value)
+  def predicate(arity: Integer)(using name: sourcecode.Name): SchematicPredicateLabel = SchematicPredicateLabel(name.value, arity)
+  def connector(arity: Integer)(using name: sourcecode.Name): SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
 }

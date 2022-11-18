@@ -16,12 +16,12 @@ class TheoriesHelpersTest extends AnyFunSuite {
     runningTestTheory.addSymbol(s0)
     runningTestTheory.addSymbol(s1)
     val (c0, c1) = (s0(), s1())
-    val judgement = runningTestTheory.theorem("False theorem", "1 = 0", SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq())
+    val judgement = runningTestTheory.theorem("False theorem", seq"1 = 0", SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq())
     assert(!judgement.isValid)
     assert(judgement == InvalidJustification("The proof does not prove the claimed statement", None))
 
     // same theorem but with correct statement
-    assert(runningTestTheory.theorem("True theorem", "1 = 0 |- 1 = 0", SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid)
+    assert(runningTestTheory.theorem("True theorem", seq"1 = 0 |- 1 = 0", SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid)
   }
 
 }

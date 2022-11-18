@@ -7,9 +7,11 @@ import lisa.kernel.proof.SequentCalculus.RewriteTrue
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.utils.Helpers.{*, given}
-import lisa.utils.{Library, LisaException, OutputManager}
-import lisa.utils.tactics.ProofTacticLib.{*, given}
+import lisa.utils.Helpers.{_, given}
+import lisa.utils.Library
+import lisa.utils.LisaException
+import lisa.utils.OutputManager
+import lisa.utils.tactics.ProofTacticLib.{_, given}
 
 object SimpleDeducedSteps {
 
@@ -17,11 +19,10 @@ object SimpleDeducedSteps {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.RewriteTrue(bot)), Nil)
 
-    
-    //(proof.ProofStep | proof.OutsideFact | Int)     is definitionally equal to proof.Fact, but for some reason
+    // (proof.ProofStep | proof.OutsideFact | Int)     is definitionally equal to proof.Fact, but for some reason
     // scala compiler doesn't resolve the overload with a type alias, dependant type and implicit parameter
 
-    def apply(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int )(bot: Sequent): proof.ProofTacticJudgement =
+    def apply(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
 
     def apply2(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
@@ -29,12 +30,10 @@ object SimpleDeducedSteps {
 
   }
 
-
-
   object Discharge extends ProofTactic {
     def apply(using proof: Library#Proof)(premises: proof.Fact*): proof.ProofTacticJudgement = {
       val seqs = premises map proof.getSequent
-      if (!seqs.forall(_.right.size==1))
+      if (!seqs.forall(_.right.size == 1))
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
       val s = seqs.head
       val f = s.right.head
@@ -50,7 +49,6 @@ object SimpleDeducedSteps {
     }
 
   }
-
 
   /**
    * Instantiate universal quantifier
@@ -78,44 +76,44 @@ object SimpleDeducedSteps {
         val j = proof.ValidProofTactic(Seq(SC.Rewrite(premiseSequent, -1)), Seq(premise))
         // some unfortunate code reuse
         // ProofStep tactics cannot be composed easily at the moment
-        val res = t.foldLeft((emptyProof, phi, j: proof.ProofTacticJudgement)) {
-          case ((p, f, j), t) =>
-            j match {
-              case proof.InvalidProofTactic(_) => (p, f, j) // propagate error
-              case proof.ValidProofTactic(_, _) =>
-                // good state, continue instantiating
-                // by construction the premise is well-formed
-                // verify the formula structure and instantiate
-                f match {
-                  case psi @ FOL.BinderFormula(FOL.Forall, _, _) =>
-                    val tempVar = FOL.VariableLabel(FOL.freshId(psi.freeVariables.map(_.id), "x"))
-                    // instantiate the formula with input
-                    val in = instantiateBinder(psi, t)
-                    val bot = p.conclusion -> f +> in
-                    // construct proof
-                    val p0 = SC.Hypothesis(in |- in, in)
-                    val p1 = SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
-                    val p2 = SC.Cut(bot, -1, 1, f)
-                    /**
-                     * in  = ψ[t/x]
-                     *
-                     * s1  = Γ ⊢ ∀x.ψ, Δ        Premise
-                     * bot = Γ ⊢ ψ[t/x], Δ      Result
-                     *
-                     * p0  = ψ[t/x] ⊢ ψ[t/x]    Hypothesis
-                     * p1  = ∀x.ψ ⊢ ψ[t/x]      LeftForall p0
-                     * p2  = Γ ⊢ ψ[t/x], Δ      Cut s1, p1
-                     */
-                    val newStep = SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(p.conclusion)), Seq(p.length - 1))
-                    (
-                      p withNewSteps IndexedSeq(newStep),
-                      in,
-                      j
-                    )
-                  case _ =>
-                    (p, f, proof.InvalidProofTactic("Input formula is not universally quantified"))
-                }
-            }
+        val res = t.foldLeft((emptyProof, phi, j: proof.ProofTacticJudgement)) { case ((p, f, j), t) =>
+          j match {
+            case proof.InvalidProofTactic(_) => (p, f, j) // propagate error
+            case proof.ValidProofTactic(_, _) =>
+              // good state, continue instantiating
+              // by construction the premise is well-formed
+              // verify the formula structure and instantiate
+              f match {
+                case psi @ FOL.BinderFormula(FOL.Forall, _, _) =>
+                  val tempVar = FOL.VariableLabel(FOL.freshId(psi.freeVariables.map(_.id), "x"))
+                  // instantiate the formula with input
+                  val in = instantiateBinder(psi, t)
+                  val bot = p.conclusion -> f +> in
+                  // construct proof
+                  val p0 = SC.Hypothesis(in |- in, in)
+                  val p1 = SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
+                  val p2 = SC.Cut(bot, -1, 1, f)
+
+                  /**
+                   * in  = ψ[t/x]
+                   *
+                   * s1  = Γ ⊢ ∀x.ψ, Δ        Premise
+                   * bot = Γ ⊢ ψ[t/x], Δ      Result
+                   *
+                   * p0  = ψ[t/x] ⊢ ψ[t/x]    Hypothesis
+                   * p1  = ∀x.ψ ⊢ ψ[t/x]      LeftForall p0
+                   * p2  = Γ ⊢ ψ[t/x], Δ      Cut s1, p1
+                   */
+                  val newStep = SC.SCSubproof(SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(p.conclusion)), Seq(p.length - 1))
+                  (
+                    p withNewSteps IndexedSeq(newStep),
+                    in,
+                    j
+                  )
+                case _ =>
+                  (p, f, proof.InvalidProofTactic("Input formula is not universally quantified"))
+              }
+          }
         }
 
         res._3 match {
@@ -149,7 +147,7 @@ object SimpleDeducedSteps {
    * </pre>
    */
   object PartialCut extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: FOL.Formula, conjunction: FOL.Formula)(prem1:proof.Fact, prem2:proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(phi: FOL.Formula, conjunction: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
 
       def invalid(message: String) = proof.InvalidProofTactic(message)
 

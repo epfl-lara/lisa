@@ -104,7 +104,7 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    def apply(proof: lisa.utils.Library#Proof)(phi: Formula)(premise:proof.Fact): proof.ProofTacticJudgement = {
+    def apply(proof: lisa.utils.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -128,11 +128,11 @@ object SimpleSimplifier {
           val result2: Sequent = result1.left |- ConnectorFormula(And, newright.toSeq)
 
           val scproof = Seq(
-              Rewrite(leftOrigin |- rightOrigin, -1),
-              LeftSubstEq(result1, 0, List(left -> right), LambdaTermFormula(Seq(v), leftForm)),
-              RightSubstEq(result2, 1, List(left -> right), LambdaTermFormula(Seq(v), rightForm)),
-              Rewrite(newleft |- newright, 2)
-            )
+            Rewrite(leftOrigin |- rightOrigin, -1),
+            LeftSubstEq(result1, 0, List(left -> right), LambdaTermFormula(Seq(v), leftForm)),
+            RightSubstEq(result2, 1, List(left -> right), LambdaTermFormula(Seq(v), rightForm)),
+            Rewrite(newleft |- newright, 2)
+          )
           proof.ValidProofTactic(
             scproof,
             Seq(premise)
@@ -155,11 +155,11 @@ object SimpleSimplifier {
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
 
           val scproof = Seq(
-              Rewrite(leftOrigin |- rightOrigin, -1),
-              LeftSubstIff(result1, 0, List(left -> right), LambdaFormulaFormula(Seq(H), leftForm)),
-              RightSubstIff(result2, 1, List(left -> right), LambdaFormulaFormula(Seq(H), rightForm)),
-              Rewrite(newleft |- newright, 2)
-            )
+            Rewrite(leftOrigin |- rightOrigin, -1),
+            LeftSubstIff(result1, 0, List(left -> right), LambdaFormulaFormula(Seq(H), leftForm)),
+            RightSubstIff(result2, 1, List(left -> right), LambdaFormulaFormula(Seq(H), rightForm)),
+            Rewrite(newleft |- newright, 2)
+          )
           proof.ValidProofTactic(
             scproof,
             Seq(premise)

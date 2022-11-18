@@ -7,7 +7,7 @@ import lisa.automation.kernel.ProofTactics.*
  * An embryo of mathematical development, containing a few example theorems and the definition of the ordered unorderedPair.
  */
 object SetTheory extends lisa.Main {
-/*
+  /*
   THEOREM("russelParadox") of "∀'x. elem('x, 'y) ↔ ¬elem('x, 'x) ⊢" PROOF {
     val y = VariableLabel("y")
     val x = VariableLabel("x")
@@ -356,5 +356,5 @@ object SetTheory extends lisa.Main {
   private val y = VariableLabel("y")
   val oPair: ConstantFunctionLabel = DEFINE("", x, y) as unorderedPair(unorderedPair(x, y), unorderedPair(x, x))
   show
-*/
+   */
 }

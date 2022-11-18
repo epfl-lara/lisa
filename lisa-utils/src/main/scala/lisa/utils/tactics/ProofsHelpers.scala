@@ -4,8 +4,10 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.{Library, OutputManager, ProofPrinter}
+import lisa.utils.Library
+import lisa.utils.OutputManager
 import lisa.utils.Parser.*
+import lisa.utils.ProofPrinter
 import lisa.utils.tactics.ProofTacticLib.*
 import lisa.utils.tactics.SimpleDeducedSteps.*
 
@@ -15,10 +17,11 @@ trait ProofsHelpers {
   library: Library & WithTheorems =>
   given Library = library
 
-  case class HaveSequent private[ProofsHelpers](bot: Sequent) {
-    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName): By {val _proof: proof.type} = By(proof, om, line, file).asInstanceOf
+  case class HaveSequent private[ProofsHelpers] (bot: Sequent) {
+    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, om, line, file).asInstanceOf
 
-    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName) {
+    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+      private val bot = HaveSequent.this.bot ++ (_proof.getAssumptions |- ())
       inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
         tactic(bot).validate(line, file)
       }
@@ -27,18 +30,19 @@ trait ProofsHelpers {
       }
     }
 
-    inline infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName)(tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
+    inline infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
       (new BasicStepTactic.SUBPROOF(using proof, om)(bot, line, file)(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
     }
 
   }
 
-  case class AndThenSequent private[ProofsHelpers](bot: Sequent) {
+  case class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
 
-    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName): By {val _proof: proof.type} = By(proof, om, line, file).asInstanceOf[By {val _proof: proof.type}]
+    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
+      By(proof, om, line, file).asInstanceOf[By { val _proof: proof.type }]
 
-    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.FileName) {
-
+    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+      private val bot = AndThenSequent.this.bot ++ (_proof.getAssumptions |- ())
       inline infix def apply(tactic: _proof.Fact => Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
         tactic(_proof.mostRecentStep)(bot).validate(line, file)
       }
@@ -49,7 +53,6 @@ trait ProofsHelpers {
 
     }
   }
-
 
   /**
    * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
@@ -64,7 +67,7 @@ trait ProofsHelpers {
   /**
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
-  def have(using om:OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
+  def have(using om: OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
     have(theory.sequentFromJustification(just)) by Restate(just: _proof.OutsideFact)
   }
 
@@ -73,7 +76,7 @@ trait ProofsHelpers {
    * which may require a justification by a proof tactic.
    */
   def andThen(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
-/*
+  /*
   /**
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
    * which may require a justification by a proof tactic.
@@ -85,7 +88,7 @@ trait ProofsHelpers {
     pswp.asProofTactic(Seq(pswp.proof.mostRecentStep._2)).validate
   }
 
-*/
+   */
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
@@ -93,7 +96,11 @@ trait ProofsHelpers {
     proof.addAssumption(f)
     f
   }
-/*
+  def assume(using proof: library.Proof)(fstring: String): Formula = {
+    val f = lisa.utils.Parser.parseFormula(fstring)
+    assume(f)
+  }
+  /*
   /**
    * Store the given import and use it to discharge the proof of one of its assumption at the very end.
    */
@@ -104,11 +111,12 @@ trait ProofsHelpers {
   //TODO: Fishy
   given Conversion[ProofTacticWithoutBotNorPrem[0], ProofTacticWithoutBot] = _.asProofTacticWithoutBot(Seq())
 
-*/
-  def showCurrentProof(using om:OutputManager, _proof: library.Proof)():Unit = {
-    om.output({
-      ProofPrinter.prettyProof(_proof)
-    })
+   */
+  def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
+    om.output("Current proof of" + _proof.owningTheorem.repr + ": ")
+    om.output(
+      ProofPrinter.prettyProof(_proof, 2)
+    )
   }
 
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
@@ -151,4 +159,5 @@ trait ProofsHelpers {
 
    */
 
+  def currentProof(using p: Library#Proof): Library#Proof = p
 }

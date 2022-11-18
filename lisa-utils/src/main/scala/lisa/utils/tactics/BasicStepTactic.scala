@@ -6,8 +6,11 @@ import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.utils.Helpers.*
-import lisa.utils.{Library, LisaException, OutputManager, UserLisaException}
-import lisa.utils.tactics.ProofTacticLib.{*, given}
+import lisa.utils.Library
+import lisa.utils.LisaException
+import lisa.utils.OutputManager
+import lisa.utils.UserLisaException
+import lisa.utils.tactics.ProofTacticLib.{_, given}
 
 object BasicStepTactic {
 
@@ -16,12 +19,10 @@ object BasicStepTactic {
       proof.ValidProofTactic(Seq(SC.Hypothesis(bot, bot.left.intersect(bot.right).head)), Seq())
   }
 
-  
   object Rewrite extends ProofTactic with ParameterlessAndThen {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
   }
-  
 
   /**
    * <pre>
@@ -46,17 +47,13 @@ object BasicStepTactic {
         } else
           proof.InvalidProofTactic("Inferred cut pivot is not a singleton set.")
       else if (intersectedCutSet.nonEmpty && intersectedCutSet.tail.isEmpty)
-      // can still find a pivot
+        // can still find a pivot
         proof.ValidProofTactic(Seq(SC.Cut(bot, -1, -2, intersectedCutSet.head)), Seq(prem1, prem2))
       else
         proof.InvalidProofTactic("A consistent cut pivot cannot be inferred from the premises. Possibly a missing or extraneous clause.")
     }
   }
 
-
-
-
-  
   // Left rules
   /**
    * <pre>
@@ -65,11 +62,10 @@ object BasicStepTactic {
    *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
    * </pre>
    */
-  object LeftAnd extends ProofTactic with ParameterlessAndThen{
+  object LeftAnd extends ProofTactic with ParameterlessAndThen {
     def apply(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.LeftAnd(bot, -1, phi, psi)), Seq(premise))
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
-    {
+    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
       val pivot = bot.left.diff(premiseSequent.left)
 
@@ -84,14 +80,12 @@ object BasicStepTactic {
         }
       else
       // try a rewrite, if it works, go ahead with it, otherwise malformed
-        if (SC.isSameSequent(premiseSequent, bot))
-          proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
-        else
-          proof.InvalidProofTactic("Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
+      if (SC.isSameSequent(premiseSequent, bot))
+        proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+      else
+        proof.InvalidProofTactic("Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
     }
   }
-
-
 
   /**
    * <pre>
@@ -102,22 +96,20 @@ object BasicStepTactic {
    */
   object LeftOr extends ProofTactic {
     def apply(using proof: Library#Proof)(phis: Formula*)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement =
-      proof.ValidProofTactic(Seq(SC.LeftOr(bot, Range(-1, -premises.length-1, -1), phis)), premises.toSeq)
-    def apply(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement =
-    {
+      proof.ValidProofTactic(Seq(SC.LeftOr(bot, Range(-1, -premises.length - 1, -1), phis)), premises.toSeq)
+    def apply(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequents = premises.map(proof.getSequent)
       val pivots = premiseSequents.map(_.left.diff(bot.left))
 
       if (pivots.exists(_.isEmpty))
         proof.ValidProofTactic(Seq(SC.Weakening(bot, pivots.indexWhere(_.isEmpty))), premises.toSeq)
       else if (pivots.forall(_.tail.isEmpty))
-        proof.ValidProofTactic(Seq(SC.LeftOr(bot, Range(-1, -premises.length-1, -1), pivots.map(_.head))), premises.toSeq)
+        proof.ValidProofTactic(Seq(SC.LeftOr(bot, Range(-1, -premises.length - 1, -1), pivots.map(_.head))), premises.toSeq)
       else
-      // some extraneous formulae
+        // some extraneous formulae
         proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
     }
   }
-
 
   /**
    * <pre>
@@ -127,10 +119,9 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftImplies extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: Formula, psi: Formula)(prem1: proof.Fact, prem2:proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
-      proof.ValidProofTactic(Seq(SC.LeftImplies(bot, -1, -2, phi, psi)), Seq(prem1,prem2))
-    def apply(using proof: Library#Proof)(prem1: proof.Fact, prem2:proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
-    {
+    def apply(using proof: Library#Proof)(phi: Formula, psi: Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+      proof.ValidProofTactic(Seq(SC.LeftImplies(bot, -1, -2, phi, psi)), Seq(prem1, prem2))
+    def apply(using proof: Library#Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val leftSequent = proof.getSequent(prem1)
       val rightSequent = proof.getSequent(prem2)
       val pivotLeft = leftSequent.right.diff(bot.right)
@@ -146,8 +137,6 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Could not infer an implication as a pivot from the premises and conclusion, possible extraneous formulae in premises.")
     }
   }
-
-
 
   /**
    * <pre>
@@ -182,7 +171,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftNot extends ProofTactic with ParameterlessAndThen {
-    def apply(using proof: Library#Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent) : proof.ProofTacticJudgement =
+    def apply(using proof: Library#Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.LeftNot(bot, -1, phi)), Seq(premise))
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
@@ -198,8 +187,6 @@ object BasicStepTactic {
     }
   }
 
-
-
   /**
    * <pre>
    *   Γ, φ[t/x] |- Δ
@@ -212,7 +199,7 @@ object BasicStepTactic {
     def apply(using proof: Library#Proof)(phi: Formula, x: VariableLabel, t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.LeftForall(bot, -1, phi, x, t)), Seq(premise))
 
-    def apply(using proof: Library#Proof)(t:Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
       val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
@@ -245,7 +232,6 @@ object BasicStepTactic {
     }
   }
 
-
   /**
    * <pre>
    *    Γ, φ |- Δ
@@ -257,7 +243,7 @@ object BasicStepTactic {
   object LeftExists extends ProofTactic with ParameterlessAndThen {
     def apply(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.LeftExists(bot, -1, phi, x)), Seq(premise))
-      
+
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
       val pivot = bot.left.diff(premiseSequent.left)
@@ -288,7 +274,6 @@ object BasicStepTactic {
     }
   }
 
-
   /**
    * <pre>
    *  Γ, ∃y.∀x. (x=y) ↔ φ |-  Δ
@@ -299,7 +284,7 @@ object BasicStepTactic {
   object LeftExistsOne extends ProofTactic with ParameterlessAndThen {
     def apply(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.LeftExistsOne(bot, -1, phi, x)), Seq(premise))
-      
+
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
       val pivot = bot.left.diff(premiseSequent.left)
@@ -327,8 +312,6 @@ object BasicStepTactic {
     }
   }
 
-
-
   // Right rules
   /**
    * <pre>
@@ -339,7 +322,7 @@ object BasicStepTactic {
    */
   object RightAnd extends ProofTactic {
     def apply(using proof: Library#Proof)(cunjuncts: Seq[Formula])(premises: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement =
-      proof.ValidProofTactic(Seq(SC.RightAnd(bot, Range(-1, -premises.length-1, -1), cunjuncts)), premises)
+      proof.ValidProofTactic(Seq(SC.RightAnd(bot, Range(-1, -premises.length - 1, -1), cunjuncts)), premises)
 
     def apply(using proof: Library#Proof)(premises: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequents = premises.map(proof.getSequent)
@@ -348,13 +331,12 @@ object BasicStepTactic {
       if (pivots.exists(_.isEmpty))
         proof.ValidProofTactic(Seq(SC.Weakening(bot, pivots.indexWhere(_.isEmpty))), premises)
       else if (pivots.forall(_.tail.isEmpty))
-        proof.ValidProofTactic(Seq(SC.RightAnd(bot, Range(-1, -premises.length-1, -1), pivots.map(_.head))), premises)
+        proof.ValidProofTactic(Seq(SC.RightAnd(bot, Range(-1, -premises.length - 1, -1), pivots.map(_.head))), premises)
       else
-      // some extraneous formulae
+        // some extraneous formulae
         proof.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")
     }
   }
-
 
   /**
    * <pre>
@@ -382,13 +364,12 @@ object BasicStepTactic {
         }
       else
       // try a rewrite, if it works, go ahead with it, otherwise malformed
-        if (SC.isSameSequent(premiseSequent, bot))
-          proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
-        else
-          proof.InvalidProofTactic("Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both.")
+      if (SC.isSameSequent(premiseSequent, bot))
+        proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+      else
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both.")
     }
   }
-
 
   /**
    * <pre>
@@ -408,14 +389,13 @@ object BasicStepTactic {
 
       if (
         leftPivot.nonEmpty && leftPivot.tail.isEmpty &&
-            rightPivot.nonEmpty && rightPivot.tail.isEmpty
+        rightPivot.nonEmpty && rightPivot.tail.isEmpty
       )
         proof.ValidProofTactic(Seq(SC.RightImplies(bot, -1, leftPivot.head, rightPivot.head)), Seq(premise))
       else
         proof.InvalidProofTactic("Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ→ψ.")
     }
   }
-
 
   /**
    * <pre>
@@ -425,10 +405,10 @@ object BasicStepTactic {
    * </pre>
    */
   object RightIff extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: Formula, psi: Formula)(prem1:proof.Fact, prem2:proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+    def apply(using proof: Library#Proof)(phi: Formula, psi: Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.RightIff(bot, -1, -2, phi, psi)), Seq(prem1, prem2))
 
-    def apply(using proof: Library#Proof)(prem1:proof.Fact, prem2:proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(prem1)
       val pivot = premiseSequent.right.diff(bot.right)
 
@@ -443,7 +423,6 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises φ↔ψ.")
     }
   }
-
 
   /**
    * <pre>
@@ -469,7 +448,6 @@ object BasicStepTactic {
 
     }
   }
-
 
   /**
    * <pre>
@@ -522,7 +500,7 @@ object BasicStepTactic {
    * (ln-x stands for locally nameless x)
    * </pre>
    */
-  object RightExists extends ProofTactic  {
+  object RightExists extends ProofTactic {
     def apply(using proof: Library#Proof)(phi: Formula, x: VariableLabel, t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.RightExists(bot, -1, phi, x, t)), Seq(premise))
 
@@ -555,11 +533,9 @@ object BasicStepTactic {
           case Some(BinderFormula(Exists, x, phi)) => proof.ValidProofTactic(Seq(SC.RightExists(bot, -1, phi, x, t)), Seq(premise))
           case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
-      } else
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] must be the same as right-hand side of premise + ∀x. φ.")
+      } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] must be the same as right-hand side of premise + ∀x. φ.")
     }
   }
-
 
   /**
    * <pre>
@@ -598,7 +574,6 @@ object BasicStepTactic {
     }
   }
 
-
   // Structural rules
   /**
    * <pre>
@@ -611,7 +586,6 @@ object BasicStepTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
   }
-
 
   // Equality Rules
   /**
@@ -629,7 +603,6 @@ object BasicStepTactic {
       proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
   }
 
-
   /**
    * <pre>
    *
@@ -644,7 +617,6 @@ object BasicStepTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.RewriteTrue(bot)), Seq(premise))
   }
-
 
   /**
    * <pre>
@@ -718,32 +690,29 @@ object BasicStepTactic {
       proof.ValidProofTactic(Seq(SC.InstPredSchema(bot, -1, insts)), Seq(premise))
   }
 
-
-
-  class SUBPROOF (using val proof: Library#Proof, om:OutputManager)
-                 (statement: Sequent | String, val line:sourcecode.Line, val file:sourcecode.FileName)
-                 (computeProof: proof.InnerProof ?=> Unit) extends ProofTactic {
-    val bot:Sequent = statement match {
+  class SUBPROOF(using val proof: Library#Proof, om: OutputManager)(statement: Sequent | String, val line: sourcecode.Line, val file: sourcecode.File)(computeProof: proof.InnerProof ?=> Unit)
+      extends ProofTactic {
+    val bot: Sequent = statement match {
       case s: Sequent => s
       case s: String => lisa.utils.Parser.parseSequent(s)
     }
 
-    val iProof:proof.InnerProof = new proof.InnerProof(bot)
+    val iProof: proof.InnerProof = new proof.InnerProof(bot)
     val scproof: SCProof = {
       try {
         computeProof(using iProof)
-      } catch {/*
-        case e: NotImplementedError => om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))*/
-        case e: LisaException => throw e
+      } catch {
+        case e: NotImplementedError =>
+          om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
+        case e: UserLisaException =>
+          om.lisaThrow(e)
       }
       if (proof.length == 0)
-        throw (new UserLisaException.UnimplementedProof(proof.owningTheorem))
+        om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
       iProof.toSCProof
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
     def judgement: proof.ValidProofTactic = proof.ValidProofTactic(scproof.steps, premises)
   }
-
-
 
 }

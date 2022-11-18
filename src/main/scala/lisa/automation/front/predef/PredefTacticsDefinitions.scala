@@ -9,7 +9,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus as KSC
 
 trait PredefTacticsDefinitions {
-/*
+  /*
   case object TacticSolverNative extends TacticGoalFunctional {
     import Notations.*
 

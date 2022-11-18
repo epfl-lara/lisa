@@ -13,7 +13,7 @@ import scala.collection.mutable.Stack as stack
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithTheorems with lisa.utils.tactics.ProofsHelpers  {
+abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithTheorems with lisa.utils.tactics.ProofsHelpers {
   val library: Library = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}
@@ -29,7 +29,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   type Sequentable = theory.Justification | Formula | Sequent
 
   var last: Option[theory.Justification] = None
-
 
   /**
    * A function intended for use to construct a proof:
@@ -61,12 +60,12 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF2(proof: SCProof)(using om:OutputManager): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
+    def PROOF2(proof: SCProof)(using om: OutputManager): TheoremNameWithProof = TheoremNameWithProof(name, statement, proof)
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    def PROOF2(steps: IndexedSeq[SCProofStep])(using om:OutputManager): TheoremNameWithProof =
+    def PROOF2(steps: IndexedSeq[SCProofStep])(using om: OutputManager): TheoremNameWithProof =
       TheoremNameWithProof(name, statement, SCProof(steps))
 
   }
@@ -91,7 +90,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithProof(name: String, statement: Sequent, proof: SCProof)(using om:OutputManager) {
+  case class TheoremNameWithProof(name: String, statement: Sequent, proof: SCProof)(using om: OutputManager) {
     infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
@@ -142,7 +141,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(t: Term)(using om:OutputManager): ConstantFunctionLabel = {
+    infix def as(t: Term)(using om: OutputManager): ConstantFunctionLabel = {
       val definition = simpleDefinition(symbol, LambdaTermTerm(vars, t)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -155,7 +154,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
      */
-    infix def as(f: Formula)(using om:OutputManager): ConstantPredicateLabel = {
+    infix def as(f: Formula)(using om: OutputManager): ConstantPredicateLabel = {
       val definition = simpleDefinition(symbol, LambdaTermFormula(vars, f)) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -201,7 +200,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(justifications: theory.Justification*)(using om:OutputManager): ConstantFunctionLabel = {
+    infix def using(justifications: theory.Justification*)(using om: OutputManager): ConstantFunctionLabel = {
       val definition = complexDefinition(symbol, vars, out, f, proof, justifications) match {
         case Judgement.ValidJustification(just) =>
           last = Some(just)
@@ -214,7 +213,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
      */
-    infix def using(u: Unit)(using om:OutputManager): ConstantFunctionLabel = using()
+    infix def using(u: Unit)(using om: OutputManager): ConstantFunctionLabel = using()
   }
 
   /**
@@ -288,7 +287,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * Prints a short representation of the last theorem or definition introduced
    */
-  def show(using om:OutputManager): theory.Justification = last match {
+  def show(using om: OutputManager): theory.Justification = last match {
     case Some(value) => value.show
     case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
   }
@@ -302,7 +301,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     case s: Sequent => s
   }
 
-  //given Conversion[Sequentable, Sequent] = sequantableToSequent
+  // given Conversion[Sequentable, Sequent] = sequantableToSequent
   given Conversion[theory.Axiom, Formula] = theory.sequentFromJustification(_).right.head
   given Conversion[Formula, theory.Axiom] = (f: Formula) => theory.getAxiom(f).get
   given convJustSequent[C <: Iterable[Sequentable], D](using bf: scala.collection.BuildFrom[C, Sequent, D]): Conversion[C, D] = cc => {
@@ -316,6 +315,5 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     cc.foreach(builder += _.size)
     builder.result
   }
-
 
 }

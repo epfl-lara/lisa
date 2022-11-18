@@ -64,7 +64,7 @@ trait TheoriesHelpers extends KernelHelpers {
   }
 
   extension (just: RunningTheory#Justification) {
-    def repr:String = just match {
+    def repr: String = just match {
       case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n"
       case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n"
       case d: RunningTheory#Definition =>
@@ -80,14 +80,15 @@ trait TheoriesHelpers extends KernelHelpers {
     /**
      * Outputs, with an implicit om.output function, a readable representation of the Axiom, Theorem or Definition.
      */
-    def show(using om:OutputManager): just.type = {
-      om.output(repr)
+    def show(using om: OutputManager): just.type = {
+      om.output(repr, Console.GREEN)
       just
 
     }
   }
 
   extension [J <: RunningTheory#Justification](theoryJudgement: RunningTheoryJudgement[J]) {
+
     /**
      * If the Judgement is valid, show the inner justification and returns it.
      * Otherwise, om.output the error leading to the invalid justification and throw an error.
@@ -98,9 +99,9 @@ trait TheoriesHelpers extends KernelHelpers {
           just.repr
         case InvalidJustification(message, error) =>
           s"$message\n${error match {
-            case Some(judgement) => Printer.prettySCProof(judgement)
-            case None => ""
-          }}"
+              case Some(judgement) => Printer.prettySCProof(judgement)
+              case None => ""
+            }}"
       }
     }
 
@@ -108,22 +109,23 @@ trait TheoriesHelpers extends KernelHelpers {
      * If the Judgement is valid, show the inner justification and returns it.
      * Otherwise, om.output the error leading to the invalid justification and throw an error.
      */
-    def show(using om:OutputManager): Unit = {
+    def show(using om: OutputManager): Unit = {
       om.output(repr)
     }
+
     /**
      * If the Judgement is valid, show the inner justification and returns it.
      * Otherwise, om.output the error leading to the invalid justification and throw an error.
      */
-    def showAndGet(using om:OutputManager): J = {
+    def showAndGet(using om: OutputManager): J = {
       theoryJudgement match {
         case RunningTheoryJudgement.ValidJustification(just) =>
           just.show
         case InvalidJustification(message, error) =>
           om.output(s"$message\n${error match {
-            case Some(judgement) => Printer.prettySCProof(judgement)
-            case None => ""
-          }}")
+              case Some(judgement) => Printer.prettySCProof(judgement)
+              case None => ""
+            }}")
           om.finishOutput(InvalidJustificationException(message, error))
       }
     }
@@ -135,7 +137,7 @@ trait TheoriesHelpers extends KernelHelpers {
      * If the SCProof is valid, show the inner proof and returns it.
      * Otherwise, om.output the error leading to the invalid justification and throw an error.
      */
-    def showAndGet(using om:OutputManager): SCProof = {
+    def showAndGet(using om: OutputManager): SCProof = {
       proofJudgement match {
         case SCProofCheckerJudgement.SCValidProof(proof) =>
           om.output(Printer.prettySCProof(proofJudgement))

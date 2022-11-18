@@ -364,29 +364,4 @@ class ProofTests extends AnyFunSuite {
     )
   }
 
-  test("environment") {
-    val ctx = newEmptyEnvironment()
-
-    val thm1 = ctx.mkTheorem(
-      Proof(
-        () |- ((a /\ b) ==> (b /\ a))
-      )(
-        TacticSolverNative
-      )
-    )
-
-    val thm2 = ctx.mkTheorem(
-      Proof(
-        () |- ((b /\ a) ==> (a /\ b))
-      )(
-        TacticSolverNative
-      )
-    )
-
-    val thm3 = RuleIntroductionRightIff(thm1, thm2).get
-
-    val reconstructed = reconstructSCProofForTheorem(thm3)
-
-    assert(SCProofChecker.checkSCProof(reconstructed).isValid, Printer.prettySCProof(reconstructed))
-  }
 }

@@ -3,7 +3,6 @@ package lisa.utils
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.utils.tactics.BasicStepTactic.SUBPROOF
 
-
 //temporary - get merged wit regular printer in time
 object ProofPrinter {
 
@@ -11,14 +10,14 @@ object ProofPrinter {
 
   private def commaSeparator(compact: Boolean, symbol: String = ","): String = s"$symbol${spaceSeparator(compact)}"
 
-
-  def prettyProof(printedProof:Library#Proof, error: Option[(IndexedSeq[Int], String)]): String = {
+  private def prettyProofLines(printedProof: Library#Proof, error: Option[(IndexedSeq[Int], String)]): Seq[String] = {
     def computeMaxNumberingLengths(proof: Library#Proof, level: Int, result: IndexedSeq[Int]): IndexedSeq[Int] = {
       val resultWithCurrent = result.updated(
         level,
         (Seq((proof.getSteps.size - 1).toString.length, result(level)) ++ (if (proof.getImports.nonEmpty) Seq((-proof.getImports.size).toString.length) else Seq.empty)).max
       )
-      proof.getSteps.collect { case ps: proof.ProofStep if ps.tactic.isInstanceOf[SUBPROOF] => ps.tactic.asInstanceOf[SUBPROOF]}
+      proof.getSteps
+        .collect { case ps: proof.ProofStep if ps.tactic.isInstanceOf[SUBPROOF] => ps.tactic.asInstanceOf[SUBPROOF] }
         .foldLeft(resultWithCurrent)((acc, sp) => computeMaxNumberingLengths(sp.iProof, level + 1, if (acc.size <= level + 1) acc :+ 0 else acc))
     }
 
@@ -78,7 +77,7 @@ object ProofPrinter {
 
         step.tactic match {
           case sp: SUBPROOF =>
-            val topSteps : Seq[Int] = sp.premises.map((f:sp.proof.Fact) => sp.proof.sequentAndIntOfFact(f)._2)
+            val topSteps: Seq[Int] = sp.premises.map((f: sp.proof.Fact) => sp.proof.sequentAndIntOfFact(f)._2)
             pretty("Subproof", topSteps*) +: prettyProofRecursive(sp.iProof, level + 1, currentTree, (if (i == 0) topMostIndices else IndexedSeq.empty) :+ i)
           case other =>
             val line = pretty(other.name)
@@ -97,14 +96,33 @@ object ProofPrinter {
         val full = if (error.isDefined) (if (isMarked) marker else leftPadSpaces("", marker.length)) +: suffix else suffix
         full.mkString(" ")
       }
-      .mkString("\n") + (error match {
-      case None => ""
-      case Some((path, message)) => s"\nProof checker has reported an error at line ${path.mkString(".")}: $message"
-    })
+      ++ (error match {
+        case None => Nil
+        case Some((path, message)) => List(s"\nProof checker has reported an error at line ${path.mkString(".")}: $message")
+      })
   }
 
-  def prettyProof(proof: Library#Proof): String = prettyProof(proof, None)
-  
-  //def prettyProof(judgement: InvalidProofTactic): String = prettyProof(judgement.tactic.proof)
+  def prettyFullProofLines(printedProof: Library#Proof, error: Option[(IndexedSeq[Int], String)]): Seq[String] = {
+    printedProof match {
+      case proof: Library#Proof#InnerProof =>
+        prettyFullProofLines(proof.parent, None) ++ prettyProofLines(proof, error).map("  " + _)
+      case proof: Library#BaseProof =>
+        prettyProofLines(proof, None)
+    }
+  }
+
+  def prettyProof(proof: Library#Proof): String = prettyFullProofLines(proof, None).mkString("\n")
+  def prettyProof(proof: Library#Proof, indent: Int): String = (" " * indent) + prettyFullProofLines(proof, None).mkString("\n" + (" " * indent))
+
+  def prettyProof(proof: Library#Proof, error: Option[(IndexedSeq[Int], String)]): String = prettyFullProofLines(proof, error).mkString("\n")
+  def prettyProof(proof: Library#Proof, indent: Int, error: Option[(IndexedSeq[Int], String)]): String = prettyFullProofLines(proof, None).mkString("\n" + " " * indent)
+
+  def prettySimpleProof(proof: Library#Proof): String = prettyProofLines(proof, None).mkString("\n")
+  def prettySimpleProof(proof: Library#Proof, indent: Int): String = (" " * indent) + prettyProofLines(proof, None).mkString("\n" + (" " * indent))
+
+  def prettySimpleProof(proof: Library#Proof, error: Option[(IndexedSeq[Int], String)]): String = prettyProofLines(proof, error).mkString("\n")
+  def prettySimpleProof(proof: Library#Proof, indent: Int, error: Option[(IndexedSeq[Int], String)]): String = prettyProofLines(proof, None).mkString("\n" + " " * indent)
+
+  // def prettyProof(judgement: InvalidProofTactic): String = prettyProof(judgement.tactic.proof)
 
 }
