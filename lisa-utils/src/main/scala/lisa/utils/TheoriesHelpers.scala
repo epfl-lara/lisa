@@ -29,7 +29,7 @@ trait TheoriesHelpers extends KernelHelpers {
     def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
       if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
       else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Rewrite(statement, proof.length - 1)), justifications)
-      else InvalidJustification("The proof does not prove the claimed statement", None)
+      else InvalidJustification(s"The proof proves ${Printer.prettySequent(proof.conclusion)} instead of claimed ${Printer.prettySequent(expected)}", None)
     }
 
     /**
