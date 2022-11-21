@@ -49,7 +49,7 @@ trait TheoriesHelpers extends KernelHelpers {
 
     /**
      * Make a predicate definition in the theory, but only ask for the identifier of the new symbol; Arity is inferred
-     * of the theorem to have more explicit writing and for sanity check. See [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
+     * of the theorem to have more explicit writing and for sanity check. See also [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
      */
     def predicateDefinition(symbol: String, expression: LambdaTermFormula): RunningTheoryJudgement[theory.PredicateDefinition] = {
       val label = ConstantPredicateLabel(symbol, expression.vars.size)
