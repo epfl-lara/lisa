@@ -179,7 +179,7 @@ trait KernelHelpers {
 
   extension (judgement: SCInvalidProof) {
     def errorMsg: String =
-      s"""Failed to prove∀'x. 'P('x) ⇒ 'P('f('x))
+      s"""Failed to prove
          |${lisa.utils.Printer.prettySequent(judgement.proof.followPath(judgement.path).bot)}
          |(step ${judgement.path.mkString("->")}): ${judgement.message}""".stripMargin
   }
