@@ -41,7 +41,7 @@ object Proof2 {
 
   val instFunS: TacticInstantiateFunctionSchema.type = TacticInstantiateFunctionSchema
 
-  val solvePropFast: TacticSolverNative.type = TacticSolverNative
+  // val solvePropFast: TacticSolverNative.type = TacticSolverNative
   val solveProp: TacticPropositionalSolver.type = TacticPropositionalSolver
   val rewrite: TacticalRewrite.type = TacticalRewrite
   val weaken: TacticalWeaken.type = TacticalWeaken

@@ -10,7 +10,7 @@ import SetTheory.*
  * Leads to the definition of the cartesian product.
  */
 object Mapping extends lisa.Main {
-
+  /*
   THEOREM("functionalMapping") of
     "∀ 'a. elem('a, 'A) ⇒ (∃! 'x. 'phi('x, 'a)) ⊢ ∃! 'X. ∀ 'x. elem('x, 'X) ↔ (∃ 'a. elem('a, 'A) ∧ 'phi('x, 'a))" PROOF2 {
       val a = VariableLabel("a")
@@ -434,5 +434,5 @@ object Mapping extends lisa.Main {
     } using (thm"mapTwoArguments")
 
   show
-
+   */
 }

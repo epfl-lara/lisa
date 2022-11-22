@@ -4,7 +4,7 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
-import lisa.utils.tactics.ProofStepLib.ProofStep
+import lisa.utils.tactics.ProofTacticLib.ProofTactic
 
 import scala.collection.mutable.Stack as stack
 
@@ -13,25 +13,22 @@ import scala.collection.mutable.Stack as stack
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithProofs {
+abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithTheorems with lisa.utils.tactics.ProofsHelpers {
   val library: Library = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}
   val SC: SequentCalculus.type = lisa.kernel.proof.SequentCalculus
   export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
   export lisa.kernel.proof.SCProof
-  export theory.{Justification, Theorem, Definition, Axiom, PredicateDefinition, FunctionDefinition}
   export lisa.utils.Helpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
   /**
    * a type representing different types that have a natural representation as Sequent
    */
-  type Sequentable = Justification | Formula | Sequent
+  type Sequentable = theory.Justification | Formula | Sequent
 
-  private var last: Option[Justification] = None
-
-  val proofStack: stack[Proof] = stack()
+  var last: Option[theory.Justification] = None
 
   /**
    * A function intended for use to construct a proof:
@@ -39,7 +36,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
    * Must contains [[SCProofStep]]'s
    */
   inline def steps(sts: SCProofStep*): IndexedSeq[SCProofStep] = sts.toIndexedSeq
-  inline def Nsteps(sts: ProofStep*): IndexedSeq[ProofStep] = sts.toIndexedSeq
 
   /**
    * A function intended for use to construct a proof:
@@ -53,13 +49,13 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * An alias to create a Theorem
    */
-  def makeTheorem(name: String, statement: String, proof: SCProof, justifications: Seq[theory.Justification]): Judgement[theory.Theorem] =
+  def makeTheorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): Judgement[theory.Theorem] =
     theory.theorem(name, statement, proof, justifications)
 
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithStatement(name: String, statement: String) {
+  case class TheoremNameWithStatement(name: String, statement: Sequent) {
 
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
@@ -72,20 +68,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     def PROOF2(steps: IndexedSeq[SCProofStep])(using om: OutputManager): TheoremNameWithProof =
       TheoremNameWithProof(name, statement, SCProof(steps))
 
-    def PROOF(computeProof: => Unit)(using om: OutputManager): theory.Theorem = {
-      require(proofStack.isEmpty) // TODO: More explicit error
-      proofStack.push(if (proofStack.isEmpty) new Proof() else new Proof(proofStack.head.getAssumptions))
-      computeProof
-      val r = TheoremNameWithProof(name, statement, proofStack.head.toSCProof)
-      val r2 = theory.theorem(r.name, r.statement, r.proof, proofStack.head.getImports.map(_.reference.asInstanceOf[theory.Justification])) match {
-        case Judgement.ValidJustification(just) =>
-          last = Some(just)
-          just
-        case wrongJudgement: Judgement.InvalidJustification[?] => wrongJudgement.showAndGet
-      }
-      proofStack.pop
-      r2
-    }
   }
 
   /**
@@ -96,7 +78,8 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     /**
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
-    infix def of(statement: String): TheoremNameWithStatement = TheoremNameWithStatement(name, statement)
+    infix def of(statement: Sequent): TheoremNameWithStatement = TheoremNameWithStatement(name, statement)
+    infix def of(statement: String): TheoremNameWithStatement = TheoremNameWithStatement(name, Parser.parseSequent(statement))
   }
 
   /**
@@ -107,7 +90,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
    */
-  case class TheoremNameWithProof(name: String, statement: String, proof: SCProof)(using om: OutputManager) {
+  case class TheoremNameWithProof(name: String, statement: Sequent, proof: SCProof)(using om: OutputManager) {
     infix def using(justifications: theory.Justification*): theory.Theorem = theory.theorem(name, statement, proof, justifications) match {
       case Judgement.ValidJustification(just) =>
         last = Some(just)
@@ -137,7 +120,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * Allows to create a definition by existential uniqueness of a function symbol:
    */
-  def complexDefinition(symbol: String, vars: Seq[VariableLabel], v: VariableLabel, f: Formula, proof: SCProof, just: Seq[Justification]): Judgement[theory.FunctionDefinition] = {
+  def complexDefinition(symbol: String, vars: Seq[VariableLabel], v: VariableLabel, f: Formula, proof: SCProof, just: Seq[theory.Justification]): Judgement[theory.FunctionDefinition] = {
     theory.functionDefinition(symbol, LambdaTermFormula(vars, f), v, proof, just)
     // theory.functionDefinition(symbol, LambdaTermFormula(vars, instantiateTermSchemas(f, Map(v -> LambdaTermTerm(Nil, out)))), out, proof, just)
   }
@@ -304,24 +287,23 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
   /**
    * Prints a short representation of the last theorem or definition introduced
    */
-  def show(using om: OutputManager): Justification = last match {
+  def show(using om: OutputManager): theory.Justification = last match {
     case Some(value) => value.show
     case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
   }
-  // given Conversion[String, theory.Justification] = name => theory.getJustification(name).get
 
   /**
    * Converts different class that have a natural interpretation as a Sequent
    */
   private def sequantableToSequent(s: Sequentable): Sequent = s match {
-    case j: Justification => theory.sequentFromJustification(j)
+    case j: theory.Justification => theory.sequentFromJustification(j)
     case f: Formula => () |- f
     case s: Sequent => s
   }
 
-  given Conversion[Sequentable, Sequent] = sequantableToSequent
-  given Conversion[Axiom, Formula] = theory.sequentFromJustification(_).right.head
-  given Conversion[Formula, Axiom] = (f: Formula) => theory.getAxiom(f).get
+  // given Conversion[Sequentable, Sequent] = sequantableToSequent
+  given Conversion[theory.Axiom, Formula] = theory.sequentFromJustification(_).right.head
+  given Conversion[Formula, theory.Axiom] = (f: Formula) => theory.getAxiom(f).get
   given convJustSequent[C <: Iterable[Sequentable], D](using bf: scala.collection.BuildFrom[C, Sequent, D]): Conversion[C, D] = cc => {
     val builder = bf.newBuilder(cc)
     cc.foreach(builder += sequantableToSequent(_))
@@ -332,12 +314,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
     val builder = bf.newBuilder(cc)
     cc.foreach(builder += _.size)
     builder.result
-  }
-
-  def showCurrentProof()(using om: OutputManager) = {
-    val proof = proofStack.head.toSCProof
-    om.output(s" Current proof (possibly uncomplete) is:\n${Printer.prettySCProof(proof)}\n")
-
   }
 
 }

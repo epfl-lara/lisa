@@ -12,15 +12,15 @@ import lisa.tptp.*
 import lisa.utils.Helpers.show
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Printer.*
-import lisa.utils.tactics.ProofStepLib.ProofStep
 
 /**
  * Discover some of the elements of LISA to get started.
  */
 object Example {
+
   def main(args: Array[String]): Unit = {
 
-    proofExample() // uncomment when exercise finished
+    Exercise.main(Array()) // uncomment when exercise finished
     // solverExample()
     // tptpExample()
   }
@@ -30,35 +30,6 @@ object Example {
    * All interrogation marks have to be replaced by proof steps, (sets of) formulas or integers.
    * The last two lines don't need to be changed.
    */
-  def proofExample(): Unit = {
-
-    object Ex extends Main {
-
-      /*
-      THEOREM("fixedPointDoubleApplication") of "∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))" PROOF {
-        assume(forall(x, P(x) ==> P(f(x))))
-        val base = have((P(x) ==> P(f(x)), P(f(x)) ==> P(f(f(x)))) |- P(x) ==> P(f(f(x)))) by Trivial
-        have(() |- P(x) ==> P(f(f(x)))) by SUBPROOF {
-          have(P(f(x)) ==> P(f(f(x))) |- P(x) ==> P(f(f(x)))) by LeftForall(x)(base)
-          andThen(() |- P(x) ==> P(f(f(x)))) by LeftForall(f(x))
-        }
-      }
-      show
-       */
-
-      THEOREM("fixed_Point_Double_Application") of "'P('x) ⊢ 'P('x)" PROOF {
-        have("'P('x) ⊢  'P('x)") by Hypothesis
-        andThen("'P('f('x)) ⇒ 'P('f('f('x))) ⊢  'P('f('x)) ⇒ 'P('f('f('x)))") by Trivial
-
-        have("'P('x) ⊢ 'P('x)") by Restate
-        showCurrentProof()
-      }
-      show
-
-    }
-
-    Ex.main(Array(""))
-  }
 
   /**
    * An example of how to use the simple propositional solver.

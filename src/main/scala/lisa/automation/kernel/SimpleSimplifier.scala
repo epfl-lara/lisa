@@ -5,8 +5,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.*
 import lisa.utils.Printer
-import lisa.utils.tactics.ProofStepJudgement
-import lisa.utils.tactics.ProofStepLib.*
+import lisa.utils.tactics.ProofTacticLib.*
 
 import scala.collection
 
@@ -104,9 +103,9 @@ object SimpleSimplifier {
     else None
   }
 
-  case class applySubst(phi: Formula) extends ProofStepWithoutPrem {
-    override def asSCProof(premises: Seq[Int], currentProof: lisa.utils.Library#Proof): ProofStepJudgement = {
-      val originSequent = currentProof.getSequent(premises.head)
+  object applySubst extends ProofTactic {
+    def apply(proof: lisa.utils.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+      val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
 
@@ -119,7 +118,7 @@ object SimpleSimplifier {
           val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
           val isolatedRight = originSequent.right.map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
           if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
-            return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), s"There is no instance of ${Printer.prettyTerm(left)} to replace.")
+            return proof.InvalidProofTactic(s"There is no instance of ${Printer.prettyTerm(left)} to replace.")
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -128,20 +127,16 @@ object SimpleSimplifier {
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(And, newright.toSeq)
 
-          val proof: SCProof = SCProof(
-            IndexedSeq(
-              Rewrite(leftOrigin |- rightOrigin, -1),
-              LeftSubstEq(result1, 0, List(left -> right), LambdaTermFormula(Seq(v), leftForm)),
-              RightSubstEq(result2, 1, List(left -> right), LambdaTermFormula(Seq(v), rightForm)),
-              Rewrite(newleft |- newright, 2)
-            ),
-            IndexedSeq(originSequent)
+          val scproof = Seq(
+            Rewrite(leftOrigin |- rightOrigin, -1),
+            LeftSubstEq(result1, 0, List(left -> right), LambdaTermFormula(Seq(v), leftForm)),
+            RightSubstEq(result2, 1, List(left -> right), LambdaTermFormula(Seq(v), rightForm)),
+            Rewrite(newleft |- newright, 2)
           )
-          val subproof: SCSubproof = SCSubproof(
-            proof,
-            Seq(premises.head)
+          proof.ValidProofTactic(
+            scproof,
+            Seq(premise)
           )
-          ProofStepJudgement.ValidProofStep(subproof)
         case ConnectorFormula(label, args) if label == Iff =>
           val left = args(0)
           val right = args(1)
@@ -150,7 +145,7 @@ object SimpleSimplifier {
           val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           val isolatedRight = originSequent.right.map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
-            return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), s"There is no instance of ${Printer.prettyFormula(left)} to replace.")
+            return proof.InvalidProofTactic(s"There is no instance of ${Printer.prettyFormula(left)} to replace.")
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -159,21 +154,17 @@ object SimpleSimplifier {
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
 
-          val proof: SCProof = SCProof(
-            IndexedSeq(
-              Rewrite(leftOrigin |- rightOrigin, -1),
-              LeftSubstIff(result1, 0, List(left -> right), LambdaFormulaFormula(Seq(H), leftForm)),
-              RightSubstIff(result2, 1, List(left -> right), LambdaFormulaFormula(Seq(H), rightForm)),
-              Rewrite(newleft |- newright, 2)
-            ),
-            IndexedSeq(originSequent)
+          val scproof = Seq(
+            Rewrite(leftOrigin |- rightOrigin, -1),
+            LeftSubstIff(result1, 0, List(left -> right), LambdaFormulaFormula(Seq(H), leftForm)),
+            RightSubstIff(result2, 1, List(left -> right), LambdaFormulaFormula(Seq(H), rightForm)),
+            Rewrite(newleft |- newright, 2)
           )
-          val subproof: SCSubproof = SCSubproof(
-            proof,
-            Seq(premises.head)
+          proof.ValidProofTactic(
+            scproof,
+            Seq(premise)
           )
-          ProofStepJudgement.ValidProofStep(subproof)
-        case _ => ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), s"Formula in applySingleSimp need to be of the form a=b or q<=>p and not ${phi.label}")
+        case _ => proof.InvalidProofTactic(s"Formula in applySingleSimp need to be of the form a=b or q<=>p and not ${phi.label}")
       }
 
     }

@@ -26,11 +26,10 @@ trait TheoriesHelpers extends KernelHelpers {
      * Add a theorem to the theory, but also asks explicitely for the desired conclusion
      * of the theorem to have more explicit writing and for sanity check.
      */
-    def theorem(name: String, statement: String, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
-      val expected = Parser.parseSequent(statement)
-      if (expected == proof.conclusion) theory.makeTheorem(name, expected, proof, justifications)
-      else if (isSameSequent(expected, proof.conclusion)) theory.makeTheorem(name, expected, proof.appended(Rewrite(expected, proof.length - 1)), justifications)
-      else InvalidJustification(s"The proof proves ${Printer.prettySequent(proof.conclusion)} instead of claimed ${Printer.prettySequent(expected)}", None)
+    def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
+      if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
+      else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Rewrite(statement, proof.length - 1)), justifications)
+      else InvalidJustification(s"The proof proves ${Printer.prettySequent(proof.conclusion)} instead of claimed ${Printer.prettySequent(statement)}", None)
     }
 
     /**
@@ -50,7 +49,7 @@ trait TheoriesHelpers extends KernelHelpers {
 
     /**
      * Make a predicate definition in the theory, but only ask for the identifier of the new symbol; Arity is inferred
-     * of the theorem to have more explicit writing and for sanity check. See [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
+     * of the theorem to have more explicit writing and for sanity check. See also [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
      */
     def predicateDefinition(symbol: String, expression: LambdaTermFormula): RunningTheoryJudgement[theory.PredicateDefinition] = {
       val label = ConstantPredicateLabel(symbol, expression.vars.size)
@@ -65,30 +64,54 @@ trait TheoriesHelpers extends KernelHelpers {
   }
 
   extension (just: RunningTheory#Justification) {
+    def repr: String = just match {
+      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n"
+      case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n"
+      case d: RunningTheory#Definition =>
+        d match {
+          case pd: RunningTheory#PredicateDefinition =>
+            s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
+          case fd: RunningTheory#FunctionDefinition =>
+            s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
+                .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n"
+        }
+    }
 
     /**
      * Outputs, with an implicit om.output function, a readable representation of the Axiom, Theorem or Definition.
      */
     def show(using om: OutputManager): just.type = {
-      just match {
-        case thm: RunningTheory#Theorem => om.output(s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n")
-        case axiom: RunningTheory#Axiom => om.output(s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n")
-        case d: RunningTheory#Definition =>
-          d match {
-            case pd: RunningTheory#PredicateDefinition =>
-              om.output(
-                s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
-              ) // (label, args, phi)
-            case fd: RunningTheory#FunctionDefinition =>
-              om.output(s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
-                  .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n")
-          }
-      }
+      om.output(repr, Console.GREEN)
       just
+
     }
   }
 
   extension [J <: RunningTheory#Justification](theoryJudgement: RunningTheoryJudgement[J]) {
+
+    /**
+     * If the Judgement is valid, show the inner justification and returns it.
+     * Otherwise, om.output the error leading to the invalid justification and throw an error.
+     */
+    def repr: String = {
+      theoryJudgement match {
+        case RunningTheoryJudgement.ValidJustification(just) =>
+          just.repr
+        case InvalidJustification(message, error) =>
+          s"$message\n${error match {
+              case Some(judgement) => Printer.prettySCProof(judgement)
+              case None => ""
+            }}"
+      }
+    }
+
+    /**
+     * If the Judgement is valid, show the inner justification and returns it.
+     * Otherwise, om.output the error leading to the invalid justification and throw an error.
+     */
+    def show(using om: OutputManager): Unit = {
+      om.output(repr)
+    }
 
     /**
      * If the Judgement is valid, show the inner justification and returns it.
