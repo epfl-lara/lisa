@@ -156,7 +156,7 @@ object BasicStepTactic {
         // the check is implicitly done!
         proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premises(pivots.indexWhere(_.isEmpty))))
       else if (pivots.forall(_.tail.isEmpty))
-        LeftOr.withParameters(pivots.map(_.head) : _*)(premises : _*)(bot)
+        LeftOr.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
         // some extraneous formulae
         proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
