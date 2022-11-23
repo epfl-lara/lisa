@@ -154,6 +154,9 @@ class Parser(
     // Variables, schematic functions and predicates
     case class SchematicToken(id: String) extends FormulaToken(schematicSymbol + id)
 
+    // This token is not required for parsing, but is needed to print spaces around infix operations
+    case class InfixToken(id: String) extends FormulaToken(id)
+
     // Schematic connector (prefix notation is expected)
     case class SchematicConnectorToken(id: String) extends FormulaToken(schematicConnectorSymbol + id)
 
@@ -219,6 +222,10 @@ class Parser(
     def apply(it: Iterator[Char]): Iterator[Token] = {
       val source = Source.fromIterator(it, NoPositioner)
       lexer(source)
+        .map({
+          case ConstantToken(id) if infixSet.contains(id) => InfixToken(id)
+          case t => t
+        })
         .filter(_ != SpaceToken)
     }
 
@@ -236,8 +243,8 @@ class Parser(
                 l :+ t.printString
               // space after: separators
               case DotToken | CommaToken | SemicolonToken => l :+ t.printString :+ space
-              // space before and after: equality, connectors, sequent symbol
-              case AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.printString :+ space
+              // space before and after: infix, connectors, sequent symbol
+              case InfixToken(_) | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.printString :+ space
             }
         }
         .mkString
@@ -315,7 +322,6 @@ class Parser(
     case object TopLevelConnectorKind extends TokenKind
     case object NegationKind extends TokenKind
     case object BooleanConstantKind extends TokenKind
-    case object SchematicConnectorKind extends TokenKind
     case object IdKind extends TokenKind
     case class InfixKind(id: String) extends TokenKind
     case object CommaKind extends TokenKind
@@ -339,9 +345,8 @@ class Parser(
       case IffToken | ImpliesToken => TopLevelConnectorKind
       case NegationToken => NegationKind
       case TrueToken | FalseToken => BooleanConstantKind
-      case _: SchematicConnectorToken => SchematicConnectorKind
-      case ConstantToken(id) if infixSet.contains(id) => InfixKind(id)
-      case _: ConstantToken | _: SchematicToken => IdKind
+      case InfixToken(id) => InfixKind(id)
+      case _: ConstantToken | _: SchematicToken | _: SchematicConnectorToken => IdKind
       case CommaToken => CommaKind
       case ParenthesisToken(isOpen) => ParenthesisKind(isOpen)
       case ExistsToken | ExistsOneToken | ForallToken => BinderKind
@@ -386,7 +391,7 @@ class Parser(
 
     //////////////////////// TERMULAS /////////////////////////////////
     // can appear without parentheses
-    lazy val simpleTermula: Syntax[Termula] = prefixApplication | negated | bool | schematicConnectorFormula
+    lazy val simpleTermula: Syntax[Termula] = prefixApplication | negated | bool
     lazy val subtermula: Syntax[Termula] = simpleTermula | open.skip ~ termula ~ closed.skip
 
     val bool: Syntax[Termula] = accept(BooleanConstantKind)(
@@ -410,7 +415,7 @@ class Parser(
       case _ => throw UnreachableException
     }
 
-    // TODO: merge schematic connector case here
+    // schematic connector, function, or predicate; constant function or predicate
     val prefixApplication: Syntax[Termula] = (elem(IdKind) ~ opt(args)).map(
       { case p ~ optArgs =>
         val args = optArgs.getOrElse(Seq())
@@ -418,12 +423,14 @@ class Parser(
           case ConstantToken(id) => ConstantPredicateLabel(synonymToCanonical.getInternalName(id), args.size)
           case SchematicToken(id) =>
             if (args.isEmpty) VariableFormulaLabel(id) else SchematicPredicateLabel(id, args.size)
+          case SchematicConnectorToken(id) => SchematicConnectorLabel(id, args.size)
           case _ => throw UnreachableException
         }
         Termula(l, args)
       },
       {
         case t @ Termula(_: PredicateLabel, _) => Seq(reconstructPrefixApplication(t))
+        case Termula(SchematicConnectorLabel(id, _), args) => Seq(SchematicConnectorToken(id) ~ Some(args))
         case _ => throw UnreachableException
       }
     )
@@ -431,24 +438,24 @@ class Parser(
     val infixFunctionLabels: List[PrecedenceLevel[FormulaLabel]] = infixFunctions.map({ case (l, assoc) =>
       elem(InfixKind(l)).map[FormulaLabel](
         {
-          case ConstantToken(`l`) => ConstantPredicateLabel(synonymToCanonical.getInternalName(l), INFIX_ARITY)
+          case InfixToken(`l`) | ConstantToken(`l`) => ConstantPredicateLabel(synonymToCanonical.getInternalName(l), INFIX_ARITY)
           case _ => throw UnreachableException
         },
         {
-          case ConstantPredicateLabel(id, INFIX_ARITY) => Seq(ConstantToken(synonymToCanonical.getPrintName(id)))
+          case ConstantPredicateLabel(id, INFIX_ARITY) => Seq(InfixToken(synonymToCanonical.getPrintName(id)))
           case _ => throw UnreachableException
         }
       ) has assoc
-    }) // TODO: the rest at the lowest priority?
+    })
 
     val infixPredicateLabels: List[PrecedenceLevel[FormulaLabel]] = infixPredicates.map(l =>
       elem(InfixKind(l)).map[FormulaLabel](
         {
-          case ConstantToken(`l`) => ConstantPredicateLabel(synonymToCanonical.getInternalName(l), INFIX_ARITY)
+          case InfixToken(`l`) | ConstantToken(`l`) => ConstantPredicateLabel(synonymToCanonical.getInternalName(l), INFIX_ARITY)
           case _ => throw UnreachableException
         },
         {
-          case ConstantPredicateLabel(id, INFIX_ARITY) => Seq(ConstantToken(synonymToCanonical.getPrintName(id)))
+          case ConstantPredicateLabel(id, INFIX_ARITY) => Seq(InfixToken(synonymToCanonical.getPrintName(id)))
           case _ => throw UnreachableException
         }
       ) has Associativity.None
@@ -507,17 +514,6 @@ class Parser(
           // parser only knows about connector formulas of two arguments, so we unfold the formula of many arguments to
           // multiple nested formulas of two arguments
           (leftSide.foldLeft(l)((f1, f2) => Termula(conn, Seq(f1, f2))), conn, last)
-      }
-    )
-
-    lazy val schematicConnectorFormula: Syntax[Termula] = (elem(SchematicConnectorKind) ~ args).map(
-      {
-        case SchematicConnectorToken(id) ~ args => Termula(SchematicConnectorLabel(id, args.size), args)
-        case _ => throw UnreachableException
-      },
-      {
-        case Termula(SchematicConnectorLabel(id, _), args) => Seq(SchematicConnectorToken(id) ~ args)
-        case _ => throw UnreachableException
       }
     )
 
