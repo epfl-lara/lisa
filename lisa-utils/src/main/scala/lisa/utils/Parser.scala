@@ -24,6 +24,12 @@ object UnreachableException extends ParserException("Internal error: expected un
 
 class PrintFailedException(inp: Sequent | Formula | Term) extends ParserException(s"Printing of $inp failed unexpectedly")
 
+/**
+ * @param synonymToCanonical information about synonyms that correspond to the same FunctionLabel / PredicateLabel.
+ *                           Can be constructed with [[lisa.utils.SynonymInfoBuilder]]
+ * @param infixPredicates list of infix predicates' names in the decreasing order of priority
+ * @param infixFunctions list of infix functions and their associativity in the decreasing order of priority
+ */
 class Parser(
     synonymToCanonical: SynonymInfo,
     infixPredicates: List[String],
