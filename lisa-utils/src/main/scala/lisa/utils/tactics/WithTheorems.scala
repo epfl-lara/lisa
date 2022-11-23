@@ -235,7 +235,7 @@ trait WithTheorems {
 
     val goal: Sequent = statement match {
       case s: Sequent => s
-      case s: String => lisa.utils.Parser.parseSequent(s)
+      case s: String => lisa.utils.FOLParser.parseSequent(s)
     }
     val name: String = fullName
 
@@ -244,7 +244,7 @@ trait WithTheorems {
 
     def repr: String = (
       " Theorem " + name + " := " + (statement match {
-        case s: Sequent => lisa.utils.Printer.prettySequent(s)
+        case s: Sequent => lisa.utils.FOLPrinter.prettySequent(s)
         case s: String => s
       })
     )

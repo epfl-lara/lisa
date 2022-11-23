@@ -79,7 +79,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
     infix def of(statement: Sequent): TheoremNameWithStatement = TheoremNameWithStatement(name, statement)
-    infix def of(statement: String): TheoremNameWithStatement = TheoremNameWithStatement(name, Parser.parseSequent(statement))
+    infix def of(statement: String): TheoremNameWithStatement = TheoremNameWithStatement(name, FOLParser.parseSequent(statement))
   }
 
   /**

@@ -7,7 +7,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.SCSubproof
 import lisa.kernel.proof.SequentCalculus.sequentToFormula
-import lisa.utils.Printer
+import lisa.utils.FOLPrinter
 import lisa.utils.ProofsShrink
 
 trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
@@ -62,7 +62,7 @@ trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
           Seq(
             "Error: the theorem was found to produce an invalid proof; this could indicate a problem with a tactic or a bug in the implementation",
             "The produced proof is shown below for reference:",
-            Printer.prettySCProof(judgement)
+            FOLPrinter.prettySCProof(judgement)
           ).mkString("\n")
         )
       }
@@ -211,7 +211,7 @@ trait ProofEnvironmentDefinitions extends ProofStateDefinitions {
         Seq(
           "Error: the reconstructed proof was found to be invalid; this could indicate a bug in the implementation of this very method",
           "The reconstructed proof is shown below for reference:",
-          Printer.prettySCProof(judgement)
+          FOLPrinter.prettySCProof(judgement)
         ).mkString("\n")
       )
     }

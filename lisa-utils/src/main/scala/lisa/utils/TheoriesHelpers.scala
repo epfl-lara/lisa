@@ -29,7 +29,7 @@ trait TheoriesHelpers extends KernelHelpers {
     def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
       if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
       else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Rewrite(statement, proof.length - 1)), justifications)
-      else InvalidJustification(s"The proof proves ${Printer.prettySequent(proof.conclusion)} instead of claimed ${Printer.prettySequent(statement)}", None)
+      else InvalidJustification(s"The proof proves ${FOLPrinter.prettySequent(proof.conclusion)} instead of claimed ${FOLPrinter.prettySequent(statement)}", None)
     }
 
     /**
@@ -65,14 +65,14 @@ trait TheoriesHelpers extends KernelHelpers {
 
   extension (just: RunningTheory#Justification) {
     def repr: String = just match {
-      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${Printer.prettySequent(thm.proposition)}\n"
-      case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${Printer.prettyFormula(axiom.ax)}\n"
+      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${FOLPrinter.prettySequent(thm.proposition)}\n"
+      case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${FOLPrinter.prettyFormula(axiom.ax)}\n"
       case d: RunningTheory#Definition =>
         d match {
           case pd: RunningTheory#PredicateDefinition =>
-            s" Definition of predicate symbol ${pd.label.id} := ${Printer.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
+            s" Definition of predicate symbol ${pd.label.id} := ${FOLPrinter.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
           case fd: RunningTheory#FunctionDefinition =>
-            s" Definition of function symbol ${Printer.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${Printer
+            s" Definition of function symbol ${FOLPrinter.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${FOLPrinter
                 .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n"
         }
     }
@@ -99,7 +99,7 @@ trait TheoriesHelpers extends KernelHelpers {
           just.repr
         case InvalidJustification(message, error) =>
           s"$message\n${error match {
-              case Some(judgement) => Printer.prettySCProof(judgement)
+              case Some(judgement) => FOLPrinter.prettySCProof(judgement)
               case None => ""
             }}"
       }
@@ -123,7 +123,7 @@ trait TheoriesHelpers extends KernelHelpers {
           just.show
         case InvalidJustification(message, error) =>
           om.output(s"$message\n${error match {
-              case Some(judgement) => Printer.prettySCProof(judgement)
+              case Some(judgement) => FOLPrinter.prettySCProof(judgement)
               case None => ""
             }}")
           om.finishOutput(InvalidJustificationException(message, error))
@@ -140,10 +140,10 @@ trait TheoriesHelpers extends KernelHelpers {
     def showAndGet(using om: OutputManager): SCProof = {
       proofJudgement match {
         case SCProofCheckerJudgement.SCValidProof(proof) =>
-          om.output(Printer.prettySCProof(proofJudgement))
+          om.output(FOLPrinter.prettySCProof(proofJudgement))
           proof
         case ip @ SCProofCheckerJudgement.SCInvalidProof(proof, path, message) =>
-          om.output(s"$message\n${Printer.prettySCProof(proofJudgement)}")
+          om.output(s"$message\n${FOLPrinter.prettySCProof(proofJudgement)}")
           om.finishOutput(InvalidJustificationException("", Some(ip)))
       }
     }
@@ -156,7 +156,7 @@ trait TheoriesHelpers extends KernelHelpers {
    */
   def checkProof(proof: SCProof, output: String => Unit = println): Unit = {
     val judgement = SCProofChecker.checkSCProof(proof)
-    output(Printer.prettySCProof(judgement))
+    output(FOLPrinter.prettySCProof(judgement))
   }
 
 }

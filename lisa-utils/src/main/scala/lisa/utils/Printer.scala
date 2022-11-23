@@ -6,10 +6,12 @@ import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SCProofCheckerJudgement.*
 import lisa.kernel.proof.SequentCalculus.*
 
+val FOLPrinter = Printer(FOLParser)
+
 /**
  * A set of methods to pretty-print kernel trees.
  */
-object Printer {
+class Printer(parser: Parser) {
 
   private def spaceSeparator(compact: Boolean): String = if (compact) "" else " "
 
@@ -26,7 +28,7 @@ object Printer {
    * @param compact whether spaces should be omitted between tokens
    * @return the string representation of this formula
    */
-  def prettyFormula(formula: Formula, compact: Boolean = false): String = Parser.printFormula(formula)
+  def prettyFormula(formula: Formula, compact: Boolean = false): String = parser.printFormula(formula)
 
   /**
    * Returns a string representation of this term. See also [[prettyFormula]].
@@ -39,7 +41,7 @@ object Printer {
    * @param compact whether spaces should be omitted between tokens
    * @return the string representation of this term
    */
-  def prettyTerm(term: Term, compact: Boolean = false): String = Parser.printTerm(term)
+  def prettyTerm(term: Term, compact: Boolean = false): String = parser.printTerm(term)
 
   /**
    * Returns a string representation of this sequent.
@@ -52,7 +54,7 @@ object Printer {
    * @param compact whether spaces should be omitted between tokens
    * @return the string representation of this sequent
    */
-  def prettySequent(sequent: Sequent, compact: Boolean = false): String = Parser.printSequent(sequent)
+  def prettySequent(sequent: Sequent, compact: Boolean = false): String = parser.printSequent(sequent)
 
   /**
    * Returns a string representation of this proof.

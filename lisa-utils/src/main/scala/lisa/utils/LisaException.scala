@@ -16,7 +16,7 @@ object LisaException {
     def showError: String = "Construction of proof succedded, but the resulting proof or definition has been reported to be faulty. This may be due to an internal bug.\n" +
       "The resulting fauly proof is:\n" +
       s"$underlying.message\n${underlying.error match {
-          case Some(judgement) => Printer.prettySCProof(judgement)
+          case Some(judgement) => FOLPrinter.prettySCProof(judgement)
           case None => ""
         }}"
   }

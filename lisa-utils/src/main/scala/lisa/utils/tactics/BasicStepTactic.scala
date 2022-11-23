@@ -1034,7 +1034,7 @@ object BasicStepTactic {
       extends ProofTactic {
     val bot: Sequent = statement match {
       case s: Sequent => s
-      case s: String => lisa.utils.Parser.parseSequent(s)
+      case s: String => lisa.utils.FOLParser.parseSequent(s)
     }
 
     val iProof: proof.InnerProof = new proof.InnerProof(bot)
