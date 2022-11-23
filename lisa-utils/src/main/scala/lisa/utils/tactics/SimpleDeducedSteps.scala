@@ -25,9 +25,6 @@ object SimpleDeducedSteps {
     def apply(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
       proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
 
-    def apply2(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
-      proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
-
   }
 
   object Discharge extends ProofTactic {
@@ -74,8 +71,6 @@ object SimpleDeducedSteps {
       } else {
         val emptyProof = SCProof(IndexedSeq(), IndexedSeq(proof.getSequent(-1)))
         val j = proof.ValidProofTactic(Seq(SC.Rewrite(premiseSequent, -1)), Seq(premise))
-        // some unfortunate code reuse
-        // ProofStep tactics cannot be composed easily at the moment
         val res = t.foldLeft((emptyProof, phi, j: proof.ProofTacticJudgement)) { case ((p, f, j), t) =>
           j match {
             case proof.InvalidProofTactic(_) => (p, f, j) // propagate error
@@ -148,9 +143,6 @@ object SimpleDeducedSteps {
    */
   object PartialCut extends ProofTactic {
     def apply(using proof: Library#Proof)(phi: FOL.Formula, conjunction: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
-
-      def invalid(message: String) = proof.InvalidProofTactic(message)
-
       val leftSequent = proof.getSequent(prem1)
       val rightSequent = proof.getSequent(prem2)
 
@@ -203,16 +195,16 @@ object SimpleDeducedSteps {
 
                 proof.ValidProofTactic(IndexedSeq(p0, p1, p2, p3, p4), Seq(prem1, prem2))
               } else {
-                invalid("Input conjunction does not contain the pivot.")
+                proof.InvalidProofTactic("Input conjunction does not contain the pivot.")
               }
             }
-            case _ => invalid("Input not a conjunction.")
+            case _ => proof.InvalidProofTactic("Input not a conjunction.")
           }
         } else {
-          invalid("Input pivot formula not found in right premise.")
+          proof.InvalidProofTactic("Input pivot formula not found in right premise.")
         }
       } else {
-        invalid("Input conjunction not found in first premise.")
+        proof.InvalidProofTactic("Input conjunction not found in first premise.")
       }
     }
   }
