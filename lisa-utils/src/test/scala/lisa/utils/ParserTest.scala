@@ -260,4 +260,27 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(parser.parseFormula("(x + y) = (y + x)") == PredicateFormula(equality, Seq(plus(cx, cy), plus(cy, cx))))
     assert(parser.parseFormula("x + y = y + x") == PredicateFormula(equality, Seq(plus(cx, cy), plus(cy, cx))))
   }
+
+  test("parser exception: unexpected input") {
+    try {
+      FOLParser.parseFormula("f(x y)")
+    } catch {
+      case e: UnexpectedInputException => assert(e.getMessage.startsWith("""
+          |f(x y)
+          |    ^
+          |Unexpected input""".stripMargin))
+    }
+  }
+
+  test("parser exception: formula instead of term") {
+    try {
+      FOLParser.parseFormula("x = (a /\\ b)")
+    } catch {
+      case e: UnexpectedInputException =>
+        assert(e.getMessage.startsWith("""
+            |x = (a /\ b)
+            |     ^^^^^^
+            |Unexpected input: expected term""".stripMargin))
+    }
+  }
 }
