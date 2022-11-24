@@ -66,7 +66,7 @@ class RunningTheory {
   private[proof] val funDefinitions: mMap[ConstantFunctionLabel, Option[FunctionDefinition]] = mMap.empty
   private[proof] val predDefinitions: mMap[ConstantPredicateLabel, Option[PredicateDefinition]] = mMap(equality -> None)
 
-  private[proof] val knownSymbols: mMap[String, ConstantLabel] = mMap(equality.id -> equality)
+  private[proof] val knownSymbols: mMap[Identifier, ConstantLabel] = mMap(equality.id -> equality)
 
   /**
    * From a given proof, if it is true in the Running theory, add that theorem to the theory and returns it.
@@ -344,7 +344,7 @@ class RunningTheory {
   /**
    * Get the definition for the given identifier, if it is defined in the theory.
    */
-  def getDefinition(name: String): Option[Definition] = knownSymbols.get(name).flatMap {
+  def getDefinition(name: Identifier): Option[Definition] = knownSymbols.get(name).flatMap {
     case f: ConstantPredicateLabel => getDefinition(f)
     case f: ConstantFunctionLabel => getDefinition(f)
   }

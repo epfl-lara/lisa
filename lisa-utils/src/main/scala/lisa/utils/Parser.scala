@@ -4,7 +4,7 @@ import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.fol.FOL.equality
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.False
+import lisa.utils.Helpers.{False,given_Conversion_String_Identifier, given_Conversion_Identifier_String}
 import lisa.utils.ParsingUtils
 import scallion.*
 import scallion.util.Unfolds.unfoldRight
@@ -200,8 +200,8 @@ class Parser(
       elem('.') |> { _ => DotToken },
       elem('∧') | word("/\\") |> { _ => AndToken },
       elem('∨') | word("\\/") |> { _ => OrToken },
-      word(Implies.id) | word("=>") | word("==>") | elem('→') |> { _ => ImpliesToken },
-      word(Iff.id) | word("<=>") | word("<==>") | elem('⟷') | elem('↔') |> { _ => IffToken },
+      word(Implies.id.toString) | word("=>") | word("==>") | elem('→') |> { _ => ImpliesToken },
+      word(Iff.id.toString) | word("<=>") | word("<==>") | elem('⟷') | elem('↔') |> { _ => IffToken },
       elem('⊤') | elem('T') | word("True") | word("true") |> { _ => TrueToken },
       elem('⊥') | elem('F') | word("False") | word("false") |> { _ => FalseToken },
       elem('¬') | elem('!') |> { _ => NegationToken },

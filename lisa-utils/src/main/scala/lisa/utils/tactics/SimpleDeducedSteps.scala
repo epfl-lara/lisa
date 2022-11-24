@@ -79,8 +79,8 @@ object SimpleDeducedSteps {
               // by construction the premise is well-formed
               // verify the formula structure and instantiate
               f match {
-                case psi @ FOL.BinderFormula(FOL.Forall, _, _) =>
-                  val tempVar = FOL.VariableLabel(FOL.freshId(psi.freeVariables.map(_.id), "x"))
+                case psi @ FOL.BinderFormula(FOL.Forall, x, _) =>
+                  val tempVar = FOL.VariableLabel(freshId(psi.freeVariables.map(_.id), x.id))
                   // instantiate the formula with input
                   val in = instantiateBinder(psi, t)
                   val bot = p.conclusion -> f +> in

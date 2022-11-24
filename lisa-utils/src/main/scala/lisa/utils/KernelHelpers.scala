@@ -206,4 +206,43 @@ trait KernelHelpers {
   def formulaVariable(using name: sourcecode.Name): VariableFormulaLabel = VariableFormulaLabel(name.value)
   def predicate(arity: Integer)(using name: sourcecode.Name): SchematicPredicateLabel = SchematicPredicateLabel(name.value, arity)
   def connector(arity: Integer)(using name: sourcecode.Name): SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
+
+  given Conversion[String, Identifier] = str => {
+    val pieces = str.split(Identifier.counterSeparator)
+    if (pieces.length == 1) {
+      val name = pieces.head
+      if (!Identifier.isValidIdentifier(name)) {
+        throw new LisaException.InvalidIdentifierException("name",
+          "Identifier must either start with a letter and be alphanumeric" +
+            "or contain only operator symbols " + Identifier.operators.mkString("") +
+            s"or start and end with ${Identifier.delimiter} .")
+      }
+      Identifier(name)
+    } else if (pieces.length == 2) {
+      val name = pieces.head
+      val no = pieces(1)
+      if (!no.forall(_.isDigit) || (no.length == 1 && no.head == '0')) {
+        throw new LisaException.InvalidIdentifierException(str, s"The part of an identifier contained after ${Identifier.counterSeparator} must be a number without leading 0s.")
+      }
+      if (!Identifier.isValidIdentifier(name)){
+        throw new LisaException.InvalidIdentifierException(str,
+          "Identifier must either start with a letter and be alphanumeric" +
+            "or contain only operator symbols " + Identifier.operators.mkString("") +
+            s"or start and end with backtick ${Identifier.delimiter} ."
+        )
+      }
+      Identifier(name, no.toInt)
+    } else { //if number of _ is greater than 1
+      throw new LisaException.InvalidIdentifierException("name",
+        "The identifier cannot contain more than one underscore _."
+      )
+    }
+  }
+  given Conversion[Identifier, String] = _.toString
+
+  def freshId(taken:Iterable[Identifier], base:Identifier):Identifier = {
+    new Identifier(base.name, (taken.collect( {
+      case Identifier(base.name, no) => no
+    })++Iterable(base.no)).max+1)
+  }
 }
