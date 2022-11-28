@@ -212,10 +212,9 @@ trait KernelHelpers {
     if (pieces.length == 1) {
       val name = pieces.head
       if (!Identifier.isValidIdentifier(name)) {
-        throw new LisaException.InvalidIdentifierException("name",
-          "Identifier must either start with a letter and be alphanumeric" +
-            "or contain only operator symbols " + Identifier.operators.mkString("") +
-            s"or start and end with ${Identifier.delimiter} .")
+        throw new LisaException.InvalidIdentifierException(str,
+          "Identifier must not contain whitespaces nor symbols among " + Identifier.forbiddenChars.mkString()
+        )
       }
       Identifier(name)
     } else if (pieces.length == 2) {
@@ -226,9 +225,7 @@ trait KernelHelpers {
       }
       if (!Identifier.isValidIdentifier(name)){
         throw new LisaException.InvalidIdentifierException(str,
-          "Identifier must either start with a letter and be alphanumeric" +
-            "or contain only operator symbols " + Identifier.operators.mkString("") +
-            s"or start and end with backtick ${Identifier.delimiter} ."
+          "Identifier must not contain whitespaces nor symbols among " + Identifier.forbiddenChars.mkString()
         )
       }
       Identifier(name, no.toInt)
@@ -244,5 +241,10 @@ trait KernelHelpers {
     new Identifier(base.name, (taken.collect( {
       case Identifier(base.name, no) => no
     })++Iterable(base.no)).max+1)
+  }
+
+  def nFreshId(taken: Iterable[Identifier], n: Int): IndexedSeq[Identifier] = {
+    val max = if (taken.isEmpty) 0 else taken.map(c => c.no).max
+    Range(0, n).map(i => Identifier("gen", max + i))
   }
 }

@@ -140,9 +140,9 @@ class Parser(
 
     case object DotToken extends FormulaToken(".")
 
-    case object AndToken extends FormulaToken(And.id)
+    case class AndToken(prefix:Boolean) extends FormulaToken(And.id)
 
-    case object OrToken extends FormulaToken(Or.id)
+    case class OrToken(prefix:Boolean) extends FormulaToken(Or.id)
 
     case object ImpliesToken extends FormulaToken(Implies.id)
 
@@ -198,8 +198,8 @@ class Parser(
       word("∃!") |> { _ => ExistsOneToken },
       elem('∃') |> { _ => ExistsToken },
       elem('.') |> { _ => DotToken },
-      elem('∧') | word("/\\") |> { _ => AndToken },
-      elem('∨') | word("\\/") |> { _ => OrToken },
+      elem('∧') | word("/\\") |> { _ => AndToken(false) },
+      elem('∨') | word("\\/") |> { _ => OrToken(false) },
       word(Implies.id.toString) | word("=>") | word("==>") | elem('→') |> { _ => ImpliesToken },
       word(Iff.id.toString) | word("<=>") | word("<==>") | elem('⟷') | elem('↔') |> { _ => IffToken },
       elem('⊤') | elem('T') | word("True") | word("true") |> { _ => TrueToken },
@@ -245,12 +245,12 @@ class Parser(
             t match {
               // do not require spaces
               case ForallToken | ExistsToken | ExistsOneToken | NegationToken | ConstantToken(_) | SchematicToken(_) | SchematicConnectorToken(_) | TrueToken | FalseToken | ParenthesisToken(_) |
-                  SpaceToken =>
+                  SpaceToken | AndToken(true) | OrToken(true) =>
                 l :+ t.printString
               // space after: separators
               case DotToken | CommaToken | SemicolonToken => l :+ t.printString :+ space
               // space before and after: infix, connectors, sequent symbol
-              case InfixToken(_) | AndToken | OrToken | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.printString :+ space
+              case InfixToken(_) | AndToken(false) | OrToken(false) | ImpliesToken | IffToken | SequentToken => l :+ space :+ t.printString :+ space
             }
         }
         .mkString
@@ -294,7 +294,7 @@ class Parser(
   extension (f: Formula) {
     def toTermula: Termula = f match {
       case PredicateFormula(label, args) => Termula(label, args.map(_.toTermula))
-      case ConnectorFormula(And | Or, Seq(singleArg)) => singleArg.toTermula
+      //case ConnectorFormula(And | Or, Seq(singleArg)) => singleArg.toTermula
       case ConnectorFormula(label, args) => Termula(label, args.map(_.toTermula))
       case BinderFormula(label, bound, inner) => Termula(label, Seq(Termula(VariableFormulaLabel(bound.id), Seq()), inner.toTermula))
     }
@@ -346,8 +346,8 @@ class Parser(
     import SafeImplicits._
 
     def getKind(t: Token): Kind = t match {
-      case AndToken => AndKind
-      case OrToken => OrKind
+      case _: AndToken => AndKind
+      case _: OrToken => OrKind
       case IffToken | ImpliesToken => TopLevelConnectorKind
       case NegationToken => NegationKind
       case TrueToken | FalseToken => BooleanConstantKind
@@ -422,14 +422,17 @@ class Parser(
     }
 
     // schematic connector, function, or predicate; constant function or predicate
-    val prefixApplication: Syntax[Termula] = (elem(IdKind) ~ opt(args)).map(
+    val prefixApplication: Syntax[Termula] = ((elem(IdKind) | elem(OrKind) | elem(AndKind)) ~ opt(args)).map(
       { case p ~ optArgs =>
         val args = optArgs.getOrElse(Seq())
         val l = p match {
-          case ConstantToken(id) => ConstantPredicateLabel(synonymToCanonical.getInternalName(id), args.size)
+          case ConstantToken(id)  =>
+            ConstantPredicateLabel(synonymToCanonical.getInternalName(id), args.size)
           case SchematicToken(id) =>
             if (args.isEmpty) VariableFormulaLabel(id) else SchematicPredicateLabel(id, args.size)
           case SchematicConnectorToken(id) => SchematicConnectorLabel(id, args.size)
+          case AndToken(_) => And
+          case OrToken(_) => Or
           case _ => throw UnreachableException
         }
         Termula(l, args)
@@ -437,6 +440,8 @@ class Parser(
       {
         case t @ Termula(_: PredicateLabel, _) => Seq(reconstructPrefixApplication(t))
         case Termula(SchematicConnectorLabel(id, _), args) => Seq(SchematicConnectorToken(id) ~ Some(args))
+        case Termula(And, args) => Seq(AndToken(true) ~ Some(args))
+        case Termula(Or, args) => Seq(OrToken(true) ~ Some(args))
         case _ => throw UnreachableException
       }
     )
@@ -481,22 +486,22 @@ class Parser(
 
     val and: Syntax[ConnectorLabel] = elem(AndKind).map[ConnectorLabel](
       {
-        case AndToken => And
+        case AndToken(_) => And
         case _ => throw UnreachableException
       },
       {
-        case And => Seq(AndToken)
+        case And => Seq(AndToken(false))
         case _ => throw UnreachableException
       }
     )
 
     val or: Syntax[ConnectorLabel] = elem(OrKind).map[ConnectorLabel](
       {
-        case OrToken => Or
+        case OrToken(_) => Or
         case _ => throw UnreachableException
       },
       {
-        case Or => Seq(OrToken)
+        case Or => Seq(OrToken(false))
         case _ => throw UnreachableException
       }
     )

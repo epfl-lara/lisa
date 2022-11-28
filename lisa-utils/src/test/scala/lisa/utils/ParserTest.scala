@@ -5,6 +5,7 @@ import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.FOLParser
 import lisa.utils.Helpers.*
 import org.scalatest.funsuite.AnyFunSuite
+import lisa.utils.Helpers.{given_Conversion_String_Identifier, given_Conversion_Identifier_String, *}
 
 class ParserTest extends AnyFunSuite with TestUtils {
   test("constant") {

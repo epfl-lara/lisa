@@ -3,7 +3,7 @@ package lisa.kernel
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.utils.FOLPrinter
-import lisa.utils.Helpers.*
+import lisa.utils.Helpers.{given_Conversion_String_Identifier, given_Conversion_Identifier_String, *}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.MapView
@@ -11,6 +11,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 import scala.language.adhocExtensions
 import scala.util.Random
+
+
 
 class EquivalenceCheckerTests extends AnyFunSuite {
   private val verbose = false // Turn this on to print all tested couples

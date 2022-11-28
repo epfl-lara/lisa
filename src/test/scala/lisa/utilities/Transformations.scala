@@ -89,6 +89,8 @@ class Transformations extends ProofCheckerSuite {
     val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
     val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
 
+    println(transf.steps.mkString("\n"))
+    println(lisa.utils.FOLPrinter.prettySCProof(transf))
     checkProof(transf)
     assert(transf != noImpProof)
     assert(isSameSequent(transf.steps.last.bot, (sequentToFormula(outro.bot)) |- outro.bot.right))

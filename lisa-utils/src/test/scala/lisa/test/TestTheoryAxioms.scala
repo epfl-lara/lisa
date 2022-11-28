@@ -8,8 +8,8 @@ trait TestTheoryAxioms {
   final val p1 = ConstantPredicateLabel("p1", 1)
   final val p2 = ConstantPredicateLabel("p2", 1)
   final val f1 = ConstantFunctionLabel("f1", 1)
-  final val fixedElement = ConstantFunctionLabel("fixed_element", 0)
-  final val anotherFixed = ConstantFunctionLabel("another_element", 0)
+  final val fixedElement = ConstantFunctionLabel("fixedElement", 0)
+  final val anotherFixed = ConstantFunctionLabel("anotherElement", 0)
 
   val runningTestTheory = new RunningTheory()
   runningTestTheory.addSymbol(p1)

@@ -13,11 +13,6 @@ object SimpleSimplifier {
 
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
-  def nFreshId(froms: Iterable[String], n: Int): IndexedSeq[String] = {
-    val max = if (froms.isEmpty) 0 else froms.map(c => ("0" + c.filter(_.isDigit)).toInt).max
-    Range(0, n).map(i => "_" + (max + i))
-  }
-
   private def findSubterm2(t: Term, subs: Seq[(VariableLabel, Term)]): (Term, Boolean) = {
     val eq = subs.find(s => isSame(t, s._2))
     if (eq.nonEmpty) (eq.get._1(), true)

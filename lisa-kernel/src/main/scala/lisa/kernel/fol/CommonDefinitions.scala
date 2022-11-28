@@ -15,8 +15,8 @@ private[fol] trait CommonDefinitions {
   }
 
   class Identifier(val name:String, val no: Int) {
-    require(no >> 31 == 0)
-    require(Identifier.isValidIdentifier(name))
+    require(no >> 31 == 0, "Variable index must be positive")
+    require(Identifier.isValidIdentifier(name), "Variable name " + name + "is not valid.")
     override def toString:String = if (no == 0) name else name+Identifier.counterSeparator+no
   }
   object Identifier {
@@ -26,12 +26,8 @@ private[fol] trait CommonDefinitions {
 
     val counterSeparator: Char = '_'
     val delimiter: Char = '`'
-    val operators:Set[Char] = "$&|^!+-<>*".toSet
-    def isValidIdentifier(s:String): Boolean = {
-      (s.head.isLetter && s.tail.forall(_.isLetterOrDigit)) ||
-        s.forall(operators.contains) ||
-        (s.head == delimiter && s.last == delimiter && s.count(_=='`') == 2)
-    }
+    val forbiddenChars: Set[Char] = ("()[]{}?"+delimiter+counterSeparator).toSet
+    def isValidIdentifier(s:String): Boolean = s.forall(c => !forbiddenChars.contains(c) && ! c.isWhitespace)
   }
 
   /**

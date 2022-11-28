@@ -22,10 +22,10 @@ abstract class ProofCheckerSuite(printer: Printer = FOLPrinter) extends AnyFunSu
     VariableLabel("y"),
     VariableLabel("z"),
     VariableLabel("w"),
-    VariableLabel("x'"),
-    VariableLabel("y'"),
-    VariableLabel("z'"),
-    VariableLabel("w'")
+    VariableLabel("x1"),
+    VariableLabel("y1"),
+    VariableLabel("z1"),
+    VariableLabel("w1")
   )
   protected val (x, y, z, w, xp, yp, zp, wp) = (
     VariableTerm(xl),
