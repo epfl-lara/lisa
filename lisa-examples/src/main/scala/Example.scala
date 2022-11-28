@@ -23,7 +23,7 @@ object Example {
     //Exercise.main(Array()) // uncomment when exercise finished
     // solverExample()
     // tptpExample()
-
+/*
     val phi = SchematicPredicateLabel("phi", 0)
     val psi = SchematicPredicateLabel("psi", 2)
     val x = VariableLabel("x")
@@ -31,11 +31,13 @@ object Example {
 
     val f1 = psi(x, y)
     val f2 = or(psi(x, y))
+    println(f1)
+    println(f2)
 
     println(prettyFormula(f1))
     println(prettyFormula(f2))
     println(isSame(f1, f2))
-
+*/
 /*
     val intro = Rewrite(() |- phi(), -1)
     val outro = InstPredSchema(() |- psi(x, y), 0, Map((phi, LambdaTermFormula(Seq(), psi(x, y)))))

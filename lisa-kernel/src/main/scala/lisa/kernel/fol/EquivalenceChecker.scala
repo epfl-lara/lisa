@@ -180,11 +180,8 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     }
 
     def OCBSLCode(phi: SimpleFormula): Int = {
-      println("----------")
-      println(phi)
       if (phi.normalForm.nonEmpty) return phi.normalForm.get.code
       val L = pDisj(phi, Nil)
-      println(L)
       val L2 = L zip (L map (_.code))
       val L3 = L2.sortBy(_._2).distinctBy(_._2).filterNot(_._2 == 0) // actually efficient has set based implementation already
       if (L3.isEmpty) {
@@ -218,8 +215,6 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
               phi.normalForm = Some(NormalPredicate(label, args, updateCodesSig((lab, (args map codesOfTerm).sorted))))
           } else {
             phi.normalForm = Some(NormalPredicate(label, args, updateCodesSig((lab, args map codesOfTerm))))
-            println("pDisj phi.normalForm.get "+phi.normalForm.get)
-            println("pDisj phi sig "+(lab, args map codesOfTerm))
           }
           phi.normalForm.get :: acc
         case SimpleConnector(label, args) =>
