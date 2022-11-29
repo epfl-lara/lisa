@@ -1,6 +1,5 @@
 package lisa.utils.tactics
 
-import jdk.jfr.StackTrace
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheoryJudgement
