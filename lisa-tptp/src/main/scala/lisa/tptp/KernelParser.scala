@@ -7,7 +7,9 @@ import leo.modules.input.TPTPParser as Parser
 import lisa.kernel.fol.FOL as K
 import lisa.kernel.proof.SequentCalculus as LK
 import lisa.tptp.*
-import lisa.utils.Helpers.{given_Conversion_Identifier_String, given_Conversion_String_Identifier, *}
+import lisa.utils.Helpers._
+import lisa.utils.Helpers.given_Conversion_Identifier_String
+import lisa.utils.Helpers.given_Conversion_String_Identifier
 
 import java.io.File
 import scala.util.matching.Regex

@@ -1,7 +1,9 @@
 package lisa.utils
 
 import lisa.kernel.fol.FOL._
-import lisa.utils.Helpers.{given_Conversion_String_Identifier, given_Conversion_Identifier_String, *}
+import lisa.utils.Helpers._
+import lisa.utils.Helpers.given_Conversion_Identifier_String
+import lisa.utils.Helpers.given_Conversion_String_Identifier
 
 trait TestUtils {
   val (a, b, c) = (ConstantPredicateLabel("a", 0), ConstantPredicateLabel("b", 0), ConstantPredicateLabel("c", 0))

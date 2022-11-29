@@ -14,20 +14,20 @@ private[fol] trait CommonDefinitions {
     val id: Identifier
   }
 
-  sealed case class Identifier(val name:String, val no: Int) {
+  sealed case class Identifier(val name: String, val no: Int) {
     require(no >> 31 == 0, "Variable index must be positive")
     require(Identifier.isValidIdentifier(name), "Variable name " + name + "is not valid.")
-    override def toString:String = if (no == 0) name else name+Identifier.counterSeparator+no
+    override def toString: String = if (no == 0) name else name + Identifier.counterSeparator + no
   }
   object Identifier {
-    def unapply(i:Identifier): Option[(String, Int)] = Some((i.name, i.no))
-    def apply(name:String):Identifier = new Identifier(name, 0)
-    def apply(name:String, no:Int):Identifier = new Identifier(name, no)
+    def unapply(i: Identifier): Option[(String, Int)] = Some((i.name, i.no))
+    def apply(name: String): Identifier = new Identifier(name, 0)
+    def apply(name: String, no: Int): Identifier = new Identifier(name, no)
 
     val counterSeparator: Char = '_'
     val delimiter: Char = '`'
-    val forbiddenChars: Set[Char] = ("()[]{}?"+delimiter+counterSeparator).toSet
-    def isValidIdentifier(s:String): Boolean = s.forall(c => !forbiddenChars.contains(c) && ! c.isWhitespace)
+    val forbiddenChars: Set[Char] = ("()[]{}?" + delimiter + counterSeparator).toSet
+    def isValidIdentifier(s: String): Boolean = s.forall(c => !forbiddenChars.contains(c) && !c.isWhitespace)
   }
 
   /**
@@ -36,10 +36,13 @@ private[fol] trait CommonDefinitions {
    * @param base prefix of the new id
    * @return a fresh id.
    */
-  private[kernel] def freshId(taken:Iterable[Identifier], base:Identifier):Identifier = {
-    new Identifier(base.name, (taken.collect( {
-      case Identifier(base.name, no) => no
-    })++Iterable(base.no)).max+1)
+  private[kernel] def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
+    new Identifier(
+      base.name,
+      (taken.collect({ case Identifier(base.name, no) =>
+        no
+      }) ++ Iterable(base.no)).max + 1
+    )
   }
 
   /**

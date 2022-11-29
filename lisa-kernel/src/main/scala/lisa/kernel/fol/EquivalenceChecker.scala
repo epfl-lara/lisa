@@ -115,7 +115,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
         case SimpleConnector(id, args) => SimpleConnector(id, args.map(f => toLocallyNameless(f, subst, i)))
         case SNeg(child) => SNeg(toLocallyNameless(child, subst, i))
         case SOr(children) => SOr(children.map(toLocallyNameless(_, subst, i)))
-        case SForall(x, inner) => SForall(Identifier(""), toLocallyNameless(inner, subst + (x-> i), i + 1))
+        case SForall(x, inner) => SForall(Identifier(""), toLocallyNameless(inner, subst + (x -> i), i + 1))
         case SExists(x, inner) => SExists(Identifier(""), toLocallyNameless(inner, subst + (x -> i), i + 1))
         case SLiteral(b) => phi
       }

@@ -4,8 +4,10 @@ import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.FOLParser
 import lisa.utils.Helpers.*
+import lisa.utils.Helpers._
+import lisa.utils.Helpers.given_Conversion_Identifier_String
+import lisa.utils.Helpers.given_Conversion_String_Identifier
 import org.scalatest.funsuite.AnyFunSuite
-import lisa.utils.Helpers.{given_Conversion_String_Identifier, given_Conversion_Identifier_String, *}
 
 class ParserTest extends AnyFunSuite with TestUtils {
   test("constant") {
@@ -260,5 +262,28 @@ class ParserTest extends AnyFunSuite with TestUtils {
     val parser = Parser(SynonymInfoBuilder().addSynonyms(plus.id, "+").build, equality.id :: Nil, ("+", Associativity.Left) :: Nil)
     assert(parser.parseFormula("(x + y) = (y + x)") == PredicateFormula(equality, Seq(plus(cx, cy), plus(cy, cx))))
     assert(parser.parseFormula("x + y = y + x") == PredicateFormula(equality, Seq(plus(cx, cy), plus(cy, cx))))
+  }
+
+  test("parser exception: unexpected input") {
+    try {
+      FOLParser.parseFormula("f(x y)")
+    } catch {
+      case e: UnexpectedInputException => assert(e.getMessage.startsWith("""
+          |f(x y)
+          |    ^
+          |Unexpected input""".stripMargin))
+    }
+  }
+
+  test("parser exception: formula instead of term") {
+    try {
+      FOLParser.parseFormula("x = (a /\\ b)")
+    } catch {
+      case e: UnexpectedInputException =>
+        assert(e.getMessage.startsWith("""
+            |x = (a /\ b)
+            |     ^^^^^^
+            |Unexpected input: expected term""".stripMargin))
+    }
   }
 }
