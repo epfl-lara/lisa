@@ -20,44 +20,9 @@ object Example {
 
   def main(args: Array[String]): Unit = {
 
-    //Exercise.main(Array()) // uncomment when exercise finished
+    // Exercise.main(Array())
     // solverExample()
     // tptpExample()
-/*
-    val phi = SchematicPredicateLabel("phi", 0)
-    val psi = SchematicPredicateLabel("psi", 2)
-    val x = VariableLabel("x")
-    val y = VariableLabel("y")
-
-    val f1 = psi(x, y)
-    val f2 = or(psi(x, y))
-    println(f1)
-    println(f2)
-
-    println(prettyFormula(f1))
-    println(prettyFormula(f2))
-    println(isSame(f1, f2))
-*/
-/*
-    val intro = Rewrite(() |- phi(), -1)
-    val outro = InstPredSchema(() |- psi(x, y), 0, Map((phi, LambdaTermFormula(Seq(), psi(x, y)))))
-    val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
-    val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
-    val innerp = transf.steps(1).asInstanceOf[SCSubproof].sp
-
-    val mine = SCProof(
-      Hypothesis(psi(x, y) |- psi(x, y), psi(x, y)),
-      Rewrite(psi(x, y) |- psi(x, y), 0),
-    )
-    checkProof(mine)
-    println("ok1")
-
-    lisa.utils.FOLPrinter
-    checkProof(innerp)
-    println(innerp.steps(1).bot)
-    println("ok2")
-    checkProof(transf)
-*/
   }
 
   /**
