@@ -11,29 +11,24 @@ private[fol] trait CommonDefinitions {
    */
   protected trait Label {
     val arity: Int
-    val id: String
+    val id: Identifier
   }
 
-  /**
-   * \begin{lstlisting}[language=Scala, frame=single]
-   * object MyTheoryName extends lisa.Main {
-   *
-   *  THEOREM("theoremName") of "desired conclusion" PROOF {
-   *
-   *    ... : Proof
-   *
-   *  } using (listOfJustifications)
-   *  show
-   * }
-   * \end{lstlisting}
-   * A constant label can represent a fixed symbol of a theory or a logical symbol
-   */
-  trait ConstantLabel extends Label
+  sealed case class Identifier(val name: String, val no: Int) {
+    require(no >= 0, "Variable index must be positive")
+    require(Identifier.isValidIdentifier(name), "Variable name " + name + "is not valid.")
+    override def toString: String = if (no == 0) name else name + Identifier.counterSeparator + no
+  }
+  object Identifier {
+    def unapply(i: Identifier): Option[(String, Int)] = Some((i.name, i.no))
+    def apply(name: String): Identifier = new Identifier(name, 0)
+    def apply(name: String, no: Int): Identifier = new Identifier(name, no)
 
-  /**
-   * A schematic label in a formula or a term can be substituted by any formula or term of the adequate kind.
-   */
-  trait SchematicLabel extends Label
+    val counterSeparator: Char = '_'
+    val delimiter: Char = '`'
+    val forbiddenChars: Set[Char] = ("()[]{}?" + delimiter + counterSeparator).toSet
+    def isValidIdentifier(s: String): Boolean = s.forall(c => !forbiddenChars.contains(c) && !c.isWhitespace)
+  }
 
   /**
    * return am identifier that is different from a set of give identifier.
@@ -41,9 +36,22 @@ private[fol] trait CommonDefinitions {
    * @param base prefix of the new id
    * @return a fresh id.
    */
-  def freshId(taken: Set[String], base: String): String = {
-    var i = 0;
-    while (taken contains base + "_" + i) i += 1
-    base + "_" + i
+  private[kernel] def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
+    new Identifier(
+      base.name,
+      (taken.collect({ case Identifier(base.name, no) =>
+        no
+      }) ++ Iterable(base.no)).max + 1
+    )
   }
+
+  /**
+   * A label for constant (non-schematic) symbols in formula and terms
+   */
+  trait ConstantLabel extends Label
+
+  /**
+   * A schematic label in a formula or a term can be substituted by any formula or term of the adequate kind.
+   */
+  trait SchematicLabel extends Label
 }

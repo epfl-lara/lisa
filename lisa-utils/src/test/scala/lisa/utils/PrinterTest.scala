@@ -3,7 +3,9 @@ package lisa.utils
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.FOLParser
-import lisa.utils.Helpers.*
+import lisa.utils.Helpers._
+import lisa.utils.Helpers.given_Conversion_Identifier_String
+import lisa.utils.Helpers.given_Conversion_String_Identifier
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
@@ -105,12 +107,12 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("and/or of 1 argument") {
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a))) == "a")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(a))) == "a")
+    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a))) == "∧(a)")
+    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(a))) == "∨(a)")
 
-    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(ConnectorFormula(Or, Seq(a)), ConnectorFormula(And, Seq(a))))) == "a ⇒ a")
+    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(ConnectorFormula(Or, Seq(a)), ConnectorFormula(And, Seq(a))))) == "∨(a) ⇒ ∧(a)")
     assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(a, a))) == "a ⇒ a")
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, ConnectorFormula(Or, Seq(a)))) == "∀'x. a")
+    assert(FOLParser.printFormula(BinderFormula(Forall, x, ConnectorFormula(Or, Seq(a)))) == "∀'x. ∨(a)")
   }
 
   test("connectors of >2 arguments") {

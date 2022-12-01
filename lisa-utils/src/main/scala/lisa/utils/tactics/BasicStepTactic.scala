@@ -392,7 +392,7 @@ object BasicStepTactic {
   object LeftExistsOne extends ProofTactic with ParameterlessAndThen {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id) + x.id, "y"))
+      lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
       lazy val instantiated = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredicateFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
       lazy val quantified = BinderFormula(ExistsOne, x, phi)
 
@@ -742,7 +742,7 @@ object BasicStepTactic {
   object RightExistsOne extends ProofTactic with ParameterlessAndThen {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id) + x.id, "y"))
+      lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
       lazy val instantiated = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredicateFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
       lazy val quantified = BinderFormula(ExistsOne, x, phi)
 

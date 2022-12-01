@@ -112,7 +112,7 @@ class FolTests extends AnyFunSuite {
   }
 
   test("Fresh variables should be fresh") {
-    val y1 = VariableLabel(freshId(equ(VariableTerm(x), VariableTerm(x)).freeVariables.map(_.name), x.name))
+    val y1 = VariableLabel(lisa.kernel.fol.FOL.freshId(equ(VariableTerm(x), VariableTerm(x)).freeVariables.map(_.name), x.name))
 
     assert(!isSame(x, y1))
   }

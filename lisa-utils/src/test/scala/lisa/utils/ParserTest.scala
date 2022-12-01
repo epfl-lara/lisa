@@ -4,6 +4,9 @@ import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.FOLParser
 import lisa.utils.Helpers.*
+import lisa.utils.Helpers._
+import lisa.utils.Helpers.given_Conversion_Identifier_String
+import lisa.utils.Helpers.given_Conversion_String_Identifier
 import org.scalatest.funsuite.AnyFunSuite
 
 class ParserTest extends AnyFunSuite with TestUtils {

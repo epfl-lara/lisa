@@ -175,7 +175,7 @@ object SCProofChecker {
            *      Γ, ∃!x. φ |- Δ
            */
           case LeftExistsOne(b, t1, phi, x) =>
-            val y = VariableLabel(freshId(phi.freeVariables.map(_.id) + x.id, "y"))
+            val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
             val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredicateFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
             if (isSameSet(b.right, ref(t1).right))
               if (isSameSet(b.left + temp, ref(t1).left + BinderFormula(ExistsOne, x, phi)))
@@ -283,7 +283,7 @@ object SCProofChecker {
            * </pre>
            */
           case RightExistsOne(b, t1, phi, x) =>
-            val y = VariableLabel(freshId(phi.freeVariables.map(_.id), "x"))
+            val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
             val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredicateFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
             if (isSameSet(b.left, ref(t1).left))
               if (isSameSet(b.right + temp, ref(t1).right + BinderFormula(ExistsOne, x, phi)))

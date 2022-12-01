@@ -206,4 +206,42 @@ trait KernelHelpers {
   def formulaVariable(using name: sourcecode.Name): VariableFormulaLabel = VariableFormulaLabel(name.value)
   def predicate(arity: Integer)(using name: sourcecode.Name): SchematicPredicateLabel = SchematicPredicateLabel(name.value, arity)
   def connector(arity: Integer)(using name: sourcecode.Name): SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
+
+  given Conversion[String, Identifier] = str => {
+    val pieces = str.split(Identifier.counterSeparator)
+    if (pieces.length == 1) {
+      val name = pieces.head
+      if (!Identifier.isValidIdentifier(name)) {
+        throw new LisaException.InvalidIdentifierException(str, "Identifier must not contain whitespaces nor symbols among " + Identifier.forbiddenChars.mkString())
+      }
+      Identifier(name)
+    } else if (pieces.length == 2) {
+      val name = pieces.head
+      val no = pieces(1)
+      if (!no.forall(_.isDigit) || no.isEmpty || (no.length > 1 && no.head == '0')) {
+        throw new LisaException.InvalidIdentifierException(str, s"The part of an identifier contained after ${Identifier.counterSeparator} must be a number without leading 0s.")
+      }
+      if (!Identifier.isValidIdentifier(name)) {
+        throw new LisaException.InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among ${Identifier.forbiddenChars.mkString()}.")
+      }
+      Identifier(name, no.toInt)
+    } else { // if number of _ is greater than 1
+      throw new LisaException.InvalidIdentifierException("name", s"The identifier cannot contain more than one counter separator (${Identifier.counterSeparator}).")
+    }
+  }
+  given Conversion[Identifier, String] = _.toString
+
+  def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
+    new Identifier(
+      base.name,
+      (taken.collect({ case Identifier(base.name, no) =>
+        no
+      }) ++ Iterable(base.no)).max + 1
+    )
+  }
+
+  def nFreshId(taken: Iterable[Identifier], n: Int): IndexedSeq[Identifier] = {
+    val max = if (taken.isEmpty) 0 else taken.map(c => c.no).max
+    Range(0, n).map(i => Identifier("gen", max + i))
+  }
 }

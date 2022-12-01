@@ -5,6 +5,8 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.fol.FOL.equality
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Helpers.False
+import lisa.utils.Helpers.given_Conversion_Identifier_String
+import lisa.utils.Helpers.given_Conversion_String_Identifier
 import lisa.utils.ParsingUtils
 import scallion.*
 import scallion.util.Unfolds.unfoldRight
@@ -170,9 +172,9 @@ class Parser(
 
     case class DotToken(range: (Int, Int)) extends FormulaToken(".")
 
-    case class AndToken(range: (Int, Int)) extends FormulaToken(And.id)
+    case class AndToken(range: (Int, Int), prefix: Boolean) extends FormulaToken(And.id)
 
-    case class OrToken(range: (Int, Int)) extends FormulaToken(Or.id)
+    case class OrToken(range: (Int, Int), prefix: Boolean) extends FormulaToken(Or.id)
 
     case class ImpliesToken(range: (Int, Int)) extends FormulaToken(Implies.id)
 
@@ -229,10 +231,10 @@ class Parser(
       word("∃!") |> { (_, r) => ExistsOneToken(r) },
       elem('∃') |> { (_, r) => ExistsToken(r) },
       elem('.') |> { (_, r) => DotToken(r) },
-      elem('∧') | word("/\\") |> { (_, r) => AndToken(r) },
-      elem('∨') | word("\\/") |> { (_, r) => OrToken(r) },
-      word(Implies.id) | word("=>") | word("==>") | elem('→') |> { (_, r) => ImpliesToken(r) },
-      word(Iff.id) | word("<=>") | word("<==>") | elem('⟷') | elem('↔') |> { (_, r) => IffToken(r) },
+      elem('∧') | word("/\\") |> { (_, r) => AndToken(r, false) },
+      elem('∨') | word("\\/") |> { (_, r) => OrToken(r, false) },
+      word(Implies.id.name) | word("=>") | word("==>") | elem('→') |> { (_, r) => ImpliesToken(r) },
+      word(Iff.id.name) | word("<=>") | word("<==>") | elem('⟷') | elem('↔') |> { (_, r) => IffToken(r) },
       elem('⊤') | elem('T') | word("True") | word("true") |> { (_, r) => TrueToken(r) },
       elem('⊥') | elem('F') | word("False") | word("false") |> { (_, r) => FalseToken(r) },
       elem('¬') | elem('!') |> { (_, r) => NegationToken(r) },
@@ -276,12 +278,14 @@ class Parser(
           case (l, t) =>
             t match {
               // do not require spaces
+
               case _: ForallToken | _: ExistsToken | _: ExistsOneToken | _: NegationToken | _: ConstantToken | _: SchematicToken | _: SchematicConnectorToken | _: TrueToken | _: FalseToken |
-                  _: ParenthesisToken | _: SpaceToken =>
+                  _: ParenthesisToken | _: SpaceToken | AndToken(_, true) | OrToken(_, true) =>
                 l :+ t.printString
               // space after: separators
               case _: DotToken | _: CommaToken | _: SemicolonToken => l :+ t.printString :+ space
               // space before and after: infix, connectors, sequent symbol
+
               case _: InfixToken | _: AndToken | _: OrToken | _: ImpliesToken | _: IffToken | _: SequentToken => l :+ space :+ t.printString :+ space
               case _: UnknownToken => throw UnreachableException
             }
@@ -333,6 +337,7 @@ class Parser(
   }
 
   extension (f: Formula) {
+
     def toTermula: Termula = {
       given Conversion[FOL.FormulaLabel, RangedLabel] with {
         def apply(f: FOL.FormulaLabel): RangedLabel = RangedLabel(f, UNKNOWN_RANGE)
@@ -340,7 +345,7 @@ class Parser(
 
       f match {
         case PredicateFormula(label, args) => Termula(label, args.map(_.toTermula), UNKNOWN_RANGE)
-        case ConnectorFormula(And | Or, Seq(singleArg)) => singleArg.toTermula
+        // case ConnectorFormula(And | Or, Seq(singleArg)) => singleArg.toTermula
         case ConnectorFormula(label, args) => Termula(label, args.map(_.toTermula), UNKNOWN_RANGE)
         case BinderFormula(label, bound, inner) => Termula(label, Seq(Termula(VariableFormulaLabel(bound.id), Seq(), UNKNOWN_RANGE), inner.toTermula), UNKNOWN_RANGE)
       }
@@ -497,14 +502,17 @@ class Parser(
     }
 
     // schematic connector, function, or predicate; constant function or predicate
-    val prefixApplication: Syntax[Termula] = (elem(IdKind) ~ opt(args)).map(
+    val prefixApplication: Syntax[Termula] = ((elem(IdKind) | elem(OrKind) | elem(AndKind)) ~ opt(args)).map(
       { case p ~ optArgs =>
         val args: Seq[Termula] = optArgs.map(_.ts).getOrElse(Seq())
         val l = p match {
+
           case ConstantToken(id, _) => ConstantPredicateLabel(synonymToCanonical.getInternalName(id), args.size)
           case SchematicToken(id, _) =>
             if (args.isEmpty) VariableFormulaLabel(id) else SchematicPredicateLabel(id, args.size)
           case SchematicConnectorToken(id, _) => SchematicConnectorLabel(id, args.size)
+          case AndToken(_, _) => And
+          case OrToken(_, _) => Or
           case _ => throw UnreachableException
         }
         Termula(RangedLabel(l, p.range), args, (p.range._1, optArgs.map(_.range._2).getOrElse(p.range._2)))
@@ -514,6 +522,13 @@ class Parser(
         case t @ Termula(RangedLabel(SchematicConnectorLabel(id, _), r), args, _) =>
           val argsRange = (t.label.range._2 + 1, t.range._2)
           Seq(SchematicConnectorToken(id, r) ~ Some(RangedTermulaSeq(args, argsRange)))
+        case t @ Termula(RangedLabel(And, r), args, _) =>
+          val argsRange = (t.label.range._2 + 1, t.range._2)
+          Seq(AndToken(r, true) ~ Some(RangedTermulaSeq(args, argsRange)))
+        case t @ Termula(RangedLabel(Or, r), args, _) =>
+          val argsRange = (t.label.range._2 + 1, t.range._2)
+          Seq(OrToken(r, true) ~ Some(RangedTermulaSeq(args, argsRange)))
+
         case _ => throw UnreachableException
       }
     )
@@ -558,22 +573,23 @@ class Parser(
 
     val and: Syntax[RangedLabel] = elem(AndKind).map[RangedLabel](
       {
-        case AndToken(r) => RangedLabel(And, r)
+
+        case AndToken(r, _) => RangedLabel(And, r)
         case _ => throw UnreachableException
       },
       {
-        case RangedLabel(And, r) => Seq(AndToken(r))
+        case RangedLabel(And, r) => Seq(AndToken(r, false))
         case _ => throw UnreachableException
       }
     )
 
     val or: Syntax[RangedLabel] = elem(OrKind).map[RangedLabel](
       {
-        case OrToken(r) => RangedLabel(Or, r)
+        case OrToken(r, _) => RangedLabel(Or, r)
         case _ => throw UnreachableException
       },
       {
-        case RangedLabel(Or, r) => Seq(OrToken(r))
+        case RangedLabel(Or, r) => Seq(OrToken(r, false))
         case _ => throw UnreachableException
       }
     )

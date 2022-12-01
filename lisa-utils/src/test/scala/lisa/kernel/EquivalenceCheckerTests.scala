@@ -3,7 +3,9 @@ package lisa.kernel
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.utils.FOLPrinter
-import lisa.utils.Helpers.*
+import lisa.utils.Helpers._
+import lisa.utils.Helpers.given_Conversion_Identifier_String
+import lisa.utils.Helpers.given_Conversion_String_Identifier
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.MapView
@@ -384,17 +386,5 @@ class EquivalenceCheckerTests extends AnyFunSuite {
       equivalent = true
     )
   }
-
-  // Negative
-  /*
-  test("Negative by construction") {
-    val x = PredicateFormula(ConstantPredicateLabel("$", 0), Seq.empty) // Globally free
-    testcases((a, b) => random => Seq(
-      //a -> and(a, x),
-      a -> or(a, x),
-      //a -> implies(a, x),
-      //a -> iff(a, x),
-    ), equivalent = false)
-  }*/
 
 }

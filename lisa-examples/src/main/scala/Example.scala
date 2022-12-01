@@ -11,7 +11,7 @@ import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
 import lisa.utils.Helpers.show
 import lisa.utils.Helpers.{_, given}
-import lisa.utils.Printer.*
+import lisa.utils.FOLPrinter.*
 
 /**
  * Discover some of the elements of LISA to get started.
@@ -20,7 +20,7 @@ object Example {
 
   def main(args: Array[String]): Unit = {
 
-    Exercise.main(Array()) // uncomment when exercise finished
+    // Exercise.main(Array())
     // solverExample()
     // tptpExample()
   }

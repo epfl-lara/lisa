@@ -34,6 +34,10 @@ object LisaException {
   class ParsingException(parsedString: String, errorMessage: String) extends LisaException(errorMessage) {
     def showError: String = ""
   }
+
+  class InvalidIdentifierException(identifier: String, errorMessage: String) extends LisaException(errorMessage) {
+    def showError: String = s"$identifier is not a valid string. " + errorMessage
+  }
 }
 
 /**
