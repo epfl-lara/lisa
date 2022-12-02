@@ -1,11 +1,12 @@
 package lisa.utils
 
-import lisa.utils.tactics.BasicStepTactic.*
-import lisa.utils.tactics.ProofTacticLib
 import lisa.kernel.proof.{SequentCalculus as SC}
 import lisa.utils.Library
-import scala.collection.immutable.LazyList
+import lisa.utils.tactics.BasicStepTactic.*
+import lisa.utils.tactics.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
+
+import scala.collection.immutable.LazyList
 
 class BasicTacticTest extends AnyFunSuite with BasicMain {
 
