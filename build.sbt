@@ -34,6 +34,7 @@ val commonSettings3 = Seq(
 
   ),
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
+  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.3.0",
   libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
   Test / parallelExecution := false
 )
@@ -54,8 +55,8 @@ lazy val root = Project(
   .settings(
     version := "0.1"
   )
-  .dependsOn(kernel, withTests(utils), theories, tptp, front) // Everything but `examples`
-  .aggregate(kernel, utils, theories, tptp, front) // To run tests on all modules
+  .dependsOn(kernel, withTests(utils), theories, tptp) // Everything but `examples`
+  .aggregate(kernel, utils, theories, tptp) // To run tests on all modules
 
 lazy val kernel = Project(
   id = "lisa-kernel",
@@ -92,13 +93,6 @@ lazy val tptp = Project(
     libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4"
   )
   .dependsOn(withTests(utils))
-
-lazy val front = Project(
-  id = "lisa-front",
-  base = file("lisa-front"),
-)
-    .settings(commonSettings3)
-    .dependsOn(kernel, utils, theories)
 
 
 lazy val examples = Project(

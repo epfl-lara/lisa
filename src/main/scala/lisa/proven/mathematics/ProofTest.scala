@@ -1,58 +1,42 @@
 package lisa.proven.mathematics
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SCProof
-import lisa.utils.Printer.*
-import lisa.automation.kernel.Destructors.*
-import lisa.automation.kernel.ProofTactics.*
-
+import lisa.automation.kernel.SimplePropositionalSolver.*
+import lisa.automation.kernel.SimpleSimplifier.*
+import lisa.utils.Library
+import lisa.utils.Printer
+import sourcecode.Text.generate
 object ProofTest extends lisa.Main {
 
-  /**
-   * val pr1 = SC.InstFunSchema(() |- in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z), -1, Map(x -> LambdaTermTerm(Seq(), y), y -> LambdaTermTerm(Seq(), x)))
-   * val pr2 = SC.RightSubstIff(
-   * Sequent(pr1.bot.right, Set(in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))),
-   * -1,
-   * List(((x === z) \/ (y === z), in(z, unorderedPair(y, x)))),
-   * LambdaFormulaFormula(Seq(h), in(z, unorderedPair(x, y)) <=> h)
-   * )
-   * val pr3 = SC.Cut(Sequent(pr1.bot.left, pr2.bot.right), 0, 1, pr2.bot.left.head)
-   * val pr4 = SC.RightForall(Sequent(Set(), Set(forall(z, pr2.bot.right.head))), 2, pr2.bot.right.head, z)
-   * SCProof(steps( pr1, pr2, pr3, pr4), imports(ax"pairAxiom"))
-   */
-THEOREM("unorderedPair_symmetry") of
-    "⊢ ∀'y. ∀'x. unordered_pair('x, 'y) = unordered_pair('y, 'x)" PROOF {
-      val x = VariableLabel("x")
-      val y = VariableLabel("y")
-      val z = VariableLabel("z")
-      val h = VariableFormulaLabel("h")
+
+  val x: VariableLabel = variable
+  val y: VariableLabel = variable
+  val z: VariableLabel = variable
+  val h: VariableFormulaLabel = formulaVariable
+
+  val unorderedPair_symmetry = makeTHM(() |- forall(y, forall(x, unorderedPair(x, y) === unorderedPair(y, x)))) {
 
       val objectiveA : Sequent = () |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))
       val objectiveB : Sequent = () |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x))
-      withImport(ax"extensionalityAxiom")
 
-      withImport(ax"pairAxiom")
-      have(objectiveA) by SUBPROOF {
-          withImport(ax"pairAxiom")
-          have(() |- in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z)) by InstFunSchema(Map(
+      val part1 = have(objectiveA) subproof {
+          val pr0 = have(() |- in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z)) by InstFunSchema(Map(
             x -> LambdaTermTerm(Seq(), y),
             y -> LambdaTermTerm(Seq(), x)))(ax"pairAxiom")
-          have(in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z) |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by
-            RightSubstIff(List(((x === z) \/ (y === z), in(z, unorderedPair(y, x)))),
-          LambdaFormulaFormula(Seq(h), in(z, unorderedPair(x, y)) <=> h))(ax"pairAxiom")
-          have(() |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by Cut(in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z))(0,1)
-          andThen(objectiveA) by RightForall
-
+          val pr1 = have(in(z, unorderedPair(y, x)) <=> (x === z) \/ (y === z) |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by
+            RightSubstIff(List((in(z, unorderedPair(y, x)), (x === z) \/ (y === z))),
+              LambdaFormulaFormula(Seq(h), in(z, unorderedPair(x, y)) <=> h))(ax"pairAxiom")
+          have(() |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by Cut.withParameters(in(z, unorderedPair(y, x)) <=> (x === z) \/ (y === z))(pr0, pr1)
+          andThen(objectiveA) by RightForall.withParameters(in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)), z)
       }
-    val test2 = have(objectiveB) by InstFunSchema(Map(
+
+    val part2 = have(objectiveB) by InstFunSchema(Map(
       x -> LambdaTermTerm(Seq(), unorderedPair(x, y)),
       y -> LambdaTermTerm(Seq(), unorderedPair(y, x))))(ax"extensionalityAxiom")
 
-      andThen(unorderedPair(x, y) === unorderedPair(y, x)) by ByEquiv(objectiveB.right.head, objectiveA.right.head)
-      andThen(forall(y, forall(x, unorderedPair(x, y) === unorderedPair(y, x)))) by GeneralizeToForall(x, y)
+      have(() |- unorderedPair(x, y) === unorderedPair(y, x)) by ByEquiv(objectiveB.right.head, objectiveA.right.head)(part1, part2)
+      andThen(() |- forall(y, forall(x, unorderedPair(x, y) === unorderedPair(y, x)))) by GeneralizeToForallNoForm(x, y)
+
       showCurrentProof()
     }
-
-
-    
+  show
 }

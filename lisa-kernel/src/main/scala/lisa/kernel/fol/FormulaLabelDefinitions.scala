@@ -30,29 +30,29 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A standard predicate symbol. Typical example are equality (=) and membership (∈)
    */
-  sealed case class ConstantPredicateLabel(id: String, arity: Int) extends PredicateLabel with ConstantLabel
+  sealed case class ConstantPredicateLabel(id: Identifier, arity: Int) extends PredicateLabel with ConstantLabel
 
   /**
    * The equality symbol (=) for first order logic.
    * It is represented as any other predicate symbol but has unique semantic and deduction rules.
    */
-  val equality: ConstantPredicateLabel = ConstantPredicateLabel("=", 2)
-  val top: ConstantPredicateLabel = ConstantPredicateLabel("⊤", 0)
-  val bot: ConstantPredicateLabel = ConstantPredicateLabel("⊥", 0)
+  val equality: ConstantPredicateLabel = ConstantPredicateLabel(Identifier("="), 2)
+  val top: ConstantPredicateLabel = ConstantPredicateLabel(Identifier("⊤"), 0)
+  val bot: ConstantPredicateLabel = ConstantPredicateLabel(Identifier("⊥"), 0)
 
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
    */
-  sealed abstract class ConstantConnectorLabel(val id: String, val arity: Int) extends ConnectorLabel with ConstantLabel
-  case object Neg extends ConstantConnectorLabel("¬", 1)
+  sealed abstract class ConstantConnectorLabel(val id: Identifier, val arity: Int) extends ConnectorLabel with ConstantLabel
+  case object Neg extends ConstantConnectorLabel(Identifier("¬"), 1)
 
-  case object Implies extends ConstantConnectorLabel("⇒", 2)
+  case object Implies extends ConstantConnectorLabel(Identifier("⇒"), 2)
 
-  case object Iff extends ConstantConnectorLabel("⇔", 2)
+  case object Iff extends ConstantConnectorLabel(Identifier("⇔"), 2)
 
-  case object And extends ConstantConnectorLabel("∧", -1)
+  case object And extends ConstantConnectorLabel(Identifier("∧"), -1)
 
-  case object Or extends ConstantConnectorLabel("∨", -1)
+  case object Or extends ConstantConnectorLabel(Identifier("∨"), -1)
 
   /**
    * A schematic symbol that can be instantiated with some formula.
@@ -68,41 +68,41 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A predicate symbol of arity 0 that can be instantiated with any formula.
    */
-  sealed case class VariableFormulaLabel(id: String) extends SchematicVarOrPredLabel {
+  sealed case class VariableFormulaLabel(id: Identifier) extends SchematicVarOrPredLabel {
     val arity = 0
   }
 
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking term arguments.
    */
-  sealed case class SchematicPredicateLabel(id: String, arity: Int) extends SchematicVarOrPredLabel
+  sealed case class SchematicPredicateLabel(id: Identifier, arity: Int) extends SchematicVarOrPredLabel
 
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking formula arguments.
    */
-  sealed case class SchematicConnectorLabel(id: String, arity: Int) extends SchematicFormulaLabel with ConnectorLabel
+  sealed case class SchematicConnectorLabel(id: Identifier, arity: Int) extends SchematicFormulaLabel with ConnectorLabel
 
   /**
    * The label for a binder, namely an object with a body that has the ability to bind variables in it.
    */
-  sealed abstract class BinderLabel(val id: String) extends FormulaLabel {
+  sealed abstract class BinderLabel(val id: Identifier) extends FormulaLabel {
     val arity = 1
   }
 
   /**
    * The symbol of the universal quantifier ∀
    */
-  case object Forall extends BinderLabel(id = "∀")
+  case object Forall extends BinderLabel(Identifier("∀"))
 
   /**
    * The symbol of the existential quantifier ∃
    */
-  case object Exists extends BinderLabel(id = "∃")
+  case object Exists extends BinderLabel(Identifier("∃"))
 
   /**
    * The symbol of the quantifier for existence and unicity ∃!
    */
-  case object ExistsOne extends BinderLabel(id = "∃!")
+  case object ExistsOne extends BinderLabel(Identifier("∃!"))
 
   /**
    * A function returning true if and only if the two symbols are considered "the same", i.e. same category, same arity and same id.

@@ -1,102 +1,32 @@
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
+import lisa.utils.Library
+import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
 object Exercise extends lisa.Main {
 
-  private val x = VariableLabel("x")
-  private val y = VariableLabel("y")
-  private val z = VariableLabel("z")
-  private val f = SchematicFunctionLabel("f", 1)
-  private val P = SchematicPredicateLabel("P", 1)
-  private val Q = SchematicPredicateLabel("Q", 2)
-  private val H = VariableFormulaLabel("H")
+  val x = variable
+  val P = predicate(1)
+  val f = function(1)
 
-  /////////////////////////
-  // Propositional Logic //
-  /////////////////////////
+  val testThm = makeTHM("'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('x))") {
+    val i1 = have(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate;
+    have(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate(i1)
+    // andThen(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate
+  }
+  show
 
-  THEOREM("double_negation_elim") of "|- 'a ⇔ ¬¬'a" PROOF {
-    val hyp = have("'a |- 'a") by Hypothesis
-
-    andThen("|- !'a; 'a") by RightNot
-    andThen("!!'a |- 'a") by LeftNot
-    val direction1 = andThen("|- !!'a ==> 'a") by RightImplies
-
-    have("'a; !'a |- ") by LeftNot(hyp)
-    andThen(("'a |- !!'a")) by RightNot
-    val direction2 = andThen("|- !!'a ==> 'a") by RightImplies
-
-    have("|- !!'a <=> 'a") by RightIff(direction1, direction2)
+  val fixedPointDoubleApplication = makeTHM(seq"∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))") {
+    assume("∀'x. 'P('x) ⇒ 'P('f('x))")
+    val base = have("'P('x) ⇒ 'P('f('x)); 'P('f('x)) ==> 'P('f('f('x))) |- 'P('x) ==> 'P('f('f('x)))") by Trivial
+    have("'P('x) ==> 'P('f('f('x)))") subproof {
+      assume("∀'x. 'P('x) ⇒ 'P('f('x))")
+      have("'P('f('x)) ==> 'P('f('f('x))) |- 'P('x) ==> 'P('f('f('x)))") by LeftForall(x)(base)
+      andThen("∀'x. 'P('x) ⇒ 'P('f('x))|- 'P('x) ==> 'P('f('f('x)))") by LeftForall(f(x))
+    }
     showCurrentProof()
   }
   show
-
-  /*
-  THEOREM("pierce-law") of "|- ((('A ==> 'B) ==> 'A) ==> 'A)" PROOF {
-    ???
-  }
-  show
-   */
-
-  ///////////////////////
-  // First Order Logic //
-  ///////////////////////
-
-  /*
-  THEOREM("russel_Paradox") of "∀'x. 'Q('y, 'x) ↔ ¬'Q('x, 'x) ⊢" PROOF {
-    have("'Q('y, 'y) <=> !'Q('y, 'y) |- ") by Restate
-    andThen("∀'x. 'Q('y, 'x) <=> !'Q('x, 'x) |- ") by LeftForall(y)
-  }
-  show
-
-  THEOREM("all-comm") of "|- (∀'x. ∀'y. 'Q('x, 'y)) ⇔ (∀'y. ∀'x. 'Q('x, 'y))" PROOF {
-    val base = have("'Q('x, 'y) |- 'Q('x, 'y)") by Hypothesis
-
-    andThen ("∀'y. 'Q('x, 'y) |- 'Q('x, 'y)") by LeftForall(y)
-    andThen ("∀'x. ∀'y. 'Q('x, 'y) |- 'Q('x, 'y)") by LeftForall(x)
-    andThen ("∀'x. ∀'y. 'Q('x, 'y) |- ∀'x. 'Q('x, 'y)") by RightForall()
-    andThen ("∀'x. ∀'y. 'Q('x, 'y) |- ∀'y. ∀'x. 'Q('x, 'y)") by RightForall()
-    val direction1 = andThen ("|- (∀'x. ∀'y. 'Q('x, 'y)) ==> (∀'y. ∀'x. 'Q('x, 'y))") by Restate
-
-    have ("∀'x. 'Q('x, 'y) |- 'Q('x, 'y)") by LeftForall(x)(base)
-    andThen ("∀'y. ∀'x. 'Q('x, 'y) |- 'Q('x, 'y)") by LeftForall(y)
-    andThen ("∀'y. ∀'x. 'Q('x, 'y) |- ∀'y. 'Q('x, 'y)") by RightForall()
-    andThen ("∀'y. ∀'x. 'Q('x, 'y) |- ∀'x. ∀'y. 'Q('x, 'y)") by RightForall()
-    val direction2 = andThen ("|- (∀'y. ∀'x. 'Q('x, 'y)) ==> (∀'x. ∀'y. 'Q('x, 'y))") by Restate
-    have ("|- (∀'x. ∀'y. 'Q('x, 'y)) <=> (∀'y. ∀'x. 'Q('x, 'y))") by RightIff(direction1, direction2)
-  }
-  show
-   */
-
-  /*
-  THEOREM("fixed_Point_Double_Application") of "∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))" PROOF {
-    ???
-  }
-  show
-   */
-
-  ////////////////////
-  //   Set Theory   //
-  ////////////////////
-
-  /*
-  THEOREM("SubsetRefl") of " ⊢ subset_of('x, 'x)" PROOF {
-    have(subsetAxiom)
-    val r1 = andThen(() |- forall(z, in(z, x) ==> in(z, x)) <=> subset(x, x)) by InstantiateForallMultipleWithoutFormula(x, x)
-    have(() |- in(z, x) ==> in(z, x)) by Restate
-    andThen(() |- forall(z, in(z, x) ==> in(z, x))) by RightForall
-    andThen(applySubst(forall(z, in(z, x) ==> in(z, x)) <=> subset(x, x)))
-    Discharge(r1)
-  }
-  show
-   */
-
-  /*
-  THEOREM("SubsetRefl") of " subset_of('x, 'y); subset_of('y, 'z) ⊢ subset_of('x, 'z)" PROOF {
-   ???
-  }
-  show
-   */
 
 }

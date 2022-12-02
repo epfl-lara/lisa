@@ -2,8 +2,10 @@ package lisa.kernel
 
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
-import lisa.utils.Helpers.*
-import lisa.utils.Printer
+import lisa.utils.FOLPrinter
+import lisa.utils.Helpers._
+import lisa.utils.Helpers.given_Conversion_Identifier_String
+import lisa.utils.Helpers.given_Conversion_String_Identifier
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.MapView
@@ -18,14 +20,14 @@ class EquivalenceCheckerTests extends AnyFunSuite {
   def checkEquivalence(left: Formula, right: Formula): Unit = {
     assert(
       isSame(left, right),
-      s"Couldn't prove the equivalence between ${Printer.prettyFormula(left)} and ${Printer.prettyFormula(right)}\nLeft tree: ${left}\nRight tree: ${right}"
+      s"Couldn't prove the equivalence between ${FOLPrinter.prettyFormula(left)} and ${FOLPrinter.prettyFormula(right)}\nLeft tree: ${left}\nRight tree: ${right}"
     )
   }
 
   def checkNonEquivalence(left: Formula, right: Formula): Unit = {
     assert(
       !isSame(left, right),
-      s"Expected the checker to not be able to show equivalence between ${Printer.prettyFormula(left)} and ${Printer.prettyFormula(right)}\nLeft tree: ${left}\nRight tree: ${right}"
+      s"Expected the checker to not be able to show equivalence between ${FOLPrinter.prettyFormula(left)} and ${FOLPrinter.prettyFormula(right)}\nLeft tree: ${left}\nRight tree: ${right}"
     )
   }
 
@@ -124,13 +126,13 @@ class EquivalenceCheckerTests extends AnyFunSuite {
           checkEquivalence(left, right)
           checkEquivalence(right, left)
           if (verbose) {
-            println(s"${Printer.prettyFormula(left)}  <==>  ${Printer.prettyFormula(right)}")
+            println(s"${FOLPrinter.prettyFormula(left)}  <==>  ${FOLPrinter.prettyFormula(right)}")
           }
         } else {
           checkNonEquivalence(left, right)
           checkNonEquivalence(right, left)
           if (verbose) {
-            println(s"${Printer.prettyFormula(left)}  <!=>  ${Printer.prettyFormula(right)}")
+            println(s"${FOLPrinter.prettyFormula(left)}  <!=>  ${FOLPrinter.prettyFormula(right)}")
           }
         }
       }
@@ -384,17 +386,5 @@ class EquivalenceCheckerTests extends AnyFunSuite {
       equivalent = true
     )
   }
-
-  // Negative
-  /*
-  test("Negative by construction") {
-    val x = PredicateFormula(ConstantPredicateLabel("$", 0), Seq.empty) // Globally free
-    testcases((a, b) => random => Seq(
-      //a -> and(a, x),
-      a -> or(a, x),
-      //a -> implies(a, x),
-      //a -> iff(a, x),
-    ), equivalent = false)
-  }*/
 
 }

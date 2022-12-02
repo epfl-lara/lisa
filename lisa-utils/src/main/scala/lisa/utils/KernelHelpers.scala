@@ -6,9 +6,7 @@ import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Parser.parseFormula
-import lisa.utils.Parser.parseSequent
-import lisa.utils.Parser.parseTerm
+import lisa.utils.FOLParser
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -177,26 +175,19 @@ trait KernelHelpers {
     def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
   }
 
-  extension (judgement: SCInvalidProof) {
-    def errorMsg: String =
-      s"""Failed to prove
-         |${lisa.utils.Printer.prettySequent(judgement.proof.followPath(judgement.path).bot)}
-         |(step ${judgement.path.mkString("->")}): ${judgement.message}""".stripMargin
-  }
-
   implicit class Parsing(val sc: StringContext) {
 
-    def seq(args: Any*): Sequent = parseSequent(sc.parts.mkString(""))
+    def seq(args: Any*): Sequent = FOLParser.parseSequent(sc.parts.mkString(""))
 
-    def f(args: Any*): Formula = parseFormula(sc.parts.mkString(""))
+    def f(args: Any*): Formula = FOLParser.parseFormula(sc.parts.mkString(""))
 
-    def t(args: Any*): Term = parseTerm(sc.parts.mkString(""))
+    def t(args: Any*): Term = FOLParser.parseTerm(sc.parts.mkString(""))
 
   }
 
-  given Conversion[String, Sequent] = parseSequent(_)
-  given Conversion[String, Formula] = parseFormula(_)
-  given Conversion[String, Term] = parseTerm(_)
+  given Conversion[String, Sequent] = FOLParser.parseSequent(_)
+  given Conversion[String, Formula] = FOLParser.parseFormula(_)
+  given Conversion[String, Term] = FOLParser.parseTerm(_)
   given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
   def lambda(x: VariableLabel, t: Term) = LambdaTermTerm(Seq(x), t)
@@ -209,4 +200,48 @@ trait KernelHelpers {
   def lambda(Xs: Seq[VariableFormulaLabel], phi: Formula) = LambdaFormulaFormula(Xs, phi)
 
   def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
+
+  def variable(using name: sourcecode.Name): VariableLabel = VariableLabel(name.value)
+  def function(arity: Integer)(using name: sourcecode.Name): SchematicFunctionLabel = SchematicFunctionLabel(name.value, arity)
+  def formulaVariable(using name: sourcecode.Name): VariableFormulaLabel = VariableFormulaLabel(name.value)
+  def predicate(arity: Integer)(using name: sourcecode.Name): SchematicPredicateLabel = SchematicPredicateLabel(name.value, arity)
+  def connector(arity: Integer)(using name: sourcecode.Name): SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
+
+  given Conversion[String, Identifier] = str => {
+    val pieces = str.split(Identifier.counterSeparator)
+    if (pieces.length == 1) {
+      val name = pieces.head
+      if (!Identifier.isValidIdentifier(name)) {
+        throw new LisaException.InvalidIdentifierException(str, "Identifier must not contain whitespaces nor symbols among " + Identifier.forbiddenChars.mkString())
+      }
+      Identifier(name)
+    } else if (pieces.length == 2) {
+      val name = pieces.head
+      val no = pieces(1)
+      if (!no.forall(_.isDigit) || no.isEmpty || (no.length > 1 && no.head == '0')) {
+        throw new LisaException.InvalidIdentifierException(str, s"The part of an identifier contained after ${Identifier.counterSeparator} must be a number without leading 0s.")
+      }
+      if (!Identifier.isValidIdentifier(name)) {
+        throw new LisaException.InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among ${Identifier.forbiddenChars.mkString()}.")
+      }
+      Identifier(name, no.toInt)
+    } else { // if number of _ is greater than 1
+      throw new LisaException.InvalidIdentifierException("name", s"The identifier cannot contain more than one counter separator (${Identifier.counterSeparator}).")
+    }
+  }
+  given Conversion[Identifier, String] = _.toString
+
+  def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
+    new Identifier(
+      base.name,
+      (taken.collect({ case Identifier(base.name, no) =>
+        no
+      }) ++ Iterable(base.no)).max + 1
+    )
+  }
+
+  def nFreshId(taken: Iterable[Identifier], n: Int): IndexedSeq[Identifier] = {
+    val max = if (taken.isEmpty) 0 else taken.map(c => c.no).max
+    Range(0, n).map(i => Identifier("gen", max + i))
+  }
 }

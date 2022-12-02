@@ -88,7 +88,6 @@ class Transformations extends ProofCheckerSuite {
     val outro = InstPredSchema(() |- psi(x, y), 0, Map((phi, LambdaTermFormula(Seq(), psi(x, y)))))
     val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
     val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
-
     checkProof(transf)
     assert(transf != noImpProof)
     assert(isSameSequent(transf.steps.last.bot, (sequentToFormula(outro.bot)) |- outro.bot.right))

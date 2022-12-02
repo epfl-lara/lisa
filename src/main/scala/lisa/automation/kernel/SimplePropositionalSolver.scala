@@ -3,11 +3,12 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.utils.FOLPrinter
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
-import lisa.utils.Printer
-import lisa.utils.tactics.ProofStepJudgement
-import lisa.utils.tactics.ProofStepLib.{_, given}
+import lisa.utils.tactics.ProofTacticLib.ParameterlessAndThen
+import lisa.utils.tactics.ProofTacticLib.ParameterlessHave
+import lisa.utils.tactics.ProofTacticLib.ProofTactic
 
 import scala.collection.mutable.Set as mSet
 
@@ -15,6 +16,7 @@ import scala.collection.mutable.Set as mSet
  * A simple but complete solver for propositional logic. Will not terminate for large problems
  */
 object SimplePropositionalSolver {
+
   class OrganisedFormulaSet {
     val negs: mSet[ConnectorFormula] = mSet()
     val impliess: mSet[ConnectorFormula] = mSet()
@@ -90,7 +92,16 @@ object SimplePropositionalSolver {
 
     } else if (left.ors.nonEmpty) {
       val f = left.ors.head
-      if (f.args.length == 2) {
+      if (f.args.isEmpty) {
+        List(RewriteTrue(s))
+      } else if (f.args.length == 1) {
+        val phi = f.args(0)
+
+        left.updateFormula(f, false) // gamma
+        left.updateFormula(phi, true) // delta
+        val proof1 = solveOrganisedSequent(left, right, s -< f +< phi, offset)
+        LeftOr(s, Seq(proof1.size + offset - 1, proof1.size + offset - 1), Seq(phi)) :: (proof1)
+      } else if (f.args.length == 2) {
         val phi = f.args(0)
         val psi = f.args(1)
 
@@ -147,7 +158,16 @@ object SimplePropositionalSolver {
       RightIff(s, proof1.size + offset - 1, proof1.size + proof2.size + offset - 1, phi, psi) :: (proof2 ++ proof1)
     } else if (right.ands.nonEmpty) {
       val f = right.ands.head
-      if (f.args.length == 2) {
+      if (f.args.isEmpty) {
+        List(RewriteTrue(s))
+      } else if (f.args.length == 1) {
+        val phi = f.args(0)
+
+        right.updateFormula(f, false) // gamma
+        right.updateFormula(phi, true) // delta
+        val proof1 = solveOrganisedSequent(left, right, s -> f +> phi, offset)
+        RightAnd(s, Seq(proof1.size + offset - 1, proof1.size + offset - 1), Seq(phi)) :: (proof1)
+      } else if (f.args.length == 2) {
         val phi = f.args(0)
         val psi = f.args(1)
 
@@ -202,28 +222,31 @@ object SimplePropositionalSolver {
     r4
   }
 
-  case object Trivial extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(-1) {
-    override val premises: Seq[Int] = Seq()
-    def asSCProof(bot: Sequent, currentProof: Library#Proof): ProofStepJudgement = {
-      ProofStepJudgement.ValidProofStep(SCSubproof(solveSequent(bot)))
-    }
-    def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+  object Trivial extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
 
-      val sp = SCSubproof(
-        {
-          val premsFormulas = premises.map(p => (p, sequentToFormula(currentProof.getSequent(p)))).zipWithIndex
-          val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
-          val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
-          val subpr = SCSubproof(solveSequent(sqToProve))
-          val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
-            val ((prem, form), position) = cur
-            Cut(prev.head.bot -< form, position, initProof.length + prev.length - 1, form) :: prev
-          })
-          SCProof((initProof ++ stepsList.reverse).toIndexedSeq, premises.map(p => currentProof.getSequent(p)).toIndexedSeq)
-        },
-        premises
-      )
-      ProofStepJudgement.ValidProofStep(sp)
+    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+      proof.ValidProofTactic(solveSequent(bot).steps, Seq())
+    }
+
+    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+      apply2(using proof)(Seq(premise)*)(bot)
+
+    def apply2(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+      val steps = {
+        val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
+        val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
+        val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
+        println(FOLPrinter.prettySequent(sqToProve))
+        val subpr = SCSubproof(solveSequent(sqToProve))
+        checkProof(subpr.sp)
+        val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
+          val ((prem, form), position) = cur
+          Cut(prev.head.bot -< form, position, initProof.length + prev.length - 1, form) :: prev
+        })
+        (initProof ++ stepsList.reverse).toIndexedSeq
+      }
+
+      proof.ValidProofTactic(steps, premises)
     }
   }
 

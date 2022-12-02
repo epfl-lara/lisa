@@ -21,12 +21,12 @@ private[settheory] trait SetTheoryDefinitions {
   /**
    * The symbol for the subset predicate.
    */
-  final val subset = ConstantPredicateLabel("subset_of", 2)
+  final val subset = ConstantPredicateLabel("subsetOf", 2)
 
   /**
    * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
    */
-  final val sim = ConstantPredicateLabel("same_cardinality", 2) // Equicardinality
+  final val sim = ConstantPredicateLabel("sameCardinality", 2) // Equicardinality
   /**
    * Set Theory basic predicates
    */
@@ -37,17 +37,17 @@ private[settheory] trait SetTheoryDefinitions {
   /**
    * The symbol for the empty set constant.
    */
-  final val emptySet = ConstantFunctionLabel("empty_set", 0)
+  final val emptySet = ConstantFunctionLabel("emptySet", 0)
 
   /**
    * The symbol for the unordered pair function.
    */
-  final val unorderedPair = ConstantFunctionLabel("unordered_pair", 2)
+  final val unorderedPair = ConstantFunctionLabel("unorderedPair", 2)
 
   /**
    * The symbol for the powerset function.
    */
-  final val powerSet = ConstantFunctionLabel("power_set", 1)
+  final val powerSet = ConstantFunctionLabel("powerSet", 1)
 
   /**
    * The symbol for the set union function.

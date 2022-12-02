@@ -6,13 +6,14 @@ import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus.isSameSequent
+import lisa.utils.FOLPrinter
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Printer
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
 
-abstract class ProofCheckerSuite extends AnyFunSuite {
+abstract class ProofCheckerSuite(printer: Printer = FOLPrinter) extends AnyFunSuite {
 
   import lisa.kernel.fol.FOL.*
 
@@ -21,10 +22,10 @@ abstract class ProofCheckerSuite extends AnyFunSuite {
     VariableLabel("y"),
     VariableLabel("z"),
     VariableLabel("w"),
-    VariableLabel("x'"),
-    VariableLabel("y'"),
-    VariableLabel("z'"),
-    VariableLabel("w'")
+    VariableLabel("x1"),
+    VariableLabel("y1"),
+    VariableLabel("z1"),
+    VariableLabel("w1")
   )
   protected val (x, y, z, w, xp, yp, zp, wp) = (
     VariableTerm(xl),
@@ -42,19 +43,19 @@ abstract class ProofCheckerSuite extends AnyFunSuite {
 
   def checkProof(proof: SCProof): Unit = {
     val judgement = checkSCProof(proof)
-    assert(judgement.isValid, Printer.prettySCProof(judgement, true))
+    assert(judgement.isValid, printer.prettySCProof(judgement, true))
   }
 
   def checkProof(proof: SCProof, expected: Sequent): Unit = {
     val judgement = checkSCProof(proof)
-    assert(judgement.isValid, "\n" + Printer.prettySCProof(judgement))
-    assert(isSameSequent(proof.conclusion, expected), s"(${Printer.prettySequent(proof.conclusion)} did not equal ${Printer.prettySequent(expected)})")
+    assert(judgement.isValid, "\n" + printer.prettySCProof(judgement))
+    assert(isSameSequent(proof.conclusion, expected), s"(${printer.prettySequent(proof.conclusion)} did not equal ${printer.prettySequent(expected)})")
   }
 
   def checkIncorrectProof(incorrectProof: SCProof): Unit = {
     assert(
       !checkSCProof(incorrectProof).isValid,
-      s"(incorrect proof with conclusion '${Printer.prettySequent(incorrectProof.conclusion)}' was accepted by the proof checker)\nSequent: ${incorrectProof.conclusion}"
+      s"(incorrect proof with conclusion '${printer.prettySequent(incorrectProof.conclusion)}' was accepted by the proof checker)\nSequent: ${incorrectProof.conclusion}"
     )
   }
 }
