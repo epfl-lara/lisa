@@ -4,14 +4,17 @@ package lisa.kernel.fol
  * Definitions of formulas; analogous to [[TermDefinitions]].
  * Depends on [[FormulaLabelDefinitions]] and [[TermDefinitions]].
  */
-private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermDefinitions {
-
+private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermDefinitions with EquivalenceChecker2{
   /**
    * The parent class of formulas.
    * A formula is a tree whose nodes are either terms or labeled by predicates or logical connectors.
    */
   sealed trait Formula extends TreeWithLabel[FormulaLabel] {
+    private[fol] val uniqueNumber: Long = Formula.getNewId
+    private[fol] var polarFormula: Option[PolarFormula] = None
     val arity: Int = label.arity
+
+
     override def constantTermLabels: Set[ConstantFunctionLabel]
     override def schematicTermLabels: Set[SchematicTermLabel]
     override def freeSchematicTermLabels: Set[SchematicTermLabel]
@@ -38,6 +41,13 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     def schematicFormulaLabels: Set[SchematicFormulaLabel] =
       (schematicPredicateLabels.toSet: Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet: Set[SchematicFormulaLabel])
 
+  }
+  private object Formula {
+    var totalNumberOfFormulas : Long = 0
+    def getNewId: Long = {
+      totalNumberOfFormulas +=1
+      totalNumberOfFormulas
+    }
   }
 
   /**
