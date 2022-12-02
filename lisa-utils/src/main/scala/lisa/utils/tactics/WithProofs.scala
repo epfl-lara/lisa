@@ -231,6 +231,7 @@ trait WithProofs extends ProofsHelpers {
      */
     def mostRecentStep: (DoubleStep, Int) = (steps.head, steps.length - 1)
 
+    def takeSteps(n : Int): Seq[(DoubleStep, Int)] = steps.take(n) zip (steps.length - n until steps.length).reverse
     /**
      * @return Current number of steps in the proof.
      */

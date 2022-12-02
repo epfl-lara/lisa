@@ -27,7 +27,8 @@ trait ProofsHelpers {
 
   case class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
     infix def by[N <: Int & Singleton](just: ProofStepWithoutBotNorPrem[N])(using om: OutputManager): library.Proof#DoubleStep = {
-      val r = just.asProofStepWithoutBot(Seq(proof.mostRecentStep._2)).asProofStep(bot)
+      val premises : Seq[Int] = proof.takeSteps(just.numbPrem).map(_._2)
+      val r = just.asProofStepWithoutBot(premises).asProofStep(bot)
       r.validate(library)
     }
   }

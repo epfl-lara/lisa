@@ -436,26 +436,37 @@ object SimpleDeducedSteps {
 
   case class ByEquiv(f: FOL.Formula, f1: FOL.Formula) extends ProofStepWithoutPrem with ProofStepWithoutBotNorPrem(2) {
     override def asSCProof(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val prem1 = currentProof.getSequent(premises.head)
-      val prem2 = currentProof.getSequent(premises.tail.head)
-      f match {
-        case FOL.ConnectorFormula(FOL.Iff, Seq(fl, fr)) =>
-          val pr1 = Seq(prem1, prem2).find(st => st.right.contains(f1))
-          val pEq = Seq(prem1, prem2).find(st => st.right.contains(f))
+      premises match {
+        case Nil | _ +: Nil => return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Not enough premises : " + premises)
+        case _ => {
 
-          if (pr1.isEmpty || pEq.isEmpty)
-            return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Input formula is not present in given premises")
+          val prem1 = currentProof.getSequent(premises.head)
+          val prem2 = currentProof.getSequent(premises.tail.head)
+          f match {
+            case FOL.ConnectorFormula(FOL.Iff, Seq(fl, fr)) =>
+              val pr1 = Seq(prem1, prem2).find(st => st.right.contains(f1))
+              val pEq = Seq(prem1, prem2).find(st => st.right.contains(f))
 
-          val f2 = if (FOL.isSame(f1, fl)) fr else if (FOL.isSame(f1, fr)) fl else throw new Error("not applicable")
-          val p2 = SC.Hypothesis(emptySeq +< f1 +> f1, f1) // () |- f2
-          val p3 = SC.Hypothesis(emptySeq +< f2 +> f2, f2) // () |- f2
-          val p4 = SC.LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 0, 1, f1, f2) // f1, f1 ==> f2 |- f2
-          val p5 = SC.LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 2, f1, f2) // f1, f1 <=> f2 |- f2
-          val p6 = SC.Cut(pEq.get -> (f1 <=> f2) +< f1 +> f2, -2, 3, f1 <=> f2) // f1 |- f2, f1
-          val p7 = SC.Cut(p6.bot -< f1 ++ pr1.get -> f1, -1, 4, f1) //() |- f2
-          SC.SCSubproof(SCProof(IndexedSeq( p2, p3, p4, p5, p6, p7), IndexedSeq(pEq.get, pr1.get)), premises) // TODO: Check value of premises
+              if (pr1.isEmpty || pEq.isEmpty)
+                return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises),
+                  "Input formula is not present in given premises : \n" + Printer.prettySequent(prem1) + "\n"
+                    + Printer.prettySequent(prem2) + "\n"
+                    + " But not : " + Printer.prettyFormula(f1) + "\n" + Printer.prettyFormula(f))
 
-        case _ => ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Input formula is not an Iff")
+              val f2 = if (FOL.isSame(f1, fl)) fr else if (FOL.isSame(f1, fr)) fl else {
+                return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Formulas not the sames")
+              }
+              val p2 = SC.Hypothesis(emptySeq +< f1 +> f1, f1) // () |- f2
+              val p3 = SC.Hypothesis(emptySeq +< f2 +> f2, f2) // () |- f2
+              val p4 = SC.LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 0, 1, f1, f2) // f1, f1 ==> f2 |- f2
+              val p5 = SC.LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 2, f1, f2) // f1, f1 <=> f2 |- f2
+              val p6 = SC.Cut(pEq.get -> (f1 <=> f2) +< f1 +> f2, -2, 3, f1 <=> f2) // f1 |- f2, f1
+              val p7 = SC.Cut(p6.bot -< f1 ++ pr1.get -> f1, -1, 4, f1) //() |- f2
+              SC.SCSubproof(SCProof(IndexedSeq( p2, p3, p4, p5, p6, p7), IndexedSeq(pEq.get, pr1.get)), premises) // TODO: Check value of premises
+
+            case _ => ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Input formula is not an Iff")
+          }
+        }
       }
     }
 
@@ -493,10 +504,10 @@ object SimpleDeducedSteps {
               j1 match {
                   case ProofStepJudgement.InvalidProofStep (_, _) => (p1, phi1, j1)
                   case ProofStepJudgement.ValidProofStep(_) => {
-                    if (!premiseSequent.right.contains(phi1))
+                    if (!p1.conclusion.right.contains(phi1))
                       (p1, phi1, ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Formula is not present in the lass sequent"))
 
-                    val proofStep = SC.RightForall(premiseSequent -> phi1 +> forall(x1, phi1), p1.length - 1, phi1, x1)
+                    val proofStep = SC.RightForall(p1.conclusion -> phi1 +> forall(x1, phi1), p1.length - 1, phi1, x1)
                     (
                       p1 appended proofStep,
                       forall(x1, phi1),
@@ -549,6 +560,6 @@ object SimpleDeducedSteps {
 
     override def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = asSCProofAuto(this)(bot, premises, currentProof)
   }
-  
+
 }
 
