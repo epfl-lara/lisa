@@ -43,7 +43,7 @@ def withTests(project: Project): ClasspathDependency =
 
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
-lazy val scallion = githubProject("https://github.com/epfl-lara/scallion.git", "08b333f9af2d8daa1fb7424cd47b0433cd5e9770")
+lazy val scallion = RootProject(file("/home/sallinen/Programmation/scallion"))
 lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "eaf296425b9d8cc9100dfa66a079641ee4cfe4ae")
 
 lazy val root = Project(
