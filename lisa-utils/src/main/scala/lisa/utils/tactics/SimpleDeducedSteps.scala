@@ -437,7 +437,7 @@ object SimpleDeducedSteps {
   case class ByEquiv(f: FOL.Formula, f1: FOL.Formula) extends ProofStepWithoutPrem with ProofStepWithoutBotNorPrem(2) {
     override def asSCProof(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
       premises match {
-        case Nil | _ +: Nil => return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Not enough premises : " + premises)
+        case Nil | _ +: Nil => ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Not enough premises : " + premises)
         case _ => {
 
           val prem1 = currentProof.getSequent(premises.head)
@@ -456,13 +456,16 @@ object SimpleDeducedSteps {
               val f2 = if (FOL.isSame(f1, fl)) fr else if (FOL.isSame(f1, fr)) fl else {
                 return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Formulas not the sames")
               }
+
+
               val p2 = SC.Hypothesis(emptySeq +< f1 +> f1, f1) // () |- f2
               val p3 = SC.Hypothesis(emptySeq +< f2 +> f2, f2) // () |- f2
               val p4 = SC.LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 0, 1, f1, f2) // f1, f1 ==> f2 |- f2
               val p5 = SC.LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 2, f1, f2) // f1, f1 <=> f2 |- f2
               val p6 = SC.Cut(pEq.get -> (f1 <=> f2) +< f1 +> f2, -2, 3, f1 <=> f2) // f1 |- f2, f1
               val p7 = SC.Cut(p6.bot -< f1 ++ pr1.get -> f1, -1, 4, f1) //() |- f2
-              SC.SCSubproof(SCProof(IndexedSeq( p2, p3, p4, p5, p6, p7), IndexedSeq(pEq.get, pr1.get)), premises) // TODO: Check value of premises
+
+              SC.SCSubproof(SCProof(IndexedSeq( p2, p3, p4, p5, p6, p7), IndexedSeq(pEq.get, pr1.get)), premises.take(2))
 
             case _ => ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Input formula is not an Iff")
           }
@@ -551,7 +554,7 @@ object SimpleDeducedSteps {
       if (leftAphi.nonEmpty && leftBnphi.nonEmpty) {
         val p2 = SC.RightNot(pa -< leftAphi.get +> nphi, -2, phi)
         val p3 = SC.Cut(pa -< leftAphi.get ++ (pb -< leftBnphi.get), 1, -1, nphi)
-        SC.SCSubproof(SCProof(IndexedSeq(p2, p3), IndexedSeq(pa, pb))) //TODO: Check pa/pb orDer
+        SC.SCSubproof(SCProof(IndexedSeq(p2, p3), IndexedSeq(pa, pb)), premises) //TODO: Check pa/pb orDer
 
       } else {
         ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Premises have not the right syntax")

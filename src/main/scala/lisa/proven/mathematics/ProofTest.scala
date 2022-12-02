@@ -30,23 +30,24 @@ THEOREM("unorderedPair_symmetry") of
       val objectiveA : Sequent = () |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))
       val objectiveB : Sequent = () |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x))
       withImport(ax"extensionalityAxiom")
-      val test2 = have(objectiveB) by InstFunSchema(Map(
-        x -> LambdaTermTerm(Seq(), unorderedPair(x, y)),
-        y -> LambdaTermTerm(Seq(), unorderedPair(y, x))))(ax"extensionalityAxiom")
 
       withImport(ax"pairAxiom")
       have(objectiveA) by SUBPROOF {
-        
           withImport(ax"pairAxiom")
           have(() |- in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z)) by InstFunSchema(Map(
-            x -> LambdaTermTerm(Seq(), y), 
+            x -> LambdaTermTerm(Seq(), y),
             y -> LambdaTermTerm(Seq(), x)))(ax"pairAxiom")
-          have(in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z) |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by RightSubstIff(List(((x === z) \/ (y === z), in(z, unorderedPair(y, x)))),
+          have(in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z) |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by
+            RightSubstIff(List(((x === z) \/ (y === z), in(z, unorderedPair(y, x)))),
           LambdaFormulaFormula(Seq(h), in(z, unorderedPair(x, y)) <=> h))(ax"pairAxiom")
           have(() |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by Cut(in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z))(0,1)
           andThen(objectiveA) by RightForall
 
       }
+    val test2 = have(objectiveB) by InstFunSchema(Map(
+      x -> LambdaTermTerm(Seq(), unorderedPair(x, y)),
+      y -> LambdaTermTerm(Seq(), unorderedPair(y, x))))(ax"extensionalityAxiom")
+
       andThen(unorderedPair(x, y) === unorderedPair(y, x)) by ByEquiv(objectiveB.right.head, objectiveA.right.head)
       andThen(forall(y, forall(x, unorderedPair(x, y) === unorderedPair(y, x)))) by GeneralizeToForall(x, y)
       showCurrentProof()
