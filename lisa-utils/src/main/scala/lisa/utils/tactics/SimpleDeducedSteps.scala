@@ -1,20 +1,31 @@
 package lisa.utils.tactics
 
 import lisa.kernel.fol.FOL
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SequentCalculus.RewriteTrue
-import lisa.kernel.proof.SequentCalculus.SCProofStep
-import lisa.kernel.proof.SequentCalculus.Sequent
-import lisa.kernel.proof.{SequentCalculus => SC}
+import lisa.kernel.proof.{SCProof, SCProofChecker, SequentCalculus as SC}
+import lisa.kernel.proof.SequentCalculus.{RewriteTrue, RightForall, SCProofStep, Sequent}
 import lisa.utils.Helpers.*
-import lisa.utils.Helpers.{_, given}
-import lisa.utils.Library
-import lisa.utils.OutputManager
+import lisa.utils.Helpers.{*, given}
+import lisa.utils.{Library, OutputManager, Printer}
 import lisa.utils.tactics.BasicStepTactic.SCSubproof
-import lisa.utils.tactics.ProofStepLib.{_, given}
+import lisa.utils.tactics.ProofStepLib.{*, given}
 
 object SimpleDeducedSteps {
+
+  extension[T <: (ProofStepWithoutPrem with ProofStepWithoutBotNorPrem[1]) | (ProofStepWithoutPrem with ProofStepWithoutBotNorPrem[2])] (pr : T) {
+    private def asSCProofAuto(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val res = pr.asSCProof(premises, currentProof)
+
+      res match {
+        case ProofStepJudgement.InvalidProofStep(_, _) => res
+        case ProofStepJudgement.ValidProofStep(SC.SCSubproof(proof: SCProof, _)) =>
+          SC.SCSubproof(
+            proof withNewSteps IndexedSeq(SC.Rewrite(bot, proof.length - 1)),
+            Seq(premises.head)
+          )
+        case _ => ProofStepJudgement.InvalidProofStep(pr.asProofStepWithoutBot(premises).asProofStep(bot), "Unreachable pattern match")
+      }
+    }
+  }
 
   case object Restate extends ProofStepWithoutBot with ProofStepWithoutBotNorPrem(1) {
     override val premises: Seq[Int] = Seq()
@@ -275,21 +286,7 @@ object SimpleDeducedSteps {
       }
     }
 
-    override def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
-      val res = this.asSCProof(premises, currentProof)
-
-      res match {
-        case ProofStepJudgement.InvalidProofStep(_, _) => res
-        case ProofStepJudgement.ValidProofStep(SC.SCSubproof(proof: SCProof, _)) => {
-          // check if the same sequent was obtained
-          SC.SCSubproof(
-            proof withNewSteps IndexedSeq(SC.Rewrite(bot, proof.length - 1)),
-            Seq(premises(0))
-          )
-        }
-        case _ => ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), "Unreachable pattern match")
-      }
-    }
+    override def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = asSCProofAuto(this)(bot, premises, currentProof)
 
   }
 
@@ -437,4 +434,121 @@ object SimpleDeducedSteps {
     }
   }
 
+  case class ByEquiv(f: FOL.Formula, f1: FOL.Formula) extends ProofStepWithoutPrem with ProofStepWithoutBotNorPrem(2) {
+    override def asSCProof(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val prem1 = currentProof.getSequent(premises.head)
+      val prem2 = currentProof.getSequent(premises.tail.head)
+      f match {
+        case FOL.ConnectorFormula(FOL.Iff, Seq(fl, fr)) =>
+          val pr1 = Seq(prem1, prem2).find(st => st.right.contains(f1))
+          val pEq = Seq(prem1, prem2).find(st => st.right.contains(f))
+
+          if (pr1.isEmpty || pEq.isEmpty)
+            return ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Input formula is not present in given premises")
+
+          val f2 = if (FOL.isSame(f1, fl)) fr else if (FOL.isSame(f1, fr)) fl else throw new Error("not applicable")
+          val p2 = SC.Hypothesis(emptySeq +< f1 +> f1, f1) // () |- f2
+          val p3 = SC.Hypothesis(emptySeq +< f2 +> f2, f2) // () |- f2
+          val p4 = SC.LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 0, 1, f1, f2) // f1, f1 ==> f2 |- f2
+          val p5 = SC.LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 2, f1, f2) // f1, f1 <=> f2 |- f2
+          val p6 = SC.Cut(pEq.get -> (f1 <=> f2) +< f1 +> f2, -2, 3, f1 <=> f2) // f1 |- f2, f1
+          val p7 = SC.Cut(p6.bot -< f1 ++ pr1.get -> f1, -1, 4, f1) //() |- f2
+          SC.SCSubproof(SCProof(IndexedSeq( p2, p3, p4, p5, p6, p7), IndexedSeq(pEq.get, pr1.get)), premises) // TODO: Check value of premises
+
+        case _ => ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Input formula is not an Iff")
+      }
+    }
+
+      override def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = asSCProofAuto(this)(bot, premises, currentProof)
+    }
+
+  case class GeneralizeToForallWithoutFormula(t : FOL.VariableLabel*) extends ProofStepWithoutPrem with ProofStepWithoutBotNorPrem(1) {
+    override def asSCProof(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      if (currentProof.getSequent(premises.head).right.tail.isEmpty)
+        GeneralizeToForallMultiple(currentProof.getSequent(premises.head).right.head, t:_*).asSCProof(premises, currentProof)
+      else
+        ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "RHS of premise sequent is not a singleton.")
+
+    }
+
+    override def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      if (bot.right.tail.isEmpty)
+        GeneralizeToForallMultiple(currentProof.getSequent(premises.head).right.head, t:_*).asSCProof(bot, premises, currentProof)
+      else
+        ProofStepJudgement.InvalidProofStep(this.asProofStepWithoutBot(premises).asProofStep(bot), "RHS of premise sequent is not a singleton.")
+
+    }
+  }
+
+
+  case class GeneralizeToForallMultiple(phi : FOL.Formula, t: FOL.VariableLabel*) extends ProofStepWithoutPrem with ProofStepWithoutBotNorPrem(1) {
+    override def asSCProof(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      if (currentProof.getSequent(premises.head).right.contains(phi)) {
+        val premiseSequent = currentProof.getSequent(premises.head)
+        val emptyProof = SCProof(IndexedSeq(), IndexedSeq(currentProof.getSequent(premises.head)))
+        val j = ProofStepJudgement.ValidProofStep(SC.Rewrite(premiseSequent, premises.head))
+
+        val res = t.foldRight(emptyProof : SCProof, phi : FOL.Formula, j: ProofStepJudgement) {
+            case (x1, (p1 : SCProof, phi1, j1)) =>
+              j1 match {
+                  case ProofStepJudgement.InvalidProofStep (_, _) => (p1, phi1, j1)
+                  case ProofStepJudgement.ValidProofStep(_) => {
+                    if (!premiseSequent.right.contains(phi1))
+                      (p1, phi1, ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Formula is not present in the lass sequent"))
+
+                    val proofStep = SC.RightForall(premiseSequent -> phi1 +> forall(x1, phi1), p1.length - 1, phi1, x1)
+                    (
+                      p1 appended proofStep,
+                      forall(x1, phi1),
+                      j1
+                    )
+                  }
+              }
+        }
+
+        res._3 match {
+          case ProofStepJudgement.InvalidProofStep(_, _) => res._3
+          case ProofStepJudgement.ValidProofStep(_) => SC.SCSubproof(res._1, Seq(premises.head))
+        }
+
+      } else
+        ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "RHS of premise sequent contains not phi")
+
+    }
+
+    override def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = asSCProofAuto(this)(bot, premises, currentProof)
+
+  }
+
+  object GeneralizeToForall {
+
+    def apply(phi: FOL.Formula, t: FOL.VariableLabel) = GeneralizeToForallMultiple(phi, t)
+
+    def apply(phi: FOL.Formula, t: FOL.VariableLabel*) = GeneralizeToForallMultiple(phi, t: _*)
+
+    def apply(t: FOL.VariableLabel*) = GeneralizeToForallWithoutFormula(t: _*)
+  }
+
+
+  case class ByCase(phi: FOL.Formula) extends ProofStepWithoutPrem with ProofStepWithoutBotNorPrem(2) {
+    override def asSCProof(premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = {
+      val nphi = !phi
+
+      val pa = currentProof.getSequent(premises.head)
+      val pb = currentProof.getSequent(premises.tail.head)
+      val (leftAphi, leftBnphi) = (pa.left.find(FOL.isSame(_, phi)), pb.left.find(FOL.isSame(_, nphi)))
+      if (leftAphi.nonEmpty && leftBnphi.nonEmpty) {
+        val p2 = SC.RightNot(pa -< leftAphi.get +> nphi, -2, phi)
+        val p3 = SC.Cut(pa -< leftAphi.get ++ (pb -< leftBnphi.get), 1, -1, nphi)
+        SC.SCSubproof(SCProof(IndexedSeq(p2, p3), IndexedSeq(pa, pb))) //TODO: Check pa/pb orDer
+
+      } else {
+        ProofStepJudgement.InvalidProofStep(this.asProofStep(premises), "Premises have not the right syntax")
+      }
+    }
+
+    override def asSCProof(bot: Sequent, premises: Seq[Int], currentProof: Library#Proof): ProofStepJudgement = asSCProofAuto(this)(bot, premises, currentProof)
+  }
+  
 }
+
