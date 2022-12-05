@@ -2,10 +2,10 @@ package lisa.utils
 
 import lisa.kernel.proof.{SequentCalculus as SC}
 import lisa.utils.Library
+import lisa.utils.ProofTacticTestLib
 import lisa.utils.tactics.BasicStepTactic.*
 import lisa.utils.tactics.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
-import lisa.utils.ProofTacticTestLib
 
 class BasicTacticTest extends ProofTacticTestLib {
 
