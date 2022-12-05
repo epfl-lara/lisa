@@ -30,20 +30,23 @@ class ProofTacticTestLib extends AnyFunSuite with BasicMain {
             )
     
     // given a list of test cases and a function to pass them through a tactic, simply checks them
-    def testTacticCases[A](using proof: Proof)(correct: List[A], incorrect: List[A])(t: A => proof.ProofTacticJudgement) = {
+    def testTacticCases[A](using proof: Proof)(correct: List[A], incorrect: List[A])(t: A => proof.ProofTacticJudgement): Unit = {
         for (testCase <- correct)
             t(testCase) match {
                 case j: proof.ValidProofTactic => true
-                case j: proof.InvalidProofTactic => fail("Correct step failed!")
+                case j: proof.InvalidProofTactic => fail(s"Correct step failed! ${j.message}")
             }
 
         for (testCase <- incorrect)
             t(testCase) match {
-                case j: proof.ValidProofTactic => fail("Incorrect step passed!")
+                case j: proof.ValidProofTactic => fail(s"Incorrect step passed!")
                 case j: proof.InvalidProofTactic => true
             }
     }
 
+    // proof object constructed 'out of context' for testing
+    // supports adding sequents for use as premises without verification
+    // see `introduceSequent`
     val testProof = new BaseProof(placeholderTheorem)
     given Proof = testProof 
 }
