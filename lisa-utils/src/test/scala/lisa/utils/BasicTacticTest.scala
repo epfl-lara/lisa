@@ -5,44 +5,30 @@ import lisa.utils.Library
 import lisa.utils.tactics.BasicStepTactic.*
 import lisa.utils.tactics.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
+import lisa.utils.ProofTacticTestLib
 
-import scala.collection.immutable.LazyList
-
-class BasicTacticTest extends AnyFunSuite with BasicMain {
-
-    export lisa.test.TestTheoryLibrary.{_, given}
+class BasicTacticTest extends ProofTacticTestLib {
 
     // hypothesis
     test("Tactic Tests: Hypothesis") {
         val correct = List(
-            "'P('x) |- 'P('x)", 
-            "'P('x) |- 'P('x); 'Q('x)",
-            "'P('x); 'Q('x) |- 'P('x); 'Q('x)",
-            "'P('x); 'Q('x) |- 'P('x)"
+            ("'P('x) |- 'P('x)"), 
+            ("'P('x) |- 'P('x); 'Q('x)"),
+            ("'P('x); 'Q('x) |- 'P('x); 'Q('x)"),
+            ("'P('x); 'Q('x) |- 'P('x)"),
         )
 
         val incorrect = List(
-            "'P('x) |- ",
-            " |- 'P('x)",
-            " |- 'P('x); 'Q('x)",
-            "'Q('x) |- "
+            ("'P('x) |- "),
+            (" |- 'P('x)"),
+            (" |- 'P('x); 'Q('x)"),
+            ("'Q('x) |- "),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
+        val testProof = generateTestProof()
 
-        for (stmt <- correct) {
-            Hypothesis(using emptyProof)(stmt) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for (stmt <- incorrect) {
-            Hypothesis(using emptyProof)(stmt) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+        testTacticCases(correct, incorrect){
+            Hypothesis(_)
         }
     }
 
@@ -60,31 +46,11 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x) |- 'R('x); 'Q('x)", "'P('x) |- 'R('x) /\\'Q('x) ")
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
+        val testProof = generateTestProof()
 
-        // so much jank
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2) =>
             val prem = introduceSequent(stmt1)
-            Rewrite(using emptyProof)(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2) <- incorrect) {
-            val prem = introduceSequent(stmt1)
-            Rewrite(using emptyProof)(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            Rewrite(prem)(stmt2)
         }
     }
 
@@ -105,32 +71,12 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x) |- 'R('x)", "'R('x); 'P('x) |- 'Q('x)", "'R('x) |- 'Q('x)")
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
+        val testProof = generateTestProof()
 
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2, stmt3) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, stmt3) =>
             val prem1 = introduceSequent(stmt1)
             val prem2 = introduceSequent(stmt2)
-            Cut(using emptyProof)(prem1, prem2)(stmt3) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2, stmt3) <- incorrect) {
-            val prem1 = introduceSequent(stmt1)
-            val prem2 = introduceSequent(stmt2)
-            Cut(using emptyProof)(prem1, prem2)(stmt3) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            Cut(prem1, prem2)(stmt3)
         }
     }
 
@@ -150,32 +96,10 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x) |- 'R('x)", "'R('x); 'P('x) |- 'Q('x)", "'R('x) |- 'Q('x)", "'R('x)")
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2, stmt3, form) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, stmt3, form) =>
             val prem1 = introduceSequent(stmt1)
             val prem2 = introduceSequent(stmt2)
-            Cut.withParameters(using emptyProof)(FOLParser.parseFormula(form))(prem1, prem2)(stmt3) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2, stmt3, form) <- incorrect) {
-            val prem1 = introduceSequent(stmt1)
-            val prem2 = introduceSequent(stmt2)
-            Cut.withParameters(using emptyProof)(FOLParser.parseFormula(form))(prem1, prem2)(stmt3) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            Cut.withParameters(FOLParser.parseFormula(form))(prem1, prem2)(stmt3)
         }
     }
 
@@ -198,30 +122,9 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x); 'Q('x); 'S('x) |- 'R('x)", "'P('x); 'Q('x) |- 'R('x)"),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2) =>
             val prem = introduceSequent(stmt1)
-            LeftAnd(using emptyProof)(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2) <- incorrect) {
-            val prem = introduceSequent(stmt1)
-            LeftAnd(using emptyProof)(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            LeftAnd(prem)(stmt2)
         }
     }
 
@@ -243,30 +146,9 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x); 'Q('x); 'S('x) /\\ 'A('x) |- 'R('x)", "'P('x); 'Q('x) /\\ ('S('x) /\\ 'A('x)) |- 'R('x)", "'Q('x)", "'S('x)"),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2, phi, psi) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, phi, psi) =>
             val prem = introduceSequent(stmt1)
-            LeftAnd.withParameters(using emptyProof)(FOLParser.parseFormula(phi), FOLParser.parseFormula(psi))(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2, phi, psi) <- incorrect) {
-            val prem = introduceSequent(stmt1)
-            LeftAnd.withParameters(using emptyProof)(FOLParser.parseFormula(phi), FOLParser.parseFormula(psi))(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            LeftAnd.withParameters(FOLParser.parseFormula(phi), FOLParser.parseFormula(psi))(prem)(stmt2)
         }
     }
 
@@ -286,30 +168,9 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             (List("'P('x) |- 'S('x)", "'R('x) |- 'Q('x)"),  "'P('x) \\/ 'R('x); 'T('x) |- 'Q('x); 'S('x)"),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmts: List[String], stmt2: String) <- correct) {
+        testTacticCases(correct, incorrect){ (stmts, stmt2) =>
             val prems = stmts.map(introduceSequent(_))
-            LeftOr(using emptyProof)(prems: _*)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmts: List[String], stmt2: String) <- incorrect) {
-            val prems = stmts.map(introduceSequent(_))
-            LeftOr(using emptyProof)(prems: _*)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            LeftOr(prems: _*)(stmt2)
         }
     }
 
@@ -331,30 +192,9 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             (List("'P('x) |- 'S('x)", "'R('x) |- 'Q('x)"),  "'E('x) \\/ 'T('x) |- 'Q('x); 'S('x)", List("'E('x)", "'T('x)")),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmts, stmt2, forms) <- correct) {
+        testTacticCases(correct, incorrect){ (stmts, stmt2, forms) =>
             val prems = stmts.map(introduceSequent(_))
-            LeftOr.withParameters(using emptyProof)(forms.map(FOLParser.parseFormula(_)): _*)(prems: _*)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmts, stmt2, forms) <- incorrect) {
-            val prems = stmts.map(introduceSequent(_))
-            LeftOr.withParameters(using emptyProof)(forms.map(FOLParser.parseFormula(_)): _*)(prems: _*)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            LeftOr.withParameters(forms.map(FOLParser.parseFormula(_)): _*)(prems: _*)(stmt2)
         }
     }
 
@@ -381,32 +221,10 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x) |- 'R('x)", "'S('x) |- 'Q('x)", "'P('x) |- 'Q('x)"),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2, stmt3) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, stmt3) =>
             val prem1 = introduceSequent(stmt1)
             val prem2 = introduceSequent(stmt2)
-            LeftImplies(using emptyProof)(prem1, prem2)(stmt3) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2, stmt3) <- incorrect) {
-            val prem1 = introduceSequent(stmt1)
-            val prem2 = introduceSequent(stmt2)
-            LeftImplies(using emptyProof)(prem1, prem2)(stmt3) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            LeftImplies(prem1, prem2)(stmt3)
         }
     }
 
@@ -434,32 +252,10 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x) |- 'R('x)", "'S('x) |- 'Q('x)", "'P('x) |- 'Q('x)", "'R('x)", "'S('x)"),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2, stmt3, form1, form2) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, stmt3, form1, form2) =>
             val prem1 = introduceSequent(stmt1)
             val prem2 = introduceSequent(stmt2)
-            LeftImplies.withParameters(using emptyProof)(FOLParser.parseFormula(form1), FOLParser.parseFormula(form2))(prem1, prem2)(stmt3) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2, stmt3, form1, form2) <- incorrect) {
-            val prem1 = introduceSequent(stmt1)
-            val prem2 = introduceSequent(stmt2)
-            LeftImplies.withParameters(using emptyProof)(FOLParser.parseFormula(form1), FOLParser.parseFormula(form2))(prem1, prem2)(stmt3) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            LeftImplies.withParameters(FOLParser.parseFormula(form1), FOLParser.parseFormula(form2))(prem1, prem2)(stmt3)
         }
     }
 
@@ -476,30 +272,9 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x); 'Q('x) ==> 'S('x) |- 'R('x)", "'P('x); 'Q('x) <=> 'T('x) |- 'R('x)"),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2) =>
             val prem = introduceSequent(stmt1)
-            LeftIff(using emptyProof)(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2) <- incorrect) {
-            val prem = introduceSequent(stmt1)
-            LeftIff(using emptyProof)(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            LeftIff(prem)(stmt2)
         }
     }
 
@@ -519,30 +294,9 @@ class BasicTacticTest extends AnyFunSuite with BasicMain {
             ("'P('x); 'Q('x) ==> 'S('x) |- 'R('x)", "'P('x); 'Q('x) <=> 'T('x) |- 'R('x)", "'Q('x)", "'T('x)"),
         )
 
-        val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") {have("'P('x) |- 'P('x)") by Hypothesis}
-        val emptyProof = new BaseProof(placeholderTheorem)
-
-        def introduceSequent(seq: String) = emptyProof.newProofStep(
-            emptyProof.ValidProofTactic(
-                Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))), 
-                Seq()
-                )(using Hypothesis)
-                )
-
-        for ((stmt1, stmt2, phi, psi) <- correct) {
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, form1, form2) =>
             val prem = introduceSequent(stmt1)
-            LeftAnd.withParameters(using emptyProof)(FOLParser.parseFormula(phi), FOLParser.parseFormula(psi))(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => true
-                case j: emptyProof.InvalidProofTactic => fail("Correct step failed!")
-            }
-        }
-
-        for ((stmt1, stmt2, phi, psi) <- incorrect) {
-            val prem = introduceSequent(stmt1)
-            LeftAnd.withParameters(using emptyProof)(FOLParser.parseFormula(phi), FOLParser.parseFormula(psi))(prem)(stmt2) match {
-                case j: emptyProof.ValidProofTactic => fail("Incorrect step passed!")
-                case j: emptyProof.InvalidProofTactic => true
-            }
+            LeftIff.withParameters(FOLParser.parseFormula(form1), FOLParser.parseFormula(form2))(prem)(stmt2)
         }
     }
 
