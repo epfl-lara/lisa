@@ -200,7 +200,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     else {
       val r = f match {
         case PredicateFormula(label, args) =>
-          SimplePredicate(label, args, polarity = true, f)
+          SimplePredicate(label, args, polarity, f)
         case ConnectorFormula(label, args) =>
           label match {
             case cl: ConstantConnectorLabel => cl match {
@@ -336,7 +336,8 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
           case (_, NormalLiteral(b)) => b
 
           case (NormalPredicate(id1, args1, polarity1, _), NormalPredicate(id2, args2, polarity2, _)) =>
-            id1 == id2 && polarity1 == polarity2 && args1 == args2
+            id1 == id2 && polarity1 == polarity2 &&
+              (args1 == args2 || (id1 == equality && args1(0) == args2(1) && args1(1) == args2(0) ))
           case (NormalSchemConnector(id1, args1, polarity1), NormalSchemConnector(id2, args2, polarity2)) =>
             id1 == id2 && polarity1 == polarity2 && args1.zip(args2).forall(f => latticesEQ(f._1, f._2))
           case (NormalForall(x1, inner1, polarity1), NormalForall(x2, inner2, polarity2)) =>
