@@ -14,57 +14,70 @@ import scala.math.Numeric.IntIsIntegral
  * of equality and alpha-equivalence.
  * See https://github.com/epfl-lara/OCBSL for more informations
  */
-private[fol] trait EquivalenceChecker2  {
-  this : FormulaDefinitions =>
+private[fol] trait EquivalenceChecker extends FormulaDefinitions{
 
-  def isSame(term1: Term, term2: Term): Boolean = ???
-  def isSame(formula1: Formula, formula2: Formula): Boolean = ???
-  def isSameSet(s1: Set[Formula], s2: Set[Formula]): Boolean = ???
-  def isSubset(s1: Set[Formula], s2: Set[Formula]): Boolean = ???
-  def contains(s: Set[Formula], f: Formula): Boolean = ???
-
-  /*
-  sealed abstract class PolarFormula {
-    val uniqueKey: Int = totPolarFormula
-    totPolarFormula += 1
-    val size: Int
-    var inverse: Option[PolarFormula] = None
-    private[EquivalenceChecker2] var normalForm: Option[NormalFormula] = None
-    //var polarNormalForm: Option[NormalPFormula] = None
+  def reducedForm(formula: Formula): Formula = {
+    val p = polarize(formula, true)
+    val nf = computeNormalForm(p)
+    val res = toFormulaAIG(nf)
+    res
+  }
+  def reduceSet(s: Set[Formula]): Set[Formula] = {
+    var res: List[Formula] = Nil
+    s.map(reducedForm).foreach({ f =>
+      if (!res.exists(isSame(f, _))) res = f :: res
+    })
+    res.toSet
   }
 
-  case class PolarVariable(id: Int, polarity: Boolean = true) extends PolarFormula {
-    val size = 1
+  def isSameTerm(term1: Term, term2: Term): Boolean = term1.label == term2.label && term1.args.lazyZip(term2.args).forall(isSameTerm)
+  def isSame(formula1: Formula, formula2: Formula): Boolean = {
+    val nf1 = computeNormalForm(polarize(formula1, true))
+    val nf2 = computeNormalForm(polarize(formula2, true))
+    latticesEQ(nf1, nf2)
   }
-  case class PolarAnd(children: List[PolarFormula], polarity: Boolean = true) extends PolarFormula {
-    val size: Int = (children map (_.size)).foldLeft(1) { case (a, b) => a + b }
+  def isImplying(formula1: Formula, formula2: Formula): Boolean = {
+    val nf1 = computeNormalForm(polarize(formula1, true))
+    val nf2 = computeNormalForm(polarize(formula2, true))
+    latticesLEQ(nf1, nf2)
   }
-  case class PolarLiteral(b: Boolean) extends PolarFormula {
-    val size = 1
+
+  def isSubset(s1: Set[Formula], s2: Set[Formula]): Boolean = {
+    s1.forall(f1 => s2.exists(g1 => isSame(f1, g1)))
   }
-*/
+  def isSameSet(s1: Set[Formula], s2: Set[Formula]): Boolean =
+    isSubset(s1, s2) && isSubset(s2, s1)
+
+  def contains(s: Set[Formula], f: Formula): Boolean = {
+    s.exists(g => isSame(f, g))
+  }
+
+
+
+
+
+
   private var totPolarFormula = 0
-  sealed abstract class PolarFormula {
+  sealed abstract class SimpleFormula {
     val uniqueKey: Int = totPolarFormula
     totPolarFormula += 1
     val size: Int
-    var inverse: Option[PolarFormula] = None
-    private[EquivalenceChecker2] var normalForm: Option[NormalFormula] = None
-    //var polarNormalForm: Option[NormalPFormula] = None
+    var inverse: Option[SimpleFormula] = None
+    private[EquivalenceChecker] var normalForm: Option[NormalFormula] = None
   }
-  case class PolarPredicate(id: PredicateLabel, args: Seq[Term], polarity:Boolean, original:Formula) extends PolarFormula {
+  case class SimplePredicate(id: PredicateLabel, args: Seq[Term], polarity:Boolean, original:Formula) extends SimpleFormula {
     val size = 1
   }
-  case class PolarSchemConnector(id: SchematicConnectorLabel, args: Seq[PolarFormula], polarity:Boolean) extends PolarFormula {
+  case class SimpleSchemConnector(id: SchematicConnectorLabel, args: Seq[SimpleFormula], polarity:Boolean) extends SimpleFormula {
     val size = 1
   }
-  case class PolarAnd(children: Seq[PolarFormula], polarity:Boolean) extends PolarFormula {
+  case class SimpleAnd(children: Seq[SimpleFormula], polarity:Boolean) extends SimpleFormula {
     val size: Int = (children map (_.size)).foldLeft(1) { case (a, b) => a + b }
   }
-  case class PolarForall(x: Identifier, inner: PolarFormula, polarity:Boolean) extends PolarFormula {
+  case class SimpleForall(x: Identifier, inner: SimpleFormula, polarity:Boolean) extends SimpleFormula {
     val size: Int = 1 + inner.size
   }
-  case class PolarLiteral(polarity: Boolean) extends PolarFormula {
+  case class SimpleLiteral(polarity: Boolean) extends SimpleFormula {
     val size = 1
     normalForm = Some(NormalLiteral(polarity))
   }
@@ -104,10 +117,11 @@ private[fol] trait EquivalenceChecker2  {
 
     def recoverFormula: Formula = toFormulaAIG(this)
   }
-  case class NormalPredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean, original:Formula) extends NormalFormula
-  case class NormalSchemConnector(id: SchematicConnectorLabel, args: Seq[NormalFormula], polarity: Boolean) extends NormalFormula
+  sealed abstract class NonTraversable extends NormalFormula
+  case class NormalPredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean, original:Formula) extends  NonTraversable
+  case class NormalSchemConnector(id: SchematicConnectorLabel, args: Seq[NormalFormula], polarity: Boolean) extends  NonTraversable
   case class NormalAnd(args: Seq[NormalFormula], polarity: Boolean) extends NormalFormula
-  case class NormalForall(x: Identifier, inner: NormalFormula, polarity: Boolean) extends NormalFormula
+  case class NormalForall(x: Identifier, inner: NormalFormula, polarity: Boolean) extends NonTraversable
   case class NormalLiteral(polarity: Boolean) extends NormalFormula
   /**
    * Puts back in regular formula syntax, in an AIG (without disjunctions) format
@@ -135,16 +149,36 @@ private[fol] trait EquivalenceChecker2  {
   /**
    * Inverse a formula in Polar normal form. Corresponds semantically to taking the negation of the formula.
    */
-  def getInversePolar(f: PolarFormula): PolarFormula = {
+  def getInversePolar(f: SimpleFormula): SimpleFormula = {
     f.inverse match {
       case Some(value) => value
       case None =>
         val second = f match {
-          case f: PolarPredicate => f.copy(polarity = !f.polarity)
-          case f: PolarSchemConnector => f.copy(polarity = !f.polarity)
-          case f: PolarAnd => f.copy(polarity = !f.polarity)
-          case f: PolarForall => f.copy(polarity = !f.polarity)
-          case f: PolarLiteral => f.copy(polarity = !f.polarity)
+          case f: SimplePredicate => f.copy(polarity = !f.polarity)
+          case f: SimpleSchemConnector => f.copy(polarity = !f.polarity)
+          case f: SimpleAnd => f.copy(polarity = !f.polarity)
+          case f: SimpleForall => f.copy(polarity = !f.polarity)
+          case f: SimpleLiteral => f.copy(polarity = !f.polarity)
+        }
+        f.inverse = Some(second)
+        second.inverse = Some(f)
+        second
+    }
+  }
+
+  /**
+   * Inverse a formula in Polar normal form. Corresponds semantically to taking the negation of the formula.
+   */
+  def getInverse(f: NormalFormula): NormalFormula = {
+    f.inverse match {
+      case Some(value) => value
+      case None =>
+        val second:NormalFormula = f match {
+          case f: NormalPredicate => f.copy(polarity = !f.polarity)
+          case f: NormalSchemConnector => f.copy(polarity = !f.polarity)
+          case f: NormalAnd => f.copy(polarity = !f.polarity)
+          case f: NormalForall => f.copy(polarity = !f.polarity)
+          case f: NormalLiteral => f.copy(polarity = !f.polarity)
         }
         f.inverse = Some(second)
         second.inverse = Some(f)
@@ -160,39 +194,39 @@ private[fol] trait EquivalenceChecker2  {
    * @param polarity If the formula is in a positive or negative context. It is usually true.
    * @return The corresponding PolarFormula
    */
-  def polarize(f: Formula, polarity: Boolean): PolarFormula = {
+  def polarize(f: Formula, polarity: Boolean): SimpleFormula = {
     if (polarity & f.polarFormula.isDefined) f.polarFormula.get
     else if (!polarity & f.polarFormula.isDefined) getInversePolar(f.polarFormula.get)
     else {
       val r = f match {
         case PredicateFormula(label, args) =>
-          PolarPredicate(label, args, polarity = true, f)
+          SimplePredicate(label, args, polarity = true, f)
         case ConnectorFormula(label, args) =>
           label match {
             case cl: ConstantConnectorLabel => cl match {
               case Neg => polarize(args.head, !polarity)
-              case Implies => PolarAnd(Seq(polarize(args(0), true), polarize(args(1), false)), !polarity)
+              case Implies => SimpleAnd(Seq(polarize(args(0), true), polarize(args(1), false)), !polarity)
               case Iff =>
                 val l1 = polarize(args(0), true)
                 val r1 = polarize(args(1), true)
-                PolarAnd(Seq(
-                  PolarAnd(Seq(l1, getInversePolar(r1)), !polarity),
-                  PolarAnd(Seq(getInversePolar(l1), r1), !polarity)
+                SimpleAnd(Seq(
+                  SimpleAnd(Seq(l1, getInversePolar(r1)), !polarity),
+                  SimpleAnd(Seq(getInversePolar(l1), r1), !polarity)
                 ), polarity)
-              case And => PolarAnd(args.map(polarize(_, true)), polarity)
-              case Or => PolarAnd(args.map(polarize(_, false)), !polarity)
+              case And => SimpleAnd(args.map(polarize(_, true)), polarity)
+              case Or => SimpleAnd(args.map(polarize(_, false)), !polarity)
             }
             case scl: SchematicConnectorLabel =>
-              PolarSchemConnector(scl, args.map(polarize(_, true)), polarity)
+              SimpleSchemConnector(scl, args.map(polarize(_, true)), polarity)
           }
         case BinderFormula(label, bound, inner) => label match {
-          case Forall => PolarForall(bound.id, polarize(inner, true), polarity)
-          case Exists => PolarForall(bound.id, polarize(inner, false), !polarity)
+          case Forall => SimpleForall(bound.id, polarize(inner, true), polarity)
+          case Exists => SimpleForall(bound.id, polarize(inner, false), !polarity)
           case ExistsOne =>
             val y = VariableLabel(freshId(inner.freeVariables.map(_.id), bound.id))
             val c = PredicateFormula(equality, Seq(VariableTerm(bound), VariableTerm(y)))
             val newInner = polarize(ConnectorFormula(Iff, Seq(c, inner)), true)
-            PolarForall(y.id, PolarForall(bound.id, newInner, false), false)
+            SimpleForall(y.id, SimpleForall(bound.id, newInner, false), false)
         }
       }
       if (polarity) f.polarFormula = Some(r)
@@ -203,20 +237,140 @@ private[fol] trait EquivalenceChecker2  {
 
 
 
+  def computeNormalForm(formula:SimpleFormula):NormalFormula = {
+    formula.normalForm match {
+      case Some(value) =>
+        value
+      case None =>
+        val r = formula match {
+          case SimplePredicate(id, args, true, original) =>
+            NormalPredicate(id, args, true, original)
+          case SimplePredicate(id, args, false, original) =>
+            getInverse(computeNormalForm(getInversePolar(formula)))
+          case SimpleSchemConnector(id, args, true) =>
+            NormalSchemConnector(id, args.map(computeNormalForm), true)
+          case SimpleSchemConnector(id, args, false) =>
+            getInverse(computeNormalForm(getInversePolar(formula)))
+          case SimpleAnd(children, polarity) =>
+            val newChildren = children map computeNormalForm
+            val simp = simplify(newChildren, polarity)
+            simp match {
+              case conj: NormalAnd if checkForContradiction(conj) => NormalLiteral(!polarity)
+              case _ => simp
+            }
+          case SimpleForall(x, inner, polarity) => NormalForall(x, computeNormalForm(inner), polarity)
+          case SimpleLiteral(polarity) => NormalLiteral(polarity)
+        }
+        formula.normalForm = Some(r)
+        r
+        
+    }
+  }
 
 
 
 
+  def simplify(children:Seq[NormalFormula], polarity:Boolean): NormalFormula = {
+    val nonSimplified = NormalAnd(children, polarity)
+    var remaining : Seq[NormalFormula] = Nil
+    def treatChild(i:NormalFormula): Seq[NormalFormula] = {
+      val r: Seq[NormalFormula] = i match {
+        case NormalAnd(ch, true) => ch
+        case NormalAnd(ch, false) =>
+          if (polarity) {
+            val trCh = ch map getInverse
+            trCh.find(f => {
+              latticesLEQ(nonSimplified, f)
+            }) match {
+              case Some(value) =>
+                treatChild(value)
+              case None => List(i)
+            }
+          } else {
+            val trCh = ch
+            trCh.find(f => {
+              latticesLEQ(f, nonSimplified)
+            }) match {
+              case Some(value) =>
+                treatChild(getInverse(value))
+              case None => List(i)
+            }
+          }
+        case _ => List(i)
+      }
+      r
+    }
+    children.foreach(i => {
+      val r = treatChild(i)
+      remaining = r ++ remaining
+    })
+
+    var accepted: List[NormalFormula] = Nil
+    while (remaining.nonEmpty) {
+      val current = remaining.head
+      remaining = remaining.tail
+      if (!latticesLEQ(NormalAnd(remaining++accepted, true), current)){
+        accepted = current::accepted
+      }
+    }
+    val r = {
+      if (accepted.isEmpty)  NormalLiteral(polarity)
+      else if (accepted.size == 1)
+        if (polarity) accepted.head else getInverse(accepted.head)
+      else NormalAnd(accepted, polarity)
+    }
+    r
+  }
 
 
+  def latticesEQ(formula1: NormalFormula, formula2: NormalFormula): Boolean = latticesLEQ(formula1, formula2) && latticesLEQ(formula2, formula1)
+
+  def latticesLEQ(formula1: NormalFormula, formula2: NormalFormula): Boolean = {
+    if (formula1.uniqueKey == formula2.uniqueKey) true
+    else formula1.lessThanCached(formula2) match {
+      case Some(value) => value
+      case None =>
+        val r = (formula1, formula2) match {
+          case (NormalLiteral(b1), NormalLiteral(b2)) => !b1 || b2
+          case (NormalLiteral(b), _) => !b
+          case (_, NormalLiteral(b)) => b
+
+          case (NormalPredicate(id1, args1, polarity1, _), NormalPredicate(id2, args2, polarity2, _)) =>
+            id1 == id2 && polarity1 == polarity2 && args1 == args2
+          case (NormalSchemConnector(id1, args1, polarity1), NormalSchemConnector(id2, args2, polarity2)) =>
+            id1 == id2 && polarity1 == polarity2 && args1.zip(args2).forall(f => latticesEQ(f._1, f._2))
+          case (NormalForall(x1, inner1, polarity1), NormalForall(x2, inner2, polarity2)) =>
+            x1 == x2 && polarity1 == polarity2 && latticesLEQ(inner1, inner2)
+          case (_:NonTraversable, _:NonTraversable) => false
+
+          case (_, NormalAnd(children, true)) =>
+            children.forall(c => latticesLEQ(formula1, c))
+          case (NormalAnd(children, false), _) =>
+            children.forall(c => latticesLEQ(getInverse(c), formula2))
+          case (NormalAnd(children1, true), NormalAnd(children2, false)) =>
+            children1.exists(c => latticesLEQ(c, formula2)) || children2.exists(c => latticesLEQ(formula1, getInverse(c)))
+
+          case (nt:NonTraversable, NormalAnd(children, false)) =>
+            children.exists(c => latticesLEQ(nt, getInverse(c)))
+          case (NormalAnd(children, true), nt:NonTraversable) =>
+            children.exists(c => latticesLEQ(c, nt))
 
 
+        }
+        formula1.setLessThanCache(formula2, r)
+        r
+    }
+  }
 
-
-
-
-
-
+  def checkForContradiction(f:NormalAnd): Boolean = {
+    f match {
+      case NormalAnd(children, false) =>
+        children.exists(cc => latticesLEQ(cc, f))
+      case NormalAnd(children, true) =>
+        val shadowChildren = children map getInverse
+        shadowChildren.exists(sc => latticesLEQ(f, sc))
+    }
+  }
 
 
 

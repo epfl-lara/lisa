@@ -4,14 +4,27 @@ package lisa.kernel.fol
  * Definitions of formulas; analogous to [[TermDefinitions]].
  * Depends on [[FormulaLabelDefinitions]] and [[TermDefinitions]].
  */
-private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermDefinitions with EquivalenceChecker2{
+private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermDefinitions {
+
+
+  type SimpleFormula
+  def reducedForm(formula: Formula): Formula
+  def reduceSet(s: Set[Formula]): Set[Formula]
+  def isSameTerm(term1: Term, term2: Term): Boolean
+  def isSame(formula1: Formula, formula2: Formula): Boolean
+  def isImplying(formula1: Formula, formula2: Formula): Boolean
+  def isSameSet(s1: Set[Formula], s2: Set[Formula]): Boolean
+  def isSubset(s1: Set[Formula], s2: Set[Formula]): Boolean
+  def contains(s: Set[Formula], f: Formula): Boolean
+
+
   /**
    * The parent class of formulas.
    * A formula is a tree whose nodes are either terms or labeled by predicates or logical connectors.
    */
   sealed trait Formula extends TreeWithLabel[FormulaLabel] {
     private[fol] val uniqueNumber: Long = Formula.getNewId
-    private[fol] var polarFormula: Option[PolarFormula] = None
+    private[fol] var polarFormula: Option[SimpleFormula] = None
     val arity: Int = label.arity
 
 
