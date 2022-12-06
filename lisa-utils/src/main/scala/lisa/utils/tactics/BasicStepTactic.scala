@@ -820,7 +820,7 @@ object BasicStepTactic {
       else
         fa match {
           case PredicateFormula(`equality`, Seq(left, right)) =>
-            if (isSame(left, right))
+            if (isSameTerm(left, right))
               proof.ValidProofTactic(Seq(SC.LeftRefl(bot, -1, fa)), Seq(premise))
             else
               proof.InvalidProofTactic("φ is not an instance of reflexivity.")
@@ -853,7 +853,7 @@ object BasicStepTactic {
       else
         fa match {
           case PredicateFormula(`equality`, Seq(left, right)) =>
-            if (isSame(left, right))
+            if (isSameTerm(left, right))
               proof.ValidProofTactic(Seq(SC.RightRefl(bot, fa)), Seq())
             else
               proof.InvalidProofTactic("φ is not an instance of reflexivity.")
@@ -867,7 +867,7 @@ object BasicStepTactic {
         // go through conclusion to see if you can find an reflexive formula
         val pivot: Option[Formula] = bot.right.find(f =>
           f match {
-            case PredicateFormula(`equality`, Seq(l, r)) => isSame(l, r)
+            case PredicateFormula(`equality`, Seq(l, r)) => isSameTerm(l, r)
             case _ => false
           }
         )

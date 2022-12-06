@@ -29,10 +29,11 @@ object SequentCalculus {
   def sequentToFormula(s: Sequent): Formula = ConnectorFormula(Implies, List(ConnectorFormula(And, s.left.toSeq), ConnectorFormula(Or, s.right.toSeq)))
 
   /**
-   * Checks whether two sequents are equivalent, with respect to [[isSame]].
+   * Checks whether two sequents are equivalent, with respect to [[isSameTerm]].
+   *
    * @param l the first sequent
    * @param r the second sequent
-   * @return see [[isSame]]
+   * @return see [[isSameTerm]]
    */
   def isSameSequent(l: Sequent, r: Sequent): Boolean = isSame(sequentToFormula(l), sequentToFormula(r))
 

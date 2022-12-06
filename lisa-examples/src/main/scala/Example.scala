@@ -2,15 +2,14 @@ import lisa.Main
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SCProofChecker
+import lisa.kernel.proof.{RunningTheory, SCProof, SCProofChecker}
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
 import lisa.utils.Helpers.show
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.Helpers.{*, given}
 import lisa.utils.FOLPrinter.*
 
 /**
@@ -23,13 +22,9 @@ object Example {
     // Exercise.main(Array())
     // solverExample()
     // tptpExample()
+
   }
 
-  /**
-   * A little example of a small LISA proof with holes to fill as an exercise.
-   * All interrogation marks have to be replaced by proof steps, (sets of) formulas or integers.
-   * The last two lines don't need to be changed.
-   */
 
   /**
    * An example of how to use the simple propositional solver.

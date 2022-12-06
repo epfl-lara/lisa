@@ -14,7 +14,7 @@ object SimpleSimplifier {
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
   private def findSubterm2(t: Term, subs: Seq[(VariableLabel, Term)]): (Term, Boolean) = {
-    val eq = subs.find(s => isSame(t, s._2))
+    val eq = subs.find(s => isSameTerm(t, s._2))
     if (eq.nonEmpty) (eq.get._1(), true)
     else {
       val induct = condflat(t.args.map(te => findSubterm2(te, subs)))
