@@ -561,6 +561,53 @@ class BasicTacticTest extends ProofTacticTestLib {
             RightAnd.withParameters(forms.map(FOLParser.parseFormula(_)): _*)(prems: _*)(stmt2)
         }
     }
+
+    //     right or
+    test("Tactic Tests: Right Or - Parameter Inference") {
+        val correct = List(
+            ("'R('x) |- 'P('x); 'Q('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x); 'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x) \\/ 'A('x)", "'R('x) |- 'P('x); 'Q('x) \\/ ('S('x) \\/ 'A('x))"),
+        )
+
+        val incorrect = List(
+            ("'R('x) |- 'P('x); 'Q('x)", "'R('x) |- 'P('x); 'Q('x) /\\ 'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x) /\\ 'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'P('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x); 'A('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'S('x) \\/ 'A('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x)"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2) =>
+            val prem = introduceSequent(stmt1)
+            RightOr(prem)(stmt2)
+        }
+    }
+
+    test("Tactic Tests: Right Or - Explicit Parameters") {
+        val correct = List(
+            ("'R('x) |- 'P('x); 'Q('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'S('x)", "'Q('x)", "'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'S('x)", "'Q('x)", "'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x) \\/ 'A('x)", "'R('x) |- 'P('x); 'Q('x) \\/ ('S('x) \\/ 'A('x))", "'Q('x)", "'S('x) \\/ 'A('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x) \\/ 'A('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'S('x) \\/ 'A('x)", "'Q('x)", "'S('x) \\/ 'A('x)"),
+        )
+
+        val incorrect = List(
+            ("'R('x) |- 'P('x); 'Q('x)", "'R('x) |- 'P('x); 'Q('x) /\\ 'S('x)", "'Q('x)", "'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x) /\\ 'S('x)", "'Q('x)", "'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'P('x)", "'Q('x)", "'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x) /\\ 'S('x)", "'Q('x)", "'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'S('x)", "'Q('x)", "'P('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x)", "'R('x) |- 'P('x); 'Q('x) \\/ 'S('x)", "'P('x)", "'S('x)"),
+            ("'R('x) |- 'P('x); 'Q('x); 'S('x) \\/ 'A('x)", "'R('x) |- 'P('x); 'Q('x) \\/ ('S('x) \\/ 'A('x))", "'Q('x)", "'S('x)"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, phi, psi) =>
+            val prem = introduceSequent(stmt1)
+            RightOr.withParameters(FOLParser.parseFormula(phi), FOLParser.parseFormula(psi))(prem)(stmt2)
+        }
+    }
     //     right and 
     //     right or
     //     right implies
