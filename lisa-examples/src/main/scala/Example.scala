@@ -23,51 +23,8 @@ object Example {
     // solverExample()
     // tptpExample()
 
-    val runningTestTheory = new RunningTheory()
-    val (s0, s1) = (ConstantFunctionLabel("0", 0), ConstantFunctionLabel("1", 0))
-    runningTestTheory.addSymbol(s0)
-    runningTestTheory.addSymbol(s1)
-    val (c0, c1) = (s0(), s1())
-
-    val (v0, v1) = (VariableFormulaLabel("0"), VariableFormulaLabel("1"))
-
-
-    val f1 = (c0 === c1)
-    val f2 = (c0 === c1)
-    val seq1 = f1 |- f2
-    val g1 = sequentToFormula(seq1)
-/*
-    println("g1  " + prettyFormula(g1))
-    println("pg1  " + polarize(g1, true))
-    println("rg1  " + prettyFormula(reducedForm(g1)))
-*/
-    val f3 = (c0 === c1)
-    val f4 = (c1 === c0)
-    val f5 = (c1 === c0)
-
-    val seq2 = f4 |- f5
-
-    val g2 = sequentToFormula(seq2)
-    val g3 = sequentToFormula(seq1)
-    val g4 = sequentToFormula(seq2)
-
-    val p = SCProof(Hypothesis(f1 |- f2, f3))
-    //println("SC proof checker  " + SCProofChecker.checkSCProof(p))
-    println("SameFormula  " + isSame(f1, f4))
-    println("SameFormula  " + isSame(f2, f5))
-    println("g2  " + prettyFormula(g3))
-    println("rg2  " + prettyFormula(reducedForm(g3)))
-    println("SameSeq2For  " + isSame(g1, g3))
-    println("SameSequent  " + isSameSequent(f1 |- f2, f4 |- f5))
-    //checkProof(p)
-    //println("Running theory  " + runningTestTheory.theorem("True theorem", f4 |- f5, p, Seq()))
   }
 
-  /**
-   * A little example of a small LISA proof with holes to fill as an exercise.
-   * All interrogation marks have to be replaced by proof steps, (sets of) formulas or integers.
-   * The last two lines don't need to be changed.
-   */
 
   /**
    * An example of how to use the simple propositional solver.

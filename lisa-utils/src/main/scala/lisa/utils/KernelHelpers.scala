@@ -179,7 +179,7 @@ trait KernelHelpers {
 
     def seq(args: Any*): Sequent = FOLParser.parseSequent(sc.parts.mkString(""))
 
-    def f(args: Any*): Formula = FOLParser.parseFormula(sc.parts.mkString(""))
+    def form(args: Any*): Formula = FOLParser.parseFormula(sc.parts.mkString(""))
 
     def t(args: Any*): Term = FOLParser.parseTerm(sc.parts.mkString(""))
 

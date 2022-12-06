@@ -66,6 +66,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     private[EquivalenceChecker] var normalForm: Option[NormalFormula] = None
   }
   case class SimplePredicate(id: PredicateLabel, args: Seq[Term], polarity:Boolean, original:Formula) extends SimpleFormula {
+    override def toString:String = s"SimplePredicate($id, $args, $polarity)"
     val size = 1
   }
   case class SimpleSchemConnector(id: SchematicConnectorLabel, args: Seq[SimpleFormula], polarity:Boolean) extends SimpleFormula {
@@ -118,7 +119,9 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     def recoverFormula: Formula = toFormulaAIG(this)
   }
   sealed abstract class NonTraversable extends NormalFormula
-  case class NormalPredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean, original:Formula) extends  NonTraversable
+  case class NormalPredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean, original:Formula) extends  NonTraversable {
+    override def toString:String = s"NormalPredicate($id, $args, $polarity)"
+  }
   case class NormalSchemConnector(id: SchematicConnectorLabel, args: Seq[NormalFormula], polarity: Boolean) extends  NonTraversable
   case class NormalAnd(args: Seq[NormalFormula], polarity: Boolean) extends NormalFormula
   case class NormalForall(x: Identifier, inner: NormalFormula, polarity: Boolean) extends NonTraversable
@@ -195,8 +198,12 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
    * @return The corresponding PolarFormula
    */
   def polarize(f: Formula, polarity: Boolean): SimpleFormula = {
-    if (polarity & f.polarFormula.isDefined) f.polarFormula.get
-    else if (!polarity & f.polarFormula.isDefined) getInversePolar(f.polarFormula.get)
+    if (polarity & f.polarFormula.isDefined)  {
+      f.polarFormula.get
+    }
+    else if (!polarity & f.polarFormula.isDefined) {
+      getInversePolar(f.polarFormula.get)
+    }
     else {
       val r = f match {
         case PredicateFormula(label, args) =>
@@ -210,10 +217,11 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
                 val l1 = polarize(args(0), true)
                 val r1 = polarize(args(1), true)
                 SimpleAnd(Seq(
-                  SimpleAnd(Seq(l1, getInversePolar(r1)), !polarity),
-                  SimpleAnd(Seq(getInversePolar(l1), r1), !polarity)
+                  SimpleAnd(Seq(l1, getInversePolar(r1)), false),
+                  SimpleAnd(Seq(getInversePolar(l1), r1), false)
                 ), polarity)
-              case And => SimpleAnd(args.map(polarize(_, true)), polarity)
+              case And =>
+                SimpleAnd(args.map(polarize(_, true)), polarity)
               case Or => SimpleAnd(args.map(polarize(_, false)), !polarity)
             }
             case scl: SchematicConnectorLabel =>
@@ -255,8 +263,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
             val newChildren = children map computeNormalForm
             val simp = simplify(newChildren, polarity)
             simp match {
-              case conj: NormalAnd if checkForContradiction(conj) => NormalLiteral(!polarity)
-              case _ => simp
+              case conj: NormalAnd if checkForContradiction(conj) =>
+                NormalLiteral(!polarity)
+              case _ =>
+                simp
             }
           case SimpleForall(x, inner, polarity) => NormalForall(x, computeNormalForm(inner), polarity)
           case SimpleLiteral(polarity) => NormalLiteral(polarity)
