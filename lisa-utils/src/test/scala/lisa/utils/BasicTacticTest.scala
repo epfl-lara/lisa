@@ -881,14 +881,51 @@ class BasicTacticTest extends ProofTacticTestLib {
             RightExists.withParameters(FOLParser.parseFormula(form), variable, FOLParser.parseTerm(term))(prem)(stmt2)
         }
     }
-    //     right and 
-    //     right or
-    //     right implies
-    //     right iff
-    //     right not 
-    //     right forall 
-    //     right exists
+
     //     right existsone
+    test("Tactic Tests: Right ExistsOne - Parameter Inference") {
+        val correct = List(
+            ("'R('z) |- ∃x.∀y. ('y = 'x <=> 'P('y))", "'R('z) |- ∃!y. 'P('y)"),
+            ("'R('z) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('z) |- ∃!y. 'P('w)"),
+            ("'R('z) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('z) |- ∃!y. 'P('w)"),
+        )
+
+        val incorrect = List(
+            // TODO: FIX or KERNEL ERROR
+            ("'P('x); 'Q('z) |- 'R('y)", "'P('x) |- 'R('y)"),
+            ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('z) |- ∃!y. 'P('w)"),
+            ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('y) |- ∃!y. 'P('y)"),
+            ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('x))", "'R('y) |- ∃!x. 'P('x)"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2) =>
+            val prem = introduceSequent(stmt1)
+            RightExistsOne(prem)(stmt2)
+        }
+    }
+
+    test("Tactic Tests: Right ExistsOne - Explicit Parameters") {
+        val correct = List(
+            ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('z))", "'R('y) |- ∃!x. 'P('z)", "'P('z)", "x"),
+            ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('x))", "'R('y) |- ∃!x. 'P('x)", "'P('x)", "x"),
+            ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('x))", "'R('y) |- ∃!x. 'P('x)", "'P('x)", "x"),
+        )
+
+        val incorrect = List(
+            ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('z))", "'R('w) |- ∃!x. 'P('z)", "'P('z)", "x"),
+            // TODO: this looks v broken::
+            ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('x))", "'T('y) |- ∃!x. 'P('x)", "'P('x)", "z"),
+            ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('x))", "'R('z) |- ∃!x. 'P('z)", "'P('z)", "x"),
+            ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('z) |- ∃!y. 'P('w)", "'P('w)", "w"),
+            ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('y) |- ∃!y. 'P('y)", "'P('y)", "y"),
+            ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('x))", "'R('w) |- ∃!x. 'P('x)", "'P('x)", "x"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, form, variable) =>
+            val prem = introduceSequent(stmt1)
+            RightExistsOne.withParameters(FOLParser.parseFormula(form), variable)(prem)(stmt2)
+        }
+    }
 
     // left refl
     // right refl
