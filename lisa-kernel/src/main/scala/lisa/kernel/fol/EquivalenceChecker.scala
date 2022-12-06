@@ -3,7 +3,6 @@ package lisa.kernel.fol
 import scala.collection.mutable
 import scala.math.Numeric.IntIsIntegral
 
-
 /**
  * An EquivalenceChecker is an object that allows to detect some notion of equivalence between formulas
  * and between terms.
@@ -14,7 +13,7 @@ import scala.math.Numeric.IntIsIntegral
  * of equality and alpha-equivalence.
  * See https://github.com/epfl-lara/OCBSL for more informations
  */
-private[fol] trait EquivalenceChecker extends FormulaDefinitions{
+private[fol] trait EquivalenceChecker extends FormulaDefinitions {
 
   def reducedForm(formula: Formula): Formula = {
     val p = polarize(formula, true)
@@ -24,9 +23,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
   }
   def reduceSet(s: Set[Formula]): Set[Formula] = {
     var res: List[Formula] = Nil
-    s.map(reducedForm).foreach({ f =>
-      if (!res.exists(isSame(f, _))) res = f :: res
-    })
+    s.map(reducedForm)
+      .foreach({ f =>
+        if (!res.exists(isSame(f, _))) res = f :: res
+      })
     res.toSet
   }
 
@@ -52,11 +52,6 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     s.exists(g => isSame(f, g))
   }
 
-
-
-
-
-
   private var totPolarFormula = 0
   sealed abstract class SimpleFormula {
     val uniqueKey: Int = totPolarFormula
@@ -65,17 +60,17 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     var inverse: Option[SimpleFormula] = None
     private[EquivalenceChecker] var normalForm: Option[NormalFormula] = None
   }
-  case class SimplePredicate(id: PredicateLabel, args: Seq[Term], polarity:Boolean, original:Formula) extends SimpleFormula {
-    override def toString:String = s"SimplePredicate($id, $args, $polarity)"
+  case class SimplePredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean, original: Formula) extends SimpleFormula {
+    override def toString: String = s"SimplePredicate($id, $args, $polarity)"
     val size = 1
   }
-  case class SimpleSchemConnector(id: SchematicConnectorLabel, args: Seq[SimpleFormula], polarity:Boolean) extends SimpleFormula {
+  case class SimpleSchemConnector(id: SchematicConnectorLabel, args: Seq[SimpleFormula], polarity: Boolean) extends SimpleFormula {
     val size = 1
   }
-  case class SimpleAnd(children: Seq[SimpleFormula], polarity:Boolean) extends SimpleFormula {
+  case class SimpleAnd(children: Seq[SimpleFormula], polarity: Boolean) extends SimpleFormula {
     val size: Int = (children map (_.size)).foldLeft(1) { case (a, b) => a + b }
   }
-  case class SimpleForall(x: Identifier, inner: SimpleFormula, polarity:Boolean) extends SimpleFormula {
+  case class SimpleForall(x: Identifier, inner: SimpleFormula, polarity: Boolean) extends SimpleFormula {
     val size: Int = 1 + inner.size
   }
   case class SimpleLiteral(polarity: Boolean) extends SimpleFormula {
@@ -83,13 +78,11 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     normalForm = Some(NormalLiteral(polarity))
   }
 
-
-
   private var totNormalFormula = 0
   sealed abstract class NormalFormula {
     val uniqueKey: Int = totNormalFormula
     totNormalFormula += 1
-    //val code: Int
+    // val code: Int
     var formulaP: Option[Formula] = None
     var formulaN: Option[Formula] = None
     var formulaAIG: Option[Formula] = None
@@ -110,7 +103,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
       if (value) lessThanBitSet.update(otherIx + 1, true)
     }
 
-    //TODO: Check if needed
+    // TODO: Check if needed
     override def equals(obj: Any): Boolean = obj match {
       case f: NormalFormula => eq(f)
       case _ => super.equals(obj)
@@ -119,13 +112,14 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     def recoverFormula: Formula = toFormulaAIG(this)
   }
   sealed abstract class NonTraversable extends NormalFormula
-  case class NormalPredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean, original:Formula) extends  NonTraversable {
-    override def toString:String = s"NormalPredicate($id, $args, $polarity)"
+  case class NormalPredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean, original: Formula) extends NonTraversable {
+    override def toString: String = s"NormalPredicate($id, $args, $polarity)"
   }
-  case class NormalSchemConnector(id: SchematicConnectorLabel, args: Seq[NormalFormula], polarity: Boolean) extends  NonTraversable
+  case class NormalSchemConnector(id: SchematicConnectorLabel, args: Seq[NormalFormula], polarity: Boolean) extends NonTraversable
   case class NormalAnd(args: Seq[NormalFormula], polarity: Boolean) extends NormalFormula
   case class NormalForall(x: Identifier, inner: NormalFormula, polarity: Boolean) extends NonTraversable
   case class NormalLiteral(polarity: Boolean) extends NormalFormula
+
   /**
    * Puts back in regular formula syntax, in an AIG (without disjunctions) format
    */
@@ -176,7 +170,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     f.inverse match {
       case Some(value) => value
       case None =>
-        val second:NormalFormula = f match {
+        val second: NormalFormula = f match {
           case f: NormalPredicate => f.copy(polarity = !f.polarity)
           case f: NormalSchemConnector => f.copy(polarity = !f.polarity)
           case f: NormalAnd => f.copy(polarity = !f.polarity)
@@ -189,7 +183,6 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     }
   }
 
-
   /**
    * Put a formula in Polar form, which means desugared. In this normal form, the only (non-schematic) symbol is
    * conjunction, the only binder is universal, and negations are flattened
@@ -198,44 +191,47 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
    * @return The corresponding PolarFormula
    */
   def polarize(f: Formula, polarity: Boolean): SimpleFormula = {
-    if (polarity & f.polarFormula.isDefined)  {
+    if (polarity & f.polarFormula.isDefined) {
       f.polarFormula.get
-    }
-    else if (!polarity & f.polarFormula.isDefined) {
+    } else if (!polarity & f.polarFormula.isDefined) {
       getInversePolar(f.polarFormula.get)
-    }
-    else {
+    } else {
       val r = f match {
         case PredicateFormula(label, args) =>
           SimplePredicate(label, args, polarity, f)
         case ConnectorFormula(label, args) =>
           label match {
-            case cl: ConstantConnectorLabel => cl match {
-              case Neg => polarize(args.head, !polarity)
-              case Implies => SimpleAnd(Seq(polarize(args(0), true), polarize(args(1), false)), !polarity)
-              case Iff =>
-                val l1 = polarize(args(0), true)
-                val r1 = polarize(args(1), true)
-                SimpleAnd(Seq(
-                  SimpleAnd(Seq(l1, getInversePolar(r1)), false),
-                  SimpleAnd(Seq(getInversePolar(l1), r1), false)
-                ), polarity)
-              case And =>
-                SimpleAnd(args.map(polarize(_, true)), polarity)
-              case Or => SimpleAnd(args.map(polarize(_, false)), !polarity)
-            }
+            case cl: ConstantConnectorLabel =>
+              cl match {
+                case Neg => polarize(args.head, !polarity)
+                case Implies => SimpleAnd(Seq(polarize(args(0), true), polarize(args(1), false)), !polarity)
+                case Iff =>
+                  val l1 = polarize(args(0), true)
+                  val r1 = polarize(args(1), true)
+                  SimpleAnd(
+                    Seq(
+                      SimpleAnd(Seq(l1, getInversePolar(r1)), false),
+                      SimpleAnd(Seq(getInversePolar(l1), r1), false)
+                    ),
+                    polarity
+                  )
+                case And =>
+                  SimpleAnd(args.map(polarize(_, true)), polarity)
+                case Or => SimpleAnd(args.map(polarize(_, false)), !polarity)
+              }
             case scl: SchematicConnectorLabel =>
               SimpleSchemConnector(scl, args.map(polarize(_, true)), polarity)
           }
-        case BinderFormula(label, bound, inner) => label match {
-          case Forall => SimpleForall(bound.id, polarize(inner, true), polarity)
-          case Exists => SimpleForall(bound.id, polarize(inner, false), !polarity)
-          case ExistsOne =>
-            val y = VariableLabel(freshId(inner.freeVariables.map(_.id), bound.id))
-            val c = PredicateFormula(equality, Seq(VariableTerm(bound), VariableTerm(y)))
-            val newInner = polarize(ConnectorFormula(Iff, Seq(c, inner)), true)
-            SimpleForall(y.id, SimpleForall(bound.id, newInner, false), false)
-        }
+        case BinderFormula(label, bound, inner) =>
+          label match {
+            case Forall => SimpleForall(bound.id, polarize(inner, true), polarity)
+            case Exists => SimpleForall(bound.id, polarize(inner, false), !polarity)
+            case ExistsOne =>
+              val y = VariableLabel(freshId(inner.freeVariables.map(_.id), bound.id))
+              val c = PredicateFormula(equality, Seq(VariableTerm(bound), VariableTerm(y)))
+              val newInner = polarize(ConnectorFormula(Iff, Seq(c, inner)), true)
+              SimpleForall(y.id, SimpleForall(bound.id, newInner, false), false)
+          }
       }
       if (polarity) f.polarFormula = Some(r)
       else f.polarFormula = Some(getInversePolar(r))
@@ -243,9 +239,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     }
   }
 
-
-
-  def computeNormalForm(formula:SimpleFormula):NormalFormula = {
+  def computeNormalForm(formula: SimpleFormula): NormalFormula = {
     formula.normalForm match {
       case Some(value) =>
         value
@@ -273,17 +267,14 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
         }
         formula.normalForm = Some(r)
         r
-        
+
     }
   }
 
-
-
-
-  def simplify(children:Seq[NormalFormula], polarity:Boolean): NormalFormula = {
+  def simplify(children: Seq[NormalFormula], polarity: Boolean): NormalFormula = {
     val nonSimplified = NormalAnd(children, polarity)
-    var remaining : Seq[NormalFormula] = Nil
-    def treatChild(i:NormalFormula): Seq[NormalFormula] = {
+    var remaining: Seq[NormalFormula] = Nil
+    def treatChild(i: NormalFormula): Seq[NormalFormula] = {
       val r: Seq[NormalFormula] = i match {
         case NormalAnd(ch, true) => ch
         case NormalAnd(ch, false) =>
@@ -319,12 +310,12 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     while (remaining.nonEmpty) {
       val current = remaining.head
       remaining = remaining.tail
-      if (!latticesLEQ(NormalAnd(remaining++accepted, true), current)){
-        accepted = current::accepted
+      if (!latticesLEQ(NormalAnd(remaining ++ accepted, true), current)) {
+        accepted = current :: accepted
       }
     }
     val r = {
-      if (accepted.isEmpty)  NormalLiteral(polarity)
+      if (accepted.isEmpty) NormalLiteral(polarity)
       else if (accepted.size == 1)
         if (polarity) accepted.head else getInverse(accepted.head)
       else NormalAnd(accepted, polarity)
@@ -332,48 +323,47 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     r
   }
 
-
   def latticesEQ(formula1: NormalFormula, formula2: NormalFormula): Boolean = latticesLEQ(formula1, formula2) && latticesLEQ(formula2, formula1)
 
   def latticesLEQ(formula1: NormalFormula, formula2: NormalFormula): Boolean = {
     if (formula1.uniqueKey == formula2.uniqueKey) true
-    else formula1.lessThanCached(formula2) match {
-      case Some(value) => value
-      case None =>
-        val r = (formula1, formula2) match {
-          case (NormalLiteral(b1), NormalLiteral(b2)) => !b1 || b2
-          case (NormalLiteral(b), _) => !b
-          case (_, NormalLiteral(b)) => b
+    else
+      formula1.lessThanCached(formula2) match {
+        case Some(value) => value
+        case None =>
+          val r = (formula1, formula2) match {
+            case (NormalLiteral(b1), NormalLiteral(b2)) => !b1 || b2
+            case (NormalLiteral(b), _) => !b
+            case (_, NormalLiteral(b)) => b
 
-          case (NormalPredicate(id1, args1, polarity1, _), NormalPredicate(id2, args2, polarity2, _)) =>
-            id1 == id2 && polarity1 == polarity2 &&
-              (args1 == args2 || (id1 == equality && args1(0) == args2(1) && args1(1) == args2(0) ))
-          case (NormalSchemConnector(id1, args1, polarity1), NormalSchemConnector(id2, args2, polarity2)) =>
-            id1 == id2 && polarity1 == polarity2 && args1.zip(args2).forall(f => latticesEQ(f._1, f._2))
-          case (NormalForall(x1, inner1, polarity1), NormalForall(x2, inner2, polarity2)) =>
-            x1 == x2 && polarity1 == polarity2 && latticesLEQ(inner1, inner2)
-          case (_:NonTraversable, _:NonTraversable) => false
+            case (NormalPredicate(id1, args1, polarity1, _), NormalPredicate(id2, args2, polarity2, _)) =>
+              id1 == id2 && polarity1 == polarity2 &&
+              (args1 == args2 || (id1 == equality && args1(0) == args2(1) && args1(1) == args2(0)))
+            case (NormalSchemConnector(id1, args1, polarity1), NormalSchemConnector(id2, args2, polarity2)) =>
+              id1 == id2 && polarity1 == polarity2 && args1.zip(args2).forall(f => latticesEQ(f._1, f._2))
+            case (NormalForall(x1, inner1, polarity1), NormalForall(x2, inner2, polarity2)) =>
+              x1 == x2 && polarity1 == polarity2 && latticesLEQ(inner1, inner2)
+            case (_: NonTraversable, _: NonTraversable) => false
 
-          case (_, NormalAnd(children, true)) =>
-            children.forall(c => latticesLEQ(formula1, c))
-          case (NormalAnd(children, false), _) =>
-            children.forall(c => latticesLEQ(getInverse(c), formula2))
-          case (NormalAnd(children1, true), NormalAnd(children2, false)) =>
-            children1.exists(c => latticesLEQ(c, formula2)) || children2.exists(c => latticesLEQ(formula1, getInverse(c)))
+            case (_, NormalAnd(children, true)) =>
+              children.forall(c => latticesLEQ(formula1, c))
+            case (NormalAnd(children, false), _) =>
+              children.forall(c => latticesLEQ(getInverse(c), formula2))
+            case (NormalAnd(children1, true), NormalAnd(children2, false)) =>
+              children1.exists(c => latticesLEQ(c, formula2)) || children2.exists(c => latticesLEQ(formula1, getInverse(c)))
 
-          case (nt:NonTraversable, NormalAnd(children, false)) =>
-            children.exists(c => latticesLEQ(nt, getInverse(c)))
-          case (NormalAnd(children, true), nt:NonTraversable) =>
-            children.exists(c => latticesLEQ(c, nt))
+            case (nt: NonTraversable, NormalAnd(children, false)) =>
+              children.exists(c => latticesLEQ(nt, getInverse(c)))
+            case (NormalAnd(children, true), nt: NonTraversable) =>
+              children.exists(c => latticesLEQ(c, nt))
 
-
-        }
-        formula1.setLessThanCache(formula2, r)
-        r
-    }
+          }
+          formula1.setLessThanCache(formula2, r)
+          r
+      }
   }
 
-  def checkForContradiction(f:NormalAnd): Boolean = {
+  def checkForContradiction(f: NormalAnd): Boolean = {
     f match {
       case NormalAnd(children, false) =>
         children.exists(cc => latticesLEQ(cc, f))
@@ -383,15 +373,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
     }
   }
 
-
-
-
-
-
-
-
-
-/*
+  /*
 
   /**
    * A class that encapsulate "runtime" information of the equivalence checker. It performs memoization for efficiency.
@@ -719,5 +701,5 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions{
   def isSubset(s1: Set[Formula], s2: Set[Formula]): Boolean = (new LocalEquivalenceChecker2).isSubset(s1, s2)
 
   def contains(s: Set[Formula], f: Formula): Boolean = (new LocalEquivalenceChecker2).contains(s, f)
-*/
+   */
 }

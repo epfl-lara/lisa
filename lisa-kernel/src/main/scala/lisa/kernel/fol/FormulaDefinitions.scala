@@ -6,7 +6,6 @@ package lisa.kernel.fol
  */
 private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermDefinitions {
 
-
   type SimpleFormula
   def reducedForm(formula: Formula): Formula
   def reduceSet(s: Set[Formula]): Set[Formula]
@@ -17,7 +16,6 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   def isSubset(s1: Set[Formula], s2: Set[Formula]): Boolean
   def contains(s: Set[Formula], f: Formula): Boolean
 
-
   /**
    * The parent class of formulas.
    * A formula is a tree whose nodes are either terms or labeled by predicates or logical connectors.
@@ -26,7 +24,6 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     private[fol] val uniqueNumber: Long = Formula.getNewId
     private[fol] var polarFormula: Option[SimpleFormula] = None
     val arity: Int = label.arity
-
 
     override def constantTermLabels: Set[ConstantFunctionLabel]
     override def schematicTermLabels: Set[SchematicTermLabel]
@@ -56,9 +53,9 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
 
   }
   private object Formula {
-    var totalNumberOfFormulas : Long = 0
+    var totalNumberOfFormulas: Long = 0
     def getNewId: Long = {
-      totalNumberOfFormulas +=1
+      totalNumberOfFormulas += 1
       totalNumberOfFormulas
     }
   }

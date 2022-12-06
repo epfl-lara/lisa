@@ -30,7 +30,7 @@ object SequentCalculus {
 
   /**
    * Checks whether two sequents are equivalent, with respect to [[isSameTerm]].
- *
+   *
    * @param l the first sequent
    * @param r the second sequent
    * @return see [[isSameTerm]]
