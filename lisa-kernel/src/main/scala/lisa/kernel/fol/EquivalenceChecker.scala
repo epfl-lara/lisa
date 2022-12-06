@@ -82,7 +82,6 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
   sealed abstract class NormalFormula {
     val uniqueKey: Int = totNormalFormula
     totNormalFormula += 1
-    // val code: Int
     var formulaP: Option[Formula] = None
     var formulaN: Option[Formula] = None
     var formulaAIG: Option[Formula] = None
