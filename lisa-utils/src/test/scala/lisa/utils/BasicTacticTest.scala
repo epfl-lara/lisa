@@ -742,6 +742,7 @@ class BasicTacticTest extends ProofTacticTestLib {
     test("Tactic Tests: Right Not - Explicit Parameters") {
         val correct = List(
             ("'Q('x); 'P('x) |- 'R('x)", "'P('x) |- 'R('x); !'Q('x)", "'Q('x)"),
+            ("'Q('x); 'P('x) |- 'R('x)", "'P('x) |- 'R('x); ! ! !'Q('x)", "'Q('x)"),
             ("'Q('x); 'P('x) |- 'R('x); !'Q('x)", "'P('x)|- 'R('x); !'Q('x)", "'Q('x)"),
             ("'Q('x); 'P('x) |- 'Q('x); 'R('x)", "'P('x) |- 'R('x); 'Q('x); !'Q('x)", "'Q('x)"),
         )
@@ -759,6 +760,63 @@ class BasicTacticTest extends ProofTacticTestLib {
         testTacticCases(correct, incorrect){ (stmt1, stmt2, form) =>
             val prem = introduceSequent(stmt1)
             RightNot.withParameters(FOLParser.parseFormula(form))(prem)(stmt2)
+        }
+    }
+
+    //     right forall
+    test("Tactic Tests: Right Forall - Parameter Inference") {
+        val correct = List(
+            ("'P('x) |- 'R('y)", "'P('x) |- ∀y. 'R('y)"),
+            ("'A('y, 'x) |- 'R('z)", "'A('y, 'x) |- ∀z. 'R('z)"),
+            ("'P('z); 'Q('x) |- 'R('y)", "'P('z); 'Q('x) |- ∀y. 'R('y)"),
+            ("'P('x) /\\ 'Q('x) |- 'R('y) /\\ 'S('x)", "('P('x) /\\ 'Q('x))|- ∀y. ('R('y) /\\ 'S('x))"),
+            ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'e, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∀e. 'R('f('g('x, 'x), 'e, 'z, 'h))"),
+        )
+
+        val incorrect = List(
+            // TODO: FIX or kernel error
+            ("'P('x); 'Q('z) |- 'R('y)", "'P('x) |- 'R('y)"),
+            ("∃y. 'P('x) |- 'R('y)", "'P('x) |- 'R('y)"),
+            // TODO: should we allow this? ::
+            ("'P('x) |- 'R('y)", "'P('x) |- 'R('y)"),
+            ("'P('y) |- 'R('y)", "'P('y) |- ∀y. 'R('y)"),
+            ("'P('x) |- 'R('y)", "'T('x) |- ∀y. 'R('y)"),
+            ("'P('x) |- 'R('y)", "'P('x) |- "),
+            ("'P('x) |- 'R('y)", "'P('x) |- ∀y. 'Q('y)"),
+            ("'P('x) /\\ 'Q('x) |- 'R('y) /\\ 'S('x)", "('P('x) /\\ 'Q('x))|- ∀y. ('R('y) \\/ 'S('x))"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2) =>
+            val prem = introduceSequent(stmt1)
+            RightForall(prem)(stmt2)
+        }
+    }
+
+    test("Tactic Tests: Right Forall - Explicit Parameters") {
+        val correct = List(
+            ("'P('x) |- 'R('y)", "'P('x) |- ∀y. 'R('y)", "'R('y)", "y"),
+            ("'A('y, 'x) |- 'R('z)", "'A('y, 'x) |- ∀z. 'R('z)", "'R('z)", "z"),
+            ("'P('z); 'Q('x) |- 'R('y)", "'P('z); 'Q('x) |- ∀y. 'R('y)", "'R('y)", "y"),
+            ("'P('x) /\\ 'Q('x) |- 'R('y) /\\ 'S('x)", "('P('x) /\\ 'Q('x))|- ∀y. ('R('y) /\\ 'S('x))", "'R('y) /\\ 'S('x)", "y"),
+            ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'e, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∀e. 'R('f('g('x, 'x), 'e, 'z, 'h))", "'R('f('g('x, 'x), 'e, 'z, 'h))", "e"),
+        )
+
+        val incorrect = List(
+            ("'P('y) |- 'R('y)", "'P('y) |- ∀y. 'R('y)", "'R('y)", "y"),
+            ("'P('x) |- 'R('y)", "'T('x) |- ∀y. 'R('y)", "'R('y)", "y"),
+            ("'P('x) |- 'R('y)", "'P('x) |- ", "'R('y)", "y"),
+            ("'P('x) |- 'R('y)", "'P('x) |- ∀y. 'Q('y)", "'R('y)", "y"),
+            ("'P('x) /\\ 'Q('x) |- 'R('y) /\\ 'S('x)", "('P('x) /\\ 'Q('x))|- ∀y. ('R('y) \\/ 'S('x))", "'R('y) /\\ 'S('x)", "y"),
+            ("'P('x) |- 'R('y)", "'P('x) |- ∀y. 'R('y)", "'R('y)", "x"),
+            ("'A('y, 'x) |- 'R('z)", "'A('y, 'x) |- ∀z. 'R('z)", "'Q('z)", "z"),
+            ("'P('z); 'Q('x) |- 'R('y)", "'P('z); 'Q('x) |- ∀y. 'R('y)", "'R('z)", "y"),
+            ("'P('x) /\\ 'Q('x) |- 'R('y) /\\ 'S('x)", "('P('x) /\\ 'Q('x))|- ∀y. ('R('y) /\\ 'S('x))", "'R('y) \\/ 'S('x)", "y"),
+            ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'e, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∀e. 'R('f('g('x, 'x), 'e, 'z, 'h))", "'R('f('g('y, 'y), 'e, 'z, 'h))", "e"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, form, variable) =>
+            val prem = introduceSequent(stmt1)
+            RightForall.withParameters(FOLParser.parseFormula(form), variable)(prem)(stmt2)
         }
     }
     //     right and 
