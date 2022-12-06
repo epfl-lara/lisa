@@ -819,6 +819,68 @@ class BasicTacticTest extends ProofTacticTestLib {
             RightForall.withParameters(FOLParser.parseFormula(form), variable)(prem)(stmt2)
         }
     }
+
+    //     right exists
+    test("Tactic Tests: Right Exists - Parameter Inference") {
+        val correct = List(
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('x)", "'x"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('y)", "'x"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('x)", "'x"),
+            (" |- 'R('x); 'A('x, 'x)", " |- 'R('x); ∃y. 'A('y, 'x)", "'x"),
+            ("'P('x); 'Q('x) |- 'R('x)", "'P('x); 'Q('x) |- ∃y. 'R('y)", "'x"),
+            ("'P('x) /\\ 'Q('x) |- 'R('x) /\\ 'Q('x)", "('P('x) /\\ 'Q('x)) |- ∃x. ('R('x) /\\ 'Q('x))", "'x"),
+            ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'j, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∃x. 'R('f('x, 'j, 'z, 'h))", "'g('x, 'x)"),
+        )
+
+        val incorrect = List(
+            // TODO: fix these:
+            ("'P('x) |- 'R('x)", "∀x. 'P('x) |- 'R('x)", "'x"),
+            ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)", "'x"),
+            ("'P('x) |- 'R('x)", "∀y. 'P('y) |- 'R('y)", "'x"),
+            ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)", "'y"),
+            // TODO: should this be allowed?
+            ("'P('x) |- 'R('x)", "'P('x) |- 'R('x)", "'x"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('x)", "'y"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('y)", "'x"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('z)", "'z"),
+            (" |- 'R('x); 'A('x, 'x)", " |- 'R('x); ∃y. 'A('z, 'y)", "'x"),
+            ("'P('x); 'Q('x) |- 'R('x)", "'P('x); 'T('x) |- ∃y. 'R('y)", "'x"),
+            ("'P('x) /\\ 'Q('x) |- 'R('x) /\\ 'Q('x)", "('P('x) \\/ 'Q('x)) |- ∃x. ('R('x) /\\ 'Q('x))", "'x"),
+            ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'j, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∃x. 'R('f('x, 'x, 'z, 'h))", "'g('x, 'x)"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, term) =>
+            val prem = introduceSequent(stmt1)
+            RightExists(FOLParser.parseTerm(term))(prem)(stmt2)
+        }
+    }
+
+    test("Tactic Tests: Right Exists - Explicit Parameters") {
+        val correct = List(
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('x)", "'R('x)", "x", "'x"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('y)", "'R('y)", "y", "'x"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('x)", "'R('x)", "y", "'x"),
+            (" |- 'R('x); 'A('x, 'x)", " |- 'R('x); ∃y. 'A('y, 'x)", "'A('y, 'x)", "y", "'x"),
+            ("'P('x); 'Q('x) |- 'R('x)", "'P('x); 'Q('x) |- ∃y. 'R('y)", "'R('y)", "y", "'x"),
+            ("'P('x) /\\ 'Q('x) |- 'R('x) /\\ 'Q('x)", "('P('x) /\\ 'Q('x)) |- ∃x. ('R('x) /\\ 'Q('x))", "'R('x) /\\ 'Q('x)", "x", "'x"),
+            ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'j, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∃x. 'R('f('x, 'j, 'z, 'h))", "'R('f('x, 'j, 'z, 'h))", "x", "'g('x, 'x)"),
+        )
+
+        val incorrect = List(
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('x)", "'R('x)", "x", "'y"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('y)", "'R('y)", "x", "'x"),
+            ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('z)", "'R('z)", "y", "'z"),
+            (" |- 'R('x); 'A('x, 'x)", " |- 'R('x); ∃y. 'A('z, 'y)", "'A('z, 'y)", "y", "'x"),
+            ("'P('x); 'Q('x) |- 'R('x)", "'P('x); 'T('x) |- ∃y. 'R('y)", "'R('y)", "y", "'x"),
+            ("'P('x) /\\ 'Q('x) |- 'R('x) /\\ 'Q('x)", "('P('x) \\/ 'Q('x)) |- ∃x. ('R('x) /\\ 'Q('x))", "'R('x)", "x", "'x"),
+            ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'j, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∃x. 'R('f('x, 'x, 'z, 'h))", "'R('x)", "x", "'g('x, 'x)"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, form, variable, term) =>
+            val prem = introduceSequent(stmt1)
+            RightExists.withParameters(FOLParser.parseFormula(form), variable, FOLParser.parseTerm(term))(prem)(stmt2)
+        }
+    }
     //     right and 
     //     right or
     //     right implies
