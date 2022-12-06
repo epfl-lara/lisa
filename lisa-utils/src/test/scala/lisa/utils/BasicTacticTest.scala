@@ -659,6 +659,59 @@ class BasicTacticTest extends ProofTacticTestLib {
             RightImplies.withParameters(FOLParser.parseFormula(form1), FOLParser.parseFormula(form2))(prem)(stmt2)
         }
     }
+
+    //     right iff
+    test("Tactic Tests: Right Iff - Parameter Inference") {
+        val correct = List(
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'W('x); 'Q('x) <=> 'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'Q('x) <=> 'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'R('x); 'W('x); 'Q('x) <=> 'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'R('x); 'Q('x) <=> 'S('x)"),
+            ("'P('x) |- 'S('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'S('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'S('x); 'Q('x) <=> 'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) <=> 'S('x)", "'T('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'W('x); 'Q('x) <=> 'S('x)"),
+        )
+
+        val incorrect = List(
+            // TODO: asymmetric! shoud we allow this? ::
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'Q('x) ==> 'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'R('x); 'W('x); 'S('x) ==> 'Q('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'T('x); 'Q('x) <=> 'S('x)"),
+            ("'P('x) |- 'S('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'S('x); 'S('x) ==> 'Q('x) ", "'T('x) |- 'S('x); 'Q('x) <=> 'S('x)"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, stmt3) =>
+            val prem1 = introduceSequent(stmt1)
+            val prem2 = introduceSequent(stmt2)
+            RightIff(prem1, prem2)(stmt3)
+        }
+    }
+
+    test("Tactic Tests: Right Iff - Explicit Parameters") {
+        val correct = List(
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'W('x); 'Q('x) <=> 'S('x)", "'Q('x)", "'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'Q('x) <=> 'S('x)", "'Q('x)", "'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'R('x); 'W('x); 'Q('x) <=> 'S('x)", "'Q('x)", "'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'R('x); 'Q('x) <=> 'S('x)", "'Q('x)", "'S('x)"),
+            ("'P('x) |- 'S('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'S('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'S('x); 'Q('x) <=> 'S('x)", "'Q('x)", "'S('x)"),
+        )
+
+        val incorrect = List(
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'W('x); 'Q('x) <=> 'S('x)", "'S('x)", "'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'Q('x) <=> 'S('x)", "'R('x)", "'R('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'Q('x) <=> 'S('x)", "'P('x)", "'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'R('x); 'W('x); 'Q('x) <=> 'S('x)", "'T('x)", "'S('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'R('x); 'Q('x) <=> 'S('x)", "'W('x)", "'S('x)"),
+            ("'P('x) |- 'S('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'S('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'S('x); 'Q('x) <=> 'S('x)", "'Q('x)", "'T('x)"),
+            ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'T('x); 'Q('x) <=> 'S('x)", "'Q('x)", "'S('x)"),
+            ("'P('x) |- 'S('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'S('x); 'S('x) ==> 'Q('x) ", "'T('x) |- 'S('x); 'Q('x) <=> 'S('x)", "'Q('x)", "'S('x)"),
+        )
+
+        testTacticCases(correct, incorrect){ (stmt1, stmt2, stmt3, form1, form2) =>
+            val prem1 = introduceSequent(stmt1)
+            val prem2 = introduceSequent(stmt2)
+            RightIff.withParameters(FOLParser.parseFormula(form1), FOLParser.parseFormula(form2))(prem1, prem2)(stmt3)
+        }
+    }
     //     right and 
     //     right or
     //     right implies
