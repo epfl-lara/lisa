@@ -138,6 +138,8 @@ object BasicStepTactic {
 
       if (premises.length == 0)
         proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
+      else if (premises.length != disjuncts.length)
+        proof.InvalidProofTactic(s"Premises and disjuncts expected to be equal in number, but ${premises.length} premises and ${disjuncts.length} disjuncts received.")
       else if (!isSameSet(bot.right, premiseSequents.map(_.right).reduce(_ union _)))
         proof.InvalidProofTactic("Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
       else if (!isSameSet(disjuncts.foldLeft(bot.left)(_ + _), premiseSequents.map(_.left).reduce(_ union _) + disjunction))
@@ -439,12 +441,14 @@ object BasicStepTactic {
    * </pre>
    */
   object RightAnd extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(conjuncts: Seq[Formula])(premises: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using proof: Library#Proof)(conjuncts: Formula*)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val conjunction = ConnectorFormula(And, conjuncts)
 
       if (premises.length == 0)
         proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
+      else if (premises.length != conjuncts.length)
+        proof.InvalidProofTactic(s"Premises and conjuncts expected to be equal in number, but ${premises.length} premises and ${conjuncts.length} conjuncts received.")
       else if (!isSameSet(bot.left, premiseSequents.map(_.left).reduce(_ union _)))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
       else if (!isSameSet(conjuncts.foldLeft(bot.right)(_ + _), premiseSequents.map(_.right).reduce(_ union _) + conjunction))
@@ -453,7 +457,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightAnd(bot, Range(-1, -premises.length - 1, -1), conjuncts)), premises)
     }
 
-    def apply(using proof: Library#Proof)(premises: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val pivots = premiseSequents.map(_.right.diff(bot.right))
 
@@ -462,7 +466,7 @@ object BasicStepTactic {
       else if (pivots.exists(_.isEmpty))
         proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premises(pivots.indexWhere(_.isEmpty))))
       else if (pivots.forall(_.tail.isEmpty))
-        RightAnd.withParameters(pivots.map(_.head))(premises)(bot)
+        RightAnd.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
         // some extraneous formulae
         proof.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")
