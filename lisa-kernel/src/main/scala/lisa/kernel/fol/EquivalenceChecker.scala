@@ -5,7 +5,7 @@ import scala.math.Numeric.IntIsIntegral
 
 
 /**
- * An EquivalenceChecker2 is an object that allows to detect some notion of equivalence between formulas
+ * An EquivalenceChecker is an object that allows to detect some notion of equivalence between formulas
  * and between terms.
  * This allows the proof checker and writer to avoid having to deal with a class of "easy" equivalence.
  * For example, by considering "x ∨ y" as being the same formula as "y ∨ x", we can avoid frustrating errors.
