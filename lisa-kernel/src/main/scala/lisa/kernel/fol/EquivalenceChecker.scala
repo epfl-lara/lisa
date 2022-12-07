@@ -16,7 +16,7 @@ import scala.math.Numeric.IntIsIntegral
 private[fol] trait EquivalenceChecker extends FormulaDefinitions {
 
   def reducedForm(formula: Formula): Formula = {
-    val p = polarize(formula, true)
+    val p = simplify(formula)
     val nf = computeNormalForm(p)
     val res = toFormulaAIG(nf)
     res
@@ -32,13 +32,13 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
 
   def isSameTerm(term1: Term, term2: Term): Boolean = term1.label == term2.label && term1.args.lazyZip(term2.args).forall(isSameTerm)
   def isSame(formula1: Formula, formula2: Formula): Boolean = {
-    val nf1 = computeNormalForm(polarize(formula1, true))
-    val nf2 = computeNormalForm(polarize(formula2, true))
+    val nf1 = computeNormalForm(simplify(formula1))
+    val nf2 = computeNormalForm(simplify(formula2))
     latticesEQ(nf1, nf2)
   }
   def isImplying(formula1: Formula, formula2: Formula): Boolean = {
-    val nf1 = computeNormalForm(polarize(formula1, true))
-    val nf2 = computeNormalForm(polarize(formula2, true))
+    val nf1 = computeNormalForm(simplify(formula1))
+    val nf2 = computeNormalForm(simplify(formula2))
     latticesLEQ(nf1, nf2)
   }
 
@@ -240,6 +240,30 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     }
   }
 
+  def toLocallyNameless(t: Term, subst: Map[Identifier, Int], i: Int): Term = {
+    t match {
+      case Term(label: VariableLabel, _) =>
+        if (subst.contains(label.id)) VariableTerm(VariableLabel(Identifier("x", i - subst(label.id))))
+        else VariableTerm(VariableLabel(Identifier("$" + label.id.name, label.id.no)))
+      case Term(label, args) => Term(label, args.map(c => toLocallyNameless(c, subst, i)))
+    }
+  }
+
+  def toLocallyNameless(phi: SimpleFormula, subst: Map[Identifier, Int], i: Int): SimpleFormula = {
+    phi match {
+      case SimplePredicate(id, args, polarity, original) => SimplePredicate(id, args.map(c => toLocallyNameless(c, subst, i)), polarity, original)
+      case SimpleSchemConnector(id, args, polarity) => SimpleSchemConnector(id, args.map(f => toLocallyNameless(f, subst, i)), polarity)
+      case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless(_, subst, i)), polarity)
+      case SimpleForall(x, inner, polarity) => SimpleForall(x, toLocallyNameless(inner, subst + (x -> i), i + 1), polarity)
+      case SimpleLiteral(polarity) => phi
+    }
+
+  }
+
+  def simplify(f: Formula): SimpleFormula = toLocallyNameless(polarize(f, polarity = true), Map.empty, 0)
+  
+  
+
   def computeNormalForm(formula: SimpleFormula): NormalFormula = {
     formula.normalForm match {
       case Some(value) =>
@@ -256,7 +280,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
             getInverse(computeNormalForm(getInversePolar(formula)))
           case SimpleAnd(children, polarity) =>
             val newChildren = children map computeNormalForm
-            val simp = simplify(newChildren, polarity)
+            val simp = reduce(newChildren, polarity)
             simp match {
               case conj: NormalAnd if checkForContradiction(conj) =>
                 NormalLiteral(!polarity)
@@ -272,7 +296,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     }
   }
 
-  def simplify(children: Seq[NormalFormula], polarity: Boolean): NormalFormula = {
+  def reduce(children: Seq[NormalFormula], polarity: Boolean): NormalFormula = {
     val nonSimplified = NormalAnd(children, polarity)
     var remaining: Seq[NormalFormula] = Nil
     def treatChild(i: NormalFormula): Seq[NormalFormula] = {
@@ -343,7 +367,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
             case (NormalSchemConnector(id1, args1, polarity1), NormalSchemConnector(id2, args2, polarity2)) =>
               id1 == id2 && polarity1 == polarity2 && args1.zip(args2).forall(f => latticesEQ(f._1, f._2))
             case (NormalForall(x1, inner1, polarity1), NormalForall(x2, inner2, polarity2)) =>
-              x1 == x2 && polarity1 == polarity2 && latticesLEQ(inner1, inner2)
+              polarity1 == polarity2 && latticesLEQ(inner1, inner2)
             case (_: NonTraversable, _: NonTraversable) => false
 
             case (_, NormalAnd(children, true)) =>
