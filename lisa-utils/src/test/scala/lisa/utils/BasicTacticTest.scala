@@ -1013,6 +1013,42 @@ class BasicTacticTest extends ProofTacticTestLib {
   }
 
   // left substeq
+  test("Tactic Tests: Left SubstEq") {
+    val q = variable
+    val w = variable
+    val e = variable
+    val r = variable
+    val t = variable
+    val y = variable
+    val Y = predicate(6)
+    val Y1 = LambdaTermFormula(Seq(q), Y(q, w, e, r, t, y))
+    val Y2 = LambdaTermFormula(Seq(q, w), Y(q, w, e, r, t, y))
+    val Y5 = LambdaTermFormula(Seq(q, w, e, r, t, y), Y(q, w, e, r, t, y))
+
+    val correct = List(
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'a = 'q; 'Y('a, 'w, 'e, 'r, 't, 'y) |- 'R('x)", List(("'a", "'q")), Y1),
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'a = 'q; 'Y('a, 'w, 'e, 'r, 't, 'y) |- 'R('x)", List(("'a", "'q")), Y1),
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'a = 'q; 's = 'w; 'Y('a, 's, 'e, 'r, 't, 'y) |- 'R('x)", List(("'a", "'q"), ("'s", "'w")), Y2),
+      ("'P('q); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('q); 'a = 'q; 's = 'w; 'd = 'e; 'f = 'r; 'g = 't; 'h = 'y; 'Y('a, 's, 'd, 'f, 'g, 'h) |- 'R('x)", List(("'a", "'q"), ("'s", "'w"), ("'d", "'e"), ("'f", "'r"), ("'g", "'t"), ("'h", "'y")), Y5),
+    )
+
+    val incorrect = List(
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", List(("'a", "'q")), Y1),
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'Y('a, 'w, 'e, 'r, 't, 'y) |- 'R('x)", List(("'a", "'q")), Y1),
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'a = 'w; 'Y('a, 'w, 'e, 'r, 't, 'y) |- 'R('x)", List(("'a", "'q")), Y1),
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'a = 'q; 'S('x); 'Y('a, 'w, 'e, 'r, 't, 'y) |- 'R('x)", List(("'a", "'q")), Y1),
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'a = 'q; 'S('x); 'Y('a, 'w, 'e, 'r, 't, 'y) |- 'R('x)", List(("'a", "'q")), Y1),
+      ("'P('x); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('x); 'a = 'q; 'Y('a, 'w, 'e, 'r, 't, 'y) |- 'S('x); 'R('x)", List(("'a", "'q")), Y1),
+      ("'P('q); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('q); 'a = 'q; 's = 'w; 'd = 'e; 'f = 'r; 'g = 't; 'h = 't; 'Y('a, 's, 'd, 'f, 'g, 'h) |- 'R('x)", List(("'a", "'q"), ("'s", "'w"), ("'d", "'e"), ("'f", "'r"), ("'g", "'t"), ("'h", "'t")), Y5),
+      ("'P('q); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('q); 'a = 'q; 's = 'w; 'd = 'e; 'f = 'r; 'g = 't; 'h = 'y; 'Y('a, 's, 'd, 'f, 'g, 'h) |- 'R('x)", List(("'a", "'q"), ("'s", "'w"), ("'d", "'e"), ("'f", "'r"), ("'g", "'t"), ("'h", "'t")), Y5),
+      ("'P('q); 'Y('q, 'w, 'e, 'r, 't, 'y) |- 'R('x)", "'P('q); 'a = 'q; 's = 'w; 'd = 'e; 'f = 'r; 'g = 't; 'h = 't; 'Y('a, 's, 'd, 'f, 'g, 'h) |- 'R('x)", List(("'a", "'q"), ("'s", "'w"), ("'d", "'e"), ("'f", "'r"), ("'g", "'t"), ("'h", "'y")), Y5),
+    )
+
+    testTacticCases(correct, incorrect) { (stmt1, stmt2, forms, ltf) =>
+      val prem = introduceSequent(stmt1)
+      LeftSubstEq(forms.map((a, b) => (FOLParser.parseTerm(a), FOLParser.parseTerm(b))), ltf)(prem)(stmt2)
+    }
+  }
   // right substeq
 
   // left substiff
