@@ -197,7 +197,9 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     } else {
       val r = f match {
         case PredicateFormula(label, args) =>
-          SimplePredicate(label, args, polarity, f)
+          if (label == top) SimpleLiteral(polarity)
+          else if (label == bot) SimpleLiteral(!polarity)
+          else SimplePredicate(label, args, polarity, f)
         case ConnectorFormula(label, args) =>
           label match {
             case cl: ConstantConnectorLabel =>
