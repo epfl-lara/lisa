@@ -944,9 +944,9 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *    Γ, φ(s1,...,sn) |- Δ
-   * ---------------------
-   *  Γ, s1=-1, ..., sn=tn, φ(-1,...tn) |- Δ
+   *           Γ, φ(s1,...,sn) |- Δ
+   * ----------------------------------------
+   *  Γ, s1=t1, ..., sn=tn, φ(t1,...tn) |- Δ
    * </pre>
    */
   object LeftSubstEq extends ProofTactic {
@@ -971,9 +971,9 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *    Γ |- φ(s1,...,sn), Δ
-   * ---------------------
-   *  Γ, s1=-1, ..., sn=tn |- φ(-1,...tn), Δ
+   *          Γ |- φ(s1,...,sn), Δ
+   * ----------------------------------------
+   *  Γ, s1=t1, ..., sn=tn |- φ(t1,...tn), Δ
    * </pre>
    */
   object RightSubstEq extends ProofTactic {
@@ -987,8 +987,8 @@ object BasicStepTactic {
       if (!isSameSet(bot.left, premiseSequent.left ++ equalities))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (s=t)_.")
       else if (
-        !isSameSet(bot.left + phi_s, premiseSequent.left + phi_t) &&
-        !isSameSet(bot.left + phi_t, premiseSequent.left + phi_s)
+        !isSameSet(bot.right + phi_s, premiseSequent.right + phi_t) &&
+        !isSameSet(bot.right + phi_t, premiseSequent.right + phi_s)
       )
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
       else
@@ -998,8 +998,8 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *    Γ, φ(a1,...an) |- Δ
-   * ---------------------
+   *           Γ, φ(a1,...an) |- Δ
+   * ----------------------------------------
    *  Γ, a1↔b1, ..., an↔bn, φ(b1,...bn) |- Δ
    * </pre>
    */
@@ -1025,8 +1025,8 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *    Γ |- φ(a1,...an), Δ
-   * ---------------------
+   *           Γ |- φ(a1,...an), Δ
+   * ----------------------------------------
    *  Γ, a1↔b1, ..., an↔bn |- φ(b1,...bn), Δ
    * </pre>
    */
