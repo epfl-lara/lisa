@@ -26,8 +26,6 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'Q('x) |- ")
     )
 
-    val testProof = generateTestProof()
-
     testTacticCases(correct, incorrect) {
       Hypothesis(_)
     }
@@ -46,8 +44,6 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'P('x); 'Q('x) |- 'R('x)", "'P('x) \\/ 'Q('x) |- 'R('x)"),
       ("'P('x) |- 'R('x); 'Q('x)", "'P('x) |- 'R('x) /\\'Q('x) ")
     )
-
-    val testProof = generateTestProof()
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
       val prem = introduceSequent(stmt1)
@@ -71,8 +67,6 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'P('x); 'R('x) |- 'R('x)", "'Q('x); 'R('x) |- 'Q('x)", "'P('x); 'R('x) |- 'Q('x)"),
       ("'P('x) |- 'R('x)", "'R('x); 'P('x) |- 'Q('x)", "'R('x) |- 'Q('x)")
     )
-
-    val testProof = generateTestProof()
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2, stmt3) =>
       val prem1 = introduceSequent(stmt1)
@@ -270,7 +264,6 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: FIX AND UNCOMMENT THESE TESTS
       ("'P('x) |- 'Q('x); 'R('x)", "'P('x); !'Q('x) |- 'R('x)"),
       ("'P('x); !'Q('x) |- 'Q('x); 'R('x)", "'P('x); !'Q('x) |- 'R('x)"),
       ("'P('x); 'Q('x) ==> 'S('x) |- 'R('x)", "'P('x); 'Q('x) <=> 'S('x) |- 'R('x); 'P('x)"),
@@ -315,13 +308,10 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: FIX AND UNCOMMENT THESE TESTS
       ("'P('x); 'Q('x) ==> 'S('x) |- 'R('x)", "'P('x); 'Q('x) <=> 'S('x) |- 'R('x); 'P('x)"),
       ("'P('x); 'Q('x) ==> 'S('x) |- 'R('x)", "'P('x); 'Q('x) <=> 'T('x) |- 'R('x)"),
       ("'P('x) |- 'Q('x); 'R('x)", "'P('x); 'Q('x) |- 'R('x)"),
       ("'P('x) |- 'Q('x); 'R('x)", "'P('x) |- 'R('x); !'Q('x)"),
-      // TODO: should this be allowed::
-      ("'P('x) |- 'Q('x); 'R('x)", "'P('x) |- 'R('x); 'Q('x)"),
       ("'P('x) |- 'Q('x); 'R('x)", "'P('x) |- 'R('x)")
     )
 
@@ -371,8 +361,6 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)", "'x"),
       ("'P('x) |- 'R('x)", "∀y. 'P('y) |- 'R('y)", "'x"),
       ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)", "'y"),
-      // TODO: should this be allowed?
-      ("'P('x) |- 'R('x)", "'P('x) |- 'R('x)", "'x"),
       ("'P('x); 'Q('x) |- 'R('x)", "∀y. 'P('x); 'Q('y) |- 'R('x)", "'x"),
       ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'j, 'z, 'h))", "∀x. 'P('x)|- 'R('f('g('x, 'x), 'j, 'z, 'h))", "'f('g('x, 'x), 'j, 'z, 'h)")
     )
@@ -420,11 +408,8 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: FIX or kernel error
       ("'P('x) |- 'R('y); 'Q('z)", "'P('x) |- 'R('y)"),
       ("'P('x) |- 'R('y)", "∃y. 'P('x) |- 'R('y)"),
-      // TODO: should we allow this? ::
-      ("'P('x) |- 'R('y)", "'P('x) |- 'R('y)"),
       ("'P('x) |- 'R('x)", "∃x. 'P('x) |- 'R('x)"),
       ("'A('y, 'x) |- 'R('x)", "∃x. 'A('y, 'x) |- 'R('x)"),
       ("'P('x); 'Q('x) |- 'R('x)", "∃z. 'P('z); 'Q('x) |- 'R('x)"),
@@ -476,7 +461,6 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: FIX or KERNEL ERROR
       ("'P('x) |- 'R('y); 'Q('z)", "'P('x) |- 'R('y)"),
       ("∃x.∀y. ('y = 'x <=> 'P('w)) |- 'R('y)", "∃!y. 'P('w) |- 'R('z)"),
       ("∃x.∀y. ('y = 'x <=> 'P('w)) |- 'R('y)", "∃!y. 'P('y) |- 'R('y)"),
@@ -520,8 +504,6 @@ class BasicTacticTest extends ProofTacticTestLib {
       (List("'P('x) |- 'S('x)", "'R('x) |- 'Q('x)"), "'P('x); 'R('x) |- 'Q('x) /\\ 'S('x)"),
       (List("'W('x); 'P('x) |- 'S('x)", "'R('x); 'O('x) |- 'Q('x); 'T('x)"), "'P('x); 'R('x); 'O('x); 'W('x) |- 'Q('x) /\\ 'S('x); 'T('x)"),
       (List("'P('x) |- 'S('x)", "'R('x) |- 'Q('x)"), "'R('x); 'P('x) |- 'Q('x) /\\ 'S('x); 'Q('x)"),
-      // TODO: should this be allowed? ::
-      (List("'P('x) |- 'S('x)", "'R('x) |- 'Q('x)"), "'P('x) |- 'Q('x); 'S('x); 'E('x) \\/ 'T('x)"),
       (List("'P('x) |- 'S('x)"), "'P('x) |- 'S('x)")
     )
 
@@ -673,9 +655,6 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: asymmetric! shoud we allow this? ::
-      ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'T('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x); 'T('x) |- 'R('x); 'Q('x) ==> 'S('x)"),
-      ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'W('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'R('x); 'W('x); 'S('x) ==> 'Q('x)"),
       ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'R('x); 'S('x) ==> 'Q('x) ", "'P('x) |- 'T('x); 'Q('x) <=> 'S('x)"),
       ("'P('x) |- 'S('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'S('x); 'S('x) ==> 'Q('x) ", "'T('x) |- 'S('x); 'Q('x) <=> 'S('x)")
     )
@@ -723,15 +702,11 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: FIX AND UNCOMMENT THESE TESTS
       ("'Q('x); 'P('x) |- 'Q('x); 'R('x)", "'P('x); 'Q('x) |- 'R('x); !'Q('x)"),
       ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'R('x); 'P('x); 'Q('x) <=> 'S('x)"),
       ("'P('x) |- 'R('x); 'Q('x) ==> 'S('x)", "'P('x) |- 'R('x); 'Q('x) <=> 'T('x)"),
       ("'P('x); 'Q('x) |- 'R('x)", "'P('x) |- 'Q('x); 'R('x)"),
       ("'P('x) |- 'R('x); !'Q('x)", "'P('x) |- 'Q('x); 'R('x)"),
-      // TODO: should this be allowed::
-      ("'P('x) |- 'Q('x); 'R('x)", "'P('x) |- 'R('x); 'Q('x)"),
-      ("'P('x) |- 'Q('x); 'R('x)", "'P('x) |- 'R('x)")
     )
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
@@ -775,11 +750,8 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: FIX or kernel error
       ("'P('x); 'Q('z) |- 'R('y)", "'P('x) |- 'R('y)"),
       ("∃y. 'P('x) |- 'R('y)", "'P('x) |- 'R('y)"),
-      // TODO: should we allow this? ::
-      ("'P('x) |- 'R('y)", "'P('x) |- 'R('y)"),
       ("'P('y) |- 'R('y)", "'P('y) |- ∀y. 'R('y)"),
       ("'P('x) |- 'R('y)", "'T('x) |- ∀y. 'R('y)"),
       ("'P('x) |- 'R('y)", "'P('x) |- "),
@@ -834,13 +806,10 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: fix these:
       ("'P('x) |- 'R('x)", "∀x. 'P('x) |- 'R('x)", "'x"),
       ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)", "'x"),
       ("'P('x) |- 'R('x)", "∀y. 'P('y) |- 'R('y)", "'x"),
       ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)", "'y"),
-      // TODO: should this be allowed?
-      ("'P('x) |- 'R('x)", "'P('x) |- 'R('x)", "'x"),
       ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('x)", "'y"),
       ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('y)", "'x"),
       ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('z)", "'z"),
@@ -892,7 +861,6 @@ class BasicTacticTest extends ProofTacticTestLib {
     )
 
     val incorrect = List(
-      // TODO: FIX or KERNEL ERROR
       ("'P('x); 'Q('z) |- 'R('y)", "'P('x) |- 'R('y)"),
       ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('z) |- ∃!y. 'P('w)"),
       ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('y) |- ∃!y. 'P('y)"),
