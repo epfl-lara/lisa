@@ -960,7 +960,57 @@ class BasicTacticTest extends ProofTacticTestLib {
       LeftRefl.withParameters(FOLParser.parseFormula(form))(prem)(stmt2)
     }
   }
+
   // right refl
+  test("Tactic Tests: Right Refl - Parameter Inference") {
+    val correct = List(
+      (" |- 'x = 'x"),
+      (" |- 'x = 'x; 'P('x)"),
+      ("'P('x) |- 'x = 'x"),
+      ("'P('x) |- 'x = 'x; 'R('x)"),
+      ("'P('x) |- 'x = 'y; 'R('x); 'x = 'x"),
+    )
+
+    val incorrect = List(
+      (" |- "),
+      (" |- 'P('x)"),
+      (" |- 'x = 'y"),
+      ("'P('x) |- 'x = 'y"),
+      ("'P('x) |- 'x = 'y; 'R('x)"),
+    )
+
+    testTacticCases(correct, incorrect) { (stmt) =>
+      RightRefl(stmt)
+    }
+  }
+
+  test("Tactic Tests: Right Refl - Explicit Parameters") {
+    val correct = List(
+      (" |- 'x = 'x", "'x = 'x"),
+      (" |- 'x = 'x; 'P('x)", "'x = 'x"),
+      ("'P('x) |- 'x = 'x", "'x = 'x"),
+      ("'P('x) |- 'x = 'x; 'R('x)", "'x = 'x"),
+      ("'P('x) |- 'x = 'y; 'R('x); 'x = 'x", "'x = 'x"),
+    )
+
+    val incorrect = List(
+      (" |- ", "'x = 'x"),
+      (" |- 'x = 'x", "'x = 'y"),
+      (" |- 'x = 'x; 'P('x)", "'y = 'x"),
+      ("'P('x) |- 'x = 'x", "'y = 'y"),
+      (" |- 'P('x)", "'x = 'x"),
+      (" |- 'x = 'y", "'x = 'x"),
+      (" |- 'x = 'y", "'x = 'y"),
+      ("'P('x) |- 'x = 'y", "'x = 'x"),
+      ("'P('x) |- 'x = 'y", "'x = 'y"),
+      ("'P('x) |- 'x = 'y; 'R('x)", "'x = 'x"),
+      ("'P('x) |- 'x = 'y; 'R('x)", "'x = 'y"),
+    )
+
+    testTacticCases(correct, incorrect) { (stmt, form) =>
+      RightRefl.withParameters(FOLParser.parseFormula(form))(stmt)
+    }
+  }
 
   // left substeq
   // right substeq
