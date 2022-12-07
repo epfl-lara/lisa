@@ -920,7 +920,46 @@ class BasicTacticTest extends ProofTacticTestLib {
       Weakening(prem)(stmt2)
     }
   }
+
   // left refl
+  test("Tactic Tests: Left Refl - Parameter Inference") {
+    val correct = List(
+      ("'R('z); 'x = 'x |- 'P('x)", "'R('z) |- 'P('x)"),
+      ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z); 'y = 'y |- 'P('x)"),
+    )
+
+    val incorrect = List(
+      ("'R('z); 'x = 'y |- 'P('x)", "'R('z) |- 'P('x)"),
+      ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z) |- 'P('x)"),
+      ("'R('z); 'x = 'x |- 'P('x)", "'R('z); 'x = 'x |- 'P('x)"),
+      ("'R('z); 'x = 'x |- 'P('x)", "'R('z); 'x = 'y |- 'P('x)"),
+    )
+
+    testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
+      val prem = introduceSequent(stmt1)
+      LeftRefl(prem)(stmt2)
+    }
+  }
+
+  test("Tactic Tests: Left Refl - Explicit Parameters") {
+    val correct = List(
+      ("'R('z); 'x = 'x |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'x"),
+      ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z); 'y = 'y |- 'P('x)", "'x = 'x"),
+    )
+
+    val incorrect = List(
+      ("'R('z); 'x = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'y"),
+      ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z); 'y = 'y |- 'P('x)", "'y = 'y"),
+      ("'R('z); 'x = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'x"),
+      ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'x"),
+      ("'R('z); 'x = 'x |- 'P('x)", "'R('z); 'x = 'y |- 'P('x)", "'x = 'x"),
+    )
+
+    testTacticCases(correct, incorrect) { (stmt1, stmt2, form) =>
+      val prem = introduceSequent(stmt1)
+      LeftRefl.withParameters(FOLParser.parseFormula(form))(prem)(stmt2)
+    }
+  }
   // right refl
 
   // left substeq
