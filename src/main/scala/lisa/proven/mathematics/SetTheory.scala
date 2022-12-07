@@ -18,7 +18,7 @@ object SetTheory extends lisa.Main {
   show
 
   THEOREM("unorderedPair_symmetry") of
-    "⊢ ∀'y. ∀'x. unordered_pair('x, 'y) = unordered_pair('y, 'x)" PROOF2 {
+    "⊢ ∀'y. ∀'x. unorderedPair('x, 'y) = unorderedPair('y, 'x)" PROOF2 {
       val x = VariableLabel("x")
       val y = VariableLabel("y")
       val z = VariableLabel("z")
@@ -72,7 +72,7 @@ object SetTheory extends lisa.Main {
 
   // This proof is old and very unoptimised
   THEOREM("unorderedPair_deconstruction") of
-    "⊢ ∀'x. ∀'y. ∀ 'x1. ∀ 'y1. unordered_pair('x, 'y) = unordered_pair('x1, 'y1) ⇒ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1" PROOF2 {
+    "⊢ ∀'x. ∀'y. ∀ 'x1. ∀ 'y1. unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⇒ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1" PROOF2 {
       val x = VariableLabel("x")
       val y = VariableLabel("y")
       val x1 = VariableLabel("x'")

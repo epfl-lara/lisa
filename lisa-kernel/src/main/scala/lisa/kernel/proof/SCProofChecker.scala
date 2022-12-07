@@ -313,7 +313,7 @@ object SCProofChecker {
           case LeftRefl(b, t1, phi) =>
             phi match {
               case PredicateFormula(`equality`, Seq(left, right)) =>
-                if (isSame(left, right))
+                if (isSameTerm(left, right))
                   if (isSameSet(b.right, ref(t1).right))
                     if (isSameSet(b.left + phi, ref(t1).left))
                       SCValidProof(SCProof(step))
@@ -331,7 +331,7 @@ object SCProofChecker {
           case RightRefl(b, phi) =>
             phi match {
               case PredicateFormula(`equality`, Seq(left, right)) =>
-                if (isSame(left, right))
+                if (isSameTerm(left, right))
                   if (contains(b.right, phi))
                     SCValidProof(SCProof(step))
                   else SCInvalidProof(SCProof(step), Nil, s"Right-Hand side of conclusion does not contain φ")
