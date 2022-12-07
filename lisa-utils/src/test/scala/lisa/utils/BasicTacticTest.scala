@@ -896,6 +896,30 @@ class BasicTacticTest extends ProofTacticTestLib {
     }
   }
 
+  // weakening
+  test("Tactic Tests: Weakening") {
+    val correct = List(
+      ("'P('x) |- ", "'P('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "'P('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "'P('x) |- 'R('x); 'S('y)"),
+      ("'P('x) |- 'R('x)", "'P('x); 'S('y) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "'P('x); 'S('y) |- 'R('x); 'Q('z)"),
+      ("'P('x) |- 'R('x)", "'P('x); 'S('y); 'Q('z) |- 'R('x); 'Q('z); 'S('k)"),
+    )
+
+    val incorrect = List(
+      ("'P('x) |- 'R('x)", "'P('x) |- 'Q('x)"),
+      ("'P('x) |- 'R('x)", "'P('x) |- "),
+      ("'P('x); 'S('y) |- 'R('x)", "'P('x) |- 'R('x); 'S('y)"),
+      ("'P('x); 'Q('y) |- 'R('x)", "'P('x); 'S('y) |- 'R('x)"),
+      ("'P('x); 'Q('y) |- 'R('x)", "'P('x); 'Q('x) |- 'R('x)"),
+    )
+
+    testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
+      val prem = introduceSequent(stmt1)
+      Weakening(prem)(stmt2)
+    }
+  }
   // left refl
   // right refl
 
