@@ -482,8 +482,6 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     val incorrect = List(
       ("∃y.∀x.( ('x = 'y) <=> 'P('z)) |- 'R('w)", "∃!x. 'P('z) |- 'R('y)", "'P('z)", "x"),
-      // TODO: this looks v broken::
-      ("∃y.∀x.( ('x = 'y) <=> 'P('x)) |- 'R('w)", "∃!x. 'P('x) |- 'R('w)", "'P('x)", "z"),
       ("∃y.∀x.( ('x = 'y) <=> 'P('x)) |- 'R('x)", "∃!x. 'P('z) |- 'R('x)", "'P('z)", "x"),
       ("∃x.∀y. ('y = 'x <=> 'P('w)) |- 'R('y)", "∃!y. 'P('w) |- 'R('z)", "'P('w)", "w"),
       ("∃x.∀y. ('y = 'x <=> 'P('w)) |- 'R('y)", "∃!y. 'P('y) |- 'R('y)", "'P('y)", "y"),
@@ -882,7 +880,6 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     val incorrect = List(
       ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('z))", "'R('w) |- ∃!x. 'P('z)", "'P('z)", "x"),
-      // TODO: this looks v broken::
       ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('x))", "'T('y) |- ∃!x. 'P('x)", "'P('x)", "z"),
       ("'R('y) |- ∃y.∀x.( ('x = 'y) <=> 'P('x))", "'R('z) |- ∃!x. 'P('z)", "'P('z)", "x"),
       ("'R('y) |- ∃x.∀y. ('y = 'x <=> 'P('w))", "'R('z) |- ∃!y. 'P('w)", "'P('w)", "w"),
