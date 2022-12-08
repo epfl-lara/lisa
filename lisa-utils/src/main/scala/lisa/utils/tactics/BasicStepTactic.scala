@@ -6,11 +6,8 @@ import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.utils.Helpers.*
-import lisa.utils.Library
-import lisa.utils.LisaException
-import lisa.utils.OutputManager
-import lisa.utils.UserLisaException
-import lisa.utils.tactics.ProofTacticLib.{_, given}
+import lisa.utils.{FOLPrinter, Library, LisaException, OutputManager, ProofPrinter, UserLisaException}
+import lisa.utils.tactics.ProofTacticLib.{*, given}
 
 object BasicStepTactic {
 
@@ -916,6 +913,7 @@ object BasicStepTactic {
    *  Γ, s1=-1, ..., sn=tn |- φ(-1,...tn), Δ
    * </pre>
    */
+  import lisa.utils.Printer
   object RightSubstEq extends ProofTactic {
     def apply(using proof: Library#Proof)(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
@@ -927,10 +925,11 @@ object BasicStepTactic {
       if (!isSameSet(bot.left, premiseSequent.left ++ equalities))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (s=t)_.")
       else if (
-        !isSameSet(bot.left + phi_s, premiseSequent.left + phi_t) &&
-        !isSameSet(bot.left + phi_t, premiseSequent.left + phi_s)
+        !isSameSet(bot.right + phi_s, premiseSequent.right + phi_t) &&
+        !isSameSet(bot.right + phi_t, premiseSequent.right + phi_s)
       )
-        proof.InvalidProofTactic("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
+        proof.InvalidProofTactic("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).\n" +
+          FOLPrinter.prettySequent(bot +> phi_t) + " is not the same as \n" + FOLPrinter.prettySequent(premiseSequent +> phi_s))
       else
         proof.ValidProofTactic(Seq(SC.RightSubstEq(bot, -1, equals, lambdaPhi)), Seq(premise))
     }

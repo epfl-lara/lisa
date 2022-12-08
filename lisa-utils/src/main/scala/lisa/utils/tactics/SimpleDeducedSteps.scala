@@ -208,7 +208,24 @@ object SimpleDeducedSteps {
       }
     }
   }
+  object destructRightOr extends ProofTactic {
+    def apply(using proof: Library#Proof)(a: FOL.Formula, b: FOL.Formula)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      val conc = proof.getSequent(prem)
+      val mat = conc.right.find(f => FOL.isSame(f, a \/ b))
+      if (mat.nonEmpty) {
 
+        val p0 = SC.Hypothesis(emptySeq +< a +> a, a)
+        val p1 = SC.Hypothesis(emptySeq +< b +> b, b)
+
+        val p2 = SC.LeftOr(emptySeq +< (a \/ b) +> a +> b, Seq(0, 1), Seq(a, b))
+        val p3 = SC.Cut(conc -> mat.get +> a +> b, -1, 2, a \/ b)
+        proof.ValidProofTactic(IndexedSeq(p0, p1, p2, p3), Seq(prem))
+      } else {
+        proof.InvalidProofTactic("Premise does not contain the union of the given formulas")
+      }
+
+    }
+  }
   object ByEquiv extends ProofTactic {
       def apply(using proof: Library#Proof)(f: FOL.Formula, f1: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
         val leftSequent = proof.getSequent(prem1)
@@ -227,8 +244,8 @@ object SimpleDeducedSteps {
             }
 
 
-            val p2 = SC.Hypothesis(emptySeq +< f1 +> f1, f1) // () |- f2
-            val p3 = SC.Hypothesis(emptySeq +< f2 +> f2, f2) // () |- f2
+            val p2 = SC.Hypothesis(emptySeq +< f1 +> f1, f1)
+            val p3 = SC.Hypothesis(emptySeq +< f2 +> f2, f2)
             val p4 = SC.LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 0, 1, f1, f2) // f1, f1 ==> f2 |- f2
             val p5 = SC.LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 2, f1, f2) // f1, f1 <=> f2 |- f2
             val p6 = SC.Cut(pEq.get -> (f1 <=> f2) +< f1 +> f2, -2, 3, f1 <=> f2) // f1 |- f2, f1
@@ -297,9 +314,9 @@ object SimpleDeducedSteps {
       val pb = proof.getSequent(prem2)
       val (leftAphi, leftBnphi) = (pa.left.find(FOL.isSame(_, phi)), pb.left.find(FOL.isSame(_, nphi)))
       if (leftAphi.nonEmpty && leftBnphi.nonEmpty) {
-        val p2 = SC.RightNot(pa -< leftAphi.get +> nphi, -2, phi)
-        val p3 = SC.Cut(pa -< leftAphi.get ++ (pb -< leftBnphi.get), 1, -1, nphi)
-        val p4 = SC.Rewrite(bot, 2)
+        val p2 = SC.RightNot(pa -< leftAphi.get +> nphi, -1, phi)
+        val p3 = SC.Cut(pa -< leftAphi.get ++ (pb -< leftBnphi.get), 0, -2, nphi)
+        val p4 = SC.Rewrite(bot, 1)
         proof.ValidProofTactic(IndexedSeq(p2, p3, p4), IndexedSeq(prem1, prem2)) //TODO: Check pa/pb orDer
 
       } else {
