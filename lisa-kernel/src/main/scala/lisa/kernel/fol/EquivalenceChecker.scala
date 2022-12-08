@@ -62,7 +62,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     var inverse: Option[SimpleFormula] = None
     private[EquivalenceChecker] var normalForm: Option[NormalFormula] = None
   }
-  case class SimplePredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean, original: Formula) extends SimpleFormula {
+  case class SimplePredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean) extends SimpleFormula {
     override def toString: String = s"SimplePredicate($id, $args, $polarity)"
     val size = 1
   }
@@ -202,7 +202,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
         case PredicateFormula(label, args) =>
           if (label == top) SimpleLiteral(polarity)
           else if (label == bot) SimpleLiteral(!polarity)
-          else SimplePredicate(label, args, polarity, f)
+          else SimplePredicate(label, args, polarity)
         case ConnectorFormula(label, args) =>
           label match {
             case cl: ConstantConnectorLabel =>
@@ -254,7 +254,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
 
   def toLocallyNameless(phi: SimpleFormula, subst: Map[Identifier, Int], i: Int): SimpleFormula = {
     phi match {
-      case SimplePredicate(id, args, polarity, original) => SimplePredicate(id, args.map(c => toLocallyNameless(c, subst, i)), polarity, original)
+      case SimplePredicate(id, args, polarity) => SimplePredicate(id, args.map(c => toLocallyNameless(c, subst, i)), polarity)
       case SimpleSchemConnector(id, args, polarity) => SimpleSchemConnector(id, args.map(f => toLocallyNameless(f, subst, i)), polarity)
       case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless(_, subst, i)), polarity)
       case SimpleForall(x, inner, polarity) => SimpleForall(x, toLocallyNameless(inner, subst + (x -> i), i + 1), polarity)
@@ -287,8 +287,6 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
   }
 
   def simplify(f: Formula): SimpleFormula = toLocallyNameless(polarize(f, polarity = true), Map.empty, 0)
-  
-  
 
   def computeNormalForm(formula: SimpleFormula): NormalFormula = {
     formula.normalForm match {
@@ -296,9 +294,9 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
         value
       case None =>
         val r = formula match {
-          case SimplePredicate(id, args, true, original) =>
+          case SimplePredicate(id, args, true) =>
             NormalPredicate(id, args, true)
-          case SimplePredicate(id, args, false, original) =>
+          case SimplePredicate(id, args, false) =>
             getInverse(computeNormalForm(getInversePolar(formula)))
           case SimpleSchemConnector(id, args, true) =>
             NormalSchemConnector(id, args.map(computeNormalForm), true)
