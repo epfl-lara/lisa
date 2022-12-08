@@ -7,9 +7,9 @@ import lisa.kernel.proof.SequentCalculus.RewriteTrue
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.utils.FOLParser
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
-import lisa.utils.FOLParser
 import lisa.utils.LisaException
 import lisa.utils.OutputManager
 import lisa.utils.tactics.ProofTacticLib.{_, given}

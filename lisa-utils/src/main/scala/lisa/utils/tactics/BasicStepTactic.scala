@@ -159,16 +159,14 @@ object BasicStepTactic {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val pivots = premiseSequents.map(_.left.diff(bot.left))
 
-      if (premises.length == 0)
-        proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
+      if (premises.length == 0) proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
       else if (pivots.exists(_.isEmpty)) {
         val emptyIndex = pivots.indexWhere(_.isEmpty)
         if (isSubset(premiseSequents(emptyIndex).left, bot.left))
           unwrapTactic(Weakening(premises(emptyIndex))(bot))("Attempted weakening on trivial premise for LeftOr failed.")
         else
           proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the one of the premises.")
-      }
-      else if (pivots.forall(_.tail.isEmpty))
+      } else if (pivots.forall(_.tail.isEmpty))
         LeftOr.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
         // some extraneous formulae
@@ -495,16 +493,14 @@ object BasicStepTactic {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val pivots = premiseSequents.map(_.right.diff(bot.right))
 
-      if (premises.length == 0)
-        proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
+      if (premises.length == 0) proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
       else if (pivots.exists(_.isEmpty)) {
         val emptyIndex = pivots.indexWhere(_.isEmpty)
         if (isSubset(premiseSequents(emptyIndex).left, bot.left))
           unwrapTactic(Weakening(premises(emptyIndex))(bot))("Attempted weakening on trivial premise for RightAnd failed.")
         else
           proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the one of the premises.")
-      }
-      else if (pivots.forall(_.tail.isEmpty))
+      } else if (pivots.forall(_.tail.isEmpty))
         RightAnd.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
         // some extraneous formulae
