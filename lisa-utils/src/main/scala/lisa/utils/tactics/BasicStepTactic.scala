@@ -1041,8 +1041,8 @@ object BasicStepTactic {
       if (!isSameSet(bot.left, premiseSequent.left ++ implications))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ↔ τ)_.")
       else if (
-        !isSameSet(bot.left + phi_psi, premiseSequent.left + phi_tau) &&
-        !isSameSet(bot.left + phi_tau, premiseSequent.left + phi_psi)
+        !isSameSet(bot.right + phi_psi, premiseSequent.right + phi_tau) &&
+        !isSameSet(bot.right + phi_tau, premiseSequent.right + phi_psi)
       )
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(ψ_) is not the same as right-hand side of the premise + φ(τ_) (or with ψ_ and τ_ swapped).")
       else
