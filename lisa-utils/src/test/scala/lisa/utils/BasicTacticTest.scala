@@ -1187,7 +1187,37 @@ class BasicTacticTest extends ProofTacticTestLib {
   }
 
   // instfunschema
-  // instpredschema
+  test("Tactic Tests: InstFunSchema") {
+    val x = variable
+    val y = variable
+    val f = SchematicFunctionLabel("f", 1)
+    val h = SchematicFunctionLabel("h", 2)
+    val g = function(2)
+    val Y = LambdaTermTerm(Seq(x), x)
+    val Z = LambdaTermTerm(Seq(x, y), g(x, y))
 
-  // subproof
+    val correct = List(
+      ("'P('x); 'f('x) = 'y |- 'R('y)", "'P('x); ('x = 'y) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](f -> Y)),
+      ("'P('x); 'Q('f('x)) |- 'R('y)", "'P('x); 'Q('x) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](f -> Y)),
+      ("'P('x); 'Q('h('x, 'y)) |- 'R('y)", "'P('x); 'Q('g('x, 'y)) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](h -> Z)),
+      ("'P('h('y, 'y)); 'Q('h('x, 'y)) |- 'R('y)", "'P('g('y, 'y)); 'Q('g('x, 'y)) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](h -> Z)),
+      ("'P('x); 'Q('g('x, 'y)) |- 'R('y)", "'P('x); 'Q('g('x, 'y)) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](h -> Z)),
+      ("'P('x); 'Q('g('x, 'y)) |- 'R('y); 'f('x) = 'y", "'P('x); 'Q('g('x, 'y)) |- 'R('y); 'x = 'y", Map[SchematicTermLabel, LambdaTermTerm](h -> Z, f -> Y)),
+    )
+
+    val incorrect = List(
+      ("'P('x); 'f('x) = 'y |- 'R('y)", "'P('x); !('x = 'y) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](f -> Y)),
+      ("'P('x); 'Q('f('x)) |- 'R('y)", "'P('x); 'Q('y) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](f -> Y)),
+      ("'P('x); 'Q('h('x, 'y)) |- 'R('y)", "'P('x); 'Q('h('x, 'y)) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](h -> Z)),
+      ("'P('h('y, 'y)); 'Q('h('x, 'y)) |- 'R('y)", "'P('g('y, 'y)); 'Q('g('y, 'y)) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](h -> Z)),
+      ("'P('x); 'Q('g('x, 'y)) |- 'R('y)", "'P('x); 'Q('h('x, 'y)) |- 'R('y)", Map[SchematicTermLabel, LambdaTermTerm](h -> Z)),
+      ("'P('x); 'Q('g('x, 'y)) |- 'R('y); 'f('x) = 'y", "'P('x); 'Q('g('x, 'y)) |- 'R('y); 'x = 'z", Map[SchematicTermLabel, LambdaTermTerm](h -> Z, f -> Y)),
+      ("'P('x); 'Q('g('x, 'y)) |- 'R('y); 'f('x) = 'y", "'P('x); 'Q('g('x, 'y)) |- 'R('y); 'x = 'y", Map[SchematicTermLabel, LambdaTermTerm](h -> Z)),
+    )
+
+    testTacticCases(correct, incorrect) { (stmt1, stmt2, termMap) =>
+      val prem = introduceSequent(stmt1)
+      InstFunSchema(termMap)(prem)(stmt2)
+    }
+  }
 }
