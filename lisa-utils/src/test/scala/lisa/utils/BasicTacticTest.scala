@@ -1089,6 +1089,53 @@ class BasicTacticTest extends ProofTacticTestLib {
   }
 
   // left substiff
+  test("Tactic Tests: Left SubstIff") {
+    val q = FOLParser.parseFormula("'Q('q)")
+    val w = FOLParser.parseFormula("'W('w)")
+    val e = FOLParser.parseFormula("'E('e)")
+    val r = FOLParser.parseFormula("'R('r)")
+    val t = FOLParser.parseFormula("'T('t)")
+    val y = FOLParser.parseFormula("'Y('y)")
+    val a = FOLParser.parseFormula("'A('a)")
+    val s = FOLParser.parseFormula("'S('s)")
+    val d = FOLParser.parseFormula("'D('d)")
+    val f = FOLParser.parseFormula("'F('f)")
+    val g = FOLParser.parseFormula("'G('g)")
+    val h = FOLParser.parseFormula("'H('h)")
+    val z = VariableFormulaLabel("z")
+    val x = VariableFormulaLabel("x")
+    val c = VariableFormulaLabel("c")
+    val v = VariableFormulaLabel("v")
+    val b = VariableFormulaLabel("b")
+    val n = VariableFormulaLabel("n")
+    val Y1 = LambdaFormulaFormula(Seq(z), z /\ w /\ e /\ r /\ t /\ y)
+    val Y2 = LambdaFormulaFormula(Seq(z, x), z /\ x /\ e /\ r /\ t /\ y)
+    val Y5 = LambdaFormulaFormula(Seq(z, x, c, v, b, n), z /\ x /\ c /\ v /\ b /\ n)
+
+    val correct = List(
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('A('a) <=> 'Q('q)); ('A('a) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", List((a, q)), Y1),
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('A('a) <=> 'Q('q)); ('A('a) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", List((a, q)), Y1),
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('A('a) <=> 'Q('q)); ('S('s) <=> 'W('w)); ('A('a) /\\ 'S('s) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", List((a, q), (s, w)), Y2),
+      ("'P('q); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('q); ('A('a) <=> 'Q('q)); ('S('s) <=> 'W('w)); ('D('d) <=> 'E('e)); ('F('f) <=> 'R('r)); ('G('g) <=> 'T('t)); ('H('h) <=> 'Y('y)); ('A('a) /\\ 'S('s) /\\ 'D('d) /\\ 'F('f) /\\ 'G('g) /\\ 'H('h)) |- 'R('x)", List((a, q), (s, w), (d, e), (f, r), (g, t), (h, y)), Y5),
+    )
+
+    val incorrect = List(
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", List((a, q)), Y1),
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('A('a) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", List((a, q)), Y1),
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('A('a) <=> 'W('w)); ('A('a) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", List((a, q)), Y1),
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('A('a) <=> 'Q('q)); 'S('x); ('A('a) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", List((a, q)), Y1),
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('A('a) <=> 'Q('q)); 'S('x); ('A('a) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", List((a, q)), Y1),
+      ("'P('x); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('x); ('A('a) <=> 'Q('q)); ('A('a) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'S('x); 'R('x)", List((a, q)), Y1),
+      ("'P('q); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('q); ('A('a) <=> 'Q('q)); ('S('s) <=> 'W('w)); ('D('d) <=> 'E('e)); ('F('f) <=> 'R('r)); ('G('g) <=> 'T('t)); ('H('h) <=> 'T('t)); ('A('a) /\\ 'S('s) /\\ 'D('d) /\\ 'F('f) /\\ 'G('g) /\\ 'H('h)) |- 'R('x)", List((a, q), (s, w), (d, e), (f, r), (g, t), (h, t)), Y5),
+      ("'P('q); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('q); ('A('a) <=> 'Q('q)); ('S('s) <=> 'W('w)); ('D('d) <=> 'E('e)); ('F('f) <=> 'R('r)); ('G('g) <=> 'T('t)); ('H('h) <=> 'T('t)); ('A('a) /\\ 'S('s) /\\ 'D('d) /\\ 'F('f) /\\ 'G('g) /\\ 'H('h)) |- 'R('x)", List((a, q), (s, w), (d, e), (f, r), (g, t), (h, t)), Y5),
+      ("'P('q); ('Q('q) /\\ 'W('w) /\\ 'E('e) /\\ 'R('r) /\\ 'T('t) /\\ 'Y('y)) |- 'R('x)", "'P('q); ('A('a) <=> 'Q('q)); ('S('s) <=> 'W('w)); ('D('d) <=> 'E('e)); ('F('f) <=> 'R('r)); ('G('g) <=> 'T('t)); ('H('h) <=> 'T('t)); ('A('a) /\\ 'S('s) /\\ 'D('d) /\\ 'F('f) /\\ 'G('g) /\\ 'H('h)) |- 'R('x)", List((a, q), (s, w), (d, e), (f, r), (g, t), (h, y)), Y5),
+    )
+
+    testTacticCases(correct, incorrect) { (stmt1, stmt2, forms, ltf) =>
+      val prem = introduceSequent(stmt1)
+      LeftSubstIff(forms, ltf)(prem)(stmt2)
+    }
+  }
   // right substiff
 
   // instfunschema
