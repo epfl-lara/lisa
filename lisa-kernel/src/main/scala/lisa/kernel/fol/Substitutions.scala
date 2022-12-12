@@ -173,7 +173,7 @@ trait Substitutions extends FormulaDefinitions {
    * Instantiate a schematic connector symbol in a formula, using higher-order instantiation.
    *
    * @param phi The base formula
-   * @param m The map from schematic function symbols to lambda expressions Formula(s) -> Formula [[LambdaFormulaFormula]].
+   * @param m   The map from schematic function symbols to lambda expressions Formula(s) -> Formula [[LambdaFormulaFormula]].
    * @return phi[m]
    */
   def instantiateConnectorSchemas(phi: Formula, m: Map[SchematicConnectorLabel, LambdaFormulaFormula]): Formula = {
@@ -192,6 +192,45 @@ trait Substitutions extends FormulaDefinitions {
           val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiateConnectorSchemas(newInner, m))
         } else BinderFormula(label, bound, instantiateConnectorSchemas(inner, m))
+    }
+  }
+
+  /**
+   * Instantiate a schematic connector symbol in a formula, using higher-order instantiation.
+   *
+   * @param phi The base formula
+   * @param m   The map from schematic function symbols to lambda expressions Formula(s) -> Formula [[LambdaFormulaFormula]].
+   * @return phi[m]
+   */
+  def instantiateSchemas(
+                          phi: Formula,
+                          mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+                          mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+                          mTerm: Map[SchematicTermLabel, LambdaTermTerm]): Formula = {
+    require(mCon.forall { case (symbol, LambdaFormulaFormula(arguments, body)) => arguments.length == symbol.arity })
+    require(mPred.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
+    require(mTerm.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
+    phi match {
+      case PredicateFormula(label, args) =>
+        label match {
+          case label: SchematicVarOrPredLabel if mPred.contains(label) => mPred(label)(args)
+          case _ => PredicateFormula(label, args.map(a => instantiateTermSchemas(a, mTerm)))
+        }
+      case ConnectorFormula(label, args) =>
+        label match {
+          case label: SchematicConnectorLabel if mCon.contains(label) => mCon(label)(args)
+          case _ => ConnectorFormula(label, args.map(instantiateSchemas(_, mCon, mPred, mTerm)))
+        }
+      case BinderFormula(label, bound, inner) =>
+        val fv: Set[VariableLabel] =
+          (mCon.flatMap { case (symbol, LambdaFormulaFormula(arguments, body)) => body.freeVariables }).toSet ++
+            (mPred.flatMap { case (symbol, LambdaTermFormula(arguments, body)) => body.freeVariables }).toSet ++
+            (mTerm.flatMap { case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }).toSet
+        if (fv.contains(bound)) {
+          val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
+          val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
+          BinderFormula(label, newBoundVariable, instantiateSchemas(newInner, mCon, mPred, mTerm))
+        } else BinderFormula(label, bound, instantiateSchemas(inner, mCon, mPred, mTerm))
     }
   }
 

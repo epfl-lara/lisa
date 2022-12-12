@@ -435,36 +435,23 @@ object SCProofChecker {
                 )
             else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + ψ↔τ must be the same as left-hand side of the premise.")
 
-          /**
-           * <pre>
-           * Γ |- Δ
-           * --------------------------
-           * Γ[r(a)/?f] |- Δ[r(a)/?f]
-           * </pre>
-           */
-          case InstFunSchema(bot, t1, insts) =>
-            val expected = (ref(t1).left.map(phi => instantiateTermSchemas(phi, insts)), ref(t1).right.map(phi => instantiateTermSchemas(phi, insts)))
-            if (isSameSet(bot.left, expected._1))
-              if (isSameSet(bot.right, expected._2))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of premise instantiated with the map 'insts' must be the same as right-hand side of conclusion.")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand side of premise instantiated with the map 'insts' must be the same as left-hand side of conclusion.")
 
           /**
            * <pre>
            * Γ |- Δ
            * --------------------------
-           * Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
+           * Γ[ψ/?p] |- Δ[ψ/?p]
            * </pre>
            */
-          case InstPredSchema(bot, t1, insts) =>
-            val expected = (ref(t1).left.map(phi => instantiatePredicateSchemas(phi, insts)), ref(t1).right.map(phi => instantiatePredicateSchemas(phi, insts)))
+          case InstSchema(bot, t1, mCon, mPred, mTerm) =>
+            val expected =
+              (ref(t1).left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)),
+                ref(t1).right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)))
             if (isSameSet(bot.left, expected._1))
               if (isSameSet(bot.right, expected._2))
                 SCValidProof(SCProof(step))
-              else
-                SCInvalidProof(SCProof(step), Nil, "Right-hand side of premise instantiated with the map 'insts' must be the same as right-hand side of conclusion.")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand side of premise instantiated with the map 'insts' must be the same as left-hand side of conclusion.")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of premise instantiated with the given maps must be the same as right-hand side of conclusion.")
+            else SCInvalidProof(SCProof(step), Nil, "Left-hand side of premise instantiated with the given maps must be the same as left-hand side of conclusion.")
 
           case SCSubproof(sp, premises) =>
             if (premises.size == sp.imports.size) {

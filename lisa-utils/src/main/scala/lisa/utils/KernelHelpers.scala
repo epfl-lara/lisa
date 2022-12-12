@@ -152,8 +152,16 @@ trait KernelHelpers {
   def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
+
   def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {
     s.left.map(phi => instantiateTermSchemas(phi, m)) |- s.right.map(phi => instantiateTermSchemas(phi, m))
+  }
+
+  def instantiateSchemaInSequent(s: Sequent,
+                                 mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+                                 mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+                                 mTerm: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {
+    s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))
   }
 
   extension (sp: SCSubproof) {

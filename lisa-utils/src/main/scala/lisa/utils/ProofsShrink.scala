@@ -72,8 +72,7 @@ object ProofsShrink {
     case s: LeftSubstIff => s.copy(t1 = mapping(s.t1))
     case s: RightSubstIff => s.copy(t1 = mapping(s.t1))
     case s: SCSubproof => s.copy(premises = s.premises.map(mapping))
-    case s: InstFunSchema => s.copy(t1 = mapping(s.t1))
-    case s: InstPredSchema => s.copy(t1 = mapping(s.t1))
+    case s: InstSchema => s.copy(t1 = mapping(s.t1))
   }
 
   /**
@@ -169,10 +168,17 @@ object ProofsShrink {
   def simplifyProof(proof: SCProof): SCProof = {
     def isSequentSubset(subset: Sequent, superset: Sequent): Boolean =
       isSubset(subset.left, superset.left) && isSubset(subset.right, superset.right)
+    def schematicConnectorLabels(sequent: Sequent): Set[SchematicConnectorLabel] =
+      (sequent.left ++ sequent.right).flatMap(_.schematicConnectorLabels)
     def schematicPredicatesLabels(sequent: Sequent): Set[SchematicVarOrPredLabel] =
       (sequent.left ++ sequent.right).flatMap(_.schematicPredicateLabels)
     def schematicTermLabels(sequent: Sequent): Set[SchematicTermLabel] =
       (sequent.left ++ sequent.right).flatMap(_.schematicTermLabels)
+    def schematicLabels(sequent: Sequent): Set[SchematicLabel] = {
+      val fs = (sequent.left ++ sequent.right)
+      fs.flatMap(_.schematicTermLabels)++fs.flatMap(_.schematicFormulaLabels)
+    }
+
     def freeSchematicTerms(sequent: Sequent): Set[SchematicTermLabel] =
       (sequent.left ++ sequent.right).flatMap(_.freeSchematicTermLabels)
     val (newSteps, _) = proof.steps.zipWithIndex.foldLeft((IndexedSeq.empty[SCProofStep], IndexedSeq.empty[Int])) { case ((acc, map), (oldStep, i)) =>
@@ -228,17 +234,16 @@ object ProofsShrink {
         case Cut(bot, t1, _, phi) if bot.right.contains(phi) =>
           Left(Weakening(bot, t1))
         // Fruitless instantiation
-        case InstPredSchema(bot, t1, _) if isSameSequent(bot, getSequentLocal(t1)) =>
-          Left(Rewrite(bot, t1))
-        case InstFunSchema(bot, t1, _) if isSameSequent(bot, getSequentLocal(t1)) =>
+        case InstSchema(bot, t1, _, _, _) if isSameSequent(bot, getSequentLocal(t1)) =>
           Left(Rewrite(bot, t1))
         // Instantiation simplification
-        case InstPredSchema(bot, t1, insts) if !insts.keySet.subsetOf(schematicPredicatesLabels(getSequentLocal(t1))) =>
-          val newInsts = insts -- insts.keySet.diff(schematicPredicatesLabels(getSequentLocal(t1)))
-          Left(InstPredSchema(bot, t1, newInsts))
-        case InstFunSchema(bot, t1, insts) if !insts.keySet.subsetOf(schematicTermLabels(getSequentLocal(t1))) =>
-          val newInsts = insts -- insts.keySet.diff(schematicTermLabels(getSequentLocal(t1)))
-          Left(InstFunSchema(bot, t1, newInsts))
+
+        case InstSchema(bot, t1, mCon, mPred, mTerm) if
+          !(mCon.keySet++mPred.keySet++mTerm.keySet).subsetOf(schematicLabels(getSequentLocal(t1))) =>
+            val newmCon = mCon -- mCon.keySet.diff(schematicConnectorLabels(getSequentLocal(t1)))
+            val newmPred = mPred -- mPred.keySet.diff(schematicPredicatesLabels(getSequentLocal(t1)))
+            val newmTerm = mTerm -- mTerm.keySet.diff(schematicTermLabels(getSequentLocal(t1)))
+            Left(InstSchema(bot, t1, newmCon, newmPred, newmTerm))
         case other => Left(other)
       }
       either match {

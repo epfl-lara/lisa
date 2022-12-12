@@ -302,24 +302,12 @@ object SequentCalculus {
    */
   case class RightSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends SCProofStep { val premises = Seq(t1) }
 
-  // Rules for schemas
-  /**
-   * <pre>
-   *           Γ |- Δ
-   * --------------------------
-   *  Γ[r(a)/?f] |- Δ[r(a)/?f]
-   * </pre>
-   */
-  case class InstFunSchema(bot: Sequent, t1: Int, insts: Map[SchematicTermLabel, LambdaTermTerm]) extends SCProofStep { val premises = Seq(t1) }
+  // Rule for schemas
 
-  /**
-   * <pre>
-   *           Γ |- Δ
-   * --------------------------
-   *  Γ[ψ(a)/?p] |- Δ[ψ(a)/?p]
-   * </pre>
-   */
-  case class InstPredSchema(bot: Sequent, t1: Int, insts: Map[SchematicVarOrPredLabel, LambdaTermFormula]) extends SCProofStep { val premises = Seq(t1) }
+  case class InstSchema(bot: Sequent, t1: Int,
+                        mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+                        mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+                        mTerm: Map[SchematicTermLabel, LambdaTermTerm]) extends SCProofStep { val premises = Seq(t1) }
 
   // Proof Organisation rules
 

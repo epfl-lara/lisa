@@ -130,8 +130,7 @@ case class ProofInstantiationRemover(pr: SCProof) extends ProofTransformer(pr) {
    * @return whether the given step is an Instantiation tha thas a link to an import
    */
   private def isInst(step: SCProofStep): Boolean = step match {
-    case InstPredSchema(_, t, _) if !neg_premises.getOrElse(step, Seq.empty).isEmpty => true
-    case InstFunSchema(_, t, _) if !neg_premises.getOrElse(step, Seq.empty).isEmpty => true
+    case InstSchema(_, t, _, _, _) if neg_premises.getOrElse(step, Seq.empty).nonEmpty => true
     case _ => false
   }
 
@@ -301,8 +300,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
     case RightSubstEq(bot, t1, equals, lambdaPhi) => RightSubstEq(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
     case LeftSubstIff(bot, t1, equals, lambdaPhi) => LeftSubstIff(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
     case RightSubstIff(bot, t1, equals, lambdaPhi) => RightSubstIff(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
-    case InstFunSchema(bot, t1, insts) => InstFunSchema(instantiateFunctionSchemaInSequent(f(bot.left) |- bot.right, insts).left |- bot.right, fi(pS.premises).head, insts)
-    case InstPredSchema(bot, t1, insts) => InstPredSchema(instantiatePredicateSchemaInSequent(f(bot.left) |- bot.right, insts).left |- bot.right, fi(pS.premises).head, insts)
+    case InstSchema(bot, t1, mCon, mPred, mTerm) => InstSchema(instantiateSchemaInSequent(f(bot.left) |- bot.right, mCon, mPred, mTerm).left |- bot.right, fi(pS.premises).head, mCon, mPred, mTerm)
     case SCSubproof(pp, t) => {
       SCSubproof(ProofUnconditionalizer(pp).transformPrivate(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t))
     }
