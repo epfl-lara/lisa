@@ -7,6 +7,7 @@ import lisa.kernel.proof.SequentCalculus.RewriteTrue
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.utils.FOLParser
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
 import lisa.utils.LisaException
@@ -64,12 +65,12 @@ object SimpleDeducedSteps {
    * Returns a subproof containing the instantiation steps
    */
   object InstantiateForall extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: FOL.Formula, t: FOL.Term*)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(phi: FOL.Formula, t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
       if (!premiseSequent.right.contains(phi)) {
         proof.InvalidProofTactic("Input formula was not found in the RHS of the premise sequent.")
       } else {
-        val emptyProof = SCProof(IndexedSeq(), IndexedSeq(proof.getSequent(-1)))
+        val emptyProof = SCProof(IndexedSeq(), IndexedSeq(proof.getSequent(premise)))
         val j = proof.ValidProofTactic(Seq(SC.Rewrite(premiseSequent, -1)), Seq(premise))
         val res = t.foldLeft((emptyProof, phi, j: proof.ProofTacticJudgement)) { case ((p, f, j), t) =>
           j match {
@@ -83,17 +84,17 @@ object SimpleDeducedSteps {
                   val tempVar = FOL.VariableLabel(freshId(psi.freeVariables.map(_.id), x.id))
                   // instantiate the formula with input
                   val in = instantiateBinder(psi, t)
-                  val bot = p.conclusion -> f +> in
+                  val con = p.conclusion -> f +> in
                   // construct proof
                   val p0 = SC.Hypothesis(in |- in, in)
                   val p1 = SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
-                  val p2 = SC.Cut(bot, -1, 1, f)
+                  val p2 = SC.Cut(con, -1, 1, f)
 
                   /**
                    * in  = ψ[t/x]
                    *
                    * s1  = Γ ⊢ ∀x.ψ, Δ        Premise
-                   * bot = Γ ⊢ ψ[t/x], Δ      Result
+                   * con = Γ ⊢ ψ[t/x], Δ      Result
                    *
                    * p0  = ψ[t/x] ⊢ ψ[t/x]    Hypothesis
                    * p1  = ∀x.ψ ⊢ ψ[t/x]      LeftForall p0
@@ -113,16 +114,21 @@ object SimpleDeducedSteps {
 
         res._3 match {
           case proof.InvalidProofTactic(_) => res._3
-          case proof.ValidProofTactic(_, _) => proof.ValidProofTactic(Seq(SC.SCSubproof(res._1, Seq(-1))), Seq(premise))
+          case proof.ValidProofTactic(_, _) => {
+            if (SC.isSameSequent(res._1.conclusion, bot))
+              proof.ValidProofTactic(Seq(SC.SCSubproof(res._1, Seq(-1))), Seq(premise))
+            else
+              proof.InvalidProofTactic(s"InstantiateForall proved \n\t${FOLParser.printSequent(res._1.conclusion)}\ninstead of input sequent\n\t${bot}")
+          }
         }
       }
     }
 
-    def apply(using proof: Library#Proof)(t: FOL.Term*)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val prem = proof.getSequent(premise)
       if (prem.right.tail.isEmpty) {
         // well formed
-        apply(using proof)(prem.right.head, t*)(premise): proof.ProofTacticJudgement
+        apply(using proof)(prem.right.head, t*)(premise)(bot): proof.ProofTacticJudgement
       } else proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
   }
