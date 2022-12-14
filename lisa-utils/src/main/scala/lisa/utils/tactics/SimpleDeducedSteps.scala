@@ -69,7 +69,7 @@ object SimpleDeducedSteps {
       if (!premiseSequent.right.contains(phi)) {
         proof.InvalidProofTactic("Input formula was not found in the RHS of the premise sequent.")
       } else {
-        val emptyProof = SCProof(IndexedSeq(), IndexedSeq(proof.getSequent(-1)))
+        val emptyProof = SCProof(IndexedSeq(), IndexedSeq(premiseSequent))
         val j = proof.ValidProofTactic(Seq(SC.Rewrite(premiseSequent, -1)), Seq(premise))
         val res = t.foldLeft((emptyProof, phi, j: proof.ProofTacticJudgement)) { case ((p, f, j), t) =>
           j match {
@@ -118,7 +118,7 @@ object SimpleDeducedSteps {
       }
     }
 
-    def apply(using proof: Library#Proof)(t: FOL.Term*)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val prem = proof.getSequent(premise)
       if (prem.right.tail.isEmpty) {
         // well formed
@@ -206,6 +206,16 @@ object SimpleDeducedSteps {
       } else {
         proof.InvalidProofTactic("Input conjunction not found in first premise.")
       }
+    }
+  }
+
+  object destructRightAnd extends ProofTactic {
+    def apply(using proof: Library#Proof)(a: FOL.Formula, b: FOL.Formula)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      val conc = proof.getSequent(prem)
+      val p0 = SC.Hypothesis(emptySeq +< a +> a, a)
+      val p1 = SC.LeftAnd(emptySeq +< (a /\ b) +> a, 0, a, b)
+      val p2 = SC.Cut(conc -> (a /\ b) -> (b /\ a) +> a, -1, 1, a /\ b)
+      proof.ValidProofTactic(IndexedSeq(p0, p1, p2), Seq(prem))
     }
   }
   object destructRightOr extends ProofTactic {
