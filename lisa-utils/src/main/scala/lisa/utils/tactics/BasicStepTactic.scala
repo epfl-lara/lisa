@@ -11,6 +11,13 @@ import lisa.utils.tactics.ProofTacticLib.{*, given}
 
 object BasicStepTactic {
 
+  def unwrapTactic(using proof: Library#Proof)(using tactic: ProofTactic)(judgement: proof.ProofTacticJudgement)(message: String): proof.ProofTacticJudgement = {
+    judgement match {
+      case j: proof.ValidProofTactic => proof.ValidProofTactic(j.scps, j.imports)
+      case j: proof.InvalidProofTactic => proof.InvalidProofTactic(s"Internal tactic call failed! $message\n${j.message}")
+    }
+  }
+
   object Hypothesis extends ProofTactic with ParameterlessHave {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       val intersectedPivot = bot.left.intersect(bot.right)
@@ -115,7 +122,7 @@ object BasicStepTactic {
       else
       // try a rewrite, if it works, go ahead with it, otherwise malformed
       if (SC.isSameSequent(premiseSequent, bot))
-        Rewrite(premise)(bot)
+        unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial LeftAnd failed.")
       else
         proof.InvalidProofTactic("Left-hand side of premise + φ∧ψ is not the same as left-hand side of conclusion + either φ, ψ or both.")
     }
@@ -135,6 +142,8 @@ object BasicStepTactic {
 
       if (premises.length == 0)
         proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
+      else if (premises.length != disjuncts.length)
+        proof.InvalidProofTactic(s"Premises and disjuncts expected to be equal in number, but ${premises.length} premises and ${disjuncts.length} disjuncts received.")
       else if (!isSameSet(bot.right, premiseSequents.map(_.right).reduce(_ union _)))
         proof.InvalidProofTactic("Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
       else if (!isSameSet(disjuncts.foldLeft(bot.left)(_ + _), premiseSequents.map(_.left).reduce(_ union _) + disjunction))
@@ -147,12 +156,14 @@ object BasicStepTactic {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val pivots = premiseSequents.map(_.left.diff(bot.left))
 
-      if (premises.length == 0)
-        proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
-      else if (pivots.exists(_.isEmpty))
-        // the check is implicitly done!
-        proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premises(pivots.indexWhere(_.isEmpty))))
-      else if (pivots.forall(_.tail.isEmpty))
+      if (premises.length == 0) proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
+      else if (pivots.exists(_.isEmpty)) {
+        val emptyIndex = pivots.indexWhere(_.isEmpty)
+        if (isSubset(premiseSequents(emptyIndex).left, bot.left))
+          unwrapTactic(Weakening(premises(emptyIndex))(bot))("Attempted weakening on trivial premise for LeftOr failed.")
+        else
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the one of the premises.")
+      } else if (pivots.forall(_.tail.isEmpty))
         LeftOr.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
         // some extraneous formulae
@@ -187,9 +198,15 @@ object BasicStepTactic {
       lazy val pivotRight = rightSequent.left.diff(bot.left)
 
       if (pivotLeft.isEmpty)
-        proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(prem1))
+        if (isSubset(leftSequent.left, bot.left))
+          unwrapTactic(Weakening(prem1)(bot))("Attempted weakening on trivial left premise for LeftImplies failed.")
+        else
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the first premises.")
       else if (pivotRight.isEmpty)
-        proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(prem2))
+        if (isSubset(rightSequent.right, bot.right))
+          unwrapTactic(Weakening(prem2)(bot))("Attempted weakening on trivial right premise for LeftImplies failed.")
+        else
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the second premises.")
       else if (pivotLeft.tail.isEmpty && pivotRight.tail.isEmpty)
         LeftImplies.withParameters(pivotLeft.head, pivotRight.head)(prem1, prem2)(bot)
       else
@@ -228,7 +245,10 @@ object BasicStepTactic {
       lazy val pivot = premiseSequent.left.diff(bot.left)
 
       if (pivot.isEmpty)
-        proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
+        if (isSubset(premiseSequent.right, bot.right))
+          unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for LeftIff failed.")
+        else
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
       else
         pivot.head match {
           case ConnectorFormula(Implies, Seq(phi, psi)) => LeftIff.withParameters(phi, psi)(premise)(bot)
@@ -261,8 +281,11 @@ object BasicStepTactic {
       lazy val pivot = premiseSequent.right.diff(bot.right)
 
       if (pivot.isEmpty)
-        proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
-      else if (pivot.tail.isEmpty)
+        if (isSubset(premiseSequent.left, bot.left))
+          unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for LeftNot failed.")
+        else
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
+      else if (!pivot.isEmpty && pivot.tail.isEmpty)
         LeftNot.withParameters(pivot.head)(premise)(bot)
       else
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the same as right-hand side of premise.")
@@ -305,7 +328,11 @@ object BasicStepTactic {
           }
         else
           proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
-      else if (instantiatedPivot.isEmpty) proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
+      else if (instantiatedPivot.isEmpty)
+        if (isSubset(premiseSequent.right, bot.right))
+          unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for LeftForall failed.")
+        else
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
 
@@ -354,7 +381,11 @@ object BasicStepTactic {
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
 
       if (pivot.isEmpty)
-        if (instantiatedPivot.isEmpty) proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+        if (instantiatedPivot.isEmpty)
+          if (SC.isSameSequent(premiseSequent, bot))
+            unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for LeftExists failed.")
+          else
+            proof.InvalidProofTactic("Could not infer a pivot from premise and conclusion.")
         else if (instantiatedPivot.tail.isEmpty) {
           val in: Formula = instantiatedPivot.head
           val quantifiedPhi: Option[Formula] = bot.left.find(f =>
@@ -408,7 +439,10 @@ object BasicStepTactic {
 
       if (pivot.isEmpty)
         if (instantiatedPivot.isEmpty)
-          proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+          if (SC.isSameSequent(premiseSequent, bot))
+            unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for LeftExistsOne failed.")
+          else
+            proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ↔ φ == extract ==> x, phi
@@ -436,12 +470,14 @@ object BasicStepTactic {
    * </pre>
    */
   object RightAnd extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(conjuncts: Seq[Formula])(premises: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using proof: Library#Proof)(conjuncts: Formula*)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val conjunction = ConnectorFormula(And, conjuncts)
 
       if (premises.length == 0)
         proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
+      else if (premises.length != conjuncts.length)
+        proof.InvalidProofTactic(s"Premises and conjuncts expected to be equal in number, but ${premises.length} premises and ${conjuncts.length} conjuncts received.")
       else if (!isSameSet(bot.left, premiseSequents.map(_.left).reduce(_ union _)))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
       else if (!isSameSet(conjuncts.foldLeft(bot.right)(_ + _), premiseSequents.map(_.right).reduce(_ union _) + conjunction))
@@ -450,16 +486,19 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightAnd(bot, Range(-1, -premises.length - 1, -1), conjuncts)), premises)
     }
 
-    def apply(using proof: Library#Proof)(premises: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val pivots = premiseSequents.map(_.right.diff(bot.right))
 
-      if (premises.length == 0)
-        proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
-      else if (pivots.exists(_.isEmpty))
-        proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premises(pivots.indexWhere(_.isEmpty))))
-      else if (pivots.forall(_.tail.isEmpty))
-        RightAnd.withParameters(pivots.map(_.head))(premises)(bot)
+      if (premises.length == 0) proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
+      else if (pivots.exists(_.isEmpty)) {
+        val emptyIndex = pivots.indexWhere(_.isEmpty)
+        if (isSubset(premiseSequents(emptyIndex).left, bot.left))
+          unwrapTactic(Weakening(premises(emptyIndex))(bot))("Attempted weakening on trivial premise for RightAnd failed.")
+        else
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the one of the premises.")
+      } else if (pivots.forall(_.tail.isEmpty))
+        RightAnd.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
         // some extraneous formulae
         proof.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")
@@ -506,7 +545,7 @@ object BasicStepTactic {
       else
       // try a rewrite, if it works, go ahead with it, otherwise malformed
       if (SC.isSameSequent(premiseSequent, bot))
-        proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+        unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for RightOr failed.")
       else
         proof.InvalidProofTactic("Right-hand side of conclusion + φ∧ψ is not the same as right-hand side of premise + either φ, ψ or both.")
     }
@@ -543,7 +582,7 @@ object BasicStepTactic {
       )
         RightImplies.withParameters(leftPivot.head, rightPivot.head)(premise)(bot)
       else
-        proof.InvalidProofTactic("Right-hand side of conclusion + ψ is not the same as right-hand side of premise + φ→ψ.")
+        proof.InvalidProofTactic("Could not infer an implication as pivot from premise and conclusion.")
     }
   }
 
@@ -575,7 +614,10 @@ object BasicStepTactic {
       lazy val pivot = premiseSequent.right.diff(bot.right)
 
       if (pivot.isEmpty)
-        proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(prem1))
+        if (isSubset(premiseSequent.left, bot.left))
+          unwrapTactic(Weakening(prem1)(bot))("Attempted weakening on trivial premise for RightIff failed.")
+        else
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
           case ConnectorFormula(Implies, Seq(phi, psi)) => RightIff.withParameters(phi, psi)(prem1, prem2)(bot)
@@ -611,7 +653,10 @@ object BasicStepTactic {
       lazy val pivot = premiseSequent.left.diff(bot.left)
 
       if (pivot.isEmpty)
-        proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
+        if (isSubset(premiseSequent.right, bot.right))
+          unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for RightIff failed.")
+        else
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
       else if (pivot.tail.isEmpty)
         RightNot.withParameters(pivot.head)(premise)(bot)
       else
@@ -648,7 +693,11 @@ object BasicStepTactic {
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
 
       if (pivot.isEmpty)
-        if (instantiatedPivot.isEmpty) proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+        if (instantiatedPivot.isEmpty)
+          if (SC.isSameSequent(premiseSequent, bot))
+            unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for RightForall failed.")
+          else
+            proof.InvalidProofTactic("Could not infer a pivot from the premise and conclusion.")
         else if (instantiatedPivot.tail.isEmpty) {
           val in: Formula = instantiatedPivot.head
           val quantifiedPhi: Option[Formula] = bot.right.find(f =>
@@ -709,7 +758,11 @@ object BasicStepTactic {
           }
         else
           proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∀x. φ.")
-      else if (instantiatedPivot.isEmpty) proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
+      else if (instantiatedPivot.isEmpty)
+        if (isSubset(premiseSequent.left, bot.left))
+          unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for RightExists failed.")
+        else
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
 
@@ -758,7 +811,10 @@ object BasicStepTactic {
 
       if (pivot.isEmpty)
         if (instantiatedPivot.isEmpty)
-          proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+          if (SC.isSameSequent(premiseSequent, bot))
+            unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for RightExistsOne failed.")
+          else
+            proof.InvalidProofTactic("Could not infer a pivot from premise and conclusion.")
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ↔ φ == extract ==> x, phi
@@ -817,7 +873,7 @@ object BasicStepTactic {
       else
         fa match {
           case PredicateFormula(`equality`, Seq(left, right)) =>
-            if (isSame(left, right))
+            if (isSameTerm(left, right))
               proof.ValidProofTactic(Seq(SC.LeftRefl(bot, -1, fa)), Seq(premise))
             else
               proof.InvalidProofTactic("φ is not an instance of reflexivity.")
@@ -850,7 +906,7 @@ object BasicStepTactic {
       else
         fa match {
           case PredicateFormula(`equality`, Seq(left, right)) =>
-            if (isSame(left, right))
+            if (isSameTerm(left, right))
               proof.ValidProofTactic(Seq(SC.RightRefl(bot, fa)), Seq())
             else
               proof.InvalidProofTactic("φ is not an instance of reflexivity.")
@@ -864,7 +920,7 @@ object BasicStepTactic {
         // go through conclusion to see if you can find an reflexive formula
         val pivot: Option[Formula] = bot.right.find(f =>
           f match {
-            case PredicateFormula(`equality`, Seq(l, r)) => isSame(l, r)
+            case PredicateFormula(`equality`, Seq(l, r)) => isSameTerm(l, r)
             case _ => false
           }
         )
@@ -881,9 +937,9 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *    Γ, φ(s1,...,sn) |- Δ
-   * ---------------------
-   *  Γ, s1=-1, ..., sn=tn, φ(-1,...tn) |- Δ
+   *           Γ, φ(s1,...,sn) |- Δ
+   * ----------------------------------------
+   *  Γ, s1=t1, ..., sn=tn, φ(t1,...tn) |- Δ
    * </pre>
    */
   object LeftSubstEq extends ProofTactic {
@@ -908,9 +964,9 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *    Γ |- φ(s1,...,sn), Δ
-   * ---------------------
-   *  Γ, s1=-1, ..., sn=tn |- φ(-1,...tn), Δ
+   *          Γ |- φ(s1,...,sn), Δ
+   * ----------------------------------------
+   *  Γ, s1=t1, ..., sn=tn |- φ(t1,...tn), Δ
    * </pre>
    */
   import lisa.utils.Printer
@@ -937,8 +993,8 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *    Γ, φ(a1,...an) |- Δ
-   * ---------------------
+   *           Γ, φ(a1,...an) |- Δ
+   * ----------------------------------------
    *  Γ, a1↔b1, ..., an↔bn, φ(b1,...bn) |- Δ
    * </pre>
    */
@@ -964,8 +1020,8 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *    Γ |- φ(a1,...an), Δ
-   * ---------------------
+   *           Γ |- φ(a1,...an), Δ
+   * ----------------------------------------
    *  Γ, a1↔b1, ..., an↔bn |- φ(b1,...bn), Δ
    * </pre>
    */

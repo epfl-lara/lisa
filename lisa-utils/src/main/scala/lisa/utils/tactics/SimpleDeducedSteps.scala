@@ -7,6 +7,7 @@ import lisa.kernel.proof.SequentCalculus.RewriteTrue
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.utils.FOLParser
 import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
 import lisa.utils.LisaException
@@ -64,12 +65,12 @@ object SimpleDeducedSteps {
    * Returns a subproof containing the instantiation steps
    */
   object InstantiateForall extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: FOL.Formula, t: FOL.Term*)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(phi: FOL.Formula, t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
       if (!premiseSequent.right.contains(phi)) {
         proof.InvalidProofTactic("Input formula was not found in the RHS of the premise sequent.")
       } else {
-        val emptyProof = SCProof(IndexedSeq(), IndexedSeq(premiseSequent))
+        val emptyProof = SCProof(IndexedSeq(), IndexedSeq(proof.getSequent(premise)))
         val j = proof.ValidProofTactic(Seq(SC.Rewrite(premiseSequent, -1)), Seq(premise))
         val res = t.foldLeft((emptyProof, phi, j: proof.ProofTacticJudgement)) { case ((p, f, j), t) =>
           j match {
@@ -122,7 +123,7 @@ object SimpleDeducedSteps {
       val prem = proof.getSequent(premise)
       if (prem.right.tail.isEmpty) {
         // well formed
-        apply(using proof)(prem.right.head, t*)(premise): proof.ProofTacticJudgement
+        apply(using proof)(prem.right.head, t*)(premise)(bot): proof.ProofTacticJudgement
       } else proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
   }

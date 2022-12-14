@@ -1,5 +1,6 @@
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
+import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Library
 import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
@@ -10,10 +11,9 @@ object Exercise extends lisa.Main {
   val P = predicate(1)
   val f = function(1)
 
+
   val testThm = makeTHM("'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('x))") {
     val i1 = have(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate;
-    have(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate(i1)
-    // andThen(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate
   }
   show
 

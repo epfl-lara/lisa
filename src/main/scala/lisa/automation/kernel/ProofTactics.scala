@@ -132,7 +132,7 @@ object ProofTactics {
         .zip(args2)
         .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
           val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
-          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSameTerm(r1._1.get, r2._1.get)))
         })
     }
     case (ConnectorFormula(la1, args1), ConnectorFormula(la2, args2)) if isSame(la1, la2) => {
@@ -140,7 +140,7 @@ object ProofTactics {
         .zip(args2)
         .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
           val r2 = detectSubstitution(x, a._1, a._2, r1._1)
-          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSameTerm(r1._1.get, r2._1.get)))
         })
     }
     case (BinderFormula(la1, bound1, inner1), BinderFormula(la2, bound2, inner2)) if la1 == la2 && bound1 == bound2 => { // TODO renaming
@@ -153,18 +153,18 @@ object ProofTactics {
     case (y @ Term(l: VariableLabel, _), z: Term) => {
       if (isSame(y.label, x)) {
         if (c.isDefined) {
-          (c, isSame(c.get, z))
+          (c, isSameTerm(c.get, z))
         } else {
           (Some(z), true)
         }
-      } else (c, isSame(y, z))
+      } else (c, isSameTerm(y, z))
     }
     case (Term(la1, args1), Term(la2, args2)) if isSame(la1, la2) => {
       args1
         .zip(args2)
         .foldLeft[(Option[Term], Boolean)](c, true)((r1, a) => {
           val r2 = detectSubstitutionT(x, a._1, a._2, r1._1)
-          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSame(r1._1.get, r2._1.get)))
+          (if (r1._1.isEmpty) r2._1 else r1._1, r1._2 && r2._2 && (r1._1.isEmpty || r2._1.isEmpty || isSameTerm(r1._1.get, r2._1.get)))
         })
     }
     case _ => (c, false)

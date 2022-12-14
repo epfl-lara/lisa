@@ -21,7 +21,8 @@ val scala2 = "2.13.8"
 val scala3 = "3.2.1-RC1-bin-20220619-4cb967f-NIGHTLY"
 
 val commonSettings2 = Seq(
-  scalaVersion := scala2
+  scalaVersion := scala2,
+  scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
 )
 val commonSettings3 = Seq(
   scalaVersion := scala3,
