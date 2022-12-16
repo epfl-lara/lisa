@@ -304,10 +304,13 @@ object SequentCalculus {
 
   // Rule for schemas
 
-  case class InstSchema(bot: Sequent, t1: Int,
-                        mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-                        mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
-                        mTerm: Map[SchematicTermLabel, LambdaTermTerm]) extends SCProofStep { val premises = Seq(t1) }
+  case class InstSchema(
+      bot: Sequent,
+      t1: Int,
+      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
+  ) extends SCProofStep { val premises = Seq(t1) }
 
   // Proof Organisation rules
 

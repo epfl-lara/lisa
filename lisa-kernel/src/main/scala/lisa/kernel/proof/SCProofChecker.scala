@@ -435,7 +435,6 @@ object SCProofChecker {
                 )
             else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + ψ↔τ must be the same as left-hand side of the premise.")
 
-
           /**
            * <pre>
            * Γ |- Δ
@@ -445,8 +444,7 @@ object SCProofChecker {
            */
           case InstSchema(bot, t1, mCon, mPred, mTerm) =>
             val expected =
-              (ref(t1).left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)),
-                ref(t1).right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)))
+              (ref(t1).left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)), ref(t1).right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)))
             if (isSameSet(bot.left, expected._1))
               if (isSameSet(bot.right, expected._2))
                 SCValidProof(SCProof(step))

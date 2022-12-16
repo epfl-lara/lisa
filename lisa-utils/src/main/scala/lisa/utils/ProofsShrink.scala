@@ -176,7 +176,7 @@ object ProofsShrink {
       (sequent.left ++ sequent.right).flatMap(_.schematicTermLabels)
     def schematicLabels(sequent: Sequent): Set[SchematicLabel] = {
       val fs = (sequent.left ++ sequent.right)
-      fs.flatMap(_.schematicTermLabels)++fs.flatMap(_.schematicFormulaLabels)
+      fs.flatMap(_.schematicTermLabels) ++ fs.flatMap(_.schematicFormulaLabels)
     }
 
     def freeSchematicTerms(sequent: Sequent): Set[SchematicTermLabel] =
@@ -238,12 +238,11 @@ object ProofsShrink {
           Left(Rewrite(bot, t1))
         // Instantiation simplification
 
-        case InstSchema(bot, t1, mCon, mPred, mTerm) if
-          !(mCon.keySet++mPred.keySet++mTerm.keySet).subsetOf(schematicLabels(getSequentLocal(t1))) =>
-            val newmCon = mCon -- mCon.keySet.diff(schematicConnectorLabels(getSequentLocal(t1)))
-            val newmPred = mPred -- mPred.keySet.diff(schematicPredicatesLabels(getSequentLocal(t1)))
-            val newmTerm = mTerm -- mTerm.keySet.diff(schematicTermLabels(getSequentLocal(t1)))
-            Left(InstSchema(bot, t1, newmCon, newmPred, newmTerm))
+        case InstSchema(bot, t1, mCon, mPred, mTerm) if !(mCon.keySet ++ mPred.keySet ++ mTerm.keySet).subsetOf(schematicLabels(getSequentLocal(t1))) =>
+          val newmCon = mCon -- mCon.keySet.diff(schematicConnectorLabels(getSequentLocal(t1)))
+          val newmPred = mPred -- mPred.keySet.diff(schematicPredicatesLabels(getSequentLocal(t1)))
+          val newmTerm = mTerm -- mTerm.keySet.diff(schematicTermLabels(getSequentLocal(t1)))
+          Left(InstSchema(bot, t1, newmCon, newmPred, newmTerm))
         case other => Left(other)
       }
       either match {

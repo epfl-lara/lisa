@@ -157,10 +157,12 @@ trait KernelHelpers {
     s.left.map(phi => instantiateTermSchemas(phi, m)) |- s.right.map(phi => instantiateTermSchemas(phi, m))
   }
 
-  def instantiateSchemaInSequent(s: Sequent,
-                                 mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-                                 mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
-                                 mTerm: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {
+  def instantiateSchemaInSequent(
+      s: Sequent,
+      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
+  ): Sequent = {
     s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))
   }
 

@@ -203,10 +203,11 @@ trait Substitutions extends FormulaDefinitions {
    * @return phi[m]
    */
   def instantiateSchemas(
-                          phi: Formula,
-                          mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-                          mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
-                          mTerm: Map[SchematicTermLabel, LambdaTermTerm]): Formula = {
+      phi: Formula,
+      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
+  ): Formula = {
     require(mCon.forall { case (symbol, LambdaFormulaFormula(arguments, body)) => arguments.length == symbol.arity })
     require(mPred.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
     require(mTerm.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
