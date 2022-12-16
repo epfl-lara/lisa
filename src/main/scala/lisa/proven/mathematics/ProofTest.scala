@@ -9,13 +9,12 @@ import lisa.utils.tactics.BasicStepTactic.InstFunSchema
 import lisa.utils.tactics.SimpleDeducedSteps
 object ProofTest extends lisa.Main {
 
-
   val x: VariableLabel = variable
   val y: VariableLabel = variable
   val z: VariableLabel = variable
   val h: VariableFormulaLabel = formulaVariable
 
-  val russelParadox =  makeTHM("∀'x. elem('x, 'y) ↔ ¬elem('x, 'x) ⊢") {
+  val russelParadox = makeTHM("∀'x. elem('x, 'y) ↔ ¬elem('x, 'x) ⊢") {
     have(in(y, y) <=> !in(y, y) |- ()) by Restate
     andThen(forall(x, in(x, y) <=> !in(x, x)) |- ()) by LeftForall.withParameters(in(x, y) <=> !in(x, x), x, y)
   }
@@ -23,27 +22,22 @@ object ProofTest extends lisa.Main {
 
   val unorderedPair_symmetry = makeTHM(() |- forall(y, forall(x, unorderedPair(x, y) === unorderedPair(y, x)))) {
 
-      val objectiveA : Sequent = () |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))
-      val objectiveB : Sequent = () |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x))
+    val objectiveA: Sequent = () |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))
+    val objectiveB: Sequent = () |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x))
 
-      val part1 = have(objectiveA) subproof {
-          val pr0 = have(() |- in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z)) by InstFunSchema(Map(
-            x -> LambdaTermTerm(Seq(), y),
-            y -> LambdaTermTerm(Seq(), x)))(ax"pairAxiom")
-          val pr1 = have(in(z, unorderedPair(y, x)) <=> (x === z) \/ (y === z) |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by
-            RightSubstIff(List((in(z, unorderedPair(y, x)), (x === z) \/ (y === z))),
-              LambdaFormulaFormula(Seq(h), in(z, unorderedPair(x, y)) <=> h))(ax"pairAxiom")
-          have(() |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by Cut.withParameters(in(z, unorderedPair(y, x)) <=> (x === z) \/ (y === z))(pr0, pr1)
-          andThen(objectiveA) by RightForall.withParameters(in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)), z)
-      }
+    val part1 = have(objectiveA) subproof {
+      val pr0 = have(() |- in(z, unorderedPair(y, x)) <=> (y === z) \/ (x === z)) by InstFunSchema(Map(x -> LambdaTermTerm(Seq(), y), y -> LambdaTermTerm(Seq(), x)))(ax"pairAxiom")
+      val pr1 = have(in(z, unorderedPair(y, x)) <=> (x === z) \/ (y === z) |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by
+        RightSubstIff(List((in(z, unorderedPair(y, x)), (x === z) \/ (y === z))), LambdaFormulaFormula(Seq(h), in(z, unorderedPair(x, y)) <=> h))(ax"pairAxiom")
+      have(() |- in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by Cut.withParameters(in(z, unorderedPair(y, x)) <=> (x === z) \/ (y === z))(pr0, pr1)
+      andThen(objectiveA) by RightForall.withParameters(in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)), z)
+    }
 
-    val part2 = have(objectiveB) by InstFunSchema(Map(
-      x -> LambdaTermTerm(Seq(), unorderedPair(x, y)),
-      y -> LambdaTermTerm(Seq(), unorderedPair(y, x))))(ax"extensionalityAxiom")
+    val part2 = have(objectiveB) by InstFunSchema(Map(x -> LambdaTermTerm(Seq(), unorderedPair(x, y)), y -> LambdaTermTerm(Seq(), unorderedPair(y, x))))(ax"extensionalityAxiom")
 
-      have(() |- unorderedPair(x, y) === unorderedPair(y, x)) by ByEquiv(objectiveB.right.head, objectiveA.right.head)(part1, part2)
-      andThen(() |- forall(y, forall(x, unorderedPair(x, y) === unorderedPair(y, x)))) by GeneralizeToForallNoForm(x, y)
-   }
+    have(() |- unorderedPair(x, y) === unorderedPair(y, x)) by ByEquiv(objectiveB.right.head, objectiveA.right.head)(part1, part2)
+    andThen(() |- forall(y, forall(x, unorderedPair(x, y) === unorderedPair(y, x)))) by GeneralizeToForallNoForm(x, y)
+  }
   show
 
   val unorderedPair_deconstruction = makeTHM("⊢ ∀'x. ∀'y. ∀ 'x1. ∀ 'y1. unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⇒ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1") {
@@ -53,14 +47,16 @@ object ProofTest extends lisa.Main {
     val pxy = unorderedPair(x, y)
     val pxy1 = unorderedPair(x1, y1)
     val p0 = have(emptySeq +< (unorderedPair(x, y) === unorderedPair(x1, y1)) +> (((z === x) \/ (z === y)) <=> ((z === x1) \/ (z === y1)))) subproof {
-      val p2 = have(() |- in(z, unorderedPair(x1, y1)) <=> (x1 === z) \/ (y1 === z)) by InstFunSchema(Map(
-        x -> LambdaTermTerm(Seq(), x1),
-        y -> LambdaTermTerm(Seq(), y1)))(ax"pairAxiom")
-      val p3 = have((pxy === pxy1) |- (in(z, unorderedPair(x1, y1)) <=> (x === z) \/ (y === z))) by RightSubstEq(List((pxy, pxy1)), LambdaTermFormula(Seq(g), in(z, g) <=> ((x === z) \/ (y === z))))(ax"pairAxiom")
-      val p4 = andThen(emptySeq +< p3.bot.left.head +< p2.bot.right.head +> (((z === x) \/ (z === y)) <=> ((z === x1) \/ (z === y1)))) by RightSubstIff(List(((z === x1) \/ (z === y1), in(z, pxy1))),
-        LambdaFormulaFormula(Seq(h), h <=> ((z === x) \/ (z === y))))
+      val p2 = have(() |- in(z, unorderedPair(x1, y1)) <=> (x1 === z) \/ (y1 === z)) by InstFunSchema(Map(x -> LambdaTermTerm(Seq(), x1), y -> LambdaTermTerm(Seq(), y1)))(ax"pairAxiom")
+      val p3 = have((pxy === pxy1) |- (in(z, unorderedPair(x1, y1)) <=> (x === z) \/ (y === z))) by RightSubstEq(List((pxy, pxy1)), LambdaTermFormula(Seq(g), in(z, g) <=> ((x === z) \/ (y === z))))(
+        ax"pairAxiom"
+      )
+      val p4 = andThen(emptySeq +< p3.bot.left.head +< p2.bot.right.head +> (((z === x) \/ (z === y)) <=> ((z === x1) \/ (z === y1)))) by RightSubstIff(
+        List(((z === x1) \/ (z === y1), in(z, pxy1))),
+        LambdaFormulaFormula(Seq(h), h <=> ((z === x) \/ (z === y)))
+      )
       have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ 'z = 'x ∨ 'z = 'y ⇔ 'z = 'x1 ∨ 'z = 'y1") by Cut.withParameters(p2.bot.right.head)(p2, p4)
-      }
+    }
 
     val aaa = have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'x1 ⊢ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1") subproof {
       val pc0 = have("('x = 'x1); (unorderedPair('x, 'y) = unorderedPair('x1, 'y1)) |- ('y1='y)") by ByCase(y === x)(
@@ -71,7 +67,7 @@ object ProofTest extends lisa.Main {
             List((x, y)),
             LambdaTermFormula(Seq(g), (f1 \/ (z === g)) <=> ((z === x1) \/ (z === y1)))
           )(p0) //  ({x,y}={x',y'}) y=x|- (z=x)\/(z=x) <=> (z=x' \/ z=y')
-          val pa0_2 = andThen(emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1))))  by RightSubstIff(
+          val pa0_2 = andThen(emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1)))) by RightSubstIff(
             List((f1, f1 \/ f1)),
             LambdaFormulaFormula(Seq(h), h <=> ((z === x1) \/ (z === y1)))
           )
@@ -86,8 +82,8 @@ object ProofTest extends lisa.Main {
         } //  (x=y), ({x,y}={x',y'}) |- (y'=y)
         ,
         have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'x1; ¬('y = 'x) ⊢ 'y = 'y1") subproof {
-          val pb0_0 = have(emptySeq +< (pxy === pxy1) +> (((y === x) \/ (y === y)) <=> ((y === x1) \/ (y === y1)))) by InstFunSchema(Map[SchematicTermLabel, LambdaTermTerm](
-            z -> LambdaTermTerm(Seq(), y)))(p0)
+          val pb0_0 =
+            have(emptySeq +< (pxy === pxy1) +> (((y === x) \/ (y === y)) <=> ((y === x1) \/ (y === y1)))) by InstFunSchema(Map[SchematicTermLabel, LambdaTermTerm](z -> LambdaTermTerm(Seq(), y)))(p0)
           have(emptySeq +> (y === y)) by RightRefl.withParameters(y === y)
           val pb0_1 = andThen(emptySeq +> ((y === y) \/ (y === x))) by RightOr.withParameters(y === y, y === x)
           have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ 'y = 'x1 ∨ 'y = 'y1") by ByEquiv(pb0_0.bot.right.head, pb0_1.bot.right.head)(pb0_1, pb0_0) //  ({x,y}={x',y'}) |- (y=x')∨(y=y')
@@ -97,7 +93,7 @@ object ProofTest extends lisa.Main {
         }
       ) //
       val pc1 = have(emptySeq +> (x === x)) by RightRefl.withParameters(x === x)
-      val pc2 = have(emptySeq ++< pc0.bot +> ((y1 === y) /\ (x === x))) by RightAnd(Seq(pc0, pc1)) // ({x,y}={x',y'}), x=x' |- (x=x /\ y=y')
+      val pc2 = have(emptySeq ++< pc0.bot +> ((y1 === y) /\ (x === x))) by RightAnd(pc0, pc1) // ({x,y}={x',y'}), x=x' |- (x=x /\ y=y')
       val pc3 = andThen(emptySeq ++< pc2.bot +> ((y1 === y) /\ (x1 === x))) by RightSubstEq(List((x, x1)), LambdaTermFormula(Seq(g), (y1 === y) /\ (g === x)))
       andThen(emptySeq ++< pc3.bot +> (pc3.bot.right.head \/ ((x === y1) /\ (y === x1)))) by RightOr.withParameters(pc3.bot.right.head, (x === y1) /\ (y === x1))
     }
@@ -123,12 +119,12 @@ object ProofTest extends lisa.Main {
         have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('x='x1) ∨ ('x='y1)") by ByEquiv(pd1_1.bot.right.head, pd1_0.bot.right.head)(pd1_0, pd1_1)
         andThen("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('x='x1); ('x='y1)") by destructRightOr(x === x1, x === y1) //  ({x,y}={x',y'}) |- x=x',  x=y'
       }
-      val pd2 = have(emptySeq ++< pd1.bot +> (x === x1) +> ((x === y1) /\ (y === x1))) by RightAnd.withParameters(Seq(x === y1, y === x1))(Seq(pd0, pd1)) //  ({x,y}={x',y'})  |- x=x', (x=y' /\ y=x') ---
+      val pd2 = have(emptySeq ++< pd1.bot +> (x === x1) +> ((x === y1) /\ (y === x1))) by RightAnd.withParameters(x === y1, y === x1)(pd0, pd1) //  ({x,y}={x',y'})  |- x=x', (x=y' /\ y=x') ---
       val pd3 = andThen(emptySeq ++< pd2.bot +< !(x === x1) +> ((x === y1) /\ (y === x1))) by LeftNot.withParameters(x === x1) //  ({x,y}={x',y'}), !x===x1 |- (x=y' /\ y=x')
       andThen(emptySeq ++< pd3.bot +> (pd3.bot.right.head \/ ((x === x1) /\ (y === y1)))) by Trivial
     }
 
-    val p1 = have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1)") by ByCase(x === x1)(aaa, bbb)//  ({x,y}={x',y'}) |- (x=x' /\ y=y')\/(x=y' /\ y=x')
+    val p1 = have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1)") by ByCase(x === x1)(aaa, bbb) //  ({x,y}={x',y'}) |- (x=x' /\ y=y')\/(x=y' /\ y=x')
     andThen(emptySeq +> (p1.bot.left.head ==> p1.bot.right.head)) by RightImplies.withParameters(p1.bot.left.head, p1.bot.right.head) //   |- ({x,y}={x',y'}) ==> (x=x' /\ y=y')\/(x=y' /\ y=x')
     andThen("⊢ ∀'x. ∀'y. ∀ 'x1. ∀ 'y1. unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⇒ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1") by GeneralizeToForallNoForm(x, y, x1, y1)
   }
@@ -136,8 +132,8 @@ object ProofTest extends lisa.Main {
 
   val noUniversalSet = makeTHM("∀'x. elem('x, 'z) ⊢ ") {
 
-    val P: SchematicPredicateLabel  = predicate(2)
-    have(in(x, y) <=> (in(x, z) /\ !in(x, x)) |- in(x, y) <=> (in(x, z) /\ !in(x, x))) by Hypothesis// in(x,y) <=> (in(x,z) /\ in(x, x)) |- in(x,y) <=> (in(x,z) /\ in(x, x))
+    val P: SchematicPredicateLabel = predicate(2)
+    have(in(x, y) <=> (in(x, z) /\ !in(x, x)) |- in(x, y) <=> (in(x, z) /\ !in(x, x))) by Hypothesis // in(x,y) <=> (in(x,z) /\ in(x, x)) |- in(x,y) <=> (in(x,z) /\ in(x, x))
     andThen((in(x, z) <=> True, in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> (True /\ !in(x, x))) by RightSubstIff(
       List((in(x, z), And())),
       LambdaFormulaFormula(Seq(h), in(x, y) <=> (h /\ !in(x, x)))
@@ -146,7 +142,7 @@ object ProofTest extends lisa.Main {
     andThen((forall(x, in(x, z)), in(x, y) <=> (in(x, z) /\ !in(x, x))) |- in(x, y) <=> !in(x, x)) by LeftForall.withParameters(in(x, z), x, x)
     andThen((forall(x, in(x, z)), forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))) |- in(x, y) <=> !in(x, x)) by LeftForall.withParameters(in(x, y) <=> (in(x, z) /\ !in(x, x)), x, x)
     val s6 = andThen((forall(x, in(x, z)), forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))) |- forall(x, in(x, y) <=> !in(x, x))) by RightForall.withParameters(in(x, y) <=> !in(x, x), x)
-    val s7 = have(forall(x, in(x, y) <=> !in(x, x)) |- ()) by InstFunSchema(Map(y -> LambdaTermTerm(Nil, y)))( thm"russelParadox")
+    val s7 = have(forall(x, in(x, y) <=> !in(x, x)) |- ()) by InstFunSchema(Map(y -> LambdaTermTerm(Nil, y)))(thm"russelParadox")
     have((forall(x, in(x, z)), forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))) |- ()) by Cut.withParameters(forall(x, in(x, y) <=> !in(x, x)))(s6, s7)
     val s9 = andThen((forall(x, in(x, z)), exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))))) |- ()) by LeftExists.withParameters(forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))), y)
     val s10 = have(() |- exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x))))) by InstPredSchema(Map(P -> LambdaTermFormula(Seq(x, z), !in(x, x))))(ax"comprehensionSchema")
@@ -154,7 +150,6 @@ object ProofTest extends lisa.Main {
     have(forall(x, in(x, z)) |- ()) by Cut.withParameters(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, x)))))(s10, s9)
   }
   show
-
 
   val functionalMapping = makeTHM("∀ 'a. elem('a, 'A) ⇒ (∃! 'x. 'phi('x, 'a)) ⊢ ∃! 'X. ∀ 'x. elem('x, 'X) ↔ (∃ 'a. elem('a, 'A) ∧ 'phi('x, 'a))") {
     val a: VariableLabel = VariableLabel("a")
@@ -167,23 +162,27 @@ object ProofTest extends lisa.Main {
     val B1 = variable
     val phi: SchematicPredicateLabel = predicate(2)
     val P: SchematicPredicateLabel = predicate(2)
-    val P2 =  SchematicPredicateLabel("P", 3)
+    val P2 = SchematicPredicateLabel("P", 3)
 
     val H = existsOne(x, phi(x, a))
     val H1 = forall(a, in(a, A) ==> existsOne(x, phi(x, a)))
 
     have((H) |- in(a, A) ==> existsOne(x, phi(x, a))) by Trivial
     val s3 = have(H1 |- H1) by Hypothesis
-    val s = instantiatePredicateSchemas(ax"replacementSchema",  Map(P2 -> LambdaTermFormula(Seq(a, x, y), phi(x, a))))
-    val p0 = have(" ⊢ (∀'x. elem('x, 'A) ⇒ (∃!'y. 'phi('y, 'x))) ⇒ (∃'B. ∀'x. elem('x, 'A) ⇒ (∃'y. elem('y, 'B) ∧ 'phi('y, 'x)))") by InstPredSchema(Map(P2 -> LambdaTermFormula(Seq(a, x, y), phi(y, x))))(ax"replacementSchema")
+    val s = instantiatePredicateSchemas(ax"replacementSchema", Map(P2 -> LambdaTermFormula(Seq(a, x, y), phi(x, a))))
+    val p0 = have(" ⊢ (∀'x. elem('x, 'A) ⇒ (∃!'y. 'phi('y, 'x))) ⇒ (∃'B. ∀'x. elem('x, 'A) ⇒ (∃'y. elem('y, 'B) ∧ 'phi('y, 'x)))") by InstPredSchema(
+      Map(P2 -> LambdaTermFormula(Seq(a, x, y), phi(y, x)))
+    )(ax"replacementSchema")
 
-    val s5 =andThen("(∀'x. elem('x, 'A) ⇒ (∃!'y. 'phi('y, 'x))) ⊢ (∃'B. ∀'x. elem('x, 'A) ⇒ (∃'y. elem('y, 'B) ∧ 'phi('y, 'x)))") by Rewrite
-    val s6 = andThen(H1 |- exists(B, forall(a, in(a, A) ==> exists(y, in(y, B) /\ (phi(y, a)))))) by InstFunSchema(Map(
+    val s5 = andThen("(∀'x. elem('x, 'A) ⇒ (∃!'y. 'phi('y, 'x))) ⊢ (∃'B. ∀'x. elem('x, 'A) ⇒ (∃'y. elem('y, 'B) ∧ 'phi('y, 'x)))") by Rewrite
+    val s6 = andThen(H1 |- exists(B, forall(a, in(a, A) ==> exists(y, in(y, B) /\ (phi(y, a)))))) by InstFunSchema(
+      Map(
         x -> LambdaTermTerm(Nil, a),
         y -> LambdaTermTerm(Nil, x)
-    ))
-    //have((H1) |- exists(B, forall(x, in(x, A) ==> exists(y, in(y, B) /\ (phi(y, x)))) ))by Cut.withParameters(H1)(s3, s5) // ⊢ ∃B. ∀x. (x ∈ A) ⇒ ∃y. (y ∈ B) ∧ (y = (x, b))
-    //val s6 = andThen(H1 |- exists(B, forall(a, in(a, A) ==> exists(y, in(y, B) /\ (phi(y, a)))))) by RightExists.withParameters(forall(a, in(a, A) ==> exists(y, in(y, B) /\ (phi(y, a)))), B, B)
+      )
+    )
+    // have((H1) |- exists(B, forall(x, in(x, A) ==> exists(y, in(y, B) /\ (phi(y, x)))) ))by Cut.withParameters(H1)(s3, s5) // ⊢ ∃B. ∀x. (x ∈ A) ⇒ ∃y. (y ∈ B) ∧ (y = (x, b))
+    // val s6 = andThen(H1 |- exists(B, forall(a, in(a, A) ==> exists(y, in(y, B) /\ (phi(y, a)))))) by RightExists.withParameters(forall(a, in(a, A) ==> exists(y, in(y, B) /\ (phi(y, a)))), B, B)
     val q0 = have(() |- exists(y, forall(x, in(x, y) <=> (in(x, z) /\ exists(a, in(a, A) /\ phi(x, a)))))) by InstPredSchema(
       Map(P -> LambdaTermFormula(Seq(x, z), exists(a, in(a, A) /\ phi(x, a))))
     )(ax"comprehensionSchema")
@@ -204,18 +203,25 @@ object ProofTest extends lisa.Main {
       andThen(Set(exists(y, forall(x, (y === x) <=> phi(x, a))), True ==> exists(y, phi(y, a) /\ in(y, B)), phi(x, a)) |- in(x, B)) by Rewrite
       andThen(Set(exists(y, forall(x, (y === x) <=> phi(x, a))), in(a, A) ==> exists(y, phi(y, a) /\ in(y, B)), phi(x, a), in(a, A)) |- in(x, B)) by LeftSubstIff(
         List((True, in(a, A))),
-        LambdaFormulaFormula(Seq(h), h() ==> exists(y, phi(y, a) /\ in(y, B))))
+        LambdaFormulaFormula(Seq(h), h() ==> exists(y, phi(y, a) /\ in(y, B)))
+      )
       andThen(Set(exists(y, forall(x, (y === x) <=> phi(x, a))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), phi(x, a), in(a, A)) |- in(x, B)) by LeftForall.withParameters(
-        in(a, A) ==> exists(y, phi(y, a) /\ in(y, B)), a, a)
+        in(a, A) ==> exists(y, phi(y, a) /\ in(y, B)),
+        a,
+        a
+      )
       andThen(Set(in(a, A) ==> exists(y, forall(x, (y === x) <=> phi(x, a))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), phi(x, a), in(a, A)) |- in(x, B)) by LeftSubstIff(
         List((True, in(a, A))),
-        LambdaFormulaFormula(Seq(h), h() ==> exists(y, forall(x, (y === x) <=> phi(x, a)))))
-      andThen(Set(forall(a, in(a, A) ==> exists(y, forall(x, (y === x) <=> phi(x, a)))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), phi(x, a), in(a, A)) |- in(x, B)) by LeftForall.withParameters(
-        in(a, A) ==> exists(y, forall(x, (y === x) <=> phi(x, a))), a, a)
+        LambdaFormulaFormula(Seq(h), h() ==> exists(y, forall(x, (y === x) <=> phi(x, a))))
+      )
+      andThen(Set(forall(a, in(a, A) ==> exists(y, forall(x, (y === x) <=> phi(x, a)))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), phi(x, a), in(a, A)) |- in(x, B)) by LeftForall
+        .withParameters(in(a, A) ==> exists(y, forall(x, (y === x) <=> phi(x, a))), a, a)
 
       andThen(Set(forall(a, in(a, A) ==> exists(y, forall(x, (y === x) <=> phi(x, a)))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), phi(x, a) /\ in(a, A)) |- in(x, B)) by Rewrite
-      andThen(Set(forall(a, in(a, A) ==> exists(y, forall(x, (y === x) <=> phi(x, a)))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), exists(a, phi(x, a) /\ in(a, A))) |- in(x, B)) by LeftExists.withParameters(
-        phi(x, a) /\ in(a, A), a)
+      andThen(
+        Set(forall(a, in(a, A) ==> exists(y, forall(x, (y === x) <=> phi(x, a)))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), exists(a, phi(x, a) /\ in(a, A))) |- in(x, B)
+      ) by LeftExists.withParameters(phi(x, a) /\ in(a, A), a)
+
       andThen(Set(forall(a, in(a, A) ==> existsOne(x, phi(x, a))), forall(a, in(a, A) ==> exists(y, phi(y, a) /\ in(y, B))), exists(a, phi(x, a) /\ in(a, A))) |- in(x, B)) by Rewrite
     }
     val G = forall(a, in(a, A) ==> exists(y, in(y, B) /\ (phi(y, a))))
@@ -242,39 +248,44 @@ object ProofTest extends lisa.Main {
       andThen(Set(F, in(x, B1)) |- exists(a, in(a, A) /\ (phi(x, a)))) by destructRightAnd(exists(a, in(a, A) /\ (phi(x, a))), in(x, B))
       andThen(F |- (in(x, B1) ==> exists(a, in(a, A) /\ (phi(x, a))))) by Rewrite
     }
-    val s13 = have((H1, G, F) |- in(x, B1) <=> exists(a, in(a, A) /\ (phi(x, a)))) by RightIff.withParameters(in(x, B1), exists(a, in(a, A) /\ (phi(x, a))))(s11, s12) // have F |- (x ∈ B1) <=> ∃a. a ∈ A ∧ x = (a, b)
+    val s13 =
+      have((H1, G, F) |- in(x, B1) <=> exists(a, in(a, A) /\ (phi(x, a)))) by RightIff
+        .withParameters(in(x, B1), exists(a, in(a, A) /\ (phi(x, a))))(s11, s12) // have F |- (x ∈ B1) <=> ∃a. a ∈ A ∧ x = (a, b)
     val s14 = andThen((H1, G, F) |- forall(x, in(x, B1) <=> exists(a, in(a, A) /\ (phi(x, a))))) by RightForall.withParameters(in(x, B1) <=> exists(a, in(a, A) /\ (phi(x, a))), x)
-    have(Set(H1, G, F) |- (X === B1) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))) subproof
-      {
-        val left = Set(H1, G, F, forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))))
-        have(Set(H1, G, F, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))) |- in(x, X) <=> in(x, B1)) by RightSubstIff(
-          List((in(x, X), exists(a, in(a, A) /\ (phi(x, a))))),
-          LambdaFormulaFormula(Seq(h), h() <=> in(x, B1))
-        )(s13)
-        andThen(left |- in(x, X) <=> in(x, B1)) by LeftForall.withParameters(
-          in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))), x,x)
-        val t2 = andThen(left |- forall(x, in(x, X) <=> in(x, B1))) by RightForall.withParameters(in(x, X) <=> in(x, B1), x) // redGoal2  F, [∀x. (x ∈ X) <=> ∃a. a ∈ A ∧ x = (a, b)] |- ∀z. (z ∈ X) <=> (z ∈ B1)
+    have(Set(H1, G, F) |- (X === B1) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))) subproof {
+      val left = Set(H1, G, F, forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))))
+      have(Set(H1, G, F, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))) |- in(x, X) <=> in(x, B1)) by RightSubstIff(
+        List((in(x, X), exists(a, in(a, A) /\ (phi(x, a))))),
+        LambdaFormulaFormula(Seq(h), h() <=> in(x, B1))
+      )(s13)
+      andThen(left |- in(x, X) <=> in(x, B1)) by LeftForall.withParameters(in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))), x, x)
+      val t2 =
+        andThen(left |- forall(x, in(x, X) <=> in(x, B1))) by RightForall.withParameters(in(x, X) <=> in(x, B1), x) // redGoal2  F, [∀x. (x ∈ X) <=> ∃a. a ∈ A ∧ x = (a, b)] |- ∀z. (z ∈ X) <=> (z ∈ B1)
 
-
-        val t3 = have(forall(z, in(z, X) <=> in(z, B1)) <=> (X === B1)) by InstFunSchema(Map(x -> LambdaTermTerm(Seq(), X), y -> LambdaTermTerm(Seq(), B1)))(ax"extensionalityAxiom")
-        val t4 = have(left ++ t3.bot.right |- X === B1) by RightSubstIff(List((X === B1, forall(z, in(z, X) <=> in(z, B1)))),
-          LambdaFormulaFormula(Seq(h), h()))(t2)
-        have((left |- X === B1)) by Cut.withParameters( t3.bot.right.head)(t3, t4)
-        val t6 = andThen(Set(H1, G, F) |- forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))) ==> (X === B1)) by Rewrite
-        have(Set(H1, G, F, X === B1) |- forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))) by RightSubstEq(List((X: Term, B1: Term)), LambdaTermFormula(Seq(f), forall(x, in(x, f) <=> exists(a, in(a, A) /\ phi(x, a)))))(s14)
-        val t8 = andThen(Set(H1, G, F) |- X === B1 ==> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))) by Rewrite
-        have(Set(H1, G, F) |- (X === B1) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))) by RightIff.withParameters(
-          X === B1,
-          forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))
-        )(t6, t8)
-      }
+      val t3 = have(forall(z, in(z, X) <=> in(z, B1)) <=> (X === B1)) by InstFunSchema(Map(x -> LambdaTermTerm(Seq(), X), y -> LambdaTermTerm(Seq(), B1)))(ax"extensionalityAxiom")
+      val t4 = have(left ++ t3.bot.right |- X === B1) by RightSubstIff(List((X === B1, forall(z, in(z, X) <=> in(z, B1)))), LambdaFormulaFormula(Seq(h), h()))(t2)
+      have((left |- X === B1)) by Cut.withParameters(t3.bot.right.head)(t3, t4)
+      val t6 = andThen(Set(H1, G, F) |- forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))) ==> (X === B1)) by Rewrite
+      have(Set(H1, G, F, X === B1) |- forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))) by RightSubstEq(
+        List((X: Term, B1: Term)),
+        LambdaTermFormula(Seq(f), forall(x, in(x, f) <=> exists(a, in(a, A) /\ phi(x, a))))
+      )(s14)
+      val t8 = andThen(Set(H1, G, F) |- X === B1 ==> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))) by Rewrite
+      have(Set(H1, G, F) |- (X === B1) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))) by RightIff.withParameters(
+        X === B1,
+        forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))
+      )(t6, t8)
+    }
 
     andThen((H1, G, F) |- forall(X, (X === B1) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))))) by RightForall.withParameters(
       (X === B1) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))),
       X
     )
     val s17 = andThen((H1, G, F) |- exists(y, forall(X, (X === y) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))))) by RightExists.withParameters(
-      forall(X, (X === y) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))), y, B1)
+      forall(X, (X === y) <=> forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a))))),
+      y,
+      B1
+    )
     val s18 = andThen((exists(B1, F), G, H1) |- s17.bot.right) by LeftExists.withParameters(F, B1) //  ∃B1. F |- ∃B1. ∀X. X=B1 <=> [∀x. (x ∈ X) <=> ∃a. a ∈ A ∧ x = (a, b)]
     val s19 = andThen(s18.bot.left |- existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ (phi(x, a)))))) by Rewrite
     val s20 = have(() |- exists(B1, F)) by InstFunSchema(Map(y -> LambdaTermTerm(Seq(), B1)))(s7)
@@ -285,7 +296,9 @@ object ProofTest extends lisa.Main {
   }
   show
 
-  val lemmaLayeredTwoArgumentsMap = makeTHM("∀ 'b. elem('b, 'B) ⇒ (∀ 'a. elem('a, 'A) ⇒ (∃! 'x. 'psi('x, 'a, 'b))) ⊢ ∃!'X. ∀ 'x. elem('x, 'X) ↔ (∃ 'b. elem('b, 'B) ∧ (∀ 'x1. elem('x1, 'x) ↔ (∃ 'a. elem('a, 'A) ∧ 'psi('x1, 'a, 'b))))") {
+  val lemmaLayeredTwoArgumentsMap = makeTHM(
+    "∀ 'b. elem('b, 'B) ⇒ (∀ 'a. elem('a, 'A) ⇒ (∃! 'x. 'psi('x, 'a, 'b))) ⊢ ∃!'X. ∀ 'x. elem('x, 'X) ↔ (∃ 'b. elem('b, 'B) ∧ (∀ 'x1. elem('x1, 'x) ↔ (∃ 'a. elem('a, 'A) ∧ 'psi('x1, 'a, 'b))))"
+  ) {
     val a = variable
     val b = variable
     val x1 = variable
@@ -314,20 +327,24 @@ object ProofTest extends lisa.Main {
     )
 
     have(forall(b, in(b, B) ==> existsOne(X, phi(X, b))) |- instantiateTermSchemas(thm"functionalMapping".proposition.right.head, Map(A -> LambdaTermTerm(Nil, B)))) by InstFunSchema(
-      Map(A -> LambdaTermTerm(Nil, B)))(thm"functionalMapping")
-    val s7 = andThen(forall(b, in(b, B) ==> existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ psi(x, a, b))))) |- existsOne(
-      X,
-      forall(x, in(x, X) <=> exists(b, in(b, B) /\ forall(x1, in(x1, x) <=> exists(a, in(a, A) /\ psi(x1, a, b))))))) by InstPredSchema(
+      Map(A -> LambdaTermTerm(Nil, B))
+    )(thm"functionalMapping")
+    val s7 = andThen(
+      forall(b, in(b, B) ==> existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ psi(x, a, b))))) |- existsOne(
+        X,
+        forall(x, in(x, X) <=> exists(b, in(b, B) /\ forall(x1, in(x1, x) <=> exists(a, in(a, A) /\ psi(x1, a, b)))))
+      )
+    ) by InstPredSchema(
       Map(phi -> LambdaTermFormula(Seq(y, b), forall(x, in(x, y) <=> exists(a, in(a, A) /\ psi(x, a, b)))))
     )
 
     val s8 = have(forall(b, in(b, B) ==> H2) |- existsOne(X, forall(x, in(x, X) <=> exists(b, in(b, B) /\ forall(x1, in(x1, x) <=> exists(a, in(a, A) /\ psi(x1, a, b))))))) by Cut.withParameters(
-      forall(b, in(b, B) ==> existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ psi(x, a, b))))))(s5, s7)
-
+      forall(b, in(b, B) ==> existsOne(X, forall(x, in(x, X) <=> exists(a, in(a, A) /\ psi(x, a, b)))))
+    )(s5, s7)
 
   }
   show
-
+  /*
   val applyFunctionToUniqueObject = makeTHM("∃! 'x. 'phi('x) ⊢ ∃! 'z. ∃ 'x. ('z = 'F('x)) ∧ 'phi('x)") {
     val x1 = variable
     val z1 = variable
@@ -346,11 +363,11 @@ object ProofTest extends lisa.Main {
       andThen(forall(x, phi(x) <=> (x === x1)) |- exists(x, phi(x) /\ (F(x) === z)) ==> (F(x1) === z)) by Rewrite
     }
 
-    val g1 = have(forall(x, (x === x1) <=> phi(x)) |- z === F(x1) ==> exists(x, (z === F(x)) /\ phi(x))) subproof{
+    val g1 = have(forall(x, (x === x1) <=> phi(x)) |- z === F(x1) ==> exists(x, (z === F(x)) /\ phi(x))) subproof {
       have(phi(x1) |- phi(x1)) by Hypothesis
       val s1 = andThen(forall(x, (x === x1) <=> phi(x)) |- phi(x1)) by LeftForall.withParameters((x === x1) <=> phi(x), x, x1)
       val s2 = have(z === F(x1) |- z === F(x1)) by Hypothesis
-      have((forall(x, (x === x1) <=> phi(x)), z === F(x1)) |- (z === F(x1)) /\ phi(x1)) by RightAnd.withParameters(Seq(z === F(x1), phi(x1)))(Seq(s2, s1))
+      have((forall(x, (x === x1) <=> phi(x)), z === F(x1)) |- (z === F(x1)) /\ phi(x1)) by RightAnd.withParameters(z === F(x1), phi(x1))(s2, s1)
       andThen((forall(x, (x === x1) <=> phi(x)), z === F(x1)) |- exists(x, (z === F(x)) /\ phi(x))) by RightExists.withParameters((z === F(x)) /\ phi(x), x, x1)
       andThen(forall(x, (x === x1) <=> phi(x)) |- z === F(x1) ==> exists(x, (z === F(x)) /\ phi(x))) by Rewrite
     }
@@ -387,41 +404,5 @@ object ProofTest extends lisa.Main {
     val s1 = andThen(seq1) by InstFunSchema(Map(F -> LambdaTermTerm(Seq(x), union(x))))
     have(i1.proposition.left |- seq1.right) by Cut.withParameters(seq1.left.head)(i1, s1)
   }
-  show
-
-  val a = variable
-  val b = variable
-  val x0 = variable
-  val x1 = variable
-  val A = variable
-  val B = variable
-
-  /* val oPair = functionDefinition(
-    "oPair",
-    LambdaTermFormula(Seq(x, y),
-    forall(x, forall(y, existsOne(z, z === unorderedPair(unorderedPair(x, y), unorderedPair(x, x)))))),
-    z,
-    ,
-    Nil
-  )
-
-  val cartesianProduct = functionDefinition(
-    "cartProd",
-    LambdaTermFormula(Seq(A, B),
-      exists(x, (z === union(x)) /\ forall(x0, in(x0, x) <=> exists(b, in(b, B) /\ forall(x1, in(x1, x0) <=> exists(a, in(a, A) /\ (x1 === oPair(a, b)))))))
-    ),
-  )
-  show
-  */
+  show */
 }
-
-/*
-      val s0 = g1
-      val s1 = g2
-      SCProof(Vector(s0, s1, s2, s3, s4, s5, s6))
-    } using ()
-  show
-
- */
-
-

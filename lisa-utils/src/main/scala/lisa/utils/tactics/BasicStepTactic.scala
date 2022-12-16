@@ -5,9 +5,14 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.utils.FOLPrinter
 import lisa.utils.Helpers.*
-import lisa.utils.{FOLPrinter, Library, LisaException, OutputManager, ProofPrinter, UserLisaException}
-import lisa.utils.tactics.ProofTacticLib.{*, given}
+import lisa.utils.Library
+import lisa.utils.LisaException
+import lisa.utils.OutputManager
+import lisa.utils.ProofPrinter
+import lisa.utils.UserLisaException
+import lisa.utils.tactics.ProofTacticLib.{_, given}
 
 object BasicStepTactic {
 
@@ -984,8 +989,8 @@ object BasicStepTactic {
         !isSameSet(bot.right + phi_s, premiseSequent.right + phi_t) &&
         !isSameSet(bot.right + phi_t, premiseSequent.right + phi_s)
       )
-        proof.InvalidProofTactic("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).\n" +
-          FOLPrinter.prettySequent(bot +> phi_t) + " is not the same as \n" + FOLPrinter.prettySequent(premiseSequent +> phi_s))
+        proof.InvalidProofTactic(
+          "Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
       else
         proof.ValidProofTactic(Seq(SC.RightSubstEq(bot, -1, equals, lambdaPhi)), Seq(premise))
     }
