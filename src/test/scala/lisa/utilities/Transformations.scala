@@ -31,7 +31,7 @@ class Transformations extends ProofCheckerSuite {
     val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq.empty)
     val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof)
 
-    //assert((transf.transform() == noImpProof))
+    // assert((transf.transform() == noImpProof))
     checkProof(noImpProof)
   }
 

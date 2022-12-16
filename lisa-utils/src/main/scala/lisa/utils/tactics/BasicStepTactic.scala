@@ -989,8 +989,7 @@ object BasicStepTactic {
         !isSameSet(bot.right + phi_s, premiseSequent.right + phi_t) &&
         !isSameSet(bot.right + phi_t, premiseSequent.right + phi_s)
       )
-        proof.InvalidProofTactic(
-          "Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
+        proof.InvalidProofTactic("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
       else
         proof.ValidProofTactic(Seq(SC.RightSubstEq(bot, -1, equals, lambdaPhi)), Seq(premise))
     }
