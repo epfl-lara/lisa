@@ -234,7 +234,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
               val y = VariableLabel(freshId(inner.freeVariables.map(_.id), bound.id))
               val c = PredicateFormula(equality, Seq(VariableTerm(bound), VariableTerm(y)))
               val newInner = polarize(ConnectorFormula(Iff, Seq(c, inner)), true)
-              SimpleForall(y.id, SimpleForall(bound.id, newInner, false), false)
+              SimpleForall(y.id, SimpleForall(bound.id, newInner, false), !polarity)
           }
       }
       if (polarity) f.polarFormula = Some(r)
