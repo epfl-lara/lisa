@@ -213,14 +213,16 @@ trait Substitutions extends FormulaDefinitions {
     require(mTerm.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     phi match {
       case PredicateFormula(label, args) =>
+        val newArgs = args.map(a => instantiateTermSchemas(a, mTerm))
         label match {
-          case label: SchematicVarOrPredLabel if mPred.contains(label) => mPred(label)(args)
-          case _ => PredicateFormula(label, args.map(a => instantiateTermSchemas(a, mTerm)))
+          case label: SchematicVarOrPredLabel if mPred.contains(label) => mPred(label)(newArgs)
+          case _ => PredicateFormula(label, newArgs)
         }
       case ConnectorFormula(label, args) =>
+        val newArgs = args.map(a => instantiateTermSchemas(a, mTerm))
         label match {
-          case label: SchematicConnectorLabel if mCon.contains(label) => mCon(label)(args)
-          case _ => ConnectorFormula(label, args.map(instantiateSchemas(_, mCon, mPred, mTerm)))
+          case label: SchematicConnectorLabel if mCon.contains(label) => mCon(label)(newArgs)
+          case _ => ConnectorFormula(label, newArgs)
         }
       case BinderFormula(label, bound, inner) =>
         val fv: Set[VariableLabel] =
