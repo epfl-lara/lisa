@@ -11,7 +11,6 @@ import lisa.utils.Helpers.{_, given}
 import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
-
 class SubstitutionTest extends AnyFunSuite {
   private val x = variable
   private val x2 = variable
@@ -30,7 +29,6 @@ class SubstitutionTest extends AnyFunSuite {
   private val Y = formulaVariable
   private val Z = formulaVariable
 
-
   private val P = predicate(1)
   private val Q = predicate(1)
 
@@ -42,14 +40,14 @@ class SubstitutionTest extends AnyFunSuite {
   private val e2 = connector(2)
 
   test("Substitution in Terms") {
-    case class $(t:Term, m: (SchematicTermLabel, LambdaTermTerm)*)
-    extension (c:$) {
-      inline infix def _VS_(t2:Term): Assertion = {
-        assert(instantiateTermSchemas(c.t, c.m.toMap) == t2, "\n - " + prettyTerm(instantiateTermSchemas(c.t, c.m.toMap)) +" didn't match " + prettyTerm(t2))
+    case class $(t: Term, m: (SchematicTermLabel, LambdaTermTerm)*)
+    extension (c: $) {
+      inline infix def _VS_(t2: Term): Assertion = {
+        assert(instantiateTermSchemas(c.t, c.m.toMap) == t2, "\n - " + prettyTerm(instantiateTermSchemas(c.t, c.m.toMap)) + " didn't match " + prettyTerm(t2))
       }
     }
 
-    val cases:List[Assertion] = List(
+    val cases: List[Assertion] = List(
       $(x, x -> x()) _VS_ x,
       $(x, y -> y()) _VS_ x,
       $(x, x -> y()) _VS_ y,
@@ -63,8 +61,8 @@ class SubstitutionTest extends AnyFunSuite {
       $(f(f(h(x, y))), z -> y(), g -> lambda(Seq(x), f(h(y, x)))) _VS_ f(f(h(x, y))),
       $(f(f(h(x, y))), f -> lambda(x, x)) _VS_ h(x, y),
       $(f(f(h(x, y))), f -> lambda(x, y)) _VS_ y,
-      $(f(f(h(x, y))), f -> lambda(x, f(f(x)))) _VS_ f(f(f(f(h(x,y))))),
-      $(f(f(h(x, y))), f -> lambda(x, f(f(x))), h -> lambda(Seq(x, z), h(f(x), h(g(z), x)))) _VS_ f(f(f(f(h(f(x),h(g(y), x)))))),
+      $(f(f(h(x, y))), f -> lambda(x, f(f(x)))) _VS_ f(f(f(f(h(x, y))))),
+      $(f(f(h(x, y))), f -> lambda(x, f(f(x))), h -> lambda(Seq(x, z), h(f(x), h(g(z), x)))) _VS_ f(f(f(f(h(f(x), h(g(y), x))))))
     )
   }
 
@@ -87,9 +85,9 @@ class SubstitutionTest extends AnyFunSuite {
       $(Q(f(f(h(x, y)))) /\ R(x, h(y, f(z))), x -> z(), h -> lambda(Seq(x, z), g(h(z, y))), z -> y()) _VS_ Q(f(f(g(h(y, y))))) /\ R(z, g(h(f(y), y))),
       $(forall(x, R(x, y)), x -> z()) _VS_ forall(x, R(x, y)),
       $(forall(x, R(x, y)), y -> z()) _VS_ forall(x, R(x, z)),
-      $(forall(x, R(x, y)) /\ P(h(x, y)), y -> z(), x -> y()) _VS_ forall(x, R(x, z))/\ P(h(y, z)),
-      $(forall(x, R(x, y)) /\ P(h(x, y)), y -> x()) _VS_ forall(y, R(y, x))/\ P(h(x, x)),
-      $(existsOne(x, R(x, y)) /\ P(h(x, y)), y -> x()) _VS_ existsOne(y, R(y, x)) /\ P(h(x, x)),
+      $(forall(x, R(x, y)) /\ P(h(x, y)), y -> z(), x -> y()) _VS_ forall(x, R(x, z)) /\ P(h(y, z)),
+      $(forall(x, R(x, y)) /\ P(h(x, y)), y -> x()) _VS_ forall(y, R(y, x)) /\ P(h(x, x)),
+      $(existsOne(x, R(x, y)) /\ P(h(x, y)), y -> x()) _VS_ existsOne(y, R(y, x)) /\ P(h(x, x))
     )
   }
 
@@ -97,7 +95,10 @@ class SubstitutionTest extends AnyFunSuite {
     case class $(f: Formula, m: (SchematicVarOrPredLabel, LambdaTermFormula)*)
     extension (c: $) {
       inline infix def _VS_(t2: Formula): Assertion = {
-        assert(isSame(instantiatePredicateSchemas(c.f, c.m.toMap), t2), "\n - " + prettyFormula(instantiatePredicateSchemas(c.f, c.m.toMap)) + " didn't match " + prettyFormula(t2))
+        assert(
+          isSame(instantiatePredicateSchemas(c.f, c.m.toMap), t2),
+          "\n - " + prettyFormula(instantiatePredicateSchemas(c.f, c.m.toMap)) + " didn't match " + prettyFormula(t2)
+        )
       }
     }
 
@@ -130,22 +131,36 @@ class SubstitutionTest extends AnyFunSuite {
       $(c1(P(x)), c1 -> lambda(X, !X)) _VS_ !P(x),
       $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, X)) _VS_ e2(X, P(y)),
       $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, Y)) _VS_ Y,
-      $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, c1(c1(X)))) _VS_ c1(c1(c1(c1(e2(X, P(y)))))),
+      $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, c1(c1(X)))) _VS_ c1(c1(c1(c1(e2(X, P(y))))))
     )
   }
 
-
   test("Simultaneous Substitutions in Formulas") {
-    case class $(f: Formula, m: ((SchematicConnectorLabel, LambdaFormulaFormula)|(SchematicVarOrPredLabel, LambdaTermFormula)|(SchematicTermLabel, LambdaTermTerm))*)
+    case class $(f: Formula, m: ((SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm))*)
     extension (c: $) {
       inline infix def _VS_(t2: Formula): Assertion = {
-        val mCon:Map[SchematicConnectorLabel, LambdaFormulaFormula] = c.m.collect({
-          case e if e._1.isInstanceOf[SchematicConnectorLabel] => e}).toMap.asInstanceOf
-        val mPred:Map[SchematicVarOrPredLabel, LambdaTermFormula] = c.m.collect({
-          case e if e._1.isInstanceOf[SchematicVarOrPredLabel] => e}).toMap.asInstanceOf
-        val mTerm:Map[SchematicTermLabel, LambdaTermTerm] = c.m.collect({
-          case e if e._1.isInstanceOf[SchematicTermLabel] => e}).toMap.asInstanceOf
-        assert(isSame(instantiateSchemas(c.f, mCon, mPred, mTerm),t2), "\n - " + prettyFormula(instantiateSchemas(c.f, mCon, mPred, mTerm)) + " didn't match " + prettyFormula(t2))
+        val mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula] = c.m
+          .collect({
+            case e if e._1.isInstanceOf[SchematicConnectorLabel] => e
+          })
+          .toMap
+          .asInstanceOf
+        val mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula] = c.m
+          .collect({
+            case e if e._1.isInstanceOf[SchematicVarOrPredLabel] => e
+          })
+          .toMap
+          .asInstanceOf
+        val mTerm: Map[SchematicTermLabel, LambdaTermTerm] = c.m
+          .collect({
+            case e if e._1.isInstanceOf[SchematicTermLabel] => e
+          })
+          .toMap
+          .asInstanceOf
+        assert(
+          isSame(instantiateSchemas(c.f, mCon, mPred, mTerm), t2),
+          "\n - " + prettyFormula(instantiateSchemas(c.f, mCon, mPred, mTerm)) + " didn't match " + prettyFormula(t2)
+        )
       }
     }
 
@@ -180,23 +195,35 @@ class SubstitutionTest extends AnyFunSuite {
       $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, X)) _VS_ e2(X, P(y)),
       $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, Y)) _VS_ Y,
       $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, c1(c1(X)))) _VS_ c1(c1(c1(c1(e2(X, P(y)))))),
-      $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, c1(c1(X))), e2 -> lambda(Seq(X, Y), X <=> Y), X -> (z===y)) _VS_ c1(c1(c1(c1((z===y) <=> P(y))))),
-      $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, c1(c1(X))), e2 -> lambda(Seq(X, Y), X <=> Y), X -> (z===y), P -> lambda(x, !(x===f(h(x,y))) \/ X )) _VS_ c1(c1(c1(c1((z===y) <=> !(y===f(h(y,y))) \/ X)))),
-      $(forall(x, exists(y, c1(e2(X, P(y))) /\ R(y, f(y)))),
-        c1 -> lambda(X, c1(c1(X))), e2 -> lambda(Seq(X, Y), X <=> Y), X -> (z===y), P -> lambda(x, !(x===f(h(x,y))) \/ X )) _VS_ forall(x, exists(y2, c1(c1((z===y) <=> !(y2===f(h(y2,y))) \/ X)) /\ R(y2, f(y2)))),
-
-      $(exists(x, P(x) /\ X),
-        c1 -> lambda(X, exists(y, Q(y) /\ X)), e2 -> lambda(Seq(X, Y), X <=> exists(x, P(x) /\ Y)), X -> (z === y), P -> lambda(x2, exists(y, R(x2, y) /\ P(x)))
-      ) _VS_ exists(x2, exists(y2, R(x2, y2) /\ P(x)) /\ (z === y)),
-
-      $(c1(e2(X, P(x))) /\ R(y, f(y)),
-        c1 -> lambda(X, exists(y, Q(y) /\ X)), e2 -> lambda(Seq(X, Y), X <=> exists(x, P(x) /\ Y)), X -> (z === y), P -> lambda(x2, exists(y, R(x2, y) /\ P(x)))
+      $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, c1(c1(X))), e2 -> lambda(Seq(X, Y), X <=> Y), X -> (z === y)) _VS_ c1(c1(c1(c1((z === y) <=> P(y))))),
+      $(c1(c1(e2(X, P(y)))), c1 -> lambda(X, c1(c1(X))), e2 -> lambda(Seq(X, Y), X <=> Y), X -> (z === y), P -> lambda(x, !(x === f(h(x, y))) \/ X)) _VS_ c1(
+        c1(c1(c1((z === y) <=> !(y === f(h(y, y))) \/ X)))
+      ),
+      $(forall(x, exists(y, c1(e2(X, P(y))) /\ R(y, f(y)))), c1 -> lambda(X, c1(c1(X))), e2 -> lambda(Seq(X, Y), X <=> Y), X -> (z === y), P -> lambda(x, !(x === f(h(x, y))) \/ X)) _VS_ forall(
+        x,
+        exists(y2, c1(c1((z === y) <=> !(y2 === f(h(y2, y))) \/ X)) /\ R(y2, f(y2)))
+      ),
+      $(exists(x, P(x) /\ X), c1 -> lambda(X, exists(y, Q(y) /\ X)), e2 -> lambda(Seq(X, Y), X <=> exists(x, P(x) /\ Y)), X -> (z === y), P -> lambda(x2, exists(y, R(x2, y) /\ P(x)))) _VS_ exists(
+        x2,
+        exists(y2, R(x2, y2) /\ P(x)) /\ (z === y)
+      ),
+      $(
+        c1(e2(X, P(x))) /\ R(y, f(y)),
+        c1 -> lambda(X, exists(y, Q(y) /\ X)),
+        e2 -> lambda(Seq(X, Y), X <=> exists(x, P(x) /\ Y)),
+        X -> (z === y),
+        P -> lambda(x2, exists(y, R(x2, y) /\ P(x)))
       ) _VS_ (exists(y2, Q(y2) /\ ((z === y) <=> exists(x2, P(x2) /\ exists(y, R(x, y) /\ P(x))))) /\ R(y, f(y))),
-
-      $(forall(x, e2(c1(e2(X, P(x))) /\ R(y, f(y)), exists(x, P(x) /\ X))),
-        c1 -> lambda(X, exists(y, Q(y) /\ X)), e2 -> lambda(Seq(X, Y), X <=> exists(x, P(x) /\ Y)), X -> (z === y), P -> lambda(x2, exists(y, R(x2, y) /\ P(x)))
-      ) _VS_ forall(x3, exists(y2, Q(y2) /\ ((z === y) <=> exists(x2, P(x2) /\ exists(y2, R(x3, y2) /\ P(x))))) /\ R(y, f(y)) <=> exists(x2, P(x2) /\ exists(x2, exists(y2, R(x2, y2) /\ P(x)) /\ (z === y))))
-
+      $(
+        forall(x, e2(c1(e2(X, P(x))) /\ R(y, f(y)), exists(x, P(x) /\ X))),
+        c1 -> lambda(X, exists(y, Q(y) /\ X)),
+        e2 -> lambda(Seq(X, Y), X <=> exists(x, P(x) /\ Y)),
+        X -> (z === y),
+        P -> lambda(x2, exists(y, R(x2, y) /\ P(x)))
+      ) _VS_ forall(
+        x3,
+        exists(y2, Q(y2) /\ ((z === y) <=> exists(x2, P(x2) /\ exists(y2, R(x3, y2) /\ P(x))))) /\ R(y, f(y)) <=> exists(x2, P(x2) /\ exists(x2, exists(y2, R(x2, y2) /\ P(x)) /\ (z === y)))
+      )
     )
 
   }

@@ -201,25 +201,24 @@ trait KernelHelpers {
   given Conversion[String, Term] = FOLParser.parseTerm(_)
   given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
-
   given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
   given Conversion[Formula, LambdaTermFormula] = LambdaTermFormula(Seq(), _)
   given Conversion[Formula, LambdaFormulaFormula] = LambdaFormulaFormula(Seq(), _)
 
   def lambda(x: VariableLabel, t: Term): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x), t)
   def lambda(xs: Seq[VariableLabel], t: Term): FOL.LambdaTermTerm = LambdaTermTerm(xs, t)
-  def lambda(x: VariableLabel, l: LambdaTermTerm): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x)++l.vars, l.body)
-  def lambda(xs: Seq[VariableLabel], l: LambdaTermTerm): FOL.LambdaTermTerm = LambdaTermTerm(xs++l.vars, l.body)
+  def lambda(x: VariableLabel, l: LambdaTermTerm): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x) ++ l.vars, l.body)
+  def lambda(xs: Seq[VariableLabel], l: LambdaTermTerm): FOL.LambdaTermTerm = LambdaTermTerm(xs ++ l.vars, l.body)
 
   def lambda(x: VariableLabel, phi: Formula): FOL.LambdaTermFormula = LambdaTermFormula(Seq(x), phi)
   def lambda(xs: Seq[VariableLabel], phi: Formula): FOL.LambdaTermFormula = LambdaTermFormula(xs, phi)
-  def lambda(x: VariableLabel, l: LambdaTermFormula): FOL.LambdaTermFormula = LambdaTermFormula(Seq(x)++l.vars, l.body)
-  def lambda(xs: Seq[VariableLabel], l: LambdaTermFormula): FOL.LambdaTermFormula = LambdaTermFormula(xs++l.vars, l.body)
+  def lambda(x: VariableLabel, l: LambdaTermFormula): FOL.LambdaTermFormula = LambdaTermFormula(Seq(x) ++ l.vars, l.body)
+  def lambda(xs: Seq[VariableLabel], l: LambdaTermFormula): FOL.LambdaTermFormula = LambdaTermFormula(xs ++ l.vars, l.body)
 
   def lambda(X: VariableFormulaLabel, phi: Formula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Seq(X), phi)
   def lambda(Xs: Seq[VariableFormulaLabel], phi: Formula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Xs, phi)
-  def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Seq(X)++l.vars, l.body)
-  def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Xs++l.vars, l.body)
+  def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
+  def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
 
   def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 

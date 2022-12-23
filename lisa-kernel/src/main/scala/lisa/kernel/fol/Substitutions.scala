@@ -226,7 +226,7 @@ trait Substitutions extends FormulaDefinitions {
           case _ => ConnectorFormula(label, newArgs)
         }
       case BinderFormula(label, bound, inner) =>
-        val newmTerm = mTerm-bound
+        val newmTerm = mTerm - bound
         val fv: Set[VariableLabel] =
           (mCon.flatMap { case (symbol, LambdaFormulaFormula(arguments, body)) => body.freeVariables }).toSet ++
             (mPred.flatMap { case (symbol, LambdaTermFormula(arguments, body)) => body.freeVariables }).toSet ++
