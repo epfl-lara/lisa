@@ -203,6 +203,8 @@ trait KernelHelpers {
 
 
   given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
+  given Conversion[Formula, LambdaTermFormula] = LambdaTermFormula(Seq(), _)
+  given Conversion[Formula, LambdaFormulaFormula] = LambdaFormulaFormula(Seq(), _)
 
   def lambda(x: VariableLabel, t: Term): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x), t)
   def lambda(xs: Seq[VariableLabel], t: Term): FOL.LambdaTermTerm = LambdaTermTerm(xs, t)
