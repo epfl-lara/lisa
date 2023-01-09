@@ -1103,7 +1103,7 @@ object BasicStepTactic {
         case e: UserLisaException =>
           om.lisaThrow(e)
       }
-      if (proof.length == 0)
+      if (iProof.length == 0)
         om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
       iProof.toSCProof
     }
