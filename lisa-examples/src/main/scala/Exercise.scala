@@ -2,7 +2,6 @@ import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Library
-import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
 object Exercise extends lisa.Main {
