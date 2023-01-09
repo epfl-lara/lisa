@@ -172,9 +172,15 @@ trait ProofsHelpers {
     new THM(statement, name.value, line.value, file.value)(computeProof) {}
 
 
+  object The
   class definitionWithVars(val args: Seq[VariableLabel]) {
-    inline def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = definition(lambda(args, t))
-    inline def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = definition(lambda(args, f))
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = definition(lambda(args, t))
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = definition(lambda(args, f))
+
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)
+                        (t:The.type)(out:VariableLabel, f: Formula)(just:theory.Theorem|theory.Axiom) = definition(args, out, f, just)
+
+
   }
 
   def DEF(args:VariableLabel*) = new definitionWithVars(args.toSeq)
