@@ -7,6 +7,7 @@ import lisa.utils.Printer
 object Exercise extends lisa.Main {
 
   val x = variable
+  val y = variable
   val P = predicate(1)
   val f = function(1)
 
@@ -26,6 +27,9 @@ object Exercise extends lisa.Main {
     }
     showCurrentProof()
   }
+  show
+
+  val orderedPair = definition(Seq(x,y) -> unorderedPair(unorderedPair(x,x), unorderedPair(x,y)))
   show
 
 }

@@ -295,7 +295,13 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       case None =>
         val r = formula match {
           case SimplePredicate(id, args, true) =>
-            NormalPredicate(id, args, true)
+            if (id == equality) {
+              if (args(0) == args(1))
+                NormalLiteral(true)
+              else
+                NormalPredicate(id, args.sortBy(_.hashCode()), true)
+            }
+            else NormalPredicate(id, args, true)
           case SimplePredicate(id, args, false) =>
             getInverse(computeNormalForm(getInversePolar(formula)))
           case SimpleSchemConnector(id, args, true) =>

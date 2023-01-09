@@ -24,12 +24,18 @@ abstract class OutputManager {
             tacticException.setStackTrace(tacticException.getStackTrace.take(start))
             output(tacticException.showError)
             finishOutput(tacticException)
+          case defException: UserLisaException.UserInvalidDefinitionException =>
+            output(defException.showError)
+            finishOutput(defException)
           case exception: UserLisaException.UserParsingException => finishOutput(le)
           case _ => finishOutput(le)
         }
 
       case e: LisaException.InvalidKernelJustificationComputation =>
-        output(ProofPrinter.prettyProof(e.proof))
+        e.proof match {
+          case Some(value) => output(ProofPrinter.prettyProof(value))
+          case None => ()
+        }
         e.underlying.show
         finishOutput(e)
 
