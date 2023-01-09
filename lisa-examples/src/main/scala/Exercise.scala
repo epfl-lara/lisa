@@ -29,7 +29,4 @@ object Exercise extends lisa.Main {
   }
   show
 
-  val orderedPair = definition(Seq(x,y) -> unorderedPair(unorderedPair(x,x), unorderedPair(x,y)))
-  show
-
 }
