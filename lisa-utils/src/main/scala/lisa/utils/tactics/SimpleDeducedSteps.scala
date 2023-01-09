@@ -237,39 +237,6 @@ object SimpleDeducedSteps {
 
     }
   }
-  object ByEquiv extends ProofTactic {
-    def apply(using proof: Library#Proof)(f: FOL.Formula, f1: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
-      val leftSequent = proof.getSequent(prem1)
-      val rightSequent = proof.getSequent(prem2)
-
-      f match {
-        case FOL.ConnectorFormula(FOL.Iff, Seq(fl, fr)) =>
-          val pr1 = Seq(leftSequent, rightSequent).find(st => st.right.contains(f1))
-          val pEq = Seq(leftSequent, rightSequent).find(st => st.right.contains(f))
-
-          if (pr1.isEmpty || pEq.isEmpty)
-            return proof.InvalidProofTactic("Input formula is not present in given premises")
-
-          val f2 =
-            if (FOL.isSame(f1, fl)) fr
-            else if (FOL.isSame(f1, fr)) fl
-            else {
-              return proof.InvalidProofTactic("Formulas not the sames")
-            }
-
-          val p2 = SC.Hypothesis(emptySeq +< f1 +> f1, f1)
-          val p3 = SC.Hypothesis(emptySeq +< f2 +> f2, f2)
-          val p4 = SC.LeftImplies(Sequent(Set(f1, f1 ==> f2), Set(f2)), 0, 1, f1, f2) // f1, f1 ==> f2 |- f2
-          val p5 = SC.LeftIff(Sequent(Set(f1, f1 <=> f2), Set(f2)), 2, f1, f2) // f1, f1 <=> f2 |- f2
-          val p6 = SC.Cut(pEq.get.copy(right = pEq.get.right.filterNot(FOL.isSame(_, f1 <=> f2))) -> (f1 <=> f2) +< f1 +> f2, -2, 3, f1 <=> f2) // f1 |- f2, f1
-          val p7 = SC.Cut(p6.bot -< f1 ++ pr1.get -> f1, -1, 4, f1) // () |- f2
-          val p8 = SC.Rewrite(bot, 5)
-          proof.ValidProofTactic(IndexedSeq(p2, p3, p4, p5, p6, p7, p8), Seq(prem1, prem2))
-
-        case _ => proof.InvalidProofTactic("Input formula is not an Iff")
-      }
-    }
-  }
 
   object GeneralizeToForall extends ProofTactic {
     def apply(using proof: Library#Proof)(phi: FOL.Formula, t: FOL.VariableLabel*)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
