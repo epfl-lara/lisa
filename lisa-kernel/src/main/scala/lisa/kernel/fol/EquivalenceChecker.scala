@@ -300,8 +300,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
                 NormalLiteral(true)
               else
                 NormalPredicate(id, args.sortBy(_.hashCode()), true)
-            }
-            else NormalPredicate(id, args, true)
+            } else NormalPredicate(id, args, true)
           case SimplePredicate(id, args, false) =>
             getInverse(computeNormalForm(getInversePolar(formula)))
           case SimpleSchemConnector(id, args, true) =>

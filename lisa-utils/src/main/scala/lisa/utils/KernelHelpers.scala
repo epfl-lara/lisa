@@ -196,7 +196,6 @@ trait KernelHelpers {
 
   }
 
-
   given Conversion[String, Sequent] = FOLParser.parseSequent(_)
   given Conversion[String, Formula] = FOLParser.parseFormula(_)
   given Conversion[String, Term] = FOLParser.parseTerm(_)
@@ -205,15 +204,14 @@ trait KernelHelpers {
   given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
   given Conversion[(VariableLabel, Term), LambdaTermTerm] = a => LambdaTermTerm(Seq(a._1), a._2)
   given Conversion[(Seq[VariableLabel], Term), LambdaTermTerm] = a => LambdaTermTerm(a._1, a._2)
-  
+
   given Conversion[Formula, LambdaTermFormula] = LambdaTermFormula(Seq(), _)
   given Conversion[(VariableLabel, Formula), LambdaTermFormula] = a => LambdaTermFormula(Seq(a._1), a._2)
   given Conversion[(Seq[VariableLabel], Formula), LambdaTermFormula] = a => LambdaTermFormula(a._1, a._2)
-  
+
   given Conversion[Formula, LambdaFormulaFormula] = LambdaFormulaFormula(Seq(), _)
   given Conversion[(VariableFormulaLabel, Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(Seq(a._1), a._2)
   given Conversion[(Seq[VariableFormulaLabel], Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(a._1, a._2)
-
 
   def lambda(x: VariableLabel, t: Term): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x), t)
   def lambda(xs: Seq[VariableLabel], t: Term): FOL.LambdaTermTerm = LambdaTermTerm(xs, t)

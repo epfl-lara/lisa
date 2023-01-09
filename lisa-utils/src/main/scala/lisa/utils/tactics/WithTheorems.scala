@@ -163,7 +163,6 @@ trait WithTheorems extends lisa.utils.TheoriesHelpers {
 
     def asOutsideFact(j: theory.Justification): OutsideFact
 
-
     @nowarn("msg=.*It would fail on pattern case: _: InnerProof.*")
     def depth: Int = this match {
       case p: Proof#InnerProof => 1 + p.parent.depth
@@ -232,12 +231,8 @@ trait WithTheorems extends lisa.utils.TheoriesHelpers {
     override def sequentOfOutsideFact(of: theory.Justification): Sequent = theory.sequentFromJustification(of)
   }
 
-
-  sealed abstract class DefOrThm(using om: OutputManager)
-                                (val line: Int, val file: String)
-  class THM(using om: OutputManager)
-           (statement: Sequent | String, val fullName: String, line: Int, file: String)
-           (computeProof: Proof ?=> Unit) extends DefOrThm(using om)(line, file) {
+  sealed abstract class DefOrThm(using om: OutputManager)(val line: Int, val file: String)
+  class THM(using om: OutputManager)(statement: Sequent | String, val fullName: String, line: Int, file: String)(computeProof: Proof ?=> Unit) extends DefOrThm(using om)(line, file) {
 
     val goal: Sequent = statement match {
       case s: Sequent => s
@@ -286,16 +281,6 @@ trait WithTheorems extends lisa.utils.TheoriesHelpers {
     }
   }
 
-
-  class DEFINITION(using om: OutputManager)
-                  (symbol: ConstantFunctionLabel, line: Int, file: String)
-                  (computeProof: Proof ?=> Unit) extends
-      DefOrThm(using om)(line, file: String)
-
-
-
-
-
-
+  class DEFINITION(using om: OutputManager)(symbol: ConstantFunctionLabel, line: Int, file: String)(computeProof: Proof ?=> Unit) extends DefOrThm(using om)(line, file: String)
 
 }

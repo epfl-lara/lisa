@@ -71,7 +71,7 @@ trait TheoriesHelpers extends KernelHelpers {
     def findUndefinedSymbols(phi: Formula): Set[ConstantLabel] = phi match {
       case PredicateFormula(label, args) =>
         label match {
-          case l: ConstantPredicateLabel => ((if (theory.isSymbol(l))  Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case l: ConstantPredicateLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
           case _ => args.flatMap(findUndefinedSymbols).toSet
         }
       case ConnectorFormula(label, args) => args.flatMap(findUndefinedSymbols).toSet
@@ -87,7 +87,7 @@ trait TheoriesHelpers extends KernelHelpers {
     def findUndefinedSymbols(t: Term): Set[ConstantLabel] = t match {
       case Term(label, args) =>
         label match {
-          case l: ConstantFunctionLabel => ((if (theory.isSymbol(l))  Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case l: ConstantFunctionLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
           case _: SchematicTermLabel => args.flatMap(findUndefinedSymbols).toSet
         }
 
@@ -101,8 +101,6 @@ trait TheoriesHelpers extends KernelHelpers {
      */
     def findUndefinedSymbols(s: Sequent): Set[ConstantLabel] =
       s.left.flatMap(findUndefinedSymbols) ++ s.right.flatMap(findUndefinedSymbols)
-
-
 
   }
 
@@ -201,8 +199,5 @@ trait TheoriesHelpers extends KernelHelpers {
     val judgement = SCProofChecker.checkSCProof(proof)
     output(FOLPrinter.prettySCProof(judgement))
   }
-
-
-
 
 }
