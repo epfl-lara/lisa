@@ -56,9 +56,9 @@ object SimpleDeducedSteps {
    * t is the term to instantiate the quantifier with
    *
    * <pre>
-   *       Γ ⊢ ∀x.ψ, Δ
+   * Γ ⊢ ∀x.ψ, Δ
    * -------------------------
-   *     Γ |- ψ[t/x], Δ
+   * Γ |- ψ[t/x], Δ
    *
    * </pre>
    *
@@ -84,17 +84,17 @@ object SimpleDeducedSteps {
                   val tempVar = FOL.VariableLabel(freshId(psi.freeVariables.map(_.id), x.id))
                   // instantiate the formula with input
                   val in = instantiateBinder(psi, t)
-                  val bot = p.conclusion -> f +> in
+                  val con = p.conclusion -> f +> in
                   // construct proof
                   val p0 = SC.Hypothesis(in |- in, in)
                   val p1 = SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
-                  val p2 = SC.Cut(bot, -1, 1, f)
+                  val p2 = SC.Cut(con, -1, 1, f)
 
                   /**
                    * in  = ψ[t/x]
                    *
                    * s1  = Γ ⊢ ∀x.ψ, Δ        Premise
-                   * bot = Γ ⊢ ψ[t/x], Δ      Result
+                   * con = Γ ⊢ ψ[t/x], Δ      Result
                    *
                    * p0  = ψ[t/x] ⊢ ψ[t/x]    Hypothesis
                    * p1  = ∀x.ψ ⊢ ψ[t/x]      LeftForall p0
@@ -114,7 +114,12 @@ object SimpleDeducedSteps {
 
         res._3 match {
           case proof.InvalidProofTactic(_) => res._3
-          case proof.ValidProofTactic(_, _) => proof.ValidProofTactic(Seq(SC.SCSubproof(res._1, Seq(-1))), Seq(premise))
+          case proof.ValidProofTactic(_, _) => {
+            if (SC.isSameSequent(res._1.conclusion, bot))
+              proof.ValidProofTactic(Seq(SC.SCSubproof(res._1, Seq(-1))), Seq(premise))
+            else
+              proof.InvalidProofTactic(s"InstantiateForall proved \n\t${FOLParser.printSequent(res._1.conclusion)}\ninstead of input sequent\n\t${bot}")
+          }
         }
       }
     }
