@@ -77,7 +77,7 @@ object BasicStepTactic {
         else
           proof.InvalidProofTactic("Inferred cut pivot is not a singleton set.")
       else if (!intersectedCutSet.isEmpty && intersectedCutSet.tail.isEmpty)
-      // can still find a pivot
+        // can still find a pivot
         Cut.withParameters(intersectedCutSet.head)(prem1, prem2)(bot)
       else
         proof.InvalidProofTactic("A consistent cut pivot cannot be inferred from the premises. Possibly a missing or extraneous clause.")
@@ -101,8 +101,8 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of the conclusion is not the same as the right-hand side of the premise.")
       else if (
         !isSameSet(bot.left + phi, premiseSequent.left + phiAndPsi) &&
-          !isSameSet(bot.left + psi, premiseSequent.left + phiAndPsi) &&
-          !isSameSet(bot.left + phi + psi, premiseSequent.left + phiAndPsi)
+        !isSameSet(bot.left + psi, premiseSequent.left + phiAndPsi) &&
+        !isSameSet(bot.left + phi + psi, premiseSequent.left + phiAndPsi)
       )
         proof.InvalidProofTactic("Left-hand side of premise + φ∧ψ is not the same as left-hand side of conclusion + either φ, ψ or both.")
       else
@@ -124,10 +124,10 @@ object BasicStepTactic {
         }
       else
       // try a rewrite, if it works, go ahead with it, otherwise malformed
-        if (SC.isSameSequent(premiseSequent, bot))
-          unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial LeftAnd failed.")
-        else
-          proof.InvalidProofTactic("Left-hand side of premise + φ∧ψ is not the same as left-hand side of conclusion + either φ, ψ or both.")
+      if (SC.isSameSequent(premiseSequent, bot))
+        unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial LeftAnd failed.")
+      else
+        proof.InvalidProofTactic("Left-hand side of premise + φ∧ψ is not the same as left-hand side of conclusion + either φ, ψ or both.")
     }
   }
 
@@ -169,7 +169,7 @@ object BasicStepTactic {
       } else if (pivots.forall(_.tail.isEmpty))
         LeftOr.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
-      // some extraneous formulae
+        // some extraneous formulae
         proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
     }
   }
@@ -235,8 +235,8 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of premise is not the same as right-hand side of conclusion.")
       else if (
         !isSameSet(bot.left + impLeft, premiseSequent.left + implication) &&
-          !isSameSet(bot.left + impRight, premiseSequent.left + implication) &&
-          !isSameSet(bot.left + impLeft + impRight, premiseSequent.left + implication)
+        !isSameSet(bot.left + impRight, premiseSequent.left + implication) &&
+        !isSameSet(bot.left + impLeft + impRight, premiseSequent.left + implication)
       )
         proof.InvalidProofTactic("Left-hand side of premise + φ↔ψ is not the same as left-hand side of conclusion + either φ→ψ, ψ→φ or both.")
       else
@@ -503,7 +503,7 @@ object BasicStepTactic {
       } else if (pivots.forall(_.tail.isEmpty))
         RightAnd.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
-      // some extraneous formulae
+        // some extraneous formulae
         proof.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")
     }
   }
@@ -524,8 +524,8 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Left-hand side of the premise is not the same as the left-hand side of the conclusion.")
       else if (
         !isSameSet(bot.right + phi, premiseSequent.right + phiAndPsi) &&
-          !isSameSet(bot.right + psi, premiseSequent.right + phiAndPsi) &&
-          !isSameSet(bot.right + phi + psi, premiseSequent.right + phiAndPsi)
+        !isSameSet(bot.right + psi, premiseSequent.right + phiAndPsi) &&
+        !isSameSet(bot.right + phi + psi, premiseSequent.right + phiAndPsi)
       )
         proof.InvalidProofTactic("Right-hand side of premise + φ∧ψ is not the same as right-hand side of conclusion + either φ, ψ or both.")
       else
@@ -547,10 +547,10 @@ object BasicStepTactic {
         }
       else
       // try a rewrite, if it works, go ahead with it, otherwise malformed
-        if (SC.isSameSequent(premiseSequent, bot))
-          unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for RightOr failed.")
-        else
-          proof.InvalidProofTactic("Right-hand side of conclusion + φ∧ψ is not the same as right-hand side of premise + either φ, ψ or both.")
+      if (SC.isSameSequent(premiseSequent, bot))
+        unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for RightOr failed.")
+      else
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ∧ψ is not the same as right-hand side of premise + either φ, ψ or both.")
     }
   }
 
@@ -581,7 +581,7 @@ object BasicStepTactic {
 
       if (
         !leftPivot.isEmpty && leftPivot.tail.isEmpty &&
-          !rightPivot.isEmpty && rightPivot.tail.isEmpty
+        !rightPivot.isEmpty && rightPivot.tail.isEmpty
       )
         RightImplies.withParameters(leftPivot.head, rightPivot.head)(premise)(bot)
       else
@@ -957,7 +957,7 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
       else if (
         !isSameSet(bot.left + phi_s, premiseSequent.left ++ equalities + phi_t) &&
-          !isSameSet(bot.left + phi_t, premiseSequent.left ++ equalities + phi_s)
+        !isSameSet(bot.left + phi_t, premiseSequent.left ++ equalities + phi_s)
       )
         proof.InvalidProofTactic("Left-hand side of the conclusion + φ(s_) is not the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped).")
       else
@@ -984,7 +984,7 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (s=t)_.")
       else if (
         !isSameSet(bot.right + phi_s, premiseSequent.right + phi_t) &&
-          !isSameSet(bot.right + phi_t, premiseSequent.right + phi_s)
+        !isSameSet(bot.right + phi_t, premiseSequent.right + phi_s)
       )
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
       else
@@ -1011,7 +1011,7 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
       else if (
         !isSameSet(bot.left + phi_psi, premiseSequent.left ++ implications + phi_tau) &&
-          !isSameSet(bot.left + phi_tau, premiseSequent.left ++ implications + phi_psi)
+        !isSameSet(bot.left + phi_tau, premiseSequent.left ++ implications + phi_psi)
       )
         proof.InvalidProofTactic("Left-hand side of the conclusion + φ(ψ_) is not the same as left-hand side of the premise + (ψ ↔ τ)_ + φ(τ_) (or with ψ_ and τ_ swapped).")
       else
@@ -1038,7 +1038,7 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ↔ τ)_.")
       else if (
         !isSameSet(bot.right + phi_psi, premiseSequent.right + phi_tau) &&
-          !isSameSet(bot.right + phi_tau, premiseSequent.right + phi_psi)
+        !isSameSet(bot.right + phi_tau, premiseSequent.right + phi_psi)
       )
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(ψ_) is not the same as right-hand side of the premise + φ(τ_) (or with ψ_ and τ_ swapped).")
       else
@@ -1087,7 +1087,7 @@ object BasicStepTactic {
   }
 
   class SUBPROOF(using val proof: Library#Proof, om: OutputManager)(statement: Sequent | String, val line: sourcecode.Line, val file: sourcecode.File)(computeProof: proof.InnerProof ?=> Unit)
-    extends ProofTactic {
+      extends ProofTactic {
     val bot: Sequent = statement match {
       case s: Sequent => s
       case s: String => lisa.utils.FOLParser.parseSequent(s)
