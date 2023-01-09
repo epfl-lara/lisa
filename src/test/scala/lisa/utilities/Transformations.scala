@@ -85,7 +85,7 @@ class Transformations extends ProofCheckerSuite {
     val y = VariableLabel("y")
 
     val intro = Rewrite(() |- phi(), -1)
-    val outro = InstPredSchema(() |- psi(x, y), 0, Map((phi, LambdaTermFormula(Seq(), psi(x, y)))))
+    val outro = InstSchema(() |- psi(x, y), 0, Map.empty, Map((phi, LambdaTermFormula(Seq(), psi(x, y)))), Map.empty)
     val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
     val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
     checkProof(transf)
@@ -102,8 +102,8 @@ class Transformations extends ProofCheckerSuite {
     val y = VariableLabel("y")
 
     val intro = Rewrite(() |- phi(), -1)
-    val mid = InstPredSchema(() |- psi(x, y) <=> phi(), 0, Map((phi, LambdaTermFormula(Seq(), psi(x, y) <=> phi()))))
-    val outro = InstPredSchema(() |- psi(x, y) <=> lambda(x, y), 1, Map((phi, LambdaTermFormula(Seq(), lambda(x, y)))))
+    val mid = InstSchema(() |- psi(x, y) <=> phi(), 0, Map.empty, Map((phi, LambdaTermFormula(Seq(), psi(x, y) <=> phi()))), Map.empty)
+    val outro = InstSchema(() |- psi(x, y) <=> lambda(x, y), 1, Map.empty, Map((phi, LambdaTermFormula(Seq(), lambda(x, y)))), Map.empty)
     val weak = Weakening((psi(x, y)) |- psi(x, y) <=> lambda(x, y), 2)
     val noImpProof = SCProof(IndexedSeq(intro, mid, outro, weak), IndexedSeq(intro.bot))
     val transf = lisa.utilities.prooftransform.ProofUnconditionalizer(noImpProof).transform()
@@ -120,7 +120,7 @@ class Transformations extends ProofCheckerSuite {
     val y = VariableLabel("y")
 
     val intro = Rewrite(() |- phi(), -1)
-    val outro = InstPredSchema(() |- psi(x, y), 0, Map((phi, LambdaTermFormula(Seq(), psi(x, y)))))
+    val outro = InstSchema(() |- psi(x, y), 0, Map.empty, Map((phi, LambdaTermFormula(Seq(), psi(x, y)))), Map.empty)
     val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq(intro.bot))
     val transf = lisa.utilities.prooftransform.ProofInstantiationRemover(noImpProof).transform()
 

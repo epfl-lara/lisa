@@ -851,7 +851,7 @@ object BasicStepTactic {
       if (!isSubset(premiseSequent.left, bot.left))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise.")
       else if (!isSubset(premiseSequent.right, bot.right))
-        proof.InvalidProofTactic("Left-hand side of premise is not a subset of left-hand side of conclusion.")
+        proof.InvalidProofTactic("Right-hand side of premise is not a subset of right-hand side of conclusion.")
       else
         proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
     }
@@ -1062,7 +1062,7 @@ object BasicStepTactic {
       else if (!isSameSet(bot.right, premiseSequent.right.map(instantiateTermSchemas(_, insts))))
         proof.InvalidProofTactic("Right-hand side of premise instantiated with the map 'insts' is not the same as right-hand side of conclusion.")
       else
-        proof.ValidProofTactic(Seq(SC.InstFunSchema(bot, -1, insts)), Seq(premise))
+        proof.ValidProofTactic(Seq(SC.InstSchema(bot, -1, Map.empty, Map.empty, insts)), Seq(premise))
     }
   }
 
@@ -1082,7 +1082,7 @@ object BasicStepTactic {
       else if (!isSameSet(bot.right, premiseSequent.right.map(instantiatePredicateSchemas(_, insts))))
         proof.InvalidProofTactic("Right-hand side of premise instantiated with the map 'insts' is not the same as right-hand side of conclusion.")
       else
-        proof.ValidProofTactic(Seq(SC.InstPredSchema(bot, -1, insts)), Seq(premise))
+        proof.ValidProofTactic(Seq(SC.InstSchema(bot, -1, Map.empty, insts, Map.empty)), Seq(premise))
     }
   }
 
