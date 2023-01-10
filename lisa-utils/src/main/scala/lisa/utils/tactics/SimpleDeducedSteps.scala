@@ -12,8 +12,8 @@ import lisa.utils.Helpers.{_, given}
 import lisa.utils.Library
 import lisa.utils.LisaException
 import lisa.utils.OutputManager
+import lisa.utils.Printer
 import lisa.utils.tactics.ProofTacticLib.{_, given}
-
 object SimpleDeducedSteps {
 
   object Restate extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
@@ -56,9 +56,9 @@ object SimpleDeducedSteps {
    * t is the term to instantiate the quantifier with
    *
    * <pre>
-   *       Γ ⊢ ∀x.ψ, Δ
+   * Γ ⊢ ∀x.ψ, Δ
    * -------------------------
-   *     Γ |- ψ[t/x], Δ
+   * Γ |- ψ[t/x], Δ
    *
    * </pre>
    *
@@ -215,4 +215,94 @@ object SimpleDeducedSteps {
     }
   }
 
+  object destructRightAnd extends ProofTactic {
+    def apply(using proof: Library#Proof)(a: FOL.Formula, b: FOL.Formula)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      val conc = proof.getSequent(prem)
+      val p0 = SC.Hypothesis(emptySeq +< a +> a, a)
+      val p1 = SC.LeftAnd(emptySeq +< (a /\ b) +> a, 0, a, b)
+      val p2 = SC.Cut(conc -> (a /\ b) -> (b /\ a) +> a, -1, 1, a /\ b)
+      proof.ValidProofTactic(IndexedSeq(p0, p1, p2), Seq(prem))
+    }
+  }
+  object destructRightOr extends ProofTactic {
+    def apply(using proof: Library#Proof)(a: FOL.Formula, b: FOL.Formula)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      val conc = proof.getSequent(prem)
+      val mat = conc.right.find(f => FOL.isSame(f, a \/ b))
+      if (mat.nonEmpty) {
+
+        val p0 = SC.Hypothesis(emptySeq +< a +> a, a)
+        val p1 = SC.Hypothesis(emptySeq +< b +> b, b)
+
+        val p2 = SC.LeftOr(emptySeq +< (a \/ b) +> a +> b, Seq(0, 1), Seq(a, b))
+        val p3 = SC.Cut(conc -> mat.get +> a +> b, -1, 2, a \/ b)
+        proof.ValidProofTactic(IndexedSeq(p0, p1, p2, p3), Seq(prem))
+      } else {
+        proof.InvalidProofTactic("Premise does not contain the union of the given formulas")
+      }
+
+    }
+  }
+
+  object GeneralizeToForall extends ProofTactic {
+    def apply(using proof: Library#Proof)(phi: FOL.Formula, t: FOL.VariableLabel*)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      val sequent = proof.getSequent(prem)
+      if (sequent.right.contains(phi)) {
+        val emptyProof = SCProof(IndexedSeq(), IndexedSeq(sequent))
+        val j = proof.ValidProofTactic(IndexedSeq(SC.Rewrite(sequent, proof.length - 1)), Seq[proof.Fact]())
+
+        val res = t.foldRight(emptyProof: SCProof, phi: FOL.Formula, j: proof.ProofTacticJudgement) { case (x1, (p1: SCProof, phi1, j1)) =>
+          j1 match {
+            case proof.InvalidProofTactic(_) => (p1, phi1, j1)
+            case proof.ValidProofTactic(_, _) => {
+              if (!p1.conclusion.right.contains(phi1))
+                (p1, phi1, proof.InvalidProofTactic("Formula is not present in the lass sequent"))
+
+              val proofStep = SC.RightForall(p1.conclusion -> phi1 +> forall(x1, phi1), p1.length - 1, phi1, x1)
+              (
+                p1 appended proofStep,
+                forall(x1, phi1),
+                j1
+              )
+            }
+          }
+        }
+
+        res._3 match {
+          case proof.InvalidProofTactic(_) => res._3
+          case proof.ValidProofTactic(_, _) => proof.ValidProofTactic((res._1.steps appended SC.Rewrite(bot, res._1.length - 1)), Seq(prem))
+        }
+
+      } else proof.InvalidProofTactic("RHS of premise sequent contains not phi")
+
+    }
+  }
+
+  object GeneralizeToForallNoForm extends ProofTactic {
+    def apply(using proof: Library#Proof)(t: FOL.VariableLabel*)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      if (proof.getSequent(prem).right.tail.isEmpty)
+        GeneralizeToForall.apply(using proof)(proof.getSequent(prem).right.head, t*)(prem)(bot): proof.ProofTacticJudgement
+      else
+        proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
+    }
+
+  }
+
+  object ByCase extends ProofTactic {
+    def apply(using proof: Library#Proof)(phi: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      val nphi = !phi
+
+      val pa = proof.getSequent(prem1)
+      val pb = proof.getSequent(prem2)
+      val (leftAphi, leftBnphi) = (pa.left.find(FOL.isSame(_, phi)), pb.left.find(FOL.isSame(_, nphi)))
+      if (leftAphi.nonEmpty && leftBnphi.nonEmpty) {
+        val p2 = SC.RightNot(pa -< leftAphi.get +> nphi, -1, phi)
+        val p3 = SC.Cut(pa -< leftAphi.get ++ (pb -< leftBnphi.get), 0, -2, nphi)
+        val p4 = SC.Rewrite(bot, 1)
+        proof.ValidProofTactic(IndexedSeq(p2, p3, p4), IndexedSeq(prem1, prem2)) // TODO: Check pa/pb orDer
+
+      } else {
+        proof.InvalidProofTactic("Premises have not the right syntax")
+      }
+    }
+  }
 }

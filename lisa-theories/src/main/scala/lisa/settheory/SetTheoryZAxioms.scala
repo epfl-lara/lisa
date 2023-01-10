@@ -13,15 +13,15 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
   private final val sPhi = SchematicPredicateLabel("P", 2)
 
-  final val emptySetAxiom: Formula = forall(x, !in(x, emptySet()))
-  final val extensionalityAxiom: Formula = forall(x, forall(y, forall(z, in(z, x) <=> in(z, y)) <=> (x === y)))
-  final val subsetAxiom: Formula = forall(x, forall(y, subset(x, y) <=> forall(z, in(z, x) ==> in(z, y))))
-  final val pairAxiom: Formula = forall(x, forall(y, forall(z, in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z))))
-  final val unionAxiom: Formula = forall(x, forall(z, in(x, union(z)) <=> exists(y, in(x, y) /\ in(y, z))))
-  final val powerAxiom: Formula = forall(x, forall(y, in(x, powerSet(y)) <=> subset(x, y)))
-  final val foundationAxiom: Formula = forall(x, !(x === emptySet()) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
+  final val emptySetAxiom: Formula = !in(x, emptySet())
+  final val extensionalityAxiom: Formula = forall(z, in(z, x) <=> in(z, y)) <=> (x === y)
+  final val subsetAxiom: Formula = subset(x, y) <=> forall(z, in(z, x) ==> in(z, y))
+  final val pairAxiom: Formula = in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z)
+  final val unionAxiom: Formula = in(x, union(z)) <=> exists(y, in(x, y) /\ in(y, z))
+  final val powerAxiom: Formula = in(x, powerSet(y)) <=> subset(x, y)
+  final val foundationAxiom: Formula = !(x === emptySet()) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y)))
 
-  final val comprehensionSchema: Formula = forall(z, exists(y, forall(x, in(x, y) <=> (in(x, z) /\ sPhi(x, z)))))
+  final val comprehensionSchema: Formula = exists(y, forall(x, in(x, y) <=> (in(x, z) /\ sPhi(x, z))))
 
   private val zAxioms: Set[(String, Formula)] = Set(
     ("EmptySet", emptySetAxiom),

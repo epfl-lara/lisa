@@ -130,8 +130,7 @@ case class ProofInstantiationRemover(pr: SCProof) extends ProofTransformer(pr) {
    * @return whether the given step is an Instantiation tha thas a link to an import
    */
   private def isInst(step: SCProofStep): Boolean = step match {
-    case InstPredSchema(_, t, _) if !neg_premises.getOrElse(step, Seq.empty).isEmpty => true
-    case InstFunSchema(_, t, _) if !neg_premises.getOrElse(step, Seq.empty).isEmpty => true
+    case InstSchema(_, t, _, _, _) if neg_premises.getOrElse(step, Seq.empty).nonEmpty => true
     case _ => false
   }
 
@@ -276,16 +275,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
   protected def mapStep(pS: SCProofStep, f: Set[Formula] => Set[Formula], fi: Seq[Int] => Seq[Int] = identity, fsub: Seq[Sequent] = Nil): SCProofStep = pS match {
     case Rewrite(bot, t1) => Rewrite(f(bot.left) |- bot.right, fi(pS.premises).head)
     case RewriteTrue(bot) => RewriteTrue(f(bot.left) |- bot.right)
-    case Hypothesis(bot, phi) => Hypothesis(f(bot.left) |- bot.right, phi)
-    case Cut(bot, t1, t2, phi) => Cut(f(bot.left) |- bot.right, fi(pS.premises).head, fi(pS.premises).last, phi)
-    case LeftAnd(bot, t1, phi, psi) => LeftAnd(f(bot.left) |- bot.right, fi(pS.premises).head, phi, psi)
-    case LeftOr(bot, t, disjuncts) => LeftOr(f(bot.left) |- bot.right, fi(t), disjuncts)
-    case LeftImplies(bot, t1, t2, phi, psi) => LeftImplies(f(bot.left) |- bot.right, fi(pS.premises).head, t2, phi, psi)
-    case LeftIff(bot, t1, phi, psi) => LeftIff(f(bot.left) |- bot.right, fi(pS.premises).head, phi, psi)
-    case LeftNot(bot, t1, phi) => LeftNot(f(bot.left) |- bot.right, fi(pS.premises).head, phi)
-    case LeftForall(bot, t1, phi, x, t) => LeftForall(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x, t)
     case LeftExists(bot, t1, phi, x) => LeftExists(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x)
-    case LeftExistsOne(bot, t1, phi, x) => LeftExistsOne(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x)
     case RightAnd(bot, t, cunjuncts) => RightAnd(f(bot.left) |- bot.right, fi(t), cunjuncts)
     case RightOr(bot, t1, phi, psi) => RightOr(f(bot.left) |- bot.right, fi(pS.premises).head, phi, psi)
     case RightImplies(bot, t1, phi, psi) => RightImplies(f(bot.left) |- bot.right, fi(pS.premises).head, phi, psi)
@@ -301,8 +291,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
     case RightSubstEq(bot, t1, equals, lambdaPhi) => RightSubstEq(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
     case LeftSubstIff(bot, t1, equals, lambdaPhi) => LeftSubstIff(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
     case RightSubstIff(bot, t1, equals, lambdaPhi) => RightSubstIff(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
-    case InstFunSchema(bot, t1, insts) => InstFunSchema(instantiateFunctionSchemaInSequent(f(bot.left) |- bot.right, insts).left |- bot.right, fi(pS.premises).head, insts)
-    case InstPredSchema(bot, t1, insts) => InstPredSchema(instantiatePredicateSchemaInSequent(f(bot.left) |- bot.right, insts).left |- bot.right, fi(pS.premises).head, insts)
+    case InstSchema(bot, t1, mCon, mPred, mTerm) => InstSchema(instantiateSchemaInSequent(f(bot.left) |- bot.right, mCon, mPred, mTerm).left |- bot.right, fi(pS.premises).head, mCon, mPred, mTerm)
     case SCSubproof(pp, t) => {
       SCSubproof(ProofUnconditionalizer(pp).transformPrivate(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t))
     }

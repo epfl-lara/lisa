@@ -173,7 +173,7 @@ trait Substitutions extends FormulaDefinitions {
    * Instantiate a schematic connector symbol in a formula, using higher-order instantiation.
    *
    * @param phi The base formula
-   * @param m The map from schematic function symbols to lambda expressions Formula(s) -> Formula [[LambdaFormulaFormula]].
+   * @param m   The map from schematic function symbols to lambda expressions Formula(s) -> Formula [[LambdaFormulaFormula]].
    * @return phi[m]
    */
   def instantiateConnectorSchemas(phi: Formula, m: Map[SchematicConnectorLabel, LambdaFormulaFormula]): Formula = {
@@ -181,9 +181,10 @@ trait Substitutions extends FormulaDefinitions {
     phi match {
       case _: PredicateFormula => phi
       case ConnectorFormula(label, args) =>
+        val newArgs = args.map(instantiateConnectorSchemas(_, m))
         label match {
-          case label: SchematicConnectorLabel if m.contains(label) => m(label)(args)
-          case _ => ConnectorFormula(label, args.map(instantiateConnectorSchemas(_, m)))
+          case label: SchematicConnectorLabel if m.contains(label) => m(label)(newArgs)
+          case _ => ConnectorFormula(label, newArgs)
         }
       case BinderFormula(label, bound, inner) =>
         val fv: Set[VariableLabel] = (m.flatMap { case (symbol, LambdaFormulaFormula(arguments, body)) => body.freeVariables }).toSet
@@ -192,6 +193,49 @@ trait Substitutions extends FormulaDefinitions {
           val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiateConnectorSchemas(newInner, m))
         } else BinderFormula(label, bound, instantiateConnectorSchemas(inner, m))
+    }
+  }
+
+  /**
+   * Instantiate a schematic connector symbol in a formula, using higher-order instantiation.
+   *
+   * @param phi The base formula
+   * @param m   The map from schematic function symbols to lambda expressions Formula(s) -> Formula [[LambdaFormulaFormula]].
+   * @return phi[m]
+   */
+  def instantiateSchemas(
+      phi: Formula,
+      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
+  ): Formula = {
+    require(mCon.forall { case (symbol, LambdaFormulaFormula(arguments, body)) => arguments.length == symbol.arity })
+    require(mPred.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
+    require(mTerm.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
+    phi match {
+      case PredicateFormula(label, args) =>
+        val newArgs = args.map(a => instantiateTermSchemas(a, mTerm))
+        label match {
+          case label: SchematicVarOrPredLabel if mPred.contains(label) => mPred(label)(newArgs)
+          case _ => PredicateFormula(label, newArgs)
+        }
+      case ConnectorFormula(label, args) =>
+        val newArgs = args.map(a => instantiateSchemas(a, mCon, mPred, mTerm))
+        label match {
+          case label: SchematicConnectorLabel if mCon.contains(label) => mCon(label)(newArgs)
+          case _ => ConnectorFormula(label, newArgs)
+        }
+      case BinderFormula(label, bound, inner) =>
+        val newmTerm = mTerm - bound
+        val fv: Set[VariableLabel] =
+          (mCon.flatMap { case (symbol, LambdaFormulaFormula(arguments, body)) => body.freeVariables }).toSet ++
+            (mPred.flatMap { case (symbol, LambdaTermFormula(arguments, body)) => body.freeVariables }).toSet ++
+            (mTerm.flatMap { case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }).toSet
+        if (fv.contains(bound)) {
+          val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
+          val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
+          BinderFormula(label, newBoundVariable, instantiateSchemas(newInner, mCon, mPred, newmTerm))
+        } else BinderFormula(label, bound, instantiateSchemas(inner, mCon, mPred, newmTerm))
     }
   }
 

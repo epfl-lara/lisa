@@ -1,5 +1,6 @@
 package lisa.utils
 
+import lisa.kernel.fol.FOL
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
@@ -152,8 +153,18 @@ trait KernelHelpers {
   def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
+
   def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {
     s.left.map(phi => instantiateTermSchemas(phi, m)) |- s.right.map(phi => instantiateTermSchemas(phi, m))
+  }
+
+  def instantiateSchemaInSequent(
+      s: Sequent,
+      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
+  ): Sequent = {
+    s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))
   }
 
   extension (sp: SCSubproof) {
@@ -190,14 +201,32 @@ trait KernelHelpers {
   given Conversion[String, Term] = FOLParser.parseTerm(_)
   given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
-  def lambda(x: VariableLabel, t: Term) = LambdaTermTerm(Seq(x), t)
-  def lambda(xs: Seq[VariableLabel], t: Term) = LambdaTermTerm(xs, t)
+  given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
+  given Conversion[(VariableLabel, Term), LambdaTermTerm] = a => LambdaTermTerm(Seq(a._1), a._2)
+  given Conversion[(Seq[VariableLabel], Term), LambdaTermTerm] = a => LambdaTermTerm(a._1, a._2)
 
-  def lambda(x: VariableLabel, phi: Formula) = LambdaTermFormula(Seq(x), phi)
-  def lambda(xs: Seq[VariableLabel], phi: Formula) = LambdaTermFormula(xs, phi)
+  given Conversion[Formula, LambdaTermFormula] = LambdaTermFormula(Seq(), _)
+  given Conversion[(VariableLabel, Formula), LambdaTermFormula] = a => LambdaTermFormula(Seq(a._1), a._2)
+  given Conversion[(Seq[VariableLabel], Formula), LambdaTermFormula] = a => LambdaTermFormula(a._1, a._2)
 
-  def lambda(X: VariableFormulaLabel, phi: Formula) = LambdaFormulaFormula(Seq(X), phi)
-  def lambda(Xs: Seq[VariableFormulaLabel], phi: Formula) = LambdaFormulaFormula(Xs, phi)
+  given Conversion[Formula, LambdaFormulaFormula] = LambdaFormulaFormula(Seq(), _)
+  given Conversion[(VariableFormulaLabel, Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(Seq(a._1), a._2)
+  given Conversion[(Seq[VariableFormulaLabel], Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(a._1, a._2)
+
+  def lambda(x: VariableLabel, t: Term): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x), t)
+  def lambda(xs: Seq[VariableLabel], t: Term): FOL.LambdaTermTerm = LambdaTermTerm(xs, t)
+  def lambda(x: VariableLabel, l: LambdaTermTerm): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x) ++ l.vars, l.body)
+  def lambda(xs: Seq[VariableLabel], l: LambdaTermTerm): FOL.LambdaTermTerm = LambdaTermTerm(xs ++ l.vars, l.body)
+
+  def lambda(x: VariableLabel, phi: Formula): FOL.LambdaTermFormula = LambdaTermFormula(Seq(x), phi)
+  def lambda(xs: Seq[VariableLabel], phi: Formula): FOL.LambdaTermFormula = LambdaTermFormula(xs, phi)
+  def lambda(x: VariableLabel, l: LambdaTermFormula): FOL.LambdaTermFormula = LambdaTermFormula(Seq(x) ++ l.vars, l.body)
+  def lambda(xs: Seq[VariableLabel], l: LambdaTermFormula): FOL.LambdaTermFormula = LambdaTermFormula(xs ++ l.vars, l.body)
+
+  def lambda(X: VariableFormulaLabel, phi: Formula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Seq(X), phi)
+  def lambda(Xs: Seq[VariableFormulaLabel], phi: Formula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Xs, phi)
+  def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
+  def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
 
   def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 
