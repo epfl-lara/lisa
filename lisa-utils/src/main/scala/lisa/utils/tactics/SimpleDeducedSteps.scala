@@ -3,7 +3,6 @@ package lisa.utils.tactics
 import lisa.kernel.fol.FOL
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SequentCalculus.RewriteTrue
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
@@ -14,17 +13,19 @@ import lisa.utils.LisaException
 import lisa.utils.OutputManager
 import lisa.utils.Printer
 import lisa.utils.tactics.ProofTacticLib.{_, given}
+import lisa.utils.tactics.BasicStepTactic.{_}
+
 object SimpleDeducedSteps {
 
   object Restate extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement =
-      proof.ValidProofTactic(Seq(SC.RewriteTrue(bot)), Nil)
+      unwrapTactic(RewriteTrue(bot))("Attempted true rewrite during tactic Restate failed.")
 
     // (proof.ProofStep | proof.OutsideFact | Int)     is definitionally equal to proof.Fact, but for some reason
     // scala compiler doesn't resolve the overload with a type alias, dependant type and implicit parameter
 
     def apply(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
-      proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+      unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
 
   }
 

@@ -41,6 +41,15 @@ object BasicStepTactic {
     }
   }
 
+  object RewriteTrue extends ProofTactic with ParameterlessHave {
+    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+      if (!SC.isSameSequent(bot, () |- PredicateFormula(top, Nil)))
+        proof.InvalidProofTactic("The desired conclusion is not a trivial tautology.")
+      else
+        proof.ValidProofTactic(Seq(SC.RewriteTrue(bot)), Seq())
+    }
+  }
+
   /**
    * <pre>
    *  Γ |- Δ, φ    φ, Σ |- Π
