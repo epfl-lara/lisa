@@ -21,6 +21,7 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     val incorrect = List(
       ("'P('x) |- "),
+      (" |- "),
       (" |- 'P('x)"),
       (" |- 'P('x); 'Q('x)"),
       ("'Q('x) |- ")
@@ -48,6 +49,28 @@ class BasicTacticTest extends ProofTacticTestLib {
     testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
       val prem = introduceSequent(stmt1)
       Rewrite(prem)(stmt2)
+    }
+  }
+
+  // rewrite true
+  test("Tactic Tests: Rewrite True") {
+    val correct = List(
+      ("'P('x); 'Q('x) |- 'P('x); 'Q('x)"),
+      ("'P('x) |- 'P('x); 'Q('x)"),
+      ("'P('x); 'Q('x) |- 'Q('x)"),
+      ("'P('x) |- 'P('x)"),
+      ("'P('x); 'Q('x) |- 'P('x); 'R('x)")
+    )
+
+    val incorrect = List(
+      ("'R('x) |- 'P('x); 'Q('x)"),
+      ("'P('x); 'S('x) |- 'Q('x)"),
+      ("'Q('x) |- 'P('x)"),
+      (" |- ")
+    )
+
+    testTacticCases(correct, incorrect) {
+      RewriteTrue(_)
     }
   }
 

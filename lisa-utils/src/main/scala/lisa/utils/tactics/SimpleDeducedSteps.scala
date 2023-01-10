@@ -12,8 +12,8 @@ import lisa.utils.Library
 import lisa.utils.LisaException
 import lisa.utils.OutputManager
 import lisa.utils.Printer
-import lisa.utils.tactics.ProofTacticLib.{_, given}
 import lisa.utils.tactics.BasicStepTactic.{_}
+import lisa.utils.tactics.ProofTacticLib.{_, given}
 
 object SimpleDeducedSteps {
 
