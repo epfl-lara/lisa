@@ -143,7 +143,7 @@ class RunningTheory {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label)) {
-        if (body.freeSchematicTermLabels.subsetOf((vars appended out).toSet) && body.schematicPredicateLabels.isEmpty) {
+        if (body.freeSchematicTermLabels.subsetOf((vars appended out).toSet) && body.schematicFormulaLabels.isEmpty) {
           if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
             val r = SCProofChecker.checkSCProof(proof)
             r match {
@@ -163,10 +163,6 @@ class RunningTheory {
             }
           } else InvalidJustification("Not all imports of the proof are correctly justified.", None)
         } else {
-          println(body.schematicTermLabels.subsetOf((vars appended out).toSet))
-          println(body.schematicTermLabels)
-          println((vars appended out).toSet)
-          println(body.schematicPredicateLabels.isEmpty)
           InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
         }
       } else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
