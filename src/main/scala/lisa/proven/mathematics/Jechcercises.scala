@@ -143,16 +143,10 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
         have(() |- !(X === emptySet()) ==> exists(y, in(y, X) /\ forall(z, in(z, X) ==> !in(z, y)))) by InstantiateForall(X)(ax"foundationAxiom")
         val lhs = andThen(!(X === emptySet()) |- exists(y, in(y, X) /\ forall(z, in(z, X) ==> !in(z, y)))) by Restate
 
-        have(Set(in(y, X), (in(z, X) ==> !in(z, y))) |- in(z, X) ==> !in(z, y)) by Hypothesis
-        andThen(in(y, X) /\ (in(z, X) ==> !in(z, y)) |- in(z, X) ==> !in(z, y)) by Restate
-        andThen(Set(in(x, X) /\ (in(z, X) ==> !in(z, x)), x === y) |- in(z, X) ==> !in(z, y)) by LeftSubstEq(List((y, x)), lambda(Seq(y), in(y, X) /\ (in(z, X) ==> !in(z, y))))
-        val innerLhs = andThen(Set(in(x, X) /\ (in(z, X) ==> !in(z, x)), x === y) |- in(z, X) ==> !in(z, x)) by RightSubstEq(List((y, x)), lambda(Seq(y), in(z, X) ==> !in(z, y)))
-
         have(in(y, X) |- in(y, X) <=> (x === y)) by Weakening(thm"singletonHasNoExtraElements")
         val innerRhs = andThen(in(y, X) |- (x === y)) by Trivial
 
-        have(Set(in(x, X) /\ (in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by Cut(innerRhs, innerLhs)
-        andThen(Set(in(x, X), (in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by Restate
+        have(Set(in(x, X), (in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by Hypothesis
         andThen(Set(in(x, X), forall(z, in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by LeftForall(z)
         andThen(Set(in(x, X), forall(z, in(z, X) ==> !in(z, x)), in(x, X)) |- in(x, X) ==> !in(x, x)) by InstFunSchema(Map(z -> lambda(Seq(), x), y -> lambda(Seq(), x)))
         val coreRhs = andThen(in(x, X) /\ forall(z, in(z, X) ==> !in(z, x)) |- !in(x, x)) by Restate
