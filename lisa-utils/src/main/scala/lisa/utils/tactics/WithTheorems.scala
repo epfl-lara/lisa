@@ -281,7 +281,6 @@ trait WithTheorems extends lisa.utils.TheoriesHelpers {
     }
   }
 
-
   given Conversion[library.THM, theory.Theorem] = _.innerThm
 
 }

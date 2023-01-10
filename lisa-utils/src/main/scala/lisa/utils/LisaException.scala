@@ -46,12 +46,12 @@ object LisaException {
 /**
  * Error made by the user, should be "explained"
  */
-abstract class UserLisaException(var errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends LisaException(errorMessage){
-  def fixTrace():Unit = ()
+abstract class UserLisaException(var errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends LisaException(errorMessage) {
+  def fixTrace(): Unit = ()
 }
 object UserLisaException {
   class UnapplicableProofTactic(val tactic: ProofTactic, proof: Library#Proof, errorMessage: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
-    override def fixTrace() : Unit = {
+    override def fixTrace(): Unit = {
       val start = getStackTrace.indexWhere(elem => {
         !elem.getClassName.contains(tactic.name)
       }) + 1
