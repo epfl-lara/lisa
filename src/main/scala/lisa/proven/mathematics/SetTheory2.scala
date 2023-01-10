@@ -79,6 +79,39 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   // other theorems I want to prove:
   // () |- union(singleton(x)) = x
+
+  /**
+   * Chapter 1
+   */
+
+  val russelsParadox = makeTHM(
+    exists(x, forall(y, ! in(y, y) <=> in(y, x))) |- ()
+  ) {
+    have(forall(y, ! in(y, y) <=> in(y, x)) |- forall(y, ! in(y, y) <=> in(y, x))) by Hypothesis
+    andThen(forall(y, ! in(y, y) <=> in(y, x)) |- (!in(x, x)) <=> in(x, x)) by InstantiateForall(x)
+    andThen(forall(y, ! in(y, y) <=> in(y, x)) |- ()) by Rewrite
+    andThen(exists(x, forall(y, ! in(y, y) <=> in(y, x))) |- ()) by LeftExists
+  }
+  show
+
+  val noUniversalSet = makeTHM(
+    forall(z, in(z, x)) |- ()
+  ) {
+    val selfNonInclusion = Jechcercises.selfNonInclusion
+    have(in(x, x) |- ()) by Rewrite(thm"selfNonInclusion")
+    andThen(forall(z, in(z, x)) |- ()) by LeftForall(x)
+  }
+  show
+
+  // predicates for properties of sets
+
+  // inductive set
+  // 0 \in x, \forall y \in x. y U {y} \in x
+  def inductive(x: Term) = in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, singleton(y))), x))
+
+  // axiom of infinity
+  // () |- exists(x, inductive(x))
+
   
-  
+
 }
