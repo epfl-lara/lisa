@@ -16,19 +16,20 @@ abstract class OutputManager {
   def lisaThrow(le: LisaException): Nothing =
     le match {
       case ule: UserLisaException =>
+        ule.fixTrace()
         ule match {
           case tacticException: UserLisaException.UnapplicableProofTactic =>
-            val start = tacticException.getStackTrace.indexWhere(elem => {
-              !elem.getClassName.contains(tacticException.tactic.name)
-            }) + 1
-            tacticException.setStackTrace(tacticException.getStackTrace.take(start))
             output(tacticException.showError)
             finishOutput(tacticException)
           case defException: UserLisaException.UserInvalidDefinitionException =>
             output(defException.showError)
             finishOutput(defException)
-          case exception: UserLisaException.UserParsingException => finishOutput(le)
-          case _ => finishOutput(le)
+          case parsingException: UserLisaException.UserParsingException =>
+            output(parsingException.showError)
+            finishOutput(parsingException)
+          case _ =>
+            output(ule.showError)
+            finishOutput(ule)
         }
 
       case e: LisaException.InvalidKernelJustificationComputation =>

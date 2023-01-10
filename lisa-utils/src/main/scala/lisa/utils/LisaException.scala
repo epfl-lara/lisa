@@ -17,7 +17,7 @@ object LisaException {
       sourcecode.File
   ) extends LisaException(errorMessage) {
     def showError: String = "Construction of proof succedded, but the resulting proof or definition has been reported to be faulty. This may be due to an internal bug.\n" +
-      "The resulting fauly event is:\n" +
+      "The resulting faulty event is:\n" +
       s"$underlying.message\n${underlying.error match {
           case Some(judgement) => FOLPrinter.prettySCProof(judgement)
           case None => ""
@@ -46,16 +46,25 @@ object LisaException {
 /**
  * Error made by the user, should be "explained"
  */
-abstract class UserLisaException(var errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends LisaException(errorMessage)
+abstract class UserLisaException(var errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends LisaException(errorMessage){
+  def fixTrace():Unit = ()
+}
 object UserLisaException {
   class UnapplicableProofTactic(val tactic: ProofTactic, proof: Library#Proof, errorMessage: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
+    override def fixTrace() : Unit = {
+      val start = getStackTrace.indexWhere(elem => {
+        !elem.getClassName.contains(tactic.name)
+      }) + 1
+      setStackTrace(getStackTrace.take(start))
+    }
+
     val showError: String = {
       val source = scala.io.Source.fromFile(file.value)
       val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
       source.close()
-      Console.RED + proof.owningTheorem.repr + Console.BLACK + "\n" +
+      Console.RED + proof.owningTheorem.repr + Console.RESET + "\n" +
         ProofPrinter.prettyProof(proof, 2) + "\n" +
-        "  " * (1 + proof.depth) + Console.RED + textline + Console.BLACK + "\n\n" +
+        "  " * (1 + proof.depth) + Console.RED + textline + Console.RESET + "\n\n" +
         s"   Proof tactic ${tactic.name} used in.(${file.value.split("/").last.split("\\\\").last}:${line.value}) did not succeed:\n" +
         "   " + errorMessage
     }
@@ -72,7 +81,7 @@ object UserLisaException {
       val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
       source.close()
       s"   Definition of $symbol at.(${file.value.split("/").last.split("\\\\").last}:${line.value}) is invalid:\n" +
-        "   " + Console.RED + textline + Console.BLACK + "\n\n" +
+        "   " + Console.RED + textline + Console.RESET + "\n\n" +
         "   " + errorMessage
     }
   }
