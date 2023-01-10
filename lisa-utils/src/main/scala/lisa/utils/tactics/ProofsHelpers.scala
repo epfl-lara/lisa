@@ -175,14 +175,14 @@ trait ProofsHelpers {
   def makeTHM(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM =
     new THM(statement, name.value, line.value, file.value)(computeProof) {}
 
-  object The
+  class The(val out: VariableLabel, val f: Formula)(
+    val just: theory.Theorem | theory.Axiom
+  )
   class definitionWithVars(val args: Seq[VariableLabel]) {
     inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = definition(lambda(args, t))
     inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = definition(lambda(args, f))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The.type)(out: VariableLabel, f: Formula)(
-        just: theory.Theorem | theory.Axiom
-    ) = definition(args, out, f, just)
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The) = definition(args, t.out, t.f, t.just)
 
   }
 

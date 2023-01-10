@@ -281,6 +281,7 @@ trait WithTheorems extends lisa.utils.TheoriesHelpers {
     }
   }
 
-  class DEFINITION(using om: OutputManager)(symbol: ConstantFunctionLabel, line: Int, file: String)(computeProof: Proof ?=> Unit) extends DefOrThm(using om)(line, file: String)
+
+  given Conversion[library.THM, theory.Theorem] = _.innerThm
 
 }
