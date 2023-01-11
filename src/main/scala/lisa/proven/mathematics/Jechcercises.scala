@@ -40,7 +40,7 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
     val setWithElementNonEmpty = makeTHM(
         in(y, x) |- !(x === emptySet())
     ) {
-        have(() |- !in(y, emptySet())) by InstantiateForall(y)(ax"EmptySet")
+        have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(ax"EmptySet")
         andThen(in(y, emptySet()) |- ()) by Rewrite
         andThen(Set(in(y, x), (x === emptySet())) |- ()) by LeftSubstEq(List((x, emptySet())), lambda(Seq(x), in(y, x)))
         andThen(in(y, x) |- !(x === emptySet())) by Rewrite
@@ -50,7 +50,7 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
     val setWithNoElementsIsEmpty = makeTHM(
         forall(y, !in(y, x)) |- (x === emptySet())
     ) {
-        have(() |- !in(y, emptySet())) by InstantiateForall(y)(ax"EmptySet")
+        have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(ax"EmptySet")
         andThen(() |- Set(!in(y, emptySet()), in(y, x))) by Weakening
         val lhs = andThen(() |- in(y, emptySet()) ==> in(y, x)) by Restate
 
@@ -62,10 +62,7 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
         andThen(forall(y, !in(y, x)) |- in(y, x) <=> in(y, emptySet())) by LeftForall(y)
         val exLhs = andThen(forall(y, !in(y, x)) |- forall(y, in(y, x) <=> in(y, emptySet()))) by RightForall
 
-        have(() |- forall(x, forall(y, forall(z, in(z, x) <=> in(z, y)) <=> (x === y)))) by Rewrite(ax"extensionalityAxiom")
-        andThen(() |- forall(y, forall(z, in(z, x) <=> in(z, y)) <=> (x === y))) by InstantiateForall(x)
-        andThen(() |- forall(z, in(z, x) <=> in(z, emptySet())) <=> (x === emptySet())) by InstantiateForall(emptySet())
-        // andThen(() |- forall(x, forall(y, forall(z, in(z, x) <=> in(z, y)) <=> (x === y)))) by InstantiateForall(x, emptySet())
+        have(() |- forall(z, in(z, x) <=> in(z, emptySet())) <=> (x === emptySet())) by InstFunSchema(Map(x -> x, y -> emptySet()))(ax"extensionalityAxiom")
         val exRhs = andThen(() |- forall(y, in(y, x) <=> in(y, emptySet())) <=> (x === emptySet())) by Restate
     
         have(forall(y, !in(y, x)) |- (forall(y, in(y, x) <=> in(y, emptySet())) <=> (x === emptySet())) /\ forall(y, in(y, x) <=> in(y, emptySet()))) by RightAnd(exLhs, exRhs)
@@ -76,11 +73,9 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
     val emptySetIsASubset = makeTHM(
         () |- subset(emptySet(), x)
     ) {
-        have(() |- forall(x, subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x)))) by InstantiateForall(emptySet())(ax"subsetAxiom")
-        val lhs = andThen(() |- subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) by InstantiateForall(x)
-        // val lhs = have(() |- subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) by InstantiateForall(emptySet(), x)(ax"subsetAxiom") // goddamn type resolution failures
+        val lhs = have(() |- subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) by InstFunSchema(Map(x -> emptySet(), y -> x))(ax"subsetAxiom")
 
-        have(() |- !in(y, emptySet())) by InstantiateForall(y)(ax"EmptySet")
+        have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(ax"EmptySet")
         andThen(() |- Set(!in(y, emptySet()), in(y, x))) by Weakening
         andThen(() |- in(y, emptySet()) ==> in(y, x)) by Rewrite
         val rhs = andThen(() |- forall(y, in(y, emptySet()) ==> in(y, x))) by RightForall
@@ -98,13 +93,11 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
         //      prove power set contains empty set
         //      and hence is not empty itself
 
-        have(() |- forall(x, in(emptySet(), powerSet(x)) <=> subset(emptySet(), x))) by InstantiateForall(emptySet())(ax"powerAxiom")
-        val lhs = andThen(() |- in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) by InstantiateForall(x)
-        // val lhs = have(() |- in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) by InstantiateForall(emptySet(), x)(ax"powerAxiom")
+        val lhs = have(() |- in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) by InstFunSchema(Map(x -> emptySet(), y -> x))(ax"powerAxiom")
 
         have(() |- (in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) /\ subset(emptySet(), x)) by RightAnd(lhs, thm"emptySetIsASubset")
         val emptyinPower = andThen(() |- in(emptySet(), powerSet(x))) by Trivial
-        val nonEmpty = have(in(emptySet(), powerSet(x)) |- !(powerSet(x) === emptySet())) by InstFunSchema(Map(y -> lambda(Seq(), emptySet()), x -> lambda(Seq(), powerSet(x))))(thm"setWithElementNonEmpty")
+        val nonEmpty = have(in(emptySet(), powerSet(x)) |- !(powerSet(x) === emptySet())) by InstFunSchema(Map(y -> emptySet(), x -> powerSet(x)))(thm"setWithElementNonEmpty")
 
         have(() |- !(powerSet(x) === emptySet())) by Cut(emptyinPower, nonEmpty)
     }
@@ -113,22 +106,21 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
     val singletonHasNoExtraElements = makeTHM(
         () |- in(y, singleton(x)) <=> (x === y)
     ) {
-        have(() |- forall(y, forall(z, in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z)))) by InstantiateForall(x)(ax"pairAxiom")
-        andThen(() |- forall(z, in(z, singleton(x)) <=> (x === z))) by InstantiateForall(x)
-        andThen(() |- in(y, singleton(x)) <=> (x === y)) by InstantiateForall(y)
+        have(() |- in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstFunSchema(Map(x -> x, y -> x, z -> y))(ax"pairAxiom")
+        andThen(() |- in(y, singleton(x)) <=> (x === y)) by Restate
     }
     show
 
     val singletonNonEmpty = makeTHM(
         () |- !(singleton(x) === emptySet())
     ) {
-        val reflLhs = have(() |- in(x, singleton(x)) <=> (x === x)) by InstFunSchema(Map(y -> lambda(Seq(), x)))(thm"singletonHasNoExtraElements")
+        val reflLhs = have(() |- in(x, singleton(x)) <=> (x === x)) by InstFunSchema(Map(y -> x))(thm"singletonHasNoExtraElements")
         
         val reflRhs = have(() |- (x === x)) by RightRefl
         have(() |- (x === x) /\ (in(x, singleton(x)) <=> (x === x))) by RightAnd(reflLhs, reflRhs)
         val lhs = andThen(() |- in(x, singleton(x))) by Trivial
 
-        val rhs = have(in(x, singleton(x)) |- !(singleton(x) === emptySet())) by InstFunSchema(Map(y -> lambda(Seq(), x), x -> lambda(Seq(), singleton(x))))(thm"setWithElementNonEmpty")
+        val rhs = have(in(x, singleton(x)) |- !(singleton(x) === emptySet())) by InstFunSchema(Map(y -> x, x -> singleton(x)))(thm"setWithElementNonEmpty")
         
         have(() |- !(singleton(x) === emptySet())) by Cut(lhs, rhs)
     }
@@ -140,7 +132,8 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
         () |- !in(x, x)
     ) {
         val X = singleton(x)
-        have(() |- !(X === emptySet()) ==> exists(y, in(y, X) /\ forall(z, in(z, X) ==> !in(z, y)))) by InstantiateForall(X)(ax"foundationAxiom")
+
+        have(() |- !(X === emptySet()) ==> exists(y, in(y, X) /\ forall(z, in(z, X) ==> !in(z, y)))) by InstFunSchema(Map(x -> X))(ax"foundationAxiom")
         val lhs = andThen(!(X === emptySet()) |- exists(y, in(y, X) /\ forall(z, in(z, X) ==> !in(z, y)))) by Restate
 
         have(in(y, X) |- in(y, X) <=> (x === y)) by Weakening(thm"singletonHasNoExtraElements")
@@ -148,7 +141,7 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
 
         have(Set(in(x, X), (in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by Hypothesis
         andThen(Set(in(x, X), forall(z, in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by LeftForall(z)
-        andThen(Set(in(x, X), forall(z, in(z, X) ==> !in(z, x)), in(x, X)) |- in(x, X) ==> !in(x, x)) by InstFunSchema(Map(z -> lambda(Seq(), x), y -> lambda(Seq(), x)))
+        andThen(Set(in(x, X), forall(z, in(z, X) ==> !in(z, x)), in(x, X)) |- in(x, X) ==> !in(x, x)) by InstFunSchema(Map(z -> x, y -> x))
         val coreRhs = andThen(in(x, X) /\ forall(z, in(z, X) ==> !in(z, x)) |- !in(x, x)) by Restate
 
         // now we need to show that the assumption is indeed true
@@ -174,13 +167,12 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
         ) {
             val lhs = have(subset(powerSet(x), x) |- subset(powerSet(x), x)) by Hypothesis
 
-            have(() |- forall(y, in(powerSet(x), powerSet(y)) <=> subset(powerSet(x), y))) by InstantiateForall(powerSet(x))(ax"powerAxiom")
-            val rhs = andThen(() |- in(powerSet(x), powerSet(x)) <=> subset(powerSet(x), x)) by InstantiateForall(x)
+            val rhs = have(() |- in(powerSet(x), powerSet(x)) <=> subset(powerSet(x), x)) by InstFunSchema(Map(x -> powerSet(x), y -> x))(ax"powerAxiom")
 
             have(subset(powerSet(x), x) |- subset(powerSet(x), x) /\ (in(powerSet(x), powerSet(x)) <=> subset(powerSet(x), x))) by RightAnd(lhs, rhs)
             val contraLhs = andThen(subset(powerSet(x), x) |- in(powerSet(x), powerSet(x))) by Trivial
 
-            val contraRhs = have(() |- !in(powerSet(x), powerSet(x))) by InstFunSchema(Map(x -> lambda(Seq(), powerSet(x))))(thm"selfNonInclusion")
+            val contraRhs = have(() |- !in(powerSet(x), powerSet(x))) by InstFunSchema(Map(x -> powerSet(x)))(thm"selfNonInclusion")
 
             have(subset(powerSet(x), x) |- !in(powerSet(x), powerSet(x)) /\ in(powerSet(x), powerSet(x))) by RightAnd(contraLhs, contraRhs)
             andThen(subset(powerSet(x), x) |- ()) by Restate

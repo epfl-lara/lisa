@@ -31,13 +31,13 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val firstElemInPair = makeTHM(
     () |- in(x, unorderedPair(x, y))
   ) {
-    val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstantiateForall(Seq(x: Term, y: Term, z: Term): _*)(ax"pairAxiom")
+    val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
     have((z === x) |- (z === x)) by Hypothesis
     val rhs = andThen((z === x) |- (z === x) \/ (z === y)) by Rewrite
     val factset = have((z === x) |-  (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
 
     andThen((z === x) |- in(z, unorderedPair(x, y))) by Trivial
-    andThen((x === x) |- in(x, unorderedPair(x, y))) by InstFunSchema(Map(z -> lambda(Seq(), x)))
+    andThen((x === x) |- in(x, unorderedPair(x, y))) by InstFunSchema(Map(z -> x))
     andThen(() |- in(x, unorderedPair(x, y))) by LeftRefl
   }
   show
@@ -45,13 +45,13 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val secondElemInPair = makeTHM(
     () |- in(y, unorderedPair(x, y))
   ) {
-    val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstantiateForall(Seq(x: Term, y: Term, z: Term): _*)(ax"pairAxiom")
+    val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
     have((z === y) |- (z === y)) by Hypothesis
     val rhs = andThen((z === y) |- (z === x) \/ (z === y)) by Rewrite
     val factset = have((z === y) |-  (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
 
     andThen((z === y) |- in(z, unorderedPair(x, y))) by Trivial
-    andThen((y === y) |- in(y, unorderedPair(x, y))) by InstFunSchema(Map(z -> lambda(Seq(), y)))
+    andThen((y === y) |- in(y, unorderedPair(x, y))) by InstFunSchema(Map(z -> y))
     andThen(() |- in(y, unorderedPair(x, y))) by LeftRefl
   }
   show
