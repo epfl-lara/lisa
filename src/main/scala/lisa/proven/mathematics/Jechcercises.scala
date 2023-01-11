@@ -2,10 +2,10 @@ package lisa.proven.mathematics
 
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
-import lisa.utils.Library
-import lisa.utils.Helpers._
-import lisa.utils.Printer
 import lisa.kernel.proof.{SequentCalculus as SC}
+import lisa.utils.Helpers._
+import lisa.utils.Library
+import lisa.utils.Printer
 import lisa.utils.tactics.BasicStepTactic.*
 import lisa.utils.tactics.ProofTacticLib
 

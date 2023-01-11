@@ -2,9 +2,9 @@ package lisa.proven.mathematics
 
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
+import lisa.kernel.proof.{SequentCalculus as SC}
 import lisa.utils.Library
 import lisa.utils.Printer
-import lisa.kernel.proof.{SequentCalculus as SC}
 import lisa.utils.tactics.BasicStepTactic.*
 import lisa.utils.tactics.ProofTacticLib
 
