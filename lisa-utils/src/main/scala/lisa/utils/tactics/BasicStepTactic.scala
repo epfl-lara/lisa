@@ -848,10 +848,8 @@ object BasicStepTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
-      if (!isSubset(premiseSequent.left, bot.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise.")
-      else if (!isSubset(premiseSequent.right, bot.right))
-        proof.InvalidProofTactic("Right-hand side of premise is not a subset of right-hand side of conclusion.")
+      if (!SC.isImplyingSequent(premiseSequent, bot))
+        proof.InvalidProofTactic("Conclusion cannot be trivially derived from premise.")
       else
         proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
     }
