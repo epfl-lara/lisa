@@ -7,6 +7,7 @@ import lisa.utils.Printer
 object Exercise extends lisa.Main {
 
   val x = variable
+  val y = variable
   val P = predicate(1)
   val f = function(1)
 

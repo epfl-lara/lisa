@@ -61,6 +61,47 @@ trait TheoriesHelpers extends KernelHelpers {
      * a Theorem with a given name or a Definition with a the given name as symbol
      */
     def getJustification(name: String): Option[theory.Justification] = theory.getAxiom(name).orElse(theory.getTheorem(name)).orElse(theory.getDefinition(name))
+
+    /**
+     * Verify if a given formula belongs to some language
+     *
+     * @param phi The formula to check
+     * @return The List of undefined symols
+     */
+    def findUndefinedSymbols(phi: Formula): Set[ConstantLabel] = phi match {
+      case PredicateFormula(label, args) =>
+        label match {
+          case l: ConstantPredicateLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case _ => args.flatMap(findUndefinedSymbols).toSet
+        }
+      case ConnectorFormula(label, args) => args.flatMap(findUndefinedSymbols).toSet
+      case BinderFormula(label, bound, inner) => findUndefinedSymbols(inner)
+    }
+
+    /**
+     * Verify if a given term belongs to the language of the theory.
+     *
+     * @param t The term to check
+     * @return The List of undefined symols
+     */
+    def findUndefinedSymbols(t: Term): Set[ConstantLabel] = t match {
+      case Term(label, args) =>
+        label match {
+          case l: ConstantFunctionLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case _: SchematicTermLabel => args.flatMap(findUndefinedSymbols).toSet
+        }
+
+    }
+
+    /**
+     * Verify if a given sequent belongs to the language of the theory.
+     *
+     * @param s The sequent to check
+     * @return The List of undefined symols
+     */
+    def findUndefinedSymbols(s: Sequent): Set[ConstantLabel] =
+      s.left.flatMap(findUndefinedSymbols) ++ s.right.flatMap(findUndefinedSymbols)
+
   }
 
   extension (just: RunningTheory#Justification) {
