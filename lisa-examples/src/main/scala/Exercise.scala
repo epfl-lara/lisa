@@ -15,6 +15,11 @@ object Exercise extends lisa.Main {
     val i1 = have(P(x) ==> P(f(x)) |- P(x) ==> P(f(x))) by Restate;
   }
   show
+  
+  /*
+  val pierceLaw = makeTHM("|- ((('A ==> 'B) ==> 'A) ==> 'A)"){
+    
+  }*/
 
   val fixedPointDoubleApplication = makeTHM(seq"∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))") {
     assume("∀'x. 'P('x) ⇒ 'P('f('x))")
