@@ -901,7 +901,9 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'P('x) |- 'R('x)", "'P('x) |- 'R('x); 'S('y)"),
       ("'P('x) |- 'R('x)", "'P('x); 'S('y) |- 'R('x)"),
       ("'P('x) |- 'R('x)", "'P('x); 'S('y) |- 'R('x); 'Q('z)"),
-      ("'P('x) |- 'R('x)", "'P('x); 'S('y); 'Q('z) |- 'R('x); 'Q('z); 'S('k)")
+      ("'P('x) |- 'R('x)", "'P('x); 'S('y); 'Q('z) |- 'R('x); 'Q('z); 'S('k)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "'P('x) /\\ 'Q('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x); 'Q('x)", "'P('x) |- 'R('x) \\/ 'Q('x)"),
     )
 
     val incorrect = List(
@@ -909,7 +911,10 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'P('x) |- 'R('x)", "'P('x) |- "),
       ("'P('x); 'S('y) |- 'R('x)", "'P('x) |- 'R('x); 'S('y)"),
       ("'P('x); 'Q('y) |- 'R('x)", "'P('x); 'S('y) |- 'R('x)"),
-      ("'P('x); 'Q('y) |- 'R('x)", "'P('x); 'Q('x) |- 'R('x)")
+      ("'P('x); 'Q('y) |- 'R('x)", "'P('x); 'Q('x) |- 'R('x)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "'P('x) |- 'R('x)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "'P('x) \\/ 'Q('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x); 'Q('x)", "'P('x) |- 'R('x) /\\'Q('x) "),
     )
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
@@ -948,7 +953,6 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'R('z); 'x = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'y"),
       ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z); 'y = 'y |- 'P('x)", "'y = 'y"),
       ("'R('z); 'x = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'x"),
-      ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'x"),
       ("'R('z); 'x = 'x |- 'P('x)", "'R('z); 'x = 'y |- 'P('x)", "'x = 'x")
     )
 
