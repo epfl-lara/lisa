@@ -1,7 +1,7 @@
 package lisa
 
-import lisa.utils.BasicMain
-import lisa.utils.OutputManager
+import lisa.prooflib.BasicMain
+import lisa.prooflib.OutputManager
 
 /**
  * The parent trait of all theory files containing mathematical development

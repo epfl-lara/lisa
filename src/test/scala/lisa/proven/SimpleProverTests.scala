@@ -8,7 +8,7 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.getPRPproblems
 import lisa.utils.FOLPrinter
-import lisa.utils.Helpers.*
+import lisa.utils.KernelHelpers.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions

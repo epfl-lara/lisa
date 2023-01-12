@@ -1,10 +1,11 @@
 package lisa.utils
+
 import lisa.kernel.fol.FOL
-import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
-import lisa.kernel.proof.SCProof
-import lisa.utils.Helpers.repr
-import lisa.utils.tactics.ProofTacticLib.ProofTactic
+import lisa.kernel.proof.{RunningTheoryJudgement, SCProof}
+import lisa.utils.KernelHelpers.repr
+import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.prooflib.*
 
 import java.io.File
 

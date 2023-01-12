@@ -11,8 +11,8 @@ import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
 import lisa.utils.FOLPrinter.*
-import lisa.utils.Helpers.show
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.KernelHelpers.show
+import lisa.utils.KernelHelpers.{_, given}
 
 /**
  * Discover some of the elements of LISA to get started.

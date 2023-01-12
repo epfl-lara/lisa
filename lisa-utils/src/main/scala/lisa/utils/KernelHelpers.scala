@@ -1,10 +1,9 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.RunningTheoryJudgement
+import lisa.kernel.fol.FOL.*
+
+import lisa.kernel.proof.*
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
-import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.FOLParser
@@ -20,10 +19,13 @@ import lisa.utils.FOLParser
  * extends utilities.KernelHelpers.*
  * </pre>
  */
-trait KernelHelpers {
+object KernelHelpers {
 
-  import lisa.kernel.fol.FOL.*
-  import lisa.kernel.proof.SequentCalculus.Sequent
+  /////////////////
+  // FOL helpers //
+  /////////////////
+
+
 
   /* Prefix syntax */
 
@@ -117,6 +119,8 @@ trait KernelHelpers {
     infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
   }
 
+
+  //TODO: Should make less generic
   /**
    * Represents a converter of some object into a set.
    * @tparam S The type of elements in that set
@@ -150,6 +154,8 @@ trait KernelHelpers {
 
   extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
 
+  // Instatiation functions for formulas lifted to sequents.
+
   def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
@@ -159,14 +165,17 @@ trait KernelHelpers {
   }
 
   def instantiateSchemaInSequent(
-      s: Sequent,
-      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
-      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
-  ): Sequent = {
+                                  s: Sequent,
+                                  mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+                                  mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+                                  mTerm: Map[SchematicTermLabel, LambdaTermTerm]
+                                ): Sequent = {
     s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))
   }
 
+  //////////////////////
+  // SCProofs helpers //
+  //////////////////////
   extension (sp: SCSubproof) {
 
     /**
@@ -183,9 +192,14 @@ trait KernelHelpers {
   }
 
   extension (p: SCProof) {
+    /**
+     * Explore a proof with a specific path and returns the pointed proofstep.
+     * @param path A path through subproofs of a proof.
+     */
     def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
   }
 
+  //TODO Necessary?
   implicit class Parsing(val sc: StringContext) {
 
     def seq(args: Any*): Sequent = FOLParser.parseSequent(sc.parts.mkString(""))
@@ -196,11 +210,13 @@ trait KernelHelpers {
 
   }
 
+  //Conversions from String to datatypes
   given Conversion[String, Sequent] = FOLParser.parseSequent(_)
   given Conversion[String, Formula] = FOLParser.parseFormula(_)
   given Conversion[String, Term] = FOLParser.parseTerm(_)
   given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
+  //Conversion from pairs (e.g. x -> f(x)) to lambdas
   given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
   given Conversion[(VariableLabel, Term), LambdaTermTerm] = a => LambdaTermTerm(Seq(a._1), a._2)
   given Conversion[(Seq[VariableLabel], Term), LambdaTermTerm] = a => LambdaTermTerm(a._1, a._2)
@@ -213,29 +229,32 @@ trait KernelHelpers {
   given Conversion[(VariableFormulaLabel, Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(Seq(a._1), a._2)
   given Conversion[(Seq[VariableFormulaLabel], Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(a._1, a._2)
 
-  def lambda(x: VariableLabel, t: Term): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x), t)
-  def lambda(xs: Seq[VariableLabel], t: Term): FOL.LambdaTermTerm = LambdaTermTerm(xs, t)
-  def lambda(x: VariableLabel, l: LambdaTermTerm): FOL.LambdaTermTerm = LambdaTermTerm(Seq(x) ++ l.vars, l.body)
-  def lambda(xs: Seq[VariableLabel], l: LambdaTermTerm): FOL.LambdaTermTerm = LambdaTermTerm(xs ++ l.vars, l.body)
+  //Shortcut for LambdaTermTerm, LambdaTermFormula and LambdaFormulaFormula construction
+  def lambda(x: VariableLabel, t: Term): LambdaTermTerm = LambdaTermTerm(Seq(x), t)
+  def lambda(xs: Seq[VariableLabel], t: Term): LambdaTermTerm = LambdaTermTerm(xs, t)
+  def lambda(x: VariableLabel, l: LambdaTermTerm): LambdaTermTerm = LambdaTermTerm(Seq(x) ++ l.vars, l.body)
+  def lambda(xs: Seq[VariableLabel], l: LambdaTermTerm): LambdaTermTerm = LambdaTermTerm(xs ++ l.vars, l.body)
 
-  def lambda(x: VariableLabel, phi: Formula): FOL.LambdaTermFormula = LambdaTermFormula(Seq(x), phi)
-  def lambda(xs: Seq[VariableLabel], phi: Formula): FOL.LambdaTermFormula = LambdaTermFormula(xs, phi)
-  def lambda(x: VariableLabel, l: LambdaTermFormula): FOL.LambdaTermFormula = LambdaTermFormula(Seq(x) ++ l.vars, l.body)
-  def lambda(xs: Seq[VariableLabel], l: LambdaTermFormula): FOL.LambdaTermFormula = LambdaTermFormula(xs ++ l.vars, l.body)
+  def lambda(x: VariableLabel, phi: Formula): LambdaTermFormula = LambdaTermFormula(Seq(x), phi)
+  def lambda(xs: Seq[VariableLabel], phi: Formula): LambdaTermFormula = LambdaTermFormula(xs, phi)
+  def lambda(x: VariableLabel, l: LambdaTermFormula): LambdaTermFormula = LambdaTermFormula(Seq(x) ++ l.vars, l.body)
+  def lambda(xs: Seq[VariableLabel], l: LambdaTermFormula): LambdaTermFormula = LambdaTermFormula(xs ++ l.vars, l.body)
 
-  def lambda(X: VariableFormulaLabel, phi: Formula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Seq(X), phi)
-  def lambda(Xs: Seq[VariableFormulaLabel], phi: Formula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Xs, phi)
-  def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
-  def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): FOL.LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
+  def lambda(X: VariableFormulaLabel, phi: Formula): LambdaFormulaFormula = LambdaFormulaFormula(Seq(X), phi)
+  def lambda(Xs: Seq[VariableFormulaLabel], phi: Formula): LambdaFormulaFormula = LambdaFormulaFormula(Xs, phi)
+  def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
+  def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
 
   def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 
+  //declare symbols easily: "val x = variable;"
   def variable(using name: sourcecode.Name): VariableLabel = VariableLabel(name.value)
   def function(arity: Integer)(using name: sourcecode.Name): SchematicFunctionLabel = SchematicFunctionLabel(name.value, arity)
   def formulaVariable(using name: sourcecode.Name): VariableFormulaLabel = VariableFormulaLabel(name.value)
   def predicate(arity: Integer)(using name: sourcecode.Name): SchematicPredicateLabel = SchematicPredicateLabel(name.value, arity)
   def connector(arity: Integer)(using name: sourcecode.Name): SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
 
+  //Conversions from String to Identifier
   given Conversion[String, Identifier] = str => {
     val pieces = str.split(Identifier.counterSeparator)
     if (pieces.length == 1) {
@@ -260,6 +279,7 @@ trait KernelHelpers {
   }
   given Conversion[Identifier, String] = _.toString
 
+  //Generates  new Identifier from an existing list
   def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
     new Identifier(
       base.name,
@@ -272,5 +292,141 @@ trait KernelHelpers {
   def nFreshId(taken: Iterable[Identifier], n: Int): IndexedSeq[Identifier] = {
     val max = if (taken.isEmpty) 0 else taken.map(c => c.no).max
     Range(0, n).map(i => Identifier("gen", max + i))
+  }
+
+
+
+  /////////////////////////////
+  // RunningTheories Helpers //
+  /////////////////////////////
+
+  extension (theory: RunningTheory) {
+
+    /**
+     * Add a theorem to the theory, but also asks explicitely for the desired conclusion
+     * of the theorem to have more explicit writing and for sanity check.
+     */
+    def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
+      if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
+      else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Rewrite(statement, proof.length - 1)), justifications)
+      else InvalidJustification(s"The proof proves ${FOLPrinter.prettySequent(proof.conclusion)} instead of claimed ${FOLPrinter.prettySequent(statement)}", None)
+    }
+
+    /**
+     * Make a function definition in the theory, but only ask for the identifier of the new symbol; Arity is inferred
+     * of the theorem to have more explicit writing and for sanity check. See [[lisa.kernel.proof.RunningTheory.makeFunctionDefinition]]
+     */
+    def functionDefinition(
+                            symbol: String,
+                            expression: LambdaTermFormula,
+                            out: VariableLabel,
+                            proof: SCProof,
+                            justifications: Seq[theory.Justification]
+                          ): RunningTheoryJudgement[theory.FunctionDefinition] = {
+      val label = ConstantFunctionLabel(symbol, expression.vars.size)
+      theory.makeFunctionDefinition(proof, justifications, label, out, expression)
+    }
+
+    /**
+     * Make a predicate definition in the theory, but only ask for the identifier of the new symbol; Arity is inferred
+     * of the theorem to have more explicit writing and for sanity check. See also [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
+     */
+    def predicateDefinition(symbol: String, expression: LambdaTermFormula): RunningTheoryJudgement[theory.PredicateDefinition] = {
+      val label = ConstantPredicateLabel(symbol, expression.vars.size)
+      theory.makePredicateDefinition(label, expression)
+    }
+
+    /**
+     * Try to fetch, in this order, a justification that is an Axiom with the given name,
+     * a Theorem with a given name or a Definition with a the given name as symbol
+     */
+    def getJustification(name: String): Option[theory.Justification] = theory.getAxiom(name).orElse(theory.getTheorem(name)).orElse(theory.getDefinition(name))
+
+    /**
+     * Verify if a given formula belongs to some language
+     *
+     * @param phi The formula to check
+     * @return The List of undefined symols
+     */
+    def findUndefinedSymbols(phi: Formula): Set[ConstantLabel] = phi match {
+      case PredicateFormula(label, args) =>
+        label match {
+          case l: ConstantPredicateLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case _ => args.flatMap(findUndefinedSymbols).toSet
+        }
+      case ConnectorFormula(label, args) => args.flatMap(findUndefinedSymbols).toSet
+      case BinderFormula(label, bound, inner) => findUndefinedSymbols(inner)
+    }
+
+    /**
+     * Verify if a given term belongs to the language of the theory.
+     *
+     * @param t The term to check
+     * @return The List of undefined symols
+     */
+    def findUndefinedSymbols(t: Term): Set[ConstantLabel] = t match {
+      case Term(label, args) =>
+        label match {
+          case l: ConstantFunctionLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case _: SchematicTermLabel => args.flatMap(findUndefinedSymbols).toSet
+        }
+
+    }
+
+    /**
+     * Verify if a given sequent belongs to the language of the theory.
+     *
+     * @param s The sequent to check
+     * @return The List of undefined symols
+     */
+    def findUndefinedSymbols(s: Sequent): Set[ConstantLabel] =
+      s.left.flatMap(findUndefinedSymbols) ++ s.right.flatMap(findUndefinedSymbols)
+
+  }
+
+  extension (just: RunningTheory#Justification) {
+    def repr: String = just match {
+      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${FOLPrinter.prettySequent(thm.proposition)}\n"
+      case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${FOLPrinter.prettyFormula(axiom.ax)}\n"
+      case d: RunningTheory#Definition =>
+        d match {
+          case pd: RunningTheory#PredicateDefinition =>
+            s" Definition of predicate symbol ${pd.label.id} := ${FOLPrinter.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply) *) <=> pd.expression.body)}\n"
+          case fd: RunningTheory#FunctionDefinition =>
+            s" Definition of function symbol ${FOLPrinter.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply) *))} := the ${fd.out.id} such that ${
+              FOLPrinter
+                .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply) *)) <=> fd.expression.body)
+            })\n"
+        }
+    }
+  }
+
+  extension[J <: RunningTheory#Justification] (theoryJudgement: RunningTheoryJudgement[J]) {
+
+    /**
+     * If the Judgement is valid, show the inner justification and returns it.
+     * Otherwise, om.output the error leading to the invalid justification and throw an error.
+     */
+    def repr: String = {
+      theoryJudgement match {
+        case RunningTheoryJudgement.ValidJustification(just) =>
+          just.repr
+        case InvalidJustification(message, error) =>
+          s"$message\n${
+            error match {
+              case Some(judgement) => FOLPrinter.prettySCProof(judgement)
+              case None => ""
+            }
+          }"
+      }
+    }
+  }
+
+  /**
+   * output a readable representation of a proof.
+   */
+  def checkProof(proof: SCProof, output: String => Unit = println): Unit = {
+    val judgement = SCProofChecker.checkSCProof(proof)
+    output(FOLPrinter.prettySCProof(judgement))
   }
 }

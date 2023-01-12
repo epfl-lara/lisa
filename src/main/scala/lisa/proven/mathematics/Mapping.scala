@@ -3,11 +3,11 @@ package lisa.proven.mathematics
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.proven.mathematics.SetTheory
-import lisa.utils.Helpers.<=>
-import lisa.utils.Library
+import lisa.utils.KernelHelpers.<=>
+import lisa.prooflib.Library
 import lisa.utils.Printer
-import lisa.utils.tactics.BasicStepTactic.InstFunSchema
-import lisa.utils.tactics.SimpleDeducedSteps
+import lisa.prooflib.BasicStepTactic.InstFunSchema
+import lisa.prooflib.SimpleDeducedSteps
 
 import scala.collection.immutable.Map
 import scala.collection.immutable.Seq
