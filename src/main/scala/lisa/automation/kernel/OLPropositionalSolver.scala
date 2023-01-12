@@ -27,8 +27,8 @@ object OLPropositionalSolver {
      */
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       solveSequent(bot) match {
-        case Some(value) => proof.ValidProofTactic(value.steps, Seq())
-        case None => proof.InvalidProofTactic("Impossible to prove desired conclusion with only propositional logic.")
+        case Left(value) => proof.ValidProofTactic(value.steps, Seq())
+        case Right((msg, seq)) => proof.InvalidProofTactic(msg)
       }
     }
 
@@ -48,7 +48,7 @@ object OLPropositionalSolver {
       val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
       val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
       solveSequent(sqToProve) match {
-        case Some(value) =>
+        case Left(value) =>
           val subpr = SCSubproof(value)
           val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
             val ((prem, form), position) = cur
@@ -56,8 +56,8 @@ object OLPropositionalSolver {
           })
           val steps = (initProof ++ stepsList.reverse).toIndexedSeq
           proof.ValidProofTactic(steps, premises)
-        case None =>
-          proof.InvalidProofTactic("Impossible to prove desired conclusion with only propositional logic.")
+        case Right((msg, seq)) =>
+          proof.InvalidProofTactic(msg)
       }
     }
   } // End of tactic object Tautology
@@ -69,14 +69,17 @@ object OLPropositionalSolver {
    * @param s A sequent that should be a propositional logic tautology. It can contain binders and schematic connector symbols, but they will be treated as atoms.
    * @return A proof of the given sequent, if it exists
    */
-  def solveSequent(s: Sequent): Option[SCProof] = {
+  def solveSequent(s: Sequent): Either[SCProof, (String, Sequent)] = {
     val augSeq = augmentSequent(s)
     val MaRvIn = VariableFormulaLabel(freshId(augSeq.formula.schematicFormulaLabels.map(_.id), "MaRvIn")) // arbitrary name that is unlikely to already exist in the formula
 
     try {
       val steps = solveAugSequent(augSeq, 0)(using MaRvIn)
-      Some(SCProof((Rewrite(s, steps.length - 1) :: steps).reverse.toIndexedSeq))
-    } catch case e: NoProofFoundException => None
+      Left(SCProof((Rewrite(s, steps.length - 1) :: steps).reverse.toIndexedSeq))
+    } catch case e: NoProofFoundException => Right((
+      "The statement may be incorrect or not provable within propositional logic.\n"+
+        "The proof search failed because it needed the truth of the following sequent:\n"+
+        s"${lisa.utils.FOLPrinter.prettySequent(e.unsolvable)}", e.unsolvable))
 
   }
 
@@ -97,7 +100,8 @@ object OLPropositionalSolver {
   private def findBestAtom(f: Formula): Option[Formula] = {
     val atoms: scala.collection.mutable.Map[Formula, Int] = scala.collection.mutable.Map.empty
     def findAtoms2(f: Formula, add: Formula => Unit): Unit = f match {
-      case f: PredicateFormula => add(f)
+      case PredicateFormula(label, _) if label != top && label != bot => add(f)
+      case PredicateFormula(_, _) => ()
       case ConnectorFormula(label, args) =>
         label match {
           case label: ConstantConnectorLabel => args.foreach(c => findAtoms2(c, add))
@@ -109,20 +113,22 @@ object OLPropositionalSolver {
     if (atoms.isEmpty) None else Some(atoms.toList.maxBy(_._2)._1)
   }
 
-  private class NoProofFoundException extends Exception
+  private class NoProofFoundException(val unsolvable:Sequent) extends Exception
 
   // Given a sequent, return a proof of that sequent if on exists that only uses propositional logic rules and reflexivity of equality.
   // Alternates between reducing the formulas using the OL algorithm for propositional logic and branching on an atom using excluded middle.
   // An atom is a subformula of the input that is either a predicate, a binder or a schematic connector, i.e. a subformula that has not meaning in propositional logic.
   private def solveAugSequent(s: AugSequent, offset: Int)(using MaRvIn: VariableFormulaLabel): List[SCProofStep] = {
     val bestAtom = findBestAtom(s.formula)
-    if (isSame(s.formula, top())) {
+    val redF = reducedForm(s.formula)
+    if (redF==top()) {
       List(RewriteTrue(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- s.formula))
     } else if (bestAtom.isEmpty) {
-      throw new NoProofFoundException
+      assert(redF==bot()) //sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
+      val res = s.decisions._1 |- redF::s.decisions._2 //the branch that can't be closed
+      throw new NoProofFoundException(res)
     } else {
       val atom = bestAtom.get
-      val redF = reducedForm(s.formula)
       val optLambda = SimpleSimplifier.findSubformula(redF, Seq((MaRvIn, atom)))
       if (optLambda.isEmpty) return solveAugSequent(AugSequent(s.decisions, redF), offset)
       val lambdaF = optLambda.get
