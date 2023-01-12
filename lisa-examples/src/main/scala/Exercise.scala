@@ -1,4 +1,4 @@
-import lisa.automation.kernel.SimplePropositionalSolver.*
+import lisa.automation.kernel.OLPropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.Library
@@ -17,14 +17,10 @@ object Exercise extends lisa.Main {
   }
   show
   
-  /*
-  val pierceLaw = makeTHM("|- ((('A ==> 'B) ==> 'A) ==> 'A)"){
-    
-  }*/
 
   val fixedPointDoubleApplication = makeTHM(seq"∀'x. 'P('x) ⇒ 'P('f('x)) ⊢ 'P('x) ⇒ 'P('f('f('x)))") {
     assume("∀'x. 'P('x) ⇒ 'P('f('x))")
-    val base = have("'P('x) ⇒ 'P('f('x)); 'P('f('x)) ==> 'P('f('f('x))) |- 'P('x) ==> 'P('f('f('x)))") by Trivial
+    val base = have("'P('x) ⇒ 'P('f('x)); 'P('f('x)) ==> 'P('f('f('x))) |- 'P('x) ==> 'P('f('f('x)))") by Tautology
     have("'P('x) ==> 'P('f('f('x)))") subproof {
       assume("∀'x. 'P('x) ⇒ 'P('f('x))")
       have("'P('f('x)) ==> 'P('f('f('x))) |- 'P('x) ==> 'P('f('f('x)))") by LeftForall(x)(base)
