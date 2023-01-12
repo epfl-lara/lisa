@@ -24,24 +24,7 @@ object LisaException {
           case None => ""
         }}"
   }
-
-  case class UnexpectedProofTacticFailureException(failure: Library#Proof#InvalidProofTactic, errorMessage: String)(using sourcecode.Line, sourcecode.File) extends LisaException(errorMessage) {
-    def showError: String = "A proof tactic used in another proof tactic returned an unexpected error. This may indicate an implementation error in either of the two tactics.\n" +
-      "Status of the proof at time of the error is:" +
-      ProofPrinter.prettyProof(failure.proof)
-  }
-  /*
-  class ProofStatusException(errorMessage: String)(using sourcecode.Line, sourcecode.File) extends LisaException(errorMessage){
-    def showError: String = ""
-  }*/
-
-  class ParsingException(parsedString: String, errorMessage: String) extends LisaException(errorMessage) {
-    def showError: String = ""
-  }
-
-  class InvalidIdentifierException(identifier: String, errorMessage: String) extends LisaException(errorMessage) {
-    def showError: String = s"$identifier is not a valid string. " + errorMessage
-  }
+  
 }
 
 /**
@@ -51,39 +34,9 @@ abstract class UserLisaException(var errorMessage: String)(using line: sourcecod
   def fixTrace(): Unit = ()
 }
 object UserLisaException {
-  class UnapplicableProofTactic(val tactic: ProofTactic, proof: Library#Proof, errorMessage: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
-    override def fixTrace(): Unit = {
-      val start = getStackTrace.indexWhere(elem => {
-        !elem.getClassName.contains(tactic.name)
-      }) + 1
-      setStackTrace(getStackTrace.take(start))
-    }
-
-    val showError: String = {
-      val source = scala.io.Source.fromFile(file.value)
-      val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
-      source.close()
-      Console.RED + proof.owningTheorem.repr + Console.RESET + "\n" +
-        ProofPrinter.prettyProof(proof, 2) + "\n" +
-        "  " * (1 + proof.depth) + Console.RED + textline + Console.RESET + "\n\n" +
-        s"   Proof tactic ${tactic.name} used in.(${file.value.split("/").last.split("\\\\").last}:${line.value}) did not succeed:\n" +
-        "   " + errorMessage
-    }
-  }
-  class UnimplementedProof(val theorem: Library#THM)(using sourcecode.Line, sourcecode.File) extends UserLisaException("Unimplemented Theorem") {
-    def showError: String = s"Theorem ${theorem.name}"
-  }
+  
   class UserParsingException(val parsedString: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) {
     def showError: String = ""
   }
-  class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
-    val showError: String = {
-      val source = scala.io.Source.fromFile(file.value)
-      val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
-      source.close()
-      s"   Definition of $symbol at.(${file.value.split("/").last.split("\\\\").last}:${line.value}) is invalid:\n" +
-        "   " + Console.RED + textline + Console.RESET + "\n\n" +
-        "   " + errorMessage
-    }
-  }
+
 }

@@ -255,26 +255,30 @@ object KernelHelpers {
   def connector(arity: Integer)(using name: sourcecode.Name): SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
 
   //Conversions from String to Identifier
+  class InvalidIdentifierException(identifier: String, errorMessage: String) extends LisaException(errorMessage) {
+    def showError: String = errorMessage
+  }
+
   given Conversion[String, Identifier] = str => {
     val pieces = str.split(Identifier.counterSeparator)
     if (pieces.length == 1) {
       val name = pieces.head
       if (!Identifier.isValidIdentifier(name)) {
-        throw new LisaException.InvalidIdentifierException(str, "Identifier must not contain whitespaces nor symbols among " + Identifier.forbiddenChars.mkString())
+        throw new InvalidIdentifierException(str, "Identifier must not contain whitespaces nor symbols among " + Identifier.forbiddenChars.mkString())
       }
       Identifier(name)
     } else if (pieces.length == 2) {
       val name = pieces.head
       val no = pieces(1)
       if (!no.forall(_.isDigit) || no.isEmpty || (no.length > 1 && no.head == '0')) {
-        throw new LisaException.InvalidIdentifierException(str, s"The part of an identifier contained after ${Identifier.counterSeparator} must be a number without leading 0s.")
+        throw new InvalidIdentifierException(str, s"The part of an identifier contained after ${Identifier.counterSeparator} must be a number without leading 0s.")
       }
       if (!Identifier.isValidIdentifier(name)) {
-        throw new LisaException.InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among ${Identifier.forbiddenChars.mkString()}.")
+        throw new InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among ${Identifier.forbiddenChars.mkString()}.")
       }
       Identifier(name, no.toInt)
     } else { // if number of _ is greater than 1
-      throw new LisaException.InvalidIdentifierException("name", s"The identifier cannot contain more than one counter separator (${Identifier.counterSeparator}).")
+      throw new InvalidIdentifierException("name", s"The identifier cannot contain more than one counter separator (${Identifier.counterSeparator}).")
     }
   }
   given Conversion[Identifier, String] = _.toString

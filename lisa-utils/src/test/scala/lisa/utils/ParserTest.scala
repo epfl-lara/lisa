@@ -8,6 +8,7 @@ import lisa.utils.KernelHelpers._
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
 import org.scalatest.funsuite.AnyFunSuite
+import lisa.utils.parsing.*
 
 class ParserTest extends AnyFunSuite with TestUtils {
   test("constant") {

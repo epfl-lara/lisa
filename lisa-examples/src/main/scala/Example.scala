@@ -11,7 +11,6 @@ import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
 import lisa.utils.FOLPrinter.*
-import lisa.utils.KernelHelpers.show
 import lisa.utils.KernelHelpers.{_, given}
 
 /**
