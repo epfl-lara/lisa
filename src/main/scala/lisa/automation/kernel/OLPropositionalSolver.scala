@@ -76,10 +76,16 @@ object OLPropositionalSolver {
     try {
       val steps = solveAugSequent(augSeq, 0)(using MaRvIn)
       Left(SCProof((Rewrite(s, steps.length - 1) :: steps).reverse.toIndexedSeq))
-    } catch case e: NoProofFoundException => Right((
-      "The statement may be incorrect or not provable within propositional logic.\n"+
-        "The proof search failed because it needed the truth of the following sequent:\n"+
-        s"${lisa.utils.FOLPrinter.prettySequent(e.unsolvable)}", e.unsolvable))
+    } catch
+      case e: NoProofFoundException =>
+        Right(
+          (
+            "The statement may be incorrect or not provable within propositional logic.\n" +
+              "The proof search failed because it needed the truth of the following sequent:\n" +
+              s"${lisa.utils.FOLPrinter.prettySequent(e.unsolvable)}",
+            e.unsolvable
+          )
+        )
 
   }
 
@@ -113,7 +119,7 @@ object OLPropositionalSolver {
     if (atoms.isEmpty) None else Some(atoms.toList.maxBy(_._2)._1)
   }
 
-  private class NoProofFoundException(val unsolvable:Sequent) extends Exception
+  private class NoProofFoundException(val unsolvable: Sequent) extends Exception
 
   // Given a sequent, return a proof of that sequent if on exists that only uses propositional logic rules and reflexivity of equality.
   // Alternates between reducing the formulas using the OL algorithm for propositional logic and branching on an atom using excluded middle.
@@ -121,11 +127,11 @@ object OLPropositionalSolver {
   private def solveAugSequent(s: AugSequent, offset: Int)(using MaRvIn: VariableFormulaLabel): List[SCProofStep] = {
     val bestAtom = findBestAtom(s.formula)
     val redF = reducedForm(s.formula)
-    if (redF==top()) {
+    if (redF == top()) {
       List(RewriteTrue(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- s.formula))
     } else if (bestAtom.isEmpty) {
-      assert(redF==bot()) //sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
-      val res = s.decisions._1 |- redF::s.decisions._2 //the branch that can't be closed
+      assert(redF == bot()) // sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
+      val res = s.decisions._1 |- redF :: s.decisions._2 // the branch that can't be closed
       throw new NoProofFoundException(res)
     } else {
       val atom = bestAtom.get
