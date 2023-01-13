@@ -3,12 +3,10 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.prooflib.Library
+import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter
-import lisa.utils.Helpers.{_, given}
-import lisa.utils.Library
-import lisa.utils.tactics.ProofTacticLib.ParameterlessAndThen
-import lisa.utils.tactics.ProofTacticLib.ParameterlessHave
-import lisa.utils.tactics.ProofTacticLib.ProofTactic
+import lisa.utils.KernelHelpers.{_, given}
 
 import scala.collection.mutable.Set as mSet
 

@@ -2,7 +2,7 @@ package lisa.settheory
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.KernelHelpers.{_, given}
 
 /**
  * Axioms for the Zermelo theory (Z)

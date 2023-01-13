@@ -3,9 +3,10 @@ package lisa.utils
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.FOLParser
-import lisa.utils.Helpers._
-import lisa.utils.Helpers.given_Conversion_Identifier_String
-import lisa.utils.Helpers.given_Conversion_String_Identifier
+import lisa.utils.KernelHelpers._
+import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
+import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
+import lisa.utils.parsing.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions

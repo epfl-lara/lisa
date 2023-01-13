@@ -1,4 +1,4 @@
-package lisa.utils
+package lisa.utils.parsing
 
 import scala.collection.mutable
 

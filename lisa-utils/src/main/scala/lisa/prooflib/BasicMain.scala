@@ -1,4 +1,4 @@
-package lisa.utils
+package lisa.prooflib
 
 trait BasicMain {
   private val realOutput: String => Unit = println
