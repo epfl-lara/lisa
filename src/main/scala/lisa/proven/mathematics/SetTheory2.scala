@@ -247,6 +247,36 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   // axiom of infinity
   // () |- exists(x, inductive(x))
 
+  /**
+   * Cartesian Products
+   */
+
+  val cartesianProductExistence = makeTHM(
+    () |- exists(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))
+  ) {
+    val ztemp = variable
+    val ppxy = powerSet(unorderedPair(x, y))
+    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, ztemp) /\ sPhi(x, ztemp))))) by InstFunSchema(Map(z -> ztemp))(comprehensionSchema)
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ztemp) /\ sPhi(t, ztemp))))) by Restate
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ppxy) /\ sPhi(t, ppxy))))) by InstFunSchema(Map(ztemp -> ppxy))
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ppxy) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, z), exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))
+  }
+  show
+
+  val cartesianProductUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))
+  ) {
+    val prop = (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))
+    val fprop = forall(t, in(t, z) <=> prop)
+
+    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
+    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(cartesianProductExistence)
+
+    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
+  }
+  show
+
+  val cartesianProduct = DEF (x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))(cartesianProductUniqueness)
   
 
 }
