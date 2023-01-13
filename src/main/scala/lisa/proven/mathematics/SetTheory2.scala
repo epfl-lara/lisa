@@ -22,6 +22,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val a = variable
   val b = variable
   val c = variable
+  val r = variable
 
   val P = predicate(1)
   val Q = predicate(1)
@@ -278,5 +279,59 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   val cartesianProduct = DEF (x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))(cartesianProductUniqueness)
   
+  // binary relations
 
+  val relation = DEF (r, x) --> subset(r, cartesianProduct(x, x))
+
+  val relationDomainExistence = makeTHM(
+    () |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r)))) /\ exists(a, in(pair(t, a), r))))
+  ) {
+    val ztemp = variable
+    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, ztemp) /\ sPhi(x, ztemp))))) by InstFunSchema(Map(z -> ztemp))(comprehensionSchema)
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ztemp) /\ sPhi(t, ztemp))))) by Restate
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ sPhi(t, union(union(r))))))) by InstFunSchema(Map(ztemp -> union(union(r))))
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, x), exists(a, in(pair(t, a), r)))))
+  }
+  show
+
+  val relationDomainUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r)))) /\ exists(a, in(pair(t, a), r))))
+  ) {
+    val prop = (in(t, union(union(r)))) /\ exists(a, in(pair(t, a), r))
+    val fprop = forall(t, in(t, z) <=> prop)
+
+    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
+    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(relationDomainExistence)
+
+    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
+  }
+  show
+
+  val relationDomain = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))(relationDomainUniqueness)
+
+  val relationImageExistence = makeTHM(
+    () |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))
+  ) {
+    val ztemp = variable
+    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, ztemp) /\ sPhi(x, ztemp))))) by InstFunSchema(Map(z -> ztemp))(comprehensionSchema)
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ztemp) /\ sPhi(t, ztemp))))) by Restate
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ sPhi(t, union(union(r))))))) by InstFunSchema(Map(ztemp -> union(union(r))))
+    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, x), exists(a, in(pair(a, t), r)))))
+  }
+  show
+
+  val relationImageUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))
+  ) {
+    val prop = (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))
+    val fprop = forall(t, in(t, z) <=> prop)
+
+    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
+    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(relationImageExistence)
+
+    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
+  }
+  show
+
+  val relationImage = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationImageUniqueness)
 }
