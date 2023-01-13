@@ -6,9 +6,10 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.KernelHelpers.*
 import lisa.prooflib.*
-import lisa.utils.{Printer, UserLisaException}
+import lisa.utils.KernelHelpers.*
+import lisa.utils.Printer
+import lisa.utils.UserLisaException
 
 object ProofTacticLib {
   type Arity = Int & Singleton
@@ -53,8 +54,8 @@ object ProofTacticLib {
   class UnimplementedProof(val theorem: Library#THM)(using sourcecode.Line, sourcecode.File) extends UserLisaException("Unimplemented Theorem") {
     def showError: String = s"Theorem ${theorem.name}"
   }
-  case class UnexpectedProofTacticFailureException(failure: Library#Proof#InvalidProofTactic, errorMessage: String)
-                                                  (using sourcecode.Line, sourcecode.File) extends lisa.utils.LisaException(errorMessage) {
+  case class UnexpectedProofTacticFailureException(failure: Library#Proof#InvalidProofTactic, errorMessage: String)(using sourcecode.Line, sourcecode.File)
+      extends lisa.utils.LisaException(errorMessage) {
     def showError: String = "A proof tactic used in another proof tactic returned an unexpected error. This may indicate an implementation error in either of the two tactics.\n" +
       "Status of the proof at time of the error is:" +
       lisa.utils.ProofPrinter.prettyProof(failure.proof)

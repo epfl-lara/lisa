@@ -1,8 +1,10 @@
 package lisa.utils
 
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.prooflib.{BasicMain, Library, ProofTacticLib}
+import lisa.prooflib.BasicMain
 import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.Library
+import lisa.prooflib.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.LazyList

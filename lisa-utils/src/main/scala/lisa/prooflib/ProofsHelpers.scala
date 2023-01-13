@@ -6,10 +6,13 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.{FOLPrinter, LisaException, ProofPrinter, UserLisaException}
-import lisa.prooflib.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
+import lisa.prooflib.*
+import lisa.utils.FOLPrinter
+import lisa.utils.LisaException
+import lisa.utils.ProofPrinter
+import lisa.utils.UserLisaException
 
 import scala.annotation.targetName
 
@@ -171,7 +174,6 @@ trait ProofsHelpers {
   def makeTHM(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM =
     new THM(statement, name.value, line.value, file.value)(computeProof) {}
 
-
   class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
     val showError: String = {
       val source = scala.io.Source.fromFile(file.value)
@@ -183,7 +185,6 @@ trait ProofsHelpers {
     }
   }
 
-  
   class The(val out: VariableLabel, val f: Formula)(
       val just: theory.Theorem | theory.Axiom
   )

@@ -16,5 +16,5 @@ class InitialProofsTests extends ProofCheckerSuite {
     lisa.proven.mathematics.Mapping
     succeed
   }
-*/
+   */
 }

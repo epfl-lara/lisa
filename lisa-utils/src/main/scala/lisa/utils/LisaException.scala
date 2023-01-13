@@ -1,11 +1,12 @@
 package lisa.utils
 
 import lisa.kernel.fol.FOL
+import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
-import lisa.kernel.proof.{RunningTheoryJudgement, SCProof}
-import lisa.utils.KernelHelpers.repr
+import lisa.kernel.proof.SCProof
 import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.prooflib.*
+import lisa.utils.KernelHelpers.repr
 
 import java.io.File
 
@@ -24,7 +25,7 @@ object LisaException {
           case None => ""
         }}"
   }
-  
+
 }
 
 /**
@@ -34,7 +35,7 @@ abstract class UserLisaException(var errorMessage: String)(using line: sourcecod
   def fixTrace(): Unit = ()
 }
 object UserLisaException {
-  
+
   class UserParsingException(val parsedString: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) {
     def showError: String = ""
   }

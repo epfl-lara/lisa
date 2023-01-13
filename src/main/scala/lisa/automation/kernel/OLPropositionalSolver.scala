@@ -3,15 +3,15 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.KernelHelpers.{_, given}
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.*
+import lisa.utils.KernelHelpers.{_, given}
 
 object OLPropositionalSolver {
 
   /**
    * A tactic object dedicated to solve any propositionaly provable sequent (possibly in exponential time). Can be used with arbitrary many premises.
-   * Leverages the OL algorithm for propositional logic.
+   * Leverages the OL algorithm for scalafmpropositional logic.
    */
   object Tautology extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
 

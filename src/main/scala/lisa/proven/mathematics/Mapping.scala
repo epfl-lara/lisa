@@ -2,12 +2,12 @@ package lisa.proven.mathematics
 
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
+import lisa.prooflib.BasicStepTactic.InstFunSchema
+import lisa.prooflib.Library
+import lisa.prooflib.SimpleDeducedSteps
 import lisa.proven.mathematics.SetTheory
 import lisa.utils.KernelHelpers.<=>
-import lisa.prooflib.Library
 import lisa.utils.Printer
-import lisa.prooflib.BasicStepTactic.InstFunSchema
-import lisa.prooflib.SimpleDeducedSteps
 
 import scala.collection.immutable.Map
 import scala.collection.immutable.Seq

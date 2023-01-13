@@ -1,11 +1,10 @@
 package lisa.utils
 
 import lisa.kernel.fol.FOL.*
-
-import lisa.kernel.proof.*
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.*
 import lisa.utils.FOLParser
 
 /**
@@ -24,8 +23,6 @@ object KernelHelpers {
   /////////////////
   // FOL helpers //
   /////////////////
-
-
 
   /* Prefix syntax */
 
@@ -119,8 +116,7 @@ object KernelHelpers {
     infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
   }
 
-
-  //TODO: Should make less generic
+  // TODO: Should make less generic
   /**
    * Represents a converter of some object into a set.
    * @tparam S The type of elements in that set
@@ -165,11 +161,11 @@ object KernelHelpers {
   }
 
   def instantiateSchemaInSequent(
-                                  s: Sequent,
-                                  mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-                                  mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
-                                  mTerm: Map[SchematicTermLabel, LambdaTermTerm]
-                                ): Sequent = {
+      s: Sequent,
+      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
+  ): Sequent = {
     s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))
   }
 
@@ -192,6 +188,7 @@ object KernelHelpers {
   }
 
   extension (p: SCProof) {
+
     /**
      * Explore a proof with a specific path and returns the pointed proofstep.
      * @param path A path through subproofs of a proof.
@@ -199,7 +196,7 @@ object KernelHelpers {
     def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
   }
 
-  //TODO Necessary?
+  // TODO Necessary?
   implicit class Parsing(val sc: StringContext) {
 
     def seq(args: Any*): Sequent = FOLParser.parseSequent(sc.parts.mkString(""))
@@ -210,13 +207,13 @@ object KernelHelpers {
 
   }
 
-  //Conversions from String to datatypes
+  // Conversions from String to datatypes
   given Conversion[String, Sequent] = FOLParser.parseSequent(_)
   given Conversion[String, Formula] = FOLParser.parseFormula(_)
   given Conversion[String, Term] = FOLParser.parseTerm(_)
   given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
-  //Conversion from pairs (e.g. x -> f(x)) to lambdas
+  // Conversion from pairs (e.g. x -> f(x)) to lambdas
   given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
   given Conversion[(VariableLabel, Term), LambdaTermTerm] = a => LambdaTermTerm(Seq(a._1), a._2)
   given Conversion[(Seq[VariableLabel], Term), LambdaTermTerm] = a => LambdaTermTerm(a._1, a._2)
@@ -229,7 +226,7 @@ object KernelHelpers {
   given Conversion[(VariableFormulaLabel, Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(Seq(a._1), a._2)
   given Conversion[(Seq[VariableFormulaLabel], Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(a._1, a._2)
 
-  //Shortcut for LambdaTermTerm, LambdaTermFormula and LambdaFormulaFormula construction
+  // Shortcut for LambdaTermTerm, LambdaTermFormula and LambdaFormulaFormula construction
   def lambda(x: VariableLabel, t: Term): LambdaTermTerm = LambdaTermTerm(Seq(x), t)
   def lambda(xs: Seq[VariableLabel], t: Term): LambdaTermTerm = LambdaTermTerm(xs, t)
   def lambda(x: VariableLabel, l: LambdaTermTerm): LambdaTermTerm = LambdaTermTerm(Seq(x) ++ l.vars, l.body)
@@ -247,14 +244,14 @@ object KernelHelpers {
 
   def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
 
-  //declare symbols easily: "val x = variable;"
+  // declare symbols easily: "val x = variable;"
   def variable(using name: sourcecode.Name): VariableLabel = VariableLabel(name.value)
   def function(arity: Integer)(using name: sourcecode.Name): SchematicFunctionLabel = SchematicFunctionLabel(name.value, arity)
   def formulaVariable(using name: sourcecode.Name): VariableFormulaLabel = VariableFormulaLabel(name.value)
   def predicate(arity: Integer)(using name: sourcecode.Name): SchematicPredicateLabel = SchematicPredicateLabel(name.value, arity)
   def connector(arity: Integer)(using name: sourcecode.Name): SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
 
-  //Conversions from String to Identifier
+  // Conversions from String to Identifier
   class InvalidIdentifierException(identifier: String, errorMessage: String) extends LisaException(errorMessage) {
     def showError: String = errorMessage
   }
@@ -283,7 +280,7 @@ object KernelHelpers {
   }
   given Conversion[Identifier, String] = _.toString
 
-  //Generates  new Identifier from an existing list
+  // Generates  new Identifier from an existing list
   def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
     new Identifier(
       base.name,
@@ -297,8 +294,6 @@ object KernelHelpers {
     val max = if (taken.isEmpty) 0 else taken.map(c => c.no).max
     Range(0, n).map(i => Identifier("gen", max + i))
   }
-
-
 
   /////////////////////////////
   // RunningTheories Helpers //
@@ -321,12 +316,12 @@ object KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check. See [[lisa.kernel.proof.RunningTheory.makeFunctionDefinition]]
      */
     def functionDefinition(
-                            symbol: String,
-                            expression: LambdaTermFormula,
-                            out: VariableLabel,
-                            proof: SCProof,
-                            justifications: Seq[theory.Justification]
-                          ): RunningTheoryJudgement[theory.FunctionDefinition] = {
+        symbol: String,
+        expression: LambdaTermFormula,
+        out: VariableLabel,
+        proof: SCProof,
+        justifications: Seq[theory.Justification]
+    ): RunningTheoryJudgement[theory.FunctionDefinition] = {
       val label = ConstantFunctionLabel(symbol, expression.vars.size)
       theory.makeFunctionDefinition(proof, justifications, label, out, expression)
     }
@@ -395,17 +390,15 @@ object KernelHelpers {
       case d: RunningTheory#Definition =>
         d match {
           case pd: RunningTheory#PredicateDefinition =>
-            s" Definition of predicate symbol ${pd.label.id} := ${FOLPrinter.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply) *) <=> pd.expression.body)}\n"
+            s" Definition of predicate symbol ${pd.label.id} := ${FOLPrinter.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
           case fd: RunningTheory#FunctionDefinition =>
-            s" Definition of function symbol ${FOLPrinter.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply) *))} := the ${fd.out.id} such that ${
-              FOLPrinter
-                .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply) *)) <=> fd.expression.body)
-            })\n"
+            s" Definition of function symbol ${FOLPrinter.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${FOLPrinter
+                .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n"
         }
     }
   }
 
-  extension[J <: RunningTheory#Justification] (theoryJudgement: RunningTheoryJudgement[J]) {
+  extension [J <: RunningTheory#Justification](theoryJudgement: RunningTheoryJudgement[J]) {
 
     /**
      * If the Judgement is valid, show the inner justification and returns it.
@@ -416,12 +409,10 @@ object KernelHelpers {
         case RunningTheoryJudgement.ValidJustification(just) =>
           just.repr
         case InvalidJustification(message, error) =>
-          s"$message\n${
-            error match {
+          s"$message\n${error match {
               case Some(judgement) => FOLPrinter.prettySCProof(judgement)
               case None => ""
-            }
-          }"
+            }}"
       }
     }
   }

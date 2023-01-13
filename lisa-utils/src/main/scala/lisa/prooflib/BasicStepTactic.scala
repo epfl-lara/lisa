@@ -5,10 +5,10 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.prooflib.ProofTacticLib.{_, given}
+import lisa.prooflib.*
 import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
-import lisa.prooflib.*
-import lisa.prooflib.ProofTacticLib.{*, given}
 
 object BasicStepTactic {
 

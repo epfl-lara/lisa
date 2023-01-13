@@ -6,16 +6,18 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Cut
 import lisa.kernel.proof.SequentCalculus.Sequent
-import lisa.utils.{LisaException, UserLisaException}
+import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.prooflib.ProofTacticLib.UnimplementedProof
 import lisa.prooflib.*
-import lisa.prooflib.ProofTacticLib.{ProofTactic, UnimplementedProof}
+import lisa.utils.LisaException
+import lisa.utils.UserLisaException
 
 import scala.annotation.nowarn
 import scala.collection.mutable.Buffer as mBuf
 import scala.collection.mutable.Map as mMap
 import scala.collection.mutable.Stack as stack
 
-trait WithTheorems{
+trait WithTheorems {
   library: Library =>
 
   sealed abstract class Proof(assump: List[Formula]) {

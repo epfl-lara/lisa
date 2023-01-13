@@ -18,10 +18,11 @@ trait Main extends BasicMain {
       case `unorderedPair` => pairAxiom
       case `union` => unionAxiom
       case `powerSet` => powerAxiom
-      case _ => theory.getDefinition(symbol.id) match {
-        case Some(value) => value
-        case None => throw new NoSuchElementException(s"${symbol.id} has not been defined in the current theory")
-      }
+      case _ =>
+        theory.getDefinition(symbol.id) match {
+          case Some(value) => value
+          case None => throw new NoSuchElementException(s"${symbol.id} has not been defined in the current theory")
+        }
     }
   }
 
@@ -32,10 +33,11 @@ trait Main extends BasicMain {
       case `bot` => throw new NoSuchElementException("Bot has no definition")
       case `in` => throw new NoSuchElementException("Membership has no definition")
       case `subset` => subsetAxiom
-      case _ => theory.getDefinition(symbol.id) match {
-        case Some(value) => value
-        case None => throw new NoSuchElementException(s"${symbol.id} has not been defined in the current theory")
-      }
+      case _ =>
+        theory.getDefinition(symbol.id) match {
+          case Some(value) => value
+          case None => throw new NoSuchElementException(s"${symbol.id} has not been defined in the current theory")
+        }
     }
   }
 }

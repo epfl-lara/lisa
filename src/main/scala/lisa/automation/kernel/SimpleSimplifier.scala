@@ -3,9 +3,9 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.*
-import lisa.prooflib.ProofTacticLib.*
 
 import scala.collection
 
