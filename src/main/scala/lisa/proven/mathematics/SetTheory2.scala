@@ -25,6 +25,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   val P = predicate(1)
   val Q = predicate(1)
+  val schemPred = predicate(1)
 
 
   /**
@@ -109,22 +110,18 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   // operations on sets
 
-  val setIntersectionExistence = makeTHM (
-    () |- exists(a, forall(t, in(t, a) <=> (in(t, x) /\ in(t, y))))
+  /**
+   * Generic proof for uniqueness under assumption of existence
+   * 
+   * to use:
+   * have(exists(z, forall(t, in(t, z) <=> myProperty(t))) |- existsOne(z, forall(t, in(t, z) <=> myProperty(t)))) by InstPredSchema(Map(schemPred -> (t, myProperty(t))))
+   * 
+   * Instantiation will fail if myProperty(t) contains z as a free variable
+   */
+  val uniquenessByDefinition = makeTHM (
+    exists(z, forall(t, in(t, z) <=> schemPred(t))) |- existsOne(z, forall(t, in(t, z) <=> schemPred(t)))
   ) {
-    // note that the intersection is a filtering of either x or y based on the other
-    // so we apply comprehension schema
-
-    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, z) /\ in(x, b))))) by InstPredSchema(Map(sPhi -> lambda(Seq(x, z), in(x, b))))(comprehensionSchema)
-    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, z) /\ in(t, b))))) by Restate
-    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, x) /\ in(t, y))))) by InstFunSchema(Map(z -> x, b -> y))
-  }
-  show
-
-  val setIntersectionUniqueness = makeTHM (
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ in(t, y))))
-  ) {
-    def prop(z: Term) = in(t, z) <=> (in(t, x) /\ in(t, y))
+    def prop(z: Term) = in(t, z) <=> schemPred(t)
     def fprop(z: Term) = forall(t, prop(z))
 
     // forward direction
@@ -151,7 +148,29 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
     andThen(fprop(z) |- forall(a, fprop(a) <=> (a === z))) by RightForall
     andThen(fprop(z) |- exists(z, forall(a, fprop(a) <=> (a === z)))) by RightExists(z)
     andThen(exists(z, fprop(z)) |- exists(z, forall(a, fprop(a) <=> (a === z)))) by LeftExists
-    val existsRhs = andThen(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by RightExistsOne
+    andThen(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by RightExistsOne
+  }
+  show
+
+  val setIntersectionExistence = makeTHM (
+    () |- exists(a, forall(t, in(t, a) <=> (in(t, x) /\ in(t, y))))
+  ) {
+    // note that the intersection is a filtering of either x or y based on the other
+    // so we apply comprehension schema
+
+    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, z) /\ in(x, b))))) by InstPredSchema(Map(sPhi -> lambda(Seq(x, z), in(x, b))))(comprehensionSchema)
+    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, z) /\ in(t, b))))) by Restate
+    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, x) /\ in(t, y))))) by InstFunSchema(Map(z -> x, b -> y))
+  }
+  show
+
+  val setIntersectionUniqueness = makeTHM (
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ in(t, y))))
+  ) {
+    val prop = (in(t, x) /\ in(t, y))
+    def fprop(z: Term) = forall(t, in(t, z) <=> prop)
+
+    val existsRhs = have(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
 
     // assumption elimination
     // in essence, an existence proof
@@ -180,37 +199,11 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val unaryIntersectionUniqueness = makeTHM (
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))
   ) {
-    def prop(z: Term) = in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))
-    def fprop(z: Term) = forall(t, prop(z))
+    val prop = (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))
+    def fprop(z: Term) = forall(t, in(t, z) <=> prop)
 
-    // forward direction
-    have(fprop(z) |- fprop(z)) by Hypothesis
-    andThen(fprop(z) /\ (z === a) |- fprop(z)) by Weakening
-    andThen(Set(fprop(z) /\ (z === a), (z === a)) |- fprop(a)) by RightSubstEq(List((z, a)), lambda(Seq(z), fprop(z)))
-    val forward = andThen(fprop(z) |- (z === a) ==> fprop(a)) by Restate
+    val existsRhs = have(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
 
-    // backward direction
-    have(fprop(z) |- fprop(z)) by Hypothesis
-    val instLhs = andThen(fprop(z) |- prop(z)) by InstantiateForall(t)
-    val instRhs = andThen(fprop(a) |- prop(a)) by InstFunSchema(Map(z -> a))
-    
-    have(Set(fprop(z), fprop(a)) |- prop(z) /\ prop(a)) by RightAnd(instLhs, instRhs)
-    andThen(fprop(z) /\ fprop(a) |- in(t, a) <=> in(t, z)) by Trivial
-    val extLhs = andThen(fprop(z) /\ fprop(a) |- forall(t, in(t, a) <=> in(t, z))) by RightForall
-    val extRhs = have(() |- forall(t, in(t, a) <=> in(t, z)) <=> (a === z)) by InstFunSchema(Map(x -> a, y -> z))(extensionalityAxiom)
-
-    have(fprop(z) /\ fprop(a) |- (forall(t, in(t, a) <=> in(t, z)) <=> (a === z)) /\ forall(t, in(t, a) <=> in(t, z))) by RightAnd(extLhs, extRhs)
-    andThen(fprop(z) /\ fprop(a) |- (a === z)) by Trivial
-    val backward = andThen(fprop(z) |- fprop(a) ==> (a === z)) by Restate
-
-    have(fprop(z) |- fprop(a) <=> (a === z)) by RightIff(forward, backward)
-    andThen(fprop(z) |- forall(a, fprop(a) <=> (a === z))) by RightForall
-    andThen(fprop(z) |- exists(z, forall(a, fprop(a) <=> (a === z)))) by RightExists(z)
-    andThen(exists(z, fprop(z)) |- exists(z, forall(a, fprop(a) <=> (a === z)))) by LeftExists
-    val existsRhs = andThen(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by RightExistsOne
-
-    // assumption elimination
-    // in essence, an existence proof
     val existsLhs = have(() |- exists(z, fprop(z))) by Rewrite(unaryIntersectionExistence)
 
     have(() |- existsOne(z, fprop(z))) by Cut(existsLhs, existsRhs)
@@ -234,37 +227,11 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val setDifferenceUniqueness = makeTHM (
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))
   ) {
-    def prop(z: Term) = in(t, z) <=> (in(t, x) /\ !in(t, y))
-    def fprop(z: Term) = forall(t, prop(z))
+    val prop = (in(t, x) /\ !in(t, y))
+    def fprop(z: Term) = forall(t, in(t, z) <=> prop)
 
-    // forward direction
-    have(fprop(z) |- fprop(z)) by Hypothesis
-    andThen(fprop(z) /\ (z === a) |- fprop(z)) by Weakening
-    andThen(Set(fprop(z) /\ (z === a), (z === a)) |- fprop(a)) by RightSubstEq(List((z, a)), lambda(Seq(z), fprop(z)))
-    val forward = andThen(fprop(z) |- (z === a) ==> fprop(a)) by Restate
+    val existsRhs = have(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
 
-    // backward direction
-    have(fprop(z) |- fprop(z)) by Hypothesis
-    val instLhs = andThen(fprop(z) |- prop(z)) by InstantiateForall(t)
-    val instRhs = andThen(fprop(a) |- prop(a)) by InstFunSchema(Map(z -> a))
-    
-    have(Set(fprop(z), fprop(a)) |- prop(z) /\ prop(a)) by RightAnd(instLhs, instRhs)
-    andThen(fprop(z) /\ fprop(a) |- in(t, a) <=> in(t, z)) by Trivial
-    val extLhs = andThen(fprop(z) /\ fprop(a) |- forall(t, in(t, a) <=> in(t, z))) by RightForall
-    val extRhs = have(() |- forall(t, in(t, a) <=> in(t, z)) <=> (a === z)) by InstFunSchema(Map(x -> a, y -> z))(extensionalityAxiom)
-
-    have(fprop(z) /\ fprop(a) |- (forall(t, in(t, a) <=> in(t, z)) <=> (a === z)) /\ forall(t, in(t, a) <=> in(t, z))) by RightAnd(extLhs, extRhs)
-    andThen(fprop(z) /\ fprop(a) |- (a === z)) by Trivial
-    val backward = andThen(fprop(z) |- fprop(a) ==> (a === z)) by Restate
-
-    have(fprop(z) |- fprop(a) <=> (a === z)) by RightIff(forward, backward)
-    andThen(fprop(z) |- forall(a, fprop(a) <=> (a === z))) by RightForall
-    andThen(fprop(z) |- exists(z, forall(a, fprop(a) <=> (a === z)))) by RightExists(z)
-    andThen(exists(z, fprop(z)) |- exists(z, forall(a, fprop(a) <=> (a === z)))) by LeftExists
-    val existsRhs = andThen(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by RightExistsOne
-
-    // assumption elimination
-    // in essence, an existence proof
     val existsLhs = have(() |- exists(z, fprop(z))) by Rewrite(setDifferenceExistence)
 
     have(() |- existsOne(z, fprop(z))) by Cut(existsLhs, existsRhs)
