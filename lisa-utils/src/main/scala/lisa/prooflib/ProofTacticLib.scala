@@ -1,4 +1,4 @@
-package lisa.utils.tactics
+package lisa.prooflib
 
 import lisa.kernel.proof
 import lisa.kernel.proof.RunningTheory
@@ -6,10 +6,8 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.*
-import lisa.utils.Library
-import lisa.utils.LisaException
-import lisa.utils.OutputManager
+import lisa.prooflib.*
+import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 import lisa.utils.UserLisaException
 
@@ -31,6 +29,36 @@ object ProofTacticLib {
 
   trait ParameterlessAndThen {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement
+  }
+
+  class UnapplicableProofTactic(val tactic: ProofTactic, proof: Library#Proof, errorMessage: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
+    override def fixTrace(): Unit = {
+      val start = getStackTrace.indexWhere(elem => {
+        !elem.getClassName.contains(tactic.name)
+      }) + 1
+      setStackTrace(getStackTrace.take(start))
+    }
+
+    def showError: String = {
+      val source = scala.io.Source.fromFile(file.value)
+      val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
+      source.close()
+      Console.RED + proof.owningTheorem.repr + Console.RESET + "\n" +
+        lisa.utils.ProofPrinter.prettyProof(proof, 2) + "\n" +
+        "  " * (1 + proof.depth) + Console.RED + textline + Console.RESET + "\n\n" +
+        s"   Proof tactic ${tactic.name} used in.(${file.value.split("/").last.split("\\\\").last}:${line.value}) did not succeed:\n" +
+        "   " + errorMessage
+    }
+  }
+
+  class UnimplementedProof(val theorem: Library#THM)(using sourcecode.Line, sourcecode.File) extends UserLisaException("Unimplemented Theorem") {
+    def showError: String = s"Theorem ${theorem.name}"
+  }
+  case class UnexpectedProofTacticFailureException(failure: Library#Proof#InvalidProofTactic, errorMessage: String)(using sourcecode.Line, sourcecode.File)
+      extends lisa.utils.LisaException(errorMessage) {
+    def showError: String = "A proof tactic used in another proof tactic returned an unexpected error. This may indicate an implementation error in either of the two tactics.\n" +
+      "Status of the proof at time of the error is:" +
+      lisa.utils.ProofPrinter.prettyProof(failure.proof)
   }
 
   /*

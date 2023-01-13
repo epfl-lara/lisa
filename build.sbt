@@ -20,6 +20,8 @@ inThisBuild(
 val scala2 = "2.13.8"
 val scala3 = "3.2.1-RC1-bin-20220619-4cb967f-NIGHTLY"
 
+fork := true
+
 val commonSettings2 = Seq(
   scalaVersion := scala2,
   scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
@@ -102,3 +104,4 @@ lazy val examples = Project(
 )
   .settings(commonSettings3)
   .dependsOn(root)
+

@@ -1,12 +1,12 @@
 package lisa.settheory
 
-import lisa.utils.Library
+import lisa.prooflib.Library
 
 /**
  * Specific implementation of [[utilities.Library]] for Set Theory, with a RunningTheory that is supposed to be used by the standard library.
  */
 object SetTheoryLibrary extends Library(lisa.settheory.AxiomaticSetTheory.runningSetTheory) {
-  export lisa.utils.tactics.Exports.*
+  export lisa.prooflib.Exports.*
   val AxiomaticSetTheory: lisa.settheory.AxiomaticSetTheory.type = lisa.settheory.AxiomaticSetTheory
   export AxiomaticSetTheory.*
 

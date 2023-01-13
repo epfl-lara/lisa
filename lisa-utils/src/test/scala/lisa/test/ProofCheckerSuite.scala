@@ -7,7 +7,7 @@ import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus.isSameSequent
 import lisa.utils.FOLPrinter
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printer
 import org.scalatest.funsuite.AnyFunSuite
 

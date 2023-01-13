@@ -4,9 +4,9 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.test.ProofCheckerSuite
-import lisa.utils.Helpers._
-import lisa.utils.Helpers.given_Conversion_Identifier_String
-import lisa.utils.Helpers.given_Conversion_String_Identifier
+import lisa.utils.KernelHelpers._
+import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
+import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
 
 import scala.collection.immutable.SortedSet
 import scala.language.implicitConversions

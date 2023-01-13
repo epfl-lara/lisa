@@ -1,16 +1,14 @@
-package lisa.utils.tactics
+package lisa.prooflib
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.utils.Helpers.*
-import lisa.utils.Library
-import lisa.utils.LisaException
-import lisa.utils.OutputManager
+import lisa.prooflib.ProofTacticLib.{_, given}
+import lisa.prooflib.*
+import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
-import lisa.utils.tactics.ProofTacticLib.{_, given}
 
 object BasicStepTactic {
 
@@ -1097,12 +1095,12 @@ object BasicStepTactic {
         computeProof(using iProof)
       } catch {
         case e: NotImplementedError =>
-          om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
+          om.lisaThrow(new UnimplementedProof(proof.owningTheorem))
         case e: UserLisaException =>
           om.lisaThrow(e)
       }
       if (iProof.length == 0)
-        om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
+        om.lisaThrow(new UnimplementedProof(proof.owningTheorem))
       iProof.toSCProof
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)

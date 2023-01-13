@@ -1,4 +1,4 @@
-package lisa.utils.tactics
+package lisa.prooflib
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
@@ -6,18 +6,18 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Cut
 import lisa.kernel.proof.SequentCalculus.Sequent
-import lisa.utils.Library
+import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.prooflib.ProofTacticLib.UnimplementedProof
+import lisa.prooflib.*
 import lisa.utils.LisaException
-import lisa.utils.OutputManager
 import lisa.utils.UserLisaException
-import lisa.utils.tactics.ProofTacticLib.ProofTactic
 
 import scala.annotation.nowarn
 import scala.collection.mutable.Buffer as mBuf
 import scala.collection.mutable.Map as mMap
 import scala.collection.mutable.Stack as stack
 
-trait WithTheorems extends lisa.utils.TheoriesHelpers {
+trait WithTheorems {
   library: Library =>
 
   sealed abstract class Proof(assump: List[Formula]) {
@@ -202,7 +202,7 @@ trait WithTheorems extends lisa.utils.TheoriesHelpers {
         this match {
           case vpt: ValidProofTactic => newProofStep(vpt)
           case ipt: InvalidProofTactic =>
-            val e = UserLisaException.UnapplicableProofTactic(ipt.tactic, ipt.proof, ipt.message)(using line, file)
+            val e = lisa.prooflib.ProofTacticLib.UnapplicableProofTactic(ipt.tactic, ipt.proof, ipt.message)(using line, file)
             e.setStackTrace(ipt.stack)
             throw e
         }
@@ -256,13 +256,13 @@ trait WithTheorems extends lisa.utils.TheoriesHelpers {
         computeProof
       } catch {
         case e: NotImplementedError =>
-          om.lisaThrow(new UserLisaException.UnimplementedProof(this))
+          om.lisaThrow(new UnimplementedProof(this))
         case e: UserLisaException =>
           om.lisaThrow(e)
       }
 
       if (proof.length == 0)
-        om.lisaThrow(new UserLisaException.UnimplementedProof(this))
+        om.lisaThrow(new UnimplementedProof(this))
 
       val r = TheoremNameWithProof(name, goal, proof.toSCProof)
       theory.theorem(r.name, r.statement, r.proof, proof.getImports.map(_._1)) match {
