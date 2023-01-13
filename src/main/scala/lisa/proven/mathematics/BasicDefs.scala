@@ -3,10 +3,10 @@ package lisa.proven.mathematics
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.{SequentCalculus as SC}
-import lisa.utils.Library
+import lisa.prooflib.Library
 import lisa.utils.Printer
-import lisa.utils.tactics.BasicStepTactic.*
-import lisa.utils.tactics.ProofTacticLib
+import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.ProofTacticLib
 
 /**
  * Some higher level construct definitions for Set Theory library

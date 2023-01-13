@@ -3,11 +3,10 @@ package lisa.proven.mathematics
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.{SequentCalculus as SC}
-import lisa.utils.Helpers._
-import lisa.utils.Library
+import lisa.prooflib.Library
 import lisa.utils.Printer
-import lisa.utils.tactics.BasicStepTactic.*
-import lisa.utils.tactics.ProofTacticLib
+import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.ProofTacticLib
 
 /**
  * Practicing exercises from Jech, some of them may be moved to become theorems

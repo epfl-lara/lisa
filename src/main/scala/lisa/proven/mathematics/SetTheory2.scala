@@ -3,11 +3,11 @@ package lisa.proven.mathematics
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.{SequentCalculus as SC}
-import lisa.proven.mathematics.Jechcercises
-import lisa.utils.Library
+import lisa.prooflib.Library
 import lisa.utils.Printer
-import lisa.utils.tactics.BasicStepTactic.*
-import lisa.utils.tactics.ProofTacticLib
+import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.ProofTacticLib
+import lisa.proven.mathematics.Jechcercises
 
 /**
  * An embryo of mathematical development, containing a few example theorems and the definition of the ordered unorderedPair.
