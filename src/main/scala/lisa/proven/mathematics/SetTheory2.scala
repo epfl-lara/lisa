@@ -309,7 +309,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   val relationDomain = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))(relationDomainUniqueness)
 
-  val relationImageExistence = makeTHM(
+  val relationRangeExistence = makeTHM(
     () |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))
   ) {
     val ztemp = variable
@@ -320,18 +320,18 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   }
   show
 
-  val relationImageUniqueness = makeTHM(
+  val relationRangeUniqueness = makeTHM(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))
   ) {
     val prop = (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))
     val fprop = forall(t, in(t, z) <=> prop)
 
     val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
-    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(relationImageExistence)
+    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(relationRangeExistence)
 
     have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
   }
   show
 
-  val relationImage = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationImageUniqueness)
+  val relationRange = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationRangeUniqueness)
 }
