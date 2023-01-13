@@ -100,8 +100,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val noUniversalSet = makeTHM(
     forall(z, in(z, x)) |- ()
   ) {
-    val selfNonInclusion = Jechcercises.selfNonInclusion
-    have(in(x, x) |- ()) by Rewrite(thm"selfNonInclusion")
+    have(in(x, x) |- ()) by Rewrite(Jechcercises.selfNonInclusion)
     andThen(forall(z, in(z, x)) |- ()) by LeftForall(x)
   }
   show
