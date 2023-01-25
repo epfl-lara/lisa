@@ -27,9 +27,38 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
     val Q = predicate(1)    
 
     // exercise 1.1
-    // val pairExtensionality = makeTHM(
-    //     () |- (pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))
-    // ) {
+
+    val unorderedPairExtensionality = makeTHM(
+        () |- (unorderedPair(a, b) === unorderedPair(c, d)) <=> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))
+    ) {
+        // forward direction
+        //      up ab = up cd |- a = c and b = d OR a = d and b = c
+        have(() |- forall(a, forall(b, forall(c, forall(d, (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))))))) by Rewrite(SetTheory.unorderedPair_deconstruction)
+        andThen(() |- forall(b, forall(c, forall(d, (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c))))))) by InstantiateForall(a)
+        andThen(() |- forall(c, forall(d, (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))))) by InstantiateForall(b)
+        andThen(() |- forall(d, (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c))))) by InstantiateForall(c)
+        val fwd = andThen(() |- (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by InstantiateForall(d)
+        
+        // backward direction
+        //      a = c and b = d => up ab = up cd (and the other case)
+        have(() |- unorderedPair(a, b) === unorderedPair(a, b)) by RightRefl
+        andThen(Set(a === c, b === d) |- unorderedPair(a, b) === unorderedPair(c, d)) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(x, y)))
+        val lhs = andThen(Set((a === c) /\ (b === d)) |- unorderedPair(a, b) === unorderedPair(c, d)) by Rewrite
+        
+        have(() |- forall(b, forall(a, unorderedPair(a, b) === unorderedPair(b, a)))) by Rewrite(SetTheory.unorderedPair_symmetry)
+        andThen(() |- forall(b, unorderedPair(a, b) === unorderedPair(b, a))) by InstantiateForall(a)
+        andThen(() |- (unorderedPair(a, b) === unorderedPair(b, a))) by InstantiateForall(b)
+        andThen(Set(a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq(List((a, d), (b, c)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x)))
+        val rhs = andThen(Set((a === d) /\ (b === c)) |- (unorderedPair(a, b) === unorderedPair(c, d))) by Rewrite
+
+
+        have((((a === d) /\ (b === c)) \/ ((a === c) /\ (b === d)))|- (unorderedPair(a, b) === unorderedPair(c, d))) by LeftOr(lhs, rhs)
+        val bwd = andThen(() |- (((a === d) /\ (b === c)) \/ ((a === c) /\ (b === d))) ==> (unorderedPair(a, b) === unorderedPair(c, d))) by Rewrite
+
+        have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) <=> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by RightIff(fwd, bwd)
+    }
+    show
+
 
     // }
 
