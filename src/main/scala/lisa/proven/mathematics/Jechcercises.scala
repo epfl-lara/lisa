@@ -7,6 +7,7 @@ import lisa.prooflib.Library
 import lisa.utils.Printer
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib
+import lisa.proven.mathematics.SetTheory
 
 /**
  * Practicing exercises from Jech, some of them may be moved to become theorems
@@ -100,7 +101,77 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
     }
     show
 
-    // }
+    /**
+     * Two ordered pairs are equal iff their elements are equal when taken in order.
+     * 
+     *  pair(a, b) === {{a}, {a, b}}
+     * 
+     *  pair(a, b) === pair(c, d) iff a === c and b === d
+     * 
+     */
+    val pairExtensionality = makeTHM(
+        () |- (pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))
+    ) {
+        // forward direction
+        //  (a === c) /\ (b === d) |- pair a b === pair c d
+
+        have(() |- (pair(a, b) === pair(a, b))) by RightRefl
+        andThen(Set((a === c), (b === d)) |- (pair(a, b) === pair(c, d))) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(x, y), pair(a, b) === pair(x, y)))
+        val fwd = andThen(() |- ((a === c) /\ (b === d)) ==> (pair(a, b) === pair(c, d))) by Rewrite
+
+        // backward direction
+        //  pair a b === pair c d |- (a === c) /\ (b === d)
+
+        val oPairAxAB = have(() |- in(z, pair(a, b)) <=> ((unorderedPair(a, b) === z) \/ (singleton(a) === z))) by InstFunSchema(Map(y -> singleton(a), x -> unorderedPair(a, b)))(pairAxiom)
+        val oPairAxCD = have(() |- in(z, pair(c, d)) <=> ((unorderedPair(c, d) === z) \/ (singleton(c) === z))) by InstFunSchema(Map(a -> c, b -> d))(oPairAxAB)
+
+        have(() |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d))) <=> (pair(a, b) === pair(c, d))) by InstFunSchema(Map(x -> pair(a, b), y -> pair(c, d)))(extensionalityAxiom)
+        andThen((pair(a, b) === pair(c, d)) |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d)))) by Trivial
+        val eqIff = andThen((pair(a, b) === pair(c, d)) |- in(z, pair(a, b)) <=> in(z, pair(c, d))) by InstantiateForall(z)
+
+        have((pair(a, b) === pair(c, d)) |- (in(z, pair(a, b)) <=> in(z, pair(c, d))) /\ (in(z, pair(a, b)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by RightAnd(oPairAxAB, eqIff)
+        val cdToab = andThen((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by Trivial
+
+        have((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z))) /\ (in(z, pair(c, d)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by RightAnd(cdToab, oPairAxCD)
+        val stmtz = andThen((pair(a, b) === pair(c, d)) |- (((singleton(a) === z) \/ (unorderedPair(a, b) === z)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by Trivial
+
+        // unordered pair extensionality
+        val upExt = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) <=> (((a === c) /\ (b === d)) \/ ((b === c) /\ (a === d)))) by Rewrite(unorderedPairExtensionality)
+        // we will instantiate this to eliminate assumptions for our cases
+
+        def upEq(a: Term, b: Term, c: Term, d: Term) = unorderedPair(a, b) === unorderedPair(c, d)
+        def termEq(a: Term, b: Term, c: Term, d: Term) = (a === c) /\ (b === d)
+        def upEqIff(a: Term, b: Term, c: Term, d: Term) = upEq(a, b, c, d) <=> termEq(a, b, c, d)
+
+        val q = formulaVariable
+        val w = formulaVariable
+        val e = formulaVariable
+        val r = formulaVariable
+
+        // a != c
+        val assumption = (upEq(a, a, a, a) \/ upEq(a, b, a, a)) <=> (upEq(c, c, a, a) \/ upEq(c, d, a, a))
+        val assumption2 = (upEq(a, a, a, b) \/ upEq(a, b, a, b)) <=> (upEq(c, c, a, b) \/ upEq(c, d, a, b))
+        val decomposition = Set(upEqIff(a, a, a, a), upEqIff(a, b, a, a), upEqIff(c, c, a, a), upEqIff(c, d, a, a))
+        val decomposition2 = Set(upEqIff(a, a, a, b), upEqIff(a, b, a, b), upEqIff(c, c, a, b), upEqIff(c, d, a, b))
+
+        // case z = {a}
+        // derive a = c
+        have((pair(a, b) === pair(c, d)) |- assumption) by InstFunSchema(Map(z -> singleton(a)))(stmtz)
+        andThen((decomposition + (pair(a, b) === pair(c, d))) |- assumption) by Weakening
+        andThen((decomposition + (pair(a, b) === pair(c, d))) |- ((termEq(a, a, a, a) \/ termEq(a, b, a, a)) <=> (termEq(c, c, a, a) \/ termEq(c, d, a, a)))) by RightSubstIff(List((upEq(a, a, a, a), termEq(a, a, a, a)), (upEq(a, b, a, a), termEq(a, b, a, a)), (upEq(c, c, a, a), termEq(c, c, a, a)), (upEq(c, d, a, a), termEq(c, d, a, a))), lambda(Seq(q, w, e, r), (q \/ w) <=> (e \/ r)))
+        val aEqc = andThen((decomposition + (pair(a, b) === pair(c, d))) |- (a === c)) by Rewrite
+
+        // then get two cases, in both cases derive the conclusion
+        have((pair(a, b) === pair(c, d)) |- assumption2) by InstFunSchema(Map(z -> unorderedPair(a, b)))(stmtz)
+        andThen((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- assumption2) by Weakening
+        andThen((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- ((termEq(a, a, a, b) \/ termEq(a, b, a, b)) <=> (termEq(c, c, a, b) \/ termEq(c, d, a, b)))) by RightSubstIff(List((upEq(a, a, a, b), termEq(a, a, a, b)), (upEq(a, b, a, b), termEq(a, b, a, b)), (upEq(c, c, a, b), termEq(c, c, a, b)), (upEq(c, d, a, b), termEq(c, d, a, b))), lambda(Seq(q, w, e, r), (q \/ w) <=> (e \/ r)))
+        val caseSplit = andThen((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- (termEq(c, c, a, b) \/ termEq(c, d, a, b))) by Rewrite
+
+        // TODO: finish this proof
+        // probably by z = {c, d} and then get the other symmetric condition, reduce them together
+        // too much pain
+
+    }
 
     // exercise 1.2
     // there exists no X such that P(X) \subset X
