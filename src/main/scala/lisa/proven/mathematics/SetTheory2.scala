@@ -245,6 +245,8 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   val setDifference = DEF (x, y) --> The (z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))(setDifferenceUniqueness)
 
+  val setUnion = DEF (x, y) --> union(unorderedPair(x, y))
+
   // inductive set
   // 0 \in x, \forall y \in x. y U {y} \in x
   def inductive(x: Term) = in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, singleton(y))), x))
