@@ -59,6 +59,46 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
     }
     show
 
+    val singletonHasNoExtraElements = makeTHM(
+        () |- in(y, singleton(x)) <=> (x === y)
+    ) {
+        // specialization of the pair axiom to a singleton
+
+        have(() |- in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstFunSchema(Map(x -> x, y -> x, z -> y))(pairAxiom)
+        andThen(() |- in(y, singleton(x)) <=> (x === y)) by Restate
+    }
+    show
+
+    val singletonExtensionality = makeTHM(
+        () |- (singleton(x) === singleton(y)) <=> (x === y)
+    ) {
+        // forward direction
+        // {x} === {y} |- x === y
+        have(() |- forall(z, in(z, singleton(x)) <=> in(z, singleton(y))) <=> (singleton(x) === singleton(y))) by InstFunSchema(Map(x -> singleton(x), y -> singleton(y)))(extensionalityAxiom)
+        andThen((singleton(x) === singleton(y)) |- forall(z, in(z, singleton(x)) <=> in(z, singleton(y)))) by Trivial
+        val singiff = andThen((singleton(x) === singleton(y)) |- in(z, singleton(x)) <=> in(z, singleton(y))) by InstantiateForall(z)
+
+        val singX = have(() |- in(z, singleton(x)) <=> (z === x)) by InstFunSchema(Map(y -> z))(singletonHasNoExtraElements)
+        have((singleton(x) === singleton(y)) |- (in(z, singleton(x)) <=> in(z, singleton(y))) /\ (in(z, singleton(x)) <=> (z === x))) by RightAnd(singiff, singX)
+        val yToX = andThen((singleton(x) === singleton(y)) |- (in(z, singleton(y)) <=> (z === x))) by Trivial
+
+        val singY = have(() |- in(z, singleton(y)) <=> (z === y)) by InstFunSchema(Map(x -> y))(singX)
+        have((singleton(x) === singleton(y)) |- (in(z, singleton(y)) <=> (z === x)) /\ (in(z, singleton(y)) <=> (z === y))) by RightAnd(yToX, singY)
+        andThen((singleton(x) === singleton(y)) |- ((z === x) <=> (z === y))) by Trivial
+        andThen((singleton(x) === singleton(y)) |- ((x === x) <=> (x === y))) by InstFunSchema(Map(z -> x))
+        
+        andThen((singleton(x) === singleton(y)) |- (x === y)) by Rewrite
+        val fwd = andThen(() |- (singleton(x) === singleton(y)) ==> (x === y)) by Trivial
+
+        // backward direction
+        //  x === y |- {x} === {y}
+        have(() |- singleton(x) === singleton(x)) by RightRefl
+        andThen((x === y) |- singleton(x) === singleton(y)) by RightSubstEq(List((x, y)), lambda(a, singleton(x) === singleton(a)))
+        val bwd = andThen(() |- (x === y) ==> (singleton(x) === singleton(y))) by Rewrite
+
+        have(() |- (singleton(x) === singleton(y)) <=> (x === y)) by RightIff(fwd, bwd)
+    }
+    show
 
     // }
 
