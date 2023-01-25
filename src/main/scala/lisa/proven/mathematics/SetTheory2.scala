@@ -86,8 +86,59 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   // }
 
-  // other theorems I want to prove:
-  // () |- union(singleton(x)) = x
+  /**
+   * 
+   * The unary union operation unfolds a singleton into the single element
+   *      \forall x. U {x} === x
+   **/
+  val unionOfSingletonIsTheOriginalSet = makeTHM(
+    () |- (union(singleton(x)) === x)
+  ) {
+    val X = singleton(x)
+
+    // need to prove:
+    //    \forall z. z \in U X <=> z \in x
+
+    // forward direction
+    //  z \in x |- z \in U X
+    val unionAx = have(() |- in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X))) by InstFunSchema(Map(x -> z, z -> X))(unionAxiom)
+    andThen(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Trivial
+
+    val andLhs = have(() |- in(x, X)) by InstFunSchema(Map(y -> x))(firstElemInPair)
+    val andRhs = have(in(z, x) |- in(z, x)) by Hypothesis
+    have(in(z, x) |- in(z, x) /\ in(x, X)) by RightAnd(andLhs, andRhs)
+    val fwdLhs = andThen(in(z, x) |- exists(y, in(z, y) /\ in(y, X))) by RightExists(x)
+    have(in(z, x) |- exists(y, in(z, y) /\ in(y, X)) /\ (in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X)))) by RightAnd(fwdLhs, unionAx)
+    andThen(in(z, x) |- in(z, union(X))) by Trivial
+    val fwd = andThen(() |- in(z, x) ==> in(z, union(X))) by Rewrite
+
+    // backward direction
+    //  z \in U X |- z \in x
+
+    have(in(y, X) |- in(y, X)) by Hypothesis
+    val bwdHypo = andThen(in(z, y) /\ in(y, X) |- in(y, X)) by Weakening
+    have(in(z, y) /\ in(y, X) |- in(y, X) /\ (in(y, X) <=> (x === y))) by RightAnd(bwdHypo, Jechcercises.singletonHasNoExtraElements)
+    val cutLhs = andThen(in(z, y) /\ in(y, X) |- (x === y)) by Trivial
+
+    have(in(z, y) |- in(z, y)) by Hypothesis
+    andThen(in(y, X) /\ in(z, y) |- in(z, y)) by Weakening
+    val cutRhs = andThen(Set(in(z, y) /\ in(y, X), (x === y)) |- in(z, x)) by RightSubstEq(List((y, x)), lambda(y, in(z, y)))
+
+    have(in(z, y) /\ in(y, X) |- in(z, x)) by Cut(cutLhs, cutRhs)
+    val bwdRhs = andThen(exists(y, in(z, y) /\ in(y, X)) |- in(z, x)) by LeftExists
+    val bwdLhs = have(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Weakening(unionAx)
+    have(in(z, union(X)) |- in(z, x)) by Cut(bwdLhs, bwdRhs)
+    val bwd = andThen(() |- in(z, union(X)) ==> in(z, x)) by Rewrite
+
+    have(() |- in(z, union(X)) <=> in(z, x)) by RightIff(fwd, bwd)
+    val iff = andThen(() |- forall(z, in(z, union(X)) <=> in(z, x))) by RightForall
+
+    val extAx = have(() |- forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x)) by InstFunSchema(Map(x -> union(X), y -> x))(extensionalityAxiom)
+
+    have(() |- forall(z, in(z, union(X)) <=> in(z, x)) /\ (forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x))) by RightAnd(iff, extAx)
+    andThen(() |- (union(X) === x)) by Trivial
+  }
+  show
 
   /**
    * Chapter 1
