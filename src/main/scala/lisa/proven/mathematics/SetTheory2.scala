@@ -96,9 +96,10 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val russelsParadox = makeTHM(
     exists(x, forall(y, ! in(y, y) <=> in(y, x))) |- ()
   ) {
-    have(forall(y, ! in(y, y) <=> in(y, x)) |- forall(y, ! in(y, y) <=> in(y, x))) by Hypothesis
-    andThen(forall(y, ! in(y, y) <=> in(y, x)) |- (!in(x, x)) <=> in(x, x)) by InstantiateForall(x)
-    andThen(forall(y, ! in(y, y) <=> in(y, x)) |- ()) by Rewrite
+    val contra = !in(x, x) <=> in(x, x)
+
+    have(contra |- ()) by Restate
+    andThen(forall(y, ! in(y, y) <=> in(y, x)) |- ()) by LeftForall(x)
     andThen(exists(x, forall(y, ! in(y, y) <=> in(y, x))) |- ()) by LeftExists
   }
   show
