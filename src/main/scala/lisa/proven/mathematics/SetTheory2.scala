@@ -334,34 +334,39 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   show
 
   val relationRange = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationRangeUniqueness)
-  val restrictedFunctionExistence = makeTHM(
-    () |- exists(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
+  /**
+   * 
+   * Sigma Pi Lambda
+   * 
+   */
+
+  /**
+   * TODO: write something
+   */
+  val Sigma = DEF (x, f) --> union(restrictedFunction(f, x))
+
+  val piExistence = makeTHM(
+    () |- exists(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))
   ) {
-    have(() |- exists(g, forall(t, in(t, g) <=> (in(t, z) /\ sPhi(t, z))))) by Rewrite(comprehensionSchema)
-    andThen(() |- exists(g, forall(t, in(t, g) <=> (in(t, f) /\ sPhi(t, f))))) by InstFunSchema(Map(z -> f))
-    andThen(() |- exists(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, f), exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
+    val ztemp = variable
+    have(() |- exists(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ sPhi(g, powerSet(Sigma(x, f))))))) by InstFunSchema(Map(z -> powerSet(Sigma(x, f))))(comprehensionSchema)
+    andThen(() |- exists(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(g, z), (subset(x, relationDomain(g)) /\ functional(g)))))
   }
 
-  val restrictedFunctionUniqueness = makeTHM(
-    () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
+  val piUniqueness = makeTHM(
+    () |- existsOne(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))
   ) {
-    val prop = (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))
-    val fprop = forall(t, in(t, g) <=> prop)
+    val prop = (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))
+    val fprop = forall(g, in(g, z) <=> prop)
 
-    val existsRhs = have(exists(g, fprop) |- existsOne(g, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
-    val existsLhs = have(() |- exists(g, fprop)) by Rewrite(restrictedFunctionExistence)
+    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (g, prop)))(uniquenessByDefinition)
+    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(piExistence)
 
-    have(() |- existsOne(g, fprop)) by Cut(existsLhs, existsRhs)
+    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
   }
 
   /**
-   * The restriction of a function `f` to a set `x`
-   * 
-   * restrictedFunction(f, x) === {(y, f(y)) | y \in x},
-   * 
-   * also written as f_x.
-   * 
+   * TODO: write something
    */
-  val restrictedFunction = DEF (f, x) --> The(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))(restrictedFunctionUniqueness)
-
+  val Pi = DEF (x, f) --> The(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))(piUniqueness)
 }
