@@ -22,7 +22,11 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val a = variable
   val b = variable
   val c = variable
+
+  // relation and function symbols
   val r = variable
+  val f = variable
+  val g = variable
 
   val P = predicate(1)
   val Q = predicate(1)
@@ -334,6 +338,13 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   show
 
   val relationRange = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationRangeUniqueness)
+
+  val relationField = DEF (r) --> (setUnion(relationDomain(r), relationRange(r)))
+
+  val functionalOver = DEF (f, x) --> (relation(f, x) /\ forall(x, in(x, relationDomain(f)) ==> existsOne(y, in(y, relationRange(f)) /\ in(pair(x, y), f))))
+
+  val functional = DEF (f) --> functionalOver(f, relationDomain(f))
+
   /**
    * 
    * Sigma Pi Lambda
