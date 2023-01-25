@@ -170,16 +170,10 @@ object Jechcercises extends lisa.proven.mathematics.BasicDefs {
     }
     show
 
-    val singletonHasNoExtraElements = makeTHM(
-        () |- in(y, singleton(x)) <=> (x === y)
-    ) {
-        // specialization of the pair axiom to a singleton
-
-        have(() |- in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstFunSchema(Map(x -> x, y -> x, z -> y))(pairAxiom)
-        andThen(() |- in(y, singleton(x)) <=> (x === y)) by Restate
-    }
-    show
-
+    /**
+     * Proves that any singleton set is not equal to the empty set
+     * // statement
+     */
     val singletonNonEmpty = makeTHM(
         () |- !(singleton(x) === emptySet())
     ) {
