@@ -1,10 +1,10 @@
-package lisa.utils
+package lisa.prooflib
 
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
-import lisa.utils.tactics.ProofTacticLib.ProofTactic
+import lisa.prooflib.ProofTacticLib.ProofTactic
 
 import scala.collection.mutable.Stack as stack
 
@@ -13,14 +13,14 @@ import scala.collection.mutable.Stack as stack
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.WithTheorems with lisa.utils.tactics.ProofsHelpers {
+abstract class Library(val theory: RunningTheory) extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
   val library: Library = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}
   val SC: SequentCalculus.type = lisa.kernel.proof.SequentCalculus
   export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
   export lisa.kernel.proof.SCProof
-  export lisa.utils.Helpers.{_, given}
+  export lisa.prooflib.TheoriesHelpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
   /**
@@ -79,7 +79,7 @@ abstract class Library(val theory: RunningTheory) extends lisa.utils.tactics.Wit
      * Syntax: <pre> THEOREM("name") of "the sequent concluding the proof" PROOF { the proof } using (assumptions) </pre>
      */
     infix def of(statement: Sequent): TheoremNameWithStatement = TheoremNameWithStatement(name, statement)
-    infix def of(statement: String): TheoremNameWithStatement = TheoremNameWithStatement(name, FOLParser.parseSequent(statement))
+    infix def of(statement: String): TheoremNameWithStatement = TheoremNameWithStatement(name, lisa.utils.FOLParser.parseSequent(statement))
   }
 
   /**

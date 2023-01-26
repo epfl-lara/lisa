@@ -298,11 +298,9 @@ object SCProofChecker {
            *   Γ, Σ |- Δ
            */
           case Weakening(b, t1) =>
-            if (isSubset(ref(t1).left, b.left))
-              if (isSubset(ref(t1).right, b.right))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of premise must be a subset of right-hand side of conclusion")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand side of premise must be a subset of left-hand side of conclusion")
+            if (isImplyingSequent(ref(t1), b))
+              SCValidProof(SCProof(step))
+            else SCInvalidProof(SCProof(step), Nil, "Conclusion cannot be trivially derived from premise.")
 
           // Equality Rules
           /*

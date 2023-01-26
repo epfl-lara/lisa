@@ -1,13 +1,13 @@
-package lisa.utils
+package lisa.utils.parsing
 
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.fol.FOL.equality
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.False
-import lisa.utils.Helpers.given_Conversion_Identifier_String
-import lisa.utils.Helpers.given_Conversion_String_Identifier
-import lisa.utils.ParsingUtils
+import lisa.utils.KernelHelpers.False
+import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
+import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
+import lisa.utils.parsing.ParsingUtils
 import scallion.*
 import scallion.util.Unfolds.unfoldRight
 import silex.*
@@ -18,6 +18,11 @@ val FOLParser = Parser(SynonymInfo.empty, "=" :: Nil, Nil)
 
 enum Associativity {
   case Left, Right, None
+}
+
+//TODO: Deal with errors in parsing.
+class ParsingException(parsedString: String, errorMessage: String) extends lisa.utils.LisaException(errorMessage) {
+  def showError: String = ""
 }
 
 abstract class ParserException(msg: String) extends Exception(msg)

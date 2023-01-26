@@ -1,18 +1,18 @@
-package lisa.utils
+package lisa.utils.parsing
 
-import lisa.utils.ParserException
+import lisa.utils.parsing.ParserException
 import scallion.*
 import scallion.util.Unfolds.unfoldLeft
 
 trait ParsingUtils extends Operators { self: Parsers =>
-  case class PrecedenceLevel[Op](operator: Syntax[Op], associativity: lisa.utils.Associativity)
+  case class PrecedenceLevel[Op](operator: Syntax[Op], associativity: lisa.utils.parsing.Associativity)
 
   implicit class PrecedenceLevelDecorator[Op](operator: Syntax[Op]) {
 
     /**
      * Indicates the associativity of the operator.
      */
-    def has(associativity: lisa.utils.Associativity): PrecedenceLevel[Op] = PrecedenceLevel(operator, associativity)
+    def has(associativity: lisa.utils.parsing.Associativity): PrecedenceLevel[Op] = PrecedenceLevel(operator, associativity)
   }
 
   def singleInfix[Op, A](elem: Syntax[A], op: Syntax[Op])(function: (A, Op, A) => A, inverse: PartialFunction[A, (A, Op, A)] = PartialFunction.empty): Syntax[A] =

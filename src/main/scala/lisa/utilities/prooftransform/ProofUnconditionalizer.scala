@@ -2,7 +2,7 @@ package lisa.utilities.prooftransform
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.*
+import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
 /**

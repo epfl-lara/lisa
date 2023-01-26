@@ -1,4 +1,4 @@
-package lisa.utils.tactics
+package lisa.prooflib
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof
@@ -6,14 +6,13 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.prooflib.ProofTacticLib.*
+import lisa.prooflib.SimpleDeducedSteps.*
+import lisa.prooflib.*
 import lisa.utils.FOLPrinter
-import lisa.utils.Library
 import lisa.utils.LisaException
-import lisa.utils.OutputManager
 import lisa.utils.ProofPrinter
 import lisa.utils.UserLisaException
-import lisa.utils.tactics.ProofTacticLib.*
-import lisa.utils.tactics.SimpleDeducedSteps.*
 
 import scala.annotation.targetName
 
@@ -175,6 +174,17 @@ trait ProofsHelpers {
   def makeTHM(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM =
     new THM(statement, name.value, line.value, file.value)(computeProof) {}
 
+  class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
+    val showError: String = {
+      val source = scala.io.Source.fromFile(file.value)
+      val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
+      source.close()
+      s"   Definition of $symbol at.(${file.value.split("/").last.split("\\\\").last}:${line.value}) is invalid:\n" +
+        "   " + Console.RED + textline + Console.RESET + "\n\n" +
+        "   " + errorMessage
+    }
+  }
+
   class The(val out: VariableLabel, val f: Formula)(
       val just: theory.Theorem | theory.Axiom
   )
@@ -201,18 +211,18 @@ trait ProofsHelpers {
       case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
         if (!theory.belongsToTheory(lambda.body)) {
           om.lisaThrow(
-            UserLisaException.UserInvalidDefinitionException(
+            UserInvalidDefinitionException(
               name.value,
               s"All symbols in the definition must belong to the theory. The symbols ${theory.findUndefinedSymbols(lambda.body)} are unknown and you need to define them first."
             )
           )
         }
         if (!theory.isAvailable(label)) {
-          om.lisaThrow(UserLisaException.UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
+          om.lisaThrow(UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
         }
         if (!lambda.body.freeSchematicTermLabels.subsetOf(lambda.vars.toSet)) {
           om.lisaThrow(
-            UserLisaException.UserInvalidDefinitionException(
+            UserInvalidDefinitionException(
               name.value,
               s"The definition is not allowed to contain schematic symbols or free variables." +
                 s"The symbols {${(lambda.body.freeSchematicTermLabels -- lambda.vars.toSet).mkString(", ")}} are free in the expression ${FOLPrinter.prettyTerm(lambda.body)}."
@@ -252,18 +262,18 @@ trait ProofsHelpers {
       case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
         if (!theory.belongsToTheory(f)) {
           om.lisaThrow(
-            UserLisaException.UserInvalidDefinitionException(
+            UserInvalidDefinitionException(
               name.value,
               s"All symbols in the definition must belong to the theory. The symbols ${theory.findUndefinedSymbols(f)} are unknown and you need to define them first."
             )
           )
         }
         if (!theory.isAvailable(label)) {
-          om.lisaThrow(UserLisaException.UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
+          om.lisaThrow(UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
         }
         if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet) && f.schematicFormulaLabels.isEmpty)) {
           om.lisaThrow(
-            UserLisaException.UserInvalidDefinitionException(
+            UserInvalidDefinitionException(
               name.value,
               s"The definition is not allowed to contain schematic symbols or free variables." +
                 s"The symbols {${(f.freeSchematicTermLabels -- vars.toSet ++ f.schematicFormulaLabels).mkString(", ")}} are free in the expression ${FOLPrinter.prettyFormula(f)}."
@@ -272,7 +282,7 @@ trait ProofsHelpers {
         }
         if (!(conclusion.left.isEmpty && (conclusion.right.size == 1) && isSame(conclusion.right.head, BinderFormula(ExistsOne, out, f)))) {
           om.lisaThrow(
-            UserLisaException.UserInvalidDefinitionException(
+            UserInvalidDefinitionException(
               name.value,
               s"The definition given justification does not correspond to the desired definition" +
                 s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, f))}" +
@@ -303,18 +313,18 @@ trait ProofsHelpers {
       case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
         if (!theory.belongsToTheory(lambda.body)) {
           om.lisaThrow(
-            UserLisaException.UserInvalidDefinitionException(
+            UserInvalidDefinitionException(
               name.value,
               s"All symbols in the definition must belong to the theory. The symbols ${theory.findUndefinedSymbols(lambda.body)} are unknown and you need to define them first."
             )
           )
         }
         if (!theory.isAvailable(label)) {
-          om.lisaThrow(UserLisaException.UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
+          om.lisaThrow(UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
         }
         if (!(lambda.body.freeSchematicTermLabels.subsetOf(lambda.vars.toSet) && lambda.body.schematicFormulaLabels.isEmpty)) {
           om.lisaThrow(
-            UserLisaException.UserInvalidDefinitionException(
+            UserInvalidDefinitionException(
               name.value,
               s"The definition is not allowed to contain schematic symbols or free variables." +
                 s"The symbol(s) {${(lambda.body.freeSchematicTermLabels -- lambda.vars.toSet ++ lambda.body.schematicFormulaLabels).mkString(", ")}} are free in the expression ${FOLPrinter

@@ -38,6 +38,15 @@ object SequentCalculus {
   def isSameSequent(l: Sequent, r: Sequent): Boolean = isSame(sequentToFormula(l), sequentToFormula(r))
 
   /**
+   * Checks whether a given sequent implies another, with respect to [[latticeLEQ]].
+   *
+   * @param l the first sequent
+   * @param r the second sequent
+   * @return see [[latticeLEQ]]
+   */
+  def isImplyingSequent(l: Sequent, r: Sequent): Boolean = isImplying(sequentToFormula(l), sequentToFormula(r))
+
+  /**
    * The parent of all proof steps types.
    * A proof step is a deduction rule of sequent calculus, with the sequents forming the prerequisite and conclusion.
    * For easier linearisation of the proof, the prerequisite are represented with numbers showing the place in the proof of the sequent used.

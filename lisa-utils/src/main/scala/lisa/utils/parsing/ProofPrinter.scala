@@ -1,7 +1,10 @@
-package lisa.utils
+package lisa.utils.parsing
 
 import lisa.kernel.proof.SCProofCheckerJudgement
-import lisa.utils.tactics.BasicStepTactic.SUBPROOF
+import lisa.prooflib.BasicStepTactic.SUBPROOF
+import lisa.prooflib.Library
+import lisa.prooflib.*
+import lisa.utils.*
 
 //temporary - get merged wit regular printer in time
 object ProofPrinter {

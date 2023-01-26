@@ -1,4 +1,4 @@
-package lisa.utils
+package lisa.utils.parsing
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
