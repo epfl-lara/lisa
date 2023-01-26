@@ -11,8 +11,6 @@ import lisa.prooflib.*
 import lisa.utils.FOLParser
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printer
-import lisa.utils.tactics.BasicStepTactic.{_}
-import lisa.utils.tactics.ProofTacticLib.{_, given}
 
 object SimpleDeducedSteps {
 
