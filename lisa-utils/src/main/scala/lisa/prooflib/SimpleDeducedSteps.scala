@@ -6,6 +6,7 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.prooflib.BasicStepTactic._
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
 import lisa.utils.FOLParser
