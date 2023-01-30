@@ -521,4 +521,61 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    val total = connected
    val stronglyConnected = DEF (r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
 
+  /**
+   * Chapter 2
+   * Ordinal Numbers
+   */
+
+  /**
+   * Linear and Partial Ordering
+   */
+
+  /** 
+   * `r` is a partial order on `x` iff 
+   *    - [relation]   it is a binary relation on `x`,
+   *    - [reflexive]  `\forall a \in x, ! a r a` (`a \not < a`), and
+   *    - [transitive] `\forall a, b, c \in x, a r b /\ b r c ==> a r c` (`a < b /\ b < c ==> a < c`)
+   */
+  val partialOrder = DEF (r, x) --> relation(r, x) /\ antiReflexive(r, x) /\ transitive(r, x)
+
+  // properties of elements under partial orders
+
+  /** 
+   * `a` is a maximal element of `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
+   * `\forall b \in y. a \not r b`
+   */
+  val maximalElement = DEF (a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(a, b), r)))
+
+  /** 
+   * `a` is a minimal element of `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
+   * `\forall b \in y. b \not r a`
+   */
+  val minimalElement = DEF (a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(b, a), r)))
+
+  /** 
+   * `a` is the greatest element of `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
+   * `\forall b \in y. b r a \/ b = a`
+   */
+  val greatestElement = DEF (a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(b, a), r) \/ (a === b)))
+
+  /** 
+   * `a` is the least element of `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
+   * `\forall b \in y. a r b \/ b = a`
+   */
+  val leastElement = DEF (a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
+
+  /** 
+   * `a` is an upper bound on `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
+   * `\forall b \in y. b r a \/ b = a`
+   * Note that as opposed to the greatest element, `a` is not enforced to be an element of `y`
+   */
+  val upperBound = DEF (a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(b, a), r) \/ (a === b)))
+
+  /** 
+   * `a` is a lower bound on `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
+   * `\forall b \in y. a r b \/ b = a`
+   * Note that as opposed to the least element, `a` is not enforced to be an element of `y`
+   */
+  val lowerBound = DEF (a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
+
 }
