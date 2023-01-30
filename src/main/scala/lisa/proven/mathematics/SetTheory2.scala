@@ -502,4 +502,23 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    * TODO: write something
    */
   val Pi = DEF (x, f) --> The(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))(piUniqueness)
+
+  /**
+   * Properties of relations
+   */
+
+   val reflexive  = DEF (r, x) --> relation(r, x) /\ forall(y, in(y, x) ==> in(pair(y, y), r))
+   val symmetric  = DEF (r, x) --> relation(r, x) /\ forall(y, forall(z, in(pair(y, z), r) <=> in(pair(z, y), r)))
+   val transitive = DEF (r, x) --> relation(r, x) /\ forall(w, forall(y, forall(z, (in(pair(w, y), r) /\ in(pair(y, z), r)) ==> in(pair(w, z), r))))
+   val equivalence = DEF (r, x) --> reflexive(r, x) /\ symmetric(r, x) /\ transitive(r, x)
+
+   val antiReflexive = DEF (r, x) --> relation(r, x) /\ forall(y, in(y, x) ==> !in(pair(y, y), r))
+   val irreflexive = antiReflexive
+   val antiSymmetric = DEF (r, x) --> relation(r, x) /\ forall(y, forall(z, (in(pair(y, z), r) /\ in(pair(z, y), r)) ==> (y === z)))
+   val asymmetric = DEF (r, x) --> relation(r, x) /\ forall(y, forall(z, in(pair(y, z), r) ==> !in(pair(z, y), r)))
+
+   val connected = DEF (r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r) \/ (y === z))))
+   val total = connected
+   val stronglyConnected = DEF (r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
+
 }
