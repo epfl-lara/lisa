@@ -20,6 +20,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
   final val unionAxiom: Formula = in(x, union(z)) <=> exists(y, in(x, y) /\ in(y, z))
   final val powerAxiom: Formula = in(x, powerSet(y)) <=> subset(x, y)
   final val foundationAxiom: Formula = !(x === emptySet()) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y)))
+  final val infinityAxiom: Formula = exists(x, in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)))
 
   final val comprehensionSchema: Formula = exists(y, forall(x, in(x, y) <=> (in(x, z) /\ sPhi(x, z))))
 
@@ -31,6 +32,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
     ("subsetAxiom", subsetAxiom),
     ("powerAxiom", powerAxiom),
     ("foundationAxiom", foundationAxiom),
+    ("infinityAxiom", infinityAxiom),
     ("comprehensionSchema", comprehensionSchema)
   )
 
