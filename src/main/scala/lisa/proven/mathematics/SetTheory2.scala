@@ -46,75 +46,6 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    */
 
   /**
-   * Axioms of Zermelo-Fraenkel Set Theory
-   * 
-   * See [[SetTheoryZAxioms]] and [[SetTheoryZFAxioms]] for the definitions
-   */
-
-  /**
-   * Extensionality Axiom
-   * 
-   * Two sets x and y are equal iff they have the same elements.
-   * 
-   * `() |- (x === y) <=> \forall z. z \in x <=> z \in y` 
-   */
-  extensionalityAxiom
-
-  /**
-   * Pairing Axiom
-   * 
-   * For any sets x and y, there is a set that contains exactly x and y.
-   * 
-   * This set is denoted mathematically as `{x, y}` and here as unorderedPair(x, y).
-   * 
-   * `() |- z \in {x, y} <=> (z === x \/ z === y)`
-   * 
-   * This axiom defines `unorderedPair` as the function symbol representing this set.   * 
-   */
-  pairAxiom
-
-  /**
-   * Comprehension/Separation Schema
-   * 
-   * For a formula \phi(_, _) and a set z, there exists a set y which contains only the elements x of z that satisfy \phi(x, z).
-   * 
-   * This is represented mathematically as `y = {x \in z | \phi(x, z)}`.
-   * 
-   * `() |- \exists y. \forall x. x \in y <=> (x \in z /\ \phi(x, z))`
-   * 
-   * This schema represents an infinite collection of axioms, one for each formula \phi(x, z).
-   */
-  comprehensionSchema
-
-  /**
-   * Empty Set Axiom
-   * 
-   * From the Comprehension Schema follows the existence of a set containing no elements, the empty set.
-   * 
-   * `\emptyset = {x \in X | x != x}`.
-   * 
-   * This axiom defines `emptySet` as the constant symbol representing this set.
-   * 
-   * `() |- !(x \in \emptyset)`
-   */
-  emptySetAxiom
-
-  /**
-   * Union Axiom
-   * 
-   * For any set x, there exists a set union(x) which is the union of its elements.
-   * 
-   * For every element of union(x), there is an element of x which contains it.
-   * 
-   * `() |- z \in union(x) <=> \exists y. y \in x /\ z \in y`
-   * 
-   * Mathematically, we write union(x) as U x
-   * 
-   * This axiom defines the union as the function symbol representing this set.
-   */
-  unionAxiom
-
-  /**
    * Binary Set Union
    * 
    * Using the pair and union axioms, we may define as shorthand the binary union of two sets x and y:
@@ -122,30 +53,6 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    * `x U y = U {x, y}`
    */
   val setUnion = DEF (x, y) --> union(unorderedPair(x, y))
-
-  /**
-   * Subset Axiom
-   * 
-   * For sets x and y, x is a subset of y if every element of x is in y.
-   * 
-   * Denoted `x \subseteq y`.
-   * 
-   * `() |- x \subseteq y <=> (z \in x ==> z \in y)`
-   * 
-   * This axiom defines the subset symbol as this predicate.
-   */
-  subsetAxiom
-
-  /**
-   * Power Set Axiom
-   * 
-   * For a set x, there exists a power set of x, denoted `PP(x)` or `power(x)` which contains every subset of x.
-   * 
-   * `() |- z \in power(x) <=> z \subseteq x`
-   * 
-   * This axiom defines `power` as the function symbol representing this set.
-   */
-  powerAxiom
 
   /**
    * Successor Function
@@ -165,20 +72,6 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    * `inductive(x) <=> (\emptyset \in x /\ \forall y. y \in x ==> successor(y) \in x)`
    */
   val inductive = DEF (x) --> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))
-
-  /**
-   * Infinity Axiom
-   * 
-   * There exists an infinite set.
-   * 
-   * The definition requires a notion of finiteness, which generally corresponds to natural numbers.
-   * Since naturals have not yet been defined, their definition and structure is imitated in the definition of an inductive set.
-   * 
-   * This axiom postulates that there exists an inductive set.
-   * 
-   * `() |- \exists x. inductive(x)`
-   */
-  infinityAxiom
 
   // predicates for properties of sets
 
