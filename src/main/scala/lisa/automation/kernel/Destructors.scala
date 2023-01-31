@@ -4,7 +4,7 @@ import lisa.automation.kernel.ProofTactics.hypothesis
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.utils.Helpers.*
+import lisa.utils.KernelHelpers.*
 
 object Destructors {
   def destructRightOr(p: SCProof, a: Formula, b: Formula): SCProof = {

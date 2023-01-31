@@ -1,4 +1,4 @@
-package lisa.utils.tactics
+package lisa.prooflib
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
@@ -6,11 +6,11 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Cut
 import lisa.kernel.proof.SequentCalculus.Sequent
-import lisa.utils.Library
+import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.prooflib.ProofTacticLib.UnimplementedProof
+import lisa.prooflib.*
 import lisa.utils.LisaException
-import lisa.utils.OutputManager
 import lisa.utils.UserLisaException
-import lisa.utils.tactics.ProofTacticLib.ProofTactic
 
 import scala.annotation.nowarn
 import scala.collection.mutable.Buffer as mBuf
@@ -163,6 +163,7 @@ trait WithTheorems {
 
     def asOutsideFact(j: theory.Justification): OutsideFact
 
+    @nowarn("msg=.*It would fail on pattern case: _: InnerProof.*")
     def depth: Int = this match {
       case p: Proof#InnerProof => 1 + p.parent.depth
       case _: BaseProof => 0
@@ -201,7 +202,7 @@ trait WithTheorems {
         this match {
           case vpt: ValidProofTactic => newProofStep(vpt)
           case ipt: InvalidProofTactic =>
-            val e = UserLisaException.UnapplicableProofTactic(ipt.tactic, ipt.proof, ipt.message)(using line, file)
+            val e = lisa.prooflib.ProofTacticLib.UnapplicableProofTactic(ipt.tactic, ipt.proof, ipt.message)(using line, file)
             e.setStackTrace(ipt.stack)
             throw e
         }
@@ -230,7 +231,8 @@ trait WithTheorems {
     override def sequentOfOutsideFact(of: theory.Justification): Sequent = theory.sequentFromJustification(of)
   }
 
-  class THM(using om: OutputManager)(statement: Sequent | String, val fullName: String, val line: Int, val file: String)(computeProof: Proof ?=> Unit) {
+  sealed abstract class DefOrThm(using om: OutputManager)(val line: Int, val file: String)
+  class THM(using om: OutputManager)(statement: Sequent | String, val fullName: String, line: Int, file: String)(computeProof: Proof ?=> Unit) extends DefOrThm(using om)(line, file) {
 
     val goal: Sequent = statement match {
       case s: Sequent => s
@@ -254,36 +256,31 @@ trait WithTheorems {
         computeProof
       } catch {
         case e: NotImplementedError =>
-          om.lisaThrow(new UserLisaException.UnimplementedProof(this))
+          om.lisaThrow(new UnimplementedProof(this))
         case e: UserLisaException =>
           om.lisaThrow(e)
       }
 
       if (proof.length == 0)
-        om.lisaThrow(new UserLisaException.UnimplementedProof(this))
+        om.lisaThrow(new UnimplementedProof(this))
 
       val r = TheoremNameWithProof(name, goal, proof.toSCProof)
-      val r2 = theory.theorem(r.name, r.statement, r.proof, proof.getImports.map(_._1)) match {
+      theory.theorem(r.name, r.statement, r.proof, proof.getImports.map(_._1)) match {
         case RunningTheoryJudgement.ValidJustification(just) =>
           library.last = Some(just)
           just
         case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
           om.lisaThrow(
             LisaException.InvalidKernelJustificationComputation(
-              proof,
               "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
-              wrongJudgement
+              wrongJudgement,
+              Some(proof)
             )
           )
       }
-      library.last = Some(r2)
-      r2
     }
   }
 
-  def makeVar(using name: sourcecode.FullName): VariableLabel = VariableLabel(name.value)
-
-  def makeTHM(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM =
-    new THM(statement, name.value, line.value, file.value)(computeProof) {}
+  given Conversion[library.THM, theory.Theorem] = _.innerThm
 
 }

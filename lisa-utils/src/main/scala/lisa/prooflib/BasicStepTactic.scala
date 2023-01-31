@@ -1,16 +1,14 @@
-package lisa.utils.tactics
+package lisa.prooflib
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.utils.Helpers.*
-import lisa.utils.Library
-import lisa.utils.LisaException
-import lisa.utils.OutputManager
+import lisa.prooflib.ProofTacticLib.{_, given}
+import lisa.prooflib.*
+import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
-import lisa.utils.tactics.ProofTacticLib.{_, given}
 
 object BasicStepTactic {
 
@@ -38,6 +36,15 @@ object BasicStepTactic {
         proof.InvalidProofTactic("The premise and the conclusion are not trivially equivalent.")
       else
         proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+    }
+  }
+
+  object RewriteTrue extends ProofTactic with ParameterlessHave {
+    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+      if (!SC.isSameSequent(bot, () |- PredicateFormula(top, Nil)))
+        proof.InvalidProofTactic("The desired conclusion is not a trivial tautology.")
+      else
+        proof.ValidProofTactic(Seq(SC.RewriteTrue(bot)), Seq())
     }
   }
 
@@ -848,10 +855,8 @@ object BasicStepTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
-      if (!isSubset(premiseSequent.left, bot.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise.")
-      else if (!isSubset(premiseSequent.right, bot.right))
-        proof.InvalidProofTactic("Right-hand side of premise is not a subset of right-hand side of conclusion.")
+      if (!SC.isImplyingSequent(premiseSequent, bot))
+        proof.InvalidProofTactic("Conclusion cannot be trivially derived from premise.")
       else
         proof.ValidProofTactic(Seq(SC.Weakening(bot, -1)), Seq(premise))
     }
@@ -869,7 +874,7 @@ object BasicStepTactic {
     def withParameters(using proof: Library#Proof)(fa: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
-      if (!isSameSet(bot.left + fa, premiseSequent.left))
+      if (!isSameSet(bot.left + fa, premiseSequent.left) || !premiseSequent.left.exists(_ == fa) || bot.left.exists(_ == fa))
         proof.InvalidProofTactic("Left-hand sides of the conclusion + φ is not the same as left-hand side of the premise.")
       else if (!isSameSet(bot.right, premiseSequent.right))
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
@@ -904,7 +909,7 @@ object BasicStepTactic {
    */
   object RightRefl extends ProofTactic with ParameterlessHave {
     def withParameters(using proof: Library#Proof)(fa: Formula)(bot: Sequent): proof.ProofTacticJudgement = {
-      if (!contains(bot.right, fa))
+      if (!bot.right.exists(_ == fa))
         proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
       else
         fa match {
@@ -1099,12 +1104,12 @@ object BasicStepTactic {
         computeProof(using iProof)
       } catch {
         case e: NotImplementedError =>
-          om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
+          om.lisaThrow(new UnimplementedProof(proof.owningTheorem))
         case e: UserLisaException =>
           om.lisaThrow(e)
       }
       if (iProof.length == 0)
-        om.lisaThrow(new UserLisaException.UnimplementedProof(proof.owningTheorem))
+        om.lisaThrow(new UnimplementedProof(proof.owningTheorem))
       iProof.toSCProof
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)

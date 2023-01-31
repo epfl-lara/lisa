@@ -1,5 +1,8 @@
-package lisa.utils
-import lisa.utils.Helpers.show
+package lisa.prooflib
+
+import lisa.prooflib.TheoriesHelpers.show
+import lisa.utils.LisaException
+import lisa.utils.UserLisaException
 
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -16,20 +19,15 @@ abstract class OutputManager {
   def lisaThrow(le: LisaException): Nothing =
     le match {
       case ule: UserLisaException =>
-        ule match {
-          case tacticException: UserLisaException.UnapplicableProofTactic =>
-            val start = tacticException.getStackTrace.indexWhere(elem => {
-              !elem.getClassName.contains(tacticException.tactic.name)
-            }) + 1
-            tacticException.setStackTrace(tacticException.getStackTrace.take(start))
-            output(tacticException.showError)
-            finishOutput(tacticException)
-          case exception: UserLisaException.UserParsingException => finishOutput(le)
-          case _ => finishOutput(le)
-        }
+        ule.fixTrace()
+        output(ule.showError)
+        finishOutput(ule)
 
       case e: LisaException.InvalidKernelJustificationComputation =>
-        output(ProofPrinter.prettyProof(e.proof))
+        e.proof match {
+          case Some(value) => output(lisa.utils.ProofPrinter.prettyProof(value))
+          case None => ()
+        }
         e.underlying.show
         finishOutput(e)
 

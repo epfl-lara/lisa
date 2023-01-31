@@ -1,11 +1,11 @@
 package lisa.utils
 
-import lisa.kernel.proof.{SequentCalculus as SC}
-import lisa.utils.Library
+import lisa.kernel.proof.SequentCalculus as SC
+import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.Library
+import lisa.prooflib.ProofTacticLib
 import lisa.utils.Printer
 import lisa.utils.ProofTacticTestLib
-import lisa.utils.tactics.BasicStepTactic.*
-import lisa.utils.tactics.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
 
 class BasicTacticTest extends ProofTacticTestLib {
@@ -21,6 +21,7 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     val incorrect = List(
       ("'P('x) |- "),
+      (" |- "),
       (" |- 'P('x)"),
       (" |- 'P('x); 'Q('x)"),
       ("'Q('x) |- ")
@@ -48,6 +49,28 @@ class BasicTacticTest extends ProofTacticTestLib {
     testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
       val prem = introduceSequent(stmt1)
       Rewrite(prem)(stmt2)
+    }
+  }
+
+  // rewrite true
+  test("Tactic Tests: Rewrite True") {
+    val correct = List(
+      ("'P('x); 'Q('x) |- 'P('x); 'Q('x)"),
+      ("'P('x) |- 'P('x); 'Q('x)"),
+      ("'P('x); 'Q('x) |- 'Q('x)"),
+      ("'P('x) |- 'P('x)"),
+      ("'P('x); 'Q('x) |- 'P('x); 'R('x)")
+    )
+
+    val incorrect = List(
+      ("'R('x) |- 'P('x); 'Q('x)"),
+      ("'P('x); 'S('x) |- 'Q('x)"),
+      ("'Q('x) |- 'P('x)"),
+      (" |- ")
+    )
+
+    testTacticCases(correct, incorrect) {
+      RewriteTrue(_)
     }
   }
 
@@ -901,7 +924,9 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'P('x) |- 'R('x)", "'P('x) |- 'R('x); 'S('y)"),
       ("'P('x) |- 'R('x)", "'P('x); 'S('y) |- 'R('x)"),
       ("'P('x) |- 'R('x)", "'P('x); 'S('y) |- 'R('x); 'Q('z)"),
-      ("'P('x) |- 'R('x)", "'P('x); 'S('y); 'Q('z) |- 'R('x); 'Q('z); 'S('k)")
+      ("'P('x) |- 'R('x)", "'P('x); 'S('y); 'Q('z) |- 'R('x); 'Q('z); 'S('k)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "'P('x) /\\ 'Q('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x); 'Q('x)", "'P('x) |- 'R('x) \\/ 'Q('x)")
     )
 
     val incorrect = List(
@@ -909,7 +934,10 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'P('x) |- 'R('x)", "'P('x) |- "),
       ("'P('x); 'S('y) |- 'R('x)", "'P('x) |- 'R('x); 'S('y)"),
       ("'P('x); 'Q('y) |- 'R('x)", "'P('x); 'S('y) |- 'R('x)"),
-      ("'P('x); 'Q('y) |- 'R('x)", "'P('x); 'Q('x) |- 'R('x)")
+      ("'P('x); 'Q('y) |- 'R('x)", "'P('x); 'Q('x) |- 'R('x)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "'P('x) |- 'R('x)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "'P('x) \\/ 'Q('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x); 'Q('x)", "'P('x) |- 'R('x) /\\'Q('x) ")
     )
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
@@ -948,7 +976,6 @@ class BasicTacticTest extends ProofTacticTestLib {
       ("'R('z); 'x = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'y"),
       ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z); 'y = 'y |- 'P('x)", "'y = 'y"),
       ("'R('z); 'x = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'x"),
-      ("'R('z); 'x = 'x; 'y = 'y |- 'P('x)", "'R('z) |- 'P('x)", "'x = 'x"),
       ("'R('z); 'x = 'x |- 'P('x)", "'R('z); 'x = 'y |- 'P('x)", "'x = 'x")
     )
 

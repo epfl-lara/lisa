@@ -2,15 +2,16 @@ import lisa.Main
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.{RunningTheory, SCProof, SCProofChecker}
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.tptp.KernelParser.*
 import lisa.tptp.ProblemGatherer.*
 import lisa.tptp.*
-import lisa.utils.Helpers.show
-import lisa.utils.Helpers.{*, given}
 import lisa.utils.FOLPrinter.*
+import lisa.utils.KernelHelpers.{_, given}
 
 /**
  * Discover some of the elements of LISA to get started.

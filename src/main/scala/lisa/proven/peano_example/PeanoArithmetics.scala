@@ -2,7 +2,7 @@ package lisa.proven.peano_example
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.Helpers.{_, given}
+import lisa.utils.KernelHelpers.{_, given}
 
 object PeanoArithmetics {
   final val (x, y, z) =

@@ -3,12 +3,10 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.prooflib.Library
+import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter
-import lisa.utils.Helpers.{_, given}
-import lisa.utils.Library
-import lisa.utils.tactics.ProofTacticLib.ParameterlessAndThen
-import lisa.utils.tactics.ProofTacticLib.ParameterlessHave
-import lisa.utils.tactics.ProofTacticLib.ProofTactic
+import lisa.utils.KernelHelpers.{_, given}
 
 import scala.collection.mutable.Set as mSet
 
@@ -236,9 +234,7 @@ object SimplePropositionalSolver {
         val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
         val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
         val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
-        println(FOLPrinter.prettySequent(sqToProve))
         val subpr = SCSubproof(solveSequent(sqToProve))
-        checkProof(subpr.sp)
         val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
           val ((prem, form), position) = cur
           Cut(prev.head.bot -< form, position, initProof.length + prev.length - 1, form) :: prev

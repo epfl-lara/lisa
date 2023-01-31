@@ -3,9 +3,9 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter
-import lisa.utils.Helpers.*
-import lisa.utils.tactics.ProofTacticLib.*
+import lisa.utils.KernelHelpers.*
 
 import scala.collection
 
@@ -99,7 +99,7 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    def apply(proof: lisa.utils.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
