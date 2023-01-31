@@ -37,7 +37,6 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * Comprehension/Separation Schema
    * 
    * For a formula \phi(_, _) and a set z, there exists a set y which contains only the elements x of z that satisfy \phi(x, z).
-   * 
    * This is represented mathematically as `y = {x \in z | \phi(x, z)}`.
    * 
    * `() |- \exists y. \forall x. x \in y <=> (x \in z /\ \phi(x, z))`
@@ -64,13 +63,11 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * Union Axiom
    * 
    * For any set x, there exists a set union(x) which is the union of its elements.
-   * 
    * For every element of union(x), there is an element of x which contains it.
    * 
    * `() |- z \in union(x) <=> \exists y. y \in x /\ z \in y`
    * 
    * Mathematically, we write union(x) as U x
-   * 
    * This axiom defines the union as the function symbol representing this set.
    */
     final val unionAxiom: Formula = in(x, union(z)) <=> exists(y, in(x, y) /\ in(y, z))
@@ -80,7 +77,6 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * Subset Axiom
    * 
    * For sets x and y, x is a subset of y if every element of x is in y.
-   * 
    * Denoted `x \subseteq y`.
    * 
    * `() |- x \subseteq y <=> (z \in x ==> z \in y)`
@@ -105,9 +101,8 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * Infinity Axiom
    * 
    * There exists an infinite set.
-   * 
    * The definition requires a notion of finiteness, which generally corresponds to natural numbers.
-   * Since naturals have not yet been defined, their definition and structure is imitated in the definition of an inductive set.
+   * Since the naturals have not yet been defined, their definition and structure is imitated in the definition of an inductive set.
    * 
    * `inductive(x) <=> (\emptyset \in x /\ \forall y. y \in x ==> successor(y) \in x)`
    * 
