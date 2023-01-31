@@ -10,7 +10,15 @@ import lisa.prooflib.ProofTacticLib
 import lisa.proven.mathematics.Jechcercises
 
 /**
- * An embryo of mathematical development, containing a few example theorems and the definition of the ordered unorderedPair.
+ * Set Theory Library
+ * 
+ * Develops Zermelo-Fraenkel Set Theory.
+ * 
+ * Uses the following book as the main reference:
+ * 
+ * Jech, Thomas. Set theory: The third millennium edition, revised and expanded. Springer Berlin Heidelberg, 2003.
+ * https://link.springer.com/book/10.1007/3-540-44761-X
+ * 
  */
 object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
@@ -32,6 +40,167 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val P = predicate(1)
   val Q = predicate(1)
   val schemPred = predicate(1)
+
+  /**
+   * Chapter 1
+   */
+
+  /**
+   * Axioms of Zermelo-Fraenkel Set Theory
+   * 
+   * See [[SetTheoryZAxioms]] and [[SetTheoryZFAxioms]] for the definitions
+   */
+
+  /**
+   * Extensionality Axiom
+   * 
+   * Two sets x and y are equal iff they have the same elements.
+   * 
+   * `() |- (x === y) <=> \forall z. z \in x <=> z \in y` 
+   */
+  extensionalityAxiom
+
+  /**
+   * Pairing Axiom
+   * 
+   * For any sets x and y, there is a set that contains exactly x and y.
+   * 
+   * This set is denoted mathematically as `{x, y}` and here as unorderedPair(x, y).
+   * 
+   * `() |- z \in {x, y} <=> (z === x \/ z === y)`
+   * 
+   * This axiom defines `unorderedPair` as the function symbol representing this set.   * 
+   */
+  pairAxiom
+
+  /**
+   * Comprehension/Separation Schema
+   * 
+   * For a formula \phi(_, _) and a set z, there exists a set y which contains only the elements x of z that satisfy \phi(x, z).
+   * 
+   * This is represented mathematically as `y = {x \in z | \phi(x, z)}`.
+   * 
+   * `() |- \exists y. \forall x. x \in y <=> (x \in z /\ \phi(x, z))`
+   * 
+   * This schema represents an infinite collection of axioms, one for each formula \phi(x, z).
+   */
+  comprehensionSchema
+
+  /**
+   * Empty Set Axiom
+   * 
+   * From the Comprehension Schema follows the existence of a set containing no elements, the empty set.
+   * 
+   * `\emptyset = {x \in X | x != x}`.
+   * 
+   * This axiom defines `emptySet` as the constant symbol representing this set.
+   * 
+   * `() |- !(x \in \emptyset)`
+   */
+  emptySetAxiom
+
+  /**
+   * Union Axiom
+   * 
+   * For any set x, there exists a set union(x) which is the union of its elements.
+   * 
+   * For every element of union(x), there is an element of x which contains it.
+   * 
+   * `() |- z \in union(x) <=> \exists y. y \in x /\ z \in y`
+   * 
+   * Mathematically, we write union(x) as U x
+   * 
+   * This axiom defines the union as the function symbol representing this set.
+   */
+  unionAxiom
+
+  /**
+   * Binary Set Union
+   * 
+   * Using the pair and union axioms, we may define as shorthand the binary union of two sets x and y:
+   * 
+   * `x U y = U {x, y}`
+   */
+  val setUnion = DEF (x, y) --> union(unorderedPair(x, y))
+
+  /**
+   * Subset Axiom
+   * 
+   * For sets x and y, x is a subset of y if every element of x is in y.
+   * 
+   * Denoted `x \subseteq y`.
+   * 
+   * `() |- x \subseteq y <=> (z \in x ==> z \in y)`
+   * 
+   * This axiom defines the subset symbol as this predicate.
+   */
+  subsetAxiom
+
+  /**
+   * Power Set Axiom
+   * 
+   * For a set x, there exists a power set of x, denoted `PP(x)` or `power(x)` which contains every subset of x.
+   * 
+   * `() |- z \in power(x) <=> z \subseteq x`
+   * 
+   * This axiom defines `power` as the function symbol representing this set.
+   */
+  powerAxiom
+
+  /**
+   * Successor Function
+   * 
+   * Maps a set to its 'successor' in the sense required for an inductive set.
+   * 
+   * successor: x \mapsto x U {x}
+   */
+  val successor = DEF (x) --> union(unorderedPair(x, singleton(x)))
+
+
+  /**
+   * Inductive set
+   * 
+   * A set is inductive if it contains the empty set, and the successors of each of its elements.
+   * 
+   * `inductive(x) <=> (\emptyset \in x /\ \forall y. y \in x ==> successor(y) \in x)`
+   */
+  val inductive = DEF (x) --> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))
+
+  /**
+   * Infinity Axiom
+   * 
+   * There exists an infinite set.
+   * 
+   * The definition requires a notion of finiteness, which generally corresponds to natural numbers.
+   * Since naturals have not yet been defined, their definition and structure is imitated in the definition of an inductive set.
+   * 
+   * This axiom postulates that there exists an inductive set.
+   * 
+   * `() |- \exists x. inductive(x)`
+   */
+  infinityAxiom
+
+  // predicates for properties of sets
+
+  val russelsParadox = makeTHM(
+    exists(x, forall(y, ! in(y, y) <=> in(y, x))) |- ()
+  ) {
+    val contra = !in(x, x) <=> in(x, x)
+
+    have(contra |- ()) by Restate
+    andThen(forall(y, ! in(y, y) <=> in(y, x)) |- ()) by LeftForall(x)
+    andThen(exists(x, forall(y, ! in(y, y) <=> in(y, x))) |- ()) by LeftExists
+  }
+  show
+
+  val noUniversalSet = makeTHM(
+    forall(z, in(z, x)) |- ()
+  ) {
+    have(in(x, x) |- ()) by Rewrite(Jechcercises.selfNonInclusion)
+    andThen(forall(z, in(z, x)) |- ()) by LeftForall(x)
+  }
+  show
+
 
 
   /**
@@ -140,32 +309,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
     andThen(() |- (union(X) === x)) by Trivial
   }
   show
-
-  /**
-   * Chapter 1
-   */
-
-  val russelsParadox = makeTHM(
-    exists(x, forall(y, ! in(y, y) <=> in(y, x))) |- ()
-  ) {
-    val contra = !in(x, x) <=> in(x, x)
-
-    have(contra |- ()) by Restate
-    andThen(forall(y, ! in(y, y) <=> in(y, x)) |- ()) by LeftForall(x)
-    andThen(exists(x, forall(y, ! in(y, y) <=> in(y, x))) |- ()) by LeftExists
-  }
-  show
-
-  val noUniversalSet = makeTHM(
-    forall(z, in(z, x)) |- ()
-  ) {
-    have(in(x, x) |- ()) by Rewrite(Jechcercises.selfNonInclusion)
-    andThen(forall(z, in(z, x)) |- ()) by LeftForall(x)
-  }
-  show
-
-  // predicates for properties of sets
-
+  
   // operations on sets
 
   /**
@@ -219,26 +363,26 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
     val existence = makeTHM(
       () |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))))
-  ) {
+    ) {
       have(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, z) /\ sPhi(t2, z))))) by Rewrite(comprehensionSchema)
       andThen(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ sPhi(t2, originalSet))))) by InstFunSchema(Map(z -> originalSet))
       andThen(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t1, t2), separationPredicate(Seq(t1, t2)))))
-  }
+    }
 
     val uniqueness = makeTHM(
       () |- existsOne(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))))
-  ) {
+    ) {
       val prop = (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))
       def fprop(z: Term) = forall(t2, in(t2, z) <=> prop)
 
       val existsRhs = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by InstPredSchema(Map(schemPred -> (t2, prop)))(uniquenessByDefinition)
 
-    // assumption elimination
-    // in essence, an existence proof
+      // assumption elimination
+      // in essence, an existence proof
       val existsLhs = have(() |- exists(t1, fprop(t1))) by Rewrite(existence)
 
       have(() |- existsOne(t1, fprop(t1))) by Cut(existsLhs, existsRhs)
-  }
+    }
 
     (existence, uniqueness)
   }
@@ -255,7 +399,6 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   val setDifference = DEF (x, y) --> The (z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))(setDifferenceUniqueness)
 
-  val setUnion = DEF (x, y) --> union(unorderedPair(x, y))
 
   /**
    * There exists a set that is the intersection of all sets satisfying a given formula
@@ -301,7 +444,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   val (cartesianProductExistence, cartesianProductUniqueness) = uniquenessByComprehensionDefinition(powerSet(unorderedPair(x, y)), lambda(Seq(t, z), exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y)))))
 
   val cartesianProduct = DEF (x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))(cartesianProductUniqueness)
-  
+
   /**
    * Binary relations and functions
    */
@@ -322,35 +465,33 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   val functional = DEF (f) --> functionalOver(f, relationDomain(f))
 
-    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
-    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(relationRangeExistence)
+  // val functionalEquivalentToUniqueness = makeTHM(
+  //   () |- functional(f, x) <=> (relation(f, x) /\ forall(x, forall(y, forall(z, (in(pair(x, y), f) /\ in(pair(x, z), f)) ==> (y === z)))))
+  // ) {
 
-    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
-  }
-  show
+  //   // obtain the definition of the functional predicate
+  //   val funDef = have(() |- functional(f, x) <=> (relation(f, x) /\ forall(x, in(x, relationDomain(f)) ==> existsOne(y, in(y, relationRange(f)) /\ in(pair(x, y), f))))) by Rewrite(functional.definition)
 
-  val relationRange = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationRangeUniqueness)
+  //   // now we prove that the definitions themselves are equal, and finally substitute in the predicate
 
-  val relationField = DEF (r) --> (setUnion(relationDomain(r), relationRange(r)))
+  //   val defn = (relation(f, x) /\ forall(x, in(x, relationDomain(f)) ==> existsOne(y, in(y, relationRange(f)) /\ in(pair(x, y), f))))
+  //   val uniq = (relation(f, x) /\ forall(x, forall(y, forall(z, (in(pair(x, y), f) /\ in(pair(x, z), f)) ==> (y === z)))))
 
-  val functionalOver = DEF (f, x) --> (relation(f, x) /\ forall(x, in(x, relationDomain(f)) ==> existsOne(y, in(y, relationRange(f)) /\ in(pair(x, y), f))))
+  //   // forward
+  //   // functional -> pairwise uniqueness
+  //   have(defn |- defn) by Hypothesis
+  //   have(defn |- )
 
-  val functional = DEF (f) --> functionalOver(f, relationDomain(f))
+  //   // backward
+  //   // pairwise uniqueness -> functional
 
+  // }
 
-  val restrictedFunctionExistence = makeTHM(
-    () |- exists(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
-  ) {
-    have(() |- exists(g, forall(t, in(t, g) <=> (in(t, z) /\ sPhi(t, z))))) by Rewrite(comprehensionSchema)
-    andThen(() |- exists(g, forall(t, in(t, g) <=> (in(t, f) /\ sPhi(t, f))))) by InstFunSchema(Map(z -> f))
-    andThen(() |- exists(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, f), exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
-  }
+  // val functionApplicationUniqueness = makeTHM(
+  //   () |- existsOne(z, functional(f, x) ==> in(pair(x, z), f))
+  // ) {
 
-  val restrictedFunctionUniqueness = makeTHM(
-    () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
-  ) {
-    val prop = (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))
-    val fprop = forall(t, in(t, g) <=> prop)
+  // }
 
   /**
    * Function application
@@ -399,7 +540,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    * TODO: write something
    */
   val Sigma = DEF (x, f) --> union(restrictedFunction(f, x))
-
+  
   val (piExistence, piUniqueness) = uniquenessByComprehensionDefinition(powerSet(Sigma(x, f)), lambda(Seq(z, y), (subset(x, relationDomain(z)) /\ functional(z))))
 
   /**
@@ -429,9 +570,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
     * Inductive and transitive sets
     */
 
-    val successor = DEF (x) --> union(unorderedPair(x, unorderedPair(x, x)))
 
-    val inductive = DEF (x) --> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))
 
     /**
      * There exists an inductive set
