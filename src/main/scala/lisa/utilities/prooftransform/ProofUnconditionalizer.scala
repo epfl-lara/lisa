@@ -230,12 +230,10 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
               pS,
               b => neg_premises(pS).map(i => sequentToFormulaNullable(pr.imports(-i - 1))) ++ b,
               s =>
-                s.map(i =>
-                  i match {
-                    case i if i < 0 => -i - 2 + hypothesis.length
-                    case i => -i
-                  }
-                ),
+                s.map {
+                  case i if i < 0 => -i - 2 + hypothesis.length
+                  case i => -i
+                },
               rewrites.map(_.bot)
             )
           ),
