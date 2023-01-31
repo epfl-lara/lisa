@@ -18,7 +18,7 @@ inThisBuild(
 )
 
 val scala2 = "2.13.8"
-val scala3 = "3.2.1-RC1-bin-20220619-4cb967f-NIGHTLY"
+val scala3 = "3.2.2"
 
 fork := true
 
