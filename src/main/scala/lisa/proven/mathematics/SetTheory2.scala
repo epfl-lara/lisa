@@ -15,6 +15,7 @@ import lisa.proven.mathematics.Jechcercises
 object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
 
   // var defs
+  val w = variable
   val x = variable
   val y = variable
   val z = variable
@@ -209,102 +210,52 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   }
   show
 
-  val setIntersectionExistence = makeTHM (
-    () |- exists(a, forall(t, in(t, a) <=> (in(t, x) /\ in(t, y))))
-  ) {
-    // note that the intersection is a filtering of either x or y based on the other
-    // so we apply comprehension schema
+  def uniquenessByComprehensionDefinition(originalSet: Term, separationPredicate: LambdaTermFormula) = {
+    require(separationPredicate.vars.length == 2) // separationPredicate takes two args
 
-    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, z) /\ in(x, b))))) by InstPredSchema(Map(sPhi -> lambda(Seq(x, z), in(x, b))))(comprehensionSchema)
-    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, z) /\ in(t, b))))) by Restate
-    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, x) /\ in(t, y))))) by InstFunSchema(Map(z -> x, b -> y))
+    // fresh variable names to avoid conflicts
+    val t1 = VariableLabel(freshId(separationPredicate.body.freeVariables.map(_.id) ++ originalSet.freeVariables.map(_.id), x.id))
+    val t2 = VariableLabel(freshId(separationPredicate.body.freeVariables.map(_.id) ++ originalSet.freeVariables.map(_.id), y.id))
+
+    val existence = makeTHM(
+      () |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))))
+  ) {
+      have(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, z) /\ sPhi(t2, z))))) by Rewrite(comprehensionSchema)
+      andThen(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ sPhi(t2, originalSet))))) by InstFunSchema(Map(z -> originalSet))
+      andThen(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t1, t2), separationPredicate(Seq(t1, t2)))))
   }
-  show
 
-  val setIntersectionUniqueness = makeTHM (
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ in(t, y))))
+    val uniqueness = makeTHM(
+      () |- existsOne(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))))
   ) {
-    val prop = (in(t, x) /\ in(t, y))
-    def fprop(z: Term) = forall(t, in(t, z) <=> prop)
+      val prop = (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))
+      def fprop(z: Term) = forall(t2, in(t2, z) <=> prop)
 
-    val existsRhs = have(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
+      val existsRhs = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by InstPredSchema(Map(schemPred -> (t2, prop)))(uniquenessByDefinition)
 
     // assumption elimination
     // in essence, an existence proof
-    val existsLhs = have(() |- exists(z, fprop(z))) by Rewrite(setIntersectionExistence)
+      val existsLhs = have(() |- exists(t1, fprop(t1))) by Rewrite(existence)
 
-    have(() |- existsOne(z, fprop(z))) by Cut(existsLhs, existsRhs)
+      have(() |- existsOne(t1, fprop(t1))) by Cut(existsLhs, existsRhs)
   }
-  show
+
+    (existence, uniqueness)
+  }
+
+  val (setIntersectionExistence, setIntersectionUniqueness) = uniquenessByComprehensionDefinition(x, lambda(Seq(t, z), in(t, y)))
 
   val setIntersection = DEF (x, y) --> The (z, forall(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
 
-  val unaryIntersectionExistence = makeTHM (
-    () |- exists(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))
-  ) {
-
-    // the unary intersection is a filtering on the unary union
-    // we apply the comprehension schema on this fact and then deconstruct as required
-
-    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, union(z)) /\ sPhi(x, union(z)))))) by InstFunSchema(Map(z -> union(z)))(comprehensionSchema)
-    andThen(() |- exists(y, forall(x, in(x, y) <=> (in(x, union(z)) /\ forall(b, in(b, z) ==> in(x, b)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(x, t), forall(b, in(b, z) ==> in(x, b)))))
-    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, union(z)) /\ forall(b, in(b, z) ==> in(t, b)))))) by Restate
-    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))) by InstFunSchema(Map(z -> x))
-  }
-  show
-
-  val unaryIntersectionUniqueness = makeTHM (
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))
-  ) {
-    val prop = (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))
-    def fprop(z: Term) = forall(t, in(t, z) <=> prop)
-
-    val existsRhs = have(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
-
-    val existsLhs = have(() |- exists(z, fprop(z))) by Rewrite(unaryIntersectionExistence)
-
-    have(() |- existsOne(z, fprop(z))) by Cut(existsLhs, existsRhs)
-  }
-  show
+  val (unaryIntersectionExistence, unaryIntersectionUniqueness) = uniquenessByComprehensionDefinition(union(x), lambda(Seq(t, z), forall(b, in(b, x) ==> in(t, b))))
 
   val unaryintersection = DEF (x) -> The (z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))(unaryIntersectionUniqueness)
 
-  val setDifferenceExistence = makeTHM (
-    () |- exists(a, forall(t, in(t, a) <=> (in(t, x) /\ !in(t, y))))
-  ) {
-    // set difference is a filtering of the first set based on the second
-    // so we apply comprehension schema
-
-    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, z) /\ !in(x, b))))) by InstPredSchema(Map(sPhi -> lambda(Seq(x, z), !in(x, b))))(comprehensionSchema)
-    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, z) /\ !in(t, b))))) by Restate
-    andThen(() |- exists(a, forall(t, in(t, a) <=> (in(t, x) /\ !in(t, y))))) by InstFunSchema(Map(z -> x, b -> y))
-  }
-  show
-
-  val setDifferenceUniqueness = makeTHM (
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))
-  ) {
-    val prop = (in(t, x) /\ !in(t, y))
-    def fprop(z: Term) = forall(t, in(t, z) <=> prop)
-
-    val existsRhs = have(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
-
-    val existsLhs = have(() |- exists(z, fprop(z))) by Rewrite(setDifferenceExistence)
-
-    have(() |- existsOne(z, fprop(z))) by Cut(existsLhs, existsRhs)
-  }
-  show
+  val (setDifferenceExistence, setDifferenceUniqueness) = uniquenessByComprehensionDefinition(x, lambda(Seq(t, z), !in(t, y)))
 
   val setDifference = DEF (x, y) --> The (z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))(setDifferenceUniqueness)
 
   val setUnion = DEF (x, y) --> union(unorderedPair(x, y))
-
-  // inductive set
-  // 0 \in x, \forall y \in x. y U {y} \in x
-  def inductive(x: Term) = in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, singleton(y))), x))
-
-  // axiom of infinity
-  // () |- exists(x, inductive(x))
 
   /**
    * There exists a set that is the intersection of all sets satisfying a given formula
@@ -347,79 +298,29 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    * Cartesian Products
    */
 
-  val cartesianProductExistence = makeTHM(
-    () |- exists(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))
-  ) {
-    val ztemp = variable
-    val ppxy = powerSet(unorderedPair(x, y))
-    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, ztemp) /\ sPhi(x, ztemp))))) by InstFunSchema(Map(z -> ztemp))(comprehensionSchema)
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ztemp) /\ sPhi(t, ztemp))))) by Restate
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ppxy) /\ sPhi(t, ppxy))))) by InstFunSchema(Map(ztemp -> ppxy))
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ppxy) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, z), exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))
-  }
-  show
-
-  val cartesianProductUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))
-  ) {
-    val prop = (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))
-    val fprop = forall(t, in(t, z) <=> prop)
-
-    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
-    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(cartesianProductExistence)
-
-    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
-  }
-  show
+  val (cartesianProductExistence, cartesianProductUniqueness) = uniquenessByComprehensionDefinition(powerSet(unorderedPair(x, y)), lambda(Seq(t, z), exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y)))))
 
   val cartesianProduct = DEF (x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))(cartesianProductUniqueness)
   
-  // binary relations
+  /**
+   * Binary relations and functions
+   */
 
   val relation = DEF (r, x) --> subset(r, cartesianProduct(x, x))
 
-  val relationDomainExistence = makeTHM(
-    () |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r)))) /\ exists(a, in(pair(t, a), r))))
-  ) {
-    val ztemp = variable
-    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, ztemp) /\ sPhi(x, ztemp))))) by InstFunSchema(Map(z -> ztemp))(comprehensionSchema)
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ztemp) /\ sPhi(t, ztemp))))) by Restate
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ sPhi(t, union(union(r))))))) by InstFunSchema(Map(ztemp -> union(union(r))))
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, x), exists(a, in(pair(t, a), r)))))
-  }
-  show
-
-  val relationDomainUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r)))) /\ exists(a, in(pair(t, a), r))))
-  ) {
-    val prop = (in(t, union(union(r)))) /\ exists(a, in(pair(t, a), r))
-    val fprop = forall(t, in(t, z) <=> prop)
-
-    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
-    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(relationDomainExistence)
-
-    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
-  }
-  show
+  val (relationDomainExistence, relationDomainUniqueness) = uniquenessByComprehensionDefinition(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(t, a), r))))
 
   val relationDomain = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))(relationDomainUniqueness)
 
-  val relationRangeExistence = makeTHM(
-    () |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))
-  ) {
-    val ztemp = variable
-    have(() |- exists(y, forall(x, in(x, y) <=> (in(x, ztemp) /\ sPhi(x, ztemp))))) by InstFunSchema(Map(z -> ztemp))(comprehensionSchema)
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, ztemp) /\ sPhi(t, ztemp))))) by Restate
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ sPhi(t, union(union(r))))))) by InstFunSchema(Map(ztemp -> union(union(r))))
-    andThen(() |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, x), exists(a, in(pair(a, t), r)))))
-  }
-  show
+  val (relationRangeExistence, relationRangeUniqueness) = uniquenessByComprehensionDefinition(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(a, t), r))))
 
-  val relationRangeUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))
-  ) {
-    val prop = (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))
-    val fprop = forall(t, in(t, z) <=> prop)
+  val relationRange = DEF (r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationRangeUniqueness)
+
+  val relationField = DEF (r) --> (setUnion(relationDomain(r), relationRange(r)))
+
+  val functionalOver = DEF (f, x) --> (relation(f, x) /\ forall(x, in(x, relationDomain(f)) ==> existsOne(y, in(y, relationRange(f)) /\ in(pair(x, y), f))))
+
+  val functional = DEF (f) --> functionalOver(f, relationDomain(f))
 
     val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
     val existsLhs = have(() |- exists(z, fprop)) by Rewrite(relationRangeExistence)
@@ -451,11 +352,12 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
     val prop = (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))
     val fprop = forall(t, in(t, g) <=> prop)
 
-    val existsRhs = have(exists(g, fprop) |- existsOne(g, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniquenessByDefinition)
-    val existsLhs = have(() |- exists(g, fprop)) by Rewrite(restrictedFunctionExistence)
+  /**
+   * Function application
+   */
+  // val App = DEF (f, x) --> The(z, functional(f) ==> in(pair(x, z), f))(functionApplicationUniqueness)
 
-    have(() |- existsOne(g, fprop)) by Cut(existsLhs, existsRhs)
-  }
+  val (restrictedFunctionExistence, restrictedFunctionUniqueness) = uniquenessByComprehensionDefinition(f, lambda(Seq(t, b), exists(y, exists(z, in(y, x) /\ (t === pair(y, z))))))
 
   /**
    * The restriction of a function `f` to a set `x`
@@ -466,6 +368,26 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    * 
    */
   val restrictedFunction = DEF (f, x) --> The(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))(restrictedFunctionUniqueness)
+
+  // TODO: functional restricted over x has its domain as x \intersect dom f
+
+  // val restrictedFunctionDomain = makeTHM(
+  //   () |- relationDomain(restrictedFunction(f, x)) === setIntersection(x, relationDomain(f))
+  // ) {
+  //   // unfold definitions and keep for later
+  //   // we will work with the definitions, and eliminate them to obtain symbols later
+  //   val intersectionDef = have(() |- (z === setIntersection(x, relationDomain(f))) <=> (forall(t, in(t, z) <=> (in(t, x) /\ in(t, relationDomain(f)))))) by InstFunSchema(Map(y -> relationDomain(f)))(setIntersection.definition)
+  //   val restrictionDef = have(() |- (g === restrictedFunction(f, x)) <=> (forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))) by InstFunSchema(Map())(restrictedFunction.definition)
+  //   val domainDef = have(() |- (z === relationDomain(f)) <=> forall(t, in(t, z) <=> (in(t, union(union(f))) /\ exists(a, in(pair(t, a), f))))) by InstFunSchema(Map(r -> f))(relationDomain.definition)
+
+  //   val goal = have(() |- (setIntersection(x, relationDomain(f)) === relationDomain(restrictedFunction(f, x))) <=> forall(t, in(t, setIntersection(x, relationDomain(f))) <=> (in(t, union(union(restrictedFunction(f, x)))) /\ exists(a, in(pair(t, a), restrictedFunction(f, x)))))) by InstFunSchema(Map(z -> setIntersection(x, relationDomain(f)), f -> restrictedFunction(f, x)))(domainDef)
+
+  // }
+
+  // restrictedFunction.definition.show
+
+  // TODO: any subset of a functional is functional
+  // TODO: a functional over something restricted to x is still functional
 
   /**
    * 
@@ -478,25 +400,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    */
   val Sigma = DEF (x, f) --> union(restrictedFunction(f, x))
 
-  val piExistence = makeTHM(
-    () |- exists(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))
-  ) {
-    val ztemp = variable
-    have(() |- exists(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ sPhi(g, powerSet(Sigma(x, f))))))) by InstFunSchema(Map(z -> powerSet(Sigma(x, f))))(comprehensionSchema)
-    andThen(() |- exists(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(g, z), (subset(x, relationDomain(g)) /\ functional(g)))))
-  }
-
-  val piUniqueness = makeTHM(
-    () |- existsOne(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))
-  ) {
-    val prop = (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))
-    val fprop = forall(g, in(g, z) <=> prop)
-
-    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (g, prop)))(uniquenessByDefinition)
-    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(piExistence)
-
-    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
-  }
+  val (piExistence, piUniqueness) = uniquenessByComprehensionDefinition(powerSet(Sigma(x, f)), lambda(Seq(z, y), (subset(x, relationDomain(z)) /\ functional(z))))
 
   /**
    * TODO: write something
@@ -578,4 +482,5 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    */
   val lowerBound = DEF (a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
 
+  val setOfLowerBounds = DEF (y, r, x) --> The(z, forall(t, in(t, z) <=> (in(t, x) /\ lowerBound(t, y, r, x))))(uniquenessByComprehensionDefinition(x, lambda(Seq(t, x), lowerBound(t, y, r, x)))._2)
 }
