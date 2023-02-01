@@ -6,7 +6,6 @@ import lisa.kernel.proof.{SequentCalculus as SC}
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
-import lisa.proven.mathematics.Jechcercises
 import lisa.utils.Printer
 
 /**
@@ -72,21 +71,6 @@ object SetTheory2 extends lisa.Main {
     andThen(forall(y, !in(y, y) <=> in(y, x)) |- ()) by LeftForall(x)
     andThen(exists(x, forall(y, !in(y, y) <=> in(y, x))) |- ()) by LeftExists
   }
-  show
-
-  /**
-   * Theorem --- No Universal Set
-   *
-   * There does not exist a set of all sets. Alternatively, its existence, with
-   * the comprehension schema and Russel's paradox, produces a contradiction.
-   */
-  val noUniversalSet = makeTHM(
-    forall(z, in(z, x)) |- ()
-  ) {
-    have(in(x, x) |- ()) by Rewrite(Jechcercises.selfNonInclusion)
-    andThen(forall(z, in(z, x)) |- ()) by LeftForall(x)
-  }
-  show
 
   /**
    * Theorem --- Uniqueness by Definition
@@ -135,7 +119,6 @@ object SetTheory2 extends lisa.Main {
     andThen(exists(z, fprop(z)) |- exists(z, forall(a, fprop(a) <=> (a === z)))) by LeftExists
     andThen(exists(z, fprop(z)) |- existsOne(z, fprop(z))) by RightExistsOne
   }
-  show
 
   /**
    * Theorem Schema --- Unique Comprehension
@@ -326,9 +309,87 @@ object SetTheory2 extends lisa.Main {
 
       have(() |- exists(x, inductive(x))) by Cut(infinityAxiom, rhs)
     }
-    show
 
-    ////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Properties about the empty set and power sets
+   */
+
+  /**
+    * Theorem --- If a set has an element, then it is not the empty set.
+    */
+  val setWithElementNonEmpty = makeTHM(
+    in(y, x) |- !(x === emptySet())
+  ) {
+    have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(emptySetAxiom)
+    andThen(in(y, emptySet()) |- ()) by Rewrite
+    andThen(Set(in(y, x), (x === emptySet())) |- ()) by LeftSubstEq(List((x, emptySet())), lambda(Seq(x), in(y, x)))
+    andThen(in(y, x) |- !(x === emptySet())) by Rewrite
+  }
+
+  /**
+   * Theorem --- A set containing no elements is equivalent to the empty set.
+   */
+  val setWithNoElementsIsEmpty = makeTHM(
+    forall(y, !in(y, x)) |- (x === emptySet())
+  ) {
+    have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(emptySetAxiom)
+    andThen(() |- Set(!in(y, emptySet()), in(y, x))) by Weakening
+    val lhs = andThen(() |- in(y, emptySet()) ==> in(y, x)) by Restate
+
+    have(!in(y, x) |- !in(y, x)) by Hypothesis
+    andThen(!in(y, x) |- Set(!in(y, x), in(y, emptySet()))) by Weakening
+    val rhs = andThen(!in(y, x) |- in(y, x) ==> in(y, emptySet())) by Restate
+
+    have(!in(y, x) |- in(y, x) <=> in(y, emptySet())) by RightIff(lhs, rhs)
+    andThen(forall(y, !in(y, x)) |- in(y, x) <=> in(y, emptySet())) by LeftForall(y)
+    val exLhs = andThen(forall(y, !in(y, x)) |- forall(y, in(y, x) <=> in(y, emptySet()))) by RightForall
+
+    have(() |- forall(z, in(z, x) <=> in(z, emptySet())) <=> (x === emptySet())) by InstFunSchema(Map(x -> x, y -> emptySet()))(extensionalityAxiom)
+    val exRhs = andThen(() |- forall(y, in(y, x) <=> in(y, emptySet())) <=> (x === emptySet())) by Restate
+
+    have(forall(y, !in(y, x)) |- (forall(y, in(y, x) <=> in(y, emptySet())) <=> (x === emptySet())) /\ forall(y, in(y, x) <=> in(y, emptySet()))) by RightAnd(exLhs, exRhs)
+    andThen(forall(y, !in(y, x)) |- (x === emptySet())) by Trivial
+  }
+
+  /**
+    * Theorem --- The empty set is a subset of every set.
+    */
+  val emptySetIsASubset = makeTHM(
+    () |- subset(emptySet(), x)
+  ) {
+    val lhs = have(() |- subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) by InstFunSchema(Map(x -> emptySet(), y -> x))(subsetAxiom)
+
+    have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(emptySetAxiom)
+    andThen(() |- in(y, emptySet()) ==> in(y, x)) by Weakening
+    val rhs = andThen(() |- forall(y, in(y, emptySet()) ==> in(y, x))) by RightForall
+
+    have(() |- (subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) /\ forall(y, in(y, emptySet()) ==> in(y, x))) by RightAnd(lhs, rhs)
+    andThen(() |- (subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) /\ forall(z, in(z, emptySet()) ==> in(z, x))) by Restate
+    andThen(() |- subset(emptySet(), x)) by Trivial
+  }
+
+  /**
+    * Theorem --- A power set is never empty.
+    */
+  val powerSetNonEmpty = makeTHM(
+    () |- !(powerSet(x) === emptySet())
+  ) {
+    // strategy
+    //      prove power set contains empty set
+    //      since it has an element, it is not empty itself
+
+    val lhs = have(() |- in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) by InstFunSchema(Map(x -> emptySet(), y -> x))(powerAxiom)
+
+    have(() |- (in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) /\ subset(emptySet(), x)) by RightAnd(lhs, emptySetIsASubset)
+    val emptyinPower = andThen(() |- in(emptySet(), powerSet(x))) by Trivial
+    val nonEmpty = have(in(emptySet(), powerSet(x)) |- !(powerSet(x) === emptySet())) by InstFunSchema(Map(y -> emptySet(), x -> powerSet(x)))(setWithElementNonEmpty)
+
+    have(() |- !(powerSet(x) === emptySet())) by Cut(emptyinPower, nonEmpty)
+  }
+  
+  //////////////////////////////////////////////////////////////////////////////
 
   /**
    * Properties about pairs
@@ -354,7 +415,6 @@ object SetTheory2 extends lisa.Main {
     andThen((x === x) |- in(x, unorderedPair(x, y))) by InstFunSchema(Map(z -> x))
     andThen(() |- in(x, unorderedPair(x, y))) by LeftRefl
   }
-  show
 
   /**
    * Theorem --- Second Element in Pair
@@ -376,7 +436,18 @@ object SetTheory2 extends lisa.Main {
     andThen((y === y) |- in(y, unorderedPair(x, y))) by InstFunSchema(Map(z -> y))
     andThen(() |- in(y, unorderedPair(x, y))) by LeftRefl
   }
-  show
+
+  /**
+    * Theorem --- If a set belongs to a singleton, it must be the single element.
+    */
+  val singletonHasNoExtraElements = makeTHM(
+    () |- in(y, singleton(x)) <=> (x === y)
+  ) {
+    // specialization of the pair axiom to a singleton
+
+    have(() |- in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstFunSchema(Map(x -> x, y -> x, z -> y))(pairAxiom)
+    andThen(() |- in(y, singleton(x)) <=> (x === y)) by Restate
+  }
 
   /**
    * Theorem --- Union of a Singleton is the Original Set
@@ -412,7 +483,7 @@ object SetTheory2 extends lisa.Main {
 
     have(in(y, X) |- in(y, X)) by Hypothesis
     val bwdHypo = andThen(in(z, y) /\ in(y, X) |- in(y, X)) by Weakening
-    have(in(z, y) /\ in(y, X) |- in(y, X) /\ (in(y, X) <=> (x === y))) by RightAnd(bwdHypo, Jechcercises.singletonHasNoExtraElements)
+    have(in(z, y) /\ in(y, X) |- in(y, X) /\ (in(y, X) <=> (x === y))) by RightAnd(bwdHypo, singletonHasNoExtraElements)
     val cutLhs = andThen(in(z, y) /\ in(y, X) |- (x === y)) by Trivial
 
     have(in(z, y) |- in(z, y)) by Hypothesis
@@ -433,9 +504,6 @@ object SetTheory2 extends lisa.Main {
     have(() |- forall(z, in(z, union(X)) <=> in(z, x)) /\ (forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x))) by RightAnd(iff, extAx)
     andThen(() |- (union(X) === x)) by Trivial
   }
-  show
-
-
 
   /**
     * Theorem --- Two unordered pairs are equal iff their elements are equal pairwise.
@@ -470,20 +538,23 @@ object SetTheory2 extends lisa.Main {
 
     have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) <=> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by RightIff(fwd, bwd)
   }
-  show
 
   /**
-    * Theorem --- If a set belongs to a singleton, it must be the single element.
-    */
-  val singletonHasNoExtraElements = makeTHM(
-    () |- in(y, singleton(x)) <=> (x === y)
+   * Theorem --- A singleton set is never empty.
+   */
+  val singletonNonEmpty = makeTHM(
+    () |- !(singleton(x) === emptySet())
   ) {
-    // specialization of the pair axiom to a singleton
+    val reflLhs = have(() |- in(x, singleton(x)) <=> (x === x)) by InstFunSchema(Map(y -> x))(singletonHasNoExtraElements)
 
-    have(() |- in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstFunSchema(Map(x -> x, y -> x, z -> y))(pairAxiom)
-    andThen(() |- in(y, singleton(x)) <=> (x === y)) by Restate
+    val reflRhs = have(() |- (x === x)) by RightRefl
+    have(() |- (x === x) /\ (in(x, singleton(x)) <=> (x === x))) by RightAnd(reflLhs, reflRhs)
+    val lhs = andThen(() |- in(x, singleton(x))) by Trivial
+
+    val rhs = have(in(x, singleton(x)) |- !(singleton(x) === emptySet())) by InstFunSchema(Map(y -> x, x -> singleton(x)))(setWithElementNonEmpty)
+
+    have(() |- !(singleton(x) === emptySet())) by Cut(lhs, rhs)
   }
-  show
 
   /**
    * Theorem --- Two singletons are equal iff their elements are equal
@@ -517,108 +588,77 @@ object SetTheory2 extends lisa.Main {
 
     have(() |- (singleton(x) === singleton(y)) <=> (x === y)) by RightIff(fwd, bwd)
   }
-  show
-
-  //////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Properties about the empty set and power sets
+   * Two ordered pairs are equal iff their elements are equal when taken in order.
+   *
+   *  pair(a, b) === {{a}, {a, b}}
+   *
+   *  pair(a, b) === pair(c, d) iff a === c and b === d
    */
+  // val pairExtensionality = makeTHM(
+  //     () |- (pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))
+  // ) {
+  //     // forward direction
+  //     //  (a === c) /\ (b === d) |- pair a b === pair c d
 
-  /**
-    * Theorem --- If a set has an element, then it is not the empty set.
-    */
-  val setWithElementNonEmpty = makeTHM(
-    in(y, x) |- !(x === emptySet())
-  ) {
-    have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(emptySetAxiom)
-    andThen(in(y, emptySet()) |- ()) by Rewrite
-    andThen(Set(in(y, x), (x === emptySet())) |- ()) by LeftSubstEq(List((x, emptySet())), lambda(Seq(x), in(y, x)))
-    andThen(in(y, x) |- !(x === emptySet())) by Rewrite
-  }
-  show
+  //     have(() |- (pair(a, b) === pair(a, b))) by RightRefl
+  //     andThen(Set((a === c), (b === d)) |- (pair(a, b) === pair(c, d))) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(x, y), pair(a, b) === pair(x, y)))
+  //     val fwd = andThen(() |- ((a === c) /\ (b === d)) ==> (pair(a, b) === pair(c, d))) by Rewrite
 
-  /**
-   * Theorem --- A set containing no elements is equivalent to the empty set.
-   */
-  val setWithNoElementsIsEmpty = makeTHM(
-    forall(y, !in(y, x)) |- (x === emptySet())
-  ) {
-    have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(emptySetAxiom)
-    andThen(() |- Set(!in(y, emptySet()), in(y, x))) by Weakening
-    val lhs = andThen(() |- in(y, emptySet()) ==> in(y, x)) by Restate
+  //     // backward direction
+  //     //  pair a b === pair c d |- (a === c) /\ (b === d)
 
-    have(!in(y, x) |- !in(y, x)) by Hypothesis
-    andThen(!in(y, x) |- Set(!in(y, x), in(y, emptySet()))) by Weakening
-    val rhs = andThen(!in(y, x) |- in(y, x) ==> in(y, emptySet())) by Restate
+  //     val oPairAxAB = have(() |- in(z, pair(a, b)) <=> ((unorderedPair(a, b) === z) \/ (singleton(a) === z))) by InstFunSchema(Map(y -> singleton(a), x -> unorderedPair(a, b)))(pairAxiom)
+  //     val oPairAxCD = have(() |- in(z, pair(c, d)) <=> ((unorderedPair(c, d) === z) \/ (singleton(c) === z))) by InstFunSchema(Map(a -> c, b -> d))(oPairAxAB)
 
-    have(!in(y, x) |- in(y, x) <=> in(y, emptySet())) by RightIff(lhs, rhs)
-    andThen(forall(y, !in(y, x)) |- in(y, x) <=> in(y, emptySet())) by LeftForall(y)
-    val exLhs = andThen(forall(y, !in(y, x)) |- forall(y, in(y, x) <=> in(y, emptySet()))) by RightForall
+  //     have(() |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d))) <=> (pair(a, b) === pair(c, d))) by InstFunSchema(Map(x -> pair(a, b), y -> pair(c, d)))(extensionalityAxiom)
+  //     andThen((pair(a, b) === pair(c, d)) |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d)))) by Trivial
+  //     val eqIff = andThen((pair(a, b) === pair(c, d)) |- in(z, pair(a, b)) <=> in(z, pair(c, d))) by InstantiateForall(z)
 
-    have(() |- forall(z, in(z, x) <=> in(z, emptySet())) <=> (x === emptySet())) by InstFunSchema(Map(x -> x, y -> emptySet()))(extensionalityAxiom)
-    val exRhs = andThen(() |- forall(y, in(y, x) <=> in(y, emptySet())) <=> (x === emptySet())) by Restate
+  //     have((pair(a, b) === pair(c, d)) |- (in(z, pair(a, b)) <=> in(z, pair(c, d))) /\ (in(z, pair(a, b)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by RightAnd(oPairAxAB, eqIff)
+  //     val cdToab = andThen((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by Trivial
 
-    have(forall(y, !in(y, x)) |- (forall(y, in(y, x) <=> in(y, emptySet())) <=> (x === emptySet())) /\ forall(y, in(y, x) <=> in(y, emptySet()))) by RightAnd(exLhs, exRhs)
-    andThen(forall(y, !in(y, x)) |- (x === emptySet())) by Trivial
-  }
-  show
+  //     have((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z))) /\ (in(z, pair(c, d)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by RightAnd(cdToab, oPairAxCD)
+  //     val stmtz = andThen((pair(a, b) === pair(c, d)) |- (((singleton(a) === z) \/ (unorderedPair(a, b) === z)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by Trivial
 
-  /**
-    * Theorem --- The empty set is a subset of every set.
-    */
-  val emptySetIsASubset = makeTHM(
-    () |- subset(emptySet(), x)
-  ) {
-    val lhs = have(() |- subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) by InstFunSchema(Map(x -> emptySet(), y -> x))(subsetAxiom)
+  //     // unordered pair extensionality
+  //     val upExt = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) <=> (((a === c) /\ (b === d)) \/ ((b === c) /\ (a === d)))) by Rewrite(unorderedPairExtensionality)
+  //     // we will instantiate this to eliminate assumptions for our cases
 
-    have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(emptySetAxiom)
-    andThen(() |- in(y, emptySet()) ==> in(y, x)) by Weakening
-    val rhs = andThen(() |- forall(y, in(y, emptySet()) ==> in(y, x))) by RightForall
+  //     def upEq(a: Term, b: Term, c: Term, d: Term) = unorderedPair(a, b) === unorderedPair(c, d)
+  //     def termEq(a: Term, b: Term, c: Term, d: Term) = (a === c) /\ (b === d)
+  //     def upEqIff(a: Term, b: Term, c: Term, d: Term) = upEq(a, b, c, d) <=> termEq(a, b, c, d)
 
-    have(() |- (subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) /\ forall(y, in(y, emptySet()) ==> in(y, x))) by RightAnd(lhs, rhs)
-    andThen(() |- (subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) /\ forall(z, in(z, emptySet()) ==> in(z, x))) by Restate
-    andThen(() |- subset(emptySet(), x)) by Trivial
-  }
-  show
+  //     val q = formulaVariable
+  //     val w = formulaVariable
+  //     val e = formulaVariable
+  //     val r = formulaVariable
 
-  /**
-    * Theorem --- A power set is never empty.
-    */
-  val powerSetNonEmpty = makeTHM(
-    () |- !(powerSet(x) === emptySet())
-  ) {
-    // strategy
-    //      prove power set contains empty set
-    //      since it has an element, it is not empty itself
+  //     // a != c
+  //     val assumption = (upEq(a, a, a, a) \/ upEq(a, b, a, a)) <=> (upEq(c, c, a, a) \/ upEq(c, d, a, a))
+  //     val assumption2 = (upEq(a, a, a, b) \/ upEq(a, b, a, b)) <=> (upEq(c, c, a, b) \/ upEq(c, d, a, b))
+  //     val decomposition = Set(upEqIff(a, a, a, a), upEqIff(a, b, a, a), upEqIff(c, c, a, a), upEqIff(c, d, a, a))
+  //     val decomposition2 = Set(upEqIff(a, a, a, b), upEqIff(a, b, a, b), upEqIff(c, c, a, b), upEqIff(c, d, a, b))
 
-    val lhs = have(() |- in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) by InstFunSchema(Map(x -> emptySet(), y -> x))(powerAxiom)
+  //     // case z = {a}
+  //     // derive a = c
+  //     have((pair(a, b) === pair(c, d)) |- assumption) by InstFunSchema(Map(z -> singleton(a)))(stmtz)
+  //     andThen((decomposition + (pair(a, b) === pair(c, d))) |- assumption) by Weakening
+  //     andThen((decomposition + (pair(a, b) === pair(c, d))) |- ((termEq(a, a, a, a) \/ termEq(a, b, a, a)) <=> (termEq(c, c, a, a) \/ termEq(c, d, a, a)))) by RightSubstIff(List((upEq(a, a, a, a), termEq(a, a, a, a)), (upEq(a, b, a, a), termEq(a, b, a, a)), (upEq(c, c, a, a), termEq(c, c, a, a)), (upEq(c, d, a, a), termEq(c, d, a, a))), lambda(Seq(q, w, e, r), (q \/ w) <=> (e \/ r)))
+  //     val aEqc = andThen((decomposition + (pair(a, b) === pair(c, d))) |- (a === c)) by Rewrite
 
-    have(() |- (in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) /\ subset(emptySet(), x)) by RightAnd(lhs, emptySetIsASubset)
-    val emptyinPower = andThen(() |- in(emptySet(), powerSet(x))) by Trivial
-    val nonEmpty = have(in(emptySet(), powerSet(x)) |- !(powerSet(x) === emptySet())) by InstFunSchema(Map(y -> emptySet(), x -> powerSet(x)))(setWithElementNonEmpty)
+  //     // then get two cases, in both cases derive the conclusion
+  //     have((pair(a, b) === pair(c, d)) |- assumption2) by InstFunSchema(Map(z -> unorderedPair(a, b)))(stmtz)
+  //     andThen((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- assumption2) by Weakening
+  //     andThen((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- ((termEq(a, a, a, b) \/ termEq(a, b, a, b)) <=> (termEq(c, c, a, b) \/ termEq(c, d, a, b)))) by RightSubstIff(List((upEq(a, a, a, b), termEq(a, a, a, b)), (upEq(a, b, a, b), termEq(a, b, a, b)), (upEq(c, c, a, b), termEq(c, c, a, b)), (upEq(c, d, a, b), termEq(c, d, a, b))), lambda(Seq(q, w, e, r), (q \/ w) <=> (e \/ r)))
+  //     val caseSplit = andThen((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- (termEq(c, c, a, b) \/ termEq(c, d, a, b))) by Rewrite
 
-    have(() |- !(powerSet(x) === emptySet())) by Cut(emptyinPower, nonEmpty)
-  }
-  show
+  //     // TODO: finish this proof
+  //     // probably by z = {c, d} and then get the other symmetric condition, reduce them together
+  //     // too much pain
 
-  /**
-   * Theorem --- A singleton set is never empty.
-   */
-  val singletonNonEmpty = makeTHM(
-    () |- !(singleton(x) === emptySet())
-  ) {
-    val reflLhs = have(() |- in(x, singleton(x)) <=> (x === x)) by InstFunSchema(Map(y -> x))(singletonHasNoExtraElements)
-
-    val reflRhs = have(() |- (x === x)) by RightRefl
-    have(() |- (x === x) /\ (in(x, singleton(x)) <=> (x === x))) by RightAnd(reflLhs, reflRhs)
-    val lhs = andThen(() |- in(x, singleton(x))) by Trivial
-
-    val rhs = have(in(x, singleton(x)) |- !(singleton(x) === emptySet())) by InstFunSchema(Map(y -> x, x -> singleton(x)))(setWithElementNonEmpty)
-
-    have(() |- !(singleton(x) === emptySet())) by Cut(lhs, rhs)
-  }
-  show
+  // }
 
   /**
     * Theorem --- No set is an element of itself.
@@ -660,7 +700,19 @@ object SetTheory2 extends lisa.Main {
 
     have(() |- !in(x, x)) by Cut(finLhs, finRhs)
   }
-  show
+
+  /**
+   * Theorem --- No Universal Set
+   *
+   * There does not exist a set of all sets. Alternatively, its existence, with
+   * the comprehension schema and Russel's paradox, produces a contradiction.
+   */
+  val noUniversalSet = makeTHM(
+    forall(z, in(z, x)) |- ()
+  ) {
+    have(in(x, x) |- ()) by Rewrite(selfNonInclusion)
+    andThen(forall(z, in(z, x)) |- ()) by LeftForall(x)
+  }
 
   /**
     * Theorem --- The power set of any set is not a proper subset of it.
@@ -683,7 +735,6 @@ object SetTheory2 extends lisa.Main {
     andThen(properSubset(powerSet(x), x) |- ()) by Restate
     andThen(exists(x, properSubset(powerSet(x), x)) |- ()) by LeftExists
   }
-  show
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -772,7 +823,6 @@ object SetTheory2 extends lisa.Main {
     andThen(exists(x, P(x)) |- exists(z, forall(t, in(t, z) <=> (forall(y, P(y) ==> in(t, y)))))) by LeftExists
 
   }
-  show
 
   /**
    * Cartesian Products and Relations
@@ -982,7 +1032,6 @@ object SetTheory2 extends lisa.Main {
       have(exists(x, inductive(x)) |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))) by InstPredSchema(Map(P -> lambda(x, inductive(x))))(intersectionOfPredicateClassExists)
     have(() |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))) by Cut(inductiveSetExists, inductExt)
   }
-  show
 
   /**
    *
@@ -999,7 +1048,6 @@ object SetTheory2 extends lisa.Main {
 
     have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
   }
-  show
 
   /**
    * Natural Numbers (Inductive definition) --- The intersection of all
@@ -1074,7 +1122,6 @@ object SetTheory2 extends lisa.Main {
 
     have(() |- inductive(naturalsInductive())) by Cut(natDef, inductExpansion)
   }
-  show
 
   /**
    * Chapter 2
