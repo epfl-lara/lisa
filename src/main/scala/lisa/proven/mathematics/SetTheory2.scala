@@ -13,66 +13,55 @@ import lisa.utils.Printer
  * Set Theory Library
  *
  * Develops Zermelo-Fraenkel Set Theory.
- *
  * Uses the following book as the main reference:
  *
- * Jech, Thomas. Set theory: The third millennium edition, revised and expanded. Springer Berlin Heidelberg, 2003.
- * https://link.springer.com/book/10.1007/3-540-44761-X
+ * Jech, Thomas. Set theory: The third millennium edition, revised and expanded.
+ * Springer Berlin Heidelberg, 2003.
+ * [[https://link.springer.com/book/10.1007/3-540-44761-X]]
  */
-object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
+object SetTheory2 extends lisa.Main {
 
   // var defs
-  val w = variable
-  val x = variable
-  val y = variable
-  val z = variable
-  val t = variable
-  val a = variable
-  val b = variable
-  val c = variable
+  private val w = variable
+  private val x = variable
+  private val y = variable
+  private val z = variable
+  private val t = variable
+  private val a = variable
+  private val b = variable
+  private val c = variable
 
   // relation and function symbols
-  val r = variable
-  val f = variable
-  val g = variable
+  private val r = variable
+  private val f = variable
+  private val g = variable
 
-  val P = predicate(1)
-  val Q = predicate(1)
-  val schemPred = predicate(1)
+  private val P = predicate(1)
+  private val Q = predicate(1)
+  private val schemPred = predicate(1)
 
   /**
    * Chapter 1
    */
 
   /**
-   * Binary Set Union
+   * Axioms of Set Theory
    *
-   * Using the pair and union axioms, we may define as shorthand the binary union of two sets x and y:
-   *
-   * `x U y = U {x, y}`
+   * See [[SetTheoryZAxioms]] and [[SetTheoryZFAxioms]]
    */
-  val setUnion = DEF(x, y) --> union(unorderedPair(x, y))
 
   /**
-   * Successor Function
-   *
-   * Maps a set to its 'successor' in the sense required for an inductive set.
-   *
-   * successor: x \mapsto x U {x}
+   * Theorems about basic sets
    */
-  val successor = DEF(x) --> union(unorderedPair(x, singleton(x)))
 
   /**
-   * Inductive set
+   * Theorem --- Russel's Paradox
    *
-   * A set is inductive if it contains the empty set, and the successors of each of its elements.
-   *
-   * `inductive(x) <=> (\emptyset \in x /\ \forall y. y \in x ==> successor(y) \in x)`
+   * Consider a set `x`, that contains every set that is not a member of itself.
+   * The existence of `x` leads to a contradiction. This paradox forces the
+   * current form of the comprehension schema, i.e. `{x ∈ X | Ψ(x, X)}`
+   * instead of the full comprehension schema `{x | Ψ(x)}`.
    */
-  val inductive = DEF(x) --> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))
-
-  // predicates for properties of sets
-
   val russelsParadox = makeTHM(
     exists(x, forall(y, !in(y, y) <=> in(y, x))) |- ()
   ) {
@@ -84,6 +73,12 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   }
   show
 
+  /**
+   * Theorem --- No Universal Set
+   *
+   * There does not exist a set of all sets. Alternatively, its existence, with
+   * the comprehension schema and Russel's paradox, produces a contradiction.
+   */
   val noUniversalSet = makeTHM(
     forall(z, in(z, x)) |- ()
   ) {
@@ -93,119 +88,19 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   show
 
   /**
-   * Properties about pairs
-   */
-
-  val firstElemInPair = makeTHM(
-    () |- in(x, unorderedPair(x, y))
-  ) {
-    val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
-    have((z === x) |- (z === x)) by Hypothesis
-    val rhs = andThen((z === x) |- (z === x) \/ (z === y)) by Rewrite
-    val factset = have((z === x) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
-
-    andThen((z === x) |- in(z, unorderedPair(x, y))) by Trivial
-    andThen((x === x) |- in(x, unorderedPair(x, y))) by InstFunSchema(Map(z -> x))
-    andThen(() |- in(x, unorderedPair(x, y))) by LeftRefl
-  }
-  show
-
-  val secondElemInPair = makeTHM(
-    () |- in(y, unorderedPair(x, y))
-  ) {
-    val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
-    have((z === y) |- (z === y)) by Hypothesis
-    val rhs = andThen((z === y) |- (z === x) \/ (z === y)) by Rewrite
-    val factset = have((z === y) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
-
-    andThen((z === y) |- in(z, unorderedPair(x, y))) by Trivial
-    andThen((y === y) |- in(y, unorderedPair(x, y))) by InstFunSchema(Map(z -> y))
-    andThen(() |- in(y, unorderedPair(x, y))) by LeftRefl
-  }
-  show
-
-  // val unionOfOrderedPairIsUnordered = makeTHM(
-  //   () |- union(pair(x, y)) === unorderedPair(x, y)
-  // ) {
-  //   val upAxiom = ax"unorderedPair"
-
-  //   /**
-  //    * strategy
-  //    * prove:
-  //    *    lhs
-  //    *    () |- z in uPair(x, y) <=> z is x or z is y
-  //    *    rhs
-  //    *    () |- z in oPair(x, y) <=> z is x or z is y
-  //    *
-  //    * derive z in uPair(x, y) <=> z in oPair(x, y) and apply extensionality
-  //    */
-
-  //   // val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by Instantiateforall(x, y, z)(upAxiom)
-
-  // }
-
-  /**
-   * The unary union operation unfolds a singleton into the single element
-   *      \forall x. U {x} === x
-   */
-  val unionOfSingletonIsTheOriginalSet = makeTHM(
-    () |- (union(singleton(x)) === x)
-  ) {
-    val X = singleton(x)
-
-    // need to prove:
-    //    \forall z. z \in U X <=> z \in x
-
-    // forward direction
-    //  z \in x |- z \in U X
-    val unionAx = have(() |- in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X))) by InstFunSchema(Map(x -> z, z -> X))(unionAxiom)
-    andThen(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Trivial
-
-    val andLhs = have(() |- in(x, X)) by InstFunSchema(Map(y -> x))(firstElemInPair)
-    val andRhs = have(in(z, x) |- in(z, x)) by Hypothesis
-    have(in(z, x) |- in(z, x) /\ in(x, X)) by RightAnd(andLhs, andRhs)
-    val fwdLhs = andThen(in(z, x) |- exists(y, in(z, y) /\ in(y, X))) by RightExists(x)
-    have(in(z, x) |- exists(y, in(z, y) /\ in(y, X)) /\ (in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X)))) by RightAnd(fwdLhs, unionAx)
-    andThen(in(z, x) |- in(z, union(X))) by Trivial
-    val fwd = andThen(() |- in(z, x) ==> in(z, union(X))) by Rewrite
-
-    // backward direction
-    //  z \in U X |- z \in x
-
-    have(in(y, X) |- in(y, X)) by Hypothesis
-    val bwdHypo = andThen(in(z, y) /\ in(y, X) |- in(y, X)) by Weakening
-    have(in(z, y) /\ in(y, X) |- in(y, X) /\ (in(y, X) <=> (x === y))) by RightAnd(bwdHypo, Jechcercises.singletonHasNoExtraElements)
-    val cutLhs = andThen(in(z, y) /\ in(y, X) |- (x === y)) by Trivial
-
-    have(in(z, y) |- in(z, y)) by Hypothesis
-    andThen(in(y, X) /\ in(z, y) |- in(z, y)) by Weakening
-    val cutRhs = andThen(Set(in(z, y) /\ in(y, X), (x === y)) |- in(z, x)) by RightSubstEq(List((y, x)), lambda(y, in(z, y)))
-
-    have(in(z, y) /\ in(y, X) |- in(z, x)) by Cut(cutLhs, cutRhs)
-    val bwdRhs = andThen(exists(y, in(z, y) /\ in(y, X)) |- in(z, x)) by LeftExists
-    val bwdLhs = have(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Weakening(unionAx)
-    have(in(z, union(X)) |- in(z, x)) by Cut(bwdLhs, bwdRhs)
-    val bwd = andThen(() |- in(z, union(X)) ==> in(z, x)) by Rewrite
-
-    have(() |- in(z, union(X)) <=> in(z, x)) by RightIff(fwd, bwd)
-    val iff = andThen(() |- forall(z, in(z, union(X)) <=> in(z, x))) by RightForall
-
-    val extAx = have(() |- forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x)) by InstFunSchema(Map(x -> union(X), y -> x))(extensionalityAxiom)
-
-    have(() |- forall(z, in(z, union(X)) <=> in(z, x)) /\ (forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x))) by RightAnd(iff, extAx)
-    andThen(() |- (union(X) === x)) by Trivial
-  }
-  show
-
-  // operations on sets
-
-  /**
-   * Generic proof for uniqueness under assumption of existence
+   * Theorem --- Uniqueness by Definition
    *
-   * to use:
-   * have(exists(z, forall(t, in(t, z) <=> myProperty(t))) |- existsOne(z, forall(t, in(t, z) <=> myProperty(t)))) by InstPredSchema(Map(schemPred -> (t, myProperty(t))))
+   * If a set is defined by its elements, existence implies uniqueness.
    *
-   * Instantiation will fail if myProperty(t) contains z as a free variable
+   *    `∃ z. ∀ t. t ∈ z ⇔ P(t) ⊢ ∃! z. ∀ t. t ∈ z ⇔ P(t)`
+   * 
+   * where `P(t)` does not contain `z` as a free variable.
+   *
+   * @example {{{
+   * have(exists(z, forall(t, in(t, z) ⇔ myProperty(t))) ⊢ existsOne(z, forall(t, in(t, z) ⇔ myProperty(t)))) by InstPredSchema(Map(schemPred -> (t, myProperty(t))))`
+   * }}}
+   * 
+   * Instantiation will fail if `myProperty(t)` contains `z` as a free variable.
    */
   val uniquenessByDefinition = makeTHM(
     exists(z, forall(t, in(t, z) <=> schemPred(t))) |- existsOne(z, forall(t, in(t, z) <=> schemPred(t)))
@@ -241,7 +136,29 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   }
   show
 
-  def uniquenessByComprehensionDefinition(originalSet: Term, separationPredicate: LambdaTermFormula) = {
+  /**
+   * Theorem Schema --- Unique Comprehension
+   *
+   * Given a set `x`, and a predicate `P(t, x)`, comprehension postulates there
+   * is a set containing the elements `t` of `x` satisfying `P(t, x)`. This set
+   * is unique by extensionality.
+   *
+   *    `() ⊢ ∃! z. ∀ t. t ∈ z ⇔ (t ∈ x ⋀ P(t, x))`
+   *
+   * @param originalSet the set to apply comprehension on
+   * @param separationPredicate the predicate to use for comprehension `(Term =>
+   * Term => Boolean)`
+   * @return pair (existence, uniqueness) of theorems of the respective
+   * properties
+   *
+   * @example 
+   * Generates proofs for the unique existence of the set `{t ∈ x | t ∈ y}`.
+   * {{{
+   * val (existence, uniqueness) = uniqueComprehension(x, lambda(Seq(t, x), in(t, y))) 
+   * }}}
+   * See [[setIntersection]] or [[relationDomain]] for more usage.
+   */
+  def uniqueComprehension(originalSet: Term, separationPredicate: LambdaTermFormula) = {
     require(separationPredicate.vars.length == 2) // separationPredicate takes two args
 
     // fresh variable names to avoid conflicts
@@ -276,21 +193,320 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
     (existence, uniqueness)
   }
 
-  val (setIntersectionExistence, setIntersectionUniqueness) = uniquenessByComprehensionDefinition(x, lambda(Seq(t, z), in(t, y)))
+  //////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * Shorthand definitions
+   */
+
+  /**
+    * Proper Subset --- `x ⊂ y`. Shorthand for `x ⊆ y ∧ x != y`.
+    *
+    * @param x set
+    * @param y set
+    */
+  def properSubset(x: Term, y: Term) = subset(x, y) /\ !(x === y)
+
+  /**
+    * Singleton Set --- `{x}`. Shorthand for `{x, x}`.
+    *
+    * @param x set
+    */
+  def singleton(x: Term) = unorderedPair(x, x)
+
+  /**
+    * Ordered Pair --- `(x, y)`. Shorthand for `{{x}, {x, y}}`.
+    *
+    * @param x set
+    * @param y set
+    */
+  def pair(x: Term, y: Term) = unorderedPair(unorderedPair(x, y), singleton(x))
+
+  /**
+   * Binary Set Union --- `x ∪ y = ∪ {x, y}`
+   *
+   * @param x set
+   * @param y set
+   */
+  val setUnion = DEF(x, y) --> union(unorderedPair(x, y))
+
+  /**
+   * Successor Function --- Maps a set to its 'successor' in the sense required
+   * for an inductive set.
+   *
+   * `successor: x ↦ x ∪ {x}`
+   *
+   * @param x set
+   */
+  val successor = DEF(x) --> union(unorderedPair(x, singleton(x)))
+
+  /**
+   * Inductive set --- A set is inductive if it contains the empty set, and the
+   * [[successor]]s of each of its elements.
+   *
+   * `inductive(x) ⇔ (∅ ∈ x ⋀ ∀ y. y ∈ x ⇒ successor(y) ∈ x)`
+   *
+   * @param x set
+   */
+  val inductive = DEF(x) --> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))
+
+  /**
+   * Theorem --- There exists an inductive set.
+   *
+   * Equivalent to the Axiom of Infinity ([[infinityAxiom]]). The proof shows
+   * that the two forms are equivalent by folding the definitions of
+   * [[successor]] and [[inductive]].
+   */
+    val inductiveSetExists = makeTHM(
+      () |- exists(x, inductive(x))
+    ) {
+      val form = formulaVariable
+
+      have(() |- forall(x, (x === successor(y)) <=> (x === union(unorderedPair(y, unorderedPair(y, y)))))) by InstFunSchema(Map(x -> y))(successor.definition)
+      andThen(() |- ((successor(y) === successor(y)) <=> (successor(y) === union(unorderedPair(y, unorderedPair(y, y)))))) by InstantiateForall(successor(y))
+      val succDef = andThen(() |- (successor(y) === union(unorderedPair(y, unorderedPair(y, y))))) by Rewrite
+      val inductDef = have(() |- inductive(x) <=> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))) by Rewrite(inductive.definition)
+
+      have(() |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Restate
+      val succEq = andThen(
+        (successor(y) === union(unorderedPair(y, unorderedPair(y, y)))) |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(successor(y), x))
+      ) by RightSubstEq(
+        List((successor(y), union(unorderedPair(y, unorderedPair(y, y))))),
+        lambda(z, (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(z, x)))
+      )
+      val iffinst = have(() |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(successor(y), x))) by Cut(succDef, succEq)
+
+      val iffquant = {
+        have((in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) |- (in(y, x) ==> in(successor(y), x))) by Weakening(iffinst)
+        andThen(forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) |- (in(y, x) ==> in(successor(y), x))) by LeftForall(y)
+        andThen(forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) |- forall(y, in(y, x) ==> in(successor(y), x))) by RightForall
+        val lhs = andThen(() |- forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) ==> forall(y, in(y, x) ==> in(successor(y), x))) by Rewrite
+
+        have((in(y, x) ==> in(successor(y), x)) |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Weakening(iffinst)
+        andThen(forall(y, in(y, x) ==> in(successor(y), x)) |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by LeftForall(y)
+        andThen(forall(y, in(y, x) ==> in(successor(y), x)) |- forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by RightForall
+        val rhs = andThen(() |- forall(y, in(y, x) ==> in(successor(y), x)) ==> forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Rewrite
+
+        have(() |- forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> forall(y, in(y, x) ==> in(successor(y), x))) by RightIff(lhs, rhs)
+      }
+
+      have(
+        in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) |- in(emptySet(), x) /\ forall(
+          y,
+          in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)
+        )
+      ) by Hypothesis
+      andThen(
+        Set(
+          forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> forall(y, in(y, x) ==> in(successor(y), x)),
+          in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))
+        ) |- in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))
+      ) by RightSubstIff(
+        List((forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)), forall(y, in(y, x) ==> in(successor(y), x)))),
+        lambda(form, in(emptySet(), x) /\ form)
+      )
+      val substituted = andThen(
+        Set(
+          inductive(x) <=> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x)),
+          forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> forall(y, in(y, x) ==> in(successor(y), x)),
+          in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))
+        ) |- inductive(x)
+      ) by RightSubstIff(List((inductive(x), in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x)))), lambda(form, form))
+      val cut1 = have(
+        Set(
+          forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> forall(y, in(y, x) ==> in(successor(y), x)),
+          in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))
+        ) |- inductive(x)
+      ) by Cut(inductDef, substituted)
+      val cut2 = have(Set(in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) |- inductive(x)) by Cut(iffquant, cut1)
+
+      andThen(Set(in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) |- exists(x, inductive(x))) by RightExists(x)
+      val rhs = andThen(Set(exists(x, in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)))) |- exists(x, inductive(x))) by LeftExists
+
+      have(() |- exists(x, inductive(x))) by Cut(infinityAxiom, rhs)
+    }
+    show
+
+    ////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Properties about pairs
+   */
+
+  /**
+   * Theorem --- First Element in Pair
+   *
+   *    `x ∈ {x, y}`
+   *
+   * Unfolds the definition of [[unorderedPair]]. Easier to use in theorems than
+   * the complete definition.
+   */
+  val firstElemInPair = makeTHM(
+    () |- in(x, unorderedPair(x, y))
+  ) {
+    val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
+    have((z === x) |- (z === x)) by Hypothesis
+    val rhs = andThen((z === x) |- (z === x) \/ (z === y)) by Rewrite
+    val factset = have((z === x) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
+
+    andThen((z === x) |- in(z, unorderedPair(x, y))) by Trivial
+    andThen((x === x) |- in(x, unorderedPair(x, y))) by InstFunSchema(Map(z -> x))
+    andThen(() |- in(x, unorderedPair(x, y))) by LeftRefl
+  }
+  show
+
+  /**
+   * Theorem --- Second Element in Pair
+   * 
+   *    `y ∈ {x, y}`
+   *
+   * Unfolds the definition of [[unorderedPair]]. Easier to use in theorems than
+   * the complete definition.
+   */
+  val secondElemInPair = makeTHM(
+    () |- in(y, unorderedPair(x, y))
+  ) {
+    val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
+    have((z === y) |- (z === y)) by Hypothesis
+    val rhs = andThen((z === y) |- (z === x) \/ (z === y)) by Rewrite
+    val factset = have((z === y) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
+
+    andThen((z === y) |- in(z, unorderedPair(x, y))) by Trivial
+    andThen((y === y) |- in(y, unorderedPair(x, y))) by InstFunSchema(Map(z -> y))
+    andThen(() |- in(y, unorderedPair(x, y))) by LeftRefl
+  }
+  show
+
+  // val unionOfOrderedPairIsUnordered = makeTHM(
+  //   () |- union(pair(x, y)) === unorderedPair(x, y)
+  // ) {
+  //   val upAxiom = ax"unorderedPair"
+
+  //   /**
+  //    * strategy
+  //    * prove:
+  //    *    lhs
+  //    *    () |- z in uPair(x, y) <=> z is x or z is y
+  //    *    rhs
+  //    *    () |- z in oPair(x, y) <=> z is x or z is y
+  //    *
+  //    * derive z in uPair(x, y) <=> z in oPair(x, y) and apply extensionality
+  //    */
+
+  //   // val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by Instantiateforall(x, y, z)(upAxiom)
+
+  // }
+
+  /**
+   * Theorem --- Union of a Singleton is the Original Set
+   *
+   * The unary [[union]] operation unfolds a [[singleton]] into the single
+   * element
+   *
+   *      `∀ x. ∪ {x} === x`
+   */
+  val unionOfSingletonIsTheOriginalSet = makeTHM(
+    () |- (union(singleton(x)) === x)
+  ) {
+    val X = singleton(x)
+
+    // need to prove:
+    //    ∀ z. z ∈ ∪ X <=> z ∈ x
+
+    // forward direction
+    //  z ∈ x |- z ∈ ∪ X
+    val unionAx = have(() |- in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X))) by InstFunSchema(Map(x -> z, z -> X))(unionAxiom)
+    andThen(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Trivial
+
+    val andLhs = have(() |- in(x, X)) by InstFunSchema(Map(y -> x))(firstElemInPair)
+    val andRhs = have(in(z, x) |- in(z, x)) by Hypothesis
+    have(in(z, x) |- in(z, x) /\ in(x, X)) by RightAnd(andLhs, andRhs)
+    val fwdLhs = andThen(in(z, x) |- exists(y, in(z, y) /\ in(y, X))) by RightExists(x)
+    have(in(z, x) |- exists(y, in(z, y) /\ in(y, X)) /\ (in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X)))) by RightAnd(fwdLhs, unionAx)
+    andThen(in(z, x) |- in(z, union(X))) by Trivial
+    val fwd = andThen(() |- in(z, x) ==> in(z, union(X))) by Rewrite
+
+    // backward direction
+    //  z ∈ ∪ X |- z ∈ x
+
+    have(in(y, X) |- in(y, X)) by Hypothesis
+    val bwdHypo = andThen(in(z, y) /\ in(y, X) |- in(y, X)) by Weakening
+    have(in(z, y) /\ in(y, X) |- in(y, X) /\ (in(y, X) <=> (x === y))) by RightAnd(bwdHypo, Jechcercises.singletonHasNoExtraElements)
+    val cutLhs = andThen(in(z, y) /\ in(y, X) |- (x === y)) by Trivial
+
+    have(in(z, y) |- in(z, y)) by Hypothesis
+    andThen(in(y, X) /\ in(z, y) |- in(z, y)) by Weakening
+    val cutRhs = andThen(Set(in(z, y) /\ in(y, X), (x === y)) |- in(z, x)) by RightSubstEq(List((y, x)), lambda(y, in(z, y)))
+
+    have(in(z, y) /\ in(y, X) |- in(z, x)) by Cut(cutLhs, cutRhs)
+    val bwdRhs = andThen(exists(y, in(z, y) /\ in(y, X)) |- in(z, x)) by LeftExists
+    val bwdLhs = have(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Weakening(unionAx)
+    have(in(z, union(X)) |- in(z, x)) by Cut(bwdLhs, bwdRhs)
+    val bwd = andThen(() |- in(z, union(X)) ==> in(z, x)) by Rewrite
+
+    have(() |- in(z, union(X)) <=> in(z, x)) by RightIff(fwd, bwd)
+    val iff = andThen(() |- forall(z, in(z, union(X)) <=> in(z, x))) by RightForall
+
+    val extAx = have(() |- forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x)) by InstFunSchema(Map(x -> union(X), y -> x))(extensionalityAxiom)
+
+    have(() |- forall(z, in(z, union(X)) <=> in(z, x)) /\ (forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x))) by RightAnd(iff, extAx)
+    andThen(() |- (union(X) === x)) by Trivial
+  }
+  show
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  /**
+    * Operations on Sets
+    */
+
+  val (setIntersectionExistence, setIntersectionUniqueness) = uniqueComprehension(x, lambda(Seq(t, z), in(t, y)))
+
+  /**
+    * Binary Set Intersection --- Intersection of two sets.
+    *
+    *     `x ∩ y = {z ∈ x | z ∈ y}`
+    *
+    * The proofs are guaranteed and generated by [[uniqueComprehension]].
+    *
+    * @param x set
+    * @param y set
+    */
   val setIntersection = DEF(x, y) --> The(z, forall(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
 
-  val (unaryIntersectionExistence, unaryIntersectionUniqueness) = uniquenessByComprehensionDefinition(union(x), lambda(Seq(t, z), forall(b, in(b, x) ==> in(t, b))))
+  val (unaryIntersectionExistence, unaryIntersectionUniqueness) = uniqueComprehension(union(x), lambda(Seq(t, z), forall(b, in(b, x) ==> in(t, b))))
 
+  /**
+    * Unary Set Intersection --- Intersection of all elements of a given set.
+    *
+    *     `∩ x = {z ∈ ∪ x | ∀ y ∈ x. z ∈ y}`
+    *
+    * The proofs are guaranteed and generated by [[uniqueComprehension]].
+    *
+    * @param x set
+    */
   val unaryintersection = DEF(x) -> The(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))(unaryIntersectionUniqueness)
 
-  val (setDifferenceExistence, setDifferenceUniqueness) = uniquenessByComprehensionDefinition(x, lambda(Seq(t, z), !in(t, y)))
+  val (setDifferenceExistence, setDifferenceUniqueness) = uniqueComprehension(x, lambda(Seq(t, z), !in(t, y)))
 
+  /**
+    * Binary Set Difference --- Given two sets, produces the set that contains
+    * elements in the first but not in the second. `x - y = {z ∈ x | ! z ∈
+    * y}` The proofs are guaranteed and generated by [[uniqueComprehension]].
+    *
+    * @param x set
+    * @param y set
+    */
   val setDifference = DEF(x, y) --> The(z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))(setDifferenceUniqueness)
 
   /**
-   * There exists a set that is the intersection of all sets satisfying a given formula
-   * With classes, this means that the unary intersection of a class defined by a predicate is a set.
+   * Theorem --- Intersection of a non-empty Class is a Set
+   *
+   * There exists a set that is the intersection of all sets satisfying a given
+   * formula. With classes, this means that the unary intersection of a class
+   * defined by a predicate is a set.
+   * 
+   *    `∃ x. P(x) ⊢ ∃ z. t ∈ z ⇔ ∀ x. P(x) ⇒ t ∈ x`
    */
   val intersectionOfPredicateClassExists = makeTHM(
     exists(x, P(x)) |- exists(z, forall(t, in(t, z) <=> forall(y, P(y) ==> in(t, y))))
@@ -328,95 +544,112 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   show
 
   /**
-   * Cartesian Products
+   * Cartesian Products and Relations
    */
 
   val (cartesianProductExistence, cartesianProductUniqueness) =
-    uniquenessByComprehensionDefinition(powerSet(unorderedPair(x, y)), lambda(Seq(t, z), exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y)))))
-
-  val cartesianProduct =
-    DEF(x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(unorderedPair(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))(cartesianProductUniqueness)
+    uniqueComprehension(powerSet(setUnion(x, y)), lambda(Seq(t, z), exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y)))))
 
   /**
-   * Binary relations and functions
-   */
+    * Cartesian Product --- Given two sets `x` and `y`, their cartesian product
+    * is the set containing pairs with the first element in `x` and the second
+    * in `y`. The cartesian product can be seen as a comprehension on the set
+    * `PP(x ∪ y)`.
+    *
+    *     `x * y = {z ∈ PP(x ∪ y) | ∃ a ∈ x, b ∈ y. z = (a, b)}`
+    *
+    * The proofs are guaranteed and generated by [[uniqueComprehension]].
+    *
+    * @param x set
+    * @param y set
+    */
+  val cartesianProduct =
+    DEF(x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(setUnion(x, y))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(a, y))))))(cartesianProductUniqueness)
 
+   /**
+     * Binary Relation --- A binary relation `r` on `x` is a subset of the
+     * [[cartesianProduct]] of `x` with itself, `x * x`. We say `a r b`, `r(a,
+     * b)`, or `r relates a to b` for `(a, b) ∈ r`.
+     */
   val relation = DEF(r, x) --> subset(r, cartesianProduct(x, x))
 
-  val (relationDomainExistence, relationDomainUniqueness) = uniquenessByComprehensionDefinition(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(t, a), r))))
+  val (relationDomainExistence, relationDomainUniqueness) = uniqueComprehension(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(t, a), r))))
 
+  /**
+   * (Binary) Relation Domain --- The set containing the first elements of every
+   * pair in a relation `r`. Alternatively, the set of elements which are
+   * related to another element by `r`.
+   *
+   *      `dom(r) = {z ∈ ∪ ∪ r | ∃ t. (z, t) ∈ r}`
+   *
+   * The proofs are guaranteed and generated by [[uniqueComprehension]].
+   *
+   * @param r relation (set)
+   */
   val relationDomain = DEF(r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))(relationDomainUniqueness)
 
-  val (relationRangeExistence, relationRangeUniqueness) = uniquenessByComprehensionDefinition(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(a, t), r))))
+  val (relationRangeExistence, relationRangeUniqueness) = uniqueComprehension(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(a, t), r))))
 
+  /**
+   * (Binary) Relation Range --- The set containing the second elements of every
+   * pair in a relation `r`. Alternatively, the set of elements which another
+   * element relates to by `r`.
+   *
+   *      `range(r) = {z ∈ ∪ ∪ r | ∃ t. (t, z) ∈ r}
+   *
+   * The proofs are guaranteed and generated by [[uniqueComprehension]].
+   *
+   * @param r relation (set)
+   */
   val relationRange = DEF(r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationRangeUniqueness)
 
+  /**
+    * (Binary) Relation Field --- The union of the domain and range of a
+    * relation, or the set of all elements related by `r`.
+   *
+   * @param r relation (set)
+    */
   val relationField = DEF(r) --> (setUnion(relationDomain(r), relationRange(r)))
 
-  val functionalOver = DEF(f, x) --> (relation(f, x) /\ forall(x, in(x, relationDomain(f)) ==> existsOne(y, in(y, relationRange(f)) /\ in(pair(x, y), f))))
+  /**
+    * Functional Over a Domain --- A binary relation is functional over a domain
+    * if it relates every element `x` in the domain to a unique element `y`.
+    *
+    *     `functionalOver(f, x) ⇔ relation(f, x) ∧ ∀ z ∈ x. ∃! y. (z, y) ∈ f`
+    *
+    * We may alternatively denote `(z, y) ∈ f` as `y = f(z)`.
+    *
+    * @param f relation (set)
+    * @param x set
+    */
+  val functionalOver = DEF(f, x) --> (relation(f, x) /\ forall(z, in(z, x) ==> existsOne(y, in(pair(z, y), f))))
 
+  /**
+   * Functional --- A binary relation is functional if it is functional over its own domain.
+   * 
+   * @param f relation (set)
+   */
   val functional = DEF(f) --> functionalOver(f, relationDomain(f))
-
-  // val functionalEquivalentToUniqueness = makeTHM(
-  //   () |- functional(f, x) <=> (relation(f, x) /\ forall(x, forall(y, forall(z, (in(pair(x, y), f) /\ in(pair(x, z), f)) ==> (y === z)))))
-  // ) {
-
-  //   // obtain the definition of the functional predicate
-  //   val funDef = have(() |- functional(f, x) <=> (relation(f, x) /\ forall(x, in(x, relationDomain(f)) ==> existsOne(y, in(y, relationRange(f)) /\ in(pair(x, y), f))))) by Rewrite(functional.definition)
-
-  //   // now we prove that the definitions themselves are equal, and finally substitute in the predicate
-
-  //   val defn = (relation(f, x) /\ forall(x, in(x, relationDomain(f)) ==> existsOne(y, in(y, relationRange(f)) /\ in(pair(x, y), f))))
-  //   val uniq = (relation(f, x) /\ forall(x, forall(y, forall(z, (in(pair(x, y), f) /\ in(pair(x, z), f)) ==> (y === z)))))
-
-  //   // forward
-  //   // functional -> pairwise uniqueness
-  //   have(defn |- defn) by Hypothesis
-  //   have(defn |- )
-
-  //   // backward
-  //   // pairwise uniqueness -> functional
-
-  // }
-
-  // val functionApplicationUniqueness = makeTHM(
-  //   () |- existsOne(z, functional(f, x) ==> in(pair(x, z), f))
-  // ) {
-
-  // }
 
   /**
    * Function application
    */
   // val App = DEF (f, x) --> The(z, functional(f) ==> in(pair(x, z), f))(functionApplicationUniqueness)
 
-  val (restrictedFunctionExistence, restrictedFunctionUniqueness) = uniquenessByComprehensionDefinition(f, lambda(Seq(t, b), exists(y, exists(z, in(y, x) /\ (t === pair(y, z))))))
+  val (restrictedFunctionExistence, restrictedFunctionUniqueness) = uniqueComprehension(f, lambda(Seq(t, b), exists(y, exists(z, in(y, x) /\ (t === pair(y, z))))))
 
   /**
-   * The restriction of a function `f` to a set `x`
-   *
-   * restrictedFunction(f, x) === {(y, f(y)) | y \in x},
-   *
+   * Function Restriction ---  The restriction of a function f to a domain x,
    * also written as f_x.
+   *
+   *    `restrictedFunction(f, x) === {(y, f(y)) | y ∈ x}`
+   *
+   * @param f function (set)
+   * @param x set to restrict to
    */
   val restrictedFunction = DEF(f, x) --> The(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))(restrictedFunctionUniqueness)
 
-  // TODO: functional restricted over x has its domain as x \intersect dom f
-
-  // val restrictedFunctionDomain = makeTHM(
-  //   () |- relationDomain(restrictedFunction(f, x)) === setIntersection(x, relationDomain(f))
-  // ) {
-  //   // unfold definitions and keep for later
-  //   // we will work with the definitions, and eliminate them to obtain symbols later
-  //   val intersectionDef = have(() |- (z === setIntersection(x, relationDomain(f))) <=> (forall(t, in(t, z) <=> (in(t, x) /\ in(t, relationDomain(f)))))) by InstFunSchema(Map(y -> relationDomain(f)))(setIntersection.definition)
-  //   val restrictionDef = have(() |- (g === restrictedFunction(f, x)) <=> (forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))) by InstFunSchema(Map())(restrictedFunction.definition)
-  //   val domainDef = have(() |- (z === relationDomain(f)) <=> forall(t, in(t, z) <=> (in(t, union(union(f))) /\ exists(a, in(pair(t, a), f))))) by InstFunSchema(Map(r -> f))(relationDomain.definition)
-
-  //   val goal = have(() |- (setIntersection(x, relationDomain(f)) === relationDomain(restrictedFunction(f, x))) <=> forall(t, in(t, setIntersection(x, relationDomain(f))) <=> (in(t, union(union(restrictedFunction(f, x)))) /\ exists(a, in(pair(t, a), restrictedFunction(f, x)))))) by InstFunSchema(Map(z -> setIntersection(x, relationDomain(f)), f -> restrictedFunction(f, x)))(domainDef)
-
-  // }
-
-  // restrictedFunction.definition.show
+  // TODO: functional restricted over x has its domain as x ∈tersect dom f
 
   // TODO: any subset of a functional is functional
   // TODO: a functional over something restricted to x is still functional
@@ -426,14 +659,18 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    */
 
   /**
-   * TODO: write something
+   * Dependent Sum (Sigma)
+   * 
+   * TODO: explain
    */
   val Sigma = DEF(x, f) --> union(restrictedFunction(f, x))
 
-  val (piExistence, piUniqueness) = uniquenessByComprehensionDefinition(powerSet(Sigma(x, f)), lambda(Seq(z, y), (subset(x, relationDomain(z)) /\ functional(z))))
+  val (piExistence, piUniqueness) = uniqueComprehension(powerSet(Sigma(x, f)), lambda(Seq(z, y), (subset(x, relationDomain(z)) /\ functional(z))))
 
   /**
-   * TODO: write something
+   * Dependent Product (Pi)
+   * 
+   * TODO: explain
    */
   val Pi = DEF(x, f) --> The(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))(piUniqueness)
 
@@ -441,18 +678,63 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    * Properties of relations
    */
 
+  /**
+    * Reflexive Relation --- `∀ x. x R x`
+    */
   val reflexive = DEF(r, x) --> relation(r, x) /\ forall(y, in(y, x) ==> in(pair(y, y), r))
+
+  /**
+    * Symmetric Relation --- `∀ x y. x R y ⇔ y R x`
+    */
   val symmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, in(pair(y, z), r) <=> in(pair(z, y), r)))
+
+  /**
+    * Transitive Relation --- `∀ x y z. x R y ∧ y R z ⇒ x R z`
+    */
   val transitive = DEF(r, x) --> relation(r, x) /\ forall(w, forall(y, forall(z, (in(pair(w, y), r) /\ in(pair(y, z), r)) ==> in(pair(w, z), r))))
+
+  /**
+    * Equivalence Relation --- A relation is an equivalence relation if it is
+    * [[reflexive]], [[symmetric]], and [[transitive]].
+    */
   val equivalence = DEF(r, x) --> reflexive(r, x) /\ symmetric(r, x) /\ transitive(r, x)
 
+
+  /**
+    * Anti-reflexive Relation --- `∀ x. ! x R x`
+    */
   val antiReflexive = DEF(r, x) --> relation(r, x) /\ forall(y, in(y, x) ==> !in(pair(y, y), r))
+
+  /**
+    * Irreflexive Relation --- Alias for [[antiReflexive]].
+    */
   val irreflexive = antiReflexive
+
+  /**
+    * Anti-symmetric Relation --- `∀ x y. x R y ∧ y R x ⇒ y = x`
+    */
   val antiSymmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(pair(y, z), r) /\ in(pair(z, y), r)) ==> (y === z)))
+
+  /**
+    * Asymmetric Relation --- `∀ x y. x R y ⇔ ! y R x`
+    */
   val asymmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, in(pair(y, z), r) ==> !in(pair(z, y), r)))
 
+
+  /**
+    * Connected Relation --- `∀ x y. (x R y) ∨ (y R x) ∨ (y = x)`
+    */
   val connected = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r) \/ (y === z))))
+
+  /**
+    * Total Relation --- Alias for [[connected]].
+    */
   val total = connected
+
+  /**
+    * Strongly Connected Relation ---  
+    *     `∀ x y z. y R x ∧ z R x ⇒ y R z ∨ z R y`
+    */
   val stronglyConnected = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
 
   /**
@@ -460,81 +742,7 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    */
 
   /**
-   * There exists an inductive set
-   * This is postulated in the theory as the axiom of infinity, and is just converted to use the relevant symbol definitions here
-   */
-  val inductiveSetExists = makeTHM(
-    () |- exists(x, inductive(x))
-  ) {
-    val form = formulaVariable
-
-    have(() |- forall(x, (x === successor(y)) <=> (x === union(unorderedPair(y, unorderedPair(y, y)))))) by InstFunSchema(Map(x -> y))(successor.definition)
-    andThen(() |- ((successor(y) === successor(y)) <=> (successor(y) === union(unorderedPair(y, unorderedPair(y, y)))))) by InstantiateForall(successor(y))
-    val succDef = andThen(() |- (successor(y) === union(unorderedPair(y, unorderedPair(y, y))))) by Rewrite
-    val inductDef = have(() |- inductive(x) <=> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))) by Rewrite(inductive.definition)
-
-    have(() |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Restate
-    val succEq = andThen(
-      (successor(y) === union(unorderedPair(y, unorderedPair(y, y)))) |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(successor(y), x))
-    ) by RightSubstEq(
-      List((successor(y), union(unorderedPair(y, unorderedPair(y, y))))),
-      lambda(z, (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(z, x)))
-    )
-    val iffinst = have(() |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(successor(y), x))) by Cut(succDef, succEq)
-
-    val iffquant = {
-      have((in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) |- (in(y, x) ==> in(successor(y), x))) by Weakening(iffinst)
-      andThen(forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) |- (in(y, x) ==> in(successor(y), x))) by LeftForall(y)
-      andThen(forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) |- forall(y, in(y, x) ==> in(successor(y), x))) by RightForall
-      val lhs = andThen(() |- forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) ==> forall(y, in(y, x) ==> in(successor(y), x))) by Rewrite
-
-      have((in(y, x) ==> in(successor(y), x)) |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Weakening(iffinst)
-      andThen(forall(y, in(y, x) ==> in(successor(y), x)) |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by LeftForall(y)
-      andThen(forall(y, in(y, x) ==> in(successor(y), x)) |- forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by RightForall
-      val rhs = andThen(() |- forall(y, in(y, x) ==> in(successor(y), x)) ==> forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Rewrite
-
-      have(() |- forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> forall(y, in(y, x) ==> in(successor(y), x))) by RightIff(lhs, rhs)
-    }
-
-    have(
-      in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) |- in(emptySet(), x) /\ forall(
-        y,
-        in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)
-      )
-    ) by Hypothesis
-    andThen(
-      Set(
-        forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> forall(y, in(y, x) ==> in(successor(y), x)),
-        in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))
-      ) |- in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))
-    ) by RightSubstIff(
-      List((forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)), forall(y, in(y, x) ==> in(successor(y), x)))),
-      lambda(form, in(emptySet(), x) /\ form)
-    )
-    val substituted = andThen(
-      Set(
-        inductive(x) <=> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x)),
-        forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> forall(y, in(y, x) ==> in(successor(y), x)),
-        in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))
-      ) |- inductive(x)
-    ) by RightSubstIff(List((inductive(x), in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x)))), lambda(form, form))
-    val cut1 = have(
-      Set(
-        forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> forall(y, in(y, x) ==> in(successor(y), x)),
-        in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))
-      ) |- inductive(x)
-    ) by Cut(inductDef, substituted)
-    val cut2 = have(Set(in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) |- inductive(x)) by Cut(iffquant, cut1)
-
-    andThen(Set(in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) |- exists(x, inductive(x))) by RightExists(x)
-    val rhs = andThen(Set(exists(x, in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)))) |- exists(x, inductive(x))) by LeftExists
-
-    have(() |- exists(x, inductive(x))) by Cut(infinityAxiom, rhs)
-  }
-  show
-
-  /**
-   * There exists an intersection of all inductive sets
+   * Theorem --- There exists an intersection of all inductive sets
    */
   val inductiveIntersectionExistence = makeTHM(
     () |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))
@@ -546,7 +754,8 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   show
 
   /**
-   * The intersection of all inductive sets is unique
+   *
+   * Theorem --- The intersection of all inductive sets is unique
    */
   val inductiveIntersectionUniqueness = makeTHM(
     () |- existsOne(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))
@@ -562,12 +771,13 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
   show
 
   /**
-   * The intersection of all inductive sets is the set of natural numbers, N
+   * Natural Numbers (Inductive definition) --- The intersection of all
+   * inductive sets is the set of natural numbers, N.
    */
   val naturalsInductive = DEF() --> The(z, forall(t, in(t, z) <=> (forall(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
 
   /**
-   * The natural numbers form an inductive set
+   * Theorem --- Natural numbers form an inductive set
    */
   val naturalsAreInductive = makeTHM(
     () |- inductive(naturalsInductive())
@@ -645,52 +855,66 @@ object SetTheory2 extends lisa.proven.mathematics.BasicDefs {
    */
 
   /**
-   * `r` is a partial order on `x` iff
-   *    - [relation]   it is a binary relation on `x`,
-   *    - [reflexive]  `\forall a \in x, ! a r a` (`a \not < a`), and
-   *    - [transitive] `\forall a, b, c \in x, a r b /\ b r c ==> a r c` (`a < b /\ b < c ==> a < c`)
+   * Partial Order --- `r` is a partial order on `x` if it is a [[reflexive]]
+   * and [[transitive]] binary [[relation]] on `x`.
    */
   val partialOrder = DEF(r, x) --> relation(r, x) /\ antiReflexive(r, x) /\ transitive(r, x)
 
   // properties of elements under partial orders
 
   /**
-   * `a` is a maximal element of `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
-   * `\forall b \in y. a \not r b`
+   * Maximal Element --- `a` is a maximal element of `y` with respect to `r`,
+   * which is a partial order on `x`, and `y ⊆ x`. 
+   *
+   *    `∀ b ∈ y. ! a r b`
    */
   val maximalElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(a, b), r)))
 
   /**
-   * `a` is a minimal element of `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
-   * `\forall b \in y. b \not r a`
+   * Minimal Element --- `a` is a minimal element of `y` with respect to `r`,
+   * which is a partial order on `x`, and `y ⊆ x`.
+   *
+   *    `∀ b ∈ y. ! b r a`
    */
   val minimalElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(b, a), r)))
 
   /**
-   * `a` is the greatest element of `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
-   * `\forall b \in y. b r a \/ b = a`
+   * Greatest Element --- `a` is the greatest element of `y` with respect to
+   * `r`, which is a partial order on `x`, and `y ⊆ x`.
+   *
+   *    `∀ b ∈ y. b r a ⋁ b = a`
    */
   val greatestElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(b, a), r) \/ (a === b)))
 
   /**
-   * `a` is the least element of `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
-   * `\forall b \in y. a r b \/ b = a`
+   * Least Element --- `a` is the least element of `y` with respect to `r`,
+   * which is a partial order on `x`, and `y ⊆ x`
+   *
+   *    `∀ b ∈ y. a r b ⋁ b = a`
    */
   val leastElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
 
   /**
-   * `a` is an upper bound on `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
-   * `\forall b \in y. b r a \/ b = a`
-   * Note that as opposed to the greatest element, `a` is not enforced to be an element of `y`
+   * Upper Bound --- `a` is an upper bound on `y` with respect to `r`, which is
+   * a partial order on `x`, and `y ⊆ x`.
+   *
+   *    `∀ b ∈ y. b r a ⋁ b = a`
+   *
+   * Note that as opposed to the greatest element, `a` is not enforced to be an
+   * element of `y`.
    */
   val upperBound = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(b, a), r) \/ (a === b)))
 
   /**
-   * `a` is a lower bound on `y` with respect to `r`, which is a partial order on `x`, and `y \subseteq x`
-   * `\forall b \in y. a r b \/ b = a`
-   * Note that as opposed to the least element, `a` is not enforced to be an element of `y`
+   * Lower Bound --- `a` is a lower bound on `y` with respect to `r`, which is a
+   * partial order on `x`, and `y ⊆ x`
+   *
+   *    `∀ b ∈ y. a r b ⋁ b = a`
+   *
+   * Note that as opposed to the least element, `a` is not enforced to be an
+   * element of `y`
    */
   val lowerBound = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
 
-  val setOfLowerBounds = DEF(y, r, x) --> The(z, forall(t, in(t, z) <=> (in(t, x) /\ lowerBound(t, y, r, x))))(uniquenessByComprehensionDefinition(x, lambda(Seq(t, x), lowerBound(t, y, r, x)))._2)
+  val setOfLowerBounds = DEF(y, r, x) --> The(z, forall(t, in(t, z) <=> (in(t, x) /\ lowerBound(t, y, r, x))))(uniqueComprehension(x, lambda(Seq(t, x), lowerBound(t, y, r, x)))._2)
 }

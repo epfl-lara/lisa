@@ -12,9 +12,10 @@ private[settheory] trait SetTheoryZFAxioms extends SetTheoryZAxioms {
   private final val sPsi = SchematicPredicateLabel("P", 3)
 
   /**
-   * Replacement Schema
-   *
-   * If a predicate \psi is 'functional' over a, i.e., given x \in a, there is a unique y such that \psi(a, x, y), then the 'image' of a in \psi exists and is a set. It contains exactly the y's that satisfy \psi for each x \in a.
+   * Replacement Schema --- If a predicate `Ψ` is 'functional' over `a`, i.e.,
+   * given `x ∈ a`, there is a unique `y` such that `Ψ(a, x, y)`, then the
+   * 'image' of `a` in Ψ exists and is a set. It contains exactly the `y`'s that
+   * satisfy `Ψ` for each `x ∈ a`.
    */
   final val replacementSchema: Formula = forall(x, (in(x, a)) ==> existsOne(y, sPsi(a, x, y))) ==>
     exists(b, forall(x, in(x, a) ==> exists(y, in(y, b) /\ sPsi(a, x, y))))
