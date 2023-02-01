@@ -93,7 +93,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
   final val powerAxiom: Formula = in(x, powerSet(y)) <=> subset(x, y)
 
   /**
-   * Infinity Axiom --- There exists an infinite set. 
+   * Infinity Axiom --- There exists an infinite set.
    *
    * The definition requires a notion of finiteness, which generally corresponds
    * to natural numbers. Since the naturals have not yet been defined, their
