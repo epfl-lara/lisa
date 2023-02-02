@@ -270,8 +270,16 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
    * @param fsub sequents to keep on subproofs
    * @return a proofstep where each function is applied to the corresponding
    */
-  protected def mapStep(pS: SCProofStep, f: Set[Formula] => Set[Formula], fi: Seq[Int] => Seq[Int] = identity, fsub: Seq[Sequent] = Nil): SCProofStep = pS match {
+  private def mapStep(pS: SCProofStep, f: Set[Formula] => Set[Formula], fi: Seq[Int] => Seq[Int] = identity, fsub: Seq[Sequent] = Nil): SCProofStep = pS match {
     case Rewrite(bot, t1) => Rewrite(f(bot.left) |- bot.right, fi(pS.premises).head)
+    case Hypothesis(bot, phi) => Hypothesis(bot.left |- bot.right, phi)
+    case LeftAnd(bot, t1, phi, psi) => LeftAnd(f(bot.left) |- bot.right, fi(pS.premises).head, phi, psi)
+    case LeftExistsOne(bot, t1, phi, x) => LeftExistsOne(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x)
+    case LeftForall(bot, t1, phi, x, t) => LeftForall(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x, t)
+    case LeftIff(bot, t1, phi, psi) => LeftIff(f(bot.left) |- bot.right, fi(pS.premises).head, phi, psi)
+    case LeftOr(bot, t1, phi) => LeftOr(f(bot.left) |- bot.right, fi(pS.premises), phi)
+    case LeftNot(bot, t1, phi) => LeftNot(f(bot.left) |- bot.right, fi(pS.premises).head, phi)
+    case LeftImplies(bot, t1, t2, phi, psi) => LeftImplies(f(bot.left) |- bot.right, fi(pS.premises).head, fi(pS.premises).last, phi, psi)
     case RewriteTrue(bot) => RewriteTrue(f(bot.left) |- bot.right)
     case LeftExists(bot, t1, phi, x) => LeftExists(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x)
     case RightAnd(bot, t, cunjuncts) => RightAnd(f(bot.left) |- bot.right, fi(t), cunjuncts)
@@ -283,6 +291,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
     case RightExists(bot, t1, phi, x, t) => RightExists(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x, t)
     case RightExistsOne(bot, t1, phi, x) => RightExistsOne(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x)
     case Weakening(bot, t1) => Weakening(f(bot.left) |- bot.right, fi(pS.premises).head)
+    case Cut(bot, t1, t2, phi) => Cut(f(bot.left) |- bot.right, fi(pS.premises).head, fi(pS.premises).last, phi)
     case LeftRefl(bot, t1, fa) => LeftRefl(f(bot.left) |- bot.right, fi(pS.premises).head, fa)
     case RightRefl(bot, fa) => RightRefl(f(bot.left) |- bot.right, fa)
     case LeftSubstEq(bot, t1, equals, lambdaPhi) => LeftSubstEq(f(bot.left) |- bot.right, fi(pS.premises).head, equals, lambdaPhi)
