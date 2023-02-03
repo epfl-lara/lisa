@@ -1091,7 +1091,7 @@ object BasicStepTactic {
     }
   }
 
-  class SUBPROOF(using val proof: Library#Proof, om: OutputManager)(statement: Sequent | String, val line: sourcecode.Line, val file: sourcecode.File)(computeProof: proof.InnerProof ?=> Unit)
+  class SUBPROOF(using val proof: Library#Proof, om: OutputManager, val line: sourcecode.Line, val file: sourcecode.File)(statement: Sequent | String)(computeProof: proof.InnerProof ?=> Unit)
       extends ProofTactic {
     val bot: Sequent = statement match {
       case s: Sequent => s

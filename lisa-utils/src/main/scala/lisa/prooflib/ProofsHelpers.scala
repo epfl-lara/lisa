@@ -34,7 +34,7 @@ trait ProofsHelpers {
     }
 
     inline infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
-      (new BasicStepTactic.SUBPROOF(using proof, om)(bot, line, file)(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
+      (new BasicStepTactic.SUBPROOF(using proof, om, line, file)(bot)(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
     }
 
   }
