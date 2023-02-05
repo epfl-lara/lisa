@@ -99,7 +99,7 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    def apply(proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def applyLeftRight(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact)(rightLeft:Boolean = false): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -112,8 +112,15 @@ object SimpleSimplifier {
           val v = VariableLabel(nFreshId(fv_in_phi, 1).head)
           val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
           val isolatedRight = originSequent.right.map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
-          if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
-            return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(left)} to replace.")
+          if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty)) {
+            if (rightLeft)
+              return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(left)} to replace.")
+            else
+              applyLeftRight(equality(right, left))(premise)(true) match {
+                case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(left)} to replace.")
+                case v : proof.ValidProofTactic => return v
+              }
+          }
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -140,7 +147,13 @@ object SimpleSimplifier {
           val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           val isolatedRight = originSequent.right.map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
-            return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
+            if (rightLeft)
+              return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
+            else
+              applyLeftRight(Iff(right, left))(premise)(true) match {
+                case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
+                case v : proof.ValidProofTactic => return v
+              }
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -163,6 +176,8 @@ object SimpleSimplifier {
       }
 
     }
+
+    def apply(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = applyLeftRight(phi)(premise)()
   }
 
   def simplifySeq(seq: Sequent, ruleseq: IndexedSeq[PredicateFormula], rulesiff: IndexedSeq[ConnectorFormula]): SCProof = {

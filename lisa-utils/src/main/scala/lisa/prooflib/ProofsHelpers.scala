@@ -70,8 +70,12 @@ trait ProofsHelpers {
   /**
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
-  def have(using om: OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
-    have(theory.sequentFromJustification(just)) by Restate(just: _proof.OutsideFact)
+  def have(using line: sourcecode.Line, file: sourcecode.File)(using om: OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
+    have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)( Restate(just: _proof.OutsideFact))
+  }
+
+  def have(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
+    tactic.validate(line, file)
   }
 
   /**
@@ -79,6 +83,13 @@ trait ProofsHelpers {
    * which may require a justification by a proof tactic.
    */
   def andThen(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
+
+  /**
+   * Claim the result of a tactic taking no target sequent.
+   */
+  def andThen2(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.Fact => proof.ProofTacticJudgement): proof.ProofStep = {
+    tactic(proof.mostRecentStep).validate(line, file)
+  }
   /*
   /**
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
@@ -110,8 +121,11 @@ trait ProofsHelpers {
   def endDischarge(using proof: library.Proof)(ji: proof.OutsideFact): Unit = {
     proof.addDischarge(ji)
   }
-
    */
+
+  def thesis(using proof: library.Proof): Sequent = proof.goal
+  def goal(using proof: library.Proof): Sequent = proof.goal
+
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
     om.output("Current proof of" + _proof.owningTheorem.repr + ": ")
     om.output(

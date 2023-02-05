@@ -304,4 +304,8 @@ object SimpleDeducedSteps {
       }
     }
   }
+
+
+
+  object ByEquivalence
 }
