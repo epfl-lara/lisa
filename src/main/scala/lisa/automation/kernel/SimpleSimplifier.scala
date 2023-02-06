@@ -6,6 +6,8 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.*
+import lisa.prooflib.SimpleDeducedSteps
+import lisa.prooflib.BasicStepTactic
 
 import scala.collection
 
@@ -99,7 +101,7 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    def applyLeftRight(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact)(rightLeft:Boolean = false): proof.ProofTacticJudgement = {
+    private def applyLeftRight(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact)(rightLeft:Boolean = false): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -177,7 +179,21 @@ object SimpleSimplifier {
 
     }
 
-    def apply(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = applyLeftRight(phi)(premise)()
+    def apply(using proof: lisa.prooflib.Library#Proof)(f: proof.Fact)(premise: proof.Fact): proof.ProofTacticJudgement = {
+      val seq = proof.getSequent(f)
+      val phi = seq.right.head
+      val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
+        val x = applyLeftRight(phi)(premise)()
+        proof.library.have2(x)
+        proof.library.andThen(SimpleDeducedSteps.Discharge(f))
+      })
+
+      BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for unique comprehension failed.")
+    }
+
+    def apply(using proof: lisa.prooflib.Library#Proof)(phi:Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+      applyLeftRight(phi)(premise)()
+    }
   }
 
   def simplifySeq(seq: Sequent, ruleseq: IndexedSeq[PredicateFormula], rulesiff: IndexedSeq[ConnectorFormula]): SCProof = {

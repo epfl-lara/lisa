@@ -19,7 +19,7 @@ object BasicStepTactic {
     }
   }
 
-  object Hypothesis extends ProofTactic with ParameterlessHave {
+  object Hypothesis extends ProofTactic with ProofSequentTactic {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       val intersectedPivot = bot.left.intersect(bot.right)
 
@@ -30,7 +30,7 @@ object BasicStepTactic {
     }
   }
 
-  object Rewrite extends ProofTactic with ParameterlessAndThen {
+  object Rewrite extends ProofTactic with ProofFactSequentTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!SC.isSameSequent(bot, proof.getSequent(premise)))
         proof.InvalidProofTactic("The premise and the conclusion are not trivially equivalent.")
@@ -39,7 +39,7 @@ object BasicStepTactic {
     }
   }
 
-  object RewriteTrue extends ProofTactic with ParameterlessHave {
+  object RewriteTrue extends ProofTactic with ProofSequentTactic {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!SC.isSameSequent(bot, () |- PredicateFormula(top, Nil)))
         proof.InvalidProofTactic("The desired conclusion is not a trivial tautology.")
@@ -65,9 +65,9 @@ object BasicStepTactic {
       else if (!contains(rightSequent.left, phi))
         proof.InvalidProofTactic("Left-hand side of second premise does not contain φ as claimed.")
       else if (!isSameSet(bot.left, leftSequent.left ++ rightSequent.left.filterNot(isSame(_, phi))))
-        proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
+        proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the factsToDischarge.")
       else if (!isSameSet(bot.right, leftSequent.right.filterNot(isSame(_, phi)) ++ rightSequent.right))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the factsToDischarge.")
       else
         proof.ValidProofTactic(Seq(SC.Cut(bot, -1, -2, phi)), Seq(prem1, prem2))
     }
@@ -87,7 +87,7 @@ object BasicStepTactic {
         // can still find a pivot
         Cut.withParameters(intersectedCutSet.head)(prem1, prem2)(bot)
       else
-        proof.InvalidProofTactic("A consistent cut pivot cannot be inferred from the premises. Possibly a missing or extraneous clause.")
+        proof.InvalidProofTactic("A consistent cut pivot cannot be inferred from the factsToDischarge. Possibly a missing or extraneous clause.")
     }
   }
 
@@ -99,7 +99,7 @@ object BasicStepTactic {
    *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
    * </pre>
    */
-  object LeftAnd extends ProofTactic with ParameterlessAndThen {
+  object LeftAnd extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val phiAndPsi = ConnectorFormula(And, Seq(phi, psi))
@@ -153,11 +153,11 @@ object BasicStepTactic {
       if (premises.length == 0)
         proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
       else if (premises.length != disjuncts.length)
-        proof.InvalidProofTactic(s"Premises and disjuncts expected to be equal in number, but ${premises.length} premises and ${disjuncts.length} disjuncts received.")
+        proof.InvalidProofTactic(s"Premises and disjuncts expected to be equal in number, but ${premises.length} factsToDischarge and ${disjuncts.length} disjuncts received.")
       else if (!isSameSet(bot.right, premiseSequents.map(_.right).reduce(_ union _)))
-        proof.InvalidProofTactic("Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
+        proof.InvalidProofTactic("Right-hand side of conclusion is not the union of the right-hand sides of the factsToDischarge.")
       else if (!isSameSet(disjuncts.foldLeft(bot.left)(_ + _), premiseSequents.map(_.left).reduce(_ union _) + disjunction))
-        proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
+        proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the factsToDischarge + φ∨ψ.")
       else
         proof.ValidProofTactic(Seq(SC.LeftOr(bot, Range(-1, -premises.length - 1, -1), disjuncts)), premises.toSeq)
     }
@@ -172,12 +172,12 @@ object BasicStepTactic {
         if (isSubset(premiseSequents(emptyIndex).left, bot.left))
           unwrapTactic(Weakening(premises(emptyIndex))(bot))("Attempted weakening on trivial premise for LeftOr failed.")
         else
-          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the one of the premises.")
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the one of the factsToDischarge.")
       } else if (pivots.forall(_.tail.isEmpty))
         LeftOr.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
         // some extraneous formulae
-        proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
+        proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the factsToDischarge + φ∨ψ.")
     }
   }
 
@@ -195,9 +195,9 @@ object BasicStepTactic {
       lazy val implication = ConnectorFormula(Implies, Seq(phi, psi))
 
       if (!isSameSet(bot.right + phi, leftSequent.right union rightSequent.right))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of right-hand sides of premises.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of right-hand sides of factsToDischarge.")
       else if (!isSameSet(bot.left + psi, leftSequent.left union rightSequent.left + implication))
-        proof.InvalidProofTactic("Left-hand side of conclusion + ψ is not the union of left-hand sides of premises + φ→ψ.")
+        proof.InvalidProofTactic("Left-hand side of conclusion + ψ is not the union of left-hand sides of factsToDischarge + φ→ψ.")
       else
         proof.ValidProofTactic(Seq(SC.LeftImplies(bot, -1, -2, phi, psi)), Seq(prem1, prem2))
     }
@@ -211,16 +211,16 @@ object BasicStepTactic {
         if (isSubset(leftSequent.left, bot.left))
           unwrapTactic(Weakening(prem1)(bot))("Attempted weakening on trivial left premise for LeftImplies failed.")
         else
-          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the first premises.")
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the first factsToDischarge.")
       else if (pivotRight.isEmpty)
         if (isSubset(rightSequent.right, bot.right))
           unwrapTactic(Weakening(prem2)(bot))("Attempted weakening on trivial right premise for LeftImplies failed.")
         else
-          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the second premises.")
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the second factsToDischarge.")
       else if (pivotLeft.tail.isEmpty && pivotRight.tail.isEmpty)
         LeftImplies.withParameters(pivotLeft.head, pivotRight.head)(prem1, prem2)(bot)
       else
-        proof.InvalidProofTactic("Could not infer an implication as a pivot from the premises and conclusion, possible extraneous formulae in premises.")
+        proof.InvalidProofTactic("Could not infer an implication as a pivot from the factsToDischarge and conclusion, possible extraneous formulae in factsToDischarge.")
     }
   }
 
@@ -231,7 +231,7 @@ object BasicStepTactic {
    *  Γ, φ↔ψ |- Δ                 Γ, φ↔ψ |- Δ
    * </pre>
    */
-  object LeftIff extends ProofTactic with ParameterlessAndThen {
+  object LeftIff extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val implication = ConnectorFormula(Iff, Seq(phi, psi))
@@ -258,7 +258,7 @@ object BasicStepTactic {
         if (isSubset(premiseSequent.right, bot.right))
           unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for LeftIff failed.")
         else
-          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the factsToDischarge.")
       else
         pivot.head match {
           case ConnectorFormula(Implies, Seq(phi, psi)) => LeftIff.withParameters(phi, psi)(premise)(bot)
@@ -274,7 +274,7 @@ object BasicStepTactic {
    *   Γ, ¬φ |- Δ
    * </pre>
    */
-  object LeftNot extends ProofTactic with ParameterlessAndThen {
+  object LeftNot extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val negation = ConnectorFormula(Neg, Seq(phi))
@@ -294,7 +294,7 @@ object BasicStepTactic {
         if (isSubset(premiseSequent.left, bot.left))
           unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for LeftNot failed.")
         else
-          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the factsToDischarge.")
       else if (!pivot.isEmpty && pivot.tail.isEmpty)
         LeftNot.withParameters(pivot.head)(premise)(bot)
       else
@@ -342,7 +342,7 @@ object BasicStepTactic {
         if (isSubset(premiseSequent.right, bot.right))
           unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for LeftForall failed.")
         else
-          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the factsToDischarge.")
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
 
@@ -370,7 +370,7 @@ object BasicStepTactic {
    *
    * </pre>
    */
-  object LeftExists extends ProofTactic with ParameterlessAndThen {
+  object LeftExists extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Exists, x, phi)
@@ -427,7 +427,7 @@ object BasicStepTactic {
    *      Γ, ∃!x. φ |- Δ
    * </pre>
    */
-  object LeftExistsOne extends ProofTactic with ParameterlessAndThen {
+  object LeftExistsOne extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
@@ -452,7 +452,7 @@ object BasicStepTactic {
           if (SC.isSameSequent(premiseSequent, bot))
             unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for LeftExistsOne failed.")
           else
-            proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
+            proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the factsToDischarge.")
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ↔ φ == extract ==> x, phi
@@ -487,11 +487,11 @@ object BasicStepTactic {
       if (premises.length == 0)
         proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
       else if (premises.length != conjuncts.length)
-        proof.InvalidProofTactic(s"Premises and conjuncts expected to be equal in number, but ${premises.length} premises and ${conjuncts.length} conjuncts received.")
+        proof.InvalidProofTactic(s"Premises and conjuncts expected to be equal in number, but ${premises.length} factsToDischarge and ${conjuncts.length} conjuncts received.")
       else if (!isSameSet(bot.left, premiseSequents.map(_.left).reduce(_ union _)))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+        proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the factsToDischarge.")
       else if (!isSameSet(conjuncts.foldLeft(bot.right)(_ + _), premiseSequents.map(_.right).reduce(_ union _) + conjunction))
-        proof.InvalidProofTactic("Right-hand side of conclusion + conjuncts is not the same as the union of the right-hand sides of the premises + φ∧ψ....")
+        proof.InvalidProofTactic("Right-hand side of conclusion + conjuncts is not the same as the union of the right-hand sides of the factsToDischarge + φ∧ψ....")
       else
         proof.ValidProofTactic(Seq(SC.RightAnd(bot, Range(-1, -premises.length - 1, -1), conjuncts)), premises)
     }
@@ -506,12 +506,12 @@ object BasicStepTactic {
         if (isSubset(premiseSequents(emptyIndex).left, bot.left))
           unwrapTactic(Weakening(premises(emptyIndex))(bot))("Attempted weakening on trivial premise for RightAnd failed.")
         else
-          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the one of the premises.")
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the one of the factsToDischarge.")
       } else if (pivots.forall(_.tail.isEmpty))
         RightAnd.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
       else
         // some extraneous formulae
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the factsToDischarge +φ∧ψ.")
     }
   }
 
@@ -522,7 +522,7 @@ object BasicStepTactic {
    *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
    * </pre>
    */
-  object RightOr extends ProofTactic with ParameterlessAndThen {
+  object RightOr extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val phiAndPsi = ConnectorFormula(Or, Seq(phi, psi))
@@ -568,7 +568,7 @@ object BasicStepTactic {
    *  Γ |- φ→ψ, Δ
    * </pre>
    */
-  object RightImplies extends ProofTactic with ParameterlessAndThen {
+  object RightImplies extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val implication = ConnectorFormula(Implies, Seq(phi, psi))
@@ -612,9 +612,9 @@ object BasicStepTactic {
       lazy val impRight = ConnectorFormula(Implies, Seq(psi, phi))
 
       if (!isSameSet(bot.left, leftSequent.left union rightSequent.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+        proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the factsToDischarge.")
       else if (!isSameSet(bot.right + impLeft + impRight, leftSequent.right union rightSequent.right + implication))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises + φ↔ψ.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the factsToDischarge + φ↔ψ.")
       else
         proof.ValidProofTactic(Seq(SC.RightIff(bot, -1, -2, phi, psi)), Seq(prem1, prem2))
     }
@@ -627,14 +627,14 @@ object BasicStepTactic {
         if (isSubset(premiseSequent.left, bot.left))
           unwrapTactic(Weakening(prem1)(bot))("Attempted weakening on trivial premise for RightIff failed.")
         else
-          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the factsToDischarge.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
           case ConnectorFormula(Implies, Seq(phi, psi)) => RightIff.withParameters(phi, psi)(prem1, prem2)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an implication as pivot from premise and conclusion.")
         }
       else
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises φ↔ψ.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the factsToDischarge φ↔ψ.")
     }
   }
 
@@ -645,7 +645,7 @@ object BasicStepTactic {
    *   Γ |- ¬φ, Δ
    * </pre>
    */
-  object RightNot extends ProofTactic with ParameterlessAndThen {
+  object RightNot extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val negation = ConnectorFormula(Neg, Seq(phi))
@@ -666,7 +666,7 @@ object BasicStepTactic {
         if (isSubset(premiseSequent.right, bot.right))
           unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for RightIff failed.")
         else
-          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the factsToDischarge.")
       else if (pivot.tail.isEmpty)
         RightNot.withParameters(pivot.head)(premise)(bot)
       else
@@ -682,7 +682,7 @@ object BasicStepTactic {
    *  Γ |- ∀x. φ, Δ
    * </pre>
    */
-  object RightForall extends ProofTactic with ParameterlessAndThen {
+  object RightForall extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Forall, x, phi)
@@ -772,7 +772,7 @@ object BasicStepTactic {
         if (isSubset(premiseSequent.left, bot.left))
           unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for RightExists failed.")
         else
-          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the factsToDischarge.")
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
 
@@ -799,7 +799,7 @@ object BasicStepTactic {
    *      Γ|- ∃!x. φ,  Δ
    * </pre>
    */
-  object RightExistsOne extends ProofTactic with ParameterlessAndThen {
+  object RightExistsOne extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
@@ -851,7 +851,7 @@ object BasicStepTactic {
    *   Γ, Σ |- Δ, Π
    * </pre>
    */
-  object Weakening extends ProofTactic with ParameterlessAndThen {
+  object Weakening extends ProofTactic with ProofFactSequentTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
@@ -870,7 +870,7 @@ object BasicStepTactic {
    *     Γ |- Δ
    * </pre>
    */
-  object LeftRefl extends ProofTactic with ParameterlessAndThen {
+  object LeftRefl extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(fa: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
@@ -907,7 +907,7 @@ object BasicStepTactic {
    *     |- s=s
    * </pre>
    */
-  object RightRefl extends ProofTactic with ParameterlessHave {
+  object RightRefl extends ProofTactic with ProofSequentTactic {
     def withParameters(using proof: Library#Proof)(fa: Formula)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!bot.right.exists(_ == fa))
         proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
@@ -1091,9 +1091,9 @@ object BasicStepTactic {
     }
   }
 
-  class SUBPROOF(using val proof: Library#Proof, om: OutputManager, val line: sourcecode.Line, val file: sourcecode.File)(statement: Sequent | String)(computeProof: proof.InnerProof ?=> Unit)
+  class SUBPROOF(using val proof: Library#Proof)(statement: Option[Sequent | String])(computeProof: proof.InnerProof ?=> Unit)
       extends ProofTactic {
-    val bot: Sequent = statement match {
+    val bot: Option[Sequent] = statement map {
       case s: Sequent => s
       case s: String => lisa.utils.FOLParser.parseSequent(s)
     }
@@ -1104,16 +1104,18 @@ object BasicStepTactic {
         computeProof(using iProof)
       } catch {
         case e: NotImplementedError =>
-          om.lisaThrow(new UnimplementedProof(proof.owningTheorem))
+          throw (new UnimplementedProof(proof.owningTheorem))
         case e: UserLisaException =>
-          om.lisaThrow(e)
+          throw (e)
       }
       if (iProof.length == 0)
-        om.lisaThrow(new UnimplementedProof(proof.owningTheorem))
+        throw (new UnimplementedProof(proof.owningTheorem))
       iProof.toSCProof
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
     def judgement: proof.ValidProofTactic = proof.ValidProofTactic(scproof.steps, premises)
   }
+
+
 
 }

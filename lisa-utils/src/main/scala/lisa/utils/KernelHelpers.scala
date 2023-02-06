@@ -114,6 +114,12 @@ object KernelHelpers {
     infix def -->(s1: Sequent): Sequent = s.copy(right = s.right -- s1.right)
     infix def ++(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left, right = s.right ++ s1.right)
     infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
+
+    infix def -<?(f: Formula): Sequent = s.copy(left = s.left.filterNot(isSame(_, f)))
+    infix def ->?(f: Formula): Sequent = s.copy(right = s.right.filterNot(isSame(_, f)))
+    infix def --<?(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))))
+    infix def -->?(s1: Sequent): Sequent = s.copy(right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
+    infix def --?(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))), right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
   }
 
   // TODO: Should make less generic
@@ -301,6 +307,10 @@ object KernelHelpers {
   /////////////////////////////
 
   extension (theory: RunningTheory) {
+    def makeAxiom(using name: sourcecode.Name)(formula:Formula): theory.Axiom = theory.addAxiom(name.value, formula) match {
+      case Some(value) => value
+      case None => throw new LisaException.InvalidAxiomException("Axiom contains undefined symbols", name.value, formula, theory)
+    }
 
     /**
      * Add a theorem to the theory, but also asks explicitely for the desired conclusion

@@ -15,7 +15,7 @@ object ProofTacticLib {
   type Arity = Int & Singleton
 
   /**
-   * A ProofTactic is an object that relies on a step of premises and which can be translated into pure Sequent Calculus.
+   * A ProofTactic is an object that relies on a step of factsToDischarge and which can be translated into pure Sequent Calculus.
    */
   trait ProofTactic {
     val name: String = this.getClass.getName.split('$').last
@@ -23,11 +23,18 @@ object ProofTacticLib {
 
   }
 
-  trait ParameterlessHave {
+  trait OnlyProofTactic {
+    def apply(using proof: Library#Proof): proof.ProofTacticJudgement
+  }
+  
+  trait ProofSequentTactic {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement
   }
 
-  trait ParameterlessAndThen {
+  trait ProofFactTactic {
+    def apply(using proof: Library#Proof)(premise: proof.Fact): proof.ProofTacticJudgement
+  }
+  trait ProofFactSequentTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement
   }
 
@@ -60,7 +67,8 @@ object ProofTacticLib {
       "Status of the proof at time of the error is:" +
       lisa.utils.ProofPrinter.prettyProof(failure.proof)
   }
-
+  
+  
   /*
 
   /**
@@ -74,7 +82,7 @@ object ProofTacticLib {
 
 
   /**
-   * Represent a ProofTactic lacking the list of its premises, for partial application.
+   * Represent a ProofTactic lacking the list of its factsToDischarge, for partial application.
    */
   trait ProofTacticWithoutPrem[N <: Arity](val numbPrem: N){
     val proof:ProofOfProofTacticLib
@@ -87,25 +95,25 @@ object ProofTacticLib {
     def asSCProof(givenPremises:Seq[proof.Fact]): proof.ProofTacticJudgement
 
     /**
-   * Gives the premises of the ProofTactic, as a partial application towards the SC transformation.
+   * Gives the factsToDischarge of the ProofTactic, as a partial application towards the SC transformation.
    */
-    def asProofTactic(premises: Seq[proof.Fact]): ProofTactic{val proof:P} =
+    def asProofTactic(factsToDischarge: Seq[proof.Fact]): ProofTactic{val proof:P} =
       (new ProofTactic{
         override val proof: P = ProofTacticWithoutPrem.this.proof
         override val name: String = nameWP
-        override def asSCProof: proof.ProofTacticJudgement = ProofTacticWithoutPrem.this.asSCProof(premises)
+        override def asSCProof: proof.ProofTacticJudgement = ProofTacticWithoutPrem.this.asSCProof(factsToDischarge)
       }).asInstanceOf
 
     /**
    * Alias for [[asProofTactic]]
    */
-    def by(premises: Seq[proof.Fact]): ProofTactic{val proof:P} = asProofTactic(premises)
+    def by(factsToDischarge: Seq[proof.Fact]): ProofTactic{val proof:P} = asProofTactic(factsToDischarge)
   }
 
 
 
   /**
-   * A ProofTactic without premises nor targeted bottom sequent.
+   * A ProofTactic without factsToDischarge nor targeted bottom sequent.
    * Contains a tactic to reconstruct a partial Sequent Calculus proof if given those elements and the current proof.
    */
   trait ProofTacticWithoutBotNorPrem[N <: Arity](val numbPrem:N){
@@ -115,21 +123,21 @@ object ProofTacticLib {
 
     /**
    * Contains a tactic to reconstruct a partial Sequent Calculus proof if given
-   * a list of premises, a targeted bottom sequent and the current proof.
+   * a list of factsToDischarge, a targeted bottom sequent and the current proof.
    */
-    def asSCProof(bot: Sequent, premises: Seq[proof.Fact]): proof.ProofTacticJudgement
-    def asProofTacticWithoutBot(premises: Seq[proof.Fact]): ProofTacticWithoutBot{val proof:P} =
+    def asSCProof(bot: Sequent, factsToDischarge: Seq[proof.Fact]): proof.ProofTacticJudgement
+    def asProofTacticWithoutBot(factsToDischarge: Seq[proof.Fact]): ProofTacticWithoutBot{val proof:P} =
       (new ProofTacticWithoutBot[N]{
         override val proof: P = ProofTacticWithoutBotNorPrem.this.proof
         override val name: String = nameWBNP
-        override def asSCProof(bot: Sequent): proof.ProofTacticJudgement = ProofTacticWithoutBotNorPrem.this.asSCProof(bot, premises)
+        override def asSCProof(bot: Sequent): proof.ProofTacticJudgement = ProofTacticWithoutBotNorPrem.this.asSCProof(bot, factsToDischarge)
       }).asInstanceOf
 
-    def apply(premises: proof.Fact*): ProofTacticWithoutBot{val proof:PP} = asProofTacticWithoutBot(premises)
+    def apply(factsToDischarge: proof.Fact*): ProofTacticWithoutBot{val proof:PP} = asProofTacticWithoutBot(factsToDischarge)
   }
 
   /**
-   * Intermediate datatype corresponding to a [[ProofTacticWithoutBotNorPrem]] once a sequence of premises has been given to it.
+   * Intermediate datatype corresponding to a [[ProofTacticWithoutBotNorPrem]] once a sequence of factsToDischarge has been given to it.
    */
   class ProofTacticWithoutBotWithPrem[N <: Arity] protected[ProofTacticLib] (
                                                                                       val underlying: ProofTacticWithoutBotNorPrem[N],

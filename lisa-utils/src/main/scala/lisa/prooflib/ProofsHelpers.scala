@@ -20,7 +20,7 @@ trait ProofsHelpers {
   library: Library & WithTheorems =>
   given Library = library
 
-  case class HaveSequent private[ProofsHelpers] (bot: Sequent) {
+  class HaveSequent private[ProofsHelpers] (bot: Sequent) {
     inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, om, line, file).asInstanceOf
 
     class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
@@ -28,18 +28,18 @@ trait ProofsHelpers {
       inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
         tactic(bot).validate(line, file)
       }
-      inline infix def apply(tactic: ParameterlessHave): _proof.ProofStep = {
+      inline infix def apply(tactic: ProofSequentTactic): _proof.ProofStep = {
         tactic(using _proof)(bot).validate(line, file)
       }
     }
 
     inline infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
-      (new BasicStepTactic.SUBPROOF(using proof, om, line, file)(bot)(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
+      (new BasicStepTactic.SUBPROOF(using proof)(Some(bot))(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
     }
 
   }
 
-  case class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
+  class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
 
     inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
       By(proof, om, line, file).asInstanceOf[By { val _proof: proof.type }]
@@ -50,7 +50,7 @@ trait ProofsHelpers {
         tactic(_proof.mostRecentStep)(bot).validate(line, file)
       }
 
-      inline infix def apply(tactic: ParameterlessAndThen): _proof.ProofStep = {
+      inline infix def apply(tactic: ProofFactSequentTactic): _proof.ProofStep = {
         tactic(using _proof)(_proof.mostRecentStep)(bot).validate(line, file)
       }
 
@@ -58,12 +58,12 @@ trait ProofsHelpers {
   }
 
   /**
-   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
+   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and factsToDischarge.
    */
   def have(using proof: library.Proof)(res: Sequent): HaveSequent = HaveSequent(res)
 
   /**
-   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
+   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and factsToDischarge.
    */
   def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(lisa.utils.FOLParser.parseSequent(res))
 
@@ -74,7 +74,10 @@ trait ProofsHelpers {
     have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)( Restate(just: _proof.OutsideFact))
   }
 
-  def have(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
+  def have(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
+    tactic.validate(line, file)
+  }
+  def have2(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
     tactic.validate(line, file)
   }
 
@@ -82,23 +85,33 @@ trait ProofsHelpers {
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
    * which may require a justification by a proof tactic.
    */
-  def andThen(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
-
+  def thenHave(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
   /**
-   * Claim the result of a tactic taking no target sequent.
+   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and factsToDischarge.
    */
-  def andThen2(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.Fact => proof.ProofTacticJudgement): proof.ProofStep = {
-    tactic(proof.mostRecentStep).validate(line, file)
+  def thenHave(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(lisa.utils.FOLParser.parseSequent(res))
+
+  infix def andThen(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File): AndThen { val _proof: proof.type } = AndThen(proof, line, file).asInstanceOf
+
+  class AndThen private[ProofsHelpers](val _proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File) {
+    inline infix def apply(tactic: _proof.Fact => _proof.ProofTacticJudgement): _proof.ProofStep = {
+      tactic(_proof.mostRecentStep).validate(line, file)
+    }
+    inline infix def apply(tactic: ProofFactTactic): _proof.ProofStep = {
+      tactic(using _proof)(_proof.mostRecentStep).validate(line, file)
+    }
   }
+
+
   /*
   /**
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
    * which may require a justification by a proof tactic.
    */
-  def andThen(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(parseSequent(res))
+  def thenHave(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(parseSequent(res))
 
 
-  def andThen(using om:OutputManager)(pswp: ProofTacticWithoutPrem[1]): pswp.proof.ProofStep = {
+  def thenHave(using om:OutputManager)(pswp: ProofTacticWithoutPrem[1]): pswp.proof.ProofStep = {
     pswp.asProofTactic(Seq(pswp.proof.mostRecentStep._2)).validate
   }
 
@@ -123,8 +136,8 @@ trait ProofsHelpers {
   }
    */
 
-  def thesis(using proof: library.Proof): Sequent = proof.goal
-  def goal(using proof: library.Proof): Sequent = proof.goal
+  def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
+  def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
 
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
     om.output("Current proof of" + _proof.owningTheorem.repr + ": ")

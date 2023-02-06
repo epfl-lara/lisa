@@ -14,10 +14,10 @@ trait Main extends BasicMain {
 
   extension (symbol: ConstantFunctionLabel) {
     def definition: theory.Justification = symbol match {
-      case `emptySet` => emptySetAxiom
-      case `unorderedPair` => pairAxiom
-      case `union` => unionAxiom
-      case `powerSet` => powerAxiom
+      case `emptySet` => emptySetAxiom.ax
+      case `unorderedPair` => pairAxiom.ax
+      case `union` => unionAxiom.ax
+      case `powerSet` => powerAxiom.ax
       case _ =>
         theory.getDefinition(symbol.id) match {
           case Some(value) => value
@@ -32,7 +32,7 @@ trait Main extends BasicMain {
       case `top` => throw new NoSuchElementException("Top has no definition")
       case `bot` => throw new NoSuchElementException("Bot has no definition")
       case `in` => throw new NoSuchElementException("Membership has no definition")
-      case `subset` => subsetAxiom
+      case `subset` => subsetAxiom.ax
       case _ =>
         theory.getDefinition(symbol.id) match {
           case Some(value) => value

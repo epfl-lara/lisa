@@ -220,7 +220,7 @@ object SimplePropositionalSolver {
     r4
   }
 
-  object Trivial extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
+  object Trivial extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
 
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       proof.ValidProofTactic(solveSequent(bot).steps, Seq())

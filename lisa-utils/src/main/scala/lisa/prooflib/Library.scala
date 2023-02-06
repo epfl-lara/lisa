@@ -13,7 +13,8 @@ import scala.collection.mutable.Stack as stack
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library(val theory: RunningTheory) extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
+abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
+  val theory: RunningTheory
   val library: Library = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}

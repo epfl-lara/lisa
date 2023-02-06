@@ -49,7 +49,7 @@ class Transformations extends ProofCheckerSuite {
     assert(isSameSequent(transf.steps.last.bot, (sequentToFormula(intro.bot)) |- intro.bot.right))
   }
 
-  test("A proof with imports and a step taking multiple premises should be modified accordingly") {
+  test("A proof with imports and a step taking multiple factsToDischarge should be modified accordingly") {
     val phi = SchematicPredicateLabel("phi", 0)()
     val psi = SchematicPredicateLabel("psi", 0)()
 

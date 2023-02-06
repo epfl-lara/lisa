@@ -63,10 +63,10 @@ object SetTheoryTactics  {
        * import  ∃ z. t ∈ z <=> (t ∈ x /\ P(t, x)) |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))     Unique by Extension [[uniqueByExtension]] Instantiation
        * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Cut
        */
-      val sp = SUBPROOF(using proof.asInstanceOf[lisa.settheory.SetTheoryLibrary.Proof])(bot) {
+      val sp = SUBPROOF(using proof.asInstanceOf[lisa.settheory.SetTheoryLibrary.Proof])(Some(bot)) { //TODO check if isInstanceOf first
         have(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, z) /\ sPhi(t2, z))))) by Rewrite(comprehensionSchema)
-        andThen(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ sPhi(t2, originalSet))))) by InstFunSchema(Map(z -> originalSet))
-        val existence = andThen(() |- exists(t1, fprop(t1))) by InstPredSchema(Map(sPhi -> lambda(Seq(t1, t2), separationPredicate(Seq(t1, t2)))))
+        thenHave(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ sPhi(t2, originalSet))))) by InstFunSchema(Map(z -> originalSet))
+        val existence = thenHave(() |- exists(t1, fprop(t1))) by InstPredSchema(Map(sPhi -> lambda(Seq(t1, t2), separationPredicate(Seq(t1, t2)))))
 
         val existsToUnique = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by InstPredSchema(Map(schemPred -> (t2, prop)))(SetTheory2.uniqueByExtension)
 

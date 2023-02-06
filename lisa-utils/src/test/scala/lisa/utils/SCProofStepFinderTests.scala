@@ -175,8 +175,8 @@ class SCProofStepFinderTests extends AnyFunSuite {
               // Dirty, but only way to test that
               val proofWithoutLast = proof.copy(steps = proof.steps.init)
               proofBuilder.steps.last match {
-                case SCImplicitProofStep(conclusion, premises, imports) =>
-                  val view = SCProofStepFinder.findPossibleProofSteps(proofWithoutLast, conclusion, premises)
+                case SCImplicitProofStep(conclusion, factsToDischarge, imports) =>
+                  val view = SCProofStepFinder.findPossibleProofSteps(proofWithoutLast, conclusion, factsToDischarge)
                   assert(view.exists(filter), s"The proof step finder was not able to find the step '$testname'")
                 case SCExplicitProofStep(step) => assert(false)
               }

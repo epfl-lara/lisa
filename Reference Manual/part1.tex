@@ -14,7 +14,7 @@ LISA's kernel is the starting point of LISA, formalising the foundations of the 
 
 
 LISA's foundations are based on very traditional (in the mathematical community) foundational theory of all mathematics: \textbf{First Order Logic}, expressed using \textbf{Sequent Calculus} (augmented with schematic symbols), with axioms of \textbf{Set Theory}.
-Interestingly, while LISA is built with the goal of using Set Theory, the kernel is actually theory-agnostic and is sound to use with any other set of axioms. Hence, we defer Set Theory to chapter~\ref{chapt:settheory}.
+Interestingly, while LISA is built with the possibleGoal of using Set Theory, the kernel is actually theory-agnostic and is sound to use with any other set of axioms. Hence, we defer Set Theory to chapter~\ref{chapt:settheory}.
 
 \section{First Order Logic}
 \label{sect:FOL}
@@ -265,7 +265,7 @@ The intended semantic of such a sequent is:
 \end{defin}
 A sequent $\phi \vdash \psi$ is logically but not conceptually equivalent to a sequent $\vdash \phi \rightarrow \psi$. The distinction is similar to the distinction between meta-implication and inner implication in Isabelle, for example. Typically, a theorem or a lemma should have its various assumptions on the left handside of the sequent and its single conclusion on the right. During proofs however, there may be multiple elements on the right side. \footnote{In a strict description of Sequent Calculus, this is in particular needed to make double negation elimination.}
 
-A deduction rule, also called a proof step, has  (in general) between zero and two prerequisite sequents (which we call \textit{premises} of the rule) and one conclusion sequent, and possibly take some arguments that describe how the deduction rule is applied. The basic deduction rules used in LISA are shown in Figure~\ref{fig:deduct_rules_1}.
+A deduction rule, also called a proof step, has  (in general) between zero and two prerequisite sequents (which we call \textit{factsToDischarge} of the rule) and one conclusion sequent, and possibly take some arguments that describe how the deduction rule is applied. The basic deduction rules used in LISA are shown in Figure~\ref{fig:deduct_rules_1}.
 
 
 Since we work on first order logic with equality and accept axioms, there are also rules for equality reasoning, which include reflexivity of equality. Moreover, we include equal-for-equal and equivalent-for-equivalent substitutions in Figure~\ref{fig:deduct_rules_2}. While those substitution rules are deduced steps, and hence could technically be omitted, simulating them can sometimes take a high number of steps, so they are included as base steps for efficiency. 
@@ -485,7 +485,7 @@ Proof steps can be composed into a directed acyclic graph. The root of the proof
 \label{fig:exampleProof}
 \end{figure}
 
-In the Kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof. 
+In the Kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its factsToDischarge using numbers, which indicate the place of the premise in the proof.
 Moreover, proofs are conditional: they can carry an explicit set of assumed sequents, named ``\lstinline{imports}'', which give some starting points to the proof. Typically, these imports will contain previously proven theorems, definitions, or axioms (More on that in section~\ref{sect:TheoremsAndTheories}). For a proof step to refer to an imported sequent, one uses negative integers. $-1$ corresponds to the first sequent of the import list of the proof, $-2$ to the second, etc.
 
 
@@ -518,11 +518,11 @@ For the proof to be the linearization of a rooted directed acyclic graph, we req
 In LISA, a proof object has no guarantee to be correct. It is perfectly possible to write a wrong proof. LISA contains a \textit{proof checking} function, which, given a proof, will verify if it is correct. To be correct, a proof must satisfy the following conditions:
 \begin{enumerate}
     \item No proof step must refer to itself or a posterior proof step as a premise.
-    \item Every proof step must be correctly constructed, with the bottom sequent correctly following from the premises by the type of the proof step and its arguments.
+    \item Every proof step must be correctly constructed, with the bottom sequent correctly following from the factsToDischarge by the type of the proof step and its arguments.
 \end{enumerate}
 
 
-Given some proof $p$, the proof checker will verify these points. For most proof steps, this typically involve verifying that the premises and the conclusion match according to a transformation specific to the deduction rule. Note that for most cases where there is an intuitive symmetry in arguments, such as \texttt{RightAnd} or \texttt{LeftSubstIff} for example, permutations of those arguments don't matter.
+Given some proof $p$, the proof checker will verify these points. For most proof steps, this typically involve verifying that the factsToDischarge and the conclusion match according to a transformation specific to the deduction rule. Note that for most cases where there is an intuitive symmetry in arguments, such as \texttt{RightAnd} or \texttt{LeftSubstIff} for example, permutations of those arguments don't matter.
 
 Hence, most of the proof checker's work consists in verifying that some formulas, or subformulas thereof, are identical. This is where the equivalence checker comes into play. By checking equivalence rather than strict syntactic equality, a lot of steps become redundant and can be merged. That way, \texttt{LeftAnd}, \texttt{RightOr}, \texttt{LeftIff} become instances of the \texttt{Weakening} rules, and \texttt{RightImplies} an instance of \texttt{RightAnd}. 
 
