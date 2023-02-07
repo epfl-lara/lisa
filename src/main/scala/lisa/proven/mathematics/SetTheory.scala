@@ -396,7 +396,7 @@ object SetTheory extends lisa.Main {
 
   val unorderedPair_symmetry = makeTHM(() |- unorderedPair(x, y) === unorderedPair(y, x)) {
     have(() |- (y === z) \/ (x === z) <=> in(z, unorderedPair(y, x))) by InstFunSchema(Map(x -> y, y -> x))(pairAxiom)
-    andThen(applySubst(pairAxiom))
+    andThen(applySubst.apply(pairAxiom))
     val part1 = thenHave(() |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by RightForall
     val part2 = have(() |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x))) by InstFunSchema(
       Map(x -> unorderedPair(x, y), y -> unorderedPair(y, x))

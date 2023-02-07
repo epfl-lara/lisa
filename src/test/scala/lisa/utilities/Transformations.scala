@@ -23,7 +23,7 @@ class Transformations extends ProofCheckerSuite {
   test("A proof with no imports is not modified") {
     val phi = SchematicPredicateLabel("phi", 0)
 
-    val intro = Hypothesis((phi()) |- (phi()), phi())g
+    val intro = Hypothesis((phi()) |- (phi()), phi())
     val outro = Rewrite((phi()) |- (phi()), 0)
 
     val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq.empty)

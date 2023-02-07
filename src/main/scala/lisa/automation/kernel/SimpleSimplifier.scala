@@ -9,6 +9,7 @@ import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.*
 
+import scala.annotation.nowarn
 import scala.collection
 
 object SimpleSimplifier {
@@ -179,21 +180,25 @@ object SimpleSimplifier {
 
     }
 
-    def apply(using proof: lisa.prooflib.Library#Proof)(f: proof.Fact)(premise: proof.Fact): proof.ProofTacticJudgement = {
-      val seq = proof.getSequent(f)
-      val phi = seq.right.head
-      val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
-        val x = applyLeftRight(phi)(premise)()
-        proof.library.have2(x)
-        proof.library.andThen(SimpleDeducedSteps.Discharge(f))
-      })
+    @nowarn("msg=.*the type test for proof.Fact cannot be checked at runtime*")
+    def apply(using proof: lisa.prooflib.Library#Proof)(f: proof.Fact|Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+      f match {
+        case phi: Formula => applyLeftRight(phi)(premise)()
+        case f: proof.Fact =>
+          val seq = proof.getSequent (f)
+          val phi = seq.right.head
+          val sp = new BasicStepTactic.SUBPROOF (using proof) (None) ( {
+          val x = applyLeftRight (phi) (premise) ()
+          proof.library.have2 (x)
+          proof.library.andThen (SimpleDeducedSteps.Discharge (f) )
+          })
 
-      BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for unique comprehension failed.")
+          BasicStepTactic.unwrapTactic (sp.judgement.asInstanceOf[proof.ProofTacticJudgement] ) ("Subproof for unique comprehension failed.")
+      }
+
     }
 
-    def apply(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
-      applyLeftRight(phi)(premise)()
-    }
+
   }
 
   def simplifySeq(seq: Sequent, ruleseq: IndexedSeq[PredicateFormula], rulesiff: IndexedSeq[ConnectorFormula]): SCProof = {
