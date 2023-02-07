@@ -1,6 +1,4 @@
 package lisa.utilities
-import lisa.automation.kernel.Destructors.*
-import lisa.automation.kernel.ProofTactics.*
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
@@ -25,7 +23,7 @@ class Transformations extends ProofCheckerSuite {
   test("A proof with no imports is not modified") {
     val phi = SchematicPredicateLabel("phi", 0)
 
-    val intro = Hypothesis((phi()) |- (phi()), phi())
+    val intro = Hypothesis((phi()) |- (phi()), phi())g
     val outro = Rewrite((phi()) |- (phi()), 0)
 
     val noImpProof = SCProof(IndexedSeq(intro, outro), IndexedSeq.empty)

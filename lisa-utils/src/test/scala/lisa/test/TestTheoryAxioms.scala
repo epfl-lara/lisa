@@ -24,8 +24,8 @@ trait TestTheoryAxioms {
   final val same_fixed = fixedElement() === anotherFixed()
   final val fixed_point = forall(x, (f1(x) === fixedElement()) <=> (x === fixedElement()))
 
-  assert(runningTestTheory.addAxiom("p1_implies_p2", p1_implies_p2), "p1_implies_p2")
-  assert(runningTestTheory.addAxiom("A2", ax2), "ax2")
-  assert(runningTestTheory.addAxiom("same_fixed", same_fixed), "same fixed")
-  assert(runningTestTheory.addAxiom("fixed_point", fixed_point), "fixed point")
+  assert(runningTestTheory.addAxiom("p1_implies_p2", p1_implies_p2).nonEmpty, "p1_implies_p2")
+  assert(runningTestTheory.addAxiom("A2", ax2).nonEmpty, "ax2")
+  assert(runningTestTheory.addAxiom("same_fixed", same_fixed).nonEmpty, "same fixed")
+  assert(runningTestTheory.addAxiom("fixed_point", fixed_point).nonEmpty, "fixed point")
 }

@@ -307,7 +307,7 @@ object KernelHelpers {
   /////////////////////////////
 
   extension (theory: RunningTheory) {
-    def makeAxiom(using name: sourcecode.Name)(formula:Formula): theory.Axiom = theory.addAxiom(name.value, formula) match {
+    def makeAxiom(using name: sourcecode.Name)(formula: Formula): theory.Axiom = theory.addAxiom(name.value, formula) match {
       case Some(value) => value
       case None => throw new LisaException.InvalidAxiomException("Axiom contains undefined symbols", name.value, formula, theory)
     }

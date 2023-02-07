@@ -128,9 +128,6 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
     ("comprehensionSchema", comprehensionSchema)
   )
 
-
   override def axioms: Set[(String, runningSetTheory.Axiom)] = super.axioms ++ zAxioms
-  
-  
 
 }

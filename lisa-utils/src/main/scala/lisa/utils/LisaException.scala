@@ -5,9 +5,9 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.prooflib.TheoriesHelpers.{_, given}
 import lisa.prooflib.*
 import lisa.utils.KernelHelpers.repr
-import lisa.prooflib.TheoriesHelpers.{_, given}
 
 import java.io.File
 
@@ -27,9 +27,10 @@ object LisaException {
         }}"
   }
 
-  class InvalidAxiomException(errorMessage: String, name: String, formula:lisa.kernel.fol.FOL.Formula, theory: lisa.kernel.proof.RunningTheory)(using sourcecode.Line, sourcecode.File) extends LisaException(errorMessage) {
+  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.kernel.fol.FOL.Formula, theory: lisa.kernel.proof.RunningTheory)(using sourcecode.Line, sourcecode.File)
+      extends LisaException(errorMessage) {
     def showError: String = s"The desired axiom \"$name\" contains symbol that are not part of the theory.\n" +
-        s"The symbols {${theory.findUndefinedSymbols(formula)}} are undefined."
+      s"The symbols {${theory.findUndefinedSymbols(formula)}} are undefined."
   }
 
 }

@@ -71,7 +71,7 @@ trait ProofsHelpers {
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
   def have(using line: sourcecode.Line, file: sourcecode.File)(using om: OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
-    have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)( Restate(just: _proof.OutsideFact))
+    have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)(Restate(just: _proof.OutsideFact))
   }
 
   def have(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
@@ -86,6 +86,7 @@ trait ProofsHelpers {
    * which may require a justification by a proof tactic.
    */
   def thenHave(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
+
   /**
    * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and factsToDischarge.
    */
@@ -93,7 +94,7 @@ trait ProofsHelpers {
 
   infix def andThen(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File): AndThen { val _proof: proof.type } = AndThen(proof, line, file).asInstanceOf
 
-  class AndThen private[ProofsHelpers](val _proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File) {
+  class AndThen private[ProofsHelpers] (val _proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File) {
     inline infix def apply(tactic: _proof.Fact => _proof.ProofTacticJudgement): _proof.ProofStep = {
       tactic(_proof.mostRecentStep).validate(line, file)
     }
@@ -101,7 +102,6 @@ trait ProofsHelpers {
       tactic(using _proof)(_proof.mostRecentStep).validate(line, file)
     }
   }
-
 
   /*
   /**

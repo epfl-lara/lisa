@@ -1091,8 +1091,7 @@ object BasicStepTactic {
     }
   }
 
-  class SUBPROOF(using val proof: Library#Proof)(statement: Option[Sequent | String])(computeProof: proof.InnerProof ?=> Unit)
-      extends ProofTactic {
+  class SUBPROOF(using val proof: Library#Proof)(statement: Option[Sequent | String])(computeProof: proof.InnerProof ?=> Unit) extends ProofTactic {
     val bot: Option[Sequent] = statement map {
       case s: Sequent => s
       case s: String => lisa.utils.FOLParser.parseSequent(s)
@@ -1115,7 +1114,5 @@ object BasicStepTactic {
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
     def judgement: proof.ValidProofTactic = proof.ValidProofTactic(scproof.steps, premises)
   }
-
-
 
 }

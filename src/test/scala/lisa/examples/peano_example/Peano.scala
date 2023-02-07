@@ -1,6 +1,5 @@
 package lisa.examples.peano_example
 
-import lisa.automation.kernel.ProofTactics.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof

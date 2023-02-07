@@ -17,8 +17,10 @@ private[settheory] trait SetTheoryZFAxioms extends SetTheoryZAxioms {
    * 'image' of `a` in Ψ exists and is a set. It contains exactly the `y`'s that
    * satisfy `Ψ` for each `x ∈ a`.
    */
-  final val replacementSchema: runningSetTheory.Axiom = runningSetTheory.makeAxiom(forall(x, (in(x, a)) ==> existsOne(y, sPsi(a, x, y))) ==>
-    exists(b, forall(x, in(x, a) ==> exists(y, in(y, b) /\ sPsi(a, x, y)))))
+  final val replacementSchema: runningSetTheory.Axiom = runningSetTheory.makeAxiom(
+    forall(x, (in(x, a)) ==> existsOne(y, sPsi(a, x, y))) ==>
+      exists(b, forall(x, in(x, a) ==> exists(y, in(y, b) /\ sPsi(a, x, y))))
+  )
 
   override def axioms: Set[(String, runningSetTheory.Axiom)] = super.axioms + (("replacementSchema", replacementSchema))
 

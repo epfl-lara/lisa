@@ -304,5 +304,5 @@ object SimpleDeducedSteps {
       }
     }
   }
-  
+
 }

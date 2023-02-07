@@ -2,16 +2,16 @@ package lisa.proven.mathematics
 
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
-import lisa.kernel.proof.{SequentCalculus as SC}
+import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
-import lisa.proven.mathematics.SetTheory2
+import lisa.proven.mathematics.SetTheory
 import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
-object SetTheoryTactics  {
+object SetTheoryTactics {
 
   import lisa.settheory.SetTheoryLibrary.{_, given}
   // var defs
@@ -43,7 +43,9 @@ object SetTheoryTactics  {
    * See [[setIntersection]] or [[relationDomain]] for more usage.
    */
   object UniqueComprehension extends ProofTactic {
-    def apply(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File, om: OutputManager)(originalSet: Term, separationPredicate: LambdaTermFormula)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File, om: OutputManager)(originalSet: Term, separationPredicate: LambdaTermFormula)(
+        bot: Sequent
+    ): proof.ProofTacticJudgement = {
       require(separationPredicate.vars.length == 2) // separationPredicate takes two args
 
       // fresh variable names to avoid conflicts
@@ -63,12 +65,12 @@ object SetTheoryTactics  {
        * import  ∃ z. t ∈ z <=> (t ∈ x /\ P(t, x)) |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))     Unique by Extension [[uniqueByExtension]] Instantiation
        * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Cut
        */
-      val sp = SUBPROOF(using proof.asInstanceOf[lisa.settheory.SetTheoryLibrary.Proof])(Some(bot)) { //TODO check if isInstanceOf first
+      val sp = SUBPROOF(using proof.asInstanceOf[lisa.settheory.SetTheoryLibrary.Proof])(Some(bot)) { // TODO check if isInstanceOf first
         have(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, z) /\ sPhi(t2, z))))) by Rewrite(comprehensionSchema)
         thenHave(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ sPhi(t2, originalSet))))) by InstFunSchema(Map(z -> originalSet))
         val existence = thenHave(() |- exists(t1, fprop(t1))) by InstPredSchema(Map(sPhi -> lambda(Seq(t1, t2), separationPredicate(Seq(t1, t2)))))
 
-        val existsToUnique = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by InstPredSchema(Map(schemPred -> (t2, prop)))(SetTheory2.uniqueByExtension)
+        val existsToUnique = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by InstPredSchema(Map(schemPred -> (t2, prop)))(SetTheory.uniqueByExtension)
 
         // assumption elimination
         have(() |- existsOne(t1, fprop(t1))) by Cut(existence, existsToUnique)

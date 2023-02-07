@@ -3,11 +3,11 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.ProofTacticLib.*
+import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.*
-import lisa.prooflib.SimpleDeducedSteps
-import lisa.prooflib.BasicStepTactic
 
 import scala.collection
 
@@ -101,7 +101,7 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    private def applyLeftRight(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact)(rightLeft:Boolean = false): proof.ProofTacticJudgement = {
+    private def applyLeftRight(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact)(rightLeft: Boolean = false): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -120,7 +120,7 @@ object SimpleSimplifier {
             else
               applyLeftRight(equality(right, left))(premise)(true) match {
                 case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(left)} to replace.")
-                case v : proof.ValidProofTactic => return v
+                case v: proof.ValidProofTactic => return v
               }
           }
 
@@ -154,7 +154,7 @@ object SimpleSimplifier {
             else
               applyLeftRight(Iff(right, left))(premise)(true) match {
                 case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
-                case v : proof.ValidProofTactic => return v
+                case v: proof.ValidProofTactic => return v
               }
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -191,7 +191,7 @@ object SimpleSimplifier {
       BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for unique comprehension failed.")
     }
 
-    def apply(using proof: lisa.prooflib.Library#Proof)(phi:Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
       applyLeftRight(phi)(premise)()
     }
   }

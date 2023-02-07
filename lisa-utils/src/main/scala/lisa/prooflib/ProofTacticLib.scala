@@ -26,7 +26,7 @@ object ProofTacticLib {
   trait OnlyProofTactic {
     def apply(using proof: Library#Proof): proof.ProofTacticJudgement
   }
-  
+
   trait ProofSequentTactic {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement
   }
@@ -67,8 +67,7 @@ object ProofTacticLib {
       "Status of the proof at time of the error is:" +
       lisa.utils.ProofPrinter.prettyProof(failure.proof)
   }
-  
-  
+
   /*
 
   /**

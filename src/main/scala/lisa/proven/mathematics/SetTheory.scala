@@ -19,7 +19,7 @@ import lisa.utils.Printer
  * Springer Berlin Heidelberg, 2003.
  * [[https://link.springer.com/book/10.1007/3-540-44761-X]]
  */
-object SetTheory2 extends lisa.Main {
+object SetTheory extends lisa.Main {
 
   // var defs
   private val w = variable
@@ -396,9 +396,11 @@ object SetTheory2 extends lisa.Main {
 
   val unorderedPair_symmetry = makeTHM(() |- unorderedPair(x, y) === unorderedPair(y, x)) {
     have(() |- (y === z) \/ (x === z) <=> in(z, unorderedPair(y, x))) by InstFunSchema(Map(x -> y, y -> x))(pairAxiom)
-    andThen(applySubst.apply(pairAxiom))
-    val part1 = thenHave(() |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by GeneralizeToForallNoForm(z)
-    val part2 = have(() |-  forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x))) by InstFunSchema(Map(x -> unorderedPair(x, y), y -> unorderedPair(y, x)))(extensionalityAxiom)
+    andThen(applySubst(pairAxiom))
+    val part1 = thenHave(() |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by RightForall
+    val part2 = have(() |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x))) by InstFunSchema(
+      Map(x -> unorderedPair(x, y), y -> unorderedPair(y, x))
+    )(extensionalityAxiom)
     val fin = have(applySubst(forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x)))(part1))
     have(thesis) by Cut(part2, fin)
   }
@@ -502,7 +504,6 @@ object SetTheory2 extends lisa.Main {
     thenHave(emptySeq +> (p1.bot.left.head ==> p1.bot.right.head)) by RightImplies.withParameters(p1.bot.left.head, p1.bot.right.head) //   |- ({x,y}={x',y'}) ==> (x=x' /\ y=y')\/(x=y' /\ y=x')
     thenHave("⊢ ∀'x. ∀'y. ∀ 'x1. ∀ 'y1. unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⇒ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1") by GeneralizeToForallNoForm(x, y, x1, y1)
   }
-
 
   /**
    * Theorem --- Union of a Singleton is the Original Set
