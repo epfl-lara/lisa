@@ -33,7 +33,7 @@ object SCProofChecker {
            * ------------
            *    Γ |- Δ
            */
-          case Rewrite(s, t1) =>
+          case Restate(s, t1) =>
             if (isSameSequent(s, ref(t1))) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The premise and the conclusion are not trivially equivalent.")
 
           /*
@@ -41,7 +41,7 @@ object SCProofChecker {
            * ------------
            *    Γ |- Γ
            */
-          case RewriteTrue(s) =>
+          case RestateTrue(s) =>
             val truth = Sequent(Set(), Set(PredicateFormula(top, Nil)))
             if (isSameSequent(s, truth)) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The desired conclusion is not a trivial tautology")
           /*

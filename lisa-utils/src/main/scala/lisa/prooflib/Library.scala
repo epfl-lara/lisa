@@ -15,7 +15,7 @@ import scala.collection.mutable.Stack as stack
  */
 abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
   val theory: RunningTheory
-  val library: Library = this
+  given library: this.type = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}
   val SC: SequentCalculus.type = lisa.kernel.proof.SequentCalculus
@@ -231,10 +231,10 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     val xeb = x === body
     val y = VariableLabel(freshId(body.freeVariables.map(_.id) ++ vars.map(_.id) + out.id, "y"))
     val s0 = SC.RightRefl(() |- body === body, body === body)
-    val s1 = SC.Rewrite(() |- (xeb) <=> (xeb), 0)
+    val s1 = SC.Restate(() |- (xeb) <=> (xeb), 0)
     val s2 = SC.RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
     val s3 = SC.RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
-    val s4 = SC.Rewrite(() |- existsOne(x, xeb), 3)
+    val s4 = SC.Restate(() |- existsOne(x, xeb), 3)
     val v = Vector(s0, s1, s2, s3, s4)
     SCProof(v)
   }

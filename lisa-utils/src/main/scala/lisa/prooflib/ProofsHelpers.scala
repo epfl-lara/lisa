@@ -5,7 +5,8 @@ import lisa.kernel.proof
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
@@ -21,15 +22,15 @@ trait ProofsHelpers {
   given Library = library
 
   class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, om, line, file).asInstanceOf
+    inline infix def by(using proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, om, line, file).asInstanceOf
 
-    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+    class By(val _proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = HaveSequent.this.bot ++ (_proof.getAssumptions |- ())
       inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
         tactic(bot).validate(line, file)
       }
       inline infix def apply(tactic: ProofSequentTactic): _proof.ProofStep = {
-        tactic(using _proof)(bot).validate(line, file)
+        tactic(using library, _proof)(bot).validate(line, file)
       }
     }
 
@@ -41,17 +42,17 @@ trait ProofsHelpers {
 
   class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
 
-    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
+    inline infix def by(using proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
       By(proof, om, line, file).asInstanceOf[By { val _proof: proof.type }]
 
-    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+    class By(val _proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = AndThenSequent.this.bot ++ (_proof.getAssumptions |- ())
       inline infix def apply(tactic: _proof.Fact => Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
         tactic(_proof.mostRecentStep)(bot).validate(line, file)
       }
 
       inline infix def apply(tactic: ProofFactSequentTactic): _proof.ProofStep = {
-        tactic(using _proof)(_proof.mostRecentStep)(bot).validate(line, file)
+        tactic(using library, _proof)(_proof.mostRecentStep)(bot).validate(line, file)
       }
 
     }
@@ -71,13 +72,13 @@ trait ProofsHelpers {
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
   def have(using line: sourcecode.Line, file: sourcecode.File)(using om: OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
-    have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)(Restate(just: _proof.OutsideFact))
+    have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)(Restate(using library, _proof)(just: _proof.OutsideFact))
   }
 
-  def have(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
+  def have(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
     tactic.validate(line, file)
   }
-  def have2(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
+  def have2(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
     tactic.validate(line, file)
   }
 
@@ -92,14 +93,14 @@ trait ProofsHelpers {
    */
   def thenHave(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(lisa.utils.FOLParser.parseSequent(res))
 
-  infix def andThen(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File): AndThen { val _proof: proof.type } = AndThen(proof, line, file).asInstanceOf
+  infix def andThen(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): AndThen { val _proof: proof.type } = AndThen(proof, line, file).asInstanceOf
 
-  class AndThen private[ProofsHelpers] (val _proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File) {
+  class AndThen private[ProofsHelpers] (val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
     inline infix def apply(tactic: _proof.Fact => _proof.ProofTacticJudgement): _proof.ProofStep = {
       tactic(_proof.mostRecentStep).validate(line, file)
     }
     inline infix def apply(tactic: ProofFactTactic): _proof.ProofStep = {
-      tactic(using _proof)(_proof.mostRecentStep).validate(line, file)
+      tactic(using library, _proof)(_proof.mostRecentStep).validate(line, file)
     }
   }
 
@@ -147,6 +148,24 @@ trait ProofsHelpers {
   }
 
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
+
+  private def isLTT(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
+    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermTerm]
+
+  private def isLTF(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
+    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermFormula]
+
+  private def isLFF(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
+    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaFormulaFormula]
+
+  extension (using proof: library.Proof)(fact: proof.Fact) {
+    def of(insts: ((SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm))*): proof.InstantiatedFact = {
+      val instsConn: Map[SchematicConnectorLabel, LambdaFormulaFormula] = insts.filter(isLFF).asInstanceOf[Seq[(SchematicConnectorLabel, LambdaFormulaFormula)]].toMap
+      val instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula] = insts.filter(isLTF).asInstanceOf[Seq[(SchematicVarOrPredLabel, LambdaTermFormula)]].toMap
+      val instsTerm: Map[SchematicTermLabel, LambdaTermTerm] = insts.filter(isLTT).asInstanceOf[Seq[(SchematicTermLabel, LambdaTermTerm)]].toMap
+      proof.InstantiatedFact(fact, instsConn, instsPred, instsTerm)
+    }
+  }
 
   /* //TODO: After reviewing the substitutions
     extension (just: theory.Justification) {/*
@@ -280,7 +299,7 @@ trait ProofsHelpers {
       case thm: theory.Theorem => thm.proposition
       case ax: theory.Axiom => () |- ax.ax
     }
-    val pr: SCProof = SCProof(IndexedSeq(Rewrite(conclusion, -1)), IndexedSeq(conclusion))
+    val pr: SCProof = SCProof(IndexedSeq(SC.Restate(conclusion, -1)), IndexedSeq(conclusion))
     val judgement = theory.functionDefinition(name.value, LambdaTermFormula(vars, f), out, pr, Seq(just))
     judgement match {
       case RunningTheoryJudgement.ValidJustification(just) =>

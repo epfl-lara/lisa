@@ -408,18 +408,9 @@ object SetTheory extends lisa.Main {
   show
 
   val unorderedPair_deconstruction = makeTHM("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
-
-    val base = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('z = 'a ∨ 'z = 'b) ⇔ ('z = 'c ∨ 'z = 'd)") subproof {
-      have("⊢ elem('z, unorderedPair('a, 'b)) ⇔ ('z = 'a ∨ 'z = 'b)") by InstFunSchema(Map(x -> a, y -> b))(pairAxiom)
-      val s1 = andThen(applySubst("unorderedPair('a, 'b) = unorderedPair('c, 'd)"))
-      have("⊢ elem('z, unorderedPair('c, 'd)) ⇔ ('z = 'c ∨ 'z = 'd)") by InstFunSchema(Map(x -> c, y -> d))(pairAxiom)
-      andThen(applySubst(s1))
-    }
-    val vx = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('a = 'c ∨ 'a = 'd)") by InstFunSchema(Map(z -> a))(base)
-    val vy = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('b = 'c ∨ 'b = 'd)") by InstFunSchema(Map(z -> b))(base)
-    val vx1 = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('c = 'a ∨ 'c = 'b)") by InstFunSchema(Map(z -> c))(base)
-    val vy1 = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('d = 'a ∨ 'd = 'b)") by InstFunSchema(Map(z -> d))(base)
-    have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") by Tautology.from(vx, vy, vx1, vy1)
+    val s1 = have(applySubst("unorderedPair('a, 'b) = unorderedPair('c, 'd)")(pairAxiom of (x -> a, y -> b)))
+    val base = have(applySubst(s1)(pairAxiom of (x -> c, y -> d)))
+    have(thesis) by Tautology.from(base of (z -> a), base of (z -> b), base of (z -> c), base of (z -> d))
   }
   show
 

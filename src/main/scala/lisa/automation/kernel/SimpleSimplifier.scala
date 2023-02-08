@@ -102,7 +102,7 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    private def applyLeftRight(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact)(rightLeft: Boolean = false): proof.ProofTacticJudgement = {
+    private def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(phi: Formula)(premise: proof.Fact)(rightLeft: Boolean = false): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -133,10 +133,10 @@ object SimpleSimplifier {
           val result2: Sequent = result1.left |- ConnectorFormula(And, newright.toSeq)
 
           val scproof = Seq(
-            Rewrite(leftOrigin |- rightOrigin, -1),
+            Restate(leftOrigin |- rightOrigin, -1),
             LeftSubstEq(result1, 0, List(left -> right), LambdaTermFormula(Seq(v), leftForm)),
             RightSubstEq(result2, 1, List(left -> right), LambdaTermFormula(Seq(v), rightForm)),
-            Rewrite(newleft |- newright, 2)
+            Restate(newleft |- newright, 2)
           )
           proof.ValidProofTactic(
             scproof,
@@ -166,10 +166,10 @@ object SimpleSimplifier {
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
 
           val scproof = Seq(
-            Rewrite(leftOrigin |- rightOrigin, -1),
+            Restate(leftOrigin |- rightOrigin, -1),
             LeftSubstIff(result1, 0, List(left -> right), LambdaFormulaFormula(Seq(H), leftForm)),
             RightSubstIff(result2, 1, List(left -> right), LambdaFormulaFormula(Seq(H), rightForm)),
-            Rewrite(newleft |- newright, 2)
+            Restate(newleft |- newright, 2)
           )
           proof.ValidProofTactic(
             scproof,
@@ -181,7 +181,7 @@ object SimpleSimplifier {
     }
 
     @nowarn("msg=.*the type test for proof.Fact cannot be checked at runtime*")
-    def apply(using proof: lisa.prooflib.Library#Proof)(f: proof.Fact | Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(f: proof.Fact | Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
       f match {
         case phi: Formula => applyLeftRight(phi)(premise)()
         case f: proof.Fact =>
