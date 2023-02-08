@@ -50,6 +50,11 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
      */
     def schematicFormulaLabels: Set[SchematicFormulaLabel] =
       (schematicPredicateLabels.toSet: Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet: Set[SchematicFormulaLabel])
+    
+    /**
+      * @return The list of free formula variable symbols in the formula
+      */
+    def freeFormulaVariableLabels: Set[VariableFormulaLabel]
 
   }
   private object Formula {
@@ -82,6 +87,11 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
       case _ => Set()
     }
     override def schematicConnectorLabels: Set[SchematicConnectorLabel] = Set()
+
+    override def freeFormulaVariableLabels: Set[VariableFormulaLabel] = label match {
+      case l: VariableFormulaLabel => Set(l)
+      case _ => Set()
+    }
   }
 
   /**
@@ -108,6 +118,8 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
       case l: SchematicConnectorLabel =>
         args.foldLeft(Set(l))((prev, next) => prev union next.schematicConnectorLabels)
     }
+    override def freeFormulaVariableLabels: Set[VariableFormulaLabel] = 
+      args.foldLeft(Set.empty[VariableFormulaLabel])((prev, next) => prev union next.freeFormulaVariableLabels)
   }
 
   /**
@@ -121,6 +133,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def constantPredicateLabels: Set[ConstantPredicateLabel] = inner.constantPredicateLabels
     override def schematicPredicateLabels: Set[SchematicVarOrPredLabel] = inner.schematicPredicateLabels
     override def schematicConnectorLabels: Set[SchematicConnectorLabel] = inner.schematicConnectorLabels
+    override def freeFormulaVariableLabels: Set[VariableFormulaLabel] = inner.freeFormulaVariableLabels
   }
 
   /**
