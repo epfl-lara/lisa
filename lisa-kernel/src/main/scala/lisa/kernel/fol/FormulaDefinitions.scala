@@ -54,7 +54,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     /**
       * @return The list of free formula variable symbols in the formula
       */
-    def freeFormulaVariableLabels: Set[VariableFormulaLabel]
+    def freeVariableFormulaLabels: Set[VariableFormulaLabel]
 
   }
   private object Formula {
@@ -88,7 +88,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     }
     override def schematicConnectorLabels: Set[SchematicConnectorLabel] = Set()
 
-    override def freeFormulaVariableLabels: Set[VariableFormulaLabel] = label match {
+    override def freeVariableFormulaLabels: Set[VariableFormulaLabel] = label match {
       case l: VariableFormulaLabel => Set(l)
       case _ => Set()
     }
@@ -118,8 +118,8 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
       case l: SchematicConnectorLabel =>
         args.foldLeft(Set(l))((prev, next) => prev union next.schematicConnectorLabels)
     }
-    override def freeFormulaVariableLabels: Set[VariableFormulaLabel] = 
-      args.foldLeft(Set.empty[VariableFormulaLabel])((prev, next) => prev union next.freeFormulaVariableLabels)
+    override def freeVariableFormulaLabels: Set[VariableFormulaLabel] = 
+      args.foldLeft(Set.empty[VariableFormulaLabel])((prev, next) => prev union next.freeVariableFormulaLabels)
   }
 
   /**
@@ -133,7 +133,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def constantPredicateLabels: Set[ConstantPredicateLabel] = inner.constantPredicateLabels
     override def schematicPredicateLabels: Set[SchematicVarOrPredLabel] = inner.schematicPredicateLabels
     override def schematicConnectorLabels: Set[SchematicConnectorLabel] = inner.schematicConnectorLabels
-    override def freeFormulaVariableLabels: Set[VariableFormulaLabel] = inner.freeFormulaVariableLabels
+    override def freeVariableFormulaLabels: Set[VariableFormulaLabel] = inner.freeVariableFormulaLabels
   }
 
   /**

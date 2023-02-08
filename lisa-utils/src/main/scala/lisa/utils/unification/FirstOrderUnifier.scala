@@ -150,12 +150,12 @@ object FirstOrderUnifier {
         }
       }
       case (PredicateFormula(l1: VariableFormulaLabel, arg1), _) => {
-        if (second == subst.get._1.getOrElse(l1, second) && !second.freeFormulaVariableLabels.contains(l1)) Some(subst.get._1 + (l1 -> second), subst.get._2)
+        if (second == subst.get._1.getOrElse(l1, second) && !second.freeVariableFormulaLabels.contains(l1)) Some(subst.get._1 + (l1 -> second), subst.get._2)
         else if (first.label == second.label && second == subst.get._1.getOrElse(l1, second)) subst
         else None
       }
       case (_, PredicateFormula(l2: VariableFormulaLabel, arg2)) => {
-        if (first == subst.get._1.getOrElse(l2, first) && !first.freeFormulaVariableLabels.contains(l2)) Some(subst.get._1 + (l2 -> first), subst.get._2)
+        if (first == subst.get._1.getOrElse(l2, first) && !first.freeVariableFormulaLabels.contains(l2)) Some(subst.get._1 + (l2 -> first), subst.get._2)
         else if (first.label == second.label && first == subst.get._1.getOrElse(l2, first)) subst
         else None
       }
