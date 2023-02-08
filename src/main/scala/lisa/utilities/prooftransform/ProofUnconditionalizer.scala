@@ -205,7 +205,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
    * To not mess with indices of proof and to keep a clearer proof structure all those steps are wrapped into a SubProof
    *
    * @param pS thestep to be modified
-   * @return a subproof whose conclusion is the same step as in the argument but with changed factsToDischarge and a left side bottom modified as
+   * @return a subproof whose conclusion is the same step as in the argument but with changed premises and a left side bottom modified as
    * in the general algorithm
    */
   private def mapProb(pS: SCProofStep) = {
@@ -268,7 +268,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
    *
    * @param pS the proofstep to modify
    * @param f the transformation on left side of bottom
-   * @param fi transformation on factsToDischarge
+   * @param fi transformation on premises
    * @param fsub sequents to keep on subproofs
    * @return a proofstep where each function is applied to the corresponding
    */

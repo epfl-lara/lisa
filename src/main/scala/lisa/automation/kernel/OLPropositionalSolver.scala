@@ -10,7 +10,7 @@ import lisa.utils.KernelHelpers.{_, given}
 object OLPropositionalSolver {
 
   /**
-   * A tactic object dedicated to solve any propositionaly provable sequent (possibly in exponential time). Can be used with arbitrary many factsToDischarge.
+   * A tactic object dedicated to solve any propositionaly provable sequent (possibly in exponential time). Can be used with arbitrary many premises.
    * Leverages the OL algorithm for scalafmpropositional logic.
    */
   object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
@@ -30,7 +30,7 @@ object OLPropositionalSolver {
 
     /**
      * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
-     * Uses the given already proven facts as assumptions to reach the desired possibleGoal.
+     * Uses the given already proven facts as assumptions to reach the desired goal.
      *
      * @param proof The ongoing proof object in which the step happens.
      * @param premise A previously proven step necessary to reach the conclusion.

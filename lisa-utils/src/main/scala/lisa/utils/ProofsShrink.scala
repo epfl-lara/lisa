@@ -35,7 +35,7 @@ object ProofsShrink {
     }.max
 
   /**
-   * Updates the indices of the factsToDischarge in a proof step according to some provided mapping. For example:
+   * Updates the indices of the premises in a proof step according to some provided mapping. For example:
    * <pre>
    * mapPremises(Rewrite(sequent, 1), i => i + 1) == Rewrite(sequent, 2)
    * </pre>
@@ -78,7 +78,7 @@ object ProofsShrink {
   /**
    * Flattens a proof recursively; in other words it removes all occurrences of [[SCSubproof]].
    * Because subproofs imports can be rewritten, [[Rewrite]] steps may be inserted where that is necessary.
-   * The order of proof steps is preserved, indices of factsToDischarge are adapted to reflect the new sequence.
+   * The order of proof steps is preserved, indices of premises are adapted to reflect the new sequence.
    * @param proof the proof to be flattened
    * @return the flattened proof
    */
@@ -113,7 +113,7 @@ object ProofsShrink {
   /**
    * Eliminates all steps that are not indirectly referenced by the conclusion (last step) of the proof.
    * This procedure is applied recursively on all subproofs. The elimination of unused top-level imports can be configured.
-   * The order of proof steps is preserved, indices of factsToDischarge are adapted to reflect the new sequence.
+   * The order of proof steps is preserved, indices of premises are adapted to reflect the new sequence.
    * @param proof the proof to be simplified
    * @param eliminateTopLevelDeadImports whether the unused top-level imports should be eliminated as well
    * @return the proof with dead steps eliminated
@@ -254,7 +254,7 @@ object ProofsShrink {
   }
 
   /**
-   * Attempts to factor the factsToDischarge such that the first occurrence of a proven sequent is used.
+   * Attempts to factor the premises such that the first occurrence of a proven sequent is used.
    * This procedure is greedy.
    * Unused proof steps will not be removed. Use [[deadStepsElimination]] for that.
    * @param proof the proof to be factored

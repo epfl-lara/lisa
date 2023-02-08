@@ -58,12 +58,12 @@ trait ProofsHelpers {
   }
 
   /**
-   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and factsToDischarge.
+   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
    */
   def have(using proof: library.Proof)(res: Sequent): HaveSequent = HaveSequent(res)
 
   /**
-   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and factsToDischarge.
+   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
    */
   def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(lisa.utils.FOLParser.parseSequent(res))
 
@@ -88,7 +88,7 @@ trait ProofsHelpers {
   def thenHave(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
 
   /**
-   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and factsToDischarge.
+   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
    */
   def thenHave(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(lisa.utils.FOLParser.parseSequent(res))
 

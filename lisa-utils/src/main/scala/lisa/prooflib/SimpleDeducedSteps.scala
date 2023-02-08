@@ -28,8 +28,8 @@ object SimpleDeducedSteps {
   }
 
   object Discharge extends ProofTactic {
-    def apply(using proof: Library#Proof)(factsToDischarge: proof.Fact*)(premise: proof.Fact): proof.ProofTacticJudgement = {
-      val seqs = factsToDischarge map proof.getSequent
+    def apply(using proof: Library#Proof)(premises: proof.Fact*)(premise: proof.Fact): proof.ProofTacticJudgement = {
+      val seqs = premises map proof.getSequent
       if (!seqs.forall(_.right.size == 1))
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
       val s = seqs.head
@@ -41,7 +41,7 @@ object SimpleDeducedSteps {
           val f = next._1.right.head
           SC.Cut((prev.bot -<? f) ++ (next._1 ->? f), -next._2 - 3, next._2, f)
         }),
-        proof.mostRecentStep +: factsToDischarge
+        proof.mostRecentStep +: premises
       )
     }
 

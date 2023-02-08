@@ -46,7 +46,7 @@ class ProofTacticTestLib extends AnyFunSuite with BasicMain {
   }
 
   // proof object constructed 'out of context' for testing
-  // supports adding sequents for use as factsToDischarge without verification
+  // supports adding sequents for use as premises without verification
   // see `introduceSequent`
   val testProof = new BaseProof(placeholderTheorem)
   given Proof = testProof
