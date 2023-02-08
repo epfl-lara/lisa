@@ -3,10 +3,13 @@ package lisa.automation.kernel
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.ProofTacticLib.*
+import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.*
 
+import scala.annotation.nowarn
 import scala.collection
 
 object SimpleSimplifier {
@@ -99,7 +102,7 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    def apply(proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    private def applyLeftRight(using proof: lisa.prooflib.Library#Proof)(phi: Formula)(premise: proof.Fact)(rightLeft: Boolean = false): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -112,8 +115,15 @@ object SimpleSimplifier {
           val v = VariableLabel(nFreshId(fv_in_phi, 1).head)
           val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
           val isolatedRight = originSequent.right.map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
-          if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
-            return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(left)} to replace.")
+          if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty)) {
+            if (rightLeft)
+              return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(left)} to replace.")
+            else
+              applyLeftRight(equality(right, left))(premise)(true) match {
+                case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(left)} to replace.")
+                case v: proof.ValidProofTactic => return v
+              }
+          }
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -140,7 +150,13 @@ object SimpleSimplifier {
           val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           val isolatedRight = originSequent.right.map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
-            return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
+            if (rightLeft)
+              return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
+            else
+              applyLeftRight(Iff(right, left))(premise)(true) match {
+                case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
+                case v: proof.ValidProofTactic => return v
+              }
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
@@ -163,6 +179,25 @@ object SimpleSimplifier {
       }
 
     }
+
+    @nowarn("msg=.*the type test for proof.Fact cannot be checked at runtime*")
+    def apply(using proof: lisa.prooflib.Library#Proof)(f: proof.Fact | Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+      f match {
+        case phi: Formula => applyLeftRight(phi)(premise)()
+        case f: proof.Fact =>
+          val seq = proof.getSequent(f)
+          val phi = seq.right.head
+          val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
+            val x = applyLeftRight(phi)(premise)()
+            proof.library.have2(x)
+            proof.library.andThen(SimpleDeducedSteps.Discharge(f))
+          })
+
+          BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for unique comprehension failed.")
+      }
+
+    }
+
   }
 
   def simplifySeq(seq: Sequent, ruleseq: IndexedSeq[PredicateFormula], rulesiff: IndexedSeq[ConnectorFormula]): SCProof = {

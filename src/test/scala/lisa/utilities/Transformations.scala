@@ -1,6 +1,4 @@
 package lisa.utilities
-import lisa.automation.kernel.Destructors.*
-import lisa.automation.kernel.ProofTactics.*
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof

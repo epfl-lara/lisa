@@ -2,35 +2,22 @@ package lisa.proven.mathematics
 
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
-import lisa.kernel.proof.{SequentCalculus as SC}
+import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
-import lisa.proven.mathematics.SetTheory2
+import lisa.proven.mathematics.SetTheory
 import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
-object SetTheoryTactics extends lisa.Main {
+object SetTheoryTactics {
 
+  import lisa.settheory.SetTheoryLibrary.{_, given}
   // var defs
-  private val w = variable
   private val x = variable
   private val y = variable
   private val z = variable
-  private val t = variable
-  private val a = variable
-  private val b = variable
-  private val c = variable
-  private val d = variable
-
-  // relation and function symbols
-  private val r = variable
-  private val f = variable
-  private val g = variable
-
-  private val P = predicate(1)
-  private val Q = predicate(1)
   private val schemPred = predicate(1)
 
   /**
@@ -56,7 +43,9 @@ object SetTheoryTactics extends lisa.Main {
    * See [[setIntersection]] or [[relationDomain]] for more usage.
    */
   object UniqueComprehension extends ProofTactic {
-    def apply(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(originalSet: Term, separationPredicate: LambdaTermFormula)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File, om: OutputManager)(originalSet: Term, separationPredicate: LambdaTermFormula)(
+        bot: Sequent
+    ): proof.ProofTacticJudgement = {
       require(separationPredicate.vars.length == 2) // separationPredicate takes two args
 
       // fresh variable names to avoid conflicts
@@ -76,12 +65,12 @@ object SetTheoryTactics extends lisa.Main {
        * import  ∃ z. t ∈ z <=> (t ∈ x /\ P(t, x)) |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))     Unique by Extension [[uniqueByExtension]] Instantiation
        * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Cut
        */
-      val sp = SUBPROOF(using proof.asInstanceOf[lisa.settheory.SetTheoryLibrary.Proof])(bot) {
+      val sp = SUBPROOF(using proof.asInstanceOf[lisa.settheory.SetTheoryLibrary.Proof])(Some(bot)) { // TODO check if isInstanceOf first
         have(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, z) /\ sPhi(t2, z))))) by Rewrite(comprehensionSchema)
-        andThen(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ sPhi(t2, originalSet))))) by InstFunSchema(Map(z -> originalSet))
-        val existence = andThen(() |- exists(t1, fprop(t1))) by InstPredSchema(Map(sPhi -> lambda(Seq(t1, t2), separationPredicate(Seq(t1, t2)))))
+        thenHave(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ sPhi(t2, originalSet))))) by InstFunSchema(Map(z -> originalSet))
+        val existence = thenHave(() |- exists(t1, fprop(t1))) by InstPredSchema(Map(sPhi -> lambda(Seq(t1, t2), separationPredicate(Seq(t1, t2)))))
 
-        val existsToUnique = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by InstPredSchema(Map(schemPred -> (t2, prop)))(SetTheory2.uniqueByExtension)
+        val existsToUnique = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by InstPredSchema(Map(schemPred -> (t2, prop)))(SetTheory.uniqueByExtension)
 
         // assumption elimination
         have(() |- existsOne(t1, fprop(t1))) by Cut(existence, existsToUnique)

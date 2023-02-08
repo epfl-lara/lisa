@@ -13,7 +13,8 @@ import scala.collection.mutable.Stack as stack
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library(val theory: RunningTheory) extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
+abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
+  val theory: RunningTheory
   val library: Library = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}
@@ -301,9 +302,6 @@ abstract class Library(val theory: RunningTheory) extends lisa.prooflib.WithTheo
     case s: Sequent => s
   }
 
-  // given Conversion[Sequentable, Sequent] = sequantableToSequent
-  given Conversion[theory.Axiom, Formula] = theory.sequentFromJustification(_).right.head
-  given Conversion[Formula, theory.Axiom] = (f: Formula) => theory.getAxiom(f).get
   given convJustSequent[C <: Iterable[Sequentable], D](using bf: scala.collection.BuildFrom[C, Sequent, D]): Conversion[C, D] = cc => {
     val builder = bf.newBuilder(cc)
     cc.foreach(builder += sequantableToSequent(_))

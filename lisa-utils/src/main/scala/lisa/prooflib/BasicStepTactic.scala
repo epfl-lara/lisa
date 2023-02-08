@@ -19,7 +19,7 @@ object BasicStepTactic {
     }
   }
 
-  object Hypothesis extends ProofTactic with ParameterlessHave {
+  object Hypothesis extends ProofTactic with ProofSequentTactic {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       val intersectedPivot = bot.left.intersect(bot.right)
 
@@ -30,7 +30,7 @@ object BasicStepTactic {
     }
   }
 
-  object Rewrite extends ProofTactic with ParameterlessAndThen {
+  object Rewrite extends ProofTactic with ProofFactSequentTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!SC.isSameSequent(bot, proof.getSequent(premise)))
         proof.InvalidProofTactic("The premise and the conclusion are not trivially equivalent.")
@@ -39,7 +39,7 @@ object BasicStepTactic {
     }
   }
 
-  object RewriteTrue extends ProofTactic with ParameterlessHave {
+  object RewriteTrue extends ProofTactic with ProofSequentTactic {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!SC.isSameSequent(bot, () |- PredicateFormula(top, Nil)))
         proof.InvalidProofTactic("The desired conclusion is not a trivial tautology.")
@@ -99,7 +99,7 @@ object BasicStepTactic {
    *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
    * </pre>
    */
-  object LeftAnd extends ProofTactic with ParameterlessAndThen {
+  object LeftAnd extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val phiAndPsi = ConnectorFormula(And, Seq(phi, psi))
@@ -231,7 +231,7 @@ object BasicStepTactic {
    *  Γ, φ↔ψ |- Δ                 Γ, φ↔ψ |- Δ
    * </pre>
    */
-  object LeftIff extends ProofTactic with ParameterlessAndThen {
+  object LeftIff extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val implication = ConnectorFormula(Iff, Seq(phi, psi))
@@ -274,7 +274,7 @@ object BasicStepTactic {
    *   Γ, ¬φ |- Δ
    * </pre>
    */
-  object LeftNot extends ProofTactic with ParameterlessAndThen {
+  object LeftNot extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val negation = ConnectorFormula(Neg, Seq(phi))
@@ -370,7 +370,7 @@ object BasicStepTactic {
    *
    * </pre>
    */
-  object LeftExists extends ProofTactic with ParameterlessAndThen {
+  object LeftExists extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Exists, x, phi)
@@ -427,7 +427,7 @@ object BasicStepTactic {
    *      Γ, ∃!x. φ |- Δ
    * </pre>
    */
-  object LeftExistsOne extends ProofTactic with ParameterlessAndThen {
+  object LeftExistsOne extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
@@ -522,7 +522,7 @@ object BasicStepTactic {
    *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
    * </pre>
    */
-  object RightOr extends ProofTactic with ParameterlessAndThen {
+  object RightOr extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val phiAndPsi = ConnectorFormula(Or, Seq(phi, psi))
@@ -568,7 +568,7 @@ object BasicStepTactic {
    *  Γ |- φ→ψ, Δ
    * </pre>
    */
-  object RightImplies extends ProofTactic with ParameterlessAndThen {
+  object RightImplies extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val implication = ConnectorFormula(Implies, Seq(phi, psi))
@@ -645,7 +645,7 @@ object BasicStepTactic {
    *   Γ |- ¬φ, Δ
    * </pre>
    */
-  object RightNot extends ProofTactic with ParameterlessAndThen {
+  object RightNot extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val negation = ConnectorFormula(Neg, Seq(phi))
@@ -682,7 +682,7 @@ object BasicStepTactic {
    *  Γ |- ∀x. φ, Δ
    * </pre>
    */
-  object RightForall extends ProofTactic with ParameterlessAndThen {
+  object RightForall extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Forall, x, phi)
@@ -799,7 +799,7 @@ object BasicStepTactic {
    *      Γ|- ∃!x. φ,  Δ
    * </pre>
    */
-  object RightExistsOne extends ProofTactic with ParameterlessAndThen {
+  object RightExistsOne extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
@@ -851,7 +851,7 @@ object BasicStepTactic {
    *   Γ, Σ |- Δ, Π
    * </pre>
    */
-  object Weakening extends ProofTactic with ParameterlessAndThen {
+  object Weakening extends ProofTactic with ProofFactSequentTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
@@ -870,7 +870,7 @@ object BasicStepTactic {
    *     Γ |- Δ
    * </pre>
    */
-  object LeftRefl extends ProofTactic with ParameterlessAndThen {
+  object LeftRefl extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using proof: Library#Proof)(fa: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
@@ -907,7 +907,7 @@ object BasicStepTactic {
    *     |- s=s
    * </pre>
    */
-  object RightRefl extends ProofTactic with ParameterlessHave {
+  object RightRefl extends ProofTactic with ProofSequentTactic {
     def withParameters(using proof: Library#Proof)(fa: Formula)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!bot.right.exists(_ == fa))
         proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
@@ -1091,9 +1091,8 @@ object BasicStepTactic {
     }
   }
 
-  class SUBPROOF(using val proof: Library#Proof, om: OutputManager, val line: sourcecode.Line, val file: sourcecode.File)(statement: Sequent | String)(computeProof: proof.InnerProof ?=> Unit)
-      extends ProofTactic {
-    val bot: Sequent = statement match {
+  class SUBPROOF(using val proof: Library#Proof)(statement: Option[Sequent | String])(computeProof: proof.InnerProof ?=> Unit) extends ProofTactic {
+    val bot: Option[Sequent] = statement map {
       case s: Sequent => s
       case s: String => lisa.utils.FOLParser.parseSequent(s)
     }
@@ -1104,12 +1103,12 @@ object BasicStepTactic {
         computeProof(using iProof)
       } catch {
         case e: NotImplementedError =>
-          om.lisaThrow(new UnimplementedProof(proof.owningTheorem))
+          throw (new UnimplementedProof(proof.owningTheorem))
         case e: UserLisaException =>
-          om.lisaThrow(e)
+          throw (e)
       }
       if (iProof.length == 0)
-        om.lisaThrow(new UnimplementedProof(proof.owningTheorem))
+        throw (new UnimplementedProof(proof.owningTheorem))
       iProof.toSCProof
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)

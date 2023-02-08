@@ -199,11 +199,12 @@ class RunningTheory {
    * @param f the new axiom to be added.
    * @return true if the axiom was added to the theory, false else.
    */
-  def addAxiom(name: String, f: Formula): Boolean = {
+  def addAxiom(name: String, f: Formula): Option[Axiom] = {
     if (belongsToTheory(f)) {
-      theoryAxioms.update(name, Axiom(name, f))
-      true
-    } else false
+      val ax = Axiom(name, f)
+      theoryAxioms.update(name, ax)
+      Some(ax)
+    } else None
   }
 
   /**

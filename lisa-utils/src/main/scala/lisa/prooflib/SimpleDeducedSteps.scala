@@ -15,7 +15,7 @@ import lisa.utils.Printer
 
 object SimpleDeducedSteps {
 
-  object Restate extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
+  object Restate extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement =
       unwrapTactic(RewriteTrue(bot))("Attempted true rewrite during tactic Restate failed.")
 
@@ -28,18 +28,18 @@ object SimpleDeducedSteps {
   }
 
   object Discharge extends ProofTactic {
-    def apply(using proof: Library#Proof)(premises: proof.Fact*): proof.ProofTacticJudgement = {
+    def apply(using proof: Library#Proof)(premises: proof.Fact*)(premise: proof.Fact): proof.ProofTacticJudgement = {
       val seqs = premises map proof.getSequent
       if (!seqs.forall(_.right.size == 1))
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
       val s = seqs.head
       val f = s.right.head
-      val first = SC.Cut((proof.mostRecentStep.bot -< f) ++ (s -> f), -1, -2, f)
+      val first = SC.Cut((proof.getSequent(premise) -<? f) ++ (s ->? f), -2, -1, f)
 
       proof.ValidProofTactic(
-        first +: seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
+        seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
           val f = next._1.right.head
-          SC.Cut((prev.bot -< f) ++ (next._1 -> f), next._2, -next._2 - 3, f)
+          SC.Cut((prev.bot -<? f) ++ (next._1 ->? f), -next._2 - 3, next._2, f)
         }),
         proof.mostRecentStep +: premises
       )
@@ -304,4 +304,5 @@ object SimpleDeducedSteps {
       }
     }
   }
+
 }

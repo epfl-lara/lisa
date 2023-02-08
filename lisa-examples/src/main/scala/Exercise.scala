@@ -23,7 +23,7 @@ object Exercise extends lisa.Main {
     have("'P('x) ==> 'P('f('f('x)))") subproof {
       assume("∀'x. 'P('x) ⇒ 'P('f('x))")
       have("'P('f('x)) ==> 'P('f('f('x))) |- 'P('x) ==> 'P('f('f('x)))") by LeftForall(x)(base)
-      andThen("∀'x. 'P('x) ⇒ 'P('f('x))|- 'P('x) ==> 'P('f('f('x)))") by LeftForall(f(x))
+      thenHave("∀'x. 'P('x) ⇒ 'P('f('x))|- 'P('x) ==> 'P('f('f('x)))") by LeftForall(f(x))
     }
     showCurrentProof()
   }

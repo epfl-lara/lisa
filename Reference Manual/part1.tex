@@ -485,7 +485,7 @@ Proof steps can be composed into a directed acyclic graph. The root of the proof
 \label{fig:exampleProof}
 \end{figure}
 
-In the Kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof. 
+In the Kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof.
 Moreover, proofs are conditional: they can carry an explicit set of assumed sequents, named ``\lstinline{imports}'', which give some starting points to the proof. Typically, these imports will contain previously proven theorems, definitions, or axioms (More on that in section~\ref{sect:TheoremsAndTheories}). For a proof step to refer to an imported sequent, one uses negative integers. $-1$ corresponds to the first sequent of the import list of the proof, $-2$ to the second, etc.
 
 

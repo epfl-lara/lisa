@@ -20,7 +20,7 @@ object Example {
 
   def main(args: Array[String]): Unit = {
 
-    // Exercise.main(Array())
+    Exercise.main(Array())
     // solverExample()
     // tptpExample()
 

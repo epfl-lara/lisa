@@ -23,11 +23,18 @@ object ProofTacticLib {
 
   }
 
-  trait ParameterlessHave {
+  trait OnlyProofTactic {
+    def apply(using proof: Library#Proof): proof.ProofTacticJudgement
+  }
+
+  trait ProofSequentTactic {
     def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement
   }
 
-  trait ParameterlessAndThen {
+  trait ProofFactTactic {
+    def apply(using proof: Library#Proof)(premise: proof.Fact): proof.ProofTacticJudgement
+  }
+  trait ProofFactSequentTactic {
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement
   }
 

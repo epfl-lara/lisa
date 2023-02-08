@@ -13,7 +13,7 @@ object OLPropositionalSolver {
    * A tactic object dedicated to solve any propositionaly provable sequent (possibly in exponential time). Can be used with arbitrary many premises.
    * Leverages the OL algorithm for scalafmpropositional logic.
    */
-  object Tautology extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
+  object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
 
     /**
      * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
@@ -37,9 +37,9 @@ object OLPropositionalSolver {
      * @param bot   The desired conclusion.
      */
     def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
-      apply2(using proof)(Seq(premise)*)(bot)
+      from(using proof)(Seq(premise)*)(bot)
 
-    def apply2(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+    def from(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
       val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
       val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())

@@ -21,9 +21,11 @@ trait WithTheorems {
   library: Library =>
 
   sealed abstract class Proof(assump: List[Formula]) {
-    val goal: Sequent
+    val possibleGoal: Option[Sequent]
     type SelfType = this.type
     type OutsideFact >: theory.Justification
+
+    val library: Library = WithTheorems.this.library
 
     private var steps: List[ProofStep] = Nil
     private var imports: List[(OutsideFact, Sequent)] = Nil
@@ -92,7 +94,7 @@ trait WithTheorems {
      */
     def getDischarges: List[Fact] = discharges
 
-    def toSCProof(using om: OutputManager): lisa.kernel.proof.SCProof = {
+    def toSCProof: lisa.kernel.proof.SCProof = {
       discharges.foreach(i => {
         val (s, t1) = sequentAndIntOfFact(i)
         SC.Cut((mostRecentStep.bot -< s.right.head) ++ (s -> s.right.head), t1, steps.length - 1, s.right.head)
@@ -169,7 +171,7 @@ trait WithTheorems {
       case _: BaseProof => 0
     }
 
-    final class InnerProof(val goal: Sequent) extends Proof(this.getAssumptions) {
+    final class InnerProof(val possibleGoal: Option[Sequent]) extends Proof(this.getAssumptions) {
       val parent: Proof.this.type = Proof.this
       val owningTheorem: THM = parent.owningTheorem
       type OutsideFact = parent.Fact
@@ -191,7 +193,7 @@ trait WithTheorems {
       val proof: Proof = Proof.this
 
       /**
-       * Returns true if and only if the jusdgement is valid.
+       * Returns true if and only if the judgement is valid.
        */
       def isValid: Boolean = this match {
         case ValidProofTactic(_, _) => true
@@ -224,6 +226,7 @@ trait WithTheorems {
   }
 
   sealed class BaseProof(val owningTheorem: THM) extends Proof(Nil) {
+    val possibleGoal: Option[Sequent] = Some(owningTheorem.goal)
     val goal: Sequent = owningTheorem.goal
     type OutsideFact = theory.Justification
     override def asOutsideFact(j: theory.Justification): OutsideFact = j
@@ -252,8 +255,7 @@ trait WithTheorems {
 
     def show(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {
-        given Proof = proof
-        computeProof
+        computeProof(using proof)
       } catch {
         case e: NotImplementedError =>
           om.lisaThrow(new UnimplementedProof(this))
@@ -281,6 +283,6 @@ trait WithTheorems {
     }
   }
 
-  given Conversion[library.THM, theory.Theorem] = _.innerThm
+  given thmConv: Conversion[library.THM, theory.Theorem] = _.innerThm
 
 }
