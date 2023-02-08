@@ -181,23 +181,22 @@ object SimpleSimplifier {
     }
 
     @nowarn("msg=.*the type test for proof.Fact cannot be checked at runtime*")
-    def apply(using proof: lisa.prooflib.Library#Proof)(f: proof.Fact|Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(using proof: lisa.prooflib.Library#Proof)(f: proof.Fact | Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
       f match {
         case phi: Formula => applyLeftRight(phi)(premise)()
         case f: proof.Fact =>
-          val seq = proof.getSequent (f)
+          val seq = proof.getSequent(f)
           val phi = seq.right.head
-          val sp = new BasicStepTactic.SUBPROOF (using proof) (None) ( {
-          val x = applyLeftRight (phi) (premise) ()
-          proof.library.have2 (x)
-          proof.library.andThen (SimpleDeducedSteps.Discharge (f) )
+          val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
+            val x = applyLeftRight(phi)(premise)()
+            proof.library.have2(x)
+            proof.library.andThen(SimpleDeducedSteps.Discharge(f))
           })
 
-          BasicStepTactic.unwrapTactic (sp.judgement.asInstanceOf[proof.ProofTacticJudgement] ) ("Subproof for unique comprehension failed.")
+          BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for unique comprehension failed.")
       }
 
     }
-
 
   }
 

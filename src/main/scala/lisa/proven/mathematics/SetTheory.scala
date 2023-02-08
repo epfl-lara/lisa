@@ -1,8 +1,9 @@
 package lisa.proven.mathematics
 
+import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
-import lisa.kernel.proof.{SequentCalculus as SC}
+import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
@@ -406,104 +407,21 @@ object SetTheory extends lisa.Main {
   }
   show
 
-  val unorderedPair_deconstruction = makeTHM("⊢ ∀'x. ∀'y. ∀ 'x1. ∀ 'y1. unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⇒ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1") {
-    val x1 = variable
-    val y1 = variable
-    val g = variable
-    val pxy = unorderedPair(x, y)
-    val pxy1 = unorderedPair(x1, y1)
-    val p0 = have(emptySeq +< (unorderedPair(x, y) === unorderedPair(x1, y1)) +> (((z === x) \/ (z === y)) <=> ((z === x1) \/ (z === y1)))) subproof {
-      val p2 = have(() |- in(z, unorderedPair(x1, y1)) <=> (x1 === z) \/ (y1 === z)) by InstFunSchema(Map(x -> LambdaTermTerm(Seq(), x1), y -> LambdaTermTerm(Seq(), y1)))(ax"pairAxiom")
-      val p3 = have((pxy === pxy1) |- (in(z, unorderedPair(x1, y1)) <=> (x === z) \/ (y === z))) by RightSubstEq(List((pxy, pxy1)), LambdaTermFormula(Seq(g), in(z, g) <=> ((x === z) \/ (y === z))))(
-        ax"pairAxiom"
-      )
-      val p4 = thenHave(emptySeq +< p3.bot.left.head +< p2.bot.right.head +> (((z === x) \/ (z === y)) <=> ((z === x1) \/ (z === y1)))) by RightSubstIff(
-        List(((z === x1) \/ (z === y1), in(z, pxy1))),
-        LambdaFormulaFormula(Seq(h), h <=> ((z === x) \/ (z === y)))
-      )
-      have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ 'z = 'x ∨ 'z = 'y ⇔ 'z = 'x1 ∨ 'z = 'y1") by Cut.withParameters(p2.bot.right.head)(p2, p4)
+  val unorderedPair_deconstruction = makeTHM("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
+
+    val base = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('z = 'a ∨ 'z = 'b) ⇔ ('z = 'c ∨ 'z = 'd)") subproof {
+      have("⊢ elem('z, unorderedPair('a, 'b)) ⇔ ('z = 'a ∨ 'z = 'b)") by InstFunSchema(Map(x -> a, y -> b))(pairAxiom)
+      val s1 = andThen(applySubst("unorderedPair('a, 'b) = unorderedPair('c, 'd)"))
+      have("⊢ elem('z, unorderedPair('c, 'd)) ⇔ ('z = 'c ∨ 'z = 'd)") by InstFunSchema(Map(x -> c, y -> d))(pairAxiom)
+      andThen(applySubst(s1))
     }
-    val aaa = have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'x1 ⊢ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1") subproof {
-      val pc0 = have("('x = 'x1); (unorderedPair('x, 'y) = unorderedPair('x1, 'y1)) |- ('y1='y)") by ByCase(y === x)(
-        have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'y ⊢ 'y1 = 'y") subproof {
-          val f1 = z === x
-          val pa0_0 = have(emptySeq +> ((f1 \/ f1) <=> f1)) by Trivial
-          have(emptySeq +< (pxy === pxy1) +< (x === y) +> ((f1 \/ f1) <=> (z === x1) \/ (z === y1))) by RightSubstEq(
-            List((x, y)),
-            LambdaTermFormula(Seq(g), (f1 \/ (z === g)) <=> ((z === x1) \/ (z === y1)))
-          )(p0) //  ({x,y}={x',y'}) y=x|- (z=x)\/(z=x) <=> (z=x' \/ z=y')
-          val pa0_2 = thenHave(emptySeq +< (pxy === pxy1) +< (x === y) +< (f1 <=> (f1 \/ f1)) +> (f1 <=> ((z === x1) \/ (z === y1)))) by RightSubstIff(
-            List((f1, f1 \/ f1)),
-            LambdaFormulaFormula(Seq(h), h <=> ((z === x1) \/ (z === y1)))
-          )
-          have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'y ⊢ 'z = 'x ⇔ 'z = 'x1 ∨ 'z = 'y1") by Cut.withParameters(f1 <=> (f1 \/ f1))(pa0_0, pa0_2)
-          val pa0 = thenHave("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'y ⊢ 'y1 = 'x ⇔ 'y1 = 'x1 ∨ 'y1 = 'y1") by InstFunSchema(Map(z -> LambdaTermTerm(Seq(), y1)))
-
-          have(emptySeq +> (y1 === y1)) by RightRefl.withParameters(y1 === y1)
-          thenHave(emptySeq +> ((y1 === y1) \/ (y1 === x1))) by RightOr.withParameters(y1 === y1, y1 === x1)
-          val fin = thenHave(emptySeq +< pa0.bot.right.last +> (y1 === x)) by RightSubstIff(
-            List(((y1 === x), ((y1 === y1) \/ (y1 === x1)))),
-            LambdaFormulaFormula(Seq(h), h)
-          )
-          have("(unorderedPair('x, 'y) = unorderedPair('x1, 'y1)) ; 'y = 'x |- ('y1= 'x)") by Cut.withParameters(pa0.bot.right.head)(pa0, fin)
-          thenHave(emptySeq ++< pa0.bot +> (y1 === y)) by RightSubstEq(List((x, y)), LambdaTermFormula(Seq(g), y1 === g))
-
-        } //  (x=y), ({x,y}={x',y'}) |- (y'=y)
-        ,
-        have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'x1; ¬('y = 'x) ⊢ 'y = 'y1") subproof {
-          val pb0_0 =
-            have(emptySeq +< (pxy === pxy1) +> (((y === x) \/ (y === y)) <=> ((y === x1) \/ (y === y1)))) by InstFunSchema(Map[SchematicTermLabel, LambdaTermTerm](z -> LambdaTermTerm(Seq(), y)))(p0)
-          have(emptySeq +> (y === y)) by RightRefl.withParameters(y === y)
-          val pb0_1 = thenHave(emptySeq +> ((y === y) \/ (y === x))) by RightOr.withParameters(y === y, y === x)
-          val tocut = thenHave(emptySeq +< pb0_0.bot.right.last +> ((y === x1) \/ (y === y1))) by RightSubstIff(
-            List((((y === x1) \/ (y === y1)), ((y === x) \/ (y === y)))),
-            LambdaFormulaFormula(Seq(h), h)
-          )
-          have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ 'y = 'x1 ∨ 'y = 'y1") by Cut.withParameters(pb0_0.bot.right.head)(pb0_0, tocut) //  ({x,y}={x',y'}) |- (y=x')∨(y=y')
-          thenHave("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'x1 ⊢ 'y = 'x ∨ 'y = 'y1") by RightSubstEq(List((x, x1)), LambdaTermFormula(Seq(g), (y === g) \/ (y === y1)))
-          val rb1 = thenHave("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); 'x = 'x1; ('y = 'x) ⊢ 'y = 'y1") by destructRightOr(y === x, y === y1)
-          thenHave(rb1.bot +< !(y === x) -> (y === x)) by LeftNot.withParameters(y === x) //  (x=x'), ({x,y}={x',y'}), ¬(y=x) |- (y=y')
-        }
-      ) //
-      val pc1 = have(emptySeq +> (x === x)) by RightRefl.withParameters(x === x)
-      val pc2 = have(emptySeq ++< pc0.bot +> ((y1 === y) /\ (x === x))) by RightAnd(pc0, pc1) // ({x,y}={x',y'}), x=x' |- (x=x /\ y=y')
-      val pc3 = thenHave(emptySeq ++< pc2.bot +> ((y1 === y) /\ (x1 === x))) by RightSubstEq(List((x, x1)), LambdaTermFormula(Seq(g), (y1 === y) /\ (g === x)))
-      thenHave(emptySeq ++< pc3.bot +> (pc3.bot.right.head \/ ((x === y1) /\ (y === x1)))) by RightOr.withParameters(pc3.bot.right.head, (x === y1) /\ (y === x1))
-    }
-    val bbb = have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1); ¬('x = 'x1) ⊢ 'x = 'y1 ∧ 'y = 'x1 ∨ 'x = 'x1 ∧ 'y = 'y1") subproof {
-      val pd0 = have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('x='x1);  ('y='x1)") subproof {
-        val ex1x1 = x1 === x1
-
-        have(emptySeq +> (ex1x1)) by RightRefl.withParameters(ex1x1)
-        val pd0_0 = thenHave(emptySeq +> (ex1x1 \/ (x1 === y1))) by RightOr.withParameters(ex1x1, x1 === y1)
-        val pd0_1 = have(emptySeq +< (pxy === pxy1) +> (((x1 === x) \/ (x1 === y)) <=> ((x1 === x1) \/ (x1 === y1)))) by InstFunSchema(Map(z -> LambdaTermTerm(Seq(), x1)))(p0)
-        val pd0_2 = have(pd0_1.bot.right |- ((x1 === x) \/ (x1 === y))) by RightSubstIff(List(((x1 === x) \/ (x1 === y), (x1 === x1) \/ (x1 === y1))), LambdaFormulaFormula(Seq(h), h))(pd0_0)
-        have(pd0_1.bot.left |- pd0_2.bot.right) by Cut.withParameters(pd0_1.bot.right.head)(pd0_1, pd0_2) //  ({x,y}={x',y'}) |- (x=x' \/ y=x')
-        thenHave("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('x='x1);  ('y='x1)") by destructRightOr(x === x1, y === x1) //  ({x,y}={x',y'}) |- x=x',  y=x'
-      } //  ({x,y}={x',y'}) |- x=x',  y=x' --
-
-      val pd1 = have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('x='x1);  ('x='y1)") subproof {
-
-        val exx = x === x
-
-        val pd1_1 = have(emptySeq +< (pxy === pxy1) +> (((x === x) \/ (x === y)) <=> ((x === x1) \/ (x === y1)))) by InstFunSchema(Map(z -> LambdaTermTerm(Seq(), x)))(p0)
-        have(emptySeq +> exx) by RightRefl.withParameters(exx)
-        val pd1_0 = thenHave(emptySeq +> (exx \/ (x === y))) by RightOr.withParameters(exx, x === y)
-        val tocut = thenHave(emptySeq +< pd1_1.bot.right.last +> ((x === x1) \/ (x === y1))) by RightSubstIff(
-          List((((x === x) \/ (x === y)), ((x === x1) \/ (x === y1)))),
-          LambdaFormulaFormula(Seq(h), h)
-        )
-        have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('x='x1) ∨ ('x='y1)") by Cut.withParameters(pd1_1.bot.right.head)(pd1_1, tocut)
-        thenHave("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('x='x1); ('x='y1)") by destructRightOr(x === x1, x === y1) //  ({x,y}={x',y'}) |- x=x',  x=y'
-      }
-      val pd2 = have(emptySeq ++< pd1.bot +> (x === x1) +> ((x === y1) /\ (y === x1))) by RightAnd.withParameters(x === y1, y === x1)(pd0, pd1) //  ({x,y}={x',y'})  |- x=x', (x=y' /\ y=x') ---
-      val pd3 = thenHave(emptySeq ++< pd2.bot +< !(x === x1) +> ((x === y1) /\ (y === x1))) by LeftNot.withParameters(x === x1) //  ({x,y}={x',y'}), !x===x1 |- (x=y' /\ y=x')
-      thenHave(emptySeq ++< pd3.bot +> (pd3.bot.right.head \/ ((x === x1) /\ (y === y1)))) by Trivial
-    }
-    val p1 = have("unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⊢ ('y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1)") by ByCase(x === x1)(aaa, bbb) //  ({x,y}={x',y'}) |- (x=x' /\ y=y')\/(x=y' /\ y=x')
-    thenHave(emptySeq +> (p1.bot.left.head ==> p1.bot.right.head)) by RightImplies.withParameters(p1.bot.left.head, p1.bot.right.head) //   |- ({x,y}={x',y'}) ==> (x=x' /\ y=y')\/(x=y' /\ y=x')
-    thenHave("⊢ ∀'x. ∀'y. ∀ 'x1. ∀ 'y1. unorderedPair('x, 'y) = unorderedPair('x1, 'y1) ⇒ 'y1 = 'y ∧ 'x1 = 'x ∨ 'x = 'y1 ∧ 'y = 'x1") by GeneralizeToForallNoForm(x, y, x1, y1)
+    val vx = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('a = 'c ∨ 'a = 'd)") by InstFunSchema(Map(z -> a))(base)
+    val vy = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('b = 'c ∨ 'b = 'd)") by InstFunSchema(Map(z -> b))(base)
+    val vx1 = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('c = 'a ∨ 'c = 'b)") by InstFunSchema(Map(z -> c))(base)
+    val vy1 = have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ ('d = 'a ∨ 'd = 'b)") by InstFunSchema(Map(z -> d))(base)
+    have("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") by Tautology.from(vx, vy, vx1, vy1)
   }
+  show
 
   /**
    * Theorem --- Union of a Singleton is the Original Set
@@ -568,13 +486,7 @@ object SetTheory extends lisa.Main {
   ) {
     // forward direction
     //      up ab = up cd |- a = c and b = d OR a = d and b = c
-    have(() |- forall(a, forall(b, forall(c, forall(d, (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))))))) by Rewrite(
-      unorderedPair_deconstruction
-    )
-    thenHave(() |- forall(b, forall(c, forall(d, (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c))))))) by InstantiateForall(a)
-    thenHave(() |- forall(c, forall(d, (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))))) by InstantiateForall(b)
-    thenHave(() |- forall(d, (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c))))) by InstantiateForall(c)
-    val fwd = thenHave(() |- (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by InstantiateForall(d)
+    val fwd = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by Rewrite(unorderedPair_deconstruction)
 
     // backward direction
     //      a = c and b = d => up ab = up cd (and the other case)
