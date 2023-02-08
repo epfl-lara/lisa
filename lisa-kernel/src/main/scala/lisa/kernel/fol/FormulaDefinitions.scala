@@ -50,10 +50,10 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
      */
     def schematicFormulaLabels: Set[SchematicFormulaLabel] =
       (schematicPredicateLabels.toSet: Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet: Set[SchematicFormulaLabel])
-    
+
     /**
-      * @return The list of free formula variable symbols in the formula
-      */
+     * @return The list of free formula variable symbols in the formula
+     */
     def freeVariableFormulaLabels: Set[VariableFormulaLabel]
 
   }
@@ -118,7 +118,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
       case l: SchematicConnectorLabel =>
         args.foldLeft(Set(l))((prev, next) => prev union next.schematicConnectorLabels)
     }
-    override def freeVariableFormulaLabels: Set[VariableFormulaLabel] = 
+    override def freeVariableFormulaLabels: Set[VariableFormulaLabel] =
       args.foldLeft(Set.empty[VariableFormulaLabel])((prev, next) => prev union next.freeVariableFormulaLabels)
   }
 

@@ -1,5 +1,3 @@
 package lisa.utils.unification
 
-object SecondOrderUnifier {
-  
-}
+object SecondOrderUnifier {}
