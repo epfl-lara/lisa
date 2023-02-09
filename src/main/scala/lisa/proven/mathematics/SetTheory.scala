@@ -1046,7 +1046,7 @@ object SetTheory extends lisa.Main {
    * Function Restriction ---  The restriction of a function f to a domain x,
    * also written as f_x.
    *
-   *    `restrictedFunction(f, x) === {(y, f(y)) | y ∈ x}`
+   *    `restrictedFunction(f, x) = {(y, f(y)) | y ∈ x}`
    *
    * @param f function (set)
    * @param x set to restrict to
