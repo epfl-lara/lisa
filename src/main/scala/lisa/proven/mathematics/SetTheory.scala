@@ -1260,67 +1260,147 @@ object SetTheory extends lisa.Main {
    */
 
   /**
-   * Partial Order --- `r` is a partial order on `x` if it is a [[reflexive]]
-   * and [[transitive]] binary [[relation]] on `x`.
+   * Partial Order --- `p` is a partial order on `x` if it is a pair `(x, r)`,
+   * and `r` is a [[reflexive]] and [[transitive]] binary [[relation]] on `x`.
    */
-  val partialOrder = DEF(r, x) --> relation(r, x) /\ antiReflexive(r, x) /\ transitive(r, x)
+  val partialOrder = DEF(p) --> relation(secondInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(secondInPair(p), firstInPair(p))
 
-  // properties of elements under partial orders
+  /**
+   * Linear Order --- a partial order `p = (r, x)` is called a linear order if
+   * `r` is [[total]] as a [[relation]] on `x`.
+   */
+  val linearOrder = DEF (p) --> partialOrder(p) /\ total(secondInPair(p), firstInPair(p))
+
+  /** 
+   * Properties of elements under partial orders
+   */
 
   /**
    * Maximal Element --- `a` is a maximal element of `y` with respect to `r`,
-   * which is a partial order on `x`, and `y ⊆ x`.
+   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. ! a r b`
    */
-  val maximalElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(a, b), r)))
+  val maximalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(a, b), secondInPair(p))))
 
   /**
    * Minimal Element --- `a` is a minimal element of `y` with respect to `r`,
-   * which is a partial order on `x`, and `y ⊆ x`.
+   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. ! b r a`
    */
-  val minimalElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(b, a), r)))
+  val minimalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(b, a), secondInPair(p))))
 
   /**
    * Greatest Element --- `a` is the greatest element of `y` with respect to
-   * `r`, which is a partial order on `x`, and `y ⊆ x`.
+   * `r`, where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. b r a ⋁ b = a`
    */
-  val greatestElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(b, a), r) \/ (a === b)))
+  val greatestElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
 
   /**
    * Least Element --- `a` is the least element of `y` with respect to `r`,
-   * which is a partial order on `x`, and `y ⊆ x`
+   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. a r b ⋁ b = a`
    */
-  val leastElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
+  val leastElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
 
   /**
-   * Upper Bound --- `a` is an upper bound on `y` with respect to `r`, which is
-   * a partial order on `x`, and `y ⊆ x`.
+   * Upper Bound --- `a` is an upper bound on `y` with respect to `r`, where `p
+   * = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. b r a ⋁ b = a`
    *
    * Note that as opposed to the greatest element, `a` is not enforced to be an
    * element of `y`.
    */
-  val upperBound = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(b, a), r) \/ (a === b)))
+  val upperBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
 
   /**
-   * Lower Bound --- `a` is a lower bound on `y` with respect to `r`, which is a
-   * partial order on `x`, and `y ⊆ x`
+   * Lower Bound --- `a` is a lower bound on `y` with respect to `r`, where `p =
+   * (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. a r b ⋁ b = a`
    *
    * Note that as opposed to the least element, `a` is not enforced to be an
    * element of `y`
    */
-  val lowerBound = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
+  val lowerBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
 
-  // val setOfLowerBounds = DEF(y, r, x) --> The(z, forall(t, in(t, z) <=> (in(t, x) /\ lowerBound(t, y, r, x))))(uniqueComprehension(x, lambda(Seq(t, x), lowerBound(t, y, r, x)))._2)
+  val setOfLowerBoundsUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))
+  ) {
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), lowerBound(t, y, p)))
+  }
 
+  /**
+   * The set of all lower bounds of a set `y` under a partial order `p`. Used to define [[greatestLowerBound]]
+   */
+  val setOfLowerBounds = DEF(y, p) --> The(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))(setOfLowerBoundsUniqueness)
+
+  /**
+   * Greatest Lower Bound --- `a` is the greatest lower bound on `y \subseteq x`
+   * under a partial order `p = (r, x)` if it is the greatest element in the
+   * [[setOfLowerBounds]] of `y` under `p`.
+   */
+  val greatestLowerBound = DEF(a, y, p) --> greatestElement(a, setOfLowerBounds(y, p), p)
+  
+  /**
+   * Alias for [[greatestLowerBound]]
+   */
+  val infimum = greatestLowerBound
+
+  val setOfUpperBoundsUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))
+  ) {
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), upperBound(t, y, p)))
+  }
+
+  /**
+   * The set of all upper bounds of a set `y` under a partial order `p`. Used to define [[leastUpperBound]]
+   */
+  val setOfUpperBounds = DEF(y, p) --> The(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))(setOfUpperBoundsUniqueness)
+
+  /**
+   * Least Upper Bound --- `a` is the least upper bound on `y \subseteq x` under
+   * a partial order `p = (r, x)` if it is the least element in the
+   * [[setOfUpperBounds]] of `y` under `p`.
+   */
+  val greatestUpperBound = DEF(a, y, p) --> leastElement(a, setOfUpperBounds(y, p), p)
+  
+  /**
+   * Alias for [[greatestUpperBound]]
+   */
+  val supremum = greatestUpperBound
+
+  /**
+   * Properties of functions under partial orders
+   */
+
+  /**
+   * Order Preserving Function --- a function `f` between `P` and `Q` such that
+   * `p = (P, <_p)` and `q = (Q, <_q)` are partially ordered is order-preserving
+   * if 
+   *
+   * `\forall x y. x <_p y ==> f(x) <_q f(y)`
+   *
+   */
+  val orderPreserving = DEF (f, p, q) --> partialOrder(p) /\ partialOrder(q) /\ functionFrom(f, firstInPair(p), firstInPair(q)) /\ forall(x, forall(y, in(pair(x, y), secondInPair(p)) ==> in(pair(app(f, x), app(f, y)), secondInPair(q))))
+
+  /**
+   * Increasing Function --- an order preserving function ([[orderPreserving]])
+   * between two partially ordered sets is increasing if the two sets are
+   * linearly ordered ([[linearOrder]]).
+   */ 
+  val increasing = DEF (f, p, q) --> linearOrder(p) /\ linearOrder(q) /\ orderPreserving(f, p, q)
+
+  /**
+   * Isomorphism of Partially Ordered Sets --- a function `f` is an isomorphism
+   * between two partially ordered sets `p = (P, <_p)` and `q = (Q, <_q)` if it
+   * is an [[injective]] function from `P` to `Q`, and both `f` and `f^-1` are
+   * [[orderPreserving]].
+   */
+  val isomorphismOfPartialOrders = DEF (f, p, q) --> injective(f, firstInPair(p), firstInPair(q)) /\ orderPreserving(f, p, q) /\ orderPreserving(inverseFunction(f), p, q)
 }
