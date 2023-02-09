@@ -932,10 +932,106 @@ object SetTheory extends lisa.Main {
    */
   val functional = DEF(f) --> functionalOver(f, relationDomain(f))
 
+  val setOfFunctionsUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
+  ) {
+    have(thesis) by UniqueComprehension(powerSet(cartesianProduct(x, y)), lambda(Seq(t, z), functionalOver(t, x)))
+  }
+
   /**
-   * Function application
+   * Set of functions --- All functions from `x` to `y`, denoted `x \to y` or
+   * `\to(x, y)`.
+   *
+   * Since functions from `x` to `y` contain pairs of the form `(a, b) | a \in
+   * x, b \in y`, it is a filtering on the power set of their product, i.e. `x
+   * \to y \subseteq PP(x * y)`.
+   *
    */
-  // val App = DEF (f, x) --> The(z, functional(f) ==> in(pair(x, z), f))(functionApplicationUniqueness)
+  val setOfFunctions = DEF (x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
+
+  /**
+    * Function From (x to y) --- denoted  `f \in x \to y` or `f: x \to y`.
+    */
+  val functionFrom(f, x, y) = DEF (f, x, y) --> in(f, setOfFunctions(x, y))
+
+  val functionApplicationUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(relationRange(f))) /\ (functional(f) /\ exists(y, in(pair(x, y), f) /\ in(t, y))))))
+  ) {
+    have(thesis) by UniqueComprehension(relationRange(f), lambda(Seq(t, z), functional(f) /\ exists(y, in(pair(x, y), f) /\ in(t, y))))
+  }
+
+  /**
+   * Function application --- denoted `f(x)`. The unique element `z` such that
+   * `(x, z) \in f` if it exists and `f` is functional, [[emptySet]] otherwise.
+   */
+  val app = DEF (f, x) --> The(z, forall(t, in(t, z) <=> (in(t, union(relationRange(f))) /\ functional(f) /\ exists(y, in(pair(x, y), f) /\ in(t, y)))))(functionApplicationUniqueness)
+
+  /**
+    * Surjective (function) --- a function `f: x \to y` is surjective iff it
+    * maps to every `b \in y` from atleast one `a \in x`.
+    *
+    * `surjective(f, x, y) = f \in x \to y \land \forall b \in y. (\exists a \in x. f(a) = b)`
+    *
+    */
+  val surjective = DEF (f, x, y) --> functionFrom(f, x, y) /\ forall(b, in(b, y) ==> exists(a, in(a, x) /\ in(pair(a, b), f)))
+
+  /**
+   * Alias for [[surjective]]
+   */
+  val onto = surjective
+
+  /**
+    * Injective (function) --- a function `f: x \to y` is injective iff it maps
+    * to every `b \in y` from atmost one `a \in x`.
+    * 
+    * `injective(f, x, y) = f \in x \to y \land \forall b \in y. (\exists a \in x. f(a) = b) ==> (\exists! a \in x. f(a) = b)`
+    * 
+    */
+  val injective = DEF (f, x, y) --> functionFrom(f, x, y) /\ forall(b, in(b, y) ==> (exists(a, in(a, x) /\ in(pair(a, b), f)) ==> existsOne(a, in(a, x) /\ in(pair(a, b), f))))
+
+  /**
+    * Alias for [[injective]]
+    */
+  val oneone = injective
+
+  /**
+   * Bijective function --- a function `f: x \to y` is bijective iff it is
+   * [[injective]] and [[surjective]].
+   */
+  val bijective = DEF (f, x, y) --> injective(f, x, y) /\ surjective(f, x, y)
+
+  /**
+   * Invertible Function --- a function from `x` to `y` is invertible iff it is
+   * [[bijective]]. See also, [[inverseFunction]]
+   */
+  val invertibleFunction = DEF (f, x, y) --> bijective(f, x, y)
+
+  /**
+   * Inverse Function --- the inverse of a function `f: x \to y`, denoted
+   * `f^-1`, is a function from `y` to `x` such that `\forall a \in x, b \in y.
+   * f(f^-1(b)) = b /\ f^-1(f(b)) = b`. 
+   */
+  val inverseFunctionOf = DEF (g, f, x, y) --> functionFrom(g, y, x) /\ functionFrom(f, x, y) /\ forall(a, (in(a, y) ==> (a === app(f, app(g, a)))) /\ (in(a, x) ==> (a === app(g, app(f, a)))))
+
+  val inverseFunctionExistsIfInvertible = makeTHM(
+    () |- invertible(f, x, y) <=> exists(g, inverseFunctionOf(g, f, x, y))
+  ) {
+    ???
+  }
+
+  val inverseFunctionIsUniqueIfItExists = makeTHM(
+    exists(g, inverseFunctionOf(g, f, x, y)) |- existsOne(g, inverseFunctionOf(g, f, x, y))
+  ) {
+    ???
+  }
+
+  val inverseFunctionUniqueness = makeTHM(
+    () |- existsOne(g, invertible(f) ==> inverseFunctionOf(g, f, x, y))
+  ) {
+    ???
+  }
+
+  val inverseFunction = DEF (f, x, y) --> The(g, invertible(f) ==> inverseFunctionOf(g, f, x, y))(inverseFunctionUniqueness)
 
   val restrictedFunctionUniqueness = makeTHM(
     () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
