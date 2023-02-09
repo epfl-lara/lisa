@@ -197,19 +197,21 @@ trait ProofsHelpers {
       val just: theory.Theorem | theory.Axiom
   )
   class definitionWithVars(val args: Seq[VariableLabel]) {
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = definition(lambda(args, t))
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = definition(lambda(args, f))
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t))
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The) = definition(args, t.out, t.f, t.just)
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The) = definitionByUniqueExistance(args, t.out, t.f, t.just)
 
   }
 
   def DEF(args: VariableLabel*) = new definitionWithVars(args.toSeq)
 
+  // Definition helpers, not part of the DSL
+
   /**
    * Allows to make definitions "by equality" of a function symbol
    */
-  def definition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermTerm): ConstantFunctionLabel = {
+  def simpleDefinition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermTerm): ConstantFunctionLabel = {
     val label = ConstantFunctionLabel(name.value, lambda.vars.length)
     val judgement = simpleDefinition(name.value, lambda)
     judgement match {
@@ -250,7 +252,7 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by unique existance" of a function symbol
    */
-  def definition(using
+  def definitionByUniqueExistance(using
       om: OutputManager,
       name: sourcecode.Name,
       line: sourcecode.Line,
@@ -311,7 +313,7 @@ trait ProofsHelpers {
   /**
    * Allows to define a predicate symbol
    */
-  def definition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermFormula): ConstantPredicateLabel = {
+  def predicateDefinition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermFormula): ConstantPredicateLabel = {
     val label = ConstantPredicateLabel(name.value, lambda.vars.length)
     val judgement = simpleDefinition(name.value, lambda)
     judgement match {
