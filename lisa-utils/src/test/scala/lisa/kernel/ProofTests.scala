@@ -57,7 +57,7 @@ class ProofTests extends AnyFunSuite {
     }
     val orig = subformulas.next().head
     val swapped = subformulasSwapped.next().head
-    val prf = SCProof(Vector(Hypothesis(Sequent(Set(orig), Set(orig)), orig), Rewrite(Sequent(Set(orig), Set(swapped)), 0)))
+    val prf = SCProof(Vector(Hypothesis(Sequent(Set(orig), Set(orig)), orig), Restate(Sequent(Set(orig), Set(swapped)), 0)))
     assert(predicateVerifier(prf).isValid)
   }
 }

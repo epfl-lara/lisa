@@ -8,6 +8,7 @@ import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
 import lisa.proven.mathematics.SetTheory
+import lisa.settheory.SetTheoryLibrary
 import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
@@ -43,11 +44,11 @@ object SetTheoryTactics {
    * See [[setIntersection]] or [[relationDomain]] for more usage.
    */
   object UniqueComprehension extends ProofTactic {
-    def apply(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File, om: OutputManager)(originalSet: Term, separationPredicate: LambdaTermFormula)(
+    def apply(using proof: SetTheoryLibrary.Proof, line: sourcecode.Line, file: sourcecode.File, om: OutputManager)(originalSet: Term, separationPredicate: LambdaTermFormula)(
         bot: Sequent
     ): proof.ProofTacticJudgement = {
       require(separationPredicate.vars.length == 2) // separationPredicate takes two args
-
+      given SetTheoryLibrary.type = SetTheoryLibrary
       // fresh variable names to avoid conflicts
       val t1 = VariableLabel(freshId(separationPredicate.body.freeVariables.map(_.id) ++ originalSet.freeVariables.map(_.id), x.id))
       val t2 = VariableLabel(freshId(separationPredicate.body.freeVariables.map(_.id) ++ originalSet.freeVariables.map(_.id), y.id))
@@ -65,7 +66,7 @@ object SetTheoryTactics {
        * import  ∃ z. t ∈ z <=> (t ∈ x /\ P(t, x)) |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))     Unique by Extension [[uniqueByExtension]] Instantiation
        * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Cut
        */
-      val sp = SUBPROOF(using proof.asInstanceOf[lisa.settheory.SetTheoryLibrary.Proof])(Some(bot)) { // TODO check if isInstanceOf first
+      val sp = SUBPROOF(using proof)(Some(bot)) { // TODO check if isInstanceOf first
         have(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, z) /\ sPhi(t2, z))))) by Rewrite(comprehensionSchema)
         thenHave(() |- exists(t1, forall(t2, in(t2, t1) <=> (in(t2, originalSet) /\ sPhi(t2, originalSet))))) by InstFunSchema(Map(z -> originalSet))
         val existence = thenHave(() |- exists(t1, fprop(t1))) by InstPredSchema(Map(sPhi -> lambda(Seq(t1, t2), separationPredicate(Seq(t1, t2)))))

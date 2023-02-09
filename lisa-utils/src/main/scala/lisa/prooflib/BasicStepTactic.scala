@@ -12,7 +12,7 @@ import lisa.utils.UserLisaException
 
 object BasicStepTactic {
 
-  def unwrapTactic(using proof: Library#Proof)(using tactic: ProofTactic)(judgement: proof.ProofTacticJudgement)(message: String): proof.ProofTacticJudgement = {
+  def unwrapTactic(using lib: Library, proof: lib.Proof)(using tactic: ProofTactic)(judgement: proof.ProofTacticJudgement)(message: String): proof.ProofTacticJudgement = {
     judgement match {
       case j: proof.ValidProofTactic => proof.ValidProofTactic(j.scps, j.imports)
       case j: proof.InvalidProofTactic => proof.InvalidProofTactic(s"Internal tactic call failed! $message\n${j.message}")
@@ -20,7 +20,7 @@ object BasicStepTactic {
   }
 
   object Hypothesis extends ProofTactic with ProofSequentTactic {
-    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       val intersectedPivot = bot.left.intersect(bot.right)
 
       if (intersectedPivot.isEmpty)
@@ -31,20 +31,20 @@ object BasicStepTactic {
   }
 
   object Rewrite extends ProofTactic with ProofFactSequentTactic {
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!SC.isSameSequent(bot, proof.getSequent(premise)))
         proof.InvalidProofTactic("The premise and the conclusion are not trivially equivalent.")
       else
-        proof.ValidProofTactic(Seq(SC.Rewrite(bot, -1)), Seq(premise))
+        proof.ValidProofTactic(Seq(SC.Restate(bot, -1)), Seq(premise))
     }
   }
 
   object RewriteTrue extends ProofTactic with ProofSequentTactic {
-    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!SC.isSameSequent(bot, () |- PredicateFormula(top, Nil)))
         proof.InvalidProofTactic("The desired conclusion is not a trivial tautology.")
       else
-        proof.ValidProofTactic(Seq(SC.RewriteTrue(bot)), Seq())
+        proof.ValidProofTactic(Seq(SC.RestateTrue(bot)), Seq())
     }
   }
 
@@ -56,7 +56,7 @@ object BasicStepTactic {
    * </pre>
    */
   object Cut extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
 
@@ -72,7 +72,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.Cut(bot, -1, -2, phi)), Seq(prem1, prem2))
     }
 
-    def apply(using proof: Library#Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
       lazy val cutSet = rightSequent.left.diff(bot.left) ++ leftSequent.right.diff(bot.right)
@@ -100,7 +100,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftAnd extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val phiAndPsi = ConnectorFormula(And, Seq(phi, psi))
 
@@ -116,7 +116,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.LeftAnd(bot, -1, phi, psi)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
 
@@ -146,7 +146,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftOr extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(disjuncts: Formula*)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(disjuncts: Formula*)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val disjunction = ConnectorFormula(Or, disjuncts)
 
@@ -162,7 +162,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.LeftOr(bot, Range(-1, -premises.length - 1, -1), disjuncts)), premises.toSeq)
     }
 
-    def apply(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val pivots = premiseSequents.map(_.left.diff(bot.left))
 
@@ -189,7 +189,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftImplies extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, psi: Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
       lazy val implication = ConnectorFormula(Implies, Seq(phi, psi))
@@ -201,7 +201,7 @@ object BasicStepTactic {
       else
         proof.ValidProofTactic(Seq(SC.LeftImplies(bot, -1, -2, phi, psi)), Seq(prem1, prem2))
     }
-    def apply(using proof: Library#Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
       lazy val pivotLeft = leftSequent.right.diff(bot.right)
@@ -232,7 +232,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftIff extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val implication = ConnectorFormula(Iff, Seq(phi, psi))
       lazy val impLeft = ConnectorFormula(Implies, Seq(phi, psi))
@@ -250,7 +250,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.LeftIff(bot, -1, phi, psi)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = premiseSequent.left.diff(bot.left)
 
@@ -275,7 +275,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftNot extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val negation = ConnectorFormula(Neg, Seq(phi))
 
@@ -286,7 +286,7 @@ object BasicStepTactic {
       else
         proof.ValidProofTactic(Seq(SC.LeftNot(bot, -1, phi)), Seq(premise))
     }
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = premiseSequent.right.diff(bot.right)
 
@@ -312,7 +312,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftForall extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel, t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, x: VariableLabel, t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Forall, x, phi)
       lazy val instantiated = substituteVariables(phi, Map(x -> t))
@@ -325,7 +325,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.LeftForall(bot, -1, phi, x, t)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
@@ -371,7 +371,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftExists extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Exists, x, phi)
 
@@ -385,7 +385,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.LeftExists(bot, -1, phi, x)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
@@ -428,7 +428,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftExistsOne extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
       lazy val instantiated = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredicateFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
@@ -442,7 +442,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.LeftExistsOne(bot, -1, phi, x)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
@@ -480,7 +480,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightAnd extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(conjuncts: Formula*)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(conjuncts: Formula*)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val conjunction = ConnectorFormula(And, conjuncts)
 
@@ -496,7 +496,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightAnd(bot, Range(-1, -premises.length - 1, -1), conjuncts)), premises)
     }
 
-    def apply(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
       lazy val pivots = premiseSequents.map(_.right.diff(bot.right))
 
@@ -523,7 +523,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightOr extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val phiAndPsi = ConnectorFormula(Or, Seq(phi, psi))
 
@@ -539,7 +539,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightOr(bot, -1, phi, psi)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.right.diff(premiseSequent.right)
 
@@ -569,7 +569,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightImplies extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, psi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val implication = ConnectorFormula(Implies, Seq(phi, psi))
 
@@ -581,7 +581,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightImplies(bot, -1, phi, psi)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val leftPivot = premiseSequent.left.diff(bot.left)
       lazy val rightPivot = premiseSequent.right.diff(bot.right)
@@ -604,7 +604,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightIff extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, psi: Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, psi: Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
       lazy val implication = ConnectorFormula(Iff, Seq(phi, psi))
@@ -619,7 +619,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightIff(bot, -1, -2, phi, psi)), Seq(prem1, prem2))
     }
 
-    def apply(using proof: Library#Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(prem1)
       lazy val pivot = premiseSequent.right.diff(bot.right)
 
@@ -646,7 +646,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightNot extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val negation = ConnectorFormula(Neg, Seq(phi))
 
@@ -658,7 +658,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightNot(bot, -1, phi)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = premiseSequent.left.diff(bot.left)
 
@@ -683,7 +683,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightForall extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Forall, x, phi)
 
@@ -697,7 +697,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightForall(bot, -1, phi, x)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.right.diff(premiseSequent.right)
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
@@ -742,7 +742,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightExists extends ProofTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel, t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, x: VariableLabel, t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Exists, x, phi)
       lazy val instantiated = substituteVariables(phi, Map(x -> t))
@@ -755,7 +755,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightExists(bot, -1, phi, x, t)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.right.diff(premiseSequent.right)
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
@@ -800,7 +800,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightExistsOne extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, x: VariableLabel)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
       lazy val instantiated = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredicateFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
@@ -814,7 +814,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightExistsOne(bot, -1, phi, x)), Seq(premise))
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.right.diff(premiseSequent.right)
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
@@ -852,7 +852,7 @@ object BasicStepTactic {
    * </pre>
    */
   object Weakening extends ProofTactic with ProofFactSequentTactic {
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
       if (!SC.isImplyingSequent(premiseSequent, bot))
@@ -871,7 +871,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftRefl extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using proof: Library#Proof)(fa: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(fa: Formula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
       if (!isSameSet(bot.left + fa, premiseSequent.left) || !premiseSequent.left.exists(_ == fa) || bot.left.exists(_ == fa))
@@ -889,7 +889,7 @@ object BasicStepTactic {
         }
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = premiseSequent.left.diff(bot.left)
 
@@ -908,7 +908,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightRefl extends ProofTactic with ProofSequentTactic {
-    def withParameters(using proof: Library#Proof)(fa: Formula)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(fa: Formula)(bot: Sequent): proof.ProofTacticJudgement = {
       if (!bot.right.exists(_ == fa))
         proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
       else
@@ -922,7 +922,7 @@ object BasicStepTactic {
         }
     }
 
-    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       if (bot.right.isEmpty) proof.InvalidProofTactic("Right-hand side of conclusion does not contain an instance of reflexivity.")
       else {
         // go through conclusion to see if you can find an reflexive formula
@@ -951,7 +951,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftSubstEq extends ProofTactic {
-    def apply(using proof: Library#Proof)(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val (s_es, t_es) = equals.unzip
       lazy val phi_s = lambdaPhi(s_es)
@@ -978,7 +978,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightSubstEq extends ProofTactic {
-    def apply(using proof: Library#Proof)(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val (s_es, t_es) = equals.unzip
       lazy val phi_s = lambdaPhi(s_es)
@@ -1005,7 +1005,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftSubstIff extends ProofTactic {
-    def apply(using proof: Library#Proof)(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val (psi_es, tau_es) = equals.unzip
       lazy val phi_psi = lambdaPhi(psi_es)
@@ -1032,7 +1032,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightSubstIff extends ProofTactic {
-    def apply(using proof: Library#Proof)(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val (psi_es, tau_es) = equals.unzip
       lazy val phi_psi = lambdaPhi(psi_es)
@@ -1059,7 +1059,7 @@ object BasicStepTactic {
    * </pre>
    */
   object InstFunSchema extends ProofTactic {
-    def apply(using proof: Library#Proof)(insts: Map[SchematicTermLabel, LambdaTermTerm])(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(insts: Map[SchematicTermLabel, LambdaTermTerm])(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
       if (!isSameSet(bot.left, premiseSequent.left.map(instantiateTermSchemas(_, insts))))
@@ -1079,7 +1079,7 @@ object BasicStepTactic {
    * </pre>
    */
   object InstPredSchema extends ProofTactic {
-    def apply(using proof: Library#Proof)(insts: Map[SchematicVarOrPredLabel, LambdaTermFormula])(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(insts: Map[SchematicVarOrPredLabel, LambdaTermFormula])(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
 
       if (!isSameSet(bot.left, premiseSequent.left.map(instantiatePredicateSchemas(_, insts))))
@@ -1088,6 +1088,19 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of premise instantiated with the map 'insts' is not the same as right-hand side of conclusion.")
       else
         proof.ValidProofTactic(Seq(SC.InstSchema(bot, -1, Map.empty, insts, Map.empty)), Seq(premise))
+    }
+  }
+
+  object InstSchema extends ProofTactic {
+    def apply(using
+        lib: Library,
+        proof: lib.Proof
+    )(mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula], mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], mTerm: Map[SchematicTermLabel, LambdaTermTerm])(
+        premise: proof.Fact
+    ): proof.ProofTacticJudgement = {
+      val premiseSequent = proof.getSequent(premise)
+      val bot = instantiateSchemaInSequent(premiseSequent, mCon, mPred, mTerm)
+      proof.ValidProofTactic(Seq(SC.InstSchema(bot, -1, mCon, mPred, mTerm)), Seq(premise))
     }
   }
 

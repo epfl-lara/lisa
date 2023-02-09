@@ -129,8 +129,8 @@ class Printer(parser: Parser) {
             pretty("Subproof", sp.premises*) +: prettySCProofRecursive(sp.sp, level + 1, currentTree, (if (i == 0) topMostIndices else IndexedSeq.empty) :+ i)
           case other =>
             val line = other match {
-              case Rewrite(_, t1) => pretty("Rewrite", t1)
-              case RewriteTrue(_) => pretty("RewriteTrue")
+              case Restate(_, t1) => pretty("Rewrite", t1)
+              case RestateTrue(_) => pretty("RewriteTrue")
               case Hypothesis(_, _) => pretty("Hypo.")
               case Cut(_, t1, t2, _) => pretty("Cut", t1, t2)
               case LeftAnd(_, t1, _, _) => pretty("Left ∧", t1)

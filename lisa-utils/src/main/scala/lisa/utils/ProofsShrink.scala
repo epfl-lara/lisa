@@ -44,8 +44,8 @@ object ProofsShrink {
    * @return a new step with the updated indices
    */
   def mapPremises(step: SCProofStep, mapping: Int => Int): SCProofStep = step match {
-    case s: Rewrite => s.copy(t1 = mapping(s.t1))
-    case s: RewriteTrue => s
+    case s: Restate => s.copy(t1 = mapping(s.t1))
+    case s: RestateTrue => s
     case s: Hypothesis => s
     case s: Cut => s.copy(t1 = mapping(s.t1), t2 = mapping(s.t2))
     case s: LeftAnd => s.copy(t1 = mapping(s.t1))
@@ -77,8 +77,9 @@ object ProofsShrink {
 
   /**
    * Flattens a proof recursively; in other words it removes all occurrences of [[SCSubproof]].
-   * Because subproofs imports can be rewritten, [[Rewrite]] steps may be inserted where that is necessary.
+   * Because subproofs imports can be rewritten, [[Restate]] steps may be inserted where that is necessary.
    * The order of proof steps is preserved, indices of premises are adapted to reflect the new sequence.
+   *
    * @param proof the proof to be flattened
    * @return the flattened proof
    */
@@ -92,7 +93,7 @@ object ProofsShrink {
               val (k, sequent) = resolve(i)
               val imported = subProof.imports(j)
               if (sequent != imported) {
-                Some((Rewrite(imported, k), -(j - 1) -> imported))
+                Some((Restate(imported, k), -(j - 1) -> imported))
               } else {
                 None
               }
@@ -201,29 +202,29 @@ object ProofsShrink {
         // General unary steps
         case _ if step.premises.sizeIs == 1 && getSequentLocal(step.premises.head) == step.bot =>
           Right(step.premises.head)
-        case _ if !step.isInstanceOf[Rewrite] && step.premises.sizeIs == 1 && isSameSequent(getSequentLocal(step.premises.head), step.bot) =>
-          Left(Rewrite(step.bot, step.premises.head))
+        case _ if !step.isInstanceOf[Restate] && step.premises.sizeIs == 1 && isSameSequent(getSequentLocal(step.premises.head), step.bot) =>
+          Left(Restate(step.bot, step.premises.head))
         case _
-            if !step.isInstanceOf[Rewrite] && !step.isInstanceOf[Weakening]
+            if !step.isInstanceOf[Restate] && !step.isInstanceOf[Weakening]
               && step.premises.sizeIs == 1 && isSequentSubset(getSequentLocal(step.premises.head), step.bot) =>
           Left(Weakening(step.bot, step.premises.head))
         // Recursive
         case SCSubproof(sp, premises) =>
           Left(SCSubproof(simplifyProof(sp), premises))
         // Double rewrite
-        case Rewrite(bot1, LocalStep(Rewrite(bot2, t2))) if isSameSequent(bot1, bot2) =>
-          Left(Rewrite(bot1, t2))
+        case Restate(bot1, LocalStep(Restate(bot2, t2))) if isSameSequent(bot1, bot2) =>
+          Left(Restate(bot1, t2))
         // Double weakening
         case Weakening(bot1, LocalStep(Weakening(bot2, t2))) if isSequentSubset(bot2, bot1) =>
           Left(Weakening(bot1, t2))
         // Rewrite and weakening
-        case Weakening(bot1, LocalStep(Rewrite(_, t2))) if isSequentSubset(getSequentLocal(t2), bot1) =>
+        case Weakening(bot1, LocalStep(Restate(_, t2))) if isSequentSubset(getSequentLocal(t2), bot1) =>
           Left(Weakening(bot1, t2))
         // Weakening and rewrite
-        case Rewrite(bot1, LocalStep(Weakening(_, t2))) if isSequentSubset(getSequentLocal(t2), bot1) =>
+        case Restate(bot1, LocalStep(Weakening(_, t2))) if isSequentSubset(getSequentLocal(t2), bot1) =>
           Left(Weakening(bot1, t2))
         // Hypothesis and rewrite
-        case Rewrite(bot1, LocalStep(Hypothesis(_, phi))) if bot1.left.contains(phi) && bot1.right.contains(phi) =>
+        case Restate(bot1, LocalStep(Hypothesis(_, phi))) if bot1.left.contains(phi) && bot1.right.contains(phi) =>
           Left(Hypothesis(bot1, phi))
         // Hypothesis and weakening
         case Weakening(bot1, LocalStep(Hypothesis(_, phi))) if bot1.left.contains(phi) && bot1.right.contains(phi) =>
@@ -235,7 +236,7 @@ object ProofsShrink {
           Left(Weakening(bot, t1))
         // Fruitless instantiation
         case InstSchema(bot, t1, _, _, _) if isSameSequent(bot, getSequentLocal(t1)) =>
-          Left(Rewrite(bot, t1))
+          Left(Restate(bot, t1))
         // Instantiation simplification
 
         case InstSchema(bot, t1, mCon, mPred, mTerm) if !(mCon.keySet ++ mPred.keySet ++ mTerm.keySet).subsetOf(schematicLabels(getSequentLocal(t1))) =>
