@@ -792,6 +792,45 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * The first element of an ordered [[pair]] --- `first p = \cup \cap p`
+   *
+   * If `p = (a, b) = {{a}, {a, b}}`, `\cap p = {a}`, and `\cup \cap p = a`.
+   *
+   * While the function is defined on all sets, the result on non-pairs may be
+   * uninteresting or garbage.
+   */
+  val firstInPair = DEF (p) --> union(unaryIntersection(p))
+
+
+  val secondInPairSingletonUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))
+  ) {
+    have(thesis) by UniqueComprehension(union(p), lambda(Seq(t, x), ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p))))))
+  }
+
+  /**
+    * See [[secondInPair]].
+    */
+  val secondInPairSingleton = DEF (p) --> The(z, forall(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))(secondInPairSingletonUniqueness)
+
+  /**
+   * The second element of an ordered [[pair]] --- `second p = \cup {x \in \cup
+   * p | \cup p != \cap p ==> !x \in \cap p} = \cup ([[secondInPairSingleton]]
+   * p)`
+   *
+   * There is a more naive definition: `second p = \cup (\cup p \ (first p))`.
+   * If `p = (a, b) = {{a}, {a, b}}`, `\cup p = {a, b}`, and `\cup p \ (first p)
+   * = {a, b} \ {a} = {b}`, the `\cup` at the top level reduces this to `b`.
+   * However, this fails when `a = b`, and returns the [[emptySet]].
+   *
+   * While the function is defined on all sets, the result on non-pairs may be
+   * uninteresting or garbage.
+   *
+   * @see https://en.wikipedia.org/wiki/Ordered_pair#Kuratowski's_definition
+   */
+  val secondInPair = DEF (p) --> union(secondInPairSingleton(p))
+
+  /**
    * Cartesian Products and Relations
    */
 
