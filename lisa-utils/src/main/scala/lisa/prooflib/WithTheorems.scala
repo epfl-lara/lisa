@@ -161,7 +161,9 @@ trait WithTheorems {
         val r = instantiatedFacts.find(instFact == _._1)
         r match {
           case Some(value) => (instFact.result, value._2)
-          case None => addInstantiatedFact(instFact)(instFact.result, steps.length - 1)
+          case None =>
+            addInstantiatedFact(instFact)
+            (instFact.result, steps.length - 1)
         }
       case of: OutsideFact @unchecked =>
         val r = imports.indexWhere(of == _._1)
