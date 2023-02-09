@@ -4,13 +4,10 @@ import lisa.kernel.fol.FOL.*
 import lisa.utils.KernelHelpers.{_, given}
 
 /**
- * Provides first-order unification utilities for formulas and terms. Methods
- * return most general substitutions when available.
+ * Provides complete first-order matching and unification utilities for formulas
+ * and terms. Methods return most general substitutions when available.
  */
-object FirstOrderUnifier {
-
-  type Match = Option[Map[VariableLabel, Term]]
-  type FormMatch = Option[(Map[VariableFormulaLabel, Formula], Map[VariableLabel, Term])]
+object FirstOrderUnifier extends Unifier {
 
   /**
    * Performs first-order matching for two formulas. Returns a (most-general)
@@ -26,7 +23,7 @@ object FirstOrderUnifier {
    * @return substitution pair (Option) from formula variables to formulas,
    * and variables to terms. `None` if a substitution does not exist.
    */
-  def matchFormula(first: Formula, second: Formula, subst: FormMatch = Some((Map.empty, Map.empty))): FormMatch =
+  override def matchFormula(first: Formula, second: Formula, subst: FormulaSubstitution = Some((Map.empty, Map.empty))): FormulaSubstitution =
     if (subst.isEmpty) subst
     else {
       (first, second) match {
@@ -55,14 +52,14 @@ object FirstOrderUnifier {
         }
         case (ConnectorFormula(l1, arg1), ConnectorFormula(l2, arg2)) if l1 == l2 => {
           if (arg1.length != arg2.length) None
-          else (arg1 zip arg2).foldLeft(subst) { case (subs: FormMatch, (f: Formula, s: Formula)) => matchFormula(f, s, subs) }
+          else (arg1 zip arg2).foldLeft(subst) { case (subs: FormulaSubstitution, (f: Formula, s: Formula)) => matchFormula(f, s, subs) }
         }
         // predicate
         case (PredicateFormula(l1, arg1), PredicateFormula(l2, arg2)) if l1 == l2 => {
           // if the label is the same, no issues, move on with term unification
           if (arg1.length != arg2.length) None
           else {
-            val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Match) { case (subs: Match, (f: Term, s: Term)) => matchTerm(f, s, subs) }
+            val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Substitution) { case (subs: Substitution, (f: Term, s: Term)) => matchTerm(f, s, subs) }
             if (termSubst.isDefined) Some(subst.get._1, termSubst.get)
             else None
           }
@@ -86,7 +83,7 @@ object FirstOrderUnifier {
    * @param subst the current substitution (Option), defaults to an empty Map
    * @return substitution (Option) from variables to terms
    */
-  def matchTerm(first: Term, second: Term, subst: Match = Some(Map.empty)): Match =
+  override def matchTerm(first: Term, second: Term, subst: Substitution = Some(Map.empty)): Substitution =
     if (subst.isEmpty) subst
     else {
       first.label match {
@@ -97,7 +94,7 @@ object FirstOrderUnifier {
         case _ => // {Constant, Schematic} FunctionLabel
           if (first.label != second.label) None
           else if (first.args.length != second.args.length) None
-          else (first.args zip second.args).foldLeft(subst) { case (subs: Match, (f: Term, s: Term)) => matchTerm(f, s, subs) }
+          else (first.args zip second.args).foldLeft(subst) { case (subs: Substitution, (f: Term, s: Term)) => matchTerm(f, s, subs) }
       }
     }
 
@@ -115,7 +112,7 @@ object FirstOrderUnifier {
      * @return substitution pair (Option) from formula variables to formulas, and
      * variables to terms. `None` if a substitution does not exist.
      */
-  def unifyFormula(first: Formula, second: Formula, subst: FormMatch = Some((Map.empty, Map.empty))): FormMatch =
+  override def unifyFormula(first: Formula, second: Formula, subst: FormulaSubstitution = Some((Map.empty, Map.empty))): FormulaSubstitution =
     if (subst.isEmpty) subst
     else {
       (first, second) match {
@@ -144,14 +141,14 @@ object FirstOrderUnifier {
         }
         case (ConnectorFormula(l1, arg1), ConnectorFormula(l2, arg2)) if l1 == l2 => {
           if (arg1.length != arg2.length) None
-          else (arg1 zip arg2).foldLeft(subst) { case (subs: FormMatch, (f: Formula, s: Formula)) => unifyFormula(f, s, subs) }
+          else (arg1 zip arg2).foldLeft(subst) { case (subs: FormulaSubstitution, (f: Formula, s: Formula)) => unifyFormula(f, s, subs) }
         }
         // predicate
         case (PredicateFormula(l1, arg1), PredicateFormula(l2, arg2)) if l1 == l2 => {
           // if the label is the same, no issues, move on with term unification
           if (arg1.length != arg2.length) None
           else {
-            val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Match) { case (subs: Match, (f: Term, s: Term)) => unifyTerm(f, s, subs) }
+            val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Substitution) { case (subs: Substitution, (f: Term, s: Term)) => unifyTerm(f, s, subs) }
             if (termSubst.isDefined) Some(subst.get._1, termSubst.get)
             else None
           }
@@ -180,7 +177,7 @@ object FirstOrderUnifier {
    * @param subst the current substitution (Option), defaults to an empty Map
    * @return substitution (Option) from variables to terms
    */
-  def unifyTerm(first: Term, second: Term, subst: Match = Some(Map.empty)): Match =
+  override def unifyTerm(first: Term, second: Term, subst: Substitution = Some(Map.empty)): Substitution =
     if (subst.isEmpty) subst
     else {
       first.label match {
@@ -197,7 +194,7 @@ object FirstOrderUnifier {
             case _ => // {Constant, Schematic} FunctionLabel
               if (first.label != second.label) None
               else if (first.args.length != second.args.length) None
-              else (first.args zip second.args).foldLeft(subst) { case (subs: Match, (f: Term, s: Term)) => unifyTerm(f, s, subs) }
+              else (first.args zip second.args).foldLeft(subst) { case (subs: Substitution, (f: Term, s: Term)) => unifyTerm(f, s, subs) }
           }
       }
     }
