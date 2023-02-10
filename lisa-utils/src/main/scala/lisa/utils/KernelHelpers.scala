@@ -331,10 +331,11 @@ object KernelHelpers {
                             expression: LambdaTermFormula,
                             out: VariableLabel,
                             proof: SCProof,
+                            proven:Formula,
                             justifications: Seq[theory.Justification]
-                          ): RunningTheoryJudgement[theory.FunctionDefinition] = {
+                          ): RunningTheoryJudgement[theory.FunctionDefinition] ={
       val label = ConstantFunctionLabel(symbol, expression.vars.size)
-      theory.makeFunctionDefinition(proof, justifications, label, out, expression)
+      theory.makeFunctionDefinition(proof, justifications, label, out, expression, proven)
     }
 
 

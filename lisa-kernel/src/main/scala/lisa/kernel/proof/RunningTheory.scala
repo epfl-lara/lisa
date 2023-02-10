@@ -131,6 +131,8 @@ class RunningTheory {
    * @param label          The desired label.
    * @param expression     The functional term defining the function symbol.
    * @param out            The variable representing the function's result in the formula
+   * @param proven         A formula possibly stronger than "expression" that the proof proves. It is always correct if it is the same as "expression", but
+   *                       if "expression" is less strong, this allows to make underspecifid definitions.
    * @return A definition object if the parameters are correct,
    */
   def makeFunctionDefinition(
@@ -138,7 +140,8 @@ class RunningTheory {
       justifications: Seq[Justification],
       label: ConstantFunctionLabel,
       out: VariableLabel,
-      expression: LambdaTermFormula
+      expression: LambdaTermFormula,
+      proven: Formula
   ): RunningTheoryJudgement[this.FunctionDefinition] = {
     val LambdaTermFormula(vars, body) = expression
     if (vars.length==label.arity) {
@@ -151,13 +154,16 @@ class RunningTheory {
                 case SCProofCheckerJudgement.SCValidProof(_) =>
                   proof.conclusion match {
                     case Sequent(l, r) if l.isEmpty && r.size == 1 =>
-                      val subst = BinderFormula(ExistsOne, out, body)
-                      if (isSameSet(r.head, subst)) {
-                        val newDef = FunctionDefinition(label, out, expression)
-                        funDefinitions.update(label, Some(newDef))
-                        knownSymbols.update(label.id, label)
-                        RunningTheoryJudgement.ValidJustification(newDef)
-                      } else InvalidJustification("The proof is correct but its conclusion does not correspond to a definition for the formula phi.", None)
+                      if (isImplying(proven, body)) {
+                        val subst = BinderFormula(ExistsOne, out, proven)
+                        if (isSame(r.head, subst)) {
+                          val newDef = FunctionDefinition(label, out, expression)
+                          funDefinitions.update(label, Some(newDef))
+                          knownSymbols.update(label.id, label)
+                          RunningTheoryJudgement.ValidJustification(newDef)
+                        } else InvalidJustification("The proof is correct but its conclusion does not correspond to the claimed proven property.", None)
+                      } else InvalidJustification("The proven property must be at least as strong as the desired definition, and it is not.", None)
+
                     case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
                   }
                 case r@SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))

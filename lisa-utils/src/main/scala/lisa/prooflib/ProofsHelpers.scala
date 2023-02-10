@@ -304,7 +304,31 @@ trait ProofsHelpers {
       case ax: theory.Axiom => () |- ax.ax
     }
     val pr: SCProof = SCProof(IndexedSeq(SC.Restate(conclusion, -1)), IndexedSeq(conclusion))
-    val judgement = theory.functionDefinition(name.value, LambdaTermFormula(vars, f), out, pr, Seq(just))
+    if (!(conclusion.left.isEmpty && (conclusion.right.size == 1) )) {
+      om.lisaThrow(
+        UserInvalidDefinitionException(
+          name.value,
+          s"The given justification is not valid for a definition" +
+            s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, VariableFormulaLabel("phi")))}" +
+            s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
+        )
+      )
+    }
+    val proven = conclusion.right.head match {
+      case BinderFormula(ExistsOne, bound, inner) => inner
+      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(l, x===y) => r
+      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(r, x===y) => l
+      case _ =>
+        om.lisaThrow(
+          UserInvalidDefinitionException(
+            name.value,
+            s"The given justification is not valid for a definition" +
+              s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, VariableFormulaLabel("phi")))}" +
+              s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
+          )
+        )
+    }
+    val judgement = theory.functionDefinition(name.value, LambdaTermFormula(vars, f), out, pr, proven, Seq(just))
     judgement match {
       case RunningTheoryJudgement.ValidJustification(just) =>
         library.last = Some(just)
@@ -327,16 +351,6 @@ trait ProofsHelpers {
               name.value,
               s"The definition is not allowed to contain schematic symbols or free variables." +
                 s"The symbols {${(f.freeSchematicTermLabels -- vars.toSet ++ f.schematicFormulaLabels).mkString(", ")}} are free in the expression ${FOLPrinter.prettyFormula(f)}."
-            )
-          )
-        }
-        if (!(conclusion.left.isEmpty && (conclusion.right.size == 1) && isImplying(conclusion.right.head, BinderFormula(ExistsOne, out, f)))) {
-          om.lisaThrow(
-            UserInvalidDefinitionException(
-              name.value,
-              s"The definition given justification does not correspond to the desired definition" +
-                s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, f))}" +
-                s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
             )
           )
         }
