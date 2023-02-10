@@ -289,12 +289,7 @@ trait WithTheorems {
     val proof: BaseProof = new BaseProof(this)
     val innerThm: theory.Theorem = show(computeProof)
 
-    def repr: String = (
-      " Theorem " + name + " := " + (statement match {
-        case s: Sequent => lisa.utils.FOLPrinter.prettySequent(s)
-        case s: String => s
-      })
-    )
+    def repr: String = lisa.utils.FOLPrinter.prettySequent(goal)
 
     def show(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {

@@ -75,6 +75,10 @@ trait ProofsHelpers {
     have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)(Restate(using library, _proof)(just: _proof.OutsideFact))
   }
 
+  def have3(using line: sourcecode.Line, file: sourcecode.File)(using om: OutputManager, _proof: library.Proof)(fact: _proof.Fact): _proof.ProofStep = {
+    have(_proof.sequentOfFact(fact)).by(using _proof, om, line, file)(Restate(using library, _proof)(fact))
+  }
+
   def have(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
     tactic.validate(line, file)
   }
@@ -317,7 +321,7 @@ trait ProofsHelpers {
         if (!theory.isAvailable(label)) {
           om.lisaThrow(UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
         }
-        if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet) && f.schematicFormulaLabels.isEmpty)) {
+        if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet+out) && f.schematicFormulaLabels.isEmpty)) {
           om.lisaThrow(
             UserInvalidDefinitionException(
               name.value,
@@ -326,7 +330,7 @@ trait ProofsHelpers {
             )
           )
         }
-        if (!(conclusion.left.isEmpty && (conclusion.right.size == 1) && isSame(conclusion.right.head, BinderFormula(ExistsOne, out, f)))) {
+        if (!(conclusion.left.isEmpty && (conclusion.right.size == 1) && isImplying(conclusion.right.head, BinderFormula(ExistsOne, out, f)))) {
           om.lisaThrow(
             UserInvalidDefinitionException(
               name.value,
