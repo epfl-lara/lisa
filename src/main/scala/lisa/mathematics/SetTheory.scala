@@ -1,8 +1,8 @@
 package lisa.mathematics
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.kernel.SimplePropositionalSolver.*
+import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
 
 /**
@@ -1233,15 +1233,39 @@ object SetTheory extends lisa.Main {
    */
   val stronglyConnected = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
 
-
   /**
    * Cantor theorem
    */
 
-   // smaller needed lemmas
-   // f from x to y => range f <= y
-   // f from x to y => dom f = x
-   // x <= y, y <= x |- x = y
+  // smaller needed lemmas
+  // f from x to y => range f <= y
+  // f from x to y => dom f = x
+  // x <= y, y <= x |- x = y
+
+  // val subsetReflexivity = makeTHM(
+  //   () |- subset(x, x)
+  // ) {
+  //   val subdef = have(() |- subset(x, x) <=> forall(z, top())) by Restate(subsetAxiom of (y -> x))
+  //   val topbase = have(top() |- top()) by Restate
+  //   thenHave(forall(z, top) |- top()) by LeftForall(z)
+  //   thenHave(forall(z, top) |- top()) by Restate
+  // }
+
+  // val subsetEqSymmetry = makeTHM(
+  //   () |- (x === y) <=> (subset(x, y) /\ subset(y, x))
+  // )
+
+  // val functionImpliesDomain = makeTHM(
+  //   functionFrom(f, x, y) |- (relationDomain(f) === x)
+  // ) {
+
+  // }
+
+  // val functionImpliesRangeSubsetOfCodomain = makeTHM(
+  //   functionFrom(f, x, y) |- subset(relationRange(f), y)
+  // ) {
+
+  // }
 
   // val surjectiveImpliesRangeIsCodomain = makeTHM(
   //   surjective(f, x, y) |- (y === relationRange(f))
