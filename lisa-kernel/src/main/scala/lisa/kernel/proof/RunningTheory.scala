@@ -131,8 +131,8 @@ class RunningTheory {
    * @param label          The desired label.
    * @param expression     The functional term defining the function symbol.
    * @param out            The variable representing the function's result in the formula
-   * @param proven         A formula possibly stronger than "expression" that the proof proves. It is always correct if it is the same as "expression", but
-   *                       if "expression" is less strong, this allows to make underspecifid definitions.
+   * @param proven         A formula possibly stronger than `expression` that the proof proves. It is always correct if it is the same as "expression", but
+   *                       if `expression` is less strong, this allows to make underspecified definitions.
    * @return A definition object if the parameters are correct,
    */
   def makeFunctionDefinition(

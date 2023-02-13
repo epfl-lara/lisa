@@ -68,12 +68,7 @@ trait ProofsHelpers {
    */
   def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(lisa.utils.FOLParser.parseSequent(res))
 
-  /**
-   * Claim the given known Theorem, Definition or Axiom as a Sequent.
-   */
-  def have(using line: sourcecode.Line, file: sourcecode.File)(using _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
-    have(theory.sequentFromJustification(just)).by(using _proof, line, file)(Restate(using library, _proof)(just: _proof.OutsideFact))
-  }
+
 
   def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
     case judg:proof.ProofTacticJudgement => judg.validate(line, file)
