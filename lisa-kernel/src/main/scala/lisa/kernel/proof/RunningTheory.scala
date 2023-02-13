@@ -142,8 +142,7 @@ class RunningTheory {
       out: VariableLabel,
       expression: LambdaTermFormula,
       proven: Formula
-  ): RunningTheoryJudgement[this.FunctionDefinition] =
-  {
+  ): RunningTheoryJudgement[this.FunctionDefinition] = {
     val LambdaTermFormula(vars, body) = expression
     if (vars.length == label.arity) {
       if (belongsToTheory(body)) {

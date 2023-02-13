@@ -22,11 +22,11 @@ trait ProofsHelpers {
   given Library = library
 
   class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    inline infix def by(using proof: library.Proof,  line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof,  line, file).asInstanceOf
+    inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = HaveSequent.this.bot ++ (_proof.getAssumptions |- ())
-      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact= {
+      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact = {
         tactic(bot).validate(line, file)
       }
       inline infix def apply(tactic: ProofSequentTactic): _proof.ProofStep = {
@@ -68,10 +68,8 @@ trait ProofsHelpers {
    */
   def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(lisa.utils.FOLParser.parseSequent(res))
 
-
-
   def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
-    case judg:proof.ProofTacticJudgement => judg.validate(line, file)
+    case judg: proof.ProofTacticJudgement => judg.validate(line, file)
     case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Restate(using library, proof)(fact))
   }
 
