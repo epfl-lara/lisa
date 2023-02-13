@@ -189,7 +189,7 @@ object SimpleSimplifier {
           val phi = seq.right.head
           val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
             val x = applyLeftRight(phi)(premise)()
-            proof.library.have2(x)
+            proof.library.have(x)
             proof.library.andThen(SimpleDeducedSteps.Discharge(f))
           })
 

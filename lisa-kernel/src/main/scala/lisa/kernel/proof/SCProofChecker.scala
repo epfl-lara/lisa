@@ -34,7 +34,7 @@ object SCProofChecker {
            *    Γ |- Δ
            */
           case Restate(s, t1) =>
-            if (isImplyingSequent(ref(t1), s)) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The premise does not trivially imply the conclusion.")
+            if (isSameSequent(ref(t1), s)) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The premise does not trivially imply the conclusion.")
 
           /*
            *

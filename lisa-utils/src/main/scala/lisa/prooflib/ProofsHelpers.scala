@@ -22,11 +22,11 @@ trait ProofsHelpers {
   given Library = library
 
   class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    inline infix def by(using proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, om, line, file).asInstanceOf
+    inline infix def by(using proof: library.Proof,  line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof,  line, file).asInstanceOf
 
-    class By(val _proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+    class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = HaveSequent.this.bot ++ (_proof.getAssumptions |- ())
-      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
+      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact= {
         tactic(bot).validate(line, file)
       }
       inline infix def apply(tactic: ProofSequentTactic): _proof.ProofStep = {
@@ -71,19 +71,13 @@ trait ProofsHelpers {
   /**
    * Claim the given known Theorem, Definition or Axiom as a Sequent.
    */
-  def have(using line: sourcecode.Line, file: sourcecode.File)(using om: OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
-    have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)(Restate(using library, _proof)(just: _proof.OutsideFact))
+  def have(using line: sourcecode.Line, file: sourcecode.File)(using _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
+    have(theory.sequentFromJustification(just)).by(using _proof, line, file)(Restate(using library, _proof)(just: _proof.OutsideFact))
   }
 
-  def have3(using line: sourcecode.Line, file: sourcecode.File)(using om: OutputManager, _proof: library.Proof)(fact: _proof.Fact): _proof.ProofStep = {
-    have(_proof.sequentOfFact(fact)).by(using _proof, om, line, file)(Restate(using library, _proof)(fact))
-  }
-
-  def have(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
-    tactic.validate(line, file)
-  }
-  def have2(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
-    tactic.validate(line, file)
+  def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
+    case judg:proof.ProofTacticJudgement => judg.validate(line, file)
+    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Restate(using library, proof)(fact))
   }
 
   /**
