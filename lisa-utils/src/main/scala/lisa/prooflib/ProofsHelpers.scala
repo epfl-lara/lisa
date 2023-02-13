@@ -304,7 +304,7 @@ trait ProofsHelpers {
       case ax: theory.Axiom => () |- ax.ax
     }
     val pr: SCProof = SCProof(IndexedSeq(SC.Restate(conclusion, -1)), IndexedSeq(conclusion))
-    if (!(conclusion.left.isEmpty && (conclusion.right.size == 1) )) {
+    if (!(conclusion.left.isEmpty && (conclusion.right.size == 1))) {
       om.lisaThrow(
         UserInvalidDefinitionException(
           name.value,
@@ -316,8 +316,8 @@ trait ProofsHelpers {
     }
     val proven = conclusion.right.head match {
       case BinderFormula(ExistsOne, bound, inner) => inner
-      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(l, x===y) => r
-      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(r, x===y) => l
+      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(l, x === y) => r
+      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(r, x === y) => l
       case _ =>
         om.lisaThrow(
           UserInvalidDefinitionException(
@@ -345,7 +345,7 @@ trait ProofsHelpers {
         if (!theory.isAvailable(label)) {
           om.lisaThrow(UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
         }
-        if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet+out) && f.schematicFormulaLabels.isEmpty)) {
+        if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet + out) && f.schematicFormulaLabels.isEmpty)) {
           om.lisaThrow(
             UserInvalidDefinitionException(
               name.value,

@@ -144,7 +144,7 @@ class RunningTheory {
       proven: Formula
   ): RunningTheoryJudgement[this.FunctionDefinition] = {
     val LambdaTermFormula(vars, body) = expression
-    if (vars.length==label.arity) {
+    if (vars.length == label.arity) {
       if (belongsToTheory(body)) {
         if (isAvailable(label)) {
           if (body.freeSchematicTermLabels.subsetOf((vars appended out).toSet) && body.schematicFormulaLabels.isEmpty) {
@@ -166,7 +166,7 @@ class RunningTheory {
 
                     case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
                   }
-                case r@SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
+                case r @ SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
               }
             } else InvalidJustification("Not all imports of the proof are correctly justified.", None)
           } else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)

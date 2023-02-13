@@ -327,17 +327,16 @@ object KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check. See [[lisa.kernel.proof.RunningTheory.makeFunctionDefinition]]
      */
     def functionDefinition(
-                            symbol: String,
-                            expression: LambdaTermFormula,
-                            out: VariableLabel,
-                            proof: SCProof,
-                            proven:Formula,
-                            justifications: Seq[theory.Justification]
-                          ): RunningTheoryJudgement[theory.FunctionDefinition] ={
+        symbol: String,
+        expression: LambdaTermFormula,
+        out: VariableLabel,
+        proof: SCProof,
+        proven: Formula,
+        justifications: Seq[theory.Justification]
+    ): RunningTheoryJudgement[theory.FunctionDefinition] = {
       val label = ConstantFunctionLabel(symbol, expression.vars.size)
       theory.makeFunctionDefinition(proof, justifications, label, out, expression, proven)
     }
-
 
     /**
      * Make a predicate definition in the theory, but only ask for the identifier of the new symbol; Arity is inferred
