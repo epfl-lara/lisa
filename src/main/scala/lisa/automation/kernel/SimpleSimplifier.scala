@@ -127,16 +127,16 @@ object SimpleSimplifier {
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val newleft = isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) + phi
+          val newleft = isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right)))
           val newright = isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right)))
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
-          val result2: Sequent = result1.left |- ConnectorFormula(And, newright.toSeq)
+          val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
 
           val scproof = Seq(
             Restate(leftOrigin |- rightOrigin, -1),
             LeftSubstEq(result1, 0, List(left -> right), LambdaTermFormula(Seq(v), leftForm)),
             RightSubstEq(result2, 1, List(left -> right), LambdaTermFormula(Seq(v), rightForm)),
-            Restate(newleft |- newright, 2)
+            Restate(newleft + phi |- newright, 2)
           )
           proof.ValidProofTactic(
             scproof,
@@ -160,7 +160,7 @@ object SimpleSimplifier {
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val newleft = isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) + phi
+          val newleft = isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right)))
           val newright = isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right)))
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
@@ -169,7 +169,7 @@ object SimpleSimplifier {
             Restate(leftOrigin |- rightOrigin, -1),
             LeftSubstIff(result1, 0, List(left -> right), LambdaFormulaFormula(Seq(H), leftForm)),
             RightSubstIff(result2, 1, List(left -> right), LambdaFormulaFormula(Seq(H), rightForm)),
-            Restate(newleft |- newright, 2)
+            Restate(newleft + phi |- newright, 2)
           )
           proof.ValidProofTactic(
             scproof,
@@ -189,11 +189,11 @@ object SimpleSimplifier {
           val phi = seq.right.head
           val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
             val x = applyLeftRight(phi)(premise)()
-            proof.library.have2(x)
+            proof.library.have(x)
             proof.library.andThen(SimpleDeducedSteps.Discharge(f))
           })
 
-          BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for unique comprehension failed.")
+          BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
       }
 
     }
