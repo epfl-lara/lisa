@@ -115,15 +115,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
     val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTermLabels.map(_.id)).toSet, "y"))
     val proof: SCProof = simpleFunctionDefinition(expression, out)
-    theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, Nil)
-  }
-
-  /**
-   * Allows to create a definition by existential uniqueness of a function symbol:
-   */
-  def complexDefinition(symbol: String, vars: Seq[VariableLabel], v: VariableLabel, f: Formula, proof: SCProof, just: Seq[theory.Justification]): Judgement[theory.FunctionDefinition] = {
-    theory.functionDefinition(symbol, LambdaTermFormula(vars, f), v, proof, just)
-    // theory.functionDefinition(symbol, LambdaTermFormula(vars, instantiateTermSchemas(f, Map(v -> LambdaTermTerm(Nil, out)))), out, proof, just)
+    theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, out === body, Nil)
   }
 
   /**
@@ -131,6 +123,9 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
    */
   def simpleDefinition(symbol: String, expression: LambdaTermFormula): Judgement[theory.PredicateDefinition] =
     theory.predicateDefinition(symbol, expression)
+
+  /*
+
 
   /**
    * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
@@ -140,8 +135,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   case class FunSymbolDefine(symbol: String, vars: Seq[VariableLabel]) {
 
     /**
-     * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
-     */
+   * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
+   */
     infix def as(t: Term)(using om: OutputManager): ConstantFunctionLabel = {
       val definition = simpleDefinition(symbol, LambdaTermTerm(vars, t)) match {
         case Judgement.ValidJustification(just) =>
@@ -153,8 +148,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     }
 
     /**
-     * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
-     */
+   * Syntax: <pre> DEFINE("symbol", arguments) as "definition" </pre>
+   */
     infix def as(f: Formula)(using om: OutputManager): ConstantPredicateLabel = {
       val definition = simpleDefinition(symbol, LambdaTermFormula(vars, f)) match {
         case Judgement.ValidJustification(just) =>
@@ -166,8 +161,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     }
 
     /**
-     * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
-     */
+   * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
+   */
     infix def asThe(out: VariableLabel): DefinitionNameAndOut = DefinitionNameAndOut(symbol, vars, out)
   }
 
@@ -177,8 +172,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   case class DefinitionNameAndOut(symbol: String, vars: Seq[VariableLabel], out: VariableLabel) {
 
     /**
-     * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
-     */
+   * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
+   */
     infix def suchThat(f: Formula): DefinitionWaitingProof = DefinitionWaitingProof(symbol, vars, out, f)
   }
 
@@ -188,8 +183,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   case class DefinitionWaitingProof(symbol: String, vars: Seq[VariableLabel], out: VariableLabel, f: Formula) {
 
     /**
-     * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
-     */
+   * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
+   */
     infix def PROOF(proof: SCProof): DefinitionWithProof = DefinitionWithProof(symbol, vars, out, f, proof)
   }
 
@@ -199,8 +194,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   case class DefinitionWithProof(symbol: String, vars: Seq[VariableLabel], out: VariableLabel, f: Formula, proof: SCProof) {
 
     /**
-     * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
-     */
+   * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
+   */
     infix def using(justifications: theory.Justification*)(using om: OutputManager): ConstantFunctionLabel = {
       val definition = complexDefinition(symbol, vars, out, f, proof, justifications) match {
         case Judgement.ValidJustification(just) =>
@@ -212,8 +207,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     }
 
     /**
-     * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
-     */
+   * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
+   */
     infix def using(u: Unit)(using om: OutputManager): ConstantFunctionLabel = using()
   }
 
@@ -221,7 +216,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
    * Syntax: <pre> DEFINE("symbol", arguments) asThe x suchThat P(x) PROOF { the proof } using (assumptions) </pre>
    */
   def DEFINE(symbol: String, vars: VariableLabel*): FunSymbolDefine = FunSymbolDefine(symbol, vars)
-
+   */
   /**
    * For a definition of the type f(x) := term, construct the required proof ?!y. y = term.
    */

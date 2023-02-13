@@ -22,11 +22,11 @@ trait ProofsHelpers {
   given Library = library
 
   class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    inline infix def by(using proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, om, line, file).asInstanceOf
+    inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
-    class By(val _proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+    class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = HaveSequent.this.bot ++ (_proof.getAssumptions |- ())
-      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
+      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact = {
         tactic(bot).validate(line, file)
       }
       inline infix def apply(tactic: ProofSequentTactic): _proof.ProofStep = {
@@ -68,18 +68,9 @@ trait ProofsHelpers {
    */
   def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(lisa.utils.FOLParser.parseSequent(res))
 
-  /**
-   * Claim the given known Theorem, Definition or Axiom as a Sequent.
-   */
-  def have(using line: sourcecode.Line, file: sourcecode.File)(using om: OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
-    have(theory.sequentFromJustification(just)).by(using _proof, om, line, file)(Restate(using library, _proof)(just: _proof.OutsideFact))
-  }
-
-  def have(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
-    tactic.validate(line, file)
-  }
-  def have2(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.ProofTacticJudgement): proof.ProofStep = {
-    tactic.validate(line, file)
+  def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
+    case judg: proof.ProofTacticJudgement => judg.validate(line, file)
+    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Restate(using library, proof)(fact))
   }
 
   /**
@@ -264,7 +255,31 @@ trait ProofsHelpers {
       case ax: theory.Axiom => () |- ax.ax
     }
     val pr: SCProof = SCProof(IndexedSeq(SC.Restate(conclusion, -1)), IndexedSeq(conclusion))
-    val judgement = theory.functionDefinition(name.value, LambdaTermFormula(vars, f), out, pr, Seq(just))
+    if (!(conclusion.left.isEmpty && (conclusion.right.size == 1))) {
+      om.lisaThrow(
+        UserInvalidDefinitionException(
+          name.value,
+          s"The given justification is not valid for a definition" +
+            s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, VariableFormulaLabel("phi")))}" +
+            s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
+        )
+      )
+    }
+    val proven = conclusion.right.head match {
+      case BinderFormula(ExistsOne, bound, inner) => inner
+      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(l, x === y) => r
+      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(r, x === y) => l
+      case _ =>
+        om.lisaThrow(
+          UserInvalidDefinitionException(
+            name.value,
+            s"The given justification is not valid for a definition" +
+              s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, VariableFormulaLabel("phi")))}" +
+              s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
+          )
+        )
+    }
+    val judgement = theory.functionDefinition(name.value, LambdaTermFormula(vars, f), out, pr, proven, Seq(just))
     judgement match {
       case RunningTheoryJudgement.ValidJustification(just) =>
         library.last = Some(just)
@@ -287,16 +302,6 @@ trait ProofsHelpers {
               name.value,
               s"The definition is not allowed to contain schematic symbols or free variables." +
                 s"The symbols {${(f.freeSchematicTermLabels -- vars.toSet ++ f.schematicFormulaLabels).mkString(", ")}} are free in the expression ${FOLPrinter.prettyFormula(f)}."
-            )
-          )
-        }
-        if (!(conclusion.left.isEmpty && (conclusion.right.size == 1) && isSame(conclusion.right.head, BinderFormula(ExistsOne, out, f)))) {
-          om.lisaThrow(
-            UserInvalidDefinitionException(
-              name.value,
-              s"The definition given justification does not correspond to the desired definition" +
-                s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, f))}" +
-                s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
             )
           )
         }

@@ -26,7 +26,6 @@ object Example {
 
   }
 
-
   /**
    * An example of how to use the simple propositional solver.
    * The solver is complete (for propositional logic) but naive and won't succede on large formulas.

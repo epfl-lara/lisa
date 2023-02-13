@@ -38,6 +38,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     val nf2 = computeNormalForm(simplify(formula2))
     latticesEQ(nf1, nf2)
   }
+
+  /**
+   * returns true if the first argument implies the second by the laws of ortholattices.
+   */
   def isImplying(formula1: Formula, formula2: Formula): Boolean = {
     val nf1 = computeNormalForm(simplify(formula1))
     val nf2 = computeNormalForm(simplify(formula2))
