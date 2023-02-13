@@ -167,44 +167,6 @@ trait ProofsHelpers {
     }
   }
 
-  /* //TODO: After reviewing the substitutions
-    extension (just: theory.Justification) {/*
-        def apply(insts: ((SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term)*): InstantiatedJustification = {
-            val instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula] = insts.filter(isLTT).asInstanceOf[Seq[(SchematicVarOrPredLabel, LambdaTermFormula)]].toMap
-            val instsTerm: Map[SchematicTermLabel, LambdaTermTerm] = insts.filter(isLTF).asInstanceOf[Seq[(SchematicTermLabel, LambdaTermTerm)]].toMap
-            val instsForall: Seq[Term] = insts.filter(isTerm).asInstanceOf[Seq[Term]]
-        InstantiatedJustification(just, instsPred, instsTerm, instsForall)
-        }*/
-
-        def apply(insts: (VariableLabel, Term)*): InstantiatedJustification = {
-            InstantiatedJustification(just, Map(), insts.map((x:VariableLabel, t:Term) => (x, LambdaTermTerm(Seq(), t))).toMap, Seq())
-        }
-    }
-
-    private def isTerm(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Term]
-    private def isLTT(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermTerm]
-    private def isLTF(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermFormula]
-
-  def have(instJust: InstantiatedJustification)(using om:OutputManager): library.Proof#ProofStep = {
-    val just = instJust.just
-    val (seq, ref) = proof.getSequentAndInt(just)
-    if (instJust.instsPred.isEmpty && instJust.instsTerm.isEmpty && instJust.instForall.isEmpty){
-      have(seq) by Restate(ref)
-    } else if (instJust.instsPred.isEmpty && instJust.instForall.isEmpty){
-      val res = (seq.left.map(phi => instantiateTermSchemas(phi, instJust.instsTerm)) |- seq.right.map(phi => instantiateTermSchemas(phi, instJust.instsTerm)))
-      have(res) by InstFunSchema(instJust.instsTerm)(ref)
-    } else if (instJust.instsTerm.isEmpty && instJust.instForall.isEmpty){
-      val res = (seq.left.map(phi => instantiatePredicateSchemas(phi, instJust.instsPred)) |- seq.right.map(phi => instantiatePredicateSchemas(phi, instJust.instsPred)))
-      have(res) by InstPredSchema(instJust.instsPred)(ref)
-    } else if(instJust.instsPred.isEmpty && instJust.instsTerm.isEmpty){
-      ???
-    } else {
-      ???
-    }
-  }
-
-   */
-
   def currentProof(using p: Library#Proof): Library#Proof = p
 
   ////////////////////////////////////////
@@ -235,19 +197,21 @@ trait ProofsHelpers {
       val just: theory.Theorem | theory.Axiom
   )
   class definitionWithVars(val args: Seq[VariableLabel]) {
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = definition(lambda(args, t))
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = definition(lambda(args, f))
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t))
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The) = definition(args, t.out, t.f, t.just)
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The) = definitionByUniqueExistance(args, t.out, t.f, t.just)
 
   }
 
   def DEF(args: VariableLabel*) = new definitionWithVars(args.toSeq)
 
+  // Definition helpers, not part of the DSL
+
   /**
    * Allows to make definitions "by equality" of a function symbol
    */
-  def definition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermTerm): ConstantFunctionLabel = {
+  def simpleDefinition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermTerm): ConstantFunctionLabel = {
     val label = ConstantFunctionLabel(name.value, lambda.vars.length)
     val judgement = simpleDefinition(name.value, lambda)
     judgement match {
@@ -270,7 +234,7 @@ trait ProofsHelpers {
           om.lisaThrow(
             UserInvalidDefinitionException(
               name.value,
-              s"The definition is not allowed to contain schematic symbols or free variables." +
+              s"The definition is not allowed to contain schematic symbols or free variables.\n" +
                 s"The symbols {${(lambda.body.freeSchematicTermLabels -- lambda.vars.toSet).mkString(", ")}} are free in the expression ${FOLPrinter.prettyTerm(lambda.body)}."
             )
           )
@@ -288,7 +252,7 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by unique existance" of a function symbol
    */
-  def definition(using
+  def definitionByUniqueExistance(using
       om: OutputManager,
       name: sourcecode.Name,
       line: sourcecode.Line,
@@ -317,7 +281,7 @@ trait ProofsHelpers {
         if (!theory.isAvailable(label)) {
           om.lisaThrow(UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
         }
-        if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet) && f.schematicFormulaLabels.isEmpty)) {
+        if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet + out) && f.schematicFormulaLabels.isEmpty)) {
           om.lisaThrow(
             UserInvalidDefinitionException(
               name.value,
@@ -349,7 +313,7 @@ trait ProofsHelpers {
   /**
    * Allows to define a predicate symbol
    */
-  def definition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermFormula): ConstantPredicateLabel = {
+  def predicateDefinition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermFormula): ConstantPredicateLabel = {
     val label = ConstantPredicateLabel(name.value, lambda.vars.length)
     val judgement = simpleDefinition(name.value, lambda)
     judgement match {
