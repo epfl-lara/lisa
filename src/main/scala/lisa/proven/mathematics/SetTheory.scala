@@ -36,6 +36,8 @@ object SetTheory extends lisa.Main {
 
   // relation and function symbols
   private val r = variable
+  private val p = variable
+  private val q = variable
   private val f = variable
   private val g = variable
 
@@ -395,7 +397,7 @@ object SetTheory extends lisa.Main {
     thenHave(() |- in(y, singleton(x)) <=> (x === y)) by Restate
   }
 
-  val unorderedPair_symmetry = makeTHM(() |- unorderedPair(x, y) === unorderedPair(y, x)) {
+  val unorderedPairSymmetry = makeTHM(() |- unorderedPair(x, y) === unorderedPair(y, x)) {
     have(() |- (y === z) \/ (x === z) <=> in(z, unorderedPair(y, x))) by InstFunSchema(Map(x -> y, y -> x))(pairAxiom)
     andThen(applySubst.apply(pairAxiom))
     val part1 = thenHave(() |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by RightForall
@@ -405,14 +407,12 @@ object SetTheory extends lisa.Main {
     val fin = have(applySubst(forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x)))(part1))
     have(thesis) by Cut(part2, fin)
   }
-  show
 
-  val unorderedPair_deconstruction = makeTHM("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
+  val unorderedPairDeconstruction = makeTHM("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
     val s1 = have(applySubst("unorderedPair('a, 'b) = unorderedPair('c, 'd)")(pairAxiom of (x -> a, y -> b)))
     val base = have(applySubst(s1)(pairAxiom of (x -> c, y -> d)))
     have(thesis) by Tautology.from(base of (z -> a), base of (z -> b), base of (z -> c), base of (z -> d))
   }
-  show
 
   /**
    * Theorem --- Union of a Singleton is the Original Set
@@ -477,7 +477,7 @@ object SetTheory extends lisa.Main {
   ) {
     // forward direction
     //      up ab = up cd |- a = c and b = d OR a = d and b = c
-    val fwd = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by Rewrite(unorderedPair_deconstruction)
+    val fwd = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by Rewrite(unorderedPairDeconstruction)
 
     // backward direction
     //      a = c and b = d => up ab = up cd (and the other case)
@@ -485,7 +485,7 @@ object SetTheory extends lisa.Main {
     thenHave(Set(a === c, b === d) |- unorderedPair(a, b) === unorderedPair(c, d)) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(x, y)))
     val lhs = thenHave(Set((a === c) /\ (b === d)) |- unorderedPair(a, b) === unorderedPair(c, d)) by Rewrite
 
-    have(() |- unorderedPair(a, b) === unorderedPair(b, a)) by InstFunSchema(Map(x -> a, y -> b))(unorderedPair_symmetry)
+    have(() |- unorderedPair(a, b) === unorderedPair(b, a)) by InstFunSchema(Map(x -> a, y -> b))(unorderedPairSymmetry)
     thenHave(Set(a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq(List((a, d), (b, c)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x)))
     val rhs = thenHave(Set((a === d) /\ (b === c)) |- (unorderedPair(a, b) === unorderedPair(c, d))) by Rewrite
 
@@ -731,7 +731,7 @@ object SetTheory extends lisa.Main {
    *
    * @param x set
    */
-  val unaryintersection = DEF(x) -> The(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))(unaryIntersectionUniqueness)
+  val unaryIntersection = DEF(x) --> The(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))(unaryIntersectionUniqueness)
 
   val setDifferenceUniqueness = makeTHM(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))
@@ -792,6 +792,45 @@ object SetTheory extends lisa.Main {
     thenHave(exists(x, P(x)) |- exists(z, forall(t, in(t, z) <=> (forall(y, P(y) ==> in(t, y)))))) by LeftExists
 
   }
+
+  /**
+   * The first element of an ordered [[pair]] --- `first p = \cup \cap p`
+   *
+   * If `p = (a, b) = {{a}, {a, b}}`, `\cap p = {a}`, and `\cup \cap p = a`.
+   *
+   * While the function is defined on all sets, the result on non-pairs may be
+   * uninteresting or garbage.
+   */
+  val firstInPair = DEF(p) --> union(unaryIntersection(p))
+
+  val secondInPairSingletonUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))
+  ) {
+    have(thesis) by UniqueComprehension(union(p), lambda(Seq(t, x), ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p))))))
+  }
+
+  /**
+   * See [[secondInPair]].
+   */
+  val secondInPairSingleton =
+    DEF(p) --> The(z, forall(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))(secondInPairSingletonUniqueness)
+
+  /**
+   * The second element of an ordered [[pair]] --- `second p = \cup {x \in \cup
+   * p | \cup p != \cap p ==> !x \in \cap p} = \cup ([[secondInPairSingleton]]
+   * p)`
+   *
+   * There is a more naive definition: `second p = \cup (\cup p \ (first p))`.
+   * If `p = (a, b) = {{a}, {a, b}}`, `\cup p = {a, b}`, and `\cup p \ (first p)
+   * = {a, b} \ {a} = {b}`, the `\cup` at the top level reduces this to `b`.
+   * However, this fails when `a = b`, and returns the [[emptySet]].
+   *
+   * While the function is defined on all sets, the result on non-pairs may be
+   * uninteresting or garbage.
+   *
+   * @see https://en.wikipedia.org/wiki/Ordered_pair#Kuratowski's_definition
+   */
+  val secondInPair = DEF(p) --> union(secondInPairSingleton(p))
 
   /**
    * Cartesian Products and Relations
@@ -895,10 +934,196 @@ object SetTheory extends lisa.Main {
    */
   val functional = DEF(f) --> functionalOver(f, relationDomain(f))
 
+  val setOfFunctionsUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
+  ) {
+    have(thesis) by UniqueComprehension(powerSet(cartesianProduct(x, y)), lambda(Seq(t, z), functionalOver(t, x)))
+  }
+
   /**
-   * Function application
+   * Set of functions --- All functions from `x` to `y`, denoted `x \to y` or
+   * `\to(x, y)`.
+   *
+   * Since functions from `x` to `y` contain pairs of the form `(a, b) | a \in
+   * x, b \in y`, it is a filtering on the power set of their product, i.e. `x
+   * \to y \subseteq PP(x * y)`.
    */
-  // val App = DEF (f, x) --> The(z, functional(f) ==> in(pair(x, z), f))(functionApplicationUniqueness)
+  val setOfFunctions = DEF(x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))(setOfFunctionsUniqueness)
+
+  /**
+   * Function From (x to y) --- denoted  `f \in x \to y` or `f: x \to y`.
+   */
+  val functionFrom = DEF(f, x, y) --> in(f, setOfFunctions(x, y))
+
+  val functionApplicationUniqueness = makeTHM(
+    () |- existsOne(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === emptySet())))
+  ) {
+    val prem = functional(f) /\ in(x, relationDomain(f))
+
+    // we prove thesis by two cases, first by assuming prem, and then by assuming !prem
+
+    // positive direction
+    val functionalExpansion =
+      have(functional(f) |- (forall(x, in(x, relationDomain(f)) ==> existsOne(z, in(pair(x, z), f))))) by Tautology.from(functional.definition, functionalOver.definition of (x -> relationDomain(f)))
+    thenHave(functional(f) |- in(x, relationDomain(f)) ==> existsOne(z, in(pair(x, z), f))) by InstantiateForall(x)
+    val uniqPrem = thenHave(functional(f) /\ in(x, relationDomain(f)) |- existsOne(z, in(pair(x, z), f))) by Restate
+
+    val positive = have(prem |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) subproof {
+      val lhs = have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ top()))) subproof {
+        val iff = have(prem |- (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) by Restate
+        have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> in(pair(x, y), f))) by Restate
+        val subst = thenHave(Set(prem /\ ((z === y) <=> in(pair(x, y), f)), (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by RightSubstIff(
+          List(((in(pair(x, y), f)), (prem ==> in(pair(x, y), f)))),
+          lambda(h, ((z === y) <=> h))
+        )
+
+        have(Set(prem /\ ((z === y) <=> in(pair(x, y), f)), prem) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by Cut(iff, subst)
+        thenHave(thesis) by Restate
+      }
+
+      val topIntro = have(Set(prem, ((z === y) <=> in(pair(x, y), f))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) subproof {
+        val topIff = have(prem |- (!prem ==> (y === emptySet())) <=> top()) by RewriteTrue
+        val topSubst = have(
+          Set(prem /\ ((z === y) <=> in(pair(x, y), f)), ((!prem ==> (y === emptySet())) <=> top())) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))
+        ) by RightSubstIff(List(((!prem ==> (y === emptySet())), top())), lambda(h, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ h))))(lhs)
+
+        have(Set(prem /\ ((z === y) <=> in(pair(x, y), f)), prem) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by Cut(topIff, topSubst)
+        thenHave(Set(prem, ((z === y) <=> in(pair(x, y), f))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by Restate
+      }
+
+      val quantification = have(Set(prem, existsOne(z, ((z === y) <=> in(pair(x, y), f)))) |- existsOne(z, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet())))))) subproof {
+        have(Set(prem, forall(y, ((z === y) <=> in(pair(x, y), f)))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by LeftForall(y)(topIntro)
+        thenHave(Set(prem, forall(y, ((z === y) <=> in(pair(x, y), f)))) |- forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet())))))) by RightForall
+        thenHave(Set(prem, forall(y, ((z === y) <=> in(pair(x, y), f)))) |- exists(z, forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))))) by RightExists(z)
+        thenHave(
+          Set(prem, exists(z, forall(y, ((z === y) <=> in(pair(x, y), f))))) |- exists(z, forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))))
+        ) by LeftExists
+        thenHave(Set(prem, existsOne(z, in(pair(x, z), f))) |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) by Restate
+      }
+
+      have(thesis) by Cut(uniqPrem, quantification)
+    }
+
+    // negative
+    have(() |- (emptySet() === y) <=> (emptySet() === y)) by Restate
+    thenHave(() |- forall(y, (emptySet() === y) <=> (emptySet() === y))) by RightForall
+    thenHave(() |- exists(z, forall(y, (z === y) <=> (emptySet() === y)))) by RightExists(emptySet())
+    val emptyPrem = thenHave(() |- existsOne(z, (z === emptySet()))) by Restate
+
+    val negative = have(!prem |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) subproof {
+      val lhs = have(!prem /\ ((z === y) <=> (y === emptySet())) |- ((z === y) <=> ((!prem ==> (y === emptySet())) /\ top()))) subproof {
+        val iff = have(!prem |- ((y === emptySet())) <=> (!prem ==> (y === emptySet()))) by Restate
+        have(!prem /\ ((z === y) <=> (y === emptySet())) |- ((z === y) <=> (y === emptySet()))) by Restate
+        val subst = thenHave(
+          Set(!prem /\ ((z === y) <=> (y === emptySet())), ((y === emptySet())) <=> (!prem ==> (y === emptySet()))) |- ((z === y) <=> (!prem ==> (y === emptySet())))
+        ) by RightSubstIff(List((((y === emptySet())), (!prem ==> (y === emptySet())))), lambda(h, ((z === y) <=> h)))
+
+        have(Set(!prem /\ ((z === y) <=> (y === emptySet())), !prem) |- ((z === y) <=> (!prem ==> (y === emptySet())))) by Cut(iff, subst)
+        thenHave(thesis) by Restate
+      }
+
+      val topIntro = have(Set(!prem, ((z === y) <=> (y === emptySet()))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) subproof {
+        val topIff = have(!prem |- (prem ==> in(pair(x, y), f)) <=> top()) by RewriteTrue
+        val topSubst = have(
+          Set(!prem /\ ((z === y) <=> (y === emptySet())), ((prem ==> in(pair(x, y), f)) <=> top())) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))
+        ) by RightSubstIff(List(((prem ==> in(pair(x, y), f)), top())), lambda(h, ((z === y) <=> ((!prem ==> (y === emptySet())) /\ h))))(lhs)
+
+        have(Set(!prem /\ ((z === y) <=> (y === emptySet())), !prem) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by Cut(topIff, topSubst)
+        thenHave(Set(!prem, ((z === y) <=> (y === emptySet()))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by Restate
+      }
+
+      val quantification =
+        have(Set(!prem, existsOne(z, ((z === y) <=> (y === emptySet())))) |- existsOne(z, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet())))))) subproof {
+          have(Set(!prem, forall(y, ((z === y) <=> (y === emptySet())))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by LeftForall(y)(topIntro)
+          thenHave(Set(!prem, forall(y, ((z === y) <=> (y === emptySet())))) |- forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet())))))) by RightForall
+          thenHave(Set(!prem, forall(y, ((z === y) <=> (y === emptySet())))) |- exists(z, forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))))) by RightExists(
+            z
+          )
+          thenHave(
+            Set(!prem, exists(z, forall(y, ((z === y) <=> (y === emptySet()))))) |- exists(z, forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))))
+          ) by LeftExists
+          thenHave(Set(!prem, existsOne(z, (z === emptySet()))) |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) by Restate
+        }
+
+      have(thesis) by Cut(emptyPrem, quantification)
+    }
+
+    val negRhs = thenHave(() |- Set(prem, existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet())))))) by Restate
+
+    have(thesis) by Cut.withParameters(prem)(negRhs, positive)
+  }
+
+  /**
+   * Function application --- denoted `f(x)`. The unique element `z` such that
+   * `(x, z) \in f` if it exists and `f` is functional, [[emptySet]] otherwise.
+   */
+  val app =
+    DEF(f, x) --> The(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === emptySet())))(functionApplicationUniqueness)
+
+  /**
+   * Surjective (function) --- a function `f: x \to y` is surjective iff it
+   * maps to every `b \in y` from atleast one `a \in x`.
+   *
+   * `surjective(f, x, y) = f \in x \to y \land \forall b \in y. (\exists a \in x. f(a) = b)`
+   */
+  val surjective = DEF(f, x, y) --> functionFrom(f, x, y) /\ forall(b, in(b, y) ==> exists(a, in(a, x) /\ in(pair(a, b), f)))
+
+  /**
+   * Alias for [[surjective]]
+   */
+  val onto = surjective
+
+  /**
+   * Injective (function) --- a function `f: x \to y` is injective iff it maps
+   * to every `b \in y` from atmost one `a \in x`.
+   *
+   * `injective(f, x, y) = f \in x \to y \land \forall b \in y. (\exists a \in x. f(a) = b) ==> (\exists! a \in x. f(a) = b)`
+   */
+  val injective = DEF(f, x, y) --> functionFrom(f, x, y) /\ forall(b, in(b, y) ==> (exists(a, in(a, x) /\ in(pair(a, b), f)) ==> existsOne(a, in(a, x) /\ in(pair(a, b), f))))
+
+  /**
+   * Alias for [[injective]]
+   */
+  val oneone = injective
+
+  /**
+   * Bijective function --- a function `f: x \to y` is bijective iff it is
+   * [[injective]] and [[surjective]].
+   */
+  val bijective = DEF(f, x, y) --> injective(f, x, y) /\ surjective(f, x, y)
+
+  /**
+   * Invertible Function --- a function from `x` to `y` is invertible iff it is
+   * [[bijective]]. See also, [[inverseFunction]]
+   */
+  val invertibleFunction = DEF(f, x, y) --> bijective(f, x, y)
+
+  /**
+   * Inverse Function --- the inverse of a function `f: x \to y`, denoted
+   * `f^-1`, is a function from `y` to `x` such that `\forall a \in x, b \in y.
+   * f(f^-1(b)) = b /\ f^-1(f(b)) = b`.
+   */
+  val inverseFunctionOf = DEF(g, f, x, y) --> functionFrom(g, y, x) /\ functionFrom(f, x, y) /\ forall(a, (in(a, y) ==> (a === app(f, app(g, a)))) /\ (in(a, x) ==> (a === app(g, app(f, a)))))
+
+  // val inverseFunctionExistsIfInvertible = makeTHM(
+  //   () |- invertibleFunction(f, x, y) <=> exists(g, inverseFunctionOf(g, f, x, y))
+  // ) {
+  //   ???
+  // }
+
+  // val inverseFunctionIsUniqueIfItExists = makeTHM(
+  //   exists(g, inverseFunctionOf(g, f, x, y)) |- existsOne(g, inverseFunctionOf(g, f, x, y))
+  // ) {
+  //   ???
+  // }
+
+  // val inverseFunctionUniqueness = makeTHM(
+  //   () |- existsOne(g, invertibleFunction(f) ==> inverseFunctionOf(g, f, x, y))
+  // ) {
+  //   ???
+  // }
+
+  // val inverseFunction = DEF (f, x, y) --> The(g, invertibleFunction(f) ==> inverseFunctionOf(g, f, x, y))(inverseFunctionUniqueness)
 
   val restrictedFunctionUniqueness = makeTHM(
     () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
@@ -913,7 +1138,7 @@ object SetTheory extends lisa.Main {
    * Function Restriction ---  The restriction of a function f to a domain x,
    * also written as f_x.
    *
-   *    `restrictedFunction(f, x) === {(y, f(y)) | y ∈ x}`
+   *    `restrictedFunction(f, x) = {(y, f(y)) | y ∈ x}`
    *
    * @param f function (set)
    * @param x set to restrict to
@@ -1127,67 +1352,149 @@ object SetTheory extends lisa.Main {
    */
 
   /**
-   * Partial Order --- `r` is a partial order on `x` if it is a [[reflexive]]
-   * and [[transitive]] binary [[relation]] on `x`.
+   * Partial Order --- `p` is a partial order on `x` if it is a pair `(x, r)`,
+   * and `r` is a [[reflexive]] and [[transitive]] binary [[relation]] on `x`.
    */
-  val partialOrder = DEF(r, x) --> relation(r, x) /\ antiReflexive(r, x) /\ transitive(r, x)
+  val partialOrder = DEF(p) --> relation(secondInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(secondInPair(p), firstInPair(p))
 
-  // properties of elements under partial orders
+  /**
+   * Linear Order --- a partial order `p = (r, x)` is called a linear order if
+   * `r` is [[total]] as a [[relation]] on `x`.
+   */
+  val linearOrder = DEF(p) --> partialOrder(p) /\ total(secondInPair(p), firstInPair(p))
+
+  /**
+   * Properties of elements under partial orders
+   */
 
   /**
    * Maximal Element --- `a` is a maximal element of `y` with respect to `r`,
-   * which is a partial order on `x`, and `y ⊆ x`.
+   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. ! a r b`
    */
-  val maximalElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(a, b), r)))
+  val maximalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(a, b), secondInPair(p))))
 
   /**
    * Minimal Element --- `a` is a minimal element of `y` with respect to `r`,
-   * which is a partial order on `x`, and `y ⊆ x`.
+   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. ! b r a`
    */
-  val minimalElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(b, a), r)))
+  val minimalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(b, a), secondInPair(p))))
 
   /**
    * Greatest Element --- `a` is the greatest element of `y` with respect to
-   * `r`, which is a partial order on `x`, and `y ⊆ x`.
+   * `r`, where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. b r a ⋁ b = a`
    */
-  val greatestElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(b, a), r) \/ (a === b)))
+  val greatestElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
 
   /**
    * Least Element --- `a` is the least element of `y` with respect to `r`,
-   * which is a partial order on `x`, and `y ⊆ x`
+   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. a r b ⋁ b = a`
    */
-  val leastElement = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
+  val leastElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
 
   /**
-   * Upper Bound --- `a` is an upper bound on `y` with respect to `r`, which is
-   * a partial order on `x`, and `y ⊆ x`.
+   * Upper Bound --- `a` is an upper bound on `y` with respect to `r`, where `p
+   * = (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. b r a ⋁ b = a`
    *
    * Note that as opposed to the greatest element, `a` is not enforced to be an
    * element of `y`.
    */
-  val upperBound = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(b, a), r) \/ (a === b)))
+  val upperBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
 
   /**
-   * Lower Bound --- `a` is a lower bound on `y` with respect to `r`, which is a
-   * partial order on `x`, and `y ⊆ x`
+   * Lower Bound --- `a` is a lower bound on `y` with respect to `r`, where `p =
+   * (r, x)` is a partial order on `x`, and `y ⊆ x`.
    *
    *    `∀ b ∈ y. a r b ⋁ b = a`
    *
    * Note that as opposed to the least element, `a` is not enforced to be an
    * element of `y`
    */
-  val lowerBound = DEF(a, y, r, x) --> partialOrder(r, x) /\ subset(y, x) /\ forall(b, in(b, y) ==> (in(pair(a, b), r) \/ (a === b)))
+  val lowerBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
 
-  // val setOfLowerBounds = DEF(y, r, x) --> The(z, forall(t, in(t, z) <=> (in(t, x) /\ lowerBound(t, y, r, x))))(uniqueComprehension(x, lambda(Seq(t, x), lowerBound(t, y, r, x)))._2)
+  val setOfLowerBoundsUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))
+  ) {
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), lowerBound(t, y, p)))
+  }
 
+  /**
+   * The set of all lower bounds of a set `y` under a partial order `p`. Used to define [[greatestLowerBound]]
+   */
+  val setOfLowerBounds = DEF(y, p) --> The(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))(setOfLowerBoundsUniqueness)
+
+  /**
+   * Greatest Lower Bound --- `a` is the greatest lower bound on `y \subseteq x`
+   * under a partial order `p = (r, x)` if it is the greatest element in the
+   * [[setOfLowerBounds]] of `y` under `p`.
+   */
+  val greatestLowerBound = DEF(a, y, p) --> greatestElement(a, setOfLowerBounds(y, p), p)
+
+  /**
+   * Alias for [[greatestLowerBound]]
+   */
+  val infimum = greatestLowerBound
+
+  val setOfUpperBoundsUniqueness = makeTHM(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))
+  ) {
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), upperBound(t, y, p)))
+  }
+
+  /**
+   * The set of all upper bounds of a set `y` under a partial order `p`. Used to define [[leastUpperBound]]
+   */
+  val setOfUpperBounds = DEF(y, p) --> The(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))(setOfUpperBoundsUniqueness)
+
+  /**
+   * Least Upper Bound --- `a` is the least upper bound on `y \subseteq x` under
+   * a partial order `p = (r, x)` if it is the least element in the
+   * [[setOfUpperBounds]] of `y` under `p`.
+   */
+  val greatestUpperBound = DEF(a, y, p) --> leastElement(a, setOfUpperBounds(y, p), p)
+
+  /**
+   * Alias for [[greatestUpperBound]]
+   */
+  val supremum = greatestUpperBound
+
+  /**
+   * Properties of functions under partial orders
+   */
+
+  /**
+   * Order Preserving Function --- a function `f` between `P` and `Q` such that
+   * `p = (P, <_p)` and `q = (Q, <_q)` are partially ordered is order-preserving
+   * if
+   *
+   * `\forall x y. x <_p y ==> f(x) <_q f(y)`
+   */
+  val orderPreserving = DEF(f, p, q) --> partialOrder(p) /\ partialOrder(q) /\ functionFrom(f, firstInPair(p), firstInPair(q)) /\ forall(
+    x,
+    forall(y, in(pair(x, y), secondInPair(p)) ==> in(pair(app(f, x), app(f, y)), secondInPair(q)))
+  )
+
+  /**
+   * Increasing Function --- an order preserving function ([[orderPreserving]])
+   * between two partially ordered sets is increasing if the two sets are
+   * linearly ordered ([[linearOrder]]).
+   */
+  val increasing = DEF(f, p, q) --> linearOrder(p) /\ linearOrder(q) /\ orderPreserving(f, p, q)
+
+  /**
+   * Isomorphism of Partially Ordered Sets --- a function `f` is an isomorphism
+   * between two partially ordered sets `p = (P, <_p)` and `q = (Q, <_q)` if it
+   * is an [[injective]] function from `P` to `Q`, and both `f` and `f^-1` are
+   * [[orderPreserving]].
+   */
+  // val isomorphismOfPartialOrders = DEF (f, p, q) --> injective(f, firstInPair(p), firstInPair(q)) /\ orderPreserving(f, p, q) /\ orderPreserving(inverseFunction(f), p, q)
 }
