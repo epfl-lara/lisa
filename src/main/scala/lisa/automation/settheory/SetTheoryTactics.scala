@@ -1,13 +1,13 @@
-package lisa.proven.mathematics
+package lisa.automation.settheory
 
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.mathematics.SetTheory
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
-import lisa.proven.mathematics.SetTheory
 import lisa.settheory.SetTheoryLibrary
 import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer

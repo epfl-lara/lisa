@@ -1,14 +1,9 @@
-package lisa.proven.mathematics
+package lisa.mathematics
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
-import lisa.kernel.proof.SequentCalculus as SC
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib
-import lisa.proven.mathematics.SetTheoryTactics.*
-import lisa.utils.Printer
+import lisa.automation.settheory.SetTheoryTactics.*
 
 /**
  * Set Theory Library
@@ -115,7 +110,7 @@ object SetTheory extends lisa.Main {
     val extRhs = have(() |- forall(t, in(t, a) <=> in(t, z)) <=> (a === z)) by InstFunSchema(Map(x -> a, y -> z))(extensionalityAxiom)
 
     have(fprop(z) /\ fprop(a) |- (forall(t, in(t, a) <=> in(t, z)) <=> (a === z)) /\ forall(t, in(t, a) <=> in(t, z))) by RightAnd(extLhs, extRhs)
-    thenHave(fprop(z) /\ fprop(a) |- (a === z)) by Trivial
+    thenHave(fprop(z) /\ fprop(a) |- (a === z)) by Tautology
     val backward = thenHave(fprop(z) |- fprop(a) ==> (a === z)) by Restate
 
     have(fprop(z) |- fprop(a) <=> (a === z)) by RightIff(forward, backward)
@@ -298,7 +293,7 @@ object SetTheory extends lisa.Main {
     val exRhs = thenHave(() |- forall(y, in(y, x) <=> in(y, emptySet())) <=> (x === emptySet())) by Restate
 
     have(forall(y, !in(y, x)) |- (forall(y, in(y, x) <=> in(y, emptySet())) <=> (x === emptySet())) /\ forall(y, in(y, x) <=> in(y, emptySet()))) by RightAnd(exLhs, exRhs)
-    thenHave(forall(y, !in(y, x)) |- (x === emptySet())) by Trivial
+    thenHave(forall(y, !in(y, x)) |- (x === emptySet())) by Tautology
   }
 
   /**
@@ -315,7 +310,7 @@ object SetTheory extends lisa.Main {
 
     have(() |- (subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) /\ forall(y, in(y, emptySet()) ==> in(y, x))) by RightAnd(lhs, rhs)
     thenHave(() |- (subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) /\ forall(z, in(z, emptySet()) ==> in(z, x))) by Restate
-    thenHave(() |- subset(emptySet(), x)) by Trivial
+    thenHave(() |- subset(emptySet(), x)) by Tautology
   }
 
   /**
@@ -331,7 +326,7 @@ object SetTheory extends lisa.Main {
     val lhs = have(() |- in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) by InstFunSchema(Map(x -> emptySet(), y -> x))(powerAxiom)
 
     have(() |- (in(emptySet(), powerSet(x)) <=> subset(emptySet(), x)) /\ subset(emptySet(), x)) by RightAnd(lhs, emptySetIsASubset)
-    val emptyinPower = thenHave(() |- in(emptySet(), powerSet(x))) by Trivial
+    val emptyinPower = thenHave(() |- in(emptySet(), powerSet(x))) by Tautology
     val nonEmpty = have(in(emptySet(), powerSet(x)) |- !(powerSet(x) === emptySet())) by InstFunSchema(Map(y -> emptySet(), x -> powerSet(x)))(setWithElementNonEmpty)
 
     have(() |- !(powerSet(x) === emptySet())) by Cut(emptyinPower, nonEmpty)
@@ -359,7 +354,7 @@ object SetTheory extends lisa.Main {
     val rhs = thenHave((z === x) |- (z === x) \/ (z === y)) by Rewrite
     val factset = have((z === x) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
 
-    thenHave((z === x) |- in(z, unorderedPair(x, y))) by Trivial
+    thenHave((z === x) |- in(z, unorderedPair(x, y))) by Tautology
     thenHave((x === x) |- in(x, unorderedPair(x, y))) by InstFunSchema(Map(z -> x))
     thenHave(() |- in(x, unorderedPair(x, y))) by LeftRefl
   }
@@ -380,7 +375,7 @@ object SetTheory extends lisa.Main {
     val rhs = thenHave((z === y) |- (z === x) \/ (z === y)) by Rewrite
     val factset = have((z === y) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
 
-    thenHave((z === y) |- in(z, unorderedPair(x, y))) by Trivial
+    thenHave((z === y) |- in(z, unorderedPair(x, y))) by Tautology
     thenHave((y === y) |- in(y, unorderedPair(x, y))) by InstFunSchema(Map(z -> y))
     thenHave(() |- in(y, unorderedPair(x, y))) by LeftRefl
   }
@@ -433,14 +428,14 @@ object SetTheory extends lisa.Main {
     // forward direction
     //  z ∈ x |- z ∈ ∪ X
     val unionAx = have(() |- in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X))) by InstFunSchema(Map(x -> z, z -> X))(unionAxiom)
-    thenHave(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Trivial
+    thenHave(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Tautology
 
     val andLhs = have(() |- in(x, X)) by InstFunSchema(Map(y -> x))(firstElemInPair)
     val andRhs = have(in(z, x) |- in(z, x)) by Hypothesis
     have(in(z, x) |- in(z, x) /\ in(x, X)) by RightAnd(andLhs, andRhs)
     val fwdLhs = thenHave(in(z, x) |- exists(y, in(z, y) /\ in(y, X))) by RightExists(x)
     have(in(z, x) |- exists(y, in(z, y) /\ in(y, X)) /\ (in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X)))) by RightAnd(fwdLhs, unionAx)
-    thenHave(in(z, x) |- in(z, union(X))) by Trivial
+    thenHave(in(z, x) |- in(z, union(X))) by Tautology
     val fwd = thenHave(() |- in(z, x) ==> in(z, union(X))) by Rewrite
 
     // backward direction
@@ -449,7 +444,7 @@ object SetTheory extends lisa.Main {
     have(in(y, X) |- in(y, X)) by Hypothesis
     val bwdHypo = thenHave(in(z, y) /\ in(y, X) |- in(y, X)) by Weakening
     have(in(z, y) /\ in(y, X) |- in(y, X) /\ (in(y, X) <=> (x === y))) by RightAnd(bwdHypo, singletonHasNoExtraElements)
-    val cutLhs = thenHave(in(z, y) /\ in(y, X) |- (x === y)) by Trivial
+    val cutLhs = thenHave(in(z, y) /\ in(y, X) |- (x === y)) by Tautology
 
     have(in(z, y) |- in(z, y)) by Hypothesis
     thenHave(in(y, X) /\ in(z, y) |- in(z, y)) by Weakening
@@ -466,7 +461,7 @@ object SetTheory extends lisa.Main {
     val extAx = have(() |- forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x)) by InstFunSchema(Map(x -> union(X), y -> x))(extensionalityAxiom)
 
     have(() |- forall(z, in(z, union(X)) <=> in(z, x)) /\ (forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x))) by RightAnd(iff, extAx)
-    thenHave(() |- (union(X) === x)) by Trivial
+    thenHave(() |- (union(X) === x)) by Tautology
   }
 
   /**
@@ -505,7 +500,7 @@ object SetTheory extends lisa.Main {
 
     val reflRhs = have(() |- (x === x)) by RightRefl
     have(() |- (x === x) /\ (in(x, singleton(x)) <=> (x === x))) by RightAnd(reflLhs, reflRhs)
-    val lhs = thenHave(() |- in(x, singleton(x))) by Trivial
+    val lhs = thenHave(() |- in(x, singleton(x))) by Tautology
 
     val rhs = have(in(x, singleton(x)) |- !(singleton(x) === emptySet())) by InstFunSchema(Map(y -> x, x -> singleton(x)))(setWithElementNonEmpty)
 
@@ -521,7 +516,7 @@ object SetTheory extends lisa.Main {
     // forward direction
     // {x} === {y} |- x === y
     have(() |- forall(z, in(z, singleton(x)) <=> in(z, singleton(y))) <=> (singleton(x) === singleton(y))) by InstFunSchema(Map(x -> singleton(x), y -> singleton(y)))(extensionalityAxiom)
-    thenHave((singleton(x) === singleton(y)) |- forall(z, in(z, singleton(x)) <=> in(z, singleton(y)))) by Trivial
+    thenHave((singleton(x) === singleton(y)) |- forall(z, in(z, singleton(x)) <=> in(z, singleton(y)))) by Tautology
     val singiff = thenHave((singleton(x) === singleton(y)) |- in(z, singleton(x)) <=> in(z, singleton(y))) by InstantiateForall(z)
 
     val singX = have(() |- in(z, singleton(x)) <=> (z === x)) by InstFunSchema(Map(y -> z))(singletonHasNoExtraElements)
@@ -534,7 +529,7 @@ object SetTheory extends lisa.Main {
     thenHave((singleton(x) === singleton(y)) |- ((x === x) <=> (x === y))) by InstFunSchema(Map(z -> x))
 
     thenHave((singleton(x) === singleton(y)) |- (x === y)) by Rewrite
-    val fwd = thenHave(() |- (singleton(x) === singleton(y)) ==> (x === y)) by Trivial
+    val fwd = thenHave(() |- (singleton(x) === singleton(y)) ==> (x === y)) by Tautology
 
     // backward direction
     //  x === y |- {x} === {y}
@@ -569,14 +564,14 @@ object SetTheory extends lisa.Main {
   //     val oPairAxCD = have(() |- in(z, pair(c, d)) <=> ((unorderedPair(c, d) === z) \/ (singleton(c) === z))) by InstFunSchema(Map(a -> c, b -> d))(oPairAxAB)
 
   //     have(() |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d))) <=> (pair(a, b) === pair(c, d))) by InstFunSchema(Map(x -> pair(a, b), y -> pair(c, d)))(extensionalityAxiom)
-  //     thenHave((pair(a, b) === pair(c, d)) |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d)))) by Trivial
+  //     thenHave((pair(a, b) === pair(c, d)) |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d)))) by Tautology
   //     val eqIff = thenHave((pair(a, b) === pair(c, d)) |- in(z, pair(a, b)) <=> in(z, pair(c, d))) by InstantiateForall(z)
 
   //     have((pair(a, b) === pair(c, d)) |- (in(z, pair(a, b)) <=> in(z, pair(c, d))) /\ (in(z, pair(a, b)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by RightAnd(oPairAxAB, eqIff)
-  //     val cdToab = thenHave((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by Trivial
+  //     val cdToab = thenHave((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by Tautology
 
   //     have((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z))) /\ (in(z, pair(c, d)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by RightAnd(cdToab, oPairAxCD)
-  //     val stmtz = thenHave((pair(a, b) === pair(c, d)) |- (((singleton(a) === z) \/ (unorderedPair(a, b) === z)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by Trivial
+  //     val stmtz = thenHave((pair(a, b) === pair(c, d)) |- (((singleton(a) === z) \/ (unorderedPair(a, b) === z)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by Tautology
 
   //     // unordered pair extensionality
   //     val upExt = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) <=> (((a === c) /\ (b === d)) \/ ((b === c) /\ (a === d)))) by Rewrite(unorderedPairExtensionality)
@@ -630,7 +625,7 @@ object SetTheory extends lisa.Main {
     val lhs = thenHave(!(X === emptySet()) |- exists(y, in(y, X) /\ forall(z, in(z, X) ==> !in(z, y)))) by Restate
 
     have(in(y, X) |- in(y, X) <=> (x === y)) by Weakening(singletonHasNoExtraElements)
-    val innerRhs = thenHave(in(y, X) |- (x === y)) by Trivial
+    val innerRhs = thenHave(in(y, X) |- (x === y)) by Tautology
 
     have(Set(in(x, X), (in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by Hypothesis
     thenHave(Set(in(x, X), forall(z, in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by LeftForall(z)
@@ -681,7 +676,7 @@ object SetTheory extends lisa.Main {
     val rhs = have(() |- in(powerSet(x), powerSet(x)) <=> subset(powerSet(x), x)) by InstFunSchema(Map(x -> powerSet(x), y -> x))(powerAxiom)
 
     have(subset(powerSet(x), x) |- subset(powerSet(x), x) /\ (in(powerSet(x), powerSet(x)) <=> subset(powerSet(x), x))) by RightAnd(lhs, rhs)
-    val contraLhs = thenHave(subset(powerSet(x), x) |- in(powerSet(x), powerSet(x))) by Trivial
+    val contraLhs = thenHave(subset(powerSet(x), x) |- in(powerSet(x), powerSet(x))) by Tautology
 
     val contraRhs = have(() |- !in(powerSet(x), powerSet(x))) by InstFunSchema(Map(x -> powerSet(x)))(selfNonInclusion)
 
@@ -768,7 +763,7 @@ object SetTheory extends lisa.Main {
     have(forall(y, P(y) ==> in(t, y)) |- forall(y, P(y) ==> in(t, y))) by Hypothesis
     thenHave(forall(y, P(y) ==> in(t, y)) /\ P(x) |- forall(y, P(y) ==> in(t, y))) by Weakening
     thenHave(forall(y, P(y) ==> in(t, y)) /\ P(x) |- P(x) ==> in(t, x)) by InstantiateForall(x)
-    thenHave(forall(y, P(y) ==> in(t, y)) /\ P(x) |- in(t, x) /\ forall(y, P(y) ==> in(t, y))) by Trivial
+    thenHave(forall(y, P(y) ==> in(t, y)) /\ P(x) |- in(t, x) /\ forall(y, P(y) ==> in(t, y))) by Tautology
     val fwd = thenHave(P(x) |- forall(y, P(y) ==> in(t, y)) ==> (in(t, x) /\ forall(y, P(y) ==> in(t, y)))) by Rewrite
 
     have((in(t, x) /\ forall(y, P(y) ==> in(t, y))) |- (in(t, x) /\ forall(y, P(y) ==> in(t, y)))) by Hypothesis
@@ -1239,262 +1234,49 @@ object SetTheory extends lisa.Main {
   val stronglyConnected = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
 
   /**
-   * Inductive and transitive sets
+   * Cantor theorem
    */
 
-  /**
-   * Theorem --- There exists an intersection of all inductive sets
-   */
-  val inductiveIntersectionExistence = makeTHM(
-    () |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))
-  ) {
-    val inductExt =
-      have(exists(x, inductive(x)) |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))) by InstPredSchema(Map(P -> lambda(x, inductive(x))))(intersectionOfPredicateClassExists)
-    have(() |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))) by Cut(inductiveSetExists, inductExt)
-  }
+  // smaller needed lemmas
+  // f from x to y => range f <= y
+  // f from x to y => dom f = x
+  // x <= y, y <= x |- x = y
 
-  /**
-   * Theorem --- The intersection of all inductive sets is unique
-   */
-  val inductiveIntersectionUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))
-  ) {
-    val prop = forall(y, inductive(y) ==> in(t, y))
-    val fprop = forall(t, in(t, z) <=> prop)
+  // val subsetReflexivity = makeTHM(
+  //   () |- subset(x, x)
+  // ) {
+  //   val subdef = have(() |- subset(x, x) <=> forall(z, top())) by Restate(subsetAxiom of (y -> x))
+  //   val topbase = have(top() |- top()) by Restate
+  //   thenHave(forall(z, top) |- top()) by LeftForall(z)
+  //   thenHave(forall(z, top) |- top()) by Restate
+  // }
 
-    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniqueByExtension)
-    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(inductiveIntersectionExistence)
+  // val subsetEqSymmetry = makeTHM(
+  //   () |- (x === y) <=> (subset(x, y) /\ subset(y, x))
+  // )
 
-    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
-  }
+  // val functionImpliesDomain = makeTHM(
+  //   functionFrom(f, x, y) |- (relationDomain(f) === x)
+  // ) {
 
-  /**
-   * Natural Numbers (Inductive definition) --- The intersection of all
-   * inductive sets is the set of natural numbers, N.
-   */
-  val naturalsInductive = DEF() --> The(z, forall(t, in(t, z) <=> (forall(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
+  // }
 
-  /**
-   * Theorem --- Natural numbers form an inductive set
-   */
-  val naturalsAreInductive = makeTHM(
-    () |- inductive(naturalsInductive())
-  ) {
-    val defHypo = have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) by Hypothesis
+  // val functionImpliesRangeSubsetOfCodomain = makeTHM(
+  //   functionFrom(f, x, y) |- subset(relationRange(f), y)
+  // ) {
 
-    // emptySet is in N
-    have(() |- inductive(x) ==> in(emptySet(), x)) by Weakening(inductive.definition)
-    val inductEmpty = thenHave(() |- forall(x, inductive(x) ==> in(emptySet(), x))) by RightForall
+  // }
 
-    val defEmpty =
-      have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- (in(emptySet(), z) <=> (forall(x, inductive(x) ==> in(emptySet(), x))))) by InstantiateForall(emptySet())(defHypo)
+  // val surjectiveImpliesRangeIsCodomain = makeTHM(
+  //   surjective(f, x, y) |- (y === relationRange(f))
+  // ) {
 
-    have(
-      forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- (in(emptySet(), z) <=> (forall(x, inductive(x) ==> in(emptySet(), x)))) /\ forall(x, inductive(x) ==> in(emptySet(), x))
-    ) by RightAnd(defEmpty, inductEmpty)
-    val baseCase = thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- in(emptySet(), z)) by Trivial
+  // }
 
-    // if y in N, then succ y in N
-    have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- (in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) by InstantiateForall(t)(defHypo)
-    thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) by Weakening
-    thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (forall(x, inductive(x) ==> in(t, x)))) by Trivial
-    thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (inductive(x) ==> in(t, x))) by InstantiateForall(x)
-    val inInductive = thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(t, x)) by Restate
+  // val cantorTheorem = makeTHM(
+  //   onto(f, x, powerSet(x)) |- ()
+  // ) {
 
-    have(inductive(x) |- forall(t, in(t, x) ==> in(successor(t), x))) by Weakening(inductive.definition)
-    val inInductiveDef = thenHave(inductive(x) |- in(t, x) ==> in(successor(t), x)) by InstantiateForall(t)
+  // }
 
-    have(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(t, x) /\ (in(t, x) ==> in(successor(t), x))) by RightAnd(inInductive, inInductiveDef)
-    thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(successor(t), x)) by Trivial
-    thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), in(t, z)) |- inductive(x) ==> in(successor(t), x)) by Restate
-    val succInst = thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), in(t, z)) |- forall(x, inductive(x) ==> in(successor(t), x))) by RightForall
-
-    val nDefSucc =
-      have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- (in(successor(t), z) <=> (forall(x, inductive(x) ==> in(successor(t), x))))) by InstantiateForall(successor(t))(defHypo)
-    have(
-      Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), in(t, z)) |- forall(x, inductive(x) ==> in(successor(t), x)) /\ (in(successor(t), z) <=> (forall(
-        x,
-        inductive(x) ==> in(successor(t), x)
-      )))
-    ) by RightAnd(succInst, nDefSucc)
-    thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), in(t, z)) |- in(successor(t), z)) by Trivial
-    thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) |- in(t, z) ==> in(successor(t), z)) by Restate
-    val inductiveCase = thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- forall(t, in(t, z) ==> in(successor(t), z))) by RightForall
-
-    have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- in(emptySet(), z) /\ forall(t, in(t, z) ==> in(successor(t), z))) by RightAnd(baseCase, inductiveCase)
-
-    val form = formulaVariable
-    val inductIff = thenHave(
-      Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), inductive(z) <=> (in(emptySet(), z) /\ forall(y, in(y, z) ==> in(successor(y), z)))) |- inductive(z)
-    ) by RightSubstIff(List((inductive(z), in(emptySet(), z) /\ forall(y, in(y, z) ==> in(successor(y), z)))), lambda(form, form))
-
-    val inductDef = have(() |- inductive(z) <=> (in(emptySet(), z) /\ forall(y, in(y, z) ==> in(successor(y), z)))) by InstFunSchema(Map(x -> z))(inductive.definition)
-
-    have(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(z)) by Cut(inductDef, inductIff)
-    val inductExpansion =
-      thenHave(Set(forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(naturalsInductive())) by InstFunSchema(Map(z -> naturalsInductive()))
-
-    have(() |- (naturalsInductive() === naturalsInductive()) <=> forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) by InstantiateForall(naturalsInductive())(
-      naturalsInductive.definition
-    )
-    val natDef = thenHave(() |- forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) by Rewrite
-
-    have(() |- inductive(naturalsInductive())) by Cut(natDef, inductExpansion)
-  }
-
-  /**
-   * Chapter 2
-   * Ordinal Numbers
-   */
-
-  /**
-   * Linear and Partial Ordering
-   */
-
-  /**
-   * Partial Order --- `p` is a partial order on `x` if it is a pair `(x, r)`,
-   * and `r` is a [[reflexive]] and [[transitive]] binary [[relation]] on `x`.
-   */
-  val partialOrder = DEF(p) --> relation(secondInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(secondInPair(p), firstInPair(p))
-
-  /**
-   * Linear Order --- a partial order `p = (r, x)` is called a linear order if
-   * `r` is [[total]] as a [[relation]] on `x`.
-   */
-  val linearOrder = DEF(p) --> partialOrder(p) /\ total(secondInPair(p), firstInPair(p))
-
-  /**
-   * Properties of elements under partial orders
-   */
-
-  /**
-   * Maximal Element --- `a` is a maximal element of `y` with respect to `r`,
-   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
-   *
-   *    `∀ b ∈ y. ! a r b`
-   */
-  val maximalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(a, b), secondInPair(p))))
-
-  /**
-   * Minimal Element --- `a` is a minimal element of `y` with respect to `r`,
-   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
-   *
-   *    `∀ b ∈ y. ! b r a`
-   */
-  val minimalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(b, a), secondInPair(p))))
-
-  /**
-   * Greatest Element --- `a` is the greatest element of `y` with respect to
-   * `r`, where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
-   *
-   *    `∀ b ∈ y. b r a ⋁ b = a`
-   */
-  val greatestElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
-
-  /**
-   * Least Element --- `a` is the least element of `y` with respect to `r`,
-   * where `p = (r, x)` is a partial order on `x`, and `y ⊆ x`.
-   *
-   *    `∀ b ∈ y. a r b ⋁ b = a`
-   */
-  val leastElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
-
-  /**
-   * Upper Bound --- `a` is an upper bound on `y` with respect to `r`, where `p
-   * = (r, x)` is a partial order on `x`, and `y ⊆ x`.
-   *
-   *    `∀ b ∈ y. b r a ⋁ b = a`
-   *
-   * Note that as opposed to the greatest element, `a` is not enforced to be an
-   * element of `y`.
-   */
-  val upperBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
-
-  /**
-   * Lower Bound --- `a` is a lower bound on `y` with respect to `r`, where `p =
-   * (r, x)` is a partial order on `x`, and `y ⊆ x`.
-   *
-   *    `∀ b ∈ y. a r b ⋁ b = a`
-   *
-   * Note that as opposed to the least element, `a` is not enforced to be an
-   * element of `y`
-   */
-  val lowerBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
-
-  val setOfLowerBoundsUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))
-  ) {
-    have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), lowerBound(t, y, p)))
-  }
-
-  /**
-   * The set of all lower bounds of a set `y` under a partial order `p`. Used to define [[greatestLowerBound]]
-   */
-  val setOfLowerBounds = DEF(y, p) --> The(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))(setOfLowerBoundsUniqueness)
-
-  /**
-   * Greatest Lower Bound --- `a` is the greatest lower bound on `y \subseteq x`
-   * under a partial order `p = (r, x)` if it is the greatest element in the
-   * [[setOfLowerBounds]] of `y` under `p`.
-   */
-  val greatestLowerBound = DEF(a, y, p) --> greatestElement(a, setOfLowerBounds(y, p), p)
-
-  /**
-   * Alias for [[greatestLowerBound]]
-   */
-  val infimum = greatestLowerBound
-
-  val setOfUpperBoundsUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))
-  ) {
-    have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), upperBound(t, y, p)))
-  }
-
-  /**
-   * The set of all upper bounds of a set `y` under a partial order `p`. Used to define [[leastUpperBound]]
-   */
-  val setOfUpperBounds = DEF(y, p) --> The(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))(setOfUpperBoundsUniqueness)
-
-  /**
-   * Least Upper Bound --- `a` is the least upper bound on `y \subseteq x` under
-   * a partial order `p = (r, x)` if it is the least element in the
-   * [[setOfUpperBounds]] of `y` under `p`.
-   */
-  val greatestUpperBound = DEF(a, y, p) --> leastElement(a, setOfUpperBounds(y, p), p)
-
-  /**
-   * Alias for [[greatestUpperBound]]
-   */
-  val supremum = greatestUpperBound
-
-  /**
-   * Properties of functions under partial orders
-   */
-
-  /**
-   * Order Preserving Function --- a function `f` between `P` and `Q` such that
-   * `p = (P, <_p)` and `q = (Q, <_q)` are partially ordered is order-preserving
-   * if
-   *
-   * `\forall x y. x <_p y ==> f(x) <_q f(y)`
-   */
-  val orderPreserving = DEF(f, p, q) --> partialOrder(p) /\ partialOrder(q) /\ functionFrom(f, firstInPair(p), firstInPair(q)) /\ forall(
-    x,
-    forall(y, in(pair(x, y), secondInPair(p)) ==> in(pair(app(f, x), app(f, y)), secondInPair(q)))
-  )
-
-  /**
-   * Increasing Function --- an order preserving function ([[orderPreserving]])
-   * between two partially ordered sets is increasing if the two sets are
-   * linearly ordered ([[linearOrder]]).
-   */
-  val increasing = DEF(f, p, q) --> linearOrder(p) /\ linearOrder(q) /\ orderPreserving(f, p, q)
-
-  /**
-   * Isomorphism of Partially Ordered Sets --- a function `f` is an isomorphism
-   * between two partially ordered sets `p = (P, <_p)` and `q = (Q, <_q)` if it
-   * is an [[injective]] function from `P` to `Q`, and both `f` and `f^-1` are
-   * [[orderPreserving]].
-   */
-  // val isomorphismOfPartialOrders = DEF (f, p, q) --> injective(f, firstInPair(p), firstInPair(q)) /\ orderPreserving(f, p, q) /\ orderPreserving(inverseFunction(f), p, q)
 }
