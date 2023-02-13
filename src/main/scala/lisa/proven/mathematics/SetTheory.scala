@@ -36,6 +36,8 @@ object SetTheory extends lisa.Main {
 
   // relation and function symbols
   private val r = variable
+  private val p = variable
+  private val q = variable
   private val f = variable
   private val g = variable
 
@@ -947,24 +949,99 @@ object SetTheory extends lisa.Main {
    * \to y \subseteq PP(x * y)`.
    *
    */
-  val setOfFunctions = DEF (x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
+  val setOfFunctions = DEF (x, y) --> The(z, forall(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))(setOfFunctionsUniqueness)
 
   /**
     * Function From (x to y) --- denoted  `f \in x \to y` or `f: x \to y`.
     */
-  val functionFrom(f, x, y) = DEF (f, x, y) --> in(f, setOfFunctions(x, y))
+  val functionFrom = DEF (f, x, y) --> in(f, setOfFunctions(x, y))
 
   val functionApplicationUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(relationRange(f))) /\ (functional(f) /\ exists(y, in(pair(x, y), f) /\ in(t, y))))))
+    () |- existsOne(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === emptySet())))
   ) {
-    have(thesis) by UniqueComprehension(relationRange(f), lambda(Seq(t, z), functional(f) /\ exists(y, in(pair(x, y), f) /\ in(t, y))))
+    val prem = functional(f) /\ in(x, relationDomain(f))
+
+    // we prove thesis by two cases, first by assuming prem, and then by assuming !prem
+
+    // positive direction
+    val functionalExpansion = have(functional(f) |- (forall(x, in(x, relationDomain(f)) ==> existsOne(z, in(pair(x, z), f))))) by Tautology.from(functional.definition, functionalOver.definition of (x -> relationDomain(f)))
+    thenHave(functional(f) |- in(x, relationDomain(f)) ==> existsOne(z, in(pair(x, z), f))) by InstantiateForall(x)
+    val uniqPrem = thenHave(functional(f) /\ in(x, relationDomain(f)) |-  existsOne(z, in(pair(x, z), f))) by Restate
+
+    val positive = have(prem |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) subproof {
+      val lhs = have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ top()))) subproof {
+        val iff = have(prem |- (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) by Restate
+        have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> in(pair(x, y), f))) by Restate
+        val subst = thenHave(Set(prem /\ ((z === y) <=> in(pair(x, y), f)), (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by RightSubstIff(List(((in(pair(x, y), f)), (prem ==> in(pair(x, y), f)))), lambda(h, ((z === y) <=> h)))
+
+        have(Set(prem /\ ((z === y) <=> in(pair(x, y), f)), prem) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by Cut(iff, subst)
+        thenHave(thesis) by Restate
+      }
+
+      val topIntro = have(Set(prem, ((z === y) <=> in(pair(x, y), f))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) subproof {
+        val topIff = have(prem |- (!prem ==> (y === emptySet())) <=> top()) by RewriteTrue
+        val topSubst = have(Set(prem /\ ((z === y) <=> in(pair(x, y), f)), ((!prem ==> (y === emptySet())) <=> top())) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by RightSubstIff(List(((!prem ==> (y === emptySet())), top())), lambda(h, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ h))))(lhs)
+
+        have(Set(prem /\ ((z === y) <=> in(pair(x, y), f)), prem) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by Cut(topIff, topSubst)
+        thenHave(Set(prem, ((z === y) <=> in(pair(x, y), f))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by Restate
+      }
+
+      val quantification = have(Set(prem, existsOne(z, ((z === y) <=> in(pair(x, y), f)))) |- existsOne(z, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet())))))) subproof {
+        have(Set(prem, forall(y, ((z === y) <=> in(pair(x, y), f)))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by LeftForall(y)(topIntro)
+        thenHave(Set(prem, forall(y, ((z === y) <=> in(pair(x, y), f)))) |- forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet())))))) by RightForall
+        thenHave(Set(prem, forall(y, ((z === y) <=> in(pair(x, y), f)))) |- exists(z, forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))))) by RightExists(z)
+        thenHave(Set(prem, exists(z, forall(y, ((z === y) <=> in(pair(x, y), f))))) |- exists(z, forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))))) by LeftExists
+        thenHave(Set(prem, existsOne(z, in(pair(x, z), f))) |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) by Restate
+      }
+
+      have(thesis) by Cut(uniqPrem, quantification)
+    }
+
+    // negative
+    have(() |- (emptySet() === y) <=> (emptySet() === y)) by Restate
+    thenHave(() |- forall(y, (emptySet() === y) <=> (emptySet() === y))) by RightForall
+    thenHave(() |- exists(z, forall(y, (z === y) <=> (emptySet() === y)))) by RightExists(emptySet())
+    val emptyPrem = thenHave(() |- existsOne(z, (z === emptySet()))) by Restate
+
+    val negative = have(!prem |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) subproof {
+      val lhs = have(!prem /\ ((z === y) <=> (y === emptySet())) |- ((z === y) <=> ((!prem ==> (y === emptySet())) /\ top()))) subproof {
+        val iff = have(!prem |- ((y === emptySet())) <=> (!prem ==> (y === emptySet()))) by Restate
+        have(!prem /\ ((z === y) <=> (y === emptySet())) |- ((z === y) <=> (y === emptySet()))) by Restate
+        val subst = thenHave(Set(!prem /\ ((z === y) <=> (y === emptySet())), ((y === emptySet())) <=> (!prem ==> (y === emptySet()))) |- ((z === y) <=> (!prem ==> (y === emptySet())))) by RightSubstIff(List((((y === emptySet())), (!prem ==> (y === emptySet())))), lambda(h, ((z === y) <=> h)))
+
+        have(Set(!prem /\ ((z === y) <=> (y === emptySet())), !prem) |- ((z === y) <=> (!prem ==> (y === emptySet())))) by Cut(iff, subst)
+        thenHave(thesis) by Restate
+      }
+
+      val topIntro = have(Set(!prem, ((z === y) <=> (y === emptySet()))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) subproof {
+        val topIff = have(!prem |- (prem ==> in(pair(x, y), f)) <=> top()) by RewriteTrue
+        val topSubst = have(Set(!prem /\ ((z === y) <=> (y === emptySet())), ( (prem ==> in(pair(x, y), f)) <=> top())) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by RightSubstIff(List(( (prem ==> in(pair(x, y), f)), top())), lambda(h, ((z === y) <=> ((!prem ==> (y === emptySet())) /\ h))))(lhs)
+
+        have(Set(!prem /\ ((z === y) <=> (y === emptySet())), !prem) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by Cut(topIff, topSubst)
+        thenHave(Set(!prem, ((z === y) <=> (y === emptySet()))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by Restate
+      }
+
+      val quantification = have(Set(!prem, existsOne(z, ((z === y) <=> (y === emptySet())))) |- existsOne(z, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet())))))) subproof {
+        have(Set(!prem, forall(y, ((z === y) <=> (y === emptySet())))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))) by LeftForall(y)(topIntro)
+        thenHave(Set(!prem, forall(y, ((z === y) <=> (y === emptySet())))) |- forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet())))))) by RightForall
+        thenHave(Set(!prem, forall(y, ((z === y) <=> (y === emptySet())))) |- exists(z, forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))))) by RightExists(z)
+        thenHave(Set(!prem, exists(z, forall(y, ((z === y) <=> (y === emptySet()))))) |- exists(z, forall(y, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === emptySet()))))))) by LeftExists
+        thenHave(Set(!prem, existsOne(z, (z === emptySet()))) |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) by Restate
+      }
+
+      have(thesis) by Cut(emptyPrem, quantification)
+    }
+
+    val negRhs = thenHave(() |- Set(prem, existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet())))))) by Restate
+
+    have(thesis) by Cut.withParameters(prem)(negRhs, positive)
   }
 
   /**
    * Function application --- denoted `f(x)`. The unique element `z` such that
    * `(x, z) \in f` if it exists and `f` is functional, [[emptySet]] otherwise.
    */
-  val app = DEF (f, x) --> The(z, forall(t, in(t, z) <=> (in(t, union(relationRange(f))) /\ functional(f) /\ exists(y, in(pair(x, y), f) /\ in(t, y)))))(functionApplicationUniqueness)
+  val app = DEF (f, x) --> The(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === emptySet())))(functionApplicationUniqueness)
 
   /**
     * Surjective (function) --- a function `f: x \to y` is surjective iff it
@@ -1013,25 +1090,25 @@ object SetTheory extends lisa.Main {
    */
   val inverseFunctionOf = DEF (g, f, x, y) --> functionFrom(g, y, x) /\ functionFrom(f, x, y) /\ forall(a, (in(a, y) ==> (a === app(f, app(g, a)))) /\ (in(a, x) ==> (a === app(g, app(f, a)))))
 
-  val inverseFunctionExistsIfInvertible = makeTHM(
-    () |- invertible(f, x, y) <=> exists(g, inverseFunctionOf(g, f, x, y))
-  ) {
-    ???
-  }
+  // val inverseFunctionExistsIfInvertible = makeTHM(
+  //   () |- invertibleFunction(f, x, y) <=> exists(g, inverseFunctionOf(g, f, x, y))
+  // ) {
+  //   ???
+  // }
 
-  val inverseFunctionIsUniqueIfItExists = makeTHM(
-    exists(g, inverseFunctionOf(g, f, x, y)) |- existsOne(g, inverseFunctionOf(g, f, x, y))
-  ) {
-    ???
-  }
+  // val inverseFunctionIsUniqueIfItExists = makeTHM(
+  //   exists(g, inverseFunctionOf(g, f, x, y)) |- existsOne(g, inverseFunctionOf(g, f, x, y))
+  // ) {
+  //   ???
+  // }
 
-  val inverseFunctionUniqueness = makeTHM(
-    () |- existsOne(g, invertible(f) ==> inverseFunctionOf(g, f, x, y))
-  ) {
-    ???
-  }
+  // val inverseFunctionUniqueness = makeTHM(
+  //   () |- existsOne(g, invertibleFunction(f) ==> inverseFunctionOf(g, f, x, y))
+  // ) {
+  //   ???
+  // }
 
-  val inverseFunction = DEF (f, x, y) --> The(g, invertible(f) ==> inverseFunctionOf(g, f, x, y))(inverseFunctionUniqueness)
+  // val inverseFunction = DEF (f, x, y) --> The(g, invertibleFunction(f) ==> inverseFunctionOf(g, f, x, y))(inverseFunctionUniqueness)
 
   val restrictedFunctionUniqueness = makeTHM(
     () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
@@ -1402,5 +1479,5 @@ object SetTheory extends lisa.Main {
    * is an [[injective]] function from `P` to `Q`, and both `f` and `f^-1` are
    * [[orderPreserving]].
    */
-  val isomorphismOfPartialOrders = DEF (f, p, q) --> injective(f, firstInPair(p), firstInPair(q)) /\ orderPreserving(f, p, q) /\ orderPreserving(inverseFunction(f), p, q)
+  // val isomorphismOfPartialOrders = DEF (f, p, q) --> injective(f, firstInPair(p), firstInPair(q)) /\ orderPreserving(f, p, q) /\ orderPreserving(inverseFunction(f), p, q)
 }
