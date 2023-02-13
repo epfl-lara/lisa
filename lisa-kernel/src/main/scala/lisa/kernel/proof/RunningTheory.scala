@@ -64,7 +64,7 @@ class RunningTheory {
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
 
   private[proof] val funDefinitions: mMap[ConstantFunctionLabel, Option[FunctionDefinition]] = mMap.empty
-  private[proof] val predDefinitions: mMap[ConstantPredicateLabel, Option[PredicateDefinition]] = mMap(equality -> None)
+  private[proof] val predDefinitions: mMap[ConstantPredicateLabel, Option[PredicateDefinition]] = mMap(equality -> None, top -> None, bot -> None)
 
   private[proof] val knownSymbols: mMap[Identifier, ConstantLabel] = mMap(equality.id -> equality)
 
