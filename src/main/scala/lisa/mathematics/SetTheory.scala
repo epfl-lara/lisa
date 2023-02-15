@@ -602,75 +602,97 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+    * Theorem --- Unordered pairs of elements of a set `x` are in its power set `P(x)`.
+   */
+  val unorderedPairInPowerSet = makeTHM(
+    () |- (in(a, x) /\ in(b, x)) <=> in(unorderedPair(a, b), powerSet(x))
+  ) {
+
+    // forward
+    val fwd = have(() |- (in(a, x) /\ in(b, x)) ==> in(unorderedPair(a, b), powerSet(x))) subproof {
+    val axExpansion = have(() |- in(unorderedPair(a, b), powerSet(x)) <=> forall(z, in(z, unorderedPair(a, b)) ==> in(z, x))) by Tautology.from(powerAxiom of (x -> unorderedPair(a, b), y -> x), subsetAxiom of (x -> unorderedPair(a, b), y -> x))
+
+    val abToz = have(in(a, x) /\ in(b, x) |- forall(z, in(z, unorderedPair(a, b)) ==> in(z, x))) subproof {
+      val pairAxab = have(in(z, unorderedPair(a, b)) |- (z === a) \/ (z === b)) by Tautology.from(pairAxiom of (x -> a, y -> b))
+
+      have(in(a, x) /\ in(b, x) |- in(a, x)) by Restate
+      val za = thenHave(Set(in(a, x) /\ in(b, x), (z === a)) |- in(z, x)) by RightSubstEq(List((z, a)), lambda(a, in(a, x)))
+      have(in(a, x) /\ in(b, x) |- in(b, x)) by Restate
+      val zb = thenHave(Set(in(a, x) /\ in(b, x), (z === b)) |- in(z, x)) by RightSubstEq(List((z, b)), lambda(a, in(a, x)))
+
+      val zab = have(Set(in(a, x) /\ in(b, x), (z === a) \/ (z === b)) |- in(z, x)) by LeftOr(za, zb)
+
+      have(Set(in(z, unorderedPair(a, b)), in(a, x) /\ in(b, x)) |- in(z, x)) by Cut(pairAxab, zab)
+      thenHave(in(a, x) /\ in(b, x) |- in(z, unorderedPair(a, b)) ==> in(z, x)) by Restate
+      thenHave(thesis) by RightForall
+    }
+
+      have(thesis) by Tautology.from(abToz, axExpansion)
+    }
+
+    val bwd = have(() |- in(unorderedPair(a, b), powerSet(x)) ==> (in(a, x) /\ in(b, x))) subproof {
+      have(in(unorderedPair(a, b), powerSet(x)) |- forall(z, in(z, unorderedPair(a, b)) ==> in(z, x))) by Tautology.from(powerAxiom of (x -> unorderedPair(a, b), y -> x), subsetAxiom of (x -> unorderedPair(a, b), y -> x))
+      val upz = thenHave(in(unorderedPair(a, b), powerSet(x)) |- in(z, unorderedPair(a, b)) ==> in(z, x)) by InstantiateForall(z)
+
+      val xa = have(in(unorderedPair(a, b), powerSet(x)) |- in(a, x)) by Tautology.from(upz of (z -> a), firstElemInPair of (x -> a, y -> b))
+      val xb = have(in(unorderedPair(a, b), powerSet(x)) |- in(b, x)) by Tautology.from(upz of (z -> b), secondElemInPair of (x -> a, y -> b))
+      have(in(unorderedPair(a, b), powerSet(x)) |- in(b, x) /\ in(a, x)) by RightAnd(xa, xb)
+      thenHave(thesis) by Restate
+    }
+
+    have(thesis) by RightIff(fwd, bwd)
+  }
+
+  /**
+   * Theorem --- Pair Extensionality
+   * 
    * Two ordered pairs are equal iff their elements are equal when taken in order.
    *
    *  pair(a, b) === {{a}, {a, b}}
    *
    *  pair(a, b) === pair(c, d) iff a === c and b === d
    */
-  // val pairExtensionality = makeTHM(
-  //     () |- (pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))
-  // ) {
-  //     // forward direction
-  //     //  (a === c) /\ (b === d) |- pair a b === pair c d
+  val pairExtensionality = makeTHM(
+      () |- (pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))
+  ) {
+      // forward direction
+      //  (a === c) /\ (b === d) ==> pair a b === pair c d
+      val fwd = have(() |- ((a === c) /\ (b === d)) ==> (pair(a, b) === pair(c, d))) subproof {
+        have(() |- (pair(a, b) === pair(a, b))) by RightRefl
+        thenHave(Set((a === c), (b === d)) |- (pair(a, b) === pair(c, d))) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(x, y), pair(a, b) === pair(x, y)))
+        thenHave(thesis) by Rewrite
+      }
 
-  //     have(() |- (pair(a, b) === pair(a, b))) by RightRefl
-  //     thenHave(Set((a === c), (b === d)) |- (pair(a, b) === pair(c, d))) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(x, y), pair(a, b) === pair(x, y)))
-  //     val fwd = thenHave(() |- ((a === c) /\ (b === d)) ==> (pair(a, b) === pair(c, d))) by Rewrite
+      // backward direction
+      //  pair a b === pair c d ==> (a === c) /\ (b === d)
+      val bwd = have(() |- (pair(a, b) === pair(c, d)) ==> ((a === c) /\ (b === d))) subproof {
+      have(Set((pair(a, b) === pair(c, d))) |- (pair(a, b) === pair(c, d))) by Hypothesis
+      val lhs1 = thenHave(Set((pair(a, b) === pair(c, d)), (unorderedPair(unorderedPair(a, b), singleton(a)) === unorderedPair(unorderedPair(c, d), singleton(c))) <=> (((unorderedPair(a, b) === unorderedPair(c, d)) /\ (singleton(a) === singleton(c))) \/ ((unorderedPair(a, b) === singleton(c)) /\ (singleton(a) === unorderedPair(c, d))))) |- (((unorderedPair(a, b) === unorderedPair(c, d)) /\ (singleton(a) === singleton(c))) \/ ((unorderedPair(a, b) === singleton(c)) /\ (singleton(a) === unorderedPair(c, d))))) by RightSubstIff(List(((unorderedPair(unorderedPair(a, b), singleton(a)) === unorderedPair(unorderedPair(c, d), singleton(c))), (((unorderedPair(a, b) === unorderedPair(c, d)) /\ (singleton(a) === singleton(c))) \/ ((unorderedPair(a, b) === singleton(c)) /\ (singleton(a) === unorderedPair(c, d)))))), lambda(h, h))
+      have(Set((pair(a, b) === pair(c, d))) |- (((unorderedPair(a, b) === unorderedPair(c, d)) /\ (singleton(a) === singleton(c))) \/ ((unorderedPair(a, b) === singleton(c)) /\ (singleton(a) === unorderedPair(c, d))))) by Cut(unorderedPairExtensionality of (a -> unorderedPair(a, b), b -> singleton(a), c -> unorderedPair(c, d), d -> singleton(c)), lhs1)
+      andThen(applySubst(unorderedPairExtensionality of (a -> a, b -> b, c -> c, d -> d))) // {a, b} = {c, d}
+      andThen(applySubst(unorderedPairExtensionality of (a -> a, b -> a, c -> c, d -> d))) //    {a} = {c, d}
+      andThen(applySubst(unorderedPairExtensionality of (a -> a, b -> b, c -> c, d -> c))) // {a, b} = {c}
+      andThen(applySubst(unorderedPairExtensionality of (a -> a, b -> a, c -> c, d -> c))) //    {a} = {c}
+      val expandedProp = thenHave(Set((pair(a, b) === pair(c, d))) |- ((((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c))) /\ (((a === c) /\ (a === c)) \/ ((a === c) /\ (a === c)))) \/ ((((a === c) /\ (b === c)) \/ ((a === c) /\ (b === c))) /\ (((a === c) /\ (a === d)) \/ ((a === d) /\ (a === c))))) by Restate
+      val ac = thenHave(Set((pair(a, b) === pair(c, d))) |- (a === c)) by Tautology
 
-  //     // backward direction
-  //     //  pair a b === pair c d |- (a === c) /\ (b === d)
+      // required subproof, transitivity of equality
+      // b = c, a = d, a = c |- b = d
+      val transEqdb = have(Set(d === a, a === c, c === b) |- d === b) subproof {
+        val dac = have((d === a) /\ (a === c) |- (d === c)) by Rewrite(equalityTransitivity of (x -> d, y -> a, z -> c))
+        have((d === c) /\ (c === b) |- (d === b)) by Rewrite(equalityTransitivity of (x -> d, y -> c, z -> b))
+        val dcb = thenHave(Set((d === c), (c === b)) |- (d === b)) by Restate
+        val db = have(Set((d === a) /\ (a === c), (c === b)) |- (d === b)) by Cut(dac, dcb)
 
-  //     val oPairAxAB = have(() |- in(z, pair(a, b)) <=> ((unorderedPair(a, b) === z) \/ (singleton(a) === z))) by InstFunSchema(Map(y -> singleton(a), x -> unorderedPair(a, b)))(pairAxiom)
-  //     val oPairAxCD = have(() |- in(z, pair(c, d)) <=> ((unorderedPair(c, d) === z) \/ (singleton(c) === z))) by InstFunSchema(Map(a -> c, b -> d))(oPairAxAB)
+        thenHave(thesis) by Restate
+      }
 
-  //     have(() |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d))) <=> (pair(a, b) === pair(c, d))) by InstFunSchema(Map(x -> pair(a, b), y -> pair(c, d)))(extensionalityAxiom)
-  //     thenHave((pair(a, b) === pair(c, d)) |- forall(z, in(z, pair(a, b)) <=> in(z, pair(c, d)))) by Tautology
-  //     val eqIff = thenHave((pair(a, b) === pair(c, d)) |- in(z, pair(a, b)) <=> in(z, pair(c, d))) by InstantiateForall(z)
+      val db = have(Set((pair(a, b) === pair(c, d))) |- (a === c) /\ (b === d)) by Tautology.from(expandedProp, ac, transEqdb)
+      thenHave(thesis) by Restate
+    }
 
-  //     have((pair(a, b) === pair(c, d)) |- (in(z, pair(a, b)) <=> in(z, pair(c, d))) /\ (in(z, pair(a, b)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by RightAnd(oPairAxAB, eqIff)
-  //     val cdToab = thenHave((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z)))) by Tautology
-
-  //     have((pair(a, b) === pair(c, d)) |- (in(z, pair(c, d)) <=> ((singleton(a) === z) \/ (unorderedPair(a, b) === z))) /\ (in(z, pair(c, d)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by RightAnd(cdToab, oPairAxCD)
-  //     val stmtz = thenHave((pair(a, b) === pair(c, d)) |- (((singleton(a) === z) \/ (unorderedPair(a, b) === z)) <=> ((singleton(c) === z) \/ (unorderedPair(c, d) === z)))) by Tautology
-
-  //     // unordered pair extensionality
-  //     val upExt = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) <=> (((a === c) /\ (b === d)) \/ ((b === c) /\ (a === d)))) by Rewrite(unorderedPairExtensionality)
-  //     // we will instantiate this to eliminate assumptions for our cases
-
-  //     def upEq(a: Term, b: Term, c: Term, d: Term) = unorderedPair(a, b) === unorderedPair(c, d)
-  //     def termEq(a: Term, b: Term, c: Term, d: Term) = (a === c) /\ (b === d)
-  //     def upEqIff(a: Term, b: Term, c: Term, d: Term) = upEq(a, b, c, d) <=> termEq(a, b, c, d)
-
-  //     val q = formulaVariable
-  //     val w = formulaVariable
-  //     val e = formulaVariable
-  //     val r = formulaVariable
-
-  //     // a != c
-  //     val assumption = (upEq(a, a, a, a) \/ upEq(a, b, a, a)) <=> (upEq(c, c, a, a) \/ upEq(c, d, a, a))
-  //     val assumption2 = (upEq(a, a, a, b) \/ upEq(a, b, a, b)) <=> (upEq(c, c, a, b) \/ upEq(c, d, a, b))
-  //     val decomposition = Set(upEqIff(a, a, a, a), upEqIff(a, b, a, a), upEqIff(c, c, a, a), upEqIff(c, d, a, a))
-  //     val decomposition2 = Set(upEqIff(a, a, a, b), upEqIff(a, b, a, b), upEqIff(c, c, a, b), upEqIff(c, d, a, b))
-
-  //     // case z = {a}
-  //     // derive a = c
-  //     have((pair(a, b) === pair(c, d)) |- assumption) by InstFunSchema(Map(z -> singleton(a)))(stmtz)
-  //     thenHave((decomposition + (pair(a, b) === pair(c, d))) |- assumption) by Weakening
-  //     thenHave((decomposition + (pair(a, b) === pair(c, d))) |- ((termEq(a, a, a, a) \/ termEq(a, b, a, a)) <=> (termEq(c, c, a, a) \/ termEq(c, d, a, a)))) by RightSubstIff(List((upEq(a, a, a, a), termEq(a, a, a, a)), (upEq(a, b, a, a), termEq(a, b, a, a)), (upEq(c, c, a, a), termEq(c, c, a, a)), (upEq(c, d, a, a), termEq(c, d, a, a))), lambda(Seq(q, w, e, r), (q \/ w) <=> (e \/ r)))
-  //     val aEqc = thenHave((decomposition + (pair(a, b) === pair(c, d))) |- (a === c)) by Rewrite
-
-  //     // then get two cases, in both cases derive the conclusion
-  //     have((pair(a, b) === pair(c, d)) |- assumption2) by InstFunSchema(Map(z -> unorderedPair(a, b)))(stmtz)
-  //     thenHave((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- assumption2) by Weakening
-  //     thenHave((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- ((termEq(a, a, a, b) \/ termEq(a, b, a, b)) <=> (termEq(c, c, a, b) \/ termEq(c, d, a, b)))) by RightSubstIff(List((upEq(a, a, a, b), termEq(a, a, a, b)), (upEq(a, b, a, b), termEq(a, b, a, b)), (upEq(c, c, a, b), termEq(c, c, a, b)), (upEq(c, d, a, b), termEq(c, d, a, b))), lambda(Seq(q, w, e, r), (q \/ w) <=> (e \/ r)))
-  //     val caseSplit = thenHave((decomposition2 + (pair(a, b) === pair(c, d)) + (a === c)) |- (termEq(c, c, a, b) \/ termEq(c, d, a, b))) by Rewrite
-
-  //     // TODO: finish this proof
-  //     // probably by z = {c, d} and then get the other symmetric condition, reduce them together
-  //     // too much pain
-
-  // }
+      have(thesis) by RightIff(fwd, bwd)
+  }
 
   /**
    * Theorem --- No set is an element of itself.
