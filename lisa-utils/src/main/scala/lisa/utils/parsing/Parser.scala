@@ -76,7 +76,7 @@ class Parser(
   /**
    * Parses a formula from a string. A formula can be:
    * <p> - a bound formula: `∀'x. f`, `∃'x. f`, `∃!'x. f`. A binder binds the entire formula until the end of the scope (a closing parenthesis or the end of string).
-   * <p> - two formulas, connected by `↔` or `⇒`. Iff / implies bind less tight than and / or.
+   * <p> - two formulas, connected by `↔` or `→`. Iff / implies bind less tight than and / or.
    * <p> - a conjunction or disjunction of arbitrary number of formulas. `∧` binds tighter than `∨`.
    * <p> - negated formula.
    * <p> - schematic connector formula: `?c(f1, f2, f3)`.

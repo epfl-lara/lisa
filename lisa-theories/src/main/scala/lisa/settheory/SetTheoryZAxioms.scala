@@ -17,7 +17,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * Extensionality Axiom --- Two sets are equal iff they have the same
    * elements.
    *
-   * `() |- (x = y) ⇔ ∀ z. z ∈ x ⇔ z ∈ y`
+   * `() |- (x = y) ↔ ∀ z. z ∈ x ↔ z ∈ y`
    */
   final val extensionalityAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(forall(z, in(z, x) <=> in(z, y)) <=> (x === y))
 
@@ -26,7 +26,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * exactly `x` and `y`. This set is denoted mathematically as `{x, y}` and
    * here as `unorderedPair(x, y)`.
    *
-   * `() |- z ∈ {x, y} ⇔ (z === x ∨ z === y)`
+   * `() |- z ∈ {x, y} ↔ (z === x ∨ z === y)`
    *
    * This axiom defines [[unorderedPair]] as the function symbol representing
    * this set.
@@ -39,7 +39,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * satisfy `ϕ(x, z)`. This is represented mathematically as `y = {x ∈ z | ϕ(x,
    * z)}`.
    *
-   * `() |- ∃ y. ∀ x. x ∈ y ⇔ (x ∈ z ∧ ϕ(x, z))`
+   * `() |- ∃ y. ∀ x. x ∈ y ↔ (x ∈ z ∧ ϕ(x, z))`
    *
    * This schema represents an infinite collection of axioms, one for each
    * formula `ϕ(x, z)`.
@@ -63,7 +63,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * union of its elements. For every element of `union(x)`, there is an element
    * `y` of `x` which contains it.
    *
-   * `() |- z ∈ union(x) ⇔ ∃ y. y ∈ x ∧ z ∈ y`
+   * `() |- z ∈ union(x) ↔ ∃ y. y ∈ x ∧ z ∈ y`
    *
    * Mathematically, we write `union(x)` as `∪ x`.
    *
@@ -75,7 +75,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * Subset Axiom --- For sets `x` and `y`, `x` is a subset of `y` iff every
    * element of `x` is in `y`. Denoted `x ⊆ y`.
    *
-   * `() |- x ⊆ y ⇔ (z ∈ x ⇒ z ∈ y)`
+   * `() |- x ⊆ y ↔ (z ∈ x → z ∈ y)`
    *
    * This axiom defines the [[subset]] symbol as this predicate.
    */
@@ -85,7 +85,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted
    * `PP(x)` or `power(x)` which contains every subset of x.
    *
-   * `() |- z ∈ power(x) ⇔ z ⊆ x`
+   * `() |- z ∈ power(x) ↔ z ⊆ x`
    *
    * This axiom defines [[powerSet]] as the function symbol representing this
    * set.
@@ -99,7 +99,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * to natural numbers. Since the naturals have not yet been defined, their
    * definition and structure is imitated in the definition of an inductive set.
    *
-   * `inductive(x) ⇔ (∅ ∈ x ∧ ∀ y. y ∈ x ⇒ y ∪ {y} ∈ x)`
+   * `inductive(x) ↔ (∅ ∈ x ∧ ∀ y. y ∈ x → y ∪ {y} ∈ x)`
    *
    * This axiom postulates that there exists an inductive set.
    *
@@ -112,7 +112,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * element. Equivalently, the relation `∈` on any family of sets is
    * well-founded.
    *
-   * `() |- (x != ∅) ==> ∃ y ∈ x. ∀ z. z ∈ x ⇒ ! z ∈ y`
+   * `() |- (x != ∅) ==> ∃ y ∈ x. ∀ z. z ∈ x → ! z ∈ y`
    */
   final val foundationAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(!(x === emptySet()) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
 

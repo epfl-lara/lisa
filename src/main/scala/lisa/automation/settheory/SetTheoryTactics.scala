@@ -29,7 +29,7 @@ object SetTheoryTactics {
    * `x` satisfying `P(t, x)`, denoted `{t ∈ x | P(t, x)}`. This set is unique
    * by extensionality.
    *
-   *    `() ⊢ ∃! z. ∀ t. t ∈ z ⇔ (t ∈ x ⋀ P(t, x))`
+   *    `() ⊢ ∃! z. ∀ t. t ∈ z ↔ (t ∈ x ⋀ P(t, x))`
    *
    * @param originalSet the set to apply comprehension on
    * @param separationPredicate the predicate to use for comprehension `(Term =>

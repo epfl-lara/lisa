@@ -37,7 +37,10 @@ object KernelHelpers {
   def exists(label: VariableLabel, body: Formula): Formula = BinderFormula(Exists, label, body)
   def existsOne(label: VariableLabel, body: Formula): Formula = BinderFormula(ExistsOne, label, body)
   def equ(l: Term, r: Term): Formula = PredicateFormula(equality, Seq(l, r))
-
+  def ∃(x: VariableLabel, inner:Formula): Formula = exists(x, inner)
+  def ∃!(x: VariableLabel, inner:Formula): Formula = existsOne(x, inner)
+  def ∀(x: VariableLabel, inner:Formula): Formula = forall(x, inner)
+  def ¬(f:Formula): Formula = ConnectorFormula(Neg, List(f))
   extension (label: PredicateLabel) def apply(args: Term*): Formula = PredicateFormula(label, args)
 
   extension (label: ConnectorLabel) def apply(args: Formula*): Formula = ConnectorFormula(label, args)
@@ -52,14 +55,23 @@ object KernelHelpers {
   /* Infix syntax */
 
   extension (f: Formula) {
-    def unary_! : Formula = neg(f)
-    infix def ==>(g: Formula): Formula = implies(f, g)
-    infix def <=>(g: Formula): Formula = iff(f, g)
-    infix def /\(g: Formula): Formula = and(f, g)
-    infix def \/(g: Formula): Formula = or(f, g)
+    def unary_! : Formula = ConnectorFormula(Neg, Seq(f))
+    infix def ==>(g: Formula): Formula = ConnectorFormula(Implies, Seq(f,g))
+    infix def <=>(g: Formula): Formula = ConnectorFormula(Iff, Seq(f,g))
+    infix def /\(g: Formula): Formula = ConnectorFormula(And, Seq(f,g))
+    infix def \/(g: Formula): Formula = ConnectorFormula(Or, Seq(f,g))
+
+
+    infix def →(g:Formula): Formula = ConnectorFormula(Implies, Seq(f,g))
+    infix def ↔(g:Formula): Formula = ConnectorFormula(Iff, Seq(f,g))
+    infix def ∧(g:Formula): Formula = ConnectorFormula(And, Seq(f,g))
+    infix def ∨(g:Formula): Formula = ConnectorFormula(Or, Seq(f,g))
   }
 
-  extension (t: Term) infix def ===(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
+  extension (t: Term) {
+    infix def ===(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
+    infix def ＝(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
+  }
 
   /* Pattern matching extractors */
 
@@ -154,7 +166,10 @@ object KernelHelpers {
 
   private def any2set[S, A, T <: A](any: T)(using SetConverter[S, T]): Set[S] = summon[SetConverter[S, T]].apply(any)
 
-  extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
+  extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]){
+    infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
+    infix def ⊢[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
+  }
 
   // Instatiation functions for formulas lifted to sequents.
 

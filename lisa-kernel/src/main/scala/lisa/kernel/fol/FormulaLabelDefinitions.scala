@@ -46,9 +46,9 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   sealed abstract class ConstantConnectorLabel(val id: Identifier, val arity: Int) extends ConnectorLabel with ConstantLabel
   case object Neg extends ConstantConnectorLabel(Identifier("¬"), 1)
 
-  case object Implies extends ConstantConnectorLabel(Identifier("⇒"), 2)
+  case object Implies extends ConstantConnectorLabel(Identifier("→"), 2)
 
-  case object Iff extends ConstantConnectorLabel(Identifier("⇔"), 2)
+  case object Iff extends ConstantConnectorLabel(Identifier("↔"), 2)
 
   case object And extends ConstantConnectorLabel(Identifier("∧"), -1)
 

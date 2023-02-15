@@ -77,12 +77,12 @@ object SetTheory extends lisa.Main {
    *
    * If a set is defined by its elements, existence implies uniqueness.
    *
-   *    `∃ z. ∀ t. t ∈ z ⇔ P(t) ⊢ ∃! z. ∀ t. t ∈ z ⇔ P(t)`
+   *    `∃ z. ∀ t. t ∈ z ↔ P(t) ⊢ ∃! z. ∀ t. t ∈ z ↔ P(t)`
    *
    * where `P(t)` does not contain `z` as a free variable.
    *
    * @example {{{
-   * have(exists(z, forall(t, in(t, z) ⇔ myProperty(t))) ⊢ existsOne(z, forall(t, in(t, z) ⇔ myProperty(t)))) by InstPredSchema(Map(schemPred -> (t, myProperty(t))))`
+   * have(exists(z, forall(t, in(t, z) ↔ myProperty(t))) ⊢ existsOne(z, forall(t, in(t, z) ↔ myProperty(t)))) by InstPredSchema(Map(schemPred -> (t, myProperty(t))))`
    * }}}
    *
    * Instantiation will fail if `myProperty(t)` contains `z` as a free variable.
@@ -171,7 +171,7 @@ object SetTheory extends lisa.Main {
    * Inductive set --- A set is inductive if it contains the empty set, and the
    * [[successor]]s of each of its elements.
    *
-   * `inductive(x) ⇔ (∅ ∈ x ⋀ ∀ y. y ∈ x ⇒ successor(y) ∈ x)`
+   * `inductive(x) ↔ (∅ ∈ x ⋀ ∀ y. y ∈ x → successor(y) ∈ x)`
    *
    * @param x set
    */
@@ -751,7 +751,7 @@ object SetTheory extends lisa.Main {
    * formula. With classes, this means that the unary intersection of a class
    * defined by a predicate is a set.
    *
-   *    `∃ x. P(x) ⊢ ∃ z. t ∈ z ⇔ ∀ x. P(x) ⇒ t ∈ x`
+   *    `∃ x. P(x) ⊢ ∃ z. t ∈ z ↔ ∀ x. P(x) → t ∈ x`
    */
   val intersectionOfPredicateClassExists = makeTHM(
     exists(x, P(x)) |- exists(z, forall(t, in(t, z) <=> forall(y, P(y) ==> in(t, y))))
@@ -913,7 +913,7 @@ object SetTheory extends lisa.Main {
    * Functional Over a Domain --- A binary relation is functional over a domain
    * if it relates every element `x` in the domain to a unique element `y`.
    *
-   *     `functionalOver(f, x) ⇔ relation(f, x) ∧ ∀ z ∈ x. ∃! y. (z, y) ∈ f`
+   *     `functionalOver(f, x) ↔ relation(f, x) ∧ ∀ z ∈ x. ∃! y. (z, y) ∈ f`
    *
    * We may alternatively denote `(z, y) ∈ f` as `y = f(z)`.
    *
@@ -1182,12 +1182,12 @@ object SetTheory extends lisa.Main {
   val reflexive = DEF(r, x) --> relation(r, x) /\ forall(y, in(y, x) ==> in(pair(y, y), r))
 
   /**
-   * Symmetric Relation --- `∀ x y. x R y ⇔ y R x`
+   * Symmetric Relation --- `∀ x y. x R y ↔ y R x`
    */
   val symmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, in(pair(y, z), r) <=> in(pair(z, y), r)))
 
   /**
-   * Transitive Relation --- `∀ x y z. x R y ∧ y R z ⇒ x R z`
+   * Transitive Relation --- `∀ x y z. x R y ∧ y R z → x R z`
    */
   val transitive = DEF(r, x) --> relation(r, x) /\ forall(w, forall(y, forall(z, (in(pair(w, y), r) /\ in(pair(y, z), r)) ==> in(pair(w, z), r))))
 
@@ -1208,12 +1208,12 @@ object SetTheory extends lisa.Main {
   val irreflexive = antiReflexive
 
   /**
-   * Anti-symmetric Relation --- `∀ x y. x R y ∧ y R x ⇒ y = x`
+   * Anti-symmetric Relation --- `∀ x y. x R y ∧ y R x → y = x`
    */
   val antiSymmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(pair(y, z), r) /\ in(pair(z, y), r)) ==> (y === z)))
 
   /**
-   * Asymmetric Relation --- `∀ x y. x R y ⇔ ! y R x`
+   * Asymmetric Relation --- `∀ x y. x R y ↔ ! y R x`
    */
   val asymmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, in(pair(y, z), r) ==> !in(pair(z, y), r)))
 
@@ -1229,7 +1229,7 @@ object SetTheory extends lisa.Main {
 
   /**
    * Strongly Connected Relation ---
-   *     `∀ x y z. y R x ∧ z R x ⇒ y R z ∨ z R y`
+   *     `∀ x y z. y R x ∧ z R x → y R z ∨ z R y`
    */
   val stronglyConnected = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
 
