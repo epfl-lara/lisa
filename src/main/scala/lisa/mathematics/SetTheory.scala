@@ -1172,24 +1172,25 @@ object SetTheory extends lisa.Main {
   val relationField = DEF(r) --> (setUnion(relationDomain(r), relationRange(r)))
 
   /**
-   * Functional Over a Domain --- A binary relation is functional over a domain
-   * if it relates every element `x` in the domain to a unique element `y`.
+   * Functional --- A binary [[relation]] is functional if it maps every element in its domain 
+   * to a unique element (in its range).
    *
-   *     `functionalOver(f, x) ⇔ relation(f, x) ∧ ∀ z ∈ x. ∃! y. (z, y) ∈ f`
+   *     `functional(f) ⇔ relation(f) /\ \forall x. (\exists y. (x, y) \in f) \Rightarrow (\exists! y. (x, y) \in f)`
    *
    * We may alternatively denote `(z, y) ∈ f` as `y = f(z)`.
    *
    * @param f relation (set)
-   * @param x set
    */
-  val functionalOver = DEF(f, x) --> (relation(f, x) /\ forall(z, in(z, x) ==> existsOne(y, in(pair(z, y), f))))
+  val functional = DEF(f) --> relation(f) /\ forall(x, exists(y, in(pair(x, y), f)) ==> existsOne(y, in(pair(x, y), f)))
 
   /**
-   * Functional --- A binary relation is functional if it is functional over its own domain.
+   * Functional Over a Set --- A binary [[relation]] is functional over a set `x` if it is
+   * [[functional]] and has`x` as its domain ([[relationDomain]]).
    *
    * @param f relation (set)
+   * @param x set
    */
-  val functional = DEF(f) --> functionalOver(f, relationDomain(f))
+  val functionalOver = DEF(f, x) --> functional(f) /\ (relationDomain(f) === x)
 
   val setOfFunctionsUniqueness = makeTHM(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
@@ -1212,6 +1213,18 @@ object SetTheory extends lisa.Main {
    */
   val functionFrom = DEF(f, x, y) --> in(f, setOfFunctions(x, y))
 
+  /**
+   * Theorem --- A function between two sets is [[functional]]
+   */
+  val functionFromImpliesFunctional = makeTHM(
+    functionFrom(f, x, y) |- functional(f)
+  ) {
+    have(() |- forall(t, in(t, setOfFunctions(x, y)) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(setOfFunctions(x, y))(setOfFunctions.definition)
+    val funSetDef = thenHave(() |- in(f, setOfFunctions(x, y)) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
+
+    val funOver = have(functionFrom(f, x, y) |- functional(f)) by Tautology.from(funSetDef, functionFrom.definition, functionalOver.definition)
+  }
+
   val functionApplicationUniqueness = makeTHM(
     () |- existsOne(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === emptySet())))
   ) {
@@ -1220,10 +1233,15 @@ object SetTheory extends lisa.Main {
     // we prove thesis by two cases, first by assuming prem, and then by assuming !prem
 
     // positive direction
-    val functionalExpansion =
-      have(functional(f) |- (forall(x, in(x, relationDomain(f)) ==> existsOne(z, in(pair(x, z), f))))) by Tautology.from(functional.definition, functionalOver.definition of (x -> relationDomain(f)))
-    thenHave(functional(f) |- in(x, relationDomain(f)) ==> existsOne(z, in(pair(x, z), f))) by InstantiateForall(x)
-    val uniqPrem = thenHave(functional(f) /\ in(x, relationDomain(f)) |- existsOne(z, in(pair(x, z), f))) by Restate
+    have(functional(f) |- forall(x, exists(y, in(pair(x, y), f)) ==> existsOne(y, in(pair(x, y), f)))) by Tautology.from(functional.definition)
+    val funcDef = thenHave(functional(f) |- exists(y, in(pair(x, y), f)) ==> existsOne(y, in(pair(x, y), f))) by InstantiateForall(x)
+
+    have(() |- (relationDomain(f) === relationDomain(f)) <=> forall(t, in(t, relationDomain(f)) <=> (exists(y, in(pair(t, y), f))))) by InstantiateForall(relationDomain(f))(relationDomain.definition of (r -> f))
+    thenHave(() |- forall(t, in(t, relationDomain(f)) <=> (exists(y, in(pair(t, y), f))))) by Restate
+    thenHave(() |- in(x, relationDomain(f)) <=> (exists(y, in(pair(x, y), f)))) by InstantiateForall(x)
+    val domDef = thenHave(in(x, relationDomain(f)) |- exists(y, in(pair(x, y), f))) by Weakening
+
+    val uniqPrem = have(functional(f) /\ in(x, relationDomain(f)) |- existsOne(z, in(pair(x, z), f))) by Tautology.from(funcDef, domDef)
 
     val positive = have(prem |- existsOne(z, ((prem ==> in(pair(x, z), f)) /\ (!prem ==> (z === emptySet()))))) subproof {
       val lhs = have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ top()))) subproof {
@@ -1323,7 +1341,7 @@ object SetTheory extends lisa.Main {
    *
    * `surjective(f, x, y) = f \in x \to y \land \forall b \in y. (\exists a \in x. f(a) = b)`
    */
-  val surjective = DEF(f, x, y) --> functionFrom(f, x, y) /\ forall(b, in(b, y) ==> exists(a, in(a, x) /\ in(pair(a, b), f)))
+  val surjective = DEF(f, x, y) --> functionFrom(f, x, y) /\ forall(b, in(b, y) ==> exists(a, in(pair(a, b), f)))
 
   /**
    * Alias for [[surjective]]
@@ -1441,17 +1459,17 @@ object SetTheory extends lisa.Main {
   /**
    * Reflexive Relation --- `∀ x. x R x`
    */
-  val reflexive = DEF(r, x) --> relation(r, x) /\ forall(y, in(y, x) ==> in(pair(y, y), r))
+  val reflexive = DEF(r, x) --> relationBetween(r, x, x) /\ forall(y, in(y, x) ==> in(pair(y, y), r))
 
   /**
    * Symmetric Relation --- `∀ x y. x R y ⇔ y R x`
    */
-  val symmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, in(pair(y, z), r) <=> in(pair(z, y), r)))
+  val symmetric = DEF(r, x) --> relationBetween(r, x, x) /\ forall(y, forall(z, in(pair(y, z), r) <=> in(pair(z, y), r)))
 
   /**
    * Transitive Relation --- `∀ x y z. x R y ∧ y R z ⇒ x R z`
    */
-  val transitive = DEF(r, x) --> relation(r, x) /\ forall(w, forall(y, forall(z, (in(pair(w, y), r) /\ in(pair(y, z), r)) ==> in(pair(w, z), r))))
+  val transitive = DEF(r, x) --> relationBetween(r, x, x) /\ forall(w, forall(y, forall(z, (in(pair(w, y), r) /\ in(pair(y, z), r)) ==> in(pair(w, z), r))))
 
   /**
    * Equivalence Relation --- A relation is an equivalence relation if it is
@@ -1462,7 +1480,7 @@ object SetTheory extends lisa.Main {
   /**
    * Anti-reflexive Relation --- `∀ x. ! x R x`
    */
-  val antiReflexive = DEF(r, x) --> relation(r, x) /\ forall(y, in(y, x) ==> !in(pair(y, y), r))
+  val antiReflexive = DEF(r, x) --> relationBetween(r, x, x) /\ forall(y, in(y, x) ==> !in(pair(y, y), r))
 
   /**
    * Irreflexive Relation --- Alias for [[antiReflexive]].
@@ -1472,17 +1490,17 @@ object SetTheory extends lisa.Main {
   /**
    * Anti-symmetric Relation --- `∀ x y. x R y ∧ y R x ⇒ y = x`
    */
-  val antiSymmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(pair(y, z), r) /\ in(pair(z, y), r)) ==> (y === z)))
+  val antiSymmetric = DEF(r, x) --> relationBetween(r, x, x) /\ forall(y, forall(z, (in(pair(y, z), r) /\ in(pair(z, y), r)) ==> (y === z)))
 
   /**
    * Asymmetric Relation --- `∀ x y. x R y ⇔ ! y R x`
    */
-  val asymmetric = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, in(pair(y, z), r) ==> !in(pair(z, y), r)))
+  val asymmetric = DEF(r, x) --> relationBetween(r, x, x) /\ forall(y, forall(z, in(pair(y, z), r) ==> !in(pair(z, y), r)))
 
   /**
    * Connected Relation --- `∀ x y. (x R y) ∨ (y R x) ∨ (y = x)`
    */
-  val connected = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r) \/ (y === z))))
+  val connected = DEF(r, x) --> relationBetween(r, x, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r) \/ (y === z))))
 
   /**
    * Total Relation --- Alias for [[connected]].
@@ -1493,7 +1511,7 @@ object SetTheory extends lisa.Main {
    * Strongly Connected Relation ---
    *     `∀ x y z. y R x ∧ z R x ⇒ y R z ∨ z R y`
    */
-  val stronglyConnected = DEF(r, x) --> relation(r, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
+  val stronglyConnected = DEF(r, x) --> relationBetween(r, x, x) /\ forall(y, forall(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
 
   /**
    * Cantor theorem
@@ -1504,24 +1522,149 @@ object SetTheory extends lisa.Main {
   // f from x to y => dom f = x
   // x <= y, y <= x |- x = y
 
-  // val subsetReflexivity = makeTHM(
-  //   () |- subset(x, x)
-  // ) {
-  //   val subdef = have(() |- subset(x, x) <=> forall(z, top())) by Restate(subsetAxiom of (y -> x))
-  //   val topbase = have(top() |- top()) by Restate
-  //   thenHave(forall(z, top) |- top()) by LeftForall(z)
-  //   thenHave(forall(z, top) |- top()) by Restate
-  // }
+  /**
+   * Theorem ---  Subset reflexivity
+   *
+   * Every set is a [[subset]] of itself. In other words, the [[subset]]
+   * predicate induces a [[reflexive]] [[relation]] on sets.
+   */
+  val subsetReflexivity = makeTHM(
+    () |- subset(x, x)
+  ) {
+    val subdef = have(() |- subset(x, x) <=> forall(z, top())) by Rewrite(subsetAxiom of (y -> x))
+    andThen(applySubst(closedFormulaUniversal of (VariableFormulaLabel("p") -> top())))
 
-  // val subsetEqSymmetry = makeTHM(
-  //   () |- (x === y) <=> (subset(x, y) /\ subset(y, x))
-  // )
+    thenHave(thesis) by Restate
+  }
 
-  // val functionImpliesDomain = makeTHM(
-  //   functionFrom(f, x, y) |- (relationDomain(f) === x)
-  // ) {
+  /**
+   * Theorem --- Symmetry of Equality and Subset
+   *
+   * [[equality]] implies a [[subset]] ordering, and [[subset]] ordering in both
+   * directions implies [[equality]].
+   */
+  val subsetEqualitySymmetry = makeTHM(
+    () |- (x === y) <=> (subset(x, y) /\ subset(y, x))
+  ) {
+    // we prove the implication directions separately
 
-  // }
+    // forward
+    
+    val fwd = have(() |- (x === y) ==> (subset(x, y) /\ subset(y, x))) subproof {
+      have(() |- subset(x, x) /\ subset(x, x)) by Rewrite(subsetReflexivity)
+      thenHave((x === y) |- (subset(x, y) /\ subset(y, x))) by RightSubstEq(List((x, y)), lambda(y, subset(x, y) /\ subset(y, x)))
+      thenHave(thesis) by Restate
+    }
+
+    val bwd = have(() |- (subset(x, y) /\ subset(y, x)) ==> (x === y)) subproof {
+      have(subset(x, y) |- forall(z, in(z, x) ==> in(z, y))) by Tautology.from(subsetAxiom)
+      val sxy = thenHave(subset(x, y) |- in(z, x) ==> in(z, y)) by InstantiateForall(z)
+
+      have(subset(y, x) |- forall(z, in(z, y) ==> in(z, x))) by Tautology.from(subsetAxiom of (x -> y, y -> x))
+      val syx = thenHave(subset(y, x) |- in(z, y) ==> in(z, x)) by InstantiateForall(z)
+
+      have(Set(subset(x, y), subset(y, x)) |- in(z, y) <=> in(z, x)) by RightIff(sxy, syx)
+      thenHave(Set(subset(x, y) /\ subset(y, x)) |- in(z, y) <=> in(z, x)) by Restate
+      val ssxy = thenHave(subset(x, y) /\ subset(y, x) |- forall(z, in(z, y) <=> in(z, x))) by RightForall
+
+      val ext = have(() |- (x === y) <=> (forall(z, in(z, y) <=> in(z, x)))) by Rewrite(extensionalityAxiom)
+
+      have(subset(x, y) /\ subset(y, x) |- forall(z, in(z, y) <=> in(z, x)) /\ ((x === y) <=> (forall(z, in(z, y) <=> in(z, x))))) by RightAnd(ssxy, ext)
+      thenHave(subset(x, y) /\ subset(y, x) |- (x === y)) by Tautology
+      thenHave(thesis) by Restate
+    }
+
+    have(thesis) by RightAnd(fwd, bwd)
+  }
+
+  val functionalOverImpliesDomain = makeTHM(
+    functionalOver(f, x) |- (relationDomain(f) === x)
+  ) {
+    have(thesis) by Tautology.from(functionalOver.definition)
+  }
+
+  val functionFromImpliesDomainEq = makeTHM(
+    functionFrom(f, x, y) |- (relationDomain(f) === x)
+  ) {
+    have(() |- forall(t, in(t, setOfFunctions(x, y)) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(setOfFunctions(x, y))(setOfFunctions.definition)
+    val funSetDef = thenHave(() |- in(f, setOfFunctions(x, y)) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
+
+    have(thesis) by Tautology.from(functionFrom.definition, funSetDef, functionalOver.definition)
+  }
+
+  val functionImpliesRangeSubsetOfCodomain = makeTHM(
+    functionFrom(f, x, y) |- subset(relationRange(f), y)
+  ) {
+    have(() |- forall(t, in(t, setOfFunctions(x, y)) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(setOfFunctions(x, y))(setOfFunctions.definition)
+    val funSetDef = thenHave(() |- in(f, setOfFunctions(x, y)) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
+
+    have(functionFrom(f, x, y) |- forall(z, in(z, f) ==> in(z, cartesianProduct(x, y)))) by Tautology.from(functionFrom.definition, funSetDef, powerAxiom of (x -> f, y -> cartesianProduct(x, y)), subsetAxiom of (x -> f, y -> cartesianProduct(x, y)))
+    thenHave(functionFrom(f, x, y) |- in(pair(a, t), f) ==> in(pair(a, t), cartesianProduct(x, y))) by InstantiateForall(pair(a, t))
+    thenHave(Set(functionFrom(f, x, y), in(pair(a, t), f)) |- in(pair(a, t), cartesianProduct(x, y))) by Restate
+    andThen(applySubst(pairInCartesianProduct of (b -> t)))
+    thenHave(Set(functionFrom(f, x, y), in(pair(a, t), f)) |- in(t, y)) by Weakening
+    val funFromty = thenHave(Set(functionFrom(f, x, y), exists(a, in(pair(a, t), f))) |- in(t, y)) by LeftExists
+
+    have(() |- forall(t, in(t, relationRange(f)) <=> (exists(a, in(pair(a, t), f))))) by InstantiateForall(relationRange(f))(relationRange.definition of (r -> f))
+    thenHave(() |- in(t, relationRange(f)) <=> (exists(a, in(pair(a, t), f)))) by InstantiateForall(t)
+    val ranat = thenHave(in(t, relationRange(f)) |- exists(a, in(pair(a, t), f))) by Weakening
+
+    have(Set(functionFrom(f, x, y), in(t, relationRange(f))) |- in(t, y)) by Cut(ranat, funFromty)
+    thenHave(Set(functionFrom(f, x, y)) |- in(t, relationRange(f)) ==> in(t, y)) by Restate
+    thenHave(Set(functionFrom(f, x, y)) |- forall(t, in(t, relationRange(f)) ==> in(t, y))) by RightForall
+    andThen(applySubst(subsetAxiom of (x -> relationRange(f))))
+  }
+
+  val inRangeImpliesPullbackExists = makeTHM(
+    functional(f) /\ in(z, relationRange(f)) |- exists(t, in(t, relationDomain(f)) /\ (app(f, t) === z))
+  ) {
+    val appIff = have(() |- (z === app(f, t)) <=> ((functional(f) /\ in(t, relationDomain(f))) ==> in(pair(t, z), f)) /\ ((!functional(f) \/ !in(t, relationDomain(f))) ==> (z === emptySet()))) by InstantiateForall(z)(app.definition of (x -> t))
+
+    have(() |- forall(t, in(t, relationRange(f)) <=> exists(a, in(pair(a, t), f)))) by InstantiateForall(relationRange(f))(relationRange.definition of (r -> f))
+    thenHave(() |- in(z, relationRange(f)) <=> exists(a, in(pair(a, z), f))) by InstantiateForall(z)
+    val elementInDomainExists = thenHave(in(z, relationRange(f)) |- exists(t, in(pair(t, z), f))) by Weakening
+
+    val toApp = have(Set(functional(f), in(t, relationDomain(f)), in(pair(t, z), f)) |- ((functional(f) /\ in(t, relationDomain(f))) ==> in(pair(t, z), f)) /\ ((!functional(f) \/ !in(t, relationDomain(f))) ==> (z === emptySet()))) by Restate
+    val zAppdom = have(Set(functional(f), in(t, relationDomain(f)), in(pair(t, z), f)) |- (z === app(f, t))) by Tautology.from(toApp, appIff)
+
+    val pairInDomain = have(in(pair(t, z), f) |- in(t, relationDomain(f))) subproof {
+      have(() |- forall(t, in(t, relationDomain(f)) <=> exists(a, in(pair(t, a), f)))) by InstantiateForall(relationDomain(f))(relationDomain.definition of (r -> f))
+      val domDef = thenHave(() |- in(t, relationDomain(f)) <=> exists(a, in(pair(t, a), f))) by InstantiateForall(t)
+
+      have(in(pair(t, z), f) |- in(pair(t, z), f)) by Hypothesis
+      val pairEx = thenHave(in(pair(t, z), f) |- exists(a, in(pair(t, a), f))) by RightExists(z)
+
+      have(thesis) by Tautology.from(domDef, pairEx)
+    }
+
+    val zApp2 = have(Set(functional(f), in(pair(t, z), f)) |- (z === app(f, t))) by Cut(pairInDomain, zAppdom)
+    have(Set(functional(f), in(pair(t, z), f)) |- in(t, relationDomain(f)) /\ (z === app(f, t))) by RightAnd(pairInDomain, zApp2)
+    thenHave(Set(functional(f), in(pair(t, z), f)) |- exists(t, in(t, relationDomain(f)) /\ (z === app(f, t)))) by RightExists(t)
+    val zAppIfExists = thenHave(Set(functional(f), exists(t, in(pair(t, z), f))) |- exists(t, in(t, relationDomain(f)) /\ (z === app(f, t)))) by LeftExists
+
+    have(Set(functional(f), in(z, relationRange(f))) |- exists(t, in(t, relationDomain(f)) /\ (z === app(f, t)))) by Cut(elementInDomainExists, zAppIfExists)
+    thenHave(thesis) by Restate
+  }
+
+  val surjectiveImpliesRangeIsCodomain = makeTHM(
+    surjective(f, x, y) |- (y === relationRange(f))
+  ) {
+    have(surjective(f, x, y) |- forall(b, in(b, y) ==> exists(a, in(pair(a, b), f)))) by Tautology.from(surjective.definition)
+    val surjDef = thenHave(surjective(f, x, y) |- in(b, y) ==> exists(a, in(pair(a, b), f))) by InstantiateForall(b)
+    have(() |- forall(t, in(t, relationRange(f)) <=> (exists(a, in(pair(a, t), f))))) by InstantiateForall(relationRange(f))(relationRange.definition of (r -> f))
+    val rangeDef = thenHave(() |- in(b, relationRange(f)) <=> (exists(a, in(pair(a, b), f)))) by InstantiateForall(b)
+
+    have(surjective(f, x, y) |- in(b, y) ==> in(b, relationRange(f))) by Tautology.from(surjDef, rangeDef)
+    thenHave(surjective(f, x, y) |- forall(b, in(b, y) ==> in(b, relationRange(f)))) by RightForall
+    val surjsub = andThen(applySubst(subsetAxiom of (x -> y, y -> relationRange(f))))
+
+    have(Set(surjective(f, x, y), functionFrom(f, x, y)) |- subset(y, relationRange(f)) /\ subset(relationRange(f), y)) by RightAnd(surjsub, functionImpliesRangeSubsetOfCodomain)
+    val funceq = andThen(applySubst(subsetEqualitySymmetry of (x -> y, y -> relationRange(f))))
+
+    val surjfunc = have(surjective(f, x, y) |- functionFrom(f, x, y)) by Tautology.from(surjective.definition)
+
+    have(thesis) by Cut(surjfunc, funceq)
+  }
 
   // val functionImpliesRangeSubsetOfCodomain = makeTHM(
   //   functionFrom(f, x, y) |- subset(relationRange(f), y)
