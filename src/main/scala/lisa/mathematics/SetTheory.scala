@@ -1046,11 +1046,59 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(unionUP, unionA, unionB)
   }
 
+  /**
+   * Binary Relation --- A binary relation `r` from `a` to `b` is a subset of
+   * the [[cartesianProduct]] of `a` and `b`, `a * b`. We say `x r y`, `r(x,
+   * y)`, or `r relates x to y` for `(x, y) ∈ r`.
+   */
+  val relationBetween = DEF (r, a, b) --> subset(r, cartesianProduct(a, b))
+
+  /**
+   * `r` is a relation *from* `a` if there exists a set `b` such that `r` is a
+   * relation from `a` to `b`.
+   */
+  val relationFrom = DEF(r, a) --> exists(b, relationBetween(r, a, b))
+
+  /**
+   * `r` is a relation if there exist sets `a` and `b` such that `r` is a
+   * relation from `a` to `b`.
+   */
+  val relation = DEF(r) --> exists(a, exists(b, subset(r, cartesianProduct(a, b))))
 
   val relationDomainUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))
+    () |- existsOne(z, forall(t, in(t, z) <=> exists(a, in(pair(t, a), r))))
   ) {
-    have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))) by UniqueComprehension(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(t, a), r))))
+    val uniq = have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))) by UniqueComprehension(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(t, a), r))))
+
+    // eliminating t \in UU r
+    // since it is implied by the second condition
+    val transform = have(exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r))))) |- exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r)))))) subproof {
+      val hypo = have(in(pair(t, a), r) |- in(pair(t, a), r)) by Hypothesis
+      have(in(pair(t, a), r) |- in(t, union(union(r))) /\ in(a, union(union(r)))) by Cut(hypo, pairInSetImpliesPairInUnion of (a -> t, b -> a))
+      thenHave(in(pair(t, a), r) |- in(t, union(union(r)))) by Weakening
+      thenHave(exists(a, in(pair(t, a), r)) |- in(t, union(union(r)))) by LeftExists
+      val lhs = thenHave(() |- exists(a, in(pair(t, a), r)) ==> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) by Tautology
+      val rhs = have(() |- (exists(a, in(pair(t, a), r)) /\ in(t, union(union(r)))) ==> exists(a, in(pair(t, a), r))) by Restate
+
+      val subst = have(() |- exists(a, in(pair(t, a), r)) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) by RightIff(lhs, rhs)
+
+      have(Set(in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) |- in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) by Hypothesis
+      val cutRhs = thenHave(Set(in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r))), exists(a, in(pair(t, a), r)) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) |- in(t, z) <=> (exists(a, in(pair(t, a), r)))) by RightSubstIff(List((exists(a, in(pair(t, a), r)), in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))), lambda(h, in(t, z) <=> h))
+      have(Set(in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) |- in(t, z) <=> (exists(a, in(pair(t, a), r)))) by Cut(subst, cutRhs)
+      thenHave(forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) |- in(t, z) <=> (exists(a, in(pair(t, a), r)))) by LeftForall(t)
+      thenHave(forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) |- forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r))))) by RightForall
+      thenHave(forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))) |- exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r)))))) by RightExists(z)
+      thenHave(thesis) by LeftExists
+    }
+
+    // converting the exists to existsOne
+    val cutL = have(existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r))))) |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))) by Rewrite(existsOneImpliesExists of (P -> lambda(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))))
+    val cutR = have(exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r))))) |- existsOne(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r)))))) by Rewrite(uniqueByExtension of (schemPred -> lambda(t, (exists(a, in(pair(t, a), r))))))
+
+    val trL = have(existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r))))) |- exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r)))))) by Cut(cutL, transform)
+    val trR = have(existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r))))) |- existsOne(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r)))))) by Cut(trL, cutR) 
+
+    have(thesis) by Cut.withParameters(existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r))))))(uniq, trR)
   }
 
   /**
@@ -1064,12 +1112,42 @@ object SetTheory extends lisa.Main {
    *
    * @param r relation (set)
    */
-  val relationDomain = DEF(r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))(relationDomainUniqueness)
+  val relationDomain = DEF(r) --> The(z, forall(t, in(t, z) <=> exists(a, in(pair(t, a), r))))(relationDomainUniqueness)
 
   val relationRangeUniqueness = makeTHM(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))
+    () |- existsOne(z, forall(t, in(t, z) <=> exists(a, in(pair(a, t), r))))
   ) {
-    have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))) by UniqueComprehension(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(a, t), r))))
+    val uniq = have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))) by UniqueComprehension(union(union(r)), lambda(Seq(t, b), exists(a, in(pair(a, t), r))))
+
+    // eliminating t \in UU r
+    // since it is implied by the second condition
+    val transform = have(exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r))))) |- exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r)))))) subproof {
+      val hypo = have(in(pair(a, t), r) |- in(pair(a, t), r)) by Hypothesis
+      have(in(pair(a, t), r) |- in(t, union(union(r))) /\ in(a, union(union(r)))) by Cut(hypo, pairInSetImpliesPairInUnion of (a -> a, b -> t))
+      thenHave(in(pair(a, t), r) |- in(t, union(union(r)))) by Weakening
+      thenHave(exists(a, in(pair(a, t), r)) |- in(t, union(union(r)))) by LeftExists
+      val lhs = thenHave(() |- exists(a, in(pair(a, t), r)) ==> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) by Tautology
+      val rhs = have(() |- (exists(a, in(pair(a, t), r)) /\ in(t, union(union(r)))) ==> exists(a, in(pair(a, t), r))) by Restate
+
+      val subst = have(() |- exists(a, in(pair(a, t), r)) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) by RightIff(lhs, rhs)
+
+      have(Set(in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) |- in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) by Hypothesis
+      val cutRhs = thenHave(Set(in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r))), exists(a, in(pair(a, t), r)) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) |- in(t, z) <=> (exists(a, in(pair(a, t), r)))) by RightSubstIff(List((exists(a, in(pair(a, t), r)), in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))), lambda(h, in(t, z) <=> h))
+      have(Set(in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) |- in(t, z) <=> (exists(a, in(pair(a, t), r)))) by Cut(subst, cutRhs)
+      thenHave(forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) |- in(t, z) <=> (exists(a, in(pair(a, t), r)))) by LeftForall(t)
+      thenHave(forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) |- forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r))))) by RightForall
+      thenHave(forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))) |- exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r)))))) by RightExists(z)
+      thenHave(thesis) by LeftExists
+    }
+
+    // converting the exists to existsOne
+    val cutL = have(existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r))))) |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))) by Rewrite(existsOneImpliesExists of (P -> lambda(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))))
+    val cutR = have(exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r))))) |- existsOne(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r)))))) by Rewrite(uniqueByExtension of (schemPred -> lambda(t, (exists(a, in(pair(a, t), r))))))
+
+    val trL = have(existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r))))) |- exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r)))))) by Cut(cutL, transform)
+    val trR = have(existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r))))) |- existsOne(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r)))))) by Cut(trL, cutR) 
+
+    have(thesis) by Cut.withParameters(existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r))))))(uniq, trR)
   }
 
   /**
