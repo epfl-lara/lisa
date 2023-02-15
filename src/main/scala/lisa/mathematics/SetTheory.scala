@@ -1224,7 +1224,7 @@ object SetTheory extends lisa.Main {
 
     val funOver = have(functionFrom(f, x, y) |- functional(f)) by Tautology.from(funSetDef, functionFrom.definition, functionalOver.definition)
   }
-
+  
   val functionApplicationUniqueness = makeTHM(
     () |- existsOne(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === emptySet())))
   ) {
@@ -1521,7 +1521,7 @@ object SetTheory extends lisa.Main {
   // f from x to y => range f <= y
   // f from x to y => dom f = x
   // x <= y, y <= x |- x = y
-
+  
   /**
    * Theorem ---  Subset reflexivity
    *
