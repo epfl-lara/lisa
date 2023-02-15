@@ -603,7 +603,7 @@ object SetTheory extends lisa.Main {
 
   /**
     * Theorem --- Unordered pairs of elements of a set `x` are in its power set `P(x)`.
-   */
+    */
   val unorderedPairInPowerSet = makeTHM(
     () |- (in(a, x) /\ in(b, x)) <=> in(unorderedPair(a, b), powerSet(x))
   ) {
@@ -943,7 +943,7 @@ object SetTheory extends lisa.Main {
   /**
     * Theorem --- a pair is in the set `x * y` iff its elements are in `x` and
     * `y` respectively.
-   */
+    */
   val pairInCartesianProduct = makeTHM(
     () |- in(pair(a, b), cartesianProduct(x, y)) <=> (in(a, x) /\ in(b, y))
   ) {
@@ -1161,7 +1161,7 @@ object SetTheory extends lisa.Main {
    *
    * @param r relation (set)
    */
-  val relationRange = DEF(r) --> The(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))(relationRangeUniqueness)
+  val relationRange = DEF(r) --> The(z, forall(t, in(t, z) <=> exists(a, in(pair(a, t), r))))(relationRangeUniqueness)
 
   /**
    * (Binary) Relation Field --- The union of the domain and range of a
@@ -1666,22 +1666,53 @@ object SetTheory extends lisa.Main {
     have(thesis) by Cut(surjfunc, funceq)
   }
 
-  // val functionImpliesRangeSubsetOfCodomain = makeTHM(
-  //   functionFrom(f, x, y) |- subset(relationRange(f), y)
-  // ) {
+  val cantorTheorem = makeTHM(
+    surjective(f, x, powerSet(x)) |- ()
+  ) {
+    // define y = {z \in x | ! z \in f(z)}
+    val ydef = forall(t, in(t, y) <=> (in(t, x) /\ !in(t, app(f, t))))
 
-  // }
+    // y \subseteq x
+    // y \in P(x)
+    have(ydef |- ydef) by Hypothesis
+    thenHave(ydef |- in(t, y) <=> (in(t, x) /\ !in(t, app(f, t)))) by InstantiateForall(t)
+    thenHave(ydef |- in(t, y) ==> in(t, x)) by Weakening
+    thenHave(ydef |- forall(t, in(t, y) ==> in(t, x))) by RightForall
+    andThen(applySubst(subsetAxiom of (x -> y, y -> x)))
+    andThen(applySubst(powerAxiom of (x -> y, y -> x)))
+    val yInPower = thenHave(ydef |- in(y, powerSet(x))) by Restate
 
-  // val surjectiveImpliesRangeIsCodomain = makeTHM(
-  //   surjective(f, x, y) |- (y === relationRange(f))
-  // ) {
+    // y \in range(f)
+    have(surjective(f, x, powerSet(x)) |- (powerSet(x) === relationRange(f))) by Rewrite(surjectiveImpliesRangeIsCodomain of (y -> powerSet(x)))
+    andThen(applySubst(extensionalityAxiom of (x -> powerSet(x), y -> relationRange(f))))
+    val surjRange = thenHave(surjective(f, x, powerSet(x)) |- in(y, powerSet(x)) <=> in(y, relationRange(f))) by InstantiateForall(y)
+    val yInRange = have(Set(ydef, surjective(f, x, powerSet(x))) |- in(y, relationRange(f))) by Tautology.from(yInPower, surjRange)
 
-  // }
+    // \exists z. z \in x /\ f(z) = y
+    val funToExists = have(Set(functional(f), in(y, relationRange(f))) |- exists(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Rewrite(inRangeImpliesPullbackExists of (z -> y))
+    val funFromImpliesFun = have(functionFrom(f, x, powerSet(x)) |- functional(f)) by Rewrite(functionFromImpliesFunctional of (y -> powerSet(x)))
+    val surjToFunFrom = have(surjective(f, x, powerSet(x)) |- functionFrom(f, x, powerSet(x))) by Tautology.from(surjective.definition of (y -> powerSet(x)))
+    val funFromToExists = have(Set(functionFrom(f, x, powerSet(x)), in(y, relationRange(f))) |- exists(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Cut(funFromImpliesFun, funToExists)
+    val surjToExists = have(Set(surjective(f, x, powerSet(x)), in(y, relationRange(f))) |- exists(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Cut(surjToFunFrom, funFromToExists)
+    val existsZdom = have(Set(ydef, surjective(f, x, powerSet(x))) |- exists(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Cut(yInRange, surjToExists)
+    val xeqdom = thenHave(Set(ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- exists(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq(List((x, relationDomain(f))), lambda(x, exists(z, in(z, x) /\ (app(f, z) === y))))
+    val funtox = have(Set(ydef, surjective(f, x, powerSet(x)), functionFrom(f, x, powerSet(x))) |- exists(z, in(z, x) /\ (app(f, z) === y))) by Cut(functionFromImpliesDomainEq of (y -> powerSet(x)), xeqdom)
+    val existsZ = have(Set(ydef, surjective(f, x, powerSet(x))) |- exists(z, in(z, x) /\ (app(f, z) === y))) by Cut(surjToFunFrom, funtox)
 
-  // val cantorTheorem = makeTHM(
-  //   onto(f, x, powerSet(x)) |- ()
-  // ) {
+    // z \in Y <=> z \in x /\ ! z \in f(z)
+    // y = f(z) so z \in f(z) <=> ! z \in f(z) 
+    have(ydef |- ydef) by Hypothesis
+    thenHave(ydef |- in(z, y) <=> (in(z, x) /\ !in(z, app(f, z)))) by InstantiateForall(z)
+    thenHave(Set(ydef, in(z, x), (app(f, z) === y)) |- in(z, y) <=> (in(z, x) /\ !in(z, app(f, z)))) by Weakening
+    thenHave(Set(ydef, in(z, x), (app(f, z) === y)) |- in(z, app(f, z)) <=> (in(z, x) /\ !in(z, app(f, z)))) by RightSubstEq(List((y, app(f, z))), lambda(y, in(z, y) <=> (in(z, x) /\ !in(z, app(f, z)))))
+    thenHave(Set(ydef, in(z, x) /\ (app(f, z) === y)) |- ()) by Tautology
+    val existsToContra = thenHave(Set(ydef, exists(z, in(z, x) /\ (app(f, z) === y))) |- ()) by LeftExists
 
-  // }
+    have(Set(ydef, surjective(f, x, powerSet(x))) |- ()) by Cut(existsZ, existsToContra)
+    val yToContra = thenHave(Set(exists(y, ydef), surjective(f, x, powerSet(x))) |- ()) by LeftExists
+    val yexists = have(() |- exists(y, ydef)) by Rewrite(comprehensionSchema of (z -> x, sPhi -> lambda(Seq(t, z), !in(t, app(f, t)))))
 
+    have(thesis) by Cut(yexists, yToContra)
+  }
+  show
 }
