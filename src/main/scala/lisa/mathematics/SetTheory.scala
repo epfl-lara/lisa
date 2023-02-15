@@ -4,6 +4,7 @@ import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
+import lisa.mathematics.FirstOrderLogic.*
 
 /**
  * Set Theory Library
@@ -156,6 +157,66 @@ object SetTheory extends lisa.Main {
    * @param y set
    */
   val setUnion = DEF(x, y) --> union(unorderedPair(x, y))
+
+  /**
+    * Theorem --- a set is an element of `x \cup y` iff it is an element of `x` or `y`
+    */
+  val setUnionMembership = makeTHM(
+    () |- in(z, setUnion(x, y)) <=> (in(z, x) \/ in(z, y))
+  ) {
+    have(() |- forall(z, (z === setUnion(x, y)) <=> (z === union(unorderedPair(x, y))))) by Rewrite(setUnion.definition)
+    thenHave(() |- (setUnion(x, y) === setUnion(x, y)) <=> (setUnion(x, y) === union(unorderedPair(x, y)))) by InstantiateForall(setUnion(x, y))
+    val unionDef = thenHave(() |- (setUnion(x, y) === union(unorderedPair(x, y)))) by Restate
+
+    val upairax = have(() |- in(a, unorderedPair(x, y)) <=> ((a === x) \/ (a === y))) by Rewrite(pairAxiom of (z -> a))
+    val ta = have(() |- in(z, union(unorderedPair(x, y))) <=> exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Rewrite(unionAxiom of (z -> unorderedPair(x, y), x -> z))
+
+    have(thesis) subproof {
+      // the proof proceeds by showing that the existence criterion reduces to the RHS of the iff in the thesis
+
+      val fwd = have(() |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y))) ==> (in(z, x) \/ in(z, y))) subproof {
+        have(Set(in(z, a), a === x) |- in(z, a)) by Hypothesis
+        val tax = thenHave(Set(in(z, a), a === x) |- in(z, x)) by RightSubstEq(List((a, x)), lambda(a, in(z, a)))
+
+        have(Set(in(z, a), a === y) |- in(z, a)) by Hypothesis
+        val tay = thenHave(Set(in(z, a), a === y) |- in(z, y)) by RightSubstEq(List((a, y)), lambda(a, in(z, a)))
+
+        have(Set(in(z, a), (a === x) \/ (a === y)) |- Set(in(z, x), in(z, y))) by LeftOr(tax, tay)
+        andThen(applySubst(upairax, false))
+        thenHave(Set(in(z, a) /\ in(a, unorderedPair(x, y))) |- Set(in(z, x), in(z, y))) by Restate
+        thenHave(exists(a, in(z, a) /\ in(a, unorderedPair(x, y))) |- Set(in(z, x), in(z, y))) by LeftExists
+        thenHave(thesis) by Restate
+      }
+
+      val bwd = have(() |- ((in(z, x) \/ in(z, y)) ==> exists(a, in(z, a) /\ in(a, unorderedPair(x, y))))) subproof {
+        have(Set(in(z, x), (a === x)) |- in(z, x)) by Hypothesis
+        thenHave(Set(in(z, x), (a === x)) |- in(z, a)) by RightSubstEq(List((a, x)), lambda(a, in(z, a)))
+        thenHave(Set(in(z, x), (a === x)) |- in(z, a) /\ ((a === x) \/ (a === y))) by Tautology
+        andThen(applySubst(upairax, false))
+        thenHave(Set(in(z, x), (a === x)) |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by RightExists(a)
+        thenHave(Set(in(z, x), (x === x)) |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by InstFunSchema(Map(a -> x))
+        val tax = thenHave(Set(in(z, x)) |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Rewrite
+
+        have(Set(in(z, y), (a === y)) |- in(z, y)) by Hypothesis
+        thenHave(Set(in(z, y), (a === y)) |- in(z, a)) by RightSubstEq(List((a, y)), lambda(a, in(z, a)))
+        thenHave(Set(in(z, y), (a === y)) |- in(z, a) /\ ((a === x) \/ (a === y))) by Tautology
+        andThen(applySubst(upairax, false))
+        thenHave(Set(in(z, y), (a === y)) |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by RightExists(a)
+        thenHave(Set(in(z, y), (y === y)) |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by InstFunSchema(Map(a -> y))
+        val tay = thenHave(Set(in(z, y)) |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Restate
+
+        have((in(z, x) \/ in(z, y)) |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by LeftOr(tax, tay)
+        thenHave(thesis) by Restate
+      }
+
+      val existsSubst = have(() |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y))) <=> (in(z, x) \/ in(z, y))) by RightIff(fwd, bwd)
+      
+      have(() |- in(z, union(unorderedPair(x, y))) <=> exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Rewrite(ta)
+      andThen(applySubst(existsSubst))
+      andThen(applySubst(unionDef))
+    }
+
+  }
 
   /**
    * Successor Function --- Maps a set to its 'successor' in the sense required
