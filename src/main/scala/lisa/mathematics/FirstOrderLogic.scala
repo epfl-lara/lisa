@@ -19,9 +19,9 @@ object FirstOrderLogic extends lisa.Main {
   private val P = predicate(1)
 
   /**
-    * Theorem --- A formula is equivalent to itself universally quantified if
-    * the bound variable is not free in it.
-    */
+   * Theorem --- A formula is equivalent to itself universally quantified if
+   * the bound variable is not free in it.
+   */
   val closedFormulaUniversal = makeTHM(
     () |- forall(x, p()) <=> p()
   ) {
@@ -36,11 +36,10 @@ object FirstOrderLogic extends lisa.Main {
     have(thesis) by RightIff(lhs, rhs)
   }
 
-
   /**
-    * Theorem --- A formula is equivalent to itself existentially quantified if
-    * the bound variable is not free in it.
-    */
+   * Theorem --- A formula is equivalent to itself existentially quantified if
+   * the bound variable is not free in it.
+   */
   val closedFormulaExistential = makeTHM(
     () |- exists(x, p()) <=> p()
   ) {
