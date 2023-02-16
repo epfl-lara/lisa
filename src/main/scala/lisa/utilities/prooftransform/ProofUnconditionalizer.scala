@@ -145,7 +145,7 @@ case class ProofInstantiationRemover(pr: SCProof) extends ProofTransformer(pr) {
     val mImps = imps.toMap
     val mSteps = pr.steps.zipWithIndex.map((s, j) =>
       s match {
-        case _ if isInst(s) => Rewrite(() |- sequentToFormulaNullable(s.bot), -pr.imports.length - mImps(j) - 1)
+        case _ if isInst(s) => Restate(() |- sequentToFormulaNullable(s.bot), -pr.imports.length - mImps(j) - 1)
         case _ => s
       }
     )
@@ -218,7 +218,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
         h
       })
     val rewrites = hypothesis.zipWithIndex.map((h, i) => {
-      val r = Rewrite(h.bot.left |- (h.bot.right - sequentToFormulaNullable(premises(i))), i)
+      val r = Restate(h.bot.left |- (h.bot.right - sequentToFormulaNullable(premises(i))), i)
       r
     })
     // We must separate the case for subproofs for they need to use the modified version of the precedent
@@ -273,8 +273,8 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
    * @return a proofstep where each function is applied to the corresponding
    */
   protected def mapStep(pS: SCProofStep, f: Set[Formula] => Set[Formula], fi: Seq[Int] => Seq[Int] = identity, fsub: Seq[Sequent] = Nil): SCProofStep = pS match {
-    case Rewrite(bot, t1) => Rewrite(f(bot.left) |- bot.right, fi(pS.premises).head)
-    case RewriteTrue(bot) => RewriteTrue(f(bot.left) |- bot.right)
+    case Restate(bot, t1) => Restate(f(bot.left) |- bot.right, fi(pS.premises).head)
+    case RestateTrue(bot) => RestateTrue(f(bot.left) |- bot.right)
     case LeftExists(bot, t1, phi, x) => LeftExists(f(bot.left) |- bot.right, fi(pS.premises).head, phi, x)
     case RightAnd(bot, t, cunjuncts) => RightAnd(f(bot.left) |- bot.right, fi(t), cunjuncts)
     case RightOr(bot, t1, phi, psi) => RightOr(f(bot.left) |- bot.right, fi(pS.premises).head, phi, psi)

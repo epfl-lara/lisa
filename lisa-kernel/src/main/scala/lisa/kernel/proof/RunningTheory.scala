@@ -64,7 +64,7 @@ class RunningTheory {
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
 
   private[proof] val funDefinitions: mMap[ConstantFunctionLabel, Option[FunctionDefinition]] = mMap.empty
-  private[proof] val predDefinitions: mMap[ConstantPredicateLabel, Option[PredicateDefinition]] = mMap(equality -> None)
+  private[proof] val predDefinitions: mMap[ConstantPredicateLabel, Option[PredicateDefinition]] = mMap(equality -> None, top -> None, bot -> None)
 
   private[proof] val knownSymbols: mMap[Identifier, ConstantLabel] = mMap(equality.id -> equality)
 
@@ -131,6 +131,8 @@ class RunningTheory {
    * @param label          The desired label.
    * @param expression     The functional term defining the function symbol.
    * @param out            The variable representing the function's result in the formula
+   * @param proven         A formula possibly stronger than `expression` that the proof proves. It is always correct if it is the same as "expression", but
+   *                       if `expression` is less strong, this allows to make underspecified definitions.
    * @return A definition object if the parameters are correct,
    */
   def makeFunctionDefinition(
@@ -138,35 +140,39 @@ class RunningTheory {
       justifications: Seq[Justification],
       label: ConstantFunctionLabel,
       out: VariableLabel,
-      expression: LambdaTermFormula
+      expression: LambdaTermFormula,
+      proven: Formula
   ): RunningTheoryJudgement[this.FunctionDefinition] = {
     val LambdaTermFormula(vars, body) = expression
-    if (belongsToTheory(body))
-      if (isAvailable(label)) {
-        if (body.freeSchematicTermLabels.subsetOf((vars appended out).toSet) && body.schematicFormulaLabels.isEmpty) {
-          if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
-            val r = SCProofChecker.checkSCProof(proof)
-            r match {
-              case SCProofCheckerJudgement.SCValidProof(_) =>
-                proof.conclusion match {
-                  case Sequent(l, r) if l.isEmpty && r.size == 1 =>
-                    val subst = BinderFormula(ExistsOne, out, body)
-                    if (isSame(r.head, subst)) {
-                      val newDef = FunctionDefinition(label, out, expression)
-                      funDefinitions.update(label, Some(newDef))
-                      knownSymbols.update(label.id, label)
-                      RunningTheoryJudgement.ValidJustification(newDef)
-                    } else InvalidJustification("The proof is correct but its conclusion does not correspond to a definition for the formula phi.", None)
-                  case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
-                }
-              case r @ SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
-            }
-          } else InvalidJustification("Not all imports of the proof are correctly justified.", None)
-        } else {
-          InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
-        }
-      } else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
-    else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
+    if (vars.length == label.arity) {
+      if (belongsToTheory(body)) {
+        if (isAvailable(label)) {
+          if (body.freeSchematicTermLabels.subsetOf((vars appended out).toSet) && body.schematicFormulaLabels.isEmpty) {
+            if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
+              val r = SCProofChecker.checkSCProof(proof)
+              r match {
+                case SCProofCheckerJudgement.SCValidProof(_) =>
+                  proof.conclusion match {
+                    case Sequent(l, r) if l.isEmpty && r.size == 1 =>
+                      if (isImplying(proven, body)) {
+                        val subst = BinderFormula(ExistsOne, out, proven)
+                        if (isSame(r.head, subst)) {
+                          val newDef = FunctionDefinition(label, out, expression)
+                          funDefinitions.update(label, Some(newDef))
+                          knownSymbols.update(label.id, label)
+                          RunningTheoryJudgement.ValidJustification(newDef)
+                        } else InvalidJustification("The proof is correct but its conclusion does not correspond to the claimed proven property.", None)
+                      } else InvalidJustification("The proven property must be at least as strong as the desired definition, and it is not.", None)
+
+                    case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
+                  }
+                case r @ SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
+              }
+            } else InvalidJustification("Not all imports of the proof are correctly justified.", None)
+          } else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
+        } else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
+      } else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
+    } else InvalidJustification("The arity of the label must be equal to the number of parameters in the definition.", None)
   }
 
   def sequentFromJustification(j: Justification): Sequent = j match {
@@ -199,11 +205,12 @@ class RunningTheory {
    * @param f the new axiom to be added.
    * @return true if the axiom was added to the theory, false else.
    */
-  def addAxiom(name: String, f: Formula): Boolean = {
+  def addAxiom(name: String, f: Formula): Option[Axiom] = {
     if (belongsToTheory(f)) {
-      theoryAxioms.update(name, Axiom(name, f))
-      true
-    } else false
+      val ax = Axiom(name, f)
+      theoryAxioms.update(name, ax)
+      Some(ax)
+    } else None
   }
 
   /**

@@ -23,12 +23,19 @@ object ProofTacticLib {
 
   }
 
-  trait ParameterlessHave {
-    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement
+  trait OnlyProofTactic {
+    def apply(using lib: Library, proof: lib.Proof): proof.ProofTacticJudgement
   }
 
-  trait ParameterlessAndThen {
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement
+  trait ProofSequentTactic {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement
+  }
+
+  trait ProofFactTactic {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact): proof.ProofTacticJudgement
+  }
+  trait ProofFactSequentTactic {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement
   }
 
   class UnapplicableProofTactic(val tactic: ProofTactic, proof: Library#Proof, errorMessage: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {

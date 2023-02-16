@@ -5,7 +5,8 @@ import lisa.kernel.proof
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
@@ -20,38 +21,38 @@ trait ProofsHelpers {
   library: Library & WithTheorems =>
   given Library = library
 
-  case class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, om, line, file).asInstanceOf
+  class HaveSequent private[ProofsHelpers] (bot: Sequent) {
+    inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
-    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+    class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = HaveSequent.this.bot ++ (_proof.getAssumptions |- ())
-      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
+      inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact = {
         tactic(bot).validate(line, file)
       }
-      inline infix def apply(tactic: ParameterlessHave): _proof.ProofStep = {
-        tactic(using _proof)(bot).validate(line, file)
+      inline infix def apply(tactic: ProofSequentTactic): _proof.ProofStep = {
+        tactic(using library, _proof)(bot).validate(line, file)
       }
     }
 
     inline infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
-      (new BasicStepTactic.SUBPROOF(using proof, om, line, file)(bot)(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
+      (new BasicStepTactic.SUBPROOF(using proof)(Some(bot))(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
     }
 
   }
 
-  case class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
+  class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
 
-    inline infix def by(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
+    inline infix def by(using proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
       By(proof, om, line, file).asInstanceOf[By { val _proof: proof.type }]
 
-    class By(val _proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+    class By(val _proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = AndThenSequent.this.bot ++ (_proof.getAssumptions |- ())
       inline infix def apply(tactic: _proof.Fact => Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
         tactic(_proof.mostRecentStep)(bot).validate(line, file)
       }
 
-      inline infix def apply(tactic: ParameterlessAndThen): _proof.ProofStep = {
-        tactic(using _proof)(_proof.mostRecentStep)(bot).validate(line, file)
+      inline infix def apply(tactic: ProofFactSequentTactic): _proof.ProofStep = {
+        tactic(using library, _proof)(_proof.mostRecentStep)(bot).validate(line, file)
       }
 
     }
@@ -67,27 +68,42 @@ trait ProofsHelpers {
    */
   def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(lisa.utils.FOLParser.parseSequent(res))
 
-  /**
-   * Claim the given known Theorem, Definition or Axiom as a Sequent.
-   */
-  def have(using om: OutputManager, _proof: library.Proof)(just: theory.Justification): _proof.ProofStep = {
-    have(theory.sequentFromJustification(just)) by Restate(just: _proof.OutsideFact)
+  def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
+    case judg: proof.ProofTacticJudgement => judg.validate(line, file)
+    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Restate(using library, proof)(fact))
   }
 
   /**
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
    * which may require a justification by a proof tactic.
    */
-  def andThen(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
+  def thenHave(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
+
+  /**
+   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
+   */
+  def thenHave(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(lisa.utils.FOLParser.parseSequent(res))
+
+  infix def andThen(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): AndThen { val _proof: proof.type } = AndThen(proof, line, file).asInstanceOf
+
+  class AndThen private[ProofsHelpers] (val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
+    inline infix def apply(tactic: _proof.Fact => _proof.ProofTacticJudgement): _proof.ProofStep = {
+      tactic(_proof.mostRecentStep).validate(line, file)
+    }
+    inline infix def apply(tactic: ProofFactTactic): _proof.ProofStep = {
+      tactic(using library, _proof)(_proof.mostRecentStep).validate(line, file)
+    }
+  }
+
   /*
   /**
    * Claim the given Sequent as a ProofTactic directly following the previously proven tactic,
    * which may require a justification by a proof tactic.
    */
-  def andThen(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(parseSequent(res))
+  def thenHave(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(parseSequent(res))
 
 
-  def andThen(using om:OutputManager)(pswp: ProofTacticWithoutPrem[1]): pswp.proof.ProofStep = {
+  def thenHave(using om:OutputManager)(pswp: ProofTacticWithoutPrem[1]): pswp.proof.ProofStep = {
     pswp.asProofTactic(Seq(pswp.proof.mostRecentStep._2)).validate
   }
 
@@ -110,8 +126,11 @@ trait ProofsHelpers {
   def endDischarge(using proof: library.Proof)(ji: proof.OutsideFact): Unit = {
     proof.addDischarge(ji)
   }
-
    */
+
+  def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
+  def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
+
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
     om.output("Current proof of" + _proof.owningTheorem.repr + ": ")
     om.output(
@@ -121,43 +140,23 @@ trait ProofsHelpers {
 
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
 
-  /* //TODO: After reviewing the substitutions
-    extension (just: theory.Justification) {/*
-        def apply(insts: ((SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term)*): InstantiatedJustification = {
-            val instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula] = insts.filter(isLTT).asInstanceOf[Seq[(SchematicVarOrPredLabel, LambdaTermFormula)]].toMap
-            val instsTerm: Map[SchematicTermLabel, LambdaTermTerm] = insts.filter(isLTF).asInstanceOf[Seq[(SchematicTermLabel, LambdaTermTerm)]].toMap
-            val instsForall: Seq[Term] = insts.filter(isTerm).asInstanceOf[Seq[Term]]
-        InstantiatedJustification(just, instsPred, instsTerm, instsForall)
-        }*/
+  private def isLTT(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
+    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermTerm]
 
-        def apply(insts: (VariableLabel, Term)*): InstantiatedJustification = {
-            InstantiatedJustification(just, Map(), insts.map((x:VariableLabel, t:Term) => (x, LambdaTermTerm(Seq(), t))).toMap, Seq())
-        }
-    }
+  private def isLTF(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
+    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermFormula]
 
-    private def isTerm(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Term]
-    private def isLTT(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermTerm]
-    private def isLTF(x: (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm) | Term):Boolean = x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermFormula]
+  private def isLFF(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
+    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaFormulaFormula]
 
-  def have(instJust: InstantiatedJustification)(using om:OutputManager): library.Proof#ProofStep = {
-    val just = instJust.just
-    val (seq, ref) = proof.getSequentAndInt(just)
-    if (instJust.instsPred.isEmpty && instJust.instsTerm.isEmpty && instJust.instForall.isEmpty){
-      have(seq) by Restate(ref)
-    } else if (instJust.instsPred.isEmpty && instJust.instForall.isEmpty){
-      val res = (seq.left.map(phi => instantiateTermSchemas(phi, instJust.instsTerm)) |- seq.right.map(phi => instantiateTermSchemas(phi, instJust.instsTerm)))
-      have(res) by InstFunSchema(instJust.instsTerm)(ref)
-    } else if (instJust.instsTerm.isEmpty && instJust.instForall.isEmpty){
-      val res = (seq.left.map(phi => instantiatePredicateSchemas(phi, instJust.instsPred)) |- seq.right.map(phi => instantiatePredicateSchemas(phi, instJust.instsPred)))
-      have(res) by InstPredSchema(instJust.instsPred)(ref)
-    } else if(instJust.instsPred.isEmpty && instJust.instsTerm.isEmpty){
-      ???
-    } else {
-      ???
+  extension (using proof: library.Proof)(fact: proof.Fact) {
+    def of(insts: ((SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm))*): proof.InstantiatedFact = {
+      val instsConn: Map[SchematicConnectorLabel, LambdaFormulaFormula] = insts.filter(isLFF).asInstanceOf[Seq[(SchematicConnectorLabel, LambdaFormulaFormula)]].toMap
+      val instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula] = insts.filter(isLTF).asInstanceOf[Seq[(SchematicVarOrPredLabel, LambdaTermFormula)]].toMap
+      val instsTerm: Map[SchematicTermLabel, LambdaTermTerm] = insts.filter(isLTT).asInstanceOf[Seq[(SchematicTermLabel, LambdaTermTerm)]].toMap
+      proof.InstantiatedFact(fact, instsConn, instsPred, instsTerm)
     }
   }
-
-   */
 
   def currentProof(using p: Library#Proof): Library#Proof = p
 
@@ -189,19 +188,21 @@ trait ProofsHelpers {
       val just: theory.Theorem | theory.Axiom
   )
   class definitionWithVars(val args: Seq[VariableLabel]) {
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = definition(lambda(args, t))
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = definition(lambda(args, f))
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t))
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The) = definition(args, t.out, t.f, t.just)
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The) = definitionByUniqueExistance(args, t.out, t.f, t.just)
 
   }
 
   def DEF(args: VariableLabel*) = new definitionWithVars(args.toSeq)
 
+  // Definition helpers, not part of the DSL
+
   /**
    * Allows to make definitions "by equality" of a function symbol
    */
-  def definition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermTerm): ConstantFunctionLabel = {
+  def simpleDefinition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermTerm): ConstantFunctionLabel = {
     val label = ConstantFunctionLabel(name.value, lambda.vars.length)
     val judgement = simpleDefinition(name.value, lambda)
     judgement match {
@@ -224,7 +225,7 @@ trait ProofsHelpers {
           om.lisaThrow(
             UserInvalidDefinitionException(
               name.value,
-              s"The definition is not allowed to contain schematic symbols or free variables." +
+              s"The definition is not allowed to contain schematic symbols or free variables.\n" +
                 s"The symbols {${(lambda.body.freeSchematicTermLabels -- lambda.vars.toSet).mkString(", ")}} are free in the expression ${FOLPrinter.prettyTerm(lambda.body)}."
             )
           )
@@ -242,7 +243,7 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by unique existance" of a function symbol
    */
-  def definition(using
+  def definitionByUniqueExistance(using
       om: OutputManager,
       name: sourcecode.Name,
       line: sourcecode.Line,
@@ -253,8 +254,32 @@ trait ProofsHelpers {
       case thm: theory.Theorem => thm.proposition
       case ax: theory.Axiom => () |- ax.ax
     }
-    val pr: SCProof = SCProof(IndexedSeq(Rewrite(conclusion, -1)), IndexedSeq(conclusion))
-    val judgement = theory.functionDefinition(name.value, LambdaTermFormula(vars, f), out, pr, Seq(just))
+    val pr: SCProof = SCProof(IndexedSeq(SC.Restate(conclusion, -1)), IndexedSeq(conclusion))
+    if (!(conclusion.left.isEmpty && (conclusion.right.size == 1))) {
+      om.lisaThrow(
+        UserInvalidDefinitionException(
+          name.value,
+          s"The given justification is not valid for a definition" +
+            s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, VariableFormulaLabel("phi")))}" +
+            s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
+        )
+      )
+    }
+    val proven = conclusion.right.head match {
+      case BinderFormula(ExistsOne, bound, inner) => inner
+      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(l, x === y) => r
+      case BinderFormula(Exists, x, BinderFormula(Forall, y, ConnectorFormula(Iff, Seq(l, r)))) if isSame(r, x === y) => l
+      case _ =>
+        om.lisaThrow(
+          UserInvalidDefinitionException(
+            name.value,
+            s"The given justification is not valid for a definition" +
+              s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, VariableFormulaLabel("phi")))}" +
+              s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
+          )
+        )
+    }
+    val judgement = theory.functionDefinition(name.value, LambdaTermFormula(vars, f), out, pr, proven, Seq(just))
     judgement match {
       case RunningTheoryJudgement.ValidJustification(just) =>
         library.last = Some(just)
@@ -271,22 +296,12 @@ trait ProofsHelpers {
         if (!theory.isAvailable(label)) {
           om.lisaThrow(UserInvalidDefinitionException(name.value, s"The symbol ${name.value} has already been defined and can't be redefined."))
         }
-        if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet) && f.schematicFormulaLabels.isEmpty)) {
+        if (!(f.freeSchematicTermLabels.subsetOf(vars.toSet + out) && f.schematicFormulaLabels.isEmpty)) {
           om.lisaThrow(
             UserInvalidDefinitionException(
               name.value,
               s"The definition is not allowed to contain schematic symbols or free variables." +
                 s"The symbols {${(f.freeSchematicTermLabels -- vars.toSet ++ f.schematicFormulaLabels).mkString(", ")}} are free in the expression ${FOLPrinter.prettyFormula(f)}."
-            )
-          )
-        }
-        if (!(conclusion.left.isEmpty && (conclusion.right.size == 1) && isSame(conclusion.right.head, BinderFormula(ExistsOne, out, f)))) {
-          om.lisaThrow(
-            UserInvalidDefinitionException(
-              name.value,
-              s"The definition given justification does not correspond to the desired definition" +
-                s"The justification should be of the form ${FOLPrinter.prettySequent(() |- BinderFormula(ExistsOne, out, f))}" +
-                s"instead of the given ${FOLPrinter.prettySequent(conclusion)}"
             )
           )
         }
@@ -303,7 +318,7 @@ trait ProofsHelpers {
   /**
    * Allows to define a predicate symbol
    */
-  def definition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermFormula): ConstantPredicateLabel = {
+  def predicateDefinition(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(lambda: LambdaTermFormula): ConstantPredicateLabel = {
     val label = ConstantPredicateLabel(name.value, lambda.vars.length)
     val judgement = simpleDefinition(name.value, lambda)
     judgement match {

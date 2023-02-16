@@ -10,7 +10,7 @@ import lisa.utils.KernelHelpers.{_, given}
  */
 private[settheory] trait SetTheoryDefinitions {
 
-  def axioms: Set[(String, Formula)] = Set.empty
+  def axioms: Set[(String, runningSetTheory.Axiom)] = Set.empty
 
   // Predicates
   /**

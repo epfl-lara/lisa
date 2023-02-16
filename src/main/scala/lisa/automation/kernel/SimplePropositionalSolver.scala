@@ -91,7 +91,7 @@ object SimplePropositionalSolver {
     } else if (left.ors.nonEmpty) {
       val f = left.ors.head
       if (f.args.isEmpty) {
-        List(RewriteTrue(s))
+        List(RestateTrue(s))
       } else if (f.args.length == 1) {
         val phi = f.args(0)
 
@@ -157,7 +157,7 @@ object SimplePropositionalSolver {
     } else if (right.ands.nonEmpty) {
       val f = right.ands.head
       if (f.args.isEmpty) {
-        List(RewriteTrue(s))
+        List(RestateTrue(s))
       } else if (f.args.length == 1) {
         val phi = f.args(0)
 
@@ -220,19 +220,19 @@ object SimplePropositionalSolver {
     r4
   }
 
-  object Trivial extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
+  object Trivial extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
 
-    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       proof.ValidProofTactic(solveSequent(bot).steps, Seq())
     }
 
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
-      apply2(using proof)(Seq(premise)*)(bot)
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+      apply2(using lib, proof)(Seq(premise)*)(bot)
 
-    def apply2(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply2(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       val steps = {
         val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
-        val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
+        val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
         val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
         val subpr = SCSubproof(solveSequent(sqToProve))
         val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {

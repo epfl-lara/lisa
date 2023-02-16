@@ -13,7 +13,7 @@ object OLPropositionalSolver {
    * A tactic object dedicated to solve any propositionaly provable sequent (possibly in exponential time). Can be used with arbitrary many premises.
    * Leverages the OL algorithm for scalafmpropositional logic.
    */
-  object Tautology extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
+  object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
 
     /**
      * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
@@ -21,7 +21,7 @@ object OLPropositionalSolver {
      * @param proof The ongoing proof object in which the step happens.
      * @param bot The desired conclusion.
      */
-    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       solveSequent(bot) match {
         case Left(value) => proof.ValidProofTactic(value.steps, Seq())
         case Right((msg, seq)) => proof.InvalidProofTactic(msg)
@@ -36,12 +36,12 @@ object OLPropositionalSolver {
      * @param premise A previously proven step necessary to reach the conclusion.
      * @param bot   The desired conclusion.
      */
-    def apply(using proof: Library#Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
-      apply2(using proof)(Seq(premise)*)(bot)
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+      from(using lib, proof)(Seq(premise)*)(bot)
 
-    def apply2(using proof: Library#Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
+    def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
-      val initProof = premsFormulas.map(s => Rewrite(() |- s._1._2, -(1 + s._2))).toList
+      val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
       val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
       solveSequent(sqToProve) match {
         case Left(value) =>
@@ -71,7 +71,7 @@ object OLPropositionalSolver {
 
     try {
       val steps = solveAugSequent(augSeq, 0)(using MaRvIn)
-      Left(SCProof((Rewrite(s, steps.length - 1) :: steps).reverse.toIndexedSeq))
+      Left(SCProof((Restate(s, steps.length - 1) :: steps).reverse.toIndexedSeq))
     } catch
       case e: NoProofFoundException =>
         Right(
@@ -124,7 +124,7 @@ object OLPropositionalSolver {
     val bestAtom = findBestAtom(s.formula)
     val redF = reducedForm(s.formula)
     if (redF == top()) {
-      List(RewriteTrue(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- s.formula))
+      List(RestateTrue(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- s.formula))
     } else if (bestAtom.isEmpty) {
       assert(redF == bot()) // sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
       val res = s.decisions._1 |- redF :: s.decisions._2 // the branch that can't be closed
@@ -141,9 +141,9 @@ object OLPropositionalSolver {
       val seq2 = AugSequent((s.decisions._1, atom :: s.decisions._2), lambdaF(Seq(bot())))
       val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
       val subst2 = RightSubstIff(Neg(atom) :: s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF, offset + proof1.length + proof2.length - 1 + 1, List((atom, bot())), lambdaF)
-      val red2 = Rewrite(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
+      val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
       val cutStep = Cut(s.decisions._1 |- redF :: s.decisions._2, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
-      val redStep = Rewrite(s.decisions._1 |- s.formula :: s.decisions._2, offset + proof1.length + proof2.length + 4 - 1)
+      val redStep = Restate(s.decisions._1 |- s.formula :: s.decisions._2, offset + proof1.length + proof2.length + 4 - 1)
       redStep :: cutStep :: red2 :: subst2 :: proof2 ++ (subst1 :: proof1)
 
     }

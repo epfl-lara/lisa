@@ -1,4 +1,4 @@
-package lisa.proven.peano_example
+package lisa.examples.peano_example
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory

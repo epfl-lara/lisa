@@ -11,6 +11,7 @@ import lisa.prooflib.ProofTacticLib.UnimplementedProof
 import lisa.prooflib.*
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
+import lisa.utils.parsing.UnreachableException
 
 import scala.annotation.nowarn
 import scala.collection.mutable.Buffer as mBuf
@@ -19,14 +20,44 @@ import scala.collection.mutable.Stack as stack
 
 trait WithTheorems {
   library: Library =>
+  /*
+  sealed trait InstantiatedFact {
+    val baseFormula: Sequent
+    val instsConn: Map[SchematicConnectorLabel, LambdaFormulaFormula]
+    val instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula]
+    val instsTerm: Map[SchematicTermLabel, LambdaTermTerm]
+    lazy val result: Sequent = instantiateSchemaInSequent(baseFormula, instsConn, instsPred, instsTerm)
+  }
+
+  case class InstantiatedJustification(
+                                        just: theory.Justification,
+                                        instsConn: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+                                        instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+                                        instsTerm: Map[SchematicTermLabel, LambdaTermTerm]) extends InstantiatedFact {
+    val baseFormula: Sequent = theory.sequentFromJustification(just)
+  }*/
 
   sealed abstract class Proof(assump: List[Formula]) {
-    val goal: Sequent
+    val possibleGoal: Option[Sequent]
     type SelfType = this.type
     type OutsideFact >: theory.Justification
+    type Fact = ProofStep | InstantiatedFact | OutsideFact | Int
+
+    case class InstantiatedFact(
+        fact: Fact,
+        instsConn: Map[SchematicConnectorLabel, LambdaFormulaFormula],
+        instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+        instsTerm: Map[SchematicTermLabel, LambdaTermTerm]
+    ) {
+      val baseFormula: Sequent = sequentOfFact(fact)
+      val result: Sequent = instantiateSchemaInSequent(baseFormula, instsConn, instsPred, instsTerm)
+    }
+
+    val library: WithTheorems.this.type = WithTheorems.this
 
     private var steps: List[ProofStep] = Nil
     private var imports: List[(OutsideFact, Sequent)] = Nil
+    private var instantiatedFacts: List[(InstantiatedFact, Int)] = Nil
     private var assumptions: List[Formula] = assump
     private var discharges: List[Fact] = Nil
 
@@ -34,6 +65,7 @@ trait WithTheorems {
 
     case class ProofStep private (judgement: ValidProofTactic, scps: SCProofStep, position: Int) {
       def bot: Sequent = scps.bot
+      val host: Proof.this.type = Proof.this
 
       def tactic: ProofTactic = judgement.tactic
 
@@ -53,11 +85,15 @@ trait WithTheorems {
     def newProofStep(judgement: ValidProofTactic): ProofStep =
       ProofStep.newProofStep(judgement)
 
-    type Fact = ProofStep | OutsideFact | Int
-
     private def addStep(ds: ProofStep): Unit = steps = ds :: steps
     private def addImport(imp: OutsideFact, seq: Sequent): Unit = {
       imports = (imp, seq) :: imports
+    }
+
+    private def addInstantiatedFact(instFact: InstantiatedFact): Unit = {
+      val (_, i) = sequentAndIntOfFact(instFact.fact)
+      newProofStep(BasicStepTactic.InstSchema(using library, this)(instFact.instsConn, instFact.instsPred, instFact.instsTerm)(i).asInstanceOf[ValidProofTactic])
+      instantiatedFacts = (instFact, steps.length - 1) :: instantiatedFacts
     }
 
     def addAssumption(f: Formula): Unit = {
@@ -92,8 +128,8 @@ trait WithTheorems {
      */
     def getDischarges: List[Fact] = discharges
 
-    def toSCProof(using om: OutputManager): lisa.kernel.proof.SCProof = {
-      discharges.foreach(i => {
+    def toSCProof: lisa.kernel.proof.SCProof = {
+      discharges.foreach(i => { // TODO probably remove
         val (s, t1) = sequentAndIntOfFact(i)
         SC.Cut((mostRecentStep.bot -< s.right.head) ++ (s -> s.right.head), t1, steps.length - 1, s.right.head)
       })
@@ -121,6 +157,14 @@ trait WithTheorems {
           i
         )
       case ds: ProofStep => (ds.bot, ds.position)
+      case instFact: InstantiatedFact =>
+        val r = instantiatedFacts.find(instFact == _._1)
+        r match {
+          case Some(value) => (instFact.result, value._2)
+          case None =>
+            addInstantiatedFact(instFact)
+            (instFact.result, steps.length - 1)
+        }
       case of: OutsideFact @unchecked =>
         val r = imports.indexWhere(of == _._1)
         if (r != -1) {
@@ -143,6 +187,7 @@ trait WithTheorems {
           else imports(imports.length + i)._2
         }
       case ds: ProofStep => ds.bot
+      case instfact: InstantiatedFact => instfact.result
       case of: OutsideFact @unchecked =>
         val r = imports.find(of == _._1)
         if (r.nonEmpty) {
@@ -169,11 +214,11 @@ trait WithTheorems {
       case _: BaseProof => 0
     }
 
-    final class InnerProof(val goal: Sequent) extends Proof(this.getAssumptions) {
+    final class InnerProof(val possibleGoal: Option[Sequent]) extends Proof(this.getAssumptions) {
       val parent: Proof.this.type = Proof.this
       val owningTheorem: THM = parent.owningTheorem
       type OutsideFact = parent.Fact
-      override def asOutsideFact(j: theory.Justification): OutsideFact = parent.asOutsideFact(j)
+      override inline def asOutsideFact(j: theory.Justification): OutsideFact = parent.asOutsideFact(j)
 
       override def sequentOfOutsideFact(of: parent.Fact): Sequent = of match {
         case j: theory.Justification => theory.sequentFromJustification(j)
@@ -191,7 +236,7 @@ trait WithTheorems {
       val proof: Proof = Proof.this
 
       /**
-       * Returns true if and only if the jusdgement is valid.
+       * Returns true if and only if the judgement is valid.
        */
       def isValid: Boolean = this match {
         case ValidProofTactic(_, _) => true
@@ -224,9 +269,10 @@ trait WithTheorems {
   }
 
   sealed class BaseProof(val owningTheorem: THM) extends Proof(Nil) {
+    val possibleGoal: Option[Sequent] = Some(owningTheorem.goal)
     val goal: Sequent = owningTheorem.goal
     type OutsideFact = theory.Justification
-    override def asOutsideFact(j: theory.Justification): OutsideFact = j
+    override inline def asOutsideFact(j: theory.Justification): OutsideFact = j
 
     override def sequentOfOutsideFact(of: theory.Justification): Sequent = theory.sequentFromJustification(of)
   }
@@ -243,17 +289,11 @@ trait WithTheorems {
     val proof: BaseProof = new BaseProof(this)
     val innerThm: theory.Theorem = show(computeProof)
 
-    def repr: String = (
-      " Theorem " + name + " := " + (statement match {
-        case s: Sequent => lisa.utils.FOLPrinter.prettySequent(s)
-        case s: String => s
-      })
-    )
+    def repr: String = lisa.utils.FOLPrinter.prettySequent(goal)
 
     def show(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {
-        given Proof = proof
-        computeProof
+        computeProof(using proof)
       } catch {
         case e: NotImplementedError =>
           om.lisaThrow(new UnimplementedProof(this))
@@ -281,6 +321,6 @@ trait WithTheorems {
     }
   }
 
-  given Conversion[library.THM, theory.Theorem] = _.innerThm
+  given thmConv: Conversion[library.THM, theory.Theorem] = _.innerThm
 
 }

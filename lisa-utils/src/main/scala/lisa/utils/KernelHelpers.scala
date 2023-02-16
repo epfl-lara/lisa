@@ -114,6 +114,12 @@ object KernelHelpers {
     infix def -->(s1: Sequent): Sequent = s.copy(right = s.right -- s1.right)
     infix def ++(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left, right = s.right ++ s1.right)
     infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
+
+    infix def -<?(f: Formula): Sequent = s.copy(left = s.left.filterNot(isSame(_, f)))
+    infix def ->?(f: Formula): Sequent = s.copy(right = s.right.filterNot(isSame(_, f)))
+    infix def --<?(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))))
+    infix def -->?(s1: Sequent): Sequent = s.copy(right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
+    infix def --?(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))), right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
   }
 
   // TODO: Should make less generic
@@ -301,6 +307,10 @@ object KernelHelpers {
   /////////////////////////////
 
   extension (theory: RunningTheory) {
+    def makeAxiom(using name: sourcecode.Name)(formula: Formula): theory.Axiom = theory.addAxiom(name.value, formula) match {
+      case Some(value) => value
+      case None => throw new LisaException.InvalidAxiomException("Axiom contains undefined symbols", name.value, formula, theory)
+    }
 
     /**
      * Add a theorem to the theory, but also asks explicitely for the desired conclusion
@@ -308,7 +318,7 @@ object KernelHelpers {
      */
     def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
       if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
-      else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Rewrite(statement, proof.length - 1)), justifications)
+      else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Restate(statement, proof.length - 1)), justifications)
       else InvalidJustification(s"The proof proves ${FOLPrinter.prettySequent(proof.conclusion)} instead of claimed ${FOLPrinter.prettySequent(statement)}", None)
     }
 
@@ -321,10 +331,11 @@ object KernelHelpers {
         expression: LambdaTermFormula,
         out: VariableLabel,
         proof: SCProof,
+        proven: Formula,
         justifications: Seq[theory.Justification]
     ): RunningTheoryJudgement[theory.FunctionDefinition] = {
       val label = ConstantFunctionLabel(symbol, expression.vars.size)
-      theory.makeFunctionDefinition(proof, justifications, label, out, expression)
+      theory.makeFunctionDefinition(proof, justifications, label, out, expression, proven)
     }
 
     /**

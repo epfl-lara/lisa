@@ -6,7 +6,7 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.prooflib.BasicStepTactic._
+import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
 import lisa.utils.FOLParser
@@ -15,31 +15,34 @@ import lisa.utils.Printer
 
 object SimpleDeducedSteps {
 
-  object Restate extends ProofTactic with ParameterlessHave with ParameterlessAndThen {
-    def apply(using proof: Library#Proof)(bot: Sequent): proof.ProofTacticJudgement =
+  object Restate extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement =
       unwrapTactic(RewriteTrue(bot))("Attempted true rewrite during tactic Restate failed.")
 
     // (proof.ProofStep | proof.OutsideFact | Int)     is definitionally equal to proof.Fact, but for some reason
     // scala compiler doesn't resolve the overload with a type alias, dependant type and implicit parameter
 
-    def apply(using proof: Library#Proof)(premise: proof.ProofStep | proof.OutsideFact | Int)(bot: Sequent): proof.ProofTacticJudgement =
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+      unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
+
+    def apply2(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
 
   }
 
   object Discharge extends ProofTactic {
-    def apply(using proof: Library#Proof)(premises: proof.Fact*): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(premise: proof.Fact): proof.ProofTacticJudgement = {
       val seqs = premises map proof.getSequent
       if (!seqs.forall(_.right.size == 1))
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
       val s = seqs.head
       val f = s.right.head
-      val first = SC.Cut((proof.mostRecentStep.bot -< f) ++ (s -> f), -1, -2, f)
+      val first = SC.Cut((proof.getSequent(premise) -<? f) ++ (s ->? f), -2, -1, f)
 
       proof.ValidProofTactic(
-        first +: seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
+        seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
           val f = next._1.right.head
-          SC.Cut((prev.bot -< f) ++ (next._1 -> f), next._2, -next._2 - 3, f)
+          SC.Cut((prev.bot -<? f) ++ (next._1 ->? f), -next._2 - 3, next._2, f)
         }),
         proof.mostRecentStep +: premises
       )
@@ -64,13 +67,13 @@ object SimpleDeducedSteps {
    * Returns a subproof containing the instantiation steps
    */
   object InstantiateForall extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: FOL.Formula, t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(phi: FOL.Formula, t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
       if (!premiseSequent.right.contains(phi)) {
         proof.InvalidProofTactic("Input formula was not found in the RHS of the premise sequent.")
       } else {
         val emptyProof = SCProof(IndexedSeq(), IndexedSeq(proof.getSequent(premise)))
-        val j = proof.ValidProofTactic(Seq(SC.Rewrite(premiseSequent, -1)), Seq(premise))
+        val j = proof.ValidProofTactic(Seq(SC.Restate(premiseSequent, -1)), Seq(premise))
         val res = t.foldLeft((emptyProof, phi, j: proof.ProofTacticJudgement)) { case ((p, f, j), t) =>
           j match {
             case proof.InvalidProofTactic(_) => (p, f, j) // propagate error
@@ -115,19 +118,19 @@ object SimpleDeducedSteps {
           case proof.InvalidProofTactic(_) => res._3
           case proof.ValidProofTactic(_, _) => {
             if (SC.isSameSequent(res._1.conclusion, bot))
-              proof.ValidProofTactic(Seq(SC.SCSubproof(res._1, Seq(-1))), Seq(premise))
+              proof.ValidProofTactic(Seq(SC.SCSubproof(res._1.withNewSteps(IndexedSeq(SC.Restate(bot, res._1.length - 1))), Seq(-1))), Seq(premise))
             else
-              proof.InvalidProofTactic(s"InstantiateForall proved \n\t${FOLParser.printSequent(res._1.conclusion)}\ninstead of input sequent\n\t${bot}")
+              proof.InvalidProofTactic(s"InstantiateForall proved \n\t${FOLParser.printSequent(res._1.conclusion)}\ninstead of input sequent\n\t${FOLParser.printSequent(bot)}")
           }
         }
       }
     }
 
-    def apply(using proof: Library#Proof)(t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val prem = proof.getSequent(premise)
       if (prem.right.tail.isEmpty) {
         // well formed
-        apply(using proof)(prem.right.head, t*)(premise)(bot): proof.ProofTacticJudgement
+        apply(using lib, proof)(prem.right.head, t*)(premise)(bot): proof.ProofTacticJudgement
       } else proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
   }
@@ -147,7 +150,7 @@ object SimpleDeducedSteps {
    * </pre>
    */
   object PartialCut extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: FOL.Formula, conjunction: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(phi: FOL.Formula, conjunction: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val leftSequent = proof.getSequent(prem1)
       val rightSequent = proof.getSequent(prem2)
 
@@ -166,7 +169,7 @@ object SimpleDeducedSteps {
                 val Sigma: Set[FOL.Formula] = rightSequent.left - phi
 
                 val p0 = SC.Weakening(rightSequent ++< (psi |- ()), -2)
-                val p1 = SC.RewriteTrue(psi |- psi)
+                val p1 = SC.RestateTrue(psi |- psi)
 
                 // TODO: can be abstracted into a RightAndAll step
                 val emptyProof = SCProof(IndexedSeq(), IndexedSeq(p0.bot, p1.bot))
@@ -175,7 +178,7 @@ object SimpleDeducedSteps {
                 }
 
                 val p2 = SC.SCSubproof(proofRightAndAll, Seq(0, 1))
-                val p3 = SC.Rewrite(Sigma + conjunction |- newConclusions, 2) // sanity check and correct form
+                val p3 = SC.Restate(Sigma + conjunction |- newConclusions, 2) // sanity check and correct form
                 val p4 = SC.Cut(bot, -1, 3, conjunction)
 
                 /**
@@ -215,7 +218,7 @@ object SimpleDeducedSteps {
   }
 
   object destructRightAnd extends ProofTactic {
-    def apply(using proof: Library#Proof)(a: FOL.Formula, b: FOL.Formula)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(a: FOL.Formula, b: FOL.Formula)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val conc = proof.getSequent(prem)
       val p0 = SC.Hypothesis(emptySeq +< a +> a, a)
       val p1 = SC.LeftAnd(emptySeq +< (a /\ b) +> a, 0, a, b)
@@ -224,7 +227,7 @@ object SimpleDeducedSteps {
     }
   }
   object destructRightOr extends ProofTactic {
-    def apply(using proof: Library#Proof)(a: FOL.Formula, b: FOL.Formula)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(a: FOL.Formula, b: FOL.Formula)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val conc = proof.getSequent(prem)
       val mat = conc.right.find(f => FOL.isSame(f, a \/ b))
       if (mat.nonEmpty) {
@@ -243,11 +246,11 @@ object SimpleDeducedSteps {
   }
 
   object GeneralizeToForall extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: FOL.Formula, t: FOL.VariableLabel*)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(phi: FOL.Formula, t: FOL.VariableLabel*)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val sequent = proof.getSequent(prem)
       if (sequent.right.contains(phi)) {
         val emptyProof = SCProof(IndexedSeq(), IndexedSeq(sequent))
-        val j = proof.ValidProofTactic(IndexedSeq(SC.Rewrite(sequent, proof.length - 1)), Seq[proof.Fact]())
+        val j = proof.ValidProofTactic(IndexedSeq(SC.Restate(sequent, proof.length - 1)), Seq[proof.Fact]())
 
         val res = t.foldRight(emptyProof: SCProof, phi: FOL.Formula, j: proof.ProofTacticJudgement) { case (x1, (p1: SCProof, phi1, j1)) =>
           j1 match {
@@ -268,7 +271,7 @@ object SimpleDeducedSteps {
 
         res._3 match {
           case proof.InvalidProofTactic(_) => res._3
-          case proof.ValidProofTactic(_, _) => proof.ValidProofTactic((res._1.steps appended SC.Rewrite(bot, res._1.length - 1)), Seq(prem))
+          case proof.ValidProofTactic(_, _) => proof.ValidProofTactic((res._1.steps appended SC.Restate(bot, res._1.length - 1)), Seq(prem))
         }
 
       } else proof.InvalidProofTactic("RHS of premise sequent contains not phi")
@@ -277,9 +280,9 @@ object SimpleDeducedSteps {
   }
 
   object GeneralizeToForallNoForm extends ProofTactic {
-    def apply(using proof: Library#Proof)(t: FOL.VariableLabel*)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(t: FOL.VariableLabel*)(prem: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       if (proof.getSequent(prem).right.tail.isEmpty)
-        GeneralizeToForall.apply(using proof)(proof.getSequent(prem).right.head, t*)(prem)(bot): proof.ProofTacticJudgement
+        GeneralizeToForall.apply(using lib, proof)(proof.getSequent(prem).right.head, t*)(prem)(bot): proof.ProofTacticJudgement
       else
         proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
@@ -287,7 +290,7 @@ object SimpleDeducedSteps {
   }
 
   object ByCase extends ProofTactic {
-    def apply(using proof: Library#Proof)(phi: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(phi: FOL.Formula)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val nphi = !phi
 
       val pa = proof.getSequent(prem1)
@@ -296,7 +299,7 @@ object SimpleDeducedSteps {
       if (leftAphi.nonEmpty && leftBnphi.nonEmpty) {
         val p2 = SC.RightNot(pa -< leftAphi.get +> nphi, -1, phi)
         val p3 = SC.Cut(pa -< leftAphi.get ++ (pb -< leftBnphi.get), 0, -2, nphi)
-        val p4 = SC.Rewrite(bot, 1)
+        val p4 = SC.Restate(bot, 1)
         proof.ValidProofTactic(IndexedSeq(p2, p3, p4), IndexedSeq(prem1, prem2)) // TODO: Check pa/pb orDer
 
       } else {
@@ -304,4 +307,5 @@ object SimpleDeducedSteps {
       }
     }
   }
+
 }

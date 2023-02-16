@@ -20,12 +20,11 @@ object Example {
 
   def main(args: Array[String]): Unit = {
 
-    // Exercise.main(Array())
+    Exercise.main(Array())
     // solverExample()
     // tptpExample()
 
   }
-
 
   /**
    * An example of how to use the simple propositional solver.
