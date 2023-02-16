@@ -1,5 +1,6 @@
 package lisa.settheory
 
+import lisa.kernel.fol.FOL
 import lisa.prooflib.Library
 
 /**
@@ -8,5 +9,9 @@ import lisa.prooflib.Library
 object SetTheoryLibrary extends Library with SetTheoryTGAxioms {
   export lisa.prooflib.Exports.*
   val theory: runningSetTheory.type = runningSetTheory
+
+  // Unicode symbols
+
+  val ∅ : Term = emptySet()
 
 }

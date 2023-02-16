@@ -63,7 +63,7 @@ object SetTheory extends lisa.Main {
    * current form of the comprehension schema, i.e. `{x ∈ X | Ψ(x, X)}`
    * instead of the full comprehension schema `{x | Ψ(x)}`.
    */
-  val russelsParadox = makeTHM(
+  val russelsParadox = Theorem(
     exists(x, forall(y, !in(y, y) <=> in(y, x))) |- ()
   ) {
     val contra = !in(x, x) <=> in(x, x)
@@ -88,7 +88,7 @@ object SetTheory extends lisa.Main {
    *
    * Instantiation will fail if `myProperty(t)` contains `z` as a free variable.
    */
-  val uniqueByExtension = makeTHM(
+  val uniqueByExtension = Theorem(
     exists(z, forall(t, in(t, z) <=> schemPred(t))) |- existsOne(z, forall(t, in(t, z) <=> schemPred(t)))
   ) {
     def prop(z: Term) = in(t, z) <=> schemPred(t)
@@ -161,7 +161,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- a set is an element of `x \cup y` iff it is an element of `x` or `y`
    */
-  val setUnionMembership = makeTHM(
+  val setUnionMembership = Theorem(
     () |- in(z, setUnion(x, y)) <=> (in(z, x) \/ in(z, y))
   ) {
     have(() |- forall(z, (z === setUnion(x, y)) <=> (z === union(unorderedPair(x, y))))) by Rewrite(setUnion.definition)
@@ -245,7 +245,7 @@ object SetTheory extends lisa.Main {
    * that the two forms are equivalent by folding the definitions of
    * [[successor]] and [[inductive]].
    */
-  val inductiveSetExists = makeTHM(
+  val inductiveSetExists = Theorem(
     () |- exists(x, inductive(x))
   ) {
     val form = formulaVariable
@@ -323,7 +323,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- If a set has an element, then it is not the empty set.
    */
-  val setWithElementNonEmpty = makeTHM(
+  val setWithElementNonEmpty = Theorem(
     in(y, x) |- !(x === emptySet())
   ) {
     have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(emptySetAxiom)
@@ -335,7 +335,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- A set containing no elements is equivalent to the empty set.
    */
-  val setWithNoElementsIsEmpty = makeTHM(
+  val setWithNoElementsIsEmpty = Theorem(
     forall(y, !in(y, x)) |- (x === emptySet())
   ) {
     have(() |- !in(y, emptySet())) by InstFunSchema(Map(x -> y))(emptySetAxiom)
@@ -360,7 +360,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- The empty set is a subset of every set.
    */
-  val emptySetIsASubset = makeTHM(
+  val emptySetIsASubset = Theorem(
     () |- subset(emptySet(), x)
   ) {
     val lhs = have(() |- subset(emptySet(), x) <=> forall(z, in(z, emptySet()) ==> in(z, x))) by InstFunSchema(Map(x -> emptySet(), y -> x))(subsetAxiom)
@@ -377,7 +377,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- A power set is never empty.
    */
-  val powerSetNonEmpty = makeTHM(
+  val powerSetNonEmpty = Theorem(
     () |- !(powerSet(x) === emptySet())
   ) {
     // strategy
@@ -407,7 +407,7 @@ object SetTheory extends lisa.Main {
    * Unfolds the definition of [[unorderedPair]]. Easier to use in theorems than
    * the complete definition.
    */
-  val firstElemInPair = makeTHM(
+  val firstElemInPair = Theorem(
     () |- in(x, unorderedPair(x, y))
   ) {
     val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
@@ -428,7 +428,7 @@ object SetTheory extends lisa.Main {
    * Unfolds the definition of [[unorderedPair]]. Easier to use in theorems than
    * the complete definition.
    */
-  val secondElemInPair = makeTHM(
+  val secondElemInPair = Theorem(
     () |- in(y, unorderedPair(x, y))
   ) {
     val lhs = have(() |- in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
@@ -444,7 +444,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- If a set belongs to a singleton, it must be the single element.
    */
-  val singletonHasNoExtraElements = makeTHM(
+  val singletonHasNoExtraElements = Theorem(
     () |- in(y, singleton(x)) <=> (x === y)
   ) {
     // specialization of the pair axiom to a singleton
@@ -453,7 +453,7 @@ object SetTheory extends lisa.Main {
     thenHave(() |- in(y, singleton(x)) <=> (x === y)) by Restate
   }
 
-  val unorderedPairSymmetry = makeTHM(() |- unorderedPair(x, y) === unorderedPair(y, x)) {
+  val unorderedPairSymmetry = Theorem(() |- unorderedPair(x, y) === unorderedPair(y, x)) {
     have(() |- (y === z) \/ (x === z) <=> in(z, unorderedPair(y, x))) by InstFunSchema(Map(x -> y, y -> x))(pairAxiom)
     andThen(applySubst.apply(pairAxiom))
     val part1 = thenHave(() |- forall(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by RightForall
@@ -464,7 +464,7 @@ object SetTheory extends lisa.Main {
     have(thesis) by Cut(part2, fin)
   }
 
-  val unorderedPairDeconstruction = makeTHM("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
+  val unorderedPairDeconstruction = Theorem("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
     val s1 = have(applySubst("unorderedPair('a, 'b) = unorderedPair('c, 'd)")(pairAxiom of (x -> a, y -> b)))
     val base = have(applySubst(s1)(pairAxiom of (x -> c, y -> d)))
     have(thesis) by Tautology.from(base of (z -> a), base of (z -> b), base of (z -> c), base of (z -> d))
@@ -478,7 +478,7 @@ object SetTheory extends lisa.Main {
    *
    *      `∀ x. ∪ {x} === x`
    */
-  val unionOfSingletonIsTheOriginalSet = makeTHM(
+  val unionOfSingletonIsTheOriginalSet = Theorem(
     () |- (union(singleton(x)) === x)
   ) {
     val X = singleton(x)
@@ -528,7 +528,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- Two unordered pairs are equal iff their elements are equal pairwise.
    */
-  val unorderedPairExtensionality = makeTHM(
+  val unorderedPairExtensionality = Theorem(
     () |- (unorderedPair(a, b) === unorderedPair(c, d)) <=> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))
   ) {
     // forward direction
@@ -554,7 +554,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- A singleton set is never empty.
    */
-  val singletonNonEmpty = makeTHM(
+  val singletonNonEmpty = Theorem(
     () |- !(singleton(x) === emptySet())
   ) {
     val reflLhs = have(() |- in(x, singleton(x)) <=> (x === x)) by InstFunSchema(Map(y -> x))(singletonHasNoExtraElements)
@@ -571,7 +571,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- Two singletons are equal iff their elements are equal
    */
-  val singletonExtensionality = makeTHM(
+  val singletonExtensionality = Theorem(
     () |- (singleton(x) === singleton(y)) <=> (x === y)
   ) {
     // forward direction
@@ -604,7 +604,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- Unordered pairs of elements of a set `x` are in its power set `P(x)`.
    */
-  val unorderedPairInPowerSet = makeTHM(
+  val unorderedPairInPowerSet = Theorem(
     () |- (in(a, x) /\ in(b, x)) <=> in(unorderedPair(a, b), powerSet(x))
   ) {
 
@@ -658,7 +658,7 @@ object SetTheory extends lisa.Main {
    *
    *  pair(a, b) === pair(c, d) iff a === c and b === d
    */
-  val pairExtensionality = makeTHM(
+  val pairExtensionality = Theorem(
     () |- (pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))
   ) {
     // forward direction
@@ -728,7 +728,7 @@ object SetTheory extends lisa.Main {
    *
    * This is imposed by the Foundation Axiom ([[foundationAxiom]]).
    */
-  val selfNonInclusion = makeTHM(
+  val selfNonInclusion = Theorem(
     () |- !in(x, x)
   ) {
     val X = singleton(x)
@@ -770,7 +770,7 @@ object SetTheory extends lisa.Main {
    * There does not exist a set of all sets. Alternatively, its existence, with
    * the comprehension schema and Russel's paradox, produces a contradiction.
    */
-  val noUniversalSet = makeTHM(
+  val noUniversalSet = Theorem(
     forall(z, in(z, x)) |- ()
   ) {
     have(in(x, x) |- ()) by Rewrite(selfNonInclusion)
@@ -780,7 +780,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- The power set of any set is not a proper subset of it.
    */
-  val powerSetNonInclusion = makeTHM(
+  val powerSetNonInclusion = Theorem(
     Exists(x, properSubset(powerSet(x), x)) |- ()
   ) {
     val lhs = have(subset(powerSet(x), x) |- subset(powerSet(x), x)) by Hypothesis
@@ -805,7 +805,7 @@ object SetTheory extends lisa.Main {
    * Operations on Sets
    */
 
-  val setIntersectionUniqueness = makeTHM(
+  val setIntersectionUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ in(t, y))))
   ) {
     have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ in(t, y))))) by UniqueComprehension(x, lambda(Seq(t, z), in(t, y)))
@@ -823,7 +823,7 @@ object SetTheory extends lisa.Main {
    */
   val setIntersection = DEF(x, y) --> The(z, forall(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
 
-  val unaryIntersectionUniqueness = makeTHM(
+  val unaryIntersectionUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))
   ) {
     have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))) by UniqueComprehension(union(x), lambda(Seq(t, z), forall(b, in(b, x) ==> in(t, b))))
@@ -840,7 +840,7 @@ object SetTheory extends lisa.Main {
    */
   val unaryIntersection = DEF(x) --> The(z, forall(t, in(t, z) <=> (in(t, union(x)) /\ forall(b, in(b, x) ==> in(t, b)))))(unaryIntersectionUniqueness)
 
-  val setDifferenceUniqueness = makeTHM(
+  val setDifferenceUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))
   ) {
     have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))) by UniqueComprehension(x, lambda(Seq(t, z), !in(t, y)))
@@ -865,7 +865,7 @@ object SetTheory extends lisa.Main {
    *
    *    `∃ x. P(x) ⊢ ∃ z. t ∈ z ⇔ ∀ x. P(x) ⇒ t ∈ x`
    */
-  val intersectionOfPredicateClassExists = makeTHM(
+  val intersectionOfPredicateClassExists = Theorem(
     exists(x, P(x)) |- exists(z, forall(t, in(t, z) <=> forall(y, P(y) ==> in(t, y))))
   ) {
     have(() |- exists(z, forall(t, in(t, z) <=> (in(t, x) /\ sPhi(t, x))))) by InstFunSchema(Map(z -> x))(comprehensionSchema)
@@ -910,7 +910,7 @@ object SetTheory extends lisa.Main {
    */
   val firstInPair = DEF(p) --> union(unaryIntersection(p))
 
-  val secondInPairSingletonUniqueness = makeTHM(
+  val secondInPairSingletonUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))
   ) {
     have(thesis) by UniqueComprehension(union(p), lambda(Seq(t, x), ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p))))))
@@ -943,7 +943,7 @@ object SetTheory extends lisa.Main {
    * Cartesian Products and Relations
    */
 
-  val cartesianProductUniqueness = makeTHM(
+  val cartesianProductUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))))
   ) {
     have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))))) by UniqueComprehension(
@@ -972,7 +972,7 @@ object SetTheory extends lisa.Main {
    * Theorem --- a pair is in the set `x * y` iff its elements are in `x` and
    * `y` respectively.
    */
-  val pairInCartesianProduct = makeTHM(
+  val pairInCartesianProduct = Theorem(
     () |- in(pair(a, b), cartesianProduct(x, y)) <=> (in(a, x) /\ in(b, y))
   ) {
     have(
@@ -1057,7 +1057,7 @@ object SetTheory extends lisa.Main {
     have(thesis) by RightIff(fwd, bwd)
   }
 
-  val pairInSetImpliesPairInUnion = makeTHM(
+  val pairInSetImpliesPairInUnion = Theorem(
     in(pair(a, b), r) |- in(a, union(union(r))) /\ in(b, union(union(r)))
   ) {
     // a, b in {a, b} and union union r
@@ -1104,7 +1104,7 @@ object SetTheory extends lisa.Main {
    */
   val relation = DEF(r) --> exists(a, exists(b, subset(r, cartesianProduct(a, b))))
 
-  val relationDomainUniqueness = makeTHM(
+  val relationDomainUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> exists(a, in(pair(t, a), r))))
   ) {
     val uniq = have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))) by UniqueComprehension(
@@ -1167,7 +1167,7 @@ object SetTheory extends lisa.Main {
    */
   val relationDomain = DEF(r) --> The(z, forall(t, in(t, z) <=> exists(a, in(pair(t, a), r))))(relationDomainUniqueness)
 
-  val relationRangeUniqueness = makeTHM(
+  val relationRangeUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> exists(a, in(pair(a, t), r))))
   ) {
     val uniq = have(() |- existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))) by UniqueComprehension(
@@ -1259,7 +1259,7 @@ object SetTheory extends lisa.Main {
    */
   val functionalOver = DEF(f, x) --> functional(f) /\ (relationDomain(f) === x)
 
-  val setOfFunctionsUniqueness = makeTHM(
+  val setOfFunctionsUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
   ) {
     have(thesis) by UniqueComprehension(powerSet(cartesianProduct(x, y)), lambda(Seq(t, z), functionalOver(t, x)))
@@ -1283,7 +1283,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- A function between two sets is [[functional]]
    */
-  val functionFromImpliesFunctional = makeTHM(
+  val functionFromImpliesFunctional = Theorem(
     functionFrom(f, x, y) |- functional(f)
   ) {
     have(() |- forall(t, in(t, setOfFunctions(x, y)) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(setOfFunctions(x, y))(setOfFunctions.definition)
@@ -1292,7 +1292,7 @@ object SetTheory extends lisa.Main {
     val funOver = have(functionFrom(f, x, y) |- functional(f)) by Tautology.from(funSetDef, functionFrom.definition, functionalOver.definition)
   }
 
-  val functionApplicationUniqueness = makeTHM(
+  val functionApplicationUniqueness = Theorem(
     () |- existsOne(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === emptySet())))
   ) {
     val prem = functional(f) /\ in(x, relationDomain(f))
@@ -1467,7 +1467,7 @@ object SetTheory extends lisa.Main {
 
   // val inverseFunction = DEF (f, x, y) --> The(g, invertibleFunction(f) ==> inverseFunctionOf(g, f, x, y))(inverseFunctionUniqueness)
 
-  val restrictedFunctionUniqueness = makeTHM(
+  val restrictedFunctionUniqueness = Theorem(
     () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))
   ) {
     have(() |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ exists(y, exists(z, in(y, x) /\ (t === pair(y, z)))))))) by UniqueComprehension(
@@ -1503,7 +1503,7 @@ object SetTheory extends lisa.Main {
    */
   val Sigma = DEF(x, f) --> union(restrictedFunction(f, x))
 
-  val piUniqueness = makeTHM(
+  val piUniqueness = Theorem(
     () |- existsOne(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))
   ) {
     have(() |- existsOne(z, forall(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))) by UniqueComprehension(
@@ -1595,7 +1595,7 @@ object SetTheory extends lisa.Main {
    * Every set is a [[subset]] of itself. In other words, the [[subset]]
    * predicate induces a [[reflexive]] [[relation]] on sets.
    */
-  val subsetReflexivity = makeTHM(
+  val subsetReflexivity = Theorem(
     () |- subset(x, x)
   ) {
     val subdef = have(() |- subset(x, x) <=> forall(z, top())) by Rewrite(subsetAxiom of (y -> x))
@@ -1610,7 +1610,7 @@ object SetTheory extends lisa.Main {
    * [[equality]] implies a [[subset]] ordering, and [[subset]] ordering in both
    * directions implies [[equality]].
    */
-  val subsetEqualitySymmetry = makeTHM(
+  val subsetEqualitySymmetry = Theorem(
     () |- (x === y) <=> (subset(x, y) /\ subset(y, x))
   ) {
     // we prove the implication directions separately
@@ -1644,13 +1644,13 @@ object SetTheory extends lisa.Main {
     have(thesis) by RightAnd(fwd, bwd)
   }
 
-  val functionalOverImpliesDomain = makeTHM(
+  val functionalOverImpliesDomain = Theorem(
     functionalOver(f, x) |- (relationDomain(f) === x)
   ) {
     have(thesis) by Tautology.from(functionalOver.definition)
   }
 
-  val functionFromImpliesDomainEq = makeTHM(
+  val functionFromImpliesDomainEq = Theorem(
     functionFrom(f, x, y) |- (relationDomain(f) === x)
   ) {
     have(() |- forall(t, in(t, setOfFunctions(x, y)) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(setOfFunctions(x, y))(setOfFunctions.definition)
@@ -1659,7 +1659,7 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(functionFrom.definition, funSetDef, functionalOver.definition)
   }
 
-  val functionImpliesRangeSubsetOfCodomain = makeTHM(
+  val functionImpliesRangeSubsetOfCodomain = Theorem(
     functionFrom(f, x, y) |- subset(relationRange(f), y)
   ) {
     have(() |- forall(t, in(t, setOfFunctions(x, y)) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(setOfFunctions(x, y))(setOfFunctions.definition)
@@ -1687,7 +1687,7 @@ object SetTheory extends lisa.Main {
     andThen(applySubst(subsetAxiom of (x -> relationRange(f))))
   }
 
-  val inRangeImpliesPullbackExists = makeTHM(
+  val inRangeImpliesPullbackExists = Theorem(
     functional(f) /\ in(z, relationRange(f)) |- exists(t, in(t, relationDomain(f)) /\ (app(f, t) === z))
   ) {
     val appIff = have(
@@ -1725,7 +1725,7 @@ object SetTheory extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
-  val surjectiveImpliesRangeIsCodomain = makeTHM(
+  val surjectiveImpliesRangeIsCodomain = Theorem(
     surjective(f, x, y) |- (y === relationRange(f))
   ) {
     have(surjective(f, x, y) |- forall(b, in(b, y) ==> exists(a, in(pair(a, b), f)))) by Tautology.from(surjective.definition)
@@ -1745,7 +1745,7 @@ object SetTheory extends lisa.Main {
     have(thesis) by Cut(surjfunc, funceq)
   }
 
-  val cantorTheorem = makeTHM(
+  val cantorTheorem = Theorem(
     surjective(f, x, powerSet(x)) |- ()
   ) {
     // define y = {z \in x | ! z \in f(z)}

@@ -278,7 +278,8 @@ trait WithTheorems {
   }
 
   sealed abstract class DefOrThm(using om: OutputManager)(val line: Int, val file: String)
-  class THM(using om: OutputManager)(statement: Sequent | String, val fullName: String, line: Int, file: String)(computeProof: Proof ?=> Unit) extends DefOrThm(using om)(line, file) {
+  class THM(using om: OutputManager)(statement: Sequent | String, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
+      extends DefOrThm(using om)(line, file) {
 
     val goal: Sequent = statement match {
       case s: Sequent => s
@@ -322,5 +323,10 @@ trait WithTheorems {
   }
 
   given thmConv: Conversion[library.THM, theory.Theorem] = _.innerThm
+
+  trait TheoremKind { val kind: String }
+  object Theorem extends TheoremKind { val kind: String = "Theorem" }
+  object Lemma extends TheoremKind { val kind: String = "Lemma" }
+  object Corollary extends TheoremKind { val kind: String = "Corollary" }
 
 }

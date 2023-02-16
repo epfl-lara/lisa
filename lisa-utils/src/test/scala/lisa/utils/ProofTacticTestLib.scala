@@ -14,7 +14,7 @@ class ProofTacticTestLib extends AnyFunSuite with BasicMain {
   export lisa.test.TestTheoryLibrary.{_, given}
 
   // generate a placeholde theorem to take ownership of proofs for test
-  val placeholderTheorem = makeTHM("'P('x) |- 'P('x)") { have("'P('x) |- 'P('x)") by Hypothesis }
+  val placeholderTheorem = Theorem("'P('x) |- 'P('x)") { have("'P('x) |- 'P('x)") by Hypothesis }
 
   // generates an empty proof owned by the placeholder theorem for testing
   def generateTestProof() = new BaseProof(placeholderTheorem)

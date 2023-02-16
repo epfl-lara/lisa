@@ -102,19 +102,19 @@ object SCProofChecker {
           /*
            *  Γ |- φ, Δ    Σ, ψ |- Π
            * ------------------------
-           *    Γ, Σ, φ→ψ |- Δ, Π
+           *    Γ, Σ, φ⇒ψ |- Δ, Π
            */
           case LeftImplies(b, t1, t2, phi, psi) =>
             val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
             if (isSameSet(b.right + phi, ref(t1).right union ref(t2).right))
               if (isSameSet(b.left + psi, ref(t1).left union ref(t2).left + phiImpPsi))
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + ψ must be identical to union of left-hand sides of premisces + φ→ψ.")
+              else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + ψ must be identical to union of left-hand sides of premisces + φ⇒ψ.")
             else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ must be identical to union of right-hand sides of premisces.")
           /*
-           *  Γ, φ→ψ |- Δ               Γ, φ→ψ, ψ→φ |- Δ
+           *  Γ, φ⇒ψ |- Δ               Γ, φ⇒ψ, ψ⇒φ |- Δ
            * --------------    or     ---------------
-           *  Γ, φ↔ψ |- Δ              Γ, φ↔ψ |- Δ
+           *  Γ, φ⇔ψ |- Δ              Γ, φ⇔ψ |- Δ
            */
           case LeftIff(b, t1, phi, psi) =>
             val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
@@ -127,7 +127,7 @@ object SCProofChecker {
                 isSameSet(b.left + phiImpPsi + psiImpPhi, ref(t1).left + phiIffPsi)
               )
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ↔ψ must be same as left-hand side of premise + either φ→ψ, ψ→φ or both.")
+              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ⇔ψ must be same as left-hand side of premise + either φ⇒ψ, ψ⇒φ or both.")
             else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of premise and conclusion must be the same.")
 
           /*
@@ -170,7 +170,7 @@ object SCProofChecker {
             else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
 
           /*
-           *  Γ, ∃y.∀x. (x=y) ↔ φ |-  Δ
+           *  Γ, ∃y.∀x. (x=y) ⇔ φ |-  Δ
            * ---------------------------- if y is not free in φ
            *      Γ, ∃!x. φ |- Δ
            */
@@ -180,7 +180,7 @@ object SCProofChecker {
             if (isSameSet(b.right, ref(t1).right))
               if (isSameSet(b.left + temp, ref(t1).left + BinderFormula(ExistsOne, x, phi)))
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + ∃y.∀x. (x=y) ↔ φ must be the same as left-hand side of premise + ∃!x. φ")
+              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + ∃y.∀x. (x=y) ⇔ φ must be the same as left-hand side of premise + ∃!x. φ")
             else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
 
           // Right rules
@@ -215,19 +215,19 @@ object SCProofChecker {
           /*
            *  Γ, φ |- ψ, Δ
            * --------------
-           *  Γ |- φ→ψ, Δ
+           *  Γ |- φ⇒ψ, Δ
            */
           case RightImplies(b, t1, phi, psi) =>
             val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
             if (isSameSet(ref(t1).left, b.left + phi))
               if (isSameSet(b.right + psi, ref(t1).right + phiImpPsi))
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ→ψ.")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ⇒ψ.")
             else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + psi must be same as left-hand side of premise.")
           /*
-           *  Γ |- a→ψ, Δ    Σ |- ψ→φ, Π
+           *  Γ |- a⇒ψ, Δ    Σ |- ψ⇒φ, Π
            * ----------------------------
-           *      Γ, Σ |- φ↔b, Π, Δ
+           *      Γ, Σ |- φ⇔b, Π, Δ
            */
           case RightIff(b, t1, t2, phi, psi) =>
             val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
@@ -236,7 +236,7 @@ object SCProofChecker {
             if (isSameSet(b.left, ref(t1).left union ref(t2).left))
               if (isSameSet(b.right + phiImpPsi + psiImpPhi, ref(t1).right union ref(t2).right + phiIffPsi))
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + a→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises φ↔b.")
+              else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + a⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises φ⇔b.")
             else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
           /*
            *  Γ, φ |- Δ
@@ -277,7 +277,7 @@ object SCProofChecker {
 
           /**
            * <pre>
-           * Γ |- ∃y.∀x. (x=y) ↔ φ, Δ
+           * Γ |- ∃y.∀x. (x=y) ⇔ φ, Δ
            * ---------------------------- if y is not free in φ
            * Γ|- ∃!x. φ,  Δ
            * </pre>
@@ -288,7 +288,7 @@ object SCProofChecker {
             if (isSameSet(b.left, ref(t1).left))
               if (isSameSet(b.right + temp, ref(t1).right + BinderFormula(ExistsOne, x, phi)))
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ∃y.∀x. (x=y) ↔ φ must be the same as right-hand side of premise + ∃!x. φ")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ∃y.∀x. (x=y) ⇔ φ must be the same as right-hand side of premise + ∃!x. φ")
             else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of conclusion and premise must be the same")
 
           // Structural rules
@@ -388,7 +388,7 @@ object SCProofChecker {
           /*
            *    Γ, φ(ψ_) |- Δ
            * ---------------------
-           *  Γ, ψ↔τ, φ(τ) |- Δ
+           *  Γ, ψ⇔τ, φ(τ) |- Δ
            */
           case LeftSubstIff(b, t1, equals, lambdaPhi) =>
             val psiIffTau = equals map { case (psi, tau) => ConnectorFormula(Iff, Seq(psi, tau)) }
@@ -405,14 +405,14 @@ object SCProofChecker {
                 SCInvalidProof(
                   SCProof(step),
                   Nil,
-                  "Left-hand sides of the conclusion + φ(ψ_) must be the same as left-hand side of the premise + (ψ↔τ)_ + φ(τ_) (or with ψ and τ swapped)."
+                  "Left-hand sides of the conclusion + φ(ψ_) must be the same as left-hand side of the premise + (ψ⇔τ)_ + φ(τ_) (or with ψ and τ swapped)."
                 )
             else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
 
           /*
            *    Γ |- φ[ψ/?p], Δ
            * ---------------------
-           *  Γ, ψ↔τ |- φ[τ/?p], Δ
+           *  Γ, ψ⇔τ |- φ[τ/?p], Δ
            */
           case RightSubstIff(b, t1, equals, lambdaPhi) =>
             val psiIffTau = equals map { case (psi, tau) => ConnectorFormula(Iff, Seq(psi, tau)) }
@@ -431,7 +431,7 @@ object SCProofChecker {
                   Nil,
                   s"Right-hand side of the premise and the conclusion should be the same with each containing one of φ[τ/?q] and φ[ψ/?q], but it isn't the case."
                 )
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + ψ↔τ must be the same as left-hand side of the premise.")
+            else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + ψ⇔τ must be the same as left-hand side of the premise.")
 
           /**
            * <pre>

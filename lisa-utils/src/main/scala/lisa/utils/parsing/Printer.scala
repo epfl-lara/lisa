@@ -21,7 +21,7 @@ class Printer(parser: Parser) {
    * Returns a string representation of this formula. See also [[prettyTerm]].
    * Example output:
    * <pre>
-   * ∀x, y. (∀z. (z ∈ x) ↔ (z ∈ y)) ↔ (x = y)
+   * ∀x, y. (∀z. (z ∈ x) ⇔ (z ∈ y)) ⇔ (x = y)
    * </pre>
    *
    * @param formula the formula
@@ -47,7 +47,7 @@ class Printer(parser: Parser) {
    * Returns a string representation of this sequent.
    * Example output:
    * <pre>
-   * ⊢ ∀x, y. (∀z. (z ∈ x) ↔ (z ∈ y)) ↔ (x = y)
+   * ⊢ ∀x, y. (∀z. (z ∈ x) ⇔ (z ∈ y)) ⇔ (x = y)
    * </pre>
    *
    * @param sequent the sequent
@@ -145,11 +145,11 @@ class Printer(parser: Parser) {
               case RightForall(_, t1, _, _) => pretty("Right ∀", t1)
               case RightExistsOne(_, t1, _, _) => pretty("Right ∃!", t1)
               case RightAnd(_, l, _) => pretty("Right ∧", l*)
-              case RightIff(_, t1, t2, _, _) => pretty("Right ↔", t1, t2)
-              case RightImplies(_, t1, _, _) => pretty("Right →", t1)
+              case RightIff(_, t1, t2, _, _) => pretty("Right ⇔", t1, t2)
+              case RightImplies(_, t1, _, _) => pretty("Right ⇒", t1)
               case Weakening(_, t1) => pretty("Weakening", t1)
-              case LeftImplies(_, t1, t2, _, _) => pretty("Left →", t1, t2)
-              case LeftIff(_, t1, _, _) => pretty("Left ↔", t1)
+              case LeftImplies(_, t1, t2, _, _) => pretty("Left ⇒", t1, t2)
+              case LeftIff(_, t1, _, _) => pretty("Left ⇔", t1)
               case LeftRefl(_, t1, _) => pretty("L. Refl", t1)
               case RightRefl(_, _) => pretty("R. Refl")
               case LeftSubstEq(_, t1, _, _) => pretty("L. SubstEq", t1)

@@ -22,7 +22,7 @@ object FirstOrderLogic extends lisa.Main {
    * Theorem --- A formula is equivalent to itself universally quantified if
    * the bound variable is not free in it.
    */
-  val closedFormulaUniversal = makeTHM(
+  val closedFormulaUniversal = Theorem(
     () |- forall(x, p()) <=> p()
   ) {
     val base = have(p() |- p()) by Hypothesis
@@ -40,7 +40,7 @@ object FirstOrderLogic extends lisa.Main {
    * Theorem --- A formula is equivalent to itself existentially quantified if
    * the bound variable is not free in it.
    */
-  val closedFormulaExistential = makeTHM(
+  val closedFormulaExistential = Theorem(
     () |- exists(x, p()) <=> p()
   ) {
     val base = have(p() |- p()) by Hypothesis
@@ -54,7 +54,7 @@ object FirstOrderLogic extends lisa.Main {
     have(thesis) by RightIff(lhs, rhs)
   }
 
-  val existsOneImpliesExists = makeTHM(
+  val existsOneImpliesExists = Theorem(
     existsOne(x, P(x)) |- exists(x, P(x))
   ) {
     have((x === y) <=> P(y) |- (x === y) <=> P(y)) by Hypothesis
@@ -66,7 +66,7 @@ object FirstOrderLogic extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
-  val equalityTransitivity = makeTHM(
+  val equalityTransitivity = Theorem(
     (x === y) /\ (y === z) |- (x === z)
   ) {
     have((x === y) |- (x === y)) by Hypothesis
