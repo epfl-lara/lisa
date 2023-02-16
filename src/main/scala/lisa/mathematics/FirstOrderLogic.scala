@@ -30,7 +30,7 @@ object FirstOrderLogic extends lisa.Main {
     have(p() |- forall(x, p())) by RightForall(base)
     val lhs = thenHave(() |- p() ==> forall(x, p())) by Restate
 
-    have(forall(x, p()) |- p()) by LeftForall(x)(base)
+    have(forall(x, p()) |- p()) by LeftForall(base)
     val rhs = thenHave(() |- forall(x, p()) ==> p()) by Restate
 
     have(thesis) by RightIff(lhs, rhs)
@@ -45,7 +45,7 @@ object FirstOrderLogic extends lisa.Main {
   ) {
     val base = have(p() |- p()) by Hypothesis
 
-    have(p() |- exists(x, p())) by RightExists(x)(base)
+    have(p() |- exists(x, p())) by RightExists(base)
     val lhs = thenHave(() |- p() ==> exists(x, p())) by Restate
 
     have(exists(x, p()) |- p()) by LeftExists(base)
@@ -58,10 +58,10 @@ object FirstOrderLogic extends lisa.Main {
     existsOne(x, P(x)) |- exists(x, P(x))
   ) {
     have((x === y) <=> P(y) |- (x === y) <=> P(y)) by Hypothesis
-    thenHave(forall(y, (x === y) <=> P(y)) |- (x === y) <=> P(y)) by LeftForall(y)
+    thenHave(forall(y, (x === y) <=> P(y)) |- (x === y) <=> P(y)) by LeftForall
     thenHave(forall(y, (x === y) <=> P(y)) |- P(x)) by InstFunSchema(Map(y -> x))
     // thenHave(forall(y, (x === y) <=> P(x)) |- (x === x) <=> P(x)) by Rewrite
-    thenHave(forall(y, (x === y) <=> P(y)) |- exists(x, P(x))) by RightExists(x)
+    thenHave(forall(y, (x === y) <=> P(y)) |- exists(x, P(x))) by RightExists
     thenHave(exists(x, forall(y, (x === y) <=> P(y))) |- exists(x, P(x))) by LeftExists
     thenHave(thesis) by Restate
   }
