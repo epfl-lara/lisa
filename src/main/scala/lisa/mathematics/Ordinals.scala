@@ -144,4 +144,34 @@ object Ordinals extends lisa.Main {
 
     have(() |- inductive(naturalsInductive())) by Cut(natDef, inductExpansion)
   }
+
+
+  private val A = variable
+  /**
+   * A set `'A` is transitive if and only if every member of `'A` is a subset of `'A`.
+   * \forall 'x. 'x\in 'A ==> 'x \subset 'A
+   */
+  val transitiveSet = DEF(A) --> forall(x, in(x, A) ==> subset(x, A))
+
+
+  private val R = predicate(2)
+  /**
+   * Show that the restriction of a functional to a set exists.
+   */
+  val predicateRestrictionExists = makeTHM(
+    () |- existsOne(r, forall(x,  forall(y, in(pair(x, y), r) <=> in(x, A) /\ in(y, A) /\ R(x, y))))
+  ) {
+    val z1 = firstInPair(z)
+    val z2 = secondInPair(z)
+    
+    have (() |- existsOne(r, forall(z, in(z, r) <=> in(z, cartesianProduct(A, A)) /\ R(z1, z2)))) by UniqueComprehension(cartesianProduct(A, A), lambda(Seq(z, x), R(z1, z2)))
+    showCurrentProof()
+
+  }
+  show
+
+  /**
+   * The membership relation over base set `'A`.
+   */
+  //val membershipOrder = DEF(A) -->
 }

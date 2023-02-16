@@ -151,7 +151,7 @@ object SimpleSimplifier {
           val isolatedRight = originSequent.right.map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           if (isolatedLeft.forall(_._2.isEmpty) && isolatedRight.forall(_._2.isEmpty))
             if (rightLeft)
-              return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
+              return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(right)} to replace.")
             else
               applyLeftRight(Iff(right, left))(premise)(true) match {
                 case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
@@ -181,14 +181,16 @@ object SimpleSimplifier {
     }
 
     @nowarn("msg=.*the type test for proof.Fact cannot be checked at runtime*")
-    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(f: proof.Fact | Formula)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false)(
+        premise: proof.Fact
+    ): proof.ProofTacticJudgement = {
       f match {
-        case phi: Formula => applyLeftRight(phi)(premise)()
+        case phi: Formula => applyLeftRight(phi)(premise)(rightLeft)
         case f: proof.Fact =>
           val seq = proof.getSequent(f)
           val phi = seq.right.head
           val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
-            val x = applyLeftRight(phi)(premise)()
+            val x = applyLeftRight(phi)(premise)(rightLeft)
             proof.library.have(x)
             proof.library.andThen(SimpleDeducedSteps.Discharge(f))
           })

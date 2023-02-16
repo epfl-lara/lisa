@@ -50,7 +50,7 @@ object Orderings extends lisa.Main {
    * Linear Order --- a partial order `p = (r, x)` is called a linear order if
    * `r` is [[total]] as a [[relation]] on `x`.
    */
-  val linearOrder = DEF(p) --> partialOrder(p) /\ total(secondInPair(p), firstInPair(p))
+  val totalOrder = DEF(p) --> partialOrder(p) /\ total(secondInPair(p), firstInPair(p))
 
   /**
    * Properties of elements under partial orders
@@ -175,9 +175,9 @@ object Orderings extends lisa.Main {
   /**
    * Increasing Function --- an order preserving function ([[orderPreserving]])
    * between two partially ordered sets is increasing if the two sets are
-   * linearly ordered ([[linearOrder]]).
+   * linearly ordered ([[totalOrder]]).
    */
-  val increasing = DEF(f, p, q) --> linearOrder(p) /\ linearOrder(q) /\ orderPreserving(f, p, q)
+  val increasing = DEF(f, p, q) --> totalOrder(p) /\ totalOrder(q) /\ orderPreserving(f, p, q)
 
   /**
    * Isomorphism of Partially Ordered Sets --- a function `f` is an isomorphism
@@ -186,5 +186,31 @@ object Orderings extends lisa.Main {
    * [[orderPreserving]].
    */
   // val isomorphismOfPartialOrders = DEF (f, p, q) --> injective(f, firstInPair(p), firstInPair(q)) /\ orderPreserving(f, p, q) /\ orderPreserving(inverseFunction(f), p, q)
+
+
+
+  private val pA = variable //order
+  private val pB = variable //order
+  val orderIsomorphism = DEF(pA, pB, f) --> {
+    val A = firstInPair(pA)
+    val B = firstInPair(pB)
+    val `<A` = secondInPair(pA)
+    val `<B` = secondInPair(pB)
+    partialOrder(pA) /\ partialOrder(pB) /\ bijective(f, A, B) /\
+      forall(x, in(x, A) ==> forall(y, in(y, A) ==>
+        (in(pair(x, y), `<A`) <=> in(pair(app(f,x), app(f,y)), `<B`) )    // f(x) <B f(y)
+      ))
+  }
+
+  //val isomorphicOrder = DEF()
+
+  val wellOrder = DEF(p) --> {
+    val A = firstInPair(pA)
+    val B = variable
+    val `<A` = secondInPair(pA)
+    forall(B, subset(B, A) ==> !(B===emptySet()) ==> exists(x, in(x, B) ==> forall(y, in(y, B) ==> ! in(pair(y, x), `<A`))))
+  }
+
+
 
 }
