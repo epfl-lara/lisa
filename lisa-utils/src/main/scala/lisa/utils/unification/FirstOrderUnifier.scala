@@ -7,7 +7,10 @@ import lisa.utils.KernelHelpers.{_, given}
  * Provides complete first-order matching and unification utilities for formulas
  * and terms. Methods return most general substitutions when available.
  */
-object FirstOrderUnifier extends Unifier {
+object FirstOrderUnifier {
+
+  type Substitution = Option[Map[VariableLabel, Term]]
+  type FormulaSubstitution = Option[(Map[VariableFormulaLabel, Formula], Map[VariableLabel, Term])]
 
   /**
    * Performs first-order matching for two formulas. Returns a (most-general)
@@ -23,7 +26,7 @@ object FirstOrderUnifier extends Unifier {
    * @return substitution pair (Option) from formula variables to formulas,
    * and variables to terms. `None` if a substitution does not exist.
    */
-  override def matchFormula(first: Formula, second: Formula, subst: FormulaSubstitution = Some((Map.empty, Map.empty))): FormulaSubstitution =
+  def matchFormula(first: Formula, second: Formula, subst: FormulaSubstitution = Some((Map.empty, Map.empty)), vars: Option[Set[VariableLabel | VariableFormulaLabel]] = None): FormulaSubstitution =
     if (subst.isEmpty) subst
     else {
       (first, second) match {
@@ -64,7 +67,7 @@ object FirstOrderUnifier extends Unifier {
             else None
           }
         }
-        case (PredicateFormula(l1: VariableFormulaLabel, arg1), _) => {
+        case (PredicateFormula(l1: VariableFormulaLabel, arg1), _) if (vars.isEmpty || vars.get.contains(l1)) => {
           if (second == subst.get._1.getOrElse(l1, second)) Some(subst.get._1 + (l1 -> second), subst.get._2)
           else if (first.label == second.label && second == subst.get._1.getOrElse(l1, second)) subst
           else None
@@ -83,11 +86,11 @@ object FirstOrderUnifier extends Unifier {
    * @param subst the current substitution (Option), defaults to an empty Map
    * @return substitution (Option) from variables to terms
    */
-  override def matchTerm(first: Term, second: Term, subst: Substitution = Some(Map.empty)): Substitution =
+  def matchTerm(first: Term, second: Term, subst: Substitution = Some(Map.empty), vars: Option[Set[VariableLabel]] = None): Substitution =
     if (subst.isEmpty) subst
     else {
       first.label match {
-        case v @ VariableLabel(id) =>
+        case v @ VariableLabel(id) if (vars.isEmpty || vars.get.contains(v)) =>
           if (first.label != second.label && second == subst.get.getOrElse(v, second)) Some(subst.get + (v -> second))
           else if (first.label == second.label && first == subst.get.getOrElse(v, first)) subst
           else None
@@ -112,7 +115,7 @@ object FirstOrderUnifier extends Unifier {
      * @return substitution pair (Option) from formula variables to formulas, and
      * variables to terms. `None` if a substitution does not exist.
      */
-  override def unifyFormula(first: Formula, second: Formula, subst: FormulaSubstitution = Some((Map.empty, Map.empty))): FormulaSubstitution =
+  def unifyFormula(first: Formula, second: Formula, subst: FormulaSubstitution = Some((Map.empty, Map.empty))): FormulaSubstitution =
     if (subst.isEmpty) subst
     else {
       (first, second) match {
@@ -177,7 +180,7 @@ object FirstOrderUnifier extends Unifier {
    * @param subst the current substitution (Option), defaults to an empty Map
    * @return substitution (Option) from variables to terms
    */
-  override def unifyTerm(first: Term, second: Term, subst: Substitution = Some(Map.empty)): Substitution =
+  def unifyTerm(first: Term, second: Term, subst: Substitution = Some(Map.empty)): Substitution =
     if (subst.isEmpty) subst
     else {
       first.label match {
