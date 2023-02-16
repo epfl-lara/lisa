@@ -408,7 +408,7 @@ class BasicTacticTest extends ProofTacticTestLib {
     val incorrect = List(
       ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)"),
       ("'P('x) |- 'R('x)", "∀y. 'P('y) |- 'R('y)"),
-      ("'P('x); 'Q('x) |- 'R('x)", "∀y. 'P('x); 'Q('y) |- 'R('x)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "∀y. 'P('x); 'Q('y) |- 'R('x)")
     )
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2) =>

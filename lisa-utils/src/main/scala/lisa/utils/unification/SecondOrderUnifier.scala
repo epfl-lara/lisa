@@ -13,5 +13,5 @@ object SecondOrderUnifier {
 
   def unifyFormula(first: Formula, second: Formula, subst: FormulaSubstitution): FormulaSubstitution = ???
   def unifyTerm(first: Term, second: Term, subst: Substitution): Substitution = ???
-    
+
 }
