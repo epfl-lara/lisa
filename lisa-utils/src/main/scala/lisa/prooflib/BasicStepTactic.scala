@@ -9,6 +9,7 @@ import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
 import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
+import lisa.utils.unification.FirstOrderUnifier
 
 object BasicStepTactic {
 
@@ -311,7 +312,7 @@ object BasicStepTactic {
    *
    * </pre>
    */
-  object LeftForall extends ProofTactic {
+  object LeftForall extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, x: VariableLabel, t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Forall, x, phi)
@@ -325,7 +326,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.LeftForall(bot, -1, phi, x, t)), Seq(premise))
     }
 
-    def apply(using lib: Library, proof: lib.Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
@@ -356,6 +357,34 @@ object BasicStepTactic {
 
         quantifiedPhi match {
           case Some(BinderFormula(Forall, x, phi)) => LeftForall.withParameters(phi, x, t)(premise)(bot)
+          case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
+        }
+      } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
+    }
+
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      lazy val premiseSequent = proof.getSequent(premise)
+      lazy val pivot = bot.left.diff(premiseSequent.left)
+      lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
+
+      if (instantiatedPivot.isEmpty)
+        if (isSubset(premiseSequent.right, bot.right))
+          unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for LeftForall failed.")
+        else
+          proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
+      else if (instantiatedPivot.tail.isEmpty) {
+        // go through conclusion to find a matching quantified formula
+
+        val in: Formula = instantiatedPivot.head
+        val quantifiedPhi: Option[Formula] = pivot.find(f =>
+          f match {
+            case g @ BinderFormula(Forall, x, phi) => FirstOrderUnifier.matchFormula(phi, in, vars = Some(Set(x))).isDefined
+            case _ => false
+          }
+        )
+
+        quantifiedPhi match {
+          case Some(BinderFormula(Forall, x, phi)) => LeftForall.withParameters(phi, x, FirstOrderUnifier.matchFormula(phi, in, vars = Some(Set(x))).get._2.getOrElse(x, Term(x, Nil)))(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
         }
       } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
@@ -741,7 +770,7 @@ object BasicStepTactic {
    * (ln-x stands for locally nameless x)
    * </pre>
    */
-  object RightExists extends ProofTactic {
+  object RightExists extends ProofTactic with ProofFactSequentTactic {
     def withParameters(using lib: Library, proof: lib.Proof)(phi: Formula, x: VariableLabel, t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val quantified = BinderFormula(Exists, x, phi)
@@ -755,7 +784,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(Seq(SC.RightExists(bot, -1, phi, x, t)), Seq(premise))
     }
 
-    def apply(using lib: Library, proof: lib.Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.right.diff(premiseSequent.right)
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
@@ -767,7 +796,7 @@ object BasicStepTactic {
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
         else
-          proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∀x. φ.")
+          proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
       else if (instantiatedPivot.isEmpty)
         if (isSubset(premiseSequent.left, bot.left))
           unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for RightExists failed.")
@@ -788,7 +817,35 @@ object BasicStepTactic {
           case Some(BinderFormula(Exists, x, phi)) => RightExists.withParameters(phi, x, t)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
-      } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∀x. φ.")
+      } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
+    }
+
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      lazy val premiseSequent = proof.getSequent(premise)
+      lazy val pivot = bot.right.diff(premiseSequent.right)
+      lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
+
+      if (instantiatedPivot.isEmpty)
+        if (isSubset(premiseSequent.left, bot.left))
+          unwrapTactic(Weakening(premise)(bot))("Attempted weakening on trivial premise for RightForall failed.")
+        else
+          proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
+      else if (instantiatedPivot.tail.isEmpty) {
+        // go through conclusion to find a matching quantified formula
+
+        val in: Formula = instantiatedPivot.head
+        val quantifiedPhi: Option[Formula] = pivot.find(f =>
+          f match {
+            case g @ BinderFormula(Exists, x, phi) => FirstOrderUnifier.matchFormula(phi, in, vars = Some(Set(x))).isDefined
+            case _ => false
+          }
+        )
+
+        quantifiedPhi match {
+          case Some(BinderFormula(Exists, x, phi)) => RightExists.withParameters(phi, x, FirstOrderUnifier.matchFormula(phi, in, vars = Some(Set(x))).get._2.getOrElse(x, Term(x, Nil)))(premise)(bot)
+          case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
+        }
+      } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
     }
   }
 
