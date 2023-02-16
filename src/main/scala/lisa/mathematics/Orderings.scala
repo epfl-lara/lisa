@@ -44,7 +44,7 @@ object Orderings extends lisa.Main {
    * Partial Order --- `p` is a partial order on `x` if it is a pair `(x, r)`,
    * and `r` is a [[reflexive]] and [[transitive]] binary [[relation]] on `x`.
    */
-  val partialOrder = DEF(p) --> relation(secondInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(secondInPair(p), firstInPair(p))
+  val partialOrder = DEF(p) --> relationBetween(secondInPair(p), firstInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(secondInPair(p), firstInPair(p))
 
   /**
    * Linear Order --- a partial order `p = (r, x)` is called a linear order if
@@ -110,7 +110,7 @@ object Orderings extends lisa.Main {
    */
   val lowerBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
 
-  val setOfLowerBoundsUniqueness = makeTHM(
+  val setOfLowerBoundsUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))
   ) {
     have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), lowerBound(t, y, p)))
@@ -133,7 +133,7 @@ object Orderings extends lisa.Main {
    */
   val infimum = greatestLowerBound
 
-  val setOfUpperBoundsUniqueness = makeTHM(
+  val setOfUpperBoundsUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))
   ) {
     have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), upperBound(t, y, p)))
@@ -187,30 +187,33 @@ object Orderings extends lisa.Main {
    */
   // val isomorphismOfPartialOrders = DEF (f, p, q) --> injective(f, firstInPair(p), firstInPair(q)) /\ orderPreserving(f, p, q) /\ orderPreserving(inverseFunction(f), p, q)
 
-
-
-  private val pA = variable //order
-  private val pB = variable //order
+  private val pA = variable // order
+  private val pB = variable // order
   val orderIsomorphism = DEF(pA, pB, f) --> {
     val A = firstInPair(pA)
     val B = firstInPair(pB)
     val `<A` = secondInPair(pA)
     val `<B` = secondInPair(pB)
     partialOrder(pA) /\ partialOrder(pB) /\ bijective(f, A, B) /\
-      forall(x, in(x, A) ==> forall(y, in(y, A) ==>
-        (in(pair(x, y), `<A`) <=> in(pair(app(f,x), app(f,y)), `<B`) )    // f(x) <B f(y)
-      ))
+      forall(
+        x,
+        in(x, A) ==> forall(
+          y,
+          in(y, A) ==>
+            (in(pair(x, y), `<A`) <=> in(pair(app(f, x), app(f, y)), `<B`)) // f(x) <B f(y)
+        )
+      )
   }
 
-  //val isomorphicOrder = DEF()
+  // val isomorphicOrder = DEF()
 
+  /*
   val wellOrder = DEF(p) --> {
     val A = firstInPair(pA)
     val B = variable
     val `<A` = secondInPair(pA)
     forall(B, subset(B, A) ==> !(B===emptySet()) ==> exists(x, in(x, B) ==> forall(y, in(y, B) ==> ! in(pair(y, x), `<A`))))
   }
-
-
+   */
 
 }

@@ -10,12 +10,8 @@ object SetTheoryLibrary extends Library with SetTheoryTGAxioms {
   export lisa.prooflib.Exports.*
   val theory: runningSetTheory.type = runningSetTheory
 
-
-
-  //Unicode symbols
+  // Unicode symbols
 
   val ∅ : Term = emptySet()
-
-
 
 }

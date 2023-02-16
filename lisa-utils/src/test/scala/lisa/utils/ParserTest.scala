@@ -77,9 +77,9 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(FOLParser.parseFormula("¬a") == ConnectorFormula(Neg, Seq(a)))
     assert(FOLParser.parseFormula("a ∧ b") == ConnectorFormula(And, Seq(a, b)))
     assert(FOLParser.parseFormula("a ∨ b") == ConnectorFormula(Or, Seq(a, b)))
-    assert(FOLParser.parseFormula("a → b") == ConnectorFormula(Implies, Seq(a, b)))
-    assert(FOLParser.parseFormula("a ↔ b") == ConnectorFormula(Iff, Seq(a, b)))
-    assert(FOLParser.parseFormula("a ↔ b") == ConnectorFormula(Iff, Seq(a, b)))
+    assert(FOLParser.parseFormula("a ⇒ b") == ConnectorFormula(Implies, Seq(a, b)))
+    assert(FOLParser.parseFormula("a ⇔ b") == ConnectorFormula(Iff, Seq(a, b)))
+    assert(FOLParser.parseFormula("a ⇔ b") == ConnectorFormula(Iff, Seq(a, b)))
   }
 
   test("ascii connectors") {
@@ -213,20 +213,20 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(FOLParser.parseSequent("∃!x. 'phi('x, 'a) ⊢ ∃!x. 'phi('x, 'a)") == Sequent(Set(leftAndRight), Set(leftAndRight)))
 
     assert(
-      FOLParser.parseSequent("∀x. ('x = 'x1) ↔ 'phi('x) ⊢ ('z = 'f('x1)) → (∃x. ('z = 'f('x)) ∧ 'phi('x))") == Sequent(
+      FOLParser.parseSequent("∀x. ('x = 'x1) ⇔ 'phi('x) ⊢ ('z = 'f('x1)) ⇒ (∃x. ('z = 'f('x)) ∧ 'phi('x))") == Sequent(
         Set(BinderFormula(Forall, x, ConnectorFormula(Iff, Seq(x === x1, sPhi1(x))))),
         Set((z === sf1(x1)) ==> exists(x, (z === sf1(x)) /\ sPhi1(x)))
       )
     )
     assert(
-      FOLParser.parseSequent("∃x1. ∀x. ('x = 'x1) ↔ 'phi('x) ⊢ ∃z1. ∀z. ('z = 'z1) ↔ (∃x. ('z = 'f('x)) ∧ 'phi('x))") == (exists(x1, forall(x, (x === x1) <=> (sPhi1(x)))) |- exists(
+      FOLParser.parseSequent("∃x1. ∀x. ('x = 'x1) ⇔ 'phi('x) ⊢ ∃z1. ∀z. ('z = 'z1) ⇔ (∃x. ('z = 'f('x)) ∧ 'phi('x))") == (exists(x1, forall(x, (x === x1) <=> (sPhi1(x)))) |- exists(
         z1,
         forall(z, (z === z1) <=> exists(x, (z === sf1(x)) /\ sPhi1(x)))
       ))
     )
     assert(FOLParser.parseSequent("⊢ ('x = 'x) ∨ ('x = 'y)") == (() |- (x === x) \/ (x === y)))
     assert(
-      FOLParser.parseSequent("('x = 'x) ∨ ('x = 'y); ('x = 'x) ∨ ('x = 'y) ↔ ('x = 'x1) ∨ ('x = 'y1) ⊢ ('x = 'x1) ∨ ('x = 'y1)") == (Set(
+      FOLParser.parseSequent("('x = 'x) ∨ ('x = 'y); ('x = 'x) ∨ ('x = 'y) ⇔ ('x = 'x1) ∨ ('x = 'y1) ⊢ ('x = 'x1) ∨ ('x = 'y1)") == (Set(
         (x === x) \/ (x === y),
         ((x === x) \/ (x === y)) <=> ((x === x1) \/ (x === y1))
       ) |- (x === x1) \/ (x === y1))

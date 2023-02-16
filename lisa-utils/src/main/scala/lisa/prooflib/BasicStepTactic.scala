@@ -186,7 +186,7 @@ object BasicStepTactic {
    * <pre>
    *  Γ |- φ, Δ    Σ, ψ |- Π
    * ------------------------
-   *    Γ, Σ, φ→ψ |- Δ, Π
+   *    Γ, Σ, φ⇒ψ |- Δ, Π
    * </pre>
    */
   object LeftImplies extends ProofTactic {
@@ -198,7 +198,7 @@ object BasicStepTactic {
       if (!isSameSet(bot.right + phi, leftSequent.right union rightSequent.right))
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of right-hand sides of premises.")
       else if (!isSameSet(bot.left + psi, leftSequent.left union rightSequent.left + implication))
-        proof.InvalidProofTactic("Left-hand side of conclusion + ψ is not the union of left-hand sides of premises + φ→ψ.")
+        proof.InvalidProofTactic("Left-hand side of conclusion + ψ is not the union of left-hand sides of premises + φ⇒ψ.")
       else
         proof.ValidProofTactic(Seq(SC.LeftImplies(bot, -1, -2, phi, psi)), Seq(prem1, prem2))
     }
@@ -227,9 +227,9 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *  Γ, φ→ψ |- Δ               Γ, φ→ψ, ψ→φ |- Δ
+   *  Γ, φ⇒ψ |- Δ               Γ, φ⇒ψ, ψ⇒φ |- Δ
    * --------------    or     --------------------
-   *  Γ, φ↔ψ |- Δ                 Γ, φ↔ψ |- Δ
+   *  Γ, φ⇔ψ |- Δ                 Γ, φ⇔ψ |- Δ
    * </pre>
    */
   object LeftIff extends ProofTactic with ProofFactSequentTactic {
@@ -246,7 +246,7 @@ object BasicStepTactic {
         !isSameSet(bot.left + impRight, premiseSequent.left + implication) &&
         !isSameSet(bot.left + impLeft + impRight, premiseSequent.left + implication)
       )
-        proof.InvalidProofTactic("Left-hand side of premise + φ↔ψ is not the same as left-hand side of conclusion + either φ→ψ, ψ→φ or both.")
+        proof.InvalidProofTactic("Left-hand side of premise + φ⇔ψ is not the same as left-hand side of conclusion + either φ⇒ψ, ψ⇒φ or both.")
       else
         proof.ValidProofTactic(Seq(SC.LeftIff(bot, -1, phi, psi)), Seq(premise))
     }
@@ -364,7 +364,8 @@ object BasicStepTactic {
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = bot.left.diff(premiseSequent.left)
+      lazy val prepivot = bot.left.diff(premiseSequent.left)
+      lazy val pivot = if (prepivot.isEmpty) bot.left else prepivot
       lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
 
       if (instantiatedPivot.isEmpty)
@@ -451,7 +452,7 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *  Γ, ∃y.∀x. (x=y) ↔ φ |-  Δ
+   *  Γ, ∃y.∀x. (x=y) ⇔ φ |-  Δ
    * ---------------------------- if y is not free in φ
    *      Γ, ∃!x. φ |- Δ
    * </pre>
@@ -466,7 +467,7 @@ object BasicStepTactic {
       if (!isSameSet(bot.right, premiseSequent.right))
         proof.InvalidProofTactic("Right-hand side of conclusion is not the same as right-hand side of premise.")
       else if (!isSameSet(bot.left + instantiated, premiseSequent.left + quantified))
-        proof.InvalidProofTactic("Left-hand side of conclusion + ∃y.∀x. (x=y) ↔ φ is not the same as left-hand side of premise + ∃!x. φ.")
+        proof.InvalidProofTactic("Left-hand side of conclusion + ∃y.∀x. (x=y) ⇔ φ is not the same as left-hand side of premise + ∃!x. φ.")
       else
         proof.ValidProofTactic(Seq(SC.LeftExistsOne(bot, -1, phi, x)), Seq(premise))
     }
@@ -484,7 +485,7 @@ object BasicStepTactic {
             proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
-            // ∃_. ∀x. _ ↔ φ == extract ==> x, phi
+            // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
             case BinderFormula(Exists, _, BinderFormula(Forall, x, ConnectorFormula(Iff, Seq(_, phi)))) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
@@ -594,7 +595,7 @@ object BasicStepTactic {
    * <pre>
    *  Γ, φ |- ψ, Δ
    * --------------
-   *  Γ |- φ→ψ, Δ
+   *  Γ |- φ⇒ψ, Δ
    * </pre>
    */
   object RightImplies extends ProofTactic with ProofFactSequentTactic {
@@ -605,7 +606,7 @@ object BasicStepTactic {
       if (!isSameSet(bot.left + phi, premiseSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
       else if (!isSameSet(bot.right + psi, premiseSequent.right + implication))
-        proof.InvalidProofTactic("Right-hand side of conclusion + ψ is not the same as right-hand side of premise + φ→ψ.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + ψ is not the same as right-hand side of premise + φ⇒ψ.")
       else
         proof.ValidProofTactic(Seq(SC.RightImplies(bot, -1, phi, psi)), Seq(premise))
     }
@@ -627,9 +628,9 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *  Γ |- φ→ψ, Δ    Σ |- ψ→φ, Π
+   *  Γ |- φ⇒ψ, Δ    Σ |- ψ⇒φ, Π
    * ----------------------------
-   *      Γ, Σ |- φ↔ψ, Π, Δ
+   *      Γ, Σ |- φ⇔ψ, Π, Δ
    * </pre>
    */
   object RightIff extends ProofTactic {
@@ -643,7 +644,7 @@ object BasicStepTactic {
       if (!isSameSet(bot.left, leftSequent.left union rightSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
       else if (!isSameSet(bot.right + impLeft + impRight, leftSequent.right union rightSequent.right + implication))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises + φ↔ψ.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises + φ⇔ψ.")
       else
         proof.ValidProofTactic(Seq(SC.RightIff(bot, -1, -2, phi, psi)), Seq(prem1, prem2))
     }
@@ -663,7 +664,7 @@ object BasicStepTactic {
           case _ => proof.InvalidProofTactic("Could not infer an implication as pivot from premise and conclusion.")
         }
       else
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ→ψ + ψ→φ is not the same as the union of the right-hand sides of the premises φ↔ψ.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises φ⇔ψ.")
     }
   }
 
@@ -822,7 +823,8 @@ object BasicStepTactic {
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = bot.right.diff(premiseSequent.right)
+      lazy val prepivot = bot.right.diff(premiseSequent.right)
+      lazy val pivot = if (prepivot.isEmpty) bot.right else prepivot
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
 
       if (instantiatedPivot.isEmpty)
@@ -851,7 +853,7 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *  Γ |- ∃y.∀x. (x=y) ↔ φ, Δ
+   *  Γ |- ∃y.∀x. (x=y) ⇔ φ, Δ
    * ---------------------------- if y is not free in φ
    *      Γ|- ∃!x. φ,  Δ
    * </pre>
@@ -866,7 +868,7 @@ object BasicStepTactic {
       if (!isSameSet(bot.left, premiseSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise.")
       else if (!isSameSet(bot.right + instantiated, premiseSequent.right + quantified))
-        proof.InvalidProofTactic("Right-hand side of conclusion + ∃y.∀x. (x=y) ↔ φ is not the same as right-hand side of premise + ∃!x. φ.")
+        proof.InvalidProofTactic("Right-hand side of conclusion + ∃y.∀x. (x=y) ⇔ φ is not the same as right-hand side of premise + ∃!x. φ.")
       else
         proof.ValidProofTactic(Seq(SC.RightExistsOne(bot, -1, phi, x)), Seq(premise))
     }
@@ -884,7 +886,7 @@ object BasicStepTactic {
             proof.InvalidProofTactic("Could not infer a pivot from premise and conclusion.")
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
-            // ∃_. ∀x. _ ↔ φ == extract ==> x, phi
+            // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
             case BinderFormula(Exists, _, BinderFormula(Forall, x, ConnectorFormula(Iff, Seq(_, phi)))) => RightExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
@@ -1058,7 +1060,7 @@ object BasicStepTactic {
    * <pre>
    *           Γ, φ(a1,...an) |- Δ
    * ----------------------------------------
-   *  Γ, a1↔b1, ..., an↔bn, φ(b1,...bn) |- Δ
+   *  Γ, a1⇔b1, ..., an⇔bn, φ(b1,...bn) |- Δ
    * </pre>
    */
   object LeftSubstIff extends ProofTactic {
@@ -1075,7 +1077,7 @@ object BasicStepTactic {
         !isSameSet(bot.left + phi_psi, premiseSequent.left ++ implications + phi_tau) &&
         !isSameSet(bot.left + phi_tau, premiseSequent.left ++ implications + phi_psi)
       )
-        proof.InvalidProofTactic("Left-hand side of the conclusion + φ(ψ_) is not the same as left-hand side of the premise + (ψ ↔ τ)_ + φ(τ_) (or with ψ_ and τ_ swapped).")
+        proof.InvalidProofTactic("Left-hand side of the conclusion + φ(ψ_) is not the same as left-hand side of the premise + (ψ ⇔ τ)_ + φ(τ_) (or with ψ_ and τ_ swapped).")
       else
         proof.ValidProofTactic(Seq(SC.LeftSubstIff(bot, -1, equals, lambdaPhi)), Seq(premise))
     }
@@ -1085,7 +1087,7 @@ object BasicStepTactic {
    * <pre>
    *           Γ |- φ(a1,...an), Δ
    * ----------------------------------------
-   *  Γ, a1↔b1, ..., an↔bn |- φ(b1,...bn), Δ
+   *  Γ, a1⇔b1, ..., an⇔bn |- φ(b1,...bn), Δ
    * </pre>
    */
   object RightSubstIff extends ProofTactic {
@@ -1097,7 +1099,7 @@ object BasicStepTactic {
       lazy val implications = equals map { case (s, t) => ConnectorFormula(Iff, Seq(s, t)) }
 
       if (!isSameSet(bot.left, premiseSequent.left ++ implications))
-        proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ↔ τ)_.")
+        proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ⇔ τ)_.")
       else if (
         !isSameSet(bot.right + phi_psi, premiseSequent.right + phi_tau) &&
         !isSameSet(bot.right + phi_tau, premiseSequent.right + phi_psi)

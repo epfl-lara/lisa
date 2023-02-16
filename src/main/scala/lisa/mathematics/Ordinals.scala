@@ -48,7 +48,7 @@ object Ordinals extends lisa.Main {
   /**
    * Theorem --- There exists an intersection of all inductive sets
    */
-  val inductiveIntersectionExistence = makeTHM(
+  val inductiveIntersectionExistence = Theorem(
     () |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))
   ) {
     val inductExt =
@@ -59,7 +59,7 @@ object Ordinals extends lisa.Main {
   /**
    * Theorem --- The intersection of all inductive sets is unique
    */
-  val inductiveIntersectionUniqueness = makeTHM(
+  val inductiveIntersectionUniqueness = Theorem(
     () |- existsOne(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))
   ) {
     val prop = forall(y, inductive(y) ==> in(t, y))
@@ -80,7 +80,7 @@ object Ordinals extends lisa.Main {
   /**
    * Theorem --- Natural numbers form an inductive set
    */
-  val naturalsAreInductive = makeTHM(
+  val naturalsAreInductive = Theorem(
     () |- inductive(naturalsInductive())
   ) {
     val defHypo = have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) by Hypothesis
@@ -145,15 +145,15 @@ object Ordinals extends lisa.Main {
     have(() |- inductive(naturalsInductive())) by Cut(natDef, inductExpansion)
   }
 
-
   private val A = variable
+
   /**
    * A set `'A` is transitive if and only if every member of `'A` is a subset of `'A`.
    * \forall 'x. 'x\in 'A ==> 'x \subset 'A
    */
   val transitiveSet = DEF(A) --> forall(x, in(x, A) ==> subset(x, A))
 
-
+  /*
   private val R = predicate(2)
   /**
    * Show that the restriction of a functional to a set exists.
@@ -163,15 +163,12 @@ object Ordinals extends lisa.Main {
   ) {
     val z1 = firstInPair(z)
     val z2 = secondInPair(z)
-    
+
     have (() |- existsOne(r, forall(z, in(z, r) <=> in(z, cartesianProduct(A, A)) /\ R(z1, z2)))) by UniqueComprehension(cartesianProduct(A, A), lambda(Seq(z, x), R(z1, z2)))
     showCurrentProof()
 
   }
   show
-
-  /**
-   * The membership relation over base set `'A`.
    */
-  //val membershipOrder = DEF(A) -->
+
 }

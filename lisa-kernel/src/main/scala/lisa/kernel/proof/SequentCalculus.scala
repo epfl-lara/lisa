@@ -6,7 +6,7 @@ import lisa.kernel.fol.FOL._
  * The concrete implementation of sequent calculus (with equality).
  * This file specifies the sequents and the allowed operations on them, the deduction rules of sequent calculus.
  * It contains typical sequent calculus rules for FOL with equality as can be found in a text book, as well as a couple more for
- * non-elementary symbols (↔, ∃!) and rules for substituting equal terms or equivalent formulas. I also contains two structural rules,
+ * non-elementary symbols (⇔, ∃!) and rules for substituting equal terms or equivalent formulas. I also contains two structural rules,
  * subproof and a dummy rewrite step.
  * Further mathematical steps, such as introducing or using definitions, axioms or theorems are not part of the basic sequent calculus.
  */
@@ -119,16 +119,16 @@ object SequentCalculus {
    * <pre>
    *  Γ |- φ, Δ    Σ, ψ |- Π
    * ------------------------
-   *    Γ, Σ, φ→ψ |- Δ, Π
+   *    Γ, Σ, φ⇒ψ |- Δ, Π
    * </pre>
    */
   case class LeftImplies(bot: Sequent, t1: Int, t2: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1, t2) }
 
   /**
    * <pre>
-   *  Γ, φ→ψ |- Δ               Γ, φ→ψ, ψ→φ |- Δ
+   *  Γ, φ⇒ψ |- Δ               Γ, φ⇒ψ, ψ⇒φ |- Δ
    * --------------    or     --------------------
-   *  Γ, φ↔ψ |- Δ                 Γ, φ↔ψ |- Δ
+   *  Γ, φ⇔ψ |- Δ                 Γ, φ⇔ψ |- Δ
    * </pre>
    */
   case class LeftIff(bot: Sequent, t1: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1) }
@@ -164,7 +164,7 @@ object SequentCalculus {
 
   /**
    * <pre>
-   *  Γ, ∃y.∀x. (x=y) ↔ φ |-  Δ
+   *  Γ, ∃y.∀x. (x=y) ⇔ φ |-  Δ
    * ---------------------------- if y is not free in φ
    *      Γ, ∃!x. φ |- Δ
    * </pre>
@@ -194,16 +194,16 @@ object SequentCalculus {
    * <pre>
    *  Γ, φ |- ψ, Δ
    * --------------
-   *  Γ |- φ→ψ, Δ
+   *  Γ |- φ⇒ψ, Δ
    * </pre>
    */
   case class RightImplies(bot: Sequent, t1: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1) }
 
   /**
    * <pre>
-   *  Γ |- a→ψ, Δ    Σ |- ψ→φ, Π
+   *  Γ |- a⇒ψ, Δ    Σ |- ψ⇒φ, Π
    * ----------------------------
-   *      Γ, Σ |- φ↔ψ, Π, Δ
+   *      Γ, Σ |- φ⇔ψ, Π, Δ
    * </pre>
    */
   case class RightIff(bot: Sequent, t1: Int, t2: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1, t2) }
@@ -239,7 +239,7 @@ object SequentCalculus {
 
   /**
    * <pre>
-   *  Γ |- ∃y.∀x. (x=y) ↔ φ, Δ
+   *  Γ |- ∃y.∀x. (x=y) ⇔ φ, Δ
    * ---------------------------- if y is not free in φ
    *      Γ|- ∃!x. φ,  Δ
    * </pre>
@@ -297,7 +297,7 @@ object SequentCalculus {
    * <pre>
    *    Γ, φ(a1,...an) |- Δ
    * ---------------------
-   *  Γ, a1↔b1, ..., an↔bn, φ(b1,...bn) |- Δ
+   *  Γ, a1⇔b1, ..., an⇔bn, φ(b1,...bn) |- Δ
    * </pre>
    */
   case class LeftSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends SCProofStep { val premises = Seq(t1) }
@@ -306,7 +306,7 @@ object SequentCalculus {
    * <pre>
    *    Γ |- φ(a1,...an), Δ
    * ---------------------
-   *  Γ, a1↔b1, ..., an↔bn |- φ(b1,...bn), Δ
+   *  Γ, a1⇔b1, ..., an⇔bn |- φ(b1,...bn), Δ
    * </pre>
    */
   case class RightSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends SCProofStep { val premises = Seq(t1) }

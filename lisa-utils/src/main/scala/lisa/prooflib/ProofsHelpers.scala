@@ -164,14 +164,19 @@ trait ProofsHelpers {
   //  DSL for definitions and theorems  //
   ////////////////////////////////////////
 
-  /**
-   * Declare and starts the proof of a new theorem.
-   * @param statement The conclusion the theorem proves
-   * @param computeProof How the proof should go.
-   * @return The theorem, if proof is valid. Otherwise will terminate.
-   */
-  def makeTHM(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM =
-    new THM(statement, name.value, line.value, file.value)(computeProof) {}
+  extension (tk: TheoremKind) {
+
+    /**
+     * Declare and starts the proof of a new proposition.
+     *
+     * @param statement    The conclusion the theorem proves
+     * @param computeProof How the proof should go.
+     * @return The theorem, if proof is valid. Otherwise will terminate.
+     */
+    def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM = {
+      new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
+    }
+  }
 
   class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
     val showError: String = {
