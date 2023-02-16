@@ -369,7 +369,7 @@ class BasicTacticTest extends ProofTacticTestLib {
   }
 
   //     left forall
-  test("Tactic Tests: Left Forall - Parameter Inference") {
+  test("Tactic Tests: Left Forall - Partial Parameter Inference") {
     val correct = List(
       ("'P('x) |- 'R('x)", "∀x. 'P('x) |- 'R('x)", "'x"),
       ("'P('x) |- 'R('x)", "∀y. 'P('y) |- 'R('x)", "'x"),
@@ -390,7 +390,30 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2, term) =>
       val prem = introduceSequent(stmt1)
-      LeftForall(FOLParser.parseTerm(term))(prem)(stmt2)
+      LeftForall.withParameters(FOLParser.parseTerm(term))(prem)(stmt2)
+    }
+  }
+
+  test("Tactic Tests: Left Forall - Parameter Inference (FO Matching)") {
+    val correct = List(
+      ("'P('x) |- 'R('x)", "∀x. 'P('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "∀y. 'P('y) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "∀y. 'P('x) |- 'R('x)"),
+      ("'A('x, 'x) |- 'R('x)", "∀y. 'A('y, 'x) |- 'R('x)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "∀x. 'P('x); 'Q('x) |- 'R('x)"),
+      ("'P('x) /\\ 'Q('x) |- 'R('x)", "∀x. ('P('x) /\\ 'Q('x))|- 'R('x)"),
+      ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'j, 'z, 'h))", "∀x. 'P('x)|- 'R('f('g('x, 'x), 'j, 'z, 'h))")
+    )
+
+    val incorrect = List(
+      ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "∀y. 'P('y) |- 'R('y)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "∀y. 'P('x); 'Q('y) |- 'R('x)")
+    )
+
+    testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
+      val prem = introduceSequent(stmt1)
+      LeftForall(prem)(stmt2)
     }
   }
 
@@ -815,7 +838,7 @@ class BasicTacticTest extends ProofTacticTestLib {
   }
 
   //     right exists
-  test("Tactic Tests: Right Exists - Parameter Inference") {
+  test("Tactic Tests: Right Exists - Partial Parameter Inference") {
     val correct = List(
       ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('x)", "'x"),
       ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('y)", "'x"),
@@ -842,7 +865,35 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2, term) =>
       val prem = introduceSequent(stmt1)
-      RightExists(FOLParser.parseTerm(term))(prem)(stmt2)
+      RightExists.withParameters(FOLParser.parseTerm(term))(prem)(stmt2)
+    }
+  }
+
+  test("Tactic Tests: Right Exists - Parameter Inference (FO Matching)") {
+    val correct = List(
+      ("'P('x) |- 'R('x)", "'P('x) |- ∃x. 'R('x)"),
+      ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('y)"),
+      ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('x)"),
+      (" |- 'R('x); 'A('x, 'x)", " |- 'R('x); ∃y. 'A('y, 'x)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "'P('x); 'Q('x) |- ∃y. 'R('y)"),
+      ("'P('x) /\\ 'Q('x) |- 'R('x) /\\ 'Q('x)", "('P('x) /\\ 'Q('x)) |- ∃x. ('R('x) /\\ 'Q('x))"),
+      ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'j, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∃x. 'R('f('x, 'j, 'z, 'h))")
+    )
+
+    val incorrect = List(
+      ("'P('x) |- 'R('x)", "∀x. 'P('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "∀y. 'P('y) |- 'R('y)"),
+      ("'P('x) |- 'R('x)", "∀x. 'Q('x) |- 'R('x)"),
+      ("'P('x) |- 'R('x)", "'P('x) |- ∃y. 'R('z)"),
+      (" |- 'R('x); 'A('x, 'x)", " |- 'R('x); ∃y. 'A('z, 'y)"),
+      ("'P('x); 'Q('x) |- 'R('x)", "'P('x); 'T('x) |- ∃y. 'R('y)"),
+      ("'P('f('g('x, 'y), 'z, 'h, 'j)) |- 'R('f('g('x, 'x), 'j, 'z, 'h))", "'P('f('g('x, 'y), 'z, 'h, 'j))|- ∃x. 'R('f('x, 'x, 'z, 'h))")
+    )
+
+    testTacticCases(correct, incorrect) { (stmt1, stmt2) =>
+      val prem = introduceSequent(stmt1)
+      RightExists(prem)(stmt2)
     }
   }
 
