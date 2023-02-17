@@ -70,7 +70,7 @@ object FirstOrderLogic extends lisa.Main {
     (x === y) /\ (y === z) |- (x === z)
   ) {
     have((x === y) |- (x === y)) by Hypothesis
-    thenHave(Set((x === y), (y === z)) |- (x === z)) by RightSubstEq(List((y, z)), lambda(y, x === y))
+    thenHave(Set((x === y), (y === z)) |- (x === z)) by RightSubstEq.apply2
     thenHave(thesis) by Restate
   }
 }

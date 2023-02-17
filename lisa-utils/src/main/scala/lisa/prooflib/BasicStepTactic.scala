@@ -10,6 +10,7 @@ import lisa.prooflib.*
 import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
 import lisa.utils.unification.FirstOrderUnifier
+import lisa.utils.unification.UnificationUtils
 
 object BasicStepTactic {
 
@@ -1053,6 +1054,25 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
       else
         proof.ValidProofTactic(Seq(SC.RightSubstEq(bot, -1, equals, lambdaPhi)), Seq(premise))
+    }
+
+    def apply2(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      lazy val premiseSequent = proof.getSequent(premise)
+      val premRight = ConnectorFormula(Or, premiseSequent.right.toSeq)
+      val botRight = ConnectorFormula(Or, bot.right.toSeq)
+
+      val equalities = (bot.left
+        .filter {
+          case PredicateFormula(equality, _) => true
+          case _ => false
+        })
+        .map { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
+      val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
+
+      if (canReach.isEmpty)
+        proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
+      else
+        RightSubstEq(equalities.toList, canReach.get)(premise)(bot)
     }
   }
 
