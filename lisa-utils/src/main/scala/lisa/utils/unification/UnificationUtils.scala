@@ -2,7 +2,6 @@ package lisa.utils.unification
 
 import lisa.kernel.fol.FOL.*
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.parsing.FOLPrinter
 
 /**
  * General utilities for unification, substitution, and rewrites
@@ -62,7 +61,6 @@ object UnificationUtils {
         }
       }
   }
-
 
   def canReachOneStepOLFormula2(first: Formula, second: Formula, subst: Seq[((Formula, Formula), Identifier)], takenIds: Set[Identifier]): Option[Formula] = {
     lazy val validSubst = subst.find { case ((l, r), _) => isSame(first, l) && isSame(second, r) }
@@ -125,7 +123,6 @@ object UnificationUtils {
     else Some(lambda(substWithVar.map(s => VariableLabel(s._2)), body.get))
   }
 
-
   /**
    * Decides a one-step word problem for two given formulas and a set of ground
    * term rewrites modulo OL. If possible, returns a context corresponding to
@@ -152,7 +149,6 @@ object UnificationUtils {
     else Some(lambda(substWithVar.map(s => VariableLabel(s._2)), body.get))
   }
 
-
   /**
    * Decides a one-step word problem for two given formulas and a set of ground
    * formula rewrites modulo OL. If possible, returns a context corresponding to
@@ -178,5 +174,4 @@ object UnificationUtils {
     if (body.isEmpty) None
     else Some(lambda(substWithVar.map(s => VariableFormulaLabel(s._2)), body.get))
   }
-
 }
