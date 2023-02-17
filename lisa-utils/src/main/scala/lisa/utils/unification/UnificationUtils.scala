@@ -2,6 +2,7 @@ package lisa.utils.unification
 
 import lisa.kernel.fol.FOL.*
 import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.parsing.FOLPrinter
 
 /**
  * General utilities for unification, substitution, and rewrites
@@ -62,6 +63,42 @@ object UnificationUtils {
       }
   }
 
+
+  def canReachOneStepOLFormula2(first: Formula, second: Formula, subst: Seq[((Formula, Formula), Identifier)], takenIds: Set[Identifier]): Option[Formula] = {
+    lazy val validSubst = subst.find { case ((l, r), _) => isSame(first, l) && isSame(second, r) }
+
+    if (isSame(first, second)) Some(first)
+    else if (validSubst.isDefined) Some(VariableFormulaLabel(validSubst.get._2))
+    else if (first.label != second.label) None
+    else
+      first match {
+        case ConnectorFormula(l1, arg1) => {
+          second match {
+            case ConnectorFormula(l2, arg2) => {
+              val argCan = (arg1 zip arg2).map { case (f, s) => canReachOneStepOLFormula2(f, s, subst, takenIds) }
+
+              if (argCan.exists(_.isEmpty)) None
+              else Some(ConnectorFormula(l1, argCan.map(_.get)))
+            }
+            case _ => None
+          }
+        }
+        case BinderFormula(l1, x1: VariableLabel, inner1) => {
+          second match {
+            case BinderFormula(l2, x2: VariableLabel, inner2) => {
+              val newx = VariableLabel(freshId(takenIds, x1.id))
+              val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
+              val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
+
+              canReachOneStepOLFormula2(newInner1, newInner2, subst, takenIds + newx.id)
+            }
+            case _ => None
+          }
+        }
+        case _ => None
+      }
+  }
+
   /**
    * Decides a one-step word problem for two given terms and a set of ground
    * rewrites modulo OL. If possible, returns a context corresponding to the
@@ -72,7 +109,7 @@ object UnificationUtils {
    * @param subst list of possible substitutions
    * @return
    */
-  def canReachOneStepOLTerm(first: Term, second: Term, subst: List[(Term, Term)]): Option[LambdaTermTerm] = {
+  def canReachOneStepOLTermTerm(first: Term, second: Term, subst: List[(Term, Term)]): Option[LambdaTermTerm] = {
     val freeids = (first.freeVariables ++ second.freeVariables).map(_.id)
     val substWithVar = subst
       .foldLeft((freeids, Nil: Seq[((Term, Term), Identifier)])) {
@@ -88,7 +125,18 @@ object UnificationUtils {
     else Some(lambda(substWithVar.map(s => VariableLabel(s._2)), body.get))
   }
 
-  def canReachOneStepOLTermFormula(first: Formula, second: Formula, subst: List[(Term, Term)]): Option[LambdaTermFormula] = {
+
+  /**
+   * Decides a one-step word problem for two given formulas and a set of ground
+   * term rewrites modulo OL. If possible, returns a context corresponding to
+   * the substitution.
+   *
+   * @param first formula
+   * @param second formula
+   * @param subst list of possible term substitutions
+   * @return
+   */
+  def canReachOneStepOLTerm(first: Formula, second: Formula, subst: List[(Term, Term)]): Option[LambdaTermFormula] = {
     val takenids = (first.freeVariables ++ second.freeVariables).map(_.id)
     val substWithVar = subst
       .foldLeft((takenids, Nil: Seq[((Term, Term), Identifier)])) {
@@ -102,6 +150,33 @@ object UnificationUtils {
 
     if (body.isEmpty) None
     else Some(lambda(substWithVar.map(s => VariableLabel(s._2)), body.get))
+  }
+
+
+  /**
+   * Decides a one-step word problem for two given formulas and a set of ground
+   * formula rewrites modulo OL. If possible, returns a context corresponding to
+   * the substitution.
+   *
+   * @param first formula
+   * @param second formula
+   * @param subst list of possible formula substitutions
+   * @return
+   */
+  def canReachOneStepOLFormula(first: Formula, second: Formula, subst: List[(Formula, Formula)]): Option[LambdaFormulaFormula] = {
+    val takenids = (first.freeVariables ++ second.freeVariables).map(_.id)
+    val substWithVar = subst
+      .foldLeft((takenids, Nil: Seq[((Formula, Formula), Identifier)])) {
+        case ((frs, l), s) => {
+          val x = freshId(frs, "x")
+          (frs + x, l :+ (s, x))
+        }
+      }
+      ._2
+    val body = canReachOneStepOLFormula2(first, second, substWithVar, takenids ++ substWithVar.map(_._2))
+
+    if (body.isEmpty) None
+    else Some(lambda(substWithVar.map(s => VariableFormulaLabel(s._2)), body.get))
   }
 
 }
