@@ -1067,7 +1067,7 @@ object BasicStepTactic {
           case _ => false
         })
         .map { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
-      val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
+      val canReach = UnificationUtils.canReachOneStepOLTerm(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty)
         proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
@@ -1127,6 +1127,25 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(ψ_) is not the same as right-hand side of the premise + φ(τ_) (or with ψ_ and τ_ swapped).")
       else
         proof.ValidProofTactic(Seq(SC.RightSubstIff(bot, -1, equals, lambdaPhi)), Seq(premise))
+    }
+
+    def apply2(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      lazy val premiseSequent = proof.getSequent(premise)
+      val premRight = ConnectorFormula(Or, premiseSequent.right.toSeq)
+      val botRight = ConnectorFormula(Or, bot.right.toSeq)
+
+      val iffs = (bot.left
+        .filter {
+          case ConnectorFormula(Iff, _) => true
+          case _ => false
+        })
+        .map { case ConnectorFormula(Iff, Seq(l, r)) => (l, r) }
+      val canReach = UnificationUtils.canReachOneStepOLFormula(premRight, botRight, iffs.toList)
+
+      if (canReach.isEmpty)
+        proof.InvalidProofTactic("Could not find a set of double-implications to rewrite premise into conclusion successfully.")
+      else
+        RightSubstIff(iffs.toList, canReach.get)(premise)(bot)
     }
   }
 

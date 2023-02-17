@@ -885,9 +885,12 @@ object SetTheory extends lisa.Main {
 
     val form = formulaVariable
     have((in(t, z) <=> (in(t, x) /\ forall(y, P(y) ==> in(t, y)))) |- in(t, z) <=> (in(t, x) /\ forall(y, P(y) ==> in(t, y)))) by Hypothesis
+    thenHave(
+      Set((in(t, z) <=> (in(t, x) /\ forall(y, P(y) ==> in(t, y)))), ((in(t, x) /\ forall(y, P(y) ==> in(t, y))) <=> forall(y, P(y) ==> in(t, y)))) |- (in(t, z) <=> (forall(y, P(y) ==> in(t, y))))
+    ) by RightSubstIff.apply2
     val rhs = thenHave(
       Set((in(t, z) <=> (in(t, x) /\ forall(y, P(y) ==> in(t, y)))), (forall(y, P(y) ==> in(t, y)) <=> (in(t, x) /\ forall(y, P(y) ==> in(t, y))))) |- (in(t, z) <=> (forall(y, P(y) ==> in(t, y))))
-    ) by RightSubstIff(List((forall(y, P(y) ==> in(t, y)), (in(t, x) /\ forall(y, P(y) ==> in(t, y))))), lambda(form, in(t, z) <=> (form)))
+    ) by Rewrite
 
     have(Set(P(x), (in(t, z) <=> (in(t, x) /\ forall(y, P(y) ==> in(t, y))))) |- in(t, z) <=> (forall(y, P(y) ==> in(t, y)))) by Cut(lhs, rhs)
     thenHave(Set(P(x), forall(t, (in(t, z) <=> (in(t, x) /\ forall(y, P(y) ==> in(t, y)))))) |- in(t, z) <=> (forall(y, P(y) ==> in(t, y)))) by LeftForall
