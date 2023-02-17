@@ -1061,7 +1061,12 @@ object BasicStepTactic {
       val premRight = ConnectorFormula(Or, premiseSequent.right.toSeq)
       val botRight = ConnectorFormula(Or, bot.right.toSeq)
 
-      val equalities = (bot.left.filter {case PredicateFormula(equality, _) => true case _ => false}).map {case PredicateFormula(equality, Seq(l, r)) => (l, r)}
+      val equalities = (bot.left
+        .filter {
+          case PredicateFormula(equality, _) => true
+          case _ => false
+        })
+        .map { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
       val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty)
