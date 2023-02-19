@@ -331,7 +331,7 @@ object BasicStepTactic {
     def withParameters(using lib: Library, proof: lib.Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
-      lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
+      lazy val instantiatedPivot = premiseSequent.left//.diff(bot.left)
 
       if (!pivot.isEmpty)
         if (pivot.tail.isEmpty)

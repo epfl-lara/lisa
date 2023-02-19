@@ -138,7 +138,7 @@ object SimpleDeducedSteps {
       val sp = new BasicStepTactic.SUBPROOF(using proof)(Some(bot))({
         //lazy val premiseSequent = proof.getSequent(premise)
         val s1 = proof.library.have(bot +< bot.right.head) by Restate
-        proof.library.have(bot) by RightForall(s1)
+        proof.library.have(bot) by LeftForall(s1)
       })
       BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
     }
