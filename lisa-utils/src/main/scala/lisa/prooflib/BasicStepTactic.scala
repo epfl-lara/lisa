@@ -5,8 +5,9 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.prooflib.ProofTacticLib.{_, given}
+import lisa.prooflib.ProofTacticLib.{*, given}
 import lisa.prooflib.*
+import lisa.prooflib.SimpleDeducedSteps.Restate
 import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
 import lisa.utils.unification.FirstOrderUnifier
@@ -392,6 +393,10 @@ object BasicStepTactic {
       } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
     }
   }
+
+
+
+
 
   /**
    * <pre>

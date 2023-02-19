@@ -6,10 +6,25 @@ import lisa.utils.Printer
 object Exercise extends lisa.Main {
 
   val x = variable
+  val P = predicate(1)
+  val f = function(1)
+  val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))){
+    assume (∀(x, P(x) ==> P(f(x))))
+    assume (P(x))
+    val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
+    val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
+    have (P(x) ==> P(f(f(x)))) by Tautology.from(step1, step2)
+  }
+
+
+
+  /*
+  val x = variable
   val y = variable
   val z = variable
   val P = predicate(1)
   val f = function(1)
+
 
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
     assume(∀(x, P(x) ==> P(f(x))))
@@ -38,5 +53,5 @@ object Exercise extends lisa.Main {
 
   val nonEmpty = DEF() --> The(x, !(x === ∅()))(nonEmptySetExists)
   show
-
+*/
 }
