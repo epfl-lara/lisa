@@ -7,6 +7,8 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.proof.*
 import lisa.utils.FOLParser
 
+import scala.annotation.targetName
+
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
  * Usage:
@@ -102,6 +104,7 @@ object KernelHelpers {
   given Conversion[Term, TermLabel] = _.label
   given Conversion[PredicateFormula, PredicateLabel] = _.label
   given Conversion[PredicateLabel, Formula] = _.apply()
+
   given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula(_, Nil)
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
   given Conversion[Formula, Sequent] = () |- _
@@ -155,16 +158,22 @@ object KernelHelpers {
     override def apply(f: T): Set[S] = Set(f)
   }
 
-  given [S, I <: Iterable[S]]: SetConverter[S, I] with {
+  given[S, I <: Iterable[S]]: SetConverter[S, I] with {
     override def apply(s: I): Set[S] = s.toSet
+  }
+
+  given SetConverter[Formula, VariableFormulaLabel] with {
+    override def apply(s: VariableFormulaLabel): Set[Formula] = Set(s())
   }
 
   private def any2set[S, A, T <: A](any: T)(using SetConverter[S, T]): Set[S] = summon[SetConverter[S, T]].apply(any)
 
-  extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) {
+  extension[A, T1 <: A] (left: T1)(using SetConverter[Formula, T1]) {
     infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
     infix def ⊢[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
   }
+
+
 
   // Instatiation functions for formulas lifted to sequents.
 
