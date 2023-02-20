@@ -131,13 +131,13 @@ trait WithTheorems {
     def toSCProof: lisa.kernel.proof.SCProof = {
       discharges.foreach(i => { // TODO probably remove
         val (s, t1) = sequentAndIntOfFact(i)
-        SC.Cut((mostRecentStep.bot -< s.right.head) ++ (s -> s.right.head), t1, steps.length - 1, s.right.head)
+        SC.Cut((mostRecentStep.bot -< s.right.head) ++ (s ->> s.right.head), t1, steps.length - 1, s.right.head)
       })
       val finalSteps = discharges.foldLeft(steps.map(_.scps))((cumul, next) => {
         val (s, t1) = sequentAndIntOfFact(next)
         val lastStep = cumul.head
         val t2 = cumul.length - 1
-        SC.Cut((lastStep.bot -< s.right.head) ++ (s -> s.right.head), t1, t2, s.right.head) :: cumul
+        SC.Cut((lastStep.bot -< s.right.head) ++ (s ->> s.right.head), t1, t2, s.right.head) :: cumul
       })
 
       SCProof(finalSteps.reverse.toIndexedSeq, getImports.map(of => of._2).toIndexedSeq)

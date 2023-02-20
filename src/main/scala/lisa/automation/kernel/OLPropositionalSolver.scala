@@ -97,9 +97,17 @@ object OLPropositionalSolver {
     AugSequent((Nil, Nil), f)
   }
 
+  def reduceSequent(s: Sequent): Formula = {
+    val p = simplify(sequentToFormula(s))
+    val nf = computeNormalForm(p)
+    val fln = fromLocallyNameless(nf, Map.empty, 0)
+    val res = toFormulaAIG(fln)
+    res
+  }
+
   // Find all "atoms" of the formula.
   // We mean atom in the propositional logic sense, so any formula starting with a predicate symbol, a binder or a schematic connector is an atom here.
-  private def findBestAtom(f: Formula): Option[Formula] = {
+  def findBestAtom(f: Formula): Option[Formula] = {
     val atoms: scala.collection.mutable.Map[Formula, Int] = scala.collection.mutable.Map.empty
     def findAtoms2(f: Formula, add: Formula => Unit): Unit = f match {
       case PredicateFormula(label, _) if label != top && label != bot => add(f)

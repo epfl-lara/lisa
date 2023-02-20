@@ -53,8 +53,8 @@ object KernelHelpers {
 
   val True: Formula = And()
   val False: Formula = Or()
-  val ⊤ : Formula = And()
-  val ⊥ : Formula = Or()
+  val ⊤ : Formula = top()
+  val ⊥ : Formula = bot()
 
   /* Infix syntax */
 
@@ -119,7 +119,7 @@ object KernelHelpers {
     infix def +<(f: Formula): Sequent = s.copy(left = s.left + f)
     infix def -<(f: Formula): Sequent = s.copy(left = s.left - f)
     infix def +>(f: Formula): Sequent = s.copy(right = s.right + f)
-    infix def ->(f: Formula): Sequent = s.copy(right = s.right - f)
+    infix def ->>(f: Formula): Sequent = s.copy(right = s.right - f)
     infix def ++<(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left)
     infix def --<(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left)
     infix def ++>(s1: Sequent): Sequent = s.copy(right = s.right ++ s1.right)
