@@ -112,8 +112,8 @@ object UnificationUtils {
    * @param subst list containing pairs representing rewrite rules (l -> r)
    */
   def rewriteOneStepOLTerm(first: Term, subst: List[(Term, Term)]): Term = {
-    val foundSubst = subst.find {case (l, r) => isSameTerm(first, l)}
-    
+    val foundSubst = subst.find { case (l, r) => isSameTerm(first, l) }
+
     if (foundSubst.isDefined) foundSubst.get._2
     else Term(first.label, first.args.map(rewriteOneStepOLTerm(_, subst)))
   }
@@ -126,17 +126,18 @@ object UnificationUtils {
    * @param subst list containing pairs representing rewrite rules (l -> r)
    */
   def rewriteOneStepOLTermInFormula(first: Formula, subst: List[(Term, Term)], freeVars: Option[Set[Identifier]] = None): Formula = {
-    val freeVarsInner = if (freeVars.isDefined) freeVars else Some((first.freeVariables ++ subst.foldLeft(Set[VariableLabel]()) {case (frs, (k, v)) => frs ++ k.freeVariables ++ v.freeVariables }).map(_.id))
+    val freeVarsInner =
+      if (freeVars.isDefined) freeVars else Some((first.freeVariables ++ subst.foldLeft(Set[VariableLabel]()) { case (frs, (k, v)) => frs ++ k.freeVariables ++ v.freeVariables }).map(_.id))
     first match {
-        case PredicateFormula(l, arg) => PredicateFormula(l, arg.map(rewriteOneStepOLTerm(_, subst)))
-        case ConnectorFormula(l, arg) => ConnectorFormula(l, arg.map(rewriteOneStepOLTermInFormula(_, subst, freeVarsInner)))
-        case BinderFormula(l, x: VariableLabel, inner) => {
-          val newx = VariableLabel(freshId(freeVarsInner.get, x.id))
-          val newInner = substituteVariables(inner, Map[VariableLabel, Term](x -> newx))
+      case PredicateFormula(l, arg) => PredicateFormula(l, arg.map(rewriteOneStepOLTerm(_, subst)))
+      case ConnectorFormula(l, arg) => ConnectorFormula(l, arg.map(rewriteOneStepOLTermInFormula(_, subst, freeVarsInner)))
+      case BinderFormula(l, x: VariableLabel, inner) => {
+        val newx = VariableLabel(freshId(freeVarsInner.get, x.id))
+        val newInner = substituteVariables(inner, Map[VariableLabel, Term](x -> newx))
 
-          BinderFormula(l, newx, rewriteOneStepOLTermInFormula(newInner, subst, Some(freeVarsInner.get + newx.id)))
-        }
+        BinderFormula(l, newx, rewriteOneStepOLTermInFormula(newInner, subst, Some(freeVarsInner.get + newx.id)))
       }
+    }
   }
 
   /**
@@ -147,31 +148,32 @@ object UnificationUtils {
    * @param subst list containing pairs representing rewrite rules (l -> r)
    */
   def rewriteOneStepOLFormula(first: Formula, subst: List[(Formula, Formula)], freeVars: Option[Set[Identifier]] = None): Formula = {
-    lazy val freeVarsInner = if (freeVars.isDefined) freeVars else Some((first.freeVariables ++ subst.foldLeft(Set[VariableLabel]()) {case (frs, (k, v)) => frs ++ k.freeVariables ++ v.freeVariables }).map(_.id))
-    val foundSubst = subst.find {case (k, v) => isSame(first, k)}
+    lazy val freeVarsInner =
+      if (freeVars.isDefined) freeVars else Some((first.freeVariables ++ subst.foldLeft(Set[VariableLabel]()) { case (frs, (k, v)) => frs ++ k.freeVariables ++ v.freeVariables }).map(_.id))
+    val foundSubst = subst.find { case (k, v) => isSame(first, k) }
 
     if (foundSubst.isDefined) foundSubst.get._2
     else
       first match {
-          case PredicateFormula(_, _) => first
-          case ConnectorFormula(l, arg) => ConnectorFormula(l, arg.map(rewriteOneStepOLFormula(_, subst, freeVarsInner)))
-          case BinderFormula(l, x: VariableLabel, inner) => {
-            val newx = VariableLabel(freshId(freeVarsInner.get, x.id))
-            val newInner = substituteVariables(inner, Map[VariableLabel, Term](x -> newx))
+        case PredicateFormula(_, _) => first
+        case ConnectorFormula(l, arg) => ConnectorFormula(l, arg.map(rewriteOneStepOLFormula(_, subst, freeVarsInner)))
+        case BinderFormula(l, x: VariableLabel, inner) => {
+          val newx = VariableLabel(freshId(freeVarsInner.get, x.id))
+          val newInner = substituteVariables(inner, Map[VariableLabel, Term](x -> newx))
 
-            BinderFormula(l, newx, rewriteOneStepOLFormula(newInner, subst, Some(freeVarsInner.get + newx.id)))
-          }
+          BinderFormula(l, newx, rewriteOneStepOLFormula(newInner, subst, Some(freeVarsInner.get + newx.id)))
         }
+      }
   }
 
   /**
    * Extension methods for rewrites
    */
-  extension (t: Term){
+  extension (t: Term) {
     def substituted(subst: (Term, Term)*): Term = rewriteOneStepOLTerm(t, subst.toList)
   }
 
-  extension (f: Formula){
+  extension (f: Formula) {
     def substitutedTerms(subst: (Term, Term)*): Formula = rewriteOneStepOLTermInFormula(f, subst.toList)
 
     def substituted(subst: (Formula, Formula)*): Formula = rewriteOneStepOLFormula(f, subst.toList)
