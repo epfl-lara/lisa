@@ -25,7 +25,7 @@ object SimpleDeducedSteps {
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
 
-    def apply2(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+    def from(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
 
   }

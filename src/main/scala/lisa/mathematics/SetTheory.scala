@@ -164,12 +164,12 @@ object SetTheory extends lisa.Main {
   val setUnionMembership = Theorem(
     () |- in(z, setUnion(x, y)) <=> (in(z, x) \/ in(z, y))
   ) {
-    have(() |- forall(z, (z === setUnion(x, y)) <=> (z === union(unorderedPair(x, y))))) by Rewrite(setUnion.definition)
+    have(() |- forall(z, (z === setUnion(x, y)) <=> (z === union(unorderedPair(x, y))))) by Restate.from(setUnion.definition)
     thenHave(() |- (setUnion(x, y) === setUnion(x, y)) <=> (setUnion(x, y) === union(unorderedPair(x, y)))) by InstantiateForall(setUnion(x, y))
     val unionDef = thenHave(() |- (setUnion(x, y) === union(unorderedPair(x, y)))) by Restate
 
-    val upairax = have(() |- in(a, unorderedPair(x, y)) <=> ((a === x) \/ (a === y))) by Rewrite(pairAxiom of (z -> a))
-    val ta = have(() |- in(z, union(unorderedPair(x, y))) <=> exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Rewrite(unionAxiom of (z -> unorderedPair(x, y), x -> z))
+    val upairax = have(() |- in(a, unorderedPair(x, y)) <=> ((a === x) \/ (a === y))) by Restate.from(pairAxiom of (z -> a))
+    val ta = have(() |- in(z, union(unorderedPair(x, y))) <=> exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Restate.from(unionAxiom of (z -> unorderedPair(x, y), x -> z))
 
     have(thesis) subproof {
       // the proof proceeds by showing that the existence criterion reduces to the RHS of the iff in the thesis
@@ -211,7 +211,7 @@ object SetTheory extends lisa.Main {
 
       val existsSubst = have(() |- exists(a, in(z, a) /\ in(a, unorderedPair(x, y))) <=> (in(z, x) \/ in(z, y))) by RightIff(fwd, bwd)
 
-      have(() |- in(z, union(unorderedPair(x, y))) <=> exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Rewrite(ta)
+      have(() |- in(z, union(unorderedPair(x, y))) <=> exists(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Restate.from(ta)
       andThen(applySubst(existsSubst))
       andThen(applySubst(unionDef))
     }
@@ -253,7 +253,7 @@ object SetTheory extends lisa.Main {
     have(() |- forall(x, (x === successor(y)) <=> (x === union(unorderedPair(y, unorderedPair(y, y)))))) by InstFunSchema(Map(x -> y))(successor.definition)
     thenHave(() |- ((successor(y) === successor(y)) <=> (successor(y) === union(unorderedPair(y, unorderedPair(y, y)))))) by InstantiateForall(successor(y))
     val succDef = thenHave(() |- (successor(y) === union(unorderedPair(y, unorderedPair(y, y))))) by Rewrite
-    val inductDef = have(() |- inductive(x) <=> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))) by Rewrite(inductive.definition)
+    val inductDef = have(() |- inductive(x) <=> in(emptySet(), x) /\ forall(y, in(y, x) ==> in(successor(y), x))) by Restate.from(inductive.definition)
 
     have(() |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Restate
     val succEq = thenHave(
@@ -533,7 +533,7 @@ object SetTheory extends lisa.Main {
   ) {
     // forward direction
     //      up ab = up cd |- a = c and b = d OR a = d and b = c
-    val fwd = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by Rewrite(unorderedPairDeconstruction)
+    val fwd = have(() |- (unorderedPair(a, b) === unorderedPair(c, d)) ==> (((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c)))) by Restate.from(unorderedPairDeconstruction)
 
     // backward direction
     //      a = c and b = d => up ab = up cd (and the other case)
@@ -708,8 +708,8 @@ object SetTheory extends lisa.Main {
       // required subproof, transitivity of equality
       // b = c, a = d, a = c |- b = d
       val transEqdb = have(Set(d === a, a === c, c === b) |- d === b) subproof {
-        val dac = have((d === a) /\ (a === c) |- (d === c)) by Rewrite(equalityTransitivity of (x -> d, y -> a, z -> c))
-        have((d === c) /\ (c === b) |- (d === b)) by Rewrite(equalityTransitivity of (x -> d, y -> c, z -> b))
+        val dac = have((d === a) /\ (a === c) |- (d === c)) by Restate.from(equalityTransitivity of (x -> d, y -> a, z -> c))
+        have((d === c) /\ (c === b) |- (d === b)) by Restate.from(equalityTransitivity of (x -> d, y -> c, z -> b))
         val dcb = thenHave(Set((d === c), (c === b)) |- (d === b)) by Restate
         val db = have(Set((d === a) /\ (a === c), (c === b)) |- (d === b)) by Cut(dac, dcb)
 
@@ -759,7 +759,7 @@ object SetTheory extends lisa.Main {
     val rhs = have(exists(y, in(y, X) /\ forall(z, in(z, X) ==> !in(z, y))) |- !in(x, x)) by Cut(coreLhs, coreRhs)
 
     val finRhs = have(!(X === emptySet()) |- !in(x, x)) by Cut(lhs, rhs)
-    val finLhs = have(() |- !(X === emptySet())) by Rewrite(singletonNonEmpty)
+    val finLhs = have(() |- !(X === emptySet())) by Restate.from(singletonNonEmpty)
 
     have(() |- !in(x, x)) by Cut(finLhs, finRhs)
   }
@@ -773,7 +773,7 @@ object SetTheory extends lisa.Main {
   val noUniversalSet = Theorem(
     forall(z, in(z, x)) |- ()
   ) {
-    have(in(x, x) |- ()) by Rewrite(selfNonInclusion)
+    have(in(x, x) |- ()) by Restate.from(selfNonInclusion)
     thenHave(forall(z, in(z, x)) |- ()) by LeftForall
   }
 
@@ -1141,8 +1141,8 @@ object SetTheory extends lisa.Main {
     // converting the exists to existsOne
     val cutL = have(
       existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r))))) |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))
-    ) by Rewrite(existsOneImpliesExists of (P -> lambda(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))))
-    val cutR = have(exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r))))) |- existsOne(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r)))))) by Rewrite(
+    ) by Restate.from(existsOneImpliesExists of (P -> lambda(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(t, a), r)))))))
+    val cutR = have(exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r))))) |- existsOne(z, forall(t, in(t, z) <=> (exists(a, in(pair(t, a), r)))))) by Restate.from(
       uniqueByExtension of (schemPred -> lambda(t, (exists(a, in(pair(t, a), r)))))
     )
 
@@ -1204,8 +1204,8 @@ object SetTheory extends lisa.Main {
     // converting the exists to existsOne
     val cutL = have(
       existsOne(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r))))) |- exists(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))
-    ) by Rewrite(existsOneImpliesExists of (P -> lambda(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))))
-    val cutR = have(exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r))))) |- existsOne(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r)))))) by Rewrite(
+    ) by Restate.from(existsOneImpliesExists of (P -> lambda(z, forall(t, in(t, z) <=> (in(t, union(union(r))) /\ exists(a, in(pair(a, t), r)))))))
+    val cutR = have(exists(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r))))) |- existsOne(z, forall(t, in(t, z) <=> (exists(a, in(pair(a, t), r)))))) by Restate.from(
       uniqueByExtension of (schemPred -> lambda(t, (exists(a, in(pair(a, t), r)))))
     )
 
@@ -1598,7 +1598,7 @@ object SetTheory extends lisa.Main {
   val subsetReflexivity = Theorem(
     () |- subset(x, x)
   ) {
-    val subdef = have(() |- subset(x, x) <=> forall(z, top())) by Rewrite(subsetAxiom of (y -> x))
+    val subdef = have(() |- subset(x, x) <=> forall(z, top())) by Restate.from(subsetAxiom of (y -> x))
     andThen(applySubst(closedFormulaUniversal of (VariableFormulaLabel("p") -> top())))
 
     thenHave(thesis) by Restate
@@ -1618,7 +1618,7 @@ object SetTheory extends lisa.Main {
     // forward
 
     val fwd = have(() |- (x === y) ==> (subset(x, y) /\ subset(y, x))) subproof {
-      have(() |- subset(x, x) /\ subset(x, x)) by Rewrite(subsetReflexivity)
+      have(() |- subset(x, x) /\ subset(x, x)) by Restate.from(subsetReflexivity)
       thenHave((x === y) |- (subset(x, y) /\ subset(y, x))) by RightSubstEq(List((x, y)), lambda(y, subset(x, y) /\ subset(y, x)))
       thenHave(thesis) by Restate
     }
@@ -1634,7 +1634,7 @@ object SetTheory extends lisa.Main {
       thenHave(Set(subset(x, y) /\ subset(y, x)) |- in(z, y) <=> in(z, x)) by Restate
       val ssxy = thenHave(subset(x, y) /\ subset(y, x) |- forall(z, in(z, y) <=> in(z, x))) by RightForall
 
-      val ext = have(() |- (x === y) <=> (forall(z, in(z, y) <=> in(z, x)))) by Rewrite(extensionalityAxiom)
+      val ext = have(() |- (x === y) <=> (forall(z, in(z, y) <=> in(z, x)))) by Restate.from(extensionalityAxiom)
 
       have(subset(x, y) /\ subset(y, x) |- forall(z, in(z, y) <=> in(z, x)) /\ ((x === y) <=> (forall(z, in(z, y) <=> in(z, x))))) by RightAnd(ssxy, ext)
       thenHave(subset(x, y) /\ subset(y, x) |- (x === y)) by Tautology
@@ -1762,14 +1762,14 @@ object SetTheory extends lisa.Main {
     val yInPower = thenHave(ydef |- in(y, powerSet(x))) by Restate
 
     // y \in range(f)
-    have(surjective(f, x, powerSet(x)) |- (powerSet(x) === relationRange(f))) by Rewrite(surjectiveImpliesRangeIsCodomain of (y -> powerSet(x)))
+    have(surjective(f, x, powerSet(x)) |- (powerSet(x) === relationRange(f))) by Restate.from(surjectiveImpliesRangeIsCodomain of (y -> powerSet(x)))
     andThen(applySubst(extensionalityAxiom of (x -> powerSet(x), y -> relationRange(f))))
     val surjRange = thenHave(surjective(f, x, powerSet(x)) |- in(y, powerSet(x)) <=> in(y, relationRange(f))) by InstantiateForall(y)
     val yInRange = have(Set(ydef, surjective(f, x, powerSet(x))) |- in(y, relationRange(f))) by Tautology.from(yInPower, surjRange)
 
     // \exists z. z \in x /\ f(z) = y
-    val funToExists = have(Set(functional(f), in(y, relationRange(f))) |- exists(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Rewrite(inRangeImpliesPullbackExists of (z -> y))
-    val funFromImpliesFun = have(functionFrom(f, x, powerSet(x)) |- functional(f)) by Rewrite(functionFromImpliesFunctional of (y -> powerSet(x)))
+    val funToExists = have(Set(functional(f), in(y, relationRange(f))) |- exists(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Restate.from(inRangeImpliesPullbackExists of (z -> y))
+    val funFromImpliesFun = have(functionFrom(f, x, powerSet(x)) |- functional(f)) by Restate.from(functionFromImpliesFunctional of (y -> powerSet(x)))
     val surjToFunFrom = have(surjective(f, x, powerSet(x)) |- functionFrom(f, x, powerSet(x))) by Tautology.from(surjective.definition of (y -> powerSet(x)))
     val funFromToExists = have(Set(functionFrom(f, x, powerSet(x)), in(y, relationRange(f))) |- exists(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Cut(funFromImpliesFun, funToExists)
     val surjToExists = have(Set(surjective(f, x, powerSet(x)), in(y, relationRange(f))) |- exists(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Cut(surjToFunFrom, funFromToExists)
@@ -1796,7 +1796,7 @@ object SetTheory extends lisa.Main {
 
     have(Set(ydef, surjective(f, x, powerSet(x))) |- ()) by Cut(existsZ, existsToContra)
     val yToContra = thenHave(Set(exists(y, ydef), surjective(f, x, powerSet(x))) |- ()) by LeftExists
-    val yexists = have(() |- exists(y, ydef)) by Rewrite(comprehensionSchema of (z -> x, sPhi -> lambda(Seq(t, z), !in(t, app(f, t)))))
+    val yexists = have(() |- exists(y, ydef)) by Restate.from(comprehensionSchema of (z -> x, sPhi -> lambda(Seq(t, z), !in(t, app(f, t)))))
 
     have(thesis) by Cut(yexists, yToContra)
   }

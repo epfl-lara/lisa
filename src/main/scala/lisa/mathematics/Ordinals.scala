@@ -66,7 +66,7 @@ object Ordinals extends lisa.Main {
     val fprop = forall(t, in(t, z) <=> prop)
 
     val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniqueByExtension)
-    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(inductiveIntersectionExistence)
+    val existsLhs = have(() |- exists(z, fprop)) by Restate.from(inductiveIntersectionExistence)
 
     have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
   }
