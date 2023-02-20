@@ -111,11 +111,11 @@ trait ProofsHelpers {
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
-  def assume(using proof: library.Proof)(f: Formula): Formula = {
+  def assume(using proof: library.Proof)(f: Formula): proof.ProofStep = {
     proof.addAssumption(f)
-    f
+    have(() |- f) by BasicStepTactic.Hypothesis
   }
-  def assume(using proof: library.Proof)(fstring: String): Formula = {
+  def assume(using proof: library.Proof)(fstring: String): proof.ProofStep = {
     val f = lisa.utils.FOLParser.parseFormula(fstring)
     assume(f)
   }

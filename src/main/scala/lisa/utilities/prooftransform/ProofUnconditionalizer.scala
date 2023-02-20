@@ -295,6 +295,7 @@ case class ProofUnconditionalizer(prOrig: SCProof) extends ProofTransformer(prOr
     case SCSubproof(pp, t) => {
       SCSubproof(ProofUnconditionalizer(pp).transformPrivate(fsub.toIndexedSeq ++ t.filter(_ >= 0).map(i => appended_steps(i).bot).toIndexedSeq), fi(t))
     }
+    case _ => ???
   }
 
 }

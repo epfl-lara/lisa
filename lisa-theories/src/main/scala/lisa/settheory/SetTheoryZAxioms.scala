@@ -69,7 +69,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * This axiom defines [[union]] as the function symbol representing this set.
    */
-  final val unionAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(in(x, union(z)) <=> exists(y, in(x, y) /\ in(y, z)))
+  final val unionAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(in(z, union(x)) <=> exists(y, in(y, x) /\ in(z, y)))
 
   /**
    * Subset Axiom --- For sets `x` and `y`, `x` is a subset of `y` iff every

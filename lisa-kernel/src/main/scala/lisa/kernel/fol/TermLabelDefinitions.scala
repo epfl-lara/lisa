@@ -49,8 +49,4 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
     val arity = 0
   }
 
-  /**
-   * A function returning true if and only if the two symbols are considered "the same", i.e. same category, same arity and same id.
-   */
-  def isSame(l: TermLabel, r: TermLabel): Boolean = l == r
 }
