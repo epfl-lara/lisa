@@ -478,51 +478,25 @@ object SetTheory extends lisa.Main {
    *
    *      `∀ x. ∪ {x} === x`
    */
-  val unionOfSingletonIsTheOriginalSet = Theorem(
-    () |- (union(singleton(x)) === x)
-  ) {
+  val unionOfSingletonIsTheOriginalSet = Theorem(() |- (union(singleton(x)) === x)) {
     val X = singleton(x)
+    val forward = have((() |- in(z, x) ==> in(z, union(X)))) subproof {
+      have(in(z, x) |- in(z, x) /\ in(x, X)) by Tautology.from(pairAxiom of(y -> x, z -> x))
+      val step2 = thenHave(in(z, x) |- exists(y, in(z, y) /\ in(y, X))) by RightExists
+      have(thesis) by Tautology.from(step2, unionAxiom of (x -> X))
+    }
 
-    // need to prove:
-    //    ∀ z. z ∈ ∪ X <=> z ∈ x
+    val backward = have(() |- in(z, union(X)) ==> in(z, x)) subproof {
+      have(in(z, y) |- in(z, y)) by Restate
+      val step2 = thenHave((y === x, in(z, y)) |- in(z, x)) by Substitution
+      have(in(z, y) /\ in(y, X) |- in(z, x)) by Tautology.from(pairAxiom of(y -> x, z -> y), step2)
+      val step4 = thenHave(exists(y, in(z, y) /\ in(y, X)) |- in(z, x)) by LeftExists
+      have(() |- in(z, union(X)) ==> in(z, x)) by Tautology.from(unionAxiom of (x -> X), step4)
+    }
 
-    // forward direction
-    //  z ∈ x |- z ∈ ∪ X
-    val unionAx = have(() |- in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X))) by InstFunSchema(Map(x -> z, z -> X))(unionAxiom)
-    thenHave(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Tautology
-
-    val andLhs = have(() |- in(x, X)) by InstFunSchema(Map(y -> x))(firstElemInPair)
-    val andRhs = have(in(z, x) |- in(z, x)) by Hypothesis
-    have(in(z, x) |- in(z, x) /\ in(x, X)) by RightAnd(andLhs, andRhs)
-    val fwdLhs = thenHave(in(z, x) |- exists(y, in(z, y) /\ in(y, X))) by RightExists
-    have(in(z, x) |- exists(y, in(z, y) /\ in(y, X)) /\ (in(z, union(X)) <=> exists(y, in(z, y) /\ in(y, X)))) by RightAnd(fwdLhs, unionAx)
-    thenHave(in(z, x) |- in(z, union(X))) by Tautology
-    val fwd = thenHave(() |- in(z, x) ==> in(z, union(X))) by Rewrite
-
-    // backward direction
-    //  z ∈ ∪ X |- z ∈ x
-
-    have(in(y, X) |- in(y, X)) by Hypothesis
-    val bwdHypo = thenHave(in(z, y) /\ in(y, X) |- in(y, X)) by Weakening
-    have(in(z, y) /\ in(y, X) |- in(y, X) /\ (in(y, X) <=> (x === y))) by RightAnd(bwdHypo, singletonHasNoExtraElements)
-    val cutLhs = thenHave(in(z, y) /\ in(y, X) |- (x === y)) by Tautology
-
-    have(in(z, y) |- in(z, y)) by Hypothesis
-    thenHave(in(y, X) /\ in(z, y) |- in(z, y)) by Weakening
-    val cutRhs = thenHave(Set(in(z, y) /\ in(y, X), (x === y)) |- in(z, x)) by RightSubstEq(List((y, x)), lambda(y, in(z, y)))
-
-    have(in(z, y) /\ in(y, X) |- in(z, x)) by Cut(cutLhs, cutRhs)
-    val bwdRhs = thenHave(exists(y, in(z, y) /\ in(y, X)) |- in(z, x)) by LeftExists
-    val bwdLhs = have(in(z, union(X)) |- exists(y, in(z, y) /\ in(y, X))) by Weakening(unionAx)
-    have(in(z, union(X)) |- in(z, x)) by Cut(bwdLhs, bwdRhs)
-    val bwd = thenHave(() |- in(z, union(X)) ==> in(z, x)) by Rewrite
-
-    have(() |- in(z, union(X)) <=> in(z, x)) by RightIff(fwd, bwd)
-    val iff = thenHave(() |- forall(z, in(z, union(X)) <=> in(z, x))) by RightForall
-    val extAx = have(() |- forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x)) by InstFunSchema(Map(x -> union(X), y -> x))(extensionalityAxiom)
-
-    have(() |- forall(z, in(z, union(X)) <=> in(z, x)) /\ (forall(z, in(z, union(X)) <=> in(z, x)) <=> (union(X) === x))) by RightAnd(iff, extAx)
-    thenHave(() |- (union(X) === x)) by Tautology
+    have(() |- in(z, union(X)) <=> in(z, x)) by RightIff(forward, backward)
+    thenHave(() |- forall(z, in(z, union(X)) <=> in(z, x))) by RightForall
+    andThen(Substitution(extensionalityAxiom of(x -> union(X), y -> x)))
   }
 
   /**
