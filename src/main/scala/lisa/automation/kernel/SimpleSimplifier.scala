@@ -282,21 +282,22 @@ object SimpleSimplifier {
           proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
             (l, r)
           }
-        case f: proof.Fact@unchecked =>
+        case f: proof.Fact @unchecked =>
           proof.sequentOfFact(f).right.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
             (l, r)
           }
       }
       val iffs = substituted match {
         case f: Formula =>
-          f match { case ConnectorFormula(Iff, Seq(l, r)) =>
-            List((l, r))
+          f match {
+            case ConnectorFormula(Iff, Seq(l, r)) =>
+              List((l, r))
           }
         case j: RunningTheory#Justification =>
           proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.collect { case ConnectorFormula(Iff, Seq(l, r)) =>
             (l, r)
           }
-        case f: proof.Fact@unchecked =>
+        case f: proof.Fact @unchecked =>
           proof.sequentOfFact(f).right.collect { case ConnectorFormula(Iff, Seq(l, r)) =>
             (l, r)
           }
@@ -310,8 +311,8 @@ object SimpleSimplifier {
           proof.InvalidProofTactic("Iffs and Equalities failed")
         } else {
           val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
-            val actIffs = iffs.map((a,b) => Iff(a,b))
-            val newBot = bot.copy(right=Set(ConnectorFormula(Or, bot.right.toSeq))) ++< (actIffs |- ())
+            val actIffs = iffs.map((a, b) => Iff(a, b))
+            val newBot = bot.copy(right = Set(ConnectorFormula(Or, bot.right.toSeq))) ++< (actIffs |- ())
             val s1 = proof.library.have(premiseSequent.left |- ConnectorFormula(Or, premiseSequent.right.toSeq)) by SimpleDeducedSteps.Restate.from(premise)
             val x = BasicStepTactic.RightSubstIff(iffs.toList, canReach2.get)(s1)(newBot)
             proof.library.have(x)
@@ -319,7 +320,7 @@ object SimpleSimplifier {
             substituted match {
               case f: Formula => ()
               case j: RunningTheory#Justification => proof.library.andThen(SimpleDeducedSteps.Discharge(j.asInstanceOf[lib.theory.Justification]))
-              case f: proof.Fact@unchecked => proof.library.andThen(SimpleDeducedSteps.Discharge(f))
+              case f: proof.Fact @unchecked => proof.library.andThen(SimpleDeducedSteps.Discharge(f))
             }
           })
           BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")

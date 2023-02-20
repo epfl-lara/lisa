@@ -142,11 +142,9 @@ object SimpleDeducedSteps {
           proof.library.have(bot) by LeftForall(s1)
         })
         BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
-      }
-      catch {
+      } catch {
         case e: Exception => proof.InvalidProofTactic("Impossible to justify desired step with instantiation.")
       }
-
 
     }
 
