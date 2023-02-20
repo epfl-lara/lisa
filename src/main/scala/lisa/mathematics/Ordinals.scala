@@ -49,100 +49,100 @@ object Ordinals extends lisa.Main {
    * Theorem --- There exists an intersection of all inductive sets
    */
   val inductiveIntersectionExistence = Theorem(
-    () |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))
+    ∃(z, ∀(t, in(t, z) <=> ∀(y, inductive(y) ==> in(t, y))))
   ) {
     val inductExt =
-      have(exists(x, inductive(x)) |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))) by InstPredSchema(Map(P -> lambda(x, inductive(x))))(intersectionOfPredicateClassExists)
-    have(() |- exists(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))) by Cut(inductiveSetExists, inductExt)
+      have(∃(x, inductive(x)) |- ∃(z, ∀(t, in(t, z) <=> ∀(y, inductive(y) ==> in(t, y))))) by InstPredSchema(Map(P -> lambda(x, inductive(x))))(intersectionOfPredicateClassExists)
+    have(∃(z, ∀(t, in(t, z) <=> ∀(y, inductive(y) ==> in(t, y))))) by Cut(inductiveSetExists, inductExt)
   }
 
   /**
    * Theorem --- The intersection of all inductive sets is unique
    */
   val inductiveIntersectionUniqueness = Theorem(
-    () |- existsOne(z, forall(t, in(t, z) <=> forall(y, inductive(y) ==> in(t, y))))
+    ∃!(z, ∀(t, in(t, z) <=> ∀(y, inductive(y) ==> in(t, y))))
   ) {
-    val prop = forall(y, inductive(y) ==> in(t, y))
-    val fprop = forall(t, in(t, z) <=> prop)
+    val prop = ∀(y, inductive(y) ==> in(t, y))
+    val fprop = ∀(t, in(t, z) <=> prop)
 
-    val existsRhs = have(exists(z, fprop) |- existsOne(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniqueByExtension)
-    val existsLhs = have(() |- exists(z, fprop)) by Rewrite(inductiveIntersectionExistence)
+    val existsRhs = have(∃(z, fprop) |- ∃!(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniqueByExtension)
+    val existsLhs = have(∃(z, fprop)) by Restate.from(inductiveIntersectionExistence)
 
-    have(() |- existsOne(z, fprop)) by Cut(existsLhs, existsRhs)
+    have(∃!(z, fprop)) by Cut(existsLhs, existsRhs)
   }
 
   /**
    * Natural Numbers (Inductive definition) --- The intersection of all
    * inductive sets is the set of natural numbers, N.
    */
-  val naturalsInductive = DEF() --> The(z, forall(t, in(t, z) <=> (forall(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
+  val naturalsInductive = DEF() --> The(z, ∀(t, in(t, z) <=> (∀(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
 
   /**
    * Theorem --- Natural numbers form an inductive set
    */
   val naturalsAreInductive = Theorem(
-    () |- inductive(naturalsInductive())
+    inductive(naturalsInductive())
   ) {
-    val defHypo = have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) by Hypothesis
+    val defHypo = have(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- ∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x))))) by Hypothesis
 
     // emptySet is in N
-    have(() |- inductive(x) ==> in(emptySet(), x)) by Weakening(inductive.definition)
-    val inductEmpty = thenHave(() |- forall(x, inductive(x) ==> in(emptySet(), x))) by RightForall
+    have(inductive(x) ==> in(∅, x)) by Weakening(inductive.definition)
+    val inductEmpty = thenHave(∀(x, inductive(x) ==> in(∅, x))) by RightForall
 
     val defEmpty =
-      have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- (in(emptySet(), z) <=> (forall(x, inductive(x) ==> in(emptySet(), x))))) by InstantiateForall(emptySet())(defHypo)
+      have(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- (in(∅, z) <=> (∀(x, inductive(x) ==> in(∅, x))))) by InstantiateForall(∅)(defHypo)
 
     have(
-      forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- (in(emptySet(), z) <=> (forall(x, inductive(x) ==> in(emptySet(), x)))) /\ forall(x, inductive(x) ==> in(emptySet(), x))
+      ∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- (in(∅, z) <=> (∀(x, inductive(x) ==> in(∅, x)))) /\ ∀(x, inductive(x) ==> in(∅, x))
     ) by RightAnd(defEmpty, inductEmpty)
-    val baseCase = thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- in(emptySet(), z)) by Tautology
+    val baseCase = thenHave(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- in(∅, z)) by Tautology
 
     // if y in N, then succ y in N
-    have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- (in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) by InstantiateForall(t)(defHypo)
-    thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) by Weakening
-    thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (forall(x, inductive(x) ==> in(t, x)))) by Tautology
-    thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (inductive(x) ==> in(t, x))) by InstantiateForall(x)
-    val inInductive = thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(t, x)) by Restate
+    have(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- (in(t, z) <=> (∀(x, inductive(x) ==> in(t, x))))) by InstantiateForall(t)(defHypo)
+    thenHave(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (in(t, z) <=> (∀(x, inductive(x) ==> in(t, x))))) by Weakening
+    thenHave(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (∀(x, inductive(x) ==> in(t, x)))) by Tautology
+    thenHave(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) /\ in(t, z) |- (inductive(x) ==> in(t, x))) by InstantiateForall(x)
+    val inInductive = thenHave((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(t, x)) by Restate
 
-    have(inductive(x) |- forall(t, in(t, x) ==> in(successor(t), x))) by Weakening(inductive.definition)
+    have(inductive(x) |- ∀(t, in(t, x) ==> in(successor(t), x))) by Weakening(inductive.definition)
     val inInductiveDef = thenHave(inductive(x) |- in(t, x) ==> in(successor(t), x)) by InstantiateForall(t)
 
-    have(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(t, x) /\ (in(t, x) ==> in(successor(t), x))) by RightAnd(inInductive, inInductiveDef)
-    thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(successor(t), x)) by Tautology
-    thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), in(t, z)) |- inductive(x) ==> in(successor(t), x)) by Restate
-    val succInst = thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), in(t, z)) |- forall(x, inductive(x) ==> in(successor(t), x))) by RightForall
+    have((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(t, x) /\ (in(t, x) ==> in(successor(t), x))) by RightAnd(inInductive, inInductiveDef)
+    thenHave((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) /\ in(t, z), inductive(x)) |- in(successor(t), x)) by Tautology
+    thenHave((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))), in(t, z)) |- inductive(x) ==> in(successor(t), x)) by Restate
+    val succInst = thenHave((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))), in(t, z)) |- ∀(x, inductive(x) ==> in(successor(t), x))) by RightForall
 
     val nDefSucc =
-      have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- (in(successor(t), z) <=> (forall(x, inductive(x) ==> in(successor(t), x))))) by InstantiateForall(successor(t))(defHypo)
+      have(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- (in(successor(t), z) <=> (∀(x, inductive(x) ==> in(successor(t), x))))) by InstantiateForall(successor(t))(defHypo)
     have(
-      Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), in(t, z)) |- forall(x, inductive(x) ==> in(successor(t), x)) /\ (in(successor(t), z) <=> (forall(
+      (∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))), in(t, z)) |- ∀(x, inductive(x) ==> in(successor(t), x)) /\ (in(successor(t), z) <=> (∀(
         x,
         inductive(x) ==> in(successor(t), x)
       )))
     ) by RightAnd(succInst, nDefSucc)
-    thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), in(t, z)) |- in(successor(t), z)) by Tautology
-    thenHave(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) |- in(t, z) ==> in(successor(t), z)) by Restate
-    val inductiveCase = thenHave(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- forall(t, in(t, z) ==> in(successor(t), z))) by RightForall
+    thenHave((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))), in(t, z)) |- in(successor(t), z)) by Tautology
+    thenHave((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x))))) |- in(t, z) ==> in(successor(t), z)) by Restate
+    val inductiveCase = thenHave(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- ∀(t, in(t, z) ==> in(successor(t), z))) by RightForall
 
-    have(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))) |- in(emptySet(), z) /\ forall(t, in(t, z) ==> in(successor(t), z))) by RightAnd(baseCase, inductiveCase)
+    have(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- in(∅, z) /\ ∀(t, in(t, z) ==> in(successor(t), z))) by RightAnd(baseCase, inductiveCase)
 
     val form = formulaVariable
     val inductIff = thenHave(
-      Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x)))), inductive(z) <=> (in(emptySet(), z) /\ forall(y, in(y, z) ==> in(successor(y), z)))) |- inductive(z)
-    ) by RightSubstIff(List((inductive(z), in(emptySet(), z) /\ forall(y, in(y, z) ==> in(successor(y), z)))), lambda(form, form))
+      (∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))), inductive(z) <=> (in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))) |- inductive(z)
+    ) by RightSubstIff(List((inductive(z), in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))), lambda(form, form))
 
-    val inductDef = have(() |- inductive(z) <=> (in(emptySet(), z) /\ forall(y, in(y, z) ==> in(successor(y), z)))) by InstFunSchema(Map(x -> z))(inductive.definition)
+    val inductDef = have(inductive(z) <=> (in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))) by InstFunSchema(Map(x -> z))(inductive.definition)
 
-    have(Set(forall(t, in(t, z) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(z)) by Cut(inductDef, inductIff)
+    have((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x))))) |- inductive(z)) by Cut(inductDef, inductIff)
     val inductExpansion =
-      thenHave(Set(forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(naturalsInductive())) by InstFunSchema(Map(z -> naturalsInductive()))
+      thenHave((forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(naturalsInductive())) by InstFunSchema(Map(z -> naturalsInductive()))
 
-    have(() |- (naturalsInductive() === naturalsInductive()) <=> forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) by InstantiateForall(naturalsInductive())(
+    have((naturalsInductive() === naturalsInductive()) <=> forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) by InstantiateForall(naturalsInductive())(
       naturalsInductive.definition
     )
-    val natDef = thenHave(() |- forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) by Rewrite
+    val natDef = thenHave(forall(t, in(t, naturalsInductive()) <=> forall(x, inductive(x) ==> in(t, x)))) by Restate
 
-    have(() |- inductive(naturalsInductive())) by Cut(natDef, inductExpansion)
+    have(inductive(naturalsInductive())) by Cut(natDef, inductExpansion)
   }
 
   private val A = variable
@@ -159,12 +159,12 @@ object Ordinals extends lisa.Main {
    * Show that the restriction of a functional to a set exists.
    */
   val predicateRestrictionExists = makeTHM(
-    () |- existsOne(r, forall(x,  forall(y, in(pair(x, y), r) <=> in(x, A) /\ in(y, A) /\ R(x, y))))
+     ∃!(r, forall(x,  forall(y, in(pair(x, y), r) <=> in(x, A) /\ in(y, A) /\ R(x, y))))
   ) {
     val z1 = firstInPair(z)
     val z2 = secondInPair(z)
 
-    have (() |- existsOne(r, forall(z, in(z, r) <=> in(z, cartesianProduct(A, A)) /\ R(z1, z2)))) by UniqueComprehension(cartesianProduct(A, A), lambda(Seq(z, x), R(z1, z2)))
+    have ( ∃!(r, forall(z, in(z, r) <=> in(z, cartesianProduct(A, A)) /\ R(z1, z2)))) by UniqueComprehension(cartesianProduct(A, A), lambda(Seq(z, x), R(z1, z2)))
     showCurrentProof()
 
   }

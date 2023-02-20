@@ -9,9 +9,9 @@ import lisa.utils.KernelHelpers.{_, given}
 object UnificationUtils {
 
   def canReachOneStepOLTerm2(first: Term, second: Term, subst: Seq[((Term, Term), Identifier)]): Option[Term] = {
-    lazy val validSubst = subst.find { case ((l, r), _) => isSame(first, l) && isSame(second, r) }
+    lazy val validSubst = subst.find { case ((l, r), _) => isSameTerm(first, l) && isSameTerm(second, r) }
 
-    if (isSame(first, second)) Some(first)
+    if (isSameTerm(first, second)) Some(first)
     else if (validSubst.isDefined) Some(VariableLabel(validSubst.get._2))
     else if (first.label == second.label && first.args.length == second.args.length) {
       val argCan = (first.args zip second.args).map { case (f, s) => canReachOneStepOLTerm2(f, s, subst) }
