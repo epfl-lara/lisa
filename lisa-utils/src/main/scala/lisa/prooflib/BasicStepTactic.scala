@@ -1114,9 +1114,11 @@ object BasicStepTactic {
       lazy val phi_tau = lambdaPhi(tau_es)
       lazy val implications = equals map { case (s, t) => ConnectorFormula(Iff, Seq(s, t)) }
 
-      if (!isSameSet(bot.left, premiseSequent.left ++ implications))
+      if (!isSameSet(bot.left, premiseSequent.left ++ implications)) {
+        println(lisa.utils.parsing.FOLPrinter.prettySequent(bot))
+        println(lisa.utils.parsing.FOLPrinter.prettySequent(premiseSequent ++< (implications |- ())))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ⇔ τ)_.")
-      else if (
+      } else if (
         !isSameSet(bot.right + phi_psi, premiseSequent.right + phi_tau) &&
         !isSameSet(bot.right + phi_tau, premiseSequent.right + phi_psi)
       )
@@ -1202,5 +1204,9 @@ object BasicStepTactic {
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
     def judgement: proof.ValidProofTactic = proof.ValidProofTactic(scproof.steps, premises)
   }
+
+  // TODO make specific support for subproofs written inside tactics.
+  def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit) =
+    SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
 
 }

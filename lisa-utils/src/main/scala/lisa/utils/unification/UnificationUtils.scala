@@ -166,6 +166,57 @@ object UnificationUtils {
       }
   }
 
+  def canReachOneStepOLFormula2(first: Formula, second: Formula, subst: Seq[((Formula, Formula), Identifier)], takenIds: Set[Identifier]): Option[Formula] = {
+    lazy val validSubst = subst.find { case ((l, r), _) => isSame(first, l) && isSame(second, r) }
+
+    if (isSame(first, second)) Some(first)
+    else if (validSubst.isDefined) Some(VariableFormulaLabel(validSubst.get._2))
+    else if (first.label != second.label) None
+    else
+      first match {
+        case ConnectorFormula(l1, arg1) => {
+          second match {
+            case ConnectorFormula(l2, arg2) => {
+              val argCan = (arg1 zip arg2).map { case (f, s) => canReachOneStepOLFormula2(f, s, subst, takenIds) }
+
+              if (argCan.exists(_.isEmpty)) None
+              else Some(ConnectorFormula(l1, argCan.map(_.get)))
+            }
+            case _ => None
+          }
+        }
+        case BinderFormula(l1, x1: VariableLabel, inner1) => {
+          second match {
+            case BinderFormula(l2, x2: VariableLabel, inner2) => {
+              val newx = VariableLabel(freshId(takenIds, x1.id))
+              val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
+              val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
+
+              canReachOneStepOLFormula2(newInner1, newInner2, subst, takenIds + newx.id)
+            }
+            case _ => None
+          }
+        }
+        case _ => None
+      }
+  }
+
+  def canReachOneStepOLFormula(first: Formula, second: Formula, subst: List[(Formula, Formula)]): Option[LambdaFormulaFormula] = {
+    val takenids = (first.freeVariables ++ second.freeVariables).map(_.id)
+    val substWithVar = subst
+      .foldLeft((takenids, Nil: Seq[((Formula, Formula), Identifier)])) {
+        case ((frs, l), s) => {
+          val x = freshId(frs, "x")
+          (frs + x, l :+ (s, x))
+        }
+      }
+      ._2
+    val body = canReachOneStepOLFormula2(first, second, substWithVar, takenids ++ substWithVar.map(_._2))
+
+    if (body.isEmpty) None
+    else Some(lambda(substWithVar.map(s => VariableFormulaLabel(s._2)), body.get))
+  }
+
   /**
    * Extension methods for rewrites
    */

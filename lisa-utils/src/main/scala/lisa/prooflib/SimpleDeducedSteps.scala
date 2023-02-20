@@ -86,7 +86,7 @@ object SimpleDeducedSteps {
                   val tempVar = FOL.VariableLabel(freshId(psi.freeVariables.map(_.id), x.id))
                   // instantiate the formula with input
                   val in = instantiateBinder(psi, t)
-                  val con = p.conclusion -> f +> in
+                  val con = p.conclusion ->> f +> in
                   // construct proof
                   val p0 = SC.Hypothesis(in |- in, in)
                   val p1 = SC.LeftForall(f |- in, 0, instantiateBinder(psi, tempVar), tempVar, t)
@@ -135,12 +135,17 @@ object SimpleDeducedSteps {
     }
 
     def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
-      val sp = new BasicStepTactic.SUBPROOF(using proof)(Some(bot))({
-        // lazy val premiseSequent = proof.getSequent(premise)
-        val s1 = proof.library.have(bot +< bot.right.head) by Restate
-        proof.library.have(bot) by LeftForall(s1)
-      })
-      BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
+      try {
+        val sp = new BasicStepTactic.SUBPROOF(using proof)(Some(bot))({
+          // lazy val premiseSequent = proof.getSequent(premise)
+          val s1 = proof.library.have(bot +< bot.right.head) by Restate
+          proof.library.have(bot) by LeftForall(s1)
+        })
+        BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
+      } catch {
+        case e: Exception => proof.InvalidProofTactic("Impossible to justify desired step with instantiation.")
+      }
+
     }
 
   }
@@ -184,7 +189,7 @@ object SimpleDeducedSteps {
                 // TODO: can be abstracted into a RightAndAll step
                 val emptyProof = SCProof(IndexedSeq(), IndexedSeq(p0.bot, p1.bot))
                 val proofRightAndAll = rightSequent.right.foldLeft(emptyProof) { case (p, gamma) =>
-                  p withNewSteps IndexedSeq(SC.RightAnd(p.conclusion -> gamma +> FOL.ConnectorFormula(FOL.And, gamma +: psi), Seq(p.length - 1, -2), gamma +: psi))
+                  p withNewSteps IndexedSeq(SC.RightAnd(p.conclusion ->> gamma +> FOL.ConnectorFormula(FOL.And, gamma +: psi), Seq(p.length - 1, -2), gamma +: psi))
                 }
 
                 val p2 = SC.SCSubproof(proofRightAndAll, Seq(0, 1))
@@ -232,7 +237,7 @@ object SimpleDeducedSteps {
       val conc = proof.getSequent(prem)
       val p0 = SC.Hypothesis(emptySeq +< a +> a, a)
       val p1 = SC.LeftAnd(emptySeq +< (a /\ b) +> a, 0, a, b)
-      val p2 = SC.Cut(conc -> (a /\ b) -> (b /\ a) +> a, -1, 1, a /\ b)
+      val p2 = SC.Cut(conc ->> (a /\ b) ->> (b /\ a) +> a, -1, 1, a /\ b)
       proof.ValidProofTactic(IndexedSeq(p0, p1, p2), Seq(prem))
     }
   }
@@ -246,7 +251,7 @@ object SimpleDeducedSteps {
         val p1 = SC.Hypothesis(emptySeq +< b +> b, b)
 
         val p2 = SC.LeftOr(emptySeq +< (a \/ b) +> a +> b, Seq(0, 1), Seq(a, b))
-        val p3 = SC.Cut(conc -> mat.get +> a +> b, -1, 2, a \/ b)
+        val p3 = SC.Cut(conc ->> mat.get +> a +> b, -1, 2, a \/ b)
         proof.ValidProofTactic(IndexedSeq(p0, p1, p2, p3), Seq(prem))
       } else {
         proof.InvalidProofTactic("Premise does not contain the union of the given formulas")
@@ -269,7 +274,7 @@ object SimpleDeducedSteps {
               if (!p1.conclusion.right.contains(phi1))
                 (p1, phi1, proof.InvalidProofTactic("Formula is not present in the lass sequent"))
 
-              val proofStep = SC.RightForall(p1.conclusion -> phi1 +> forall(x1, phi1), p1.length - 1, phi1, x1)
+              val proofStep = SC.RightForall(p1.conclusion ->> phi1 +> forall(x1, phi1), p1.length - 1, phi1, x1)
               (
                 p1 appended proofStep,
                 forall(x1, phi1),
