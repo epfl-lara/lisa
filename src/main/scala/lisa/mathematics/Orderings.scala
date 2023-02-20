@@ -62,7 +62,7 @@ object Orderings extends lisa.Main {
    *
    *    `∀ b ∈ y. ! a r b`
    */
-  val maximalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(a, b), secondInPair(p))))
+  val maximalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ ∀(b, in(b, y) ==> (!in(pair(a, b), secondInPair(p))))
 
   /**
    * Minimal Element --- `a` is a minimal element of `y` with respect to `r`,
@@ -70,7 +70,7 @@ object Orderings extends lisa.Main {
    *
    *    `∀ b ∈ y. ! b r a`
    */
-  val minimalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (!in(pair(b, a), secondInPair(p))))
+  val minimalElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ ∀(b, in(b, y) ==> (!in(pair(b, a), secondInPair(p))))
 
   /**
    * Greatest Element --- `a` is the greatest element of `y` with respect to
@@ -78,7 +78,7 @@ object Orderings extends lisa.Main {
    *
    *    `∀ b ∈ y. b r a ⋁ b = a`
    */
-  val greatestElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
+  val greatestElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ ∀(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
 
   /**
    * Least Element --- `a` is the least element of `y` with respect to `r`,
@@ -86,7 +86,7 @@ object Orderings extends lisa.Main {
    *
    *    `∀ b ∈ y. a r b ⋁ b = a`
    */
-  val leastElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
+  val leastElement = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ in(a, y) /\ ∀(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
 
   /**
    * Upper Bound --- `a` is an upper bound on `y` with respect to `r`, where `p
@@ -97,7 +97,7 @@ object Orderings extends lisa.Main {
    * Note that as opposed to the greatest element, `a` is not enforced to be an
    * element of `y`.
    */
-  val upperBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
+  val upperBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ ∀(b, in(b, y) ==> (in(pair(b, a), secondInPair(p)) \/ (a === b)))
 
   /**
    * Lower Bound --- `a` is a lower bound on `y` with respect to `r`, where `p =
@@ -108,10 +108,10 @@ object Orderings extends lisa.Main {
    * Note that as opposed to the least element, `a` is not enforced to be an
    * element of `y`
    */
-  val lowerBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ forall(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
+  val lowerBound = DEF(a, y, p) --> partialOrder(p) /\ subset(y, firstInPair(p)) /\ ∀(b, in(b, y) ==> (in(pair(a, b), secondInPair(p)) \/ (a === b)))
 
   val setOfLowerBoundsUniqueness = Theorem(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))
+    () |- ∃!(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))
   ) {
     have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), lowerBound(t, y, p)))
   }
@@ -119,7 +119,7 @@ object Orderings extends lisa.Main {
   /**
    * The set of all lower bounds of a set `y` under a partial order `p`. Used to define [[greatestLowerBound]]
    */
-  val setOfLowerBounds = DEF(y, p) --> The(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))(setOfLowerBoundsUniqueness)
+  val setOfLowerBounds = DEF(y, p) --> The(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))(setOfLowerBoundsUniqueness)
 
   /**
    * Greatest Lower Bound --- `a` is the greatest lower bound on `y \subseteq x`
@@ -134,7 +134,7 @@ object Orderings extends lisa.Main {
   val infimum = greatestLowerBound
 
   val setOfUpperBoundsUniqueness = Theorem(
-    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))
+    () |- ∃!(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))
   ) {
     have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), upperBound(t, y, p)))
   }
@@ -142,7 +142,7 @@ object Orderings extends lisa.Main {
   /**
    * The set of all upper bounds of a set `y` under a partial order `p`. Used to define [[leastUpperBound]]
    */
-  val setOfUpperBounds = DEF(y, p) --> The(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))(setOfUpperBoundsUniqueness)
+  val setOfUpperBounds = DEF(y, p) --> The(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))(setOfUpperBoundsUniqueness)
 
   /**
    * Least Upper Bound --- `a` is the least upper bound on `y \subseteq x` under
@@ -165,11 +165,11 @@ object Orderings extends lisa.Main {
    * `p = (P, <_p)` and `q = (Q, <_q)` are partially ordered is order-preserving
    * if
    *
-   * `\forall x y. x <_p y ==> f(x) <_q f(y)`
+   * `\∀ x y. x <_p y ==> f(x) <_q f(y)`
    */
-  val orderPreserving = DEF(f, p, q) --> partialOrder(p) /\ partialOrder(q) /\ functionFrom(f, firstInPair(p), firstInPair(q)) /\ forall(
+  val orderPreserving = DEF(f, p, q) --> partialOrder(p) /\ partialOrder(q) /\ functionFrom(f, firstInPair(p), firstInPair(q)) /\ ∀(
     x,
-    forall(y, in(pair(x, y), secondInPair(p)) ==> in(pair(app(f, x), app(f, y)), secondInPair(q)))
+    ∀(y, in(pair(x, y), secondInPair(p)) ==> in(pair(app(f, x), app(f, y)), secondInPair(q)))
   )
 
   /**
@@ -195,9 +195,9 @@ object Orderings extends lisa.Main {
     val `<A` = secondInPair(pA)
     val `<B` = secondInPair(pB)
     partialOrder(pA) /\ partialOrder(pB) /\ bijective(f, A, B) /\
-      forall(
+      ∀(
         x,
-        in(x, A) ==> forall(
+        in(x, A) ==> ∀(
           y,
           in(y, A) ==>
             (in(pair(x, y), `<A`) <=> in(pair(app(f, x), app(f, y)), `<B`)) // f(x) <B f(y)
@@ -212,7 +212,7 @@ object Orderings extends lisa.Main {
     val A = firstInPair(pA)
     val B = variable
     val `<A` = secondInPair(pA)
-    forall(B, subset(B, A) ==> !(B===emptySet()) ==> exists(x, in(x, B) ==> forall(y, in(y, B) ==> ! in(pair(y, x), `<A`))))
+    ∀(B, subset(B, A) ==> !(B===∅) ==> ∃(x, in(x, B) ==> ∀(y, in(y, B) ==> ! in(pair(y, x), `<A`))))
   }
    */
 

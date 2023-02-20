@@ -25,7 +25,7 @@ object SimpleDeducedSteps {
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
 
-    def apply2(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+    def from(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
       unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
 
   }
@@ -66,7 +66,7 @@ object SimpleDeducedSteps {
    *
    * Returns a subproof containing the instantiation steps
    */
-  object InstantiateForall extends ProofTactic  with ProofSequentTactic {
+  object InstantiateForall extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(phi: FOL.Formula, t: FOL.Term*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise)
       if (!premiseSequent.right.contains(phi)) {
@@ -136,17 +136,14 @@ object SimpleDeducedSteps {
 
     def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
       val sp = new BasicStepTactic.SUBPROOF(using proof)(Some(bot))({
-        //lazy val premiseSequent = proof.getSequent(premise)
+        // lazy val premiseSequent = proof.getSequent(premise)
         val s1 = proof.library.have(bot +< bot.right.head) by Restate
         proof.library.have(bot) by LeftForall(s1)
       })
       BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
     }
 
-
   }
-
-
 
   /**
    * Performs a cut when the formula to be used as pivot for the cut is

@@ -5,9 +5,9 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.prooflib.ProofTacticLib.{*, given}
-import lisa.prooflib.*
+import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.SimpleDeducedSteps.Restate
+import lisa.prooflib.*
 import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
 import lisa.utils.unification.FirstOrderUnifier
@@ -331,7 +331,7 @@ object BasicStepTactic {
     def withParameters(using lib: Library, proof: lib.Proof)(t: Term)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
-      lazy val instantiatedPivot = premiseSequent.left//.diff(bot.left)
+      lazy val instantiatedPivot = premiseSequent.left // .diff(bot.left)
 
       if (!pivot.isEmpty)
         if (pivot.tail.isEmpty)
@@ -393,10 +393,6 @@ object BasicStepTactic {
       } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
     }
   }
-
-
-
-
 
   /**
    * <pre>
@@ -1066,12 +1062,7 @@ object BasicStepTactic {
       val premRight = ConnectorFormula(Or, premiseSequent.right.toSeq)
       val botRight = ConnectorFormula(Or, bot.right.toSeq)
 
-      val equalities = (bot.left
-        .filter {
-          case PredicateFormula(equality, _) => true
-          case _ => false
-        })
-        .map { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
+      val equalities = bot.left.collect { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
       val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty)

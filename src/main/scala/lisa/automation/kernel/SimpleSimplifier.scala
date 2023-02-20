@@ -1,6 +1,7 @@
 package lisa.automation.kernel
 
 import lisa.kernel.fol.FOL.*
+import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.prooflib.BasicStepTactic
@@ -8,9 +9,11 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.*
+import lisa.utils.unification.UnificationUtils
 
 import scala.annotation.nowarn
 import scala.collection
+import scala.collection.immutable.Seq
 
 object SimpleSimplifier {
 
@@ -102,7 +105,7 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    private def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(phi: Formula)(premise: proof.Fact)(rightLeft: Boolean = false): proof.ProofTacticJudgement = {
+    def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(phi: Formula)(premise: proof.Fact)(rightLeft: Boolean = false): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -226,6 +229,81 @@ object SimpleSimplifier {
       })
 
     ???
+  }
+
+  object Substitution extends ProofTactic with ProofFactSequentTactic {
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: lisa.prooflib.Library#Proof#InstantiatedFact | Formula, rightLeft: Boolean = false)(
+        premise: proof.Fact
+    ): proof.ProofTacticJudgement = {
+      f match {
+        case phi: Formula => applySubst.applyLeftRight(phi)(premise)(rightLeft)
+        case f: proof.Fact @unchecked =>
+          val seq = proof.getSequent(f)
+          val phi = seq.right.head
+          val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
+            val x = applySubst.applyLeftRight(phi)(premise)(rightLeft)
+            proof.library.have(x)
+            proof.library.andThen(SimpleDeducedSteps.Discharge(f))
+          })
+          BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
+        case _ =>
+          proof.InvalidProofTactic("the given fact is not valid in the current proof. (This should not compile, but a specific case of overload resolution needs to be fixed.")
+      }
+
+    }
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      lazy val premiseSequent = proof.getSequent(premise)
+      val premRight = ConnectorFormula(Or, premiseSequent.right.toSeq)
+      val botRight = ConnectorFormula(Or, bot.right.toSeq)
+
+      val equalities = bot.left.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
+        (l, r)
+      }
+      val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
+
+      if (canReach.isEmpty) {
+        proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
+      } else {
+        BasicStepTactic.RightSubstEq(equalities.toList, canReach.get)(premise)(bot)
+      }
+    }
+
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substituted: proof.Fact | Formula | RunningTheory#Justification)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      lazy val premiseSequent = proof.getSequent(premise)
+      val premRight = ConnectorFormula(Or, premiseSequent.right.toSeq)
+      val botRight = ConnectorFormula(Or, bot.right.toSeq)
+
+      val equalities = substituted match {
+        case f: Formula =>
+          bot.left.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
+            (l, r)
+          }
+        case j: RunningTheory#Justification =>
+          proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
+            (l, r)
+          }
+        case f: proof.Fact @unchecked =>
+          proof.sequentOfFact(f).right.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
+            (l, r)
+          }
+      }
+
+      val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
+
+      if (canReach.isEmpty) proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
+      else {
+        val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
+          val x = BasicStepTactic.RightSubstEq(equalities.toList, canReach.get)(premise)(bot)
+          proof.library.have(x)
+          substituted match {
+            case f: Formula => ()
+            case j: RunningTheory#Justification => proof.library.andThen(SimpleDeducedSteps.Discharge(j.asInstanceOf[lib.theory.Justification]))
+            case f: proof.Fact @unchecked => proof.library.andThen(SimpleDeducedSteps.Discharge(f))
+          }
+        })
+        BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
+      }
+    }
   }
 
 }

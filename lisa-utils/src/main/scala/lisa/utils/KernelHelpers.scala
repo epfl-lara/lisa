@@ -53,6 +53,8 @@ object KernelHelpers {
 
   val True: Formula = And()
   val False: Formula = Or()
+  val ⊤ : Formula = And()
+  val ⊥ : Formula = Or()
 
   /* Infix syntax */
 
@@ -158,7 +160,7 @@ object KernelHelpers {
     override def apply(f: T): Set[S] = Set(f)
   }
 
-  given[S, I <: Iterable[S]]: SetConverter[S, I] with {
+  given [S, I <: Iterable[S]]: SetConverter[S, I] with {
     override def apply(s: I): Set[S] = s.toSet
   }
 
@@ -168,12 +170,10 @@ object KernelHelpers {
 
   private def any2set[S, A, T <: A](any: T)(using SetConverter[S, T]): Set[S] = summon[SetConverter[S, T]].apply(any)
 
-  extension[A, T1 <: A] (left: T1)(using SetConverter[Formula, T1]) {
+  extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) {
     infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
     infix def ⊢[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
   }
-
-
 
   // Instatiation functions for formulas lifted to sequents.
 
