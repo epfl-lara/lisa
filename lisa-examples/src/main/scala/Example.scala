@@ -121,7 +121,7 @@ object ExampleDSL extends lisa.Main {
           have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
           val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution(⊥ <=> atom)
           have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
-          thenHave(decisionsPos |- f :: decisionsNeg) by Restate.from
+          thenHave(decisionsPos |- f :: decisionsNeg) by Restate
         }
       }
     }
