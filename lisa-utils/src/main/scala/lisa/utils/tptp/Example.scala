@@ -1,8 +1,10 @@
 package lisa.utils.tptp
 
-import lisa.utils.tptp.KernelParser.{annotatedFormulaToKernel, parseToKernel, problemToSequent}
-import lisa.utils.tptp.ProblemGatherer.getPRPproblems
 import lisa.utils.parsing.FOLParser.*
+import lisa.utils.tptp.KernelParser.annotatedFormulaToKernel
+import lisa.utils.tptp.KernelParser.parseToKernel
+import lisa.utils.tptp.KernelParser.problemToSequent
+import lisa.utils.tptp.ProblemGatherer.getPRPproblems
 
 object Example {
 

@@ -11,6 +11,7 @@ import lisa.prooflib.ProofTacticLib.UnimplementedProof
 import lisa.prooflib.*
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
+import lisa.utils.*
 import lisa.utils.parsing.UnreachableException
 
 import scala.annotation.nowarn

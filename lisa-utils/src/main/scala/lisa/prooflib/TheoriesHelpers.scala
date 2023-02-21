@@ -5,8 +5,7 @@ import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.proof.*
-import lisa.utils.FOLPrinter
-import lisa.utils.Printer
+import lisa.utils.*
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
