@@ -39,7 +39,7 @@ object Example {
 
 object ExampleDSL extends lisa.Main {
 
-  //Simple Theorem with Scala DSL
+  //Simple Theorem with LISA's DSL
   val x = variable
   val P = predicate(1)
   val f = function(1)

@@ -1,6 +1,6 @@
-package lisa.tptp
+package lisa.utils.tptp
 
-import lisa.tptp.KernelParser.*
+import lisa.utils.tptp.KernelParser.*
 
 object ProblemGatherer {
 

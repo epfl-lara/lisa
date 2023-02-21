@@ -5,8 +5,8 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.RunningTheory.PredicateLogic
 import lisa.kernel.proof.SCProofChecker
-import lisa.tptp.KernelParser.*
-import lisa.tptp.ProblemGatherer.getPRPproblems
+import lisa.utils.tptp.KernelParser.*
+import lisa.utils.tptp.ProblemGatherer.getPRPproblems
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.*
 import org.scalatest.funsuite.AnyFunSuite
