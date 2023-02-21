@@ -1589,35 +1589,12 @@ object SetTheory extends lisa.Main {
   val subsetEqualitySymmetry = Theorem(
     (x === y) <=> (subset(x, y) /\ subset(y, x))
   ) {
-    // we prove the implication directions separately
-
-    // forward
-
-    val fwd = have((x === y) ==> (subset(x, y) /\ subset(y, x))) subproof {
-      have(subset(x, x) /\ subset(x, x)) by Restate.from(subsetReflexivity)
-      thenHave((x === y) |- (subset(x, y) /\ subset(y, x))) by RightSubstEq(List((x, y)), lambda(y, subset(x, y) /\ subset(y, x)))
+      have(subset(x, y) /\ subset(y, x) <=> subset(x, y) /\ subset(y, x)) by Restate
+      thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ subset(y, x)) by Substitution(subsetAxiom)
+      thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ forall(t, in(t, y) ==> in(t, x))) by Substitution(subsetAxiom of (x -> y, y -> x))
+      andThen(applySubst(universalConjunctionCommutation of (P -> lambda(t, in(t, x) ==> in(t, y)), Q -> lambda(t, in(t, y) ==> in(t, x)))))
+      andThen(applySubst(extensionalityAxiom))
       thenHave(thesis) by Restate
-    }
-
-    val bwd = have((subset(x, y) /\ subset(y, x)) ==> (x === y)) subproof {
-      have(subset(x, y) |- ∀(z, in(z, x) ==> in(z, y))) by Tautology.from(subsetAxiom)
-      val sxy = thenHave(subset(x, y) |- in(z, x) ==> in(z, y)) by InstantiateForall(z)
-
-      have(subset(y, x) |- ∀(z, in(z, y) ==> in(z, x))) by Tautology.from(subsetAxiom of (x -> y, y -> x))
-      val syx = thenHave(subset(y, x) |- in(z, y) ==> in(z, x)) by InstantiateForall(z)
-
-      have((subset(x, y), subset(y, x)) |- in(z, y) <=> in(z, x)) by RightIff(sxy, syx)
-      thenHave((subset(x, y) /\ subset(y, x)) |- in(z, y) <=> in(z, x)) by Restate
-      val ssxy = thenHave(subset(x, y) /\ subset(y, x) |- ∀(z, in(z, y) <=> in(z, x))) by RightForall
-
-      val ext = have((x === y) <=> (∀(z, in(z, y) <=> in(z, x)))) by Restate.from(extensionalityAxiom)
-
-      have(subset(x, y) /\ subset(y, x) |- ∀(z, in(z, y) <=> in(z, x)) /\ ((x === y) <=> (∀(z, in(z, y) <=> in(z, x))))) by RightAnd(ssxy, ext)
-      thenHave(subset(x, y) /\ subset(y, x) |- (x === y)) by Tautology
-      thenHave(thesis) by Restate
-    }
-
-    have(thesis) by RightAnd(fwd, bwd)
   }
 
   val functionalOverImpliesDomain = Theorem(
