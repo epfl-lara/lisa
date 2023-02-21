@@ -259,7 +259,7 @@ object SimpleSimplifier {
       val equalities = bot.left.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
         (l, r)
       }
-      val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
+      val canReach = UnificationUtils.canReachOneStepTermFormula(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty) {
         proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
@@ -292,6 +292,7 @@ object SimpleSimplifier {
           f match {
             case ConnectorFormula(Iff, Seq(l, r)) =>
               List((l, r))
+            case _ => List()
           }
         case j: RunningTheory#Justification =>
           proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.collect { case ConnectorFormula(Iff, Seq(l, r)) =>
@@ -303,7 +304,7 @@ object SimpleSimplifier {
           }
       }
 
-      val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
+      val canReach = UnificationUtils.canReachOneStepTermFormula(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty || equalities.isEmpty) {
         val canReach2 = UnificationUtils.canReachOneStepOLFormula(premRight, botRight, iffs.toList)
