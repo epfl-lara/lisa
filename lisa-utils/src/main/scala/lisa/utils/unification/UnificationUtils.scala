@@ -308,7 +308,12 @@ object UnificationUtils {
         }
         case PredicateFormula(l1, arg1) => {
           second match {
-            case PredicateFormula(l2, arg2) => ???
+            case PredicateFormula(l2, arg2) => {
+              val argCan = (arg1 zip arg2).map { case (f, s) => canReachOneStepTerm2(f, s, termSubst) }
+
+              if (argCan.exists(_.isEmpty)) None
+              else Some(PredicateFormula(l1, argCan.map(_.get)))
+            }
             case _ => None
           }
         }
