@@ -1,4 +1,4 @@
-package lisa.tptp
+package lisa.utils.tptp
 
 import lisa.kernel.fol.FOL as K
 

@@ -1,10 +1,6 @@
 package lisa
 
 import lisa.prooflib.BasicMain
-import lisa.prooflib.OutputManager
-import lisa.utils.LisaException
-
-import java.util
 
 /**
  * The parent trait of all theory files containing mathematical development
