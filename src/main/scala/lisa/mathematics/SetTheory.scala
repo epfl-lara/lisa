@@ -107,7 +107,7 @@ object SetTheory extends lisa.Main {
     val instRhs = thenHave(fprop(a) |- prop(a)) by InstFunSchema(Map(z -> a))
 
     have((fprop(z), fprop(a)) |- prop(z) /\ prop(a)) by RightAnd(instLhs, instRhs)
-    thenHave(fprop(z) /\ fprop(a) |- in(t, a) <=> in(t, z)) by Trivial
+    thenHave(fprop(z) /\ fprop(a) |- in(t, a) <=> in(t, z)) by Tautology
     val extLhs = thenHave(fprop(z) /\ fprop(a) |- ∀(t, in(t, a) <=> in(t, z))) by RightForall
     val extRhs = have(∀(t, in(t, a) <=> in(t, z)) <=> (a === z)) by InstFunSchema(Map(x -> a, y -> z))(extensionalityAxiom)
 
@@ -121,7 +121,6 @@ object SetTheory extends lisa.Main {
     thenHave(∃(z, fprop(z)) |- ∃(z, ∀(a, fprop(a) <=> (a === z)))) by LeftExists
     thenHave(∃(z, fprop(z)) |- ∃!(z, fprop(z))) by RightExistsOne
   }
-
   //////////////////////////////////////////////////////////////////////////////
 
   /**
@@ -558,11 +557,11 @@ object SetTheory extends lisa.Main {
 
     val singX = have(in(z, singleton(x)) <=> (z === x)) by InstFunSchema(Map(y -> z))(singletonHasNoExtraElements)
     have((singleton(x) === singleton(y)) |- (in(z, singleton(x)) <=> in(z, singleton(y))) /\ (in(z, singleton(x)) <=> (z === x))) by RightAnd(singiff, singX)
-    val yToX = thenHave((singleton(x) === singleton(y)) |- (in(z, singleton(y)) <=> (z === x))) by Trivial
+    val yToX = thenHave((singleton(x) === singleton(y)) |- (in(z, singleton(y)) <=> (z === x))) by Tautology
 
     val singY = have(in(z, singleton(y)) <=> (z === y)) by InstFunSchema(Map(x -> y))(singX)
     have((singleton(x) === singleton(y)) |- (in(z, singleton(y)) <=> (z === x)) /\ (in(z, singleton(y)) <=> (z === y))) by RightAnd(yToX, singY)
-    thenHave((singleton(x) === singleton(y)) |- ((z === x) <=> (z === y))) by Trivial
+    thenHave((singleton(x) === singleton(y)) |- ((z === x) <=> (z === y))) by Tautology
     thenHave((singleton(x) === singleton(y)) |- ((x === x) <=> (x === y))) by InstFunSchema(Map(z -> x))
 
     thenHave((singleton(x) === singleton(y)) |- (x === y)) by Restate
