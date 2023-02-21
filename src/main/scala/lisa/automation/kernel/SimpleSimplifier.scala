@@ -232,7 +232,7 @@ object SimpleSimplifier {
   }
 
   object Substitution extends ProofTactic with ProofFactSequentTactic {
-    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: lisa.prooflib.Library#Proof#InstantiatedFact | Formula, rightLeft: Boolean = false)(
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File(rightLeft: Boolean = false, f: lisa.prooflib.Library#Proof#InstantiatedFact | Formula)(
         premise: proof.Fact
     ): proof.ProofTacticJudgement = {
       f match {
@@ -268,12 +268,12 @@ object SimpleSimplifier {
       }
     }
 
-    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substituted: proof.Fact | Formula | RunningTheory#Justification)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitution: proof.Fact | Formula | RunningTheory#Justification)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       val premRight = ConnectorFormula(Or, premiseSequent.right.toSeq)
       val botRight = ConnectorFormula(Or, bot.right.toSeq)
 
-      val equalities = substituted match {
+      val equalities = substitution match {
         case f: Formula =>
           bot.left.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
             (l, r)
@@ -287,7 +287,7 @@ object SimpleSimplifier {
             (l, r)
           }
       }
-      val iffs = substituted match {
+      val iffs = substitution match {
         case f: Formula =>
           f match {
             case ConnectorFormula(Iff, Seq(l, r)) =>
@@ -318,7 +318,7 @@ object SimpleSimplifier {
             val x = BasicStepTactic.RightSubstIff(iffs.toList, canReach2.get)(s1)(newBot)
             proof.library.have(x)
             proof.library.thenHave(bot) by SimpleDeducedSteps.Restate.from
-            substituted match {
+            substitution match {
               case f: Formula => ()
               case j: RunningTheory#Justification => proof.library.andThen(SimpleDeducedSteps.Discharge(j.asInstanceOf[lib.theory.Justification]))
               case f: proof.Fact @unchecked => proof.library.andThen(SimpleDeducedSteps.Discharge(f))
@@ -330,7 +330,7 @@ object SimpleSimplifier {
         val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
           val x = BasicStepTactic.RightSubstEq(equalities.toList, canReach.get)(premise)(bot)
           proof.library.have(x)
-          substituted match {
+          substitution match {
             case f: Formula => ()
             case j: RunningTheory#Justification => proof.library.andThen(SimpleDeducedSteps.Discharge(j.asInstanceOf[lib.theory.Justification]))
             case f: proof.Fact @unchecked => proof.library.andThen(SimpleDeducedSteps.Discharge(f))
@@ -339,6 +339,20 @@ object SimpleSimplifier {
         BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
       }
     }
+
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(rightLeft: Boolean = false, substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      // takes a bot
+      ???
+    }
+
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = apply(lib, proof)(false, substitutions)(premise)(bot)
+
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(rightLeft: Boolean = false, substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement = {
+      // takes no bot
+      ???
+    }
+
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = apply(lib, proof)(false, substitutions)(premise)
 
   }
 

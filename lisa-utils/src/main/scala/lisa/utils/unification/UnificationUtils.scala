@@ -8,6 +8,8 @@ import lisa.utils.KernelHelpers.{_, given}
  */
 object UnificationUtils {
 
+  type LambdaTermFormulaFormula = (Seq[VariableFormulaLabel], Seq[VariableLabel], Formula)
+
   /**
    * Helper function for [[canReachOneStepTerm]]
    *
@@ -41,9 +43,9 @@ object UnificationUtils {
     else if (first.label != second.label) None
     else
       first match {
-        case PredicateFormula(l1, arg1) =>
+        case PredicateFormula(l1, arg1: Seq[Term]) =>
           second match {
-            case PredicateFormula(l2, arg2) => {
+            case PredicateFormula(l2, arg2: Seq[Term]) => {
               val argCan = (arg1 zip arg2).map { case (f, s) => canReachOneStepTerm2(f, s, subst) }
 
               if (argCan.exists(_.isEmpty)) None
@@ -271,5 +273,74 @@ object UnificationUtils {
     def substitutedTerms(subst: (Term, Term)*): Formula = rewriteOneStepTermInFormula(f, subst.toList)
 
     def substituted(subst: (Formula, Formula)*): Formula = rewriteOneStepOLFormula(f, subst.toList)
+  }
+
+  def canReachOneStep2(first: Formula, second: Formula, formSubst: List[((Formula, Formula), Identifier)], termSubst: List[((Term, Term), Identifier)], takenIds: Set[Identifier]): Option[Formula] = {
+    lazy val validSubst = formSubst.find { case ((l, r), _) => isSame(first, l) && isSame(second, r) }
+
+    if (isSame(first, second)) Some(first)
+    else if (validSubst.isDefined) Some(VariableFormulaLabel(validSubst.get._2))
+    else if (first.label != second.label) None
+    else
+      first match {
+        case ConnectorFormula(l1, arg1) => {
+          second match {
+            case ConnectorFormula(l2, arg2) => {
+              val argCan = (arg1 zip arg2).map { case (f, s) => canReachOneStep2(f, s, formSubst, termSubst, takenIds) }
+
+              if (argCan.exists(_.isEmpty)) None
+              else Some(ConnectorFormula(l1, argCan.map(_.get)))
+            }
+            case _ => None
+          }
+        }
+        case BinderFormula(l1, x1: VariableLabel, inner1) => {
+          second match {
+            case BinderFormula(l2, x2: VariableLabel, inner2) => {
+              val newx = VariableLabel(freshId(takenIds, x1.id))
+              val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
+              val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
+
+              canReachOneStep2(newInner1, newInner2, formSubst, termSubst, takenIds + newx.id)
+            }
+            case _ => None
+          }
+        }
+        case PredicateFormula(l1, arg1) => {
+          second match {
+            case PredicateFormula(l2, arg2) => ???
+            case _ => None
+          }
+        }
+      }
+  }
+
+  def canReachOneStep(first: Formula, second: Formula, formSubst: List[(Formula, Formula)], termSubst: List[(Term, Term)]): Option[LambdaTermFormulaFormula] = {
+    val takenids = (first.freeVariables ++ second.freeVariables).map(_.id)
+    val formSubstWithVar = formSubst
+      .foldLeft((takenids, Nil: List[((Formula, Formula), Identifier)])) {
+        case ((frs, l), s) => {
+          val x = freshId(frs, "x")
+          (frs + x, l :+ (s, x))
+        }
+      }
+    val termSubstWithVar = termSubst
+      .foldLeft((formSubstWithVar._1, Nil: List[((Term, Term), Identifier)])) {
+        case ((frs, l), s) => {
+          val x = freshId(frs, "x")
+          (frs + x, l :+ (s, x))
+        }
+      }
+
+    val body = canReachOneStep2(first, second, formSubstWithVar._2, termSubstWithVar._2, termSubstWithVar._1)
+
+    if (body.isEmpty) None
+    else Some(
+      (
+        formSubstWithVar._2.map(s => VariableFormulaLabel(s._2)),
+        termSubstWithVar._2.map(s => VariableLabel(s._2)),
+        body.get
+      )
+    )
   }
 }
