@@ -73,7 +73,7 @@ object ExampleDSL extends lisa.Main {
 
     have(in(z, union(X)) <=> in(z, x)) by RightIff(forward, backward)
     thenHave(forall(z, in(z, union(X)) <=> in(z, x))) by RightForall
-    andThen(Substitution(extensionalityAxiom of (x -> union(X), y -> x)))
+    andThen(applySubst(extensionalityAxiom of (x -> union(X), y -> x)))
   }
   show
 
