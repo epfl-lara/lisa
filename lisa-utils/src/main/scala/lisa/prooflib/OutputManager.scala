@@ -1,8 +1,7 @@
 package lisa.prooflib
 
 import lisa.prooflib.TheoriesHelpers.show
-import lisa.utils.LisaException
-import lisa.utils.UserLisaException
+import lisa.utils.{_, given}
 
 import java.io.PrintWriter
 import java.io.StringWriter

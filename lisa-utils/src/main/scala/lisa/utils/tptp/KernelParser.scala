@@ -1,4 +1,4 @@
-package lisa.tptp
+package lisa.utils.tptp
 
 import leo.datastructures.TPTP
 import leo.datastructures.TPTP.CNF
@@ -6,10 +6,10 @@ import leo.datastructures.TPTP.FOF
 import leo.modules.input.TPTPParser as Parser
 import lisa.kernel.fol.FOL as K
 import lisa.kernel.proof.SequentCalculus as LK
-import lisa.tptp.*
-import lisa.utils.KernelHelpers._
+import lisa.utils.KernelHelpers.*
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
+import lisa.utils.tptp.*
 
 import java.io.File
 import scala.util.matching.Regex
