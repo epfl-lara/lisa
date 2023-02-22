@@ -340,12 +340,13 @@ object UnificationUtils {
     val body = canReachOneStep2(first, second, formSubstWithVar._2, termSubstWithVar._2, termSubstWithVar._1)
 
     if (body.isEmpty) None
-    else Some(
-      (
-        formSubstWithVar._2.map(s => VariableFormulaLabel(s._2)),
-        termSubstWithVar._2.map(s => VariableLabel(s._2)),
-        body.get
+    else
+      Some(
+        (
+          formSubstWithVar._2.map(s => VariableFormulaLabel(s._2)),
+          termSubstWithVar._2.map(s => VariableLabel(s._2)),
+          body.get
+        )
       )
-    )
   }
 }

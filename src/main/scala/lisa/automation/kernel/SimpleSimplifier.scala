@@ -340,15 +340,18 @@ object SimpleSimplifier {
       }
     }
 
-    def apply2(using lib: lisa.prooflib.Library, proof: lib.Proof)(rightLeft: Boolean = false, substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply2(using lib: lisa.prooflib.Library, proof: lib.Proof)(rightLeft: Boolean = false, substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(
+        premise: proof.Fact
+    )(bot: Sequent): proof.ProofTacticJudgement = {
       // takes a bot
       val premiseSequent = proof.getSequent(premise)
 
       val eqspre: List[(Term, Term)] = substitutions.flatMap {
-        case f: Formula => f match {
-          case PredicateFormula(`equality`, Seq(l, r)) => List((l, r))
-          case _ => List()
-        }
+        case f: Formula =>
+          f match {
+            case PredicateFormula(`equality`, Seq(l, r)) => List((l, r))
+            case _ => List()
+          }
         case f: proof.Fact @unchecked =>
           proof.sequentOfFact(f).right.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
             (l, r)
@@ -360,10 +363,11 @@ object SimpleSimplifier {
       }.toList
 
       val iffspre: List[(Formula, Formula)] = substitutions.flatMap {
-        case f: Formula => f match {
-          case ConnectorFormula(Iff, Seq(l, r)) => List((l, r))
-          case _ => List()
-        }
+        case f: Formula =>
+          f match {
+            case ConnectorFormula(Iff, Seq(l, r)) => List((l, r))
+            case _ => List()
+          }
         case f: proof.Fact @unchecked =>
           proof.sequentOfFact(f).right.collect { case ConnectorFormula(Iff, Seq(l, r)) =>
             (l, r)
@@ -398,85 +402,89 @@ object SimpleSimplifier {
         proof.InvalidProofTactic("Could not rewrite RHS of premise into conclusion with given substitutions.")
       else {
         // actually construct proof
-        val leftLambdas = leftPairs.collect {case (l, Some(r)) => UnificationUtils.canReachOneStep(l, r, iffs, eqs).get}
-        val rightLambdas = rightPairs.collect {case (l, Some(r)) => UnificationUtils.canReachOneStep(l, r, iffs, eqs).get}
+        try {
+          val leftLambdas = leftPairs.collect { case (l, Some(r)) => UnificationUtils.canReachOneStep(l, r, iffs, eqs).get }
+          val rightLambdas = rightPairs.collect { case (l, Some(r)) => UnificationUtils.canReachOneStep(l, r, iffs, eqs).get }
 
-        val eqsForm = eqs.map { case (l, r) => PredicateFormula(`equality`, Seq(l, r)) }.toSet
-        val iffsForm = iffs.map { case (l, r) => ConnectorFormula(Iff, Seq(l, r)) }.toSet
+          val eqsForm = eqs.map { case (l, r) => PredicateFormula(`equality`, Seq(l, r)) }.toSet
+          val iffsForm = iffs.map { case (l, r) => ConnectorFormula(Iff, Seq(l, r)) }.toSet
 
-        val leftEqs = eqs.map(_._1).toSeq
-        val rightEqs = eqs.map(_._2).toSeq
-        val leftIffs = iffs.map(_._1).toSeq
-        val rightIffs = iffs.map(_._2).toSeq
+          val leftEqs = eqs.map(_._1).toSeq
+          val rightEqs = eqs.map(_._2).toSeq
+          val leftIffs = iffs.map(_._1).toSeq
+          val rightIffs = iffs.map(_._2).toSeq
 
-        val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
-          var premiseWithSubst = premiseSequent ++< (eqsForm |- ()) ++< (iffsForm |- ())
-          proof.library.have(premiseWithSubst) by BasicStepTactic.Weakening(premise)
+          val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
+            var premiseWithSubst = premiseSequent ++< (eqsForm |- ()) ++< (iffsForm |- ())
+            proof.library.have(premiseWithSubst) by BasicStepTactic.Weakening(premise)
 
-          if(!leftLambdas.isEmpty) {
-            val leftEqLambdas = leftLambdas.map(f => lambda(f._2.toSeq, substituteFormulaVariables(f._3, ((f._1: Seq[VariableFormulaLabel]) zip iffs.map(_._1)).toMap)))
-            
-            // substitute and set a new premise for next step
-            premiseWithSubst = leftEqLambdas.foldLeft(premiseWithSubst){
-              case (prevSequent, nextLambda) => {
-                val newSequent = prevSequent -< nextLambda(leftEqs) +< nextLambda(rightEqs) 
-                proof.library.thenHave(newSequent) by BasicStepTactic.LeftSubstEq(eqs, nextLambda)
+            if (!leftLambdas.isEmpty) {
+              val leftEqLambdas = leftLambdas.map(f => lambda(f._2.toSeq, substituteFormulaVariables(f._3, ((f._1: Seq[VariableFormulaLabel]) zip iffs.map(_._1)).toMap)))
 
-                newSequent
+              // substitute and set a new premise for next step
+              premiseWithSubst = leftEqLambdas.foldLeft(premiseWithSubst) {
+                case (prevSequent, nextLambda) => {
+                  val newSequent = prevSequent -< nextLambda(leftEqs) +< nextLambda(rightEqs)
+                  proof.library.thenHave(newSequent) by BasicStepTactic.LeftSubstEq(eqs, nextLambda)
+
+                  newSequent
+                }
               }
             }
-          }
-          if(!rightLambdas.isEmpty) {
-            val rightEqLambdas = rightLambdas.map(f => lambda(f._2.toSeq, substituteFormulaVariables(f._3, ((f._1: Seq[VariableFormulaLabel]) zip iffs.map(_._1)).toMap)))
-            
-            // substitute and set a new premise for next step
-            premiseWithSubst = rightEqLambdas.foldLeft(premiseWithSubst){
-              case (prevSequent, nextLambda: LambdaTermFormula) => {
-                val newSequent = prevSequent ->> nextLambda(leftEqs) +> nextLambda(rightEqs) 
-                proof.library.thenHave(newSequent) by BasicStepTactic.RightSubstEq(eqs, nextLambda)
+            if (!rightLambdas.isEmpty) {
+              val rightEqLambdas = rightLambdas.map(f => lambda(f._2.toSeq, substituteFormulaVariables(f._3, ((f._1: Seq[VariableFormulaLabel]) zip iffs.map(_._1)).toMap)))
 
-                newSequent
+              // substitute and set a new premise for next step
+              premiseWithSubst = rightEqLambdas.foldLeft(premiseWithSubst) {
+                case (prevSequent, nextLambda: LambdaTermFormula) => {
+                  val newSequent = prevSequent ->> nextLambda(leftEqs) +> nextLambda(rightEqs)
+                  proof.library.thenHave(newSequent) by BasicStepTactic.RightSubstEq(eqs, nextLambda)
+
+                  newSequent
+                }
               }
             }
-          }
 
-          if(!leftLambdas.isEmpty) {
-            val leftIffLambdas = leftLambdas.map(f => lambda(f._1.toSeq, substituteVariables(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
-            
-            // substitute and set a new premise for next step
-            premiseWithSubst = leftIffLambdas.foldLeft(premiseWithSubst){
-              case (prevSequent, nextLambda) => {
-                val newSequent = prevSequent -< nextLambda(leftIffs) +< nextLambda(rightIffs) 
-                proof.library.thenHave(newSequent) by BasicStepTactic.LeftSubstIff(iffs, nextLambda)
-                
-                newSequent
+            if (!leftLambdas.isEmpty) {
+              val leftIffLambdas = leftLambdas.map(f => lambda(f._1.toSeq, substituteVariables(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
+
+              // substitute and set a new premise for next step
+              premiseWithSubst = leftIffLambdas.foldLeft(premiseWithSubst) {
+                case (prevSequent, nextLambda) => {
+                  val newSequent = prevSequent -< nextLambda(leftIffs) +< nextLambda(rightIffs)
+                  proof.library.thenHave(newSequent) by BasicStepTactic.LeftSubstIff(iffs, nextLambda)
+
+                  newSequent
+                }
               }
             }
-          }
-          if(!rightLambdas.isEmpty) {
-            val rightIffLambdas = rightLambdas.map(f => lambda(f._1.toSeq, substituteVariables(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
-            
-            // substitute and set a new premise for next step
-            premiseWithSubst = rightIffLambdas.foldLeft(premiseWithSubst){
-              case (prevSequent, nextLambda) => {
-                val newSequent = prevSequent ->> nextLambda(leftIffs) +> nextLambda(rightIffs) 
-                proof.library.thenHave(newSequent) by BasicStepTactic.RightSubstIff(iffs, nextLambda)
-                
-                newSequent
+            if (!rightLambdas.isEmpty) {
+              val rightIffLambdas = rightLambdas.map(f => lambda(f._1.toSeq, substituteVariables(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
+
+              // substitute and set a new premise for next step
+              premiseWithSubst = rightIffLambdas.foldLeft(premiseWithSubst) {
+                case (prevSequent, nextLambda) => {
+                  val newSequent = prevSequent ->> nextLambda(leftIffs) +> nextLambda(rightIffs)
+                  proof.library.thenHave(newSequent) by BasicStepTactic.RightSubstIff(iffs, nextLambda)
+
+                  newSequent
+                }
               }
             }
-          }
 
-          substitutions.foreach {
-            case f: Formula => ()
-            case f: proof.Fact @unchecked => (proof.library.andThen(SimpleDeducedSteps.Discharge(f)))
-            case j: RunningTheory#Justification => proof.library.andThen(SimpleDeducedSteps.Discharge(j.asInstanceOf[lib.theory.Justification]))
-          }
+            substitutions.foreach {
+              case f: Formula => ()
+              case f: proof.Fact @unchecked => (proof.library.andThen(SimpleDeducedSteps.Discharge(f)))
+              case j: RunningTheory#Justification => proof.library.andThen(SimpleDeducedSteps.Discharge(j.asInstanceOf[lib.theory.Justification]))
+            }
 
-          proof.library.thenHave(bot) by SimpleDeducedSteps.Restate
+            proof.library.thenHave(bot) by SimpleDeducedSteps.Restate
 
-        })
-        BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for Substitution failed.")
+          })
+
+          BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for Substitution failed.")
+        } catch case _ => proof.InvalidProofTactic("Could not rewrite given conlusion sequent into substituted premise. You may have a typo.")
+
       }
 
     }
