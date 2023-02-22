@@ -38,8 +38,8 @@ object Example {
 }
 
 object ExampleDSL extends lisa.Main {
-  
-  //Simple Theorem with LISA's DSL
+
+  // Simple Theorem with LISA's DSL
   val x = variable
   val P = predicate(1)
   val f = function(1)
@@ -52,7 +52,7 @@ object ExampleDSL extends lisa.Main {
   }
   show
 
-  //More complicated example of a proof with LISA DSL
+  // More complicated example of a proof with LISA DSL
   val y = variable
   val z = variable
   val unionOfSingleton = Theorem(union(singleton(x)) === x) {
@@ -77,7 +77,7 @@ object ExampleDSL extends lisa.Main {
   }
   show
 
-  //Examples of definitions
+  // Examples of definitions
   val succ = DEF(x) --> union(unorderedPair(x, singleton(x)))
   show
 
@@ -97,12 +97,11 @@ object ExampleDSL extends lisa.Main {
   }
   show
 
-  //This definition is underspecified
+  // This definition is underspecified
   val nonEmpty = DEF() --> The(x, !(x === ∅))(defineNonEmptySet)
   show
 
-
-  //Simple tactic definition for LISA DSL
+  // Simple tactic definition for LISA DSL
   import lisa.automation.kernel.OLPropositionalSolver.*
 
   object SimpleTautology extends ProofTactic {
