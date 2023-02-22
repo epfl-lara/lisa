@@ -476,7 +476,7 @@ object SimpleSimplifier {
           proof.library.thenHave(bot) by SimpleDeducedSteps.Restate
 
         })
-        BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
+        BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for Substitution failed.")
       }
 
     }
