@@ -28,21 +28,88 @@ object KernelHelpers {
 
   /* Prefix syntax */
 
-  def neg(f: Formula): Formula = ConnectorFormula(Neg, Seq(f))
-  def and(list: Formula*): Formula = ConnectorFormula(And, list)
-  def or(list: Formula*): Formula = ConnectorFormula(Or, list)
-  def and(l: Formula, r: Formula): Formula = ConnectorFormula(And, Seq(l, r))
-  def or(l: Formula, r: Formula): Formula = ConnectorFormula(Or, Seq(l, r))
-  def implies(l: Formula, r: Formula): Formula = ConnectorFormula(Implies, Seq(l, r))
-  def iff(l: Formula, r: Formula): Formula = ConnectorFormula(Iff, Seq(l, r))
-  def forall(label: VariableLabel, body: Formula): Formula = BinderFormula(Forall, label, body)
-  def exists(label: VariableLabel, body: Formula): Formula = BinderFormula(Exists, label, body)
-  def existsOne(label: VariableLabel, body: Formula): Formula = BinderFormula(ExistsOne, label, body)
-  def equ(l: Term, r: Term): Formula = PredicateFormula(equality, Seq(l, r))
-  def ∃(x: VariableLabel, inner: Formula): Formula = exists(x, inner)
-  def ∃!(x: VariableLabel, inner: Formula): Formula = existsOne(x, inner)
-  def ∀(x: VariableLabel, inner: Formula): Formula = forall(x, inner)
-  def ¬(f: Formula): Formula = ConnectorFormula(Neg, List(f))
+  sealed abstract class UnapplyBinaryConnector(label: ConnectorLabel) {
+    def apply(l:Formula, r:Formula) = ConnectorFormula(label, Seq(l, r))
+    def unapply(f: Formula): Option[(Formula, Formula)] = f match {
+      case ConnectorFormula(`label`, Seq(a, b)) => Some((a, b))
+      case _ => None
+    }
+  }
+
+  sealed abstract class UnapplyNaryConnector(label: ConnectorLabel) {
+    def apply(args:List[Formula]) = ConnectorFormula(label, args)
+    def unapply(f: Formula): Option[Seq[Formula]] = f match {
+      case ConnectorFormula(`label`, args) => Some(args)
+      case _ => None
+    }
+  }
+
+  sealed abstract class UnapplyBinder(label: BinderLabel) {
+    def apply(x: VariableLabel, inner: Formula) = BinderFormula(label, x, inner)
+    def unapply(f: Formula): Option[(VariableLabel, Formula)] = f match {
+      case BinderFormula(`label`, x, inner) => Some((x, inner))
+      case _ => None
+    }
+  }
+
+  sealed abstract class UnapplyBinaryPredicate(label: PredicateLabel) {
+    def unapply(f: Formula): Option[(Term, Term)] = f match {
+      case PredicateFormula(`label`, Seq(a, b)) => Some((a, b))
+      case _ => None
+    }
+  }
+
+  object === extends UnapplyBinaryPredicate(equality)
+
+  object neg {
+    def apply(f: Formula): Formula = ConnectorFormula(Neg, Seq(f))
+
+    def unapply(f: Formula): Option[Formula] = f match {
+      case ConnectorFormula(`Neg`, Seq(g)) => Some(g)
+      case _ => None
+    }
+  }
+
+  object and {
+    def apply(list: Formula*): Formula = ConnectorFormula(And, list)
+    def apply(l: Formula, r: Formula): Formula = ConnectorFormula(And, Seq(l, r))
+  }
+
+  object or {
+    def apply(list: Formula*): Formula = ConnectorFormula(Or, list)
+    def apply(l: Formula, r: Formula): Formula = ConnectorFormula(Or, Seq(l, r))
+  }
+
+  object implies {
+    def apply(l: Formula, r: Formula): Formula = ConnectorFormula(Implies, Seq(l, r))
+  }
+
+  object iff {
+    def apply(l: Formula, r: Formula): Formula = ConnectorFormula(Iff, Seq(l, r))
+  }
+
+  object forall {
+    def apply(label: VariableLabel, body: Formula): Formula = BinderFormula(Forall, label, body)
+  }
+
+  object exists {
+    def apply(label: VariableLabel, body: Formula): Formula = BinderFormula(Exists, label, body)
+  }
+
+  object existsOne {
+    def apply(label: VariableLabel, body: Formula): Formula = BinderFormula(ExistsOne, label, body)
+  }
+
+  object equ {
+    def apply(l: Term, r: Term): Formula = PredicateFormula(equality, Seq(l, r))
+  }
+
+  val ∃ = exists
+  val ∃! = existsOne
+  val ∀ = forall
+  val ¬ = neg
+  val ! = neg
+
   extension (label: PredicateLabel) def apply(args: Term*): Formula = PredicateFormula(label, args)
 
   extension (label: ConnectorLabel) def apply(args: Formula*): Formula = ConnectorFormula(label, args)
@@ -51,20 +118,16 @@ object KernelHelpers {
 
   extension (label: BinderLabel) def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
 
-  val True: Formula = And()
-  val False: Formula = Or()
   val ⊤ : Formula = top()
   val ⊥ : Formula = bot()
 
   /* Infix syntax */
 
   extension (f: Formula) {
-    def unary_! : Formula = ConnectorFormula(Neg, Seq(f))
-    infix def ==>(g: Formula): Formula = ConnectorFormula(Implies, Seq(f, g))
-    infix def <=>(g: Formula): Formula = ConnectorFormula(Iff, Seq(f, g))
-    infix def /\(g: Formula): Formula = ConnectorFormula(And, Seq(f, g))
-    infix def \/(g: Formula): Formula = ConnectorFormula(Or, Seq(f, g))
-
+    infix inline def ==>(g: Formula): Formula = ConnectorFormula(Implies, Seq(f, g))
+    infix inline def <=>(g: Formula): Formula = ConnectorFormula(Iff, Seq(f, g))
+    infix inline def /\(g: Formula): Formula = ConnectorFormula(And, Seq(f, g))
+    infix inline def \/(g: Formula): Formula = ConnectorFormula(Or, Seq(f, g))
   }
 
   extension (t: Term) {
@@ -72,33 +135,9 @@ object KernelHelpers {
     infix def ＝(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
   }
 
-  /* Pattern matching extractors */
 
-  object ! {
-    def unapply(f: Formula): Option[Formula] = f match {
-      case ConnectorFormula(`Neg`, Seq(g)) => Some(g)
-      case _ => None
-    }
-  }
 
-  sealed abstract class UnapplyBinaryConnector(label: ConnectorLabel) {
-    def unapply(f: Formula): Option[(Formula, Formula)] = f match {
-      case ConnectorFormula(`label`, Seq(a, b)) => Some((a, b))
-      case _ => None
-    }
-  }
-  object ==> extends UnapplyBinaryConnector(Implies)
-  object <=> extends UnapplyBinaryConnector(Iff)
-  object /\ extends UnapplyBinaryConnector(And)
-  object \/ extends UnapplyBinaryConnector(Or)
 
-  sealed abstract class UnapplyBinaryPredicate(label: PredicateLabel) {
-    def unapply(f: Formula): Option[(Term, Term)] = f match {
-      case PredicateFormula(`label`, Seq(a, b)) => Some((a, b))
-      case _ => None
-    }
-  }
-  object === extends UnapplyBinaryPredicate(equality)
 
   /* Conversions */
 

@@ -1209,4 +1209,7 @@ object BasicStepTactic {
   def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit) =
     SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
 
+  def TacticSubproof(using proof: Library#Proof)(bot: Sequent)(computeProof: proof.InnerProof ?=> Unit) =
+    SUBPROOF(using proof)(Some(bot))(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
+
 }
