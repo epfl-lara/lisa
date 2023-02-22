@@ -264,24 +264,24 @@ object UnificationUtils {
   }
 
   def getContextOneStepTerm2(first: Term, subst: List[((Term, Term), Identifier)]): Term = {
-    val validSubst = subst.find {case ((l, _), _) => isSameTerm(first, l)}
+    val validSubst = subst.find { case ((l, _), _) => isSameTerm(first, l) }
 
     if (validSubst.isDefined) VariableLabel(validSubst.get._2)
     else Term(first.label, first.args.map(getContextOneStepTerm2(_, subst)))
   }
 
   def getContextOneStepFormula2(first: Formula, formSubst: List[((Formula, Formula), Identifier)], termSubst: List[((Term, Term), Identifier)], takenIds: Set[Identifier]): Formula = {
-    lazy val validSubst = formSubst.find { case ((l, _), _) => isSame(first, l)}
+    lazy val validSubst = formSubst.find { case ((l, _), _) => isSame(first, l) }
 
     if (validSubst.isDefined) VariableFormulaLabel(validSubst.get._2)
     else
       first match {
         case ConnectorFormula(l1, arg1) => ConnectorFormula(l1, arg1.map(getContextOneStepFormula2(_, formSubst, termSubst, takenIds)))
         case BinderFormula(l1, x1: VariableLabel, inner1) => {
-              val newx = VariableLabel(freshId(takenIds, x1.id))
-              val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
+          val newx = VariableLabel(freshId(takenIds, x1.id))
+          val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
 
-              getContextOneStepFormula2(newInner1, formSubst, termSubst, takenIds + newx.id)
+          getContextOneStepFormula2(newInner1, formSubst, termSubst, takenIds + newx.id)
         }
         case PredicateFormula(l1, arg1) => PredicateFormula(l1, arg1.map(getContextOneStepTerm2(_, termSubst)))
       }
