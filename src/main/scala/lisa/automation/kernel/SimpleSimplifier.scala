@@ -344,7 +344,7 @@ object SimpleSimplifier {
       // takes a bot
       val premiseSequent = proof.getSequent(premise)
 
-      val eqs: List[(Term, Term)] = substitutions.flatMap {
+      val eqspre: List[(Term, Term)] = substitutions.flatMap {
         case f: Formula => f match {
           case PredicateFormula(`equality`, Seq(l, r)) => List((l, r))
           case _ => List()
@@ -359,7 +359,7 @@ object SimpleSimplifier {
           }
       }.toList
 
-      val iffs: List[(Formula, Formula)] = substitutions.flatMap {
+      val iffspre: List[(Formula, Formula)] = substitutions.flatMap {
         case f: Formula => f match {
           case ConnectorFormula(Iff, Seq(l, r)) => List((l, r))
           case _ => List()
@@ -373,6 +373,9 @@ object SimpleSimplifier {
             (l, r)
           }
       }.toList
+
+      val eqs = if (rightLeft) eqspre.map(e => (e._2, e._1)) else eqspre
+      val iffs = if (rightLeft) iffspre.map(i => (i._2, i._1)) else iffspre
 
       val filteredPrem = premiseSequent.left filter {
         case PredicateFormula(`equality`, Seq(l, r)) if eqs.contains((l, r)) => false
