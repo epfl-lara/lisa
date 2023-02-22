@@ -58,8 +58,8 @@ lazy val root = Project(
   .settings(
     version := "0.1"
   )
-  .dependsOn(kernel, withTests(utils), theories, tptp) // Everything but `examples`
-  .aggregate(kernel, utils, theories, tptp) // To run tests on all modules
+  .dependsOn(kernel, withTests(utils)) // Everything but `examples`
+  .aggregate(kernel, utils) // To run tests on all modules
 
 lazy val kernel = Project(
   id = "lisa-kernel",
@@ -79,23 +79,9 @@ lazy val utils = Project(
   .dependsOn(kernel)
   .dependsOn(silex)
   .dependsOn(scallion % "compile->compile")
+  .settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
 
-lazy val theories = Project(
-  id = "lisa-theories",
-  base = file("lisa-theories")
-)
-  .settings(commonSettings3)
-  .dependsOn(withTests(utils))
 
-lazy val tptp = Project(
-  id = "lisa-tptp",
-  base = file("lisa-tptp")
-)
-  .settings(commonSettings3)
-  .settings(
-    libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4"
-  )
-  .dependsOn(withTests(utils))
 
 
 lazy val examples = Project(

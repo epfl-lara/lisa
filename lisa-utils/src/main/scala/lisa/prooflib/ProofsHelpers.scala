@@ -10,10 +10,7 @@ import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
-import lisa.utils.FOLPrinter
-import lisa.utils.LisaException
-import lisa.utils.ProofPrinter
-import lisa.utils.UserLisaException
+import lisa.utils.{_, given}
 
 import scala.annotation.targetName
 

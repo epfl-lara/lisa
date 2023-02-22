@@ -5,6 +5,7 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
 import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.{_, given}
 
 import scala.collection.mutable.Stack as stack
 
