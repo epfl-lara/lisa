@@ -2,6 +2,7 @@ package lisa.utils.unification
 
 import lisa.kernel.fol.FOL.*
 import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.unification.FirstOrderUnifier.*
 
 /**
  * General utilities for unification, substitution, and rewrites
@@ -243,7 +244,7 @@ object UnificationUtils {
    * @param first formula to substitute in
    * @param subst list containing pairs representing rewrite rules (l -> r)
    */
-  def rewriteOneStepOLFormula(first: Formula, subst: List[(Formula, Formula)], freeVars: Option[Set[Identifier]] = None): Formula = {
+  def rewriteOneStepOLFormulaInFormula(first: Formula, subst: List[(Formula, Formula)], freeVars: Option[Set[Identifier]] = None): Formula = {
     lazy val freeVarsInner =
       if (freeVars.isDefined) freeVars else Some((first.freeVariables ++ subst.foldLeft(Set[VariableLabel]()) { case (frs, (k, v)) => frs ++ k.freeVariables ++ v.freeVariables }).map(_.id))
     val foundSubst = subst.find { case (k, v) => isSame(first, k) }
@@ -252,14 +253,64 @@ object UnificationUtils {
     else
       first match {
         case PredicateFormula(_, _) => first
-        case ConnectorFormula(l, arg) => ConnectorFormula(l, arg.map(rewriteOneStepOLFormula(_, subst, freeVarsInner)))
+        case ConnectorFormula(l, arg) => ConnectorFormula(l, arg.map(rewriteOneStepOLFormulaInFormula(_, subst, freeVarsInner)))
         case BinderFormula(l, x: VariableLabel, inner) => {
           val newx = VariableLabel(freshId(freeVarsInner.get, x.id))
           val newInner = substituteVariables(inner, Map[VariableLabel, Term](x -> newx))
 
-          BinderFormula(l, newx, rewriteOneStepOLFormula(newInner, subst, Some(freeVarsInner.get + newx.id)))
+          BinderFormula(l, newx, rewriteOneStepOLFormulaInFormula(newInner, subst, Some(freeVarsInner.get + newx.id)))
         }
       }
+  }
+
+  def getContextOneStepTerm2(first: Term, subst: List[((Term, Term), Identifier)]): Term = {
+    val validSubst = subst.find {case ((l, _), _) => isSameTerm(first, l)}
+
+    if (validSubst.isDefined) VariableLabel(validSubst.get._2)
+    else Term(first.label, first.args.map(getContextOneStepTerm2(_, subst)))
+  }
+
+  def getContextOneStepFormula2(first: Formula, formSubst: List[((Formula, Formula), Identifier)], termSubst: List[((Term, Term), Identifier)], takenIds: Set[Identifier]): Formula = {
+    lazy val validSubst = formSubst.find { case ((l, _), _) => isSame(first, l)}
+
+    if (validSubst.isDefined) VariableFormulaLabel(validSubst.get._2)
+    else
+      first match {
+        case ConnectorFormula(l1, arg1) => ConnectorFormula(l1, arg1.map(getContextOneStepFormula2(_, formSubst, termSubst, takenIds)))
+        case BinderFormula(l1, x1: VariableLabel, inner1) => {
+              val newx = VariableLabel(freshId(takenIds, x1.id))
+              val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
+
+              getContextOneStepFormula2(newInner1, formSubst, termSubst, takenIds + newx.id)
+        }
+        case PredicateFormula(l1, arg1) => PredicateFormula(l1, arg1.map(getContextOneStepTerm2(_, termSubst)))
+      }
+  }
+
+  def getContextOneStepFormula(first: Formula, formSubst: List[(Formula, Formula)], termSubst: List[(Term, Term)]): LambdaTermFormulaFormula = {
+    val takenids = first.freeVariables.map(_.id)
+    val formSubstWithVar = formSubst
+      .foldLeft((takenids, Nil: List[((Formula, Formula), Identifier)])) {
+        case ((frs, l), s) => {
+          val x = freshId(frs, "x")
+          (frs + x, l :+ (s, x))
+        }
+      }
+    val termSubstWithVar = termSubst
+      .foldLeft((formSubstWithVar._1, Nil: List[((Term, Term), Identifier)])) {
+        case ((frs, l), s) => {
+          val x = freshId(frs, "x")
+          (frs + x, l :+ (s, x))
+        }
+      }
+
+    val body = getContextOneStepFormula2(first, formSubstWithVar._2, termSubstWithVar._2, termSubstWithVar._1)
+
+    (
+      formSubstWithVar._2.map(s => VariableFormulaLabel(s._2)),
+      termSubstWithVar._2.map(s => VariableLabel(s._2)),
+      body
+    )
   }
 
   /**
@@ -272,7 +323,7 @@ object UnificationUtils {
   extension (f: Formula) {
     def substitutedTerms(subst: (Term, Term)*): Formula = rewriteOneStepTermInFormula(f, subst.toList)
 
-    def substituted(subst: (Formula, Formula)*): Formula = rewriteOneStepOLFormula(f, subst.toList)
+    def substituted(subst: (Formula, Formula)*): Formula = rewriteOneStepOLFormulaInFormula(f, subst.toList)
   }
 
   def canReachOneStep2(first: Formula, second: Formula, formSubst: List[((Formula, Formula), Identifier)], termSubst: List[((Term, Term), Identifier)], takenIds: Set[Identifier]): Option[Formula] = {
