@@ -8,7 +8,7 @@ import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
-import lisa.utils.KernelHelpers.*
+import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.unification.UnificationUtils
 
 import scala.annotation.nowarn
@@ -344,7 +344,7 @@ object SimpleSimplifier {
         premise: proof.Fact
     )(bot: Sequent): proof.ProofTacticJudgement = {
       // takes a bot
-      val premiseSequent = proof.getSequent(premise)
+      val premiseSequent: Sequent = proof.getSequent(premise)
 
       val eqspre: List[(Term, Term)] = substitutions.flatMap {
         case f: Formula =>
@@ -415,7 +415,7 @@ object SimpleSimplifier {
           val rightIffs = iffs.map(_._2).toSeq
 
           val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
-            var premiseWithSubst = premiseSequent ++< (eqsForm |- ()) ++< (iffsForm |- ())
+            var premiseWithSubst = premiseSequent ++<< (eqsForm |- ()) ++<< (iffsForm |- ())
             proof.library.have(premiseWithSubst) by BasicStepTactic.Weakening(premise)
 
             if (!leftLambdas.isEmpty) {
@@ -424,7 +424,7 @@ object SimpleSimplifier {
               // substitute and set a new premise for next step
               premiseWithSubst = leftEqLambdas.foldLeft(premiseWithSubst) {
                 case (prevSequent, nextLambda) => {
-                  val newSequent = prevSequent -< nextLambda(leftEqs) +< nextLambda(rightEqs)
+                  val newSequent = prevSequent -<< nextLambda(leftEqs) +<< nextLambda(rightEqs)
                   proof.library.thenHave(newSequent) by BasicStepTactic.LeftSubstEq(eqs, nextLambda)
 
                   newSequent
@@ -437,7 +437,7 @@ object SimpleSimplifier {
               // substitute and set a new premise for next step
               premiseWithSubst = rightEqLambdas.foldLeft(premiseWithSubst) {
                 case (prevSequent, nextLambda: LambdaTermFormula) => {
-                  val newSequent = prevSequent ->> nextLambda(leftEqs) +> nextLambda(rightEqs)
+                  val newSequent = prevSequent ->> nextLambda(leftEqs) +>> nextLambda(rightEqs)
                   proof.library.thenHave(newSequent) by BasicStepTactic.RightSubstEq(eqs, nextLambda)
 
                   newSequent
@@ -451,7 +451,7 @@ object SimpleSimplifier {
               // substitute and set a new premise for next step
               premiseWithSubst = leftIffLambdas.foldLeft(premiseWithSubst) {
                 case (prevSequent, nextLambda) => {
-                  val newSequent = prevSequent -< nextLambda(leftIffs) +< nextLambda(rightIffs)
+                  val newSequent = prevSequent -<< nextLambda(leftIffs) +<< nextLambda(rightIffs)
                   proof.library.thenHave(newSequent) by BasicStepTactic.LeftSubstIff(iffs, nextLambda)
 
                   newSequent
@@ -464,7 +464,7 @@ object SimpleSimplifier {
               // substitute and set a new premise for next step
               premiseWithSubst = rightIffLambdas.foldLeft(premiseWithSubst) {
                 case (prevSequent, nextLambda) => {
-                  val newSequent = prevSequent ->> nextLambda(leftIffs) +> nextLambda(rightIffs)
+                  val newSequent = prevSequent ->> nextLambda(leftIffs) +>> nextLambda(rightIffs)
                   proof.library.thenHave(newSequent) by BasicStepTactic.RightSubstIff(iffs, nextLambda)
 
                   newSequent

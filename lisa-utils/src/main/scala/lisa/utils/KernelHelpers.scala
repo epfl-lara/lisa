@@ -28,7 +28,6 @@ object KernelHelpers {
 
   /* Prefix syntax */
 
-
   val === = equality
   val ⊤ : Formula = top()
   val ⊥ : Formula = bot()
@@ -53,7 +52,7 @@ object KernelHelpers {
   val existsOne = ExistsOne
   val ∃! = existsOne
 
-  extension (label: TermLabel) {
+  extension [L <: TermLabel](label: L) {
     def apply(args: Term*): Term = Term(label, args)
     @targetName("applySeq")
     def apply(args: Seq[Term]): Term = Term(label, args)
@@ -63,7 +62,7 @@ object KernelHelpers {
     }
   }
 
-  extension (label: PredicateLabel) {
+  extension [L <: PredicateLabel](label: L) {
     def apply(args: Term*): Formula = PredicateFormula(label, args)
     @targetName("applySeq")
     def apply(args: Seq[Term]): Formula = PredicateFormula(label, args)
@@ -73,7 +72,7 @@ object KernelHelpers {
     }
   }
 
-  extension (label: ConnectorLabel){
+  extension [L <: ConnectorLabel](label: L) {
     def apply(args: Formula*): Formula = ConnectorFormula(label, args)
     @targetName("applySeq")
     def apply(args: Seq[Formula]): Formula = ConnectorFormula(label, args)
@@ -83,15 +82,13 @@ object KernelHelpers {
     }
   }
 
-  extension (label: BinderLabel) {
+  extension [L <: BinderLabel](label: L) {
     def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
     def unapply(f: Formula): Option[(VariableLabel, Formula)] = f match {
       case BinderFormula(`label`, x, inner) => Some((x, inner))
       case _ => None
     }
   }
-
-
 
   /* Infix syntax */
 
@@ -150,39 +147,39 @@ object KernelHelpers {
    * @tparam S The type of elements in that set
    * @tparam T The type to convert from
    */
-  protected trait SetConverter[S, T] {
-    def apply(t: T): Set[S]
+  protected trait FormulaSetConverter[T] {
+    def apply(t: T): Set[Formula]
   }
 
-  given [S]: SetConverter[S, Unit] with {
-    override def apply(u: Unit): Set[S] = Set.empty
+  given FormulaSetConverter[Unit] with {
+    override def apply(u: Unit): Set[Formula] = Set.empty
   }
 
-  given [S]: SetConverter[S, EmptyTuple] with {
-    override def apply(t: EmptyTuple): Set[S] = Set.empty
+  given FormulaSetConverter[EmptyTuple] with {
+    override def apply(t: EmptyTuple): Set[Formula] = Set.empty
   }
 
-  given [S, H <: S, T <: Tuple](using SetConverter[S, T]): SetConverter[S, H *: T] with {
-    override def apply(t: H *: T): Set[S] = summon[SetConverter[S, T]].apply(t.tail) + t.head
+  given [H <: Formula, T <: Tuple](using c: FormulaSetConverter[T]): FormulaSetConverter[H *: T] with {
+    override def apply(t: H *: T): Set[Formula] = c.apply(t.tail) + t.head
   }
 
-  given [S, T <: S]: SetConverter[S, T] with {
-    override def apply(f: T): Set[S] = Set(f)
+  given formula_to_set[T <: Formula]: FormulaSetConverter[T] with {
+    override def apply(f: T): Set[Formula] = Set(f)
   }
 
-  given [S, I <: Iterable[S]]: SetConverter[S, I] with {
-    override def apply(s: I): Set[S] = s.toSet
+  given [T <: Formula, I <: Iterable[T]]: FormulaSetConverter[I] with {
+    override def apply(s: I): Set[Formula] = s.toSet
   }
 
-  given SetConverter[Formula, VariableFormulaLabel] with {
+  given FormulaSetConverter[VariableFormulaLabel] with {
     override def apply(s: VariableFormulaLabel): Set[Formula] = Set(s())
   }
 
-  private def any2set[S, A, T <: A](any: T)(using SetConverter[S, T]): Set[S] = summon[SetConverter[S, T]].apply(any)
+  private def any2set[A, T <: A](any: T)(using c: FormulaSetConverter[T]): Set[Formula] = c.apply(any)
 
-  extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) {
-    infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
-    infix def ⊢[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
+  extension [A, T1 <: A](left: T1)(using FormulaSetConverter[T1]) {
+    infix def |-[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
+    infix def ⊢[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
   }
 
   // Instatiation functions for formulas lifted to sequents.
@@ -231,22 +228,13 @@ object KernelHelpers {
     def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
   }
 
-  // TODO Necessary?
-  implicit class Parsing(val sc: StringContext) {
-
-    def seq(args: Any*): Sequent = FOLParser.parseSequent(sc.parts.mkString(""))
-
-    def form(args: Any*): Formula = FOLParser.parseFormula(sc.parts.mkString(""))
-
-    def t(args: Any*): Term = FOLParser.parseTerm(sc.parts.mkString(""))
-
-  }
 
   // Conversions from String to datatypes
-  given Conversion[String, Sequent] = FOLParser.parseSequent(_)
-  given Conversion[String, Formula] = FOLParser.parseFormula(_)
-  given Conversion[String, Term] = FOLParser.parseTerm(_)
-  given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
+  //given Conversion[String, Sequent] = FOLParser.parseSequent(_)
+  //given Conversion[String, Formula] = FOLParser.parseFormula(_)
+  //given Conversion[String, Term] = FOLParser.parseTerm(_)
+  //given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
+
 
   // Conversion from pairs (e.g. x -> f(x)) to lambdas
   given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
@@ -297,7 +285,8 @@ object KernelHelpers {
     if (pieces.length == 1) {
       val name = pieces.head
       if (!Identifier.isValidIdentifier(name)) {
-        throw new InvalidIdentifierException(str, "Identifier must not contain whitespaces nor symbols among " + Identifier.forbiddenChars.mkString())
+        val no: String = Identifier.forbiddenChars.mkString("")
+        throw new InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among $no.")
       }
       Identifier(name)
     } else if (pieces.length == 2) {
@@ -307,7 +296,8 @@ object KernelHelpers {
         throw new InvalidIdentifierException(str, s"The part of an identifier contained after ${Identifier.counterSeparator} must be a number without leading 0s.")
       }
       if (!Identifier.isValidIdentifier(name)) {
-        throw new InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among ${Identifier.forbiddenChars.mkString()}.")
+        val no:String = Identifier.forbiddenChars.mkString("")
+        throw new InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among $no.")
       }
       Identifier(name, no.toInt)
     } else { // if number of _ is greater than 1

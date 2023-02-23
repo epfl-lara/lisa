@@ -75,7 +75,7 @@ object Ordinals extends lisa.Main {
    * Natural Numbers (Inductive definition) --- The intersection of all
    * inductive sets is the set of natural numbers, N.
    */
-  val naturalsInductive = DEF() -->> The(z, ∀(t, in(t, z) <=> (∀(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
+  val naturalsInductive = DEF() --> The(z, ∀(t, in(t, z) <=> (∀(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
 
   /**
    * Theorem --- Natural numbers form an inductive set
@@ -151,7 +151,7 @@ object Ordinals extends lisa.Main {
    * A set `'A` is transitive if and only if every member of `'A` is a subset of `'A`.
    * \forall 'x. 'x\in 'A ==> 'x \subset 'A
    */
-  val transitiveSet = DEF(A) -->> forall(x, in(x, A) ==> subset(x, A))
+  val transitiveSet = DEF(A) --> forall(x, in(x, A) ==> subset(x, A))
 
   /*
   private val R = predicate(2)

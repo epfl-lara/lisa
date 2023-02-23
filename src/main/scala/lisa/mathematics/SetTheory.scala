@@ -2,7 +2,6 @@ package lisa.mathematics
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimpleSimplifier.*
-
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.mathematics.FirstOrderLogic.*
 
@@ -155,7 +154,7 @@ object SetTheory extends lisa.Main {
    * @param x set
    * @param y set
    */
-  val setUnion = DEF(x, y) -->> union(unorderedPair(x, y))
+  val setUnion = DEF(x, y) --> union(unorderedPair(x, y))
 
   /**
    * Theorem --- a set is an element of `x \cup y` iff it is an element of `x` or `y`
@@ -226,7 +225,7 @@ object SetTheory extends lisa.Main {
    *
    * @param x set
    */
-  val successor = DEF(x) -->> union(unorderedPair(x, singleton(x)))
+  val successor = DEF(x) --> union(unorderedPair(x, singleton(x)))
 
   /**
    * Inductive set --- A set is inductive if it contains the empty set, and the
@@ -236,7 +235,7 @@ object SetTheory extends lisa.Main {
    *
    * @param x set
    */
-  val inductive = DEF(x) -->> in(∅, x) /\ ∀(y, in(y, x) ==> in(successor(y), x))
+  val inductive = DEF(x) --> in(∅, x) /\ ∀(y, in(y, x) ==> in(successor(y), x))
 
   /**
    * Theorem --- There exists an inductive set.
@@ -465,7 +464,7 @@ object SetTheory extends lisa.Main {
   }
 
   val unorderedPairDeconstruction = Theorem("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
-    val s1 = have(applySubst("unorderedPair('a, 'b) = unorderedPair('c, 'd)")(pairAxiom of (x -> a, y -> b)))
+    val s1 = have(applySubst(unorderedPair(a, b) === unorderedPair(c, d))(pairAxiom of (x -> a, y -> b)))
     val base = have(applySubst(s1)(pairAxiom of (x -> c, y -> d)))
     have(thesis) by Tautology.from(base of (z -> a), base of (z -> b), base of (z -> c), base of (z -> d))
   }
@@ -795,7 +794,7 @@ object SetTheory extends lisa.Main {
    * @param x set
    * @param y set
    */
-  val setIntersection = DEF(x, y) -->> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
+  val setIntersection = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
 
   val unaryIntersectionUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b)))))
@@ -812,7 +811,7 @@ object SetTheory extends lisa.Main {
    *
    * @param x set
    */
-  val unaryIntersection = DEF(x) -->> The(z, ∀(t, in(t, z) <=> (in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b)))))(unaryIntersectionUniqueness)
+  val unaryIntersection = DEF(x) --> The(z, ∀(t, in(t, z) <=> (in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b)))))(unaryIntersectionUniqueness)
 
   val setDifferenceUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))
@@ -828,7 +827,7 @@ object SetTheory extends lisa.Main {
    * @param x set
    * @param y set
    */
-  val setDifference = DEF(x, y) -->> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))(setDifferenceUniqueness)
+  val setDifference = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))(setDifferenceUniqueness)
 
   /**
    * Theorem --- Intersection of a non-empty Class is a Set
@@ -882,7 +881,7 @@ object SetTheory extends lisa.Main {
    * While the function is defined on all sets, the result on non-pairs may be
    * uninteresting or garbage.
    */
-  val firstInPair = DEF(p) -->> union(unaryIntersection(p))
+  val firstInPair = DEF(p) --> union(unaryIntersection(p))
 
   val secondInPairSingletonUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))
@@ -894,7 +893,7 @@ object SetTheory extends lisa.Main {
    * See [[secondInPair]].
    */
   val secondInPairSingleton =
-    DEF(p) -->> The(z, ∀(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))(secondInPairSingletonUniqueness)
+    DEF(p) --> The(z, ∀(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))(secondInPairSingletonUniqueness)
 
   /**
    * The second element of an ordered [[pair]] --- `second p = \cup {x \in \cup
@@ -911,7 +910,7 @@ object SetTheory extends lisa.Main {
    *
    * @see https://en.wikipedia.org/wiki/Ordered_pair#Kuratowski's_definition
    */
-  val secondInPair = DEF(p) -->> union(secondInPairSingleton(p))
+  val secondInPair = DEF(p) --> union(secondInPairSingleton(p))
 
   /**
    * Cartesian Products and Relations
@@ -940,7 +939,7 @@ object SetTheory extends lisa.Main {
    * @param y set
    */
   val cartesianProduct =
-    DEF(x, y) -->> The(z, ∀(t, in(t, z) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))))(cartesianProductUniqueness)
+    DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))))(cartesianProductUniqueness)
 
   /**
    * Theorem --- a pair is in the set `x * y` iff its elements are in `x` and
@@ -1064,19 +1063,19 @@ object SetTheory extends lisa.Main {
    * the [[cartesianProduct]] of `a` and `b`, `a * b`. We say `x r y`, `r(x,
    * y)`, or `r relates x to y` for `(x, y) ∈ r`.
    */
-  val relationBetween = DEF(r, a, b) -->> subset(r, cartesianProduct(a, b))
+  val relationBetween = DEF(r, a, b) --> subset(r, cartesianProduct(a, b))
 
   /**
    * `r` is a relation *from* `a` if there exists a set `b` such that `r` is a
    * relation from `a` to `b`.
    */
-  val relationFrom = DEF(r, a) -->> ∃(b, relationBetween(r, a, b))
+  val relationFrom = DEF(r, a) --> ∃(b, relationBetween(r, a, b))
 
   /**
    * `r` is a relation if there exist sets `a` and `b` such that `r` is a
    * relation from `a` to `b`.
    */
-  val relation = DEF(r) -->> ∃(a, ∃(b, subset(r, cartesianProduct(a, b))))
+  val relation = DEF(r) --> ∃(a, ∃(b, subset(r, cartesianProduct(a, b))))
 
   val relationDomainUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> ∃(a, in(pair(t, a), r))))
@@ -1139,7 +1138,7 @@ object SetTheory extends lisa.Main {
    *
    * @param r relation (set)
    */
-  val relationDomain = DEF(r) -->> The(z, ∀(t, in(t, z) <=> ∃(a, in(pair(t, a), r))))(relationDomainUniqueness)
+  val relationDomain = DEF(r) --> The(z, ∀(t, in(t, z) <=> ∃(a, in(pair(t, a), r))))(relationDomainUniqueness)
 
   val relationRangeUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> ∃(a, in(pair(a, t), r))))
@@ -1202,7 +1201,7 @@ object SetTheory extends lisa.Main {
    *
    * @param r relation (set)
    */
-  val relationRange = DEF(r) -->> The(z, ∀(t, in(t, z) <=> ∃(a, in(pair(a, t), r))))(relationRangeUniqueness)
+  val relationRange = DEF(r) --> The(z, ∀(t, in(t, z) <=> ∃(a, in(pair(a, t), r))))(relationRangeUniqueness)
 
   /**
    * (Binary) Relation Field --- The union of the domain and range of a
@@ -1210,7 +1209,7 @@ object SetTheory extends lisa.Main {
    *
    * @param r relation (set)
    */
-  val relationField = DEF(r) -->> (setUnion(relationDomain(r), relationRange(r)))
+  val relationField = DEF(r) --> (setUnion(relationDomain(r), relationRange(r)))
 
   /**
    * Functional --- A binary [[relation]] is functional if it maps every element in its domain
@@ -1222,7 +1221,7 @@ object SetTheory extends lisa.Main {
    *
    * @param f relation (set)
    */
-  val functional = DEF(f) -->> relation(f) /\ ∀(x, ∃(y, in(pair(x, y), f)) ==> ∃!(y, in(pair(x, y), f)))
+  val functional = DEF(f) --> relation(f) /\ ∀(x, ∃(y, in(pair(x, y), f)) ==> ∃!(y, in(pair(x, y), f)))
 
   /**
    * Functional Over a Set --- A binary [[relation]] is functional over a set `x` if it is
@@ -1231,7 +1230,7 @@ object SetTheory extends lisa.Main {
    * @param f relation (set)
    * @param x set
    */
-  val functionalOver = DEF(f, x) -->> functional(f) /\ (relationDomain(f) === x)
+  val functionalOver = DEF(f, x) --> functional(f) /\ (relationDomain(f) === x)
 
   val setOfFunctionsUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
@@ -1247,12 +1246,12 @@ object SetTheory extends lisa.Main {
    * x, b \in y`, it is a filtering on the power set of their product, i.e. `x
    * \to y \subseteq PP(x * y)`.
    */
-  val setOfFunctions = DEF(x, y) -->> The(z, ∀(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))(setOfFunctionsUniqueness)
+  val setOfFunctions = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))(setOfFunctionsUniqueness)
 
   /**
    * Function From (x to y) --- denoted  `f \in x \to y` or `f: x \to y`.
    */
-  val functionFrom = DEF(f, x, y) -->> in(f, setOfFunctions(x, y))
+  val functionFrom = DEF(f, x, y) --> in(f, setOfFunctions(x, y))
 
   /**
    * Theorem --- A function between two sets is [[functional]]
@@ -1374,7 +1373,7 @@ object SetTheory extends lisa.Main {
    * `(x, z) \in f` if it exists and `f` is functional, [[emptySet]] otherwise.
    */
   val app =
-    DEF(f, x) -->> The(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === ∅)))(functionApplicationUniqueness)
+    DEF(f, x) --> The(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === ∅)))(functionApplicationUniqueness)
 
   /**
    * Surjective (function) --- a function `f: x \to y` is surjective iff it
@@ -1382,7 +1381,7 @@ object SetTheory extends lisa.Main {
    *
    * `surjective(f, x, y) = f \in x \to y \land \∀ b \in y. (\exists a \in x. f(a) = b)`
    */
-  val surjective = DEF(f, x, y) -->> functionFrom(f, x, y) /\ ∀(b, in(b, y) ==> ∃(a, in(pair(a, b), f)))
+  val surjective = DEF(f, x, y) --> functionFrom(f, x, y) /\ ∀(b, in(b, y) ==> ∃(a, in(pair(a, b), f)))
 
   /**
    * Alias for [[surjective]]
@@ -1395,7 +1394,7 @@ object SetTheory extends lisa.Main {
    *
    * `injective(f, x, y) = f \in x \to y \land \forall b \in y. (\exists a \in x. f(a) = b) ==> (\exists! a \in x. f(a) = b)`
    */
-  val injective = DEF(f, x, y) -->> functionFrom(f, x, y) /\ ∀(b, in(b, y) ==> (∃(a, in(a, x) /\ in(pair(a, b), f)) ==> ∃!(a, in(a, x) /\ in(pair(a, b), f))))
+  val injective = DEF(f, x, y) --> functionFrom(f, x, y) /\ ∀(b, in(b, y) ==> (∃(a, in(a, x) /\ in(pair(a, b), f)) ==> ∃!(a, in(a, x) /\ in(pair(a, b), f))))
 
   /**
    * Alias for [[injective]]
@@ -1406,20 +1405,20 @@ object SetTheory extends lisa.Main {
    * Bijective function --- a function `f: x \to y` is bijective iff it is
    * [[injective]] and [[surjective]].
    */
-  val bijective = DEF(f, x, y) -->> injective(f, x, y) /\ surjective(f, x, y)
+  val bijective = DEF(f, x, y) --> injective(f, x, y) /\ surjective(f, x, y)
 
   /**
    * Invertible Function --- a function from `x` to `y` is invertible iff it is
    * [[bijective]]. See also, [[inverseFunction]]
    */
-  val invertibleFunction = DEF(f, x, y) -->> bijective(f, x, y)
+  val invertibleFunction = DEF(f, x, y) --> bijective(f, x, y)
 
   /**
    * Inverse Function --- the inverse of a function `f: x \to y`, denoted
    * `f^-1`, is a function from `y` to `x` such that `\∀ a \in x, b \in y.
    * f(f^-1(b)) = b /\ f^-1(f(b)) = b`.
    */
-  val inverseFunctionOf = DEF(g, f, x, y) -->> functionFrom(g, y, x) /\ functionFrom(f, x, y) /\ ∀(a, (in(a, y) ==> (a === app(f, app(g, a)))) /\ (in(a, x) ==> (a === app(g, app(f, a)))))
+  val inverseFunctionOf = DEF(g, f, x, y) --> functionFrom(g, y, x) /\ functionFrom(f, x, y) /\ ∀(a, (in(a, y) ==> (a === app(f, app(g, a)))) /\ (in(a, x) ==> (a === app(g, app(f, a)))))
 
   // val inverseFunctionExistsIfInvertible = makeTHM(
   //    invertibleFunction(f, x, y) <=> ∃(g, inverseFunctionOf(g, f, x, y))
@@ -1459,7 +1458,7 @@ object SetTheory extends lisa.Main {
    * @param f function (set)
    * @param x set to restrict to
    */
-  val restrictedFunction = DEF(f, x) -->> The(g, ∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))))(restrictedFunctionUniqueness)
+  val restrictedFunction = DEF(f, x) --> The(g, ∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))))(restrictedFunctionUniqueness)
 
   // TODO: functional restricted over x has its domain as x ∈tersect dom f
 
@@ -1475,7 +1474,7 @@ object SetTheory extends lisa.Main {
    *
    * TODO: explain
    */
-  val Sigma = DEF(x, f) -->> union(restrictedFunction(f, x))
+  val Sigma = DEF(x, f) --> union(restrictedFunction(f, x))
 
   val piUniqueness = Theorem(
     ∃!(z, ∀(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))
@@ -1491,7 +1490,7 @@ object SetTheory extends lisa.Main {
    *
    * TODO: explain
    */
-  val Pi = DEF(x, f) -->> The(z, ∀(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))(piUniqueness)
+  val Pi = DEF(x, f) --> The(z, ∀(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))(piUniqueness)
 
   /**
    * Properties of relations
@@ -1500,28 +1499,28 @@ object SetTheory extends lisa.Main {
   /**
    * Reflexive Relation --- `∀ x. x R x`
    */
-  val reflexive = DEF(r, x) -->> relationBetween(r, x, x) /\ ∀(y, in(y, x) ==> in(pair(y, y), r))
+  val reflexive = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(y, in(y, x) ==> in(pair(y, y), r))
 
   /**
    * Symmetric Relation --- `∀ x y. x R y ⇔ y R x`
    */
-  val symmetric = DEF(r, x) -->> relationBetween(r, x, x) /\ ∀(y, ∀(z, in(pair(y, z), r) <=> in(pair(z, y), r)))
+  val symmetric = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(y, ∀(z, in(pair(y, z), r) <=> in(pair(z, y), r)))
 
   /**
    * Transitive Relation --- `∀ x y z. x R y ∧ y R z ⇒ x R z`
    */
-  val transitive = DEF(r, x) -->> relationBetween(r, x, x) /\ ∀(w, ∀(y, ∀(z, (in(pair(w, y), r) /\ in(pair(y, z), r)) ==> in(pair(w, z), r))))
+  val transitive = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(w, ∀(y, ∀(z, (in(pair(w, y), r) /\ in(pair(y, z), r)) ==> in(pair(w, z), r))))
 
   /**
    * Equivalence Relation --- A relation is an equivalence relation if it is
    * [[reflexive]], [[symmetric]], and [[transitive]].
    */
-  val equivalence = DEF(r, x) -->> reflexive(r, x) /\ symmetric(r, x) /\ transitive(r, x)
+  val equivalence = DEF(r, x) --> reflexive(r, x) /\ symmetric(r, x) /\ transitive(r, x)
 
   /**
    * Anti-reflexive Relation --- `∀ x. ! x R x`
    */
-  val antiReflexive = DEF(r, x) -->> relationBetween(r, x, x) /\ ∀(y, in(y, x) ==> !in(pair(y, y), r))
+  val antiReflexive = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(y, in(y, x) ==> !in(pair(y, y), r))
 
   /**
    * Irreflexive Relation --- Alias for [[antiReflexive]].
@@ -1531,17 +1530,17 @@ object SetTheory extends lisa.Main {
   /**
    * Anti-symmetric Relation --- `∀ x y. x R y ∧ y R x ⇒ y = x`
    */
-  val antiSymmetric = DEF(r, x) -->> relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(pair(y, z), r) /\ in(pair(z, y), r)) ==> (y === z)))
+  val antiSymmetric = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(pair(y, z), r) /\ in(pair(z, y), r)) ==> (y === z)))
 
   /**
    * Asymmetric Relation --- `∀ x y. x R y ⇔ ! y R x`
    */
-  val asymmetric = DEF(r, x) -->> relationBetween(r, x, x) /\ ∀(y, ∀(z, in(pair(y, z), r) ==> !in(pair(z, y), r)))
+  val asymmetric = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(y, ∀(z, in(pair(y, z), r) ==> !in(pair(z, y), r)))
 
   /**
    * Connected Relation --- `∀ x y. (x R y) ∨ (y R x) ∨ (y = x)`
    */
-  val connected = DEF(r, x) -->> relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r) \/ (y === z))))
+  val connected = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r) \/ (y === z))))
 
   /**
    * Total Relation --- Alias for [[connected]].
@@ -1552,7 +1551,7 @@ object SetTheory extends lisa.Main {
    * Strongly Connected Relation ---
    *     `∀ x y z. y R x ∧ z R x ⇒ y R z ∨ z R y`
    */
-  val stronglyConnected = DEF(r, x) -->> relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
+  val stronglyConnected = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
 
   /**
    * Cantor theorem

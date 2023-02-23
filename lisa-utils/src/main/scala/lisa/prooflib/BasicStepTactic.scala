@@ -1116,7 +1116,7 @@ object BasicStepTactic {
 
       if (!isSameSet(bot.left, premiseSequent.left ++ implications)) {
         println(lisa.utils.parsing.FOLPrinter.prettySequent(bot))
-        println(lisa.utils.parsing.FOLPrinter.prettySequent(premiseSequent ++< (implications |- ())))
+        println(lisa.utils.parsing.FOLPrinter.prettySequent(premiseSequent ++<< (implications |- ())))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ⇔ τ)_.")
       } else if (
         !isSameSet(bot.right + phi_psi, premiseSequent.right + phi_tau) &&

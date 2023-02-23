@@ -218,7 +218,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
       case ConnectorFormula(label, args) =>
         val map: Map[ConnectorLabel, ConnectorLabel] = Map(And -> Or, Or -> And)
         map.get(label) match {
-          case Some(opposite) if random.nextDouble() < p => transform(neg(ConnectorFormula(opposite, args.map(neg))))
+          case Some(opposite) if random.nextDouble() < p => transform(neg(ConnectorFormula(opposite, args.map(neg(_)))))
           case _ => ConnectorFormula(label, args.map(transform))
         }
       case BinderFormula(label, bound, inner) => BinderFormula(label, bound, transform(inner))

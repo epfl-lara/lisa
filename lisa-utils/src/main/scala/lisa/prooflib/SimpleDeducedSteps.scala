@@ -37,12 +37,12 @@ object SimpleDeducedSteps {
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
       val s = seqs.head
       val f = s.right.head
-      val first = SC.Cut((proof.getSequent(premise) removeAllLeft f) ++ (s ->? f), -2, -1, f)
+      val first = SC.Cut((proof.getSequent(premise) removeAllLeft f) ++ (s removeAllRight f), -2, -1, f)
 
       proof.ValidProofTactic(
         seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
           val f = next._1.right.head
-          SC.Cut((prev.bot removeAllLeft f) ++ (next._1 ->? f), -next._2 - 3, next._2, f)
+          SC.Cut((prev.bot removeAllLeft f) ++ (next._1 removeAllRight f), -next._2 - 3, next._2, f)
         }),
         proof.mostRecentStep +: premises
       )
@@ -183,7 +183,7 @@ object SimpleDeducedSteps {
 
                 val Sigma: Set[FOL.Formula] = rightSequent.left - phi
 
-                val p0 = SC.Weakening(rightSequent ++< (psi |- ()), -2)
+                val p0 = SC.Weakening(rightSequent ++<< (psi |- ()), -2)
                 val p1 = SC.RestateTrue(psi |- psi)
 
                 // TODO: can be abstracted into a RightAndAll step
