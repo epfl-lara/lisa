@@ -4,16 +4,17 @@ import lisa.kernel.fol.FOL
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
+import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.ProofTactic
-import lisa.prooflib.TheoriesHelpers.{_, given}
-import lisa.prooflib.*
 import lisa.utils.KernelHelpers.repr
-
-import java.io.File
 
 abstract class LisaException(errorMessage: String)(using val line: sourcecode.Line, val file: sourcecode.File) extends Exception(errorMessage) {
   def showError: String
 }
+
+import lisa.prooflib.TheoriesHelpers.{_, given}
+
+import java.io.File
 object LisaException {
   case class InvalidKernelJustificationComputation(errorMessage: String, underlying: RunningTheoryJudgement.InvalidJustification[?], proof: Option[Library#Proof])(using
       sourcecode.Line,

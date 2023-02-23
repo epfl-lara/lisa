@@ -150,8 +150,8 @@ object OLPropositionalSolver {
       val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
       val subst2 = RightSubstIff(Neg(atom) :: s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF, offset + proof1.length + proof2.length - 1 + 1, List((atom, bot())), lambdaF)
       val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
-      val cutStep = Cut(s.decisions._1 |- redF :: s.decisions._2, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
-      val redStep = Restate(s.decisions._1 |- s.formula :: s.decisions._2, offset + proof1.length + proof2.length + 4 - 1)
+      val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
+      val redStep = Restate(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- s.formula, offset + proof1.length + proof2.length + 4 - 1)
       redStep :: cutStep :: red2 :: subst2 :: proof2 ++ (subst1 :: proof1)
 
     }

@@ -1063,7 +1063,7 @@ object BasicStepTactic {
       val botRight = ConnectorFormula(Or, bot.right.toSeq)
 
       val equalities = bot.left.collect { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
-      val canReach = UnificationUtils.canReachOneStepOLTermFormula(premRight, botRight, equalities.toList)
+      val canReach = UnificationUtils.canReachOneStepTermFormula(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty)
         proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
