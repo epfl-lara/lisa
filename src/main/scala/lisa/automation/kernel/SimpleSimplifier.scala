@@ -14,6 +14,7 @@ import lisa.utils.unification.UnificationUtils
 import scala.annotation.nowarn
 import scala.collection
 import scala.collection.immutable.Seq
+import scala.annotation.tailrec
 
 object SimpleSimplifier {
 
@@ -493,7 +494,11 @@ object SimpleSimplifier {
         bot: Sequent
     ): proof.ProofTacticJudgement = apply2(using lib, proof)(false, substitutions: _*)(premise)(bot)
 
-    def apply3(using lib: lisa.prooflib.Library, proof: lib.Proof)(rightLeft: Boolean = false, substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(
+  }
+
+  object Simplify extends ProofTactic {
+
+    def once(using lib: lisa.prooflib.Library, proof: lib.Proof)(rightLeft: Boolean = false, substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(
         premise: proof.Fact
     ): proof.ProofTacticJudgement = {
       // takes a bot
@@ -618,13 +623,36 @@ object SimpleSimplifier {
 
       })
 
-      BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for Substitution failed.")
+      if (isSameSequent(premiseSequent, sp.scproof.conclusion)) proof.InvalidProofTactic("Could not perform a substitution.")
+      else BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for Substitution failed.")
 
     }
 
-    def apply3(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement =
-      apply3(using lib, proof)(false, substitutions: _*)(premise)
+    // def once(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement =
+    //   once(using lib, proof)(false, substitutions: _*)(premise)
 
+    // def exhaustive(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement = star(once(using lib, proof)(substitutions))(premise)
+
+    def exhaustive(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement = {
+      @tailrec
+      def f(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): Unit = {
+        once(using lib, proof)(false, substitutions: _*)(premise) match {
+          case v: proof.ValidProofTactic => {
+            val ps = v.validate(line, file)
+            f(using lib, proof)(substitutions: _*)(ps)
+          }
+          case _ => ()
+        }
+      }
+      try
+        BasicStepTactic.TacticSubproof {
+          f(substitutions: _*)(premise)
+        }
+      catch 
+        case _ => proof.InvalidProofTactic("Could not perform a substitution.")
+    }
+
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement = exhaustive(using lib, proof)(substitutions: _*)(premise)
   }
 
 }
