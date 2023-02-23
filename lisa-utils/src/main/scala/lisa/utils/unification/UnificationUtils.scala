@@ -72,7 +72,10 @@ object UnificationUtils {
               val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
               val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
 
-              canReachOneStepTerm2(newInner1, newInner2, subst, takenIds + newx.id)
+              val innerRes = canReachOneStepTerm2(newInner1, newInner2, subst, takenIds + newx.id)
+
+              if (innerRes.isEmpty) innerRes
+              else Some(BinderFormula(l1, newx, innerRes.get))
             }
             case _ => None
           }
@@ -166,7 +169,10 @@ object UnificationUtils {
               val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
               val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
 
-              canReachOneStepOLFormula2(newInner1, newInner2, subst, takenIds + newx.id)
+              val innerRes = canReachOneStepOLFormula2(newInner1, newInner2, subst, takenIds + newx.id)
+
+              if (innerRes.isEmpty) innerRes
+              else Some(BinderFormula(l2, newx, innerRes.get))
             }
             case _ => None
           }
@@ -281,7 +287,7 @@ object UnificationUtils {
           val newx = VariableLabel(freshId(takenIds, x1.id))
           val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
 
-          getContextOneStepFormula2(newInner1, formSubst, termSubst, takenIds + newx.id)
+          BinderFormula(l1, newx, getContextOneStepFormula2(newInner1, formSubst, termSubst, takenIds + newx.id))
         }
         case PredicateFormula(l1, arg1) => PredicateFormula(l1, arg1.map(getContextOneStepTerm2(_, termSubst)))
       }
@@ -352,7 +358,10 @@ object UnificationUtils {
               val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
               val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
 
-              canReachOneStep2(newInner1, newInner2, formSubst, termSubst, takenIds + newx.id)
+              val innerRes = canReachOneStep2(newInner1, newInner2, formSubst, termSubst, takenIds + newx.id)
+
+              if (innerRes.isEmpty) innerRes
+              else Some(BinderFormula(l1, newx, innerRes.get))
             }
             case _ => None
           }
