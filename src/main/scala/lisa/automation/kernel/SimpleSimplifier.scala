@@ -313,7 +313,7 @@ object SimpleSimplifier {
         } else {
           val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
             val actIffs = iffs.map((a, b) => Iff(a, b))
-            val newBot = bot.copy(right = Set(ConnectorFormula(Or, bot.right.toSeq))) ++< (actIffs |- ())
+            val newBot = bot.copy(right = Set(ConnectorFormula(Or, bot.right.toSeq))) ++<< (actIffs |- ())
             val s1 = proof.library.have(premiseSequent.left |- ConnectorFormula(Or, premiseSequent.right.toSeq)) by SimpleDeducedSteps.Restate.from(premise)
             val x = BasicStepTactic.RightSubstIff(iffs.toList, canReach2.get)(s1)(newBot)
             proof.library.have(x)

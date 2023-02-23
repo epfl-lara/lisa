@@ -78,10 +78,10 @@ object ExampleDSL extends lisa.Main {
   show
 
   //Examples of definitions
-  val succ = DEF(x) --> union(unorderedPair(x, singleton(x)))
+  val succ = DEF(x) -->> union(unorderedPair(x, singleton(x)))
   show
 
-  val inductiveSet = DEF(x) --> in(∅, x) /\ forall(y, in(y, x) ==> in(succ(y), x))
+  val inductiveSet = DEF(x) -->> in(∅, x) /\ forall(y, in(y, x) ==> in(succ(y), x))
   show
 
   val defineNonEmptySet = Lemma(" |- ∃!'x. !('x=emptySet) ∧ 'x=unorderedPair(emptySet, emptySet)") {
@@ -98,7 +98,7 @@ object ExampleDSL extends lisa.Main {
   show
 
   //This definition is underspecified
-  val nonEmpty = DEF() --> The(x, !(x === ∅))(defineNonEmptySet)
+  val nonEmpty = DEF() -->> The(x, !(x === ∅))(defineNonEmptySet)
   show
 
 
