@@ -12,9 +12,9 @@ import lisa.utils.KernelHelpers.*
 import lisa.utils.unification.UnificationUtils
 
 import scala.annotation.nowarn
+import scala.annotation.tailrec
 import scala.collection
 import scala.collection.immutable.Seq
-import scala.annotation.tailrec
 
 object SimpleSimplifier {
 
@@ -633,7 +633,9 @@ object SimpleSimplifier {
 
     // def exhaustive(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement = star(once(using lib, proof)(substitutions))(premise)
 
-    def exhaustive(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def exhaustive(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(
+        substitutions: (proof.Fact | Formula | RunningTheory#Justification)*
+    )(premise: proof.Fact): proof.ProofTacticJudgement = {
       @tailrec
       def f(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): Unit = {
         once(using lib, proof)(false, substitutions: _*)(premise) match {
@@ -648,11 +650,11 @@ object SimpleSimplifier {
         BasicStepTactic.TacticSubproof {
           f(substitutions: _*)(premise)
         }
-      catch 
-        case _ => proof.InvalidProofTactic("Could not perform a substitution.")
+      catch case _ => proof.InvalidProofTactic("Could not perform a substitution.")
     }
 
-    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement = exhaustive(using lib, proof)(substitutions: _*)(premise)
+    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement =
+      exhaustive(using lib, proof)(substitutions: _*)(premise)
   }
 
 }
