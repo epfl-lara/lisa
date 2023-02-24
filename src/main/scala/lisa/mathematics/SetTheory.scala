@@ -1721,9 +1721,21 @@ object SetTheory extends lisa.Main {
 
     // \exists z. z \in x /\ f(z) = y
     val surjToFunFrom = have(surjective(f, x, powerSet(x)) |- functionFrom(f, x, powerSet(x))) by Tautology.from(surjective.definition of (y -> powerSet(x)))
-    val existsZdom = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Tautology.from(yInRange, surjective.definition of (y -> powerSet(x)), inRangeImpliesPullbackExists of (z -> y), functionFromImpliesFunctional of (y -> powerSet(x)))
-    val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq(List((x, relationDomain(f))), lambda(x, ∃(z, in(z, x) /\ (app(f, z) === y))))
-    val existsZ = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by Tautology.from(surjective.definition of (y -> powerSet(x)), functionFromImpliesDomainEq of (y -> powerSet(x)), xeqdom)
+    val existsZdom = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Tautology.from(
+      yInRange,
+      surjective.definition of (y -> powerSet(x)),
+      inRangeImpliesPullbackExists of (z -> y),
+      functionFromImpliesFunctional of (y -> powerSet(x))
+    )
+    val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq(
+      List((x, relationDomain(f))),
+      lambda(x, ∃(z, in(z, x) /\ (app(f, z) === y)))
+    )
+    val existsZ = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by Tautology.from(
+      surjective.definition of (y -> powerSet(x)),
+      functionFromImpliesDomainEq of (y -> powerSet(x)),
+      xeqdom
+    )
 
     // z \in Y <=> z \in x /\ ! z \in f(z)
     // y = f(z) so z \in f(z) <=> ! z \in f(z)

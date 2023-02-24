@@ -106,7 +106,9 @@ object SimpleSimplifier {
   }
 
   object applySubst extends ProofTactic {
-    def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(phi: Formula)(premise: proof.Fact)(rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true): proof.ProofTacticJudgement = {
+    def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(
+        phi: Formula
+    )(premise: proof.Fact)(rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true): proof.ProofTacticJudgement = {
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -184,7 +186,12 @@ object SimpleSimplifier {
     }
 
     @nowarn("msg=.*the type test for proof.Fact cannot be checked at runtime*")
-    def apply(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true)(
+    def apply(using
+        lib: lisa.prooflib.Library,
+        proof: lib.Proof,
+        line: sourcecode.Line,
+        file: sourcecode.File
+    )(f: proof.Fact | Formula, rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true)(
         premise: proof.Fact
     ): proof.ProofTacticJudgement = {
       f match {
@@ -497,9 +504,9 @@ object SimpleSimplifier {
 
     }
 
-    def apply2(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact)(
-        bot: Sequent
-    ): proof.ProofTacticJudgement = apply2(using lib, proof)(false, substitutions: _*)(premise)(bot)
+    // def apply2(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact)(
+    //     bot: Sequent
+    // ): proof.ProofTacticJudgement = apply2(using lib, proof)(false, substitutions: _*)(premise)(bot)
 
   }
 
