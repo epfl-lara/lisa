@@ -1,16 +1,17 @@
 package lisa.prooflib
 
 import lisa.kernel.fol.FOL
+import lisa.kernel.fol.FOL.isSame
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.ProofTacticLib.{_, given}
+import lisa.prooflib.ProofTacticLib.{*, given}
 import lisa.prooflib.*
 import lisa.utils.FOLParser
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.KernelHelpers.{*, given}
 import lisa.utils.Printer
 
 object SimpleDeducedSteps {
@@ -37,7 +38,7 @@ object SimpleDeducedSteps {
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
       val s = seqs.head
       val f = s.right.head
-      val first = SC.Cut((proof.getSequent(premise) removeAllLeft f) ++ (s removeAllRight f), -2, -1, f)
+      val first = SC.Cut((proof.getSequent(premise) removeLeft f) ++ (s removeRight f), -2, -1, f)
 
       proof.ValidProofTactic(
         seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {

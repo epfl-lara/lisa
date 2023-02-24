@@ -488,9 +488,11 @@ object SimpleSimplifier {
             }
 
             substitutions.foreach {
-              case f: Formula => ()
-              case f: proof.Fact @unchecked => (proof.library.andThen(SimpleDeducedSteps.Discharge(f)))
-              case j: RunningTheory#Justification => proof.library.andThen(SimpleDeducedSteps.Discharge(j.asInstanceOf[lib.theory.Justification]))
+              case f: Formula =>
+              case f: proof.Fact @unchecked =>
+                (proof.library.andThen(SimpleDeducedSteps.Discharge(f)))
+              case j: RunningTheory#Justification =>
+                proof.library.andThen(SimpleDeducedSteps.Discharge(j.asInstanceOf[lib.theory.Justification]))
             }
 
             proof.library.thenHave(bot) by SimpleDeducedSteps.Restate
