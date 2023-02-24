@@ -1213,5 +1213,5 @@ object BasicStepTactic {
   /*
   def TacticSubproof(using proof: Library#Proof)(bot: Option[Sequent])(computeProof: proof.InnerProof ?=> Unit) =
     SUBPROOF(using proof)(Some(bot))(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
-*/
+   */
 }

@@ -228,13 +228,11 @@ object KernelHelpers {
     def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
   }
 
-
   // Conversions from String to datatypes
-  //given Conversion[String, Sequent] = FOLParser.parseSequent(_)
-  //given Conversion[String, Formula] = FOLParser.parseFormula(_)
-  //given Conversion[String, Term] = FOLParser.parseTerm(_)
-  //given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
-
+  // given Conversion[String, Sequent] = FOLParser.parseSequent(_)
+  // given Conversion[String, Formula] = FOLParser.parseFormula(_)
+  // given Conversion[String, Term] = FOLParser.parseTerm(_)
+  // given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
   // Conversion from pairs (e.g. x -> f(x)) to lambdas
   given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
@@ -296,7 +294,7 @@ object KernelHelpers {
         throw new InvalidIdentifierException(str, s"The part of an identifier contained after ${Identifier.counterSeparator} must be a number without leading 0s.")
       }
       if (!Identifier.isValidIdentifier(name)) {
-        val no:String = Identifier.forbiddenChars.mkString("")
+        val no: String = Identifier.forbiddenChars.mkString("")
         throw new InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among $no.")
       }
       Identifier(name, no.toInt)

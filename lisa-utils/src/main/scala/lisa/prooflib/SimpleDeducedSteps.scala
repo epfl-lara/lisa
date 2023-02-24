@@ -8,10 +8,10 @@ import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.ProofTacticLib.{*, given}
+import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
 import lisa.utils.FOLParser
-import lisa.utils.KernelHelpers.{*, given}
+import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printer
 
 object SimpleDeducedSteps {
