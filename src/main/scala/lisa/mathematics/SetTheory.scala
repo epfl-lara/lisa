@@ -1588,12 +1588,12 @@ object SetTheory extends lisa.Main {
   val subsetEqualitySymmetry = Theorem(
     (x === y) <=> (subset(x, y) /\ subset(y, x))
   ) {
-      have(subset(x, y) /\ subset(y, x) <=> subset(x, y) /\ subset(y, x)) by Restate
+    have(subset(x, y) /\ subset(y, x) <=> subset(x, y) /\ subset(y, x)) by Restate
     thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ subset(y, x)) by Substitution.apply2(false, subsetAxiom)
     thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ forall(t, in(t, y) ==> in(t, x))) by Substitution.apply2(false, subsetAxiom of (x -> y, y -> x))
-      andThen(applySubst(universalConjunctionCommutation of (P -> lambda(t, in(t, x) ==> in(t, y)), Q -> lambda(t, in(t, y) ==> in(t, x)))))
-      andThen(applySubst(extensionalityAxiom))
-      thenHave(thesis) by Restate
+    andThen(applySubst(universalConjunctionCommutation of (P -> lambda(t, in(t, x) ==> in(t, y)), Q -> lambda(t, in(t, y) ==> in(t, x)))))
+    andThen(applySubst(extensionalityAxiom))
+    thenHave(thesis) by Restate
   }
 
   val functionalOverImpliesDomain = Theorem(

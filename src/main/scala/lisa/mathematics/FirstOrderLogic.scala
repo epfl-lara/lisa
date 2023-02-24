@@ -56,9 +56,9 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-    * Theorem --- If there exists a *unique* element satisfying a predicate,
-    * then we can say there *exists* an element satisfying it as well.
-    */
+   * Theorem --- If there exists a *unique* element satisfying a predicate,
+   * then we can say there *exists* an element satisfying it as well.
+   */
   val existsOneImpliesExists = Theorem(
     ∃!(x, P(x)) |- ∃(x, P(x))
   ) {
@@ -71,8 +71,8 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-    * Theorem --- Equality relation is transitive
-    */
+   * Theorem --- Equality relation is transitive
+   */
   val equalityTransitivity = Theorem(
     (x === y) /\ (y === z) |- (x === z)
   ) {
@@ -82,8 +82,8 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-    * Theorem --- Conjunction and universal quantification commute
-    */
+   * Theorem --- Conjunction and universal quantification commute
+   */
   val universalConjunctionCommutation = Theorem(
     () |- forall(x, P(x) /\ Q(x)) <=> forall(x, P(x)) /\ forall(x, Q(x))
   ) {
@@ -115,8 +115,8 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-    * Theorem --- Disjunction and exisential quantification commute
-    */
+   * Theorem --- Disjunction and exisential quantification commute
+   */
   val existentialDisjunctionCommutation = Theorem(
     () |- exists(x, P(x) \/ Q(x)) <=> exists(x, P(x)) \/ exists(x, Q(x))
   ) {
