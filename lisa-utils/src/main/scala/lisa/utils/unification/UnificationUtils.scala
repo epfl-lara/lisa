@@ -31,58 +31,6 @@ object UnificationUtils {
     } else None
   }
 
-  // /**
-  //  * Helper function for [[canReachOneStepTermFormula]]
-  //  *
-  //  * @param first formula
-  //  * @param second formula
-  //  * @param subst list of term substitutions, with assigned identifiers
-  //  * @param takenIds list of taken identifiers for instantiation
-  //  */
-  // def getContextOneStepTerm2(first: Formula, second: Formula, subst: Seq[((Term, Term), Identifier)], takenIds: Set[Identifier]): Option[Formula] = {
-  //   if (isSame(first, second)) Some(first)
-  //   else if (first.label != second.label) None
-  //   else
-  //     first match {
-  //       case PredicateFormula(l1, arg1: Seq[Term]) =>
-  //         second match {
-  //           case PredicateFormula(l2, arg2: Seq[Term]) => {
-  //             val argCan = (arg1 zip arg2).map { case (f, s) => getContextOneStepTerm2(f, s, subst) }
-
-  //             if (argCan.exists(_.isEmpty)) None
-  //             else Some(PredicateFormula(l1, argCan.map(_.get)))
-  //           }
-  //           case _ => None
-  //         }
-  //       case ConnectorFormula(l1, arg1) => {
-  //         second match {
-  //           case ConnectorFormula(l2, arg2) => {
-  //             val argCan = (arg1 zip arg2).map { case (f, s) => getContextOneStepTerm2(f, s, subst, takenIds) }
-
-  //             if (argCan.exists(_.isEmpty)) None
-  //             else Some(ConnectorFormula(l1, argCan.map(_.get)))
-  //           }
-  //           case _ => None
-  //         }
-  //       }
-  //       case BinderFormula(l1, x1: VariableLabel, inner1) => {
-  //         second match {
-  //           case BinderFormula(l2, x2: VariableLabel, inner2) => {
-  //             val newx = VariableLabel(freshId(takenIds, x1.id))
-  //             val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
-  //             val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
-
-  //             val innerRes = getContextOneStepTerm2(newInner1, newInner2, subst, takenIds + newx.id)
-
-  //             if (innerRes.isEmpty) innerRes
-  //             else Some(BinderFormula(l1, newx, innerRes.get))
-  //           }
-  //           case _ => None
-  //         }
-  //       }
-  //     }
-  // }
-
   /**
    * Finds a unifying context for two given terms and a set of term
    * substitutions if one exists. The context is a lambda term containing
