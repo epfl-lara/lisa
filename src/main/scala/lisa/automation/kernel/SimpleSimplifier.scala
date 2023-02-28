@@ -260,7 +260,7 @@ object SimpleSimplifier {
       val equalities = bot.left.collect { case PredicateFormula(`equality`, Seq(l, r)) =>
         (l, r)
       }
-      val canReach = UnificationUtils.canReachOneStepTermFormula(premRight, botRight, equalities.toList)
+      val canReach = UnificationUtils.getContextOneStepTermFormula(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty) {
         proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
@@ -305,10 +305,10 @@ object SimpleSimplifier {
           }
       }
 
-      val canReach = UnificationUtils.canReachOneStepTermFormula(premRight, botRight, equalities.toList)
+      val canReach = UnificationUtils.getContextOneStepTermFormula(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty || equalities.isEmpty) {
-        val canReach2 = UnificationUtils.canReachOneStepOLFormula(premRight, botRight, iffs.toList)
+        val canReach2 = UnificationUtils.getContextOneStepFormulaFormula(premRight, botRight, iffs.toList)
         if (canReach2.isEmpty) {
           proof.InvalidProofTactic("Iffs and Equalities failed")
         } else {
@@ -394,8 +394,8 @@ object SimpleSimplifier {
         case _ => true
       }
 
-      lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x => bot.right.find(y => UnificationUtils.canReachOneStep(x, y, iffs, eqs).isDefined))
-      lazy val leftPairs = filteredPrem zip filteredPrem.map(x => filteredBot.find(y => UnificationUtils.canReachOneStep(x, y, iffs, eqs).isDefined))
+      lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x => bot.right.find(y => UnificationUtils.getContextOneStep(x, y, iffs, eqs).isDefined))
+      lazy val leftPairs = filteredPrem zip filteredPrem.map(x => filteredBot.find(y => UnificationUtils.getContextOneStep(x, y, iffs, eqs).isDefined))
 
       if (leftPairs.exists(_._2.isEmpty))
         proof.InvalidProofTactic("Could not rewrite LHS of premise into conclusion with given substitutions.")
@@ -404,8 +404,8 @@ object SimpleSimplifier {
       else {
         // actually construct proof
         try {
-          val leftLambdas = leftPairs.collect { case (l, Some(r)) => UnificationUtils.canReachOneStep(l, r, iffs, eqs).get }
-          val rightLambdas = rightPairs.collect { case (l, Some(r)) => UnificationUtils.canReachOneStep(l, r, iffs, eqs).get }
+          val leftLambdas = leftPairs.collect { case (l, Some(r)) => UnificationUtils.getContextOneStep(l, r, iffs, eqs).get }
+          val rightLambdas = rightPairs.collect { case (l, Some(r)) => UnificationUtils.getContextOneStep(l, r, iffs, eqs).get }
 
           val eqsForm = eqs.map { case (l, r) => PredicateFormula(`equality`, Seq(l, r)) }.toSet
           val iffsForm = iffs.map { case (l, r) => ConnectorFormula(Iff, Seq(l, r)) }.toSet
@@ -545,8 +545,8 @@ object SimpleSimplifier {
         case _ => true
       }
 
-      lazy val rightLambdas = premiseSequent.right.map(UnificationUtils.getContextOneStepFormula(_, iffs, eqs))
-      lazy val leftLambdas = filteredPrem.map(UnificationUtils.getContextOneStepFormula(_, iffs, eqs))
+      lazy val rightLambdas = premiseSequent.right.map(UnificationUtils.getContextOneStepSingleFormula(_, iffs, eqs))
+      lazy val leftLambdas = filteredPrem.map(UnificationUtils.getContextOneStepSingleFormula(_, iffs, eqs))
 
       // actually construct proof
       val eqsForm = eqs.map { case (l, r) => PredicateFormula(`equality`, Seq(l, r)) }.toSet
