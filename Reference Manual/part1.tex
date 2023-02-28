@@ -557,8 +557,8 @@ Actual mathematical functions on the other hand, are proper sets which contains 
   A definition in LISA is one of those two kinds of objects:
   \begin{lstlisting}[frame=single]
 PredicateDefinition(
-		label: ConstantPredicateLabel,
-		expression: LambdaTermFormula
+    label: ConstantPredicateLabel,
+    expression: LambdaTermFormula
 )
 \end{lstlisting}
   $$
@@ -566,9 +566,9 @@ PredicateDefinition(
   $$
   \begin{lstlisting}[frame=single]
 FunctionDefinition(
-		label: ConstantFunctionLabel,
-		out: VariableLabel, 
-		expression: LambdaTermFormula
+    label: ConstantFunctionLabel,
+    out: VariableLabel, 
+    expression: LambdaTermFormula
 )
 \end{lstlisting}
   $$
@@ -607,9 +607,9 @@ Figure \ref{fig:justifications} shows the types of justification in a theory (Th
           A proven theorem       &
           \begin{lstlisting}
 Theorem(
-	name: String,
-	proposition: Sequent
-	)
+  name: String,
+  proposition: Sequent
+  )
 
 \end{lstlisting}
           \\ %\hline
@@ -617,9 +617,9 @@ Theorem(
           An axiom of the theory &
           \begin{lstlisting}
 Axiom(
-	name: String,
-	ax: Formula
-	)
+  name: String,
+  ax: Formula
+  )
 
 \end{lstlisting}
           \\ %\hline
@@ -627,9 +627,9 @@ Axiom(
           A predicate definition &
           \begin{lstlisting}
 PredicateDefinition(
-	label: ConstantPredicateLabel,
-	expression: LambdaTermFormula
-	)
+  label: ConstantPredicateLabel,
+  expression: LambdaTermFormula
+  )
 
 \end{lstlisting}
           \\ %\hline
@@ -637,10 +637,10 @@ PredicateDefinition(
           A function definition  &
           \begin{lstlisting}
 FunctionDefinition(
-	label: ConstantFunctionLabel,
-	out: VariableLabel,
-	expression: LambdaTermFormula
-	)
+  label: ConstantFunctionLabel,
+  out: VariableLabel,
+  expression: LambdaTermFormula
+  )
 
 \end{lstlisting}
           \\ %\hline
@@ -661,41 +661,41 @@ FunctionDefinition(
           \makecell[l]{Add a new theorem    \\to the theory} &
           \begin{lstlisting}
 makeTheorem(
-	name: String,
-	statement: Sequent,
-	proof: SCProof,
-	justs: Seq[Justification]
-	)
+  name: String,
+  statement: Sequent,
+  proof: SCProof,
+  justs: Seq[Justification]
+  )
 \end{lstlisting}
           \\ %\hline
 
           \makecell[l]{Add a new axiom      \\ to the theory} &
           \begin{lstlisting}
 addAxiom(
-	name: String,
-	f: Formula
-	)
+  name: String,
+  f: Formula
+  )
 \end{lstlisting}
           \\ %\hline
 
           \makecell[l]{Make a new           \\predicate definition} &
           \begin{lstlisting}
 makePredicateDefinition(
-	label: ConstantPredicateLabel,
-	expression: LambdaTermFormula
-	)
+  label: ConstantPredicateLabel,
+  expression: LambdaTermFormula
+  )
 \end{lstlisting}
           \\ %\hline
 
           \makecell[l]{Make a new           \\function definition} &
           \begin{lstlisting}
 makeFunctionDefinition(
-	proof: SCProof,
-	justifications: Seq[Justification],
-	label: ConstantFunctionLabel,
-	out: VariableLabel,
-	expression: LambdaTermFormula
-	)
+  proof: SCProof,
+  justifications: Seq[Justification],
+  label: ConstantFunctionLabel,
+  out: VariableLabel,
+  expression: LambdaTermFormula
+  )
 \end{lstlisting}
           \\ %\hline
 
