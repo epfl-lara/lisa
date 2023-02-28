@@ -1588,35 +1588,12 @@ object SetTheory extends lisa.Main {
   val subsetEqualitySymmetry = Theorem(
     (x === y) <=> (subset(x, y) /\ subset(y, x))
   ) {
-    // we prove the implication directions separately
-
-    // forward
-
-    val fwd = have((x === y) ==> (subset(x, y) /\ subset(y, x))) subproof {
-      have(subset(x, x) /\ subset(x, x)) by Restate.from(subsetReflexivity)
-      thenHave((x === y) |- (subset(x, y) /\ subset(y, x))) by RightSubstEq(List((x, y)), lambda(y, subset(x, y) /\ subset(y, x)))
-      thenHave(thesis) by Restate
-    }
-
-    val bwd = have((subset(x, y) /\ subset(y, x)) ==> (x === y)) subproof {
-      have(subset(x, y) |- ∀(z, in(z, x) ==> in(z, y))) by Tautology.from(subsetAxiom)
-      val sxy = thenHave(subset(x, y) |- in(z, x) ==> in(z, y)) by InstantiateForall(z)
-
-      have(subset(y, x) |- ∀(z, in(z, y) ==> in(z, x))) by Tautology.from(subsetAxiom of (x -> y, y -> x))
-      val syx = thenHave(subset(y, x) |- in(z, y) ==> in(z, x)) by InstantiateForall(z)
-
-      have((subset(x, y), subset(y, x)) |- in(z, y) <=> in(z, x)) by RightIff(sxy, syx)
-      thenHave((subset(x, y) /\ subset(y, x)) |- in(z, y) <=> in(z, x)) by Restate
-      val ssxy = thenHave(subset(x, y) /\ subset(y, x) |- ∀(z, in(z, y) <=> in(z, x))) by RightForall
-
-      val ext = have((x === y) <=> (∀(z, in(z, y) <=> in(z, x)))) by Restate.from(extensionalityAxiom)
-
-      have(subset(x, y) /\ subset(y, x) |- ∀(z, in(z, y) <=> in(z, x)) /\ ((x === y) <=> (∀(z, in(z, y) <=> in(z, x))))) by RightAnd(ssxy, ext)
-      thenHave(subset(x, y) /\ subset(y, x) |- (x === y)) by Tautology
-      thenHave(thesis) by Restate
-    }
-
-    have(thesis) by RightAnd(fwd, bwd)
+    have(subset(x, y) /\ subset(y, x) <=> subset(x, y) /\ subset(y, x)) by Restate
+    thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ subset(y, x)) by Substitution.apply2(false, subsetAxiom)
+    thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ forall(t, in(t, y) ==> in(t, x))) by Substitution.apply2(false, subsetAxiom of (x -> y, y -> x))
+    andThen(applySubst(universalConjunctionCommutation of (P -> lambda(t, in(t, x) ==> in(t, y)), Q -> lambda(t, in(t, y) ==> in(t, x)))))
+    andThen(applySubst(extensionalityAxiom))
+    thenHave(thesis) by Restate
   }
 
   val functionalOverImpliesDomain = Theorem(
@@ -1743,19 +1720,22 @@ object SetTheory extends lisa.Main {
     val yInRange = have((ydef, surjective(f, x, powerSet(x))) |- in(y, relationRange(f))) by Tautology.from(yInPower, surjRange)
 
     // \exists z. z \in x /\ f(z) = y
-    val funToExists = have((functional(f), in(y, relationRange(f))) |- ∃(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Restate.from(inRangeImpliesPullbackExists of (z -> y))
-    val funFromImpliesFun = have(functionFrom(f, x, powerSet(x)) |- functional(f)) by Restate.from(functionFromImpliesFunctional of (y -> powerSet(x)))
     val surjToFunFrom = have(surjective(f, x, powerSet(x)) |- functionFrom(f, x, powerSet(x))) by Tautology.from(surjective.definition of (y -> powerSet(x)))
-    val funFromToExists = have((functionFrom(f, x, powerSet(x)), in(y, relationRange(f))) |- ∃(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Cut(funFromImpliesFun, funToExists)
-    val surjToExists = have((surjective(f, x, powerSet(x)), in(y, relationRange(f))) |- ∃(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Cut(surjToFunFrom, funFromToExists)
-    val existsZdom = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Cut(yInRange, surjToExists)
+    val existsZdom = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Tautology.from(
+      yInRange,
+      surjective.definition of (y -> powerSet(x)),
+      inRangeImpliesPullbackExists of (z -> y),
+      functionFromImpliesFunctional of (y -> powerSet(x))
+    )
     val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq(
       List((x, relationDomain(f))),
       lambda(x, ∃(z, in(z, x) /\ (app(f, z) === y)))
     )
-    val funtox =
-      have((ydef, surjective(f, x, powerSet(x)), functionFrom(f, x, powerSet(x))) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by Cut(functionFromImpliesDomainEq of (y -> powerSet(x)), xeqdom)
-    val existsZ = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by Cut(surjToFunFrom, funtox)
+    val existsZ = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by Tautology.from(
+      surjective.definition of (y -> powerSet(x)),
+      functionFromImpliesDomainEq of (y -> powerSet(x)),
+      xeqdom
+    )
 
     // z \in Y <=> z \in x /\ ! z \in f(z)
     // y = f(z) so z \in f(z) <=> ! z \in f(z)
