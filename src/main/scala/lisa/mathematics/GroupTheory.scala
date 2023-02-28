@@ -18,13 +18,13 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Bounded quantifiers --- These express the usual `∀x ∈ G ϕ` and `∃x ∈ G ϕ`, for some variables (sets) `x` and `G`, which
-   * are shorthands for `∀x (x ∈ G ==> ϕ)` and `∃x (x ∈ G ==> ϕ)`, respectively.
+   * are shorthands for `∀x (x ∈ G ==> ϕ)` and `∃x (x ∈ G /\ ϕ)`, respectively.
    */
   def ∀(x: VariableLabel, range: VariableLabel, inner: Formula): Formula = forall(x, in(x, range) ==> inner)
 
-  def ∃(x: VariableLabel, range: VariableLabel, inner: Formula): Formula = exists(x, in(x, range) ==> inner)
+  def ∃(x: VariableLabel, range: VariableLabel, inner: Formula): Formula = exists(x, in(x, range) /\ inner)
 
-  def ∃!(x: VariableLabel, range: VariableLabel, inner: Formula): Formula = existsOne(x, in(x, range) ==> inner)
+  def ∃!(x: VariableLabel, range: VariableLabel, inner: Formula): Formula = existsOne(x, in(x, range) /\ inner)
 
   /**
    * Binary relation --- `*` is a binary relation on `G` if it associates to each pair of elements of `G`
