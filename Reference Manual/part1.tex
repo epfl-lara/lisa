@@ -21,24 +21,26 @@ Interestingly, while LISA is built with the goal of using Set Theory, the kernel
 \subsection{Syntax}
 \begin{defin}[Terms]
   In LISA, the set of terms $\mathcal{T}$ is defined by the following grammar:
-  \begin{equation}
-    \begin{split}
-      \mathcal{T} := & \mathcal{L}_{Term}(\List[\mathcal{T}])
-    \end{split}
-  \end{equation}\\
-  Where $\mathcal{L}_{Term}$ is the set of \textit{term labels}:
-  \begin{equation}
-    \begin{split}
-      \mathcal{L}_{Term} := & \operatorname{ConstantTermLabel}(\textnormal{Id}, \textnormal{Arity})\\
-      \mid & \operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity})
-    \end{split}
-  \end{equation}
+  \begin{align}
+      \mathcal{T} := & \mathcal{L}_{Term}(\List[\mathcal{T}])~,
+  \end{align}
+  %
+  where $\mathcal{L}_{Term}$ is the set of \textit{term labels}:
+  %
+  \begin{align}
+      \mathcal{L}_{Term} := & ~\operatorname{ConstantTermLabel}(\textnormal{Id}, \textnormal{Arity})\\
+      \mid & ~\operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity})
+  \end{align}
 
   A label can be either \textit{constant} or \textit{schematic}, and is made of an identifier (a string) and the arity of the label (an integer).
   A term is made of a term label and a list of children, whose length must be equal to the arity of the label.
-  A constant label of arity $0$ is sometimes called just a constant, and a schematic label of arity $0$ a variable. We define the shortcut $$\Var(x) \equiv \operatorname{SchematicTermLabel}(x, 0)$$
+  A constant label of arity $0$ is called a \emph{constant}, and a schematic label of arity $0$ a \emph{variable}. 
+  We define the abbreviation 
+  %
+  $$
+    \Var(x) \equiv \operatorname{SchematicTermLabel}(x, 0)~.
+  $$
 \end{defin}
-
 
 As the definition states, we have two kinds of function symbols: \textit{Constant} ones and \textit{Schematic} ones. Constant labels represent a fixed function symbol in some language, for example the addition ``+'' in Peano arithmetic.
 
@@ -47,92 +49,115 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
 
 \begin{defin}[Formulas]
   The set of Formulas $\mathcal{F}$ is defined similarly:
-  \begin{equation}
-    \begin{split}
-      \mathcal{F} := & \mathcal{L}_{Predicate}(\List[\mathcal{T}]) \\
-      \mid & \mathcal{L}_{Connector}(\List[\mathcal{F}]) \\
-      \mid & \operatorname{Binder}(\textnormal{Id})(\Var(\textnormal{Id}), \mathcal{F})
-    \end{split}
-  \end{equation}
-  Where $\mathcal{L}_{Predicate}$ is the set of \textit{predicate labels}:
-  \begin{equation}
-    \begin{split}
-      \mathcal{L}_{Predicate} := & \operatorname{ConstantPredicateLabel}(\textnormal{Id}, \textnormal{Arity})\\
-      \mid & \operatorname{SchematicPredicateLabel}(\textnormal{Id}, \textnormal{Arity})
-    \end{split}
-  \end{equation}
-
+  %
+  \begin{align}
+      \mathcal{F} := & ~\mathcal{L}_{Predicate}(\List[\mathcal{T}]) \\
+      \mid & ~\mathcal{L}_{Connector}(\List[\mathcal{F}]) \\
+      \mid & ~\operatorname{Binder}(\textnormal{Id})(\Var(\textnormal{Id}), \mathcal{F})~,
+  \end{align}
+  %
+  where $\mathcal{L}_{Predicate}$ is the set of \textit{predicate labels}:
+  %
+  \begin{align}
+      \mathcal{L}_{Predicate} := & ~\operatorname{ConstantPredicateLabel}(\textnormal{Id}, \textnormal{Arity})\\
+      \mid & ~\operatorname{SchematicPredicateLabel}(\textnormal{Id}, \textnormal{Arity})~,
+  \end{align}
+  %
   and $\mathcal{L}_{Connector}$ is the set of \textit{connector labels}:
-  \begin{equation}
-    \begin{split}
-      \mathcal{L}_{Connector} := & \operatorname{ConstantConnectorLabel}(\textnormal{Id}, \textnormal{Arity})\\
-      \mid & \operatorname{SchematicConnectorLabel}(\textnormal{Id}, \textnormal{Arity})
-    \end{split}
-  \end{equation}
+  %
+  \begin{align}
+      \mathcal{L}_{Connector} := & ~\operatorname{ConstantConnectorLabel}(\textnormal{Id}, \textnormal{Arity})\\
+      \mid & ~\operatorname{SchematicConnectorLabel}(\textnormal{Id}, \textnormal{Arity})~.
+  \end{align}
 
   A formula can be constructed from a list of terms using a predicate label
-  $${\leq}(x, 7)$$
+  %
+  $$
+    {\leq}(x, 7)~,
+  $$
+  %
   or from a list of smaller formulas using a connector label
-  $${\leq}(x, 7) \land {\geq}(x, 5)$$
+  %
+  $$
+    {\leq}(x, 7) \land {\geq}(x, 5)~,
+  $$
+  %
   or finally from a variable and a smaller formula using a binder
-  $$\exists x. \left({\leq}(x, 7) \land {\geq}(x, 5)\right)$$
+  %
+  $$
+    \exists x. \left({\leq}(x, 7) \land {\geq}(x, 5)\right)~.
+  $$
 
-  Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they take and hence connectors and predicates of arity 0 are the same thing. Hence, in LISA, we don't permit connectors of arity 0 and ask to use predicates instead.
+  Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they take and hence connectors and predicates of arity 0 are essentially the same. Hence, in LISA, we don't permit connectors of arity 0 and suggest the use of predicates instead.
   A contrario to schematic terms of arity 0, schematic predicates of arity 0 can't be bound, but they still play a special role sometimes, and hence we introduce a special notation for them
+  %
   $$
-    \FormulaVar(\textnormal{Id}) = \operatorname{SchematicPredicateLabel}(\textnormal{Id}, 0)
+    \FormulaVar(\textnormal{Id}) = \operatorname{SchematicPredicateLabel}(\textnormal{Id}, 0)~.
   $$
-  Moreover in LISA, A contrario to constant predicates and term symbols, which can be freely created, there is only the following finite set of constant connector symbols in LISA:
+  %
+  Moreover, in LISA, a contrario to constant predicates and term symbols, which can be freely created, there is only the following finite set of constant connector symbols in LISA:
+  %
   $$
-    \operatorname{Neg}(\neg, 1)\mid \operatorname{Implies}(\rightarrow, 2)\mid \operatorname{Iff}(\leftrightarrow, 2)\mid \operatorname{And}(\land, -1)\mid \operatorname{Or}(\lor, -1)
+    \operatorname{Neg}(\neg, 1)\mid \operatorname{Implies}(\rightarrow, 2)\mid \operatorname{Iff}(\leftrightarrow, 2)\mid \operatorname{And}(\land, -1)\mid \operatorname{Or}(\lor, -1)~,
   $$
-  Moreover, connectors (And and Or) are allowed to have an unrestricted arity, represented by the value $-1$. This means that a conjunction or a disjunction can have any finite number of children.
+  %
+  where the connectors And and Or are allowed to have an unrestricted arity, represented by the value $-1$. This means that a conjunction or a disjunction can have any finite number of children.
   Similarly, there are only the following 3 binder labels:
+  %
   $$
-    \operatorname{Forall}(\forall)\mid \operatorname{Exists}(\exists)\mid \operatorname{ExistsOne}(\exists !)
+    \operatorname{Forall}(\forall)\mid \operatorname{Exists}(\exists)\mid \operatorname{ExistsOne}(\exists !)~.
   $$
+  %
   We also introduce a special constant predicate symbol, equality:
+  %
   $$
-    \operatorname{Equal}(=)
+    \operatorname{Equality}(=, 2)~.
   $$
 \end{defin}
 
 
-In this document, as well as in the code documentation, we often write terms and formula in a more conventional way, generally hiding the arity of labels and representing the label with its identifier only, preceded by an interrogation mark ? if the symbol is schematic. When the arity is relevant, we write it with an superscript, for example:
+In this document, as well as in the code documentation, we often write terms and formula in a more conventional way, generally hiding the arity of labels and representing the label with its identifier only, preceded by an apostrophe (\texttt{`}) if the symbol is schematic. When the arity is relevant, we write it with an superscript, for example:
 
 $$
-  f^3(x,y,z) \equiv \operatorname{Fun}(f, 3)(\List(\Var(x), \Var(y), \Var(z)))
+  f^3(x,y,z) \equiv \operatorname{Fun}(f, 3)(\List(\Var(x), \Var(y), \Var(z)))~,
 $$
 and
 $$
-  \forall x. \phi \equiv \operatorname{Binder}(\forall, \Var(x), \phi)
+  \forall x. \phi \equiv \operatorname{Binder}(\forall, \Var(x), \phi)~.
 $$
 We also use other usual representations such as symbols in infix position, omitting parenthesis according to usual precedence rules, etc.
 
 Finally, note that we use subscript to emphasize that a variable is possibly free in a term or formula:
 
 $$
-  t_{x,y,z}, \phi_{x,y,z}
+  t_{x,y,z}, ~\phi_{x,y,z}~.
 $$
 
+\paragraph{Convention} Throughout this document, and in the code base, we adopt the following conventions: We use $r$, $s$, $t$, $u$ to denote arbitrary terms, $a$, $b$, $c$ to denote constant term symbols of arity $0$ and $f$, $g$, $h$ to denote term symbols of non-0 arity. We precede those with an apostrophe, such as $`f$ to denote schematic symbols. We also use $`x$, $`y$, $`z$ to denote variables (schematic terms of order $0$).
 
-\paragraph{Convention} Throughout this document, and in the code base, we adopt the following conventions: We use $r$, $s$, $t$, $u$ to denote arbitrary terms, $a$, $b$, $c$ to denote constant term symbols of arity $0$ and $f$, $g$, $h$ to denote term symbols of arity non-$0$. We precede those with an interogation mark, such as $?f$ to denote schematic symbols. Moreover, we also use $x$, $y$, $z$ to denote variables (schematic terms of order $0$).
-
-For formulas, we use greek letters such as $\phi$, $\psi$, $\tau$ to denote arbitrary formula, $\nu$, $\mu$ to denote formula variables. We use capital letters like $P$, $Q$, $R$ to denote predicate symbols, preceding them similarly with an interrogation mark $?$ for schematic predicates. Schematic connectors are rarer, but when they appear, we precede them by 2 interrogation marks, for example $??c$. Sets or sequences of formula are denoted with capital greek letters $\Pi$, $\Sigma$, $\Gamma$, $\Delta$, etc.
+For formulas, we use greek letters such as $\phi$, $\psi$, $\tau$ to denote arbitrary formulas, $\nu$, $\mu$ to denote formula variables. We use capital letters like $P$, $Q$, $R$ to denote predicate symbols, preceding them similarly with an apostrophe for schematic predicates. Schematic connectors are rarer, but when they appear, we precede them by 2 apostrophes, for example $``c$. Sets or sequences of formulas are denoted with capital greek letters $\Pi$, $\Sigma$, $\Gamma$, $\Delta$, etc.
 
 \subsection{Substitution}
-\label{subs:substitution}
+\label{subsec:substitution}
 On top of basic building blocks of terms and formulas, there is one important type of operations: substitution of schematic symbols, which has to be implemented in a capture-avoiding way. We start with the subcase of variable substitution:
 \begin{defin}[Capture-avoiding Substitution of variables]
-  Given a base term $t$, a variable $x$ and another term $r$, the substitution of $x$ by $r$ inside $t$ is denoted $ t[r/x] $ and simply consists of replacing all occurences of $x$ by $r$.
+  Given a base term $t$, a variable $x$ and another term $r$, the substitution of $x$ by $r$ inside $t$ is denoted by $ t[r/x] $ and is computed by replacing all occurences of $x$ by $r$.
 
-  Given a formula $\phi$, the substitution of $x$ by $r$ inside $\phi$ is defined recursively in the obvious way for connectors and predicates, and for binders as
+  Given a formula $\phi$, the substitution of $x$ by $r$ inside $\phi$ is defined recursively in the standard way for connectors and predicates
+  %
+  \begin{gather*}
+    (\phi \land \psi)[r/x] \equiv \phi[r/x] \land \psi[r/x]~,\\
+    `P(x_1, x_2, \ldots, x_n)[r/x] \equiv `P(x_1[r/x], x_2[r/x], \ldots, x_n[r/x])~,
+  \end{gather*}
+  %
+  and for binders as
+  %
   $$
     (\forall y. \psi)[r/x] \equiv \forall y. (\psi[r/x])
   $$
-  if $y$ does not appear in $r$ and
+  if $y$ does not appear in $r$, and
   $$
-    (\forall y. \psi)[r/x] \equiv \forall z. (\psi[z/y][r/x])
+    (\forall y. \psi)[r/x] \equiv \forall z. (\psi[z/y][r/x])~,
   $$
   with any fresh variable $z$ (which is not free in $r$ and $\phi$) otherwise.
 \end{defin}
@@ -155,20 +180,29 @@ $$
   \lambda x.y. ~t
 $$
 
-They are useful because as variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such functional terms. As the definition of such substitution is rather convoluted to describe, we prefer to show examples and redirect the reader to the source code of LISA for a technical definition. \footnote{Note that in lambda calculus, this would simply be iterated beta-reduction.}
+They are useful as while variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such functional terms. 
+% As the definition of such substitution is rather convoluted to describe, we prefer to show examples and redirect the reader to the source code of LISA for a technical definition. \footnote{Note that in lambda calculus, this would simply be iterated beta-reduction.}
+The substitution is defined in a manner similar to that of variable substitution with the base case
+%
+\begin{equation*}
+  `f(s_1, s_2, \ldots, s_n)[\lambda y_1.y_2.\ldots.y_n. t/`f] \equiv t[s_1/y_1][s_2/y_2][\ldots][s_n/y_n]~,
+\end{equation*}
+%
+where no $y_i$ is free in any $s_j$. Otherwise, the lambda term is renamed to an alpha-equivalent term with fresh variable names.
 
 \begin{ex}[Functional terms substitution in terms]
   \begin{center}
     \begin{tabular}{|c|r c l|c|}
+      \noalign{\vspace{0.5em}}
       \hline
       Base term            & \multicolumn{3}{c|}{Substitution} & Result                                                                 \\
       \hline
-      $?f(0, 3)$           & $?f$                              & $\rightarrow$ & $\lambda x.y. x+y$         & $0+3$                     \\
-      $?f(0, 3)$           & $?f$                              & $\rightarrow$ & $\lambda y.x. x-y$         & $3-0$                     \\
-      $?f(0, 3)$           & $?f$                              & $\rightarrow$ & $\lambda x.y. y+y-10$      & $3+3-10$                  \\
-      $10 \times {?g(x)}$  & $?g$                              & $\rightarrow$ & $\lambda x. x^2$           & $10 \times x^2$           \\
-      $10 \times {?g(50)}$ & $?g$                              & $\rightarrow$ & $\lambda x. ?f(x+2, z)$    & $10 \times {?f(50+2, z)}$ \\
-      $?f(x, x+y)$         & $?f$                              & $\rightarrow$ & $\lambda x.y. \cos(x-y)*y$ & $\cos(x-(x+y))*(x+y)$     \\
+      $`f(0, 3)$           & $`f$                              & $\rightarrow$ & $\lambda x.y. x+y$         & $0+3$                     \\
+      $`f(0, 3)$           & $`f$                              & $\rightarrow$ & $\lambda y.x. x-y$         & $3-0$                     \\
+      $`f(0, 3)$           & $`f$                              & $\rightarrow$ & $\lambda x.y. y+y-10$      & $3+3-10$                  \\
+      $10 \times {`g(x)}$  & $`g$                              & $\rightarrow$ & $\lambda x. x^2$           & $10 \times x^2$           \\
+      $10 \times {`g(50)}$ & $`g$                              & $\rightarrow$ & $\lambda x. `f(x+2, z)$    & $10 \times {`f(50+2, z)}$ \\
+      $`f(x, x+y)$         & $`f$                              & $\rightarrow$ & $\lambda x.y. \cos(x-y)*y$ & $\cos(x-(x+y))*(x+y)$     \\
       \hline
     \end{tabular}
   \end{center}
@@ -180,30 +214,34 @@ The definition extends to substitution of schematic terms inside formulas, with 
 \begin{ex}[Functional terms substitution in formulas]
   \begin{center}
     \begin{tabular}{|c|r c l|c|}
+      \noalign{\vspace{0.5em}}
       \hline
       Base formula                     & \multicolumn{3}{c|}{Substitution} & Result                                                             \\
       \hline
-      $?f(0, 3) = ?f(x, x)$            & $?f$                              & $\rightarrow$ & $\lambda x.y. x+y$ & $0+3 = x+x$                   \\
-      $\forall x. ?f(0, 3) = ?f(x, x)$ & $?f$                              & $\rightarrow$ & $\lambda x.y. x+y$ & $\forall x. 0+3 = x+x$        \\
+      $`f(0, 3) = `f(x, x)$            & $`f$                              & $\rightarrow$ & $\lambda x.y. x+y$ & $0+3 = x+x$                   \\
+      $\forall x. `f(0, 3) = `f(x, x)$ & $`f$                              & $\rightarrow$ & $\lambda x.y. x+y$ & $\forall x. 0+3 = x+x$        \\
 
-      $\exists y. ?f(y) \leq ?f(5)$    & $?f$                              & $\rightarrow$ & $\lambda x. x+y$   & $\exists y_1. y_1+y \leq 5+y$ \\
+      $\exists y. `f(y) \leq `f(5)$    & $`f$                              & $\rightarrow$ & $\lambda x. x+y$   & $\exists y_1. y_1+y \leq 5+y$ \\
 
       \hline
     \end{tabular}
   \end{center}
 \end{ex}
-Note that if the lambda expression contains free variables (such as $y$ in the last example), then appropriate alpha-renaming of variables may be needed.
 
+Note that if the lambda expression contains free variables (such as $y$ in the last example), then appropriate alpha-renaming of bound variables may be needed.
 
 We similarly define functional formulas, except that these can take either term arguments of formulas arguments. Specifically, we use $\LambdaTT$, $\LambdaTF$, $\LambdaFF$ to indicate functional expressions that take terms or formulas as arguments and return a term or formula.
 
+% TODO: Fix this table's hbox
 \begin{ex}[Typical functional expressions]
   \begin{center}
-    \begin{tabular}{|r c l|}
+    \begin{tabular}{|r l|}
       \hline
-      $\LambdaTT(Var(x), Var(y))(x+y)$                & $=$ & $\lambda x.y. x+y$               \\
-      $\LambdaTF(Var(x), Var(y))(x=y)$                & $=$ & $\lambda x.y. x=y$               \\
-      $\LambdaFF(\FormulaVar(\nu), \FormulaVar(\mu))$ & $=$ & $\lambda \nu.\mu. \nu \land \mu$ \\
+      \rule{0em}{1.3em}
+      $\LambdaTT(Var(x), Var(y))(x+y)$                & $=$ $\lambda x.y. x+y$               \\
+      $\LambdaTF(Var(x), Var(y))(x=y)$                & $=$ $\lambda x.y. x=y$               \\
+      $\LambdaFF(\FormulaVar(\nu), \FormulaVar(\mu))(\nu \land \mu)$ & $=$ $\lambda \nu.\mu. \nu \land \mu$
+      \rule[-1em]{0em}{0em} \\
       \hline
     \end{tabular}
   \end{center}
@@ -212,46 +250,41 @@ We similarly define functional formulas, except that these can take either term 
 
 Note that in the last case, we use $\FormulaVar$ to represent the arguments of the lambda formula. Substitution of functional formulas is completely analogous to (capture free!) substitution of functional terms.
 
-
-
-
 \subsection{The Equivalence Checker}
-\label{subs:equivalencechecker}
+\label{subsec:equivalencechecker}
 
-While proving theorems, trivial syntactical transformations such as $p\land q \equiv q\land p$ significantly increase the length of proofs, which is desirable neither for the user nor the machine. Moreover, the proof checker will very often have to check whether two formulas that appear in different sequents are the same. Hence, instead of using pure syntactical equality, LISA implements a powerful equivalence checker able to detect a class of equivalence-preserving logical transformations. As an example, two formulas $p\land q$ and $q\land p$ would be naturally treated as equivalent.
+While proving theorems, trivial syntactical transformations such as $p\land q \equiv q\land p$ significantly increase the length of proofs, which is desirable neither to the user nor the machine. Moreover, the proof checker will very often have to check whether two formulas that appear in different sequents are the same. Hence, instead of using pure syntactical equality, LISA implements a powerful equivalence checker able to detect a class of equivalence-preserving logical transformations. As an example, two formulas $p\land q$ and $q\land p$ would be naturally treated as equivalent.
 
 For soundness, the relation decided by the algorithm should be contained in the $\Longleftrightarrow$ ``if and only if'' relation of first order logic. It is well known that this relationship is in general undecidable however, and even the $\Longleftrightarrow$ relation for propositional logic is coNP-complete. So, for practicality, we need a relation that is efficiently computable.
 
-The decision procedure implemented in LISA takes time log-linear in the size of the formula, which means that it is only marginally slower than syntactic equality checking. It is based on an algorithm  that decides the word problem for Orthocomplemented Bisemilattices \cite{DBLP:conf/tacas/GuilloudK22}. Informally, the theory of Orthocomplemented Bisemilattices is the same as that of Propositional Logic, but without the distributivity law. Figure~\ref{tab:OCBSL} shows the axioms of this theory and the logical transformations LISA is able to automatically figure out.
-Moreover, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables.
+The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality checking. 
+It is based on an algorithm that decides the word problem for Ortholattices \cite{Guilloud:297701}. 
+Informally, the theory of Ortholattices is the same as that of Propositional Logic, but with a weaker absoprtion law instead of the distributivity law. \autoref{tab:ortholatticeLaws} shows the axioms of this theory and the logical transformations LISA is able to automatically compute.
+Moreover, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. A more detailed discussion of this extension to first-order logic can be found in the technical report \cite{Guilloud:300562}.
 
 \begin{table}[bth]
   \centering
-  \begin{tabular}{r c | r c}
-    L1:  & $x \lor y = y \lor x$                                            & L1': & $x \land y = y \land x$                      \\
-    L2:  & $x \lor ( y \lor z) = (x \lor y) \lor z$                         & L2': & $x \land ( y \land z) = (x \land y) \land z$ \\
-    L3:  & $x \lor x = x$                                                   & L3': & $x \land x = x$                              \\
-    L4:  & $x \lor 1 = 1$                                                   & L4': & $x \land 0 = 0$                              \\
-    L5:  & $x \lor 0 = x$                                                   & L5': & $x \land 1 = x$                              \\
-    L6:  & $\neg \neg x = x$                                                & L6': & same as L6                                   \\
-    L7:  & $x \lor \neg x = 1$                                              & L7': & $x \land \neg x = 0$                         \\
-    L8:  & $\neg (x \lor y) = \neg x \land \neg y$                          & L8': & $\neg (x \land y) = \neg x \lor \neg y$      \\
-    L9:  & $x \implies y = \neg x \lor y$                                   &                                                     \\
-    L10: & $x \leftrightarrow y = (\neg x \lor y) \land (\neg y \lor x)  $  &                                                     \\
-    L11: & $\exists ! x. P = \exists y. \forall x. (x=y) \leftrightarrow P$ &                                                     \\
+  \begin{tabular}{r c @{\hskip 2em} | @{\hskip 2em} r c}
+       L1: & $x \lor y = y \lor x$  & L1': & $x \land y = y \land x$ \\
+       L2: & $x \lor ( y \lor z) = (x \lor y) \lor z$  & L2': & $x \land ( y \land z) = (x \land y) \land z$ \\
+       L3: & $x \lor x = x$  & L3': & $x \land x = x$ \\
+       L4: & $x \lor 1 = 1$  & L4': & $x \land 0 = 0$ \\
+       L5: & $x \lor 0 = x$  & L5': & $x \land 1 = x$ \\
+       L6: & $\neg \neg x = x$  & L6': & same as L6  \\
+       L7: & $x \lor \neg x = 1$  & L7': & $x \land \neg x = 0$ \\
+       L8: & $\neg (x \lor y) = \neg x \land \neg y$  & L8': &  $\neg (x \land y) = \neg x \lor \neg y$ \\
+       L9: & $x \lor (x \land y) = x$ & L9': & $x \land (x \lor y) = x$   \\
   \end{tabular}
-  \
-
-  \caption{Laws LISA's equivalence checker automatically accounts for.
-    LISA's equivalence-checking algorithm is complete (and log-linear time) with respect to laws L1-L11 and L1'-L8'.}
-  \label{tab:OCBSL}
+  %
+  \caption{Laws of ortholattices, an algebraic theory with signature $(S, \land, \lor, 0, 1, \neg)$. \cite{Guilloud:297701}}
+  \label{tab:ortholatticeLaws}
 \end{table}
 
 
 \section{Proofs in Sequent Calculus}
 \label{sect:proofs_lk}
 \subsection{Sequent Calculus}
-\label{subs:lk}
+\label{subsec:lk}
 The deductive system used by LISA is an extended version of Gentzen's Sequent Calculus.
 \begin{defin}
   A \textbf{sequent} is a pair of (possibly empty) sets of formula, noted:
@@ -510,7 +543,7 @@ For the proof to be the linearization of a rooted directed acyclic graph, we req
 \end{figure}
 
 \subsection{Proof Checker}
-\label{subs:proofchecker}
+\label{subsec:proofchecker}
 
 In LISA, a proof object has no guarantee to be correct. It is perfectly possible to write a wrong proof. LISA contains a \textit{proof checking} function, which, given a proof, will verify if it is correct. To be correct, a proof must satisfy the following conditions:
 \begin{enumerate}
@@ -546,7 +579,7 @@ To conduct a proof inside a \lstinline{Theory}{}, using its axioms, the proof sh
 
 
 \subsection{Definitions}
-\label{subs:definitions}
+\label{subsec:definitions}
 The user can also introduce definitions in the \lstinline{Theory}{}.
 LISA's kernel allows to define two kinds of objects: Function (or Term) symbols and Predicate symbols. It is important to remember that in the context of Set Theory, function symbols are not the usual mathematical functions and predicate symbols are not the usual mathematical relations. Indeed, on one hand a function symbol defines an operation on all possible sets, but on the other hand it is impossible to use the symbol alone, without applying it to arguments, or to quantify over function symbol.
 
@@ -578,19 +611,19 @@ FunctionDefinition(
   \label{fig:definitions}
 \end{figure}
 
-Figure~\ref{fig:definitions} shows how to define and use new function and predicate symbols. To define a predicate on $n$ variables, we must provide a formula along with $n$ distinguished free variables. Then, this predicate can be freely used and at any time substituted by its definition. Functions are slightly more complicated: to define a function $f$, one must first prove a statement of the form
+\autoref{fig:definitions} shows how to define and use new function and predicate symbols. To define a predicate on $n$ variables, we must provide a formula along with $n$ distinguished free variables. Then, this predicate can be freely used and at any time substituted by its definition. Functions are slightly more complicated: to define a function $f$, one must first prove a statement of the form
 $$\exists ! y. \phi_{y, x_1,...,x_k}$$
 Then we obtain for free the property
 $$\forall y. (f(x_1,...,x_k)=y) \leftrightarrow \phi_{y, x_1,...,x_k}$$
 from which we can deduce in particular $\phi[f(x_1,...,x_k)/y]$.
 The special case where $n=0$ defines constant symbols. The special case where $\phi$ is of the form $y=t$, with possibly the $x$'s free in $t$ lets us recover a more simple definition \textit{by alias}, i.e. where  $f$ is simply a shortcut for a more complex term $t$.
-This mechanism is typically called \textit{extension by definition}, and allows us to extend the theory without changing what is or isn't provable. For detailed explanation, see part \ref{part:theory} chapter \ref{chapt:definitions}.
+This mechanism is typically called \textit{extension by definition}, and allows us to extend the theory without changing what is or isn't provable. For detailed explanation, see part \autoref{sec:definitions}.
 
 The \lstinline{Theory}{} object is responsible of keeping track of all symbols which have been defined so that it can detect and refuse conflicting definitions. As a general rule, definitions should have a unique identifier and can't contain free schematic symbols.
 
 Once a definition has been introduced, future theorems can refer to those definitional axioms by importing the corresponding sequents in their proof and providing justification for those imports when the proof is verified, just like with axioms.
 
-Figure \ref{fig:justifications} shows the types of justification in a theory (Theorem, Axiom, Definition). Figure \ref{fig:theorysetters} shows how to introduce new justifications as well as symbols in the theory. Figure \ref{fig:theorygetters} shows how to obtain various types of information from the theory.
+\autoref{fig:justifications} shows the types of justification in a theory (Theorem, Axiom, Definition). \autoref{fig:theorysetters} shows how to introduce new justifications as well as symbols in the theory. \autoref{fig:theorygetters} shows how to obtain various types of information from the theory.
 
 
 
@@ -897,11 +930,8 @@ object MyTheoryName extends lisa.Main {
   \label{fig:kernellibrary}
 \end{figure}
 
+\part{Theory}
 
-
-
-
-%Probably comes after discussing the front
 \chapter{Set Theory}
 \label{chapt:settheory}
 LISA is based on set theory. More specifically, it is based on ZF with (still not decided) an axiom of choice, of global choice, or Tarski's universes.
