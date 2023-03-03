@@ -22,20 +22,20 @@ Interestingly, while LISA is built with the goal of using Set Theory, the kernel
 \begin{defin}[Terms]
   In LISA, the set of terms $\mathcal{T}$ is defined by the following grammar:
   \begin{align}
-      \mathcal{T} := & \mathcal{L}_{Term}(\List[\mathcal{T}])~,
+    \mathcal{T} := & \mathcal{L}_{Term}(\List[\mathcal{T}])~,
   \end{align}
   %
   where $\mathcal{L}_{Term}$ is the set of \textit{term labels}:
   %
   \begin{align}
-      \mathcal{L}_{Term} := & ~\operatorname{ConstantTermLabel}(\textnormal{Id}, \textnormal{Arity})\\
-      \mid & ~\operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity})
+    \mathcal{L}_{Term} := & ~\operatorname{ConstantTermLabel}(\textnormal{Id}, \textnormal{Arity})  \\
+    \mid                  & ~\operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity})
   \end{align}
 
   A label can be either \textit{constant} or \textit{schematic}, and is made of an identifier (a string) and the arity of the label (an integer).
   A term is made of a term label and a list of children, whose length must be equal to the arity of the label.
-  A constant label of arity $0$ is called a \emph{constant}, and a schematic label of arity $0$ a \emph{variable}. 
-  We define the abbreviation 
+  A constant label of arity $0$ is called a \emph{constant}, and a schematic label of arity $0$ a \emph{variable}.
+  We define the abbreviation
   %
   $$
     \Var(x) \equiv \operatorname{SchematicTermLabel}(x, 0)~.
@@ -51,23 +51,23 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
   The set of Formulas $\mathcal{F}$ is defined similarly:
   %
   \begin{align}
-      \mathcal{F} := & ~\mathcal{L}_{Predicate}(\List[\mathcal{T}]) \\
-      \mid & ~\mathcal{L}_{Connector}(\List[\mathcal{F}]) \\
-      \mid & ~\operatorname{Binder}(\textnormal{Id})(\Var(\textnormal{Id}), \mathcal{F})~,
+    \mathcal{F} := & ~\mathcal{L}_{Predicate}(\List[\mathcal{T}])                                  \\
+    \mid           & ~\mathcal{L}_{Connector}(\List[\mathcal{F}])                                  \\
+    \mid           & ~\operatorname{Binder}(\textnormal{Id})(\Var(\textnormal{Id}), \mathcal{F})~,
   \end{align}
   %
   where $\mathcal{L}_{Predicate}$ is the set of \textit{predicate labels}:
   %
   \begin{align}
-      \mathcal{L}_{Predicate} := & ~\operatorname{ConstantPredicateLabel}(\textnormal{Id}, \textnormal{Arity})\\
-      \mid & ~\operatorname{SchematicPredicateLabel}(\textnormal{Id}, \textnormal{Arity})~,
+    \mathcal{L}_{Predicate} := & ~\operatorname{ConstantPredicateLabel}(\textnormal{Id}, \textnormal{Arity})    \\
+    \mid                       & ~\operatorname{SchematicPredicateLabel}(\textnormal{Id}, \textnormal{Arity})~,
   \end{align}
   %
   and $\mathcal{L}_{Connector}$ is the set of \textit{connector labels}:
   %
   \begin{align}
-      \mathcal{L}_{Connector} := & ~\operatorname{ConstantConnectorLabel}(\textnormal{Id}, \textnormal{Arity})\\
-      \mid & ~\operatorname{SchematicConnectorLabel}(\textnormal{Id}, \textnormal{Arity})~.
+    \mathcal{L}_{Connector} := & ~\operatorname{ConstantConnectorLabel}(\textnormal{Id}, \textnormal{Arity})    \\
+    \mid                       & ~\operatorname{SchematicConnectorLabel}(\textnormal{Id}, \textnormal{Arity})~.
   \end{align}
 
   A formula can be constructed from a list of terms using a predicate label
@@ -180,7 +180,7 @@ $$
   \lambda x.y. ~t
 $$
 
-They are useful as while variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such functional terms. 
+They are useful as while variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such functional terms.
 % As the definition of such substitution is rather convoluted to describe, we prefer to show examples and redirect the reader to the source code of LISA for a technical definition. \footnote{Note that in lambda calculus, this would simply be iterated beta-reduction.}
 The substitution is defined in a manner similar to that of variable substitution with the base case
 %
@@ -238,10 +238,10 @@ We similarly define functional formulas, except that these can take either term 
     \begin{tabular}{|r l|}
       \hline
       \rule{0em}{1.3em}
-      $\LambdaTT(Var(x), Var(y))(x+y)$                & $=$ $\lambda x.y. x+y$               \\
-      $\LambdaTF(Var(x), Var(y))(x=y)$                & $=$ $\lambda x.y. x=y$               \\
+      $\LambdaTT(Var(x), Var(y))(x+y)$                               & $=$ $\lambda x.y. x+y$               \\
+      $\LambdaTF(Var(x), Var(y))(x=y)$                               & $=$ $\lambda x.y. x=y$               \\
       $\LambdaFF(\FormulaVar(\nu), \FormulaVar(\mu))(\nu \land \mu)$ & $=$ $\lambda \nu.\mu. \nu \land \mu$
-      \rule[-1em]{0em}{0em} \\
+      \rule[-1em]{0em}{0em}                                                                                 \\
       \hline
     \end{tabular}
   \end{center}
@@ -257,10 +257,10 @@ While proving theorems, trivial syntactical transformations such as $p\land q \e
 
 For soundness, the relation decided by the algorithm should be contained in the $\Longleftrightarrow$ ``if and only if'' relation of first order logic. It is well known that this relationship is in general undecidable however, and even the $\Longleftrightarrow$ relation for propositional logic is coNP-complete. So, for practicality, we need a relation that is efficiently computable.
 
-The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality checking, while simultaneously generating a normal form that can be returned. 
-It is based on an algorithm that decides the word problem for Ortholattices \cite{Guilloud:297701}. 
+The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality checking, while simultaneously generating a normal form that can be returned.
+It is based on an algorithm that decides the word problem for Ortholattices \cite{Guilloud:297701}.
 Informally, the theory of Ortholattices is the same as that of Propositional Logic, but with a weaker absoprtion law instead of the distributivity law. \autoref{tab:ortholatticeLaws} shows the axioms of this theory and the logical transformations LISA is able to automatically compute.
-Moreover, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. 
+Moreover, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables.
 The Ortholattice algorithm, as mentioned before, also generates a normal form for formulas, and further induces a partial order $\leq_{OL}$ on formulas, which in this context is interpreted as logical implication ($\implies$). These properties are utilised to introduce OL-weakened proof steps and tactics, subsuming most propositional manipulation, see \autoref{subsec:tactics} for details.
 %
 A more detailed discussion of extension of ortholattices to first-order logic can be found in the technical report \cite{Guilloud:300562}.
@@ -268,15 +268,15 @@ A more detailed discussion of extension of ortholattices to first-order logic ca
 \begin{table}[bth]
   \centering
   \begin{tabular}{r c @{\hskip 2em} | @{\hskip 2em} r c}
-       L1: & $x \lor y = y \lor x$  & L1': & $x \land y = y \land x$ \\
-       L2: & $x \lor ( y \lor z) = (x \lor y) \lor z$  & L2': & $x \land ( y \land z) = (x \land y) \land z$ \\
-       L3: & $x \lor x = x$  & L3': & $x \land x = x$ \\
-       L4: & $x \lor 1 = 1$  & L4': & $x \land 0 = 0$ \\
-       L5: & $x \lor 0 = x$  & L5': & $x \land 1 = x$ \\
-       L6: & $\neg \neg x = x$  & L6': & same as L6  \\
-       L7: & $x \lor \neg x = 1$  & L7': & $x \land \neg x = 0$ \\
-       L8: & $\neg (x \lor y) = \neg x \land \neg y$  & L8': &  $\neg (x \land y) = \neg x \lor \neg y$ \\
-       L9: & $x \lor (x \land y) = x$ & L9': & $x \land (x \lor y) = x$   \\
+    L1: & $x \lor y = y \lor x$                    & L1': & $x \land y = y \land x$                      \\
+    L2: & $x \lor ( y \lor z) = (x \lor y) \lor z$ & L2': & $x \land ( y \land z) = (x \land y) \land z$ \\
+    L3: & $x \lor x = x$                           & L3': & $x \land x = x$                              \\
+    L4: & $x \lor 1 = 1$                           & L4': & $x \land 0 = 0$                              \\
+    L5: & $x \lor 0 = x$                           & L5': & $x \land 1 = x$                              \\
+    L6: & $\neg \neg x = x$                        & L6': & same as L6                                   \\
+    L7: & $x \lor \neg x = 1$                      & L7': & $x \land \neg x = 0$                         \\
+    L8: & $\neg (x \lor y) = \neg x \land \neg y$  & L8': & $\neg (x \land y) = \neg x \lor \neg y$      \\
+    L9: & $x \lor (x \land y) = x$                 & L9': & $x \land (x \lor y) = x$                     \\
   \end{tabular}
   %
   \caption{Laws of ortholattices, an algebraic theory with signature $(S, \land, \lor, 0, 1, \neg)$. \cite{Guilloud:297701}}
@@ -298,8 +298,8 @@ The deductive system used by LISA is an extended version of Gentzen's Sequent Ca
     \label{eq:SequentSemantic}
     \bigwedge \Gamma \implies \bigvee \Sigma~.
   \end{equation*}
-  
-  The sequent may also be written with the elements of the sets enumerated explicitly as 
+
+  The sequent may also be written with the elements of the sets enumerated explicitly as
   %
   \begin{equation*}
     \gamma_1, \gamma_2, \ldots, \gamma_n \vdash \sigma_1, \sigma_2, \ldots, \sigma_m~.
@@ -321,22 +321,22 @@ For proof checking, the kernel implementation of these proof steps explicitly ta
   \centering
   \begin{subfigure}{\linewidth}
     \begin{align*}
-        0 &\texttt { Hypothesis} &\quad \phi &\vdash \phi\\
-        1 &\texttt { Weakening}(0) &\quad  \phi &\vdash \phi, \psi\\
-        2 &\texttt { RightImplies}(1) &\quad  &\vdash \phi, (\phi \to \psi)\\
-        3 &\texttt { LeftImplies}(2,0) &\quad (\phi \to \psi) \to \phi &\vdash \phi\\
-        4 &\texttt { RightImplies}(3) &\quad &\vdash ((\phi \to \psi) \to \phi) \to \phi
+      0 & \texttt { Hypothesis}       & \quad \phi                     & \vdash \phi                                \\
+      1 & \texttt { Weakening}(0)     & \quad  \phi                    & \vdash \phi, \psi                          \\
+      2 & \texttt { RightImplies}(1)  & \quad                          & \vdash \phi, (\phi \to \psi)               \\
+      3 & \texttt { LeftImplies}(2,0) & \quad (\phi \to \psi) \to \phi & \vdash \phi                                \\
+      4 & \texttt { RightImplies}(3)  & \quad                          & \vdash ((\phi \to \psi) \to \phi) \to \phi
     \end{align*}
-    
+
     \caption{The proof of Pierce's Law as a sequence of steps using classical Sequent Calculus rules.}
     \label{fig:exampleProofLinear}
-    
-    \end{subfigure}
-    
-    
-    \begin{subfigure}{\linewidth}
-      % TODO: I'm unsure about how to present this nicely
-      \begin{lstlisting}[language=scala, showspaces=true]
+
+  \end{subfigure}
+
+
+  \begin{subfigure}{\linewidth}
+    % TODO: I'm unsure about how to present this nicely
+    \begin{lstlisting}[language=scala, showspaces=true]
 val PierceLawProof = SCProof(IndexedSeq(
   Hypothesis($\phi$ |- $\phi$, $\phi$),
   Weakening($\phi$ |- ($\phi$, $\phi$), 0),
@@ -345,7 +345,7 @@ val PierceLawProof = SCProof(IndexedSeq(
   RightImplies(() |- (($\phi$ ==> $\phi$) ==> $\phi$) ==> $\phi$, 3, ($\phi$ ==> $\phi$) ==> $\phi$, $\phi$)
 ), Seq.empty /* no imports */ )
   \end{lstlisting}
-        \begin{lstlisting}[language=scala, showspaces=true]
+    \begin{lstlisting}[language=scala, showspaces=true]
 val PierceLawProof = SCProof(IndexedSeq(
     Hypothesis( 
                 φ |- φ
@@ -364,9 +364,9 @@ val PierceLawProof = SCProof(IndexedSeq(
       , 3, ( φ ==> ψ ) ==> φ, φ)
 ), Seq.empty /* no imports */ )
     \end{lstlisting}
-        \caption{The proof from~\autoref{fig:exampleProofLinear} written for LISA's kernel. $\vdash$ and $\implies$ are alternative, nicer constructors for sequents and formulas and are not part of the kernel. The second argument (empty here) is the sequence of proof imports.}
-        \label{fig:ExampleProofLinearScala}
-    \end{subfigure}
+    \caption{The proof from~\autoref{fig:exampleProofLinear} written for LISA's kernel. $\vdash$ and $\implies$ are alternative, nicer constructors for sequents and formulas and are not part of the kernel. The second argument (empty here) is the sequence of proof imports.}
+    \label{fig:ExampleProofLinearScala}
+  \end{subfigure}
 \end{figure}
 
 %Start of first set of deduction rules
