@@ -257,10 +257,13 @@ While proving theorems, trivial syntactical transformations such as $p\land q \e
 
 For soundness, the relation decided by the algorithm should be contained in the $\Longleftrightarrow$ ``if and only if'' relation of first order logic. It is well known that this relationship is in general undecidable however, and even the $\Longleftrightarrow$ relation for propositional logic is coNP-complete. So, for practicality, we need a relation that is efficiently computable.
 
-The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality checking. 
+The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality checking, while simultaneously generating a normal form that can be returned. 
 It is based on an algorithm that decides the word problem for Ortholattices \cite{Guilloud:297701}. 
 Informally, the theory of Ortholattices is the same as that of Propositional Logic, but with a weaker absoprtion law instead of the distributivity law. \autoref{tab:ortholatticeLaws} shows the axioms of this theory and the logical transformations LISA is able to automatically compute.
-Moreover, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. A more detailed discussion of this extension to first-order logic can be found in the technical report \cite{Guilloud:300562}.
+Moreover, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. 
+The Ortholattice algorithm, as mentioned before, also generates a normal form for formulas, and further induces a partial order $\leq_{OL}$ on formulas, which in this context is interpreted as logical implication ($\implies$). These properties are utilised to introduce OL-weakened proof steps and tactics, subsuming most propositional manipulation, see \autoref{subsec:tactics} for details.
+%
+A more detailed discussion of extension of ortholattices to first-order logic can be found in the technical report \cite{Guilloud:300562}.
 
 \begin{table}[bth]
   \centering
@@ -287,23 +290,84 @@ Moreover, the implementation in LISA also takes into account symmetry and reflex
 \label{subsec:lk}
 The deductive system used by LISA is an extended version of Gentzen's Sequent Calculus.
 \begin{defin}
-  A \textbf{sequent} is a pair of (possibly empty) sets of formula, noted:
-  $$\phi_1, \phi_2, ..., \phi_m \vdash \psi_1, \psi_2, ..., \psi_n$$
+  A \textbf{sequent} is a pair $(\Gamma, \Sigma)$ of (possibly empty) sets of formulas, noted:
+  $$\Gamma \vdash \Sigma$$
   The intended semantic of such a sequent is:
-  \begin{equation}
+  %
+  \begin{equation*}
     \label{eq:SequentSemantic}
-    (\phi_1 \land \phi_2 \land ... \land \phi_m ) \implies (\psi_1 \lor \psi_2 \lor ... \lor \psi_n )
-  \end{equation}
-
+    \bigwedge \Gamma \implies \bigvee \Sigma~.
+  \end{equation*}
+  
+  The sequent may also be written with the elements of the sets enumerated explicitly as 
+  %
+  \begin{equation*}
+    \gamma_1, \gamma_2, \ldots, \gamma_n \vdash \sigma_1, \sigma_2, \ldots, \sigma_m~.
+  \end{equation*}
 \end{defin}
-A sequent $\phi \vdash \psi$ is logically but not conceptually equivalent to a sequent $\vdash \phi \rightarrow \psi$. The distinction is similar to the distinction between meta-implication and inner implication in Isabelle, for example. Typically, a theorem or a lemma should have its various assumptions on the left handside of the sequent and its single conclusion on the right. During proofs however, there may be multiple elements on the right side. \footnote{In a strict description of Sequent Calculus, this is in particular needed to make double negation elimination.}
+A sequent $\phi \vdash \psi$ is logically (but not conceptually) equivalent to a sequent $\vdash \phi \rightarrow \psi$. The distinction is similar to the distinction between meta-implication and inner implication in Isabelle \cite{paulson1993isabelle}, for example. Typically, a theorem or a lemma should have its various assumptions on the left-hand side of the sequent and a single conclusion on the right. During proofs however, there may be multiple elements on the right side. \footnote{In a strict description of Sequent Calculus, this is in particular needed to have double negation elimination.}
 
-A deduction rule, also called a proof step, has  (in general) between zero and two prerequisite sequents (which we call \textit{premises} of the rule) and one conclusion sequent, and possibly take some arguments that describe how the deduction rule is applied. The basic deduction rules used in LISA are shown in Figure~\ref{fig:deduct_rules_1}.
+Sequents are manipulated in a proof using \emph{deduction rules}. A deduction rule, also called a proof step, has zero or more prerequisite sequents (which we call \emph{premises} of the rule) and one conclusion sequent. The basic deduction rules used in LISA are shown in \autoref{fig:deduct_rules_1}.
+
+Since we work on first order logic with equality and accept axioms, there are also rules for equality reasoning, which include reflexivity of equality. Moreover, we include equal-for-equal and equivalent-for-equivalent substitutions in \autoref{fig:deduct_rules_2}. While those substitution rules are deduced steps, and hence could technically be omitted, simulating them can sometimes take a high number of steps, so they are included as base steps for efficiency.
+
+There are also some special proof steps used to organise proofs, shown in \autoref{fig:deduct_rules_3}.
+
+For proof checking, the kernel implementation of these proof steps explicitly take all required arguments, such as the formulas central to the manipulation. These are intended for internal use, and most arguments can be inferred and are automatically generated when writing proofs with the DSL (\autoref{subsec:dsl}). While user-developed deduced steps may also use the DSL, in cases where arguments are easily known, kernel steps retain their utility in that they may be directly emitted for efficiency, see \autoref{subsec:tacticDev} for discussion on this. The following is an example proof, that of Pierce's law, in sequent calculus, and its encoding utilizing kernel steps:
 
 
-Since we work on first order logic with equality and accept axioms, there are also rules for equality reasoning, which include reflexivity of equality. Moreover, we include equal-for-equal and equivalent-for-equivalent substitutions in Figure~\ref{fig:deduct_rules_2}. While those substitution rules are deduced steps, and hence could technically be omitted, simulating them can sometimes take a high number of steps, so they are included as base steps for efficiency.
 
-There are also some special proof steps used to organise proofs, shown in Figure~\ref{fig:deduct_rules_3}.
+\begin{figure}[ht]
+  \centering
+  \begin{subfigure}{\linewidth}
+    \begin{align*}
+        0 &\texttt { Hypothesis} &\quad \phi &\vdash \phi\\
+        1 &\texttt { Weakening}(0) &\quad  \phi &\vdash \phi, \psi\\
+        2 &\texttt { RightImplies}(1) &\quad  &\vdash \phi, (\phi \to \psi)\\
+        3 &\texttt { LeftImplies}(2,0) &\quad (\phi \to \psi) \to \phi &\vdash \phi\\
+        4 &\texttt { RightImplies}(3) &\quad &\vdash ((\phi \to \psi) \to \phi) \to \phi
+    \end{align*}
+    
+    \caption{The proof of Pierce's Law as a sequence of steps using classical Sequent Calculus rules.}
+    \label{fig:exampleProofLinear}
+    
+    \end{subfigure}
+    
+    
+    \begin{subfigure}{\linewidth}
+      % TODO: I'm unsure about how to present this nicely
+      \begin{lstlisting}[language=scala, showspaces=true]
+val PierceLawProof = SCProof(IndexedSeq(
+  Hypothesis($\phi$ |- $\phi$, $\phi$),
+  Weakening($\phi$ |- ($\phi$, $\phi$), 0),
+  RightImplies(() |- ($\phi$, $\phi$ ==> $\phi$), 1, $\phi$, $\phi$)
+  LeftImplies(($\phi$ ==> $\phi$) ==> $\phi$ |- $\phi$, 2, 0, $\phi$ ==> $\phi$, $\phi$),
+  RightImplies(() |- (($\phi$ ==> $\phi$) ==> $\phi$) ==> $\phi$, 3, ($\phi$ ==> $\phi$) ==> $\phi$, $\phi$)
+), Seq.empty /* no imports */ )
+  \end{lstlisting}
+        \begin{lstlisting}[language=scala, showspaces=true]
+val PierceLawProof = SCProof(IndexedSeq(
+    Hypothesis( 
+                φ |- φ
+      , φ),
+    Weakening( 
+                φ |- ( φ, ψ )
+      , 0),
+    RightImplies(
+               () |- ( φ, φ ==> ψ )
+      , 1, φ, ψ)
+    LeftImplies(
+               ( φ ==> ψ ) ==> φ |- φ
+      , 2, 0, φ ==> ψ, φ),
+    RightImplies(
+               () |- (( φ ==> ψ ) ==> φ) ==> φ
+      , 3, ( φ ==> ψ ) ==> φ, φ)
+), Seq.empty /* no imports */ )
+    \end{lstlisting}
+        \caption{The proof from~\autoref{fig:exampleProofLinear} written for LISA's kernel. $\vdash$ and $\implies$ are alternative, nicer constructors for sequents and formulas and are not part of the kernel. The second argument (empty here) is the sequence of proof imports.}
+        \label{fig:ExampleProofLinearScala}
+    \end{subfigure}
+\end{figure}
 
 %Start of first set of deduction rules
 \begin{figure}
@@ -521,7 +585,7 @@ Moreover, proofs are conditional: they can carry an explicit set of assumed sequ
 
 Formally, a proof is a pair made of a list of proof steps and a list of sequents:
 $$
-  \lstinline{Proof(steps:List[ProofStep], imports:List[Sequent])}
+  \text{\lstinline{Proof(steps:List[ProofStep], imports:List[Sequent])}}
 $$
 We call the bottommost sequent of the last proof step of the proof the ``conclusion'' of the proof.
 For the proof to be the linearization of a rooted directed acyclic graph, we require that proof steps must only refer to numbers smaller then their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list. The linearization of our proof of Pierce's Law is shown in Figure~\ref{fig:exampleProofLinear}.
@@ -561,9 +625,13 @@ Hence, most of the proof checker's work consists in verifying that some formulas
 While most proof steps are oblivious to formula transformations allowed by the equivalence checker, they don't allow transformations of the whole sequent: to easily rearrange sequents according to the sequent semantics (\ref{eq:SequentSemantic}), one should use the \texttt{Rewrite} step.
 
 The proof checking function will output a \textit{judgement}:
-$$\lstinline{SCValidProof(proof: SCProof)}$$
+$$
+  \text{\lstinline{SCValidProof(proof: SCProof)}}
+$$
 or
-$$\lstinline{SCInvalidProof(proof: SCProof, path: Seq[Int], message: String)}$$
+$$
+  \text{\lstinline{SCInvalidProof(proof: SCProof, path: Seq[Int], message: String)}}
+$$
 
 \lstinline{SCInvalidProof}{} indicates an erroneous proof. The second argument point to the faulty proofstep (through subproofs), and the third argument is an error message hinting towards why the step is faulty.
 
