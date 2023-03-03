@@ -1,10 +1,11 @@
 package lisa.mathematics
 
+import lisa.automation.grouptheory.GroupTheoryTactics.ExistenceAndUniqueness
 import lisa.automation.kernel.SimpleSimplifier.Substitution
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.mathematics.FirstOrderLogic.equalityTransitivity
 import lisa.mathematics.GroupTheory.*
-import lisa.mathematics.SetTheory.{thenHave, z, *}
+import lisa.mathematics.SetTheory.*
 import lisa.utils.KernelHelpers.{∀, ∃}
 
 /**
@@ -74,18 +75,9 @@ object GroupTheory extends lisa.Main {
   val identityUniqueness = Theorem(
     group(G, *) |- ∃!(e, isNeutral(G, *, e))
   ) {
-    // Forward direction (trivial)
-    // Maybe changing [[RightExistsOne]] would remove this trivial step
-    val forward = have(isNeutral(G, *, e) |- ((e === f) ==> isNeutral(G, *, f))) subproof {
-      assume(isNeutral(G, *, e))
-      thenHave((e === f) |- isNeutral(G, *, f)) by Substitution
-      thenHave((e === f) ==> isNeutral(G, *, f)) by Restate
-    }
-
-    // Backward direction
     // We prove that if e and f are neutral elements then ef = f = e, where the first equality comes from e's left neutrality,
     // and the second equality from f's right neutrality
-    have((isNeutral(G, *, e), isNeutral(G, *, f)) |- (e === f)) subproof {
+    val uniqueness = have((isNeutral(G, *, e), isNeutral(G, *, f)) |- (e === f)) subproof {
       // We prove that neutral elements are elements of G, such that * can be applied.
       val eMembership = have(isNeutral(G, *, e) |- in(e, G)) subproof {
         assume(isNeutral(G, *, e))
@@ -113,16 +105,9 @@ object GroupTheory extends lisa.Main {
       val cut3 = have(((op(*, e, f) === f) /\ (op(*, e, f) === e)) |- (e === f)) by Tautology.from(equalityTransitivity of (x -> f, y -> op(*, e, f), z -> e))
       have(e === f) by Cut(eqs, cut3)
     }
-    val backward = thenHave(isNeutral(G, *, e) |- (isNeutral(G, *, f) ==> (e === f))) by Restate
 
     val existence = have(group(G, *) |- ∃(e, isNeutral(G, *, e))) by Tautology.from(group.definition, identityExistence.definition)
 
-    have(isNeutral(G, *, e) |- ((e === f) <=> isNeutral(G, *, f))) by RightIff(forward, backward)
-    thenHave(isNeutral(G, *, e) |- ∀(f, (e === f) <=> isNeutral(G, *, f))) by RightForall
-    thenHave(isNeutral(G, *, e) |- ∃(e, ∀(f, (e === f) <=> isNeutral(G, *, f)))) by RightExists
-    thenHave(∃(e, isNeutral(G, *, e)) |- ∃(e, ∀(f, (e === f) <=> isNeutral(G, *, f)))) by LeftExists
-    val uniqueness = thenHave(∃(e, isNeutral(G, *, e)) |- ∃!(e, isNeutral(G, *, e))) by RightExistsOne
-
-    have(group(G, *) |- ∃!(e, isNeutral(G, *, e))) by Cut(existence, uniqueness)
+    have(group(G, *) |- ∃!(e, isNeutral(G, *, e))) by ExistenceAndUniqueness(isNeutral(G, *, e))(existence, uniqueness)
   }
 }
