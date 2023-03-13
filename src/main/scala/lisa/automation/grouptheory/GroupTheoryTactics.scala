@@ -55,6 +55,8 @@ object GroupTheoryTactics {
       } else if (!isSameSet(existenceSeq.right ++ uniquenessSeq.right + uniqueExistenceFormula, bot.right + existenceFormula + (x === y))) {
         proof.InvalidProofTactic("Could not infer correct right pivots.")
       } else {
+        val gammaPrime = uniquenessSeq.left.filter(f => !isSame(f, phi) && !isSame(f, substPhi))
+        
         val steps = SUBPROOF(using proof)(Some(bot)) {
           val forward = have(phi |- ((x === y) ==> substPhi)) subproof {
             assume(phi)
@@ -62,6 +64,10 @@ object GroupTheoryTactics {
             thenHave((x === y) ==> substPhi) by Restate
           }
 
+          for (f <- gammaPrime) {
+            assume(f)
+          }
+          
           val backward = have(phi |- (substPhi ==> (x === y))) by Restate.from(uniqueness)
 
           have(phi |- ((x === y) <=> substPhi))
