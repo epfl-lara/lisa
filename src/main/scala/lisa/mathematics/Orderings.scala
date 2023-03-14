@@ -205,15 +205,112 @@ object Orderings extends lisa.Main {
       )
   }
 
-  // val isomorphicOrder = DEF()
-
-  /*
-  val wellOrder = DEF(p) --> {
-    val A = firstInPair(pA)
+  /**
+    * Well-Order --- a partial order `p = (A, <)` is said to be a well-order if
+    * it is total and if every subset of `A` has a least element under `<`.
+    */
+  val wellOrder = DEF (p) --> {
+    val A = firstInPair(p)
     val B = variable
-    val `<A` = secondInPair(pA)
-    ∀(B, subset(B, A) ==> !(B===∅) ==> ∃(x, in(x, B) ==> ∀(y, in(y, B) ==> ! in(pair(y, x), `<A`))))
+    val `<p`  = secondInPair(p)
+    totalOrder(p) /\ forall(B, (subset(B, A) /\ !(B === emptySet())) ==> exists(z, in(z, B) /\ forall(x, in(x, B) ==> (in(pair(z, x), `<p`) \/ (z === x))))) 
   }
+
+  val transitiveSet = DEF (x) --> forall(y, in(y, x) ==> subset(y, x))
+
+  /**
+    * A set is an ordinal iff it is
+    * [transitive](Orderings$.html#transitiveSet-0) and [well
+    * ordered](Orderings$.html#wellOrder-0) by inclusion.
+    *
+    * Since inclusion is not precisely a relation in the sense of set theory,
+    * the well-ordered clause is explicitly written.
+    */
+  val ordinal = DEF (a) --> transitiveSet(a) /\ forall(b, (subset(b, a) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(z, x) \/ (z === x)))))
+
+
+  /**
+    * Defining properties of the [[ordinal]] class
+    * 
+    *   - the [[emptySet]] is an ordinal --- [[emptySetOrdinal]]
+    *   - if `a` is an ordinal and `b \in a`, then `b` is an ordinal --- [[ordinalInclusionClosure]]
+    *   - if `a` is an ordinal and `b \subset a`, then `b` is an ordinal --- [[ordinalSubsetClosure]]
+    *   - if `a` and `b` are ordinals, then either `a \subset b` or `b \subset a` --- [[ordinalSOMETHING]] TODO: 
+    * 
+    * Other properties
+    * 
+    *   - the ordinals form a proper class --- [[noSetOfOrdinals]]
+    */
+
+
+  val emptySetTransitive = Lemma(
+    () |- transitiveSet(emptySet())
+  ) {
+    val hypo = have(!in(y, emptySet()) |- in(y, emptySet()) ==> subset(y, emptySet())) by Restate
+    have(() |- in(y, emptySet()) ==> subset(y, emptySet())) by Cut(emptySetAxiom of (x -> y), hypo)
+    thenHave(() |- forall(y, in(y, emptySet()) ==> subset(y, emptySet()))) by RightForall
+    andThen(Simplify.once(true, transitiveSet.definition of (x -> emptySet())))
+  }
+  show
+
+  val emptySetSubsetEmpty = Lemma(
+    () |- subset(a, emptySet()) <=> (a === emptySet())
+  ) {
+    val fwd = have(() |- subset(a, emptySet()) ==> (a === emptySet())) subproof {
+      have(subset(a, emptySet()) |- forall(b, in(b, a) ==> in(b, emptySet()))) by Weakening(subsetAxiom of (x -> a, y -> emptySet()))
+      val impl = thenHave(subset(a, emptySet()) |- in(b, a) ==> in(b, emptySet())) by InstantiateForall(b)
+
+      have(subset(a, emptySet()) |- !in(b, a)) by Tautology.from(impl, emptySetAxiom of (x -> b))
+      val noElem = thenHave(subset(a, emptySet()) |- forall(b, !in(b, a))) by RightForall
+
+      have(subset(a, emptySet()) |- (a === emptySet())) by Cut.withParameters(forall(b, !in(b, a)))(noElem, setWithNoElementsIsEmpty of (x -> a))
+    }
+
+    val bwd = have(() |- (a === emptySet()) ==> subset(a, emptySet())) subproof {
+      have(() |- subset(emptySet(), emptySet())) by Restate.from(subsetReflexivity of (x -> emptySet()))
+      thenHave((emptySet() === a) |- subset(a, emptySet())) by Substitution
+    }
+
+    have(thesis) by RightIff(fwd, bwd)
+  }
+  show
+
+  val emptySetOrdinal = Theorem(
+    () |- ordinal(emptySet())
+  ) {
+
+  }
+
+
+  val orderedRestrictionUniqueness = Lemma(
+    () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ in(pair(firstInPair(t), a), secondInPair(p)))))
+  ) {
+    have(thesis) by UniqueComprehension(f, lambda(Seq(t, f), in(pair(firstInPair(t), a), secondInPair(p))))
+  }
+
+  /**
+    * The restriction of a function `f` with respect to `a` relative to a
+    * partial order `p = (X, <)`. The result is `f` with its domain restricted
+    * to the elements less than `a` wrt `<`.
+    */
+  val orderedRestriction = DEF (f, a, p) --> {
+    val `<p` = secondInPair(p)
+    The(g, forall(t, in(t, g) <=> (in(t, f) /\ in(pair(firstInPair(t), a), `<p`))))(orderedRestrictionUniqueness)
+  }
+
+  /**
+   * Well ordered recursion (for sets) --- ??? TODO: write description
    */
+  // val wellOrderRecursion = Theorem(
+  //   // well ordered (A, <)
+  //   // class function f
+  //   // |-
+  //   // exists a set function g such that
+  //   // g(a) = f(g |^ a)
+  //   wellOrder(p) |- exists(g, functionalOver(g, firstInPair(p)) /\ forall(a, in(a, firstInPair(p)) ==> (app(g, a) === f(orderedRestriction(g, a, p)))))
+  // ) {
+  //   ???
+  // }
+
 
 }
