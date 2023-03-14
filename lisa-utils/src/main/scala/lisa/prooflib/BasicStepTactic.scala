@@ -12,6 +12,7 @@ import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
 import lisa.utils.unification.FirstOrderUnifier
 import lisa.utils.unification.UnificationUtils
+import lisa.utils.parsing.FOLPrinter
 
 object BasicStepTactic {
 
@@ -1202,7 +1203,14 @@ object BasicStepTactic {
       iProof.toSCProof
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
-    def judgement: proof.ValidProofTactic = proof.ValidProofTactic(scproof.steps, premises)
+    def judgement: proof.ProofTacticJudgement = {
+      if (bot.isEmpty) 
+        proof.ValidProofTactic(scproof.steps, premises)
+      else if (!SC.isSameSequent(bot.get, scproof.conclusion))
+        proof.InvalidProofTactic(s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(bot.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}")
+      else
+        proof.ValidProofTactic(scproof.steps :+ SC.Restate(bot.get, scproof.length - 1), premises)
+    }
   }
 
   // TODO make specific support for subproofs written inside tactics.
