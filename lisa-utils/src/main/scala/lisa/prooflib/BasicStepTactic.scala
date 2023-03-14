@@ -10,9 +10,9 @@ import lisa.prooflib.SimpleDeducedSteps.Restate
 import lisa.prooflib.*
 import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
+import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.FirstOrderUnifier
 import lisa.utils.unification.UnificationUtils
-import lisa.utils.parsing.FOLPrinter
 
 object BasicStepTactic {
 
@@ -1204,7 +1204,7 @@ object BasicStepTactic {
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
     def judgement: proof.ProofTacticJudgement = {
-      if (bot.isEmpty) 
+      if (bot.isEmpty)
         proof.ValidProofTactic(scproof.steps, premises)
       else if (!SC.isSameSequent(bot.get, scproof.conclusion))
         proof.InvalidProofTactic(s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(bot.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}")

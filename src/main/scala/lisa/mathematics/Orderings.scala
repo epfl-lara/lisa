@@ -206,42 +206,40 @@ object Orderings extends lisa.Main {
   }
 
   /**
-    * Well-Order --- a partial order `p = (A, <)` is said to be a well-order if
-    * it is total and if every subset of `A` has a least element under `<`.
-    */
-  val wellOrder = DEF (p) --> {
+   * Well-Order --- a partial order `p = (A, <)` is said to be a well-order if
+   * it is total and if every subset of `A` has a least element under `<`.
+   */
+  val wellOrder = DEF(p) --> {
     val A = firstInPair(p)
     val B = variable
-    val `<p`  = secondInPair(p)
-    totalOrder(p) /\ forall(B, (subset(B, A) /\ !(B === emptySet())) ==> exists(z, in(z, B) /\ forall(x, in(x, B) ==> (in(pair(z, x), `<p`) \/ (z === x))))) 
+    val `<p` = secondInPair(p)
+    totalOrder(p) /\ forall(B, (subset(B, A) /\ !(B === emptySet())) ==> exists(z, in(z, B) /\ forall(x, in(x, B) ==> (in(pair(z, x), `<p`) \/ (z === x)))))
   }
 
-  val transitiveSet = DEF (x) --> forall(y, in(y, x) ==> subset(y, x))
+  val transitiveSet = DEF(x) --> forall(y, in(y, x) ==> subset(y, x))
 
   /**
-    * A set is an ordinal iff it is
-    * [transitive](Orderings$.html#transitiveSet-0) and [well
-    * ordered](Orderings$.html#wellOrder-0) by inclusion.
-    *
-    * Since inclusion is not precisely a relation in the sense of set theory,
-    * the well-ordered clause is explicitly written.
-    */
-  val ordinal = DEF (a) --> transitiveSet(a) /\ forall(b, (subset(b, a) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(z, x) \/ (z === x)))))
-
+   * A set is an ordinal iff it is
+   * [transitive](Orderings$.html#transitiveSet-0) and [well
+   * ordered](Orderings$.html#wellOrder-0) by inclusion.
+   *
+   * Since inclusion is not precisely a relation in the sense of set theory,
+   * the well-ordered clause is explicitly written.
+   */
+  val ordinal = DEF(a) --> transitiveSet(a) /\ forall(b, (subset(b, a) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(z, x) \/ (z === x)))))
 
   /**
-    * Defining properties of the [[ordinal]] class
-    * 
-    *   - the [[emptySet]] is an ordinal --- [[emptySetOrdinal]]
-    *   - if `a` is an ordinal and `b \in a`, then `b` is an ordinal --- [[ordinalInclusionClosure]]
-    *   - if `a` is an ordinal and `b \subset a`, then `b` is an ordinal --- [[ordinalSubsetClosure]]
-    *   - if `a` and `b` are ordinals, then either `a \subset b` or `b \subset a` --- [[ordinalSOMETHING]] TODO: 
-    * 
-    * Other properties
-    * 
-    *   - the ordinals form a proper class --- [[noSetOfOrdinals]]
-    */
-
+   * Defining properties of the [[ordinal]] class
+   *
+   *   - the [[emptySet]] is an ordinal --- [[emptySetOrdinal]]
+   *   - if `a` is an ordinal and `b \in a`, then `b` is an ordinal --- [[ordinalInclusionClosure]]
+   *   - if `a` is an ordinal and `b \subset a`, then `b` is an ordinal --- [[ordinalSubsetClosure]]
+   *   - if `a` and `b` are ordinals, then either `a \subset b` or `b \subset a` --- [[ordinalSOMETHING]] TODO:
+   *
+   * Other properties
+   *
+   *   - the ordinals form a proper class --- [[noSetOfOrdinals]]
+   */
 
   val emptySetTransitive = Lemma(
     () |- transitiveSet(emptySet())
@@ -277,10 +275,7 @@ object Orderings extends lisa.Main {
 
   val emptySetOrdinal = Theorem(
     () |- ordinal(emptySet())
-  ) {
-
-  }
-
+  ) {}
 
   val orderedRestrictionUniqueness = Lemma(
     () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ in(pair(firstInPair(t), a), secondInPair(p)))))
@@ -289,11 +284,11 @@ object Orderings extends lisa.Main {
   }
 
   /**
-    * The restriction of a function `f` with respect to `a` relative to a
-    * partial order `p = (X, <)`. The result is `f` with its domain restricted
-    * to the elements less than `a` wrt `<`.
-    */
-  val orderedRestriction = DEF (f, a, p) --> {
+   * The restriction of a function `f` with respect to `a` relative to a
+   * partial order `p = (X, <)`. The result is `f` with its domain restricted
+   * to the elements less than `a` wrt `<`.
+   */
+  val orderedRestriction = DEF(f, a, p) --> {
     val `<p` = secondInPair(p)
     The(g, forall(t, in(t, g) <=> (in(t, f) /\ in(pair(firstInPair(t), a), `<p`))))(orderedRestrictionUniqueness)
   }
@@ -311,6 +306,5 @@ object Orderings extends lisa.Main {
   // ) {
   //   ???
   // }
-
 
 }
