@@ -1,17 +1,17 @@
 package lisa.automation.grouptheory
 
+import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.mathematics.SetTheory
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib.{*, given}
 import lisa.prooflib.*
+import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.ProofTacticLib.{*, given}
 import lisa.settheory.SetTheoryLibrary
 import lisa.utils.KernelHelpers.*
 
 object GroupTheoryTactics {
-  import lisa.settheory.SetTheoryLibrary.{_, given}
+  import lisa.settheory.SetTheoryLibrary.{*, given}
 
 
   /**
@@ -70,7 +70,6 @@ object GroupTheoryTactics {
           
           val backward = have(phi |- (substPhi ==> (x === y))) by Restate.from(uniqueness)
 
-          have(phi |- ((x === y) <=> substPhi))
           have(phi |- ((x === y) <=> substPhi)) by RightIff(forward, backward)
           thenHave(phi |- ∀(y, (x === y) <=> substPhi)) by RightForall
           thenHave(phi |- ∃(x, ∀(y, (x === y) <=> substPhi))) by RightExists
@@ -85,7 +84,6 @@ object GroupTheoryTactics {
     }
 
     def apply(using proof: SetTheoryLibrary.Proof, om: OutputManager)(phi: Formula)(existence: proof.Fact, uniqueness: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
-      val existenceSeq = proof.getSequent(existence)
       val uniquenessSeq = proof.getSequent(uniqueness)
 
       if (!contains(uniquenessSeq.left, phi)) {
@@ -101,6 +99,49 @@ object GroupTheoryTactics {
         case (x, y) if contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](y -> x))) =>
           ExistenceAndUniqueness.withParameters(phi, y, x)(existence, uniqueness)(bot)
       }.getOrElse(proof.InvalidProofTactic("Could not infer correct variables in uniqueness sequent."))
+    }
+  }
+
+  /** 
+   * <pre>
+   * Γ, φ |- Δ, Σ   Γ, ¬φ |- Δ, Σ'  
+   * -----------------------------
+   * Γ |- Δ
+   * </pre>
+   *
+   *
+   * TODO: Extending the tactic to more general pivots
+   */
+  object Cases extends ProofTactic {
+    def withParameters(using proof: SetTheoryLibrary.Proof, om: OutputManager)(phi: Formula)(pos: proof.Fact, neg: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      val seqPos = proof.getSequent(pos)
+      val seqNeg = proof.getSequent(neg)
+
+      if (!(contains(seqPos.left, phi)  && contains(seqNeg.left, !phi) && !contains(seqNeg.left, phi)) &&
+          !(contains(seqPos.left, !phi) && contains(seqNeg.left, phi) && !contains(seqNeg.left, !phi))) {
+        proof.InvalidProofTactic("The given sequent do not contain φ or ¬φ.")
+      } else {
+        val gamma = bot.left
+        val steps = SUBPROOF(using proof)(Some(bot)) {
+          val excludedMiddle = have(phi \/ !phi) by Tautology
+          val toCut = have((gamma + (phi \/ !phi)) |- bot.right) by LeftOr(pos, neg)
+
+          have(thesis) by Cut(excludedMiddle, toCut)
+        }
+
+        unwrapTactic(steps.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for Cases failed.")
+      }
+    }
+
+    def apply(using proof: SetTheoryLibrary.Proof, om: OutputManager)(pos: proof.Fact, neg: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+      val seqPos = proof.getSequent(pos)
+      val pivot = seqPos.left -- bot.left
+
+      if (pivot.size != 1) {
+        proof.InvalidProofTactic("Could not infer correct formula φ.")
+      } else {
+        Cases.withParameters(pivot.head)(pos, neg)(bot)
+      }
     }
   }
 }
