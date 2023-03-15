@@ -17,6 +17,7 @@ object FirstOrderLogic extends lisa.Main {
   private val c = variable
   private val p = formulaVariable
   private val P = predicate(1)
+  private val Q = predicate(1)
 
   /**
    * Theorem --- A formula is equivalent to itself universally quantified if
@@ -62,6 +63,39 @@ object FirstOrderLogic extends lisa.Main {
     thenHave(∀(y, (x === y) <=> P(y)) |- P(x)) by InstFunSchema(Map(y -> x))
     thenHave(∀(y, (x === y) <=> P(y)) |- ∃(x, P(x))) by RightExists
     thenHave(∃(x, ∀(y, (x === y) <=> P(y))) |- ∃(x, P(x))) by LeftExists
+    thenHave(thesis) by Restate
+  }
+
+  val substitutionInExistenceQuantifier = Theorem(
+    (∃(x, P(x)), ∀(y, P(y) <=> Q(y))) |- ∃(x, Q(x))
+  ) {
+    have(P(x) |- P(x)) by Hypothesis
+    val substitution = thenHave((P(x), P(x) <=> Q(x)) |- Q(x)) by RightSubstIff(List((P(x), Q(x))), lambda(p, p))
+
+    have(∀(y, P(y) <=> Q(y)) |- ∀(y, P(y) <=> Q(y))) by Hypothesis
+    val equiv = thenHave(∀(y, P(y) <=> Q(y)) |- P(x) <=> Q(x)) by InstantiateForall(x)
+
+    have((P(x), ∀(y, P(y) <=> Q(y))) |- Q(x)) by Cut(equiv, substitution)
+    thenHave((P(x), ∀(y, P(y) <=> Q(y))) |- ∃(x, Q(x))) by RightExists
+    thenHave(thesis) by LeftExists
+  }
+
+  val substitutionInUniquenessQuantifier = Theorem(
+    (∃!(x, P(x)), ∀(y, P(y) <=> Q(y))) |- ∃!(x, Q(x))
+  ) {
+    have((x === y) <=> P(y) |- (x === y) <=> P(y)) by Hypothesis
+    thenHave(∀(y, (x === y) <=> P(y)) |- (x === y) <=> P(y)) by LeftForall
+    val substitution = thenHave((∀(y, (x === y) <=> P(y)), P(y) <=> Q(y)) |- (x === y) <=> Q(y)) by RightSubstIff(
+      List((P(y), Q(y))), lambda(p, (x === y) <=> p)
+    )
+
+    have(∀(y, P(y) <=> Q(y)) |- ∀(y, P(y) <=> Q(y))) by Hypothesis
+    val equiv = thenHave(∀(y, P(y) <=> Q(y)) |- P(y) <=> Q(y)) by InstantiateForall(y)
+
+    have((∀(y, (x === y) <=> P(y)), ∀(y, P(y) <=> Q(y))) |- (x === y) <=> Q(y)) by Cut(equiv, substitution)
+    thenHave((∀(y, (x === y) <=> P(y)), ∀(y, P(y) <=> Q(y))) |- ∀(y, (x === y) <=> Q(y))) by RightForall
+    thenHave((∀(y, (x === y) <=> P(y)), ∀(y, P(y) <=> Q(y))) |- ∃(x, ∀(y, (x === y) <=> Q(y)))) by RightExists
+    thenHave((∃(x, ∀(y, (x === y) <=> P(y))), ∀(y, P(y) <=> Q(y))) |- ∃(x, ∀(y, (x === y) <=> Q(y)))) by LeftExists
     thenHave(thesis) by Restate
   }
 
