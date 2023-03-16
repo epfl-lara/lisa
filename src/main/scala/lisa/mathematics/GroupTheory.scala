@@ -207,6 +207,11 @@ object GroupTheory extends lisa.Main {
   }
 
   /**
+   * Defines the identity element of `(G, *)`.
+   */
+  val identity = DEF(G, *) --> TheConditional(e, isNeutral(G, *, e))(identityUniqueness)
+
+  /**
    * Theorem --- The inverse of an element `x` (i.e. `y` such that `x * y = y * x = e`) in `G` is unique.
    */
   val inverseUniqueness = Theorem(
