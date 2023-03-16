@@ -81,7 +81,8 @@ object GroupTheory extends lisa.Main {
           )
 
           val implication = have((prem, ∃!(u, f)) |- ∃!(u, completeDef)) by Cut(equiv, substitution)
-          have(prem |- ∃!(u, completeDef)) by Cut(just, implication)
+          val uniqueness = have(prem |- ∃!(u, f)) by Restate.from(just)
+          have(prem |- ∃!(u, completeDef)) by Cut(uniqueness, implication)
         }
 
         val case2 = have(!prem |- ∃!(u, completeDef)) subproof {
