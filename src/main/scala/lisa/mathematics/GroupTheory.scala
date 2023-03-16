@@ -215,7 +215,7 @@ object GroupTheory extends lisa.Main {
    * Theorem --- The inverse of an element `x` (i.e. `y` such that `x * y = y * x = e`) in `G` is unique.
    */
   val inverseUniqueness = Theorem(
-    group(G, *) |- ∀(x, G, ∃!(y, G, isNeutral(G, *, op(*, x, y)) /\ isNeutral(G, *, op(*, y, x))))
+    (group(G, *), in(x, G)) |- ∃!(y, G, isNeutral(G, *, op(*, x, y)) /\ isNeutral(G, *, op(*, y, x)))
   ) {
     have(group(G, *) |- ∀(x, G, ∃(y, G, isNeutral(G, *, op(*, x, y)) /\ isNeutral(G, *, op(*, y, x))))) by Tautology.from(group.definition, inverseExistence.definition)
     thenHave(group(G, *) |- (in(x, G) ==> ∃(y, G, isNeutral(G, *, op(*, x, y)) /\ isNeutral(G, *, op(*, y, x))))) by InstantiateForall(x)
@@ -263,8 +263,11 @@ object GroupTheory extends lisa.Main {
       )
     }
     
-    have((group(G, *), in(x, G)) |- ∃!(y, phi)) by ExistenceAndUniqueness.withParameters(phi, y, z)(existence, uniqueness)
-    thenHave(group(G, *) |- (in(x, G) ==> ∃!(y, phi))) by Restate
-    thenHave(thesis) by RightForall
+    have(thesis) by ExistenceAndUniqueness.withParameters(phi, y, z)(existence, uniqueness)
   }
+
+  /**
+   * Defines the inverse of an element `x` in a group `(G, *)`.
+   */
+  val inverse = DEF(x, G, *) --> TheConditional(y, in(y, G) /\ isNeutral(G, *, op(*, x, y)) /\ isNeutral(G, *, op(*, y, x)))(inverseUniqueness)
 }
