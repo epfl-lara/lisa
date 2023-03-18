@@ -10,10 +10,7 @@ import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
-import lisa.utils.FOLPrinter
-import lisa.utils.LisaException
-import lisa.utils.ProofPrinter
-import lisa.utils.UserLisaException
+import lisa.utils.{_, given}
 
 import scala.annotation.targetName
 
@@ -42,10 +39,10 @@ trait ProofsHelpers {
 
   class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
 
-    inline infix def by(using proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
-      By(proof, om, line, file).asInstanceOf[By { val _proof: proof.type }]
+    inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
+      By(proof, line, file).asInstanceOf[By { val _proof: proof.type }]
 
-    class By(val _proof: library.Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File) {
+    class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = AndThenSequent.this.bot ++ (_proof.getAssumptions |- ())
       inline infix def apply(tactic: _proof.Fact => Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
         tactic(_proof.mostRecentStep)(bot).validate(line, file)
