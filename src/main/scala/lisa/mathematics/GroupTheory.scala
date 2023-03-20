@@ -18,6 +18,7 @@ object GroupTheory extends lisa.Main {
   private val x, y, z = variable
   private val u, v, w = variable
   private val e, f = variable
+  private val P, Q = predicate(1)
 
   /**
    * Bounded quantifiers --- These express the usual `∀x ∈ G ϕ` and `∃x ∈ G ϕ`, for some variables (sets) `x` and `G`, which
