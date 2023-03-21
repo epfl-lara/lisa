@@ -439,7 +439,7 @@ object SimpleSimplifier {
               // substitute and set a new premise for next step
               premiseWithSubst = leftEqLambdas.foldLeft(premiseWithSubst) {
                 case (prevSequent, nextLambda) => {
-                  val newSequent = prevSequent -< nextLambda(leftEqs) +< nextLambda(rightEqs)
+                  val newSequent = prevSequent -<? nextLambda(leftEqs) +< nextLambda(rightEqs)
                   proof.library.thenHave(newSequent) by BasicStepTactic.LeftSubstEq(eqs, nextLambda)
 
                   newSequent
@@ -452,7 +452,7 @@ object SimpleSimplifier {
               // substitute and set a new premise for next step
               premiseWithSubst = rightEqLambdas.foldLeft(premiseWithSubst) {
                 case (prevSequent, nextLambda: LambdaTermFormula) => {
-                  val newSequent = prevSequent ->> nextLambda(leftEqs) +> nextLambda(rightEqs)
+                  val newSequent = prevSequent ->? nextLambda(leftEqs) +> nextLambda(rightEqs)
                   proof.library.thenHave(newSequent) by BasicStepTactic.RightSubstEq(eqs, nextLambda)
 
                   newSequent
@@ -466,7 +466,7 @@ object SimpleSimplifier {
               // substitute and set a new premise for next step
               premiseWithSubst = leftIffLambdas.foldLeft(premiseWithSubst) {
                 case (prevSequent, nextLambda) => {
-                  val newSequent = prevSequent -< nextLambda(leftIffs) +< nextLambda(rightIffs)
+                  val newSequent = prevSequent -<? nextLambda(leftIffs) +< nextLambda(rightIffs)
                   proof.library.thenHave(newSequent) by BasicStepTactic.LeftSubstIff(iffs, nextLambda)
 
                   newSequent
@@ -479,7 +479,7 @@ object SimpleSimplifier {
               // substitute and set a new premise for next step
               premiseWithSubst = rightIffLambdas.foldLeft(premiseWithSubst) {
                 case (prevSequent, nextLambda) => {
-                  val newSequent = prevSequent ->> nextLambda(leftIffs) +> nextLambda(rightIffs)
+                  val newSequent = prevSequent ->? nextLambda(leftIffs) +> nextLambda(rightIffs)
                   proof.library.thenHave(newSequent) by BasicStepTactic.RightSubstIff(iffs, nextLambda)
 
                   newSequent
