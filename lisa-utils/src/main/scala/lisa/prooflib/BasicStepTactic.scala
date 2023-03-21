@@ -79,8 +79,10 @@ object BasicStepTactic {
     def apply(using lib: Library, proof: lib.Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
-      lazy val cutSet = rightSequent.left.diff(bot.left) ++ leftSequent.right.diff(bot.right)
-      lazy val intersectedCutSet = rightSequent.left & leftSequent.right
+      // cutSet: (rightSequent.left - bot.left) ++ (leftSequent.right - bot.right)
+      // `xxx?` sequent operations are used to drop OL (and thus alpha-eq) formulas
+      lazy val cutSet = (((rightSequent --<? bot).left |- ()) ++? ((leftSequent -->? bot).right |- ())).left
+      lazy val intersectedCutSet = rightSequent.left intersect leftSequent.right
 
       if (!cutSet.isEmpty)
         if (cutSet.tail.isEmpty)
