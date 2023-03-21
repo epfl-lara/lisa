@@ -1604,6 +1604,88 @@ object SetTheory extends lisa.Main {
    */
   val stronglyConnected = DEF(r, x) --> relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r))))
 
+  val emptySetRelation = Lemma(
+    () |- relationBetween(emptySet(), a, b)
+  ) {
+    have(thesis) by Tautology.from(emptySetIsASubset of (x -> cartesianProduct(a, b)), relationBetween.definition of (r -> emptySet()))
+  }
+
+  val emptySetRelationOnItself = Lemma(
+    () |- relationBetween(emptySet(), emptySet(), emptySet())
+  ) {
+    have(thesis) by Restate.from(emptySetRelation of (a -> emptySet(), b -> emptySet()))
+  }
+
+  val emptyRelationReflexiveOnItself = Lemma(
+    () |- reflexive(emptySet(), emptySet())
+  ) {
+    have(() |- in(y, emptySet()) ==> in(pair(y, y), emptySet())) by Tautology.from(emptySetAxiom of (x -> y))
+    val refCond = thenHave(() |- forall(y, in(y, emptySet()) ==> in(pair(y, y), emptySet()))) by RightForall
+
+    have(thesis) by Tautology.from(reflexive.definition of (r -> emptySet(), x -> emptySet()), emptySetRelationOnItself, refCond)
+  }
+
+  val emptyRelationSymmetric = Lemma(
+    () |- symmetric(emptySet(), a)
+  ) {
+    have(() |- in(pair(y, z), emptySet()) <=> in(pair(z, y), emptySet())) by Tautology.from(emptySetAxiom of (x -> pair(y, z)), emptySetAxiom of (x -> pair(z, y)))
+    thenHave(() |- forall(z, in(pair(y, z), emptySet()) <=> in(pair(z, y), emptySet()))) by RightForall
+    val symCond = thenHave(() |- forall(y, forall(z, in(pair(y, z), emptySet()) <=> in(pair(z, y), emptySet())))) by RightForall
+
+    have(thesis) by Tautology.from(symmetric.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), symCond)
+  }
+
+  val emptyRelationIrreflexive = Lemma(
+    () |- irreflexive(emptySet(), a)
+  ) {
+    have(() |- in(y, a) ==> !in(pair(y, y), emptySet())) by Tautology.from(emptySetAxiom of (x -> pair(y, y)))
+    val irrefCond = thenHave(() |- forall(y, in(y, a) ==> !in(pair(y, y), emptySet()))) by RightForall
+
+    have(thesis) by Tautology.from(irreflexive.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), irrefCond)
+  }
+
+  val emptyRelationTransitive = Lemma(
+    () |- transitive(emptySet(), a)
+  ) {
+    have(() |- (in(pair(w, y), emptySet()) /\ in(pair(y, z), emptySet())) ==> in(pair(w, z), emptySet())) by Tautology.from(emptySetAxiom of (x -> pair(w, y)))
+    thenHave(() |- forall(z, (in(pair(w, y), emptySet()) /\ in(pair(y, z), emptySet())) ==> in(pair(w, z), emptySet()))) by RightForall
+    thenHave(() |- forall(y, forall(z, (in(pair(w, y), emptySet()) /\ in(pair(y, z), emptySet())) ==> in(pair(w, z), emptySet())))) by RightForall
+    val trsCond = thenHave(() |- forall(w, forall(y, forall(z, (in(pair(w, y), emptySet()) /\ in(pair(y, z), emptySet())) ==> in(pair(w, z), emptySet()))))) by RightForall
+
+    have(thesis) by Tautology.from(transitive.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), trsCond)
+  }
+
+  val emptyRelationEquivalence = Lemma(
+    () |- equivalence(emptySet(), emptySet())
+  ) {
+    have(thesis) by Tautology.from(
+      equivalence.definition of (r -> emptySet(), x -> emptySet()),
+      emptyRelationReflexiveOnItself,
+      emptyRelationSymmetric of (a -> emptySet()),
+      emptyRelationTransitive of (a -> emptySet())
+    )
+  }
+
+  val emptyRelationAntiSymmetric = Lemma(
+    () |- antiSymmetric(emptySet(), a)
+  ) {
+    have(() |- (in(pair(y, z), emptySet()) /\ in(pair(z, y), emptySet())) ==> (y === z)) by Tautology.from(emptySetAxiom of (x -> pair(y, z)))
+    thenHave(() |- forall(z, (in(pair(y, z), emptySet()) /\ in(pair(z, y), emptySet())) ==> (y === z))) by RightForall
+    val ansymCond = thenHave(() |- forall(y, forall(z, (in(pair(y, z), emptySet()) /\ in(pair(z, y), emptySet())) ==> (y === z)))) by RightForall
+
+    have(thesis) by Tautology.from(antiSymmetric.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), ansymCond)
+  }
+
+  val emptyRelationAsymmetric = Lemma(
+    () |- asymmetric(emptySet(), a)
+  ) {
+    have(() |- in(pair(y, z), emptySet()) ==> !in(pair(z, y), emptySet())) by Tautology.from(emptySetAxiom of (x -> pair(y, z)))
+    thenHave(() |- forall(z, in(pair(y, z), emptySet()) ==> !in(pair(z, y), emptySet()))) by RightForall
+    val asymCond = thenHave(() |- forall(y, forall(z, in(pair(y, z), emptySet()) ==> !in(pair(z, y), emptySet())))) by RightForall
+
+    have(thesis) by Tautology.from(asymmetric.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), asymCond)
+  }
+
   /**
    * Cantor theorem
    */
