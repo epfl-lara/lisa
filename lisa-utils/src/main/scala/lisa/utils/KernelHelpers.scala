@@ -127,11 +127,16 @@ object KernelHelpers {
     infix def ++(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left, right = s.right ++ s1.right)
     infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
 
+    infix def +<?(f: Formula): Sequent = if (s.left.exists(isSame(_, f))) s else (s +< f)
     infix def -<?(f: Formula): Sequent = s.copy(left = s.left.filterNot(isSame(_, f)))
+    infix def +>?(f: Formula): Sequent = if (s.right.exists(isSame(_, f))) s else (s +> f)
     infix def ->?(f: Formula): Sequent = s.copy(right = s.right.filterNot(isSame(_, f)))
+    infix def ++<?(s1: Sequent): Sequent = s ++< s1.copy(left = s1.left.filterNot(e1 => s.left.exists(isSame(_, e1))))
     infix def --<?(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))))
+    infix def ++>?(s1: Sequent): Sequent = s ++> s1.copy(right = s1.right.filterNot(e1 => s.right.exists(isSame(_, e1))))
     infix def -->?(s1: Sequent): Sequent = s.copy(right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
     infix def --?(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))), right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
+    infix def ++?(s1: Sequent): Sequent = s ++ s1.copy(left = s1.left.filterNot(e1 => s.left.exists(isSame(_, e1))), right = s1.right.filterNot(e1 => s.right.exists(isSame(_, e1))))
   }
 
   // TODO: Should make less generic
