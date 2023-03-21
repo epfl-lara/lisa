@@ -993,6 +993,70 @@ object SetTheory extends lisa.Main {
     DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))))(cartesianProductUniqueness)
 
   /**
+   * Theorem --- cartesian Product ([[cartesianProd]]) of any set with the
+   * [[emptySet]] is empty.
+   */
+  val productWithEmptySetEmpty = Theorem(
+    () |- (cartesianProduct(x, emptySet()) === emptySet()) /\ (cartesianProduct(emptySet(), x) === emptySet())
+  ) {
+    val xFirst = have(() |- (cartesianProduct(x, emptySet()) === emptySet())) subproof {
+      have(
+        forall(t, in(t, cartesianProduct(x, emptySet())) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet())))))
+      ) by InstantiateForall(cartesianProduct(x, emptySet()))(cartesianProduct.definition of (y -> emptySet()))
+      val impl = thenHave(
+        in(t, cartesianProduct(x, emptySet())) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))))
+      ) by InstantiateForall(t)
+
+      val elemEmpty = have(in(t, emptySet()) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))))) subproof {
+        val lhs = have(in(t, emptySet()) |- (in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))))) by Weakening(
+          emptySet.definition of (x -> t)
+        )
+
+        have((t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()) |- in(t, emptySet())) by Weakening(emptySet.definition of (x -> b))
+        thenHave(exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet())) |- in(t, emptySet())) by LeftExists
+        thenHave(exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))) |- in(t, emptySet())) by LeftExists
+        val rhs = thenHave(in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))) |- in(t, emptySet())) by Weakening
+
+        have(thesis) by Tautology.from(lhs, rhs)
+      }
+
+      have(in(t, cartesianProduct(x, emptySet())) <=> in(t, emptySet())) by Tautology.from(impl, elemEmpty)
+      val ext = thenHave(forall(t, in(t, cartesianProduct(x, emptySet())) <=> in(t, emptySet()))) by RightForall
+
+      have(thesis) by Tautology.from(ext, extensionalityAxiom of (x -> cartesianProduct(x, emptySet()), y -> emptySet()))
+    }
+
+    val xSecond = have(() |- (cartesianProduct(emptySet(), x) === emptySet())) subproof {
+      have(
+        forall(t, in(t, cartesianProduct(emptySet(), y)) <=> (in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y)))))
+      ) by InstantiateForall(cartesianProduct(emptySet(), y))(cartesianProduct.definition of (x -> emptySet()))
+      val impl = thenHave(
+        in(t, cartesianProduct(emptySet(), y)) <=> (in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))))
+      ) by InstantiateForall(t)
+
+      val elemEmpty = have(in(t, emptySet()) <=> (in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))))) subproof {
+        val lhs = have(in(t, emptySet()) |- (in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))))) by Weakening(
+          emptySet.definition of (x -> t)
+        )
+
+        have((t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y) |- in(t, emptySet())) by Weakening(emptySet.definition of (x -> a))
+        thenHave(exists(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y)) |- in(t, emptySet())) by LeftExists
+        thenHave(exists(a, exists(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))) |- in(t, emptySet())) by LeftExists
+        val rhs = thenHave(in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))) |- in(t, emptySet())) by Weakening
+
+        have(thesis) by Tautology.from(lhs, rhs)
+      }
+
+      have(in(t, cartesianProduct(emptySet(), y)) <=> in(t, emptySet())) by Tautology.from(impl, elemEmpty)
+      val ext = thenHave(forall(t, in(t, cartesianProduct(emptySet(), y)) <=> in(t, emptySet()))) by RightForall
+
+      have(thesis) by Tautology.from(ext of (y -> x), extensionalityAxiom of (x -> cartesianProduct(emptySet(), x), y -> emptySet()))
+    }
+
+    have(thesis) by RightAnd(xFirst, xSecond)
+  }
+
+  /**
    * Theorem --- a pair is in the set `x * y` iff its elements are in `x` and
    * `y` respectively.
    */
