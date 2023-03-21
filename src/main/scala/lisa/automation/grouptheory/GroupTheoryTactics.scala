@@ -57,7 +57,7 @@ object GroupTheoryTactics {
       } else {
         val gammaPrime = uniquenessSeq.left.filter(f => !isSame(f, phi) && !isSame(f, substPhi))
         
-        val steps = SUBPROOF(using proof)(Some(bot)) {
+        TacticSubproof {
           val forward = have(phi |- ((x === y) ==> substPhi)) subproof {
             assume(phi)
             thenHave((x === y) |- substPhi) by Substitution
@@ -78,8 +78,6 @@ object GroupTheoryTactics {
 
           have(bot) by Cut(existence, cut)
         }
-
-        unwrapTactic(steps.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for ExistenceAndUniqueness failed.")
       }
     }
 
@@ -140,14 +138,12 @@ object GroupTheoryTactics {
         proof.InvalidProofTactic("The given sequent do not contain φ or ¬φ.")
       } else {
         val gamma = bot.left
-        val steps = SUBPROOF(using proof)(Some(bot)) {
+        TacticSubproof {
           val excludedMiddle = have(phi \/ !phi) by Tautology
           val toCut = have((gamma + (phi \/ !phi)) |- bot.right) by LeftOr(pos, neg)
 
-          have(thesis) by Cut(excludedMiddle, toCut)
+          have(bot) by Cut(excludedMiddle, toCut)
         }
-
-        unwrapTactic(steps.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for Cases failed.")
       }
     }
 
