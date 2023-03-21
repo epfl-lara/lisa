@@ -963,6 +963,76 @@ object SetTheory extends lisa.Main {
    */
   val secondInPair = DEF(p) --> union(secondInPairSingleton(p))
 
+  val firstInPairReduction = Lemma(
+    () |- (firstInPair(pair(x, y)) === x)
+  ) {
+    // z \in \cap (x, y) <=> z = x
+    val elemInter = have(in(z, unaryIntersection(pair(x, y))) <=> (z === x)) subproof {
+      have(forall(t, in(t, unaryIntersection(pair(x, y))) <=> (exists(b, in(b, pair(x, y))) /\ ∀(b, in(b, pair(x, y)) ==> in(t, b))))) by InstantiateForall(unaryIntersection(pair(x, y)))(
+        unaryIntersection.definition of (x -> pair(x, y))
+      )
+      val defexp = thenHave(in(z, unaryIntersection(pair(x, y))) <=> (exists(b, in(b, pair(x, y))) /\ ∀(b, in(b, pair(x, y)) ==> in(z, b)))) by InstantiateForall(z)
+
+      val lhs = have(in(z, unaryIntersection(pair(x, y))) |- (z === x)) subproof {
+        have(in(z, unaryIntersection(pair(x, y))) |- forall(b, in(b, pair(x, y)) ==> in(z, b))) by Weakening(defexp)
+        thenHave(in(z, unaryIntersection(pair(x, y))) |- in(unorderedPair(x, x), pair(x, y)) ==> in(z, unorderedPair(x, x))) by InstantiateForall(unorderedPair(x, x))
+        have(thesis) by Tautology.from(lastStep, secondElemInPair of (x -> unorderedPair(x, y), y -> unorderedPair(x, x)), singletonHasNoExtraElements of (y -> z))
+      }
+
+      val rhs = have((z === x) |- in(z, unaryIntersection(pair(x, y)))) subproof {
+        val xinxy = have(in(x, unaryIntersection(pair(x, y)))) subproof {
+          have(in(unorderedPair(x, x), pair(x, y))) by Restate.from(secondElemInPair of (x -> unorderedPair(x, y), y -> unorderedPair(x, x)))
+          val exClause = thenHave(exists(b, in(b, pair(x, y)))) by RightExists
+
+          have(in(b, pair(x, y)) |- in(b, pair(x, y))) by Hypothesis
+          val bp = thenHave(in(b, pair(x, y)) |- (b === singleton(x)) \/ (b === unorderedPair(x, y))) by Substitution.apply2(false, pairAxiom of (z -> b, y -> singleton(x), x -> unorderedPair(x, y)))
+
+          have(in(x, singleton(x))) by Restate.from(singletonHasNoExtraElements of (y -> x))
+          val bxx = thenHave((b === singleton(x)) |- in(x, b)) by Substitution.apply2(true, (b === singleton(x)))
+
+          have(in(x, unorderedPair(x, y))) by Restate.from(firstElemInPair)
+          val bxy = thenHave((b === unorderedPair(x, y)) |- in(x, b)) by Substitution.apply2(true, (b === unorderedPair(x, y)))
+
+          have(in(b, pair(x, y)) ==> in(x, b)) by Tautology.from(bp, bxx, bxy)
+          val frClause = thenHave(forall(b, in(b, pair(x, y)) ==> in(x, b))) by RightForall
+
+          have(thesis) by Tautology.from(defexp of (z -> x), exClause, frClause)
+        }
+        thenHave(thesis) by Substitution.apply2(true, (z === x))
+      }
+
+      have(thesis) by Tautology.from(lhs, rhs)
+    }
+
+    // z in \cup \cap p <=> z \in x
+    val elemUnion = have(in(z, union(unaryIntersection(pair(x, y)))) <=> in(z, x)) subproof {
+      val unionax =
+        have(in(z, union(unaryIntersection(pair(x, y)))) <=> exists(t, in(t, unaryIntersection(pair(x, y))) /\ in(z, t))) by Restate.from(unionAxiom of (x -> unaryIntersection(pair(x, y))))
+
+      val lhs = have(exists(t, in(t, unaryIntersection(pair(x, y))) /\ in(z, t)) |- in(z, x)) subproof {
+        have(in(z, t) |- in(z, t)) by Hypothesis
+        thenHave((in(z, t), (t === x)) |- in(z, x)) by Substitution.apply2(false, t === x)
+        have(in(t, unaryIntersection(pair(x, y))) /\ in(z, t) |- in(z, x)) by Tautology.from(lastStep, elemInter of (z -> t))
+        thenHave(thesis) by LeftExists
+      }
+
+      val rhs = have(in(z, x) |- exists(t, in(t, unaryIntersection(pair(x, y))) /\ in(z, t))) subproof {
+        have(in(x, unaryIntersection(pair(x, y)))) by Restate.from(elemInter of (z -> x))
+        thenHave(in(z, x) |- in(x, unaryIntersection(pair(x, y))) /\ in(z, x)) by Tautology
+        thenHave(thesis) by RightExists
+      }
+
+      have(thesis) by Tautology.from(lhs, rhs, unionax)
+    }
+
+    thenHave(forall(z, in(z, union(unaryIntersection(pair(x, y)))) <=> in(z, x))) by RightForall
+
+    // \cup \cap (x, y) = x
+    val unioneq = have(union(unaryIntersection(pair(x, y))) === x) by Tautology.from(lastStep, extensionalityAxiom of (x -> union(unaryIntersection(pair(x, y))), y -> x))
+    have((firstInPair(pair(x, y)) === union(unaryIntersection(pair(x, y))))) by InstantiateForall(firstInPair(pair(x, y)))(firstInPair.definition of (p -> pair(x, y)))
+    have(thesis) by Substitution.apply2(true, lastStep)(unioneq)
+  }
+
   /**
    * Cartesian Products and Relations
    */
