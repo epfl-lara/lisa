@@ -128,6 +128,8 @@ trait ProofsHelpers {
   def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
   def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
 
+  def lastStep(using proof: library.Proof): proof.ProofStep = proof.mostRecentStep
+
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
     om.output("Current proof of" + _proof.owningTheorem.repr + ": ")
     om.output(
