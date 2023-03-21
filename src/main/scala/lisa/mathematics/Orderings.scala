@@ -205,6 +205,130 @@ object Orderings extends lisa.Main {
       )
   }
 
+  val inclusionOnUniqueness = Lemma(
+    () |- existsOne(z, forall(t, in(t, z) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))))
+  ) {
+    have(thesis) by UniqueComprehension(cartesianProduct(a, a), lambda(Seq(t, a), exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))
+  }
+
+  /**
+   * The relation induced by inclusion on a set, noted `\in_a`.
+   *
+   * `\in_a = {(y, x) \in a * a | y \in x}`
+   */
+  val inclusionOn = DEF(a) --> The(z, forall(t, in(t, z) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))))(inclusionOnUniqueness)
+
+  /**
+   * The partial order `(a, \in_a)` induced by the inclusion relation
+   * ([[inclusionOn]]) on a set.
+   */
+  val inclusionOrderOn = DEF(a) --> pair(a, inclusionOn(a))
+
+  val inclusionOrderElem = Lemma(
+    in(b, a) /\ in(c, a) /\ in(b, c) |- in(pair(b, c), inclusionOn(a))
+  ) {
+    val prodElem = have(in(b, a) /\ in(c, a) /\ in(b, c) |- in(pair(b, c), cartesianProduct(a, a))) subproof {
+      have(in(b, a) /\ in(c, a) /\ in(b, c) |- in(b, a) /\ in(c, a)) by Restate
+      thenHave(in(b, a) /\ in(c, a) /\ in(b, c) |- in(pair(b, c), cartesianProduct(a, a))) by Substitution.apply2(true, pairInCartesianProduct of (a -> b, b -> c, x -> a, y -> a))
+    }
+
+    val existsXY = have(in(b, a) /\ in(c, a) /\ in(b, c) |- exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))))) subproof {
+      have(in(b, a) /\ in(c, a) /\ in(b, c) |- in(b, c) /\ (pair(b, c) === pair(b, c))) by Restate
+      thenHave(in(b, a) /\ in(c, a) /\ in(b, c) |- exists(x, in(b, x) /\ (pair(b, c) === pair(b, x)))) by RightExists
+      thenHave(in(b, a) /\ in(c, a) /\ in(b, c) |- exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))))) by RightExists
+    }
+
+    val impl = have(((in(pair(b, c), cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x)))))) |- in(pair(b, c), inclusionOn(a))) subproof {
+      have(() |- forall(t, in(t, inclusionOn(a)) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(inclusionOn(a))(
+        inclusionOn.definition
+      )
+      // thenHave(() |- forall(t, in(t, inclusionOn(a)) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by Rewrite
+      thenHave(() |- in(pair(b, c), inclusionOn(a)) <=> (in(pair(b, c), cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x)))))) by InstantiateForall(pair(b, c))
+      thenHave(thesis) by Weakening
+    }
+
+    have(thesis) by Tautology.from(prodElem, existsXY, impl)
+  }
+  show
+
+  val inclusionIsRelation = Theorem(
+    () |- relationBetween(inclusionOn(a), a, a)
+  ) {
+    have(forall(t, in(t, inclusionOn(a)) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(inclusionOn(a))(inclusionOn.definition)
+    thenHave(in(t, inclusionOn(a)) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))) by InstantiateForall(t)
+    thenHave(in(t, inclusionOn(a)) ==> in(t, cartesianProduct(a, a))) by Weakening
+    thenHave(forall(t, in(t, inclusionOn(a)) ==> in(t, cartesianProduct(a, a)))) by RightForall
+    // thenHave(forall(z, in(z, inclusionOn(a)) ==> in(z, cartesianProduct(a, a)))) by Restate
+    val subs = thenHave(subset(inclusionOn(a), cartesianProduct(a, a))) by Substitution.apply2(true, subsetAxiom of (x -> inclusionOn(a), y -> cartesianProduct(a, a)))
+
+    have(thesis) by Tautology.from(subs, relationBetween.definition of (r -> inclusionOn(a), a -> a, b -> a))
+  }
+  show
+
+  val emptySetInclusionEmpty = Lemma(
+    () |- (inclusionOn(emptySet()) === emptySet())
+  ) {
+    have(forall(t, in(t, inclusionOn(emptySet())) <=> (in(t, cartesianProduct(emptySet(), emptySet())) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(
+      inclusionOn(emptySet())
+    )(inclusionOn.definition of (a -> emptySet()))
+    val incDef = thenHave(in(t, inclusionOn(emptySet())) <=> (in(t, cartesianProduct(emptySet(), emptySet())) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))) by InstantiateForall(t)
+
+    have(forall(t, in(t, cartesianProduct(emptySet(), emptySet())) <=> in(t, emptySet()))) by Tautology.from(
+      productWithEmptySetEmpty of (x -> emptySet()),
+      extensionalityAxiom of (x -> cartesianProduct(emptySet(), emptySet()), y -> emptySet())
+    )
+    val emp = thenHave(in(t, cartesianProduct(emptySet(), emptySet())) <=> in(t, emptySet())) by InstantiateForall(t)
+
+    val impl = have(in(t, inclusionOn(emptySet())) <=> in(t, emptySet())) subproof {
+      val lhs = have(in(t, inclusionOn(emptySet())) |- in(t, emptySet())) by Tautology.from(incDef, emp)
+      val rhs = have(in(t, emptySet()) |- in(t, inclusionOn(emptySet()))) by Weakening(emptySet.definition of (x -> t))
+      have(thesis) by Tautology.from(lhs, rhs)
+    }
+
+    val ext = thenHave(forall(t, in(t, inclusionOn(emptySet())) <=> in(t, emptySet()))) by RightForall
+    have(thesis) by Tautology.from(ext, extensionalityAxiom of (x -> inclusionOn(emptySet()), y -> emptySet()))
+  }
+  show
+
+  val emptyInclusionReflexive = Lemma(
+    () |- reflexive(inclusionOn(emptySet()), emptySet())
+  ) {
+    have(reflexive(emptySet(), emptySet())) by Restate.from(emptyRelationReflexiveOnItself)
+    thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
+  }
+
+  val emptyInclusionIrreflexive = Lemma(
+    () |- irreflexive(inclusionOn(emptySet()), a)
+  ) {
+    have(irreflexive(emptySet(), a)) by Restate.from(emptyRelationIrreflexive)
+    thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
+  }
+
+  val emptyInclusionTransitive = Lemma(
+    () |- transitive(inclusionOn(emptySet()), a)
+  ) {
+    have(transitive(emptySet(), a)) by Restate.from(emptyRelationTransitive)
+    thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
+  }
+
+  val emptyInclusionPartialOrder = Lemma(
+    () |- partialOrder(pair(emptySet(), inclusionOn(emptySet())))
+  ) {
+    ???
+  }
+
+  val emptyInclusionTotalOrder = Lemma(
+    () |- totalOrder(pair(emptySet(), inclusionOn(emptySet())))
+  ) {
+    ???
+  }
+
+  val emptyInclusionWellOrder = Lemma(
+    () |- wellOrder(pair(emptySet(), inclusionOn(emptySet())))
+  ) {
+    ???
+  }
+
   /**
    * Well-Order --- a partial order `p = (A, <)` is said to be a well-order if
    * it is total and if every subset of `A` has a least element under `<`.
@@ -216,25 +340,38 @@ object Orderings extends lisa.Main {
     totalOrder(p) /\ forall(B, (subset(B, A) /\ !(B === emptySet())) ==> exists(z, in(z, B) /\ forall(x, in(x, B) ==> (in(pair(z, x), `<p`) \/ (z === x)))))
   }
 
+  /**
+   * Useful inherited properties
+   */
+
+  /**
+   * Well-orders inherit relational-transitivity from being partial orders.
+   */
+  val wellOrderTransitivity = Lemma(
+    wellOrder(p) |- forall(w, forall(y, forall(z, (in(pair(w, y), secondInPair(p)) /\ in(pair(y, z), secondInPair(p))) ==> in(pair(w, z), secondInPair(p)))))
+  ) {
+    have(thesis) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition, transitive.definition of (r -> secondInPair(p), x -> firstInPair(p)))
+  }
+  show
+
   val transitiveSet = DEF(x) --> forall(y, in(y, x) ==> subset(y, x))
 
   /**
-   * A set is an ordinal iff it is
-   * [transitive](Orderings$.html#transitiveSet-0) and [well
-   * ordered](Orderings$.html#wellOrder-0) by inclusion.
+   * A set is an ordinal iff it is transitive ([[transitiveSet]]) and
+   * well-ordered ([[wellOrder]]) by inclusion.
    *
-   * Since inclusion is not precisely a relation in the sense of set theory,
-   * the well-ordered clause is explicitly written.
+   * Since inclusion is not precisely a relation in the sense of set theory, the
+   * well-ordered clause is explicitly written.
    */
-  val ordinal = DEF(a) --> transitiveSet(a) /\ forall(b, (subset(b, a) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(z, x) \/ (z === x)))))
+  val ordinal = DEF(a) --> transitiveSet(a) /\ wellOrder(inclusionOrderOn(a))
 
   /**
    * Defining properties of the [[ordinal]] class
    *
    *   - the [[emptySet]] is an ordinal --- [[emptySetOrdinal]]
    *   - if `a` is an ordinal and `b \in a`, then `b` is an ordinal --- [[ordinalInclusionClosure]]
-   *   - if `a` is an ordinal and `b \subset a`, then `b` is an ordinal --- [[ordinalSubsetClosure]]
-   *   - if `a` and `b` are ordinals, then either `a \subset b` or `b \subset a` --- [[ordinalSOMETHING]] TODO:
+   *   - if `a`, `b` are ordinals and `b \subset a`, then `b \in a` --- [[ordinalSubsetClosure]]
+   *   - if `a` and `b` are distinct ordinals, then either `a \subset b` or `b \subset a` --- [[ordinalSOMETHING]] TODO:
    *
    * Other properties
    *
@@ -273,9 +410,38 @@ object Orderings extends lisa.Main {
   }
   show
 
+  val emptySetWellOrderedByInclusion = Lemma(
+    () |- wellOrder(pair(emptySet(), inclusionOn(emptySet())))
+  ) {}
+
   val emptySetOrdinal = Theorem(
     () |- ordinal(emptySet())
-  ) {}
+  ) {
+    have((subset(b, emptySet()) /\ !(b === emptySet())) |- (subset(b, emptySet()) /\ !(b === emptySet()))) by Hypothesis
+    thenHave((subset(b, emptySet()) /\ !(b === emptySet())) |- ((b === emptySet()) /\ !(b === emptySet()))) by Substitution.apply2(false, emptySetSubsetEmpty of (a -> b))
+    thenHave(() |- (subset(b, emptySet()) /\ !(b === emptySet())) ==> (exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(z, x) \/ (z === x)))))) by Weakening
+    val wellOrd = thenHave(() |- forall(b, (subset(b, emptySet()) /\ !(b === emptySet())) ==> (exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(z, x) \/ (z === x))))))) by RightForall
+
+    have(thesis) by Tautology.from(wellOrd, emptySetTransitive, ordinal.definition of (a -> emptySet()))
+  }
+  show
+
+  val ordinalsHeredetarilyTransitive = Lemma(
+    ordinal(a) |- transitiveSet(a) /\ forall(b, in(b, a) ==> transitiveSet(b))
+  ) {
+    val ordinalTrans = have(ordinal(a) |- transitiveSet(a)) by Weakening(ordinal.definition)
+
+  }
+
+  val elementsOfOrdinalsAreOrdinals = Theorem(
+    (ordinal(a), in(b, a)) |- ordinal(b)
+  ) {
+    ???
+  }
+
+  /**
+   * Transfinite Recursion
+   */
 
   val orderedRestrictionUniqueness = Lemma(
     () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ in(pair(firstInPair(t), a), secondInPair(p)))))
