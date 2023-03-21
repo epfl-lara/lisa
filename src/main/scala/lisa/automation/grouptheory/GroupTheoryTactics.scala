@@ -83,22 +83,40 @@ object GroupTheoryTactics {
       }
     }
 
-    def apply(using proof: SetTheoryLibrary.Proof, om: OutputManager)(phi: Formula)(existence: proof.Fact, uniqueness: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using proof: SetTheoryLibrary.Proof, om: OutputManager)(phi: Formula)(existence: proof.Fact, uniqueness: proof.Fact)
+             (bot: Sequent): proof.ProofTacticJudgement = {
+      val existenceSeq = proof.getSequent(existence)
       val uniquenessSeq = proof.getSequent(uniqueness)
 
-      if (!contains(uniquenessSeq.left, phi)) {
-        return proof.InvalidProofTactic("Uniqueness sequent premises do not contain φ.")
+      // Try to infer x from the premises
+      // Specifically, find variables in the correct quantifiers, common to all three sequents
+      val existsVars = existenceSeq.right.collect {
+        case BinderFormula(Exists, x, f) if isSame(f, phi) => x
+      }
+      if (existsVars.isEmpty) {
+        return proof.InvalidProofTactic("Missing existential quantifier in the existence sequent.")
       }
 
-      // Try to infer x and y from the uniqueness sequent right-hand side equality
-      uniquenessSeq.right.collect {
-        case PredicateFormula(`equality`, List(Term(x: VariableLabel, _), Term(y: VariableLabel, _))) if x != y => (x, y)
-      }.collectFirst {
-        case (x, y) if contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](x -> y))) =>
-          ExistenceAndUniqueness.withParameters(phi, x, y)(existence, uniqueness)(bot)
-        case (x, y) if contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](y -> x))) =>
-          ExistenceAndUniqueness.withParameters(phi, y, x)(existence, uniqueness)(bot)
-      }.getOrElse(proof.InvalidProofTactic("Could not infer correct variables in uniqueness sequent."))
+      val commonVars = bot.right.collect {
+        case BinderFormula(ExistsOne, x, f) if isSame(f, phi) && existsVars.contains(x) => x
+      }
+      if (commonVars.isEmpty || commonVars.size > 1) {
+        return proof.InvalidProofTactic("Could not infer correct variable x in quantifiers.")
+      }
+
+      val x = commonVars.head
+
+      // Infer y from the equalities in the uniqueness sequent
+      uniquenessSeq.right.collectFirst {
+        case PredicateFormula(`equality`, List(Term(`x`, _), Term(y: VariableLabel, _)))
+          if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](x -> y))) => y
+
+        case PredicateFormula(`equality`, List(Term(y: VariableLabel, _), Term(`x`, _)))
+          if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](x -> y))) => y
+      } match {
+        case Some(y) => ExistenceAndUniqueness.withParameters(phi, x, y)(existence, uniqueness)(bot)
+        case None => proof.InvalidProofTactic("Could not infer correct variable y in uniqueness sequent.")
+      }
     }
   }
 
