@@ -307,4 +307,26 @@ object GroupTheory extends lisa.Main {
    * Defines the inverse of an element `x` in a group `(G, *)`.
    */
   val inverse = DEF(x, G, *) --> TheConditional(y, isInverse(y, x, G, *))(inverseUniqueness)
+
+  /**
+   * Theorem --- `y` is the inverse of `x` iff `x` is the inverse of `y`
+   */
+  val inverseSymmetry = Theorem(
+	group(G, *) |- ∀(x, G, isInverse(y, x, G, *) ==> isInverse(x, y, G, *))
+  ) {
+    have((group(G, *), in(x, G), isInverse(y, x, G, *)) |- isInverse(x, y, G, *)) subproof {
+      assume(group(G, *))
+      assume(in(x, G))
+      assume(isInverse(y, x, G, *))
+
+      have(in(y, G) /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)) by Tautology.from(isInverse.definition)
+      thenHave(isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
+      val definition = thenHave(in(x, G) /\ isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
+
+      have(thesis) by Tautology.from(definition, isInverse.definition of (y -> x, x -> y))
+    }
+    thenHave((group(G, *), in(x, G)) |- isInverse(y, x, G, *) ==> isInverse(x, y, G, *)) by Restate
+    thenHave(group(G, *) |- in(x, G) ==> (isInverse(y, x, G, *) ==> isInverse(x, y, G, *))) by Restate
+    thenHave(thesis) by RightForall
+  }
 }
