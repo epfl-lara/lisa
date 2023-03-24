@@ -454,18 +454,17 @@ object Orderings extends lisa.Main {
   show
 
   val emptySetWellOrderedByInclusion = Lemma(
-    () |- wellOrder(pair(emptySet(), inclusionOn(emptySet())))
-  ) {}
+    () |- wellOrder(inclusionOrderOn(emptySet()))
+  ) {
+    val incDef = have(inclusionOrderOn(emptySet()) === pair(emptySet(), inclusionOn(emptySet()))) by InstantiateForall(inclusionOrderOn(emptySet()))(inclusionOrderOn.definition of a -> emptySet())
+    have(wellOrder(pair(emptySet(), inclusionOn(emptySet())))) by Substitution.apply2(true, emptySetInclusionEmpty)(emptySetWellOrder)
+    thenHave(thesis) by Substitution.apply2(true, incDef)
+  }
 
   val emptySetOrdinal = Theorem(
     () |- ordinal(emptySet())
   ) {
-    have((subset(b, emptySet()) /\ !(b === emptySet())) |- (subset(b, emptySet()) /\ !(b === emptySet()))) by Hypothesis
-    thenHave((subset(b, emptySet()) /\ !(b === emptySet())) |- ((b === emptySet()) /\ !(b === emptySet()))) by Substitution.apply2(false, emptySetSubsetEmpty of (a -> b))
-    thenHave(() |- (subset(b, emptySet()) /\ !(b === emptySet())) ==> (exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(z, x) \/ (z === x)))))) by Weakening
-    val wellOrd = thenHave(() |- forall(b, (subset(b, emptySet()) /\ !(b === emptySet())) ==> (exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(z, x) \/ (z === x))))))) by RightForall
-
-    have(thesis) by Tautology.from(wellOrd, emptySetTransitive, ordinal.definition of (a -> emptySet()))
+    have(thesis) by Tautology.from(emptySetWellOrderedByInclusion, emptySetTransitive, ordinal.definition of (a -> emptySet()))
   }
   show
 
@@ -473,14 +472,45 @@ object Orderings extends lisa.Main {
     ordinal(a) |- transitiveSet(a) /\ forall(b, in(b, a) ==> transitiveSet(b))
   ) {
     val ordinalTrans = have(ordinal(a) |- transitiveSet(a)) by Weakening(ordinal.definition)
+    val wellOrdInca = have(ordinal(a) |- wellOrder(inclusionOrderOn(a))) by Weakening(ordinal.definition)
+    have(inclusionOrderOn(a) === pair(a, inclusionOn(a))) by InstantiateForall(inclusionOrderOn(a))(inclusionOrderOn.definition)
+    val wellOrda = have(ordinal(a) |- wellOrder(pair(a, inclusionOn(a)))) by Substitution.apply2(false, lastStep)(wellOrdInca)
 
+    have(transitiveSet(a) |- forall(b, in(b, a) ==> subset(b, a))) by Weakening(transitiveSet.definition of x -> a)
+    val bIna = thenHave((transitiveSet(a), in(b, a))|- subset(b, a)) by InstantiateForall(b)
+    have((transitiveSet(a), in(b, a))|- forall(z, in(z, b) ==> in(z, a))) by Tautology.from(lastStep, subsetAxiom of (x -> b, y -> a))
+    thenHave((transitiveSet(a), in(b, a))|- in(z, b) ==> in(z, a)) by InstantiateForall(z)
+    val bcz = have((transitiveSet(a), in(b, a), in(z, b), in(c, z)) |- in(b, a) /\ in(c, a) /\ in(z, a)) by Tautology.from(lastStep, lastStep of (z -> c, b -> z))
+
+    val cInb = have((in(b, a), in(z, b), in(c, z), in(c, a), in(z, a), wellOrder(pair(a, inclusionOn(a)))) |- in(c, b)) subproof {
+      val bz = have(in(b, a) /\ in(z, a) /\ in(z, b) |- in(pair(z, b), inclusionOn(a))) by Weakening(inclusionOrderElem of (b -> z, c -> b))
+      val zc = have(in(z, a) /\ in(c, a) /\ in(c, z) |- in(pair(c, z), inclusionOn(a))) by Weakening(inclusionOrderElem of (c -> z, b -> c))
+      val bc = have(in(pair(c, b), inclusionOn(a)) |- in(b, a) /\ in(c, a) /\ in(c, b)) by Weakening(inclusionOrderElem of (c -> b, b -> c))
+
+      have(wellOrder(pair(a, inclusionOn(a))) |- forall(w, forall(y, forall(z, (in(pair(w, y), inclusionOn(a)) /\ in(pair(y, z), inclusionOn(a))) ==> in(pair(w, z), inclusionOn(a)))))) by Substitution.apply2(false, secondInPairReduction of (x -> a, y -> inclusionOn(a)))(wellOrderTransitivity of p -> pair(a, inclusionOn(a)))
+      thenHave(wellOrder(pair(a, inclusionOn(a))) |- forall(y, forall(z, (in(pair(c, y), inclusionOn(a)) /\ in(pair(y, z), inclusionOn(a))) ==> in(pair(c, z), inclusionOn(a))))) by InstantiateForall(c)
+      thenHave(wellOrder(pair(a, inclusionOn(a))) |- forall(w, (in(pair(c, z), inclusionOn(a)) /\ in(pair(z, w), inclusionOn(a))) ==> in(pair(c, w), inclusionOn(a)))) by InstantiateForall(z)
+      thenHave(wellOrder(pair(a, inclusionOn(a))) |- (in(pair(c, z), inclusionOn(a)) /\ in(pair(z, b), inclusionOn(a))) ==> in(pair(c, b), inclusionOn(a))) by InstantiateForall(b)
+
+      have(thesis) by Tautology.from(lastStep, bz, zc, bc)
   }
 
-  val elementsOfOrdinalsAreOrdinals = Theorem(
-    (ordinal(a), in(b, a)) |- ordinal(b)
-  ) {
-    ???
+    have((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a), in(z, b), in(c, z)) |- in(c, b)) by Tautology.from(bcz, cInb)
+    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- (in(c, z) /\ in(z, b)) ==> in(c, b)) by Restate
+    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- forall(z, (in(c, z) /\ in(z, b)) ==> in(c, b))) by RightForall
+    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- forall(c, forall(z, (in(c, z) /\ in(z, b)) ==> in(c, b)))) by RightForall
+    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- transitiveSet(b)) by Substitution.apply2(true, transitiveSetInclusionDef of x -> b)
+    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a)))) |- in(b, a) ==> transitiveSet(b)) by Restate
+    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a)))) |- forall(b, in(b, a) ==> transitiveSet(b))) by RightForall
+  
+    have(thesis) by Tautology.from(lastStep, wellOrda, ordinalTrans)
   }
+
+  // val elementsOfOrdinalsAreOrdinals = Theorem(
+  //   (ordinal(a), in(b, a)) |- ordinal(b)
+  // ) {
+  //   ???
+  // }
 
   /**
    * Transfinite Recursion
