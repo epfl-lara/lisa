@@ -375,6 +375,26 @@ object SetTheory extends lisa.Main {
     thenHave(subset(∅, x)) by Tautology
   }
 
+  val emptySetIsItsOwnOnlySubset = Theorem(
+    subset(x, emptySet()) <=> (x === emptySet())
+  ) {
+    val fwd = have(subset(x, emptySet()) |- (x === emptySet())) subproof {
+      have(subset(x, emptySet()) |- forall(z, in(z, x) ==> in(z, emptySet()))) by Weakening(subsetAxiom of y -> emptySet())
+      thenHave(subset(x, emptySet()) |- in(z, x) ==> in(z, emptySet())) by InstantiateForall(z)
+      have(subset(x, emptySet()) |- !in(z, x)) by Tautology.from(lastStep, emptySetAxiom of x -> z)
+      thenHave(subset(x, emptySet()) |- forall(z, !in(z, x))) by RightForall
+
+      have(thesis) by Cut(lastStep, setWithNoElementsIsEmpty)
+    }
+
+    val bwd = have((x === emptySet()) |- subset(x, emptySet())) subproof {
+      have(subset(emptySet(), emptySet())) by Restate.from(emptySetIsASubset of x -> emptySet())
+      thenHave(thesis) by Substitution.apply2(true, x === emptySet())
+    }
+
+    have(thesis) by Tautology.from(fwd, bwd)
+  }
+
   /**
    * Theorem --- A power set is never empty.
    */
@@ -1974,6 +1994,16 @@ object SetTheory extends lisa.Main {
     val asymCond = thenHave(() |- forall(y, forall(z, in(pair(y, z), emptySet()) ==> !in(pair(z, y), emptySet())))) by RightForall
 
     have(thesis) by Tautology.from(asymmetric.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), asymCond)
+  }
+
+  val emptyRelationTotalOnItself = Lemma(
+    () |- total(emptySet(), emptySet())
+  ) {
+    have((in(y, emptySet()) /\ in(z, emptySet())) ==> (in(pair(y, z), emptySet()) \/ in(pair(z, y), emptySet()) \/ (y === z))) by Tautology.from(emptySetAxiom of x -> y)
+    thenHave(forall(z, (in(y, emptySet()) /\ in(z, emptySet())) ==> (in(pair(y, z), emptySet()) \/ in(pair(z, y), emptySet()) \/ (y === z)))) by RightForall
+    thenHave(forall(y, forall(z, (in(y, emptySet()) /\ in(z, emptySet())) ==> (in(pair(y, z), emptySet()) \/ in(pair(z, y), emptySet()) \/ (y === z))))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, total.definition of (r -> emptySet(), x -> emptySet()), emptySetRelationOnItself)
   }
 
   /**
