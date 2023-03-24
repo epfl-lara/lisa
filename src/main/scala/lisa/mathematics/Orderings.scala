@@ -225,29 +225,33 @@ object Orderings extends lisa.Main {
   val inclusionOrderOn = DEF(a) --> pair(a, inclusionOn(a))
 
   val inclusionOrderElem = Lemma(
-    in(b, a) /\ in(c, a) /\ in(b, c) |- in(pair(b, c), inclusionOn(a))
+    () |- (in(b, a) /\ in(c, a) /\ in(b, c)) <=> in(pair(b, c), inclusionOn(a))
   ) {
-    val prodElem = have(in(b, a) /\ in(c, a) /\ in(b, c) |- in(pair(b, c), cartesianProduct(a, a))) subproof {
-      have(in(b, a) /\ in(c, a) /\ in(b, c) |- in(b, a) /\ in(c, a)) by Restate
-      thenHave(in(b, a) /\ in(c, a) /\ in(b, c) |- in(pair(b, c), cartesianProduct(a, a))) by Substitution.apply2(true, pairInCartesianProduct of (a -> b, b -> c, x -> a, y -> a))
+    val prodElem = have((in(b, a) /\ in(c, a)) <=> in(pair(b, c), cartesianProduct(a, a))) by Restate.from(pairInCartesianProduct of (a -> b, b -> c, x -> a, y -> a))
+
+    val exXY = have(in(b, c) <=> exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))))) subproof {
+      val fwd  = have(in(b, c) |- exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))))) subproof {
+        have(in(b, c) |- in(b, c) /\ (pair(b, c) === pair(b, c))) by Restate
+        thenHave(in(b, c) |- exists(x, in(b, x) /\ (pair(b, c) === pair(b, x)))) by RightExists
+        thenHave(thesis) by RightExists
+    }
+      val bwd = have(exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x)))) |- in(b, c)) subproof {
+        val pairExt = have((pair(b, c) === pair(y, x)) |- (b === y) /\ (c === x)) by Weakening(pairExtensionality of (a -> b, b -> c, c -> y, d -> x))
+
+        have(in(y, x) |- in(y, x)) by Hypothesis
+        thenHave((in(y, x), b === y, c === x) |- in(b, c)) by Substitution.apply2(true, b === y, c === x)
+        have((in(y, x) /\ (pair(b, c) === pair(y, x))) |- in(b, c)) by Tautology.from(pairExt, lastStep)
+        thenHave(exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))) |- in(b, c)) by LeftExists
+        thenHave(thesis) by LeftExists
     }
 
-    val existsXY = have(in(b, a) /\ in(c, a) /\ in(b, c) |- exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))))) subproof {
-      have(in(b, a) /\ in(c, a) /\ in(b, c) |- in(b, c) /\ (pair(b, c) === pair(b, c))) by Restate
-      thenHave(in(b, a) /\ in(c, a) /\ in(b, c) |- exists(x, in(b, x) /\ (pair(b, c) === pair(b, x)))) by RightExists
-      thenHave(in(b, a) /\ in(c, a) /\ in(b, c) |- exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))))) by RightExists
+      have(thesis) by Tautology.from(fwd, bwd)
     }
 
-    val impl = have(((in(pair(b, c), cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x)))))) |- in(pair(b, c), inclusionOn(a))) subproof {
-      have(() |- forall(t, in(t, inclusionOn(a)) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(inclusionOn(a))(
-        inclusionOn.definition
-      )
-      // thenHave(() |- forall(t, in(t, inclusionOn(a)) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by Rewrite
-      thenHave(() |- in(pair(b, c), inclusionOn(a)) <=> (in(pair(b, c), cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x)))))) by InstantiateForall(pair(b, c))
-      thenHave(thesis) by Weakening
-    }
+    have(forall(t, in(t, inclusionOn(a)) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(inclusionOn(a))(inclusionOn.definition)
+    thenHave(in(pair(b, c), inclusionOn(a)) <=> (in(pair(b, c), cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (pair(b, c) === pair(y, x)))))) by InstantiateForall(pair(b, c))
 
-    have(thesis) by Tautology.from(prodElem, existsXY, impl)
+    have(thesis) by Tautology.from(lastStep, prodElem, exXY)
   }
   show
 
