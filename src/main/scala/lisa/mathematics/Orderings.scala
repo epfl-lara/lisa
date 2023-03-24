@@ -315,23 +315,20 @@ object Orderings extends lisa.Main {
     thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
   }
 
-  val emptyInclusionPartialOrder = Lemma(
-    () |- partialOrder(pair(emptySet(), inclusionOn(emptySet())))
+  val emptySetPartialOrder = Lemma(
+    () |- partialOrder(pair(emptySet(), emptySet()))
   ) {
-    ???
+    have(partialOrder(pair(emptySet(), emptySet())) <=> (relationBetween(emptySet(), emptySet(), emptySet()) /\ antiReflexive(emptySet(), emptySet()) /\ transitive(emptySet(), emptySet()))) by Substitution.apply2(false, firstInPairReduction of (x -> emptySet(), y -> emptySet()), secondInPairReduction of (x -> emptySet(), y -> emptySet()))(partialOrder.definition of p -> pair(emptySet(), emptySet()))
+    have(thesis) by Tautology.from(lastStep, emptySetRelationOnItself, emptyRelationIrreflexive of a -> emptySet(), emptyRelationTransitive of a -> emptySet())
   }
 
-  val emptyInclusionTotalOrder = Lemma(
-    () |- totalOrder(pair(emptySet(), inclusionOn(emptySet())))
+  val emptySetTotalOrder = Lemma(
+    () |- totalOrder(pair(emptySet(), emptySet()))
   ) {
-    ???
+    have(totalOrder(pair(emptySet(), emptySet())) <=> (partialOrder(pair(emptySet(), emptySet())) /\ total(emptySet(), emptySet()))) by Substitution.apply2(false, firstInPairReduction of (x -> emptySet(), y -> emptySet()), secondInPairReduction of (x -> emptySet(), y -> emptySet()))(totalOrder.definition of p -> pair(emptySet(), emptySet()))
+    have(thesis) by Tautology.from(lastStep, emptySetPartialOrder, emptyRelationTotalOnItself)
   }
-
-  val emptyInclusionWellOrder = Lemma(
-    () |- wellOrder(pair(emptySet(), inclusionOn(emptySet())))
-  ) {
-    ???
-  }
+  show
 
   /**
    * Well-Order --- a partial order `p = (A, <)` is said to be a well-order if
@@ -342,6 +339,17 @@ object Orderings extends lisa.Main {
     val B = variable
     val `<p` = secondInPair(p)
     totalOrder(p) /\ forall(B, (subset(B, A) /\ !(B === emptySet())) ==> exists(z, in(z, B) /\ forall(x, in(x, B) ==> (in(pair(z, x), `<p`) \/ (z === x)))))
+  }
+
+  val emptySetWellOrder = Lemma(
+    () |- wellOrder(pair(emptySet(), emptySet()))
+  ) {
+    val woDef = have(wellOrder(pair(emptySet(), emptySet())) <=> (totalOrder(pair(emptySet(), emptySet())) /\ forall(b, (subset(b, emptySet()) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet(), emptySet()))) \/ (z === x))))))) by Substitution.apply2(false, firstInPairReduction of (x -> emptySet(), y -> emptySet()))(wellOrder.definition of p -> pair(emptySet(), emptySet()))
+  
+    have((subset(b, emptySet()) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet(), emptySet()))) \/ (z === x))))) by Tautology.from(emptySetIsItsOwnOnlySubset of x -> b)
+    thenHave(forall(b, (subset(b, emptySet()) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet(), emptySet()))) \/ (z === x)))))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, woDef, emptySetTotalOrder)
   }
 
   /**
