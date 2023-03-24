@@ -336,26 +336,43 @@ object GroupTheory extends lisa.Main {
   ) {
     assume(group(G, *))
 
-    // We use the symmetry of the inverse to prove that x is an inverse of inverse(x)
-    // We finally conclude by uniqueness
+    val inverseCharacterization = have((group(G, *), in(x, G)) |- ((y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) subproof {
+      assume(group(G, *))
 
-    have(in(x, G) |- ∀(y, (y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) by Tautology.from(inverseUniqueness, inverse.definition)
-    val uniqueness = thenHave(in(x, G) |- ((y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) by InstantiateForall(y)
+      have(in(x, G) |- ∀(y, (y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) by Tautology.from(inverseUniqueness, inverse.definition)
+      thenHave(thesis) by InstantiateForall(y)
+    }
 
-    have(in(x, G) |- ((inverse(x, G, *) === inverse(x, G, *)) <=> isInverse(inverse(x, G, *), x, G, *))) by Restate.from(uniqueness of (y -> inverse(x, G, *)))
-    val byDef = thenHave(in(x, G) |- isInverse(inverse(x, G, *), x, G, *)) by Restate
-    val membership = have(in(x, G) |- in(inverse(x, G, *), G)) by Tautology.from(byDef, isInverse.definition of (y -> inverse(x, G, *)))
+    // Prove that inverse(x) is an inverse of x
+    val inverseIsInverse = have((group(G, *), in(x, G)) |- isInverse(inverse(x, G, *), x, G, *)) subproof {
+      assume(group(G, *))
 
-    have(∀(z, G, isInverse(inverse(x, G, *), z, G, *) ==> isInverse(z, inverse(x, G, *), G, *))) by Tautology.from(inverseSymmetry of (y -> inverse(x, G, *)))
-    thenHave(in(x, G) ==> (isInverse(inverse(x, G, *), x, G, *) ==> isInverse(x, inverse(x, G, *), G, *))) by InstantiateForall(x)
-    val symmetry = thenHave((in(x, G), isInverse(inverse(x, G, *), x, G, *)) |- isInverse(x, inverse(x, G, *), G, *)) by Restate
+      have(in(x, G) |- ((inverse(x, G, *) === inverse(x, G, *)) <=> isInverse(inverse(x, G, *), x, G, *))) by Restate.from(
+        inverseCharacterization of (y -> inverse(x, G, *))
+      )
+      thenHave(thesis) by Restate
+    }
 
-    val symmetricInverse = have(in(x, G) |- isInverse(x, inverse(x, G, *), G, *)) by Cut(byDef, symmetry)
+    val membership = have((group(G, *), in(x, G)) |- in(inverse(x, G, *), G)) by Tautology.from(
+      inverseIsInverse, isInverse.definition of (y -> inverse(x, G, *))
+    )
+
+    // Use the symmetry of the inverse relation to prove that x is an inverse of inverse(x)
+    val satisfaction = have((group(G, *), in(x, G)) |- isInverse(x, inverse(x, G, *), G, *)) subproof {
+      assume(group(G, *))
+
+      have(∀(z, G, isInverse(inverse(x, G, *), z, G, *) ==> isInverse(z, inverse(x, G, *), G, *))) by Tautology.from(inverseSymmetry of (y -> inverse(x, G, *)))
+      thenHave(in(x, G) ==> (isInverse(inverse(x, G, *), x, G, *) ==> isInverse(x, inverse(x, G, *), G, *))) by InstantiateForall(x)
+      val symmetryCut = thenHave((in(x, G), isInverse(inverse(x, G, *), x, G, *)) |- isInverse(x, inverse(x, G, *), G, *)) by Restate
+
+      have(thesis) by Cut(inverseIsInverse, symmetryCut)
+    }
 
     // Conclude by uniqueness
     val u = inverse(inverse(x, G, *), G, *)
-    val iff = have(in(inverse(x, G, *), G) |- ((x === u) <=> isInverse(x, inverse(x, G, *), G, *))) by Restate.from(uniqueness of (x -> inverse(x, G, *), y -> x))
-    val eq = have((in(x, G), in(inverse(x, G, *), G)) |- (x === u)) by Tautology.from(symmetricInverse, iff)
+
+    val characterization = have(in(inverse(x, G, *), G) |- ((x === u) <=> isInverse(x, inverse(x, G, *), G, *))) by Restate.from(inverseCharacterization of (x -> inverse(x, G, *), y -> x))
+    val eq = have((in(x, G), in(inverse(x, G, *), G)) |- (x === u)) by Tautology.from(satisfaction, characterization)
 
     have(in(x, G) |- (x === u)) by Cut(membership, eq)
     thenHave(in(x, G) ==> (x === u)) by Restate
