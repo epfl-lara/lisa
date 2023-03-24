@@ -2,9 +2,7 @@ package lisa.mathematics
 
 import lisa.automation.grouptheory.GroupTheoryTactics.{Cases, ExistenceAndUniqueness}
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.automation.kernel.SimpleSimplifier.Substitution
 import lisa.mathematics.FirstOrderLogic.{equalityTransitivity, existsOneImpliesExists, substitutionInUniquenessQuantifier}
-import lisa.mathematics.GroupTheory.*
 import lisa.mathematics.SetTheory.*
 
 /**
