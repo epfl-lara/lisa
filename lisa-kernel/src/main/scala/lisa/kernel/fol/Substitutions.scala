@@ -94,7 +94,7 @@ trait Substitutions extends FormulaDefinitions {
       val newSubst = m - bound
       val fv = m.values.flatMap(_.freeVariables).toSet
       if (fv.contains(bound)) {
-        val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
+        val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ m.keys.map(_.id), bound.name))
         val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
         BinderFormula(label, newBoundVariable, substituteVariables(newInner, newSubst))
       } else BinderFormula(label, bound, substituteVariables(inner, newSubst))
@@ -136,7 +136,7 @@ trait Substitutions extends FormulaDefinitions {
         val newSubst = m - bound
         val fv: Set[VariableLabel] = newSubst.flatMap { case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }.toSet
         if (fv.contains(bound)) {
-          val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
+          val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ m.keys.map(_.id), bound.name))
           val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiateTermSchemas(newInner, newSubst))
         } else BinderFormula(label, bound, instantiateTermSchemas(inner, newSubst))
@@ -232,7 +232,7 @@ trait Substitutions extends FormulaDefinitions {
             (mPred.flatMap { case (symbol, LambdaTermFormula(arguments, body)) => body.freeVariables }).toSet ++
             (mTerm.flatMap { case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }).toSet
         if (fv.contains(bound)) {
-          val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
+          val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ mTerm.keys.map(_.id), bound.name))
           val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiateSchemas(newInner, mCon, mPred, newmTerm))
         } else BinderFormula(label, bound, instantiateSchemas(inner, mCon, mPred, newmTerm))
