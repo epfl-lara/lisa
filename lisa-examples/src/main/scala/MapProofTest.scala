@@ -113,8 +113,6 @@ object MapProofTest extends lisa.Main {
   // second induction hypothesis
   val IH2 = xs.map(f) === xs.mapTr(f, Nil)
 
-  println("Check here")
-
   val MapEqMapTrCons = Theorem(
     (MapCons, IH2, NilAppend, MapTrCons, ConsAppend, IH1) |- (x :: xs).map(f) === (x :: xs).mapTr(f, Nil)
   ) {
