@@ -472,8 +472,8 @@ class Parser(
 
     val bool: Syntax[Termula] = accept(BooleanConstantKind)(
       {
-        case TrueToken(r) => Termula(RangedLabel(And, r), Seq(), r)
-        case FalseToken(r) => Termula(RangedLabel(Or, r), Seq(), r)
+        case TrueToken(r) => Termula(RangedLabel(top, r), Seq(), r)
+        case FalseToken(r) => Termula(RangedLabel(bot, r), Seq(), r)
       },
       {
         case Termula(RangedLabel(And, _), Seq(), r) => Seq(TrueToken(r))

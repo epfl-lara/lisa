@@ -153,8 +153,8 @@ object KernelParser {
     if (problem.spc.contains("CNF")) problem.formulas.map(_.formula) |- ()
     else
       problem.formulas.foldLeft[LK.Sequent](() |- ())((s, f) =>
-        if (f._1 == "axiom") s +< f._3
-        else if (f._1 == "conjecture" && s.right.isEmpty) s +> f._3
+        if (f._1 == "axiom") s +<< f._3
+        else if (f._1 == "conjecture" && s.right.isEmpty) s +>> f._3
         else throw Exception("Can only agglomerate axioms and one conjecture into a sequents")
       )
   }
