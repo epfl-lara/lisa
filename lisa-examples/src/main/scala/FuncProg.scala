@@ -9,15 +9,15 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter.*
 import lisa.utils.KernelHelpers.checkProof
-import lisa.utils.unification.UnificationUtils.*
 import lisa.utils.parsing.FOLPrinter
+import lisa.utils.unification.UnificationUtils.*
 
 /**
-  * A set of proofs from a functional programming exam about equivalence between
-  * `map` and a tail-recursive version of it, `mapTr`.
-  * 
-  * An example of really domain specific proofs using infix extensions.
-  */
+ * A set of proofs from a functional programming exam about equivalence between
+ * `map` and a tail-recursive version of it, `mapTr`.
+ *
+ * An example of really domain specific proofs using infix extensions.
+ */
 object MapProofTest extends lisa.Main {
   val Nil = variable
   val Cons = function(2)
@@ -33,8 +33,8 @@ object MapProofTest extends lisa.Main {
 
   // some more DSL
   extension (t1: Term) {
-    infix def :: (t2: Term) = Cons(t1, t2)
-    infix def ++ (t2: Term) = append(t1, t2)
+    infix def ::(t2: Term) = Cons(t1, t2)
+    infix def ++(t2: Term) = append(t1, t2)
     def map(t2: Term) = map_(t1, t2)
     def mapTr(t2: Term, t3: Term) = mapTr_(t1, t2, t3)
   }
@@ -48,14 +48,19 @@ object MapProofTest extends lisa.Main {
   val ConsAppend = forall(x, forall(xs, forall(ys, ((x :: xs) ++ ys) === Cons(x, append(xs, ys)))))
 
   val mapRules = Seq(
-    MapNil, MapCons, MapTrNil, MapTrCons, NilAppend, ConsAppend
+    MapNil,
+    MapCons,
+    MapTrNil,
+    MapTrCons,
+    NilAppend,
+    ConsAppend
   )
 
   val AccOutNil = Theorem(
     mapRules |- Nil.mapTr(f, (x :: xs)) === (x :: Nil.mapTr(f, xs))
   ) {
     assume(mapRules)
-    
+
     // apply MapTrNil
     have(Nil.mapTr(f, (x :: xs)) === (x :: xs)) by InstantiateForall
 
@@ -69,7 +74,7 @@ object MapProofTest extends lisa.Main {
   val IH1 = forall(y, forall(ys, xs.mapTr(f, y :: ys) === (y :: xs.mapTr(f, ys))))
 
   val AccOutCons = Theorem(
-    (mapRules :+ IH1 )|- (x :: xs).mapTr(f, y :: ys) === (y :: (x :: xs).mapTr(f, ys))
+    (mapRules :+ IH1) |- (x :: xs).mapTr(f, y :: ys) === (y :: (x :: xs).mapTr(f, ys))
   ) {
     assume(mapRules)
     assume(IH1)
@@ -77,19 +82,19 @@ object MapProofTest extends lisa.Main {
     // apply MapTrCons
     have(MapTrCons) by Restate
     val appYYs = thenHave((x :: xs).mapTr(f, (y :: ys)) === xs.mapTr(f, append((y :: ys), (app(f, x) :: Nil)))) by InstantiateForall(x, xs, (y :: ys))
-    
+
     // apply ConsAppend
     have(ConsAppend) by Restate
     thenHave(append((y :: ys), (app(f, x) :: Nil)) === (y :: (ys ++ (app(f, x) :: Nil)))) by InstantiateForall(y, ys, (app(f, x) :: Nil))
-  
+
     val consYYs = have((x :: xs).mapTr(f, (y :: ys)) === xs.mapTr(f, (y :: (ys ++ (app(f, x) :: Nil))))) by Substitution.applyRule(flip = false, lastStep)(appYYs)
-  
+
     // apply IH1
     have(IH1) by Restate
     thenHave(xs.mapTr(f, (y :: (ys ++ (app(f, x) :: Nil)))) === (y :: xs.mapTr(f, (ys ++ (app(f, x) :: Nil))))) by InstantiateForall(y, (ys ++ (app(f, x) :: Nil)))
- 
+
     val consYXs = have((x :: xs).mapTr(f, (y :: ys)) === (y :: xs.mapTr(f, (ys ++ (app(f, x) :: Nil))))) by Substitution.applyRule(flip = false, lastStep)(consYYs)
-    
+
     // apply MapTrCons again
     have(MapTrCons) by Restate
     thenHave((x :: xs).mapTr(f, ys) === xs.mapTr(f, (ys ++ (app(f, x) :: Nil)))) by InstantiateForall(x, xs, ys)
