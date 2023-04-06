@@ -105,6 +105,11 @@ trait ProofsHelpers {
   }
 
    */
+
+  def assume(using proof: library.Proof)(fs: Seq[Formula]): proof.ProofStep = {
+    fs.foreach(f => proof.addAssumption(f))
+    have(() |- fs.toSet) by BasicStepTactic.Hypothesis
+  }
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
