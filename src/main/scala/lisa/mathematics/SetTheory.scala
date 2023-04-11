@@ -1395,7 +1395,7 @@ object SetTheory extends lisa.Main {
     ∃(c, ∃(d, (t === pair(c, d)) /\ in(c, x) /\ in(d, y))) |- in(t, powerSet(powerSet(setUnion(x, y))))
   ) {
     val upCD = have((in(c, x), in(d, y)) |- in(unorderedPair(c, d), powerSet(setUnion(x, y)))) subproof {
-      
+
       have((in(c, x), in(d, y)) |- subset(unorderedPair(c, d), setUnion(x, y))) subproof {
         val zcd = have(in(z, unorderedPair(c, d)) <=> ((z === c) \/ (z === d))) by Restate.from(pairAxiom of (x -> c, y -> d))
         val zunion = have(in(z, setUnion(x, y)) <=> (in(z, x) \/ in(z, y))) by Restate.from(setUnionMembership)
@@ -1409,11 +1409,11 @@ object SetTheory extends lisa.Main {
         have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> unorderedPair(c, d), y -> setUnion(x, y)))
       }
 
-      have(thesis) by Tautology.from(lastStep, powerAxiom of (y -> setUnion(x, y), x -> unorderedPair(c, d))) 
+      have(thesis) by Tautology.from(lastStep, powerAxiom of (y -> setUnion(x, y), x -> unorderedPair(c, d)))
     }
 
     val upCC = have((in(c, x)) |- in(unorderedPair(c, c), powerSet(setUnion(x, y)))) subproof {
-      
+
       have((in(c, x)) |- subset(unorderedPair(c, c), setUnion(x, y))) subproof {
         val zcd = have(in(z, unorderedPair(c, c)) <=> (z === c)) by Restate.from(pairAxiom of (x -> c, y -> c))
         val zunion = have(in(z, setUnion(x, y)) <=> (in(z, x) \/ in(z, y))) by Restate.from(setUnionMembership)
@@ -1426,12 +1426,12 @@ object SetTheory extends lisa.Main {
         have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> unorderedPair(c, c), y -> setUnion(x, y)))
       }
 
-      have(thesis) by Tautology.from(lastStep, powerAxiom of (y -> setUnion(x, y), x -> unorderedPair(c, c))) 
-      
+      have(thesis) by Tautology.from(lastStep, powerAxiom of (y -> setUnion(x, y), x -> unorderedPair(c, c)))
+
     }
 
     have((in(c, x), in(d, y)) |- in(pair(c, d), powerSet(powerSet(setUnion(x, y))))) subproof {
-      
+
       have((in(c, x), in(d, y)) |- subset(pair(c, d), powerSet(setUnion(x, y)))) subproof {
         val zp = have(in(z, pair(c, d)) <=> ((z === unorderedPair(c, d)) \/ (z === unorderedPair(c, c)))) by Restate.from(pairAxiom of (x -> unorderedPair(c, d), y -> unorderedPair(c, c)))
 
@@ -1444,8 +1444,8 @@ object SetTheory extends lisa.Main {
         have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> pair(c, d), y -> powerSet(setUnion(x, y))))
       }
 
-      have(thesis) by Tautology.from(lastStep, powerAxiom of (y -> powerSet(setUnion(x, y)), x -> pair(c, d))) 
-      
+      have(thesis) by Tautology.from(lastStep, powerAxiom of (y -> powerSet(setUnion(x, y)), x -> pair(c, d)))
+
     }
 
     thenHave((t === pair(c, d), in(c, x), in(d, y)) |- in(t, powerSet(powerSet(setUnion(x, y))))) by Substitution.apply2(true, t === pair(c, d))
@@ -1486,7 +1486,7 @@ object SetTheory extends lisa.Main {
     subset(a, c) /\ subset(b, c) |- subset(setUnion(a, b), c)
   ) {
     val unionDef = have(in(z, setUnion(a, b)) <=> (in(z, a) \/ in(z, b))) by Restate.from(setUnionMembership of (x -> a, y -> b))
-  
+
     have(subset(a, c) |- forall(z, in(z, a) ==> in(z, c))) by Weakening(subsetAxiom of (x -> a, y -> c))
     val ac = thenHave(subset(a, c) |- in(z, a) ==> in(z, c)) by InstantiateForall(z)
     val bc = ac of a -> b
@@ -1503,7 +1503,7 @@ object SetTheory extends lisa.Main {
   ) {
     val unionDefab = have(in(z, setUnion(a, b)) <=> (in(z, a) \/ in(z, b))) by Restate.from(setUnionMembership of (x -> a, y -> b))
     val unionDefcd = unionDefab of (a -> c, b -> d)
-  
+
     have(subset(a, c) |- forall(z, in(z, a) ==> in(z, c))) by Weakening(subsetAxiom of (x -> a, y -> c))
     val ac = thenHave(subset(a, c) |- in(z, a) ==> in(z, c)) by InstantiateForall(z)
     val bc = ac of (a -> b, c -> d)
@@ -1533,10 +1533,14 @@ object SetTheory extends lisa.Main {
   val elemOfCartesianProduct = Theorem(
     in(t, cartesianProduct(x, y)) <=> ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y)))
   ) {
-    have(forall(t, in(t, cartesianProduct(x, y)) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y)))))) by InstantiateForall(cartesianProduct(x, y))(cartesianProduct.definition)
+    have(forall(t, in(t, cartesianProduct(x, y)) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y)))))) by InstantiateForall(
+      cartesianProduct(x, y)
+    )(cartesianProduct.definition)
     val defUnfold = thenHave(in(t, cartesianProduct(x, y)) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))) by InstantiateForall(t)
 
-    have(∃(c, ∃(d, (t === pair(c, d)) /\ in(c, x) /\ in(d, y))) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(c, ∃(d, (t === pair(c, d)) /\ in(c, x) /\ in(d, y))))) by Tautology.from(elemOfPowerPowerUnion)
+    have(∃(c, ∃(d, (t === pair(c, d)) /\ in(c, x) /\ in(d, y))) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(c, ∃(d, (t === pair(c, d)) /\ in(c, x) /\ in(d, y))))) by Tautology.from(
+      elemOfPowerPowerUnion
+    )
 
     have(thesis) by Tautology.from(lastStep, defUnfold)
   }
@@ -1552,11 +1556,11 @@ object SetTheory extends lisa.Main {
 
     /*
       z in a x b
-      <=> 
+      <=>
       exist x, y. z = (x, y); x in a; y in b
       ==> x in a U c, y in b U d
       ==> z in (a U c) x (b U d)
-    */
+     */
     val zab = have(in(z, axb) |- in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) subproof {
       have(forall(z, in(z, a) ==> in(z, setUnion(a, c)))) by Tautology.from(unionSubsetFirst of (b -> c), subsetAxiom of (x -> a, y -> setUnion(a, c)))
       val xa = thenHave((in(x, a) ==> in(x, setUnion(a, c)))) by InstantiateForall(x)
@@ -1574,8 +1578,10 @@ object SetTheory extends lisa.Main {
       have(thesis) by Tautology.from(lastStep, elemOfCartesianProduct of (x -> a, y -> b, t -> z), elemOfCartesianProduct of (x -> setUnion(a, c), y -> setUnion(b, d), t -> z))
     }
 
-    val zcd = have(in(z, cxd) |- in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Substitution.apply2(false, unionCommutativity of (a -> c, b -> a), unionCommutativity of (a -> d, b -> b))(lastStep of (a -> c, b -> d, c -> a, d -> b))
-  
+    val zcd = have(in(z, cxd) |- in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Substitution.apply2(false, unionCommutativity of (a -> c, b -> a), unionCommutativity of (a -> d, b -> b))(
+      lastStep of (a -> c, b -> d, c -> a, d -> b)
+    )
+
     have(in(z, setUnion(axb, cxd)) ==> in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Tautology.from(unionDef, zab, zcd)
     thenHave(forall(z, in(z, setUnion(axb, cxd)) ==> in(z, cartesianProduct(setUnion(a, c), setUnion(b, d))))) by RightForall
 
@@ -1771,8 +1777,12 @@ object SetTheory extends lisa.Main {
     val gcd = fab of (f -> g, a -> c, b -> d)
     val fug = fab of (f -> setUnion(f, g), a -> setUnion(a, c), b -> setUnion(b, d))
 
-    have(subset(f, cartesianProduct(a, b)) /\ subset(g, cartesianProduct(c, d)) |- subset(setUnion(f, g), cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Tautology.from(unionOfCartesianProducts, unionOfSubsetsOfDifferentSets of (a -> f, b -> g, c -> cartesianProduct(a, b), d -> cartesianProduct(c, d)), subsetTransitivity of (a -> setUnion(f, g), b -> setUnion(cartesianProduct(a, b), cartesianProduct(c, d)), c -> cartesianProduct(setUnion(a, c), setUnion(b, d))))
-  
+    have(subset(f, cartesianProduct(a, b)) /\ subset(g, cartesianProduct(c, d)) |- subset(setUnion(f, g), cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Tautology.from(
+      unionOfCartesianProducts,
+      unionOfSubsetsOfDifferentSets of (a -> f, b -> g, c -> cartesianProduct(a, b), d -> cartesianProduct(c, d)),
+      subsetTransitivity of (a -> setUnion(f, g), b -> setUnion(cartesianProduct(a, b), cartesianProduct(c, d)), c -> cartesianProduct(setUnion(a, c), setUnion(b, d)))
+    )
+
     have(thesis) by Tautology.from(lastStep, fab, gcd, fug)
   }
   show
@@ -2432,7 +2442,10 @@ object SetTheory extends lisa.Main {
   }
 
   val unionOfFunctionsIsAFunction = Lemma(
-    functional(f) /\ functional(g) /\ forall(t, (in(t, relationDomain(f)) /\ in(t, relationDomain(g))) ==> (app(f, z) === app(g, z))) |- functionalOver(setUnion(f, g), setUnion(relationDomain(f), relationDomain(g)))
+    functional(f) /\ functional(g) /\ forall(t, (in(t, relationDomain(f)) /\ in(t, relationDomain(g))) ==> (app(f, z) === app(g, z))) |- functionalOver(
+      setUnion(f, g),
+      setUnion(relationDomain(f), relationDomain(g))
+    )
   ) {
     // some renaming for convenience
     val domF = relationDomain(f)
@@ -2444,8 +2457,8 @@ object SetTheory extends lisa.Main {
 
   /**
    * Lemma --- Union of a Set of Functions is a Function
-   * 
-   * Given a set `z` of functions (weakly or [[reflexive]]ly) totally ordered by the [[subset]] relation on the elements' domains ([[relationDomain]]), `\cup z` is [[functional]] (in particular, with domain as the union of the elements' domains). 
+   *
+   * Given a set `z` of functions (weakly or [[reflexive]]ly) totally ordered by the [[subset]] relation on the elements' domains ([[relationDomain]]), `\cup z` is [[functional]] (in particular, with domain as the union of the elements' domains).
    */
   // val unionOfFunctionSet = Lemma(
   //   forall(t, in(t, z) ==> functional(t)) /\ forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(relationDomain(x), relationDomain(y)) \/ subset(relationDomain(y), relationDomain(x))))) |- functional(union(z))
