@@ -116,6 +116,10 @@ trait ProofsHelpers {
     val f = lisa.utils.FOLParser.parseFormula(fstring)
     assume(f)
   }
+  def assume(using proof: library.Proof)(fs: Iterable[Formula]): proof.ProofStep = {
+    fs.foreach(f => proof.addAssumption(f))
+    have(() |- fs.toSet) by BasicStepTactic.Hypothesis
+  }
   /*
   /**
    * Store the given import and use it to discharge the proof of one of its assumption at the very end.
@@ -129,7 +133,7 @@ trait ProofsHelpers {
   def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
 
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
-    om.output("Current proof of" + _proof.owningTheorem.repr + ": ")
+    om.output("Current proof of " + _proof.owningTheorem.repr + ": ")
     om.output(
       ProofPrinter.prettyProof(_proof, 2)
     )
