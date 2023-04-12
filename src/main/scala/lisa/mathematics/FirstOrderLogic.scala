@@ -194,6 +194,32 @@ object FirstOrderLogic extends lisa.Main {
 
   }
 
+  val universalImplicationDistribution = Theorem(
+    forall(z, P(z) ==> Q(z)) |- (forall(z, P(z)) ==> forall(z, Q(z)))
+  ) {
+    have(forall(z, P(z) ==> Q(z)) |- forall(z, P(z) ==> Q(z))) by Hypothesis
+    val quant = thenHave(forall(z, P(z) ==> Q(z)) |- P(z) ==> Q(z)) by InstantiateForall(z)
+
+    have(forall(z, P(z)) |- forall(z, P(z))) by Hypothesis
+    thenHave(forall(z, P(z)) |- P(z)) by InstantiateForall(z)
+    have((forall(z, P(z) ==> Q(z)), forall(z, P(z))) |- Q(z)) by Tautology.from(lastStep, quant)
+    thenHave((forall(z, P(z) ==> Q(z)), forall(z, P(z))) |- forall(z, Q(z))) by RightForall
+  }
+
+  val existentialImplicationDistribution = Theorem(
+    forall(z, P(z) ==> Q(z)) |- (exists(z, P(z)) ==> exists(z, Q(z)))
+  ) {
+    have(forall(z, P(z) ==> Q(z)) |- forall(z, P(z) ==> Q(z))) by Hypothesis
+    val quant = thenHave(forall(z, P(z) ==> Q(z)) |- P(z) ==> Q(z)) by InstantiateForall(z)
+
+    val impl = have((forall(z, P(z) ==> Q(z)), exists(z, P(z))) |- exists(z, Q(z))) subproof {
+      have(P(z) |- P(z)) by Hypothesis
+      have((forall(z, P(z) ==> Q(z)), P(z)) |- Q(z)) by Tautology.from(lastStep, quant)
+      thenHave((forall(z, P(z) ==> Q(z)), P(z)) |- exists(z, Q(z))) by RightExists
+      thenHave(thesis) by LeftExists
+    }
+  }
+
   val uniqueExistentialEquivalenceDistribution = Theorem(
     forall(z, P(z) <=> Q(z)) |- (existsOne(z, P(z)) <=> existsOne(z, Q(z)))
   ) {
