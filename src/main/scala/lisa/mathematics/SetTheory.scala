@@ -1,11 +1,9 @@
 package lisa.mathematics
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.mathematics.FirstOrderLogic.*
-import lisa.utils.parsing.FOLPrinter.*
 
 /**
  * Set Theory Library
@@ -183,7 +181,7 @@ object SetTheory extends lisa.Main {
         val tay = thenHave((in(z, a), a === y) |- in(z, y)) by RightSubstEq(List((a, y)), lambda(a, in(z, a)))
 
         have((in(z, a), (a === x) \/ (a === y)) |- (in(z, x), in(z, y))) by LeftOr(tax, tay)
-        andThen(applySubst(upairax, false))
+        andThen(Simplify.once(true, upairax))
         thenHave((in(z, a) /\ in(a, unorderedPair(x, y))) |- (in(z, x), in(z, y))) by Restate
         thenHave(∃(a, in(z, a) /\ in(a, unorderedPair(x, y))) |- (in(z, x), in(z, y))) by LeftExists
         thenHave(thesis) by Restate
@@ -510,7 +508,7 @@ object SetTheory extends lisa.Main {
   }
 
   val unorderedPairDeconstruction = Theorem("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
-    val s1 = have(applySubst("unorderedPair('a, 'b) = unorderedPair('c, 'd)")(pairAxiom of (x -> a, y -> b)))
+    val s1 = have(applySubst(unorderedPair(a, b) === unorderedPair(c, d))(pairAxiom of (x -> a, y -> b)))
     val base = have(applySubst(s1)(pairAxiom of (x -> c, y -> d)))
     have(thesis) by Tautology.from(base of (z -> a), base of (z -> b), base of (z -> c), base of (z -> d))
   }

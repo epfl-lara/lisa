@@ -84,16 +84,16 @@ object ExampleDSL extends lisa.Main {
   val inductiveSet = DEF(x) --> in(∅, x) /\ forall(y, in(y, x) ==> in(succ(y), x))
   show
 
-  val defineNonEmptySet = Lemma(" |- ∃!'x. !('x=emptySet) ∧ 'x=unorderedPair(emptySet, emptySet)") {
-    val subst = have("|- False <=> elem(emptySet, emptySet)") by Rewrite(emptySetAxiom of (x -> emptySet()))
-    have(" elem(emptySet, unorderedPair(emptySet, emptySet))<=>False |- ") by Rewrite(pairAxiom of (x -> emptySet(), y -> emptySet(), z -> emptySet()))
+  val defineNonEmptySet = Lemma( ∃!(x, !(x === ∅) /\ (x===unorderedPair(∅, ∅))) ) {
+    val subst = have(False <=> in(∅, ∅)) by Rewrite(emptySetAxiom of (x -> ∅()))
+    have( in(∅, unorderedPair(∅, ∅))<=>False |- () ) by Rewrite(pairAxiom of (x -> ∅(), y -> ∅(), z -> ∅()))
     andThen(applySubst(subst))
-    thenHave(" ∀'z. elem('z, unorderedPair(emptySet, emptySet)) ⇔ elem('z, emptySet) |- ") by LeftForall
-    andThen(applySubst(extensionalityAxiom of (x -> unorderedPair(emptySet(), emptySet()), y -> emptySet())))
-    andThen(applySubst(x === unorderedPair(emptySet(), emptySet())))
-    thenHave(" |- (!('x=emptySet) ∧ 'x=unorderedPair(emptySet, emptySet)) <=> ('x=unorderedPair(emptySet, emptySet))") by Tautology
-    thenHave(" |- ∀'x. ('x=unorderedPair(emptySet, emptySet)) <=> (!('x=emptySet) ∧ 'x=unorderedPair(emptySet, emptySet))") by RightForall
-    thenHave(" |- ∃'y. ∀'x. ('x='y) <=> (!('x=emptySet) ∧ 'x=unorderedPair(emptySet, emptySet))") by RightExists
+    thenHave( ∀(z, in(z, unorderedPair(∅, ∅)) <=> in(z, ∅)) |- () ) by LeftForall
+    andThen(applySubst(extensionalityAxiom of (x -> unorderedPair(∅(), ∅()), y -> ∅())))
+    andThen(applySubst(x === unorderedPair(∅(), ∅())))
+    thenHave( (!(x === ∅) /\ (x === unorderedPair(∅, ∅))) <=> (x===unorderedPair(∅, ∅)) ) by Tautology
+    thenHave( ∀(x, (x === unorderedPair(∅, ∅)) <=> (!(x === ∅) /\ (x === unorderedPair(∅, ∅)))) ) by RightForall
+    thenHave( ∃(y, ∀(x, (x === y) <=> (!(x === ∅) /\ (x === unorderedPair(∅, ∅))) )) ) by RightExists
   }
   show
 

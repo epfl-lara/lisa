@@ -28,43 +28,76 @@ object KernelHelpers {
 
   /* Prefix syntax */
 
-  def neg(f: Formula): Formula = ConnectorFormula(Neg, Seq(f))
-  def and(list: Formula*): Formula = ConnectorFormula(And, list)
-  def or(list: Formula*): Formula = ConnectorFormula(Or, list)
-  def and(l: Formula, r: Formula): Formula = ConnectorFormula(And, Seq(l, r))
-  def or(l: Formula, r: Formula): Formula = ConnectorFormula(Or, Seq(l, r))
-  def implies(l: Formula, r: Formula): Formula = ConnectorFormula(Implies, Seq(l, r))
-  def iff(l: Formula, r: Formula): Formula = ConnectorFormula(Iff, Seq(l, r))
-  def forall(label: VariableLabel, body: Formula): Formula = BinderFormula(Forall, label, body)
-  def exists(label: VariableLabel, body: Formula): Formula = BinderFormula(Exists, label, body)
-  def existsOne(label: VariableLabel, body: Formula): Formula = BinderFormula(ExistsOne, label, body)
-  def equ(l: Term, r: Term): Formula = PredicateFormula(equality, Seq(l, r))
-  def ∃(x: VariableLabel, inner: Formula): Formula = exists(x, inner)
-  def ∃!(x: VariableLabel, inner: Formula): Formula = existsOne(x, inner)
-  def ∀(x: VariableLabel, inner: Formula): Formula = forall(x, inner)
-  def ¬(f: Formula): Formula = ConnectorFormula(Neg, List(f))
-  extension (label: PredicateLabel) def apply(args: Term*): Formula = PredicateFormula(label, args)
-
-  extension (label: ConnectorLabel) def apply(args: Formula*): Formula = ConnectorFormula(label, args)
-
-  extension (label: TermLabel) def apply(args: Term*): Term = Term(label, args)
-
-  extension (label: BinderLabel) def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
-
-  val True: Formula = And()
-  val False: Formula = Or()
+  val === = equality
   val ⊤ : Formula = top()
   val ⊥ : Formula = bot()
+  val True: Formula = top()
+  val False: Formula = bot()
+
+  val neg = Neg
+  val ¬ = neg
+  val ! = neg
+  val and = And
+  val /\ = And
+  val or = Or
+  val \/ = Or
+  val implies = Implies
+  val ==> = Implies
+  val iff = Iff
+  val <=> = Iff
+  val forall = Forall
+  val ∀ = forall
+  val exists = Exists
+  val ∃ = exists
+  val existsOne = ExistsOne
+  val ∃! = existsOne
+
+  extension [L <: TermLabel](label: L) {
+    def apply(args: Term*): Term = Term(label, args)
+    @targetName("applySeq")
+    def apply(args: Seq[Term]): Term = Term(label, args)
+    def unapply(f: Formula): Option[Seq[Formula]] = f match {
+      case ConnectorFormula(`label`, args) => Some(args)
+      case _ => None
+    }
+  }
+
+  extension [L <: PredicateLabel](label: L) {
+    def apply(args: Term*): Formula = PredicateFormula(label, args)
+    @targetName("applySeq")
+    def apply(args: Seq[Term]): Formula = PredicateFormula(label, args)
+    def unapply(f: Formula): Option[Seq[Term]] = f match {
+      case PredicateFormula(`label`, args) => Some(args)
+      case _ => None
+    }
+  }
+
+  extension [L <: ConnectorLabel](label: L) {
+    def apply(args: Formula*): Formula = ConnectorFormula(label, args)
+    @targetName("applySeq")
+    def apply(args: Seq[Formula]): Formula = ConnectorFormula(label, args)
+    def unapply(f: Formula): Option[Seq[Formula]] = f match {
+      case ConnectorFormula(`label`, args) => Some(args)
+      case _ => None
+    }
+  }
+
+  extension [L <: BinderLabel](label: L) {
+    def apply(bound: VariableLabel, inner: Formula): Formula = BinderFormula(label, bound, inner)
+    def unapply(f: Formula): Option[(VariableLabel, Formula)] = f match {
+      case BinderFormula(`label`, x, inner) => Some((x, inner))
+      case _ => None
+    }
+  }
 
   /* Infix syntax */
 
   extension (f: Formula) {
-    def unary_! : Formula = ConnectorFormula(Neg, Seq(f))
-    infix def ==>(g: Formula): Formula = ConnectorFormula(Implies, Seq(f, g))
-    infix def <=>(g: Formula): Formula = ConnectorFormula(Iff, Seq(f, g))
-    infix def /\(g: Formula): Formula = ConnectorFormula(And, Seq(f, g))
-    infix def \/(g: Formula): Formula = ConnectorFormula(Or, Seq(f, g))
-
+    def unary_! = ConnectorFormula(Neg, Seq(f))
+    infix inline def ==>(g: Formula): Formula = ConnectorFormula(Implies, Seq(f, g))
+    infix inline def <=>(g: Formula): Formula = ConnectorFormula(Iff, Seq(f, g))
+    infix inline def /\(g: Formula): Formula = ConnectorFormula(And, Seq(f, g))
+    infix inline def \/(g: Formula): Formula = ConnectorFormula(Or, Seq(f, g))
   }
 
   extension (t: Term) {
@@ -72,42 +105,14 @@ object KernelHelpers {
     infix def ＝(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
   }
 
-  /* Pattern matching extractors */
-
-  object ! {
-    def unapply(f: Formula): Option[Formula] = f match {
-      case ConnectorFormula(`Neg`, Seq(g)) => Some(g)
-      case _ => None
-    }
-  }
-
-  sealed abstract class UnapplyBinaryConnector(label: ConnectorLabel) {
-    def unapply(f: Formula): Option[(Formula, Formula)] = f match {
-      case ConnectorFormula(`label`, Seq(a, b)) => Some((a, b))
-      case _ => None
-    }
-  }
-  object ==> extends UnapplyBinaryConnector(Implies)
-  object <=> extends UnapplyBinaryConnector(Iff)
-  object /\ extends UnapplyBinaryConnector(And)
-  object \/ extends UnapplyBinaryConnector(Or)
-
-  sealed abstract class UnapplyBinaryPredicate(label: PredicateLabel) {
-    def unapply(f: Formula): Option[(Term, Term)] = f match {
-      case PredicateFormula(`label`, Seq(a, b)) => Some((a, b))
-      case _ => None
-    }
-  }
-  object === extends UnapplyBinaryPredicate(equality)
-
   /* Conversions */
 
-  given Conversion[VariableLabel, Term] = Term(_, Seq())
+  given Conversion[TermLabel, Term] = Term(_, Seq())
   given Conversion[Term, TermLabel] = _.label
+  given Conversion[PredicateLabel, PredicateFormula] = PredicateFormula(_, Seq())
   given Conversion[PredicateFormula, PredicateLabel] = _.label
-  given Conversion[PredicateLabel, Formula] = _.apply()
 
-  given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula(_, Nil)
+  given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula(_, Seq())
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
   given Conversion[Formula, Sequent] = () |- _
 
@@ -116,14 +121,14 @@ object KernelHelpers {
   val emptySeq: Sequent = Sequent(Set.empty, Set.empty)
 
   extension (s: Sequent) {
-    infix def +<(f: Formula): Sequent = s.copy(left = s.left + f)
-    infix def -<(f: Formula): Sequent = s.copy(left = s.left - f)
-    infix def +>(f: Formula): Sequent = s.copy(right = s.right + f)
+    infix def +<<(f: Formula): Sequent = s.copy(left = s.left + f)
+    infix def -<<(f: Formula): Sequent = s.copy(left = s.left - f)
+    infix def +>>(f: Formula): Sequent = s.copy(right = s.right + f)
     infix def ->>(f: Formula): Sequent = s.copy(right = s.right - f)
-    infix def ++<(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left)
-    infix def --<(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left)
-    infix def ++>(s1: Sequent): Sequent = s.copy(right = s.right ++ s1.right)
-    infix def -->(s1: Sequent): Sequent = s.copy(right = s.right -- s1.right)
+    infix def ++<<(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left)
+    infix def --<<(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left)
+    infix def ++>>(s1: Sequent): Sequent = s.copy(right = s.right ++ s1.right)
+    infix def -->>(s1: Sequent): Sequent = s.copy(right = s.right -- s1.right)
     infix def ++(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left, right = s.right ++ s1.right)
     infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
 
@@ -137,6 +142,14 @@ object KernelHelpers {
     infix def -->?(s1: Sequent): Sequent = s.copy(right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
     infix def --?(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))), right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
     infix def ++?(s1: Sequent): Sequent = s ++ s1.copy(left = s1.left.filterNot(e1 => s.left.exists(isSame(_, e1))), right = s1.right.filterNot(e1 => s.right.exists(isSame(_, e1))))
+
+    infix def removeLeft(f: Formula): Sequent = s.copy(left = s.left.filterNot(isSame(_, f)))
+    infix def removeRight(f: Formula): Sequent = s.copy(right = s.right.filterNot(isSame(_, f)))
+    infix def removeAllLeft(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))))
+    infix def removeAllLeft(s1: Set[Formula]): Sequent = s.copy(left = s.left.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
+    infix def removeAllRight(s1: Sequent): Sequent = s.copy(right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
+    infix def removeAllRight(s1: Set[Formula]): Sequent = s.copy(right = s.right.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
+    infix def removeAll(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))), right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
   }
 
   // TODO: Should make less generic
@@ -145,39 +158,39 @@ object KernelHelpers {
    * @tparam S The type of elements in that set
    * @tparam T The type to convert from
    */
-  protected trait SetConverter[S, T] {
-    def apply(t: T): Set[S]
+  protected trait FormulaSetConverter[T] {
+    def apply(t: T): Set[Formula]
   }
 
-  given [S]: SetConverter[S, Unit] with {
-    override def apply(u: Unit): Set[S] = Set.empty
+  given FormulaSetConverter[Unit] with {
+    override def apply(u: Unit): Set[Formula] = Set.empty
   }
 
-  given [S]: SetConverter[S, EmptyTuple] with {
-    override def apply(t: EmptyTuple): Set[S] = Set.empty
+  given FormulaSetConverter[EmptyTuple] with {
+    override def apply(t: EmptyTuple): Set[Formula] = Set.empty
   }
 
-  given [S, H <: S, T <: Tuple](using SetConverter[S, T]): SetConverter[S, H *: T] with {
-    override def apply(t: H *: T): Set[S] = summon[SetConverter[S, T]].apply(t.tail) + t.head
+  given [H <: Formula, T <: Tuple](using c: FormulaSetConverter[T]): FormulaSetConverter[H *: T] with {
+    override def apply(t: H *: T): Set[Formula] = c.apply(t.tail) + t.head
   }
 
-  given [S, T <: S]: SetConverter[S, T] with {
-    override def apply(f: T): Set[S] = Set(f)
+  given formula_to_set[T <: Formula]: FormulaSetConverter[T] with {
+    override def apply(f: T): Set[Formula] = Set(f)
   }
 
-  given [S, I <: Iterable[S]]: SetConverter[S, I] with {
-    override def apply(s: I): Set[S] = s.toSet
+  given [T <: Formula, I <: Iterable[T]]: FormulaSetConverter[I] with {
+    override def apply(s: I): Set[Formula] = s.toSet
   }
 
-  given SetConverter[Formula, VariableFormulaLabel] with {
+  given FormulaSetConverter[VariableFormulaLabel] with {
     override def apply(s: VariableFormulaLabel): Set[Formula] = Set(s())
   }
 
-  private def any2set[S, A, T <: A](any: T)(using SetConverter[S, T]): Set[S] = summon[SetConverter[S, T]].apply(any)
+  private def any2set[A, T <: A](any: T)(using c: FormulaSetConverter[T]): Set[Formula] = c.apply(any)
 
-  extension [A, T1 <: A](left: T1)(using SetConverter[Formula, T1]) {
-    infix def |-[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
-    infix def ⊢[B, T2 <: B](right: T2)(using SetConverter[Formula, T2]): Sequent = Sequent(any2set(left), any2set(right))
+  extension [A, T1 <: A](left: T1)(using FormulaSetConverter[T1]) {
+    infix def |-[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
+    infix def ⊢[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
   }
 
   // Instatiation functions for formulas lifted to sequents.
@@ -226,22 +239,11 @@ object KernelHelpers {
     def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
   }
 
-  // TODO Necessary?
-  implicit class Parsing(val sc: StringContext) {
-
-    def seq(args: Any*): Sequent = FOLParser.parseSequent(sc.parts.mkString(""))
-
-    def form(args: Any*): Formula = FOLParser.parseFormula(sc.parts.mkString(""))
-
-    def t(args: Any*): Term = FOLParser.parseTerm(sc.parts.mkString(""))
-
-  }
-
   // Conversions from String to datatypes
-  given Conversion[String, Sequent] = FOLParser.parseSequent(_)
-  given Conversion[String, Formula] = FOLParser.parseFormula(_)
-  given Conversion[String, Term] = FOLParser.parseTerm(_)
-  given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
+  // given Conversion[String, Sequent] = FOLParser.parseSequent(_)
+  // given Conversion[String, Formula] = FOLParser.parseFormula(_)
+  // given Conversion[String, Term] = FOLParser.parseTerm(_)
+  // given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
   // Conversion from pairs (e.g. x -> f(x)) to lambdas
   given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
@@ -292,7 +294,8 @@ object KernelHelpers {
     if (pieces.length == 1) {
       val name = pieces.head
       if (!Identifier.isValidIdentifier(name)) {
-        throw new InvalidIdentifierException(str, "Identifier must not contain whitespaces nor symbols among " + Identifier.forbiddenChars.mkString())
+        val no: String = Identifier.forbiddenChars.mkString("")
+        throw new InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among $no.")
       }
       Identifier(name)
     } else if (pieces.length == 2) {
@@ -302,7 +305,8 @@ object KernelHelpers {
         throw new InvalidIdentifierException(str, s"The part of an identifier contained after ${Identifier.counterSeparator} must be a number without leading 0s.")
       }
       if (!Identifier.isValidIdentifier(name)) {
-        throw new InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among ${Identifier.forbiddenChars.mkString()}.")
+        val no: String = Identifier.forbiddenChars.mkString("")
+        throw new InvalidIdentifierException(str, s"Identifier must not contain whitespaces nor symbols among $no.")
       }
       Identifier(name, no.toInt)
     } else { // if number of _ is greater than 1

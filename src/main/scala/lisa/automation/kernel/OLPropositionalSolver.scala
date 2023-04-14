@@ -42,13 +42,13 @@ object OLPropositionalSolver {
     def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
       val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
-      val sqToProve = bot ++< (premsFormulas.map(s => s._1._2).toSet |- ())
+      val sqToProve = bot ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
       solveSequent(sqToProve) match {
         case Left(value) =>
           val subpr = SCSubproof(value)
           val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
             val ((prem, form), position) = cur
-            Cut(prev.head.bot -< form, position, initProof.length + prev.length - 1, form) :: prev
+            Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
           })
           val steps = (initProof ++ stepsList.reverse).toIndexedSeq
           proof.ValidProofTactic(steps, premises)

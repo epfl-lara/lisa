@@ -1119,7 +1119,7 @@ object BasicStepTactic {
 
       if (!isSameSet(bot.left, premiseSequent.left ++ implications)) {
         println(lisa.utils.parsing.FOLPrinter.prettySequent(bot))
-        println(lisa.utils.parsing.FOLPrinter.prettySequent(premiseSequent ++< (implications |- ())))
+        println(lisa.utils.parsing.FOLPrinter.prettySequent(premiseSequent ++<< (implications |- ())))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ⇔ τ)_.")
       } else if (
         !isSameSet(bot.right + phi_psi, premiseSequent.right + phi_tau) &&
@@ -1216,7 +1216,12 @@ object BasicStepTactic {
   }
 
   // TODO make specific support for subproofs written inside tactics.
+
   def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit) =
     SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
 
+  /*
+  def TacticSubproof(using proof: Library#Proof)(bot: Option[Sequent])(computeProof: proof.InnerProof ?=> Unit) =
+    SUBPROOF(using proof)(Some(bot))(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
+   */
 }

@@ -9,6 +9,10 @@ import lisa.utils.ProofTacticTestLib
 import org.scalatest.funsuite.AnyFunSuite
 
 class BasicTacticTest extends ProofTacticTestLib {
+  given Conversion[String, Sequent] = FOLParser.parseSequent(_)
+  given Conversion[String, Formula] = FOLParser.parseFormula(_)
+  given Conversion[String, Term] = FOLParser.parseTerm(_)
+  given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
   // hypothesis
   test("Tactic Tests: Hypothesis") {
