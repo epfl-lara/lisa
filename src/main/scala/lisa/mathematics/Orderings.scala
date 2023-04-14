@@ -5,6 +5,7 @@ import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.mathematics.FirstOrderLogic.existsOneImpliesExists
 import lisa.mathematics.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
@@ -31,6 +32,8 @@ object Orderings extends lisa.Main {
   private val q = variable
   private val f = variable
   private val g = variable
+  private val F = function(1)
+  private val G = function(2)
 
   private val P = predicate(1)
   private val Q = predicate(1)
@@ -122,7 +125,7 @@ object Orderings extends lisa.Main {
   val setOfLowerBounds = DEF(y, p) --> The(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))(setOfLowerBoundsUniqueness)
 
   /**
-   * Greatest Lower Bound --- `a` is the greatest lower bound on `y \subseteq x`
+   * Greatest Lower Bound --- `a` is the greatest lower bound on `y ⊆ x`
    * under a partial order `p = (r, x)` if it is the greatest element in the
    * [[setOfLowerBounds]] of `y` under `p`.
    */
@@ -145,7 +148,7 @@ object Orderings extends lisa.Main {
   val setOfUpperBounds = DEF(y, p) --> The(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))(setOfUpperBoundsUniqueness)
 
   /**
-   * Least Upper Bound --- `a` is the least upper bound on `y \subseteq x` under
+   * Least Upper Bound --- `a` is the least upper bound on `y ⊆ x` under
    * a partial order `p = (r, x)` if it is the least element in the
    * [[setOfUpperBounds]] of `y` under `p`.
    */
@@ -165,7 +168,7 @@ object Orderings extends lisa.Main {
    * `p = (P, <_p)` and `q = (Q, <_q)` are partially ordered is order-preserving
    * if
    *
-   * `\∀ x y. x <_p y ==> f(x) <_q f(y)`
+   * `∀ x y. x <_p y ⟹ f(x) <_q f(y)`
    */
   val orderPreserving = DEF(f, p, q) --> partialOrder(p) /\ partialOrder(q) /\ functionFrom(f, firstInPair(p), firstInPair(q)) /\ ∀(
     x,
@@ -212,18 +215,21 @@ object Orderings extends lisa.Main {
   }
 
   /**
-   * The relation induced by inclusion on a set, noted `\in_a`.
+   * The relation induced by inclusion on a set, noted `∈_a`.
    *
-   * `\in_a = {(y, x) \in a * a | y \in x}`
+   * `∈_a = {(y, x) ∈ a * a | y ∈ x}`
    */
   val inclusionOn = DEF(a) --> The(z, forall(t, in(t, z) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))))(inclusionOnUniqueness)
 
   /**
-   * The partial order `(a, \in_a)` induced by the inclusion relation
+   * The partial order `(a, ∈_a)` induced by the inclusion relation
    * ([[inclusionOn]]) on a set.
    */
   val inclusionOrderOn = DEF(a) --> pair(a, inclusionOn(a))
 
+  /**
+   * Theorem --- the inclusion order on a set is defined by the meta inclusion [[in]].
+   */
   val inclusionOrderElem = Lemma(
     () |- (in(b, a) /\ in(c, a) /\ in(b, c)) <=> in(pair(b, c), inclusionOn(a))
   ) {
@@ -253,8 +259,10 @@ object Orderings extends lisa.Main {
 
     have(thesis) by Tautology.from(lastStep, prodElem, exXY)
   }
-  show
 
+  /**
+   * Theorem --- the inclusion order on the any set is a relation.
+   */
   val inclusionIsRelation = Theorem(
     () |- relationBetween(inclusionOn(a), a, a)
   ) {
@@ -267,8 +275,10 @@ object Orderings extends lisa.Main {
 
     have(thesis) by Tautology.from(subs, relationBetween.definition of (r -> inclusionOn(a), a -> a, b -> a))
   }
-  show
 
+  /**
+   * Theorem --- the inclusion order on the empty set is the empty relation.
+   */
   val emptySetInclusionEmpty = Lemma(
     () |- (inclusionOn(emptySet()) === emptySet())
   ) {
@@ -292,8 +302,10 @@ object Orderings extends lisa.Main {
     val ext = thenHave(forall(t, in(t, inclusionOn(emptySet())) <=> in(t, emptySet()))) by RightForall
     have(thesis) by Tautology.from(ext, extensionalityAxiom of (x -> inclusionOn(emptySet()), y -> emptySet()))
   }
-  show
 
+  /**
+   * Theorem --- the inclusion order on the empty set is a reflexive relation.
+   */
   val emptyInclusionReflexive = Lemma(
     () |- reflexive(inclusionOn(emptySet()), emptySet())
   ) {
@@ -301,6 +313,9 @@ object Orderings extends lisa.Main {
     thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
   }
 
+  /**
+   * Theorem --- the inclusion order on the empty set is an irreflexive relation.
+   */
   val emptyInclusionIrreflexive = Lemma(
     () |- irreflexive(inclusionOn(emptySet()), a)
   ) {
@@ -308,6 +323,9 @@ object Orderings extends lisa.Main {
     thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
   }
 
+  /**
+   * Theorem --- the inclusion order on the empty set is a transitive relation.
+   */
   val emptyInclusionTransitive = Lemma(
     () |- transitive(inclusionOn(emptySet()), a)
   ) {
@@ -315,6 +333,9 @@ object Orderings extends lisa.Main {
     thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
   }
 
+  /**
+   * Theorem --- the empty relation partially orders the empty set
+   */
   val emptySetPartialOrder = Lemma(
     () |- partialOrder(pair(emptySet(), emptySet()))
   ) {
@@ -326,6 +347,9 @@ object Orderings extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, emptySetRelationOnItself, emptyRelationIrreflexive of a -> emptySet(), emptyRelationTransitive of a -> emptySet())
   }
 
+  /**
+   * Theorem --- the empty relation totally orders the empty set
+   */
   val emptySetTotalOrder = Lemma(
     () |- totalOrder(pair(emptySet(), emptySet()))
   ) {
@@ -336,7 +360,6 @@ object Orderings extends lisa.Main {
     )(totalOrder.definition of p -> pair(emptySet(), emptySet()))
     have(thesis) by Tautology.from(lastStep, emptySetPartialOrder, emptyRelationTotalOnItself)
   }
-  show
 
   /**
    * Well-Order --- a partial order `p = (A, <)` is said to be a well-order if
@@ -349,6 +372,9 @@ object Orderings extends lisa.Main {
     totalOrder(p) /\ forall(B, (subset(B, A) /\ !(B === emptySet())) ==> exists(z, in(z, B) /\ forall(x, in(x, B) ==> (in(pair(z, x), `<p`) \/ (z === x)))))
   }
 
+  /**
+   * Theorem --- the empty set is well ordered by the empty relation.
+   */
   val emptySetWellOrder = Lemma(
     () |- wellOrder(pair(emptySet(), emptySet()))
   ) {
@@ -384,10 +410,13 @@ object Orderings extends lisa.Main {
   ) {
     have(thesis) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition, transitive.definition of (r -> secondInPair(p), x -> firstInPair(p)))
   }
-  show
 
   val transitiveSet = DEF(x) --> forall(y, in(y, x) ==> subset(y, x))
 
+  /**
+   * Theorem --- the definition of a transitive set in terms of inclusion is
+   * equivalent to the subset based definition.
+   */
   val transitiveSetInclusionDef = Theorem(
     () |- transitiveSet(x) <=> forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x)))
   ) {
@@ -432,15 +461,18 @@ object Orderings extends lisa.Main {
    * Defining properties of the [[ordinal]] class
    *
    *   - the [[emptySet]] is an ordinal --- [[emptySetOrdinal]]
-   *   - if `a` is an ordinal and `b \in a`, then `b` is an ordinal --- [[ordinalInclusionClosure]]
-   *   - if `a`, `b` are ordinals and `b \subset a`, then `b \in a` --- [[ordinalSubsetClosure]]
-   *   - if `a` and `b` are distinct ordinals, then either `a \subset b` or `b \subset a` --- [[ordinalSOMETHING]] TODO:
+   *   - if `a` is an ordinal and `b ∈ a`, then `b` is an ordinal --- [[ordinalInclusionClosure]]
+   *   - if `a`, `b` are ordinals and `b ⊂ a`, then `b ∈ a` --- [[ordinalSubsetClosure]]
+   *   - if `a` and `b` are distinct ordinals, then either `a ⊂ b` or `b ⊂ a` --- [[ordinalSOMETHING]] TODO:
    *
    * Other properties
    *
    *   - the ordinals form a proper class --- [[noSetOfOrdinals]]
    */
 
+  /**
+   * Theorem --- the empty set is transitive.
+   */
   val emptySetTransitive = Lemma(
     () |- transitiveSet(emptySet())
   ) {
@@ -449,30 +481,10 @@ object Orderings extends lisa.Main {
     thenHave(() |- forall(y, in(y, emptySet()) ==> subset(y, emptySet()))) by RightForall
     andThen(Simplify.once(true, transitiveSet.definition of (x -> emptySet())))
   }
-  show
 
-  val emptySetSubsetEmpty = Lemma(
-    () |- subset(a, emptySet()) <=> (a === emptySet())
-  ) {
-    val fwd = have(() |- subset(a, emptySet()) ==> (a === emptySet())) subproof {
-      have(subset(a, emptySet()) |- forall(b, in(b, a) ==> in(b, emptySet()))) by Weakening(subsetAxiom of (x -> a, y -> emptySet()))
-      val impl = thenHave(subset(a, emptySet()) |- in(b, a) ==> in(b, emptySet())) by InstantiateForall(b)
-
-      have(subset(a, emptySet()) |- !in(b, a)) by Tautology.from(impl, emptySetAxiom of (x -> b))
-      val noElem = thenHave(subset(a, emptySet()) |- forall(b, !in(b, a))) by RightForall
-
-      have(subset(a, emptySet()) |- (a === emptySet())) by Cut.withParameters(forall(b, !in(b, a)))(noElem, setWithNoElementsIsEmpty of (x -> a))
-    }
-
-    val bwd = have(() |- (a === emptySet()) ==> subset(a, emptySet())) subproof {
-      have(() |- subset(emptySet(), emptySet())) by Restate.from(subsetReflexivity of (x -> emptySet()))
-      thenHave((emptySet() === a) |- subset(a, emptySet())) by Substitution
-    }
-
-    have(thesis) by RightIff(fwd, bwd)
-  }
-  show
-
+  /**
+   * Theorem --- the empty set is well ordered by inclusion.
+   */
   val emptySetWellOrderedByInclusion = Lemma(
     () |- wellOrder(inclusionOrderOn(emptySet()))
   ) {
@@ -481,12 +493,14 @@ object Orderings extends lisa.Main {
     thenHave(thesis) by Substitution.apply2(true, incDef)
   }
 
+  /**
+   * Theorem --- the empty set is an ordinal (zero).
+   */
   val emptySetOrdinal = Theorem(
     () |- ordinal(emptySet())
   ) {
     have(thesis) by Tautology.from(emptySetWellOrderedByInclusion, emptySetTransitive, ordinal.definition of (a -> emptySet()))
   }
-  show
 
   val ordinalsHeredetarilyTransitive = Lemma(
     ordinal(a) |- transitiveSet(a) /\ forall(b, in(b, a) ==> transitiveSet(b))
@@ -539,6 +553,24 @@ object Orderings extends lisa.Main {
    * Transfinite Recursion
    */
 
+  val initialSegmentUniqueness = Lemma(
+    existsOne(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ in(pair(t, a), secondInPair(p)))))
+  ) {
+    have(thesis) by UniqueComprehension(firstInPair(p), lambda(Seq(t, z), in(pair(t, a), secondInPair(p))))
+  }
+
+  val initialSegment = DEF(p, a) --> The(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ in(pair(t, a), secondInPair(p)))))(initialSegmentUniqueness)
+
+  val initialSegmentLeqUniqueness = Lemma(
+    existsOne(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ (in(pair(t, a), secondInPair(p)) \/ (t === a)))))
+  ) {
+    have(thesis) by UniqueComprehension(firstInPair(p), lambda(Seq(t, z), (in(pair(t, a), secondInPair(p)) \/ (t === a))))
+  }
+
+  val initialSegmentLeq = DEF(p, a) --> The(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ (in(pair(t, a), secondInPair(p)) \/ (t === a)))))(initialSegmentLeqUniqueness)
+
+  // initial segment of well order is well ordered under the restricted
+
   val orderedRestrictionUniqueness = Lemma(
     () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ in(pair(firstInPair(t), a), secondInPair(p)))))
   ) {
@@ -556,15 +588,58 @@ object Orderings extends lisa.Main {
   }
 
   /**
+   * Theorem --- Well-Ordered Recursion (stronger version)
+   */
+  // val wellOrderedRecursionStronger = Lemma(
+  //   wellOrder(p) |- forall(
+  //     t,
+  //     in(t, firstInPair(p)) ==> existsOne(g, functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+  //   )
+  // ) {
+
+  //   val p1 = firstInPair(p)
+
+  //   def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+
+  //   // define `z` as the set of elements of `p_1` for which `prop` does not hold
+  //   val zDef = forall(t, in(t, z) <=> (in(t, p1) /\ !prop(t)))
+
+  //   // Case 1
+  //   // `z` is empty
+  //   val case1 = have((zDef, forall(t, !in(t, z))) |- forall(t, prop(t))) subproof {
+  //     val zDefInst = have(zDef |- in(t, z) <=> (in(t, p1) /\ !prop(t))) by InstantiateForall
+  //     have(forall(t, !in(t, z)) |- !in(t, z)) by InstantiateForall
+
+  //     have((zDef, forall(t, !in(t, z))) |- prop(t)) by Tautology.from(zDefInst, lastStep)
+  //     thenHave(thesis) by RightForall
+  //   }
+
+  //   // Case 2
+  //   // `z` is non-empty
+  //   // we lead the proof to a contradiction
+  //   val case2 = have((zDef, exists(t, in(t, z)), ???) |- forall(t, prop(t))) subproof {
+  //     ???
+  //   }
+
+  //   have((zDef, ???) |- forall(t, prop(t))) by Tautology.from(case1, case2)
+  //   val byCase = thenHave((exists(z, zDef), ???) |- forall(t, prop(t))) by LeftExists
+
+  //   have(existsOne(z, zDef)) by UniqueComprehension(p1, lambda(Seq(t, z), prop(t)))
+  //   have(exists(z, zDef)) by Tautology.from(existsOneImpliesExists of P -> lambda(z, zDef))
+
+  //   have(thesis) by Tautology.from(byCase, lastStep)
+  // }
+
+  /**
    * Well ordered recursion (for sets) --- ??? TODO: write description
    */
   // val wellOrderRecursion = Theorem(
-  //   // well ordered (A, <)
+  //   // well ordered (p_1, <)
   //   // class function f
   //   // |-
-  //   // exists a set function g such that
-  //   // g(a) = f(g |^ a)
-  //   wellOrder(p) |- exists(g, functionalOver(g, firstInPair(p)) /\ forall(a, in(a, firstInPair(p)) ==> (app(g, a) === f(orderedRestriction(g, a, p)))))
+  //   // exists a set function g with domain p_1 such that
+  //   // \forall a \in p_1, g(a) = f(g |^ a)
+  //   wellOrder(p) |- exists(g, functionalOver(g, firstInPair(p)) /\ forall(a, in(a, firstInPair(p)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
   // ) {
   //   ???
   // }

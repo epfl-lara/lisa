@@ -71,7 +71,7 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-   * Theorem --- Equality relation is transitive
+   * Theorem --- Equality relation is transitive.
    */
   val equalityTransitivity = Theorem(
     (x === y) /\ (y === z) |- (x === z)
@@ -82,7 +82,7 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-   * Theorem --- Conjunction and universal quantification commute
+   * Theorem --- Conjunction and universal quantification commute.
    */
   val universalConjunctionCommutation = Theorem(
     () |- forall(x, P(x) /\ Q(x)) <=> forall(x, P(x)) /\ forall(x, Q(x))
@@ -115,7 +115,7 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-   * Theorem --- Disjunction and exisential quantification commute
+   * Theorem --- Disjunction and existential quantification commute.
    */
   val existentialDisjunctionCommutation = Theorem(
     () |- exists(x, P(x) \/ Q(x)) <=> exists(x, P(x)) \/ exists(x, Q(x))
@@ -147,6 +147,9 @@ object FirstOrderLogic extends lisa.Main {
     have(thesis) by RightIff(fwd, bwd)
   }
 
+  /**
+   * Theorem --- Universal quantification distributes over equivalence
+   */
   val universalEquivalenceDistribution = Theorem(
     forall(z, P(z) <=> Q(z)) |- (forall(z, P(z)) <=> forall(z, Q(z)))
   ) {
@@ -170,6 +173,10 @@ object FirstOrderLogic extends lisa.Main {
     have(thesis) by Tautology.from(lhs, rhs)
   }
 
+  /**
+   * Theorem --- Universal quantification of equivalence implies equivalence
+   * of existential quantification.
+   */
   val existentialEquivalenceDistribution = Theorem(
     forall(z, P(z) <=> Q(z)) |- (exists(z, P(z)) <=> exists(z, Q(z)))
   ) {
@@ -194,6 +201,9 @@ object FirstOrderLogic extends lisa.Main {
 
   }
 
+  /**
+   * Theorem --- Universal quantification distributes over implication
+   */
   val universalImplicationDistribution = Theorem(
     forall(z, P(z) ==> Q(z)) |- (forall(z, P(z)) ==> forall(z, Q(z)))
   ) {
@@ -206,6 +216,10 @@ object FirstOrderLogic extends lisa.Main {
     thenHave((forall(z, P(z) ==> Q(z)), forall(z, P(z))) |- forall(z, Q(z))) by RightForall
   }
 
+  /**
+   * Theorem --- Universal quantification of implication implies implication
+   * of existential quantification.
+   */
   val existentialImplicationDistribution = Theorem(
     forall(z, P(z) ==> Q(z)) |- (exists(z, P(z)) ==> exists(z, Q(z)))
   ) {
@@ -220,6 +234,10 @@ object FirstOrderLogic extends lisa.Main {
     }
   }
 
+  /**
+   * Theorem --- Universal quantification of equivalence implies equivalence
+   * of unique existential quantification.
+   */
   val uniqueExistentialEquivalenceDistribution = Theorem(
     forall(z, P(z) <=> Q(z)) |- (existsOne(z, P(z)) <=> existsOne(z, Q(z)))
   ) {
