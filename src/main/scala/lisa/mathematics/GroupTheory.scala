@@ -32,16 +32,6 @@ object GroupTheory extends lisa.Main {
   //
 
   /**
-   * Bounded quantifiers --- These express the usual `∀x ∈ G ϕ` and `∃x ∈ G ϕ`, for some variables (sets) `x` and `G`, which
-   * are shorthands for `∀x (x ∈ G ==> ϕ)` and `∃x (x ∈ G /\ ϕ)`, respectively.
-   */
-  def ∀(x: VariableLabel, range: VariableLabel, inner: Formula): Formula = forall(x, in(x, range) ==> inner)
-
-  def ∃(x: VariableLabel, range: VariableLabel, inner: Formula): Formula = exists(x, in(x, range) /\ inner)
-
-  def ∃!(x: VariableLabel, range: VariableLabel, inner: Formula): Formula = existsOne(x, in(x, range) /\ inner)
-
-  /**
    * Defines the element that is uniquely given by the uniqueness theorem, or falls back to the error element if the
    * assumptions of the theorem are not satisfied.
    *
@@ -154,12 +144,12 @@ object GroupTheory extends lisa.Main {
    * Associativity --- `*` is associative (in `G`) if `(x * y) * z = x * (y * z)` for all `x, y, z` in `G`.
    */
   val associativity = DEF(G, *) -->
-    ∀(x, G, ∀(y, G, ∀(z, G, op(op(x, *, y), *, z) === op(x, *, op(y, *, z)))))
+    ∀(x, x ∈ G ==> ∀(y, y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z))))))
 
   /**
    * Neutral element --- We say that an element `e` in `G` is neutral if `e * x = x * e = x` for all `x` in `G`.
    */
-  val isNeutral = DEF(e, G, *) --> (in(e, G) /\ ∀(x, G, (op(e, *, x) === x) /\ (op(x, *, e) === x)))
+  val isNeutral = DEF(e, G, *) --> (e ∈ G /\ ∀(x, (x ∈ G) ==> ((op(e, *, x) === x) /\ (op(x, *, e) === x))))
 
   /**
    * Identity existence --- There exists a neutral element `e` in `G`.
@@ -169,12 +159,12 @@ object GroupTheory extends lisa.Main {
   /**
    * Inverse element --- `y` is called an inverse of `x` if `x * y = y * x = e`.
    */
-  val isInverse = DEF(y, x, G, *) --> in(y, G) /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)
+  val isInverse = DEF(y, x, G, *) --> (y ∈ G) /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)
 
   /**
    * Inverse existence --- For all `x` in G, there exists an element `y` in G such that `x * y = y * x = e`.
    */
-  val inverseExistence = DEF(G, *) --> ∀(x, G, ∃(y, isInverse(y, x, G, *)))
+  val inverseExistence = DEF(G, *) --> ∀(x, (x ∈ G) ==> ∃(y, isInverse(y, x, G, *)))
 
   /**
    * Group --- A group (G, *) is a set along with a law of composition `*`, satisfying [[associativity]], [[identityExistence]]
@@ -196,21 +186,21 @@ object GroupTheory extends lisa.Main {
     // and the second equality from f's right neutrality
     val uniqueness = have((isNeutral(e, G, *), isNeutral(f, G, *)) |- (e === f)) subproof {
       // We prove that neutral elements are elements of G, such that * can be applied.
-      val membership = have(isNeutral(e, G, *) |- in(e, G)) by Tautology.from(isNeutral.definition)
+      val membership = have(isNeutral(e, G, *) |- e ∈ G) by Tautology.from(isNeutral.definition)
 
       assume(isNeutral(e, G, *))
       assume(isNeutral(f, G, *))
 
       // 1. ef = f
-      have(∀(x, G, (op(e, *, x) === x) /\ (op(x, *, e) === x))) by Tautology.from(isNeutral.definition)
-      thenHave(in(f, G) ==> ((op(e, *, f) === f) /\ (op(f, *, e) === f))) by InstantiateForall(f)
-      val cut1 = thenHave(in(f, G) |- ((op(e, *, f) === f) /\ (op(f, *, e) === f))) by Restate
+      have(∀(x, x ∈ G ==> ((op(e, *, x) === x) /\ (op(x, *, e) === x)))) by Tautology.from(isNeutral.definition)
+      thenHave(f ∈ G ==> ((op(e, *, f) === f) /\ (op(f, *, e) === f))) by InstantiateForall(f)
+      val cut1 = thenHave(f ∈ G |- ((op(e, *, f) === f) /\ (op(f, *, e) === f))) by Restate
 
       have((op(e, *, f) === f) /\ (op(f, *, e) === f)) by Cut(membership of (e -> f), cut1)
       val firstEq = thenHave(op(e, *, f) === f) by Tautology
 
       // 2. ef = e
-      val cut2 = have(in(e, G) |- ((op(f, *, e) === e) /\ (op(e, *, f) === e))) by InstFunSchema(Map(e -> f, f -> e))(cut1)
+      val cut2 = have(e ∈ G |- ((op(f, *, e) === e) /\ (op(e, *, f) === e))) by InstFunSchema(Map(e -> f, f -> e))(cut1)
 
       have((op(f, *, e) === e) /\ (op(e, *, f) === e)) by Cut(membership of (e -> e), cut2)
       val secondEq = thenHave(e === op(e, *, f)) by Tautology
@@ -234,11 +224,11 @@ object GroupTheory extends lisa.Main {
    * Theorem --- The inverse of an element `x` (i.e. `y` such that `x * y = y * x = e`) in `G` is unique.
    */
   val inverseUniqueness = Theorem(
-    (group(G, *), in(x, G)) |- ∃!(y, isInverse(y, x, G, *))
+    (group(G, *), x ∈ G) |- ∃!(y, isInverse(y, x, G, *))
   ) {
-    have(group(G, *) |- ∀(x, G, ∃(y, isInverse(y, x, G, *)))) by Tautology.from(group.definition, inverseExistence.definition)
-    thenHave(group(G, *) |- (in(x, G) ==> ∃(y, isInverse(y, x, G, *)))) by InstantiateForall(x)
-    val existence = thenHave((group(G, *), in(x, G)) |- ∃(y, isInverse(y, x, G, *))) by Restate
+    have(group(G, *) |- ∀(x, x ∈ G ==> ∃(y, isInverse(y, x, G, *)))) by Tautology.from(group.definition, inverseExistence.definition)
+    thenHave(group(G, *) |- (x ∈ G ==> ∃(y, isInverse(y, x, G, *)))) by InstantiateForall(x)
+    val existence = thenHave((group(G, *), x ∈ G) |- ∃(y, isInverse(y, x, G, *))) by Restate
 
     // Assume y and z are inverses of x.
     // We prove the following chain of equalities:
@@ -247,55 +237,55 @@ object GroupTheory extends lisa.Main {
     //   1. Left neutrality of yx
     //   2. Associativity
     //   3. Right neutrality of xz
-    val uniqueness = have((group(G, *), in(x, G), isInverse(y, x, G, *), isInverse(z, x, G, *)) |- (y === z)) subproof {
-      val inverseMembership = have(isInverse(y, x, G, *) |- in(y, G)) by Tautology.from(isInverse.definition)
+    val uniqueness = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- (y === z)) subproof {
+      val inverseMembership = have(isInverse(y, x, G, *) |- y ∈ G) by Tautology.from(isInverse.definition)
 
       assume(group(G, *))
-      assume(in(x, G))
+      assume(x ∈ G)
       assume(isInverse(y, x, G, *))
       assume(isInverse(z, x, G, *))
 
       // 1. (yx)z = z
-      val leftNeutrality = have((group(G, *), in(x, G), isInverse(y, x, G, *), in(z, G)) |- (op(op(y, *, x), *, z) === z)) subproof {
+      val leftNeutrality = have((group(G, *), x ∈ G, isInverse(y, x, G, *), z ∈ G) |- (op(op(y, *, x), *, z) === z)) subproof {
         assume(group(G, *))
-        assume(in(x, G))
+        assume(x ∈ G)
         assume(isInverse(y, x, G, *))
-        assume(in(z, G))
+        assume(z ∈ G)
 
-        have(∀(u, G, (op(op(y, *, x), *, u) === u) /\ (op(u, *, op(y, *, x)) === u))) by Tautology.from(isInverse.definition, isNeutral.definition of (e -> op(y, *, x)))
-        thenHave(in(z, G) ==> ((op(op(y, *, x), *, z) === z) /\ (op(z, *, op(y, *, x)) === z))) by InstantiateForall(z)
+        have(∀(u, u ∈ G ==> ((op(op(y, *, x), *, u) === u) /\ (op(u, *, op(y, *, x)) === u)))) by Tautology.from(isInverse.definition, isNeutral.definition of (e -> op(y, *, x)))
+        thenHave(z ∈ G ==> ((op(op(y, *, x), *, z) === z) /\ (op(z, *, op(y, *, x)) === z))) by InstantiateForall(z)
         thenHave(op(op(y, *, x), *, z) === z) by Tautology
       }
       val firstEq = have(op(op(y, *, x), *, z) === z) by Cut(inverseMembership of (y -> z), leftNeutrality)
 
       // 2. (yx)z = y(xz)
-      val permuteParentheses = have((group(G, *), in(x, G), in(y, G), in(z, G)) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) subproof {
+      val permuteParentheses = have((group(G, *), x ∈ G, y ∈ G, z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) subproof {
         assume(group(G, *))
-        assume(in(x, G))
-        assume(in(y, G))
-        assume(in(z, G))
+        assume(x ∈ G)
+        assume(y ∈ G)
+        assume(z ∈ G)
 
-        have(∀(u, G, ∀(v, G, ∀(w, G, op(op(u, *, v), *, w) === op(u, *, op(v, *, w)))))) by Tautology.from(group.definition, associativity.definition)
-        thenHave(in(y, G) ==> ∀(v, G, ∀(w, G, op(op(y, *, v), *, w) === op(y, *, op(v, *, w))))) by InstantiateForall(y)
-        thenHave(∀(v, G, ∀(w, G, op(op(y, *, v), *, w) === op(y, *, op(v, *, w))))) by Tautology
-        thenHave(in(x, G) ==> ∀(w, G, op(op(y, *, x), *, w) === op(y, *, op(x, *, w)))) by InstantiateForall(x)
-        thenHave(∀(w, G, op(op(y, *, x), *, w) === op(y, *, op(x, *, w)))) by Tautology
-        thenHave(in(z, G) ==> (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by InstantiateForall(z)
+        have(∀(u, u ∈ G ==> ∀(v, v ∈ G ==> ∀(w, w ∈ G ==> (op(op(u, *, v), *, w) === op(u, *, op(v, *, w))))))) by Tautology.from(group.definition, associativity.definition)
+        thenHave(y ∈ G ==> ∀(v, v ∈ G ==> ∀(w, w ∈ G ==> (op(op(y, *, v), *, w) === op(y, *, op(v, *, w)))))) by InstantiateForall(y)
+        thenHave(∀(v, v ∈ G ==> ∀(w, w ∈ G ==> (op(op(y, *, v), *, w) === op(y, *, op(v, *, w)))))) by Tautology
+        thenHave(x ∈ G ==> ∀(w, w ∈ G ==> (op(op(y, *, x), *, w) === op(y, *, op(x, *, w))))) by InstantiateForall(x)
+        thenHave(∀(w, w ∈ G ==> (op(op(y, *, x), *, w) === op(y, *, op(x, *, w))))) by Tautology
+        thenHave(z ∈ G ==> (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by InstantiateForall(z)
         thenHave(op(op(y, *, x), *, z) === op(y, *, op(x, *, z))) by Tautology
       }
-      val associativityCut = have((group(G, *), in(x, G) /\ in(y, G) /\ in(z, G)) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate.from(permuteParentheses)
-      val memberships = have(in(x, G) /\ in(y, G) /\ in(z, G)) by Tautology.from(inverseMembership of (y -> y), inverseMembership of (y -> z))
+      val associativityCut = have((group(G, *), x ∈ G /\ y ∈ G /\ z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate.from(permuteParentheses)
+      val memberships = have(x ∈ G /\ y ∈ G /\ z ∈ G) by Tautology.from(inverseMembership of (y -> y), inverseMembership of (y -> z))
       val secondEq = have(op(op(y, *, x), *, z) === op(y, *, op(x, *, z))) by Cut(memberships, associativityCut)
 
       // 3. y(xz) = y
-      val rightNeutrality = have((group(G, *), in(x, G), in(y, G), isInverse(z, x, G, *)) |- (op(y, *, op(x, *, z)) === y)) subproof {
+      val rightNeutrality = have((group(G, *), x ∈ G, y ∈ G, isInverse(z, x, G, *)) |- (op(y, *, op(x, *, z)) === y)) subproof {
         assume(group(G, *))
-        assume(in(x, G))
-        assume(in(y, G))
+        assume(x ∈ G)
+        assume(y ∈ G)
         assume(isInverse(z, x, G, *))
 
-        have(∀(u, G, (op(op(x, *, z), *, u) === u) /\ (op(u, *, op(x, *, z)) === u))) by Tautology.from(isInverse.definition of (y -> z), isNeutral.definition of (e -> op(x, *, z)))
-        thenHave(in(y, G) ==> ((op(op(x, *, z), *, y) === y) /\ (op(y, *, op(x, *, z)) === y))) by InstantiateForall(y)
+        have(∀(u, u ∈ G ==> ((op(op(x, *, z), *, u) === u) /\ (op(u, *, op(x, *, z)) === u)))) by Tautology.from(isInverse.definition of (y -> z), isNeutral.definition of (e -> op(x, *, z)))
+        thenHave(y ∈ G ==> ((op(op(x, *, z), *, y) === y) /\ (op(y, *, op(x, *, z)) === y))) by InstantiateForall(y)
         thenHave(op(y, *, op(x, *, z)) === y) by Tautology
       }
       val thirdEq = have(op(y, *, op(x, *, z)) === y) by Cut(inverseMembership of (y -> y), rightNeutrality)
@@ -325,20 +315,20 @@ object GroupTheory extends lisa.Main {
    * Theorem --- `y` is the inverse of `x` iff `x` is the inverse of `y`
    */
   val inverseSymmetry = Theorem(
-	group(G, *) |- ∀(x, G, isInverse(y, x, G, *) ==> isInverse(x, y, G, *))
+	group(G, *) |- ∀(x, x ∈ G ==> (isInverse(y, x, G, *) ==> isInverse(x, y, G, *)))
   ) {
-    have((group(G, *), in(x, G), isInverse(y, x, G, *)) |- isInverse(x, y, G, *)) subproof {
+    have((group(G, *), x ∈ G, isInverse(y, x, G, *)) |- isInverse(x, y, G, *)) subproof {
       assume(group(G, *))
-      assume(in(x, G))
+      assume(x ∈ G)
       assume(isInverse(y, x, G, *))
 
-      have(in(y, G) /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)) by Tautology.from(isInverse.definition)
+      have(y ∈ G /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)) by Tautology.from(isInverse.definition)
       thenHave(isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
-      val definition = thenHave(in(x, G) /\ isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
+      val definition = thenHave(x ∈ G /\ isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
 
       have(thesis) by Tautology.from(definition, isInverse.definition of (y -> x, x -> y))
     }
-    thenHave(group(G, *) |- in(x, G) ==> (isInverse(y, x, G, *) ==> isInverse(x, y, G, *))) by Restate
+    thenHave(group(G, *) |- x ∈ G ==> (isInverse(y, x, G, *) ==> isInverse(x, y, G, *))) by Restate
     thenHave(thesis) by RightForall
   }
 
@@ -346,38 +336,38 @@ object GroupTheory extends lisa.Main {
    * Involution of the inverse -- For all `x`, `inverse(inverse(x)) = x`.
    */
   val inverseIsInvolutive = Theorem(
-    group(G, *) |- ∀(x, G, inverse(inverse(x, G, *), G, *) === x)
+    group(G, *) |- ∀(x, x ∈ G ==> (inverse(inverse(x, G, *), G, *) === x))
   ) {
     assume(group(G, *))
 
-    val inverseCharacterization = have((group(G, *), in(x, G)) |- ((y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) subproof {
+    val inverseCharacterization = have((group(G, *), x ∈ G) |- ((y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) subproof {
       assume(group(G, *))
 
-      have(in(x, G) |- ∀(y, (y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) by Tautology.from(inverseUniqueness, inverse.definition)
+      have(x ∈ G |- ∀(y, (y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) by Tautology.from(inverseUniqueness, inverse.definition)
       thenHave(thesis) by InstantiateForall(y)
     }
 
     // Prove that inverse(x) is an inverse of x
-    val inverseIsInverse = have((group(G, *), in(x, G)) |- isInverse(inverse(x, G, *), x, G, *)) subproof {
+    val inverseIsInverse = have((group(G, *), x ∈ G) |- isInverse(inverse(x, G, *), x, G, *)) subproof {
       assume(group(G, *))
 
-      have(in(x, G) |- ((inverse(x, G, *) === inverse(x, G, *)) <=> isInverse(inverse(x, G, *), x, G, *))) by Restate.from(
+      have(x ∈ G |- ((inverse(x, G, *) === inverse(x, G, *)) <=> isInverse(inverse(x, G, *), x, G, *))) by Restate.from(
         inverseCharacterization of (y -> inverse(x, G, *))
       )
       thenHave(thesis) by Restate
     }
 
-    val membership = have((group(G, *), in(x, G)) |- in(inverse(x, G, *), G)) by Tautology.from(
+    val membership = have((group(G, *), x ∈ G) |- in(inverse(x, G, *), G)) by Tautology.from(
       inverseIsInverse, isInverse.definition of (y -> inverse(x, G, *))
     )
 
     // Use the symmetry of the inverse relation to prove that x is an inverse of inverse(x)
-    val satisfaction = have((group(G, *), in(x, G)) |- isInverse(x, inverse(x, G, *), G, *)) subproof {
+    val satisfaction = have((group(G, *), x ∈ G) |- isInverse(x, inverse(x, G, *), G, *)) subproof {
       assume(group(G, *))
 
-      have(∀(z, G, isInverse(inverse(x, G, *), z, G, *) ==> isInverse(z, inverse(x, G, *), G, *))) by Tautology.from(inverseSymmetry of (y -> inverse(x, G, *)))
-      thenHave(in(x, G) ==> (isInverse(inverse(x, G, *), x, G, *) ==> isInverse(x, inverse(x, G, *), G, *))) by InstantiateForall(x)
-      val symmetryCut = thenHave((in(x, G), isInverse(inverse(x, G, *), x, G, *)) |- isInverse(x, inverse(x, G, *), G, *)) by Restate
+      have(∀(z, z ∈ G ==> (isInverse(inverse(x, G, *), z, G, *) ==> isInverse(z, inverse(x, G, *), G, *)))) by Tautology.from(inverseSymmetry of (y -> inverse(x, G, *)))
+      thenHave(x ∈ G ==> (isInverse(inverse(x, G, *), x, G, *) ==> isInverse(x, inverse(x, G, *), G, *))) by InstantiateForall(x)
+      val symmetryCut = thenHave((x ∈ G, isInverse(inverse(x, G, *), x, G, *)) |- isInverse(x, inverse(x, G, *), G, *)) by Restate
 
       have(thesis) by Cut(inverseIsInverse, symmetryCut)
     }
@@ -386,10 +376,10 @@ object GroupTheory extends lisa.Main {
     val u = inverse(inverse(x, G, *), G, *)
 
     val characterization = have(in(inverse(x, G, *), G) |- ((x === u) <=> isInverse(x, inverse(x, G, *), G, *))) by Restate.from(inverseCharacterization of (x -> inverse(x, G, *), y -> x))
-    val eq = have((in(x, G), in(inverse(x, G, *), G)) |- (x === u)) by Tautology.from(satisfaction, characterization)
+    val eq = have((x ∈ G, in(inverse(x, G, *), G)) |- (x === u)) by Tautology.from(satisfaction, characterization)
 
-    have(in(x, G) |- (x === u)) by Cut(membership, eq)
-    thenHave(in(x, G) ==> (x === u)) by Restate
+    have(x ∈ G |- (x === u)) by Cut(membership, eq)
+    thenHave(x ∈ G ==> (x === u)) by Restate
     thenHave(thesis) by RightForall
   }
 }
