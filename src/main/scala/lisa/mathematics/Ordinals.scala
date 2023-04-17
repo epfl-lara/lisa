@@ -149,7 +149,7 @@ object Ordinals extends lisa.Main {
 
   /**
    * A set `'A` is transitive if and only if every member of `'A` is a subset of `'A`.
-   * \forall 'x. 'x\in 'A ==> 'x \subset 'A
+   * ∀ 'x. 'x∈ 'A ⟹ 'x ⊂ 'A
    */
   val transitiveSet = DEF(A) --> forall(x, in(x, A) ==> subset(x, A))
 
@@ -168,7 +168,6 @@ object Ordinals extends lisa.Main {
     showCurrentProof()
 
   }
-  show
    */
 
 }

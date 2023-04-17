@@ -121,6 +121,7 @@ object KernelHelpers {
   val emptySeq: Sequent = Sequent(Set.empty, Set.empty)
 
   extension (s: Sequent) {
+    // non OL-based / naive Sequent manipulation
     infix def +<<(f: Formula): Sequent = s.copy(left = s.left + f)
     infix def -<<(f: Formula): Sequent = s.copy(left = s.left - f)
     infix def +>>(f: Formula): Sequent = s.copy(right = s.right + f)
@@ -132,6 +133,7 @@ object KernelHelpers {
     infix def ++(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left, right = s.right ++ s1.right)
     infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
 
+    // OL-based Sequent manipulation
     infix def removeLeft(f: Formula): Sequent = s.copy(left = s.left.filterNot(isSame(_, f)))
     infix def removeRight(f: Formula): Sequent = s.copy(right = s.right.filterNot(isSame(_, f)))
     infix def removeAllLeft(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))))
@@ -139,6 +141,24 @@ object KernelHelpers {
     infix def removeAllRight(s1: Sequent): Sequent = s.copy(right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
     infix def removeAllRight(s1: Set[Formula]): Sequent = s.copy(right = s.right.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
     infix def removeAll(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))), right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
+
+    infix def addLeftIfNotExists(f: Formula): Sequent = if (s.left.exists(isSame(_, f))) s else (s +<< f)
+    infix def addRightIfNotExists(f: Formula): Sequent = if (s.right.exists(isSame(_, f))) s else (s +>> f)
+    infix def addAllLeftIfNotExists(s1: Sequent): Sequent = s ++<< s1.copy(left = s1.left.filterNot(e1 => s.left.exists(isSame(_, e1))))
+    infix def addAllRightIfNotExists(s1: Sequent): Sequent = s ++>> s1.copy(right = s1.right.filterNot(e1 => s.right.exists(isSame(_, e1))))
+    infix def addAllIfNotExists(s1: Sequent): Sequent = s ++ s1.copy(left = s1.left.filterNot(e1 => s.left.exists(isSame(_, e1))), right = s1.right.filterNot(e1 => s.right.exists(isSame(_, e1))))
+
+    // OL shorthands
+    infix def +<?(f: Formula): Sequent = s addLeftIfNotExists f
+    infix def -<?(f: Formula): Sequent = s removeLeft f
+    infix def +>?(f: Formula): Sequent = s addRightIfNotExists f
+    infix def ->?(f: Formula): Sequent = s removeRight f
+    infix def ++<?(s1: Sequent): Sequent = s addAllLeftIfNotExists s1
+    infix def --<?(s1: Sequent): Sequent = s removeAllLeft s1
+    infix def ++>?(s1: Sequent): Sequent = s addAllRightIfNotExists s1
+    infix def -->?(s1: Sequent): Sequent = s removeAllRight s1
+    infix def --?(s1: Sequent): Sequent = s removeAll s1
+    infix def ++?(s1: Sequent): Sequent = s addAllIfNotExists s1
   }
 
   // TODO: Should make less generic
