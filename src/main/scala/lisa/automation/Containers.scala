@@ -6,7 +6,7 @@ import lisa.kernel.proof.SequentCalculus as SC
 import lisa.mathematics.SetTheory
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib.{*, given}
+import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
 import lisa.settheory.SetTheoryLibrary
 import lisa.utils.KernelHelpers.*
@@ -30,5 +30,5 @@ object Containers {
     val funlExistsThm = Theorem.apply()
 
   }
-*/
+   */
 }
