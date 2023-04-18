@@ -29,7 +29,7 @@ class RunningTheory {
   /**
    * A theorem encapsulate a sequent and assert that this sequent has been correctly proven and may be used safely in further proofs.
    */
-  sealed case class Theorem private[RunningTheory] (name: String, proposition: Sequent) extends Justification
+  sealed case class Theorem private[RunningTheory] (name: String, proposition: Sequent, withSorry:Boolean=false) extends Justification
 
   /**
    * An axiom is any formula that is assumed and considered true within the theory. It can freely be used later in any proof.
@@ -58,7 +58,11 @@ class RunningTheory {
    * @param out   The variable representing the result of the function in phi
    * @param expression   The formula, with term parameters, defining the function.
    */
-  sealed case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel, out: VariableLabel, expression: LambdaTermFormula) extends Definition
+  sealed case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel,
+                                                               out: VariableLabel,
+                                                               expression: LambdaTermFormula,
+                                                               withSorry: Boolean = false
+                                                              ) extends Definition
 
   private[proof] val theoryAxioms: mMap[String, Axiom] = mMap.empty
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
@@ -87,8 +91,16 @@ class RunningTheory {
       if (belongsToTheory(proof.conclusion)) {
         val r = SCProofChecker.checkSCProof(proof)
         r match {
-          case SCProofCheckerJudgement.SCValidProof(_) =>
-            val thm = Theorem(name, proof.conclusion)
+          case SCProofCheckerJudgement.SCValidProof(_, sorry) =>
+            val usesSorry = sorry || justifications.exists(_ match {
+              case Theorem(name, proposition, withSorry) => withSorry
+              case Axiom(name, ax) => false
+              case d: Definition => d match {
+                case PredicateDefinition(label, expression) => false
+                case FunctionDefinition(label, out, expression, withSorry) => withSorry
+              }
+            })
+            val thm = Theorem(name, proof.conclusion, usesSorry)
             theorems.update(name, thm)
             ValidJustification(thm)
           case r @ SCProofCheckerJudgement.SCInvalidProof(_, _, message) =>
@@ -151,13 +163,21 @@ class RunningTheory {
             if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
               val r = SCProofChecker.checkSCProof(proof)
               r match {
-                case SCProofCheckerJudgement.SCValidProof(_) =>
+                case SCProofCheckerJudgement.SCValidProof(_, sorry) =>
                   proof.conclusion match {
                     case Sequent(l, r) if l.isEmpty && r.size == 1 =>
                       if (isImplying(proven, body)) {
                         val subst = BinderFormula(ExistsOne, out, proven)
                         if (isSame(r.head, subst)) {
-                          val newDef = FunctionDefinition(label, out, expression)
+                          val usesSorry = sorry || justifications.exists(_ match {
+                            case Theorem(name, proposition, withSorry) => withSorry
+                            case Axiom(name, ax) => false
+                            case d: Definition => d match {
+                              case PredicateDefinition(label, expression) => false
+                              case FunctionDefinition(label, out, expression, withSorry) => withSorry
+                            }
+                          })
+                          val newDef = FunctionDefinition(label, out, expression, usesSorry)
                           funDefinitions.update(label, Some(newDef))
                           knownSymbols.update(label.id, label)
                           RunningTheoryJudgement.ValidJustification(newDef)
@@ -176,12 +196,12 @@ class RunningTheory {
   }
 
   def sequentFromJustification(j: Justification): Sequent = j match {
-    case Theorem(name, proposition) => proposition
+    case Theorem(name, proposition, _) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
     case PredicateDefinition(label, LambdaTermFormula(vars, body)) =>
       val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(VariableTerm.apply)), body))
       Sequent(Set(), Set(inner))
-    case FunctionDefinition(label, out, LambdaTermFormula(vars, body)) =>
+    case FunctionDefinition(label, out, LambdaTermFormula(vars, body), _) =>
       val inner = BinderFormula(
         Forall,
         out,

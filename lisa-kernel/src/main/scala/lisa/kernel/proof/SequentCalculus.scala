@@ -335,4 +335,13 @@ object SequentCalculus {
     val bot: Sequent = sp.conclusion
   }
 
+  /**
+   * <pre>
+   *
+   * --------------
+   *   Γ  |- Δ
+   * </pre>
+   */
+  case class Sorry(bot: Sequent) extends SCProofStep { val premises = Seq() }
+
 }

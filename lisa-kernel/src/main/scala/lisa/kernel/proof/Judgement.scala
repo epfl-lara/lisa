@@ -26,7 +26,7 @@ object SCProofCheckerJudgement {
   /**
    * A positive judgement.
    */
-  case class SCValidProof(proof: SCProof) extends SCProofCheckerJudgement
+  case class SCValidProof(proof: SCProof, val usesSorry:Boolean=false) extends SCProofCheckerJudgement
 
   /**
    * A negative judgement.
