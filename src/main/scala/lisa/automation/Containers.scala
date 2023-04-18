@@ -13,6 +13,7 @@ import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
 object Containers {
+  /*
   import lisa.settheory.SetTheoryLibrary.{_, given}
 
   case class Value(name:String, property:LambdaTermFormula){
@@ -29,5 +30,5 @@ object Containers {
     val funlExistsThm = Theorem.apply()
 
   }
-
+*/
 }

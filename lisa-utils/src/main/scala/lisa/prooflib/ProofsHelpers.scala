@@ -177,7 +177,12 @@ trait ProofsHelpers {
      * @return The theorem, if proof is valid. Otherwise will terminate.
      */
     def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM = {
-      new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
+      val thm = new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
+      if (tk == Theorem) {
+        if (thm.withSorry) om.output(thm.repr, Console.YELLOW)
+        else om.output(thm.repr, Console.GREEN)
+      }
+      thm
     }
   }
 

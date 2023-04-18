@@ -278,7 +278,9 @@ trait WithTheorems {
     override def sequentOfOutsideFact(of: theory.Justification): Sequent = theory.sequentFromJustification(of)
   }
 
-  sealed abstract class DefOrThm(using om: OutputManager)(val line: Int, val file: String)
+  sealed abstract class DefOrThm(using om: OutputManager)(val line: Int, val file: String) {
+    def repr:String
+  }
   class THM(using om: OutputManager)(statement: Sequent | String, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
       extends DefOrThm(using om)(line, file) {
 
@@ -290,8 +292,9 @@ trait WithTheorems {
 
     val proof: BaseProof = new BaseProof(this)
     val innerThm: theory.Theorem = show(computeProof)
+    val withSorry = innerThm.withSorry
 
-    def repr: String = lisa.utils.FOLPrinter.prettySequent(goal)
+    def repr: String = innerThm.repr
 
     def show(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {
