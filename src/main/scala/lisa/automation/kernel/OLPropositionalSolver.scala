@@ -92,10 +92,14 @@ object OLPropositionalSolver {
 
   // Transform a sequent into a format more adequate for solving
   private def augmentSequent(s: Sequent): AugSequent = {
+    import lisa.utils.parsing.FOLPrinter.*
     val f = reducedForm(sequentToFormula(s))
     val atoms: scala.collection.mutable.Map[Formula, Int] = scala.collection.mutable.Map.empty
     AugSequent((Nil, Nil), f)
   }
+
+
+
 
   def reduceSequent(s: Sequent): Formula = {
     val p = simplify(sequentToFormula(s))

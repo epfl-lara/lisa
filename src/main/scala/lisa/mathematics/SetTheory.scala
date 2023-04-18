@@ -868,7 +868,7 @@ object SetTheory extends lisa.Main {
       val exRed = thenHave(exists(b, in(b, x) /\ in(t, b)) |- exists(b, in(b, x))) by LeftExists
 
       have(in(t, union(x)) |- exists(b, in(b, x))) by Cut(unionAx, exRed)
-      thenHave(thesis) by Weakening
+      thenHave(thesis) by Tautology
     }
 
     val rhs = have(∀(b, in(b, x) ==> in(t, b)) /\ exists(b, in(b, x)) |- (in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b)))) subproof {
