@@ -434,7 +434,7 @@ object KernelHelpers {
 
   extension (just: RunningTheory#Justification) {
     def repr: String = just match {
-      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${FOLPrinter.prettySequent(thm.proposition)}\n"
+      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${FOLPrinter.prettySequent(thm.proposition)}${if (thm.withSorry) " (!! Relies on Sorry)" else ""}\n"
       case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${FOLPrinter.prettyFormula(axiom.ax)}\n"
       case d: RunningTheory#Definition =>
         d match {
@@ -442,7 +442,7 @@ object KernelHelpers {
             s" Definition of predicate symbol ${pd.label.id} := ${FOLPrinter.prettyFormula(pd.label(pd.expression.vars.map(VariableTerm.apply)*) <=> pd.expression.body)}\n"
           case fd: RunningTheory#FunctionDefinition =>
             s" Definition of function symbol ${FOLPrinter.prettyTerm(fd.label(fd.expression.vars.map(VariableTerm.apply)*))} := the ${fd.out.id} such that ${FOLPrinter
-                .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})\n"
+                .prettyFormula((fd.out === fd.label(fd.expression.vars.map(VariableTerm.apply)*)) <=> fd.expression.body)})${if (fd.withSorry) " (!! Relies on Sorry)" else ""}\n"
         }
     }
   }

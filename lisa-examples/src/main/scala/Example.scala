@@ -84,16 +84,16 @@ object ExampleDSL extends lisa.Main {
   val inductiveSet = DEF(x) --> in(∅, x) /\ forall(y, in(y, x) ==> in(succ(y), x))
   show
 
-  val defineNonEmptySet = Lemma( ∃!(x, !(x === ∅) /\ (x===unorderedPair(∅, ∅))) ) {
+  val defineNonEmptySet = Lemma(∃!(x, !(x === ∅) /\ (x === unorderedPair(∅, ∅)))) {
     val subst = have(False <=> in(∅, ∅)) by Rewrite(emptySetAxiom of (x -> ∅()))
-    have( in(∅, unorderedPair(∅, ∅))<=>False |- () ) by Rewrite(pairAxiom of (x -> ∅(), y -> ∅(), z -> ∅()))
+    have(in(∅, unorderedPair(∅, ∅)) <=> False |- ()) by Rewrite(pairAxiom of (x -> ∅(), y -> ∅(), z -> ∅()))
     andThen(applySubst(subst))
-    thenHave( ∀(z, in(z, unorderedPair(∅, ∅)) <=> in(z, ∅)) |- () ) by LeftForall
+    thenHave(∀(z, in(z, unorderedPair(∅, ∅)) <=> in(z, ∅)) |- ()) by LeftForall
     andThen(applySubst(extensionalityAxiom of (x -> unorderedPair(∅(), ∅()), y -> ∅())))
     andThen(applySubst(x === unorderedPair(∅(), ∅())))
-    thenHave( (!(x === ∅) /\ (x === unorderedPair(∅, ∅))) <=> (x===unorderedPair(∅, ∅)) ) by Tautology
-    thenHave( ∀(x, (x === unorderedPair(∅, ∅)) <=> (!(x === ∅) /\ (x === unorderedPair(∅, ∅)))) ) by RightForall
-    thenHave( ∃(y, ∀(x, (x === y) <=> (!(x === ∅) /\ (x === unorderedPair(∅, ∅))) )) ) by RightExists
+    thenHave((!(x === ∅) /\ (x === unorderedPair(∅, ∅))) <=> (x === unorderedPair(∅, ∅))) by Tautology
+    thenHave(∀(x, (x === unorderedPair(∅, ∅)) <=> (!(x === ∅) /\ (x === unorderedPair(∅, ∅))))) by RightForall
+    thenHave(∃(y, ∀(x, (x === y) <=> (!(x === ∅) /\ (x === unorderedPair(∅, ∅)))))) by RightExists
   }
   show
 

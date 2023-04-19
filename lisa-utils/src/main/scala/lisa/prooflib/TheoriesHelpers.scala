@@ -69,7 +69,7 @@ object TheoriesHelpers {
      */
     def showAndGet(using om: OutputManager): SCProof = {
       proofJudgement match {
-        case SCProofCheckerJudgement.SCValidProof(proof) =>
+        case SCProofCheckerJudgement.SCValidProof(proof, _) =>
           om.output(FOLPrinter.prettySCProof(proofJudgement))
           proof
         case ip @ SCProofCheckerJudgement.SCInvalidProof(proof, path, message) =>
