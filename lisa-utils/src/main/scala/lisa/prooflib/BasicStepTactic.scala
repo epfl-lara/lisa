@@ -1215,6 +1215,12 @@ object BasicStepTactic {
     }
   }
 
+  object Sorry extends ProofTactic with ProofSequentTactic {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+      proof.ValidProofTactic(Seq(SC.Sorry(bot)), Seq())
+    }
+  }
+
   // TODO make specific support for subproofs written inside tactics.
 
   def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit) =
