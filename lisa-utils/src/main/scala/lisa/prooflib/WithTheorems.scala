@@ -294,6 +294,7 @@ trait WithTheorems {
     val innerThm: theory.Theorem = show(computeProof)
     val withSorry = innerThm.withSorry
 
+    def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(goal)
     def repr: String = innerThm.repr
 
     def show(computeProof: Proof ?=> Unit): theory.Theorem = {
