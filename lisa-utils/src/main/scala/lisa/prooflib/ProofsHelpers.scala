@@ -7,6 +7,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.prooflib.BasicStepTactic.Sorry
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
@@ -108,10 +109,7 @@ trait ProofsHelpers {
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
-  def assume(using proof: library.Proof)(f: Formula): proof.ProofStep = {
-    proof.addAssumption(f)
-    have(() |- f) by BasicStepTactic.Hypothesis
-  }
+  def assume(using proof: library.Proof)(fs: Formula*): proof.ProofStep = assume(fs)
   def assume(using proof: library.Proof)(fstring: String): proof.ProofStep = {
     val f = lisa.utils.FOLParser.parseFormula(fstring)
     assume(f)
@@ -133,6 +131,8 @@ trait ProofsHelpers {
   def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
 
   def lastStep(using proof: library.Proof): proof.ProofStep = proof.mostRecentStep
+
+  def sorry(using proof: library.Proof) = have(thesis) by Sorry
 
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
     om.output("Current proof of " + _proof.owningTheorem.repr + ": ")
