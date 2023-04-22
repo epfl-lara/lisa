@@ -1,18 +1,15 @@
 package lisa.automation.grouptheory
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.automation.kernel.SimplePropositionalSolver.*
-import lisa.automation.kernel.SimpleSimplifier.*
-import lisa.mathematics.SetTheory
+import lisa.automation.kernel.SimpleSimplifier.Substitution
+import lisa.mathematics.SetTheory.*
+import lisa.settheory.SetTheoryLibrary
 import lisa.prooflib.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.{*, given}
-import lisa.settheory.SetTheoryLibrary
-import lisa.utils.KernelHelpers.*
 
 object GroupTheoryTactics {
   import lisa.settheory.SetTheoryLibrary.{*, given}
-
 
   /**
    * <pre>
@@ -44,7 +41,7 @@ object GroupTheoryTactics {
       } else if (!contains(uniquenessSeq.left, substPhi)) {
         proof.InvalidProofTactic(s"Uniqueness sequent premises do not contain φ[$y/$x].")
       } else if (!contains(uniquenessSeq.right, x === y) && !contains(uniquenessSeq.right, y === x)) {
-        proof.InvalidProofTactic(s"Uniqueness sequent premises do not contain $x = $y")
+        proof.InvalidProofTactic(s"Uniqueness sequent conclusion does not contain $x = $y")
       } else if (!contains(bot.right, uniqueExistenceFormula)) {
         proof.InvalidProofTactic(s"Bottom sequent conclusion does not contain ∃!$x. φ")
       }
@@ -114,6 +111,143 @@ object GroupTheoryTactics {
       } match {
         case Some(y) => ExistenceAndUniqueness.withParameters(phi, x, y)(existence, uniqueness)(bot)
         case None => proof.InvalidProofTactic("Could not infer correct variable y in uniqueness sequent.")
+      }
+    }
+  }
+
+  /**
+   * <pre>
+   *
+   * -------------  if f(xs) = The(y, P(y)) is a function definition
+   * |- P(f(xs))
+   * </pre>
+   * Here `xs` is an arbitrary list of parameters.
+   *
+   * If `f(xs) = The(y, (φ ==> Q(y)) /\ (!φ ==> (y === t)))` is a conditional function definition, then:
+   * <pre>
+   *
+   * --------------
+   * φ |- Q(f(xs))
+   * </pre>
+   */
+  object Definition extends ProofTactic {
+    def apply(using proof: SetTheoryLibrary.Proof, om: OutputManager)
+             (f: ConstantFunctionLabel, uniqueness: proof.Fact)(xs: Term*)
+             (bot: Sequent): proof.ProofTacticJudgement = {
+      f.definition match {
+        case SetTheoryLibrary.theory.FunctionDefinition(_, _, expr) =>
+          // Check if the definition is conditional
+          val method = expr(xs) match {
+            case ConnectorFormula(And, Seq(
+            ConnectorFormula(Implies, Seq(a, _)),
+            ConnectorFormula(Implies, Seq(b, _))
+            )) if isSame(neg(a), b) => conditional
+
+            case _ => unconditional
+          }
+
+          method(f, uniqueness)(xs)(bot)
+
+        case SetTheoryLibrary.theory.Axiom(_, _) => proof.InvalidProofTactic("Axiomatic definitions are not supported.")
+        case _ => proof.InvalidProofTactic("Could not get definition of function.")
+      }
+    }
+
+    /**
+     * <pre>
+     *
+     * -------------  if f(xs) = The(y, P(y)) is a function definition
+     * |- P(f(xs))
+     * </pre>
+     */
+    def unconditional(using proof: SetTheoryLibrary.Proof, om: OutputManager)
+                     (f: ConstantFunctionLabel, uniqueness: proof.Fact)(xs: Term*)
+                     (bot: Sequent): proof.ProofTacticJudgement = {
+      f.definition match {
+        case definition@SetTheoryLibrary.theory.FunctionDefinition(_, y, expr) =>
+          if (bot.right.size != 1) {
+            return proof.InvalidProofTactic("Right-hand side of bottom sequent should contain only 1 formula.")
+          }
+
+          // Extract variable labels to instantiate them later in the proof
+          val LambdaTermFormula(vars, _) = expr
+          val instantiations: Seq[(SchematicTermLabel, LambdaTermTerm)] = vars.zip(xs.map(x => LambdaTermTerm(Seq(), x)))
+
+          // Instantiate terms in the definition
+          val P = LambdaTermFormula(Seq(y), expr(xs))
+
+          val expected = P(Seq(f(xs)))
+          if (!isSame(expected, bot.right.head)) {
+            return proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form P(f(xs)).")
+          }
+
+          TacticSubproof {
+            have(∀(y, (y === f(xs)) <=> P(Seq(y)))) by Tautology.from(uniqueness, definition.of(instantiations: _*))
+            thenHave((y === f(xs)) <=> P(Seq(y))) by InstantiateForall(y)
+            thenHave((f(xs) === f(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f(xs)))
+            thenHave(P(Seq(f(xs)))) by Restate
+          }
+
+        case SetTheoryLibrary.theory.Axiom(_, _) => proof.InvalidProofTactic("Axiomatic definitions are not supported.")
+        case _ => proof.InvalidProofTactic("Could not get definition of function.")
+      }
+    }
+
+    /**
+     * <pre>
+     *
+     * -------------- if f(xs) = The(y, (φ ==> Q(y)) /\ (!φ ==> R(y)))
+     * φ |- Q(f(xs))
+     * </pre>
+     */
+    def conditional(using proof: SetTheoryLibrary.Proof, om: OutputManager)
+                   (f: ConstantFunctionLabel, uniqueness: proof.Fact)(xs: Term*)
+                   (bot: Sequent): proof.ProofTacticJudgement = {
+      f.definition match {
+        case definition@SetTheoryLibrary.theory.FunctionDefinition(_, y, expr) =>
+          if (bot.right.size != 1) {
+            return proof.InvalidProofTactic("Right-hand side of bottom sequent should contain exactly 1 formula.")
+          } else if (bot.left.isEmpty) {
+            return proof.InvalidProofTactic("Left-hand side of bottom sequent should not be empty.")
+          }
+
+          // Extract variable labels to instantiate them later in the proof
+          val LambdaTermFormula(vars, _) = expr
+          val instantiations: Seq[(SchematicTermLabel, LambdaTermTerm)] = vars.zip(xs.map(x => LambdaTermTerm(Seq(), x)))
+
+          // Instantiate terms in the definition
+          val P = LambdaTermFormula(Seq(y), expr(xs))
+
+          // Unfold the conditional definition to find Q
+          val phi = ConnectorFormula(And, bot.left.toSeq)
+          val Q = P.body match {
+            case ConnectorFormula(And, Seq(
+            ConnectorFormula(Implies, Seq(a, f)),
+            ConnectorFormula(Implies, Seq(b, g))
+            )) if isSame(neg(a), b) =>
+              if (isSame(a, phi)) LambdaTermFormula(Seq(y), f)
+              else if (isSame(b, phi)) LambdaTermFormula(Seq(y), g)
+              else return proof.InvalidProofTactic("Condition of definition is not satisfied.")
+
+            case _ => return proof.InvalidProofTactic("Definition is not conditional.")
+          }
+
+          val expected = Q(Seq(f(xs)))
+          if (!isSame(expected, bot.right.head)) {
+            return proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form Q(f(xs)).")
+          }
+
+          TacticSubproof {
+            have(∀(y, (y === f(xs)) <=> P(Seq(y)))) by Tautology.from(uniqueness, definition.of(instantiations: _*))
+            thenHave((y === f(xs)) <=> P(Seq(y))) by InstantiateForall(y)
+            thenHave((f(xs) === f(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f(xs)))
+            thenHave(P(Seq(f(xs)))) by Restate
+            thenHave(phi ==> Q(Seq(f(xs)))) by Tautology
+            thenHave(phi |- Q(Seq(f(xs)))) by Restate
+          }
+
+        case SetTheoryLibrary.theory.Axiom(_, _) => proof.InvalidProofTactic("Axiomatic definitions are not supported.")
+        case _ => proof.InvalidProofTactic("Could not get definition of function.")
       }
     }
   }
