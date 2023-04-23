@@ -70,6 +70,9 @@ object FirstOrderLogic extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
+  /**
+   * Theorem -- If `P` and `Q` are equivalent, then `∃(x, P(x))` implies `∃(x, Q(x))`.
+   */
   val substitutionInExistenceQuantifier = Theorem(
     (∃(x, P(x)), ∀(y, P(y) <=> Q(y))) |- ∃(x, Q(x))
   ) {
@@ -84,6 +87,9 @@ object FirstOrderLogic extends lisa.Main {
     thenHave(thesis) by LeftExists
   }
 
+  /**
+   * Theorem -- If `P` and `Q` are equivalent, then `∃!(x, P(x))` implies `∃!(x, Q(x))`.
+   */
   val substitutionInUniquenessQuantifier = Theorem(
     (∃!(x, P(x)), ∀(y, P(y) <=> Q(y))) |- ∃!(x, Q(x))
   ) {
@@ -103,6 +109,9 @@ object FirstOrderLogic extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
+  /**
+   * Theorem --- Equality relation is transitive.
+   */
   val equalityTransitivity = Theorem(
     (x === y) /\ (y === z) |- (x === z)
   ) {
@@ -112,7 +121,7 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-   * Theorem --- Conjunction and universal quantification commute
+   * Theorem --- Conjunction and universal quantification commute.
    */
   val universalConjunctionCommutation = Theorem(
     () |- forall(x, P(x) /\ Q(x)) <=> forall(x, P(x)) /\ forall(x, Q(x))
@@ -145,7 +154,7 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-   * Theorem --- Disjunction and exisential quantification commute
+   * Theorem --- Disjunction and existential quantification commute.
    */
   val existentialDisjunctionCommutation = Theorem(
     () |- exists(x, P(x) \/ Q(x)) <=> exists(x, P(x)) \/ exists(x, Q(x))
@@ -175,6 +184,134 @@ object FirstOrderLogic extends lisa.Main {
     }
 
     have(thesis) by RightIff(fwd, bwd)
+  }
+
+  /**
+   * Theorem --- Universal quantification distributes over equivalence
+   */
+  val universalEquivalenceDistribution = Theorem(
+    forall(z, P(z) <=> Q(z)) |- (forall(z, P(z)) <=> forall(z, Q(z)))
+  ) {
+    have(forall(z, P(z) <=> Q(z)) |- forall(z, P(z) <=> Q(z))) by Hypothesis
+    val quant = thenHave(forall(z, P(z) <=> Q(z)) |- P(z) <=> Q(z)) by InstantiateForall(z)
+
+    val lhs = have((forall(z, P(z) <=> Q(z)), forall(z, P(z))) |- forall(z, Q(z))) subproof {
+      have(forall(z, P(z)) |- forall(z, P(z))) by Hypothesis
+      thenHave(forall(z, P(z)) |- P(z)) by InstantiateForall(z)
+      have((forall(z, P(z) <=> Q(z)), forall(z, P(z))) |- Q(z)) by Tautology.from(lastStep, quant)
+      thenHave(thesis) by RightForall
+    }
+
+    val rhs = have((forall(z, P(z) <=> Q(z)), forall(z, Q(z))) |- forall(z, P(z))) subproof {
+      have(forall(z, Q(z)) |- forall(z, Q(z))) by Hypothesis
+      thenHave(forall(z, Q(z)) |- Q(z)) by InstantiateForall(z)
+      have((forall(z, P(z) <=> Q(z)), forall(z, Q(z))) |- P(z)) by Tautology.from(lastStep, quant)
+      thenHave(thesis) by RightForall
+    }
+
+    have(thesis) by Tautology.from(lhs, rhs)
+  }
+
+  /**
+   * Theorem --- Universal quantification of equivalence implies equivalence
+   * of existential quantification.
+   */
+  val existentialEquivalenceDistribution = Theorem(
+    forall(z, P(z) <=> Q(z)) |- (exists(z, P(z)) <=> exists(z, Q(z)))
+  ) {
+    have(forall(z, P(z) <=> Q(z)) |- forall(z, P(z) <=> Q(z))) by Hypothesis
+    val quant = thenHave(forall(z, P(z) <=> Q(z)) |- P(z) <=> Q(z)) by InstantiateForall(z)
+
+    val lhs = have((forall(z, P(z) <=> Q(z)), exists(z, P(z))) |- exists(z, Q(z))) subproof {
+      have(P(z) |- P(z)) by Hypothesis
+      have((forall(z, P(z) <=> Q(z)), P(z)) |- Q(z)) by Tautology.from(lastStep, quant)
+      thenHave((forall(z, P(z) <=> Q(z)), P(z)) |- exists(z, Q(z))) by RightExists
+      thenHave(thesis) by LeftExists
+    }
+
+    val rhs = have((forall(z, P(z) <=> Q(z)), exists(z, Q(z))) |- exists(z, P(z))) subproof {
+      have(Q(z) |- Q(z)) by Hypothesis
+      have((forall(z, P(z) <=> Q(z)), Q(z)) |- P(z)) by Tautology.from(lastStep, quant)
+      thenHave((forall(z, P(z) <=> Q(z)), Q(z)) |- exists(z, P(z))) by RightExists
+      thenHave(thesis) by LeftExists
+    }
+
+    have(thesis) by Tautology.from(lhs, rhs)
+
+  }
+
+  /**
+   * Theorem --- Universal quantification distributes over implication
+   */
+  val universalImplicationDistribution = Theorem(
+    forall(z, P(z) ==> Q(z)) |- (forall(z, P(z)) ==> forall(z, Q(z)))
+  ) {
+    have(forall(z, P(z) ==> Q(z)) |- forall(z, P(z) ==> Q(z))) by Hypothesis
+    val quant = thenHave(forall(z, P(z) ==> Q(z)) |- P(z) ==> Q(z)) by InstantiateForall(z)
+
+    have(forall(z, P(z)) |- forall(z, P(z))) by Hypothesis
+    thenHave(forall(z, P(z)) |- P(z)) by InstantiateForall(z)
+    have((forall(z, P(z) ==> Q(z)), forall(z, P(z))) |- Q(z)) by Tautology.from(lastStep, quant)
+    thenHave((forall(z, P(z) ==> Q(z)), forall(z, P(z))) |- forall(z, Q(z))) by RightForall
+  }
+
+  /**
+   * Theorem --- Universal quantification of implication implies implication
+   * of existential quantification.
+   */
+  val existentialImplicationDistribution = Theorem(
+    forall(z, P(z) ==> Q(z)) |- (exists(z, P(z)) ==> exists(z, Q(z)))
+  ) {
+    have(forall(z, P(z) ==> Q(z)) |- forall(z, P(z) ==> Q(z))) by Hypothesis
+    val quant = thenHave(forall(z, P(z) ==> Q(z)) |- P(z) ==> Q(z)) by InstantiateForall(z)
+
+    val impl = have((forall(z, P(z) ==> Q(z)), exists(z, P(z))) |- exists(z, Q(z))) subproof {
+      have(P(z) |- P(z)) by Hypothesis
+      have((forall(z, P(z) ==> Q(z)), P(z)) |- Q(z)) by Tautology.from(lastStep, quant)
+      thenHave((forall(z, P(z) ==> Q(z)), P(z)) |- exists(z, Q(z))) by RightExists
+      thenHave(thesis) by LeftExists
+    }
+  }
+
+  /**
+   * Theorem --- Universal quantification of equivalence implies equivalence
+   * of unique existential quantification.
+   */
+  val uniqueExistentialEquivalenceDistribution = Theorem(
+    forall(z, P(z) <=> Q(z)) |- (existsOne(z, P(z)) <=> existsOne(z, Q(z)))
+  ) {
+    val yz = have(forall(z, P(z) <=> Q(z)) |- ((y === z) <=> P(y)) <=> ((y === z) <=> Q(y))) subproof {
+      have(forall(z, P(z) <=> Q(z)) |- forall(z, P(z) <=> Q(z))) by Hypothesis
+      val quant = thenHave(forall(z, P(z) <=> Q(z)) |- P(y) <=> Q(y)) by InstantiateForall(y)
+
+      val lhs = have((forall(z, P(z) <=> Q(z)), ((y === z) <=> P(y))) |- ((y === z) <=> Q(y))) subproof {
+        have((P(y) <=> Q(y), ((y === z) <=> P(y))) |- ((y === z) <=> Q(y))) by Tautology
+        have(thesis) by Tautology.from(lastStep, quant)
+      }
+      val rhs = have((forall(z, P(z) <=> Q(z)), ((y === z) <=> Q(y))) |- ((y === z) <=> P(y))) subproof {
+        have((P(y) <=> Q(y), ((y === z) <=> Q(y))) |- ((y === z) <=> P(y))) by Tautology
+        have(thesis) by Tautology.from(lastStep, quant)
+      }
+
+      have(thesis) by Tautology.from(lhs, rhs)
+    }
+
+    val fy = thenHave(forall(z, P(z) <=> Q(z)) |- forall(y, ((y === z) <=> P(y)) <=> ((y === z) <=> Q(y)))) by RightForall
+
+    have(forall(y, P(y) <=> Q(y)) |- (forall(y, P(y)) <=> forall(y, Q(y)))) by Restate.from(universalEquivalenceDistribution)
+    val univy = thenHave(forall(y, ((y === z) <=> P(y)) <=> ((y === z) <=> Q(y))) |- (forall(y, ((y === z) <=> P(y))) <=> forall(y, ((y === z) <=> Q(y))))) by InstPredSchema(
+      Map((P -> lambda(y, (y === z) <=> P(y))), (Q -> lambda(y, (y === z) <=> Q(y))))
+    )
+
+    have(forall(z, P(z) <=> Q(z)) |- (forall(y, ((y === z) <=> P(y))) <=> forall(y, ((y === z) <=> Q(y))))) by Cut(fy, univy)
+
+    thenHave(forall(z, P(z) <=> Q(z)) |- forall(z, forall(y, ((y === z) <=> P(y))) <=> forall(y, ((y === z) <=> Q(y))))) by RightForall
+    have(forall(z, P(z) <=> Q(z)) |- exists(z, forall(y, ((y === z) <=> P(y)))) <=> exists(z, forall(y, ((y === z) <=> Q(y))))) by Cut(
+      lastStep,
+      existentialEquivalenceDistribution of (P -> lambda(z, forall(y, (y === z) <=> P(y))), Q -> lambda(z, forall(y, (y === z) <=> Q(y))))
+    )
+
+    thenHave(thesis) by Restate
   }
 
 }

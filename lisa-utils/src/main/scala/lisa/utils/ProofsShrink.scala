@@ -73,6 +73,7 @@ object ProofsShrink {
     case s: RightSubstIff => s.copy(t1 = mapping(s.t1))
     case s: SCSubproof => s.copy(premises = s.premises.map(mapping))
     case s: InstSchema => s.copy(t1 = mapping(s.t1))
+    case s: Sorry => s
   }
 
   /**

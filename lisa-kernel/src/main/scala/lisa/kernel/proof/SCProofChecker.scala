@@ -462,6 +462,14 @@ object SCProofChecker {
                 )
             } else SCInvalidProof(SCProof(step), Nil, "Number of premises and imports don't match: " + premises.size + " " + sp.imports.size)
 
+          /*
+           *
+           * --------------
+           *     |- s=s
+           */
+          case Sorry(b) =>
+            SCValidProof(SCProof(step), usesSorry = true)
+
         }
     r
   }
@@ -475,15 +483,18 @@ object SCProofChecker {
    *         and an explanation.
    */
   def checkSCProof(proof: SCProof): SCProofCheckerJudgement = {
+    var isSorry = false
     val possibleError = proof.steps.view.zipWithIndex
       .map { case (step, no) =>
         checkSingleSCStep(no, step, (i: Int) => proof.getSequent(i), Some(proof.imports.size)) match {
           case SCInvalidProof(_, path, message) => SCInvalidProof(proof, no +: path, message)
-          case SCValidProof(_) => SCValidProof(proof)
+          case SCValidProof(_, sorry) =>
+            isSorry = isSorry || sorry
+            SCValidProof(proof, sorry)
         }
       }
       .find(j => !j.isValid)
-    if (possibleError.isEmpty) SCValidProof(proof)
+    if (possibleError.isEmpty) SCValidProof(proof, isSorry)
     else possibleError.get
   }
 

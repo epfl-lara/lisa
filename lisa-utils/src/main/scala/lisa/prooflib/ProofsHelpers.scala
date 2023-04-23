@@ -116,6 +116,10 @@ trait ProofsHelpers {
     val f = lisa.utils.FOLParser.parseFormula(fstring)
     assume(f)
   }
+  def assume(using proof: library.Proof)(fs: Iterable[Formula]): proof.ProofStep = {
+    fs.foreach(f => proof.addAssumption(f))
+    have(() |- fs.toSet) by BasicStepTactic.Hypothesis
+  }
   /*
   /**
    * Store the given import and use it to discharge the proof of one of its assumption at the very end.
@@ -128,8 +132,10 @@ trait ProofsHelpers {
   def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
   def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
 
+  def lastStep(using proof: library.Proof): proof.ProofStep = proof.mostRecentStep
+
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
-    om.output("Current proof of" + _proof.owningTheorem.repr + ": ")
+    om.output("Current proof of " + _proof.owningTheorem.repr + ": ")
     om.output(
       ProofPrinter.prettyProof(_proof, 2)
     )
@@ -171,7 +177,12 @@ trait ProofsHelpers {
      * @return The theorem, if proof is valid. Otherwise will terminate.
      */
     def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM = {
-      new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
+      val thm = new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
+      if (tk == Theorem) {
+        if (thm.withSorry) om.output(thm.repr, Console.YELLOW)
+        else om.output(thm.repr, Console.GREEN)
+      }
+      thm
     }
   }
 
