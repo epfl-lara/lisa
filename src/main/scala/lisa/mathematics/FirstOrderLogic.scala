@@ -154,6 +154,83 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
+   * Theorem -- Existential quantification distributes conjunction.
+   */
+  val existentialConjunctionDistribution = Theorem(
+    exists(x, P(x) /\ Q(x)) |- exists(x, P(x)) /\ exists(x, Q(x))
+  ) {
+    have(P(x) |- P(x)) by Hypothesis
+    thenHave(P(x) /\ Q(x) |- P(x)) by Weakening
+    thenHave(P(x) /\ Q(x) |- exists(x, P(x))) by RightExists
+    val left = thenHave(exists(x, P(x) /\ Q(x)) |- exists(x, P(x))) by LeftExists
+
+    have(Q(x) |- Q(x)) by Hypothesis
+    thenHave(P(x) /\ Q(x) |- Q(x)) by Weakening
+    thenHave(P(x) /\ Q(x) |- exists(x, Q(x))) by RightExists
+    val right = thenHave(exists(x, P(x) /\ Q(x)) |- exists(x, Q(x))) by LeftExists
+
+    have(thesis) by RightAnd(left, right)
+  }
+
+  /**
+   * Theorem -- Existential quantification fully distributes when the conjunction involves one closed formula.
+   */
+  val existentialConjunctionWithClosedFormula = Theorem(
+    exists(x, P(x) /\ p()) <=> (exists(x, P(x)) /\ p())
+  ) {
+    val forward = have(exists(x, P(x) /\ p()) ==> (exists(x, P(x)) /\ p())) subproof {
+      have(exists(x, P(x) /\ p()) |- exists(x, P(x)) /\ exists(x, p())) by Restate.from(existentialConjunctionDistribution of (
+        Q -> lambda(x, p())
+      ))
+      val substitution = thenHave(
+        (exists(x, P(x) /\ p()), (exists(x, P(x)) /\ exists(x, p())) <=> (exists(x, P(x)) /\ p())) |- exists(x, P(x)) /\ p()
+      ) by RightSubstIff(List((exists(x, P(x)) /\ exists(x, p()), exists(x, P(x)) /\ p())), lambda(p, p()))
+
+      have(exists(x, p()) <=> p()) by Restate.from(closedFormulaExistential)
+      thenHave((exists(x, P(x)) /\ exists(x, p())) <=> (exists(x, P(x)) /\ p())) by Tautology
+
+      have(exists(x, P(x) /\ p()) |- exists(x, P(x)) /\ p()) by Cut(lastStep, substitution)
+      thenHave(thesis) by Restate
+    }
+
+    val backward = have((exists(x, P(x)) /\ p()) ==> exists(x, P(x) /\ p())) subproof {
+      have(P(x) /\ p() |- P(x) /\ p()) by Hypothesis
+      thenHave((P(x), p()) |- P(x) /\ p()) by Restate
+      thenHave((P(x), p()) |- exists(x, P(x) /\ p())) by RightExists
+      thenHave((exists(x, P(x)), p()) |- exists(x, P(x) /\ p())) by LeftExists
+      thenHave(thesis) by Restate
+    }
+
+    have(thesis) by RightIff(forward, backward)
+  }
+
+  /**
+   * Theorem -- If there is an equality on the existential quantifier's bound variable inside its body, then we can reduce
+   * the existential quantifier to the satisfaction of the remaining body.
+   */
+  val equalityInExistentialQuantifier = Theorem(
+    exists(x, P(x) /\ (y === x)) <=> P(y)
+  ) {
+    have(exists(x, P(x) /\ (y === x)) |- P(y)) subproof {
+      have(P(x) |- P(x)) by Hypothesis
+      thenHave((P(x), y === x) |- P(y)) by RightSubstEq(List((y, x)), lambda(y, P(y)))
+      thenHave(P(x) /\ (y === x) |- P(y)) by Restate
+      thenHave(thesis) by LeftExists
+    }
+    val forward = thenHave(exists(x, P(x) /\ (y === x)) ==> P(y)) by Restate
+
+    have(P(y) |- exists(x, P(x) /\ (y === x))) subproof {
+      have(P(x) /\ (y === x) |- P(x) /\ (y === x)) by Hypothesis
+      thenHave(P(x) /\ (y === x) |- exists(x, P(x) /\ (y === x))) by RightExists
+      thenHave(P(y) /\ (y === y) |- exists(x, P(x) /\ (y === x))) by InstFunSchema(Map(x -> y))
+      thenHave(thesis) by Restate
+    }
+    val backward = thenHave(P(y) ==> exists(x, P(x) /\ (y === x))) by Restate
+
+    have(thesis) by RightIff(forward, backward)
+  }
+
+  /**
    * Theorem --- Disjunction and existential quantification commute.
    */
   val existentialDisjunctionCommutation = Theorem(
