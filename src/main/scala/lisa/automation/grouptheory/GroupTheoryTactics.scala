@@ -135,7 +135,7 @@ object GroupTheoryTactics {
              (f: ConstantFunctionLabel, uniqueness: proof.Fact)(xs: Term*)
              (bot: Sequent): proof.ProofTacticJudgement = {
       f.definition match {
-        case SetTheoryLibrary.theory.FunctionDefinition(_, _, expr) =>
+        case SetTheoryLibrary.theory.FunctionDefinition(_, _, expr, _) =>
           // Check if the definition is conditional
           val method = expr(xs) match {
             case ConnectorFormula(And, Seq(
@@ -164,7 +164,7 @@ object GroupTheoryTactics {
                      (f: ConstantFunctionLabel, uniqueness: proof.Fact)(xs: Term*)
                      (bot: Sequent): proof.ProofTacticJudgement = {
       f.definition match {
-        case definition@SetTheoryLibrary.theory.FunctionDefinition(_, y, expr) =>
+        case definition@SetTheoryLibrary.theory.FunctionDefinition(_, y, expr, _) =>
           if (bot.right.size != 1) {
             return proof.InvalidProofTactic("Right-hand side of bottom sequent should contain only 1 formula.")
           }
@@ -204,7 +204,7 @@ object GroupTheoryTactics {
                    (f: ConstantFunctionLabel, uniqueness: proof.Fact)(xs: Term*)
                    (bot: Sequent): proof.ProofTacticJudgement = {
       f.definition match {
-        case definition@SetTheoryLibrary.theory.FunctionDefinition(_, y, expr) =>
+        case definition@SetTheoryLibrary.theory.FunctionDefinition(_, y, expr, _) =>
           if (bot.right.size != 1) {
             return proof.InvalidProofTactic("Right-hand side of bottom sequent should contain exactly 1 formula.")
           } else if (bot.left.isEmpty) {
