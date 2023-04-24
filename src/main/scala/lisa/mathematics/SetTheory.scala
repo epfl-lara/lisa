@@ -1,5 +1,6 @@
 package lisa.mathematics
 
+import lisa.automation.grouptheory.GroupTheoryTactics.Definition
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
@@ -367,7 +368,7 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- The empty set is a subset of every set.
    *
-   *    `(∀ x.) x ⊆ ∅`
+   *    `(∀ x.) ∅ ⊆ x`
    */
   val emptySetIsASubset = Theorem(
     subset(∅, x)
@@ -854,6 +855,10 @@ object SetTheory extends lisa.Main {
    * @param y set
    */
   val setIntersection = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
+
+  extension(x: Term) {
+    infix def ∩(y: Term) = setIntersection(x, y)
+  }
 
   val unaryIntersectionUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (exists(b, in(b, x)) /\ ∀(b, in(b, x) ==> in(t, b)))))
@@ -2207,7 +2212,131 @@ object SetTheory extends lisa.Main {
    */
   val restrictedFunction = DEF(f, x) --> The(g, ∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))))(restrictedFunctionUniqueness)
 
-  // TODO: functional restricted over x has its domain as x ∈tersect dom f
+  /**
+   * Pair membership in a restricted function -- A pair `(t, a)` is in `f_x` iff `(t, a) ∈ f` and `t ∈ x`.
+   *
+   * This is a direct but painful corollary of the definition.
+   */
+  val restrictedFunctionPairMembership = Lemma(
+    in(pair(t, a), restrictedFunction(f, x)) <=> (in(pair(t, a), f) /\ in(t, x))
+  ) {
+    val g = restrictedFunction(f, x)
+
+    have(∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z))))))) by Definition(
+      restrictedFunction, restrictedFunctionUniqueness
+    )(f, x)
+    val pairMembership = thenHave(
+      in(pair(t, a), g) <=> (in(pair(t, a), f) /\ ∃(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z)))))
+    ) by InstantiateForall(pair(t, a))
+
+    have((pair(t, a) === pair(y, z)) <=> ((t === y) /\ (a === z))) by Restate.from(pairExtensionality of (a -> t, b -> a, c -> y, d -> z))
+    thenHave((in(y, x) /\ (pair(t, a) === pair(y, z))) <=> (in(y, x) /\ (t === y) /\ (a === z))) by Tautology
+    thenHave(∀(z, (in(y, x) /\ (pair(t, a) === pair(y, z))) <=> (in(y, x) /\ (t === y) /\ (a === z)))) by RightForall
+
+    val existentialEquiv1 = have(∃(z, in(y, x) /\ (pair(t, a) === pair(y, z))) <=> ∃(z, in(y, x) /\ (t === y) /\ (a === z))) by Cut(
+      lastStep, existentialEquivalenceDistribution of (
+        P -> lambda(z, in(y, x) /\ (pair(t, a) === pair(y, z))),
+        Q -> lambda(z, in(y, x) /\ (t === y) /\ (a === z))
+      )
+    )
+    
+    have(∃(z, in(y, x) /\ (t === y) /\ (a === z)) <=> (in(y, x) /\ (t === y))) by Restate.from(
+      equalityInExistentialQuantifier of (
+        P -> lambda(z, in(y, x) /\ (t === y)),
+        y -> a 
+      )
+    )
+    
+    have(∃(z, in(y, x) /\ (pair(t, a) === pair(y, z))) <=> (in(y, x) /\ (t === y))) by Tautology.from(existentialEquiv1, lastStep)
+    thenHave(∀(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z))) <=> (in(y, x) /\ (t === y)))) by RightForall
+    
+    val existentialEquiv2 = have(∃(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z)))) <=> ∃(y, in(y, x) /\ (t === y))) by Cut(
+      lastStep, existentialEquivalenceDistribution of(
+        P -> lambda(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z)))),
+        Q -> lambda(y, in(y, x) /\ (t === y))
+      )
+    )
+    
+    have(∃(y, in(y, x) /\ (t === y)) <=> in(t, x)) by Restate.from(
+      equalityInExistentialQuantifier of(
+        P -> lambda(y, in(y, x)),
+        y -> t
+      )
+    )
+    
+    have(∃(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z)))) <=> in(t, x)) by Tautology.from(existentialEquiv2, lastStep)
+    thenHave((in(pair(t, a), f) /\ ∃(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z))))) <=> (in(pair(t, a), f) /\ in(t, x))) by Tautology
+    
+    have(thesis) by Tautology.from(lastStep, pairMembership)
+  }
+
+  /**
+   * Restricted function domain -- For a function `f`, the domain of `f_x` is `x ∩ relationDomain(f)`.
+   */
+  val restrictedFunctionDomain = Theorem(
+    relationDomain(restrictedFunction(f, x)) === (x ∩ relationDomain(f))
+  ) {
+    val D = variable
+    val dom = x ∩ relationDomain(f)
+    val g = restrictedFunction(f, x)
+
+    // Characterize x ∩ relationDomain(f)
+    val domCharacterization = have(∀(t, in(t, dom) <=> (∃(a, in(pair(t, a), f)) /\ in(t, x)))) subproof {
+      // Use the definition of the intersection
+      have(∀(t, in(t, dom) <=> (in(t, x) /\ in(t, relationDomain(f))))) by Definition(
+        setIntersection, setIntersectionUniqueness
+      )(x, relationDomain(f))
+      val intersectionDef = thenHave(in(t, dom) <=> (in(t, x) /\ in(t, relationDomain(f)))) by InstantiateForall(t)
+
+      // Use the definition of the relation domain
+      have(∀(t, in(t, relationDomain(f)) <=> ∃(a, in(pair(t, a), f)))) by Definition(
+        relationDomain, relationDomainUniqueness
+      )(f)
+      thenHave(in(t, relationDomain(f)) <=> ∃(a, in(pair(t, a), f))) by InstantiateForall(t)
+
+      // Conclude
+      have(in(t, dom) <=> (∃(a, in(pair(t, a), f)) /\ in(t, x))) by Tautology.from(intersectionDef, lastStep)
+      thenHave(thesis) by RightForall
+    }
+
+    // Characterize the domain of g
+    have(∀(D, (relationDomain(g) === D) <=> ∀(t, in(t, D) <=> ∃(a, in(pair(t, a), g))))) by Tautology.from(
+      relationDomain.definition of (r -> g), relationDomainUniqueness
+    )
+    val characterization = thenHave((relationDomain(g) === dom) <=> ∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), g)))) by InstantiateForall(dom)
+
+    // Use the membership of a pair in the restricted function to derive a simpler characterization
+    have(∀(a, in(pair(t, a), g) <=> (in(pair(t, a), f) /\ in(t, x)))) by RightForall(restrictedFunctionPairMembership)
+    have(∃(a, in(pair(t, a), g)) <=> ∃(a, in(pair(t, a), f) /\ in(t, x))) by Tautology.from(
+      lastStep, existentialEquivalenceDistribution of (
+        P -> lambda(a, in(pair(t, a), g)),
+        Q -> lambda(a, in(pair(t, a), f) /\ in(t, x))
+      )
+    )
+
+    // Extract in(t, x) from the existential quantifier
+    val p = formulaVariable // local shadowing to correctly use the theorem
+    have(∃(a, in(pair(t, a), g)) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x)) by Tautology.from(
+      lastStep, existentialConjunctionWithClosedFormula of (
+        P -> lambda(a, in(pair(t, a), f)),
+        p -> lambda(Seq(), in(t, x))
+      )
+    )
+
+    thenHave((in(t, dom) <=> ∃(a, in(pair(t, a), g))) <=> (in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x))) by Tautology
+    thenHave(∀(t, (in(t, dom) <=> ∃(a, in(pair(t, a), g))) <=> (in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x)))) by RightForall
+
+    have(∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), g))) <=> ∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x))) by Cut(
+      lastStep, universalEquivalenceDistribution of (
+        P -> lambda(t, in(t, dom) <=> ∃(a, in(pair(t, a), g))),
+        Q -> lambda(t, in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x))
+      )
+    )
+
+    val simplerCharacterization = have((relationDomain(g) === dom) <=> ∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x))) by Tautology.from(characterization, lastStep)
+
+    have(thesis) by Tautology.from(domCharacterization, simplerCharacterization)
+  }
 
   // TODO: any subset of a functional is functional
   // TODO: a functional over something restricted to x is still functional
