@@ -87,17 +87,18 @@ trait Substitutions extends FormulaDefinitions {
    * @param m A map from variables to terms
    * @return t[m]
    */
-  def substituteVariables(phi: Formula, m: Map[VariableLabel, Term]): Formula = phi match {
+  def substituteVariables(phi: Formula, m: Map[VariableLabel, Term], takenIds: Seq[Identifier] = Seq[Identifier]()): Formula = phi match {
     case PredicateFormula(label, args) => PredicateFormula(label, args.map(substituteVariables(_, m)))
     case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteVariables(_, m)))
     case BinderFormula(label, bound, inner) =>
       val newSubst = m - bound
+      val newTaken = takenIds :+ bound.id
       val fv = m.values.flatMap(_.freeVariables).toSet
       if (fv.contains(bound)) {
-        val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ m.keys.map(_.id), bound.name))
-        val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
-        BinderFormula(label, newBoundVariable, substituteVariables(newInner, newSubst))
-      } else BinderFormula(label, bound, substituteVariables(inner, newSubst))
+        val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ m.keys.map(_.id) ++ newTaken, bound.name))
+        val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)), newTaken)
+        BinderFormula(label, newBoundVariable, substituteVariables(newInner, newSubst, newTaken))
+      } else BinderFormula(label, bound, substituteVariables(inner, newSubst, newTaken))
   }
 
   /**
@@ -107,17 +108,18 @@ trait Substitutions extends FormulaDefinitions {
    * @param m A map from variables to terms
    * @return t[m]
    */
-  def substituteFormulaVariables(phi: Formula, m: Map[VariableFormulaLabel, Formula]): Formula = phi match {
+  def substituteFormulaVariables(phi: Formula, m: Map[VariableFormulaLabel, Formula], takenIds: Seq[Identifier] = Seq[Identifier]()): Formula = phi match {
     case PredicateFormula(label: VariableFormulaLabel, _) => m.getOrElse(label, phi)
     case _: PredicateFormula => phi
-    case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteFormulaVariables(_, m)))
+    case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteFormulaVariables(_, m, takenIds)))
     case BinderFormula(label, bound, inner) =>
       val fv = m.values.flatMap(_.freeVariables).toSet
+      val newTaken = takenIds :+ bound.id
       if (fv.contains(bound)) {
-        val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
-        val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
-        BinderFormula(label, newBoundVariable, substituteFormulaVariables(newInner, m))
-      } else BinderFormula(label, bound, substituteFormulaVariables(inner, m))
+        val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ newTaken, bound.name))
+        val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)), newTaken)
+        BinderFormula(label, newBoundVariable, substituteFormulaVariables(newInner, m, newTaken))
+      } else BinderFormula(label, bound, substituteFormulaVariables(inner, m, newTaken))
   }
 
   /**
