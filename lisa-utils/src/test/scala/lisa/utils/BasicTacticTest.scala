@@ -1361,8 +1361,8 @@ class BasicTacticTest extends ProofTacticTestLib {
         Y5
       ),
       ( // check for appropriate renaming during substitution inside quantifiers
-        "|- ¬¬∧(∀'y_1. ¬(∀'y_2. ¬('y_2 = 'y_1)))",
-        "('z = 'y) |- ¬¬∧(∀'y_1. ¬(∀'y_2. ¬('y_2 = 'y_1)))",
+        "|- ¬¬∧(∀'y_1. ¬(∀'y. ¬('y = 'y_1)))",
+        "('z = 'y) |- ¬¬∧(∀'y_1. ¬(∀'y. ¬('y = 'y_1)))",
         List((FOLParser.parseFormula("'z = 'y"), top())),
         lambda(x, FOLParser.parseFormula("¬¬∧(∀'y_1. ¬(∀'y_2. ¬('y_2 = 'y_1)))"))
       )
