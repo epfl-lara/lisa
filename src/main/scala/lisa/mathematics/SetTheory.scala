@@ -1979,10 +1979,16 @@ object SetTheory extends lisa.Main {
    */
   val functionalOver = DEF(f, x) --> functional(f) /\ (relationDomain(f) === x)
 
+  /**
+   * Theorem --- a function cannot have two pairs representing different values 
+   * for a given element.
+   * 
+   *    `functional(f) /\ (x, y) \in f /\ (x, z) \in f /\ !(y = z) |- \bot`
+   */
   val violatingPairInFunction = Lemma(
     functional(f) /\ in(pair(x, y), f) /\ in(pair(x, z), f) /\ !(y === z) |- ()
   ) {
-    assume((functional(f), in(pair(x, y), f), in(pair(x, z), f), !(y === z)))
+    assume(Seq(functional(f), in(pair(x, y), f), in(pair(x, z), f), !(y === z)))
 
     have(forall(x, exists(y, in(pair(x, y), f)) ==> existsOne(y, in(pair(x, y), f)))) by Tautology.from(functional.definition)
     val exExOne = thenHave(exists(y, in(pair(x, y), f)) ==> existsOne(y, in(pair(x, y), f))) by InstantiateForall(x)
@@ -1992,6 +1998,103 @@ object SetTheory extends lisa.Main {
     thenHave(exists(y, exists(z, in(pair(x, y), f) /\ in(pair(x, z), f) /\ !(y === z)))) by RightExists
     
     have(thesis) by Tautology.from(lastStep, exExOne, atleastTwoExist of (P -> lambda(y, in(pair(x, y), f))))
+  }
+
+  /**
+   * Theorem --- a set containing a single pair is a function.
+   * 
+   * Given `s = {(x, y)}`,
+   *
+   *    `functional(s) /\ dom(s) = {x} /\ ran(s) = {y}`
+   */
+  val pairSingletonIsFunctional = Lemma(
+    {
+      val s = singleton(pair(x, y))
+      functional(s) /\ (relationDomain(s) === singleton(x)) /\ (relationRange(s) === singleton(y))
+    }
+  ) {
+    val s = singleton(pair(x, y))
+
+    val elemOfS = have(in(z, s) <=> (z === pair(x, y))) by Restate.from(singletonHasNoExtraElements of (y -> z, x -> pair(x, y)))
+
+    // (x, y) in {x} * {y}
+    val xyInCart = have(in(pair(x, y), cartesianProduct(singleton(x), singleton(y)))) subproof {
+      have((pair(x, y) === pair(x, y)) /\ in(x, singleton(x)) /\ in(y, singleton(y))) by Tautology.from(singletonHasNoExtraElements of (y -> x), singletonHasNoExtraElements of (x -> y))
+      thenHave(exists(b, (pair(x, y) === pair(x, b)) /\ in(x, singleton(x)) /\ in(b, singleton(y)))) by RightExists
+      thenHave(exists(a, exists(b, (pair(x, y) === pair(a, b)) /\ in(a, singleton(x)) /\ in(b, singleton(y))))) by RightExists
+      have(thesis) by Tautology.from(lastStep, elemOfCartesianProduct of (t -> pair(x, y), x -> singleton(x), y -> singleton(y)))
+    }
+
+    val relS = have(relation(s)) subproof {
+      have((z === pair(x, y)) |- in(z, cartesianProduct(singleton(x), singleton(y)))) by Substitution.apply2(true, z === pair(x, y))(xyInCart)
+      have(in(z, s) ==> in(z, cartesianProduct(singleton(x), singleton(y)))) by Tautology.from(lastStep, elemOfS)
+      thenHave(forall(z, in(z, s) ==> in(z, cartesianProduct(singleton(x), singleton(y))))) by RightForall
+      have(relationBetween(s, singleton(x), singleton(y))) by Tautology.from(lastStep, subsetAxiom of (x -> s, y -> cartesianProduct(singleton(x), singleton(y))), relationBetween.definition of (r -> s, a -> singleton(x), b -> singleton(y)))
+      thenHave(exists(b, relationBetween(s, singleton(x), b))) by RightExists
+      thenHave(exists(a, exists(b, relationBetween(s, a, b)))) by RightExists
+      have(thesis) by Tautology.from(lastStep, relation.definition of r -> s)
+    }
+
+    val uniq = have(forall(x, exists(y, in(pair(x, y), s)) ==> existsOne(y, in(pair(x, y), s)))) subproof {
+      have((pair(x, z) === pair(x, y)) <=> in(pair(x, z), s)) by Restate.from(elemOfS  of z -> pair(x, z))
+      thenHave(((x === x) /\ (z === y)) <=> in(pair(x, z), s)) by Substitution.apply2(false, pairExtensionality of (a -> x, b -> z, c -> x, d -> y))
+      thenHave((z === y) <=> in(pair(x, z), s)) by Restate
+      thenHave(forall(z, (z === y) <=> in(pair(x, z), s))) by RightForall
+      thenHave(exists(b, forall(z, (z === b) <=> in(pair(x, z), s)))) by RightExists
+      thenHave(existsOne(b, in(pair(x, b), s))) by Restate
+      thenHave(thesis) by Tautology
+    }
+
+    val dom = have(relationDomain(s) === singleton(x)) subproof {
+      have(forall(t, in(t, relationDomain(s)) <=> exists(a, in(pair(t, a), s)))) by InstantiateForall(relationDomain(s))(relationDomain.definition of r -> s)
+      val inDom = thenHave(in(t, relationDomain(s)) <=> exists(a, in(pair(t, a), s))) by InstantiateForall(t)
+
+      have(in(pair(t, a), s) <=> ((t === x) /\ (a === y))) by Substitution.apply2(false, pairExtensionality of (a -> t, b -> a, c -> x, d -> y))(elemOfS of z -> pair(t, a))
+      thenHave(forall(a, in(pair(t, a), s) <=> ((t === x) /\ (a === y)))) by RightForall
+      val exToEq = have(exists(a, in(pair(t, a), s)) <=> exists(a, ((t === x) /\ (a === y)))) by Cut(lastStep, existentialEquivalenceDistribution of (P -> lambda(a, in(pair(t, a), s)), Q -> lambda(a, ((t === x) /\ (a === y)))))
+    
+      val exRedundant = have(exists(a, ((t === x) /\ (a === y))) <=> (t === x)) subproof {
+        have((t === x) /\ (a === y) |- (t === x)) by Restate
+        val fwd = thenHave(exists(a, (t === x) /\ (a === y)) |- (t === x)) by LeftExists
+
+        have((t === x) |- (t === x) /\ (y === y)) by Restate
+        val bwd = thenHave((t === x) |- exists(a, (t === x) /\ (a === y))) by RightExists
+
+        have(thesis) by Tautology.from(fwd, bwd)
+      }
+
+      have((t === x) <=> in(t, singleton(x))) by Restate.from(singletonHasNoExtraElements of y -> t)
+      have(in(t, relationDomain(s)) <=> in(t, singleton(x))) by Tautology.from(lastStep, exRedundant, exToEq, inDom)
+      thenHave(forall(t, in(t, relationDomain(s)) <=> in(t, singleton(x)))) by RightForall
+      have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> relationDomain(s), y -> singleton(x)))
+    }
+
+    val ran = have(relationRange(s) === singleton(y)) subproof {
+      have(forall(t, in(t, relationDomain(s)) <=> exists(a, in(pair(a, t), s)))) by InstantiateForall(relationRange(s))(relationRange.definition of r -> s)
+      val inDom = thenHave(in(t, relationDomain(s)) <=> exists(a, in(pair(a, t), s))) by InstantiateForall(t)
+
+      have(in(pair(a, t), s) <=> ((a === x) /\ (t === y))) by Substitution.apply2(false, pairExtensionality of (a -> a, b -> t, c -> x, d -> y))(elemOfS of z -> pair(a, t))
+      thenHave(forall(a, in(pair(a, t), s) <=> ((a === x) /\ (t === y)))) by RightForall
+      val exToEq = have(exists(a, in(pair(a, t), s)) <=> exists(a, ((a === x) /\ (t === y)))) by Cut(lastStep, existentialEquivalenceDistribution of (P -> lambda(a, in(pair(a, t), s)), Q -> lambda(a, ((a === x) /\ (t === y)))))
+    
+      val exRedundant = have(exists(a, ((a === x) /\ (t === y))) <=> (t === y)) subproof {
+        have((a === x) /\ (t === y) |- (t === y)) by Restate
+        val fwd = thenHave(exists(a, (a === x) /\ (t === y)) |- (t === y)) by LeftExists
+
+        have((t === y) |- (x === x) /\ (t === y)) by Restate
+        val bwd = thenHave((t === x) |- exists(a, (a === x) /\ (t === y))) by RightExists
+
+        have(thesis) by Tautology.from(fwd, bwd)
+      }
+
+      have((t === y) <=> in(t, singleton(y))) by Restate.from(singletonHasNoExtraElements of (y -> t, x -> y))
+      have(in(t, relationRange(s)) <=> in(t, singleton(y))) by Tautology.from(lastStep, exRedundant, exToEq, inDom)
+      thenHave(forall(t, in(t, relationRange(s)) <=> in(t, singleton(y)))) by RightForall
+      have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> relationRange(s), y -> singleton(y)))
+    }
+
+    have(thesis) by Tautology.from(ran, dom, uniq, relS, functional.definition of f -> s)
+
   }
 
   val setOfFunctionsUniqueness = Theorem(
@@ -2928,7 +3031,7 @@ object SetTheory extends lisa.Main {
 
     // u is a relation
     have(in(t, z) ==> functional(t)) by InstantiateForall
-    thenHave(in(t, z) ==> relation(t)) by Tautology.from(functional.definition of f -> t)
+    have(in(t, z) ==> relation(t)) by Tautology.from(lastStep, functional.definition of f -> t)
     thenHave(forall(t, in(t, z) ==> relation(t))) by RightForall
     val relU = have(relation(u)) by Tautology.from(lastStep, unionOfRelationSet)
 
