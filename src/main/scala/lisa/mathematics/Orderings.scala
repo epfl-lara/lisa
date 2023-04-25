@@ -44,10 +44,11 @@ object Orderings extends lisa.Main {
    */
 
   /**
-   * Partial Order --- `p` is a partial order on `x` if it is a pair `(x, r)`,
-   * and `r` is a [[reflexive]] and [[transitive]] binary [[relation]] on `x`.
+   * (Strict) Partial Order --- `p` is a partial order on `x` if it is a pair `(x, r)`,
+   * and `r` is an [[antiReflexive]], [[antiSymmetric]], and [[transitive]] binary 
+   * [[relation]] on `x`.
    */
-  val partialOrder = DEF(p) --> relationBetween(secondInPair(p), firstInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(secondInPair(p), firstInPair(p))
+  val partialOrder = DEF(p) --> relationBetween(secondInPair(p), firstInPair(p), firstInPair(p)) /\ antiSymmetric(secondInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(secondInPair(p), firstInPair(p))
 
   /**
    * Linear Order --- a partial order `p = (r, x)` is called a linear order if
@@ -340,11 +341,11 @@ object Orderings extends lisa.Main {
     () |- partialOrder(pair(emptySet(), emptySet()))
   ) {
     have(
-      partialOrder(pair(emptySet(), emptySet())) <=> (relationBetween(emptySet(), emptySet(), emptySet()) /\ antiReflexive(emptySet(), emptySet()) /\ transitive(emptySet(), emptySet()))
+      partialOrder(pair(emptySet(), emptySet())) <=> (relationBetween(emptySet(), emptySet(), emptySet()) /\ antiSymmetric(emptySet(), emptySet()) /\ antiReflexive(emptySet(), emptySet()) /\ transitive(emptySet(), emptySet()))
     ) by Substitution.apply2(false, firstInPairReduction of (x -> emptySet(), y -> emptySet()), secondInPairReduction of (x -> emptySet(), y -> emptySet()))(
       partialOrder.definition of p -> pair(emptySet(), emptySet())
     )
-    have(thesis) by Tautology.from(lastStep, emptySetRelationOnItself, emptyRelationIrreflexive of a -> emptySet(), emptyRelationTransitive of a -> emptySet())
+    have(thesis) by Tautology.from(lastStep, emptySetRelationOnItself, emptyRelationIrreflexive of a -> emptySet(), emptyRelationTransitive of a -> emptySet(), emptyRelationAntiSymmetric of a -> emptySet())
   }
 
   /**
@@ -588,47 +589,233 @@ object Orderings extends lisa.Main {
   }
 
   /**
+    * Theorem --- Well Ordered Induction on a Subclass
+    *
+    * If `p` is a strict well-ordering, and `Q` is a subclass of the base set of
+    * `p`, called `A`, then 
+    *
+    *     `\forall x \in A. (A |^ x) \subseteq Q ==> x \in Q |- A = Q`
+    *
+    * i.e., if `Q` is a subclass of `A`, and the property `Q` passes to `x` from
+    * its initial segment, then `A` is `Q`.
+    *
+    */
+  val wellOrderedInductionSubClass = Lemma(
+  {
+    val A = firstInPair(p)
+    (
+      wellOrder(p),
+      forall(x, Q(x) ==> in(x, A)),
+      forall(x, forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))
+    )
+    |- forall(x, Q(x) <=> in(x, A))
+  }
+  ) {
+    // TODO: REMOVE
+    def sorry = have(thesis) by Sorry
+    // renaming
+    val A = firstInPair(p)
+    val `<p` = secondInPair(p)
+
+    // proof assumptions
+    assume(Seq(
+      wellOrder(p),
+      forall(x, Q(x) ==> in(x, A)),
+      forall(x, forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))
+    ))
+
+    // assume, towards a contradiction
+    val contra = !forall(x, Q(x) <=> in(x, A))
+    assume(contra)
+
+    val contraDis = have(exists(x, (Q(x) /\ !in(x, A)) \/ (!Q(x) /\ in(x, A)))) by Restate
+
+    val lhs = have(Q(x) /\ !in(x, A) |- ()) subproof {
+      have(Q(x) ==> in(x, A)) by InstantiateForall
+      thenHave(thesis) by Tautology
+    }
+
+    val rhs = have(!Q(x) /\ in(x, A) |- ()) subproof {
+      val zDef = forall(t, in(t, z) <=> (in(t, A) /\ !Q(t)))
+      
+      // z exists by comprehension
+      val zExists = have(exists(z, zDef)) subproof {
+        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda(Seq(t, z), !Q(t)))
+        have(thesis) by Cut(existsOneImpliesExists of P -> lambda(z, zDef), lastStep)
+      }
+      
+      // z is a subset of A
+      val zSubset = have(zDef |- subset(z, A)) subproof {
+        have(zDef |- in(t, z) <=> (in(t, A) /\ !Q(t))) by InstantiateForall
+        thenHave(zDef |- in(t, z) ==> in(t, A)) by Weakening
+        thenHave(zDef |- forall(t, in(t, z) ==> in(t, A))) by RightForall
+        have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> z, y -> A))
+      }
+
+      // there exists a least element y in z
+      val yDef = in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))
+      val yExists = have((zDef, !Q(x) /\ in(x, A)) |- exists(y, yDef)) subproof {
+        assume(Seq(zDef, !Q(x) /\ in(x, A)))
+        have(in(x, z) <=> (!Q(x) /\ in(x, A))) by InstantiateForall
+        thenHave(in(x, z)) by Tautology
+        val zNonEmpty = have(!(z === emptySet())) by Tautology.from(lastStep, setWithElementNonEmpty of (y -> x, x -> z))
+
+        have(forall(b, (subset(b, A) /\ !(b === emptySet())) ==> exists(y, in(y, b) /\ forall(w, in(w, b) ==> (in(pair(y, w), `<p`) \/ (y === w)))))) by Tautology.from(wellOrder.definition)
+        thenHave((subset(z, A) /\ !(z === emptySet())) ==> exists(y, in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by InstantiateForall(z)
+
+        val exY = have(exists(y, in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by Tautology.from(lastStep, zNonEmpty, zSubset)
+
+        // tiny proof inside quantifiers
+        have(in(w, z) <=> (in(w, A) /\ !Q(w))) by InstantiateForall
+        thenHave(in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w)) |- (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by Tautology
+        thenHave(forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- (Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by LeftForall
+        thenHave(forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))) by RightForall
+        thenHave(in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))) by Tautology
+        thenHave(in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- exists(y, in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by RightExists
+        thenHave(exists(y, in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w)))) |- exists(y, in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by LeftExists
+
+        have(exists(y, in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by Tautology.from(lastStep, exY)
+      }
+
+      // elements of the initial segment of A wrt y satisfy Q
+      val yInitInQ = have((zDef, yDef) |- forall(w, in(w, initialSegment(p, y)) ==> Q(w))) subproof {
+        assume(Seq(zDef, yDef))
+
+        have(forall(t, in(t, initialSegment(p, y)) <=> (in(t, A) /\ in(pair(t, y), `<p`)))) by InstantiateForall(initialSegment(p, y))(initialSegment.definition of (a -> y))
+        val wInInit = thenHave((in(w, initialSegment(p, y)) <=> (in(w, A) /\ in(pair(w, y), `<p`)))) by InstantiateForall(w)
+
+        have((in(w, A) /\ in(pair(w, y), `<p`)) |- Q(w)) subproof {
+          assume(Seq((in(w, A) /\ in(pair(w, y), `<p`)), !Q(w)))
+
+          have((!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by InstantiateForall
+          val cases = thenHave((in(pair(y, w), `<p`) \/ (y === w))) by Tautology
+
+
+          val rhs = have(!(y === w)) subproof {
+            // well order is anti reflexive
+            assume(y === w)
+            have(in(pair(w, y), `<p`)) by Restate
+            val ww = thenHave(in(pair(w, w), `<p`)) by Substitution.apply2(false, y === w)
+
+            have(∀(y, in(y, A) ==> !in(pair(y, y), p))) subproof {
+              have(antiSymmetric(p, A)) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition)
+              have(thesis) by Tautology.from(lastStep, antiSymmetric.definition of (r -> p, x -> A))
+            }
+
+            thenHave(in(w, A) ==> !in(pair(w, w), p)) by InstantiateForall(w)
+            have(thesis) by Tautology.from(lastStep, ww)
+          }
+
+          val lhs = have(!in(pair(y, w), `<p`)) subproof {
+            // well order is anti-symmetric
+            assume(in(pair(y, w), `<p`))
+            val yw = have(in(pair(y, w), `<p`) /\ in(pair(w, y), `<p`)) by Restate
+
+            have(∀(y, ∀(w, (in(pair(y, w), p) /\ in(pair(w, y), p)) ==> (y === w)))) subproof {
+              have(antiReflexive(p, A)) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition)
+              have(thesis) by Tautology.from(lastStep, antiReflexive.definition of (r -> p, x -> A))
+            }
+
+            thenHave((in(pair(y, w), p) /\ in(pair(w, y), p)) ==> (y === w)) by InstantiateForall(y, w)
+            have(thesis) by Tautology.from(lastStep, yw, rhs)
+          }
+
+          have(thesis) by Tautology.from(lhs, rhs, cases)
+        }
+      }
+
+      // but if the initial segment of y is a subset of Q, then y is in Q
+      val yInQ = have((zDef, yDef) |- Q(y)) subproof {
+        have(forall(w, in(w, initialSegment(p, y)) ==> Q) ==> Q(y)) by InstantiateForall
+        have(thesis) by Tautology.from(lastStep, yInitInQ)
+      }
+
+      // however, we know y is in z, so !Q(y), hence contradiction
+      have((zDef, yDef) |- ()) subproof {
+        assume(Seq(zDef, yDef))
+        val ynotQ = have(in(y, z) <=> (in(y, A) /\ !Q(y))) by InstantiateForall
+        have(in(y, z)) by Restate
+        have(thesis) by Tautology.from(lastStep, ynotQ, yInQ)
+      }
+
+      thenHave((zDef, exists(y, yDef)) |- ()) by LeftExists
+      have((zDef, !Q(x) /\ in(x, A)) |- ()) by Cut(yExists, lastStep)
+      thenHave((exists(z, zDef), !Q(x) /\ in(x, A)) |- ()) by LeftExists
+      have(thesis) by Cut(zExists, lastStep)
+    }
+
+    have(((Q(x) /\ !in(x, A)) \/ (!Q(x) /\ in(x, A)))) by Tautology.from(lhs, rhs)
+    thenHave(exists(x, (Q(x) /\ !in(x, A)) \/ (!Q(x) /\ in(x, A)))) by LeftExists
+
+    have(thesis) by Tautology.from(lastStep, contraDis)
+  }
+
+  // val wellOrderedInduction = Theorem(
+    
+  // )
+
+  /**
    * Theorem --- Well-Ordered Recursion (stronger version)
    */
-  // val wellOrderedRecursionStronger = Lemma(
-  //   wellOrder(p) |- forall(
-  //     t,
-  //     in(t, firstInPair(p)) ==> existsOne(g, functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
-  //   )
-  // ) {
+  val wellOrderedRecursionStronger = Lemma(
+    wellOrder(p) |- forall(
+      t,
+      in(t, firstInPair(p)) ==> existsOne(g, functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+    )
+  ) {
 
-  //   val p1 = firstInPair(p)
+    val p1 = firstInPair(p)
+    val p2 = secondInPair(p)
 
-  //   def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+    def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
 
-  //   // define `z` as the set of elements of `p_1` for which `prop` does not hold
-  //   val zDef = forall(t, in(t, z) <=> (in(t, p1) /\ !prop(t)))
+    // define `z` as the set of elements of `p_1` for which `prop` does not hold
+    val zDef = forall(t, in(t, z) <=> (in(t, p1) /\ !prop(t)))
 
-  //   // Case 1
-  //   // `z` is empty
-  //   val case1 = have((zDef, forall(t, !in(t, z))) |- forall(t, prop(t))) subproof {
-  //     val zDefInst = have(zDef |- in(t, z) <=> (in(t, p1) /\ !prop(t))) by InstantiateForall
-  //     have(forall(t, !in(t, z)) |- !in(t, z)) by InstantiateForall
+    // Case 1
+    // `z` is empty
+    val case1 = have((zDef, forall(t, !in(t, z))) |- forall(t, prop(t))) subproof {
+      val zDefInst = have(zDef |- in(t, z) <=> (in(t, p1) /\ !prop(t))) by InstantiateForall
+      have(forall(t, !in(t, z)) |- !in(t, z)) by InstantiateForall
 
-  //     have((zDef, forall(t, !in(t, z))) |- prop(t)) by Tautology.from(zDefInst, lastStep)
-  //     thenHave(thesis) by RightForall
-  //   }
+      have((zDef, forall(t, !in(t, z))) |- prop(t)) by Tautology.from(zDefInst, lastStep)
+      thenHave(thesis) by RightForall
+    }
 
-  //   // Case 2
-  //   // `z` is non-empty
-  //   // we lead the proof to a contradiction
-  //   val case2 = have((zDef, exists(t, in(t, z)), ???) |- forall(t, prop(t))) subproof {
-  //     ???
-  //   }
+    // Case 2
+    // `z` is non-empty
+    // we lead the proof to a contradiction
+    val case2 = have((zDef, exists(t, in(t, z)), wellOrder(p)) |- forall(t, prop(t))) subproof {
+      // z is not the empty set
+      have(in(t, z) |- !(z === emptySet)) by Restate.from(setWithElementNonEmpty of (y -> t, x -> z))
+      val zNonEmpty = thenHave(exists(t, in(t, z)) |- !(z === emptySet)) by LeftExists
 
-  //   have((zDef, ???) |- forall(t, prop(t))) by Tautology.from(case1, case2)
-  //   val byCase = thenHave((exists(z, zDef), ???) |- forall(t, prop(t))) by LeftExists
+      // z has a least element
+        // z is a subset of p1
+      val zSubsetP = have(zDef |- subset(z, p1)) subproof {
+        have(zDef |- in(t, z) <=> (in(t, p1) /\ !prop(t))) by InstantiateForall
+        thenHave(zDef |- in(t, z) ==> in(t, p1)) by Weakening
+        thenHave(zDef |- forall(t, in(t, z) ==> in(t, p1))) by RightForall
+        have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> z, y -> p1))
+      }
+        // so there is a least element
+      have((wellOrder(p), zDef, exists(t, in(t, z))) |- exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b))))) subproof {
+        have(wellOrder(p) |- forall(z, (subset(z, p1) /\ !(z === emptySet())) ==> exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b)))))) by Weakening(wellOrder.definition)
+        thenHave(wellOrder(p) |- (subset(z, p1) /\ !(z === emptySet())) ==> exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b))))) by InstantiateForall(z)
+        have(thesis) by Tautology.from(lastStep, zNonEmpty, zSubsetP)
+      }
 
-  //   have(existsOne(z, zDef)) by UniqueComprehension(p1, lambda(Seq(t, z), prop(t)))
-  //   have(exists(z, zDef)) by Tautology.from(existsOneImpliesExists of P -> lambda(z, zDef))
+      have(thesis) by Sorry
+    }
 
-  //   have(thesis) by Tautology.from(byCase, lastStep)
-  // }
+    have((zDef, wellOrder(p)) |- forall(t, prop(t))) by Tautology.from(case1, case2)
+    val byCase = thenHave((exists(z, zDef), wellOrder(p)) |- forall(t, prop(t))) by LeftExists
+
+    have(existsOne(z, zDef)) by UniqueComprehension(p1, lambda(Seq(t, z), prop(t)))
+    have(exists(z, zDef)) by Tautology.from(lastStep, existsOneImpliesExists of P -> lambda(z, zDef))
+
+    have(thesis) by Tautology.from(byCase, lastStep)
+  }
 
   /**
    * Well ordered recursion (for sets) --- ??? TODO: write description
