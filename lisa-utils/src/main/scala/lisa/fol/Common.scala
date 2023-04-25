@@ -128,7 +128,7 @@ trait Common {
     val id: FOL.Identifier
     val underlyingLabel: FOL.TermLabel
 
-    def app(args: Term ** N): AppliedTerm[N] = AppliedTerm[N](this, args.toSeq)
+    def app(args: Term ** N): AppliedTerm[N] = AppliedTerm[N](this, args)
     def substitute[S <: LisaObject[?], I<:SchematicLabel[S]](v:I, arg:S):LisaObject[|->[Term ** N, Term]] =
       if (v==this) {
         arg match {
@@ -150,10 +150,12 @@ trait Common {
 
   }
 
-  case class AppliedTerm[N <: Arity : ValueOf](f: FunctionalLabel[N], args: Seq[Term]) extends Term with Absolute {
-    require(isLegalApplication(f, args), "The number of arguments does not match the arity")
-    override val underlying = FOL.Term(f.underlyingLabel, args.map(_.underlying))
-    def substitute[S <: LisaObject[?], I<:SchematicLabel[S]](v:I, arg:S):LisaObject[Term] = ???
+  case class AppliedTerm[N <: Arity : ValueOf](f: FunctionalLabel[N], args: Term ** N) extends Term with Absolute {
+    //require(isLegalApplication(f, args), "The number of arguments does not match the arity")
+    override val underlying = FOL.Term(f.underlyingLabel, args.toSeq.map(_.underlying))
+    def substitute[S <: LisaObject[?], I<:SchematicLabel[S]](v:I, arg:S):LisaObject[Term] = f.substitute(v, arg)(
+      args.map[[t<:Term]=>>LisaObject[Term]]([u] => (x:u) => x.asInstanceOf[Term].substitute(v, arg))
+    )
 
     //override def substituteUnsafe(v: Variable, subs: Term) = AppliedTerm[N](f, args.map(_.substituteUnsafe(v, subs)))
   }
