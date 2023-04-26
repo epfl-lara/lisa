@@ -2039,14 +2039,23 @@ object SetTheory extends lisa.Main {
       have(thesis) by Tautology.from(lastStep, relation.definition of r -> s)
     }
 
-    val uniq = have(forall(x, exists(y, in(pair(x, y), s)) ==> existsOne(y, in(pair(x, y), s)))) subproof {
-      have((pair(x, z) === pair(x, y)) <=> in(pair(x, z), s)) by Restate.from(elemOfS of z -> pair(x, z))
-      thenHave(((x === x) /\ (z === y)) <=> in(pair(x, z), s)) by Substitution.apply2(false, pairExtensionality of (a -> x, b -> z, c -> x, d -> y))
-      thenHave((z === y) <=> in(pair(x, z), s)) by Restate
-      thenHave(forall(z, (z === y) <=> in(pair(x, z), s))) by RightForall
-      thenHave(exists(b, forall(z, (z === b) <=> in(pair(x, z), s)))) by RightExists
-      thenHave(existsOne(b, in(pair(x, b), s))) by Restate
-      thenHave(thesis) by Tautology
+    val uniq = have(forall(a, exists(b, in(pair(a, b), s)) ==> existsOne(b, in(pair(a, b), s)))) subproof {
+      have((pair(a, z) === pair(x, y)) <=> in(pair(a, z), s)) by Restate.from(elemOfS of z -> pair(a, z))
+      val eq = thenHave(((a === x) /\ (z === y)) <=> in(pair(a, z), s)) by Substitution.apply2(false, pairExtensionality of (a -> a, b -> z, c -> x, d -> y))
+      thenHave((a === x) |- (z === y) <=> in(pair(a, z), s)) by Tautology
+      thenHave((a === x) |- forall(z, (z === y) <=> in(pair(a, z), s))) by RightForall
+      thenHave((a === x) |- exists(b, forall(z, (z === b) <=> in(pair(a, z), s)))) by RightExists
+      thenHave((a === x) |- existsOne(b, in(pair(a, b), s))) by RightExistsOne
+      val pos = thenHave((a === x) |- exists(b, in(pair(a, b), s)) ==> existsOne(b, in(pair(a, b), s))) by Weakening
+
+      val ax = have(in(pair(a, z), s) |- (a === x)) by Weakening(eq)
+      thenHave(!(a === x) |- !in(pair(a, z), s)) by Restate
+      thenHave(!(a === x) |- forall(z, !in(pair(a, z), s))) by RightForall
+      thenHave(!(a === x) |- !exists(z, in(pair(a, z), s))) by Restate
+      val neg = thenHave(!(a === x) |- exists(b, in(pair(a, b), s)) ==> existsOne(b, in(pair(a, b), s))) by Weakening
+
+      have(exists(b, in(pair(a, b), s)) ==> existsOne(b, in(pair(a, b), s))) by Tautology.from(pos, neg)
+      thenHave(thesis) by RightForall
     }
 
     val dom = have(relationDomain(s) === singleton(x)) subproof {
@@ -2077,8 +2086,8 @@ object SetTheory extends lisa.Main {
     }
 
     val ran = have(relationRange(s) === singleton(y)) subproof {
-      have(forall(t, in(t, relationDomain(s)) <=> exists(a, in(pair(a, t), s)))) by InstantiateForall(relationRange(s))(relationRange.definition of r -> s)
-      val inDom = thenHave(in(t, relationDomain(s)) <=> exists(a, in(pair(a, t), s))) by InstantiateForall(t)
+      have(forall(t, in(t, relationRange(s)) <=> exists(a, in(pair(a, t), s)))) by InstantiateForall(relationRange(s))(relationRange.definition of r -> s)
+      val inDom = thenHave(in(t, relationRange(s)) <=> exists(a, in(pair(a, t), s))) by InstantiateForall(t)
 
       have(in(pair(a, t), s) <=> ((a === x) /\ (t === y))) by Substitution.apply2(false, pairExtensionality of (a -> a, b -> t, c -> x, d -> y))(elemOfS of z -> pair(a, t))
       thenHave(forall(a, in(pair(a, t), s) <=> ((a === x) /\ (t === y)))) by RightForall
@@ -2092,7 +2101,7 @@ object SetTheory extends lisa.Main {
         val fwd = thenHave(exists(a, (a === x) /\ (t === y)) |- (t === y)) by LeftExists
 
         have((t === y) |- (x === x) /\ (t === y)) by Restate
-        val bwd = thenHave((t === x) |- exists(a, (a === x) /\ (t === y))) by RightExists
+        val bwd = thenHave((t === y) |- exists(a, (a === x) /\ (t === y))) by RightExists
 
         have(thesis) by Tautology.from(fwd, bwd)
       }
@@ -2103,7 +2112,9 @@ object SetTheory extends lisa.Main {
       have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> relationRange(s), y -> singleton(y)))
     }
 
-    have(thesis) by Tautology.from(ran, dom, uniq, relS, functional.definition of f -> s)
+    have(functional(s)) by Tautology.from(relS, uniq, functional.definition of f -> s)
+
+    have(thesis) by Tautology.from(ran, dom, lastStep)
 
   }
 
@@ -3040,7 +3051,7 @@ object SetTheory extends lisa.Main {
     forall(t, in(t, z) ==> functional(t)) /\ forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(x, y) \/ subset(y, x)))) |- functional(union(z))
   ) {
     // add assumptions
-    assume(forall(t, in(t, z) ==> functional(t)) /\ forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(x, y) \/ subset(y, x)))))
+    assume(Seq(forall(t, in(t, z) ==> functional(t)), forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(x, y) \/ subset(y, x))))))
 
     // assume, towards a contradiction
     assume(!functional(union(z)))
@@ -3066,7 +3077,7 @@ object SetTheory extends lisa.Main {
 
     have((exists(f, in(f, z) /\ in(pair(x, y), f)), exists(g, in(g, z) /\ in(pair(x, w), g)), !(y === w)) |- ()) subproof {
       have(forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(x, y) \/ subset(y, x))))) by Restate
-      val subfg = thenHave((in(f, z) /\ in(g, z)) ==> (subset(f, g) \/ subset(f, g))) by InstantiateForall(f, g)
+      val subfg = thenHave((in(f, z) /\ in(g, z)) ==> (subset(f, g) \/ subset(g, f))) by InstantiateForall(f, g)
 
       have(forall(t, in(t, z) ==> functional(t))) by Restate
       val funF = thenHave(in(f, z) ==> functional(f)) by InstantiateForall(f)
@@ -3075,14 +3086,14 @@ object SetTheory extends lisa.Main {
       val fg = have((in(f, z) /\ in(pair(x, y), f), in(g, z) /\ in(pair(x, w), g), !(y === w), subset(f, g)) |- ()) subproof {
         have(subset(f, g) |- forall(t, in(t, f) ==> in(t, g))) by Weakening(subsetAxiom of (x -> f, y -> g))
         thenHave(subset(f, g) |- in(pair(x, y), f) ==> in(pair(x, y), g)) by InstantiateForall(pair(x, y))
-        thenHave((in(f, z) /\ in(pair(x, y), f), in(g, z) /\ in(pair(x, w), g), !(y === w), subset(f, g)) |- in(pair(x, y), g) /\ in(pair(x, w), g) /\ !(y === w)) by Weakening
+        thenHave((in(f, z) /\ in(pair(x, y), f), in(g, z) /\ in(pair(x, w), g), !(y === w), subset(f, g)) |- in(pair(x, y), g) /\ in(pair(x, w), g) /\ !(y === w)) by Tautology
         have(thesis) by Tautology.from(lastStep, funG, violatingPairInFunction of (f -> g, z -> w))
       }
 
       val gf = have((in(f, z) /\ in(pair(x, y), f), in(g, z) /\ in(pair(x, w), g), !(y === w), subset(g, f)) |- ()) subproof {
         have(subset(g, f) |- forall(t, in(t, g) ==> in(t, f))) by Weakening(subsetAxiom of (x -> g, y -> f))
         thenHave(subset(g, f) |- in(pair(x, w), g) ==> in(pair(x, w), f)) by InstantiateForall(pair(x, w))
-        thenHave((in(f, z) /\ in(pair(x, y), f), in(g, z) /\ in(pair(x, w), g), !(y === w), subset(f, g)) |- in(pair(x, w), f) /\ in(pair(x, y), f) /\ !(y === w)) by Weakening
+        thenHave((in(f, z) /\ in(pair(x, y), f), in(g, z) /\ in(pair(x, w), g), !(y === w), subset(g, f)) |- in(pair(x, w), f) /\ in(pair(x, y), f) /\ !(y === w)) by Tautology
         have(thesis) by Tautology.from(lastStep, funF, violatingPairInFunction of (f -> f, z -> w))
       }
 
@@ -3096,8 +3107,9 @@ object SetTheory extends lisa.Main {
     thenHave(exists(y, exists(w, in(pair(x, y), u) /\ in(pair(x, w), u) /\ !(y === w))) |- ()) by LeftExists
 
     have(exists(y, in(pair(x, y), u)) /\ !existsOne(y, in(pair(x, y), u)) |- ()) by Tautology.from(lastStep, atleastTwoExist of P -> lambda(y, in(pair(x, y), u)))
-    thenHave(forall(x, exists(y, in(pair(x, y), u)) /\ !existsOne(y, in(pair(x, y), u))) |- ()) by LeftForall
+    thenHave(exists(x, exists(y, in(pair(x, y), u)) /\ !existsOne(y, in(pair(x, y), u))) |- ()) by LeftExists
 
+    // contradiction
     have(thesis) by Tautology.from(lastStep, notFun)
   }
 }
