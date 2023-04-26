@@ -27,48 +27,44 @@ trait Common {
   def isLegalApplication(withArity: WithArity[?], args: Seq[?]): Boolean =
     withArity.arity == -1 || withArity.arity == args.size
 
+
+  sealed trait LisaObject[+T<: LisaObject[T]]{
+    this: T =>
+    inline def lift:T = this
+
+
+    def substitute[S <: LisaObject[S]](v:SchematicLabel[S], arg:S):T
+  }
+
   /*
-  //@annotation.implicitNotFound("It can not be proven that ${T} is of type Term, Formula or |->")
-  sealed trait Foo[+T]
-  given TermFoo: Foo[Term] = new Foo[Term] {}
-  given FormulaFoo: Foo[Formula] = new Foo[Formula] {}
-  given TermOrFormulaFoo: Foo[TermOrFormula] = new Foo[TermOrFormula] {}
-  given FunFoo[I, O <: LisaObject[?]]: Foo[I|->O] = new Foo[I|->O] {}
-
-  sealed trait Bar[+T]
-  given FunBar[I, O <: LisaObject[?]]: Bar[I|->O] = new Bar[I|->O] {}
-*/
-  sealed trait LisaObject[+T<: LisaObject[?]]{
-    def substitute[S <: LisaObject[?]](v:SchematicLabel[S], arg:S):LisaObject[T]
-  }
-
-  extension[I, O <: LisaObject[?]] (lo: LisaObject[I |-> O]){
+  extension[I, O <: LisaObject[O]] (lo: LisaObject[I |-> O]){
     def apply(arg: I): O = lo.asInstanceOf[|->[I, O]].app(arg)
-  }
+  }*/
 
   sealed trait TermOrFormula extends LisaObject[TermOrFormula]
   @showAsInfix
-  trait |->[-I, +O <: LisaObject[?]] extends /*(I => O) with*/ LisaObject[I|->O] {
+  trait |->[-I, +O <: LisaObject[O]] extends /*(I => O) with*/ LisaObject[I|->O] {
     def app(arg: I): O
 
     def apply(arg: I): O = app(arg)
 
   }
 
-  trait Label{
+  trait Label[A <: LisaObject[A]]{
+    this : A =>
     val underlyingLabel: FOL.Label
     val id: FOL.Identifier
   }
-  sealed trait SchematicLabel[A <: LisaObject[?]] extends LisaObject[A] with Label{
+  sealed trait SchematicLabel[A <: LisaObject[A]] extends LisaObject[A] with Label[A]{
+    this : A =>
+    //def get:A = this
     override val underlyingLabel : FOL.SchematicLabel
   }
-  sealed trait ConstantLabel[A <: LisaObject[?]]  extends LisaObject[A] with Label {
+  sealed trait ConstantLabel[A <: LisaObject[A]]  extends LisaObject[A] with Label[A] {
+    this : A =>
     override val underlyingLabel : FOL.ConstantLabel
   }
 
-  inline def lift(t:LisaObject[Term]):Term = inline t match {
-    case t: Term => t
-  }
 
 
 
@@ -107,10 +103,10 @@ trait Common {
     val underlying = FOL.VariableTerm(underlyingLabel)
 
     @nowarn("msg=Unreachable")
-    def substitute[S <: LisaObject[?]](v: SchematicLabel[S], arg: S): LisaObject[Term] =
+    def substitute[S <: LisaObject[S]](v: SchematicLabel[S], arg: S): Term & (this.type|S) =
       if (v == this) {
         arg match {
-          case arg: Term => arg
+          case a: Term => a
           case  _ => throw new TypeError
         }
     } else this
@@ -120,15 +116,17 @@ trait Common {
     //def substituteUnsafe(v: Variable, t: Term): Term = if (v.id == id) t else this
   }
 
-  case class Constant(id: FOL.Identifier) extends Term with Absolute with ConstantLabel[Term] {
+  case class Constant(id: FOL.Identifier) extends Term with Absolute with ConstantLabel[Constant] {
     val underlyingLabel: FOL.ConstantFunctionLabel = FOL.ConstantFunctionLabel(id, 0)
     val underlying = FOL.Term(underlyingLabel, Seq())
 
-    def substitute[S <: LisaObject[?]](v:SchematicLabel[S], arg:S):LisaObject[Term] = this
+    def substitute[S <: LisaObject[S]](v:SchematicLabel[S], arg:S):Constant = this
 
 
     //def substitute[S <: Common.this.LisaObject[?], I <:Common.this.SchematicLabel[S]] (v: I, arg: S): LisaObject[Common.this.Term] = ???
   }
+
+  //class Truc extends Constant(???) with LisaObject[Constant]
 
   sealed trait FunctionalLabel[N <: Arity : ValueOf] extends |->[Term ** N, Term] with WithArity[N] with Absolute {
     val arity = valueOf[N]
@@ -141,7 +139,7 @@ trait Common {
 
   case class ConstantFunctionalLabel[N <: Arity : ValueOf](id: FOL.Identifier) extends FunctionalLabel[N] with ConstantLabel[|->[Term ** N, Term]]{
     val underlyingLabel: FOL.ConstantFunctionLabel = FOL.ConstantFunctionLabel(id, arity)
-    def substitute[S <: LisaObject[?]](v: SchematicLabel[S], arg: S): LisaObject[|->[Term ** N, Term]] =
+    inline def substitute[S <: LisaObject[S]](v: SchematicLabel[S], arg: S): this.type =
         this
   }
 
@@ -149,7 +147,7 @@ trait Common {
     val underlyingLabel: FOL.SchematicFunctionLabel = FOL.SchematicFunctionLabel(id, arity)
 
     @nowarn("msg=checked")
-    def substitute[S <: LisaObject[?]](v: SchematicLabel[S], arg: S): LisaObject[|->[Term ** N, Term]] = {
+    def substitute[S <: LisaObject[S]](v: SchematicLabel[S], arg: S): |->[Term ** N, Term]  & (this.type|S) = {
       arg match {
         case arg: |->[Term ** N, Term] => if (v == this) arg else this
         case _ => this
@@ -160,12 +158,24 @@ trait Common {
   case class AppliedTerm[N <: Arity : ValueOf](f: FunctionalLabel[N], args: Term ** N) extends Term with Absolute {
     //require(isLegalApplication(f, args), "The number of arguments does not match the arity")
     override val underlying = FOL.Term(f.underlyingLabel, args.toSeq.map(_.underlying))
-    def substitute[S <: LisaObject[?]](v:SchematicLabel[S], arg:S):LisaObject[Term] = f.substitute(v, arg)(
+    def substitute[S <: LisaObject[S]](v:SchematicLabel[S], arg:S):Term = f.substitute(v, arg)(
       args.map[[t]=>>LisaObject[Term]]([u] => (x:u) => x.asInstanceOf[Term].substitute(v, arg)).asInstanceOf
     )
 
     //override def substituteUnsafe(v: Variable, subs: Term) = AppliedTerm[N](f, args.map(_.substituteUnsafe(v, subs)))
   }
+
+  /*
+  case class Applied[I, +O <: LisaObject[O]](f: I |-> O, args: I) extends Term with Absolute {
+    /*
+    //require(isLegalApplication(f, args), "The number of arguments does not match the arity")
+    override val underlying = FOL.Term(f.underlyingLabel, args.toSeq.map(_.underlying))
+    def substitute[S <: LisaObject[S]](v:SchematicLabel[S], arg:S):Term = f.substitute(v, arg)(
+      args.map[[t]=>>LisaObject[Term]]([u] => (x:u) => x.asInstanceOf[Term].substitute(v, arg)).asInstanceOf
+    )
+*/
+    //override def substituteUnsafe(v: Variable, subs: Term) = AppliedTerm[N](f, args.map(_.substituteUnsafe(v, subs)))
+  }*/
 
 
   //////////////

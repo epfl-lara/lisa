@@ -2,12 +2,22 @@ package lisa.fol
 
 trait Lambdas extends Common{
 
-/*
-  case class LambdaTerm[T <: LisaObject[?], I<:SchematicLabel[T],R<:LisaObject[?]](v:I, body:LisaObject[R]) extends |->[T, LisaObject[R]]{
-    def app(arg: T): LisaObject[R] = body.substitute(v, arg)
+  case class LambdaTerm[T <: LisaObject[T],R<:LisaObject[R]](bound:SchematicLabel[T], body:R) extends |->[T, R]{
+    def app(arg: T): R = body.substitute(bound, arg)
+
+    def substitute[S <: LisaObject[S]](v: SchematicLabel[S], arg: S): |->[T, R] = {
+      if (bound == v) this
+      else if/*arg.freeSymbols.contains bound*/ (false) {
+        val taken:Set[SchematicLabel[?]] = ???
+        val newBound:SchematicLabel[T] = ??? //bound.fresh(taken)
+        val newBody = body.substitute(bound, newBound.lift)
+        LambdaTerm(newBound, newBody.substitute(v, arg))
+      } else {
+        LambdaTerm(bound, body.substitute(v, arg))
+      }
+    }
       //substituteVariables(body, (vars zip args).toMap)
   }
-*/
   /*
 
   /***
