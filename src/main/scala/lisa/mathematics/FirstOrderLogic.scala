@@ -306,7 +306,7 @@ object FirstOrderLogic extends lisa.Main {
       have((P(x), P(y), !(x === y)) |- P(y) /\ !(y === x)) by Restate
       thenHave((P(x), P(y), !(x === y), (x === z)) |- P(y) /\ !(y === z)) by Substitution.apply2(false, x === z)
       thenHave((P(x), P(y), !(x === y), (x === z)) |- (P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z))) by Weakening
-      val xz = thenHave((P(x), P(y), !(x === y), (x === z)) |- exists(y,(P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z)))) by RightExists
+      val xz = thenHave((P(x), P(y), !(x === y), (x === z)) |- exists(y, (P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z)))) by RightExists
 
       have((P(x), P(y), !(x === y), !(x === z)) |- (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z))) by Restate
       val nxz = thenHave((P(x), P(y), !(x === y), !(x === z)) |- exists(x, (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z)))) by RightExists

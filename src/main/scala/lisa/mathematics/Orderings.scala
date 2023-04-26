@@ -45,10 +45,14 @@ object Orderings extends lisa.Main {
 
   /**
    * (Strict) Partial Order --- `p` is a partial order on `x` if it is a pair `(x, r)`,
-   * and `r` is an [[antiReflexive]], [[antiSymmetric]], and [[transitive]] binary 
+   * and `r` is an [[antiReflexive]], [[antiSymmetric]], and [[transitive]] binary
    * [[relation]] on `x`.
    */
-  val partialOrder = DEF(p) --> relationBetween(secondInPair(p), firstInPair(p), firstInPair(p)) /\ antiSymmetric(secondInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(secondInPair(p), firstInPair(p))
+  val partialOrder =
+    DEF(p) --> relationBetween(secondInPair(p), firstInPair(p), firstInPair(p)) /\ antiSymmetric(secondInPair(p), firstInPair(p)) /\ antiReflexive(secondInPair(p), firstInPair(p)) /\ transitive(
+      secondInPair(p),
+      firstInPair(p)
+    )
 
   /**
    * Linear Order --- a partial order `p = (r, x)` is called a linear order if
@@ -341,11 +345,20 @@ object Orderings extends lisa.Main {
     () |- partialOrder(pair(emptySet(), emptySet()))
   ) {
     have(
-      partialOrder(pair(emptySet(), emptySet())) <=> (relationBetween(emptySet(), emptySet(), emptySet()) /\ antiSymmetric(emptySet(), emptySet()) /\ antiReflexive(emptySet(), emptySet()) /\ transitive(emptySet(), emptySet()))
+      partialOrder(pair(emptySet(), emptySet())) <=> (relationBetween(emptySet(), emptySet(), emptySet()) /\ antiSymmetric(emptySet(), emptySet()) /\ antiReflexive(
+        emptySet(),
+        emptySet()
+      ) /\ transitive(emptySet(), emptySet()))
     ) by Substitution.apply2(false, firstInPairReduction of (x -> emptySet(), y -> emptySet()), secondInPairReduction of (x -> emptySet(), y -> emptySet()))(
       partialOrder.definition of p -> pair(emptySet(), emptySet())
     )
-    have(thesis) by Tautology.from(lastStep, emptySetRelationOnItself, emptyRelationIrreflexive of a -> emptySet(), emptyRelationTransitive of a -> emptySet(), emptyRelationAntiSymmetric of a -> emptySet())
+    have(thesis) by Tautology.from(
+      lastStep,
+      emptySetRelationOnItself,
+      emptyRelationIrreflexive of a -> emptySet(),
+      emptyRelationTransitive of a -> emptySet(),
+      emptyRelationAntiSymmetric of a -> emptySet()
+    )
   }
 
   /**
@@ -589,27 +602,26 @@ object Orderings extends lisa.Main {
   }
 
   /**
-    * Theorem --- Well Ordered Induction on a Subclass
-    *
-    * If `p` is a strict well-ordering, and `Q` is a subclass of the base set of
-    * `p`, called `A`, then 
-    *
-    *     `\forall x \in A. (A |^ x) \subseteq Q ==> x \in Q |- A = Q`
-    *
-    * i.e., if `Q` is a subclass of `A`, and the property `Q` passes to `x` from
-    * its initial segment, then `A` is `Q`.
-    *
-    */
+   * Theorem --- Well Ordered Induction on a Subclass
+   *
+   * If `p` is a strict well-ordering, and `Q` is a subclass of the base set of
+   * `p`, called `A`, then
+   *
+   *     `\forall x \in A. (A |^ x) \subseteq Q ==> x \in Q |- A = Q`
+   *
+   * i.e., if `Q` is a subclass of `A`, and the property `Q` passes to `x` from
+   * its initial segment, then `A` is `Q`.
+   */
   val wellOrderedInductionSubClass = Lemma(
-  {
-    val A = firstInPair(p)
-    (
-      wellOrder(p),
-      forall(x, Q(x) ==> in(x, A)),
-      forall(x, forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))
-    )
-    |- forall(x, Q(x) <=> in(x, A))
-  }
+    {
+      val A = firstInPair(p)
+      (
+        wellOrder(p),
+        forall(x, Q(x) ==> in(x, A)),
+        forall(x, forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))
+      )
+        |- forall(x, Q(x) <=> in(x, A))
+    }
   ) {
     // TODO: REMOVE
     def sorry = have(thesis) by Sorry
@@ -618,11 +630,13 @@ object Orderings extends lisa.Main {
     val `<p` = secondInPair(p)
 
     // proof assumptions
-    assume(Seq(
-      wellOrder(p),
-      forall(x, Q(x) ==> in(x, A)),
-      forall(x, forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))
-    ))
+    assume(
+      Seq(
+        wellOrder(p),
+        forall(x, Q(x) ==> in(x, A)),
+        forall(x, forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))
+      )
+    )
 
     // assume, towards a contradiction
     val contra = !forall(x, Q(x) <=> in(x, A))
@@ -637,13 +651,13 @@ object Orderings extends lisa.Main {
 
     val rhs = have(!Q(x) /\ in(x, A) |- ()) subproof {
       val zDef = forall(t, in(t, z) <=> (in(t, A) /\ !Q(t)))
-      
+
       // z exists by comprehension
       val zExists = have(exists(z, zDef)) subproof {
         have(existsOne(z, zDef)) by UniqueComprehension(A, lambda(Seq(t, z), !Q(t)))
         have(thesis) by Cut(existsOneImpliesExists of P -> lambda(z, zDef), lastStep)
       }
-      
+
       // z is a subset of A
       val zSubset = have(zDef |- subset(z, A)) subproof {
         have(zDef |- in(t, z) <=> (in(t, A) /\ !Q(t))) by InstantiateForall
@@ -671,8 +685,12 @@ object Orderings extends lisa.Main {
         thenHave(forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- (Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by LeftForall
         thenHave(forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))) by RightForall
         thenHave(in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))) by Tautology
-        thenHave(in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- exists(y, in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by RightExists
-        thenHave(exists(y, in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w)))) |- exists(y, in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by LeftExists
+        thenHave(
+          in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- exists(y, in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))))
+        ) by RightExists
+        thenHave(
+          exists(y, in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w)))) |- exists(y, in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))))
+        ) by LeftExists
 
         have(exists(y, in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by Tautology.from(lastStep, exY)
       }
@@ -689,7 +707,6 @@ object Orderings extends lisa.Main {
 
           have((!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by InstantiateForall
           val cases = thenHave((in(pair(y, w), `<p`) \/ (y === w))) by Tautology
-
 
           val rhs = have(!(y === w)) subproof {
             // well order is anti reflexive
@@ -751,7 +768,7 @@ object Orderings extends lisa.Main {
   }
 
   // val wellOrderedInduction = Theorem(
-    
+
   // )
 
   /**
@@ -791,14 +808,14 @@ object Orderings extends lisa.Main {
       val zNonEmpty = thenHave(exists(t, in(t, z)) |- !(z === emptySet)) by LeftExists
 
       // z has a least element
-        // z is a subset of p1
+      // z is a subset of p1
       val zSubsetP = have(zDef |- subset(z, p1)) subproof {
         have(zDef |- in(t, z) <=> (in(t, p1) /\ !prop(t))) by InstantiateForall
         thenHave(zDef |- in(t, z) ==> in(t, p1)) by Weakening
         thenHave(zDef |- forall(t, in(t, z) ==> in(t, p1))) by RightForall
         have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> z, y -> p1))
       }
-        // so there is a least element
+      // so there is a least element
       have((wellOrder(p), zDef, exists(t, in(t, z))) |- exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b))))) subproof {
         have(wellOrder(p) |- forall(z, (subset(z, p1) /\ !(z === emptySet())) ==> exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b)))))) by Weakening(wellOrder.definition)
         thenHave(wellOrder(p) |- (subset(z, p1) /\ !(z === emptySet())) ==> exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b))))) by InstantiateForall(z)
