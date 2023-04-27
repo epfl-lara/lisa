@@ -5,7 +5,7 @@ import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.mathematics.FirstOrderLogic.existsOneImpliesExists
+import lisa.mathematics.FirstOrderLogic.*
 import lisa.mathematics.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
@@ -612,13 +612,13 @@ object Orderings extends lisa.Main {
    * i.e., if `Q` is a subclass of `A`, and the property `Q` passes to `x` from
    * its initial segment, then `A` is `Q`.
    */
-  val wellOrderedInductionSubClass = Theorem(
+  val wellOrderedInductionSubclass = Theorem(
     {
       val A = firstInPair(p)
       (
         wellOrder(p),
         forall(x, Q(x) ==> in(x, A)),
-        forall(x, forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))
+        forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
       )
         |- forall(x, Q(x) <=> in(x, A))
     }
@@ -632,7 +632,7 @@ object Orderings extends lisa.Main {
       Seq(
         wellOrder(p),
         forall(x, Q(x) ==> in(x, A)),
-        forall(x, forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))
+        forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
       )
     )
 
@@ -747,9 +747,10 @@ object Orderings extends lisa.Main {
       }
 
       // but if the initial segment of y is a subset of Q, then y is in Q
-      val yInQ = have((zDef, yDef) |- Q(y)) subproof {
-        have(forall(w, in(w, initialSegment(p, y)) ==> Q(w)) ==> Q(y)) by InstantiateForall
-        have(thesis) by Tautology.from(lastStep, yInitInQ)
+      val yInQ = have((zDef, yDef, in(y, A)) |- Q(y)) subproof {
+        have(in(y, A) ==> (forall(w, in(w, initialSegment(p, y)) ==> Q(w)) ==> Q(y))) by InstantiateForall
+        thenHave((in(y, A), (forall(w, in(w, initialSegment(p, y)) ==> Q(w)))) |- Q(y)) by Restate
+        have(thesis) by Cut(yInitInQ, lastStep)
       }
 
       // however, we know y is in z, so !Q(y), hence contradiction
@@ -772,9 +773,62 @@ object Orderings extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, contraDis)
   }
 
-  // val wellOrderedInduction = Theorem(
+  val wellOrderedInduction = Theorem(
+    {
+      val A = firstInPair(p)
+      (
+        wellOrder(p),
+        forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
+      )
+        |- forall(x, in(x, A) ==> Q(x))
+    }
+  ) {
+    val A = firstInPair(p)
+    val `<p` = secondInPair(p)
 
-  // )
+    assume(
+      Seq(
+        wellOrder(p),
+        forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
+      )
+    )
+
+    // make a subclass out of Q by intersecting with A
+    def prop(x: Term): Formula = Q(x) /\ in(x, A)
+
+    have(prop(x) ==> in(x, A)) by Restate
+    val subclassProp = thenHave(forall(x, prop(x) ==> in(x, A))) by Restate
+
+    have(forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x)))) subproof {
+      have(in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))) by InstantiateForall
+      val fy = thenHave(in(x, A) |- (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x))) by Restate
+      // have(forall(y, in(y, initialSegment(p, x)) ==> Q(y)) |- (in(y, initialSegment(p, x)) ==> Q(y))) by InstantiateForall
+      // val inst = have(in(x, A) |- (in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)) by Tautology.from(lastStep, fy)
+
+      have(in(y, initialSegment(p, x)) |- in(y, A)) subproof {
+        have(forall(z, (z === initialSegment(p, x)) <=> forall(t, in(t, z) <=> (in(t, A) /\ in(pair(t, x), `<p`))))) by Weakening(initialSegment.definition of (a -> x))
+        thenHave(forall(t, in(t, initialSegment(p, x)) <=> (in(t, A) /\ in(pair(t, x), `<p`)))) by InstantiateForall(initialSegment(p, x))
+        thenHave((in(y, initialSegment(p, x)) <=> (in(y, A) /\ in(pair(y, x), `<p`)))) by InstantiateForall(y)
+        thenHave(thesis) by Tautology
+      }
+
+      have((in(y, initialSegment(p, x)) ==> Q(y)) <=> (in(y, initialSegment(p, x)) ==> prop(y))) by Tautology.from(lastStep)
+      thenHave(forall(y, (in(y, initialSegment(p, x)) ==> Q(y)) <=> (in(y, initialSegment(p, x)) ==> prop(y)))) by RightForall
+      have(forall(y, in(y, initialSegment(p, x)) ==> Q(y)) <=> forall(y, in(y, initialSegment(p, x)) ==> prop(y))) by Cut(
+        lastStep,
+        universalEquivalenceDistribution of (P -> lambda(y, in(y, initialSegment(p, x)) ==> Q(y)), Q -> lambda(y, in(y, initialSegment(p, x)) ==> prop(y)))
+      )
+
+      have(in(x, A) |- forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x)) by Tautology.from(lastStep, fy)
+      thenHave(in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x))) by Restate
+      thenHave(thesis) by RightForall
+    }
+
+    have(forall(x, in(x, A) <=> prop(x))) by Tautology.from(lastStep, subclassProp, wellOrderedInductionSubclass of Q -> lambda(x, prop(x)))
+    thenHave(in(x, A) <=> prop(x)) by InstantiateForall(x)
+    thenHave(in(x, A) ==> Q(x)) by Tautology
+    thenHave(thesis) by RightForall
+  }
 
   /**
    * Theorem --- Well-Ordered Recursion (stronger version)
@@ -827,17 +881,28 @@ object Orderings extends lisa.Main {
         have(thesis) by Tautology.from(lastStep, zNonEmpty, zSubsetP)
       }
 
-      have(thesis) by Sorry
+      // the existence of g propagates up from initial segments
+      val initPropagate = have(forall(a, forall(b, in(b, initialSegment(p, a)) ==> (in(b, p1) /\ prop(b))) ==> (in(a, p1) /\ prop(a)))) subproof {
+        have(thesis) by Sorry
+      }
+
+      val subclass = have(forall(a, (in(a, p1) /\ prop(a)) ==> in(a, p1))) subproof {
+        have((in(a, p1) /\ prop(a)) ==> in(a, p1)) by Restate
+        thenHave(thesis) by RightForall
+      }
+
+      have(thesis) by Tautology
     }
 
     have((zDef, wellOrder(p)) |- forall(t, prop(t))) by Tautology.from(case1, case2)
     val byCase = thenHave((exists(z, zDef), wellOrder(p)) |- forall(t, prop(t))) by LeftExists
 
-    have(existsOne(z, zDef)) by UniqueComprehension(p1, lambda(Seq(t, z), prop(t)))
+    have(existsOne(z, zDef)) by UniqueComprehension(p1, lambda(Seq(t, z), !prop(t)))
     have(exists(z, zDef)) by Tautology.from(lastStep, existsOneImpliesExists of P -> lambda(z, zDef))
 
     have(thesis) by Tautology.from(byCase, lastStep)
   }
+  show
 
   /**
    * Well ordered recursion (for sets) --- ??? TODO: write description
