@@ -11,7 +11,6 @@ import lisa.prooflib.*
 import lisa.settheory.SetTheoryLibrary
 import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
-import lisa.kernel.proof.SequentCalculus.sequentToFormula
 
 object SetTheoryTactics {
 
@@ -52,7 +51,7 @@ object SetTheoryTactics {
       given SetTheoryLibrary.type = SetTheoryLibrary
       // fresh variable names to avoid conflicts
       val botWithAssumptions = bot ++ (proof.getAssumptions |- ())
-      val takenIDs = (sequentToFormula(botWithAssumptions).freeVariables ++ separationPredicate.body.freeVariables ++ originalSet.freeVariables).map(_.id)
+      val takenIDs = (SC.sequentToFormula(botWithAssumptions).freeVariables ++ separationPredicate.body.freeVariables ++ originalSet.freeVariables).map(_.id)
       val t1 = VariableLabel(freshId(takenIDs, x.id))
       val t2 = VariableLabel(freshId(takenIDs, y.id))
 

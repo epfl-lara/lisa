@@ -704,7 +704,7 @@ object Orderings extends lisa.Main {
         have(forall(z, (z === initialSegment(p, y)) <=> forall(t, in(t, z) <=> (in(t, A) /\ in(pair(t, y), `<p`))))) by Weakening(initialSegment.definition of (a -> y))
         thenHave(forall(t, in(t, initialSegment(p, y)) <=> (in(t, A) /\ in(pair(t, y), `<p`)))) by InstantiateForall(initialSegment(p, y))
         val wInInit = thenHave((in(w, initialSegment(p, y)) <=> (in(w, A) /\ in(pair(w, y), `<p`)))) by InstantiateForall(w)
-        
+
         have((in(w, A) /\ in(pair(w, y), `<p`)) |- Q(w)) subproof {
           assume(Seq((in(w, A) /\ in(pair(w, y), `<p`)), !Q(w)))
 
