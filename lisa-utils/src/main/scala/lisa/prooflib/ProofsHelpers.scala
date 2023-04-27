@@ -7,6 +7,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
@@ -134,8 +135,10 @@ trait ProofsHelpers {
 
   def lastStep(using proof: library.Proof): proof.ProofStep = proof.mostRecentStep
 
+  def sorry(using proof: library.Proof): proof.ProofStep = have(thesis) by Sorry
+
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
-    om.output("Current proof of " + _proof.owningTheorem.repr + ": ")
+    om.output("Current proof of " + _proof.owningTheorem.prettyGoal + ": ")
     om.output(
       ProofPrinter.prettyProof(_proof, 2)
     )
