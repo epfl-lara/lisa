@@ -773,6 +773,17 @@ object Orderings extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, contraDis)
   }
 
+  /**
+   * Theorem --- Well Ordered Induction
+   *
+   * If `p` is a strict well-ordering, `Q` is a class, and `A` the base set of
+   * `p`, then
+   *
+   *     `\forall x \in A. (A |^ x) \subseteq Q ==> x \in Q |- A = Q`
+   *
+   * i.e., if the property `Q` passes to `x` from its initial segment, then `Q`
+   * holds for every element of `A`.
+   */
   val wellOrderedInduction = Theorem(
     {
       val A = firstInPair(p)
