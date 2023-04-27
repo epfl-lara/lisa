@@ -130,10 +130,10 @@ object GroupTheory extends lisa.Main {
   //
 
   /**
-   * Binary relation --- `*` is a binary relation on `G` if it associates to each pair of elements of `G`
+   * Binary function --- `*` is a binary function on `G` if it associates to each pair of elements of `G`
    * a unique element in `G`. In other words, `*` is a function `G × G -> G`.
    */
-  val binaryRelation = DEF(G, *) --> functionFrom(*, cartesianProduct(G, G), G)
+  val binaryFunction = DEF(G, *) --> functionFrom(*, cartesianProduct(G, G), G)
 
   /**
    * Shorthand for `x * y`.
@@ -170,7 +170,7 @@ object GroupTheory extends lisa.Main {
    * Group --- A group (G, *) is a set along with a law of composition `*`, satisfying [[associativity]], [[identityExistence]]
    * and [[inverseExistence]].
    */
-  val group = DEF(G, *) --> binaryRelation(G, *) /\ associativity(G, *) /\ identityExistence(G, *) /\ inverseExistence(G, *)
+  val group = DEF(G, *) --> binaryFunction(G, *) /\ associativity(G, *) /\ identityExistence(G, *) /\ inverseExistence(G, *)
 
   /**
    * Identity uniqueness --- In a group (G, *), an identity element is unique, i.e. if both `e * x = x * e = x` and
