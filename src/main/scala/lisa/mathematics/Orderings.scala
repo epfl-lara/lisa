@@ -612,7 +612,7 @@ object Orderings extends lisa.Main {
    * i.e., if `Q` is a subclass of `A`, and the property `Q` passes to `x` from
    * its initial segment, then `A` is `Q`.
    */
-  val wellOrderedInductionSubClass = Lemma(
+  val wellOrderedInductionSubClass = Theorem(
     {
       val A = firstInPair(p)
       (
@@ -654,8 +654,8 @@ object Orderings extends lisa.Main {
 
       // z exists by comprehension
       val zExists = have(exists(z, zDef)) subproof {
-        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda(Seq(t, z), !Q(t)))
-        have(thesis) by Cut(existsOneImpliesExists of P -> lambda(z, zDef), lastStep)
+        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda(Seq(t, x), !Q(t)))
+        have(thesis) by Cut(lastStep, existsOneImpliesExists of P -> lambda(z, zDef))
       }
 
       // z is a subset of A
@@ -670,7 +670,7 @@ object Orderings extends lisa.Main {
       val yDef = in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))
       val yExists = have((zDef, !Q(x) /\ in(x, A)) |- exists(y, yDef)) subproof {
         assume(Seq(zDef, !Q(x) /\ in(x, A)))
-        have(in(x, z) <=> (!Q(x) /\ in(x, A))) by InstantiateForall
+        have(in(x, z) <=> (in(x, A) /\ !Q(x))) by InstantiateForall
         thenHave(in(x, z)) by Tautology
         val zNonEmpty = have(!(z === emptySet())) by Tautology.from(lastStep, setWithElementNonEmpty of (y -> x, x -> z))
 
@@ -682,7 +682,7 @@ object Orderings extends lisa.Main {
         // tiny proof inside quantifiers
         have(in(w, z) <=> (in(w, A) /\ !Q(w))) by InstantiateForall
         thenHave(in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w)) |- (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by Tautology
-        thenHave(forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- (Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by LeftForall
+        thenHave(forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by LeftForall
         thenHave(forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))) by RightForall
         thenHave(in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))) |- in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))) by Tautology
         thenHave(
@@ -699,13 +699,17 @@ object Orderings extends lisa.Main {
       val yInitInQ = have((zDef, yDef) |- forall(w, in(w, initialSegment(p, y)) ==> Q(w))) subproof {
         assume(Seq(zDef, yDef))
 
-        have(forall(t, in(t, initialSegment(p, y)) <=> (in(t, A) /\ in(pair(t, y), `<p`)))) by InstantiateForall(initialSegment(p, y))(initialSegment.definition of (a -> y))
+        // TODO: assumptions annoy instantiations of external imports, so this is done rather verbosely here
+        // see https://github.com/epfl-lara/lisa/issues/161
+        have(forall(z, (z === initialSegment(p, y)) <=> forall(t, in(t, z) <=> (in(t, A) /\ in(pair(t, y), `<p`))))) by Weakening(initialSegment.definition of (a -> y))
+        thenHave(forall(t, in(t, initialSegment(p, y)) <=> (in(t, A) /\ in(pair(t, y), `<p`)))) by InstantiateForall(initialSegment(p, y))
         val wInInit = thenHave((in(w, initialSegment(p, y)) <=> (in(w, A) /\ in(pair(w, y), `<p`)))) by InstantiateForall(w)
-
+        
         have((in(w, A) /\ in(pair(w, y), `<p`)) |- Q(w)) subproof {
           assume(Seq((in(w, A) /\ in(pair(w, y), `<p`)), !Q(w)))
 
-          have((!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by InstantiateForall
+          have(forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))) by Restate
+          thenHave((!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by InstantiateForall(w)
           val cases = thenHave((in(pair(y, w), `<p`) \/ (y === w))) by Tautology
 
           val rhs = have(!(y === w)) subproof {
@@ -714,12 +718,12 @@ object Orderings extends lisa.Main {
             have(in(pair(w, y), `<p`)) by Restate
             val ww = thenHave(in(pair(w, w), `<p`)) by Substitution.apply2(false, y === w)
 
-            have(∀(y, in(y, A) ==> !in(pair(y, y), p))) subproof {
-              have(antiSymmetric(p, A)) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition)
-              have(thesis) by Tautology.from(lastStep, antiSymmetric.definition of (r -> p, x -> A))
+            have(∀(y, in(y, A) ==> !in(pair(y, y), `<p`))) subproof {
+              have(antiReflexive(`<p`, A)) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition)
+              have(thesis) by Tautology.from(lastStep, antiReflexive.definition of (r -> `<p`, x -> A))
             }
 
-            thenHave(in(w, A) ==> !in(pair(w, w), p)) by InstantiateForall(w)
+            thenHave(in(w, A) ==> !in(pair(w, w), `<p`)) by InstantiateForall(w)
             have(thesis) by Tautology.from(lastStep, ww)
           }
 
@@ -728,22 +732,25 @@ object Orderings extends lisa.Main {
             assume(in(pair(y, w), `<p`))
             val yw = have(in(pair(y, w), `<p`) /\ in(pair(w, y), `<p`)) by Restate
 
-            have(∀(y, ∀(w, (in(pair(y, w), p) /\ in(pair(w, y), p)) ==> (y === w)))) subproof {
-              have(antiReflexive(p, A)) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition)
-              have(thesis) by Tautology.from(lastStep, antiReflexive.definition of (r -> p, x -> A))
+            have(∀(y, ∀(w, (in(pair(y, w), `<p`) /\ in(pair(w, y), `<p`)) ==> (y === w)))) subproof {
+              have(antiSymmetric(`<p`, A)) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition)
+              have(thesis) by Tautology.from(lastStep, antiSymmetric.definition of (r -> `<p`, x -> A))
             }
 
-            thenHave((in(pair(y, w), p) /\ in(pair(w, y), p)) ==> (y === w)) by InstantiateForall(y, w)
+            thenHave((in(pair(y, w), `<p`) /\ in(pair(w, y), `<p`)) ==> (y === w)) by InstantiateForall(y, w)
             have(thesis) by Tautology.from(lastStep, yw, rhs)
           }
 
           have(thesis) by Tautology.from(lhs, rhs, cases)
         }
+
+        have(in(w, initialSegment(p, y)) ==> Q(w)) by Tautology.from(lastStep, wInInit)
+        thenHave(thesis) by RightForall
       }
 
       // but if the initial segment of y is a subset of Q, then y is in Q
       val yInQ = have((zDef, yDef) |- Q(y)) subproof {
-        have(forall(w, in(w, initialSegment(p, y)) ==> Q) ==> Q(y)) by InstantiateForall
+        have(forall(w, in(w, initialSegment(p, y)) ==> Q(w)) ==> Q(y)) by InstantiateForall
         have(thesis) by Tautology.from(lastStep, yInitInQ)
       }
 
@@ -761,8 +768,8 @@ object Orderings extends lisa.Main {
       have(thesis) by Cut(zExists, lastStep)
     }
 
-    have(((Q(x) /\ !in(x, A)) \/ (!Q(x) /\ in(x, A)))) by Tautology.from(lhs, rhs)
-    thenHave(exists(x, (Q(x) /\ !in(x, A)) \/ (!Q(x) /\ in(x, A)))) by LeftExists
+    have(((Q(x) /\ !in(x, A)) \/ (!Q(x) /\ in(x, A))) |- ()) by Tautology.from(lhs, rhs)
+    thenHave(exists(x, (Q(x) /\ !in(x, A)) \/ (!Q(x) /\ in(x, A))) |- ()) by LeftExists
 
     have(thesis) by Tautology.from(lastStep, contraDis)
   }
