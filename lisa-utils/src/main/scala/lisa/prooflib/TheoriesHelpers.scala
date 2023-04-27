@@ -22,14 +22,20 @@ object TheoriesHelpers {
   export lisa.utils.KernelHelpers.{_, given}
 
   extension (just: RunningTheory#Justification) {
-
     /**
      * Outputs, with an implicit om.output function, a readable representation of the Axiom, Theorem or Definition.
      */
     def show(using om: OutputManager): just.type = {
-      om.output(just.repr, Console.GREEN)
+      just match {
+        case j: RunningTheory#Theorem =>
+          if (j.withSorry) om.output(j.repr, Console.YELLOW)
+          else om.output(j.repr, Console.GREEN)
+        case j: RunningTheory#FunctionDefinition =>
+          if (j.withSorry) om.output(j.repr, Console.YELLOW)
+          else om.output(j.repr, Console.GREEN)
+        case _ => om.output(just.repr, Console.GREEN)
+      }
       just
-
     }
   }
 
