@@ -134,6 +134,8 @@ trait ProofsHelpers {
 
   def lastStep(using proof: library.Proof): proof.ProofStep = proof.mostRecentStep
 
+  def sorry(using proof: library.Proof): proof.ProofStep = have(thesis) by Sorry
+
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
     om.output("Current proof of " + _proof.owningTheorem.prettyGoal + ": ")
     om.output(
