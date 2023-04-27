@@ -1,21 +1,24 @@
 package lisa.fol
-
+import lisa.kernel.fol.FOL
 trait Lambdas extends Common{
 
-  case class LambdaTerm[T <: LisaObject[T],R<:LisaObject[R]](bound:SchematicLabel[T], body:R) extends |->[T, R]{
+  case class LambdaExpression[T <: LisaObject[T],R<:LisaObject[R]](bound:SchematicLabel[T], body:R) extends |->[T, R]{
     def app(arg: T): R = body.substitute(bound, arg)
 
     def substitute[S <: LisaObject[S]](v: SchematicLabel[S], arg: S): |->[T, R] = {
       if (bound == v) this
       else if/*arg.freeSymbols.contains bound*/ (false) {
-        val taken:Set[SchematicLabel[?]] = ???
-        val newBound:SchematicLabel[T] = ??? //bound.fresh(taken)
+        val taken:Set[SchematicLabel[?]] = body.allSchematicLabels
+        val newBound:SchematicLabel[T] = bound.rename(lisa.utils.KernelHelpers.freshId(taken.map(_.id), bound.id))
         val newBody = body.substitute(bound, newBound.lift)
-        LambdaTerm(newBound, newBody.substitute(v, arg))
+        LambdaExpression(newBound, newBody.substitute(v, arg))
       } else {
-        LambdaTerm(bound, body.substitute(v, arg))
+        LambdaExpression(bound, body.substitute(v, arg))
       }
     }
+
+    def freeSchematicLabels:Set[SchematicLabel[?]] = body.freeSchematicLabels-bound
+    def allSchematicLabels:Set[SchematicLabel[?]] = body.freeSchematicLabels
       //substituteVariables(body, (vars zip args).toMap)
   }
   /*
