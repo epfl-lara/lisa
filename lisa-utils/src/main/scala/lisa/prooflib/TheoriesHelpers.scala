@@ -22,6 +22,7 @@ object TheoriesHelpers {
   export lisa.utils.KernelHelpers.{_, given}
 
   extension (just: RunningTheory#Justification) {
+
     /**
      * Outputs, with an implicit om.output function, a readable representation of the Axiom, Theorem or Definition.
      */
