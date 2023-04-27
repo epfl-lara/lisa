@@ -623,8 +623,6 @@ object Orderings extends lisa.Main {
         |- forall(x, Q(x) <=> in(x, A))
     }
   ) {
-    // TODO: REMOVE
-    def sorry = have(thesis) by Sorry
     // renaming
     val A = firstInPair(p)
     val `<p` = secondInPair(p)
