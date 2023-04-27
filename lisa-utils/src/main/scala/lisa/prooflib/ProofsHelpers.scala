@@ -135,7 +135,7 @@ trait ProofsHelpers {
   def lastStep(using proof: library.Proof): proof.ProofStep = proof.mostRecentStep
 
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
-    om.output("Current proof of " + _proof.owningTheorem.repr + ": ")
+    om.output("Current proof of " + _proof.owningTheorem.prettyGoal + ": ")
     om.output(
       ProofPrinter.prettyProof(_proof, 2)
     )
