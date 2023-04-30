@@ -4,7 +4,7 @@ trait Lambdas extends Common{
 
   case class LambdaExpression[T <: LisaObject[T],R<:LisaObject[R]](bound:SchematicLabel[T], body:R) extends |->[T, R]{
     def app(arg: T): R = body.substitute(bound, arg)
-
+/*
     def substitute[S <: LisaObject[S]](v: SchematicLabel[S], arg: S): |->[T, R] = {
       if (bound == v) this
       else if/*arg.freeSymbols.contains bound*/ (false) {
@@ -16,11 +16,31 @@ trait Lambdas extends Common{
         LambdaExpression(bound, body.substitute(v, arg))
       }
     }
+ */
+    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): LambdaExpression[T, R] = {
+      val newSubst = map - bound.asInstanceOf
+      if (map.values.flatMap(_.freeSchematicLabels).toSet.contains(bound)){
+        val taken:Set[SchematicLabel[?]] = body.allSchematicLabels ++ map.keys
+        val newBound:SchematicLabel[T] = bound.rename(lisa.utils.KernelHelpers.freshId(taken.map(_.id), bound.id))
+        val newBody = body.substitute(bound, newBound.lift)
+        LambdaExpression(newBound, newBody.substitute(map))
+      } else {
+        LambdaExpression(bound, body.substitute(map))
+      }
+    }
 
     def freeSchematicLabels:Set[SchematicLabel[?]] = body.freeSchematicLabels-bound
     def allSchematicLabels:Set[SchematicLabel[?]] = body.freeSchematicLabels
       //substituteVariables(body, (vars zip args).toMap)
   }
+
+
+
+
+
+
+
+
   /*
 
   /***
