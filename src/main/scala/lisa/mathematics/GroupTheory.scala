@@ -48,8 +48,8 @@ object GroupTheory extends lisa.Main {
     } else {
       val prem = if (seq.left.size == 1) seq.left.head else And(seq.left.toSeq: _*)
       val completeDef = (prem ==> f) /\ (!prem ==> (u === defaultValue))
-      val substF = substituteVariables(completeDef, Map[VariableLabel, Term](u -> defaultValue))
-      val substDef = substituteVariables(completeDef, Map[VariableLabel, Term](u -> v))
+      val substF = substituteVariables(completeDef, Map[VariableLabel, Term](u -> defaultValue), Seq())
+      val substDef = substituteVariables(completeDef, Map[VariableLabel, Term](u -> v), Seq())
 
       val completeUniquenessTheorem = Lemma(
         ∃!(u, completeDef)

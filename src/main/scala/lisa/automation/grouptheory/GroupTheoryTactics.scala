@@ -27,7 +27,7 @@ object GroupTheoryTactics {
       val existenceSeq = proof.getSequent(existence)
       val uniquenessSeq = proof.getSequent(uniqueness)
 
-      lazy val substPhi = substituteVariables(phi, Map[VariableLabel, Term](x -> y))
+      lazy val substPhi = substituteVariables(phi, Map[VariableLabel, Term](x -> y), Seq())
       lazy val existenceFormula = ∃(x, phi)
       lazy val uniqueExistenceFormula = ∃!(x, phi)
 
@@ -104,10 +104,10 @@ object GroupTheoryTactics {
       // Infer y from the equalities in the uniqueness sequent
       uniquenessSeq.right.collectFirst {
         case PredicateFormula(`equality`, List(Term(`x`, _), Term(y: VariableLabel, _)))
-          if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](x -> y))) => y
+          if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](x -> y), Seq())) => y
 
         case PredicateFormula(`equality`, List(Term(y: VariableLabel, _), Term(`x`, _)))
-          if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](x -> y))) => y
+          if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[VariableLabel, Term](x -> y), Seq())) => y
       } match {
         case Some(y) => ExistenceAndUniqueness.withParameters(phi, x, y)(existence, uniqueness)(bot)
         case None => proof.InvalidProofTactic("Could not infer correct variable y in uniqueness sequent.")
