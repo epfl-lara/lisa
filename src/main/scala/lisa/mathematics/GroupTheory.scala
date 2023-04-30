@@ -12,7 +12,7 @@ import lisa.mathematics.SetTheory.*
  */
 object GroupTheory extends lisa.Main {
   // Groups
-  private val G = variable
+  private val G, H = variable
 
   // Group laws
   private val * = variable
@@ -240,11 +240,6 @@ object GroupTheory extends lisa.Main {
     val uniqueness = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- (y === z)) subproof {
       val inverseMembership = have(isInverse(y, x, G, *) |- y ∈ G) by Tautology.from(isInverse.definition)
 
-      assume(group(G, *))
-      assume(x ∈ G)
-      assume(isInverse(y, x, G, *))
-      assume(isInverse(z, x, G, *))
-
       // 1. (yx)z = z
       val leftNeutrality = have((group(G, *), x ∈ G, isInverse(y, x, G, *), z ∈ G) |- (op(op(y, *, x), *, z) === z)) subproof {
         assume(group(G, *))
@@ -256,7 +251,7 @@ object GroupTheory extends lisa.Main {
         thenHave(z ∈ G ==> ((op(op(y, *, x), *, z) === z) /\ (op(z, *, op(y, *, x)) === z))) by InstantiateForall(z)
         thenHave(op(op(y, *, x), *, z) === z) by Tautology
       }
-      val firstEq = have(op(op(y, *, x), *, z) === z) by Cut(inverseMembership of (y -> z), leftNeutrality)
+      val firstEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- op(op(y, *, x), *, z) === z) by Cut(inverseMembership of (y -> z), leftNeutrality)
 
       // 2. (yx)z = y(xz)
       val permuteParentheses = have((group(G, *), x ∈ G, y ∈ G, z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) subproof {
@@ -274,8 +269,8 @@ object GroupTheory extends lisa.Main {
         thenHave(op(op(y, *, x), *, z) === op(y, *, op(x, *, z))) by Tautology
       }
       val associativityCut = have((group(G, *), x ∈ G /\ y ∈ G /\ z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate.from(permuteParentheses)
-      val memberships = have(x ∈ G /\ y ∈ G /\ z ∈ G) by Tautology.from(inverseMembership of (y -> y), inverseMembership of (y -> z))
-      val secondEq = have(op(op(y, *, x), *, z) === op(y, *, op(x, *, z))) by Cut(memberships, associativityCut)
+      val memberships = have((x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- x ∈ G /\ y ∈ G /\ z ∈ G) by Tautology.from(inverseMembership of (y -> y), inverseMembership of (y -> z))
+      val secondEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- op(op(y, *, x), *, z) === op(y, *, op(x, *, z))) by Cut(memberships, associativityCut)
 
       // 3. y(xz) = y
       val rightNeutrality = have((group(G, *), x ∈ G, y ∈ G, isInverse(z, x, G, *)) |- (op(y, *, op(x, *, z)) === y)) subproof {
@@ -288,17 +283,17 @@ object GroupTheory extends lisa.Main {
         thenHave(y ∈ G ==> ((op(op(x, *, z), *, y) === y) /\ (op(y, *, op(x, *, z)) === y))) by InstantiateForall(y)
         thenHave(op(y, *, op(x, *, z)) === y) by Tautology
       }
-      val thirdEq = have(op(y, *, op(x, *, z)) === y) by Cut(inverseMembership of (y -> y), rightNeutrality)
+      val thirdEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- op(y, *, op(x, *, z)) === y) by Cut(inverseMembership of (y -> y), rightNeutrality)
 
       // Conclude by transitivity
 
       // 4. z = y(xz)
-      val fourthEq = have(z === op(y, *, op(x, *, z))) by Tautology.from(
+      val fourthEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- z === op(y, *, op(x, *, z))) by Tautology.from(
         firstEq, secondEq, equalityTransitivity of (x -> z, y -> op(op(y, *, x), *, z), z -> op(y, *, op(x, *, z)))
       )
 
       // 5. z = y
-      have(z === y) by Tautology.from(
+      have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- z === y) by Tautology.from(
         thirdEq, fourthEq, equalityTransitivity of (x -> z, y -> op(y, *, op(x, *, z)), z -> y)
       )
     }
