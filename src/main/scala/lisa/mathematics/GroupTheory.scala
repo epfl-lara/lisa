@@ -1,6 +1,6 @@
 package lisa.mathematics
 
-import lisa.automation.grouptheory.GroupTheoryTactics.{Cases, ExistenceAndUniqueness}
+import lisa.automation.grouptheory.GroupTheoryTactics.{Cases, Definition, ExistenceAndUniqueness}
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.mathematics.FirstOrderLogic.{equalityTransitivity, existsOneImpliesExists, substitutionInUniquenessQuantifier}
 import lisa.mathematics.SetTheory.*
@@ -51,7 +51,7 @@ object GroupTheory extends lisa.Main {
       val substF = substituteVariables(completeDef, Map[VariableLabel, Term](u -> defaultValue))
       val substDef = substituteVariables(completeDef, Map[VariableLabel, Term](u -> v))
 
-      val completeUniquenessTheorem = Theorem(
+      val completeUniquenessTheorem = Lemma(
         ∃!(u, completeDef)
       ) {
         val case1 = have(prem |- ∃!(u, completeDef)) subproof {
@@ -136,9 +136,9 @@ object GroupTheory extends lisa.Main {
   val binaryFunction = DEF(G, *) --> functionFrom(*, cartesianProduct(G, G), G)
 
   /**
-   * Shorthand for `x * y`.
+   * Short-hand alias for `x * y`.
    */
-  val op = DEF(x, *, y) --> app(*, pair(x, y))
+  inline def op(x: Term, * : Term, y: Term) = app(*, pair(x, y))
 
   /**
    * Associativity --- `*` is associative (in `G`) if `(x * y) * z = x * (y * z)` for all `x, y, z` in `G`.
@@ -173,6 +173,58 @@ object GroupTheory extends lisa.Main {
   val group = DEF(G, *) --> binaryFunction(G, *) /\ associativity(G, *) /\ identityExistence(G, *) /\ inverseExistence(G, *)
 
   /**
+   * Group operation is functional -- The group operation `*` is functional.
+   *
+   * Similarly to the lemma below, follows more or less directly from the definitions, but still useful.
+   */
+  val groupOperationIsFunctional = Lemma(
+    group(G, *) |- functional(*)
+  ) {
+    assume(group(G, *))
+    have(binaryFunction(G, *)) by Tautology.from(group.definition)
+    have(functionFrom(*, cartesianProduct(G, G), G)) by Tautology.from(lastStep, binaryFunction.definition)
+    have(functional(*)) by Tautology.from(lastStep, functionFromImpliesFunctional of (f -> *, x -> cartesianProduct(G, G), y -> G))
+  }
+
+  /**
+   * Group operation domain -- The domain of a group law is the cartesian product of the group with itself.
+   *
+   * Follows directly from the definition of `binaryRelation`, but it is a useful lemma to have in some proofs.
+   */
+  val groupOperationDomain = Lemma(
+    group(G, *) |- relationDomain(*) === cartesianProduct(G, G)
+  ) {
+    assume(group(G, *))
+    have(binaryFunction(G, *)) by Tautology.from(group.definition)
+    have(functionFrom(*, cartesianProduct(G, G), G)) by Tautology.from(lastStep, binaryFunction.definition)
+    have(relationDomain(*) === cartesianProduct(G, G)) by Tautology.from(lastStep, functionFromImpliesDomainEq of(f -> *, x -> cartesianProduct(G, G), y -> G))
+  }
+
+  /**
+   * Lemma --- If `x` and `y` are two elements of the group, the pair `(x, y)` is in the relation domain of `*.
+   */
+  val groupPairInOperationDomain = Lemma(
+    (group(G, *), x ∈ G, y ∈ G) |- pair(x, y) ∈ relationDomain(*)
+  ) {
+    assume(group(G, *))
+    assume(x ∈ G)
+    assume(y ∈ G)
+
+    val a, b = variable
+
+    have(x ∈ G /\ y ∈ G) by Tautology
+    have(pair(x, y) ∈ cartesianProduct(G, G)) by Tautology.from(
+      lastStep, pairInCartesianProduct of (a -> x, b -> y, x -> G, y -> G)
+    )
+    thenHave((relationDomain(*) === cartesianProduct(G, G)) |- pair(x, y) ∈ relationDomain(*)) by RightSubstEq(
+      List((relationDomain(*), cartesianProduct(G, G))), lambda(z, pair(x, y) ∈ z)
+    )
+
+    have(thesis) by Cut(groupOperationDomain, lastStep)
+  }
+  show
+
+  /**
    * Identity uniqueness --- In a group (G, *), an identity element is unique, i.e. if both `e * x = x * e = x` and
    * `f * x = x * f = x` for all `x`, then `e = f`.
    * This justifies calling `e` <i>the</i> identity element.
@@ -194,22 +246,22 @@ object GroupTheory extends lisa.Main {
       // 1. ef = f
       have(∀(x, x ∈ G ==> ((op(e, *, x) === x) /\ (op(x, *, e) === x)))) by Tautology.from(isNeutral.definition)
       thenHave(f ∈ G ==> ((op(e, *, f) === f) /\ (op(f, *, e) === f))) by InstantiateForall(f)
-      val cut1 = thenHave(f ∈ G |- ((op(e, *, f) === f) /\ (op(f, *, e) === f))) by Restate
+      val neutrality = thenHave(f ∈ G |- ((op(e, *, f) === f) /\ (op(f, *, e) === f))) by Restate
 
-      have((op(e, *, f) === f) /\ (op(f, *, e) === f)) by Cut(membership of (e -> f), cut1)
+      have((op(e, *, f) === f) /\ (op(f, *, e) === f)) by Cut(membership of (e -> f), neutrality)
       val firstEq = thenHave(op(e, *, f) === f) by Tautology
 
       // 2. ef = e
-      val cut2 = have(e ∈ G |- ((op(f, *, e) === e) /\ (op(e, *, f) === e))) by InstFunSchema(Map(e -> f, f -> e))(cut1)
+      have(e ∈ G |- ((op(f, *, e) === e) /\ (op(e, *, f) === e))) by InstFunSchema(Map(e -> f, f -> e))(neutrality)
 
-      have((op(f, *, e) === e) /\ (op(e, *, f) === e)) by Cut(membership of (e -> e), cut2)
+      have((op(f, *, e) === e) /\ (op(e, *, f) === e)) by Cut(membership of (e -> e), lastStep)
       val secondEq = thenHave(e === op(e, *, f)) by Tautology
 
       // 3. Conclude by transitivity
       val eqs = have((e === op(e, *, f)) /\ (op(e, *, f) === f)) by RightAnd(secondEq, firstEq)
-      val cut3 = have(((e === op(e, *, f)) /\ (op(e, *, f) === f)) |- (e === f)) by Tautology.from(equalityTransitivity of (x -> e, y -> op(e, *, f), z -> f))
+      have(((e === op(e, *, f)) /\ (op(e, *, f) === f)) |- (e === f)) by Tautology.from(equalityTransitivity of (x -> e, y -> op(e, *, f), z -> f))
 
-      have(e === f) by Cut(eqs, cut3)
+      have(e === f) by Cut(eqs, lastStep)
     }
 
     have(group(G, *) |- ∃!(e, isNeutral(e, G, *))) by ExistenceAndUniqueness(isNeutral(e, G, *))(existence, uniqueness)
@@ -319,9 +371,9 @@ object GroupTheory extends lisa.Main {
 
       have(y ∈ G /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)) by Tautology.from(isInverse.definition)
       thenHave(isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
-      val definition = thenHave(x ∈ G /\ isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
+      thenHave(x ∈ G /\ isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
 
-      have(thesis) by Tautology.from(definition, isInverse.definition of (y -> x, x -> y))
+      have(thesis) by Tautology.from(lastStep, isInverse.definition of (y -> x, x -> y))
     }
     thenHave(group(G, *) |- x ∈ G ==> (isInverse(y, x, G, *) ==> isInverse(x, y, G, *))) by Restate
     thenHave(thesis) by RightForall
@@ -376,5 +428,120 @@ object GroupTheory extends lisa.Main {
     have(x ∈ G |- (x === u)) by Cut(membership, eq)
     thenHave(x ∈ G ==> (x === u)) by Restate
     thenHave(thesis) by RightForall
+  }
+
+  //
+  // 1.1 Subgroups
+  //
+
+  /**
+   * Subgroup --- `H` is a subgroup of `(G, *)` if `H` is a subset of `G`, such that the restriction of `*` to `H` is
+   * a group law for `H`, i.e. `(H, *_H)` is a group.
+   *
+   * We denote `H <= G` for `H` a subgroup of `G`.
+   */
+  val subgroup = DEF(H, G, *) --> group(G, *) /\ subset(H, G) /\ group(H, restrictedFunction(*, cartesianProduct(H, H)))
+
+  /**
+   * Lemma --- If `x` and `y` are two elements of the subgroup `H` of `(G, *)`, the pair belongs to the relation domain
+   * of the parent group's operation `*`.
+   *
+   * Analogous to [[groupPairInOperationDomain]], except that the considered relation is different.
+   */
+  val subgroupPairInParentOperationDomain = Lemma(
+    (subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(*)
+  ) {
+    assume(subgroup(H, G, *))
+    assume(x ∈ H)
+    assume(y ∈ H)
+
+    val a, b = variable
+
+    have(subset(H, G)) by Tautology.from(subgroup.definition)
+    have(∀(x, x ∈ H ==> x ∈ G)) by Tautology.from(lastStep, subset.definition of(x -> H, y -> G))
+    val subsetDef = thenHave(x ∈ H ==> x ∈ G) by InstantiateForall(x)
+
+    val left = have(x ∈ G) by Tautology.from(subsetDef)
+    val right = have(y ∈ G) by Tautology.from(subsetDef of (x -> y))
+
+    have(group(G, *)) by Tautology.from(subgroup.definition)
+
+    have(thesis) by Tautology.from(lastStep, left, right, groupPairInOperationDomain)
+  }
+
+  /**
+   * Theorem --- The subgroup operation is exactly the same as in the above group, i.e. if `(G, *)` is a group, `H` a
+   * subgroup of `G`, then for elements `x, y ∈ H` we have `x ★ y = x * y`, where `★ = *_H`.
+   */
+  val subgroupOperation = Theorem(
+    (subgroup(H, G, *), x ∈ H, y ∈ H) |- (op(x, restrictedFunction(*, cartesianProduct(H, H)), y) === op(x, *, y))
+  ) {
+    val H2 = cartesianProduct(H, H)
+    val ★ = restrictedFunction(*, H2)
+    val r = app(★, pair(x, y))
+
+    // We characterize op(x, *, y), and show that op(x, ★, y) satisfies all requirements
+    have(
+      ∀(z, (z === app(*, pair(x, y))) <=> (((functional(*) /\ in(pair(x, y), relationDomain(*))) ==> in(pair(pair(x, y), z), *)) /\
+                                          ((!functional(*) \/ !in(pair(x, y), relationDomain(*))) ==> (z === ∅))))
+    ) by Tautology.from(app.definition of (f -> *, x -> pair(x, y)), functionApplicationUniqueness)
+    val characterization = thenHave(
+      (r === app(*, pair(x, y))) <=> (((functional(*) /\ in(pair(x, y), relationDomain(*))) ==> in(pair(pair(x, y), r), *)) /\
+                                     ((!functional(*) \/ !in(pair(x, y), relationDomain(*))) ==> (r === ∅)))
+    ) by InstantiateForall(r)
+
+    // Prove that the premises of the first implication hold
+    val leftPremise = have(subgroup(H, G, *) |- functional(*)) subproof {
+      assume(subgroup(H, G, *))
+      have(group(G, *)) by Tautology.from(subgroup.definition)
+      have(functional(*)) by Tautology.from(lastStep, groupOperationIsFunctional)
+    }
+
+    val premises = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- functional(*) /\ pair(x, y) ∈ relationDomain(*)) by RightAnd(
+      leftPremise, subgroupPairInParentOperationDomain
+    )
+
+    // We show that op(x, ★, y) satisfies the conclusion of the implication
+    val appDef = have(
+      (functional(★), pair(x, y) ∈ relationDomain(★)) |- pair(pair(x, y), r) ∈ ★
+    ) by Definition(app, functionApplicationUniqueness)(★, pair(x, y))
+
+    // Reduce the assumptions of the definition to our subgroup assumption
+    val reduction1 = have(subgroup(H, G, *) |- group(H, ★)) by Tautology.from(subgroup.definition)
+    val reduction2 = have(subgroup(H, G, *) |- functional(★)) by Tautology.from(lastStep, groupOperationIsFunctional of (G -> H, * -> ★))
+
+    val reduction3 = have((subgroup(H, G, *), pair(x, y) ∈ relationDomain(★)) |- pair(pair(x, y), r) ∈ ★) by Tautology.from(reduction2, appDef)
+
+    have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(★)) by Cut(
+      reduction1, groupPairInOperationDomain of (G -> H, * -> ★)
+    )
+    val reducedDef = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(pair(x, y), r) ∈ ★) by Cut(lastStep, reduction3)
+
+    have(∀(u, (u ∈ ★) <=> (u ∈ * /\ ∃(y, ∃(z, y ∈ H2 /\ (u === pair(y, z))))))) by Definition(restrictedFunction, restrictedFunctionUniqueness)(*, H2)
+    thenHave((u ∈ ★) <=> (u ∈ * /\ ∃(y, ∃(z, y ∈ H2 /\ (u === pair(y, z)))))) by InstantiateForall(u)
+    thenHave(u ∈ ★ ==> u ∈ *) by Tautology
+
+    val satisfaction = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(pair(x, y), r) ∈ *) by Tautology.from(
+      lastStep of (u -> pair(pair(x, y), r)), reducedDef
+    )
+
+    // Reconstruct the whole definition
+    assume(subgroup(H, G, *))
+    assume(x ∈ H)
+    assume(y ∈ H)
+
+    val pos = have((functional(*) /\ pair(x, y) ∈ relationDomain(*)) ==> pair(pair(x, y), r) ∈ *) by Tautology.from(premises, satisfaction)
+
+    have(!(functional(*) /\ pair(x, y) ∈ relationDomain(*)) |- ()) by LeftNot(premises)
+    thenHave(!functional(*) \/ !(pair(x, y) ∈ relationDomain(*)) |- ()) by Restate
+    thenHave(!functional(*) \/ !(pair(x, y) ∈ relationDomain(*)) |- (r === emptySet())) by Weakening
+    val neg = thenHave((!functional(*) \/ !(pair(x, y) ∈ relationDomain(*))) ==> (r === emptySet())) by Restate
+
+    have(
+      ((functional(*) /\ pair(x, y) ∈ relationDomain(*)) ==> pair(pair(x, y), r) ∈ *) /\
+      ((!functional(*) \/ !(pair(x, y) ∈ relationDomain(*))) ==> (r === emptySet()))
+    ) by RightAnd(pos, neg)
+
+    have(thesis) by Tautology.from(lastStep, characterization)
   }
 }
