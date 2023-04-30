@@ -18,10 +18,8 @@ object GroupTheoryTactics {
    * Γ, Γ' |- ∃!x. φ, Δ, Δ'
    * </pre>
    *
-   * This tactic separates the existence and the uniqueness proofs, which are often easier to prove independently, at
-   * the expense of brevity.
-   *
-   * @see [[RightExistsOne]].
+   * This tactic separates the existence and the uniqueness proofs, which are often easier to prove independently,
+   * and thus is easier to use than [[RightExistsOne]].
    */
   object ExistenceAndUniqueness extends ProofTactic {
     def withParameters(using proof: SetTheoryLibrary.Proof, om: OutputManager)(phi: Formula, x: VariableLabel, y: VariableLabel)
@@ -37,15 +35,15 @@ object GroupTheoryTactics {
       if (x == y) {
         proof.InvalidProofTactic("x and y can not be equal.")
       } else if (!contains(existenceSeq.right, existenceFormula)) {
-        proof.InvalidProofTactic(s"Existence sequent conclusion does not contain ∃x. φ.")
+        proof.InvalidProofTactic(s"Existence sequent conclusion does not contain ∃$x. φ.")
       } else if (!contains(uniquenessSeq.left, phi)) {
         proof.InvalidProofTactic("Uniqueness sequent premises do not contain φ.")
       } else if (!contains(uniquenessSeq.left, substPhi)) {
-        proof.InvalidProofTactic(s"Uniqueness sequent premises do not contain φ[y/x].")
+        proof.InvalidProofTactic(s"Uniqueness sequent premises do not contain φ[$y/$x].")
       } else if (!contains(uniquenessSeq.right, x === y) && !contains(uniquenessSeq.right, y === x)) {
-        proof.InvalidProofTactic(s"Uniqueness sequent conclusion does not contain x = y")
+        proof.InvalidProofTactic(s"Uniqueness sequent conclusion does not contain $x = $y")
       } else if (!contains(bot.right, uniqueExistenceFormula)) {
-        proof.InvalidProofTactic(s"Bottom sequent conclusion does not contain ∃!x. φ")
+        proof.InvalidProofTactic(s"Bottom sequent conclusion does not contain ∃!$x. φ")
       }
 
       // Checking pivots
@@ -73,9 +71,9 @@ object GroupTheoryTactics {
           thenHave(phi |- ∀(y, (x === y) <=> substPhi)) by RightForall
           thenHave(phi |- ∃(x, ∀(y, (x === y) <=> substPhi))) by RightExists
           thenHave(∃(x, phi) |- ∃(x, ∀(y, (x === y) <=> substPhi))) by LeftExists
-          thenHave(∃(x, phi) |- ∃!(x, phi)) by RightExistsOne
+          val cut = thenHave(∃(x, phi) |- ∃!(x, phi)) by RightExistsOne
 
-          have(bot) by Cut(existence, lastStep)
+          have(bot) by Cut(existence, cut)
         }
       }
     }
@@ -97,7 +95,7 @@ object GroupTheoryTactics {
       val commonVars = bot.right.collect {
         case BinderFormula(ExistsOne, x, f) if isSame(f, phi) && existsVars.contains(x) => x
       }
-      if (commonVars.size != 1) {
+      if (commonVars.isEmpty || commonVars.size > 1) {
         return proof.InvalidProofTactic("Could not infer correct variable x in quantifiers.")
       }
 
@@ -141,8 +139,8 @@ object GroupTheoryTactics {
           // Check if the definition is conditional
           val method = expr(xs) match {
             case ConnectorFormula(And, Seq(
-              ConnectorFormula(Implies, Seq(a, _)),
-              ConnectorFormula(Implies, Seq(b, _))
+            ConnectorFormula(Implies, Seq(a, _)),
+            ConnectorFormula(Implies, Seq(b, _))
             )) if isSame(neg(a), b) => conditional
 
             case _ => unconditional
