@@ -1,6 +1,6 @@
 package lisa.mathematics
 
-import lisa.automation.grouptheory.GroupTheoryTactics.Definition
+import lisa.automation.kernel.CommonTactics.Definition
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
