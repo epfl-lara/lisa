@@ -33,7 +33,8 @@ trait ProofsHelpers {
     }
 
     inline infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
-      (new BasicStepTactic.SUBPROOF(using proof)(Some(bot))(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
+      val botWithAssumptions = HaveSequent.this.bot ++ (proof.getAssumptions |- ())
+      (new BasicStepTactic.SUBPROOF(using proof)(Some(botWithAssumptions))(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
     }
 
   }
