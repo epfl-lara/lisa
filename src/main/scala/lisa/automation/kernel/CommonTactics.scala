@@ -1,5 +1,6 @@
 package lisa.automation.kernel
 
+import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SequentCalculus.Sequent
@@ -8,9 +9,9 @@ import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.automation.kernel.OLPropositionalSolver.Tautology
 
 object CommonTactics {
+
   /**
    * <pre>
    * Γ |- ∃x. φ, Δ   Γ', φ, φ[y/x] |- x = y, Δ'
@@ -24,8 +25,9 @@ object CommonTactics {
    * @see [[RightExistsOne]].
    */
   object ExistenceAndUniqueness extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: FOL.Formula, x: FOL.VariableLabel, y: FOL.VariableLabel)
-                      (existence: proof.Fact, uniqueness: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: FOL.Formula, x: FOL.VariableLabel, y: FOL.VariableLabel)(existence: proof.Fact, uniqueness: proof.Fact)(
+        bot: Sequent
+    ): proof.ProofTacticJudgement = {
       val existenceSeq = proof.getSequent(existence)
       val uniquenessSeq = proof.getSequent(uniqueness)
 
@@ -83,8 +85,7 @@ object CommonTactics {
       }
     }
 
-    def apply(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: FOL.Formula)(existence: proof.Fact, uniqueness: proof.Fact)
-              (bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: FOL.Formula)(existence: proof.Fact, uniqueness: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       val existenceSeq = proof.getSequent(existence)
       val uniquenessSeq = proof.getSequent(uniqueness)
 
@@ -109,10 +110,12 @@ object CommonTactics {
       // Infer y from the equalities in the uniqueness sequent
       uniquenessSeq.right.collectFirst {
         case FOL.PredicateFormula(FOL.`equality`, List(FOL.Term(`x`, _), FOL.Term(y: FOL.VariableLabel, _)))
-          if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[FOL.VariableLabel, FOL.Term](x -> y))) => y
+            if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[FOL.VariableLabel, FOL.Term](x -> y))) =>
+          y
 
         case FOL.PredicateFormula(FOL.`equality`, List(FOL.Term(y: FOL.VariableLabel, _), FOL.Term(`x`, _)))
-          if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[FOL.VariableLabel, FOL.Term](x -> y))) => y
+            if x != y && contains(uniquenessSeq.left, substituteVariables(phi, Map[FOL.VariableLabel, FOL.Term](x -> y))) =>
+          y
       } match {
         case Some(y) => ExistenceAndUniqueness.withParameters(phi, x, y)(existence, uniqueness)(bot)
         case None => proof.InvalidProofTactic("Could not infer correct variable y in uniqueness sequent.")
@@ -136,17 +139,19 @@ object CommonTactics {
    * </pre>
    */
   object Definition extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof)
-              (f: FOL.ConstantFunctionLabel, uniqueness: proof.Fact)(xs: FOL.Term*)
-              (bot: Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(f: FOL.ConstantFunctionLabel, uniqueness: proof.Fact)(xs: FOL.Term*)(bot: Sequent): proof.ProofTacticJudgement = {
       lib.theory.getDefinition(f) match {
         case Some(lib.theory.FunctionDefinition(_, _, expr, _)) =>
           // Check if the definition is conditional
           val method = expr(xs) match {
-            case FOL.ConnectorFormula(FOL.And, Seq(
-              FOL.ConnectorFormula(FOL.Implies, Seq(a, _)),
-              FOL.ConnectorFormula(FOL.Implies, Seq(b, _))
-            )) if isSame(FOL.Neg(a), b) => conditional
+            case FOL.ConnectorFormula(
+                  FOL.And,
+                  Seq(
+                    FOL.ConnectorFormula(FOL.Implies, Seq(a, _)),
+                    FOL.ConnectorFormula(FOL.Implies, Seq(b, _))
+                  )
+                ) if isSame(FOL.Neg(a), b) =>
+              conditional
 
             case _ => unconditional
           }
@@ -164,9 +169,7 @@ object CommonTactics {
      * |- P(f(xs))
      * </pre>
      */
-    def unconditional(using lib: Library, proof: lib.Proof)
-                      (f: FOL.ConstantFunctionLabel, uniqueness: proof.Fact)(xs: FOL.Term*)
-                      (bot: Sequent): proof.ProofTacticJudgement = {
+    def unconditional(using lib: Library, proof: lib.Proof)(f: FOL.ConstantFunctionLabel, uniqueness: proof.Fact)(xs: FOL.Term*)(bot: Sequent): proof.ProofTacticJudgement = {
       lib.theory.getDefinition(f) match {
         case Some(definition @ lib.theory.FunctionDefinition(_, y, expr, _)) =>
           if (bot.right.size != 1) {
@@ -203,11 +206,9 @@ object CommonTactics {
      * φ |- Q(f(xs))
      * </pre>
      */
-    def conditional(using lib: Library, proof: lib.Proof)
-                    (f: FOL.ConstantFunctionLabel, uniqueness: proof.Fact)(xs: FOL.Term*)
-                    (bot: Sequent): proof.ProofTacticJudgement = {
+    def conditional(using lib: Library, proof: lib.Proof)(f: FOL.ConstantFunctionLabel, uniqueness: proof.Fact)(xs: FOL.Term*)(bot: Sequent): proof.ProofTacticJudgement = {
       lib.theory.getDefinition(f) match {
-        case Some(definition@lib.theory.FunctionDefinition(_, y, expr, _)) =>
+        case Some(definition @ lib.theory.FunctionDefinition(_, y, expr, _)) =>
           if (bot.right.size != 1) {
             return proof.InvalidProofTactic("Right-hand side of bottom sequent should contain exactly 1 formula.")
           } else if (bot.left.isEmpty) {
@@ -224,10 +225,13 @@ object CommonTactics {
           // Unfold the conditional definition to find Q
           val phi = FOL.ConnectorFormula(FOL.And, bot.left.toSeq)
           val Q = P.body match {
-            case FOL.ConnectorFormula(FOL.And, Seq(
-              FOL.ConnectorFormula(FOL.Implies, Seq(a, f)),
-              FOL.ConnectorFormula(FOL.Implies, Seq(b, g))
-            )) if isSame(FOL.Neg(a), b) =>
+            case FOL.ConnectorFormula(
+                  FOL.And,
+                  Seq(
+                    FOL.ConnectorFormula(FOL.Implies, Seq(a, f)),
+                    FOL.ConnectorFormula(FOL.Implies, Seq(b, g))
+                  )
+                ) if isSame(FOL.Neg(a), b) =>
               if (isSame(a, phi)) FOL.LambdaTermFormula(Seq(y), f)
               else if (isSame(b, phi)) FOL.LambdaTermFormula(Seq(y), g)
               else return proof.InvalidProofTactic("Condition of definition is not satisfied.")

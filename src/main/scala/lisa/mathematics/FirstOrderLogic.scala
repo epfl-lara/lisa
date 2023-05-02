@@ -140,9 +140,11 @@ object FirstOrderLogic extends lisa.Main {
     exists(x, P(x) /\ p()) <=> (exists(x, P(x)) /\ p())
   ) {
     val forward = have(exists(x, P(x) /\ p()) ==> (exists(x, P(x)) /\ p())) subproof {
-      have(exists(x, P(x) /\ p()) |- exists(x, P(x)) /\ exists(x, p())) by Restate.from(existentialConjunctionDistribution of (
-        Q -> lambda(x, p())
-      ))
+      have(exists(x, P(x) /\ p()) |- exists(x, P(x)) /\ exists(x, p())) by Restate.from(
+        existentialConjunctionDistribution of (
+          Q -> lambda(x, p())
+        )
+      )
       val substitution = thenHave(
         (exists(x, P(x) /\ p()), (exists(x, P(x)) /\ exists(x, p())) <=> (exists(x, P(x)) /\ p())) |- exists(x, P(x)) /\ p()
       ) by RightSubstIff(List((exists(x, P(x)) /\ exists(x, p()), exists(x, P(x)) /\ p())), lambda(p, p()))

@@ -856,7 +856,7 @@ object SetTheory extends lisa.Main {
    */
   val setIntersection = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
 
-  extension(x: Term) {
+  extension (x: Term) {
     infix def ∩(y: Term) = setIntersection(x, y)
   }
 
@@ -2223,7 +2223,8 @@ object SetTheory extends lisa.Main {
     val g = restrictedFunction(f, x)
 
     have(∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z))))))) by Definition(
-      restrictedFunction, restrictedFunctionUniqueness
+      restrictedFunction,
+      restrictedFunctionUniqueness
     )(f, x)
     val pairMembership = thenHave(
       in(pair(t, a), g) <=> (in(pair(t, a), f) /\ ∃(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z)))))
@@ -2234,39 +2235,41 @@ object SetTheory extends lisa.Main {
     thenHave(∀(z, (in(y, x) /\ (pair(t, a) === pair(y, z))) <=> (in(y, x) /\ (t === y) /\ (a === z)))) by RightForall
 
     val existentialEquiv1 = have(∃(z, in(y, x) /\ (pair(t, a) === pair(y, z))) <=> ∃(z, in(y, x) /\ (t === y) /\ (a === z))) by Cut(
-      lastStep, existentialEquivalenceDistribution of (
+      lastStep,
+      existentialEquivalenceDistribution of (
         P -> lambda(z, in(y, x) /\ (pair(t, a) === pair(y, z))),
         Q -> lambda(z, in(y, x) /\ (t === y) /\ (a === z))
       )
     )
-    
+
     have(∃(z, in(y, x) /\ (t === y) /\ (a === z)) <=> (in(y, x) /\ (t === y))) by Restate.from(
       equalityInExistentialQuantifier of (
         P -> lambda(z, in(y, x) /\ (t === y)),
-        y -> a 
+        y -> a
       )
     )
-    
+
     have(∃(z, in(y, x) /\ (pair(t, a) === pair(y, z))) <=> (in(y, x) /\ (t === y))) by Tautology.from(existentialEquiv1, lastStep)
     thenHave(∀(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z))) <=> (in(y, x) /\ (t === y)))) by RightForall
-    
+
     val existentialEquiv2 = have(∃(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z)))) <=> ∃(y, in(y, x) /\ (t === y))) by Cut(
-      lastStep, existentialEquivalenceDistribution of(
+      lastStep,
+      existentialEquivalenceDistribution of (
         P -> lambda(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z)))),
         Q -> lambda(y, in(y, x) /\ (t === y))
       )
     )
-    
+
     have(∃(y, in(y, x) /\ (t === y)) <=> in(t, x)) by Restate.from(
-      equalityInExistentialQuantifier of(
+      equalityInExistentialQuantifier of (
         P -> lambda(y, in(y, x)),
         y -> t
       )
     )
-    
+
     have(∃(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z)))) <=> in(t, x)) by Tautology.from(existentialEquiv2, lastStep)
     thenHave((in(pair(t, a), f) /\ ∃(y, ∃(z, in(y, x) /\ (pair(t, a) === pair(y, z))))) <=> (in(pair(t, a), f) /\ in(t, x))) by Tautology
-    
+
     have(thesis) by Tautology.from(lastStep, pairMembership)
   }
 
@@ -2284,13 +2287,15 @@ object SetTheory extends lisa.Main {
     val domCharacterization = have(∀(t, in(t, dom) <=> (∃(a, in(pair(t, a), f)) /\ in(t, x)))) subproof {
       // Use the definition of the intersection
       have(∀(t, in(t, dom) <=> (in(t, x) /\ in(t, relationDomain(f))))) by Definition(
-        setIntersection, setIntersectionUniqueness
+        setIntersection,
+        setIntersectionUniqueness
       )(x, relationDomain(f))
       val intersectionDef = thenHave(in(t, dom) <=> (in(t, x) /\ in(t, relationDomain(f)))) by InstantiateForall(t)
 
       // Use the definition of the relation domain
       have(∀(t, in(t, relationDomain(f)) <=> ∃(a, in(pair(t, a), f)))) by Definition(
-        relationDomain, relationDomainUniqueness
+        relationDomain,
+        relationDomainUniqueness
       )(f)
       thenHave(in(t, relationDomain(f)) <=> ∃(a, in(pair(t, a), f))) by InstantiateForall(t)
 
@@ -2301,14 +2306,16 @@ object SetTheory extends lisa.Main {
 
     // Characterize the domain of g
     have(∀(D, (relationDomain(g) === D) <=> ∀(t, in(t, D) <=> ∃(a, in(pair(t, a), g))))) by Tautology.from(
-      relationDomain.definition of (r -> g), relationDomainUniqueness
+      relationDomain.definition of (r -> g),
+      relationDomainUniqueness
     )
     val characterization = thenHave((relationDomain(g) === dom) <=> ∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), g)))) by InstantiateForall(dom)
 
     // Use the membership of a pair in the restricted function to derive a simpler characterization
     have(∀(a, in(pair(t, a), g) <=> (in(pair(t, a), f) /\ in(t, x)))) by RightForall(restrictedFunctionPairMembership)
     have(∃(a, in(pair(t, a), g)) <=> ∃(a, in(pair(t, a), f) /\ in(t, x))) by Tautology.from(
-      lastStep, existentialEquivalenceDistribution of (
+      lastStep,
+      existentialEquivalenceDistribution of (
         P -> lambda(a, in(pair(t, a), g)),
         Q -> lambda(a, in(pair(t, a), f) /\ in(t, x))
       )
@@ -2317,7 +2324,8 @@ object SetTheory extends lisa.Main {
     // Extract in(t, x) from the existential quantifier
     val p = formulaVariable // local shadowing to correctly use the theorem
     have(∃(a, in(pair(t, a), g)) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x)) by Tautology.from(
-      lastStep, existentialConjunctionWithClosedFormula of (
+      lastStep,
+      existentialConjunctionWithClosedFormula of (
         P -> lambda(a, in(pair(t, a), f)),
         p -> lambda(Seq(), in(t, x))
       )
@@ -2327,7 +2335,8 @@ object SetTheory extends lisa.Main {
     thenHave(∀(t, (in(t, dom) <=> ∃(a, in(pair(t, a), g))) <=> (in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x)))) by RightForall
 
     have(∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), g))) <=> ∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x))) by Cut(
-      lastStep, universalEquivalenceDistribution of (
+      lastStep,
+      universalEquivalenceDistribution of (
         P -> lambda(t, in(t, dom) <=> ∃(a, in(pair(t, a), g))),
         Q -> lambda(t, in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x))
       )
