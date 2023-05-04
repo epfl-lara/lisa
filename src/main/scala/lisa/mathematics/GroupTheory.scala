@@ -273,6 +273,32 @@ object GroupTheory extends lisa.Main {
   val identity = DEF(G, *) --> TheConditional(e, isNeutral(e, G, *))(identityUniqueness)
 
   /**
+   * Theorem --- The identity element belongs to the group.
+   * 
+   * This might seem like a silly theorem, but it is useful in proving that groups are non-empty by definition.
+   */
+  val identityInGroup = Theorem(
+    group(G, *) |- identity(G, *) ∈ G
+  ) {
+    assume(group(G, *))
+    have(isNeutral(identity(G, *), G, *)) by Definition(identity, identityUniqueness)(G, *)
+    have(thesis) by Tautology.from(
+      lastStep, isNeutral.definition of (e -> identity(G, *))
+    )
+  }
+
+  /**
+   * Theorem --- A group is non-empty.
+   * 
+   * Direct corollary of [[identityInGroup]].
+   */
+  val groupNonEmpty = Theorem(
+    group(G, *) |- (G !== ∅)
+  ) {
+    have(thesis) by Cut(identityInGroup, setWithElementNonEmpty of (x -> G, y -> identity(G, *)))
+  }
+
+  /**
    * Theorem --- The inverse of an element `x` (i.e. `y` such that `x * y = y * x = e`) in `G` is unique.
    */
   val inverseUniqueness = Theorem(
