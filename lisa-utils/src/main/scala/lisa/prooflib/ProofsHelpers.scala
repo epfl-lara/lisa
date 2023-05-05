@@ -107,18 +107,15 @@ trait ProofsHelpers {
   }
 
    */
+
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
-  def assume(using proof: library.Proof)(fs: Formula*): proof.ProofStep = assume(fs)
-  def assume(using proof: library.Proof)(fstring: String): proof.ProofStep = {
-    val f = lisa.utils.FOLParser.parseFormula(fstring)
-    assume(f)
-  }
-  def assume(using proof: library.Proof)(fs: Iterable[Formula]): proof.ProofStep = {
+  def assume(using proof: library.Proof)(fs: Formula*): proof.ProofStep = {
     fs.foreach(f => proof.addAssumption(f))
     have(() |- fs.toSet) by BasicStepTactic.Hypothesis
   }
+
   /*
   /**
    * Store the given import and use it to discharge the proof of one of its assumption at the very end.
