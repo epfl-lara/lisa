@@ -2338,6 +2338,23 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(domCharacterization, simplerCharacterization)
   }
 
+  /**
+   * Restricted function cancellation --- Restricting a function to its relation domain does nothing.
+   */
+  val restrictedFunctionCancellation = Theorem(
+    functional(f) |- restrictedFunction(f, relationDomain(f)) === f
+  ) {
+    /*val g = restrictedFunction(f, relationDomain(f))
+
+    have(∀(t, in(t, relationDomain(f)) <=> ∃(a, in(pair(t, a), f)))) by Definition(relationDomain, relationDomainUniqueness)(f)
+    thenHave(in(y, relationDomain(f)) <=> ∃(a, in(pair(y, a), f))) by InstantiateForall(y)
+
+    have(∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z))))))) by Definition(
+      restrictedFunction, restrictedFunctionUniqueness
+    )(f, relationDomain(f))*/
+    sorry
+  }
+
   // TODO: any subset of a functional is functional
   // TODO: a functional over something restricted to x is still functional
 

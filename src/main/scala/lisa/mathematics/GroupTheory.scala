@@ -6,7 +6,7 @@ import lisa.mathematics.FirstOrderLogic.{equalityTransitivity, existsOneImpliesE
 import lisa.mathematics.SetTheory.*
 
 /**
- * Group theory, following Chapter 2 of S. Lang "Undergraduate Algebra".
+ * Group theory, developed following Chapter 2 of S. Lang "Undergraduate Algebra".
  *
  * Book : [[https://link.springer.com/book/10.1007/978-1-4684-9234-7]]
  */
@@ -222,7 +222,6 @@ object GroupTheory extends lisa.Main {
 
     have(thesis) by Cut(groupOperationDomain, lastStep)
   }
-  show
 
   /**
    * Identity uniqueness --- In a group (G, *), an identity element is unique, i.e. if both `e * x = x * e = x` and
@@ -469,6 +468,44 @@ object GroupTheory extends lisa.Main {
   val subgroup = DEF(H, G, *) --> group(G, *) /\ subset(H, G) /\ group(H, restrictedFunction(*, cartesianProduct(H, H)))
 
   /**
+   * Lemma --- A group is a subgroup of itself, i.e. the subgroup relationship is reflexive.
+   */
+  val groupIsSubgroupOfItself = Theorem(
+    group(G, *) |- subgroup(G, G, *)
+  ) {
+    val condition1 = have(group(G, *) |- group(G, *)) by Hypothesis
+    val condition2 = have(subset(G, G)) by Restate.from(subsetReflexivity of (x -> G))
+
+    // For condition 3, we need to substitute everything using the 3 following equalities:
+    // 1. restrictedFunction(*, relationDomain(*)) === *       (restrictedFunctionCancellation)
+    // 2. relationDomain(*) === cartesianProduct(G, G)         (groupOperationDomain)
+    // 3. restrictedFunction(*, cartesianProduct(G, G)) === *  (derived from 1. and 2.)
+
+    val substitution = have((group(G, *), restrictedFunction(*, cartesianProduct(G, G)) === *) |- group(G, restrictedFunction(*, cartesianProduct(G, G)))) by RightSubstEq(
+      List((restrictedFunction(*, cartesianProduct(G, G)), *)), lambda(z, group(G, z))
+    )(condition1)
+    
+    val eq3 = have(group(G, *) |- restrictedFunction(*, cartesianProduct(G, G)) === *) subproof {
+      val eq1 = have(restrictedFunction(*, relationDomain(*)) === *) by Restate.from(restrictedFunctionCancellation of (f -> *))
+      thenHave((relationDomain(*) === cartesianProduct(G, G)) |- restrictedFunction(*, cartesianProduct(G, G)) === *) by RightSubstEq(
+        List((relationDomain(*), cartesianProduct(G, G))), lambda(z, restrictedFunction(*, z) === *)
+      )
+
+      have(thesis) by Cut(groupOperationDomain, lastStep)
+    }
+
+    val condition3 = have(group(G, *) |- group(G, restrictedFunction(*, cartesianProduct(G, G)))) by Cut(eq3, substitution)
+
+    have(group(G, *) |- group(G, *) /\ subset(G, G) /\ group(G, restrictedFunction(*, cartesianProduct(G, G)))) by RightAnd(condition1, condition2, condition3)
+    have(thesis) by Tautology.from(lastStep, subgroup.definition of (G -> G, H -> G))
+  }
+
+  /**
+   * Proper subgroup --- `H` is a proper subgroup of `(G, *)` if `H` is a subgroup of `G` and `H != G`.
+   */
+  val properSubgroup = DEF(H, G, *) --> subgroup(H, G, *) /\ (H !== G)
+
+  /**
    * Lemma --- If `x` and `y` are two elements of the subgroup `H` of `(G, *)`, the pair belongs to the relation domain
    * of the parent group's operation `*`.
    *
@@ -569,5 +606,26 @@ object GroupTheory extends lisa.Main {
     ) by RightAnd(pos, neg)
 
     have(thesis) by Tautology.from(lastStep, characterization)
+  }
+
+  /**
+   * Identity in subgroup --- The identity element of the subgroup is exactly the identity element of the parent group.
+   */
+  val subgroupIdentity = Theorem(
+    subgroup(H, G, *) |- identity(H, restrictedFunction(*, cartesianProduct(H, H))) === identity(G, *)
+  ) {
+    /*// The crux of the proof relies on proving that identity(G, *) ∈ H
+    // From there we can derive quite easily the theorem using [[subgroupOperation]]
+    have(subgroup(H, G, *) |- identity(G, *) ∈ H) subproof {
+      // The main idea is to notice that for H = G, identity(G, *) must be in H per [[identityInGroup]]
+      // hence identity(G, *) ∉ H would be contradictory
+      have((subgroup(H, G, *) ==> identity(G, *) ∉ H) |- (subgroup(H, G, *) ==> identity(G, *) ∉ H)) by Hypothesis
+      thenHave((subgroup(H, G, *) ==> identity(G, *) ∉ H) |- ∀(H, subgroup(H, G, *) ==> identity(G, *) ∉ H)) by RightForall
+    }
+
+    have(group(G, *) |- isNeutral(identity(G, *), G, *)) by Definition(identity, identityUniqueness)(G, *)
+    have(group(G, *) |- identity(G, *) ∈ G /\ ∀(x, (x ∈ G) ==> ((op(identity(G, *), *, x) === x) /\ (op(identity(G, *), *, e) === x)))) by Tautology.from(isNeutral.definition of (e -> identity(G, *)))*/
+
+    sorry
   }
 }

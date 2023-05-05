@@ -15,6 +15,7 @@ object SetTheoryLibrary extends Library with SetTheoryTGAxioms {
   val ∅ : Term = emptySet()
   extension (t: Term) {
     infix def ∈(u: Term): Formula = PredicateFormula(in, Seq(t, u))
+    infix def ∉(u: Term): Formula = !(t ∈ u)
   }
 
 }
