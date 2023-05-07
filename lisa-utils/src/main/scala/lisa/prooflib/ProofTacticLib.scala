@@ -50,7 +50,7 @@ object ProofTacticLib {
       val source = scala.io.Source.fromFile(file.value)
       val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
       source.close()
-      Console.RED + proof.owningTheorem.repr + Console.RESET + "\n" +
+      Console.RED + proof.owningTheorem.prettyGoal + Console.RESET + "\n" +
         lisa.utils.ProofPrinter.prettyProof(proof, 2) + "\n" +
         "  " * (1 + proof.depth) + Console.RED + textline + Console.RESET + "\n\n" +
         s"   Proof tactic ${tactic.name} used in.(${file.value.split("/").last.split("\\\\").last}:${line.value}) did not succeed:\n" +

@@ -32,7 +32,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
   var last: Option[theory.Justification] = None
 
-  // kernel theory management
+
 
   /**
    * An alias to create a Theorem

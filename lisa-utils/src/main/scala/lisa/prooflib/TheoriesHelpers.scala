@@ -22,9 +22,16 @@ object TheoriesHelpers {
      * Outputs, with an implicit om.output function, a readable representation of the Axiom, Theorem or Definition.
      */
     def show(using om: OutputManager): just.type = {
-      om.output(just.repr, Console.GREEN)
+      just match {
+        case j: K.RunningTheory#Theorem =>
+          if (j.withSorry) om.output(j.repr, Console.YELLOW)
+          else om.output(j.repr, Console.GREEN)
+        case j: K.RunningTheory#FunctionDefinition =>
+          if (j.withSorry) om.output(j.repr, Console.YELLOW)
+          else om.output(j.repr, Console.GREEN)
+        case _ => om.output(just.repr, Console.GREEN)
+      }
       just
-
     }
   }
 
@@ -64,7 +71,7 @@ object TheoriesHelpers {
      */
     def showAndGet(using om: OutputManager): K.SCProof = {
       proofJudgement match {
-        case K.SCProofCheckerJudgement.SCValidProof(proof) =>
+        case K.SCProofCheckerJudgement.SCValidProof(proof, _) =>
           om.output(FOLPrinter.prettySCProof(proofJudgement))
           proof
         case ip @ K.SCProofCheckerJudgement.SCInvalidProof(proof, path, message) =>
