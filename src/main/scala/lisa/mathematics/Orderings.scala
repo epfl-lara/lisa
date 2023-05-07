@@ -10,7 +10,7 @@ import lisa.mathematics.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
-import lisa.utils.Printer
+import lisa.utils.FOLPrinter
 
 object Orderings extends lisa.Main {
 
@@ -779,7 +779,7 @@ object Orderings extends lisa.Main {
    * If `p` is a strict well-ordering, `Q` is a class, and `A` the base set of
    * `p`, then
    *
-   *     `\forall x \in A. (A |^ x) \subseteq Q ==> x \in Q |- A = Q`
+   *     `\forall x \in A. (A |^ x) \subseteq Q ==> x \in Q |- \forall x \in A. x \in Q`
    *
    * i.e., if the property `Q` passes to `x` from its initial segment, then `Q`
    * holds for every element of `A`.
@@ -841,20 +841,27 @@ object Orderings extends lisa.Main {
     thenHave(thesis) by RightForall
   }
 
+
+  val transfiniteInduction = Theorem(
+    forall(x, ordinal(x) ==> (forall(y, in(y, x) ==> Q(y)) ==> Q(x))) |- forall(x, ordinal(x) ==> Q(x))
+  ) {
+    have(thesis) by Sorry
+  }
+
   /**
    * Theorem --- Well-Ordered Recursion (stronger version)
    */
   val wellOrderedRecursionStronger = Lemma(
     wellOrder(p) |- forall(
       t,
-      in(t, firstInPair(p)) ==> existsOne(g, functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+      in(t, firstInPair(p)) ==> existsOne(g, functional(g) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
     )
   ) {
 
     val p1 = firstInPair(p)
     val p2 = secondInPair(p)
 
-    def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+    def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, functional(g) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
 
     // define `z` as the set of elements of `p_1` for which `prop` does not hold
     val zDef = forall(t, in(t, z) <=> (in(t, p1) /\ !prop(t)))
@@ -893,16 +900,32 @@ object Orderings extends lisa.Main {
       }
 
       // the existence of g propagates up from initial segments
-      val initPropagate = have(forall(a, forall(b, in(b, initialSegment(p, a)) ==> (in(b, p1) /\ prop(b))) ==> (in(a, p1) /\ prop(a)))) subproof {
+      
+      val initPropagate = have(in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x))) subproof {
+        def fun(g: Term, t: Term): Formula = (functional(g) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+
+        assume(Seq(
+            in(x, p1),
+            forall(y, in(y, initialSegment(p, x)) ==> prop(y))
+          ))
+
+        // if there exists a unique g for the initial segment, get the set of these
+        val wDef = forall(t, in(t, w) <=> fun(w, t))
+        // take its union
+        // this is a function g for x
+
+        // if a g exists, it is unique
+        have(exists(g, fun(g, a)) |- existsOne(g, fun(g, a))) subproof {
+          have(thesis) by Sorry
+        }
+
         have(thesis) by Sorry
       }
 
-      val subclass = have(forall(a, (in(a, p1) /\ prop(a)) ==> in(a, p1))) subproof {
-        have((in(a, p1) /\ prop(a)) ==> in(a, p1)) by Restate
-        thenHave(thesis) by RightForall
-      }
+      thenHave(forall(x, in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x)))) by RightForall
 
-      have(thesis) by Tautology
+      have((zDef, exists(t, in(t, z)), wellOrder(p)) |- forall(t, in(t, p1) ==> prop(t))) by Tautology.from(lastStep, wellOrderedInduction of Q -> lambda(t, prop(t)))
+      thenHave(thesis) by Restate
     }
 
     have((zDef, wellOrder(p)) |- forall(t, prop(t))) by Tautology.from(case1, case2)
