@@ -10,7 +10,8 @@ import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
-import lisa.utils.{_, given}
+import lisa.prooflib.BasicStepTactic.Rewrite
+import lisa.utils.{*, given}
 
 import scala.annotation.targetName
 
@@ -67,7 +68,7 @@ trait ProofsHelpers {
 
   def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
     case judg: proof.ProofTacticJudgement => judg.validate(line, file)
-    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Restate(using library, proof)(fact))
+    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Rewrite(using library, proof)(fact))
   }
 
   /**

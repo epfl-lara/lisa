@@ -1,11 +1,10 @@
 package lisa.fol
 
-import lisa.kernel.fol.FOL
-import lisa.kernel.fol.FOL.{bot, equality, top}
+import lisa.utils.K
 
 trait Predef extends Common{
 
-  val equality: ConstantPredicateLabel[2] = ConstantPredicateLabel[2](FOL.Identifier("="))
+  val equality: ConstantPredicateLabel[2] = ConstantPredicateLabel[2](K.Identifier("="))
   val === = equality
   val ＝ = equality
 
@@ -15,52 +14,52 @@ trait Predef extends Common{
   }
 
 
-  val top: ConstantFormula = ConstantFormula(FOL.Identifier("⊤"))
+  val top: ConstantFormula = ConstantFormula(K.Identifier("⊤"))
   val ⊤  = top
   val True = top
 
-  val bot: ConstantFormula = ConstantFormula(FOL.Identifier("⊥"))
+  val bot: ConstantFormula = ConstantFormula(K.Identifier("⊥"))
   val ⊥ = bot
   val False = bot
 
-  case object Neg extends ConstantConnectorLabel[1] {val underlyingLabel = FOL.Neg}
+  case object Neg extends ConstantConnectorLabel[1] {val underlyingLabel = K.Neg}
   val neg = Neg
   val ¬ = Neg
   val ! = Neg
 
-  case object And extends ConstantConnectorLabel[-1]{val underlyingLabel = FOL.And}
+  case object And extends ConstantConnectorLabel[-1]{val underlyingLabel = K.And}
   val and = And
   val /\ = And
 
-  case object Or extends ConstantConnectorLabel[-1]{val underlyingLabel = FOL.Or}
+  case object Or extends ConstantConnectorLabel[-1]{val underlyingLabel = K.Or}
   val or = Or
   val \/ = Or
 
-  case object Implies extends ConstantConnectorLabel[2]{val underlyingLabel = FOL.Implies}
+  case object Implies extends ConstantConnectorLabel[2]{val underlyingLabel = K.Implies}
   val implies = Implies
   val ==> = Implies
 
-  case object Iff extends ConstantConnectorLabel[2]{val underlyingLabel = FOL.Iff}
+  case object Iff extends ConstantConnectorLabel[2]{val underlyingLabel = K.Iff}
   val iff = Iff
   val <=> = Iff
 
   case object Forall extends BaseBinderLabel {
-    val id = FOL.Identifier("∀")
-    val underlyingLabel: FOL.Forall.type = FOL.Forall
+    val id = K.Identifier("∀")
+    val underlyingLabel: K.Forall.type = K.Forall
   }
   val forall = Forall
   val ∀ = forall
 
   case object Exists extends BaseBinderLabel {
-    val id = FOL.Identifier("∃")
-    val underlyingLabel: FOL.Exists.type = FOL.Exists
+    val id = K.Identifier("∃")
+    val underlyingLabel: K.Exists.type = K.Exists
   }
   val exists = Exists
   val ∃ = exists
 
   case object ExistsOne extends BaseBinderLabel {
-    val id = FOL.Identifier("∃!")
-    val underlyingLabel: FOL.ExistsOne.type = FOL.ExistsOne
+    val id = K.Identifier("∃!")
+    val underlyingLabel: K.ExistsOne.type = K.ExistsOne
   }
   val existsOne = ExistsOne
   val ∃! = existsOne

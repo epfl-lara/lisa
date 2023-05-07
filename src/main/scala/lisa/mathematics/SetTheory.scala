@@ -409,7 +409,7 @@ object SetTheory extends lisa.Main {
   val firstElemInPair = Theorem(
     in(x, unorderedPair(x, y))
   ) {
-    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
+    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(pairAxiom)
     have((z === x) |- (z === x)) by Hypothesis
     val rhs = thenHave((z === x) |- (z === x) \/ (z === y)) by Restate
     val factset = have((z === x) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
@@ -430,7 +430,7 @@ object SetTheory extends lisa.Main {
   val secondElemInPair = Theorem(
     in(y, unorderedPair(x, y))
   ) {
-    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
+    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(pairAxiom)
     have((z === y) |- (z === y)) by Hypothesis
     val rhs = thenHave((z === y) |- (z === x) \/ (z === y)) by Restate
     val factset = have((z === y) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)

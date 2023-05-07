@@ -86,7 +86,7 @@ trait Common {
 
   trait Label[+A <: LisaObject[A]]{
     this : A =>
-    val id: FOL.Identifier
+    def id: FOL.Identifier
     def rename(newid: FOL.Identifier):Label[A]
   }
   sealed trait SchematicLabel[+A <: LisaObject[A]] extends LisaObject[A] with Label[A]{
@@ -168,7 +168,7 @@ trait Common {
 
   sealed trait FunctionalLabel[N <: Arity : ValueOf] extends ((Term ** N) |-> Term) with WithArity[N] with Absolute {
     val arity = valueOf[N]
-    val id: FOL.Identifier
+    def id: FOL.Identifier
     val underlyingLabel: FOL.TermLabel
     def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): ((Term ** N) |-> Term)
 
@@ -260,7 +260,7 @@ trait Common {
 
   sealed trait PredicateLabel[N <: Arity : ValueOf] extends |->[Term ** N, Formula] with WithArity[N] with Absolute {
     val arity = valueOf[N]
-    val id: FOL.Identifier
+    def id: FOL.Identifier
     val underlyingLabel: FOL.PredicateLabel // | FOL.LambdaFormulaFormula
 
     def interpreted(args: Term ** N): FOL.Formula = underlyingLabel match {
@@ -312,7 +312,7 @@ trait Common {
 
   sealed trait ConnectorLabel[N <: Arity : ValueOf] extends |->[Formula ** N, Formula] with WithArity[N] with Absolute with Label[(Formula**N) |-> Formula] {
     val arity = valueOf[N]
-    val id: FOL.Identifier
+    def id: FOL.Identifier
     val underlyingLabel: FOL.ConnectorLabel // | FOL.LambdaFormulaFormula
     def interpreted(args: Formula ** N): FOL.Formula = underlyingLabel match {
       case label : FOL.ConnectorLabel => FOL.ConnectorFormula(label, args.toSeq.map(_.underlying))
@@ -345,7 +345,7 @@ trait Common {
 
   trait ConstantConnectorLabel[N <: Arity : ValueOf] extends ConnectorLabel[N] with ConstantLabel[Formula ** N |->Formula]{
     val underlyingLabel: FOL.ConstantConnectorLabel
-    val id: FOL.Identifier = underlyingLabel.id
+    def id: FOL.Identifier = underlyingLabel.id
     def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): this.type = this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
@@ -371,7 +371,7 @@ trait Common {
 
 
   abstract class BinderLabel extends |->[(Variable, Formula), Formula] with Absolute {
-    val id: FOL.Identifier
+    def id: FOL.Identifier
   }
 
   trait BaseBinderLabel extends BinderLabel {

@@ -279,6 +279,7 @@ trait WithTheorems {
   }
 
   sealed abstract class DefOrThm(using om: OutputManager)(val line: Int, val file: String)
+
   class THM(using om: OutputManager)(statement: Sequent | String, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
       extends DefOrThm(using om)(line, file) {
 
@@ -289,11 +290,11 @@ trait WithTheorems {
     val name: String = fullName
 
     val proof: BaseProof = new BaseProof(this)
-    val innerThm: theory.Theorem = show(computeProof)
+    val innerThm: theory.Theorem = prove(computeProof)
 
     def repr: String = lisa.utils.FOLPrinter.prettySequent(goal)
 
-    def show(computeProof: Proof ?=> Unit): theory.Theorem = {
+    private def prove(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {
         computeProof(using proof)
       } catch {
@@ -306,8 +307,8 @@ trait WithTheorems {
       if (proof.length == 0)
         om.lisaThrow(new UnimplementedProof(this))
 
-      val r = TheoremNameWithProof(name, goal, proof.toSCProof)
-      theory.theorem(r.name, r.statement, r.proof, proof.getImports.map(_._1)) match {
+      val scp = proof.toSCProof
+      theory.theorem(name, goal, scp, proof.getImports.map(_._1)) match {
         case RunningTheoryJudgement.ValidJustification(just) =>
           library.last = Some(just)
           just
@@ -321,13 +322,14 @@ trait WithTheorems {
           )
       }
     }
+
   }
 
   given thmConv: Conversion[library.THM, theory.Theorem] = _.innerThm
 
-  trait TheoremKind { val kind: String }
-  object Theorem extends TheoremKind { val kind: String = "Theorem" }
-  object Lemma extends TheoremKind { val kind: String = "Lemma" }
-  object Corollary extends TheoremKind { val kind: String = "Corollary" }
+  trait TheoremKind { val kind2: String }
+  object Theorem extends TheoremKind { val kind2: String = "Theorem2" }
+  object Lemma extends TheoremKind { val kind2: String = "Lemma" }
+  object Corollary extends TheoremKind { val kind2: String = "Corollary" }
 
 }
