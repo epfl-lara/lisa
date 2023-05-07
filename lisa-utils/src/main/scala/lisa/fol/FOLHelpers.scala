@@ -1,10 +1,14 @@
 package lisa.fol
 
-import lisa.kernel.fol.FOL.*
+import lisa.fol.FOL.*
+import lisa.kernel.fol.FOL.Identifier
+import lisa.utils.LisaException
+/*
 import lisa.kernel.proof.*
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.*
+ */
 import lisa.utils.FOLParser
 
 import scala.annotation.targetName
@@ -21,54 +25,33 @@ import scala.annotation.targetName
  * </pre>
  */
 object FOLHelpers {
-/*
+
+  def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
+    new Identifier(
+      base.name,
+      (taken.collect({ case Identifier(base.name, no) =>
+        no
+      }) ++ Iterable(base.no)).max + 1
+    )
+  }
+
+  def nFreshId(taken: Iterable[Identifier], n: Int): IndexedSeq[Identifier] = {
+    val max = if (taken.isEmpty) 0 else taken.map(c => c.no).max
+    Range(0, n).map(i => Identifier("gen", max + i))
+  }
+
   /////////////////
   // FOL helpers //
   /////////////////
 
   /* Infix syntax */
 
-  extension (f: Formula) {
-    def unary_! = ConnectorFormula(Neg, Seq(f))
-    infix inline def ==>(g: Formula): Formula = ConnectorFormula(Implies, Seq(f, g))
-    infix inline def <=>(g: Formula): Formula = ConnectorFormula(Iff, Seq(f, g))
-    infix inline def /\(g: Formula): Formula = ConnectorFormula(And, Seq(f, g))
-    infix inline def \/(g: Formula): Formula = ConnectorFormula(Or, Seq(f, g))
-  }
 
-  extension (t: Term) {
-    infix def ===(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
-    infix def ＝(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
-  }
 
   /* Conversions */
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
-  given Conversion[Formula, Sequent] = () |- _
 
-  /* Sequents */
 
-  val emptySeq: Sequent = Sequent(Set.empty, Set.empty)
-
-  extension (s: Sequent) {
-    infix def +<<(f: Formula): Sequent = s.copy(left = s.left + f)
-    infix def -<<(f: Formula): Sequent = s.copy(left = s.left - f)
-    infix def +>>(f: Formula): Sequent = s.copy(right = s.right + f)
-    infix def ->>(f: Formula): Sequent = s.copy(right = s.right - f)
-    infix def ++<<(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left)
-    infix def --<<(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left)
-    infix def ++>>(s1: Sequent): Sequent = s.copy(right = s.right ++ s1.right)
-    infix def -->>(s1: Sequent): Sequent = s.copy(right = s.right -- s1.right)
-    infix def ++(s1: Sequent): Sequent = s.copy(left = s.left ++ s1.left, right = s.right ++ s1.right)
-    infix def --(s1: Sequent): Sequent = s.copy(left = s.left -- s1.left, right = s.right -- s1.right)
-
-    infix def removeLeft(f: Formula): Sequent = s.copy(left = s.left.filterNot(isSame(_, f)))
-    infix def removeRight(f: Formula): Sequent = s.copy(right = s.right.filterNot(isSame(_, f)))
-    infix def removeAllLeft(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))))
-    infix def removeAllLeft(s1: Set[Formula]): Sequent = s.copy(left = s.left.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
-    infix def removeAllRight(s1: Sequent): Sequent = s.copy(right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
-    infix def removeAllRight(s1: Set[Formula]): Sequent = s.copy(right = s.right.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
-    infix def removeAll(s1: Sequent): Sequent = s.copy(left = s.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))), right = s.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
-  }
 
   /**
    * Represents a converter of some object into a set.
@@ -99,17 +82,13 @@ object FOLHelpers {
     override def apply(s: I): Set[Formula] = s.toSet
   }
 
-  given FormulaSetConverter[VariableFormulaLabel] with {
-    override def apply(s: VariableFormulaLabel): Set[Formula] = Set(s())
-  }
-
   private def any2set[A, T <: A](any: T)(using c: FormulaSetConverter[T]): Set[Formula] = c.apply(any)
 
   extension [A, T1 <: A](left: T1)(using FormulaSetConverter[T1]) {
     infix def |-[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
     infix def ⊢[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
   }
-
+/*
   // Instatiation functions for formulas lifted to sequents.
 
   def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Sequent = {
@@ -129,77 +108,32 @@ object FOLHelpers {
     s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))
   }
 
-  //////////////////////
-  // SCProofs helpers //
-  //////////////////////
-  extension (sp: SCSubproof) {
+ */
 
-    /**
-     * Explore a proof with a specific path and returns the pointed proofstep.
-     * @param path A path through subproofs of a proof.
-     */
-    def followPath(path: Seq[Int]): SCProofStep = path match {
-      case Nil => sp
-      case n :: Nil => sp.sp(n)
-      case n :: ns =>
-        assert(sp.sp.steps(n).isInstanceOf[SCSubproof], s"Got $path but next step is not a subproof: ${sp.sp.steps(n).getClass}")
-        sp.sp.steps(n).asInstanceOf[SCSubproof].followPath(ns)
-    }
-  }
+  given[R <: LisaObject[R]]: Conversion[R, LambdaExpression[Nothing, R, 0]] = LambdaExpression(Seq(), _, 0)
 
-  extension (p: SCProof) {
-
-    /**
-     * Explore a proof with a specific path and returns the pointed proofstep.
-     * @param path A path through subproofs of a proof.
-     */
-    def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
-  }
-
-  // Conversions from String to datatypes
-  // given Conversion[String, Sequent] = FOLParser.parseSequent(_)
-  // given Conversion[String, Formula] = FOLParser.parseFormula(_)
-  // given Conversion[String, Term] = FOLParser.parseTerm(_)
-  // given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
   // Conversion from pairs (e.g. x -> f(x)) to lambdas
-  given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
-  given Conversion[VariableLabel, LambdaTermTerm] = a => LambdaTermTerm(Seq(), a: Term)
-  given Conversion[(VariableLabel, Term), LambdaTermTerm] = a => LambdaTermTerm(Seq(a._1), a._2)
-  given Conversion[(Seq[VariableLabel], Term), LambdaTermTerm] = a => LambdaTermTerm(a._1, a._2)
+  //given[T <: LisaObject[T], R <: LisaObject[R]]: Conversion[LisaObject[T], LambdaTermTerm] = LambdaTermTerm(Seq(), _)
 
-  given Conversion[Formula, LambdaTermFormula] = LambdaTermFormula(Seq(), _)
-  given Conversion[(VariableLabel, Formula), LambdaTermFormula] = a => LambdaTermFormula(Seq(a._1), a._2)
-  given Conversion[(Seq[VariableLabel], Formula), LambdaTermFormula] = a => LambdaTermFormula(a._1, a._2)
+  //given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
 
-  given Conversion[Formula, LambdaFormulaFormula] = LambdaFormulaFormula(Seq(), _)
-  given Conversion[(VariableFormulaLabel, Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(Seq(a._1), a._2)
-  given Conversion[(Seq[VariableFormulaLabel], Formula), LambdaFormulaFormula] = a => LambdaFormulaFormula(a._1, a._2)
+  given[T <: LisaObject[T], R <: LisaObject[R]]: Conversion[(SchematicLabel[T], R), LambdaExpression[T, R, 1]] = {
+    a => LambdaExpression(Seq(a._1), a._2, 1)
+  }
 
-  // Shortcut for LambdaTermTerm, LambdaTermFormula and LambdaFormulaFormula construction
-  def lambda(x: VariableLabel, t: Term): LambdaTermTerm = LambdaTermTerm(Seq(x), t)
-  def lambda(xs: Seq[VariableLabel], t: Term): LambdaTermTerm = LambdaTermTerm(xs, t)
-  def lambda(x: VariableLabel, l: LambdaTermTerm): LambdaTermTerm = LambdaTermTerm(Seq(x) ++ l.vars, l.body)
-  def lambda(xs: Seq[VariableLabel], l: LambdaTermTerm): LambdaTermTerm = LambdaTermTerm(xs ++ l.vars, l.body)
+  given[T <: LisaObject[T],R <: LisaObject[R], N <: Arity]: Conversion[(SchematicLabel[T]**N, R), LambdaExpression[T, R, N]] = a => {
+    val s = a._1.toSeq
+    LambdaExpression(s, a._2, s.length.asInstanceOf)
+  }
 
-  def lambda(x: VariableLabel, phi: Formula): LambdaTermFormula = LambdaTermFormula(Seq(x), phi)
-  def lambda(xs: Seq[VariableLabel], phi: Formula): LambdaTermFormula = LambdaTermFormula(xs, phi)
-  def lambda(x: VariableLabel, l: LambdaTermFormula): LambdaTermFormula = LambdaTermFormula(Seq(x) ++ l.vars, l.body)
-  def lambda(xs: Seq[VariableLabel], l: LambdaTermFormula): LambdaTermFormula = LambdaTermFormula(xs ++ l.vars, l.body)
+  def instantiateBinder(f: BaseQuantifiedFormula, t: Term): Formula = f.body.substitute(Map(f.bound -> t))
 
-  def lambda(X: VariableFormulaLabel, phi: Formula): LambdaFormulaFormula = LambdaFormulaFormula(Seq(X), phi)
-  def lambda(Xs: Seq[VariableFormulaLabel], phi: Formula): LambdaFormulaFormula = LambdaFormulaFormula(Xs, phi)
-  def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
-  def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
-
-  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
-
-  // declare symbols easily: "val x = variable;"
-  def variable(using name: sourcecode.Name): VariableLabel = VariableLabel(name.value)
-  def function(arity: Integer)(using name: sourcecode.Name): SchematicFunctionLabel = SchematicFunctionLabel(name.value, arity)
-  def formulaVariable(using name: sourcecode.Name): VariableFormulaLabel = VariableFormulaLabel(name.value)
-  def predicate(arity: Integer)(using name: sourcecode.Name): SchematicPredicateLabel = SchematicPredicateLabel(name.value, arity)
-  def connector(arity: Integer)(using name: sourcecode.Name): SchematicConnectorLabel = SchematicConnectorLabel(name.value, arity)
+  def variable(using name: sourcecode.Name): Variable = Variable(name.value)
+  def function[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicFunctionalLabel[N] = SchematicFunctionalLabel[N](name.value)
+  def formulaVariable(using name: sourcecode.Name): VariableFormula = VariableFormula(name.value)
+  def predicate[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicPredicateLabel[N] = SchematicPredicateLabel[N](name.value)
+  def connector[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicConnectorLabel[N] = SchematicConnectorLabel[N](name.value)
 
   // Conversions from String to Identifier
   class InvalidIdentifierException(identifier: String, errorMessage: String) extends LisaException(errorMessage) {
@@ -231,21 +165,8 @@ object FOLHelpers {
     }
   }
   given Conversion[Identifier, String] = _.toString
+/*
 
-  // Generates  new Identifier from an existing list
-  def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
-    new Identifier(
-      base.name,
-      (taken.collect({ case Identifier(base.name, no) =>
-        no
-      }) ++ Iterable(base.no)).max + 1
-    )
-  }
-
-  def nFreshId(taken: Iterable[Identifier], n: Int): IndexedSeq[Identifier] = {
-    val max = if (taken.isEmpty) 0 else taken.map(c => c.no).max
-    Range(0, n).map(i => Identifier("gen", max + i))
-  }
 
   /////////////////////////////
   // RunningTheories Helpers //

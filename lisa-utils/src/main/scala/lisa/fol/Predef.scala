@@ -7,6 +7,13 @@ trait Predef extends Common{
 
   val equality: ConstantPredicateLabel[2] = ConstantPredicateLabel[2](FOL.Identifier("="))
   val === = equality
+  val ＝ = equality
+
+  extension (t: Term) {
+    infix def ===(u: Term): Formula = equality(t, u)
+    infix def ＝(u: Term): Formula = equality(t, u)
+  }
+
 
   val top: ConstantFormula = ConstantFormula(FOL.Identifier("⊤"))
   val ⊤  = top
@@ -57,5 +64,15 @@ trait Predef extends Common{
   }
   val existsOne = ExistsOne
   val ∃! = existsOne
+
+
+  extension (f: Formula) {
+    def unary_! = Neg(f*:EmptyTuple)
+    infix inline def ==>(g: Formula): Formula = Implies(f, g)
+    infix inline def <=>(g: Formula): Formula = Iff(f, g)
+    infix inline def /\(g: Formula): Formula = And(List(f, g))
+    infix inline def \/(g: Formula): Formula = Or(List(f, g))
+  }
+
 
 }

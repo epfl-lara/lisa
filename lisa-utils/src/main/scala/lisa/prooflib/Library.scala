@@ -7,6 +7,7 @@ import lisa.kernel.proof.SequentCalculus
 import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.{_, given}
 
+
 import scala.collection.mutable.Stack as stack
 
 /**
@@ -19,9 +20,13 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   given library: this.type = this
   given RunningTheory = theory
   export lisa.kernel.fol.FOL.{Formula, *}
+
   val SC: SequentCalculus.type = lisa.kernel.proof.SequentCalculus
   export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
   export lisa.kernel.proof.SCProof
+  
+
+
   export lisa.prooflib.TheoriesHelpers.{_, given}
   import lisa.kernel.proof.RunningTheoryJudgement as Judgement
 
