@@ -127,7 +127,7 @@ object FOLHelpers {
     LambdaExpression(s, a._2, s.length.asInstanceOf)
   }
 
-  def instantiateBinder(f: BaseQuantifiedFormula, t: Term): Formula = f.body.substitute(Map(f.bound -> t))
+  def instantiateBinder(f: BaseQuantifiedFormula, t: Term): Formula = f.body.substituteUnsafe(Map(f.bound -> t))
 
   def variable(using name: sourcecode.Name): Variable = Variable(name.value)
   def function[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicFunctionalLabel[N] = SchematicFunctionalLabel[N](name.value)

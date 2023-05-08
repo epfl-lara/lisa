@@ -1,6 +1,6 @@
 package lisa.prooflib
 
-import lisa.prooflib.TheoriesHelpers.show
+
 import lisa.utils.{_, given}
 
 import java.io.PrintWriter
@@ -27,7 +27,7 @@ abstract class OutputManager {
           case Some(value) => output(lisa.utils.ProofPrinter.prettyProof(value))
           case None => ()
         }
-        e.underlying.show
+        output(e.underlying.repr)
         finishOutput(e)
 
     }

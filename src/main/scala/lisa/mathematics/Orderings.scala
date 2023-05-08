@@ -32,7 +32,7 @@ object Orderings extends lisa.Main {
   private val q = variable
   private val f = variable
   private val g = variable
-  private val F = function(1)
+  private val F: SchematicFunctionLabel = function(1)
   private val G = function(2)
 
   private val P = predicate(1)

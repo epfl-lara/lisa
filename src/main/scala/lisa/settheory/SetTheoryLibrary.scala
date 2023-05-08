@@ -8,6 +8,8 @@ import lisa.prooflib.Library
  */
 object SetTheoryLibrary extends Library with SetTheoryTGAxioms {
   export lisa.prooflib.Exports.*
+
+export lisa.kernel.fol.FOL.*
   val theory: runningSetTheory.type = runningSetTheory
 
   // Unicode symbols

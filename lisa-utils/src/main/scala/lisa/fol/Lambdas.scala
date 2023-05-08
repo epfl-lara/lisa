@@ -7,32 +7,20 @@ trait Lambdas extends Common{
     assert(arity == bounds.length)
     private val seqBounds = bounds.toSeq
 
-    def app(args: T**N): R = body.substitute((bounds zip args.toSeq).toMap)
-/*
-    def substitute[S <: LisaObject[S]](v: SchematicLabel[S], arg: S): |->[T, R] = {
-      if (bound == v) this
-      else if/*arg.freeSymbols.contains bound*/ (false) {
-        val taken:Set[SchematicLabel[?]] = body.allSchematicLabels
-        val newBound:SchematicLabel[T] = bound.rename(lisa.utils.KernelHelpers.freshId(taken.map(_.id), bound.id))
-        val newBody = body.substitute(bound, newBound.lift)
-        LambdaExpression(newBound, newBody.substitute(v, arg))
-      } else {
-        LambdaExpression(bound, body.substitute(v, arg))
-      }
-    }
- */
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): LambdaExpression[T, R, N] = {
-      val newSubst = map -- seqBounds.asInstanceOf
+    def app(args: T**N): R = body.substituteUnsafe((bounds zip args.toSeq).toMap)
+
+    def substituteUnsafe(map: Map[SchematicLabel[_], _ <: LisaObject[_]]): LambdaExpression[T, R, N] = {
+      val newSubst = map -- seqBounds
       val conflict = map.values.flatMap(_.freeSchematicLabels).toSet.intersect(bounds.asInstanceOf)
       if (conflict.nonEmpty) {
         val taken = (map.values.flatMap(_.allSchematicLabels).map(_.id) ++ map.keys.map(_.id)).toList
         val newBounds = seqBounds.scanLeft[List[Identifier]](taken)((list, v: SchematicLabel[T]) =>
           freshId(list, v.id) :: list
         ).map(_.head).zip(seqBounds).map(v => v._2.rename(v._1))
-        val newBody = body.substitute(seqBounds.zip(newBounds.map(_.lift)).toMap)
-        LambdaExpression(newBounds, newBody.substitute(newSubst), arity)
+        val newBody = body.substituteUnsafe(seqBounds.zip(newBounds.map(_.lift)).toMap)
+        LambdaExpression(newBounds, newBody.substituteUnsafe(newSubst), arity)
       } else{
-        LambdaExpression(bounds, body.substitute(newSubst), arity)
+        LambdaExpression(bounds, body.substituteUnsafe(newSubst), arity)
       }
     }
 

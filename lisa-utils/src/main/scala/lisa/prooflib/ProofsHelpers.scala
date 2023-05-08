@@ -184,8 +184,7 @@ trait ProofsHelpers {
     def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM = {
       val thm = new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
       if (tk == Theorem) {
-        if (thm.withSorry) om.output(thm.repr, Console.YELLOW)
-        else om.output(thm.repr, Console.GREEN)
+        show(thm)
       }
       thm
     }
@@ -225,7 +224,8 @@ trait ProofsHelpers {
     val judgement = simpleDefinition(name.value, lambda)
     judgement match {
       case RunningTheoryJudgement.ValidJustification(just) =>
-        library.last = Some(just)
+        val DEFIN = DEFINITION(line.value, file.value, just)
+        library.last = Some(DEFIN)
         just.label
       case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
         if (!theory.belongsToTheory(lambda.body)) {
@@ -300,7 +300,8 @@ trait ProofsHelpers {
     val judgement = theory.functionDefinition(name.value, LambdaTermFormula(vars, f), out, pr, proven, Seq(just))
     judgement match {
       case RunningTheoryJudgement.ValidJustification(just) =>
-        library.last = Some(just)
+        val DEFIN = DEFINITION(line.value, file.value, just)
+        library.last = Some(DEFIN)
         just.label
       case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
         if (!theory.belongsToTheory(f)) {
@@ -341,7 +342,8 @@ trait ProofsHelpers {
     val judgement = simpleDefinition(name.value, lambda)
     judgement match {
       case RunningTheoryJudgement.ValidJustification(just) =>
-        library.last = Some(just)
+        val DEFIN = DEFINITION(line.value, file.value, just)
+        library.last = Some(DEFIN)
         just.label
       case wrongJudgement: RunningTheoryJudgement.InvalidJustification[?] =>
         if (!theory.belongsToTheory(lambda.body)) {

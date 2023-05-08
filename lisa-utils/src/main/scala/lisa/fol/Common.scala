@@ -1,7 +1,7 @@
 package lisa.fol
 
+import sourcecode.Text.generate
 import lisa.kernel.fol.FOL
-
 import scala.annotation.showAsInfix
 import scala.annotation.nowarn
 import scala.compiletime.ops.int.-
@@ -23,7 +23,8 @@ trait Common {
     @nowarn("msg=match may not be exhaustive")
     def toSeq: Seq[T] = self match {
       case l: Seq[T] => l
-      case tup: Tuple => tup.productIterator.toSeq.asInstanceOf
+      case tup: Tuple => 
+        tup.productIterator.toSeq.asInstanceOf[Seq[T]]
     }
     @nowarn("msg=checked at runtime")
     @nowarn("msg=match may not be exhaustive")
@@ -52,27 +53,29 @@ trait Common {
     def apply(subst:SubstitutionPair[?]*):Substitution = Map(subst.map(_.productIterator)*).asInstanceOf
   }*/
 
-  class SubstPair[S <: LisaObject[S]](v: SchematicLabel[S], arg: S)
+  class SubstPair(val _1: SchematicLabel[_], val _2: _1.SubstitutionType)
 
+  type Pair[A, T <: LisaObject[T]]<:(SchematicLabel[?], LisaObject[?]) = A match {
+    case (SchematicLabel[T], T) => (SchematicLabel[T], T)
+  }
+
+  //case class SubstPair[S <: LisaObject[S]](v: SchematicLabel[S], arg: S)
+  inline given trsubst[S <: LisaObject[S]]: Conversion[(SchematicLabel[S], S), SubstPair] = s => SubstPair(s._1, s._2)
 
   trait LisaObject[+T<: LisaObject[T]] {
     this: T =>
-    //this: (T & (Term | Formula | (|->[?, ?]))) =>
+      
     inline def lift:T & this.type = this
 
-
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]):T
-    def substitute[S <: LisaObject[S]](pairs: (SchematicLabel[S], S)*):T = substitute(Map(pairs*))
-    def substituteOne[S <: LisaObject[S]](v: SchematicLabel[S], arg: S):T = substitute(Map(v->arg))
-    //def substitute[S <: LisaObject[S]](v:S, arg:S):Option[T]
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):T
+    def substitute(pairs: SubstPair*):T = {
+      substituteUnsafe(Map(pairs.map(s => (s._1, (s._2: LisaObject[_])))*))
+    }
+    def substituteOne[S <: LisaObject[S]](v: SchematicLabel[S], arg: S):T = substituteUnsafe(Map(v->arg))
     def freeSchematicLabels:Set[SchematicLabel[?]]
     def allSchematicLabels:Set[SchematicLabel[?]]
   }
 
-  /*
-  extension[I, O <: LisaObject[O]] (lo: LisaObject[I |-> O]){
-    def apply(arg: I): O = lo.asInstanceOf[|->[I, O]].app(arg)
-  }*/
 
   sealed trait TermOrFormula extends LisaObject[TermOrFormula] {
   }
@@ -84,14 +87,17 @@ trait Common {
 
   }
 
-  trait Label[+A <: LisaObject[A]]{
+  trait Label[A <: LisaObject[A]]{
     this : A =>
     def id: FOL.Identifier
     def rename(newid: FOL.Identifier):Label[A]
   }
-  sealed trait SchematicLabel[+A <: LisaObject[A]] extends LisaObject[A] with Label[A]{
+  sealed trait SchematicLabel[A <: LisaObject[A]] extends LisaObject[A] with Label[A]{
     this : A =>
+    type SubstitutionType = A
     def rename(newid: FOL.Identifier):SchematicLabel[A]
+
+    def :=(replacement:A) = SubstPair(this, replacement)
 
     //infix def ->(arg:A): SubstPair[A] = SubstPair(this, arg)
   }
@@ -133,7 +139,7 @@ trait Common {
     val underlying = FOL.VariableTerm(underlyingLabel)
 
     @nowarn("msg=Unreachable")
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): Term = {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
       map.get(this.asInstanceOf) match {
         case Some(subst) => subst match {
           case s: Term => s
@@ -156,12 +162,12 @@ trait Common {
     val underlyingLabel: FOL.ConstantFunctionLabel = FOL.ConstantFunctionLabel(id, 0)
     val underlying = FOL.Term(underlyingLabel, Seq())
 
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]):Constant = this
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Constant = this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: FOL.Identifier):Constant = Constant(newid)
 
-    //def substitute[S <: Common.this.LisaObject[?], I <:Common.this.SchematicLabel[S]] (v: I, arg: S): LisaObject[Common.this.Term] = ???
+    //def substituteUnsafe[S <: Common.this.LisaObject[?], I <:Common.this.SchematicLabel[S]] (v: I, arg: S): LisaObject[Common.this.Term] = ???
   }
 
   //class Truc extends Constant(???) with LisaObject[Constant]
@@ -170,7 +176,7 @@ trait Common {
     val arity = valueOf[N]
     def id: FOL.Identifier
     val underlyingLabel: FOL.TermLabel
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): ((Term ** N) |-> Term)
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ((Term ** N) |-> Term)
 
     def app(args: Term ** N): AppliedTerm[N] = AppliedTerm[N](this, args.toSeq)
     def rename(newid: FOL.Identifier):FunctionalLabel[N]
@@ -183,7 +189,7 @@ trait Common {
     val underlyingLabel: FOL.SchematicFunctionLabel = FOL.SchematicFunctionLabel(id, arity)
 
     @nowarn
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): ((Term ** N) |-> Term) = {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ((Term ** N) |-> Term) = {
       map.get(this.asInstanceOf) match {
         case Some(subst) => subst match {
           case s: ((Term ** N) |-> Term) => s
@@ -198,7 +204,7 @@ trait Common {
 
   case class ConstantFunctionalLabel[N <: Arity : ValueOf](id: FOL.Identifier) extends FunctionalLabel[N] with ConstantLabel[((Term ** N) |-> Term)]{
     val underlyingLabel: FOL.ConstantFunctionLabel = FOL.ConstantFunctionLabel(id, arity)
-    inline def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): this.type =
+    inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
       this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
@@ -208,9 +214,9 @@ trait Common {
   case class AppliedTerm[N <: Arity : ValueOf](f: FunctionalLabel[N], args: Seq[Term]) extends Term with Absolute {
 
     override val underlying = FOL.Term(f.underlyingLabel, args.toSeq.map(_.underlying))
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]):Term = {
-      f.substitute(map)(
-        args.map[Term]((x:Term) => x.substitute(map))
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Term = {
+      f.substituteUnsafe(map)(
+        args.map[Term]((x:Term) => x.substituteUnsafe(map))
       )
     }
 
@@ -235,7 +241,7 @@ trait Common {
     val underlying = FOL.PredicateFormula(underlyingLabel, Seq())
 
     @nowarn("msg=Unreachable")
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): Formula = {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula = {
       map.get(this.asInstanceOf) match {
         case Some(subst) => subst match {
           case s: Formula => s
@@ -252,7 +258,7 @@ trait Common {
     val underlyingLabel: FOL.ConstantPredicateLabel = FOL.ConstantPredicateLabel(id, 0)
     val underlying = FOL.PredicateFormula(underlyingLabel, Seq())
 
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]):this.type = this
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):this.type = this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: FOL.Identifier):ConstantFormula = ConstantFormula(newid)
@@ -276,7 +282,7 @@ trait Common {
     val underlyingLabel: FOL.SchematicPredicateLabel = FOL.SchematicPredicateLabel(id, arity)
 
     @nowarn
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): |->[Term ** N, Formula]  = {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Term ** N, Formula]  = {
       map.get(this.asInstanceOf) match {
         case Some(subst) => subst match {
           case s: |->[Term ** N, Formula]  => s
@@ -292,7 +298,7 @@ trait Common {
 
   case class ConstantPredicateLabel[N <: Arity : ValueOf](id: FOL.Identifier) extends PredicateLabel[N] with ConstantLabel[Term ** N |->Formula]{
     val underlyingLabel: FOL.ConstantPredicateLabel = FOL.ConstantPredicateLabel(id, arity)
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): this.type =
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
       this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
@@ -301,8 +307,8 @@ trait Common {
 
   case class AppliedPredicate[N <: Arity : ValueOf](p: PredicateLabel[N], args: Seq[Term]) extends Formula with Absolute {
     override val underlying = p.interpreted(args)
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]):Formula =
-      p.substitute(map)(args.map[Term]((x:Term) => x.substitute(map)))
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula =
+      p.substituteUnsafe(map)(args.map[Term]((x:Term) => x.substituteUnsafe(map)))
 
     def freeSchematicLabels:Set[SchematicLabel[?]] = p.freeSchematicLabels ++ args.toSeq.flatMap(_.freeSchematicLabels)
     def allSchematicLabels:Set[SchematicLabel[?]] = p.allSchematicLabels ++ args.toSeq.flatMap(_.allSchematicLabels)
@@ -321,7 +327,7 @@ trait Common {
     def app(args: Formula ** N): AppliedConnector = AppliedConnector(this, args.toSeq)
     def rename(newid: FOL.Identifier):ConnectorLabel[N]
 
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): |->[Formula ** N, Formula]
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Formula ** N, Formula]
 
   }
 
@@ -329,7 +335,7 @@ trait Common {
     val underlyingLabel: FOL.SchematicConnectorLabel = FOL.SchematicConnectorLabel(id, arity)
 
     @nowarn
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): |->[Formula ** N, Formula] = {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Formula ** N, Formula] = {
       map.get(this.asInstanceOf) match {
         case Some(subst) => subst match {
           case s: |->[Formula ** N, Formula]  => s
@@ -346,7 +352,7 @@ trait Common {
   trait ConstantConnectorLabel[N <: Arity : ValueOf] extends ConnectorLabel[N] with ConstantLabel[Formula ** N |->Formula]{
     val underlyingLabel: FOL.ConstantConnectorLabel
     def id: FOL.Identifier = underlyingLabel.id
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): this.type = this
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: FOL.Identifier):ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")
@@ -356,11 +362,11 @@ trait Common {
   case class AppliedConnector(p: ConnectorLabel[?], args: Seq[Formula]) extends Formula with Absolute {
     assert(args.length == p.arity)
     override val underlying = p.interpreted(args)
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]):Formula = {
-      val p2 = p.substitute(map)
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula = {
+      val p2 = p.substituteUnsafe(map)
       p2 match {
-        case p2 : ConnectorLabel[?] => AppliedConnector(p2, args.map[Formula]((x:Formula) => x.substitute(map)))
-        case _ => p2(args.map[Formula]((x:Formula) => x.substitute(map)))
+        case p2 : ConnectorLabel[?] => AppliedConnector(p2, args.map[Formula]((x:Formula) => x.substituteUnsafe(map)))
+        case _ => p2(args.map[Formula]((x:Formula) => x.substituteUnsafe(map)))
       }
     }
 
@@ -380,7 +386,7 @@ trait Common {
     def app(arg: (Variable, Formula)): Formula = BaseQuantifiedFormula(this, arg._1, arg._2)
     inline def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     inline def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
-    inline def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): this.type = this
+    inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
 
   }
 
@@ -389,15 +395,15 @@ trait Common {
 
     def allSchematicLabels: Set[Common.this.SchematicLabel[?]] = body.allSchematicLabels+bound
     def freeSchematicLabels: Set[Common.this.SchematicLabel[?]] = body.freeSchematicLabels-bound
-    def substitute[S <: LisaObject[S]] (map: Map[SchematicLabel[S], S]): Formula = {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula = {
       val newSubst = map - bound.asInstanceOf
       if (map.values.flatMap(_.freeSchematicLabels).toSet.contains(bound)){
         val taken:Set[SchematicLabel[?]] = body.allSchematicLabels ++ map.keys
         val newBound:Variable = bound.rename(lisa.utils.KernelHelpers.freshId(taken.map(_.id), bound.id))
         val newBody = body.substituteOne(bound, newBound.lift)
-        BaseQuantifiedFormula(f, newBound, newBody.substitute(newSubst))
+        BaseQuantifiedFormula(f, newBound, newBody.substituteUnsafe(newSubst))
       } else {
-        BaseQuantifiedFormula(f, bound, body.substitute(newSubst))
+        BaseQuantifiedFormula(f, bound, body.substituteUnsafe(newSubst))
       }
     }
 

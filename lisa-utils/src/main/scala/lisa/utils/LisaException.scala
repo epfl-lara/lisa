@@ -12,7 +12,7 @@ abstract class LisaException(errorMessage: String)(using val line: sourcecode.Li
   def showError: String
 }
 
-import lisa.prooflib.TheoriesHelpers.{_, given}
+import lisa.utils.KernelHelpers.{_, given}
 
 import java.io.File
 object LisaException {

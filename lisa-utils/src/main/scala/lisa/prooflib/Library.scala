@@ -20,18 +20,17 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   given library: this.type = this
   given RunningTheory = theory
 
-  export lisa.kernel.fol.FOL.{Formula, *}
-  val SC: SequentCalculus.type = lisa.kernel.proof.SequentCalculus
+  val SC: SequentCalculus.type = K.SC
+
   export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
   export lisa.kernel.proof.SCProof
-  export lisa.prooflib.TheoriesHelpers.{_, given}
+  export lisa.utils.KernelHelpers.{_, given}
 
-  /**
-   * a type representing different types that have a natural representation as K.Sequent
-   */
+  export lisa.utils.K
+  export lisa.fol.FOL as F
 
-  var last: Option[theory.Justification] = None
 
+  var last: Option[DefOrThm] = None
 
 
   /**
@@ -45,7 +44,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   /**
    * Allows to create a definition by shortcut of a function symbol:
    */
-  def simpleDefinition(symbol: String, expression: LambdaTermTerm): K.Judgement[theory.FunctionDefinition] = {
+  def simpleDefinition(symbol: String, expression: K.LambdaTermTerm): K.Judgement[theory.FunctionDefinition] = {
+    import K.*
     val LambdaTermTerm(vars, body) = expression
 
     val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTermLabels.map(_.id)).toSet, "y"))
@@ -56,10 +56,11 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   /**
    * Allows to create a definition by shortcut of a predicate symbol:
    */
-  def simpleDefinition(symbol: String, expression: LambdaTermFormula): K.Judgement[theory.PredicateDefinition] =
+  def simpleDefinition(symbol: String, expression: K.LambdaTermFormula): K.Judgement[theory.PredicateDefinition] =
     theory.predicateDefinition(symbol, expression)
 
-  private def simpleFunctionDefinition(expression: LambdaTermTerm, out: VariableLabel): K.SCProof = {
+  private def simpleFunctionDefinition(expression: K.LambdaTermTerm, out: K.VariableLabel): K.SCProof = {
+    import K.{*, given}
     val x = out
     val LambdaTermTerm(vars, body) = expression
     val xeb = x === body
@@ -73,16 +74,21 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     K.SCProof(v)
   }
 
-  //////////////////////////////////////////
-  //      Tools for proof development     //
-  //////////////////////////////////////////
 
+  
+  /**
+   * Prints a short representation of the given theorem or definition
+   */
+  def show(using om: OutputManager)(thm: DefOrThm) = {
+    if (thm.withSorry) om.output(thm.repr, Console.YELLOW)
+    else om.output(thm.repr, Console.GREEN)
+  }
 
   /**
    * Prints a short representation of the last theorem or definition introduced
    */
-  def show(using om: OutputManager): theory.Justification = last match {
-    case Some(value) => value.show
+  def show(using om: OutputManager): Unit = last match {
+    case Some(value) => show(value)
     case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
   }
 

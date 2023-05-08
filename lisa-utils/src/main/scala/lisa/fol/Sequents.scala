@@ -12,7 +12,7 @@ trait Sequents extends Common {
 
     def allSchematicLabels: Set[SchematicLabel[?]] = left.flatMap(_.allSchematicLabels)
     def freeSchematicLabels: Set[SchematicLabel[?]] = left.flatMap(_.freeSchematicLabels)
-    def substitute[S <: LisaObject[S]](map: Map[SchematicLabel[S], S]): Sequent = Sequent(left.map(_.substitute(map)), right.map(_.substitute(map)))
+    def substituteUnsafe(map: Map[SchematicLabel[_], _ <: LisaObject[_]]): Sequent = Sequent(left.map(_.substituteUnsafe(map)), right.map(_.substituteUnsafe(map)))
 
     infix def +<<(f: Formula): Sequent = this.copy(left = this.left + f)
     infix def -<<(f: Formula): Sequent = this.copy(left = this.left - f)
