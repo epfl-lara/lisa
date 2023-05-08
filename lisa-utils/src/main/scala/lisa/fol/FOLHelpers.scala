@@ -3,6 +3,7 @@ package lisa.fol
 import lisa.fol.FOL.*
 import lisa.kernel.fol.FOL.Identifier
 import lisa.utils.LisaException
+import lisa.utils.K
 /*
 import lisa.kernel.proof.*
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
@@ -165,6 +166,32 @@ object FOLHelpers {
     }
   }
   given Conversion[Identifier, String] = _.toString
+
+
+
+  //////////////////////////////
+  //  Conversion From Kernel  //
+  //////////////////////////////
+  
+
+/*
+def termFromKernel(t:K.Term) =
+  t.label match {
+  case K.ConstantFunctionLabel(id, arity) => if (arity==0) Constant(id) else ConstantFunctionalLabel(id).apply(t.args.map(termFromKernel))
+  case lab: K.SchematicTermLabel => lab match {
+    case SchematicFunctionLabel(id, arity) => if (arity==0) Variable(id) else ConstantFunctionalLabel(id).apply(t.args.map(termFromKernel))
+    case VariableLabel(id) => ???
+  }
+}
+*/
+//args.map(termFromKernel)
+
+
+
+
+
+
+
 /*
 
 

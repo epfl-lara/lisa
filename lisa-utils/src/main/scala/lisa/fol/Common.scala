@@ -1,6 +1,5 @@
 package lisa.fol
 
-import sourcecode.Text.generate
 import lisa.kernel.fol.FOL
 import scala.annotation.showAsInfix
 import scala.annotation.nowarn
@@ -43,15 +42,6 @@ trait Common {
     withArity.arity == -1 || withArity.arity == args.size
 
 
-/*
-
-  case class SubstitutionPair[S <: LisaObject[S]](from:SchematicLabel[S], to:S)
-  given[S <: LisaObject[S]]: Conversion[(SchematicLabel[S], S), SubstitutionPair[S]] = p => SubstitutionPair[S](p._1, p._2)
-  trait Substitution extends Map[SchematicLabel[LisaObject[?]], LisaObject[?]] {
-  }
-  object Substitution {
-    def apply(subst:SubstitutionPair[?]*):Substitution = Map(subst.map(_.productIterator)*).asInstanceOf
-  }*/
 
   class SubstPair(val _1: SchematicLabel[_], val _2: _1.SubstitutionType)
 
@@ -172,8 +162,7 @@ trait Common {
 
   //class Truc extends Constant(???) with LisaObject[Constant]
 
-  sealed trait FunctionalLabel[N <: Arity : ValueOf] extends ((Term ** N) |-> Term) with WithArity[N] with Absolute {
-    val arity = valueOf[N]
+  sealed trait FunctionalLabel[N <: Arity] extends ((Term ** N) |-> Term) with WithArity[N] with Absolute {
     def id: FOL.Identifier
     val underlyingLabel: FOL.TermLabel
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ((Term ** N) |-> Term)
@@ -185,7 +174,7 @@ trait Common {
 
 
 
-  case class SchematicFunctionalLabel[N <: Arity : ValueOf](id: FOL.Identifier) extends FunctionalLabel[N] with SchematicLabel[(Term ** N) |-> Term]{
+  case class SchematicFunctionalLabel[N <: Arity](id: FOL.Identifier) extends FunctionalLabel[N] with SchematicLabel[(Term ** N) |-> Term]{
     val underlyingLabel: FOL.SchematicFunctionLabel = FOL.SchematicFunctionLabel(id, arity)
 
     @nowarn
@@ -202,7 +191,7 @@ trait Common {
     def rename(newid: FOL.Identifier):SchematicFunctionalLabel[N] = SchematicFunctionalLabel(newid)
   }
 
-  case class ConstantFunctionalLabel[N <: Arity : ValueOf](id: FOL.Identifier) extends FunctionalLabel[N] with ConstantLabel[((Term ** N) |-> Term)]{
+  case class ConstantFunctionalLabel[N <: Arity](id: FOL.Identifier) extends FunctionalLabel[N] with ConstantLabel[((Term ** N) |-> Term)]{
     val underlyingLabel: FOL.ConstantFunctionLabel = FOL.ConstantFunctionLabel(id, arity)
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
       this
@@ -211,7 +200,7 @@ trait Common {
     def rename(newid: FOL.Identifier):ConstantFunctionalLabel[N] = ConstantFunctionalLabel(newid)
   }
 
-  case class AppliedTerm[N <: Arity : ValueOf](f: FunctionalLabel[N], args: Seq[Term]) extends Term with Absolute {
+  case class AppliedTerm[N <: Arity](f: FunctionalLabel[N], args: Seq[Term]) extends Term with Absolute {
 
     override val underlying = FOL.Term(f.underlyingLabel, args.toSeq.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Term = {
@@ -264,7 +253,7 @@ trait Common {
     def rename(newid: FOL.Identifier):ConstantFormula = ConstantFormula(newid)
   }
 
-  sealed trait PredicateLabel[N <: Arity : ValueOf] extends |->[Term ** N, Formula] with WithArity[N] with Absolute {
+  sealed trait PredicateLabel[N <: Arity] extends |->[Term ** N, Formula] with WithArity[N] with Absolute {
     val arity = valueOf[N]
     def id: FOL.Identifier
     val underlyingLabel: FOL.PredicateLabel // | FOL.LambdaFormulaFormula
@@ -278,7 +267,7 @@ trait Common {
     def rename(newid: FOL.Identifier):PredicateLabel[N]
   }
 
-  case class SchematicPredicateLabel[N <: Arity : ValueOf](id: FOL.Identifier) extends PredicateLabel[N] with SchematicLabel[Term ** N |->Formula]{
+  case class SchematicPredicateLabel[N <: Arity](id: FOL.Identifier) extends PredicateLabel[N] with SchematicLabel[Term ** N |->Formula]{
     val underlyingLabel: FOL.SchematicPredicateLabel = FOL.SchematicPredicateLabel(id, arity)
 
     @nowarn
@@ -296,7 +285,7 @@ trait Common {
 
   }
 
-  case class ConstantPredicateLabel[N <: Arity : ValueOf](id: FOL.Identifier) extends PredicateLabel[N] with ConstantLabel[Term ** N |->Formula]{
+  case class ConstantPredicateLabel[N <: Arity](id: FOL.Identifier) extends PredicateLabel[N] with ConstantLabel[Term ** N |->Formula]{
     val underlyingLabel: FOL.ConstantPredicateLabel = FOL.ConstantPredicateLabel(id, arity)
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
       this
@@ -305,7 +294,7 @@ trait Common {
     def rename(newid: FOL.Identifier):ConstantPredicateLabel[N] = ConstantPredicateLabel(newid)
   }
 
-  case class AppliedPredicate[N <: Arity : ValueOf](p: PredicateLabel[N], args: Seq[Term]) extends Formula with Absolute {
+  case class AppliedPredicate[N <: Arity](p: PredicateLabel[N], args: Seq[Term]) extends Formula with Absolute {
     override val underlying = p.interpreted(args)
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula =
       p.substituteUnsafe(map)(args.map[Term]((x:Term) => x.substituteUnsafe(map)))
@@ -316,7 +305,7 @@ trait Common {
   }
 
 
-  sealed trait ConnectorLabel[N <: Arity : ValueOf] extends |->[Formula ** N, Formula] with WithArity[N] with Absolute with Label[(Formula**N) |-> Formula] {
+  sealed trait ConnectorLabel[N <: Arity] extends |->[Formula ** N, Formula] with WithArity[N] with Absolute with Label[(Formula**N) |-> Formula] {
     val arity = valueOf[N]
     def id: FOL.Identifier
     val underlyingLabel: FOL.ConnectorLabel // | FOL.LambdaFormulaFormula
@@ -331,7 +320,7 @@ trait Common {
 
   }
 
-  case class SchematicConnectorLabel[N <: Arity : ValueOf](id: FOL.Identifier) extends ConnectorLabel[N] with SchematicLabel[Formula ** N |->Formula]{
+  case class SchematicConnectorLabel[N <: Arity](id: FOL.Identifier) extends ConnectorLabel[N] with SchematicLabel[Formula ** N |->Formula]{
     val underlyingLabel: FOL.SchematicConnectorLabel = FOL.SchematicConnectorLabel(id, arity)
 
     @nowarn
@@ -349,7 +338,7 @@ trait Common {
 
   }
 
-  trait ConstantConnectorLabel[N <: Arity : ValueOf] extends ConnectorLabel[N] with ConstantLabel[Formula ** N |->Formula]{
+  trait ConstantConnectorLabel[N <: Arity] extends ConnectorLabel[N] with ConstantLabel[Formula ** N |->Formula]{
     val underlyingLabel: FOL.ConstantConnectorLabel
     def id: FOL.Identifier = underlyingLabel.id
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
