@@ -334,10 +334,13 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftForall extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable, t: F.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable, t: F.Term|K.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlyingLabel
-      lazy val tK = t.underlying
+      lazy val tK = t match {
+              case t:F.Term => t.underlying
+              case t:K.Term => t
+            } 
       lazy val phiK = phi.underlying
       lazy val botK = bot.underlying
       lazy val quantified = K.BinderFormula(K.Forall, xK, phiK)
@@ -412,9 +415,9 @@ object BasicStepTactic {
 
         quantifiedPhi match {
           case Some(F.BaseQuantifiedFormula(F.Forall, x, phi)) => 
-            LeftForall.withParameters(phi, x, ???
-             /*FirstOrderUnifier.matchFormula(
-              phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil))*/
+            LeftForall.withParameters(phi, x, 
+              FirstOrderUnifier.matchFormula(
+              phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil))
              )(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
         }
@@ -828,10 +831,13 @@ object BasicStepTactic {
    * </pre>
    */
   object RightExists extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable, t: F.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable, t: F.Term|K.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlyingLabel
-      lazy val tK = t.underlying
+      lazy val tK = t match {
+        case t:F.Term => t.underlying
+        case t:K.Term => t
+      } 
       lazy val phiK = phi.underlying
       lazy val botK = bot.underlying
       lazy val quantified = K.BinderFormula(K.Exists, xK, phiK)
@@ -907,8 +913,7 @@ object BasicStepTactic {
         quantifiedPhi match {
           case Some(F.BaseQuantifiedFormula(F.Exists, x, phi)) => 
             RightExists.withParameters(phi, x, 
-              ???
-              //FirstOrderUnifier.matchFormula(phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil))
+              FirstOrderUnifier.matchFormula(phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil))
             )(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
@@ -1124,11 +1129,17 @@ object BasicStepTactic {
       equals: List[(F.Term, F.Term)], lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
       )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
 
+      lazy val lambdaPhiK = F.underlyingLTF(lambdaPhi)
+      apply2(equals, lambdaPhiK)(premise)(bot)
+    }
+    def apply2(using lib: Library, proof: lib.Proof)(
+      equals: List[(F.Term, F.Term)], lambdaPhiK: K.LambdaTermFormula
+      )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
       lazy val equalsK = equals.map((p: (F.Term, F.Term)) => (p._1.underlying, p._2.underlying))
 
-      lazy val lambdaPhiK = F.underlyingLTF(lambdaPhi)
       lazy val (s_es, t_es) = equalsK.unzip
       lazy val phi_s = lambdaPhiK(s_es)
       lazy val phi_t = lambdaPhiK(t_es)
@@ -1156,7 +1167,7 @@ object BasicStepTactic {
       if (canReach.isEmpty)
         proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
       else
-        RightSubstEq(equalities.toList, /*canReach.get*/ ???)(premise)(bot)
+        RightSubstEq.apply2(equalities.toList, canReach.get)(premise)(bot)
     }
   }
 
