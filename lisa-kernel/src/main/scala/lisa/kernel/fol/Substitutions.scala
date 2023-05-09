@@ -10,7 +10,7 @@ trait Substitutions extends FormulaDefinitions {
    * @param body The term represented by the object, up to instantiation of the bound schematic variables in args.
    */
   case class LambdaTermTerm(vars: Seq[VariableLabel], body: Term) {
-    def apply(args: Seq[Term]): Term = substituteVariables(body, (vars zip args).toMap)
+    def apply(args: Seq[Term]): Term = substituteVariablesInTerm(body, (vars zip args).toMap)
   }
 
   /**
@@ -22,7 +22,7 @@ trait Substitutions extends FormulaDefinitions {
    */
   case class LambdaTermFormula(vars: Seq[VariableLabel], body: Formula) {
     def apply(args: Seq[Term]): Formula = {
-      substituteVariables(body, (vars zip args).toMap)
+      substituteVariablesInFormula(body, (vars zip args).toMap)
     }
   }
 
@@ -50,9 +50,9 @@ trait Substitutions extends FormulaDefinitions {
    * @param m A map from variables to terms.
    * @return t[m]
    */
-  def substituteVariables(t: Term, m: Map[VariableLabel, Term]): Term = t match {
+  def substituteVariablesInTerm(t: Term, m: Map[VariableLabel, Term]): Term = t match {
     case Term(label: VariableLabel, _) => m.getOrElse(label, t)
-    case Term(label, args) => Term(label, args.map(substituteVariables(_, m)))
+    case Term(label, args) => Term(label, args.map(substituteVariablesInTerm(_, m)))
   }
 
   /**
@@ -62,12 +62,12 @@ trait Substitutions extends FormulaDefinitions {
    * @param m The map from schematic function symbols to lambda expressions Term(s) -> Term [[LambdaTermTerm]].
    * @return t[m]
    */
-  def instantiateTermSchemas(t: Term, m: Map[SchematicTermLabel, LambdaTermTerm]): Term = {
+  def instantiateTermSchemasInTerm(t: Term, m: Map[SchematicTermLabel, LambdaTermTerm]): Term = {
     require(m.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     t match {
       case Term(label: VariableLabel, _) => m.get(label).map(_.apply(Nil)).getOrElse(t)
       case Term(label, args) =>
-        val newArgs = args.map(instantiateTermSchemas(_, m))
+        val newArgs = args.map(instantiateTermSchemasInTerm(_, m))
         label match {
           case label: ConstantFunctionLabel => Term(label, newArgs)
           case label: SchematicTermLabel =>
@@ -87,18 +87,18 @@ trait Substitutions extends FormulaDefinitions {
    * @param m A map from variables to terms
    * @return t[m]
    */
-  def substituteVariables(phi: Formula, m: Map[VariableLabel, Term], takenIds: Seq[Identifier] = Seq[Identifier]()): Formula = phi match {
-    case PredicateFormula(label, args) => PredicateFormula(label, args.map(substituteVariables(_, m)))
-    case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteVariables(_, m)))
+  def substituteVariablesInFormula(phi: Formula, m: Map[VariableLabel, Term], takenIds: Seq[Identifier] = Seq[Identifier]()): Formula = phi match {
+    case PredicateFormula(label, args) => PredicateFormula(label, args.map(substituteVariablesInTerm(_, m)))
+    case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteVariablesInFormula(_, m)))
     case BinderFormula(label, bound, inner) =>
       val newSubst = m - bound
       val newTaken = takenIds :+ bound.id
       val fv = m.values.flatMap(_.freeVariables).toSet
       if (fv.contains(bound)) {
         val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ m.keys.map(_.id) ++ newTaken, bound.name))
-        val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)), newTaken)
-        BinderFormula(label, newBoundVariable, substituteVariables(newInner, newSubst, newTaken))
-      } else BinderFormula(label, bound, substituteVariables(inner, newSubst, newTaken))
+        val newInner = substituteVariablesInFormula(inner, Map(bound -> VariableTerm(newBoundVariable)), newTaken)
+        BinderFormula(label, newBoundVariable, substituteVariablesInFormula(newInner, newSubst, newTaken))
+      } else BinderFormula(label, bound, substituteVariablesInFormula(inner, newSubst, newTaken))
   }
 
   /**
@@ -117,7 +117,7 @@ trait Substitutions extends FormulaDefinitions {
       val newTaken = takenIds :+ bound.id
       if (fv.contains(bound)) {
         val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ newTaken, bound.name))
-        val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)), newTaken)
+        val newInner = substituteVariablesInFormula(inner, Map(bound -> VariableTerm(newBoundVariable)), newTaken)
         BinderFormula(label, newBoundVariable, substituteFormulaVariables(newInner, m, newTaken))
       } else BinderFormula(label, bound, substituteFormulaVariables(inner, m, newTaken))
   }
@@ -132,14 +132,14 @@ trait Substitutions extends FormulaDefinitions {
   def instantiateTermSchemas(phi: Formula, m: Map[SchematicTermLabel, LambdaTermTerm]): Formula = {
     require(m.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case PredicateFormula(label, args) => PredicateFormula(label, args.map(a => instantiateTermSchemas(a, m)))
+      case PredicateFormula(label, args) => PredicateFormula(label, args.map(a => instantiateTermSchemasInTerm(a, m)))
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiateTermSchemas(_, m)))
       case BinderFormula(label, bound, inner) =>
         val newSubst = m - bound
         val fv: Set[VariableLabel] = newSubst.flatMap { case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }.toSet
         if (fv.contains(bound)) {
           val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ m.keys.map(_.id), bound.name))
-          val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
+          val newInner = substituteVariablesInFormula(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiateTermSchemas(newInner, newSubst))
         } else BinderFormula(label, bound, instantiateTermSchemas(inner, newSubst))
     }
@@ -165,7 +165,7 @@ trait Substitutions extends FormulaDefinitions {
         val fv: Set[VariableLabel] = (m.flatMap { case (symbol, LambdaTermFormula(arguments, body)) => body.freeVariables }).toSet
         if (fv.contains(bound)) {
           val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
-          val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
+          val newInner = substituteVariablesInFormula(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiatePredicateSchemas(newInner, m))
         } else BinderFormula(label, bound, instantiatePredicateSchemas(inner, m))
     }
@@ -192,7 +192,7 @@ trait Substitutions extends FormulaDefinitions {
         val fv: Set[VariableLabel] = (m.flatMap { case (symbol, LambdaFormulaFormula(arguments, body)) => body.freeVariables }).toSet
         if (fv.contains(bound)) {
           val newBoundVariable = VariableLabel(freshId(fv.map(_.name), bound.name))
-          val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
+          val newInner = substituteVariablesInFormula(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiateConnectorSchemas(newInner, m))
         } else BinderFormula(label, bound, instantiateConnectorSchemas(inner, m))
     }
@@ -216,7 +216,7 @@ trait Substitutions extends FormulaDefinitions {
     require(mTerm.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     phi match {
       case PredicateFormula(label, args) =>
-        val newArgs = args.map(a => instantiateTermSchemas(a, mTerm))
+        val newArgs = args.map(a => instantiateTermSchemasInTerm(a, mTerm))
         label match {
           case label: SchematicVarOrPredLabel if mPred.contains(label) => mPred(label)(newArgs)
           case _ => PredicateFormula(label, newArgs)
@@ -235,7 +235,7 @@ trait Substitutions extends FormulaDefinitions {
             (mTerm.flatMap { case (symbol, LambdaTermTerm(arguments, body)) => body.freeVariables }).toSet
         if (fv.contains(bound)) {
           val newBoundVariable = VariableLabel(freshId(fv.map(_.name) ++ mTerm.keys.map(_.id), bound.name))
-          val newInner = substituteVariables(inner, Map(bound -> VariableTerm(newBoundVariable)))
+          val newInner = substituteVariablesInFormula(inner, Map(bound -> VariableTerm(newBoundVariable)))
           BinderFormula(label, newBoundVariable, instantiateSchemas(newInner, mCon, mPred, newmTerm))
         } else BinderFormula(label, bound, instantiateSchemas(inner, mCon, mPred, newmTerm))
     }

@@ -30,7 +30,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   export lisa.fol.FOL as F
 
 
-  var last: Option[DefOrThm] = None
+  var last: Option[Justification] = None
 
 
   /**
@@ -79,7 +79,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   /**
    * Prints a short representation of the given theorem or definition
    */
-  def show(using om: OutputManager)(thm: DefOrThm) = {
+  def show(using om: OutputManager)(thm: Justification) = {
     if (thm.withSorry) om.output(thm.repr, Console.YELLOW)
     else om.output(thm.repr, Console.GREEN)
   }

@@ -4,7 +4,7 @@ import lisa.utils.K
 
 trait Predef extends Common{
 
-  val equality: ConstantPredicateLabel[2] = ConstantPredicateLabel[2](K.Identifier("="))
+  val equality: ConstantPredicateLabel[2] = ConstantPredicateLabel[2](K.Identifier("="), 2)
   val === = equality
   val ＝ = equality
 
@@ -22,24 +22,24 @@ trait Predef extends Common{
   val ⊥ = bot
   val False = bot
 
-  case object Neg extends ConstantConnectorLabel[1] {val underlyingLabel = K.Neg}
+  case object Neg extends ConstantConnectorLabel[1] {val underlyingLabel = K.Neg; val arity = 1}
   val neg = Neg
   val ¬ = Neg
   val ! = Neg
 
-  case object And extends ConstantConnectorLabel[-1]{val underlyingLabel = K.And}
+  case object And extends ConstantConnectorLabel[-1]{val underlyingLabel = K.And; val arity = -1}
   val and = And
   val /\ = And
 
-  case object Or extends ConstantConnectorLabel[-1]{val underlyingLabel = K.Or}
+  case object Or extends ConstantConnectorLabel[-1]{val underlyingLabel = K.Or; val arity = -1}
   val or = Or
   val \/ = Or
 
-  case object Implies extends ConstantConnectorLabel[2]{val underlyingLabel = K.Implies}
+  case object Implies extends ConstantConnectorLabel[2]{val underlyingLabel = K.Implies; val arity = 2}
   val implies = Implies
   val ==> = Implies
 
-  case object Iff extends ConstantConnectorLabel[2]{val underlyingLabel = K.Iff}
+  case object Iff extends ConstantConnectorLabel[2]{val underlyingLabel = K.Iff; val arity = 2}
   val iff = Iff
   val <=> = Iff
 

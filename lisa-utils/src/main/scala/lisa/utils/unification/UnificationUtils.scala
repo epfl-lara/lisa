@@ -69,8 +69,8 @@ object UnificationUtils {
           second match {
             case BinderFormula(l2, x2: VariableLabel, inner2) => {
               val newx = VariableLabel(freshId(takenIds, x1.id))
-              val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
-              val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
+              val newInner1 = substituteVariablesInFormula(inner1, Map[VariableLabel, Term](x1 -> newx))
+              val newInner2 = substituteVariablesInFormula(inner2, Map[VariableLabel, Term](x2 -> newx))
 
               val innerRes = canReachOneStepTerm2(newInner1, newInner2, subst, takenIds + newx.id)
 
@@ -166,8 +166,8 @@ object UnificationUtils {
           second match {
             case BinderFormula(l2, x2: VariableLabel, inner2) => {
               val newx = VariableLabel(freshId(takenIds, x1.id))
-              val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
-              val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
+              val newInner1 = substituteVariablesInFormula(inner1, Map[VariableLabel, Term](x1 -> newx))
+              val newInner2 = substituteVariablesInFormula(inner2, Map[VariableLabel, Term](x2 -> newx))
 
               val innerRes = canReachOneStepOLFormula2(newInner1, newInner2, subst, takenIds + newx.id)
 
@@ -236,7 +236,7 @@ object UnificationUtils {
       case ConnectorFormula(l, arg) => ConnectorFormula(l, arg.map(rewriteOneStepTermInFormula(_, subst, freeVarsInner)))
       case BinderFormula(l, x: VariableLabel, inner) => {
         val newx = VariableLabel(freshId(freeVarsInner.get, x.id))
-        val newInner = substituteVariables(inner, Map[VariableLabel, Term](x -> newx))
+        val newInner = substituteVariablesInFormula(inner, Map[VariableLabel, Term](x -> newx))
 
         BinderFormula(l, newx, rewriteOneStepTermInFormula(newInner, subst, Some(freeVarsInner.get + newx.id)))
       }
@@ -262,7 +262,7 @@ object UnificationUtils {
         case ConnectorFormula(l, arg) => ConnectorFormula(l, arg.map(rewriteOneStepOLFormulaInFormula(_, subst, freeVarsInner)))
         case BinderFormula(l, x: VariableLabel, inner) => {
           val newx = VariableLabel(freshId(freeVarsInner.get, x.id))
-          val newInner = substituteVariables(inner, Map[VariableLabel, Term](x -> newx))
+          val newInner = substituteVariablesInFormula(inner, Map[VariableLabel, Term](x -> newx))
 
           BinderFormula(l, newx, rewriteOneStepOLFormulaInFormula(newInner, subst, Some(freeVarsInner.get + newx.id)))
         }
@@ -285,7 +285,7 @@ object UnificationUtils {
         case ConnectorFormula(l1, arg1) => ConnectorFormula(l1, arg1.map(getContextOneStepFormula2(_, formSubst, termSubst, takenIds)))
         case BinderFormula(l1, x1: VariableLabel, inner1) => {
           val newx = VariableLabel(freshId(takenIds, x1.id))
-          val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
+          val newInner1 = substituteVariablesInFormula(inner1, Map[VariableLabel, Term](x1 -> newx))
 
           BinderFormula(l1, newx, getContextOneStepFormula2(newInner1, formSubst, termSubst, takenIds + newx.id))
         }
@@ -355,8 +355,8 @@ object UnificationUtils {
           second match {
             case BinderFormula(l2, x2: VariableLabel, inner2) => {
               val newx = VariableLabel(freshId(takenIds, x1.id))
-              val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newx))
-              val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newx))
+              val newInner1 = substituteVariablesInFormula(inner1, Map[VariableLabel, Term](x1 -> newx))
+              val newInner2 = substituteVariablesInFormula(inner2, Map[VariableLabel, Term](x2 -> newx))
 
               val innerRes = canReachOneStep2(newInner1, newInner2, formSubst, termSubst, takenIds + newx.id)
 

@@ -44,7 +44,7 @@ class SubstitutionTest extends AnyFunSuite {
     case class $(t: Term, m: (SchematicTermLabel, LambdaTermTerm)*)
     extension (c: $) {
       inline infix def _VS_(t2: Term): Assertion = {
-        assert(instantiateTermSchemas(c.t, c.m.toMap) == t2, "\n - " + prettyTerm(instantiateTermSchemas(c.t, c.m.toMap)) + " didn't match " + prettyTerm(t2))
+        assert(instantiateTermSchemasInTerm(c.t, c.m.toMap) == t2, "\n - " + prettyTerm(instantiateTermSchemasInTerm(c.t, c.m.toMap)) + " didn't match " + prettyTerm(t2))
       }
     }
 

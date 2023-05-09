@@ -15,7 +15,7 @@ import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printer
 
 object SimpleDeducedSteps {
-
+/*
   object Restate extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement =
       unwrapTactic(RewriteTrue(bot))("Attempted true rewrite during tactic Restate failed.")
@@ -323,5 +323,5 @@ object SimpleDeducedSteps {
       }
     }
   }
-
+*/
 }

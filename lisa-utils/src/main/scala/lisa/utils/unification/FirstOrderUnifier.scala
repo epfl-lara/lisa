@@ -35,8 +35,8 @@ object FirstOrderUnifier {
 
           // add a safety substitution to make sure bound variable isn't substituted, and check instantiated bodies
           val innerSubst = matchFormula(
-            substituteVariables(i1, Map[VariableLabel, Term](b1 -> t)),
-            substituteVariables(i2, Map[VariableLabel, Term](b2 -> t)),
+            substituteVariablesInFormula(i1, Map[VariableLabel, Term](b1 -> t)),
+            substituteVariablesInFormula(i2, Map[VariableLabel, Term](b2 -> t)),
             Some((subst.get._1, subst.get._2 + ((t -> t): (VariableLabel, Term))))
           )
 
@@ -124,8 +124,8 @@ object FirstOrderUnifier {
 
           // add a safety substitution to make sure bound variable isn't substituted, and check instantiated bodies
           val innerSubst = unifyFormula(
-            substituteVariables(i1, Map[VariableLabel, Term](b1 -> t)),
-            substituteVariables(i2, Map[VariableLabel, Term](b2 -> t)),
+            substituteVariablesInFormula(i1, Map[VariableLabel, Term](b1 -> t)),
+            substituteVariablesInFormula(i2, Map[VariableLabel, Term](b2 -> t)),
             Some((subst.get._1, subst.get._2 + ((t -> t): (VariableLabel, Term))))
           )
 

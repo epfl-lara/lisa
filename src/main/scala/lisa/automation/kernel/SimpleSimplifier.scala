@@ -50,7 +50,7 @@ object SimpleSimplifier {
           else (BinderFormula(label, bound, induct._1), true)
         } else {
           val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
-          val newInner = substituteVariables(inner, Map(bound -> newv()))
+          val newInner = substituteVariablesInFormula(inner, Map(bound -> newv()))
           val induct = findSubterm2(newInner, subs)
           if (!induct._2) (f, false)
           else (BinderFormula(label, newv, induct._1), true)
@@ -77,7 +77,7 @@ object SimpleSimplifier {
             else (BinderFormula(label, bound, induct._1), true)
           } else {
             val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
-            val newInner = substituteVariables(inner, Map(bound -> newv()))
+            val newInner = substituteVariablesInFormula(inner, Map(bound -> newv()))
             val induct = findSubformula2(newInner, subs)
             if (!induct._2) (f, false)
             else (BinderFormula(label, newv, induct._1), true)
@@ -461,7 +461,7 @@ object SimpleSimplifier {
             }
 
             if (!leftLambdas.isEmpty) {
-              val leftIffLambdas = leftLambdas.map(f => lambda(f._1.toSeq, substituteVariables(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
+              val leftIffLambdas = leftLambdas.map(f => lambda(f._1.toSeq, substituteVariablesInFormula(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
 
               // substitute and set a new premise for next step
               premiseWithSubst = leftIffLambdas.foldLeft(premiseWithSubst) {
@@ -474,7 +474,7 @@ object SimpleSimplifier {
               }
             }
             if (!rightLambdas.isEmpty) {
-              val rightIffLambdas = rightLambdas.map(f => lambda(f._1.toSeq, substituteVariables(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
+              val rightIffLambdas = rightLambdas.map(f => lambda(f._1.toSeq, substituteVariablesInFormula(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
 
               // substitute and set a new premise for next step
               premiseWithSubst = rightIffLambdas.foldLeft(premiseWithSubst) {
@@ -605,7 +605,7 @@ object SimpleSimplifier {
         }
 
         if (!leftLambdas.isEmpty) {
-          val leftIffLambdas = leftLambdas.map(f => lambda(f._1.toSeq, substituteVariables(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
+          val leftIffLambdas = leftLambdas.map(f => lambda(f._1.toSeq, substituteVariablesInTerm(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
 
           // substitute and set a new premise for next step
           premiseWithSubst = leftIffLambdas.foldLeft(premiseWithSubst) {
@@ -618,7 +618,7 @@ object SimpleSimplifier {
           }
         }
         if (!rightLambdas.isEmpty) {
-          val rightIffLambdas = rightLambdas.map(f => lambda(f._1.toSeq, substituteVariables(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
+          val rightIffLambdas = rightLambdas.map(f => lambda(f._1.toSeq, substituteVariablesInTerm(f._3, ((f._2: Seq[VariableLabel]) zip eqs.map(_._2)).toMap)))
 
           // substitute and set a new premise for next step
           premiseWithSubst = rightIffLambdas.foldLeft(premiseWithSubst) {

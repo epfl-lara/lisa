@@ -284,7 +284,7 @@ object KernelHelpers {
   def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
   def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
 
-  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
+  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariablesInFormula(f.inner, Map(f.bound -> t))
 
   // declare symbols easily: "val x = variable;"
   def variable(using name: sourcecode.Name): VariableLabel = VariableLabel(name.value)

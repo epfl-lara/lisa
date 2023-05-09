@@ -33,9 +33,7 @@ trait WithTheorems {
     ) {
       val baseFormula: F.Sequent = sequentOfFact(fact)
       val result: F.Sequent = baseFormula.substitute(insts*)
-      val instsConn: Map[F.SchematicConnectorLabel[?], F.LambdaExpression[F.Formula, F.Formula, ?]]
-      val instsPred: Map[F.SchematicPredicateLabel[?]|F.VariableFormula, F.LambdaExpression[F.Term, F.Formula, ?]]
-      val instsTerm: Map[F.SchematicFunctionalLabel[?]|F.Variable, F.LambdaExpression[F.Term, F.Term, ?]]
+
     }
 
     val library: WithTheorems.this.type = WithTheorems.this
@@ -49,7 +47,7 @@ trait WithTheorems {
     def owningTheorem: THM
 
     case class ProofStep private (judgement: ValidProofTactic, scps: K.SCProofStep, position: Int) {
-      def bot: F.Sequent = ??? //TODO
+      val bot: F.Sequent = judgement.bot
       def innerBot: K.Sequent = scps.bot
       val host: Proof.this.type = Proof.this
 
@@ -77,9 +75,12 @@ trait WithTheorems {
     }
 
     private def addInstantiatedFact(instFact: InstantiatedFact): Unit = {
-      val (_, i) = sequentAndIntOfFact(instFact.fact)
+      val (s, i) = sequentAndIntOfFact(instFact.fact)
       //newProofStep(BasicStepTactic.InstSchema(using library, this)(instFact.instsConn, instFact.instsPred, instFact.instsTerm)(i).asInstanceOf[ValidProofTactic])
-      newProofStep(BasicStepTactic.InstSchema(using library, this)(instFact.insts)(i).asInstanceOf[ValidProofTactic])
+      //newProofStep(BasicStepTactic.InstSchema(using library, this)(instFact.insts)(i).asInstanceOf[ValidProofTactic])
+      val instMap = Map(instFact.insts.map(s => (s._1, (s._2.asInstanceOf: F.LisaObject[_])))*)
+      val instStep = s.substituteWithProof(using library, this)(instMap)(i).asInstanceOf[ValidProofTactic]
+      newProofStep(instStep)
       instantiatedFacts = (instFact, steps.length - 1) :: instantiatedFacts
     }
 
@@ -191,7 +192,7 @@ trait WithTheorems {
 
     def lockedSymbols: Set[F.SchematicLabel[?]] = assumptions.toSet.flatMap(f => f.freeSchematicLabels.toSet)
 
-    def asOutsideFact(j: theory.Justification): OutsideFact
+    def asOutsideFact(j: Justification): OutsideFact
 
     @nowarn("msg=.*It would fail on pattern case: _: InnerProof.*")
     def depth: Int = this match {
@@ -199,11 +200,12 @@ trait WithTheorems {
       case _: BaseProof => 0
     }
 
+    def newInnerProof(possibleGoal: Option[F.Sequent]) = new InnerProof(possibleGoal)
     final class InnerProof(val possibleGoal: Option[F.Sequent]) extends Proof(this.getAssumptions) {
       val parent: Proof.this.type = Proof.this
       val owningTheorem: THM = parent.owningTheorem
       type OutsideFact = parent.Fact
-      override inline def asOutsideFact(j: theory.Justification): OutsideFact = parent.asOutsideFact(j)
+      override inline def asOutsideFact(j: Justification): OutsideFact = parent.asOutsideFact(j)
 
       override def sequentOfOutsideFact(of: parent.Fact): F.Sequent = of match {
         case j: Justification => j.statement
@@ -224,7 +226,7 @@ trait WithTheorems {
        * Returns true if and only if the judgement is valid.
        */
       def isValid: Boolean = this match {
-        case ValidProofTactic(_, _) => true
+        case ValidProofTactic(_, _, _) => true
         case InvalidProofTactic(_) => false
       }
 
@@ -242,7 +244,7 @@ trait WithTheorems {
     /**
      * A Kernel Sequent Calculus proof step that has been correctly produced.
      */
-    case class ValidProofTactic(scps: Seq[K.SCProofStep], imports: Seq[Fact])(using val tactic: ProofTactic) extends ProofTacticJudgement {}
+    case class ValidProofTactic(bot:lisa.fol.FOL.Sequent, scps: Seq[K.SCProofStep], imports: Seq[Fact])(using val tactic: ProofTactic) extends ProofTacticJudgement {}
 
     /**
      * A proof step which led to an error when computing the corresponding K.Sequent Calculus proof step.
@@ -265,21 +267,21 @@ trait WithTheorems {
 
   sealed abstract class Justification(using om: OutputManager)(val line: Int, val file: String) {
     def repr: String
-    def withSorry: Boolean
     def innerJustification: theory.Justification
     def statement: F.Sequent
+    val withSorry: Boolean = innerJustification match {
+          case thm: theory.Theorem => thm.withSorry
+          case fd: theory.FunctionDefinition => fd.withSorry
+          case pd: theory.PredicateDefinition => false
+          case ax: theory.Axiom => false
+        }
   }
-  class DEFINITION(using om: OutputManager)(line: Int, file: String, val innerJustification: theory.Definition) extends Justification(using om)(line, file){
+  abstract class DEFINITION(using om: OutputManager)(line: Int, file: String) extends Justification(using om)(line, file){
     def repr: String = innerJustification.repr
-    val withSorry = innerJustification match {
-      case fd: theory.FunctionDefinition => fd.withSorry
-      case pd: theory.PredicateDefinition => false
-    }
-
-    def statement = ???
+    
   }
 
-  class THM(using om: OutputManager)(statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
+  class THM(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
       extends Justification(using om)(line, file) {
 
     val goal: F.Sequent = statement
@@ -288,7 +290,6 @@ trait WithTheorems {
     val proof: BaseProof = new BaseProof(this)
 
     val innerJustification: theory.Theorem = prove(computeProof)
-    val withSorry = innerJustification.withSorry
 
     def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(theory.sequentFromJustification(innerJustification))
     def repr: String = innerJustification.repr

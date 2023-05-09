@@ -1,12 +1,5 @@
 package lisa.prooflib
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof
-import lisa.kernel.proof.RunningTheoryJudgement
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SequentCalculus.Sequent
-import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
@@ -17,8 +10,10 @@ import lisa.utils.{*, given}
 import scala.annotation.targetName
 
 trait ProofsHelpers {
+  /*
   library: Library & WithTheorems =>
   given Library = library
+  import F.{*, given}
 
   class HaveSequent private[ProofsHelpers] (bot: Sequent) {
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
@@ -189,7 +184,7 @@ trait ProofsHelpers {
       thm
     }
   }
-
+/*
   class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
     val showError: String = {
       val source = scala.io.Source.fromFile(file.value)
@@ -320,7 +315,7 @@ trait ProofsHelpers {
             UserInvalidDefinitionException(
               name.value,
               s"The definition is not allowed to contain schematic symbols or free variables." +
-                s"The symbols {${(f.freeSchematicTermLabels -- vars.toSet ++ f.schematicFormulaLabels).mkString(", ")}} are free in the expression ${FOLPrinter.prettyFormula(f)}."
+                s"The symbols {${(f.freeSchematicTermLabels -- vars.toSet ++ f.schematicFormulaLabels).mkString(", ")}} are free in the expression ${f.toString}."
             )
           )
         }
@@ -375,5 +370,7 @@ trait ProofsHelpers {
           )
         )
     }
-  }
+  }*/
+
+  */
 }
