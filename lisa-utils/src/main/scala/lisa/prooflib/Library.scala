@@ -22,12 +22,16 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
   val SC: SequentCalculus.type = K.SC
 
-  export lisa.kernel.proof.SequentCalculus.{Sequent, SCProofStep}
   export lisa.kernel.proof.SCProof
-  export lisa.utils.KernelHelpers.{_, given}
+  //export lisa.utils.KernelHelpers.{_, given}
 
-  export lisa.utils.K
-  export lisa.fol.FOL as F
+  val K = lisa.utils.K
+  //import lisa.fol.FOL as F
+  val F = lisa.fol.FOL
+  import F.{given}
+  
+
+  //val truc2:Nothing = truc.substituteWithProofLikeKernel
 
 
   var last: Option[Justification] = None

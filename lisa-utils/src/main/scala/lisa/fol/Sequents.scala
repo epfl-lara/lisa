@@ -162,4 +162,41 @@ trait Sequents extends Common with lisa.fol.Lambdas {
     K.contains(s.map(_.underlying), f.underlying)
   }
 
+  /**
+   * Represents a converter of some object into a set.
+   * @tparam S The type of elements in that set
+   * @tparam T The type to convert from
+   */
+  protected trait FormulaSetConverter[T] {
+    def apply(t: T): Set[Formula]
+  }
+
+  given FormulaSetConverter[Unit] with {
+    override def apply(u: Unit): Set[Formula] = Set.empty
+  }
+
+  given FormulaSetConverter[EmptyTuple] with {
+    override def apply(t: EmptyTuple): Set[Formula] = Set.empty
+  }
+
+  given [H <: Formula, T <: Tuple](using c: FormulaSetConverter[T]): FormulaSetConverter[H *: T] with {
+    override def apply(t: H *: T): Set[Formula] = c.apply(t.tail) + t.head
+  }
+
+  given formula_to_set[T <: Formula]: FormulaSetConverter[T] with {
+    override def apply(f: T): Set[Formula] = Set(f)
+  }
+
+  given iterable_to_set[T <: Formula, I <: Iterable[T]]: FormulaSetConverter[I] with {
+    override def apply(s: I): Set[Formula] = s.toSet
+  }
+
+  private def any2set[A, T <: A](any: T)(using c: FormulaSetConverter[T]): Set[Formula] = c.apply(any)
+
+  extension [A, T1 <: A](left: T1)(using FormulaSetConverter[T1]) {
+    infix def |-[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
+    infix def ⊢[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
+  }
+
+
 }

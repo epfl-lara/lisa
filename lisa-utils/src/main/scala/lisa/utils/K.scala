@@ -10,5 +10,6 @@ object K {
   export lisa.kernel.proof.SequentCalculus as SC
   export lisa.kernel.proof.RunningTheoryJudgement as Judgement
   export lisa.kernel.proof.RunningTheoryJudgement.*
+  export lisa.utils.KernelHelpers.{*, given}
   
 }

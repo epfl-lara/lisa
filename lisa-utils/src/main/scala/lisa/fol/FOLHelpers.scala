@@ -53,7 +53,7 @@ object FOLHelpers {
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
 
 
-
+/*
   /**
    * Represents a converter of some object into a set.
    * @tparam S The type of elements in that set
@@ -89,6 +89,8 @@ object FOLHelpers {
     infix def |-[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
     infix def ⊢[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
   }
+
+  */
 /*
   // Instatiation functions for formulas lifted to sequents.
 

@@ -5,21 +5,23 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
 import lisa.prooflib.BasicStepTactic.Rewrite
-import lisa.utils.{*, given}
+//import lisa.utils.{*, given}
 
 import scala.annotation.targetName
 
-trait ProofsHelpers {
-  /*
+trait ProofsHelpers {  
   library: Library & WithTheorems =>
-  given Library = library
+
   import F.{*, given}
+  given Library = library
 
   class HaveSequent private[ProofsHelpers] (bot: Sequent) {
+    val x:lisa.fol.FOL.Sequent = bot
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
-      private val bot = HaveSequent.this.bot ++ (_proof.getAssumptions |- ())
+
+      private val bot = HaveSequent.this.bot ++ (F.iterable_to_set(_proof.getAssumptions) |- ())
       inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact = {
         tactic(bot).validate(line, file)
       }
@@ -58,10 +60,6 @@ trait ProofsHelpers {
    */
   def have(using proof: library.Proof)(res: Sequent): HaveSequent = HaveSequent(res)
 
-  /**
-   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
-   */
-  def have(using proof: library.Proof)(res: String): HaveSequent = HaveSequent(lisa.utils.FOLParser.parseSequent(res))
 
   def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
     case judg: proof.ProofTacticJudgement => judg.validate(line, file)
@@ -73,11 +71,6 @@ trait ProofsHelpers {
    * which may require a justification by a proof tactic.
    */
   def thenHave(using proof: library.Proof)(res: Sequent): AndThenSequent = AndThenSequent(res)
-
-  /**
-   * Claim the given Sequent as a ProofTactic, which may require a justification by a proof tactic and premises.
-   */
-  def thenHave(using proof: library.Proof)(res: String): AndThenSequent = AndThenSequent(lisa.utils.FOLParser.parseSequent(res))
 
   infix def andThen(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): AndThen { val _proof: proof.type } = AndThen(proof, line, file).asInstanceOf
 
@@ -110,10 +103,7 @@ trait ProofsHelpers {
     proof.addAssumption(f)
     have(() |- f) by BasicStepTactic.Hypothesis
   }
-  def assume(using proof: library.Proof)(fstring: String): proof.ProofStep = {
-    val f = lisa.utils.FOLParser.parseFormula(fstring)
-    assume(f)
-  }
+
   def assume(using proof: library.Proof)(fs: Iterable[Formula]): proof.ProofStep = {
     fs.foreach(f => proof.addAssumption(f))
     have(() |- fs.toSet) by BasicStepTactic.Hypothesis
@@ -137,10 +127,13 @@ trait ProofsHelpers {
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
     om.output("Current proof of " + _proof.owningTheorem.prettyGoal + ": ")
     om.output(
-      ProofPrinter.prettyProof(_proof, 2)
+      lisa.utils.parsing.ProofPrinter.prettyProof(_proof, 2)
     )
   }
 
+
+
+/*
   // case class InstantiatedJustification(just:theory.Justification, instsPred: Map[SchematicVarOrPredLabel, LambdaTermFormula], instsTerm: Map[SchematicTermLabel, LambdaTermTerm], instForall:Seq[Term])
 
   private def isLTT(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
@@ -176,7 +169,7 @@ trait ProofsHelpers {
      * @param computeProof How the proof should go.
      * @return The theorem, if proof is valid. Otherwise will terminate.
      */
-    def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM = {
+    def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent)(computeProof: Proof ?=> Unit): THM = {
       val thm = new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
       if (tk == Theorem) {
         show(thm)
@@ -184,6 +177,12 @@ trait ProofsHelpers {
       thm
     }
   }
+*/
+
+
+
+
+
 /*
   class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
     val showError: String = {
@@ -372,5 +371,4 @@ trait ProofsHelpers {
     }
   }*/
 
-  */
 }
