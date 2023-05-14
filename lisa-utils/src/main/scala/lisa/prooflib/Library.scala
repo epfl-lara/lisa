@@ -26,6 +26,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   //export lisa.utils.KernelHelpers.{_, given}
 
   val K = lisa.utils.K
+  export K.given_Conversion_String_Identifier
+  export K.given_Conversion_Identifier_String
   //import lisa.fol.FOL as F
   val F = lisa.fol.FOL
   import F.{given}
@@ -48,7 +50,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   /**
    * Allows to create a definition by shortcut of a function symbol:
    */
-  def simpleDefinition(symbol: String, expression: K.LambdaTermTerm): K.Judgement[theory.FunctionDefinition] = {
+  def makeSimpleFunctionDefinition(symbol: String, expression: K.LambdaTermTerm): K.Judgement[theory.FunctionDefinition] = {
     import K.*
     val LambdaTermTerm(vars, body) = expression
 
@@ -60,7 +62,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   /**
    * Allows to create a definition by shortcut of a predicate symbol:
    */
-  def simpleDefinition(symbol: String, expression: K.LambdaTermFormula): K.Judgement[theory.PredicateDefinition] =
+  def makeSimplePredicateDefinition(symbol: String, expression: K.LambdaTermFormula): K.Judgement[theory.PredicateDefinition] =
     theory.predicateDefinition(symbol, expression)
 
   private def simpleFunctionDefinition(expression: K.LambdaTermTerm, out: K.VariableLabel): K.SCProof = {

@@ -22,8 +22,8 @@ def withTests(project: Project): ClasspathDependency =
 
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
-// lazy val scallion = githubProject("https://github.com/epfl-lara/scallion.git", "08b333f9af2d8daa1fb7424cd47b0433cd5e9770")
-// lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "eaf296425b9d8cc9100dfa66a079641ee4cfe4ae")
+lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "ede91018d8cb2d9201edad25edf13464d41ebe38")
+lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
 
 val commonSettings = Seq(
   version            := "0.6",
@@ -33,68 +33,6 @@ val commonSettings = Seq(
   scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0")
 )
 
-lazy val silex = project
-  .in(file("./silex/"))
-  .settings(
-    commonSettings,
-    name               := "silex",
-
-    scalacOptions ++= Seq(
-      "-deprecation",
-      "-feature",
-      "-unchecked"
-    ),
-
-    Compile / doc / scalacOptions ++= Seq(
-      "-groups",
-      "-sourcepath", baseDirectory.value.getAbsolutePath,
-      "-doc-source-url", "https://raw.githubusercontent.com/epfl-lara/silex/master€{FILE_PATH}.scala",
-      "-doc-root-content", baseDirectory.value + "/project/root-doc.txt"
-    ),
-
-    Compile / doc / target := baseDirectory.value / "docs",
-
-    libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.9" % Test,
-    ),
-
-//    bintrayOrganization := Some("epfl-lara"),
-//    licenses += ("Apache-2.0", url("https://opensource.org/licenses/Apache-2.0")),
-//    bintrayPackageLabels := Seq(
-//      "scala", "lexer", "lexing"
-//    ),
-  )
-
-lazy val scallion = project
-  .in(file("./scallion/"))
-  .settings(
-    commonSettings,
-    name := "scallion",
-
-    scalacOptions ++= Seq(
-      "-deprecation",
-      "-feature",
-      "-unchecked"
-    ),
-
-    Compile / doc / scalacOptions ++= Seq(
-      "-groups",
-      "-sourcepath", baseDirectory.value.getAbsolutePath,
-      "-doc-source-url", "https://raw.githubusercontent.com/epfl-lara/scallion/master€{FILE_PATH}.scala",
-      "-doc-root-content", baseDirectory.value + "/project/root-doc.txt"
-    ),
-
-    Compile / doc / target := baseDirectory.value / "docs",
-
-    libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.9" % "test",
-    ),
-
-    licenses += ("Apache-2.0", url("https://opensource.org/licenses/Apache-2.0")),
-  )
-  .dependsOn(silex)
-
-//
 
 val scala2 = "2.13.8"
 val scala3 = "3.2.2"

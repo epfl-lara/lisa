@@ -13,8 +13,35 @@ import lisa.prooflib.*
 import lisa.utils.FOLParser
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printer
+import lisa.fol.FOL as F
+import lisa.fol.FOLHelpers.*
+import lisa.utils.K
 
 object SimpleDeducedSteps {
+
+
+
+  object simpleFunctionDefinition extends ProofTactic {
+
+
+      def apply[N<:Arity](using lib: Library, proof: lib.Proof)(expression: F.LambdaExpression[F.Term, F.Term, N], out: F.Variable) = {
+        val scp = {
+          import K.{*, given}
+            val x = out.underlyingLabel
+            val LambdaTermTerm(vars, body) = expression.underlyingLTT
+            val xeb = x === body
+            val y = VariableLabel(freshId(body.freeVariables.map(_.id) ++ vars.map(_.id) + out.id, "y"))
+            val s0 = SC.RightRefl(() |- body === body, body === body)
+            val s1 = SC.Restate(() |- (xeb) <=> (xeb), 0)
+            val s2 = SC.RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
+            val s3 = SC.RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
+            val s4 = SC.Restate(() |- existsOne(x, xeb), 3)
+            Vector(s0, s1, s2, s3, s4)
+        }
+        proof.ValidProofTactic(F.Sequent(Set(), Set(F.ExistsOne(out, out === expression.body))), scp, Seq())
+      }
+
+    }
 /*
   object Restate extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement =

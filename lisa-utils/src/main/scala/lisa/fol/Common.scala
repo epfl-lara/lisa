@@ -4,6 +4,7 @@ import lisa.utils.K
 import scala.annotation.showAsInfix
 import scala.annotation.nowarn
 import scala.compiletime.ops.int.-
+import scala.reflect.ClassTag
 
 trait Common {
 

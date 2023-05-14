@@ -13,6 +13,7 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.FOLParser
 
 import scala.annotation.targetName
+import scala.reflect.ClassTag
 
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
@@ -113,7 +114,7 @@ object FOLHelpers {
 
  */
 
-  given[R <: LisaObject[R]]: Conversion[R, LambdaExpression[Nothing, R, 0]] = LambdaExpression(Seq(), _, 0)
+  given[T <: LisaObject[T]: ClassTag, R <: LisaObject[R]: ClassTag]: Conversion[R, LambdaExpression[T, R, 0]] = LambdaExpression[T, R, 0](Seq(), _, 0)
 
 
   // Conversion from pairs (e.g. x -> f(x)) to lambdas
@@ -121,11 +122,11 @@ object FOLHelpers {
 
   //given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
 
-  given[T <: LisaObject[T], R <: LisaObject[R]]: Conversion[(SchematicLabel[T], R), LambdaExpression[T, R, 1]] = {
+  given[T <: LisaObject[T]: ClassTag, R <: LisaObject[R]: ClassTag]: Conversion[(SchematicLabel[T], R), LambdaExpression[T, R, 1]] = {
     a => LambdaExpression(Seq(a._1), a._2, 1)
   }
 
-  given[T <: LisaObject[T],R <: LisaObject[R], N <: Arity]: Conversion[(SchematicLabel[T]**N, R), LambdaExpression[T, R, N]] = a => {
+  given[T <: LisaObject[T]: ClassTag,R <: LisaObject[R]: ClassTag, N <: Arity]: Conversion[(SchematicLabel[T]**N, R), LambdaExpression[T, R, N]] = a => {
     val s = a._1.toSeq
     LambdaExpression(s, a._2, s.length.asInstanceOf)
   }

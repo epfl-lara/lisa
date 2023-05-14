@@ -2,9 +2,10 @@ package lisa.fol
 import lisa.kernel.fol.FOL.Identifier
 import FOLHelpers.freshId
 import lisa.utils.K
+import scala.reflect.ClassTag
 trait Lambdas extends Common{
 
-  case class LambdaExpression[T <: LisaObject[T],R <: LisaObject[R], N <: Arity](bounds:Seq[SchematicLabel[T]], body:R, arity:N) extends |->[T**N, R]{
+  case class LambdaExpression[T <: LisaObject[T] : ClassTag, R <: LisaObject[R] : ClassTag, N <: Arity](bounds:Seq[SchematicLabel[T]], body:R, arity:N) extends |->[T**N, R]{
     assert(arity == bounds.length)
     private val seqBounds = bounds.toSeq
 
@@ -31,19 +32,23 @@ trait Lambdas extends Common{
 
 
     def underlying:Option[K.LambdaTermTerm|K.LambdaTermFormula|K.LambdaFormulaFormula] = this match {
-      case l: LambdaExpression[Term, Term, N] => Some(underlyingLTT(l))
-      case l: LambdaExpression[Term, Formula, N] => Some(underlyingLTF(l))
-      case l: LambdaExpression[Formula, Formula, N] => Some(underlyingLFF(l))
+      case l: LambdaExpression[Term, Term, ?] => Some(underlyingLTT(l))
+      case l: LambdaExpression[Term, Formula, ?] => Some(underlyingLTF(l))
+      case l: LambdaExpression[Formula, Formula, ?] => Some(underlyingLFF(l))
       case _ => None
     }
   }
 
-  def lambda[T <: LisaObject[T],R<:LisaObject[R]](bound:SchematicLabel[T], body:R) = LambdaExpression[T, R, 1](Seq(bound), body, 1)
-  def lambda[T <: LisaObject[T], R<:LisaObject[R], N <: Arity](bounds:SchematicLabel[T]**N, body:R)(using n: ValueOf[N]) = {
+  def lambda[T <: LisaObject[T] : ClassTag,R <: LisaObject[R] : ClassTag](bound:SchematicLabel[T], body:R) = LambdaExpression[T, R, 1](Seq(bound), body, 1)
+  def lambda[T <: LisaObject[T] : ClassTag, R <: LisaObject[R] : ClassTag, N <: Arity : ClassTag](bounds:SchematicLabel[T]**N, body:R)(using n: ValueOf[N]) = {
     val boundsSeq = bounds.toSeq
     LambdaExpression[T, R, N](boundsSeq, body, n.value)
   }
-
+  def lambda[T <: LisaObject[T] : ClassTag, R <: LisaObject[R] : ClassTag](bounds:Seq[SchematicLabel[T]], body:R, n: Int) = {
+      val boundsSeq = bounds.toSeq
+      LambdaExpression(boundsSeq, body, n)
+    }
+/*
   def underlyingLTT[N <: Arity](ltt: LambdaExpression[Term, Term, N]): K.LambdaTermTerm = 
     K.LambdaTermTerm(ltt.bounds.map(b => b.asInstanceOf[Variable].underlyingLabel), ltt.body.underlying)
 
@@ -52,6 +57,18 @@ trait Lambdas extends Common{
 
   def underlyingLFF[N <: Arity](lff: LambdaExpression[Formula, Formula, N]): K.LambdaFormulaFormula =  
     K.LambdaFormulaFormula(lff.bounds.map(b => b.asInstanceOf[VariableFormula].underlyingLabel), lff.body.underlying)
+*/
 
-
+  extension [N <: Arity] (ltt:LambdaExpression[Term, Term, N]) {
+    def underlyingLTT: K.LambdaTermTerm  = 
+    K.LambdaTermTerm(ltt.bounds.map(b => b.asInstanceOf[Variable].underlyingLabel), ltt.body.underlying)
+  }
+  extension [N <: Arity] (ltf:LambdaExpression[Term, Formula, N]) {
+    def underlyingLTF: K.LambdaTermFormula  = 
+    K.LambdaTermFormula(ltf.bounds.map(b => b.asInstanceOf[Variable].underlyingLabel), ltf.body.underlying)
+  }
+  extension [N <: Arity] (lff:LambdaExpression[Formula, Formula, N]) {
+    def underlyingLFF: K.LambdaFormulaFormula =  
+    K.LambdaFormulaFormula(lff.bounds.map(b => b.asInstanceOf[VariableFormula].underlyingLabel), lff.body.underlying)
+  }
 }

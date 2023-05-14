@@ -281,6 +281,8 @@ trait WithTheorems {
     
   }
 
+
+
   class THM(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
       extends Justification(using om)(line, file) {
 
@@ -327,9 +329,21 @@ trait WithTheorems {
 
   given thmConv: Conversion[library.THM, theory.Theorem] = _.innerJustification
 
-  trait TheoremKind { val kind2: String }
+  trait TheoremKind { 
+    val kind2: String 
+    def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
+          val thm = new THM(statement, name.value, line.value, file.value, this)(computeProof) {}
+          if (this == Theorem) {
+            show(thm)
+          }
+          thm
+        }
+  
+  }
   object Theorem extends TheoremKind { val kind2: String = "Theorem2" }
   object Lemma extends TheoremKind { val kind2: String = "Lemma" }
   object Corollary extends TheoremKind { val kind2: String = "Corollary" }
+
+  object InternalStatement extends TheoremKind { val kind2: String = "Internal, authomatically produced" }
 
 }
