@@ -492,6 +492,7 @@ object Orderings extends lisa.Main {
    * Other properties
    *
    *   - the ordinals form a proper class --- [[noSetOfOrdinals]]
+   *   - every subclass of the ordinals has a minimal element --- [[ordinalSubclassHasMinimalElement]]
    */
 
   /**
@@ -567,11 +568,17 @@ object Orderings extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, wellOrda, ordinalTrans)
   }
 
-  // val elementsOfOrdinalsAreOrdinals = Theorem(
-  //   (ordinal(a), in(b, a)) |- ordinal(b)
-  // ) {
-  //   ???
-  // }
+  val elementsOfOrdinalsAreOrdinals = Theorem(
+    (ordinal(a), in(b, a)) |- ordinal(b)
+  ) {
+    sorry
+  }
+
+  val ordinalSubclassHasMinimalElement = Lemma(
+    forall(x, P(x) ==> ordinal(x)) /\ exists(x, P(x)) |- exists(y, P(y) /\ ordinal(y) /\ forall(x, P(x) ==> in(y, x)))
+  ) {
+    sorry
+  }
 
   /**
    * Transfinite Recursion
@@ -874,7 +881,54 @@ object Orderings extends lisa.Main {
   val transfiniteInduction = Theorem(
     forall(x, ordinal(x) ==> (forall(y, in(y, x) ==> Q(y)) ==> Q(x))) |- forall(x, ordinal(x) ==> Q(x))
   ) {
-    have(thesis) by Sorry
+
+    assume(forall(x, ordinal(x) ==> (forall(y, in(y, x) ==> Q(y)) ==> Q(x))))
+    assume(exists(x, ordinal(x) /\ !Q(x))) // negated conclusion
+
+    // we assume the negated conjecture and derive a contradiction
+
+    // prop := On \ Q
+    def prop(x: Term) = ordinal(x) /\ !Q(x)
+
+    // there is a minimal element in prop
+    val yDef = prop(y) /\ forall(x, prop(x) ==> in(y, x))
+
+    have(prop(x) ==> ordinal(x)) by Restate
+    thenHave(forall(x, prop(x) ==> ordinal(x)))
+    val yExists = have(exists(y, yDef)) by Tautology.from(lastStep, ordinalSubclassHasMinimalElement of (P -> lambda(x, prop(x))))
+
+    // so everything less than y is not in prop
+    val fz = have(yDef |- forall(z, in(z, y) ==> !prop(z))) subproof {
+      assume(yDef)
+
+      // assume z \in y
+      // but \forall x. prop(x) ==> y \in x
+      // so prop(z) ==> y \in z
+      have(forall(x, prop(x) ==> in(y, x))) by Restate
+      thenHave(prop(z) ==> in(y, z)) by InstantiateForall(z)
+
+      // but inclusion is anti symmetric (regularity)
+      have(in(z, y) |- !prop(z)) by Tautology.from(lastStep, inclusionAntiSymmetric of (x -> z, y -> y))
+      thenHave(in(z, y) ==> !prop(z)) by Restate
+      thenHave(thesis) by RightForall
+    }
+
+    // but by assumption, this must mean Q(y)
+    have(yDef |- Q(y)) subproof {
+      assume(yDef)
+      have(forall(z, in(z, y) ==> !prop(z))) by Restate.from(fz)
+      thenHave(in(z, y) ==> !prop(z)) by InstantiateForall(z)
+      have(in(z, y) ==> Q(z)) by Tautology.from(lastStep, elementsOfOrdinalsAreOrdinals of (b -> z, a -> y))
+      val zy = thenHave(forall(z, in(z, y) ==> Q(z))) by RightForall
+      have(ordinal(y) ==> (forall(z, in(z, y) ==> Q(z)) ==> Q(y))) by InstantiateForall
+      have(thesis) by Tautology.from(zy, lastStep)
+    }
+
+    // contradiction
+    thenHave(yDef |- ()) by Tautology
+    thenHave(exists(y, yDef) |- ()) by LeftExists
+    have(() |- ()) by Cut(yExists, lastStep)
+    thenHave(thesis) by Restate
   }
 
   /**

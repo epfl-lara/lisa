@@ -119,6 +119,13 @@ object SetTheory extends lisa.Main {
     thenHave(∃(z, fprop(z)) |- ∃(z, ∀(a, fprop(a) <=> (a === z)))) by LeftExists
     thenHave(∃(z, fprop(z)) |- ∃!(z, fprop(z))) by RightExistsOne
   }
+
+  val inclusionAntiSymmetric = Lemma(
+    !(in(x, y) /\ in(y, x))
+  ) {
+    sorry
+  }
+
   //////////////////////////////////////////////////////////////////////////////
 
   /**
