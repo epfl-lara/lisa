@@ -486,7 +486,11 @@ object GroupTheory extends lisa.Main {
     )(condition1)
     
     val eq3 = have(group(G, *) |- restrictedFunction(*, cartesianProduct(G, G)) === *) subproof {
-      val eq1 = have(restrictedFunction(*, relationDomain(*)) === *) by Restate.from(restrictedFunctionCancellation of (f -> *))
+      assume(group(G, *))
+      val eq1 = have(restrictedFunction(*, relationDomain(*)) === *) by Cut(
+        groupOperationIsFunctional,
+        restrictedFunctionCancellation of (f -> *)
+      )
       thenHave((relationDomain(*) === cartesianProduct(G, G)) |- restrictedFunction(*, cartesianProduct(G, G)) === *) by RightSubstEq(
         List((relationDomain(*), cartesianProduct(G, G))), lambda(z, restrictedFunction(*, z) === *)
       )
