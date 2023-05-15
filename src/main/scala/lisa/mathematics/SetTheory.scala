@@ -1909,6 +1909,92 @@ object SetTheory extends lisa.Main {
   val relationRange = DEF(r) --> The(z, ∀(t, in(t, z) <=> ∃(a, in(pair(a, t), r))))(relationRangeUniqueness)
 
   /**
+   * Theorem --- If `r` is a relation, then `r` is a relation between its domain and its range.
+   */
+  val relationImpliesRelationBetweenDomainAndRange = Theorem(
+    relation(r) |- relationBetween(r, relationDomain(r), relationRange(r))
+  ) {
+    // Lay out the definitions to apply them later
+    have(∀(t, in(t, relationDomain(r)) <=> ∃(b, in(pair(t, b), r)))) by Definition(relationDomain, relationDomainUniqueness)(r)
+    val relationDomainDef = thenHave(in(t, relationDomain(r)) <=> ∃(b, in(pair(t, b), r))) by InstantiateForall(t)
+
+    have(∀(t, in(t, relationRange(r)) <=> ∃(a, in(pair(a, t), r)))) by Definition(relationRange, relationRangeUniqueness)(r)
+    val relationRangeDef = thenHave(in(t, relationRange(r)) <=> ∃(a, in(pair(a, t), r))) by InstantiateForall(t)
+
+    // Start the proof
+    have(relation(r) |- ∃(x, ∃(y, relationBetween(r, x, y)))) by Tautology.from(relation.definition)
+
+    have(relationBetween(r, x, y) |- subset(r, cartesianProduct(x, y))) by Tautology.from(relationBetween.definition of (a -> x, b -> y))
+    have(relationBetween(r, x, y) |- ∀(t, in(t, r) ==> in(t, cartesianProduct(x, y)))) by Tautology.from(
+      lastStep,
+      subset.definition of (x -> r, y -> cartesianProduct(x, y))
+    )
+    thenHave(relationBetween(r, x, y) |- in(t, r) ==> in(t, cartesianProduct(x, y))) by InstantiateForall(t)
+    thenHave((relationBetween(r, x, y), in(t, r)) |- in(t, cartesianProduct(x, y))) by Restate
+
+    // Apply the definition of the cartesian product
+    val relationDef = have((relationBetween(r, x, y), in(t, r)) |- ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y)))) by Tautology.from(
+      lastStep,
+      elemOfCartesianProduct
+    )
+
+    // Show that x ⊇ relationDomain(r) and y ⊇ relationRange(r)
+    val memberships = have((in(t, r), (t === pair(a, b))) |- in(a, relationDomain(r)) /\ in(b, relationRange(r))) subproof {
+      have(in(t, r) |- in(t, r)) by Hypothesis
+      val membership = thenHave((in(t, r), (t === pair(a, b))) |- in(pair(a, b), r)) by Substitution
+
+      assume(in(t, r))
+      assume(t === pair(a, b))
+      have(∃(b, in(pair(a, b), r))) by RightExists(membership)
+      val left = have(in(a, relationDomain(r))) by Tautology.from(lastStep, relationDomainDef of (t -> a))
+
+      have(∃(a, in(pair(a, b), r))) by RightExists(membership)
+      val right = have(in(b, relationRange(r))) by Tautology.from(lastStep, relationRangeDef of (t -> b))
+
+      have(thesis) by RightAnd(left, right)
+    }
+
+    // We can now reconstruct the definition of relationBetween(r, relationDomain(r), relationRange(r))
+    have((t === pair(a, b)) |- (t === pair(a, b))) by Hypothesis
+    val toCut = have((in(t, r), (t === pair(a, b))) |- (t === pair(a, b)) /\ in(a, relationDomain(r)) /\ in(b, relationRange(r))) by RightAnd(lastStep, memberships)
+
+    have((t === pair(a, b)) /\ in(a, x) /\ in(b, y) |- (t === pair(a, b))) by Tautology
+    have((in(t, r), (t === pair(a, b)) /\ in(a, x) /\ in(b, y)) |- (t === pair(a, b)) /\ in(a, relationDomain(r)) /\ in(b, relationRange(r))) by Cut(lastStep, toCut)
+
+    // Re-add the existential quantifiers
+    thenHave((in(t, r), (t === pair(a, b)) /\ in(a, x) /\ in(b, y)) |- ∃(b, (t === pair(a, b)) /\ in(a, relationDomain(r)) /\ in(b, relationRange(r)))) by RightExists
+    thenHave((in(t, r), (t === pair(a, b)) /\ in(a, x) /\ in(b, y)) |- ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, relationDomain(r)) /\ in(b, relationRange(r))))) by RightExists
+    thenHave((in(t, r), ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))) |- ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, relationDomain(r)) /\ in(b, relationRange(r))))) by LeftExists
+    thenHave((in(t, r), ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y)))) |- ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, relationDomain(r)) /\ in(b, relationRange(r))))) by LeftExists
+
+    // Cut and rewrap the definition
+    have((in(t, r), relationBetween(r, x, y)) |- ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, relationDomain(r)) /\ in(b, relationRange(r))))) by Cut(
+      relationDef,
+      lastStep
+    )
+    have((in(t, r), relationBetween(r, x, y)) |- in(t, cartesianProduct(relationDomain(r), relationRange(r)))) by Tautology.from(
+      lastStep,
+      elemOfCartesianProduct of (x -> relationDomain(r), y -> relationRange(r))
+    )
+    thenHave(relationBetween(r, x, y) |- in(t, r) ==> in(t, cartesianProduct(relationDomain(r), relationRange(r)))) by Restate
+    thenHave(relationBetween(r, x, y) |- ∀(t, in(t, r) ==> in(t, cartesianProduct(relationDomain(r), relationRange(r))))) by RightForall
+    have(relationBetween(r, x, y) |- subset(r, cartesianProduct(relationDomain(r), relationRange(r)))) by Tautology.from(
+      lastStep,
+      subset.definition of (x -> r, y -> cartesianProduct(relationDomain(r), relationRange(r)))
+    )
+    have(relationBetween(r, x, y) |- relationBetween(r, relationDomain(r), relationRange(r))) by Tautology.from(
+      lastStep,
+      relationBetween.definition of (a -> relationDomain(r), b -> relationRange(r))
+    )
+
+    // Add the existential quantifier to finish the proofs
+    thenHave(∃(y, relationBetween(r, x, y)) |- relationBetween(r, relationDomain(r), relationRange(r))) by LeftExists
+    thenHave(∃(x, ∃(y, relationBetween(r, x, y))) |- relationBetween(r, relationDomain(r), relationRange(r))) by LeftExists
+
+    have(thesis) by Tautology.from(lastStep, relation.definition)
+  }
+
+  /**
    * (Binary) Relation Field --- The union of the domain and range of a
    * relation, or the set of all elements related by `r`.
    *
@@ -1983,6 +2069,45 @@ object SetTheory extends lisa.Main {
    * @param x set
    */
   val functionalOver = DEF(f, x) --> functional(f) /\ (relationDomain(f) === x)
+
+  /**
+   * Lemma --- If `f` is a function, then `t ∈ f` implies `t = (x, y)` such that `x ∈ relationDomain(f)`.
+   */
+  val functionalMembership = Lemma(
+    functional(f) |- ∀(t, in(t, f) ==> ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y)))))
+  ) {
+    assume(functional(f))
+
+    have((functional(f), in(t, f)) |- ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y))))) subproof {
+      val isRelation = have(relation(f)) by Tautology.from(functional.definition)
+
+      // Use the definitions
+      have(relationBetween(f, relationDomain(f), relationRange(f)) |- ∀(x, in(x, f) ==> in(x, cartesianProduct(relationDomain(f), relationRange(f))))) by Tautology.from(
+        relationBetween.definition of (r -> f, a -> relationDomain(f), b -> relationRange(f)),
+        subset.definition of (x -> f, y -> cartesianProduct(relationDomain(f), relationRange(f)))
+      )
+      thenHave(relationBetween(f, relationDomain(f), relationRange(f)) |- in(t, f) ==> in(t, cartesianProduct(relationDomain(f), relationRange(f)))) by InstantiateForall(t)
+      thenHave((relationBetween(f, relationDomain(f), relationRange(f)), in(t, f)) |- in(t, cartesianProduct(relationDomain(f), relationRange(f)))) by Restate
+
+      val almostThere = have((relationBetween(f, relationDomain(f), relationRange(f)), in(t, f)) |- ∃(x, ∃(y, (t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f))))) by Tautology.from(
+        lastStep,
+        elemOfCartesianProduct of (x -> relationDomain(f), y -> relationRange(f))
+      )
+
+      // Remove the extraneous term in the conjunction
+      have((t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f)) |- in(x, relationDomain(f)) /\ (t === pair(x, y))) by Tautology
+      thenHave((t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f)) |- ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y)))) by RightExists
+      thenHave((t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f)) |- ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y))))) by RightExists
+      thenHave(∃(y, (t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f))) |- ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y))))) by LeftExists
+      thenHave(∃(x, ∃(y, (t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f)))) |- ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y))))) by LeftExists
+
+      have((relationBetween(f, relationDomain(f), relationRange(f)), in(t, f)) |- ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y))))) by Cut(almostThere, lastStep)
+      have((relation(f), in(t, f)) |- ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y))))) by Cut(relationImpliesRelationBetweenDomainAndRange of (r -> f), lastStep)
+      have(in(t, f) |- ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y))))) by Cut(isRelation, lastStep)
+    }
+    thenHave(in(t, f) ==> ∃(x, ∃(y, in(x, relationDomain(f)) /\ (t === pair(x, y))))) by Restate
+    thenHave(thesis) by RightForall
+  }
 
   val setOfFunctionsUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
@@ -2344,15 +2469,33 @@ object SetTheory extends lisa.Main {
   val restrictedFunctionCancellation = Theorem(
     functional(f) |- restrictedFunction(f, relationDomain(f)) === f
   ) {
-    /*val g = restrictedFunction(f, relationDomain(f))
+    val g = restrictedFunction(f, relationDomain(f))
+
+    assume(functional(f))
 
     have(∀(t, in(t, relationDomain(f)) <=> ∃(a, in(pair(t, a), f)))) by Definition(relationDomain, relationDomainUniqueness)(f)
     thenHave(in(y, relationDomain(f)) <=> ∃(a, in(pair(y, a), f))) by InstantiateForall(y)
 
     have(∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z))))))) by Definition(
       restrictedFunction, restrictedFunctionUniqueness
-    )(f, relationDomain(f))*/
-    sorry
+    )(f, relationDomain(f))
+    val equiv = thenHave(in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z)))))) by InstantiateForall(t)
+
+    // Prove that the second part of the conjunction is extraneous
+    val hypo = have(in(t, f) |- in(t, f)) by Hypothesis
+    have(in(t, f) |- ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z))))) by InstantiateForall(t)(functionalMembership)
+    have(in(t, f) |- in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z))))) by RightAnd(hypo, lastStep)
+    val forward = thenHave(in(t, f) ==> (in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z)))))) by Restate
+
+    val backward = have(in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z)))) ==> in(t, f)) by Tautology
+
+    have(in(t, f) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z)))))) by RightIff(forward, backward)
+
+    // Conclude by extensionnality
+    have(in(t, g) <=> in(t, f)) by Tautology.from(equiv, lastStep)
+    thenHave(∀(t, in(t, g) <=> in(t, f))) by RightForall
+
+    have(g === f) by Tautology.from(extensionalityAxiom of (x -> g, y -> f), lastStep)
   }
 
   // TODO: any subset of a functional is functional
