@@ -2089,10 +2089,11 @@ object SetTheory extends lisa.Main {
       thenHave(relationBetween(f, relationDomain(f), relationRange(f)) |- in(t, f) ==> in(t, cartesianProduct(relationDomain(f), relationRange(f)))) by InstantiateForall(t)
       thenHave((relationBetween(f, relationDomain(f), relationRange(f)), in(t, f)) |- in(t, cartesianProduct(relationDomain(f), relationRange(f)))) by Restate
 
-      val almostThere = have((relationBetween(f, relationDomain(f), relationRange(f)), in(t, f)) |- ∃(x, ∃(y, (t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f))))) by Tautology.from(
-        lastStep,
-        elemOfCartesianProduct of (x -> relationDomain(f), y -> relationRange(f))
-      )
+      val almostThere =
+        have((relationBetween(f, relationDomain(f), relationRange(f)), in(t, f)) |- ∃(x, ∃(y, (t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f))))) by Tautology.from(
+          lastStep,
+          elemOfCartesianProduct of (x -> relationDomain(f), y -> relationRange(f))
+        )
 
       // Remove the extraneous term in the conjunction
       have((t === pair(x, y)) /\ in(x, relationDomain(f)) /\ in(y, relationRange(f)) |- in(x, relationDomain(f)) /\ (t === pair(x, y))) by Tautology
@@ -2486,7 +2487,8 @@ object SetTheory extends lisa.Main {
     thenHave(in(y, relationDomain(f)) <=> ∃(a, in(pair(y, a), f))) by InstantiateForall(y)
 
     have(∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z))))))) by Definition(
-      restrictedFunction, restrictedFunctionUniqueness
+      restrictedFunction,
+      restrictedFunctionUniqueness
     )(f, relationDomain(f))
     val equiv = thenHave(in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, relationDomain(f)) /\ (t === pair(y, z)))))) by InstantiateForall(t)
 
