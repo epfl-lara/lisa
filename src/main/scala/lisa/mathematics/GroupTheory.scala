@@ -1,8 +1,12 @@
 package lisa.mathematics
 
-import lisa.automation.grouptheory.GroupTheoryTactics.{Cases, Definition, ExistenceAndUniqueness}
+import lisa.automation.grouptheory.GroupTheoryTactics.Cases
+import lisa.automation.grouptheory.GroupTheoryTactics.Definition
+import lisa.automation.grouptheory.GroupTheoryTactics.ExistenceAndUniqueness
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.mathematics.FirstOrderLogic.{equalityTransitivity, existsOneImpliesExists, substitutionInUniquenessQuantifier}
+import lisa.mathematics.FirstOrderLogic.equalityTransitivity
+import lisa.mathematics.FirstOrderLogic.existsOneImpliesExists
+import lisa.mathematics.FirstOrderLogic.substitutionInUniquenessQuantifier
 import lisa.mathematics.SetTheory.*
 
 /**
@@ -79,7 +83,7 @@ object GroupTheory extends lisa.Main {
           }
 
           val substitution = have((∃!(u, f), ∀(u, f <=> completeDef)) |- ∃!(u, completeDef)) by Restate.from(
-            substitutionInUniquenessQuantifier of(P -> lambda(u, f), Q -> lambda(u, completeDef))
+            substitutionInUniquenessQuantifier of (P -> lambda(u, f), Q -> lambda(u, completeDef))
           )
 
           val implication = have((prem, ∃!(u, f)) |- ∃!(u, completeDef)) by Cut(equiv, substitution)
@@ -197,7 +201,7 @@ object GroupTheory extends lisa.Main {
     assume(group(G, *))
     have(binaryFunction(G, *)) by Tautology.from(group.definition)
     have(functionFrom(*, cartesianProduct(G, G), G)) by Tautology.from(lastStep, binaryFunction.definition)
-    have(relationDomain(*) === cartesianProduct(G, G)) by Tautology.from(lastStep, functionFromImpliesDomainEq of(f -> *, x -> cartesianProduct(G, G), y -> G))
+    have(relationDomain(*) === cartesianProduct(G, G)) by Tautology.from(lastStep, functionFromImpliesDomainEq of (f -> *, x -> cartesianProduct(G, G), y -> G))
   }
 
   /**
@@ -214,10 +218,12 @@ object GroupTheory extends lisa.Main {
 
     have(x ∈ G /\ y ∈ G) by Tautology
     have(pair(x, y) ∈ cartesianProduct(G, G)) by Tautology.from(
-      lastStep, pairInCartesianProduct of (a -> x, b -> y, x -> G, y -> G)
+      lastStep,
+      pairInCartesianProduct of (a -> x, b -> y, x -> G, y -> G)
     )
     thenHave((relationDomain(*) === cartesianProduct(G, G)) |- pair(x, y) ∈ relationDomain(*)) by RightSubstEq(
-      List((relationDomain(*), cartesianProduct(G, G))), lambda(z, pair(x, y) ∈ z)
+      List((relationDomain(*), cartesianProduct(G, G))),
+      lambda(z, pair(x, y) ∈ z)
     )
 
     have(thesis) by Cut(groupOperationDomain, lastStep)
@@ -273,7 +279,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Theorem --- The identity element belongs to the group.
-   * 
+   *
    * This might seem like a silly theorem, but it is useful in proving that groups are non-empty by definition.
    */
   val identityInGroup = Theorem(
@@ -282,13 +288,14 @@ object GroupTheory extends lisa.Main {
     assume(group(G, *))
     have(isNeutral(identity(G, *), G, *)) by Definition(identity, identityUniqueness)(G, *)
     have(thesis) by Tautology.from(
-      lastStep, isNeutral.definition of (e -> identity(G, *))
+      lastStep,
+      isNeutral.definition of (e -> identity(G, *))
     )
   }
 
   /**
    * Theorem --- A group is non-empty.
-   * 
+   *
    * Direct corollary of [[identityInGroup]].
    */
   val groupNonEmpty = Theorem(
@@ -366,15 +373,19 @@ object GroupTheory extends lisa.Main {
 
       // 4. z = y(xz)
       val fourthEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- z === op(y, *, op(x, *, z))) by Tautology.from(
-        firstEq, secondEq, equalityTransitivity of (x -> z, y -> op(op(y, *, x), *, z), z -> op(y, *, op(x, *, z)))
+        firstEq,
+        secondEq,
+        equalityTransitivity of (x -> z, y -> op(op(y, *, x), *, z), z -> op(y, *, op(x, *, z)))
       )
 
       // 5. z = y
       have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- z === y) by Tautology.from(
-        thirdEq, fourthEq, equalityTransitivity of (x -> z, y -> op(y, *, op(x, *, z)), z -> y)
+        thirdEq,
+        fourthEq,
+        equalityTransitivity of (x -> z, y -> op(y, *, op(x, *, z)), z -> y)
       )
     }
-    
+
     have(thesis) by ExistenceAndUniqueness(isInverse(y, x, G, *))(existence, uniqueness)
   }
 
@@ -387,7 +398,7 @@ object GroupTheory extends lisa.Main {
    * Theorem --- `y` is the inverse of `x` iff `x` is the inverse of `y`
    */
   val inverseSymmetry = Theorem(
-	group(G, *) |- ∀(x, x ∈ G ==> (isInverse(y, x, G, *) ==> isInverse(x, y, G, *)))
+    group(G, *) |- ∀(x, x ∈ G ==> (isInverse(y, x, G, *) ==> isInverse(x, y, G, *)))
   ) {
     have((group(G, *), x ∈ G, isInverse(y, x, G, *)) |- isInverse(x, y, G, *)) subproof {
       assume(group(G, *))
@@ -430,7 +441,8 @@ object GroupTheory extends lisa.Main {
     }
 
     val membership = have((group(G, *), x ∈ G) |- in(inverse(x, G, *), G)) by Tautology.from(
-      inverseIsInverse, isInverse.definition of (y -> inverse(x, G, *))
+      inverseIsInverse,
+      isInverse.definition of (y -> inverse(x, G, *))
     )
 
     // Use the symmetry of the inverse relation to prove that x is an inverse of inverse(x)
@@ -482,9 +494,10 @@ object GroupTheory extends lisa.Main {
     // 3. restrictedFunction(*, cartesianProduct(G, G)) === *  (derived from 1. and 2.)
 
     val substitution = have((group(G, *), restrictedFunction(*, cartesianProduct(G, G)) === *) |- group(G, restrictedFunction(*, cartesianProduct(G, G)))) by RightSubstEq(
-      List((restrictedFunction(*, cartesianProduct(G, G)), *)), lambda(z, group(G, z))
+      List((restrictedFunction(*, cartesianProduct(G, G)), *)),
+      lambda(z, group(G, z))
     )(condition1)
-    
+
     val eq3 = have(group(G, *) |- restrictedFunction(*, cartesianProduct(G, G)) === *) subproof {
       assume(group(G, *))
       val eq1 = have(restrictedFunction(*, relationDomain(*)) === *) by Cut(
@@ -492,7 +505,8 @@ object GroupTheory extends lisa.Main {
         restrictedFunctionCancellation of (f -> *)
       )
       thenHave((relationDomain(*) === cartesianProduct(G, G)) |- restrictedFunction(*, cartesianProduct(G, G)) === *) by RightSubstEq(
-        List((relationDomain(*), cartesianProduct(G, G))), lambda(z, restrictedFunction(*, z) === *)
+        List((relationDomain(*), cartesianProduct(G, G))),
+        lambda(z, restrictedFunction(*, z) === *)
       )
 
       have(thesis) by Cut(groupOperationDomain, lastStep)
@@ -525,7 +539,7 @@ object GroupTheory extends lisa.Main {
     val a, b = variable
 
     have(subset(H, G)) by Tautology.from(subgroup.definition)
-    have(∀(x, x ∈ H ==> x ∈ G)) by Tautology.from(lastStep, subset.definition of(x -> H, y -> G))
+    have(∀(x, x ∈ H ==> x ∈ G)) by Tautology.from(lastStep, subset.definition of (x -> H, y -> G))
     val subsetDef = thenHave(x ∈ H ==> x ∈ G) by InstantiateForall(x)
 
     val left = have(x ∈ G) by Tautology.from(subsetDef)
@@ -549,12 +563,15 @@ object GroupTheory extends lisa.Main {
 
     // We characterize op(x, *, y), and show that op(x, ★, y) satisfies all requirements
     have(
-      ∀(z, (z === app(*, pair(x, y))) <=> (((functional(*) /\ in(pair(x, y), relationDomain(*))) ==> in(pair(pair(x, y), z), *)) /\
-                                          ((!functional(*) \/ !in(pair(x, y), relationDomain(*))) ==> (z === ∅))))
+      ∀(
+        z,
+        (z === app(*, pair(x, y))) <=> (((functional(*) /\ in(pair(x, y), relationDomain(*))) ==> in(pair(pair(x, y), z), *)) /\
+          ((!functional(*) \/ !in(pair(x, y), relationDomain(*))) ==> (z === ∅)))
+      )
     ) by Tautology.from(app.definition of (f -> *, x -> pair(x, y)), functionApplicationUniqueness)
     val characterization = thenHave(
       (r === app(*, pair(x, y))) <=> (((functional(*) /\ in(pair(x, y), relationDomain(*))) ==> in(pair(pair(x, y), r), *)) /\
-                                     ((!functional(*) \/ !in(pair(x, y), relationDomain(*))) ==> (r === ∅)))
+        ((!functional(*) \/ !in(pair(x, y), relationDomain(*))) ==> (r === ∅)))
     ) by InstantiateForall(r)
 
     // Prove that the premises of the first implication hold
@@ -565,7 +582,8 @@ object GroupTheory extends lisa.Main {
     }
 
     val premises = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- functional(*) /\ pair(x, y) ∈ relationDomain(*)) by RightAnd(
-      leftPremise, subgroupPairInParentOperationDomain
+      leftPremise,
+      subgroupPairInParentOperationDomain
     )
 
     // We show that op(x, ★, y) satisfies the conclusion of the implication
@@ -580,7 +598,8 @@ object GroupTheory extends lisa.Main {
     val reduction3 = have((subgroup(H, G, *), pair(x, y) ∈ relationDomain(★)) |- pair(pair(x, y), r) ∈ ★) by Tautology.from(reduction2, appDef)
 
     have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(★)) by Cut(
-      reduction1, groupPairInOperationDomain of (G -> H, * -> ★)
+      reduction1,
+      groupPairInOperationDomain of (G -> H, * -> ★)
     )
     val reducedDef = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(pair(x, y), r) ∈ ★) by Cut(lastStep, reduction3)
 
@@ -589,7 +608,8 @@ object GroupTheory extends lisa.Main {
     thenHave(u ∈ ★ ==> u ∈ *) by Tautology
 
     val satisfaction = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(pair(x, y), r) ∈ *) by Tautology.from(
-      lastStep of (u -> pair(pair(x, y), r)), reducedDef
+      lastStep of (u -> pair(pair(x, y), r)),
+      reducedDef
     )
 
     // Reconstruct the whole definition
@@ -606,7 +626,7 @@ object GroupTheory extends lisa.Main {
 
     have(
       ((functional(*) /\ pair(x, y) ∈ relationDomain(*)) ==> pair(pair(x, y), r) ∈ *) /\
-      ((!functional(*) \/ !(pair(x, y) ∈ relationDomain(*))) ==> (r === emptySet()))
+        ((!functional(*) \/ !(pair(x, y) ∈ relationDomain(*))) ==> (r === emptySet()))
     ) by RightAnd(pos, neg)
 
     have(thesis) by Tautology.from(lastStep, characterization)
