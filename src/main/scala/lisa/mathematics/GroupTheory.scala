@@ -230,6 +230,26 @@ object GroupTheory extends lisa.Main {
   }
 
   /**
+   * Simple reformulation of the associativity.
+   */
+  val associativityApplication = Lemma(
+    (group(G, *), x ∈ G, y ∈ G, z ∈ G) |- op(op(x, *, y), *, z) === op(x, *, op(y, *, z))
+  ) {
+    assume(group(G, *))
+
+    have(∀(x, x ∈ G ==> ∀(y, y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z))))))) by Tautology.from(
+      group.definition,
+      associativity.definition
+    )
+    thenHave(x ∈ G ==> ∀(y, y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z)))))) by InstantiateForall(x)
+    thenHave(x ∈ G |- ∀(y, y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z)))))) by Restate
+    thenHave(x ∈ G |- y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z))))) by InstantiateForall(y)
+    thenHave((x ∈ G, y ∈ G) |- ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z))))) by Restate
+    thenHave((x ∈ G, y ∈ G) |- z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z)))) by InstantiateForall(z)
+    thenHave((x ∈ G, y ∈ G, z ∈ G) |- (op(op(x, *, y), *, z) === op(x, *, op(y, *, z)))) by Restate
+  }
+
+  /**
    * Identity uniqueness --- In a group (G, *), an identity element is unique, i.e. if both `e * x = x * e = x` and
    * `f * x = x * f = x` for all `x`, then `e = f`.
    * This justifies calling `e` <i>the</i> identity element.
@@ -338,21 +358,8 @@ object GroupTheory extends lisa.Main {
       val firstEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- op(op(y, *, x), *, z) === z) by Cut(inverseMembership of (y -> z), leftNeutrality)
 
       // 2. (yx)z = y(xz)
-      val permuteParentheses = have((group(G, *), x ∈ G, y ∈ G, z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) subproof {
-        assume(group(G, *))
-        assume(x ∈ G)
-        assume(y ∈ G)
-        assume(z ∈ G)
-
-        have(∀(u, u ∈ G ==> ∀(v, v ∈ G ==> ∀(w, w ∈ G ==> (op(op(u, *, v), *, w) === op(u, *, op(v, *, w))))))) by Tautology.from(group.definition, associativity.definition)
-        thenHave(y ∈ G ==> ∀(v, v ∈ G ==> ∀(w, w ∈ G ==> (op(op(y, *, v), *, w) === op(y, *, op(v, *, w)))))) by InstantiateForall(y)
-        thenHave(∀(v, v ∈ G ==> ∀(w, w ∈ G ==> (op(op(y, *, v), *, w) === op(y, *, op(v, *, w)))))) by Tautology
-        thenHave(x ∈ G ==> ∀(w, w ∈ G ==> (op(op(y, *, x), *, w) === op(y, *, op(x, *, w))))) by InstantiateForall(x)
-        thenHave(∀(w, w ∈ G ==> (op(op(y, *, x), *, w) === op(y, *, op(x, *, w))))) by Tautology
-        thenHave(z ∈ G ==> (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by InstantiateForall(z)
-        thenHave(op(op(y, *, x), *, z) === op(y, *, op(x, *, z))) by Tautology
-      }
-      val associativityCut = have((group(G, *), x ∈ G /\ y ∈ G /\ z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate.from(permuteParentheses)
+      have((group(G, *), x ∈ G, y ∈ G, z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate.from(associativityApplication of (x -> y, y -> x))
+      val associativityCut = thenHave((group(G, *), x ∈ G /\ y ∈ G /\ z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate
       val memberships = have((x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- x ∈ G /\ y ∈ G /\ z ∈ G) by Tautology.from(inverseMembership of (y -> y), inverseMembership of (y -> z))
       val secondEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- op(op(y, *, x), *, z) === op(y, *, op(x, *, z))) by Cut(memberships, associativityCut)
 
