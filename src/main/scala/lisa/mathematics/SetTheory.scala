@@ -2261,6 +2261,16 @@ object SetTheory extends lisa.Main {
   val app =
     DEF(f, x) --> The(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === ∅)))(functionApplicationUniqueness)
 
+  val functionsEqualIfEqualOnDomain = Lemma(
+    functionalOver(f, a) /\ functionalOver(g, a) /\ forall(z, in(z, a) ==> (app(f, z) === app(g, z))) |- (f === g)
+  ) {
+    assume(functionalOver(f, a))
+    assume(functionalOver(g, a))
+    assume(forall(z, in(z, a) ==> (app(f, z) === app(g, z))))
+
+    sorry
+  }
+
   /**
    * Surjective (function) --- a function `f: x → y` is surjective iff it
    * maps to every `b ∈ y` from atleast one `a ∈ x`.
