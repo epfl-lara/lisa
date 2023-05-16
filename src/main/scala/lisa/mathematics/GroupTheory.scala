@@ -8,6 +8,7 @@ import lisa.mathematics.FirstOrderLogic.equalityTransitivity
 import lisa.mathematics.FirstOrderLogic.existsOneImpliesExists
 import lisa.mathematics.FirstOrderLogic.substitutionInUniquenessQuantifier
 import lisa.mathematics.SetTheory.*
+import lisa.kernel.proof.SequentCalculus.Hypothesis
 
 /**
  * Group theory, developed following Chapter 2 of S. Lang "Undergraduate Algebra".
@@ -22,6 +23,7 @@ object GroupTheory extends lisa.Main {
   private val * = variable
 
   // Group elements
+  private val a, b = variable
   private val x, y, z = variable
   private val u, v, w = variable
 
@@ -147,7 +149,7 @@ object GroupTheory extends lisa.Main {
   /**
    * Associativity --- `*` is associative (in `G`) if `(x * y) * z = x * (y * z)` for all `x, y, z` in `G`.
    */
-  val associativity = DEF(G, *) -->
+  val associativityAxiom = DEF(G, *) -->
     ∀(x, x ∈ G ==> ∀(y, y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z))))))
 
   /**
@@ -171,10 +173,10 @@ object GroupTheory extends lisa.Main {
   val inverseExistence = DEF(G, *) --> ∀(x, (x ∈ G) ==> ∃(y, isInverse(y, x, G, *)))
 
   /**
-   * Group --- A group (G, *) is a set along with a law of composition `*`, satisfying [[associativity]], [[identityExistence]]
+   * Group --- A group (G, *) is a set along with a law of composition `*`, satisfying [[associativityAxiom]], [[identityExistence]]
    * and [[inverseExistence]].
    */
-  val group = DEF(G, *) --> binaryFunction(G, *) /\ associativity(G, *) /\ identityExistence(G, *) /\ inverseExistence(G, *)
+  val group = DEF(G, *) --> binaryFunction(G, *) /\ associativityAxiom(G, *) /\ identityExistence(G, *) /\ inverseExistence(G, *)
 
   /**
    * Group operation is functional -- The group operation `*` is functional.
@@ -184,10 +186,11 @@ object GroupTheory extends lisa.Main {
   val groupOperationIsFunctional = Lemma(
     group(G, *) |- functional(*)
   ) {
-    assume(group(G, *))
-    have(binaryFunction(G, *)) by Tautology.from(group.definition)
-    have(functionFrom(*, cartesianProduct(G, G), G)) by Tautology.from(lastStep, binaryFunction.definition)
-    have(functional(*)) by Tautology.from(lastStep, functionFromImpliesFunctional of (f -> *, x -> cartesianProduct(G, G), y -> G))
+    have(thesis) by Tautology.from(
+      group.definition,
+      binaryFunction.definition,
+      functionFromImpliesFunctional of (f -> *, x -> cartesianProduct(G, G), y -> G)
+    )
   }
 
   /**
@@ -198,10 +201,11 @@ object GroupTheory extends lisa.Main {
   val groupOperationDomain = Lemma(
     group(G, *) |- relationDomain(*) === cartesianProduct(G, G)
   ) {
-    assume(group(G, *))
-    have(binaryFunction(G, *)) by Tautology.from(group.definition)
-    have(functionFrom(*, cartesianProduct(G, G), G)) by Tautology.from(lastStep, binaryFunction.definition)
-    have(relationDomain(*) === cartesianProduct(G, G)) by Tautology.from(lastStep, functionFromImpliesDomainEq of (f -> *, x -> cartesianProduct(G, G), y -> G))
+    have(thesis) by Tautology.from(
+      group.definition,
+      binaryFunction.definition,
+      functionFromImpliesDomainEq of (f -> *, x -> cartesianProduct(G, G), y -> G)
+    )
   }
 
   /**
@@ -213,8 +217,6 @@ object GroupTheory extends lisa.Main {
     assume(group(G, *))
     assume(x ∈ G)
     assume(y ∈ G)
-
-    val a, b = variable
 
     have(x ∈ G /\ y ∈ G) by Tautology
     have(pair(x, y) ∈ cartesianProduct(G, G)) by Tautology.from(
@@ -230,16 +232,18 @@ object GroupTheory extends lisa.Main {
   }
 
   /**
-   * Simple reformulation of the associativity.
+   * Lemma --- For elements `x, y, z` in a group `(G, *)`, we have `(xy)z = x(yz)`.
+   * 
+   * Simpler reformulation of the [[associativityAxiom]].
    */
-  val associativityApplication = Lemma(
+  val associativity = Lemma(
     (group(G, *), x ∈ G, y ∈ G, z ∈ G) |- op(op(x, *, y), *, z) === op(x, *, op(y, *, z))
   ) {
     assume(group(G, *))
 
     have(∀(x, x ∈ G ==> ∀(y, y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z))))))) by Tautology.from(
       group.definition,
-      associativity.definition
+      associativityAxiom.definition
     )
     thenHave(x ∈ G ==> ∀(y, y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z)))))) by InstantiateForall(x)
     thenHave(x ∈ G |- ∀(y, y ∈ G ==> ∀(z, z ∈ G ==> (op(op(x, *, y), *, z) === op(x, *, op(y, *, z)))))) by Restate
@@ -252,6 +256,7 @@ object GroupTheory extends lisa.Main {
   /**
    * Identity uniqueness --- In a group (G, *), an identity element is unique, i.e. if both `e * x = x * e = x` and
    * `f * x = x * f = x` for all `x`, then `e = f`.
+   * 
    * This justifies calling `e` <i>the</i> identity element.
    */
   val identityUniqueness = Theorem(
@@ -300,13 +305,12 @@ object GroupTheory extends lisa.Main {
   /**
    * Theorem --- The identity element belongs to the group.
    *
-   * This might seem like a silly theorem, but it is useful in proving that groups are non-empty by definition.
+   * This might seem like a silly theorem, but it is useful in [[groupNonEmpty]].
    */
   val identityInGroup = Theorem(
     group(G, *) |- identity(G, *) ∈ G
   ) {
-    assume(group(G, *))
-    have(isNeutral(identity(G, *), G, *)) by Definition(identity, identityUniqueness)(G, *)
+    have(group(G, *) |- isNeutral(identity(G, *), G, *)) by Definition(identity, identityUniqueness)(G, *)
     have(thesis) by Tautology.from(
       lastStep,
       isNeutral.definition of (e -> identity(G, *))
@@ -358,8 +362,9 @@ object GroupTheory extends lisa.Main {
       val firstEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- op(op(y, *, x), *, z) === z) by Cut(inverseMembership of (y -> z), leftNeutrality)
 
       // 2. (yx)z = y(xz)
-      have((group(G, *), x ∈ G, y ∈ G, z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate.from(associativityApplication of (x -> y, y -> x))
-      val associativityCut = thenHave((group(G, *), x ∈ G /\ y ∈ G /\ z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate
+      val associativityCut = have((group(G, *), x ∈ G /\ y ∈ G /\ z ∈ G) |- (op(op(y, *, x), *, z) === op(y, *, op(x, *, z)))) by Restate.from(
+        associativity of (x -> y, y -> x)
+      )
       val memberships = have((x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- x ∈ G /\ y ∈ G /\ z ∈ G) by Tautology.from(inverseMembership of (y -> y), inverseMembership of (y -> z))
       val secondEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- op(op(y, *, x), *, z) === op(y, *, op(x, *, z))) by Cut(memberships, associativityCut)
 
@@ -438,14 +443,7 @@ object GroupTheory extends lisa.Main {
     }
 
     // Prove that inverse(x) is an inverse of x
-    val inverseIsInverse = have((group(G, *), x ∈ G) |- isInverse(inverse(x, G, *), x, G, *)) subproof {
-      assume(group(G, *))
-
-      have(x ∈ G |- ((inverse(x, G, *) === inverse(x, G, *)) <=> isInverse(inverse(x, G, *), x, G, *))) by Restate.from(
-        inverseCharacterization of (y -> inverse(x, G, *))
-      )
-      thenHave(thesis) by Restate
-    }
+    val inverseIsInverse = have((group(G, *), x ∈ G) |- isInverse(inverse(x, G, *), x, G, *)) by Definition(inverse, inverseUniqueness)(x, G, *)
 
     val membership = have((group(G, *), x ∈ G) |- in(inverse(x, G, *), G)) by Tautology.from(
       inverseIsInverse,
@@ -542,8 +540,6 @@ object GroupTheory extends lisa.Main {
     assume(subgroup(H, G, *))
     assume(x ∈ H)
     assume(y ∈ H)
-
-    val a, b = variable
 
     have(subset(H, G)) by Tautology.from(subgroup.definition)
     have(∀(x, x ∈ H ==> x ∈ G)) by Tautology.from(lastStep, subset.definition of (x -> H, y -> G))
