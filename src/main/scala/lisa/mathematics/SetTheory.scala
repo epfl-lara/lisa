@@ -120,12 +120,6 @@ object SetTheory extends lisa.Main {
     thenHave(∃(z, fprop(z)) |- ∃!(z, fprop(z))) by RightExistsOne
   }
 
-  val inclusionAntiSymmetric = Lemma(
-    !(in(x, y) /\ in(y, x))
-  ) {
-    sorry
-  }
-
   //////////////////////////////////////////////////////////////////////////////
 
   /**
@@ -836,6 +830,42 @@ object SetTheory extends lisa.Main {
     thenHave(subset(powerSet(x), x) |- (x === powerSet(x))) by Weakening
     thenHave(properSubset(powerSet(x), x) |- ()) by Restate
     thenHave(∃(x, properSubset(powerSet(x), x)) |- ()) by LeftExists
+  }
+
+  val inclusionAntiSymmetric = Lemma(
+    !(in(x, y) /\ in(y, x))
+  ) {
+    assume(in(x, y))
+    assume(in(y, x))
+
+    // consider the set u = {x, y}
+    val u = unorderedPair(x, y)
+
+    // u is not the empty set
+    have(in(x, u)) by Weakening(firstElemInPair)
+    have(!(u === emptySet())) by Tautology.from(lastStep, setWithElementNonEmpty of (y -> x, x -> u))
+
+    // by Foundation, there must be an inclusion minimal element in u
+    val minimal = have(exists(z, in(z, u) /\ forall(t, in(t, u) ==> !in(t, z)))) by Tautology.from(lastStep, foundationAxiom of x -> u)
+    // negation = forall(z, in(z, u) ==> exists(t, in(t, u) /\ in(t, z)))
+
+    // it can only be x or y
+    val zxy = have(in(z, u) <=> ((z === x) \/ (z === y))) by Weakening(pairAxiom)
+
+    // but x \cap u contains y, and y \cap u contains x
+    have(in(x, u) /\ in(x, y)) by Tautology.from(firstElemInPair)
+    thenHave((z === y) |- in(x, u) /\ in(x, z)) by Substitution.apply2(true, z === y)
+    val zy = thenHave((z === y) |- exists(t, in(t, u) /\ in(t, z))) by RightExists
+
+    have(in(y, u) /\ in(y, x)) by Tautology.from(secondElemInPair)
+    thenHave((z === x) |- in(y, u) /\ in(y, z)) by Substitution.apply2(true, z === x)
+    val zx = thenHave((z === x) |- exists(t, in(t, u) /\ in(t, z))) by RightExists
+
+    // this is a contradiction
+    have(in(z, u) ==> exists(t, in(t, u) /\ in(t, z))) by Tautology.from(zxy, zx, zy)
+    thenHave(forall(z, in(z, u) ==> exists(t, in(t, u) /\ in(t, z)))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, minimal)
   }
 
   //////////////////////////////////////////////////////////////////////////////
