@@ -291,6 +291,18 @@ object Orderings extends lisa.Main {
     have(thesis) by Tautology.from(subs, relationBetween.definition of (r -> inclusionOn(a), a -> a, b -> a))
   }
 
+  val inclusionIsAntiReflexive = Theorem(
+    antiReflexive(inclusionOn(a), a)
+  ) {
+    sorry
+  }
+
+  val inclusionIsAntiSymmetric = Theorem(
+    antiSymmetric(inclusionOn(a), a)
+  ) {
+    sorry
+  }
+
   /**
    * Theorem --- the inclusion order on the empty set is the empty relation.
    */
@@ -472,6 +484,24 @@ object Orderings extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, transitiveSet.definition)
   }
 
+  val inclusionOnTransitiveSetIsPartialOrder = Theorem(
+    transitiveSet(a) |- partialOrder(inclusionOrderOn(a))
+  ) {
+
+    // inclusion is a relation
+    // anti reflexive
+    // anti symmetric
+    have(relationBetween(inclusionOn(a), a, a) /\ antiReflexive(inclusionOn(a), a) /\ antiSymmetric(inclusionOn(a), a)) by Tautology.from(
+      inclusionIsRelation,
+      inclusionIsAntiReflexive,
+      inclusionIsAntiSymmetric
+    )
+
+    // and transitive
+
+    sorry
+  }
+
   /**
    * A set is an ordinal iff it is transitive ([[transitiveSet]]) and
    * well-ordered ([[wellOrder]]) by inclusion.
@@ -527,7 +557,7 @@ object Orderings extends lisa.Main {
     have(thesis) by Tautology.from(emptySetWellOrderedByInclusion, emptySetTransitive, ordinal.definition of (a -> emptySet()))
   }
 
-  val ordinalsHeredetarilyTransitive = Lemma(
+  val ordinalsHereditarilyTransitive = Lemma(
     ordinal(a) |- transitiveSet(a) /\ forall(b, in(b, a) ==> transitiveSet(b))
   ) {
     val ordinalTrans = have(ordinal(a) |- transitiveSet(a)) by Weakening(ordinal.definition)
@@ -571,7 +601,201 @@ object Orderings extends lisa.Main {
   val elementsOfOrdinalsAreOrdinals = Theorem(
     (ordinal(a), in(b, a)) |- ordinal(b)
   ) {
-    sorry
+    assume(ordinal(a))
+    assume(in(b, a))
+
+    // transitive ::
+    val transitiveB = have(transitiveSet(b)) subproof {
+      have(forall(b, in(b, a) ==> transitiveSet(b))) by Weakening(ordinalsHereditarilyTransitive)
+      thenHave(thesis) by InstantiateForall(b)
+    }
+
+    // and well ordered by inclusion ::
+
+    // what defines \in_b as a subset of \in_a?
+    // one direction (a ==> b) is sufficient here
+    val incAToB = have(in(y, b) /\ in(z, b) /\ in(pair(z, y), inclusionOn(a)) |- in(pair(z, y), inclusionOn(b))) subproof {
+      assume(in(y, b))
+      assume(in(z, b))
+      assume(in(pair(z, y), inclusionOn(a)))
+
+      // instantiating definition of inclusion (a bit painful with assumes)
+      have(forall(z, (z === inclusionOn(a)) <=> forall(t, in(t, z) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))))) by Weakening(inclusionOn.definition)
+      thenHave(forall(t, in(t, inclusionOn(a)) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(inclusionOn(a))
+      val incDefA =
+        thenHave(in(pair(z, y), inclusionOn(a)) <=> (in(pair(z, y), cartesianProduct(a, a)) /\ exists(d, exists(c, in(d, c) /\ (pair(z, y) === pair(d, c)))))) by InstantiateForall(pair(z, y))
+      have(forall(z, (z === inclusionOn(b)) <=> forall(t, in(t, z) <=> (in(t, cartesianProduct(b, b)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))))) by Weakening(
+        inclusionOn.definition of a -> b
+      )
+      thenHave(forall(t, in(t, inclusionOn(b)) <=> (in(t, cartesianProduct(b, b)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(inclusionOn(b))
+      val incDefB =
+        thenHave(in(pair(z, y), inclusionOn(b)) <=> (in(pair(z, y), cartesianProduct(b, b)) /\ exists(d, exists(c, in(d, c) /\ (pair(z, y) === pair(d, c)))))) by InstantiateForall(pair(z, y))
+
+      have(in(pair(z, y), cartesianProduct(b, b))) by Tautology.from(pairInCartesianProduct of (a -> z, b -> y, x -> b, y -> b))
+      have(thesis) by Tautology.from(lastStep, incDefA, incDefB)
+    }
+
+    val totalB = have(totalOrder(inclusionOrderOn(b))) subproof {
+      // the totality of \in_b follows from the totality of \in_a and the fact that \in_b does not exclude any elements of b
+      val totA = have(totalOrder(inclusionOrderOn(a))) by Tautology.from(ordinal.definition, wellOrder.definition of p -> inclusionOrderOn(a))
+
+      val totalDef = have(totalOrder(p) <=> (partialOrder(p) /\ total(secondInPair(p), firstInPair(p)))) by Weakening(totalOrder.definition)
+
+      // \in_b is a partial order
+      val inBPartial = have(partialOrder(inclusionOrderOn(b))) by Tautology.from(inclusionOnTransitiveSetIsPartialOrder of a -> b, transitiveB)
+
+      // \in_b is total as a homogeneous relation on b
+      val inBTotal = have(total(secondInPair(inclusionOrderOn(b)), firstInPair(inclusionOrderOn(b)))) subproof {
+        val totB = have(total(inclusionOn(b), b)) subproof {
+          have(forall(z, (z === inclusionOrderOn(a)) <=> (z === pair(a, inclusionOn(a))))) by Weakening(inclusionOrderOn.definition)
+          val incEq = thenHave(inclusionOrderOn(a) === pair(a, inclusionOn(a))) by InstantiateForall(inclusionOrderOn(a))
+          have(total(secondInPair(inclusionOrderOn(a)), firstInPair(inclusionOrderOn(a)))) by Tautology.from(totalDef of p -> inclusionOrderOn(a), totA)
+          thenHave(total(secondInPair(pair(a, inclusionOn(a))), firstInPair(pair(a, inclusionOn(a))))) by Substitution.apply2(false, incEq)
+          val totIncA = thenHave(total(inclusionOn(a), a)) by Substitution.apply2(false, secondInPairReduction of (x -> a, y -> inclusionOn(a)), firstInPairReduction of (x -> a, y -> inclusionOn(a)))
+
+          val totRelDef =
+            have(total(r, x) <=> (relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r) \/ (y === z)))))) by Weakening(total.definition)
+
+          // need to show
+          // \forall y, z \in b. y \in_b z \/ z \in_b y \/ (z = y)
+          // y, z \in b ==> y, z \in a
+          // y, z \in a ==> y \in_a z \/ z \in_a y \/ (z = y)
+          // but each of these imply a literal above
+          // done
+          have(total(inclusionOn(a), a) |- (in(y, b) /\ in(z, b)) ==> (in(pair(y, z), inclusionOn(b)) \/ in(pair(z, y), inclusionOn(b)) \/ (y === z))) subproof {
+            assume(total(inclusionOn(a), a))
+            assume(in(y, b))
+            assume(in(z, b))
+
+            have(forall(y, in(y, a) ==> subset(y, a))) by Tautology.from(ordinal.definition, transitiveSet.definition of x -> a)
+            thenHave(in(b, a) ==> subset(b, a)) by InstantiateForall(b)
+            have(forall(x, in(x, b) ==> in(x, a))) by Tautology.from(lastStep, subsetAxiom of (x -> b, y -> a))
+            thenHave(in(x, b) ==> in(x, a)) by InstantiateForall(x)
+            val yza = have(in(y, a) /\ in(z, a)) by Tautology.from(lastStep of x -> y, lastStep of x -> z)
+
+            have(forall(y, forall(z, (in(y, a) /\ in(z, a)) ==> (in(pair(y, z), inclusionOn(a)) \/ in(pair(z, y), inclusionOn(a)) \/ (y === z))))) by Tautology.from(
+              totRelDef of (r -> inclusionOn(a), x -> a)
+            )
+            thenHave((in(y, a) /\ in(z, a)) ==> (in(pair(y, z), inclusionOn(a)) \/ in(pair(z, y), inclusionOn(a)) \/ (y === z))) by InstantiateForall(y, z)
+            have((in(pair(y, z), inclusionOn(a)) \/ in(pair(z, y), inclusionOn(a)) \/ (y === z))) by Tautology.from(lastStep, yza)
+
+            have(thesis) by Tautology.from(lastStep, incAToB, incAToB of (y -> z, z -> y))
+          }
+
+          have((in(y, b) /\ in(z, b)) ==> (in(pair(y, z), inclusionOn(b)) \/ in(pair(z, y), inclusionOn(b)) \/ (y === z))) by Cut(totIncA, lastStep)
+          thenHave(forall(z, (in(y, b) /\ in(z, b)) ==> (in(pair(y, z), inclusionOn(b)) \/ in(pair(z, y), inclusionOn(b)) \/ (y === z)))) by RightForall
+          thenHave(forall(y, forall(z, (in(y, b) /\ in(z, b)) ==> (in(pair(y, z), inclusionOn(b)) \/ in(pair(z, y), inclusionOn(b)) \/ (y === z))))) by RightForall
+
+          have(thesis) by Tautology.from(lastStep, inclusionIsRelation of a -> b, totRelDef of (r -> inclusionOn(b), x -> b))
+        }
+
+        have(forall(z, (z === inclusionOrderOn(b)) <=> (z === pair(b, inclusionOn(b))))) by Weakening(inclusionOrderOn.definition of a -> b)
+        val incEq = thenHave(inclusionOrderOn(b) === pair(b, inclusionOn(b))) by InstantiateForall(inclusionOrderOn(b))
+
+        have(secondInPair(pair(b, inclusionOn(b))) === inclusionOn(b)) by Weakening(secondInPairReduction of (x -> b, y -> inclusionOn(b)))
+        val snd = thenHave(secondInPair(inclusionOrderOn(b)) === inclusionOn(b)) by Substitution.apply2(true, incEq)
+        have(firstInPair(pair(b, inclusionOn(b))) === (b)) by Weakening(firstInPairReduction of (x -> b, y -> inclusionOn(b)))
+        val fst = thenHave(firstInPair(inclusionOrderOn(b)) === (b)) by Substitution.apply2(true, incEq)
+
+        have(thesis) by Substitution.apply2(true, snd, fst)(totB)
+      }
+
+      have(totalOrder(inclusionOrderOn(b)) <=> (partialOrder(inclusionOrderOn(b)) /\ total(secondInPair(inclusionOrderOn(b)), firstInPair(inclusionOrderOn(b))))) by Weakening(
+        totalDef of p -> inclusionOrderOn(b)
+      )
+      have(thesis) by Tautology.from(lastStep, inBPartial, inBTotal)
+    }
+
+    val woProp = have(forall(c, (subset(c, b) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y)))))) subproof {
+      // painful expansion
+      // subset c b ==> subset c a
+      have(forall(y, in(y, a) ==> subset(y, a))) by Tautology.from(ordinal.definition, transitiveSet.definition of x -> a)
+      thenHave(in(b, a) ==> subset(b, a)) by InstantiateForall(b)
+      thenHave(subset(b, a)) by Restate
+      have(subset(c, b) |- subset(c, a)) by Tautology.from(lastStep, subsetTransitivity of (a -> c, c -> a))
+      val bToA = thenHave(subset(c, b) /\ !(c === emptySet()) |- subset(c, a) /\ !(c === emptySet())) by Tautology
+
+      have(forall(z, (z === inclusionOrderOn(a)) <=> (z === pair(a, inclusionOn(a))))) by Weakening(inclusionOrderOn.definition)
+      val incDef = thenHave(inclusionOrderOn(a) === pair(a, inclusionOn(a))) by InstantiateForall(inclusionOrderOn(a))
+
+      // so there exists a minimal element wrt a
+      have(
+        forall(
+          c,
+          (subset(c, firstInPair(inclusionOrderOn(a))) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(inclusionOrderOn(a))) \/ (z === y))))
+        )
+      ) by Tautology.from(ordinal.definition, wellOrder.definition of p -> inclusionOrderOn(a))
+      thenHave(
+        forall(
+          c,
+          (subset(c, firstInPair(pair(a, inclusionOn(a)))) /\ !(c === emptySet())) ==> exists(
+            z,
+            in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(pair(a, inclusionOn(a)))) \/ (z === y)))
+          )
+        )
+      ) by Substitution.apply2(false, incDef)
+      thenHave(forall(c, (subset(c, a) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y)))))) by Substitution.apply2(
+        false,
+        firstInPairReduction of (x -> a, y -> inclusionOn(a)),
+        secondInPairReduction of (x -> a, y -> inclusionOn(a))
+      )
+      val caWO = thenHave((subset(c, a) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))))) by InstantiateForall(c)
+
+      // but if this element is minimal wrt \in_a, it is minimal wrt \in_b as well
+      have(
+        (subset(c, b), exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))))) |- exists(
+          z,
+          in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y)))
+        )
+      ) subproof {
+        assume(subset(c, b))
+        val subCB = have(forall(x, in(x, c) ==> in(x, b))) by Tautology.from(subsetAxiom of (x -> c, y -> b))
+        val yb = have(in(y, c) ==> in(y, b)) by InstantiateForall(y)(subCB)
+        val zb = have(in(z, c) ==> in(z, b)) by InstantiateForall(z)(subCB)
+
+        have(in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))) |- forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y)))) by Restate
+        thenHave(in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))) |- in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))) by InstantiateForall(y)
+        have(in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))) |- in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y))) by Tautology.from(
+          lastStep,
+          incAToB,
+          yb,
+          zb
+        )
+        thenHave(in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))) |- forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y)))) by RightForall
+        thenHave(in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))) |- in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y)))) by Tautology
+        thenHave(
+          in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))) |- exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y))))
+        ) by RightExists
+        thenHave(thesis) by LeftExists
+      }
+
+      have((subset(c, b) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y))))) by Tautology.from(lastStep, caWO, bToA)
+      thenHave(thesis) by RightForall
+    }
+
+    val wo = have(wellOrder(inclusionOrderOn(b))) subproof {
+      have(forall(z, (z === inclusionOrderOn(b)) <=> (z === pair(b, inclusionOn(b))))) by Weakening(inclusionOrderOn.definition of a -> b)
+      val incDef = thenHave(inclusionOrderOn(b) === pair(b, inclusionOn(b))) by InstantiateForall(inclusionOrderOn(b))
+
+      have(
+        forall(
+          c,
+          (subset(c, firstInPair(pair(b, inclusionOn(b)))) /\ !(c === emptySet())) ==> exists(
+            z,
+            in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(pair(b, inclusionOn(b)))) \/ (z === y)))
+          )
+        )
+      ) by Substitution.apply2(true, firstInPairReduction of (x -> b, y -> inclusionOn(b)), secondInPairReduction of (x -> b, y -> inclusionOn(b)))(woProp)
+      thenHave(
+        forall(
+          c,
+          (subset(c, firstInPair(inclusionOrderOn(b))) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(inclusionOrderOn(b))) \/ (z === y))))
+        )
+      ) by Substitution.apply2(true, incDef)
+      have(thesis) by Tautology.from(lastStep, totalB, wellOrder.definition of p -> inclusionOrderOn(b))
+    }
+
+    have(thesis) by Tautology.from(wo, transitiveB, ordinal.definition of (a -> b))
   }
 
   val ordinalSubclassHasMinimalElement = Lemma(
@@ -983,7 +1207,8 @@ object Orderings extends lisa.Main {
       }
 
       // the existence of g propagates up from initial segments
-
+      // this alone with induction is sufficient to prove the whole thing.
+      // TODO: Delete the rest
       val initPropagate = have(in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x))) subproof {
         def fun(g: Term, t: Term): Formula = (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
 
