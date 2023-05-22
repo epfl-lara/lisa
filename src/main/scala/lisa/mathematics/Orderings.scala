@@ -846,21 +846,12 @@ object Orderings extends lisa.Main {
     sorry
   }
 
-  val orderedRestrictionUniqueness = Lemma(
-    () |- existsOne(g, forall(t, in(t, g) <=> (in(t, f) /\ in(pair(firstInPair(t), a), secondInPair(p)))))
-  ) {
-    have(thesis) by UniqueComprehension(f, lambda(Seq(t, f), in(pair(firstInPair(t), a), secondInPair(p))))
-  }
-
   /**
    * The restriction of a function `f` with respect to `a` relative to a
    * partial order `p = (X, <)`. The result is `f` with its domain restricted
    * to the elements less than `a` wrt `<`.
    */
-  val orderedRestriction = DEF(f, a, p) --> {
-    val `<p` = secondInPair(p)
-    The(g, forall(t, in(t, g) <=> (in(t, f) /\ in(pair(firstInPair(t), a), `<p`))))(orderedRestrictionUniqueness)
-  }
+  val orderedRestriction = DEF(f, a, p) --> restrictedFunction(f, initialSegment(p, a))
 
   /**
    * Theorem --- Well Ordered Induction on a Subclass
@@ -1040,7 +1031,7 @@ object Orderings extends lisa.Main {
    * If `p` is a strict well-ordering, `Q` is a class, and `A` the base set of
    * `p`, then
    *
-   *     `\forall x \in A. (A |^ x) \subseteq Q ==> x \in Q |- \forall x \in A. x \in Q`
+   *     `∀ x ∈ A. (A |^ x) ⊆ Q ==> x ∈ Q |- ∀ x ∈ A. x ∈ Q`
    *
    * i.e., if the property `Q` passes to `x` from its initial segment, then `Q`
    * holds for every element of `A`.
@@ -1161,162 +1152,121 @@ object Orderings extends lisa.Main {
   val wellOrderedRecursionStronger = Lemma(
     wellOrder(p) |- forall(
       t,
-      in(t, firstInPair(p)) ==> existsOne(g, functional(g) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+      in(t, firstInPair(p)) ==> existsOne(g, (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))))
     )
   ) {
+
+    assume(wellOrder(p))
 
     val p1 = firstInPair(p)
     val p2 = secondInPair(p)
 
-    def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, functional(g) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+    def fun(g: Term, t: Term): Formula = (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+    def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, fun(g, t))
 
-    // define `z` as the set of elements of `p_1` for which `prop` does not hold
-    val zDef = forall(t, in(t, z) <=> (in(t, p1) /\ !prop(t)))
+    // the existence of g propagates up from initial segments
+    val initPropagate = have(in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x))) subproof {
 
-    // Case 1
-    // `z` is empty
-    val case1 = have((zDef, forall(t, !in(t, z))) |- forall(t, prop(t))) subproof {
-      val zDefInst = have(zDef |- in(t, z) <=> (in(t, p1) /\ !prop(t))) by InstantiateForall
-      have(forall(t, !in(t, z)) |- !in(t, z)) by InstantiateForall
-
-      have((zDef, forall(t, !in(t, z))) |- prop(t)) by Tautology.from(zDefInst, lastStep)
-      thenHave(thesis) by RightForall
-    }
-
-    // Case 2
-    // `z` is non-empty
-    // we lead the proof to a contradiction
-    val case2 = have((zDef, exists(t, in(t, z)), wellOrder(p)) |- forall(t, prop(t))) subproof {
-      // z is not the empty set
-      have(in(t, z) |- !(z === emptySet)) by Restate.from(setWithElementNonEmpty of (y -> t, x -> z))
-      val zNonEmpty = thenHave(exists(t, in(t, z)) |- !(z === emptySet)) by LeftExists
-
-      // z has a least element
-      // z is a subset of p1
-      val zSubsetP = have(zDef |- subset(z, p1)) subproof {
-        have(zDef |- in(t, z) <=> (in(t, p1) /\ !prop(t))) by InstantiateForall
-        thenHave(zDef |- in(t, z) ==> in(t, p1)) by Weakening
-        thenHave(zDef |- forall(t, in(t, z) ==> in(t, p1))) by RightForall
-        have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> z, y -> p1))
-      }
-      // so there is a least element
-      have((wellOrder(p), zDef, exists(t, in(t, z))) |- exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b))))) subproof {
-        have(wellOrder(p) |- forall(z, (subset(z, p1) /\ !(z === emptySet())) ==> exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b)))))) by Weakening(wellOrder.definition)
-        thenHave(wellOrder(p) |- (subset(z, p1) /\ !(z === emptySet())) ==> exists(a, in(a, z) /\ forall(b, in(b, z) ==> (in(pair(a, b), p2) \/ (a === b))))) by InstantiateForall(z)
-        have(thesis) by Tautology.from(lastStep, zNonEmpty, zSubsetP)
-      }
-
-      // the existence of g propagates up from initial segments
-      // this alone with induction is sufficient to prove the whole thing.
-      // TODO: Delete the rest
-      val initPropagate = have(in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x))) subproof {
-        def fun(g: Term, t: Term): Formula = (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
-
-        assume(
-          Seq(
-            in(x, p1),
-            forall(y, in(y, initialSegment(p, x)) ==> prop(y)),
-            wellOrder(p)
-          )
+      assume(
+        Seq(
+          in(x, p1),
+          forall(y, in(y, initialSegment(p, x)) ==> prop(y))
         )
+      )
 
-        // if there exists a unique g for the initial segment, get the set of these
-        val wDef = forall(t, in(t, w) <=> fun(w, t))
-        // take its union
-        // this is a function g for x
+      // if there exists a unique g for the initial segment, get the set of these
+      val wDef = forall(t, in(t, w) <=> fun(w, t))
+      // take its union
+      // this is a function g for x
+      val uw = union(w)
 
-        // if a g exists, it is unique
-        have(exists(g, fun(g, a)) /\ in(a, p1) |- existsOne(g, fun(g, a))) subproof {
-          assume(in(a, p1))
-
-          // pa is a well order over a, which is needed for induction
-          val pa = pair(initialSegment(p, a), initialSegmentOrder(p, a))
-          val paWO = have(wellOrder(pa)) by Weakening(initialSegmentWellOrdered)
-
-          // suppose there exist two such distinct functions g1 and g2
-          val g1 = variable
-          val g2 = variable
-
-          // if g1 and g2 agree on the initial segment of an element < z, they must agree on z
-          val initToz = have(fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2) /\ in(z, a) |- forall(b, in(b, initialSegment(z, pa)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z))) subproof {
-
-            // the ordered restriction of g1 has domain initialSegment(z, pa)
-            // it is functional, too
-
-            // on the restricted domain, app(orderedRestriction(g, a, p), z) = app(g, z)
-
-            // for every element in the restricted domain, app g1_z b  = app g2_z b
-
-            // but then g1_z = g2_z
-
-            // and thus F(g1_z) = F(g2_z)
-
-            // but then app(g1, z) = F (g1_z) = F(g1_z) = app(g2, z)
-
-            // quantify
-
-            sorry
-          }
-
-          // thus, they must agree on the whole domain
-          val eqZ = have(wellOrder(pa) /\ fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2) |- forall(z, in(z, initialSegment(p, a)) ==> (app(g1, z) === app(g2, z)))) subproof {
-            have(fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2) /\ in(z, a) |- forall(b, in(b, initialSegment(z, pa)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z))) by Restate.from(
-              initToz
-            )
-            thenHave(
-              fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2) /\ in(z, firstInPair(pa)) |- forall(b, in(b, initialSegment(z, pa)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z))
-            ) by Substitution.apply2(false, firstInPairReduction of (x -> initialSegment(p, a), y -> initialSegmentOrder(p, a)))
-            have(thesis) by Tautology.from(lastStep, wellOrderedInduction of (p -> pa, Q -> lambda(x, app(g1, x) === app(g2, x))))
-          }
-
-          // so g1 = g2, but this is a contradiction
-          val contra = have(fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2) |- ()) subproof {
-            have(fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2) |- (g1 === g2)) by Tautology.from(eqZ, functionsEqualIfEqualOnDomain of (f -> g1, g -> g2, a -> initialSegment(p, a)))
-            thenHave(thesis) by Restate
-          }
-
-          // so there exists a unique one, if there exists one at all
-          have(!exists(g, fun(g, a)) \/ existsOne(g, fun(g, a))) subproof {
-            have(fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2) |- ()) by Restate.from(contra)
-            thenHave(exists(g2, fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2)) |- ()) by LeftExists
-            thenHave(exists(g1, exists(g2, fun(g1, a) /\ fun(g2, a) /\ !(g1 === g2))) |- ()) by LeftExists
-            have(thesis) by Tautology.from(lastStep, atleastTwoExist of (P -> lambda(x, fun(x, a))))
-          }
-
-          thenHave(thesis) by Restate
-        }
-
+      val gExists = have(exists(g, fun(g, x))) subproof {
         sorry
       }
 
-      thenHave(forall(x, in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x)))) by RightForall
+      // if a g exists, it is unique
+      val gUnique = have(exists(g, fun(g, t)) /\ in(t, p1) |- existsOne(g, fun(g, t))) subproof {
+        assume(in(t, p1))
 
-      have((zDef, exists(t, in(t, z)), wellOrder(p)) |- forall(t, in(t, p1) ==> prop(t))) by Tautology.from(lastStep, wellOrderedInduction of Q -> lambda(t, prop(t)))
-      thenHave(thesis) by Restate
+        // pt is a well order over t, which is needed for induction
+        val pt = pair(initialSegment(p, t), initialSegmentOrder(p, t))
+        val ptWO = have(wellOrder(pt)) by Weakening(initialSegmentWellOrdered of a -> t)
+
+        // suppose there exist two such distinct functions g1 and g2
+        val g1 = variable
+        val g2 = variable
+
+        // if g1 and g2 agree on the initial segment of an element < z, they must agree on z
+        val initToz = have(
+          fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2) /\ in(z, initialSegment(p, t)) |- forall(
+            b,
+            in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))
+          ) ==> (app(g1, z) === app(g2, z))
+        ) subproof {
+
+          // the ordered restriction of g1 has domain initialSegment(z, pa)
+          // it is functional, too
+
+          // on the restricted domain, app(orderedRestriction(g, a, p), z) = app(g, z)
+
+          // for every element in the restricted domain, app g1_z b  = app g2_z b
+
+          // but then g1_z = g2_z
+
+          // and thus F(g1_z) = F(g2_z)
+
+          // but then app(g1, z) = F (g1_z) = F(g1_z) = app(g2, z)
+
+          // quantify
+
+          sorry
+        }
+
+        // thus, they must agree on the whole domain
+        val eqZ = have(fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2) |- forall(z, in(z, initialSegment(p, t)) ==> (app(g1, z) === app(g2, z)))) subproof {
+          assume(fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2))
+          have(in(z, initialSegment(p, t)) |- forall(b, in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z))) by Weakening(
+            initToz
+          )
+          thenHave(
+            in(z, firstInPair(pt)) |- forall(b, in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z))
+          ) by Substitution.apply2(true, firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
+          thenHave(
+            in(z, firstInPair(pt)) ==> (forall(b, in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z)))
+          ) by Restate
+          thenHave(
+            forall(z, in(z, firstInPair(pt)) ==> (forall(b, in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z))))
+          ) by RightForall
+          have(
+            forall(z, in(z, firstInPair(pt)) ==> (app(g1, z) === app(g2, z)))
+          ) by Tautology.from(lastStep, ptWO, wellOrderedInduction of (p -> pt, Q -> lambda(x, app(g1, x) === app(g2, x))))
+          thenHave(thesis) by Substitution.apply2(false, firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
+        }
+
+        // so g1 = g2, but this is a contradiction
+        val contra = have(fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2) |- ()) subproof {
+          assume(fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2))
+          have((g1 === g2)) by Tautology.from(eqZ, functionsEqualIfEqualOnDomain of (f -> g1, g -> g2, a -> initialSegment(p, t)))
+          thenHave(thesis) by Restate
+        }
+
+        // so there exists a unique one, if there exists one at all
+        have(!exists(g, fun(g, t)) \/ existsOne(g, fun(g, t))) subproof {
+          have(fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2) |- ()) by Restate.from(contra)
+          thenHave(exists(g2, fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2)) |- ()) by LeftExists
+          thenHave(exists(g1, exists(g2, fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2))) |- ()) by LeftExists
+          have(thesis) by Tautology.from(lastStep, atleastTwoExist of (P -> lambda(x, fun(x, t))))
+        }
+
+        thenHave(thesis) by Restate
+      }
+
+      have(thesis) by Tautology.from(gExists, gUnique of t -> x)
     }
 
-    have((zDef, wellOrder(p)) |- forall(t, prop(t))) by Tautology.from(case1, case2)
-    val byCase = thenHave((exists(z, zDef), wellOrder(p)) |- forall(t, prop(t))) by LeftExists
-
-    have(existsOne(z, zDef)) by UniqueComprehension(p1, lambda(Seq(t, z), !prop(t)))
-    have(exists(z, zDef)) by Tautology.from(lastStep, existsOneImpliesExists of P -> lambda(z, zDef))
-
-    have(thesis) by Tautology.from(byCase, lastStep)
+    thenHave(forall(x, in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x)))) by RightForall
+    have(thesis) by Tautology.from(lastStep, wellOrderedInduction of Q -> lambda(x, prop(x)))
   }
   show
-
-  /**
-   * Well ordered recursion (for sets) --- ??? TODO: write description
-   */
-  // val wellOrderRecursion = Theorem(
-  //   // well ordered (p_1, <)
-  //   // class function f
-  //   // |-
-  //   // exists a set function g with domain p_1 such that
-  //   // \forall a \in p_1, g(a) = f(g |^ a)
-  //   wellOrder(p) |- exists(g, functionalOver(g, firstInPair(p)) /\ forall(a, in(a, firstInPair(p)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
-  // ) {
-  //   ???
-  // }
 
 }
