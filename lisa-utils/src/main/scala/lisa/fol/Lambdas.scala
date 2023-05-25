@@ -30,13 +30,13 @@ trait Lambdas extends Common{
     def freeSchematicLabels:Set[SchematicLabel[?]] = body.freeSchematicLabels--seqBounds
     def allSchematicLabels:Set[SchematicLabel[?]] = body.freeSchematicLabels
 
-
+/* 
     def underlying:Option[K.LambdaTermTerm|K.LambdaTermFormula|K.LambdaFormulaFormula] = this match {
       case l: LambdaExpression[Term, Term, ?] => Some(underlyingLTT(l))
       case l: LambdaExpression[Term, Formula, ?] => Some(underlyingLTF(l))
       case l: LambdaExpression[Formula, Formula, ?] => Some(underlyingLFF(l))
       case _ => None
-    }
+    }*/
   }
 
   def lambda[T <: LisaObject[T] : ClassTag,R <: LisaObject[R] : ClassTag](bound:SchematicLabel[T], body:R) = LambdaExpression[T, R, 1](Seq(bound), body, 1)

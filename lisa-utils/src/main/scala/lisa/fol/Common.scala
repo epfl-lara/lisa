@@ -340,7 +340,7 @@ trait Common {
 
   }
 
-  trait ConstantConnectorLabel[N <: Arity] extends ConnectorLabel[N] with ConstantLabel[Formula ** N |->Formula]{
+  trait ConstantConnectorLabel[N <: Arity] extends ConnectorLabel[N] with ConstantLabel[Formula ** N |-> Formula]{
     val underlyingLabel: K.ConstantConnectorLabel
     def id: K.Identifier = underlyingLabel.id
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
