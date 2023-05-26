@@ -3159,4 +3159,94 @@ object SetTheory extends lisa.Main {
     // contradiction
     have(thesis) by Tautology.from(lastStep, notFun)
   }
+
+  /**
+   * Theorem --- Domain of Relational Union
+   * 
+   * If the unary union of a set is relational, then its domain is defined precisely by the union of the domains of its elements.
+   * 
+   *    relation(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t \in dom(y)
+   * 
+   * This holds, particularly, as the elements of z must be relations themselves, which follows from the assumption.
+   */
+  val domainOfRelationalUnion = Theorem(
+    relation(union(z)) |- forall(t, in(t, relationDomain(union(z))) <=> exists(y, in(y, z) /\ in(t, relationDomain(y))))
+  ) {
+    val uz = union(z)
+
+    have(forall(t, in(t, relationDomain(uz)) <=> exists(a, in(pair(t, a), uz)))) by InstantiateForall(relationDomain(uz))(relationDomain.definition of r -> uz)
+    val inDom = thenHave(in(t, relationDomain(uz)) <=> exists(a, in(pair(t, a), uz))) by InstantiateForall(t)
+  
+    assume(relation(uz)) // proof assumption
+
+    have(exists(a, in(pair(t, a), uz)) <=> exists(y, in(y, z) /\ in(t, relationDomain(y)))) subproof {
+      // we prove the directions separately
+      val fwd = have(exists(a, in(pair(t, a), uz)) |- exists(y, in(y, z) /\ in(t, relationDomain(y)))) subproof {
+        have(in(pair(t, a), uz) |- exists(y, in(y, z) /\ in(t, relationDomain(y)))) subproof {
+          assume(in(pair(t, a), uz))
+          // since \cup z is a union
+          // \exists y such that (t, a) \in y
+          // and so t \in dom y
+          val exy = have(exists(y, in(pair(t, a), y) /\ in(y, z))) by Tautology.from(unionAxiom of (z -> pair(t, a), x -> z))
+
+          have(exists(y, in(pair(t, a), y) /\ in(y, z)) |- exists(y, in(t, relationDomain(y)) /\ in(y, z))) subproof {
+            have(forall(z, (z === relationDomain(y)) <=> forall(t, in(t, z) <=> exists(a, in(pair(t, a), y))))) by Weakening(relationDomain.definition of r -> y)
+            thenHave(forall(t, in(t, relationDomain(y)) <=> exists(a, in(pair(t, a), y)))) by InstantiateForall(relationDomain(y))
+            val inDomY = thenHave(in(t, relationDomain(y)) <=> exists(a, in(pair(t, a), y))) by InstantiateForall(t)
+            have(in(pair(t, a), y) |- in(pair(t, a), y)) by Hypothesis
+            thenHave(in(pair(t, a), y) |- exists(a, in(pair(t, a), y))) by RightExists
+            have(in(pair(t, a), y) /\ in(y, z) |- in(t, relationDomain(y)) /\ in(y, z)) by Tautology.from(lastStep, inDomY)
+            thenHave(in(pair(t, a), y) /\ in(y, z) |- exists(y, in(t, relationDomain(y)) /\ in(y, z))) by RightExists
+            thenHave(thesis) by LeftExists
+          }
+
+          have(thesis) by Cut(exy, lastStep)
+        }
+
+        thenHave(thesis) by LeftExists
+      }
+      val bwd = have(exists(y, in(y, z) /\ in(t, relationDomain(y))) |- exists(a, in(pair(t, a), uz))) subproof {
+        have(in(y, z) /\ in(t, relationDomain(y)) |- exists(a, in(pair(t, a), uz))) subproof {
+          assume(in(y, z) /\ in(t, relationDomain(y)))
+          have(forall(z, (z === relationDomain(y)) <=> forall(t, in(t, z) <=> exists(a, in(pair(t, a), y))))) by Weakening(relationDomain.definition of r -> y)
+          thenHave(forall(t, in(t, relationDomain(y)) <=> exists(a, in(pair(t, a), y)))) by InstantiateForall(relationDomain(y))
+          thenHave(in(t, relationDomain(y)) <=> exists(a, in(pair(t, a), y))) by InstantiateForall(t)
+          val exA = thenHave(exists(a, in(pair(t, a), y))) by Tautology
+
+          have(exists(a, in(pair(t, a), y)) |- exists(a, in(pair(t, a), uz))) subproof {
+            have(in(pair(t, a), y) |- in(pair(t, a), y) /\ in(y, z)) by Restate
+            thenHave(in(pair(t, a), y) |- exists(y, in(pair(t, a), y) /\ in(y, z))) by RightExists
+            have(in(pair(t, a), y) |- in(pair(t, a), uz)) by Tautology.from(lastStep, unionAxiom of (z -> pair(t, a), x -> z))
+            thenHave(in(pair(t, a), y) |- exists(a, in(pair(t, a), uz))) by RightExists
+            thenHave(thesis) by LeftExists
+          }
+
+          have(exists(a, in(pair(t, a), uz))) by Cut(exA, lastStep)
+        }
+        thenHave(thesis) by LeftExists
+      }
+      
+      have(thesis) by Tautology.from(fwd, bwd)
+    }
+
+    have(in(t, relationDomain(union(z))) <=> exists(y, in(y, z) /\ in(t, relationDomain(y)))) by Tautology.from(inDom, lastStep)
+    thenHave(thesis) by RightForall
+  }
+
+  /**
+   * Theorem --- Domain of Functional Union
+   * 
+   * If the unary union of a set is functional, then its domain is defined precisely by the union of the domains of its elements.
+   * 
+   *    functional(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t \in dom(y)
+   * 
+   * This holds, particularly, as the elements of z must be functions themselves, which follows from the assumption.
+   */
+  val domainOfFunctionalUnion = Theorem(
+    functional(union(z)) |- forall(t, in(t, relationDomain(union(z))) <=> exists(y, in(y, z) /\ in(t, relationDomain(y))))
+  ) {
+    assume(functional(union(z)))
+    have(relation(union(z))) by Tautology.from(functional.definition of f -> union(z))
+    have(thesis) by Tautology.from(lastStep, domainOfRelationalUnion)
+  }
 }
