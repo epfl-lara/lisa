@@ -3162,11 +3162,11 @@ object SetTheory extends lisa.Main {
 
   /**
    * Theorem --- Domain of Relational Union
-   * 
+   *
    * If the unary union of a set is relational, then its domain is defined precisely by the union of the domains of its elements.
-   * 
+   *
    *    relation(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t \in dom(y)
-   * 
+   *
    * This holds, particularly, as the elements of z must be relations themselves, which follows from the assumption.
    */
   val domainOfRelationalUnion = Theorem(
@@ -3176,7 +3176,7 @@ object SetTheory extends lisa.Main {
 
     have(forall(t, in(t, relationDomain(uz)) <=> exists(a, in(pair(t, a), uz)))) by InstantiateForall(relationDomain(uz))(relationDomain.definition of r -> uz)
     val inDom = thenHave(in(t, relationDomain(uz)) <=> exists(a, in(pair(t, a), uz))) by InstantiateForall(t)
-  
+
     assume(relation(uz)) // proof assumption
 
     have(exists(a, in(pair(t, a), uz)) <=> exists(y, in(y, z) /\ in(t, relationDomain(y)))) subproof {
@@ -3225,7 +3225,7 @@ object SetTheory extends lisa.Main {
         }
         thenHave(thesis) by LeftExists
       }
-      
+
       have(thesis) by Tautology.from(fwd, bwd)
     }
 
@@ -3235,11 +3235,11 @@ object SetTheory extends lisa.Main {
 
   /**
    * Theorem --- Domain of Functional Union
-   * 
+   *
    * If the unary union of a set is functional, then its domain is defined precisely by the union of the domains of its elements.
-   * 
+   *
    *    functional(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t \in dom(y)
-   * 
+   *
    * This holds, particularly, as the elements of z must be functions themselves, which follows from the assumption.
    */
   val domainOfFunctionalUnion = Theorem(
