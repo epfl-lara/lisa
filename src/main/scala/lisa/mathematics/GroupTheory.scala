@@ -1,8 +1,8 @@
 package lisa.mathematics
 
-import lisa.automation.grouptheory.GroupTheoryTactics.Cases
-import lisa.automation.grouptheory.GroupTheoryTactics.Definition
-import lisa.automation.grouptheory.GroupTheoryTactics.ExistenceAndUniqueness
+import lisa.automation.kernel.CommonTactics.Cases
+import lisa.automation.kernel.CommonTactics.Definition
+import lisa.automation.kernel.CommonTactics.ExistenceAndUniqueness
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.mathematics.FirstOrderLogic.equalityTransitivity
 import lisa.mathematics.FirstOrderLogic.existsOneImpliesExists
