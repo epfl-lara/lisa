@@ -9,6 +9,9 @@ import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
 import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.FOLPrinter
+import scala.collection.immutable.Queue
+import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 object CommonTactics {
 
@@ -255,6 +258,116 @@ object CommonTactics {
           }
 
         case _ => proof.InvalidProofTactic("Could not get definition of function.")
+      }
+    }
+  }
+
+  /**
+   * <pre>
+   * Γ |- a(0) === a(1)   Γ' |- a(2) === a(3) ...
+   * --------------------------------------------
+   * Γ, Γ', ... |- a(i) === a(j)
+   * </pre>
+   * Proves any equality induced transitively by the equalities of the premises.
+   * 
+   * Internally, we construct an undirected graph, where sides of an equality are represented by vertices, and
+   * an edge between two terms `a` and `b` means that some premise proves `a === b` (or equivalently `b === a`).
+   * We also keep the premise from which the equality stems as a label of the edge to construct the final antecedent of
+   * the bottom sequent.
+   * 
+   * We can see that an equality `a === b` is provable from the premises if and only if `a` is reachable from `b`.
+   * We thus run Breadth-First Search (BFS) on the graph starting from `a` to find the smallest solution (in terms of
+   * sequent calculus steps), if any.
+   */
+  object Equalities extends ProofTactic {
+    def apply(using lib: Library, proof: lib.Proof)(equalities: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {      
+      // Construct the graph as an adjacency list for O(1) equality checks
+      val graph = MutableMap[FOL.Term, List[FOL.Term]]()
+      val labels = MutableMap[(FOL.Term, FOL.Term), proof.Fact]()
+
+      // Use a variable to avoid non-local returns
+      // This is because the below loop is rewritten using maps and filters under the hood
+      // I have to say, this is pretty ugly :(
+      var error: Option[proof.InvalidProofTactic] = None
+      for (premise <- equalities; f <- proof.getSequent(premise).right) {
+        f match {
+          case FOL.PredicateFormula(FOL.`equality`, Seq(x: FOL.Term, y: FOL.Term)) =>
+            if (error.isEmpty) {
+              // In case of conflicts, it would be too costly in the general case to find which premise is appropriate
+              // We simply throw an error to indicate that something is wrong with the premises
+              if (labels.contains((x, y)) && labels((x, y)) != premise) {
+                // TODO Indicate which premises lead to the error
+                error = Some(proof.InvalidProofTactic(s"Equality ${FOLPrinter.prettyTerm(x)} === ${FOLPrinter.prettyTerm(y)} was proven in two different premises."))
+              } else {
+                graph(x) = y :: graph.getOrElse(x, Nil)
+                graph(y) = x :: graph.getOrElse(y, Nil)
+                labels += ((x, y) -> premise)
+                labels += ((y, x) -> premise)
+              }
+            }
+          case _ => 
+            if (error.isEmpty) {
+              error = Some(proof.InvalidProofTactic("Right-hand side of premises should only contain equalities."))
+            }
+        }
+      }
+
+      if (error.nonEmpty) {
+        return error.get
+      }
+      
+      if (bot.right.size != 1) {
+        return proof.InvalidProofTactic(s"Right-hand side of bottom sequent expected exactly 1 formula, got ${bot.right.size}")
+      }
+
+      bot.right.head match {
+        case FOL.PredicateFormula(FOL.`equality`, Seq(x: FOL.Term, y: FOL.Term)) =>
+          // Optimization in the trivial case x === x
+          if (isSameTerm(x, y)) {
+            return TacticSubproof {
+              lib.have(x === y) by RightRefl
+              if (bot.left.nonEmpty) {
+                lib.thenHave(bot) by Weakening
+              }
+            }
+          }
+
+          // Run BFS on the graph
+          var Q = Queue[FOL.Term](x)
+          val explored = MutableSet[FOL.Term](x)
+          val parent = MutableMap[FOL.Term, FOL.Term]()
+          while (Q.nonEmpty) {
+            val (v, newQ) = Q.dequeue
+            Q = newQ
+            if (v == y) {
+              lazy val traversal: LazyList[FOL.Term] = y #:: traversal.map(parent)
+              val path = (traversal.tail.takeWhile(_ != x) :+ x).toList // Path from y (excluded) to x (included)
+              return TacticSubproof {
+                var label = labels((y, path.head))
+                def labelSeq = proof.getSequent(label)
+                var leftEq = lib.have(labelSeq.left |- y === path.head) by Restate.from(label)
+                def leftEqSeq = proof.getSequent(label)
+
+                for ((a, b) <- path.zip(path.tail)) {
+                  label = labels((a, b))
+
+                  val z = variable
+                  val cut1 = lib.have(labelSeq.left |- a === b) by Restate.from(label)
+                  val cut2 = lib.have((leftEqSeq.left + (a === b)) |- y === b) by RightSubstEq(List((a, b)), lambda(z, y === z))(leftEq)
+                  leftEq = lib.have((leftEqSeq.left ++ labelSeq.left) |- y === b) by Cut(cut1, cut2)
+                }
+              }
+            }
+
+            for (w <- graph(v) if !explored.contains(w)) {
+              explored += w
+              parent(w) = v
+              Q = Q.enqueue(w)
+            }
+          }
+          proof.InvalidProofTactic("Equality is not provable from the premises.")
+          
+        case _ => proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form x === y.")
       }
     }
   }
