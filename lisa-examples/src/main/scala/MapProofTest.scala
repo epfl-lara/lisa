@@ -45,7 +45,7 @@ object MapProofTest extends lisa.Main {
   val MapTrNil = forall(xs, Nil.mapTr(f, xs) === xs)
   val MapTrCons = forall(x, forall(xs, forall(ys, (x :: xs).mapTr(f, ys) === xs.mapTr(f, ys ++ (app(f, x) :: Nil)))))
   val NilAppend = forall(xs, (Nil ++ xs) === xs)
-  val ConsAppend = forall(x, forall(xs, forall(ys, ((x :: xs) ++ ys) === Cons(x, xs ++ ys))))
+  val ConsAppend = forall(x, forall(xs, forall(ys, ((x :: xs) ++ ys) === (x :: (xs ++ ys)))))
 
   val AccOutNil = Theorem(
     MapTrNil |- Nil.mapTr(f, (x :: xs)) === (x :: Nil.mapTr(f, xs))
