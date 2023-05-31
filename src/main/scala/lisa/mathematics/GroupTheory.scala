@@ -392,6 +392,27 @@ object GroupTheory extends lisa.Main {
   val inverse = DEF(x, G, *) --> TheConditional(y, isInverse(y, x, G, *))(inverseUniqueness)
 
   /**
+   * Lemma --- The inverse of `x` is an inverse of `x` (by definition).
+   */
+  val inverseIsInverse = Lemma(
+    (group(G, *), x ∈ G) |- isInverse(inverse(x, G, *), x, G, *)
+  ) {
+    have(thesis) by Definition(inverse, inverseUniqueness)(x, G, *)
+  }
+
+  /**
+   * Lemma --- The inverse element `y` of `x` is in `G`.
+   */
+  val inverseIsInGroup = Lemma(
+    (group(G, *), x ∈ G) |- inverse(x, G, *) ∈ G
+  ) {
+    have(thesis) by Tautology.from(
+      inverseIsInverse,
+      isInverse.definition of (y -> inverse(x, G, *))
+    )
+  }
+
+  /**
    * Theorem --- `y` is the inverse of `x` iff `x` is the inverse of `y`
    */
   val inverseSymmetry = Theorem(
@@ -427,14 +448,6 @@ object GroupTheory extends lisa.Main {
       thenHave(thesis) by InstantiateForall(y)
     }
 
-    // Prove that inverse(x) is an inverse of x
-    val inverseIsInverse = have((group(G, *), x ∈ G) |- isInverse(inverse(x, G, *), x, G, *)) by Definition(inverse, inverseUniqueness)(x, G, *)
-
-    val membership = have((group(G, *), x ∈ G) |- in(inverse(x, G, *), G)) by Tautology.from(
-      inverseIsInverse,
-      isInverse.definition of (y -> inverse(x, G, *))
-    )
-
     // Use the symmetry of the inverse relation to prove that x is an inverse of inverse(x)
     val satisfaction = have((group(G, *), x ∈ G) |- isInverse(x, inverse(x, G, *), G, *)) subproof {
       assume(group(G, *))
@@ -452,7 +465,7 @@ object GroupTheory extends lisa.Main {
     val characterization = have(in(inverse(x, G, *), G) |- ((x === u) <=> isInverse(x, inverse(x, G, *), G, *))) by Restate.from(inverseCharacterization of (x -> inverse(x, G, *), y -> x))
     val eq = have((x ∈ G, in(inverse(x, G, *), G)) |- (x === u)) by Tautology.from(satisfaction, characterization)
 
-    have(x ∈ G |- (x === u)) by Cut(membership, eq)
+    have(x ∈ G |- (x === u)) by Cut(inverseIsInGroup, eq)
     thenHave(x ∈ G ==> (x === u)) by Restate
     thenHave(thesis) by RightForall
   }
@@ -464,20 +477,18 @@ object GroupTheory extends lisa.Main {
     (group(G, *), x ∈ G, y ∈ G, z ∈ G) |- (op(x, *, y) === op(x, *, z)) ==> (y === z)
   ) {
     val i = inverse(x, G, *)
-    val inverseDef = have((group(G, *), x ∈ G) |- isInverse(i, x, G, *)) by Definition(inverse, inverseUniqueness)(x, G, *)
-    val inverseMembership = have((group(G, *), x ∈ G) |- i ∈ G) by Tautology.from(inverseDef, isInverse.definition of (y -> i))
 
     // 1. Prove that i * (xy) = y and i * (xz) = z
     val cancellation = have((group(G, *), x ∈ G, y ∈ G) |- op(i, *, op(x, *, y)) === y) subproof {
       // (ix)y = i(xy)
       val eq1 = have((group(G, *), x ∈ G, y ∈ G) |- op(op(i, *, x), *, y) === op(i, *, op(x, *, y))) by Cut(
-        inverseMembership,
+        inverseIsInGroup,
         associativity of (x -> i, y -> x, z -> y)
       )
       
       // (ix)y = y
       have((group(G, *), x ∈ G) |- ∀(y, (y ∈ G) ==> ((op(op(i, *, x), *, y) === y) /\ (op(y, *, op(i, *, x)) === y)))) by Tautology.from(
-        inverseDef,
+        inverseIsInverse,
         isInverse.definition of (y -> i),
         isNeutral.definition of (e -> op(i, *, x))
       )
