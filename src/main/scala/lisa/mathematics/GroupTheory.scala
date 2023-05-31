@@ -457,6 +457,49 @@ object GroupTheory extends lisa.Main {
     thenHave(thesis) by RightForall
   }
 
+  /**
+   * Theorem --- In a group `(G, *)`, we have `xy = xz ==> y = z`.
+   */
+  val leftCancellation = Theorem(
+    (group(G, *), x ∈ G, y ∈ G, z ∈ G) |- (op(x, *, y) === op(x, *, z)) ==> (y === z)
+  ) {
+    val i = inverse(x, G, *)
+    val inverseDef = have((group(G, *), x ∈ G) |- isInverse(i, x, G, *)) by Definition(inverse, inverseUniqueness)(x, G, *)
+    val inverseMembership = have((group(G, *), x ∈ G) |- i ∈ G) by Tautology.from(inverseDef, isInverse.definition of (y -> i))
+
+    // 1. Prove that i * (xy) = y and i * (xz) = z
+    val cancellation = have((group(G, *), x ∈ G, y ∈ G) |- op(i, *, op(x, *, y)) === y) subproof {
+      // (ix)y = i(xy)
+      val eq1 = have((group(G, *), x ∈ G, y ∈ G) |- op(op(i, *, x), *, y) === op(i, *, op(x, *, y))) by Cut(
+        inverseMembership,
+        associativity of (x -> i, y -> x, z -> y)
+      )
+      
+      // (ix)y = y
+      have((group(G, *), x ∈ G) |- ∀(y, (y ∈ G) ==> ((op(op(i, *, x), *, y) === y) /\ (op(y, *, op(i, *, x)) === y)))) by Tautology.from(
+        inverseDef,
+        isInverse.definition of (y -> i),
+        isNeutral.definition of (e -> op(i, *, x))
+      )
+      thenHave((group(G, *), x ∈ G) |- (y ∈ G) ==> ((op(op(i, *, x), *, y) === y) /\ (op(y, *, op(i, *, x)) === y))) by InstantiateForall(y)
+      val eq2 = thenHave((group(G, *), x ∈ G, y ∈ G) |- op(op(i, *, x), *, y) === y) by Tautology
+
+      // i(xy) = y
+      have(thesis) by Equalities(eq1, eq2)
+    }
+
+    // 2. By substitution, xy = xz implies i(xy) = i(xz)
+    have(op(i, *, op(x, *, y)) === op(i, *, op(x, *, y))) by RightRefl
+    val substitution = thenHave(op(x, *, y) === op(x, *, z) |- op(i, *, op(x, *, y)) === op(i, *, op(x, *, z))) by RightSubstEq(
+      List((op(x, *, y), op(x, *, z))),
+      lambda(z, op(i, *, op(x, *, y)) === op(i, *, z))
+    )
+
+    // 3. Conclude that xy = xz ==> y === z
+    have((group(G, *), x ∈ G, y ∈ G, z ∈ G, op(x, *, y) === op(x, *, z)) |- y === z) by Equalities(cancellation, cancellation of (y -> z), substitution)
+    thenHave(thesis) by Restate
+  }
+
   //
   // 1.1 Subgroups
   //
