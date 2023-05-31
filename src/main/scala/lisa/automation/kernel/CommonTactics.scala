@@ -283,11 +283,10 @@ object CommonTactics {
     def apply(using lib: Library, proof: lib.Proof)(equalities: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {      
       // Construct the graph as an adjacency list for O(1) equality checks
       val graph = MutableMap[FOL.Term, List[FOL.Term]]()
-      val labels = MutableMap[(FOL.Term, FOL.Term), proof.Fact]()
+      val premises = MutableMap[(FOL.Term, FOL.Term), proof.Fact]()
 
       // Use a variable to avoid non-local returns
       // This is because the below loop is rewritten using maps and filters under the hood
-      // I have to say, this is pretty ugly :(
       var error: Option[proof.InvalidProofTactic] = None
       for (premise <- equalities; f <- proof.getSequent(premise).right) {
         f match {
@@ -295,14 +294,14 @@ object CommonTactics {
             if (error.isEmpty) {
               // In case of conflicts, it would be too costly in the general case to find which premise is appropriate
               // We simply throw an error to indicate that something is wrong with the premises
-              if (labels.contains((x, y)) && labels((x, y)) != premise) {
+              if (premises.contains((x, y)) && premises((x, y)) != premise) {
                 // TODO Indicate which premises lead to the error
                 error = Some(proof.InvalidProofTactic(s"Equality ${FOLPrinter.prettyTerm(x)} === ${FOLPrinter.prettyTerm(y)} was proven in two different premises."))
               } else {
                 graph(x) = y :: graph.getOrElse(x, Nil)
                 graph(y) = x :: graph.getOrElse(y, Nil)
-                labels += ((x, y) -> premise)
-                labels += ((y, x) -> premise)
+                premises += ((x, y) -> premise)
+                premises += ((y, x) -> premise)
               }
             }
           case _ => 
@@ -342,20 +341,48 @@ object CommonTactics {
             if (v == y) {
               lazy val traversal: LazyList[FOL.Term] = y #:: traversal.map(parent)
               val path = (traversal.tail.takeWhile(_ != x) :+ x).toList // Path from y (excluded) to x (included)
-              return TacticSubproof {
-                var label = labels((y, path.head))
-                def labelSeq = proof.getSequent(label)
-                var leftEq = lib.have(labelSeq.left |- y === path.head) by Restate.from(label)
-                def leftEqSeq = proof.getSequent(label)
 
-                for ((a, b) <- path.zip(path.tail)) {
-                  label = labels((a, b))
-
-                  val z = variable
-                  val cut1 = lib.have(labelSeq.left |- a === b) by Restate.from(label)
-                  val cut2 = lib.have((leftEqSeq.left + (a === b)) |- y === b) by RightSubstEq(List((a, b)), lambda(z, y === z))(leftEq)
-                  leftEq = lib.have((leftEqSeq.left ++ labelSeq.left) |- y === b) by Cut(cut1, cut2)
+              def getEqTerms(using lib: Library, proof: lib.Proof)(eq: proof.Fact): (FOL.Term, FOL.Term) =
+                proof.getSequent(eq).right.head match {
+                  case FOL.PredicateFormula(`equality`, Seq(a, b)) => (a, b)
+                  case _ => throw IllegalArgumentException("Not an equality.")
                 }
+
+              def order(using lib: Library, proof: lib.Proof)(eq: proof.Fact, first: FOL.Term, second: FOL.Term): proof.Fact = {
+                val seq = proof.getSequent(eq)
+                seq.right.head match {
+                  case FOL.PredicateFormula(`equality`, Seq(`first`, `second`)) => eq
+                  case FOL.PredicateFormula(`equality`, Seq(`second`, `first`)) => {
+                    val u = variable
+                    lib.have(first === first) by RightRefl
+                    lib.thenHave(second === first |- first === second) by RightSubstEq(List((second, first)), lambda(u, first === u))
+                    lib.have(seq.left |- first === second) by Cut(eq, lib.lastStep)
+                  }
+                  case _ => throw IllegalArgumentException("First or last is not present in the given equality.")
+                }
+              }
+
+              return TacticSubproof { (innerProof: proof.InnerProof) ?=>
+                val initialStep = order(premises(y -> path.head), path.head, y)
+                val u = variable
+
+                path.zip(path.tail).foldLeft(initialStep)((leftEq, vars) => {
+                  val leftSeq = innerProof.getSequent(leftEq)
+                  val (a, b) = vars
+                  val premiseEq = premises(vars)
+                  val premiseSeq = proof.getSequent(premiseEq)
+                  
+                  // Apply equality transitivity on (a === y) /\ (a === b) to get (b === y)
+                  // TODO Watch for issue #161, as assumptions will break this step
+                  lib.have((leftSeq.left + premiseSeq.right.head) |- b === y) by RightSubstEq(
+                    List(getEqTerms(premiseEq)),
+                    lambda(u, u === y)
+                  )(leftEq)
+                  val seq = (leftSeq.left ++ premiseSeq.left) |- b === y
+                  val eq = lib.have(seq) by Cut(premiseEq, lib.lastStep)
+
+                  eq
+                })
               }
             }
 
