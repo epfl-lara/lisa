@@ -511,6 +511,49 @@ object GroupTheory extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
+  /**
+   * Theorem --- In a group `(G, *)`, we have `yx = zx ==> y = z`.
+   * 
+   * Analoguous to [[leftCancellation]].
+   */
+  val rightCancellation = Theorem(
+    (group(G, *), x ∈ G, y ∈ G, z ∈ G) |- (op(y, *, x) === op(z, *, x)) ==> (y === z)
+  ) {
+    val i = inverse(x, G, *)
+
+    // 1. Prove that (yx)i = y and (zx)i = z
+    val cancellation = have((group(G, *), x ∈ G, y ∈ G) |- op(op(y, *, x), *, i) === y) subproof {
+      // (xy)i = y(xi)
+      val eq1 = have((group(G, *), x ∈ G, y ∈ G) |- op(op(y, *, x), *, i) === op(y, *, op(x, *, i))) by Cut(
+        inverseIsInGroup,
+        associativity of (x -> y, y -> x, z -> i)
+      )
+      
+      // y(xi) = y
+      have((group(G, *), x ∈ G) |- ∀(y, (y ∈ G) ==> ((op(op(x, *, i), *, y) === y) /\ (op(y, *, op(x, *, i)) === y)))) by Tautology.from(
+        inverseIsInverse,
+        isInverse.definition of (y -> i),
+        isNeutral.definition of (e -> op(x, *, i))
+      )
+      thenHave((group(G, *), x ∈ G) |- (y ∈ G) ==> ((op(op(x, *, i), *, y) === y) /\ (op(y, *, op(x, *, i)) === y))) by InstantiateForall(y)
+      val eq2 = thenHave((group(G, *), x ∈ G, y ∈ G) |- op(y, *, op(x, *, i)) === y) by Tautology
+
+      // (yx)i = y
+      have(thesis) by Equalities(eq1, eq2)
+    }
+
+    // 2. By substitution, yx = zx implies (yx)i = (zx)i
+    have(op(op(y, *, x), *, i) === op(op(y, *, x), *, i)) by RightRefl
+    val substitution = thenHave(op(y, *, x) === op(z, *, x) |- op(op(y, *, x), *, i) === op(op(z, *, x), *, i)) by RightSubstEq(
+      List((op(y, *, x), op(z, *, x))),
+      lambda(z, op(op(y, *, x), *, i) === op(z, *, i))
+    )
+
+    // 3. Conclude that yx = zx ==> y === z
+    have((group(G, *), x ∈ G, y ∈ G, z ∈ G, op(y, *, x) === op(z, *, x)) |- y === z) by Equalities(cancellation, cancellation of (y -> z), substitution)
+    thenHave(thesis) by Restate
+  }
+
   //
   // 1.1 Subgroups
   //
@@ -677,21 +720,25 @@ object GroupTheory extends lisa.Main {
   /**
    * Identity in subgroup --- The identity element of the subgroup is exactly the identity element of the parent group.
    */
-  val subgroupIdentity = Theorem(
+  /*val subgroupIdentity = Theorem(
     subgroup(H, G, *) |- identity(H, restrictedFunction(*, cartesianProduct(H, H))) === identity(G, *)
   ) {
-    /*// The crux of the proof relies on proving that identity(G, *) ∈ H
+    // The crux of the proof relies on proving that identity(G, *) ∈ H
     // From there we can derive quite easily the theorem using [[subgroupOperation]]
     have(subgroup(H, G, *) |- identity(G, *) ∈ H) subproof {
+      assume(subgroup(H, G, *))
+      have(group(G, *)) by Tautology.from(subgroup.definition)
+      val isSubgroup = have(subgroup(G, G, *)) by Cut(lastStep, groupIsSubgroupOfItself)
+
       // The main idea is to notice that for H = G, identity(G, *) must be in H per [[identityInGroup]]
       // hence identity(G, *) ∉ H would be contradictory
-      have((subgroup(H, G, *) ==> identity(G, *) ∉ H) |- (subgroup(H, G, *) ==> identity(G, *) ∉ H)) by Hypothesis
-      thenHave((subgroup(H, G, *) ==> identity(G, *) ∉ H) |- ∀(H, subgroup(H, G, *) ==> identity(G, *) ∉ H)) by RightForall
+      have(subgroup(H, G, *) /\ identity(G, *) ∉ H |- ()) by Hypothesis
+      thenHave(∀(H, subgroup(H, G, *) ==> identity(G, *) ∉ H) |- subgroup(G, G, *) ==> identity(G, *) ∉ G) by InstantiateForall(G)
+
+      have(∀(H, subgroup(H, G, *) ==> identity(G, *) ∉ H) |- identity(G, *) ∉ G) by Tautology.from(lastStep, isSubgroup)
     }
 
     have(group(G, *) |- isNeutral(identity(G, *), G, *)) by Definition(identity, identityUniqueness)(G, *)
-    have(group(G, *) |- identity(G, *) ∈ G /\ ∀(x, (x ∈ G) ==> ((op(identity(G, *), *, x) === x) /\ (op(identity(G, *), *, e) === x)))) by Tautology.from(isNeutral.definition of (e -> identity(G, *)))*/
-
-    sorry
-  }
+    have(group(G, *) |- identity(G, *) ∈ G /\ ∀(x, (x ∈ G) ==> ((op(identity(G, *), *, x) === x) /\ (op(identity(G, *), *, e) === x)))) by Tautology.from(isNeutral.definition of (e -> identity(G, *)))
+  }*/
 }
