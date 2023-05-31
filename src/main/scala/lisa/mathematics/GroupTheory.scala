@@ -2,6 +2,7 @@ package lisa.mathematics
 
 import lisa.automation.kernel.CommonTactics.Cases
 import lisa.automation.kernel.CommonTactics.Definition
+import lisa.automation.kernel.CommonTactics.Equalities
 import lisa.automation.kernel.CommonTactics.ExistenceAndUniqueness
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.mathematics.FirstOrderLogic.equalityTransitivity
@@ -288,10 +289,7 @@ object GroupTheory extends lisa.Main {
       val secondEq = thenHave(e === op(e, *, f)) by Tautology
 
       // 3. Conclude by transitivity
-      val eqs = have((e === op(e, *, f)) /\ (op(e, *, f) === f)) by RightAnd(secondEq, firstEq)
-      have(((e === op(e, *, f)) /\ (op(e, *, f) === f)) |- (e === f)) by Tautology.from(equalityTransitivity of (x -> e, y -> op(e, *, f), z -> f))
-
-      have(e === f) by Cut(eqs, lastStep)
+      have(e === f) by Equalities(firstEq, secondEq)
     }
 
     have(group(G, *) |- ∃!(e, isNeutral(e, G, *))) by ExistenceAndUniqueness(isNeutral(e, G, *))(existence, uniqueness)
@@ -381,21 +379,8 @@ object GroupTheory extends lisa.Main {
       }
       val thirdEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- op(y, *, op(x, *, z)) === y) by Cut(inverseMembership of (y -> y), rightNeutrality)
 
-      // Conclude by transitivity
-
-      // 4. z = y(xz)
-      val fourthEq = have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- z === op(y, *, op(x, *, z))) by Tautology.from(
-        firstEq,
-        secondEq,
-        equalityTransitivity of (x -> z, y -> op(op(y, *, x), *, z), z -> op(y, *, op(x, *, z)))
-      )
-
-      // 5. z = y
-      have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- z === y) by Tautology.from(
-        thirdEq,
-        fourthEq,
-        equalityTransitivity of (x -> z, y -> op(y, *, op(x, *, z)), z -> y)
-      )
+      // 4. z = y
+      have((group(G, *), x ∈ G, isInverse(y, x, G, *), isInverse(z, x, G, *)) |- z === y) by Equalities(firstEq, secondEq, thirdEq)
     }
 
     have(thesis) by ExistenceAndUniqueness(isInverse(y, x, G, *))(existence, uniqueness)
