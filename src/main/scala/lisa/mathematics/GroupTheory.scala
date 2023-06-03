@@ -718,17 +718,92 @@ object GroupTheory extends lisa.Main {
   }
 
   /**
-   * Identity in subgroup --- The identity element of the subgroup is exactly the identity element of the parent group.
+   * Lemma --- If `H` is a subgroup of `G`, then `e_H ∈ G`.
    */
-  /*val subgroupIdentity = Theorem(
+  val subgroupIdentityInParent = Lemma(
+    subgroup(H, G, *) |- identity(H, restrictedFunction(*, cartesianProduct(H, H))) ∈ G 
+  ) {
+    val ★ = restrictedFunction(*, cartesianProduct(H, H))
+    
+    val identityInH = have(subgroup(H, G, *) |- identity(H, ★) ∈ H) by Tautology.from(
+      subgroup.definition,
+      identityInGroup of (G -> H, * -> ★)
+    )
+
+    have(subgroup(H, G, *) |- ∀(x, x ∈ H ==> x ∈ G)) by Tautology.from(
+      subgroup.definition,
+      subset.definition of (x -> H, y -> G)
+    )
+    thenHave(subgroup(H, G, *) |- identity(H, ★) ∈ H ==> identity(H, ★) ∈ G) by InstantiateForall(identity(H, ★))
+    thenHave((subgroup(H, G, *), identity(H, ★) ∈ H) |- identity(H, ★) ∈ G) by Restate
+
+    have(thesis) by Cut(identityInH, lastStep)
+  }
+
+  /**
+   * Identity in subgroup --- The identity element `e_H` of a subgroup `H` of `G` is exactly the identity element `e_G` of
+   * the parent group `(G, *)`.
+   */
+  val subgroupIdentity = Theorem(
     subgroup(H, G, *) |- identity(H, restrictedFunction(*, cartesianProduct(H, H))) === identity(G, *)
   ) {
-    // The crux of the proof relies on proving that identity(G, *) ∈ H
-    // From there we can derive quite easily the theorem using [[subgroupOperation]]
-    have(subgroup(H, G, *) |- identity(G, *) ∈ H) subproof {
-      assume(subgroup(H, G, *))
-      have(group(G, *)) by Tautology.from(subgroup.definition)
-      val isSubgroup = have(subgroup(G, G, *)) by Cut(lastStep, groupIsSubgroupOfItself)
+    val ★ = restrictedFunction(*, cartesianProduct(H, H))
+    val e_G = identity(G, *)
+    val e_H = identity(H, ★)
+
+    val groupG = have(subgroup(H, G, *) |- group(G, *)) by Tautology.from(subgroup.definition)
+    val groupH = have(subgroup(H, G, *) |- group(H, ★)) by Tautology.from(subgroup.definition)
+
+    val subgroupIdentityInH = have(subgroup(H, G, *) |- identity(H, ★) ∈ H) by Tautology.from(
+      subgroup.definition,
+      identityInGroup of (G -> H, * -> ★)
+    )
+
+    have(group(G, *) |- isNeutral(e_G, G, *)) by Definition(identity, identityUniqueness)(G, *)
+    have(group(G, *) |- ∀(x, (x ∈ G) ==> ((op(e_G, *, x) === x) /\ (op(x, *, e_G) === x)))) by Tautology.from(
+      lastStep,
+      isNeutral.definition of (e -> e_G)
+    )
+    thenHave(group(G, *) |- (x ∈ G) ==> ((op(e_G, *, x) === x) /\ (op(x, *, e_G) === x))) by InstantiateForall(x)
+    val neutralDef = thenHave((group(G, *), x ∈ G) |- (op(e_G, *, x) === x) /\ (op(x, *, e_G) === x)) by Restate
+
+    // 1. e_H ★ e_H = e_H
+    val eq1 = have(subgroup(H, G, *) |- op(e_H, ★, e_H) === e_H) subproof {
+      have(group(H, ★) |- (op(e_H, ★, e_H) === e_H)) by Cut(
+        identityInGroup of (G -> H, * -> ★),
+        neutralDef of (G -> H, * -> ★, x -> e_H)
+      )
+
+      have(thesis) by Cut(groupH, lastStep)
+    }
+
+    // 2. e_H * e_H = e_H
+    have(subgroup(H, G, *) |- op(e_H, ★, e_H) === op(e_H, *, e_H)) by Cut(
+      subgroupIdentityInH,
+      subgroupOperation of (x -> e_H, y -> e_H)
+    )
+    val eq2 = have(subgroup(H, G, *) |- op(e_H, *, e_H) === e_H) by Equalities(eq1, lastStep)
+
+    // 3. e_G * e_H = e_H
+    val eq3 = have(subgroup(H, G, *) |- op(e_G, *, e_H) === e_H) subproof {
+      have((group(G, *), e_H ∈ G) |- op(e_G, *, e_H) === e_H) by Tautology.from(neutralDef of (x -> e_H))
+      have((subgroup(H, G, *), e_H ∈ G) |- op(e_G, *, e_H) === e_H) by Cut(groupG, lastStep)
+      have(thesis) by Cut(subgroupIdentityInParent, lastStep)
+    }
+
+    // Conclude by right cancellation
+    val eq4 = have(subgroup(H, G, *) |- op(e_H, *, e_H) === op(e_G, *, e_H)) by Equalities(eq2, eq3)
+    have((group(G, *), e_H ∈ G, e_G ∈ G, op(e_H, *, e_H) === op(e_G, *, e_H)) |- e_H === e_G) by Restate.from(
+      rightCancellation of (x -> e_H, y -> e_H, z -> e_G)
+    )
+    have((subgroup(H, G, *), e_H ∈ G, e_G ∈ G, op(e_H, *, e_H) === op(e_G, *, e_H)) |- e_H === e_G) by Cut(groupG, lastStep)
+    have((subgroup(H, G, *), e_H ∈ G, e_G ∈ G) |- e_H === e_G) by Cut(eq4, lastStep)
+
+    val finalStep = have((subgroup(H, G, *), e_G ∈ G) |- e_H === e_G) by Cut(subgroupIdentityInParent, lastStep)
+
+    have(subgroup(H, G, *) |- e_G ∈ G) by Cut(groupG, identityInGroup)
+    have(thesis) by Cut(lastStep, finalStep)
+  }
 
       // The main idea is to notice that for H = G, identity(G, *) must be in H per [[identityInGroup]]
       // hence identity(G, *) ∉ H would be contradictory
