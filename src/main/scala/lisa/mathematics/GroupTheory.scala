@@ -137,10 +137,10 @@ object GroupTheory extends lisa.Main {
   //
 
   /**
-   * Binary function --- `*` is a binary function on `G` if it associates to each pair of elements of `G`
+   * Binary operation --- `*` is a binary operation on `G` if it associates to each pair of elements of `G`
    * a unique element in `G`. In other words, `*` is a function `G × G -> G`.
    */
-  val binaryFunction = DEF(G, *) --> functionFrom(*, cartesianProduct(G, G), G)
+  val binaryOperation = DEF(G, *) --> functionFrom(*, cartesianProduct(G, G), G)
 
   /**
    * Short-hand alias for `x * y`.
@@ -177,7 +177,7 @@ object GroupTheory extends lisa.Main {
    * Group --- A group (G, *) is a set along with a law of composition `*`, satisfying [[associativityAxiom]], [[identityExistence]]
    * and [[inverseExistence]].
    */
-  val group = DEF(G, *) --> binaryFunction(G, *) /\ associativityAxiom(G, *) /\ identityExistence(G, *) /\ inverseExistence(G, *)
+  val group = DEF(G, *) --> binaryOperation(G, *) /\ associativityAxiom(G, *) /\ identityExistence(G, *) /\ inverseExistence(G, *)
 
   /**
    * Group operation is functional -- The group operation `*` is functional.
@@ -189,7 +189,7 @@ object GroupTheory extends lisa.Main {
   ) {
     have(thesis) by Tautology.from(
       group.definition,
-      binaryFunction.definition,
+      binaryOperation.definition,
       functionFromImpliesFunctional of (f -> *, x -> cartesianProduct(G, G), y -> G)
     )
   }
@@ -204,7 +204,7 @@ object GroupTheory extends lisa.Main {
   ) {
     have(thesis) by Tautology.from(
       group.definition,
-      binaryFunction.definition,
+      binaryOperation.definition,
       functionFromImpliesDomainEq of (f -> *, x -> cartesianProduct(G, G), y -> G)
     )
   }
