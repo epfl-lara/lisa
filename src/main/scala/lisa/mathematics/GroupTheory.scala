@@ -301,6 +301,31 @@ object GroupTheory extends lisa.Main {
   val identity = DEF(G, *) --> TheConditional(e, isNeutral(e, G, *))(identityUniqueness)
 
   /**
+   * Lemma --- The identity element is neutral by definition.
+   */
+  val identityIsNeutral = Lemma(
+    group(G, *) |- isNeutral(identity(G, *), G, *)
+  ) {
+    have(thesis) by Definition(identity, identityUniqueness)(G, *)
+  }
+
+  /**
+   * Lemma --- For any element `x` in a group `(G, *)`, we have `x * e = e * x = x`.
+   * 
+   * Simpler reformulation of [[identityIsNeutral]].
+   */
+  val identityNeutrality = Lemma(
+    (group(G, *), x ∈ G) |- (op(identity(G, *), *, x) === x) /\ (op(x, *, identity(G, *)) === x)
+  ) {
+    have(group(G, *) |- ∀(x, (x ∈ G) ==> ((op(identity(G, *), *, x) === x) /\ (op(x, *, identity(G, *)) === x)))) by Tautology.from(
+      identityIsNeutral,
+      isNeutral.definition of (e -> identity(G, *))
+    )
+    thenHave(group(G, *) |- (x ∈ G) ==> ((op(identity(G, *), *, x) === x) /\ (op(x, *, identity(G, *)) === x))) by InstantiateForall(x)
+    thenHave(thesis) by Restate
+  }
+
+  /**
    * Theorem --- The identity element belongs to the group.
    *
    * This might seem like a silly theorem, but it is useful in [[groupNonEmpty]].
@@ -308,9 +333,8 @@ object GroupTheory extends lisa.Main {
   val identityInGroup = Theorem(
     group(G, *) |- identity(G, *) ∈ G
   ) {
-    have(group(G, *) |- isNeutral(identity(G, *), G, *)) by Definition(identity, identityUniqueness)(G, *)
     have(thesis) by Tautology.from(
-      lastStep,
+      identityIsNeutral,
       isNeutral.definition of (e -> identity(G, *))
     )
   }
@@ -759,19 +783,11 @@ object GroupTheory extends lisa.Main {
       identityInGroup of (G -> H, * -> ★)
     )
 
-    have(group(G, *) |- isNeutral(e_G, G, *)) by Definition(identity, identityUniqueness)(G, *)
-    have(group(G, *) |- ∀(x, (x ∈ G) ==> ((op(e_G, *, x) === x) /\ (op(x, *, e_G) === x)))) by Tautology.from(
-      lastStep,
-      isNeutral.definition of (e -> e_G)
-    )
-    thenHave(group(G, *) |- (x ∈ G) ==> ((op(e_G, *, x) === x) /\ (op(x, *, e_G) === x))) by InstantiateForall(x)
-    val neutralDef = thenHave((group(G, *), x ∈ G) |- (op(e_G, *, x) === x) /\ (op(x, *, e_G) === x)) by Restate
-
     // 1. e_H ★ e_H = e_H
     val eq1 = have(subgroup(H, G, *) |- op(e_H, ★, e_H) === e_H) subproof {
       have(group(H, ★) |- (op(e_H, ★, e_H) === e_H)) by Cut(
         identityInGroup of (G -> H, * -> ★),
-        neutralDef of (G -> H, * -> ★, x -> e_H)
+        identityNeutrality of (G -> H, * -> ★, x -> e_H)
       )
 
       have(thesis) by Cut(groupH, lastStep)
@@ -786,7 +802,7 @@ object GroupTheory extends lisa.Main {
 
     // 3. e_G * e_H = e_H
     val eq3 = have(subgroup(H, G, *) |- op(e_G, *, e_H) === e_H) subproof {
-      have((group(G, *), e_H ∈ G) |- op(e_G, *, e_H) === e_H) by Tautology.from(neutralDef of (x -> e_H))
+      have((group(G, *), e_H ∈ G) |- op(e_G, *, e_H) === e_H) by Tautology.from(identityNeutrality of (x -> e_H))
       have((subgroup(H, G, *), e_H ∈ G) |- op(e_G, *, e_H) === e_H) by Cut(groupG, lastStep)
       have(thesis) by Cut(subgroupIdentityInParent, lastStep)
     }
