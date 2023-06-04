@@ -578,6 +578,39 @@ object GroupTheory extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
+  /**
+   * Theorem --- An element `x` of a group `(G, *)` is idempotent if and only if `x` is the neutral element.
+   */
+  val neutralElementIdempotence = Theorem(
+    (group(G, *), x ∈ G) |- (op(x, *, x) === x) <=> (x === identity(G, *))
+  ) {
+    assume(group(G, *))
+    assume(x ∈ G)
+
+    val neutralityEquality = have(op(identity(G, *), *, x) === x) by Tautology.from(identityNeutrality)
+
+    // Forward direction, using the equality x * x = x = e * x
+    // and concluding by right cancellation
+    have(op(x, *, x) === x |- x === identity(G, *)) subproof {
+      have(op(x, *, x) === x |- op(x, *, x) === x) by Hypothesis
+      have(op(x, *, x) === x |- op(x, *, x) === op(identity(G, *), *, x)) by Equalities(lastStep, neutralityEquality)
+      have((op(x, *, x) === x, identity(G, *) ∈ G) |- x === identity(G, *)) by Tautology.from(
+        lastStep,
+        rightCancellation of (x -> x, y -> x, z -> identity(G, *))
+      )
+      have(thesis) by Cut(identityInGroup, lastStep)
+    }
+    val forward = thenHave((op(x, *, x) === x) ==> (x === identity(G, *))) by Restate
+
+    have(x === identity(G, *) |- op(x, *, x) === x) by RightSubstEq(
+      List((x, identity(G, *))),
+      lambda(z, op(z, *, x) === x)
+    )(neutralityEquality)
+    val backward = thenHave((x === identity(G, *)) ==> (op(x, *, x) === x)) by Restate
+
+    have(thesis) by RightIff(forward, backward)
+  }
+
   //
   // 1.1 Subgroups
   //
