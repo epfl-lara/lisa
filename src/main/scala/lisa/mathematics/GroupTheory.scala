@@ -883,7 +883,62 @@ object GroupTheory extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
-      have(∀(H, subgroup(H, G, *) ==> identity(G, *) ∉ H) |- identity(G, *) ∉ G) by Tautology.from(lastStep, isSubgroup)
+  /**
+   * Theorem --- If `f` is a group-homomorphism between `G` and `H`, then `f(e_G) = e_H`.
+   */
+  val homomorphismMapsIdentityToIdentity = Theorem(
+    homomorphism(f, G, *, H, ★) |- app(f, identity(G, *)) === identity(H, ★)
+  ) {
+    val e = identity(G, *)
+
+    val groupG = have(homomorphism(f, G, *, H, ★) |- group(G, *)) by Tautology.from(homomorphism.definition)
+    val groupH = have(homomorphism(f, G, *, H, ★) |- group(H, ★)) by Tautology.from(homomorphism.definition)
+    val functionF = have(homomorphism(f, G, *, H, ★) |- functionFrom(f, G, H)) by Tautology.from(homomorphism.definition)
+
+    val identityInG = have(homomorphism(f, G, *, H, ★) |- e ∈ G) by Cut(groupG, identityInGroup)
+
+    have((homomorphism(f, G, *, H, ★), e ∈ G) |- app(f, e) ∈ H) by Cut(
+      functionF,
+      functionAppInCodomain of (VariableLabel("t") -> e, x -> G, y -> H)
+    )
+    val appInH = have(homomorphism(f, G, *, H, ★) |- app(f, e) ∈ H) by Cut(identityInG, lastStep)
+
+    // 0. e * e = e (to apply substitution)
+    have(group(G, *) |- op(e, *, e) === e) by Cut(
+      identityInGroup,
+      neutralElementIdempotence of (x -> e)
+    )
+    val eq0 = have(homomorphism(f, G, *, H, ★) |- op(e, *, e) === e) by Cut(groupG, lastStep)
+    
+    // 1. f(e * e) = f(e)
+    have(app(f, e) === app(f, e)) by RightRefl
+    thenHave(op(e, *, e) === e |- app(f, op(e, *, e)) === app(f, e)) by RightSubstEq(
+      List((op(e, *, e), e)),
+      lambda(z, app(f, z) === app(f, e))
+    )
+    val eq1 = have(homomorphism(f, G, *, H, ★) |- app(f, op(e, *, e)) === app(f, e)) by Cut(eq0, lastStep)
+
+    // 2. f(e * e) = f(e) ★ f(e)
+    val eq2 = have(homomorphism(f, G, *, H, ★) |- app(f, op(e, *, e)) === op(app(f, e), ★, app(f, e))) by Cut(
+      identityInG,
+      homomorphismApplication of (x -> e, y -> e)
+    )
+
+    // 3. f(e) ★ f(e) = f(e)
+    val eq3 = have(homomorphism(f, G, *, H, ★) |- op(app(f, e), ★, app(f, e)) === app(f, e)) by Equalities(eq1, eq2)
+
+    // Conclude by idempotence
+    have((homomorphism(f, G, *, H, ★), app(f, e) ∈ H) |- (op(app(f, e), ★, app(f, e)) === app(f, e)) <=> (app(f, e) === identity(H, ★))) by Cut(
+      groupH,
+      neutralElementIdempotence of (x -> app(f, e), G -> H, * -> ★)
+    )
+    have(homomorphism(f, G, *, H, ★)|- (op(app(f, e), ★, app(f, e)) === app(f, e)) <=> (app(f, e) === identity(H, ★))) by Cut(
+      appInH,
+      lastStep
+    )
+    
+    have(thesis) by Tautology.from(lastStep, eq3)
+  }
     }
 
     have(group(G, *) |- isNeutral(identity(G, *), G, *)) by Definition(identity, identityUniqueness)(G, *)

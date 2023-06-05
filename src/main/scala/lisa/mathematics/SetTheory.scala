@@ -2883,6 +2883,40 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * Lemma --- If `f: x -> y` is a function and `z ∈ x`, then `f(z) ∈ y`.
+   */
+  val functionAppInCodomain = Lemma(
+    (functionFrom(f, x, y), in(t, x)) |- in(app(f, t), y)
+  ) {
+    have((functional(f), in(t, relationDomain(f))) |- in(pair(t, app(f, t)), f)) by Definition(app, functionApplicationUniqueness)(f, t)
+    have((functionFrom(f, x, y), in(t, relationDomain(f))) |- in(pair(t, app(f, t)), f)) by Cut(functionFromImpliesFunctional, lastStep)
+    thenHave((functionFrom(f, x, y), relationDomain(f) === x, in(t, x)) |- in(pair(t, app(f, t)), f)) by LeftSubstEq(
+      List((relationDomain(f), x)),
+      lambda(z, in(t, z))
+    )
+    val appDef = have((functionFrom(f, x, y), in(t, x)) |- in(pair(t, app(f, t)), f)) by Cut(functionFromImpliesDomainEq, lastStep)
+
+    have(∀(t, in(t, setOfFunctions(x, y)) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by Definition(setOfFunctions, setOfFunctionsUniqueness)(x, y)
+    thenHave(in(f, setOfFunctions(x, y)) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
+
+    have(functionFrom(f, x, y) |- ∀(t, in(t, f) ==> in(t, cartesianProduct(x, y)))) by Tautology.from(
+      lastStep,
+      functionFrom.definition,
+      powerSet.definition of (x -> f, y -> cartesianProduct(x, y)),
+      subset.definition of (x -> f, y -> cartesianProduct(x, y))
+    )
+    thenHave(functionFrom(f, x, y) |- in(pair(t, app(f, t)), f) ==> in(pair(t, app(f, t)), cartesianProduct(x, y))) by InstantiateForall(pair(t, app(f, t)))
+    thenHave((functionFrom(f, x, y), in(pair(t, app(f, t)), f)) |- in(pair(t, app(f, t)), cartesianProduct(x, y))) by Restate
+
+    have((functionFrom(f, x, y), in(pair(t, app(f, t)), f)) |- in(app(f, t), y)) by Tautology.from(
+      lastStep,
+      pairInCartesianProduct of (a -> t, b -> app(f, t))
+    )
+
+    have(thesis) by Cut(appDef, lastStep)
+  }
+
+  /**
    * Theorem --- Cantor's Theorem
    *
    * There is no [[surjective]] mapping ([[functionFrom]]) a set to its [[powerSet]].
