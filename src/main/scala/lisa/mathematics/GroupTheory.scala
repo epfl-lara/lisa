@@ -854,10 +854,34 @@ object GroupTheory extends lisa.Main {
     have(thesis) by Cut(lastStep, finalStep)
   }
 
-      // The main idea is to notice that for H = G, identity(G, *) must be in H per [[identityInGroup]]
-      // hence identity(G, *) ∉ H would be contradictory
-      have(subgroup(H, G, *) /\ identity(G, *) ∉ H |- ()) by Hypothesis
-      thenHave(∀(H, subgroup(H, G, *) ==> identity(G, *) ∉ H) |- subgroup(G, G, *) ==> identity(G, *) ∉ G) by InstantiateForall(G)
+  /**
+   * 2. Homomorphisms
+   */
+
+  // Extra group composition law
+  val ★ = variable
+
+  /**
+   * Definition --- A group homomorphism is a mapping `f: G -> H` from structures `G` and `H` equipped with binary operations `*` and `★` respectively,
+   * such that for all `x, y ∈ G`, we have* `f(x * y) = f(x) ★ f(y)`.
+   * 
+   * In the following, "homomorphism" always stands for "group homomorphism", i.e. `(G, *)` and `(H, ★)` are groups.
+   */
+  val homomorphism = DEF(f, G, *, H, ★) --> group(G, *) /\ group(H, ★) /\ functionFrom(f, G, H) /\ ∀(x, x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y)))))
+
+  /**
+   * Lemma --- Practical reformulation of the homomorphism definition.
+   */
+  val homomorphismApplication = Lemma(
+    (homomorphism(f, G, *, H, ★), x ∈ G, y ∈ G) |- app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y))
+  ) {
+    assume(homomorphism(f, G, *, H, ★))
+    have(∀(x, x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y)))))) by Tautology.from(homomorphism.definition)
+    thenHave(x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y))))) by InstantiateForall(x)
+    thenHave((x ∈ G) |- ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y))))) by Restate
+    thenHave((x ∈ G) |- y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y)))) by InstantiateForall(y)
+    thenHave(thesis) by Restate
+  }
 
       have(∀(H, subgroup(H, G, *) ==> identity(G, *) ∉ H) |- identity(G, *) ∉ G) by Tautology.from(lastStep, isSubgroup)
     }
