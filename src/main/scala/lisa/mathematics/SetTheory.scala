@@ -2432,7 +2432,9 @@ object SetTheory extends lisa.Main {
   val pairInFunctionIsApp = Theorem(
     functional(f) /\ in(a, relationDomain(f)) |- in(pair(a, b), f) <=> (app(f, a) === b)
   ) {
-    val appDef = have((app(f, a) === b) <=> (((functional(f) /\ in(a, relationDomain(f))) ==> in(pair(a, b), f)) /\ ((!functional(f) \/ !in(a, relationDomain(f))) ==> (b === ∅)))) by InstantiateForall(b)(app.definition of x -> a)
+    val appDef = have(
+      (app(f, a) === b) <=> (((functional(f) /\ in(a, relationDomain(f))) ==> in(pair(a, b), f)) /\ ((!functional(f) \/ !in(a, relationDomain(f))) ==> (b === ∅)))
+    ) by InstantiateForall(b)(app.definition of x -> a)
 
     assume(functional(f) /\ in(a, relationDomain(f)))
 
