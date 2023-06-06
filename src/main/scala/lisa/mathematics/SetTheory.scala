@@ -897,6 +897,20 @@ object SetTheory extends lisa.Main {
     infix def ∩(y: Term) = setIntersection(x, y)
   }
 
+  val intersectionOfSubsets = Lemma(
+    subset(x, y) |- setIntersection(x, y) === x
+  ) {
+    have(forall(t, in(t, setIntersection(x, y)) <=> (in(t, x) /\ in(t, y)))) by InstantiateForall(setIntersection(x, y))(setIntersection.definition)
+    val txy = thenHave(in(t, setIntersection(x, y)) <=> (in(t, x) /\ in(t, y))) by InstantiateForall(t)
+
+    have(subset(x, y) |- forall(t, in(t, x) ==> in(t, y))) by Weakening(subsetAxiom)
+    thenHave(subset(x, y) |- in(t, x) ==> in(t, y)) by InstantiateForall(t)
+
+    have(subset(x, y) |- in(t, setIntersection(x, y)) <=> in(t, x)) by Tautology.from(lastStep, txy)
+    thenHave(subset(x, y) |- forall(t, in(t, setIntersection(x, y)) <=> in(t, x))) by RightForall
+    have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> setIntersection(x, y), y -> x))
+  }
+
   val unaryIntersectionUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (exists(b, in(b, x)) /\ ∀(b, in(b, x) ==> in(t, b)))))
   ) {
@@ -2693,6 +2707,24 @@ object SetTheory extends lisa.Main {
     val simplerCharacterization = have((relationDomain(g) === dom) <=> ∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x))) by Tautology.from(characterization, lastStep)
 
     have(thesis) by Tautology.from(domCharacterization, simplerCharacterization)
+  }
+
+  val restrictedFunctionIsFunctionalOver = Lemma(
+    functionalOver(restrictedFunction(f, x), setIntersection(x, relationDomain(f)))
+  ) {
+    // restriction is a function
+
+    // its domain is indeed x \cap dom f
+
+    // it is functionalOver its domain
+
+    sorry
+  }
+
+  val restrictedFunctionApplication = Lemma(
+    in(y, x) |- app(f, y) === app(restrictedFunction(f, x), y)
+  ) {
+    sorry
   }
 
   /**
