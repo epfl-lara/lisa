@@ -2298,6 +2298,40 @@ object SetTheory extends lisa.Main {
   val app =
     DEF(f, x) --> The(z, ((functional(f) /\ in(x, relationDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, relationDomain(f))) ==> (z === ∅)))(functionApplicationUniqueness)
 
+  val pairInFunctionIsApp = Theorem(
+    functional(f) /\ in(a, relationDomain(f)) |- in(pair(a, b), f) <=> (app(f, a) === b)
+  ) {
+    val appDef = have((app(f, a) === b) <=> (((functional(f) /\ in(a, relationDomain(f))) ==> in(pair(a, b), f)) /\ ((!functional(f) \/ !in(a, relationDomain(f))) ==> (b === ∅)))) by InstantiateForall(b)(app.definition of x -> a)
+
+    assume(functional(f) /\ in(a, relationDomain(f)))
+
+    val fwd = have(in(pair(a, b), f) |- app(f, a) === b) by Tautology.from(appDef)
+    val bwd = have(app(f, a) === b |- in(pair(a, b), f)) by Tautology.from(appDef)
+    have(thesis) by Tautology.from(fwd, bwd)
+  }
+
+  val elemOfFunctional = Theorem(
+    functional(f) |- in(t, f) <=> exists(c, exists(d, in(c, relationDomain(f)) /\ in(d, relationRange(f)) /\ (t === pair(c, d)) /\ (app(f, c) === d)))
+  ) {
+    // since f is a relation
+    // t \in f <=> \exists c \in dom f, d \in ran f. t = (c, d)
+    // we need to show that the app part of the conclusion is redundant by definition of app
+    have(functional(f) |- in(t, f) <=> exists(c, exists(d, in(c, relationDomain(f)) /\ in(d, relationRange(f)) /\ (t === pair(c, d))))) by Tautology.from(functional.definition, ???)
+    sorry
+  }
+
+  val elemOfFunctionalOver = Theorem(
+    functionalOver(f, a) |- in(t, f) <=> exists(c, exists(d, in(c, a) /\ in(d, relationRange(f)) /\ (t === pair(c, d)) /\ (app(f, c) === d)))
+  ) {
+    sorry
+  }
+
+  val elemOfFunctionFrom = Theorem(
+    functionFrom(f, a, b) |- in(t, f) <=> exists(c, exists(d, in(c, a) /\ in(d, b) /\ (t === pair(c, d)) /\ (app(f, c) === d)))
+  ) {
+    sorry
+  }
+
   val functionsEqualIfEqualOnDomain = Theorem(
     functionalOver(f, a) /\ functionalOver(g, a) /\ forall(z, in(z, a) ==> (app(f, z) === app(g, z))) |- (f === g)
   ) {

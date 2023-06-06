@@ -853,6 +853,12 @@ object Orderings extends lisa.Main {
    */
   val orderedRestriction = DEF(f, a, p) --> restrictedFunction(f, initialSegment(p, a))
 
+  val orderedRestrictionFunctionalOverInit = Lemma(
+    functionalOver(orderedRestriction(f, a, p), initialSegment(p, a))
+  ) {
+    sorry
+  }
+
   /**
    * Theorem --- Well Ordered Induction on a Subclass
    *
@@ -1152,7 +1158,7 @@ object Orderings extends lisa.Main {
   val wellOrderedRecursionStronger = Lemma(
     wellOrder(p) |- forall(
       t,
-      in(t, firstInPair(p)) ==> existsOne(g, (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))))
+      in(t, firstInPair(p)) ==> existsOne(g, (functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))))
     )
   ) {
 
@@ -1161,7 +1167,7 @@ object Orderings extends lisa.Main {
     val p1 = firstInPair(p)
     val p2 = secondInPair(p)
 
-    def fun(g: Term, t: Term): Formula = (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+    def fun(g: Term, t: Term): Formula = (functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
     def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, fun(g, t))
 
     // the existence of g propagates up from initial segments
@@ -1175,11 +1181,19 @@ object Orderings extends lisa.Main {
       )
 
       // if there exists a unique g for the initial segment, get the set of these
-      val wDef = forall(t, in(t, w) <=> fun(w, t))
+      val wDef = forall(t, in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y)))
       // take its union
-      // this is a function g for x
-      val uw = union(w)
+      // this is a function g for x (almost)
+      val uw = union(w) // + (x, F(U w))
 
+      // need to show:
+      //   - uw is a function as required over the initial segment of x
+      //   - (x, F(Uw)) is a function
+      //   - v = uw + (x, F(Uw)) is a function over p_1 <= x
+      //   - v satisfies the fun property
+      //   - so x satisfies the prop property
+
+      // we first show the restricted existence version of prop
       val gExists = have(exists(g, fun(g, x))) subproof {
         sorry
       }
@@ -1204,10 +1218,11 @@ object Orderings extends lisa.Main {
           ) ==> (app(g1, z) === app(g2, z))
         ) subproof {
 
-          // the ordered restriction of g1 has domain initialSegment(z, pa)
+          // the ordered restriction of g1 has domain initialSegment(z, p)
           // it is functional, too
+          val restrictionFunction = have(fun(g, t) |- functionalOver(orderedRestriction(g, z, p), initialSegment(z, p)))
 
-          // on the restricted domain, app(orderedRestriction(g, a, p), z) = app(g, z)
+          // on the restricted domain, app(orderedRestriction(g, z, p), b) = app(g, b)
 
           // for every element in the restricted domain, app g1_z b  = app g2_z b
 
