@@ -5,6 +5,7 @@ import lisa.automation.kernel.CommonTactics.Definition
 import lisa.automation.kernel.CommonTactics.Equalities
 import lisa.automation.kernel.CommonTactics.ExistenceAndUniqueness
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
+import lisa.automation.settheory.SetTheoryTactics.UniqueComprehension
 import lisa.mathematics.FirstOrderLogic.equalityTransitivity
 import lisa.mathematics.FirstOrderLogic.existsOneImpliesExists
 import lisa.mathematics.FirstOrderLogic.substitutionInUniquenessQuantifier
@@ -26,7 +27,7 @@ object GroupTheory extends lisa.Main {
   // Group elements
   private val a, b = variable
   private val x, y, z = variable
-  private val u, v, w = variable
+  private val t, u, v, w = variable
 
   // Identity elements
   private val e, f = variable
@@ -965,4 +966,26 @@ object GroupTheory extends lisa.Main {
     
     have(thesis) by Tautology.from(lastStep, eq3)
   }
+
+  /**
+   * Kernel uniqueness --- The kernel of a homomorphism is well-defined.
+   */
+  val kernelUniqueness = Theorem(
+    homomorphism(f, G, *, H, ★) |- ∃!(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, ★)))))
+  ) {
+    // We apply the comprehension axiom here.
+    // It might seem odd that the homomorphism assumption is not needed for the set to be defined,
+    // but remember that [[app]] and [[identity]] default to the empty set when the assumptions are not met.
+    // We add the assumption of `f` being a homomorphism to discard any value when the assumptions do not hold.
+    have(∃!(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, ★)))))) by UniqueComprehension(
+      G,
+      lambda(Seq(t, G), app(f, t) === identity(H, ★))
+    )
+    thenHave(thesis) by Weakening
+  }
+
+  /**
+   * Kernel --- The kernel of a homomorphism `f: G -> H` is the set of elements `t ∈ G` such that `f(t) = e_H`.
+   */
+  val kernel = DEF(f, G, *, H, ★) --> TheConditional(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, ★)))))(kernelUniqueness)
 }
