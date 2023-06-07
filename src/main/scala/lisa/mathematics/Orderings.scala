@@ -1202,65 +1202,7 @@ object Orderings extends lisa.Main {
         )
       )
 
-      // if there exists a unique g for the initial segment, get the set of these
-      val wDef = forall(t, in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y)))
-      // take its union
-      // this is a function g for x (almost)
-      val uw = union(w) // + (x, F(U w))
-      
-      val v = setUnion(union(uw), singleton(pair(x, F(uw))))
-
-      // need to show:
-      //   - uw is a function as required over the initial segment of x
-      //   - (x, F(Uw)) is a function
-      //   - v = uw + (x, F(Uw)) is a function over p_1 <= x
-      //   - v satisfies the fun property
-      //   - so x satisfies the prop property
-
-      // we first show the restricted existence version of prop
-      val gExists = have(exists(g, fun(g, x))) subproof {
-        have(wDef |- fun(v, x)) subproof {
-          assume(wDef)
-          // properties of the elements of w
-          // 1. t \in w ==> functional t
-          // 2. t1, t2 \in w ==> t1 \subseteq t2 \/ t2 \subseteq t1
-
-          // 1. t \in w ==> functional t
-          val elemsFunctional = have(forall(t, in(t, w) ==> functional(t))) subproof {
-            sorry
-          }
-
-          val t1 = variable
-          val t2 = variable
-
-          val elemsSubset = have(forall(t1, forall(t2, (in(t1, w) /\ in(t2, w)) ==> (subset(t1, t2) \/ subset(t2, t1))))) subproof {
-            sorry
-          }
-
-          val uwfunctional = have(functional(uw)) by Tautology.from(elemsFunctional, elemsSubset, unionOfFunctionSet of z -> w)
-          val uwdomain = have(functionalOver(uw, initialSegment(p, x)))
-
-          val pairFunctional = have(functionalOver(singleton(pair(x, F(uw))), singleton(x))) subproof {
-            sorry
-          }
-
-          val initialSegmentToLeq = have(setUnion(initialSegment(p, x), singleton(x)) === initialSegmentLeq(p, x)) by Sorry
-
-          val vFunctionalOver = have(functionalOver(v, initialSegmentLeq(p, x))) by Sorry
-
-          val vRecursive = have(forall(a, in(a, initialSegmentLeq(p, x)) ==> (app(v, a) === F(orderedRestriction(v, a, p))))) by Sorry
-
-          have(thesis) by Tautology.from(vFunctionalOver, vRecursive)
-        }
-
-        thenHave(wDef |- exists(g, fun(g, x))) by RightExists
-        val funExists = thenHave(exists(w, wDef) |- exists(g, fun(g, x))) by LeftExists
-
-        have(exists(w, wDef)) by Sorry
-
-        have(thesis) by Cut(lastStep, funExists)
-      }
-
+      // UNIQUENESS ---------------------------------------
       // if a g exists, it is unique
       val gUnique = have(exists(g, fun(g, t)) /\ in(t, p1) |- existsOne(g, fun(g, t))) subproof {
         assume(in(t, p1))
@@ -1296,7 +1238,7 @@ object Orderings extends lisa.Main {
           // it is functional, too
           val restrictionIsFunction = have(fun(g, t) |- functionalOver(orderedRestriction(g, z, p), initialSegment(p, z))) subproof {
             assume(fun(g, t))
-            
+
             // g_z has dom <z \cup dom g
             val domrestriction = have(functionalOver(orderedRestriction(g, z, p), setIntersection(initialSegment(p, z), relationDomain(g)))) subproof {
               have(functionalOver(restrictedFunction(g, initialSegment(p, z)), setIntersection(initialSegment(p, z), relationDomain(g)))) by Weakening(
@@ -1571,6 +1513,131 @@ object Orderings extends lisa.Main {
         }
 
         thenHave(thesis) by Restate
+      }
+
+      // EXISTENCE ----------------------------------------
+      // if there exists a unique g for the initial segment, get the set of these
+      val wDef = forall(t, in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y)))
+      // take its union
+      // this is a function g for x (almost)
+      val uw = union(w) // + (x, F(U w))
+
+      val v = setUnion(union(uw), singleton(pair(x, F(uw))))
+
+      // need to show:
+      //   - uw is a function as required over the initial segment of x
+      //   - (x, F(Uw)) is a function
+      //   - v = uw + (x, F(Uw)) is a function over p_1 <= x
+      //   - v satisfies the fun property
+      //   - so x satisfies the prop property
+
+      // we first show the restricted existence version of prop
+      val gExists = have(exists(g, fun(g, x))) subproof {
+        have(wDef |- fun(v, x)) subproof {
+          assume(wDef)
+          // properties of the elements of w
+          // 1. t \in w ==> functional t
+          // 2. t1, t2 \in w ==> t1 \subseteq t2 \/ t2 \subseteq t1
+
+          // 1. t \in w ==> functional t
+          val elemsFunctional = have(forall(t, in(t, w) ==> functional(t))) subproof {
+            have(in(t, w) |- functional(t)) subproof {
+              assume(in(t, w))
+              have(in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y))) by InstantiateForall
+              val exy = thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(t, y))) by Tautology
+
+              have(exists(y, in(y, initialSegment(p, x)) /\ fun(t, y)) |- functional(t)) subproof {
+                have(fun(t, y) |- functional(t)) by Tautology.from(functionalOver.definition of (f -> t, x -> initialSegmentLeq(p, y)))
+                thenHave((in(y, initialSegment(p, x)) /\ fun(t, y)) |- functional(t)) by Weakening
+                thenHave(thesis) by LeftExists
+              }
+            }
+            thenHave(in(t, w) ==> functional(t)) by Restate
+            thenHave(thesis) by RightForall
+          }
+
+          val t1 = variable
+          val t2 = variable
+
+          val elemsSubset = have(forall(t1, forall(t2, (in(t1, w) /\ in(t2, w)) ==> (subset(t1, t2) \/ subset(t2, t1))))) subproof {
+            have(in(t1, w) /\ in(t2, w) |- subset(t1, t2) \/ subset(t2, t1)) subproof {
+              assume(in(t1, w))
+              assume(in(t2, w))
+
+              // given t1 and t2
+              // they must come from y1 and y2
+
+              // if t1 == t2
+              // done
+              have((t1 === t2) |- subset(t1, t2) \/ subset(t2, t1)) by Weakening(subsetEqualitySymmetry of (x -> t1, y -> t2))
+
+              // if t1 != t2
+              have(!(t1 === t2) |- subset(t1, t2) \/ subset(t2, t1)) subproof {
+                assume(!(t1 === t2))
+                def ytDef(y: Term, t: Term) = in(y, initialSegment(p, x)) /\ fun(t, y)
+                val y1 = variable
+                val y2 = variable
+
+                have(ytDef(y1, t1) /\ ytDef(y2, t2) |- subset(t1, t2) \/ subset(t2, t1)) subproof {
+                  assume(ytDef(y1, t1))
+                  assume(ytDef(y2, t2))
+                  // cases:
+                  // y1 == y2
+                  // done by the uniqueness lemma above
+                  val yeq = have((y1 === y2) |- subset(t1, t2)) subproof {
+                    assume(y1 === y2)
+                    have(fun(t1, y1) /\ fun(t2, y2)) by Restate
+                    thenHave(fun(t1, y1) /\ fun(t2, y1)) by RightSubstEq.apply2
+                    thenHave(fun(t1, y1) /\ fun(t2, y1) /\ !(t1 === t2)) by Restate
+                    thenHave(exists(t2, fun(t1, y1) /\ fun(t2, y1) /\ !(t1 === t2))) by RightExists
+                    thenHave(exists(t1, exists(t2, fun(t1, y1) /\ fun(t2, y1) /\ !(t1 === t2)))) by RightExists
+                    have(exists(t1, fun(t1, y1)) /\ !existsOne(t1, fun(t1, y1))) by Tautology.from(lastStep, atleastTwoExist of P -> lambda(t1, fun(t1, y1)))
+                    have(bot()) by Tautology.from(lastStep, gUnique of t -> t1)
+                  }
+
+                  // y1 != y2
+                  // real work to be done here :-
+                  val neq = have(!(y1 === y2) |- subset(t1, t2)) subproof {
+                    assume(!(y1 === y2))
+                    ???
+                  }
+                }
+
+                thenHave((ytDef(y1, t1), ytDef(y2, t2)) |- subset(t1, t2) \/ subset(t2, t1)) by Restate
+                thenHave((ytDef(y1, t1), exists(y, ytDef(y, t2))) |- subset(t1, t2) \/ subset(t2, t1)) by LeftExists
+                val exToRes = thenHave((exists(y, ytDef(y, t1)), exists(y, ytDef(y, t2))) |- subset(t1, t2) \/ subset(t2, t1)) by LeftExists
+
+                val exy = have(in(a, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(a, y))) by InstantiateForall
+
+                have(thesis) by Tautology.from(exToRes, exy of a -> t1, exy of a -> t2)
+              }
+            }
+
+            sorry
+          }
+
+          val uwfunctional = have(functional(uw)) by Tautology.from(elemsFunctional, elemsSubset, unionOfFunctionSet of z -> w)
+          val uwdomain = have(functionalOver(uw, initialSegment(p, x)))
+
+          val pairFunctional = have(functionalOver(singleton(pair(x, F(uw))), singleton(x))) subproof {
+            sorry
+          }
+
+          val initialSegmentToLeq = have(setUnion(initialSegment(p, x), singleton(x)) === initialSegmentLeq(p, x)) by Sorry
+
+          val vFunctionalOver = have(functionalOver(v, initialSegmentLeq(p, x))) by Sorry
+
+          val vRecursive = have(forall(a, in(a, initialSegmentLeq(p, x)) ==> (app(v, a) === F(orderedRestriction(v, a, p))))) by Sorry
+
+          have(thesis) by Tautology.from(vFunctionalOver, vRecursive)
+        }
+
+        thenHave(wDef |- exists(g, fun(g, x))) by RightExists
+        val funExists = thenHave(exists(w, wDef) |- exists(g, fun(g, x))) by LeftExists
+
+        have(exists(w, wDef)) by Sorry
+
+        have(thesis) by Cut(lastStep, funExists)
       }
 
       have(thesis) by Tautology.from(gExists, gUnique of t -> x)
