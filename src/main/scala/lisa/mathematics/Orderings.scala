@@ -879,6 +879,8 @@ object Orderings extends lisa.Main {
     sorry
   }
 
+  println(orderedRestriction.definition.show)
+
   /**
    * Theorem --- Well Ordered Induction on a Subclass
    *
@@ -1205,6 +1207,8 @@ object Orderings extends lisa.Main {
       // take its union
       // this is a function g for x (almost)
       val uw = union(w) // + (x, F(U w))
+      
+      val v = setUnion(union(uw), singleton(pair(x, F(uw))))
 
       // need to show:
       //   - uw is a function as required over the initial segment of x
@@ -1215,7 +1219,46 @@ object Orderings extends lisa.Main {
 
       // we first show the restricted existence version of prop
       val gExists = have(exists(g, fun(g, x))) subproof {
-        sorry
+        have(wDef |- fun(v, x)) subproof {
+          assume(wDef)
+          // properties of the elements of w
+          // 1. t \in w ==> functional t
+          // 2. t1, t2 \in w ==> t1 \subseteq t2 \/ t2 \subseteq t1
+
+          // 1. t \in w ==> functional t
+          val elemsFunctional = have(forall(t, in(t, w) ==> functional(t))) subproof {
+            sorry
+          }
+
+          val t1 = variable
+          val t2 = variable
+
+          val elemsSubset = have(forall(t1, forall(t2, (in(t1, w) /\ in(t2, w)) ==> (subset(t1, t2) \/ subset(t2, t1))))) subproof {
+            sorry
+          }
+
+          val uwfunctional = have(functional(uw)) by Tautology.from(elemsFunctional, elemsSubset, unionOfFunctionSet of z -> w)
+          val uwdomain = have(functionalOver(uw, initialSegment(p, x)))
+
+          val pairFunctional = have(functionalOver(singleton(pair(x, F(uw))), singleton(x))) subproof {
+            sorry
+          }
+
+          val initialSegmentToLeq = have(setUnion(initialSegment(p, x), singleton(x)) === initialSegmentLeq(p, x)) by Sorry
+
+          val vFunctionalOver = have(functionalOver(v, initialSegmentLeq(p, x))) by Sorry
+
+          val vRecursive = have(forall(a, in(a, initialSegmentLeq(p, x)) ==> (app(v, a) === F(orderedRestriction(v, a, p))))) by Sorry
+
+          have(thesis) by Tautology.from(vFunctionalOver, vRecursive)
+        }
+
+        thenHave(wDef |- exists(g, fun(g, x))) by RightExists
+        val funExists = thenHave(exists(w, wDef) |- exists(g, fun(g, x))) by LeftExists
+
+        have(exists(w, wDef)) by Sorry
+
+        have(thesis) by Cut(lastStep, funExists)
       }
 
       // if a g exists, it is unique
@@ -1232,26 +1275,34 @@ object Orderings extends lisa.Main {
 
         // expansion of ordered restriction
         val ordResDef = have(orderedRestriction(g, z, p) === restrictedFunction(g, initialSegment(p, z))) subproof {
-          have(forall(z, (z === orderedRestriction(g, z, p)) <=> (z === restrictedFunction(g, initialSegment(p, z))))) by Weakening(orderedRestriction.definition of (f -> g, a -> z))
+          have(forall(b, (b === orderedRestriction(g, z, p)) <=> (b === restrictedFunction(g, initialSegment(p, z))))) by Weakening(orderedRestriction.definition of (f -> g, a -> z))
           thenHave(thesis) by InstantiateForall(orderedRestriction(g, z, p))
         }
 
         // if g1 and g2 agree on the initial segment of an element < z, they must agree on z
         val initToz = have(
-          fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2) /\ in(z, initialSegment(p, t)) |- forall(
+          fun(g1, t) /\ fun(g2, t) /\ !(g1 === g2) /\ in(z, initialSegment(p, t)) /\ forall(
             b,
             in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))
-          ) ==> (app(g1, z) === app(g2, z))
+          ) |- (app(g1, z) === app(g2, z))
         ) subproof {
+          assume(fun(g1, t))
+          assume(fun(g2, t))
+          assume(!(g1 === g2))
+          assume(in(z, initialSegment(p, t)))
+          assume(forall(b, in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))))
 
           // the ordered restriction of g1 has domain initialSegment(p, z)
           // it is functional, too
           val restrictionIsFunction = have(fun(g, t) |- functionalOver(orderedRestriction(g, z, p), initialSegment(p, z))) subproof {
+            assume(fun(g, t))
+            
             // g_z has dom <z \cup dom g
             val domrestriction = have(functionalOver(orderedRestriction(g, z, p), setIntersection(initialSegment(p, z), relationDomain(g)))) subproof {
               have(functionalOver(restrictedFunction(g, initialSegment(p, z)), setIntersection(initialSegment(p, z), relationDomain(g)))) by Weakening(
                 restrictedFunctionIsFunctionalOver of (f -> g, x -> initialSegment(p, z))
               )
+              thenHave(thesis) by Substitution.apply2(true, ordResDef)
             }
 
             // but dom g is <=t
@@ -1529,5 +1580,11 @@ object Orderings extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, wellOrderedInduction of Q -> lambda(x, prop(x)))
   }
   show
+
+  val transfiniteRecursion = Theorem(
+    ordinal(a) |- existsOne(g, functionalOver(g, a) /\ forall(b, in(b, a) ==> (app(g, b) === F(restrictedFunction(g, b)))))
+  ) {
+    sorry
+  }
 
 }

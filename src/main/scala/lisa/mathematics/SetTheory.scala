@@ -2463,7 +2463,7 @@ object SetTheory extends lisa.Main {
     // since f is a relation
     // t \in f <=> \exists c \in dom f, d \in ran f. t = (c, d)
     // we need to show that the app part of the conclusion is redundant by definition of app
-    have(functional(f) |- in(t, f) <=> exists(c, exists(d, in(c, relationDomain(f)) /\ in(d, relationRange(f)) /\ (t === pair(c, d))))) by Tautology.from(functional.definition, ???)
+    // have(functional(f) |- in(t, f) <=> exists(c, exists(d, in(c, relationDomain(f)) /\ in(d, relationRange(f)) /\ (t === pair(c, d))))) by Tautology.from(functional.definition, ???)
     sorry
   }
 
