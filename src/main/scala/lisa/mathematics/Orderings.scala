@@ -1597,9 +1597,59 @@ object Orderings extends lisa.Main {
 
                   // y1 != y2
                   // real work to be done here :-
-                  val neq = have(!(y1 === y2) |- subset(t1, t2)) subproof {
+                  val neq = have(!(y1 === y2) |- subset(t1, t2) \/ subset(t2, t1)) subproof {
                     assume(!(y1 === y2))
-                    ???
+
+                    // y1 < y2 or y2 < y1?
+                    // we prove it in the generic case
+                    val a1 = variable
+                    val a2 = variable
+                    val k1 = variable
+                    val k2 = variable
+                    val ltToSubset = have(ytDef(a1, k1) /\ ytDef(a2, k2) /\ in(pair(a1, a2), p2) |- subset(k1, k2)) subproof {
+                      assume(ytDef(a1, k1))
+                      assume(ytDef(a2, k2))
+                      assume(in(pair(a1, a2), p2))
+                      // fun(k1, a1)
+                      // fun(k2, a2)
+                      // a1 < a2
+                      // we should have k1 \subseteq k2
+
+                      // dom k1 \subseteq dom k2
+
+                      // suppose there is a minimal n such that k1 n != k2 n
+
+                      // but k1 n = F(k1 |^ n) and k2 n = F(k2 |^ n)
+                      // k1 |^ n  = k2 |^ n by minimality of n
+                      // so k1 n = F(k1 |^ n) = F(k2 |^ n) = k2 n
+                      // this is a contradiction
+
+                      sorry
+                    }
+
+                    val y1LTy2 = have(in(pair(y1, y2), p2) |- subset(t1, t2)) by Restate.from(ltToSubset of (a1 -> y1, k1 -> t1, a2 -> y2, k2 -> t2))
+                    val y2LTy1 = have(in(pair(y2, y1), p2) |- subset(t2, t1)) by Restate.from(ltToSubset of (a1 -> y2, k1 -> t2, a2 -> y1, k2 -> t1))
+
+                    // totality of the order means y1 < y2 or y2 < y1
+                    have(in(pair(y1, y2), p2) \/ in(pair(y2, y1), p2)) subproof {
+                      have(forall(y1, forall(y2, (in(y1, p1) /\ in(y2, p1)) ==> (in(pair(y1, y2), p2) \/ in(pair(y2, y1), p2) \/ (y1 === y2))))) by Tautology.from(
+                        wellOrder.definition,
+                        total.definition of (r -> p2, x -> p1)
+                      )
+                      val impl = thenHave((in(y1, p1) /\ in(y2, p1)) ==> (in(pair(y1, y2), p2) \/ in(pair(y2, y1), p2) \/ (y1 === y2))) by InstantiateForall(y1, y2)
+
+                      // expand defs
+                      have(forall(z, (z === initialSegment(x, y)) <=> forall(t, in(t, z) <=> (in(t, firstInPair(x)) /\ in(pair(t, y), secondInPair(x)))))) by Weakening(
+                        initialSegment.definition of (p -> x, a -> y)
+                      )
+                      thenHave(forall(t, in(t, initialSegment(x, y)) <=> (in(t, firstInPair(x)) /\ in(pair(t, y), secondInPair(x))))) by InstantiateForall(initialSegment(x, y))
+                      val initXY = thenHave(in(c, initialSegment(x, y)) <=> (in(c, firstInPair(x)) /\ in(pair(c, y), secondInPair(x)))) by InstantiateForall(c)
+
+                      have(in(y1, p1) /\ in(y2, p1)) by Tautology.from(initXY of (x -> p, y -> x, c -> y1), initXY of (x -> p, y -> x, c -> y2))
+                      have(thesis) by Tautology.from(lastStep, impl)
+                    }
+
+                    have(thesis) by Tautology.from(lastStep, y1LTy2, y2LTy1)
                   }
                 }
 
