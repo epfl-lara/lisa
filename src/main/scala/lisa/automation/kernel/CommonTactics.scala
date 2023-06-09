@@ -60,6 +60,7 @@ object CommonTactics {
         proof.InvalidProofTactic("Could not infer correct right pivots.")
       } else {
         val gammaPrime = uniquenessSeq.left.filter(f => !isSame(f, phi) && !isSame(f, substPhi))
+        val deltaPrime = uniquenessSeq.right.filter(f => !isSame(f, (x === y)) && !isSame(f, (y === x)))
 
         TacticSubproof {
           // There's got to be a better way of importing have/thenHave/assume methods
@@ -75,13 +76,13 @@ object CommonTactics {
             lib.assume(f)
           }
 
-          val backward = lib.have(phi |- (substPhi ==> (x === y))) by Restate.from(uniqueness)
+          val backward = lib.have(phi |- (deltaPrime + (substPhi ==> (x === y)))) by Restate.from(uniqueness)
 
-          lib.have(phi |- ((x === y) <=> substPhi)) by RightIff(forward, backward)
-          lib.thenHave(phi |- ∀(y, (x === y) <=> substPhi)) by RightForall
-          lib.thenHave(phi |- ∃(x, ∀(y, (x === y) <=> substPhi))) by RightExists
-          lib.thenHave(∃(x, phi) |- ∃(x, ∀(y, (x === y) <=> substPhi))) by LeftExists
-          lib.thenHave(∃(x, phi) |- ∃!(x, phi)) by RightExistsOne
+          lib.have(phi |- (deltaPrime + ((x === y) <=> substPhi))) by RightIff(forward, backward)
+          lib.thenHave(phi |- (deltaPrime + ∀(y, (x === y) <=> substPhi))) by RightForall
+          lib.thenHave(phi |- (deltaPrime + ∃(x, ∀(y, (x === y) <=> substPhi)))) by RightExists
+          lib.thenHave(∃(x, phi) |- (deltaPrime + ∃(x, ∀(y, (x === y) <=> substPhi)))) by LeftExists
+          lib.thenHave(∃(x, phi) |- (deltaPrime + ∃!(x, phi))) by RightExistsOne
 
           lib.have(bot) by Cut(existence, lib.lastStep)
         }
