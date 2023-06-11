@@ -473,24 +473,7 @@ object GroupTheory extends lisa.Main {
    * Theorem --- `y` is the inverse of `x` iff `x` is the inverse of `y`
    */
   val inverseSymmetry = Theorem(
-    (group(G, *), x ∈ G) |- (isInverse(y, x, G, *) ==> isInverse(x, y, G, *))
-  ) {
-    assume(group(G, *))
-    assume(x ∈ G)
-
-    have(isInverse(y, x, G, *) |- y ∈ G /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)) by Tautology.from(isInverse.definition)
-    thenHave(isInverse(y, x, G, *) |- isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
-    thenHave(isInverse(y, x, G, *) |- x ∈ G /\ isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
-
-    have(isInverse(y, x, G, *) |- isInverse(x, y, G, *)) by Tautology.from(lastStep, isInverse.definition of (y -> x, x -> y))
-    thenHave(thesis) by Restate
-  }
-
-  /**
-   * Involution of the inverse -- For all `x`, `inverse(inverse(x)) = x`.
-   */
-  val inverseIsInvolutive = Theorem(
-    (group(G, *), x ∈ G) |- (inverse(inverse(x, G, *), G, *) === x)
+    (group(G, *), x ∈ G, y ∈ G) |- (y === inverse(x, G, *)) <=> (x === inverse(y, G, *))
   ) {
     assume(group(G, *))
 
@@ -499,19 +482,39 @@ object GroupTheory extends lisa.Main {
       thenHave(thesis) by InstantiateForall(y)
     }
 
-    // Use the symmetry of the inverse relation to prove that x is an inverse of inverse(x)
-    val satisfaction = have(x ∈ G |- isInverse(x, inverse(x, G, *), G, *)) subproof {
-      have((x ∈ G, isInverse(inverse(x, G, *), x, G, *)) |- isInverse(x, inverse(x, G, *), G, *)) by Restate.from(inverseSymmetry of (y -> inverse(x, G, *)))
-      have(thesis) by Cut(inverseIsInverse, lastStep)
-    }
+    val forward = have(x ∈ G |- isInverse(y, x, G, *) ==> isInverse(x, y, G, *)) subproof {  
+    assume(x ∈ G)
+    have(isInverse(y, x, G, *) |- y ∈ G /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)) by Tautology.from(isInverse.definition)
+    thenHave(isInverse(y, x, G, *) |- isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
+    thenHave(isInverse(y, x, G, *) |- x ∈ G /\ isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
 
-    // Conclude by uniqueness
-    val u = inverse(inverse(x, G, *), G, *)
+    have(isInverse(y, x, G, *) |- isInverse(x, y, G, *)) by Tautology.from(lastStep, isInverse.definition of (y -> x, x -> y))
+    thenHave(thesis) by Restate
+  }
 
-    val characterization = have(inverse(x, G, *) ∈ G |- ((x === u) <=> isInverse(x, inverse(x, G, *), G, *))) by Restate.from(inverseCharacterization of (x -> inverse(x, G, *), y -> x))
-    val eq = have((x ∈ G, inverse(x, G, *) ∈ G) |- (x === u)) by Tautology.from(satisfaction, characterization)
+    val backward = forward of (x -> y, y -> x)
 
-    have(thesis) by Cut(inverseInGroup, eq)
+    have((x ∈ G, y ∈ G) |- isInverse(y, x, G, *) <=> isInverse(x, y, G, *)) by RightIff(forward, backward)
+
+    have(thesis) by Tautology.from(
+      inverseCharacterization,
+      lastStep,
+      inverseCharacterization of (x -> y, y -> x)
+    )
+  }
+
+  /**
+   * Involution of the inverse -- For all `x`, `inverse(inverse(x)) = x`.
+   * 
+   * Direct corollary of [[inverseSymmetry]].
+   */
+  val inverseIsInvolutive = Theorem(
+    (group(G, *), x ∈ G) |- (inverse(inverse(x, G, *), G, *) === x)
+  ) {
+    have(thesis) by Tautology.from(
+      inverseSymmetry of (y -> inverse(x, G, *)),
+      inverseInGroup
+    )
   }
 
   /**
