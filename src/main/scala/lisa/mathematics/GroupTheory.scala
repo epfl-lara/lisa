@@ -1385,4 +1385,16 @@ object GroupTheory extends lisa.Main {
 
   // TODO Kernel injectivity
   // TODO Image is subgroup
+
+  /**
+   * Isomorphism --- An isomorphism `f: G -> H` is a bijective homomorphism.
+   * 
+   * In some sense, isomorphic groups are equivalent, up to relabelling their elements.
+   */
+  val isomorphism = DEF(f, G, *, H, ★) --> homomorphism(f, G, *, H, ★) /\ bijective(f, G, H)
+
+  /**
+   * Automorphism --- An automorphism is an isomorphism from a group to itself.
+   */
+  val automorphism = DEF(f, G, *) --> isomorphism(f, G, *, G, *)
 }
