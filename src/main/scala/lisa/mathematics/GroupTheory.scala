@@ -1018,8 +1018,68 @@ object GroupTheory extends lisa.Main {
     have(thesis) by Cut(lastStep, finalStep)
   }
 
-  // TODO Subgroup inverse
-  // TODO Subgroup condition
+  /**
+   * Theorem --- If `H` is a subgroup of `G`, then the inverse is the same as in the parent group. 
+   */
+  val subgroupInverse = Theorem(
+    (subgroup(H, G, *), x ∈ H) |- inverse(x, H, restrictedFunction(*, cartesianProduct(H, H))) === inverse(x, G, *)
+  ) {
+    assume(subgroup(H, G, *))
+    assume(x ∈ H)
+
+    have(∀(x, (x ∈ H) ==> (x ∈ G))) by Tautology.from(
+      subgroup.definition,
+      subset.definition of (x -> H, y -> G)
+    )
+    val subsetDef = thenHave((x ∈ H) ==> (x ∈ G)) by InstantiateForall(x)
+    val xInG = thenHave(x ∈ G) by Tautology
+
+    val groupG = have(group(G, *)) by Tautology.from(subgroup.definition)
+    val ★ = restrictedFunction(*, cartesianProduct(H, H))
+    val groupH = have(group(H, ★)) by Tautology.from(subgroup.definition)
+
+    val eG = identity(G, *)
+    val eH = identity(H, ★)
+
+    val inverseHInH = have(inverse(x, H, ★) ∈ H) by Cut(groupH, inverseInGroup of (G -> H, * -> ★))
+    val inverseHInG = have(inverse(x, H, ★) ∈ G) by Tautology.from(inverseHInH, subsetDef of (x -> inverse(x, H, ★)))
+
+    // 1. x * inverse(x, H, ★) = e_H
+    have((inverse(x, H, ★) ∈ H) |- (op(x, ★, inverse(x, H, ★)) === eH)) by Tautology.from(
+      groupH,
+      inverseCancellation of (G -> H, * -> ★)
+    )
+    have((inverse(x, H, ★) ∈ H) |- (op(x, *, inverse(x, H, ★)) === eH)) by Equalities(
+      lastStep,
+      subgroupOperation of (y -> inverse(x, H, ★))
+    )
+    
+    val eq1 = have(op(x, *, inverse(x, H, ★)) === eH) by Cut(inverseHInH, lastStep)
+
+    // 2. e_H = e_G
+    val eq2 = have(eH === eG) by Tautology.from(subgroupIdentity)
+
+    // 3. x * inverse(x, G, *) = e_G
+    val eq3 = have(op(x, *, inverse(x, G, *)) === eG) by Tautology.from(
+      groupG,
+      xInG,
+      inverseInGroup,
+      inverseCancellation
+    )
+
+    // 4. x * inverse(x, H, ★) === x * inverse(x, G, *)
+    have(op(x, *, inverse(x, H, ★)) === op(x, *, inverse(x, G, *))) by Equalities(eq1, eq2, eq3)
+
+    // Conclude by left cancellation
+    have(thesis) by Tautology.from(
+      lastStep,
+      groupG,
+      xInG,
+      inverseHInG,
+      inverseInGroup,
+      leftCancellation of (y -> inverse(x, H, ★), z -> inverse(x, G, *))
+    )
+  }
 
   /**
    * Theorem --- A subset `H ⊆ G` of a group `(G, *)` is a subgroup if and only if:
