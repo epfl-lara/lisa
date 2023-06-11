@@ -666,6 +666,74 @@ object GroupTheory extends lisa.Main {
     have(thesis) by RightIff(forward, backward)
   }
 
+  /**
+   * Theorem --- If `x * y = e` then `y = inverse(x)`.
+   * 
+   * This also implies that `x = inverse(y)` by [[inverseSymmetry]].
+   */
+  val inverseTest = Theorem(
+    (group(G, *), x ∈ G, y ∈ G) |- (op(x, *, y) === identity(G, *)) ==> (y === inverse(x, G, *))
+  ) {
+    assume(group(G, *))
+    assume(x ∈ G)
+    assume(y ∈ G)
+
+    val e = identity(G, *)
+
+    // 1. e = x * inverse(x)
+    val eq1 = have(op(x, *, inverse(x, G, *)) === e) by Tautology.from(
+      identityInGroup,
+      inverseCancellation
+    )
+
+    // 2. x * y = x * inverse(x)
+    have((op(x, *, y) === e) |- (op(x, *, y) === e) ) by Hypothesis
+    val eq2 = have((op(x, *, y) === e) |- op(x, *, y) === op(x, *, inverse(x, G, *))) by Equalities(eq1, lastStep)
+
+    // Conclude by left cancellation
+    have((op(x, *, y) === e, inverse(x, G, *) ∈ G) |- (y === inverse(x, G, *))) by Tautology.from(
+      lastStep,
+      leftCancellation of (z -> inverse(x, G, *))
+    )
+    have((op(x, *, y) === e) |- (y === inverse(x, G, *))) by Cut(inverseInGroup, lastStep)
+    thenHave(thesis) by Restate
+  }
+
+  /**
+   * Theorem --- The inverse of the identity element is itself.
+   */
+  val inverseOfIdentityIsIdentity = Theorem(
+    group(G, *) |- inverse(identity(G, *), G, *) === identity(G, *)
+  ) {
+    assume(group(G, *))
+
+    val e = identity(G, *)
+
+    have(x ∈ G |- ∀(y, (y === inverse(x, G, *)) <=> isInverse(y, x, G, *))) by Tautology.from(
+      inverseUniqueness,
+      inverse.definition
+    )
+    thenHave(x ∈ G |- (e === inverse(x, G, *)) <=> isInverse(e, x, G, *)) by InstantiateForall(e)
+    val characterization = have((e === inverse(e, G, *)) <=> isInverse(e, e, G, *)) by Cut(identityInGroup, lastStep of (x -> e))
+
+    // Prove that e is an inverse of e
+    val satisfaction = have(isInverse(e, e, G, *)) subproof {
+      val neutrality = have(op(e, *, e) === e) by Cut(identityInGroup, identityNeutrality of (x -> e))
+
+      have((op(e, *, e) === e) |- isNeutral(op(e, *, e), G, *)) by RightSubstEq(
+        List((op(e, *, e), e)),
+        lambda(z, isNeutral(z, G, *))
+      )(identityIsNeutral)
+
+      have(isNeutral(op(e, *, e), G, *)) by Cut(neutrality, lastStep)
+
+      have(e ∈ G /\ isNeutral(op(e, *, e), G, *) /\ isNeutral(op(e, *, e), G, *)) by RightAnd(identityInGroup, lastStep, lastStep)
+      have(thesis) by Tautology.from(lastStep, isInverse.definition of (x -> e, y -> e))
+    }
+
+    have(thesis) by Tautology.from(characterization, satisfaction)
+  }
+
   // TODO Direct product group
   // TODO Permutation group
 
