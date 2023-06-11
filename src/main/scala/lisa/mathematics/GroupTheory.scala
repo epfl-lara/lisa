@@ -470,6 +470,38 @@ object GroupTheory extends lisa.Main {
   }
 
   /**
+   * Theorem --- For any element `x`, we have `x * inverse(x) = inverse(x) * x = e`.
+   */
+  val inverseCancellation = Theorem(
+    (group(G, *), x ∈ G) |- (op(x, *, inverse(x, G, *)) === identity(G, *)) /\ (op(inverse(x, G, *), *, x) === identity(G, *))
+  ) {
+    assume(group(G, *))
+
+    have(∀(y, (y === identity(G, *)) <=> isNeutral(y, G, *))) by Tautology.from(
+      identity.definition,
+      identityUniqueness
+    )
+    val idCharacterization = thenHave((y === identity(G, *)) <=> isNeutral(y, G, *)) by InstantiateForall(y)
+
+    assume(x ∈ G)
+    val inverseDef = have((inverse(x, G, *) ∈ G) /\ isNeutral(op(x, *, inverse(x, G, *)), G, *) /\ isNeutral(op(inverse(x, G, *), *, x), G, *)) by Tautology.from(
+      inverseIsInverse,
+      isInverse.definition of (y -> inverse(x, G, *))
+    )
+
+    val left = have(op(x, *, inverse(x, G, *)) === identity(G, *)) by Tautology.from(
+      inverseDef,
+      idCharacterization of (y -> op(x, *, inverse(x, G, *)))
+    )
+    val right = have(op(inverse(x, G, *), *, x) === identity(G, *)) by Tautology.from(
+      inverseDef,
+      idCharacterization of (y -> op(inverse(x, G, *), *, x))
+    )
+
+    have(thesis) by RightAnd(left, right)
+  }
+
+  /**
    * Theorem --- `y` is the inverse of `x` iff `x` is the inverse of `y`
    */
   val inverseSymmetry = Theorem(
