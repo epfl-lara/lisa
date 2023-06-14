@@ -2480,11 +2480,10 @@ object SetTheory extends lisa.Main {
   }
 
   val functionsEqualIfEqualOnDomain = Theorem(
-    functionalOver(f, a) /\ functionalOver(g, a) /\ forall(z, in(z, a) ==> (app(f, z) === app(g, z))) |- (f === g)
+    functionalOver(f, a) /\ functionalOver(g, a) |- forall(z, in(z, a) ==> (app(f, z) === app(g, z))) <=> (f === g)
   ) {
     assume(functionalOver(f, a))
     assume(functionalOver(g, a))
-    assume(forall(z, in(z, a) ==> (app(f, z) === app(g, z))))
 
     sorry
   }

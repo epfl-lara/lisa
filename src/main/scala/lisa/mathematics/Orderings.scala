@@ -879,8 +879,6 @@ object Orderings extends lisa.Main {
     sorry
   }
 
-  println(orderedRestriction.definition.show)
-
   /**
    * Theorem --- Well Ordered Induction on a Subclass
    *
@@ -1180,7 +1178,7 @@ object Orderings extends lisa.Main {
   val wellOrderedRecursionStronger = Lemma(
     wellOrder(p) |- forall(
       t,
-      in(t, firstInPair(p)) ==> existsOne(g, (functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))))
+      in(t, firstInPair(p)) ==> existsOne(g, (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegment(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))))
     )
   ) {
 
@@ -1189,7 +1187,7 @@ object Orderings extends lisa.Main {
     val p1 = firstInPair(p)
     val p2 = secondInPair(p)
 
-    def fun(g: Term, t: Term): Formula = (functionalOver(g, initialSegmentLeq(p, t)) /\ forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+    def fun(g: Term, t: Term): Formula = (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegment(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
     def prop(t: Term): Formula = in(t, p1) ==> existsOne(g, fun(g, t))
 
     // the existence of g propagates up from initial segments
@@ -1247,42 +1245,30 @@ object Orderings extends lisa.Main {
               thenHave(thesis) by Substitution.apply2(true, ordResDef)
             }
 
-            // but dom g is <=t
-            val domgz = have(functionalOver(orderedRestriction(g, z, p), setIntersection(initialSegment(p, z), initialSegmentLeq(p, t)))) subproof {
-              have(functionalOver(g, initialSegmentLeq(p, t))) by Tautology
-              have(relationDomain(g) === initialSegmentLeq(p, t)) by Tautology.from(lastStep, functionalOverImpliesDomain of (f -> g, x -> initialSegmentLeq(p, t)))
+            // but dom g is <t
+            val domgz = have(functionalOver(orderedRestriction(g, z, p), setIntersection(initialSegment(p, z), initialSegment(p, t)))) subproof {
+              have(functionalOver(g, initialSegment(p, t))) by Tautology
+              have(relationDomain(g) === initialSegment(p, t)) by Tautology.from(lastStep, functionalOverImpliesDomain of (f -> g, x -> initialSegment(p, t)))
 
               have(thesis) by Substitution.apply2(false, lastStep)(domrestriction)
             }
 
-            // <z \subseteq <=t
-            have(subset(initialSegment(p, z), initialSegmentLeq(p, t))) subproof {
-              // <z \subseteq <t
-              val zt = have(subset(initialSegment(p, z), initialSegment(p, t))) subproof {
-                have(forall(z, (z === initialSegment(p, t)) <=> forall(b, in(b, z) <=> (in(b, p1) /\ in(pair(b, t), p2))))) by Weakening(initialSegment.definition of a -> t)
-                thenHave(forall(b, in(b, initialSegment(p, t)) <=> (in(b, p1) /\ in(pair(b, t), p2)))) by InstantiateForall(initialSegment(p, t))
-                thenHave(in(z, initialSegment(p, t)) <=> (in(z, p1) /\ in(pair(z, t), p2))) by InstantiateForall(z)
-                val zLTt = thenHave(in(pair(z, t), p2)) by Tautology
+            // <z \subseteq <t
+            have(subset(initialSegment(p, z), initialSegment(p, t))) subproof {
+              have(forall(z, (z === initialSegment(p, t)) <=> forall(b, in(b, z) <=> (in(b, p1) /\ in(pair(b, t), p2))))) by Weakening(initialSegment.definition of a -> t)
+              thenHave(forall(b, in(b, initialSegment(p, t)) <=> (in(b, p1) /\ in(pair(b, t), p2)))) by InstantiateForall(initialSegment(p, t))
+              thenHave(in(z, initialSegment(p, t)) <=> (in(z, p1) /\ in(pair(z, t), p2))) by InstantiateForall(z)
+              val zLTt = thenHave(in(pair(z, t), p2)) by Tautology
 
-                have(partialOrder(p)) by Tautology.from(wellOrder.definition, totalOrder.definition)
+              have(partialOrder(p)) by Tautology.from(wellOrder.definition, totalOrder.definition)
 
-                have(thesis) by Tautology.from(lastStep, zLTt, initialSegmentsSubset of (x -> z, y -> t))
-              }
-
-              // <t \subseteq <=t
-              val tt = have(subset(initialSegment(p, t), initialSegmentLeq(p, t))) subproof {
-                have(in(b, initialSegment(p, t)) ==> in(b, initialSegmentLeq(p, t))) by Tautology.from(initialSegmentLeqBreakdown of (t -> b, a -> t))
-                thenHave(forall(b, in(b, initialSegment(p, t)) ==> in(b, initialSegmentLeq(p, t)))) by RightForall
-                have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> initialSegment(p, t), y -> initialSegmentLeq(p, t)))
-              }
-
-              have(thesis) by Tautology.from(zt, tt, subsetTransitivity of (a -> initialSegment(p, z), b -> initialSegment(p, t), c -> initialSegmentLeq(p, t)))
+              have(thesis) by Tautology.from(lastStep, zLTt, initialSegmentsSubset of (x -> z, y -> t))
             }
 
             // so dom g = <z
-            have(setIntersection(initialSegment(p, z), initialSegmentLeq(p, t)) === initialSegment(p, z)) by Tautology.from(
+            have(setIntersection(initialSegment(p, z), initialSegment(p, t)) === initialSegment(p, z)) by Tautology.from(
               lastStep,
-              intersectionOfSubsets of (x -> initialSegment(p, z), y -> initialSegmentLeq(p, t))
+              intersectionOfSubsets of (x -> initialSegment(p, z), y -> initialSegment(p, t))
             )
 
             have(thesis) by Substitution.apply2(false, lastStep)(domgz)
@@ -1454,9 +1440,9 @@ object Orderings extends lisa.Main {
           have(thesis) subproof {
             val gzf = have(fun(g, t) |- app(g, z) === F(orderedRestriction(g, z, p))) subproof {
               assume(fun(g, t))
-              have(forall(a, in(a, initialSegmentLeq(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))) by Restate
-              thenHave(in(z, initialSegmentLeq(p, t)) ==> (app(g, z) === F(orderedRestriction(g, z, p)))) by InstantiateForall(z)
-              have(thesis) by Tautology.from(lastStep, initialSegmentLeqBreakdown of (a -> z))
+              have(forall(a, in(a, initialSegment(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))) by Restate
+              thenHave(in(z, initialSegment(p, t)) ==> (app(g, z) === F(orderedRestriction(g, z, p)))) by InstantiateForall(z)
+              thenHave(thesis) by Tautology
             }
 
             // g1(z) = F(g1_z)
@@ -1520,7 +1506,7 @@ object Orderings extends lisa.Main {
       val wDef = forall(t, in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y)))
       // take its union
       // this is a function g for x (almost)
-      val uw = union(w) // + (x, F(U w))
+      val uw = union(w) // + (predecessor x, F(U w)) in the successor case
 
       val v = setUnion(union(uw), singleton(pair(x, F(uw))))
 
@@ -1616,15 +1602,175 @@ object Orderings extends lisa.Main {
                       // we should have k1 \subseteq k2
 
                       // dom k1 \subseteq dom k2
+                      val domSubset = have(subset(initialSegmentLeq(p, a1), initialSegmentLeq(p, a2))) by Tautology.from(initialSegmentsSubset of (x -> a1, y -> a2), wellOrder.definition, totalOrder.definition)
+
 
                       // suppose there is a minimal n such that k1 n != k2 n
+                      val n = variable
+                      val nDef = in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n)) /\ forall(b, (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b)))
 
-                      // but k1 n = F(k1 |^ n) and k2 n = F(k2 |^ n)
-                      // k1 |^ n  = k2 |^ n by minimality of n
-                      // so k1 n = F(k1 |^ n) = F(k2 |^ n) = k2 n
+                      // if k1 and k2 disagree at all
+                      val k1k2disagree = exists(n, in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n)))
+
+                      val nExists = have(k1k2disagree |- exists(n, nDef)) subproof {
+                        assume(k1k2disagree)
+
+                        // B defined by x => x < a1 /\ k1 x != k2 x exists
+                        val B = variable
+                        val BDef = forall(x, in(x, B) <=> (in(x, initialSegment(p, a1)) /\ !(app(k1, x) === app(k2, x))))
+                        val BExists = have(exists(B, BDef)) by Weakening(comprehensionSchema of (z -> initialSegment(p, a1), sPhi -> lambda(Seq(x, z), !(app(k1, x) === app(k2, x)))))
+
+                        // B forms a subset of p1
+                        val subsetB = have(BDef |- subset(B, p1)) subproof {
+                          assume(BDef)
+                          have(in(x, B) <=> (in(x, initialSegment(p, a1)) /\ !(app(k1, x) === app(k2, x)))) by InstantiateForall
+                          have(in(x, B) ==> in(x, p1)) by Tautology.from(lastStep, initialSegment.definition of a -> a1)
+                          thenHave(forall(x, in(x, B) ==> in(x, p1))) by RightForall
+                          have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> B, y -> p1))
+                        }
+
+                        // B is non-empty
+                        val nonEmptyB = have(BDef |- !(B === emptySet())) subproof {
+                          assume(BDef)
+                          have(in(x, B) <=> (in(x, initialSegment(p, a1)) /\ !(app(k1, x) === app(k2, x)))) by InstantiateForall
+                          thenHave((in(x, initialSegment(p, a1)) /\ !(app(k1, x) === app(k2, x))) |- in(x, B)) by Weakening
+                          have((in(x, initialSegment(p, a1)) /\ !(app(k1, x) === app(k2, x))) |- !(B === emptySet())) by Cut(lastStep, setWithElementNonEmpty of (y -> x, x -> B))
+                          thenHave(thesis) by LeftExists
+                        }
+
+                        // so it has a minimal element
+                        val minimalB = have(BDef |- exists(n, nDef)) subproof {
+                          assume(BDef)
+                          have(forall(B, (subset(B, p1) /\ !(B === emptySet())) ==> exists(n, in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b)))))) by Tautology.from(wellOrder.definition)
+                          thenHave((subset(B, p1) /\ !(B === emptySet())) ==> exists(n, in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))))) by InstantiateForall(B)
+                          val exN = have(exists(n, in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))))) by Tautology.from(lastStep, nonEmptyB, subsetB)
+
+                          // transform n \in B to n < a1 /\ k1 n != k2 n
+                          have(in(b, B) <=> (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b)))) by InstantiateForall
+                          thenHave((in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))) <=> ((in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b)))) by Tautology
+                          thenHave(forall(b, (in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))) <=> ((in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b))))) by RightForall
+                          have(forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))) <=> forall(b, (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b)))) by Tautology.from(lastStep, universalEquivalenceDistribution of (P -> lambda(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))), Q -> lambda(b, (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b)))))
+
+                          have(in(n, B) <=> (in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n)))) by InstantiateForall
+                          have((in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b)))) <=> (in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n)) /\ forall(b, (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b))))) by Tautology.from(lastStep, bEq)
+                          thenHave(forall(n, (in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b)))) <=> (in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n)) /\ forall(b, (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b)))))) by RightForall
+
+                          have(thesis) by Tautology.from(lastStep, exN, existentialEquivalenceDistribution of (P -> lambda(n, (in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))))), Q -> lambda(n, (in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n)) /\ forall(b, (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b)))))))
+                        }
+
+                        thenHave(exists(B, BDef) |- exists(n, nDef)) by LeftExists
+                        have(thesis) by Cut(BExists, lastStep)
+                      }
+
+                      // but k1 n == F(k1 |^ n) and k2 n == F(k2 |^ n)
+                      val fK1 = have(nDef |- app(k1, n) === F(orderedRestriction(k1, n, p))) subproof {
+                        // n < a1 ==> k1 n = F(k1 |^ n)
+                        have(forall(b, in(b, initialSegment(p, a1)) ==> (app(k1, b) === F(orderedRestriction(k1, b, p))))) by Tautology
+                        thenHave(in(n, initialSegment(p, a1)) ==> (app(k1, n) === F(orderedRestriction(k1, n, p)))) by InstantiateForall(n)
+
+                        // we know n < a1, so result
+                        thenHave(thesis) by Tautology
+                      }
+                      val fK2 = have(nDef |- app(k2, n) === F(orderedRestriction(k2, n, p))) subproof {
+                        // n < a2 ==> k2 n = F(k2 |^ n)
+                        have(forall(b, in(b, initialSegment(p, a2)) ==> (app(k2, b) === F(orderedRestriction(k2, b, p))))) by Tautology
+                        val impl = thenHave(in(n, initialSegment(p, a2)) ==> (app(k2, n) === F(orderedRestriction(k2, n, p)))) by InstantiateForall(n)
+
+                        // n < a1 and a1 < a2, so n < a2
+                        have(forall(b, in(b, initialSegment(p, a1)) ==> in(b, initialSegment(p, a2)))) by Tautology.from(domSubset, subsetAxiom of (x -> initialSegment(p, a1), y -> initialSegment(p, a2)))
+                        thenHave(in(n, initialSegment(p, a1)) ==> in(n, initialSegment(p, a2))) by InstantiateForall(n)
+
+                        // so result
+                        have(thesis) by Tautology.from(lastStep, impl)
+                      }
+
+                      // k1 |^ n  == k2 |^ n by minimality of n
+                      // so F(k1 |^ n) == F(k2 |^ n)
+                      val ordResEq = have(nDef |- F(orderedRestriction(k1, n, p)) === F(orderedRestriction(k2, n, p))) subproof {
+                        assume(nDef)
+
+                        val k1k2 = have(orderedRestriction(k1, n, p) === orderedRestriction(k2, n, p)) subproof {
+                          // suppose not
+                          assume(!(orderedRestriction(k1, n, p) === orderedRestriction(k2, n, p)))
+
+                          // there must exist an element where they disagree, say m
+                          val m = variable
+                          val mDef = in(m, initialSegment(p, n)) /\ !(app(k1, m) === app(k1, m))
+                          val mExists = have(exists(m, mDef)) subproof {
+                            // k1 |^ n != k2 |^ n by assumption
+                            val unequal = have(!(orderedRestriction(k1, n, p) === orderedRestriction(k2, n, p))) by Restate
+
+                            // they are functions on the same domain
+                            val functional = have(functionalOver(orderedRestriction(k1, n, p), initialSegment(p, n)) /\ functionalOver(orderedRestriction(k2, n, p), initialSegment(p, n))) by Tautology.from(orderedRestrictionFunctionalOverInit of (f -> k1, a -> n), orderedRestrictionFunctionalOverInit of (f -> k2, a -> n))
+
+                            // so there is a violating element
+                            have(!forall(m, in(m, initialSegment(p, n)) ==> (app(k1, m) === app(k2, m)))) by Tautology.from(unequal, functional, functionsEqualIfEqualOnDomain of (f -> k1, g -> k2, a -> initialSegment(p, n)))
+                            thenHave(thesis) by Restate
+                          }
+
+                          // we must have m < n
+                          val mViolates = have(mDef |- in(m, initialSegment(p, a1)) /\ !(app(k1, m) === app(k1, m)) /\ in(pair(m, n), p2)) subproof {
+                            // we have n < a1
+                            have(forall(z, (z === initialSegment(p, a)) <=> (forall(t, in(t, z) <=> (in(t, p1) /\ in(pair(t, a), p2)))))) by Weakening(initialSegment.definition)
+                            val initSegMembership = thenHave((forall(t, in(t, initialSegment(p, a)) <=> (in(t, p1) /\ in(pair(t, a), p2))))) by InstantiateForall(initialSegment(p, a))
+
+                            have(in(n, initialSegment(p, a1)) <=> (in(n, p1) /\ in(pair(n, a1), p2))) by InstantiateForall(n)(initSegMembership of a -> a1)
+                            val nLTa1 = thenHave(in(pair(n, a1), p2)) by Tautology
+
+                            // and m < n
+                            have(in(m, initialSegment(p, n)) <=> (in(m, p1) /\ in(pair(m, n), p2))) by InstantiateForall(m)(initSegMembership of a -> n)
+                            val mLTn = thenHave(in(m, p1) /\ in(pair(m, n), p2)) by Tautology
+
+                            // by transitivity, m < a1 as well
+                            have(forall(w, forall(y, forall(z, (in(pair(w, y), p2) /\ in(pair(y, z), p2)) ==> in(pair(w, z), p2))))) by Weakening(wellOrderTransitivity)
+                            thenHave((in(pair(m, n), p2) /\ in(pair(n, a1), p2)) ==> in(pair(m, a1), p2)) by InstantiateForall(m, n, a1)
+                            val mLTa1 = have(in(m, p1) /\ in(pair(m, a1), p2)) by Tautology.from(lastStep, nLTa1, mLTn)
+                            
+                            have(in(m, initialSegment(p, a1)) <=> (in(m, p1) /\ in(pair(m, a1), p2))) by InstantiateForall(m)(initSegMembership of a -> a1)
+                            have(thesis) by Tautology.from(lastStep, mLTa1)
+                          }
+
+                          // but n was the minimal violation
+                          // contradiction
+                          have(bot()) subproof {
+                            // m < a1 and k1 m != k2 m ==> n < m \/ n = m
+                            have(forall(b, (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b)))) by Restate
+                            have((in(m, initialSegment(p, a1)) /\ !(app(k1, m) === app(k2, m))) ==> (in(pair(n, m), p2) \/ (n === m))) by InstantiateForall
+                            have((in(pair(n, m), p2) \/ (n === m)))
+
+                            // we had m < n, and the order is anti-symmetric, so n = m
+                            have(forall(n, forall(m, (in(pair(m, n), p2) /\ in(pair(n, m), p2)) ==> (n === m)))) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition, antiSymmetric.definition of (r -> p2, x -> p1))
+                            thenHave((in(pair(m, n), p2) /\ in(pair(n, m), p2)) ==> (n === m)) by InstantiateForall(n, m)
+                            val nEQm = have((n === m)) by Tautology.from(lastStep, mViolates)
+
+                            // however, that means n < n, but the order is anti-reflexive
+                            have(in(pair(m, n), p2)) by Weakening(mViolates)
+                            val nLTn = thenHave(in(pair(n, n), p2)) by Substitution.apply2(true, nEQm)
+
+                            have(forall(n, !in(pair(n, n), p2))) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition, antiReflexive.definition of (r -> p2, x -> p1))
+                            thenHave(!in(pair(n, n), p2)) by InstantiateForall(n)
+
+                            // this is a contradiction
+                            have(thesis) by Tautology.from(lastStep, nLTn)
+                          }
+                        }
+                        
+                        have(F(orderedRestriction(k1, n, p)) === F(orderedRestriction(k1, n, p))) by Restate
+                        thenHave(thesis) by Substitution.apply2(false, k1k2)
+                      }
+
+                      // finally k1 n == k2 n
                       // this is a contradiction
+                      val appEq = have(app(k1, n) === app(k2, n)) subproof {
+                        val k1ToFK2 = equalityTransitivity of (x -> app(k1, n), y -> F(orderedRestriction(k1, n, p)), z -> F(orderedRestriction(k2, n, p)))
+                        val k1ToK2 = equalityTransitivity of (x -> app(k1, n), y -> F(orderedRestriction(k2, n, p)), z -> app(k2, n))
 
-                      sorry
+                        have(thesis) by Tautology.from(fK1, fK2, ordResEq, k1ToFK2, k1ToK2)
+                      }
+
+                      thenHave(nDef |- ()) by Tautology
+                      thenHave(exists(n, nDef) |- ()) by LeftExists
+                      have(thesis) by Tautology.from(lastStep, nExists)
                     }
 
                     val y1LTy2 = have(in(pair(y1, y2), p2) |- subset(t1, t2)) by Restate.from(ltToSubset of (a1 -> y1, k1 -> t1, a2 -> y2, k2 -> t2))
