@@ -2488,6 +2488,15 @@ object SetTheory extends lisa.Main {
     sorry
   }
 
+  val functionsSubsetIfEqualOnSubsetDomain = Theorem(
+    functionalOver(f, a) /\ functionalOver(g, b) /\ subset(a, b) /\ forall(z, in(z, a) ==> (app(f, z) === app(g, z))) |- (f === g)
+  ) {
+    assume(functionalOver(f, a))
+    assume(functionalOver(g, a))
+
+    sorry
+  }
+
   /**
    * Surjective (function) --- a function `f: x → y` is surjective iff it
    * maps to every `b ∈ y` from atleast one `a ∈ x`.
