@@ -779,6 +779,9 @@ object GroupTheory extends lisa.Main {
   // 2. Subgroups
   //
 
+  // By convention, this will always refer to the restricted operation.
+  private val ★ = restrictedFunction(*, cartesianProduct(H, H))
+
   /**
    * Subgroup --- `H` is a subgroup of `(G, *)` if `H` is a subset of `G`, such that the restriction of `*` to `H` is
    * a group law for `H`, i.e. `(H, *_H)` is a group.
@@ -861,11 +864,8 @@ object GroupTheory extends lisa.Main {
    * subgroup of `G`, then for elements `x, y ∈ H` we have `x ★ y = x * y`, where `★ = *_H`.
    */
   val subgroupOperation = Theorem(
-    (subgroup(H, G, *), x ∈ H, y ∈ H) |- (op(x, restrictedFunction(*, cartesianProduct(H, H)), y) === op(x, *, y))
+    (subgroup(H, G, *), x ∈ H, y ∈ H) |- (op(x, ★, y) === op(x, *, y))
   ) {
-    val H2 = cartesianProduct(H, H)
-    val ★ = restrictedFunction(*, H2)
-
       assume(subgroup(H, G, *))
     val groupG = have(group(G, *)) by Tautology.from(subgroup.definition)
     val groupH = have(group(H, ★)) by Tautology.from(subgroup.definition)
@@ -875,7 +875,7 @@ object GroupTheory extends lisa.Main {
     )
     have((functional(*), x ∈ H, y ∈ H) |- op(x, ★, y) === op(x, *, y)) by Cut(
       lastStep,
-      restrictedFunctionApplication of (f -> *, VariableLabel("d") -> H2, x -> pair(x, y))
+      restrictedFunctionApplication of (f -> *, VariableLabel("d") -> cartesianProduct(H, H), x -> pair(x, y))
     )
     have(thesis) by Tautology.from(
       lastStep,
@@ -888,10 +888,8 @@ object GroupTheory extends lisa.Main {
    * Lemma --- If `H` is a subgroup of `G`, then `e_H ∈ G`.
    */
   val subgroupIdentityInParent = Lemma(
-    subgroup(H, G, *) |- identity(H, restrictedFunction(*, cartesianProduct(H, H))) ∈ G 
+    subgroup(H, G, *) |- identity(H, ★) ∈ G 
   ) {
-    val ★ = restrictedFunction(*, cartesianProduct(H, H))
-    
     val identityInH = have(subgroup(H, G, *) |- identity(H, ★) ∈ H) by Tautology.from(
       subgroup.definition,
       identityInGroup of (G -> H, * -> ★)
@@ -912,9 +910,8 @@ object GroupTheory extends lisa.Main {
    * the parent group `(G, *)`.
    */
   val subgroupIdentity = Theorem(
-    subgroup(H, G, *) |- identity(H, restrictedFunction(*, cartesianProduct(H, H))) === identity(G, *)
+    subgroup(H, G, *) |- identity(H, ★) === identity(G, *)
   ) {
-    val ★ = restrictedFunction(*, cartesianProduct(H, H))
     val e_G = identity(G, *)
     val e_H = identity(H, ★)
 
@@ -968,7 +965,7 @@ object GroupTheory extends lisa.Main {
    * Theorem --- If `H` is a subgroup of `G`, then the inverse is the same as in the parent group. 
    */
   val subgroupInverse = Theorem(
-    (subgroup(H, G, *), x ∈ H) |- inverse(x, H, restrictedFunction(*, cartesianProduct(H, H))) === inverse(x, G, *)
+    (subgroup(H, G, *), x ∈ H) |- inverse(x, H, ★) === inverse(x, G, *)
   ) {
     assume(subgroup(H, G, *))
     assume(x ∈ H)
@@ -981,7 +978,6 @@ object GroupTheory extends lisa.Main {
     val xInG = thenHave(x ∈ G) by Tautology
 
     val groupG = have(group(G, *)) by Tautology.from(subgroup.definition)
-    val ★ = restrictedFunction(*, cartesianProduct(H, H))
     val groupH = have(group(H, ★)) by Tautology.from(subgroup.definition)
 
     val eG = identity(G, *)
@@ -1054,27 +1050,27 @@ object GroupTheory extends lisa.Main {
   //
 
   // Extra group composition law
-  val ★ = variable
+  val ** = variable
 
   /**
    * Definition --- A group homomorphism is a mapping `f: G -> H` from structures `G` and `H` equipped with binary operations `*` and `★` respectively,
-   * such that for all `x, y ∈ G`, we have* `f(x * y) = f(x) ★ f(y)`.
+   * such that for all `x, y ∈ G`, we have* `f(x * y) = f(x) ** f(y)`.
    * 
-   * In the following, "homomorphism" always stands for "group homomorphism", i.e. `(G, *)` and `(H, ★)` are groups.
+   * In the following, "homomorphism" always stands for "group homomorphism", i.e. `(G, *)` and `(H, **)` are groups.
    */
-  val homomorphism = DEF(f, G, *, H, ★) --> group(G, *) /\ group(H, ★) /\ functionFrom(f, G, H) /\ ∀(x, x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y)))))
+  val homomorphism = DEF(f, G, *, H, **) --> group(G, *) /\ group(H, **) /\ functionFrom(f, G, H) /\ ∀(x, x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), **, app(f, y)))))
 
   /**
    * Lemma --- Practical reformulation of the homomorphism definition.
    */
   val homomorphismApplication = Lemma(
-    (homomorphism(f, G, *, H, ★), x ∈ G, y ∈ G) |- app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y))
+    (homomorphism(f, G, *, H, **), x ∈ G, y ∈ G) |- app(f, op(x, *, y)) === op(app(f, x), **, app(f, y))
   ) {
-    assume(homomorphism(f, G, *, H, ★))
-    have(∀(x, x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y)))))) by Tautology.from(homomorphism.definition)
-    thenHave(x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y))))) by InstantiateForall(x)
-    thenHave((x ∈ G) |- ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y))))) by Restate
-    thenHave((x ∈ G) |- y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y)))) by InstantiateForall(y)
+    assume(homomorphism(f, G, *, H, **))
+    have(∀(x, x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), **, app(f, y)))))) by Tautology.from(homomorphism.definition)
+    thenHave(x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), **, app(f, y))))) by InstantiateForall(x)
+    thenHave((x ∈ G) |- ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), **, app(f, y))))) by Restate
+    thenHave((x ∈ G) |- y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), **, app(f, y)))) by InstantiateForall(y)
     thenHave(thesis) by Restate
   }
 
@@ -1082,9 +1078,9 @@ object GroupTheory extends lisa.Main {
    * Lemma --- If `f` is a homomorphism, then `f(x) ∈ H` for all `x ∈ G`.
    */
   private val homomorphismAppInH = Lemma(
-    (homomorphism(f, G, *, H, ★), x ∈ G) |- app(f, x) ∈ H
+    (homomorphism(f, G, *, H, **), x ∈ G) |- app(f, x) ∈ H
   ) {
-    have(homomorphism(f, G, *, H, ★) |- functionFrom(f, G, H)) by Tautology.from(homomorphism.definition)
+    have(homomorphism(f, G, *, H, **) |- functionFrom(f, G, H)) by Tautology.from(homomorphism.definition)
     have(thesis) by Cut(
       lastStep,
       functionAppInCodomain of (VariableLabel("t") -> x, VariableLabel("x") -> G, y -> H)
@@ -1095,22 +1091,22 @@ object GroupTheory extends lisa.Main {
    * Theorem --- If `f` is a group-homomorphism between `G` and `H`, then `f(e_G) = e_H`.
    */
   val homomorphismMapsIdentityToIdentity = Theorem(
-    homomorphism(f, G, *, H, ★) |- app(f, identity(G, *)) === identity(H, ★)
+    homomorphism(f, G, *, H, **) |- app(f, identity(G, *)) === identity(H, **)
   ) {
     val e = identity(G, *)
 
-    val groupG = have(homomorphism(f, G, *, H, ★) |- group(G, *)) by Tautology.from(homomorphism.definition)
-    val groupH = have(homomorphism(f, G, *, H, ★) |- group(H, ★)) by Tautology.from(homomorphism.definition)
+    val groupG = have(homomorphism(f, G, *, H, **) |- group(G, *)) by Tautology.from(homomorphism.definition)
+    val groupH = have(homomorphism(f, G, *, H, **) |- group(H, **)) by Tautology.from(homomorphism.definition)
 
-    val identityInG = have(homomorphism(f, G, *, H, ★) |- e ∈ G) by Cut(groupG, identityInGroup)
-    val appInH = have(homomorphism(f, G, *, H, ★) |- app(f, e) ∈ H) by Cut(identityInG, homomorphismAppInH of (x -> e))
+    val identityInG = have(homomorphism(f, G, *, H, **) |- e ∈ G) by Cut(groupG, identityInGroup)
+    val appInH = have(homomorphism(f, G, *, H, **) |- app(f, e) ∈ H) by Cut(identityInG, homomorphismAppInH of (x -> e))
 
     // 0. e * e = e (to apply substitution)
     have(group(G, *) |- op(e, *, e) === e) by Cut(
       identityInGroup,
       identityIdempotence of (x -> e)
     )
-    val eq0 = have(homomorphism(f, G, *, H, ★) |- op(e, *, e) === e) by Cut(groupG, lastStep)
+    val eq0 = have(homomorphism(f, G, *, H, **) |- op(e, *, e) === e) by Cut(groupG, lastStep)
     
     // 1. f(e * e) = f(e)
     have(app(f, e) === app(f, e)) by RightRefl
@@ -1118,23 +1114,23 @@ object GroupTheory extends lisa.Main {
       List((op(e, *, e), e)),
       lambda(z, app(f, z) === app(f, e))
     )
-    val eq1 = have(homomorphism(f, G, *, H, ★) |- app(f, op(e, *, e)) === app(f, e)) by Cut(eq0, lastStep)
+    val eq1 = have(homomorphism(f, G, *, H, **) |- app(f, op(e, *, e)) === app(f, e)) by Cut(eq0, lastStep)
 
-    // 2. f(e * e) = f(e) ★ f(e)
-    val eq2 = have(homomorphism(f, G, *, H, ★) |- app(f, op(e, *, e)) === op(app(f, e), ★, app(f, e))) by Cut(
+    // 2. f(e * e) = f(e) ** f(e)
+    val eq2 = have(homomorphism(f, G, *, H, **) |- app(f, op(e, *, e)) === op(app(f, e), **, app(f, e))) by Cut(
       identityInG,
       homomorphismApplication of (x -> e, y -> e)
     )
 
-    // 3. f(e) ★ f(e) = f(e)
-    val eq3 = have(homomorphism(f, G, *, H, ★) |- op(app(f, e), ★, app(f, e)) === app(f, e)) by Equalities(eq1, eq2)
+    // 3. f(e) ** f(e) = f(e)
+    val eq3 = have(homomorphism(f, G, *, H, **) |- op(app(f, e), **, app(f, e)) === app(f, e)) by Equalities(eq1, eq2)
 
     // Conclude by idempotence
-    have((homomorphism(f, G, *, H, ★), app(f, e) ∈ H) |- (op(app(f, e), ★, app(f, e)) === app(f, e)) <=> (app(f, e) === identity(H, ★))) by Cut(
+    have((homomorphism(f, G, *, H, **), app(f, e) ∈ H) |- (op(app(f, e), **, app(f, e)) === app(f, e)) <=> (app(f, e) === identity(H, **))) by Cut(
       groupH,
-      identityIdempotence of (x -> app(f, e), G -> H, * -> ★)
+      identityIdempotence of (x -> app(f, e), G -> H, * -> **)
     )
-    have(homomorphism(f, G, *, H, ★)|- (op(app(f, e), ★, app(f, e)) === app(f, e)) <=> (app(f, e) === identity(H, ★))) by Cut(
+    have(homomorphism(f, G, *, H, **)|- (op(app(f, e), **, app(f, e)) === app(f, e)) <=> (app(f, e) === identity(H, **))) by Cut(
       appInH,
       lastStep
     )
@@ -1143,24 +1139,24 @@ object GroupTheory extends lisa.Main {
   }
   
   /**
-   * Theorem --- If `f: G -> H` is a group homomorphism, then `f(inverse(x, G, *)) = inverse(f(x), H, ★)`.
+   * Theorem --- If `f: G -> H` is a group homomorphism, then `f(inverse(x, G, *)) = inverse(f(x), H, **)`.
    */
   val homomorphismMapsInverseToInverse = Theorem(
-    (homomorphism(f, G, *, H, ★), x ∈ G) |- app(f, inverse(x, G, *)) === inverse(app(f, x), H, ★)
+    (homomorphism(f, G, *, H, **), x ∈ G) |- app(f, inverse(x, G, *)) === inverse(app(f, x), H, **)
   ) {
-    assume(homomorphism(f, G, *, H, ★))
+    assume(homomorphism(f, G, *, H, **))
     assume(x ∈ G)
 
     val groupG = have(group(G, *)) by Tautology.from(homomorphism.definition)
-    val groupH = have(group(H, ★)) by Tautology.from(homomorphism.definition)
+    val groupH = have(group(H, **)) by Tautology.from(homomorphism.definition)
 
     val eG = identity(G, *)
-    val eH = identity(H, ★)
+    val eH = identity(H, **)
     val i = inverse(x, G, *)
     val iInG = have(i ∈ G) by Cut(groupG, inverseInGroup)
 
     // 1. f(x * inverse(x)) = f(x) f(inverse(x))
-    val eq1 = have(app(f, op(x, *, i)) === op(app(f, x), ★, app(f, i))) by Cut(
+    val eq1 = have(app(f, op(x, *, i)) === op(app(f, x), **, app(f, i))) by Cut(
       iInG,
       homomorphismApplication of (y -> i)
     )
@@ -1183,12 +1179,12 @@ object GroupTheory extends lisa.Main {
     val eq3 = have(app(f, eG) === eH) by Tautology.from(homomorphismMapsIdentityToIdentity)
 
     // 4. f(x)f(inverse(x)) = e'
-    val eq4 = have(op(app(f, x), ★, app(f, i)) === eH) by Equalities(eq1, eq2, eq3)
+    val eq4 = have(op(app(f, x), **, app(f, i)) === eH) by Equalities(eq1, eq2, eq3)
 
     // Conclude
-    val conclusion = have((app(f, i) ∈ H) |- (app(f, i) === inverse(app(f, x), H, ★))) by Tautology.from(
+    val conclusion = have((app(f, i) ∈ H) |- (app(f, i) === inverse(app(f, x), H, **))) by Tautology.from(
       groupH,
-      inverseTest of (G -> H, * -> ★, x -> app(f, x), y -> app(f, i)),
+      inverseTest of (G -> H, * -> **, x -> app(f, x), y -> app(f, i)),
       eq4,
       homomorphismAppInH
     )
@@ -1203,15 +1199,15 @@ object GroupTheory extends lisa.Main {
    * Kernel uniqueness --- The kernel of a homomorphism is well-defined.
    */
   val kernelUniqueness = Theorem(
-    homomorphism(f, G, *, H, ★) |- ∃!(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, ★)))))
+    homomorphism(f, G, *, H, **) |- ∃!(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, **)))))
   ) {
     // We apply the comprehension axiom here.
     // It might seem odd that the homomorphism assumption is not needed for the set to be defined,
     // but remember that [[app]] and [[identity]] default to the empty set when the assumptions are not met.
     // We add the assumption of `f` being a homomorphism to discard any value when the assumptions do not hold.
-    have(∃!(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, ★)))))) by UniqueComprehension(
+    have(∃!(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, **)))))) by UniqueComprehension(
       G,
-      lambda(Seq(t, G), app(f, t) === identity(H, ★))
+      lambda(Seq(t, G), app(f, t) === identity(H, **))
     )
     thenHave(thesis) by Weakening
   }
@@ -1219,19 +1215,19 @@ object GroupTheory extends lisa.Main {
   /**
    * Kernel --- The kernel of a homomorphism `f: G -> H` is the set of elements `t ∈ G` such that `f(t) = e_H`.
    */
-  val kernel = DEF(f, G, *, H, ★) --> TheConditional(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, ★)))))(kernelUniqueness)
+  val kernel = DEF(f, G, *, H, **) --> TheConditional(z, ∀(t, (t ∈ z) <=> (t ∈ G /\ (app(f, t) === identity(H, **)))))(kernelUniqueness)
 
   // Shortcut alias
-  private val K = kernel(f, G, *, H, ★)
+  private val K = kernel(f, G, *, H, **)
 
   /**
    * Lemma --- Reformulation of the kernel definition.
    */
   private val kernelDef = Lemma(
-    homomorphism(f, G, *, H, ★) |- (x ∈ K) <=> (x ∈ G /\ (app(f, x) === identity(H, ★)))
+    homomorphism(f, G, *, H, **) |- (x ∈ K) <=> (x ∈ G /\ (app(f, x) === identity(H, **)))
   ) {
-    assume(homomorphism(f, G, *, H, ★))
-    have(∀(t, (t ∈ K) <=> (t ∈ G /\ (app(f, t) === identity(H, ★))))) by Definition(kernel, kernelUniqueness)(f, G, *, H, ★)
+    assume(homomorphism(f, G, *, H, **))
+    have(∀(t, (t ∈ K) <=> (t ∈ G /\ (app(f, t) === identity(H, **))))) by Definition(kernel, kernelUniqueness)(f, G, *, H, **)
     thenHave(thesis) by InstantiateForall(x)
   }
 
@@ -1239,44 +1235,44 @@ object GroupTheory extends lisa.Main {
    * Lemma --- The kernel is closed by products, i.e. if `x, y ∈ K`, then `x * y ∈ K`.
    */
   val kernelIsClosedByProducts = Lemma(
-    (homomorphism(f, G, *, H, ★), x ∈ K, y ∈ K) |- op(x, *, y) ∈ K
+    (homomorphism(f, G, *, H, **), x ∈ K, y ∈ K) |- op(x, *, y) ∈ K
   ) {
-    assume(homomorphism(f, G, *, H, ★))
+    assume(homomorphism(f, G, *, H, **))
     assume(x ∈ K)
     assume(y ∈ K)
 
     val elemInG = have(x ∈ G) by Tautology.from(kernelDef)
 
     val groupG = have(group(G, *)) by Tautology.from(homomorphism.definition)
-    val groupH = have(group(H, ★)) by Tautology.from(homomorphism.definition)
+    val groupH = have(group(H, **)) by Tautology.from(homomorphism.definition)
 
-    val e = identity(H, ★)
-    val eInH = have(e ∈ H) by Cut(groupH, identityInGroup of (G -> H, * -> ★))
+    val e = identity(H, **)
+    val eInH = have(e ∈ H) by Cut(groupH, identityInGroup of (G -> H, * -> **))
 
-    // 1. f(x) ★ f(y) = f(x * y)
-    val eq1 = have(app(f, op(x, *, y)) === op(app(f, x), ★, app(f, y))) by Tautology.from(
+    // 1. f(x) ** f(y) = f(x * y)
+    val eq1 = have(app(f, op(x, *, y)) === op(app(f, x), **, app(f, y))) by Tautology.from(
       homomorphismApplication,
       elemInG,
       elemInG of (x -> y)
     )
 
-    // 2. f(x) ★ f(y) = e ★ e
+    // 2. f(x) ** f(y) = e ** e
     val appValue = have(app(f, x) === e) by Tautology.from(kernelDef)
-    have(op(app(f, x), ★, app(f, y)) === op(app(f, x), ★, app(f, y))) by RightRefl
-    thenHave((app(f, x) === e, app(f, y) === e) |- op(app(f, x), ★, app(f, y)) === op(e, ★, e)) by RightSubstEq(
+    have(op(app(f, x), **, app(f, y)) === op(app(f, x), **, app(f, y))) by RightRefl
+    thenHave((app(f, x) === e, app(f, y) === e) |- op(app(f, x), **, app(f, y)) === op(e, **, e)) by RightSubstEq(
       List((app(f, x), e), (app(f, y), e)),
-      lambda(Seq(a, b), op(app(f, x), ★, app(f, y)) === op(a, ★, b))
+      lambda(Seq(a, b), op(app(f, x), **, app(f, y)) === op(a, **, b))
     )
 
-    val eq2 = have(op(app(f, x), ★, app(f, y)) === op(e, ★, e)) by Tautology.from(
+    val eq2 = have(op(app(f, x), **, app(f, y)) === op(e, **, e)) by Tautology.from(
       lastStep,
       appValue,
       appValue of (x -> y)
     )
 
-    // 3. e ★ e = e
-    val eq3 = have(op(e, ★, e) === e) by Tautology.from(
-      identityNeutrality of (G -> H, * -> ★, x -> e),
+    // 3. e ** e = e
+    val eq3 = have(op(e, **, e) === e) by Tautology.from(
+      identityNeutrality of (G -> H, * -> **, x -> e),
       groupH,
       eInH
     )
@@ -1300,32 +1296,32 @@ object GroupTheory extends lisa.Main {
    * Lemma --- The kernel is closed by inversion, i.e. if `x ∈ K` then `inverse(x, G, *) ∈ K`.
    */
   val kernelIsClosedByInversion = Lemma (
-    (homomorphism(f, G, *, H, ★), x ∈ K) |- inverse(x, G, *) ∈ K
+    (homomorphism(f, G, *, H, **), x ∈ K) |- inverse(x, G, *) ∈ K
    ) {
-    assume(homomorphism(f, G, *, H, ★))
+    assume(homomorphism(f, G, *, H, **))
     assume(x ∈ K)
 
     val groupG = have(group(G, *)) by Tautology.from(homomorphism.definition)
-    val groupH = have(group(H, ★)) by Tautology.from(homomorphism.definition)
+    val groupH = have(group(H, **)) by Tautology.from(homomorphism.definition)
     val elemInG = have(x ∈ G) by Tautology.from(kernelDef)
 
-    val e = identity(H, ★)
+    val e = identity(H, **)
     val appValue = have(app(f, x) === e) by Tautology.from(kernelDef)
 
     // 1. f(inverse(x)) = inverse(f(x)) = inverse(e)
-    have(app(f, inverse(x, G, *)) === inverse(app(f, x), H, ★)) by Tautology.from(
+    have(app(f, inverse(x, G, *)) === inverse(app(f, x), H, **)) by Tautology.from(
       homomorphismMapsInverseToInverse,
       elemInG
     )
-    thenHave((app(f, x) === e) |- (app(f, inverse(x, G, *)) === inverse(e, H, ★))) by RightSubstEq(
+    thenHave((app(f, x) === e) |- (app(f, inverse(x, G, *)) === inverse(e, H, **))) by RightSubstEq(
       List((app(f, x), e)),
-      lambda(z, app(f, inverse(x, G, *)) === inverse(z, H, ★))
+      lambda(z, app(f, inverse(x, G, *)) === inverse(z, H, **))
     )
     
-    val eq1 = have(app(f, inverse(x, G, *)) === inverse(e, H, ★)) by Cut(appValue, lastStep)
+    val eq1 = have(app(f, inverse(x, G, *)) === inverse(e, H, **)) by Cut(appValue, lastStep)
 
     // 2. inverse(e) = e
-    val eq2 = have(inverse(e, H, ★) === e) by Cut(groupH, inverseOfIdentityIsIdentity of (G -> H, * -> ★))
+    val eq2 = have(inverse(e, H, **) === e) by Cut(groupH, inverseOfIdentityIsIdentity of (G -> H, * -> **))
 
     // 3. Conclude
     val eq3 = have(app(f, inverse(x, G, *)) === e) by Equalities(eq1, eq2)
@@ -1344,9 +1340,9 @@ object GroupTheory extends lisa.Main {
    * Theorem --- The kernel of a homomorphism `f: G -> H` is a subgroup of `G`.
    */
   val kernelIsSubgroup = Theorem(
-    homomorphism(f, G, *, H, ★) |- subgroup(kernel(f, G, *, H, ★), G, *)
+    homomorphism(f, G, *, H, **) |- subgroup(kernel(f, G, *, H, **), G, *)
   ) {
-    assume(homomorphism(f, G, *, H, ★))
+    assume(homomorphism(f, G, *, H, **))
     val groupG = have(group(G, *)) by Tautology.from(homomorphism.definition)
 
     // We show that the kernel satisfies all requirements of [[subgroupCondition]]
@@ -1356,7 +1352,7 @@ object GroupTheory extends lisa.Main {
 
     // 1. kernel != ∅
     have(identity(G, *) ∈ G) by Cut(groupG, identityInGroup)
-    have(identity(G, *) ∈ G /\ (app(f, identity(G, *)) === identity(H, ★))) by RightAnd(
+    have(identity(G, *) ∈ G /\ (app(f, identity(G, *)) === identity(H, **))) by RightAnd(
       lastStep,
       homomorphismMapsIdentityToIdentity
     )
@@ -1397,7 +1393,7 @@ object GroupTheory extends lisa.Main {
    * 
    * In some sense, isomorphic groups are equivalent, up to relabelling their elements.
    */
-  val isomorphism = DEF(f, G, *, H, ★) --> homomorphism(f, G, *, H, ★) /\ bijective(f, G, H)
+  val isomorphism = DEF(f, G, *, H, **) --> homomorphism(f, G, *, H, **) /\ bijective(f, G, H)
 
   /**
    * Automorphism --- An automorphism is an isomorphism from a group to itself.
