@@ -1,5 +1,6 @@
 package lisa.mathematics
 
+import lisa.automation.kernel.CommonTactics.Cases
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
@@ -394,4 +395,42 @@ object FirstOrderLogic extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
+  /**
+   * Theorem --- Unique existential quantifier distributes fully with a closed formula. 
+   */
+  val uniqueExistentialConjunctionWithClosedFormula = Theorem(
+    existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)) /\ p())
+  ) {
+    val pos = have(p() |- existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)) /\ p())) subproof {
+      have(p() |- (P(x) /\ p()) <=> P(x)) by Tautology
+      thenHave(p() |- forall(x, (P(x) /\ p()) <=> P(x))) by RightForall
+
+      have(p() |- existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)))) by Cut(
+        lastStep,
+        uniqueExistentialEquivalenceDistribution of (
+          P -> lambda(x, P(x) /\ p()),
+          Q -> lambda(x, P(x))
+        )
+      )
+      thenHave(thesis) by Tautology
+    }
+
+    val neg = have(!p() |- existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)) /\ p())) subproof {
+      have((!p(), (x === x) <=> (P(x) /\ p())) |- p()) by Tautology
+      thenHave((!p(), forall(y, (x === y) <=> (P(y) /\ p()))) |- p()) by LeftForall
+      thenHave((!p(), exists(x, forall(y, (x === y) <=> (P(y) /\ p())))) |- p()) by LeftExists
+      thenHave((!p(), existsOne(x, P(x) /\ p())) |- p()) by LeftExistsOne
+      thenHave((!p(), existsOne(x, P(x) /\ p())) |- ()) by LeftNot
+      thenHave((!p(), existsOne(x, P(x) /\ p())) |- existsOne(x, P(x)) /\ p()) by Weakening
+      val forward = thenHave(!p() |- existsOne(x, P(x) /\ p()) ==> (existsOne(x, P(x)) /\ p())) by Restate
+
+      have((!p(), existsOne(x, P(x)) /\ p()) |- ()) by Tautology
+      thenHave((!p(), existsOne(x, P(x)) /\ p()) |- existsOne(x, P(x) /\ p())) by Weakening
+      val backward = thenHave(!p() |- existsOne(x, P(x)) /\ p() ==> existsOne(x, P(x) /\ p())) by Restate
+      
+      have(thesis) by RightIff(forward, backward)
+    }
+
+    have(thesis) by Cases(pos, neg)
+  }
 }

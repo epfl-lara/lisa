@@ -865,77 +865,23 @@ object GroupTheory extends lisa.Main {
   ) {
     val H2 = cartesianProduct(H, H)
     val ★ = restrictedFunction(*, H2)
-    val r = app(★, pair(x, y))
 
-    // We characterize op(x, *, y), and show that op(x, ★, y) satisfies all requirements
-    have(
-      ∀(
-        z,
-        (z === app(*, pair(x, y))) <=> (((functional(*) /\ in(pair(x, y), relationDomain(*))) ==> in(pair(pair(x, y), z), *)) /\
-          ((!functional(*) \/ !in(pair(x, y), relationDomain(*))) ==> (z === ∅)))
-      )
-    ) by Tautology.from(app.definition of (f -> *, x -> pair(x, y)), functionApplicationUniqueness)
-    val characterization = thenHave(
-      (r === app(*, pair(x, y))) <=> (((functional(*) /\ in(pair(x, y), relationDomain(*))) ==> in(pair(pair(x, y), r), *)) /\
-        ((!functional(*) \/ !in(pair(x, y), relationDomain(*))) ==> (r === ∅)))
-    ) by InstantiateForall(r)
-
-    // Prove that the premises of the first implication hold
-    val leftPremise = have(subgroup(H, G, *) |- functional(*)) subproof {
       assume(subgroup(H, G, *))
-      have(group(G, *)) by Tautology.from(subgroup.definition)
-      have(functional(*)) by Tautology.from(lastStep, groupOperationIsFunctional)
-    }
+    val groupG = have(group(G, *)) by Tautology.from(subgroup.definition)
+    val groupH = have(group(H, ★)) by Tautology.from(subgroup.definition)
 
-    val premises = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- functional(*) /\ pair(x, y) ∈ relationDomain(*)) by RightAnd(
-      leftPremise,
-      subgroupPairInParentOperationDomain
+    have((x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(★)) by Tautology.from(
+      groupH, groupPairInOperationDomain of (G -> H, * -> ★)
     )
-
-    // We show that op(x, ★, y) satisfies the conclusion of the implication
-    val appDef = have(
-      (functional(★), pair(x, y) ∈ relationDomain(★)) |- pair(pair(x, y), r) ∈ ★
-    ) by Definition(app, functionApplicationUniqueness)(★, pair(x, y))
-
-    // Reduce the assumptions of the definition to our subgroup assumption
-    val reduction1 = have(subgroup(H, G, *) |- group(H, ★)) by Tautology.from(subgroup.definition)
-    val reduction2 = have(subgroup(H, G, *) |- functional(★)) by Tautology.from(lastStep, groupOperationIsFunctional of (G -> H, * -> ★))
-
-    val reduction3 = have((subgroup(H, G, *), pair(x, y) ∈ relationDomain(★)) |- pair(pair(x, y), r) ∈ ★) by Tautology.from(reduction2, appDef)
-
-    have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(★)) by Cut(
-      reduction1,
-      groupPairInOperationDomain of (G -> H, * -> ★)
+    have((functional(*), x ∈ H, y ∈ H) |- op(x, ★, y) === op(x, *, y)) by Cut(
+      lastStep,
+      restrictedFunctionApplication of (f -> *, VariableLabel("d") -> H2, x -> pair(x, y))
     )
-    val reducedDef = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(pair(x, y), r) ∈ ★) by Cut(lastStep, reduction3)
-
-    have(∀(u, (u ∈ ★) <=> (u ∈ * /\ ∃(y, ∃(z, y ∈ H2 /\ (u === pair(y, z))))))) by Definition(restrictedFunction, restrictedFunctionUniqueness)(*, H2)
-    thenHave((u ∈ ★) <=> (u ∈ * /\ ∃(y, ∃(z, y ∈ H2 /\ (u === pair(y, z)))))) by InstantiateForall(u)
-    thenHave(u ∈ ★ ==> u ∈ *) by Tautology
-
-    val satisfaction = have((subgroup(H, G, *), x ∈ H, y ∈ H) |- pair(pair(x, y), r) ∈ *) by Tautology.from(
-      lastStep of (u -> pair(pair(x, y), r)),
-      reducedDef
+    have(thesis) by Tautology.from(
+      lastStep,
+      groupOperationIsFunctional,
+      groupG
     )
-
-    // Reconstruct the whole definition
-    assume(subgroup(H, G, *))
-    assume(x ∈ H)
-    assume(y ∈ H)
-
-    val pos = have((functional(*) /\ pair(x, y) ∈ relationDomain(*)) ==> pair(pair(x, y), r) ∈ *) by Tautology.from(premises, satisfaction)
-
-    have(!(functional(*) /\ pair(x, y) ∈ relationDomain(*)) |- ()) by LeftNot(premises)
-    thenHave(!functional(*) \/ !(pair(x, y) ∈ relationDomain(*)) |- ()) by Restate
-    thenHave(!functional(*) \/ !(pair(x, y) ∈ relationDomain(*)) |- (r === ∅)) by Weakening
-    val neg = thenHave((!functional(*) \/ !(pair(x, y) ∈ relationDomain(*))) ==> (r === ∅)) by Restate
-
-    have(
-      ((functional(*) /\ pair(x, y) ∈ relationDomain(*)) ==> pair(pair(x, y), r) ∈ *) /\
-        ((!functional(*) \/ !(pair(x, y) ∈ relationDomain(*))) ==> (r === ∅))
-    ) by RightAnd(pos, neg)
-
-    have(thesis) by Tautology.from(lastStep, characterization)
   }
 
   /**
