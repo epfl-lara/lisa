@@ -2492,7 +2492,7 @@ object SetTheory extends lisa.Main {
     functionalOver(f, a) /\ functionalOver(g, b) /\ subset(a, b) /\ forall(z, in(z, a) ==> (app(f, z) === app(g, z))) |- (f === g)
   ) {
     assume(functionalOver(f, a))
-    assume(functionalOver(g, a))
+    assume(functionalOver(g, b))
 
     sorry
   }

@@ -164,6 +164,144 @@ object Orderings extends lisa.Main {
    */
   val supremum = greatestUpperBound
 
+  val predecessor = DEF(p, x, y) --> totalOrder(p) /\ in(x, firstInPair(p)) /\ in(y, firstInPair(p)) /\ in(pair(x, y), secondInPair(p)) /\ forall(
+    z,
+    !(in(pair(x, z), secondInPair(p)) /\ in(pair(z, y), secondInPair(p)))
+  )
+
+  val limitElement = DEF(p, x) --> totalOrder(p) /\ in(x, firstInPair(p)) /\ !exists(y, predecessor(p, y, x))
+
+  val successorElement = DEF(p, x) --> totalOrder(p) /\ in(x, firstInPair(p)) /\ exists(y, predecessor(p, y, x))
+
+  val everyElemInTotalOrderLimitOrSuccessor = Lemma(
+    totalOrder(p) /\ in(x, firstInPair(p)) |- (limitElement(p, x) \/ successorElement(p, x))
+  ) {
+    // limit and successor are just negation of each other
+    have(thesis) by Tautology.from(successorElement.definition, limitElement.definition)
+  }
+
+  val initialSegmentUnionForLimitElementsIsComplete = Lemma(
+    totalOrder(p) /\ limitElement(p, x) |- in(pair(t, x), secondInPair(p)) <=> exists(y, in(pair(t, y), secondInPair(p)) /\ in(pair(y, x), secondInPair(p)))
+  ) {
+    assume(totalOrder(p))
+    assume(limitElement(p, x))
+
+    val p1 = firstInPair(p)
+    val p2 = secondInPair(p)
+
+    val fwd = have(in(pair(t, x), p2) |- exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2))) subproof {
+      assume(in(pair(t, x), p2))
+      assume(forall(y, !(in(pair(t, y), p2) /\ in(pair(y, x), p2)))) // assume negated
+
+      have(forall(y, !predecessor(p, y, x))) by Tautology.from(limitElement.definition)
+      thenHave(!predecessor(p, t, x)) by InstantiateForall(t)
+      val notInp1 = have(!in(t, p1)) by Tautology.from(lastStep, limitElement.definition, predecessor.definition of (x -> t, y -> x)) // y is free here, so instantiate it to x
+
+      val inst = have(!(in(pair(t, y), p2) /\ in(pair(y, x), p2))) by InstantiateForall
+
+      have(in(t, p1)) subproof {
+        have(relationBetween(p2, p1, p1)) by Tautology.from(totalOrder.definition, partialOrder.definition)
+        have(subset(p2, cartesianProduct(p1, p1))) by Tautology.from(lastStep, relationBetween.definition of (r -> p2, a -> p1, b -> p1))
+        have(forall(z, in(z, p2) ==> in(z, cartesianProduct(p1, p1)))) by Tautology.from(lastStep, subsetAxiom of (x -> p2, y -> cartesianProduct(p1, p1)))
+        thenHave(in(pair(t, x), cartesianProduct(p1, p1))) by InstantiateForall(pair(t, x))
+        have(in(t, p1)) by Tautology.from(lastStep, pairInCartesianProduct of (a -> t, b -> x, x -> p1, y -> p1))
+      }
+
+      have(bot()) by Tautology.from(lastStep, notInp1)
+    }
+
+    val bwd = have(exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2)) |- in(pair(t, x), p2)) subproof {
+      have(in(pair(t, y), p2) /\ in(pair(y, x), p2) |- in(pair(t, x), p2)) subproof {
+        // total orders are transitive
+        have(forall(t, forall(y, forall(x, (in(pair(t, y), p2) /\ in(pair(y, x), p2)) ==> in(pair(t, x), p2))))) by Tautology.from(
+          totalOrder.definition,
+          partialOrder.definition,
+          transitive.definition of (r -> p2, x -> p1)
+        )
+        thenHave(thesis) by InstantiateForall(t, y, x)
+      }
+
+      thenHave(thesis) by LeftExists
+    }
+
+    have(thesis) by Tautology.from(fwd, bwd)
+  }
+  show
+
+  val initialSegmentUnionForSuccessorElementsIsIncomplete = Lemma(
+    totalOrder(p) /\ successorElement(p, x) |- in(pair(t, x), secondInPair(p)) <=> (predecessor(p, t, x) \/ exists(y, in(pair(t, y), secondInPair(p)) /\ in(pair(y, x), secondInPair(p))))
+  ) {
+    assume(totalOrder(p))
+    assume(successorElement(p, x))
+
+    val p1 = firstInPair(p)
+    val p2 = secondInPair(p)
+
+    val fwd = have(in(pair(t, x), p2) |- (predecessor(p, t, x) \/ exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2)))) subproof {
+      assume(in(pair(t, x), p2))
+
+      // t < x means t, x \in p1
+      val txInp1 = have(in(t, p1) /\ in(x, p1)) subproof {
+        have(relationBetween(p2, p1, p1)) by Tautology.from(totalOrder.definition, partialOrder.definition)
+        have(subset(p2, cartesianProduct(p1, p1))) by Tautology.from(lastStep, relationBetween.definition of (r -> p2, a -> p1, b -> p1))
+        have(forall(z, in(z, p2) ==> in(z, cartesianProduct(p1, p1)))) by Tautology.from(lastStep, subsetAxiom of (x -> p2, y -> cartesianProduct(p1, p1)))
+        thenHave(in(pair(t, x), cartesianProduct(p1, p1))) by InstantiateForall(pair(t, x))
+        have(thesis) by Tautology.from(lastStep, pairInCartesianProduct of (a -> t, b -> x, x -> p1, y -> p1))
+      }
+
+      have(predecessor(p, y, x) |- (predecessor(p, t, x) \/ exists(y, in(pair(t, y), secondInPair(p)) /\ in(pair(y, x), secondInPair(p))))) subproof {
+        assume(predecessor(p, y, x))
+
+        have(forall(z, !(in(pair(y, z), p2) /\ in(pair(z, x), p2)))) by Tautology.from(predecessor.definition of (x -> y, y -> x))
+        thenHave(!(in(pair(y, t), p2) /\ in(pair(t, x), p2))) by InstantiateForall(t)
+        val yNLTt = thenHave(!in(pair(y, t), p2)) by Tautology
+
+        have(forall(y, forall(t, (in(y, p1) /\ in(t, p1)) ==> (in(pair(y, t), p2) \/ in(pair(t, y), p2) \/ (y === t))))) by Tautology.from(
+          totalOrder.definition,
+          total.definition of (r -> p2, x -> p1)
+        )
+        thenHave((in(y, p1) /\ in(t, p1)) ==> (in(pair(y, t), p2) \/ in(pair(t, y), p2) \/ (y === t))) by InstantiateForall(y, t)
+        val cases = have(in(pair(t, y), p2) \/ (y === t)) by Tautology.from(lastStep, predecessor.definition of (x -> y, y -> x), txInp1, yNLTt)
+
+        val ltCase = have(in(pair(t, y), p2) |- (predecessor(p, t, x) \/ exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2)))) subproof {
+          have(in(pair(t, y), p2) |- in(pair(t, y), p2) /\ in(pair(y, x), p2)) by Tautology.from(predecessor.definition of (x -> y, y -> x))
+          thenHave(in(pair(t, y), p2) |- exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2))) by RightExists
+          thenHave(thesis) by Weakening
+        }
+
+        val eqCase = have((y === t) |- (predecessor(p, t, x) \/ exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2)))) subproof {
+          have(predecessor(p, y, x)) by Restate
+          thenHave((y === t) |- predecessor(p, t, x)) by Substitution.apply2(false, y === t)
+          thenHave(thesis) by Weakening
+        }
+
+        have(thesis) by Tautology.from(cases, ltCase, eqCase)
+      }
+
+      thenHave(exists(y, predecessor(p, y, x)) |- (predecessor(p, t, x) \/ exists(y, in(pair(t, y), secondInPair(p)) /\ in(pair(y, x), secondInPair(p))))) by LeftExists
+      have(thesis) by Tautology.from(lastStep, successorElement.definition)
+    }
+
+    val bwd = have((predecessor(p, t, x) \/ exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2))) |- in(pair(t, x), p2)) subproof {
+      val predCase = have(predecessor(p, t, x) |- in(pair(t, x), p2)) by Tautology.from(predecessor.definition of (x -> t, y -> x))
+      have(in(pair(t, y), p2) /\ in(pair(y, x), p2) |- in(pair(t, x), p2)) subproof {
+        // transitivity of p
+        have(forall(t, forall(y, forall(x, (in(pair(t, y), p2) /\ in(pair(y, x), p2)) ==> in(pair(t, x), p2))))) by Tautology.from(
+          totalOrder.definition,
+          partialOrder.definition,
+          transitive.definition of (r -> p2, x -> p1)
+        )
+        thenHave(thesis) by InstantiateForall(t, y, x)
+      }
+      thenHave(exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2)) |- in(pair(t, x), p2)) by LeftExists
+
+      have(thesis) by LeftOr(lastStep, predCase)
+    }
+
+    have(thesis) by Tautology.from(fwd, bwd)
+  }
+  show
+
   /**
    * Properties of functions under partial orders
    */
