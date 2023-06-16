@@ -8,10 +8,12 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
-import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.FOLPrinter
+import lisa.utils.KernelHelpers.{_, given}
+
 import scala.collection.immutable.Queue
-import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
+import scala.collection.mutable.{Map => MutableMap}
+import scala.collection.mutable.{Set => MutableSet}
 
 object CommonTactics {
 
@@ -270,18 +272,18 @@ object CommonTactics {
    * Γ, Γ', ... |- a(i) === a(j)
    * </pre>
    * Proves any equality induced transitively by the equalities of the premises.
-   * 
+   *
    * Internally, we construct an undirected graph, where sides of an equality are represented by vertices, and
    * an edge between two terms `a` and `b` means that some premise proves `a === b` (or equivalently `b === a`).
    * We also keep the premise from which the equality stems as a label of the edge to construct the final antecedent of
    * the bottom sequent.
-   * 
+   *
    * We can see that an equality `a === b` is provable from the premises if and only if `a` is reachable from `b`.
    * We thus run Breadth-First Search (BFS) on the graph starting from `a` to find the smallest solution (in terms of
    * sequent calculus steps), if any.
    */
   object Equalities extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof)(equalities: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {      
+    def apply(using lib: Library, proof: lib.Proof)(equalities: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
       // Construct the graph as an adjacency list for O(1) equality checks
       val graph = MutableMap[FOL.Term, List[FOL.Term]]()
       val premises = MutableMap[(FOL.Term, FOL.Term), proof.Fact]()
@@ -305,7 +307,7 @@ object CommonTactics {
                 premises += ((y, x) -> premise)
               }
             }
-          case _ => 
+          case _ =>
             if (error.isEmpty) {
               error = Some(proof.InvalidProofTactic("Right-hand side of premises should only contain equalities."))
             }
@@ -315,7 +317,7 @@ object CommonTactics {
       if (error.nonEmpty) {
         return error.get
       }
-      
+
       if (bot.right.size != 1) {
         return proof.InvalidProofTactic(s"Right-hand side of bottom sequent expected exactly 1 formula, got ${bot.right.size}")
       }
@@ -367,23 +369,25 @@ object CommonTactics {
                 val initialStep = order(premises(y -> path.head), path.head, y)
                 val u = variable
 
-                path.zip(path.tail).foldLeft(initialStep)((leftEq, vars) => {
-                  val leftSeq = innerProof.getSequent(leftEq)
-                  val (a, b) = vars
-                  val premiseEq = premises(vars)
-                  val premiseSeq = proof.getSequent(premiseEq)
-                  
-                  // Apply equality transitivity on (a === y) /\ (a === b) to get (b === y)
-                  // TODO Watch for issue #161, as assumptions will break this step
-                  lib.have((leftSeq.left + premiseSeq.right.head) |- b === y) by RightSubstEq(
-                    List(getEqTerms(premiseEq)),
-                    lambda(u, u === y)
-                  )(leftEq)
-                  val seq = (leftSeq.left ++ premiseSeq.left) |- b === y
-                  val eq = lib.have(seq) by Cut(premiseEq, lib.lastStep)
+                path
+                  .zip(path.tail)
+                  .foldLeft(initialStep)((leftEq, vars) => {
+                    val leftSeq = innerProof.getSequent(leftEq)
+                    val (a, b) = vars
+                    val premiseEq = premises(vars)
+                    val premiseSeq = proof.getSequent(premiseEq)
 
-                  eq
-                })
+                    // Apply equality transitivity on (a === y) /\ (a === b) to get (b === y)
+                    // TODO Watch for issue #161, as assumptions will break this step
+                    lib.have((leftSeq.left + premiseSeq.right.head) |- b === y) by RightSubstEq(
+                      List(getEqTerms(premiseEq)),
+                      lambda(u, u === y)
+                    )(leftEq)
+                    val seq = (leftSeq.left ++ premiseSeq.left) |- b === y
+                    val eq = lib.have(seq) by Cut(premiseEq, lib.lastStep)
+
+                    eq
+                  })
               }
             }
 
@@ -394,19 +398,18 @@ object CommonTactics {
             }
           }
           proof.InvalidProofTactic("Equality is not provable from the premises.")
-          
+
         case _ => proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form x === y.")
       }
     }
   }
 
-  /** 
+  /**
    * <pre>
-   * Γ, φ |- Δ, Σ   Γ, ¬φ |- Δ, Σ'  
+   * Γ, φ |- Δ, Σ   Γ, ¬φ |- Δ, Σ'
    * -----------------------------
    * Γ |- Δ
    * </pre>
-   *
    *
    * TODO: Extending the tactic to more general pivots
    */
@@ -415,8 +418,10 @@ object CommonTactics {
       val seqPos = proof.getSequent(pos)
       val seqNeg = proof.getSequent(neg)
 
-      if (!(contains(seqPos.left, phi)  && contains(seqNeg.left, !phi) && !contains(seqNeg.left, phi)) &&
-          !(contains(seqPos.left, !phi) && contains(seqNeg.left, phi) && !contains(seqNeg.left, !phi))) {
+      if (
+        !(contains(seqPos.left, phi) && contains(seqNeg.left, !phi) && !contains(seqNeg.left, phi)) &&
+        !(contains(seqPos.left, !phi) && contains(seqNeg.left, phi) && !contains(seqNeg.left, !phi))
+      ) {
         proof.InvalidProofTactic("The given sequent do not contain φ or ¬φ.")
       } else {
         val gamma = bot.left

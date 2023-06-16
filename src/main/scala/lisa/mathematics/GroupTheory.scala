@@ -6,11 +6,11 @@ import lisa.automation.kernel.CommonTactics.Equalities
 import lisa.automation.kernel.CommonTactics.ExistenceAndUniqueness
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.settheory.SetTheoryTactics.UniqueComprehension
+import lisa.kernel.proof.SequentCalculus.Hypothesis
 import lisa.mathematics.FirstOrderLogic.equalityTransitivity
 import lisa.mathematics.FirstOrderLogic.existsOneImpliesExists
 import lisa.mathematics.FirstOrderLogic.substitutionInUniquenessQuantifier
 import lisa.mathematics.SetTheory.*
-import lisa.kernel.proof.SequentCalculus.Hypothesis
 
 /**
  * Group theory, developed following Chapter 2 of S. Lang "Undergraduate Algebra".
@@ -196,7 +196,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Lemma --- For elements `x, y, z` in a group `(G, *)`, we have `(xy)z = x(yz)`.
-   * 
+   *
    * Practical reformulation of the [[associativityAxiom]].
    */
   val associativity = Lemma(
@@ -218,14 +218,14 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Lemma --- For elements `x, y` in an abelian group `(G, *)`, we have `xy = yx`.
-   * 
+   *
    * Practical reformulation of [[commutativityAxiom]].
    */
   val commutativity = Lemma(
     (abelianGroup(G, *), x ∈ G, y ∈ G) |- op(x, *, y) === op(y, *, x)
   ) {
     assume(abelianGroup(G, *))
-    
+
     have(∀(x, x ∈ G ==> ∀(y, y ∈ G ==> (op(x, *, y) === op(y, *, x))))) by Tautology.from(
       abelianGroup.definition,
       commutativityAxiom.definition
@@ -304,7 +304,7 @@ object GroupTheory extends lisa.Main {
     assume(x ∈ G)
     assume(y ∈ G)
 
-    // Show that x * y is in relation range  
+    // Show that x * y is in relation range
     have(pair(pair(x, y), op(x, *, y)) ∈ *) by Tautology.from(
       appDef,
       groupOperationIsFunctional,
@@ -323,14 +323,14 @@ object GroupTheory extends lisa.Main {
     )
     thenHave(op(x, *, y) ∈ relationRange(*) ==> op(x, *, y) ∈ G) by InstantiateForall(op(x, *, y))
     thenHave(op(x, *, y) ∈ relationRange(*) |- op(x, *, y) ∈ G) by Restate
-    
+
     have(thesis) by Cut(productInRelationRange, lastStep)
   }
 
   /**
    * Identity uniqueness --- In a group (G, *), an identity element is unique, i.e. if both `e * x = x * e = x` and
    * `f * x = x * f = x` for all `x`, then `e = f`.
-   * 
+   *
    * This justifies calling `e` <i>the</i> identity element.
    */
   val identityUniqueness = Theorem(
@@ -382,7 +382,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Lemma --- For any element `x` in a group `(G, *)`, we have `x * e = e * x = x`.
-   * 
+   *
    * Practical reformulation of [[identityIsNeutral]].
    */
   val identityNeutrality = Lemma(
@@ -552,7 +552,7 @@ object GroupTheory extends lisa.Main {
       thenHave(thesis) by InstantiateForall(y)
     }
 
-    val forward = have(x ∈ G |- isInverse(y, x, G, *) ==> isInverse(x, y, G, *)) subproof {  
+    val forward = have(x ∈ G |- isInverse(y, x, G, *) ==> isInverse(x, y, G, *)) subproof {
       assume(x ∈ G)
       have(isInverse(y, x, G, *) |- y ∈ G /\ isNeutral(op(x, *, y), G, *) /\ isNeutral(op(y, *, x), G, *)) by Tautology.from(isInverse.definition)
       thenHave(isInverse(y, x, G, *) |- isNeutral(op(y, *, x), G, *) /\ isNeutral(op(x, *, y), G, *)) by Tautology
@@ -575,7 +575,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Involution of the inverse -- For all `x`, `inverse(inverse(x)) = x`.
-   * 
+   *
    * Direct corollary of [[inverseSymmetry]].
    */
   val inverseIsInvolutive = Theorem(
@@ -602,7 +602,7 @@ object GroupTheory extends lisa.Main {
         inverseInGroup,
         associativity of (x -> i, y -> x, z -> y)
       )
-      
+
       // (ix)y = y
       have((group(G, *), x ∈ G) |- ∀(y, (y ∈ G) ==> ((op(op(i, *, x), *, y) === y) /\ (op(y, *, op(i, *, x)) === y)))) by Tautology.from(
         inverseIsInverse,
@@ -630,7 +630,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Theorem --- In a group `(G, *)`, we have `yx = zx ==> y = z`.
-   * 
+   *
    * Analoguous to [[leftCancellation]].
    */
   val rightCancellation = Theorem(
@@ -645,7 +645,7 @@ object GroupTheory extends lisa.Main {
         inverseInGroup,
         associativity of (x -> y, y -> x, z -> i)
       )
-      
+
       // y(xi) = y
       have((group(G, *), x ∈ G) |- ∀(y, (y ∈ G) ==> ((op(op(x, *, i), *, y) === y) /\ (op(y, *, op(x, *, i)) === y)))) by Tautology.from(
         inverseIsInverse,
@@ -706,7 +706,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Theorem --- If `x * y = e` then `y = inverse(x)`.
-   * 
+   *
    * This also implies that `x = inverse(y)` by [[inverseSymmetry]].
    */
   val inverseTest = Theorem(
@@ -725,7 +725,7 @@ object GroupTheory extends lisa.Main {
     )
 
     // 2. x * y = x * inverse(x)
-    have((op(x, *, y) === e) |- (op(x, *, y) === e) ) by Hypothesis
+    have((op(x, *, y) === e) |- (op(x, *, y) === e)) by Hypothesis
     val eq2 = have((op(x, *, y) === e) |- op(x, *, y) === op(x, *, inverse(x, G, *))) by Equalities(eq1, lastStep)
 
     // Conclude by left cancellation
@@ -871,7 +871,8 @@ object GroupTheory extends lisa.Main {
     val groupH = have(group(H, ★)) by Tautology.from(subgroup.definition)
 
     have((x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(★)) by Tautology.from(
-      groupH, groupPairInOperationDomain of (G -> H, * -> ★)
+      groupH,
+      groupPairInOperationDomain of (G -> H, * -> ★)
     )
     have((functional(*), x ∈ H, y ∈ H) |- op(x, ★, y) === op(x, *, y)) by Cut(
       lastStep,
@@ -888,7 +889,7 @@ object GroupTheory extends lisa.Main {
    * Lemma --- If `H` is a subgroup of `G`, then `e_H ∈ G`.
    */
   val subgroupIdentityInParent = Lemma(
-    subgroup(H, G, *) |- identity(H, ★) ∈ G 
+    subgroup(H, G, *) |- identity(H, ★) ∈ G
   ) {
     val identityInH = have(subgroup(H, G, *) |- identity(H, ★) ∈ H) by Tautology.from(
       subgroup.definition,
@@ -962,7 +963,7 @@ object GroupTheory extends lisa.Main {
   }
 
   /**
-   * Theorem --- If `H` is a subgroup of `G`, then the inverse is the same as in the parent group. 
+   * Theorem --- If `H` is a subgroup of `G`, then the inverse is the same as in the parent group.
    */
   val subgroupInverse = Theorem(
     (subgroup(H, G, *), x ∈ H) |- inverse(x, H, ★) === inverse(x, G, *)
@@ -995,7 +996,7 @@ object GroupTheory extends lisa.Main {
       lastStep,
       subgroupOperation of (y -> inverse(x, H, ★))
     )
-    
+
     val eq1 = have(op(x, *, inverse(x, H, ★)) === eH) by Cut(inverseHInH, lastStep)
 
     // 2. e_H = e_G
@@ -1025,9 +1026,9 @@ object GroupTheory extends lisa.Main {
 
   //
   // 2.1 Main subgroup test
-  // 
+  //
   // We define several useful lemmas to attack this easy, but long theorem to formalize
-  // 
+  //
 
   private val nonEmpty = H !== ∅
   private val closedByProducts = ∀(x, ∀(y, (x ∈ H /\ y ∈ H) ==> (op(x, *, y) ∈ H)))
@@ -1078,11 +1079,11 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Lemma --- The subgroup conditions imply that `(x, y)` is in the relation domain of `★`.
-   * 
+   *
    * Analogous to [[groupPairInOperationDomain]].
    */
   private val subgroupConditionsPairInDomain = Lemma(
-    (group(G, *), subset(H, G), subgroupConditions, x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(★) 
+    (group(G, *), subset(H, G), subgroupConditions, x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(★)
   ) {
     assume(group(G, *))
     assume(subset(H, G))
@@ -1103,7 +1104,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Lemma --- The subgroup conditions imply that `x ★ y = x * y`.
-   * 
+   *
    * Analogous to [[subgroupOperation]].
    */
   private val subgroupConditionsOperation = Lemma(
@@ -1263,7 +1264,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Lemma --- The subgroup conditions imply associativity on `H`.
-   * 
+   *
    * This directly follows from associativity on `G` and [[subgroupConditionsOperation]].
    */
   private val subgroupConditionsAssociativity = Lemma(
@@ -1321,7 +1322,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Lemma --- The subgroup conditions imply the existence of an identity element on `H`.
-   * 
+   *
    * We show in particular that identity(G, *) is neutral on `H`.
    */
   private val subgroupConditionsIdentityExistence = Lemma(
@@ -1371,7 +1372,9 @@ object GroupTheory extends lisa.Main {
       subgroupConditionsSubset,
       identityNeutrality
     )
-    thenHave((x ∈ H, op(identity(G, *), ★, x) === op(identity(G, *), *, x), op(x, ★, identity(G, *)) === op(x, *, identity(G, *))) |- (op(identity(G, *), ★, x) === x) /\ (op(x, ★, identity(G, *)) === x)) by RightSubstEq(
+    thenHave(
+      (x ∈ H, op(identity(G, *), ★, x) === op(identity(G, *), *, x), op(x, ★, identity(G, *)) === op(x, *, identity(G, *))) |- (op(identity(G, *), ★, x) === x) /\ (op(x, ★, identity(G, *)) === x)
+    ) by RightSubstEq(
       List((op(identity(G, *), ★, x), op(identity(G, *), *, x)), (op(x, ★, identity(G, *)), op(x, *, identity(G, *)))),
       lambda(Seq(a, b), (a === x) /\ (b === x))
     )
@@ -1391,7 +1394,7 @@ object GroupTheory extends lisa.Main {
       isNeutral.definition of (e -> identity(G, *), G -> H, * -> ★)
     )
 
-    // 6. identityExistence(H, ★) 
+    // 6. identityExistence(H, ★)
     thenHave((x ∈ H) |- ∃(e, isNeutral(e, H, ★))) by RightExists
     val step6 = have((x ∈ H) |- identityExistence(H, ★)) by Tautology.from(lastStep, identityExistence.definition of (G -> H, * -> ★))
 
@@ -1412,7 +1415,7 @@ object GroupTheory extends lisa.Main {
     assume(subgroupConditions)
 
     val i = inverse(x, G, *)
-    
+
     have(closedByInverses) by Tautology
     thenHave(x ∈ H ==> i ∈ H) by InstantiateForall(x)
     val inverseInH = thenHave(x ∈ H |- i ∈ H) by Restate
@@ -1423,7 +1426,7 @@ object GroupTheory extends lisa.Main {
       have(∀(x, (x ∈ G) ==> ((op(e, *, x) === x) /\ (op(x, *, e) === x)))) by Tautology.from(isNeutral.definition)
       thenHave((x ∈ G) ==> ((op(e, *, x) === x) /\ (op(x, *, e) === x))) by InstantiateForall(x)
       thenHave(x ∈ G |- (op(e, *, x) === x) /\ (op(x, *, e) === x)) by Restate
-      
+
       have(x ∈ H |- (op(e, *, x) === x) /\ (op(x, *, e) === x)) by Cut(subgroupConditionsSubset, lastStep)
       thenHave((x ∈ H, op(e, ★, x) === op(e, *, x), op(x, ★, e) === op(x, *, e)) |- (op(e, ★, x) === x) /\ (op(x, ★, e) === x)) by RightSubstEq(
         List((op(e, ★, x), op(e, *, x)), (op(x, ★, e), op(x, *, e))),
@@ -1480,9 +1483,9 @@ object GroupTheory extends lisa.Main {
    *   1. `H` is non-empty,
    *   2. `H` is closed by products, and
    *   3. `H` is closed by inversion.
-   * 
+   *
    * It is often easier to prove the 3 conditions independently than using the definition directly.
-   * 
+   *
    * Note that in the case where H is finite, conditions 1 and 2 are sufficient.
    */
   val subgroupTest = Theorem(
@@ -1500,7 +1503,7 @@ object GroupTheory extends lisa.Main {
       val groupH = have(group(H, ★)) by Tautology.from(subgroup.definition)
 
       val condition1 = have(nonEmpty) by Cut(groupH, groupNonEmpty of (G -> H, * -> ★))
-      
+
       have((x ∈ H, y ∈ H) |- op(x, ★, y) ∈ H) by Cut(groupH, groupIsClosedByProduct of (G -> H, * -> ★))
       thenHave((x ∈ H, y ∈ H, op(x, ★, y) === op(x, *, y)) |- op(x, *, y) ∈ H) by RightSubstEq(
         List((op(x, ★, y), op(x, *, y))),
@@ -1562,7 +1565,7 @@ object GroupTheory extends lisa.Main {
   /**
    * Definition --- A group homomorphism is a mapping `f: G -> H` from structures `G` and `H` equipped with binary operations `*` and `★` respectively,
    * such that for all `x, y ∈ G`, we have* `f(x * y) = f(x) ** f(y)`.
-   * 
+   *
    * In the following, "homomorphism" always stands for "group homomorphism", i.e. `(G, *)` and `(H, **)` are groups.
    */
   val homomorphism = DEF(f, G, *, H, **) --> group(G, *) /\ group(H, **) /\ functionFrom(f, G, H) /\ ∀(x, x ∈ G ==> ∀(y, y ∈ G ==> (app(f, op(x, *, y)) === op(app(f, x), **, app(f, y)))))
@@ -1614,7 +1617,7 @@ object GroupTheory extends lisa.Main {
       identityIdempotence of (x -> e)
     )
     val eq0 = have(homomorphism(f, G, *, H, **) |- op(e, *, e) === e) by Cut(groupG, lastStep)
-    
+
     // 1. f(e * e) = f(e)
     have(app(f, e) === app(f, e)) by RightRefl
     thenHave(op(e, *, e) === e |- app(f, op(e, *, e)) === app(f, e)) by RightSubstEq(
@@ -1637,14 +1640,14 @@ object GroupTheory extends lisa.Main {
       groupH,
       identityIdempotence of (x -> app(f, e), G -> H, * -> **)
     )
-    have(homomorphism(f, G, *, H, **)|- (op(app(f, e), **, app(f, e)) === app(f, e)) <=> (app(f, e) === identity(H, **))) by Cut(
+    have(homomorphism(f, G, *, H, **) |- (op(app(f, e), **, app(f, e)) === app(f, e)) <=> (app(f, e) === identity(H, **))) by Cut(
       appInH,
       lastStep
     )
-    
+
     have(thesis) by Tautology.from(lastStep, eq3)
   }
-  
+
   /**
    * Theorem --- If `f: G -> H` is a group homomorphism, then `f(inverse(x, G, *)) = inverse(f(x), H, **)`.
    */
@@ -1802,9 +1805,9 @@ object GroupTheory extends lisa.Main {
   /**
    * Lemma --- The kernel is closed by inversion, i.e. if `x ∈ K` then `inverse(x, G, *) ∈ K`.
    */
-  val kernelIsClosedByInversion = Lemma (
+  val kernelIsClosedByInversion = Lemma(
     (homomorphism(f, G, *, H, **), x ∈ K) |- inverse(x, G, *) ∈ K
-   ) {
+  ) {
     assume(homomorphism(f, G, *, H, **))
     assume(x ∈ K)
 
@@ -1824,7 +1827,7 @@ object GroupTheory extends lisa.Main {
       List((app(f, x), e)),
       lambda(z, app(f, inverse(x, G, *)) === inverse(z, H, **))
     )
-    
+
     val eq1 = have(app(f, inverse(x, G, *)) === inverse(e, H, **)) by Cut(appValue, lastStep)
 
     // 2. inverse(e) = e
@@ -1868,7 +1871,7 @@ object GroupTheory extends lisa.Main {
       kernelDef of (x -> identity(G, *))
     )
     val condition1 = have(K !== ∅) by Cut(lastStep, setWithElementNonEmpty of (y -> identity(G, *), x -> K))
-    
+
     // 2. The kernel is closed by products
     have((x ∈ K /\ y ∈ K) ==> op(x, *, y) ∈ K) by Restate.from(kernelIsClosedByProducts)
     thenHave(∀(y, (x ∈ K /\ y ∈ K) ==> op(x, *, y) ∈ K)) by RightForall
@@ -1880,7 +1883,9 @@ object GroupTheory extends lisa.Main {
 
     // Conclude
     have((K !== ∅) /\ ∀(x, ∀(y, (x ∈ K /\ y ∈ K) ==> op(x, *, y) ∈ K)) /\ ∀(x, (x ∈ K) ==> (inverse(x, G, *) ∈ K))) by RightAnd(
-      condition1, condition2, condition3
+      condition1,
+      condition2,
+      condition3
     )
 
     have(subgroup(K, G, *)) by Tautology.from(
@@ -1896,7 +1901,7 @@ object GroupTheory extends lisa.Main {
 
   /**
    * Isomorphism --- An isomorphism `f: G -> H` is a bijective homomorphism.
-   * 
+   *
    * In some sense, isomorphic groups are equivalent, up to relabelling their elements.
    */
   val isomorphism = DEF(f, G, *, H, **) --> homomorphism(f, G, *, H, **) /\ bijective(f, G, H)

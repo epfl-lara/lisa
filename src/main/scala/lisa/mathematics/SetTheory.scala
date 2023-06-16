@@ -368,7 +368,7 @@ object SetTheory extends lisa.Main {
 
   /**
    * Theorem --- A non-empty set has an element.
-   * 
+   *
    * Contra-positive of [[setWithNoElementsIsEmpty]].
    */
   val nonEmptySetHasElement = Theorem(
@@ -2474,7 +2474,7 @@ object SetTheory extends lisa.Main {
     thenHave((t ∈ restrictedFunction(f, x)) <=> (t ∈ f /\ ∃(y, ∃(z, y ∈ x /\ (t === pair(y, z)))))) by InstantiateForall(t)
     thenHave(t ∈ restrictedFunction(f, x) ==> t ∈ f) by Tautology
     thenHave(∀(t, t ∈ restrictedFunction(f, x) ==> t ∈ f)) by RightForall
-    
+
     have(thesis) by Tautology.from(
       lastStep,
       subset.definition of (x -> restrictedFunction(f, x), y -> f)
@@ -2489,12 +2489,12 @@ object SetTheory extends lisa.Main {
   ) {
     val g = restrictedFunction(f, x)
     assume(functional(f))
-    
+
     val functionalDef = have(relation(f) /\ ∀(x, ∃(y, in(pair(x, y), f)) ==> ∃!(y, in(pair(x, y), f)))) by Tautology.from(functional.definition)
     thenHave(∀(x, ∃(y, in(pair(x, y), f)) ==> ∃!(y, in(pair(x, y), f)))) by Tautology
     val fAppUniqueness = thenHave(∃(y, in(pair(t, y), f)) ==> ∃!(y, in(pair(t, y), f))) by InstantiateForall(t)
     val fIsRelation = have(relation(f)) by Tautology.from(functionalDef)
-    
+
     val gIsRelation = have(relation(g)) subproof {
       // Since f is a relation and g is a subset of f, g is also a relation by subset transitivity
       have(relationBetween(f, a, b) |- subset(f, cartesianProduct(a, b))) by Tautology.from(relationBetween.definition of (r -> f))
@@ -2509,12 +2509,14 @@ object SetTheory extends lisa.Main {
       thenHave(∃(a, ∃(b, relationBetween(f, a, b))) |- ∃(a, ∃(b, relationBetween(g, a, b)))) by LeftExists
 
       have(relation(f) |- relation(g)) by Tautology.from(
-        lastStep, relation.definition of (r -> f), relation.definition of (r -> g)
+        lastStep,
+        relation.definition of (r -> f),
+        relation.definition of (r -> g)
       )
       have(thesis) by Cut(fIsRelation, lastStep)
     }
 
-    val gAppUniqueness = have(∀(t, ∃(y, pair(t, y) ∈ g) ==> ∃!(y, pair(t, y) ∈ g))) subproof { 
+    val gAppUniqueness = have(∀(t, ∃(y, pair(t, y) ∈ g) ==> ∃!(y, pair(t, y) ∈ g))) subproof {
       have((pair(t, a) ∈ restrictedFunction(f, x)) <=> (pair(t, a) ∈ f /\ in(t, x))) by Tautology.from(restrictedFunctionPairMembership)
       val equiv = thenHave(∀(a, (pair(t, a) ∈ restrictedFunction(f, x)) <=> (pair(t, a) ∈ f /\ in(t, x)))) by RightForall
 
@@ -2671,13 +2673,13 @@ object SetTheory extends lisa.Main {
     )
     val domainInclusion = have(x ∈ relationDomain(g) |- x ∈ relationDomain(f)) by Cut(
       restrictedFunctionDomain of (x -> d),
-      lastStep, 
+      lastStep
     )
 
     // Characterize app(f, x)
     val characterization = have(
       (app(g, x) === app(f, x)) <=> (((functional(f) /\ (x ∈ relationDomain(f))) ==> (p ∈ f)) /\
-                                    ((!functional(f) \/ (x ∉ relationDomain(f))) ==> (app(g, x) === ∅)))
+        ((!functional(f) \/ (x ∉ relationDomain(f))) ==> (app(g, x) === ∅)))
     ) by InstantiateForall(app(g, x))(app.definition)
 
     // Use the definition of restricted functions
@@ -2705,8 +2707,10 @@ object SetTheory extends lisa.Main {
     thenHave((functional(f), x ∈ relationDomain(g), !functional(f) \/ (x ∉ relationDomain(f))) |- (app(g, x) === ∅)) by Weakening
     val neg = thenHave((functional(f), x ∈ relationDomain(g)) |- (!functional(f) \/ (x ∉ relationDomain(f)) ==> (app(g, x) === ∅))) by Restate
 
-    have((functional(f), x ∈ relationDomain(g)) |- (((functional(f) /\ (x ∈ relationDomain(f))) ==> (p ∈ f)) /\
-                                                    ((!functional(f) \/ (x ∉ relationDomain(f))) ==> (app(g, x) === ∅)))) by RightAnd(pos, neg)
+    have(
+      (functional(f), x ∈ relationDomain(g)) |- (((functional(f) /\ (x ∈ relationDomain(f))) ==> (p ∈ f)) /\
+        ((!functional(f) \/ (x ∉ relationDomain(f))) ==> (app(g, x) === ∅)))
+    ) by RightAnd(pos, neg)
 
     have(thesis) by Tautology.from(lastStep, characterization)
   }

@@ -396,7 +396,7 @@ object FirstOrderLogic extends lisa.Main {
   }
 
   /**
-   * Theorem --- Unique existential quantifier distributes fully with a closed formula. 
+   * Theorem --- Unique existential quantifier distributes fully with a closed formula.
    */
   val uniqueExistentialConjunctionWithClosedFormula = Theorem(
     existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)) /\ p())
@@ -427,7 +427,7 @@ object FirstOrderLogic extends lisa.Main {
       have((!p(), existsOne(x, P(x)) /\ p()) |- ()) by Tautology
       thenHave((!p(), existsOne(x, P(x)) /\ p()) |- existsOne(x, P(x) /\ p())) by Weakening
       val backward = thenHave(!p() |- existsOne(x, P(x)) /\ p() ==> existsOne(x, P(x) /\ p())) by Restate
-      
+
       have(thesis) by RightIff(forward, backward)
     }
 
