@@ -2101,6 +2101,21 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * Theorem --- Pair in Relation
+   *
+   * If a pair `(x, y)` exists in a relation `r` from `a` to `b`,
+   * then `x` and `y` are elements of `a` and `b` respectively.
+   */
+  val pairInRelation = Lemma(
+    relationBetween(r, a, b) /\ in(pair(x, y), r) |- in(x, a) /\ in(y, b)
+  ) {
+    assume(relationBetween(r, a, b))
+    have(forall(t, in(t, r) ==> in(t, cartesianProduct(a, b)))) by Tautology.from(relationBetween.definition, subsetAxiom of (x -> r, y -> cartesianProduct(a, b)))
+    thenHave(in(pair(x, y), r) ==> in(pair(x, y), cartesianProduct(a, b))) by InstantiateForall(pair(x, y))
+    have(thesis) by Tautology.from(lastStep, pairInCartesianProduct)
+  }
+
+  /**
    * Functional --- A binary [[relation]] is functional if it maps every element in its domain
    * to a unique element (in its range).
    *
