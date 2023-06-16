@@ -367,6 +367,20 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * Theorem --- A non-empty set has an element.
+   * 
+   * Contra-positive of [[setWithNoElementsIsEmpty]].
+   */
+  val nonEmptySetHasElement = Theorem(
+    !(x === ∅) |- ∃(y, in(y, x))
+  ) {
+    have((!(x === ∅), ∀(y, !in(y, x))) |- (x === ∅)) by Weakening(setWithNoElementsIsEmpty)
+    thenHave((!(x === ∅), ∀(y, !in(y, x))) |- ()) by LeftNot
+    thenHave((!(x === ∅)) |- ! ∀(y, !in(y, x))) by RightNot
+    thenHave(thesis) by Restate
+  }
+
+  /**
    * Theorem --- The empty set is a subset of every set.
    *
    *    `(∀ x.) ∅ ⊆ x`
@@ -859,6 +873,25 @@ object SetTheory extends lisa.Main {
 
   extension (x: Term) {
     infix def ∩(y: Term) = setIntersection(x, y)
+  }
+
+  /**
+   * Theorem --- If `x ⊆ y` then `x ∩ y = x`.
+   */
+  val setIntersectionSubset = Theorem(
+    subset(x, y) |- (x ∩ y) === x
+  ) {
+    assume(subset(x, y))
+    have(∀(t, t ∈ x ==> t ∈ y)) by Tautology.from(subset.definition)
+    val subsetDef = thenHave(t ∈ x ==> t ∈ y) by InstantiateForall(t)
+
+    have(∀(t, (t ∈ (x ∩ y)) <=> (t ∈ x /\ t ∈ y))) by Definition(setIntersection, setIntersectionUniqueness)(x, y)
+    val intersectionDef = thenHave((t ∈ (x ∩ y)) <=> (t ∈ x /\ t ∈ y)) by InstantiateForall(t)
+
+    have((t ∈ (x ∩ y)) <=> (t ∈ x)) by Tautology.from(subsetDef, intersectionDef)
+    thenHave(∀(t, (t ∈ (x ∩ y)) <=> (t ∈ x))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> (x ∩ y), y -> x))
   }
 
   val unaryIntersectionUniqueness = Theorem(
@@ -1670,6 +1703,37 @@ object SetTheory extends lisa.Main {
     )
 
     have(thesis) by Tautology.from(lastStep, defUnfold)
+  }
+
+  /**
+   * Theorem --- If `a ⊆ b` and `c ⊆ d`, then `(a * c) ⊆ (b * d)`.
+   */
+  val subsetsCartesianProduct = Theorem(
+    (subset(a, b), subset(c, d)) |- subset(cartesianProduct(a, c), cartesianProduct(b, d))
+  ) {
+    have(subset(a, b) |- ∀(x, x ∈ a ==> x ∈ b)) by Tautology.from(subset.definition of (x -> a, y -> b))
+    val subsetDef = thenHave(subset(a, b) |- x ∈ a ==> x ∈ b) by InstantiateForall(x)
+
+    assume(subset(a, b))
+    assume(subset(c, d))
+    have(((t === pair(x, y)) /\ x ∈ a /\ y ∈ c) |- ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)) by Tautology.from(
+      subsetDef,
+      subsetDef of (a -> c, b -> d, x -> y)
+    )
+    thenHave(((t === pair(x, y)) /\ x ∈ a /\ y ∈ c) |- ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d))) by RightExists
+    thenHave(((t === pair(x, y)) /\ x ∈ a /\ y ∈ c) |- ∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)))) by RightExists
+    thenHave(∃(y, ((t === pair(x, y)) /\ x ∈ a /\ y ∈ c)) |- ∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)))) by LeftExists
+    thenHave(∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ a /\ y ∈ c))) |- ∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)))) by LeftExists
+    thenHave(∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ a /\ y ∈ c))) ==> ∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)))) by Restate
+
+    have(t ∈ cartesianProduct(a, c) ==> t ∈ cartesianProduct(b, d)) by Tautology.from(
+      lastStep,
+      elemOfCartesianProduct of (x -> a, y -> c),
+      elemOfCartesianProduct of (x -> b, y -> d)
+    )
+    thenHave(∀(t, t ∈ cartesianProduct(a, c) ==> t ∈ cartesianProduct(b, d))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, subset.definition of (x -> cartesianProduct(a, c), y -> cartesianProduct(b, d)))
   }
 
   /**

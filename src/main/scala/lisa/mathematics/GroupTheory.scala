@@ -25,7 +25,7 @@ object GroupTheory extends lisa.Main {
   private val * = variable
 
   // Group elements
-  private val a, b = variable
+  private val a, b, c, d = variable
   private val x, y, z = variable
   private val t, u, v, w = variable
 
@@ -866,7 +866,7 @@ object GroupTheory extends lisa.Main {
   val subgroupOperation = Theorem(
     (subgroup(H, G, *), x ∈ H, y ∈ H) |- (op(x, ★, y) === op(x, *, y))
   ) {
-      assume(subgroup(H, G, *))
+    assume(subgroup(H, G, *))
     val groupG = have(group(G, *)) by Tautology.from(subgroup.definition)
     val groupH = have(group(H, ★)) by Tautology.from(subgroup.definition)
 
@@ -875,7 +875,7 @@ object GroupTheory extends lisa.Main {
     )
     have((functional(*), x ∈ H, y ∈ H) |- op(x, ★, y) === op(x, *, y)) by Cut(
       lastStep,
-      restrictedFunctionApplication of (f -> *, VariableLabel("d") -> cartesianProduct(H, H), x -> pair(x, y))
+      restrictedFunctionApplication of (f -> *, d -> cartesianProduct(H, H), x -> pair(x, y))
     )
     have(thesis) by Tautology.from(
       lastStep,
@@ -1023,8 +1023,460 @@ object GroupTheory extends lisa.Main {
     )
   }
 
+  //
+  // 2.1 Main subgroup test
+  // 
+  // We define several useful lemmas to attack this easy, but long theorem to formalize
+  // 
+
+  private val nonEmpty = H !== ∅
+  private val closedByProducts = ∀(x, ∀(y, (x ∈ H /\ y ∈ H) ==> (op(x, *, y) ∈ H)))
+  private val closedByInverses = ∀(x, x ∈ H ==> (inverse(x, G, *) ∈ H))
+  private val subgroupConditions = nonEmpty /\ closedByProducts /\ closedByInverses
+
   /**
-   * Theorem --- A subset `H ⊆ G` of a group `(G, *)` is a subgroup if and only if:
+   * Lemma --- Reformulation of the subset definition.
+   */
+  private val subgroupConditionsSubset = Lemma(
+    (subset(H, G), x ∈ H) |- x ∈ G
+  ) {
+    assume(subset(H, G))
+    have(∀(x, x ∈ H ==> x ∈ G)) by Tautology.from(subset.definition of (x -> H, y -> G))
+    thenHave(x ∈ H ==> x ∈ G) by InstantiateForall(x)
+    thenHave(x ∈ H |- x ∈ G) by Restate
+  }
+
+  /**
+   * Lemma --- The subgroup conditions imply that `relationDomain(★) === cartesianProduct(H, H)`.
+   */
+  private val subgroupConditionsDomain = Lemma(
+    (group(G, *), subset(H, G), subgroupConditions) |- relationDomain(★) === cartesianProduct(H, H)
+  ) {
+    val H2 = cartesianProduct(H, H)
+    val G2 = cartesianProduct(G, G)
+
+    assume(group(G, *))
+    assume(subset(H, G))
+    assume(subgroupConditions)
+
+    have(relationDomain(★) === (H2 ∩ relationDomain(*))) by Tautology.from(restrictedFunctionDomain of (f -> *, x -> H2))
+    thenHave((relationDomain(*) === G2) |- relationDomain(★) === (H2 ∩ G2)) by RightSubstEq(
+      List((relationDomain(*), G2)),
+      lambda(z, relationDomain(★) === (H2 ∩ z))
+    )
+    val eq1 = have(relationDomain(★) === (H2 ∩ G2)) by Cut(groupOperationDomain, lastStep)
+
+    // Prove that (H2 ∩ G2) = H2
+    have(subset(H2, G2)) by Tautology.from(subsetsCartesianProduct of (a -> H, b -> G, c -> H, d -> G))
+    val eq2 = have((H2 ∩ G2) === H2) by Cut(
+      lastStep,
+      setIntersectionSubset of (x -> H2, y -> G2)
+    )
+
+    have(thesis) by Equalities(eq1, eq2)
+  }
+
+  /**
+   * Lemma --- The subgroup conditions imply that `(x, y)` is in the relation domain of `★`.
+   * 
+   * Analogous to [[groupPairInOperationDomain]].
+   */
+  private val subgroupConditionsPairInDomain = Lemma(
+    (group(G, *), subset(H, G), subgroupConditions, x ∈ H, y ∈ H) |- pair(x, y) ∈ relationDomain(★) 
+  ) {
+    assume(group(G, *))
+    assume(subset(H, G))
+    assume(subgroupConditions)
+    assume(x ∈ H)
+    assume(y ∈ H)
+
+    have(pair(x, y) ∈ cartesianProduct(H, H)) by Tautology.from(
+      pairInCartesianProduct of (a -> x, b -> y, x -> H, y -> H)
+    )
+    thenHave((relationDomain(★) === cartesianProduct(H, H)) |- pair(x, y) ∈ relationDomain(★)) by RightSubstEq(
+      List((relationDomain(★), cartesianProduct(H, H))),
+      lambda(z, pair(x, y) ∈ z)
+    )
+
+    have(thesis) by Cut(subgroupConditionsDomain, lastStep)
+  }
+
+  /**
+   * Lemma --- The subgroup conditions imply that `x ★ y = x * y`.
+   * 
+   * Analogous to [[subgroupOperation]].
+   */
+  private val subgroupConditionsOperation = Lemma(
+    (group(G, *), subset(H, G), subgroupConditions, x ∈ H, y ∈ H) |- op(x, ★, y) === op(x, *, y)
+  ) {
+    have(thesis) by Tautology.from(
+      subgroupConditionsPairInDomain,
+      groupOperationIsFunctional,
+      restrictedFunctionIsFunctional of (f -> *, x -> cartesianProduct(H, H)),
+      restrictedFunctionApplication of (f -> *, d -> cartesianProduct(H, H), x -> pair(x, y))
+    )
+  }
+
+  /**
+   * Lemma --- The subgroup conditions imply that `x ★ y ∈ H`.
+   */
+  private val subgroupConditionsProductClosure = Lemma(
+    (group(G, *), subset(H, G), subgroupConditions, x ∈ H, y ∈ H) |- op(x, ★, y) ∈ H
+  ) {
+    assume(group(G, *))
+    assume(subset(H, G))
+    assume(subgroupConditions)
+
+    have(closedByProducts) by Tautology
+    thenHave(∀(y, (x ∈ H /\ y ∈ H) ==> (op(x, *, y) ∈ H))) by InstantiateForall(x)
+    thenHave((x ∈ H /\ y ∈ H) ==> (op(x, *, y) ∈ H)) by InstantiateForall(y)
+    thenHave((x ∈ H, y ∈ H) |- (op(x, *, y) ∈ H)) by Restate
+    thenHave((x ∈ H, y ∈ H, op(x, ★, y) === op(x, *, y)) |- (op(x, ★, y) ∈ H)) by RightSubstEq(
+      List((op(x, ★, y), op(x, *, y))),
+      lambda(z, z ∈ H)
+    )
+
+    have(thesis) by Cut(subgroupConditionsOperation, lastStep)
+  }
+
+  /**
+   * Lemma --- The subgroup conditions imply that `★` is a binary relation on `H`.
+   */
+  private val subgroupConditionsBinaryRelation = Lemma(
+    (group(G, *), subset(H, G), subgroupConditions) |- binaryOperation(H, ★)
+  ) {
+    assume(group(G, *))
+    assume(subset(H, G))
+    assume(subgroupConditions)
+
+    val H2 = cartesianProduct(H, H)
+    val r = variable
+
+    have(∀(t, (t ∈ setOfFunctions(H2, H)) <=> (t ∈ powerSet(cartesianProduct(H2, H)) /\ functionalOver(t, H2)))) by Definition(setOfFunctions, setOfFunctionsUniqueness)(H2, H)
+    val setOfFunDef = thenHave((★ ∈ setOfFunctions(H2, H)) <=> (★ ∈ powerSet(cartesianProduct(H2, H)) /\ functionalOver(★, H2))) by InstantiateForall(★)
+
+    val fun = have(functional(★)) by Tautology.from(
+      groupOperationIsFunctional,
+      restrictedFunctionIsFunctional of (f -> *, x -> H2)
+    )
+    have(functional(★) /\ (relationDomain(★) === H2)) by RightAnd(fun, subgroupConditionsDomain)
+    val funOver = have(functionalOver(★, H2)) by Tautology.from(lastStep, functionalOver.definition of (f -> ★, x -> H2))
+
+    have(subset(★, cartesianProduct(relationDomain(★), relationRange(★)))) by Tautology.from(
+      fun,
+      functional.definition of (f -> ★),
+      relation.definition of (r -> ★),
+      relationImpliesRelationBetweenDomainAndRange of (r -> ★),
+      relationBetween.definition of (r -> ★, a -> relationDomain(★), b -> relationRange(★))
+    )
+    thenHave((relationDomain(★) === H2) |- subset(★, cartesianProduct(H2, relationRange(★)))) by RightSubstEq(
+      List((relationDomain(★), H2)),
+      lambda(z, subset(★, cartesianProduct(z, relationRange(★))))
+    )
+
+    val subsetDomRange = have(subset(★, cartesianProduct(H2, relationRange(★)))) by Cut(
+      subgroupConditionsDomain,
+      lastStep
+    )
+
+    // Prove that ★ is a subset of H2 x H
+    val left = have(subset(H2, H2)) by Tautology.from(subsetReflexivity of (x -> H2))
+    val right = have(subset(relationRange(★), H)) subproof {
+      // Use pullback to characterize t
+      val pullback = have(t ∈ relationRange(★) |- ∃(x, (x ∈ relationDomain(★)) /\ (app(★, x) === t))) by Tautology.from(
+        groupOperationIsFunctional,
+        restrictedFunctionIsFunctional of (f -> *, x -> H2),
+        inRangeImpliesPullbackExists of (f -> ★, z -> t)
+      )
+
+      have((x ∈ relationDomain(★)) <=> (x ∈ relationDomain(★))) by Restate
+      thenHave((relationDomain(★) === H2) |- (x ∈ relationDomain(★)) <=> (x ∈ H2)) by RightSubstEq(
+        List((relationDomain(★), H2)),
+        lambda(z, (x ∈ relationDomain(★)) <=> (x ∈ z))
+      )
+      val equiv1 = have((x ∈ relationDomain(★)) <=> (x ∈ H2)) by Cut(subgroupConditionsDomain, lastStep)
+      val equiv2 = have((x ∈ H2) <=> ∃(a, ∃(b, (x === pair(a, b)) /\ in(a, H) /\ in(b, H)))) by Tautology.from(
+        elemOfCartesianProduct of (t -> x, x -> H, y -> H)
+      )
+
+      // Use closure by products to show that app(★, x) ∈ H
+      have(closedByProducts) by Tautology
+      thenHave(∀(y, (a ∈ H /\ y ∈ H) ==> (op(a, *, y) ∈ H))) by InstantiateForall(a)
+      thenHave((a ∈ H /\ b ∈ H) ==> (op(a, *, b) ∈ H)) by InstantiateForall(b)
+      thenHave((a ∈ H, b ∈ H) |- (op(a, *, b) ∈ H)) by Restate
+      thenHave((a ∈ H, b ∈ H, op(a, ★, b) === op(a, *, b)) |- (op(a, ★, b) ∈ H)) by RightSubstEq(
+        List((op(a, ★, b), op(a, *, b))),
+        lambda(z, z ∈ H)
+      )
+
+      have((a ∈ H, b ∈ H) |- (op(a, ★, b) ∈ H)) by Cut(
+        subgroupConditionsOperation of (x -> a, y -> b),
+        lastStep
+      )
+      thenHave((x === pair(a, b), a ∈ H, b ∈ H) |- (app(★, x) ∈ H)) by RightSubstEq(
+        List((x, pair(a, b))),
+        lambda(z, app(★, z) ∈ H)
+      )
+      thenHave(((x === pair(a, b)) /\ a ∈ H /\ b ∈ H) |- (app(★, x) ∈ H)) by Restate
+      thenHave(∃(b, (x === pair(a, b)) /\ a ∈ H /\ b ∈ H) |- (app(★, x) ∈ H)) by LeftExists
+      thenHave(∃(a, ∃(b, (x === pair(a, b)) /\ a ∈ H /\ b ∈ H)) |- (app(★, x) ∈ H)) by LeftExists
+
+      have((x ∈ relationDomain(★)) |- (app(★, x) ∈ H)) by Tautology.from(lastStep, equiv1, equiv2)
+      thenHave((x ∈ relationDomain(★), app(★, x) === t) |- (t ∈ H)) by RightSubstEq(
+        List((app(★, x), t)),
+        lambda(z, z ∈ H)
+      )
+      thenHave((x ∈ relationDomain(★) /\ (app(★, x) === t)) |- (t ∈ H)) by Restate
+      thenHave(∃(x, x ∈ relationDomain(★) /\ (app(★, x) === t)) |- (t ∈ H)) by LeftExists
+
+      have(t ∈ relationRange(★) |- t ∈ H) by Cut(pullback, lastStep)
+      thenHave(t ∈ relationRange(★) ==> t ∈ H) by Restate
+      thenHave(∀(t, t ∈ relationRange(★) ==> t ∈ H)) by RightForall
+
+      have(thesis) by Tautology.from(lastStep, subset.definition of (x -> relationRange(★), y -> H))
+    }
+
+    have(subset(cartesianProduct(H2, relationRange(★)), cartesianProduct(H2, H))) by Tautology.from(
+      left,
+      right,
+      subsetsCartesianProduct of (a -> H2, b -> H2, c -> relationRange(★), d -> H)
+    )
+    have(subset(★, cartesianProduct(H2, H))) by Tautology.from(
+      lastStep,
+      subsetDomRange,
+      subsetTransitivity of (a -> ★, b -> cartesianProduct(H2, relationRange(★)), c -> cartesianProduct(H2, H))
+    )
+    have(★ ∈ powerSet(cartesianProduct(H2, H))) by Tautology.from(
+      lastStep,
+      powerSet.definition of (x -> ★, y -> cartesianProduct(H2, H))
+    )
+
+    have(★ ∈ powerSet(cartesianProduct(H2, H)) /\ functionalOver(★, H2)) by RightAnd(lastStep, funOver)
+
+    have(thesis) by Tautology.from(
+      lastStep,
+      setOfFunDef,
+      functionFrom.definition of (f -> ★, x -> H2, y -> H),
+      binaryOperation.definition of (G -> H, * -> ★)
+    )
+  }
+
+  /**
+   * Lemma --- The subgroup conditions imply associativity on `H`.
+   * 
+   * This directly follows from associativity on `G` and [[subgroupConditionsOperation]].
+   */
+  private val subgroupConditionsAssociativity = Lemma(
+    (group(G, *), subset(H, G), subgroupConditions) |- associativityAxiom(H, ★)
+  ) {
+    assume(group(G, *))
+    assume(subset(H, G))
+    assume(subgroupConditions)
+
+    have((x ∈ H, y ∈ H, z ∈ H) |- op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z))) subproof {
+      assume(x ∈ H)
+      assume(y ∈ H)
+      assume(z ∈ H)
+
+      have(op(op(x, *, y), *, z) === op(x, *, op(y, *, z))) by Tautology.from(
+        associativity,
+        subgroupConditionsSubset,
+        subgroupConditionsSubset of (x -> y),
+        subgroupConditionsSubset of (x -> z)
+      )
+      thenHave((op(x, ★, y) === op(x, *, y), op(y, ★, z) === op(y, *, z)) |- (op(op(x, ★, y), *, z) === op(x, *, op(y, ★, z)))) by RightSubstEq(
+        List((op(x, ★, y), op(x, *, y)), (op(y, ★, z), op(y, *, z))),
+        lambda(Seq(a, b), op(a, *, z) === op(x, *, b))
+      )
+
+      have(op(op(x, ★, y), *, z) === op(x, *, op(y, ★, z))) by Tautology.from(
+        lastStep,
+        subgroupConditionsOperation,
+        subgroupConditionsOperation of (x -> y, y -> z)
+      )
+      thenHave((op(op(x, ★, y), ★, z) === op(op(x, ★, y), *, z), op(x, ★, op(y, ★, z)) === op(x, *, op(y, ★, z))) |- (op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z)))) by RightSubstEq(
+        List((op(op(x, ★, y), ★, z), op(op(x, ★, y), *, z)), (op(x, ★, op(y, ★, z)), op(x, *, op(y, ★, z)))),
+        lambda(Seq(a, b), a === b)
+      )
+
+      have(op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z))) by Tautology.from(
+        lastStep,
+        subgroupConditionsOperation of (x -> op(x, ★, y), y -> z),
+        subgroupConditionsOperation of (x -> x, y -> op(y, ★, z)),
+        subgroupConditionsProductClosure,
+        subgroupConditionsProductClosure of (x -> y, y -> z)
+      )
+    }
+
+    // Reconstruct the axiom in its closed form
+    thenHave((x ∈ H, y ∈ H) |- (z ∈ H) ==> (op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z)))) by Restate
+    thenHave((x ∈ H, y ∈ H) |- ∀(z, (z ∈ H) ==> (op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z))))) by RightForall
+    thenHave((x ∈ H) |- (y ∈ H) ==> ∀(z, (z ∈ H) ==> (op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z))))) by Restate
+    thenHave((x ∈ H) |- ∀(y, (y ∈ H) ==> ∀(z, (z ∈ H) ==> (op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z)))))) by RightForall
+    thenHave((x ∈ H) ==> ∀(y, (y ∈ H) ==> ∀(z, (z ∈ H) ==> (op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z)))))) by Restate
+    thenHave(∀(x, (x ∈ H) ==> ∀(y, (y ∈ H) ==> ∀(z, (z ∈ H) ==> (op(op(x, ★, y), ★, z) === op(x, ★, op(y, ★, z))))))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, associativityAxiom.definition of (G -> H, * -> ★))
+  }
+
+  /**
+   * Lemma --- The subgroup conditions imply the existence of an identity element on `H`.
+   * 
+   * We show in particular that identity(G, *) is neutral on `H`.
+   */
+  private val subgroupConditionsIdentityExistence = Lemma(
+    (group(G, *), subset(H, G), subgroupConditions) |- identityExistence(H, ★)
+  ) {
+    assume(group(G, *))
+    assume(subset(H, G))
+    assume(subgroupConditions)
+
+    // We show that for an element x ∈ H:
+    // 1. inverse(x) ∈ H                   [[closedByInverses]]
+    // 2. x * inverse(x) ∈ H               [[closedByProducts]]
+    // 3. x * inverse(x) = identity(G, *)  [[inverseCancellation]]
+    // 4. identity(G, *) ∈ H               Substitution of 3. in 2.
+    // 5. isNeutral(identity(G, *), H, ★)  [[identityNeutrality]]
+    // 6. identityExistence(H, ★)          [[identityExistence]]
+    // We finally conclude by [[nonEmpty]].
+
+    // 1. inverse(x) ∈ H
+    have(closedByInverses) by Tautology
+    thenHave(((x ∈ H) ==> (inverse(x, G, *) ∈ H))) by InstantiateForall(x)
+    val step1 = thenHave((x ∈ H) |- (inverse(x, G, *) ∈ H)) by Restate
+
+    // 2. x * inverse(x) ∈ H
+    have(closedByProducts) by Tautology
+    thenHave(∀(y, (x ∈ H /\ y ∈ H) ==> (op(x, *, y) ∈ H))) by InstantiateForall(x)
+    thenHave((x ∈ H /\ inverse(x, G, *) ∈ H) ==> (op(x, *, inverse(x, G, *)) ∈ H)) by InstantiateForall(inverse(x, G, *))
+    thenHave((x ∈ H, inverse(x, G, *) ∈ H) |- (op(x, *, inverse(x, G, *)) ∈ H)) by Restate
+
+    val step2 = have((x ∈ H) |- (op(x, *, inverse(x, G, *)) ∈ H)) by Cut(step1, lastStep)
+
+    // 3. x * inverse(x) = identity(G, *)
+    val step3 = have((x ∈ H) |- op(x, *, inverse(x, G, *)) === identity(G, *)) by Tautology.from(
+      subgroupConditionsSubset,
+      inverseCancellation
+    )
+
+    // 4. identity(G, *) ∈ H
+    have((x ∈ H, op(x, *, inverse(x, G, *)) === identity(G, *)) |- (identity(G, *) ∈ H)) by RightSubstEq(
+      List((op(x, *, inverse(x, G, *)), identity(G, *))),
+      lambda(z, z ∈ H)
+    )(step2)
+    val step4 = have((x ∈ H) |- (identity(G, *) ∈ H)) by Cut(step3, lastStep)
+
+    // 5. isNeutral(identity(G, *), H, ★)
+    have((x ∈ H) |- (op(identity(G, *), *, x) === x) /\ (op(x, *, identity(G, *)) === x)) by Tautology.from(
+      subgroupConditionsSubset,
+      identityNeutrality
+    )
+    thenHave((x ∈ H, op(identity(G, *), ★, x) === op(identity(G, *), *, x), op(x, ★, identity(G, *)) === op(x, *, identity(G, *))) |- (op(identity(G, *), ★, x) === x) /\ (op(x, ★, identity(G, *)) === x)) by RightSubstEq(
+      List((op(identity(G, *), ★, x), op(identity(G, *), *, x)), (op(x, ★, identity(G, *)), op(x, *, identity(G, *)))),
+      lambda(Seq(a, b), (a === x) /\ (b === x))
+    )
+
+    have(x ∈ H |- (op(identity(G, *), ★, x) === x) /\ (op(x, ★, identity(G, *)) === x)) by Tautology.from(
+      lastStep,
+      step4,
+      subgroupConditionsOperation of (x -> identity(G, *), y -> x),
+      subgroupConditionsOperation of (x -> x, y -> identity(G, *))
+    )
+
+    thenHave((x ∈ H) ==> (op(identity(G, *), ★, x) === x) /\ (op(x, ★, identity(G, *)) === x)) by Restate
+    thenHave(∀(x, (x ∈ H) ==> (op(identity(G, *), ★, x) === x) /\ (op(x, ★, identity(G, *)) === x))) by RightForall
+    val step5 = have((x ∈ H) |- isNeutral(identity(G, *), H, ★)) by Tautology.from(
+      lastStep,
+      step4,
+      isNeutral.definition of (e -> identity(G, *), G -> H, * -> ★)
+    )
+
+    // 6. identityExistence(H, ★) 
+    thenHave((x ∈ H) |- ∃(e, isNeutral(e, H, ★))) by RightExists
+    val step6 = have((x ∈ H) |- identityExistence(H, ★)) by Tautology.from(lastStep, identityExistence.definition of (G -> H, * -> ★))
+
+    // Conclude by [[nonEmpty]]
+    thenHave(∃(x, x ∈ H) |- identityExistence(H, ★)) by LeftExists
+
+    have(thesis) by Tautology.from(lastStep, nonEmptySetHasElement of (x -> H))
+  }
+
+  /**
+   * Lemma --- The subgroup conditions imply that for all elements `x` in `H`, there exists an inverse in `H`.
+   */
+  private val subgroupConditionsInverseExistence = Lemma(
+    (group(G, *), subset(H, G), subgroupConditions) |- inverseExistence(H, ★)
+  ) {
+    assume(group(G, *))
+    assume(subset(H, G))
+    assume(subgroupConditions)
+
+    val i = inverse(x, G, *)
+    
+    have(closedByInverses) by Tautology
+    thenHave(x ∈ H ==> i ∈ H) by InstantiateForall(x)
+    val inverseInH = thenHave(x ∈ H |- i ∈ H) by Restate
+
+    // Show that a neutral element of G is also neutral in H
+    val neutralityInheritance = have((e ∈ H, isNeutral(e, G, *)) |- isNeutral(e, H, ★)) subproof {
+      assume(isNeutral(e, G, *))
+      have(∀(x, (x ∈ G) ==> ((op(e, *, x) === x) /\ (op(x, *, e) === x)))) by Tautology.from(isNeutral.definition)
+      thenHave((x ∈ G) ==> ((op(e, *, x) === x) /\ (op(x, *, e) === x))) by InstantiateForall(x)
+      thenHave(x ∈ G |- (op(e, *, x) === x) /\ (op(x, *, e) === x)) by Restate
+      
+      have(x ∈ H |- (op(e, *, x) === x) /\ (op(x, *, e) === x)) by Cut(subgroupConditionsSubset, lastStep)
+      thenHave((x ∈ H, op(e, ★, x) === op(e, *, x), op(x, ★, e) === op(x, *, e)) |- (op(e, ★, x) === x) /\ (op(x, ★, e) === x)) by RightSubstEq(
+        List((op(e, ★, x), op(e, *, x)), (op(x, ★, e), op(x, *, e))),
+        lambda(Seq(a, b), (a === x) /\ (b === x))
+      )
+
+      have((x ∈ H, e ∈ H) |- (op(e, ★, x) === x) /\ (op(x, ★, e) === x)) by Tautology.from(
+        lastStep,
+        subgroupConditionsOperation of (x -> e, y -> x),
+        subgroupConditionsOperation of (x -> x, y -> e)
+      )
+      thenHave(e ∈ H |- (x ∈ H) ==> (op(e, ★, x) === x) /\ (op(x, ★, e) === x)) by Restate
+      thenHave(e ∈ H |- ∀(x, (x ∈ H) ==> (op(e, ★, x) === x) /\ (op(x, ★, e) === x))) by RightForall
+
+      have(e ∈ H |- isNeutral(e, H, ★)) by Tautology.from(lastStep, isNeutral.definition of (G -> H, * -> ★))
+    }
+
+    // Show that i is neutral in H
+    have(x ∈ H |- isNeutral(op(x, *, i), G, *) /\ isNeutral(op(i, *, x), G, *)) by Tautology.from(
+      subgroupConditionsSubset,
+      inverseIsInverse,
+      isInverse.definition of (y -> inverse(x, G, *))
+    )
+    thenHave((x ∈ H, op(x, ★, i) === op(x, *, i), op(i, ★, x) === op(i, *, x)) |- isNeutral(op(x, ★, i), G, *) /\ isNeutral(op(i, ★, x), G, *)) by RightSubstEq(
+      List((op(x, ★, i), op(x, *, i)), (op(i, ★, x), op(i, *, x))),
+      lambda(Seq(a, b), isNeutral(a, G, *) /\ isNeutral(b, G, *))
+    )
+
+    have((x ∈ H, i ∈ H) |- isNeutral(op(x, ★, i), G, *) /\ isNeutral(op(i, ★, x), G, *)) by Tautology.from(
+      lastStep,
+      subgroupConditionsOperation of (x -> x, y -> i),
+      subgroupConditionsOperation of (x -> i, y -> x)
+    )
+
+    have((x ∈ H, i ∈ H) |- isNeutral(op(x, ★, i), H, ★) /\ isNeutral(op(i, ★, x), H, ★)) by Tautology.from(
+      lastStep,
+      neutralityInheritance of (e -> op(x, ★, i)),
+      neutralityInheritance of (e -> op(i, ★, x)),
+      subgroupConditionsProductClosure of (x -> x, y -> i),
+      subgroupConditionsProductClosure of (x -> i, y -> x)
+    )
+
+    have(x ∈ H |- (i ∈ H) /\ isNeutral(op(x, ★, i), H, ★) /\ isNeutral(op(i, ★, x), H, ★)) by Tautology.from(inverseInH, lastStep)
+    have(x ∈ H |- isInverse(i, x, H, ★)) by Tautology.from(lastStep, isInverse.definition of (y -> i, G -> H, * -> ★))
+    thenHave(x ∈ H |- ∃(y, isInverse(y, x, H, ★))) by RightExists
+    thenHave(x ∈ H ==> ∃(y, isInverse(y, x, H, ★))) by Restate
+    thenHave(∀(x, x ∈ H ==> ∃(y, isInverse(y, x, H, ★)))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, inverseExistence.definition of (G -> H, * -> ★))
+  }
+
+  /**
+   * Theorem (Main subgroup test) --- A subset `H ⊆ G` of a group `(G, *)` is a subgroup if and only if:
    *   1. `H` is non-empty,
    *   2. `H` is closed by products, and
    *   3. `H` is closed by inversion.
@@ -1033,14 +1485,69 @@ object GroupTheory extends lisa.Main {
    * 
    * Note that in the case where H is finite, conditions 1 and 2 are sufficient.
    */
-  val subgroupCondition = Theorem(
-    (group(G, *), subset(H, G)) |- (subgroup(H, G, *) <=> (
-      (H !== ∅) /\
-      ∀(x, x ∈ H ==> ∀(y, y ∈ H ==> (op(x, *, y) ∈ H))) /\
-      ∀(x, x ∈ H ==> inverse(x, G, *) ∈ H)
-    ))
+  val subgroupTest = Theorem(
+    (group(G, *), subset(H, G)) |- (subgroup(H, G, *) <=> subgroupConditions)
   ) {
-    sorry
+    assume(group(G, *))
+    assume(subset(H, G))
+
+    // The forward direction follow directly:
+    // 1. nonEmpty --> [[groupNonEmpty]]
+    // 2. closedByProducts --> [[subgroupOperation]] and [[groupIsClosedByProduct]]
+    // 3. closedByInverses --> [[subgroupInverse]] and [[inverseInGroup]]
+    have(subgroup(H, G, *) |- subgroupConditions) subproof {
+      assume(subgroup(H, G, *))
+      val groupH = have(group(H, ★)) by Tautology.from(subgroup.definition)
+
+      val condition1 = have(nonEmpty) by Cut(groupH, groupNonEmpty of (G -> H, * -> ★))
+      
+      have((x ∈ H, y ∈ H) |- op(x, ★, y) ∈ H) by Cut(groupH, groupIsClosedByProduct of (G -> H, * -> ★))
+      thenHave((x ∈ H, y ∈ H, op(x, ★, y) === op(x, *, y)) |- op(x, *, y) ∈ H) by RightSubstEq(
+        List((op(x, ★, y), op(x, *, y))),
+        lambda(z, z ∈ H)
+      )
+
+      have((x ∈ H, y ∈ H) |- op(x, *, y) ∈ H) by Cut(subgroupOperation, lastStep)
+      thenHave((x ∈ H /\ y ∈ H) ==> (op(x, *, y) ∈ H)) by Restate
+      thenHave(∀(y, (x ∈ H /\ y ∈ H) ==> (op(x, *, y) ∈ H))) by RightForall
+      val condition2 = thenHave(closedByProducts) by RightForall
+
+      have((x ∈ H) |- (inverse(x, H, ★) ∈ H)) by Cut(groupH, inverseInGroup of (G -> H, * -> ★))
+      thenHave((x ∈ H, inverse(x, H, ★) === inverse(x, G, *)) |- inverse(x, G, *) ∈ H) by RightSubstEq(
+        List((inverse(x, H, ★), inverse(x, G, *))),
+        lambda(z, z ∈ H)
+      )
+
+      have((x ∈ H) |- (inverse(x, G, *) ∈ H)) by Cut(subgroupInverse, lastStep)
+      thenHave((x ∈ H) ==> (inverse(x, G, *) ∈ H)) by Restate
+      val condition3 = thenHave(closedByInverses) by RightForall
+
+      have(subgroupConditions) by RightAnd(condition1, condition2, condition3)
+    }
+    val forward = thenHave(subgroup(H, G, *) ==> subgroupConditions) by Restate
+
+    // For the backward direction, we must prove that the conditions make (H, ★) satisfy the axioms of a group:
+    // 1. Closure by products (i.e. ★'s codomain is H): [[closedByProducts]]
+    // 2. Associativity: follows from G's associativity
+    // 3. Identity existence: follows from [[nonEmpty]], [[closedByProducts]] and [[closedByInverses]]
+    // 4. Inverse existence: [[closedByInverse]]
+    //
+    // This direction is quite painful to prove. Each step is presented in its own lemma for easier legibility.
+    have(subgroupConditions |- subgroup(H, G, *)) subproof {
+      assume(subgroupConditions)
+      have(binaryOperation(H, ★) /\ associativityAxiom(H, ★) /\ identityExistence(H, ★) /\ inverseExistence(H, ★)) by RightAnd(
+        subgroupConditionsBinaryRelation,
+        subgroupConditionsAssociativity,
+        subgroupConditionsIdentityExistence,
+        subgroupConditionsInverseExistence
+      )
+      have(group(H, ★)) by Tautology.from(lastStep, group.definition of (G -> H, * -> ★))
+      thenHave(group(G, *) /\ subset(H, G) /\ group(H, ★)) by Tautology
+      have(thesis) by Tautology.from(lastStep, subgroup.definition)
+    }
+    val backward = thenHave(subgroupConditions ==> subgroup(H, G, *)) by Restate
+
+    have(thesis) by RightIff(forward, backward)
   }
 
   // TODO Trivial subgroup
@@ -1345,7 +1852,7 @@ object GroupTheory extends lisa.Main {
     assume(homomorphism(f, G, *, H, **))
     val groupG = have(group(G, *)) by Tautology.from(homomorphism.definition)
 
-    // We show that the kernel satisfies all requirements of [[subgroupCondition]]
+    // We show that the kernel satisfies all requirements of [[subgroupTest]]
     have((x ∈ K) ==> (x ∈ G)) by Tautology.from(kernelDef)
     thenHave(∀(x, x ∈ K ==> x ∈ G)) by RightForall
     val kernelIsSubset = have(subset(K, G)) by Tautology.from(lastStep, subsetAxiom of (x -> K, y -> G))
@@ -1363,23 +1870,22 @@ object GroupTheory extends lisa.Main {
     val condition1 = have(K !== ∅) by Cut(lastStep, setWithElementNonEmpty of (y -> identity(G, *), x -> K))
     
     // 2. The kernel is closed by products
-    have(x ∈ K |- ((y ∈ K) ==> op(x, *, y) ∈ K)) by Restate.from(kernelIsClosedByProducts)
-    thenHave(x ∈ K |- ∀(y, (y ∈ K) ==> op(x, *, y) ∈ K)) by RightForall
-    thenHave(x ∈ K ==> ∀(y, (y ∈ K) ==> op(x, *, y) ∈ K)) by Restate
-    val condition2 = thenHave(∀(x, x ∈ K ==> ∀(y, (y ∈ K) ==> op(x, *, y) ∈ K))) by RightForall
+    have((x ∈ K /\ y ∈ K) ==> op(x, *, y) ∈ K) by Restate.from(kernelIsClosedByProducts)
+    thenHave(∀(y, (x ∈ K /\ y ∈ K) ==> op(x, *, y) ∈ K)) by RightForall
+    val condition2 = thenHave(∀(x, ∀(y, (x ∈ K /\ y ∈ K) ==> op(x, *, y) ∈ K))) by RightForall
 
     // 3. The kernel is closed by inversion
     have((x ∈ K) ==> (inverse(x, G, *) ∈ K)) by Restate.from(kernelIsClosedByInversion)
     val condition3 = thenHave(∀(x, (x ∈ K) ==> (inverse(x, G, *) ∈ K))) by RightForall
 
     // Conclude
-    have((K !== ∅) /\ ∀(x, x ∈ K ==> ∀(y, (y ∈ K) ==> op(x, *, y) ∈ K)) /\ ∀(x, (x ∈ K) ==> (inverse(x, G, *) ∈ K))) by RightAnd(
+    have((K !== ∅) /\ ∀(x, ∀(y, (x ∈ K /\ y ∈ K) ==> op(x, *, y) ∈ K)) /\ ∀(x, (x ∈ K) ==> (inverse(x, G, *) ∈ K))) by RightAnd(
       condition1, condition2, condition3
     )
 
     have(subgroup(K, G, *)) by Tautology.from(
       lastStep,
-      subgroupCondition of (H -> K),
+      subgroupTest of (H -> K),
       groupG,
       kernelIsSubset
     )
