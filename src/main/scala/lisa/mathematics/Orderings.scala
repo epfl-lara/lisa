@@ -980,9 +980,11 @@ object Orderings extends lisa.Main {
     val p2 = secondInPair(p)
 
     val fwd = have(in(pair(x, y), p2) |- in(x, initialSegment(p, y))) subproof {
+      assume(in(pair(x, y), p2))
+
       // p2 is a relation on p1
       have(relationBetween(p2, p1, p1)) by Tautology.from(partialOrder.definition)
-      val xInp1 = have(in(x, p1)) by Tautology.from(lastStep, pairInRelation of (a -> x, b -> y, x -> p1, y -> p1))
+      val xInp1 = have(in(x, p1)) by Tautology.from(lastStep, pairInRelation of (r -> p2, a -> p1, b -> p1))
       have(forall(x, in(x, initialSegment(p, y)) <=> (in(x, p1) /\ in(pair(x, y), p2)))) by InstantiateForall(initialSegment(p, y))(initialSegment.definition of a -> y)
       thenHave(in(x, initialSegment(p, y)) <=> (in(x, p1) /\ in(pair(x, y), p2))) by InstantiateForall(x)
 
@@ -1042,7 +1044,8 @@ object Orderings extends lisa.Main {
   val orderedRestrictionFunctionalOverInit = Lemma(
     functionalOver(orderedRestriction(f, a, p), initialSegment(p, a))
   ) {
-    sorry
+    ??? // this is 100% wrong.
+    // TODO: FIX
   }
 
   /**
@@ -1336,6 +1339,12 @@ object Orderings extends lisa.Main {
     thenHave(exists(y, yDef) |- ()) by LeftExists
     have(() |- ()) by Cut(yExists, lastStep)
     thenHave(thesis) by Restate
+  }
+
+  val minimalOrdinalCounterexample = Theorem(
+    exists(x, ordinal(x) /\ !Q(x)) |- exists(x, ordinal(x) /\ !Q(x) /\ forall(y, in(y, x) ==> Q(y)))
+  ) {
+    have(thesis) by Restate.from(transfiniteInduction)
   }
 
   /**
@@ -1911,6 +1920,7 @@ object Orderings extends lisa.Main {
                             val unequal = have(!(orderedRestriction(k1, n, p) === orderedRestriction(k2, n, p))) by Restate
 
                             // they are functions on the same domain
+                            // TODO: THIS IS INCREDIBLY FRAGILE AND NEEDS TO BE FIXED !!!!!!!!
                             val functional = have(functionalOver(orderedRestriction(k1, n, p), initialSegment(p, n)) /\ functionalOver(orderedRestriction(k2, n, p), initialSegment(p, n))) by Tautology
                               .from(orderedRestrictionFunctionalOverInit of (f -> k1, a -> n), orderedRestrictionFunctionalOverInit of (f -> k2, a -> n))
 
@@ -2163,12 +2173,243 @@ object Orderings extends lisa.Main {
               have(thesis) by Tautology.from(functionalOver.definition of (f -> uw, x -> initialSegment(p, x)), lastStep, uwfunctional)
             }
 
-            // z < x ==> w z = F w |^ z
+            // z < x ==> uw z = F uw |^ z
+            have(in(z, initialSegment(p, x)) |- app(uw, z) === F(orderedRestriction(uw, z, p))) subproof {
+              assume(in(z, initialSegment(p, x)))
+
+              // \exists g \in w. uw z = F g |^ z
+              val gExists = have(exists(g, in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p))))) subproof {
+                // dom uw = < x
+                val domUEq = have(relationDomain(uw) === initialSegment(p, x)) by Tautology.from(uwFunctionalOver, functionalOverImpliesDomain of (f -> uw, x -> initialSegment(p, x)))
+
+                // z in dom uw
+                have(in(z, initialSegment(p, x))) by Restate
+                val zInDom = thenHave(in(z, relationDomain(uw))) by Substitution.apply2(true, domUEq)
+
+                // so exists g \in w, z \in dom g
+                have(functional(uw) /\ in(z, relationDomain(uw)) |- exists(g, in(g, w) /\ in(z, relationDomain(g)))) by InstantiateForall(z)(domainOfFunctionalUnion of z -> w)
+                val gExists = have(exists(g, in(g, w) /\ in(z, relationDomain(g)))) by Tautology.from(lastStep, zInDom, uwfunctional)
+
+                have((in(g, w), in(z, relationDomain(g))) |- app(uw, z) === F(orderedRestriction(g, z, p))) subproof {
+                  assume(in(g, w))
+                  assume(in(z, relationDomain(g)))
+
+                  // given such a g, g(z) = uw(z)
+                  val gEqU = have(app(g, z) === app(uw, z)) subproof {
+                    have(
+                      (b === app(f, z)) <=> ((functional(f) /\ in(z, relationDomain(f))) ==> in(pair(z, b), f)) /\ ((!functional(f) \/ !in(z, relationDomain(f))) ==> (b === ∅))
+                    ) by InstantiateForall(b)(app.definition of x -> z)
+                    val appDef = thenHave(functional(f) /\ in(z, relationDomain(f)) |- (b === app(f, z)) <=> in(pair(z, b), f)) by Tautology
+
+                    // for g z
+                    val gb = have((b === app(g, z)) <=> in(pair(z, b), g)) subproof {
+                      // g is functional
+                      have(functional(g)) by Tautology.from(elemsFunctional of t -> g)
+                      have(thesis) by Tautology.from(lastStep, appDef of f -> g)
+                    }
+
+                    // for uw z
+                    val uwb = have((b === app(uw, z)) <=> in(pair(z, b), uw)) by Tautology.from(appDef of f -> uw, uwfunctional)
+
+                    // in g ==> in uw
+                    have(in(t, g) ==> in(t, uw)) subproof {
+                      assume(in(t, g))
+
+                      // suffices to show the existence of g
+                      val unionAx = have(in(t, uw) <=> exists(g, in(g, w) /\ in(t, g))) by Weakening(unionAxiom of (z -> t, x -> w))
+
+                      have(in(g, w) /\ in(t, g)) by Restate
+                      thenHave(exists(g, in(g, w) /\ in(t, g))) by RightExists
+
+                      have(thesis) by Tautology.from(lastStep, unionAx)
+                    }
+
+                    // equal
+                    have((b === app(g, z)) |- (b === app(uw, z))) by Tautology.from(lastStep of t -> pair(z, b), gb, uwb)
+                    have(thesis) by Restate.from(lastStep of b -> app(g, z))
+                  }
+
+                  // we must also have g(z) = F(g |^ z)
+                  have(app(g, z) === F(orderedRestriction(g, z, p))) subproof {
+                    have(in(g, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by InstantiateForall
+                    val yExists = thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by Tautology
+
+                    have(fun(g, y) |- app(g, z) === F(orderedRestriction(g, z, p))) subproof {
+                      assume(fun(g, y))
+
+                      // dom g = < y
+                      val domEq = have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(functionalOverImpliesDomain of (f -> g, x -> initialSegment(p, y)))
+
+                      have(forall(a, in(a, initialSegment(p, y)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))) by Restate
+                      thenHave(in(z, initialSegment(p, y)) ==> (app(g, z) === F(orderedRestriction(g, z, p)))) by InstantiateForall(z)
+                      thenHave(in(z, relationDomain(g)) ==> (app(g, z) === F(orderedRestriction(g, z, p)))) by Substitution.apply2(true, domEq)
+                      thenHave(thesis) by Restate
+                    }
+                    thenHave(in(y, initialSegment(p, x)) /\ fun(g, y) |- app(g, z) === F(orderedRestriction(g, z, p))) by Weakening
+                    thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y)) |- app(g, z) === F(orderedRestriction(g, z, p))) by LeftExists
+                    have(thesis) by Cut(yExists, lastStep)
+                  }
+
+                  thenHave(thesis) by Substitution.apply2(false, gEqU)
+                }
+
+                thenHave((in(g, w) /\ in(z, relationDomain(g))) |- in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p)))) by Weakening
+                thenHave((in(g, w) /\ in(z, relationDomain(g))) |- exists(g, in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p))))) by RightExists
+                thenHave(exists(g, in(g, w) /\ in(z, relationDomain(g))) |- exists(g, in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p))))) by LeftExists
+
+                have(thesis) by Cut(gExists, lastStep)
+              }
+
+              // but g \in w ==> g |^ z = uw |^ z
+              val gRestrictedEq = have(in(g, w) /\ in(z, relationDomain(g)) |- orderedRestriction(g, z, p) === orderedRestriction(uw, z, p)) subproof {
+                assume(in(g, w))
+                assume(in(z, relationDomain(g)))
+
+                val og = orderedRestriction(g, z, p)
+                val ou = orderedRestriction(uw, z, p)
+
+                // we prove this for a generic element t
+
+                // TODO: definition of ordered restriction was changed, please fix this accordingly!!!
+                have(forall(t, in(t, og) <=> (in(t, g) /\ in(firstInPair(t), initialSegment(p, z))))) by InstantiateForall(og)(orderedRestriction.definition of (f -> g, a -> z))
+                val ogDef = thenHave(in(t, og) <=> (in(t, g) /\ in(firstInPair(t), initialSegment(p, z)))) by InstantiateForall(t)
+
+                have(forall(t, in(t, ou) <=> (in(t, uw) /\ in(firstInPair(t), initialSegment(p, z))))) by InstantiateForall(ou)(orderedRestriction.definition of (f -> uw, a -> z))
+                val ouDef = thenHave(in(t, ou) <=> (in(t, uw) /\ in(firstInPair(t), initialSegment(p, z)))) by InstantiateForall(t)
+
+                // t \in g |^ z ==> t \in uw |^ z
+                have(in(t, og) |- in(t, ou)) subproof {
+                  assume(in(t, og))
+                  val tInG = have((in(t, g) /\ in(firstInPair(t), initialSegment(p, z)))) by Tautology.from(ogDef)
+
+                  // but g is a subset of uw
+                  have(in(t, g) ==> in(t, uw)) subproof {
+                    assume(in(t, g))
+
+                    have(in(g, w) /\ in(t, g)) by Restate
+                    thenHave(exists(g, in(g, w) /\ in(t, g))) by RightExists
+                    have(thesis) by Tautology.from(lastStep, unionAxiom of (x -> w, z -> t))
+                  }
+
+                  have(thesis) by Tautology.from(lastStep, tInG, ouDef)
+                }
+
+                // t \in uw |^ z ==> t \in g |^ z
+                have(in(t, ou) |- in(t, og)) subproof {
+                  assume(in(t, ou))
+                  val tInU = thenHave((in(t, uw) /\ in(firstInPair(t), initialSegment(p, z)))) by Tautology
+
+                  // if t \in uw
+                  have(in(t, uw) |- in(t, g)) subproof {
+                    assume(in(t, uw))
+
+                    // suppose ! t \in g
+                    have(!in(t, g) |- ()) subproof {
+                      assume(!in(t, g))
+
+                      // exists f \in w, t \in f by union axiom
+                      have(in(f, w) /\ in(t, f) |- ()) subproof {
+                        assume(in(f, w))
+                        assume(in(t, f))
+
+                        // f \subseteq g or g \subseteq f
+                        val cases = have(subset(f, g) \/ subset(g, f)) subproof {
+                          have((in(g, w) /\ in(f, w)) ==> (subset(g, f) \/ subset(f, g))) by InstantiateForall(g, f)(elemsSubset)
+                          thenHave(thesis) by Tautology
+                        }
+
+                        // f \subseteq g ==> contradiction directly
+                        val fg = have(subset(f, g) |- ()) subproof {
+                          assume(subset(f, g))
+
+                          have(forall(t, in(t, f) ==> in(t, g))) by Tautology.from(subsetAxiom of (x -> f, y -> g))
+                          thenHave(in(t, f) ==> in(t, g)) by InstantiateForall(t)
+                          thenHave(thesis) by Tautology
+                        }
+
+                        // g \subseteq f
+                        val gf = have(subset(g, f) |- ()) subproof {
+                          assume(subset(g, f))
+
+                          val t1 = firstInPair(t)
+                          val t2 = secondInPair(t)
+
+                          // t1 \in dom og
+                          val t1InDomG = have(in(t1, relationDomain(og))) subproof {
+                            // t \in ou
+                            // so t1 \in <z
+                            have(in(t1, initialSegment(p, z))) by Tautology.from(ouDef)
+
+                            // <z = dom og
+                            have(relationDomain(og) === initialSegment(p, z)) subproof {
+                              // dom g is < y for some y
+
+                              // but z in dom g, so z < y
+
+                              // so < z \subseteq < y
+                              have(subset(initialSegment(p, y), initialSegment(p, z))) by Tautology.from(lastStep, initialSegmentsSubset)
+
+                              // dom og = < y \cap < z = < z
+                              have(thesis) subproof {
+                                // dom og = < y \cap < z
+
+                                sorry
+                              }
+                            }
+
+                            // t1 \in dom g
+
+                            sorry
+                          }
+
+                          // since t1 \in dom g, exists a. (t, a) \in g
+                          val aExists = have(exists(a, in(pair(t1, a), g))) subproof {
+                            have(forall(t, in(t, relationDomain(g)) <=> exists(a, in(pair(t, a), g)))) by InstantiateForall(relationDomain(g))(relationDomain.definition of r -> g)
+                            thenHave(in(t1, relationDomain(g)) <=> exists(a, in(pair(t1, a), g))) by InstantiateForall(t1)
+                            have(thesis) by Tautology.from(lastStep, t1InDomG)
+                          }
+
+                          have(in(pair(t, a), g) |- ()) subproof {
+                            // (t1, a) \in f
+
+                            // but (t1, t2) \in g
+
+                            // t2 = a
+
+                            // but then (t1, t2) = t \in g
+
+                            // this is a contradiction
+
+                            sorry
+                          }
+
+                          thenHave(exists(a, in(pair(t, a), g)) |- ()) by LeftExists
+                          have(thesis) by Tautology.from(lastStep, aExists)
+                        }
+
+                        have(thesis) by Tautology.from(cases, gf, fg)
+                      }
+                    }
+                  }
+
+                  have(thesis) by Tautology.from(lastStep, tInU, ogDef)
+                }
+              }
+
+              have(in(g, w) /\ (app(uw, z) === F(orderedRestriction(g, z, p))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) subproof {
+                have(in(g, w) /\ (app(uw, z) === F(orderedRestriction(g, z, p))) |- (app(uw, z) === F(orderedRestriction(g, z, p)))) by Restate
+                thenHave(thesis) by Substitution.apply2(false, gRestrictedEq)
+              }
+
+              thenHave(exists(g, in(g, w) /\ (app(uw, z) === F(orderedRestriction(g, z, p)))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) by LeftExists
+              have(thesis) by Cut(gExists, lastStep)
+
+            }
 
             sorry
           }
 
-          // if x has a predecessor, then we need to add an element to w, giving us v as the requisite function
+          // if x has a predecessor, then we need to add an element to uw, giving us v as the requisite function
           val successorCase = have(successorElement(p, x) |- exists(g, fun(g, x))) by Sorry
 
           have(thesis) by Tautology.from(limSuccCases, limitCase, successorCase)
