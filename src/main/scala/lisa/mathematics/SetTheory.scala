@@ -2110,9 +2110,10 @@ object SetTheory extends lisa.Main {
     relationBetween(r, a, b) /\ in(pair(x, y), r) |- in(x, a) /\ in(y, b)
   ) {
     assume(relationBetween(r, a, b))
+    assume(in(pair(x, y), r))
     have(forall(t, in(t, r) ==> in(t, cartesianProduct(a, b)))) by Tautology.from(relationBetween.definition, subsetAxiom of (x -> r, y -> cartesianProduct(a, b)))
     thenHave(in(pair(x, y), r) ==> in(pair(x, y), cartesianProduct(a, b))) by InstantiateForall(pair(x, y))
-    have(thesis) by Tautology.from(lastStep, pairInCartesianProduct)
+    have(thesis) by Tautology.from(lastStep, pairInCartesianProduct of (x -> a, y -> b, a -> x, b -> y))
   }
 
   /**
