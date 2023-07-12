@@ -1721,8 +1721,6 @@ object Orderings extends lisa.Main {
       // this is a function g for x (almost)
       val uw = union(w) // + (predecessor x, F(U w)) in the successor case
 
-      val v = setUnion(union(uw), singleton(pair(x, F(uw))))
-
       // need to show:
       //   - uw is a function as required over the initial segment of x
       //   - (x, F(Uw)) is a function
@@ -1966,7 +1964,7 @@ object Orderings extends lisa.Main {
                               have(subset(initialSegment(p, a1), initialSegment(p, a2))) by Tautology.from(initialSegmentsSubset of (x -> a1, y -> a2))
                               have(forall(n, in(n, initialSegment(p, a1)) ==> in(n, initialSegment(p, a2)))) by Tautology.from(lastStep, subsetAxiom of (x -> initialSegment(p, a1), y -> initialSegment(p, a2)))
                               thenHave(in(n, initialSegment(p, a1)) ==> in(n, initialSegment(p, a2))) by InstantiateForall(n)
-                              val nLTa2 = have(in(n, initialSegment(p, n2))) by Tautology.from(lastStep, nLTa1)
+                              val nLTa2 = have(in(n, initialSegment(p, a2))) by Tautology.from(lastStep, nLTa1)
 
                               // k1 functional over <a1
                               val k1fun = have(functionalOver(k1, initialSegment(a1))) by Restate
@@ -2326,9 +2324,9 @@ object Orderings extends lisa.Main {
                 val ou = orderedRestriction(uw, z, p)
 
                 // we prove this for a generic element t
-                val ogDef = have(in(t, og) <=> (in(t, g) /\ in(firstInPair(t), initialSegment(p, z)))) by InstantiateForall(og)(orderedRestrictionMembership of (f -> g, a -> z, b -> t), pIsAPartialOrder)
+                val ogDef = have(in(t, og) <=> (in(t, g) /\ in(firstInPair(t), initialSegment(p, z)))) by Tautology.from(orderedRestrictionMembership of (f -> g, a -> z, b -> t), pIsAPartialOrder)
 
-                val ouDef = have(in(t, ou) <=> (in(t, uw) /\ in(firstInPair(t), initialSegment(p, z)))) by InstantiateForall(ou)(orderedRestriction.definition of (f -> uw, a -> z, b -> t), pIsAPartialOrder)
+                val ouDef = have(in(t, ou) <=> (in(t, uw) /\ in(firstInPair(t), initialSegment(p, z)))) by Tautology.from(orderedRestriction.definition of (f -> uw, a -> z, b -> t), pIsAPartialOrder)
 
                 // t \in g |^ z ==> t \in uw |^ z
                 have(in(t, og) |- in(t, ou)) subproof {
@@ -2414,7 +2412,7 @@ object Orderings extends lisa.Main {
                                 // but z in dom g, so z < y
                                 have(in(z, initialSegment(p, y))) subproof {
                                   have(in(z, relationDomain(g))) by Restate
-                                  thenHave(thesis) by Substitution.apply2(false, eq)
+                                  thenHave(thesis) by Substitution.apply2(false, domEq)
                                 }
 
                                 // so < z \subseteq < y
@@ -2424,7 +2422,7 @@ object Orderings extends lisa.Main {
                                 have(thesis) subproof {
                                   // dom og = < y \cap < z
                                   have(relationDomain(og) === setIntersection(initialSegment(p, z), initialSegment(p, y))) subproof {
-                                    val ogExpand = have(restrictedFunction(g, initialSegment(p, z)) === og) by InstantiateForall(og)(orderedRsestriction.definition of (f -> g, a -> z))
+                                    val ogExpand = have(restrictedFunction(g, initialSegment(p, z)) === og) by InstantiateForall(og)(orderedRestriction.definition of (f -> g, a -> z))
                                   
                                     have(relationDomain(restrictedFunction(g, initialSegment(p, z))) === setIntersection(initialSegment(p, z), relationDomain(g))) by Weakening(restrictedFunctionDomain of (f -> g, x -> initialSegment(p, z)))
                                     thenHave(thesis) by Substitution.apply2(false, ogExpand, domEq)
@@ -2435,7 +2433,7 @@ object Orderings extends lisa.Main {
                               }
 
                               thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y)) |- relationDomain(og) === initialSegment(p, z)) by LeftExists
-                              thenHave(thesis) by Cut(yExists, lastStep)
+                              have(thesis) by Cut(yExists, lastStep)
                             }
 
                             // t1 \in dom g
