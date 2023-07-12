@@ -2540,11 +2540,14 @@ object Orderings extends lisa.Main {
           // if x has a predecessor, then we need to add an element to uw, giving us v as the requisite function
           val successorCase = have(successorElement(p, x) |- exists(g, fun(g, x))) subproof {
             assume(successorElement(p, x))
-            // the right function is v = Uw \cup {(pred x, F Uw |^ pred x)}
+            // the right function is v = Uw \cup {(pred x, F Uw)}
             // i.e., Uw with a recursive addition for the predecessor of x
             // which is not included in any initial segment below x (! (pred x < y) for y < x)
             // define pr as the predecessor of x
             val pr = variable
+            val prFun = singleton(pair(pr, F(uw)))
+            val v = setUnion(uw, prFun)
+
             have(predecessor(p, pr, x) |- fun(v, x)) subproof {
               assume(predecessor(p, pr, x))
               // to this end, we show:
@@ -2558,6 +2561,125 @@ object Orderings extends lisa.Main {
 
               // 1. v is functional over <x
               have(functionalOver(v, initialSegment(p, x))) subproof {
+                // 1. Uw is functional over <pr
+                have(functionalOver(uw, initialSegment(p, pr))) subproof {
+                  val iffDom = have(functionalOver(uw, initialSegment(p, pr)) <=> (relationDomain(uw) === initialSegment(p, pr))) by Tautology.from(functionalOver.definition of (f -> uw, x -> initialSegment(p, pr)), uwfunctional)
+
+                  have(relationDomain(uw) === initialSegment(p, pr)) subproof {
+                    val fwd = have(in(t, relationDomain(uw)) |- in(t, initialSegment(p, pr))) subproof {
+                      assuem(in(t, relationDomain(uw)))
+
+                      have(forall(t, in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g))))) by Tautology.from(uwfunctional, domainOfFunctionalUnion of z -> w)
+                      thenHave(in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g)))) by InstantiateForall(t)
+                      val gExists = thenHave(exists(g, in(g, w) /\ in(t, relationDomain(g)))) by Tautology
+
+                      have(in(g, w) /\ in(t, relationDomain(g)) |- in(t, initialSegment(p, pr))) subproof {
+                        assume(in(g, w))
+                        assume(in(t, relationDomain(g)))
+
+                        have(in(g, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by InstantiateForall
+                        val yExists = thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by Tautology
+
+                        have(in(y, initialSegment(p, x)) /\ fun(g, y) |- in(t, initialSegment(p, pr))) subproof {
+                          // t < y
+                          val domEQ = have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(functionalOver.definition of (f -> g, x -> initialSegment(p, y)))
+                          have(in(t, relationDomain(g))) by Restate
+                          val tLTy = thenHave(in(t, initialSegment(p, y))) by Substitution.apply2(false, domEQ)
+
+                          // y <= pr
+                          val cases = have((y === pr) \/ in(y, initialSegment(p, pr))) by Tautology.from(initialSegmentPredecessorSplit of (y -> pr, z -> y))
+
+                          val eqCase = have((y === pr) |- in(t, initialSegment(p, pr))) by Substitution.apply2(false, y === pr)(tLTy)
+                          val initCase = have(in(y, initialSegment(p, pr)) |- in(t, initialSegment(p, pr))) by Tautology.from(initialSegmentTransitivity of (x -> t, y -> y, z -> pr), pIsAPartialOrder)
+
+                          have(thesis) by Tautology.from(cases, eqCase, initCase)
+                        }
+                      }
+
+                      thenHave(exists(g, in(g, w) /\ in(t, relationDomain(g))) |- in(t, initialSegment(p, pr))) by LeftExists
+                      have(thesis) by Cut(gExists, lastStep)
+                    }
+
+                    val bwd = have(in(t, initialSegment(p, pr)) |- in(t, relationDomain(uw))) subproof {
+                      assume(in(t, initialSegment(p, pr)))
+
+                      have(in(pair(pr, x), p2)) by Tautology.from(predecessor.definition of y -> pr)
+                      val prLTx = have(in(pr, initialSegment(p, x))) by Tautology.from(lastStep, pIsAPartialOrder, initialSegmentElement of (y -> x, x -> pr))
+                      
+                      have(in(pr, initialSegment(p, x)) ==> existsOne(g, fun(g, pr))) by InstantiateForall
+                      val gExists = have(exists(g, fun(g, pr))) by Tautology.from(lastStep, prLTx, existsOneImpliesExists of P -> lambda(g, fun(g, pr)))
+
+                      have(fun(g, pr) |- in(g, w) /\ in(t, relationDomain(g))) subproof {
+                        assume(fun(g, pr))
+
+                        have(in(pr, initialSegment(p, x)) /\ fun(g, pr)) by Tautology.from(prLTx)
+                        val exPR = thenHave(exists(pr, in(pr, initialSegment(p, x)) /\ fun(g, pr))) by RightExists
+
+                        have(in(g, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by InstantiateForall
+                        val gW = have(in(g, w)) by Tautology.from(lastStep, exPR)
+
+                        have(functionalOver(g, pr)) by Tautology
+                        val domEQ = have(relationDomain(g) === initialSegment(p, pr)) by Tautology.from(lastStep, functionalOver.definition of (f -> g, x -> initialSegment(p, pr)))
+
+                        have(in(t, initialSegment(p, pr))) by Restate
+                        thenHave(in(t, relationDomain(g))) by Substitution.apply2(true, domEQ)
+                        have(thesis) by Tautology.from(lastStep, gW)
+                      }
+
+                      thenHave(fun(g, pr) |- exists(g, in(g, w) /\ in(t, relationDomain(g)))) by RightExists
+                      thenHave(exists(g, fun(g, pr)) |- exists(g, in(g, w) /\ in(y, relationDomain(g)))) by LeftExists
+                      val gInW = have(exists(g, in(g, w) /\ in(t, relationDomain(g)))) by Cut(gExists, lastStep)
+
+                      have(forall(t, in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g))))) by Tautology.from(uwfunctional, domainOfFunctionalUnion of z -> w)
+                      thenHave(in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g)))) by InstantiateForall(t)
+                      have(thesis) by Tautology.from(lastStep, gInW)
+                    }
+                    
+                    have(in(t, relationDomain(uw)) <=> in(t, initialSegment(p, pr))) by Tautology.from(fwd, bwd)
+                    thenHave(forall(t, in(t, relationDomain(uw)) <=> in(t, initialSegment(p, pr)))) by RightForall
+                    have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> relationDomain(uw), y -> initialSegment(p, pr)))
+                  }
+
+                  have(thesis) by Tautology.from(lastStep, iffDom)
+                }
+
+                // 2. {(pr, F Uw |^ pr)} is functional over {pr}
+                have(functionalOver(prFun, singleton(pr))) by Tautology.from(pairSingletonIsFunctional of (x -> pr, y -> F(uw)), functionalOver.definition of (f -> prFun, x -> singleton(pr)))
+
+                // 3. <pr \cap {pr} = \emptyset
+                have(setIntersection(initialSegment(p, pr), singleton(pr)) === emptySet()) subproof {
+                  val singletonMembership = have(in(t, singleton(pr)) <=> (t === pr)) by Weakening(singletonHasNoExtraElements of (y -> t, x -> pr))
+
+                  val initMembership = have(in(t, initialSegment(p, pr)) <=> in(pair(t, pr), p2)) by Tautology.from(initialSegmentElement of (x -> t, y -> pr), pIsAPartialOrder)
+
+                  have(in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)) |- ()) subproof {
+                    assume(in(t, singleton(pr)))
+                    assume(in(t, initialSegment(p, pr)))
+
+                    val tEQpr = have(t === pr) by Tautology.from(singletonMembership)
+                    val tLTpr = have(in(pair(t, pr), p2)) by Tautology.from(initMembership)
+                    val prprp2 = thenHave(in(pair(pr, pr), p2)) by Substitution.apply2(false, tEQpr)
+
+                    // but the order is anti reflexive
+                    have(forall(pr, !in(pair(pr, pr), p2))) by Tautology.from(pIsAPartialOrder, partialOrder.definition, antiReflexive.definition of (r -> p2, x -> p1))
+                    thenHave(!in(pair(pr, pr), p2)) by InstantiateForall(pr)
+
+                    have(thesis) by Tautology.from(lastStep, prprp2)
+                  }
+
+                  val inEmpty = thenHave((in(t, singleton(pr)) /\ in(t, initialSegment(p, pr))) ==> in(t, emptySet())) by Weakening
+
+                  have(forall(t, in(t, setIntersection(initialSegment(p, pr), singleton(pr)))) <=> (in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)))) by InstantiateForall(setIntersection(initialSegment(p, pr), singleton(pr)))(setIntersection.definition of (x -> initialSegment(p, pr), y -> singleton(pr)))
+                  thenHave(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) <=> (in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)))) by InstantiateForall(t)
+                  have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet())) by Substitution.apply2(true, lastStep)(inEmpty)
+                  thenHave(forall(t, in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet()))) by RightForall
+                  thenHave(subset(setIntersection(initialSegment(p, pr), singleton(pr)),  emptySet())) by Tautology.from(subsetAxiom of (x -> setIntersection(initialSegment(p, pr), singleton(pr)), y -> emptySet()))
+                  have(thesis) by Tautology.from(emptySetIsItsOwnOnlySubset of x -> setIntersection(initialSegment(p, pr), singleton(pr)))
+                }
+
+                // 4. So v is functional over <pr \cup {pr}
+                // 5. and <pr \cup {pr} = <x
+
                 sorry
               }
 
