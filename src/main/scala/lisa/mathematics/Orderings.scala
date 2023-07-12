@@ -1042,10 +1042,9 @@ object Orderings extends lisa.Main {
   val orderedRestriction = DEF(f, a, p) --> restrictedFunction(f, initialSegment(p, a))
 
   val orderedRestrictionFunctionalOverInit = Lemma(
-    functionalOver(orderedRestriction(f, a, p), initialSegment(p, a))
+    in(a, initialSegment(p, b)) /\ functionalOver(f, initialSegment(p, b)) |- functionalOver(orderedRestriction(f, a, p), initialSegment(p, a))
   ) {
-    ??? // this is 100% wrong.
-    // TODO: FIX
+    sorry
   }
 
   /**
@@ -1920,9 +1919,28 @@ object Orderings extends lisa.Main {
                             val unequal = have(!(orderedRestriction(k1, n, p) === orderedRestriction(k2, n, p))) by Restate
 
                             // they are functions on the same domain
-                            // TODO: THIS IS INCREDIBLY FRAGILE AND NEEDS TO BE FIXED !!!!!!!!
-                            val functional = have(functionalOver(orderedRestriction(k1, n, p), initialSegment(p, n)) /\ functionalOver(orderedRestriction(k2, n, p), initialSegment(p, n))) by Tautology
-                              .from(orderedRestrictionFunctionalOverInit of (f -> k1, a -> n), orderedRestrictionFunctionalOverInit of (f -> k2, a -> n))
+                            val functional = have(functionalOver(orderedRestriction(k1, n, p), initialSegment(p, n)) /\ functionalOver(orderedRestriction(k2, n, p), initialSegment(p, n))) subproof {
+                              // n < a1 by definition
+                              val nLTa1 = have(in(n, initialSegment(p, a1))) by Restate
+
+                              // but a1 < a2, so n < a2
+                              have(subset(initialSegment(p, a1), initialSegment(p, a2))) by Tautology.from(initialSegmentsSubset of (x -> a1, y -> a2))
+                              have(forall(n, in(n, initialSegment(p, a1)) ==> in(n, initialSegment(p, a2)))) by Tautology.from(lastStep, subsetAxiom of (x -> initialSegment(p, a1), y -> initialSegment(p, a2)))
+                              thenHave(in(n, initialSegment(p, a1)) ==> in(n, initialSegment(p, a2))) by InstantiateForall(n)
+                              val nLTa2 = have(in(n, initialSegment(p, n2))) by Tautology.from(lastStep, nLTa1)
+
+                              // k1 functional over <a1
+                              val k1fun = have(functionalOver(k1, initialSegment(a1))) by Restate
+
+                              // k2 functional over <a2
+                              val k2fun = have(functionalOver(k2, initialSegment(a2))) by Restate
+
+                              // so k1 |^ n and k2 |^ n functional over <n
+                              val k1n = have(functionalOver(orderedRestriction(k1, n, p), initialSegment(p, n))) by Tautology.from(k1fun, nLTa1, orderedRestrictionFunctionalOverInit of (f -> k1, a -> n, b -> a1))
+                              val k2n = have(functionalOver(orderedRestriction(k2, n, p), initialSegment(p, n))) by Tautology.from(k2fun, nLTa2, orderedRestrictionFunctionalOverInit of (f -> k2, a -> n, b -> a2))
+
+                              have(thesis) by Tautology.from(k1n, k2n)
+                            }
 
                             // so there is a violating element
                             have(!forall(m, in(m, initialSegment(p, n)) ==> (app(k1, m) === app(k2, m)))) by Tautology.from(
