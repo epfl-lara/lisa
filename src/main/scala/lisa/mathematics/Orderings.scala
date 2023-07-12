@@ -1014,6 +1014,23 @@ object Orderings extends lisa.Main {
     sorry
   }
 
+  val initialSegmentTransitivity = Lemma(
+    partialOrder(p) /\ in(x, initialSegment(p, y)) /\ in(y, initialSegment(p, z)) |- in(x, initialSegment(p, z))
+  ) {
+    assume(partialOrder(p))
+    assume(in(x, initialSegment(p, y)))
+    assume(in(y, initialSegment(p, z)))
+
+    val xy = have(in(pair(x, y), secondInPair(p))) by Tautology.from(initialSegmentElement of (x -> x, y -> y))
+    val yz = have(in(pair(y, z), secondInPair(p))) by Tautology.from(initialSegmentElement of (x -> y, y -> z))
+
+    have(forall(x, forall(y, forall(z, (in(pair(x, y), secondInPair(p)) /\ in(pair(y, z), secondInPair(p))) ==> in(pair(x, z), secondInPair(p)))))) by Tautology.from(partialOrder.definition, transitive.definition of (r -> secondInPair(p), x -> firstInPair(p)))
+    thenHave((in(pair(x, y), secondInPair(p)) /\ in(pair(y, z), secondInPair(p))) ==> in(pair(x, z), secondInPair(p))) by InstantiateForall(x, y, z)
+    have(in(pair(x, z), secondInPair(p))) by Tautology.from(lastStep, xy, yz)
+
+    have(thesis) by Tautology.from(initialSegmentElement of (x -> x, y -> z))
+  }
+
   val initialSegmentLeqBreakdown = Lemma(
     in(t, initialSegmentLeq(p, a)) <=> (in(t, initialSegment(p, a)) \/ (t === a))
   ) {
@@ -1031,6 +1048,12 @@ object Orderings extends lisa.Main {
     wellOrder(p) /\ in(a, firstInPair(p)) |- wellOrder(pair(initialSegment(p, a), initialSegmentOrder(p, a)))
   ) {
 
+    sorry
+  }
+
+  val initialSegmentPredecessorSplit = Lemma(
+    totalOrder(p) /\ predecessor(p, y, x) /\ in(z, initialSegment(p, x)) |- (z === y) \/ in(z, initialSegment(p, y))
+  ) {
     sorry
   }
 
