@@ -1345,6 +1345,19 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * Theorem --- Pair Reconstruction
+   *
+   * If `x` is a pair (i.e. `= (c, d)` for some `c` and `d`), then pair element
+   * projection on it is invertible, so `x = (fst x, snd x)`.
+   * 
+   */
+  val pairReconstruction = Lemma(
+    exists(c, exists(d, pair(c, d) === x)) |- x === pair(firstInPair(x), secondInPair(x))
+  ) {
+    sorry
+  }
+
+  /**
    * Cartesian Products and Relations
    */
 
@@ -3484,7 +3497,10 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- Union of a Set of Functions is a Function
    *
-   * Given a set `z` of functions (weakly or [[reflexive]]ly) totally ordered by the [[subset]] relation on the elements' domains ([[relationDomain]]), `∪ z` is [[functional]] (in particular, with domain as the union of the elements' domains).
+   * Given a set `z` of functions (weakly or [[reflexive]]ly) totally ordered by
+   * the [[subset]] relation on the elements' domains ([[relationDomain]]), `∪
+   * z` is [[functional]] (in particular, with domain as the union of the
+   * elements' domains).
    */
   val unionOfFunctionSet = Theorem(
     forall(t, in(t, z) ==> functional(t)) /\ forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(x, y) \/ subset(y, x)))) |- functional(union(z))
@@ -3555,11 +3571,14 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- Domain of Relational Union
    *
-   * If the unary union of a set is relational, then its domain is defined precisely by the union of the domains of its elements.
+   * If the unary union of a set is relational, then its domain is defined
+   * precisely by the union of the domains of its elements.
    *
-   *    relation(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t \in dom(y)
+   *    relation(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t \in
+   *    dom(y)
    *
-   * This holds, particularly, as the elements of z must be relations themselves, which follows from the assumption.
+   * This holds, particularly, as the elements of z must be relations
+   * themselves, which follows from the assumption.
    */
   val domainOfRelationalUnion = Theorem(
     relation(union(z)) |- forall(t, in(t, relationDomain(union(z))) <=> exists(y, in(y, z) /\ in(t, relationDomain(y))))
@@ -3628,11 +3647,14 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- Domain of Functional Union
    *
-   * If the unary union of a set is functional, then its domain is defined precisely by the union of the domains of its elements.
+   * If the unary union of a set is functional, then its domain is defined
+   * precisely by the union of the domains of its elements.
    *
-   *    functional(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t \in dom(y)
+   *    functional(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t
+   *    \in dom(y)
    *
-   * This holds, particularly, as the elements of z must be functions themselves, which follows from the assumption.
+   * This holds, particularly, as the elements of z must be functions
+   * themselves, which follows from the assumption.
    */
   val domainOfFunctionalUnion = Theorem(
     functional(union(z)) |- forall(t, in(t, relationDomain(union(z))) <=> exists(y, in(y, z) /\ in(t, relationDomain(y))))
