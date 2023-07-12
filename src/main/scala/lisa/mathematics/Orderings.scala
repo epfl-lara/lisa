@@ -2503,11 +2503,38 @@ object Orderings extends lisa.Main {
             have(fun(uw, x)) by Tautology.from(lastStep, uwFunctionalOver)
             thenHave(exists(g, fun(g, x))) by RightExists
           }
-            sorry
-          }
 
           // if x has a predecessor, then we need to add an element to uw, giving us v as the requisite function
-          val successorCase = have(successorElement(p, x) |- exists(g, fun(g, x))) by Sorry
+          val successorCase = have(successorElement(p, x) |- exists(g, fun(g, x))) subproof {
+            assume(successorElement(p, x))
+            // the right function is v = Uw \cup {(pred x, F Uw |^ pred x)}
+            // i.e., Uw with a recursive addition for the predecessor of x
+            // which is not included in any initial segment below x (! (pred x < y) for y < x)
+            // define pr as the predecessor of x
+            val pr = variable
+            have(predecessor(p, pr, x) |- fun(v, x)) subproof {
+              assume(predecessor(p, pr, x))
+              // to this end, we show:
+              //   1. v is functional over <x
+              //     1. Uw is functional over <pr
+              //     2. {(pr, F Uw |^ pr)} is functional over {pr}
+              //     3. <pr \cap {pr} = \emptyset
+              //     4. So v is functional over <pr \cup {pr}
+              //     5. and <pr \cup {pr} = <x
+              //   2. v is recursive, i.e. \forall z < x. v z = F v |^ z as required
+
+              // 1. v is functional over <x
+              have(functionalOver(v, initialSegment(p, x))) subproof {
+                sorry
+              }
+
+              // 2. v is recursive
+              have(forall(z, in(z, initialSegment(p, x)) ==> (app(v, z) === F(orderedRestriction(v, z, p))))) subproof {
+            sorry
+          }
+            }
+
+          }
 
           have(thesis) by Tautology.from(limSuccCases, limitCase, successorCase)
         }
