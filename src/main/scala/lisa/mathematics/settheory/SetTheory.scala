@@ -1,10 +1,11 @@
 package lisa.mathematics
+package settheory
 
 import lisa.automation.kernel.CommonTactics.Definition
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
-import lisa.mathematics.FirstOrderLogic.*
+import lisa.mathematics.fol.Quantifiers.*
 
 /**
  * Set Theory Library

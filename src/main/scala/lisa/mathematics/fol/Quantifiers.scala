@@ -1,4 +1,5 @@
 package lisa.mathematics
+package fol
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
@@ -7,7 +8,7 @@ import lisa.automation.kernel.SimpleSimplifier.*
 /**
  * Implements theorems about first-order logic.
  */
-object FirstOrderLogic extends lisa.Main {
+object Quantifiers extends lisa.Main {
 
   private val x = variable
   private val y = variable
