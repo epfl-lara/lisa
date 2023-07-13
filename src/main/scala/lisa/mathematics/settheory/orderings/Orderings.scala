@@ -3,5 +3,5 @@ package settheory
 package orderings
 
 object Orderings {
-    // export everything in this package
+  // export everything in this package
 }

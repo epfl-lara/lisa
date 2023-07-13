@@ -1350,7 +1350,6 @@ object SetTheory extends lisa.Main {
    *
    * If `x` is a pair (i.e. `= (c, d)` for some `c` and `d`), then pair element
    * projection on it is invertible, so `x = (fst x, snd x)`.
-   * 
    */
   val pairReconstruction = Lemma(
     exists(c, exists(d, pair(c, d) === x)) |- x === pair(firstInPair(x), secondInPair(x))

@@ -9,10 +9,10 @@ import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.mathematics.fol.Quantifiers.*
 import lisa.mathematics.settheory.SetTheory.*
-import lisa.mathematics.settheory.orderings.PartialOrders.*
 import lisa.mathematics.settheory.orderings.InclusionOrders.*
-import lisa.mathematics.settheory.orderings.WellOrders.*
 import lisa.mathematics.settheory.orderings.Ordinals.*
+import lisa.mathematics.settheory.orderings.PartialOrders.*
+import lisa.mathematics.settheory.orderings.WellOrders.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
@@ -44,7 +44,6 @@ object Segments extends lisa.Main {
   private val P = predicate(1)
   private val Q = predicate(1)
   private val schemPred = predicate(1)
-
 
   val initialSegmentUniqueness = Lemma(
     existsOne(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ in(pair(t, a), secondInPair(p)))))
@@ -124,7 +123,10 @@ object Segments extends lisa.Main {
     val xy = have(in(pair(x, y), secondInPair(p))) by Tautology.from(initialSegmentElement of (x -> x, y -> y))
     val yz = have(in(pair(y, z), secondInPair(p))) by Tautology.from(initialSegmentElement of (x -> y, y -> z))
 
-    have(forall(x, forall(y, forall(z, (in(pair(x, y), secondInPair(p)) /\ in(pair(y, z), secondInPair(p))) ==> in(pair(x, z), secondInPair(p)))))) by Tautology.from(partialOrder.definition, transitive.definition of (r -> secondInPair(p), x -> firstInPair(p)))
+    have(forall(x, forall(y, forall(z, (in(pair(x, y), secondInPair(p)) /\ in(pair(y, z), secondInPair(p))) ==> in(pair(x, z), secondInPair(p)))))) by Tautology.from(
+      partialOrder.definition,
+      transitive.definition of (r -> secondInPair(p), x -> firstInPair(p))
+    )
     thenHave((in(pair(x, y), secondInPair(p)) /\ in(pair(y, z), secondInPair(p))) ==> in(pair(x, z), secondInPair(p))) by InstantiateForall(x, y, z)
     have(in(pair(x, z), secondInPair(p))) by Tautology.from(lastStep, xy, yz)
 

@@ -9,11 +9,11 @@ import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.mathematics.fol.Quantifiers.*
 import lisa.mathematics.settheory.SetTheory.*
-import lisa.mathematics.settheory.orderings.PartialOrders.*
 import lisa.mathematics.settheory.orderings.InclusionOrders.*
-import lisa.mathematics.settheory.orderings.WellOrders.*
 import lisa.mathematics.settheory.orderings.Ordinals.*
+import lisa.mathematics.settheory.orderings.PartialOrders.*
 import lisa.mathematics.settheory.orderings.Segments.*
+import lisa.mathematics.settheory.orderings.WellOrders.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
