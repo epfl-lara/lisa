@@ -1052,7 +1052,7 @@ object Orderings extends lisa.Main {
   }
 
   val initialSegmentPredecessorSplit = Lemma(
-    totalOrder(p) /\ predecessor(p, y, x) /\ in(z, initialSegment(p, x)) |- (z === y) \/ in(z, initialSegment(p, y))
+    totalOrder(p) /\ predecessor(p, y, x) |- in(z, initialSegment(p, x)) <=> ((z === y) \/ in(z, initialSegment(p, y)))
   ) {
     sorry
   }
@@ -2560,14 +2560,14 @@ object Orderings extends lisa.Main {
               //   2. v is recursive, i.e. \forall z < x. v z = F v |^ z as required
 
               // 1. v is functional over <x
-              have(functionalOver(v, initialSegment(p, x))) subproof {
+              val vFunctionalOver = have(functionalOver(v, initialSegment(p, x))) subproof {
                 // 1. Uw is functional over <pr
-                have(functionalOver(uw, initialSegment(p, pr))) subproof {
+                val uwFunctionalOver = have(functionalOver(uw, initialSegment(p, pr))) subproof {
                   val iffDom = have(functionalOver(uw, initialSegment(p, pr)) <=> (relationDomain(uw) === initialSegment(p, pr))) by Tautology.from(functionalOver.definition of (f -> uw, x -> initialSegment(p, pr)), uwfunctional)
 
                   have(relationDomain(uw) === initialSegment(p, pr)) subproof {
                     val fwd = have(in(t, relationDomain(uw)) |- in(t, initialSegment(p, pr))) subproof {
-                      assuem(in(t, relationDomain(uw)))
+                      assume(in(t, relationDomain(uw)))
 
                       have(forall(t, in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g))))) by Tautology.from(uwfunctional, domainOfFunctionalUnion of z -> w)
                       thenHave(in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g)))) by InstantiateForall(t)
@@ -2644,10 +2644,10 @@ object Orderings extends lisa.Main {
                 }
 
                 // 2. {(pr, F Uw |^ pr)} is functional over {pr}
-                have(functionalOver(prFun, singleton(pr))) by Tautology.from(pairSingletonIsFunctional of (x -> pr, y -> F(uw)), functionalOver.definition of (f -> prFun, x -> singleton(pr)))
+                val pairFunctionalOver = have(functionalOver(prFun, singleton(pr))) by Tautology.from(pairSingletonIsFunctional of (x -> pr, y -> F(uw)), functionalOver.definition of (f -> prFun, x -> singleton(pr)))
 
                 // 3. <pr \cap {pr} = \emptyset
-                have(setIntersection(initialSegment(p, pr), singleton(pr)) === emptySet()) subproof {
+                val domainsDisjoint = have(setIntersection(initialSegment(p, pr), singleton(pr)) === emptySet()) subproof {
                   val singletonMembership = have(in(t, singleton(pr)) <=> (t === pr)) by Weakening(singletonHasNoExtraElements of (y -> t, x -> pr))
 
                   val initMembership = have(in(t, initialSegment(p, pr)) <=> in(pair(t, pr), p2)) by Tautology.from(initialSegmentElement of (x -> t, y -> pr), pIsAPartialOrder)
@@ -2673,14 +2673,30 @@ object Orderings extends lisa.Main {
                   thenHave(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) <=> (in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)))) by InstantiateForall(t)
                   have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet())) by Substitution.apply2(true, lastStep)(inEmpty)
                   thenHave(forall(t, in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet()))) by RightForall
-                  thenHave(subset(setIntersection(initialSegment(p, pr), singleton(pr)),  emptySet())) by Tautology.from(subsetAxiom of (x -> setIntersection(initialSegment(p, pr), singleton(pr)), y -> emptySet()))
+                  have(subset(setIntersection(initialSegment(p, pr), singleton(pr)),  emptySet())) by Tautology.from(lastStep, subsetAxiom of (x -> setIntersection(initialSegment(p, pr), singleton(pr)), y -> emptySet()))
                   have(thesis) by Tautology.from(emptySetIsItsOwnOnlySubset of x -> setIntersection(initialSegment(p, pr), singleton(pr)))
                 }
 
                 // 4. So v is functional over <pr \cup {pr}
-                // 5. and <pr \cup {pr} = <x
+                val vFunctionalOverUnion = have(functionalOver(v, setUnion(initialSegment(p, pr), singleton(pr)))) by Tautology.from(pairFunctionalOver, uwFunctionalOver, domainsDisjoint, unionOfFunctionsWithDisjointDomains of (f -> uw, a -> initialSegment(p, pr), g -> prFun, b -> singleton(pr)))
 
-                sorry
+                // 5. and <pr \cup {pr} = <x
+                val unionEQ = have(setUnion(initialSegment(p, pr), singleton(pr)) === initialSegment(p, x)) subproof {
+                  // < x <=> = pr \/ < pr
+                  val initBreakdown = have(in(t, initialSegment(p, x)) <=> ((t === pr) \/ in(t, initialSegment(p, pr)))) by Tautology.from(initialSegmentPredecessorSplit of (z -> t, y -> pr), pIsATotalOrder)
+
+                  val singletonMembership = have(in(t, singleton(pr)) <=> (t === pr)) by Tautology.from(singletonHasNoExtraElements of (y -> t, x -> pr))
+
+                  val initMembership = have(in(t, initialSegment(p, x)) <=> (in(t, singleton(pr)) \/ in(t, initialSegment(p, pr)))) by Substitution.apply2(true, singletonMembership)(initBreakdown)
+
+                  have(in(t, setUnion(initialSegment(p, pr), singleton(pr))) <=> (in(t, singleton(pr)) \/ in(t, initialSegment(p, pr)))) by Tautology.from(setUnionMembership of (z -> t, x -> initialSegment(p, pr), y -> singleton(pr)))
+                  have(in(t, initialSegment(p, x)) <=> in(t, setUnion(initialSegment(p, pr), singleton(pr)))) by Substitution.apply2(true, lastStep)(initMembership)
+                  thenHave(forall(t, in(t, initialSegment(p, x)) <=> in(t, setUnion(initialSegment(p, pr), singleton(pr))))) by RightForall
+
+                  have(thesis) by Tautology.from(extensionalityAxiom of (x -> initialSegment(p, x), y -> setUnion(initialSegment(p, pr), singleton(pr))))
+                }
+
+                have(thesis) by Substitution.apply2(false, unionEQ)(vFunctionalOverUnion)
               }
 
               // 2. v is recursive
@@ -2722,6 +2738,7 @@ object Orderings extends lisa.Main {
       have(thesis) by Tautology.from(gExists, gUnique of t -> x)
     }
 
+    // so we induct on the well-ordering
     thenHave(forall(x, in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x)))) by RightForall
     have(thesis) by Tautology.from(lastStep, wellOrderedInduction of Q -> lambda(x, prop(x)))
   }

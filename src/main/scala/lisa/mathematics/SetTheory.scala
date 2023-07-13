@@ -3377,6 +3377,16 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(functional.definition of f -> h, isRelation, isFunctional)
   }
 
+  val unionOfFunctionsWithDisjointDomains = Theorem(
+    functionalOver(f, a) /\ functionalOver(g, b) /\ (setIntersection(a, b) === emptySet()) |- functionalOver(setUnion(f, g), setUnion(a, b))
+  ) {
+    // union is functional
+
+    // domain of union is union of domains
+
+    sorry
+  }
+
   /**
    * Theorem --- a set containing only pairs is a relation, and vice versa.
    *
