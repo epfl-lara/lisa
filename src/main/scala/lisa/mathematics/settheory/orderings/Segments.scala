@@ -185,4 +185,10 @@ object Segments extends lisa.Main {
     sorry
   }
 
+  val orderedRestrictionAgreement = Lemma(
+    partialOrder(p) /\ in(b, initialSegment(p, a)) |- (app(orderedRestriction(f, a, p), b) === app(orderedRestriction(g, a, p), b)) <=> (app(f, b) === app(g, b))
+  ) {
+    sorry
+  }
+
 }
