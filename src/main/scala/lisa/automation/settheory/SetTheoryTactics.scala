@@ -64,9 +64,9 @@ object SetTheoryTactics {
        * originalSet = x
        * separationPredicate = \t x -> P(t, x)
        *
-       * have    () |- ∃! z. ∀ t. t ∈ z <=> (t ∈ x /\ P(t, x))                                      Comprehension Schema Instantiation
-       * import  ∃ z. ∀ t. t ∈ z <=> (t ∈ x /\ P(t, x)) |- ∃! z. ∀ t. t ∈ z <=> (t ∈ x /\ P(t, x))  Unique by Extension [[uniqueByExtension]] Instantiation
-       * have    () |- ∃! z. ∀ t. t ∈ z <=> (t ∈ x /\ P(t, x))                                      Cut
+       * have    () |- ∃  z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Comprehension Schema Instantiation
+       * import  ∃ z. t ∈ z <=> (t ∈ x /\ P(t, x)) |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))     Unique by Extension [[uniqueByExtension]] Instantiation
+       * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Cut
        */
       val sp = SUBPROOF(using proof)(Some(botWithAssumptions)) { // TODO check if isInstanceOf first
         val existence = have(() |- exists(t1, fprop(t1))) by Weakening(comprehensionSchema of (z -> originalSet, sPhi -> separationPredicate))
