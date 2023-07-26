@@ -1462,16 +1462,22 @@ object Recursion extends lisa.Main {
 
                     // uw has domain <pr
                     val domUW = have(functionalOver(uw, initialSegment(p, pr))) by Restate.from(uwFunctionalOver)
-                    
+
                     // so does v |^ pr
-                    val domRV = have(functionalOver(vpr, initialSegment(p, pr))) subproor {
+                    val domRV = have(functionalOver(vpr, initialSegment(p, pr))) subproof {
                       have(functional(v)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
-                      val vprFun = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), relationDomain(v)))) by Tautology.from(lastStep, restrictedFunctionIsFunctionalOver of (f -> v, x -> initialSegment(p, pr)))
+                      val vprFun = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), relationDomain(v)))) by Tautology.from(
+                        lastStep,
+                        restrictedFunctionIsFunctionalOver of (f -> v, x -> initialSegment(p, pr))
+                      )
 
                       have(relationDomain(v) === initialSegment(p, x)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
                       val initIntersection = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), initialSegment(p, x)))) by Substitution.apply2(false, lastStep)(vprFun)
 
-                      have(setIntersection(initialSegment(p, pr), initialSegment(p, x)) === initialSegment(p, pr)) by Tautology.from(predecessorInInitialSegment of y -> pr, initialSegmentIntersection of y -> pr)
+                      have(setIntersection(initialSegment(p, pr), initialSegment(p, x)) === initialSegment(p, pr)) by Tautology.from(
+                        predecessorInInitialSegment of y -> pr,
+                        initialSegmentIntersection of y -> pr
+                      )
                       have(thesis) by Substitution.apply2(false, lastStep)(initIntersection)
                     }
 
@@ -1484,7 +1490,7 @@ object Recursion extends lisa.Main {
 
                       val fwd = have(in(pair(b, a), uw) |- in(pair(b, a), vpr)) subproof {
                         assume(in(pair(b, a), uw))
-                        
+
                         have(in(pair(b, a), v)) by Tautology.from(setUnionMembership of (z -> pair(b, a), x -> uw, y -> prFun))
                         have(thesis) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> a, a -> b))
                       }
@@ -1635,10 +1641,8 @@ object Recursion extends lisa.Main {
     val initPropagate = have(in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x))) subproof {
 
       assume(
-        Seq(
-          in(x, p1),
-          forall(y, in(y, initialSegment(p, x)) ==> prop(y))
-        )
+        in(x, p1),
+        forall(y, in(y, initialSegment(p, x)) ==> prop(y))
       )
 
       // see [[uniqueRecursiveFunction]] and [[recursiveFunctionExistencePropagates]]

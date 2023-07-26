@@ -74,9 +74,9 @@ object Induction extends lisa.Main {
 
     // proof assumptions
     assume(
-        wellOrder(p),
-        forall(x, Q(x) ==> in(x, A)),
-        forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
+      wellOrder(p),
+      forall(x, Q(x) ==> in(x, A)),
+      forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
     )
 
     // assume, towards a contradiction
@@ -241,10 +241,8 @@ object Induction extends lisa.Main {
     val `<p` = secondInPair(p)
 
     assume(
-      Seq(
-        wellOrder(p),
-        forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
-      )
+      wellOrder(p),
+      forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
     )
 
     // make a subclass out of Q by intersecting with A
