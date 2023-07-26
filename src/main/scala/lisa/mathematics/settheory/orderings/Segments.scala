@@ -99,6 +99,12 @@ object Segments extends lisa.Main {
     have(thesis) by Tautology.from(fwd, bwd)
   }
 
+  val initialSegmentIrreflexivity = Lemma(
+    partialOrder(p) |- !in(x, initialSegment(p, x))
+  ) {
+    sorry
+  }
+
   val predecessorInInitialSegment = Lemma(
     totalOrder(p) /\ predecessor(p, y, x) |- in(y, initialSegment(p, x))
   ) {
@@ -165,6 +171,12 @@ object Segments extends lisa.Main {
 
   val initialSegmentPredecessorSplit = Lemma(
     totalOrder(p) /\ predecessor(p, y, x) |- in(z, initialSegment(p, x)) <=> ((z === y) \/ in(z, initialSegment(p, y)))
+  ) {
+    sorry
+  }
+
+  val initialSegmentIntersection = Lemma(
+    partialOrder(p) /\ in(y, initialSegment(p, x)) |- setIntersection(initialSegment(p, y), initialSegment(p, x)) === initialSegment(p, y)
   ) {
     sorry
   }
