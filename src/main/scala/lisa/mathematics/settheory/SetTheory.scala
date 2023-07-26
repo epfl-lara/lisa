@@ -2199,7 +2199,7 @@ object SetTheory extends lisa.Main {
   val violatingPairInFunction = Theorem(
     functional(f) /\ in(pair(x, y), f) /\ in(pair(x, z), f) /\ !(y === z) |- ()
   ) {
-    assume(Seq(functional(f), in(pair(x, y), f), in(pair(x, z), f), !(y === z)))
+    assume(functional(f), in(pair(x, y), f), in(pair(x, z), f), !(y === z))
 
     have(forall(x, exists(y, in(pair(x, y), f)) ==> existsOne(y, in(pair(x, y), f)))) by Tautology.from(functional.definition)
     val exExOne = thenHave(exists(y, in(pair(x, y), f)) ==> existsOne(y, in(pair(x, y), f))) by InstantiateForall(x)
@@ -2486,6 +2486,19 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(fwd, bwd)
   }
 
+  val functionalOverApplication = Theorem(
+    functionalOver(f, x) /\ in(a, x) |- in(pair(a, b), f) <=> (app(f, a) === b)
+  ) {
+    assume(functionalOver(f, x))
+    assume(in(a, x))
+
+    val domEQ = have(relationDomain(f) === x) by Tautology.from(functionalOver.definition)
+    have(in(a, x)) by Restate
+    thenHave(in(a, relationDomain(f))) by Substitution.apply2(true, domEQ)
+
+    have(thesis) by Tautology.from(lastStep, functionalOver.definition, pairInFunctionIsApp)
+  }
+
   val elemOfFunctional = Theorem(
     functional(f) |- in(t, f) <=> exists(c, exists(d, in(c, relationDomain(f)) /\ in(d, relationRange(f)) /\ (t === pair(c, d)) /\ (app(f, c) === d)))
   ) {
@@ -2747,7 +2760,7 @@ object SetTheory extends lisa.Main {
   }
 
   val restrictedFunctionIsFunctionalOver = Lemma(
-    functionalOver(restrictedFunction(f, x), setIntersection(x, relationDomain(f)))
+    functional(f) |- functionalOver(restrictedFunction(f, x), setIntersection(x, relationDomain(f)))
   ) {
     // restriction is a function
 
@@ -3516,7 +3529,7 @@ object SetTheory extends lisa.Main {
     forall(t, in(t, z) ==> functional(t)) /\ forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(x, y) \/ subset(y, x)))) |- functional(union(z))
   ) {
     // add assumptions
-    assume(Seq(forall(t, in(t, z) ==> functional(t)), forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(x, y) \/ subset(y, x))))))
+    assume(forall(t, in(t, z) ==> functional(t)), forall(x, forall(y, (in(x, z) /\ in(y, z)) ==> (subset(x, y) \/ subset(y, x)))))
 
     // assume, towards a contradiction
     assume(!functional(union(z)))

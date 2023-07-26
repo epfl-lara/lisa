@@ -74,11 +74,9 @@ object Induction extends lisa.Main {
 
     // proof assumptions
     assume(
-      Seq(
         wellOrder(p),
         forall(x, Q(x) ==> in(x, A)),
         forall(x, in(x, A) ==> (forall(y, in(y, initialSegment(p, x)) ==> Q(y)) ==> Q(x)))
-      )
     )
 
     // assume, towards a contradiction
@@ -112,7 +110,7 @@ object Induction extends lisa.Main {
       // there exists a least element y in z
       val yDef = in(y, z) /\ forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))
       val yExists = have((zDef, !Q(x) /\ in(x, A)) |- exists(y, yDef)) subproof {
-        assume(Seq(zDef, !Q(x) /\ in(x, A)))
+        assume(zDef, !Q(x) /\ in(x, A))
         have(in(x, z) <=> (in(x, A) /\ !Q(x))) by InstantiateForall
         thenHave(in(x, z)) by Tautology
         val zNonEmpty = have(!(z === emptySet())) by Tautology.from(lastStep, setWithElementNonEmpty of (y -> x, x -> z))
@@ -140,7 +138,7 @@ object Induction extends lisa.Main {
 
       // elements of the initial segment of A wrt y satisfy Q
       val yInitInQ = have((zDef, yDef) |- forall(w, in(w, initialSegment(p, y)) ==> Q(w))) subproof {
-        assume(Seq(zDef, yDef))
+        assume(zDef, yDef)
 
         // TODO: assumptions annoy instantiations of external imports, so this is done rather verbosely here
         // see https://github.com/epfl-lara/lisa/issues/161
@@ -149,7 +147,7 @@ object Induction extends lisa.Main {
         val wInInit = thenHave((in(w, initialSegment(p, y)) <=> (in(w, A) /\ in(pair(w, y), `<p`)))) by InstantiateForall(w)
 
         have((in(w, A) /\ in(pair(w, y), `<p`)) |- Q(w)) subproof {
-          assume(Seq((in(w, A) /\ in(pair(w, y), `<p`)), !Q(w)))
+          assume((in(w, A) /\ in(pair(w, y), `<p`)), !Q(w))
 
           have(forall(w, (!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w)))) by Restate
           thenHave((!Q(w) /\ in(w, A)) ==> (in(pair(y, w), `<p`) \/ (y === w))) by InstantiateForall(w)
@@ -200,7 +198,7 @@ object Induction extends lisa.Main {
 
       // however, we know y is in z, so !Q(y), hence contradiction
       have((zDef, yDef) |- ()) subproof {
-        assume(Seq(zDef, yDef))
+        assume(zDef, yDef)
         val ynotQ = have(in(y, z) <=> (in(y, A) /\ !Q(y))) by InstantiateForall
         have(in(y, z)) by Restate
         have(thesis) by Tautology.from(lastStep, ynotQ, yInQ)
