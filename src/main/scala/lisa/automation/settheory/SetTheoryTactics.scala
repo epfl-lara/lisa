@@ -62,7 +62,7 @@ object SetTheoryTactics {
        * originalSet = x
        * separationPredicate = \t x -> P(t, x)
        *
-       * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Comprehension Schema Instantiation
+       * have    () |- ∃  z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Comprehension Schema Instantiation
        * import  ∃ z. t ∈ z <=> (t ∈ x /\ P(t, x)) |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))     Unique by Extension [[uniqueByExtension]] Instantiation
        * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Cut
        */
