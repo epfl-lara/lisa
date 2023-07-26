@@ -681,32 +681,35 @@ object Recursion extends lisa.Main {
                       }
 
                       // we must have m < n
-                      val mViolatesRestricted = have(mDef |- in(m, initialSegment(p, a1)) /\ !(app(orderedRestriction(k1, n, p), m) === app(orderedRestriction(k2, n, p), m)) /\ in(pair(m, n), p2)) subproof {
-                        assume(mDef)
-                        // we have n < a1
-                        have(forall(z, (z === initialSegment(p, a)) <=> (forall(t, in(t, z) <=> (in(t, p1) /\ in(pair(t, a), p2)))))) by Weakening(initialSegment.definition)
-                        val initSegMembership = thenHave((forall(t, in(t, initialSegment(p, a)) <=> (in(t, p1) /\ in(pair(t, a), p2))))) by InstantiateForall(initialSegment(p, a))
+                      val mViolatesRestricted =
+                        have(mDef |- in(m, initialSegment(p, a1)) /\ !(app(orderedRestriction(k1, n, p), m) === app(orderedRestriction(k2, n, p), m)) /\ in(pair(m, n), p2)) subproof {
+                          assume(mDef)
+                          // we have n < a1
+                          have(forall(z, (z === initialSegment(p, a)) <=> (forall(t, in(t, z) <=> (in(t, p1) /\ in(pair(t, a), p2)))))) by Weakening(initialSegment.definition)
+                          val initSegMembership = thenHave((forall(t, in(t, initialSegment(p, a)) <=> (in(t, p1) /\ in(pair(t, a), p2))))) by InstantiateForall(initialSegment(p, a))
 
-                        have(in(n, initialSegment(p, a1)) <=> (in(n, p1) /\ in(pair(n, a1), p2))) by InstantiateForall(n)(initSegMembership of a -> a1)
-                        val nLTa1 = thenHave(in(pair(n, a1), p2)) by Tautology
+                          have(in(n, initialSegment(p, a1)) <=> (in(n, p1) /\ in(pair(n, a1), p2))) by InstantiateForall(n)(initSegMembership of a -> a1)
+                          val nLTa1 = thenHave(in(pair(n, a1), p2)) by Tautology
 
-                        // and m < n
-                        have(in(m, initialSegment(p, n)) <=> (in(m, p1) /\ in(pair(m, n), p2))) by InstantiateForall(m)(initSegMembership of a -> n)
-                        val mLTn = thenHave(in(m, p1) /\ in(pair(m, n), p2)) by Tautology
+                          // and m < n
+                          have(in(m, initialSegment(p, n)) <=> (in(m, p1) /\ in(pair(m, n), p2))) by InstantiateForall(m)(initSegMembership of a -> n)
+                          val mLTn = thenHave(in(m, p1) /\ in(pair(m, n), p2)) by Tautology
 
-                        // by transitivity, m < a1 as well
-                        have(forall(w, forall(y, forall(z, (in(pair(w, y), p2) /\ in(pair(y, z), p2)) ==> in(pair(w, z), p2))))) by Weakening(wellOrderTransitivity)
-                        thenHave((in(pair(m, n), p2) /\ in(pair(n, a1), p2)) ==> in(pair(m, a1), p2)) by InstantiateForall(m, n, a1)
-                        val mLTa1 = have(in(m, p1) /\ in(pair(m, a1), p2)) by Tautology.from(lastStep, nLTa1, mLTn)
+                          // by transitivity, m < a1 as well
+                          have(forall(w, forall(y, forall(z, (in(pair(w, y), p2) /\ in(pair(y, z), p2)) ==> in(pair(w, z), p2))))) by Weakening(wellOrderTransitivity)
+                          thenHave((in(pair(m, n), p2) /\ in(pair(n, a1), p2)) ==> in(pair(m, a1), p2)) by InstantiateForall(m, n, a1)
+                          val mLTa1 = have(in(m, p1) /\ in(pair(m, a1), p2)) by Tautology.from(lastStep, nLTa1, mLTn)
 
-                        have(in(m, initialSegment(p, a1)) <=> (in(m, p1) /\ in(pair(m, a1), p2))) by InstantiateForall(m)(initSegMembership of a -> a1)
-                        have(thesis) by Tautology.from(lastStep, mLTa1, mLTn)
-                      }
+                          have(in(m, initialSegment(p, a1)) <=> (in(m, p1) /\ in(pair(m, a1), p2))) by InstantiateForall(m)(initSegMembership of a -> a1)
+                          have(thesis) by Tautology.from(lastStep, mLTa1, mLTn)
+                        }
 
                       val mViolates = have(mDef |- in(m, initialSegment(p, a1)) /\ !(app(k1, m) === app(k2, m)) /\ in(pair(m, n), p2)) subproof {
                         assume(mDef)
                         // if the application is equal on the ordered restriction, it must be equal on the entire functions
-                        have((app(orderedRestriction(k1, n, p), m) === app(orderedRestriction(k2, n, p), m)) <=> (app(k1, m) === app(k2, m))) by Tautology.from(orderedRestrictionAgreement of (f -> k1, g -> k2, a -> n, b -> m))
+                        have((app(orderedRestriction(k1, n, p), m) === app(orderedRestriction(k2, n, p), m)) <=> (app(k1, m) === app(k2, m))) by Tautology.from(
+                          orderedRestrictionAgreement of (f -> k1, g -> k2, a -> n, b -> m)
+                        )
                         have(thesis) by Tautology.from(mViolatesRestricted, lastStep)
                       }
 
@@ -1431,7 +1434,7 @@ object Recursion extends lisa.Main {
             have(in(z, initialSegment(p, x)) |- (app(v, z) === F(orderedRestriction(v, z, p)))) subproof {
               assume(in(z, initialSegment(p, x)))
 
-              // z is in dom v 
+              // z is in dom v
               val zInDom = have(in(z, relationDomain(v))) subproof {
                 val domEQ = have(relationDomain(v) === initialSegment(p, x)) by Tautology.from(functionalOver.definition of (f -> v, x -> initialSegment(p, x)), vFunctionalOver)
                 have(in(z, initialSegment(p, x))) by Restate
@@ -1500,8 +1503,16 @@ object Recursion extends lisa.Main {
                 }
 
                 // equality transitivity
-                have(app(v, z) === F(orderedRestriction(uw, z, p))) by Tautology.from(equalityTransitivity of (x -> app(v, z), y -> app(uw, z), z -> F(orderedRestriction(uw, z, p))), appVW, appRestrictionUW)
-                have(app(v, z) === F(orderedRestriction(v, z, p))) by Tautology.from(equalityTransitivity of (x -> app(v, z), y -> F(orderedRestriction(uw, z, p)), z -> F(orderedRestriction(v, z, p))), lastStep, restrictionFVW)
+                have(app(v, z) === F(orderedRestriction(uw, z, p))) by Tautology.from(
+                  equalityTransitivity of (x -> app(v, z), y -> app(uw, z), z -> F(orderedRestriction(uw, z, p))),
+                  appVW,
+                  appRestrictionUW
+                )
+                have(app(v, z) === F(orderedRestriction(v, z, p))) by Tautology.from(
+                  equalityTransitivity of (x -> app(v, z), y -> F(orderedRestriction(uw, z, p)), z -> F(orderedRestriction(v, z, p))),
+                  lastStep,
+                  restrictionFVW
+                )
               }
 
               have(thesis) by Tautology.from(zSplit, prCase, wCase)
