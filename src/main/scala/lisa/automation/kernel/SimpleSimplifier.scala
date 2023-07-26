@@ -17,7 +17,7 @@ import scala.collection
 import scala.collection.immutable.Seq
 
 object SimpleSimplifier {
-
+/*
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
   private def findSubterm2(t: Term, subs: Seq[(VariableLabel, Term)]): (Term, Boolean) = {
@@ -672,5 +672,5 @@ object SimpleSimplifier {
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement =
       exhaustive(using lib, proof)(substitutions: _*)(premise)
   }
-
+*/
 }

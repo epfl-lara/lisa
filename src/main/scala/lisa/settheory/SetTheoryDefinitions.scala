@@ -9,7 +9,7 @@ import lisa.utils.KernelHelpers.{_, given}
  * Defines the symbols used in set theory.
  */
 private[settheory] trait SetTheoryDefinitions {
-
+/*
   def axioms: Set[(String, runningSetTheory.Axiom)] = Set.empty
 
   // Predicates
@@ -72,4 +72,5 @@ private[settheory] trait SetTheoryDefinitions {
 
   predicates.foreach(s => runningSetTheory.addSymbol(s))
   functions.foreach(s => runningSetTheory.addSymbol(s))
+  */
 }

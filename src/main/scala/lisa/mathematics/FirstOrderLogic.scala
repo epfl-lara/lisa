@@ -8,7 +8,7 @@ import lisa.automation.kernel.SimpleSimplifier.*
  * Implements theorems about first-order logic.
  */
 object FirstOrderLogic extends lisa.Main {
-
+/*
   private val x = variable
   private val y = variable
   private val z = variable
@@ -274,5 +274,5 @@ object FirstOrderLogic extends lisa.Main {
 
     thenHave(thesis) by Restate
   }
-
+*/
 }

@@ -6,7 +6,7 @@ import lisa.utils.KernelHelpers.{_, given}
 /**
  * Axioms for the Tarski-Grothendieck theory (TG)
  */
-private[settheory] trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
+private[settheory] object SetTheoryTGAxioms extends SetTheoryZFAxioms {
   private val (x, y, z) =
     (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
 

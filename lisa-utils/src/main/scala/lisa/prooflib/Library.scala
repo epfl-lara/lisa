@@ -28,15 +28,32 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   val K = lisa.utils.K
   export K.given_Conversion_String_Identifier
   export K.given_Conversion_Identifier_String
-  //import lisa.fol.FOL as F
   val F = lisa.fol.FOL
   import F.{given}
-  
 
-  //val truc2:Nothing = truc.substituteWithProofLikeKernel
 
 
   var last: Option[Justification] = None
+
+  
+  val knownSymbols: scala.collection.mutable.Set[F.ConstantLabel[?]] = scala.collection.mutable.Set()
+
+
+  def addSymbol[A <: F.LisaObject[A]](s:F.ConstantLabel[A]):Unit = {
+
+    s match {
+      //case s: F.Constant => ??? //theory.addSymbol(s.underlyingLabel)
+      case _ => ???
+      /*
+      case s: F.ConstantFunctionalLabel[?] => theory.addSymbol(s.underlyingLabel)
+      case s: F.ConstantFormula => theory.addSymbol(s.underlyingLabel)
+      case s: F.ConstantPredicateLabel[?] => theory.addSymbol(s.underlyingLabel)
+      case s: F.ConstantConnectorLabel[?] => ???
+      */
+    }
+    
+    knownSymbols.add(s)
+  }
 
 
   /**

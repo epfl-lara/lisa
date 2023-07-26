@@ -1,10 +1,10 @@
 package lisa.mathematics
-
+/*
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.mathematics.FirstOrderLogic.*
-
+*/
 /**
  * Set Theory Library
  *
@@ -16,7 +16,7 @@ import lisa.mathematics.FirstOrderLogic.*
  * [[https://link.springer.com/book/10.1007/3-540-44761-X]]
  */
 object SetTheory extends lisa.Main {
-
+/*
   // var defs
   private val w = variable
   private val x = variable
@@ -2796,4 +2796,5 @@ object SetTheory extends lisa.Main {
   // ) {
   //   ???
   // }
+  */
 }

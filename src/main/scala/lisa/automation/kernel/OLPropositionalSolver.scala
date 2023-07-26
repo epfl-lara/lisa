@@ -1,11 +1,9 @@
 package lisa.automation.kernel
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.*
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.fol.FOL as F
+import lisa.utils.K.{*, given}
 
 object OLPropositionalSolver {
 
@@ -21,9 +19,10 @@ object OLPropositionalSolver {
      * @param proof The ongoing proof object in which the step happens.
      * @param bot The desired conclusion.
      */
-    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
-      solveSequent(bot) match {
-        case Left(value) => proof.ValidProofTactic(value.steps, Seq())
+    def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      val botK = bot.underlying
+      solveSequent(botK) match {
+        case Left(value) => proof.ValidProofTactic(bot, value.steps, Seq())
         case Right((msg, seq)) => proof.InvalidProofTactic(msg)
       }
     }
@@ -36,13 +35,14 @@ object OLPropositionalSolver {
      * @param premise A previously proven step necessary to reach the conclusion.
      * @param bot   The desired conclusion.
      */
-    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
       from(using lib, proof)(Seq(premise)*)(bot)
 
-    def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = {
-      val premsFormulas = premises.map(p => (p, sequentToFormula(proof.getSequent(p)))).zipWithIndex
+    def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      val botK = bot.underlying
+      val premsFormulas: Seq[((proof.Fact, Formula), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
       val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
-      val sqToProve = bot ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
+      val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
       solveSequent(sqToProve) match {
         case Left(value) =>
           val subpr = SCSubproof(value)
@@ -51,7 +51,7 @@ object OLPropositionalSolver {
             Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
           })
           val steps = (initProof ++ stepsList.reverse).toIndexedSeq
-          proof.ValidProofTactic(steps, premises)
+          proof.ValidProofTactic(bot, steps, premises)
         case Right((msg, seq)) =>
           proof.InvalidProofTactic(msg)
       }

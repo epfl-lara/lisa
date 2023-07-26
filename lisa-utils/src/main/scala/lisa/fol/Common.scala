@@ -97,6 +97,7 @@ trait Common {
     def rename(newid: K.Identifier):ConstantLabel[A]
   }
 
+
   class TypeError extends Error
 
   trait Absolute
@@ -403,4 +404,21 @@ trait Common {
 
 
 
+}
+
+object Test2 {
+
+
+  object G extends lisa.fol.Common
+
+
+  object test{
+    def addSymbol[A <: G.LisaObject[A]](s:G.ConstantLabel[A]):Unit = {
+
+      s match {
+        case _ => ()
+      }
+
+    }
+  }
 }

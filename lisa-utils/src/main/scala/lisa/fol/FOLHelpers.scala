@@ -27,6 +27,13 @@ import scala.reflect.ClassTag
  * </pre>
  */
 object FOLHelpers {
+  def addSymbol[A <: LisaObject[A]](s:ConstantLabel[A]):Unit = {
+
+      s match {
+          case _ => ()
+      }
+
+  }
 
   def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
     new Identifier(

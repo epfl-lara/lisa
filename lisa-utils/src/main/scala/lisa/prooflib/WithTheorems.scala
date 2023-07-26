@@ -5,6 +5,7 @@ import lisa.prooflib.ProofTacticLib.UnimplementedProof
 import lisa.prooflib.*
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
+import lisa.utils.UserLisaException.*
 import lisa.utils.*
 import lisa.utils.parsing.UnreachableException
 
@@ -12,6 +13,7 @@ import scala.annotation.nowarn
 import scala.collection.mutable.Buffer as mBuf
 import scala.collection.mutable.Map as mMap
 import scala.collection.mutable.Stack as stack
+import lisa.kernel.proof.RunningTheory
 
 
 trait WithTheorems {
@@ -276,6 +278,23 @@ trait WithTheorems {
           case ax: theory.Axiom => false
         }
   }
+
+  class AXIOM(using om: OutputManager)(line: Int, file: String, innerAxiom:theory.Axiom, val axiom:F.Formula, val name: String) extends Justification(using om)(line, file) {
+    def innerJustification: theory.Axiom = innerAxiom
+    val statement:F.Sequent = F.Sequent(Set(), Set(axiom))
+    if (statement.underlying != theory.sequentFromJustification(innerAxiom)) {
+      throw new InvalidAxiomException("The provided kernel axiom and desired statement don't match.", name, axiom, library)
+    }
+    def repr: String = innerJustification.repr
+  }
+
+  def Axiom(using om: OutputManager, line: Int, file: String, axiom:F.Formula, name: String) = {
+    val ax:Option[theory.Axiom] = ??? //theory.addAxiom(name, statement.underlying)
+    ax match {
+      case None => throw new InvalidAxiomException("Not all symbols belong to the theory", name, axiom, library)
+      case Some(value) => AXIOM(line, file, value, axiom, name)
+    }
+  }
   abstract class DEFINITION(using om: OutputManager)(line: Int, file: String) extends Justification(using om)(line, file){
     def repr: String = innerJustification.repr
     
@@ -340,10 +359,10 @@ trait WithTheorems {
         }
   
   }
-  object Theorem extends TheoremKind { val kind2: String = "Theorem2" }
+  object Theorem extends TheoremKind { val kind2: String = "Theorem" }
   object Lemma extends TheoremKind { val kind2: String = "Lemma" }
   object Corollary extends TheoremKind { val kind2: String = "Corollary" }
 
-  object InternalStatement extends TheoremKind { val kind2: String = "Internal, authomatically produced" }
+  object InternalStatement extends TheoremKind { val kind2: String = "Internal, automatically produced" }
 
 }

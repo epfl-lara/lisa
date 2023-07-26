@@ -1,5 +1,5 @@
 package lisa.mathematics
-
+/*
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
@@ -11,9 +11,10 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
 import lisa.utils.Printer
+*/
 
 object Orderings extends lisa.Main {
-
+/*
   // var defs
   private val w = variable
   private val x = variable
@@ -643,5 +644,5 @@ object Orderings extends lisa.Main {
   // ) {
   //   ???
   // }
-
+*/
 }

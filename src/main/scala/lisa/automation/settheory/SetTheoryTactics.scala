@@ -13,7 +13,7 @@ import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
 object SetTheoryTactics {
-
+/*
   import lisa.settheory.SetTheoryLibrary.{_, given}
   // var defs
   private val x = variable
@@ -81,5 +81,5 @@ object SetTheoryTactics {
       unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for unique comprehension failed.")
     }
   }
-
+*/
 }

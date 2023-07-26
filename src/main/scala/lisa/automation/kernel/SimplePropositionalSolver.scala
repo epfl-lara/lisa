@@ -15,6 +15,7 @@ import scala.collection.mutable.Set as mSet
  */
 object SimplePropositionalSolver {
 
+  /*
   class OrganisedFormulaSet {
     val negs: mSet[ConnectorFormula] = mSet()
     val impliess: mSet[ConnectorFormula] = mSet()
@@ -245,5 +246,5 @@ object SimplePropositionalSolver {
       proof.ValidProofTactic(steps, premises)
     }
   }
-
+*/
 }
