@@ -99,6 +99,16 @@ object Segments extends lisa.Main {
     have(thesis) by Tautology.from(fwd, bwd)
   }
 
+  val predecessorInInitialSegment = Lemma(
+    totalOrder(p) /\ predecessor(p, y, x) |- in(y, initialSegment(p, x))
+  ) {
+    assume(totalOrder(p))
+    assume(predecessor(p, y, x))
+
+    have(in(pair(x, y), secondInPair(p))) by Tautology.from(predecessor.definition)
+    have(in(y, initialSegment(p, x))) by Tautology.from(lastStep, totalOrder.definition)
+  }
+
   val initialSegmentsSubset = Lemma(
     partialOrder(p) /\ in(pair(x, y), secondInPair(p)) |- subset(initialSegment(p, x), initialSegment(p, y))
   ) {

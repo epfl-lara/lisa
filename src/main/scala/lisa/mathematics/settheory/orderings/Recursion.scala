@@ -1428,7 +1428,87 @@ object Recursion extends lisa.Main {
 
           // 2. v is recursive
           have(forall(z, in(z, initialSegment(p, x)) ==> (app(v, z) === F(orderedRestriction(v, z, p))))) subproof {
-            sorry
+            have(in(z, initialSegment(p, x)) |- (app(v, z) === F(orderedRestriction(v, z, p)))) subproof {
+              assume(in(z, initialSegment(p, x)))
+
+              // z is in dom v 
+              val zInDom = have(in(z, relationDomain(v))) subproof {
+                val domEQ = have(relationDomain(v) === initialSegment(p, x)) by Tautology.from(functionalOver.definition of (f -> v, x -> initialSegment(p, x)), vFunctionalOver)
+                have(in(z, initialSegment(p, x))) by Restate
+                thenHave(thesis) by Substitution.apply2(true, domEQ)
+              }
+
+              // app v z is well defined
+              val vAppDef = have((a === app(v, z)) <=> in(pair(z, a), v)) subproof {
+                val vFunctional = have(functional(v)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
+                have(thesis) by Tautology.from(vFunctional, zInDom, pairInFunctionIsApp of (f -> v, b -> z))
+              }
+
+              // z is either the predecessor or below it
+              val zSplit = have(((z === pr) \/ in(z, initialSegment(p, pr)))) by Tautology.from(pIsATotalOrder, initialSegmentPredecessorSplit of (y -> pr))
+
+              // the property holds for the predecessor
+              val prCase = have((z === pr) |- (app(v, z) === F(orderedRestriction(v, z, p)))) subproof {
+                have((app(v, pr) === F(orderedRestriction(v, pr, p)))) subproof {
+                  // uw is actually the ordered restriction of v to pr
+                  val uwEq = have((uw === orderedRestriction(v, pr, p))) subproof {
+                    sorry
+                  }
+
+                  val fuwEq = have((F(uw) === F(orderedRestriction(v, pr, p)))) subproof {
+                    have(F(uw) === F(uw)) by Restate
+                    thenHave(thesis) by Substitution.apply2(false, uwEq)
+                  }
+
+                  // app v pr = uw
+                  val appEq = have(app(v, pr) === F(uw)) subproof {
+                    val pairInV = have(in(pair(pr, F(uw)), v)) by Tautology.from(setUnionMembership of (z -> pair(pr, F(uw)), x -> uw, y -> prFun))
+                    have(in(pr, initialSegment(p, x))) by Tautology.from(predecessorInInitialSegment of y -> pr, pIsATotalOrder)
+                    have(thesis) by Tautology.from(vAppDef of (a -> F(uw), z -> pr), lastStep)
+                  }
+
+                  have(thesis) by Tautology.from(equalityTransitivity of (x -> app(v, pr), y -> F(uw), z -> F(orderedRestriction(v, z, p))), fuwEq, appEq)
+                }
+
+                thenHave(thesis) by Substitution.apply2(true, z === pr)
+              }
+
+              // the property holds for elements < pr
+              val wCase = have(in(z, initialSegment(p, pr)) |- (app(v, z) === F(orderedRestriction(v, z, p)))) subproof {
+                assume(in(z, initialSegment(p, pr)))
+
+                // uw is functional over <pr
+
+                // ordered restriction of v to z is the same as uw to z
+                val restrictionVW = have(orderedRestriction(v, z, p) === orderedRestriction(uw, z, p)) subproof {
+                  sorry
+                }
+
+                val restrictionFVW = have(F(orderedRestriction(v, z, p)) === F(orderedRestriction(uw, z, p))) subproof {
+                  have(F(orderedRestriction(v, z, p)) === F(orderedRestriction(v, z, p))) by Restate
+                  thenHave(thesis) by Substitution.apply2(false, restrictionVW)
+                }
+
+                // app v z = app uw z
+                val appVW = have(app(v, z) === app(uw, z)) subproof {
+                  val wAppDef = ???
+                }
+
+                // app uw z = F (uw |^ z)
+                val appRestrictionUW = have(app(uw, z) === F(orderedRestriction(uw, z, p))) subproof {
+                  sorry
+                }
+
+                // equality transitivity
+                have(app(v, z) === F(orderedRestriction(uw, z, p))) by Tautology.from(equalityTransitivity of (x -> app(v, z), y -> app(uw, z), z -> F(orderedRestriction(uw, z, p))), appVW, appRestrictionUW)
+                have(app(v, z) === F(orderedRestriction(v, z, p))) by Tautology.from(equalityTransitivity of (x -> app(v, z), y -> F(orderedRestriction(uw, z, p)), z -> F(orderedRestriction(v, z, p))), lastStep, restrictionFVW)
+              }
+
+              have(thesis) by Tautology.from(zSplit, prCase, wCase)
+            }
+
+            thenHave(in(z, initialSegment(p, x)) ==> (app(v, z) === F(orderedRestriction(v, z, p)))) by Restate
+            thenHave(thesis) by RightForall
           }
         }
 
@@ -1471,11 +1551,7 @@ object Recursion extends lisa.Main {
       in(t, firstInPair(p)) ==> existsOne(g, (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegment(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))))
     )
   ) {
-
     assume(wellOrder(p))
-
-    val p1 = firstInPair(p)
-    val p2 = secondInPair(p)
 
     val pIsAPartialOrder = have(partialOrder(p)) by Tautology.from(wellOrder.definition, totalOrder.definition)
     val pIsATotalOrder = have(totalOrder(p)) by Tautology.from(wellOrder.definition)
