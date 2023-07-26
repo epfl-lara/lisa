@@ -1571,6 +1571,8 @@ object Recursion extends lisa.Main {
                     thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(v, setIntersection(initialSegment(p, pr), initialSegment(p, z)))) by Substitution.apply2(false, restrictedFunctionAbsorption of (f -> v, x -> initialSegment(p, pr), y -> initialSegment(p, z)))
                     thenHave(thesis) by Substitution.apply2(false, intersectionEQ)
                   }
+
+                  have(thesis) by Tautology.from(lastStep, doubleRestriction, equalityTransitivity of (x -> orderedRestriction(uw, z, p), y -> orderedRestriction(orderedRestriction(v, pr, p), z, p), z -> orderedRestriction(v, z, p)))
                 }
 
                 val restrictionFVW = have(F(orderedRestriction(v, z, p)) === F(orderedRestriction(uw, z, p))) subproof {
