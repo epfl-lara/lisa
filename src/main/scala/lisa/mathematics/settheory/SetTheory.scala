@@ -894,6 +894,12 @@ object SetTheory extends lisa.Main {
    */
   val setIntersection = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
 
+  val setIntersectionCommutativity = Theorem(
+    setIntersection(x, y) === setIntersection(y, x)
+  ) {
+    sorry
+  }
+
   extension (x: Term) {
     infix def ∩(y: Term) = setIntersection(x, y)
   }
@@ -2811,6 +2817,12 @@ object SetTheory extends lisa.Main {
     thenHave(∀(t, in(t, g) <=> in(t, f))) by RightForall
 
     have(g === f) by Tautology.from(extensionalityAxiom of (x -> g, y -> f), lastStep)
+  }
+
+  val restrictedFunctionAbsorption = Theorem(
+    restrictedFunction(restrictedFunction(f, x), y) === restrictedFunction(f, setIntersection(x, y))
+  ) {
+    sorry
   }
 
   // TODO: any subset of a functional is functional

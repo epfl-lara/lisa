@@ -1453,78 +1453,79 @@ object Recursion extends lisa.Main {
               // z is either the predecessor or below it
               val zSplit = have(((z === pr) \/ in(z, initialSegment(p, pr)))) by Tautology.from(pIsATotalOrder, initialSegmentPredecessorSplit of (y -> pr))
 
+
+              // uw is actually the ordered restriction of v to pr
+              val uwEq = have((uw === orderedRestriction(v, pr, p))) subproof {
+                val vpr = orderedRestriction(v, pr, p)
+
+                // uw has domain <pr
+                val domUW = have(functionalOver(uw, initialSegment(p, pr))) by Restate.from(uwFunctionalOver)
+
+                // so does v |^ pr
+                val domRV = have(functionalOver(vpr, initialSegment(p, pr))) subproof {
+                  have(functional(v)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
+                  val vprFun = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), relationDomain(v)))) by Tautology.from(
+                    lastStep,
+                    restrictedFunctionIsFunctionalOver of (f -> v, x -> initialSegment(p, pr))
+                  )
+
+                  have(relationDomain(v) === initialSegment(p, x)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
+                  val initIntersection = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), initialSegment(p, x)))) by Substitution.apply2(false, lastStep)(vprFun)
+
+                  have(setIntersection(initialSegment(p, pr), initialSegment(p, x)) === initialSegment(p, pr)) by Tautology.from(
+                    predecessorInInitialSegment of y -> pr,
+                    initialSegmentIntersection of y -> pr
+                  )
+                  have(thesis) by Substitution.apply2(false, lastStep)(initIntersection)
+                }
+
+                // and they agree on their domain
+                have(in(b, initialSegment(p, pr)) |- (app(uw, b) === app(vpr, b))) subproof {
+                  assume(in(b, initialSegment(p, pr)))
+
+                  val appDefw = have((a === app(uw, b)) <=> in(pair(b, a), uw)) by Tautology.from(functionalOverApplication of (f -> uw, x -> initialSegment(p, pr), b -> a, a -> b), domUW)
+                  val appDefv = have((a === app(vpr, b)) <=> in(pair(b, a), vpr)) by Tautology.from(functionalOverApplication of (f -> vpr, x -> initialSegment(p, pr), b -> a, a -> b), domRV)
+
+                  val fwd = have(in(pair(b, a), uw) |- in(pair(b, a), vpr)) subproof {
+                    assume(in(pair(b, a), uw))
+
+                    have(in(pair(b, a), v)) by Tautology.from(setUnionMembership of (z -> pair(b, a), x -> uw, y -> prFun))
+                    have(thesis) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> a, a -> b))
+                  }
+
+                  val bwd = have(in(pair(b, a), vpr) |- in(pair(b, a), uw)) subproof {
+                    have(in(pair(b, a), v)) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> a, a -> b))
+                    val cases = have(in(pair(b, a), uw) \/ in(pair(b, a), prFun)) by Tautology.from(lastStep, setUnionMembership of (z -> pair(b, a), x -> uw, y -> prFun))
+
+                    have(!in(pair(b, a), prFun)) subproof {
+                      // towards a contradiction, assume otherwise
+                      assume(in(pair(b, a), prFun))
+
+                      have(pair(b, a) === pair(pr, F(uw))) by Tautology.from(singletonHasNoExtraElements of (y -> pair(b, a), x -> pair(pr, F(uw))))
+                      val bEQpr = have(b === pr) by Tautology.from(lastStep, pairExtensionality of (a -> b, b -> a, c -> pr, d -> F(uw)))
+
+                      have(in(b, initialSegment(p, pr))) by Restate
+                      thenHave(in(pr, initialSegment(p, pr))) by Substitution.apply2(false, bEQpr)
+                      have(bot()) by Tautology.from(lastStep, initialSegmentIrreflexivity of (x -> pr), pIsAPartialOrder)
+                    }
+
+                    have(thesis) by Tautology.from(lastStep, cases)
+                  }
+
+                  have(in(pair(b, a), uw) <=> in(pair(b, a), vpr)) by Tautology.from(fwd, bwd)
+                  have((a === app(uw, b)) <=> (a === app(vpr, b))) by Tautology.from(appDefw, appDefv, lastStep)
+                  have(thesis) by Restate.from(lastStep of a -> app(uw, b))
+                }
+
+                thenHave(in(b, initialSegment(p, pr)) ==> (app(uw, b) === app(orderedRestriction(v, z, p), b))) by Restate
+                thenHave(forall(b, in(b, initialSegment(p, pr)) ==> (app(uw, b) === app(orderedRestriction(v, z, p), b)))) by RightForall
+
+                have(thesis) by Tautology.from(functionsEqualIfEqualOnDomain of (f -> uw, g -> orderedRestriction(v, z, p), a -> initialSegment(p, pr)), lastStep, domUW, domRV)
+              }
+
               // the property holds for the predecessor
               val prCase = have((z === pr) |- (app(v, z) === F(orderedRestriction(v, z, p)))) subproof {
                 have((app(v, pr) === F(orderedRestriction(v, pr, p)))) subproof {
-                  // uw is actually the ordered restriction of v to pr
-                  val uwEq = have((uw === orderedRestriction(v, pr, p))) subproof {
-                    val vpr = orderedRestriction(v, pr, p)
-
-                    // uw has domain <pr
-                    val domUW = have(functionalOver(uw, initialSegment(p, pr))) by Restate.from(uwFunctionalOver)
-
-                    // so does v |^ pr
-                    val domRV = have(functionalOver(vpr, initialSegment(p, pr))) subproof {
-                      have(functional(v)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
-                      val vprFun = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), relationDomain(v)))) by Tautology.from(
-                        lastStep,
-                        restrictedFunctionIsFunctionalOver of (f -> v, x -> initialSegment(p, pr))
-                      )
-
-                      have(relationDomain(v) === initialSegment(p, x)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
-                      val initIntersection = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), initialSegment(p, x)))) by Substitution.apply2(false, lastStep)(vprFun)
-
-                      have(setIntersection(initialSegment(p, pr), initialSegment(p, x)) === initialSegment(p, pr)) by Tautology.from(
-                        predecessorInInitialSegment of y -> pr,
-                        initialSegmentIntersection of y -> pr
-                      )
-                      have(thesis) by Substitution.apply2(false, lastStep)(initIntersection)
-                    }
-
-                    // and they agree on their domain
-                    have(in(b, initialSegment(p, pr)) |- (app(uw, b) === app(vpr, b))) subproof {
-                      assume(in(b, initialSegment(p, pr)))
-
-                      val appDefw = have((a === app(uw, b)) <=> in(pair(b, a), uw)) by Tautology.from(functionalOverApplication of (f -> uw, x -> initialSegment(p, pr), b -> a, a -> b), domUW)
-                      val appDefv = have((a === app(vpr, b)) <=> in(pair(b, a), vpr)) by Tautology.from(functionalOverApplication of (f -> vpr, x -> initialSegment(p, pr), b -> a, a -> b), domRV)
-
-                      val fwd = have(in(pair(b, a), uw) |- in(pair(b, a), vpr)) subproof {
-                        assume(in(pair(b, a), uw))
-
-                        have(in(pair(b, a), v)) by Tautology.from(setUnionMembership of (z -> pair(b, a), x -> uw, y -> prFun))
-                        have(thesis) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> a, a -> b))
-                      }
-
-                      val bwd = have(in(pair(b, a), vpr) |- in(pair(b, a), uw)) subproof {
-                        have(in(pair(b, a), v)) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> a, a -> b))
-                        val cases = have(in(pair(b, a), uw) \/ in(pair(b, a), prFun)) by Tautology.from(lastStep, setUnionMembership of (z -> pair(b, a), x -> uw, y -> prFun))
-
-                        have(!in(pair(b, a), prFun)) subproof {
-                          // towards a contradiction, assume otherwise
-                          assume(in(pair(b, a), prFun))
-
-                          have(pair(b, a) === pair(pr, F(uw))) by Tautology.from(singletonHasNoExtraElements of (y -> pair(b, a), x -> pair(pr, F(uw))))
-                          val bEQpr = have(b === pr) by Tautology.from(lastStep, pairExtensionality of (a -> b, b -> a, c -> pr, d -> F(uw)))
-
-                          have(in(b, initialSegment(p, pr))) by Restate
-                          thenHave(in(pr, initialSegment(p, pr))) by Substitution.apply2(false, bEQpr)
-                          have(bot()) by Tautology.from(lastStep, initialSegmentIrreflexivity of (x -> pr), pIsAPartialOrder)
-                        }
-
-                        have(thesis) by Tautology.from(lastStep, cases)
-                      }
-
-                      have(in(pair(b, a), uw) <=> in(pair(b, a), vpr)) by Tautology.from(fwd, bwd)
-                      have((a === app(uw, b)) <=> (a === app(vpr, b))) by Tautology.from(appDefw, appDefv, lastStep)
-                      have(thesis) by Restate.from(lastStep of a -> app(uw, b))
-                    }
-
-                    thenHave(in(b, initialSegment(p, pr)) ==> (app(uw, b) === app(orderedRestriction(v, z, p), b))) by Restate
-                    thenHave(forall(b, in(b, initialSegment(p, pr)) ==> (app(uw, b) === app(orderedRestriction(v, z, p), b)))) by RightForall
-
-                    have(thesis) by Tautology.from(functionsEqualIfEqualOnDomain of (f -> uw, g -> orderedRestriction(v, z, p), a -> initialSegment(p, pr)), lastStep, domUW, domRV)
-                  }
-
                   val fuwEq = have((F(uw) === F(orderedRestriction(v, pr, p)))) subproof {
                     have(F(uw) === F(uw)) by Restate
                     thenHave(thesis) by Substitution.apply2(false, uwEq)
@@ -1551,7 +1552,25 @@ object Recursion extends lisa.Main {
 
                 // ordered restriction of v to z is the same as uw to z
                 val restrictionVW = have(orderedRestriction(v, z, p) === orderedRestriction(uw, z, p)) subproof {
-                  sorry
+                  have(orderedRestriction(uw, z, p) === orderedRestriction(uw, z, p)) by Restate
+                  val doubleRestriction = have(orderedRestriction(uw, z, p) === orderedRestriction(orderedRestriction(v, pr, p), z, p)) by Substitution.apply2(false, uwEq)
+
+                  have(orderedRestriction(orderedRestriction(v, pr, p), z, p) === orderedRestriction(v, z, p)) subproof {
+                    // reduce to restricted functions
+                    val ordBreakdown = have(orderedRestriction(a, b, p) === restrictedFunction(a, initialSegment(p, b))) by InstantiateForall(orderedRestriction(a, b, p))(orderedRestriction.definition of (f -> a, a -> b))
+
+                    val intersectionEQ = have(setIntersection(initialSegment(p, pr), initialSegment(p, z)) === initialSegment(p, z)) subproof {
+                      have(setIntersection(initialSegment(p, z), initialSegment(p, pr)) === initialSegment(p, z)) by Tautology.from(initialSegmentIntersection of (y -> z, x -> pr), pIsAPartialOrder)
+
+                      thenHave(thesis) by Substitution.apply2(false, setIntersectionCommutativity of (x -> initialSegment(p, z), y -> initialSegment(p, pr)))
+                    }
+
+                    have(orderedRestriction(orderedRestriction(v, pr, p), z, p) === orderedRestriction(orderedRestriction(v, pr, p), z, p)) by Restate
+                    thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(orderedRestriction(v, pr, p), initialSegment(p, z))) by Substitution.apply2(false, ordBreakdown of (a -> orderedRestriction(v, pr, p), b -> z))
+                    thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(restrictedFunction(v, initialSegment(p, pr)), initialSegment(p, z))) by Substitution.apply2(false, ordBreakdown of (a -> v, b -> pr))
+                    thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(v, setIntersection(initialSegment(p, pr), initialSegment(p, z)))) by Substitution.apply2(false, restrictedFunctionAbsorption of (f -> v, x -> initialSegment(p, pr), y -> initialSegment(p, z)))
+                    thenHave(thesis) by Substitution.apply2(false, intersectionEQ)
+                  }
                 }
 
                 val restrictionFVW = have(F(orderedRestriction(v, z, p)) === F(orderedRestriction(uw, z, p))) subproof {
