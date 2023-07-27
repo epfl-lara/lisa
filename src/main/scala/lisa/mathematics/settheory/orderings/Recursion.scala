@@ -1582,7 +1582,15 @@ object Recursion extends lisa.Main {
 
                 // app v z = app uw z
                 val appVW = have(app(v, z) === app(uw, z)) subproof {
-                  val wAppDef = ???
+                  have(app(uw, z) === app(uw, z)) by Restate
+                  val uwToOrd = have(app(uw, z) === app(orderedRestriction(v, pr, p), z)) by Substitution.apply2(false, uwEq)
+
+                  have(orderedRestriction(v, pr, p) === restrictedFunction(v, initialSegment(p, pr))) by InstantiateForall(orderedRestriction(v, pr, p))(orderedRestriction.definition of (f -> v, a -> pr))
+                  val uwToRest = have(app(uw, z) === app(restrictedFunction(v, initialSegment(p, pr)), z)) by Substitution.apply2(false, lastStep)(uwToOrd)
+
+                  have(app(restrictedFunction(v, initialSegment(p, pr)), z) === app(v, z)) by Tautology.from(restrictedFunctionApplication of (f -> v, x -> initialSegment(p, pr), y -> z))
+                  have(app(uw, z) === app(v, z)) by Substitution.apply2(false, lastStep)(uwToRest)
+
                 }
 
                 // app uw z = F (uw |^ z)
