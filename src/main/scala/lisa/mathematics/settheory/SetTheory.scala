@@ -900,6 +900,12 @@ object SetTheory extends lisa.Main {
     sorry
   }
 
+  val setIntersectionMembership = Theorem(
+    in(t, setIntersection(x, y)) <=> (in(t, x) /\ in(t, y))
+  ) {
+    sorry
+  }
+
   extension (x: Term) {
     infix def ∩(y: Term) = setIntersection(x, y)
   }
@@ -2537,7 +2543,7 @@ object SetTheory extends lisa.Main {
   }
 
   val functionsSubsetIfEqualOnSubsetDomain = Theorem(
-    functionalOver(f, a) /\ functionalOver(g, b) /\ subset(a, b) /\ forall(z, in(z, a) ==> (app(f, z) === app(g, z))) |- (f === g)
+    functionalOver(f, a) /\ functionalOver(g, b) /\ subset(a, b) /\ forall(z, in(z, a) ==> (app(f, z) === app(g, z))) |- subset(f, g)
   ) {
     assume(functionalOver(f, a))
     assume(functionalOver(g, b))

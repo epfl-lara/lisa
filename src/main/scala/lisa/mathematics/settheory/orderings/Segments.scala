@@ -99,6 +99,20 @@ object Segments extends lisa.Main {
     have(thesis) by Tautology.from(fwd, bwd)
   }
 
+  val initialSegmentBaseElement = Lemma(
+    partialOrder(p) /\ in(x, initialSegment(p, y)) |- in(x, firstInPair(p))
+  ) {
+    assume(partialOrder(p))
+    assume(in(x, initialSegment(p, y)))
+
+    val p1 = firstInPair(p)
+    val p2 = secondInPair(p)
+
+    val pairInp2 = have(in(pair(x, y), p2)) by Tautology.from(initialSegmentElement)
+    have(relationBetween(p2, p1, p1)) by Tautology.from(partialOrder.definition)
+    have(in(x, p1)) by Tautology.from(lastStep, pairInp2, pairInRelation of (r -> p2, a -> p1, b -> p1))
+  }
+
   val initialSegmentIrreflexivity = Lemma(
     partialOrder(p) |- !in(x, initialSegment(p, x))
   ) {
@@ -111,8 +125,8 @@ object Segments extends lisa.Main {
     assume(totalOrder(p))
     assume(predecessor(p, y, x))
 
-    have(in(pair(x, y), secondInPair(p))) by Tautology.from(predecessor.definition)
-    have(in(y, initialSegment(p, x))) by Tautology.from(lastStep, totalOrder.definition)
+    have(in(pair(y, x), secondInPair(p))) by Tautology.from(predecessor.definition of (x -> y, y -> x))
+    have(in(y, initialSegment(p, x))) by Tautology.from(lastStep, totalOrder.definition, initialSegmentElement of (x -> y, y -> x))
   }
 
   val initialSegmentsSubset = Lemma(
@@ -208,7 +222,10 @@ object Segments extends lisa.Main {
   }
 
   val orderedRestrictionAgreement = Lemma(
-    partialOrder(p) /\ in(b, initialSegment(p, a)) |- (app(orderedRestriction(f, a, p), b) === app(orderedRestriction(g, a, p), b)) <=> (app(f, b) === app(g, b))
+    partialOrder(p) /\ in(b, initialSegment(p, a)) /\ in(b, relationDomain(f)) /\ in(b, relationDomain(g)) |- (app(orderedRestriction(f, a, p), b) === app(orderedRestriction(g, a, p), b)) <=> (app(
+      f,
+      b
+    ) === app(g, b))
   ) {
     sorry
   }
