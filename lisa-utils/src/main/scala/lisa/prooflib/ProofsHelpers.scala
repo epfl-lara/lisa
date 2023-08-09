@@ -95,7 +95,10 @@ trait ProofsHelpers {
     have(() |- f) by BasicStepTactic.Hypothesis
   }
 
-  def assume(using proof: library.Proof)(fs: Iterable[Formula]): proof.ProofStep = {
+  /**
+   * Assume the given formulas in all future left hand-side of claimed sequents.
+   */
+  def assume(using proof: library.Proof)(fs: Formula*): proof.ProofStep = {
     fs.foreach(f => proof.addAssumption(f))
     have(() |- fs.toSet) by BasicStepTactic.Hypothesis
   }

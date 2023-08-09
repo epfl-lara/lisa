@@ -91,7 +91,7 @@ class Printer(parser: Parser) {
       val printedImports = proof.imports.zipWithIndex.reverse.flatMap { case (imp, i) =>
         val currentTree = tree :+ (-i - 1)
         val showErrorForLine = judgement match {
-          case SCValidProof(_) => false
+          case SCValidProof(_, _) => false
           case SCInvalidProof(proof, position, _) => currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0)
         }
         val prefix = (Seq.fill(level - topMostIndices.size)(None) ++ Seq.fill(topMostIndices.size)(None) :+ Some(-i - 1)) ++ Seq.fill(maxLevel - level)(None)
@@ -110,7 +110,7 @@ class Printer(parser: Parser) {
       printedImports ++ proof.steps.zipWithIndex.flatMap { case (step, i) =>
         val currentTree = tree :+ i
         val showErrorForLine = judgement match {
-          case SCValidProof(_) => false
+          case SCValidProof(_, _) => false
           case SCInvalidProof(proof, position, _) => currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0)
         }
         val prefix = (Seq.fill(level - topMostIndices.size)(None) ++ Seq.fill(topMostIndices.size)(None) :+ Some(i)) ++ Seq.fill(maxLevel - level)(None)
@@ -175,7 +175,7 @@ class Printer(parser: Parser) {
         full.mkString(" ")
       }
       .mkString("\n") + (judgement match {
-      case SCValidProof(_) => ""
+      case SCValidProof(_, _) => ""
       case SCInvalidProof(proof, path, message) => s"\nProof checker has reported an error at line ${path.mkString(".")}: $message"
     })
   }

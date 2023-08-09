@@ -147,8 +147,8 @@ object SimpleDeducedSteps {
         res._3 match {
           case proof.InvalidProofTactic(_) => res._3
           case proof.ValidProofTactic(_, _, _) => {
-            if (K.isSameSequent(res._1.conclusion, botK))
-              proof.ValidProofTactic(bot, Seq(K.SCSubproof(res._1.withNewSteps(IndexedSeq(K.Restate(botK, res._1.length - 1))), Seq(-1))), Seq(premise))
+            if (K.isImplyingSequent(res._1.conclusion, botK))
+              proof.ValidProofTactic(bot, Seq(K.SCSubproof(res._1.withNewSteps(IndexedSeq(K.Weakening(botK, res._1.length - 1))), Seq(-1))), Seq(premise))
             else
               proof.InvalidProofTactic(s"InstantiateForall proved \n\t${FOLParser.printSequent(res._1.conclusion)}\ninstead of input sequent\n\t${FOLParser.printSequent(botK)}")
           }

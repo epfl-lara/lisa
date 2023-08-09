@@ -22,6 +22,13 @@ import MapProofDef.{*, given}
  */
 object MapProofTest extends lisa.Main {
 
+  // available rules
+  val MapNil = Nil.map(f) === Nil
+  val MapCons = forall(x, forall(xs, (x :: xs).map(f) === (app(f, x) :: xs.map(f))))
+  val MapTrNil = forall(xs, Nil.mapTr(f, xs) === xs)
+  val MapTrCons = forall(x, forall(xs, forall(ys, (x :: xs).mapTr(f, ys) === xs.mapTr(f, ys ++ (app(f, x) :: Nil)))))
+  val NilAppend = forall(xs, (Nil ++ xs) === xs)
+  val ConsAppend = forall(x, forall(xs, forall(ys, ((x :: xs) ++ ys) === (x :: (xs ++ ys)))))
 
   val AccOutNil = Theorem(
     Nil.mapTr(f, (x :: xs)) === (x :: Nil.mapTr(f, xs))
@@ -42,13 +49,13 @@ object MapProofTest extends lisa.Main {
     assume(mapRules)
     assume(IH1)
 
-    // apply mapTr.ConsCase
-    have(mapTr.ConsCase) by Restate
-    val appYYs = thenHave((x :: xs).mapTr(f, (y :: ys)) === xs.mapTr(f, append((y :: ys), (app(f, x) :: Nil)))) by InstantiateForall(x, xs, (y :: ys))
+    // apply MapTrCons
+    have(MapTrCons) by Restate
+    val appYYs = thenHave((x :: xs).mapTr(f, (y :: ys)) === xs.mapTr(f, (y :: ys) ++ (app(f, x) :: Nil))) by InstantiateForall(x, xs, (y :: ys))
 
-    // apply append.ConsCase
-    have(append.ConsCase) by Restate
-    thenHave(append((y :: ys), (app(f, x) :: Nil)) === (y :: (ys +++ (app(f, x) :: Nil)))) by InstantiateForall(y, ys, (app(f, x) :: Nil))
+    // apply ConsAppend
+    have(ConsAppend) by Restate
+    thenHave((y :: ys) ++ (app(f, x) :: Nil) === (y :: (ys ++ (app(f, x) :: Nil)))) by InstantiateForall(y, ys, (app(f, x) :: Nil))
 
     val consYYs = have((x :: xs).mapTr(f, (y :: ys)) === xs.mapTr(f, (y :: (ys +++ (app(f, x) :: Nil))))) by Substitution.apply2(false, lastStep)(appYYs)
 
