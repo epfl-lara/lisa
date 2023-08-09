@@ -435,6 +435,11 @@ object Recursion extends lisa.Main {
         thenHave(thesis) by RightForall
       }
 
+      // working with orderedRestrictions
+      val ordBreakdown = have(orderedRestriction(a, b, p) === restrictedFunction(a, initialSegment(p, b))) by InstantiateForall(orderedRestriction(a, b, p))(
+        orderedRestriction.definition of (f -> a, a -> b)
+      )
+
       val t1 = variable
       val t2 = variable
 
@@ -859,115 +864,7 @@ object Recursion extends lisa.Main {
       val uwfunctional = have(functional(uw)) by Tautology.from(elemsFunctional, elemsSubset, unionOfFunctionSet of z -> w)
 
       // now, from w, we will construct the requisite function g for x
-
-      // there are two cases, either x has a predecessor, or it doesn't
-      val limSuccCases = have(limitElement(p, x) \/ successorElement(p, x)) by Tautology.from(everyElemInTotalOrderLimitOrSuccessor, wellOrder.definition)
-
-      // if x has no predecessor, i.e., it is a limit element, w is the required function
-      val limitCase = have(limitElement(p, x) |- exists(g, fun(g, x))) subproof {
-        assume(limitElement(p, x))
-
-        // <x = \cup <y
-
-        // uw is a function on <x
-        val uwFunctionalOver = have(functionalOver(uw, initialSegment(p, x))) subproof {
-          val elem = variable
-          val limitProp =
-            have(in(pair(elem, x), p2) ==> exists(y, in(pair(y, x), p2) /\ in(pair(elem, y), p2))) by Tautology.from(initialSegmentUnionForLimitElementsIsComplete of t -> elem, pIsATotalOrder)
-
-          have(forall(t, in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g))))) by Tautology.from(domainOfFunctionalUnion of z -> w, uwfunctional)
-          val domDef = thenHave(in(elem, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(elem, relationDomain(g)))) by InstantiateForall(elem)
-
-          have(exists(g, in(g, w) /\ in(elem, relationDomain(g))) <=> in(elem, initialSegment(p, x))) subproof {
-            val fwd = have(exists(g, in(g, w) /\ in(elem, relationDomain(g))) |- in(elem, initialSegment(p, x))) subproof {
-              have(in(g, w) /\ in(elem, relationDomain(g)) |- in(elem, initialSegment(p, x))) subproof {
-                assume(in(g, w))
-                assume(in(elem, relationDomain(g)))
-
-                // there must be a y < x that g is a recursive function for
-                have(in(g, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by InstantiateForall
-                val yExists = thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by Tautology
-
-                // elem is in dom g, which is <y, so elem < y, and finally elem < x by transitivity
-                have(in(y, initialSegment(p, x)) /\ fun(g, y) |- in(elem, initialSegment(p, x))) subproof {
-                  assume(in(y, initialSegment(p, x)))
-                  assume(fun(g, y))
-
-                  have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(functionalOver.definition of (f -> g, x -> initialSegment(p, y)))
-                  have(forall(elem, in(elem, relationDomain(g)) <=> in(elem, initialSegment(p, y)))) by Tautology.from(
-                    lastStep,
-                    extensionalityAxiom of (x -> relationDomain(g), y -> initialSegment(p, y))
-                  )
-                  thenHave(in(elem, relationDomain(g)) <=> in(elem, initialSegment(p, y))) by InstantiateForall(elem)
-                  val eLTy = have(in(pair(elem, y), p2)) by Tautology.from(lastStep, initialSegmentElement of x -> elem, pIsAPartialOrder)
-                  val yLTx = have(in(pair(y, x), p2)) by Tautology.from(initialSegmentElement of (x -> y, y -> x), pIsAPartialOrder)
-
-                  // apply transitivity
-                  have(forall(elem, forall(y, forall(x, (in(pair(elem, y), p2) /\ in(pair(y, x), p2)) ==> in(pair(elem, x), p2))))) by Weakening(wellOrderTransitivity)
-                  thenHave((in(pair(elem, y), p2) /\ in(pair(y, x), p2)) ==> in(pair(elem, x), p2)) by InstantiateForall(elem, y, x)
-                  have(in(pair(elem, x), p2)) by Tautology.from(lastStep, eLTy, yLTx)
-                  have(thesis) by Tautology.from(lastStep, initialSegmentElement of (y -> x, x -> elem), pIsAPartialOrder)
-                }
-
-                thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y)) |- in(elem, initialSegment(p, x))) by LeftExists
-                have(thesis) by Tautology.from(yExists, lastStep)
-              }
-
-              thenHave(thesis) by LeftExists
-            }
-
-            val bwd = have(in(elem, initialSegment(p, x)) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) subproof {
-              assume(in(elem, initialSegment(p, x)))
-
-              // find a y s.t. elem < y < x
-              // this exists since x is a limit element
-              val yExists = have(exists(y, in(pair(elem, y), p2) /\ in(pair(y, x), p2))) by Tautology.from(limitProp, initialSegmentElement of (y -> x, x -> elem), pIsAPartialOrder)
-
-              // given y, there is a g which is defined recursively for y
-              val gExists = have(in(pair(y, x), p2) |- exists(g, fun(g, y))) subproof {
-                have(in(y, initialSegment(p, x)) ==> (in(y, p1) /\ existsOne(g, fun(g, y)))) by InstantiateForall
-                have(thesis) by Tautology.from(lastStep, initialSegmentElement of (x -> y, y -> x), existsOneImpliesExists of P -> lambda(g, fun(g, y)), pIsAPartialOrder)
-              }
-
-              // these g and y give us the required witness for elem
-              have((in(pair(elem, y), p2) /\ in(pair(y, x), p2), fun(g, y)) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) subproof {
-                assume(in(pair(elem, y), p2) /\ in(pair(y, x), p2))
-                assume(fun(g, y))
-
-                have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(functionalOver.definition of (f -> g, x -> initialSegment(p, y)))
-                have(forall(elem, in(elem, relationDomain(g)) <=> in(elem, initialSegment(p, y)))) by Tautology.from(
-                  lastStep,
-                  extensionalityAxiom of (x -> relationDomain(g), y -> initialSegment(p, y))
-                )
-                thenHave(in(elem, relationDomain(g)) <=> in(elem, initialSegment(p, y))) by InstantiateForall(elem)
-
-                val elemInDom = have(in(elem, relationDomain(g))) by Tautology.from(lastStep, initialSegmentElement of x -> elem, pIsAPartialOrder)
-
-                have(in(y, initialSegment(p, x)) /\ fun(g, y)) by Tautology.from(initialSegmentElement of (x -> y, y -> x), pIsAPartialOrder)
-                val yExists = thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by RightExists
-
-                have(in(g, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by InstantiateForall
-                have(in(g, w) /\ in(elem, relationDomain(g))) by Tautology.from(lastStep, yExists, elemInDom)
-                thenHave(thesis) by RightExists
-              }
-
-              thenHave((in(pair(elem, y), p2) /\ in(pair(y, x), p2), exists(g, fun(g, y))) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) by LeftExists
-              have((in(pair(elem, y), p2) /\ in(pair(y, x), p2)) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) by Tautology.from(lastStep, gExists)
-              thenHave(exists(y, in(pair(elem, y), p2) /\ in(pair(y, x), p2)) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) by LeftExists
-              have(thesis) by Cut(yExists, lastStep)
-            }
-
-            have(thesis) by Tautology.from(fwd, bwd)
-          }
-
-          have(in(elem, relationDomain(uw)) <=> in(elem, initialSegment(p, x))) by Tautology.from(lastStep, domDef)
-          thenHave(forall(elem, in(elem, relationDomain(uw)) <=> in(elem, initialSegment(p, x)))) by RightForall
-          have(relationDomain(uw) === initialSegment(p, x)) by Tautology.from(lastStep, extensionalityAxiom of (x -> relationDomain(uw), y -> initialSegment(p, x)))
-
-          have(thesis) by Tautology.from(functionalOver.definition of (f -> uw, x -> initialSegment(p, x)), lastStep, uwfunctional)
-        }
-
-        val uwRestrictedEq = have(in(z, relationDomain(uw)) |- app(uw, z) === F(orderedRestriction(uw, z, p))) subproof {
+      val uwRestrictedEq = have(in(z, relationDomain(uw)) |- app(uw, z) === F(orderedRestriction(uw, z, p))) subproof {
           assume(in(z, relationDomain(uw)))
 
           // \exists g \in w. uw z = F g |^ z
@@ -1067,7 +964,7 @@ object Recursion extends lisa.Main {
             val ouDef = have(in(t, ou) <=> (in(t, uw) /\ in(firstInPair(t), initialSegment(p, z)))) by Tautology.from(orderedRestrictionMembership of (f -> uw, a -> z, b -> t), pIsAPartialOrder)
 
             // t \in g |^ z ==> t \in uw |^ z
-            have(in(t, og) |- in(t, ou)) subproof {
+            val fwd = have(in(t, og) |- in(t, ou)) subproof {
               assume(in(t, og))
               val tInG = have((in(t, g) /\ in(firstInPair(t), initialSegment(p, z)))) by Tautology.from(ogDef)
 
@@ -1084,7 +981,7 @@ object Recursion extends lisa.Main {
             }
 
             // t \in uw |^ z ==> t \in g |^ z
-            have(in(t, ou) |- in(t, og)) subproof {
+            val bwd = have(in(t, ou) |- in(t, og)) subproof {
               assume(in(t, ou))
               val tInU = have((in(t, uw) /\ in(firstInPair(t), initialSegment(p, z)))) by Tautology.from(ouDef)
 
@@ -1249,16 +1146,19 @@ object Recursion extends lisa.Main {
 
                         // t2 = a
                         val t2Eqa = have(t2 === a) subproof {
+                          // f is functional
+                          have(in(f, w) ==> functional(f)) by InstantiateForall(f)(elemsFunctional)
+
                           // given t1, there must be a unique element in ran f it maps to
-                          have(forall(t, exists(b, in(pair(t, b), f)) ==> existsOne(b, in(pair(t, b), f)))) by Tautology.from(functional.definition)
+                          have(forall(t, exists(b, in(pair(t, b), f)) ==> existsOne(b, in(pair(t, b), f)))) by Tautology.from(lastStep, functional.definition)
                           val exToExOne = thenHave(exists(b, in(pair(t1, b), f)) |- existsOne(b, in(pair(t1, b), f))) by InstantiateForall(t1)
 
                           have(in(pair(t1, a), f)) by Weakening(t1aInF)
                           val ex = thenHave(exists(b, in(pair(t1, b), f))) by RightExists
                           val exOne = have(existsOne(b, in(pair(t1, b), f))) by Cut(lastStep, exToExOne)
 
-                          have(forall(a, forall(b, !in(pair(t1, a), f) \/ !in(pair(t1, b), f) \/ !(a === b)))) by Tautology.from(atleastTwoExist of P -> lambda(a, in(pair(t1, a), f)), ex, exOne)
-                          thenHave(!in(pair(t1, a), f) \/ !in(pair(t1, t2), f) \/ !(a === t2)) by InstantiateForall(a, t2)
+                          have(forall(a, forall(b, !in(pair(t1, a), f) \/ !in(pair(t1, b), f) \/ (a === b)))) by Tautology.from(atleastTwoExist of P -> lambda(a, in(pair(t1, a), f)), ex, exOne)
+                          thenHave(!in(pair(t1, a), f) \/ !in(pair(t1, t2), f) \/ (a === t2)) by InstantiateForall(a, t2)
                           have(thesis) by Tautology.from(lastStep, t1aInF, t1t2InF)
                         }
 
@@ -1271,7 +1171,7 @@ object Recursion extends lisa.Main {
                         thenHave(thesis) by Tautology
                       }
 
-                      thenHave(exists(a, in(pair(t, a), g)) |- ()) by LeftExists
+                      thenHave(exists(a, in(pair(t1, a), g)) |- ()) by LeftExists
                       have(thesis) by Tautology.from(lastStep, aExists)
                     }
 
@@ -1285,16 +1185,127 @@ object Recursion extends lisa.Main {
 
               have(thesis) by Tautology.from(lastStep, tInU, ogDef)
             }
+
+            have(in(t, ou) <=> in(t, og)) by Tautology.from(fwd, bwd)
+            thenHave(forall(t, in(t, ou) <=> in(t, og))) by RightForall
+            have(ou === og) by Tautology.from(lastStep, extensionalityAxiom of (x -> ou, y -> og))
           }
 
-          have(in(g, w) /\ (app(uw, z) === F(orderedRestriction(g, z, p))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) subproof {
-            have(in(g, w) /\ (app(uw, z) === F(orderedRestriction(g, z, p))) |- (app(uw, z) === F(orderedRestriction(g, z, p)))) by Restate
+          have(in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) subproof {
+            have(in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p))) |- (app(uw, z) === F(orderedRestriction(g, z, p)))) by Restate
             thenHave(thesis) by Substitution.apply2(false, gRestrictedEq)
           }
 
-          thenHave(exists(g, in(g, w) /\ (app(uw, z) === F(orderedRestriction(g, z, p)))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) by LeftExists
+          thenHave(exists(g, in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p)))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) by LeftExists
           have(thesis) by Cut(gExists, lastStep)
 
+        }
+
+      // there are two cases, either x has a predecessor, or it doesn't
+      val limSuccCases = have(limitElement(p, x) \/ successorElement(p, x)) by Tautology.from(everyElemInTotalOrderLimitOrSuccessor, wellOrder.definition)
+
+      // if x has no predecessor, i.e., it is a limit element, w is the required function
+      val limitCase = have(limitElement(p, x) |- exists(g, fun(g, x))) subproof {
+        assume(limitElement(p, x))
+
+        // <x = \cup <y
+
+        // uw is a function on <x
+        val uwFunctionalOver = have(functionalOver(uw, initialSegment(p, x))) subproof {
+          val elem = variable
+          val limitProp =
+            have(in(pair(elem, x), p2) ==> exists(y, in(pair(y, x), p2) /\ in(pair(elem, y), p2))) by Tautology.from(initialSegmentUnionForLimitElementsIsComplete of t -> elem, pIsATotalOrder)
+
+          have(forall(t, in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g))))) by Tautology.from(domainOfFunctionalUnion of z -> w, uwfunctional)
+          val domDef = thenHave(in(elem, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(elem, relationDomain(g)))) by InstantiateForall(elem)
+
+          have(exists(g, in(g, w) /\ in(elem, relationDomain(g))) <=> in(elem, initialSegment(p, x))) subproof {
+            val fwd = have(exists(g, in(g, w) /\ in(elem, relationDomain(g))) |- in(elem, initialSegment(p, x))) subproof {
+              have(in(g, w) /\ in(elem, relationDomain(g)) |- in(elem, initialSegment(p, x))) subproof {
+                assume(in(g, w))
+                assume(in(elem, relationDomain(g)))
+
+                // there must be a y < x that g is a recursive function for
+                have(in(g, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by InstantiateForall
+                val yExists = thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by Tautology
+
+                // elem is in dom g, which is <y, so elem < y, and finally elem < x by transitivity
+                have(in(y, initialSegment(p, x)) /\ fun(g, y) |- in(elem, initialSegment(p, x))) subproof {
+                  assume(in(y, initialSegment(p, x)))
+                  assume(fun(g, y))
+
+                  have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(functionalOver.definition of (f -> g, x -> initialSegment(p, y)))
+                  have(forall(elem, in(elem, relationDomain(g)) <=> in(elem, initialSegment(p, y)))) by Tautology.from(
+                    lastStep,
+                    extensionalityAxiom of (x -> relationDomain(g), y -> initialSegment(p, y))
+                  )
+                  thenHave(in(elem, relationDomain(g)) <=> in(elem, initialSegment(p, y))) by InstantiateForall(elem)
+                  val eLTy = have(in(pair(elem, y), p2)) by Tautology.from(lastStep, initialSegmentElement of x -> elem, pIsAPartialOrder)
+                  val yLTx = have(in(pair(y, x), p2)) by Tautology.from(initialSegmentElement of (x -> y, y -> x), pIsAPartialOrder)
+
+                  // apply transitivity
+                  have(forall(elem, forall(y, forall(x, (in(pair(elem, y), p2) /\ in(pair(y, x), p2)) ==> in(pair(elem, x), p2))))) by Weakening(wellOrderTransitivity)
+                  thenHave((in(pair(elem, y), p2) /\ in(pair(y, x), p2)) ==> in(pair(elem, x), p2)) by InstantiateForall(elem, y, x)
+                  have(in(pair(elem, x), p2)) by Tautology.from(lastStep, eLTy, yLTx)
+                  have(thesis) by Tautology.from(lastStep, initialSegmentElement of (y -> x, x -> elem), pIsAPartialOrder)
+                }
+
+                thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y)) |- in(elem, initialSegment(p, x))) by LeftExists
+                have(thesis) by Tautology.from(yExists, lastStep)
+              }
+
+              thenHave(thesis) by LeftExists
+            }
+
+            val bwd = have(in(elem, initialSegment(p, x)) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) subproof {
+              assume(in(elem, initialSegment(p, x)))
+
+              // find a y s.t. elem < y < x
+              // this exists since x is a limit element
+              val yExists = have(exists(y, in(pair(elem, y), p2) /\ in(pair(y, x), p2))) by Tautology.from(limitProp, initialSegmentElement of (y -> x, x -> elem), pIsAPartialOrder)
+
+              // given y, there is a g which is defined recursively for y
+              val gExists = have(in(pair(y, x), p2) |- exists(g, fun(g, y))) subproof {
+                have(in(y, initialSegment(p, x)) ==> (in(y, p1) /\ existsOne(g, fun(g, y)))) by InstantiateForall
+                have(thesis) by Tautology.from(lastStep, initialSegmentElement of (x -> y, y -> x), existsOneImpliesExists of P -> lambda(g, fun(g, y)), pIsAPartialOrder)
+              }
+
+              // these g and y give us the required witness for elem
+              have((in(pair(elem, y), p2) /\ in(pair(y, x), p2), fun(g, y)) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) subproof {
+                assume(in(pair(elem, y), p2) /\ in(pair(y, x), p2))
+                assume(fun(g, y))
+
+                have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(functionalOver.definition of (f -> g, x -> initialSegment(p, y)))
+                have(forall(elem, in(elem, relationDomain(g)) <=> in(elem, initialSegment(p, y)))) by Tautology.from(
+                  lastStep,
+                  extensionalityAxiom of (x -> relationDomain(g), y -> initialSegment(p, y))
+                )
+                thenHave(in(elem, relationDomain(g)) <=> in(elem, initialSegment(p, y))) by InstantiateForall(elem)
+
+                val elemInDom = have(in(elem, relationDomain(g))) by Tautology.from(lastStep, initialSegmentElement of x -> elem, pIsAPartialOrder)
+
+                have(in(y, initialSegment(p, x)) /\ fun(g, y)) by Tautology.from(initialSegmentElement of (x -> y, y -> x), pIsAPartialOrder)
+                val yExists = thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by RightExists
+
+                have(in(g, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by InstantiateForall
+                have(in(g, w) /\ in(elem, relationDomain(g))) by Tautology.from(lastStep, yExists, elemInDom)
+                thenHave(thesis) by RightExists
+              }
+
+              thenHave((in(pair(elem, y), p2) /\ in(pair(y, x), p2), exists(g, fun(g, y))) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) by LeftExists
+              have((in(pair(elem, y), p2) /\ in(pair(y, x), p2)) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) by Tautology.from(lastStep, gExists)
+              thenHave(exists(y, in(pair(elem, y), p2) /\ in(pair(y, x), p2)) |- exists(g, in(g, w) /\ in(elem, relationDomain(g)))) by LeftExists
+              have(thesis) by Cut(yExists, lastStep)
+            }
+
+            have(thesis) by Tautology.from(fwd, bwd)
+          }
+
+          have(in(elem, relationDomain(uw)) <=> in(elem, initialSegment(p, x))) by Tautology.from(lastStep, domDef)
+          thenHave(forall(elem, in(elem, relationDomain(uw)) <=> in(elem, initialSegment(p, x)))) by RightForall
+          have(relationDomain(uw) === initialSegment(p, x)) by Tautology.from(lastStep, extensionalityAxiom of (x -> relationDomain(uw), y -> initialSegment(p, x)))
+
+          have(thesis) by Tautology.from(functionalOver.definition of (f -> uw, x -> initialSegment(p, x)), lastStep, uwfunctional)
         }
 
         // z < x ==> uw z = F uw |^ z
@@ -1319,7 +1330,7 @@ object Recursion extends lisa.Main {
         val prFun = singleton(pair(pr, F(uw)))
         val v = setUnion(uw, prFun)
 
-        have(predecessor(p, pr, x) |- fun(v, x)) subproof {
+        val vFun = have(predecessor(p, pr, x) |- fun(v, x)) subproof {
           assume(predecessor(p, pr, x))
           // to this end, we show:
           //   1. v is functional over <x
@@ -1352,19 +1363,23 @@ object Recursion extends lisa.Main {
                   val yExists = thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by Tautology
 
                   have(in(y, initialSegment(p, x)) /\ fun(g, y) |- in(t, initialSegment(p, pr))) subproof {
+                    assume(in(y, initialSegment(p, x)), fun(g, y))
                     // t < y
                     val domEQ = have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(functionalOver.definition of (f -> g, x -> initialSegment(p, y)))
                     have(in(t, relationDomain(g))) by Restate
                     val tLTy = thenHave(in(t, initialSegment(p, y))) by Substitution.apply2(false, domEQ)
 
                     // y <= pr
-                    val cases = have((y === pr) \/ in(y, initialSegment(p, pr))) by Tautology.from(initialSegmentPredecessorSplit of (y -> pr, z -> y))
+                    val cases = have((y === pr) \/ in(y, initialSegment(p, pr))) by Tautology.from(initialSegmentPredecessorSplit of (y -> pr, z -> y), pIsATotalOrder)
 
                     val eqCase = have((y === pr) |- in(t, initialSegment(p, pr))) by Substitution.apply2(false, y === pr)(tLTy)
-                    val initCase = have(in(y, initialSegment(p, pr)) |- in(t, initialSegment(p, pr))) by Tautology.from(initialSegmentTransitivity of (x -> t, y -> y, z -> pr), pIsAPartialOrder)
+                    val initCase = have(in(y, initialSegment(p, pr)) |- in(t, initialSegment(p, pr))) by Tautology.from(tLTy, initialSegmentTransitivity of (x -> t, y -> y, z -> pr), pIsAPartialOrder)
 
                     have(thesis) by Tautology.from(cases, eqCase, initCase)
                   }
+
+                  thenHave(exists(y, in(y, initialSegment(p, x)) /\ fun(g, y)) |- in(t, initialSegment(p, pr))) by LeftExists
+                  have(thesis) by Tautology.from(lastStep, yExists)
                 }
 
                 thenHave(exists(g, in(g, w) /\ in(t, relationDomain(g))) |- in(t, initialSegment(p, pr))) by LeftExists
@@ -1374,10 +1389,11 @@ object Recursion extends lisa.Main {
               val bwd = have(in(t, initialSegment(p, pr)) |- in(t, relationDomain(uw))) subproof {
                 assume(in(t, initialSegment(p, pr)))
 
-                have(in(pair(pr, x), p2)) by Tautology.from(predecessor.definition of y -> pr)
+                have(in(pair(pr, x), p2)) by Tautology.from(predecessor.definition of (x -> pr, y -> x))
                 val prLTx = have(in(pr, initialSegment(p, x))) by Tautology.from(lastStep, pIsAPartialOrder, initialSegmentElement of (y -> x, x -> pr))
 
-                have(in(pr, initialSegment(p, x)) ==> existsOne(g, fun(g, pr))) by InstantiateForall
+                have(forall(y, in(y, initialSegment(p, x)) ==> existsOne(g, fun(g, y)))) by Restate
+                thenHave(in(pr, initialSegment(p, x)) ==> existsOne(g, fun(g, pr))) by InstantiateForall(pr)
                 val gExists = have(exists(g, fun(g, pr))) by Tautology.from(lastStep, prLTx, existsOneImpliesExists of P -> lambda(g, fun(g, pr)))
 
                 have(fun(g, pr) |- in(g, w) /\ in(t, relationDomain(g))) subproof {
@@ -1389,7 +1405,7 @@ object Recursion extends lisa.Main {
                   have(in(g, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(g, y))) by InstantiateForall
                   val gW = have(in(g, w)) by Tautology.from(lastStep, exPR)
 
-                  have(functionalOver(g, pr)) by Tautology
+                  have(functionalOver(g, initialSegment(p, pr))) by Tautology
                   val domEQ = have(relationDomain(g) === initialSegment(p, pr)) by Tautology.from(lastStep, functionalOver.definition of (f -> g, x -> initialSegment(p, pr)))
 
                   have(in(t, initialSegment(p, pr))) by Restate
@@ -1398,7 +1414,7 @@ object Recursion extends lisa.Main {
                 }
 
                 thenHave(fun(g, pr) |- exists(g, in(g, w) /\ in(t, relationDomain(g)))) by RightExists
-                thenHave(exists(g, fun(g, pr)) |- exists(g, in(g, w) /\ in(y, relationDomain(g)))) by LeftExists
+                thenHave(exists(g, fun(g, pr)) |- exists(g, in(g, w) /\ in(t, relationDomain(g)))) by LeftExists
                 val gInW = have(exists(g, in(g, w) /\ in(t, relationDomain(g)))) by Cut(gExists, lastStep)
 
                 have(forall(t, in(t, relationDomain(uw)) <=> exists(g, in(g, w) /\ in(t, relationDomain(g))))) by Tautology.from(uwfunctional, domainOfFunctionalUnion of z -> w)
@@ -1438,25 +1454,23 @@ object Recursion extends lisa.Main {
                 val prprp2 = thenHave(in(pair(pr, pr), p2)) by Substitution.apply2(false, tEQpr)
 
                 // but the order is anti reflexive
-                have(forall(pr, !in(pair(pr, pr), p2))) by Tautology.from(pIsAPartialOrder, partialOrder.definition, antiReflexive.definition of (r -> p2, x -> p1))
-                thenHave(!in(pair(pr, pr), p2)) by InstantiateForall(pr)
+                have(forall(pr, in(pr, p1) ==> !in(pair(pr, pr), p2))) by Tautology.from(pIsAPartialOrder, partialOrder.definition, antiReflexive.definition of (r -> p2, x -> p1))
+                thenHave(in(pr, p1) ==> !in(pair(pr, pr), p2)) by InstantiateForall(pr)
+                have(!in(pair(pr, pr), p2)) by Tautology.from(lastStep, predecessor.definition of (x -> pr, y -> x))
 
                 have(thesis) by Tautology.from(lastStep, prprp2)
               }
 
               val inEmpty = thenHave((in(t, singleton(pr)) /\ in(t, initialSegment(p, pr))) ==> in(t, emptySet())) by Weakening
 
-              have(forall(t, in(t, setIntersection(initialSegment(p, pr), singleton(pr)))) <=> (in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)))) by InstantiateForall(
-                setIntersection(initialSegment(p, pr), singleton(pr))
-              )(setIntersection.definition of (x -> initialSegment(p, pr), y -> singleton(pr)))
-              thenHave(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) <=> (in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)))) by InstantiateForall(t)
+              have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) <=> (in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)))) by Tautology.from(setIntersectionMembership of (x -> initialSegment(p, pr), y -> singleton(pr)))
               have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet())) by Substitution.apply2(true, lastStep)(inEmpty)
               thenHave(forall(t, in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet()))) by RightForall
               have(subset(setIntersection(initialSegment(p, pr), singleton(pr)), emptySet())) by Tautology.from(
                 lastStep,
                 subsetAxiom of (x -> setIntersection(initialSegment(p, pr), singleton(pr)), y -> emptySet())
               )
-              have(thesis) by Tautology.from(emptySetIsItsOwnOnlySubset of x -> setIntersection(initialSegment(p, pr), singleton(pr)))
+              have(thesis) by Tautology.from(lastStep, emptySetIsItsOwnOnlySubset of x -> setIntersection(initialSegment(p, pr), singleton(pr)))
             }
 
             // 4. So v is functional over <pr \cup {pr}
@@ -1483,14 +1497,14 @@ object Recursion extends lisa.Main {
               have(in(t, initialSegment(p, x)) <=> in(t, setUnion(initialSegment(p, pr), singleton(pr)))) by Substitution.apply2(true, lastStep)(initMembership)
               thenHave(forall(t, in(t, initialSegment(p, x)) <=> in(t, setUnion(initialSegment(p, pr), singleton(pr))))) by RightForall
 
-              have(thesis) by Tautology.from(extensionalityAxiom of (x -> initialSegment(p, x), y -> setUnion(initialSegment(p, pr), singleton(pr))))
+              have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> initialSegment(p, x), y -> setUnion(initialSegment(p, pr), singleton(pr))))
             }
 
             have(thesis) by Substitution.apply2(false, unionEQ)(vFunctionalOverUnion)
           }
 
           // 2. v is recursive
-          have(forall(z, in(z, initialSegment(p, x)) ==> (app(v, z) === F(orderedRestriction(v, z, p))))) subproof {
+          val vRecursive = have(forall(z, in(z, initialSegment(p, x)) ==> (app(v, z) === F(orderedRestriction(v, z, p))))) subproof {
             have(in(z, initialSegment(p, x)) |- (app(v, z) === F(orderedRestriction(v, z, p)))) subproof {
               assume(in(z, initialSegment(p, x)))
 
@@ -1503,8 +1517,8 @@ object Recursion extends lisa.Main {
 
               // app v z is well defined
               val vAppDef = have((a === app(v, z)) <=> in(pair(z, a), v)) subproof {
-                val vFunctional = have(functional(v)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
-                have(thesis) by Tautology.from(vFunctional, zInDom, pairInFunctionIsApp of (f -> v, b -> z))
+                have(functional(v)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
+                have(thesis) by Tautology.from(lastStep, zInDom, pairInFunctionIsApp of (f -> v, a -> z, b -> a))
               }
 
               // z is either the predecessor or below it
@@ -1515,22 +1529,23 @@ object Recursion extends lisa.Main {
                 val vpr = orderedRestriction(v, pr, p)
 
                 // uw has domain <pr
-                val domUW = have(functionalOver(uw, initialSegment(p, pr))) by Restate.from(uwFunctionalOver)
+                val domUW = have(functionalOver(uw, initialSegment(p, pr))) by Weakening(uwFunctionalOver)
 
                 // so does v |^ pr
                 val domRV = have(functionalOver(vpr, initialSegment(p, pr))) subproof {
                   have(functional(v)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
-                  val vprFun = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), relationDomain(v)))) by Tautology.from(
+                  have(functionalOver(restrictedFunction(v, initialSegment(p, pr)), setIntersection(initialSegment(p, pr), relationDomain(v)))) by Tautology.from(
                     lastStep,
                     restrictedFunctionIsFunctionalOver of (f -> v, x -> initialSegment(p, pr))
                   )
+                  val vprFun = thenHave(functionalOver(vpr, setIntersection(initialSegment(p, pr), relationDomain(v)))) by Substitution.apply2(true, ordBreakdown of (a -> v, b -> pr))
 
                   have(relationDomain(v) === initialSegment(p, x)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
                   val initIntersection = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), initialSegment(p, x)))) by Substitution.apply2(false, lastStep)(vprFun)
 
                   have(setIntersection(initialSegment(p, pr), initialSegment(p, x)) === initialSegment(p, pr)) by Tautology.from(
                     predecessorInInitialSegment of y -> pr,
-                    initialSegmentIntersection of y -> pr
+                    initialSegmentIntersection of y -> pr, pIsAPartialOrder, pIsATotalOrder
                   )
                   have(thesis) by Substitution.apply2(false, lastStep)(initIntersection)
                 }
@@ -1546,11 +1561,15 @@ object Recursion extends lisa.Main {
                     assume(in(pair(b, a), uw))
 
                     have(in(pair(b, a), v)) by Tautology.from(setUnionMembership of (z -> pair(b, a), x -> uw, y -> prFun))
-                    have(thesis) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> a, a -> b))
+                    have(in(pair(b, a), restrictedFunction(v, initialSegment(p, pr)))) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> b, a -> a))
+                    thenHave(thesis) by Substitution.apply2(true, ordBreakdown of (a -> v, b -> pr))
                   }
 
                   val bwd = have(in(pair(b, a), vpr) |- in(pair(b, a), uw)) subproof {
-                    have(in(pair(b, a), v)) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> a, a -> b))
+                    assume(in(pair(b, a), vpr))
+                    have(in(pair(b, a), vpr)) by Restate
+                    thenHave(in(pair(b, a), restrictedFunction(v, initialSegment(p, pr)))) by Substitution.apply2(false, ordBreakdown of (a -> v, b -> pr))
+                    have(in(pair(b, a), v)) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> b, a -> a))
                     val cases = have(in(pair(b, a), uw) \/ in(pair(b, a), prFun)) by Tautology.from(lastStep, setUnionMembership of (z -> pair(b, a), x -> uw, y -> prFun))
 
                     have(!in(pair(b, a), prFun)) subproof {
@@ -1573,28 +1592,28 @@ object Recursion extends lisa.Main {
                   have(thesis) by Restate.from(lastStep of a -> app(uw, b))
                 }
 
-                thenHave(in(b, initialSegment(p, pr)) ==> (app(uw, b) === app(orderedRestriction(v, z, p), b))) by Restate
-                thenHave(forall(b, in(b, initialSegment(p, pr)) ==> (app(uw, b) === app(orderedRestriction(v, z, p), b)))) by RightForall
+                thenHave(in(b, initialSegment(p, pr)) ==> (app(uw, b) === app(vpr, b))) by Restate
+                thenHave(forall(b, in(b, initialSegment(p, pr)) ==> (app(uw, b) === app(vpr, b)))) by RightForall
 
-                have(thesis) by Tautology.from(functionsEqualIfEqualOnDomain of (f -> uw, g -> orderedRestriction(v, z, p), a -> initialSegment(p, pr)), lastStep, domUW, domRV)
+                have(thesis) by Tautology.from(functionsEqualIfEqualOnDomain of (f -> uw, g -> vpr, a -> initialSegment(p, pr)), lastStep, domUW, domRV)
               }
 
               // the property holds for the predecessor
               val prCase = have((z === pr) |- (app(v, z) === F(orderedRestriction(v, z, p)))) subproof {
-                have((app(v, pr) === F(orderedRestriction(v, pr, p)))) subproof {
-                  val fuwEq = have((F(uw) === F(orderedRestriction(v, pr, p)))) subproof {
+                have(app(v, pr) === F(orderedRestriction(v, pr, p))) subproof {
+                  val fuwEq = have(F(uw) === F(orderedRestriction(v, pr, p))) subproof {
                     have(F(uw) === F(uw)) by Restate
                     thenHave(thesis) by Substitution.apply2(false, uwEq)
                   }
 
                   // app v pr = uw
                   val appEq = have(app(v, pr) === F(uw)) subproof {
-                    val pairInV = have(in(pair(pr, F(uw)), v)) by Tautology.from(setUnionMembership of (z -> pair(pr, F(uw)), x -> uw, y -> prFun))
+                    val pairInV = have(in(pair(pr, F(uw)), v)) by Tautology.from(setUnionMembership of (z -> pair(pr, F(uw)), x -> uw, y -> prFun), singletonHasNoExtraElements of (x -> pair(pr, F(uw)), y -> pair(pr, F(uw))))
                     have(in(pr, initialSegment(p, x))) by Tautology.from(predecessorInInitialSegment of y -> pr, pIsATotalOrder)
-                    have(thesis) by Tautology.from(vAppDef of (a -> F(uw), z -> pr), lastStep)
+                    have(thesis) by Tautology.from(vAppDef of (a -> F(uw), z -> pr), lastStep, pairInV)
                   }
 
-                  have(thesis) by Tautology.from(equalityTransitivity of (x -> app(v, pr), y -> F(uw), z -> F(orderedRestriction(v, z, p))), fuwEq, appEq)
+                  have(thesis) by Tautology.from(equalityTransitivity of (x -> app(v, pr), y -> F(uw), z -> F(orderedRestriction(v, pr, p))), fuwEq, appEq)
                 }
 
                 thenHave(thesis) by Substitution.apply2(true, z === pr)
@@ -1613,9 +1632,6 @@ object Recursion extends lisa.Main {
 
                   have(orderedRestriction(orderedRestriction(v, pr, p), z, p) === orderedRestriction(v, z, p)) subproof {
                     // reduce to restricted functions
-                    val ordBreakdown = have(orderedRestriction(a, b, p) === restrictedFunction(a, initialSegment(p, b))) by InstantiateForall(orderedRestriction(a, b, p))(
-                      orderedRestriction.definition of (f -> a, a -> b)
-                    )
 
                     val intersectionEQ = have(setIntersection(initialSegment(p, pr), initialSegment(p, z)) === initialSegment(p, z)) subproof {
                       have(setIntersection(initialSegment(p, z), initialSegment(p, pr)) === initialSegment(p, z)) by Tautology.from(initialSegmentIntersection of (y -> z, x -> pr), pIsAPartialOrder)
@@ -1636,7 +1652,8 @@ object Recursion extends lisa.Main {
                       false,
                       restrictedFunctionAbsorption of (f -> v, x -> initialSegment(p, pr), y -> initialSegment(p, z))
                     )
-                    thenHave(thesis) by Substitution.apply2(false, intersectionEQ)
+                    thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(v, initialSegment(p, z))) by Substitution.apply2(false, intersectionEQ)
+                    thenHave(thesis) by Substitution.apply2(true, ordBreakdown of (a -> v, b -> z))
                   }
 
                   have(thesis) by Tautology.from(
@@ -1690,8 +1707,15 @@ object Recursion extends lisa.Main {
             thenHave(in(z, initialSegment(p, x)) ==> (app(v, z) === F(orderedRestriction(v, z, p)))) by Restate
             thenHave(thesis) by RightForall
           }
+
+          have(fun(v, x)) by Tautology.from(vRecursive, vFunctionalOver)
         }
 
+        val prExists = have(exists(pr, predecessor(p, pr, x))) by Tautology.from(successorElement.definition)
+        
+        have(predecessor(p, pr, x) |- exists(g, fun(g, x))) by RightExists(vFun)
+        thenHave(exists(pr, predecessor(p, pr, x)) |- exists(g, fun(g, x))) by LeftExists
+        have(thesis) by Cut(prExists, lastStep)
       }
 
       have(thesis) by Tautology.from(limSuccCases, limitCase, successorCase)
@@ -1719,7 +1743,7 @@ object Recursion extends lisa.Main {
       )
     }
 
-    have(thesis) by Cut(lastStep, funExists)
+    have(thesis) by Tautology.from(lastStep, funExists)
   }
 
   /**
