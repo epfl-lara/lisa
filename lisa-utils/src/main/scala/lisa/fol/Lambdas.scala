@@ -72,20 +72,25 @@ trait Lambdas extends Common{
       */
   extension [N <: Arity] (ltt:LambdaExpression[Term, Term, N]) {
     def underlyingLTT: K.LambdaTermTerm  = 
-    K.LambdaTermTerm(ltt.bounds.map(b => b.asInstanceOf[Variable].underlyingLabel), ltt.body.underlying)
+      K.LambdaTermTerm(ltt.bounds.map(b => b.asInstanceOf[Variable].underlyingLabel), ltt.body.underlying)
   }
   /**
     * Recovers the underlying [[K.LambdaTermFormula]]
     */
   extension [N <: Arity] (ltf:LambdaExpression[Term, Formula, N]) {
     def underlyingLTF: K.LambdaTermFormula  = 
-    K.LambdaTermFormula(ltf.bounds.map(b => b.asInstanceOf[Variable].underlyingLabel), ltf.body.underlying)
+      K.LambdaTermFormula(ltf.bounds.map(b => b.asInstanceOf[Variable].underlyingLabel), ltf.body.underlying)
   }
+
+
+
   /**
     * Recovers the underlying [[K.LambdaFormulaFormula]]
     */
   extension [N <: Arity] (lff:LambdaExpression[Formula, Formula, N]) {
     def underlyingLFF: K.LambdaFormulaFormula =  
-    K.LambdaFormulaFormula(lff.bounds.map(b => b.asInstanceOf[VariableFormula].underlyingLabel), lff.body.underlying)
+      K.LambdaFormulaFormula(lff.bounds.map((b: SchematicLabel[Formula]) => b.asInstanceOf[VariableFormula].underlyingLabel), lff.body.underlying)
   }
+
+
 }

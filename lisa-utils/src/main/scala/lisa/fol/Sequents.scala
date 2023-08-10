@@ -66,6 +66,18 @@ trait Sequents extends Common with lisa.fol.Lambdas {
 
     }
 
+    /**
+      * Given 3 substitution maps like the kernel accepts, i.e. Substitution of Predicate Connector and Term schemas, do the substitution
+      * and produce the (one-step) kernel proof that the result is provable from the original sequent
+      *
+      * @param lib The current library
+      * @param proof The current high-level proof object
+      * @param mCon The substitution of connector schemas
+      * @param mPred The substitution of predicate schemas
+      * @param mTerm The substitution of function schemas
+      * @param premise
+      * @return
+      */
     def substituteWithProofLikeKernel(using
         lib: Library,
         proof: lib.Proof

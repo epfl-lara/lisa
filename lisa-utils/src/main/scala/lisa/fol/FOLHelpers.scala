@@ -27,39 +27,37 @@ import scala.reflect.ClassTag
  * </pre>
  */
 object FOLHelpers {
-  def addSymbol[A <: LisaObject[A]](s:ConstantLabel[A]):Unit = {
-
-      s match {
-          case _ => ()
-      }
-
-  }
-
-  def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
-    new Identifier(
-      base.name,
-      (taken.collect({ case Identifier(base.name, no) =>
-        no
-      }) ++ Iterable(base.no)).max + 1
-    )
-  }
-
-  def nFreshId(taken: Iterable[Identifier], n: Int): IndexedSeq[Identifier] = {
-    val max = if (taken.isEmpty) 0 else taken.map(c => c.no).max
-    Range(0, n).map(i => Identifier("gen", max + i))
-  }
+  export lisa.utils.KernelHelpers.{freshId, nFreshId, given_Conversion_String_Identifier, given_Conversion_Identifier_String, given_Conversion_Boolean_List_String_Option}
 
   /////////////////
   // FOL helpers //
   /////////////////
 
-  /* Infix syntax */
-
-
-
   /* Conversions */
-  given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
+  //Conversions to lambdaExpression's
+  given[T <: LisaObject[T], R <: LisaObject[R]]: Conversion[R, LambdaExpression[T, R, 0]] = LambdaExpression[T, R, 0](Seq(), _, 0)
+  given[T <: LisaObject[T], R <: LisaObject[R]]: Conversion[(SchematicLabel[T], R), LambdaExpression[T, R, 1]] = a => LambdaExpression(Seq(a._1), a._2, 1)
+  given[T <: LisaObject[T],R <: LisaObject[R], N <: Arity]: Conversion[(SchematicLabel[T]**N, R), LambdaExpression[T, R, N]] = a => {
+    val s = a._1.toSeq
+    LambdaExpression(s, a._2, s.length.asInstanceOf)
+  }
 
+
+  //helpers to create new schematic symbols, fetching the scala name of the variable.
+  def variable(using name: sourcecode.Name): Variable = Variable(name.value)
+  def function[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicFunctionalLabel[N] = SchematicFunctionalLabel[N](name.value, valueOf[N])
+  def formulaVariable(using name: sourcecode.Name): VariableFormula = VariableFormula(name.value)
+  def predicate[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicPredicateLabel[N] = SchematicPredicateLabel[N](name.value, valueOf[N])
+  def connector[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicConnectorLabel[N] = SchematicConnectorLabel[N](name.value, valueOf[N])
+
+
+
+
+
+
+
+
+  //All commented
 
 /*
   /**
@@ -121,30 +119,8 @@ object FOLHelpers {
 
  */
 
-  given[T <: LisaObject[T]: ClassTag, R <: LisaObject[R]: ClassTag]: Conversion[R, LambdaExpression[T, R, 0]] = LambdaExpression[T, R, 0](Seq(), _, 0)
 
-
-  // Conversion from pairs (e.g. x -> f(x)) to lambdas
-  //given[T <: LisaObject[T], R <: LisaObject[R]]: Conversion[LisaObject[T], LambdaTermTerm] = LambdaTermTerm(Seq(), _)
-
-  //given Conversion[Term, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
-
-  given[T <: LisaObject[T]: ClassTag, R <: LisaObject[R]: ClassTag]: Conversion[(SchematicLabel[T], R), LambdaExpression[T, R, 1]] = {
-    a => LambdaExpression(Seq(a._1), a._2, 1)
-  }
-
-  given[T <: LisaObject[T]: ClassTag,R <: LisaObject[R]: ClassTag, N <: Arity]: Conversion[(SchematicLabel[T]**N, R), LambdaExpression[T, R, N]] = a => {
-    val s = a._1.toSeq
-    LambdaExpression(s, a._2, s.length.asInstanceOf)
-  }
-
-
-  def variable(using name: sourcecode.Name): Variable = Variable(name.value)
-  def function[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicFunctionalLabel[N] = SchematicFunctionalLabel[N](name.value, valueOf[N])
-  def formulaVariable(using name: sourcecode.Name): VariableFormula = VariableFormula(name.value)
-  def predicate[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicPredicateLabel[N] = SchematicPredicateLabel[N](name.value, valueOf[N])
-  def connector[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicConnectorLabel[N] = SchematicConnectorLabel[N](name.value, valueOf[N])
-
+  /*
   // Conversions from String to Identifier
   class InvalidIdentifierException(identifier: String, errorMessage: String) extends LisaException(errorMessage) {
     def showError: String = errorMessage
@@ -175,7 +151,7 @@ object FOLHelpers {
     }
   }
   given Conversion[Identifier, String] = _.toString
-
+*/
 
   //////////////////////////////
   //  Conversion From Kernel  //

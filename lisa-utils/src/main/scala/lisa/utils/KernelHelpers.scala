@@ -10,15 +10,7 @@ import lisa.utils.FOLParser
 import scala.annotation.targetName
 
 /**
- * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
- * Usage:
- * <pre>
- * import utilities.Helpers.*
- * </pre>
- * or
- * <pre>
- * extends utilities.KernelHelpers.*
- * </pre>
+ * A helper file that provides various syntactic sugars for LISA's FOL and proofs at the Kernel level.
  */
 object KernelHelpers {
 

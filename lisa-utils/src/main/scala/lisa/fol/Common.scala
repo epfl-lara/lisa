@@ -70,6 +70,10 @@ trait Common {
   /**
     * A LisaObject is the type for formulas, terms, lambdas. A child of LisaObject is supposed to be parametrized by itself.
     * It key property is to define substitution and computation of free scematic symbols.
+    * The type T denotes the type that the object is guaranteed to keep after a substitution.
+    * For example, Term <: LisaObject[Term], because a term with some substitution is still a term.
+    * Similarly, Variable <: LisaObject[Term] because a variable is a term and still is after any substitution.
+    * However, Variable <: LisaObject[Variable] does not hold because a variable after a substitution is not necessarily a variable anymore.
     */
   trait LisaObject[+T<: LisaObject[T]] {
     this: T =>
@@ -143,11 +147,6 @@ trait Common {
       * Helper to build a [[SubstPair]]
       */
     def :=(replacement:A) = SubstPair(this, replacement)
-
-    type Truc = A match {
-      case Formula => VariableFormula
-      case _ => SchematicLabel[A]
-    }
 
   }
 
@@ -532,15 +531,11 @@ object Test2 {
 
 
   object G extends lisa.fol.Common
+  import G.*
 
-
-  object test{
-    def addSymbol[A <: G.LisaObject[A]](s:G.ConstantLabel[A]):Unit = {
-
-      s match {
-        case _ => ()
-      }
-
-    }
+  def main(args: Array[String]): Unit = {
   }
+
+
+
 }
