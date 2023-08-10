@@ -403,7 +403,7 @@ object SetTheory extends lisa.Main {
 
     val bwd = have((x === emptySet()) |- subset(x, emptySet())) subproof {
       have(subset(emptySet(), emptySet())) by Restate.from(emptySetIsASubset of x -> emptySet())
-      thenHave(thesis) by Substitution.apply2(true, x === emptySet())
+      thenHave(thesis) by Substitution.withExplicitRules(x === emptySet())
     }
 
     have(thesis) by Tautology.from(fwd, bwd)
@@ -1047,8 +1047,8 @@ object SetTheory extends lisa.Main {
       val fwd = have(exists(b, in(b, pair(x, y)) /\ in(z, b)) |- ((z === x) \/ (z === y))) subproof {
         val bxy =
           have(in(b, pair(x, y)) /\ in(z, b) |- ((b === unorderedPair(x, y)) \/ (b === unorderedPair(x, x)))) by Weakening(pairAxiom of (x -> unorderedPair(x, y), y -> unorderedPair(x, x), z -> b))
-        val zxy = have((b === unorderedPair(x, y)) |- in(z, b) <=> ((z === x) \/ (z === y))) by Substitution.apply2(true, b === unorderedPair(x, y))(pairAxiom)
-        val zxx = have((b === unorderedPair(x, x)) |- in(z, b) <=> ((z === x) \/ (z === x))) by Substitution.apply2(true, b === unorderedPair(x, x))(pairAxiom of y -> x)
+        val zxy = have((b === unorderedPair(x, y)) |- in(z, b) <=> ((z === x) \/ (z === y))) by Substitution.withExplicitRules(b === unorderedPair(x, y))(pairAxiom)
+        val zxx = have((b === unorderedPair(x, x)) |- in(z, b) <=> ((z === x) \/ (z === x))) by Substitution.withExplicitRules(b === unorderedPair(x, x))(pairAxiom of y -> x)
 
         have(in(b, pair(x, y)) /\ in(z, b) |- ((z === x) \/ (z === y))) by Tautology.from(bxy, zxy, zxx)
         thenHave(thesis) by LeftExists
@@ -1056,8 +1056,8 @@ object SetTheory extends lisa.Main {
 
       val bwd = have(((z === x) \/ (z === y)) |- exists(b, in(b, pair(x, y)) /\ in(z, b))) subproof {
         val xyp = have(in(unorderedPair(x, y), pair(x, y))) by Restate.from(firstElemInPair of (x -> unorderedPair(x, y), y -> unorderedPair(x, x)))
-        val zx = have((z === x) |- in(z, unorderedPair(x, y))) by Substitution.apply2(true, z === x)(firstElemInPair)
-        val zy = have((z === y) |- in(z, unorderedPair(x, y))) by Substitution.apply2(true, z === y)(secondElemInPair)
+        val zx = have((z === x) |- in(z, unorderedPair(x, y))) by Substitution.withExplicitRules(z === x)(firstElemInPair)
+        val zy = have((z === y) |- in(z, unorderedPair(x, y))) by Substitution.withExplicitRules(z === y)(secondElemInPair)
 
         have(((z === x) \/ (z === y)) |- in(unorderedPair(x, y), pair(x, y)) /\ in(z, unorderedPair(x, y))) by Tautology.from(xyp, zx, zy)
         thenHave(thesis) by RightExists
@@ -1097,20 +1097,20 @@ object SetTheory extends lisa.Main {
         val exClause = thenHave(exists(b, in(b, pair(x, y)))) by RightExists
 
         have(in(b, pair(x, y)) |- in(b, pair(x, y))) by Hypothesis
-        val bp = thenHave(in(b, pair(x, y)) |- (b === singleton(x)) \/ (b === unorderedPair(x, y))) by Substitution.apply2(false, pairAxiom of (z -> b, y -> singleton(x), x -> unorderedPair(x, y)))
+        val bp = thenHave(in(b, pair(x, y)) |- (b === singleton(x)) \/ (b === unorderedPair(x, y))) by Substitution.withExplicitRules(pairAxiom of (z -> b, y -> singleton(x), x -> unorderedPair(x, y)))
 
         have(in(x, singleton(x))) by Restate.from(singletonHasNoExtraElements of (y -> x))
-        val bxx = thenHave((b === singleton(x)) |- in(x, b)) by Substitution.apply2(true, (b === singleton(x)))
+        val bxx = thenHave((b === singleton(x)) |- in(x, b)) by Substitution.withExplicitRules((b === singleton(x)))
 
         have(in(x, unorderedPair(x, y))) by Restate.from(firstElemInPair)
-        val bxy = thenHave((b === unorderedPair(x, y)) |- in(x, b)) by Substitution.apply2(true, (b === unorderedPair(x, y)))
+        val bxy = thenHave((b === unorderedPair(x, y)) |- in(x, b)) by Substitution.withExplicitRules((b === unorderedPair(x, y)))
 
         have(in(b, pair(x, y)) ==> in(x, b)) by Tautology.from(bp, bxx, bxy)
         val frClause = thenHave(forall(b, in(b, pair(x, y)) ==> in(x, b))) by RightForall
 
         have(thesis) by Tautology.from(defexp of (z -> x), exClause, frClause)
       }
-      thenHave(thesis) by Substitution.apply2(true, (z === x))
+      thenHave(thesis) by Substitution.withExplicitRules((z === x))
     }
 
     have(thesis) by Tautology.from(lhs, rhs)
@@ -1128,7 +1128,7 @@ object SetTheory extends lisa.Main {
     () |- (union(pair(x, y)) === unaryIntersection(pair(x, y))) <=> (x === y)
   ) {
     have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by Restate.from(pairAxiom)
-    val unionPair = thenHave(in(z, union(pair(x, y))) <=> ((z === x) \/ (z === y))) by Substitution.apply2(true, unionOfOrderedPair)
+    val unionPair = thenHave(in(z, union(pair(x, y))) <=> ((z === x) \/ (z === y))) by Substitution.withExplicitRules(unionOfOrderedPair)
 
     val fwd = have((union(pair(x, y)) === unaryIntersection(pair(x, y))) |- (x === y)) subproof {
       have((union(pair(x, y)) === unaryIntersection(pair(x, y))) |- forall(z, in(z, union(pair(x, y))) <=> in(z, unaryIntersection(pair(x, y))))) by Weakening(
@@ -1142,7 +1142,7 @@ object SetTheory extends lisa.Main {
     }
 
     val bwd = have((x === y) |- (union(pair(x, y)) === unaryIntersection(pair(x, y)))) subproof {
-      have((x === y) |- in(z, union(pair(x, y))) <=> ((z === x) \/ (z === x))) by Substitution.apply2(true, x === y)(unionPair)
+      have((x === y) |- in(z, union(pair(x, y))) <=> ((z === x) \/ (z === x))) by Substitution.withExplicitRules(x === y)(unionPair)
       have((x === y) |- in(z, union(pair(x, y))) <=> in(z, unaryIntersection(pair(x, y)))) by Tautology.from(lastStep, pairUnaryIntersection)
       thenHave((x === y) |- forall(z, in(z, union(pair(x, y))) <=> in(z, unaryIntersection(pair(x, y))))) by RightForall
 
@@ -1171,7 +1171,7 @@ object SetTheory extends lisa.Main {
 
       val lhs = have(exists(t, in(t, unaryIntersection(pair(x, y))) /\ in(z, t)) |- in(z, x)) subproof {
         have(in(z, t) |- in(z, t)) by Hypothesis
-        thenHave((in(z, t), (t === x)) |- in(z, x)) by Substitution.apply2(false, t === x)
+        thenHave((in(z, t), (t === x)) |- in(z, x)) by Substitution.withExplicitRules(t === x)
         have(in(t, unaryIntersection(pair(x, y))) /\ in(z, t) |- in(z, x)) by Tautology.from(lastStep, elemInter of (z -> t))
         thenHave(thesis) by LeftExists
       }
@@ -1190,7 +1190,7 @@ object SetTheory extends lisa.Main {
     // \cup \cap (x, y) = x
     val unioneq = have(union(unaryIntersection(pair(x, y))) === x) by Tautology.from(lastStep, extensionalityAxiom of (x -> union(unaryIntersection(pair(x, y))), y -> x))
     have((firstInPair(pair(x, y)) === union(unaryIntersection(pair(x, y))))) by InstantiateForall(firstInPair(pair(x, y)))(firstInPair.definition of (p -> pair(x, y)))
-    have(thesis) by Substitution.apply2(true, lastStep)(unioneq)
+    have(thesis) by Substitution.withExplicitRules(lastStep)(unioneq)
   }
 
   /**
@@ -1233,11 +1233,11 @@ object SetTheory extends lisa.Main {
           z,
           unaryIntersection(pair(x, y))
         )))) <=> (((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x))))
-      ) by Substitution.apply2(false, zUnion, zInter, unEqInt)
+      ) by Substitution.withExplicitRules(zUnion, zInter, unEqInt)
 
       have((((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x)))) <=> (z === y)) subproof {
         val hypo = have((((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x)))) |- (((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x))))) by Hypothesis
-        thenHave((((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x))), (x === y)) |- (((z === y) \/ (z === y)) /\ ((!(y === y)) ==> (!(z === x))))) by Substitution.apply2(false, x === y)
+        thenHave((((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x))), (x === y)) |- (((z === y) \/ (z === y)) /\ ((!(y === y)) ==> (!(z === x))))) by Substitution.withExplicitRules(x === y)
         val xeqy = thenHave((((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x))), (x === y)) |- (z === y)) by Tautology
 
         have((((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x))), !(x === y)) |- (((z === x) \/ (z === y)) /\ ((!(x === y)) ==> (!(z === x))))) by Weakening(hypo)
@@ -1273,7 +1273,7 @@ object SetTheory extends lisa.Main {
     val elemIsY = have((exists(b, in(b, secondInPairSingleton(pair(x, y))) /\ in(z, b))) <=> in(z, y)) subproof {
       val lhs = have((exists(b, in(b, secondInPairSingleton(pair(x, y))) /\ in(z, b))) |- in(z, y)) subproof {
         have(in(b, secondInPairSingleton(pair(x, y))) /\ in(z, b) |- in(z, b)) by Restate
-        thenHave((in(b, secondInPairSingleton(pair(x, y))) /\ in(z, b), (b === y)) |- in(z, y)) by Substitution.apply2(false, b === y)
+        thenHave((in(b, secondInPairSingleton(pair(x, y))) /\ in(z, b), (b === y)) |- in(z, y)) by Substitution.withExplicitRules(b === y)
         have((in(b, secondInPairSingleton(pair(x, y))) /\ in(z, b)) |- in(z, y)) by Tautology.from(lastStep, secondInPairSingletonReduction of z -> b)
 
         thenHave(thesis) by LeftExists
@@ -1494,8 +1494,8 @@ object SetTheory extends lisa.Main {
         val zcd = have(in(z, unorderedPair(c, d)) <=> ((z === c) \/ (z === d))) by Restate.from(pairAxiom of (x -> c, y -> d))
         val zunion = have(in(z, setUnion(x, y)) <=> (in(z, x) \/ in(z, y))) by Restate.from(setUnionMembership)
 
-        val zc = have((z === c) |- in(z, setUnion(x, y)) <=> (in(c, x) \/ in(c, y))) by Substitution.apply2(false, z === c)(zunion)
-        val zd = have((z === d) |- in(z, setUnion(x, y)) <=> (in(d, x) \/ in(d, y))) by Substitution.apply2(false, z === d)(zunion)
+        val zc = have((z === c) |- in(z, setUnion(x, y)) <=> (in(c, x) \/ in(c, y))) by Substitution.withExplicitRules(z === c)(zunion)
+        val zd = have((z === d) |- in(z, setUnion(x, y)) <=> (in(d, x) \/ in(d, y))) by Substitution.withExplicitRules(z === d)(zunion)
 
         have((in(c, x), in(d, y)) |- in(z, unorderedPair(c, d)) ==> in(z, setUnion(x, y))) by Tautology.from(zcd, zc, zd)
         thenHave((in(c, x), in(d, y)) |- forall(z, in(z, unorderedPair(c, d)) ==> in(z, setUnion(x, y)))) by RightForall
@@ -1512,7 +1512,7 @@ object SetTheory extends lisa.Main {
         val zcd = have(in(z, unorderedPair(c, c)) <=> (z === c)) by Restate.from(pairAxiom of (x -> c, y -> c))
         val zunion = have(in(z, setUnion(x, y)) <=> (in(z, x) \/ in(z, y))) by Restate.from(setUnionMembership)
 
-        val zc = have((z === c) |- in(z, setUnion(x, y)) <=> (in(c, x) \/ in(c, y))) by Substitution.apply2(false, z === c)(zunion)
+        val zc = have((z === c) |- in(z, setUnion(x, y)) <=> (in(c, x) \/ in(c, y))) by Substitution.withExplicitRules(z === c)(zunion)
 
         have(in(c, x) |- in(z, unorderedPair(c, c)) ==> in(z, setUnion(x, y))) by Tautology.from(zcd, zc)
         thenHave(in(c, x) |- forall(z, in(z, unorderedPair(c, c)) ==> in(z, setUnion(x, y)))) by RightForall
@@ -1529,8 +1529,8 @@ object SetTheory extends lisa.Main {
       have((in(c, x), in(d, y)) |- subset(pair(c, d), powerSet(setUnion(x, y)))) subproof {
         val zp = have(in(z, pair(c, d)) <=> ((z === unorderedPair(c, d)) \/ (z === unorderedPair(c, c)))) by Restate.from(pairAxiom of (x -> unorderedPair(c, d), y -> unorderedPair(c, c)))
 
-        val zcc = have((z === unorderedPair(c, c), in(c, x)) |- in(z, powerSet(setUnion(x, y)))) by Substitution.apply2(true, z === unorderedPair(c, c))(upCC)
-        val zcd = have((z === unorderedPair(c, d), in(c, x), in(d, y)) |- in(z, powerSet(setUnion(x, y)))) by Substitution.apply2(true, z === unorderedPair(c, d))(upCD)
+        val zcc = have((z === unorderedPair(c, c), in(c, x)) |- in(z, powerSet(setUnion(x, y)))) by Substitution.withExplicitRules(z === unorderedPair(c, c))(upCC)
+        val zcd = have((z === unorderedPair(c, d), in(c, x), in(d, y)) |- in(z, powerSet(setUnion(x, y)))) by Substitution.withExplicitRules(z === unorderedPair(c, d))(upCD)
 
         have((in(c, x), in(d, y)) |- in(z, pair(c, d)) ==> in(z, powerSet(setUnion(x, y)))) by Tautology.from(zp, zcc, zcd)
         thenHave((in(c, x), in(d, y)) |- forall(z, in(z, pair(c, d)) ==> in(z, powerSet(setUnion(x, y))))) by RightForall
@@ -1542,7 +1542,7 @@ object SetTheory extends lisa.Main {
 
     }
 
-    thenHave((t === pair(c, d), in(c, x), in(d, y)) |- in(t, powerSet(powerSet(setUnion(x, y))))) by Substitution.apply2(true, t === pair(c, d))
+    thenHave((t === pair(c, d), in(c, x), in(d, y)) |- in(t, powerSet(powerSet(setUnion(x, y))))) by Substitution.withExplicitRules(t === pair(c, d))
     thenHave(((t === pair(c, d)) /\ in(c, x) /\ in(d, y)) |- in(t, powerSet(powerSet(setUnion(x, y))))) by Restate
     thenHave(exists(d, ((t === pair(c, d)) /\ in(c, x) /\ in(d, y))) |- in(t, powerSet(powerSet(setUnion(x, y))))) by LeftExists
     thenHave(thesis) by LeftExists
@@ -1584,7 +1584,7 @@ object SetTheory extends lisa.Main {
   val unionSubsetSecond = Lemma(
     subset(b, setUnion(a, b))
   ) {
-    have(thesis) by Substitution.apply2(true, unionCommutativity)(unionSubsetFirst of (a -> b, b -> a))
+    have(thesis) by Substitution.withExplicitRules(unionCommutativity)(unionSubsetFirst of (a -> b, b -> a))
   }
 
   /**
@@ -1623,7 +1623,7 @@ object SetTheory extends lisa.Main {
     val bc = ac of (a -> b, c -> d)
 
     have(subset(a, c) /\ subset(b, d) |- in(z, setUnion(a, b)) ==> (in(z, c) \/ in(z, d))) by Tautology.from(unionDefab, ac, bc)
-    thenHave(subset(a, c) /\ subset(b, d) |- in(z, setUnion(a, b)) ==> in(z, setUnion(c, d))) by Substitution.apply2(true, unionDefcd)
+    thenHave(subset(a, c) /\ subset(b, d) |- in(z, setUnion(a, b)) ==> in(z, setUnion(c, d))) by Substitution.withExplicitRules(unionDefcd)
     thenHave(subset(a, c) /\ subset(b, d) |- forall(z, in(z, setUnion(a, b)) ==> in(z, setUnion(c, d)))) by RightForall
 
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> setUnion(a, b), y -> setUnion(c, d)))
@@ -1708,7 +1708,7 @@ object SetTheory extends lisa.Main {
       have(thesis) by Tautology.from(lastStep, elemOfCartesianProduct of (x -> a, y -> b, t -> z), elemOfCartesianProduct of (x -> setUnion(a, c), y -> setUnion(b, d), t -> z))
     }
 
-    val zcd = have(in(z, cxd) |- in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Substitution.apply2(false, unionCommutativity of (a -> c, b -> a), unionCommutativity of (a -> d, b -> b))(
+    val zcd = have(in(z, cxd) |- in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Substitution.withExplicitRules(unionCommutativity of (a -> c, b -> a), unionCommutativity of (a -> d, b -> b))(
       lastStep of (a -> c, b -> d, c -> a, d -> b)
     )
 
@@ -2046,7 +2046,7 @@ object SetTheory extends lisa.Main {
     thenHave((exists(b, relationBetween(f, a, b)), exists(c, exists(d, relationBetween(g, c, d)))) |- exists(x, exists(y, relationBetween(setUnion(f, g), x, y)))) by LeftExists
     thenHave((exists(a, exists(b, relationBetween(f, a, b))), exists(c, exists(d, relationBetween(g, c, d)))) |- exists(x, exists(y, relationBetween(setUnion(f, g), x, y)))) by LeftExists
 
-    thenHave((relation(f), relation(g)) |- relation(setUnion(f, g))) by Substitution.apply2(true, relf, relg, relfug)
+    thenHave((relation(f), relation(g)) |- relation(setUnion(f, g))) by Substitution.withExplicitRules(relf, relg, relfug)
   }
 
   /**
@@ -2756,8 +2756,8 @@ object SetTheory extends lisa.Main {
     (x === y) <=> (subset(x, y) /\ subset(y, x))
   ) {
     have(subset(x, y) /\ subset(y, x) <=> subset(x, y) /\ subset(y, x)) by Restate
-    thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ subset(y, x)) by Substitution.apply2(false, subsetAxiom)
-    thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ forall(t, in(t, y) ==> in(t, x))) by Substitution.apply2(false, subsetAxiom of (x -> y, y -> x))
+    thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ subset(y, x)) by Substitution.withExplicitRules(subsetAxiom)
+    thenHave(subset(x, y) /\ subset(y, x) <=> forall(t, in(t, x) ==> in(t, y)) /\ forall(t, in(t, y) ==> in(t, x))) by Substitution.withExplicitRules(subsetAxiom of (x -> y, y -> x))
     andThen(applySubst(universalConjunctionCommutation of (P -> lambda(t, in(t, x) ==> in(t, y)), Q -> lambda(t, in(t, y) ==> in(t, x)))))
     andThen(applySubst(extensionalityAxiom))
     thenHave(thesis) by Restate
@@ -3000,8 +3000,7 @@ object SetTheory extends lisa.Main {
             existentialEquivalenceDistribution of (P -> lambda(y, in(pair(x, y), h)), Q -> lambda(y, in(pair(x, y), f) \/ in(pair(x, y), g)))
           )
           // have(exists(y, in(pair(x, y), h)) <=> (exists(y, in(pair(x, y), f)) \/ exists(y, in(pair(x, y), g)))) by Tautology.from(lastStep, existentialDisjunctionCommutation of (P -> lambda(y, in(pair(x, y), f)), Q -> lambda(y, in(pair(x, y), g)))) // TODO: Possible Tautology Bug
-          thenHave(exists(y, in(pair(x, y), h)) <=> (exists(y, in(pair(x, y), f)) \/ exists(y, in(pair(x, y), g)))) by Substitution.apply2(
-            false,
+          thenHave(exists(y, in(pair(x, y), h)) <=> (exists(y, in(pair(x, y), f)) \/ exists(y, in(pair(x, y), g)))) by Substitution.withExplicitRules(
             existentialDisjunctionCommutation of (P -> lambda(y, in(pair(x, y), f)), Q -> lambda(y, in(pair(x, y), g)))
           )
         }
@@ -3030,7 +3029,7 @@ object SetTheory extends lisa.Main {
       val notInG = have((functional(f), in(x, domF), !in(x, domG)) |- existsOne(y, in(pair(x, y), h))) by Tautology.from(lastStep, xInDomFOne, xInDomG)
 
       // x not in domF and x in domG
-      val notInF = have((functional(g), !in(x, domF), in(x, domG)) |- existsOne(y, in(pair(x, y), h))) by Substitution.apply2(false, unionCommutativity of (a -> g, b -> f))(notInG of (f -> g, g -> f))
+      val notInF = have((functional(g), !in(x, domF), in(x, domG)) |- existsOne(y, in(pair(x, y), h))) by Substitution.withExplicitRules(unionCommutativity of (a -> g, b -> f))(notInG of (f -> g, g -> f))
 
       // x in domF and in domG
       have(
@@ -3074,7 +3073,7 @@ object SetTheory extends lisa.Main {
           y,
           in(pair(x, y), h)
         )
-      ) by Substitution.apply2(false, domHIsDomain)
+      ) by Substitution.withExplicitRules(domHIsDomain)
       thenHave(
         (functional(f), functional(g), forall(x, forall(y, (in(x, domF) /\ in(x, domG)) ==> (in(pair(x, y), f) <=> in(pair(x, y), g))))) |- forall(
           x,
