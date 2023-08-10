@@ -42,6 +42,8 @@ object FOLHelpers {
     LambdaExpression(s, a._2, s.length.asInstanceOf)
   }
 
+  given[T] : Conversion[T, T**1] = _ *: EmptyTuple
+
 
   //helpers to create new schematic symbols, fetching the scala name of the variable.
   def variable(using name: sourcecode.Name): Variable = Variable(name.value)
@@ -49,6 +51,7 @@ object FOLHelpers {
   def formulaVariable(using name: sourcecode.Name): VariableFormula = VariableFormula(name.value)
   def predicate[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicPredicateLabel[N] = SchematicPredicateLabel[N](name.value, valueOf[N])
   def connector[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicConnectorLabel[N] = SchematicConnectorLabel[N](name.value, valueOf[N])
+
 
 
 

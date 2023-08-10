@@ -25,7 +25,15 @@ trait Sequents extends Common with lisa.fol.Lambdas {
     
     
     /*Ok for now but what when we have more*/
-    def substituteWithProof(using lib: Library, proof: lib.Proof)(map: Map[SchematicLabel[_], _ <: LisaObject[_]])(premise: proof.Fact): (Sequent, proof.ProofTacticJudgement) = {
+    /**
+      * Substitute schematic symbols inside this, and produces a kernel proof.
+      * Namely, if "that" is the result of the substitution, the proof should conclude with "that.underlying",
+      * using the assumption "this.underlying" at step index -1.
+      *
+      * @param map
+      * @return
+      */
+    def substituteWithProof(map: Map[SchematicLabel[_], _ <: LisaObject[_]]): (Sequent, Seq[K.SCProofStep]) = {
 
       val mTerm: Map[SchematicFunctionalLabel[?]|Variable, LambdaExpression[Term, Term, ?]] = 
         map.collect(p => p._1 match {
@@ -62,7 +70,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
                     (sl, LambdaExpression(vars, s(vars), s.arity))
                 }
             })
-            (substituteUnsafe(map), substituteWithProofLikeKernel(mConn, mPred, mTerm)(premise))
+            (substituteUnsafe(map), substituteWithProofLikeKernel(mConn, mPred, mTerm))
 
     }
 
@@ -70,23 +78,15 @@ trait Sequents extends Common with lisa.fol.Lambdas {
       * Given 3 substitution maps like the kernel accepts, i.e. Substitution of Predicate Connector and Term schemas, do the substitution
       * and produce the (one-step) kernel proof that the result is provable from the original sequent
       *
-      * @param lib The current library
-      * @param proof The current high-level proof object
       * @param mCon The substitution of connector schemas
       * @param mPred The substitution of predicate schemas
       * @param mTerm The substitution of function schemas
-      * @param premise
       * @return
       */
-    def substituteWithProofLikeKernel(using
-        lib: Library,
-        proof: lib.Proof
-    )(mCon: Map[SchematicConnectorLabel[?], LambdaExpression[Formula, Formula, ?]],
+    def substituteWithProofLikeKernel(mCon: Map[SchematicConnectorLabel[?], LambdaExpression[Formula, Formula, ?]],
       mPred: Map[SchematicPredicateLabel[?]|VariableFormula, LambdaExpression[Term, Formula, ?]],
-      mTerm: Map[SchematicFunctionalLabel[?]|Variable, LambdaExpression[Term, Term, ?]])(
-      premise: proof.Fact
-    ): proof.ProofTacticJudgement = {
-      val premiseSequent = proof.getSequent(premise).underlying
+      mTerm: Map[SchematicFunctionalLabel[?]|Variable, LambdaExpression[Term, Term, ?]]): Seq[K.SCProofStep] = {
+      val premiseSequent = this.underlying
       val mConK = mCon.map((sl, le) => (sl.underlyingLabel, underlyingLFF(le)))
       val mPredK = mPred.map((sl, le) => sl match {
         case v: VariableFormula => (v.underlyingLabel, underlyingLTF(le))
@@ -98,8 +98,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
       })
       val botK = lisa.utils.KernelHelpers.instantiateSchemaInSequent(premiseSequent, mConK, mPredK, mTermK)
       val smap = Map[SchematicLabel[?], LisaObject[?]]()++mCon++mPred++mTerm
-      val res = proof.getSequent(premise).substituteUnsafe(smap.asInstanceOf)
-      proof.ValidProofTactic(res, Seq(K.InstSchema(botK, -1, mConK, mPredK, mTermK)), Seq(premise))
+      Seq(K.InstSchema(botK, -1, mConK, mPredK, mTermK))
     }
 
 

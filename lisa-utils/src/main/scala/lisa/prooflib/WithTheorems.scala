@@ -6,7 +6,7 @@ import lisa.prooflib.*
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.UserLisaException.*
-import lisa.utils.*
+import lisa.utils.KernelHelpers.{*, given}
 import lisa.utils.parsing.UnreachableException
 
 import scala.annotation.nowarn
@@ -81,7 +81,11 @@ trait WithTheorems {
       //newProofStep(BasicStepTactic.InstSchema(using library, this)(instFact.instsConn, instFact.instsPred, instFact.instsTerm)(i).asInstanceOf[ValidProofTactic])
       //newProofStep(BasicStepTactic.InstSchema(using library, this)(instFact.insts)(i).asInstanceOf[ValidProofTactic])
       val instMap = Map(instFact.insts.map(s => (s._1, (s._2.asInstanceOf: F.LisaObject[_])))*)
-      val instStep = s.substituteWithProof(using library, this)(instMap)(i).asInstanceOf[ValidProofTactic]
+      val instStep = {
+        val res = s.substituteWithProof(instMap)
+
+        ValidProofTactic(res._1, res._2, Seq(instFact.fact))(using F.SequentInstantiationRule)
+      }
       newProofStep(instStep)
       instantiatedFacts = (instFact, steps.length - 1) :: instantiatedFacts
     }

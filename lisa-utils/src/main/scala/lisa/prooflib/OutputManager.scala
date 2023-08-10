@@ -2,6 +2,7 @@ package lisa.prooflib
 
 
 import lisa.utils.{_, given}
+import lisa.utils.KernelHelpers.{*, given}
 
 import java.io.PrintWriter
 import java.io.StringWriter

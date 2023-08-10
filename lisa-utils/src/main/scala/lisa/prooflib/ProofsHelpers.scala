@@ -5,7 +5,8 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
 import lisa.prooflib.BasicStepTactic.Rewrite
-//import lisa.utils.{*, given}
+import lisa.utils.{*, given}
+import lisa.utils.KernelHelpers.{*, given}
 
 import scala.annotation.targetName
 import lisa.utils.UserLisaException

@@ -6,6 +6,7 @@ import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
 import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.{_, given}
+import lisa.utils.KernelHelpers.{*, given}
 
 
 import scala.collection.mutable.Stack as stack
@@ -26,8 +27,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   //export lisa.utils.KernelHelpers.{_, given}
 
   val K = lisa.utils.K
-  export K.given_Conversion_String_Identifier
-  export K.given_Conversion_Identifier_String
+  //export K.given_Conversion_String_Identifier
+  //export K.given_Conversion_Identifier_String
   val F = lisa.fol.FOL
   import F.{given}
 
