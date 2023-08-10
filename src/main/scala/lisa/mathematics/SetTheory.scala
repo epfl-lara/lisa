@@ -1097,7 +1097,8 @@ object SetTheory extends lisa.Main {
         val exClause = thenHave(exists(b, in(b, pair(x, y)))) by RightExists
 
         have(in(b, pair(x, y)) |- in(b, pair(x, y))) by Hypothesis
-        val bp = thenHave(in(b, pair(x, y)) |- (b === singleton(x)) \/ (b === unorderedPair(x, y))) by Substitution.withExplicitRules(pairAxiom of (z -> b, y -> singleton(x), x -> unorderedPair(x, y)))
+        val bp =
+          thenHave(in(b, pair(x, y)) |- (b === singleton(x)) \/ (b === unorderedPair(x, y))) by Substitution.withExplicitRules(pairAxiom of (z -> b, y -> singleton(x), x -> unorderedPair(x, y)))
 
         have(in(x, singleton(x))) by Restate.from(singletonHasNoExtraElements of (y -> x))
         val bxx = thenHave((b === singleton(x)) |- in(x, b)) by Substitution.withExplicitRules((b === singleton(x)))
@@ -1708,9 +1709,10 @@ object SetTheory extends lisa.Main {
       have(thesis) by Tautology.from(lastStep, elemOfCartesianProduct of (x -> a, y -> b, t -> z), elemOfCartesianProduct of (x -> setUnion(a, c), y -> setUnion(b, d), t -> z))
     }
 
-    val zcd = have(in(z, cxd) |- in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Substitution.withExplicitRules(unionCommutativity of (a -> c, b -> a), unionCommutativity of (a -> d, b -> b))(
-      lastStep of (a -> c, b -> d, c -> a, d -> b)
-    )
+    val zcd =
+      have(in(z, cxd) |- in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Substitution.withExplicitRules(unionCommutativity of (a -> c, b -> a), unionCommutativity of (a -> d, b -> b))(
+        lastStep of (a -> c, b -> d, c -> a, d -> b)
+      )
 
     have(in(z, setUnion(axb, cxd)) ==> in(z, cartesianProduct(setUnion(a, c), setUnion(b, d)))) by Tautology.from(unionDef, zab, zcd)
     thenHave(forall(z, in(z, setUnion(axb, cxd)) ==> in(z, cartesianProduct(setUnion(a, c), setUnion(b, d))))) by RightForall
@@ -3029,7 +3031,8 @@ object SetTheory extends lisa.Main {
       val notInG = have((functional(f), in(x, domF), !in(x, domG)) |- existsOne(y, in(pair(x, y), h))) by Tautology.from(lastStep, xInDomFOne, xInDomG)
 
       // x not in domF and x in domG
-      val notInF = have((functional(g), !in(x, domF), in(x, domG)) |- existsOne(y, in(pair(x, y), h))) by Substitution.withExplicitRules(unionCommutativity of (a -> g, b -> f))(notInG of (f -> g, g -> f))
+      val notInF =
+        have((functional(g), !in(x, domF), in(x, domG)) |- existsOne(y, in(pair(x, y), h))) by Substitution.withExplicitRules(unionCommutativity of (a -> g, b -> f))(notInG of (f -> g, g -> f))
 
       // x in domF and in domG
       have(
