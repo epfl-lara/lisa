@@ -15,7 +15,7 @@ trait Common {
     * Define the type of tuples of Arity N. If N=-1, T***N = List[T] (arbitrary arity).
     */
   @showAsInfix
-  type ***[T, N <: Arity] <: (Tuple | Seq[T]) & Matchable = N match {
+  type ***[T, N <: Arity] <: (Tuple | Seq[T]) & Matchable = N match { 
     case -1 => Seq[T]
     case 0 => EmptyTuple
     case _ => T *: (T *** (N - 1))
@@ -110,7 +110,7 @@ trait Common {
     * Constructor types for LISA Objects: Functions into Terms and Formulas.
     */
   @showAsInfix
-  trait |->[-I, +O <: LisaObject[O]] extends  LisaObject[I|->O] {
+  infix trait |->[-I, +O <: LisaObject[O]] extends  LisaObject[I|->O] {
     def app(arg: I): O
 
     def apply(arg: I): O = app(arg)
@@ -144,7 +144,13 @@ trait Common {
       */
     def :=(replacement:A) = SubstPair(this, replacement)
 
+    type Truc = A match {
+      case Formula => VariableFormula
+      case _ => SchematicLabel[A]
+    }
+
   }
+
 
   /**
     * ConstantLabel represent constants in the theory and can't be freely substituted.
