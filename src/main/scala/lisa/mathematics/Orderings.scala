@@ -245,7 +245,7 @@ object Orderings extends lisa.Main {
         val pairExt = have((pair(b, c) === pair(y, x)) |- (b === y) /\ (c === x)) by Weakening(pairExtensionality of (a -> b, b -> c, c -> y, d -> x))
 
         have(in(y, x) |- in(y, x)) by Hypothesis
-        thenHave((in(y, x), b === y, c === x) |- in(b, c)) by Substitution.apply2(true, b === y, c === x)
+        thenHave((in(y, x), b === y, c === x) |- in(b, c)) by Substitution.withExplicitRules(b === y, c === x)
         have((in(y, x) /\ (pair(b, c) === pair(y, x))) |- in(b, c)) by Tautology.from(pairExt, lastStep)
         thenHave(exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))) |- in(b, c)) by LeftExists
         thenHave(thesis) by LeftExists
@@ -271,7 +271,7 @@ object Orderings extends lisa.Main {
     thenHave(in(t, inclusionOn(a)) ==> in(t, cartesianProduct(a, a))) by Weakening
     thenHave(forall(t, in(t, inclusionOn(a)) ==> in(t, cartesianProduct(a, a)))) by RightForall
     // thenHave(forall(z, in(z, inclusionOn(a)) ==> in(z, cartesianProduct(a, a)))) by Restate
-    val subs = thenHave(subset(inclusionOn(a), cartesianProduct(a, a))) by Substitution.apply2(true, subsetAxiom of (x -> inclusionOn(a), y -> cartesianProduct(a, a)))
+    val subs = thenHave(subset(inclusionOn(a), cartesianProduct(a, a))) by Substitution.withExplicitRules(subsetAxiom of (x -> inclusionOn(a), y -> cartesianProduct(a, a)))
 
     have(thesis) by Tautology.from(subs, relationBetween.definition of (r -> inclusionOn(a), a -> a, b -> a))
   }
@@ -310,7 +310,7 @@ object Orderings extends lisa.Main {
     () |- reflexive(inclusionOn(emptySet()), emptySet())
   ) {
     have(reflexive(emptySet(), emptySet())) by Restate.from(emptyRelationReflexiveOnItself)
-    thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
+    thenHave(thesis) by Substitution.withExplicitRules(emptySetInclusionEmpty)
   }
 
   /**
@@ -320,7 +320,7 @@ object Orderings extends lisa.Main {
     () |- irreflexive(inclusionOn(emptySet()), a)
   ) {
     have(irreflexive(emptySet(), a)) by Restate.from(emptyRelationIrreflexive)
-    thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
+    thenHave(thesis) by Substitution.withExplicitRules(emptySetInclusionEmpty)
   }
 
   /**
@@ -330,7 +330,7 @@ object Orderings extends lisa.Main {
     () |- transitive(inclusionOn(emptySet()), a)
   ) {
     have(transitive(emptySet(), a)) by Restate.from(emptyRelationTransitive)
-    thenHave(thesis) by Substitution.apply2(true, emptySetInclusionEmpty)
+    thenHave(thesis) by Substitution.withExplicitRules(emptySetInclusionEmpty)
   }
 
   /**
@@ -341,7 +341,7 @@ object Orderings extends lisa.Main {
   ) {
     have(
       partialOrder(pair(emptySet(), emptySet())) <=> (relationBetween(emptySet(), emptySet(), emptySet()) /\ antiReflexive(emptySet(), emptySet()) /\ transitive(emptySet(), emptySet()))
-    ) by Substitution.apply2(false, firstInPairReduction of (x -> emptySet(), y -> emptySet()), secondInPairReduction of (x -> emptySet(), y -> emptySet()))(
+    ) by Substitution.withExplicitRules(firstInPairReduction of (x -> emptySet(), y -> emptySet()), secondInPairReduction of (x -> emptySet(), y -> emptySet()))(
       partialOrder.definition of p -> pair(emptySet(), emptySet())
     )
     have(thesis) by Tautology.from(lastStep, emptySetRelationOnItself, emptyRelationIrreflexive of a -> emptySet(), emptyRelationTransitive of a -> emptySet())
@@ -353,8 +353,7 @@ object Orderings extends lisa.Main {
   val emptySetTotalOrder = Lemma(
     () |- totalOrder(pair(emptySet(), emptySet()))
   ) {
-    have(totalOrder(pair(emptySet(), emptySet())) <=> (partialOrder(pair(emptySet(), emptySet())) /\ total(emptySet(), emptySet()))) by Substitution.apply2(
-      false,
+    have(totalOrder(pair(emptySet(), emptySet())) <=> (partialOrder(pair(emptySet(), emptySet())) /\ total(emptySet(), emptySet()))) by Substitution.withExplicitRules(
       firstInPairReduction of (x -> emptySet(), y -> emptySet()),
       secondInPairReduction of (x -> emptySet(), y -> emptySet())
     )(totalOrder.definition of p -> pair(emptySet(), emptySet()))
@@ -383,7 +382,7 @@ object Orderings extends lisa.Main {
         b,
         (subset(b, emptySet()) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet(), emptySet()))) \/ (z === x))))
       ))
-    ) by Substitution.apply2(false, firstInPairReduction of (x -> emptySet(), y -> emptySet()))(wellOrder.definition of p -> pair(emptySet(), emptySet()))
+    ) by Substitution.withExplicitRules(firstInPairReduction of (x -> emptySet(), y -> emptySet()))(wellOrder.definition of p -> pair(emptySet(), emptySet()))
 
     have((subset(b, emptySet()) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet(), emptySet()))) \/ (z === x))))) by Tautology.from(
       emptySetIsItsOwnOnlySubset of x -> b
@@ -425,7 +424,7 @@ object Orderings extends lisa.Main {
       val lhs = have(forall(y, in(y, x) ==> subset(y, x)) |- forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x)))) subproof {
         have(forall(y, in(y, x) ==> subset(y, x)) |- forall(y, in(y, x) ==> subset(y, x))) by Hypothesis
         thenHave((forall(y, in(y, x) ==> subset(y, x)), in(y, x)) |- subset(y, x)) by InstantiateForall(y)
-        thenHave((forall(y, in(y, x) ==> subset(y, x)), in(y, x)) |- forall(z, in(z, y) ==> in(z, x))) by Substitution.apply2(false, subsetAxiom of (x -> y, y -> x))
+        thenHave((forall(y, in(y, x) ==> subset(y, x)), in(y, x)) |- forall(z, in(z, y) ==> in(z, x))) by Substitution.withExplicitRules(subsetAxiom of (x -> y, y -> x))
         thenHave((forall(y, in(y, x) ==> subset(y, x)), in(y, x)) |- in(z, y) ==> in(z, x)) by InstantiateForall(z)
         thenHave((forall(y, in(y, x) ==> subset(y, x))) |- (in(z, y) /\ in(y, x)) ==> in(z, x)) by Restate
         thenHave((forall(y, in(y, x) ==> subset(y, x))) |- forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x))) by RightForall
@@ -437,7 +436,7 @@ object Orderings extends lisa.Main {
         thenHave(forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x))) |- forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x))) by InstantiateForall(z)
         thenHave(forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x))) /\ in(y, x) |- (in(z, y)) ==> in(z, x)) by InstantiateForall(y)
         thenHave(forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x))) /\ in(y, x) |- forall(z, in(z, y) ==> in(z, x))) by RightForall
-        thenHave(forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x))) /\ in(y, x) |- subset(y, x)) by Substitution.apply2(true, subsetAxiom of (x -> y, y -> x))
+        thenHave(forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x))) /\ in(y, x) |- subset(y, x)) by Substitution.withExplicitRules(subsetAxiom of (x -> y, y -> x))
         thenHave(forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x))) |- in(y, x) ==> subset(y, x)) by Restate
         thenHave(thesis) by RightForall
       }
@@ -489,8 +488,8 @@ object Orderings extends lisa.Main {
     () |- wellOrder(inclusionOrderOn(emptySet()))
   ) {
     val incDef = have(inclusionOrderOn(emptySet()) === pair(emptySet(), inclusionOn(emptySet()))) by InstantiateForall(inclusionOrderOn(emptySet()))(inclusionOrderOn.definition of a -> emptySet())
-    have(wellOrder(pair(emptySet(), inclusionOn(emptySet())))) by Substitution.apply2(true, emptySetInclusionEmpty)(emptySetWellOrder)
-    thenHave(thesis) by Substitution.apply2(true, incDef)
+    have(wellOrder(pair(emptySet(), inclusionOn(emptySet())))) by Substitution.withExplicitRules(emptySetInclusionEmpty)(emptySetWellOrder)
+    thenHave(thesis) by Substitution.withExplicitRules(incDef)
   }
 
   /**
@@ -508,7 +507,7 @@ object Orderings extends lisa.Main {
     val ordinalTrans = have(ordinal(a) |- transitiveSet(a)) by Weakening(ordinal.definition)
     val wellOrdInca = have(ordinal(a) |- wellOrder(inclusionOrderOn(a))) by Weakening(ordinal.definition)
     have(inclusionOrderOn(a) === pair(a, inclusionOn(a))) by InstantiateForall(inclusionOrderOn(a))(inclusionOrderOn.definition)
-    val wellOrda = have(ordinal(a) |- wellOrder(pair(a, inclusionOn(a)))) by Substitution.apply2(false, lastStep)(wellOrdInca)
+    val wellOrda = have(ordinal(a) |- wellOrder(pair(a, inclusionOn(a)))) by Substitution.withExplicitRules(lastStep)(wellOrdInca)
 
     have(transitiveSet(a) |- forall(b, in(b, a) ==> subset(b, a))) by Weakening(transitiveSet.definition of x -> a)
     val bIna = thenHave((transitiveSet(a), in(b, a)) |- subset(b, a)) by InstantiateForall(b)
@@ -522,7 +521,7 @@ object Orderings extends lisa.Main {
       val bc = have(in(pair(c, b), inclusionOn(a)) |- in(b, a) /\ in(c, a) /\ in(c, b)) by Weakening(inclusionOrderElem of (c -> b, b -> c))
 
       have(wellOrder(pair(a, inclusionOn(a))) |- forall(w, forall(y, forall(z, (in(pair(w, y), inclusionOn(a)) /\ in(pair(y, z), inclusionOn(a))) ==> in(pair(w, z), inclusionOn(a)))))) by Substitution
-        .apply2(false, secondInPairReduction of (x -> a, y -> inclusionOn(a)))(wellOrderTransitivity of p -> pair(a, inclusionOn(a)))
+        .withExplicitRules(secondInPairReduction of (x -> a, y -> inclusionOn(a)))(wellOrderTransitivity of p -> pair(a, inclusionOn(a)))
       thenHave(wellOrder(pair(a, inclusionOn(a))) |- forall(y, forall(z, (in(pair(c, y), inclusionOn(a)) /\ in(pair(y, z), inclusionOn(a))) ==> in(pair(c, z), inclusionOn(a))))) by InstantiateForall(
         c
       )
@@ -536,7 +535,7 @@ object Orderings extends lisa.Main {
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- (in(c, z) /\ in(z, b)) ==> in(c, b)) by Restate
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- forall(z, (in(c, z) /\ in(z, b)) ==> in(c, b))) by RightForall
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- forall(c, forall(z, (in(c, z) /\ in(z, b)) ==> in(c, b)))) by RightForall
-    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- transitiveSet(b)) by Substitution.apply2(true, transitiveSetInclusionDef of x -> b)
+    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- transitiveSet(b)) by Substitution.withExplicitRules(transitiveSetInclusionDef of x -> b)
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a)))) |- in(b, a) ==> transitiveSet(b)) by Restate
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a)))) |- forall(b, in(b, a) ==> transitiveSet(b))) by RightForall
 

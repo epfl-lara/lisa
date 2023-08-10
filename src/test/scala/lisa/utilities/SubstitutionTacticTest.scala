@@ -124,8 +124,7 @@ class SubstitutionTacticTest extends ProofTacticTestLib {
       val substForm: Seq[testProof.Fact | Formula | RunningTheory#Justification] = formSubsts.map(parseFormula(_))
       val substJust: Seq[testProof.Fact | Formula | RunningTheory#Justification] = Nil
       Substitution
-        .apply2(using lisa.test.TestTheoryLibrary, testProof)(
-          false,
+        .withExplicitRules(using lisa.test.TestTheoryLibrary, testProof)(
           (substPrem ++ substForm ++ substJust).asInstanceOf[Seq[testProof.Fact | Formula | RunningTheory#Justification]]: _*
         )(prem)(lisa.utils.parsing.FOLParser.parseSequent(stmt2))
     }
