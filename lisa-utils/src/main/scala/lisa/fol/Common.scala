@@ -524,18 +524,4 @@ trait Common {
   def instantiateBinder(f: BaseQuantifiedFormula, t: Term): Formula = f.body.substituteUnsafe(Map(f.bound -> t))
 
 
-
-}
-
-object Test2 {
-
-
-  object G extends lisa.fol.Common
-  import G.*
-
-  def main(args: Array[String]): Unit = {
-  }
-
-
-
 }
