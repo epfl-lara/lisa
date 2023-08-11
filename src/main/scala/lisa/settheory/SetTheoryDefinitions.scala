@@ -1,16 +1,16 @@
 package lisa.settheory
 
-import lisa.kernel.fol.FOL.*
+import lisa.utils.K
+import lisa.fol.FOL.{*, given}
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.KernelHelpers.{_, given}
 
 /**
  * Base trait for set theoretical axiom systems.
  * Defines the symbols used in set theory.
  */
-private[settheory] trait SetTheoryDefinitions {
-/*
-  def axioms: Set[(String, runningSetTheory.Axiom)] = Set.empty
+private[settheory] trait SetTheoryDefinitions extends lisa.prooflib.Library {
+
+  def axioms: Set[(String, AXIOM)] = Set.empty
 
   // Predicates
   /**
@@ -37,40 +37,41 @@ private[settheory] trait SetTheoryDefinitions {
   /**
    * The symbol for the empty set constant.
    */
-  final val emptySet = ConstantFunctionLabel("emptySet", 0)
+  final val emptySet = Constant("emptySet")
 
   /**
    * The symbol for the unordered pair function.
    */
-  final val unorderedPair = ConstantFunctionLabel("unorderedPair", 2)
+  final val unorderedPair = ConstantFunctionalLabel("unorderedPair", 2)
 
   /**
    * The symbol for the powerset function.
    */
-  final val powerSet = ConstantFunctionLabel("powerSet", 1)
+  final val powerSet = ConstantFunctionalLabel("powerSet", 1)
 
   /**
    * The symbol for the set union function.
    */
-  final val union = ConstantFunctionLabel("union", 1)
+  final val union = ConstantFunctionalLabel("union", 1)
 
   /**
    * The symbol for the universe function. Defined in TG set theory.
    */
-  final val universe = ConstantFunctionLabel("universe", 1)
+  final val universe = ConstantFunctionalLabel("universe", 1)
 
   /**
    * Set Theory basic functions.
    */
-  final val functions = Set(emptySet, unorderedPair, powerSet, union, universe)
+  final val functions = Set(unorderedPair, powerSet, union, universe)
 
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
    */
-  val runningSetTheory: RunningTheory = new RunningTheory()
+  //val runningSetTheory: RunningTheory = new RunningTheory()
   // given RunningTheory = runningSetTheory
 
-  predicates.foreach(s => runningSetTheory.addSymbol(s))
-  functions.foreach(s => runningSetTheory.addSymbol(s))
-  */
+  predicates.foreach(s => addSymbol(s))
+  functions.foreach(s => addSymbol(s))
+  addSymbol(emptySet)
+  
 }

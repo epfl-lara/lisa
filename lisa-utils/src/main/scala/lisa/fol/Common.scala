@@ -335,8 +335,8 @@ trait Common {
     def rename(newid: K.Identifier):VariableFormula = VariableFormula(newid)
   }
   /**
-    * A Constant formula, corresponding to [[K.ConstantLabel]], is a label for terms.
-    * It counts both as the label and as the term itself. Usually either True or False.
+    * A Constant formula, corresponding to [[K.ConstantFormulaLabel]].
+    * It counts both as the label and as the formula itself. Usually either True or False.
     */
   case class ConstantFormula(id: K.Identifier) extends Formula with Absolute with ConstantLabel[Formula] {
     val underlyingLabel: K.ConstantPredicateLabel = K.ConstantPredicateLabel(id, 0)

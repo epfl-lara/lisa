@@ -24,36 +24,30 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   val SC: SequentCalculus.type = K.SC
 
   export lisa.kernel.proof.SCProof
-  //export lisa.utils.KernelHelpers.{_, given}
 
   val K = lisa.utils.K
-  //export K.given_Conversion_String_Identifier
-  //export K.given_Conversion_Identifier_String
   val F = lisa.fol.FOL
   import F.{given}
 
 
 
-  var last: Option[Justification] = None
-
-  
-  val knownSymbols: scala.collection.mutable.Set[F.ConstantLabel[?]] = scala.collection.mutable.Set()
+  var last: Option[JUSTIFICATION] = None
 
 
-  def addSymbol[A <: F.LisaObject[A]](s:F.ConstantLabel[A]):Unit = {
+  val knownDefs:scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
 
+  def addSymbol(s : F.ConstantFunctionalLabel[?] | F.ConstantPredicateLabel[?] | F.Constant):Unit = {
     s match {
-      //case s: F.Constant => ??? //theory.addSymbol(s.underlyingLabel)
-      case _ => ???
-      /*
       case s: F.ConstantFunctionalLabel[?] => theory.addSymbol(s.underlyingLabel)
-      case s: F.ConstantFormula => theory.addSymbol(s.underlyingLabel)
       case s: F.ConstantPredicateLabel[?] => theory.addSymbol(s.underlyingLabel)
-      case s: F.ConstantConnectorLabel[?] => ???
-      */
+      case s: F.Constant => theory.addSymbol(s.underlyingLabel)
     }
-    
-    knownSymbols.add(s)
+    knownDefs.update(s, None)
+  }
+
+  def getDefinition(label: F.ConstantLabel[?]): Option[JUSTIFICATION] = knownDefs.get(label) match {
+    case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
+    case Some(value) => value
   }
 
 
@@ -103,7 +97,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   /**
    * Prints a short representation of the given theorem or definition
    */
-  def show(using om: OutputManager)(thm: Justification) = {
+  def show(using om: OutputManager)(thm: JUSTIFICATION) = {
     if (thm.withSorry) om.output(thm.repr, Console.YELLOW)
     else om.output(thm.repr, Console.GREEN)
   }

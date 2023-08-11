@@ -1,27 +1,31 @@
 package lisa.settheory
 
-import lisa.kernel.fol.FOL.*
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.K
+import lisa.utils.K.makeAxiom
+import lisa.fol.FOL.{*, given}
 
 /**
  * Axioms for the Zermelo-Fraenkel theory (ZF)
  */
 private[settheory] trait SetTheoryZFAxioms extends SetTheoryZAxioms {
-  private val (x, y, a, b) =
-    (VariableLabel("x"), VariableLabel("y"), VariableLabel("A"), VariableLabel("B"))
-  private final val sPsi = SchematicPredicateLabel("P", 3)
+  private val x = variable
+  private val y = variable
+  private val A = variable
+  private val B = variable
+  private val P = predicate[3]
+  //private final val sPsi = SchematicPredicateLabel("P", 3)
 
   /**
-   * Replacement Schema --- If a predicate `Ψ` is 'functional' over `x`, i.e.,
-   * given `a ∈ x`, there is a unique `b` such that `Ψ(x, a, b)`, then the
-   * 'image' of `x` in Ψ exists and is a set. It contains exactly the `b`'s that
-   * satisfy `Ψ` for each `a ∈ x`.
+   * Replacement Schema --- If a predicate `P` is 'functional' over `x`, i.e.,
+   * given `a ∈ x`, there is a unique `b` such that `P(x, a, b)`, then the
+   * 'image' of `x` in P exists and is a set. It contains exactly the `b`'s that
+   * satisfy `P` for each `a ∈ x`.
    */
-  final val replacementSchema: runningSetTheory.Axiom = runningSetTheory.makeAxiom(
-    forall(a, in(a, x) ==> existsOne(b, sPsi(x, a, b))) ==>
-      exists(y, forall(b, in(b, y) <=> exists(a, in(a, x) /\ sPsi(x, a, b))))
-  )
-
-  override def axioms: Set[(String, runningSetTheory.Axiom)] = super.axioms + (("replacementSchema", replacementSchema))
+  final val replacementSchema: AXIOM = Axiom(
+    forall(A, in(A, x) ==> existsOne(B, P(x, A, B))) ==>
+      exists(y, forall(B, in(B, y) <=> exists(A, in(A, x) /\ P(x, A, B))))
+  , "replacementSchema")
+ 
+  override def axioms: Set[(String, AXIOM)] = super.axioms + (("replacementSchema", replacementSchema))
 
 }

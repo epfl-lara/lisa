@@ -23,7 +23,7 @@ trait WithTheorems {
   sealed abstract class Proof(assump: List[F.Formula]) {
     val possibleGoal: Option[F.Sequent]
     type SelfType = this.type
-    type OutsideFact >: Justification
+    type OutsideFact >: JUSTIFICATION
     type Fact = ProofStep | InstantiatedFact | OutsideFact | Int
 
     case class InstantiatedFact(
@@ -198,7 +198,7 @@ trait WithTheorems {
 
     def lockedSymbols: Set[F.SchematicLabel[?]] = assumptions.toSet.flatMap(f => f.freeSchematicLabels.toSet)
 
-    def asOutsideFact(j: Justification): OutsideFact
+    def asOutsideFact(j: JUSTIFICATION): OutsideFact
 
     @nowarn("msg=.*It would fail on pattern case: _: InnerProof.*")
     def depth: Int = this match {
@@ -211,10 +211,10 @@ trait WithTheorems {
       val parent: Proof.this.type = Proof.this
       val owningTheorem: THM = parent.owningTheorem
       type OutsideFact = parent.Fact
-      override inline def asOutsideFact(j: Justification): OutsideFact = parent.asOutsideFact(j)
+      override inline def asOutsideFact(j: JUSTIFICATION): OutsideFact = parent.asOutsideFact(j)
 
       override def sequentOfOutsideFact(of: parent.Fact): F.Sequent = of match {
-        case j: Justification => j.statement
+        case j: JUSTIFICATION => j.statement
         case ds: Proof#ProofStep => ds.bot
         case _ => parent.sequentOfFact(of)
       }
@@ -264,14 +264,14 @@ trait WithTheorems {
   sealed class BaseProof(val owningTheorem: THM) extends Proof(Nil) {
     val goal: F.Sequent = owningTheorem.goal
     val possibleGoal: Option[F.Sequent] = Some(goal)
-    type OutsideFact = Justification
-    override inline def asOutsideFact(j: Justification): OutsideFact = j
+    type OutsideFact = JUSTIFICATION
+    override inline def asOutsideFact(j: JUSTIFICATION): OutsideFact = j
 
-    override def sequentOfOutsideFact(j: Justification): F.Sequent = j.statement
+    override def sequentOfOutsideFact(j: JUSTIFICATION): F.Sequent = j.statement
   }
 
 
-  sealed abstract class Justification(using om: OutputManager)(val line: Int, val file: String) {
+  sealed abstract class JUSTIFICATION {
     def repr: String
     def innerJustification: theory.Justification
     def statement: F.Sequent
@@ -283,7 +283,7 @@ trait WithTheorems {
         }
   }
 
-  class AXIOM(using om: OutputManager)(line: Int, file: String, innerAxiom:theory.Axiom, val axiom:F.Formula, val name: String) extends Justification(using om)(line, file) {
+  class AXIOM(innerAxiom:theory.Axiom, val axiom:F.Formula, val name: String) extends JUSTIFICATION {
     def innerJustification: theory.Axiom = innerAxiom
     val statement:F.Sequent = F.Sequent(Set(), Set(axiom))
     if (statement.underlying != theory.sequentFromJustification(innerAxiom)) {
@@ -292,22 +292,27 @@ trait WithTheorems {
     def repr: String = innerJustification.repr
   }
 
-  def Axiom(using om: OutputManager, line: Int, file: String, axiom:F.Formula, name: String) = {
-    val ax:Option[theory.Axiom] = ??? //theory.addAxiom(name, statement.underlying)
+  def Axiom(axiom:F.Formula, name: String): AXIOM = {
+    val ax:Option[theory.Axiom] = theory.addAxiom(name, axiom.underlying)
     ax match {
       case None => throw new InvalidAxiomException("Not all symbols belong to the theory", name, axiom, library)
-      case Some(value) => AXIOM(line, file, value, axiom, name)
+      case Some(value) => AXIOM(value, axiom, name)
     }
   }
-  abstract class DEFINITION(using om: OutputManager)(line: Int, file: String) extends Justification(using om)(line, file){
+
+
+  //def Axiom(using om: OutputManager, line: Int, file: String)(ax: theory.Axiom): AXIOM = AXIOM(line, file, ax.)
+  abstract class DEFINITION(line: Int, file: String) extends JUSTIFICATION{
     def repr: String = innerJustification.repr
+    val label:F.ConstantLabel[?]
+    knownDefs.update(label, Some(this))
     
   }
 
 
 
   class THM(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
-      extends Justification(using om)(line, file) {
+      extends JUSTIFICATION {
 
     val goal: F.Sequent = statement
     val name: String = fullName

@@ -1,16 +1,17 @@
 package lisa.settheory
 
-import lisa.kernel.fol.FOL.*
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.K
+import lisa.fol.FOL.{*, given}
 
 /**
  * Axioms for the Tarski-Grothendieck theory (TG)
  */
-private[settheory] object SetTheoryTGAxioms extends SetTheoryZFAxioms {
-  private val (x, y, z) =
-    (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
+private[settheory] trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
+  private val x = variable
+  private val y = variable
+  private val z = variable
 
-  final val tarskiAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(
+  final val tarskiAxiom: AXIOM = Axiom(
     forall(
       x,
       in(x, universe(x)) /\
@@ -20,8 +21,8 @@ private[settheory] object SetTheoryTGAxioms extends SetTheoryZFAxioms {
             forall(z, subset(z, universe(x)) ==> (sim(y, universe(x)) /\ in(y, universe(x))))
         )
     )
-  )
+  , "tarskiAxiom")
 
-  override def axioms: Set[(String, runningSetTheory.Axiom)] = super.axioms + (("TarskiAxiom", tarskiAxiom))
+  override def axioms: Set[(String, AXIOM)] = super.axioms + (("TarskiAxiom", tarskiAxiom))
 
 }

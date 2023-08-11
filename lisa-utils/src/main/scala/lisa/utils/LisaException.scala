@@ -7,6 +7,7 @@ import lisa.kernel.proof.SCProof
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.KernelHelpers.repr
+import lisa.fol.FOL as F
 
 abstract class LisaException(errorMessage: String)(using val line: sourcecode.Line, val file: sourcecode.File) extends Exception(errorMessage) {
   def showError: String
@@ -51,6 +52,11 @@ object UserLisaException {
 
   class UserParsingException(val parsedString: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) {
     def showError: String = ""
+  }
+
+  class UndefinedSymbolException(errorMessage: String, symbol:F.ConstantLabel[?], library: lisa.prooflib.Library)(using sourcecode.Line, sourcecode.File)
+      extends LisaException(errorMessage) {
+    def showError: String = s"The desired symbol \"$symbol\" is unknown and has not been defined.\n"
   }
 
 }

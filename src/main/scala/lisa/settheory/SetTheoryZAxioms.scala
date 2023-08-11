@@ -1,17 +1,17 @@
 package lisa.settheory
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.RunningTheory
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.K
+import lisa.utils.K.makeAxiom
+import lisa.fol.FOL.{*, given}
 
 /**
  * Axioms for the Zermelo theory (Z)
  */
 private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
-
-  private val (x, y, z) =
-    (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
-  final val sPhi = SchematicPredicateLabel("P", 2)
+  private val x = variable
+  private val y = variable
+  private val z = variable
+  final val φ = predicate[2]
 
   /**
    * Extensionality Axiom --- Two sets are equal iff they have the same
@@ -19,7 +19,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * `() |- (x = y) ⇔ ∀ z. z ∈ x ⇔ z ∈ y`
    */
-  final val extensionalityAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(forall(z, in(z, x) <=> in(z, y)) <=> (x === y))
+  final val extensionalityAxiom: this.AXIOM = Axiom(forall(z, in(z, x) <=> in(z, y)) <=> (x === y), "extensionalityAxiom")
 
   /**
    * Pairing Axiom --- For any sets `x` and `y`, there is a set that contains
@@ -31,7 +31,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * This axiom defines [[unorderedPair]] as the function symbol representing
    * this set.
    */
-  final val pairAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z))
+  final val pairAxiom: AXIOM = Axiom(in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z), "pairAxiom")
 
   /**
    * Comprehension/Separation Schema --- For a formula `ϕ(_, _)` and a set `z`,
@@ -44,7 +44,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * This schema represents an infinite collection of axioms, one for each
    * formula `ϕ(x, z)`.
    */
-  final val comprehensionSchema: runningSetTheory.Axiom = runningSetTheory.makeAxiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ sPhi(x, z)))))
+  final val comprehensionSchema: AXIOM = Axiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x, z)))), "comprehensionSchema")
 
   /**
    * Empty Set Axiom --- From the Comprehension Schema follows the existence of
@@ -56,7 +56,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * `() |- !(x ∈ ∅)`
    */
-  final val emptySetAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(!in(x, emptySet()))
+  final val emptySetAxiom: AXIOM = Axiom(!in(x, emptySet), "emptySetAxiom")
 
   /**
    * Union Axiom --- For any set `x`, there exists a set `union(x)` which is the
@@ -69,7 +69,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * This axiom defines [[union]] as the function symbol representing this set.
    */
-  final val unionAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(in(z, union(x)) <=> exists(y, in(y, x) /\ in(z, y)))
+  final val unionAxiom: AXIOM = Axiom(in(z, union(x)) <=> exists(y, in(y, x) /\ in(z, y)), "unionAxiom")
 
   /**
    * Subset Axiom --- For sets `x` and `y`, `x` is a subset of `y` iff every
@@ -79,7 +79,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * This axiom defines the [[subset]] symbol as this predicate.
    */
-  final val subsetAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(subset(x, y) <=> forall(z, in(z, x) ==> in(z, y)))
+  final val subsetAxiom: AXIOM = Axiom(subset(x, y) <=> forall(z, in(z, x) ==> in(z, y)), "subsetAxiom")
 
   /**
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted
@@ -90,7 +90,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * This axiom defines [[powerSet]] as the function symbol representing this
    * set.
    */
-  final val powerAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(in(x, powerSet(y)) <=> subset(x, y))
+  final val powerAxiom: AXIOM = Axiom(in(x, powerSet(y)) <=> subset(x, y), "powerAxiom")
 
   /**
    * Infinity Axiom --- There exists an infinite set.
@@ -105,7 +105,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * `() |- ∃ x. inductive(x)`
    */
-  final val infinityAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(exists(x, in(emptySet(), x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))))
+  final val infinityAxiom: AXIOM = Axiom(exists(x, in(emptySet, x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))), "infinityAxiom")
 
   /**
    * Foundation/Regularity Axiom --- Every non-empty set `x` has an `∈`-minimal
@@ -114,9 +114,9 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * `() |- (x != ∅) ==> ∃ y ∈ x. ∀ z. z ∈ x ⇒ ! z ∈ y`
    */
-  final val foundationAxiom: runningSetTheory.Axiom = runningSetTheory.makeAxiom(!(x === emptySet()) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
+  final val foundationAxiom: AXIOM = Axiom(!(x === emptySet) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))), "foundationAxiom")
 
-  private val zAxioms: Set[(String, runningSetTheory.Axiom)] = Set(
+  private val zAxioms: Set[(String, AXIOM)] = Set(
     ("EmptySet", emptySetAxiom),
     ("extensionalityAxiom", extensionalityAxiom),
     ("pairAxiom", pairAxiom),
@@ -128,6 +128,6 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
     ("comprehensionSchema", comprehensionSchema)
   )
 
-  override def axioms: Set[(String, runningSetTheory.Axiom)] = super.axioms ++ zAxioms
+  override def axioms: Set[(String, AXIOM)] = super.axioms ++ zAxioms
 
 }

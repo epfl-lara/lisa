@@ -162,7 +162,7 @@ trait ProofsHelpers {
   }
 
   class The(val out: Variable, val f: Formula)(
-      val just: Justification
+      val just: JUSTIFICATION
   )
   class definitionWithVars(val args: Seq[Variable]) {
 
@@ -178,7 +178,7 @@ trait ProofsHelpers {
   // Definition helpers, not part of the DSL
 
 
-  type ConstantTermLabel[N<:Arity] = N match {
+  type ConstantTermLabel[N<:Arity] <: ConstantLabel[?] = N match {
     case 0 => Constant
     case _ => ConstantFunctionalLabel[N]
   }
@@ -186,7 +186,10 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by unique existance" of a function symbol
    */
-  class FunctionDefinition[N<:F.Arity](using om: OutputManager)(val name: String, val fullName: String, line: Int, file: String)(vars: Seq[F.Variable], out: F.Variable, f: F.Formula, j:Justification) extends DEFINITION(using om)(line, file) {
+  class FunctionDefinition[N<:F.Arity](using om: OutputManager)
+  (val name: String, val fullName: String, line: Int, file: String)
+  (val vars: Seq[F.Variable], val out: F.Variable, val f: F.Formula, j:JUSTIFICATION) extends DEFINITION(line, file) {
+    //val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
     
     val label: ConstantTermLabel[N]  = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionalLabel[N](name, vars.length.asInstanceOf)).asInstanceOf[ConstantTermLabel[N]]
 
@@ -275,7 +278,7 @@ trait ProofsHelpers {
    * Allows to make definitions "by equality" of a function symbol
    */
   class SimpleFunctionDefinition[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
-                      (val lambda: LambdaExpression[Term, Term, N], out: F.Variable, j:Justification) extends FunctionDefinition(
+                      (val lambda: LambdaExpression[Term, Term, N], out: F.Variable, j:JUSTIFICATION) extends FunctionDefinition(
                         name, fullName, line, file)(lambda.bounds.asInstanceOf, out, out===lambda.body, j)  {
   }
 
@@ -292,13 +295,23 @@ trait ProofsHelpers {
       }
   }
 
+  type ConstantFormulaLabel[N<:Arity] <: ConstantLabel[?] = N match {
+    case 0 => ConstantFormula
+    case _ => ConstantPredicateLabel[N]
+  }
 class PredicateDefinition[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
                       (val lambda: LambdaExpression[Term, Formula, N]) extends DEFINITION(line, file) {
 
     val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity
-    val label: ConstantTermLabel[N]  = (if (vars.length == 0) F.ConstantFormula(name) else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf)).asInstanceOf[ConstantTermLabel[N]]
-    
+
+    val label: ConstantFormulaLabel[N]  = {
+      (
+        if (vars.length == 0) F.ConstantFormula(name) 
+        else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf)
+        ).asInstanceOf[ConstantFormulaLabel[N]]
+    }
+
     val innerJustification: theory.PredicateDefinition = {
       import lisa.utils.K.{predicateDefinition, findUndefinedSymbols}
       val conclusion = ???

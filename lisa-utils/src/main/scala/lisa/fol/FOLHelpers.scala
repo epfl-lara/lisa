@@ -52,11 +52,27 @@ object FOLHelpers {
   def predicate[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicPredicateLabel[N] = SchematicPredicateLabel[N](name.value, valueOf[N])
   def connector[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicConnectorLabel[N] = SchematicConnectorLabel[N](name.value, valueOf[N])
 
+  /*
+  def isSame(formula1: Formula, formula2: Formula): Boolean =
+    K.isSame(formula1.underlying, formula2.underlying)
 
+  def isImplying(formula1: Formula, formula2: Formula): Boolean = {
+    val nf1 = K.computeNormalForm(K.simplify(formula1.underlying))
+    val nf2 = K.computeNormalForm(K.simplify(formula2.underlying))
+    K.latticesLEQ(nf1, nf2)
+  }
 
+  def isSubset(s1: Set[Formula], s2: Set[Formula]): Boolean = {
+    s1.forall(f => s2.exists(g => isSame(f, g)))
+  }
+  def isSameSet(s1: Set[Formula], s2: Set[Formula]): Boolean =
+    isSubset(s1, s2) && isSubset(s2, s1)
 
+  def contains(s: Set[Formula], f: Formula): Boolean = {
+    s.exists(g => isSame(f, g))
+  }
 
-
+*/
 
 
 
