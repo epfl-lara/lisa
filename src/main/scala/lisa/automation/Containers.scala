@@ -3,7 +3,7 @@ package lisa.automation
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.mathematics.SetTheory
+import lisa.mathematics.settheory.SetTheory
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.{_, given}
