@@ -56,12 +56,18 @@ object Recursion extends lisa.Main {
   val p1 = firstInPair(p)
   val p2 = secondInPair(p)
 
+  /**
+   * Lemma --- the well order `p` under consideration is a partial order
+   */
   val pIsAPartialOrder = Lemma(
     wellOrder(p) |- partialOrder(p)
   ) {
     have(thesis) by Tautology.from(wellOrder.definition, totalOrder.definition)
   }
 
+  /**
+   * Lemma --- the well order `p` under consideration is a total order
+   */
   val pIsATotalOrder = Lemma(
     wellOrder(p) |- totalOrder(p)
   ) {
@@ -79,7 +85,7 @@ object Recursion extends lisa.Main {
   /**
    * Theorem --- Unique Recursive Function
    *
-   * If a theorem as defined by well-ordered recursion exists, it is unique
+   * If a theorem as defined by [[wellOrderedRecursion]] exists, it is unique
    */
   val uniqueRecursiveFunction = Lemma(
     wellOrder(p) /\ exists(g, fun(g, t)) /\ in(t, p1) |- existsOne(g, fun(g, t))
@@ -389,8 +395,10 @@ object Recursion extends lisa.Main {
   }
 
   // EXISTENCE ----------------------------------------
+
   // if there exists a unique function `g` for the initial segment of some `x`, get the set of these
   val wDef = forall(t, in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y)))
+  
   // take its union
   // this is a function `g` for `x` (almost)
   val uw = union(w) // + `(predecessor x, F(U w))` in the successor case
@@ -399,7 +407,7 @@ object Recursion extends lisa.Main {
    * Theorem --- Recursive Function Exists
    *
    * Given that for each element of the initial segment of `x`, a function as
-   * defined by well-ordered recursion exists, then a function with the same
+   * defined by [[wellOrderedRecursion]] exists, then a function with the same
    * properties exists for `x`.
    */
   val recursiveFunctionExistencePropagates = Theorem(
@@ -1834,41 +1842,60 @@ object Recursion extends lisa.Main {
 
   /**
    * Theorem --- Well-Ordered Recursion
+   *
+   * Given any element `t` of a well order `p`, and a class function `F`, there
+   * exists a unique function `g` with `<t`, the initial segment of `t`, as its
+   * domain, defined recursively as
+   *
+   * `\forall a < t. g(a) = F(g |^ < a)`
+   *
+   * where `g |^ <a` is `g` with its domain restricted to `<a`, the initial
+   * segment of `a`.
    */
-  // val wellOrderedRecursion = Lemma(
-  //   wellOrder(p) |- forall(
-  //     t,
-  //     in(t, firstInPair(p)) ==> existsOne(g, (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegment(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))))
-  //   )
-  // ) {
-  //   assume(wellOrder(p))
+  val wellOrderedRecursion = Lemma(
+    wellOrder(p) |- forall(
+      t,
+      in(t, firstInPair(p)) ==> existsOne(g, (functionalOver(g, initialSegment(p, t)) /\ forall(a, in(a, initialSegment(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))))
+    )
+  ) {
+    assume(wellOrder(p))
 
-  //   val pIsAPartialOrder = have(partialOrder(p)) by Tautology.from(wellOrder.definition, totalOrder.definition)
-  //   val pIsATotalOrder = have(totalOrder(p)) by Tautology.from(wellOrder.definition)
+    val pIsAPartialOrder = have(partialOrder(p)) by Tautology.from(wellOrder.definition, totalOrder.definition)
+    val pIsATotalOrder = have(totalOrder(p)) by Tautology.from(wellOrder.definition)
 
-  //   // the existence of g propagates up from initial segments
-  //   val initPropagate = have(in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x))) subproof {
+    // the existence of g propagates up from initial segments
+    val initPropagate = have(in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x))) subproof {
 
-  //     assume(
-  //       in(x, p1),
-  //       forall(y, in(y, initialSegment(p, x)) ==> prop(y))
-  //     )
+      assume(
+        in(x, p1),
+        forall(y, in(y, initialSegment(p, x)) ==> prop(y))
+      )
 
-  //     // see [[uniqueRecursiveFunction]] and [[recursiveFunctionExistencePropagates]]
+      // see [[uniqueRecursiveFunction]] and [[recursiveFunctionExistencePropagates]]
 
-  //     have(thesis) by Tautology.from(recursiveFunctionExistencePropagates, uniqueRecursiveFunction of t -> x)
-  //   }
+      have(thesis) by Tautology.from(recursiveFunctionExistencePropagates, uniqueRecursiveFunction of t -> x)
+    }
 
-  //   // so we induct on the well-ordering
-  //   thenHave(forall(x, in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x)))) by RightForall
-  //   have(thesis) by Tautology.from(lastStep, wellOrderedInduction of Q -> lambda(x, prop(x)))
-  // }
-  // show
+    // so we induct on the well-ordering
+    thenHave(forall(x, in(x, p1) ==> (forall(y, in(y, initialSegment(p, x)) ==> prop(y)) ==> prop(x)))) by RightForall
+    have(thesis) by Tautology.from(lastStep, wellOrderedInduction of Q -> lambda(x, prop(x)))
+  }
+  show
 
-//  val transfiniteRecursion = Theorem(
-//    ordinal(a) |- existsOne(g, functionalOver(g, a) /\ forall(b, in(b, a) ==> (app(g, b) === F(restrictedFunction(g, b)))))
-//  ) {
-//    sorry
-//  }
+  /**
+   * Theorem --- Transfinite Recursion
+   *
+   * Given any ordinal `a` and a class function `F`, there exists a unique
+   * function `g` with `a` as its domain, defined recursively as
+   *
+   * `\forall b < a. g(b) = F(g |^ b)`
+   *
+   * where `g |^ b` is `g` with its domain restricted to `b`.
+   */
+  val transfiniteRecursion = Theorem(
+    ordinal(a) |- existsOne(g, functionalOver(g, a) /\ forall(b, in(b, a) ==> (app(g, b) === F(restrictedFunction(g, b)))))
+  ) {
+    sorry
+  }
 
 }
