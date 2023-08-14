@@ -157,7 +157,7 @@ object Induction extends lisa.Main {
             // well order is anti reflexive
             assume(y === w)
             have(in(pair(w, y), `<p`)) by Restate
-            val ww = thenHave(in(pair(w, w), `<p`)) by Substitution.apply2(false, y === w)
+            val ww = thenHave(in(pair(w, w), `<p`)) by Substitution.withExplicitRules(y === w)
 
             have(∀(y, in(y, A) ==> !in(pair(y, y), `<p`))) subproof {
               have(antiReflexive(`<p`, A)) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition)

@@ -273,7 +273,7 @@ object PartialOrders extends lisa.Main {
 
         val eqCase = have((y === t) |- (predecessor(p, t, x) \/ exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2)))) subproof {
           have(predecessor(p, y, x)) by Restate
-          thenHave((y === t) |- predecessor(p, t, x)) by Substitution.apply2(false, y === t)
+          thenHave((y === t) |- predecessor(p, t, x)) by Substitution.withExplicitRules(y === t)
           thenHave(thesis) by Weakening
         }
 

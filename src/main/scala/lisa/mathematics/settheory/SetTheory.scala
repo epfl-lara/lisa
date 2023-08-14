@@ -856,11 +856,11 @@ object SetTheory extends lisa.Main {
 
     // but x \cap u contains y, and y \cap u contains x
     have(in(x, u) /\ in(x, y)) by Tautology.from(firstElemInPair)
-    thenHave((z === y) |- in(x, u) /\ in(x, z)) by Substitution.apply2(true, z === y)
+    thenHave((z === y) |- in(x, u) /\ in(x, z)) by Substitution.withExplicitRules(z === y)
     val zy = thenHave((z === y) |- exists(t, in(t, u) /\ in(t, z))) by RightExists
 
     have(in(y, u) /\ in(y, x)) by Tautology.from(secondElemInPair)
-    thenHave((z === x) |- in(y, u) /\ in(y, z)) by Substitution.apply2(true, z === x)
+    thenHave((z === x) |- in(y, u) /\ in(y, z)) by Substitution.withExplicitRules(z === x)
     val zx = thenHave((z === x) |- exists(t, in(t, u) /\ in(t, z))) by RightExists
 
     // this is a contradiction
@@ -2251,7 +2251,7 @@ object SetTheory extends lisa.Main {
     }
 
     val relS = have(relation(s)) subproof {
-      have((z === pair(x, y)) |- in(z, cartesianProduct(singleton(x), singleton(y)))) by Substitution.apply2(true, z === pair(x, y))(xyInCart)
+      have((z === pair(x, y)) |- in(z, cartesianProduct(singleton(x), singleton(y)))) by Substitution.withExplicitRules(z === pair(x, y))(xyInCart)
       have(in(z, s) ==> in(z, cartesianProduct(singleton(x), singleton(y)))) by Tautology.from(lastStep, elemOfS)
       thenHave(forall(z, in(z, s) ==> in(z, cartesianProduct(singleton(x), singleton(y))))) by RightForall
       have(relationBetween(s, singleton(x), singleton(y))) by Tautology.from(
@@ -2266,7 +2266,7 @@ object SetTheory extends lisa.Main {
 
     val uniq = have(forall(a, exists(b, in(pair(a, b), s)) ==> existsOne(b, in(pair(a, b), s)))) subproof {
       have((pair(a, z) === pair(x, y)) <=> in(pair(a, z), s)) by Restate.from(elemOfS of z -> pair(a, z))
-      val eq = thenHave(((a === x) /\ (z === y)) <=> in(pair(a, z), s)) by Substitution.apply2(false, pairExtensionality of (a -> a, b -> z, c -> x, d -> y))
+      val eq = thenHave(((a === x) /\ (z === y)) <=> in(pair(a, z), s)) by Substitution.withExplicitRules(pairExtensionality of (a -> a, b -> z, c -> x, d -> y))
       thenHave((a === x) |- (z === y) <=> in(pair(a, z), s)) by Tautology
       thenHave((a === x) |- forall(z, (z === y) <=> in(pair(a, z), s))) by RightForall
       thenHave((a === x) |- exists(b, forall(z, (z === b) <=> in(pair(a, z), s)))) by RightExists
@@ -2287,7 +2287,7 @@ object SetTheory extends lisa.Main {
       have(forall(t, in(t, relationDomain(s)) <=> exists(a, in(pair(t, a), s)))) by InstantiateForall(relationDomain(s))(relationDomain.definition of r -> s)
       val inDom = thenHave(in(t, relationDomain(s)) <=> exists(a, in(pair(t, a), s))) by InstantiateForall(t)
 
-      have(in(pair(t, a), s) <=> ((t === x) /\ (a === y))) by Substitution.apply2(false, pairExtensionality of (a -> t, b -> a, c -> x, d -> y))(elemOfS of z -> pair(t, a))
+      have(in(pair(t, a), s) <=> ((t === x) /\ (a === y))) by Substitution.withExplicitRules(pairExtensionality of (a -> t, b -> a, c -> x, d -> y))(elemOfS of z -> pair(t, a))
       thenHave(forall(a, in(pair(t, a), s) <=> ((t === x) /\ (a === y)))) by RightForall
       val exToEq = have(exists(a, in(pair(t, a), s)) <=> exists(a, ((t === x) /\ (a === y)))) by Cut(
         lastStep,
@@ -2314,7 +2314,7 @@ object SetTheory extends lisa.Main {
       have(forall(t, in(t, relationRange(s)) <=> exists(a, in(pair(a, t), s)))) by InstantiateForall(relationRange(s))(relationRange.definition of r -> s)
       val inDom = thenHave(in(t, relationRange(s)) <=> exists(a, in(pair(a, t), s))) by InstantiateForall(t)
 
-      have(in(pair(a, t), s) <=> ((a === x) /\ (t === y))) by Substitution.apply2(false, pairExtensionality of (a -> a, b -> t, c -> x, d -> y))(elemOfS of z -> pair(a, t))
+      have(in(pair(a, t), s) <=> ((a === x) /\ (t === y))) by Substitution.withExplicitRules(pairExtensionality of (a -> a, b -> t, c -> x, d -> y))(elemOfS of z -> pair(a, t))
       thenHave(forall(a, in(pair(a, t), s) <=> ((a === x) /\ (t === y)))) by RightForall
       val exToEq = have(exists(a, in(pair(a, t), s)) <=> exists(a, ((a === x) /\ (t === y)))) by Cut(
         lastStep,
@@ -2508,7 +2508,7 @@ object SetTheory extends lisa.Main {
 
     val domEQ = have(relationDomain(f) === x) by Tautology.from(functionalOver.definition)
     have(in(a, x)) by Restate
-    thenHave(in(a, relationDomain(f))) by Substitution.apply2(true, domEQ)
+    thenHave(in(a, relationDomain(f))) by Substitution.withExplicitRules(domEQ)
 
     have(thesis) by Tautology.from(lastStep, functionalOver.definition, pairInFunctionIsApp)
   }
@@ -3449,7 +3449,7 @@ object SetTheory extends lisa.Main {
       val inRan = thenHave((in(b, ran) <=> exists(a, in(pair(a, b), z)))) by InstantiateForall(b)
 
       have((in(t, z)) |- in(t, z)) by Restate
-      val abz = thenHave((in(t, z), (t === pair(a, b))) |- in(pair(a, b), z)) by Substitution.apply2(false, t === pair(a, b))
+      val abz = thenHave((in(t, z), (t === pair(a, b))) |- in(pair(a, b), z)) by Substitution.withExplicitRules(t === pair(a, b))
 
       val exa = have((in(t, z), (t === pair(a, b))) |- exists(a, in(pair(a, b), z))) by RightExists(abz)
       val exb = have((in(t, z), (t === pair(a, b))) |- exists(b, in(pair(a, b), z))) by RightExists(abz)
