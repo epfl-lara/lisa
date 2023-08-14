@@ -5,6 +5,7 @@ import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.mathematics.FirstOrderLogic.*
+import lisa.mathematics.FirstOrderLogic.existentialConjunctionWithClosedFormula
 
 /**
  * Set Theory Library
@@ -363,6 +364,20 @@ object SetTheory extends lisa.Main {
 
     have(∀(y, !in(y, x)) |- (∀(y, in(y, x) <=> in(y, ∅)) <=> (x === ∅)) /\ ∀(y, in(y, x) <=> in(y, ∅))) by RightAnd(exLhs, exRhs)
     thenHave(∀(y, !in(y, x)) |- (x === ∅)) by Tautology
+  }
+
+  /**
+   * Theorem --- A non-empty set has an element.
+   *
+   * Contra-positive of [[setWithNoElementsIsEmpty]].
+   */
+  val nonEmptySetHasElement = Theorem(
+    !(x === ∅) |- ∃(y, in(y, x))
+  ) {
+    have((!(x === ∅), ∀(y, !in(y, x))) |- (x === ∅)) by Weakening(setWithNoElementsIsEmpty)
+    thenHave((!(x === ∅), ∀(y, !in(y, x))) |- ()) by LeftNot
+    thenHave((!(x === ∅)) |- ! ∀(y, !in(y, x))) by RightNot
+    thenHave(thesis) by Restate
   }
 
   /**
@@ -858,6 +873,25 @@ object SetTheory extends lisa.Main {
 
   extension (x: Term) {
     infix def ∩(y: Term) = setIntersection(x, y)
+  }
+
+  /**
+   * Theorem --- If `x ⊆ y` then `x ∩ y = x`.
+   */
+  val setIntersectionSubset = Theorem(
+    subset(x, y) |- (x ∩ y) === x
+  ) {
+    assume(subset(x, y))
+    have(∀(t, t ∈ x ==> t ∈ y)) by Tautology.from(subset.definition)
+    val subsetDef = thenHave(t ∈ x ==> t ∈ y) by InstantiateForall(t)
+
+    have(∀(t, (t ∈ (x ∩ y)) <=> (t ∈ x /\ t ∈ y))) by Definition(setIntersection, setIntersectionUniqueness)(x, y)
+    val intersectionDef = thenHave((t ∈ (x ∩ y)) <=> (t ∈ x /\ t ∈ y)) by InstantiateForall(t)
+
+    have((t ∈ (x ∩ y)) <=> (t ∈ x)) by Tautology.from(subsetDef, intersectionDef)
+    thenHave(∀(t, (t ∈ (x ∩ y)) <=> (t ∈ x))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> (x ∩ y), y -> x))
   }
 
   val unaryIntersectionUniqueness = Theorem(
@@ -1673,6 +1707,37 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * Theorem --- If `a ⊆ b` and `c ⊆ d`, then `(a * c) ⊆ (b * d)`.
+   */
+  val subsetsCartesianProduct = Theorem(
+    (subset(a, b), subset(c, d)) |- subset(cartesianProduct(a, c), cartesianProduct(b, d))
+  ) {
+    have(subset(a, b) |- ∀(x, x ∈ a ==> x ∈ b)) by Tautology.from(subset.definition of (x -> a, y -> b))
+    val subsetDef = thenHave(subset(a, b) |- x ∈ a ==> x ∈ b) by InstantiateForall(x)
+
+    assume(subset(a, b))
+    assume(subset(c, d))
+    have(((t === pair(x, y)) /\ x ∈ a /\ y ∈ c) |- ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)) by Tautology.from(
+      subsetDef,
+      subsetDef of (a -> c, b -> d, x -> y)
+    )
+    thenHave(((t === pair(x, y)) /\ x ∈ a /\ y ∈ c) |- ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d))) by RightExists
+    thenHave(((t === pair(x, y)) /\ x ∈ a /\ y ∈ c) |- ∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)))) by RightExists
+    thenHave(∃(y, ((t === pair(x, y)) /\ x ∈ a /\ y ∈ c)) |- ∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)))) by LeftExists
+    thenHave(∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ a /\ y ∈ c))) |- ∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)))) by LeftExists
+    thenHave(∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ a /\ y ∈ c))) ==> ∃(x, ∃(y, ((t === pair(x, y)) /\ x ∈ b /\ y ∈ d)))) by Restate
+
+    have(t ∈ cartesianProduct(a, c) ==> t ∈ cartesianProduct(b, d)) by Tautology.from(
+      lastStep,
+      elemOfCartesianProduct of (x -> a, y -> c),
+      elemOfCartesianProduct of (x -> b, y -> d)
+    )
+    thenHave(∀(t, t ∈ cartesianProduct(a, c) ==> t ∈ cartesianProduct(b, d))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, subset.definition of (x -> cartesianProduct(a, c), y -> cartesianProduct(b, d)))
+  }
+
+  /**
    * Theorem --- the union of two Cartesian products is a subset of the product of unions.
    *
    *    `a * b ∪ c * d ⊆ (a ∪ c) * (b ∪ d)`
@@ -2402,6 +2467,119 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * Lemma --- If `g` is the restriction of `f` to `x`, then `g` is a subset of `f`.
+   */
+  val restrictedFunctionIsSubset = Lemma(
+    subset(restrictedFunction(f, x), f)
+  ) {
+    have(∀(t, (t ∈ restrictedFunction(f, x)) <=> (t ∈ f /\ ∃(y, ∃(z, y ∈ x /\ (t === pair(y, z))))))) by Definition(restrictedFunction, restrictedFunctionUniqueness)(f, x)
+    thenHave((t ∈ restrictedFunction(f, x)) <=> (t ∈ f /\ ∃(y, ∃(z, y ∈ x /\ (t === pair(y, z)))))) by InstantiateForall(t)
+    thenHave(t ∈ restrictedFunction(f, x) ==> t ∈ f) by Tautology
+    thenHave(∀(t, t ∈ restrictedFunction(f, x) ==> t ∈ f)) by RightForall
+
+    have(thesis) by Tautology.from(
+      lastStep,
+      subset.definition of (x -> restrictedFunction(f, x), y -> f)
+    )
+  }
+
+  /**
+   * Lemma --- If `f` is a function, so is any restriction of `f`.
+   */
+  val restrictedFunctionIsFunctional = Lemma(
+    functional(f) |- functional(restrictedFunction(f, x))
+  ) {
+    val g = restrictedFunction(f, x)
+    assume(functional(f))
+
+    val functionalDef = have(relation(f) /\ ∀(x, ∃(y, in(pair(x, y), f)) ==> ∃!(y, in(pair(x, y), f)))) by Tautology.from(functional.definition)
+    thenHave(∀(x, ∃(y, in(pair(x, y), f)) ==> ∃!(y, in(pair(x, y), f)))) by Tautology
+    val fAppUniqueness = thenHave(∃(y, in(pair(t, y), f)) ==> ∃!(y, in(pair(t, y), f))) by InstantiateForall(t)
+    val fIsRelation = have(relation(f)) by Tautology.from(functionalDef)
+
+    val gIsRelation = have(relation(g)) subproof {
+      // Since f is a relation and g is a subset of f, g is also a relation by subset transitivity
+      have(relationBetween(f, a, b) |- subset(f, cartesianProduct(a, b))) by Tautology.from(relationBetween.definition of (r -> f))
+      have(relationBetween(f, a, b) |- subset(g, f) /\ subset(f, cartesianProduct(a, b))) by RightAnd(restrictedFunctionIsSubset, lastStep)
+      have(relationBetween(f, a, b) |- subset(g, cartesianProduct(a, b))) by Cut(lastStep, subsetTransitivity of (a -> g, b -> f, c -> cartesianProduct(a, b)))
+
+      // Reconstruct the definition
+      have(relationBetween(f, a, b) |- relationBetween(g, a, b)) by Tautology.from(lastStep, relationBetween.definition of (r -> g))
+      thenHave(relationBetween(f, a, b) |- ∃(b, relationBetween(g, a, b))) by RightExists
+      thenHave(relationBetween(f, a, b) |- ∃(a, ∃(b, relationBetween(g, a, b)))) by RightExists
+      thenHave(∃(b, relationBetween(f, a, b)) |- ∃(a, ∃(b, relationBetween(g, a, b)))) by LeftExists
+      thenHave(∃(a, ∃(b, relationBetween(f, a, b))) |- ∃(a, ∃(b, relationBetween(g, a, b)))) by LeftExists
+
+      have(relation(f) |- relation(g)) by Tautology.from(
+        lastStep,
+        relation.definition of (r -> f),
+        relation.definition of (r -> g)
+      )
+      have(thesis) by Cut(fIsRelation, lastStep)
+    }
+
+    val gAppUniqueness = have(∀(t, ∃(y, pair(t, y) ∈ g) ==> ∃!(y, pair(t, y) ∈ g))) subproof {
+      have((pair(t, a) ∈ restrictedFunction(f, x)) <=> (pair(t, a) ∈ f /\ in(t, x))) by Tautology.from(restrictedFunctionPairMembership)
+      val equiv = thenHave(∀(a, (pair(t, a) ∈ restrictedFunction(f, x)) <=> (pair(t, a) ∈ f /\ in(t, x)))) by RightForall
+
+      // Strategy:
+      // 1. ∃(a, (t, a) ∈ g)) <=> ∃(a, (t, a) ∈ f /\ t ∈ x)                [[restrictedFunctionPairMembership]]
+      // 2. ∃(a, (t, a) ∈ f /\ t ∈ x) <=> ∃(a, (t, a) ∈ f) /\ t ∈ x        [[existentialConjunctionWithClosedFormula]]
+      // 3. (∃(a, (t, a) ∈ f) /\ t ∈ x) ==> (∃!(a, (t, a) ∈ f) /\ t ∈ x)   [[fAppUniqueness]]
+      // 4. (∃!(a, (t, a) ∈ f) /\ t ∈ x) <=> ∃!(a, (t, a) ∈ f /\ t ∈ x)    [[uniqueExistentialConjunctionWithClosedFormula]]
+      // 5. ∃!(a, (t, a) ∈ f /\ t ∈ x) <=> ∃!(a, (t, a) ∈ g)               [[uniqueExistentialEquivalenceDistribution]]
+      val p = formulaVariable
+
+      val step1 = have(∃(a, pair(t, a) ∈ g) <=> ∃(a, pair(t, a) ∈ f /\ t ∈ x)) by Cut(
+        equiv,
+        existentialEquivalenceDistribution of (
+          P -> lambda(a, pair(t, a) ∈ g),
+          Q -> lambda(a, pair(t, a) ∈ f /\ t ∈ x)
+        )
+      )
+
+      val step2 = have((∃(a, pair(t, a) ∈ f) /\ t ∈ x) <=> (∃(a, pair(t, a) ∈ f) /\ t ∈ x)) by Tautology.from(
+        existentialConjunctionWithClosedFormula of (
+          P -> lambda(a, pair(t, a) ∈ f),
+          p -> lambda(Seq(), t ∈ x)
+        )
+      )
+
+      val step3 = have((∃(a, pair(t, a) ∈ f) /\ t ∈ x) ==> (∃!(a, pair(t, a) ∈ f) /\ t ∈ x)) by Tautology.from(fAppUniqueness)
+
+      val step4 = have((∃!(a, pair(t, a) ∈ f) /\ t ∈ x) <=> ∃!(a, pair(t, a) ∈ f /\ t ∈ x)) by Tautology.from(
+        uniqueExistentialConjunctionWithClosedFormula of (
+          P -> lambda(a, pair(t, a) ∈ f),
+          p -> lambda(Seq(), t ∈ x)
+        )
+      )
+
+      val step5 = have(∃!(a, pair(t, a) ∈ f /\ t ∈ x) <=> ∃!(a, pair(t, a) ∈ g)) by Tautology.from(
+        equiv,
+        uniqueExistentialEquivalenceDistribution of (
+          P -> lambda(a, pair(t, a) ∈ f /\ t ∈ x),
+          Q -> lambda(a, pair(t, a) ∈ g)
+        )
+      )
+
+      have(∃(y, pair(t, y) ∈ g) ==> ∃!(y, pair(t, y) ∈ g)) by Tautology.from(
+        step1,
+        step2,
+        step3,
+        step4,
+        step5
+      )
+      thenHave(∀(t, ∃(y, pair(t, y) ∈ g) ==> ∃!(y, pair(t, y) ∈ g))) by RightForall
+    }
+
+    have(relation(g) /\ ∀(t, ∃(y, in(pair(t, y), g)) ==> ∃!(y, in(pair(t, y), g)))) by RightAnd(gIsRelation, gAppUniqueness)
+    have(functional(g)) by Tautology.from(
+      lastStep,
+      functional.definition of (f -> g)
+    )
+  }
+
+  /**
    * Restricted function domain -- For a function `f`, the domain of `f_x` is `x ∩ relationDomain(f)`.
    */
   val restrictedFunctionDomain = Theorem(
@@ -2473,6 +2651,70 @@ object SetTheory extends lisa.Main {
     val simplerCharacterization = have((relationDomain(g) === dom) <=> ∀(t, in(t, dom) <=> ∃(a, in(pair(t, a), f)) /\ in(t, x))) by Tautology.from(characterization, lastStep)
 
     have(thesis) by Tautology.from(domCharacterization, simplerCharacterization)
+  }
+
+  /**
+   * Theorem --- A restricted function coincides with the original function on its domain.
+   * In other words, if `g = restrictedFunction(f, d)`, `x ∈ d`, then `g(x) = f(x)`.
+   */
+  val restrictedFunctionApplication = Theorem {
+    val g = restrictedFunction(f, d)
+    (functional(f), x ∈ relationDomain(g)) |- app(g, x) === app(f, x)
+  } {
+    val g = restrictedFunction(f, d)
+    val p = pair(x, app(g, x))
+
+    // Show that x ∈ relationDomain(g) ==> x ∈ relationDomain(f)
+    have(∀(x, x ∈ (d ∩ relationDomain(f)) <=> (x ∈ d /\ x ∈ relationDomain(f)))) by Definition(setIntersection, setIntersectionUniqueness)(d, relationDomain(f))
+    thenHave(x ∈ (d ∩ relationDomain(f)) <=> (x ∈ d /\ x ∈ relationDomain(f))) by InstantiateForall(x)
+    thenHave(x ∈ (d ∩ relationDomain(f)) ==> x ∈ relationDomain(f)) by Tautology
+    thenHave(x ∈ (d ∩ relationDomain(f)) |- x ∈ relationDomain(f)) by Restate
+    thenHave((x ∈ relationDomain(g), relationDomain(g) === (d ∩ relationDomain(f))) |- x ∈ relationDomain(f)) by LeftSubstEq(
+      List((relationDomain(g), (d ∩ relationDomain(f)))),
+      lambda(z, x ∈ z)
+    )
+    val domainInclusion = have(x ∈ relationDomain(g) |- x ∈ relationDomain(f)) by Cut(
+      restrictedFunctionDomain of (x -> d),
+      lastStep
+    )
+
+    // Characterize app(f, x)
+    val characterization = have(
+      (app(g, x) === app(f, x)) <=> (((functional(f) /\ (x ∈ relationDomain(f))) ==> (p ∈ f)) /\
+        ((!functional(f) \/ (x ∉ relationDomain(f))) ==> (app(g, x) === ∅)))
+    ) by InstantiateForall(app(g, x))(app.definition)
+
+    // Use the definition of restricted functions
+    have(∀(t, t ∈ g ==> t ∈ f)) by Tautology.from(
+      restrictedFunctionIsSubset of (x -> d),
+      subset.definition of (x -> g, y -> f)
+    )
+    thenHave(p ∈ g ==> p ∈ f) by InstantiateForall(p)
+    val gSubsetF = thenHave(p ∈ g |- p ∈ f) by Restate
+
+    // Show that (x, app(g, x)) ∈ f
+    have((functional(g), x ∈ relationDomain(g)) |- p ∈ g) by Definition(app, functionApplicationUniqueness)(g, x)
+    have((functional(f), x ∈ relationDomain(g)) |- p ∈ g) by Cut(restrictedFunctionIsFunctional of (x -> d), lastStep)
+    val membership = have((functional(f), x ∈ relationDomain(g)) |- p ∈ f) by Cut(lastStep, gSubsetF)
+
+    // Reconstruct the definition and conclude by the characterization
+    val premises = have((functional(f), x ∈ relationDomain(g)) |- (functional(f) /\ (x ∈ relationDomain(f)))) by Tautology.from(domainInclusion)
+    val pos = have((functional(f), x ∈ relationDomain(g)) |- ((functional(f) /\ (x ∈ relationDomain(f))) ==> (p ∈ f))) by Tautology.from(
+      premises,
+      membership
+    )
+
+    have((functional(f), x ∈ relationDomain(g), !(functional(f) /\ (x ∈ relationDomain(f)))) |- ()) by LeftNot(premises)
+    thenHave((functional(f), x ∈ relationDomain(g), !functional(f) \/ (x ∉ relationDomain(f))) |- ()) by Restate
+    thenHave((functional(f), x ∈ relationDomain(g), !functional(f) \/ (x ∉ relationDomain(f))) |- (app(g, x) === ∅)) by Weakening
+    val neg = thenHave((functional(f), x ∈ relationDomain(g)) |- (!functional(f) \/ (x ∉ relationDomain(f)) ==> (app(g, x) === ∅))) by Restate
+
+    have(
+      (functional(f), x ∈ relationDomain(g)) |- (((functional(f) /\ (x ∈ relationDomain(f))) ==> (p ∈ f)) /\
+        ((!functional(f) \/ (x ∉ relationDomain(f))) ==> (app(g, x) === ∅)))
+    ) by RightAnd(pos, neg)
+
+    have(thesis) by Tautology.from(lastStep, characterization)
   }
 
   /**
@@ -2882,6 +3124,40 @@ object SetTheory extends lisa.Main {
     val surjfunc = have(surjective(f, x, y) |- functionFrom(f, x, y)) by Tautology.from(surjective.definition)
 
     have(thesis) by Cut(surjfunc, funceq)
+  }
+
+  /**
+   * Lemma --- If `f: x -> y` is a function and `z ∈ x`, then `f(z) ∈ y`.
+   */
+  val functionAppInCodomain = Lemma(
+    (functionFrom(f, x, y), in(t, x)) |- in(app(f, t), y)
+  ) {
+    have((functional(f), in(t, relationDomain(f))) |- in(pair(t, app(f, t)), f)) by Definition(app, functionApplicationUniqueness)(f, t)
+    have((functionFrom(f, x, y), in(t, relationDomain(f))) |- in(pair(t, app(f, t)), f)) by Cut(functionFromImpliesFunctional, lastStep)
+    thenHave((functionFrom(f, x, y), relationDomain(f) === x, in(t, x)) |- in(pair(t, app(f, t)), f)) by LeftSubstEq(
+      List((relationDomain(f), x)),
+      lambda(z, in(t, z))
+    )
+    val appDef = have((functionFrom(f, x, y), in(t, x)) |- in(pair(t, app(f, t)), f)) by Cut(functionFromImpliesDomainEq, lastStep)
+
+    have(∀(t, in(t, setOfFunctions(x, y)) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by Definition(setOfFunctions, setOfFunctionsUniqueness)(x, y)
+    thenHave(in(f, setOfFunctions(x, y)) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
+
+    have(functionFrom(f, x, y) |- ∀(t, in(t, f) ==> in(t, cartesianProduct(x, y)))) by Tautology.from(
+      lastStep,
+      functionFrom.definition,
+      powerSet.definition of (x -> f, y -> cartesianProduct(x, y)),
+      subset.definition of (x -> f, y -> cartesianProduct(x, y))
+    )
+    thenHave(functionFrom(f, x, y) |- in(pair(t, app(f, t)), f) ==> in(pair(t, app(f, t)), cartesianProduct(x, y))) by InstantiateForall(pair(t, app(f, t)))
+    thenHave((functionFrom(f, x, y), in(pair(t, app(f, t)), f)) |- in(pair(t, app(f, t)), cartesianProduct(x, y))) by Restate
+
+    have((functionFrom(f, x, y), in(pair(t, app(f, t)), f)) |- in(app(f, t), y)) by Tautology.from(
+      lastStep,
+      pairInCartesianProduct of (a -> t, b -> app(f, t))
+    )
+
+    have(thesis) by Cut(appDef, lastStep)
   }
 
   /**

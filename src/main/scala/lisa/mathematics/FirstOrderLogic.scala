@@ -1,5 +1,6 @@
 package lisa.mathematics
 
+import lisa.automation.kernel.CommonTactics.Cases
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
@@ -67,6 +68,46 @@ object FirstOrderLogic extends lisa.Main {
     thenHave(∀(y, (x === y) <=> P(y)) |- P(x)) by InstFunSchema(Map(y -> x))
     thenHave(∀(y, (x === y) <=> P(y)) |- ∃(x, P(x))) by RightExists
     thenHave(∃(x, ∀(y, (x === y) <=> P(y))) |- ∃(x, P(x))) by LeftExists
+    thenHave(thesis) by Restate
+  }
+
+  /**
+   * Theorem -- If `P` and `Q` are equivalent, then `∃(x, P(x))` implies `∃(x, Q(x))`.
+   */
+  val substitutionInExistenceQuantifier = Theorem(
+    (∃(x, P(x)), ∀(y, P(y) <=> Q(y))) |- ∃(x, Q(x))
+  ) {
+    have(P(x) |- P(x)) by Hypothesis
+    val substitution = thenHave((P(x), P(x) <=> Q(x)) |- Q(x)) by RightSubstIff(List((P(x), Q(x))), lambda(p, p))
+
+    have(∀(y, P(y) <=> Q(y)) |- ∀(y, P(y) <=> Q(y))) by Hypothesis
+    val equiv = thenHave(∀(y, P(y) <=> Q(y)) |- P(x) <=> Q(x)) by InstantiateForall(x)
+
+    have((P(x), ∀(y, P(y) <=> Q(y))) |- Q(x)) by Cut(equiv, substitution)
+    thenHave((P(x), ∀(y, P(y) <=> Q(y))) |- ∃(x, Q(x))) by RightExists
+    thenHave(thesis) by LeftExists
+  }
+
+  /**
+   * Theorem -- If `P` and `Q` are equivalent, then `∃!(x, P(x))` implies `∃!(x, Q(x))`.
+   */
+  val substitutionInUniquenessQuantifier = Theorem(
+    (∃!(x, P(x)), ∀(y, P(y) <=> Q(y))) |- ∃!(x, Q(x))
+  ) {
+    have((x === y) <=> P(y) |- (x === y) <=> P(y)) by Hypothesis
+    thenHave(∀(y, (x === y) <=> P(y)) |- (x === y) <=> P(y)) by LeftForall
+    val substitution = thenHave((∀(y, (x === y) <=> P(y)), P(y) <=> Q(y)) |- (x === y) <=> Q(y)) by RightSubstIff(
+      List((P(y), Q(y))),
+      lambda(p, (x === y) <=> p)
+    )
+
+    have(∀(y, P(y) <=> Q(y)) |- ∀(y, P(y) <=> Q(y))) by Hypothesis
+    val equiv = thenHave(∀(y, P(y) <=> Q(y)) |- P(y) <=> Q(y)) by InstantiateForall(y)
+
+    have((∀(y, (x === y) <=> P(y)), ∀(y, P(y) <=> Q(y))) |- (x === y) <=> Q(y)) by Cut(equiv, substitution)
+    thenHave((∀(y, (x === y) <=> P(y)), ∀(y, P(y) <=> Q(y))) |- ∀(y, (x === y) <=> Q(y))) by RightForall
+    thenHave((∀(y, (x === y) <=> P(y)), ∀(y, P(y) <=> Q(y))) |- ∃(x, ∀(y, (x === y) <=> Q(y)))) by RightExists
+    thenHave((∃(x, ∀(y, (x === y) <=> P(y))), ∀(y, P(y) <=> Q(y))) |- ∃(x, ∀(y, (x === y) <=> Q(y)))) by LeftExists
     thenHave(thesis) by Restate
   }
 
@@ -354,4 +395,42 @@ object FirstOrderLogic extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
+  /**
+   * Theorem --- Unique existential quantifier distributes fully with a closed formula.
+   */
+  val uniqueExistentialConjunctionWithClosedFormula = Theorem(
+    existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)) /\ p())
+  ) {
+    val pos = have(p() |- existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)) /\ p())) subproof {
+      have(p() |- (P(x) /\ p()) <=> P(x)) by Tautology
+      thenHave(p() |- forall(x, (P(x) /\ p()) <=> P(x))) by RightForall
+
+      have(p() |- existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)))) by Cut(
+        lastStep,
+        uniqueExistentialEquivalenceDistribution of (
+          P -> lambda(x, P(x) /\ p()),
+          Q -> lambda(x, P(x))
+        )
+      )
+      thenHave(thesis) by Tautology
+    }
+
+    val neg = have(!p() |- existsOne(x, P(x) /\ p()) <=> (existsOne(x, P(x)) /\ p())) subproof {
+      have((!p(), (x === x) <=> (P(x) /\ p())) |- p()) by Tautology
+      thenHave((!p(), forall(y, (x === y) <=> (P(y) /\ p()))) |- p()) by LeftForall
+      thenHave((!p(), exists(x, forall(y, (x === y) <=> (P(y) /\ p())))) |- p()) by LeftExists
+      thenHave((!p(), existsOne(x, P(x) /\ p())) |- p()) by LeftExistsOne
+      thenHave((!p(), existsOne(x, P(x) /\ p())) |- ()) by LeftNot
+      thenHave((!p(), existsOne(x, P(x) /\ p())) |- existsOne(x, P(x)) /\ p()) by Weakening
+      val forward = thenHave(!p() |- existsOne(x, P(x) /\ p()) ==> (existsOne(x, P(x)) /\ p())) by Restate
+
+      have((!p(), existsOne(x, P(x)) /\ p()) |- ()) by Tautology
+      thenHave((!p(), existsOne(x, P(x)) /\ p()) |- existsOne(x, P(x) /\ p())) by Weakening
+      val backward = thenHave(!p() |- existsOne(x, P(x)) /\ p() ==> existsOne(x, P(x) /\ p())) by Restate
+
+      have(thesis) by RightIff(forward, backward)
+    }
+
+    have(thesis) by Cases(pos, neg)
+  }
 }

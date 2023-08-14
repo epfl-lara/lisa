@@ -103,6 +103,10 @@ object KernelHelpers {
   extension (t: Term) {
     infix def ===(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
     infix def ＝(u: Term): Formula = PredicateFormula(equality, Seq(t, u))
+
+    infix def !==(u: Term): Formula = !(t === u)
+
+    infix def ≠(u: Term): Formula = !(t === u)
   }
 
   /* Conversions */
