@@ -158,7 +158,6 @@ class Printer(parser: Parser) {
               case RightSubstIff(_, t1, _, _) => pretty("R. SubstIff", t1)
               case InstSchema(_, t1, _, _, _) => pretty("Schema Instantiation", t1)
               case Sorry(_) => pretty("Sorry")
-              case other => throw new Exception(s"No available method to print this proof step, consider updating Printer.scala\n$other")
             }
             Seq(line)
         }
