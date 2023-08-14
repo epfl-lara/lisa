@@ -57,11 +57,11 @@ object SCProofChecker {
           /*
            *  Γ |- Δ, φ    φ, Σ |- Π
            * ------------------------
-           *       Γ, Σ |-Δ, Π
+           *       Γ, Σ |- Δ, Π
            */
           case Cut(b, t1, t2, phi) =>
-            if (isSameSet(b.left, ref(t1).left union ref(t2).left.filterNot(isSame(_, phi))))
-              if (isSameSet(b.right, ref(t2).right union ref(t1).right.filterNot(isSame(_, phi))))
+            if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left))
+              if (isSameSet(b.right + phi, ref(t2).right union ref(t1).right))
                 if (contains(ref(t2).left, phi))
                   if (contains(ref(t1).right, phi))
                     SCValidProof(SCProof(step))
