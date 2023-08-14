@@ -56,7 +56,7 @@ object BasicStepTactic {
    * <pre>
    *  Γ |- Δ, φ    φ, Σ |- Π
    * ------------------------
-   *       Γ, Σ |-Δ, Π
+   *       Γ, Σ |- Δ, Π
    * </pre>
    */
   object Cut extends ProofTactic {
@@ -68,9 +68,9 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of first premise does not contain φ as claimed.")
       else if (!contains(rightSequent.left, phi))
         proof.InvalidProofTactic("Left-hand side of second premise does not contain φ as claimed.")
-      else if (!isSameSet(bot.left, leftSequent.left ++ rightSequent.left.filterNot(isSame(_, phi))))
+      else if (!isSameSet(bot.left + phi, leftSequent.left ++ rightSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
-      else if (!isSameSet(bot.right, leftSequent.right.filterNot(isSame(_, phi)) ++ rightSequent.right))
+      else if (!isSameSet(bot.right + phi, leftSequent.right ++ rightSequent.right))
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
       else
         proof.ValidProofTactic(Seq(SC.Cut(bot, -1, -2, phi)), Seq(prem1, prem2))
