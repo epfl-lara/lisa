@@ -782,8 +782,8 @@ object Recursion extends lisa.Main {
                     thenHave(thesis) by Substitution.apply2(false, k1k2)
                   }
 
-                  // finally k1 n == k2 n
-                  // this is a contradiction
+                  // // finally k1 n == k2 n
+                  // // this is a contradiction
                   val appEq = have(nDef |- app(k1, n) === app(k2, n)) subproof {
                     assume(nDef)
                     val k1ToFK2 = equalityTransitivity of (x -> app(k1, n), y -> F(orderedRestriction(k1, n, p)), z -> F(orderedRestriction(k2, n, p)))
@@ -804,10 +804,10 @@ object Recursion extends lisa.Main {
                     val funK1 = have(functionalOver(k1, initialSegment(p, a1))) by Tautology
                     val funK2 = have(functionalOver(k2, initialSegment(p, a2))) by Tautology
 
-                    // and <a1 \subseteq <a2
-                    have(subset(initialSegment(p, a1), initialSegment(p, a2))) by Tautology.from(initialSegmentsSubset of (x -> a1, y -> a2), pIsAPartialOrder)
+                    // // and <a1 \subseteq <a2
+                    val domSubset = have(subset(initialSegment(p, a1), initialSegment(p, a2))) by Tautology.from(initialSegmentsSubset of (x -> a1, y -> a2), pIsAPartialOrder)
 
-                    have(thesis) by Tautology.from(impl, funK1, funK2, lastStep, functionsSubsetIfEqualOnSubsetDomain of (f -> k1, g -> k2, a -> initialSegment(p, a1), b -> initialSegment(p, a2)))
+                    have(thesis) by Tautology.from(impl, funK1, funK2, domSubset, functionsSubsetIfEqualOnSubsetDomain of (f -> k1, g -> k2, a -> initialSegment(p, a1), b -> initialSegment(p, a2)))
                   }
 
                   have(thesis) by Tautology.from(lastStep, disagreeCase)
@@ -838,6 +838,7 @@ object Recursion extends lisa.Main {
                 }
 
                 have(thesis) by Tautology.from(lastStep, y1LTy2, y2LTy1)
+                // sorry
               }
 
               have(thesis) by Tautology.from(yeq, neq)
