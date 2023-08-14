@@ -201,7 +201,7 @@ trait ProofsHelpers {
           UserInvalidDefinitionException(
             name,
             s"The given justification is not valid for a definition" +
-              s"The justification should be of the form ${FOLPrinter.prettySequent((() |- F.BaseQuantifiedFormula(F.ExistsOne, out, F.VariableFormula("phi"))).underlying)}" +
+              s"The justification should be of the form ${FOLPrinter.prettySequent((() |- F.BinderFormula(F.ExistsOne, out, F.VariableFormula("phi"))).underlying)}" +
               s"instead of the given ${FOLPrinter.prettySequent(conclusion.underlying)}"
           )
         )
@@ -216,15 +216,15 @@ trait ProofsHelpers {
         )
       }
       val proven = conclusion.right.head match {
-        case F.BaseQuantifiedFormula(F.ExistsOne, bound, inner) => inner
-        case F.BaseQuantifiedFormula(F.Exists, x, F.BaseQuantifiedFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(l, x === y) => r
-        case F.BaseQuantifiedFormula(F.Exists, x, F.BaseQuantifiedFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(r, x === y) => l
+        case F.BinderFormula(F.ExistsOne, bound, inner) => inner
+        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(l, x === y) => r
+        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(r, x === y) => l
         case _ =>
           om.lisaThrow(
             UserInvalidDefinitionException(
               name,
               s"The given justification is not valid for a definition" +
-                s"The justification should be of the form ${FOLPrinter.prettySequent((() |- F.BaseQuantifiedFormula(F.ExistsOne, out, F.VariableFormula("phi"))).underlying)}" +
+                s"The justification should be of the form ${FOLPrinter.prettySequent((() |- F.BinderFormula(F.ExistsOne, out, F.VariableFormula("phi"))).underlying)}" +
                 s"instead of the given ${FOLPrinter.prettySequent(conclusion.underlying)}"
             )
           )

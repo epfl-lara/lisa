@@ -5,6 +5,7 @@ import scala.annotation.showAsInfix
 import scala.annotation.nowarn
 import scala.compiletime.ops.int.-
 import scala.reflect.ClassTag
+import lisa.utils.UserLisaException
 
 trait Common {
 
@@ -44,6 +45,10 @@ trait Common {
 
   trait WithArity[N <: Arity] {
     val arity: N
+  }
+
+  class BadArityException(msg:String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(msg) {
+    def showError: String = msg
   }
 
   def isLegalApplication(withArity: WithArity[?], args: Seq[?]): Boolean =
@@ -182,8 +187,9 @@ trait Common {
   /**
     * The type of terms, corresponding to [[K.Term]]
     */
-  abstract class Term extends TermOrFormula with LisaObject[Term] {
+  sealed abstract class Term extends TermOrFormula with LisaObject[Term] {
     val underlying: K.Term
+
 
   }
 
@@ -221,9 +227,10 @@ trait Common {
     * A Constant, corresponding to [[K.ConstantLabel]], is a label for terms.
     * It counts both as the label and as the term itself.
     */
-  case class Constant(id: K.Identifier) extends Term with Absolute with ConstantLabel[Constant] {
+  case class Constant(id: K.Identifier) extends Term with Absolute with ConstantLabel[Constant]{
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     val underlying = K.Term(underlyingLabel, Seq())
+
 
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Constant = this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
@@ -308,7 +315,7 @@ trait Common {
   /**
     * The type of formulas, corresponding to [[K.Formula]]
     */
-  abstract class Formula extends TermOrFormula with LisaObject[Formula] {
+  sealed abstract class Formula extends TermOrFormula with LisaObject[Formula] {
     val underlying: K.Formula
 
   }
@@ -492,7 +499,7 @@ trait Common {
   trait BaseBinderLabel extends BinderLabel with Absolute {
     val underlyingLabel: K.BinderLabel
 
-    def app(arg: (Variable, Formula)): Formula = BaseQuantifiedFormula(this, arg._1, arg._2)
+    def app(arg: (Variable, Formula)): Formula = BinderFormula(this, arg._1, arg._2)
     inline def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     inline def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
@@ -503,7 +510,7 @@ trait Common {
     * A quantified formula made of a [[BaseBinderLabel]] and an underlying formula, in a namefull representation.
     *
     */
-  case class BaseQuantifiedFormula(f: BaseBinderLabel, bound: Variable, body: Formula) extends Formula with Absolute {
+  case class BinderFormula(f: BaseBinderLabel, bound: Variable, body: Formula) extends Formula with Absolute {
     override val underlying = K.BinderFormula(f.underlyingLabel, bound.underlyingLabel, body.underlying)
 
     def allSchematicLabels: Set[Common.this.SchematicLabel[?]] = body.allSchematicLabels+bound
@@ -514,14 +521,14 @@ trait Common {
         val taken:Set[SchematicLabel[?]] = body.allSchematicLabels ++ map.keys
         val newBound:Variable = bound.rename(lisa.utils.KernelHelpers.freshId(taken.map(_.id), bound.id))
         val newBody = body.substituteOne(bound, newBound.lift)
-        BaseQuantifiedFormula(f, newBound, newBody.substituteUnsafe(newSubst))
+        BinderFormula(f, newBound, newBody.substituteUnsafe(newSubst))
       } else {
-        BaseQuantifiedFormula(f, bound, body.substituteUnsafe(newSubst))
+        BinderFormula(f, bound, body.substituteUnsafe(newSubst))
       }
     }
 
   }
-  def instantiateBinder(f: BaseQuantifiedFormula, t: Term): Formula = f.body.substituteUnsafe(Map(f.bound -> t))
+  def instantiateBinder(f: BinderFormula, t: Term): Formula = f.body.substituteUnsafe(Map(f.bound -> t))
 
 
 }

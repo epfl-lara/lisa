@@ -362,7 +362,7 @@ object BasicStepTactic {
       if (!pivot.isEmpty)
         if (pivot.tail.isEmpty)
           pivot.head match {
-            case F.BaseQuantifiedFormula(F.Forall, x, phi) => LeftForall.withParameters(phi, x, t)(premise)(bot)
+            case F.BinderFormula(F.Forall, x, phi) => LeftForall.withParameters(phi, x, t)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
           }
         else
@@ -378,13 +378,13 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = bot.left.find(f =>
           f match {
-            case g @ F.BaseQuantifiedFormula(F.Forall, _, _) => F.isSame(F.instantiateBinder(g, t), in)
+            case g @ F.BinderFormula(F.Forall, _, _) => F.isSame(F.instantiateBinder(g, t), in)
             case _ => false
           }
         )
 
         quantifiedPhi match {
-          case Some(F.BaseQuantifiedFormula(F.Forall, x, phi)) => LeftForall.withParameters(phi, x, t)(premise)(bot)
+          case Some(F.BinderFormula(F.Forall, x, phi)) => LeftForall.withParameters(phi, x, t)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
         }
       } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
@@ -407,14 +407,14 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BaseQuantifiedFormula(F.Forall, x, phi) => 
+            case g @ F.BinderFormula(F.Forall, x, phi) => 
               FirstOrderUnifier.matchFormula(phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).isDefined
             case _ => false
           }
         )
 
         quantifiedPhi match {
-          case Some(F.BaseQuantifiedFormula(F.Forall, x, phi)) => 
+          case Some(F.BinderFormula(F.Forall, x, phi)) => 
             LeftForall.withParameters(phi, x, 
               FirstOrderUnifier.matchFormula(
               phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil))
@@ -466,19 +466,19 @@ object BasicStepTactic {
           val in: F.Formula = instantiatedPivot.head
           val quantifiedPhi: Option[F.Formula] = bot.left.find(f =>
             f match {
-              case F.BaseQuantifiedFormula(F.Exists, _, g) => F.isSame(g, in)
+              case F.BinderFormula(F.Exists, _, g) => F.isSame(g, in)
               case _ => false
             }
           )
 
           quantifiedPhi match {
-            case Some(F.BaseQuantifiedFormula(F.Exists, x, phi)) => LeftExists.withParameters(phi, x)(premise)(bot)
+            case Some(F.BinderFormula(F.Exists, x, phi)) => LeftExists.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existensially quantified pivot from premise and conclusion.")
           }
         } else proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise + ∃x. φ.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
-          case F.BaseQuantifiedFormula(F.Exists, x, phi) => LeftExists.withParameters(phi, x)(premise)(bot)
+          case F.BinderFormula(F.Exists, x, phi) => LeftExists.withParameters(phi, x)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       else
@@ -527,7 +527,7 @@ object BasicStepTactic {
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
-            case F.BaseQuantifiedFormula(F.Exists, _, F.BaseQuantifiedFormula(F.Forall,
+            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall,
              x, F.AppliedConnector(F.Iff, Seq(_, phi)))) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
@@ -535,7 +535,7 @@ object BasicStepTactic {
           proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise + ∃x. φ.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
-          case F.BaseQuantifiedFormula(F.ExistsOne, x, phi) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
+          case F.BinderFormula(F.ExistsOne, x, phi) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       else
@@ -801,19 +801,19 @@ object BasicStepTactic {
           val in: F.Formula = instantiatedPivot.head
           val quantifiedPhi: Option[F.Formula] = bot.right.find(f =>
             f match {
-              case F.BaseQuantifiedFormula(F.Forall, _, g) => F.isSame(g, in)
+              case F.BinderFormula(F.Forall, _, g) => F.isSame(g, in)
               case _ => false
             }
           )
 
           quantifiedPhi match {
-            case Some(F.BaseQuantifiedFormula(F.Forall, x, phi)) => RightForall.withParameters(phi, x)(premise)(bot)
+            case Some(F.BinderFormula(F.Forall, x, phi)) => RightForall.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
           }
         } else proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the same as right-hand side of premise + ∃x. φ.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
-          case F.BaseQuantifiedFormula(F.Forall, x, phi) => RightForall.withParameters(phi, x)(premise)(bot)
+          case F.BinderFormula(F.Forall, x, phi) => RightForall.withParameters(phi, x)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
         }
       else
@@ -859,7 +859,7 @@ object BasicStepTactic {
       if (!pivot.isEmpty)
         if (pivot.tail.isEmpty)
           pivot.head match {
-            case F.BaseQuantifiedFormula(F.Exists, x, phi) => RightExists.withParameters(phi, x, t)(premise)(bot)
+            case F.BinderFormula(F.Exists, x, phi) => RightExists.withParameters(phi, x, t)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
         else
@@ -875,13 +875,13 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = bot.right.find(f =>
           f match {
-            case g @ F.BaseQuantifiedFormula(F.Exists, _, _) => F.isSame(F.instantiateBinder(g, t), in)
+            case g @ F.BinderFormula(F.Exists, _, _) => F.isSame(F.instantiateBinder(g, t), in)
             case _ => false
           }
         )
 
         quantifiedPhi match {
-          case Some(F.BaseQuantifiedFormula(F.Exists, x, phi)) => RightExists.withParameters(phi, x, t)(premise)(bot)
+          case Some(F.BinderFormula(F.Exists, x, phi)) => RightExists.withParameters(phi, x, t)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
@@ -904,14 +904,14 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BaseQuantifiedFormula(F.Exists, x, phi) => 
+            case g @ F.BinderFormula(F.Exists, x, phi) => 
               FirstOrderUnifier.matchFormula(phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).isDefined
             case _ => false
           }
         )
 
         quantifiedPhi match {
-          case Some(F.BaseQuantifiedFormula(F.Exists, x, phi)) => 
+          case Some(F.BinderFormula(F.Exists, x, phi)) => 
             RightExists.withParameters(phi, x, 
               FirstOrderUnifier.matchFormula(phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil))
             )(premise)(bot)
@@ -962,7 +962,7 @@ object BasicStepTactic {
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
-            case F.BaseQuantifiedFormula(F.Exists, _, F.BaseQuantifiedFormula(F.Forall, x, F.AppliedConnector(F.Iff, Seq(_, phi)))) => 
+            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.AppliedConnector(F.Iff, Seq(_, phi)))) => 
               RightExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
@@ -970,7 +970,7 @@ object BasicStepTactic {
           proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the same as right-hand side of premise + ∃x. φ.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
-          case F.BaseQuantifiedFormula(F.ExistsOne, x, phi) => RightExistsOne.withParameters(phi, x)(premise)(bot)
+          case F.BinderFormula(F.ExistsOne, x, phi) => RightExistsOne.withParameters(phi, x)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       else
