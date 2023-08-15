@@ -412,10 +412,13 @@ object SimpleSimplifier {
       lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x => bot.right.find(y => UnificationUtils.canReachOneStep(x, y, iffs, eqs).isDefined))
       lazy val leftPairs = filteredPrem zip filteredPrem.map(x => filteredBot.find(y => UnificationUtils.canReachOneStep(x, y, iffs, eqs).isDefined))
 
-      if (leftPairs.exists(_._2.isEmpty))
-        proof.InvalidProofTactic("Could not rewrite LHS of premise into conclusion with given substitutions.")
-      else if (rightPairs.exists(_._2.isEmpty))
-        proof.InvalidProofTactic("Could not rewrite RHS of premise into conclusion with given substitutions.")
+      lazy val violatingFormulaLeft = leftPairs.find(_._2.isEmpty)
+      lazy val violatingFormulaRight = rightPairs.find(_._2.isEmpty)
+
+      if (violatingFormulaLeft.isDefined)
+        proof.InvalidProofTactic(s"Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formula: ${FOLPrinter.prettyFormula(violatingFormulaLeft.get._1)}")
+      else if (violatingFormulaRight.isDefined)
+        proof.InvalidProofTactic(s"Could not rewrite RHS of premise into conclusion with given substitutions.\nViolating Formula: ${FOLPrinter.prettyFormula(violatingFormulaRight.get._1)}")
       else {
         // actually construct proof
         try {
