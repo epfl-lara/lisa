@@ -35,15 +35,15 @@ trait Sequents extends Common with lisa.fol.Lambdas {
       */
     def substituteWithProof(map: Map[SchematicLabel[_], _ <: LisaObject[_]]): (Sequent, Seq[K.SCProofStep]) = {
 
-      val mTerm: Map[SchematicFunctionalLabel[?]|Variable, LambdaExpression[Term, Term, ?]] = 
+      val mTerm: Map[SchematicFunctionLabel[?]|Variable, LambdaExpression[Term, Term, ?]] = 
         map.collect(p => p._1 match {
               case sl: Variable => (sl, LambdaExpression[Term, Term, 0](Seq(), p._2.asInstanceOf[Term], 0))
-              case sl: SchematicFunctionalLabel[?] => 
+              case sl: SchematicFunctionLabel[?] => 
                 p._2 match {
                   case l : LambdaExpression[Term, Term, ?] @unchecked if 
                     (l.bounds.isEmpty || l.bounds.head.isInstanceOf[Variable]) & l.body.isInstanceOf[Term] => 
                       (p._1.asInstanceOf, l)
-                  case s : FunctionalLabel[?] => 
+                  case s : FunctionLabel[?] => 
                     val vars = nFreshId(Seq(s.id), s.arity).map(Variable.apply)
                     (sl, LambdaExpression(vars, s(vars), s.arity))
                 }
@@ -85,7 +85,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
       */
     def substituteWithProofLikeKernel(mCon: Map[SchematicConnectorLabel[?], LambdaExpression[Formula, Formula, ?]],
       mPred: Map[SchematicPredicateLabel[?]|VariableFormula, LambdaExpression[Term, Formula, ?]],
-      mTerm: Map[SchematicFunctionalLabel[?]|Variable, LambdaExpression[Term, Term, ?]]): Seq[K.SCProofStep] = {
+      mTerm: Map[SchematicFunctionLabel[?]|Variable, LambdaExpression[Term, Term, ?]]): Seq[K.SCProofStep] = {
       val premiseSequent = this.underlying
       val mConK = mCon.map((sl, le) => (sl.underlyingLabel, underlyingLFF(le)))
       val mPredK = mPred.map((sl, le) => sl match {
@@ -94,7 +94,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
       })
       val mTermK = mTerm.map((sl, le) => sl match {
         case v: Variable => (v.underlyingLabel, underlyingLTT(le))
-        case sfl: SchematicFunctionalLabel[?] => (sfl.underlyingLabel, underlyingLTT(le))
+        case sfl: SchematicFunctionLabel[?] => (sfl.underlyingLabel, underlyingLTT(le))
       })
       val botK = lisa.utils.KernelHelpers.instantiateSchemaInSequent(premiseSequent, mConK, mPredK, mTermK)
       val smap = Map[SchematicLabel[?], LisaObject[?]]()++mCon++mPred++mTerm

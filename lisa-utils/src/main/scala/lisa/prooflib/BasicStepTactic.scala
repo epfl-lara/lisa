@@ -134,7 +134,7 @@ object BasicStepTactic {
 
       if (!pivot.isEmpty && pivot.tail.isEmpty)
         pivot.head match {
-          case F.AppliedConnector(F.And, Seq(phi, psi)) =>
+          case F.ConnectorFormula(F.And, Seq(phi, psi)) =>
             if (premiseSequent.left.contains(phi))
               LeftAnd.withParameters(phi, psi)(premise)(bot)
             else
@@ -281,7 +281,7 @@ object BasicStepTactic {
           proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
       else
         pivot.head match {
-          case F.AppliedConnector(F.Implies, Seq(phi, psi)) => LeftIff.withParameters(phi, psi)(premise)(bot)
+          case F.ConnectorFormula(F.Implies, Seq(phi, psi)) => LeftIff.withParameters(phi, psi)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer a pivot implication from premise.")
         }
     }
@@ -528,7 +528,7 @@ object BasicStepTactic {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
             case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall,
-             x, F.AppliedConnector(F.Iff, Seq(_, phi)))) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
+             x, F.ConnectorFormula(F.Iff, Seq(_, phi)))) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
         } else
@@ -623,7 +623,7 @@ object BasicStepTactic {
 
       if (!pivot.isEmpty && pivot.tail.isEmpty)
         pivot.head match {
-          case F.AppliedConnector(F.Or, Seq(phi, psi)) =>
+          case F.ConnectorFormula(F.Or, Seq(phi, psi)) =>
             if (premiseSequent.left.contains(phi))
               RightOr.withParameters(phi, psi)(premise)(bot)
             else
@@ -714,7 +714,7 @@ object BasicStepTactic {
           proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
-          case F.AppliedConnector(F.Implies, Seq(phi, psi)) => RightIff.withParameters(phi, psi)(prem1, prem2)(bot)
+          case F.ConnectorFormula(F.Implies, Seq(phi, psi)) => RightIff.withParameters(phi, psi)(prem1, prem2)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an implication as pivot from premise and conclusion.")
         }
       else
@@ -962,7 +962,7 @@ object BasicStepTactic {
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
-            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.AppliedConnector(F.Iff, Seq(_, phi)))) => 
+            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.ConnectorFormula(F.Iff, Seq(_, phi)))) => 
               RightExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
@@ -1068,7 +1068,7 @@ object BasicStepTactic {
         // go through conclusion to see if you can find an reflexive formula
         val pivot: Option[F.Formula] = bot.right.find(f =>
           f match {
-            case F.AppliedPredicate(F.equality, Seq(l, r)) => l==r //termequality
+            case F.PredicateFormula(F.equality, Seq(l, r)) => l==r //termequality
             case _ => false
           }
         )
@@ -1158,10 +1158,10 @@ object BasicStepTactic {
 
     def apply2(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      val premRight = F.AppliedConnector(F.Or, premiseSequent.right.toSeq)
-      val botRight = F.AppliedConnector(F.Or, bot.right.toSeq)
+      val premRight = F.ConnectorFormula(F.Or, premiseSequent.right.toSeq)
+      val botRight = F.ConnectorFormula(F.Or, bot.right.toSeq)
 
-      val equalities = bot.left.collect { case F.AppliedPredicate(equality, Seq(l, r)) => (l, r) }
+      val equalities = bot.left.collect { case F.PredicateFormula(equality, Seq(l, r)) => (l, r) }
       val canReach = UnificationUtils.canReachOneStepTermFormula(premRight.underlying, botRight.underlying, equalities.toList.map(p => (p._1.underlying, p._2.underlying)))
 
       if (canReach.isEmpty)
@@ -1248,13 +1248,13 @@ object BasicStepTactic {
    */
   object InstFunSchema extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(
-      insts: Map[F.SchematicFunctionalLabel[?]|F.Variable, F.LambdaExpression[F.Term, F.Term, ?]]
+      insts: Map[F.SchematicFunctionLabel[?]|F.Variable, F.LambdaExpression[F.Term, F.Term, ?]]
       )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
       val instsK = insts.map((sl, le) => sl match {
         case v: F.Variable => (v.underlyingLabel, F.underlyingLTT(le))
-        case sfl: F.SchematicFunctionalLabel[?] => (sfl.underlyingLabel, F.underlyingLTT(le))
+        case sfl: F.SchematicFunctionLabel[?] => (sfl.underlyingLabel, F.underlyingLTT(le))
       })
 
       if (!K.isSameSet(botK.left, premiseSequent.left.map(K.instantiateTermSchemas(_, instsK))))
@@ -1300,7 +1300,7 @@ object BasicStepTactic {
         proof: lib.Proof
     )(mCon: Map[F.SchematicConnectorLabel[?], F.LambdaExpression[F.Formula, F.Formula, ?]],
       mPred: Map[F.SchematicPredicateLabel[?]|F.VariableFormula, F.LambdaExpression[F.Term, F.Formula, ?]],
-      mTerm: Map[F.SchematicFunctionalLabel[?]|F.Variable, F.LambdaExpression[F.Term, F.Term, ?]])(
+      mTerm: Map[F.SchematicFunctionLabel[?]|F.Variable, F.LambdaExpression[F.Term, F.Term, ?]])(
       premise: proof.Fact
     ): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise).underlying
@@ -1311,7 +1311,7 @@ object BasicStepTactic {
       })
       val mTermK = mTerm.map((sl, le) => sl match {
         case v: F.Variable => (v.underlyingLabel, F.underlyingLTT(le))
-        case sfl: F.SchematicFunctionalLabel[?] => (sfl.underlyingLabel, F.underlyingLTT(le))
+        case sfl: F.SchematicFunctionLabel[?] => (sfl.underlyingLabel, F.underlyingLTT(le))
       })
       val botK = instantiateSchemaInSequent(premiseSequent, mConK, mPredK, mTermK)
       val smap = Map[F.SchematicLabel[?], F.LisaObject[?]]()++mCon++mPred++mTerm

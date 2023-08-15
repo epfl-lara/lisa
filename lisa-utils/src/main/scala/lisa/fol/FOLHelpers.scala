@@ -47,7 +47,7 @@ object FOLHelpers {
 
   //helpers to create new schematic symbols, fetching the scala name of the variable.
   def variable(using name: sourcecode.Name): Variable = Variable(name.value)
-  def function[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicFunctionalLabel[N] = SchematicFunctionalLabel[N](name.value, valueOf[N])
+  def function[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicFunctionLabel[N] = SchematicFunctionLabel[N](name.value, valueOf[N])
   def formulaVariable(using name: sourcecode.Name): VariableFormula = VariableFormula(name.value)
   def predicate[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicPredicateLabel[N] = SchematicPredicateLabel[N](name.value, valueOf[N])
   def connector[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicConnectorLabel[N] = SchematicConnectorLabel[N](name.value, valueOf[N])
@@ -180,9 +180,9 @@ object FOLHelpers {
 /*
 def termFromKernel(t:K.Term) =
   t.label match {
-  case K.ConstantFunctionLabel(id, arity) => if (arity==0) Constant(id) else ConstantFunctionalLabel(id).apply(t.args.map(termFromKernel))
+  case K.ConstantFunctionLabel(id, arity) => if (arity==0) Constant(id) else ConstantFunctionLabel(id).apply(t.args.map(termFromKernel))
   case lab: K.SchematicTermLabel => lab match {
-    case SchematicFunctionLabel(id, arity) => if (arity==0) Variable(id) else ConstantFunctionalLabel(id).apply(t.args.map(termFromKernel))
+    case SchematicFunctionLabel(id, arity) => if (arity==0) Variable(id) else ConstantFunctionLabel(id).apply(t.args.map(termFromKernel))
     case VariableLabel(id) => ???
   }
 }

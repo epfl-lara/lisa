@@ -42,22 +42,22 @@ private[settheory] trait SetTheoryDefinitions extends lisa.prooflib.Library {
   /**
    * The symbol for the unordered pair function.
    */
-  final val unorderedPair = ConstantFunctionalLabel("unorderedPair", 2)
+  final val unorderedPair = ConstantFunctionLabel("unorderedPair", 2)
 
   /**
    * The symbol for the powerset function.
    */
-  final val powerSet = ConstantFunctionalLabel("powerSet", 1)
+  final val powerSet = ConstantFunctionLabel("powerSet", 1)
 
   /**
    * The symbol for the set union function.
    */
-  final val union = ConstantFunctionalLabel("union", 1)
+  final val union = ConstantFunctionLabel("union", 1)
 
   /**
    * The symbol for the universe function. Defined in TG set theory.
    */
-  final val universe = ConstantFunctionalLabel("universe", 1)
+  final val universe = ConstantFunctionLabel("universe", 1)
 
   /**
    * Set Theory basic functions.

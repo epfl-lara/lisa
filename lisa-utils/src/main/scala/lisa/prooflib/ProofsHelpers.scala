@@ -180,7 +180,7 @@ trait ProofsHelpers {
 
   type ConstantTermLabel[N<:Arity] <: ConstantLabel[?] = N match {
     case 0 => Constant
-    case _ => ConstantFunctionalLabel[N]
+    case _ => ConstantFunctionLabel[N]
   }
 
   /**
@@ -191,7 +191,7 @@ trait ProofsHelpers {
   (val vars: Seq[F.Variable], val out: F.Variable, val f: F.Formula, j:JUSTIFICATION) extends DEFINITION(line, file) {
     //val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
     
-    val label: ConstantTermLabel[N]  = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionalLabel[N](name, vars.length.asInstanceOf)).asInstanceOf[ConstantTermLabel[N]]
+    val label: ConstantTermLabel[N]  = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf[ConstantTermLabel[N]]
 
     val innerJustification: theory.FunctionDefinition = {
       val conclusion: F.Sequent = j.statement
@@ -217,8 +217,8 @@ trait ProofsHelpers {
       }
       val proven = conclusion.right.head match {
         case F.BinderFormula(F.ExistsOne, bound, inner) => inner
-        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(l, x === y) => r
-        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(r, x === y) => l
+        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.ConnectorFormula(F.Iff, Seq(l, r)))) if F.isSame(l, x === y) => r
+        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.ConnectorFormula(F.Iff, Seq(l, r)))) if F.isSame(r, x === y) => l
         case _ =>
           om.lisaThrow(
             UserInvalidDefinitionException(
@@ -268,7 +268,7 @@ trait ProofsHelpers {
       }
     }
 
-    val statement: F.Sequent = () |- F.Forall(out, Iff(equality((label match {case l:F.Constant => l case l: F.ConstantFunctionalLabel[?] => l(vars)}), out), f))
+    val statement: F.Sequent = () |- F.Forall(out, Iff(equality((label match {case l:F.Constant => l case l: F.ConstantFunctionLabel[?] => l(vars)}), out), f))
 
     library.last = Some(this)
 

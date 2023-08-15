@@ -20,7 +20,7 @@ trait Lambdas extends Common{
     assert(arity == bounds.length)
     private val seqBounds = bounds.toSeq
 
-    def app(args: T**N): R = body.substituteUnsafe((bounds zip args.toSeq).toMap)
+    def apply(args: T**N): R = body.substituteUnsafe((bounds zip args.toSeq).toMap)
     def appUnsafe(args: Seq[T]): R = body.substituteUnsafe((bounds zip args.toSeq).toMap)
 
     /**

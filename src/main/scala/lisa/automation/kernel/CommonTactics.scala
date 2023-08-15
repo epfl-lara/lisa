@@ -116,11 +116,11 @@ object CommonTactics {
 
       // Infer y from the equalities in the uniqueness sequent
       uniquenessSeq.right.collectFirst {
-        case F.AppliedPredicate(F.`equality`, Seq(`x`, (y: F.Variable)))
+        case F.PredicateFormula(F.`equality`, Seq(`x`, (y: F.Variable)))
             if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
           y
 
-        case F.AppliedPredicate(F.`equality`, List(F.AppliedTerm(y: F.Variable, _), F.AppliedTerm(`x`, _)))
+        case F.PredicateFormula(F.`equality`, List(F.AppliedTerm(y: F.Variable, _), F.AppliedTerm(`x`, _)))
             if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
           y
       } match {
@@ -147,7 +147,7 @@ object CommonTactics {
    */
   object Definition extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)
-    (f: F.ConstantFunctionalLabel[?], uniqueness: proof.Fact)
+    (f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)
     (xs: F.Term*)
     (bot: F.Sequent): proof.ProofTacticJudgement = {
       val expr = lib.getDefinition(f) match {
@@ -155,11 +155,11 @@ object CommonTactics {
         case None => return proof.InvalidProofTactic("Could not get definition of function.")
       }
       val method = expr.f.substituteUnsafe(expr.vars.zip(xs).toMap) match {
-        case F.AppliedConnector(
+        case F.ConnectorFormula(
               F.And,
               Seq(
-                F.AppliedConnector(F.Implies, Seq(a, _)),
-                F.AppliedConnector(F.Implies, Seq(b, _))
+                F.ConnectorFormula(F.Implies, Seq(a, _)),
+                F.ConnectorFormula(F.Implies, Seq(b, _))
               )
             ) if F.isSame(F.Neg(a), b) =>
           conditional
@@ -176,7 +176,7 @@ object CommonTactics {
      * |- P(f(xs))
      * </pre>
      */
-    def unconditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionalLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def unconditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lib.getDefinition(f) match {
         case Some(definition: lib.FunctionDefinition[?])=>
           if (bot.right.size != 1) {
@@ -189,15 +189,15 @@ object CommonTactics {
           // Instantiate terms in the definition
           val subst = vars.zip(xs).map(tup => tup._1 := tup._2 )
           val P = definition.f.substitute(subst: _*)
-          val expected = P.substitute(y := f.app(xs))
+          val expected = P.substitute(y := f(xs))
           if (!F.isSame(expected, bot.right.head)) {
             return proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form P(f(xs)).")
           }
 
           TacticSubproof {
-            lib.have(F.∀(y, (y === f.app(xs)) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
-            lib.thenHave((y === f.app(xs)) <=> P) by InstantiateForall(y)
-            lib.thenHave((f.app(xs) === f.app(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f.app(xs)))
+            lib.have(F.∀(y, (y === f(xs)) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
+            lib.thenHave((y === f(xs)) <=> P) by InstantiateForall(y)
+            lib.thenHave((f(xs) === f(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f(xs)))
             lib.thenHave(P(Seq(f(xs)))) by Restate
           }
 
@@ -212,7 +212,7 @@ object CommonTactics {
      * φ |- Q(f(xs))
      * </pre>
      */
-    def conditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionalLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def conditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lib.getDefinition(f) match {
         case Some(definition: lib.FunctionDefinition[?]) =>
           if (bot.right.size != 1) {
@@ -235,11 +235,11 @@ object CommonTactics {
           // Unfold the conditional definition to find Q
           val phi = F.And(bot.left.toSeq)
           val Q = P.body match {
-            case F.AppliedConnector(
+            case F.ConnectorFormula(
                   F.And,
                   Seq(
-                    F.AppliedConnector(F.Implies, Seq(a, f)),
-                    F.AppliedConnector(F.Implies, Seq(b, g))
+                    F.ConnectorFormula(F.Implies, Seq(a, f)),
+                    F.ConnectorFormula(F.Implies, Seq(b, g))
                   )
                 ) if F.isSame(F.Neg(a), b) =>
               if (F.isSame(a, phi)) F.lambda(y, f)
@@ -249,18 +249,18 @@ object CommonTactics {
             case _ => return proof.InvalidProofTactic("Definition is not conditional.")
           }
 
-          val expected = P.substitute(y := f.app(xs))
+          val expected = P.substitute(y := f(xs))
           if (!F.isSame(expected, bot.right.head)) {
             return proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form Q(f(xs)).")
           }
 
           TacticSubproof {
-            lib.have(F.∀(y, (y === f.app(xs)) <=> P(Seq(y)))) by Tautology.from(uniqueness, definition.of(subst: _*))
-            lib.thenHave((y === f.app(xs)) <=> P(Seq(y))) by InstantiateForall(y)
-            lib.thenHave((f.app(xs) === f.app(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f.app(xs)))
+            lib.have(F.∀(y, (y === f(xs)) <=> P(Seq(y)))) by Tautology.from(uniqueness, definition.of(subst: _*))
+            lib.thenHave((y === f(xs)) <=> P(Seq(y))) by InstantiateForall(y)
+            lib.thenHave((f(xs) === f(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f(xs)))
             lib.thenHave(P(Seq(f(xs)))) by Restate
-            lib.thenHave(phi ==> Q(Seq(f.app(xs)))) by Tautology
-            lib.thenHave(phi |- Q(Seq(f.app(xs)))) by Restate
+            lib.thenHave(phi ==> Q(Seq(f(xs)))) by Tautology
+            lib.thenHave(phi |- Q(Seq(f(xs)))) by Restate
           }
 
         case _ => proof.InvalidProofTactic("Could not get definition of function.")

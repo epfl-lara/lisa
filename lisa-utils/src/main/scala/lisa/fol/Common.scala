@@ -120,9 +120,7 @@ trait Common {
     */
   @showAsInfix
   infix trait |->[-I, +O <: LisaObject[O]] extends  LisaObject[I|->O] {
-    def app(arg: I): O
-
-    def apply(arg: I): O = app(arg)
+    def apply(arg: I): O
 
   }
 
@@ -240,17 +238,17 @@ trait Common {
   }
 
   /**
-    * A FunctionalLabel is a [[LisaObject]] of type ((Term ** N) |-> Term), that is represented by a functional label.
-    * It can be either a [[SchematicFunctionalLabel]] or a [[ConstantFunctionalLabel]].
+    * A FunctionLabel is a [[LisaObject]] of type ((Term ** N) |-> Term), that is represented by a functional label.
+    * It can be either a [[SchematicFunctionLabel]] or a [[ConstantFunctionLabel]].
     */
-  sealed trait FunctionalLabel[N <: Arity] extends ((Term ** N) |-> Term) with WithArity[N] with Absolute {
+  sealed trait FunctionLabel[N <: Arity] extends ((Term ** N) |-> Term) with WithArity[N] with Absolute {
     val arity : N
     def id: K.Identifier
     val underlyingLabel: K.TermLabel
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ((Term ** N) |-> Term)
 
-    def app(args: Term ** N): AppliedTerm[N] = AppliedTerm[N](this, args.toSeq)
-    def rename(newid: K.Identifier):FunctionalLabel[N]
+    def apply(args: Term ** N): AppliedTerm[N] = AppliedTerm[N](this, args.toSeq)
+    def rename(newid: K.Identifier):FunctionLabel[N]
 
   }
 
@@ -260,7 +258,7 @@ trait Common {
     * A schematic functional label (corresponding to [[K.SchematicFunctionLabel]]) is a functional label and also a schematic label.
     * It can be substituted by any expression of type (Term ** N) |-> Term
     */
-  case class SchematicFunctionalLabel[N <: Arity](id: K.Identifier, arity : N) extends FunctionalLabel[N] with SchematicLabel[(Term ** N) |-> Term]{
+  case class SchematicFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends FunctionLabel[N] with SchematicLabel[(Term ** N) |-> Term]{
     val underlyingLabel: K.SchematicFunctionLabel = K.SchematicFunctionLabel(id, arity)
 
     @nowarn
@@ -275,25 +273,25 @@ trait Common {
     }
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
-    def rename(newid: K.Identifier):SchematicFunctionalLabel[N] = SchematicFunctionalLabel(newid, arity)
+    def rename(newid: K.Identifier):SchematicFunctionLabel[N] = SchematicFunctionLabel(newid, arity)
   }
 
   /**
     * A constant functional label of arity N.
     */
-  case class ConstantFunctionalLabel[N <: Arity](id: K.Identifier, arity : N) extends FunctionalLabel[N] with ConstantLabel[((Term ** N) |-> Term)]{
+  case class ConstantFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends FunctionLabel[N] with ConstantLabel[((Term ** N) |-> Term)]{
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
       this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
-    def rename(newid: K.Identifier):ConstantFunctionalLabel[N] = ConstantFunctionalLabel(newid, arity)
+    def rename(newid: K.Identifier):ConstantFunctionLabel[N] = ConstantFunctionLabel(newid, arity)
   }
 
   /**
     * A term made from a functional label of arity N and N arguments
     */
-  case class AppliedTerm[N <: Arity](f: FunctionalLabel[N], args: Seq[Term]) extends Term with Absolute {
+  case class AppliedTerm[N <: Arity](f: FunctionLabel[N], args: Seq[Term]) extends Term with Absolute {
 
     override val underlying = K.Term(f.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Term = {
@@ -364,7 +362,7 @@ trait Common {
     def id: K.Identifier
     val underlyingLabel: K.PredicateLabel // | K.LambdaFormulaFormula
 
-    def app(args: Term ** N): AppliedPredicate[N] = AppliedPredicate[N](this, args.toSeq)
+    def apply(args: Term ** N): PredicateFormula[N] = PredicateFormula[N](this, args.toSeq)
     def rename(newid: K.Identifier):PredicateLabel[N]
   }
 
@@ -405,14 +403,14 @@ trait Common {
   /**
     * A formula made from a predicate label of arity N and N arguments
     */
-  case class AppliedPredicate[N <: Arity](p: PredicateLabel[N], args: Seq[Term]) extends Formula with Absolute {
+  case class PredicateFormula[N <: Arity](p: PredicateLabel[N], args: Seq[Term]) extends Formula with Absolute {
     override val underlying = K.PredicateFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula =
       p.substituteUnsafe(map)(args.map[Term]((x:Term) => x.substituteUnsafe(map)))
 
     def freeSchematicLabels:Set[SchematicLabel[?]] = p.freeSchematicLabels ++ args.toSeq.flatMap(_.freeSchematicLabels)
     def allSchematicLabels:Set[SchematicLabel[?]] = p.allSchematicLabels ++ args.toSeq.flatMap(_.allSchematicLabels)
-    //override def substituteUnsafe(v: Variable, subs: Term) = AppliedPredicateFormula[N](f, args.map(_.substituteUnsafe(v, subs)))
+    //override def substituteUnsafe(v: Variable, subs: Term) = PredicateFormulaFormula[N](f, args.map(_.substituteUnsafe(v, subs)))
   }
 
 /**
@@ -424,7 +422,7 @@ trait Common {
     def id: K.Identifier
     val underlyingLabel: K.ConnectorLabel
     
-    def app(args: Formula ** N): AppliedConnector = AppliedConnector(this, args.toSeq)
+    def apply(args: Formula ** N): ConnectorFormula = ConnectorFormula(this, args.toSeq)
     def rename(newid: K.Identifier):ConnectorLabel[N]
 
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Formula ** N, Formula]
@@ -469,20 +467,20 @@ trait Common {
   /**
     * A formula made from a connector label of arity N and N arguments
     */
-  case class AppliedConnector(p: ConnectorLabel[?], args: Seq[Formula]) extends Formula with Absolute {
+  case class ConnectorFormula(p: ConnectorLabel[?], args: Seq[Formula]) extends Formula with Absolute {
     assert(args.length == p.arity)
     override val underlying = K.ConnectorFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula = {
       val p2 = p.substituteUnsafe(map)
       p2 match {
-        case p2 : ConnectorLabel[?] => AppliedConnector(p2, args.map[Formula]((x:Formula) => x.substituteUnsafe(map)))
+        case p2 : ConnectorLabel[?] => ConnectorFormula(p2, args.map[Formula]((x:Formula) => x.substituteUnsafe(map)))
         case _ => p2(args.map[Formula]((x:Formula) => x.substituteUnsafe(map)))
       }
     }
 
     def freeSchematicLabels:Set[SchematicLabel[?]] = p.freeSchematicLabels ++ args.flatMap(_.freeSchematicLabels)
     def allSchematicLabels:Set[SchematicLabel[?]] = p.allSchematicLabels ++ args.flatMap(_.allSchematicLabels)
-    //override def substituteUnsafe(v: Variable, subs: Term) = AppliedPredicateFormula[N](f, args.map(_.substituteUnsafe(v, subs)))
+    //override def substituteUnsafe(v: Variable, subs: Term) = PredicateFormulaFormula[N](f, args.map(_.substituteUnsafe(v, subs)))
   }
 
 
@@ -499,7 +497,7 @@ trait Common {
   trait BaseBinderLabel extends BinderLabel with Absolute {
     val underlyingLabel: K.BinderLabel
 
-    def app(arg: (Variable, Formula)): Formula = BinderFormula(this, arg._1, arg._2)
+    def apply(arg: (Variable, Formula)): Formula = BinderFormula(this, arg._1, arg._2)
     inline def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     inline def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
