@@ -4,6 +4,7 @@ package fol
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
+//import lisa.prooflib.Exports.*
 
 /**
  * Implements theorems about first-order logic.
@@ -17,23 +18,23 @@ object Quantifiers extends lisa.Main {
   private val b = variable
   private val c = variable
   private val p = formulaVariable
-  private val P = predicate(1)
-  private val Q = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
 
   /**
    * Theorem --- A formula is equivalent to itself universally quantified if
    * the bound variable is not free in it.
    */
   val closedFormulaUniversal = Theorem(
-    () |- ∀(x, p()) <=> p()
+    () |- ∀(x, p) <=> p
   ) {
-    val base = have(p() |- p()) by Hypothesis
+    val base = have(p |- p) by Hypothesis
 
-    have(p() |- ∀(x, p())) by RightForall(base)
-    val lhs = thenHave(() |- p() ==> ∀(x, p())) by Restate
+    have(p |- ∀(x, p)) by RightForall(base)
+    val lhs = thenHave(() |- p ==> ∀(x, p)) by Restate
 
-    have(∀(x, p()) |- p()) by LeftForall(base)
-    val rhs = thenHave(() |- ∀(x, p()) ==> p()) by Restate
+    have(∀(x, p) |- p) by LeftForall(base)
+    val rhs = thenHave(() |- ∀(x, p) ==> p) by Restate
 
     have(thesis) by RightIff(lhs, rhs)
   }
@@ -43,15 +44,15 @@ object Quantifiers extends lisa.Main {
    * the bound variable is not free in it.
    */
   val closedFormulaExistential = Theorem(
-    () |- ∃(x, p()) <=> p()
+    () |- ∃(x, p) <=> p
   ) {
-    val base = have(p() |- p()) by Hypothesis
+    val base = have(p |- p) by Hypothesis
 
-    have(p() |- ∃(x, p())) by RightExists(base)
-    val lhs = thenHave(() |- p() ==> ∃(x, p())) by Restate
+    have(p |- ∃(x, p)) by RightExists(base)
+    val lhs = thenHave(() |- p ==> ∃(x, p)) by Restate
 
-    have(∃(x, p()) |- p()) by LeftExists(base)
-    val rhs = thenHave(() |- ∃(x, p()) ==> p()) by Restate
+    have(∃(x, p) |- p) by LeftExists(base)
+    val rhs = thenHave(() |- ∃(x, p) ==> p) by Restate
 
     have(thesis) by RightIff(lhs, rhs)
   }
@@ -138,30 +139,30 @@ object Quantifiers extends lisa.Main {
    * Theorem -- Existential quantification fully distributes when the conjunction involves one closed formula.
    */
   val existentialConjunctionWithClosedFormula = Theorem(
-    exists(x, P(x) /\ p()) <=> (exists(x, P(x)) /\ p())
+    exists(x, P(x) /\ p) <=> (exists(x, P(x)) /\ p)
   ) {
-    val forward = have(exists(x, P(x) /\ p()) ==> (exists(x, P(x)) /\ p())) subproof {
-      have(exists(x, P(x) /\ p()) |- exists(x, P(x)) /\ exists(x, p())) by Restate.from(
+    val forward = have(exists(x, P(x) /\ p) ==> (exists(x, P(x)) /\ p)) subproof {
+      have(exists(x, P(x) /\ p) |- exists(x, P(x)) /\ exists(x, p)) by Restate.from(
         existentialConjunctionDistribution of (
-          Q -> lambda(x, p())
+          Q -> lambda(x, p)
         )
       )
       val substitution = thenHave(
-        (exists(x, P(x) /\ p()), (exists(x, P(x)) /\ exists(x, p())) <=> (exists(x, P(x)) /\ p())) |- exists(x, P(x)) /\ p()
-      ) by RightSubstIff(List((exists(x, P(x)) /\ exists(x, p()), exists(x, P(x)) /\ p())), lambda(p, p()))
+        (exists(x, P(x) /\ p), (exists(x, P(x)) /\ exists(x, p)) <=> (exists(x, P(x)) /\ p)) |- exists(x, P(x)) /\ p
+      ) by RightSubstIff(List((exists(x, P(x)) /\ exists(x, p), exists(x, P(x)) /\ p)), lambda(p, p))
 
-      have(exists(x, p()) <=> p()) by Restate.from(closedFormulaExistential)
-      thenHave((exists(x, P(x)) /\ exists(x, p())) <=> (exists(x, P(x)) /\ p())) by Tautology
+      have(exists(x, p) <=> p) by Restate.from(closedFormulaExistential)
+      thenHave((exists(x, P(x)) /\ exists(x, p)) <=> (exists(x, P(x)) /\ p)) by Tautology
 
-      have(exists(x, P(x) /\ p()) |- exists(x, P(x)) /\ p()) by Cut(lastStep, substitution)
+      have(exists(x, P(x) /\ p) |- exists(x, P(x)) /\ p) by Cut(lastStep, substitution)
       thenHave(thesis) by Restate
     }
 
-    val backward = have((exists(x, P(x)) /\ p()) ==> exists(x, P(x) /\ p())) subproof {
-      have(P(x) /\ p() |- P(x) /\ p()) by Hypothesis
-      thenHave((P(x), p()) |- P(x) /\ p()) by Restate
-      thenHave((P(x), p()) |- exists(x, P(x) /\ p())) by RightExists
-      thenHave((exists(x, P(x)), p()) |- exists(x, P(x) /\ p())) by LeftExists
+    val backward = have((exists(x, P(x)) /\ p) ==> exists(x, P(x) /\ p)) subproof {
+      have(P(x) /\ p |- P(x) /\ p) by Hypothesis
+      thenHave((P(x), p) |- P(x) /\ p) by Restate
+      thenHave((P(x), p) |- exists(x, P(x) /\ p)) by RightExists
+      thenHave((exists(x, P(x)), p) |- exists(x, P(x) /\ p)) by LeftExists
       thenHave(thesis) by Restate
     }
 

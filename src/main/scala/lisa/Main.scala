@@ -7,6 +7,7 @@ import lisa.prooflib.BasicMain
  */
 trait Main extends BasicMain {
   export lisa.settheory.SetTheoryLibrary.{given, _}
+  export lisa.prooflib.Exports.*
 
   knownDefs.update(emptySet, Some(emptySetAxiom))
   knownDefs.update(unorderedPair, Some(pairAxiom))

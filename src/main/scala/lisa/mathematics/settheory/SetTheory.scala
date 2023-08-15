@@ -157,7 +157,7 @@ object SetTheory extends lisa.Main {
    * @param x set
    * @param y set
    */
-  val setUnion = DEF(x, y) --> union(unorderedPair(x, y))
+  val setUnion: ConstantTermLabel[2] = DEF[2](x, y) --> union(unorderedPair(x, y))
 
   /**
    * Theorem --- a set is an element of `x ∪ y` iff it is an element of `x` or `y`

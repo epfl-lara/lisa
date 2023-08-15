@@ -63,9 +63,10 @@ trait Lambdas extends Common{
     LambdaExpression[T, R, N](boundsSeq, body, n.value)
   }
   def lambda[T <: LisaObject[T], R <: LisaObject[R]](bounds:Seq[SchematicLabel[T]], body:R) = {
-      val boundsSeq = bounds.toSeq
-      LambdaExpression(boundsSeq, body, boundsSeq.length.asInstanceOf)
-    }
+    val boundsSeq = bounds.toSeq
+    LambdaExpression(boundsSeq, body, boundsSeq.length.asInstanceOf)
+  }
+  
 
     /**
       * Recovers the underlying [[K.LambdaTermTerm]]

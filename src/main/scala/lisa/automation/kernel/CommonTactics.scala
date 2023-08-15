@@ -246,7 +246,8 @@ object CommonTactics {
               else if (F.isSame(b, phi)) F.lambda(y, g)
               else return proof.InvalidProofTactic("Condition of definition is not satisfied.")
 
-            case _ => return proof.InvalidProofTactic("Definition is not conditional.")
+            case _ =>               
+              return proof.InvalidProofTactic("Definition is not conditional.")
           }
 
           val expected = P.substitute(y := f(xs))

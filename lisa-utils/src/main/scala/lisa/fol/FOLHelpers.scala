@@ -42,8 +42,14 @@ object FOLHelpers {
     LambdaExpression(s, a._2, s.length.asInstanceOf)
   }
 
-  given[T] : Conversion[T, T**1] = _ *: EmptyTuple
+  given[T] : Conversion[T, T***1] = _ *: EmptyTuple
+  
 
+  /*
+  extension [I, O <: LisaObject[O]] (e: (I ** 0) |-> O) {
+    def apply() = e.apply(EmptyTuple)
+  }
+*/
 
   //helpers to create new schematic symbols, fetching the scala name of the variable.
   def variable(using name: sourcecode.Name): Variable = Variable(name.value)
