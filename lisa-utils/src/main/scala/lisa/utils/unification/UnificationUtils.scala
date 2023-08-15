@@ -409,4 +409,183 @@ object UnificationUtils {
         )
       )
   }
+
+  // case class RewriteSet(
+  //   freeFormulaRules: Seq[(Formula, Formula)],
+  //   freeTermRules: Seq[(Term, Term)],
+  //   confinedFormulaRules: Seq[(Formula, Formula)],
+  //   confinedTermRules: Seq[(Term, Term)],
+  //   takenFormulaVars: Seq[VariableFormulaLabel],
+  //   takenTermVars: Seq[VariableLabel],
+  //   lastID: Identifier = freshId((takenFormulaVars ++ takenTermVars), "__rewriteVar__")
+  // ){
+  //   def freshIdentifier = {
+  //     val newID = freshId(Seq(lastID), "__rewriteVar__")
+  //     (newID, this.copy(lastID = newID))
+  //   }
+  // }
+
+  // type FormulaSubstitution = Map[VariableFormulaLabel, Formula]
+  // type TermSubstitution = Map[VariableLabel, Term]
+
+  // case class RewriteContext(
+  //   // the variable, the rule it represents, and with what instantiations
+  //   formulaVars: Seq[(VariableFormulaLabel, (Formula, Formula), FormulaSubstitution)],
+  //   termVars: Seq[(VariableLabel, (Term, Term), TermSubstitution)],
+  //   body: Formula
+  // ) 
+
+  // def canRewriteList(l: Seq[(Formula, Formula)], ruleSet: RewriteSet) =
+  //     l.fold(Some(Seq[RewriteContext](), ruleSet)) { 
+  //       case (Some(seq, rSet), (f, s)) => 
+  //         val can = canRewrite(f, s, rSet)
+  //         can match {
+  //           case Some((c, r)) => (seq :+ c, r)
+  //           case None => None
+  //         }
+  //       case None => None
+  //     }
+
+  // def canRewriteTermList(l: Seq[(Term, Term)], ruleSet: RewriteSet): Option[(RewriteContext)] =
+  //     l.fold(Some(Seq[RewriteContext](), ruleSet)) { 
+  //       case (Some(seq, rSet), (f, s)) => 
+  //         val can = canRewrite(f, s, rSet)
+  //         can match {
+  //           case Some((c, r)) => (seq :+ c, r)
+  //           case None => None
+  //         }
+  //       case None => None
+  //     }
+
+  // case object RewriteConnector extends ConstantConnectorLabel(Identifier("__rewritesTo__"), 2)
+
+  // def canRewrite(first: Formula, second: Formula, ruleSet: RewriteSet): Option[(RewriteContext, RewriteSet)] = {
+  //   lazy val takenVars = first.freeVariables ++ first.freeVariableFormulaLabels ++ second.freeVariables ++ second.freeVariableFormulaLabels
+  //   lazy val replaceableVars = takenVars -- ruleSet.takenFormulaVars -- ruleSet.takenTermVars
+  //   lazy val validSubst =
+  //     ruleSet.confinedFormulaRules.collectFirst {
+  //       case (l, r) => 
+  //         val subst = matchFormula(RewriteConnector(l, r), RewriteConnector(first, second), vars = Some(replaceableVars))
+  //         subst match {
+  //           case Some(s) => s 
+  //         }
+  //     }
+  //     .orElse (
+  //       ruleSet.freeFormulaRules.collectFirst {
+  //       case (l, r) => 
+  //         val subst = matchFormula(RewriteConnector(l, r), RewriteConnector(first, second), vars = None)
+  //         subst match {
+  //           case Some(s) => s
+  //         }
+  //       }
+  //     )
+    
+  //   if (isSame(first, second))
+  //     // done
+  //     Some((RewriteContext(Seq(), Seq(), first), ruleSet))
+  //   else if (validSubst.isDefined)
+  //     RewriteContext(
+
+  //     )
+  //   else if (first.label != second.label)
+  //     None
+  //   else
+  //     // recurse
+  //     first match {
+  //       case ConnectorFormula(l1, arg1) => {
+  //         second match {
+  //           case ConnectorFormula(l2, arg2) => {
+  //             val argCan = canRewriteList(arg1 zip arg2)
+
+  //             if (argCan.isEmpty) None
+  //             else 
+  //               val newArgs = argCan.get._1
+  //               val newRuleSet = argCan.get._2
+  //               val intermediateContext = newArgs.reduce {
+  //                 // combine the generated substitutions:
+  //                 // By construction, there are no variable conflicts, so we
+  //                 // can combine them blindly.
+  //                 // This can generate redundant variables for the same rewrite
+  //                 // rule, but the added proof checking is a lot less work than
+  //                 // checking for this and appropriately combining the 
+  //                 // variables.
+  //                 case (f, s) => 
+  //                   RewriteContext(
+  //                     formulaVars = f.formulaVars ++ s.formulaVars,
+  //                     termVars = f.termVars ++ s.termVars,
+  //                     body = top()
+  //                   )
+  //               }
+  //               val newBody = ConnectorFormula(l1, newArgs.map(_.body))
+  //               Some(
+  //                 (
+  //                   intermediateContext.copy(body = newBody), 
+  //                   newRuleSet
+  //                 )
+  //               )
+  //           }
+  //           case _ => None
+  //         }
+  //       }
+  //       case BinderFormula(l1, x1: VariableLabel, inner1) => {
+  //         second match {
+  //           case BinderFormula(l2, x2: VariableLabel, inner2) => {
+  //             val newID, newRuleSet = ruleSet.freshIdentifier
+  //             val newX = VariableLabel(newID)
+  //             val newInner1 = substituteVariables(inner1, Map[VariableLabel, Term](x1 -> newX))
+  //             val newInner2 = substituteVariables(inner2, Map[VariableLabel, Term](x2 -> newX))
+
+  //             val innerRes = canRewrite(newInner1, newInner2, newRuleSet)
+
+  //             if (innerRes.isEmpty) None
+  //             else 
+  //               val newInner = innerRes.get._1
+  //               val newRuleSet = innerRes.get._2
+  //               Some(
+  //                 (
+  //                   newInner.copy(body = BinderFormula(l1, newX, innerRes.body)), 
+  //                   newRuleSet
+  //                 )
+  //               )
+  //           }
+  //           case _ => None
+  //         }
+  //       }
+  //       case PredicateFormula(l1, arg1) => {
+  //         second match {
+  //           case PredicateFormula(l2, arg2) => {
+  //             val argCan = canRewriteTermList(arg1 zip arg2, ruleSet)
+
+  //             if (argCan.isEmpty) None
+  //             else 
+  //               val newArgs = argCan.get._1
+  //               val newRuleSet = argCan.get._2
+  //               val intermediateContext = newArgs.reduce {
+  //                 // combine the generated substitutions:
+  //                 // By construction, there are no variable conflicts, so we
+  //                 // can combine them blindly.
+  //                 // This can generate redundant variables for the same rewrite
+  //                 // rule, but the added proof checking is a lot less work than
+  //                 // checking for this and appropriately combining the 
+  //                 // variables.
+  //                 case (f, s) => 
+  //                   RewriteContext(
+  //                     formulaVars = f.formulaVars ++ s.formulaVars,
+  //                     termVars = f.termVars ++ s.termVars,
+  //                     body = top()
+  //                   )
+  //               }
+  //               val newBody = ConnectorFormula(l1, newArgs.map(_.body))
+  //               Some(
+  //                 (
+  //                   intermediateContext.copy(body = newBody), 
+  //                   newRuleSet
+  //                 )
+  //               )
+  //           }
+  //           case _ => None
+  //         }
+  //       }
+  //     }
+  // }
 }
