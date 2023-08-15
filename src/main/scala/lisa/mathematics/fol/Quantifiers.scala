@@ -1,4 +1,5 @@
 package lisa.mathematics
+package fol
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
@@ -7,8 +8,8 @@ import lisa.automation.kernel.SimpleSimplifier.*
 /**
  * Implements theorems about first-order logic.
  */
-object FirstOrderLogic extends lisa.Main {
-/*
+object Quantifiers extends lisa.Main {
+
   private val x = variable
   private val y = variable
   private val z = variable
@@ -353,5 +354,55 @@ object FirstOrderLogic extends lisa.Main {
 
     thenHave(thesis) by Restate
   }
-*/
+
+  /**
+   * Theorem --- if atleast two distinct elements exist, then there is no unique
+   * existence
+   */
+  val atleastTwoExist = Theorem(
+    (exists(x, P(x)) /\ !existsOne(x, P(x))) <=> exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))
+  ) {
+    val fwd = have((exists(x, P(x)) /\ !existsOne(x, P(x))) ==> exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))) subproof {
+      have((P(x), ((x === y) /\ !P(y))) |- P(x) /\ !P(y)) by Restate
+      thenHave((P(x), ((x === y) /\ !P(y))) |- P(y) /\ !P(y)) by Substitution.withExplicitRules(x === y) // contradiction
+      val xy = thenHave((P(x), ((x === y) /\ !P(y))) |- exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))) by Weakening
+
+      have((P(x), (!(x === y) /\ P(y))) |- (!(x === y) /\ P(y) /\ P(x))) by Restate
+      thenHave((P(x), (!(x === y) /\ P(y))) |- exists(y, !(x === y) /\ P(y) /\ P(x))) by RightExists
+      val nxy = thenHave((P(x), (!(x === y) /\ P(y))) |- exists(x, exists(y, !(x === y) /\ P(y) /\ P(x)))) by RightExists
+
+      have((P(x), (!(x === y) /\ P(y)) \/ ((x === y) /\ !P(y))) |- exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))) by Tautology.from(xy, nxy)
+      thenHave((P(x), exists(y, (!(x === y) /\ P(y)) \/ ((x === y) /\ !P(y)))) |- exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))) by LeftExists
+      thenHave((P(x), forall(x, exists(y, (!(x === y) /\ P(y)) \/ ((x === y) /\ !P(y))))) |- exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))) by LeftForall
+      thenHave((exists(x, P(x)), forall(x, exists(y, (!(x === y) /\ P(y)) \/ ((x === y) /\ !P(y))))) |- exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))) by LeftExists
+
+      thenHave(thesis) by Restate
+    }
+
+    val bwd = have(exists(x, exists(y, P(x) /\ P(y) /\ !(x === y))) ==> (exists(x, P(x)) /\ !existsOne(x, P(x)))) subproof {
+      have((P(x), P(y), !(x === y)) |- P(x)) by Restate
+      val ex = thenHave((P(x), P(y), !(x === y)) |- exists(x, P(x))) by RightExists
+
+      have((P(x), P(y), !(x === y)) |- P(y) /\ !(y === x)) by Restate
+      thenHave((P(x), P(y), !(x === y), (x === z)) |- P(y) /\ !(y === z)) by Substitution.withExplicitRules(x === z)
+      thenHave((P(x), P(y), !(x === y), (x === z)) |- (P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z))) by Weakening
+      val xz = thenHave((P(x), P(y), !(x === y), (x === z)) |- exists(y, (P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z)))) by RightExists
+
+      have((P(x), P(y), !(x === y), !(x === z)) |- (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z))) by Restate
+      val nxz = thenHave((P(x), P(y), !(x === y), !(x === z)) |- exists(x, (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z)))) by RightExists
+
+      have((P(x), P(y), !(x === y)) |- exists(x, (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z)))) by Tautology.from(xz, nxz)
+      thenHave((P(x), P(y), !(x === y)) |- forall(z, exists(x, (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z))))) by RightForall
+      val uex = thenHave(P(x) /\ P(y) /\ !(x === y) |- !existsOne(z, P(z))) by Restate
+
+      have(P(x) /\ P(y) /\ !(x === y) |- exists(x, P(x)) /\ !existsOne(z, P(z))) by Tautology.from(ex, uex)
+      thenHave(exists(y, P(x) /\ P(y) /\ !(x === y)) |- exists(x, P(x)) /\ !existsOne(z, P(z))) by LeftExists
+      thenHave(exists(x, exists(y, P(x) /\ P(y) /\ !(x === y))) |- exists(x, P(x)) /\ !existsOne(z, P(z))) by LeftExists
+
+      thenHave(thesis) by Restate
+    }
+
+    have(thesis) by Tautology.from(fwd, bwd)
+  }
+
 }

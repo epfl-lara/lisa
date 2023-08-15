@@ -58,7 +58,7 @@ object BasicStepTactic {
    * <pre>
    *  Γ |- Δ, φ    φ, Σ |- Π
    * ------------------------
-   *       Γ, Σ |-Δ, Π
+   *       Γ, Σ |- Δ, Π
    * </pre>
    */
   object Cut extends ProofTactic {
@@ -72,10 +72,17 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of first premise does not contain φ as claimed.")
       else if (!K.contains(rightSequent.left, phiK))
         proof.InvalidProofTactic("Left-hand side of second premise does not contain φ as claimed.")
+<<<<<<< HEAD
       else if (!K.isSameSet(botK.left, leftSequent.left ++ rightSequent.left.filterNot(K.isSame(_, phiK))))
         proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
       else if (!K.isSameSet(botK.right, leftSequent.right.filterNot(K.isSame(_, phiK)) ++ rightSequent.right))
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is proof.getSequent(prem1).underlyingproof.getSequent(prem1).underlyingnot the union of the right-hand sides of the premises.")
+=======
+      else if (!isSameSet(bot.left + phi, leftSequent.left ++ rightSequent.left))
+        proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
+      else if (!isSameSet(bot.right + phi, leftSequent.right ++ rightSequent.right))
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
+>>>>>>> main
       else
         proof.ValidProofTactic(bot, Seq(K.Cut(botK, -1, -2, phiK)), Seq(prem1, prem2))
     }
