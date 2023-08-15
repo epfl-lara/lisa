@@ -13,5 +13,8 @@ object SetTheoryLibrary extends Library with SetTheoryTGAxioms {
   // Unicode symbols
 
   val ∅ : Term = emptySet()
+  extension (t: Term) {
+    infix def ∈(u: Term): Formula = PredicateFormula(in, Seq(t, u))
+  }
 
 }

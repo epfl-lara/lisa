@@ -10,6 +10,7 @@ import lisa.prooflib.SimpleDeducedSteps.Restate
 import lisa.prooflib.*
 import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
+import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.FirstOrderUnifier
 import lisa.utils.unification.UnificationUtils
 
@@ -55,7 +56,7 @@ object BasicStepTactic {
    * <pre>
    *  Γ |- Δ, φ    φ, Σ |- Π
    * ------------------------
-   *       Γ, Σ |-Δ, Π
+   *       Γ, Σ |- Δ, Π
    * </pre>
    */
   object Cut extends ProofTactic {
@@ -67,9 +68,9 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of first premise does not contain φ as claimed.")
       else if (!contains(rightSequent.left, phi))
         proof.InvalidProofTactic("Left-hand side of second premise does not contain φ as claimed.")
-      else if (!isSameSet(bot.left, leftSequent.left ++ rightSequent.left.filterNot(isSame(_, phi))))
+      else if (!isSameSet(bot.left + phi, leftSequent.left ++ rightSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
-      else if (!isSameSet(bot.right, leftSequent.right.filterNot(isSame(_, phi)) ++ rightSequent.right))
+      else if (!isSameSet(bot.right + phi, leftSequent.right ++ rightSequent.right))
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
       else
         proof.ValidProofTactic(Seq(SC.Cut(bot, -1, -2, phi)), Seq(prem1, prem2))
@@ -78,8 +79,10 @@ object BasicStepTactic {
     def apply(using lib: Library, proof: lib.Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
-      lazy val cutSet = rightSequent.left.diff(bot.left) ++ leftSequent.right.diff(bot.right)
-      lazy val intersectedCutSet = rightSequent.left & leftSequent.right
+      // cutSet: (rightSequent.left - bot.left) ++ (leftSequent.right - bot.right)
+      // `xxx?` sequent operations are used to drop OL (and thus alpha-eq) formulas
+      lazy val cutSet = (((rightSequent --<? bot).left |- ()) ++? ((leftSequent -->? bot).right |- ())).left
+      lazy val intersectedCutSet = rightSequent.left intersect leftSequent.right
 
       if (!cutSet.isEmpty)
         if (cutSet.tail.isEmpty)
@@ -1116,7 +1119,7 @@ object BasicStepTactic {
 
       if (!isSameSet(bot.left, premiseSequent.left ++ implications)) {
         println(lisa.utils.parsing.FOLPrinter.prettySequent(bot))
-        println(lisa.utils.parsing.FOLPrinter.prettySequent(premiseSequent ++< (implications |- ())))
+        println(lisa.utils.parsing.FOLPrinter.prettySequent(premiseSequent ++<< (implications |- ())))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ⇔ τ)_.")
       } else if (
         !isSameSet(bot.right + phi_psi, premiseSequent.right + phi_tau) &&
@@ -1202,11 +1205,29 @@ object BasicStepTactic {
       iProof.toSCProof
     }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
-    def judgement: proof.ValidProofTactic = proof.ValidProofTactic(scproof.steps, premises)
+    def judgement: proof.ProofTacticJudgement = {
+      if (bot.isEmpty)
+        proof.ValidProofTactic(scproof.steps, premises)
+      else if (!SC.isSameSequent(bot.get, scproof.conclusion))
+        proof.InvalidProofTactic(s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(bot.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}")
+      else
+        proof.ValidProofTactic(scproof.steps :+ SC.Restate(bot.get, scproof.length - 1), premises)
+    }
+  }
+
+  object Sorry extends ProofTactic with ProofSequentTactic {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = {
+      proof.ValidProofTactic(Seq(SC.Sorry(bot)), Seq())
+    }
   }
 
   // TODO make specific support for subproofs written inside tactics.
+
   def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit) =
     SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
 
+  /*
+  def TacticSubproof(using proof: Library#Proof)(bot: Option[Sequent])(computeProof: proof.InnerProof ?=> Unit) =
+    SUBPROOF(using proof)(Some(bot))(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
+   */
 }

@@ -10,7 +10,7 @@ abstract class OutputManager {
   given OutputManager = this
 
   def output(s: String): Unit = stringWriter.write(s + "\n")
-  def output(s: String, color: String): Unit = stringWriter.write(color + s + "\n" + Console.BLACK)
+  def output(s: String, color: String): Unit = stringWriter.write(Console.RESET + color + s + "\n" + Console.RESET)
   val stringWriter: StringWriter
 
   def finishOutput(exception: Exception): Nothing
@@ -33,8 +33,8 @@ abstract class OutputManager {
     }
 
   def log(e: Exception): Unit = {
-    stringWriter.write("\n[" + Console.RED + "Error" + Console.BLACK + "]")
+    stringWriter.write("\n[" + Console.RED + "Error" + Console.RESET + "] ")
     e.printStackTrace(PrintWriter(stringWriter))
-    output(Console.BLACK)
+    output(Console.RESET)
   }
 }

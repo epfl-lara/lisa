@@ -44,7 +44,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
    * <pre> SCProof(steps(...), imports(...))</pre>
    * Must contains [[Justification]]'s, [[Formula]]'s or [[Sequent]], all of which are converted adequatly automatically.
    */
-  inline def imports(sqs: Sequentable*): IndexedSeq[Sequent] = sqs.map(sequantableToSequent).toIndexedSeq
+  inline def imports(sqs: Sequentable*): IndexedSeq[Sequent] = sqs.map(sequentableToSequent).toIndexedSeq
 
   // THEOREM Syntax
 
@@ -292,7 +292,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   /**
    * Converts different class that have a natural interpretation as a Sequent
    */
-  private def sequantableToSequent(s: Sequentable): Sequent = s match {
+  private def sequentableToSequent(s: Sequentable): Sequent = s match {
     case j: theory.Justification => theory.sequentFromJustification(j)
     case f: Formula => () |- f
     case s: Sequent => s
@@ -300,7 +300,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
   given convJustSequent[C <: Iterable[Sequentable], D](using bf: scala.collection.BuildFrom[C, Sequent, D]): Conversion[C, D] = cc => {
     val builder = bf.newBuilder(cc)
-    cc.foreach(builder += sequantableToSequent(_))
+    cc.foreach(builder += sequentableToSequent(_))
     builder.result
   }
 

@@ -13,6 +13,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class SubstitutionTest extends AnyFunSuite {
   private val x = variable
+  private val x1 = VariableLabel(Identifier("x", 1))
   private val x2 = variable
   private val x3 = variable
   private val y = variable
@@ -85,6 +86,7 @@ class SubstitutionTest extends AnyFunSuite {
       $(Q(f(f(h(x, y)))) /\ R(x, h(y, f(z))), x -> z(), h -> lambda(Seq(x, z), g(h(z, y))), z -> y()) _VS_ Q(f(f(g(h(y, y))))) /\ R(z, g(h(f(y), y))),
       $(forall(x, R(x, y)), x -> z()) _VS_ forall(x, R(x, y)),
       $(forall(x, R(x, y)), y -> z()) _VS_ forall(x, R(x, z)),
+      $(forall(x, P(x)), x1 -> f(x())) _VS_ forall(x, P(x)),
       $(forall(x, R(x, y)) /\ P(h(x, y)), y -> z(), x -> y()) _VS_ forall(x, R(x, z)) /\ P(h(y, z)),
       $(forall(x, R(x, y)) /\ P(h(x, y)), y -> x()) _VS_ forall(y, R(y, x)) /\ P(h(x, x)),
       $(existsOne(x, R(x, y)) /\ P(h(x, y)), y -> x()) _VS_ existsOne(y, R(y, x)) /\ P(h(x, x))
@@ -214,6 +216,7 @@ class SubstitutionTest extends AnyFunSuite {
         X -> (z === y),
         P -> lambda(x2, exists(y, R(x2, y) /\ P(x)))
       ) _VS_ (exists(y2, Q(y2) /\ ((z === y) <=> exists(x2, P(x2) /\ exists(y, R(x, y) /\ P(x))))) /\ R(y, f(y))),
+      $(forall(x, P(x)), x1 -> f(x())) _VS_ forall(x, P(x)),
       $(
         forall(x, e2(c1(e2(X, P(x))) /\ R(y, f(y)), exists(x, P(x) /\ X))),
         c1 -> lambda(X, exists(y, Q(y) /\ X)),

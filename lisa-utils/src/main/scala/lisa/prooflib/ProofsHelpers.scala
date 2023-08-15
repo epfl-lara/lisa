@@ -7,6 +7,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
@@ -32,7 +33,8 @@ trait ProofsHelpers {
     }
 
     inline infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(tactic: proof.InnerProof ?=> Unit): proof.ProofStep = {
-      (new BasicStepTactic.SUBPROOF(using proof)(Some(bot))(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
+      val botWithAssumptions = HaveSequent.this.bot ++ (proof.getAssumptions |- ())
+      (new BasicStepTactic.SUBPROOF(using proof)(Some(botWithAssumptions))(tactic)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
     }
 
   }
@@ -105,17 +107,15 @@ trait ProofsHelpers {
   }
 
    */
+
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
-  def assume(using proof: library.Proof)(f: Formula): proof.ProofStep = {
-    proof.addAssumption(f)
-    have(() |- f) by BasicStepTactic.Hypothesis
+  def assume(using proof: library.Proof)(fs: Formula*): proof.ProofStep = {
+    fs.foreach(f => proof.addAssumption(f))
+    have(() |- fs.toSet) by BasicStepTactic.Hypothesis
   }
-  def assume(using proof: library.Proof)(fstring: String): proof.ProofStep = {
-    val f = lisa.utils.FOLParser.parseFormula(fstring)
-    assume(f)
-  }
+
   /*
   /**
    * Store the given import and use it to discharge the proof of one of its assumption at the very end.
@@ -128,8 +128,12 @@ trait ProofsHelpers {
   def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
   def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
 
+  def lastStep(using proof: library.Proof): proof.ProofStep = proof.mostRecentStep
+
+  def sorry(using proof: library.Proof): proof.ProofStep = have(thesis) by Sorry
+
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
-    om.output("Current proof of" + _proof.owningTheorem.repr + ": ")
+    om.output("Current proof of " + _proof.owningTheorem.prettyGoal + ": ")
     om.output(
       ProofPrinter.prettyProof(_proof, 2)
     )
@@ -171,7 +175,12 @@ trait ProofsHelpers {
      * @return The theorem, if proof is valid. Otherwise will terminate.
      */
     def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: Sequent | String)(computeProof: Proof ?=> Unit): THM = {
-      new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
+      val thm = new THM(statement, name.value, line.value, file.value, tk)(computeProof) {}
+      if (tk == Theorem) {
+        if (thm.withSorry) om.output(thm.repr, Console.YELLOW)
+        else om.output(thm.repr, Console.GREEN)
+      }
+      thm
     }
   }
 

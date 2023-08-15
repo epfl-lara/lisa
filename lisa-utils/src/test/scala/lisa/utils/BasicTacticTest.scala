@@ -9,6 +9,10 @@ import lisa.utils.ProofTacticTestLib
 import org.scalatest.funsuite.AnyFunSuite
 
 class BasicTacticTest extends ProofTacticTestLib {
+  given Conversion[String, Sequent] = FOLParser.parseSequent(_)
+  given Conversion[String, Formula] = FOLParser.parseFormula(_)
+  given Conversion[String, Term] = FOLParser.parseTerm(_)
+  given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
 
   // hypothesis
   test("Tactic Tests: Hypothesis") {
@@ -1355,6 +1359,12 @@ class BasicTacticTest extends ProofTacticTestLib {
         "'P('q); ('A('a) <=> 'Q('q)); ('S('s) <=> 'W('w)); ('D('d) <=> 'E('e)); ('F('f) <=> 'R('r)); ('G('g) <=> 'T('t)); ('H('h) <=> 'Y('y)) |- 'R('x); ('A('a) /\\ 'S('s) /\\ 'D('d) /\\ 'F('f) /\\ 'G('g) /\\ 'H('h))",
         List((a, q), (s, w), (d, e), (f, r), (g, t), (h, y)),
         Y5
+      ),
+      ( // check for appropriate renaming during substitution inside quantifiers
+        "|- ¬¬∧(∀'y_1. ¬(∀'y. ¬('y = 'y_1)))",
+        "('z = 'y) |- ¬¬∧(∀'y_1. ¬(∀'y. ¬('y = 'y_1)))",
+        List((FOLParser.parseFormula("'z = 'y"), top())),
+        lambda(x, FOLParser.parseFormula("¬¬∧(∀'y_1. ¬(∀'y_2. ¬('y_2 = 'y_1)))"))
       )
     )
 

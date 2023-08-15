@@ -108,12 +108,6 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       if (value) lessThanBitSet.update(otherIx + 1, true)
     }
 
-    // TODO: Check if needed
-    override def equals(obj: Any): Boolean = obj match {
-      case f: NormalFormula => eq(f)
-      case _ => super.equals(obj)
-    }
-
     def recoverFormula: Formula = toFormulaAIG(this)
   }
   sealed abstract class NonTraversable extends NormalFormula
@@ -400,7 +394,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
             case (NormalSchemConnector(id1, args1, polarity1), NormalSchemConnector(id2, args2, polarity2)) =>
               id1 == id2 && polarity1 == polarity2 && args1.zip(args2).forall(f => latticesEQ(f._1, f._2))
             case (NormalForall(x1, inner1, polarity1), NormalForall(x2, inner2, polarity2)) =>
-              polarity1 == polarity2 && latticesLEQ(inner1, inner2)
+              polarity1 == polarity2 && (if (polarity1) latticesLEQ(inner1, inner2) else latticesLEQ(inner2, inner1))
             case (_: NonTraversable, _: NonTraversable) => false
 
             case (_, NormalAnd(children, true)) =>

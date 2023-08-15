@@ -5,7 +5,7 @@ import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.mathematics.SetTheory.*
+import lisa.mathematics.settheory.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
@@ -149,7 +149,7 @@ object Ordinals extends lisa.Main {
 
   /**
    * A set `'A` is transitive if and only if every member of `'A` is a subset of `'A`.
-   * \forall 'x. 'x\in 'A ==> 'x \subset 'A
+   * ∀ 'x. 'x∈ 'A ⟹ 'x ⊂ 'A
    */
   val transitiveSet = DEF(A) --> forall(x, in(x, A) ==> subset(x, A))
 
@@ -168,7 +168,6 @@ object Ordinals extends lisa.Main {
     showCurrentProof()
 
   }
-  show
    */
 
 }

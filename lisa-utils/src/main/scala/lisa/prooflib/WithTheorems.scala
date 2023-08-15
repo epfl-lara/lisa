@@ -132,13 +132,13 @@ trait WithTheorems {
     def toSCProof: lisa.kernel.proof.SCProof = {
       discharges.foreach(i => { // TODO probably remove
         val (s, t1) = sequentAndIntOfFact(i)
-        SC.Cut((mostRecentStep.bot -< s.right.head) ++ (s ->> s.right.head), t1, steps.length - 1, s.right.head)
+        SC.Cut((mostRecentStep.bot -<< s.right.head) ++ (s ->> s.right.head), t1, steps.length - 1, s.right.head)
       })
       val finalSteps = discharges.foldLeft(steps.map(_.scps))((cumul, next) => {
         val (s, t1) = sequentAndIntOfFact(next)
         val lastStep = cumul.head
         val t2 = cumul.length - 1
-        SC.Cut((lastStep.bot -< s.right.head) ++ (s ->> s.right.head), t1, t2, s.right.head) :: cumul
+        SC.Cut((lastStep.bot -<< s.right.head) ++ (s ->> s.right.head), t1, t2, s.right.head) :: cumul
       })
 
       SCProof(finalSteps.reverse.toIndexedSeq, getImports.map(of => of._2).toIndexedSeq)
@@ -278,7 +278,9 @@ trait WithTheorems {
     override def sequentOfOutsideFact(of: theory.Justification): Sequent = theory.sequentFromJustification(of)
   }
 
-  sealed abstract class DefOrThm(using om: OutputManager)(val line: Int, val file: String)
+  sealed abstract class DefOrThm(using om: OutputManager)(val line: Int, val file: String) {
+    def repr: String
+  }
   class THM(using om: OutputManager)(statement: Sequent | String, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
       extends DefOrThm(using om)(line, file) {
 
@@ -290,8 +292,10 @@ trait WithTheorems {
 
     val proof: BaseProof = new BaseProof(this)
     val innerThm: theory.Theorem = show(computeProof)
+    val withSorry = innerThm.withSorry
 
-    def repr: String = lisa.utils.FOLPrinter.prettySequent(goal)
+    def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(goal)
+    def repr: String = innerThm.repr
 
     def show(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {
