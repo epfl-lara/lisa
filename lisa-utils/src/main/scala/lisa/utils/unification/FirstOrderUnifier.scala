@@ -53,7 +53,7 @@ object FirstOrderUnifier {
             }
           }
         }
-        
+
         case (ConnectorFormula(l1, arg1), ConnectorFormula(l2, arg2)) if l1 == l2 => {
           if (arg1.length != arg2.length) None
           else (arg1 zip arg2).foldLeft(subst) { case (subs: FormulaSubstitution, (f: Formula, s: Formula)) => matchFormula(f, s, subs, vars) }
@@ -63,7 +63,9 @@ object FirstOrderUnifier {
           // if the label is the same, no issues, move on with term unification
           if (arg1.length != arg2.length) None
           else {
-            val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Substitution) { case (subs: Substitution, (f: Term, s: Term)) => matchTerm(f, s, subs, vars.filter(_.isInstanceOf[VariableLabel])) }
+            val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Substitution) { case (subs: Substitution, (f: Term, s: Term)) =>
+              matchTerm(f, s, subs, vars.map(_.collect { case v: VariableLabel => v }))
+            }
             if (termSubst.isDefined) Some(subst.get._1, termSubst.get)
             else None
           }

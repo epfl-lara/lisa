@@ -433,11 +433,11 @@ object UnificationUtils {
   //   formulaVars: Seq[(VariableFormulaLabel, (Formula, Formula), FormulaSubstitution)],
   //   termVars: Seq[(VariableLabel, (Term, Term), TermSubstitution)],
   //   body: Formula
-  // ) 
+  // )
 
   // def canRewriteList(l: Seq[(Formula, Formula)], ruleSet: RewriteSet) =
-  //     l.fold(Some(Seq[RewriteContext](), ruleSet)) { 
-  //       case (Some(seq, rSet), (f, s)) => 
+  //     l.fold(Some(Seq[RewriteContext](), ruleSet)) {
+  //       case (Some(seq, rSet), (f, s)) =>
   //         val can = canRewrite(f, s, rSet)
   //         can match {
   //           case Some((c, r)) => (seq :+ c, r)
@@ -447,8 +447,8 @@ object UnificationUtils {
   //     }
 
   // def canRewriteTermList(l: Seq[(Term, Term)], ruleSet: RewriteSet): Option[(RewriteContext)] =
-  //     l.fold(Some(Seq[RewriteContext](), ruleSet)) { 
-  //       case (Some(seq, rSet), (f, s)) => 
+  //     l.fold(Some(Seq[RewriteContext](), ruleSet)) {
+  //       case (Some(seq, rSet), (f, s)) =>
   //         val can = canRewrite(f, s, rSet)
   //         can match {
   //           case Some((c, r)) => (seq :+ c, r)
@@ -464,22 +464,22 @@ object UnificationUtils {
   //   lazy val replaceableVars = takenVars -- ruleSet.takenFormulaVars -- ruleSet.takenTermVars
   //   lazy val validSubst =
   //     ruleSet.confinedFormulaRules.collectFirst {
-  //       case (l, r) => 
+  //       case (l, r) =>
   //         val subst = matchFormula(RewriteConnector(l, r), RewriteConnector(first, second), vars = Some(replaceableVars))
   //         subst match {
-  //           case Some(s) => s 
+  //           case Some(s) => s
   //         }
   //     }
   //     .orElse (
   //       ruleSet.freeFormulaRules.collectFirst {
-  //       case (l, r) => 
+  //       case (l, r) =>
   //         val subst = matchFormula(RewriteConnector(l, r), RewriteConnector(first, second), vars = None)
   //         subst match {
   //           case Some(s) => s
   //         }
   //       }
   //     )
-    
+
   //   if (isSame(first, second))
   //     // done
   //     Some((RewriteContext(Seq(), Seq(), first), ruleSet))
@@ -498,7 +498,7 @@ object UnificationUtils {
   //             val argCan = canRewriteList(arg1 zip arg2)
 
   //             if (argCan.isEmpty) None
-  //             else 
+  //             else
   //               val newArgs = argCan.get._1
   //               val newRuleSet = argCan.get._2
   //               val intermediateContext = newArgs.reduce {
@@ -507,9 +507,9 @@ object UnificationUtils {
   //                 // can combine them blindly.
   //                 // This can generate redundant variables for the same rewrite
   //                 // rule, but the added proof checking is a lot less work than
-  //                 // checking for this and appropriately combining the 
+  //                 // checking for this and appropriately combining the
   //                 // variables.
-  //                 case (f, s) => 
+  //                 case (f, s) =>
   //                   RewriteContext(
   //                     formulaVars = f.formulaVars ++ s.formulaVars,
   //                     termVars = f.termVars ++ s.termVars,
@@ -519,7 +519,7 @@ object UnificationUtils {
   //               val newBody = ConnectorFormula(l1, newArgs.map(_.body))
   //               Some(
   //                 (
-  //                   intermediateContext.copy(body = newBody), 
+  //                   intermediateContext.copy(body = newBody),
   //                   newRuleSet
   //                 )
   //               )
@@ -538,12 +538,12 @@ object UnificationUtils {
   //             val innerRes = canRewrite(newInner1, newInner2, newRuleSet)
 
   //             if (innerRes.isEmpty) None
-  //             else 
+  //             else
   //               val newInner = innerRes.get._1
   //               val newRuleSet = innerRes.get._2
   //               Some(
   //                 (
-  //                   newInner.copy(body = BinderFormula(l1, newX, innerRes.body)), 
+  //                   newInner.copy(body = BinderFormula(l1, newX, innerRes.body)),
   //                   newRuleSet
   //                 )
   //               )
@@ -557,7 +557,7 @@ object UnificationUtils {
   //             val argCan = canRewriteTermList(arg1 zip arg2, ruleSet)
 
   //             if (argCan.isEmpty) None
-  //             else 
+  //             else
   //               val newArgs = argCan.get._1
   //               val newRuleSet = argCan.get._2
   //               val intermediateContext = newArgs.reduce {
@@ -566,9 +566,9 @@ object UnificationUtils {
   //                 // can combine them blindly.
   //                 // This can generate redundant variables for the same rewrite
   //                 // rule, but the added proof checking is a lot less work than
-  //                 // checking for this and appropriately combining the 
+  //                 // checking for this and appropriately combining the
   //                 // variables.
-  //                 case (f, s) => 
+  //                 case (f, s) =>
   //                   RewriteContext(
   //                     formulaVars = f.formulaVars ++ s.formulaVars,
   //                     termVars = f.termVars ++ s.termVars,
@@ -578,7 +578,7 @@ object UnificationUtils {
   //               val newBody = ConnectorFormula(l1, newArgs.map(_.body))
   //               Some(
   //                 (
-  //                   intermediateContext.copy(body = newBody), 
+  //                   intermediateContext.copy(body = newBody),
   //                   newRuleSet
   //                 )
   //               )
