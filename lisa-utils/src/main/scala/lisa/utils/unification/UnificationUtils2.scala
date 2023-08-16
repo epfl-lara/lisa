@@ -452,7 +452,7 @@ object UnificationUtils2 {
    */
   private def getContextRecursive(using context: RewriteContext)(first: Formula, second: Formula): Option[FormulaRewriteLambda] = {
     // check if there exists a substitution
-    val validSubstitution =
+    lazy val validSubstitution =
       context.confinedFormulaRules
         .collectFirst { case (l, r) =>
           val subst = canRewrite(using context)(first, second, (l, r))
@@ -473,7 +473,7 @@ object UnificationUtils2 {
           }
         }
 
-    if (first == second) Some(FormulaRewriteLambda(body = first))
+    if (isSame(first, second)) Some(FormulaRewriteLambda(body = first))
     else if (validSubstitution.isDefined) {
       val newVar = VariableFormulaLabel(context.freshIdentifier)
       val body = PredicateFormula(newVar, Seq.empty) // newVar()
