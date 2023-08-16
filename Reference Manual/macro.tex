@@ -1,12 +1,14 @@
 % macro.tex
 
 \usepackage[utf8]{inputenc}
+\usepackage{url}
+\usepackage{graphicx}
 \usepackage[english]{babel}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
-\usepackage{listings}
 \usepackage{amsthm}
+\usepackage{listings}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{csquotes}
 \usepackage[strings]{underscore}
@@ -14,15 +16,17 @@
 \usepackage{bussproofs}
 \usepackage{makecell}
 \usepackage{subcaption}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{float}
+\usepackage{xspace}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{array}
 \sloppy % better (?) margin handling
 
 
 \newtheorem{thm}{Theorem}
 \newtheorem{lemma}{Lemma}
 \newtheorem{corollary}{Corollary}
-\theoremstyle{definition}
-\newtheorem{defin}{Definition}
-\newtheorem{ex}{Example}
 
 \newtheorem{axz}{}
 \renewcommand\theaxz{Z\arabic{axz}}
@@ -31,11 +35,14 @@
 \newtheorem{axtg}{}
 \renewcommand\theaxtg{TG\arabic{axtg}}
 
-\lstset{
-language=Scala,
-escapeinside={(*@}{@*)}
-}
+\theoremstyle{definition}
+\newtheorem{defin}{Definition}
+\newtheorem{ex}{Example}
 
+
+
+%Code
+%\usepackage[nomap]{FiraMono} 
 \usepackage{fontspec}
 \setmonofont[
   Contextuals={Alternate}
