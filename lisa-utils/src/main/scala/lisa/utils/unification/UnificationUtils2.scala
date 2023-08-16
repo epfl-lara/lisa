@@ -22,6 +22,12 @@ object UnificationUtils2 {
   ) {
     private var lastID: Identifier = freshId((takenFormulaVars ++ takenTermVars).map(_.id), "__rewriteVar__")
 
+    /**
+     * Generates a fresh identifier with an internal label `__rewriteVar__`.
+     * Mutates state.
+     *
+     * @return fresh identifier
+     */
     def freshIdentifier = {
       lastID = freshId(Seq(lastID), "__rewriteVar__")
       lastID
@@ -30,6 +36,12 @@ object UnificationUtils2 {
     def isFreeVariable(v: VariableLabel) = !takenTermVars.contains(v)
     def isFreeVariable(v: VariableFormulaLabel) = !takenFormulaVars.contains(v)
 
+    /**
+     * Update the last generated fresh ID to that of another context if it is
+     * larger, otherwise retain the previous value. Mutates state.
+     *
+     * @param other another context
+     */
     def updateTo(other: RewriteContext) =
       lastID = if (other.lastID.no > lastID.no) other.lastID else lastID
   }
@@ -38,17 +50,43 @@ object UnificationUtils2 {
     def empty = RewriteContext()
   }
 
+  // substitutions
+
   type TermSubstitution = Map[VariableLabel, Term]
   val TermSubstitution = Map // don't abuse pls O.o
 
   type FormulaSubstitution = Map[VariableFormulaLabel, Formula]
   val FormulaSubstitution = Map
 
+  /**
+   * Performs first-order matching for two terms. Returns a (most-general)
+   * substitution from variables to terms such that `first` substituted is equal
+   * to `second`, if one exists. Uses [[matchTermRecursive]] as the actual
+   * implementation.
+   *
+   * @param reference the reference term
+   * @param template the term to match
+   * @param takenTermVariables any variables in the template which cannot be
+   * substituted, i.e., treated as constant
+   * @return substitution (Option) from variables to terms. `None` iff a
+   * substitution does not exist.
+   */
   def matchTerm(reference: Term, template: Term, takenVariables: Iterator[VariableLabel] = Iterator.empty): Option[TermSubstitution] = {
     val context = RewriteContext(takenTermVars = takenVariables.toSet)
     matchTermRecursive(using context)(reference, template, TermSubstitution.empty)
   }
 
+  /**
+   * Implementation for matching terms. See [[matchTerm]] for the interface.
+   *
+   * @param context all information about restricted variables and fresh name
+   * generation state
+   * @param reference the reference terms
+   * @param template the terms to match
+   * @param termSubstitution currently accumulated susbtitutions to variables
+   * @return substitution (Option) from variables to terms. `None` if a
+   * substitution does not exist.
+   */
   private def matchTermRecursive(using context: RewriteContext)(reference: Term, template: Term, substitution: TermSubstitution): Option[TermSubstitution] =
     if (reference == template)
       Some(substitution)
@@ -71,6 +109,21 @@ object UnificationUtils2 {
             }
       }
 
+  /**
+   * Performs first-order matching for two formulas. Returns a (most-general)
+   * substitution from variables to terms such that `first` substituted is equal
+   * to `second`, if one exists. Uses [[matchFormulaRecursive]] as the actual
+   * implementation.
+   *
+   * @param reference the reference formula
+   * @param template the formula to match
+   * @param takenTermVariables any variables in the template which cannot be
+   * substituted, i.e., treated as constant
+   * @param takenFormulaVariable any formula variables in the template which
+   * cannot be substituted, i.e., treated as constant
+   * @return substitution pair (Option) from formula variables to formulas, and
+   * variables to terms. `None` if a substitution does not exist.
+   */
   def matchFormula(
       reference: Formula,
       template: Formula,
@@ -84,6 +137,18 @@ object UnificationUtils2 {
     matchFormulaRecursive(using context)(reference, template, FormulaSubstitution.empty, TermSubstitution.empty)
   }
 
+  /**
+   * Implementation for matching formulas. See [[matchFormula]] for the
+   * interface.
+   *
+   * @param context all information about restricted variables and fresh name generation state
+   * @param reference the reference formula
+   * @param template the formula to match
+   * @param formulaSubstitution currently accumulated susbtitutions to formula variables
+   * @param termSubstitution currently accumulated susbtitutions to term variables
+   * @return substitution pair (Option) from formula variables to formulas, and
+   * variables to terms. `None` if a substitution does not exist.
+   */
   private def matchFormulaRecursive(using
       context: RewriteContext
   )(reference: Formula, template: Formula, formulaSubstitution: FormulaSubstitution, termSubstitution: TermSubstitution): Option[(FormulaSubstitution, TermSubstitution)] = {
@@ -151,15 +216,62 @@ object UnificationUtils2 {
       }
   }
 
+  // rewrites
+
+  /**
+   * A term rewrite rule (`l -> r`) with an accompanying instantiation, given
+   * by a term substitution.
+   *
+   * @example A rule without any instantiation would be `((l -> r),
+   * TermSubstitution.empty)`.
+   * @example Commutativity of a function with instantiation can be `((f(x, y)
+   * -> f(y, x)), Map(x -> pair(a, b), y -> c))`
+   */
   type TermRule = ((Term, Term), TermSubstitution)
+
+  /**
+   * A formula rewrite rule (`l -> r`) with an accompanying instantiation,
+   * given by a formula and a term substitution.
+   *
+   * @example A rule without any instantiation would be `((l -> r),
+   * FormulaSubstitution.empty)`.
+   * @example `((P(x) \/ Q -> Q /\ R(x)), Map(Q -> A \/ B, x -> f(t)))`
+   */
   type FormulaRule = ((Formula, Formula), (FormulaSubstitution, TermSubstitution))
 
+  /**
+   * A lambda representing a term, with inputs as terms. Carries extra
+   * information about rewrite rules used in its construction for proof
+   * geenration later.
+   *
+   * @param termVars variables in the body to be treated as parameters closed
+   * under this function
+   * @param termRules mapping to the rules (with instantiations) used to
+   * construct this function; used for proof construction
+   * @param body the body of the function
+   */
   case class TermRewriteLambda(
       termVars: Seq[VariableLabel] = Seq.empty,
       termRules: Map[VariableLabel, TermRule] = Map.empty,
       body: Term
   ) {}
 
+  /**
+   * A lambda representing a formula, with inputs as terms or formulas. Carries
+   * extra information about rewrite rules used in its construction for proof
+   * geenration later.
+   *
+   * @param termVars variables in the body to be treated as parameters closed
+   * under this function
+   * @param formulaVars formula variables in the body to be treated as
+   * parameters closed under this function
+   * @param termRules mapping to the term rewrite rules (with instantiations)
+   * used to construct this function; used for proof construction
+   * @param formulaRules mapping to the formula rewrite rules (with
+   * instantiations) used to construct this function; used for proof
+   * construction
+   * @param body the body of the function
+   */
   case class FormulaRewriteLambda(
       termVars: Seq[VariableLabel] = Seq.empty,
       formulaVars: Seq[VariableFormulaLabel] = Seq.empty,
@@ -178,12 +290,37 @@ object UnificationUtils2 {
    */
   val termRewriteConnector = ConstantFunctionLabel(Identifier("__rewritesTo__"), 2)
 
+  /**
+   * Decides whether a term `first` be rewritten into `second` at the top level
+   * using the provided rewrite rule (with instantiation).
+   *
+   * Reduces to matching using [[matchTermRecursive]].
+   */
   private def canRewrite(using context: RewriteContext)(first: Term, second: Term, rule: (Term, Term)): Option[TermSubstitution] =
     matchTermRecursive(termRewriteConnector(first, second), termRewriteConnector(rule._1, rule._2), TermSubstitution.empty)
 
+  /**
+   * Decides whether a formula `first` be rewritten into `second` at the top
+   * level using the provided rewrite rule (with instantiation). Produces the
+   * instantiation as output, if one exists.
+   *
+   * Reduces to matching using [[matchFormulaRecursive]].
+   */
   private def canRewrite(using context: RewriteContext)(first: Formula, second: Formula, rule: (Formula, Formula)): Option[(FormulaSubstitution, TermSubstitution)] =
     matchFormulaRecursive(formulaRewriteConnector(first, second), formulaRewriteConnector(rule._1, rule._2), FormulaSubstitution.empty, TermSubstitution.empty)
 
+  /**
+   * Decides whether a term `first` can be rewritten into another term `second`
+   * under the given rewrite rules and restrictions.
+   *
+   * Calls [[getContextRecursive]] as its actual implementation.
+   *
+   * @param first source term
+   * @param second destination term
+   * @param freeTermRules rewrite rules with unrestricted instantiations
+   * @param confinedTermRules rewrite rules with restricted instantiations wrt takenTermVariables
+   * @param takenTermVariables variables to *not* instantiate, i.e., treat as constant, for confined rules
+   */
   def getContextTerm(
       first: Term,
       second: Term,
@@ -199,6 +336,13 @@ object UnificationUtils2 {
     getContextRecursive(using context)(first, second)
   }
 
+  /**
+   * Inner implementation for [[getContextTerm]].
+   *
+   * @param context all information about rewrite rules and allowed instantiations
+   * @param first source term
+   * @param second destination term
+   */
   private def getContextRecursive(using context: RewriteContext)(first: Term, second: Term): Option[TermRewriteLambda] = {
     // check if there exists a substitution
     val validSubstitution =
@@ -258,6 +402,26 @@ object UnificationUtils2 {
     }
   }
 
+  /**
+   * Decides whether a formula `first` can be rewritten into another formula
+   * `second` under the given rewrite rules and restrictions.
+   *
+   * Calls [[getContextRecursive]] as its actual implementation.
+   *
+   * @param first source formula
+   * @param second destination formula
+   * @param freeTermRules term rewrite rules with unrestricted instantiations
+   * @param freeFormulaRules formula rewrite rules with unrestricted
+   * instantiations
+   * @param confinedTermRules term rewrite rules with restricted instantiations
+   * wrt takenTermVariables
+   * @param confinedTermRules formula rewrite rules with restricted
+   * instantiations wrt takenTermVariables
+   * @param takenTermVariables term variables to *not* instantiate, i.e., treat
+   * as constant, for confined rules
+   * @param takenFormulaVariables formula variables to *not* instantiate, i.e.,
+   * treat as constant, for confined rules
+   */
   def getContextFormula(
       first: Formula,
       second: Formula,
@@ -279,6 +443,13 @@ object UnificationUtils2 {
     getContextRecursive(using context)(first, second)
   }
 
+  /**
+   * Inner implementation for [[getContextFormula]].
+   *
+   * @param context all information about rewrite rules and allowed instantiations
+   * @param first source formula
+   * @param second destination formula
+   */
   private def getContextRecursive(using context: RewriteContext)(first: Formula, second: Formula): Option[FormulaRewriteLambda] = {
     // check if there exists a substitution
     val validSubstitution =
