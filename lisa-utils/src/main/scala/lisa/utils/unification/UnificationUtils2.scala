@@ -345,7 +345,7 @@ object UnificationUtils2 {
    */
   private def getContextRecursive(using context: RewriteContext)(first: Term, second: Term): Option[TermRewriteLambda] = {
     // check if there exists a substitution
-    val validSubstitution =
+    lazy val validSubstitution =
       context.confinedTermRules
         .collectFirst { case (l, r) =>
           val subst = canRewrite(using context)(first, second, (l, r))
