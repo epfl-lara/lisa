@@ -23,3 +23,29 @@
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
+@article{Guilloud:297701,
+      title = {Formula Normalizations in Verification},
+      author = {Guilloud, Simon and Bucev, Mario and Milovancevic, Dragana  and Kuncak, Viktor},
+      pages = {18},
+      year = {2023},
+      abstract = {We propose a new approach for normalization and  simplification of logical formulas. Our approach is based  on algorithms for lattice-like structures. Specifically, we  present two efficient algorithms for computing a normal  form and deciding the word problem for two subtheories of  Boolean algebra, giving a sound procedure for propositional  logical equivalence that is incomplete in general but  complete with respect to a subset of Boolean algebra  axioms. We first show a new algorithm to produce a normal  form for expressions in the theory of ortholattices (OL) in  time O(n^2). We also consider an algorithm, recently  presented but never evaluated in practice, producing a  normal form for a slightly weaker theory, orthocomplemented  bisemilattices (OCBSL), in time O(n log(n)^2). For both  algorithms, we present an implementation and show  efficiency in two domains. First, we evaluate the  algorithms on large propositional expressions, specifically  combinatorial circuits from a benchmark suite, as well as  on large random formulas. Second, we implement and evaluate  the algorithms in the Stainless verifier, a tool for  verifying the correctness of Scala programs. We used these  algorithms as a basis for a new formula simplifier, which  is applied before valid verification conditions are saved  into a persistent cache. The results show that  normalization substantially increases cache hit ratio in  large benchmarks.},
+      url = {http://infoscience.epfl.ch/record/297701},
+}
+
+
+@article{Guilloud:300562,
+      title = {LISA – A Modern Proof System},
+      author = {Guilloud, Simon and Gambhir, Sankalp and Kuncak, Viktor},
+      pages = {16},
+      year = {2023},
+      abstract = {We present LISA, a proof system and proof assistant for  constructing proofs in schematic first-order logic and  axiomatic set theory.     The logical kernel of the system  is a proof checker for first-order logic with equality and  schematic predicate and function symbols.     It implements  polynomial-time proof checking and uses the axioms of  ortholattices (which implies the irrelevance of the order  of conjuncts and disjuncts and additional propositional  laws).     The kernel supports the notion of theorems  (whose proofs are not expanded), as well as definitions of  predicate symbols and objects whose unique existence is  proven.     A domain-specific language enables construction  of proofs and development of proof tactics with  user-friendly tools and presentation, while remaining  within the general-purpose language, Scala.     We describe  the LISA proof system and illustrate the flavour and the  level of abstraction of proofs written in LISA. This  includes a proof-generating tactic for propositional  tautologies, leveraging the ortholattice properties to  reduce the size of proofs. We also present early  formalization of set theory in LISA, including Cantor's  theorem.},
+      url = {http://infoscience.epfl.ch/record/300562},
+}
+
+@techreport{paulson1993isabelle,
+  title={The Isabelle reference manual},
+  author={Paulson, Lawrence C and others},
+  year={1993},
+  institution={University of Cambridge, Computer Laboratory}
+}
+
