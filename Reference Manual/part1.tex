@@ -20,25 +20,27 @@ Interestingly, while LISA is built with the goal of using Set Theory, the kernel
 \label{sect:FOL}
 \subsection{Syntax}
 \begin{defin}[Terms]
-In LISA, the set of terms $\mathcal{T}$ is defined by the following grammar:
-\begin{equation}
-\begin{split}
-\mathcal{T} := & \mathcal{L}_{Term}(\List[\mathcal{T}])
-\end{split}
-\end{equation}\\
-Where $\mathcal{L}_{Term}$ is the set of \textit{term labels}:
-\begin{equation}
-\begin{split}
-\mathcal{L}_{Term} := & \operatorname{ConstantTermLabel}(\textnormal{Id}, \textnormal{Arity})\\
-              \mid & \operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity})
-\end{split}
-\end{equation}
+  In LISA, the set of terms $\mathcal{T}$ is defined by the following grammar:
+  \begin{align}
+    \mathcal{T} := & \mathcal{L}_{Term}(\List[\mathcal{T}])~,
+  \end{align}
+  %
+  where $\mathcal{L}_{Term}$ is the set of \textit{term labels}:
+  %
+  \begin{align}
+    \mathcal{L}_{Term} := & ~\operatorname{ConstantTermLabel}(\textnormal{Id}, \textnormal{Arity})  \\
+    \mid                  & ~\operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity})
+  \end{align}
 
-A label can be either \textit{constant} or \textit{schematic}, and is made of an identifier (a string) and the arity of the label (an integer). 
-A term is made of a term label and a list of children, whose length must be equal to the arity of the label.
-A constant label of arity $0$ is sometimes called just a constant, and a schematic label of arity $0$ a variable. We define the shortcut $$\Var(x) \equiv \operatorname{SchematicTermLabel}(x, 0)$$
+  A label can be either \textit{constant} or \textit{schematic}, and is made of an identifier (a string) and the arity of the label (an integer).
+  A term is made of a term label and a list of children, whose length must be equal to the arity of the label.
+  A constant label of arity $0$ is called a \emph{constant}, and a schematic label of arity $0$ a \emph{variable}.
+  We define the abbreviation
+  %
+  $$
+    \Var(x) \equiv \operatorname{SchematicTermLabel}(x, 0)~.
+  $$
 \end{defin}
-
 
 As the definition states, we have two kinds of function symbols: \textit{Constant} ones and \textit{Schematic} ones. Constant labels represent a fixed function symbol in some language, for example the addition ``+'' in Peano arithmetic.
 
@@ -46,95 +48,118 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
 
 
 \begin{defin}[Formulas]
-The set of Formulas $\mathcal{F}$ is defined similarly:
-\begin{equation}
-\begin{split}
-\mathcal{F} := & \mathcal{L}_{Predicate}(\List[\mathcal{T}]) \\
-              \mid & \mathcal{L}_{Connector}(\List[\mathcal{F}]) \\
-              \mid & \operatorname{Binder}(\textnormal{Id})(\Var(\textnormal{Id}), \mathcal{F})
-\end{split}
-\end{equation}
-Where $\mathcal{L}_{Predicate}$ is the set of \textit{predicate labels}:
-\begin{equation}
-\begin{split}
-\mathcal{L}_{Predicate} := & \operatorname{ConstantPredicateLabel}(\textnormal{Id}, \textnormal{Arity})\\
-              \mid & \operatorname{SchematicPredicateLabel}(\textnormal{Id}, \textnormal{Arity})
-\end{split}
-\end{equation}
+  The set of Formulas $\mathcal{F}$ is defined similarly:
+  %
+  \begin{align}
+    \mathcal{F} := & ~\mathcal{L}_{Predicate}(\List[\mathcal{T}])                                  \\
+    \mid           & ~\mathcal{L}_{Connector}(\List[\mathcal{F}])                                  \\
+    \mid           & ~\operatorname{Binder}(\textnormal{Id})(\Var(\textnormal{Id}), \mathcal{F})~,
+  \end{align}
+  %
+  where $\mathcal{L}_{Predicate}$ is the set of \textit{predicate labels}:
+  %
+  \begin{align}
+    \mathcal{L}_{Predicate} := & ~\operatorname{ConstantPredicateLabel}(\textnormal{Id}, \textnormal{Arity})    \\
+    \mid                       & ~\operatorname{SchematicPredicateLabel}(\textnormal{Id}, \textnormal{Arity})~,
+  \end{align}
+  %
+  and $\mathcal{L}_{Connector}$ is the set of \textit{connector labels}:
+  %
+  \begin{align}
+    \mathcal{L}_{Connector} := & ~\operatorname{ConstantConnectorLabel}(\textnormal{Id}, \textnormal{Arity})    \\
+    \mid                       & ~\operatorname{SchematicConnectorLabel}(\textnormal{Id}, \textnormal{Arity})~.
+  \end{align}
 
-and $\mathcal{L}_{Connector}$ is the set of \textit{connector labels}:
-\begin{equation}
-\begin{split}
-\mathcal{L}_{Connector} := & \operatorname{ConstantConnectorLabel}(\textnormal{Id}, \textnormal{Arity})\\
-              \mid & \operatorname{SchematicConnectorLabel}(\textnormal{Id}, \textnormal{Arity})
-\end{split}
-\end{equation}
+  A formula can be constructed from a list of terms using a predicate label
+  %
+  $$
+    {\leq}(x, 7)~,
+  $$
+  %
+  or from a list of smaller formulas using a connector label
+  %
+  $$
+    {\leq}(x, 7) \land {\geq}(x, 5)~,
+  $$
+  %
+  or finally from a variable and a smaller formula using a binder
+  %
+  $$
+    \exists x. \left({\leq}(x, 7) \land {\geq}(x, 5)\right)~.
+  $$
 
-A formula can be constructed from a list of terms using a predicate label
-$${\leq}(x, 7)$$
-or from a list of smaller formulas using a connector label
-$${\leq}(x, 7) \land {\geq}(x, 5)$$
-or finally from a variable and a smaller formula using a binder
-$$\exists x. \left({\leq}(x, 7) \land {\geq}(x, 5)\right)$$
-
-Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they take and hence connectors and predicates of arity 0 are the same thing. Hence, in LISA, we don't permit connectors of arity 0 and ask to use predicates instead.
-A contrario to schematic terms of arity 0, schematic predicates of arity 0 can't be bound, but they still play a special role sometimes, and hence we introduce a special notation for them
-$$
-\FormulaVar(\textnormal{Id}) = \operatorname{SchematicPredicateLabel}(\textnormal{Id}, 0)
-$$
-Moreover in LISA, A contrario to constant predicates and term symbols, which can be freely created, there is only the following finite set of constant connector symbols in LISA:
-$$
-\operatorname{Neg}(\neg, 1)\mid \operatorname{Implies}(\rightarrow, 2)\mid \operatorname{Iff}(\leftrightarrow, 2)\mid \operatorname{And}(\land, -1)\mid \operatorname{Or}(\lor, -1)
-$$
-Moreover, connectors (And and Or) are allowed to have an unrestricted arity, represented by the value $-1$. This means that a conjunction or a disjunction can have any finite number of children. 
-Similarly, there are only the following 3 binder labels:
-$$
-\operatorname{Forall}(\forall)\mid \operatorname{Exists}(\exists)\mid \operatorname{ExistsOne}(\exists !)
-$$
-We also introduce a special constant predicate symbol, equality:
-$$
-\operatorname{Equal}(=)
-$$
+  Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they take and hence connectors and predicates of arity 0 are essentially the same. Hence, in LISA, we don't permit connectors of arity 0 and suggest the use of predicates instead.
+  A contrario to schematic terms of arity 0, schematic predicates of arity 0 can't be bound, but they still play a special role sometimes, and hence we introduce a special notation for them
+  %
+  $$
+    \FormulaVar(\textnormal{Id}) = \operatorname{SchematicPredicateLabel}(\textnormal{Id}, 0)~.
+  $$
+  %
+  Moreover, in LISA, a contrario to constant predicates and term symbols, which can be freely created, there is only the following finite set of constant connector symbols in LISA:
+  %
+  $$
+    \operatorname{Neg}(\neg, 1)\mid \operatorname{Implies}(\rightarrow, 2)\mid \operatorname{Iff}(\leftrightarrow, 2)\mid \operatorname{And}(\land, -1)\mid \operatorname{Or}(\lor, -1)~,
+  $$
+  %
+  where the connectors And and Or are allowed to have an unrestricted arity, represented by the value $-1$. This means that a conjunction or a disjunction can have any finite number of children.
+  Similarly, there are only the following 3 binder labels:
+  %
+  $$
+    \operatorname{Forall}(\forall)\mid \operatorname{Exists}(\exists)\mid \operatorname{ExistsOne}(\exists !)~.
+  $$
+  %
+  We also introduce a special constant predicate symbol, equality:
+  %
+  $$
+    \operatorname{Equality}(=, 2)~.
+  $$
 \end{defin}
 
 
-In this document, as well as in the code documentation, we often write terms and formula in a more conventional way, generally hiding the arity of labels and representing the label with its identifier only, preceded by an interrogation mark ? if the symbol is schematic. When the arity is relevant, we write it with an superscript, for example:
+In this document, as well as in the code documentation, we often write terms and formula in a more conventional way, generally hiding the arity of labels and representing the label with its identifier only, preceded by an apostrophe (\texttt{`}) if the symbol is schematic. When the arity is relevant, we write it with an superscript, for example:
 
 $$
-f^3(x,y,z) \equiv \operatorname{Fun}(f, 3)(\List(\Var(x), \Var(y), \Var(z)))
+  f^3(x,y,z) \equiv \operatorname{Fun}(f, 3)(\List(\Var(x), \Var(y), \Var(z)))~,
 $$
 and
 $$
-\forall x. \phi \equiv \operatorname{Binder}(\forall, \Var(x), \phi)
+  \forall x. \phi \equiv \operatorname{Binder}(\forall, \Var(x), \phi)~.
 $$
 We also use other usual representations such as symbols in infix position, omitting parenthesis according to usual precedence rules, etc.
 
 Finally, note that we use subscript to emphasize that a variable is possibly free in a term or formula:
 
 $$
-t_{x,y,z}, \phi_{x,y,z}
+  t_{x,y,z}, ~\phi_{x,y,z}~.
 $$
 
+\paragraph{Convention} Throughout this document, and in the code base, we adopt the following conventions: We use $r$, $s$, $t$, $u$ to denote arbitrary terms, $a$, $b$, $c$ to denote constant term symbols of arity $0$ and $f$, $g$, $h$ to denote term symbols of non-0 arity. We precede those with an apostrophe, such as $`f$ to denote schematic symbols. We also use $`x$, $`y$, $`z$ to denote variables (schematic terms of order $0$).
 
-\paragraph{Convention} Throughout this document, and in the code base, we adopt the following conventions: We use $r$, $s$, $t$, $u$ to denote arbitrary terms, $a$, $b$, $c$ to denote constant term symbols of arity $0$ and $f$, $g$, $h$ to denote term symbols of arity non-$0$. We precede those with an interogation mark, such as $?f$ to denote schematic symbols. Moreover, we also use $x$, $y$, $z$ to denote variables (schematic terms of order $0$).
-
-For formulas, we use greek letters such as $\phi$, $\psi$, $\tau$ to denote arbitrary formula, $\nu$, $\mu$ to denote formula variables. We use capital letters like $P$, $Q$, $R$ to denote predicate symbols, preceding them similarly with an interrogation mark $?$ for schematic predicates. Schematic connectors are rarer, but when they appear, we precede them by 2 interrogation marks, for example $??c$. Sets or sequences of formula are denoted with capital greek letters $\Pi$, $\Sigma$, $\Gamma$, $\Delta$, etc.
+For formulas, we use greek letters such as $\phi$, $\psi$, $\tau$ to denote arbitrary formulas, $\nu$, $\mu$ to denote formula variables. We use capital letters like $P$, $Q$, $R$ to denote predicate symbols, preceding them similarly with an apostrophe for schematic predicates. Schematic connectors are rarer, but when they appear, we precede them by 2 apostrophes, for example $``c$. Sets or sequences of formulas are denoted with capital greek letters $\Pi$, $\Sigma$, $\Gamma$, $\Delta$, etc.
 
 \subsection{Substitution}
-\label{subs:substitution}
+\label{subsec:substitution}
 On top of basic building blocks of terms and formulas, there is one important type of operations: substitution of schematic symbols, which has to be implemented in a capture-avoiding way. We start with the subcase of variable substitution:
 \begin{defin}[Capture-avoiding Substitution of variables]
-Given a base term $t$, a variable $x$ and another term $r$, the substitution of $x$ by $r$ inside $t$ is denoted $ t[r/x] $ and simply consists of replacing all occurences of $x$ by $r$.
+  Given a base term $t$, a variable $x$ and another term $r$, the substitution of $x$ by $r$ inside $t$ is denoted by $ t[r/x] $ and is computed by replacing all occurences of $x$ by $r$.
 
-Given a formula $\phi$, the substitution of $x$ by $r$ inside $\phi$ is defined recursively in the obvious way for connectors and predicates, and for binders as
-$$
-(\forall y. \psi)[r/x] \equiv \forall y. (\psi[r/x])
-$$
-if $y$ does not appear in $r$ and
-$$
-(\forall y. \psi)[r/x] \equiv \forall z. (\psi[z/y][r/x])
-$$
-with any fresh variable $z$ (which is not free in $r$ and $\phi$) otherwise.
+  Given a formula $\phi$, the substitution of $x$ by $r$ inside $\phi$ is defined recursively in the standard way for connectors and predicates
+  %
+  \begin{gather*}
+    (\phi \land \psi)[r/x] \equiv \phi[r/x] \land \psi[r/x]~,\\
+    `P(x_1, x_2, \ldots, x_n)[r/x] \equiv `P(x_1[r/x], x_2[r/x], \ldots, x_n[r/x])~,
+  \end{gather*}
+  %
+  and for binders as
+  %
+  $$
+    (\forall y. \psi)[r/x] \equiv \forall y. (\psi[r/x])
+  $$
+  if $y$ does not appear in $r$, and
+  $$
+    (\forall y. \psi)[r/x] \equiv \forall z. (\psi[z/y][r/x])~,
+  $$
+  with any fresh variable $z$ (which is not free in $r$ and $\phi$) otherwise.
 \end{defin}
 
 
@@ -142,321 +167,390 @@ This definition of substitution is justified by the notion of alpha equivalence:
 
 We can now define \enquote{lambda terms}.
 \begin{defin}[Lambda Terms]
-A lambda term is a  meta expression (meaning that it is not part of FOL itself) consisting in a term with ``holes'' that can be filled by other terms. This is represented with specified variables as arguments, similar to lambda calculus. For example, for a functional term with two arguments, we write
+  A lambda term is a  meta expression (meaning that it is not part of FOL itself) consisting in a term with ``holes'' that can be filled by other terms. This is represented with specified variables as arguments, similar to lambda calculus. For example, for a functional term with two arguments, we write
 
-$$
-L = \Lambdaa(\Var(x), \Var(y))(t_{x,y})
-$$
-It comes with an instantiation operation: given terms $r$, $s$,
-$$L(r, s) = t[r/x, s/y]$$
+  $$
+    L = \Lambdaa(\Var(x), \Var(y))(t_{x,y})
+  $$
+  It comes with an instantiation operation: given terms $r$, $s$,
+  $$L(r, s) = t[r/x, s/y]$$
 \end{defin}
 Those expressions are a generalization of terms, and would be part of our logic if we used Higher Order Logic rather than First Order Logic. For conciseness and familiarity, in this document and in code documentation, we represent those expressions as lambda expressions:
 $$
-\lambda x.y. ~t
+  \lambda x.y. ~t
 $$
 
-They are useful because as variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such functional terms. As the definition of such substitution is rather convoluted to describe, we prefer to show examples and redirect the reader to the source code of LISA for a technical definition. \footnote{Note that in lambda calculus, this would simply be iterated beta-reduction.}
+They are useful as while variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such functional terms.
+% As the definition of such substitution is rather convoluted to describe, we prefer to show examples and redirect the reader to the source code of LISA for a technical definition. \footnote{Note that in lambda calculus, this would simply be iterated beta-reduction.}
+The substitution is defined in a manner similar to that of variable substitution with the base case
+%
+\begin{equation*}
+  `f(s_1, s_2, \ldots, s_n)[\lambda y_1.y_2.\ldots.y_n. t/`f] \equiv t[s_1/y_1][s_2/y_2][\ldots][s_n/y_n]~,
+\end{equation*}
+%
+where no $y_i$ is free in any $s_j$. Otherwise, the lambda term is renamed to an alpha-equivalent term with fresh variable names.
 
 \begin{ex}[Functional terms substitution in terms]
-\begin{center}
-\begin{tabular}{|c|r c l|c|}
-\hline
-Base term & \multicolumn{3}{c|}{Substitution} & Result \\
-\hline
-$?f(0, 3)$ & $?f$ & $\rightarrow$ & $\lambda x.y. x+y$ & $0+3$\\ 
-$?f(0, 3)$ & $?f$ & $\rightarrow$ & $\lambda y.x. x-y$ & $3-0$\\ 
-$?f(0, 3)$ & $?f$ & $\rightarrow$ & $\lambda x.y. y+y-10$ & $3+3-10$\\ 
-$10 \times {?g(x)}$ & $?g$ & $\rightarrow$ & $\lambda x. x^2$ & $10 \times x^2$\\
-$10 \times {?g(50)}$ & $?g$ & $\rightarrow$ & $\lambda x. ?f(x+2, z)$ & $10 \times {?f(50+2, z)}$\\
-$?f(x, x+y)$ & $?f$ & $\rightarrow$ & $\lambda x.y. \cos(x-y)*y$ & $\cos(x-(x+y))*(x+y)$\\
-\hline
-\end{tabular}
-\end{center}
+  \begin{center}
+    \begin{tabular}{|c|r c l|c|}
+      \noalign{\vspace{0.5em}}
+      \hline
+      Base term            & \multicolumn{3}{c|}{Substitution} & Result                                                                 \\
+      \hline
+      $`f(0, 3)$           & $`f$                              & $\rightarrow$ & $\lambda x.y. x+y$         & $0+3$                     \\
+      $`f(0, 3)$           & $`f$                              & $\rightarrow$ & $\lambda y.x. x-y$         & $3-0$                     \\
+      $`f(0, 3)$           & $`f$                              & $\rightarrow$ & $\lambda x.y. y+y-10$      & $3+3-10$                  \\
+      $10 \times {`g(x)}$  & $`g$                              & $\rightarrow$ & $\lambda x. x^2$           & $10 \times x^2$           \\
+      $10 \times {`g(50)}$ & $`g$                              & $\rightarrow$ & $\lambda x. `f(x+2, z)$    & $10 \times {`f(50+2, z)}$ \\
+      $`f(x, x+y)$         & $`f$                              & $\rightarrow$ & $\lambda x.y. \cos(x-y)*y$ & $\cos(x-(x+y))*(x+y)$     \\
+      \hline
+    \end{tabular}
+  \end{center}
 \end{ex}
 
 
 The definition extends to substitution of schematic terms inside formulas, with capture free substitution for bound variables. For example:
 
 \begin{ex}[Functional terms substitution in formulas]
-\begin{center}
-\begin{tabular}{|c|r c l|c|}
-\hline
-Base formula & \multicolumn{3}{c|}{Substitution} & Result \\
-\hline
-$?f(0, 3) = ?f(x, x)$ & $?f$ & $\rightarrow$ & $\lambda x.y. x+y$ & $0+3 = x+x$\\ 
-$\forall x. ?f(0, 3) = ?f(x, x)$ & $?f$ & $\rightarrow$ & $\lambda x.y. x+y$ & $\forall x. 0+3 = x+x$\\ 
+  \begin{center}
+    \begin{tabular}{|c|r c l|c|}
+      \noalign{\vspace{0.5em}}
+      \hline
+      Base formula                     & \multicolumn{3}{c|}{Substitution} & Result                                                             \\
+      \hline
+      $`f(0, 3) = `f(x, x)$            & $`f$                              & $\rightarrow$ & $\lambda x.y. x+y$ & $0+3 = x+x$                   \\
+      $\forall x. `f(0, 3) = `f(x, x)$ & $`f$                              & $\rightarrow$ & $\lambda x.y. x+y$ & $\forall x. 0+3 = x+x$        \\
 
-$\exists y. ?f(y) \leq ?f(5)$ & $?f$ & $\rightarrow$ & $\lambda x. x+y$ & $\exists y_1. y_1+y \leq 5+y$\\
+      $\exists y. `f(y) \leq `f(5)$    & $`f$                              & $\rightarrow$ & $\lambda x. x+y$   & $\exists y_1. y_1+y \leq 5+y$ \\
 
-\hline
-\end{tabular}
-\end{center}
+      \hline
+    \end{tabular}
+  \end{center}
 \end{ex}
-Note that if the lambda expression contains free variables (such as $y$ in the last example), then appropriate alpha-renaming of variables may be needed.
 
+Note that if the lambda expression contains free variables (such as $y$ in the last example), then appropriate alpha-renaming of bound variables may be needed.
 
 We similarly define functional formulas, except that these can take either term arguments of formulas arguments. Specifically, we use $\LambdaTT$, $\LambdaTF$, $\LambdaFF$ to indicate functional expressions that take terms or formulas as arguments and return a term or formula.
 
+% TODO: Fix this table's hbox
 \begin{ex}[Typical functional expressions]
-\begin{center}
-\begin{tabular}{|r c l|}
-\hline
-$\LambdaTT(Var(x), Var(y))(x+y)$ & $=$ & $\lambda x.y. x+y$ \\
-$\LambdaTF(Var(x), Var(y))(x=y)$ & $=$ & $\lambda x.y. x=y$ \\
-$\LambdaFF(\FormulaVar(\nu), \FormulaVar(\mu))$ & $=$ & $\lambda \nu.\mu. \nu \land \mu$ \\
-\hline
-\end{tabular}
-\end{center}
+  \begin{center}
+    \begin{tabular}{|r l|}
+      \hline
+      \rule{0em}{1.3em}
+      $\LambdaTT(Var(x), Var(y))(x+y)$                               & $=$ $\lambda x.y. x+y$               \\
+      $\LambdaTF(Var(x), Var(y))(x=y)$                               & $=$ $\lambda x.y. x=y$               \\
+      $\LambdaFF(\FormulaVar(\nu), \FormulaVar(\mu))(\nu \land \mu)$ & $=$ $\lambda \nu.\mu. \nu \land \mu$
+      \rule[-1em]{0em}{0em}                                                                                 \\
+      \hline
+    \end{tabular}
+  \end{center}
 
 \end{ex}
 
 Note that in the last case, we use $\FormulaVar$ to represent the arguments of the lambda formula. Substitution of functional formulas is completely analogous to (capture free!) substitution of functional terms.
 
-
-
-
 \subsection{The Equivalence Checker}
-\label{subs:equivalencechecker}
+\label{subsec:equivalencechecker}
 
-While proving theorems, trivial syntactical transformations such as $p\land q \equiv q\land p$ significantly increase the length of proofs, which is desirable neither for the user nor the machine. Moreover, the proof checker will very often have to check whether two formulas that appear in different sequents are the same. Hence, instead of using pure syntactical equality, LISA implements a powerful equivalence checker able to detect a class of equivalence-preserving logical transformations. As an example, two formulas $p\land q$ and $q\land p$ would be naturally treated as equivalent.
+While proving theorems, trivial syntactical transformations such as $p\land q \equiv q\land p$ significantly increase the length of proofs, which is desirable neither to the user nor the machine. Moreover, the proof checker will very often have to check whether two formulas that appear in different sequents are the same. Hence, instead of using pure syntactical equality, LISA implements a powerful equivalence checker able to detect a class of equivalence-preserving logical transformations. As an example, two formulas $p\land q$ and $q\land p$ would be naturally treated as equivalent.
 
 For soundness, the relation decided by the algorithm should be contained in the $\Longleftrightarrow$ ``if and only if'' relation of first order logic. It is well known that this relationship is in general undecidable however, and even the $\Longleftrightarrow$ relation for propositional logic is coNP-complete. So, for practicality, we need a relation that is efficiently computable.
 
-The decision procedure implemented in LISA takes time log-linear in the size of the formula, which means that it is only marginally slower than syntactic equality checking. It is based on an algorithm  that decides the word problem for Orthocomplemented Bisemilattices \cite{DBLP:conf/tacas/GuilloudK22}. Informally, the theory of Orthocomplemented Bisemilattices is the same as that of Propositional Logic, but without the distributivity law. Figure~\ref{tab:OCBSL} shows the axioms of this theory and the logical transformations LISA is able to automatically figure out.
+The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality checking, while simultaneously generating a normal form that can be returned.
+It is based on an algorithm that decides the word problem for Ortholattices \cite{Guilloud:297701}.
+Informally, the theory of Ortholattices is the same as that of Propositional Logic, but with a weaker absoprtion law instead of the distributivity law. \autoref{tab:ortholatticeLaws} shows the axioms of this theory and the logical transformations LISA is able to automatically compute.
 Moreover, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables.
+The Ortholattice algorithm, as mentioned before, also generates a normal form for formulas, and further induces a partial order $\leq_{OL}$ on formulas, which in this context is interpreted as logical implication ($\implies$). These properties are utilised to introduce OL-weakened proof steps and tactics, subsuming most propositional manipulation, see \autoref{subsec:tactics} for details.
+%
+A more detailed discussion of extension of ortholattices to first-order logic can be found in the technical report \cite{Guilloud:300562}.
 
 \begin{table}[bth]
-    \centering
-    \begin{tabular}{r c | r c}
-         L1: & $x \lor y = y \lor x$  & L1': & $x \land y = y \land x$ \\
-         L2: & $x \lor ( y \lor z) = (x \lor y) \lor z$  & L2': & $x \land ( y \land z) = (x \land y) \land z$ \\
-         L3: & $x \lor x = x$  & L3': & $x \land x = x$ \\
-         L4: & $x \lor 1 = 1$  & L4': & $x \land 0 = 0$ \\
-         L5: & $x \lor 0 = x$  & L5': & $x \land 1 = x$ \\
-         L6: & $\neg \neg x = x$  & L6': & same as L6  \\
-         L7: & $x \lor \neg x = 1$  & L7': & $x \land \neg x = 0$ \\
-         L8: & $\neg (x \lor y) = \neg x \land \neg y$  & L8': &  $\neg (x \land y) = \neg x \lor \neg y$ \\
-         L9: & $x \implies y = \neg x \lor y$  &  \\
-         L10: & $x \leftrightarrow y = (\neg x \lor y) \land (\neg y \lor x)  $ & \\
-         L11: & $\exists ! x. P = \exists y. \forall x. (x=y) \leftrightarrow P$ & \\
-    \end{tabular}
-    \
-
-    \caption{Laws LISA's equivalence checker automatically accounts for.
-    LISA's equivalence-checking algorithm is complete (and log-linear time) with respect to laws L1-L11 and L1'-L8'.}
-    \label{tab:OCBSL}
+  \centering
+  \begin{tabular}{r c @{\hskip 2em} | @{\hskip 2em} r c}
+    L1: & $x \lor y = y \lor x$                    & L1': & $x \land y = y \land x$                      \\
+    L2: & $x \lor ( y \lor z) = (x \lor y) \lor z$ & L2': & $x \land ( y \land z) = (x \land y) \land z$ \\
+    L3: & $x \lor x = x$                           & L3': & $x \land x = x$                              \\
+    L4: & $x \lor 1 = 1$                           & L4': & $x \land 0 = 0$                              \\
+    L5: & $x \lor 0 = x$                           & L5': & $x \land 1 = x$                              \\
+    L6: & $\neg \neg x = x$                        & L6': & same as L6                                   \\
+    L7: & $x \lor \neg x = 1$                      & L7': & $x \land \neg x = 0$                         \\
+    L8: & $\neg (x \lor y) = \neg x \land \neg y$  & L8': & $\neg (x \land y) = \neg x \lor \neg y$      \\
+    L9: & $x \lor (x \land y) = x$                 & L9': & $x \land (x \lor y) = x$                     \\
+  \end{tabular}
+  %
+  \caption{Laws of ortholattices, an algebraic theory with signature $(S, \land, \lor, 0, 1, \neg)$. \cite{Guilloud:297701}}
+  \label{tab:ortholatticeLaws}
 \end{table}
 
 
 \section{Proofs in Sequent Calculus}
 \label{sect:proofs_lk}
 \subsection{Sequent Calculus}
-\label{subs:lk}
+\label{subsec:lk}
 The deductive system used by LISA is an extended version of Gentzen's Sequent Calculus.
 \begin{defin}
-A \textbf{sequent} is a pair of (possibly empty) sets of formula, noted:
-$$\phi_1, \phi_2, ..., \phi_m \vdash \psi_1, \psi_2, ..., \psi_n$$
-The intended semantic of such a sequent is:
-\begin{equation}
-\label{eq:SequentSemantic}
-(\phi_1 \land \phi_2 \land ... \land \phi_m ) \implies (\psi_1 \lor \psi_2 \lor ... \lor \psi_n )
-\end{equation}
+  A \textbf{sequent} is a pair $(\Gamma, \Sigma)$ of (possibly empty) sets of formulas, noted:
+  $$\Gamma \vdash \Sigma$$
+  The intended semantic of such a sequent is:
+  %
+  \begin{equation*}
+    \label{eq:SequentSemantic}
+    \bigwedge \Gamma \implies \bigvee \Sigma~.
+  \end{equation*}
 
+  The sequent may also be written with the elements of the sets enumerated explicitly as
+  %
+  \begin{equation*}
+    \gamma_1, \gamma_2, \ldots, \gamma_n \vdash \sigma_1, \sigma_2, \ldots, \sigma_m~.
+  \end{equation*}
 \end{defin}
-A sequent $\phi \vdash \psi$ is logically but not conceptually equivalent to a sequent $\vdash \phi \rightarrow \psi$. The distinction is similar to the distinction between meta-implication and inner implication in Isabelle, for example. Typically, a theorem or a lemma should have its various assumptions on the left handside of the sequent and its single conclusion on the right. During proofs however, there may be multiple elements on the right side. \footnote{In a strict description of Sequent Calculus, this is in particular needed to make double negation elimination.}
+A sequent $\phi \vdash \psi$ is logically (but not conceptually) equivalent to a sequent $\vdash \phi \rightarrow \psi$. The distinction is similar to the distinction between meta-implication and inner implication in Isabelle \cite{paulson1993isabelle}, for example. Typically, a theorem or a lemma should have its various assumptions on the left-hand side of the sequent and a single conclusion on the right. During proofs however, there may be multiple elements on the right side. \footnote{In a strict description of Sequent Calculus, this is in particular needed to have double negation elimination.}
 
-A deduction rule, also called a proof step, has  (in general) between zero and two prerequisite sequents (which we call \textit{premises} of the rule) and one conclusion sequent, and possibly take some arguments that describe how the deduction rule is applied. The basic deduction rules used in LISA are shown in Figure~\ref{fig:deduct_rules_1}.
+Sequents are manipulated in a proof using \emph{deduction rules}. A deduction rule, also called a proof step, has zero or more prerequisite sequents (which we call \emph{premises} of the rule) and one conclusion sequent. The basic deduction rules used in LISA are shown in \autoref{fig:deduct_rules_1}.
+
+Since we work on first order logic with equality and accept axioms, there are also rules for equality reasoning, which include reflexivity of equality. Moreover, we include equal-for-equal and equivalent-for-equivalent substitutions in \autoref{fig:deduct_rules_2}. While those substitution rules are deduced steps, and hence could technically be omitted, simulating them can sometimes take a high number of steps, so they are included as base steps for efficiency.
+
+There are also some special proof steps used to organise proofs, shown in \autoref{fig:deduct_rules_3}.
+
+For proof checking, the kernel implementation of these proof steps explicitly take all required arguments, such as the formulas central to the manipulation. These are intended for internal use, and most arguments can be inferred and are automatically generated when writing proofs with the DSL (\autoref{subsec:dsl}). While user-developed deduced steps may also use the DSL, in cases where arguments are easily known, kernel steps retain their utility in that they may be directly emitted for efficiency, see \autoref{subsec:tacticDev} for discussion on this. The following is an example proof, that of Pierce's law, in sequent calculus, and its encoding utilizing kernel steps:
 
 
-Since we work on first order logic with equality and accept axioms, there are also rules for equality reasoning, which include reflexivity of equality. Moreover, we include equal-for-equal and equivalent-for-equivalent substitutions in Figure~\ref{fig:deduct_rules_2}. While those substitution rules are deduced steps, and hence could technically be omitted, simulating them can sometimes take a high number of steps, so they are included as base steps for efficiency. 
 
-There are also some special proof steps used to organise proofs, shown in Figure~\ref{fig:deduct_rules_3}.
+\begin{figure}[ht]
+  \centering
+  \begin{subfigure}{\linewidth}
+    \begin{align*}
+      0 & \texttt { Hypothesis}       & \quad \phi                     & \vdash \phi                                \\
+      1 & \texttt { Weakening}(0)     & \quad  \phi                    & \vdash \phi, \psi                          \\
+      2 & \texttt { RightImplies}(1)  & \quad                          & \vdash \phi, (\phi \to \psi)               \\
+      3 & \texttt { LeftImplies}(2,0) & \quad (\phi \to \psi) \to \phi & \vdash \phi                                \\
+      4 & \texttt { RightImplies}(3)  & \quad                          & \vdash ((\phi \to \psi) \to \phi) \to \phi
+    \end{align*}
+
+    \caption{The proof of Pierce's Law as a sequence of steps using classical Sequent Calculus rules.}
+    \label{fig:exampleProofLinear}
+
+  \end{subfigure}
+
+
+  \begin{subfigure}{\linewidth}
+    % TODO: I'm unsure about how to present this nicely
+    \begin{lstlisting}[language=scala, showspaces=true]
+val PierceLawProof = SCProof(IndexedSeq(
+  Hypothesis($\phi$ |- $\phi$, $\phi$),
+  Weakening($\phi$ |- ($\phi$, $\phi$), 0),
+  RightImplies(() |- ($\phi$, $\phi$ ==> $\phi$), 1, $\phi$, $\phi$)
+  LeftImplies(($\phi$ ==> $\phi$) ==> $\phi$ |- $\phi$, 2, 0, $\phi$ ==> $\phi$, $\phi$),
+  RightImplies(() |- (($\phi$ ==> $\phi$) ==> $\phi$) ==> $\phi$, 3, ($\phi$ ==> $\phi$) ==> $\phi$, $\phi$)
+), Seq.empty /* no imports */ )
+  \end{lstlisting}
+    \begin{lstlisting}[language=scala, showspaces=true]
+val PierceLawProof = SCProof(IndexedSeq(
+    Hypothesis( 
+                φ |- φ
+      , φ),
+    Weakening( 
+                φ |- ( φ, ψ )
+      , 0),
+    RightImplies(
+               () |- ( φ, φ ==> ψ )
+      , 1, φ, ψ)
+    LeftImplies(
+               ( φ ==> ψ ) ==> φ |- φ
+      , 2, 0, φ ==> ψ, φ),
+    RightImplies(
+               () |- (( φ ==> ψ ) ==> φ) ==> φ
+      , 3, ( φ ==> ψ ) ==> φ, φ)
+), Seq.empty /* no imports */ )
+    \end{lstlisting}
+    \caption{The proof from~\autoref{fig:exampleProofLinear} written for LISA's kernel. $\vdash$ and $\implies$ are alternative, nicer constructors for sequents and formulas and are not part of the kernel. The second argument (empty here) is the sequence of proof imports.}
+    \label{fig:ExampleProofLinearScala}
+  \end{subfigure}
+\end{figure}
 
 %Start of first set of deduction rules
 \begin{figure}
-\begin{center}
-\begin{tabular}{l l}
-\multicolumn{2}{c}{
-\AxiomC{}
-\RightLabel{\texttt { Hypothesis}}
-\UnaryInfC{$\Gamma, \phi \vdash \phi, \Delta$}
-\DisplayProof
-}\\[5ex]
-\multicolumn{2}{c}{
-\AxiomC{$\Gamma \vdash \phi, \Delta$}
-\AxiomC{$\Sigma, \phi \vdash \Pi$}
-\RightLabel{\texttt{ Cut}}
-\BinaryInfC{$\Gamma, \Sigma \vdash \Delta, \Pi$}
-\DisplayProof
-}\\[5ex]
-\AxiomC{$\Gamma, \phi \vdash \Delta$}
-\RightLabel{\texttt { LeftAnd}}
-\UnaryInfC{$\Gamma, \phi \land \psi \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \phi, \Delta$}
-\AxiomC{$\Sigma \vdash \psi, \Pi$}
-\RightLabel{\texttt{ RightAnd}}
-\BinaryInfC{$\Gamma, \Sigma \vdash \phi \land \psi,  \Delta, \Pi$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma, \phi \vdash \Delta$}
-\AxiomC{$\Sigma, \psi \vdash \Pi$}
-\RightLabel{\texttt{ LeftOr}}
-\BinaryInfC{$\Gamma, \Sigma, \phi\lor \psi \vdash \Delta, \Pi$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \phi, \Delta$}
-\RightLabel{\texttt{ RightOr}}
-\UnaryInfC{$\Gamma \vdash \phi \lor \psi,  \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma \vdash \phi, \Delta$}
-\AxiomC{$\Sigma, \psi \vdash \Pi$}
-\RightLabel{\texttt{ LeftImplies}}
-\BinaryInfC{$\Gamma, \Sigma, \phi\rightarrow \psi \vdash \Delta, \Pi$}
-\DisplayProof &
-\AxiomC{$\Gamma, \phi \vdash \psi, \Delta$}
-\RightLabel{\texttt{ RightImplies}}
-\UnaryInfC{$\Gamma \vdash \phi \rightarrow \psi,  \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma, \phi \rightarrow \psi \vdash \Delta$}
-\RightLabel{\texttt { LeftIff}}
-\UnaryInfC{$\Gamma, \phi \leftrightarrow \psi \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \phi \rightarrow \psi, \Delta$}
-\AxiomC{$\Sigma \vdash \psi \rightarrow \phi, \Pi$}
-\RightLabel{\texttt{ RightIff}}
-\BinaryInfC{$\Gamma, \Sigma \vdash \phi \leftrightarrow \psi,  \Delta, \Pi$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma \vdash \phi, \Delta$}
-\RightLabel{\texttt { LeftNot}}
-\UnaryInfC{$\Gamma, \neg \phi \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma, \phi \vdash \Delta$}
-\RightLabel{\texttt{ RightNot}}
-\UnaryInfC{$\Gamma \vdash \neg \phi ,  \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma, \phi[t/x] \vdash \Delta$}
-\RightLabel{\texttt { LeftForall}}
-\UnaryInfC{$\Gamma, \forall x. \phi  \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \phi, \Delta$}
-\RightLabel{\texttt { RightForall}}
-\UnaryInfC{$\Gamma \vdash \forall x. \phi,  \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma, \phi \vdash \Delta$}
-\RightLabel{\texttt { LeftExists}}
-\UnaryInfC{$\Gamma, \exists x. \phi \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \phi[t/x], \Delta$}
-\RightLabel{\texttt { RightExists}}
-\UnaryInfC{$\Gamma \vdash \exists x. \phi,  \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma, \exists y \forall x. (x=y) \leftrightarrow \phi \vdash \Delta$}
-\RightLabel{\texttt { LeftExistsOne}}
-\UnaryInfC{$\Gamma, \exists ! x. \phi \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \exists y \forall x. (x=y) \leftrightarrow \phi , \Delta$}
-\RightLabel{\texttt { RightExistsOne}}
-\UnaryInfC{$\Gamma \vdash \exists ! x. \phi, \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma \vdash \Delta$}
-\RightLabel{\texttt { LeftWeakening}}
-\UnaryInfC{$\Gamma, \Sigma \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \Delta$}
-\RightLabel{\texttt { RightWeakening}}
-\UnaryInfC{$\Gamma  \vdash \delta, \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma, t = t \vdash \Delta$}
-\RightLabel{\texttt { LeftRefl}}
-\UnaryInfC{$\Gamma \vdash \Delta$}
-\DisplayProof &
-\AxiomC{}
-\RightLabel{\texttt{ RightRefl}}
-\UnaryInfC{$\vdash t=t$}
-\DisplayProof
+  \begin{center}
+    \begin{tabular}{l l}
+      \multicolumn{2}{c}{
+        \AxiomC{}
+        \RightLabel{\texttt { Hypothesis}}
+        \UnaryInfC{$\Gamma, \phi \vdash \phi, \Delta$}
+        \DisplayProof
+      }               \\[5ex]
+      \multicolumn{2}{c}{
+        \AxiomC{$\Gamma \vdash \phi, \Delta$}
+        \AxiomC{$\Sigma, \phi \vdash \Pi$}
+        \RightLabel{\texttt{ Cut}}
+        \BinaryInfC{$\Gamma, \Sigma \vdash \Delta, \Pi$}
+        \DisplayProof
+      }               \\[5ex]
+      \AxiomC{$\Gamma, \phi \vdash \Delta$}
+      \RightLabel{\texttt { LeftAnd}}
+      \UnaryInfC{$\Gamma, \phi \land \psi \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \phi, \Delta$}
+      \AxiomC{$\Sigma \vdash \psi, \Pi$}
+      \RightLabel{\texttt{ RightAnd}}
+      \BinaryInfC{$\Gamma, \Sigma \vdash \phi \land \psi,  \Delta, \Pi$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma, \phi \vdash \Delta$}
+      \AxiomC{$\Sigma, \psi \vdash \Pi$}
+      \RightLabel{\texttt{ LeftOr}}
+      \BinaryInfC{$\Gamma, \Sigma, \phi\lor \psi \vdash \Delta, \Pi$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \phi, \Delta$}
+      \RightLabel{\texttt{ RightOr}}
+      \UnaryInfC{$\Gamma \vdash \phi \lor \psi,  \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma \vdash \phi, \Delta$}
+      \AxiomC{$\Sigma, \psi \vdash \Pi$}
+      \RightLabel{\texttt{ LeftImplies}}
+      \BinaryInfC{$\Gamma, \Sigma, \phi\rightarrow \psi \vdash \Delta, \Pi$}
+      \DisplayProof &
+      \AxiomC{$\Gamma, \phi \vdash \psi, \Delta$}
+      \RightLabel{\texttt{ RightImplies}}
+      \UnaryInfC{$\Gamma \vdash \phi \rightarrow \psi,  \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma, \phi \rightarrow \psi \vdash \Delta$}
+      \RightLabel{\texttt { LeftIff}}
+      \UnaryInfC{$\Gamma, \phi \leftrightarrow \psi \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \phi \rightarrow \psi, \Delta$}
+      \AxiomC{$\Sigma \vdash \psi \rightarrow \phi, \Pi$}
+      \RightLabel{\texttt{ RightIff}}
+      \BinaryInfC{$\Gamma, \Sigma \vdash \phi \leftrightarrow \psi,  \Delta, \Pi$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma \vdash \phi, \Delta$}
+      \RightLabel{\texttt { LeftNot}}
+      \UnaryInfC{$\Gamma, \neg \phi \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma, \phi \vdash \Delta$}
+      \RightLabel{\texttt{ RightNot}}
+      \UnaryInfC{$\Gamma \vdash \neg \phi ,  \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma, \phi[t/x] \vdash \Delta$}
+      \RightLabel{\texttt { LeftForall}}
+      \UnaryInfC{$\Gamma, \forall x. \phi  \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \phi, \Delta$}
+      \RightLabel{\texttt { RightForall}}
+      \UnaryInfC{$\Gamma \vdash \forall x. \phi,  \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma, \phi \vdash \Delta$}
+      \RightLabel{\texttt { LeftExists}}
+      \UnaryInfC{$\Gamma, \exists x. \phi \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \phi[t/x], \Delta$}
+      \RightLabel{\texttt { RightExists}}
+      \UnaryInfC{$\Gamma \vdash \exists x. \phi,  \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma, \exists y \forall x. (x=y) \leftrightarrow \phi \vdash \Delta$}
+      \RightLabel{\texttt { LeftExistsOne}}
+      \UnaryInfC{$\Gamma, \exists ! x. \phi \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \exists y \forall x. (x=y) \leftrightarrow \phi , \Delta$}
+      \RightLabel{\texttt { RightExistsOne}}
+      \UnaryInfC{$\Gamma \vdash \exists ! x. \phi, \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma \vdash \Delta$}
+      \RightLabel{\texttt { LeftWeakening}}
+      \UnaryInfC{$\Gamma, \Sigma \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \Delta$}
+      \RightLabel{\texttt { RightWeakening}}
+      \UnaryInfC{$\Gamma  \vdash \delta, \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma, t = t \vdash \Delta$}
+      \RightLabel{\texttt { LeftRefl}}
+      \UnaryInfC{$\Gamma \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{}
+      \RightLabel{\texttt{ RightRefl}}
+      \UnaryInfC{$\vdash t=t$}
+      \DisplayProof
+    \end{tabular}
+  \end{center}
 
-\end{tabular}
-\end{center}
-
-\caption{Strict set of deduction rules for sequent calculus.}
-\label{fig:deduct_rules_1}
+  \caption{Strict set of deduction rules for sequent calculus.}
+  \label{fig:deduct_rules_1}
 \end{figure}
 
 %Start of second set of deduction rules
 \begin{figure}
-\begin{center}
-\begin{tabular}{l l}
+  \begin{center}
+    \begin{tabular}{l l}
 
-\AxiomC{$\Gamma, \phi[s/?f] \vdash \Delta$}
-\RightLabel{\texttt{ LeftSubstEq}}
-\UnaryInfC{$\Gamma, s=t, \phi[t/?f] \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \phi[s/?f], \Delta$}
-\RightLabel{\texttt{ RightSubstEq}}
-\UnaryInfC{$\Gamma, s=t \vdash \phi[t/?f], \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma, \phi[a/?p] \vdash \Delta$}
-\RightLabel{\texttt{ LeftSubstIff}}
-\UnaryInfC{$\Gamma, a \leftrightarrow b, \phi[b/?p] \vdash \Delta$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \phi[a/?p], \Delta$}
-\RightLabel{\texttt{ RightSubstIff}}
-\UnaryInfC{$\Gamma, a \leftrightarrow b \vdash \phi[b/?p], \Delta$}
-\DisplayProof
-\\[5ex]
-\AxiomC{$\Gamma \vdash \Delta$}
-\RightLabel{\texttt{ InstPredSchema}}
-\UnaryInfC{$\Gamma[\psi(\vec{v})/?p] \vdash \Delta[\psi(\vec{v})/?p]$}
-\DisplayProof &
-\AxiomC{$\Gamma \vdash \Delta$}
-\RightLabel{\texttt{ InstFunSchema}}
-\UnaryInfC{$\Gamma[r(\vec{v})/?f]\vdash \Delta[r(\vec{v})/?f]$}
-\DisplayProof
-\\[5ex]
+      \AxiomC{$\Gamma, \phi[s/?f] \vdash \Delta$}
+      \RightLabel{\texttt{ LeftSubstEq}}
+      \UnaryInfC{$\Gamma, s=t, \phi[t/?f] \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \phi[s/?f], \Delta$}
+      \RightLabel{\texttt{ RightSubstEq}}
+      \UnaryInfC{$\Gamma, s=t \vdash \phi[t/?f], \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma, \phi[a/?p] \vdash \Delta$}
+      \RightLabel{\texttt{ LeftSubstIff}}
+      \UnaryInfC{$\Gamma, a \leftrightarrow b, \phi[b/?p] \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \phi[a/?p], \Delta$}
+      \RightLabel{\texttt{ RightSubstIff}}
+      \UnaryInfC{$\Gamma, a \leftrightarrow b \vdash \phi[b/?p], \Delta$}
+      \DisplayProof
+      \\[5ex]
+      \AxiomC{$\Gamma \vdash \Delta$}
+      \RightLabel{\texttt{ InstPredSchema}}
+      \UnaryInfC{$\Gamma[\psi(\vec{v})/?p] \vdash \Delta[\psi(\vec{v})/?p]$}
+      \DisplayProof &
+      \AxiomC{$\Gamma \vdash \Delta$}
+      \RightLabel{\texttt{ InstFunSchema}}
+      \UnaryInfC{$\Gamma[r(\vec{v})/?f]\vdash \Delta[r(\vec{v})/?f]$}
+      \DisplayProof
+      \\[5ex]
+    \end{tabular}
+  \end{center}
 
-\end{tabular}
-\end{center}
-
-\caption{Additional deduction rules for substitution and instantiation.}
-\label{fig:deduct_rules_2}
+  \caption{Additional deduction rules for substitution and instantiation.}
+  \label{fig:deduct_rules_2}
 \end{figure}
 
 %Start of third set of deduction rules
 \begin{figure}
-\begin{center}
-\begin{tabular}{l l}
+  \begin{center}
+    \begin{tabular}{l l}
 
-\\[5ex]
-\AxiomC{$\Gamma \vdash \Delta$}
-\RightLabel{\texttt{ Rewrite}}
-\UnaryInfC{$\Gamma \vdash \Delta$}
-\DisplayProof &
-\AxiomC{}
-\RightLabel{\texttt{ RewriteTrue}}
-\UnaryInfC{$\Gamma \vdash \Gamma$}
-\DisplayProof \\
-\multicolumn{2}{c}{
-\AxiomC{...}
-\AxiomC{...}
-\AxiomC{...}
-\RightLabel{\texttt{ Subproof}}
-\TrinaryInfC{$\Gamma \vdash \Delta$}
-\DisplayProof
-}
-
-\end{tabular}
-\end{center}
-\caption{Bonus and structural proof steps. Rewrite allows to deduce a sequent equivalent from a previous sequent by OCBSL laws and sequent interpretation. Subproof hide a part of a proof tree inside a single proof step.}
-\label{fig:deduct_rules_3}
+      \\[5ex]
+      \AxiomC{$\Gamma \vdash \Delta$}
+      \RightLabel{\texttt{ Rewrite}}
+      \UnaryInfC{$\Gamma \vdash \Delta$}
+      \DisplayProof &
+      \AxiomC{}
+      \RightLabel{\texttt{ RewriteTrue}}
+      \UnaryInfC{$\Gamma \vdash \Gamma$}
+      \DisplayProof   \\
+      \multicolumn{2}{c}{
+        \AxiomC{...}
+        \AxiomC{...}
+        \AxiomC{...}
+        \RightLabel{\texttt{ Subproof}}
+        \TrinaryInfC{$\Gamma \vdash \Delta$}
+        \DisplayProof
+      }
+    \end{tabular}
+  \end{center}
+  \caption{Bonus and structural proof steps. Rewrite allows to deduce a sequent equivalent from a previous sequent by OCBSL laws and sequent interpretation. Subproof hide a part of a proof tree inside a single proof step.}
+  \label{fig:deduct_rules_3}
 \end{figure}
 \newpage
 \subsection{Proofs}
@@ -464,25 +558,25 @@ There are also some special proof steps used to organise proofs, shown in Figure
 Proof steps can be composed into a directed acyclic graph. The root of the proof shows the conclusive statement, and the leaves are assumptions or tautologies (instances of the \texttt{Hypothesis} rule). Figure~\ref{fig:exampleProof} shows an example of a proof tree for Pierce's Law in strict Sequent Calculus.
 
 \begin{figure}
-    \centering
-\AxiomC{}
-\RightLabel{\texttt { Hypothesis}}
-\UnaryInfC{$\phi \vdash \phi$}
-\RightLabel{\texttt { RightWeakening}}
-\UnaryInfC{$\phi \vdash \phi, \psi$}
-\RightLabel{\texttt { RightImplies}}
-\UnaryInfC{$\vdash \phi, (\phi \to \psi)$}
-\AxiomC{}
-\RightLabel{\texttt { Hypothesis}}
-\UnaryInfC{$\phi \vdash \phi$}
-\RightLabel{\texttt { LeftImplies}}
-\BinaryInfC{$(\phi \to \psi) \to \phi \vdash \phi$}
-\RightLabel{\texttt { RightImplies}}
-\UnaryInfC{$ \vdash ((\phi \to \psi) \to \phi) \to \phi$}
-\DisplayProof
+  \centering
+  \AxiomC{}
+  \RightLabel{\texttt { Hypothesis}}
+  \UnaryInfC{$\phi \vdash \phi$}
+  \RightLabel{\texttt { RightWeakening}}
+  \UnaryInfC{$\phi \vdash \phi, \psi$}
+  \RightLabel{\texttt { RightImplies}}
+  \UnaryInfC{$\vdash \phi, (\phi \to \psi)$}
+  \AxiomC{}
+  \RightLabel{\texttt { Hypothesis}}
+  \UnaryInfC{$\phi \vdash \phi$}
+  \RightLabel{\texttt { LeftImplies}}
+  \BinaryInfC{$(\phi \to \psi) \to \phi \vdash \phi$}
+  \RightLabel{\texttt { RightImplies}}
+  \UnaryInfC{$ \vdash ((\phi \to \psi) \to \phi) \to \phi$}
+  \DisplayProof
 
-\caption{A proof of Pierce's law in Sequent Calculus. The bottommost sequent (root) is the conclusion.}
-\label{fig:exampleProof}
+  \caption{A proof of Pierce's law in Sequent Calculus. The bottommost sequent (root) is the conclusion.}
+  \label{fig:exampleProof}
 \end{figure}
 
 In the Kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof.
@@ -491,49 +585,53 @@ Moreover, proofs are conditional: they can carry an explicit set of assumed sequ
 
 Formally, a proof is a pair made of a list of proof steps and a list of sequents:
 $$
-\lstinline{Proof(steps:List[ProofStep], imports:List[Sequent])}
+  \text{\lstinline{Proof(steps:List[ProofStep], imports:List[Sequent])}}
 $$
 We call the bottommost sequent of the last proof step of the proof the ``conclusion'' of the proof.
 For the proof to be the linearization of a rooted directed acyclic graph, we require that proof steps must only refer to numbers smaller then their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list. The linearization of our proof of Pierce's Law is shown in Figure~\ref{fig:exampleProofLinear}.
 
 \begin{figure}
 
-\begin{equation}
-\begin{split}
-0 &\texttt { Hypothesis} \quad \phi \vdash \phi\\
-1 &\texttt { RightWeakening}(0) \quad  \phi \vdash \phi, \psi\\
-2 &\texttt { RightImplies}(1) \quad  \vdash \phi, (\phi \to \psi)\\
-3 &\texttt { Hypothesis} \quad \phi \vdash \phi\\
-4 &\texttt { LeftImplies}(2,3) \quad (\phi \to \psi) \to \phi \vdash \phi\\
-5 &\texttt { RightImplies}(4) \quad \vdash ((\phi \to \psi) \to \phi) \to \phi
-\end{split}
-\end{equation}
-    \caption{Linearization of the proof of Pierce's Law as represented in LISA.}
-    \label{fig:exampleProofLinear}
+  \begin{equation}
+    \begin{split}
+      0 &\texttt { Hypothesis} \quad \phi \vdash \phi\\
+      1 &\texttt { RightWeakening}(0) \quad  \phi \vdash \phi, \psi\\
+      2 &\texttt { RightImplies}(1) \quad  \vdash \phi, (\phi \to \psi)\\
+      3 &\texttt { Hypothesis} \quad \phi \vdash \phi\\
+      4 &\texttt { LeftImplies}(2,3) \quad (\phi \to \psi) \to \phi \vdash \phi\\
+      5 &\texttt { RightImplies}(4) \quad \vdash ((\phi \to \psi) \to \phi) \to \phi
+    \end{split}
+  \end{equation}
+  \caption{Linearization of the proof of Pierce's Law as represented in LISA.}
+  \label{fig:exampleProofLinear}
 \end{figure}
 
 \subsection{Proof Checker}
-\label{subs:proofchecker}
+\label{subsec:proofchecker}
 
 In LISA, a proof object has no guarantee to be correct. It is perfectly possible to write a wrong proof. LISA contains a \textit{proof checking} function, which, given a proof, will verify if it is correct. To be correct, a proof must satisfy the following conditions:
 \begin{enumerate}
-    \item No proof step must refer to itself or a posterior proof step as a premise.
-    \item Every proof step must be correctly constructed, with the bottom sequent correctly following from the premises by the type of the proof step and its arguments.
+  \item No proof step must refer to itself or a posterior proof step as a premise.
+  \item Every proof step must be correctly constructed, with the bottom sequent correctly following from the premises by the type of the proof step and its arguments.
 \end{enumerate}
 
 
 Given some proof $p$, the proof checker will verify these points. For most proof steps, this typically involve verifying that the premises and the conclusion match according to a transformation specific to the deduction rule. Note that for most cases where there is an intuitive symmetry in arguments, such as \texttt{RightAnd} or \texttt{LeftSubstIff} for example, permutations of those arguments don't matter.
 
-Hence, most of the proof checker's work consists in verifying that some formulas, or subformulas thereof, are identical. This is where the equivalence checker comes into play. By checking equivalence rather than strict syntactic equality, a lot of steps become redundant and can be merged. That way, \texttt{LeftAnd}, \texttt{RightOr}, \texttt{LeftIff} become instances of the \texttt{Weakening} rules, and \texttt{RightImplies} an instance of \texttt{RightAnd}. 
+Hence, most of the proof checker's work consists in verifying that some formulas, or subformulas thereof, are identical. This is where the equivalence checker comes into play. By checking equivalence rather than strict syntactic equality, a lot of steps become redundant and can be merged. That way, \texttt{LeftAnd}, \texttt{RightOr}, \texttt{LeftIff} become instances of the \texttt{Weakening} rules, and \texttt{RightImplies} an instance of \texttt{RightAnd}.
 
 \texttt{LeftNot}, \texttt{RightNot}, \texttt{LeftImplies}, \texttt{RightImplies}, \texttt{LeftRefl}, \texttt{RightRefl}, \texttt{LeftExistsOne},  \texttt{RightExistsOne}  can be omitted altogether. This gives an intuition of how useful the equivalence checker is to cut proof length. It also combines very well with substitution steps.
 
 While most proof steps are oblivious to formula transformations allowed by the equivalence checker, they don't allow transformations of the whole sequent: to easily rearrange sequents according to the sequent semantics (\ref{eq:SequentSemantic}), one should use the \texttt{Rewrite} step.
 
 The proof checking function will output a \textit{judgement}:
-$$\lstinline{SCValidProof(proof: SCProof)}$$
+$$
+  \text{\lstinline{SCValidProof(proof: SCProof)}}
+$$
 or
-$$\lstinline{SCInvalidProof(proof: SCProof, path: Seq[Int], message: String)}$$
+$$
+  \text{\lstinline{SCInvalidProof(proof: SCProof, path: Seq[Int], message: String)}}
+$$
 
 \lstinline{SCInvalidProof}{} indicates an erroneous proof. The second argument point to the faulty proofstep (through subproofs), and the third argument is an error message hinting towards why the step is faulty.
 
@@ -549,255 +647,252 @@ To conduct a proof inside a \lstinline{Theory}{}, using its axioms, the proof sh
 
 
 \subsection{Definitions}
-\label{subs:definitions}
-The user can also introduce definitions in the \lstinline{Theory}{}. 
+\label{subsec:definitions}
+The user can also introduce definitions in the \lstinline{Theory}{}.
 LISA's kernel allows to define two kinds of objects: Function (or Term) symbols and Predicate symbols. It is important to remember that in the context of Set Theory, function symbols are not the usual mathematical functions and predicate symbols are not the usual mathematical relations. Indeed, on one hand a function symbol defines an operation on all possible sets, but on the other hand it is impossible to use the symbol alone, without applying it to arguments, or to quantify over function symbol.
 
 Actual mathematical functions on the other hand, are proper sets which contains the graph of a function on some domain. Their domain must be restricted to a proper set, and it is possible to quantify over such set-like functions or to use them without applications. These set-like functions are represented by constant symbols.  For example ``$f$ is derivable'' cannot be stated about a function symbol. We will come back to this in Chapter~\ref{chapt:settheory}, but for now let us remember that (non-constant) function symbols are suitable for intersection ($\bigcap$) between sets but not for, say, the Riemann $\zeta$ function.
 
 
 \begin{figure}
-A definition in LISA is one of those two kinds of objects:
-\begin{lstlisting}[frame=single]
+  A definition in LISA is one of those two kinds of objects:
+  \begin{lstlisting}[frame=single]
 PredicateDefinition(
-		label: ConstantPredicateLabel,
-		expression: LambdaTermFormula
+    label: ConstantPredicateLabel,
+    expression: LambdaTermFormula
 )
 \end{lstlisting}
-$$
-\textnormal{Corresponding to ``let } p^n(\vec{x}) := \phi_{\vec{x}}\textnormal{''}
-$$
-\begin{lstlisting}[frame=single]
+  $$
+    \textnormal{Corresponding to ``let } p^n(\vec{x}) := \phi_{\vec{x}}\textnormal{''}
+  $$
+  \begin{lstlisting}[frame=single]
 FunctionDefinition(
-		label: ConstantFunctionLabel,
-		out: VariableLabel, 
-		expression: LambdaTermFormula
+    label: ConstantFunctionLabel,
+    out: VariableLabel, 
+    expression: LambdaTermFormula
 )
 \end{lstlisting}
-$$
-\textnormal{Corresponding to ``let } f(\vec{x}) \textnormal{ be the unique element s.t. } \phi[f(\vec{x})/y]\textnormal{''}
-$$
-\caption{Definitions in LISA.}
-\label{fig:definitions}
+  $$
+    \textnormal{Corresponding to ``let } f(\vec{x}) \textnormal{ be the unique element s.t. } \phi[f(\vec{x})/y]\textnormal{''}
+  $$
+  \caption{Definitions in LISA.}
+  \label{fig:definitions}
 \end{figure}
 
-Figure~\ref{fig:definitions} shows how to define and use new function and predicate symbols. To define a predicate on $n$ variables, we must provide a formula along with $n$ distinguished free variables. Then, this predicate can be freely used and at any time substituted by its definition. Functions are slightly more complicated: to define a function $f$, one must first prove a statement of the form 
+\autoref{fig:definitions} shows how to define and use new function and predicate symbols. To define a predicate on $n$ variables, we must provide a formula along with $n$ distinguished free variables. Then, this predicate can be freely used and at any time substituted by its definition. Functions are slightly more complicated: to define a function $f$, one must first prove a statement of the form
 $$\exists ! y. \phi_{y, x_1,...,x_k}$$
-Then we obtain for free the property 
+Then we obtain for free the property
 $$\forall y. (f(x_1,...,x_k)=y) \leftrightarrow \phi_{y, x_1,...,x_k}$$
 from which we can deduce in particular $\phi[f(x_1,...,x_k)/y]$.
 The special case where $n=0$ defines constant symbols. The special case where $\phi$ is of the form $y=t$, with possibly the $x$'s free in $t$ lets us recover a more simple definition \textit{by alias}, i.e. where  $f$ is simply a shortcut for a more complex term $t$.
-This mechanism is typically called \textit{extension by definition}, and allows us to extend the theory without changing what is or isn't provable. For detailed explanation, see part \ref{part:theory} chapter \ref{chapt:definitions}.
+This mechanism is typically called \textit{extension by definition}, and allows us to extend the theory without changing what is or isn't provable. For detailed explanation, see part \autoref{sec:definitions}.
 
 The \lstinline{Theory}{} object is responsible of keeping track of all symbols which have been defined so that it can detect and refuse conflicting definitions. As a general rule, definitions should have a unique identifier and can't contain free schematic symbols.
 
 Once a definition has been introduced, future theorems can refer to those definitional axioms by importing the corresponding sequents in their proof and providing justification for those imports when the proof is verified, just like with axioms.
 
-Figure \ref{fig:justifications} shows the types of justification in a theory (Theorem, Axiom, Definition). Figure \ref{fig:theorysetters} shows how to introduce new justifications as well as symbols in the theory. Figure \ref{fig:theorygetters} shows how to obtain various types of information from the theory.
+\autoref{fig:justifications} shows the types of justification in a theory (Theorem, Axiom, Definition). \autoref{fig:theorysetters} shows how to introduce new justifications as well as symbols in the theory. \autoref{fig:theorygetters} shows how to obtain various types of information from the theory.
 
 
 
-{
-\def\arraystretch{4}
+  {
+    \def\arraystretch{4}
 
-\begin{figure}[hp]
-% Justifications:
-\begin{center}
-\begin{tabular}{l|l}
-Explanation & Data Type
-\\ \hline
+    \begin{figure}[hp]
+      % Justifications:
+      \begin{center}
+        \begin{tabular}{l|l}
+          Explanation            & Data Type
+          \\ \hline
 
-A proven theorem & 
-\begin{lstlisting}
+          A proven theorem       &
+          \begin{lstlisting}
 Theorem(
-	name: String,
-	proposition: Sequent
-	)
+  name: String,
+  proposition: Sequent
+  )
 
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-An axiom of the theory & 
-\begin{lstlisting}
+          An axiom of the theory &
+          \begin{lstlisting}
 Axiom(
-	name: String,
-	ax: Formula
-	)
+  name: String,
+  ax: Formula
+  )
 
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-A predicate definition & 
-\begin{lstlisting}
+          A predicate definition &
+          \begin{lstlisting}
 PredicateDefinition(
-	label: ConstantPredicateLabel,
-	expression: LambdaTermFormula
-	)
+  label: ConstantPredicateLabel,
+  expression: LambdaTermFormula
+  )
 
-\end{lstlisting} 
-\\ %\hline
+\end{lstlisting}
+          \\ %\hline
 
-A function definition & 
-\begin{lstlisting}
+          A function definition  &
+          \begin{lstlisting}
 FunctionDefinition(
-	label: ConstantFunctionLabel,
-	out: VariableLabel,
-	expression: LambdaTermFormula
-	)
+  label: ConstantFunctionLabel,
+  out: VariableLabel,
+  expression: LambdaTermFormula
+  )
 
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
+        \end{tabular}
 
-\end{tabular}
+        \caption{The different types of justification in a \lstinline{Theory}{} object.}
+        \label{fig:justifications}
+      \end{center}
+    \end{figure}
 
-\caption{The different types of justification in a \lstinline{Theory}{} object.}
-\label{fig:justifications}
-\end{center}
-\end{figure}
+    \begin{figure}[hp]
+      % Setters/Constructors:
+      \begin{center}
+        \begin{tabular}{l|l}
+          Explanation & Function
+          \\ \hline
 
-\begin{figure}[hp]
-% Setters/Constructors:
-\begin{center}
-\begin{tabular}{l|l}
-Explanation & Function
-\\ \hline
-
-\makecell[l]{Add a new theorem\\to the theory} & 
-\begin{lstlisting}
+          \makecell[l]{Add a new theorem    \\to the theory} &
+          \begin{lstlisting}
 makeTheorem(
-	name: String,
-	statement: Sequent,
-	proof: SCProof,
-	justs: Seq[Justification]
-	)
+  name: String,
+  statement: Sequent,
+  proof: SCProof,
+  justs: Seq[Justification]
+  )
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Add a new axiom\\ to the theory} & 
-\begin{lstlisting}
+          \makecell[l]{Add a new axiom      \\ to the theory} &
+          \begin{lstlisting}
 addAxiom(
-	name: String,
-	f: Formula
-	)
+  name: String,
+  f: Formula
+  )
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Make a new\\predicate definition} & 
-\begin{lstlisting}
+          \makecell[l]{Make a new           \\predicate definition} &
+          \begin{lstlisting}
 makePredicateDefinition(
-	label: ConstantPredicateLabel,
-	expression: LambdaTermFormula
-	)
-\end{lstlisting} 
-\\ %\hline
-
-\makecell[l]{Make a new\\function definition} & 
-\begin{lstlisting}
-makeFunctionDefinition(
-	proof: SCProof,
-	justifications: Seq[Justification],
-	label: ConstantFunctionLabel,
-	out: VariableLabel,
-	expression: LambdaTermFormula
-	)
+  label: ConstantPredicateLabel,
+  expression: LambdaTermFormula
+  )
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Add a new symbol\\without definition} & 
-\begin{lstlisting}
+          \makecell[l]{Make a new           \\function definition} &
+          \begin{lstlisting}
+makeFunctionDefinition(
+  proof: SCProof,
+  justifications: Seq[Justification],
+  label: ConstantFunctionLabel,
+  out: VariableLabel,
+  expression: LambdaTermFormula
+  )
+\end{lstlisting}
+          \\ %\hline
+
+          \makecell[l]{Add a new symbol     \\without definition} &
+          \begin{lstlisting}
 addSymbol(s: ConstantLabel)
-\end{lstlisting} 
-\\ %\hline
+\end{lstlisting}
+          \\ %\hline
 
-\makecell[l]{Add all symbols of a\\formula without definition} & 
-\begin{lstlisting}
+          \makecell[l]{Add all symbols of a \\formula without definition} &
+          \begin{lstlisting}
 makeFormulaBelongToTheory(phi: Formula)
-\end{lstlisting} 
-\\ %\hline
+\end{lstlisting}
+          \\ %\hline
 
-\makecell[l]{Add all symbols of a\\sequent without definition} & 
-\begin{lstlisting}
+          \makecell[l]{Add all symbols of a \\sequent without definition} &
+          \begin{lstlisting}
 makeSequentBelongToTheory(s: Sequent)
-\end{lstlisting} 
-\\ %\hline
-
-\end{tabular}
-\caption{The mutable interface of a \lstinline{Theory}{} object.}
-\label{fig:theorysetters}
-\end{center}
-\end{figure}
-
+\end{lstlisting}
+          \\ %\hline
+        \end{tabular}
+        \caption{The mutable interface of a \lstinline{Theory}{} object.}
+        \label{fig:theorysetters}
+      \end{center}
+    \end{figure}
 
 
-\begin{figure}[hp]
-% Getters:
-\begin{center}
-\begin{tabular}{l|l}
-Explanation & Function
-\\ \hline
 
-\makecell[l]{Check if all symbols in a\\formula, term or sequent\\belong to the theory.} & 
-\begin{lstlisting}
+    \begin{figure}[hp]
+      % Getters:
+      \begin{center}
+        \begin{tabular}{l|l}
+          Explanation & Function
+          \\ \hline
+
+          \makecell[l]{Check if all symbols in a        \\formula, term or sequent\\belong to the theory.} &
+          \begin{lstlisting}
 belongsToTheory(phi: Formula)
 belongsToTheory(t: Term)
 belongsToTheory(s: Sequent)
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Return the list of symbols\\and definitions in the theory} & 
-\begin{lstlisting}
+          \makecell[l]{Return the list of symbols       \\and definitions in the theory} &
+          \begin{lstlisting}
 language()
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Check if a label is\\a symbol of the theory} &
-\begin{lstlisting}
+          \makecell[l]{Check if a label is              \\a symbol of the theory} &
+          \begin{lstlisting}
 isSymbol(label: ConstantLabel)
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Check if a label is \textit{not}\\already a symbol of the theory} &
-\begin{lstlisting}
+          \makecell[l]{Check if a label is \textit{not} \\already a symbol of the theory} &
+          \begin{lstlisting}
 isAvailable(label: ConstantLabel)
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Return the list of\\axioms in the theory} &
-\begin{lstlisting}
+          \makecell[l]{Return the list of               \\axioms in the theory} &
+          \begin{lstlisting}
 axiomsList()
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Check if a formula is\\an axiom of the theory} &
-\begin{lstlisting}
+          \makecell[l]{Check if a formula is            \\an axiom of the theory} &
+          \begin{lstlisting}
 isAxiom(f: Formula)
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Return the Axiom matching\\ the given name or formula,\\ if it exists} &
-\begin{lstlisting}
+          \makecell[l]{Return the Axiom matching        \\ the given name or formula,\\ if it exists} &
+          \begin{lstlisting}
 getAxiom(f: Formula)
 getAxiom(name: String)
 \end{lstlisting}
-\\ %\hline
-\makecell[l]{Return the Definition\\of a given Label, if defined} &
-\begin{lstlisting}
+          \\ %\hline
+          \makecell[l]{Return the Definition            \\of a given Label, if defined} &
+          \begin{lstlisting}
 getDefinition(label: ConstantLabel)
 \end{lstlisting}
-\\ %\hline
+          \\ %\hline
 
-\makecell[l]{Return the Theorem object with\\the given name, if it is one.} &
-\begin{lstlisting}
+          \makecell[l]{Return the Theorem object with   \\the given name, if it is one.} &
+          \begin{lstlisting}
 getTheorem(name: String)
 \end{lstlisting}
-\\ %\hline
-
-\end{tabular}
-\caption{The static interface of a \lstinline{Theory}{} object.}
-\label{fig:theorygetters}
-\end{center}
-\end{figure}
-}
+          \\ %\hline
+        \end{tabular}
+        \caption{The static interface of a \lstinline{Theory}{} object.}
+        \label{fig:theorygetters}
+      \end{center}
+    \end{figure}
+  }
 \newpage
 \section{Kernel Supplements and Utilities}
 \label{sect:kernelsuppl}
@@ -809,7 +904,7 @@ LISA provides a set of utilities and a Domain Specific Language (DSL) to ease an
 This feature is under active development.
 
 \subsection{Writing theory files}
-LISA provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features such as string interpolation, extension and implicits. 
+LISA provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features such as string interpolation, extension and implicits.
 The way to write a new theory file to mathematical development is:
 \begin{lstlisting}[language=Scala, frame=single]
 object MyTheoryName extends lisa.Main {
@@ -863,15 +958,15 @@ object MyTheoryName extends lisa.Main {
 =======
 It is important to note that when multiple such files are developed, they all use the same underlying \lstinline{RunningTheory}{}. This makes it possible to use results proved previously by means of a simple \lstinline{import}{} statement as one would import a regular object. Similarly, one should also import as usual automation and tactics developed alongside. It is expected in the medium term that \lstinline{lisa.Main}{} will come with basic automation.
 
-To check the result of a developed file, and verify that the proofs contain no error, it is possible to run such a library object. 
+To check the result of a developed file, and verify that the proofs contain no error, it is possible to run such a library object.
 % specify which object
-All imported theory objects will be run through as well, but only the result of the selected one will be printed. 
+All imported theory objects will be run through as well, but only the result of the selected one will be printed.
 
 It is possible to refer to a theorem or axiom that has been previously proven or added using its name. The syntax is \lstinline{thm``theoremName''}{} or \lstinline{ax``axiomName''}{}. This makes it possible to write, for example, \lstinline{thm``theoremName''.show}{} and \lstinline{... using (ax``comprehensionSchema'')} Figure \ref{fig:kernellibrary} shows a typical example of set theory development.
 
 
 \begin{figure}[hp]
-\begin{lstlisting}[language=Scala, frame=single]
+  \begin{lstlisting}[language=Scala, frame=single]
 object MyTheoryName extends lisa.Main {
   THEOREM("russelParadox") of 
     (*@ $\forall$ @*)x. (x(*@$\in$@*)?y)(*@$\leftrightarrow$@*) (*@$\neg$@*)(x(*@$\in$@*)x)(*@$\vdash$@*) PROOF {
@@ -899,20 +994,17 @@ object MyTheoryName extends lisa.Main {
   
 }
 \end{lstlisting}
-\caption{Example of library development in LISA Kernel}
-\label{fig:kernellibrary}
+  \caption{Example of library development in LISA Kernel}
+  \label{fig:kernellibrary}
 \end{figure}
 
+\part{Theory}
 
-
-
-
-%Probably comes after discussing the front
 \chapter{Set Theory}
 \label{chapt:settheory}
 LISA is based on set theory. More specifically, it is based on ZF with (still not decided) an axiom of choice, of global choice, or Tarski's universes.
 
-ZF Set Theory stands for Zermelo-Fraenkel Set Theory. It contains a set of initial predicate symbols and function symbols, as shown in Figure \ref{fig:symbolszf}. It also contains the 7 axioms of Zermelo (Figure \ref{fig:axiomsz}), which are technically sufficient to formalize a large portion of mathematics, plus the axiom of replacement of Fraenkel (Figure \ref{fig:axiomszf}), which is needed to formalize more complex mathematical theories. 
+ZF Set Theory stands for Zermelo-Fraenkel Set Theory. It contains a set of initial predicate symbols and function symbols, as shown in Figure \ref{fig:symbolszf}. It also contains the 7 axioms of Zermelo (Figure \ref{fig:axiomsz}), which are technically sufficient to formalize a large portion of mathematics, plus the axiom of replacement of Fraenkel (Figure \ref{fig:axiomszf}), which is needed to formalize more complex mathematical theories.
 In a more typical mathematical introduction to Set Theory, ZF would naturally only contain the set membership symbol $\in$. Axioms defining the other symbols would then only express the existence of functions or predicates with those properties, from which we could get the same symbols using extensions by definitions.
 
 In a very traditional sense, an axiomatization is any possibly infinite semi-recursive set of axioms. Hence, in its full generality, Axioms should be any function producing possibly infinitely many formulas.
@@ -921,58 +1013,58 @@ This is however not a convenient definition. In practice, all infinite axiomatiz
 
 
 \begin{figure}
-\begin{center}
-\begin{tabular}{l|c|l}
-{} & Math symbol & LISA Kernel\\ \hline
-Set Membership predicate & $\in$ & \lstinline$in(s,t)$\\
-Subset predicate & $\subset$ & \lstinline$subset(s,t)$ \\
-Empty Set constant & $\emptyset$ & \lstinline$emptyset()$ \\
-Unordered Pair constant & $(\cdot, \cdot )$ & \lstinline$pair(s,t)$ \\
-Power Set function & $\mathcal P$ & \lstinline$powerSet(s)$ \\
-Set Union/Flatten function & $\bigcup$ & \lstinline$union(x)$ \\
-\end{tabular}
+  \begin{center}
+    \begin{tabular}{l|c|l}
+      {}                         & Math symbol       & LISA Kernel             \\ \hline
+      Set Membership predicate   & $\in$             & \lstinline$in(s,t)$     \\
+      Subset predicate           & $\subset$         & \lstinline$subset(s,t)$ \\
+      Empty Set constant         & $\emptyset$       & \lstinline$emptyset()$  \\
+      Unordered Pair constant    & $(\cdot, \cdot )$ & \lstinline$pair(s,t)$   \\
+      Power Set function         & $\mathcal P$      & \lstinline$powerSet(s)$ \\
+      Set Union/Flatten function & $\bigcup$         & \lstinline$union(x)$    \\
+    \end{tabular}
 
-\caption{The basic symbols of ZF.}
-\label{fig:symbolszf}
-\end{center}
+    \caption{The basic symbols of ZF.}
+    \label{fig:symbolszf}
+  \end{center}
 \end{figure}
 
 \begin{figure}
-\begin{axz}[empty set]\label{axz:empty}
-$\forall x. x \notin \emptyset$
-\end{axz}
-\begin{axz}[extensionality]\label{axz:extensionality}
-$\forall x, y. (\forall z. z \in x \iff z \in y) \iff (x = y)$
-\end{axz}
-\begin{axz}[extensionality]\label{axz:subset}
-$\forall x, y. x\subset y \iff \forall z. z \in x iff z \in y$
-\end{axz}
-\begin{axz}[pair]\label{axz:pair}
-$\forall x, y, z. (z \in (x, y)) \iff ((x \in y) \lor (y \in z))$
-\end{axz}
-\begin{axz}[union]\label{axz:union}
-$\forall x, z. (x \in \operatorname{U}(z)) \iff (\exists y. (x \in y) \land (y \in z))$
-\end{axz}
-\begin{axz}[power]\label{axz:power}
-$\forall x, y. (x \in \operatorname{\mathcal{P}}(y)) \iff (x \subset y)$
-\end{axz}
-\begin{axz}[foundation]\label{axz:foundation}
-$\forall x. (x \neq \emptyset) \implies (\exists y. (y \in x) \land (\forall z. z \in x))$
-\end{axz}
-\begin{axz}[comprehension schema]\label{axz:comprehension}
-$\forall z, \vec{v}. \exists y. \forall x. (x \in y) \iff ((x \in z) \land \phi(x, z, \vec{v}))$
-\end{axz}
-\caption{Axioms for Zermelo set theory.}
-\label{fig:axiomsz}
+  \begin{axz}[empty set]\label{axz:empty}
+    $\forall x. x \notin \emptyset$
+  \end{axz}
+  \begin{axz}[extensionality]\label{axz:extensionality}
+    $\forall x, y. (\forall z. z \in x \iff z \in y) \iff (x = y)$
+  \end{axz}
+  \begin{axz}[extensionality]\label{axz:subset}
+    $\forall x, y. x\subset y \iff \forall z. z \in x iff z \in y$
+  \end{axz}
+  \begin{axz}[pair]\label{axz:pair}
+    $\forall x, y, z. (z \in (x, y)) \iff ((x \in y) \lor (y \in z))$
+  \end{axz}
+  \begin{axz}[union]\label{axz:union}
+    $\forall x, z. (x \in \operatorname{U}(z)) \iff (\exists y. (x \in y) \land (y \in z))$
+  \end{axz}
+  \begin{axz}[power]\label{axz:power}
+    $\forall x, y. (x \in \operatorname{\mathcal{P}}(y)) \iff (x \subset y)$
+  \end{axz}
+  \begin{axz}[foundation]\label{axz:foundation}
+    $\forall x. (x \neq \emptyset) \implies (\exists y. (y \in x) \land (\forall z. z \in x))$
+  \end{axz}
+  \begin{axz}[comprehension schema]\label{axz:comprehension}
+    $\forall z, \vec{v}. \exists y. \forall x. (x \in y) \iff ((x \in z) \land \phi(x, z, \vec{v}))$
+  \end{axz}
+  \caption{Axioms for Zermelo set theory.}
+  \label{fig:axiomsz}
 \end{figure}
 
 \begin{figure}
-\begin{axzf}[replacement schema]\label{axzf:replacement}
-$$\forall a. (\forall x. (x \in a) \implies !\exists y. \phi(a, \vec{v}, x, y)) \implies $$
-$$(\exists b. \forall x. (x \in a) \implies (\exists y. (y \in b) \land \phi(a, \vec{v}, x, y)))$$
-\end{axzf}
-\caption{Axioms for Zermelo-Fraenkel set theory.}
-\label{fig:axiomszf}
+  \begin{axzf}[replacement schema]\label{axzf:replacement}
+    $$\forall a. (\forall x. (x \in a) \implies !\exists y. \phi(a, \vec{v}, x, y)) \implies $$
+    $$(\exists b. \forall x. (x \in a) \implies (\exists y. (y \in b) \land \phi(a, \vec{v}, x, y)))$$
+  \end{axzf}
+  \caption{Axioms for Zermelo-Fraenkel set theory.}
+  \label{fig:axiomszf}
 \end{figure}
 
 
