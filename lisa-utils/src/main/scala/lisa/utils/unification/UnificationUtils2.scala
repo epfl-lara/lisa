@@ -252,7 +252,7 @@ object UnificationUtils2 {
    */
   case class TermRewriteLambda(
       termVars: Seq[VariableLabel] = Seq.empty,
-      termRules: Map[VariableLabel, TermRule] = Map.empty,
+      termRules: Seq[(VariableLabel, TermRule)] = Seq.empty,
       body: Term
   ) {}
 
@@ -273,10 +273,8 @@ object UnificationUtils2 {
    * @param body the body of the function
    */
   case class FormulaRewriteLambda(
-      termVars: Seq[VariableLabel] = Seq.empty,
-      formulaVars: Seq[VariableFormulaLabel] = Seq.empty,
-      termRules: Map[VariableLabel, TermRule] = Map.empty,
-      formulaRules: Map[VariableFormulaLabel, FormulaRule] = Map.empty,
+      termRules: Seq[(VariableLabel, TermRule)] = Seq.empty,
+      formulaRules: Seq[(VariableFormulaLabel, FormulaRule)] = Seq.empty,
       body: Formula
   ) {}
 
@@ -373,7 +371,7 @@ object UnificationUtils2 {
       Some(
         TermRewriteLambda(
           Seq(newVar),
-          Map(newVar -> validSubstitution.get),
+          Seq(newVar -> validSubstitution.get),
           body
         )
       )
@@ -443,6 +441,44 @@ object UnificationUtils2 {
     getContextRecursive(using context)(first, second)
   }
 
+  def getContextFormulaSet(
+      first: Seq[Formula],
+      second: Seq[Formula],
+      freeTermRules: Seq[(Term, Term)],
+      freeFormulaRules: Seq[(Formula, Formula)],
+      confinedTermRules: Seq[(Term, Term)] = Seq.empty,
+      takenTermVariables: Set[VariableLabel] = Set.empty,
+      confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
+      takenFormulaVariables: Set[VariableFormulaLabel] = Set.empty
+  ): Option[Seq[FormulaRewriteLambda]] = {
+    val context = RewriteContext(
+      takenTermVars = takenTermVariables,
+      takenFormulaVars = takenFormulaVariables,
+      freeTermRules = freeTermRules,
+      confinedTermRules = confinedTermRules,
+      freeFormulaRules = freeFormulaRules,
+      confinedFormulaRules = confinedFormulaRules
+    )
+
+    val substSeq = first.map {
+      f =>
+        second.collectFirst {
+          s =>
+            val newContext = context.copy()
+            val subst = getContextRecursive(using newContext)(f, s)
+            subst match {
+              case Some(_) => {
+                context.updateTo(newContext)
+                subst.get
+              }
+            }
+        }
+    }
+
+    // Seq[Option[_]] -> Option[Seq[_]]
+    substSeq.foldLeft(Option(Seq.empty[FormulaRewriteLambda]))((f, s) => f.flatMap(f1 => s.map(s1 => f1 :+ s1)))
+  }
+
   /**
    * Inner implementation for [[getContextFormula]].
    *
@@ -479,10 +515,8 @@ object UnificationUtils2 {
       val body = PredicateFormula(newVar, Seq.empty) // newVar()
       Some(
         FormulaRewriteLambda(
-          Seq.empty,
-          Seq(newVar),
-          Map(),
-          Map(newVar -> validSubstitution.get),
+          Seq(),
+          Seq(newVar -> validSubstitution.get),
           body
         )
       )
@@ -523,8 +557,6 @@ object UnificationUtils2 {
               val lambda =
                 retrieved.foldLeft(FormulaRewriteLambda(body = body)) { case (currentLambda, nextLambda) =>
                   FormulaRewriteLambda(
-                    currentLambda.termVars ++ nextLambda.termVars,
-                    currentLambda.formulaVars ++ nextLambda.formulaVars,
                     currentLambda.termRules ++ nextLambda.termRules,
                     currentLambda.formulaRules ++ nextLambda.formulaRules,
                     currentLambda.body
@@ -549,8 +581,6 @@ object UnificationUtils2 {
               val lambda =
                 retrieved.foldLeft(FormulaRewriteLambda(body = body)) { case (currentLambda, nextLambda) =>
                   FormulaRewriteLambda(
-                    currentLambda.termVars ++ nextLambda.termVars,
-                    currentLambda.formulaVars,
                     currentLambda.termRules ++ nextLambda.termRules,
                     currentLambda.formulaRules,
                     currentLambda.body
