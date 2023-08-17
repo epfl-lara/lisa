@@ -460,19 +460,17 @@ object UnificationUtils2 {
       confinedFormulaRules = confinedFormulaRules
     )
 
-    val substSeq = first.map {
-      f =>
-        second.collectFirst {
-          s =>
-            val newContext = context.copy()
-            val subst = getContextRecursive(using newContext)(f, s)
-            subst match {
-              case Some(_) => {
-                context.updateTo(newContext)
-                subst.get
-              }
-            }
+    val substSeq = first.map { f =>
+      second.collectFirst { s =>
+        val newContext = context.copy()
+        val subst = getContextRecursive(using newContext)(f, s)
+        subst match {
+          case Some(_) => {
+            context.updateTo(newContext)
+            subst.get
+          }
         }
+      }
     }
 
     // Seq[Option[_]] -> Option[Seq[_]]
