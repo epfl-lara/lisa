@@ -4,7 +4,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.mathematics.SetTheory.*
+import lisa.mathematics.settheory.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter.*
@@ -28,8 +28,12 @@ object Example {
       LeftImplies((phi ==> psi) ==> phi |- phi, 2, 0, (phi ==> psi), phi),
       RightImplies(() |- ((phi ==> psi) ==> phi) ==> phi, 3, (phi ==> psi) ==> phi, phi)
     )
+    val PierceLaw2 = SCProof(
+      RestateTrue(() |- ((phi ==> psi) ==> phi) ==> phi)
+    )
 
     checkProof(PierceLaw)
+    checkProof(PierceLaw2)
 
     val theory = new RunningTheory
     val pierceThm: theory.Theorem = theory.makeTheorem("Pierce's Law", () |- ((phi ==> psi) ==> phi) ==> phi, PierceLaw, Seq.empty).get

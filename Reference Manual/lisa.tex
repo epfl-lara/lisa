@@ -9,14 +9,44 @@
 \date{}
 
 \begin{document}
-\maketitle
+
+\newfontfamily\titlefont{Arial}
+
+\begin{titlepage}
+\titlefont 
+%\fontfamily{\sfdefault}\selectfont
+
+    \begin{center}
+        \vspace*{1cm}
+ 
+        \textbf{\Huge LISA Reference Manual (WIP)}
+             
+        \vspace{1.5cm}
+ 
+        {\Large Laboratory for Automated Reasoning and Analysis, EPFL, Switzerland}
+
+        \vspace{1.5cm}
+
+        \date{}
+
+    \end{center}
+    \vspace*{10em}
+    \begin{flushright}\huge
+        \begin{tabular}{l}
+         Contributors: \hspace*{2em} \\[1em]
+         Simon Guilloud\\
+         Sankalp Gambhir
+        \end{tabular}
+    \end{flushright}
+             
+ \end{titlepage}
 \chapter*{Introduction}
 
 This document aims to give a complete documentation on LISA. Tentatively, every chapter and section will explain a part or concept of LISA, and explains both its implementation and its theoretical foundations. 
  
 \input{kernel.tex}
 
-%\input{part2.tex}
+\input{part2.tex}
 
 \bibliographystyle{plain}
 \bibliography{sguilloud.bib}

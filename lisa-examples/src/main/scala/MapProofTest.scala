@@ -4,7 +4,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.mathematics.SetTheory.*
+import lisa.mathematics.settheory.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter.*
@@ -19,6 +19,7 @@ import lisa.utils.unification.UnificationUtils.*
  * An example of really domain specific proofs using infix extensions.
  */
 object MapProofTest extends lisa.Main {
+  /*
   val Nil = variable
   val Cons = function(2)
   val append = function(2)
@@ -147,5 +148,5 @@ object MapProofTest extends lisa.Main {
 
     have(thesis) by Substitution.apply2(true, lastStep)(trApp)
   }
-  show
+  show*/
 }
