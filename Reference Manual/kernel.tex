@@ -1,7 +1,4 @@
-
-
-\part{Reference Manual}
-\label{part:manual}
+%\part{Reference Manual}
 \chapter{LISA's trusted code: The Kernel}
 \label{chapt:kernel}
 LISA's kernel is the starting point of LISA, formalising the foundations of the whole theorem prover. It is the only trusted code base, meaning that if it is bug-free then no further erroneous code can violate the soundness property and prove invalid statements. Hence, the two main goals of the kernel are to be efficient and trustworthy. 
@@ -314,7 +311,7 @@ a\leq b \Longleftrightarrow a \land b = a
 We write $s\sim_\OL t$ if both $s\leq_\OL t$ and $s\geq_\OL t$ hold.
 \autoref{thm:OL} is the main result we rely on.
 
-\begin{thm}[\cite{Guilloud:297701}]
+\begin{thm}[\cite{guilloudFormulaNormalizationsVerification2023a}]
 \label{thm:OL}
 There exists an algorithm running in worst case quadratic time producing, for any terms $s$ over the signature $(\land, \lor, \neg)$, a normal form $\text{NF}_{\OL}(s)$
 such that for any $t$, $s \sim_\OL t$ if and only if $\text{NF}_{\OL}(s) = \text{NF}_{\OL}(t)$. The algorithm is also capable of deciding if $s \leq_{OL} t$ holds in quadratic time.
@@ -683,13 +680,13 @@ Hence, most of the proof checker's work consists in verifying that some formulas
 While most proof steps are oblivious to formula transformations allowed by the equivalence checker, they don't allow transformations of the whole sequent: to easily rearrange sequents according to the sequent semantics (\ref{eq:SequentSemantic}), one should use the Rewrite or Weakening steps.
 
 Depending on wether the proof is correct or incorrect, the proof checking function will output a \textit{judgement}:
-$$
-  \text{\lstinline{SCValidProof(proof: SCProof)}}
-$$
+\begin{lstlisting}
+  SCValidProof(proof: SCProof)
+\end{lstlisting}
 or
-$$
-  \text{\lstinline{SCInvalidProof(proof: SCProof, path: Seq[Int], message: String)}}
-$$
+\begin{lstlisting}
+  SCInvalidProof(proof: SCProof, path: Seq[Int], message: String)
+\end{lstlisting}
 
 \lstinline{SCInvalidProof}{} indicates an erroneous proof. The second argument point to the faulty proofstep (through subproofs, if any), and the third argument is an error message hinting at why the step is incorrectly applied.
 
@@ -712,12 +709,12 @@ LISA's kernel allows to define two kinds of objects: Function (or Term) symbols 
 
 
 \begin{figure}
-  A definition in LISA is one of those two kinds of objects:
-  \begin{lstlisting}[frame=single]
-PredicateDefinition(
+  A definition in LISA is one of those two kinds of objects: A predicate definition or a function definition.
+  \begin{lstlisting}
+  PredicateDefinition(
     label: ConstantPredicateLabel,
     expression: LambdaTermFormula
-)
+  )
 \end{lstlisting}
   So that 
   \begin{lstlisting}
@@ -726,13 +723,13 @@ PredicateDefinition(
   corresponds to \\
     \hspace*{1.3em}``For any $\vec{x}$, let $P^n(\vec{x}) := \phi_{\vec{x}}$''
 
-
-  \begin{lstlisting}[frame=single]
-FunctionDefinition(
+    \vspace*{2em}
+  \begin{lstlisting}
+  FunctionDefinition(
     label: ConstantFunctionLabel,
     out: VariableLabel, 
     expression: LambdaTermFormula
-)
+  )
 \end{lstlisting}
 So that 
   \begin{lstlisting}
@@ -772,44 +769,44 @@ Once a definition has been introduced, future theorems can refer to those defini
           \\ \hline
 
           A proven theorem       &
-          \begin{lstlisting}
-Theorem(
-  name: String,
-  proposition: Sequent
-  )
+          \begin{lstlisting}[linewidth=19.5em]
+  Theorem(
+    name: String,
+    proposition: Sequent
+    )
 
-\end{lstlisting}
+          \end{lstlisting}
           \\ %\hline
 
           An axiom of the theory &
-          \begin{lstlisting}
-Axiom(
-  name: String,
-  ax: Formula
-  )
+          \begin{lstlisting}[linewidth=19.5em]
+  Axiom(
+    name: String,
+    ax: Formula
+    )
 
-\end{lstlisting}
+          \end{lstlisting}
           \\ %\hline
 
           A predicate definition &
-          \begin{lstlisting}
-PredicateDefinition(
-  label: ConstantPredicateLabel,
-  expression: LambdaTermFormula
-  )
+          \begin{lstlisting}[linewidth=19.5em]
+  PredicateDefinition(
+    label: ConstantPredicateLabel,
+    expression: LambdaTermFormula
+    )
 
-\end{lstlisting}
+          \end{lstlisting}
           \\ %\hline
 
           A function definition  &
-          \begin{lstlisting}
-FunctionDefinition(
-  label: ConstantFunctionLabel,
-  out: VariableLabel,
-  expression: LambdaTermFormula
-  )
+          \begin{lstlisting}[linewidth=19.5em]
+  FunctionDefinition(
+    label: ConstantFunctionLabel,
+    out: VariableLabel,
+    expression: LambdaTermFormula
+    )
 
-\end{lstlisting}
+          \end{lstlisting}
           \\ %\hline
         \end{tabular}
 
@@ -826,44 +823,44 @@ FunctionDefinition(
           \\ \hline
 
           \makecell[l]{Add a new theorem    \\to the theory} &
-          \begin{lstlisting}
-makeTheorem(
-  name: String,
-  statement: Sequent,
-  proof: SCProof,
-  justs: Seq[Justification]
-  )
-\end{lstlisting}
+          \begin{lstlisting}[linewidth=19.5em]
+  makeTheorem(
+    name: String,
+    statement: Sequent,
+    proof: SCProof,
+    justs: Seq[Justification]
+    )
+          \end{lstlisting}
           \\ %\hline
 
           \makecell[l]{Add a new axiom      \\ to the theory} &
-          \begin{lstlisting}
-addAxiom(
-  name: String,
-  f: Formula
-  )
-\end{lstlisting}
+          \begin{lstlisting}[linewidth=19.5em]
+  addAxiom(
+    name: String,
+    f: Formula
+    )
+          \end{lstlisting}
           \\ %\hline
 
           \makecell[l]{Make a new           \\predicate definition} &
-          \begin{lstlisting}
-makePredicateDefinition(
-  label: ConstantPredicateLabel,
-  expression: LambdaTermFormula
-  )
-\end{lstlisting}
+          \begin{lstlisting}[linewidth=19.5em]
+  makePredicateDefinition(
+    label: ConstantPredicateLabel,
+    expression: LambdaTermFormula
+    )
+          \end{lstlisting}
           \\ %\hline
 
           \makecell[l]{Make a new           \\function definition} &
-          \begin{lstlisting}
-makeFunctionDefinition(
-  proof: SCProof,
-  justifications: Seq[Justification],
-  label: ConstantFunctionLabel,
-  out: VariableLabel,
-  expression: LambdaTermFormula
-  )
-\end{lstlisting}
+          \begin{lstlisting}[linewidth=19.5em]
+  makeFunctionDefinition(
+    proof: SCProof,
+    justifications: Seq[Justification],
+    label: ConstantFunctionLabel,
+    out: VariableLabel,
+    expression: LambdaTermFormula
+    )
+          \end{lstlisting}
           \\ %\hline
 
         \end{tabular}
@@ -952,13 +949,13 @@ getTheorem(name: String)
   }
 
 \section{Using LISA's Kernel}
-\label{sect:kernelsuppl}
+\label{sect:kernelHelpers}
 The kernel itself is a logical core, whose main purpose is to attest correctness of mathematical developments and proofs. In particular, it is not intended to use directly to formalise a large library, as doing so would be very verbose. It instead serves as either a foundation for LISA's user interface and automation, or as a tool to write and verify formal proofs produced by other programs.
 Nonetheless, LISA's kernel comes with a set of utilities and features and syntactic sugar that make the kernel more user-friendly to use.
+\subsection{Syntactic Sugar}
 
-LISA provides a set of utilities and a Domain Specific Language (DSL) to ease and organize the writing of proofs. This is especially directed to people who want to build understanding and intuition regarding formal proofs in Sequent Calculus.
 \paragraph{Aliases}
-Scala admits most unicode symbols in identifiers, allowing LISA to define alternative representation for logical symbols
+Scala accepts most unicode symbols in identifiers, allowing LISA to define alternative representation for logical symbols
 \begin{center}
 \begin{tabular}{| c | c |}
 
@@ -974,220 +971,104 @@ Scala admits most unicode symbols in identifiers, allowing LISA to define altern
   \lstinline|Iff| & \lstinline|iff, <=> |  \\ \hline
   \lstinline|Forall| & \lstinline|forall, ∀ |  \\ \hline
   \lstinline|Exists| & \lstinline|exists, ∃ |  \\ \hline
-  \lstinline|ExistsOne| & \lstinline|existsOne, ∃ |  \\ \hline
+  \lstinline|ExistsOne| & \lstinline|existsOne, ∃! |  \\ \hline
   
 \end{tabular}
 \end{center}
 \paragraph{Identifiers}
 An identifier is a pair of a string and a number. Note that LISA kernel does not accept whitespaces nor symbols among \lstinline|()[]{ }_| as part of identifiers. The underscore can be used to write both the string and the integer part of an identifier at once. For example, 
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Scala]
   val x: VariableLabel("x_4")
 \end{lstlisting}
 
 is automatically transformed to 
 
-\begin{lstlisting}
-val x: VariableLabel(Identifier("x, 4)).
+\begin{lstlisting}[language=Scala]
+  val x: VariableLabel(Identifier("x", 4))
 \end{lstlisting}
 
 \paragraph{Application}
-Fixing
-\begin{lstlisting}
+With the following symbols:
+\begin{lstlisting}[language=Scala]
   val x: VariableLabel("x")
   val y: VariableLabel("x")
   val f: SchematicFunctionLabel("f", 2)
 \end{lstlisting}
-The strict syntax to construct the term \lstinline|f(x, y)| is
-\begin{lstlisting}
+the strict syntax to construct the term \lstinline[language=Scala]|f(x, y)| is
+\begin{lstlisting}[language=Scala]
   Term(f, Seq(Term(x, Nil), Term(y, Nil)))
 \end{lstlisting}
 Extensions and implicit conversions allow to simply write 
-\begin{lstlisting}
+\begin{lstlisting}[language=Scala]
   f(x, y)
 \end{lstlisting}
 for the same result. The same holds with predicates and connectors. Moreover, binary symbols can be written infix, allowing to write
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Scala]
   (f(x, y) === f(y, x)) ==> (x===y).
 \end{lstlisting}
 
 \paragraph{Sequents}
-
+The strict syntax to construct the sequent $\phi, \psi \vdash \gamma, \delta$ is
+\begin{lstlisting}[language=Scala]
+  Sequent(Set(phi, psi), Set(phi, psi))
+\end{lstlisting}
+but thanks again to  extensions and implicit conversions, LISA accepts
+\begin{lstlisting}[language=Scala]
+  (phi, psi) |-(phi, psi)
+\end{lstlisting}
+Where \lstinline{|-} is the ligature for |-. More generally, the left and right sides of \lstinline{|-} can be any of:
+\vspace*{-0.7em}
+\begin{itemize}
+  \setlength\itemsep{-0.5em}
+  \item \lstinline|()|
+  \item a Formula
+  \item a Tuple[Formula]
+  \item an Iterable[Formula] (Set, List...)
+\end{itemize}
 \paragraph{Lambdas}
-
-\paragraph{Theories}
-\section{Proof Development Interface}
-\subsection{Writing theory files}
-LISA provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features such as string interpolation, extension and implicits.
-The way to write a new theory file to mathematical development is:
-\begin{lstlisting}[language=Scala, frame=single]
-object MyTheoryName extends lisa.Main {
-
-}
+A Lambda expression can be created with the lambda keyword. For example, 
+\begin{lstlisting}[language=Scala]
+  lambda(x, x+x): LambdaTermTerm
+  lambda(Seq(x, y, z), x+y+z): LambdaTermTerm
+  lambda(x, x === x): LambdaTermFormula
+  lambda(Seq(x, y), (x+x) === y)): LambdaTermFormula
+  lambda(X, X /\ y === y): LambdaFormulaFormula
+  lambda(Seq(X, Y), X <=> Y): LambdaFormulaFormula
 \end{lstlisting}
-and that's it! To write a theorem, the recommended syntax is:
+Moreover, a term \lstinline|t| is automatically converted to a LambdaTermTerm \lstinline|lambda(Seq(), t)| with an empty list of arguments when needed, and similarly for LambdaTermFormula and LambdaFormulaFormula.
 
-\begin{lstlisting}[language=Scala, frame=single]
-object MyTheoryName extends lisa.Main {
-
-  THEOREM("theoremName") of "desired conclusion" PROOF {
-    
-    ???: Proof
-    
-  } using (listOfJustifications)
-  show
-}
-\end{lstlisting}
-\lstinline{show}{} is optional and prints the last proven theorem. We can similarily make the definition:
-
-% avoid page breaking
-\noindent
-\begin{minipage}{\textwidth}
-  \begin{lstlisting}[language=Scala, frame=single]
-  object MyTheoryName extends lisa.Main {
-  
-    val myFunction = 
-      DEFINE("symbol", x, y) as definition(x,y)
-    show
+\vspace{2em}
+\subsection{How to write helpers}
+These helpers and syntactic sugar are made possible by Scala's extensions and implicit conversions. Extension allow to add methods to an object a posteriori of its definition. This is especially convenient for use, as it allows us to define such helpers outside of the kernel, keeping it small. 
+For example, to write \lstinline|f(x, y)|, the object \lstinline|f: SchematicFunctionLabel| must have a method called \lstinline|apply|. It is defined as
+\begin{lstlisting}[language=Scala]
+  extension (label: TermLabel) {
+    def apply(args: Term*): Term = Term(label, args)
   }
-  \end{lstlisting}
-\end{minipage}
-%
-This works for definitions of function and predicate symbols with a direct definition. for indirect definitions (via $\exists !$), use the following:
-%
-\begin{lstlisting}[language=Scala, frame=single]
-object MyTheoryName extends lisa.Main {
-
-  val testdef =
-    DEFINE("symbol", x, y) asThe z suchThat {
-       ???:Formula
-     } PROOF {
-       ???:Proof
-    } using (listOfJustifications)
-    show
-}
 \end{lstlisting}
-
-
-=======
-It is important to note that when multiple such files are developed, they all use the same underlying \lstinline{RunningTheory}{}. This makes it possible to use results proved previously by means of a simple \lstinline{import}{} statement as one would import a regular object. Similarly, one should also import as usual automation and tactics developed alongside. It is expected in the medium term that \lstinline{lisa.Main}{} will come with basic automation.
-
-To check the result of a developed file, and verify that the proofs contain no error, it is possible to run such a library object.
-% specify which object
-All imported theory objects will be run through as well, but only the result of the selected one will be printed.
-
-It is possible to refer to a theorem or axiom that has been previously proven or added using its name. The syntax is \lstinline{thm``theoremName''}{} or \lstinline{ax``axiomName''}{}. This makes it possible to write, for example, \lstinline{thm``theoremName''.show}{} and \lstinline{... using (ax``comprehensionSchema'')} Figure \ref{fig:kernellibrary} shows a typical example of set theory development.
-
-
-\begin{figure}[hp]
-  \begin{lstlisting}[language=Scala, frame=single]
-object MyTheoryName extends lisa.Main {
-  THEOREM("russelParadox") of 
-    (*@ $\forall$ @*)x. (x(*@$\in$@*)?y)(*@$\leftrightarrow$@*) (*@$\neg$@*)(x(*@$\in$@*)x)(*@$\vdash$@*) PROOF {
-      val y = VariableLabel("y")
-      val x = VariableLabel("x")
-      val s0 = RewriteTrue(in(y, y) <=> !in(y, y) |-())
-      val s1 = LeftForall(
-        forall(x, in(x, y) <=> !in(x, x)) |- (),
-        0, in(x, y) <=> !in(x, x), x, y
-      )
-      Proof(s0, s1)
-    } using ()
-  thm"russelParadox".show
-  
-  
-  THEOREM("unorderedPair_symmetry") of
-    "(*@$\vdash$@*)(*@$\forall$@*)y, x. {x, y} = {y, x}" PROOF {
-      ...
-    } using (ax"extensionalityAxiom", ax"pairAxiom")
-  show
-  
-  
-  val oPair = 
-    DEFINE("", x, y) as pair(pair(x, y), pair(x, x))
-  
-}
+where \lstinline|Term*| indicates that the function can take arbitrary many Terms as arguments.
+We can also defines infix symbols this way. An expression \lstinline|a === b| is in fact syntactic sugar for \lstinline|a.===(b)|. So we define:
+\begin{lstlisting}[language=Scala]
+  extension (t: Term) {
+    def ===(u: Term): Term = Term(equality, Seq(t, u))
+  }
 \end{lstlisting}
-  \caption{Example of library development in LISA Kernel}
-  \label{fig:kernellibrary}
-\end{figure}
+And similarly for other symbols such as \lstinline| /\|, \lstinline| \/|, \lstinline| ==>|, \lstinline| <=> |.
 
-\part{Theory}
+Now, consider again
+\begin{lstlisting}[language=Scala]
+  val x: TermLabel = VariableLabel("x")
+  val y: TermLabel = VariableLabel("x")
+  val f: SchematicFunctionLabel("f", 2)
+\end{lstlisting}
+even with the above \lstinline|apply| trick, \lstinline|f(x, y)| would not compile, since \lstinline|f| can apply to \lstinline|Term| arguments, but not to \lstinline|TermLabel|. Hence we first need to apply \lstinline|x| and \lstinline|y| to an empty list of argument, such as in \lstinline|f(x(), y())|.
+This can be done automatically with implicit conversions. Implicit conversion is the mechanism allowing to cast an object of a type to an other in a canonical way. It is define with the \lstinline|given| keyword:
+\begin{lstlisting}[language=Scala]
+  given Conversion[TermLabel, Term] = Term(_, Seq())
+\end{lstlisting}
+Now, every time a \lstinline|TermLabel| is writen in a place where a \lstinline|Term| is expected, it will be converted implicitly.
 
-\chapter{Set Theory}
-\label{chapt:settheory}
-
-It is important to remember that in the context of Set Theory, function symbols are not the usual mathematical functions and predicate symbols are not the usual mathematical predicates. Indeed, a predicate on the natural numbers $\mathbb N$ is simply a subset of $\mathbb N$. For example a number is even if and only if it is in the set $E \subset \mathbb N$ of all even numbers. Similarly, the $\leq$ relation on natural numbers can be thought of as a subset of $\mathbb N \times \mathbb N$. There, $E$ and $\leq$ are themselves sets, and in particular terms in first order logic.
-Actual mathematical functions on the other hand, are proper sets which contains the graph of a function on some domain. Their domain must be restricted to a proper set, and it is possible to quantify over such set-like functions or to use them without applications. These set-like functions are represented by constant symbols.  For example ``$f$ is derivable'' cannot be stated about a function symbol. We will come back to this in Chapter~\ref{chapt:settheory}, but for now let us remember that (non-constant) function symbols are suitable for intersection ($\bigcap$) between sets but not for, say, the Riemann $\zeta$ function.
-
-
-Indeed, on one hand a predicate symbol defines a truth value on all possible sets, but on the other hand it is impossible to use the symbol alone, without applying it to arguments, or to quantify over function symbol.
-
-LISA is based on set theory. More specifically, it is based on ZF with (still not decided) an axiom of choice, of global choice, or Tarski's universes.
-
-ZF Set Theory stands for Zermelo-Fraenkel Set Theory. It contains a set of initial predicate symbols and function symbols, as shown in Figure \ref{fig:symbolszf}. It also contains the 7 axioms of Zermelo (Figure \ref{fig:axiomsz}), which are technically sufficient to formalize a large portion of mathematics, plus the axiom of replacement of Fraenkel (Figure \ref{fig:axiomszf}), which is needed to formalize more complex mathematical theories.
-In a more typical mathematical introduction to Set Theory, ZF would naturally only contain the set membership symbol $\in$. Axioms defining the other symbols would then only express the existence of functions or predicates with those properties, from which we could get the same symbols using extensions by definitions.
-
-In a very traditional sense, an axiomatization is any possibly infinite semi-recursive set of axioms. Hence, in its full generality, Axioms should be any function producing possibly infinitely many formulas.
-This is however not a convenient definition. In practice, all infinite axiomatizations are schematic, meaning that they are expressable using schematic variables. Axioms \ref{axz:comprehension} (comprehension schema) and \ref{axzf:replacement} (replacement schema) are such examples of axiom schema, and motivates the use of schematic variables in LISA.
-
-
-
-\begin{figure}
-  \begin{center}
-    \begin{tabular}{l|c|l}
-      {}                         & Math symbol       & LISA Kernel             \\ \hline
-      Set Membership predicate   & $\in$             & \lstinline$in(s,t)$     \\
-      Subset predicate           & $\subset$         & \lstinline$subset(s,t)$ \\
-      Empty Set constant         & $\emptyset$       & \lstinline$emptyset()$  \\
-      Unordered Pair constant    & $(\cdot, \cdot )$ & \lstinline$pair(s,t)$   \\
-      Power Set function         & $\mathcal P$      & \lstinline$powerSet(s)$ \\
-      Set Union/Flatten function & $\bigcup$         & \lstinline$union(x)$    \\
-    \end{tabular}
-
-    \caption{The basic symbols of ZF.}
-    \label{fig:symbolszf}
-  \end{center}
-\end{figure}
-
-\begin{figure}
-  \begin{axz}[empty set]\label{axz:empty}
-    $\forall x. x \notin \emptyset$
-  \end{axz}
-  \begin{axz}[extensionality]\label{axz:extensionality}
-    $\forall x, y. (\forall z. z \in x \iff z \in y) \iff (x = y)$
-  \end{axz}
-  \begin{axz}[extensionality]\label{axz:subset}
-    $\forall x, y. x\subset y \iff \forall z. z \in x iff z \in y$
-  \end{axz}
-  \begin{axz}[pair]\label{axz:pair}
-    $\forall x, y, z. (z \in (x, y)) \iff ((x \in y) \lor (y \in z))$
-  \end{axz}
-  \begin{axz}[union]\label{axz:union}
-    $\forall x, z. (x \in \operatorname{U}(z)) \iff (\exists y. (x \in y) \land (y \in z))$
-  \end{axz}
-  \begin{axz}[power]\label{axz:power}
-    $\forall x, y. (x \in \operatorname{\mathcal{P}}(y)) \iff (x \subset y)$
-  \end{axz}
-  \begin{axz}[foundation]\label{axz:foundation}
-    $\forall x. (x \neq \emptyset) \implies (\exists y. (y \in x) \land (\forall z. z \in x))$
-  \end{axz}
-  \begin{axz}[comprehension schema]\label{axz:comprehension}
-    $\forall z, \vec{v}. \exists y. \forall x. (x \in y) \iff ((x \in z) \land \phi(x, z, \vec{v}))$
-  \end{axz}
-  \caption{Axioms for Zermelo set theory.}
-  \label{fig:axiomsz}
-\end{figure}
-
-\begin{figure}
-  \begin{axzf}[replacement schema]\label{axzf:replacement}
-    $$\forall a. (\forall x. (x \in a) \implies !\exists y. \phi(a, \vec{v}, x, y)) \implies $$
-    $$(\exists b. \forall x. (x \in a) \implies (\exists y. (y \in b) \land \phi(a, \vec{v}, x, y)))$$
-  \end{axzf}
-  \caption{Axioms for Zermelo-Fraenkel set theory.}
-  \label{fig:axiomszf}
-\end{figure}
-
-
+To learn more about Scala 3 and its capabilities, see its documentation at \url{https://docs.scala-lang.org/scala3/book/introduction.html}.
 

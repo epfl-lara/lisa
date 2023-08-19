@@ -71,7 +71,7 @@
         import, final, return, new, override, this, trait,
         private, public, protected, package, throw},
     sensitive = true, 
-    numbers=left,
+    %numbers=left,
     stepnumber=1,
     morecomment = [l]{//},
     morecomment = [s]{/*}{*/},
@@ -91,7 +91,7 @@
         object, true, val, var, while, sealed, or,
         for, dependent, null, type, with, try, catch, finally,
         import, final, return, new, override, this, trait,
-        private, public, protected, package, throw},
+        private, public, protected, package, throw, given},
     morekeywords = [3]{have, andThen, thenHave, Theorem, by, DEF, The, Lemma, subproof, assume},
     sensitive = true, 
     numbers=left,
@@ -102,7 +102,17 @@
     otherkeywords = {;,<<,>>,++},
 }
 
-\lstset{basicstyle=\scriptsize\ttfamily,mathescape,escapeinside={!*}{*!},columns=fullflexible,morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def}}
+
+
+\definecolor{verylightgray}{rgb}{0.96, 0.94, 0.92}
+\lstset{
+    backgroundcolor = \color{verylightgray},
+    basicstyle=\footnotesize\linespread{1.15}\ttfamily,
+    mathescape,
+    escapeinside={!*}{*!},
+    columns=fullflexible,
+    morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def}
+}
 
 \DeclareMathOperator{\pick}{pick}
 
