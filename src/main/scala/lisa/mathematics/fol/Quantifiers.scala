@@ -4,6 +4,7 @@ package fol
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
+import lisa.prooflib.Substitution
 
 /**
  * Implements theorems about first-order logic.
@@ -364,7 +365,7 @@ object Quantifiers extends lisa.Main {
   ) {
     val fwd = have((exists(x, P(x)) /\ !existsOne(x, P(x))) ==> exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))) subproof {
       have((P(x), ((x === y) /\ !P(y))) |- P(x) /\ !P(y)) by Restate
-      thenHave((P(x), ((x === y) /\ !P(y))) |- P(y) /\ !P(y)) by Substitution.withExplicitRules(x === y) // contradiction
+      thenHave((P(x), ((x === y) /\ !P(y))) |- P(y) /\ !P(y)) by Substitution.ApplyRules(x === y) // contradiction
       val xy = thenHave((P(x), ((x === y) /\ !P(y))) |- exists(x, exists(y, P(x) /\ P(y) /\ !(x === y)))) by Weakening
 
       have((P(x), (!(x === y) /\ P(y))) |- (!(x === y) /\ P(y) /\ P(x))) by Restate
@@ -384,7 +385,7 @@ object Quantifiers extends lisa.Main {
       val ex = thenHave((P(x), P(y), !(x === y)) |- exists(x, P(x))) by RightExists
 
       have((P(x), P(y), !(x === y)) |- P(y) /\ !(y === x)) by Restate
-      thenHave((P(x), P(y), !(x === y), (x === z)) |- P(y) /\ !(y === z)) by Substitution.withExplicitRules(x === z)
+      thenHave((P(x), P(y), !(x === y), (x === z)) |- P(y) /\ !(y === z)) by Substitution.ApplyRules(x === z)
       thenHave((P(x), P(y), !(x === y), (x === z)) |- (P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z))) by Weakening
       val xz = thenHave((P(x), P(y), !(x === y), (x === z)) |- exists(y, (P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z)))) by RightExists
 

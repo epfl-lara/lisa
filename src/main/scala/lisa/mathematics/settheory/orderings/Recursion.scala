@@ -18,6 +18,7 @@ import lisa.mathematics.settheory.orderings.WellOrders.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
+import lisa.prooflib.Substitution
 import lisa.utils.FOLPrinter
 
 /**
@@ -133,7 +134,7 @@ object Recursion extends lisa.Main {
             restrictedFunctionIsFunctionalOver of (f -> g, x -> initialSegment(p, z)),
             functionalOver.definition of (f -> g, x -> initialSegment(p, t))
           )
-          thenHave(thesis) by Substitution.withExplicitRules(ordResDef)
+          thenHave(thesis) by Substitution.ApplyRules(ordResDef)
         }
 
         // but dom g is <t
@@ -141,7 +142,7 @@ object Recursion extends lisa.Main {
           have(functionalOver(g, initialSegment(p, t))) by Tautology
           have(relationDomain(g) === initialSegment(p, t)) by Tautology.from(lastStep, functionalOverImpliesDomain of (f -> g, x -> initialSegment(p, t)))
 
-          have(thesis) by Substitution.withExplicitRules(lastStep)(domrestriction)
+          have(thesis) by Substitution.ApplyRules(lastStep)(domrestriction)
         }
 
         // <z \subseteq <t
@@ -162,7 +163,7 @@ object Recursion extends lisa.Main {
           intersectionOfSubsets of (x -> initialSegment(p, z), y -> initialSegment(p, t))
         )
 
-        have(thesis) by Substitution.withExplicitRules(lastStep)(domgz)
+        have(thesis) by Substitution.ApplyRules(lastStep)(domgz)
       }
 
       // the double initial segment is redundant
@@ -180,7 +181,7 @@ object Recursion extends lisa.Main {
           assume(in(b, initialSegment(pt, z)))
 
           have(in(b, firstInPair(pt))) by Tautology.from(initXY of (x -> pt, y -> z, c -> b))
-          val bpt = thenHave(in(b, initialSegment(p, t))) by Substitution.withExplicitRules(firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
+          val bpt = thenHave(in(b, initialSegment(p, t))) by Substitution.ApplyRules(firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
           have(in(b, initialSegment(p, t)) ==> in(b, p1)) by Tautology.from(initXY of (x -> p, y -> t, c -> b))
           val bInP1 = have(in(b, p1)) by Tautology.from(lastStep, bpt)
 
@@ -189,7 +190,7 @@ object Recursion extends lisa.Main {
             val zt = have(in(pair(z, t), p2)) by Tautology.from(lastStep, initXY of (x -> p, y -> t, c -> z))
 
             have(in(pair(b, z), secondInPair(pt))) by Tautology.from(initXY of (x -> pt, y -> z, c -> b))
-            val bzpt = thenHave(in(pair(b, z), initialSegmentOrder(p, t))) by Substitution.withExplicitRules(secondInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
+            val bzpt = thenHave(in(pair(b, z), initialSegmentOrder(p, t))) by Substitution.ApplyRules(secondInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
 
             have(thesis) subproof {
               have(
@@ -248,13 +249,13 @@ object Recursion extends lisa.Main {
               )))
             ) by InstantiateForall(pair(b, z))
             val ordDef = thenHave(in(pair(b, z), initialSegmentOrder(p, t)) <=> (in(pair(b, z), secondInPair(p)) /\ (in(b, initialSegment(p, t)) /\ in(z, initialSegment(p, t))))) by Substitution
-              .withExplicitRules(firstInPairReduction of (x -> b, y -> z), secondInPairReduction of (x -> b, y -> z))
+              .ApplyRules(firstInPairReduction of (x -> b, y -> z), secondInPairReduction of (x -> b, y -> z))
 
             val bz = have(in(pair(b, z), p2)) by Tautology.from(initXY of (x -> p, y -> z, c -> b))
             have(thesis) by Tautology.from(ordDef, bz, bpt)
           }
 
-          have(in(b, initialSegment(pt, z)) <=> (in(b, initialSegment(p, t)) /\ in(pair(b, z), initialSegmentOrder(p, t)))) by Substitution.withExplicitRules(
+          have(in(b, initialSegment(pt, z)) <=> (in(b, initialSegment(p, t)) /\ in(pair(b, z), initialSegmentOrder(p, t)))) by Substitution.ApplyRules(
             firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)),
             secondInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t))
           )(initXY of (x -> pt, y -> z, c -> b))
@@ -274,13 +275,13 @@ object Recursion extends lisa.Main {
           have(in(b, initialSegment(p, z)) ==> (app(restrictedFunction(g, initialSegment(p, z)), b) === app(g, b))) by Tautology.from(
             restrictedFunctionApplication of (f -> g, x -> initialSegment(p, z), y -> b)
           )
-          thenHave(thesis) by Substitution.withExplicitRules(ordResDef)
+          thenHave(thesis) by Substitution.ApplyRules(ordResDef)
         }
 
         // b <_t z ==> b < z
         val btTobz = have(in(b, initialSegment(pt, z)) ==> in(b, initialSegment(p, z))) subproof {
           have(in(b, initialSegment(pt, z)) ==> in(b, initialSegment(pt, z))) by Restate
-          thenHave(thesis) by Substitution.withExplicitRules(initPTEqual)
+          thenHave(thesis) by Substitution.ApplyRules(initPTEqual)
         }
 
         // so b <_t z ==> g_z(b) = g(b)
@@ -314,7 +315,7 @@ object Recursion extends lisa.Main {
         have(fun(g, t) |- functionalOver(orderedRestriction(g, z, p), initialSegment(p, z))) by Restate.from(restrictionIsFunction)
 
         // but initialSegment pt z = initialSegment p z
-        val fung = thenHave(fun(g, t) |- functionalOver(orderedRestriction(g, z, p), initialSegment(pt, z))) by Substitution.withExplicitRules(initPTEqual)
+        val fung = thenHave(fun(g, t) |- functionalOver(orderedRestriction(g, z, p), initialSegment(pt, z))) by Substitution.ApplyRules(initPTEqual)
 
         have(thesis) by Tautology.from(
           fung of g -> g1,
@@ -327,7 +328,7 @@ object Recursion extends lisa.Main {
       // and thus F(g1_z) = F(g2_z)
       val fg1g2eq = have(F(orderedRestriction(g1, z, p)) === F(orderedRestriction(g2, z, p))) subproof {
         have(F(orderedRestriction(g1, z, p)) === F(orderedRestriction(g1, z, p))) by Restate
-        thenHave(thesis) by Substitution.withExplicitRules(orderedRestrictionsEqual)
+        thenHave(thesis) by Substitution.ApplyRules(orderedRestrictionsEqual)
       }
 
       // but then app(g1, z) = F (g1_z) = F(g1_z) = app(g2, z)
@@ -364,7 +365,7 @@ object Recursion extends lisa.Main {
       )
       thenHave(
         in(z, firstInPair(pt)) |- forall(b, in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z))
-      ) by Substitution.withExplicitRules(firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
+      ) by Substitution.ApplyRules(firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
       thenHave(
         in(z, firstInPair(pt)) ==> (forall(b, in(b, initialSegment(pt, z)) ==> (app(g1, b) === app(g2, b))) ==> (app(g1, z) === app(g2, z)))
       ) by Restate
@@ -374,7 +375,7 @@ object Recursion extends lisa.Main {
       have(
         forall(z, in(z, firstInPair(pt)) ==> (app(g1, z) === app(g2, z)))
       ) by Tautology.from(lastStep, ptWO, wellOrderedInduction of (p -> pt, Q -> lambda(x, app(g1, x) === app(g2, x))))
-      thenHave(thesis) by Substitution.withExplicitRules(firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
+      thenHave(thesis) by Substitution.ApplyRules(firstInPairReduction of (x -> initialSegment(p, t), y -> initialSegmentOrder(p, t)))
     }
 
     // so g1 = g2, but this is a contradiction
@@ -467,7 +468,7 @@ object Recursion extends lisa.Main {
           val yeq = have((y1 === y2) |- subset(t1, t2)) subproof {
             assume(y1 === y2)
             have(fun(t1, y1) /\ fun(t2, y2)) by Restate
-            thenHave(fun(t1, y1) /\ fun(t2, y1)) by Substitution.withExplicitRules(y1 === y2)
+            thenHave(fun(t1, y1) /\ fun(t2, y1)) by Substitution.ApplyRules(y1 === y2)
             thenHave(fun(t1, y1) /\ fun(t2, y1) /\ !(t1 === t2)) by Tautology
             thenHave(exists(t2, fun(t1, y1) /\ fun(t2, y1) /\ !(t1 === t2))) by RightExists
             thenHave(exists(t1, exists(t2, fun(t1, y1) /\ fun(t2, y1) /\ !(t1 === t2)))) by RightExists
@@ -707,7 +708,7 @@ object Recursion extends lisa.Main {
                       val domEQ = have(initialSegment(p, a1) === relationDomain(k1)) by Tautology.from(functionalOver.definition of (f -> k1, x -> initialSegment(p, a1)))
 
                       have(in(m, initialSegment(p, a1))) by Tautology.from(mViolatesRestricted)
-                      thenHave(thesis) by Substitution.withExplicitRules(domEQ)
+                      thenHave(thesis) by Substitution.ApplyRules(domEQ)
                     }
 
                     val mInDom2 = have(in(m, relationDomain(k2))) subproof {
@@ -721,7 +722,7 @@ object Recursion extends lisa.Main {
                       thenHave(in(m, initialSegment(p, a1)) ==> in(m, initialSegment(p, a2))) by InstantiateForall(m)
                       have(in(m, initialSegment(p, a2))) by Tautology.from(lastStep, mLTa1)
 
-                      thenHave(thesis) by Substitution.withExplicitRules(domEQ)
+                      thenHave(thesis) by Substitution.ApplyRules(domEQ)
                     }
 
                     // if the application is equal on the ordered restriction, it must be equal on the entire functions
@@ -755,7 +756,7 @@ object Recursion extends lisa.Main {
 
                     // however, that means n < n, but the order is anti-reflexive
                     have(in(pair(m, n), p2)) by Weakening(mViolates)
-                    val nLTn = thenHave(in(pair(n, n), p2)) by Substitution.withExplicitRules(nEQm)
+                    val nLTn = thenHave(in(pair(n, n), p2)) by Substitution.ApplyRules(nEQm)
 
                     have(forall(n, in(n, p1) ==> !in(pair(n, n), p2))) by Tautology.from(pIsAPartialOrder, partialOrder.definition, antiReflexive.definition of (r -> p2, x -> p1))
                     thenHave(in(n, p1) ==> !in(pair(n, n), p2)) by InstantiateForall(n)
@@ -769,7 +770,7 @@ object Recursion extends lisa.Main {
                 }
 
                 have(F(orderedRestriction(k1, n, p)) === F(orderedRestriction(k1, n, p))) by Restate
-                thenHave(thesis) by Substitution.withExplicitRules(k1k2)
+                thenHave(thesis) by Substitution.ApplyRules(k1k2)
               }
 
               // // finally k1 n == k2 n
@@ -871,7 +872,7 @@ object Recursion extends lisa.Main {
 
       // z in dom uw
       // have(in(z, initialSegment(p, x))) by Restate
-      // val zInDom = thenHave(in(z, relationDomain(uw))) by Substitution.withExplicitRules(domUEq)
+      // val zInDom = thenHave(in(z, relationDomain(uw))) by EqualityReasoning.ApplyRules(domUEq)
 
       // so exists g \in w, z \in dom g
       have(functional(uw) /\ in(z, relationDomain(uw)) |- exists(g, in(g, w) /\ in(z, relationDomain(g)))) by InstantiateForall(z)(domainOfFunctionalUnion of z -> w)
@@ -929,7 +930,7 @@ object Recursion extends lisa.Main {
 
             have(forall(a, in(a, initialSegment(p, y)) ==> (app(g, a) === F(orderedRestriction(g, a, p))))) by Restate
             thenHave(in(z, initialSegment(p, y)) ==> (app(g, z) === F(orderedRestriction(g, z, p)))) by InstantiateForall(z)
-            thenHave(in(z, relationDomain(g)) ==> (app(g, z) === F(orderedRestriction(g, z, p)))) by Substitution.withExplicitRules(domEq)
+            thenHave(in(z, relationDomain(g)) ==> (app(g, z) === F(orderedRestriction(g, z, p)))) by Substitution.ApplyRules(domEq)
             thenHave(thesis) by Restate
           }
           thenHave(in(y, initialSegment(p, x)) /\ fun(g, y) |- app(g, z) === F(orderedRestriction(g, z, p))) by Weakening
@@ -937,7 +938,7 @@ object Recursion extends lisa.Main {
           have(thesis) by Cut(yExists, lastStep)
         }
 
-        thenHave(thesis) by Substitution.withExplicitRules(gEqU)
+        thenHave(thesis) by Substitution.ApplyRules(gEqU)
       }
 
       thenHave((in(g, w) /\ in(z, relationDomain(g))) |- in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p)))) by Tautology
@@ -1044,7 +1045,7 @@ object Recursion extends lisa.Main {
                       // but z in dom g, so z < y
                       have(in(pair(z, y), p2)) subproof {
                         have(in(z, relationDomain(g))) by Restate
-                        thenHave(in(z, initialSegment(p, y))) by Substitution.withExplicitRules(domEq)
+                        thenHave(in(z, initialSegment(p, y))) by Substitution.ApplyRules(domEq)
                         have(thesis) by Tautology.from(lastStep, initialSegmentElement of x -> z, pIsAPartialOrder)
                       }
 
@@ -1060,7 +1061,7 @@ object Recursion extends lisa.Main {
                           have(relationDomain(restrictedFunction(g, initialSegment(p, z))) === setIntersection(initialSegment(p, z), relationDomain(g))) by Weakening(
                             restrictedFunctionDomain of (f -> g, x -> initialSegment(p, z))
                           )
-                          thenHave(thesis) by Substitution.withExplicitRules(ogExpand, domEq)
+                          thenHave(thesis) by Substitution.ApplyRules(ogExpand, domEq)
                         }
 
                         have(setIntersection(initialSegment(p, z), initialSegment(p, y)) === initialSegment(p, z)) by Tautology.from(
@@ -1069,7 +1070,7 @@ object Recursion extends lisa.Main {
                           intersectionOfSubsets of (x -> initialSegment(p, z), y -> initialSegment(p, y))
                         )
 
-                        have(thesis) by Substitution.withExplicitRules(lastStep)(domEQ)
+                        have(thesis) by Substitution.ApplyRules(lastStep)(domEQ)
                       }
                     }
 
@@ -1078,7 +1079,7 @@ object Recursion extends lisa.Main {
                   }
 
                   // t1 \in dom g
-                  have(thesis) by Substitution.withExplicitRules(lastStep)(t1LTz)
+                  have(thesis) by Substitution.ApplyRules(lastStep)(t1LTz)
                 }
 
                 // since t1 \in dom g, exists a. (t, a) \in g
@@ -1093,7 +1094,7 @@ object Recursion extends lisa.Main {
                     have(relationDomain(restrictedFunction(g, initialSegment(p, z))) === setIntersection(initialSegment(p, z), relationDomain(g))) by Tautology.from(
                       restrictedFunctionDomain of (f -> g, x -> initialSegment(p, z))
                     )
-                    thenHave(relationDomain(og) === setIntersection(initialSegment(p, z), relationDomain(g))) by Substitution.withExplicitRules(ordEQ)
+                    thenHave(relationDomain(og) === setIntersection(initialSegment(p, z), relationDomain(g))) by Substitution.ApplyRules(ordEQ)
 
                     have(forall(b, in(b, relationDomain(og)) <=> in(b, setIntersection(initialSegment(p, z), relationDomain(g))))) by Tautology.from(
                       lastStep,
@@ -1138,7 +1139,7 @@ object Recursion extends lisa.Main {
                     val tInF = have(in(t, f)) by Restate
 
                     // so (t1, t2) = t
-                    have(thesis) by Substitution.withExplicitRules(tEqt1t2)(tInF)
+                    have(thesis) by Substitution.ApplyRules(tEqt1t2)(tInF)
                   }
 
                   // t2 = a
@@ -1161,8 +1162,8 @@ object Recursion extends lisa.Main {
 
                   // but then (t1, t2) = t \in g
                   have(in(pair(t1, a), g)) by Restate
-                  thenHave(in(pair(t1, t2), g)) by Substitution.withExplicitRules(t2Eqa)
-                  thenHave(in(t, g)) by Substitution.withExplicitRules(tEqt1t2)
+                  thenHave(in(pair(t1, t2), g)) by Substitution.ApplyRules(t2Eqa)
+                  thenHave(in(t, g)) by Substitution.ApplyRules(tEqt1t2)
 
                   // this is a contradiction
                   thenHave(thesis) by Tautology
@@ -1190,7 +1191,7 @@ object Recursion extends lisa.Main {
 
     have(in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) subproof {
       have(in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p))) |- (app(uw, z) === F(orderedRestriction(g, z, p)))) by Restate
-      thenHave(thesis) by Substitution.withExplicitRules(gRestrictedEq)
+      thenHave(thesis) by Substitution.ApplyRules(gRestrictedEq)
     }
 
     thenHave(exists(g, in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p)))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) by LeftExists
@@ -1247,7 +1248,7 @@ object Recursion extends lisa.Main {
             val domEQ = have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(lastStep, functionalOver.definition of (f -> g, x -> initialSegment(p, y)))
 
             have(in(z, initialSegment(p, y))) by Restate
-            thenHave(thesis) by Substitution.withExplicitRules(domEQ)
+            thenHave(thesis) by Substitution.ApplyRules(domEQ)
           }
 
           val gInw = have(in(g, w)) subproof {
@@ -1461,12 +1462,12 @@ object Recursion extends lisa.Main {
                     // t < y
                     val domEQ = have(relationDomain(g) === initialSegment(p, y)) by Tautology.from(functionalOver.definition of (f -> g, x -> initialSegment(p, y)))
                     have(in(t, relationDomain(g))) by Restate
-                    val tLTy = thenHave(in(t, initialSegment(p, y))) by Substitution.withExplicitRules(domEQ)
+                    val tLTy = thenHave(in(t, initialSegment(p, y))) by Substitution.ApplyRules(domEQ)
 
                     // y <= pr
                     val cases = have((y === pr) \/ in(y, initialSegment(p, pr))) by Tautology.from(initialSegmentPredecessorSplit of (y -> pr, z -> y), pIsATotalOrder)
 
-                    val eqCase = have((y === pr) |- in(t, initialSegment(p, pr))) by Substitution.withExplicitRules(y === pr)(tLTy)
+                    val eqCase = have((y === pr) |- in(t, initialSegment(p, pr))) by Substitution.ApplyRules(y === pr)(tLTy)
                     val initCase = have(in(y, initialSegment(p, pr)) |- in(t, initialSegment(p, pr))) by Tautology.from(tLTy, initialSegmentTransitivity of (x -> t, y -> y, z -> pr), pIsAPartialOrder)
 
                     have(thesis) by Tautology.from(cases, eqCase, initCase)
@@ -1503,7 +1504,7 @@ object Recursion extends lisa.Main {
                   val domEQ = have(relationDomain(g) === initialSegment(p, pr)) by Tautology.from(lastStep, functionalOver.definition of (f -> g, x -> initialSegment(p, pr)))
 
                   have(in(t, initialSegment(p, pr))) by Restate
-                  thenHave(in(t, relationDomain(g))) by Substitution.withExplicitRules(domEQ)
+                  thenHave(in(t, relationDomain(g))) by Substitution.ApplyRules(domEQ)
                   have(thesis) by Tautology.from(lastStep, gW)
                 }
 
@@ -1545,7 +1546,7 @@ object Recursion extends lisa.Main {
 
                 val tEQpr = have(t === pr) by Tautology.from(singletonMembership)
                 val tLTpr = have(in(pair(t, pr), p2)) by Tautology.from(initMembership)
-                val prprp2 = thenHave(in(pair(pr, pr), p2)) by Substitution.withExplicitRules(tEQpr)
+                val prprp2 = thenHave(in(pair(pr, pr), p2)) by Substitution.ApplyRules(tEQpr)
 
                 // but the order is anti reflexive
                 have(forall(pr, in(pr, p1) ==> !in(pair(pr, pr), p2))) by Tautology.from(pIsAPartialOrder, partialOrder.definition, antiReflexive.definition of (r -> p2, x -> p1))
@@ -1560,7 +1561,7 @@ object Recursion extends lisa.Main {
               have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) <=> (in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)))) by Tautology.from(
                 setIntersectionMembership of (x -> initialSegment(p, pr), y -> singleton(pr))
               )
-              have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet())) by Substitution.withExplicitRules(lastStep)(inEmpty)
+              have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet())) by Substitution.ApplyRules(lastStep)(inEmpty)
               thenHave(forall(t, in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet()))) by RightForall
               have(subset(setIntersection(initialSegment(p, pr), singleton(pr)), emptySet())) by Tautology.from(
                 lastStep,
@@ -1585,18 +1586,18 @@ object Recursion extends lisa.Main {
 
               val singletonMembership = have(in(t, singleton(pr)) <=> (t === pr)) by Tautology.from(singletonHasNoExtraElements of (y -> t, x -> pr))
 
-              val initMembership = have(in(t, initialSegment(p, x)) <=> (in(t, singleton(pr)) \/ in(t, initialSegment(p, pr)))) by Substitution.withExplicitRules(singletonMembership)(initBreakdown)
+              val initMembership = have(in(t, initialSegment(p, x)) <=> (in(t, singleton(pr)) \/ in(t, initialSegment(p, pr)))) by Substitution.ApplyRules(singletonMembership)(initBreakdown)
 
               have(in(t, setUnion(initialSegment(p, pr), singleton(pr))) <=> (in(t, singleton(pr)) \/ in(t, initialSegment(p, pr)))) by Tautology.from(
                 setUnionMembership of (z -> t, x -> initialSegment(p, pr), y -> singleton(pr))
               )
-              have(in(t, initialSegment(p, x)) <=> in(t, setUnion(initialSegment(p, pr), singleton(pr)))) by Substitution.withExplicitRules(lastStep)(initMembership)
+              have(in(t, initialSegment(p, x)) <=> in(t, setUnion(initialSegment(p, pr), singleton(pr)))) by Substitution.ApplyRules(lastStep)(initMembership)
               thenHave(forall(t, in(t, initialSegment(p, x)) <=> in(t, setUnion(initialSegment(p, pr), singleton(pr))))) by RightForall
 
               have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> initialSegment(p, x), y -> setUnion(initialSegment(p, pr), singleton(pr))))
             }
 
-            have(thesis) by Substitution.withExplicitRules(unionEQ)(vFunctionalOverUnion)
+            have(thesis) by Substitution.ApplyRules(unionEQ)(vFunctionalOverUnion)
           }
 
           // 2. v is recursive
@@ -1608,7 +1609,7 @@ object Recursion extends lisa.Main {
               val zInDom = have(in(z, relationDomain(v))) subproof {
                 val domEQ = have(relationDomain(v) === initialSegment(p, x)) by Tautology.from(functionalOver.definition of (f -> v, x -> initialSegment(p, x)), vFunctionalOver)
                 have(in(z, initialSegment(p, x))) by Restate
-                thenHave(thesis) by Substitution.withExplicitRules(domEQ)
+                thenHave(thesis) by Substitution.ApplyRules(domEQ)
               }
 
               // app v z is well defined
@@ -1634,10 +1635,10 @@ object Recursion extends lisa.Main {
                     lastStep,
                     restrictedFunctionIsFunctionalOver of (f -> v, x -> initialSegment(p, pr))
                   )
-                  val vprFun = thenHave(functionalOver(vpr, setIntersection(initialSegment(p, pr), relationDomain(v)))) by Substitution.withExplicitRules(ordBreakdown of (a -> v, b -> pr))
+                  val vprFun = thenHave(functionalOver(vpr, setIntersection(initialSegment(p, pr), relationDomain(v)))) by Substitution.ApplyRules(ordBreakdown of (a -> v, b -> pr))
 
                   have(relationDomain(v) === initialSegment(p, x)) by Tautology.from(vFunctionalOver, functionalOver.definition of (f -> v, x -> initialSegment(p, x)))
-                  val initIntersection = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), initialSegment(p, x)))) by Substitution.withExplicitRules(lastStep)(vprFun)
+                  val initIntersection = have(functionalOver(vpr, setIntersection(initialSegment(p, pr), initialSegment(p, x)))) by Substitution.ApplyRules(lastStep)(vprFun)
 
                   have(setIntersection(initialSegment(p, pr), initialSegment(p, x)) === initialSegment(p, pr)) by Tautology.from(
                     predecessorInInitialSegment of y -> pr,
@@ -1645,7 +1646,7 @@ object Recursion extends lisa.Main {
                     pIsAPartialOrder,
                     pIsATotalOrder
                   )
-                  have(thesis) by Substitution.withExplicitRules(lastStep)(initIntersection)
+                  have(thesis) by Substitution.ApplyRules(lastStep)(initIntersection)
                 }
 
                 // and they agree on their domain
@@ -1663,13 +1664,13 @@ object Recursion extends lisa.Main {
                       lastStep,
                       restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> b, a -> a)
                     )
-                    thenHave(thesis) by Substitution.withExplicitRules(ordBreakdown of (a -> v, b -> pr))
+                    thenHave(thesis) by Substitution.ApplyRules(ordBreakdown of (a -> v, b -> pr))
                   }
 
                   val bwd = have(in(pair(b, a), vpr) |- in(pair(b, a), uw)) subproof {
                     assume(in(pair(b, a), vpr))
                     have(in(pair(b, a), vpr)) by Restate
-                    thenHave(in(pair(b, a), restrictedFunction(v, initialSegment(p, pr)))) by Substitution.withExplicitRules(ordBreakdown of (a -> v, b -> pr))
+                    thenHave(in(pair(b, a), restrictedFunction(v, initialSegment(p, pr)))) by Substitution.ApplyRules(ordBreakdown of (a -> v, b -> pr))
                     have(in(pair(b, a), v)) by Tautology.from(lastStep, restrictedFunctionPairMembership of (f -> v, x -> initialSegment(p, pr), t -> b, a -> a))
                     val cases = have(in(pair(b, a), uw) \/ in(pair(b, a), prFun)) by Tautology.from(lastStep, setUnionMembership of (z -> pair(b, a), x -> uw, y -> prFun))
 
@@ -1681,7 +1682,7 @@ object Recursion extends lisa.Main {
                       val bEQpr = have(b === pr) by Tautology.from(lastStep, pairExtensionality of (a -> b, b -> a, c -> pr, d -> F(uw)))
 
                       have(in(b, initialSegment(p, pr))) by Restate
-                      thenHave(in(pr, initialSegment(p, pr))) by Substitution.withExplicitRules(bEQpr)
+                      thenHave(in(pr, initialSegment(p, pr))) by Substitution.ApplyRules(bEQpr)
                       have(bot()) by Tautology.from(lastStep, initialSegmentIrreflexivity of (x -> pr), pIsAPartialOrder)
                     }
 
@@ -1704,7 +1705,7 @@ object Recursion extends lisa.Main {
                 have(app(v, pr) === F(orderedRestriction(v, pr, p))) subproof {
                   val fuwEq = have(F(uw) === F(orderedRestriction(v, pr, p))) subproof {
                     have(F(uw) === F(uw)) by Restate
-                    thenHave(thesis) by Substitution.withExplicitRules(uwEq)
+                    thenHave(thesis) by Substitution.ApplyRules(uwEq)
                   }
 
                   // app v pr = uw
@@ -1720,7 +1721,7 @@ object Recursion extends lisa.Main {
                   have(thesis) by Tautology.from(equalityTransitivity of (x -> app(v, pr), y -> F(uw), z -> F(orderedRestriction(v, pr, p))), fuwEq, appEq)
                 }
 
-                thenHave(thesis) by Substitution.withExplicitRules(z === pr)
+                thenHave(thesis) by Substitution.ApplyRules(z === pr)
               }
 
               // the property holds for elements < pr
@@ -1732,7 +1733,7 @@ object Recursion extends lisa.Main {
                 // ordered restriction of v to z is the same as uw to z
                 val restrictionVW = have(orderedRestriction(v, z, p) === orderedRestriction(uw, z, p)) subproof {
                   have(orderedRestriction(uw, z, p) === orderedRestriction(uw, z, p)) by Restate
-                  val doubleRestriction = thenHave(orderedRestriction(uw, z, p) === orderedRestriction(orderedRestriction(v, pr, p), z, p)) by Substitution.withExplicitRules(uwEq)
+                  val doubleRestriction = thenHave(orderedRestriction(uw, z, p) === orderedRestriction(orderedRestriction(v, pr, p), z, p)) by Substitution.ApplyRules(uwEq)
 
                   have(orderedRestriction(orderedRestriction(v, pr, p), z, p) === orderedRestriction(v, z, p)) subproof {
                     // reduce to restricted functions
@@ -1740,23 +1741,23 @@ object Recursion extends lisa.Main {
                     val intersectionEQ = have(setIntersection(initialSegment(p, pr), initialSegment(p, z)) === initialSegment(p, z)) subproof {
                       have(setIntersection(initialSegment(p, z), initialSegment(p, pr)) === initialSegment(p, z)) by Tautology.from(initialSegmentIntersection of (y -> z, x -> pr), pIsAPartialOrder)
 
-                      thenHave(thesis) by Substitution.withExplicitRules(setIntersectionCommutativity of (x -> initialSegment(p, z), y -> initialSegment(p, pr)))
+                      thenHave(thesis) by Substitution.ApplyRules(setIntersectionCommutativity of (x -> initialSegment(p, z), y -> initialSegment(p, pr)))
                     }
 
                     have(orderedRestriction(orderedRestriction(v, pr, p), z, p) === orderedRestriction(orderedRestriction(v, pr, p), z, p)) by Restate
-                    thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(orderedRestriction(v, pr, p), initialSegment(p, z))) by Substitution.withExplicitRules(
+                    thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(orderedRestriction(v, pr, p), initialSegment(p, z))) by Substitution.ApplyRules(
                       ordBreakdown of (a -> orderedRestriction(v, pr, p), b -> z)
                     )
                     thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(restrictedFunction(v, initialSegment(p, pr)), initialSegment(p, z))) by Substitution
-                      .withExplicitRules(
+                      .ApplyRules(
                         ordBreakdown of (a -> v, b -> pr)
                       )
                     thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(v, setIntersection(initialSegment(p, pr), initialSegment(p, z)))) by Substitution
-                      .withExplicitRules(
+                      .ApplyRules(
                         restrictedFunctionAbsorption of (f -> v, x -> initialSegment(p, pr), y -> initialSegment(p, z))
                       )
-                    thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(v, initialSegment(p, z))) by Substitution.withExplicitRules(intersectionEQ)
-                    thenHave(thesis) by Substitution.withExplicitRules(ordBreakdown of (a -> v, b -> z))
+                    thenHave(orderedRestriction(orderedRestriction(v, pr, p), z, p) === restrictedFunction(v, initialSegment(p, z))) by Substitution.ApplyRules(intersectionEQ)
+                    thenHave(thesis) by Substitution.ApplyRules(ordBreakdown of (a -> v, b -> z))
                   }
 
                   have(thesis) by Tautology.from(
@@ -1768,21 +1769,21 @@ object Recursion extends lisa.Main {
 
                 val restrictionFVW = have(F(orderedRestriction(v, z, p)) === F(orderedRestriction(uw, z, p))) subproof {
                   have(F(orderedRestriction(v, z, p)) === F(orderedRestriction(v, z, p))) by Restate
-                  thenHave(thesis) by Substitution.withExplicitRules(restrictionVW)
+                  thenHave(thesis) by Substitution.ApplyRules(restrictionVW)
                 }
 
                 // app v z = app uw z
                 val appVW = have(app(v, z) === app(uw, z)) subproof {
                   have(app(uw, z) === app(uw, z)) by Restate
-                  val uwToOrd = thenHave(app(uw, z) === app(orderedRestriction(v, pr, p), z)) by Substitution.withExplicitRules(uwEq)
+                  val uwToOrd = thenHave(app(uw, z) === app(orderedRestriction(v, pr, p), z)) by Substitution.ApplyRules(uwEq)
 
                   have(orderedRestriction(v, pr, p) === restrictedFunction(v, initialSegment(p, pr))) by InstantiateForall(orderedRestriction(v, pr, p))(
                     orderedRestriction.definition of (f -> v, a -> pr)
                   )
-                  val uwToRest = have(app(uw, z) === app(restrictedFunction(v, initialSegment(p, pr)), z)) by Substitution.withExplicitRules(lastStep)(uwToOrd)
+                  val uwToRest = have(app(uw, z) === app(restrictedFunction(v, initialSegment(p, pr)), z)) by Substitution.ApplyRules(lastStep)(uwToOrd)
 
                   have(app(restrictedFunction(v, initialSegment(p, pr)), z) === app(v, z)) by Tautology.from(restrictedFunctionApplication of (f -> v, x -> initialSegment(p, pr), y -> z))
-                  have(app(uw, z) === app(v, z)) by Substitution.withExplicitRules(lastStep)(uwToRest)
+                  have(app(uw, z) === app(v, z)) by Substitution.ApplyRules(lastStep)(uwToRest)
 
                 }
 

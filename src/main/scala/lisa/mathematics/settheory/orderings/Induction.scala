@@ -17,6 +17,7 @@ import lisa.mathematics.settheory.orderings.WellOrders.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
+import lisa.prooflib.Substitution
 import lisa.utils.FOLPrinter
 
 object Induction extends lisa.Main {
@@ -157,7 +158,7 @@ object Induction extends lisa.Main {
             // well order is anti reflexive
             assume(y === w)
             have(in(pair(w, y), `<p`)) by Restate
-            val ww = thenHave(in(pair(w, w), `<p`)) by Substitution.withExplicitRules(y === w)
+            val ww = thenHave(in(pair(w, w), `<p`)) by Substitution.ApplyRules(y === w)
 
             have(∀(y, in(y, A) ==> !in(pair(y, y), `<p`))) subproof {
               have(antiReflexive(`<p`, A)) by Tautology.from(wellOrder.definition, totalOrder.definition, partialOrder.definition)
