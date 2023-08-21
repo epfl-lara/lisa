@@ -9,9 +9,9 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.unification.UnificationUtils2
 import lisa.utils.unification.UnificationUtils
 import lisa.utils.unification.UnificationUtils.getContextFormulaSet
+import lisa.utils.unification.UnificationUtils2
 
 import scala.collection.mutable.{Map as MMap}
 
