@@ -15,7 +15,7 @@ import lisa.utils.unification.UnificationUtils2.getContextFormulaSet
 
 import scala.collection.mutable.{Map as MMap}
 
-object EqualityReasoning {
+object Substitution {
   def validRule(using lib: lisa.prooflib.Library, proof: lib.Proof)(r: (proof.Fact | Formula | RunningTheory#Justification)): Boolean =
     r match {
       case PredicateFormula(`equality`, _) => true
@@ -59,13 +59,20 @@ object EqualityReasoning {
 
         // maintain a list of where subtitutions come from
         val sourceOf: MMap[(Formula, Formula) | (Term, Term), proof.Fact] = MMap()
-        val takenTermVars = proof.getAssumptions.flatMap(_.freeVariables).toSet
-        val takenFormulaVars = proof.getAssumptions.flatMap(_.freeVariableFormulaLabels).toSet // TODO: should this just be the LHS of the premise sequent instead?
+        val takenTermVars = premiseSequent.left.flatMap(_.freeVariables).toSet union substitutions.collect { case f: Formula => f.freeVariables.toSet }.foldLeft(Set.empty)(_.union(_))
+        val takenFormulaVars = premiseSequent.left.flatMap(_.freeVariableFormulaLabels).toSet union substitutions
+          .collect { case f: Formula => f.freeVariableFormulaLabels.toSet }
+          .foldLeft(Set.empty)(_.union(_)) // TODO: should this just be the LHS of the premise sequent instead?
 
         var freeEqualitiesPre = List[(Term, Term)]()
         var confinedEqualitiesPre = List[(Term, Term)]()
         var freeIffsPre = List[(Formula, Formula)]()
         var confinedIffsPre = List[(Formula, Formula)]()
+
+        def updateSource(t: (Formula, Formula) | (Term, Term), f: proof.Fact) = {
+          sourceOf.update(t, f)
+          sourceOf.update(t.swap.asInstanceOf[(Formula, Formula) | (Term, Term)], f)
+        }
 
         // collect substitutions into the right buckets
         substitutions.foreach {
@@ -77,24 +84,24 @@ object EqualityReasoning {
                 confinedIffsPre = (l, r) :: confinedIffsPre
               case _ => ()
             }
-          case f: proof.Fact @unchecked =>
-            proof.sequentOfFact(f).right.head match {
-              case PredicateFormula(`equality`, Seq(l, r)) =>
-                sourceOf.update((l, r), f)
-                confinedEqualitiesPre = (l, r) :: confinedEqualitiesPre
-              case ConnectorFormula(Iff, Seq(l, r)) =>
-                sourceOf.update((l, r), f)
-                confinedIffsPre = (l, r) :: confinedIffsPre
-              case _ => ()
-            }
           case j: RunningTheory#Justification =>
             proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.head match {
               case PredicateFormula(`equality`, Seq(l, r)) =>
-                sourceOf.update((l, r), j.asInstanceOf[lib.theory.Justification])
+                updateSource((l, r), j.asInstanceOf[lib.theory.Justification])
                 freeEqualitiesPre = (l, r) :: freeEqualitiesPre
               case ConnectorFormula(Iff, Seq(l, r)) =>
-                sourceOf.update((l, r), j.asInstanceOf[lib.theory.Justification])
+                updateSource((l, r), j.asInstanceOf[lib.theory.Justification])
                 freeIffsPre = (l, r) :: freeIffsPre
+              case _ => ()
+            }
+          case f: proof.Fact @unchecked =>
+            proof.sequentOfFact(f).right.head match {
+              case PredicateFormula(`equality`, Seq(l, r)) =>
+                updateSource((l, r), f)
+                confinedEqualitiesPre = (l, r) :: confinedEqualitiesPre
+              case ConnectorFormula(Iff, Seq(l, r)) =>
+                updateSource((l, r), f)
+                confinedIffsPre = (l, r) :: confinedIffsPre
               case _ => ()
             }
         }
@@ -121,8 +128,8 @@ object EqualityReasoning {
         lazy val leftContextsOpt = getContextFormulaSet(filteredPrem, filteredBot, freeEqualities, freeIffs, confinedEqualities, takenTermVars, confinedIffs, takenFormulaVars)
         lazy val rightContextsOpt = getContextFormulaSet(premiseSequent.right.toSeq, bot.right.toSeq, freeEqualities, freeIffs, confinedEqualities, takenTermVars, confinedIffs, takenFormulaVars)
 
-        lazy val violatingFormulaLeft: Option[Formula] = ???
-        lazy val violatingFormulaRight: Option[Formula] = ???
+        lazy val violatingFormulaLeft: Option[Formula] = Some(top())
+        lazy val violatingFormulaRight: Option[Formula] = Some(top())
 
         if (leftContextsOpt.isEmpty)
           proof.InvalidProofTactic(s"Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formula: ${FOLPrinter.prettyFormula(violatingFormulaLeft.get)}")
@@ -144,7 +151,9 @@ object EqualityReasoning {
 
             val leftBody = ConnectorFormula(And, leftContexts.map(_.body))
 
-            val leftContextReduced = leftContexts.reduce { (f, s) =>
+            val defaultLeft = UnificationUtils2.FormulaRewriteLambda(body = leftBody)
+
+            val leftContextReduced = leftContexts.foldLeft(defaultLeft) { (f, s) =>
               UnificationUtils2.FormulaRewriteLambda(
                 termRules = f.termRules ++ s.termRules,
                 formulaRules = f.formulaRules ++ s.formulaRules,
@@ -154,11 +163,13 @@ object EqualityReasoning {
 
             val rightBody = ConnectorFormula(Or, rightContexts.map(_.body))
 
-            val rightContextReduced = leftContexts.reduce { (f, s) =>
+            val defaultRight = UnificationUtils2.FormulaRewriteLambda(body = rightBody)
+
+            val rightContextReduced = rightContexts.foldLeft(defaultRight) { (f, s) =>
               UnificationUtils2.FormulaRewriteLambda(
                 termRules = f.termRules ++ s.termRules,
                 formulaRules = f.formulaRules ++ s.formulaRules,
-                leftBody
+                rightBody
               )
             }
 
@@ -239,7 +250,7 @@ object EqualityReasoning {
               val (formulaInputsL, formulaInputsR) = (formulaInputs.map(_._1), formulaInputs.map(_._2))
 
               // get premise into the right form
-              val prem = ConnectorFormula(And, premiseSequent.left.toSeq) |- ConnectorFormula(Or, premiseSequent.right.toSeq)
+              val prem = ConnectorFormula(And, filteredPrem.toSeq) |- ConnectorFormula(Or, premiseSequent.right.toSeq)
               val eqs = termInputs.map(eq(_))
               val iffs = formulaInputs.map(iff(_))
               val premiseWithSubst = prem ++<< (eqs |- ()) ++<< (iffs |- ())
@@ -258,7 +269,7 @@ object EqualityReasoning {
               // left <=>
               val formSubstR = (formulaVars zip formulaInputsR).toMap
               val lhsAfterIff = substituteFormulaVariables(substituteVariables(ctx.body, eqSubst), formSubstR)
-              val sequentAfterIffPre = lhsAfterIff |- premiseWithSubst.right
+              val sequentAfterIffPre = lhsAfterIff |- sequentAfterEq.right
               val sequentAfterIff = sequentAfterIffPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (x = right terms)
@@ -316,15 +327,21 @@ object EqualityReasoning {
               // right <=>
               val formSubstR = (formulaVars zip formulaInputsR).toMap
               val rhsAfterIff = substituteFormulaVariables(substituteVariables(ctx.body, eqSubst), formSubstR)
-              val sequentAfterIffPre = premiseWithSubst.left |- rhsAfterIff
+              val sequentAfterIffPre = sequentAfterEq.left |- rhsAfterIff
               val sequentAfterIff = sequentAfterIffPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (x = right terms)
-              lib.thenHave(sequentAfterEq) by BasicStepTactic.RightSubstIff(formulaInputs.toList, lambda(formulaVars, substituteVariables(ctx.body, eqSubst)))
+              lib.thenHave(sequentAfterIff) by BasicStepTactic.RightSubstIff(formulaInputs.toList, lambda(formulaVars, substituteVariables(ctx.body, eqSubst)))
             }
 
             // discharge any assumptions
-            discharges.foreach { f => proof.library.andThen(SimpleDeducedSteps.Discharge(f)) }
+
+            // custom discharge
+            // invariant: all facts are known to have only one formula in their RHS
+            discharges.foreach { f =>
+              lib.thenHave(lib.lastStep.bot +<< f.result.right.head) by BasicStepTactic.Weakening // in case of double discharges, add the formula back in
+              lib.have(lib.lastStep.bot -<? f.result.right.head ++ (f.result.left |- ())) by BasicStepTactic.Cut.withParameters(f.result.right.head)(f, lib.lastStep)
+            }
 
             // finally, make sure our substitutions and discharges led us to the required conclusion
             lib.thenHave(bot) by BasicStepTactic.Weakening

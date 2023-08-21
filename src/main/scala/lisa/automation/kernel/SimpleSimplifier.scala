@@ -246,7 +246,7 @@ object SimpleSimplifier {
     ???
   }
 
-  object Substitution extends ProofTactic with ProofFactSequentTactic {
+  object Substitution2 extends ProofTactic with ProofFactSequentTactic {
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(rightLeft: Boolean = false, f: lisa.prooflib.Library#Proof#InstantiatedFact | Formula)(
         premise: proof.Fact
     ): proof.ProofTacticJudgement = {
