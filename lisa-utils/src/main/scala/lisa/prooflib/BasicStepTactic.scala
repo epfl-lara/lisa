@@ -4,6 +4,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.proof.SequentCalculus.isSameSequent
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.SimpleDeducedSteps.Restate
@@ -12,7 +13,7 @@ import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.FirstOrderUnifier
-import lisa.utils.unification.UnificationUtils
+import lisa.utils.unification.UnificationUtils2
 
 object BasicStepTactic {
 
@@ -1066,7 +1067,7 @@ object BasicStepTactic {
       val botRight = ConnectorFormula(Or, bot.right.toSeq)
 
       val equalities = bot.left.collect { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
-      val canReach = UnificationUtils.canReachOneStepTermFormula(premRight, botRight, equalities.toList)
+      val canReach = UnificationUtils2.canReachOneStepTermFormula(premRight, botRight, equalities.toList)
 
       if (canReach.isEmpty)
         proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
@@ -1124,10 +1125,16 @@ object BasicStepTactic {
       } else if (
         !isSameSet(bot.right + phi_psi, premiseSequent.right + phi_tau) &&
         !isSameSet(bot.right + phi_tau, premiseSequent.right + phi_psi)
-      )
+      ) {
+        println(s"========================")
+        println(s"RIGHT SUBST IFF")
+        println(s"bot right: ${bot.right.map(FOLPrinter.prettyFormula(_))}")
+        println(s"prm right: ${premiseSequent.right.map(FOLPrinter.prettyFormula(_))}")
+        println(s"phi psi: ${(FOLPrinter.prettyFormula(phi_psi))}")
+        println(s"phi tau: ${(FOLPrinter.prettyFormula(phi_tau))}")
+        println(s"========================")
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(ψ_) is not the same as right-hand side of the premise + φ(τ_) (or with ψ_ and τ_ swapped).")
-      else
-        proof.ValidProofTactic(Seq(SC.RightSubstIff(bot, -1, equals, lambdaPhi)), Seq(premise))
+      } else proof.ValidProofTactic(Seq(SC.RightSubstIff(bot, -1, equals, lambdaPhi)), Seq(premise))
     }
   }
 

@@ -9,9 +9,9 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.unification.UnificationUtils
 import lisa.utils.unification.UnificationUtils2
-import lisa.utils.unification.UnificationUtils2.getContextFormulaSet
+import lisa.utils.unification.UnificationUtils
+import lisa.utils.unification.UnificationUtils.getContextFormulaSet
 
 import scala.collection.mutable.{Map as MMap}
 
@@ -151,10 +151,10 @@ object Substitution {
 
             val leftBody = ConnectorFormula(And, leftContexts.map(_.body))
 
-            val defaultLeft = UnificationUtils2.FormulaRewriteLambda(body = leftBody)
+            val defaultLeft = UnificationUtils.FormulaRewriteLambda(body = leftBody)
 
             val leftContextReduced = leftContexts.foldLeft(defaultLeft) { (f, s) =>
-              UnificationUtils2.FormulaRewriteLambda(
+              UnificationUtils.FormulaRewriteLambda(
                 termRules = f.termRules ++ s.termRules,
                 formulaRules = f.formulaRules ++ s.formulaRules,
                 leftBody
@@ -163,10 +163,10 @@ object Substitution {
 
             val rightBody = ConnectorFormula(Or, rightContexts.map(_.body))
 
-            val defaultRight = UnificationUtils2.FormulaRewriteLambda(body = rightBody)
+            val defaultRight = UnificationUtils.FormulaRewriteLambda(body = rightBody)
 
             val rightContextReduced = rightContexts.foldLeft(defaultRight) { (f, s) =>
-              UnificationUtils2.FormulaRewriteLambda(
+              UnificationUtils.FormulaRewriteLambda(
                 termRules = f.termRules ++ s.termRules,
                 formulaRules = f.formulaRules ++ s.formulaRules,
                 rightBody
