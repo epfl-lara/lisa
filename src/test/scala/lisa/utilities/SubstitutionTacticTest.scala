@@ -123,7 +123,7 @@ class SubstitutionTacticTest extends ProofTacticTestLib {
       val substPrem: Seq[testProof.Fact | Formula | RunningTheory#Justification] = premiseSequents.map(introduceSequent(using testProof)(_))
       val substForm: Seq[testProof.Fact | Formula | RunningTheory#Justification] = formSubsts.map(parseFormula(_))
       val substJust: Seq[testProof.Fact | Formula | RunningTheory#Justification] = Nil
-      Substitution
+      Substitution2
         .withExplicitRules(using lisa.test.TestTheoryLibrary, testProof)(
           (substPrem ++ substForm ++ substJust).asInstanceOf[Seq[testProof.Fact | Formula | RunningTheory#Justification]]: _*
         )(prem)(lisa.utils.parsing.FOLParser.parseSequent(stmt2))
