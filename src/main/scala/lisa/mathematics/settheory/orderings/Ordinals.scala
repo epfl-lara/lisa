@@ -15,6 +15,7 @@ import lisa.mathematics.settheory.orderings.WellOrders.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
+import lisa.prooflib.Substitution
 import lisa.utils.FOLPrinter
 
 object Ordinals extends lisa.Main {
@@ -86,8 +87,8 @@ object Ordinals extends lisa.Main {
     () |- wellOrder(inclusionOrderOn(emptySet()))
   ) {
     val incDef = have(inclusionOrderOn(emptySet()) === pair(emptySet(), inclusionOn(emptySet()))) by InstantiateForall(inclusionOrderOn(emptySet()))(inclusionOrderOn.definition of a -> emptySet())
-    have(wellOrder(pair(emptySet(), inclusionOn(emptySet())))) by Substitution.withExplicitRules(emptySetInclusionEmpty)(emptySetWellOrder)
-    thenHave(thesis) by Substitution.withExplicitRules(incDef)
+    have(wellOrder(pair(emptySet(), inclusionOn(emptySet())))) by Substitution.ApplyRules(emptySetInclusionEmpty)(emptySetWellOrder)
+    thenHave(thesis) by Substitution.ApplyRules(incDef)
   }
 
   /**
@@ -105,7 +106,7 @@ object Ordinals extends lisa.Main {
     val ordinalTrans = have(ordinal(a) |- transitiveSet(a)) by Weakening(ordinal.definition)
     val wellOrdInca = have(ordinal(a) |- wellOrder(inclusionOrderOn(a))) by Weakening(ordinal.definition)
     have(inclusionOrderOn(a) === pair(a, inclusionOn(a))) by InstantiateForall(inclusionOrderOn(a))(inclusionOrderOn.definition)
-    val wellOrda = have(ordinal(a) |- wellOrder(pair(a, inclusionOn(a)))) by Substitution.withExplicitRules(lastStep)(wellOrdInca)
+    val wellOrda = have(ordinal(a) |- wellOrder(pair(a, inclusionOn(a)))) by Substitution.ApplyRules(lastStep)(wellOrdInca)
 
     have(transitiveSet(a) |- forall(b, in(b, a) ==> subset(b, a))) by Weakening(transitiveSet.definition of x -> a)
     val bIna = thenHave((transitiveSet(a), in(b, a)) |- subset(b, a)) by InstantiateForall(b)
@@ -119,7 +120,7 @@ object Ordinals extends lisa.Main {
       val bc = have(in(pair(c, b), inclusionOn(a)) |- in(b, a) /\ in(c, a) /\ in(c, b)) by Weakening(inclusionOrderElem of (c -> b, b -> c))
 
       have(wellOrder(pair(a, inclusionOn(a))) |- forall(w, forall(y, forall(z, (in(pair(w, y), inclusionOn(a)) /\ in(pair(y, z), inclusionOn(a))) ==> in(pair(w, z), inclusionOn(a)))))) by Substitution
-        .withExplicitRules(secondInPairReduction of (x -> a, y -> inclusionOn(a)))(wellOrderTransitivity of p -> pair(a, inclusionOn(a)))
+        .ApplyRules(secondInPairReduction of (x -> a, y -> inclusionOn(a)))(wellOrderTransitivity of p -> pair(a, inclusionOn(a)))
       thenHave(wellOrder(pair(a, inclusionOn(a))) |- forall(y, forall(z, (in(pair(c, y), inclusionOn(a)) /\ in(pair(y, z), inclusionOn(a))) ==> in(pair(c, z), inclusionOn(a))))) by InstantiateForall(
         c
       )
@@ -133,7 +134,7 @@ object Ordinals extends lisa.Main {
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- (in(c, z) /\ in(z, b)) ==> in(c, b)) by Restate
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- forall(z, (in(c, z) /\ in(z, b)) ==> in(c, b))) by RightForall
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- forall(c, forall(z, (in(c, z) /\ in(z, b)) ==> in(c, b)))) by RightForall
-    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- transitiveSet(b)) by Substitution.withExplicitRules(transitiveSetInclusionDef of x -> b)
+    thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a))), in(b, a)) |- transitiveSet(b)) by Substitution.ApplyRules(transitiveSetInclusionDef of x -> b)
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a)))) |- in(b, a) ==> transitiveSet(b)) by Restate
     thenHave((transitiveSet(a), wellOrder(pair(a, inclusionOn(a)))) |- forall(b, in(b, a) ==> transitiveSet(b))) by RightForall
 
@@ -192,9 +193,9 @@ object Ordinals extends lisa.Main {
           have(forall(z, (z === inclusionOrderOn(a)) <=> (z === pair(a, inclusionOn(a))))) by Weakening(inclusionOrderOn.definition)
           val incEq = thenHave(inclusionOrderOn(a) === pair(a, inclusionOn(a))) by InstantiateForall(inclusionOrderOn(a))
           have(total(secondInPair(inclusionOrderOn(a)), firstInPair(inclusionOrderOn(a)))) by Tautology.from(totalDef of p -> inclusionOrderOn(a), totA)
-          thenHave(total(secondInPair(pair(a, inclusionOn(a))), firstInPair(pair(a, inclusionOn(a))))) by Substitution.withExplicitRules(incEq)
+          thenHave(total(secondInPair(pair(a, inclusionOn(a))), firstInPair(pair(a, inclusionOn(a))))) by Substitution.ApplyRules(incEq)
           val totIncA =
-            thenHave(total(inclusionOn(a), a)) by Substitution.withExplicitRules(secondInPairReduction of (x -> a, y -> inclusionOn(a)), firstInPairReduction of (x -> a, y -> inclusionOn(a)))
+            thenHave(total(inclusionOn(a), a)) by Substitution.ApplyRules(secondInPairReduction of (x -> a, y -> inclusionOn(a)), firstInPairReduction of (x -> a, y -> inclusionOn(a)))
 
           val totRelDef =
             have(total(r, x) <=> (relationBetween(r, x, x) /\ ∀(y, ∀(z, (in(y, x) /\ in(z, x)) ==> (in(pair(y, z), r) \/ in(pair(z, y), r) \/ (y === z)))))) by Weakening(total.definition)
@@ -236,11 +237,11 @@ object Ordinals extends lisa.Main {
         val incEq = thenHave(inclusionOrderOn(b) === pair(b, inclusionOn(b))) by InstantiateForall(inclusionOrderOn(b))
 
         have(secondInPair(pair(b, inclusionOn(b))) === inclusionOn(b)) by Weakening(secondInPairReduction of (x -> b, y -> inclusionOn(b)))
-        val snd = thenHave(secondInPair(inclusionOrderOn(b)) === inclusionOn(b)) by Substitution.withExplicitRules(incEq)
+        val snd = thenHave(secondInPair(inclusionOrderOn(b)) === inclusionOn(b)) by Substitution.ApplyRules(incEq)
         have(firstInPair(pair(b, inclusionOn(b))) === (b)) by Weakening(firstInPairReduction of (x -> b, y -> inclusionOn(b)))
-        val fst = thenHave(firstInPair(inclusionOrderOn(b)) === (b)) by Substitution.withExplicitRules(incEq)
+        val fst = thenHave(firstInPair(inclusionOrderOn(b)) === (b)) by Substitution.ApplyRules(incEq)
 
-        have(thesis) by Substitution.withExplicitRules(snd, fst)(totB)
+        have(thesis) by Substitution.ApplyRules(snd, fst)(totB)
       }
 
       have(totalOrder(inclusionOrderOn(b)) <=> (partialOrder(inclusionOrderOn(b)) /\ total(secondInPair(inclusionOrderOn(b)), firstInPair(inclusionOrderOn(b))))) by Weakening(
@@ -276,8 +277,8 @@ object Ordinals extends lisa.Main {
             in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(pair(a, inclusionOn(a)))) \/ (z === y)))
           )
         )
-      ) by Substitution.withExplicitRules(incDef)
-      thenHave(forall(c, (subset(c, a) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y)))))) by Substitution.withExplicitRules(
+      ) by Substitution.ApplyRules(incDef)
+      thenHave(forall(c, (subset(c, a) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y)))))) by Substitution.ApplyRules(
         firstInPairReduction of (x -> a, y -> inclusionOn(a)),
         secondInPairReduction of (x -> a, y -> inclusionOn(a))
       )
@@ -327,13 +328,13 @@ object Ordinals extends lisa.Main {
             in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(pair(b, inclusionOn(b)))) \/ (z === y)))
           )
         )
-      ) by Substitution.withExplicitRules(firstInPairReduction of (x -> b, y -> inclusionOn(b)), secondInPairReduction of (x -> b, y -> inclusionOn(b)))(woProp)
+      ) by Substitution.ApplyRules(firstInPairReduction of (x -> b, y -> inclusionOn(b)), secondInPairReduction of (x -> b, y -> inclusionOn(b)))(woProp)
       thenHave(
         forall(
           c,
           (subset(c, firstInPair(inclusionOrderOn(b))) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(inclusionOrderOn(b))) \/ (z === y))))
         )
-      ) by Substitution.withExplicitRules(incDef)
+      ) by Substitution.ApplyRules(incDef)
       have(thesis) by Tautology.from(lastStep, totalB, wellOrder.definition of p -> inclusionOrderOn(b))
     }
 
