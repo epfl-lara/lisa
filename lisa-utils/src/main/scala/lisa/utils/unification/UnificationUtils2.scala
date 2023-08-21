@@ -9,6 +9,27 @@ import lisa.utils.unification.FirstOrderUnifier.*
  */
 object UnificationUtils2 {
 
+  extension [A](seq: Seq[A]) {
+
+    /**
+     * Seq.collectFirst, but for a function returning an Option. Evaluates the
+     * function only once per argument. Returns when the first non-`None` value
+     * is found.
+     *
+     * @param T output type under option
+     * @param f the function to evaluate
+     */
+    def getFirst[T](f: A => Option[T]): Option[T] = {
+      var res: Option[T] = None
+      val iter = seq.iterator
+      while (res.isEmpty && iter.hasNext) {
+        res = f(iter.next())
+      }
+      res
+    }
+
+  }
+
   /**
    * All the information required for performing rewrites.
    */
@@ -20,7 +41,7 @@ object UnificationUtils2 {
       takenFormulaVars: Set[VariableFormulaLabel] = Set.empty,
       takenTermVars: Set[VariableLabel] = Set.empty
   ) {
-    private var lastID: Identifier = freshId((takenFormulaVars ++ takenTermVars).map(_.id), "__rewriteVar__")
+    private var lastID: Identifier = freshId((takenFormulaVars ++ takenTermVars).map(_.id), "@@rewriteVar@@")
 
     /**
      * Generates a fresh identifier with an internal label `__rewriteVar__`.
@@ -29,7 +50,7 @@ object UnificationUtils2 {
      * @return fresh identifier
      */
     def freshIdentifier = {
-      lastID = freshId(Seq(lastID), "__rewriteVar__")
+      lastID = freshId(Seq(lastID), "@@rewriteVar@@")
       lastID
     }
 
@@ -66,7 +87,7 @@ object UnificationUtils2 {
    *
    * @param reference the reference term
    * @param template the term to match
-   * @param takenTermVariables any variables in the template which cannot be
+   * @param takenVariables any variables in the template which cannot be
    * substituted, i.e., treated as constant
    * @return substitution (Option) from variables to terms. `None` iff a
    * substitution does not exist.
@@ -83,7 +104,7 @@ object UnificationUtils2 {
    * generation state
    * @param reference the reference terms
    * @param template the terms to match
-   * @param termSubstitution currently accumulated susbtitutions to variables
+   * @param substitution currently accumulated susbtitutions to variables
    * @return substitution (Option) from variables to terms. `None` if a
    * substitution does not exist.
    */
@@ -119,7 +140,7 @@ object UnificationUtils2 {
    * @param template the formula to match
    * @param takenTermVariables any variables in the template which cannot be
    * substituted, i.e., treated as constant
-   * @param takenFormulaVariable any formula variables in the template which
+   * @param takenFormulaVariables any formula variables in the template which
    * cannot be substituted, i.e., treated as constant
    * @return substitution pair (Option) from formula variables to formulas, and
    * variables to terms. `None` if a substitution does not exist.
@@ -281,12 +302,12 @@ object UnificationUtils2 {
   /**
    * Dummy connector used to combine formulas for convenience during rewriting
    */
-  val formulaRewriteConnector = SchematicConnectorLabel(Identifier("__rewritesTo__"), 2)
+  val formulaRewriteConnector = SchematicConnectorLabel(Identifier("@@rewritesTo@@"), 2)
 
   /**
    * Dummy function symbol used to combine terms for convenience during rewriting
    */
-  val termRewriteConnector = ConstantFunctionLabel(Identifier("__rewritesTo__"), 2)
+  val termRewriteConnector = ConstantFunctionLabel(Identifier("@@rewritesTo@@"), 2)
 
   /**
    * Decides whether a term `first` be rewritten into `second` at the top level
@@ -345,22 +366,18 @@ object UnificationUtils2 {
     // check if there exists a substitution
     lazy val validSubstitution =
       context.confinedTermRules
-        .collectFirst { case (l, r) =>
+        .getFirst { case (l, r) =>
           val subst = canRewrite(using context)(first, second, (l, r))
-          subst match {
-            case Some(s) => ((l, r), s)
-          }
+          subst.map(s => ((l, r), s))
         }
         .orElse {
           // free all variables for substitution
           // matchTermRecursive does not generate any free variables
           // so it cannot affect global state, so this is safe to do
           val freeContext = context.copy(takenTermVars = Set.empty)
-          freeContext.freeTermRules.collectFirst { case (l, r) =>
+          freeContext.freeTermRules.getFirst { case (l, r) =>
             val subst = canRewrite(using freeContext)(first, second, (l, r))
-            subst match {
-              case Some(s) => ((l, r), s)
-            }
+            subst.map(s => ((l, r), s))
           }
         }
 
@@ -375,7 +392,7 @@ object UnificationUtils2 {
           body
         )
       )
-    } else if (first.label != second.label || first.args.length == second.args.length) None
+    } else if (first.label != second.label || first.args.length != second.args.length) None
     else {
       // recurse
       // known: first.label == second.label
@@ -461,15 +478,11 @@ object UnificationUtils2 {
     )
 
     val substSeq = first.map { f =>
-      second.collectFirst { s =>
+      second.getFirst { s =>
         val newContext = context.copy()
         val subst = getContextRecursive(using newContext)(f, s)
-        subst match {
-          case Some(_) => {
-            context.updateTo(newContext)
-            subst.get
-          }
-        }
+        subst.foreach { _ => context.updateTo(newContext) }
+        subst
       }
     }
 
@@ -488,22 +501,18 @@ object UnificationUtils2 {
     // check if there exists a substitution
     lazy val validSubstitution =
       context.confinedFormulaRules
-        .collectFirst { case (l, r) =>
+        .getFirst { (l: Formula, r: Formula) =>
           val subst = canRewrite(using context)(first, second, (l, r))
-          subst match {
-            case Some(s) => ((l, r), s)
-          }
+          subst.map(s => ((l, r), s))
         }
         .orElse {
           // free all variables for substitution
           // matchFormulaRecursive generates but does not expose any new variables
           // It cannot affect global state, so this is safe to do
           val freeContext = context.copy(takenTermVars = Set.empty)
-          freeContext.freeFormulaRules.collectFirst { case (l, r) =>
+          freeContext.freeFormulaRules.getFirst { case (l, r) =>
             val subst = canRewrite(using freeContext)(first, second, (l, r))
-            subst match {
-              case Some(s) => ((l, r), s)
-            }
+            subst.map(s => ((l, r), s))
           }
         }
 
@@ -537,7 +546,7 @@ object UnificationUtils2 {
 
           context.updateTo(freeContext)
 
-          innerSubst.map(s => s.copy(body = BinderFormula(labelF, boundF, s.body)))
+          innerSubst.map(s => s.copy(body = BinderFormula(labelF, freshVar, s.body)))
         }
 
         case (ConnectorFormula(labelF, argsF), ConnectorFormula(labelS, argsS)) =>
