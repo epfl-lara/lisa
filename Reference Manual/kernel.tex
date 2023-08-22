@@ -1,7 +1,7 @@
 %\part{Reference Manual}
 \chapter{LISA's trusted code: The Kernel}
 \label{chapt:kernel}
-LISA's kernel is the starting point of LISA, formalising the foundations of the whole theorem prover. It is the only trusted code base, meaning that if it is bug-free then no further erroneous code can violate the soundness property and prove invalid statements. Hence, the two main goals of the kernel are to be efficient and trustworthy. 
+LISA's kernel is the starting point of LISA, formalising the foundations of the whole theorem prover. It is the only trusted code base, meaning that if it is bug-free then no further erroneous code can violate the soundness property and prove invalid statements. Hence, the two main goals of the kernel are to be efficient and trustworthy.
 
 
 LISA's foundations are based on very traditional (in the mathematical community) foundational theory of all mathematics: \textbf{First Order Logic}, expressed using \textbf{Sequent Calculus} (augmented with schematic symbols), with axioms of \textbf{Set Theory}.
@@ -19,8 +19,8 @@ While the LISA library is built on top of Set Theory axioms, the kernel is actua
   where $\mathcal{L}_{Term}$ is the set of \textit{term labels}:
   %
   \begin{align}
-    \mathcal{L}_{Term} := & ~\operatorname{ConstantTermLabel}(\textnormal{Id}, \textnormal{Arity})  \\ 
-    \mid                  & ~\operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity}) 
+    \mathcal{L}_{Term} := & ~\operatorname{ConstantTermLabel}(\textnormal{Id}, \textnormal{Arity})  \\
+    \mid                  & ~\operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity})
   \end{align}
 
   A label can be either \textit{constant} or \textit{schematic}, and is made of an identifier (a pair of a string and an integer, for example $x_1$) and the arity of the label (an integer).
@@ -53,7 +53,7 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
     +(7(), x())\\
     f(x())
   \end{gather*}
-  
+
 \end{ex}
 
 
@@ -85,12 +85,12 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
   \begin{align}
     \mathcal{L}_{Binder} := \forall \mid \exists \mid \exists!
   \end{align}
-  
+
   Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they take, so that connectors and predicates of arity 0 are essentially the same thing. Hence, LISA, does not permit connectors of arity 0 and suggests the use of predicates instead.
   A contrario to schematic terms of arity 0, schematic predicates of arity 0 can't be bound, but they still play a special role sometimes, so we introduce a special notation for them
   %
   $$
-  \FormulaVar(X) \equiv \SchematicPredicateLabel(X, 0)~.
+    \FormulaVar(X) \equiv \SchematicPredicateLabel(X, 0)~.
   $$
   %
   Moreover, in LISA, a contrario to constant predicates and term symbols, which can be freely created, there is only the following finite set of constant connector symbols in LISA:
@@ -304,7 +304,7 @@ Ortholattices are a generalization of Boolean algebra where instead of the law o
   \end{tabular}
   %
   \caption{Laws of ortholattices, an algebraic theory with signature $(S, \land, \lor, 0, 1, \neg)$.}
-  \label{tab:ortholatticeLaws} 
+  \label{tab:ortholatticeLaws}
 \end{table}
 
 As a special kind of lattices, ortholattices can be viewed as partially ordered sets, with the ordering relation on two elements $a$ and $b$ of an ortholattice defined as
@@ -315,9 +315,9 @@ We write $s\sim_\OL t$ if both $s\leq_\OL t$ and $s\geq_\OL t$ hold.
 \autoref{thm:OL} is the main result we rely on.
 
 \begin{thm}[\cite{guilloudFormulaNormalizationsVerification2023a}]
-\label{thm:OL}
-There exists an algorithm running in worst case quadratic time producing, for any terms $s$ over the signature $(\land, \lor, \neg)$, a normal form $\text{NF}_{\OL}(s)$
-such that for any $t$, $s \sim_\OL t$ if and only if $\text{NF}_{\OL}(s) = \text{NF}_{\OL}(t)$. The algorithm is also capable of deciding if $s \leq_{OL} t$ holds in quadratic time.
+  \label{thm:OL}
+  There exists an algorithm running in worst case quadratic time producing, for any terms $s$ over the signature $(\land, \lor, \neg)$, a normal form $\text{NF}_{\OL}(s)$
+  such that for any $t$, $s \sim_\OL t$ if and only if $\text{NF}_{\OL}(s) = \text{NF}_{\OL}(t)$. The algorithm is also capable of deciding if $s \leq_{OL} t$ holds in quadratic time.
 \end{thm}
 Moreover, the algorithm works with structure sharing with the same complexity, which is very relevant for example when $x \leftrightarrow y$ is expanded to $(x \land y) \lor (\neg x \land \neg y)$. It can produce a normal form in this case as well.
 
@@ -327,20 +327,20 @@ LISA's Kernel contains an algorithm, called the $\FOLalg{}$ Equivalence Checker 
   \centering
   \begin{tabular}{c | l | l}
       & To decide...                                                                             & Reduce to...                                           \\
-       \hline
+    \hline
     1 & $\lbrace \land, \lor, \rightarrow, \leftrightarrow, \neg \rbrace(\vec{\phi}) \leq \psi $ & Base algorithm                                         \\
     2 & $\phi \leq \lbrace \land, \lor, \rightarrow, \leftrightarrow, \neg \rbrace(\vec{\psi}) $ & Base algorithm                                         \\
     3 & $s_1 = s_2 \leq t_1 = t_2$                                                               & $\lbrace s_1, s_2 \rbrace == \lbrace t_1, t_2 \rbrace$ \\
     4 & $\phi \leq t_1 = t_2$                                                                    & $t_1 == t_2$                                           \\
-       %(s_1 \sim_\Ol t_1 \& s_2 \sim_\Ol t_2) || (s_1 \sim_\Ol t_2 \& s_2 \sim_\Ol t_1)
+    %(s_1 \sim_\Ol t_1 \& s_2 \sim_\Ol t_2) || (s_1 \sim_\Ol t_2 \& s_2 \sim_\Ol t_1)
     5 & $\forall. \phi \leq \forall. \psi$                                                       & $\phi \leq \psi$                                       \\
     6 & $\schem{C}(\phi_1,...,\phi_n) \leq \schem{C}(\psi_1,...,\psi_n)$                         & $\phi_i \sim_\OL \psi_i$, for every $1 \le i \le n$    \\
-       
+
     7 & Anything else                                                                            & \lstinline|false|
   \end{tabular}
-  
+
   \caption{Extension of OL algorithm to first-order logic. We call it the \FOLalg{} algorithm. $=$ denotes the equality predicate in FOL, while $==$ denotes syntactic equality of terms.
-  \label{tab:Olextension}}
+    \label{tab:Olextension}}
 \end{table}
 
 
@@ -383,23 +383,23 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
 
 \begin{figure}
   \scalebox{.8}{
-  \begin{minipage}{\textwidth}
-  \begin{center}
-      \begin{tabular}{l l}
+    \begin{minipage}{\textwidth}
+      \begin{center}
+        \begin{tabular}{l l}
           \multicolumn{2}{c}{
-              \AxiomC{}
-              \RightLabel{\text { Hypothesis}}
-              \UnaryInfC{$\Gamma, \phi \vdash \phi, \Delta$}
-              \DisplayProof
-          }\\[5ex]
+            \AxiomC{}
+            \RightLabel{\text { Hypothesis}}
+            \UnaryInfC{$\Gamma, \phi \vdash \phi, \Delta$}
+            \DisplayProof
+          }               \\[5ex]
 
           \multicolumn{2}{c}{
-              \AxiomC{$\Gamma \vdash \phi, \Delta$}
-              \AxiomC{$\Sigma, \phi \vdash \Pi$}
-              \RightLabel{\text{ Cut}}
-              \BinaryInfC{$\Gamma, \Sigma \vdash \Delta, \Pi$}
-              \DisplayProof
-          }\\[5ex]
+            \AxiomC{$\Gamma \vdash \phi, \Delta$}
+            \AxiomC{$\Sigma, \phi \vdash \Pi$}
+            \RightLabel{\text{ Cut}}
+            \BinaryInfC{$\Gamma, \Sigma \vdash \Delta, \Pi$}
+            \DisplayProof
+          }               \\[5ex]
 
           \AxiomC{$\Gamma, \phi, \psi \vdash \Delta$}
           \RightLabel{\text { LeftAnd}}
@@ -486,11 +486,11 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
           \\[5ex]
 
           \multicolumn{2}{c}{
-              \AxiomC{$\Gamma \vdash \Delta$}
-              \RightLabel{\text{ InstSchema}}
-              \UnaryInfC{$\Gamma[\psi(\vec{v}) := {\schem{p}(\vec{v})}] \vdash \Delta[\psi(\vec{v}) := {\schem{p}(\vec{v})}]$}
-              \DisplayProof 
-          }\\[5ex]
+            \AxiomC{$\Gamma \vdash \Delta$}
+            \RightLabel{\text{ InstSchema}}
+            \UnaryInfC{$\Gamma[\psi(\vec{v}) := {\schem{p}(\vec{v})}] \vdash \Delta[\psi(\vec{v}) := {\schem{p}(\vec{v})}]$}
+            \DisplayProof
+          }               \\[5ex]
 
           \AxiomC{$\Gamma, \phi[s := \schem{f}] \vdash \Delta$}
           \RightLabel{\text{ LeftSubstEq}}
@@ -523,32 +523,32 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
           \\[5ex]
 
           \multicolumn{2}{c}{
-              \AxiomC{$\Gamma_1 \vdash \Delta_1$}
-              \RightLabel{\text{ Restate} \text{ if $(\bigwedge\Gamma_1 \rightarrow \bigvee \Delta_1) \sim_\FOLm (\bigwedge\Gamma_2 \rightarrow \bigvee \Delta_2)$}}
-              \UnaryInfC{$\Gamma_2 \vdash \Delta_2$}
-              \DisplayProof 
-          }\\[5ex]
+            \AxiomC{$\Gamma_1 \vdash \Delta_1$}
+            \RightLabel{\text{ Restate} \text{ if $(\bigwedge\Gamma_1 \rightarrow \bigvee \Delta_1) \sim_\FOLm (\bigwedge\Gamma_2 \rightarrow \bigvee \Delta_2)$}}
+            \UnaryInfC{$\Gamma_2 \vdash \Delta_2$}
+            \DisplayProof
+          }               \\[5ex]
 
           \multicolumn{2}{c}{
-              \AxiomC{}
-              \RightLabel{\text{ RestateTrue} \text{ if $\text{True} \sim_\FOLm (\bigwedge\Gamma_2 \rightarrow \bigvee \Delta_2)$}}
-              \UnaryInfC{$\Gamma_2 \vdash \Delta_2$}
-              \DisplayProof 
-          }\\[5ex]
+            \AxiomC{}
+            \RightLabel{\text{ RestateTrue} \text{ if $\text{True} \sim_\FOLm (\bigwedge\Gamma_2 \rightarrow \bigvee \Delta_2)$}}
+            \UnaryInfC{$\Gamma_2 \vdash \Delta_2$}
+            \DisplayProof
+          }               \\[5ex]
 
           \multicolumn{2}{c}{
-              \AxiomC{$\Gamma_1 \vdash \Delta_1$}
-              \RightLabel{\text { Weakening} \text{ if $(\bigwedge\Gamma_1 \rightarrow \bigvee \Delta_1) \leq_\FOLm (\bigwedge\Gamma_2 \rightarrow \bigvee \Delta_2)$}}
-              \UnaryInfC{$\Gamma_2 \vdash \Delta_2$}
-              \DisplayProof
+            \AxiomC{$\Gamma_1 \vdash \Delta_1$}
+            \RightLabel{\text { Weakening} \text{ if $(\bigwedge\Gamma_1 \rightarrow \bigvee \Delta_1) \leq_\FOLm (\bigwedge\Gamma_2 \rightarrow \bigvee \Delta_2)$}}
+            \UnaryInfC{$\Gamma_2 \vdash \Delta_2$}
+            \DisplayProof
           }
-      \end{tabular}
-  \end{center}
-\end{minipage}
-}
-\caption{Deduction rules allowed by LISA's kernel. Different occurrences of the same symbols need not represent equal elements, but only elements with the same \FOLalg{} normal form.}
-\label{fig:deduct_rules_1}
-% \label{fig:deduct_rules_2}
+        \end{tabular}
+      \end{center}
+    \end{minipage}
+  }
+  \caption{Deduction rules allowed by LISA's kernel. Different occurrences of the same symbols need not represent equal elements, but only elements with the same \FOLalg{} normal form.}
+  \label{fig:deduct_rules_1}
+  % \label{fig:deduct_rules_2}
 \end{figure}
 \newpage
 
@@ -580,16 +580,16 @@ The root of the proof shows the conclusive statement, and the leaves are either 
   \label{fig:exampleProof}
 \end{figure}
 
-In the LISA kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof. 
-a proof step can also be refered to by multiple subsequent proof steps, so that proofs are actually directed acyclic graphs (DAG) rather than trees. For the proof to be the linearization of a rooted DAG, the proof steps must only refer to numbers smaller than their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list. 
+In the LISA kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof.
+a proof step can also be refered to by multiple subsequent proof steps, so that proofs are actually directed acyclic graphs (DAG) rather than trees. For the proof to be the linearization of a rooted DAG, the proof steps must only refer to numbers smaller than their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list.
 \autoref{fig:exampleProofLinear} shows the proof of pierce law as linearized in LISA's kernel.
 \begin{figure}[ht]
   \begin{align*}
-    0 & \texttt { Hypothesis}       & \quad \phi                     & \vdash \phi                                \\
-    1 & \texttt { Weakening}(0)     & \quad  \phi                    & \vdash \phi, \psi                          \\
-    2 & \texttt { RightImplies}(1)  & \quad                          & \vdash \phi, (\phi \to \psi)               \\
-    3 & \texttt { LeftImplies}(2,0) & \quad (\phi \to \psi) \to \phi & \vdash \phi                                \\
-    4 & \texttt { RightImplies}(3)  & \quad                          & \vdash ((\phi \to \psi) \to \phi) \to \phi
+    0 & ~\text{\lstinline|Hypothesis|}       & \quad \phi                     & \vdash \phi                                \\
+    1 & ~\text{\lstinline|Weakening|}(0)     & \quad  \phi                    & \vdash \phi, \psi                          \\
+    2 & ~\text{\lstinline|RightImplies|}(1)  & \quad                          & \vdash \phi, (\phi \to \psi)               \\
+    3 & ~\text{\lstinline|LeftImplies|}(2,0) & \quad (\phi \to \psi) \to \phi & \vdash \phi                                \\
+    4 & ~\text{\lstinline|RightImplies|}(3)  & \quad                          & \vdash ((\phi \to \psi) \to \phi) \to \phi
   \end{align*}
   \caption{The proof of Pierce's Law as a sequence of steps using classical Sequent Calculus rules.}
   \label{fig:exampleProofLinear}
@@ -597,24 +597,24 @@ a proof step can also be refered to by multiple subsequent proof steps, so that 
 \noindent
 Note however that thanks to the $\FOLalg$ equivalence checker, Pierce's law can be proven in a single step:
 $$
-  0  \texttt { RestateTrue}        \quad \vdash ((\phi \to \psi) \to \phi) \to \phi \ \ .
+  0  ~\text{\lstinline|RestateTrue|}        \quad \vdash ((\phi \to \psi) \to \phi) \to \phi \ \ .
 $$
 
-Moreover, proofs are conditional: they can carry an explicit set of assumed sequents, named ``\lstinline{imports}'', which give some starting points to the proof. Typically, these imports will contain previously proven theorems, definitions, or axioms (More on that in section~\ref{sect:TheoremsAndTheories}). For a proof step to refer to an imported sequent, one uses negative integers. $-1$ corresponds to the first sequent of the import list of the proof, $-2$ to the second, etc.
+Moreover, proofs are conditional: they can carry an explicit set of assumed sequents, named ``\lstinline|imports|'', which give some starting points to the proof. Typically, these imports will contain previously proven theorems, definitions, or axioms (More on that in section~\ref{sect:TheoremsAndTheories}). For a proof step to refer to an imported sequent, one uses negative integers. $-1$ corresponds to the first sequent of the import list of the proof, $-2$ to the second, etc.
 
 Formally, a proof is a pair made of a list of proof steps and a list of sequents:
 $$
-  \text{\lstinline{Proof(steps:List[ProofStep], imports:List[Sequent])}}
+  \text{\lstinline|Proof(steps:List[ProofStep], imports:List[Sequent])|}
 $$
 We call the bottommost sequent of the last proof step of the proof the ``conclusion'' of the proof.
 
 \autoref{fig:exampleProofImports} shows a proof using an import.
 \begin{figure}[ht]
   \begin{align*}
-    -1 & \texttt { Imported Axiom}                & \quad                          & \vdash \neg (x \in \emptyset)               \\
-    0 & \texttt { Restate}(-1)      & \quad  (x \in \emptyset)                & \vdash                             \\
-    1 & \texttt { LeftSubstEq}(0)   & \quad  (x \in y), y=\emptyset           & \vdash                             \\
-    2 & \texttt { Restate}(1)       & \quad  (x \in y)           & \vdash \neg(y=\emptyset)                        \\
+    -1 & ~\text{\lstinline|Imported Axiom|} & \quad                         & \vdash \neg (x \in \emptyset) \\
+    0  & ~\text{\lstinline|Restate|}(-1)    & \quad  (x \in \emptyset)      & \vdash                        \\
+    1  & ~\text{\lstinline|LeftSubstEq|}(0) & \quad  (x \in y), y=\emptyset & \vdash                        \\
+    2  & ~\text{\lstinline|Restate|}(1)     & \quad  (x \in y)              & \vdash \neg(y=\emptyset)      \\
   \end{align*}
   \caption{A proof that if $x\in y$, then $\neg (y=\emptyset)$, using the empty set axiom. $x$ and $y$ are free variables.}
   \label{fig:exampleProofImports}
@@ -626,11 +626,11 @@ Finally, \autoref{fig:exampleProofQuantifiers} shows a proof with quantifiers.
 \autoref{fig:exampleProofImports} shows a proof using an import.
 \begin{figure}[ht]
   \begin{align*}
-    0 & \texttt { RestateTrue}  & \quad  P(x), Q(x) & \vdash P(x) \land Q(x)   \\
-    1 & \texttt { LeftForall}(0)   & \quad  P(x), \forall(x, Q(x)) & \vdash P(x) \land Q(x)   \\
-    2 & \texttt { LeftForall}(1)   & \quad  \forall(x, P(x)), \forall(x, Q(x)) & \vdash P(x) \land Q(x)   \\
-    3 & \texttt { RightForall}(2)  & \quad  \forall(x, P(x)),  \forall(x, Q(x)) & \vdash \forall(x, P(x) \land Q(x))   \\
-    4 & \texttt { Restate}(3)  & \quad  \forall(x, P(x)) \land \forall(x, Q(x)) & \vdash \forall(x, P(x) \land Q(x))   \\
+    0 & ~\text{\lstinline|RestateTrue|}    & \quad  P(x), Q(x)                              & \vdash P(x) \land Q(x)             \\
+    1 & ~\text{\lstinline|LeftForall|}(0)  & \quad  P(x), \forall(x, Q(x))                  & \vdash P(x) \land Q(x)             \\
+    2 & ~\text{\lstinline|LeftForall|}(1)  & \quad  \forall(x, P(x)), \forall(x, Q(x))      & \vdash P(x) \land Q(x)             \\
+    3 & ~\text{\lstinline|RightForall|}(2) & \quad  \forall(x, P(x)),  \forall(x, Q(x))     & \vdash \forall(x, P(x) \land Q(x)) \\
+    4 & ~\text{\lstinline|Restate|}(3)     & \quad  \forall(x, P(x)) \land \forall(x, Q(x)) & \vdash \forall(x, P(x) \land Q(x)) \\
   \end{align*}
   \caption{A proof showing that $\forall$ factorizes over conjunction.}
   \label{fig:exampleProofQuantifiers}
@@ -641,7 +641,7 @@ For every proof step, LISA's kernel actually expect more than only the premises 
 
 \begin{figure}[ht]
   \centering
-    \begin{lstlisting}[language=scala, showspaces=true]
+  \begin{lstlisting}[language=scala, showspaces=true]
 val PierceLawProof = SCProof(IndexedSeq(
     Hypothesis(φ |- φ,   φ),
     Weakening(φ |- ( φ, ψ ), 0),
@@ -650,8 +650,8 @@ val PierceLawProof = SCProof(IndexedSeq(
     RightImplies(() |- (( φ ==> ψ ) ==> φ) ==> φ, 3, ( φ ==> ψ ) ==> φ, φ)
 ), Seq.empty /* no imports */ )
     \end{lstlisting}
-    \caption{The proof from~\autoref{fig:exampleProofKernel} written for LISA's kernel. The second argument (empty here) is the sequence of proof imports. The symbols \lstinline{==>} and \lstinline{|-} are ligatures for ==> and |- and are syntactic sugar defined outside the kernel.}
-    \label{fig:ExampleProofPierceScala}
+  \caption{The proof from~\autoref{fig:exampleProofKernel} written for LISA's kernel. The second argument (empty here) is the sequence of proof imports. The symbols \lstinline|==>| and \lstinline||-| are ligatures for ==> and |- and are syntactic sugar defined outside the kernel.}
+  \label{fig:ExampleProofPierceScala}
 \end{figure}
 
 \paragraph*{Subproofs}
@@ -674,7 +674,7 @@ In LISA, a proof object by itself has no guarantee to be correct. It is possible
 \end{enumerate}
 
 
-Given some proof $p$, the proof checker will verify these points. For most proof steps, this typically involve verifying that the premises and the conclusion match according to a transformation specific to the deduction rule. 
+Given some proof $p$, the proof checker will verify these points. For most proof steps, this typically involve verifying that the premises and the conclusion match according to a transformation specific to the deduction rule.
 
 Hence, most of the proof checker's work consists in verifying that some formulas, or subformulas thereof, are identical. This is where the equivalence checker comes into play. By checking equivalence rather than strict syntactic equality, a lot of steps become redundant and can be merged. That way,  any number of consecutive {LeftAnd}, {RightOr}, {LeftNot}, {RightNot}, {LeftImplies}, {RightImplies}, {LeftIff}, {LeftRefl}, {RightRefl}, {LeftExistsOne} and  {RightExistsOne} proof steps can always be replaced by a single{Weakening} rule. This gives an intuition of how useful the equivalence checker is to simplify proof length.
 
@@ -689,7 +689,7 @@ or
   SCInvalidProof(proof: SCProof, path: Seq[Int], message: String)
 \end{lstlisting}
 
-\lstinline{SCInvalidProof}{} indicates an erroneous proof. The second argument point to the faulty proofstep (through subproofs, if any), and the third argument is an error message hinting at why the step is incorrectly applied.
+\lstinline|SCInvalidProof|{} indicates an erroneous proof. The second argument point to the faulty proofstep (through subproofs, if any), and the third argument is an error message hinting at why the step is incorrectly applied.
 
 Note that there exist a last proof step, called Sorry, used to  represent unimplemented proofs. The conclusion of a Sorry step will always be accepted by the proof checker. Any theorem relying on a Sorry step is not guaranteed to be correct and will be marked as such.
 
@@ -699,14 +699,14 @@ Note that there exist a last proof step, called Sorry, used to  represent unimpl
 
 In mathematics as a discipline, theorems don't exist in isolation. They depend on some agreed upon set of axioms, definitions, and previously proven theorems. Formally, theorems are developed within theories. A theory is defined by a language, which contains the symbols allowed in the theory, and by a set of axioms, which are assumed to hold true within it.
 
-In LISA, a \lstinline{theory}{} is a mutable object that starts as the pure theory of predicate logic: It has no known symbols and no axioms. Then we can introduce into it elements of Set Theory (symbols $\in$, $\emptyset$, $\bigcup$ and set theory axioms, see Chapter~\ref{chapt:settheory}) or of any other theory.
+In LISA, a \lstinline|theory|{} is a mutable object that starts as the pure theory of predicate logic: It has no known symbols and no axioms. Then we can introduce into it elements of Set Theory (symbols $\in$, $\emptyset$, $\bigcup$ and set theory axioms, see Chapter~\ref{chapt:settheory}) or of any other theory.
 
-To conduct a proof inside a \lstinline{Theory}{}, using its axioms, the proof should be normally constructed and the needed axioms specified in the imports of the proof. Then, the proof can be given to the \lstinline{Theory}{} to check, along with \textit{justifications} for all imports of the proof. A justification is either an axiom, a previously proven theorem, or a definition. The \lstinline{Theory}{} object will check that every import of the proof is properly justified by a \textit{justification} in the theory, i.e. that the proof is in fact not conditional in the theory. Then, it will pass the proof to the proof checker. If the proof is correct, it will return a \lstinline{Theorem}{} encapsulating the sequent. This theorem will be allowed to be used in all further proofs as an import, exactly like an axiom. Axioms and theorems also have a name.
+To conduct a proof inside a \lstinline|Theory|{}, using its axioms, the proof should be normally constructed and the needed axioms specified in the imports of the proof. Then, the proof can be given to the \lstinline|Theory|{} to check, along with \textit{justifications} for all imports of the proof. A justification is either an axiom, a previously proven theorem, or a definition. The \lstinline|Theory|{} object will check that every import of the proof is properly justified by a \textit{justification} in the theory, i.e. that the proof is in fact not conditional in the theory. Then, it will pass the proof to the proof checker. If the proof is correct, it will return a \lstinline|Theorem|{} encapsulating the sequent. This theorem will be allowed to be used in all further proofs as an import, exactly like an axiom. Axioms and theorems also have a name.
 
 \subsection{Definitions}
 \label{subsec:definitions}
-The user can also introduce definitions in the \lstinline{Theory}{}.
-LISA's kernel allows to define two kinds of objects: Function (or Term) symbols and Predicate symbols. 
+The user can also introduce definitions in the \lstinline|Theory|{}.
+LISA's kernel allows to define two kinds of objects: Function (or Term) symbols and Predicate symbols.
 
 
 \begin{figure}
@@ -717,14 +717,14 @@ LISA's kernel allows to define two kinds of objects: Function (or Term) symbols 
     expression: LambdaTermFormula
   )
 \end{lstlisting}
-  So that 
+  So that
   \begin{lstlisting}
     PredicateDefinition(P, lambda(Seq(x1,...,x2), φ)) 
   \end{lstlisting}
   corresponds to \\
-    \hspace*{1.3em}``For any $\vec{x}$, let $P^n(\vec{x}) := \phi_{\vec{x}}$''
+  \hspace*{1.3em}``For any $\vec{x}$, let $P^n(\vec{x}) := \phi_{\vec{x}}$"
 
-    \vspace*{2em}
+  \vspace*{2em}
   \begin{lstlisting}
   FunctionDefinition(
     label: ConstantFunctionLabel,
@@ -732,12 +732,12 @@ LISA's kernel allows to define two kinds of objects: Function (or Term) symbols 
     expression: LambdaTermFormula
   )
 \end{lstlisting}
-So that 
+  So that
   \begin{lstlisting}
     FunctionDefinition(f, y, lambda(Seq(x1,...,x2), φ)) 
   \end{lstlisting}
   corresponds to \\
-    \hspace*{1.3em}``For any $\vec{x}$, let $f^n(\vec{x}) \textnormal{ be the unique } y \textnormal{ such that } \phi$ holds.''
+  \hspace*{1.3em}``For any $\vec{x}$, let $f^n(\vec{x}) \textnormal{ be the unique } y \textnormal{ such that } \phi$ holds."
 
   \caption{Definitions in LISA.}
   \label{fig:definitions}
@@ -751,7 +751,7 @@ from which we can deduce in particular $\phi[f(x_1,...,x_k)/y]$.
 The special case where $n=0$ defines constant symbols. The special case where $\phi$ is of the form $y=t$, with possibly the $x$'s free in $t$ lets us recover a more simple definition \textit{by alias}, i.e. where  $f$ is simply a shortcut for a more complex term $t$.
 This definitional mechanism requiring a proof of unique existence is typically called \textit{extension by definition}, and allows us to extend the theory without changing what is or isn't provable, see \autoref{sec:definitions}.
 
-The \lstinline{Theory}{} object is responsible of keeping track of all symbols which have been defined so that it can detect and refuse conflicting definitions. As a general rule, definitions should have a unique identifier and can't contain free schematic symbols.
+The \lstinline|Theory|{} object is responsible of keeping track of all symbols which have been defined so that it can detect and refuse conflicting definitions. As a general rule, definitions should have a unique identifier and can't contain free schematic symbols.
 
 Once a definition has been introduced, future theorems can refer to those definitional axioms by importing the corresponding sequents in their proof and providing justification for those imports when the proof is verified, just like with axioms and theorems.
 
@@ -811,7 +811,7 @@ Once a definition has been introduced, future theorems can refer to those defini
           \\ %\hline
         \end{tabular}
 
-        \caption{The different types of justification in a \lstinline{Theory}{} object.}
+        \caption{The different types of justification in a \lstinline|Theory|{} object.}
         \label{fig:justifications}
       \end{center}
     \end{figure}
@@ -823,7 +823,7 @@ Once a definition has been introduced, future theorems can refer to those defini
           Explanation & Function
           \\ \hline
 
-          \makecell[l]{Add a new theorem    \\to the theory} &
+          \makecell[l]{Add a new theorem \\to the theory} &
           \begin{lstlisting}[linewidth=19.5em]
   makeTheorem(
     name: String,
@@ -834,7 +834,7 @@ Once a definition has been introduced, future theorems can refer to those defini
           \end{lstlisting}
           \\ %\hline
 
-          \makecell[l]{Add a new axiom      \\ to the theory} &
+          \makecell[l]{Add a new axiom   \\ to the theory} &
           \begin{lstlisting}[linewidth=19.5em]
   addAxiom(
     name: String,
@@ -843,7 +843,7 @@ Once a definition has been introduced, future theorems can refer to those defini
           \end{lstlisting}
           \\ %\hline
 
-          \makecell[l]{Make a new           \\predicate definition} &
+          \makecell[l]{Make a new        \\predicate definition} &
           \begin{lstlisting}[linewidth=19.5em]
   makePredicateDefinition(
     label: ConstantPredicateLabel,
@@ -852,7 +852,7 @@ Once a definition has been introduced, future theorems can refer to those defini
           \end{lstlisting}
           \\ %\hline
 
-          \makecell[l]{Make a new           \\function definition} &
+          \makecell[l]{Make a new        \\function definition} &
           \begin{lstlisting}[linewidth=19.5em]
   makeFunctionDefinition(
     proof: SCProof,
@@ -863,9 +863,8 @@ Once a definition has been introduced, future theorems can refer to those defini
     )
           \end{lstlisting}
           \\ %\hline
-
         \end{tabular}
-        \caption{The interface of a \lstinline{Theory}{} object to introduce new theorems, axioms and definitions.}
+        \caption{The interface of a \lstinline|Theory|{} object to introduce new theorems, axioms and definitions.}
 
         \label{fig:theorysetters}
       \end{center}
@@ -877,76 +876,76 @@ Once a definition has been introduced, future theorems can refer to those defini
 
 
 
-\iffalse
-    \begin{figure}[hp]
-      % Getters:
-      \begin{center}
-        \begin{tabular}{l|l}
-          Explanation & Function
-          \\ \hline
+    \iffalse
+      \begin{figure}[hp]
+        % Getters:
+        \begin{center}
+          \begin{tabular}{l|l}
+            Explanation & Function
+            \\ \hline
 
-          \makecell[l]{Check if all symbols in a        \\formula, term or sequent\\belong to the theory.} &
-          \begin{lstlisting}
+            \makecell[l]{Check if all symbols in a        \\formula, term or sequent\\belong to the theory.} &
+            \begin{lstlisting}
 belongsToTheory(phi: Formula)
 belongsToTheory(t: Term)
 belongsToTheory(s: Sequent)
 \end{lstlisting}
-          \\ %\hline
+            \\ %\hline
 
-          \makecell[l]{Return the list of symbols       \\and definitions in the theory} &
-          \begin{lstlisting}
+            \makecell[l]{Return the list of symbols       \\and definitions in the theory} &
+            \begin{lstlisting}
 language()
 \end{lstlisting}
-          \\ %\hline
+            \\ %\hline
 
-          \makecell[l]{Check if a label is              \\a symbol of the theory} &
-          \begin{lstlisting}
+            \makecell[l]{Check if a label is              \\a symbol of the theory} &
+            \begin{lstlisting}
 isSymbol(label: ConstantLabel)
 \end{lstlisting}
-          \\ %\hline
+            \\ %\hline
 
-          \makecell[l]{Check if a label is \textit{not} \\already a symbol of the theory} &
-          \begin{lstlisting}
+            \makecell[l]{Check if a label is \textit{not} \\already a symbol of the theory} &
+            \begin{lstlisting}
 isAvailable(label: ConstantLabel)
 \end{lstlisting}
-          \\ %\hline
+            \\ %\hline
 
-          \makecell[l]{Return the list of               \\axioms in the theory} &
-          \begin{lstlisting}
+            \makecell[l]{Return the list of               \\axioms in the theory} &
+            \begin{lstlisting}
 axiomsList()
 \end{lstlisting}
-          \\ %\hline
+            \\ %\hline
 
-          \makecell[l]{Check if a formula is            \\an axiom of the theory} &
-          \begin{lstlisting}
+            \makecell[l]{Check if a formula is            \\an axiom of the theory} &
+            \begin{lstlisting}
 isAxiom(f: Formula)
 \end{lstlisting}
-          \\ %\hline
+            \\ %\hline
 
-          \makecell[l]{Return the Axiom matching        \\ the given name or formula,\\ if it exists} &
-          \begin{lstlisting}
+            \makecell[l]{Return the Axiom matching        \\ the given name or formula,\\ if it exists} &
+            \begin{lstlisting}
 getAxiom(f: Formula)
 getAxiom(name: String)
 \end{lstlisting}
-          \\ %\hline
-          \makecell[l]{Return the Definition            \\of a given Label, if defined} &
-          \begin{lstlisting}
+            \\ %\hline
+            \makecell[l]{Return the Definition            \\of a given Label, if defined} &
+            \begin{lstlisting}
 getDefinition(label: ConstantLabel)
 \end{lstlisting}
-          \\ %\hline
+            \\ %\hline
 
-          \makecell[l]{Return the Theorem object with   \\the given name, if it is one.} &
-          \begin{lstlisting}
+            \makecell[l]{Return the Theorem object with   \\the given name, if it is one.} &
+            \begin{lstlisting}
 getTheorem(name: String)
 \end{lstlisting}
-          \\ %\hline
-        \end{tabular}
-        \caption{The static interface of a \lstinline{Theory}{} object.}
-        \label{fig:theorygetters}
-      \end{center}
-    \end{figure}
+            \\ %\hline
+          \end{tabular}
+          \caption{The static interface of a \lstinline|Theory|{} object.}
+          \label{fig:theorygetters}
+        \end{center}
+      \end{figure}
 
-\fi
+    \fi
   }
 
 \section{Using LISA's Kernel}
@@ -958,32 +957,31 @@ Nonetheless, LISA's kernel comes with a set of utilities and features and syntac
 \paragraph{Aliases}
 Scala accepts most unicode symbols in identifiers, allowing LISA to define alternative representation for logical symbols
 \begin{center}
-\begin{tabular}{| c | c |}
+  \begin{tabular}{| c | c |}
 
-  \hline
-  Original symbol & Alias \\
-  \hline
-  
-  \lstinline|top| & \lstinline|True, ⊤ |  \\ \hline
-  \lstinline|bot| & \lstinline|False, ⊥ |  \\ \hline
-  \lstinline|And| & \lstinline|and, /\ |  \\ \hline
-  \lstinline|Or| & \lstinline|or, \/ |  \\ \hline
-  \lstinline|Implies| & \lstinline|implies, ==> |  \\ \hline
-  \lstinline|Iff| & \lstinline|iff, <=> |  \\ \hline
-  \lstinline|Forall| & \lstinline|forall, ∀ |  \\ \hline
-  \lstinline|Exists| & \lstinline|exists, ∃ |  \\ \hline
-  \lstinline|ExistsOne| & \lstinline|existsOne, ∃! |  \\ \hline
-  
-\end{tabular}
+    \hline
+    Original symbol       & Alias                      \\
+    \hline
+
+    \lstinline|top|       & \lstinline|True, ⊤ |       \\ \hline
+    \lstinline|bot|       & \lstinline|False, ⊥ |      \\ \hline
+    \lstinline|And|       & \lstinline|and, /\ |       \\ \hline
+    \lstinline|Or|        & \lstinline|or, \/ |        \\ \hline
+    \lstinline|Implies|   & \lstinline|implies, ==> |  \\ \hline
+    \lstinline|Iff|       & \lstinline|iff, <=> |      \\ \hline
+    \lstinline|Forall|    & \lstinline|forall, ∀ |     \\ \hline
+    \lstinline|Exists|    & \lstinline|exists, ∃ |     \\ \hline
+    \lstinline|ExistsOne| & \lstinline|existsOne, ∃! | \\ \hline
+  \end{tabular}
 \end{center}
 \paragraph{Identifiers}
-An identifier is a pair of a string and a number. Note that LISA kernel does not accept whitespaces nor symbols among \lstinline|()[]{ }_| as part of identifiers. The underscore can be used to write both the string and the integer part of an identifier at once. For example, 
+An identifier is a pair of a string and a number. Note that LISA kernel does not accept whitespaces nor symbols among \lstinline|()[]{ }_| as part of identifiers. The underscore can be used to write both the string and the integer part of an identifier at once. For example,
 
 \begin{lstlisting}[language=Scala]
   val x: VariableLabel("x_4")
 \end{lstlisting}
 
-is automatically transformed to 
+is automatically transformed to
 
 \begin{lstlisting}[language=Scala]
   val x: VariableLabel(Identifier("x", 4))
@@ -1000,7 +998,7 @@ the strict syntax to construct the term \lstinline[language=Scala]|f(x, y)| is
 \begin{lstlisting}[language=Scala]
   Term(f, Seq(Term(x, Nil), Term(y, Nil)))
 \end{lstlisting}
-Extensions and implicit conversions allow to simply write 
+Extensions and implicit conversions allow to simply write
 \begin{lstlisting}[language=Scala]
   f(x, y)
 \end{lstlisting}
@@ -1019,7 +1017,7 @@ but thanks again to  extensions and implicit conversions, LISA accepts
 \begin{lstlisting}[language=Scala]
   (phi, psi) |-(phi, psi)
 \end{lstlisting}
-Where \lstinline{|-} is the ligature for |-. More generally, the left and right sides of \lstinline{|-} can be any of:
+Where \lstinline||-| is the ligature for |-. More generally, the left and right sides of \lstinline||-| can be any of:
 \vspace*{-0.7em}
 \begin{itemize}
   \setlength\itemsep{-0.5em}
@@ -1029,7 +1027,7 @@ Where \lstinline{|-} is the ligature for |-. More generally, the left and right 
   \item an Iterable[Formula] (Set, List...)
 \end{itemize}
 \paragraph{Lambdas}
-A Lambda expression can be created with the lambda keyword. For example, 
+A Lambda expression can be created with the lambda keyword. For example,
 \begin{lstlisting}[language=Scala]
   lambda(x, x+x): LambdaTermTerm
   lambda(Seq(x, y, z), x+y+z): LambdaTermTerm
@@ -1042,7 +1040,7 @@ Moreover, a term \lstinline|t| is automatically converted to a LambdaTermTerm \l
 
 \vspace{2em}
 \subsection{How to write helpers}
-These helpers and syntactic sugar are made possible by Scala's extensions and implicit conversions. Extension allow to add methods to an object a posteriori of its definition. This is especially convenient for use, as it allows us to define such helpers outside of the kernel, keeping it small. 
+These helpers and syntactic sugar are made possible by Scala's extensions and implicit conversions. Extension allow to add methods to an object a posteriori of its definition. This is especially convenient for use, as it allows us to define such helpers outside of the kernel, keeping it small.
 For example, to write \lstinline|f(x, y)|, the object \lstinline|f: SchematicFunctionLabel| must have a method called \lstinline|apply|. It is defined as
 \begin{lstlisting}[language=Scala]
   extension (label: TermLabel) {
@@ -1056,13 +1054,13 @@ We can also defines infix symbols this way. An expression \lstinline|a === b| is
     def ===(u: Term): Term = Term(equality, Seq(t, u))
   }
 \end{lstlisting}
-And similarly for other symbols such as \lstinline| /\|, \lstinline| \/|, \lstinline| ==>|, \lstinline| <=> |.
+And similarly for other symbols such as \lstinline|/\|, \lstinline|\/|, \lstinline|==>|, \lstinline|<=> |.
 
 Now, consider again
 \begin{lstlisting}[language=Scala]
-  val x: TermLabel = VariableLabel("x")
-  val y: TermLabel = VariableLabel("x")
-  val f: SchematicFunctionLabel("f", 2)
+  val x: TermLabel = VariableLabel(``x'')
+  val y: TermLabel = VariableLabel(``x'')
+  val f: SchematicFunctionLabel(``f'', 2)
 \end{lstlisting}
 even with the above \lstinline|apply| trick, \lstinline|f(x, y)| would not compile, since \lstinline|f| can apply to \lstinline|Term| arguments, but not to \lstinline|TermLabel|. Hence we first need to apply \lstinline|x| and \lstinline|y| to an empty list of argument, such as in \lstinline|f(x(), y())|.
 This can be done automatically with implicit conversions. Implicit conversion is the mechanism allowing to cast an object of a type to an other in a canonical way. It is define with the \lstinline|given| keyword:
