@@ -5,7 +5,7 @@ LISA's kernel is the starting point of LISA, formalising the foundations of the 
 
 
 LISA's foundations are based on very traditional (in the mathematical community) foundational theory of all mathematics: \textbf{First Order Logic}, expressed using \textbf{Sequent Calculus} (augmented with schematic symbols), with axioms of \textbf{Set Theory}.
-While the LISA library is built on top of Set Theory axxioms, the kernel is actually theory-agnostic and is sound to use with any other set of axioms. Hence, we defer Set Theory to chapter~\ref{chapt:settheory}.
+While the LISA library is built on top of Set Theory axioms, the kernel is actually theory-agnostic and is sound to use with any other set of axioms. Hence, we defer Set Theory to chapter~\ref{chapt:settheory}.
 
 \section{First Order Logic}
 \label{sect:FOL}
@@ -13,7 +13,7 @@ While the LISA library is built on top of Set Theory axxioms, the kernel is actu
 \begin{defin}[Terms]
   In LISA, the set of terms $\mathcal{T}$ is defined by the following grammar:
   \begin{align}
-    \mathcal{T} := & \mathcal{L}_{Term}(\List[\mathcal{T}])~,
+    \mathcal{T} := & ~\mathcal{L}_{Term}(\List[\mathcal{T}])~,
   \end{align}
   %
   where $\mathcal{L}_{Term}$ is the set of \textit{term labels}:
@@ -23,7 +23,7 @@ While the LISA library is built on top of Set Theory axxioms, the kernel is actu
     \mid                  & ~\operatorname{SchematicTermLabel}(\textnormal{Id}, \textnormal{Arity}) 
   \end{align}
 
-  A label can be either \textit{constant} or \textit{schematic}, and is made of an identifier (a pair of a string and an Integer, for example $x_1$) and the arity of the label (an integer).
+  A label can be either \textit{constant} or \textit{schematic}, and is made of an identifier (a pair of a string and an integer, for example $x_1$) and the arity of the label (an integer).
   A term is made of a term label and a list of children, whose length must be equal to the arity of the label.
   A constant label of arity $0$ is called a \emph{constant}, and a schematic label of arity $0$ a \emph{variable}.
   We define the abbreviation
@@ -35,24 +35,24 @@ While the LISA library is built on top of Set Theory axxioms, the kernel is actu
 
 Constant labels represent a fixed function symbol in some language, for example the addition ``+'' in Peano arithmetic.
 
-Schematic symbols on the other hand, are uninterpreted --- they can represent any possible term and hence can be substituted by any term. Their use will become clearer in the next section when we introduce the concept of deductions.  Moreover, variables, which are schematic terms of arity 0, can be bound in formulas. \footnote{In a very traditional presentation of first order logic, we would only have variables, i.e. schematic terms of arity 0, and schematic terms of higher arity would only appear in second order logic. We defer to Part~\ref{part:theory} Section~\ref{sect:theoryfol} the explanation of why our inclusion of schematic function symbols doesn't fundamentally move us out of First Order Logic.}
+Schematic symbols on the other hand, are uninterpreted --- they can represent any possible term and hence can be substituted by any term. Their use will become clearer in the next section when we introduce the concept of deductions.  Moreover, variables, which are schematic terms of arity 0, can be bound in formulas. \footnote{In a very traditional presentation of first order logic, we would only have variables, i.e. schematic terms of arity 0, and schematic terms of higher arity would only appear in second order logic. We defer to Part~\ref{part:theory} Section~\ref{sec:theoryfol} the explanation of why our inclusion of schematic function symbols doesn't fundamentally move us out of First Order Logic.}
 
 \begin{ex}[Terms]The following are typical examples of terms labels:
   \begin{align*}
-    \emptyset &:= \ConstantTermLabel("\emptyset", 0) \\
-    7 &:= \ConstantTermLabel("7", 0) \\
-    x &:= \SchematicTermLabel("x", 0) \\
-    + &:= \ConstantTermLabel("{+}", 2) \\
-    f &:= \SchematicTermLabel("f", 1) \\
+    \emptyset & := \ConstantTermLabel(``\emptyset", 0) \\
+    7         & := \ConstantTermLabel(``7", 0)         \\
+    x         & := \SchematicTermLabel(``x", 0)        \\
+    +         & := \ConstantTermLabel(``{+}", 2)       \\
+    f         & := \SchematicTermLabel(``f", 1)        \\
   \end{align*}
   The following are examples of Terms:
-  \begin{align*}
-    &\emptyset() := \emptyset(\Nil)\\
-    &7() := 7(\Nil)\\
-    &x() := x(\Nil)\\
-    &+(7(), x())\\
-    &f(x())
-  \end{align*}
+  \begin{gather*}
+    \emptyset() := \emptyset(\Nil)\\
+    7() := 7(\Nil)\\
+    x() := x(\Nil)\\
+    +(7(), x())\\
+    f(x())
+  \end{gather*}
   
 \end{ex}
 
@@ -61,8 +61,8 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
   The set of Formulas $\mathcal{F}$ is defined similarly:
   %
   \begin{align}
-    \mathcal{F} := & ~\mathcal{L}_{Predicate}(\List[\mathcal{T}])                                  \\
-    \mid           & ~\mathcal{L}_{Connector}(\List[\mathcal{F}])                                  \\
+    \mathcal{F} := & ~\mathcal{L}_{Predicate}(\List[\mathcal{T}])                \\
+    \mid           & ~\mathcal{L}_{Connector}(\List[\mathcal{F}])                \\
     \mid           & ~\mathcal{L}_{Binder}(\Var(\textnormal{Id}), \mathcal{F})~,
   \end{align}
   %
@@ -82,11 +82,11 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
   %
   and $\mathcal{L}_{Binder}$ is the set of \textit{Binder labels}:
   %
+  \begin{align}
+    \mathcal{L}_{Binder} := \forall \mid \exists \mid \exists!
+  \end{align}
   
-    $$\mathcal{L}_{Binder} := \forall \mid \exists \mid \exists!$$
-  
-
-  Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they takeso that connectors and predicates of arity 0 are essentially the same thing. Hence, LISA, does not permit connectors of arity 0 and suggests the use of predicates instead.
+  Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they take, so that connectors and predicates of arity 0 are essentially the same thing. Hence, LISA, does not permit connectors of arity 0 and suggests the use of predicates instead.
   A contrario to schematic terms of arity 0, schematic predicates of arity 0 can't be bound, but they still play a special role sometimes, so we introduce a special notation for them
   %
   $$
@@ -100,7 +100,7 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
   $$
   %
   where the connectors And and Or are allowed to have an unrestricted arity, represented by the value $-1$. This means that a conjunction or a disjunction can have any finite number of children.
-  Similarly, there are only the following 3 binder labels:
+  Similarly, there are only the following three binder labels:
   %
   $$
     \forall \mid \exists \mid \exists !~.
@@ -114,76 +114,79 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
 \end{defin}
 \begin{ex}[Formula]The following are typical examples of formula labels:
   \begin{align*}
-    \True &:= \ConstantPredicateLabel("\True", 0) \\
-    \False &:= \ConstantPredicateLabel("\False", 0) \\
-    X &:= \SchematicPredicateLabel("X", 0) \\
-    = &:= \ConstantPredicateLabel("=", 2) \\
-    {\in} &:= \ConstantPredicateLabel("{\in}", 2) \\
-    P &:= \SchematicPredicateLabel("P", 1) \\
-    \neg &:= \ConstantConnectorLabel("{\neg}", 1) \\
-    \land &:= \ConstantConnectorLabel("{\land}", -1) \\
-    \lor &:= \ConstantConnectorLabel("{\lor}", -1) \\
-    \rightarrow &:= \ConstantConnectorLabel("{\rightarrow}", 2) \\
-    \leftrightarrow &:= \ConstantConnectorLabel("{\leftrightarrow}", 2) \\
-    c &:= \SchematicConnectorLabel("c", 3) \\
+    \True           & := \ConstantPredicateLabel(``\True", 0)             \\
+    \False          & := \ConstantPredicateLabel(``\False", 0)            \\
+    X               & := \SchematicPredicateLabel(``X", 0)                \\
+    =               & := \ConstantPredicateLabel(``=", 2)                 \\
+    {\in}           & := \ConstantPredicateLabel(``{\in}", 2)             \\
+    P               & := \SchematicPredicateLabel(``P", 1)                \\
+    \neg            & := \ConstantConnectorLabel(``{\neg}", 1)            \\
+    \land           & := \ConstantConnectorLabel(``{\land}", -1)          \\
+    \lor            & := \ConstantConnectorLabel(``{\lor}", -1)           \\
+    \rightarrow     & := \ConstantConnectorLabel(``{\rightarrow}", 2)     \\
+    \leftrightarrow & := \ConstantConnectorLabel(``{\leftrightarrow}", 2) \\
+    c               & := \SchematicConnectorLabel(``{c}", 3)              \\
   \end{align*}
   Note that in the case of $\ConstantConnectorLabel$, the list is exhaustive: $\neg, \land, \lor, \rightarrow$ and $\leftrightarrow$ are the only logical connectors accepted by LISA.
   The following are examples of Formulas:
-  \begin{align*}
-    &\True() := \True(\Nil)\\
-    &X() := X(\Nil)\\
-    &P(x(), 7()) \\
-    &=(+(7(), x()), +(x(), 7()))\\
-    &\forall(x, =(x(), x())) \\
-    &\neg(\exists(x, {\in}(x(), \emptyset)))
-  \end{align*}
+  \begin{gather*}
+    \True() := \True(\Nil)\\
+    X() := X(\Nil)\\
+    P(x(), 7()) \\
+    =(+(7(), x()), +(x(), 7()))\\
+    \forall(x, =(x(), x())) \\
+    \neg(\exists(x, {\in}(x(), \emptyset)))
+  \end{gather*}
 \end{ex}
 
-In this document, as well as in the code documentation, we often write terms and formula in a more conventional way, generally hiding the arity of labels and representing the label with its identifier only, preceded by an apostrophe (\texttt{`}) if we need to precise that a symbol is schematic. When the arity is relevant, we write it with an superscript, for example:
-
-$$
-  f^3(x,y,z) \equiv \operatorname{Fun}(f, 3)(\List(\Var(x), \Var(y), \Var(z)))~,
-$$
+In this document, as well as in the code documentation, we often write terms and formulas in a more conventional way, generally hiding the arity of labels and representing the label with its identifier only, preceded by an apostrophe (\lstinline|`|) if we need to precise that a symbol is schematic. When the arity is relevant, we write it with a superscript, for example:
+%
+\begin{gather*}
+  f^3(x,,z) \equiv \operatorname{Fun}(f, 3)(\List(\Var(x), \Var(y), \Var(z)))~,
+\end{gather*}
+%
 and
-$$
+%
+\begin{gather*}
   \forall x. \phi \equiv \operatorname{Binder}(\forall, \Var(x), \phi)~.
-$$
+\end{gather*}
+
 We also use other usual representations such as symbols in infix position, omitting parenthesis according to usual precedence rules, etc.
 
-Finally, note that we use subscript to emphasize that a variable is possibly free in a term or formula:
+Finally, note that we use subscripts to emphasize that a variable is possibly free in a given term or formula:
 
-$$
+\begin{gather*}
   t_{x,y,z}, ~\phi_{x,y,z}~.
-$$
+\end{gather*}
 
-\paragraph{Convention} Throughout this document, and in the code base, we adopt the following conventions: We use $r$, $s$, $t$, $u$ to denote arbitrary terms, $a$, $b$, $c$ to denote constant term symbols of arity $0$ and $f$, $g$, $h$ to denote term symbols of non-0 arity. We precede those with an apostrophe, such as $`f$ to denote schematic symbols. We also use $x$, $y$, $z$ to denote variables (schematic terms of order $0$).
+\paragraph{Convention} Throughout this document, and in the code base, we adopt the following conventions: We use $r$, $s$, $t$, $u$ to denote arbitrary terms, $a$, $b$, $c$ to denote constant term symbols of arity $0$ and $f$, $g$, $h$ to denote term symbols of non-0 arity. We precede those with an apostrophe, such as $`f$ to denote schematic symbols. We also use $x$, $y$, $z$ to denote variables, i.e. schematic terms of arity $0$.
 
-For formulas, we use greek letters such as $\phi$, $\psi$, $\tau$ to denote arbitrary formulas, $X$, $Y$, $Z$ to denote formula variables. We use capital letters like $P$, $Q$, $R$ to denote predicate symbols, preceding them similarly with an apostrophe for schematic predicates. Schematic connectors are rarer, but when they appear, we use for example $`c$. Sets or sequences of formulas are denoted with capital greek letters $\Pi$, $\Sigma$, $\Gamma$, $\Delta$, etc.
+For formulas, we use greek letters such as $\phi$, $\psi$, $\tau$ to denote arbitrary formulas, and $X$, $Y$, $Z$ to denote formula variables. We use capital letters like $P$, $Q$, $R$ to denote predicate symbols, preceding them similarly with an apostrophe for schematic predicates. Schematic connectors are rarer, but when they appear, we use for example $`C$. Sets or sequences of formulas are denoted with capital greek letters $\Pi$, $\Sigma$, $\Gamma$, $\Delta$, etc.
 
 \subsection{Substitution}
 \label{subsec:substitution}
 On top of basic building blocks of terms and formulas, there is one important type of operations: substitution of schematic symbols, which has to be implemented in a capture-avoiding way. We start with the subcase of variable substitution:
 \begin{defin}[Capture-avoiding Substitution of variables]
-  Given a base term $t$, a variable $x$ and another term $r$, the substitution of $x$ by $r$ inside $t$ is denoted by $ t[r/x] $ and is computed by replacing all occurences of $x$ by $r$.
+  Given a base term $t$, a variable $x$ and another term $r$, the substitution of $x$ by $r$ inside $t$ is denoted by $ t[x := r] $ and is computed by replacing all occurences of $x$ by $r$.
 
   Given a formula $\phi$, the substitution of $x$ by $r$ inside $\phi$ is defined recursively in the standard way for connectors and predicates
   %
   \begin{gather*}
-    (\phi \land \psi)[r/x] \equiv \phi[r/x] \land \psi[r/x]~,\\
-    P(t_1, t_2, \ldots, t_n)[r/x] \equiv P(t_1[r/x], t_2[r/x], \ldots, t_n[r/x])~,
+    (\phi \land \psi)[x := r] \equiv \phi[x := r] \land \psi[x := r]~,\\
+    P(t_1, t_2, \ldots, t_n)[x := r] \equiv P(t_1[x := r], t_2[x := r], \ldots, t_n[x := r])~,
   \end{gather*}
   %
   and for binders as
   %
   $$
-    (\forall x. \psi)[r/x] \equiv \forall x. \psi
+    (\forall x. \psi)[x := r] \equiv \forall x. \psi
   $$
   $$
-    (\forall y. \psi)[r/x] \equiv \forall y. \psi[r/x]
+    (\forall y. \psi)[x := r] \equiv \forall y. \psi[x := r]
   $$
   if $y \neq x$ and $y$ does not appear in $r$, and
   $$
-    (\forall y. \psi)[r/x] \equiv \forall z. \psi[z/y][r/x]~,
+    (\forall y. \psi)[x := r] \equiv \forall z. \psi[y := z][x := r]~,
   $$
   with any fresh variable $z$ (which is not free in $r$ and $\phi$) otherwise.
 \end{defin}
@@ -193,7 +196,7 @@ This definition of substitution is justified by the notion of alpha equivalence:
 
 We can now define \enquote{lambda terms}.
 \begin{defin}[Lambda Terms]
-  A lambda term is a  meta expression (meaning that it is not part of FOL itself) consisting in a term with ``holes'' that can be filled by other terms. This is represented with a term and specified symbols indicating the "holes". 
+  A lambda term is a  meta expression (meaning that it is not part of FOL itself) consisting in a term with ``holes'' that can be filled by other terms. This is represented with a term and specified symbols indicating the ``holes''.
   A lambda term can be though of as a meta-function on terms. For example, for a functional term with two arguments, we write
 
   $$
@@ -201,17 +204,17 @@ We can now define \enquote{lambda terms}.
   $$
   This is similar to the representation of functions in lambda calculus
   It comes with an instantiation operation: given terms $r$, $s$,
-  $$L(r, s) = t[r/x, s/y]$$
+  $$L(r, s) = t_{x, y}[x := r, y := s]$$
 \end{defin}
-Those expressions are a generalization of terms, and would be part of our logic if we used Higher Order Logic rather than First Order Logic. For conciseness and familiarity, in this document and in code documentation, we represent those expressions as lambda expressions:
- $$\lambda x y. t_{x,y}$$
+Those expressions are a generalization of terms, and would be part of our logic if we used Higher Order Logic rather than First Order Logic. Here, they are used to specify certain parameters for substitutions or internally by tactics. For conciseness and familiarity, in this document and in code documentation, we represent those expressions as lambda terms:
+$$\lambda x y.~ t_{x,y}$$
 
-Similarly as how variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such lambda terms.
+Similarly to how variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such lambda terms.
 % As the definition of such substitution is rather convoluted to describe, we prefer to show examples and redirect the reader to the source code of LISA for a technical definition. \footnote{Note that in lambda calculus, this would simply be iterated beta-reduction.}
 The substitution is defined in a manner similar to that of variable substitution with the base case
 %
 \begin{equation*}
-  `f(s_1, s_2, \ldots, s_n)[\lambda y_1.y_2.\ldots.y_n. t/`f] \equiv t[s_1/y_1][s_2/y_2][\ldots][s_n/y_n]~,
+  `f(s_1, s_2, \ldots, s_n)[`f := \lambda y_1.y_2.\ldots.y_n. t] \equiv t[y_1 := s_1][y_2 := s_2][\ldots][y_n := s_n]~,
 \end{equation*}
 %
 where no $y_i$ is free in any $s_j$. Otherwise, the lambda term is renamed to an alpha-equivalent term with fresh variable names.
@@ -235,7 +238,7 @@ where no $y_i$ is free in any $s_j$. Otherwise, the lambda term is renamed to an
 \end{ex}
 
 
-The definition extends to substitution of schematic terms inside formulas, with capture free substitution for bound variables. For example:
+The definition extends naturally to substitution of schematic terms inside formulas, with capture free substitution for bound variables. For example:
 
 \begin{ex}[Functional terms substitution in formulas]
   \begin{center}
@@ -256,7 +259,7 @@ The definition extends to substitution of schematic terms inside formulas, with 
 
 Note that if the lambda expression contains free variables (such as $y$ in the last example), then appropriate alpha-renaming of bound variables may be needed.
 
-We similarly define functional formulas, except that these can take either term arguments of formulas arguments. Specifically, we use $\LambdaTT$, $\LambdaTF$, $\LambdaFF$ to indicate functional expressions that take terms or formulas as arguments and return a term or formula.
+We similarly define functional formulas, except that these can take either term arguments of formulas arguments. For example, we use $\LambdaTF$ to indicate functional expressions that take terms as arguments and return a formula. Similarly, we also have $\LambdaTT$ and $\LambdaFF$.
 
 % TODO: Fix this table's hbox
 \begin{ex}[Typical functional expressions]
@@ -264,10 +267,10 @@ We similarly define functional formulas, except that these can take either term 
     \begin{tabular}{|r l|}
       \hline
       \rule{0em}{1.3em}
-      $\LambdaTT(x, y)(x+y)$                               & $=$ $\lambda x.y. x+y$               \\
-      $\LambdaTF(x, y)(x=y)$                               & $=$ $\lambda x.y. x=y$               \\
+      $\LambdaTT(x, y)(x+y)$       & $=$ $\lambda x.y. x+y$       \\
+      $\LambdaTF(x, y)(x=y)$       & $=$ $\lambda x.y. x=y$       \\
       $\LambdaFF(X, Y)(X \land Y)$ & $=$ $\lambda X.Y. X \land Y$
-      \rule[-1em]{0em}{0em}                                                                                 \\
+      \rule[-1em]{0em}{0em}                                       \\
       \hline
     \end{tabular}
   \end{center}
@@ -281,7 +284,7 @@ Note that in the last case, $X$ and $Y$ are $\FormulaVar$. Substitution of funct
 
 While proving theorems, trivial syntactical transformations such as $p\land q \equiv q\land p$ significantly increase the length of proofs, which is desirable neither to the user nor the machine. Moreover, the proof checker will very often have to check whether two formulas that appear in different sequents are the same. Hence, instead of using pure syntactical equality, LISA implements a powerful equivalence checker able to detect a class of equivalence-preserving logical transformations. For example, we would like the  formulas $p\land q$ and $q\land p$ to be naturally treated as equivalent.
 
-For soundness, the relation decided by the algorithm should be contained in the $\Longleftrightarrow$ ``if and only if'' relation of first order logic. It is well known that this relationship is in general undecidable however, and even the $\Longleftrightarrow$ relation for propositional logic is coNP-complete. For practicality, we need a relation that is efficiently computable.
+For soundness, the relation decided by the algorithm should be contained in the $\iff$ ``if and only if'' relation of first order logic. However, it is well known that this relationship is in general undecidable, and even the $\iff$ relation for propositional logic is coNP-complete. For practicality, we need a relation that is efficiently computable.
 
 The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality.
 It is based on an algorithm that decides the word problem for Ortholattices \cite{guilloudFormulaNormalizationsVerification2023a}.
@@ -306,7 +309,7 @@ Ortholattices are a generalization of Boolean algebra where instead of the law o
 
 As a special kind of lattices, ortholattices can be viewed as partially ordered sets, with the ordering relation on two elements $a$ and $b$ of an ortholattice defined as
 \(
-a\leq b \Longleftrightarrow a \land b = a
+a\leq b \iff a \land b = a
 \), which, by absorption (L9), is also equivalent to $a \lor b = b$. If $s$ and $t$ are propositional formulas, we denote $s \leq_\OL t $ if and only if $s \leq t$, is provable from the axioms of \autoref{tab:ortholatticeLaws}.
 We write $s\sim_\OL t$ if both $s\leq_\OL t$ and $s\geq_\OL t$ hold.
 \autoref{thm:OL} is the main result we rely on.
@@ -323,27 +326,25 @@ LISA's Kernel contains an algorithm, called the $\FOLalg{}$ Equivalence Checker 
 \begin{table}[ht]
   \centering
   \begin{tabular}{c | l | l}
-      & To decide... & Reduce to...\\
+      & To decide...                                                                             & Reduce to...                                           \\
        \hline
-     1&  $\lbrace \land, \lor, \rightarrow, \leftrightarrow, \neg \rbrace(\vec{\phi}) \leq \psi $ & Base algorithm \\
-      2& $\phi \leq \lbrace \land, \lor, \rightarrow, \leftrightarrow, \neg \rbrace(\vec{\psi}) $ & Base algorithm \\
-      3& $s_1 = s_2 \leq t_1 = t_2$ & $\lbrace s_1, s_2 \rbrace == \lbrace t_1, t_2 \rbrace$\\
-      4& $\phi \leq t_1 = t_2$ & $t_1 == t_2$\\
+    1 & $\lbrace \land, \lor, \rightarrow, \leftrightarrow, \neg \rbrace(\vec{\phi}) \leq \psi $ & Base algorithm                                         \\
+    2 & $\phi \leq \lbrace \land, \lor, \rightarrow, \leftrightarrow, \neg \rbrace(\vec{\psi}) $ & Base algorithm                                         \\
+    3 & $s_1 = s_2 \leq t_1 = t_2$                                                               & $\lbrace s_1, s_2 \rbrace == \lbrace t_1, t_2 \rbrace$ \\
+    4 & $\phi \leq t_1 = t_2$                                                                    & $t_1 == t_2$                                           \\
        %(s_1 \sim_\Ol t_1 \& s_2 \sim_\Ol t_2) || (s_1 \sim_\Ol t_2 \& s_2 \sim_\Ol t_1)
-      5 & $\forall. \phi \leq \forall. \psi$ & $\phi \leq \psi$\\
-      6& $\schem{C}(\phi_1,...,\phi_n) \leq \schem{C}(\psi_1,...,\psi_n)$ & $\phi_i \sim_\OL \psi_i$, for every $1 \le i \le n$\\
+    5 & $\forall. \phi \leq \forall. \psi$                                                       & $\phi \leq \psi$                                       \\
+    6 & $\schem{C}(\phi_1,...,\phi_n) \leq \schem{C}(\psi_1,...,\psi_n)$                         & $\phi_i \sim_\OL \psi_i$, for every $1 \le i \le n$    \\
        
-      7& Anything else & \texttt{false}
+    7 & Anything else                                                                            & \lstinline|false|
   \end{tabular}
-  
-  \
   
   \caption{Extension of OL algorithm to first-order logic. We call it the \FOLalg{} algorithm. $=$ denotes the equality predicate in FOL, while $==$ denotes syntactic equality of terms.
   \label{tab:Olextension}}
 \end{table}
 
 
-In particular, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. It also expresses $\rightarrow$ and $\leftrightarrow$ in in term of $\lor$ and $\land$.
+In particular, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. It also expresses $\rightarrow$ and $\leftrightarrow$ in terms of $\lor$ and $\land$.
 A more detailed discussion of extension of ortholattices to first-order logic, proof of correctness and implementation details can be found in \cite{guilloudFormulaNormalizationsVerification2023a} and \cite{guilloudLISAModernProof2023a}.
 
 
