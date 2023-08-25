@@ -4,12 +4,14 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker.*
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.mathematics.SetTheory.*
+import lisa.mathematics.settheory.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
+import lisa.prooflib.Substitution.ApplyRules
 import lisa.utils.FOLPrinter.*
 import lisa.utils.KernelHelpers.checkProof
 import lisa.utils.unification.UnificationUtils.*
+import lisa.utils.unification.UnificationUtils2.*
 
 /**
  * Discover some of the elements of LISA to get started.
@@ -65,7 +67,7 @@ object ExampleDSL extends lisa.Main {
 
     val backward = have(in(z, union(X)) ==> in(z, x)) subproof {
       have(in(z, y) |- in(z, y)) by Restate
-      val step2 = thenHave((y === x, in(z, y)) |- in(z, x)) by Substitution
+      val step2 = thenHave((y === x, in(z, y)) |- in(z, x)) by ApplyRules(y === x)
       have(in(z, y) /\ in(y, X) |- in(z, x)) by Tautology.from(pairAxiom of (y -> x, z -> y), step2)
       val step4 = thenHave(∃(y, in(z, y) /\ in(y, X)) |- in(z, x)) by LeftExists
       have(in(z, union(X)) ==> in(z, x)) by Tautology.from(unionAxiom of (x -> X), step4)
@@ -116,9 +118,9 @@ object ExampleDSL extends lisa.Main {
         def substInRedF(f: Formula) = redF.substituted(atom -> f)
         TacticSubproof {
           have(solveFormula(substInRedF(⊤), atom :: decisionsPos, decisionsNeg))
-          val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution(⊤ <=> atom)
+          val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution2(⊤ <=> atom)
           have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
-          val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution(⊥ <=> atom)
+          val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution2(⊥ <=> atom)
           have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
           thenHave(decisionsPos |- f :: decisionsNeg) by Restate
         }
