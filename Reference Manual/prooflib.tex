@@ -21,7 +21,7 @@ object MyTheoryName extends lisa.Main {
   show
 }
 \end{lstlisting}
-\lstinline{show}{} is optional and prints the last proven theorem. We can similarily make the definition:
+\lstinline|show|{} is optional and prints the last proven theorem. We can similarily make the definition:
 
 % avoid page breaking
 \noindent
@@ -53,13 +53,13 @@ object MyTheoryName extends lisa.Main {
 
 
 =======
-It is important to note that when multiple such files are developed, they all use the same underlying \lstinline{RunningTheory}{}. This makes it possible to use results proved previously by means of a simple \lstinline{import}{} statement as one would import a regular object. Similarly, one should also import as usual automation and tactics developed alongside. It is expected in the medium term that \lstinline{lisa.Main}{} will come with basic automation.
+It is important to note that when multiple such files are developed, they all use the same underlying \lstinline|RunningTheory|{}. This makes it possible to use results proved previously by means of a simple \lstinline|import|{} statement as one would import a regular object. Similarly, one should also import as usual automation and tactics developed alongside. It is expected in the medium term that \lstinline|lisa.Main|{} will come with basic automation.
 
 To check the result of a developed file, and verify that the proofs contain no error, it is possible to run such a library object.
 % specify which object
 All imported theory objects will be run through as well, but only the result of the selected one will be printed.
 
-It is possible to refer to a theorem or axiom that has been previously proven or added using its name. The syntax is \lstinline{thm``theoremName''}{} or \lstinline{ax``axiomName''}{}. This makes it possible to write, for example, \lstinline{thm``theoremName''.show}{} and \lstinline{... using (ax``comprehensionSchema'')} Figure \ref{fig:kernellibrary} shows a typical example of set theory development.
+It is possible to refer to a theorem or axiom that has been previously proven or added using its name. The syntax is \lstinline|thm``theoremName''|{} or \lstinline|ax``axiomName''|{}. This makes it possible to write, for example, \lstinline|thm``theoremName''.show|{} and \lstinline|... using (ax``comprehensionSchema'')| Figure \ref{fig:kernellibrary} shows a typical example of set theory development.
 
 
 \begin{figure}[hp]
