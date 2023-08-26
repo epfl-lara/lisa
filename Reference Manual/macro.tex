@@ -1,12 +1,14 @@
 % macro.tex
 
 \usepackage[utf8]{inputenc}
+\usepackage{url}
+\usepackage{graphicx}
 \usepackage[english]{babel}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
-\usepackage{listings}
 \usepackage{amsthm}
+\usepackage{listings}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{csquotes}
 \usepackage[strings]{underscore}
@@ -14,15 +16,20 @@
 \usepackage{bussproofs}
 \usepackage{makecell}
 \usepackage{subcaption}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{float}
+\usepackage{xspace}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{array}
+\usepackage{arial}
+\usepackage[T1]{fontenc}
+\renewcommand\sfdefault{ua1}
 \sloppy % better (?) margin handling
 
 
-\newtheorem{thm}{Theorem}
+\newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
 \newtheorem{corollary}{Corollary}
-\theoremstyle{definition}
-\newtheorem{defin}{Definition}
-\newtheorem{ex}{Example}
 
 \newtheorem{axz}{}
 \renewcommand\theaxz{Z\arabic{axz}}
@@ -31,11 +38,15 @@
 \newtheorem{axtg}{}
 \renewcommand\theaxtg{TG\arabic{axtg}}
 
-\lstset{
-language=Scala,
-escapeinside={(*@}{@*)}
-}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newcommand*{\definitionautorefname}{Definition}
 
+
+
+%Code
+%\usepackage[nomap]{FiraMono} 
 \usepackage{fontspec}
 \setmonofont[
   Contextuals={Alternate}
@@ -61,7 +72,7 @@ escapeinside={(*@}{@*)}
         import, final, return, new, override, this, trait,
         private, public, protected, package, throw},
     sensitive = true, 
-    numbers=left,
+    %numbers=left,
     stepnumber=1,
     morecomment = [l]{//},
     morecomment = [s]{/*}{*/},
@@ -81,7 +92,7 @@ escapeinside={(*@}{@*)}
         object, true, val, var, while, sealed, or,
         for, dependent, null, type, with, try, catch, finally,
         import, final, return, new, override, this, trait,
-        private, public, protected, package, throw},
+        private, public, protected, package, throw, given},
     morekeywords = [3]{have, andThen, thenHave, Theorem, by, DEF, The, Lemma, subproof, assume},
     sensitive = true, 
     numbers=left,
@@ -92,7 +103,17 @@ escapeinside={(*@}{@*)}
     otherkeywords = {;,<<,>>,++},
 }
 
-\lstset{basicstyle=\scriptsize\ttfamily,mathescape,escapeinside={!*}{*!},columns=fullflexible,morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def}}
+
+
+\definecolor{verylightgray}{rgb}{0.96, 0.94, 0.92}
+\lstset{
+    backgroundcolor = \color{verylightgray},
+    basicstyle=\footnotesize\linespread{1.15}\ttfamily,
+    mathescape,
+    escapeinside={!*}{*!},
+    columns=fullflexible,
+    morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def}
+}
 
 \DeclareMathOperator{\pick}{pick}
 

@@ -20,6 +20,7 @@ import lisa.utils.unification.UnificationUtils.*
  * An example of really domain specific proofs using infix extensions.
  */
 object MapProofTest extends lisa.Main {
+  /*
   val Nil = variable
   val Cons = function(2)
   val append = function(2)
@@ -148,5 +149,5 @@ object MapProofTest extends lisa.Main {
 
     have(thesis) by ApplyRules(lastStep)(trApp)
   }
-  show
+  show*/
 }

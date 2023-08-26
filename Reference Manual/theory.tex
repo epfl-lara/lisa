@@ -1,0 +1,75 @@
+%\part{Theory}
+
+\chapter{Library Development: Set Theory}
+\label{chapt:settheory}
+
+It is important to remember that in the context of Set Theory, function symbols are not the usual mathematical functions and predicate symbols are not the usual mathematical predicates. Indeed, a predicate on the natural numbers $\mathbb N$ is simply a subset of $\mathbb N$. For example a number is even if and only if it is in the set $E \subset \mathbb N$ of all even numbers. Similarly, the $\leq$ relation on natural numbers can be thought of as a subset of $\mathbb N \times \mathbb N$. There, $E$ and $\leq$ are themselves sets, and in particular terms in first order logic.
+Actual mathematical functions on the other hand, are proper sets which contains the graph of a function on some domain. Their domain must be restricted to a proper set, and it is possible to quantify over such set-like functions or to use them without applications. These set-like functions are represented by constant symbols.  For example ``$f$ is derivable'' cannot be stated about a function symbol. We will come back to this in Chapter~\ref{chapt:settheory}, but for now let us remember that (non-constant) function symbols are suitable for intersection ($\bigcap$) between sets but not for, say, the Riemann $\zeta$ function.
+
+
+Indeed, on one hand a predicate symbol defines a truth value on all possible sets, but on the other hand it is impossible to use the symbol alone, without applying it to arguments, or to quantify over function symbol.
+
+LISA is based on set theory. More specifically, it is based on ZF with (still not decided) an axiom of choice, of global choice, or Tarski's universes.
+
+ZF Set Theory stands for Zermelo-Fraenkel Set Theory. It contains a set of initial predicate symbols and function symbols, as shown in Figure \ref{fig:symbolszf}. It also contains the 7 axioms of Zermelo (Figure \ref{fig:axiomsz}), which are technically sufficient to formalize a large portion of mathematics, plus the axiom of replacement of Fraenkel (Figure \ref{fig:axiomszf}), which is needed to formalize more complex mathematical theories.
+In a more typical mathematical introduction to Set Theory, ZF would naturally only contain the set membership symbol $\in$. Axioms defining the other symbols would then only express the existence of functions or predicates with those properties, from which we could get the same symbols using extensions by definitions.
+
+In a very traditional sense, an axiomatization is any possibly infinite semi-recursive set of axioms. Hence, in its full generality, Axioms should be any function producing possibly infinitely many formulas.
+This is however not a convenient definition. In practice, all infinite axiomatizations are schematic, meaning that they are expressable using schematic variables. Axioms \ref{axz:comprehension} (comprehension schema) and \ref{axzf:replacement} (replacement schema) are such examples of axiom schema, and motivates the use of schematic variables in LISA.
+
+
+
+\begin{figure}
+  \begin{center}
+    \begin{tabular}{l|c|l}
+      {}                         & Math symbol       & LISA Kernel             \\ \hline
+      Set Membership predicate   & $\in$             & \lstinline$in(s,t)$     \\
+      Subset predicate           & $\subset$         & \lstinline$subset(s,t)$ \\
+      Empty Set constant         & $\emptyset$       & \lstinline$emptyset()$  \\
+      Unordered Pair constant    & $(\cdot, \cdot )$ & \lstinline$pair(s,t)$   \\
+      Power Set function         & $\mathcal P$      & \lstinline$powerSet(s)$ \\
+      Set Union/Flatten function & $\bigcup$         & \lstinline$union(x)$    \\
+    \end{tabular}
+
+    \caption{The basic symbols of ZF.}
+    \label{fig:symbolszf}
+  \end{center}
+\end{figure}
+
+\begin{figure}
+  \begin{axz}[empty set]\label{axz:empty}
+    $\forall x. x \notin \emptyset$
+  \end{axz}
+  \begin{axz}[extensionality]\label{axz:extensionality}
+    $\forall x, y. (\forall z. z \in x \iff z \in y) \iff (x = y)$
+  \end{axz}
+  \begin{axz}[extensionality]\label{axz:subset}
+    $\forall x, y. x\subset y \iff \forall z. z \in x iff z \in y$
+  \end{axz}
+  \begin{axz}[pair]\label{axz:pair}
+    $\forall x, y, z. (z \in (x, y)) \iff ((x \in y) \lor (y \in z))$
+  \end{axz}
+  \begin{axz}[union]\label{axz:union}
+    $\forall x, z. (x \in \operatorname{U}(z)) \iff (\exists y. (x \in y) \land (y \in z))$
+  \end{axz}
+  \begin{axz}[power]\label{axz:power}
+    $\forall x, y. (x \in \operatorname{\mathcal{P}}(y)) \iff (x \subset y)$
+  \end{axz}
+  \begin{axz}[foundation]\label{axz:foundation}
+    $\forall x. (x \neq \emptyset) \implies (\exists y. (y \in x) \land (\forall z. z \in x))$
+  \end{axz}
+  \begin{axz}[comprehension schema]\label{axz:comprehension}
+    $\forall z, \vec{v}. \exists y. \forall x. (x \in y) \iff ((x \in z) \land \phi(x, z, \vec{v}))$
+  \end{axz}
+  \caption{Axioms for Zermelo set theory.}
+  \label{fig:axiomsz}
+\end{figure}
+
+\begin{figure}
+  \begin{axzf}[replacement schema]\label{axzf:replacement}
+    $$\forall a. (\forall x. (x \in a) \implies !\exists y. \phi(a, \vec{v}, x, y)) \implies $$
+    $$(\exists b. \forall x. (x \in a) \implies (\exists y. (y \in b) \land \phi(a, \vec{v}, x, y)))$$
+  \end{axzf}
+  \caption{Axioms for Zermelo-Fraenkel set theory.}
+  \label{fig:axiomszf}
+\end{figure}

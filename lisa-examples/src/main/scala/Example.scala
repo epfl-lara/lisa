@@ -30,8 +30,12 @@ object Example {
       LeftImplies((phi ==> psi) ==> phi |- phi, 2, 0, (phi ==> psi), phi),
       RightImplies(() |- ((phi ==> psi) ==> phi) ==> phi, 3, (phi ==> psi) ==> phi, phi)
     )
+    val PierceLaw2 = SCProof(
+      RestateTrue(() |- ((phi ==> psi) ==> phi) ==> phi)
+    )
 
     checkProof(PierceLaw)
+    checkProof(PierceLaw2)
 
     val theory = new RunningTheory
     val pierceThm: theory.Theorem = theory.makeTheorem("Pierce's Law", () |- ((phi ==> psi) ==> phi) ==> phi, PierceLaw, Seq.empty).get
