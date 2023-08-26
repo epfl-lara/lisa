@@ -7,6 +7,7 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.mathematics.settheory.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
+import lisa.prooflib.Substitution.ApplyRules
 import lisa.utils.FOLPrinter.*
 import lisa.utils.KernelHelpers.checkProof
 import lisa.utils.parsing.FOLPrinter
@@ -57,7 +58,7 @@ object MapProofTest extends lisa.Main {
     have(Nil.mapTr(f, (x :: xs)) === (x :: xs)) by InstantiateForall
 
     // apply MapTrNil again
-    thenHave(Nil.mapTr(f, xs) === xs |- Nil.mapTr(f, (x :: xs)) === (x :: Nil.mapTr(f, xs))) by Substitution.apply2(true, Nil.mapTr(f, xs) === xs)
+    thenHave(Nil.mapTr(f, xs) === xs |- Nil.mapTr(f, (x :: xs)) === (x :: Nil.mapTr(f, xs))) by ApplyRules(Nil.mapTr(f, xs) === xs)
     thenHave(thesis) by LeftForall
   }
   show
@@ -80,19 +81,19 @@ object MapProofTest extends lisa.Main {
     have(ConsAppend) by Restate
     thenHave((y :: ys) ++ (app(f, x) :: Nil) === (y :: (ys ++ (app(f, x) :: Nil)))) by InstantiateForall(y, ys, (app(f, x) :: Nil))
 
-    val consYYs = have((x :: xs).mapTr(f, (y :: ys)) === xs.mapTr(f, (y :: (ys ++ (app(f, x) :: Nil))))) by Substitution.apply2(false, lastStep)(appYYs)
+    val consYYs = have((x :: xs).mapTr(f, (y :: ys)) === xs.mapTr(f, (y :: (ys ++ (app(f, x) :: Nil))))) by ApplyRules(lastStep)(appYYs)
 
     // apply IH1
     have(IH1) by Restate
     thenHave(xs.mapTr(f, (y :: (ys ++ (app(f, x) :: Nil)))) === (y :: xs.mapTr(f, (ys ++ (app(f, x) :: Nil))))) by InstantiateForall(y, (ys ++ (app(f, x) :: Nil)))
 
-    val consYXs = have((x :: xs).mapTr(f, (y :: ys)) === (y :: xs.mapTr(f, (ys ++ (app(f, x) :: Nil))))) by Substitution.apply2(false, lastStep)(consYYs)
+    val consYXs = have((x :: xs).mapTr(f, (y :: ys)) === (y :: xs.mapTr(f, (ys ++ (app(f, x) :: Nil))))) by ApplyRules(lastStep)(consYYs)
 
     // apply MapTrCons again
     have(MapTrCons) by Restate
     thenHave((x :: xs).mapTr(f, ys) === xs.mapTr(f, (ys ++ (app(f, x) :: Nil)))) by InstantiateForall(x, xs, ys)
 
-    have(thesis) by Substitution.apply2(true, lastStep)(consYXs)
+    have(thesis) by ApplyRules(lastStep)(consYXs)
   }
   show
 
@@ -107,7 +108,7 @@ object MapProofTest extends lisa.Main {
 
     // apply MapNil
     have(MapNil) by Restate
-    have(thesis) by Substitution.apply2(true, trNil)(lastStep)
+    have(thesis) by ApplyRules(trNil)(lastStep)
   }
   show
 
@@ -131,22 +132,22 @@ object MapProofTest extends lisa.Main {
 
     // apply IH2
     have(IH2) by Restate
-    val consTr = have((x :: xs).map(f) === (app(f, x) :: xs.mapTr(f, Nil))) by Substitution.apply2(false, lastStep)(mCons)
+    val consTr = have((x :: xs).map(f) === (app(f, x) :: xs.mapTr(f, Nil))) by ApplyRules(lastStep)(mCons)
 
     // apply AccOut TODO: expand this to be inductive
     have(IH1) by Restate
     thenHave(xs.mapTr(f, (app(f, x) :: Nil)) === (app(f, x) :: xs.mapTr(f, Nil))) by InstantiateForall(app(f, x), Nil)
-    val trCons = have((x :: xs).map(f) === xs.mapTr(f, (app(f, x) :: Nil))) by Substitution.apply2(true, lastStep)(consTr)
+    val trCons = have((x :: xs).map(f) === xs.mapTr(f, (app(f, x) :: Nil))) by ApplyRules(lastStep)(consTr)
 
     // apply NilAppend
     have((Nil ++ (app(f, x) :: Nil)) === (app(f, x) :: Nil)) by InstantiateForall
-    val trApp = have((x :: xs).map(f) === xs.mapTr(f, (Nil ++ (app(f, x) :: Nil)))) by Substitution.apply2(true, lastStep)(trCons)
+    val trApp = have((x :: xs).map(f) === xs.mapTr(f, (Nil ++ (app(f, x) :: Nil)))) by ApplyRules(lastStep)(trCons)
 
     // apply MapTrCons
     have(MapTrCons) by Restate
     thenHave((x :: xs).mapTr(f, Nil) === xs.mapTr(f, (Nil ++ (app(f, x) :: Nil)))) by InstantiateForall(x, xs, Nil)
 
-    have(thesis) by Substitution.apply2(true, lastStep)(trApp)
+    have(thesis) by ApplyRules(lastStep)(trApp)
   }
   show*/
 }

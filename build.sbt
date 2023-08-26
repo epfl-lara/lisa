@@ -32,8 +32,6 @@ val commonSettings3 = Seq(
     "-language:implicitConversions",
 
     // "-source:future", re-enable when liancheng/scalafix-organize-imports#221 is fixed
-    "-old-syntax",
-    "-no-indent"
 
   ),
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
@@ -47,8 +45,8 @@ def withTests(project: Project): ClasspathDependency =
 
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
-lazy val scallion = githubProject("https://github.com/epfl-lara/scallion.git", "08b333f9af2d8daa1fb7424cd47b0433cd5e9770")
-lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "eaf296425b9d8cc9100dfa66a079641ee4cfe4ae")
+lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "6434e21bd08872cf547c8f0efb67c963bfdf4190")
+lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
 
 lazy val root = Project(
   id = "lisa",
