@@ -16,16 +16,16 @@ object SCProofChecker {
    *                   a proof's [[SCProof.getSequent]] function.
    * @return           A Judgement about the correctness of the proof step.
    */
-  def checkSingleSCStep(no: Int, step: SCProofStep, references: Int => Sequent, importsSize: Option[Int] = None): SCProofCheckerJudgement = {
+  def checkSingleSCStep(no: Int, step: SCProofStep, references: Int => Sequent, importsSize: Int): SCProofCheckerJudgement = {
     val ref = references
     val false_premise = step.premises.find(i => i >= no)
-    val false_premise2 = if (importsSize.nonEmpty) step.premises.find(i => i < -importsSize.get) else None
+    val false_premise2 = step.premises.find(i => i < -importsSize)
 
     val r: SCProofCheckerJudgement =
       if (false_premise.nonEmpty)
         SCInvalidProof(SCProof(step), Nil, s"Step no $no can't refer to higher number ${false_premise.get} as a premise.")
       else if (false_premise2.nonEmpty)
-        SCInvalidProof(SCProof(step), Nil, s"A step can't refer to step ${false_premise2.get}, imports only contains ${importsSize.get} elements.")
+        SCInvalidProof(SCProof(step), Nil, s"A step can't refer to step ${false_premise2.get}, imports only contains ${importsSize} elements.")
       else
         step match {
           /*
@@ -486,7 +486,7 @@ object SCProofChecker {
     var isSorry = false
     val possibleError = proof.steps.view.zipWithIndex
       .map { case (step, no) =>
-        checkSingleSCStep(no, step, (i: Int) => proof.getSequent(i), Some(proof.imports.size)) match {
+        checkSingleSCStep(no, step, (i: Int) => proof.getSequent(i), proof.imports.size) match {
           case SCInvalidProof(_, path, message) => SCInvalidProof(proof, no +: path, message)
           case SCValidProof(_, sorry) =>
             isSorry = isSorry || sorry

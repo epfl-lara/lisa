@@ -57,6 +57,7 @@ class RunningTheory {
    * @param label The name and arity of the new symbol
    * @param out   The variable representing the result of the function in phi
    * @param expression   The formula, with term parameters, defining the function.
+   * @param withSorry   Stores if Sorry was used to in the proof used to define the symbol, or one of its ancestor.
    */
   sealed case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel, out: VariableLabel, expression: LambdaTermFormula, withSorry: Boolean) extends Definition
 

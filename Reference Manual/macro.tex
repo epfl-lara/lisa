@@ -1,0 +1,119 @@
+% macro.tex
+
+\usepackage[utf8]{inputenc}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{listings}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{csquotes}
+\usepackage[strings]{underscore}
+\usepackage{hyperref}
+\usepackage{bussproofs}
+\usepackage{makecell}
+\usepackage{subcaption}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{float}
+\usepackage{xspace}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{array}
+\usepackage{arial}
+\usepackage[T1]{fontenc}
+\renewcommand\sfdefault{ua1}
+\sloppy % better (?) margin handling
+
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+\newtheorem{axz}{}
+\renewcommand\theaxz{Z\arabic{axz}}
+\newtheorem{axzf}{}
+\renewcommand\theaxzf{ZF\arabic{axzf}}
+\newtheorem{axtg}{}
+\renewcommand\theaxtg{TG\arabic{axtg}}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newcommand*{\definitionautorefname}{Definition}
+
+
+
+%Code
+%\usepackage[nomap]{FiraMono} 
+\usepackage{fontspec}
+\setmonofont[
+  Contextuals={Alternate}
+]{Fira Code}
+
+\makeatletter
+\def\verbatim@nolig@list{}
+\makeatother
+
+\definecolor{green}{rgb}{0, 0.6, 0}
+
+\definecolor{comments}{RGB}{80,0,110}
+
+\lstdefinelanguage{scala}{
+    alsoletter={@,=,>},
+    keywordstyle = {\color{blue}},
+    keywordstyle = [2]{\color{blue}},
+    commentstyle = \color{comments},
+    morekeywords = [2]{abstract, case, class, def, do, Input, Output, then,
+        else, extends, false, free, if, implicit, match,
+        object, true, val, var, while, sealed, or,
+        for, dependent, null, type, with, try, catch, finally,
+        import, final, return, new, override, this, trait,
+        private, public, protected, package, throw},
+    sensitive = true, 
+    %numbers=left,
+    stepnumber=1,
+    morecomment = [l]{//},
+    morecomment = [s]{/*}{*/},
+    morestring = [b]",  
+    otherkeywords = {;,<<,>>,++},
+}
+
+\lstdefinelanguage{lisa}{
+    alsoletter={@,=,>},
+    keywordstyle = {\color{blue}},
+    keywordstyle = [2]{\color{blue}},
+    keywordstyle = [3]{\color{green}},
+    keywordstyle = [4]{\color{teal}},
+    commentstyle = \color{comments},
+    morekeywords = [2]{abstract, case, class, def, do, Input, Output, then,
+        else, extends, false, free, if, implicit, match,
+        object, true, val, var, while, sealed, or,
+        for, dependent, null, type, with, try, catch, finally,
+        import, final, return, new, override, this, trait,
+        private, public, protected, package, throw, given},
+    morekeywords = [3]{have, andThen, thenHave, Theorem, by, DEF, The, Lemma, subproof, assume},
+    sensitive = true, 
+    numbers=left,
+    stepnumber=1,
+    morecomment = [l]{//},
+    morecomment = [s]{/*}{*/},
+    morestring = [b]",  
+    otherkeywords = {;,<<,>>,++},
+}
+
+
+
+\definecolor{verylightgray}{rgb}{0.96, 0.94, 0.92}
+\lstset{
+    backgroundcolor = \color{verylightgray},
+    basicstyle=\footnotesize\linespread{1.15}\ttfamily,
+    mathescape,
+    escapeinside={!*}{*!},
+    columns=fullflexible,
+    morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def}
+}
+
+\DeclareMathOperator{\pick}{pick}
+

@@ -12,6 +12,7 @@ import lisa.mathematics.settheory.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
+import lisa.prooflib.Substitution
 import lisa.utils.FOLPrinter
 
 object PartialOrders extends lisa.Main {
@@ -273,7 +274,7 @@ object PartialOrders extends lisa.Main {
 
         val eqCase = have((y === t) |- (predecessor(p, t, x) \/ exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2)))) subproof {
           have(predecessor(p, y, x)) by Restate
-          thenHave((y === t) |- predecessor(p, t, x)) by Substitution.withExplicitRules(y === t)
+          thenHave((y === t) |- predecessor(p, t, x)) by Substitution.ApplyRules(y === t)
           thenHave(thesis) by Weakening
         }
 

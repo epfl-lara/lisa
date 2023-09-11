@@ -37,7 +37,9 @@ object FirstOrderUnifier {
           val innerSubst = matchFormula(
             substituteVariablesInFormula(i1, Map[VariableLabel, Term](b1 -> t)),
             substituteVariablesInFormula(i2, Map[VariableLabel, Term](b2 -> t)),
-            Some((subst.get._1, subst.get._2 + ((t -> t): (VariableLabel, Term))))
+            Some((subst.get._1, subst.get._2 + ((t -> t): (VariableLabel, Term)))), 
+            vars
+
           )
 
           innerSubst match {
@@ -51,22 +53,25 @@ object FirstOrderUnifier {
               else Some(cleanSubst)
             }
           }
-
         }
+
         case (ConnectorFormula(l1, arg1), ConnectorFormula(l2, arg2)) if l1 == l2 => {
           if (arg1.length != arg2.length) None
-          else (arg1 zip arg2).foldLeft(subst) { case (subs: FormulaSubstitution, (f: Formula, s: Formula)) => matchFormula(f, s, subs) }
+          else (arg1 zip arg2).foldLeft(subst) { case (subs: FormulaSubstitution, (f: Formula, s: Formula)) => matchFormula(f, s, subs, vars) }
         }
         // predicate
         case (PredicateFormula(l1, arg1), PredicateFormula(l2, arg2)) if l1 == l2 => {
           // if the label is the same, no issues, move on with term unification
           if (arg1.length != arg2.length) None
           else {
-            val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Substitution) { case (subs: Substitution, (f: Term, s: Term)) => matchTerm(f, s, subs) }
+            val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Substitution) { case (subs: Substitution, (f: Term, s: Term)) =>
+              matchTerm(f, s, subs, vars.map(_.collect { case v: VariableLabel => v }))
+            }
             if (termSubst.isDefined) Some(subst.get._1, termSubst.get)
             else None
           }
         }
+        // otherwise check if the predicate is actually a variable
         case (PredicateFormula(l1: VariableFormulaLabel, arg1), _) if (vars.isEmpty || vars.get.contains(l1)) => {
           if (second == subst.get._1.getOrElse(l1, second)) Some(subst.get._1 + (l1 -> second), subst.get._2)
           else if (first.label == second.label && second == subst.get._1.getOrElse(l1, second)) subst
@@ -97,7 +102,7 @@ object FirstOrderUnifier {
         case _ => // {Constant, Schematic} FunctionLabel
           if (first.label != second.label) None
           else if (first.args.length != second.args.length) None
-          else (first.args zip second.args).foldLeft(subst) { case (subs: Substitution, (f: Term, s: Term)) => matchTerm(f, s, subs) }
+          else (first.args zip second.args).foldLeft(subst) { case (subs: Substitution, (f: Term, s: Term)) => matchTerm(f, s, subs, vars) }
       }
     }
 

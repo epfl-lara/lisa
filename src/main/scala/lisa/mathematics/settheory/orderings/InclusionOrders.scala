@@ -13,6 +13,7 @@ import lisa.mathematics.settheory.orderings.PartialOrders.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib
+import lisa.prooflib.Substitution
 import lisa.utils.FOLPrinter
 
 object InclusionOrders extends lisa.Main {
@@ -79,7 +80,7 @@ object InclusionOrders extends lisa.Main {
         val pairExt = have((pair(b, c) === pair(y, x)) |- (b === y) /\ (c === x)) by Weakening(pairExtensionality of (a -> b, b -> c, c -> y, d -> x))
 
         have(in(y, x) |- in(y, x)) by Hypothesis
-        thenHave((in(y, x), b === y, c === x) |- in(b, c)) by Substitution.withExplicitRules(b === y, c === x)
+        thenHave((in(y, x), b === y, c === x) |- in(b, c)) by Substitution.ApplyRules(b === y, c === x)
         have((in(y, x) /\ (pair(b, c) === pair(y, x))) |- in(b, c)) by Tautology.from(pairExt, lastStep)
         thenHave(exists(x, in(y, x) /\ (pair(b, c) === pair(y, x))) |- in(b, c)) by LeftExists
         thenHave(thesis) by LeftExists
@@ -105,7 +106,7 @@ object InclusionOrders extends lisa.Main {
     thenHave(in(t, inclusionOn(a)) ==> in(t, cartesianProduct(a, a))) by Weakening
     thenHave(forall(t, in(t, inclusionOn(a)) ==> in(t, cartesianProduct(a, a)))) by RightForall
     // thenHave(forall(z, in(z, inclusionOn(a)) ==> in(z, cartesianProduct(a, a)))) by Restate
-    val subs = thenHave(subset(inclusionOn(a), cartesianProduct(a, a))) by Substitution.withExplicitRules(subsetAxiom of (x -> inclusionOn(a), y -> cartesianProduct(a, a)))
+    val subs = thenHave(subset(inclusionOn(a), cartesianProduct(a, a))) by Substitution.ApplyRules(subsetAxiom of (x -> inclusionOn(a), y -> cartesianProduct(a, a)))
 
     have(thesis) by Tautology.from(subs, relationBetween.definition of (r -> inclusionOn(a), a -> a, b -> a))
   }
@@ -156,7 +157,7 @@ object InclusionOrders extends lisa.Main {
     () |- reflexive(inclusionOn(emptySet()), emptySet())
   ) {
     have(reflexive(emptySet(), emptySet())) by Restate.from(emptyRelationReflexiveOnItself)
-    thenHave(thesis) by Substitution.withExplicitRules(emptySetInclusionEmpty)
+    thenHave(thesis) by Substitution.ApplyRules(emptySetInclusionEmpty)
   }
 
   /**
@@ -166,7 +167,7 @@ object InclusionOrders extends lisa.Main {
     () |- irreflexive(inclusionOn(emptySet()), a)
   ) {
     have(irreflexive(emptySet(), a)) by Restate.from(emptyRelationIrreflexive)
-    thenHave(thesis) by Substitution.withExplicitRules(emptySetInclusionEmpty)
+    thenHave(thesis) by Substitution.ApplyRules(emptySetInclusionEmpty)
   }
 
   /**
@@ -176,7 +177,7 @@ object InclusionOrders extends lisa.Main {
     () |- transitive(inclusionOn(emptySet()), a)
   ) {
     have(transitive(emptySet(), a)) by Restate.from(emptyRelationTransitive)
-    thenHave(thesis) by Substitution.withExplicitRules(emptySetInclusionEmpty)
+    thenHave(thesis) by Substitution.ApplyRules(emptySetInclusionEmpty)
   }
 
   /**
@@ -190,7 +191,7 @@ object InclusionOrders extends lisa.Main {
         emptySet(),
         emptySet()
       ) /\ transitive(emptySet(), emptySet()))
-    ) by Substitution.withExplicitRules(firstInPairReduction of (x -> emptySet(), y -> emptySet()), secondInPairReduction of (x -> emptySet(), y -> emptySet()))(
+    ) by Substitution.ApplyRules(firstInPairReduction, secondInPairReduction)(
       partialOrder.definition of p -> pair(emptySet(), emptySet())
     )
     have(thesis) by Tautology.from(
@@ -208,7 +209,7 @@ object InclusionOrders extends lisa.Main {
   val emptySetTotalOrder = Lemma(
     () |- totalOrder(pair(emptySet(), emptySet()))
   ) {
-    have(totalOrder(pair(emptySet(), emptySet())) <=> (partialOrder(pair(emptySet(), emptySet())) /\ total(emptySet(), emptySet()))) by Substitution.withExplicitRules(
+    have(totalOrder(pair(emptySet(), emptySet())) <=> (partialOrder(pair(emptySet(), emptySet())) /\ total(emptySet(), emptySet()))) by Substitution.ApplyRules(
       firstInPairReduction of (x -> emptySet(), y -> emptySet()),
       secondInPairReduction of (x -> emptySet(), y -> emptySet())
     )(totalOrder.definition of p -> pair(emptySet(), emptySet()))

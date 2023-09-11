@@ -1,0 +1,99 @@
+\chapter{Developping Mathematics with Prooflib}
+
+\section{Writing theory files}
+LISA provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features such as string interpolation, extension and implicits.
+The way to write a new theory file to mathematical development is:
+\begin{lstlisting}[language=Scala, frame=single]
+object MyTheoryName extends lisa.Main {
+
+}
+\end{lstlisting}
+and that's it! To write a theorem, the recommended syntax is:
+
+\begin{lstlisting}[language=Scala, frame=single]
+object MyTheoryName extends lisa.Main {
+
+  THEOREM("theoremName") of "desired conclusion" PROOF {
+    
+    ???: Proof
+    
+  } using (listOfJustifications)
+  show
+}
+\end{lstlisting}
+\lstinline|show|{} is optional and prints the last proven theorem. We can similarily make the definition:
+
+% avoid page breaking
+\noindent
+\begin{minipage}{\textwidth}
+  \begin{lstlisting}[language=Scala, frame=single]
+  object MyTheoryName extends lisa.Main {
+  
+    val myFunction = 
+      DEFINE("symbol", x, y) as definition(x,y)
+    show
+  }
+  \end{lstlisting}
+\end{minipage}
+%
+This works for definitions of function and predicate symbols with a direct definition. for indirect definitions (via $\exists !$), use the following:
+%
+\begin{lstlisting}[language=Scala, frame=single]
+object MyTheoryName extends lisa.Main {
+
+  val testdef =
+    DEFINE("symbol", x, y) asThe z suchThat {
+       ???:Formula
+     } PROOF {
+       ???:Proof
+    } using (listOfJustifications)
+    show
+}
+\end{lstlisting}
+
+
+=======
+It is important to note that when multiple such files are developed, they all use the same underlying \lstinline|RunningTheory|{}. This makes it possible to use results proved previously by means of a simple \lstinline|import|{} statement as one would import a regular object. Similarly, one should also import as usual automation and tactics developed alongside. It is expected in the medium term that \lstinline|lisa.Main|{} will come with basic automation.
+
+To check the result of a developed file, and verify that the proofs contain no error, it is possible to run such a library object.
+% specify which object
+All imported theory objects will be run through as well, but only the result of the selected one will be printed.
+
+It is possible to refer to a theorem or axiom that has been previously proven or added using its name. The syntax is \lstinline|thm``theoremName''|{} or \lstinline|ax``axiomName''|{}. This makes it possible to write, for example, \lstinline|thm``theoremName''.show|{} and \lstinline|... using (ax``comprehensionSchema'')| Figure \ref{fig:kernellibrary} shows a typical example of set theory development.
+
+
+\begin{figure}[hp]
+  \begin{lstlisting}[language=Scala, frame=single]
+object MyTheoryName extends lisa.Main {
+  THEOREM("russelParadox") of 
+    (*@ $\forall$ @*)x. (x(*@$\in$@*)?y)(*@$\leftrightarrow$@*) (*@$\neg$@*)(x(*@$\in$@*)x)(*@$\vdash$@*) PROOF {
+      val y = VariableLabel("y")
+      val x = VariableLabel("x")
+      val s0 = RewriteTrue(in(y, y) <=> !in(y, y) |-())
+      val s1 = LeftForall(
+        forall(x, in(x, y) <=> !in(x, x)) |- (),
+        0, in(x, y) <=> !in(x, x), x, y
+      )
+      Proof(s0, s1)
+    } using ()
+  thm"russelParadox".show
+  
+  
+  THEOREM("unorderedPair_symmetry") of
+    "(*@$\vdash$@*)(*@$\forall$@*)y, x. {x, y} = {y, x}" PROOF {
+      ...
+    } using (ax"extensionalityAxiom", ax"pairAxiom")
+  show
+  
+  
+  val oPair = 
+    DEFINE("", x, y) as pair(pair(x, y), pair(x, x))
+  
+}
+\end{lstlisting}
+  \caption{Example of library development in LISA Kernel}
+  \label{fig:kernellibrary}
+\end{figure}
+
+
+

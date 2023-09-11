@@ -1,0 +1,93 @@
+\chapter{Selected Theoretical Topics}
+\label{part:theory}
+
+\section{Set Theory and Mathematical Logic}
+\subsection{First Order Logic with Schematic Variables}
+\label{sec:theoryfol}
+\subsection{Extension by Definition}
+\label{sec:definitions}
+
+An extension by definition is the formal way of introducing new symbols in a mathematical theory.
+Theories can be extended into new ones by adding new symbols and new axioms to it. We're interested in a special kind of extension, called \textit{conservative extension}.
+\begin{definition}[Conservative Extension]
+
+    A theory $\mathcal{T}_2$ is a conservative extension of a theory $\mathcal{T}_1$ if:
+    \begin{itemize}
+        \item $\mathcal{T}_1 \subset \mathcal{T}_2$
+        \item For any formula $\phi$ in the language of $\mathcal{T}_1$, if $\mathcal{T}_2 \vdash 		\phi$ then $\mathcal{T}_1 \vdash \phi$
+    \end{itemize}
+\end{definition}
+
+An extension by definition is a special kind of extension obtained by adding a new symbol and an axiom defining that symbol to a theory. If done properly, it should be a conservative extension.
+
+\begin{definition}[Extension by Definition]
+    A theory $\mathcal{T}_2$ is an extension by definition of a theory $\mathcal{T}_1$ if:
+    \begin{itemize}
+        \item $\mathcal{L}(\mathcal{T}_2) = \mathcal{L}(\mathcal{T}_2) \cup \lbrace S \rbrace$, where $S$ is a single new function or predicate symbol, and
+        \item $\mathcal{T}_2$ contains all the axioms of $\mathcal{T}_1$, and one more of the following form:
+              \begin{itemize}
+                  \item If $S$ is a predicate symbol, then the axiom is of the form $\phi_{x_1,...,x_k} \iff S(x_1,...,x_k)$, where $\phi$ is any formula with free variables among $x_1,...,x_k$.
+                  \item If $S$ is a function symbol, then the axiom is of the form $\phi_{y, x_1,...,x_k} \iff y = S(x_1,...,x_k)$, where $\phi$ is any formula with free variables among $y, x_1,...,x_k$.
+                        Moreover, in that case we require that
+                        $$
+                            \exists ! y. \phi_{y, x_1,...,x_k}
+                        $$
+
+                        is a theorem of $\mathcal{T}_1$.
+              \end{itemize}
+    \end{itemize}
+\end{definition}
+We also say that a theory $\mathcal{T}_k$ is an extension by definition of a theory $\mathcal{T}_1$ if there exists a chain $\mathcal{T}_1$, $\mathcal{T}_2$, ... , $\mathcal{T}_k$ of extensions by definitions.
+
+
+For function definition, it is common in logic textbooks to only require the existence of $y$ and not its uniqueness. The axiom one would then obtain would only be $\phi[f(x_1,...,x_n)/y]$ This also leads to conservative extension, but it turns out not to be enough in the presence of axiom schemas (axioms containing schematic symbols).
+\begin{lemma}
+
+    In ZF, an extension by definition without uniqueness doesn't necessarily yield a conservative extension if the use of the new symbol is allowed in axiom schemas.
+
+\end{lemma}
+\begin{proof}
+    In ZF, consider the formula $\phi_c := \forall x. \exists y. (x \neq \emptyset) \implies y \in x$ expressing that nonempty sets contain an element, which is provable in ZFC.
+
+    Use this formula to introduce a new unary function symbol $\operatorname{choice}$ such that $\operatorname{choice}(x) \in x$. Using it within the axiom schema of replacement we can obtain for any $A$
+    $$
+        \lbrace (x, \operatorname{choice}(x)) \mid x \in A \rbrace
+    $$
+    which is a choice function for any set $A$. Hence using the new symbol we can prove the axiom of choice, which is well known to be independent of ZF, so the extension is not conservative.
+\end{proof}
+Note that this example wouldn't work if the definition required uniqueness on top of existence.
+For the definition with uniqueness, there is a stronger result than only conservativity.
+\begin{definition}
+    A theory $\mathcal{T}_2$ is a fully conservative extension over a theory $\mathcal{T}_1$ if:
+    \begin{itemize}
+
+        \item it is conservative, and
+        \item for any formula $\phi_2$ with free variables $x_1, ..., x_k$ in the language of $\mathcal{T}_2$, there exists a formula $\phi_1$ in the language of $\mathcal{T}_1$ with free variables among $x_1, ..., x_k$ such that
+              $$\mathcal{T}_2 \vdash \forall x_1...x_k. (\phi_1 \leftrightarrow \phi_2)$$
+    \end{itemize}
+\end{definition}
+\begin{theorem}
+    An extension by definition with uniqueness is fully conservative.
+\end{theorem}
+The proof is done by induction on the height of the formula and isn't difficult, but fairly tedious.
+\begin{theorem}
+
+    If an extension $\mathcal{T}_2$ of a theory $\mathcal{T}_1$ with axiom schemas is fully conservative, then for any instance of the axiom schemas containing a new symbol $\alpha$, $\Gamma \vdash \alpha$ where $\Gamma$ contains no axiom schema instantiated with new symbols.
+
+\end{theorem}
+\begin{proof}
+    Suppose
+    $$
+        \alpha = \alpha_0[\phi / ?p]
+    $$
+    Where $\phi$ has free variables among $x_1,...,x_n$ and contains a defined function symbol $f$. By the previous theorem, there exists $\psi$ such that
+    $$\vdash \forall A, w_1, ..., w_n, x. \phi \leftrightarrow \psi$$
+    or equivalently, as in a formula and its universal closure are deducible from each other,
+    $$\vdash \phi \leftrightarrow \psi$$
+    which reduces to
+    $$
+        \alpha_0[\psi / ?p] \vdash \alpha
+    $$
+    Since $\alpha_0[\psi / ?p]$ is an axiom of $\mathcal{T}_1$, we reach the conclusion.
+\end{proof}
+

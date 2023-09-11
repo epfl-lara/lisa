@@ -1,5 +1,4 @@
 package lisa.prooflib
-
 import lisa.fol.FOL as F
 import lisa.fol.FOLHelpers.*
 import lisa.utils.K
@@ -10,7 +9,7 @@ import lisa.utils.KernelHelpers.{|- => `K|-`, *}
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.FirstOrderUnifier
-import lisa.utils.unification.UnificationUtils
+import lisa.utils.unification.UnificationUtils2
 
 object BasicStepTactic {
 
@@ -1162,7 +1161,8 @@ object BasicStepTactic {
       val botRight = F.ConnectorFormula(F.Or, bot.right.toSeq)
 
       val equalities = bot.left.collect { case F.PredicateFormula(equality, Seq(l, r)) => (l, r) }
-      val canReach = UnificationUtils.canReachOneStepTermFormula(premRight.underlying, botRight.underlying, equalities.toList.map(p => (p._1.underlying, p._2.underlying)))
+      val canReach = UnificationUtils2.canReachOneStepTermFormula(premRight.underlying, botRight.underlying, equalities.toList.map(p => (p._1.underlying, p._2.underlying)))
+
 
       if (canReach.isEmpty)
         proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
