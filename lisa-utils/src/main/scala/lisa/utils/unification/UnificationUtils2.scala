@@ -8,7 +8,7 @@ import lisa.utils.unification.FirstOrderUnifier.*
  * General utilities for unification, substitution, and rewrites
  */
 object UnificationUtils2 {
-
+  /*
   type LambdaTermFormulaFormula = (Seq[VariableFormulaLabel], Seq[VariableLabel], Formula)
 
   /**
@@ -588,4 +588,6 @@ object UnificationUtils2 {
   //       }
   //     }
   // }
+
+  */
 }

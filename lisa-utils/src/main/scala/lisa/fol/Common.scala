@@ -102,6 +102,8 @@ trait Common {
       * Compute the free schematic symbols in the expression.
       */
     def freeSchematicLabels:Set[SchematicLabel[?]]
+    def freeVariables: Set[Variable] = freeSchematicLabels.collect { case v: Variable => v}
+    def freeVariableFormulas: Set[VariableFormula] = freeSchematicLabels.collect { case v: VariableFormula => v}
     /**
       * Compute the free and non-free schematic symbols in the expression.
       */
@@ -127,13 +129,16 @@ trait Common {
   /**
     * A label is a [[LisaObject]] which is just a name. In general, constant symbols and schematic symbols.
     */
-  trait Label[A <: LisaObject[A]]{
+  trait Label[A <: LisaObject[A]] extends LisaObject[A]{
     this : A =>
+
+    inline def lift:A & this.type = this
     def id: K.Identifier
     /**
       * Indicates how to rename the symbol.
       */
-    def rename(newid: K.Identifier):Label[A]
+    def rename(newid: K.Identifier): Label[A]
+    def freshRename(taken:Iterable[K.Identifier]): Label[A]
   }
   /**
     * Schematic labels can be substituted by expressions (LisaObject) of the corresponding type
@@ -145,6 +150,7 @@ trait Common {
       */
     type SubstitutionType = A
     def rename(newid: K.Identifier):SchematicLabel[A]
+    def freshRename(taken:Iterable[K.Identifier]): SchematicLabel[A]
 
     /**
       * Helper to build a [[SubstPair]]
@@ -160,6 +166,7 @@ trait Common {
   sealed trait ConstantLabel[A <: LisaObject[A]]  extends LisaObject[A] with Label[A] {
     this : A =>
     def rename(newid: K.Identifier):ConstantLabel[A]
+    def freshRename(taken:Iterable[K.Identifier]): ConstantLabel[A]
   }
 
 
@@ -218,6 +225,7 @@ trait Common {
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def rename(newid: K.Identifier):Variable = Variable(newid)
+    def freshRename(taken:Iterable[K.Identifier]): Variable = rename(K.freshId(taken, id))
 
   }
 
@@ -233,7 +241,8 @@ trait Common {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Constant = this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
-    def rename(newid: K.Identifier):Constant = Constant(newid)
+    def rename(newid: K.Identifier): Constant = Constant(newid)
+    def freshRename(taken:Iterable[K.Identifier]): Constant = rename(K.freshId(taken, id))
 
   }
 
@@ -248,7 +257,9 @@ trait Common {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ((Term ** N) |-> Term)
 
     def apply(args: Term ** N): AppliedTerm[N] = AppliedTerm[N](this, args.toSeq)
+    //def unapply(t:term): Option[Term ** N] = 
     def rename(newid: K.Identifier):FunctionLabel[N]
+    def freshRename(taken:Iterable[K.Identifier]): FunctionLabel[N]
 
   }
 
@@ -274,6 +285,7 @@ trait Common {
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def rename(newid: K.Identifier):SchematicFunctionLabel[N] = SchematicFunctionLabel(newid, arity)
+    def freshRename(taken:Iterable[K.Identifier]): SchematicFunctionLabel[N] = rename(K.freshId(taken, id))
   }
 
   /**
@@ -286,6 +298,7 @@ trait Common {
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: K.Identifier):ConstantFunctionLabel[N] = ConstantFunctionLabel(newid, arity)
+    def freshRename(taken:Iterable[K.Identifier]): ConstantFunctionLabel[N] = rename(K.freshId(taken, id))
   }
 
   /**
@@ -338,6 +351,7 @@ trait Common {
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def rename(newid: K.Identifier):VariableFormula = VariableFormula(newid)
+    def freshRename(taken:Iterable[K.Identifier]): VariableFormula = rename(K.freshId(taken, id))
   }
   /**
     * A Constant formula, corresponding to [[K.ConstantFormulaLabel]].
@@ -351,6 +365,7 @@ trait Common {
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: K.Identifier):ConstantFormula = ConstantFormula(newid)
+    def freshRename(taken:Iterable[K.Identifier]): ConstantFormula = rename(K.freshId(taken, id))
   }
 
   /**
@@ -363,7 +378,8 @@ trait Common {
     val underlyingLabel: K.PredicateLabel // | K.LambdaFormulaFormula
 
     def apply(args: Term ** N): PredicateFormula[N] = PredicateFormula[N](this, args.toSeq)
-    def rename(newid: K.Identifier):PredicateLabel[N]
+    def rename(newid: K.Identifier): PredicateLabel[N]
+    def freshRename(taken:Iterable[K.Identifier]): PredicateLabel[N]
   }
 
   /**
@@ -384,7 +400,8 @@ trait Common {
     }
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
-    def rename(newid: K.Identifier):SchematicPredicateLabel[N] = SchematicPredicateLabel(newid, arity)
+    def rename(newid: K.Identifier): SchematicPredicateLabel[N] = SchematicPredicateLabel(newid, arity)
+    def freshRename(taken:Iterable[K.Identifier]): SchematicPredicateLabel[N] = rename(K.freshId(taken, id))
 
   }
 
@@ -397,7 +414,8 @@ trait Common {
       this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
-    def rename(newid: K.Identifier):ConstantPredicateLabel[N] = ConstantPredicateLabel(newid, arity)
+    def rename(newid: K.Identifier): ConstantPredicateLabel[N] = ConstantPredicateLabel(newid, arity)
+    def freshRename(taken:Iterable[K.Identifier]): ConstantPredicateLabel[N] = rename(K.freshId(taken, id))
   }
 
   /**
@@ -410,7 +428,6 @@ trait Common {
 
     def freeSchematicLabels:Set[SchematicLabel[?]] = p.freeSchematicLabels ++ args.toSeq.flatMap(_.freeSchematicLabels)
     def allSchematicLabels:Set[SchematicLabel[?]] = p.allSchematicLabels ++ args.toSeq.flatMap(_.allSchematicLabels)
-    //override def substituteUnsafe(v: Variable, subs: Term) = PredicateFormulaFormula[N](f, args.map(_.substituteUnsafe(v, subs)))
   }
 
 /**
@@ -424,6 +441,7 @@ trait Common {
     
     def apply(args: Formula ** N): ConnectorFormula = ConnectorFormula(this, args.toSeq)
     def rename(newid: K.Identifier):ConnectorLabel[N]
+    def freshRename(taken:Iterable[K.Identifier]): ConnectorLabel[N]
 
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Formula ** N, Formula]
 
@@ -447,7 +465,8 @@ trait Common {
     }
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
-    def rename(newid: K.Identifier):SchematicConnectorLabel[N] = SchematicConnectorLabel(newid, arity)
+    def rename(newid: K.Identifier): SchematicConnectorLabel[N] = SchematicConnectorLabel(newid, arity)
+    def freshRename(taken:Iterable[K.Identifier]): SchematicConnectorLabel[N] = rename(K.freshId(taken, id))
 
   }
 
@@ -461,7 +480,8 @@ trait Common {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
-    def rename(newid: K.Identifier):ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")
+    def rename(newid: K.Identifier): ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")
+    def freshRename(taken:Iterable[K.Identifier]): ConstantConnectorLabel[N] = rename(K.freshId(taken, id))
 
   }
   /**

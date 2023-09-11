@@ -16,8 +16,10 @@ import lisa.utils.LisaException
 trait ProofsHelpers {  
   library: Library & WithTheorems =>
 
-  import F.{*, given}
+  import lisa.fol.FOL.{given, *}
+
   given Library = library
+
 
   class HaveSequent private[ProofsHelpers] (bot: Sequent) {
     val x:lisa.fol.FOL.Sequent = bot
@@ -276,7 +278,8 @@ trait ProofsHelpers {
       }
     }
 
-    val statement: F.Sequent = () |- F.Forall(out, Iff(equality((label match {case l:F.Constant => l case l: F.ConstantFunctionLabel[?] => l(vars)}), out), f))
+    val statement: F.Sequent = 
+      () |- F.Forall(out, Iff(equality((label match {case l:F.Constant => l case l: F.ConstantFunctionLabel[?] => l(vars)}), out), f))
 
     library.last = Some(this)
 
@@ -308,7 +311,7 @@ trait ProofsHelpers {
     case 0 => ConstantFormula
     case _ => ConstantPredicateLabel[N]
   }
-class PredicateDefinition[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
+  class PredicateDefinition[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
                       (val lambda: LambdaExpression[Term, Formula, N]) extends DEFINITION(line, file) {
 
     val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf

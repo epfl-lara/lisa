@@ -1,7 +1,9 @@
 package lisa.utils.unification
 
-import lisa.kernel.fol.FOL.*
-import lisa.utils.KernelHelpers.{_, given}
+//import lisa.kernel.fol.FOL.*
+//import lisa.utils.KernelHelpers.{_, given}
+import lisa.fol.FOL.{*, given}
+import lisa.fol.FOLHelpers.{*, given}
 import lisa.utils.unification.FirstOrderUnifier.*
 
 /**
@@ -38,8 +40,8 @@ object UnificationUtils {
       freeTermRules: Seq[(Term, Term)] = Seq.empty,
       confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
       confinedTermRules: Seq[(Term, Term)] = Seq.empty,
-      takenFormulaVars: Set[VariableFormulaLabel] = Set.empty,
-      takenTermVars: Set[VariableLabel] = Set.empty
+      takenFormulaVars: Set[VariableFormula] = Set.empty,
+      takenTermVars: Set[Variable] = Set.empty
   ) {
     private var lastID: Identifier = freshId((takenFormulaVars ++ takenTermVars).map(_.id), "@@rewriteVar@@")
 
@@ -54,8 +56,8 @@ object UnificationUtils {
       lastID
     }
 
-    def isFreeVariable(v: VariableLabel) = !takenTermVars.contains(v)
-    def isFreeVariable(v: VariableFormulaLabel) = !takenFormulaVars.contains(v)
+    def isFreeVariable(v: Variable) = !takenTermVars.contains(v)
+    def isFreeVariable(v: VariableFormula) = !takenFormulaVars.contains(v)
 
     /**
      * Update the last generated fresh ID to that of another context if it is
@@ -73,15 +75,15 @@ object UnificationUtils {
 
   // substitutions
 
-  type TermSubstitution = Map[VariableLabel, Term]
+  type TermSubstitution = Map[Variable, Term]
   val TermSubstitution = Map // don't abuse pls O.o
 
-  type FormulaSubstitution = Map[VariableFormulaLabel, Formula]
+  type FormulaSubstitution = Map[VariableFormula, Formula]
   val FormulaSubstitution = Map
 
   /**
    * Performs first-order matching for two terms. Returns a (most-general)
-   * substitution from variables to terms such that `first` substituted is equal
+   * substitution from variables to terms such that `first` substituted is equal  TODO: Fix `first`and `second`
    * to `second`, if one exists. Uses [[matchTermRecursive]] as the actual
    * implementation.
    *
@@ -92,7 +94,7 @@ object UnificationUtils {
    * @return substitution (Option) from variables to terms. `None` iff a
    * substitution does not exist.
    */
-  def matchTerm(reference: Term, template: Term, takenVariables: Iterator[VariableLabel] = Iterator.empty): Option[TermSubstitution] = {
+  def matchTerm(reference: Term, template: Term, takenVariables: Iterator[Variable] = Iterator.empty): Option[TermSubstitution] = {
     val context = RewriteContext(takenTermVars = takenVariables.toSet)
     matchTermRecursive(using context)(reference, template, TermSubstitution.empty)
   }
@@ -113,7 +115,7 @@ object UnificationUtils {
       Some(substitution)
     else
       template.label match {
-        case v @ VariableLabel(id) if context.isFreeVariable(v) =>
+        case v @ Variable(id) if context.isFreeVariable(v) =>
           // different label but substitutable or already correctly set
           if (reference.label != template.label && reference == substitution.getOrElse(v, reference)) Some(substitution + (v -> reference))
           // same and not already substituted to something else
@@ -148,8 +150,8 @@ object UnificationUtils {
   def matchFormula(
       reference: Formula,
       template: Formula,
-      takenTermVariables: Iterator[VariableLabel] = Iterator.empty,
-      takenFormulaVariables: Iterator[VariableFormulaLabel] = Iterator.empty
+      takenTermVariables: Iterator[Variable] = Iterator.empty,
+      takenFormulaVariables: Iterator[VariableFormula] = Iterator.empty
   ): Option[(FormulaSubstitution, TermSubstitution)] = {
     val context = RewriteContext(
       takenTermVars = takenTermVariables.toSet,
@@ -178,12 +180,12 @@ object UnificationUtils {
     else
       (reference, template) match {
         case (BinderFormula(labelR, boundR, innerR), BinderFormula(labelT, boundT, innerT)) if labelR == labelT => {
-          val freshVar = VariableLabel(context.freshIdentifier)
+          val freshVar = Variable(context.freshIdentifier)
 
           // add a safety substitution to make sure bound variable isn't substituted, and check instantiated bodies
           val innerSubst = matchFormulaRecursive(
-            substituteVariables(innerR, Map[VariableLabel, Term](boundR -> freshVar)),
-            substituteVariables(innerT, Map[VariableLabel, Term](boundT -> freshVar)),
+            substituteVariablesInFormula(innerR, Map[Variable, Term](boundR -> freshVar)),
+            substituteVariablesInFormula(innerT, Map[Variable, Term](boundT -> freshVar)),
             formulaSubstitution,
             termSubstitution + (freshVar -> freshVar) // dummy substitution to make sure we don't attempt to match this as a variable
           )
@@ -214,7 +216,7 @@ object UnificationUtils {
             newSubstitution
           }
 
-        case (_, PredicateFormula(labelT: VariableFormulaLabel, _)) =>
+        case (_, PredicateFormula(labelT: VariableFormula, _)) =>
           // can this variable be matched with the reference based on previously known or new substitutions?
           if (reference == formulaSubstitution.getOrElse(labelT, reference)) Some(formulaSubstitution + (labelT -> reference), termSubstitution)
           else if (template.label == reference.label && reference == formulaSubstitution.getOrElse(labelT, reference)) Some(formulaSubstitution, termSubstitution)
@@ -263,7 +265,7 @@ object UnificationUtils {
   /**
    * A lambda representing a term, with inputs as terms. Carries extra
    * information about rewrite rules used in its construction for proof
-   * geenration later.
+   * genration later.
    *
    * @param termVars variables in the body to be treated as parameters closed
    * under this function
@@ -272,8 +274,8 @@ object UnificationUtils {
    * @param body the body of the function
    */
   case class TermRewriteLambda(
-      termVars: Seq[VariableLabel] = Seq.empty,
-      termRules: Seq[(VariableLabel, TermRule)] = Seq.empty,
+      termVars: Seq[Variable] = Seq.empty,
+      termRules: Seq[(Variable, TermRule)] = Seq.empty,
       body: Term
   ) {}
 
@@ -294,10 +296,13 @@ object UnificationUtils {
    * @param body the body of the function
    */
   case class FormulaRewriteLambda(
-      termRules: Seq[(VariableLabel, TermRule)] = Seq.empty,
-      formulaRules: Seq[(VariableFormulaLabel, FormulaRule)] = Seq.empty,
+      termRules: Seq[(Variable, TermRule)] = Seq.empty,
+      formulaRules: Seq[(VariableFormula, FormulaRule)] = Seq.empty,
       body: Formula
-  ) {}
+  ) {
+    def toLambdaTermFormula = LambdaTermFormula(termRules.map(_._1), body)
+    def toLambdaFormulaFormula = LambdaFormulaFormula(formulaRules.map(_._1), body)
+  }
 
   /**
    * Dummy connector used to combine formulas for convenience during rewriting
@@ -345,7 +350,7 @@ object UnificationUtils {
       second: Term,
       freeTermRules: Seq[(Term, Term)],
       confinedTermRules: Seq[(Term, Term)] = Seq.empty,
-      takenTermVariables: Set[VariableLabel] = Set.empty
+      takenTermVariables: Set[Variable] = Set.empty
   ): Option[TermRewriteLambda] = {
     val context = RewriteContext(
       takenTermVars = takenTermVariables,
@@ -383,7 +388,7 @@ object UnificationUtils {
 
     if (first == second) Some(TermRewriteLambda(body = first))
     else if (validSubstitution.isDefined) {
-      val newVar = VariableLabel(context.freshIdentifier)
+      val newVar = Variable(context.freshIdentifier)
       val body = Term(newVar, Seq.empty) // newVar()
       Some(
         TermRewriteLambda(
@@ -443,9 +448,9 @@ object UnificationUtils {
       freeTermRules: Seq[(Term, Term)],
       freeFormulaRules: Seq[(Formula, Formula)],
       confinedTermRules: Seq[(Term, Term)] = Seq.empty,
-      takenTermVariables: Set[VariableLabel] = Set.empty,
+      takenTermVariables: Set[Variable] = Set.empty,
       confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
-      takenFormulaVariables: Set[VariableFormulaLabel] = Set.empty
+      takenFormulaVariables: Set[VariableFormula] = Set.empty
   ): Option[FormulaRewriteLambda] = {
     val context = RewriteContext(
       takenTermVars = takenTermVariables,
@@ -464,9 +469,9 @@ object UnificationUtils {
       freeTermRules: Seq[(Term, Term)],
       freeFormulaRules: Seq[(Formula, Formula)],
       confinedTermRules: Seq[(Term, Term)] = Seq.empty,
-      takenTermVariables: Set[VariableLabel] = Set.empty,
+      takenTermVariables: Set[Variable] = Set.empty,
       confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
-      takenFormulaVariables: Set[VariableFormulaLabel] = Set.empty
+      takenFormulaVariables: Set[VariableFormula] = Set.empty
   ): Option[Seq[FormulaRewriteLambda]] = {
     val context = RewriteContext(
       takenTermVars = takenTermVariables,
@@ -518,7 +523,7 @@ object UnificationUtils {
 
     if (isSame(first, second)) Some(FormulaRewriteLambda(body = first))
     else if (validSubstitution.isDefined) {
-      val newVar = VariableFormulaLabel(context.freshIdentifier)
+      val newVar = VariableFormula(context.freshIdentifier)
       val body = PredicateFormula(newVar, Seq.empty) // newVar()
       Some(
         FormulaRewriteLambda(
@@ -535,13 +540,13 @@ object UnificationUtils {
       // and first cannot be rewritten into second
       (first, second) match {
         case (BinderFormula(labelF, boundF, innerF), BinderFormula(labelS, boundS, innerS)) => {
-          val freshVar = VariableLabel(context.freshIdentifier)
+          val freshVar = Variable(context.freshIdentifier)
           val freeContext = context.copy(takenTermVars = context.takenTermVars + freshVar)
 
           // add a safety substitution to make sure bound variable isn't substituted, and check instantiated bodies
           val innerSubst = getContextRecursive(using freeContext)(
-            substituteVariables(innerF, Map[VariableLabel, Term](boundF -> freshVar)),
-            substituteVariables(innerS, Map[VariableLabel, Term](boundS -> freshVar))
+            substituteVariablesInFormula(innerF, Map[Variable, Term](boundF -> freshVar)),
+            substituteVariablesInFormula(innerS, Map[Variable, Term](boundS -> freshVar))
           )
 
           context.updateTo(freeContext)

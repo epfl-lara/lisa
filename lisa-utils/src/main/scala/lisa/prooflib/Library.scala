@@ -17,6 +17,7 @@ import scala.collection.mutable.Stack as stack
  * @param theory The inner RunningTheory
  */
 abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
+  
   val theory: RunningTheory
   given library: this.type = this
   given RunningTheory = theory
@@ -67,7 +68,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     val LambdaTermTerm(vars, body) = expression
 
     val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTermLabels.map(_.id)).toSet, "y"))
-    val proof: K.SCProof = simpleFunctionDefinition(expression, out)
+    val proof: 
+      SCProof = simpleFunctionDefinition(expression, out)
     theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, out === body, Nil)
   }
 

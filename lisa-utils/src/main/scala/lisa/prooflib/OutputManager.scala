@@ -8,6 +8,7 @@ import java.io.PrintWriter
 import java.io.StringWriter
 
 abstract class OutputManager {
+
   given OutputManager = this
 
   def output(s: String): Unit = stringWriter.write(s + "\n")

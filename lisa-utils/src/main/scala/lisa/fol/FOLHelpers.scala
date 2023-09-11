@@ -42,7 +42,7 @@ object FOLHelpers {
     LambdaExpression(s, a._2, s.length.asInstanceOf)
   }
 
-  given[T] : Conversion[T, T***1] = _ *: EmptyTuple
+  given[T<:LisaObject[T]] : Conversion[T, T***1] = _ *: EmptyTuple
   
 
   /*
