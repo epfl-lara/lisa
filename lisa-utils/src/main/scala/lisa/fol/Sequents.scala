@@ -70,7 +70,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
                     (sl, LambdaExpression(vars, s(vars), s.arity))
                 }
             })
-            (substituteUnsafe(map), substituteWithProofLikeKernel(mConn, mPred, mTerm))
+      (substituteUnsafe(map), substituteWithProofLikeKernel(mConn, mPred, mTerm))
 
     }
 

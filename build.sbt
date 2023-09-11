@@ -17,13 +17,6 @@ inThisBuild(
   )
 )
 
-def withTests(project: Project): ClasspathDependency =
-  project % "compile->compile;test->test"
-
-def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
-
-lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "ede91018d8cb2d9201edad25edf13464d41ebe38")
-lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
 
 val commonSettings = Seq(
   version            := "0.6",
