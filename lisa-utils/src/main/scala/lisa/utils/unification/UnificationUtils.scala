@@ -91,7 +91,7 @@ object UnificationUtils {
    * @return substitution (Option) from variables to terms. `None` iff a
    * substitution does not exist.
    */
-  def matchTerm(reference: Term, template: Term, takenVariables: Iterator[VariableLabel] = Iterator.empty): Option[TermSubstitution] = {
+  def matchTerm(reference: Term, template: Term, takenVariables: Iterable[VariableLabel] = Iterable.empty): Option[TermSubstitution] = {
     val context = RewriteContext(takenTermVars = takenVariables.toSet)
     matchTermRecursive(using context)(reference, template, TermSubstitution.empty)
   }
@@ -147,8 +147,8 @@ object UnificationUtils {
   def matchFormula(
       reference: Formula,
       template: Formula,
-      takenTermVariables: Iterator[VariableLabel] = Iterator.empty,
-      takenFormulaVariables: Iterator[VariableFormulaLabel] = Iterator.empty
+      takenTermVariables: Iterable[VariableLabel] = Iterable.empty,
+      takenFormulaVariables: Iterable[VariableFormulaLabel] = Iterable.empty
   ): Option[(FormulaSubstitution, TermSubstitution)] = {
     val context = RewriteContext(
       takenTermVars = takenTermVariables.toSet,
