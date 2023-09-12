@@ -79,7 +79,7 @@ object ExampleDSL extends lisa.Main {
 
     have(in(z, union(X)) <=> in(z, x)) by RightIff(forward, backward)
     thenHave(forall(z, in(z, union(X)) <=> in(z, x))) by RightForall
-    andThen(applySubst(extensionalityAxiom of (x -> union(X), y -> x)))
+    andThen(Substitution.applySubst(extensionalityAxiom of (x -> union(X), y -> x)))
   }
   show
 
@@ -93,10 +93,10 @@ object ExampleDSL extends lisa.Main {
   val defineNonEmptySet = Lemma(∃!(x, !(x === ∅) /\ (x === unorderedPair(∅, ∅)))) {
     val subst = have(False <=> in(∅, ∅)) by Rewrite(emptySetAxiom of (x -> ∅()))
     have(in(∅, unorderedPair(∅, ∅)) <=> False |- ()) by Rewrite(pairAxiom of (x -> ∅(), y -> ∅(), z -> ∅()))
-    andThen(applySubst(subst))
+    andThen(Substitution.applySubst(subst))
     thenHave(∀(z, in(z, unorderedPair(∅, ∅)) <=> in(z, ∅)) |- ()) by LeftForall
-    andThen(applySubst(extensionalityAxiom of (x -> unorderedPair(∅(), ∅()), y -> ∅())))
-    andThen(applySubst(x === unorderedPair(∅(), ∅())))
+    andThen(Substitution.applySubst(extensionalityAxiom of (x -> unorderedPair(∅(), ∅()), y -> ∅())))
+    andThen(Substitution.applySubst(x === unorderedPair(∅(), ∅())))
     thenHave((!(x === ∅) /\ (x === unorderedPair(∅, ∅))) <=> (x === unorderedPair(∅, ∅))) by Tautology
     thenHave(∀(x, (x === unorderedPair(∅, ∅)) <=> (!(x === ∅) /\ (x === unorderedPair(∅, ∅))))) by RightForall
     thenHave(∃(y, ∀(x, (x === y) <=> (!(x === ∅) /\ (x === unorderedPair(∅, ∅)))))) by RightExists

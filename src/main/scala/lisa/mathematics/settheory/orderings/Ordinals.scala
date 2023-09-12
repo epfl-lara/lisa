@@ -4,9 +4,9 @@ package orderings
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
-import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.mathematics.Ordinals.transitiveSet
 import lisa.mathematics.fol.Quantifiers.*
 import lisa.mathematics.settheory.SetTheory.*
 import lisa.mathematics.settheory.orderings.InclusionOrders.*
@@ -77,7 +77,7 @@ object Ordinals extends lisa.Main {
     val hypo = have(!in(y, emptySet()) |- in(y, emptySet()) ==> subset(y, emptySet())) by Restate
     have(() |- in(y, emptySet()) ==> subset(y, emptySet())) by Cut(emptySetAxiom of (x -> y), hypo)
     thenHave(() |- forall(y, in(y, emptySet()) ==> subset(y, emptySet()))) by RightForall
-    andThen(Simplify.once(true, transitiveSet.definition of (x -> emptySet())))
+    thenHave(thesis) by Substitution.ApplyRules(transitiveSet.definition)
   }
 
   /**

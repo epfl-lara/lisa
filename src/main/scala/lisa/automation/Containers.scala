@@ -1,7 +1,6 @@
 package lisa.automation
 
 import lisa.automation.kernel.SimplePropositionalSolver.*
-import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.mathematics.settheory.SetTheory
 import lisa.prooflib.BasicStepTactic.*
