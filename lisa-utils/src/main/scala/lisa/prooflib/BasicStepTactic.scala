@@ -1066,8 +1066,10 @@ object BasicStepTactic {
       else {
         // go through conclusion to see if you can find an reflexive formula
         val pivot: Option[F.Formula] = bot.right.find(f =>
+          val Eq = F.equality  //(F.equality: (F.|->[F.**[F.Term, 2], F.Formula]))
           f match {
-            case F.PredicateFormula(F.equality, Seq(l, r)) => l==r //termequality
+            case F.PredicateFormula(e, Seq(l, r)) =>  
+              (F.equality:F.PredicateLabel[?]) == (e:F.PredicateLabel[?]) && l==r //termequality
             case _ => false
           }
         )

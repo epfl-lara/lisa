@@ -1,10 +1,7 @@
 package lisa.utils.unification
 
-//import lisa.kernel.fol.FOL.*
-//import lisa.utils.KernelHelpers.{_, given}
-
-import lisa.fol.FOL.{*, given}
-import lisa.fol.FOLHelpers.{*, given}
+import lisa.kernel.fol.FOL.*
+import lisa.utils.KernelHelpers.{_, given}
 
 /**
  * Provides complete first-order matching and unification utilities for formulas
@@ -12,8 +9,8 @@ import lisa.fol.FOLHelpers.{*, given}
  */
 object FirstOrderUnifier {
 
-  type Substitution = Option[Map[Variable, Term]]
-  type FormulaSubstitution = Option[(Map[VariableFormula, Formula], Map[Variable, Term])]
+  type Substitution = Option[Map[VariableLabel, Term]]
+  type FormulaSubstitution = Option[(Map[VariableFormulaLabel, Formula], Map[VariableLabel, Term])]
 
   /**
    * Performs first-order matching for two formulas. Returns a (most-general)
@@ -29,23 +26,27 @@ object FirstOrderUnifier {
    * @return substitution pair (Option) from formula variables to formulas,
    * and variables to terms. `None` if a substitution does not exist.
    */
-  def matchFormula(first: Formula, second: Formula, subst: FormulaSubstitution = Some((Map.empty, Map.empty)), vars: Option[Set[Variable | VariableFormula]] = None): FormulaSubstitution =
+  def matchFormula(first: Formula, second: Formula, subst: FormulaSubstitution = Some((Map.empty, Map.empty)), vars: Option[Set[VariableLabel | VariableFormulaLabel]] = None): FormulaSubstitution =
     if (subst.isEmpty) subst
     else {
       (first, second) match {
         case (BinderFormula(l1, b1, i1), BinderFormula(l2, b2, i2)) if l1 == l2 => {
-          val t: Variable = b1.freshRename((i1.freeVariables ++ i2.freeVariables + b1 + b2).map(_.id))
+          val t = VariableLabel(freshId((i1.freeVariables ++ i2.freeVariables + b1 + b2).map(_.id), b1.id))
+
           // add a safety substitution to make sure bound variable isn't substituted, and check instantiated bodies
           val innerSubst = matchFormula(
-            i1.substituteUnsafe(Map(b1 -> t)),
-            i2.substituteUnsafe(Map(b2 -> t)),
-            Some((subst.get._1, subst.get._2 + (t -> t))), 
+            substituteVariablesInFormula(i1, Map[VariableLabel, Term](b1 -> t)),
+            substituteVariablesInFormula(i2, Map[VariableLabel, Term](b2 -> t)),
+            Some((subst.get._1, subst.get._2 + ((t -> t): (VariableLabel, Term)))), 
             vars
+
           )
+
           innerSubst match {
             case None => innerSubst
             case Some(sf, st) => {
               val cleanSubst = (sf, st - t) // remove the safety substitution we added
+
               // were any formula substitutions involving the bound variable required?
               // if yes, not matchable
               if (cleanSubst._1.exists((k, v) => v.freeVariables.contains(t))) None
@@ -64,16 +65,16 @@ object FirstOrderUnifier {
           if (arg1.length != arg2.length) None
           else {
             val termSubst = (arg1 zip arg2).foldLeft(Some(subst.get._2): Substitution) { case (subs: Substitution, (f: Term, s: Term)) =>
-              matchTerm(f, s, subs, vars.map(_.collect { case v: Variable => v }))
+              matchTerm(f, s, subs, vars.map(_.collect { case v: VariableLabel => v }))
             }
             if (termSubst.isDefined) Some(subst.get._1, termSubst.get)
             else None
           }
         }
         // otherwise check if the predicate is actually a variable
-        case (l1: VariableFormula, _) if (vars.isEmpty || vars.get.contains(l1)) => {
+        case (PredicateFormula(l1: VariableFormulaLabel, arg1), _) if (vars.isEmpty || vars.get.contains(l1)) => {
           if (second == subst.get._1.getOrElse(l1, second)) Some(subst.get._1 + (l1 -> second), subst.get._2)
-          else if (l1 == second && second == subst.get._1.getOrElse(l1, second)) subst
+          else if (first.label == second.label && second == subst.get._1.getOrElse(l1, second)) subst
           else None
         }
         case _ => None
@@ -90,13 +91,13 @@ object FirstOrderUnifier {
    * @param subst the current substitution (Option), defaults to an empty Map
    * @return substitution (Option) from variables to terms
    */
-  def matchTerm(first: Term, second: Term, subst: Substitution = Some(Map.empty), vars: Option[Set[Variable]] = None): Substitution =
+  def matchTerm(first: Term, second: Term, subst: Substitution = Some(Map.empty), vars: Option[Set[VariableLabel]] = None): Substitution =
     if (subst.isEmpty) subst
     else {
-      first match {
-        case Variable(id) if (vars.isEmpty || vars.get.contains(v)) =>
-          if (first != second && second == subst.get.getOrElse(v, second)) Some(subst.get + (v -> second))
-          else if (first == second && first == subst.get.getOrElse(first, first)) subst
+      first.label match {
+        case v @ VariableLabel(id) if (vars.isEmpty || vars.get.contains(v)) =>
+          if (first.label != second.label && second == subst.get.getOrElse(v, second)) Some(subst.get + (v -> second))
+          else if (first.label == second.label && first == subst.get.getOrElse(v, first)) subst
           else None
         case _ => // {Constant, Schematic} FunctionLabel
           if (first.label != second.label) None
@@ -124,13 +125,13 @@ object FirstOrderUnifier {
     else {
       (first, second) match {
         case (BinderFormula(l1, b1, i1), BinderFormula(l2, b2, i2)) if l1 == l2 => {
-          val t = Variable(b1.freshRename((i1.freeVariables ++ i2.freeVariables + b1 + b2).map(_.id)))
+          val t = VariableLabel(freshId((i1.freeVariables ++ i2.freeVariables + b1 + b2).map(_.id), b1.id))
 
           // add a safety substitution to make sure bound variable isn't substituted, and check instantiated bodies
           val innerSubst = unifyFormula(
-            substituteVariablesInFormula(i1, Map[Variable, Term](b1 -> t)),
-            substituteVariablesInFormula(i2, Map[Variable, Term](b2 -> t)),
-            Some((subst.get._1, subst.get._2 + ((t -> t): (Variable, Term))))
+            substituteVariablesInFormula(i1, Map[VariableLabel, Term](b1 -> t)),
+            substituteVariablesInFormula(i2, Map[VariableLabel, Term](b2 -> t)),
+            Some((subst.get._1, subst.get._2 + ((t -> t): (VariableLabel, Term))))
           )
 
           innerSubst match {
@@ -160,13 +161,13 @@ object FirstOrderUnifier {
             else None
           }
         }
-        case (PredicateFormula(l1: VariableFormula, arg1), _) => {
-          if (second == subst.get._1.getOrElse(l1, second) && !second.freeVariableFormulas.contains(l1)) Some(subst.get._1 + (l1 -> second), subst.get._2)
+        case (PredicateFormula(l1: VariableFormulaLabel, arg1), _) => {
+          if (second == subst.get._1.getOrElse(l1, second) && !second.freeVariableFormulaLabels.contains(l1)) Some(subst.get._1 + (l1 -> second), subst.get._2)
           else if (first.label == second.label && second == subst.get._1.getOrElse(l1, second)) subst
           else None
         }
-        case (_, PredicateFormula(l2: VariableFormula, arg2)) => {
-          if (first == subst.get._1.getOrElse(l2, first) && !first.freeVariableFormulas.contains(l2)) Some(subst.get._1 + (l2 -> first), subst.get._2)
+        case (_, PredicateFormula(l2: VariableFormulaLabel, arg2)) => {
+          if (first == subst.get._1.getOrElse(l2, first) && !first.freeVariableFormulaLabels.contains(l2)) Some(subst.get._1 + (l2 -> first), subst.get._2)
           else if (first.label == second.label && first == subst.get._1.getOrElse(l2, first)) subst
           else None
         }
@@ -188,13 +189,13 @@ object FirstOrderUnifier {
     if (subst.isEmpty) subst
     else {
       first.label match {
-        case v @ Variable(id) =>
+        case v @ VariableLabel(id) =>
           if (first.label != second.label && second == subst.get.getOrElse(v, second) && !second.freeVariables.contains(v)) Some(subst.get + (v -> second))
           else if (first.label == second.label && first == subst.get.getOrElse(v, first)) subst
           else None
         case _ => // {Constant, Schematic} FunctionLabel
           second.label match {
-            case v @ Variable(id) =>
+            case v @ VariableLabel(id) =>
               if (first.label != second.label && first == subst.get.getOrElse(v, first) && !first.freeVariables.contains(v)) Some(subst.get + (v -> first))
               else if (first.label == second.label && second == subst.get.getOrElse(v, second)) subst
               else None

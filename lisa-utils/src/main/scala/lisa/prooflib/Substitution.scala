@@ -70,8 +70,8 @@ object Substitution {
         
         // maintain a list of where subtitutions come from
         val sourceOf: MMap[(F.Formula, F.Formula) | (F.Term, F.Term), proof.Fact] = MMap()
-        val takenTermVars = premiseSequent.left.flatMap(_.freeVariables).toSet union substitutions.collect { case f: F.Formula => f.freeVariables.toSet}.foldLeft(Set.empty)(_.union(_))
-        val takenFormulaVars = premiseSequent.left.flatMap(_.freeVariableFormulas).toSet union substitutions
+        val takenTermVars: Set[lisa.fol.FOL.Variable] = premiseSequent.left.flatMap(_.freeVariables).toSet union substitutions.collect { case f: F.Formula => f.freeVariables.toSet}.foldLeft(Set.empty)(_.union(_))
+        val takenFormulaVars: Set[lisa.fol.FOL.VariableFormula] = premiseSequent.left.flatMap(_.freeVariableFormulas).toSet union substitutions
           .collect { case f: F.Formula => f.freeVariableFormulas.toSet }
           .foldLeft(Set.empty)(_.union(_)) // TODO: should this just be the LHS of the premise sequent instead?
 
@@ -118,29 +118,47 @@ object Substitution {
         }
 
         // get the original and swapped versions
-        val freeEqualities = freeEqualitiesPre ++ freeEqualitiesPre.map(_.swap)
-        val confinedEqualities = confinedEqualitiesPre ++ confinedEqualitiesPre.map(_.swap)
-        val freeIffs = freeIffsPre ++ freeIffsPre.map(_.swap)
-        val confinedIffs = confinedIffsPre ++ confinedIffsPre.map(_.swap)
+        val freeEqualities: List[(F.Term, F.Term)] = freeEqualitiesPre ++ freeEqualitiesPre.map(_.swap)
+        val confinedEqualities: List[(F.Term, F.Term)] = confinedEqualitiesPre ++ confinedEqualitiesPre.map(_.swap)
+        val freeIffs: List[(F.Formula, F.Formula)] = freeIffsPre ++ freeIffsPre.map(_.swap)
+        val confinedIffs: List[(F.Formula, F.Formula)] = confinedIffsPre ++ confinedIffsPre.map(_.swap)
 
-        val filteredPrem = (premiseSequent.left filter {
+        val filteredPrem: Seq[F.Formula] = (premiseSequent.left filter {
           case F.PredicateFormula(F.equality, Seq(l, r)) if freeEqualities.contains((l, r)) || confinedEqualities.contains((l, r)) => false
-          case ConnectorFormula(F.Iff, Seq(l, r)) if freeIffs.contains((l, r)) || confinedIffs.contains((l, r)) => false
+          case F.ConnectorFormula(F.Iff, Seq(l, r)) if freeIffs.contains((l, r)) || confinedIffs.contains((l, r)) => false
           case _ => true
         }).toSeq
 
-        val filteredBot = (bot.left filter {
+        val filteredBot: Seq[F.Formula] = (bot.left filter {
           case F.PredicateFormula(F.equality, Seq(l, r)) if freeEqualities.contains((l, r)) || confinedEqualities.contains((l, r)) => false
           case F.ConnectorFormula(F.Iff, Seq(l, r)) if freeIffs.contains((l, r)) || confinedIffs.contains((l, r)) => false
           case _ => true
         }).toSeq
 
         // construct the right instantiations
-        lazy val leftContextsOpt = getContextFormulaSet(filteredPrem, filteredBot, freeEqualities, freeIffs, confinedEqualities, takenTermVars, confinedIffs, takenFormulaVars)
-        lazy val rightContextsOpt = getContextFormulaSet(premiseSequent.right.toSeq, bot.right.toSeq, freeEqualities, freeIffs, confinedEqualities, takenTermVars, confinedIffs, takenFormulaVars)
+        lazy val leftContextsOpt = getContextFormulaSet(  // Option[Seq[lisa.utils.unification.UnificationUtils.FormulaRewriteLambda]]
+          filteredPrem.map(_.underlying),
+          filteredBot.map(_.underlying),
+          freeEqualities.map(p => (p._1.underlying, p._2.underlying)),
+          freeIffs.map(p => (p._1.underlying, p._2.underlying)),
+          confinedEqualities.map(p => (p._1.underlying, p._2.underlying)),
+          takenTermVars.map(_.underlyingLabel),
+          confinedIffs.map(p => (p._1.underlying, p._2.underlying)),
+          takenFormulaVars.map(_.underlyingLabel)
+        )
+        lazy val rightContextsOpt = getContextFormulaSet(  // Option[Seq[lisa.utils.unification.UnificationUtils.FormulaRewriteLambda]]
+          premiseSequent.right.toSeq.map(_.underlying),
+          bot.right.toSeq.map(_.underlying),
+          freeEqualities.map(p => (p._1.underlying, p._2.underlying)),
+          freeIffs.map(p => (p._1.underlying, p._2.underlying)),
+          confinedEqualities.map(p => (p._1.underlying, p._2.underlying)),
+          takenTermVars.map(_.underlyingLabel),
+          confinedIffs.map(p => (p._1.underlying, p._2.underlying)),
+          takenFormulaVars.map(_.underlyingLabel)
+        )
 
-        lazy val violatingFormulaLeft: Option[Formula] = Some(top())
-        lazy val violatingFormulaRight: Option[Formula] = Some(top())
+        lazy val violatingFormulaLeft: Option[K.Formula] = Some(K.top()) //TODO
+        lazy val violatingFormulaRight: Option[K.Formula] = Some(K.top())  //TODO
 
         if (leftContextsOpt.isEmpty)
           proof.InvalidProofTactic(s"Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formula: ${FOLPrinter.prettyFormula(violatingFormulaLeft.get)}")

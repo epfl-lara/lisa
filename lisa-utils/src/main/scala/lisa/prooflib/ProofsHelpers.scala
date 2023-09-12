@@ -188,10 +188,7 @@ trait ProofsHelpers {
   // Definition helpers, not part of the DSL
 
 
-  type ConstantTermLabel[N<:Arity] <: ConstantLabel[?] = N match {
-    case 0 => Constant
-    case _ => ConstantFunctionLabel[N]
-  }
+
 
   /**
    * Allows to make definitions "by unique existance" of a function symbol
@@ -201,8 +198,9 @@ trait ProofsHelpers {
   (val vars: Seq[F.Variable], val out: F.Variable, val f: F.Formula, j:JUSTIFICATION) extends DEFINITION(line, file) {
     //val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
     
-    val label: ConstantTermLabel[N]  = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf[ConstantTermLabel[N]]
+    val label: ConstantTermLabel[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf[ConstantTermLabel[N]]
 
+    
     val innerJustification: theory.FunctionDefinition = {
       val conclusion: F.Sequent = j.statement
       val pr: SCProof = SCProof(IndexedSeq(SC.Restate(conclusion.underlying, -1)), IndexedSeq(conclusion.underlying))
@@ -278,6 +276,7 @@ trait ProofsHelpers {
       }
     }
 
+    //val label: ConstantTermLabel[N]
     val statement: F.Sequent = 
       () |- F.Forall(out, Iff(equality((label match {case l:F.Constant => l case l: F.ConstantFunctionLabel[?] => l(vars)}), out), f))
 

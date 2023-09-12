@@ -58,6 +58,117 @@ object FOLHelpers {
   def predicate[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicPredicateLabel[N] = SchematicPredicateLabel[N](name.value, valueOf[N])
   def connector[N <: Arity : ValueOf](using name: sourcecode.Name): SchematicConnectorLabel[N] = SchematicConnectorLabel[N](name.value, valueOf[N])
 
+
+
+  ////////////////////////////////////////
+  //    Kernel to Front transformers    //
+  ////////////////////////////////////////
+
+  // TermLabel
+  def asFrontLabel(tl: K.TermLabel): TermLabel[?]  = tl match
+    case tl: K.ConstantFunctionLabel =>  asFrontLabel(tl)
+    case tl: K.SchematicTermLabel =>  asFrontLabel(tl)
+  def asFrontLabel(cfl: K.ConstantFunctionLabel): Constant|ConstantFunctionLabel[?] = 
+    if (cfl.arity == 0) Constant(cfl.id)
+    else ConstantFunctionLabel(cfl.id, cfl.arity.asInstanceOf)
+  def asFrontLabel(stl: K.SchematicTermLabel): Variable|SchematicFunctionLabel[?] = stl match
+    case v: K.VariableLabel => asFrontLabel(stl)
+    case v: K.SchematicFunctionLabel => asFrontLabel(v)
+  def asFrontLabel[N <: Arity](sfl: K.SchematicFunctionLabel): SchematicFunctionLabel[N] = 
+    SchematicFunctionLabel(sfl.id, sfl.arity.asInstanceOf)
+  def asFrontLabel(v: K.VariableLabel): Variable = Variable(v.id)
+  
+
+  //Term
+  def asFront(t: K.Term): Term = asFrontLabel(t.label)(t.args.map(asFront))
+
+  // FormulaLabel
+  def asFrontLabel(fl: K.FormulaLabel): Label[? |-> Formula]  = fl match
+    case fl: K.ConnectorLabel =>  asFrontLabel(fl)
+    case fl: K.PredicateLabel =>  asFrontLabel(fl)
+    case fl: K.BinderLabel =>  asFrontLabel(fl)
+  def asFrontLabel(pl: K.PredicateLabel): Seq[Term]|->Formula = pl match
+    case pl: K.ConstantPredicateLabel =>  asFrontLabel(pl)
+    case pl: K.SchematicVarOrPredLabel =>  
+      val r = asFrontLabel(pl)
+      r: Seq[Term]|->Formula
+  def asFrontLabel(cl: K.ConnectorLabel): Seq[Formula]|->Formula  = cl match
+    case cl: K.ConstantConnectorLabel =>  asFrontLabel(cl)
+    case cl: K.SchematicConnectorLabel =>  asFrontLabel(cl)
+  def asFrontLabel(cpl: K.ConstantPredicateLabel): Seq[Term]|->Formula = 
+    if (cpl.arity == 0) ConstantFormula(cpl.id)
+    else ConstantPredicateLabel(cpl.id, cpl.arity.asInstanceOf)
+  def asFrontLabel(cpl: K.ConstantConnectorLabel) : Seq[Formula]|->Formula = cpl match {
+    case K.Neg => Neg
+    case K.Implies => Implies
+    case K.Iff => Iff
+    case K.And => And
+    case K.Or => Or
+  }
+  def asFrontLabel(sfl: K.SchematicFormulaLabel): SchematicLabel[?] = 
+    sfl match
+      case v: K.VariableFormulaLabel => asFrontLabel(v)
+      case v: K.SchematicPredicateLabel => asFrontLabel(v)
+      case v: K.SchematicConnectorLabel => asFrontLabel(v)
+  def asFrontLabel(svop: K.SchematicVarOrPredLabel): Seq[Term]|->Formula = svop match
+    case v: K.VariableFormulaLabel => asFrontLabel(v)
+    case v: K.SchematicPredicateLabel => asFrontLabel(v)
+  def asFrontLabel(v: K.VariableFormulaLabel): VariableFormula = VariableFormula(v.id)
+  def asFrontLabel[N <: Arity](spl: K.SchematicPredicateLabel): SchematicPredicateLabel[N] = 
+    SchematicPredicateLabel(spl.id, spl.arity.asInstanceOf)
+  def asFrontLabel[N <: Arity](scl: K.SchematicConnectorLabel): SchematicConnectorLabel[N] = 
+    SchematicConnectorLabel(scl.id, scl.arity.asInstanceOf)
+  def asFrontLabel(bl: K.BinderLabel) : BaseBinderLabel = bl match {
+    case K.Forall => Forall
+    case K.Exists => Exists
+      case K.ExistsOne => ExistsOne
+    }
+
+
+//Formula
+  def asFront(f: K.Formula): Formula = f match 
+    case f: K.PredicateFormula => asFront(f)
+    case f: K.ConnectorFormula => asFront(f)
+    case f: K.BinderFormula => asFront(f)
+  def asFront(pf: K.PredicateFormula): Formula= 
+    asFrontLabel(pf.label)(pf.args.map(asFront))
+  def asFront(cf: K.ConnectorFormula): Formula = 
+    asFrontLabel(cf.label)(cf.args.map(asFront))
+  def asFront(bf: K.BinderFormula): BinderFormula = 
+    asFrontLabel(bf.label)(asFrontLabel(bf.bound), asFront(bf.inner))
+
+
+
+
+
+
+
+
+
+
+    
+/*
+
+
+  extension (f: K.BinderFormula) {
+    def asFront = BinderFormula(f.label.asFront, f.bound.asFront, f.inner.asFront)
+  }
+  extension (f: K.ConnectorFormula) {
+    def asFront = ConnectorFormula(f.label.asFront, f.args.map(_.asFront))
+  }
+  extension (f: K.PredicateFormula) {
+    def asFront = PredicateFormula(f.label.asFront, f.args.map(_.asFront))
+  }
+
+  extension (f: K.FormulaLabel) {
+    def asFront = f match {
+      case K.BinderFormula(label, bound, inner) => BinderFormula(label.asFront, bound.asFront, inner.asFront)
+      case K.ConnectorFormula(label, args) => ConnectorFormula(label.asFront, args.map(_.asFront))
+      case K.PredicateFormula(label, args) => PredicateFormula(label.asFront, args.map(_.asFront))
+    }
+  }
+*/
+
   /*
   def isSame(formula1: Formula, formula2: Formula): Boolean =
     K.isSame(formula1.underlying, formula2.underlying)
