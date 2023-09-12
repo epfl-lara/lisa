@@ -1068,14 +1068,13 @@ object BasicStepTactic {
 
       val equalities = bot.left.collect { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
       val canReach = UnificationUtils.getContextFormula(
-                          first = premRight, 
-                          second = botRight, 
-                          confinedTermRules = equalities.toSeq, 
-                          takenTermVariables = equalities.flatMap(e => e._1.freeVariables ++ e._2.freeVariables)
-                      )
+        first = premRight,
+        second = botRight,
+        confinedTermRules = equalities.toSeq,
+        takenTermVariables = equalities.flatMap(e => e._1.freeVariables ++ e._2.freeVariables)
+      )
 
-      if (canReach.isEmpty)
-        proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
+      if (canReach.isEmpty) proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
       else
         val termLambda = canReach.get.toTermLambda
         RightSubstEq(equalities.toList, termLambda)(premise)(bot)

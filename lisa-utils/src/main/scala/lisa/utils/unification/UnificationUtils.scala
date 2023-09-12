@@ -297,18 +297,19 @@ object UnificationUtils {
       formulaRules: Seq[(VariableFormulaLabel, FormulaRule)] = Seq.empty,
       body: Formula
   ) {
+
     /**
-      * **Unsafe** conversion to a term lambda, discarding rule and formula information
-      * 
-      * Use if **know that only term rewrites were applied**.
-      */
+     * **Unsafe** conversion to a term lambda, discarding rule and formula information
+     *
+     * Use if **know that only term rewrites were applied**.
+     */
     def toTermLambda: LambdaTermFormula = lambda(termRules.map(_._1), body)
 
     /**
-      * **Unsafe** conversion to a formula lambda, discarding rule and term information
-      * 
-      * Use if **know that only formula rewrites were applied**.
-      */
+     * **Unsafe** conversion to a formula lambda, discarding rule and term information
+     *
+     * Use if **know that only formula rewrites were applied**.
+     */
     def toFormulaLambda: LambdaFormulaFormula = lambda(formulaRules.map(_._1), body)
   }
 
