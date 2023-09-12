@@ -65,13 +65,13 @@ object FOLHelpers {
   ////////////////////////////////////////
 
   // TermLabel
-  def asFrontLabel(tl: K.TermLabel): TermLabel[?]  = tl match
+  def asFrontLabel(tl: K.TermLabel): TermLabel  = tl match
     case tl: K.ConstantFunctionLabel =>  asFrontLabel(tl)
     case tl: K.SchematicTermLabel =>  asFrontLabel(tl)
-  def asFrontLabel(cfl: K.ConstantFunctionLabel): Constant|ConstantFunctionLabel[?] = 
+  def asFrontLabel(cfl: K.ConstantFunctionLabel): ConstantTermLabel = 
     if (cfl.arity == 0) Constant(cfl.id)
     else ConstantFunctionLabel(cfl.id, cfl.arity.asInstanceOf)
-  def asFrontLabel(stl: K.SchematicTermLabel): Variable|SchematicFunctionLabel[?] = stl match
+  def asFrontLabel(stl: K.SchematicTermLabel): SchematicTermLabel = stl match
     case v: K.VariableLabel => asFrontLabel(stl)
     case v: K.SchematicFunctionLabel => asFrontLabel(v)
   def asFrontLabel[N <: Arity](sfl: K.SchematicFunctionLabel): SchematicFunctionLabel[N] = 
@@ -83,7 +83,7 @@ object FOLHelpers {
   def asFront(t: K.Term): Term = asFrontLabel(t.label)(t.args.map(asFront))
 
   // FormulaLabel
-  def asFrontLabel(fl: K.FormulaLabel): Label[? |-> Formula]  = fl match
+  def asFrontLabel(fl: K.FormulaLabel): Any = fl match
     case fl: K.ConnectorLabel =>  asFrontLabel(fl)
     case fl: K.PredicateLabel =>  asFrontLabel(fl)
     case fl: K.BinderLabel =>  asFrontLabel(fl)
@@ -143,31 +143,6 @@ object FOLHelpers {
 
 
 
-
-
-
-    
-/*
-
-
-  extension (f: K.BinderFormula) {
-    def asFront = BinderFormula(f.label.asFront, f.bound.asFront, f.inner.asFront)
-  }
-  extension (f: K.ConnectorFormula) {
-    def asFront = ConnectorFormula(f.label.asFront, f.args.map(_.asFront))
-  }
-  extension (f: K.PredicateFormula) {
-    def asFront = PredicateFormula(f.label.asFront, f.args.map(_.asFront))
-  }
-
-  extension (f: K.FormulaLabel) {
-    def asFront = f match {
-      case K.BinderFormula(label, bound, inner) => BinderFormula(label.asFront, bound.asFront, inner.asFront)
-      case K.ConnectorFormula(label, args) => ConnectorFormula(label.asFront, args.map(_.asFront))
-      case K.PredicateFormula(label, args) => PredicateFormula(label.asFront, args.map(_.asFront))
-    }
-  }
-*/
 
   /*
   def isSame(formula1: Formula, formula2: Formula): Boolean =

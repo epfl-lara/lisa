@@ -43,7 +43,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
                   case l : LambdaExpression[Term, Term, ?] @unchecked if 
                     (l.bounds.isEmpty || l.bounds.head.isInstanceOf[Variable]) & l.body.isInstanceOf[Term] => 
                       (p._1.asInstanceOf, l)
-                  case s : TermLabel[?] => 
+                  case s : TermLabel => 
                     val vars = nFreshId(Seq(s.id), s.arity).map(Variable.apply)
                     (sl, LambdaExpression(vars, s(vars), s.arity))
                 }
