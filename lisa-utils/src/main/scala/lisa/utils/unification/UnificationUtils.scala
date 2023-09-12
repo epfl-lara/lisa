@@ -2,7 +2,6 @@ package lisa.utils.unification
 
 import lisa.kernel.fol.FOL.*
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.unification.FirstOrderUnifier.*
 
 /**
  * General utilities for unification, substitution, and rewriting

@@ -1,5 +1,4 @@
 import lisa.automation.kernel.OLPropositionalSolver.*
-import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker.*
@@ -7,11 +6,11 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.mathematics.settheory.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
+import lisa.prooflib.Substitution
 import lisa.prooflib.Substitution.ApplyRules
 import lisa.utils.FOLPrinter.*
 import lisa.utils.KernelHelpers.checkProof
 import lisa.utils.unification.UnificationUtils.*
-import lisa.utils.unification.UnificationUtils2.*
 
 /**
  * Discover some of the elements of LISA to get started.
@@ -110,39 +109,39 @@ object ExampleDSL extends lisa.Main {
   // Simple tactic definition for LISA DSL
   import lisa.automation.kernel.OLPropositionalSolver.*
 
-  object SimpleTautology extends ProofTactic {
-    def solveFormula(using proof: library.Proof)(f: Formula, decisionsPos: List[Formula], decisionsNeg: List[Formula]): proof.ProofTacticJudgement = {
-      val redF = reducedForm(f)
-      if (redF == ⊤) {
-        Restate(decisionsPos |- f :: decisionsNeg)
-      } else if (redF == ⊥) {
-        proof.InvalidProofTactic("Sequent is not a propositional tautology")
-      } else {
-        val atom = findBestAtom(redF).get
-        def substInRedF(f: Formula) = redF.substituted(atom -> f)
-        TacticSubproof {
-          have(solveFormula(substInRedF(⊤), atom :: decisionsPos, decisionsNeg))
-          val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution2(⊤ <=> atom)
-          have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
-          val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution2(⊥ <=> atom)
-          have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
-          thenHave(decisionsPos |- f :: decisionsNeg) by Restate
-        }
-      }
-    }
-    def solveSequent(using proof: library.Proof)(bot: Sequent) =
-      TacticSubproof { // Since the tactic above works on formulas, we need an extra step to convert an arbitrary sequent to an equivalent formula
-        have(solveFormula(sequentToFormula(bot), Nil, Nil))
-        thenHave(bot) by Restate.from
-      }
-  }
+  // object SimpleTautology extends ProofTactic {
+  //   def solveFormula(using proof: library.Proof)(f: Formula, decisionsPos: List[Formula], decisionsNeg: List[Formula]): proof.ProofTacticJudgement = {
+  //     val redF = reducedForm(f)
+  //     if (redF == ⊤) {
+  //       Restate(decisionsPos |- f :: decisionsNeg)
+  //     } else if (redF == ⊥) {
+  //       proof.InvalidProofTactic("Sequent is not a propositional tautology")
+  //     } else {
+  //       val atom = findBestAtom(redF).get
+  //       def substInRedF(f: Formula) = redF.substituted(atom -> f)
+  //       TacticSubproof {
+  //         have(solveFormula(substInRedF(⊤), atom :: decisionsPos, decisionsNeg))
+  //         val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution2(⊤ <=> atom)
+  //         have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
+  //         val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution2(⊥ <=> atom)
+  //         have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
+  //         thenHave(decisionsPos |- f :: decisionsNeg) by Restate
+  //       }
+  //     }
+  //   }
+  //   def solveSequent(using proof: library.Proof)(bot: Sequent) =
+  //     TacticSubproof { // Since the tactic above works on formulas, we need an extra step to convert an arbitrary sequent to an equivalent formula
+  //       have(solveFormula(sequentToFormula(bot), Nil, Nil))
+  //       thenHave(bot) by Restate.from
+  //     }
+  // }
 
-  val a = formulaVariable()
-  val b = formulaVariable()
-  val c = formulaVariable()
-  val testTheorem = Lemma((a /\ (b \/ c)) <=> ((a /\ b) \/ (a /\ c))) {
-    have(thesis) by SimpleTautology.solveSequent
-  }
-  show
+  // val a = formulaVariable()
+  // val b = formulaVariable()
+  // val c = formulaVariable()
+  // val testTheorem = Lemma((a /\ (b \/ c)) <=> ((a /\ b) \/ (a /\ c))) {
+  //   have(thesis) by SimpleTautology.solveSequent
+  // }
+  // show
 
 }
