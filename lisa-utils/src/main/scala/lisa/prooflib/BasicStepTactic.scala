@@ -13,7 +13,7 @@ import lisa.utils.KernelHelpers.*
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.FirstOrderUnifier
-import lisa.utils.unification.UnificationUtils2
+import lisa.utils.unification.UnificationUtils
 
 object BasicStepTactic {
 
@@ -1067,12 +1067,18 @@ object BasicStepTactic {
       val botRight = ConnectorFormula(Or, bot.right.toSeq)
 
       val equalities = bot.left.collect { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
-      val canReach = UnificationUtils2.canReachOneStepTermFormula(premRight, botRight, equalities.toList)
+      val canReach = UnificationUtils.getContextFormula(
+                          first = premRight, 
+                          second = botRight, 
+                          confinedTermRules = equalities.toSeq, 
+                          takenTermVariables = equalities.flatMap(e => e._1.freeVariables ++ e._2.freeVariables)
+                      )
 
       if (canReach.isEmpty)
         proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
       else
-        RightSubstEq(equalities.toList, canReach.get)(premise)(bot)
+        val termLambda = canReach.get.toTermLambda
+        RightSubstEq(equalities.toList, termLambda)(premise)(bot)
     }
   }
 

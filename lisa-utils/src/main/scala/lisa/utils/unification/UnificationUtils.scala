@@ -296,7 +296,21 @@ object UnificationUtils {
       termRules: Seq[(VariableLabel, TermRule)] = Seq.empty,
       formulaRules: Seq[(VariableFormulaLabel, FormulaRule)] = Seq.empty,
       body: Formula
-  ) {}
+  ) {
+    /**
+      * **Unsafe** conversion to a term lambda, discarding rule and formula information
+      * 
+      * Use if **know that only term rewrites were applied**.
+      */
+    def toTermLambda: LambdaTermFormula = lambda(termRules.map(_._1), body)
+
+    /**
+      * **Unsafe** conversion to a formula lambda, discarding rule and term information
+      * 
+      * Use if **know that only formula rewrites were applied**.
+      */
+    def toFormulaLambda: LambdaFormulaFormula = lambda(formulaRules.map(_._1), body)
+  }
 
   /**
    * Dummy connector used to combine formulas for convenience during rewriting
@@ -439,8 +453,8 @@ object UnificationUtils {
   def getContextFormula(
       first: Formula,
       second: Formula,
-      freeTermRules: Seq[(Term, Term)],
-      freeFormulaRules: Seq[(Formula, Formula)],
+      freeTermRules: Seq[(Term, Term)] = Seq.empty,
+      freeFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
       confinedTermRules: Seq[(Term, Term)] = Seq.empty,
       takenTermVariables: Set[VariableLabel] = Set.empty,
       confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,

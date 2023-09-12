@@ -6,7 +6,6 @@ import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.mathematics.Ordinals.transitiveSet
 import lisa.mathematics.fol.Quantifiers.*
 import lisa.mathematics.settheory.SetTheory.*
 import lisa.mathematics.settheory.orderings.InclusionOrders.*
