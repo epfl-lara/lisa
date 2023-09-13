@@ -65,8 +65,11 @@ trait Common {
     * @param _1 The schematic label to substitute
     * @param _2 The value to replace it with
     */
-  class SubstPair(val _1: SchematicLabel[_], val _2: _1.SubstitutionType) {
-    def toTuple = (_1, _2)
+  class SubstPair private (val _1: SchematicLabel[?], val _2: LisaObject[?]) {
+    //def toTuple = (_1, _2)
+  }
+  object SubstPair {
+    def apply[S <: LisaObject[S]](_1: SchematicLabel[S], _2: S) = new SubstPair(_1, _2)
   }
 
   given trsubst[S <: LisaObject[S]]: Conversion[(SchematicLabel[S], S), SubstPair] = s => SubstPair(s._1, s._2)
@@ -83,7 +86,7 @@ trait Common {
   trait LisaObject[+T<: LisaObject[T]] {
     this: T =>
       
-    inline def lift:T & this.type = this
+    def lift:T & this.type = this
 
     /**
       * Substitution in the LisaObject of schematics by values. It is not guaranteed by the type system that types of schematics and values match, and the substitution can fail if that is the case.
@@ -129,8 +132,9 @@ trait Common {
   /**
     * A label is a [[LisaObject]] which is just a name. In general, constant symbols and schematic symbols.
     */
-  trait Label[+A <: LisaObject[A]] extends LisaObject[A]{
-    this : A =>
+  trait Label[-A <: LisaObject[A]]{
+    this : A & LisaObject[A] =>
+    def liftLabel: LisaObject[?] = this
     def id: K.Identifier
     /**
       * Indicates how to rename the symbol.
@@ -141,12 +145,12 @@ trait Common {
   /**
     * Schematic labels can be substituted by expressions (LisaObject) of the corresponding type
     */
-  sealed trait SchematicLabel[A <: LisaObject[A]] extends LisaObject[A] with Label[A]{
-    this : A =>
+  sealed trait SchematicLabel[-A <: LisaObject[A]] extends Label[A]{
+    this : A & LisaObject[A] =>
     /**
       * The schematic label can be substituted by anything of an equivalent type. See [[SubstPair]], [[LisaObject]].
       */
-    type SubstitutionType = A
+    //type SubstitutionType <: A
     def rename(newid: K.Identifier):SchematicLabel[A]
     def freshRename(taken:Iterable[K.Identifier]): SchematicLabel[A]
 
@@ -157,12 +161,11 @@ trait Common {
 
   }
 
-
   /**
     * ConstantLabel represent constants in the theory and can't be freely substituted.
     */
-  sealed trait ConstantLabel[+A <: LisaObject[A]]  extends LisaObject[A] with Label[A] {
-    this : A =>
+  sealed trait ConstantLabel[-A <: LisaObject[A]]  extends Label[A] {
+    this : A & LisaObject[A] =>
     def rename(newid: K.Identifier):ConstantLabel[A]
     def freshRename(taken:Iterable[K.Identifier]): ConstantLabel[A]
   }
@@ -263,7 +266,7 @@ trait Common {
     * A Constant, corresponding to [[K.ConstantLabel]], is a label for terms.
     * It counts both as the label and as the term itself.
     */
-  case class Constant(id: K.Identifier) extends Term with Absolute with ConstantLabel[Constant] with ConstantTermLabel{
+  case class Constant(id: K.Identifier) extends Term with Absolute with ConstantLabel[Constant] with ConstantTermLabel with LisaObject[Constant]{
     val arity = 0
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     val underlying = K.Term(underlyingLabel, Seq())

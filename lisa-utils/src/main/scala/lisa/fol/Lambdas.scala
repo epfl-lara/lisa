@@ -39,7 +39,7 @@ trait Lambdas extends Common{
         val newBounds = seqBounds.scanLeft[List[Identifier]](taken)((list, v: SchematicLabel[T]) =>
           freshId(list, v.id) :: list
         ).map(_.head).zip(seqBounds).map(v => v._2.rename(v._1))
-        val newBody = body.substituteUnsafe(seqBounds.zip(newBounds.map(_.lift)).toMap)
+        val newBody = body.substituteUnsafe(seqBounds.zip(newBounds.map(_.liftLabel)).toMap)
         LambdaExpression(newBounds, newBody.substituteUnsafe(newSubst), arity)
       } else{
         LambdaExpression(bounds, body.substituteUnsafe(newSubst), arity)

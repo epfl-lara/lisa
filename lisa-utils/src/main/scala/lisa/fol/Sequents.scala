@@ -36,20 +36,21 @@ trait Sequents extends Common with lisa.fol.Lambdas {
     def substituteWithProof(map: Map[SchematicLabel[_], _ <: LisaObject[_]]): (Sequent, Seq[K.SCProofStep]) = {
 
       val mTerm: Map[SchematicFunctionLabel[?]|Variable, LambdaExpression[Term, Term, ?]] = 
-        map.collect(p => p._1 match {
-              case sl: Variable => (sl, LambdaExpression[Term, Term, 0](Seq(), p._2.asInstanceOf[Term], 0))
-              case sl: SchematicFunctionLabel[?] => 
-                p._2 match {
-                  case l : LambdaExpression[Term, Term, ?] @unchecked if 
-                    (l.bounds.isEmpty || l.bounds.head.isInstanceOf[Variable]) & l.body.isInstanceOf[Term] => 
-                      (p._1.asInstanceOf, l)
-                  case s : TermLabel => 
-                    val vars = nFreshId(Seq(s.id), s.arity).map(Variable.apply)
-                    (sl, LambdaExpression(vars, s(vars), s.arity))
-                }
-            })
+
+        map.collect[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]](p => p._1 match {
+          case sl: Variable => (sl, LambdaExpression[Term, Term, 0](Seq(), p._2.asInstanceOf[Term], 0))
+          case sl: SchematicFunctionLabel[?] => 
+            p._2 match {
+              case l : LambdaExpression[Term, Term, ?] @unchecked if 
+                (l.bounds.isEmpty || l.bounds.head.isInstanceOf[Variable]) & l.body.isInstanceOf[Term] => 
+                  (p._1.asInstanceOf, l)
+              case s : TermLabel => 
+                val vars = nFreshId(Seq(s.id), s.arity).map(Variable.apply)
+                (sl, LambdaExpression(vars, s(vars), s.arity))
+            }
+          })
       val mPred: Map[SchematicPredicateLabel[?]|VariableFormula, LambdaExpression[Term, Formula, ?]] = 
-        map.collect(p => p._1 match {
+        map.collect[SchematicPredicateLabel[?] | VariableFormula, LambdaExpression[Term, Formula, ?]](p => p._1 match {
               case sl: VariableFormula =>             (sl, LambdaExpression[Term, Formula, 0](Seq(), p._2.asInstanceOf[Formula], 0))
               case sl: SchematicPredicateLabel[?] => 
                 p._2 match {
@@ -60,7 +61,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
                     (sl, LambdaExpression(vars, s(vars), s.arity))
                 }
             })
-      val mConn = map.collect(p => p._1 match {
+      val mConn = map.collect[SchematicConnectorLabel[?], LambdaExpression[Formula, Formula, ?]](p => p._1 match {
               case sl: SchematicConnectorLabel[?] =>  
                 p._2 match {
                   case l : LambdaExpression[Formula, Formula, ?] @unchecked if 
