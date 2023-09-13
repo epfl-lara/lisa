@@ -171,10 +171,10 @@ trait ProofsHelpers {
     //inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
     //inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantTermLabelOfArity[N] = 
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantFunctionLabelOfArity[N] = 
       FunctionDefinition[N](name.value, name.value, line.value, file.value)(args.toSeq, t.out, t.f, t.just).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantTermLabelOfArity[N] = 
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] = 
       SimpleFunctionDefinition[N](name.value, name.value, line.value, file.value)(lambda(args.toSeq, term).asInstanceOf).label
 
     inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantFormulaLabel[N] = 
@@ -198,7 +198,7 @@ trait ProofsHelpers {
   (val vars: Seq[F.Variable], val out: F.Variable, val f: F.Formula, j:JUSTIFICATION) extends DEFINITION(line, file) {
     //val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
     
-    val label: ConstantTermLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
+    val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
 
     
     val innerJustification: theory.FunctionDefinition = {

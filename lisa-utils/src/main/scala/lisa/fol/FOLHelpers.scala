@@ -63,7 +63,7 @@ object FOLHelpers {
   ////////////////////////////////////////
   //    Kernel to Front transformers    //
   ////////////////////////////////////////
-
+/*
   // TermLabel
   def asFrontLabel(tl: K.TermLabel): TermLabel  = tl match
     case tl: K.ConstantFunctionLabel =>  asFrontLabel(tl)
@@ -138,7 +138,7 @@ object FOLHelpers {
     asFrontLabel(bf.label)(asFrontLabel(bf.bound), asFront(bf.inner))
 
 
-
+*/
 
 
 
