@@ -190,8 +190,8 @@ trait Common {
   /**
     * The type of terms, corresponding to [[K.Term]]
     */
-  sealed abstract class Term extends TermOrFormula with LisaObject[Term] with (Seq[Term] |-> Term) {
-    def apply(args: Seq[Term]): Term = this
+  sealed abstract class Term extends TermOrFormula with LisaObject[Term] with (Term**0 |-> Term) {
+    def apply(args: Term**0): Term = this
     val underlying: K.Term
 
 
