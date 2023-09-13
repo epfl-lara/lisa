@@ -193,7 +193,7 @@ trait Common {
   /**
     * The type of terms, corresponding to [[K.Term]]
     */
-  sealed abstract class Term extends TermOrFormula with LisaObject[Term] with (Term**0 |-> Term) {
+  sealed trait Term extends TermOrFormula with LisaObject[Term] with (Term**0 |-> Term) {
     def apply(args: Term**0): Term = this
     val underlying: K.Term
 
@@ -217,17 +217,15 @@ trait Common {
 
   }
 
-  sealed trait ConstantTermLabel extends TermLabel/* with ConstantLabel[ConstantTermLabel] */{
-  }
+  //sealed trait ConstantTermLabel extends TermLabel {}
 
-  type ConstantTermLabelOfArity[N<:Arity] <: ConstantTermLabel & ConstantLabel[?]  = N match {
+  type ConstantFunctionLabelOfArity[N<:Arity] <: ConstantFunctionLabel[?] & ConstantLabel[?]  = N match {
     case 0 => Constant
     case _ => ConstantFunctionLabel[N]
   }
-  sealed trait SchematicTermLabel extends TermLabel {
-  }
+  //sealed trait SchematicTermLabel extends TermLabel {}
 
-  type SchematicTermLabelOfArity[N<:Arity]<: TermLabel & SchematicLabel[?] = N match {
+  type SchematicFunctionLabelOfArity[N<:Arity]<: SchematicFunctionLabel[?] & SchematicLabel[?] = N match {
         case 0 => Variable
         case _ => SchematicFunctionLabel[N]
   }
@@ -237,8 +235,9 @@ trait Common {
     * It counts both as the label and as the term itself.
     *
     */
-  case class Variable(id: K.Identifier) extends Term with Absolute with SchematicLabel[Term] with SchematicTermLabel with LisaObject[Term]{
-    val arity = 0
+    
+  class Variable(id: K.Identifier) extends SchematicFunctionLabel[0](id, 0) with Term with Absolute with SchematicLabel[Term] with LisaObject[Term]{
+    type SubstitutionType = Term
     val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
     val underlying = K.VariableTerm(underlyingLabel)
 
@@ -266,8 +265,7 @@ trait Common {
     * A Constant, corresponding to [[K.ConstantLabel]], is a label for terms.
     * It counts both as the label and as the term itself.
     */
-  case class Constant(id: K.Identifier) extends Term with Absolute with ConstantLabel[Constant] with ConstantTermLabel with LisaObject[Constant]{
-    val arity = 0
+  class Constant(id: K.Identifier) extends ConstantFunctionLabel[0](id, 0) with Term with Absolute with ConstantLabel[Constant] with LisaObject[Constant]{
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     val underlying = K.Term(underlyingLabel, Seq())
 
@@ -287,7 +285,7 @@ trait Common {
     * A schematic functional label (corresponding to [[K.SchematicFunctionLabel]]) is a functional label and also a schematic label.
     * It can be substituted by any expression of type (Term ** N) |-> Term
     */
-  case class SchematicFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends SchematicTermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
+  case class SchematicFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends TermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.SchematicFunctionLabel = K.SchematicFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     @nowarn
@@ -309,7 +307,7 @@ trait Common {
   /**
     * A constant functional label of arity N.
     */
-  case class ConstantFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends ConstantTermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term){
+  case class ConstantFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends TermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term){
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
