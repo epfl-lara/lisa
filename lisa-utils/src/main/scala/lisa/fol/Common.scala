@@ -190,8 +190,8 @@ trait Common {
   /**
     * The type of terms, corresponding to [[K.Term]]
     */
-  sealed abstract class Term extends TermOrFormula with LisaObject[Term] with ((Term ** 0) |-> Term) {
-    def apply(args: Term ** 0): Term = this
+  sealed abstract class Term extends TermOrFormula with LisaObject[Term] with (Seq[Term] |-> Term) {
+    def apply(args: Seq[Term]): Term = this
     val underlying: K.Term
 
 
@@ -215,11 +215,19 @@ trait Common {
   }
 
   sealed trait ConstantTermLabel extends TermLabel/* with ConstantLabel[ConstantTermLabel] */{
-    //def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ConstantTermLabel
-    //def rename(newid: K.Identifier):ConstantTermLabel
-    //def freshRename(taken:Iterable[K.Identifier]): ConstantTermLabel
   }
-  sealed trait SchematicTermLabel extends TermLabel 
+
+  type ConstantTermLabelOfArity[N<:Arity] <: ConstantTermLabel & ConstantLabel[?]  = N match {
+    case 0 => Constant
+    case _ => ConstantFunctionLabel[N]
+  }
+  sealed trait SchematicTermLabel extends TermLabel {
+  }
+
+  type SchematicTermLabelOfArity[N<:Arity]<: TermLabel & SchematicLabel[?] = N match {
+        case 0 => Variable
+        case _ => SchematicFunctionLabel[N]
+  }
 
   /**
     * A Variable, corresponding to [[K.VariableLabel]], is a schematic symbol for terms.
@@ -231,7 +239,7 @@ trait Common {
     val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
     val underlying = K.VariableTerm(underlyingLabel)
 
-    def apply(args: Seq[Term]) = this
+    //def apply(args: Seq[Term]) = this
 
     @nowarn("msg=Unreachable")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
@@ -260,7 +268,7 @@ trait Common {
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     val underlying = K.Term(underlyingLabel, Seq())
 
-    def apply(args: Seq[Term]) = this
+    //def apply(args: Seq[Term]) = this
 
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Constant = this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
