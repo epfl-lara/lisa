@@ -177,7 +177,7 @@ trait ProofsHelpers {
     inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] = 
       SimpleFunctionDefinition[N](name.value, name.value, line.value, file.value)(lambda(args.toSeq, term).asInstanceOf).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantFormulaLabel[N] = 
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantPredicateLabelOfArity[N] = 
       PredicateDefinition[N](name.value, name.value, line.value, file.value)(lambda(args.toSeq, formula).asInstanceOf).label
       
 
@@ -306,21 +306,18 @@ trait ProofsHelpers {
     }
   }
 
-  type ConstantFormulaLabel[N<:Arity] <: ConstantLabel[?] = N match {
-    case 0 => ConstantFormula
-    case _ => ConstantPredicateLabel[N]
-  }
+
   class PredicateDefinition[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
                       (val lambda: LambdaExpression[Term, Formula, N]) extends DEFINITION(line, file) {
 
     val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity
 
-    val label: ConstantFormulaLabel[N]  = {
+    val label: ConstantPredicateLabelOfArity[N]  = {
       (
         if (vars.length == 0) F.ConstantFormula(name) 
         else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf)
-        ).asInstanceOf[ConstantFormulaLabel[N]]
+        ).asInstanceOf
     }
 
     val innerJustification: theory.PredicateDefinition = {
