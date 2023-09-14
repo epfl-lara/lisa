@@ -10,6 +10,10 @@ import scala.runtime.ScalaRunTime
 
 trait Common {
 
+                          ////////////////////////////////////////////////
+                          //////////////  Base Definitions  //////////////
+                          ////////////////////////////////////////////////
+
   type Arity = Int & Singleton
 
 
@@ -186,9 +190,15 @@ trait Common {
 
 
 
-  //////////
-  // Term //
-  //////////
+
+
+
+
+
+
+                          ////////////////////////////////////
+                          //////////////  Term  //////////////
+                          ////////////////////////////////////
 
 
   /**
@@ -197,13 +207,8 @@ trait Common {
   sealed trait Term extends TermOrFormula with LisaObject[Term] with (Term**0 |-> Term) {
     def apply(args: Term**0): Term = this
     val underlying: K.Term
-
-
   }
 
-  /////////////////////
-  // Matching Kernel //
-  /////////////////////
   /**
     * A TermLabel is a [[LisaObject]] of type ((Term ** N) |-> Term), that is represented by a functional label.
     * It can be either a [[SchematicFunctionLabel]] or a [[ConstantFunctionLabel]].
@@ -215,18 +220,23 @@ trait Common {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): (Seq[Term] |-> Term)
     def rename(newid: K.Identifier):TermLabel
     def freshRename(taken:Iterable[K.Identifier]): TermLabel
-
   }
 
-  //sealed trait ConstantTermLabel extends TermLabel {}
+  sealed trait ConstantTermLabel extends TermLabel with ConstantLabel[Seq[Term] |-> Term] {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):ConstantTermLabel 
+    override def rename(newid: K.Identifier): ConstantTermLabel
+    def freshRename(taken:Iterable[K.Identifier]): ConstantTermLabel}
 
-  type ConstantFunctionLabelOfArity[N<:Arity] <: ConstantFunctionLabel[?] & ConstantLabel[?]  = N match {
+  type ConstantFunctionLabelOfArity[N<:Arity] <: ConstantTermLabel  = N match {
     case 0 => Constant
     case _ => ConstantFunctionLabel[N]
   }
-  //sealed trait SchematicTermLabel extends TermLabel {}
+  sealed trait SchematicTermLabel extends TermLabel with SchematicLabel[Seq[Term] |-> Term] {
+    override def rename(newid: K.Identifier):SchematicTermLabel
+    def freshRename(taken:Iterable[K.Identifier]): SchematicTermLabel
+  }
 
-  type SchematicFunctionLabelOfArity[N<:Arity]<: SchematicFunctionLabel[?] & SchematicLabel[?] = N match {
+  type SchematicFunctionLabelOfArity[N<:Arity] <: SchematicTermLabel = N match {
         case 0 => Variable
         case _ => SchematicFunctionLabel[N]
   }
@@ -237,13 +247,12 @@ trait Common {
     *
     */
     
-  class Variable(id: K.Identifier) extends SchematicFunctionLabel[0](id, 0) with Absolute with SchematicLabel[Term] with LisaObject[(Term**0 |-> Term)] with Term {
+  case class Variable(id: K.Identifier) extends SchematicTermLabel with Term with Absolute with SchematicLabel[Term]  {
     type SubstitutionType = Term
+    val arity = 0
     override val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
     override val underlying = K.VariableTerm(underlyingLabel)
-
     override def apply(args: Term**0) = this
-
     @nowarn("msg=Unreachable")
     override def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
       map.get(this.asInstanceOf) match {
@@ -254,33 +263,33 @@ trait Common {
         case None => this
       }
     }
-
+    def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
+    def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     override def rename(newid: K.Identifier):Variable = Variable(newid)
-
+    def freshRename(taken:Iterable[K.Identifier]): Variable = rename(K.freshId(taken, id))
   }
 
   /**
     * A Constant, corresponding to [[K.ConstantLabel]], is a label for terms.
     * It counts both as the label and as the term itself.
     */
-  class Constant(id: K.Identifier) extends ConstantFunctionLabel[0](id, 0) with Term with Absolute with ConstantLabel[Constant] with LisaObject[Constant]{
+  case class Constant(id: K.Identifier) extends ConstantTermLabel with Term with Absolute with ConstantLabel[Constant] with LisaObject[Constant]{
+    val arity = 0
     override val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     override val underlying = K.Term(underlyingLabel, Seq())
-
     override def apply(args: Term**0) = this
-
-    //override def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Constant = this
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Constant = this
     override def rename(newid: K.Identifier): Constant = Constant(newid)
-
+    def freshRename(taken:Iterable[K.Identifier]): Constant = rename(K.freshId(taken, id))
+    def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
+    def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
   }
-
-
 
   /**
     * A schematic functional label (corresponding to [[K.SchematicFunctionLabel]]) is a functional label and also a schematic label.
     * It can be substituted by any expression of type (Term ** N) |-> Term
     */
-  class SchematicFunctionLabel[N <: Arity](val id: K.Identifier, val arity : N) extends TermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
+  case class SchematicFunctionLabel[N <: Arity](val id: K.Identifier, val arity : N) extends SchematicTermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term ){
     val underlyingLabel: K.SchematicTermLabel = K.SchematicFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     @nowarn
@@ -302,18 +311,18 @@ trait Common {
   /**
     * A constant functional label of arity N.
     */
-  class ConstantFunctionLabel[N <: Arity](val id: K.Identifier, val arity : N) extends
-   TermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term) with Product with Serializable{
+  case class ConstantFunctionLabel[N <: Arity](val id: K.Identifier, val arity : N) extends ConstantTermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
       this
-    def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
-    def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: K.Identifier):ConstantFunctionLabel[N] = ConstantFunctionLabel(newid, arity)
     def freshRename(taken:Iterable[K.Identifier]): ConstantFunctionLabel[N] = rename(K.freshId(taken, id))
+    def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
+    def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
 
-    // Reimplementing case constructs
+    /*
+    // Reimplementing case constructs  https://github.com/lampepfl/dotty/issues/18552
     override def productPrefix: String = "ConstantFunctionLabel"
     def productArity: Int = 2
     def productElement(n: Int): Any = n match {
@@ -341,26 +350,8 @@ trait Common {
       None
     else
       Some(scala.Tuple2.apply(that.id, that.arity));
+      */
   }
-
-
-
-  /*<synthetic> object Foo extends AnyRef with Serializable {
-    def <init>(): Foo.type = {
-      Foo.super.<init>();
-      ()
-    };
-    final override <synthetic> def toString(): String = "Foo";
-    case <synthetic> def apply[N](id: N, name: String): Foo[N] = new Foo[N](id, name);
-    case <synthetic> def unapply[N](x$0: Foo[N]): Option[(N, String)] = if (x$0.==(null))
-      scala.this.None
-    else
-      Some.apply[(N, String)](scala.Tuple2.apply[N, String](x$0.id, x$0.name));
-    <synthetic> private def readResolve(): Object = Foo
-  }
-
-
-*/
 
   /**
     * A term made from a functional label of arity N and N arguments
@@ -379,9 +370,21 @@ trait Common {
     //override def substituteUnsafe(v: Variable, subs: Term) = AppliedTerm[N](f, args.map(_.substituteUnsafe(v, subs)))
   }
 
-  //////////////
-  // Formulas //
-  //////////////
+
+
+
+
+
+
+
+
+
+
+
+
+                //////////////////////////////////////
+                ////////////// Formulas //////////////
+                //////////////////////////////////////
 
 
   /**

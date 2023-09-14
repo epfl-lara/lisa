@@ -41,7 +41,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     s match {
       case s: F.ConstantFunctionLabel[?] => theory.addSymbol(s.underlyingLabel)
       case s: F.ConstantPredicateLabel[?] => theory.addSymbol(s.underlyingLabel)
-      //case s: F.Constant => theory.addSymbol(s.underlyingLabel)
+      case s: F.Constant => theory.addSymbol(s.underlyingLabel)
     }
     knownDefs.update(s, None)
   }
