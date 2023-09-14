@@ -247,9 +247,10 @@ trait Common {
     *
     */
     
-  case class Variable(id: K.Identifier) extends SchematicTermLabel with Term with Absolute with SchematicLabel[Term]  {
+  case class Variable(id: K.Identifier) extends 
+    SchematicTermLabel with Term with Absolute with SchematicLabel[Term]  {
     type SubstitutionType = Term
-    val arity = 0
+    val arity: 0 = 0
     override val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
     override val underlying = K.VariableTerm(underlyingLabel)
     override def apply(args: Term**0) = this
@@ -274,7 +275,7 @@ trait Common {
     * It counts both as the label and as the term itself.
     */
   case class Constant(id: K.Identifier) extends ConstantTermLabel with Term with Absolute with ConstantLabel[Constant] with LisaObject[Constant]{
-    val arity = 0
+    val arity:0 = 0
     override val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     override val underlying = K.Term(underlyingLabel, Seq())
     override def apply(args: Term**0) = this
@@ -299,7 +300,7 @@ trait Common {
           case s: ((Term ** N) |-> Term) => s
           case _ => throw SubstitutionException()
         }
-        case None => this.lift
+        case None => this
       }
     }
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
@@ -387,25 +388,65 @@ trait Common {
                 //////////////////////////////////////
 
 
+
+
+
+
+
   /**
     * The type of formulas, corresponding to [[K.Formula]]
     */
-  sealed abstract class Formula extends TermOrFormula with LisaObject[Formula] with ((Term ** 0) |-> Formula){
+  sealed trait Formula extends TermOrFormula with LisaObject[Formula] with ((Term ** 0) |-> Formula){
     val arity : Arity = 0
     def apply(args:Term**0): Formula = this
     val underlying: K.Formula
+  }
 
+                ////////////////
+                // Predicates //
+                ////////////////
+  
+  /**
+    * A PredicateLabel is a [[LisaObject]] of type ((Term ** N) |-> Formula), that is represented by a predicate label.
+    * It can be either a [[SchematicPredicateLabel]] or a [[ConstantPredicateLabel]].
+    */
+  sealed trait PredicateLabel extends (Seq[Term] |-> Formula)  with Absolute {
+    val arity: Arity
+    def id: K.Identifier
+    val underlyingLabel: K.PredicateLabel
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): (Seq[Term] |-> Formula)
+    def rename(newid: K.Identifier):PredicateLabel
+    def freshRename(taken:Iterable[K.Identifier]): PredicateLabel
+  }
+
+  sealed trait ConstantConstOrPredLabel extends PredicateLabel with ConstantLabel[Seq[Term] |-> Formula] {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):ConstantConstOrPredLabel 
+    override def rename(newid: K.Identifier): ConstantConstOrPredLabel
+    def freshRename(taken:Iterable[K.Identifier]): ConstantConstOrPredLabel
+  }
+  type ConstantPredicateLabelOfArity[N<:Arity] <: ConstantConstOrPredLabel  = N match {
+    case 0 => ConstantFormula
+    case _ => ConstantPredicateLabel[N]
+  }
+
+  sealed trait SchematicVarOrPredLabel extends PredicateLabel with SchematicLabel[Seq[Term] |-> Formula] {
+    override def rename(newid: K.Identifier):SchematicVarOrPredLabel
+    def freshRename(taken:Iterable[K.Identifier]): SchematicVarOrPredLabel
+  }
+  type SchematicPredicateLabelOfArity[N<:Arity] <: SchematicVarOrPredLabel = N match {
+        case 0 => VariableFormula
+        case _ => SchematicPredicateLabel[N]
   }
 
   /**
     * A Variable for formulas, corresponding to [[K.VariableFormulaLabel]], is a schematic symbol for formulas.
     * It counts both as the label and as the term itself.
     */
-  case class VariableFormula(id: K.Identifier) extends Formula with PredicateLabel[0] with SchematicLabel[Formula] {
+  case class VariableFormula(id: K.Identifier) extends 
+    SchematicVarOrPredLabel with Formula with Absolute with SchematicLabel[Formula] {
     override val arity : 0 = 0
     val underlyingLabel: K.VariableFormulaLabel = K.VariableFormulaLabel(id)
     val underlying = K.PredicateFormula(underlyingLabel, Seq())
-
     override def apply(args:Term**0): Formula = this
     @nowarn("msg=Unreachable")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula = {
@@ -421,11 +462,12 @@ trait Common {
     def rename(newid: K.Identifier):VariableFormula = VariableFormula(newid)
     def freshRename(taken:Iterable[K.Identifier]): VariableFormula = rename(K.freshId(taken, id))
   }
+
   /**
     * A Constant formula, corresponding to [[K.ConstantFormulaLabel]].
     * It counts both as the label and as the formula itself. Usually either True or False.
     */
-  case class ConstantFormula(id: K.Identifier) extends Formula with PredicateLabel[0] with ConstantLabel[Formula] {
+  case class ConstantFormula(id: K.Identifier) extends ConstantConstOrPredLabel with Formula with Absolute with ConstantLabel[Formula] {
     override val arity : 0 = 0
     val underlyingLabel: K.ConstantPredicateLabel = K.ConstantPredicateLabel(id, 0)
     val underlying = K.PredicateFormula(underlyingLabel, Seq())
@@ -438,26 +480,12 @@ trait Common {
   }
 
   /**
-    * A PredicateLabel is a [[LisaObject]] of type ((Term ** N) |-> Formula), that is represented by a predicate label.
-    * It can be either a [[SchematicPredicateLabel]] or a [[ConstantPredicateLabel]].
-    */
-  sealed trait PredicateLabel[N <: Arity] extends |->[Term ** N, Formula] with WithArity[N] with Absolute {
-    val arity : N
-    def id: K.Identifier
-    val underlyingLabel: K.PredicateLabel // | K.LambdaFormulaFormula
-
-    def apply(args: Term ** N): Formula = PredicateFormula[N](this, args.toSeq)
-    def rename(newid: K.Identifier): PredicateLabel[N]
-    def freshRename(taken:Iterable[K.Identifier]): PredicateLabel[N]
-  }
-
-  /**
     * A schematic predicate label (corresponding to [[K.SchematicPredicateLabel]]) is a [[PredicateLabel]] and also a [[SchematicLabel]].
     * It can be substituted by any expression of type (Term ** N) |-> Formula
     */
-  case class SchematicPredicateLabel[N <: Arity](id: K.Identifier, arity : N) extends PredicateLabel[N] with SchematicLabel[Term ** N |->Formula]{
+  case class SchematicPredicateLabel[N <: Arity](id: K.Identifier, arity : N) extends SchematicVarOrPredLabel with SchematicLabel[(Term ** N) |->Formula] with ((Term ** N) |-> Formula ){
     val underlyingLabel: K.SchematicPredicateLabel = K.SchematicPredicateLabel(id, arity)
-
+    def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     @nowarn
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Term ** N, Formula]  = {
       map.get(this.asInstanceOf) match {
@@ -477,10 +505,10 @@ trait Common {
   /**
     * A constant predicate label corresponding to [[K.ConstantPredicateLabel]].
     */
-  case class ConstantPredicateLabel[N <: Arity](id: K.Identifier, arity : N) extends PredicateLabel[N] with ConstantLabel[Term ** N |->Formula]{
+  case class ConstantPredicateLabel[N <: Arity](id: K.Identifier, arity : N) extends ConstantConstOrPredLabel with ConstantLabel[Term ** N |-> Formula] with ((Term ** N) |-> Formula ){
     val underlyingLabel: K.ConstantPredicateLabel = K.ConstantPredicateLabel(id, arity)
-    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
-      this
+    def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =this
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: K.Identifier): ConstantPredicateLabel[N] = ConstantPredicateLabel(newid, arity)
@@ -490,7 +518,7 @@ trait Common {
   /**
     * A formula made from a predicate label of arity N and N arguments
     */
-  case class PredicateFormula[N <: Arity](p: PredicateLabel[N], args: Seq[Term]) extends Formula with Absolute {
+  case class PredicateFormula[N <: Arity](p: PredicateLabel, args: Seq[Term]) extends Formula with Absolute {
     override val underlying = K.PredicateFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula =
       p.substituteUnsafe(map)(args.map[Term]((x:Term) => x.substituteUnsafe(map)))
