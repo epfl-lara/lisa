@@ -63,14 +63,14 @@ object FOLHelpers {
   ////////////////////////////////////////
   //    Kernel to Front transformers    //
   ////////////////////////////////////////
-/*
+
   // TermLabel
   def asFrontLabel(tl: K.TermLabel): TermLabel  = tl match
     case tl: K.ConstantFunctionLabel =>  asFrontLabel(tl)
     case tl: K.SchematicTermLabel =>  asFrontLabel(tl)
-  def asFrontLabel(cfl: K.ConstantFunctionLabel): ConstantTermLabel = 
-    if (cfl.arity == 0) Constant(cfl.id)
-    else ConstantFunctionLabel(cfl.id, cfl.arity.asInstanceOf)
+  def asFrontLabel[N <: Arity](cfl: K.ConstantFunctionLabel): ConstantFunctionLabelOfArity[N] = cfl.arity.asInstanceOf[N] match 
+    case n: 0 => Constant(cfl.id)
+    case n: N => ConstantFunctionLabel[N](cfl.id, n)
   def asFrontLabel(stl: K.SchematicTermLabel): SchematicTermLabel = stl match
     case v: K.VariableLabel => asFrontLabel(stl)
     case v: K.SchematicFunctionLabel => asFrontLabel(v)
@@ -82,35 +82,27 @@ object FOLHelpers {
   //Term
   def asFront(t: K.Term): Term = asFrontLabel(t.label)(t.args.map(asFront))
 
+
   // FormulaLabel
-  def asFrontLabel(fl: K.FormulaLabel): Any = fl match
+  def asFrontLabel(fl: K.FormulaLabel): PredicateLabel|ConnectorLabel|BinderLabel = fl match
     case fl: K.ConnectorLabel =>  asFrontLabel(fl)
     case fl: K.PredicateLabel =>  asFrontLabel(fl)
     case fl: K.BinderLabel =>  asFrontLabel(fl)
-  def asFrontLabel(pl: K.PredicateLabel): Seq[Term]|->Formula = pl match
+  def asFrontLabel(pl: K.PredicateLabel): PredicateLabel = pl match
     case pl: K.ConstantPredicateLabel =>  asFrontLabel(pl)
-    case pl: K.SchematicVarOrPredLabel =>  
-      val r = asFrontLabel(pl)
-      r: Seq[Term]|->Formula
-  def asFrontLabel(cl: K.ConnectorLabel): Seq[Formula]|->Formula  = cl match
+    case pl: K.SchematicVarOrPredLabel =>  asFrontLabel(pl)
+  def asFrontLabel(cl: K.ConnectorLabel): ConnectorLabel  = cl match
     case cl: K.ConstantConnectorLabel =>  asFrontLabel(cl)
     case cl: K.SchematicConnectorLabel =>  asFrontLabel(cl)
-  def asFrontLabel(cpl: K.ConstantPredicateLabel): Seq[Term]|->Formula = 
-    if (cpl.arity == 0) ConstantFormula(cpl.id)
-    else ConstantPredicateLabel(cpl.id, cpl.arity.asInstanceOf)
-  def asFrontLabel(cpl: K.ConstantConnectorLabel) : Seq[Formula]|->Formula = cpl match {
-    case K.Neg => Neg
-    case K.Implies => Implies
-    case K.Iff => Iff
-    case K.And => And
-    case K.Or => Or
-  }
-  def asFrontLabel(sfl: K.SchematicFormulaLabel): SchematicLabel[?] = 
+  def asFrontLabel[N <: Arity](cpl: K.ConstantPredicateLabel): ConstantPredicateLabelOfArity[N] = cpl.arity.asInstanceOf[N] match 
+    case n: 0 => ConstantFormula(cpl.id)
+    case n: N => ConstantPredicateLabel(cpl.id, cpl.arity.asInstanceOf)
+  def asFrontLabel(sfl: K.SchematicFormulaLabel): SchematicVarOrPredLabel|SchematicConnectorLabel[?] = 
     sfl match
       case v: K.VariableFormulaLabel => asFrontLabel(v)
       case v: K.SchematicPredicateLabel => asFrontLabel(v)
       case v: K.SchematicConnectorLabel => asFrontLabel(v)
-  def asFrontLabel(svop: K.SchematicVarOrPredLabel): Seq[Term]|->Formula = svop match
+  def asFrontLabel(svop: K.SchematicVarOrPredLabel): SchematicVarOrPredLabel = svop match
     case v: K.VariableFormulaLabel => asFrontLabel(v)
     case v: K.SchematicPredicateLabel => asFrontLabel(v)
   def asFrontLabel(v: K.VariableFormulaLabel): VariableFormula = VariableFormula(v.id)
@@ -118,6 +110,12 @@ object FOLHelpers {
     SchematicPredicateLabel(spl.id, spl.arity.asInstanceOf)
   def asFrontLabel[N <: Arity](scl: K.SchematicConnectorLabel): SchematicConnectorLabel[N] = 
     SchematicConnectorLabel(scl.id, scl.arity.asInstanceOf)
+  def asFrontLabel(cpl: K.ConstantConnectorLabel) : ConnectorLabel = cpl match 
+    case K.Neg => Neg
+    case K.Implies => Implies
+    case K.Iff => Iff
+    case K.And => And
+    case K.Or => Or
   def asFrontLabel(bl: K.BinderLabel) : BaseBinderLabel = bl match {
     case K.Forall => Forall
     case K.Exists => Exists
@@ -130,41 +128,13 @@ object FOLHelpers {
     case f: K.PredicateFormula => asFront(f)
     case f: K.ConnectorFormula => asFront(f)
     case f: K.BinderFormula => asFront(f)
-  def asFront(pf: K.PredicateFormula): Formula= 
+  def asFront(pf: K.PredicateFormula): Formula = 
     asFrontLabel(pf.label)(pf.args.map(asFront))
   def asFront(cf: K.ConnectorFormula): Formula = 
     asFrontLabel(cf.label)(cf.args.map(asFront))
   def asFront(bf: K.BinderFormula): BinderFormula = 
     asFrontLabel(bf.label)(asFrontLabel(bf.bound), asFront(bf.inner))
 
-
-*/
-
-
-
-
-
-  /*
-  def isSame(formula1: Formula, formula2: Formula): Boolean =
-    K.isSame(formula1.underlying, formula2.underlying)
-
-  def isImplying(formula1: Formula, formula2: Formula): Boolean = {
-    val nf1 = K.computeNormalForm(K.simplify(formula1.underlying))
-    val nf2 = K.computeNormalForm(K.simplify(formula2.underlying))
-    K.latticesLEQ(nf1, nf2)
-  }
-
-  def isSubset(s1: Set[Formula], s2: Set[Formula]): Boolean = {
-    s1.forall(f => s2.exists(g => isSame(f, g)))
-  }
-  def isSameSet(s1: Set[Formula], s2: Set[Formula]): Boolean =
-    isSubset(s1, s2) && isSubset(s2, s1)
-
-  def contains(s: Set[Formula], f: Formula): Boolean = {
-    s.exists(g => isSame(f, g))
-  }
-
-*/
 
 
 

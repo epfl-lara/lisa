@@ -408,13 +408,9 @@ trait Common {
 
 
 
-
-
                 //////////////////////////////////////
                 ////////////// Formulas //////////////
                 //////////////////////////////////////
-
-
 
 
 
@@ -453,7 +449,7 @@ trait Common {
   }
   type ConstantPredicateLabelOfArity[N<:Arity] <: ConstantConstOrPredLabel  = N match {
     case 0 => ConstantFormula
-    case _ => ConstantPredicateLabel[N]
+    case N => ConstantPredicateLabel[N]
   }
 
   sealed trait SchematicVarOrPredLabel extends PredicateLabel with SchematicLabel[Seq[Term] |-> Formula] {
@@ -461,8 +457,8 @@ trait Common {
     def freshRename(taken:Iterable[Identifier]): SchematicVarOrPredLabel
   }
   type SchematicPredicateLabelOfArity[N<:Arity] <: SchematicVarOrPredLabel = N match {
-        case 0 => VariableFormula
-        case _ => SchematicPredicateLabel[N]
+    case 0 => VariableFormula
+    case N => SchematicPredicateLabel[N]
   }
 
   /**
@@ -545,7 +541,7 @@ trait Common {
   /**
     * A formula made from a predicate label of arity N and N arguments
     */
-  case class PredicateFormula[N <: Arity](p: PredicateLabel, args: Seq[Term]) extends Formula with Absolute {
+  case class PredicateFormula(p: PredicateLabel, args: Seq[Term]) extends Formula with Absolute {
     assert(p.arity != 0)
     override val underlying = K.PredicateFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula =
@@ -635,10 +631,17 @@ trait Common {
   }
 
 
+
+              /////////////
+              // Binders //
+              /////////////
+
+
+
   /**
     * A binder for variables, for example \exists, \forall and \exists! but possibly others.
     */
-  abstract class BinderLabel extends |->[(Variable, Formula), Formula] with Absolute {
+  trait BinderLabel extends |->[(Variable, Formula), Formula] with Absolute {
     def id: Identifier
   }
 
