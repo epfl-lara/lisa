@@ -410,7 +410,7 @@ trait Common {
     * A PredicateLabel is a [[LisaObject]] of type ((Term ** N) |-> Formula), that is represented by a predicate label.
     * It can be either a [[SchematicPredicateLabel]] or a [[ConstantPredicateLabel]].
     */
-  sealed trait PredicateLabel extends (Seq[Term] |-> Formula)  with Absolute {
+  sealed trait PredicateLabel extends (Seq[Term] |-> Formula) with Absolute {
     val arity: Arity
     def id: K.Identifier
     val underlyingLabel: K.PredicateLabel
@@ -483,7 +483,7 @@ trait Common {
     * A schematic predicate label (corresponding to [[K.SchematicPredicateLabel]]) is a [[PredicateLabel]] and also a [[SchematicLabel]].
     * It can be substituted by any expression of type (Term ** N) |-> Formula
     */
-  case class SchematicPredicateLabel[N <: Arity](id: K.Identifier, arity : N) extends SchematicVarOrPredLabel with SchematicLabel[(Term ** N) |->Formula] with ((Term ** N) |-> Formula ){
+  case class SchematicPredicateLabel[N <: Arity](id: K.Identifier, arity : N) extends SchematicVarOrPredLabel with SchematicLabel[(Term ** N) |->Formula] with ((Term ** N) |-> Formula){
     val underlyingLabel: K.SchematicPredicateLabel = K.SchematicPredicateLabel(id, arity)
     def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     @nowarn
@@ -527,20 +527,23 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = p.allSchematicLabels ++ args.toSeq.flatMap(_.allSchematicLabels)
   }
 
+
+                ////////////////
+                // Connectors //
+                ////////////////
+
+
 /**
   * A ConnectorLabel is a [[LisaObject]] of type ((Formula ** N) |-> Formula), that is represented by a connector label in the kernel.
   * It can be either a [[SchematicConnectorLabel]] or a [[ConstantConnectorLabel]].
   */
-  sealed trait ConnectorLabel[N <: Arity] extends |->[Formula ** N, Formula] with WithArity[N] with Absolute with Label[(Formula**N) |-> Formula] {
-    val arity : N
+  sealed trait ConnectorLabel extends (Seq[Formula] |-> Formula) with Absolute {
+    val arity: Arity
     def id: K.Identifier
     val underlyingLabel: K.ConnectorLabel
-    
-    def apply(args: Formula ** N): ConnectorFormula = ConnectorFormula(this, args.toSeq)
-    def rename(newid: K.Identifier):ConnectorLabel[N]
-    def freshRename(taken:Iterable[K.Identifier]): ConnectorLabel[N]
-
-    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Formula ** N, Formula]
+    def rename(newid: K.Identifier):ConnectorLabel
+    def freshRename(taken:Iterable[K.Identifier]): ConnectorLabel
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Seq[Formula], Formula]
 
   }
 
@@ -548,9 +551,8 @@ trait Common {
     * A schematic predicate label (corresponding to [[K.SchematicPredicateLabel]]) is a [[ConnectorLabel]] and also a [[SchematicLabel]].
     * It can be substituted by any expression of type (Formula ** N) |-> Formula
   */
-  case class SchematicConnectorLabel[N <: Arity](id: K.Identifier, arity : N) extends ConnectorLabel[N] with SchematicLabel[Formula ** N |->Formula]{
+  case class SchematicConnectorLabel[N <: Arity](id: K.Identifier, arity : N) extends ConnectorLabel with SchematicLabel[Formula ** N |-> Formula] with ((Formula ** N) |-> Formula){
     val underlyingLabel: K.SchematicConnectorLabel = K.SchematicConnectorLabel(id, arity)
-
     @nowarn
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Formula ** N, Formula] = {
       map.get(this.asInstanceOf) match {
@@ -560,6 +562,9 @@ trait Common {
         case None => this
       }
     }
+    //def apply(args: Seq[Formula]): Formula = apply(args)
+    def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
+    //def apply2(args: Formula ** N): ConnectorFormula = ConnectorFormula(this, args.toSeq)
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def rename(newid: K.Identifier): SchematicConnectorLabel[N] = SchematicConnectorLabel(newid, arity)
@@ -571,10 +576,11 @@ trait Common {
     * A constant connector label is a logical operator such as /\, \/, !, ==>, <=>.
     * It corresponds to a [[K.ConstantConnectorLabel]].
     */
-  trait ConstantConnectorLabel[N <: Arity] extends ConnectorLabel[N] with ConstantLabel[Formula ** N |-> Formula]{
+  trait ConstantConnectorLabel[N <: Arity] extends ConnectorLabel with ConstantLabel[Formula ** N |-> Formula] with ((Formula ** N) |-> Formula){
     val underlyingLabel: K.ConstantConnectorLabel
     def id: K.Identifier = underlyingLabel.id
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
+    def apply(args: Formula ** N): ConnectorFormula = ConnectorFormula(this, args.toSeq)
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: K.Identifier): ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")
@@ -584,13 +590,13 @@ trait Common {
   /**
     * A formula made from a connector label of arity N and N arguments
     */
-  case class ConnectorFormula(p: ConnectorLabel[?], args: Seq[Formula]) extends Formula with Absolute {
-    assert(args.length == p.arity)
+  case class ConnectorFormula(p: ConnectorLabel, args: Seq[Formula]) extends Formula with Absolute {
+    //assert(args.length == p.arity)
     override val underlying = K.ConnectorFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula = {
       val p2 = p.substituteUnsafe(map)
       p2 match {
-        case p2 : ConnectorLabel[?] => ConnectorFormula(p2, args.map[Formula]((x:Formula) => x.substituteUnsafe(map)))
+        case p2 : ConnectorLabel => ConnectorFormula(p2, args.map[Formula]((x:Formula) => x.substituteUnsafe(map)))
         case _ => p2(args.map[Formula]((x:Formula) => x.substituteUnsafe(map)))
       }
     }
