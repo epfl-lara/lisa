@@ -6,6 +6,7 @@ import scala.annotation.nowarn
 import scala.compiletime.ops.int.-
 import scala.reflect.ClassTag
 import lisa.utils.UserLisaException
+import scala.runtime.ScalaRunTime
 
 trait Common {
 
@@ -236,7 +237,7 @@ trait Common {
     *
     */
     
-  class Variable(id: K.Identifier) extends SchematicFunctionLabel[0](id, 0) with Term with Absolute with SchematicLabel[Term] with LisaObject[Term]{
+  class Variable(id: K.Identifier) extends SchematicFunctionLabel[0](id, 0) with Absolute with SchematicLabel[Term] with LisaObject[(Term**0 |-> Term)] with Term {
     type SubstitutionType = Term
     override val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
     override val underlying = K.VariableTerm(underlyingLabel)
@@ -279,7 +280,7 @@ trait Common {
     * A schematic functional label (corresponding to [[K.SchematicFunctionLabel]]) is a functional label and also a schematic label.
     * It can be substituted by any expression of type (Term ** N) |-> Term
     */
-  case class SchematicFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends TermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
+  class SchematicFunctionLabel[N <: Arity](val id: K.Identifier, val arity : N) extends TermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.SchematicTermLabel = K.SchematicFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     @nowarn
@@ -301,7 +302,8 @@ trait Common {
   /**
     * A constant functional label of arity N.
     */
-  case class ConstantFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends TermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term){
+  class ConstantFunctionLabel[N <: Arity](val id: K.Identifier, val arity : N) extends
+   TermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term) with Product with Serializable{
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
@@ -310,7 +312,55 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: K.Identifier):ConstantFunctionLabel[N] = ConstantFunctionLabel(newid, arity)
     def freshRename(taken:Iterable[K.Identifier]): ConstantFunctionLabel[N] = rename(K.freshId(taken, id))
+
+    // Reimplementing case constructs
+    override def productPrefix: String = "ConstantFunctionLabel"
+    def productArity: Int = 2
+    def productElement(n: Int): Any = n match {
+        case 0 => this.id
+        case 1 => this.arity
+        case _ => throw new IndexOutOfBoundsException(n.toString)
+      }
+    override def productIterator: Iterator[Any] = ScalaRunTime.typedProductIterator[Any](this)
+    def canEqual(that: Any) = that.isInstanceOf[ConstantFunctionLabel[?]]
+    override def hashCode(): Int = ScalaRunTime._hashCode(this)
+    override def toString(): String = ScalaRunTime._toString(this)
+    override def equals(that: Any): Boolean = 
+      this.eq(that.asInstanceOf[Object]) || ((that match {
+        case (_: ConstantFunctionLabel[?]) => true
+        case _ => false
+      }) && ({
+        val that2: ConstantFunctionLabel[N] = that.asInstanceOf[ConstantFunctionLabel[N]]
+        this.id == that2.id && this.arity == that2.arity && (that2.canEqual(this))
+      }))
   }
+  object ConstantFunctionLabel extends Serializable {
+    final override def toString(): String = "ConstantFunctionLabel";
+    def apply[N <: Arity](id: K.Identifier, arity: N): ConstantFunctionLabel[N] = if (arity == 0) Constant(id).asInstanceOf else new ConstantFunctionLabel[N](id, arity);
+    def unapply[N <: Arity](that: ConstantFunctionLabel[N]): Option[(K.Identifier, N)] = if (that.==(null))
+      None
+    else
+      Some(scala.Tuple2.apply(that.id, that.arity));
+  }
+
+
+
+  /*<synthetic> object Foo extends AnyRef with Serializable {
+    def <init>(): Foo.type = {
+      Foo.super.<init>();
+      ()
+    };
+    final override <synthetic> def toString(): String = "Foo";
+    case <synthetic> def apply[N](id: N, name: String): Foo[N] = new Foo[N](id, name);
+    case <synthetic> def unapply[N](x$0: Foo[N]): Option[(N, String)] = if (x$0.==(null))
+      scala.this.None
+    else
+      Some.apply[(N, String)](scala.Tuple2.apply[N, String](x$0.id, x$0.name));
+    <synthetic> private def readResolve(): Object = Foo
+  }
+
+
+*/
 
   /**
     * A term made from a functional label of arity N and N arguments
