@@ -238,13 +238,13 @@ trait Common {
     
   class Variable(id: K.Identifier) extends SchematicFunctionLabel[0](id, 0) with Term with Absolute with SchematicLabel[Term] with LisaObject[Term]{
     type SubstitutionType = Term
-    val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
-    val underlying = K.VariableTerm(underlyingLabel)
+    override val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
+    override val underlying = K.VariableTerm(underlyingLabel)
 
-    //def apply(args: Seq[Term]) = this
+    override def apply(args: Term**0) = this
 
     @nowarn("msg=Unreachable")
-    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
+    override def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
       map.get(this.asInstanceOf) match {
         case Some(subst) => subst match {
           case s: Term => s
@@ -254,10 +254,7 @@ trait Common {
       }
     }
 
-    def freeSchematicLabels:Set[SchematicLabel[?]] = Set(this)
-    def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
-    def rename(newid: K.Identifier):Variable = Variable(newid)
-    def freshRename(taken:Iterable[K.Identifier]): Variable = rename(K.freshId(taken, id))
+    override def rename(newid: K.Identifier):Variable = Variable(newid)
 
   }
 
@@ -266,16 +263,13 @@ trait Common {
     * It counts both as the label and as the term itself.
     */
   class Constant(id: K.Identifier) extends ConstantFunctionLabel[0](id, 0) with Term with Absolute with ConstantLabel[Constant] with LisaObject[Constant]{
-    val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
-    val underlying = K.Term(underlyingLabel, Seq())
+    override val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
+    override val underlying = K.Term(underlyingLabel, Seq())
 
-    //def apply(args: Seq[Term]) = this
+    override def apply(args: Term**0) = this
 
-    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Constant = this
-    def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
-    def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
-    def rename(newid: K.Identifier): Constant = Constant(newid)
-    def freshRename(taken:Iterable[K.Identifier]): Constant = rename(K.freshId(taken, id))
+    //override def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Constant = this
+    override def rename(newid: K.Identifier): Constant = Constant(newid)
 
   }
 
@@ -286,7 +280,7 @@ trait Common {
     * It can be substituted by any expression of type (Term ** N) |-> Term
     */
   case class SchematicFunctionLabel[N <: Arity](id: K.Identifier, arity : N) extends TermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
-    val underlyingLabel: K.SchematicFunctionLabel = K.SchematicFunctionLabel(id, arity)
+    val underlyingLabel: K.SchematicTermLabel = K.SchematicFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     @nowarn
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ((Term ** N) |-> Term) = {
