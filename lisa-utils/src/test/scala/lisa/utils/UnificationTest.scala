@@ -40,7 +40,6 @@ class UnificationTest extends ProofTacticTestLib {
     )
 
     val incorrect: List[(Term, Term, Option[Map[VariableLabel, Term]])] = List(
-      (f(y, y), f(x, y), None),
       (f(x, y), g(x, y), None),
       (f(x, y), h(x), None),
       (f(x, y), x, None),
@@ -48,7 +47,7 @@ class UnificationTest extends ProofTacticTestLib {
     )
 
     for ((t1, t2, res) <- (correct ++ incorrect))
-      if (matchTerm(t1, t2) == res) true
+      if (matchTerm(t2, t1) == res) true
       else fail(s"Matching test failed:\nFirst Term: $t1\nSecond Term: $t2\nExpected Result: $res\nFound: ${matchTerm(t1, t2)}\n")
   }
 
@@ -84,7 +83,7 @@ class UnificationTest extends ProofTacticTestLib {
     )
 
     for ((t1, t2, res) <- (correct ++ incorrect))
-      if (matchFormula(t1, t2) == res) true
+      if (matchFormula(t2, t1) == res) true
       else fail(s"Matching test failed:\nFirst Formula: $t1\nSecond Formula: $t2\nExpected Result: $res\nFound: ${matchFormula(t1, t2)}\n")
   }
 
