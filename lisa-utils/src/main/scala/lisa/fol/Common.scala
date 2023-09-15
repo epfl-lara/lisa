@@ -223,6 +223,8 @@ trait Common {
   sealed trait Term extends TermOrFormula with LisaObject[Term] with (Term**0 |-> Term) {
     def apply(args: Term**0): Term = this
     val underlying: K.Term
+    val label:TermLabel
+    val args:Seq[Term]
   }
 
   /**
@@ -322,6 +324,8 @@ trait Common {
   case class Variable(id: Identifier) extends 
     SchematicTermLabel with Term with Absolute with SchematicLabel[Term]  {
     val arity: 0 = 0
+    val label:Variable = this
+    val args:Seq[Nothing] = Seq.empty
     override val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
     override val underlying = K.VariableTerm(underlyingLabel)
     override def apply(args: Term**0) = this
@@ -348,6 +352,8 @@ trait Common {
     */
   case class Constant(id: Identifier) extends ConstantTermLabel with Term with Absolute with ConstantLabel[Constant] with LisaObject[Constant]{
     val arity:0 = 0
+    val label:Constant = this
+    val args:Seq[Nothing] = Seq.empty
     override val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     override val underlying = K.Term(underlyingLabel, Seq())
     override def apply(args: Term**0) = this
@@ -402,7 +408,7 @@ trait Common {
     * A term made from a functional label of arity N and N arguments
     */
   case class AppliedTerm(f: TermLabel, args: Seq[Term]) extends Term with Absolute {
-    def label: TermLabel = f
+    val label: TermLabel = f
     assert(f.arity != 0)
     override val underlying = K.Term(f.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Term = {
@@ -437,6 +443,8 @@ trait Common {
     */
   sealed trait Formula extends TermOrFormula with LisaObject[Formula] with ((Term ** 0) |-> Formula){
     val arity : Arity = 0
+    //val label:PredicateLabel|ConnectorLabel
+    //val args:Seq[Term]|Seq[Formula]
     def apply(args:Term**0): Formula = this
     val underlying: K.Formula
   }
@@ -484,6 +492,8 @@ trait Common {
   case class VariableFormula(id: Identifier) extends 
     SchematicVarOrPredLabel with Formula with Absolute with SchematicLabel[Formula] {
     override val arity : 0 = 0
+    val label:VariableFormula = this
+    val args:Seq[Nothing] = Seq()
     val underlyingLabel: K.VariableFormulaLabel = K.VariableFormulaLabel(id)
     val underlying = K.PredicateFormula(underlyingLabel, Seq())
     override def apply(args:Term**0): Formula = this
@@ -509,6 +519,8 @@ trait Common {
     */
   case class ConstantFormula(id: Identifier) extends ConstantConstOrPredLabel with Formula with Absolute with ConstantLabel[Formula] {
     override val arity : 0 = 0
+    val label:ConstantFormula = this
+    val args:Seq[Nothing] = Seq()
     val underlyingLabel: K.ConstantPredicateLabel = K.ConstantPredicateLabel(id, 0)
     val underlying = K.PredicateFormula(underlyingLabel, Seq())
     override def apply(args:Term**0): Formula = this
@@ -563,6 +575,7 @@ trait Common {
     */
   case class PredicateFormula(p: PredicateLabel, args: Seq[Term]) extends Formula with Absolute {
     assert(p.arity != 0)
+    val label:PredicateLabel = p
     override val underlying = K.PredicateFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula =
       p.substituteUnsafe(map)(args.map[Term]((x:Term) => x.substituteUnsafe(map)))
@@ -637,6 +650,7 @@ trait Common {
     */
   case class ConnectorFormula(p: ConnectorLabel, args: Seq[Formula]) extends Formula with Absolute {
     //assert(args.length == p.arity)
+    val label:ConnectorLabel = p
     override val underlying = K.ConnectorFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):Formula = {
       val p2 = p.substituteUnsafe(map)

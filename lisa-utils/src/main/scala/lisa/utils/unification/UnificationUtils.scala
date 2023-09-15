@@ -10,7 +10,7 @@ import lisa.fol.FOL.{*, given}
  * General utilities for unification, substitution, and rewriting
  */
 object UnificationUtils {
-/*
+
   extension [A](seq: Seq[A]) {
 
     /**
@@ -117,13 +117,13 @@ object UnificationUtils {
       template match {
         case v @ Variable(id) if context.isFreeVariable(v) =>
           // different label but substitutable or already correctly set
-          if (reference.label != template.label && reference == substitution.getOrElse(v, reference)) Some(substitution + (v -> reference))
+          if (reference != template && reference == substitution.getOrElse(v, reference)) Some(substitution + (v -> reference))
           // same and not already substituted to something else
-          else if (reference.label == template.label && reference == substitution.getOrElse(v, reference)) Some(substitution)
+          else if (reference == template && reference == substitution.getOrElse(v, reference)) Some(substitution)
           // unsat
           else None
         // {Constant, Schematic} FunctionLabel
-        case AppliedTerm(f, args) =>
+        case _ =>
           if (reference != template) None
           else
             (reference.args zip template.args).foldLeft(Option(substitution)) {
@@ -131,6 +131,8 @@ object UnificationUtils {
               case (None, _) => None
             }
       }
+
+/*
 
   /**
    * Performs first-order matching for two formulas. Returns a (most-general)
@@ -184,8 +186,8 @@ object UnificationUtils {
 
           // add a safety substitution to make sure bound variable isn't substituted, and check instantiated bodies
           val innerSubst = matchFormulaRecursive(
-            substituteVariablesInFormula(innerR, Map[Variable, Term](boundR -> freshVar)),
-            substituteVariablesInFormula(innerT, Map[Variable, Term](boundT -> freshVar)),
+            innerR.substitute(boundR := freshVar),
+            innerT.substitute(boundT := freshVar),
             formulaSubstitution,
             termSubstitution + (freshVar -> freshVar) // dummy substitution to make sure we don't attempt to match this as a variable
           )
@@ -238,7 +240,6 @@ object UnificationUtils {
         case _ => None
       }
   }
-
   // rewrites
 
   /**
