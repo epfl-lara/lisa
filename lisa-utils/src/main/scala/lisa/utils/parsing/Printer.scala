@@ -158,6 +158,7 @@ class Printer(parser: Parser) {
               case RightSubstIff(_, t1, _, _) => pretty("R. SubstIff", t1)
               case InstSchema(_, t1, _, _, _) => pretty("Schema Instantiation", t1)
               case Sorry(_) => pretty("Sorry")
+              case SCSubproof(_, _) => throw UnreachableException
             }
             Seq(line)
         }

@@ -5,6 +5,7 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.*
+import lisa.prooflib.Substitution
 import lisa.utils.KernelHelpers.{_, given}
 
 object OLPropositionalSolver {
@@ -139,7 +140,7 @@ object OLPropositionalSolver {
       throw new NoProofFoundException(res)
     } else {
       val atom = bestAtom.get
-      val optLambda = SimpleSimplifier.findSubformula(redF, Seq((MaRvIn, atom)))
+      val optLambda = Substitution.applySubst.findSubformula(redF, Seq((MaRvIn, atom)))
       if (optLambda.isEmpty) return solveAugSequent(AugSequent(s.decisions, redF), offset)
       val lambdaF = optLambda.get
 
