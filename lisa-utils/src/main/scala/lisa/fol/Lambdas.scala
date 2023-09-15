@@ -54,15 +54,15 @@ trait Lambdas extends Common{
   /**
     * Construct a Lambda expression with a single variable
     */
-  def lambda[T <: LisaObject[T],R <: LisaObject[R]](bound:SchematicLabel[T], body:R) = LambdaExpression[T, R, 1](Seq(bound), body, 1)
+  def lambda[T <: LisaObject[T],R <: LisaObject[R]](bound:SchematicLabel[T], body:R): LambdaExpression[T, R, 1] = LambdaExpression[T, R, 1](Seq(bound), body, 1)
   /**
     * Construct a Lambda expression with multiple variables
     */
-  def lambda[T <: LisaObject[T], R <: LisaObject[R], N <: Arity](bounds:SchematicLabel[T]***N, body:R)(using n: ValueOf[N]) = {
+  def lambda[T <: LisaObject[T], R <: LisaObject[R], N <: Arity](bounds:SchematicLabel[T]***N, body:R)(using n: ValueOf[N]): LambdaExpression[T, R, N] = {
     val boundsSeq = bounds.toSeq
     LambdaExpression[T, R, N](boundsSeq, body, n.value)
   }
-  def lambda[T <: LisaObject[T], R <: LisaObject[R]](bounds:Seq[SchematicLabel[T]], body:R) = {
+  def lambda[T <: LisaObject[T], R <: LisaObject[R]](bounds:Seq[SchematicLabel[T]], body:R): LambdaExpression[T, R, ?] = {
     val boundsSeq = bounds.toSeq
     LambdaExpression(boundsSeq, body, boundsSeq.length.asInstanceOf)
   }

@@ -109,6 +109,7 @@ trait Common {
       * This is the substitution that should be implemented.
       */
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]):T
+    def substituteUnsafe2[A<: SchematicLabel[?], B <: LisaObject[B]](map: Map[A, B]):T = substituteUnsafe(map.asInstanceOf)
     /**
       * Substitution in the LisaObject of schematics by values, with guaranteed correspondance between the types of schematics and values.
       * This is the substitution that should be used when writing proofs.

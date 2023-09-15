@@ -434,7 +434,6 @@ object UnificationUtils {
     }
   }
 
-/*
   /**
    * Decides whether a formula `first` can be rewritten into another formula
    * `second` under the given rewrite rules and restrictions.
@@ -545,8 +544,7 @@ object UnificationUtils {
           body
         )
       )
-    } else if (first.label != second.label)
-      None
+    } //else if (first.label != second.label) None //Should not pass the next match anyway
     else {
       // recurse
       // known: first.label == second.label
@@ -558,8 +556,8 @@ object UnificationUtils {
 
           // add a safety substitution to make sure bound variable isn't substituted, and check instantiated bodies
           val innerSubst = getContextRecursive(using freeContext)(
-            substituteVariablesInFormula(innerF, Map[Variable, Term](boundF -> freshVar)),
-            substituteVariablesInFormula(innerS, Map[Variable, Term](boundS -> freshVar))
+            innerF.substitute(boundF := freshVar),
+            innerS.substitute(boundS := freshVar)
           )
 
           context.updateTo(freeContext)
@@ -618,5 +616,5 @@ object UnificationUtils {
       }
     }
   }
-  */
+  
 }

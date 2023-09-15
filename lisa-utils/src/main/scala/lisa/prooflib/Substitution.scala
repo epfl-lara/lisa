@@ -5,31 +5,31 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.K
 
 import lisa.fol.FOL as F
+import F.{*, given}
 import F.|-
-import lisa.fol.FOLHelpers.{given, *}
+//import lisa.fol.FOLHelpers.{given, *}
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.BasicStepTactic.*
 import lisa.utils.FOLPrinter
 
 
-import lisa.utils.KernelHelpers.{|- => `K|-`, *}
+//import lisa.utils.KernelHelpers.{|- => `K|-`, *}
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.UnificationUtils
-//import lisa.utils.unification.UnificationUtils.getContextFormulaSet
+import lisa.utils.unification.UnificationUtils.getContextFormulaSet
 
 import scala.annotation.nowarn
 import scala.collection.mutable.{Map as MMap}
 
 object Substitution {
-  /*
   def validRule(using lib: lisa.prooflib.Library, proof: lib.Proof)(r: (proof.Fact | F.Formula | lib.JUSTIFICATION)): Boolean =
     r match {
       case F.equality(_) => true
       case F.Iff(_) => true
       case j: lib.JUSTIFICATION => j.statement.right.size == 1 && validRule(j.statement.right.head)
       case f: proof.Fact @unchecked => proof.sequentOfFact(f).right.size == 1 && validRule(proof.sequentOfFact(f).right.head)
-      //case j: K.RunningTheory#Justification =>
+      //case j: RunningTheory#Justification =>
       //  proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.size == 1 && validRule(proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.head)
       case _ => false
     }
@@ -161,28 +161,26 @@ object Substitution {
           takenFormulaVars
         )
 
-        lazy val violatingFormulaLeft: Option[K.Formula] = Some(K.top()) //TODO
-        lazy val violatingFormulaRight: Option[K.Formula] = Some(K.top())  //TODO
+        lazy val violatingFormulaLeft: Option[Formula] = Some(top) //TODO
+        lazy val violatingFormulaRight: Option[Formula] = Some(top)  //TODO
 
         if (leftContextsOpt.isEmpty)
-          proof.InvalidProofTactic(s"Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formula: ${FOLPrinter.prettyFormula(violatingFormulaLeft.get)}")
+          proof.InvalidProofTactic(s"Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formula: ${violatingFormulaLeft.get}")
         else if (rightContextsOpt.isEmpty)
-          proof.InvalidProofTactic(s"Could not rewrite RHS of premise into conclusion with given substitutions.\nViolating Formula: ${FOLPrinter.prettyFormula(violatingFormulaRight.get)}")
+          proof.InvalidProofTactic(s"Could not rewrite RHS of premise into conclusion with given substitutions.\nViolating Formula: ${violatingFormulaRight.get}")
         else {
-          ???
           // actually construct proof
-          TacticSubproof {/*
-            import F.*
+          TacticSubproof {
 
-            def eq(rule: (K.Term, K.Term)) = K.PredicateFormula(K.equality, Seq(rule._1, rule._2))
-            def iff(rule: (K.Formula, K.Formula)) = K.ConnectorFormula(K.Iff, Seq(rule._1, rule._2))
+            def eq(rule: (Term, Term)) = PredicateFormula(equality, Seq(rule._1, rule._2))
+            def iff(rule: (Formula, Formula)) = ConnectorFormula(Iff, Seq(rule._1, rule._2))
 
-            def eqSource(rule: (K.Term, K.Term)) = lib.have(asFront(eq(rule)) |- asFront(eq(rule))) by SimpleDeducedSteps.Restate
-            def iffSource(rule: (K.Formula, K.Formula)) = lib.have(asFront(iff(rule)) |- asFront(iff(rule))) by SimpleDeducedSteps.Restate
+            def eqSource(rule: (Term, Term)) = lib.have(eq(rule) |- eq(rule)) by SimpleDeducedSteps.Restate
+            def iffSource(rule: (Formula, Formula)) = lib.have(iff(rule) |- iff(rule)) by SimpleDeducedSteps.Restate
             val leftContexts: Seq[UnificationUtils.FormulaRewriteLambda] = leftContextsOpt.get // remove the options
             val rightContexts: Seq[UnificationUtils.FormulaRewriteLambda] = rightContextsOpt.get // remove the options
 
-            val leftBody = K.ConnectorFormula(K.And, leftContexts.map(f => f.body))
+            val leftBody = ConnectorFormula(And, leftContexts.map(f => f.body))
 
             val defaultLeft = UnificationUtils.FormulaRewriteLambda(body = leftBody)
 
@@ -194,7 +192,7 @@ object Substitution {
               )
             }
 
-            val rightBody = K.ConnectorFormula(K.Or, rightContexts.map(f => f.body))
+            val rightBody = ConnectorFormula(Or, rightContexts.map(f => f.body))
 
             val defaultRight = UnificationUtils.FormulaRewriteLambda(body = rightBody)
 
@@ -211,7 +209,7 @@ object Substitution {
               leftContextReduced.termRules.map { case (_, (rule, subst)) =>
                 sourceOf.get(rule) match {
                   case Some(f: proof.Fact) =>
-                    f.of(subst.toSeq.map((l, r) => (l := lambda(Seq(), r))): _*)
+                    f.of(subst.toSeq.map((l, r) => (l := r)): _*)
                   // case Some(j: lib.theory.Justification) =>
                   //   j.of(subst.toSeq.map((l, r) => (l, lambda(Seq(), r))): _*)
                   case _ =>
@@ -221,7 +219,7 @@ object Substitution {
                 leftContextReduced.formulaRules.map { case (_, (rule, subst)) =>
                   sourceOf.get(rule) match {
                     case Some(f: proof.Fact) =>
-                      f.of(subst._1.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))) ++ subst._2.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))): _*)
+                      f.of(subst._1.toSeq.map((l, r) => (l := r)) ++ subst._2.toSeq.map((l, r) => (l := r)): _*)
                     // case Some(j: lib.theory.Justification) =>
                     //   j.of(subst._1.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))) ++ subst._2.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))): _*)
                     case _ =>
@@ -232,7 +230,7 @@ object Substitution {
               rightContextReduced.termRules.map { case (_, (rule, subst)) =>
                 sourceOf.get(rule) match {
                   case Some(f: proof.Fact) =>
-                    f.of(subst.toSeq.map((l, r) => (l, lambda(Seq(), r))): _*)
+                    f.of(subst.toSeq.map((l, r) => (l := r)): _*)
                   // case Some(j: lib.theory.Justification) =>
                   //   j.of(subst.toSeq.map((l, r) => (l, lambda(Seq(), r))): _*)
                   case None =>
@@ -242,7 +240,7 @@ object Substitution {
                 rightContextReduced.formulaRules.map { case (_, (rule, subst)) =>
                   sourceOf.get(rule) match {
                     case Some(f: proof.Fact) =>
-                      f.of(subst._1.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))) ++ subst._2.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))): _*)
+                      f.of(subst._1.toSeq.map((l, r) => (l := r)) ++ subst._2.toSeq.map((l, r) => (l := r)): _*)
                     // case Some(j: lib.theory.Justification) =>
                     //   j.of(subst._1.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))) ++ subst._2.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))): _*)
                     case None =>
@@ -261,10 +259,10 @@ object Substitution {
 
               val termVars = ctx.termRules.map(_._1)
 
-              val termInputs = ctx.termRules.map { case (_, (rule, subst)) =>
+              val termInputs = ctx.termRules.map { case (_, (rule: (Term, Term), subst: UnificationUtils.TermSubstitution)) =>
                 (
-                  K.substituteVariablesInTerm(rule._1, subst),
-                  K.substituteVariablesInTerm(rule._2, subst)
+                  rule._1.substituteUnsafe2(subst),
+                  rule._2.substituteUnsafe2(subst)
                 )
               }
 
@@ -274,13 +272,13 @@ object Substitution {
 
               val formulaInputs = ctx.formulaRules.map { case (_, (rule, subst)) =>
                 (
-                  substituteFormulaVariables(K.substituteVariablesInTerm(rule._1, subst._2), subst._1),
-                  substituteFormulaVariables(K.substituteVariablesInTerm(rule._2, subst._2), subst._1)
+                  ???,//rule._1.substituteUnsafe2(subst._2.toMap).substituteUnsafe2(subst._1.toMap),
+                  ???//rule._2.substituteUnsafe2(subst._2).substituteUnsafe2(subst._1.toMap)
                 )
               }
-
               val (formulaInputsL, formulaInputsR) = (formulaInputs.map(_._1), formulaInputs.map(_._2))
 
+/*
               // get premise into the right form
               val prem = ConnectorFormula(And, filteredPrem.toSeq) |- ConnectorFormula(Or, premiseSequent.right.toSeq)
               val eqs = termInputs.map(eq(_))
@@ -291,7 +289,7 @@ object Substitution {
               // left ===
               val eqSubst = (termVars zip termInputsR).toMap
               val formSubstL = (formulaVars zip formulaInputsL).toMap
-              val lhsAfterEq = substituteFormulaVariables(K.substituteVariablesInTerm(ctx.body, eqSubst), formSubstL)
+              val lhsAfterEq = substituteFormulaVariables(substituteVariablesInTerm(ctx.body, eqSubst), formSubstL)
               val sequentAfterEqPre = lhsAfterEq |- premiseWithSubst.right
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
@@ -300,15 +298,17 @@ object Substitution {
 
               // left <=>
               val formSubstR = (formulaVars zip formulaInputsR).toMap
-              val lhsAfterIff = substituteFormulaVariables(K.substituteVariablesInTerm(ctx.body, eqSubst), formSubstR)
+              val lhsAfterIff = substituteFormulaVariables(substituteVariablesInTerm(ctx.body, eqSubst), formSubstR)
               val sequentAfterIffPre = lhsAfterIff |- sequentAfterEq.right
               val sequentAfterIff = sequentAfterIffPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (x = right terms)
-              lib.thenHave(sequentAfterIff) by BasicStepTactic.LeftSubstIff(formulaInputs.toList, lambda(formulaVars, K.substituteVariablesInTerm(ctx.body, eqSubst)))
+              lib.thenHave(sequentAfterIff) by BasicStepTactic.LeftSubstIff(formulaInputs.toList, lambda(formulaVars, substituteVariablesInTerm(ctx.body, eqSubst)))
               sequentAfterIff
+              */
+              ???
             }
-
+/*
             // -------------------
             // RIGHT SUBSTITUTIONS
             // -------------------
@@ -321,8 +321,8 @@ object Substitution {
 
               val termInputs = ctx.termRules.map { case (_, (rule, subst)) =>
                 (
-                  K.substituteVariablesInTerm(rule._1, subst),
-                  K.substituteVariablesInTerm(rule._2, subst)
+                  substituteVariablesInTerm(rule._1, subst),
+                  substituteVariablesInTerm(rule._2, subst)
                 )
               }
 
@@ -332,8 +332,8 @@ object Substitution {
 
               val formulaInputs = ctx.formulaRules.map { case (_, (rule, subst)) =>
                 (
-                  substituteFormulaVariables(K.substituteVariablesInTerm(rule._1, subst._2), subst._1),
-                  substituteFormulaVariables(K.substituteVariablesInTerm(rule._2, subst._2), subst._1)
+                  substituteFormulaVariables(substituteVariablesInTerm(rule._1, subst._2), subst._1),
+                  substituteFormulaVariables(substituteVariablesInTerm(rule._2, subst._2), subst._1)
                 )
               }
 
@@ -349,7 +349,7 @@ object Substitution {
               // right ===
               val eqSubst = (termVars zip termInputsR).toMap
               val formSubstL = (formulaVars zip formulaInputsL).toMap
-              val rhsAfterEq = substituteFormulaVariables(K.substituteVariablesInTerm(ctx.body, eqSubst), formSubstL)
+              val rhsAfterEq = substituteFormulaVariables(substituteVariablesInTerm(ctx.body, eqSubst), formSubstL)
               val sequentAfterEqPre = premiseWithSubst.left |- rhsAfterEq
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
@@ -358,12 +358,12 @@ object Substitution {
 
               // right <=>
               val formSubstR = (formulaVars zip formulaInputsR).toMap
-              val rhsAfterIff = substituteFormulaVariables(K.substituteVariablesInTerm(ctx.body, eqSubst), formSubstR)
+              val rhsAfterIff = substituteFormulaVariables(substituteVariablesInTerm(ctx.body, eqSubst), formSubstR)
               val sequentAfterIffPre = sequentAfterEq.left |- rhsAfterIff
               val sequentAfterIff = sequentAfterIffPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (x = right terms)
-              lib.thenHave(sequentAfterIff) by BasicStepTactic.RightSubstIff(formulaInputs.toList, lambda(formulaVars, K.substituteVariablesInTerm(ctx.body, eqSubst)))
+              lib.thenHave(sequentAfterIff) by BasicStepTactic.RightSubstIff(formulaInputs.toList, lambda(formulaVars, substituteVariablesInTerm(ctx.body, eqSubst)))
             }
 
             // discharge any assumptions
@@ -381,9 +381,9 @@ object Substitution {
           }
         }
       }
-      
     }
   }
+  /*
   object applySubst extends ProofTactic {
 
     private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
@@ -585,6 +585,5 @@ object Substitution {
         premise: proof.Fact
     ): proof.ProofTacticJudgement = apply(f, rightLeft, toLeft = false, toRight = true)(premise)
   }
-  */
-
+*/
 }
