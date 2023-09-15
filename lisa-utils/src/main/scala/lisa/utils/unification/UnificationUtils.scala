@@ -132,7 +132,6 @@ object UnificationUtils {
             }
       }
 
-/*
 
   /**
    * Performs first-order matching for two formulas. Returns a (most-general)
@@ -218,10 +217,10 @@ object UnificationUtils {
             newSubstitution
           }
 
-        case (_, PredicateFormula(labelT: VariableFormula, _)) =>
+        case (_, template: VariableFormula) =>
           // can this variable be matched with the reference based on previously known or new substitutions?
-          if (reference == formulaSubstitution.getOrElse(labelT, reference)) Some(formulaSubstitution + (labelT -> reference), termSubstitution)
-          else if (template.label == reference.label && reference == formulaSubstitution.getOrElse(labelT, reference)) Some(formulaSubstitution, termSubstitution)
+          if (reference == formulaSubstitution.getOrElse(template, reference)) Some(formulaSubstitution + (template -> reference), termSubstitution)
+          else if (template == reference && reference == formulaSubstitution.getOrElse(template, reference)) Some(formulaSubstitution, termSubstitution)
           else None
 
         case (PredicateFormula(labelR, argsR), PredicateFormula(labelT, argsT)) if labelR == labelT =>
@@ -307,14 +306,14 @@ object UnificationUtils {
      *
      * Use if **know that only term rewrites were applied**.
      */
-    def toLambda: Lambda[Term, Formula, ?] = Lambda(termRules.map(_._1), body)
+    def toLambdaTF: LambdaExpression[Term, Formula, ?] = LambdaExpression(termRules.map(_._1), body, termRules.size)
 
     /**
      * **Unsafe** conversion to a formula lambda, discarding rule and term information
      *
      * Use if **know that only formula rewrites were applied**.
      */
-    def toLambda: Lambda[Formula, Formula, ?] = Lambda(formulaRules.map(_._1), body)
+    def toLambdaFF: LambdaExpression[Formula, Formula, ?] = LambdaExpression(formulaRules.map(_._1), body, formulaRules.size)
   }
 
   /**
@@ -402,7 +401,7 @@ object UnificationUtils {
     if (first == second) Some(TermRewriteLambda(body = first))
     else if (validSubstitution.isDefined) {
       val newVar = Variable(context.freshIdentifier)
-      val body = Term(newVar, Seq.empty) // newVar()
+      val body = newVar // newVar()
       Some(
         TermRewriteLambda(
           Seq(newVar),
@@ -414,14 +413,14 @@ object UnificationUtils {
     else {
       // recurse
       // known: first.label == second.label
-      // first.args.lnegth == second.args.length
+      // first.args.length == second.args.length
       // and first cannot be rewritten into second
       val innerSubstitutions = (first.args zip second.args).map(arg => getContextRecursive(using context)(arg._1, arg._2))
 
       if (innerSubstitutions.exists(_.isEmpty)) None
       else {
         val retrieved = innerSubstitutions.map(_.get)
-        val body = Term(first.label, retrieved.map(_.body))
+        val body = first.label(retrieved.map(_.body))
         val lambda =
           retrieved.foldLeft(TermRewriteLambda(body = body)) { case (currentLambda, nextLambda) =>
             TermRewriteLambda(
@@ -435,6 +434,7 @@ object UnificationUtils {
     }
   }
 
+/*
   /**
    * Decides whether a formula `first` can be rewritten into another formula
    * `second` under the given rewrite rules and restrictions.

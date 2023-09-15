@@ -14,8 +14,8 @@ trait Common {
                           //////////////  Base Definitions  //////////////
                           ////////////////////////////////////////////////
 
+  export K.Identifier
   type Arity = Int & Singleton
-  type Identifier = K.Identifier
 
 
   /**
