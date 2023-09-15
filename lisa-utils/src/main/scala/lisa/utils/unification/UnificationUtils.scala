@@ -2,7 +2,6 @@ package lisa.utils.unification
 
 import lisa.kernel.fol.FOL.*
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.unification.FirstOrderUnifier.*
 
 /**
  * General utilities for unification, substitution, and rewriting
@@ -92,7 +91,7 @@ object UnificationUtils {
    * @return substitution (Option) from variables to terms. `None` iff a
    * substitution does not exist.
    */
-  def matchTerm(reference: Term, template: Term, takenVariables: Iterator[VariableLabel] = Iterator.empty): Option[TermSubstitution] = {
+  def matchTerm(reference: Term, template: Term, takenVariables: Iterable[VariableLabel] = Iterable.empty): Option[TermSubstitution] = {
     val context = RewriteContext(takenTermVars = takenVariables.toSet)
     matchTermRecursive(using context)(reference, template, TermSubstitution.empty)
   }
@@ -148,8 +147,8 @@ object UnificationUtils {
   def matchFormula(
       reference: Formula,
       template: Formula,
-      takenTermVariables: Iterator[VariableLabel] = Iterator.empty,
-      takenFormulaVariables: Iterator[VariableFormulaLabel] = Iterator.empty
+      takenTermVariables: Iterable[VariableLabel] = Iterable.empty,
+      takenFormulaVariables: Iterable[VariableFormulaLabel] = Iterable.empty
   ): Option[(FormulaSubstitution, TermSubstitution)] = {
     val context = RewriteContext(
       takenTermVars = takenTermVariables.toSet,
@@ -298,8 +297,20 @@ object UnificationUtils {
       formulaRules: Seq[(VariableFormulaLabel, FormulaRule)] = Seq.empty,
       body: Formula
   ) {
-    def toLambdaTermFormula = LambdaTermFormula(termRules.map(_._1), body)
-    def toLambdaFormulaFormula = LambdaFormulaFormula(formulaRules.map(_._1), body)
+
+    /**
+     * **Unsafe** conversion to a term lambda, discarding rule and formula information
+     *
+     * Use if **know that only term rewrites were applied**.
+     */
+    def toLambdaTermFormula: LambdaTermFormula = LambdaTermFormula(termRules.map(_._1), body)
+
+    /**
+     * **Unsafe** conversion to a formula lambda, discarding rule and term information
+     *
+     * Use if **know that only formula rewrites were applied**.
+     */
+    def toLambdaFormulaFormula: LambdaFormulaFormula = LambdaFormulaFormula(formulaRules.map(_._1), body)
   }
 
   /**
@@ -443,8 +454,8 @@ object UnificationUtils {
   def getContextFormula(
       first: Formula,
       second: Formula,
-      freeTermRules: Seq[(Term, Term)],
-      freeFormulaRules: Seq[(Formula, Formula)],
+      freeTermRules: Seq[(Term, Term)] = Seq.empty,
+      freeFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
       confinedTermRules: Seq[(Term, Term)] = Seq.empty,
       takenTermVariables: Set[VariableLabel] = Set.empty,
       confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,

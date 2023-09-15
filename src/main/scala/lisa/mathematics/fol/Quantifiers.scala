@@ -3,8 +3,6 @@ package fol
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
-import lisa.automation.kernel.SimpleSimplifier.*
-//import lisa.prooflib.Exports.*
 import lisa.prooflib.Substitution
 
 /**

@@ -8,7 +8,6 @@ import lisa.prooflib.*
 import lisa.utils.KernelHelpers.{|- => `K|-`, *}
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
-import lisa.utils.unification.FirstOrderUnifier
 import lisa.utils.unification.UnificationUtils
 
 object BasicStepTactic {
@@ -384,7 +383,7 @@ object BasicStepTactic {
 
         quantifiedPhi match {
           case Some(F.BinderFormula(F.Forall, x, phi)) => LeftForall.withParameters(phi, x, t)(premise)(bot)
-          case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
+          case _ => proof.InvalidProofTactic("Could not match discovered quantified pivot with premise.")
         }
       } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
     }
@@ -406,19 +405,15 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BinderFormula(F.Forall, x, phi) => 
-              FirstOrderUnifier.matchFormula(phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).isDefined
+            case g @ F.BinderFormula(F.Forall, x, phi) => UnificationUtils.matchFormula(in.underlying, phi.underlying, takenTermVariables = (phi.underlying.freeVariables - x.underlying)).isDefined
             case _ => false
           }
         )
 
         quantifiedPhi match {
-          case Some(F.BinderFormula(F.Forall, x, phi)) => 
-            LeftForall.withParameters(phi, x, 
-              FirstOrderUnifier.matchFormula(
-              phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil))
-             )(premise)(bot)
-          case _ => proof.InvalidProofTactic("Could not infer a universally quantified pivot from premise and conclusion.")
+          case Some(F.BinderFormula(Forall, x, phi)) =>
+            LeftForall.withParameters(phi, x, UnificationUtils.matchFormula(in.underlying, phi.underlying, takenTermVariables = (phi.underlying.freeVariables - x.underlying)).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil)))(premise)(bot)
+          case _ => proof.InvalidProofTactic("Could not match discovered quantified pivot with premise.")
         }
       } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
     }
@@ -881,7 +876,7 @@ object BasicStepTactic {
 
         quantifiedPhi match {
           case Some(F.BinderFormula(F.Exists, x, phi)) => RightExists.withParameters(phi, x, t)(premise)(bot)
-          case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
+          case _ => proof.InvalidProofTactic("Could not match discovered quantified pivot with premise.")
         }
       } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
     }
@@ -903,18 +898,15 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BinderFormula(F.Exists, x, phi) => 
-              FirstOrderUnifier.matchFormula(phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).isDefined
+            case g @ F.BinderFormula(Exists, x, phi) => UnificationUtils.matchFormula(in.underlying, phi.underlying, takenTermVariables = (phi.underlying.freeVariables - x.underlyingLabel)).isDefined
             case _ => false
           }
         )
 
         quantifiedPhi match {
-          case Some(F.BinderFormula(F.Exists, x, phi)) => 
-            RightExists.withParameters(phi, x, 
-              FirstOrderUnifier.matchFormula(phi.underlying, in.underlying, vars = Some(Set(x.underlyingLabel))).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil))
-            )(premise)(bot)
-          case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
+          case Some(F.BinderFormula(F.Exists, x, phi)) =>
+            RightExists.withParameters(phi, x, UnificationUtils.matchFormula(in.underlying, phi.underlying, takenTermVariables = (phi.underlying.freeVariables - x.underlyingLabel)).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil)))(premise)(bot)
+          case _ => proof.InvalidProofTactic("Could not match discovered quantified pivot with premise.")
         }
       } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
     }
@@ -1162,24 +1154,19 @@ object BasicStepTactic {
       val premRight = F.ConnectorFormula(F.Or, premiseSequent.right.toSeq)
       val botRight = F.ConnectorFormula(F.Or, bot.right.toSeq)
 
-      val equalities = bot.left.collect { case F.PredicateFormula(equality, Seq(l, r)) => (l, r) }
+      val equalities = bot.left.collect { case PredicateFormula(equality, Seq(l, r)) => (l, r) }
       val undereqs = equalities.toList.map(p => (p._1.underlying, p._2.underlying))
       val canReach = UnificationUtils.getContextFormula(
-        premRight.underlying,
-        botRight.underlying,
-        Seq(),
-        Seq(),
-        undereqs,
-        undereqs.flatMap(p => p._1.freeVariables ++ p._2.freeVariables).toSet,
-        Seq(),
-        Set()
-        )
+        first = premRight.underlying,
+        second = botRight.underlying,
+        confinedTermRules = equalities.toSeq,
+        takenTermVariables = equalities.flatMap(e => e._1.freeVariables ++ e._2.freeVariables)
+      )
 
-
-      if (canReach.isEmpty)
-        proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
+      if (canReach.isEmpty) proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
       else
-        RightSubstEq.apply2(equalities.toList, canReach.get.toLambdaTermFormula)(premise)(bot)
+        val termLambda = canReach.get.toLambdaTermFormula
+        RightSubstEq(equalities.toList, termLambda)(premise)(bot)
     }
   }
 

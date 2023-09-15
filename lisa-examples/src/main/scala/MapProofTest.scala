@@ -1,5 +1,4 @@
 import lisa.automation.kernel.OLPropositionalSolver.*
-import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker.*

@@ -1,8 +1,8 @@
 package lisa.utilities
 
-import lisa.automation.kernel.SimpleSimplifier.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SequentCalculus as SC
+import lisa.prooflib.Substitution
 import lisa.utils.ProofTacticTestLib
 import lisa.utils.parsing.FOLParser.*
 import lisa.utils.parsing.FOLPrinter.*
@@ -73,8 +73,8 @@ class SubstitutionTacticTest extends ProofTacticTestLib {
       //     List("substSequent1", "|- p <=> q", ...), List("substFormula1", "p <=> q", "p = q",...)
       // ),
       (
-        "'P('x) |- 'P('x)",
-        "'P('x); 'x = 'y |- 'P('y)",
+        "'P('x); 'Q('z) |- 'P('x)",
+        "'P('x); 'Q('z); 'x = 'y |- 'P('y)",
         List(),
         List("'z = 'y")
       ),
@@ -85,14 +85,14 @@ class SubstitutionTacticTest extends ProofTacticTestLib {
         List("'x = 'y")
       ),
       (
-        "'P('x) |- 'P('x)",
-        "'P('x) |- 'P('y)",
+        "'P('x); 'Q('z) |- 'P('x)",
+        "'P('x); 'Q('z) |- 'P('y)",
         List("|- 'x = 'z"),
         List()
       ),
       (
-        "'P('x) |- 'P('x)",
-        "'P('x) |- 'P('z)",
+        "'P('x); 'Q('y) |- 'P('x)",
+        "'P('x); 'Q('y) |- 'P('z)",
         List("|- 'x = 'y"),
         List()
       ),
@@ -101,21 +101,7 @@ class SubstitutionTacticTest extends ProofTacticTestLib {
         "'P('x) |- 'P('z) \\/ 'Q('x)",
         List("|- 'x = 'y"),
         List("'R('y) <=> 'Q('x)")
-      ),
-      (
-        "'P('x) |- 'P('x) \\/ 'R('y)",
-        "'P('x); 'R('z) <=> 'Q('x) |- 'P('y) \\/ 'Q('x)",
-        List("|- 'x = 'y", "|- 'R('y) <=> 'Q('x)"),
-        List()
       )
-      // (
-      //     "'P('x) |- 'P('x) \\/ 'R('y)", "'P('x); 'R('y) <=> 'Q('x) |- 'P('x) \\/ 'Q('z)",
-      //     List("|- 'x = 'y"), List("'R('y) <=> 'Q('z)")
-      // ),
-      // (
-      //     "'P('x) |- 'P('x) \\/ 'R('y)", "'P('x); 'R('y) <=> 'Q('x) |- 'P('x) \\/ 'R('z)",
-      //     List("|- 'x = 'y", "|- 'R('y) <=> 'Q('x)"), List()
-      // ),
     )
 
     testTacticCases(using testProof)(correct, incorrect) { (stmt1, stmt2, premiseSequents, formSubsts) =>
@@ -123,8 +109,8 @@ class SubstitutionTacticTest extends ProofTacticTestLib {
       val substPrem: Seq[testProof.Fact | Formula | RunningTheory#Justification] = premiseSequents.map(introduceSequent(using testProof)(_))
       val substForm: Seq[testProof.Fact | Formula | RunningTheory#Justification] = formSubsts.map(parseFormula(_))
       val substJust: Seq[testProof.Fact | Formula | RunningTheory#Justification] = Nil
-      Substitution2
-        .withExplicitRules(using lisa.test.TestTheoryLibrary, testProof)(
+      Substitution
+        .ApplyRules(using lisa.test.TestTheoryLibrary, testProof)(
           (substPrem ++ substForm ++ substJust).asInstanceOf[Seq[testProof.Fact | Formula | RunningTheory#Justification]]: _*
         )(prem)(lisa.utils.parsing.FOLParser.parseSequent(stmt2))
     }
