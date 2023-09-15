@@ -121,20 +121,6 @@ trait ProofsHelpers {
     )
   }
 
-
-
-  /*case class InstantiatedFact(fact: Fact, insts: Seq[F.SubstPair])*/
-
-/*
-  private def isLTT(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
-    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermTerm]
-
-  private def isLTF(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
-    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaTermFormula]
-
-  private def isLFF(x: (SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicVarOrPredLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm)): Boolean =
-    x.isInstanceOf[Tuple2[_, _]] && x.asInstanceOf[Tuple2[_, _]]._2.isInstanceOf[LambdaFormulaFormula]
-*/
   extension (using proof: library.Proof)(fact: proof.Fact) {
     def of(insts: F.SubstPair*): proof.InstantiatedFact = {
       proof.InstantiatedFact(fact, insts)
@@ -143,12 +129,13 @@ trait ProofsHelpers {
 
   def currentProof(using p: library.Proof): Library#Proof = p
 
+
+
+
+
   ////////////////////////////////////////
   //  DSL for definitions and theorems  //
   ////////////////////////////////////////
-
-
-
 
 
 

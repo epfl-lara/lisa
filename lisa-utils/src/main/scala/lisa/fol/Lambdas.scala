@@ -6,7 +6,7 @@ import scala.reflect.ClassTag
 trait Lambdas extends Common{
   /**
     * Denotes a lambda expression, i.e. an expression with "holes". 
-    * N is the number of arguments.
+    * N is the number of arguments (-1 for arbitrary or unknown).
     * T is the type of input of the lambda.
     * R is the return type.
     * For example, LambdaExpression[Term, Formula, 2] denotes an expression of type (Term**2 |-> Formula),
