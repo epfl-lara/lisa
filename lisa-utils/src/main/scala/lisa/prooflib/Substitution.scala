@@ -285,30 +285,28 @@ object Substitution {
               val premiseWithSubst = prem ++<< (eqs |- ()) ++<< (iffs |- ())
               lib.have(premiseWithSubst) by BasicStepTactic.Weakening(premise)
 
-/*
+
               // left ===
-              val eqSubst = (termVars zip termInputsR).toMap
-              val formSubstL = (formulaVars zip formulaInputsL).toMap
+              val eqSubst = Map((termVars zip termInputsR)*)
+              val formSubstL = Map((formulaVars zip formulaInputsL)*)
               val lhsAfterEq = ctx.body.substituteUnsafe2(eqSubst).substituteUnsafe2(formSubstL)
               val sequentAfterEqPre = lhsAfterEq |- premiseWithSubst.right
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (p = left formulas)
-              lib.thenHave(sequentAfterEq) by BasicStepTactic.LeftSubstEq(termInputs.toList, lambda(termVars, substituteFormulaVariables(ctx.body, formSubstL)))
+              lib.thenHave(sequentAfterEq) by BasicStepTactic.LeftSubstEq(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
 
               // left <=>
-              val formSubstR = (formulaVars zip formulaInputsR).toMap
-              val lhsAfterIff = substituteFormulaVariables(substituteVariablesInTerm(ctx.body, eqSubst), formSubstR)
+              val formSubstR = Map((formulaVars zip formulaInputsR)*)
+              val lhsAfterIff = ctx.body.substituteUnsafe2(eqSubst).substituteUnsafe2(formSubstR)
               val sequentAfterIffPre = lhsAfterIff |- sequentAfterEq.right
               val sequentAfterIff = sequentAfterIffPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (x = right terms)
-              lib.thenHave(sequentAfterIff) by BasicStepTactic.LeftSubstIff(formulaInputs.toList, lambda(formulaVars, substituteVariablesInTerm(ctx.body, eqSubst)))
+              lib.thenHave(sequentAfterIff) by BasicStepTactic.LeftSubstIff(formulaInputs.toList, lambda(formulaVars, ctx.body.substituteUnsafe2(eqSubst)))
               sequentAfterIff
-              */
-              ???
             }
-/*
+
             // -------------------
             // RIGHT SUBSTITUTIONS
             // -------------------
@@ -321,8 +319,8 @@ object Substitution {
 
               val termInputs = ctx.termRules.map { case (_, (rule, subst)) =>
                 (
-                  substituteVariablesInTerm(rule._1, subst),
-                  substituteVariablesInTerm(rule._2, subst)
+                  rule._1.substituteUnsafe2(subst),
+                  rule._2.substituteUnsafe2(subst)
                 )
               }
 
@@ -332,11 +330,10 @@ object Substitution {
 
               val formulaInputs = ctx.formulaRules.map { case (_, (rule, subst)) =>
                 (
-                  substituteFormulaVariables(substituteVariablesInTerm(rule._1, subst._2), subst._1),
-                  substituteFormulaVariables(substituteVariablesInTerm(rule._2, subst._2), subst._1)
+                  rule._1.substituteUnsafe2(subst._2).substituteUnsafe2(subst._1),
+                  rule._2.substituteUnsafe2(subst._2).substituteUnsafe2(subst._1)
                 )
               }
-
               val (formulaInputsL, formulaInputsR) = (formulaInputs.map(_._1), formulaInputs.map(_._2))
 
               // get premise into the right form
@@ -347,25 +344,25 @@ object Substitution {
               lib.thenHave(premiseWithSubst) by BasicStepTactic.Weakening
 
               // right ===
-              val eqSubst = (termVars zip termInputsR).toMap
-              val formSubstL = (formulaVars zip formulaInputsL).toMap
-              val rhsAfterEq = substituteFormulaVariables(substituteVariablesInTerm(ctx.body, eqSubst), formSubstL)
+              val eqSubst = Map((termVars zip termInputsR)*)
+              val formSubstL = Map((formulaVars zip formulaInputsL)*)
+              val rhsAfterEq = ctx.body.substituteUnsafe2(eqSubst).substituteUnsafe2(formSubstL)
               val sequentAfterEqPre = premiseWithSubst.left |- rhsAfterEq
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (p = left formulas)
-              lib.thenHave(sequentAfterEq) by BasicStepTactic.RightSubstEq(termInputs.toList, lambda(termVars, substituteFormulaVariables(ctx.body, formSubstL)))
+              lib.thenHave(sequentAfterEq) by BasicStepTactic.RightSubstEq(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
 
               // right <=>
-              val formSubstR = (formulaVars zip formulaInputsR).toMap
-              val rhsAfterIff = substituteFormulaVariables(substituteVariablesInTerm(ctx.body, eqSubst), formSubstR)
+              val formSubstR = Map((formulaVars zip formulaInputsR)*)
+              val rhsAfterIff = ctx.body.substituteUnsafe2(eqSubst).substituteUnsafe2(formSubstR)
               val sequentAfterIffPre = sequentAfterEq.left |- rhsAfterIff
               val sequentAfterIff = sequentAfterIffPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (x = right terms)
-              lib.thenHave(sequentAfterIff) by BasicStepTactic.RightSubstIff(formulaInputs.toList, lambda(formulaVars, substituteVariablesInTerm(ctx.body, eqSubst)))
-            }
+              lib.thenHave(sequentAfterIff) by BasicStepTactic.RightSubstIff(formulaInputs.toList, lambda(formulaVars, ctx.body.substituteUnsafe2(eqSubst)))
 
+            }
             // discharge any assumptions
 
             // custom discharge
@@ -377,7 +374,6 @@ object Substitution {
 
             // finally, make sure our substitutions and discharges led us to the required conclusion
             lib.thenHave(bot) by BasicStepTactic.Weakening
-            */
           }
         }
       }
