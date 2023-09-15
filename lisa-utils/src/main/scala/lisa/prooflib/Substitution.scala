@@ -272,13 +272,12 @@ object Substitution {
 
               val formulaInputs = ctx.formulaRules.map { case (_, (rule, subst)) =>
                 (
-                  ???,//rule._1.substituteUnsafe2(subst._2.toMap).substituteUnsafe2(subst._1.toMap),
-                  ???//rule._2.substituteUnsafe2(subst._2).substituteUnsafe2(subst._1.toMap)
+                  rule._1.substituteUnsafe2(subst._2).substituteUnsafe2(subst._1),
+                  rule._2.substituteUnsafe2(subst._2).substituteUnsafe2(subst._1)
                 )
               }
               val (formulaInputsL, formulaInputsR) = (formulaInputs.map(_._1), formulaInputs.map(_._2))
 
-/*
               // get premise into the right form
               val prem = ConnectorFormula(And, filteredPrem.toSeq) |- ConnectorFormula(Or, premiseSequent.right.toSeq)
               val eqs = termInputs.map(eq(_))
@@ -286,10 +285,11 @@ object Substitution {
               val premiseWithSubst = prem ++<< (eqs |- ()) ++<< (iffs |- ())
               lib.have(premiseWithSubst) by BasicStepTactic.Weakening(premise)
 
+/*
               // left ===
               val eqSubst = (termVars zip termInputsR).toMap
               val formSubstL = (formulaVars zip formulaInputsL).toMap
-              val lhsAfterEq = substituteFormulaVariables(substituteVariablesInTerm(ctx.body, eqSubst), formSubstL)
+              val lhsAfterEq = ctx.body.substituteUnsafe2(eqSubst).substituteUnsafe2(formSubstL)
               val sequentAfterEqPre = lhsAfterEq |- premiseWithSubst.right
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
