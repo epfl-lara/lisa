@@ -450,10 +450,16 @@ trait Common {
     val underlying: K.Formula
   }
 
-                ////////////////
-                // Predicates //
-                ////////////////
+
+
+                /////////////////////
+                // Atomic Formulas //
+                /////////////////////
   
+  sealed trait AtomicFormula extends Formula {
+    val label: PredicateLabel
+    val args:Seq[Term]
+  }
   /**
     * A PredicateLabel is a [[LisaObject]] of type ((Term ** N) |-> Formula), that is represented by a predicate label.
     * It can be either a [[SchematicPredicateLabel]] or a [[ConstantPredicateLabel]].
@@ -491,7 +497,7 @@ trait Common {
     * It counts both as the label and as the term itself.
     */
   case class VariableFormula(id: Identifier) extends 
-    SchematicVarOrPredLabel with Formula with Absolute with SchematicLabel[Formula] {
+    SchematicVarOrPredLabel with AtomicFormula with Absolute with SchematicLabel[Formula] {
     override val arity : 0 = 0
     val label:VariableFormula = this
     val args:Seq[Nothing] = Seq()
@@ -518,7 +524,7 @@ trait Common {
     * A Constant formula, corresponding to [[K.ConstantFormulaLabel]].
     * It counts both as the label and as the formula itself. Usually either True or False.
     */
-  case class ConstantFormula(id: Identifier) extends ConstantConstOrPredLabel with Formula with Absolute with ConstantLabel[Formula] {
+  case class ConstantFormula(id: Identifier) extends ConstantConstOrPredLabel with AtomicFormula with Absolute with ConstantLabel[Formula] {
     override val arity : 0 = 0
     val label:ConstantFormula = this
     val args:Seq[Nothing] = Seq()
@@ -574,7 +580,7 @@ trait Common {
   /**
     * A formula made from a predicate label of arity N and N arguments
     */
-  case class PredicateFormula(p: PredicateLabel, args: Seq[Term]) extends Formula with Absolute {
+  case class PredicateFormula(p: PredicateLabel, args: Seq[Term]) extends AtomicFormula with Absolute {
     assert(p.arity != 0)
     val label:PredicateLabel = p
     override val underlying = K.PredicateFormula(p.underlyingLabel, args.map(_.underlying))

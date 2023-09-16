@@ -1,7 +1,7 @@
 package lisa.prooflib
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus
 import lisa.utils.K
 
 import lisa.fol.FOL as F
@@ -221,7 +221,7 @@ object Substitution {
                     case Some(f: proof.Fact) =>
                       f.of(subst._1.toSeq.map((l, r) => (l := r)) ++ subst._2.toSeq.map((l, r) => (l := r)): _*)
                     // case Some(j: lib.theory.Justification) =>
-                    //   j.of(subst._1.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))) ++ subst._2.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))): _*)
+                    //   j.of(subst._1.toSeq.map((l, r) => (l, lambda(Seq[Variable](), r))) ++ subst._2.toSeq.map((l, r) => (l, lambda(Seq[Variable](), r))): _*)
                     case _ =>
                       iffSource(rule).of()
                   }
@@ -242,7 +242,7 @@ object Substitution {
                     case Some(f: proof.Fact) =>
                       f.of(subst._1.toSeq.map((l, r) => (l := r)) ++ subst._2.toSeq.map((l, r) => (l := r)): _*)
                     // case Some(j: lib.theory.Justification) =>
-                    //   j.of(subst._1.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))) ++ subst._2.toSeq.map((l, r) => (l, lambda(Seq[VariableLabel](), r))): _*)
+                    //   j.of(subst._1.toSeq.map((l, r) => (l, lambda(Seq[Variable](), r))) ++ subst._2.toSeq.map((l, r) => (l, lambda(Seq[Variable](), r))): _*)
                     case None =>
                       iffSource(rule).of()
                   }
@@ -379,25 +379,26 @@ object Substitution {
       }
     }
   }
-  /*
   object applySubst extends ProofTactic {
 
     private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
-    private def findSubterm2(t: Term, subs: Seq[(VariableLabel, Term)]): (Term, Boolean) = {
+
+    private def findSubterm2(t: Term, subs: Seq[(Variable, Term)]): (Term, Boolean) = {
       val eq = subs.find(s => isSameTerm(t, s._2))
-      if (eq.nonEmpty) (eq.get._1(), true)
+      if (eq.nonEmpty) (eq.get._1, true)
       else {
         val induct = condflat(t.args.map(te => findSubterm2(te, subs)))
         if (!induct._2) (t, false)
-        else (Term(t.label, induct._1), true)
+        else (t.label(induct._1), true)
 
       }
 
     }
-
-    private def findSubterm2(f: Formula, subs: Seq[(VariableLabel, Term)]): (Formula, Boolean) = {
+    private def findSubterm2(f: Formula, subs: Seq[(Variable, Term)]): (Formula, Boolean) = {
       f match {
+        case f: VariableFormula => (f, false)
+        case f: ConstantFormula => (f, false)
         case PredicateFormula(label, args) =>
           val induct = condflat(args.map(findSubterm2(_, subs)))
           if (!induct._2) (f, false)
@@ -413,8 +414,8 @@ object Substitution {
             if (!induct._2) (f, false)
             else (BinderFormula(label, bound, induct._1), true)
           } else {
-            val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
-            val newInner = substituteVariables(inner, Map(bound -> newv()))
+            val newv = Variable(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
+            val newInner = inner.substitute(bound := newv)
             val induct = findSubterm2(newInner, subs)
             if (!induct._2) (f, false)
             else (BinderFormula(label, newv, induct._1), true)
@@ -422,13 +423,12 @@ object Substitution {
       }
     }
 
-    private def findSubformula2(f: Formula, subs: Seq[(VariableFormulaLabel, Formula)]): (Formula, Boolean) = {
+    private def findSubformula2(f: Formula, subs: Seq[(VariableFormula, Formula)]): (Formula, Boolean) = {
       val eq = subs.find(s => isSame(f, s._2))
-      if (eq.nonEmpty) (eq.get._1(), true)
+      if (eq.nonEmpty) (eq.get._1, true)
       else
         f match {
-          case PredicateFormula(label, args) =>
-            (f, false)
+          case f: AtomicFormula => (f, false)
           case ConnectorFormula(label, args) =>
             val induct = condflat(args.map(findSubformula2(_, subs)))
             if (!induct._2) (f, false)
@@ -440,38 +440,41 @@ object Substitution {
               if (!induct._2) (f, false)
               else (BinderFormula(label, bound, induct._1), true)
             } else {
-              val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
-              val newInner = substituteVariables(inner, Map(bound -> newv()))
+              val newv = Variable(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
+              val newInner = inner.substitute(bound := newv)
               val induct = findSubformula2(newInner, subs)
               if (!induct._2) (f, false)
               else (BinderFormula(label, newv, induct._1), true)
             }
         }
     }
-    def findSubterm(t: Term, subs: Seq[(VariableLabel, Term)]): Option[LambdaTermTerm] = {
+
+    def findSubterm(t: Term, subs: Seq[(Variable, Term)]): Option[LambdaExpression[Term, Term, ?]] = {
       val vars = subs.map(_._1)
       val r = findSubterm2(t, subs)
-      if (r._2) Some(LambdaTermTerm(vars, r._1))
+      if (r._2) Some(LambdaExpression(vars, r._1, vars.size))
       else None
     }
 
-    def findSubterm(f: Formula, subs: Seq[(VariableLabel, Term)]): Option[LambdaTermFormula] = {
+    def findSubterm(f: Formula, subs: Seq[(Variable, Term)]): Option[LambdaExpression[Term, Formula, ?]] = {
       val vars = subs.map(_._1)
       val r = findSubterm2(f, subs)
-      if (r._2) Some(LambdaTermFormula(vars, r._1))
+      if (r._2) Some(LambdaExpression(vars, r._1, vars.size))
       else None
     }
 
-    def findSubformula(f: Formula, subs: Seq[(VariableFormulaLabel, Formula)]): Option[LambdaFormulaFormula] = {
+    def findSubformula(f: Formula, subs: Seq[(VariableFormula, Formula)]): Option[LambdaExpression[Formula, Formula, ?]] = {
       val vars = subs.map(_._1)
       val r = findSubformula2(f, subs)
-      if (r._2) Some(LambdaFormulaFormula(vars, r._1))
+      if (r._2) Some(LambdaExpression(vars, r._1, vars.size))
       else None
     }
+
 
     def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(
         phi: Formula
     )(premise: proof.Fact)(rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true): proof.ProofTacticJudgement = {
+      import lisa.utils.K
       val originSequent = proof.getSequent(premise)
       val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
       val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
@@ -482,16 +485,16 @@ object Substitution {
         case PredicateFormula(label, args) if label == equality =>
           val left = args(0)
           val right = args(1)
-          val fv_in_phi = (originSequent.left ++ originSequent.right).flatMap(_.freeVariables).map(_.id)
-          val v = VariableLabel(nFreshId(fv_in_phi, 1).head)
+          val fv_in_phi = (originSequent.left ++ originSequent.right).flatMap(_.allSchematicLabels).map(_.id)
+          val v = Variable(nFreshId(fv_in_phi, 1).head)
           lazy val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
           lazy val isolatedRight = originSequent.right.map(f => (f, findSubterm(f, IndexedSeq(v -> left))))
           if ((!toLeft || isolatedLeft.forall(_._2.isEmpty)) && (!toRight || isolatedRight.forall(_._2.isEmpty)))
             if (rightLeft)
-              return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(right)} to replace.")
+              return proof.InvalidProofTactic(s"There is no instance of ${right} to replace.")
             else
               applyLeftRight(equality(right, left))(premise)(true, toLeft, toRight) match {
-                case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyTerm(left)} to replace.")
+                case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${left} to replace.")
                 case v: proof.ValidProofTactic => return v
               }
 
@@ -501,29 +504,33 @@ object Substitution {
           val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.right
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
-
-          var scproof: Seq[SC.SCProofStep] = Seq(SC.Restate(leftOrigin |- rightOrigin, -1))
-          if (toLeft) scproof = scproof :+ SC.LeftSubstEq(result1, scproof.length - 1, List(left -> right), LambdaTermFormula(Seq(v), leftForm))
-          if (toRight) scproof = scproof :+ SC.RightSubstEq(result2, scproof.length - 1, List(left -> right), LambdaTermFormula(Seq(v), rightForm))
-          scproof = scproof :+ SC.Restate(newleft + phi |- newright, scproof.length - 1)
+          var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
+          if (toLeft) scproof = scproof :+ K.LeftSubstEq(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying),
+                K.LambdaTermFormula(Seq(v.underlyingLabel), leftForm.underlying))
+          if (toRight) scproof = scproof :+ K.RightSubstEq(result2.underlying, scproof.length - 1, List(left.underlying -> right.underlying),
+                K.LambdaTermFormula(Seq(v.underlyingLabel), rightForm.underlying))
+          val bot = newleft + phi |- newright
+          scproof = scproof :+ K.Restate(bot.underlying, scproof.length - 1)
 
           proof.ValidProofTactic(
+            bot,
             scproof,
             Seq(premise)
           )
+
         case ConnectorFormula(label, args) if label == Iff =>
           val left = args(0)
           val right = args(1)
-          val fv_in_phi = (originSequent.left ++ originSequent.right).flatMap(_.schematicFormulaLabels).map(_.id)
-          val H = VariableFormulaLabel(nFreshId(fv_in_phi, 1).head)
+          val fv_in_phi = (originSequent.left ++ originSequent.right).flatMap(_.allSchematicLabels).map(_.id)
+          val H = VariableFormula(nFreshId(fv_in_phi, 1).head)
           lazy val isolatedLeft = originSequent.left.filterNot(f => isSame(f, phi)).map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           lazy val isolatedRight = originSequent.right.map(f => (f, findSubformula(f, IndexedSeq(H -> left))))
           if ((!toLeft || isolatedLeft.forall(_._2.isEmpty)) && (!toRight || isolatedRight.forall(_._2.isEmpty)))
             if (rightLeft)
-              return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(right)} to replace.")
+              return proof.InvalidProofTactic(s"There is no instance of ${right} to replace.")
             else
               applyLeftRight(Iff(right, left))(premise)(true, toLeft, toRight) match {
-                case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${FOLPrinter.prettyFormula(left)} to replace.")
+                case proof.InvalidProofTactic(m) => return proof.InvalidProofTactic(s"There is no instance of ${left} to replace.")
                 case v: proof.ValidProofTactic => return v
               }
 
@@ -534,18 +541,22 @@ object Substitution {
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
 
-          var scproof: Seq[SC.SCProofStep] = Seq(SC.Restate(leftOrigin |- rightOrigin, -1))
-          if (toLeft) scproof = scproof :+ SC.LeftSubstIff(result1, scproof.length - 1, List(left -> right), LambdaFormulaFormula(Seq(H), leftForm))
-          if (toRight) scproof = scproof :+ SC.RightSubstIff(result2, scproof.length - 1, List(left -> right), LambdaFormulaFormula(Seq(H), rightForm))
-          scproof = scproof :+ SC.Restate(newleft + phi |- newright, scproof.length - 1)
+          var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
+          if (toLeft) scproof = scproof :+ K.LeftSubstIff(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying),
+                K.LambdaFormulaFormula(Seq(H.underlyingLabel), leftForm.underlying))
+          if (toRight) scproof = scproof :+ K.RightSubstIff(result2.underlying, scproof.length - 1, List(left.underlying -> right.underlying),
+                K.LambdaFormulaFormula(Seq(H.underlyingLabel), rightForm.underlying))
+          
+          val bot = newleft + phi |- newright
+          scproof = scproof :+ K.Restate(bot.underlying, scproof.length - 1)
 
           proof.ValidProofTactic(
+            bot,
             scproof,
             Seq(premise)
           )
-        case _ => proof.InvalidProofTactic(s"Formula in applySingleSimp need to be of the form a=b or q<=>p and not ${phi.label}")
+        case _ => proof.InvalidProofTactic(s"Formula in applySingleSimp need to be of the form a=b or q<=>p and not ${phi}")
       }
-
     }
 
     @nowarn("msg=.*the type test for proof.Fact cannot be checked at runtime*")
@@ -580,6 +591,6 @@ object Substitution {
     def toRight(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false)(
         premise: proof.Fact
     ): proof.ProofTacticJudgement = apply(f, rightLeft, toLeft = false, toRight = true)(premise)
+
   }
-*/
 }

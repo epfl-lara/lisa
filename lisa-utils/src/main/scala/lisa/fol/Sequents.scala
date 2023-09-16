@@ -150,6 +150,10 @@ trait Sequents extends Common with lisa.fol.Lambdas {
       K.isSame(formula1.underlying, formula2.underlying)
   }
 
+  def isSameTerm(term1: Term, term2: Term): Boolean = {
+      K.isSameTerm(term1.underlying, term2.underlying)
+  }
+
   def isSameSequent(sequent1: Sequent, sequent2: Sequent): Boolean = {
     K.isSameSequent(sequent1.underlying, sequent2.underlying)
   }
