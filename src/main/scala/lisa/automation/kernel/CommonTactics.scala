@@ -12,6 +12,7 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.SimpleDeducedSteps.*
 
 object CommonTactics {
+  /*
 
   /**
    * <pre>
@@ -234,7 +235,7 @@ object CommonTactics {
 
           // Unfold the conditional definition to find Q
           val phi = F.And(bot.left.toSeq)
-          val Q = P.body match {
+          val Q: F.LambdaExpression[F.Term, F.Formula, 1] = P.body match {
             case F.ConnectorFormula(
                   F.And,
                   Seq(
@@ -268,4 +269,5 @@ object CommonTactics {
       }
     }
   }
+  */
 }

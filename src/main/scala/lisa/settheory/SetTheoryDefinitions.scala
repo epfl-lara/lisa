@@ -10,6 +10,8 @@ import lisa.kernel.proof.RunningTheory
  */
 private[settheory] trait SetTheoryDefinitions extends lisa.prooflib.Library {
 
+  val theory = new RunningTheory()
+
   def axioms: Set[(String, AXIOM)] = Set.empty
 
   // Predicates

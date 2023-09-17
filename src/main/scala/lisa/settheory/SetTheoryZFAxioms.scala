@@ -21,10 +21,10 @@ private[settheory] trait SetTheoryZFAxioms extends SetTheoryZAxioms {
    * 'image' of `x` in P exists and is a set. It contains exactly the `b`'s that
    * satisfy `P` for each `a ∈ x`.
    */
-  final val replacementSchema: AXIOM = Axiom(
+  final val replacementSchema: AXIOM = Axiom("replacementSchema", 
     forall(A, in(A, x) ==> existsOne(B, P(x, A, B))) ==>
       exists(y, forall(B, in(B, y) <=> exists(A, in(A, x) /\ P(x, A, B))))
-  , "replacementSchema")
+  )
  
   override def axioms: Set[(String, AXIOM)] = super.axioms + (("replacementSchema", replacementSchema))
 

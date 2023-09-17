@@ -5,10 +5,8 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.fol.FOL as F
 import lisa.utils.K.{*, given}
 import lisa.prooflib.Substitution
-import lisa.utils.KernelHelpers.{_, given}
 
 object OLPropositionalSolver {
-
   /**
    * A tactic object dedicated to solve any propositionaly provable sequent (possibly in exponential time). Can be used with arbitrary many premises.
    * Leverages the OL algorithm for scalafmpropositional logic.
@@ -23,11 +21,14 @@ object OLPropositionalSolver {
      */
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
+      /*
       solveSequent(botK) match {
         case Left(value) => proof.ValidProofTactic(bot, value.steps, Seq())
         case Right((msg, seq)) => proof.InvalidProofTactic(msg)
-      }
+      }*/
+      ???
     }
+
 
     /**
      * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
@@ -41,10 +42,13 @@ object OLPropositionalSolver {
       from(using lib, proof)(Seq(premise)*)(bot)
 
     def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      ???
+      /*
       val botK = bot.underlying
       val premsFormulas: Seq[((proof.Fact, Formula), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
       val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
       val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
+
       solveSequent(sqToProve) match {
         case Left(value) =>
           val subpr = SCSubproof(value)
@@ -57,7 +61,9 @@ object OLPropositionalSolver {
         case Right((msg, seq)) =>
           proof.InvalidProofTactic(msg)
       }
+      */
     }
+    
   } // End of tactic object Tautology
 
   /**
@@ -141,7 +147,7 @@ object OLPropositionalSolver {
       throw new NoProofFoundException(res)
     } else {
       val atom = bestAtom.get
-      val optLambda = Substitution.applySubst.findSubformula(redF, Seq((MaRvIn, atom)))
+      val optLambda = findSubformula(redF, Seq((MaRvIn, atom)))
       if (optLambda.isEmpty) return solveAugSequent(AugSequent(s.decisions, redF), offset)
       val lambdaF = optLambda.get
 
@@ -157,6 +163,95 @@ object OLPropositionalSolver {
       redStep :: cutStep :: red2 :: subst2 :: proof2 ++ (subst1 :: proof1)
 
     }
+  }
+
+
+
+  private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
+
+  private def findSubterm2(t: Term, subs: Seq[(VariableLabel, Term)]): (Term, Boolean) = {
+    val eq = subs.find(s => isSameTerm(t, s._2))
+    if (eq.nonEmpty) (eq.get._1(), true)
+    else {
+      val induct = condflat(t.args.map(te => findSubterm2(te, subs)))
+      if (!induct._2) (t, false)
+      else (Term(t.label, induct._1), true)
+
+    }
+
+  }
+
+  private def findSubterm2(f: Formula, subs: Seq[(VariableLabel, Term)]): (Formula, Boolean) = {
+    f match {
+      case PredicateFormula(label, args) =>
+        val induct = condflat(args.map(findSubterm2(_, subs)))
+        if (!induct._2) (f, false)
+        else (PredicateFormula(label, induct._1), true)
+      case ConnectorFormula(label, args) =>
+        val induct = condflat(args.map(findSubterm2(_, subs)))
+        if (!induct._2) (f, false)
+        else (ConnectorFormula(label, induct._1), true)
+      case BinderFormula(label, bound, inner) =>
+        val fv_in_f = subs.flatMap(e => e._2.freeVariables + e._1)
+        if (!fv_in_f.contains(bound)) {
+          val induct = findSubterm2(inner, subs)
+          if (!induct._2) (f, false)
+          else (BinderFormula(label, bound, induct._1), true)
+        } else {
+          val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
+          val newInner = substituteVariablesInFormula(inner, Map(bound -> newv()), Seq.empty)
+          val induct = findSubterm2(newInner, subs)
+          if (!induct._2) (f, false)
+          else (BinderFormula(label, newv, induct._1), true)
+        }
+    }
+  }
+
+  private def findSubformula2(f: Formula, subs: Seq[(VariableFormulaLabel, Formula)]): (Formula, Boolean) = {
+    val eq = subs.find(s => isSame(f, s._2))
+    if (eq.nonEmpty) (eq.get._1(), true)
+    else
+      f match {
+        case PredicateFormula(label, args) =>
+          (f, false)
+        case ConnectorFormula(label, args) =>
+          val induct = condflat(args.map(findSubformula2(_, subs)))
+          if (!induct._2) (f, false)
+          else (ConnectorFormula(label, induct._1), true)
+        case BinderFormula(label, bound, inner) =>
+          val fv_in_f = subs.flatMap(_._2.freeVariables)
+          if (!fv_in_f.contains(bound)) {
+            val induct = findSubformula2(inner, subs)
+            if (!induct._2) (f, false)
+            else (BinderFormula(label, bound, induct._1), true)
+          } else {
+            val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
+            val newInner = substituteVariablesInFormula(inner, Map(bound -> newv()), Seq.empty
+            val induct = findSubformula2(newInner, subs)
+            if (!induct._2) (f, false)
+            else (BinderFormula(label, newv, induct._1), true)
+          }
+      }
+  }
+  def findSubterm(t: Term, subs: Seq[(VariableLabel, Term)]): Option[LambdaTermTerm] = {
+    val vars = subs.map(_._1)
+    val r = findSubterm2(t, subs)
+    if (r._2) Some(LambdaTermTerm(vars, r._1))
+    else None
+  }
+
+  def findSubterm(f: Formula, subs: Seq[(VariableLabel, Term)]): Option[LambdaTermFormula] = {
+    val vars = subs.map(_._1)
+    val r = findSubterm2(f, subs)
+    if (r._2) Some(LambdaTermFormula(vars, r._1))
+    else None
+  }
+
+  def findSubformula(f: Formula, subs: Seq[(VariableFormulaLabel, Formula)]): Option[LambdaFormulaFormula] = {
+    val vars = subs.map(_._1)
+    val r = findSubformula2(f, subs)
+    if (r._2) Some(LambdaFormulaFormula(vars, r._1))
+    else None
   }
 
 }

@@ -9,14 +9,9 @@ import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
-<<<<<<< HEAD
 //import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.unification.UnificationUtils
 import lisa.fol.FOL.*
-=======
-import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.unification.UnificationUtils2
->>>>>>> main
 
 import scala.annotation.nowarn
 import scala.annotation.tailrec
@@ -24,6 +19,7 @@ import scala.collection
 import scala.collection.immutable.Seq
 
 object SimpleSimplifier {
+  /*
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
   private def findSubterm2(t: Term, subs: Seq[(Variable, Term)]): (Term, Boolean) = {
@@ -262,11 +258,7 @@ object SimpleSimplifier {
   }
 <<<<<<< HEAD
 */
-  object Substitution extends ProofTactic with ProofFactSequentTactic {
-=======
-
   object Substitution2 extends ProofTactic with ProofFactSequentTactic {
->>>>>>> main
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(rightLeft: Boolean = false, f: lisa.prooflib.Library#Proof#InstantiatedFact | Formula)(
         premise: proof.Fact
     ): proof.ProofTacticJudgement = {
@@ -696,5 +688,5 @@ object SimpleSimplifier {
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement =
       exhaustive(using lib, proof)(substitutions: _*)(premise)
   }
-
+*/
 }

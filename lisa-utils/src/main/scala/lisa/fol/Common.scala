@@ -184,7 +184,7 @@ trait Common {
   /**
     * ConstantLabel represent constants in the theory and can't be freely substituted.
     */
-  sealed trait ConstantLabel[-A <: LisaObject[A]]  extends Label[A] {
+  sealed trait ConstantLabel[-A <: LisaObject[A]]  extends Label[A] with Matchable {
     this : A & LisaObject[A] =>
     def rename(newid: Identifier):ConstantLabel[A]
     def freshRename(taken:Iterable[Identifier]): ConstantLabel[A]

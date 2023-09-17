@@ -7,7 +7,8 @@ import lisa.prooflib.BasicMain
  */
 trait Main extends BasicMain {
   export lisa.settheory.SetTheoryLibrary.{given, _}
-  export lisa.prooflib.Exports.*
+  export 
+  lisa.prooflib.Exports.*
 
   knownDefs.update(emptySet, Some(emptySetAxiom))
   knownDefs.update(unorderedPair, Some(pairAxiom))
@@ -15,17 +16,18 @@ trait Main extends BasicMain {
   knownDefs.update(powerSet, Some(powerAxiom))
   knownDefs.update(subset, Some(subsetAxiom))
 
-
-
-  //TOFO: Refine errors and messages
+  //TODO: Refine errors and messages
   extension (symbol: ConstantLabel[?]) {
-    def definition: JUSTIFICATION = symbol match {
-      case `equality` => throw new NoSuchElementException("Equality has no definition")
-      case `top` => throw new NoSuchElementException("Top has no definition")
+    def definition: JUSTIFICATION = {
+      getDefinition(symbol).get
+      /*
+      symbol match {
+      //case `equality` => throw new NoSuchElementException("Equality has no definition")
+      /*case `top` => throw new NoSuchElementException("Top has no definition")
       case `bot` => throw new NoSuchElementException("Bot has no definition")
-      case `in` => throw new NoSuchElementException("Membership has no definition")
-      case _ => getDefinition(symbol).get
-        
+      case `in` => throw new NoSuchElementException("Membership has no definition")*/
+      case _ => ???.asInstanceOf[JUSTIFICATION] //getDefinition(symbol).get*/
     }
   }
+
 }
