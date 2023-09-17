@@ -21,12 +21,10 @@ object OLPropositionalSolver {
      */
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
-      /*
       solveSequent(botK) match {
         case Left(value) => proof.ValidProofTactic(bot, value.steps, Seq())
         case Right((msg, seq)) => proof.InvalidProofTactic(msg)
-      }*/
-      ???
+      }
     }
 
 
@@ -42,8 +40,6 @@ object OLPropositionalSolver {
       from(using lib, proof)(Seq(premise)*)(bot)
 
     def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      ???
-      /*
       val botK = bot.underlying
       val premsFormulas: Seq[((proof.Fact, Formula), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
       val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
@@ -61,7 +57,6 @@ object OLPropositionalSolver {
         case Right((msg, seq)) =>
           proof.InvalidProofTactic(msg)
       }
-      */
     }
     
   } // End of tactic object Tautology
@@ -226,7 +221,7 @@ object OLPropositionalSolver {
             else (BinderFormula(label, bound, induct._1), true)
           } else {
             val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
-            val newInner = substituteVariablesInFormula(inner, Map(bound -> newv()), Seq.empty
+            val newInner = substituteVariablesInFormula(inner, Map(bound -> newv()), Seq.empty)
             val induct = findSubformula2(newInner, subs)
             if (!induct._2) (f, false)
             else (BinderFormula(label, newv, induct._1), true)

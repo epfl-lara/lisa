@@ -321,15 +321,15 @@ trait WithTheorems {
 
     val innerJustification: theory.Theorem = prove(computeProof)
 
-    def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(theory.sequentFromJustification(innerJustification))
+    def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(goal.underlying)
     def repr: String = innerJustification.repr
 
     private def prove(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {
         computeProof(using proof)
       } catch {
-        case e: NotImplementedError =>
-          om.lisaThrow(new UnimplementedProof(this))
+        /*case e: NotImplementedError =>
+          om.lisaThrow(new UnimplementedProof(this))*/
         case e: UserLisaException =>
           om.lisaThrow(e)
       }

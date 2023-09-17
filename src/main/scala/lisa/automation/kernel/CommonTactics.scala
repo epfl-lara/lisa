@@ -12,7 +12,6 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.SimpleDeducedSteps.*
 
 object CommonTactics {
-  /*
 
   /**
    * <pre>
@@ -69,7 +68,7 @@ object CommonTactics {
 
           val forward = lib.have(phi |- ((x === y) ==> substPhi)) subproof {
             lib.assume(phi)
-            lib.thenHave((x === y) |- substPhi) by RightSubstEq(List((x, y)), F.lambda(x, phi))
+            lib.thenHave((x === y) |- substPhi) by RightSubstEq.withParameters(List((x, y)), F.lambda(x, phi))
             lib.thenHave((x === y) ==> substPhi) by Restate
           }
 
@@ -153,7 +152,7 @@ object CommonTactics {
     (bot: F.Sequent): proof.ProofTacticJudgement = {
       val expr = lib.getDefinition(f) match {
         case Some(value: lib.FunctionDefinition[?]) => value
-        case None => return proof.InvalidProofTactic("Could not get definition of function.")
+        case _ => return proof.InvalidProofTactic("Could not get definition of function.")
       }
       val method = expr.f.substituteUnsafe(expr.vars.zip(xs).toMap) match {
         case F.ConnectorFormula(
@@ -269,5 +268,5 @@ object CommonTactics {
       }
     }
   }
-  */
+
 }

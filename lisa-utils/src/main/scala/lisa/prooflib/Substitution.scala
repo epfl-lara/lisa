@@ -294,7 +294,7 @@ object Substitution {
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (p = left formulas)
-              lib.thenHave(sequentAfterEq) by BasicStepTactic.LeftSubstEq(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
+              lib.thenHave(sequentAfterEq) by BasicStepTactic.LeftSubstEq.withParameters(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
 
               // left <=>
               val formSubstR = Map((formulaVars zip formulaInputsR)*)
@@ -351,7 +351,7 @@ object Substitution {
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (p = left formulas)
-              lib.thenHave(sequentAfterEq) by BasicStepTactic.RightSubstEq(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
+              lib.thenHave(sequentAfterEq) by BasicStepTactic.RightSubstEq.withParameters(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
 
               // right <=>
               val formSubstR = Map((formulaVars zip formulaInputsR)*)

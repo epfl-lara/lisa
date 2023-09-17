@@ -1,6 +1,9 @@
 package lisa.fol
 
 import lisa.utils.K
+import K.given_Conversion_Identifier_String
+
+
 import scala.annotation.showAsInfix
 import scala.annotation.nowarn
 import scala.compiletime.ops.int.-
@@ -226,6 +229,7 @@ trait Common {
     val underlying: K.Term
     val label:TermLabel
     val args:Seq[Term]
+    def toStringSeparated(): String = toString()
   }
 
   /**
@@ -239,6 +243,8 @@ trait Common {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): (Seq[Term] |-> Term)
     def rename(newid: Identifier):TermLabel
     def freshRename(taken:Iterable[Identifier]): TermLabel
+    def mkString(args: Seq[Term]): String
+    def mkStringSeparated(args: Seq[Term]): String = mkString(args)
     //def unapply(t:Term):Option[Seq[Term]]
   }
 
@@ -260,8 +266,8 @@ trait Common {
       * @return The new symbol
       */
     def apply[N <: Arity](id:Identifier, arity:N): ConstantFunctionLabelOfArity[N] = arity match {
-      case a: 0 => new Constant(id)
-      case n: N => new ConstantFunctionLabel[N](id, arity)
+      case a: 0 => Constant(id)
+      case n: N => ConstantFunctionLabel[N](id, arity)
     }
   }
   /**
@@ -288,6 +294,7 @@ trait Common {
     val underlyingLabel: K.SchematicTermLabel
     override def rename(newid: Identifier):SchematicTermLabel
     def freshRename(taken:Iterable[Identifier]): SchematicTermLabel
+    def mkString(args: Seq[Term]): String
   }
   object SchematicTermLabel { //Companion
     /**
@@ -345,6 +352,8 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     override def rename(newid: Identifier):Variable = Variable(newid)
     def freshRename(taken:Iterable[Identifier]): Variable = rename(K.freshId(taken, id))
+    override def toString(): String = id
+    def mkString(args: Seq[Term]): String = if (args.size==0) toString() else toString()+"("+"illegal_arguments: "+args.mkString(", ")+")"
   }
 
   /**
@@ -364,6 +373,8 @@ trait Common {
     def freshRename(taken:Iterable[Identifier]): Constant = rename(K.freshId(taken, id))
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
+    override def toString(): String = id
+    def mkString(args: Seq[Term]): String = if (args.size==0) toString() else toString()+"("+"illegal_arguments: "+args.mkString(", ")+")"
   }
 
   /**
@@ -388,13 +399,17 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def rename(newid: Identifier):SchematicFunctionLabel[N] = SchematicFunctionLabel(newid, arity)
     def freshRename(taken:Iterable[Identifier]): SchematicFunctionLabel[N] = rename(K.freshId(taken, id))
+    override def toString(): String = id
+    def mkString(args: Seq[Term]): String = toString()+"("+args.mkString(", ")+")"
+    override def mkStringSeparated(args: Seq[Term]): String = mkString(args)
   }
 
   /**
     * A constant functional label of arity N.
     */
-  case class ConstantFunctionLabel[N <: Arity](val id: Identifier, val arity : N) extends ConstantTermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term) {
+  case class ConstantFunctionLabel[N <: Arity](id: Identifier, arity : N) extends ConstantTermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
+    var infix: Boolean = false
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     def unapply(t:AppliedTerm):Option[Term**N] = t match {case AppliedTerm(this, args) => Some(args); case _ => None}
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
@@ -403,6 +418,15 @@ trait Common {
     def freshRename(taken:Iterable[Identifier]): ConstantFunctionLabel[N] = rename(K.freshId(taken, id))
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
+    override def toString(): String = id
+    def mkString(args: Seq[Term]): String = if (infix) (args(0).toString()+" "+toString()+" "+args(1).toString()) else toString()+"("+args.mkString(", ")+")"
+    override def mkStringSeparated(args: Seq[Term]): String = if (infix) "("+mkString(args)+")" else mkString(args)
+  }
+  object ConstantFunctionLabel{
+    def infix[N <: Arity](id: Identifier, arity : N): ConstantFunctionLabel[N] = 
+      val x = ConstantFunctionLabel[N](id, arity)
+      x.infix = true
+      x
   }
 
   /**
@@ -419,6 +443,8 @@ trait Common {
     }
     def freeSchematicLabels:Set[SchematicLabel[?]] = f.freeSchematicLabels ++ args.flatMap(_.freeSchematicLabels)
     def allSchematicLabels:Set[SchematicLabel[?]] = f.allSchematicLabels ++ args.flatMap(_.allSchematicLabels)
+    override def toString:String = f.mkString(args)
+    override def toStringSeparated(): String = f.mkString(args)
   }
 
 
@@ -448,6 +474,7 @@ trait Common {
     //val args:Seq[Term]|Seq[Formula]
     def apply(args:Term**0): Formula = this
     val underlying: K.Formula
+    def toStringSeparated() = toString()
   }
 
 
@@ -471,6 +498,8 @@ trait Common {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): (Seq[Term] |-> Formula)
     def rename(newid: Identifier):PredicateLabel
     def freshRename(taken:Iterable[Identifier]): PredicateLabel
+    def mkString(args: Seq[Term]): String
+    def mkStringSeparated(args: Seq[Term]): String = mkString(args)
   }
 
   sealed trait ConstantConstOrPredLabel extends PredicateLabel with ConstantLabel[Seq[Term] |-> Formula] {
@@ -518,6 +547,8 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def rename(newid: Identifier):VariableFormula = VariableFormula(newid)
     def freshRename(taken:Iterable[Identifier]): VariableFormula = rename(K.freshId(taken, id))
+    override def toString(): String = id
+    def mkString(args: Seq[Term]): String = if (args.size==0) toString() else toString()+"("+"illegal_arguments: "+args.mkString(", ")+")"
   }
 
   /**
@@ -537,6 +568,8 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: Identifier):ConstantFormula = ConstantFormula(newid)
     def freshRename(taken:Iterable[Identifier]): ConstantFormula = rename(K.freshId(taken, id))
+    override def toString(): String = id
+    def mkString(args: Seq[Term]): String = if (args.size==0) toString() else toString()+"("+"illegal_arguments: "+args.mkString(", ")+")"
   }
 
   /**
@@ -560,14 +593,18 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def rename(newid: Identifier): SchematicPredicateLabel[N] = SchematicPredicateLabel(newid, arity)
     def freshRename(taken:Iterable[Identifier]): SchematicPredicateLabel[N] = rename(K.freshId(taken, id))
+    override def toString(): String = id
+    def mkString(args: Seq[Term]): String = toString()+"("+args.mkString(", ")+")"
+    override def mkStringSeparated(args: Seq[Term]): String = mkString(args)
 
   }
 
   /**
     * A constant predicate label corresponding to [[K.ConstantPredicateLabel]].
     */
-  case class ConstantPredicateLabel[N <: Arity](id: Identifier, arity : N) extends ConstantConstOrPredLabel with ConstantLabel[Term ** N |-> Formula] with ((Term ** N) |-> Formula ){
+  case class ConstantPredicateLabel[N <: Arity](id: Identifier, arity : N)  extends ConstantConstOrPredLabel with ConstantLabel[Term ** N |-> Formula] with ((Term ** N) |-> Formula ){
     val underlyingLabel: K.ConstantPredicateLabel = K.ConstantPredicateLabel(id, arity)
+    private var infix = false
     def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     def unapply(t:PredicateFormula):Option[Term**N] = t match {case PredicateFormula(this, args) => Some(args); case _ => None}
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =this
@@ -575,6 +612,15 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: Identifier): ConstantPredicateLabel[N] = ConstantPredicateLabel(newid, arity)
     def freshRename(taken:Iterable[Identifier]): ConstantPredicateLabel[N] = rename(K.freshId(taken, id))
+    override def toString(): String = id
+    def mkString(args: Seq[Term]): String = if (infix) (args(0).toString()+" "+toString()+" "+args(1).toString()) else toString()+"("+args.mkString(", ")+")"
+    override def mkStringSeparated(args: Seq[Term]): String = if (infix) "("+mkString(args)+")" else mkString(args)
+  }  
+  object ConstantPredicateLabel{
+    def infix[N <: Arity](id: Identifier, arity : N): ConstantPredicateLabel[N] = 
+      val x = new ConstantPredicateLabel[N](id, arity)
+      x.infix = true
+      x
   }
 
   /**
@@ -589,6 +635,9 @@ trait Common {
 
     def freeSchematicLabels:Set[SchematicLabel[?]] = p.freeSchematicLabels ++ args.toSeq.flatMap(_.freeSchematicLabels)
     def allSchematicLabels:Set[SchematicLabel[?]] = p.allSchematicLabels ++ args.toSeq.flatMap(_.allSchematicLabels)
+
+    override def toString:String = p.mkString(args)
+    override def toStringSeparated(): String = p.mkString(args)
   }
 
 
@@ -608,6 +657,8 @@ trait Common {
     def rename(newid: Identifier):ConnectorLabel
     def freshRename(taken:Iterable[Identifier]): ConnectorLabel
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Seq[Formula], Formula]
+    def mkString(args: Seq[Formula]): String
+    def mkStringSeparated(args: Seq[Formula]): String = mkString(args)
 
   }
 
@@ -633,6 +684,8 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set(this)
     def rename(newid: Identifier): SchematicConnectorLabel[N] = SchematicConnectorLabel(newid, arity)
     def freshRename(taken:Iterable[Identifier]): SchematicConnectorLabel[N] = rename(K.freshId(taken, id))
+    override def toString(): String = id
+    def mkString(args: Seq[Formula]): String = toString()+"("+args.mkString(", ")+")"
 
   }
 
@@ -650,6 +703,9 @@ trait Common {
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: Identifier): ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")
     def freshRename(taken:Iterable[Identifier]): ConstantConnectorLabel[N] = rename(K.freshId(taken, id))
+    override def toString(): String = id
+    def mkString(args: Seq[Formula]): String = if (args.length == 2) (args(0).toString()+" "+toString()+" "+args(1).toString()) else toString()+"("+args.mkString(", ")+")"
+    override def mkStringSeparated(args: Seq[Formula]): String = if (args.length == 2) "("+mkString(args)+")" else mkString(args)
 
   }
   /**
@@ -670,6 +726,9 @@ trait Common {
     def freeSchematicLabels:Set[SchematicLabel[?]] = p.freeSchematicLabels ++ args.flatMap(_.freeSchematicLabels)
     def allSchematicLabels:Set[SchematicLabel[?]] = p.allSchematicLabels ++ args.flatMap(_.allSchematicLabels)
     //override def substituteUnsafe(v: Variable, subs: Term) = PredicateFormulaFormula[N](f, args.map(_.substituteUnsafe(v, subs)))
+
+    override def toString:String = p.mkString(args)
+    override def toStringSeparated(): String = p.mkString(args)
   }
 
 
@@ -697,6 +756,8 @@ trait Common {
     inline def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     inline def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
+    override def toString() = id
+    
 
   }
 
@@ -720,6 +781,8 @@ trait Common {
         BinderFormula(f, bound, body.substituteUnsafe(newSubst))
       }
     }
+    //override def toString():String = f.toString()+bound.toString()+". "+body.toString()
+    override def toString():String = f.toString()+"("+bound.toString()+", "+body.toString()+")"
 
   }
   def instantiateBinder(f: BinderFormula, t: Term): Formula = f.body.substituteUnsafe(Map(f.bound -> t))

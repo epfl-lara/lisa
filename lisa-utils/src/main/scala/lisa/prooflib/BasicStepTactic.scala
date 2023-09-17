@@ -405,14 +405,14 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BinderFormula(F.Forall, x, phi) => ???//UnificationUtils.matchFormula(in.underlying, phi.underlying, takenTermVariables = (phi.underlying.freeVariables - x.underlyingLabel)).isDefined
+            case g @ F.BinderFormula(F.Forall, x, phi) =>  UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).isDefined
             case _ => false
           }
         )
 
         quantifiedPhi match {
           case Some(F.BinderFormula(F.Forall, x, phi)) =>
-            ???//LeftForall.withParameters(phi, x, UnificationUtils.matchFormula(in.underlying, phi.underlying, takenTermVariables = (phi.underlying.freeVariables - x.underlyingLabel)).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil)))(premise)(bot)
+            LeftForall.withParameters(phi, x, UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).get._2.getOrElse(x, x))(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not match discovered quantified pivot with premise.")
         }
       } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
@@ -898,14 +898,14 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BinderFormula(F.Exists, x, phi) => ???//UnificationUtils.matchFormula(in.underlying, phi.underlying, takenTermVariables = (phi.underlying.freeVariables - x.underlyingLabel)).isDefined
+            case g @ F.BinderFormula(F.Exists, x, phi) => UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).isDefined
             case _ => false
           }
         )
 
         quantifiedPhi match {
           case Some(F.BinderFormula(F.Exists, x, phi)) =>
-            ???//RightExists.withParameters(phi, x, UnificationUtils.matchFormula(in.underlying, phi.underlying, takenTermVariables = (phi.underlying.freeVariables - x.underlyingLabel)).get._2.getOrElse(x.underlyingLabel, K.Term(x.underlyingLabel, Nil)))(premise)(bot)
+            RightExists.withParameters(phi, x, UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).get._2.getOrElse(x, x))(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not match discovered quantified pivot with premise.")
         }
       } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
@@ -1084,7 +1084,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftSubstEq extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof)(
+    def withParameters(using lib: Library, proof: lib.Proof)(
       equals: List[(F.Term, F.Term)], lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
       )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       
@@ -1118,17 +1118,11 @@ object BasicStepTactic {
    * </pre>
    */
   object RightSubstEq extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof)(
+    def withParameters(using lib: Library, proof: lib.Proof)(
       equals: List[(F.Term, F.Term)], lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
       )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
 
       lazy val lambdaPhiK = F.underlyingLTF(lambdaPhi)
-      apply2(equals, lambdaPhiK)(premise)(bot)
-    }
-
-    def apply2(using lib: Library, proof: lib.Proof)(
-      equals: List[(F.Term, F.Term)], lambdaPhiK: K.LambdaTermFormula
-      )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
       lazy val equalsK = equals.map((p: (F.Term, F.Term)) => (p._1.underlying, p._2.underlying))
@@ -1167,7 +1161,7 @@ object BasicStepTactic {
       if (canReach.isEmpty) proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
       else
         val termLambda = canReach.get.toLambdaTF
-        RightSubstEq(equalities.toList, termLambda)(premise)(bot)
+        withParameters(equalities.toList, termLambda)(premise)(bot)
       
         
     }
