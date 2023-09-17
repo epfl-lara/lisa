@@ -1,7 +1,7 @@
 package lisa.test.utils
 
 import lisa.test.utils.ProofTacticTestLib
-import lisa.utils.unification.FirstOrderUnifier.*
+//import lisa.utils.unification.FirstOrderUnifier.*
 import org.scalatest.funsuite.AnyFunSuite
 import lisa.utils.*
 import lisa.utils.KernelHelpers.{*, given}
@@ -11,6 +11,7 @@ import lisa.utils.KernelHelpers.{*, given}
  * matching, and second-order matching.
  */
 class UnificationTest extends ProofTacticTestLib {
+  test("Unification Tests: All tests commented") { assert(true)}
 /*
   /**
    * Matching tests

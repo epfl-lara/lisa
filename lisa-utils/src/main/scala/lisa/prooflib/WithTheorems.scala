@@ -275,7 +275,7 @@ trait WithTheorems {
     def repr: String
     def innerJustification: theory.Justification
     def statement: F.Sequent
-    val withSorry: Boolean = innerJustification match {
+    def withSorry: Boolean = innerJustification match {
           case thm: theory.Theorem => thm.withSorry
           case fd: theory.FunctionDefinition => fd.withSorry
           case pd: theory.PredicateDefinition => false
@@ -292,7 +292,7 @@ trait WithTheorems {
     def repr: String = innerJustification.repr
   }
 
-  def Axiom(axiom:F.Formula, name: String): AXIOM = {
+  def Axiom(name: String, axiom:F.Formula): AXIOM = {
     val ax:Option[theory.Axiom] = theory.addAxiom(name, axiom.underlying)
     ax match {
       case None => throw new InvalidAxiomException("Not all symbols belong to the theory", name, axiom, library)

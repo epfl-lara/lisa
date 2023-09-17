@@ -22,14 +22,12 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   given library: this.type = this
   given RunningTheory = theory
 
-  val SC: SequentCalculus.type = K.SC
-
   export lisa.kernel.proof.SCProof
 
   val K = lisa.utils.K
+  val SC: SequentCalculus.type = K.SC
   val F = lisa.fol.FOL
   import F.{given}
-
 
 
   var last: Option[JUSTIFICATION] = None
