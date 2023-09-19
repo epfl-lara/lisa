@@ -124,7 +124,7 @@ object UnificationUtils {
           else None
         // {Constant, Schematic} FunctionLabel
         case _ =>
-          if (reference != template) None
+          if (reference.label != template.label) None
           else
             (reference.args zip template.args).foldLeft(Option(substitution)) {
               case (Some(subs), (r, t)) => matchTermRecursive(r, t, subs)
@@ -536,7 +536,7 @@ object UnificationUtils {
     if (isSame(first, second)) Some(FormulaRewriteLambda(body = first))
     else if (validSubstitution.isDefined) {
       val newVar = VariableFormula(context.freshIdentifier)
-      val body = PredicateFormula(newVar, Seq.empty) // newVar()
+      val body = newVar // newVar()
       Some(
         FormulaRewriteLambda(
           Seq(),

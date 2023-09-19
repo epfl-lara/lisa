@@ -58,9 +58,9 @@ trait Lambdas extends Common{
   /**
     * Construct a Lambda expression with multiple variables
     */
-  def lambda[T <: LisaObject[T], R <: LisaObject[R], N <: Arity](bounds:SchematicLabel[T]***N, body:R)(using n: ValueOf[N]): LambdaExpression[T, R, N] = {
-    val boundsSeq = bounds.toSeq
-    LambdaExpression[T, R, N](boundsSeq, body, n.value)
+  def lambda[T <: LisaObject[T], R <: LisaObject[R], N <: Arity, Tu<:Tuple](bounds:Tu, body:R)(using Tuple.Union[Tu] <:< SchematicLabel[T], Tuple.Size[Tu]=:=N): LambdaExpression[T, R, N] = {
+    val boundsSeq = bounds.asInstanceOf[SchematicLabel[T]***N].toSeq
+    LambdaExpression[T, R, N](boundsSeq, body, boundsSeq.length.asInstanceOf)
   }
   def lambda[T <: LisaObject[T], R <: LisaObject[R]](bounds:Seq[SchematicLabel[T]], body:R): LambdaExpression[T, R, ?] = {
     val boundsSeq = bounds.toSeq
@@ -68,6 +68,9 @@ trait Lambdas extends Common{
   }
   
 
+  type LambdaTT[N<:Arity] = LambdaExpression[Term, Term, N]
+  type LambdaTF[N<:Arity] = LambdaExpression[Term, Formula, N]
+  type LambdaFF[N<:Arity] = LambdaExpression[Formula, Formula, N]
     /**
       * Recovers the underlying [[K.LambdaTermTerm]]
       */

@@ -197,8 +197,8 @@ object CommonTactics {
           TacticSubproof {
             lib.have(F.∀(y, (y === f(xs)) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
             lib.thenHave((y === f(xs)) <=> P) by InstantiateForall(y)
-            lib.thenHave((f(xs) === f(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f(xs)))
-            lib.thenHave(P(Seq(f(xs)))) by Restate
+            lib.thenHave((f(xs) === f(xs)) <=> P.substitute(y := f(xs))) by InstFunSchema(Map(y -> f(xs)))
+            lib.thenHave(P.substitute(y := f(xs))) by Restate
           }
 
         case _ => proof.InvalidProofTactic("Could not get definition of function.")

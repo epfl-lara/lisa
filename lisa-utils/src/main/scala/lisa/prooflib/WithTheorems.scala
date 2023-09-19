@@ -304,7 +304,7 @@ trait WithTheorems {
   //def Axiom(using om: OutputManager, line: Int, file: String)(ax: theory.Axiom): AXIOM = AXIOM(line, file, ax.)
   abstract class DEFINITION(line: Int, file: String) extends JUSTIFICATION{
     def repr: String = innerJustification.repr
-    val label:F.ConstantLabel[?]
+    def label:F.ConstantLabel[?]
     knownDefs.update(label, Some(this))
     
   }

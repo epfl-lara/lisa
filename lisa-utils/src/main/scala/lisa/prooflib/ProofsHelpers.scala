@@ -89,7 +89,7 @@ trait ProofsHelpers {
     }
   }
 
-
+/*
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
@@ -97,7 +97,7 @@ trait ProofsHelpers {
     proof.addAssumption(f)
     have(() |- f) by BasicStepTactic.Hypothesis
   }
-
+*/
   /**
    * Assume the given formulas in all future left hand-side of claimed sequents.
    */
@@ -170,7 +170,8 @@ trait ProofsHelpers {
 
   }
 
-  def DEF[N<:Arity](args: Variable***N) = new definitionWithVars(args)
+  def DEF[N<:Arity, T <: Tuple](args: T)(using Tuple.Size[T] =:= N, Tuple.Union[T] =:= Variable): definitionWithVars[N] = new definitionWithVars[N](args.asInstanceOf)
+  def DEF(arg: Variable): definitionWithVars[1] = new definitionWithVars[1](EmptyTuple.*:[Variable, EmptyTuple](arg)) //todo conversion to empty tuple gets bad type
 
   // Definition helpers, not part of the DSL
 
@@ -185,7 +186,7 @@ trait ProofsHelpers {
   (val vars: Seq[F.Variable], val out: F.Variable, val f: F.Formula, j:JUSTIFICATION) extends DEFINITION(line, file) {
     //val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
     
-    val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
+    lazy val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
 
     
     val innerJustification: theory.FunctionDefinition = {
@@ -287,7 +288,7 @@ trait ProofsHelpers {
       val intName = "definition_"+fullName
       val out = Variable(freshId(lambda.allSchematicLabels.map(_.id), "y"))
       val defThm = new THM(F.ExistsOne(out, out===lambda.body), intName, line, file, InternalStatement)({
-        SimpleDeducedSteps.simpleFunctionDefinition(lambda, out)
+        have(SimpleDeducedSteps.simpleFunctionDefinition(lambda, out))
       })
       new SimpleFunctionDefinition[N](name, fullName, line, file)(lambda, out, defThm)
     }
@@ -297,19 +298,18 @@ trait ProofsHelpers {
   class PredicateDefinition[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
                       (val lambda: LambdaExpression[Term, Formula, N]) extends DEFINITION(line, file) {
 
-    val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
+    lazy val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity
 
-    val label: ConstantPredicateLabelOfArity[N]  = {
+    lazy val label: ConstantPredicateLabelOfArity[N]  = {
       (
         if (vars.length == 0) F.ConstantFormula(name) 
-        else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf)
-        ).asInstanceOf
+        else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf[N])
+        ).asInstanceOf[ConstantPredicateLabelOfArity[N]]
     }
 
     val innerJustification: theory.PredicateDefinition = {
       import lisa.utils.K.{predicateDefinition, findUndefinedSymbols}
-      val conclusion = ???
       val underlambda = lambda.underlyingLTF
       val ulabel = K.ConstantFunctionLabel(name, vars.size)
       val undervars = vars.map(_.asInstanceOf[F.Variable].underlyingLabel)

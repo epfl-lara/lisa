@@ -697,14 +697,14 @@ trait Common {
     val underlyingLabel: K.ConstantConnectorLabel
     def id: Identifier = underlyingLabel.id
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
-    def apply(args: Formula ** N): ConnectorFormula = ConnectorFormula(this, args.toSeq)
+    def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
     def unapply(t:ConnectorFormula):Option[Seq[Formula]] = t match {case ConnectorFormula(this, args) => Some(args); case _ => None}
     def freeSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels:Set[SchematicLabel[?]] = Set.empty
     def rename(newid: Identifier): ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")
     def freshRename(taken:Iterable[Identifier]): ConstantConnectorLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Formula]): String = if (args.length == 2) (args(0).toString()+" "+toString()+" "+args(1).toString()) else toString()+"("+args.mkString(", ")+")"
+    def mkString(args: Seq[Formula]): String = if (args.length == 2) ("("+args(0).toString()+" "+toString()+" "+args(1).toString())+")" else toString()+"("+args.mkString(", ")+")"
     override def mkStringSeparated(args: Seq[Formula]): String = if (args.length == 2) "("+mkString(args)+")" else mkString(args)
 
   }

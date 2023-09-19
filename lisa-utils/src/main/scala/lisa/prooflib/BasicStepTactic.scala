@@ -896,9 +896,11 @@ object BasicStepTactic {
         // go through conclusion to find a matching quantified formula
 
         val in: F.Formula = instantiatedPivot.head
+
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BinderFormula(F.Exists, x, phi) => UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).isDefined
+            case g @ F.BinderFormula(F.Exists, x, phi) => 
+              UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).isDefined
             case _ => false
           }
         )

@@ -62,7 +62,7 @@ object SimpleDeducedSteps {
       val first = K.Cut((proof.getSequent(premise).underlying removeLeft f) ++ (s removeRight f), -2, -1, f)
 
       proof.ValidProofTactic(
-        (proof.getSequent(premise) removeAllLeft(ss.flatMap(_.right).toSet)) ++>> (F.Sequent(Set(), ss.flatMap(_.left).toSet)),
+        (proof.getSequent(premise) removeAllLeft(ss.flatMap(_.right).toSet)) ++<< (F.Sequent(ss.flatMap(_.left).toSet, Set())),
         seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
           val f = next._1.right.head
           K.Cut((prev.bot removeLeft f) ++ (next._1 removeRight f), -next._2 - 3, next._2, f)
