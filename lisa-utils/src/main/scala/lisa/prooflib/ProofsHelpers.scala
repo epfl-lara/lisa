@@ -170,8 +170,10 @@ trait ProofsHelpers {
 
   }
 
-  def DEF[N<:Arity, T <: Tuple](args: T)(using Tuple.Size[T] =:= N, Tuple.Union[T] =:= Variable): definitionWithVars[N] = new definitionWithVars[N](args.asInstanceOf)
+  def DEF[N<:Arity, T <: Tuple](args: T)(using Tuple.Size[T] =:= N, Tuple.Union[T] <:< Variable): definitionWithVars[N] = new definitionWithVars[N](args.asInstanceOf)
   def DEF(arg: Variable): definitionWithVars[1] = new definitionWithVars[1](EmptyTuple.*:[Variable, EmptyTuple](arg)) //todo conversion to empty tuple gets bad type
+  
+  //def DEF: definitionWithVars[0] = new definitionWithVars[0](EmptyTuple) //todo conversion to empty tuple gets bad type
 
   // Definition helpers, not part of the DSL
 
