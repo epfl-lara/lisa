@@ -20,7 +20,7 @@ object Example extends lisa.Main {
   val P = predicate[1]
   val f = function[1]
 
-  // Simple Theorem with LISA's DSL
+  // Simple proof with LISA's DSL
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
     assume(∀(x, P(x) ==> P(f(x))))
     assume(P(x))
@@ -28,6 +28,9 @@ object Example extends lisa.Main {
     val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
     have(thesis) by Tautology.from(step1, step2)
   }
+
+
+
 
   //Example of set theoretic development
 
@@ -39,7 +42,7 @@ object Example extends lisa.Main {
   val setWithElementNonEmpty = Theorem(
     in(y, x) |- !(x === ∅)
   ) {
-    have((x === ∅) |- !in(y, x)) by Substitution.ApplyRules(x === ∅)(emptySetAxiom of (x := y))
+    have((x === ∅) |- !in(y, x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
   }
 
 
@@ -122,4 +125,6 @@ object Example extends lisa.Main {
   // }
   // show
 
+
+  def Substitute = Substitution.ApplyRules
 }

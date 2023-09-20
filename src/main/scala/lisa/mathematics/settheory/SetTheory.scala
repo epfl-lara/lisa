@@ -19,7 +19,6 @@ import lisa.prooflib.Substitution
  */
 object SetTheory extends lisa.Main {
 
-  val Substitute = Substitution.ApplyRules
   // var defs
   private val w = variable
   private val x = variable
@@ -479,9 +478,9 @@ object SetTheory extends lisa.Main {
   val unorderedPairSymmetry = Theorem(
     unorderedPair(x, y) === unorderedPair(y, x)
   ) {
-    have(in(z, unorderedPair(y, x)) <=> in(z, unorderedPair(x, y))) by Substitute(pairAxiom)(pairAxiom of (x := y, y := x))
+    have(in(z, unorderedPair(y, x)) <=> in(z, unorderedPair(x, y))) by Substitution.ApplyRules(pairAxiom)(pairAxiom of (x := y, y := x))
     thenHave(∀(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by RightForall
-    thenHave(thesis) by Substitute(extensionalityAxiom)
+    thenHave(thesis) by Substitution.ApplyRules(extensionalityAxiom)
   }
 
 
