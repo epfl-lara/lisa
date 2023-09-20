@@ -150,6 +150,7 @@ object Substitution {
           confinedIffs,
           takenFormulaVars
         )
+        
         lazy val rightContextsOpt: Option[Seq[UnificationUtils.FormulaRewriteLambda]] = getContextFormulaSet(  
           premiseSequent.right.toSeq,
           bot.right.toSeq,

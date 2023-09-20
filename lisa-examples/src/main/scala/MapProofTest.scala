@@ -65,7 +65,7 @@ object MapProofTest extends lisa.Main {
 
   // induction hypothesis
   val IH1 = forall(y, forall(ys, xs.mapTr(f, y :: ys) === (y :: xs.mapTr(f, ys))))
-/*
+
   val AccOutCons = Theorem(
     IH1 |- (x :: xs).mapTr(f, y :: ys) === (y :: (x :: xs).mapTr(f, ys))
   ) {

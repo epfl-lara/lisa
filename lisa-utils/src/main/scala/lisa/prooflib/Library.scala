@@ -26,7 +26,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
   val K = lisa.utils.K
   val SC: SequentCalculus.type = K.SC
-  val F = lisa.fol.FOL
+  private[prooflib] val F = lisa.fol.FOL
   import F.{given}
 
 

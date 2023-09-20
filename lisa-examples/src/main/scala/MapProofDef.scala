@@ -1,10 +1,6 @@
 import lisa.automation.kernel.OLPropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.SCProofChecker.*
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.mathematics.SetTheory.*
+//import lisa.mathematics.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter.*
@@ -13,6 +9,7 @@ import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.UnificationUtils.*
 
 object MapProofDef extends lisa.Main{
+  /*
   val self = this
 
   val x = variable
@@ -106,5 +103,5 @@ object MapProofDef extends lisa.Main{
       }
     }
   }
-
+*/
 }

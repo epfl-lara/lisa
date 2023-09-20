@@ -6,7 +6,7 @@ import TestTheory as TT
 object TestTheoryLibrary extends Library {
   val theory: TT.runningTestTheory.type = TT.runningTestTheory
 
-  export F.{*, given}
+  export lisa.fol.FOL.{*, given}
 
   final val p1 = ConstantPredicateLabel("p1", 1)
   final val p2 = ConstantPredicateLabel("p2", 1)

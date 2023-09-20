@@ -1343,7 +1343,7 @@ object BasicStepTactic {
       else if (!K.isSameSequent(botK.get, scproof.conclusion))
         proof.InvalidProofTactic(s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(botK.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}")
       else
-        proof.ValidProofTactic(iProof.mostRecentStep.bot, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
+        proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
     }
   }
 
