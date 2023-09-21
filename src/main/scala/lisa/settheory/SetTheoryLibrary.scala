@@ -12,6 +12,14 @@ object SetTheoryLibrary extends SetTheoryTGAxioms{
 
   val ∅ = emptySet
   val ∈ = in
+
+  extension (thi:Term) {
+    def ∈(that:Term): Formula = in(thi, that)
+    def ⊆(that:Term): Formula = subset(thi, that)
+
+    def =/=(that:Term): Formula = !(===(thi, that))
+
+  }
   
 
 }

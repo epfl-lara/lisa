@@ -32,7 +32,31 @@ object Example extends lisa.Main {
 
 
 
+
+
+
+
   //Example of set theoretic development
+
+
+
+  /**
+   * Theorem --- The empty set is a subset of every set.
+   *
+   *    `|- ∅ ⊆ x`
+   */
+  val emptySetIsASubset = Theorem(
+    ∅ ⊆ x
+  ) {
+    have               ((y ∈ ∅) ==> (y ∈ x))           by Weakening(emptySetAxiom of (x := y))
+    val rhs = thenHave (∀(y, (y ∈ ∅) ==> (y ∈ x)))     by RightForall
+    have               (thesis)                        by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
+  }
+
+
+
+
+
 
   /**
    * Theorem --- If a set has an element, then it is not the empty set.
@@ -40,36 +64,62 @@ object Example extends lisa.Main {
    *    `y ∈ x ⊢ ! x = ∅`
    */
   val setWithElementNonEmpty = Theorem(
-    in(y, x) |- !(x === ∅)
+    (y ∈ x) |- x =/= ∅
   ) {
-    have((x === ∅) |- !in(y, x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
+    have ((x === ∅) |- !(y ∈ x))  by Substitute(x === ∅)(emptySetAxiom of (x := y))
   }
 
 
-  /**
-   * Theorem --- The empty set is a subset of every set.
-   *
-   *    `∅ ⊆ x`
-   */
-  val emptySetIsASubset = Theorem(
-    subset(∅, x)
-  ) {
-    have(in(y, ∅) ==> in(y, x)) by Weakening(emptySetAxiom of (x:= y))
-    val rhs = thenHave(∀(y, in(y, ∅) ==> in(y, x))) by RightForall
-    have(thesis) by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
-  }
-
+  
 
   /**
    * Theorem --- A power set is never empty.
    *
-   *    `!P(x) = ∅`
+   *   `|- !P(x) = ∅`
    */
   val powerSetNonEmpty = Theorem(
-    !(powerSet(x) === ∅)
+    powerSet(x) =/= ∅
   ) {
-    have(thesis) by Tautology.from(setWithElementNonEmpty of (y := ∅, x := powerSet(x)), powerAxiom of (x:= ∅, y:=x), emptySetIsASubset)
+    have (thesis)  by Tautology.from(
+      setWithElementNonEmpty of (y := ∅, x := powerSet(x)), 
+      powerAxiom of (x:= ∅, y:=x), 
+      emptySetIsASubset
+    )
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -85,6 +135,19 @@ object Example extends lisa.Main {
 
   val inductiveSet = DEF(x) --> in(∅, x) /\ forall(y, in(y, x) ==> in(succ(y), x))
   show
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   // Simple tactic definition for LISA DSL
