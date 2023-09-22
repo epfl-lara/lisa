@@ -227,7 +227,7 @@ object SetTheory extends lisa.Main {
    *
    * @param x set
    */
-  val successor = DEF(x:Variable) --> union(unorderedPair(x, singleton(x)))
+  val successor = DEF(x: Variable) --> union(unorderedPair(x, singleton(x)))
 
   /**
    * Inductive set --- A set is inductive if it contains the empty set, and the
@@ -371,7 +371,7 @@ object SetTheory extends lisa.Main {
   val emptySetIsASubset = Theorem(
     subset(∅, x)
   ) {
-    have(in(y, ∅) ==> in(y, x)) by Weakening(emptySetAxiom of (x:= y))
+    have(in(y, ∅) ==> in(y, x)) by Weakening(emptySetAxiom of (x := y))
     val rhs = thenHave(∀(y, in(y, ∅) ==> in(y, x))) by RightForall
     have(thesis) by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
   }
@@ -409,7 +409,7 @@ object SetTheory extends lisa.Main {
   val powerSetNonEmpty = Theorem(
     !(powerSet(x) === ∅)
   ) {
-    have(thesis) by Tautology.from(emptySetIsASubset, powerAxiom of (x:= ∅, y:=x), setWithElementNonEmpty of (y := ∅, x := powerSet(x)))
+    have(thesis) by Tautology.from(emptySetIsASubset, powerAxiom of (x := ∅, y := x), setWithElementNonEmpty of (y := ∅, x := powerSet(x)))
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -467,9 +467,6 @@ object SetTheory extends lisa.Main {
     thenHave(in(y, singleton(x)) <=> (x === y)) by Restate
   }
 
-
-
-
   /**
    * Theorem --- The [[unorderedPair]] is, in fact, unordered.
    *
@@ -482,10 +479,6 @@ object SetTheory extends lisa.Main {
     thenHave(∀(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by RightForall
     thenHave(thesis) by Substitution.ApplyRules(extensionalityAxiom)
   }
-
-
-
-
 
   val unorderedPairDeconstruction = Theorem(
     (unorderedPair(a, b) === unorderedPair(c, d)) ⊢ (((a === c) ∧ (b === d)) ∨ ((a === d) ∧ (b === c)))
@@ -524,6 +517,7 @@ object SetTheory extends lisa.Main {
     thenHave(∀(z, in(z, union(X)) <=> in(z, x))) by RightForall
     andThen(Substitution.applySubst(extensionalityAxiom of (x -> union(X), y -> x)))
   }
+
   /**
    * Theorem --- Two [[unorderedPair]]s are equal iff their elements are equal pairwise.
    *
@@ -972,7 +966,6 @@ object SetTheory extends lisa.Main {
   ) {
     have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))) by UniqueComprehension(x, lambda((t, z), !in(t, y)))
   }
-
 
   /**
    * Binary Set Difference --- Given two sets, produces the set that contains
@@ -1492,9 +1485,11 @@ object SetTheory extends lisa.Main {
           val prem = (in(a, setUnion(x, y)) /\ in(b, setUnion(x, y)))
 
           have(prem |- in(unorderedPair(a, b), powerSet(setUnion(x, y)))) by Weakening(unorderedPairInPowerSet of (x -> setUnion(x, y)))
-          val zab = thenHave((prem, (z === unorderedPair(a, b))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParameters(List((z, unorderedPair(a, b))), lambda(a, in(a, powerSet(setUnion(x, y)))))
+          val zab =
+            thenHave((prem, (z === unorderedPair(a, b))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParameters(List((z, unorderedPair(a, b))), lambda(a, in(a, powerSet(setUnion(x, y)))))
           have(prem |- in(unorderedPair(a, a), powerSet(setUnion(x, y)))) by Weakening(unorderedPairInPowerSet of (x -> setUnion(x, y), b -> a))
-          val zaa = thenHave((prem, (z === unorderedPair(a, a))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParameters(List((z, unorderedPair(a, a))), lambda(a, in(a, powerSet(setUnion(x, y)))))
+          val zaa =
+            thenHave((prem, (z === unorderedPair(a, a))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParameters(List((z, unorderedPair(a, a))), lambda(a, in(a, powerSet(setUnion(x, y)))))
 
           val cutRhs = have((prem, (z === unorderedPair(a, b)) \/ (z === singleton(a))) |- in(z, powerSet(setUnion(x, y)))) by LeftOr(zab, zaa)
 
@@ -3488,7 +3483,6 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(fwd, bwd)
   }
 
-
   /**
    * Theorem --- the union of a set of relations is a relation itself.
    *
@@ -3685,5 +3679,5 @@ object SetTheory extends lisa.Main {
     have(relation(union(z))) by Tautology.from(functional.definition of f -> union(z))
     have(thesis) by Tautology.from(lastStep, domainOfRelationalUnion)
   }
-  
+
 }

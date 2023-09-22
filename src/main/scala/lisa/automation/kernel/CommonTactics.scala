@@ -1,15 +1,13 @@
 package lisa.automation.kernel
 
-import lisa.fol.FOL as F
-import lisa.fol.FOLHelpers.*
-import lisa.utils.K
-
-import lisa.prooflib.ProofTacticLib.{_, given}
-import lisa.prooflib.*
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
-
+import lisa.fol.FOLHelpers.*
+import lisa.fol.FOL as F
 import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.SimpleDeducedSteps.*
+import lisa.prooflib.*
+import lisa.utils.K
 
 object CommonTactics {
 
@@ -26,10 +24,9 @@ object CommonTactics {
    * @see [[RightExistsOne]].
    */
   object ExistenceAndUniqueness extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof, om: OutputManager)
-    (phi: F.Formula, x: F.Variable, y: F.Variable)
-    (existence: proof.Fact, uniqueness: proof.Fact)
-    (bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: F.Formula, x: F.Variable, y: F.Variable)(existence: proof.Fact, uniqueness: proof.Fact)(
+        bot: F.Sequent
+    ): proof.ProofTacticJudgement = {
       val existenceSeq = proof.getSequent(existence)
       val uniquenessSeq = proof.getSequent(uniqueness)
 
@@ -89,10 +86,7 @@ object CommonTactics {
       }
     }
 
-    def apply(using lib: Library, proof: lib.Proof, om: OutputManager)
-    (phi: F.Formula)
-    (existence: proof.Fact, uniqueness: proof.Fact)
-    (bot: F.Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: F.Formula)(existence: proof.Fact, uniqueness: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val existenceSeq = proof.getSequent(existence)
       val uniquenessSeq = proof.getSequent(uniqueness)
 
@@ -116,12 +110,10 @@ object CommonTactics {
 
       // Infer y from the equalities in the uniqueness sequent
       uniquenessSeq.right.collectFirst {
-        case F.PredicateFormula(F.`equality`, Seq(`x`, (y: F.Variable)))
-            if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
+        case F.PredicateFormula(F.`equality`, Seq(`x`, (y: F.Variable))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
           y
 
-        case F.PredicateFormula(F.`equality`, List(F.AppliedTerm(y: F.Variable, _), F.AppliedTerm(`x`, _)))
-            if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
+        case F.PredicateFormula(F.`equality`, List(F.AppliedTerm(y: F.Variable, _), F.AppliedTerm(`x`, _))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
           y
       } match {
         case Some(y) => ExistenceAndUniqueness.withParameters(phi, x, y)(existence, uniqueness)(bot)
@@ -146,10 +138,7 @@ object CommonTactics {
    * </pre>
    */
   object Definition extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof)
-    (f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)
-    (xs: F.Term*)
-    (bot: F.Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val expr = lib.getDefinition(f) match {
         case Some(value: lib.FunctionDefinition[?]) => value
         case _ => return proof.InvalidProofTactic("Could not get definition of function.")
@@ -178,16 +167,15 @@ object CommonTactics {
      */
     def unconditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lib.getDefinition(f) match {
-        case Some(definition: lib.FunctionDefinition[?])=>
+        case Some(definition: lib.FunctionDefinition[?]) =>
           if (bot.right.size != 1) {
             return proof.InvalidProofTactic("Right-hand side of bottom sequent should contain only 1 formula.")
           }
           val y = definition.out
           val vars = definition.vars
 
-
           // Instantiate terms in the definition
-          val subst = vars.zip(xs).map(tup => tup._1 := tup._2 )
+          val subst = vars.zip(xs).map(tup => tup._1 := tup._2)
           val P = definition.f.substitute(subst: _*)
           val expected = P.substitute(y := f(xs))
           if (!F.isSame(expected, bot.right.head)) {
@@ -224,13 +212,13 @@ object CommonTactics {
           val vars = definition.vars
 
           // Extract variable labels to instantiate them later in the proof
-          //val F.LambdaTermFormula(vars, _) = expr
-          //val instantiations: Seq[(F.SchematicTermLabel, F.LambdaTermTerm)] = vars.zip(xs.map(x => F.LambdaTermTerm(Seq(), x)))
+          // val F.LambdaTermFormula(vars, _) = expr
+          // val instantiations: Seq[(F.SchematicTermLabel, F.LambdaTermTerm)] = vars.zip(xs.map(x => F.LambdaTermTerm(Seq(), x)))
 
-          val subst = vars.zip(xs).map(tup => tup._1 := tup._2 )
+          val subst = vars.zip(xs).map(tup => tup._1 := tup._2)
           val P = definition.f.substitute(subst: _*)
           // Instantiate terms in the definition
-          //val P = F.LambdaTermFormula(Seq(y), expr(xs))
+          // val P = F.LambdaTermFormula(Seq(y), expr(xs))
 
           // Unfold the conditional definition to find Q
           val phi = F.And(bot.left.toSeq)
@@ -246,7 +234,7 @@ object CommonTactics {
               else if (F.isSame(b, phi)) F.lambda(y, g)
               else return proof.InvalidProofTactic("Condition of definition is not satisfied.")
 
-            case _ =>               
+            case _ =>
               return proof.InvalidProofTactic("Definition is not conditional.")
           }
 

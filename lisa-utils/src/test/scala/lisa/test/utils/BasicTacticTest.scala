@@ -14,12 +14,12 @@ class BasicTacticTest extends ProofTacticTestLib {
   given Conversion[String, Formula] = FOLParser.parseFormula(_)
   given Conversion[String, Term] = FOLParser.parseTerm(_)
   given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
-*/
-/*
+   */
+  /*
   val x: lisa.fol.FOL.Variable = variable
   val y = variable
   val z = variable
-  
+
   val P = predicate[1]
   val Q = predicate[1]
   val R = predicate[1]
@@ -45,7 +45,7 @@ class BasicTacticTest extends ProofTacticTestLib {
       Hypothesis(_)
     }*/
   }*/
-/*
+  /*
   // rewrite
   // TODO: make this use equivalence checker tests
   test("Tactic Tests: Rewrite") {
@@ -1501,5 +1501,5 @@ class BasicTacticTest extends ProofTacticTestLib {
       InstPredSchema(termMap)(prem)(stmt2)
     }
   }
-*/
+   */
 }

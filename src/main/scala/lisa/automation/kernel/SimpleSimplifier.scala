@@ -1,17 +1,12 @@
 package lisa.automation.kernel
 
-import lisa.utils.K
-//import lisa.kernel.fol.FOL as K
-//import lisa.kernel.proof.RunningTheory
-//import lisa.kernel.proof.SCProof
-//import lisa.kernel.proof.SequentCalculus.*
+import lisa.fol.FOL.*
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.FOLPrinter
-//import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.K
 import lisa.utils.unification.UnificationUtils
-import lisa.fol.FOL.*
 
 import scala.annotation.nowarn
 import scala.annotation.tailrec
@@ -240,7 +235,7 @@ object SimpleSimplifier {
         val substs: Set[(Formula, LambdaFormulaFormula)] = seq.left.map(f => (f, findSubformula(f, subsIff)) )
         val newseq = substs.map(_._2(rulesiff.map(_.args(1)))) |- seq.right
         val step1 = ??? // LeftSubstIff(newseq, prev.length-1, )
-     */
+   */
     ???
   }
 
@@ -257,7 +252,7 @@ object SimpleSimplifier {
     ???
   }
 <<<<<<< HEAD
-*/
+   */
   object Substitution2 extends ProofTactic with ProofFactSequentTactic {
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(rightLeft: Boolean = false, f: lisa.prooflib.Library#Proof#InstantiatedFact | Formula)(
         premise: proof.Fact
@@ -688,5 +683,5 @@ object SimpleSimplifier {
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | Formula | RunningTheory#Justification)*)(premise: proof.Fact): proof.ProofTacticJudgement =
       exhaustive(using lib, proof)(substitutions: _*)(premise)
   }
-*/
+   */
 }

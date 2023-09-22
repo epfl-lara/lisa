@@ -1,19 +1,12 @@
 package lisa.prooflib
+import lisa.fol.FOL as F
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus
-import lisa.utils.K
-
-import lisa.fol.FOL as F
-import F.{*, given}
-import F.|-
-//import lisa.fol.FOLHelpers.{given, *}
-import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.utils.FOLPrinter
-
-
-//import lisa.utils.KernelHelpers.{|- => `K|-`, *}
+import lisa.utils.K
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.UnificationUtils
@@ -22,6 +15,9 @@ import lisa.utils.unification.UnificationUtils.getContextFormulaSet
 import scala.annotation.nowarn
 import scala.collection.mutable.{Map as MMap}
 
+import F.{*, given}
+import F.|-
+
 object Substitution {
   def validRule(using lib: lisa.prooflib.Library, proof: lib.Proof)(r: (proof.Fact | F.Formula | lib.JUSTIFICATION)): Boolean =
     r match {
@@ -29,19 +25,17 @@ object Substitution {
       case F.Iff(_) => true
       case j: lib.JUSTIFICATION => j.statement.right.size == 1 && validRule(j.statement.right.head)
       case f: proof.Fact @unchecked => proof.sequentOfFact(f).right.size == 1 && validRule(proof.sequentOfFact(f).right.head)
-      //case j: RunningTheory#Justification =>
+      // case j: RunningTheory#Justification =>
       //  proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.size == 1 && validRule(proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.head)
       case _ => false
     }
 
-
   object ApplyRules extends ProofTactic {
-  
+
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | F.Formula | lib.JUSTIFICATION)*)(
         premise: proof.Fact
     )(bot: F.Sequent): proof.ProofTacticJudgement = {
-      //lazy val substitutionsK = substitutions.map()
-
+      // lazy val substitutionsK = substitutions.map()
 
       // figure out instantiations for rules
       // takes a premise
@@ -59,8 +53,7 @@ object Substitution {
 
       if (!violatingSubstitutions.isEmpty)
         // return error
-        proof.InvalidProofTactic(
-          "Substitution rules must have a single equality or equivalence on the right-hand side. Violating sequents passed:\n" + violatingSubstitutions.zipWithIndex.map {
+        proof.InvalidProofTactic("Substitution rules must have a single equality or equivalence on the right-hand side. Violating sequents passed:\n" + violatingSubstitutions.zipWithIndex.map {
           (s, i) =>
             s"${i + 1}. ${s.toString}"
         })
@@ -71,10 +64,10 @@ object Substitution {
       else {
         // proceed as usual
 
-        
         // maintain a list of where subtitutions come from
         val sourceOf: MMap[(F.Formula, F.Formula) | (F.Term, F.Term), proof.Fact] = MMap()
-        val takenTermVars: Set[lisa.fol.FOL.Variable] = premiseSequent.left.flatMap(_.freeVariables).toSet union substitutions.collect { case f: F.Formula => f.freeVariables.toSet}.foldLeft(Set.empty)(_.union(_))
+        val takenTermVars: Set[lisa.fol.FOL.Variable] =
+          premiseSequent.left.flatMap(_.freeVariables).toSet union substitutions.collect { case f: F.Formula => f.freeVariables.toSet }.foldLeft(Set.empty)(_.union(_))
         val takenFormulaVars: Set[lisa.fol.FOL.VariableFormula] = premiseSequent.left.flatMap(_.freeVariableFormulas).toSet union substitutions
           .collect { case f: F.Formula => f.freeVariableFormulas.toSet }
           .foldLeft(Set.empty)(_.union(_)) // TODO: should this just be the LHS of the premise sequent instead?
@@ -140,7 +133,7 @@ object Substitution {
         }).toSeq
 
         // construct the right instantiations
-        lazy val leftContextsOpt: Option[Seq[UnificationUtils.FormulaRewriteLambda]] = getContextFormulaSet(  
+        lazy val leftContextsOpt: Option[Seq[UnificationUtils.FormulaRewriteLambda]] = getContextFormulaSet(
           filteredPrem,
           filteredBot,
           freeEqualities,
@@ -150,8 +143,8 @@ object Substitution {
           confinedIffs,
           takenFormulaVars
         )
-        
-        lazy val rightContextsOpt: Option[Seq[UnificationUtils.FormulaRewriteLambda]] = getContextFormulaSet(  
+
+        lazy val rightContextsOpt: Option[Seq[UnificationUtils.FormulaRewriteLambda]] = getContextFormulaSet(
           premiseSequent.right.toSeq,
           bot.right.toSeq,
           freeEqualities,
@@ -162,8 +155,8 @@ object Substitution {
           takenFormulaVars
         )
 
-        lazy val violatingFormulaLeft: Option[Formula] = Some(top) //TODO
-        lazy val violatingFormulaRight: Option[Formula] = Some(top)  //TODO
+        lazy val violatingFormulaLeft: Option[Formula] = Some(top) // TODO
+        lazy val violatingFormulaRight: Option[Formula] = Some(top) // TODO
 
         if (leftContextsOpt.isEmpty)
           proof.InvalidProofTactic(s"Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formula: ${violatingFormulaLeft.get}")
@@ -249,7 +242,7 @@ object Substitution {
                   }
                 }
 
-            val discharges = leftDischarges ++ rightDischarges 
+            val discharges = leftDischarges ++ rightDischarges
             // -------------------
             // LEFT SUBSTITUTIONS
             // -------------------
@@ -285,7 +278,6 @@ object Substitution {
               val iffs = formulaInputs.map(iff(_))
               val premiseWithSubst = prem ++<< (eqs |- ()) ++<< (iffs |- ())
               lib.have(premiseWithSubst) by BasicStepTactic.Weakening(premise)
-
 
               // left ===
               val eqSubst = Map((termVars zip termInputsR)*)
@@ -384,7 +376,6 @@ object Substitution {
 
     private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
-
     private def findSubterm2(t: Term, subs: Seq[(Variable, Term)]): (Term, Boolean) = {
       val eq = subs.find(s => isSameTerm(t, s._2))
       if (eq.nonEmpty) (eq.get._1, true)
@@ -471,7 +462,6 @@ object Substitution {
       else None
     }
 
-
     def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(
         phi: Formula
     )(premise: proof.Fact)(rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true): proof.ProofTacticJudgement = {
@@ -506,10 +496,10 @@ object Substitution {
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
-          if (toLeft) scproof = scproof :+ K.LeftSubstEq(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying),
-                K.LambdaTermFormula(Seq(v.underlyingLabel), leftForm.underlying))
-          if (toRight) scproof = scproof :+ K.RightSubstEq(result2.underlying, scproof.length - 1, List(left.underlying -> right.underlying),
-                K.LambdaTermFormula(Seq(v.underlyingLabel), rightForm.underlying))
+          if (toLeft)
+            scproof = scproof :+ K.LeftSubstEq(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaTermFormula(Seq(v.underlyingLabel), leftForm.underlying))
+          if (toRight)
+            scproof = scproof :+ K.RightSubstEq(result2.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaTermFormula(Seq(v.underlyingLabel), rightForm.underlying))
           val bot = newleft + phi |- newright
           scproof = scproof :+ K.Restate(bot.underlying, scproof.length - 1)
 
@@ -543,11 +533,12 @@ object Substitution {
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
 
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
-          if (toLeft) scproof = scproof :+ K.LeftSubstIff(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying),
-                K.LambdaFormulaFormula(Seq(H.underlyingLabel), leftForm.underlying))
-          if (toRight) scproof = scproof :+ K.RightSubstIff(result2.underlying, scproof.length - 1, List(left.underlying -> right.underlying),
-                K.LambdaFormulaFormula(Seq(H.underlyingLabel), rightForm.underlying))
-          
+          if (toLeft)
+            scproof = scproof :+ K.LeftSubstIff(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaFormulaFormula(Seq(H.underlyingLabel), leftForm.underlying))
+          if (toRight)
+            scproof =
+              scproof :+ K.RightSubstIff(result2.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaFormulaFormula(Seq(H.underlyingLabel), rightForm.underlying))
+
           val bot = newleft + phi |- newright
           scproof = scproof :+ K.Restate(bot.underlying, scproof.length - 1)
 

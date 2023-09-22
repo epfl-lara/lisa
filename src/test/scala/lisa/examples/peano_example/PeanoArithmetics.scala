@@ -4,7 +4,7 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.KernelHelpers.{_, given}
 
-object PeanoArithmetics extends lisa.prooflib.Library{
+object PeanoArithmetics extends lisa.prooflib.Library {
   export lisa.fol.FOL.{*, given}
   final val (x, y, z) =
     (variable, variable, variable)
@@ -24,7 +24,7 @@ object PeanoArithmetics extends lisa.prooflib.Library{
   final val ax7induction: Formula = (sPhi(zero) /\ forall(x, sPhi(x) ==> sPhi(s(x)))) ==> forall(x, sPhi(x))
 
   final val functions: Set[ConstantTermLabel] = Set(ConstantFunctionLabel("0", 0), s, plus, times)
-  functions.foreach(l => runningPeanoTheory.addSymbol(l.underlyingLabel))
+  functions.foreach(l => theory.addSymbol(l.underlyingLabel))
 
   private val peanoAxioms: Set[(String, Formula)] = Set(
     ("ax1ZeroSuccessor", ax1ZeroSuccessor),
@@ -35,5 +35,5 @@ object PeanoArithmetics extends lisa.prooflib.Library{
     ("ax6timesDistrib", ax6timesDistrib),
     ("ax7induction", ax7induction)
   )
-  peanoAxioms.foreach(a => runningPeanoTheory.addAxiom(a._1, a._2.underlying))
+  peanoAxioms.foreach(a => theory.addAxiom(a._1, a._2.underlying))
 }

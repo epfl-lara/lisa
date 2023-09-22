@@ -1,9 +1,8 @@
 package lisa.prooflib
 
+import lisa.fol.FOL as F
 import lisa.prooflib.*
 import lisa.utils.K
-import lisa.fol.FOL as F
-//import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 import lisa.utils.UserLisaException
 

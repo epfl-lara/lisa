@@ -1,8 +1,8 @@
 package lisa.settheory
 
+import lisa.fol.FOL.{_, given}
 import lisa.utils.K
 import lisa.utils.K.makeAxiom
-import lisa.fol.FOL.{*, given}
 
 /**
  * Axioms for the Zermelo theory (Z)

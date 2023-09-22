@@ -1,12 +1,13 @@
 package lisa.automation.kernel
 
+import lisa.fol.FOL as F
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.*
-import lisa.fol.FOL as F
-import lisa.utils.K.{*, given}
 import lisa.prooflib.Substitution
+import lisa.utils.K.{_, given}
 
 object OLPropositionalSolver {
+
   /**
    * A tactic object dedicated to solve any propositionaly provable sequent (possibly in exponential time). Can be used with arbitrary many premises.
    * Leverages the OL algorithm for scalafmpropositional logic.
@@ -26,7 +27,6 @@ object OLPropositionalSolver {
         case Right((msg, seq)) => proof.InvalidProofTactic(msg)
       }
     }
-
 
     /**
      * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
@@ -58,7 +58,7 @@ object OLPropositionalSolver {
           proof.InvalidProofTactic(msg)
       }
     }
-    
+
   } // End of tactic object Tautology
 
   /**
@@ -159,8 +159,6 @@ object OLPropositionalSolver {
 
     }
   }
-
-
 
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 

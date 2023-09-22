@@ -1,40 +1,37 @@
 package lisa.prooflib
 
+import lisa.fol.FOLHelpers.*
+import lisa.fol.FOL as F
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
 import lisa.utils.FOLParser
+import lisa.utils.K
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printer
-import lisa.fol.FOL as F
-import lisa.fol.FOLHelpers.*
-import lisa.utils.K
 
 object SimpleDeducedSteps {
 
-
-
   object simpleFunctionDefinition extends ProofTactic {
 
-
-      def apply[N<:Arity](using lib: Library, proof: lib.Proof)(expression: F.LambdaExpression[F.Term, F.Term, N], out: F.Variable) = {
-        val scp = {
-          import K.{*, given}
-            val x = out.underlyingLabel
-            val LambdaTermTerm(vars, body) = expression.underlyingLTT
-            val xeb = x === body
-            val y = VariableLabel(freshId(body.freeVariables.map(_.id) ++ vars.map(_.id) + out.id, "y"))
-            val s0 = K.RightRefl(() |- body === body, body === body)
-            val s1 = K.Restate(() |- (xeb) <=> (xeb), 0)
-            val s2 = K.RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
-            val s3 = K.RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
-            val s4 = K.Restate(() |- existsOne(x, xeb), 3)
-            Vector(s0, s1, s2, s3, s4)
-        }
-        proof.ValidProofTactic(F.Sequent(Set(), Set(F.ExistsOne(out, out === expression.body))), scp, Seq())
+    def apply[N <: Arity](using lib: Library, proof: lib.Proof)(expression: F.LambdaExpression[F.Term, F.Term, N], out: F.Variable) = {
+      val scp = {
+        import K.{*, given}
+        val x = out.underlyingLabel
+        val LambdaTermTerm(vars, body) = expression.underlyingLTT
+        val xeb = x === body
+        val y = VariableLabel(freshId(body.freeVariables.map(_.id) ++ vars.map(_.id) + out.id, "y"))
+        val s0 = K.RightRefl(() |- body === body, body === body)
+        val s1 = K.Restate(() |- (xeb) <=> (xeb), 0)
+        val s2 = K.RightForall(() |- forall(x, (xeb) <=> (xeb)), 1, (xeb) <=> (xeb), x)
+        val s3 = K.RightExists(() |- exists(y, forall(x, (x === y) <=> (xeb))), 2, forall(x, (x === y) <=> (xeb)), y, body)
+        val s4 = K.Restate(() |- existsOne(x, xeb), 3)
+        Vector(s0, s1, s2, s3, s4)
       }
-
+      proof.ValidProofTactic(F.Sequent(Set(), Set(F.ExistsOne(out, out === expression.body))), scp, Seq())
     }
+
+  }
 
   object Restate extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement =
@@ -53,8 +50,8 @@ object SimpleDeducedSteps {
 
   object Discharge extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(premise: proof.Fact): proof.ProofTacticJudgement = {
-      val ss = premises map(e => proof.getSequent(e))
-      val seqs = ss map(e => e.underlying)
+      val ss = premises map (e => proof.getSequent(e))
+      val seqs = ss map (e => e.underlying)
       if (!seqs.forall(_.right.size == 1))
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
       val s = seqs.head
@@ -62,7 +59,7 @@ object SimpleDeducedSteps {
       val first = K.Cut((proof.getSequent(premise).underlying removeLeft f) ++ (s removeRight f), -2, -1, f)
 
       proof.ValidProofTactic(
-        (proof.getSequent(premise) removeAllLeft(ss.flatMap(_.right).toSet)) ++<< (F.Sequent(ss.flatMap(_.left).toSet, Set())),
+        (proof.getSequent(premise) removeAllLeft (ss.flatMap(_.right).toSet)) ++<< (F.Sequent(ss.flatMap(_.left).toSet, Set())),
         seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
           val f = next._1.right.head
           K.Cut((prev.bot removeLeft f) ++ (next._1 removeRight f), -next._2 - 3, next._2, f)
@@ -72,9 +69,6 @@ object SimpleDeducedSteps {
     }
 
   }
-
-
-  
 
   /**
    * Instantiate universal quantifier
@@ -96,7 +90,7 @@ object SimpleDeducedSteps {
     def apply(using lib: Library, proof: lib.Proof)(phi: F.Formula, t: F.Term*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
       val phiK = phi.underlying
-      val tK = t map(_.underlying)
+      val tK = t map (_.underlying)
       val premiseSequent = proof.getSequent(premise)
       val premiseSequentK = premiseSequent.underlying
       if (!premiseSequent.right.contains(phi)) {
@@ -179,7 +173,7 @@ object SimpleDeducedSteps {
     }
 
   }
-/*
+  /*
   /**
    * Performs a cut when the formula to be used as pivot for the cut is
    * inside a conjunction, preserving the conjunction structure
@@ -227,24 +221,24 @@ object SimpleDeducedSteps {
                 val p4 = K.Cut(bot, -1, 3, conjunction)
 
                 /**
-                 * newConclusions = ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn
-                 *
-                 * left   = Γ ⊢ ϕ ∧ ψ, Δ                              Premise
-                 * right  = ϕ, Σ ⊢ γ1 , γ2, …, γn                     Premise
-                 *
-                 * p0     = ϕ, Σ, ψ ⊢ γ1 , γ2, …, γn                  Weakening on right
-                 * p1     = ψ ⊢ ψ                                     Hypothesis
-                 * p2     = Subproof:
-                 *          2.1 = ϕ, Σ, ψ ⊢ ψ ∧ γ1 , γ2, …, γn        RightAnd on p0 and p1 with ψ ∧ γ1
-                 *          2.2 = ϕ, Σ, ψ ⊢ ψ ∧ γ1 , ψ ∧ γ2, …, γn    RightAnd on 2.1 and p1 ψ ∧ γ2
-                 *          ...
-                 *          2.n = ϕ, Σ, ψ ⊢ ψ ∧ γ1, ψ ∧ γ2, …, ψ ∧ γn RightAnd on 2.(n-1) and p1 with ψ ∧ γn
-                 *
-                 * p3     = ϕ ∧ ψ, Σ ⊢ ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn     Rewrite on p2 (just to have a cleaner form)
-                 * p2     = Γ, Σ ⊢ Δ, ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn      Cut on left, p1 with ϕ ∧ ψ
-                 *
-                 * p2 is the result
-                 */
+   * newConclusions = ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn
+   *
+   * left   = Γ ⊢ ϕ ∧ ψ, Δ                              Premise
+   * right  = ϕ, Σ ⊢ γ1 , γ2, …, γn                     Premise
+   *
+   * p0     = ϕ, Σ, ψ ⊢ γ1 , γ2, …, γn                  Weakening on right
+   * p1     = ψ ⊢ ψ                                     Hypothesis
+   * p2     = Subproof:
+   *          2.1 = ϕ, Σ, ψ ⊢ ψ ∧ γ1 , γ2, …, γn        RightAnd on p0 and p1 with ψ ∧ γ1
+   *          2.2 = ϕ, Σ, ψ ⊢ ψ ∧ γ1 , ψ ∧ γ2, …, γn    RightAnd on 2.1 and p1 ψ ∧ γ2
+   *          ...
+   *          2.n = ϕ, Σ, ψ ⊢ ψ ∧ γ1, ψ ∧ γ2, …, ψ ∧ γn RightAnd on 2.(n-1) and p1 with ψ ∧ γn
+   *
+   * p3     = ϕ ∧ ψ, Σ ⊢ ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn     Rewrite on p2 (just to have a cleaner form)
+   * p2     = Γ, Σ ⊢ Δ, ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn      Cut on left, p1 with ϕ ∧ ψ
+   *
+   * p2 is the result
+   */
 
                 proof.ValidProofTactic(IndexedSeq(p0, p1, p2, p3, p4), Seq(prem1, prem2))
               } else {
@@ -352,5 +346,5 @@ object SimpleDeducedSteps {
       }
     }
   }
-*/
+   */
 }

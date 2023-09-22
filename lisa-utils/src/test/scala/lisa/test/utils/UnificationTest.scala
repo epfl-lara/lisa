@@ -1,18 +1,17 @@
 package lisa.test.utils
 
 import lisa.test.utils.ProofTacticTestLib
-//import lisa.utils.unification.FirstOrderUnifier.*
-import org.scalatest.funsuite.AnyFunSuite
+import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.*
-import lisa.utils.KernelHelpers.{*, given}
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Tests for the unification library, includes first-order unification and
  * matching, and second-order matching.
  */
 class UnificationTest extends ProofTacticTestLib {
-  test("Unification Tests: All tests commented") { assert(true)}
-/*
+  test("Unification Tests: All tests commented") { assert(true) }
+  /*
   /**
    * Matching tests
    */
@@ -172,5 +171,5 @@ class UnificationTest extends ProofTacticTestLib {
       if (unifyFormula(t1, t2) == res) true
       else fail(s"Unification test failed:\nFirst Formula: $t1\nSecond Formula: $t2\nExpected Result: $res\nFound: ${unifyFormula(t1, t2)}\n")
   }
-  */
+   */
 }

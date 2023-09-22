@@ -8,7 +8,7 @@ import lisa.utils.parsing.FOLPrinter.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class SubstitutionTacticTest extends ProofTacticTestLib {
-/*
+  /*
   // subst with formula list
   test("Tactic Tests: Substitution - From theorems and formulas (LR)") {
     val correct = List(
@@ -114,5 +114,5 @@ class SubstitutionTacticTest extends ProofTacticTestLib {
         )(prem)(lisa.utils.parsing.FOLParser.parseSequent(stmt2))
     }
   }
-*/
+   */
 }

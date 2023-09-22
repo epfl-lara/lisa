@@ -5,9 +5,8 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
 import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
-import lisa.utils.KernelHelpers.{*, given}
-
 
 import scala.collection.mutable.Stack as stack
 
@@ -17,7 +16,7 @@ import scala.collection.mutable.Stack as stack
  * @param theory The inner RunningTheory
  */
 abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
-  
+
   val theory: RunningTheory
   given library: this.type = this
   given RunningTheory = theory
@@ -29,13 +28,11 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   private[prooflib] val F = lisa.fol.FOL
   import F.{given}
 
-
   var last: Option[JUSTIFICATION] = None
 
+  val knownDefs: scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
 
-  val knownDefs:scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
-
-  def addSymbol(s : F.ConstantFunctionLabel[?] | F.ConstantPredicateLabel[?] | F.Constant):Unit = {
+  def addSymbol(s: F.ConstantFunctionLabel[?] | F.ConstantPredicateLabel[?] | F.Constant): Unit = {
     s match {
       case s: F.ConstantFunctionLabel[?] => theory.addSymbol(s.underlyingLabel)
       case s: F.ConstantPredicateLabel[?] => theory.addSymbol(s.underlyingLabel)
@@ -48,7 +45,6 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
     case Some(value) => value
   }
-
 
   /**
    * An alias to create a Theorem
@@ -66,8 +62,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     val LambdaTermTerm(vars, body) = expression
 
     val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTermLabels.map(_.id)).toSet, "y"))
-    val proof: 
-      SCProof = simpleFunctionDefinition(expression, out)
+    val proof: SCProof = simpleFunctionDefinition(expression, out)
     theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, out === body, Nil)
   }
 
@@ -92,8 +87,6 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     K.SCProof(v)
   }
 
-
-  
   /**
    * Prints a short representation of the given theorem or definition
    */
@@ -109,8 +102,5 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     case Some(value) => show(value)
     case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
   }
-
-
-
 
 }

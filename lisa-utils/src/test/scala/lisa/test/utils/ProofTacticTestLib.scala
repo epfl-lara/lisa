@@ -13,8 +13,6 @@ class ProofTacticTestLib extends AnyFunSuite with BasicMain {
 
   export lisa.test.TestTheoryLibrary.{_, given}
 
-
-
   private val x: lisa.fol.FOL.Variable = variable
   private val P = predicate[1]
 

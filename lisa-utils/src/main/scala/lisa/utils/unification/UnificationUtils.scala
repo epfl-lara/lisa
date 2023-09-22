@@ -1,6 +1,6 @@
 package lisa.utils.unification
 
-import lisa.fol.FOL.{*, given}
+import lisa.fol.FOL.{_, given}
 //import lisa.fol.FOLHelpers.*
 
 //import lisa.kernel.fol.FOL.*
@@ -131,7 +131,6 @@ object UnificationUtils {
               case (None, _) => None
             }
       }
-
 
   /**
    * Performs first-order matching for two formulas. Returns a (most-general)
@@ -544,7 +543,7 @@ object UnificationUtils {
           body
         )
       )
-    } //else if (first.label != second.label) None //Should not pass the next match anyway
+    } // else if (first.label != second.label) None //Should not pass the next match anyway
     else {
       // recurse
       // known: first.label == second.label
@@ -616,5 +615,5 @@ object UnificationUtils {
       }
     }
   }
-  
+
 }

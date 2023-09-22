@@ -6,9 +6,9 @@ import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Hypothesis
 import lisa.test.TestTheory
+import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
-import lisa.utils.{*, given}
-import lisa.utils.KernelHelpers.{*, given}
 
 class TheoriesHelpersTest extends AnyFunSuite {
   export TestTheory.*

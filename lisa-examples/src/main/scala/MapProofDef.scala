@@ -1,6 +1,5 @@
 import lisa.automation.kernel.OLPropositionalSolver.*
 import lisa.automation.kernel.SimpleSimplifier.*
-//import lisa.mathematics.SetTheory.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.FOLPrinter.*
@@ -8,7 +7,7 @@ import lisa.utils.KernelHelpers.checkProof
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.UnificationUtils.*
 
-object MapProofDef extends lisa.Main{
+object MapProofDef extends lisa.Main {
   /*
   val self = this
 
@@ -37,10 +36,10 @@ object MapProofDef extends lisa.Main{
   object append {
     val append_ = ConstantFunctionLabel("append", 2)
     theory.addSymbol(append_)
-    
+
     val NilCase = theory.addAxiom("append.NilCase", (Nil +++ xs) === xs).get
     val ConsCase = theory.addAxiom("append.ConsCase", ((x :: xs) +++ ys) === Cons(x, append(xs, ys))).get
-    
+
     def apply(t1: Term, t2: Term) = append_(t1, t2)
   }
 
@@ -103,5 +102,5 @@ object MapProofDef extends lisa.Main{
       }
     }
   }
-*/
+   */
 }

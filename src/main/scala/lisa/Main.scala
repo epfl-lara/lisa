@@ -1,7 +1,7 @@
 package lisa
 
-import lisa.settheory.SetTheoryLibrary
 import lisa.prooflib.BasicMain
+import lisa.settheory.SetTheoryLibrary
 
 /**
  * The parent trait of all theory files containing mathematical development
@@ -19,7 +19,7 @@ trait Main extends BasicMain {
    * This axiom defines [[powerSet]] as the function symbol representing this
    * set.
    */
-  final def powerAxiom: SetTheoryLibrary.powerAxiom.type = SetTheoryLibrary.powerAxiom
+  final val powerAxiom: SetTheoryLibrary.powerAxiom.type = SetTheoryLibrary.powerAxiom
 
   /**
    * Subset Axiom --- For sets `x` and `y`, `x` is a subset of `y` iff every
@@ -29,7 +29,7 @@ trait Main extends BasicMain {
    *
    * This axiom defines the [[subset]] symbol as this predicate.
    */
-  final def subsetAxiom: SetTheoryLibrary.subsetAxiom.type = SetTheoryLibrary.subsetAxiom
+  final val subsetAxiom: SetTheoryLibrary.subsetAxiom.type = SetTheoryLibrary.subsetAxiom
 
   /**
    * Empty Set Axiom --- From the Comprehension Schema follows the existence of
@@ -41,9 +41,7 @@ trait Main extends BasicMain {
    *
    * `() |- !(x ∈ ∅)`
    */
-  final def emptySetAxiom: SetTheoryLibrary.emptySetAxiom.type = SetTheoryLibrary.emptySetAxiom
-
-
+  final val emptySetAxiom: SetTheoryLibrary.emptySetAxiom.type = SetTheoryLibrary.emptySetAxiom
 
   knownDefs.update(emptySet, Some(emptySetAxiom))
   knownDefs.update(unorderedPair, Some(pairAxiom))
@@ -51,7 +49,7 @@ trait Main extends BasicMain {
   knownDefs.update(powerSet, Some(powerAxiom))
   knownDefs.update(subset, Some(subsetAxiom))
 
-  //TODO: Refine errors and messages
+  // TODO: Refine errors and messages
   extension (symbol: ConstantLabel[?]) {
     def definition: JUSTIFICATION = {
       getDefinition(symbol).get

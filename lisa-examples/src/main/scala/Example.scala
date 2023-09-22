@@ -1,16 +1,5 @@
 import lisa.automation.kernel.OLPropositionalSolver.*
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.SCProofChecker.*
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.mathematics.settheory.SetTheory.*
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.ProofTacticLib.*
-import lisa.prooflib.Substitution
-import lisa.prooflib.Substitution.ApplyRules
-import lisa.utils.FOLPrinter.*
-import lisa.utils.KernelHelpers.checkProof
-import lisa.utils.unification.UnificationUtils.*
+import lisa.prooflib.Substitution.{ApplyRules as Substitute}
 
 
 object Example extends lisa.Main {
@@ -27,18 +16,10 @@ object Example extends lisa.Main {
     val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
     val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
     have(thesis) by Tautology.from(step1, step2)
-  }
-
-
-
-
-
-
+  } 
 
 
   //Example of set theoretic development
-
-
 
   /**
    * Theorem --- The empty set is a subset of every set.
@@ -53,11 +34,6 @@ object Example extends lisa.Main {
     have               (thesis)                        by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
   }
 
-
-
-
-
-
   /**
    * Theorem --- If a set has an element, then it is not the empty set.
    *
@@ -66,21 +42,18 @@ object Example extends lisa.Main {
   val setWithElementNonEmpty = Theorem(
     (y ∈ x) |- x =/= ∅
   ) {
-    have ((x === ∅) |- !(y ∈ x))  by Substitute(x === ∅)(emptySetAxiom of (x := y))
+    have ((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
   }
-
-
-  
 
   /**
    * Theorem --- A power set is never empty.
    *
-   *   `|- !P(x) = ∅`
+   *   `|- !powerAxiom(x) = ∅`
    */
   val powerSetNonEmpty = Theorem(
     powerSet(x) =/= ∅
   ) {
-    have (thesis)  by Tautology.from(
+    have (thesis) by Tautology.from(
       setWithElementNonEmpty of (y := ∅, x := powerSet(x)), 
       powerAxiom of (x:= ∅, y:=x), 
       emptySetIsASubset
@@ -90,43 +63,9 @@ object Example extends lisa.Main {
 
 
 
+/*
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  import lisa.mathematics.settheory.SetTheory.* 
 
 
   // Examples of definitions
@@ -140,46 +79,46 @@ object Example extends lisa.Main {
 
 
 
+*/
 
 
 
 
 
+/* 
 
 
 
+// Simple tactic definition for LISA DSL
+import lisa.automation.kernel.OLPropositionalSolver.*
 
-
-  // Simple tactic definition for LISA DSL
-  import lisa.automation.kernel.OLPropositionalSolver.*
-
-  // object SimpleTautology extends ProofTactic {
-  //   def solveFormula(using proof: library.Proof)(f: Formula, decisionsPos: List[Formula], decisionsNeg: List[Formula]): proof.ProofTacticJudgement = {
-  //     val redF = reducedForm(f)
-  //     if (redF == ⊤) {
-  //       Restate(decisionsPos |- f :: decisionsNeg)
-  //     } else if (redF == ⊥) {
-  //       proof.InvalidProofTactic("Sequent is not a propositional tautology")
-  //     } else {
-  //       val atom = findBestAtom(redF).get
-  //       def substInRedF(f: Formula) = redF.substituted(atom -> f)
-  //       TacticSubproof {
-  //         have(solveFormula(substInRedF(⊤), atom :: decisionsPos, decisionsNeg))
-  //         val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution2(⊤ <=> atom)
-  //         have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
-  //         val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution2(⊥ <=> atom)
-  //         have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
-  //         thenHave(decisionsPos |- f :: decisionsNeg) by Restate
-  //       }
-  //     }
-  //   }
-  //   def solveSequent(using proof: library.Proof)(bot: Sequent) =
-  //     TacticSubproof { // Since the tactic above works on formulas, we need an extra step to convert an arbitrary sequent to an equivalent formula
-  //       have(solveFormula(sequentToFormula(bot), Nil, Nil))
-  //       thenHave(bot) by Restate.from
-  //     }
-  // }
-
+// object SimpleTautology extends ProofTactic {
+//   def solveFormula(using proof: library.Proof)(f: Formula, decisionsPos: List[Formula], decisionsNeg: List[Formula]): proof.ProofTacticJudgement = {
+//     val redF = reducedForm(f)
+//     if (redF == ⊤) {
+//       Restate(decisionsPos |- f :: decisionsNeg)
+//     } else if (redF == ⊥) {
+//       proof.InvalidProofTactic("Sequent is not a propositional tautology")
+//     } else {
+//       val atom = findBestAtom(redF).get
+//       def substInRedF(f: Formula) = redF.substituted(atom -> f)
+//       TacticSubproof {
+//         have(solveFormula(substInRedF(⊤), atom :: decisionsPos, decisionsNeg))
+//         val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution2(⊤ <=> atom)
+//         have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
+//         val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution2(⊥ <=> atom)
+//         have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
+//         thenHave(decisionsPos |- f :: decisionsNeg) by Restate
+//       }
+//     }
+//   }
+//   def solveSequent(using proof: library.Proof)(bot: Sequent) =
+//     TacticSubproof { // Since the tactic above works on formulas, we need an extra step to convert an arbitrary sequent to an equivalent formula
+//       have(solveFormula(sequentToFormula(bot), Nil, Nil))
+//       thenHave(bot) by Restate.from
+//     }
+// }
+ */
   // val a = formulaVariable()
   // val b = formulaVariable()
   // val c = formulaVariable()
@@ -188,6 +127,4 @@ object Example extends lisa.Main {
   // }
   // show
 
-
-  def Substitute = Substitution.ApplyRules
 }

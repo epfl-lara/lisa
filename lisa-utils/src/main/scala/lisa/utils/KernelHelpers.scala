@@ -458,8 +458,6 @@ object KernelHelpers {
     }
   }
 
-
-
   /**
    * output a readable representation of a proof.
    */

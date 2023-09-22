@@ -1,28 +1,27 @@
 package lisa.prooflib
 
+import lisa.prooflib.BasicStepTactic.Rewrite
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
-import lisa.prooflib.BasicStepTactic.Rewrite
-import lisa.utils.{*, given}
-import lisa.utils.KernelHelpers.{*, given}
-
-import scala.annotation.targetName
+import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
-import lisa.utils.LisaException
+import lisa.utils.{_, given}
 
-trait ProofsHelpers {  
+import scala.annotation.targetName
+
+trait ProofsHelpers {
   library: Library & WithTheorems =>
 
   import lisa.fol.FOL.{given, *}
 
   given Library = library
 
-
   class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    val x:lisa.fol.FOL.Sequent = bot
+    val x: lisa.fol.FOL.Sequent = bot
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
@@ -66,7 +65,6 @@ trait ProofsHelpers {
    */
   def have(using proof: library.Proof)(res: Sequent): HaveSequent = HaveSequent(res)
 
-
   def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
     case judg: proof.ProofTacticJudgement => judg.validate(line, file)
     case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Rewrite(using library, proof)(fact))
@@ -89,7 +87,7 @@ trait ProofsHelpers {
     }
   }
 
-/*
+  /*
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
@@ -97,7 +95,7 @@ trait ProofsHelpers {
     proof.addAssumption(f)
     have(() |- f) by BasicStepTactic.Hypothesis
   }
-*/
+   */
   /**
    * Assume the given formulas in all future left hand-side of claimed sequents.
    */
@@ -105,7 +103,6 @@ trait ProofsHelpers {
     fs.foreach(f => proof.addAssumption(f))
     have(() |- fs.toSet) by BasicStepTactic.Hypothesis
   }
-
 
   def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
   def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
@@ -129,15 +126,9 @@ trait ProofsHelpers {
 
   def currentProof(using p: library.Proof): Library#Proof = p
 
-
-
-
-
   ////////////////////////////////////////
   //  DSL for definitions and theorems  //
   ////////////////////////////////////////
-
-
 
   class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
     val showError: String = {
@@ -153,44 +144,42 @@ trait ProofsHelpers {
   class The(val out: Variable, val f: Formula)(
       val just: JUSTIFICATION
   )
-  class definitionWithVars[N<:Arity](val args: Variable***N) {
+  class definitionWithVars[N <: Arity](val args: Variable *** N) {
 
-    //inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
-    //inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
+    // inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
+    // inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantFunctionLabelOfArity[N] = 
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantFunctionLabelOfArity[N] =
       FunctionDefinition[N](name.value, name.value, line.value, file.value)(args.toSeq, t.out, t.f, t.just).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] = 
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] =
       SimpleFunctionDefinition[N](name.value, name.value, line.value, file.value)(lambda(args.toSeq, term).asInstanceOf).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantPredicateLabelOfArity[N] = 
+    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantPredicateLabelOfArity[N] =
       PredicateDefinition[N](name.value, name.value, line.value, file.value)(lambda(args.toSeq, formula).asInstanceOf).label
-      
 
   }
 
-  def DEF[N<:Arity, T <: Tuple](args: T)(using Tuple.Size[T] =:= N, Tuple.Union[T] <:< Variable): definitionWithVars[N] = new definitionWithVars[N](args.asInstanceOf)
-  def DEF(arg: Variable): definitionWithVars[1] = new definitionWithVars[1](EmptyTuple.*:[Variable, EmptyTuple](arg)) //todo conversion to empty tuple gets bad type
-  
-  //def DEF: definitionWithVars[0] = new definitionWithVars[0](EmptyTuple) //todo conversion to empty tuple gets bad type
+  def DEF[N <: Arity, T <: Tuple](args: T)(using Tuple.Size[T] =:= N, Tuple.Union[T] <:< Variable): definitionWithVars[N] = new definitionWithVars[N](args.asInstanceOf)
+  def DEF(arg: Variable): definitionWithVars[1] = new definitionWithVars[1](EmptyTuple.*:[Variable, EmptyTuple](arg)) // todo conversion to empty tuple gets bad type
+
+  // def DEF: definitionWithVars[0] = new definitionWithVars[0](EmptyTuple) //todo conversion to empty tuple gets bad type
 
   // Definition helpers, not part of the DSL
-
-
-
 
   /**
    * Allows to make definitions "by unique existance" of a function symbol
    */
-  class FunctionDefinition[N<:F.Arity](using om: OutputManager)
-  (val name: String, val fullName: String, line: Int, file: String)
-  (val vars: Seq[F.Variable], val out: F.Variable, val f: F.Formula, j:JUSTIFICATION) extends DEFINITION(line, file) {
-    //val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
-    
+  class FunctionDefinition[N <: F.Arity](using om: OutputManager)(val name: String, val fullName: String, line: Int, file: String)(
+      val vars: Seq[F.Variable],
+      val out: F.Variable,
+      val f: F.Formula,
+      j: JUSTIFICATION
+  ) extends DEFINITION(line, file) {
+    // val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
+
     lazy val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
 
-    
     val innerJustification: theory.FunctionDefinition = {
       val conclusion: F.Sequent = j.statement
       val pr: SCProof = SCProof(IndexedSeq(SC.Restate(conclusion.underlying, -1)), IndexedSeq(conclusion.underlying))
@@ -209,7 +198,7 @@ trait ProofsHelpers {
           UserInvalidDefinitionException(
             name,
             s"The definition is not allowed to contain schematic symbols or free variables." +
-              s"The symbols {${(f.freeSchematicLabels -- vars.toSet- out).mkString(", ")}} are free in the expression ${f.toString}."
+              s"The symbols {${(f.freeSchematicLabels -- vars.toSet - out).mkString(", ")}} are free in the expression ${f.toString}."
           )
         )
       }
@@ -230,7 +219,7 @@ trait ProofsHelpers {
       val underf = f.underlying
       val undervars = vars.map(_.underlyingLabel)
       val ulabel = K.ConstantFunctionLabel(name, vars.size)
-      val judgement = theory.makeFunctionDefinition(pr, Seq(j.innerJustification),  ulabel, out.underlyingLabel, K.LambdaTermFormula(undervars, underf), proven.underlying)
+      val judgement = theory.makeFunctionDefinition(pr, Seq(j.innerJustification), ulabel, out.underlyingLabel, K.LambdaTermFormula(undervars, underf), proven.underlying)
       judgement match {
         case K.ValidJustification(just) =>
           just
@@ -252,7 +241,8 @@ trait ProofsHelpers {
               UserInvalidDefinitionException(
                 name,
                 s"The definition is not allowed to contain schematic symbols or free variables." +
-                  s"Kernel returned error: The symbols {${(underf.freeSchematicTermLabels -- undervars.toSet - out.underlyingLabel ++ underf.freeSchematicTermLabels).mkString(", ")}} are free in the expression ${underf.toString}."
+                  s"Kernel returned error: The symbols {${(underf.freeSchematicTermLabels -- undervars.toSet - out.underlyingLabel ++ underf.freeSchematicTermLabels)
+                      .mkString(", ")}} are free in the expression ${underf.toString}."
               )
             )
           }
@@ -266,9 +256,21 @@ trait ProofsHelpers {
       }
     }
 
-    //val label: ConstantTermLabel[N]
-    val statement: F.Sequent = 
-      () |- F.Forall(out, Iff(equality((label match {case l:F.Constant => l case l: F.ConstantFunctionLabel[?] => l(vars)}), out), f))
+    // val label: ConstantTermLabel[N]
+    val statement: F.Sequent =
+      () |- F.Forall(
+        out,
+        Iff(
+          equality(
+            (label match {
+              case l: F.Constant => l
+              case l: F.ConstantFunctionLabel[?] => l(vars)
+            }),
+            out
+          ),
+          f
+        )
+      )
 
     library.last = Some(this)
 
@@ -277,37 +279,36 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by equality" of a function symbol
    */
-  class SimpleFunctionDefinition[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
-                      (val lambda: LambdaExpression[Term, Term, N], out: F.Variable, j:JUSTIFICATION) extends FunctionDefinition[N](
-                        name, fullName, line, file)(lambda.bounds.asInstanceOf, out, out===lambda.body, j)  {
-  }
+  class SimpleFunctionDefinition[N <: F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)(
+      val lambda: LambdaExpression[Term, Term, N],
+      out: F.Variable,
+      j: JUSTIFICATION
+  ) extends FunctionDefinition[N](name, fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {}
 
-  object SimpleFunctionDefinition{
-    def apply[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
-                      (lambda: LambdaExpression[Term, Term, N]) : SimpleFunctionDefinition[N] = {
+  object SimpleFunctionDefinition {
+    def apply[N <: F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {
 
-      //THM(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
-      val intName = "definition_"+fullName
+      // THM(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
+      val intName = "definition_" + fullName
       val out = Variable(freshId(lambda.allSchematicLabels.map(_.id), "y"))
-      val defThm = new THM(F.ExistsOne(out, out===lambda.body), intName, line, file, InternalStatement)({
+      val defThm = new THM(F.ExistsOne(out, out === lambda.body), intName, line, file, InternalStatement)({
         have(SimpleDeducedSteps.simpleFunctionDefinition(lambda, out))
       })
       new SimpleFunctionDefinition[N](name, fullName, line, file)(lambda, out, defThm)
     }
   }
 
-
-  class PredicateDefinition[N<:F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)
-                      (val lambda: LambdaExpression[Term, Formula, N]) extends DEFINITION(line, file) {
+  class PredicateDefinition[N <: F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)(val lambda: LambdaExpression[Term, Formula, N])
+      extends DEFINITION(line, file) {
 
     lazy val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity
 
-    lazy val label: ConstantPredicateLabelOfArity[N]  = {
+    lazy val label: ConstantPredicateLabelOfArity[N] = {
       (
-        if (vars.length == 0) F.ConstantFormula(name) 
+        if (vars.length == 0) F.ConstantFormula(name)
         else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf[N])
-        ).asInstanceOf[ConstantPredicateLabelOfArity[N]]
+      ).asInstanceOf[ConstantPredicateLabelOfArity[N]]
     }
 
     val innerJustification: theory.PredicateDefinition = {
@@ -336,7 +337,8 @@ trait ProofsHelpers {
               UserInvalidDefinitionException(
                 name,
                 s"The definition is not allowed to contain schematic symbols or free variables." +
-                  s"Kernel returned error: The symbols {${(underlambda.body.freeSchematicTermLabels -- undervars.toSet ++ underlambda.body.freeSchematicTermLabels).mkString(", ")}} are free in the expression ${underlambda.body.toString}."
+                  s"Kernel returned error: The symbols {${(underlambda.body.freeSchematicTermLabels -- undervars.toSet ++ underlambda.body.freeSchematicTermLabels)
+                      .mkString(", ")}} are free in the expression ${underlambda.body.toString}."
               )
             )
           }
@@ -350,7 +352,13 @@ trait ProofsHelpers {
       }
     }
 
-    val statement: F.Sequent = () |- Iff((label match {case l:F.ConstantFormula => l case l: F.ConstantPredicateLabel[?] => l(vars)}), lambda.body)
+    val statement: F.Sequent = () |- Iff(
+      (label match {
+        case l: F.ConstantFormula => l
+        case l: F.ConstantPredicateLabel[?] => l(vars)
+      }),
+      lambda.body
+    )
 
     library.last = Some(this)
   }

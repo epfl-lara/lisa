@@ -4,8 +4,8 @@ import lisa.kernel.fol.FOL._
 import lisa.utils.KernelHelpers._
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
-import lisa.utils.{*, given}
-import lisa.utils.KernelHelpers.{*, given}
+import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.{_, given}
 
 trait TestUtils {
   val (a, b, c) = (ConstantPredicateLabel("a", 0), ConstantPredicateLabel("b", 0), ConstantPredicateLabel("c", 0))

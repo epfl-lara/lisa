@@ -1,3 +1,4 @@
+import MapProofDef.{_, given}
 import lisa.automation.kernel.OLPropositionalSolver.*
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
@@ -11,8 +12,6 @@ import lisa.utils.FOLPrinter.*
 import lisa.utils.KernelHelpers.checkProof
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.UnificationUtils.*
-
-import MapProofDef.{*, given}
 
 /**
  * A set of proofs from a functional programming exam about equivalence between

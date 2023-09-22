@@ -1,11 +1,10 @@
 package lisa.prooflib
-import lisa.fol.FOL as F
 import lisa.fol.FOLHelpers.*
-import lisa.utils.K
-
+import lisa.fol.FOL as F
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
-import lisa.utils.KernelHelpers.{|- => `K|-`, *}
+import lisa.utils.K
+import lisa.utils.KernelHelpers.{|- => `K|-`, _}
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.UnificationUtils
@@ -40,7 +39,6 @@ object BasicStepTactic {
         proof.ValidProofTactic(bot, Seq(K.Restate(botK, -1)), Seq(premise))
     }
   }
-
 
   object RewriteTrue extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
@@ -81,7 +79,7 @@ object BasicStepTactic {
     def apply(using lib: Library, proof: lib.Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
-      
+
       lazy val cutSet = (((rightSequent --<? bot).left |- ()) ++? ((leftSequent -->? bot).right |- ())).left
       lazy val intersectedCutSet = rightSequent.left intersect leftSequent.right
 
@@ -332,13 +330,13 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftForall extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable, t: F.Term|K.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable, t: F.Term | K.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlyingLabel
       lazy val tK = t match {
-              case t:F.Term => t.underlying
-              case t:K.Term => t
-            } 
+        case t: F.Term => t.underlying
+        case t: K.Term => t
+      }
       lazy val phiK = phi.underlying
       lazy val botK = bot.underlying
       lazy val quantified = K.BinderFormula(K.Forall, xK, phiK)
@@ -405,7 +403,7 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BinderFormula(F.Forall, x, phi) =>  UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).isDefined
+            case g @ F.BinderFormula(F.Forall, x, phi) => UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).isDefined
             case _ => false
           }
         )
@@ -444,7 +442,7 @@ object BasicStepTactic {
       else
         proof.ValidProofTactic(bot, Seq(K.LeftExists(botK, -1, phiK, xK)), Seq(premise))
     }
-  
+
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
@@ -494,9 +492,15 @@ object BasicStepTactic {
       lazy val phiK = phi.underlying
       lazy val botK = bot.underlying
       lazy val y = K.VariableLabel(lisa.utils.KernelHelpers.freshId(phiK.freeVariables.map(_.id), x.id))
-      lazy val instantiated = K.BinderFormula(K.Exists, y, K.BinderFormula(
-        K.Forall, xK, K.ConnectorFormula(K.Iff, List(K.PredicateFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
-        ))
+      lazy val instantiated = K.BinderFormula(
+        K.Exists,
+        y,
+        K.BinderFormula(
+          K.Forall,
+          xK,
+          K.ConnectorFormula(K.Iff, List(K.PredicateFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
+        )
+      )
       lazy val quantified = K.BinderFormula(K.ExistsOne, xK, phiK)
 
       if (!K.isSameSet(botK.right, premiseSequent.right))
@@ -521,8 +525,7 @@ object BasicStepTactic {
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
-            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall,
-             x, F.ConnectorFormula(F.Iff, Seq(_, phi)))) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
+            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.ConnectorFormula(F.Iff, Seq(_, phi)))) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
         } else
@@ -536,7 +539,6 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise + ∃x. φ.")
     }
   }
-
 
   // Right rules
   /**
@@ -583,7 +585,6 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")
     }
   }
-  
 
   /**
    * <pre>
@@ -825,13 +826,13 @@ object BasicStepTactic {
    * </pre>
    */
   object RightExists extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable, t: F.Term|K.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable, t: F.Term | K.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlyingLabel
       lazy val tK = t match {
-        case t:F.Term => t.underlying
-        case t:K.Term => t
-      } 
+        case t: F.Term => t.underlying
+        case t: K.Term => t
+      }
       lazy val phiK = phi.underlying
       lazy val botK = bot.underlying
       lazy val quantified = K.BinderFormula(K.Exists, xK, phiK)
@@ -899,7 +900,7 @@ object BasicStepTactic {
 
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.BinderFormula(F.Exists, x, phi) => 
+            case g @ F.BinderFormula(F.Exists, x, phi) =>
               UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVariables - x)).isDefined
             case _ => false
           }
@@ -928,9 +929,15 @@ object BasicStepTactic {
       lazy val phiK = phi.underlying
       lazy val botK = bot.underlying
       lazy val y = K.VariableLabel(lisa.utils.KernelHelpers.freshId(phiK.freeVariables.map(_.id), x.id))
-      lazy val instantiated = K.BinderFormula(K.Exists, y, K.BinderFormula(
-        K.Forall, xK, K.ConnectorFormula(K.Iff, List(K.PredicateFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
-      ))
+      lazy val instantiated = K.BinderFormula(
+        K.Exists,
+        y,
+        K.BinderFormula(
+          K.Forall,
+          xK,
+          K.ConnectorFormula(K.Iff, List(K.PredicateFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
+        )
+      )
       lazy val quantified = K.BinderFormula(K.ExistsOne, xK, phiK)
 
       if (!K.isSameSet(botK.left, premiseSequent.left))
@@ -955,7 +962,7 @@ object BasicStepTactic {
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
-            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.ConnectorFormula(F.Iff, Seq(_, phi)))) => 
+            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.ConnectorFormula(F.Iff, Seq(_, phi)))) =>
               RightExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
@@ -970,7 +977,6 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the same as right-hand side of premise + ∃x. φ.")
     }
   }
-
 
   // Structural rules
   /**
@@ -1060,10 +1066,10 @@ object BasicStepTactic {
       else {
         // go through conclusion to see if you can find an reflexive formula
         val pivot: Option[F.Formula] = bot.right.find(f =>
-          val Eq = F.equality  //(F.equality: (F.|->[F.**[F.Term, 2], F.Formula]))
+          val Eq = F.equality // (F.equality: (F.|->[F.**[F.Term, 2], F.Formula]))
           f match {
-            case F.PredicateFormula(e, Seq(l, r)) =>  
-              (F.equality:F.PredicateLabel) == (e:F.PredicateLabel) && l==r //termequality
+            case F.PredicateFormula(e, Seq(l, r)) =>
+              (F.equality: F.PredicateLabel) == (e: F.PredicateLabel) && l == r // termequality
             case _ => false
           }
         )
@@ -1087,9 +1093,10 @@ object BasicStepTactic {
    */
   object LeftSubstEq extends ProofTactic {
     def withParameters(using lib: Library, proof: lib.Proof)(
-      equals: List[(F.Term, F.Term)], lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
-      )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      
+        equals: List[(F.Term, F.Term)],
+        lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
       lazy val equalsK = equals.map((p: (F.Term, F.Term)) => (p._1.underlying, p._2.underlying))
@@ -1121,8 +1128,9 @@ object BasicStepTactic {
    */
   object RightSubstEq extends ProofTactic {
     def withParameters(using lib: Library, proof: lib.Proof)(
-      equals: List[(F.Term, F.Term)], lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
-      )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+        equals: List[(F.Term, F.Term)],
+        lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
 
       lazy val lambdaPhiK = F.underlyingLTF(lambdaPhi)
       lazy val premiseSequent = proof.getSequent(premise).underlying
@@ -1164,8 +1172,7 @@ object BasicStepTactic {
       else
         val termLambda = canReach.get.toLambdaTF
         withParameters(equalities.toList, termLambda)(premise)(bot)
-      
-        
+
     }
   }
 
@@ -1178,8 +1185,9 @@ object BasicStepTactic {
    */
   object LeftSubstIff extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(
-      equals: List[(F.Formula, F.Formula)], lambdaPhi: F.LambdaExpression[F.Formula, F.Formula, ?]
-      )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+        equals: List[(F.Formula, F.Formula)],
+        lambdaPhi: F.LambdaExpression[F.Formula, F.Formula, ?]
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
 
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
@@ -1212,8 +1220,9 @@ object BasicStepTactic {
    */
   object RightSubstIff extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(
-      equals: List[(F.Formula, F.Formula)], lambdaPhi: F.LambdaExpression[F.Formula, F.Formula, ?]
-      )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+        equals: List[(F.Formula, F.Formula)],
+        lambdaPhi: F.LambdaExpression[F.Formula, F.Formula, ?]
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
 
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
@@ -1246,14 +1255,16 @@ object BasicStepTactic {
    */
   object InstFunSchema extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(
-      insts: Map[F.SchematicFunctionLabel[?]|F.Variable, F.LambdaExpression[F.Term, F.Term, ?]]
-      )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+        insts: Map[F.SchematicFunctionLabel[?] | F.Variable, F.LambdaExpression[F.Term, F.Term, ?]]
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
-      val instsK = insts.map((sl, le) => sl match {
-        case v: F.Variable => (v.underlyingLabel, F.underlyingLTT(le))
-        case sfl: F.SchematicFunctionLabel[?] => (sfl.underlyingLabel, F.underlyingLTT(le))
-      })
+      val instsK = insts.map((sl, le) =>
+        sl match {
+          case v: F.Variable => (v.underlyingLabel, F.underlyingLTT(le))
+          case sfl: F.SchematicFunctionLabel[?] => (sfl.underlyingLabel, F.underlyingLTT(le))
+        }
+      )
 
       if (!K.isSameSet(botK.left, premiseSequent.left.map(K.instantiateTermSchemas(_, instsK))))
         proof.InvalidProofTactic("Left-hand side of premise instantiated with the map 'insts' is not the same as left-hand side of conclusion.")
@@ -1264,7 +1275,6 @@ object BasicStepTactic {
     }
   }
 
-
   /**
    * <pre>
    *           Γ |- Δ
@@ -1274,14 +1284,16 @@ object BasicStepTactic {
    */
   object InstPredSchema extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(
-      insts: Map[F.SchematicPredicateLabel[?]|F.VariableFormula, F.LambdaExpression[F.Term, F.Formula, ?]]
-      )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+        insts: Map[F.SchematicPredicateLabel[?] | F.VariableFormula, F.LambdaExpression[F.Term, F.Formula, ?]]
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
-      val instsK = insts.map((sl, le) => sl match {
-        case v: F.VariableFormula => (v.underlyingLabel, F.underlyingLTF(le))
-        case sfl: F.SchematicPredicateLabel[?] => (sfl.underlyingLabel, F.underlyingLTF(le))
-      })
+      val instsK = insts.map((sl, le) =>
+        sl match {
+          case v: F.VariableFormula => (v.underlyingLabel, F.underlyingLTF(le))
+          case sfl: F.SchematicPredicateLabel[?] => (sfl.underlyingLabel, F.underlyingLTF(le))
+        }
+      )
 
       if (!K.isSameSet(botK.left, premiseSequent.left.map(K.instantiatePredicateSchemas(_, instsK))))
         proof.InvalidProofTactic("Left-hand side of premise instantiated with the map 'insts' is not the same as left-hand side of conclusion.")
@@ -1296,23 +1308,29 @@ object BasicStepTactic {
     def apply(using
         lib: Library,
         proof: lib.Proof
-    )(mCon: Map[F.SchematicConnectorLabel[?], F.LambdaExpression[F.Formula, F.Formula, ?]],
-      mPred: Map[F.SchematicPredicateLabel[?]|F.VariableFormula, F.LambdaExpression[F.Term, F.Formula, ?]],
-      mTerm: Map[F.SchematicFunctionLabel[?]|F.Variable, F.LambdaExpression[F.Term, F.Term, ?]])(
-      premise: proof.Fact
+    )(
+        mCon: Map[F.SchematicConnectorLabel[?], F.LambdaExpression[F.Formula, F.Formula, ?]],
+        mPred: Map[F.SchematicPredicateLabel[?] | F.VariableFormula, F.LambdaExpression[F.Term, F.Formula, ?]],
+        mTerm: Map[F.SchematicFunctionLabel[?] | F.Variable, F.LambdaExpression[F.Term, F.Term, ?]]
+    )(
+        premise: proof.Fact
     ): proof.ProofTacticJudgement = {
       val premiseSequent = proof.getSequent(premise).underlying
       val mConK = mCon.map((sl, le) => (sl.underlyingLabel, F.underlyingLFF(le)))
-      val mPredK = mPred.map((sl, le) => sl match {
-        case v: F.VariableFormula => (v.underlyingLabel, F.underlyingLTF(le))
-        case spl: F.SchematicPredicateLabel[?] => (spl.underlyingLabel, F.underlyingLTF(le))
-      })
-      val mTermK = mTerm.map((sl, le) => sl match {
-        case v: F.Variable => (v.underlyingLabel, F.underlyingLTT(le))
-        case sfl: F.SchematicFunctionLabel[?] => (sfl.underlyingLabel, F.underlyingLTT(le))
-      })
+      val mPredK = mPred.map((sl, le) =>
+        sl match {
+          case v: F.VariableFormula => (v.underlyingLabel, F.underlyingLTF(le))
+          case spl: F.SchematicPredicateLabel[?] => (spl.underlyingLabel, F.underlyingLTF(le))
+        }
+      )
+      val mTermK = mTerm.map((sl, le) =>
+        sl match {
+          case v: F.Variable => (v.underlyingLabel, F.underlyingLTT(le))
+          case sfl: F.SchematicFunctionLabel[?] => (sfl.underlyingLabel, F.underlyingLTT(le))
+        }
+      )
       val botK = instantiateSchemaInSequent(premiseSequent, mConK, mPredK, mTermK)
-      val smap = Map[F.SchematicLabel[?], F.LisaObject[?]]()++mCon++mPred++mTerm
+      val smap = Map[F.SchematicLabel[?], F.LisaObject[?]]() ++ mCon ++ mPred ++ mTerm
       val res = proof.getSequent(premise).substituteUnsafe(smap)
       proof.ValidProofTactic(res, Seq(K.InstSchema(botK, -1, mConK, mPredK, mTermK)), Seq(premise))
     }
@@ -1362,5 +1380,5 @@ object BasicStepTactic {
   def TacticSubproof(using proof: Library#Proof)(botK: Option[Sequent])(computeProof: proof.InnerProof ?=> Unit) =
     SUBPROOF(using proof)(Some(botK))(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
    */
-  
+
 }

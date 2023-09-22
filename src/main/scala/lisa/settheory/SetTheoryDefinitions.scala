@@ -1,8 +1,8 @@
 package lisa.settheory
 
-import lisa.utils.K
-import lisa.fol.FOL.{*, given}
+import lisa.fol.FOL.{_, given}
 import lisa.kernel.proof.RunningTheory
+import lisa.utils.K
 
 /**
  * Base trait for set theoretical axiom systems.
@@ -69,11 +69,11 @@ private[settheory] trait SetTheoryDefinitions extends lisa.prooflib.Library {
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
    */
-  //val runningSetTheory: RunningTheory = new RunningTheory()
+  // val runningSetTheory: RunningTheory = new RunningTheory()
   // given RunningTheory = runningSetTheory
 
   predicates.foreach(s => addSymbol(s))
   functions.foreach(s => addSymbol(s))
   addSymbol(emptySet)
-  
+
 }

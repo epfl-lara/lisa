@@ -246,5 +246,5 @@ object SimplePropositionalSolver {
       proof.ValidProofTactic(steps, premises)
     }
   }
-*/
+   */
 }
