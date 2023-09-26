@@ -1,4 +1,3 @@
-import lisa.automation.kernel.OLPropositionalSolver.*
 import lisa.prooflib.Substitution.{ApplyRules as Substitute}
 
 
