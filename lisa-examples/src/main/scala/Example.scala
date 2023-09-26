@@ -12,7 +12,6 @@ object Example extends lisa.Main {
   // Simple proof with LISA's DSL
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
     assume(∀(x, P(x) ==> P(f(x))))
-    assume(P(x))
     val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
     val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
     have(thesis) by Tautology.from(step1, step2)
@@ -29,9 +28,9 @@ object Example extends lisa.Main {
   val emptySetIsASubset = Theorem(
     ∅ ⊆ x
   ) {
-    have               ((y ∈ ∅) ==> (y ∈ x))           by Weakening(emptySetAxiom of (x := y))
-    val rhs = thenHave (∀(y, (y ∈ ∅) ==> (y ∈ x)))     by RightForall
-    have               (thesis)                        by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
+    have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
+    val rhs = thenHave(∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
+    have(thesis) by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
   }
 
   /**
