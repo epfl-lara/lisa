@@ -1,7 +1,6 @@
 import lisa.automation.kernel.OLPropositionalSolver.*
 import lisa.prooflib.Substitution.{ApplyRules as Substitute}
 
-
 object Example extends lisa.Main {
 
   val x = variable
@@ -16,10 +15,9 @@ object Example extends lisa.Main {
     val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
     val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
     have(thesis) by Tautology.from(step1, step2)
-  } 
+  }
 
-
-  //Example of set theoretic development
+  // Example of set theoretic development
 
   /**
    * Theorem --- The empty set is a subset of every set.
@@ -29,9 +27,9 @@ object Example extends lisa.Main {
   val emptySetIsASubset = Theorem(
     ∅ ⊆ x
   ) {
-    have               ((y ∈ ∅) ==> (y ∈ x))           by Weakening(emptySetAxiom of (x := y))
-    val rhs = thenHave (∀(y, (y ∈ ∅) ==> (y ∈ x)))     by RightForall
-    have               (thesis)                        by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
+    have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
+    val rhs = thenHave(∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
+    have(thesis) by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
   }
 
   /**
@@ -42,7 +40,7 @@ object Example extends lisa.Main {
   val setWithElementNonEmpty = Theorem(
     (y ∈ x) |- x =/= ∅
   ) {
-    have ((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
+    have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
   }
 
   /**
@@ -53,19 +51,16 @@ object Example extends lisa.Main {
   val powerSetNonEmpty = Theorem(
     powerSet(x) =/= ∅
   ) {
-    have (thesis) by Tautology.from(
-      setWithElementNonEmpty of (y := ∅, x := powerSet(x)), 
-      powerAxiom of (x:= ∅, y:=x), 
+    have(thesis) by Tautology.from(
+      setWithElementNonEmpty of (y := ∅, x := powerSet(x)),
+      powerAxiom of (x := ∅, y := x),
       emptySetIsASubset
     )
   }
 
+  /*
 
-
-
-/*
-
-  import lisa.mathematics.settheory.SetTheory.* 
+  import lisa.mathematics.settheory.SetTheory.*
 
 
   // Examples of definitions
@@ -79,13 +74,9 @@ object Example extends lisa.Main {
 
 
 
-*/
+   */
 
-
-
-
-
-/* 
+  /*
 
 
 
@@ -118,7 +109,7 @@ import lisa.automation.kernel.OLPropositionalSolver.*
 //       thenHave(bot) by Restate.from
 //     }
 // }
- */
+   */
   // val a = formulaVariable()
   // val b = formulaVariable()
   // val c = formulaVariable()
