@@ -181,4 +181,75 @@ If all the output is green, perfect! If there is an error, it can be either a sy
 Alternatively, if you are using IntelliJ or VS Code and Metals, you can run your theory file directly in your IDE by clicking either on the green arrow (IntelliJ) or on ``run" (VS Code) next to your main object.
 
 
+\section{Common Tactics}
+\subsubsection*{Restate}
+Restate is a tactic that reasons modulo ortholattices, a subtheory of boolean algebra (see \cite{guilloudFormulaNormalizationsVerification2023} and \autoref{subsec:equivalencechecker}). Formally, it is very efficient and can prove a lot of simple propositional transformations, but not everything that is true in classical logic. In particular, it can't prove that $(a\land b) \lor (a \land c) \iff a \land (b \lor c)$ is true. It can however prove very limited facts involving equality and quantifiers. Usage:
 
+\begin{lstlisting}[language=lisa]
+  have(statement) by Restate
+\end{lstlisting}
+tries to justify \lstinline|statement| by showing it is equivalent to \lstinline|True|.
+
+\begin{lstlisting}[language=lisa]
+  have(statement) by Restate(premise)
+\end{lstlisting}
+tries to justify \lstinline|statement| by showing it is equivalent to the previously proven \lstinline|premise|.
+
+\subsubsection*{Tautology}
+\lstinline|Tautology| is a propositional solver based upon restate, but complete. It is able to prove every formula inference that holds in classical propositional logic. However, in the worst case its complexity can be exponential in the size of the formula. Usage:
+
+\begin{lstlisting}[language=lisa]
+  have(statement) by Tautology
+\end{lstlisting}
+Constructs a proof of \lstinline|statement|, if the statement is true and a proof of it using only classical propositional reasoning exists.
+
+\begin{lstlisting}[language=lisa]
+  have(statement) by Tautology.from(premise1, premise2,...)
+\end{lstlisting}
+Construct a proof of \lstinline|statement| from the previously proven \lstinline|premise1|, \lstinline|premise2|,... using propositional reasoning.
+
+
+\subsubsection*{RightForall, InstantiateForall}
+\lstinline|RightForall| will generalize a statement by quantifying it over free variables. For example,
+\begin{lstlisting}[language=lisa]
+  have(P(x)) by ???
+  thenHave(∀(x, P(x))) by RightForall 
+\end{lstlisting}
+Note that if the statement inside \lstinline|have| has more than one formula, $x$ cannot appear (it cannot be \emph{free}) in any formula other than $P(x)$. It can also not appear in any assumption.
+
+\lstinline|InstantiateForall| does the opposite: given a universally quantified statement, it will specialize it. For example:
+\begin{lstlisting}[language=lisa]
+  have(∀(x, P(x))) by ???
+  thenHave(P(t)) by InstantiateForall 
+\end{lstlisting}
+for any arbitrary term \lstinline|t|.
+
+\subsubsection*{Substitution}
+Substitutions allows reasoning by substituting equal terms and equivalent formulas. Usage:
+\begin{lstlisting}[language=lisa]
+  have(statement) by Substitution.ApplyRules(subst*)(premise)
+\end{lstlisting}
+
+\lstinline|subst*| is an arbitrary number of substitution. Each of those can be a previously proven fact (or theorem or axiom), or a formula. They must all be of the form \lstinline|s === t| or \lstinline|A <=> B|, otherwise the tactic will fail. The \lstinline|premise| is a previously proven fact. The tactic will try to show that \lstinline|statement| can be obtained from \lstinline|premise| by applying the substitutions from \lstinline|subst|. In its simplest form,
+\begin{lstlisting}[language=lisa]
+  val subst = have(s === t) by ???
+  have(P(s)) by ???
+  thenHave(P(t)) by Substitution.ApplyRules(subst)
+\end{lstlisting}
+
+Moreover, \lstinline|Substitution| is also able to  automatically unify and instantiate subst rules. For example
+
+\begin{lstlisting}[language=lisa]
+  val subst = have(g(x, y) === g(y, x)) by ???
+  have(P(g(3, 8))) by ???
+  thenHave(P(g(8, 3))) by Substitution.ApplyRules(subst)
+\end{lstlisting}
+
+If a \lstinline|subst| is a formula rather than a proven fact, then it should be an assumption in the resulting statement. Similarly, if one of the substitution has an asusmption, it should be in the resulting statement. For example,
+
+\begin{lstlisting}[language=lisa]
+  val subst = have(A |- Q(s) <=> P(s)) by ???
+  have(Q(s) /\ s===f(t)) by ???
+  thenHave(A, f(t) === t |- P(s) /\ s===t) 
+      .by Substitution.ApplyRules(subst, f(t) === t)
+\end{lstlisting}
