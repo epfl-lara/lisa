@@ -2,11 +2,11 @@
 \label{chapt:quickguide}
 LISA is a proof assistant, i.e. a tool to help humans to write completely formal proofs of mathematical statements. 
 
-The centerpiece of LISA (called the kernel) contains a definition of first order logic (FOL), a logical framework to make formal mathematical statements and proofs. This Kernel is what provides correctnes guarantees to the user. It only accepts a small set of formal deduction rule such as ``if $a$ is true and $b$ is true then $a\land b$ is true". 
-This is in contrast with human-written proofs, which can contain a wide variety of complex or implicit arguments. Hence, if a proof is accepted as being correct by the kernel, we are guaranteed that it indeed is\footnote{Of course, it is always possible that the Kernel itself has a bug in its implementation, but because it is a very small and simple program, we can build strong confidence that it is correct.}.
+The centerpiece of LISA (called the kernel) contains a definition of first order logic (FOL), which is a logical framework to make formal mathematical statements and proofs. This kernel is what provides correctness guarantees to the user. It only accepts a small set of formal deduction rule such as ``if $a$ is true and $b$ is true then $a\land b$ is true". 
+This is in contrast with human-written proofs, which can contain a wide variety of complex or implicit arguments. Hence, if a proof is accepted as being correct by the kernel, we are guaranteed that it indeed is\footnote{Of course, it is always possible that the kernel itself has a bug in its implementation, but because it is a very small and simple program, we can build strong confidence that it is correct.}.
 LISA's kernel is described in details in \autoref{chapt:kernel}.
 
-However, building advanced math such has topology or probabilitiy theory only from those primitive constructions would be excessively tedious. Instead, we use them as primitive building blocs which can be combined and automatized. Beyond the corectness guarantees of the kernel, LISA's purpose is to provide tools to make writing formal proofs easier. This include automation, via decision procedure which automatically prove theorems and deductions, or via layers of abstraction (helpers, domain specific language) which make the presentation of formal statements and proofs closer to the traditional, human way of writing proofs. 
+However, building advanced math such as topology or probability theory only from those primitive constructions would be excessively tedious. Instead, we use them as primitive building blocs which can be combined and automatized. Beyond the correctness guarantees of the kernel, LISA's purpose is to provide tools to make writing formal proofs easier. This include automation, via decision procedure which automatically prove theorems and deductions, and layers of abstraction (helpers, domain specific language) which make the presentation of formal statements and proofs closer to the traditional, human way of writing proofs. 
 This is not unlike programming languages: assembly is in theory sufficient to write any program on a computer, but high level programming languages offer many convenient features which make writing complex programs easier and which are ultimately translated into assembly. 
 \autoref{chapt:prooflib} explain in details how all these layers of abstraction and automation work. The rest of the present chapter will give a quick guide on how to use LISA. If you are not familiar with first order logic, we suggest you first read an introduction to first order logic such as \url{lara.epfl.ch/w/sav08/predicate_logic_informally}.
 
@@ -15,19 +15,17 @@ LISA requires the Scala programming language to run. You can download and instal
 \begin{lstlisting}[language=console]
 > git clone https://github.com/epfl-lara/lisa
 \end{lstlisting}
-
 To test your installation, do
 \begin{lstlisting}[language=console]
 > cd lisa
 > sbt
 \end{lstlisting}
-
 SBT is a tool to run scala project and manage versions and dependencies. When it finished loading, do
 \begin{lstlisting}[language=console]
 > project lisa-examples
 > run
 \end{lstlisting}
-wait for the LISA codebase to be compiled and then press the number corresponding to "Example". You should obtain the following result:
+Wait for the LISA codebase to be compiled and then press the number corresponding to "Example". You should obtain the following result:
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
 \begin{lstlisting}[language=console]
   @*Theorem fixedPointDoubleApplication := 
@@ -43,14 +41,47 @@ wait for the LISA codebase to be compiled and then press the number correspondin
 \end{lstlisting}
 \end{minipage}
 
-\subsection*{Unicode printing}
-By default, unicode characters will not be printed correctly on Windows. You need to activate the corresponding charset and pick a font with support for unicode in your console's options.
+
 
 \section{Development Environment}
-To develop LISA proofs, you can use any text editor or IDE. We recommand using \emph{Visual Studio Code} with the \emph{Metals} plugin.
+To write LISA proofs, you can use any text editor or IDE. We recommend using \emph{Visual Studio Code} with the \emph{Metals} plugin.
+
+\subsection*{A Note on Special Characters}
+Math is full of special character. Lisa usually admits both an ascii name and a unicode name for such symbols. By enabling ligatures, common ascii characters such as \lstinline|=|\lstinline|=|\lstinline|>| are rendered as \lstinline|==>|. 
+The present document uses the font \href{https://github.com/tonsky/FiraCode}{Fira Code}. Once installed on your system, you can activate it and ligatures on VSCode the following way:
+\begin{enumerate}
+  \item Press ctrl-shift-P
+  \item Search for ``Open User Settings (JSON)''
+  \item in the \lstinline|settings.json| file, add:
+  \begin{lstlisting}
+"editor.fontFamily": "'Fira Code', Consolas, monospace",
+"editor.fontLigatures": true,
+  \end{lstlisting}
+\end{enumerate}
+Other symbols such as \lstinline|∀| are unicode symbols, which can be entered via their unicode code, depending on your OS\footnote{alt+numpad on windows, ctrl-shift-U+code on Linux}, or by using an extension for VS Code such as \emph{Fast Unicode Math Characters}, \emph{Insert Unicode} or \emph{Unicode Latex}.
+A cheat sheet of the most common symbols and how to input them is in \autoref{tab:Unicode}.
+\begin{table}
+  \center
+  \begin{tabular}{c|c|c}
+    Rendering         & Input            & Name     \\ \hline
+    \lstinline| === | & ===              & equality \\ \hline
+    \lstinline| \/  | & \textbackslash / & and      \\ \hline
+    \lstinline| /\  | & /\textbackslash  & or       \\ \hline
+    \lstinline| ==> | & ==>              & implies  \\ \hline
+    \lstinline+ |-  + &  |-              & vdash    \\ \hline
+    \lstinline| ∀   | & U+2200           & forall   \\ \hline
+    \lstinline| ∃   | & U+2203           & exists   \\ \hline
+    \lstinline| ∈   | & U+2208           & in       \\ \hline
+    \lstinline| ⊆   | & U+2286           & subseteq \\ \hline
+    \lstinline| ∅   | & U+2205           & emptyset \\ 
+  \end{tabular}
+  \caption{Most frequently used Unicode symbols and ligatures.}
+  \label{tab:Unicode}
+\end{table}
+Note that by default, unicode characters will not be printed correctly on a Windows console. You will need to activate the corresponding charset and pick a font with support for unicode in your console's options, such as Consolas.
 
 \section{Writing theory files}
-LISA provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features.
+LISA provides a canonical way of writing and organizing kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features.
 To prove some theorems by yourself, start by creating a file named \lstinline|MyTheoryName.scala| right next to the Example.scala file\footnote{The relative path is lisa/lisa-examples/src/main/scala}.
 Then simply write:
 
@@ -117,7 +148,7 @@ object MyTheoryName extends lisa.Main {
 \end{lstlisting}
 \end{minipage}
 First, we use the \lstinline|assume| construct in line 6.
-This tells to LISA that the assumed formula is understood as being implicitely on the left handside of every statement in the rest of the proof. 
+This tells to LISA that the assumed formula is understood as being implicitly on the left hand side of every statement in the rest of the proof. 
 
 Then, we need to instantiate the quantified formula twice using a specialized tactic. In lines 7 and 8, we use \lstinline|have| to state that a formula or sequent is true (given the assumption inside \lstinline|assume|), and that the proof of this is produced by the tactic \lstinline|InstantiateForall|.
 We'll see more about the interface of a tactic later. To be able to reuse intermediate steps at any point later, we also assign the intermediates step to a variable.
@@ -139,7 +170,7 @@ val emptySetIsASubset = Theorem(
 }
   \end{lstlisting}
 \end{minipage}
-We see a number of new constructs in this example. \lstinline|RightForall| is another tactic (in fact it corresponds to a core deduction rules of the kernel) that introduces a quantifier arround a formula, if the bound variable is not free somewhere else in the sequent.
+We see a number of new constructs in this example. \lstinline|RightForall| is another tactic (in fact it corresponds to a core deduction rules of the kernel) that introduces a quantifier around a formula, if the bound variable is not free somewhere else in the sequent.
 We also see in line 6 another construct: \lstinline|thenHave|. It is similar to \lstinline|have|, but it will automatically pass the previous statement to the tactic. Formally,
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
@@ -171,7 +202,7 @@ An alias defines a constant, a function or predicate as being equal (or equivale
   val succ = DEF(x) --> union(unorderedPair(x, singleton(x)))
   \end{lstlisting}
 \end{minipage}
-defines the function symbol \lstinline|succ| as the function taking a single argument $x$ and maping it to the element $\bigcup \lbrace x, \lbrace x \rbrace \rbrace$\footnote{This correspond to the traditional encoding of the successor function for natural numbers in set theory.}.
+defines the function symbol \lstinline|succ| as the function taking a single argument $x$ and mapping it to the element $\bigcup \lbrace x, \lbrace x \rbrace \rbrace$\footnote{This correspond to the traditional encoding of the successor function for natural numbers in set theory.}.
 
 The second way of defining an object is more complicated and involve proving the existence and uniqueness of an object. This is detailed in \autoref{chapt:kernel}.
 
@@ -245,7 +276,7 @@ Moreover, \lstinline|Substitution| is also able to  automatically unify and inst
   thenHave(P(g(8, 3))) by Substitution.ApplyRules(subst)
 \end{lstlisting}
 
-If a \lstinline|subst| is a formula rather than a proven fact, then it should be an assumption in the resulting statement. Similarly, if one of the substitution has an asusmption, it should be in the resulting statement. For example,
+If a \lstinline|subst| is a formula rather than a proven fact, then it should be an assumption in the resulting statement. Similarly, if one of the substitution has an assumption, it should be in the resulting statement. For example,
 
 \begin{lstlisting}[language=lisa]
   val subst = have(A |- Q(s) <=> P(s)) by ???
