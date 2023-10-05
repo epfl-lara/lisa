@@ -65,6 +65,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     val size: Int
     var inverse: Option[SimpleFormula] = None
     private[EquivalenceChecker] var normalForm: Option[NormalFormula] = None
+    def getNormalForm = normalForm
   }
   case class SimplePredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean) extends SimpleFormula {
     override def toString: String = s"SimplePredicate($id, $args, $polarity)"
@@ -322,8 +323,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
 
     }
   }
-
-  def reduce(children: Seq[NormalFormula], polarity: Boolean): NormalFormula = {
+  def reduceList(children: Seq[NormalFormula], polarity: Boolean): List[NormalFormula] = {
     val nonSimplified = NormalAnd(children, polarity)
     var remaining: Seq[NormalFormula] = Nil
     def treatChild(i: NormalFormula): Seq[NormalFormula] = {
@@ -366,6 +366,11 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
         accepted = current :: accepted
       }
     }
+    accepted
+  }
+
+  def reduce(children: Seq[NormalFormula], polarity: Boolean): NormalFormula = {
+    val accepted: List[NormalFormula] = reduceList(children, polarity)
     val r = {
       if (accepted.isEmpty) NormalLiteral(polarity)
       else if (accepted.size == 1)
