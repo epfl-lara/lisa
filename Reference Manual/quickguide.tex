@@ -1,0 +1,286 @@
+\chapter{Quick Guide for writing proofs in LISA}
+\label{chapt:quickguide}
+LISA is a proof assistant, i.e. a tool to help humans to write completely formal proofs of mathematical statements. 
+
+The centerpiece of LISA (called the kernel) contains a definition of first order logic (FOL), which is a logical framework to make formal mathematical statements and proofs. This kernel is what provides correctness guarantees to the user. It only accepts a small set of formal deduction rule such as ``if $a$ is true and $b$ is true then $a\land b$ is true". 
+This is in contrast with human-written proofs, which can contain a wide variety of complex or implicit arguments. Hence, if a proof is accepted as being correct by the kernel, we are guaranteed that it indeed is\footnote{Of course, it is always possible that the kernel itself has a bug in its implementation, but because it is a very small and simple program, we can build strong confidence that it is correct.}.
+LISA's kernel is described in details in \autoref{chapt:kernel}.
+
+However, building advanced math such as topology or probability theory only from those primitive constructions would be excessively tedious. Instead, we use them as primitive building blocs which can be combined and automatized. Beyond the correctness guarantees of the kernel, LISA's purpose is to provide tools to make writing formal proofs easier. This include automation, via decision procedure which automatically prove theorems and deductions, and layers of abstraction (helpers, domain specific language) which make the presentation of formal statements and proofs closer to the traditional, human way of writing proofs. 
+This is not unlike programming languages: assembly is in theory sufficient to write any program on a computer, but high level programming languages offer many convenient features which make writing complex programs easier and which are ultimately translated into assembly. 
+\autoref{chapt:prooflib} explain in details how all these layers of abstraction and automation work. The rest of the present chapter will give a quick guide on how to use LISA. If you are not familiar with first order logic, we suggest you first read an introduction to first order logic such as \url{lara.epfl.ch/w/sav08/predicate_logic_informally}.
+
+\section{Installation}
+LISA requires the Scala programming language to run. You can download and install Scala following \url{www.scala-lang.org/download/}. Once this is done, clone the LISA repository:
+\begin{lstlisting}[language=console]
+> git clone https://github.com/epfl-lara/lisa
+\end{lstlisting}
+To test your installation, do
+\begin{lstlisting}[language=console]
+> cd lisa
+> sbt
+\end{lstlisting}
+SBT is a tool to run scala project and manage versions and dependencies. When it finished loading, do
+\begin{lstlisting}[language=console]
+> project lisa-examples
+> run
+\end{lstlisting}
+Wait for the LISA codebase to be compiled and then press the number corresponding to "Example". You should obtain the following result:
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\begin{lstlisting}[language=console]
+  @*Theorem fixedPointDoubleApplication := 
+    ∀'x. 'P('x) ==> 'P('f('x)) ⊢ 'P('x) ==> 'P('f('f('x)))
+
+  Theorem emptySetIsASubset := ⊢ subsetOf(emptySet, 'x)
+
+  Theorem setWithElementNonEmpty := 
+    elem('y, 'x) ⊢ ¬('x = emptySet)
+
+  Theorem powerSetNonEmpty := ⊢ ¬(powerSet('x) = emptySet)
+  *@
+\end{lstlisting}
+\end{minipage}
+
+
+
+\section{Development Environment}
+To write LISA proofs, you can use any text editor or IDE. We recommend using \emph{Visual Studio Code} with the \emph{Metals} plugin.
+
+\subsection*{A Note on Special Characters}
+Math is full of special character. Lisa usually admits both an ascii name and a unicode name for such symbols. By enabling ligatures, common ascii characters such as \lstinline|=|\lstinline|=|\lstinline|>| are rendered as \lstinline|==>|. 
+The present document uses the font \href{https://github.com/tonsky/FiraCode}{Fira Code}. Once installed on your system, you can activate it and ligatures on VSCode the following way:
+\begin{enumerate}
+  \item Press ctrl-shift-P
+  \item Search for ``Open User Settings (JSON)''
+  \item in the \lstinline|settings.json| file, add:
+  \begin{lstlisting}
+"editor.fontFamily": "'Fira Code', Consolas, monospace",
+"editor.fontLigatures": true,
+  \end{lstlisting}
+\end{enumerate}
+Other symbols such as \lstinline|∀| are unicode symbols, which can be entered via their unicode code, depending on your OS\footnote{alt+numpad on windows, ctrl-shift-U+code on Linux}, or by using an extension for VS Code such as \emph{Fast Unicode Math Characters}, \emph{Insert Unicode} or \emph{Unicode Latex}.
+A cheat sheet of the most common symbols and how to input them is in \autoref{tab:Unicode}.
+\begin{table}
+  \center
+  \begin{tabular}{c|c|c}
+    Rendering         & Input            & Name     \\ \hline
+    \lstinline| === | & ===              & equality \\ \hline
+    \lstinline| \/  | & \textbackslash / & and      \\ \hline
+    \lstinline| /\  | & /\textbackslash  & or       \\ \hline
+    \lstinline| ==> | & ==>              & implies  \\ \hline
+    \lstinline+ |-  + &  |-              & vdash    \\ \hline
+    \lstinline| ∀   | & U+2200           & forall   \\ \hline
+    \lstinline| ∃   | & U+2203           & exists   \\ \hline
+    \lstinline| ∈   | & U+2208           & in       \\ \hline
+    \lstinline| ⊆   | & U+2286           & subseteq \\ \hline
+    \lstinline| ∅   | & U+2205           & emptyset \\ 
+  \end{tabular}
+  \caption{Most frequently used Unicode symbols and ligatures.}
+  \label{tab:Unicode}
+\end{table}
+Note that by default, unicode characters will not be printed correctly on a Windows console. You will need to activate the corresponding charset and pick a font with support for unicode in your console's options, such as Consolas.
+
+\section{Writing theory files}
+LISA provides a canonical way of writing and organizing kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features.
+To prove some theorems by yourself, start by creating a file named \lstinline|MyTheoryName.scala| right next to the Example.scala file\footnote{The relative path is lisa/lisa-examples/src/main/scala}.
+Then simply write:
+
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\begin{lstlisting}[language=lisa, frame=single]
+object MyTheoryName extends lisa.Main {
+
+}
+\end{lstlisting}
+\end{minipage}
+and that's it! This will give you access to all the necessary LISA features. Let see how one can use them to prove a theorem:
+$$
+  \forall x. P(x) \implies P(f(x)) \vdash P(x) \implies P(f(f(x)))
+$$
+To state the theorem, we first need to tell LISA that $x$ is a variable, $f$ is a function symbol and $P$ a predicate symbol. 
+
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\begin{lstlisting}[language=lisa, frame=single]
+object MyTheoryName extends lisa.Main {
+  val x = variable
+  val f = function[1]
+  val P = predicate[1]
+
+}
+\end{lstlisting}
+\end{minipage}
+
+where \lstinline|[1]| indicates that the symbol is of arity 1 (it takes a single argument). The symbols \lstinline|x, f, P| are scala identifiers that can be freely used in theorem statements and proofs, but they are also formal symbols of FOL in LISA's kernel. 
+We now can state our theorem:
+
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\begin{lstlisting}[language=lisa, frame=single]
+object MyTheoryName extends lisa.Main {
+  val x = variable
+  val f = function[1]
+  val P = predicate[1]
+
+  val fixedPointDoubleApplication = Theorem(
+    ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
+  ) {
+    ???  // Proof
+  } 
+}
+\end{lstlisting}
+\end{minipage}
+The theorem will automatically be named \lstinline|fixedPointDoubleApplication|, like the name of the identifier it is assigned to, and will be available to reuse in future proofs. The proof itself is built using a sequence of proof step, which will update the status of the ongoing proof.
+
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\begin{lstlisting}[language=lisa, frame=single]
+object MyTheoryName extends lisa.Main {
+  val x = variable
+  val f = function[1]
+  val P = predicate[1]
+
+  val fixedPointDoubleApplication = Theorem( 
+    ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
+  ) {
+    assume(∀(x, P(x) ==> P(f(x))))
+    val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
+    val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
+    have(thesis) by Tautology.from(step1, step2)
+  } 
+}
+\end{lstlisting}
+\end{minipage}
+First, we use the \lstinline|assume| construct in line 6.
+This tells to LISA that the assumed formula is understood as being implicitly on the left hand side of every statement in the rest of the proof. 
+
+Then, we need to instantiate the quantified formula twice using a specialized tactic. In lines 7 and 8, we use \lstinline|have| to state that a formula or sequent is true (given the assumption inside \lstinline|assume|), and that the proof of this is produced by the tactic \lstinline|InstantiateForall|.
+We'll see more about the interface of a tactic later. To be able to reuse intermediate steps at any point later, we also assign the intermediates step to a variable.
+
+Finally, the last line says that the conclusion of the theorem itself, \lstinline|thesis|, can be proven using the tactic \lstinline|Tautology| and the two intermediate steps we reached. \lstinline|Tautology| is a tactic that is able to do reasoning with propositional connectives. It implements a complete decision procedure for propositional logic that is described in \autoref{tact:Tautology}.
+
+LISA is based on set theory, so you can also use set-theoretic primitives such as in the following theorem.
+
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+  \begin{lstlisting}[language=lisa, frame=single]
+val emptySetIsASubset = Theorem(
+  ∅ ⊆ x
+) {
+  have((y ∈ ∅) ==> (y ∈ x)) by Tautology.from(
+                          emptySetAxiom of (x := y))
+  val rhs = thenHave (∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
+  have(thesis) by Tautology.from(
+                          subsetAxiom of (x := ∅, y := x), rhs)
+}
+  \end{lstlisting}
+\end{minipage}
+We see a number of new constructs in this example. \lstinline|RightForall| is another tactic (in fact it corresponds to a core deduction rules of the kernel) that introduces a quantifier around a formula, if the bound variable is not free somewhere else in the sequent.
+We also see in line 6 another construct: \lstinline|thenHave|. It is similar to \lstinline|have|, but it will automatically pass the previous statement to the tactic. Formally,
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+  \begin{lstlisting}[language=lisa, frame=single]
+    have(X) by Tactic1
+    thenHave (Y) by Tactic2
+  \end{lstlisting}
+\end{minipage}
+is equivalent to
+
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+  \begin{lstlisting}[language=lisa, frame=single]
+    val s1 = have(X) by Tactic1
+    have (Y) by Tactic2(s1)
+  \end{lstlisting}
+\end{minipage}
+\lstinline|thenHave| allows us to not give a name to every step when we're doing linear reasoning. Finally, in lines 5 and 8, we see that tactic can refer not only to steps of the current proof, but also to previously proven theorems and axioms, such as \lstinline|emptySetAxiom|. The \lstinline|of| keyword indicates the the axiom (or step) is instantiated in a particular way. For example:
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+  \begin{lstlisting}[language=lisa, frame=single]
+    emptySetAxiom             // ==  !(x ∈ ∅)
+    emptySetAxiom of (x := y) // ==  !(y ∈ ∅)
+  \end{lstlisting}
+\end{minipage}
+
+LISA also allows to introduce definitions. There are essentially two kind of definitions, \emph{aliases} and definition via \emph{unique existence}.
+An alias defines a constant, a function or predicate as being equal (or equivalent) to a given formula or term. For example,
+
+\noindent\begin{minipage}{\linewidth}\vspace{1em}
+  \begin{lstlisting}[language=lisa, frame=single]
+  val succ = DEF(x) --> union(unorderedPair(x, singleton(x)))
+  \end{lstlisting}
+\end{minipage}
+defines the function symbol \lstinline|succ| as the function taking a single argument $x$ and mapping it to the element $\bigcup \lbrace x, \lbrace x \rbrace \rbrace$\footnote{This correspond to the traditional encoding of the successor function for natural numbers in set theory.}.
+
+The second way of defining an object is more complicated and involve proving the existence and uniqueness of an object. This is detailed in \autoref{chapt:kernel}.
+
+You can now try to run the theory file you just wrote and verify if you made a mistake. To do so again do \lstinline|> run| in the sbt console and select the number corresponding to your file. 
+If all the output is green, perfect! If there is an error, it can be either a syntax error reported at compilation or an error in the proof. In both case, the error message can sometimes be cryptic, but it should at least consistently indicates which line of your file is incorrect.
+
+Alternatively, if you are using IntelliJ or VS Code and Metals, you can run your theory file directly in your IDE by clicking either on the green arrow (IntelliJ) or on ``run" (VS Code) next to your main object.
+
+
+\section{Common Tactics}
+\subsubsection*{Restate}
+Restate is a tactic that reasons modulo ortholattices, a subtheory of boolean algebra (see \cite{guilloudFormulaNormalizationsVerification2023} and \autoref{subsec:equivalencechecker}). Formally, it is very efficient and can prove a lot of simple propositional transformations, but not everything that is true in classical logic. In particular, it can't prove that $(a\land b) \lor (a \land c) \iff a \land (b \lor c)$ is true. It can however prove very limited facts involving equality and quantifiers. Usage:
+
+\begin{lstlisting}[language=lisa]
+  have(statement) by Restate
+\end{lstlisting}
+tries to justify \lstinline|statement| by showing it is equivalent to \lstinline|True|.
+
+\begin{lstlisting}[language=lisa]
+  have(statement) by Restate(premise)
+\end{lstlisting}
+tries to justify \lstinline|statement| by showing it is equivalent to the previously proven \lstinline|premise|.
+
+\subsubsection*{Tautology}
+\lstinline|Tautology| is a propositional solver based upon restate, but complete. It is able to prove every formula inference that holds in classical propositional logic. However, in the worst case its complexity can be exponential in the size of the formula. Usage:
+
+\begin{lstlisting}[language=lisa]
+  have(statement) by Tautology
+\end{lstlisting}
+Constructs a proof of \lstinline|statement|, if the statement is true and a proof of it using only classical propositional reasoning exists.
+
+\begin{lstlisting}[language=lisa]
+  have(statement) by Tautology.from(premise1, premise2,...)
+\end{lstlisting}
+Construct a proof of \lstinline|statement| from the previously proven \lstinline|premise1|, \lstinline|premise2|,... using propositional reasoning.
+
+
+\subsubsection*{RightForall, InstantiateForall}
+\lstinline|RightForall| will generalize a statement by quantifying it over free variables. For example,
+\begin{lstlisting}[language=lisa]
+  have(P(x)) by ???
+  thenHave(∀(x, P(x))) by RightForall 
+\end{lstlisting}
+Note that if the statement inside \lstinline|have| has more than one formula, $x$ cannot appear (it cannot be \emph{free}) in any formula other than $P(x)$. It can also not appear in any assumption.
+
+\lstinline|InstantiateForall| does the opposite: given a universally quantified statement, it will specialize it. For example:
+\begin{lstlisting}[language=lisa]
+  have(∀(x, P(x))) by ???
+  thenHave(P(t)) by InstantiateForall 
+\end{lstlisting}
+for any arbitrary term \lstinline|t|.
+
+\subsubsection*{Substitution}
+Substitutions allows reasoning by substituting equal terms and equivalent formulas. Usage:
+\begin{lstlisting}[language=lisa]
+  have(statement) by Substitution.ApplyRules(subst*)(premise)
+\end{lstlisting}
+
+\lstinline|subst*| is an arbitrary number of substitution. Each of those can be a previously proven fact (or theorem or axiom), or a formula. They must all be of the form \lstinline|s === t| or \lstinline|A <=> B|, otherwise the tactic will fail. The \lstinline|premise| is a previously proven fact. The tactic will try to show that \lstinline|statement| can be obtained from \lstinline|premise| by applying the substitutions from \lstinline|subst|. In its simplest form,
+\begin{lstlisting}[language=lisa]
+  val subst = have(s === t) by ???
+  have(P(s)) by ???
+  thenHave(P(t)) by Substitution.ApplyRules(subst)
+\end{lstlisting}
+
+Moreover, \lstinline|Substitution| is also able to  automatically unify and instantiate subst rules. For example
+
+\begin{lstlisting}[language=lisa]
+  val subst = have(g(x, y) === g(y, x)) by ???
+  have(P(g(3, 8))) by ???
+  thenHave(P(g(8, 3))) by Substitution.ApplyRules(subst)
+\end{lstlisting}
+
+If a \lstinline|subst| is a formula rather than a proven fact, then it should be an assumption in the resulting statement. Similarly, if one of the substitution has an assumption, it should be in the resulting statement. For example,
+
+\begin{lstlisting}[language=lisa]
+  val subst = have(A |- Q(s) <=> P(s)) by ???
+  have(Q(s) /\ s===f(t)) by ???
+  thenHave(A, f(t) === t |- P(s) /\ s===t) 
+      .by Substitution.ApplyRules(subst, f(t) === t)
+\end{lstlisting}

@@ -9,6 +9,8 @@ import lisa.settheory.SetTheoryLibrary
 trait Main extends BasicMain {
   export SetTheoryLibrary.{powerAxiom as _, subsetAxiom as _, emptySetAxiom as _, given, _}
   export lisa.prooflib.Exports.*
+  export lisa.automation.kernel.OLPropositionalSolver.Tautology
+  export lisa.prooflib.Substitution.*
 
   /**
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted

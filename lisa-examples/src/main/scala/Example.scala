@@ -1,4 +1,3 @@
-import lisa.automation.kernel.OLPropositionalSolver.*
 import lisa.prooflib.Substitution.{ApplyRules as Substitute}
 
 object Example extends lisa.Main {
@@ -11,13 +10,13 @@ object Example extends lisa.Main {
   // Simple proof with LISA's DSL
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
     assume(∀(x, P(x) ==> P(f(x))))
-    assume(P(x))
     val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
     val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
     have(thesis) by Tautology.from(step1, step2)
-  }
+  } 
 
-  // Example of set theoretic development
+
+  //Example of set theoretic development
 
   /**
    * Theorem --- The empty set is a subset of every set.
@@ -40,7 +39,7 @@ object Example extends lisa.Main {
   val setWithElementNonEmpty = Theorem(
     (y ∈ x) |- x =/= ∅
   ) {
-    have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
+    have ((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
   }
 
   /**

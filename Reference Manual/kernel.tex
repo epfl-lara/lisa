@@ -142,7 +142,7 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
 In this document, as well as in the code documentation, we often write terms and formulas in a more conventional way, generally hiding the arity of labels and representing the label with its identifier only, preceded by an apostrophe (\lstinline|`|) if we need to precise that a symbol is schematic. When the arity is relevant, we write it with a superscript, for example:
 %
 \begin{gather*}
-  f^3(x,,z) \equiv \operatorname{Fun}(f, 3)(\List(\Var(x), \Var(y), \Var(z)))~,
+  f^3(x,y,z) \equiv \operatorname{Fun}(f, 3)(\List(\Var(x), \Var(y), \Var(z)))~,
 \end{gather*}
 %
 and
@@ -287,7 +287,7 @@ While proving theorems, trivial syntactical transformations such as $p\land q \e
 For soundness, the relation decided by the algorithm should be contained in the $\iff$ ``if and only if'' relation of first order logic. However, it is well known that this relationship is in general undecidable, and even the $\iff$ relation for propositional logic is coNP-complete. For practicality, we need a relation that is efficiently computable.
 
 The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality.
-It is based on an algorithm that decides the word problem for Ortholattices \cite{guilloudFormulaNormalizationsVerification2023a}.
+It is based on an algorithm that decides the word problem for Ortholattices \cite{guilloudFormulaNormalizationsVerification2023}.
 Ortholattices are a generalization of Boolean algebra where instead of the law of distributivity, the weaker absorption law (L9, \autoref{tab:ortholatticeLaws}) holds. In particular, every identity in the theory of ortholattices is also a theorem of propositional logic.
 \begin{table}[bth]
   \centering
@@ -314,7 +314,7 @@ a\leq b \iff a \land b = a
 We write $s\sim_\OL t$ if both $s\leq_\OL t$ and $s\geq_\OL t$ hold.
 \autoref{thm:OL} is the main result we rely on.
 
-\begin{theorem}[\cite{guilloudFormulaNormalizationsVerification2023a}]
+\begin{theorem}[\cite{guilloudFormulaNormalizationsVerification2023}]
   \label{thm:OL}
   There exists an algorithm running in worst case quadratic time producing, for any terms $s$ over the signature $(\land, \lor, \neg)$, a normal form $\text{NF}_{\OL}(s)$
   such that for any $t$, $s \sim_\OL t$ if and only if $\text{NF}_{\OL}(s) = \text{NF}_{\OL}(t)$. The algorithm is also capable of deciding if $s \leq_{OL} t$ holds in quadratic time.
@@ -345,7 +345,7 @@ LISA's Kernel contains an algorithm, called the $\FOLalg{}$ Equivalence Checker 
 
 
 In particular, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. It also expresses $\rightarrow$ and $\leftrightarrow$ in terms of $\lor$ and $\land$.
-A more detailed discussion of extension of ortholattices to first-order logic, proof of correctness and implementation details can be found in \cite{guilloudFormulaNormalizationsVerification2023a} and \cite{guilloudLISAModernProof2023a}.
+A more detailed discussion of extension of ortholattices to first-order logic, proof of correctness and implementation details can be found in \cite{guilloudFormulaNormalizationsVerification2023} and \cite{guilloudLISAModernProof2023}.
 
 
 
@@ -354,7 +354,7 @@ A more detailed discussion of extension of ortholattices to first-order logic, p
 \label{sec:proofs_lk}
 \subsection{Sequent Calculus}
 \label{subsec:lk}
-The deductive system used by LISA is an extended version of Gentzen's Sequent Calculus \cite{Gentzen1935,Gentzen1935II}.
+The deductive system used by LISA is an extended version of the classical Sequent Calculus. 
 %
 \begin{definition}
   A \textbf{sequent} is a pair $(\Gamma, \Sigma)$ of (possibly empty) sets of formulas, noted:
@@ -1086,5 +1086,5 @@ This can be done automatically with implicit conversions. Implicit conversion is
 %
 Now, every time a \lstinline|TermLabel| is writen in a place where a \lstinline|Term| is expected, it will be converted implicitly.
 
-To learn more about Scala 3 and its capabilities, see its documentation at \footnotesize{\url{https://docs.scala-lang.org/scala3/book/introduction.html}}.
+To learn more about Scala 3 and its capabilities, see its documentation at {\footnotesize\url{https://docs.scala-lang.org/scala3/book/introduction.html}}. 
 

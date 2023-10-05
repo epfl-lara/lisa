@@ -1,6 +1,6 @@
 % macro.tex
 
-\usepackage[utf8]{inputenc}
+%\usepackage[utf8]{inputenc}
 \usepackage{url}
 \usepackage{graphicx}
 \usepackage[english]{babel}
@@ -12,7 +12,7 @@
 \usepackage[dvipsnames]{xcolor}
 \usepackage{csquotes}
 \usepackage[strings]{underscore}
-\usepackage{hyperref}
+\usepackage{hyperref} 
 \usepackage{bussproofs}
 \usepackage{makecell}
 \usepackage{subcaption}
@@ -21,8 +21,8 @@
 \usepackage{xspace}
 \usepackage[ruled,vlined]{algorithm2e}
 \usepackage{array}
-\usepackage{arial}
 \usepackage[T1]{fontenc}
+\usepackage{newunicodechar} %To map unicode in listings to a different font than Fira Code
 \renewcommand\sfdefault{ua1}
 \sloppy % better (?) margin handling
 
@@ -44,13 +44,58 @@
 \newcommand*{\definitionautorefname}{Definition}
 
 
+% URLs
 
-%Code
-%\usepackage[nomap]{FiraMono} 
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={LISA Reference Manual},
+    pdfpagemode=FullScreen,
+}
+\urlstyle{same}
+
+
+
+%  Code fonts
+
+%\usepackage{lstfiracode}
 \usepackage{fontspec}
+\usepackage{ucharclasses}
 \setmonofont[
   Contextuals={Alternate}
 ]{Fira Code}
+\newfontfamily{\fallbackfont}{DejaVuSans}
+\DeclareTextFontCommand{\textfallback}{\fallbackfont}
+\newunicodechar{∀}{\textfallback{∀}}
+\newunicodechar{∃}{\textfallback{∃}}
+\newunicodechar{∅}{\textfallback{∅}}
+\newunicodechar{⊆}{\textfallback{⊆}}
+\newunicodechar{∈}{\textfallback{∈}}
+
+
+%  Correct lstlisting parsing of unicode character. Add unicode points at the end.
+\makeatletter
+\lst@InputCatcodes
+\def\lst@DefEC{%
+ \lst@CCECUse \lst@ProcessLetter
+  ^^80^^81^^82^^83^^84^^85^^86^^87^^88^^89^^8a^^8b^^8c^^8d^^8e^^8f%
+  ^^90^^91^^92^^93^^94^^95^^96^^97^^98^^99^^9a^^9b^^9c^^9d^^9e^^9f%
+  ^^a0^^a1^^a2^^a3^^a4^^a5^^a6^^a7^^a8^^a9^^aa^^ab^^ac^^ad^^ae^^af%
+  ^^b0^^b1^^b2^^b3^^b4^^b5^^b6^^b7^^b8^^b9^^ba^^bb^^bc^^bd^^be^^bf%
+  ^^c0^^c1^^c2^^c3^^c4^^c5^^c6^^c7^^c8^^c9^^ca^^cb^^cc^^cd^^ce^^cf%
+  ^^d0^^d1^^d2^^d3^^d4^^d5^^d6^^d7^^d8^^d9^^da^^db^^dc^^dd^^de^^df%
+  ^^e0^^e1^^e2^^e3^^e4^^e5^^e6^^e7^^e8^^e9^^ea^^eb^^ec^^ed^^ee^^ef%
+  ^^f0^^f1^^f2^^f3^^f4^^f5^^f6^^f7^^f8^^f9^^fa^^fb^^fc^^fd^^fe^^ff%
+  ^^^^2200^^^^2203^^^^2205^^^^2286^^^^2208% <--- for ∀
+  ^^00}
+\lst@RestoreCatcodes
+\makeatother
+
+
+%  Syntactic coloring
+
 
 \makeatletter
 \def\verbatim@nolig@list{}
@@ -61,10 +106,13 @@
 \definecolor{comments}{RGB}{80,0,110}
 
 \lstdefinelanguage{scala}{
+    extendedchars = true,
+    inputencoding = utf8,
     alsoletter={@,=,>},
     keywordstyle = {\color{blue}},
     keywordstyle = [2]{\color{blue}},
     commentstyle = \color{comments},
+    basicstyle=\footnotesize\linespread{1.15}\ttfamily,
     morekeywords = [2]{abstract, case, class, def, do, Input, Output, then,
         else, extends, false, free, if, implicit, match,
         object, true, val, var, while, sealed, or,
@@ -81,12 +129,15 @@
 }
 
 \lstdefinelanguage{lisa}{
+    extendedchars = true,
+    inputencoding = utf8,
     alsoletter={@,=,>},
     keywordstyle = {\color{blue}},
     keywordstyle = [2]{\color{blue}},
     keywordstyle = [3]{\color{green}},
     keywordstyle = [4]{\color{teal}},
     commentstyle = \color{comments},
+    basicstyle=\footnotesize\linespread{1.15}\ttfamily,
     morekeywords = [2]{abstract, case, class, def, do, Input, Output, then,
         else, extends, false, free, if, implicit, match,
         object, true, val, var, while, sealed, or,
@@ -104,15 +155,34 @@
 }
 
 
+\definecolor{rosishlightgray}{rgb}{0.96, 0.94, 0.92}
+\definecolor{bluishlightgray}{rgb}{0.94, 0.96, 0.98}
 
-\definecolor{verylightgray}{rgb}{0.96, 0.94, 0.92}
-\lstset{
-    backgroundcolor = \color{verylightgray},
+\lstdefinelanguage{console}{
+    extendedchars = true,
+    inputencoding = utf8,
+    backgroundcolor = \color{bluishlightgray},
     basicstyle=\footnotesize\linespread{1.15}\ttfamily,
     mathescape,
     escapeinside={!*}{*!},
     columns=fullflexible,
-    morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def}
+    morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def},
+    moredelim=**[is][\color{green}]{@*}{*@},
+    moredelim=**[is][\color{red}]{@**}{**@},
+}
+
+\lstset{
+    extendedchars = true,
+    inputencoding = utf8,
+    extendedchars = \true,
+    backgroundcolor = \color{rosishlightgray},
+    basicstyle=\footnotesize\linespread{1.15}\ttfamily,
+    mathescape,
+    escapeinside={!*}{*!},
+    columns=fullflexible,
+    morekeywords={if,then,else,return,match,with,end,let,in, data, type, :=, def},
+    moredelim=**[is][\color{green}]{@*}{*@},
+    moredelim=**[is][\color{red}]{@**}{**@},
 }
 
 \DeclareMathOperator{\pick}{pick}
