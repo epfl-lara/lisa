@@ -1,12 +1,11 @@
-package lisa.utils
+package lisa.test.utils
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.FOLParser
-import lisa.utils.KernelHelpers._
-import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
-import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
+import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.parsing.*
+import lisa.utils.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions

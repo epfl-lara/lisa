@@ -1,12 +1,13 @@
 package lisa.prooflib
 
-import lisa.prooflib.TheoriesHelpers.show
+import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
 
 import java.io.PrintWriter
 import java.io.StringWriter
 
 abstract class OutputManager {
+
   given OutputManager = this
 
   def output(s: String): Unit = stringWriter.write(s + "\n")
@@ -27,7 +28,7 @@ abstract class OutputManager {
           case Some(value) => output(lisa.utils.ProofPrinter.prettyProof(value))
           case None => ()
         }
-        e.underlying.show
+        output(e.underlying.repr)
         finishOutput(e)
 
     }

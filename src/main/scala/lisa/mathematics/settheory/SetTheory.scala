@@ -38,9 +38,9 @@ object SetTheory extends lisa.Main {
   private val f = variable
   private val g = variable
 
-  private val P = predicate(1)
-  private val Q = predicate(1)
-  private val schemPred = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
+  private val schemPred = predicate[1]
 
   /**
    * Chapter 1
@@ -98,7 +98,7 @@ object SetTheory extends lisa.Main {
     // forward direction
     have(fprop(z) |- fprop(z)) by Hypothesis
     thenHave(fprop(z) /\ (z === a) |- fprop(z)) by Weakening
-    thenHave((fprop(z) /\ (z === a), (z === a)) |- fprop(a)) by RightSubstEq(List((z, a)), lambda(Seq(z), fprop(z)))
+    thenHave((fprop(z) /\ (z === a), (z === a)) |- fprop(a)) by RightSubstEq.withParameters(List((z, a)), lambda(Seq(z), fprop(z)))
     val forward = thenHave(fprop(z) |- (z === a) ==> fprop(a)) by Restate
 
     // backward direction
@@ -157,7 +157,7 @@ object SetTheory extends lisa.Main {
    * @param x set
    * @param y set
    */
-  val setUnion = DEF(x, y) --> union(unorderedPair(x, y))
+  val setUnion: ConstantFunctionLabel[2] = DEF(x, y) --> union(unorderedPair(x, y))
 
   /**
    * Theorem --- a set is an element of `x ∪ y` iff it is an element of `x` or `y`
@@ -178,10 +178,10 @@ object SetTheory extends lisa.Main {
 
       val fwd = have(∃(a, in(z, a) /\ in(a, unorderedPair(x, y))) ==> (in(z, x) \/ in(z, y))) subproof {
         have((in(z, a), a === x) |- in(z, a)) by Hypothesis
-        val tax = thenHave((in(z, a), a === x) |- in(z, x)) by RightSubstEq(List((a, x)), lambda(a, in(z, a)))
+        val tax = thenHave((in(z, a), a === x) |- in(z, x)) by RightSubstEq.withParameters(List((a, x)), lambda(a, in(z, a)))
 
         have((in(z, a), a === y) |- in(z, a)) by Hypothesis
-        val tay = thenHave((in(z, a), a === y) |- in(z, y)) by RightSubstEq(List((a, y)), lambda(a, in(z, a)))
+        val tay = thenHave((in(z, a), a === y) |- in(z, y)) by RightSubstEq.withParameters(List((a, y)), lambda(a, in(z, a)))
 
         have((in(z, a), (a === x) \/ (a === y)) |- (in(z, x), in(z, y))) by LeftOr(tax, tay)
         thenHave((in(z, a), in(a, unorderedPair(x, y))) |- (in(z, x), in(z, y))) by Substitution.ApplyRules(upairax)
@@ -192,7 +192,7 @@ object SetTheory extends lisa.Main {
 
       val bwd = have(((in(z, x) \/ in(z, y)) ==> ∃(a, in(z, a) /\ in(a, unorderedPair(x, y))))) subproof {
         have((in(z, x), (a === x)) |- in(z, x)) by Hypothesis
-        thenHave((in(z, x), (a === x)) |- in(z, a)) by RightSubstEq(List((a, x)), lambda(a, in(z, a)))
+        thenHave((in(z, x), (a === x)) |- in(z, a)) by RightSubstEq.withParameters(List((a, x)), lambda(a, in(z, a)))
         thenHave((in(z, x), (a === x)) |- in(z, a) /\ ((a === x) \/ (a === y))) by Tautology
         andThen(Substitution.applySubst(upairax, false))
         thenHave((in(z, x), (a === x)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by RightExists
@@ -200,7 +200,7 @@ object SetTheory extends lisa.Main {
         val tax = thenHave((in(z, x)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Restate
 
         have((in(z, y), (a === y)) |- in(z, y)) by Hypothesis
-        thenHave((in(z, y), (a === y)) |- in(z, a)) by RightSubstEq(List((a, y)), lambda(a, in(z, a)))
+        thenHave((in(z, y), (a === y)) |- in(z, a)) by RightSubstEq.withParameters(List((a, y)), lambda(a, in(z, a)))
         thenHave((in(z, y), (a === y)) |- in(z, a) /\ ((a === x) \/ (a === y))) by Tautology
         andThen(Substitution.applySubst(upairax, false))
         thenHave((in(z, y), (a === y)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by RightExists
@@ -227,7 +227,7 @@ object SetTheory extends lisa.Main {
    *
    * @param x set
    */
-  val successor = DEF(x) --> union(unorderedPair(x, singleton(x)))
+  val successor = DEF(x: Variable) --> union(unorderedPair(x, singleton(x)))
 
   /**
    * Inductive set --- A set is inductive if it contains the empty set, and the
@@ -261,7 +261,7 @@ object SetTheory extends lisa.Main {
     have((in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Restate
     val succEq = thenHave(
       (successor(y) === union(unorderedPair(y, unorderedPair(y, y)))) |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(successor(y), x))
-    ) by RightSubstEq(
+    ) by RightSubstEq.withParameters(
       List((successor(y), union(unorderedPair(y, unorderedPair(y, y))))),
       lambda(z, (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(z, x)))
     )
@@ -326,19 +326,16 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- If a set has an element, then it is not the empty set.
    *
-   *    `(∃ y.) y ∈ x ⊢ ! x = ∅`
+   *    `y ∈ x ⊢ ! x = ∅`
    */
   val setWithElementNonEmpty = Theorem(
     in(y, x) |- !(x === ∅)
   ) {
-    have(!in(y, ∅)) by InstFunSchema(Map(x -> y))(emptySetAxiom)
-    thenHave(in(y, ∅) |- ()) by Restate
-    thenHave((in(y, x), (x === ∅)) |- ()) by LeftSubstEq(List((x, ∅)), lambda(Seq(x), in(y, x)))
-    thenHave(in(y, x) |- !(x === ∅)) by Restate
+    have((x === ∅) |- !in(y, x)) by Substitution.ApplyRules(x === ∅)(emptySetAxiom of (x := y))
   }
 
   /**
-   * Theorem --- A set containing no elements is equivalent to the empty set.
+   * Theorem --- A set containing no elements is equal to the empty set.
    *
    *    `∀ y. ! y ∈ x ⊢ x = ∅`
    *
@@ -369,20 +366,14 @@ object SetTheory extends lisa.Main {
   /**
    * Theorem --- The empty set is a subset of every set.
    *
-   *    `(∀ x.) ∅ ⊆ x`
+   *    `∅ ⊆ x`
    */
   val emptySetIsASubset = Theorem(
     subset(∅, x)
   ) {
-    val lhs = have(subset(∅, x) <=> ∀(z, in(z, ∅) ==> in(z, x))) by InstFunSchema(Map(x -> ∅, y -> x))(subsetAxiom)
-
-    have(!in(y, ∅)) by InstFunSchema(Map(x -> y))(emptySetAxiom)
-    thenHave(in(y, ∅) ==> in(y, x)) by Weakening
+    have(in(y, ∅) ==> in(y, x)) by Weakening(emptySetAxiom of (x := y))
     val rhs = thenHave(∀(y, in(y, ∅) ==> in(y, x))) by RightForall
-
-    have((subset(∅, x) <=> ∀(z, in(z, ∅) ==> in(z, x))) /\ ∀(y, in(y, ∅) ==> in(y, x))) by RightAnd(lhs, rhs)
-    thenHave((subset(∅, x) <=> ∀(z, in(z, ∅) ==> in(z, x))) /\ ∀(z, in(z, ∅) ==> in(z, x))) by Restate
-    thenHave(subset(∅, x)) by Tautology
+    have(thesis) by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
   }
 
   /**
@@ -391,20 +382,20 @@ object SetTheory extends lisa.Main {
    *    `x ⊆ ∅ <=> a = ∅`
    */
   val emptySetIsItsOwnOnlySubset = Theorem(
-    subset(x, emptySet()) <=> (x === emptySet())
+    subset(x, emptySet) <=> (x === emptySet)
   ) {
-    val fwd = have(subset(x, emptySet()) |- (x === emptySet())) subproof {
-      have(subset(x, emptySet()) |- forall(z, in(z, x) ==> in(z, emptySet()))) by Weakening(subsetAxiom of y -> emptySet())
-      thenHave(subset(x, emptySet()) |- in(z, x) ==> in(z, emptySet())) by InstantiateForall(z)
-      have(subset(x, emptySet()) |- !in(z, x)) by Tautology.from(lastStep, emptySetAxiom of x -> z)
-      thenHave(subset(x, emptySet()) |- forall(z, !in(z, x))) by RightForall
+    val fwd = have(subset(x, emptySet) |- (x === emptySet)) subproof {
+      have(subset(x, emptySet) |- forall(z, in(z, x) ==> in(z, emptySet))) by Weakening(subsetAxiom of y -> emptySet)
+      thenHave(subset(x, emptySet) |- in(z, x) ==> in(z, emptySet)) by InstantiateForall(z)
+      have(subset(x, emptySet) |- !in(z, x)) by Tautology.from(lastStep, emptySetAxiom of x -> z)
+      thenHave(subset(x, emptySet) |- forall(z, !in(z, x))) by RightForall
 
       have(thesis) by Cut(lastStep, setWithNoElementsIsEmpty)
     }
 
-    val bwd = have((x === emptySet()) |- subset(x, emptySet())) subproof {
-      have(subset(emptySet(), emptySet())) by Restate.from(emptySetIsASubset of x -> emptySet())
-      thenHave(thesis) by Substitution.ApplyRules(x === emptySet())
+    val bwd = have((x === emptySet) |- subset(x, emptySet)) subproof {
+      have(subset(emptySet, emptySet)) by Restate.from(emptySetIsASubset of x -> emptySet)
+      thenHave(thesis) by Substitution.ApplyRules(x === emptySet)
     }
 
     have(thesis) by Tautology.from(fwd, bwd)
@@ -418,17 +409,7 @@ object SetTheory extends lisa.Main {
   val powerSetNonEmpty = Theorem(
     !(powerSet(x) === ∅)
   ) {
-    // strategy
-    //      prove power set contains empty set
-    //      since it has an element, it is not empty itself
-
-    val lhs = have(in(∅, powerSet(x)) <=> subset(∅, x)) by InstFunSchema(Map(x -> ∅, y -> x))(powerAxiom)
-
-    have((in(∅, powerSet(x)) <=> subset(∅, x)) /\ subset(∅, x)) by RightAnd(lhs, emptySetIsASubset)
-    val emptyinPower = thenHave(in(∅, powerSet(x))) by Tautology
-    val nonEmpty = have(in(∅, powerSet(x)) |- !(powerSet(x) === ∅)) by InstFunSchema(Map(y -> ∅, x -> powerSet(x)))(setWithElementNonEmpty)
-
-    have(!(powerSet(x) === ∅)) by Cut(emptyinPower, nonEmpty)
+    have(thesis) by Tautology.from(emptySetIsASubset, powerAxiom of (x := ∅, y := x), setWithElementNonEmpty of (y := ∅, x := powerSet(x)))
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -448,14 +429,7 @@ object SetTheory extends lisa.Main {
   val firstElemInPair = Theorem(
     in(x, unorderedPair(x, y))
   ) {
-    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
-    have((z === x) |- (z === x)) by Hypothesis
-    val rhs = thenHave((z === x) |- (z === x) \/ (z === y)) by Restate
-    val factset = have((z === x) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
-
-    thenHave((z === x) |- in(z, unorderedPair(x, y))) by Tautology
-    thenHave((x === x) |- in(x, unorderedPair(x, y))) by InstFunSchema(Map(z -> x))
-    thenHave(in(x, unorderedPair(x, y))) by LeftRefl
+    have(thesis) by Tautology.from(pairAxiom of (z := x))
   }
 
   /**
@@ -469,7 +443,7 @@ object SetTheory extends lisa.Main {
   val secondElemInPair = Theorem(
     in(y, unorderedPair(x, y))
   ) {
-    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(ax"pairAxiom")
+    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(Map(x -> x, y -> y, z -> z))(pairAxiom)
     have((z === y) |- (z === y)) by Hypothesis
     val rhs = thenHave((z === y) |- (z === x) \/ (z === y)) by Restate
     val factset = have((z === y) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
@@ -494,24 +468,24 @@ object SetTheory extends lisa.Main {
   }
 
   /**
-   * Theorem --- The [[unorderedPair]] is indeed, unordered.
+   * Theorem --- The [[unorderedPair]] is, in fact, unordered.
    *
    *    `{x, y} = {y, x}`
    */
-  val unorderedPairSymmetry = Theorem(unorderedPair(x, y) === unorderedPair(y, x)) {
-    have((y === z) \/ (x === z) <=> in(z, unorderedPair(y, x))) by InstFunSchema(Map(x -> y, y -> x))(pairAxiom)
-    thenHave(in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) by Substitution.ApplyRules(pairAxiom)
-    val part1 = thenHave(∀(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by RightForall
-    val part2 = have(∀(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x))) by InstFunSchema(
-      Map(x -> unorderedPair(x, y), y -> unorderedPair(y, x))
-    )(extensionalityAxiom)
-    val fin = have(Substitution.applySubst(∀(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x))) <=> (unorderedPair(x, y) === unorderedPair(y, x)))(part1))
-    have(thesis) by Cut(part2, fin)
+  val unorderedPairSymmetry = Theorem(
+    unorderedPair(x, y) === unorderedPair(y, x)
+  ) {
+    have(in(z, unorderedPair(y, x)) <=> in(z, unorderedPair(x, y))) by Substitution.ApplyRules(pairAxiom)(pairAxiom of (x := y, y := x))
+    thenHave(∀(z, in(z, unorderedPair(x, y)) <=> in(z, unorderedPair(y, x)))) by RightForall
+    thenHave(thesis) by Substitution.ApplyRules(extensionalityAxiom)
   }
 
-  val unorderedPairDeconstruction = Theorem("unorderedPair('a, 'b) = unorderedPair('c, 'd) ⊢ 'a = 'c ∧ 'b = 'd ∨ 'a = 'd ∧ 'b = 'c") {
+  val unorderedPairDeconstruction = Theorem(
+    (unorderedPair(a, b) === unorderedPair(c, d)) ⊢ (((a === c) ∧ (b === d)) ∨ ((a === d) ∧ (b === c)))
+  ) {
     val s1 = have(Substitution.applySubst(unorderedPair(a, b) === unorderedPair(c, d))(pairAxiom of (x -> a, y -> b)))
     val base = have(Substitution.applySubst(s1)(pairAxiom of (x -> c, y -> d)))
+
     have(thesis) by Tautology.from(base of (z -> a), base of (z -> b), base of (z -> c), base of (z -> d))
   }
 
@@ -559,11 +533,11 @@ object SetTheory extends lisa.Main {
     // backward direction
     //      a = c and b = d => up ab = up cd (and the other case)
     have(unorderedPair(a, b) === unorderedPair(a, b)) by RightRefl
-    thenHave((a === c, b === d) |- unorderedPair(a, b) === unorderedPair(c, d)) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(x, y)))
+    thenHave((a === c, b === d) |- unorderedPair(a, b) === unorderedPair(c, d)) by RightSubstEq.withParameters(List((a, c), (b, d)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(x, y)))
     val lhs = thenHave(Set((a === c) /\ (b === d)) |- unorderedPair(a, b) === unorderedPair(c, d)) by Restate
 
     have(unorderedPair(a, b) === unorderedPair(b, a)) by InstFunSchema(Map(x -> a, y -> b))(unorderedPairSymmetry)
-    thenHave((a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq(List((a, d), (b, c)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x)))
+    thenHave((a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq.withParameters(List((a, d), (b, c)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x)))
     val rhs = thenHave(Set((a === d) /\ (b === c)) |- (unorderedPair(a, b) === unorderedPair(c, d))) by Restate
 
     have((((a === d) /\ (b === c)) \/ ((a === c) /\ (b === d))) |- (unorderedPair(a, b) === unorderedPair(c, d))) by LeftOr(lhs, rhs)
@@ -620,7 +594,7 @@ object SetTheory extends lisa.Main {
     // backward direction
     //  x === y |- {x} === {y}
     have(singleton(x) === singleton(x)) by RightRefl
-    thenHave((x === y) |- singleton(x) === singleton(y)) by RightSubstEq(List((x, y)), lambda(a, singleton(x) === singleton(a)))
+    thenHave((x === y) |- singleton(x) === singleton(y)) by RightSubstEq.withParameters(List((x, y)), lambda(a, singleton(x) === singleton(a)))
     val bwd = thenHave((x === y) ==> (singleton(x) === singleton(y))) by Restate
 
     have((singleton(x) === singleton(y)) <=> (x === y)) by RightIff(fwd, bwd)
@@ -646,9 +620,9 @@ object SetTheory extends lisa.Main {
         val pairAxab = have(in(z, unorderedPair(a, b)) |- (z === a) \/ (z === b)) by Tautology.from(pairAxiom of (x -> a, y -> b))
 
         have(in(a, x) /\ in(b, x) |- in(a, x)) by Restate
-        val za = thenHave((in(a, x) /\ in(b, x), (z === a)) |- in(z, x)) by RightSubstEq(List((z, a)), lambda(a, in(a, x)))
+        val za = thenHave((in(a, x) /\ in(b, x), (z === a)) |- in(z, x)) by RightSubstEq.withParameters(List((z, a)), lambda(a, in(a, x)))
         have(in(a, x) /\ in(b, x) |- in(b, x)) by Restate
-        val zb = thenHave((in(a, x) /\ in(b, x), (z === b)) |- in(z, x)) by RightSubstEq(List((z, b)), lambda(a, in(a, x)))
+        val zb = thenHave((in(a, x) /\ in(b, x), (z === b)) |- in(z, x)) by RightSubstEq.withParameters(List((z, b)), lambda(a, in(a, x)))
 
         val zab = have((in(a, x) /\ in(b, x), (z === a) \/ (z === b)) |- in(z, x)) by LeftOr(za, zb)
 
@@ -692,7 +666,7 @@ object SetTheory extends lisa.Main {
     //  (a === c) /\ (b === d) ==> pair a b === pair c d
     val fwd = have(((a === c) /\ (b === d)) ==> (pair(a, b) === pair(c, d))) subproof {
       have((pair(a, b) === pair(a, b))) by RightRefl
-      thenHave(Set((a === c), (b === d)) |- (pair(a, b) === pair(c, d))) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(x, y), pair(a, b) === pair(x, y)))
+      thenHave(Set((a === c), (b === d)) |- (pair(a, b) === pair(c, d))) by RightSubstEq.withParameters(List((a, c), (b, d)), lambda(Seq(x, y), pair(a, b) === pair(x, y)))
       thenHave(thesis) by Restate
     }
 
@@ -776,7 +750,7 @@ object SetTheory extends lisa.Main {
     // now we need to show that the assumption is indeed true
     // this requires destruction of the existential quantifier in lhs
     have(in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x)) |- in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x))) by Hypothesis
-    val innerRhs2 = thenHave((in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)), x === y) |- in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x))) by LeftSubstEq(
+    val innerRhs2 = thenHave((in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)), x === y) |- in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x))) by LeftSubstEq.withParameters(
       List((x, y)),
       lambda(Seq(y), in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)))
     )
@@ -844,7 +818,7 @@ object SetTheory extends lisa.Main {
 
     // u is not the empty set
     have(in(x, u)) by Weakening(firstElemInPair)
-    have(!(u === emptySet())) by Tautology.from(lastStep, setWithElementNonEmpty of (y -> x, x -> u))
+    have(!(u === emptySet)) by Tautology.from(lastStep, setWithElementNonEmpty of (y -> x, x -> u))
 
     // by Foundation, there must be an inclusion minimal element in u
     val minimal = have(exists(z, in(z, u) /\ forall(t, in(t, u) ==> !in(t, z)))) by Tautology.from(lastStep, foundationAxiom of x -> u)
@@ -878,7 +852,7 @@ object SetTheory extends lisa.Main {
   val setIntersectionUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))
   ) {
-    have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))) by UniqueComprehension(x, lambda(Seq(t, z), in(t, y)))
+    have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))) by UniqueComprehension(x, lambda((t, z), in(t, y)))
   }
 
   /**
@@ -926,7 +900,7 @@ object SetTheory extends lisa.Main {
   val unaryIntersectionUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (exists(b, in(b, x)) /\ ∀(b, in(b, x) ==> in(t, b)))))
   ) {
-    val uniq = have(∃!(z, ∀(t, in(t, z) <=> (in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b)))))) by UniqueComprehension(union(x), lambda(Seq(t, z), ∀(b, in(b, x) ==> in(t, b))))
+    val uniq = have(∃!(z, ∀(t, in(t, z) <=> (in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b)))))) by UniqueComprehension(union(x), lambda((t, z), ∀(b, in(b, x) ==> in(t, b))))
 
     val lhs = have((in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b))) |- ∀(b, in(b, x) ==> in(t, b)) /\ exists(b, in(b, x))) subproof {
       val unionAx = have(in(t, union(x)) |- exists(b, in(b, x) /\ in(t, b))) by Weakening(unionAxiom of (z -> t))
@@ -990,7 +964,7 @@ object SetTheory extends lisa.Main {
   val setDifferenceUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))
   ) {
-    have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))) by UniqueComprehension(x, lambda(Seq(t, z), !in(t, y)))
+    have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))) by UniqueComprehension(x, lambda((t, z), !in(t, y)))
   }
 
   /**
@@ -1018,9 +992,9 @@ object SetTheory extends lisa.Main {
   val intersectionOfPredicateClassExists = Theorem(
     ∃(x, P(x)) |- ∃(z, ∀(t, in(t, z) <=> ∀(y, P(y) ==> in(t, y))))
   ) {
-    have(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ sPhi(t, x))))) by InstFunSchema(Map(z -> x))(comprehensionSchema)
+    have(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ φ(t, x))))) by InstFunSchema(Map(z -> x))(comprehensionSchema)
 
-    val conjunction = thenHave(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) by InstPredSchema(Map(sPhi -> lambda(Seq(t, x), ∀(y, P(y) ==> in(t, y)))))
+    val conjunction = thenHave(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) by InstPredSchema(Map(φ -> lambda(Seq(t, x), ∀(y, P(y) ==> in(t, y)))))
 
     have(∀(y, P(y) ==> in(t, y)) |- ∀(y, P(y) ==> in(t, y))) by Hypothesis
     thenHave(∀(y, P(y) ==> in(t, y)) /\ P(x) |- ∀(y, P(y) ==> in(t, y))) by Weakening
@@ -1064,7 +1038,7 @@ object SetTheory extends lisa.Main {
   val secondInPairSingletonUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))
   ) {
-    have(thesis) by UniqueComprehension(union(p), lambda(Seq(t, x), ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p))))))
+    have(thesis) by UniqueComprehension(union(p), lambda((t, x), ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p))))))
   }
 
   /**
@@ -1377,7 +1351,7 @@ object SetTheory extends lisa.Main {
   ) {
     have(∃!(z, ∀(t, in(t, z) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))))) by UniqueComprehension(
       powerSet(powerSet(setUnion(x, y))),
-      lambda(Seq(t, z), ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))
+      lambda((t, z), ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))
     )
   }
 
@@ -1402,60 +1376,60 @@ object SetTheory extends lisa.Main {
    * [[emptySet]] is empty.
    */
   val productWithEmptySetEmpty = Theorem(
-    () |- (cartesianProduct(x, emptySet()) === emptySet()) /\ (cartesianProduct(emptySet(), x) === emptySet())
+    () |- (cartesianProduct(x, emptySet) === emptySet) /\ (cartesianProduct(emptySet, x) === emptySet)
   ) {
-    val xFirst = have(() |- (cartesianProduct(x, emptySet()) === emptySet())) subproof {
+    val xFirst = have(() |- (cartesianProduct(x, emptySet) === emptySet)) subproof {
       have(
-        forall(t, in(t, cartesianProduct(x, emptySet())) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet())))))
-      ) by InstantiateForall(cartesianProduct(x, emptySet()))(cartesianProduct.definition of (y -> emptySet()))
+        forall(t, in(t, cartesianProduct(x, emptySet)) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet)))))
+      ) by InstantiateForall(cartesianProduct(x, emptySet))(cartesianProduct.definition of (y -> emptySet))
       val impl = thenHave(
-        in(t, cartesianProduct(x, emptySet())) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))))
+        in(t, cartesianProduct(x, emptySet)) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet))))
       ) by InstantiateForall(t)
 
-      val elemEmpty = have(in(t, emptySet()) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))))) subproof {
-        val lhs = have(in(t, emptySet()) |- (in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))))) by Weakening(
+      val elemEmpty = have(in(t, emptySet) <=> (in(t, powerSet(powerSet(setUnion(x, emptySet)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet))))) subproof {
+        val lhs = have(in(t, emptySet) |- (in(t, powerSet(powerSet(setUnion(x, emptySet)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet))))) by Weakening(
           emptySet.definition of (x -> t)
         )
 
-        have((t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()) |- in(t, emptySet())) by Weakening(emptySet.definition of (x -> b))
-        thenHave(exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet())) |- in(t, emptySet())) by LeftExists
-        thenHave(exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))) |- in(t, emptySet())) by LeftExists
-        val rhs = thenHave(in(t, powerSet(powerSet(setUnion(x, emptySet())))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet()))) |- in(t, emptySet())) by Weakening
+        have((t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet) |- in(t, emptySet)) by Weakening(emptySet.definition of (x -> b))
+        thenHave(exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet)) |- in(t, emptySet)) by LeftExists
+        thenHave(exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet))) |- in(t, emptySet)) by LeftExists
+        val rhs = thenHave(in(t, powerSet(powerSet(setUnion(x, emptySet)))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, emptySet))) |- in(t, emptySet)) by Weakening
 
         have(thesis) by Tautology.from(lhs, rhs)
       }
 
-      have(in(t, cartesianProduct(x, emptySet())) <=> in(t, emptySet())) by Tautology.from(impl, elemEmpty)
-      val ext = thenHave(forall(t, in(t, cartesianProduct(x, emptySet())) <=> in(t, emptySet()))) by RightForall
+      have(in(t, cartesianProduct(x, emptySet)) <=> in(t, emptySet)) by Tautology.from(impl, elemEmpty)
+      val ext = thenHave(forall(t, in(t, cartesianProduct(x, emptySet)) <=> in(t, emptySet))) by RightForall
 
-      have(thesis) by Tautology.from(ext, extensionalityAxiom of (x -> cartesianProduct(x, emptySet()), y -> emptySet()))
+      have(thesis) by Tautology.from(ext, extensionalityAxiom of (x -> cartesianProduct(x, emptySet), y -> emptySet))
     }
 
-    val xSecond = have(() |- (cartesianProduct(emptySet(), x) === emptySet())) subproof {
+    val xSecond = have(() |- (cartesianProduct(emptySet, x) === emptySet)) subproof {
       have(
-        forall(t, in(t, cartesianProduct(emptySet(), y)) <=> (in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y)))))
-      ) by InstantiateForall(cartesianProduct(emptySet(), y))(cartesianProduct.definition of (x -> emptySet()))
+        forall(t, in(t, cartesianProduct(emptySet, y)) <=> (in(t, powerSet(powerSet(setUnion(emptySet, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet) /\ in(b, y)))))
+      ) by InstantiateForall(cartesianProduct(emptySet, y))(cartesianProduct.definition of (x -> emptySet))
       val impl = thenHave(
-        in(t, cartesianProduct(emptySet(), y)) <=> (in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))))
+        in(t, cartesianProduct(emptySet, y)) <=> (in(t, powerSet(powerSet(setUnion(emptySet, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet) /\ in(b, y))))
       ) by InstantiateForall(t)
 
-      val elemEmpty = have(in(t, emptySet()) <=> (in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))))) subproof {
-        val lhs = have(in(t, emptySet()) |- (in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))))) by Weakening(
+      val elemEmpty = have(in(t, emptySet) <=> (in(t, powerSet(powerSet(setUnion(emptySet, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet) /\ in(b, y))))) subproof {
+        val lhs = have(in(t, emptySet) |- (in(t, powerSet(powerSet(setUnion(emptySet, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, emptySet) /\ in(b, y))))) by Weakening(
           emptySet.definition of (x -> t)
         )
 
-        have((t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y) |- in(t, emptySet())) by Weakening(emptySet.definition of (x -> a))
-        thenHave(exists(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y)) |- in(t, emptySet())) by LeftExists
-        thenHave(exists(a, exists(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))) |- in(t, emptySet())) by LeftExists
-        val rhs = thenHave(in(t, powerSet(powerSet(setUnion(emptySet(), y)))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, emptySet()) /\ in(b, y))) |- in(t, emptySet())) by Weakening
+        have((t === pair(a, b)) /\ in(a, emptySet) /\ in(b, y) |- in(t, emptySet)) by Weakening(emptySet.definition of (x -> a))
+        thenHave(exists(b, (t === pair(a, b)) /\ in(a, emptySet) /\ in(b, y)) |- in(t, emptySet)) by LeftExists
+        thenHave(exists(a, exists(b, (t === pair(a, b)) /\ in(a, emptySet) /\ in(b, y))) |- in(t, emptySet)) by LeftExists
+        val rhs = thenHave(in(t, powerSet(powerSet(setUnion(emptySet, y)))) /\ exists(a, exists(b, (t === pair(a, b)) /\ in(a, emptySet) /\ in(b, y))) |- in(t, emptySet)) by Weakening
 
         have(thesis) by Tautology.from(lhs, rhs)
       }
 
-      have(in(t, cartesianProduct(emptySet(), y)) <=> in(t, emptySet())) by Tautology.from(impl, elemEmpty)
-      val ext = thenHave(forall(t, in(t, cartesianProduct(emptySet(), y)) <=> in(t, emptySet()))) by RightForall
+      have(in(t, cartesianProduct(emptySet, y)) <=> in(t, emptySet)) by Tautology.from(impl, elemEmpty)
+      val ext = thenHave(forall(t, in(t, cartesianProduct(emptySet, y)) <=> in(t, emptySet))) by RightForall
 
-      have(thesis) by Tautology.from(ext of (y -> x), extensionalityAxiom of (x -> cartesianProduct(emptySet(), x), y -> emptySet()))
+      have(thesis) by Tautology.from(ext of (y -> x), extensionalityAxiom of (x -> cartesianProduct(emptySet, x), y -> emptySet))
     }
 
     have(thesis) by RightAnd(xFirst, xSecond)
@@ -1485,7 +1459,7 @@ object SetTheory extends lisa.Main {
     // (a, b) \in x * y ⟹ a ∈ x ∧ b ∈ y
     val fwd = have(in(pair(a, b), cartesianProduct(x, y)) ==> (in(a, x) /\ in(b, y))) subproof {
       have((a === c, b === d, in(c, x) /\ in(d, y)) |- in(c, x) /\ in(d, y)) by Hypothesis
-      thenHave((a === c, b === d, in(c, x) /\ in(d, y)) |- in(a, x) /\ in(b, y)) by RightSubstEq(List((a, c), (b, d)), lambda(Seq(a, b), in(a, x) /\ in(b, y)))
+      thenHave((a === c, b === d, in(c, x) /\ in(d, y)) |- in(a, x) /\ in(b, y)) by RightSubstEq.withParameters(List((a, c), (b, d)), lambda(Seq(a, b), in(a, x) /\ in(b, y)))
       thenHave(Set((a === c) /\ (b === d), in(c, x) /\ in(d, y)) |- in(a, x) /\ in(b, y)) by Restate
       andThen(Substitution.applySubst(pairExtensionality))
       thenHave((pair(a, b) === pair(c, d)) /\ in(c, x) /\ in(d, y) |- in(a, x) /\ in(b, y)) by Restate
@@ -1511,9 +1485,11 @@ object SetTheory extends lisa.Main {
           val prem = (in(a, setUnion(x, y)) /\ in(b, setUnion(x, y)))
 
           have(prem |- in(unorderedPair(a, b), powerSet(setUnion(x, y)))) by Weakening(unorderedPairInPowerSet of (x -> setUnion(x, y)))
-          val zab = thenHave((prem, (z === unorderedPair(a, b))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq(List((z, unorderedPair(a, b))), lambda(a, in(a, powerSet(setUnion(x, y)))))
+          val zab =
+            thenHave((prem, (z === unorderedPair(a, b))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParameters(List((z, unorderedPair(a, b))), lambda(a, in(a, powerSet(setUnion(x, y)))))
           have(prem |- in(unorderedPair(a, a), powerSet(setUnion(x, y)))) by Weakening(unorderedPairInPowerSet of (x -> setUnion(x, y), b -> a))
-          val zaa = thenHave((prem, (z === unorderedPair(a, a))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq(List((z, unorderedPair(a, a))), lambda(a, in(a, powerSet(setUnion(x, y)))))
+          val zaa =
+            thenHave((prem, (z === unorderedPair(a, a))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParameters(List((z, unorderedPair(a, a))), lambda(a, in(a, powerSet(setUnion(x, y)))))
 
           val cutRhs = have((prem, (z === unorderedPair(a, b)) \/ (z === singleton(a))) |- in(z, powerSet(setUnion(x, y)))) by LeftOr(zab, zaa)
 
@@ -1853,7 +1829,7 @@ object SetTheory extends lisa.Main {
   ) {
     val uniq = have(∃!(z, ∀(t, in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(t, a), r)))))) by UniqueComprehension(
       union(union(r)),
-      lambda(Seq(t, b), ∃(a, in(pair(t, a), r)))
+      lambda((t, b), ∃(a, in(pair(t, a), r)))
     )
 
     // eliminating t \in UU r
@@ -1921,7 +1897,7 @@ object SetTheory extends lisa.Main {
   ) {
     val uniq = have(∃!(z, ∀(t, in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(a, t), r)))))) by UniqueComprehension(
       union(union(r)),
-      lambda(Seq(t, b), ∃(a, in(pair(a, t), r)))
+      lambda((t, b), ∃(a, in(pair(a, t), r)))
     )
 
     // eliminating t \in UU r
@@ -2344,7 +2320,7 @@ object SetTheory extends lisa.Main {
   val setOfFunctionsUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
   ) {
-    have(thesis) by UniqueComprehension(powerSet(cartesianProduct(x, y)), lambda(Seq(t, z), functionalOver(t, x)))
+    have(thesis) by UniqueComprehension(powerSet(cartesianProduct(x, y)), lambda((t, z), functionalOver(t, x)))
   }
 
   /**
@@ -2621,7 +2597,7 @@ object SetTheory extends lisa.Main {
   ) {
     have(∃!(g, ∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))))) by UniqueComprehension(
       f,
-      lambda(Seq(t, b), ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))
+      lambda((t, b), ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))
     )
   }
 
@@ -2751,7 +2727,7 @@ object SetTheory extends lisa.Main {
       lastStep,
       existentialConjunctionWithClosedFormula of (
         P -> lambda(a, in(pair(t, a), f)),
-        p -> lambda(Seq(), in(t, x))
+        p -> in(t, x)
       )
     )
 
@@ -2850,7 +2826,7 @@ object SetTheory extends lisa.Main {
   ) {
     have(∃!(z, ∀(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))) by UniqueComprehension(
       powerSet(Sigma(x, f)),
-      lambda(Seq(z, y), (subset(x, relationDomain(z)) /\ functional(z)))
+      lambda((z, y), (subset(x, relationDomain(z)) /\ functional(z)))
     )
   }
 
@@ -2926,82 +2902,82 @@ object SetTheory extends lisa.Main {
    * Theorem --- the empty set is a relation, the empty relation, between any two sets.
    */
   val emptySetRelation = Theorem(
-    () |- relationBetween(emptySet(), a, b)
+    () |- relationBetween(emptySet, a, b)
   ) {
-    have(thesis) by Tautology.from(emptySetIsASubset of (x -> cartesianProduct(a, b)), relationBetween.definition of (r -> emptySet()))
+    have(thesis) by Tautology.from(emptySetIsASubset of (x -> cartesianProduct(a, b)), relationBetween.definition of (r -> emptySet))
   }
 
   /**
    * Theorem --- the empty relation is a relation on the empty set.
    */
   val emptySetRelationOnItself = Theorem(
-    () |- relationBetween(emptySet(), emptySet(), emptySet())
+    () |- relationBetween(emptySet, emptySet, emptySet)
   ) {
-    have(thesis) by Restate.from(emptySetRelation of (a -> emptySet(), b -> emptySet()))
+    have(thesis) by Restate.from(emptySetRelation of (a -> emptySet, b -> emptySet))
   }
 
   /**
    * Theorem --- empty relation on the empty set is reflexive.
    */
   val emptyRelationReflexiveOnItself = Theorem(
-    () |- reflexive(emptySet(), emptySet())
+    () |- reflexive(emptySet, emptySet)
   ) {
-    have(() |- in(y, emptySet()) ==> in(pair(y, y), emptySet())) by Tautology.from(emptySetAxiom of (x -> y))
-    val refCond = thenHave(() |- forall(y, in(y, emptySet()) ==> in(pair(y, y), emptySet()))) by RightForall
+    have(() |- in(y, emptySet) ==> in(pair(y, y), emptySet)) by Tautology.from(emptySetAxiom of (x -> y))
+    val refCond = thenHave(() |- forall(y, in(y, emptySet) ==> in(pair(y, y), emptySet))) by RightForall
 
-    have(thesis) by Tautology.from(reflexive.definition of (r -> emptySet(), x -> emptySet()), emptySetRelationOnItself, refCond)
+    have(thesis) by Tautology.from(reflexive.definition of (r -> emptySet, x -> emptySet), emptySetRelationOnItself, refCond)
   }
 
   /**
    * Theorem --- the empty relation is symmetric.
    */
   val emptyRelationSymmetric = Theorem(
-    () |- symmetric(emptySet(), a)
+    () |- symmetric(emptySet, a)
   ) {
-    have(() |- in(pair(y, z), emptySet()) <=> in(pair(z, y), emptySet())) by Tautology.from(emptySetAxiom of (x -> pair(y, z)), emptySetAxiom of (x -> pair(z, y)))
-    thenHave(() |- forall(z, in(pair(y, z), emptySet()) <=> in(pair(z, y), emptySet()))) by RightForall
-    val symCond = thenHave(() |- forall(y, forall(z, in(pair(y, z), emptySet()) <=> in(pair(z, y), emptySet())))) by RightForall
+    have(() |- in(pair(y, z), emptySet) <=> in(pair(z, y), emptySet)) by Tautology.from(emptySetAxiom of (x -> pair(y, z)), emptySetAxiom of (x -> pair(z, y)))
+    thenHave(() |- forall(z, in(pair(y, z), emptySet) <=> in(pair(z, y), emptySet))) by RightForall
+    val symCond = thenHave(() |- forall(y, forall(z, in(pair(y, z), emptySet) <=> in(pair(z, y), emptySet)))) by RightForall
 
-    have(thesis) by Tautology.from(symmetric.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), symCond)
+    have(thesis) by Tautology.from(symmetric.definition of (r -> emptySet, x -> a), emptySetRelation of (b -> a), symCond)
   }
 
   /**
    * Theorem --- the empty relation is irreflexive.
    */
   val emptyRelationIrreflexive = Theorem(
-    () |- irreflexive(emptySet(), a)
+    () |- irreflexive(emptySet, a)
   ) {
-    have(() |- in(y, a) ==> !in(pair(y, y), emptySet())) by Tautology.from(emptySetAxiom of (x -> pair(y, y)))
-    val irrefCond = thenHave(() |- forall(y, in(y, a) ==> !in(pair(y, y), emptySet()))) by RightForall
+    have(() |- in(y, a) ==> !in(pair(y, y), emptySet)) by Tautology.from(emptySetAxiom of (x -> pair(y, y)))
+    val irrefCond = thenHave(() |- forall(y, in(y, a) ==> !in(pair(y, y), emptySet))) by RightForall
 
-    have(thesis) by Tautology.from(irreflexive.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), irrefCond)
+    have(thesis) by Tautology.from(irreflexive.definition of (r -> emptySet, x -> a), emptySetRelation of (b -> a), irrefCond)
   }
 
   /**
    * Theorem --- the empty relation is transitive.
    */
   val emptyRelationTransitive = Theorem(
-    () |- transitive(emptySet(), a)
+    () |- transitive(emptySet, a)
   ) {
-    have(() |- (in(pair(w, y), emptySet()) /\ in(pair(y, z), emptySet())) ==> in(pair(w, z), emptySet())) by Tautology.from(emptySetAxiom of (x -> pair(w, y)))
-    thenHave(() |- forall(z, (in(pair(w, y), emptySet()) /\ in(pair(y, z), emptySet())) ==> in(pair(w, z), emptySet()))) by RightForall
-    thenHave(() |- forall(y, forall(z, (in(pair(w, y), emptySet()) /\ in(pair(y, z), emptySet())) ==> in(pair(w, z), emptySet())))) by RightForall
-    val trsCond = thenHave(() |- forall(w, forall(y, forall(z, (in(pair(w, y), emptySet()) /\ in(pair(y, z), emptySet())) ==> in(pair(w, z), emptySet()))))) by RightForall
+    have(() |- (in(pair(w, y), emptySet) /\ in(pair(y, z), emptySet)) ==> in(pair(w, z), emptySet)) by Tautology.from(emptySetAxiom of (x -> pair(w, y)))
+    thenHave(() |- forall(z, (in(pair(w, y), emptySet) /\ in(pair(y, z), emptySet)) ==> in(pair(w, z), emptySet))) by RightForall
+    thenHave(() |- forall(y, forall(z, (in(pair(w, y), emptySet) /\ in(pair(y, z), emptySet)) ==> in(pair(w, z), emptySet)))) by RightForall
+    val trsCond = thenHave(() |- forall(w, forall(y, forall(z, (in(pair(w, y), emptySet) /\ in(pair(y, z), emptySet)) ==> in(pair(w, z), emptySet))))) by RightForall
 
-    have(thesis) by Tautology.from(transitive.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), trsCond)
+    have(thesis) by Tautology.from(transitive.definition of (r -> emptySet, x -> a), emptySetRelation of (b -> a), trsCond)
   }
 
   /**
    * Theorem --- the empty relation is an equivalence relation on the empty set.
    */
   val emptyRelationEquivalence = Theorem(
-    () |- equivalence(emptySet(), emptySet())
+    () |- equivalence(emptySet, emptySet)
   ) {
     have(thesis) by Tautology.from(
-      equivalence.definition of (r -> emptySet(), x -> emptySet()),
+      equivalence.definition of (r -> emptySet, x -> emptySet),
       emptyRelationReflexiveOnItself,
-      emptyRelationSymmetric of (a -> emptySet()),
-      emptyRelationTransitive of (a -> emptySet())
+      emptyRelationSymmetric of (a -> emptySet),
+      emptyRelationTransitive of (a -> emptySet)
     )
   }
 
@@ -3009,39 +2985,39 @@ object SetTheory extends lisa.Main {
    * Theorem --- the empty relation is anti-symmetric.
    */
   val emptyRelationAntiSymmetric = Theorem(
-    () |- antiSymmetric(emptySet(), a)
+    () |- antiSymmetric(emptySet, a)
   ) {
-    have(() |- (in(pair(y, z), emptySet()) /\ in(pair(z, y), emptySet())) ==> (y === z)) by Tautology.from(emptySetAxiom of (x -> pair(y, z)))
-    thenHave(() |- forall(z, (in(pair(y, z), emptySet()) /\ in(pair(z, y), emptySet())) ==> (y === z))) by RightForall
-    val ansymCond = thenHave(() |- forall(y, forall(z, (in(pair(y, z), emptySet()) /\ in(pair(z, y), emptySet())) ==> (y === z)))) by RightForall
+    have(() |- (in(pair(y, z), emptySet) /\ in(pair(z, y), emptySet)) ==> (y === z)) by Tautology.from(emptySetAxiom of (x -> pair(y, z)))
+    thenHave(() |- forall(z, (in(pair(y, z), emptySet) /\ in(pair(z, y), emptySet)) ==> (y === z))) by RightForall
+    val ansymCond = thenHave(() |- forall(y, forall(z, (in(pair(y, z), emptySet) /\ in(pair(z, y), emptySet)) ==> (y === z)))) by RightForall
 
-    have(thesis) by Tautology.from(antiSymmetric.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), ansymCond)
+    have(thesis) by Tautology.from(antiSymmetric.definition of (r -> emptySet, x -> a), emptySetRelation of (b -> a), ansymCond)
   }
 
   /**
    * Theorem --- the empty relation is asymmetric.
    */
   val emptyRelationAsymmetric = Theorem(
-    () |- asymmetric(emptySet(), a)
+    () |- asymmetric(emptySet, a)
   ) {
-    have(() |- in(pair(y, z), emptySet()) ==> !in(pair(z, y), emptySet())) by Tautology.from(emptySetAxiom of (x -> pair(y, z)))
-    thenHave(() |- forall(z, in(pair(y, z), emptySet()) ==> !in(pair(z, y), emptySet()))) by RightForall
-    val asymCond = thenHave(() |- forall(y, forall(z, in(pair(y, z), emptySet()) ==> !in(pair(z, y), emptySet())))) by RightForall
+    have(() |- in(pair(y, z), emptySet) ==> !in(pair(z, y), emptySet)) by Tautology.from(emptySetAxiom of (x -> pair(y, z)))
+    thenHave(() |- forall(z, in(pair(y, z), emptySet) ==> !in(pair(z, y), emptySet))) by RightForall
+    val asymCond = thenHave(() |- forall(y, forall(z, in(pair(y, z), emptySet) ==> !in(pair(z, y), emptySet)))) by RightForall
 
-    have(thesis) by Tautology.from(asymmetric.definition of (r -> emptySet(), x -> a), emptySetRelation of (b -> a), asymCond)
+    have(thesis) by Tautology.from(asymmetric.definition of (r -> emptySet, x -> a), emptySetRelation of (b -> a), asymCond)
   }
 
   /**
    * Theorem --- the empty relation is total on the empty set.
    */
   val emptyRelationTotalOnItself = Theorem(
-    () |- total(emptySet(), emptySet())
+    () |- total(emptySet, emptySet)
   ) {
-    have((in(y, emptySet()) /\ in(z, emptySet())) ==> (in(pair(y, z), emptySet()) \/ in(pair(z, y), emptySet()) \/ (y === z))) by Tautology.from(emptySetAxiom of x -> y)
-    thenHave(forall(z, (in(y, emptySet()) /\ in(z, emptySet())) ==> (in(pair(y, z), emptySet()) \/ in(pair(z, y), emptySet()) \/ (y === z)))) by RightForall
-    thenHave(forall(y, forall(z, (in(y, emptySet()) /\ in(z, emptySet())) ==> (in(pair(y, z), emptySet()) \/ in(pair(z, y), emptySet()) \/ (y === z))))) by RightForall
+    have((in(y, emptySet) /\ in(z, emptySet)) ==> (in(pair(y, z), emptySet) \/ in(pair(z, y), emptySet) \/ (y === z))) by Tautology.from(emptySetAxiom of x -> y)
+    thenHave(forall(z, (in(y, emptySet) /\ in(z, emptySet)) ==> (in(pair(y, z), emptySet) \/ in(pair(z, y), emptySet) \/ (y === z)))) by RightForall
+    thenHave(forall(y, forall(z, (in(y, emptySet) /\ in(z, emptySet)) ==> (in(pair(y, z), emptySet) \/ in(pair(z, y), emptySet) \/ (y === z))))) by RightForall
 
-    have(thesis) by Tautology.from(lastStep, total.definition of (r -> emptySet(), x -> emptySet()), emptySetRelationOnItself)
+    have(thesis) by Tautology.from(lastStep, total.definition of (r -> emptySet, x -> emptySet), emptySetRelationOnItself)
   }
 
   /**
@@ -3241,7 +3217,7 @@ object SetTheory extends lisa.Main {
       inRangeImpliesPullbackExists of (z -> y),
       functionFromImpliesFunctional of (y -> powerSet(x))
     )
-    val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq(
+    val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq.withParameters(
       List((x, relationDomain(f))),
       lambda(x, ∃(z, in(z, x) /\ (app(f, z) === y)))
     )
@@ -3256,7 +3232,7 @@ object SetTheory extends lisa.Main {
     have(ydef |- ydef) by Hypothesis
     thenHave(ydef |- in(z, y) <=> (in(z, x) /\ !in(z, app(f, z)))) by InstantiateForall(z)
     thenHave((ydef, in(z, x), (app(f, z) === y)) |- in(z, y) <=> (in(z, x) /\ !in(z, app(f, z)))) by Weakening
-    thenHave((ydef, in(z, x), (app(f, z) === y)) |- in(z, app(f, z)) <=> (in(z, x) /\ !in(z, app(f, z)))) by RightSubstEq(
+    thenHave((ydef, in(z, x), (app(f, z) === y)) |- in(z, app(f, z)) <=> (in(z, x) /\ !in(z, app(f, z)))) by RightSubstEq.withParameters(
       List((y, app(f, z))),
       lambda(y, in(z, y) <=> (in(z, x) /\ !in(z, app(f, z))))
     )
@@ -3265,7 +3241,7 @@ object SetTheory extends lisa.Main {
 
     have((ydef, surjective(f, x, powerSet(x))) |- ()) by Cut(existsZ, existsToContra)
     val yToContra = thenHave((∃(y, ydef), surjective(f, x, powerSet(x))) |- ()) by LeftExists
-    val yexists = have(∃(y, ydef)) by Restate.from(comprehensionSchema of (z -> x, sPhi -> lambda(Seq(t, z), !in(t, app(f, t)))))
+    val yexists = have(∃(y, ydef)) by Restate.from(comprehensionSchema of (z -> x, φ -> lambda((t, z), !in(t, app(f, t)))))
 
     have(thesis) by Cut(yexists, yToContra)
   }
@@ -3408,7 +3384,7 @@ object SetTheory extends lisa.Main {
   }
 
   val unionOfFunctionsWithDisjointDomains = Theorem(
-    functionalOver(f, a) /\ functionalOver(g, b) /\ (setIntersection(a, b) === emptySet()) |- functionalOver(setUnion(f, g), setUnion(a, b))
+    functionalOver(f, a) /\ functionalOver(g, b) /\ (setIntersection(a, b) === emptySet) |- functionalOver(setUnion(f, g), setUnion(a, b))
   ) {
     // union is functional
 
@@ -3703,4 +3679,5 @@ object SetTheory extends lisa.Main {
     have(relation(union(z))) by Tautology.from(functional.definition of f -> union(z))
     have(thesis) by Tautology.from(lastStep, domainOfRelationalUnion)
   }
+
 }

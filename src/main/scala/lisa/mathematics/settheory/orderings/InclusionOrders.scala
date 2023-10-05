@@ -35,17 +35,17 @@ object InclusionOrders extends lisa.Main {
   private val q = variable
   private val f = variable
   private val g = variable
-  private val F = function(1)
-  private val G = function(2)
+  private val F = function[1]
+  private val G = function[2]
 
-  private val P = predicate(1)
-  private val Q = predicate(1)
-  private val schemPred = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
+  private val schemPred = predicate[1]
 
   val inclusionOnUniqueness = Lemma(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))))
   ) {
-    have(thesis) by UniqueComprehension(cartesianProduct(a, a), lambda(Seq(t, a), exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))
+    have(thesis) by UniqueComprehension(cartesianProduct(a, a), lambda((t, a), exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))
   }
 
   /**
@@ -126,36 +126,36 @@ object InclusionOrders extends lisa.Main {
    * Theorem --- the inclusion order on the empty set is the empty relation.
    */
   val emptySetInclusionEmpty = Lemma(
-    () |- (inclusionOn(emptySet()) === emptySet())
+    () |- (inclusionOn(emptySet) === emptySet)
   ) {
-    have(forall(t, in(t, inclusionOn(emptySet())) <=> (in(t, cartesianProduct(emptySet(), emptySet())) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(
-      inclusionOn(emptySet())
-    )(inclusionOn.definition of (a -> emptySet()))
-    val incDef = thenHave(in(t, inclusionOn(emptySet())) <=> (in(t, cartesianProduct(emptySet(), emptySet())) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))) by InstantiateForall(t)
+    have(forall(t, in(t, inclusionOn(emptySet)) <=> (in(t, cartesianProduct(emptySet, emptySet)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))) by InstantiateForall(
+      inclusionOn(emptySet)
+    )(inclusionOn.definition of (a -> emptySet))
+    val incDef = thenHave(in(t, inclusionOn(emptySet)) <=> (in(t, cartesianProduct(emptySet, emptySet)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))) by InstantiateForall(t)
 
-    have(forall(t, in(t, cartesianProduct(emptySet(), emptySet())) <=> in(t, emptySet()))) by Tautology.from(
-      productWithEmptySetEmpty of (x -> emptySet()),
-      extensionalityAxiom of (x -> cartesianProduct(emptySet(), emptySet()), y -> emptySet())
+    have(forall(t, in(t, cartesianProduct(emptySet, emptySet)) <=> in(t, emptySet))) by Tautology.from(
+      productWithEmptySetEmpty of (x -> emptySet),
+      extensionalityAxiom of (x -> cartesianProduct(emptySet, emptySet), y -> emptySet)
     )
-    val emp = thenHave(in(t, cartesianProduct(emptySet(), emptySet())) <=> in(t, emptySet())) by InstantiateForall(t)
+    val emp = thenHave(in(t, cartesianProduct(emptySet, emptySet)) <=> in(t, emptySet)) by InstantiateForall(t)
 
-    val impl = have(in(t, inclusionOn(emptySet())) <=> in(t, emptySet())) subproof {
-      val lhs = have(in(t, inclusionOn(emptySet())) |- in(t, emptySet())) by Tautology.from(incDef, emp)
-      val rhs = have(in(t, emptySet()) |- in(t, inclusionOn(emptySet()))) by Weakening(emptySet.definition of (x -> t))
+    val impl = have(in(t, inclusionOn(emptySet)) <=> in(t, emptySet)) subproof {
+      val lhs = have(in(t, inclusionOn(emptySet)) |- in(t, emptySet)) by Tautology.from(incDef, emp)
+      val rhs = have(in(t, emptySet) |- in(t, inclusionOn(emptySet))) by Weakening(emptySet.definition of (x -> t))
       have(thesis) by Tautology.from(lhs, rhs)
     }
 
-    val ext = thenHave(forall(t, in(t, inclusionOn(emptySet())) <=> in(t, emptySet()))) by RightForall
-    have(thesis) by Tautology.from(ext, extensionalityAxiom of (x -> inclusionOn(emptySet()), y -> emptySet()))
+    val ext = thenHave(forall(t, in(t, inclusionOn(emptySet)) <=> in(t, emptySet))) by RightForall
+    have(thesis) by Tautology.from(ext, extensionalityAxiom of (x -> inclusionOn(emptySet), y -> emptySet))
   }
 
   /**
    * Theorem --- the inclusion order on the empty set is a reflexive relation.
    */
   val emptyInclusionReflexive = Lemma(
-    () |- reflexive(inclusionOn(emptySet()), emptySet())
+    () |- reflexive(inclusionOn(emptySet), emptySet)
   ) {
-    have(reflexive(emptySet(), emptySet())) by Restate.from(emptyRelationReflexiveOnItself)
+    have(reflexive(emptySet, emptySet)) by Restate.from(emptyRelationReflexiveOnItself)
     thenHave(thesis) by Substitution.ApplyRules(emptySetInclusionEmpty)
   }
 
@@ -163,9 +163,9 @@ object InclusionOrders extends lisa.Main {
    * Theorem --- the inclusion order on the empty set is an irreflexive relation.
    */
   val emptyInclusionIrreflexive = Lemma(
-    () |- irreflexive(inclusionOn(emptySet()), a)
+    () |- irreflexive(inclusionOn(emptySet), a)
   ) {
-    have(irreflexive(emptySet(), a)) by Restate.from(emptyRelationIrreflexive)
+    have(irreflexive(emptySet, a)) by Restate.from(emptyRelationIrreflexive)
     thenHave(thesis) by Substitution.ApplyRules(emptySetInclusionEmpty)
   }
 
@@ -173,9 +173,9 @@ object InclusionOrders extends lisa.Main {
    * Theorem --- the inclusion order on the empty set is a transitive relation.
    */
   val emptyInclusionTransitive = Lemma(
-    () |- transitive(inclusionOn(emptySet()), a)
+    () |- transitive(inclusionOn(emptySet), a)
   ) {
-    have(transitive(emptySet(), a)) by Restate.from(emptyRelationTransitive)
+    have(transitive(emptySet, a)) by Restate.from(emptyRelationTransitive)
     thenHave(thesis) by Substitution.ApplyRules(emptySetInclusionEmpty)
   }
 
@@ -183,22 +183,22 @@ object InclusionOrders extends lisa.Main {
    * Theorem --- the empty relation partially orders the empty set
    */
   val emptySetPartialOrder = Lemma(
-    () |- partialOrder(pair(emptySet(), emptySet()))
+    () |- partialOrder(pair(emptySet, emptySet))
   ) {
     have(
-      partialOrder(pair(emptySet(), emptySet())) <=> (relationBetween(emptySet(), emptySet(), emptySet()) /\ antiSymmetric(emptySet(), emptySet()) /\ antiReflexive(
-        emptySet(),
-        emptySet()
-      ) /\ transitive(emptySet(), emptySet()))
+      partialOrder(pair(emptySet, emptySet)) <=> (relationBetween(emptySet, emptySet, emptySet) /\ antiSymmetric(emptySet, emptySet) /\ antiReflexive(
+        emptySet,
+        emptySet
+      ) /\ transitive(emptySet, emptySet))
     ) by Substitution.ApplyRules(firstInPairReduction, secondInPairReduction)(
-      partialOrder.definition of p -> pair(emptySet(), emptySet())
+      partialOrder.definition of p -> pair(emptySet, emptySet)
     )
     have(thesis) by Tautology.from(
       lastStep,
       emptySetRelationOnItself,
-      emptyRelationIrreflexive of a -> emptySet(),
-      emptyRelationTransitive of a -> emptySet(),
-      emptyRelationAntiSymmetric of a -> emptySet()
+      emptyRelationIrreflexive of a -> emptySet,
+      emptyRelationTransitive of a -> emptySet,
+      emptyRelationAntiSymmetric of a -> emptySet
     )
   }
 
@@ -206,12 +206,12 @@ object InclusionOrders extends lisa.Main {
    * Theorem --- the empty relation totally orders the empty set
    */
   val emptySetTotalOrder = Lemma(
-    () |- totalOrder(pair(emptySet(), emptySet()))
+    () |- totalOrder(pair(emptySet, emptySet))
   ) {
-    have(totalOrder(pair(emptySet(), emptySet())) <=> (partialOrder(pair(emptySet(), emptySet())) /\ total(emptySet(), emptySet()))) by Substitution.ApplyRules(
-      firstInPairReduction of (x -> emptySet(), y -> emptySet()),
-      secondInPairReduction of (x -> emptySet(), y -> emptySet())
-    )(totalOrder.definition of p -> pair(emptySet(), emptySet()))
+    have(totalOrder(pair(emptySet, emptySet)) <=> (partialOrder(pair(emptySet, emptySet)) /\ total(emptySet, emptySet))) by Substitution.ApplyRules(
+      firstInPairReduction of (x -> emptySet, y -> emptySet),
+      secondInPairReduction of (x -> emptySet, y -> emptySet)
+    )(totalOrder.definition of p -> pair(emptySet, emptySet))
     have(thesis) by Tautology.from(lastStep, emptySetPartialOrder, emptyRelationTotalOnItself)
   }
 }

@@ -56,7 +56,7 @@ object ProofPrinter {
             showErrorForLine,
             prefixString,
             Seq(stepName, topSteps.mkString(commaSeparator(compact = false))).filter(_.nonEmpty).mkString(" "),
-            FOLPrinter.prettySequent(imp._2)
+            imp._2.toString()
           )
 
         Seq(pretty("Import", 0))
@@ -75,7 +75,7 @@ object ProofPrinter {
             showErrorForLine,
             prefixString,
             Seq(stepName, topSteps.mkString(commaSeparator(compact = false))).filter(_.nonEmpty).mkString(" "),
-            FOLPrinter.prettySequent(step.bot)
+            step.bot.toString()
           )
 
         step.tactic match {

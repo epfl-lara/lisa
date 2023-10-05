@@ -36,12 +36,12 @@ object WellOrders extends lisa.Main {
   private val q = variable
   private val f = variable
   private val g = variable
-  private val F = function(1)
-  private val G = function(2)
+  private val F = function[1]
+  private val G = function[2]
 
-  private val P = predicate(1)
-  private val Q = predicate(1)
-  private val schemPred = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
+  private val schemPred = predicate[1]
 
   /**
    * Well-Order --- a partial order `p = (A, <)` is said to be a well-order if
@@ -51,29 +51,29 @@ object WellOrders extends lisa.Main {
     val A = firstInPair(p)
     val B = variable
     val `<p` = secondInPair(p)
-    totalOrder(p) /\ forall(B, (subset(B, A) /\ !(B === emptySet())) ==> exists(z, in(z, B) /\ forall(x, in(x, B) ==> (in(pair(z, x), `<p`) \/ (z === x)))))
+    totalOrder(p) /\ forall(B, (subset(B, A) /\ !(B === emptySet)) ==> exists(z, in(z, B) /\ forall(x, in(x, B) ==> (in(pair(z, x), `<p`) \/ (z === x)))))
   }
 
   /**
    * Theorem --- the empty set is well ordered by the empty relation.
    */
   val emptySetWellOrder = Lemma(
-    () |- wellOrder(pair(emptySet(), emptySet()))
+    () |- wellOrder(pair(emptySet, emptySet))
   ) {
     val woDef = have(
-      wellOrder(pair(emptySet(), emptySet())) <=> (totalOrder(pair(emptySet(), emptySet())) /\ forall(
+      wellOrder(pair(emptySet, emptySet)) <=> (totalOrder(pair(emptySet, emptySet)) /\ forall(
         b,
-        (subset(b, emptySet()) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet(), emptySet()))) \/ (z === x))))
+        (subset(b, emptySet) /\ !(b === emptySet)) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet, emptySet))) \/ (z === x))))
       ))
-    ) by Substitution.ApplyRules(firstInPairReduction of (x -> emptySet(), y -> emptySet()))(wellOrder.definition of p -> pair(emptySet(), emptySet()))
+    ) by Substitution.ApplyRules(firstInPairReduction of (x -> emptySet, y -> emptySet))(wellOrder.definition of p -> pair(emptySet, emptySet))
 
-    have((subset(b, emptySet()) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet(), emptySet()))) \/ (z === x))))) by Tautology.from(
+    have((subset(b, emptySet) /\ !(b === emptySet)) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet, emptySet))) \/ (z === x))))) by Tautology.from(
       emptySetIsItsOwnOnlySubset of x -> b
     )
     thenHave(
       forall(
         b,
-        (subset(b, emptySet()) /\ !(b === emptySet())) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet(), emptySet()))) \/ (z === x))))
+        (subset(b, emptySet) /\ !(b === emptySet)) ==> exists(z, in(z, b) /\ forall(x, in(x, b) ==> (in(pair(z, x), secondInPair(pair(emptySet, emptySet))) \/ (z === x))))
       )
     ) by RightForall
 

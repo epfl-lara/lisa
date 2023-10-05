@@ -10,15 +10,7 @@ import lisa.utils.FOLParser
 import scala.annotation.targetName
 
 /**
- * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
- * Usage:
- * <pre>
- * import utilities.Helpers.*
- * </pre>
- * or
- * <pre>
- * extends utilities.KernelHelpers.*
- * </pre>
+ * A helper file that provides various syntactic sugars for LISA's FOL and proofs at the Kernel level.
  */
 object KernelHelpers {
 
@@ -284,7 +276,7 @@ object KernelHelpers {
   def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
   def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
 
-  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariables(f.inner, Map(f.bound -> t))
+  def instantiateBinder(f: BinderFormula, t: Term): Formula = substituteVariablesInFormula(f.inner, Map(f.bound -> t))
 
   // declare symbols easily: "val x = variable;"
   def variable(using name: sourcecode.Name): VariableLabel = VariableLabel(name.value)
@@ -346,7 +338,7 @@ object KernelHelpers {
   extension (theory: RunningTheory) {
     def makeAxiom(using name: sourcecode.Name)(formula: Formula): theory.Axiom = theory.addAxiom(name.value, formula) match {
       case Some(value) => value
-      case None => throw new LisaException.InvalidAxiomException("Axiom contains undefined symbols", name.value, formula, theory)
+      case None => throw new LisaException.InvalidKernelAxiomException("Axiom contains undefined symbols", name.value, formula, theory)
     }
 
     /**

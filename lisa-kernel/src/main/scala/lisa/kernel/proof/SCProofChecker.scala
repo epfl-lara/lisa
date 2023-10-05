@@ -150,7 +150,7 @@ object SCProofChecker {
            */
           case LeftForall(b, t1, phi, x, t) =>
             if (isSameSet(b.right, ref(t1).right))
-              if (isSameSet(b.left + substituteVariables(phi, Map(x -> t)), ref(t1).left + BinderFormula(Forall, x, phi)))
+              if (isSameSet(b.left + substituteVariablesInFormula(phi, Map(x -> t)), ref(t1).left + BinderFormula(Forall, x, phi)))
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ")
             else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
@@ -270,7 +270,7 @@ object SCProofChecker {
            */
           case RightExists(b, t1, phi, x, t) =>
             if (isSameSet(b.left, ref(t1).left))
-              if (isSameSet(b.right + substituteVariables(phi, Map(x -> t)), ref(t1).right + BinderFormula(Exists, x, phi)))
+              if (isSameSet(b.right + substituteVariablesInFormula(phi, Map(x -> t)), ref(t1).right + BinderFormula(Exists, x, phi)))
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, "Right-hand side of the conclusion + φ[t/x] must be the same as right-hand side of the premise + ∃x. φ")
             else SCInvalidProof(SCProof(step), Nil, "Left-hand sides or conclusion and premise must be the same.")

@@ -1,4 +1,4 @@
-package lisa.utils
+package lisa.test.utils
 
 import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
@@ -6,9 +6,8 @@ import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Hypothesis
 import lisa.test.TestTheory
-import lisa.utils.KernelHelpers._
-import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
-import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
+import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 class TheoriesHelpersTest extends AnyFunSuite {

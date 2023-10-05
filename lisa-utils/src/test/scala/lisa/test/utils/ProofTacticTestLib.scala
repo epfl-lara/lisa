@@ -1,4 +1,4 @@
-package lisa.utils
+package lisa.test.utils
 
 import lisa.kernel.proof.SequentCalculus as SC
 import lisa.prooflib.BasicMain
@@ -13,8 +13,11 @@ class ProofTacticTestLib extends AnyFunSuite with BasicMain {
 
   export lisa.test.TestTheoryLibrary.{_, given}
 
+  private val x: lisa.fol.FOL.Variable = variable
+  private val P = predicate[1]
+
   // generate a placeholde theorem to take ownership of proofs for test
-  val placeholderTheorem = Theorem("'P('x) |- 'P('x)") { have("'P('x) |- 'P('x)") by Hypothesis }
+  val placeholderTheorem = Theorem(P(x) |- P(x)) { have(P(x) |- P(x)) by Hypothesis }
 
   // generates an empty proof owned by the placeholder theorem for testing
   def generateTestProof() = new BaseProof(placeholderTheorem)
@@ -23,9 +26,10 @@ class ProofTacticTestLib extends AnyFunSuite with BasicMain {
   // the step cannot be passed through the kernel for verification in any way,
   // but does allow for using them as premise to test tactics
   // extreme jank :)
-  def introduceSequent(using proof: Proof)(seq: String) = proof.newProofStep(
+  def introduceSequent(using proof: Proof)(seq: Sequent) = proof.newProofStep(
     proof.ValidProofTactic(
-      Seq(SC.Hypothesis(FOLParser.parseSequent(seq), FOLParser.parseFormula("'P('x)"))),
+      P(x),
+      Seq(SC.Hypothesis(seq.underlying, P(x).underlying)),
       Seq()
     )(using Hypothesis)
   )

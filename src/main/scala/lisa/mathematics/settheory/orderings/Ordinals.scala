@@ -37,12 +37,12 @@ object Ordinals extends lisa.Main {
   private val q = variable
   private val f = variable
   private val g = variable
-  private val F = function(1)
-  private val G = function(2)
+  private val F = function[1]
+  private val G = function[2]
 
-  private val P = predicate(1)
-  private val Q = predicate(1)
-  private val schemPred = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
+  private val schemPred = predicate[1]
 
   /**
    * A set is an ordinal iff it is transitive ([[transitiveSet]]) and
@@ -71,11 +71,11 @@ object Ordinals extends lisa.Main {
    * Theorem --- the empty set is transitive.
    */
   val emptySetTransitive = Lemma(
-    () |- transitiveSet(emptySet())
+    () |- transitiveSet(emptySet)
   ) {
-    val hypo = have(!in(y, emptySet()) |- in(y, emptySet()) ==> subset(y, emptySet())) by Restate
-    have(() |- in(y, emptySet()) ==> subset(y, emptySet())) by Cut(emptySetAxiom of (x -> y), hypo)
-    thenHave(() |- forall(y, in(y, emptySet()) ==> subset(y, emptySet()))) by RightForall
+    val hypo = have(!in(y, emptySet) |- in(y, emptySet) ==> subset(y, emptySet)) by Restate
+    have(() |- in(y, emptySet) ==> subset(y, emptySet)) by Cut(emptySetAxiom of (x -> y), hypo)
+    thenHave(() |- forall(y, in(y, emptySet) ==> subset(y, emptySet))) by RightForall
     thenHave(thesis) by Substitution.ApplyRules(transitiveSet.definition)
   }
 
@@ -83,10 +83,10 @@ object Ordinals extends lisa.Main {
    * Theorem --- the empty set is well ordered by inclusion.
    */
   val emptySetWellOrderedByInclusion = Lemma(
-    () |- wellOrder(inclusionOrderOn(emptySet()))
+    () |- wellOrder(inclusionOrderOn(emptySet))
   ) {
-    val incDef = have(inclusionOrderOn(emptySet()) === pair(emptySet(), inclusionOn(emptySet()))) by InstantiateForall(inclusionOrderOn(emptySet()))(inclusionOrderOn.definition of a -> emptySet())
-    have(wellOrder(pair(emptySet(), inclusionOn(emptySet())))) by Substitution.ApplyRules(emptySetInclusionEmpty)(emptySetWellOrder)
+    val incDef = have(inclusionOrderOn(emptySet) === pair(emptySet, inclusionOn(emptySet))) by InstantiateForall(inclusionOrderOn(emptySet))(inclusionOrderOn.definition of a -> emptySet)
+    have(wellOrder(pair(emptySet, inclusionOn(emptySet)))) by Substitution.ApplyRules(emptySetInclusionEmpty)(emptySetWellOrder)
     thenHave(thesis) by Substitution.ApplyRules(incDef)
   }
 
@@ -94,9 +94,9 @@ object Ordinals extends lisa.Main {
    * Theorem --- the empty set is an ordinal (zero).
    */
   val emptySetOrdinal = Theorem(
-    () |- ordinal(emptySet())
+    () |- ordinal(emptySet)
   ) {
-    have(thesis) by Tautology.from(emptySetWellOrderedByInclusion, emptySetTransitive, ordinal.definition of (a -> emptySet()))
+    have(thesis) by Tautology.from(emptySetWellOrderedByInclusion, emptySetTransitive, ordinal.definition of (a -> emptySet))
   }
 
   val ordinalsHereditarilyTransitive = Lemma(
@@ -249,14 +249,14 @@ object Ordinals extends lisa.Main {
       have(thesis) by Tautology.from(lastStep, inBPartial, inBTotal)
     }
 
-    val woProp = have(forall(c, (subset(c, b) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y)))))) subproof {
+    val woProp = have(forall(c, (subset(c, b) /\ !(c === emptySet)) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y)))))) subproof {
       // painful expansion
       // subset c b ==> subset c a
       have(forall(y, in(y, a) ==> subset(y, a))) by Tautology.from(ordinal.definition, transitiveSet.definition of x -> a)
       thenHave(in(b, a) ==> subset(b, a)) by InstantiateForall(b)
       thenHave(subset(b, a)) by Restate
       have(subset(c, b) |- subset(c, a)) by Tautology.from(lastStep, subsetTransitivity of (a -> c, c -> a))
-      val bToA = thenHave(subset(c, b) /\ !(c === emptySet()) |- subset(c, a) /\ !(c === emptySet())) by Tautology
+      val bToA = thenHave(subset(c, b) /\ !(c === emptySet) |- subset(c, a) /\ !(c === emptySet)) by Tautology
 
       have(forall(z, (z === inclusionOrderOn(a)) <=> (z === pair(a, inclusionOn(a))))) by Weakening(inclusionOrderOn.definition)
       val incDef = thenHave(inclusionOrderOn(a) === pair(a, inclusionOn(a))) by InstantiateForall(inclusionOrderOn(a))
@@ -265,23 +265,23 @@ object Ordinals extends lisa.Main {
       have(
         forall(
           c,
-          (subset(c, firstInPair(inclusionOrderOn(a))) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(inclusionOrderOn(a))) \/ (z === y))))
+          (subset(c, firstInPair(inclusionOrderOn(a))) /\ !(c === emptySet)) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(inclusionOrderOn(a))) \/ (z === y))))
         )
       ) by Tautology.from(ordinal.definition, wellOrder.definition of p -> inclusionOrderOn(a))
       thenHave(
         forall(
           c,
-          (subset(c, firstInPair(pair(a, inclusionOn(a)))) /\ !(c === emptySet())) ==> exists(
+          (subset(c, firstInPair(pair(a, inclusionOn(a)))) /\ !(c === emptySet)) ==> exists(
             z,
             in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(pair(a, inclusionOn(a)))) \/ (z === y)))
           )
         )
       ) by Substitution.ApplyRules(incDef)
-      thenHave(forall(c, (subset(c, a) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y)))))) by Substitution.ApplyRules(
+      thenHave(forall(c, (subset(c, a) /\ !(c === emptySet)) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y)))))) by Substitution.ApplyRules(
         firstInPairReduction of (x -> a, y -> inclusionOn(a)),
         secondInPairReduction of (x -> a, y -> inclusionOn(a))
       )
-      val caWO = thenHave((subset(c, a) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))))) by InstantiateForall(c)
+      val caWO = thenHave((subset(c, a) /\ !(c === emptySet)) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(a)) \/ (z === y))))) by InstantiateForall(c)
 
       // but if this element is minimal wrt \in_a, it is minimal wrt \in_b as well
       have(
@@ -311,7 +311,7 @@ object Ordinals extends lisa.Main {
         thenHave(thesis) by LeftExists
       }
 
-      have((subset(c, b) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y))))) by Tautology.from(lastStep, caWO, bToA)
+      have((subset(c, b) /\ !(c === emptySet)) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), inclusionOn(b)) \/ (z === y))))) by Tautology.from(lastStep, caWO, bToA)
       thenHave(thesis) by RightForall
     }
 
@@ -322,7 +322,7 @@ object Ordinals extends lisa.Main {
       have(
         forall(
           c,
-          (subset(c, firstInPair(pair(b, inclusionOn(b)))) /\ !(c === emptySet())) ==> exists(
+          (subset(c, firstInPair(pair(b, inclusionOn(b)))) /\ !(c === emptySet)) ==> exists(
             z,
             in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(pair(b, inclusionOn(b)))) \/ (z === y)))
           )
@@ -331,7 +331,7 @@ object Ordinals extends lisa.Main {
       thenHave(
         forall(
           c,
-          (subset(c, firstInPair(inclusionOrderOn(b))) /\ !(c === emptySet())) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(inclusionOrderOn(b))) \/ (z === y))))
+          (subset(c, firstInPair(inclusionOrderOn(b))) /\ !(c === emptySet)) ==> exists(z, in(z, c) /\ forall(y, in(y, c) ==> (in(pair(z, y), secondInPair(inclusionOrderOn(b))) \/ (z === y))))
         )
       ) by Substitution.ApplyRules(incDef)
       have(thesis) by Tautology.from(lastStep, totalB, wellOrder.definition of p -> inclusionOrderOn(b))

@@ -1,5 +1,6 @@
 package lisa.utils
 
+import lisa.fol.FOL as F
 import lisa.kernel.fol.FOL
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
@@ -12,7 +13,7 @@ abstract class LisaException(errorMessage: String)(using val line: sourcecode.Li
   def showError: String
 }
 
-import lisa.prooflib.TheoriesHelpers.{_, given}
+import lisa.utils.KernelHelpers.{_, given}
 
 import java.io.File
 object LisaException {
@@ -28,7 +29,7 @@ object LisaException {
         }}"
   }
 
-  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.kernel.fol.FOL.Formula, theory: lisa.kernel.proof.RunningTheory)(using sourcecode.Line, sourcecode.File)
+  class InvalidKernelAxiomException(errorMessage: String, name: String, formula: lisa.kernel.fol.FOL.Formula, theory: lisa.kernel.proof.RunningTheory)(using sourcecode.Line, sourcecode.File)
       extends LisaException(errorMessage) {
     def showError: String = s"The desired axiom \"$name\" contains symbol that are not part of the theory.\n" +
       s"The symbols {${theory.findUndefinedSymbols(formula)}} are undefined."
@@ -43,9 +44,18 @@ abstract class UserLisaException(var errorMessage: String)(using line: sourcecod
   def fixTrace(): Unit = ()
 }
 object UserLisaException {
+  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.fol.FOL.Formula, library: lisa.prooflib.Library)(using sourcecode.Line, sourcecode.File)
+      extends UserLisaException(errorMessage) {
+    def showError: String = s"The desired axiom \"$name\" contains symbol that are not part of the theory.\n" +
+      s"The symbols {${library.theory.findUndefinedSymbols(formula.underlying)}} are undefined."
+  }
 
   class UserParsingException(val parsedString: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) {
     def showError: String = ""
+  }
+
+  class UndefinedSymbolException(errorMessage: String, symbol: F.ConstantLabel[?], library: lisa.prooflib.Library)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
+    def showError: String = s"The desired symbol \"$symbol\" is unknown and has not been defined.\n"
   }
 
 }

@@ -17,6 +17,15 @@ inThisBuild(
   )
 )
 
+
+val commonSettings = Seq(
+  version            := "0.9",
+  crossScalaVersions := Seq("2.12.13", "2.13.4", "3.0.1", "3.2.0"),
+  organization       := "ch.epfl.lara",
+  scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0")
+)
+
+
 val scala2 = "2.13.8"
 val scala3 = "3.2.2"
 
@@ -49,9 +58,9 @@ lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.gi
 lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
 
 lazy val root = Project(
-  id = "lisa",
-  base = file(".")
-)
+    id = "lisa",
+    base = file(".")
+  )
   .settings(commonSettings3)
   .settings(
     version := "0.1"
@@ -86,6 +95,6 @@ lazy val examples = Project(
   id = "lisa-examples",
   base = file("lisa-examples")
 )
+  .settings(commonSettings)
   .settings(commonSettings3)
   .dependsOn(root)
-

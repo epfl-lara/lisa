@@ -12,13 +12,12 @@ import lisa.utils.KernelHelpers.*
 import lisa.utils.Printer
 
 object SetTheoryTactics {
-
   import lisa.settheory.SetTheoryLibrary.{_, given}
   // var defs
   private val x = variable
   private val y = variable
   private val z = variable
-  private val schemPred = predicate(1)
+  private val schemPred = predicate[1]
 
   /**
    * Deduced Tactic --- Unique Comprehension
@@ -43,16 +42,21 @@ object SetTheoryTactics {
    * See [[setIntersection]] or [[relationDomain]] for more usage.
    */
   object UniqueComprehension extends ProofTactic {
-    def apply(using proof: SetTheoryLibrary.Proof, line: sourcecode.Line, file: sourcecode.File, om: OutputManager)(originalSet: Term, separationPredicate: LambdaTermFormula)(
+    def apply(using
+        proof: SetTheoryLibrary.Proof,
+        line: sourcecode.Line,
+        file: sourcecode.File,
+        om: OutputManager
+    )(originalSet: Term, separationPredicate: LambdaTF[2])( // TODO dotty forgets that Term <:< LisaObject[Term]
         bot: Sequent
     ): proof.ProofTacticJudgement = {
-      require(separationPredicate.vars.length == 2) // separationPredicate takes two args
+      require(separationPredicate.bounds.length == 2) // separationPredicate takes two args
       given SetTheoryLibrary.type = SetTheoryLibrary
       // fresh variable names to avoid conflicts
       val botWithAssumptions = bot ++ (proof.getAssumptions |- ())
-      val takenIDs = (SC.sequentToFormula(botWithAssumptions).freeVariables ++ separationPredicate.body.freeVariables ++ originalSet.freeVariables).map(_.id)
-      val t1 = VariableLabel(freshId(takenIDs, x.id))
-      val t2 = VariableLabel(freshId(takenIDs, y.id))
+      val takenIDs = (botWithAssumptions.freeVariables ++ separationPredicate.body.freeVariables ++ originalSet.freeVariables).map(_.id)
+      val t1 = Variable(freshId(takenIDs, x.id))
+      val t2 = Variable(freshId(takenIDs, y.id))
 
       val prop = (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))
       def fprop(z: Term) = forall(t2, in(t2, z) <=> prop)
@@ -68,7 +72,7 @@ object SetTheoryTactics {
        * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Cut
        */
       val sp = SUBPROOF(using proof)(Some(botWithAssumptions)) { // TODO check if isInstanceOf first
-        val existence = have(() |- exists(t1, fprop(t1))) by Weakening(comprehensionSchema of (z -> originalSet, sPhi -> separationPredicate))
+        val existence = have(() |- exists(t1, fprop(t1))) by Weakening(comprehensionSchema of (z -> originalSet, φ -> separationPredicate))
 
         val existsToUnique = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by Weakening(SetTheory.uniqueByExtension of schemPred -> lambda(t2, prop))
 

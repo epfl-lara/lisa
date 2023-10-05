@@ -1,16 +1,18 @@
 package lisa.settheory
 
-import lisa.kernel.fol.FOL.*
+import lisa.fol.FOL.{_, given}
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.K
 
 /**
  * Base trait for set theoretical axiom systems.
  * Defines the symbols used in set theory.
  */
-private[settheory] trait SetTheoryDefinitions {
+private[settheory] trait SetTheoryDefinitions extends lisa.prooflib.Library {
 
-  def axioms: Set[(String, runningSetTheory.Axiom)] = Set.empty
+  val theory = new RunningTheory()
+
+  def axioms: Set[(String, AXIOM)] = Set.empty
 
   // Predicates
   /**
@@ -37,7 +39,7 @@ private[settheory] trait SetTheoryDefinitions {
   /**
    * The symbol for the empty set constant.
    */
-  final val emptySet = ConstantFunctionLabel("emptySet", 0)
+  final val emptySet = Constant("emptySet")
 
   /**
    * The symbol for the unordered pair function.
@@ -62,14 +64,16 @@ private[settheory] trait SetTheoryDefinitions {
   /**
    * Set Theory basic functions.
    */
-  final val functions = Set(emptySet, unorderedPair, powerSet, union, universe)
+  final val functions = Set(unorderedPair, powerSet, union, universe)
 
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
    */
-  val runningSetTheory: RunningTheory = new RunningTheory()
+  // val runningSetTheory: RunningTheory = new RunningTheory()
   // given RunningTheory = runningSetTheory
 
-  predicates.foreach(s => runningSetTheory.addSymbol(s))
-  functions.foreach(s => runningSetTheory.addSymbol(s))
+  predicates.foreach(s => addSymbol(s))
+  functions.foreach(s => addSymbol(s))
+  addSymbol(emptySet)
+
 }

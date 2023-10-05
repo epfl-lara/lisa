@@ -1,14 +1,13 @@
 package lisa.mathematics
 
+//import lisa.automation.settheory.SetTheoryTactics.*
+//import lisa.mathematics.fol.Quantifiers.*
+//import lisa.prooflib.Substitution
+
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.settheory.SetTheoryTactics.*
-import lisa.kernel.proof.SequentCalculus as SC
 import lisa.mathematics.settheory.SetTheory.*
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib
-import lisa.utils.Printer
 
 object Ordinals extends lisa.Main {
 
@@ -31,9 +30,9 @@ object Ordinals extends lisa.Main {
   private val f = variable
   private val g = variable
 
-  private val P = predicate(1)
-  private val Q = predicate(1)
-  private val schemPred = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
+  private val schemPred = predicate[1]
 
   /**
    * Chapter 2
@@ -74,13 +73,13 @@ object Ordinals extends lisa.Main {
    * Natural Numbers (Inductive definition) --- The intersection of all
    * inductive sets is the set of natural numbers, N.
    */
-  val naturalsInductive = DEF() --> The(z, ∀(t, in(t, z) <=> (∀(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
+  val naturalsInductive = DEF(EmptyTuple) --> The(z, ∀(t, in(t, z) <=> (∀(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
 
   /**
    * Theorem --- Natural numbers form an inductive set
    */
   val naturalsAreInductive = Theorem(
-    inductive(naturalsInductive())
+    inductive(naturalsInductive)
   ) {
     val defHypo = have(∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))) |- ∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x))))) by Hypothesis
 
@@ -134,14 +133,14 @@ object Ordinals extends lisa.Main {
 
     have((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x))))) |- inductive(z)) by Cut(inductDef, inductIff)
     val inductExpansion =
-      thenHave((forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(naturalsInductive())) by InstFunSchema(Map(z -> naturalsInductive()))
+      thenHave((forall(t, in(t, naturalsInductive) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(naturalsInductive)) by InstFunSchema(Map(z -> naturalsInductive))
 
-    have((naturalsInductive() === naturalsInductive()) <=> forall(t, in(t, naturalsInductive()) <=> (forall(x, inductive(x) ==> in(t, x))))) by InstantiateForall(naturalsInductive())(
+    have((naturalsInductive === naturalsInductive) <=> forall(t, in(t, naturalsInductive) <=> (forall(x, inductive(x) ==> in(t, x))))) by InstantiateForall(naturalsInductive)(
       naturalsInductive.definition
     )
-    val natDef = thenHave(forall(t, in(t, naturalsInductive()) <=> forall(x, inductive(x) ==> in(t, x)))) by Restate
+    val natDef = thenHave(forall(t, in(t, naturalsInductive) <=> forall(x, inductive(x) ==> in(t, x)))) by Restate
 
-    have(inductive(naturalsInductive())) by Cut(natDef, inductExpansion)
+    have(inductive(naturalsInductive)) by Cut(natDef, inductExpansion)
   }
 
   private val A = variable

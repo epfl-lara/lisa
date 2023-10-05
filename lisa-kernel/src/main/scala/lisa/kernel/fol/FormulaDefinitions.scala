@@ -135,12 +135,4 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def schematicConnectorLabels: Set[SchematicConnectorLabel] = inner.schematicConnectorLabels
     override def freeVariableFormulaLabels: Set[VariableFormulaLabel] = inner.freeVariableFormulaLabels
   }
-
-  /**
-   * Binds multiple variables at the same time
-   */
-  @deprecated
-  def bindAll(binder: BinderLabel, vars: Seq[VariableLabel], phi: Formula): Formula =
-    vars.foldLeft(phi)((f, v) => BinderFormula(binder, v, f))
-
 }

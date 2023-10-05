@@ -39,12 +39,12 @@ object Induction extends lisa.Main {
   private val q = variable
   private val f = variable
   private val g = variable
-  private val F = function(1)
-  private val G = function(2)
+  private val F = function[1]
+  private val G = function[2]
 
-  private val P = predicate(1)
-  private val Q = predicate(1)
-  private val schemPred = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
+  private val schemPred = predicate[1]
 
   /**
    * Theorem --- Well Ordered Induction on a Subclass
@@ -95,7 +95,7 @@ object Induction extends lisa.Main {
 
       // z exists by comprehension
       val zExists = have(exists(z, zDef)) subproof {
-        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda(Seq(t, x), !Q(t)))
+        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda((t, x), !Q(t)))
         have(thesis) by Cut(lastStep, existsOneImpliesExists of P -> lambda(z, zDef))
       }
 
@@ -113,10 +113,10 @@ object Induction extends lisa.Main {
         assume(zDef, !Q(x) /\ in(x, A))
         have(in(x, z) <=> (in(x, A) /\ !Q(x))) by InstantiateForall
         thenHave(in(x, z)) by Tautology
-        val zNonEmpty = have(!(z === emptySet())) by Tautology.from(lastStep, setWithElementNonEmpty of (y -> x, x -> z))
+        val zNonEmpty = have(!(z === emptySet)) by Tautology.from(lastStep, setWithElementNonEmpty of (y -> x, x -> z))
 
-        have(forall(b, (subset(b, A) /\ !(b === emptySet())) ==> exists(y, in(y, b) /\ forall(w, in(w, b) ==> (in(pair(y, w), `<p`) \/ (y === w)))))) by Tautology.from(wellOrder.definition)
-        thenHave((subset(z, A) /\ !(z === emptySet())) ==> exists(y, in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by InstantiateForall(z)
+        have(forall(b, (subset(b, A) /\ !(b === emptySet)) ==> exists(y, in(y, b) /\ forall(w, in(w, b) ==> (in(pair(y, w), `<p`) \/ (y === w)))))) by Tautology.from(wellOrder.definition)
+        thenHave((subset(z, A) /\ !(z === emptySet)) ==> exists(y, in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by InstantiateForall(z)
 
         val exY = have(exists(y, in(y, z) /\ forall(w, in(w, z) ==> (in(pair(y, w), `<p`) \/ (y === w))))) by Tautology.from(lastStep, zNonEmpty, zSubset)
 

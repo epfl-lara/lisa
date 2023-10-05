@@ -1,4 +1,4 @@
-package lisa.utils
+package lisa.test.utils
 
 import org.scalatest.funsuite.AnyFunSuite
 

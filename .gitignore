@@ -11,3 +11,8 @@ target
 *.scala.semanticdb
 
 *.iml
+
+# silex and scallion
+
+silex/*
+scallion/*

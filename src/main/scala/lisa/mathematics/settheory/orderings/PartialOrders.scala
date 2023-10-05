@@ -34,12 +34,12 @@ object PartialOrders extends lisa.Main {
   private val q = variable
   private val f = variable
   private val g = variable
-  private val F = function(1)
-  private val G = function(2)
+  private val F = function[1]
+  private val G = function[2]
 
-  private val P = predicate(1)
-  private val Q = predicate(1)
-  private val schemPred = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
+  private val schemPred = predicate[1]
 
   /**
    * Linear and Partial Ordering
@@ -123,7 +123,7 @@ object PartialOrders extends lisa.Main {
   val setOfLowerBoundsUniqueness = Theorem(
     () |- ∃!(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))
   ) {
-    have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), lowerBound(t, y, p)))
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda((t, x), lowerBound(t, y, p)))
   }
 
   /**
@@ -146,7 +146,7 @@ object PartialOrders extends lisa.Main {
   val setOfUpperBoundsUniqueness = Theorem(
     () |- ∃!(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))
   ) {
-    have(thesis) by UniqueComprehension(secondInPair(p), lambda(Seq(t, x), upperBound(t, y, p)))
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda((t, x), upperBound(t, y, p)))
   }
 
   /**
@@ -209,7 +209,7 @@ object PartialOrders extends lisa.Main {
         have(in(t, p1)) by Tautology.from(lastStep, pairInCartesianProduct of (a -> t, b -> x, x -> p1, y -> p1))
       }
 
-      have(bot()) by Tautology.from(lastStep, notInp1)
+      have(bot) by Tautology.from(lastStep, notInp1)
     }
 
     val bwd = have(exists(y, in(pair(t, y), p2) /\ in(pair(y, x), p2)) |- in(pair(t, x), p2)) subproof {

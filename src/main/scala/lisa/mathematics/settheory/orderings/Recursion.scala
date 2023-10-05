@@ -47,12 +47,12 @@ object Recursion extends lisa.Main {
   private val q = variable
   private val f = variable
   private val g = variable
-  private val F = function(1)
-  private val G = function(2)
+  private val F = function[1]
+  private val G = function[2]
 
-  private val P = predicate(1)
-  private val Q = predicate(1)
-  private val schemPred = predicate(1)
+  private val P = predicate[1]
+  private val Q = predicate[1]
+  private val schemPred = predicate[1]
 
   // Recursion related definitions:
   val p1 = firstInPair(p)
@@ -472,7 +472,7 @@ object Recursion extends lisa.Main {
             thenHave(exists(t2, fun(t1, y1) /\ fun(t2, y1) /\ !(t1 === t2))) by RightExists
             thenHave(exists(t1, exists(t2, fun(t1, y1) /\ fun(t2, y1) /\ !(t1 === t2)))) by RightExists
             have(exists(t1, fun(t1, y1)) /\ !existsOne(t1, fun(t1, y1))) by Tautology.from(lastStep, atleastTwoExist of P -> lambda(t1, fun(t1, y1)))
-            have(bot()) by Tautology.from(lastStep, uniqueRecursiveFunction of t -> y1, initMemToP1 of (y -> y1, a -> x))
+            have(bot) by Tautology.from(lastStep, uniqueRecursiveFunction of t -> y1, initMemToP1 of (y -> y1, a -> x))
             thenHave(thesis) by Weakening
           }
 
@@ -514,7 +514,7 @@ object Recursion extends lisa.Main {
                 // B defined by x => x < a1 /\ k1 x != k2 x exists
                 val B = variable
                 val BDef = forall(x, in(x, B) <=> (in(x, initialSegment(p, a1)) /\ !(app(k1, x) === app(k2, x))))
-                val BExists = have(exists(B, BDef)) by Weakening(comprehensionSchema of (z -> initialSegment(p, a1), sPhi -> lambda(Seq(x, z), !(app(k1, x) === app(k2, x)))))
+                val BExists = have(exists(B, BDef)) by Weakening(comprehensionSchema of (z -> initialSegment(p, a1), φ -> lambda((x, z), !(app(k1, x) === app(k2, x)))))
 
                 // B forms a subset of p1
                 val subsetB = have(BDef |- subset(B, p1)) subproof {
@@ -526,21 +526,21 @@ object Recursion extends lisa.Main {
                 }
 
                 // B is non-empty
-                val nonEmptyB = have(BDef |- !(B === emptySet())) subproof {
+                val nonEmptyB = have(BDef |- !(B === emptySet)) subproof {
                   assume(BDef)
                   have(in(n, B) <=> (in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n)))) by InstantiateForall
                   thenHave((in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n))) |- in(n, B)) by Weakening
-                  have((in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n))) |- !(B === emptySet())) by Cut(lastStep, setWithElementNonEmpty of (y -> n, x -> B))
+                  have((in(n, initialSegment(p, a1)) /\ !(app(k1, n) === app(k2, n))) |- !(B === emptySet)) by Cut(lastStep, setWithElementNonEmpty of (y -> n, x -> B))
                   thenHave(thesis) by LeftExists
                 }
 
                 // so it has a minimal element
                 val minimalB = have(BDef |- exists(n, nDef)) subproof {
                   assume(BDef)
-                  have(forall(B, (subset(B, p1) /\ !(B === emptySet())) ==> exists(n, in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b)))))) by Tautology.from(
+                  have(forall(B, (subset(B, p1) /\ !(B === emptySet)) ==> exists(n, in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b)))))) by Tautology.from(
                     wellOrder.definition
                   )
-                  thenHave((subset(B, p1) /\ !(B === emptySet())) ==> exists(n, in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))))) by InstantiateForall(B)
+                  thenHave((subset(B, p1) /\ !(B === emptySet)) ==> exists(n, in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))))) by InstantiateForall(B)
                   val exN = have(exists(n, in(n, B) /\ forall(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))))) by Tautology.from(lastStep, nonEmptyB, subsetB)
 
                   // transform n \in B to n < a1 /\ k1 n != k2 n
@@ -736,7 +736,7 @@ object Recursion extends lisa.Main {
 
                   // but n was the minimal violation
                   // contradiction
-                  have(mDef |- bot()) subproof {
+                  have(mDef |- bot) subproof {
                     assume(mDef)
                     // m < a1 and k1 m != k2 m ==> n < m \/ n = m
                     have(forall(b, (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b)))) by Restate
@@ -764,8 +764,8 @@ object Recursion extends lisa.Main {
                     // this is a contradiction
                     have(thesis) by Tautology.from(lastStep, nLTn)
                   }
-                  thenHave(exists(m, mDef) |- bot()) by LeftExists
-                  have(bot()) by Cut(mExists, lastStep)
+                  thenHave(exists(m, mDef) |- bot) by LeftExists
+                  have(bot) by Cut(mExists, lastStep)
                 }
 
                 have(F(orderedRestriction(k1, n, p)) === F(orderedRestriction(k1, n, p))) by Restate
@@ -1534,7 +1534,7 @@ object Recursion extends lisa.Main {
               have(functionalOver(prFun, singleton(pr))) by Tautology.from(pairSingletonIsFunctional of (x -> pr, y -> F(uw)), functionalOver.definition of (f -> prFun, x -> singleton(pr)))
 
             // 3. <pr \cap {pr} = \emptyset
-            val domainsDisjoint = have(setIntersection(initialSegment(p, pr), singleton(pr)) === emptySet()) subproof {
+            val domainsDisjoint = have(setIntersection(initialSegment(p, pr), singleton(pr)) === emptySet) subproof {
               val singletonMembership = have(in(t, singleton(pr)) <=> (t === pr)) by Weakening(singletonHasNoExtraElements of (y -> t, x -> pr))
 
               val initMembership = have(in(t, initialSegment(p, pr)) <=> in(pair(t, pr), p2)) by Tautology.from(initialSegmentElement of (x -> t, y -> pr), pIsAPartialOrder)
@@ -1555,16 +1555,16 @@ object Recursion extends lisa.Main {
                 have(thesis) by Tautology.from(lastStep, prprp2)
               }
 
-              val inEmpty = thenHave((in(t, singleton(pr)) /\ in(t, initialSegment(p, pr))) ==> in(t, emptySet())) by Weakening
+              val inEmpty = thenHave((in(t, singleton(pr)) /\ in(t, initialSegment(p, pr))) ==> in(t, emptySet)) by Weakening
 
               have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) <=> (in(t, singleton(pr)) /\ in(t, initialSegment(p, pr)))) by Tautology.from(
                 setIntersectionMembership of (x -> initialSegment(p, pr), y -> singleton(pr))
               )
-              have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet())) by Substitution.ApplyRules(lastStep)(inEmpty)
-              thenHave(forall(t, in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet()))) by RightForall
-              have(subset(setIntersection(initialSegment(p, pr), singleton(pr)), emptySet())) by Tautology.from(
+              have(in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet)) by Substitution.ApplyRules(lastStep)(inEmpty)
+              thenHave(forall(t, in(t, setIntersection(initialSegment(p, pr), singleton(pr))) ==> in(t, emptySet))) by RightForall
+              have(subset(setIntersection(initialSegment(p, pr), singleton(pr)), emptySet)) by Tautology.from(
                 lastStep,
-                subsetAxiom of (x -> setIntersection(initialSegment(p, pr), singleton(pr)), y -> emptySet())
+                subsetAxiom of (x -> setIntersection(initialSegment(p, pr), singleton(pr)), y -> emptySet)
               )
               have(thesis) by Tautology.from(lastStep, emptySetIsItsOwnOnlySubset of x -> setIntersection(initialSegment(p, pr), singleton(pr)))
             }
@@ -1682,7 +1682,7 @@ object Recursion extends lisa.Main {
 
                       have(in(b, initialSegment(p, pr))) by Restate
                       thenHave(in(pr, initialSegment(p, pr))) by Substitution.ApplyRules(bEQpr)
-                      have(bot()) by Tautology.from(lastStep, initialSegmentIrreflexivity of (x -> pr), pIsAPartialOrder)
+                      have(bot) by Tautology.from(lastStep, initialSegmentIrreflexivity of (x -> pr), pIsAPartialOrder)
                     }
 
                     have(thesis) by Tautology.from(lastStep, cases)
@@ -1854,7 +1854,7 @@ object Recursion extends lisa.Main {
       have(forall(y, in(y, initialSegment(p, x)) ==> existsOne(g, fun(g, y)))) by Restate
       have(exists(w, forall(t, in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y))))) by Tautology.from(
         lastStep,
-        replacementSchema of (x -> initialSegment(p, x), sPsi -> lambda(Seq(x, y, g), fun(g, y)))
+        replacementSchema of (x -> initialSegment(p, x), sPsi -> lambda((x, y, g), fun(g, y)))
       )
     }
 
