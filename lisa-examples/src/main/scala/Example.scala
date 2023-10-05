@@ -1,6 +1,5 @@
 import lisa.prooflib.Substitution.{ApplyRules as Substitute}
 
-
 object Example extends lisa.Main {
 
   val x = variable
@@ -51,19 +50,16 @@ object Example extends lisa.Main {
   val powerSetNonEmpty = Theorem(
     powerSet(x) =/= ∅
   ) {
-    have (thesis) by Tautology.from(
-      setWithElementNonEmpty of (y := ∅, x := powerSet(x)), 
-      powerAxiom of (x:= ∅, y:=x), 
+    have(thesis) by Tautology.from(
+      setWithElementNonEmpty of (y := ∅, x := powerSet(x)),
+      powerAxiom of (x := ∅, y := x),
       emptySetIsASubset
     )
   }
 
+  /*
 
-
-
-/*
-
-  import lisa.mathematics.settheory.SetTheory.* 
+  import lisa.mathematics.settheory.SetTheory.*
 
 
   // Examples of definitions
@@ -77,13 +73,9 @@ object Example extends lisa.Main {
 
 
 
-*/
+   */
 
-
-
-
-
-/* 
+  /*
 
 
 
@@ -116,7 +108,7 @@ import lisa.automation.kernel.OLPropositionalSolver.*
 //       thenHave(bot) by Restate.from
 //     }
 // }
- */
+   */
   // val a = formulaVariable()
   // val b = formulaVariable()
   // val c = formulaVariable()
