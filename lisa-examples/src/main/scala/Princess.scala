@@ -3,11 +3,12 @@ import ap.parser._
 import lisa.utils.K
 import lisa.utils.K.{given_Conversion_Identifier_String}
 import IExpression._
+import ap.proof.certificates.Certificate
 
 object Princess {
 
     def main(args: Array[String]): Unit ={
-        SimpleAPI.withProver { p =>
+        SimpleAPI.withProver(dumpScala=true) { p =>
             import p._
             setConstructProofs(true)
             setConstructProofs(false)
@@ -37,11 +38,17 @@ object Princess {
             }
             val form2 = all(P(IVariable(0)) & ex( or(List(Q(IVariable(1), IVariable(0)), IVariable(1) === IVariable(0))) ))
             println(form)
-            println(form2)
+            //println(form2)
             ??(form)
             println(???)
-            //println(getCertificate)
+            println(getCertificate)
+            getCertificate match
+                case _ => ()
+            
+            
             println(certificateAsString(Map.empty, ap.parameters.Param.InputFormat.Princess))
+            println("Inspection")
+            
 
             //println(getInterpolants(List(Set(1, 3), Set(2))))
 
@@ -152,6 +159,8 @@ object Princess {
     }
 
 
+
+    def CertificatePrincess2Lisa(c:Certificate) : Unit = ()
 
 
 
