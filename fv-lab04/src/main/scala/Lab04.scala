@@ -84,29 +84,29 @@ object Lab04  extends lisa.Main {
 
     // This Theorem should be straightforward: You simply need to apply the ∀ and the ∃ quantifiers in the good order.
     val thm4 = Theorem( (∀(x, Q(x) ==> P), ∃(x, Q(x))) |- P ) {
-        ???
+        sorry
     }
 
     // This theorem is also short. 
     val thm5 = Theorem( ! ∀(x, Q(x)) |- ∃(x, !Q(x)) ) {
-        ???
+        sorry
     }
 
     // Quantifiers are not very nice to use.
     // The following theorem, called Russel's Paradox in Set theory, is equivalent to |- !∃(x, ∀(y, (y ∈ x) <=> !(y ∈ y)))
     // If we can, we prefer to avoid using the top level quantifier! Here x is a free parameter: The sequent is true for any term substituted for x.
     val thm6 = Theorem( ∀(y, (y ∈ x) <=> !(y ∈ y)) |- () ) {
-        ???
+        sorry
     }
 
     //Again, free variables in a sequent are implicitly universaly quantified: The statement hold with any term substituted for x.
     val thm7 = Theorem( (Q(x), R(x)) |- ∃(y, Q(y)) /\ ∃(y, R(y)) )  {
-        ???
+        sorry
     }
 
     // This theorem is a bit more involved
     val thm8 = Theorem( ∃(y, ∀(x, Q(y) ==> Q(x) )) ) {
-        ???
+        sorry
     }
 
 
@@ -118,7 +118,7 @@ object Lab04  extends lisa.Main {
     val rich = predicate[1]
 
     val richGrandfather = Theorem(∀(x, !rich(x) ==> rich(father(x))) |- ∃(x, rich(x) /\ rich(father(father(x)))) ) {
-        ???
+        sorry
     }
 
 
