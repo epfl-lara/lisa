@@ -22,14 +22,15 @@ val commonSettings = Seq(
   version            := "0.6",
   crossScalaVersions := Seq("2.12.13", "2.13.4", "3.0.1", "3.2.0"),
   organization       := "ch.epfl.lara",
-  scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0")
+  scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0"),
+  run / fork := true
 )
 
 
 val scala2 = "2.13.8"
 val scala3 = "3.2.2"
 
-fork := true
+
 
 val commonSettings2 = Seq(
   scalaVersion := scala2,
@@ -55,7 +56,12 @@ def withTests(project: Project): ClasspathDependency =
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
 lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "6434e21bd08872cf547c8f0efb67c963bfdf4190")
+//.settings(
+//  scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
+//)
 lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
+scallion/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
+silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 
 lazy val root = Project(
     id = "lisa",
@@ -94,6 +100,14 @@ lazy val utils = Project(
 lazy val examples = Project(
   id = "lisa-examples",
   base = file("lisa-examples")
+)
+  .settings(commonSettings)
+  .settings(commonSettings3)
+  .dependsOn(root)
+
+lazy val lab04 = Project(
+  id = "fv-lab04",
+  base = file("fv-lab04")
 )
   .settings(commonSettings)
   .settings(commonSettings3)
