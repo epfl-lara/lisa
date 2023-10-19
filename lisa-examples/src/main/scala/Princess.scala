@@ -41,18 +41,57 @@ object Princess {
             //println(form2)
             ??(form)
             println(???)
-            println(getCertificate)
+            //println(getCertificate)
             getCertificate match
                 case _ => ()
             
             
-            println(certificateAsString(Map.empty, ap.parameters.Param.InputFormat.Princess))
+            //println(certificateAsString(Map.empty, ap.parameters.Param.InputFormat.Princess))
             println("Inspection")
-            
+            import K.*
+
+
+            /*
+            val f2 = Lab04.thm1.goal.underlying
+            val f2l = f2.left.head
+            val f2r = f2.right.head
+            println(lisa.utils.parsing.FOLPrinter.prettyFormula(f2l))
+            println(lisa.utils.parsing.FOLPrinter.prettyFormula(f2r))
+            println(lisa.utils.parsing.FOLPrinter.prettyFormula(f2l ==> f2r) )
+            println(PrincessEnvironment(p).formulaLisa2Princess(f2l))
+            println(PrincessEnvironment(p).formulaLisa2Princess(f2r))
+            println(PrincessEnvironment(p).formulaLisa2Princess(f2l ==> f2r))
+            */
 
             //println(getInterpolants(List(Set(1, 3), Set(2))))
 
         }
+
+        val thms : List[Lab04.THM] = List(
+            Lab04.thm1,
+            Lab04.thm2,
+            Lab04.thm3,
+            Lab04.thm4,
+            Lab04.thm5,
+            Lab04.thm6,
+            Lab04.thm7,
+            Lab04.thm8,
+            Lab04.richGrandfather,
+        )
+        
+        thms.take(8).foreach( origin => 
+            SimpleAPI.withProver(dumpScala=true) { p =>
+                val sequent = origin.goal.underlying
+                import p._
+                setConstructProofs(true)
+                val form = PrincessEnvironment(p).formulaLisa2Princess(lisa.utils.K.sequentToFormula(sequent))
+                ??(form)
+                println("Now proving: " + origin.name + " " + origin.statement)
+                println("Princess statement: " + form)
+                println(???)
+                //println(getCertificate)
+            }
+        )
     }
 
 
@@ -106,7 +145,10 @@ object Princess {
             val output: ITerm = label match
                 case f : (K.ConstantFunctionLabel | K.SchematicFunctionLabel) => 
                     functionLisa2Princess(f)(args.map(termLisa2Princess(_, depth, vMap))*)
-                case K.VariableLabel(id) => IVariable(depth-vMap(id))
+                case K.VariableLabel(id) => 
+                    vMap.get(id) match
+                        case Some(value) => IVariable(depth-value)
+                        case None => functionLisa2Princess(label)()
             
             //termL2P_Map.update(term, output)
             //termP2L_Map.update(output, term)
@@ -122,10 +164,11 @@ object Princess {
           * Create and memoize formulas between a LISA formula and its Princess counterpart
           */ 
         def formulaLisa2Princess(formula: K.Formula, depth:Int = 0, vMap:Map[K.Identifier, Int] = Map.empty): IFormula = {
-
+            /*
             formulaL2P_Map.get(formula) match
                 case Some(value) => return value
                 case None => ()
+                */
             
             val output = formula match
                 case K.BinderFormula(label, bound, inner) => label match
