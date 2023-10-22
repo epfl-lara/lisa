@@ -27,7 +27,7 @@ object Blast {
         gamma: List[BinderFormula],  //Forall(...)
         atoms: (List[PredicateFormula], List[PredicateFormula]),    // split into positive and negatives!
         unifiable: Map[VariableLabel, BinderFormula], //map between metavariables and the original formula they came from
-        triedInstantiation: Map[VariableLabel, Term], //map between metavariables and the term they were already instantiated with
+        triedInstantiation: Map[VariableLabel, Set[Term]], //map between metavariables and the term they were already instantiated with
         history: Formula, //the formula that was used to create this branch
         parent: Branch, //the parent branch
         //active: List[Formula], used: HashSet[Int], unifiable: HashSet[Identifier]
@@ -63,9 +63,9 @@ object Blast {
         import Branch.*
         override def toString(): String = 
             val pretUnif = unifiable.map((x, f) => x.id + " -> " + prettyFormula(f)).mkString("Unif(", ", ", ")")
-            val pretTried = triedInstantiation.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Tried(", ", ", ")")
+            //val pretTried = triedInstantiation.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Tried(", ", ", ")")
             val pretHistory = if history == null then "null" else prettyFormula(history)
-            s"Branch(${prettyIte(beta, "beta")}, ${prettyIte(delta, "delta")}, ${prettyIte(gamma, "gamma")}, ${prettyIte(atoms._1, "+")}, ${prettyIte(atoms._2, "-")}, $pretUnif, $pretTried, $pretHistory, _)"
+            s"Branch(${prettyIte(beta, "beta")}, ${prettyIte(delta, "delta")}, ${prettyIte(gamma, "gamma")}, ${prettyIte(atoms._1, "+")}, ${prettyIte(atoms._2, "-")}, $pretUnif, _, $pretHistory, _)"
         
     }
     object Branch{
@@ -75,11 +75,37 @@ object Blast {
             case _ => l.map(prettyFormula(_, true)).mkString(head+"(", ", ", ")")
 
     }
+
+    def makeVariableNamesUnique(f:Formula, nextId:Int, seen:Set[VariableLabel]): (Formula, Int, Set[VariableLabel]) = f match
+        case ConnectorFormula(label, args) => 
+            val (nArgs, nnId, nSeen) = args.foldLeft((List(): Seq[Formula], nextId, seen))((prev, next) => 
+                val (l, n, s) = prev
+                val (nf, nn, ns) = makeVariableNamesUnique(next, n, s)
+                (l :+ nf, nn, ns)
+            )
+            (ConnectorFormula(label, nArgs), nnId, nSeen)
+        case pf: PredicateFormula => (pf, nextId, seen)
+        case BinderFormula(label, x, inner) => 
+            printif("mvnu: " + x + " " + seen + " " + nextId)
+            if (seen.contains(x))
+                val (nInner, nnId, nSeen) = makeVariableNamesUnique(inner, nextId+1, seen)
+                val newX = VariableLabel(Identifier(x.id, nextId))
+                (BinderFormula(label, newX, substituteVariablesInFormula(nInner, Map(x -> newX), Seq())), nnId, nSeen)
+            else
+                val (nInner, nnId, nSeen) = makeVariableNamesUnique(inner, nextId, seen + x)
+                (BinderFormula(label, x, nInner), nnId, nSeen)
+    
     
     def solve(S:F.Sequent):Boolean = {
         val ks = S.underlying
         val f = K.ConnectorFormula(K.And, (ks.left.toSeq ++ ks.right.map(f => K.ConnectorFormula(K.Neg, List(f)))))
-        val nf = reducedNNFForm(f)
+        val taken = f.schematicTermLabels
+        val nextId = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no+1
+        val fnamed = makeVariableNamesUnique(f, nextId, HashSet.empty)._1
+        val nf = reducedNNFForm(fnamed)
+        printif("solve f     : " + prettyFormula(f))
+        printif("solve fnames: " + prettyFormula(fnamed))
+        printif("solve nf    : " + prettyFormula(nf))
 
         nf match
             case ConnectorFormula(And, args) => decide(Branch.empty.prependedAll(args), Nil)
@@ -89,19 +115,22 @@ object Blast {
     type Substitution = Map[VariableLabel, Term]
     val Substitution = HashMap
 
+    /*
     def substitute(t:Term, s:Substitution):Term = t match
         case VariableTerm(x:VariableLabel) => if (s.contains(x)) s(x) else t
         case Term(id, args) => Term(id, args.map(substitute(_, s)))
 
+        */
+
     def unify(t1:Term, t2:Term, current:Substitution, br: Branch):Option[Substitution] = (t1, t2) match
         case (VariableTerm(x), VariableTerm(y)) if br.unifiable.contains(x) && br.unifiable.contains(y)  => 
-            if (x == y) Some(current) else Some(current + (x -> substitute(t2, current)))
+            if (x == y) Some(current) else Some(current + (x -> substituteVariablesInTerm(t2, current)))
         case (VariableTerm(x), t2:Term) if br.unifiable.contains(x) => 
             if t2.freeVariables.contains(x) then None 
-            else if (current.contains(x)) unify(current(x), t2, current, br) else Some(current + (x -> substitute(t2, current)))
+            else if (current.contains(x)) unify(current(x), t2, current, br) else Some(current + (x -> substituteVariablesInTerm(t2, current)))
         case (t1:Term, VariableTerm(y)) if br.unifiable.contains(y) => 
             if t1.freeVariables.contains(y) then None 
-            else if (current.contains(y)) unify(t1, current(y), current, br) else Some(current + (y -> substitute(t1, current)))
+            else if (current.contains(y)) unify(t1, current(y), current, br) else Some(current + (y -> substituteVariablesInTerm(t1, current)))
         case (Term(label1, args1), Term(label2, args2)) => 
             if label1 == label2 && args1.size == args2.size then
                 args1.zip(args2).foldLeft(Some(current):Option[Substitution])((prev, next) => prev match
@@ -141,8 +170,19 @@ object Blast {
             }
         }
 
+        //printif("closing: " + substitutions)
+
         val cr = substitutions.filterNot(s => 
-            s.exists((x, t) => branch.triedInstantiation.contains(x) && branch.triedInstantiation(x) == t))
+            s.exists((x, t) => 
+                //printif("exists: " + (x, t))
+                val v = branch.triedInstantiation.contains(x) && branch.triedInstantiation(x).contains(t)
+                //if branch.triedInstantiation.contains(x) then printif("tried: " +  branch.triedInstantiation(x))
+                //printif("v: " + v)
+                v
+            )
+        )
+
+        //printif("closing: " + cr)
         cr.sortBy(_.size).headOption
     }
 
@@ -190,7 +230,11 @@ object Blast {
     // The non-metavariable variant of the gama rule
     def applyInst(branch: Branch, x:VariableLabel, t:Term): Branch = {
         val f = branch.unifiable(x)
-        val r = branch.prepended(instantiate(f.inner, x, t)).copy(history = f)
+        val newTried = branch.triedInstantiation.get(x) match
+            case None => branch.triedInstantiation + (x -> Set(t))
+            case Some(s) => branch.triedInstantiation + (x -> (s + t))
+        
+        val r = branch.prepended(instantiate(f.inner, x, t)).copy(history = f, triedInstantiation = newTried)
         r
     }
 
@@ -220,28 +264,8 @@ object Blast {
 
     def instantiate(f:Formula, x:VariableLabel, t:Term):Formula = f match
         case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiate(_, x, t)))
-        case PredicateFormula(id, args) => PredicateFormula(id, args.map(substitute(_, Substitution(x -> t))))
+        case PredicateFormula(id, args) => PredicateFormula(id, args.map(substituteVariablesInTerm(_, Substitution(x -> t))))
         case BinderFormula(label, y, inner) => if (x == y) f else BinderFormula(label, y, instantiate(inner, x, t))
-
-
-
-    /*
-    def solve(f:Formula):Boolean = {
-        computeNormalForm(simplify(f)) match
-            case ConnectorFormula(args, true) => refute(args.toList)
-            case nf => refute(List(nf))
-    }
-
-    def refute(branch:List[Formula]): Boolean = {
-        val betaCandidates = branch.collectFirst {case f @ ConnectorFormula(args, false) => f}
-        checkForContradiction(ConnectorFormula(branch, true)) || (betaCandidates match
-            case None => false
-            case Some(value) => value.args.forall(disjunct => {
-                val b = branch.filterNot(_ == value)
-                refute(getInverse(disjunct) match {case ConnectorFormula(args, true) => b.prependedAll(args); case d => d :: b})
-            }))
-    }
-    */
 
 
 }
