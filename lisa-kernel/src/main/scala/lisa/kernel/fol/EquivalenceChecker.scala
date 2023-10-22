@@ -23,6 +23,14 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     val res = toFormulaAIG(fln)
     res
   }
+
+  def reducedNNFForm(formula: Formula): Formula = {
+    val p = simplify(formula)
+    val nf = computeNormalForm(p)
+    val fln = fromLocallyNameless(nf, Map.empty, 0)
+    val res = toFormulaNNF(fln)
+    res
+  }
   def reduceSet(s: Set[Formula]): Set[Formula] = {
     var res: List[Formula] = Nil
     s.map(reducedForm)
@@ -143,6 +151,41 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       f.formulaAIG = Some(r)
       r
     }
+
+  /**
+   * Puts back in regular formula syntax, and performs negation normal form to produce shorter version.
+   */
+  def toFormulaNNF(f: NormalFormula, positive: Boolean = true): Formula = {
+    if (positive){
+      if (f.formulaP.isDefined) return f.formulaP.get
+      if (f.inverse.isDefined && f.inverse.get.formulaN.isDefined) return f.inverse.get.formulaN.get
+    }
+    else if (!positive) {
+      if (f.formulaN.isDefined) return f.formulaN.get
+      if (f.inverse.isDefined && f.inverse.get.formulaP.isDefined) return f.inverse.get.formulaP.get
+    }
+    val r = f match{
+      case NormalPredicate(id, args, polarity) =>
+        if (positive==polarity)  PredicateFormula(id, args) else ConnectorFormula(Neg, Seq(PredicateFormula(id, args)))
+      case NormalSchemConnector(id, args, polarity) =>
+        val f = ConnectorFormula(id, args.map(toFormulaNNF(_, true)))
+        if (positive==polarity)  f else ConnectorFormula(Neg, Seq(f))
+      case NormalAnd(args, polarity) =>
+        if (positive==polarity) 
+          ConnectorFormula(And, args.map(c => toFormulaNNF(c, true)))
+        else
+          ConnectorFormula(Or, args.map(c => toFormulaNNF(c, false)))
+      case NormalForall(x, inner, polarity) =>
+        if (positive==polarity) 
+          BinderFormula(Forall, VariableLabel(x), toFormulaNNF(inner, true))
+        else
+          BinderFormula(Exists, VariableLabel(x), toFormulaNNF(inner, false))
+      case NormalLiteral(polarity) => if (polarity) PredicateFormula(top, Seq()) else PredicateFormula(bot, Seq())
+    }
+    if (positive) f.formulaP = Some(r)
+    else  f.formulaN = Some(r)
+    r
+  }
 
   /**
    * Inverse a formula in Polar normal form. Corresponds semantically to taking the negation of the formula.
