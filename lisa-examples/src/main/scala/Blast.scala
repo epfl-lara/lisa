@@ -4,8 +4,7 @@ import lisa.utils.K
 import scala.collection.immutable.HashSet
 import scala.collection.immutable.HashMap
 import lisa.fol.FOL as F
-import lisa.utils.parsing.FOLPrinter.prettyTerm
-import lisa.utils.parsing.FOLPrinter.prettyFormula
+import lisa.utils.parsing.FOLPrinter.{prettyTerm, prettyFormula, prettySCProof}
 
 
 /**
@@ -26,11 +25,13 @@ object Blast {
         delta: List[BinderFormula],  //Exists(...))
         gamma: List[BinderFormula],  //Forall(...)
         atoms: (List[PredicateFormula], List[PredicateFormula]),    // split into positive and negatives!
+        savedGamma: List[BinderFormula],  //Forall(...) that have already been instantiated to metavariables but which can be resused.
         unifiable: Map[VariableLabel, BinderFormula], //map between metavariables and the original formula they came from
+        skolemized: Set[VariableLabel], //set of variables that have been skolemized
         triedInstantiation: Map[VariableLabel, Set[Term]], //map between metavariables and the term they were already instantiated with
         history: Formula, //the formula that was used to create this branch
         parent: Branch, //the parent branch
-        maxIndex:Int
+        maxIndex:Int, //the maximum index used for skolemization and metavariables
         //active: List[Formula], used: HashSet[Int], unifiable: HashSet[Identifier]
     ){
         def pop(f : Formula) : Branch = f match
@@ -61,17 +62,19 @@ object Blast {
 
         def prependedAll(l: Seq[Formula]) : Branch = l.foldLeft(this)((a, b) => a.prepended(b))
 
+        def asSequent : Sequent = (beta ++ delta ++ gamma ++ savedGamma ++ atoms._1 ++ atoms._2.map(a => !a)).toSet |- Set() // TODO: inefficient
+
         import Branch.*
         override def toString(): String = 
             val pretUnif = unifiable.map((x, f) => x.id + " -> " + prettyFormula(f)).mkString("Unif(", ", ", ")")
             //val pretTried = triedInstantiation.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Tried(", ", ", ")")
             val pretHistory = if history == null then "null" else prettyFormula(history)
-            s"Branch(${prettyIte(beta, "beta")}, ${prettyIte(delta, "delta")}, ${prettyIte(gamma, "gamma")}, ${prettyIte(atoms._1, "+")}, ${prettyIte(atoms._2, "-")}, $pretUnif, _, $pretHistory, _)"
+            s"Branch(${prettyIte(beta, "beta")}, ${prettyIte(delta, "delta")}, ${prettyIte(gamma, "gamma")}, ${prettyIte(atoms._1, "+")}, ${prettyIte(atoms._2, "-")}, ${prettyIte(savedGamma, "sg")}, $pretUnif, _, $pretHistory, _)"
         
     }
     object Branch{
-        def empty = Branch(Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, null, null, 1)
-        def empty(n:Int) = Branch(Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, null, null, n)
+        def empty = Branch(Nil, Nil, Nil, (Nil, Nil), Nil, Map.empty, Set.empty, Map.empty, null, null, 1)
+        def empty(n:Int) = Branch(Nil, Nil, Nil, (Nil, Nil), Nil, Map.empty, Set.empty, Map.empty, null, null, n)
         def prettyIte(l:Iterable[Formula], head:String):String = l match
             case Nil => "Nil"
             case _ => l.map(prettyFormula(_, true)).mkString(head+"(", ", ", ")")
@@ -97,20 +100,24 @@ object Blast {
                 (BinderFormula(label, x, nInner), nnId, nSeen)
     
     
-    def solve(S:F.Sequent):Boolean = {
+    def solve(S:F.Sequent):Option[SCProof] = {
         val ks = S.underlying
         val f = K.ConnectorFormula(K.And, (ks.left.toSeq ++ ks.right.map(f => K.ConnectorFormula(K.Neg, List(f)))))
         val taken = f.schematicTermLabels
         val nextIdNow = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no+1
         val (fnamed, nextId, _) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
         val nf = reducedNNFForm(fnamed)
-        printif("solve f     : " + prettyFormula(f))
-        printif("solve fnames: " + prettyFormula(fnamed))
-        printif("solve nf    : " + prettyFormula(nf))
+        //printif("solve f     : " + prettyFormula(f))
+        //printif("solve fnames: " + prettyFormula(fnamed))
+        //printif("solve nf    : " + prettyFormula(nf))
 
-        nf match
-            case ConnectorFormula(And, args) => decide(Branch.empty(nextId).prependedAll(args), Nil)
-            case _ => decide(Branch.empty.prepended(nf), Nil)
+        val proof = nf match
+            case ConnectorFormula(And, args) => decide(Branch.empty(nextId).prependedAll(args), 0)
+            case _ => decide(Branch.empty.prepended(nf), 0)
+        
+        proof match
+            case None => None
+            case Some(p) => Some(SCProof((Restate(ks, p.length) :: Restate(nf |- (), p.length-1) :: p).reverse.toIndexedSeq, IndexedSeq.empty))
         
     }
     type Substitution = Map[VariableLabel, Term]
@@ -209,29 +216,35 @@ object Blast {
     //Find an existenially quantified variable
     //Add the unquantified formula to the branch
     //Since the bound variable is not marked as suitable for instantiation, it behaves as a constant symbol (skolem)
-    def delta(branch: Branch):(Branch, Boolean) = {
-        if (branch.delta.isEmpty) (branch, false)
+    def delta(branch: Branch):(Branch, VariableLabel, Formula) = {
+        if (branch.delta.isEmpty) throw new Exception("No delta formula found!")
         else
             val f = branch.delta.head
-            val b1 = branch.pop(f)
-            (b1.prepended(f.inner), true)
+            if branch.skolemized.contains(branch.delta.head.bound) then
+                val newX = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
+                val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newX), Seq())
+                (branch.copy(delta = branch.delta.tail, history = branch.delta.head, maxIndex = branch.maxIndex+1).prepended(newInner), newX, newInner)
+            
+            else
+                (branch.copy(delta = branch.delta.tail, skolemized = branch.skolemized+f.bound, history = branch.delta.head).prepended(f.inner), f.bound, f.inner)
     }
 
     //Find a universally quantified variable
     //Add the unquantified formula to the branch and mark the bound variable as suitable for unification
-    def gamma(branch: Branch):(Branch, Boolean) = {
-        if (branch.gamma.isEmpty) (branch, false)
+    def gamma(branch: Branch):(Branch, VariableLabel) = {
+        if (branch.gamma.isEmpty) throw new Exception("No gamma formula found!")
         else
             val f = branch.gamma.head
-            branch.unifiable.get(f.bound) match
+            val (ni, nb) = branch.unifiable.get(f.bound) match
                 case None => 
-                    val b1 = branch.copy(gamma = branch.gamma.tail, unifiable = branch.unifiable + (f.bound -> f), history = branch.gamma.head)
-                    (b1.prepended(f.inner), true)
+                    (f.inner, f.bound)
                 case Some(value) =>
                     val newBound = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
                     val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newBound), Seq())
-                    val b1 = branch.copy(gamma = branch.gamma.tail, unifiable = branch.unifiable + (newBound -> f), history = branch.gamma.head, maxIndex = branch.maxIndex+1)
-                    (b1.prepended(newInner), true)
+                    (newInner, newBound)
+            //printif("savedGamma: " + Branch.prettyIte(branch.gamma.head :: branch.savedGamma))
+            val b1 = branch.copy(gamma = branch.gamma.tail, savedGamma = branch.gamma.head :: branch.savedGamma, unifiable = branch.unifiable + (nb -> f), history = branch.gamma.head, maxIndex = branch.maxIndex+1)
+            (b1.prepended(ni), nb)
     }
 
     // When a ground instantiation is found, apply it to the branch
@@ -247,21 +260,58 @@ object Blast {
     }
 
 
-    def decide(branch: Branch, remainingBranches: List[Branch]): Boolean = {
-        printif(branch)
-        if (doprint) Thread.sleep(200)
+    /**
+      * Decide if a branch can be closed, and if not, explode it
+      *
+      * @param branch The branch to decide
+      * @param stepIndex The index of the step in the proof
+      */
+    def decide(branch: Branch, stepIndex:Int): Option[List[SCProofStep]] = {
+        if (doprint) Thread.sleep(100)
         val closeSubst = close(branch)
         if (closeSubst.nonEmpty && closeSubst.get.isEmpty)                          //If branch can be closed without Instantiation (Hyp)
-            if remainingBranches.isEmpty then true else
-                decide(remainingBranches.head, remainingBranches.tail)
-        else if (branch.delta.nonEmpty) decide(delta(branch)._1, remainingBranches) //If branch contains a Delta formula (LeftExists)
+            Some(List( RestateTrue(branch.asSequent) ))
+
+        else if (branch.delta.nonEmpty)                                             //If branch contains a Delta formula (LeftExists)
+            val rec = delta(branch)
+            val upperProof = decide(rec._1, stepIndex) 
+            // LeftExists(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel)
+            upperProof.map(proof => 
+                printif("\n"+branch)
+                printif("step no: " + (stepIndex+proof.length))
+                printif(s"arguments: ${prettyFormula(branch.delta.head.inner)}, ${rec._2}")
+                LeftExists(branch.asSequent, stepIndex+proof.length-1, rec._3, rec._2) :: proof
+            )
+
         else if (branch.beta.nonEmpty)                                              //If branch contains a Beta formula (LeftOr)
             val list = beta(branch)
-            decide(list.head, remainingBranches.prependedAll(list.tail))
-        else if (branch.gamma.nonEmpty) decide(gamma(branch)._1, remainingBranches) //If branch contains a Gamma formula (LeftForall)
+            val (proof, treversed) =list.foldLeft((Some(Nil): Option[List[SCProofStep]], Nil: List[Int]))((prev, next) => prev match
+                case (None, t) => prev
+                case (Some(l), t) => 
+                    val res = decide(next, l.length+stepIndex)
+                    res match
+                        case None => (None, t)
+                        case Some(r) => (Some(r++l), (t.headOption.getOrElse(stepIndex-1) + r.length) :: t)
+            )
+            // LeftOr(bot: Sequent, t: Seq[Int], disjuncts: Seq[Formula])
+            proof.map(proo => LeftOr(branch.asSequent, treversed.reverse, branch.beta.head.args) :: proo)
+
+        else if (branch.gamma.nonEmpty)                                               //If branch contains a Gamma formula (LeftForall)
+            val rec = gamma(branch)
+            val upperProof = decide(rec._1, stepIndex)
+            // LeftForall(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel, t: Term)
+            upperProof.map(proof => 
+                LeftForall(branch.asSequent, stepIndex+proof.length-1, branch.gamma.head.inner, branch.gamma.head.bound, rec._2()) :: proof
+            )
+
         else if (closeSubst.nonEmpty && closeSubst.get.nonEmpty)                         //If branch can be closed with Instantiation (LeftForall)
-            decide(applyInst(branch, closeSubst.get.head._1, closeSubst.get.head._2), remainingBranches)
-        else false
+            val (x, t) = closeSubst.get.head
+            val upperProof = decide(applyInst(branch, x, t), stepIndex)
+            upperProof.map(proof => 
+                LeftForall(branch.asSequent, stepIndex+proof.length-1, branch.unifiable(x).inner, branch.unifiable(x).bound, t) :: proof
+            )
+
+        else None
         
 
     }
@@ -304,6 +354,9 @@ object BlastTest extends lisa.Main {
     def printif(s:Any) = if doprint then println(s) else ()
 
 
+    import  SCProofChecker.checkSCProof
+
+
     val posi = List(
         a <=> a,
         a \/ !a,
@@ -311,13 +364,23 @@ object BlastTest extends lisa.Main {
         (a <=> b) <=> ((a/\b) \/ (!a /\ !b)),
         ((a ==> c) /\ (b ==> c)) <=> ((a \/ b) ==> c),
         ((a ==> b) /\ (c ==> d)) ==> ((a \/ c) ==> (b \/ d))
-    ).zipWithIndex.map(f => (f._2, f._1, solve(() |- f._1)))
+    ).zipWithIndex.map(f => 
+        val res = solve(() |- f._1)
+        (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof)))
     println(s"Propositional Positive cases (${posi.size})")
     if posi.exists(f => !f._3) then 
-        posi.foreach((i, f, b) => println(s"$i $b" + (if !b then s" $f" else "")))
+        posi.foreach((i, f, b, proof, judg) => println(s"$i $b" + (if !b then s" $f" else "")))
     else println("All TRUE")
+    if posi.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then
+        println("A proof is wrong")
+        posi.foreach(tup => 
+            if tup._5.nonEmpty & !tup._5.get.isValid then
+                println(prettySCProof(tup._5.get))
+                println("\n")
+        )
+    else println("ALL PROOFS VALID")
 
-
+/*
     val nega = List(
         !(a <=> a),
         !a \/ !a,
@@ -329,12 +392,14 @@ object BlastTest extends lisa.Main {
         (a <=> b) <=> ((a/\b) \/ (a /\ !b)),
         ((a ==> c) /\ (b ==> c)) <=> ((a \/ b) ==> a),
         ((a ==> b) /\ (c ==> d)) ==> ((a \/ c) ==> (b))
-    ).zipWithIndex.map(f => (f._2, f._1, solve(() |- f._1)))
+    ).zipWithIndex.map(f => 
+        val res = solve(() |- f._1)
+        (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof)))
     println(s"Propositional Negative cases (${nega.size})")
     if nega.exists(f => f._3) then 
-        nega.foreach((i, f, b) => println(s"$i $b" + (if b then s" $f" else "")))
+        nega.foreach((i, f, b, proof, judg) => println(s"$i $b" + (if b then s" $f" else "")))
     else println("All FALSE")
-
+*/
 
     // Quantifier Free
 
@@ -342,22 +407,35 @@ object BlastTest extends lisa.Main {
         posi.map(fo => fo._2.substitute(a:= P(h(x, y)), b := P(x), c:= R(x, h(x, y))) ),
         posi.map(fo => fo._2.substitute(a:= P(h(x, y)), b := P(h(x, y)), c:= R(x, h(x, f(x)))) ),
         posi.map(fo => fo._2.substitute(a:= R(y, y), b := P(h(y, y)), c:= R(h(x, y), h(z, y))) ),
-    ).flatten.zipWithIndex.map(f => (f._2, f._1, solve(() |- f._1)))
+    ).flatten.zipWithIndex.map(f => 
+        val res = solve(() |- f._1)
+        (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof)))
     println(s"First Order Quantifier Free Positive cases (${posqf.size})")
     if posqf.exists(f => !f._3) then 
-        posqf.foreach((i, f, b) => println(s"$i $b" + (if !b then s" $f" else "")))
+        posqf.foreach((i, f, b, proof, judg) => println(s"$i $b" + (if !b then s" $f" else "")))
     else println("All TRUE")
+    if posqf.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then
+        println("A proof is wrong")
+        posqf.foreach(tup => 
+            if tup._5.nonEmpty & !tup._5.get.isValid then
+                println(prettySCProof(tup._5.get))
+                println("\n")
+        )
+    else println("ALL PROOFS VALID")
 
-
+/*
     val negqf = List(
         nega.map(fo => fo._2.substitute(a:= P(h(x, y)), b := P(x), c:= R(x, h(x, y))) ),
         nega.map(fo => fo._2.substitute(a:= P(h(x, y)), b := P(h(x, z)), c:= R(x, h(x, x))) ),
         nega.map(fo => fo._2.substitute(a:= R(y, y), b := P(h(y, y)), c:= R(h(x, y), h(z, y))) ),
-    ).flatten.zipWithIndex.map(f => (f._2, f._1, solve(() |- f._1)))
+    ).flatten.zipWithIndex.map(f => 
+        val res = solve(() |- f._1)
+        (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof)))
     println(s"First Order Quantifier Free Negative cases (${negqf.size})")
     if negqf.exists(f => f._3) then 
-        negqf.foreach((i, f, b) => println(s"$i $b" + (if b then s" $f" else "")))
+        negqf.foreach((i, f, b, proof, judg) => println(s"$i $b" + (if b then s" $f" else "")))
     else println("All FALSE")
+*/
 
     // First Order Easy
 
@@ -366,23 +444,21 @@ object BlastTest extends lisa.Main {
         posi.map(fo => fo._2.substitute(a:= forall(x, P(x)), b := forall(x, P(y)), c:= exists(x, P(x)) )),
         posi.map(fo => fo._2.substitute(a:= forall(x, P(x) /\ Q(f(x))), b := forall(x, P(x) \/ R(y, x)), c:= exists(x, Q(x) ==> R(x, y)) )),
         posi.map(fo => fo._2.substitute(a:= exists(y, forall(x, P(x) /\ Q(f(y)))), b := forall(y, exists(x, P(x) \/ R(y, x))), c:= forall(y, exists(x, Q(x) ==> R(x, y)) ))),
-    ).flatten.zipWithIndex.map(f => (f._2, f._1, solve(() |- f._1)))
+    ).flatten.zipWithIndex.map(f => 
+        val res = solve(() |- f._1)
+        (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof)))
     println(s"First Order Easy Positive cases (${poseasy.size})")
     if poseasy.exists(f => !f._3) then 
-        poseasy.foreach((i, f, b) => println(s"$i $b" + (if !b then s" $f" else "")))
+        poseasy.foreach((i, f, b, proof, judg) => println(s"$i $b" + (if !b then s" $f" else "")))
     else println("All TRUE")
-/*
-
-    val negeasy = List(
-        nega.map(fo => fo._2.substitute(a:= forall(x, P(x)), b := forall(x, Q(y)), c:= exists(x, R(x, x)) )),
-        nega.map(fo => fo._2.substitute(a:= forall(x, P(x) /\ Q(f(x))), b := forall(x, P(g(x)) \/ R(y, x)), c:= exists(x, Q(x) ==> R(x, f(y))) )),
-        nega.map(fo => fo._2.substitute(a:= exists(y, forall(x, P(x) /\ Q(f(y)))), b := forall(y, exists(x, P(g(x)) \/ R(y, x))), c:= forall(y, exists(x, Q(x) ==> R(x, f(y))) ))),
-    ).flatten.zipWithIndex.map(f => (f._2, f._1, solve(() |- f._1)))
-    println(s"First Order Easy Negative cases (${negeasy.size})")
-    if negeasy.exists(f => f._3) then 
-        negeasy.foreach((i, f, b) => println(s"$i $b" + (if b then s" $f" else "")))
-    else println("All FALSE")
-*/
+    if poseasy.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then
+        println("A proof is wrong")
+        poseasy.foreach(tup => 
+            if tup._5.nonEmpty & !tup._5.get.isValid then
+                println(prettySCProof(tup._5.get))
+                println("\n")
+        )
+    else println("ALL PROOFS VALID")
 
 
     // First Order Hard, from https://isabelle.in.tum.de/library/FOL/FOL-ex/Quantifiers_Cla.html
@@ -410,11 +486,22 @@ object BlastTest extends lisa.Main {
         (exists(x, P(x) /\ exists(y, R(x, y)))) ==> exists(x, exists(y, P(x) /\ R(x, y))),
         exists(x, exists(y, P(x) /\ R(x, y))) <=> (exists(x, P(x) /\ exists(y, R(x, y)))),
         exists(y, forall(x, P(x) ==> R(x, y))) ==> (forall(x, P(x)) ==> exists(y, R(x, y))),
-    ).zipWithIndex.map(f => (f._2, f._1, {solve(() |- f._1)}))
+        forall(x, P(x)) ==> P(y)
+    ).zipWithIndex.map(f => 
+        val res = solve(() |- f._1)
+        (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof)))
     println(s"First Order Hard Positive cases (${poshard.size})")
     if poshard.exists(f => !f._3) then 
-        poshard.foreach((i, f, b) => println(s"$i $b" + (if !b then s" $f" else "")))
+        poshard.foreach((i, f, b, proof, judg) => println(s"$i $b" + (if !b then s" $f" else "")))
     else println("All TRUE")
+    if poshard.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then
+        println("A proof is wrong")
+        poshard.foreach(tup => 
+            if tup._5.nonEmpty & !tup._5.get.isValid then
+                println(prettySCProof(tup._5.get))
+                println("\n")
+        )
+    else println("ALL PROOFS VALID")
 
 
 /*
@@ -436,13 +523,20 @@ object BlastTest extends lisa.Main {
 
 
 /*
-    val form = exists(x, exists(y, P(x) /\ R(x, y))) <=> (exists(x, P(x) /\ exists(y, R(x, y))))
+    val form = (((a ==> b) /\ (c ==> d)) ==> ((a \/ c) ==> (b \/ d))).substitute(a:= exists(y, forall(x, P(x) /\ Q(f(y)))), b := forall(y, exists(x, P(x) \/ R(y, x))), c:= forall(y, exists(x, Q(x) ==> R(x, y)) ))
 
     doprint=true
     println("\nAnalysis\n")
-    println(solve(() |- form))
+    checkProof(solve(() |- form).get, println)
 */
 
     //forall(x, P(x) ==> Q(x)) ==> (forall(x, P(x)) ==> forall(x, Q(x))),
+
+/*
+    posqf.foreach((i, f, b, proof, judg) => 
+        println("\n\nnow proving: " + f)
+        checkProof(proof.get, println)
+        //prettySCProof(proof.get, true)
+    )*/
 }
 

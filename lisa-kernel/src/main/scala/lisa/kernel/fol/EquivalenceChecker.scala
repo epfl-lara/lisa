@@ -62,6 +62,12 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
   def isSameSet(s1: Set[Formula], s2: Set[Formula]): Boolean =
     isSubset(s1, s2) && isSubset(s2, s1)
 
+  def isSameSetL(s1: Set[Formula], s2: Set[Formula]): Boolean =
+    isSame(ConnectorFormula(And, s1.toSeq), ConnectorFormula(And, s2.toSeq))
+
+  def isSameSetR(s1: Set[Formula], s2: Set[Formula]): Boolean =
+    isSame(ConnectorFormula(Or, s2.toSeq), ConnectorFormula(Or, s1.toSeq))
+
   def contains(s: Set[Formula], f: Formula): Boolean = {
     s.exists(g => isSame(f, g))
   }
