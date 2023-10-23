@@ -30,6 +30,7 @@ object Blast {
         triedInstantiation: Map[VariableLabel, Set[Term]], //map between metavariables and the term they were already instantiated with
         history: Formula, //the formula that was used to create this branch
         parent: Branch, //the parent branch
+        maxIndex:Int
         //active: List[Formula], used: HashSet[Int], unifiable: HashSet[Identifier]
     ){
         def pop(f : Formula) : Branch = f match
@@ -69,7 +70,8 @@ object Blast {
         
     }
     object Branch{
-        def empty = Branch(Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, null, null)
+        def empty = Branch(Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, null, null, 1)
+        def empty(n:Int) = Branch(Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, null, null, n)
         def prettyIte(l:Iterable[Formula], head:String):String = l match
             case Nil => "Nil"
             case _ => l.map(prettyFormula(_, true)).mkString(head+"(", ", ", ")")
@@ -86,7 +88,6 @@ object Blast {
             (ConnectorFormula(label, nArgs), nnId, nSeen)
         case pf: PredicateFormula => (pf, nextId, seen)
         case BinderFormula(label, x, inner) => 
-            printif("mvnu: " + x + " " + seen + " " + nextId)
             if (seen.contains(x))
                 val (nInner, nnId, nSeen) = makeVariableNamesUnique(inner, nextId+1, seen)
                 val newX = VariableLabel(Identifier(x.id, nextId))
@@ -100,15 +101,15 @@ object Blast {
         val ks = S.underlying
         val f = K.ConnectorFormula(K.And, (ks.left.toSeq ++ ks.right.map(f => K.ConnectorFormula(K.Neg, List(f)))))
         val taken = f.schematicTermLabels
-        val nextId = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no+1
-        val fnamed = makeVariableNamesUnique(f, nextId, HashSet.empty)._1
+        val nextIdNow = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no+1
+        val (fnamed, nextId, _) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
         val nf = reducedNNFForm(fnamed)
         printif("solve f     : " + prettyFormula(f))
         printif("solve fnames: " + prettyFormula(fnamed))
         printif("solve nf    : " + prettyFormula(nf))
 
         nf match
-            case ConnectorFormula(And, args) => decide(Branch.empty.prependedAll(args), Nil)
+            case ConnectorFormula(And, args) => decide(Branch.empty(nextId).prependedAll(args), Nil)
             case _ => decide(Branch.empty.prepended(nf), Nil)
         
     }
@@ -222,8 +223,15 @@ object Blast {
         if (branch.gamma.isEmpty) (branch, false)
         else
             val f = branch.gamma.head
-            val b1 = branch.copy(gamma = branch.gamma.tail, unifiable = branch.unifiable + (f.bound -> f), history = branch.gamma.head)
-            (b1.prepended(f.inner), true)
+            branch.unifiable.get(f.bound) match
+                case None => 
+                    val b1 = branch.copy(gamma = branch.gamma.tail, unifiable = branch.unifiable + (f.bound -> f), history = branch.gamma.head)
+                    (b1.prepended(f.inner), true)
+                case Some(value) =>
+                    val newBound = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
+                    val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newBound), Seq())
+                    val b1 = branch.copy(gamma = branch.gamma.tail, unifiable = branch.unifiable + (newBound -> f), history = branch.gamma.head, maxIndex = branch.maxIndex+1)
+                    (b1.prepended(newInner), true)
     }
 
     // When a ground instantiation is found, apply it to the branch
@@ -234,14 +242,14 @@ object Blast {
             case None => branch.triedInstantiation + (x -> Set(t))
             case Some(s) => branch.triedInstantiation + (x -> (s + t))
         
-        val r = branch.prepended(instantiate(f.inner, x, t)).copy(history = f, triedInstantiation = newTried)
+        val r = branch.prepended(instantiate(f.inner, f.bound, t)).copy(history = f, triedInstantiation = newTried)
         r
     }
 
 
     def decide(branch: Branch, remainingBranches: List[Branch]): Boolean = {
         printif(branch)
-        if (doprint) Thread.sleep(500)
+        if (doprint) Thread.sleep(200)
         val closeSubst = close(branch)
         if (closeSubst.nonEmpty && closeSubst.get.isEmpty)                          //If branch can be closed without Instantiation (Hyp)
             if remainingBranches.isEmpty then true else
@@ -273,6 +281,7 @@ object Blast {
 object BlastTest extends lisa.Main {
     import Blast._
 
+    val w = variable
     val x = variable
     val y = variable
     val z = variable
@@ -377,7 +386,7 @@ object BlastTest extends lisa.Main {
 
 
     // First Order Hard, from https://isabelle.in.tum.de/library/FOL/FOL-ex/Quantifiers_Cla.html
-/*
+
     val poshard = List(
         forall(x, P(x) ==> Q(x)) ==> (forall(x, P(x)) ==> forall(x, Q(x))),
         forall(x, forall(y, R(x, y))) ==> forall(y, forall(x, R(x, y))),
@@ -394,15 +403,19 @@ object BlastTest extends lisa.Main {
         (forall(x, P(x) ==> Q(x)) /\ exists(x, P(x))) ==> exists(x, Q(x)),
         ((a ==> exists(x, Q(x))) /\ a) ==> exists(x, Q(x)),
         forall(x, P(x) ==> Q(f(x))) /\ forall(x, Q(x) ==> R(g(x), x)) ==> (P(y) ==> R(g(f(y)), f(y))),
+        forall(x, forall(y, P(x) ==> Q(y))) ==> (exists(x, P(x)) ==> forall(y, Q(y))),
+        (exists(x, P(x)) ==> forall(y, Q(y))) ==> forall(x, forall(y, P(x) ==> Q(y))),
         forall(x, forall(y, P(x) ==> Q(y))) <=> (exists(x, P(x)) ==> forall(y, Q(y))),
-        exists(x, exists(y, P(x) /\ R(x, y))) <=> (exists(x, P(x)) /\ exists(y, R(x, y))),
+        exists(x, exists(y, P(x) /\ R(x, y))) ==> (exists(x, P(x) /\ exists(y, R(x, y)))),
+        (exists(x, P(x) /\ exists(y, R(x, y)))) ==> exists(x, exists(y, P(x) /\ R(x, y))),
+        exists(x, exists(y, P(x) /\ R(x, y))) <=> (exists(x, P(x) /\ exists(y, R(x, y)))),
         exists(y, forall(x, P(x) ==> R(x, y))) ==> (forall(x, P(x)) ==> exists(y, R(x, y))),
-    ).zipWithIndex.map(f => (f._2, f._1, {println(f._2);solve(() |- f._1)}))
+    ).zipWithIndex.map(f => (f._2, f._1, {solve(() |- f._1)}))
     println(s"First Order Hard Positive cases (${poshard.size})")
     if poshard.exists(f => !f._3) then 
         poshard.foreach((i, f, b) => println(s"$i $b" + (if !b then s" $f" else "")))
     else println("All TRUE")
-*/
+
 
 /*
 
@@ -422,15 +435,14 @@ object BlastTest extends lisa.Main {
 */
 
 
-
-    val form =  forall(x, P(x) ==> Q(f(x))) /\ forall(x, Q(x) ==> R(g(x), x)) ==> (P(y) ==> R(g(f(y)), f(y)))
+/*
+    val form = exists(x, exists(y, P(x) /\ R(x, y))) <=> (exists(x, P(x) /\ exists(y, R(x, y))))
 
     doprint=true
     println("\nAnalysis\n")
-    //val form = forall(x, P(x) ==> Q(x)) ==> (forall(x, P(x)) ==> forall(x, Q(x)))
-    //val form = top
     println(solve(() |- form))
-
+*/
 
     //forall(x, P(x) ==> Q(x)) ==> (forall(x, P(x)) ==> forall(x, Q(x))),
 }
+

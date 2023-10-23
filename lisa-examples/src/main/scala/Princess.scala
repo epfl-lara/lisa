@@ -67,6 +67,7 @@ object Princess {
 
         }
 
+        /*
         val thms : List[Lab04.THM] = List(
             Lab04.thm1,
             Lab04.thm2,
@@ -92,6 +93,7 @@ object Princess {
                 //println(getCertificate)
             }
         )
+        */
     }
 
 
