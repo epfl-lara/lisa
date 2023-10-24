@@ -93,9 +93,9 @@ object SCProofChecker {
            *    Γ, Σ, φ∨ψ |- Δ, Π
            */
           case LeftOr(b, t, disjuncts) =>
-            if (isSameSetR(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _))) {
+            if (isSameSet(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _))) {
               val phiOrPsi = ConnectorFormula(Or, disjuncts)
-              if (isSameSetL(disjuncts.foldLeft(b.left)(_ + _), t.map(ref(_).left).fold(Set.empty)(_ union _) + phiOrPsi))
+              if (isSameSet(disjuncts.foldLeft(b.left)(_ + _), t.map(ref(_).left).fold(Set.empty)(_ union _) + phiOrPsi))
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
             } else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
@@ -149,8 +149,8 @@ object SCProofChecker {
            *  Γ, ∀x. φ |- Δ
            */
           case LeftForall(b, t1, phi, x, t) =>
-            if (isSameSetR(b.right, ref(t1).right))
-              if (isSameSetL(b.left + substituteVariablesInFormula(phi, Map(x -> t)), ref(t1).left + BinderFormula(Forall, x, phi)))
+            if (isSameSet(b.right, ref(t1).right))
+              if (isSameSet(b.left + substituteVariablesInFormula(phi, Map(x -> t)), ref(t1).left + BinderFormula(Forall, x, phi)))
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ")
             else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
@@ -161,8 +161,8 @@ object SCProofChecker {
            *  Γ, ∃x. φ|- Δ
            */
           case LeftExists(b, t1, phi, x) =>
-            if (isSameSetR(b.right, ref(t1).right))
-              if (isSameSetL(b.left + phi, ref(t1).left + BinderFormula(Exists, x, phi)))
+            if (isSameSet(b.right, ref(t1).right))
+              if (isSameSet(b.left + phi, ref(t1).left + BinderFormula(Exists, x, phi)))
                 if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
                   SCValidProof(SCProof(step))
                 else SCInvalidProof(SCProof(step), Nil, "The variable x must not be free in the resulting sequent.")
