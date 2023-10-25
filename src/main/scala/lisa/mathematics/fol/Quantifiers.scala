@@ -3,6 +3,7 @@ package fol
 
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
+import lisa.automation.Tableau
 import lisa.prooflib.Substitution
 
 /**
@@ -27,15 +28,7 @@ object Quantifiers extends lisa.Main {
   val closedFormulaUniversal = Theorem(
     () |- ∀(x, p) <=> p
   ) {
-    val base = have(p |- p) by Hypothesis
-
-    have(p |- ∀(x, p)) by RightForall(base)
-    val lhs = thenHave(() |- p ==> ∀(x, p)) by Restate
-
-    have(∀(x, p) |- p) by LeftForall(base)
-    val rhs = thenHave(() |- ∀(x, p) ==> p) by Restate
-    have(thesis) by RightIff(lhs, rhs)
-
+    have(thesis) by Tableau
   }
 
   /**
@@ -45,15 +38,7 @@ object Quantifiers extends lisa.Main {
   val closedFormulaExistential = Theorem(
     () |- ∃(x, p) <=> p
   ) {
-    val base = have(p |- p) by Hypothesis
-
-    have(p |- ∃(x, p)) by RightExists(base)
-    val lhs = thenHave(() |- p ==> ∃(x, p)) by Restate
-
-    have(∃(x, p) |- p) by LeftExists(base)
-    val rhs = thenHave(() |- ∃(x, p) ==> p) by Restate
-
-    have(thesis) by RightIff(lhs, rhs)
+    have(thesis) by Tableau
   }
 
   /**
@@ -88,31 +73,7 @@ object Quantifiers extends lisa.Main {
   val universalConjunctionCommutation = Theorem(
     () |- forall(x, P(x) /\ Q(x)) <=> forall(x, P(x)) /\ forall(x, Q(x))
   ) {
-    // forward direction
-    val fwd = have(forall(x, P(x) /\ Q(x)) ==> forall(x, P(x)) /\ forall(x, Q(x))) subproof {
-      have(P(x) /\ Q(x) |- P(x)) by Restate
-      thenHave(forall(x, P(x) /\ Q(x)) |- P(x)) by LeftForall
-      val px = thenHave(forall(x, P(x) /\ Q(x)) |- forall(x, P(x))) by RightForall
-
-      have(P(x) /\ Q(x) |- Q(x)) by Restate
-      thenHave(forall(x, P(x) /\ Q(x)) |- Q(x)) by LeftForall
-      val qx = thenHave(forall(x, P(x) /\ Q(x)) |- forall(x, Q(x))) by RightForall
-
-      have(forall(x, P(x) /\ Q(x)) |- forall(x, P(x)) /\ forall(x, Q(x))) by RightAnd(px, qx)
-      thenHave(thesis) by Restate
-    }
-
-    // backward direction
-    val bwd = have(forall(x, P(x)) /\ forall(x, Q(x)) ==> forall(x, P(x) /\ Q(x))) subproof {
-      have((P(x), Q(x)) |- P(x) /\ Q(x)) by Restate
-      thenHave((forall(x, P(x)), Q(x)) |- P(x) /\ Q(x)) by LeftForall
-      thenHave((forall(x, P(x)), forall(x, Q(x))) |- P(x) /\ Q(x)) by LeftForall
-      thenHave((forall(x, P(x)), forall(x, Q(x))) |- forall(x, P(x) /\ Q(x))) by RightForall
-
-      thenHave(thesis) by Restate
-    }
-
-    have(thesis) by RightIff(fwd, bwd)
+    have(thesis) by Tableau
   }
 
   /**
@@ -121,17 +82,7 @@ object Quantifiers extends lisa.Main {
   val existentialConjunctionDistribution = Theorem(
     exists(x, P(x) /\ Q(x)) |- exists(x, P(x)) /\ exists(x, Q(x))
   ) {
-    have(P(x) |- P(x)) by Hypothesis
-    thenHave(P(x) /\ Q(x) |- P(x)) by Weakening
-    thenHave(P(x) /\ Q(x) |- exists(x, P(x))) by RightExists
-    val left = thenHave(exists(x, P(x) /\ Q(x)) |- exists(x, P(x))) by LeftExists
-
-    have(Q(x) |- Q(x)) by Hypothesis
-    thenHave(P(x) /\ Q(x) |- Q(x)) by Weakening
-    thenHave(P(x) /\ Q(x) |- exists(x, Q(x))) by RightExists
-    val right = thenHave(exists(x, P(x) /\ Q(x)) |- exists(x, Q(x))) by LeftExists
-
-    have(thesis) by RightAnd(left, right)
+    have(thesis) by Tableau
   }
 
   /**
@@ -140,33 +91,9 @@ object Quantifiers extends lisa.Main {
   val existentialConjunctionWithClosedFormula = Theorem(
     exists(x, P(x) /\ p) <=> (exists(x, P(x)) /\ p)
   ) {
-    val forward = have(exists(x, P(x) /\ p) ==> (exists(x, P(x)) /\ p)) subproof {
-      have(exists(x, P(x) /\ p) |- exists(x, P(x)) /\ exists(x, p)) by Restate.from(
-        existentialConjunctionDistribution of (
-          Q -> lambda(x, p)
-        )
-      )
-      val substitution = thenHave(
-        (exists(x, P(x) /\ p), (exists(x, P(x)) /\ exists(x, p)) <=> (exists(x, P(x)) /\ p)) |- exists(x, P(x)) /\ p
-      ) by RightSubstIff(List((exists(x, P(x)) /\ exists(x, p), exists(x, P(x)) /\ p)), lambda(p, p))
-
-      have(exists(x, p) <=> p) by Restate.from(closedFormulaExistential)
-      thenHave((exists(x, P(x)) /\ exists(x, p)) <=> (exists(x, P(x)) /\ p)) by Tautology
-
-      have(exists(x, P(x) /\ p) |- exists(x, P(x)) /\ p) by Cut(lastStep, substitution)
-      thenHave(thesis) by Restate
-    }
-
-    val backward = have((exists(x, P(x)) /\ p) ==> exists(x, P(x) /\ p)) subproof {
-      have(P(x) /\ p |- P(x) /\ p) by Hypothesis
-      thenHave((P(x), p) |- P(x) /\ p) by Restate
-      thenHave((P(x), p) |- exists(x, P(x) /\ p)) by RightExists
-      thenHave((exists(x, P(x)), p) |- exists(x, P(x) /\ p)) by LeftExists
-      thenHave(thesis) by Restate
-    }
-
-    have(thesis) by RightIff(forward, backward)
+    have(thesis) by Tableau
   }
+
 
   /**
    * Theorem -- If there is an equality on the existential quantifier's bound variable inside its body, then we can reduce
@@ -200,31 +127,7 @@ object Quantifiers extends lisa.Main {
   val existentialDisjunctionCommutation = Theorem(
     () |- exists(x, P(x) \/ Q(x)) <=> exists(x, P(x)) \/ exists(x, Q(x))
   ) {
-    // forward direction
-    val fwd = have(exists(x, P(x) \/ Q(x)) ==> exists(x, P(x)) \/ exists(x, Q(x))) subproof {
-      have(P(x) \/ Q(x) |- (P(x), Q(x))) by Restate
-      thenHave(P(x) \/ Q(x) |- (exists(x, P(x)), Q(x))) by RightExists
-      thenHave(P(x) \/ Q(x) |- (exists(x, P(x)), exists(x, Q(x)))) by RightExists
-      thenHave(exists(x, P(x) \/ Q(x)) |- (exists(x, P(x)), exists(x, Q(x)))) by LeftExists
-
-      thenHave(thesis) by Restate
-    }
-
-    // backward direction
-    val bwd = have(exists(x, P(x)) \/ exists(x, Q(x)) ==> exists(x, P(x) \/ Q(x))) subproof {
-      have(P(x) |- P(x) \/ Q(x)) by Restate
-      thenHave(P(x) |- exists(x, P(x) \/ Q(x))) by RightExists
-      val px = thenHave(exists(x, P(x)) |- exists(x, P(x) \/ Q(x))) by LeftExists
-
-      have(Q(x) |- P(x) \/ Q(x)) by Restate
-      thenHave(Q(x) |- exists(x, P(x) \/ Q(x))) by RightExists
-      val qx = thenHave(exists(x, Q(x)) |- exists(x, P(x) \/ Q(x))) by LeftExists
-
-      have(exists(x, P(x)) \/ exists(x, Q(x)) |- exists(x, P(x) \/ Q(x))) by LeftOr(px, qx)
-      thenHave(thesis) by Restate
-    }
-
-    have(thesis) by RightIff(fwd, bwd)
+    have(thesis) by Tableau
   }
 
   /**
@@ -233,24 +136,7 @@ object Quantifiers extends lisa.Main {
   val universalEquivalenceDistribution = Theorem(
     forall(z, P(z) <=> Q(z)) |- (forall(z, P(z)) <=> forall(z, Q(z)))
   ) {
-    have(forall(z, P(z) <=> Q(z)) |- forall(z, P(z) <=> Q(z))) by Hypothesis
-    val quant = thenHave(forall(z, P(z) <=> Q(z)) |- P(z) <=> Q(z)) by InstantiateForall(z)
-
-    val lhs = have((forall(z, P(z) <=> Q(z)), forall(z, P(z))) |- forall(z, Q(z))) subproof {
-      have(forall(z, P(z)) |- forall(z, P(z))) by Hypothesis
-      thenHave(forall(z, P(z)) |- P(z)) by InstantiateForall(z)
-      have((forall(z, P(z) <=> Q(z)), forall(z, P(z))) |- Q(z)) by Tautology.from(lastStep, quant)
-      thenHave(thesis) by RightForall
-    }
-
-    val rhs = have((forall(z, P(z) <=> Q(z)), forall(z, Q(z))) |- forall(z, P(z))) subproof {
-      have(forall(z, Q(z)) |- forall(z, Q(z))) by Hypothesis
-      thenHave(forall(z, Q(z)) |- Q(z)) by InstantiateForall(z)
-      have((forall(z, P(z) <=> Q(z)), forall(z, Q(z))) |- P(z)) by Tautology.from(lastStep, quant)
-      thenHave(thesis) by RightForall
-    }
-
-    have(thesis) by Tautology.from(lhs, rhs)
+    have(thesis) by Tableau
   }
 
   /**
@@ -260,24 +146,7 @@ object Quantifiers extends lisa.Main {
   val existentialEquivalenceDistribution = Theorem(
     forall(z, P(z) <=> Q(z)) |- (exists(z, P(z)) <=> exists(z, Q(z)))
   ) {
-    have(forall(z, P(z) <=> Q(z)) |- forall(z, P(z) <=> Q(z))) by Hypothesis
-    val quant = thenHave(forall(z, P(z) <=> Q(z)) |- P(z) <=> Q(z)) by InstantiateForall(z)
-
-    val lhs = have((forall(z, P(z) <=> Q(z)), exists(z, P(z))) |- exists(z, Q(z))) subproof {
-      have(P(z) |- P(z)) by Hypothesis
-      have((forall(z, P(z) <=> Q(z)), P(z)) |- Q(z)) by Tautology.from(lastStep, quant)
-      thenHave((forall(z, P(z) <=> Q(z)), P(z)) |- exists(z, Q(z))) by RightExists
-      thenHave(thesis) by LeftExists
-    }
-
-    val rhs = have((forall(z, P(z) <=> Q(z)), exists(z, Q(z))) |- exists(z, P(z))) subproof {
-      have(Q(z) |- Q(z)) by Hypothesis
-      have((forall(z, P(z) <=> Q(z)), Q(z)) |- P(z)) by Tautology.from(lastStep, quant)
-      thenHave((forall(z, P(z) <=> Q(z)), Q(z)) |- exists(z, P(z))) by RightExists
-      thenHave(thesis) by LeftExists
-    }
-
-    have(thesis) by Tautology.from(lhs, rhs)
+    have(thesis) by Tableau
 
   }
 
@@ -287,13 +156,7 @@ object Quantifiers extends lisa.Main {
   val universalImplicationDistribution = Theorem(
     forall(z, P(z) ==> Q(z)) |- (forall(z, P(z)) ==> forall(z, Q(z)))
   ) {
-    have(forall(z, P(z) ==> Q(z)) |- forall(z, P(z) ==> Q(z))) by Hypothesis
-    val quant = thenHave(forall(z, P(z) ==> Q(z)) |- P(z) ==> Q(z)) by InstantiateForall(z)
-
-    have(forall(z, P(z)) |- forall(z, P(z))) by Hypothesis
-    thenHave(forall(z, P(z)) |- P(z)) by InstantiateForall(z)
-    have((forall(z, P(z) ==> Q(z)), forall(z, P(z))) |- Q(z)) by Tautology.from(lastStep, quant)
-    thenHave((forall(z, P(z) ==> Q(z)), forall(z, P(z))) |- forall(z, Q(z))) by RightForall
+    have(thesis) by Tableau
   }
 
   /**
@@ -303,15 +166,7 @@ object Quantifiers extends lisa.Main {
   val existentialImplicationDistribution = Theorem(
     forall(z, P(z) ==> Q(z)) |- (exists(z, P(z)) ==> exists(z, Q(z)))
   ) {
-    have(forall(z, P(z) ==> Q(z)) |- forall(z, P(z) ==> Q(z))) by Hypothesis
-    val quant = thenHave(forall(z, P(z) ==> Q(z)) |- P(z) ==> Q(z)) by InstantiateForall(z)
-
-    val impl = have((forall(z, P(z) ==> Q(z)), exists(z, P(z))) |- exists(z, Q(z))) subproof {
-      have(P(z) |- P(z)) by Hypothesis
-      have((forall(z, P(z) ==> Q(z)), P(z)) |- Q(z)) by Tautology.from(lastStep, quant)
-      thenHave((forall(z, P(z) ==> Q(z)), P(z)) |- exists(z, Q(z))) by RightExists
-      thenHave(thesis) by LeftExists
-    }
+    have(thesis) by Tableau
   }
 
   /**

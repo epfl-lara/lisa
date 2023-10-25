@@ -5,7 +5,8 @@ import scala.collection.immutable.HashSet
 import scala.collection.immutable.HashMap
 import lisa.fol.FOL as F
 import lisa.utils.parsing.FOLPrinter.{prettyTerm, prettyFormula, prettySCProof}
-import Blast.Branch.prettyIte
+import lisa.prooflib.Library
+import lisa.prooflib.ProofTacticLib.*
 
 
 /**
@@ -17,33 +18,107 @@ import Blast.Branch.prettyIte
   * Next test: No quantifiers but actual terms with variables
   */
 
-object Blast {
-    import BlastTest.{printif, doprint}
+object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
 
+
+    def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
+        solve(bot) match {
+            case Some(value) => proof.ValidProofTactic(bot, value.steps, Seq())
+            case None => proof.InvalidProofTactic("Could not prove the statement.")
+        }
+    }
+
+    /**
+     * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
+     * Uses the given already proven facts as assumptions to reach the desired goal.
+     *
+     * @param proof The ongoing proof object in which the step happens.
+     * @param premise A previously proven step necessary to reach the conclusion.
+     * @param bot   The desired conclusion.
+     */
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
+        from(using lib, proof)(Seq(premise)*)(bot)
+
+    def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+        val botK = bot.underlying
+        val premsFormulas: Seq[((proof.Fact, Formula), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
+        val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
+        val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
+
+        solve(sqToProve) match {
+        case Some(value) =>
+            val subpr = SCSubproof(value)
+            val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
+            val ((prem, form), position) = cur
+            Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
+            })
+            val steps = (initProof ++ stepsList.reverse).toIndexedSeq
+            proof.ValidProofTactic(bot, steps, premises)
+        case None =>
+            proof.InvalidProofTactic("Could not prove the statement.")
+        }
+    }
+
+
+
+
+    inline def solve(sequent:F.Sequent): Option[SCProof] = solve(sequent.underlying)
+
+    def solve(sequent:K.Sequent): Option[SCProof] = {
+        val f = K.ConnectorFormula(K.And, (sequent.left.toSeq ++ sequent.right.map(f => K.ConnectorFormula(K.Neg, List(f)))))
+        val taken = f.schematicTermLabels
+        val nextIdNow = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no+1
+        val (fnamed, nextId, _) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
+        val nf = reducedNNFForm(fnamed)
+        val proof = decide(Branch.empty.prepended(nf))
+
+        proof match
+            case None => None
+            case Some((p, _)) => Some(SCProof((Restate(sequent, p.length) :: Weakening(nf |- (), p.length-1) :: p).reverse.toIndexedSeq, IndexedSeq.empty))
+
+    }
+
+
+
+
+    /**
+      * A branch represent a sequent (whose right hand side is empty) that is being proved.
+      * It is assumed that the sequent is in negation normal form, negations are only applied to atoms.
+      * Formulas are sorted according to their shape :
+      * Conjunctions are in alpha
+      * Disjunctions are in beta
+      * Existential quantifiers are in delta
+      * Universal quantifiers are in gamma
+      * Atoms are in atoms (split into positive and negative)
+      * At each step of the procedure, a formula is deconstructed in accordance with the rules of the tableau calculus.
+      * Then that formula is removed from the branch as it is no longer needed.
+      * Variables coming from universal quantifiers are marked as suitable for unification in unifiable
+      * Instantiations that have been done already are stored in triedInstantiation, to avoid infinite loops.
+      * When a quantifier Q1 is below a universal quantifier Q2, Q2 can be instantiated multiple times.
+      * Then, Q1 may also need to be instantiated multiple versions, requiring fresh variable names.
+      * maxIndex stores an index that is used to generate fresh variable names.
+      *
+      */
     case class Branch(
         alpha: List[ConnectorFormula],  //label = And
         beta: List[ConnectorFormula],  //label = Or
         delta: List[BinderFormula],  //Exists(...))
         gamma: List[BinderFormula],  //Forall(...)
         atoms: (List[PredicateFormula], List[PredicateFormula]),    // split into positive and negatives!
-        savedGamma: List[BinderFormula],  //Forall(...) that have already been instantiated to metavariables but which can be resused.
         unifiable: Map[VariableLabel, BinderFormula], //map between metavariables and the original formula they came from
         skolemized: Set[VariableLabel], //set of variables that have been skolemized
         triedInstantiation: Map[VariableLabel, Set[Term]], //map between metavariables and the term they were already instantiated with
-        history: Formula, //the formula that was used to create this branch
-        parent: Branch, //the parent branch
         maxIndex:Int, //the maximum index used for skolemization and metavariables
-        //active: List[Formula], used: HashSet[Int], unifiable: HashSet[Identifier]
     ){
         def pop(f : Formula) : Branch = f match
             case f @ ConnectorFormula(Or, args) => 
-                if (beta.nonEmpty && beta.head.uniqueNumber == f.uniqueNumber) copy(beta=beta.tail, history = beta.head) else throw Exception("First formula of beta is not f")
+                if (beta.nonEmpty && beta.head.uniqueNumber == f.uniqueNumber) copy(beta=beta.tail) else throw Exception("First formula of beta is not f")
             case f @ BinderFormula(Exists, x, inner) => 
-                if (delta.nonEmpty && delta.head.uniqueNumber == f.uniqueNumber) copy(delta=delta.tail, history = delta.head) else throw Exception("First formula of delta is not f")
+                if (delta.nonEmpty && delta.head.uniqueNumber == f.uniqueNumber) copy(delta=delta.tail) else throw Exception("First formula of delta is not f")
             case f @ BinderFormula(Forall, x, inner) => 
-                if (gamma.nonEmpty && gamma.head.uniqueNumber == f.uniqueNumber) copy(gamma=gamma.tail, history = gamma.head) else throw Exception("First formula of gamma is not f")
+                if (gamma.nonEmpty && gamma.head.uniqueNumber == f.uniqueNumber) copy(gamma=gamma.tail) else throw Exception("First formula of gamma is not f")
             case ConnectorFormula(And, args) => 
-                if (alpha.nonEmpty && alpha.head.uniqueNumber == f.uniqueNumber) copy(alpha=alpha.tail, history = alpha.head) else throw Exception("First formula of alpha is not f")
+                if (alpha.nonEmpty && alpha.head.uniqueNumber == f.uniqueNumber) copy(alpha=alpha.tail) else throw Exception("First formula of alpha is not f")
             case f @ PredicateFormula(id, args) => 
                 throw Exception("Should not pop Atoms")
             case f @ ConnectorFormula(Neg, List(PredicateFormula(id, args))) => 
@@ -63,19 +138,18 @@ object Blast {
 
         def prependedAll(l: Seq[Formula]) : Branch = l.foldLeft(this)((a, b) => a.prepended(b))
 
-        def asSequent : Sequent = (beta ++ delta ++ gamma ++ savedGamma ++ atoms._1 ++ atoms._2.map(a => !a)).toSet |- Set() // TODO: inefficient
+        def asSequent : Sequent = (beta ++ delta ++ gamma ++ atoms._1 ++ atoms._2.map(a => !a)).toSet |- Set() // inefficient, not used
 
         import Branch.*
         override def toString(): String = 
             val pretUnif = unifiable.map((x, f) => x.id + " -> " + prettyFormula(f)).mkString("Unif(", ", ", ")")
             //val pretTried = triedInstantiation.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Tried(", ", ", ")")
-            val pretHistory = if history == null then "null" else prettyFormula(history)
-            s"Branch(${prettyIte(beta, "beta")}, ${prettyIte(delta, "delta")}, ${prettyIte(gamma, "gamma")}, ${prettyIte(atoms._1, "+")}, ${prettyIte(atoms._2, "-")}, ${prettyIte(savedGamma, "sg")}, $pretUnif, _, $pretHistory, _)"
+            s"Branch(${prettyIte(beta, "beta")}, ${prettyIte(delta, "delta")}, ${prettyIte(gamma, "gamma")}, ${prettyIte(atoms._1, "+")}, ${prettyIte(atoms._2, "-")}, $pretUnif, _, _)"
         
     }
     object Branch{
-        def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Nil, Map.empty, Set.empty, Map.empty, null, null, 1)
-        def empty(n:Int) = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Nil, Map.empty, Set.empty, Map.empty, null, null, n)
+        def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Set.empty, Map.empty, 1)
+        def empty(n:Int) = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Set.empty, Map.empty, n)
         def prettyIte(l:Iterable[Formula], head:String):String = l match
             case Nil => "Nil"
             case _ => l.map(prettyFormula(_, true)).mkString(head+"(", ", ", ")")
@@ -99,36 +173,15 @@ object Blast {
             else
                 val (nInner, nnId, nSeen) = makeVariableNamesUnique(inner, nextId, seen + x)
                 (BinderFormula(label, x, nInner), nnId, nSeen)
-    
-    
-    def solve(S:F.Sequent):Option[SCProof] = {
-        val ks = S.underlying
-        val f = K.ConnectorFormula(K.And, (ks.left.toSeq ++ ks.right.map(f => K.ConnectorFormula(K.Neg, List(f)))))
-        val taken = f.schematicTermLabels
-        val nextIdNow = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no+1
-        val (fnamed, nextId, _) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
-        val nf = reducedNNFForm(fnamed)
-        //printif("solve f     : " + prettyFormula(f))
-        //printif("solve fnames: " + prettyFormula(fnamed))
-        //printif("solve nf    : " + prettyFormula(nf))
 
-        val proof = decide(Branch.empty.prepended(nf))
-        
-        proof match
-            case None => None
-            case Some(p) => Some(SCProof((Restate(ks, p.length) :: Weakening(nf |- (), p.length-1) :: p).reverse.toIndexedSeq, IndexedSeq.empty))
-        
-    }
+
     type Substitution = Map[VariableLabel, Term]
     val Substitution = HashMap
-
-    /*
-    def substitute(t:Term, s:Substitution):Term = t match
-        case VariableTerm(x:VariableLabel) => if (s.contains(x)) s(x) else t
-        case Term(id, args) => Term(id, args.map(substitute(_, s)))
-
-        */
-
+    
+    /**
+      * Detect if two terms can be unified, and if so, return a substitution that unifies them.
+      * 
+      */
     def unify(t1:Term, t2:Term, current:Substitution, br: Branch):Option[Substitution] = (t1, t2) match
         case (VariableTerm(x), VariableTerm(y)) if br.unifiable.contains(x) && br.unifiable.contains(y)  => 
             if (x == y) Some(current) else Some(current + (x -> substituteVariablesInTerm(t2, current)))
@@ -146,6 +199,10 @@ object Blast {
                 )
             else None
 
+    /**
+      * Detect if two atoms can be unified, and if so, return a substitution that unifies them.
+      *
+      */
     def unifyPred(pos: PredicateFormula, neg: PredicateFormula, br: Branch): Option[Substitution] = {
         (pos, neg) match
             case (PredicateFormula(id1, args1), PredicateFormula(id2, args2)) if (id1 == id2 && args1.size == args2.size) => 
@@ -157,10 +214,15 @@ object Blast {
         
     }
 
-    //Find if a branch can be closed
-    //If it can, return a list of substitutions that closes it
-    //The list is empty if the branch cannot be closed
-    //The substitution cannot do substitutions that were already done in triedInstantiation.
+    
+
+    /**
+      * Detect if a branch can be closed, and if so, return a list of substitutions that closes it along with the formulas used to close it
+      * If it can't be closed, returns None
+      * The substitution cannot do substitutions that were already done in branch.triedInstantiation.
+      * When multiple substitutions are possible, the one with the smallest size is returned. (Maybe there is a better heuristic, like distance from the root?)
+      *
+      */
     def close(branch: Branch) : Option[(Substitution, Set[Formula])] = {
         val pos = branch.atoms._1.iterator
         var substitutions: List[(Substitution, Set[Formula])] = Nil
@@ -186,64 +248,70 @@ object Blast {
     }
 
 
+    /**
+      * Explodes one And formula
+      * The alpha list of the branch must not be empty
+      */
     def alpha(branch:Branch): Branch = {
-        if (branch.alpha.isEmpty) throw new Exception("No alpha formula found!")
-        else
-            val f = branch.alpha.head
-            branch.copy(alpha = branch.alpha.tail, history = branch.alpha.head).prependedAll(f.args)
+        val f = branch.alpha.head
+        branch.copy(alpha = branch.alpha.tail).prependedAll(f.args)
     }
 
 
-    //Explodes one beta formula, and alpha-simplifies it
-    //Add the exploded formula to the used list, if one beta formula is found
-    //If the result is a singleton, then no beta branch was found and the formula it contains is exactly the input
+    /**
+      * Explodes one Or formula, and alpha-simplifies it
+      * Add the exploded formula to the used list, if one beta formula is found
+      * The beta list of the branch must not be empty
+      */
     def beta(branch: Branch):List[(Branch, Formula)] = {
-        if (branch.beta.isEmpty) throw new Exception("No beta formula found!")
-        else
-            val f = branch.beta.head
-            val b1 = branch.pop(f)
-            val resList = f.args.toList.map(disjunct => {
-                    ((b1.prepended(disjunct), disjunct))
-            })
-            resList
+        val f = branch.beta.head
+        val b1 = branch.copy(beta = branch.beta.tail)
+        val resList = f.args.toList.map(disjunct => {
+                ((b1.prepended(disjunct), disjunct))
+        })
+        resList
     }
 
-    //Find an existenially quantified variable
-    //Add the unquantified formula to the branch
-    //Since the bound variable is not marked as suitable for instantiation, it behaves as a constant symbol (skolem)
+    /**
+      * Explodes one Exists formula
+      * Add the unquantified formula to the branch
+      * Since the bound variable is not marked as suitable for instantiation, it behaves as a constant symbol (skolem)
+      */
     def delta(branch: Branch):(Branch, VariableLabel, Formula) = {
-        if (branch.delta.isEmpty) throw new Exception("No delta formula found!")
+        val f = branch.delta.head
+        if branch.skolemized.contains(branch.delta.head.bound) then
+            val newX = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
+            val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newX), Seq())
+            (branch.copy(delta = branch.delta.tail, maxIndex = branch.maxIndex+1).prepended(newInner), newX, newInner)
+        
         else
-            val f = branch.delta.head
-            if branch.skolemized.contains(branch.delta.head.bound) then
-                val newX = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
-                val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newX), Seq())
-                (branch.copy(delta = branch.delta.tail, history = branch.delta.head, maxIndex = branch.maxIndex+1).prepended(newInner), newX, newInner)
-            
-            else
-                (branch.copy(delta = branch.delta.tail, skolemized = branch.skolemized+f.bound, history = branch.delta.head).prepended(f.inner), f.bound, f.inner)
+            (branch.copy(delta = branch.delta.tail, skolemized = branch.skolemized+f.bound).prepended(f.inner), f.bound, f.inner)
     }
 
-    //Find a universally quantified variable
-    //Add the unquantified formula to the branch and mark the bound variable as suitable for unification
+    /**
+      * Explodes one Forall formula
+      * Add the unquantified formula to the branch and mark the bound variable as suitable for unification
+      * This step will most of the time be cancelled when building the proof, unless any arbitrary instantiation is sufficient to get a proof.
+      */
     def gamma(branch: Branch):(Branch, VariableLabel, Formula) = {
-        if (branch.gamma.isEmpty) throw new Exception("No gamma formula found!")
-        else
-            val f = branch.gamma.head
-            val (ni, nb) = branch.unifiable.get(f.bound) match
-                case None => 
-                    (f.inner, f.bound)
-                case Some(value) =>
-                    val newBound = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
-                    val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newBound), Seq())
-                    (newInner, newBound)
-            //printif("savedGamma: " + Branch.prettyIte(branch.gamma.head :: branch.savedGamma))
-            val b1 = branch.copy(gamma = branch.gamma.tail, savedGamma = branch.gamma.head :: branch.savedGamma, unifiable = branch.unifiable + (nb -> f), history = branch.gamma.head, maxIndex = branch.maxIndex+1)
-            (b1.prepended(ni), nb, ni)
+        val f = branch.gamma.head
+        val (ni, nb) = branch.unifiable.get(f.bound) match
+            case None => 
+                (f.inner, f.bound)
+            case Some(value) =>
+                val newBound = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
+                val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newBound), Seq())
+                (newInner, newBound)
+        val b1 = branch.copy(gamma = branch.gamma.tail, unifiable = branch.unifiable + (nb -> f), maxIndex = branch.maxIndex+1)
+        (b1.prepended(ni), nb, ni)
     }
 
-    // When a ground instantiation is found, apply it to the branch
-    // The non-metavariable variant of the gama rule
+
+    /**
+      * When a closing unification has been found, apply it to the branch
+      * This does not backtracking: The metavariable remains available if it needs further instantiation.
+      * 
+      */
     def applyInst(branch: Branch, x:VariableLabel, t:Term): (Branch, Formula) = {
         val f = branch.unifiable(x)
         val newTried = branch.triedInstantiation.get(x) match
@@ -251,43 +319,40 @@ object Blast {
             case Some(s) => branch.triedInstantiation + (x -> (s + t))
         
         val inst = instantiate(f.inner, f.bound, t)
-        val r = branch.prepended(inst).copy(history = f, triedInstantiation = newTried)
+        val r = branch.prepended(inst).copy(triedInstantiation = newTried)
         (r, inst)
     }
 
 
     /**
-      * Decide if a branch can be closed, and if not, explode it
+      * Decide if a branch can be closed, and if not, explode it.
+      * Main routine of the decision procedure. If it succeeds, return a proof of the branch.
+      * Note that the proof actually proves a subset of a branch when possible, to cut short on unneeded steps and formulas.
+      * The return integer is the size of the proof: Used to avoid computing the size every time in linear time.
       *
-      * @param branch The branch to decide
-      * @param stepIndex The index of the step in the proof
       */
-    def decide(branch: Branch): Option[List[SCProofStep]] = {
-        if (doprint) Thread.sleep(100)
-        printif("decide: " + branch)
+    def decide(branch: Branch): Option[(List[SCProofStep], Int)] = {
         val closeSubst = close(branch)
-        if (closeSubst.nonEmpty && closeSubst.get._1.isEmpty)                          //If branch can be closed without Instantiation (Hyp)
-            Some(List( RestateTrue(Sequent(closeSubst.get._2, Set())) ))
+        if (closeSubst.nonEmpty && closeSubst.get._1.isEmpty)                      //If branch can be closed without Instantiation (Hyp)
+            Some((List( RestateTrue(Sequent(closeSubst.get._2, Set())) ), 0))
 
         else if (branch.alpha.nonEmpty)                                            //If branch contains an Alpha formula (LeftAnd)
             val rec = alpha(branch)
-            decide(rec).map(proof => 
+            decide(rec).map((proof, step) => 
                 if branch.alpha.head.args.exists(proof.head.bot.left.contains) then 
                     val sequent = proof.head.bot.copy(left = (proof.head.bot.left -- branch.alpha.head.args) + branch.alpha.head)
-                    Weakening(sequent, proof.size-1) :: proof
-                else proof
+                    (Weakening(sequent, proof.size-1) :: proof, step+1)
+                else (proof, step)
             )
 
         else if (branch.delta.nonEmpty)                                             //If branch contains a Delta formula (LeftExists)
             val rec = delta(branch)
             val upperProof = decide(rec._1) 
-            // LeftExists(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel)
-            upperProof.map(proof => 
-
+            upperProof.map((proof, step) => 
                 if proof.head.bot.left.contains(rec._3) then 
                     val sequent = (proof.head.bot -<< rec._3) +<< branch.delta.head
-                    LeftExists(sequent, proof.size-1, rec._3, rec._2) :: proof
-                else proof
+                    (LeftExists(sequent, step, rec._3, rec._2) :: proof, step+1)
+                else (proof, step)
             )
 
         else if (branch.beta.nonEmpty)                                              //If branch contains a Beta formula (LeftOr)
@@ -302,50 +367,46 @@ object Blast {
                         val res = decide(next._1)
                         res match
                             case None => (None, t, true)
-                            case Some(nextProof) => 
+                            case Some((nextProof, step)) => 
                                 if nextProof.head.bot.left.contains(next._2) then  //If the disjunct was used, encapsulate the subbranch in a Subproof
                                     val subproofDisj = 
                                         if nextProof.size == 1 then nextProof.head
                                         else SCSubproof(SCProof(nextProof.toIndexedSeq.reverse, IndexedSeq.empty), IndexedSeq.empty)
                                     (Some(subproofDisj :: prevProof), prevProof.size :: t, true)
                                 else 
-                                    (res, List(nextProof.size-1), false) //If the disjunct was not used, then the subbranch is a proof of the whole statement.
-                            
+                                    //If the disjunct was not used, then the subbranch is a proof of the whole statement and the split is not necessary.
+                                    (res.map(_._1), List(nextProof.size-1), false)         
             )
-            // LeftOr(bot: Sequent, t: Seq[Int], disjuncts: Seq[Formula])
             proof.map(proo => 
                 if needed == true then 
                     val sequent = ((proo.flatMap(_.bot.left).toSet -- list.map(_._2)) |- ()) +<< branch.beta.head
-                    LeftOr(sequent, treversed.reverse, branch.beta.head.args) :: proo
-                else proo
+                    (LeftOr(sequent, treversed.reverse, branch.beta.head.args) :: proo, treversed.size)
+                else (proo, proo.size-1)
             )
 
         else if (branch.gamma.nonEmpty)                                               //If branch contains a Gamma formula (LeftForall)
             val rec = gamma(branch)
             val upperProof = decide(rec._1)
             // LeftForall(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel, t: Term)
-            upperProof.map(proof => 
+            upperProof.map((proof, step) => 
                 if proof.head.bot.left.contains(rec._3) then 
                     val sequent = (proof.head.bot -<< rec._3) +<< branch.gamma.head
-                    LeftForall(sequent, proof.size-1, branch.gamma.head.inner, branch.gamma.head.bound, rec._2()) :: proof
-                else proof
+                    (LeftForall(sequent, step, branch.gamma.head.inner, branch.gamma.head.bound, rec._2()) :: proof, step+1)
+                else (proof, step)
             )
 
-        else if (closeSubst.nonEmpty && closeSubst.get._1.nonEmpty)                         //If branch can be closed with Instantiation (LeftForall)
-            
+        else if (closeSubst.nonEmpty && closeSubst.get._1.nonEmpty)                    //If branch can be closed with Instantiation (LeftForall) 
             val (x, t) = closeSubst.get._1.head
             val (recBranch, instantiated) = applyInst(branch, x, t)
             val upperProof = decide(recBranch)
-            upperProof.map(proof => 
+            upperProof.map((proof, step) => 
                 if proof.head.bot.left.contains(instantiated) then 
                     val sequent = (proof.head.bot -<< instantiated) +<< branch.unifiable(x)
-                    LeftForall(sequent, proof.size-1, branch.unifiable(x).inner, branch.unifiable(x).bound, t) :: proof
-                else proof
+                    (LeftForall(sequent, step, branch.unifiable(x).inner, branch.unifiable(x).bound, t) :: proof, step+1)
+                else (proof, step)
             )
-
         else None
-        
-
+    // End of decide
     }
 
     def containsAlpha(set: Set[Formula], f: Formula) = f match{
@@ -353,22 +414,18 @@ object Blast {
         case _ => set.contains(f)
     }
 
-
-
     def instantiate(f:Formula, x:VariableLabel, t:Term):Formula = f match
         case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiate(_, x, t)))
         case PredicateFormula(id, args) => PredicateFormula(id, args.map(substituteVariablesInTerm(_, Substitution(x -> t))))
         case BinderFormula(label, y, inner) => if (x == y) f else BinderFormula(label, y, instantiate(inner, x, t))
-
-
 }
 
-object BlastTest {
+object TableauTest {
     export lisa.settheory.SetTheoryLibrary.{powerAxiom as _, subsetAxiom as _, emptySetAxiom as _, given, _}
     export lisa.prooflib.Exports.*
     export lisa.automation.kernel.OLPropositionalSolver.Tautology
     export lisa.prooflib.Substitution.*
-    import Blast._
+    import Tableau._
 
     val w = variable
     val x = variable
@@ -419,26 +476,7 @@ object BlastTest {
         )
     else println("ALL PROOFS VALID")
 
-/*
-    val nega = List(
-        !(a <=> a),
-        !a \/ !a,
-        !(((a ==> b) /\ (b ==> c)) ==> (a ==> c)),
-        !((a <=> b) <=> ((a/\b) \/ (!a \/ !b))),
-        !(((a ==> c) /\ (b ==> c)) <=> ((a \/ b) ==> c)),
-        !(((a ==> b) /\ (c ==> d)) ==> ((a \/ c) ==> (b \/ d))),
-        ((a ==> b) /\ (b ==> a)) ==> (a ==> c),
-        (a <=> b) <=> ((a/\b) \/ (a /\ !b)),
-        ((a ==> c) /\ (b ==> c)) <=> ((a \/ b) ==> a),
-        ((a ==> b) /\ (c ==> d)) ==> ((a \/ c) ==> (b))
-    ).zipWithIndex.map(f => 
-        val res = solve(() |- f._1)
-        (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof)))
-    println(s"Propositional Negative cases (${nega.size})")
-    if nega.exists(f => f._3) then 
-        nega.foreach((i, f, b, proof, judg) => println(s"$i $b" + (if b then s" $f" else "")))
-    else println("All FALSE")
-*/
+
 
     // Quantifier Free
 
@@ -462,20 +500,6 @@ object BlastTest {
         )
     else println("ALL PROOFS VALID")
 
-
-/*
-    val negqf = List(
-        nega.map(fo => fo._2.substitute(a:= P(h(x, y)), b := P(x), c:= R(x, h(x, y))) ),
-        nega.map(fo => fo._2.substitute(a:= P(h(x, y)), b := P(h(x, z)), c:= R(x, h(x, x))) ),
-        nega.map(fo => fo._2.substitute(a:= R(y, y), b := P(h(y, y)), c:= R(h(x, y), h(z, y))) ),
-    ).flatten.zipWithIndex.map(f => 
-        val res = solve(() |- f._1)
-        (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof)))
-    println(s"First Order Quantifier Free Negative cases (${negqf.size})")
-    if negqf.exists(f => f._3) then 
-        negqf.foreach((i, f, b, proof, judg) => println(s"$i $b" + (if b then s" $f" else "")))
-    else println("All FALSE")
-*/
 
     // First Order Easy
 
