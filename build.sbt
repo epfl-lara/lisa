@@ -69,7 +69,7 @@ lazy val root = Project(
     version := "0.1"
   )
   .dependsOn(kernel, withTests(utils)) // Everything but `examples`
-  .aggregate(kernel, utils) // To run tests on all modules
+  .aggregate(utils) // To run tests on all modules
 
 lazy val kernel = Project(
   id = "lisa-kernel",

@@ -1,9 +1,9 @@
 package lisa.mathematics
 package fol
 
+import lisa.automation.Tableau
 import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.kernel.SimplePropositionalSolver.*
-import lisa.automation.Tableau
 import lisa.prooflib.Substitution
 
 /**

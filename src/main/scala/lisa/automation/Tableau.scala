@@ -1,12 +1,15 @@
 package lisa.automation
-import lisa.utils.K.{_, given}
-import lisa.utils.K
-import scala.collection.immutable.HashSet
-import scala.collection.immutable.HashMap
 import lisa.fol.FOL as F
-import lisa.utils.parsing.FOLPrinter.{prettyTerm, prettyFormula, prettySCProof}
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.*
+import lisa.utils.K
+import lisa.utils.K.{_, given}
+import lisa.utils.parsing.FOLPrinter.prettyFormula
+import lisa.utils.parsing.FOLPrinter.prettySCProof
+import lisa.utils.parsing.FOLPrinter.prettyTerm
+
+import scala.collection.immutable.HashMap
+import scala.collection.immutable.HashSet
 
 
 /**

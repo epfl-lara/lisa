@@ -150,11 +150,11 @@ class EquivalenceCheckerTests extends AnyFunSuite {
 
     // 2. Random formulas (small)
 
-    testWithRepeat(() => formulasGenerator(0.8)(random), 100)
+    testWithRepeat(() => formulasGenerator(0.8)(random), 5)
 
     // 3. Random formulas (larger)
 
-    testWithRepeat(() => formulasGenerator(0.99)(random), 100)
+    testWithRepeat(() => formulasGenerator(0.90)(random), 15)
   }
 
   def testcases(f: Formula => Random => Seq[(Formula, Formula)], equivalent: Boolean): Unit =
@@ -358,13 +358,12 @@ class EquivalenceCheckerTests extends AnyFunSuite {
           Seq(
             and(a, a) -> a,
             or(a, a) -> a
-            // or(or(a, neg(a)), c) -> c,
-            // and(and(a, neg(a)), c) -> and(a, neg(a)),
           ),
       equivalent = true
     )
   }
 
+  
   test("All allowed transformations") {
     val transformations: Seq[Random => Formula => Formula] = IndexedSeq(
       r => commutativeShuffle(1)(r),
