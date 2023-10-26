@@ -363,7 +363,6 @@ class EquivalenceCheckerTests extends AnyFunSuite {
     )
   }
 
-  
   test("All allowed transformations") {
     val transformations: Seq[Random => Formula => Formula] = IndexedSeq(
       r => commutativeShuffle(1)(r),

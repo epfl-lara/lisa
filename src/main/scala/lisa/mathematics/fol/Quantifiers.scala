@@ -94,7 +94,6 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tableau
   }
 
-
   /**
    * Theorem -- If there is an equality on the existential quantifier's bound variable inside its body, then we can reduce
    * the existential quantifier to the satisfaction of the remaining body.
