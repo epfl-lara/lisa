@@ -58,6 +58,10 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     s.exists(g => isSame(f, g))
   }
 
+  def remove(s: Set[Formula], f: Formula): Set[Formula] = {
+    s.filter(g => !isSame(g, f))
+  }
+
   private var totPolarFormula = 0
   sealed abstract class SimpleFormula {
     val uniqueKey: Int = totPolarFormula
