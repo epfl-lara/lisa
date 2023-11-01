@@ -33,7 +33,7 @@ object ProofTacticLib {
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement
   }
 
-  class UnapplicableProofTactic(val tactic: ProofTactic, proof: Library#Proof, errorMessage: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
+  class UnapplicableProofTactic(val tactic: ProofTactic, val proof: Library#Proof, errorMessage: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
     override def fixTrace(): Unit = {
       val start = getStackTrace.indexWhere(elem => {
         !elem.getClassName.contains(tactic.name)

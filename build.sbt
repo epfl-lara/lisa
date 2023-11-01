@@ -22,7 +22,8 @@ val commonSettings = Seq(
   version            := "0.6",
   crossScalaVersions := Seq("2.12.13", "2.13.4", "3.0.1", "3.2.0"),
   organization       := "ch.epfl.lara",
-  scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0")
+  scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0"),
+  run / fork := true
 )
 
 
@@ -91,7 +92,13 @@ lazy val utils = Project(
   .dependsOn(scallion % "compile->compile")
   .settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
 
-
+lazy val lab05 = Project(
+  id = "fv-lab05",
+  base = file("fv-lab05")
+)
+  .settings(commonSettings)
+  .settings(commonSettings3)
+  .dependsOn(root)
 
 
 lazy val examples = Project(

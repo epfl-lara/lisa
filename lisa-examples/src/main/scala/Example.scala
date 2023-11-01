@@ -81,32 +81,32 @@ object Example extends lisa.Main {
 // Simple tactic definition for LISA DSL
 import lisa.automation.kernel.OLPropositionalSolver.*
 
-// object SimpleTautology extends ProofTactic {
-//   def solveFormula(using proof: library.Proof)(f: Formula, decisionsPos: List[Formula], decisionsNeg: List[Formula]): proof.ProofTacticJudgement = {
-//     val redF = reducedForm(f)
-//     if (redF == ⊤) {
-//       Restate(decisionsPos |- f :: decisionsNeg)
-//     } else if (redF == ⊥) {
-//       proof.InvalidProofTactic("Sequent is not a propositional tautology")
-//     } else {
-//       val atom = findBestAtom(redF).get
-//       def substInRedF(f: Formula) = redF.substituted(atom -> f)
-//       TacticSubproof {
-//         have(solveFormula(substInRedF(⊤), atom :: decisionsPos, decisionsNeg))
-//         val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution2(⊤ <=> atom)
-//         have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
-//         val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution2(⊥ <=> atom)
-//         have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
-//         thenHave(decisionsPos |- f :: decisionsNeg) by Restate
-//       }
-//     }
-//   }
-//   def solveSequent(using proof: library.Proof)(bot: Sequent) =
-//     TacticSubproof { // Since the tactic above works on formulas, we need an extra step to convert an arbitrary sequent to an equivalent formula
-//       have(solveFormula(sequentToFormula(bot), Nil, Nil))
-//       thenHave(bot) by Restate.from
-//     }
-// }
+ object SimpleTautology extends ProofTactic {
+   def solveFormula(using proof: library.Proof)(f: Formula, decisionsPos: List[Formula], decisionsNeg: List[Formula]): proof.ProofTacticJudgement = {
+     val redF = reducedForm(f)
+     if (redF == ⊤) {
+       Restate(decisionsPos |- f :: decisionsNeg)
+     } else if (redF == ⊥) {
+       proof.InvalidProofTactic("Sequent is not a propositional tautology")
+     } else {
+       val atom = findBestAtom(redF).get
+       def substInRedF(f: Formula) = redF.substituted(atom -> f)
+       TacticSubproof {
+         have(solveFormula(substInRedF(⊤), atom :: decisionsPos, decisionsNeg))
+         val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution2(⊤ <=> atom)
+         have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
+         val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution2(⊥ <=> atom)
+         have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
+         thenHave(decisionsPos |- f :: decisionsNeg) by Restate
+       }
+     }
+   }
+   def solveSequent(using proof: library.Proof)(bot: Sequent) =
+     TacticSubproof { // Since the tactic above works on formulas, we need an extra step to convert an arbitrary sequent to an equivalent formula
+       have(solveFormula(sequentToFormula(bot), Nil, Nil))
+       thenHave(bot) by Restate.from
+     }
+ }
    */
   // val a = formulaVariable()
   // val b = formulaVariable()

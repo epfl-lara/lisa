@@ -8,6 +8,7 @@ import lisa.utils.KernelHelpers.{|- => `K|-`, _}
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.UnificationUtils
+import scala.util.Try
 
 object BasicStepTactic {
 
@@ -1373,8 +1374,20 @@ object BasicStepTactic {
 
   // TODO make specific support for subproofs written inside tactics.
 
-  def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit) =
-    SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
+  class FailedProofTactic(tactic: ProofTactic, proof: Library#Proof, errorMessage: String) extends UnapplicableProofTactic(tactic, proof, errorMessage)
+
+  def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit): proof.ProofTacticJudgement =
+    try{
+      SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
+    }
+    catch {
+      case e: FailedProofTactic => proof.InvalidProofTactic(e.errorMessage)(using e.tactic)
+    }
+
+  def TrySubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit): Try[proof.ProofTacticJudgement] =
+    Try {
+      SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
+    }
 
   /*
   def TacticSubproof(using proof: Library#Proof)(botK: Option[Sequent])(computeProof: proof.InnerProof ?=> Unit) =

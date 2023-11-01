@@ -20,7 +20,7 @@ trait ProofsHelpers {
 
   given Library = library
 
-  class HaveSequent private[ProofsHelpers] (bot: Sequent) {
+  class HaveSequent private[ProofsHelpers] (bot: Sequent, safe:Boolean = false) {
     val x: lisa.fol.FOL.Sequent = bot
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
@@ -362,4 +362,10 @@ trait ProofsHelpers {
 
     library.last = Some(this)
   }
+
+
+  def fail(error:String)(using tactic: ProofTactic, proof: Library#Proof) = throw new FailedProofTactic(tactic, proof, error)
+
+
+
 }
