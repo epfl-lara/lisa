@@ -1335,25 +1335,32 @@ object BasicStepTactic {
       proof.ValidProofTactic(res, Seq(K.InstSchema(botK, -1, mConK, mPredK, mTermK)), Seq(premise))
     }
   }
+  object Subproof extends ProofTactic{
+    def apply(using proof: Library#Proof)(statement: Option[F.Sequent])(iProof: proof.InnerProof) = {
+      val bot: Option[F.Sequent] = statement
+      val botK: Option[K.Sequent] = statement map (_.underlying)
+      if (iProof.length == 0) throw (new UnimplementedProof(proof.owningTheorem))
+      val scproof: K.SCProof = iProof.toSCProof
+      val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
+      val judgement: proof.ProofTacticJudgement = {
+        if (botK.isEmpty)
+          proof.ValidProofTactic(iProof.mostRecentStep.bot, scproof.steps, premises)
+        else if (!K.isSameSequent(botK.get, scproof.conclusion))
+          proof.InvalidProofTactic(s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(botK.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}")
+        else
+          proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
+      }
+      judgement
+    }
+  }
 
-  class SUBPROOF(using val proof: Library#Proof)(statement: Option[F.Sequent])(computeProof: proof.InnerProof ?=> Unit) extends ProofTactic {
+  class SUBPROOF(using val proof: Library#Proof)(statement: Option[F.Sequent])(val iProof: proof.InnerProof) extends ProofTactic {
     val bot: Option[F.Sequent] = statement
     val botK: Option[K.Sequent] = statement map (_.underlying)
+    if (iProof.length == 0)
+      throw (new UnimplementedProof(proof.owningTheorem))
+    val scproof: K.SCProof = iProof.toSCProof
 
-    val iProof: proof.InnerProof = new proof.InnerProof(statement.asInstanceOf)
-    val scproof: K.SCProof = {
-      try {
-        computeProof(using iProof)
-      } catch {
-        case e: NotImplementedError =>
-          throw (new UnimplementedProof(proof.owningTheorem))
-        case e: UserLisaException =>
-          throw (e)
-      }
-      if (iProof.length == 0)
-        throw (new UnimplementedProof(proof.owningTheorem))
-      iProof.toSCProof
-    }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
     def judgement: proof.ProofTacticJudgement = {
       if (botK.isEmpty)
@@ -1361,24 +1368,22 @@ object BasicStepTactic {
       else if (!K.isSameSequent(botK.get, scproof.conclusion))
         proof.InvalidProofTactic(s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(botK.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}")
       else
-        proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
-    }
+    proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
+}
   }
+
+  // TODO make specific support for subproofs written inside tactics.
+
+  inline def TacticSubproof(using proof: Library#Proof)(inline computeProof: proof.InnerProof ?=> Unit): proof.ProofTacticJudgement =
+    val iProof: proof.InnerProof = new proof.InnerProof(None)
+    computeProof(using iProof)
+    SUBPROOF(using proof)(None)(iProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
+
 
   object Sorry extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       proof.ValidProofTactic(bot, Seq(K.Sorry(bot.underlying)), Seq())
     }
   }
-
-  // TODO make specific support for subproofs written inside tactics.
-
-  def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit) =
-    SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
-
-  /*
-  def TacticSubproof(using proof: Library#Proof)(botK: Option[Sequent])(computeProof: proof.InnerProof ?=> Unit) =
-    SUBPROOF(using proof)(Some(botK))(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
-   */
 
 }

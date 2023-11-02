@@ -565,13 +565,13 @@ object Substitution {
         case f: proof.Fact =>
           val seq = proof.getSequent(f)
           val phi = seq.right.head
-          val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
+          val sp = TacticSubproof {
             val x = applyLeftRight(phi)(premise)(rightLeft, toLeft, toRight)
             proof.library.have(x)
             proof.library.andThen(SimpleDeducedSteps.Discharge(f))
-          })
+          }
 
-          BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
+          BasicStepTactic.unwrapTactic(sp)("Subproof substitution fail.")
       }
 
     }
