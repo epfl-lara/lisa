@@ -146,7 +146,10 @@ trait Sequents extends Common with lisa.fol.Lambdas {
     infix def --?(s1: Sequent): Sequent = this removeAll s1
     infix def ++?(s1: Sequent): Sequent = this addAllIfNotExists s1
 
-    override def toString = "( " + left.mkString(", ") + " ) ⊢ ( " + right.mkString(", ") + " )"
+    override def toString = 
+      (if left.size==1 then left.head.toString else"( " + left.mkString(", ") + " )") + 
+      " ⊢ " + 
+      (if right.size==1 then right.head.toString  else"( " + right.mkString(", ") + " )")
 
   }
 

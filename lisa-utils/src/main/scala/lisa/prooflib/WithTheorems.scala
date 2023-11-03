@@ -318,7 +318,7 @@ trait WithTheorems {
     val innerJustification: theory.Theorem = prove(computeProof)
 
     def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(goal.underlying)
-    def repr: String = s" Theorem $name := $statement${if (withSorry) " (!! Relies on Sorry)" else ""}\n"
+    def repr: String = s" ${if (withSorry) " Sorry" else ""} Theorem $name := $statement\n"
 
     private def prove(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {

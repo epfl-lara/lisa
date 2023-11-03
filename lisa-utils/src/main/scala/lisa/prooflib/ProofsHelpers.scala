@@ -179,11 +179,11 @@ trait ProofsHelpers {
       j: JUSTIFICATION
   ) extends DEFINITION(line, file) {
     def repr: String = 
-      s" Definition of function symbol ${label(vars)} := the ${out} such that ${(out === label(vars)) <=> f})${if (j.withSorry) " (!! Relies on Sorry)" else ""}\n"
+      s" ${if (withSorry) " Sorry" else ""} Definition of function symbol ${label(vars)} := the ${out} such that ${(out === label(vars)) <=> f})\n"
     
     // val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
 
-    val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
+    lazy val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
 
     val innerJustification: theory.FunctionDefinition = {
       val conclusion: F.Sequent = j.statement
@@ -311,7 +311,7 @@ trait ProofsHelpers {
       extends DEFINITION(line, file) {
     override def repr: String = 
       s" Definition of predicate symbol ${label(lambda.bounds.asInstanceOf)} := ${lambda.body}"
-    val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
+    lazy val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity
 
     lazy val label: ConstantPredicateLabelOfArity[N] = {

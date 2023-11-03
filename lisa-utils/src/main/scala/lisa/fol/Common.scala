@@ -49,15 +49,6 @@ trait Common {
       case l: Seq[T] => l.map(f).asInstanceOf[(U ** (N))]
       case tup: Tuple => tup.map[[t] =>> U]([u] => (x: u) => f(x.asInstanceOf[T])).asInstanceOf
     }
-    /*
-    object ** {
-      def unapply[T, N <: Arity](p: T**N): T***N = ValueOf[N] match {
-        case n: -1 => Some(p)
-        case n: 0  => if (p.size == 0) Some(EmptyTuple) else None
-        case n: _  => if (p.size == n) p match {case Tuple => p; case Seq} else None
-      }
-    }
-     */
 
   }
 
@@ -235,7 +226,6 @@ trait Common {
     def freshRename(taken: Iterable[Identifier]): TermLabel
     def mkString(args: Seq[Term]): String
     def mkStringSeparated(args: Seq[Term]): String = mkString(args)
-    // def unapply(t:Term):Option[Seq[Term]]
   }
 
   /**
@@ -327,7 +317,6 @@ trait Common {
     override val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
     override val underlying = K.VariableTerm(underlyingLabel)
     override def apply(args: Term ** 0) = this
-    def unapply(t: Variable): Option[Seq[Term]] = if (t == this) Some(Seq()) else None
     @nowarn("msg=Unreachable")
     override def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
       map.get(this.asInstanceOf) match {
@@ -358,7 +347,6 @@ trait Common {
     override val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     override val underlying = K.Term(underlyingLabel, Seq())
     override def apply(args: Term ** 0) = this
-    def unapply(t: Constant): Option[Term ** 0] = if (t == this) Some(Seq()) else None
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Constant = this
     override def rename(newid: Identifier): Constant = Constant(newid)
     def freshRename(taken: Iterable[Identifier]): Constant = rename(K.freshId(taken, id))
@@ -406,7 +394,6 @@ trait Common {
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
     var infix: Boolean = false
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
-    def unapply(t: AppliedTerm): Option[Term ** N] = t match { case AppliedTerm(label, args) if (label == this) => Some(args); case _ => None }
     def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
       case AppliedTerm(label, args) if (label == this) => args
       case _ => Seq.empty
@@ -516,7 +503,6 @@ trait Common {
     val underlyingLabel: K.VariableFormulaLabel = K.VariableFormulaLabel(id)
     val underlying = K.PredicateFormula(underlyingLabel, Seq())
     override def apply(args: Term ** 0): Formula = this
-    def unapply(t: VariableFormula): Option[Term ** 0] = if (t == this) Some(EmptyTuple) else None
     @nowarn("msg=Unreachable")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula = {
       map.get(this.asInstanceOf) match {
@@ -546,7 +532,6 @@ trait Common {
     val underlyingLabel: K.ConstantPredicateLabel = K.ConstantPredicateLabel(id, 0)
     val underlying = K.PredicateFormula(underlyingLabel, Seq())
     override def apply(args: Term ** 0): Formula = this
-    def unapply(t: ConstantFormula): Option[Term ** 0] = if (t == this) Some(EmptyTuple) else None
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels: Set[SchematicLabel[?]] = Set.empty
@@ -563,7 +548,6 @@ trait Common {
   case class SchematicPredicateLabel[N <: Arity](id: Identifier, arity: N) extends SchematicVarOrPredLabel with SchematicLabel[(Term ** N) |-> Formula] with ((Term ** N) |-> Formula) {
     val underlyingLabel: K.SchematicPredicateLabel = K.SchematicPredicateLabel(id, arity)
     def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
-    def unapply(t: PredicateFormula): Option[Term ** N] = t match { case PredicateFormula(label, args) if (label == this) => Some(args); case _ => None }
     def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
       case AppliedTerm(label, args) if (label == this) => args
       case _ => Seq.empty
@@ -595,9 +579,8 @@ trait Common {
     val underlyingLabel: K.ConstantPredicateLabel = K.ConstantPredicateLabel(id, arity)
     private var infix = false
     def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
-    def unapply(t: PredicateFormula): Option[Term ** N] = t match { case PredicateFormula(label, args) if (label == this) => Some(args); case _ => None }
-    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
-      case AppliedTerm(label, args) if (label == this) => args
+    def unapplySeq(f:PredicateFormula): Seq[Term] = f match {
+      case PredicateFormula(label, args) if (label == this) => args
       case _ => Seq.empty
     }
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
@@ -671,9 +654,8 @@ trait Common {
     }
     // def apply(args: Seq[Formula]): Formula = apply(args)
     def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
-    def unapply(t: ConnectorFormula): Option[Seq[Formula]] = t match { case ConnectorFormula(label, args) if (label == this) => Some(args); case _ => None }
-    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
-      case AppliedTerm(label, args) if (label == this) => args
+    def unapplySeq(f:PredicateFormula): Seq[Term] = f match {
+      case PredicateFormula(label, args) if (label == this) => args
       case _ => Seq.empty
     }
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set(this)
@@ -694,9 +676,8 @@ trait Common {
     def id: Identifier = underlyingLabel.id
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
-    def unapply(t: ConnectorFormula): Option[Seq[Formula]] = t match { case ConnectorFormula(label, args) if (label == this) => Some(args); case _ => None }
-    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
-      case AppliedTerm(label, args) if (label == this) => args
+    def unapplySeq(f:ConnectorFormula): Seq[Formula] = f match {
+      case ConnectorFormula(label, args) if (label == this) => args
       case _ => Seq.empty
     }
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty

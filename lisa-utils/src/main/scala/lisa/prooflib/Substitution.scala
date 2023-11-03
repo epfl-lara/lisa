@@ -21,13 +21,13 @@ import F.|-
 object Substitution {
   def validRule(using lib: lisa.prooflib.Library, proof: lib.Proof)(r: (proof.Fact | F.Formula | lib.JUSTIFICATION)): Boolean =
     r match {
-      case F.equality(_) => true
-      case F.Iff(_) => true
+      case F.equality(_, _) => true
+      case F.Iff(_, _) => true
+      case _ : Formula => false
       case j: lib.JUSTIFICATION => j.statement.right.size == 1 && validRule(j.statement.right.head)
       case f: proof.Fact @unchecked => proof.sequentOfFact(f).right.size == 1 && validRule(proof.sequentOfFact(f).right.head)
       // case j: RunningTheory#Justification =>
       //  proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.size == 1 && validRule(proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.head)
-      case _ => false
     }
 
   object ApplyRules extends ProofTactic {
