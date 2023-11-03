@@ -375,7 +375,10 @@ trait Common {
   case class SchematicFunctionLabel[N <: Arity](val id: Identifier, val arity: N) extends SchematicTermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.SchematicTermLabel = K.SchematicFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
-    def unapply(t: AppliedTerm): Option[Term ** N] = t match { case AppliedTerm(label, args) if (label == this) => Some(args); case _ => None }
+    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+      case AppliedTerm(label, args) if (label == this) => args
+      case _ => Seq.empty
+    }
     @nowarn
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ((Term ** N) |-> Term) = {
       map.get(this.asInstanceOf) match {
@@ -404,6 +407,10 @@ trait Common {
     var infix: Boolean = false
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     def unapply(t: AppliedTerm): Option[Term ** N] = t match { case AppliedTerm(label, args) if (label == this) => Some(args); case _ => None }
+    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+      case AppliedTerm(label, args) if (label == this) => args
+      case _ => Seq.empty
+    }
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type =
       this
     def rename(newid: Identifier): ConstantFunctionLabel[N] = ConstantFunctionLabel(newid, arity)
@@ -557,6 +564,10 @@ trait Common {
     val underlyingLabel: K.SchematicPredicateLabel = K.SchematicPredicateLabel(id, arity)
     def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     def unapply(t: PredicateFormula): Option[Term ** N] = t match { case PredicateFormula(label, args) if (label == this) => Some(args); case _ => None }
+    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+      case AppliedTerm(label, args) if (label == this) => args
+      case _ => Seq.empty
+    }
     @nowarn
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Term ** N, Formula] = {
       map.get(this.asInstanceOf) match {
@@ -585,6 +596,10 @@ trait Common {
     private var infix = false
     def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     def unapply(t: PredicateFormula): Option[Term ** N] = t match { case PredicateFormula(label, args) if (label == this) => Some(args); case _ => None }
+    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+      case AppliedTerm(label, args) if (label == this) => args
+      case _ => Seq.empty
+    }
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels: Set[SchematicLabel[?]] = Set.empty
@@ -657,6 +672,10 @@ trait Common {
     // def apply(args: Seq[Formula]): Formula = apply(args)
     def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
     def unapply(t: ConnectorFormula): Option[Seq[Formula]] = t match { case ConnectorFormula(label, args) if (label == this) => Some(args); case _ => None }
+    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+      case AppliedTerm(label, args) if (label == this) => args
+      case _ => Seq.empty
+    }
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set(this)
     def allSchematicLabels: Set[SchematicLabel[?]] = Set(this)
     def rename(newid: Identifier): SchematicConnectorLabel[N] = SchematicConnectorLabel(newid, arity)
@@ -676,6 +695,10 @@ trait Common {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
     def unapply(t: ConnectorFormula): Option[Seq[Formula]] = t match { case ConnectorFormula(label, args) if (label == this) => Some(args); case _ => None }
+    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+      case AppliedTerm(label, args) if (label == this) => args
+      case _ => Seq.empty
+    }
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     def rename(newid: Identifier): ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")

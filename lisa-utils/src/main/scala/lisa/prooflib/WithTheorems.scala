@@ -289,7 +289,7 @@ trait WithTheorems {
     if (statement.underlying != theory.sequentFromJustification(innerAxiom)) {
       throw new InvalidAxiomException("The provided kernel axiom and desired statement don't match.", name, axiom, library)
     }
-    def repr: String = axiom.toString
+    def repr: String = s" Axiom $name := $axiom"
   }
 
   def Axiom(name: String, axiom: F.Formula): AXIOM = {
@@ -318,7 +318,7 @@ trait WithTheorems {
     val innerJustification: theory.Theorem = prove(computeProof)
 
     def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(goal.underlying)
-    def repr: String = statement.toString
+    def repr: String = s" Theorem $name := $statement${if (withSorry) " (!! Relies on Sorry)" else ""}\n"
 
     private def prove(computeProof: Proof ?=> Unit): theory.Theorem = {
       try {

@@ -21,21 +21,21 @@ inThisBuild(
 val commonSettings = Seq(
   version            := "0.6",
   crossScalaVersions := Seq("2.12.13", "2.13.4", "3.0.1", "3.2.0"),
-  organization       := "ch.epfl.lara",
-  scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0")
+  //organization       := "ch.epfl.lara",
+  //scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0"),
+  run / fork := true
 )
 
 
 val scala2 = "2.13.8"
 val scala3 = "3.2.2"
 
-fork := true
 
-val commonSettings2 = Seq(
+val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
   scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
 )
-val commonSettings3 = Seq(
+val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
