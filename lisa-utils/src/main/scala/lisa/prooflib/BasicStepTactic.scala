@@ -1335,7 +1335,7 @@ object BasicStepTactic {
       proof.ValidProofTactic(res, Seq(K.InstSchema(botK, -1, mConK, mPredK, mTermK)), Seq(premise))
     }
   }
-  object Subproof extends ProofTactic{
+  object Subproof extends ProofTactic {
     def apply(using proof: Library#Proof)(statement: Option[F.Sequent])(iProof: proof.InnerProof) = {
       val bot: Option[F.Sequent] = statement
       val botK: Option[K.Sequent] = statement map (_.underlying)
@@ -1346,7 +1346,9 @@ object BasicStepTactic {
         if (botK.isEmpty)
           proof.ValidProofTactic(iProof.mostRecentStep.bot, scproof.steps, premises)
         else if (!K.isSameSequent(botK.get, scproof.conclusion))
-          proof.InvalidProofTactic(s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(botK.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}")
+          proof.InvalidProofTactic(
+            s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(botK.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}"
+          )
         else
           proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
       }
@@ -1368,8 +1370,8 @@ object BasicStepTactic {
       else if (!K.isSameSequent(botK.get, scproof.conclusion))
         proof.InvalidProofTactic(s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(botK.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}")
       else
-    proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
-}
+        proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
+    }
   }
 
   // TODO make specific support for subproofs written inside tactics.
@@ -1378,7 +1380,6 @@ object BasicStepTactic {
     val iProof: proof.InnerProof = new proof.InnerProof(None)
     computeProof(using iProof)
     SUBPROOF(using proof)(None)(iProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
-
 
   object Sorry extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {

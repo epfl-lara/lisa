@@ -55,7 +55,6 @@ object Example extends lisa.Main {
       emptySetIsASubset
     )
   }
-  val asffff = 4
 
   /*
 

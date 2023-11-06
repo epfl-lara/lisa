@@ -363,7 +363,7 @@ trait Common {
   case class SchematicFunctionLabel[N <: Arity](val id: Identifier, val arity: N) extends SchematicTermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.SchematicTermLabel = K.SchematicFunctionLabel(id, arity)
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
-    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+    def unapplySeq(t: AppliedTerm): Seq[Term] = t match {
       case AppliedTerm(label, args) if (label == this) => args
       case _ => Seq.empty
     }
@@ -394,7 +394,7 @@ trait Common {
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
     var infix: Boolean = false
     def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
-    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+    def unapplySeq(t: AppliedTerm): Seq[Term] = t match {
       case AppliedTerm(label, args) if (label == this) => args
       case _ => Seq.empty
     }
@@ -548,7 +548,7 @@ trait Common {
   case class SchematicPredicateLabel[N <: Arity](id: Identifier, arity: N) extends SchematicVarOrPredLabel with SchematicLabel[(Term ** N) |-> Formula] with ((Term ** N) |-> Formula) {
     val underlyingLabel: K.SchematicPredicateLabel = K.SchematicPredicateLabel(id, arity)
     def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
-    def unapplySeq(t:AppliedTerm): Seq[Term] = t match {
+    def unapplySeq(t: AppliedTerm): Seq[Term] = t match {
       case AppliedTerm(label, args) if (label == this) => args
       case _ => Seq.empty
     }
@@ -579,7 +579,7 @@ trait Common {
     val underlyingLabel: K.ConstantPredicateLabel = K.ConstantPredicateLabel(id, arity)
     private var infix = false
     def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
-    def unapplySeq(f:PredicateFormula): Seq[Term] = f match {
+    def unapplySeq(f: PredicateFormula): Seq[Term] = f match {
       case PredicateFormula(label, args) if (label == this) => args
       case _ => Seq.empty
     }
@@ -654,7 +654,7 @@ trait Common {
     }
     // def apply(args: Seq[Formula]): Formula = apply(args)
     def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
-    def unapplySeq(f:PredicateFormula): Seq[Term] = f match {
+    def unapplySeq(f: PredicateFormula): Seq[Term] = f match {
       case PredicateFormula(label, args) if (label == this) => args
       case _ => Seq.empty
     }
@@ -676,7 +676,7 @@ trait Common {
     def id: Identifier = underlyingLabel.id
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
-    def unapplySeq(f:ConnectorFormula): Seq[Formula] = f match {
+    def unapplySeq(f: ConnectorFormula): Seq[Formula] = f match {
       case ConnectorFormula(label, args) if (label == this) => args
       case _ => Seq.empty
     }

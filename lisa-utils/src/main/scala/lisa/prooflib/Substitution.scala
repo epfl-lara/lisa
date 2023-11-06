@@ -23,7 +23,7 @@ object Substitution {
     r match {
       case F.equality(_, _) => true
       case F.Iff(_, _) => true
-      case _ : Formula => false
+      case _: Formula => false
       case j: lib.JUSTIFICATION => j.statement.right.size == 1 && validRule(j.statement.right.head)
       case f: proof.Fact @unchecked => proof.sequentOfFact(f).right.size == 1 && validRule(proof.sequentOfFact(f).right.head)
       // case j: RunningTheory#Justification =>

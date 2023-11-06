@@ -178,9 +178,9 @@ trait ProofsHelpers {
       val f: F.Formula,
       j: JUSTIFICATION
   ) extends DEFINITION(line, file) {
-    def repr: String = 
+    def repr: String =
       s" ${if (withSorry) " Sorry" else ""} Definition of function symbol ${label(vars)} := the ${out} such that ${(out === label(vars)) <=> f})\n"
-    
+
     // val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
 
     lazy val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
@@ -289,7 +289,7 @@ trait ProofsHelpers {
       out: F.Variable,
       j: JUSTIFICATION
   ) extends FunctionDefinition[N](name, fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {
-    override def repr: String = 
+    override def repr: String =
       s" Definition of function symbol ${label(lambda.bounds.asInstanceOf)} := ${lambda.body}${if (j.withSorry) " (!! Relies on Sorry)" else ""}\n"
 
   }
@@ -309,7 +309,7 @@ trait ProofsHelpers {
 
   class PredicateDefinition[N <: F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)(val lambda: LambdaExpression[Term, Formula, N])
       extends DEFINITION(line, file) {
-    override def repr: String = 
+    override def repr: String =
       s" Definition of predicate symbol ${label(lambda.bounds.asInstanceOf)} := ${lambda.body}"
     lazy val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity
