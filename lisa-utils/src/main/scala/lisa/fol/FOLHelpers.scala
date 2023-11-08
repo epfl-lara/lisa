@@ -65,7 +65,7 @@ object FOLHelpers {
     case n: 0 => Constant(cfl.id)
     case n: N => ConstantFunctionLabel[N](cfl.id, n)
   def asFrontLabel(stl: K.SchematicTermLabel): SchematicTermLabel = stl match
-    case v: K.VariableLabel => asFrontLabel(stl)
+    case v: K.VariableLabel => asFrontLabel(v)
     case v: K.SchematicFunctionLabel => asFrontLabel(v)
   def asFrontLabel[N <: Arity](sfl: K.SchematicFunctionLabel): SchematicFunctionLabel[N] =
     SchematicFunctionLabel(sfl.id, sfl.arity.asInstanceOf)

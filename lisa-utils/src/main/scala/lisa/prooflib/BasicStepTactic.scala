@@ -68,9 +68,9 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of first premise does not contain φ as claimed.")
       else if (!K.contains(rightSequent.left, phiK))
         proof.InvalidProofTactic("Left-hand side of second premise does not contain φ as claimed.")
-      else if (!K.isSameSet(botK.left + phiK, leftSequent.left ++ rightSequent.left))
+      else if (!K.isSameSet(botK.left + phiK, leftSequent.left ++ rightSequent.left) || (leftSequent.left.contains(phiK) && !botK.left.contains(phiK)))
         proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(botK.right + phiK, leftSequent.right ++ rightSequent.right))
+      else if (!K.isSameSet(botK.right + phiK, leftSequent.right ++ rightSequent.right) || (rightSequent.right.contains(phiK) && !botK.right.contains(phiK)))
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
       else
         proof.ValidProofTactic(bot, Seq(K.Cut(botK, -1, -2, phiK)), Seq(prem1, prem2))
@@ -166,7 +166,10 @@ object BasicStepTactic {
         proof.InvalidProofTactic(s"Premises and disjuncts expected to be equal in number, but ${premises.length} premises and ${disjuncts.length} disjuncts received.")
       else if (!K.isSameSet(botK.right, premiseSequents.map(_.right).reduce(_ union _)))
         proof.InvalidProofTactic("Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
-      else if (!K.isSameSet(disjunctsK.foldLeft(botK.left)(_ + _), premiseSequents.map(_.left).reduce(_ union _) + disjunction))
+      else if (
+        premiseSequents.zip(disjunctsK).forall((sequent, disjunct) => K.isSubset(sequent.left, botK.left + disjunct)) // \forall i. premise_i.left \subset bot.left + phi_i
+        && !K.isSubset(botK.left, premiseSequents.map(_.left).reduce(_ union _) + disjunction) // bot.left \subseteq \bigcup premise_i.left
+      )
         proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftOr(botK, Range(-1, -premises.length - 1, -1), disjunctsK)), premises.toSeq)
@@ -561,7 +564,10 @@ object BasicStepTactic {
         proof.InvalidProofTactic(s"Premises and conjuncts expected to be equal in number, but ${premises.length} premises and ${conjuncts.length} conjuncts received.")
       else if (!K.isSameSet(botK.left, premiseSequents.map(_.left).reduce(_ union _)))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(conjunctsK.foldLeft(botK.right)(_ + _), premiseSequents.map(_.right).reduce(_ union _) + conjunction))
+      else if (
+        premiseSequents.zip(conjunctsK).forall((sequent, conjunct) => K.isSubset(sequent.right, botK.right + conjunct)) // \forall i. premise_i.right \subset bot.right + phi_i
+        && !K.isSubset(botK.right, premiseSequents.map(_.right).reduce(_ union _) + conjunction) // bot.right \subseteq \bigcup premise_i.right
+      )
         proof.InvalidProofTactic("Right-hand side of conclusion + conjuncts is not the same as the union of the right-hand sides of the premises + φ∧ψ....")
       else
         proof.ValidProofTactic(bot, Seq(K.RightAnd(botK, Range(-1, -premises.length - 1, -1), conjunctsK)), premises)
@@ -692,8 +698,21 @@ object BasicStepTactic {
 
       if (!K.isSameSet(botK.left, leftSequent.left union rightSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(botK.right + impLeft + impRight, leftSequent.right union rightSequent.right + implication))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises + φ⇔ψ.")
+      else if (!K.isSubset(leftSequent.right, botK.right + impLeft))
+        proof.InvalidProofTactic(
+          "Conclusion is missing the following formulas from the left premise: " + (leftSequent.right -- botK.right).map(f => s"[${FOLPrinter.prettyFormula(f)}]").reduce(_ ++ ", " ++ _)
+        )
+      else if (!K.isSubset(rightSequent.right, botK.right + impRight))
+        proof.InvalidProofTactic(
+          "Conclusion is missing the following formulas from the right premise: " + (rightSequent.right -- botK.right).map(f => s"[${FOLPrinter.prettyFormula(f)}]").reduce(_ ++ ", " ++ _)
+        )
+      else if (!K.isSubset(botK.right, leftSequent.right union rightSequent.right + implication))
+        proof.InvalidProofTactic(
+          "Conclusion has extraneous formulas apart from premises and implication: " ++ (botK.right
+            .removedAll(leftSequent.right union rightSequent.right + implication))
+            .map(f => s"[${FOLPrinter.prettyFormula(f)}]")
+            .reduce(_ ++ ", " ++ _)
+        )
       else
         proof.ValidProofTactic(bot, Seq(K.RightIff(botK, -1, -2, phiK, psiK)), Seq(prem1, prem2))
     }
@@ -1335,25 +1354,34 @@ object BasicStepTactic {
       proof.ValidProofTactic(res, Seq(K.InstSchema(botK, -1, mConK, mPredK, mTermK)), Seq(premise))
     }
   }
+  object Subproof extends ProofTactic {
+    def apply(using proof: Library#Proof)(statement: Option[F.Sequent])(iProof: proof.InnerProof) = {
+      val bot: Option[F.Sequent] = statement
+      val botK: Option[K.Sequent] = statement map (_.underlying)
+      if (iProof.length == 0) throw (new UnimplementedProof(proof.owningTheorem))
+      val scproof: K.SCProof = iProof.toSCProof
+      val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
+      val judgement: proof.ProofTacticJudgement = {
+        if (botK.isEmpty)
+          proof.ValidProofTactic(iProof.mostRecentStep.bot, scproof.steps, premises)
+        else if (!K.isSameSequent(botK.get, scproof.conclusion))
+          proof.InvalidProofTactic(
+            s"The subproof does not prove the desired conclusion.\n\tExpected: ${FOLPrinter.prettySequent(botK.get)}\n\tObtained: ${FOLPrinter.prettySequent(scproof.conclusion)}"
+          )
+        else
+          proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
+      }
+      judgement
+    }
+  }
 
-  class SUBPROOF(using val proof: Library#Proof)(statement: Option[F.Sequent])(computeProof: proof.InnerProof ?=> Unit) extends ProofTactic {
+  class SUBPROOF(using val proof: Library#Proof)(statement: Option[F.Sequent])(val iProof: proof.InnerProof) extends ProofTactic {
     val bot: Option[F.Sequent] = statement
     val botK: Option[K.Sequent] = statement map (_.underlying)
+    if (iProof.length == 0)
+      throw (new UnimplementedProof(proof.owningTheorem))
+    val scproof: K.SCProof = iProof.toSCProof
 
-    val iProof: proof.InnerProof = new proof.InnerProof(statement.asInstanceOf)
-    val scproof: K.SCProof = {
-      try {
-        computeProof(using iProof)
-      } catch {
-        case e: NotImplementedError =>
-          throw (new UnimplementedProof(proof.owningTheorem))
-        case e: UserLisaException =>
-          throw (e)
-      }
-      if (iProof.length == 0)
-        throw (new UnimplementedProof(proof.owningTheorem))
-      iProof.toSCProof
-    }
     val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
     def judgement: proof.ProofTacticJudgement = {
       if (botK.isEmpty)
@@ -1365,20 +1393,17 @@ object BasicStepTactic {
     }
   }
 
+  // TODO make specific support for subproofs written inside tactics.
+
+  inline def TacticSubproof(using proof: Library#Proof)(inline computeProof: proof.InnerProof ?=> Unit): proof.ProofTacticJudgement =
+    val iProof: proof.InnerProof = new proof.InnerProof(None)
+    computeProof(using iProof)
+    SUBPROOF(using proof)(None)(iProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
+
   object Sorry extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       proof.ValidProofTactic(bot, Seq(K.Sorry(bot.underlying)), Seq())
     }
   }
-
-  // TODO make specific support for subproofs written inside tactics.
-
-  def TacticSubproof(using proof: Library#Proof)(computeProof: proof.InnerProof ?=> Unit) =
-    SUBPROOF(using proof)(None)(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
-
-  /*
-  def TacticSubproof(using proof: Library#Proof)(botK: Option[Sequent])(computeProof: proof.InnerProof ?=> Unit) =
-    SUBPROOF(using proof)(Some(botK))(computeProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
-   */
 
 }

@@ -60,8 +60,8 @@ object SCProofChecker {
            *       Γ, Σ |- Δ, Π
            */
           case Cut(b, t1, t2, phi) =>
-            if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left))
-              if (isSameSet(b.right + phi, ref(t2).right union ref(t1).right))
+            if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left) && (!contains(ref(t1).left, phi) || contains(b.left, phi)))
+              if (isSameSet(b.right + phi, ref(t2).right union ref(t1).right) && (!contains(ref(t2).right, phi) || contains(b.right, phi)))
                 if (contains(ref(t2).left, phi))
                   if (contains(ref(t1).right, phi))
                     SCValidProof(SCProof(step))
@@ -95,7 +95,11 @@ object SCProofChecker {
           case LeftOr(b, t, disjuncts) =>
             if (isSameSet(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _))) {
               val phiOrPsi = ConnectorFormula(Or, disjuncts)
-              if (isSameSet(disjuncts.foldLeft(b.left)(_ + _), t.map(ref(_).left).fold(Set.empty)(_ union _) + phiOrPsi))
+              if (
+                t.zip(disjuncts).forall { case (s, phi) => isSubset(ref(s).left, b.left + phi) } &&
+                isSubset(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _) + phiOrPsi)
+                )
+
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
             } else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
@@ -192,7 +196,11 @@ object SCProofChecker {
           case RightAnd(b, t, cunjuncts) =>
             val phiAndPsi = ConnectorFormula(And, cunjuncts)
             if (isSameSet(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _)))
-              if (isSameSet(cunjuncts.foldLeft(b.right)(_ + _), t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi))
+              if (
+                t.zip(cunjuncts).forall { case (s, phi) => isSubset(ref(s).right, b.right + phi) } &&
+                isSubset(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi)
+                //isSameSet(cunjuncts.foldLeft(b.right)(_ + _), t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi)
+                )
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises φ∧ψ.")
             else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
@@ -225,16 +233,20 @@ object SCProofChecker {
               else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ⇒ψ.")
             else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + psi must be same as left-hand side of premise.")
           /*
-           *  Γ |- a⇒ψ, Δ    Σ |- ψ⇒φ, Π
+           *  Γ |- φ⇒ψ, Δ    Σ |- ψ⇒φ, Π
            * ----------------------------
-           *      Γ, Σ |- φ⇔b, Π, Δ
+           *      Γ, Σ |- φ⇔ψ, Π, Δ
            */
           case RightIff(b, t1, t2, phi, psi) =>
             val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
             val psiImpPhi = ConnectorFormula(Implies, Seq(psi, phi))
             val phiIffPsi = ConnectorFormula(Iff, Seq(phi, psi))
             if (isSameSet(b.left, ref(t1).left union ref(t2).left))
-              if (isSameSet(b.right + phiImpPsi + psiImpPhi, ref(t1).right union ref(t2).right + phiIffPsi))
+              if (
+                isSubset(ref(t1).right, b.right + phiImpPsi) &&
+                isSubset(ref(t2).right, b.right + psiImpPhi) &&
+                isSubset(b.right, ref(t1).right union ref(t2).right + phiIffPsi)
+                )
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + a⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises φ⇔b.")
             else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")

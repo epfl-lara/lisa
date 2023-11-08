@@ -160,12 +160,12 @@ object SimpleDeducedSteps {
 
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       try {
-        val sp = new BasicStepTactic.SUBPROOF(using proof)(Some(bot))({
+        val sp = TacticSubproof {
           // lazy val premiseSequent = proof.getSequent(premise)
-          val s1 = proof.library.have(bot +<< bot.right.head) by Restate
-          proof.library.have(bot) by LeftForall(s1)
-        })
-        BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
+          val s1 = lib.have(bot +<< bot.right.head) by Restate
+          lib.have(bot) by LeftForall(s1)
+        }
+        BasicStepTactic.unwrapTactic(sp)("Subproof substitution fail.")
       } catch {
         case e: Exception => proof.InvalidProofTactic("Impossible to justify desired step with instantiation.")
       }

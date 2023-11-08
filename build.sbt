@@ -1,41 +1,37 @@
-inThisBuild(
-  Def.settings(
-    organization := "ch.epfl.lara",
-    organizationName := "LARA",
-    organizationHomepage := Some(url("https://lara.epfl.ch")),
-    licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")),
-    versionScheme := Some("semver-spec"),
-    scalacOptions ++= Seq(
+ThisBuild / version      := "0.6"
+ThisBuild / homepage := Some(url("https://github.com/epfl-lara/lisa"))
+ThisBuild / startYear := Some(2021)
+ThisBuild / organization := "ch.epfl.lara"
+ThisBuild / organizationName := "LARA"
+ThisBuild / organizationHomepage := Some(url("https://lara.epfl.ch"))
+ThisBuild / licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
+ThisBuild / versionScheme := Some("semver-spec")
+ThisBuild / scalacOptions ++= Seq(
       "-feature",
       "-deprecation",
       "-unchecked"
-    ),
-    javacOptions ++= Seq("-encoding", "UTF-8"),
-    semanticdbEnabled := true,
-    semanticdbVersion := scalafixSemanticdb.revision,
-    scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
-  )
-)
+    )
+ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
+
 
 
 val commonSettings = Seq(
-  version            := "0.6",
   crossScalaVersions := Seq("2.12.13", "2.13.4", "3.0.1", "3.2.0"),
-  organization       := "ch.epfl.lara",
-  scalacOptions     ++= Seq("-Ximport-suggestion-timeout", "0")
+  run / fork := true
 )
 
 
 val scala2 = "2.13.8"
 val scala3 = "3.2.2"
 
-fork := true
-
-val commonSettings2 = Seq(
+val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
   scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
 )
-val commonSettings3 = Seq(
+val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
@@ -56,9 +52,11 @@ def withTests(project: Project): ClasspathDependency =
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
 lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "6434e21bd08872cf547c8f0efb67c963bfdf4190")
+
 lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
-// lazy val princess = RootProject(file("../princess")) // If you have a local copy of Princess and would like to do some changes
-//lazy val princess = githubProject("https://github.com/uuverifiers/princess.git", "93cbff11d7b02903e532c7b64207bc12f19b79c7")
+
+scallion/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
+silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 
 lazy val root = Project(
     id = "lisa",

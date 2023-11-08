@@ -71,7 +71,7 @@ object SetTheoryTactics {
        * import  ∃ z. t ∈ z <=> (t ∈ x /\ P(t, x)) |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))     Unique by Extension [[uniqueByExtension]] Instantiation
        * have    () |- ∃! z. t ∈ z <=> (t ∈ x /\ P(t, x))                                    Cut
        */
-      val sp = SUBPROOF(using proof)(Some(botWithAssumptions)) { // TODO check if isInstanceOf first
+      val sp = TacticSubproof { // TODO check if isInstanceOf first
         val existence = have(() |- exists(t1, fprop(t1))) by Weakening(comprehensionSchema of (z -> originalSet, φ -> separationPredicate))
 
         val existsToUnique = have(exists(t1, fprop(t1)) |- existsOne(t1, fprop(t1))) by Weakening(SetTheory.uniqueByExtension of schemPred -> lambda(t2, prop))
@@ -81,7 +81,7 @@ object SetTheoryTactics {
       }
 
       // safely check, unwrap, and return the proof judgement
-      unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof for unique comprehension failed.")
+      unwrapTactic(sp)("Subproof for unique comprehension failed.")
     }
   }
 
