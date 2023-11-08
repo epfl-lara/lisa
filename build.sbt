@@ -103,11 +103,3 @@ lazy val examples = Project(
   .settings(commonSettings)
   .settings(commonSettings3)
   .dependsOn(root)
-
-lazy val lab04 = Project(
-  id = "fv-lab04",
-  base = file("fv-lab04")
-)
-  .settings(commonSettings)
-  .settings(commonSettings3)
-  .dependsOn(root)
