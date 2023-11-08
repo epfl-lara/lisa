@@ -698,8 +698,12 @@ object BasicStepTactic {
 
       if (!K.isSameSet(botK.left, leftSequent.left union rightSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(botK.right + impLeft + impRight, leftSequent.right union rightSequent.right + implication))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises + φ⇔ψ.")
+      else if (!K.isSubset(leftSequent.right, botK.right + impLeft))
+        proof.InvalidProofTactic("Conclusion is missing the following formulas from the left premise: " + (leftSequent.right -- botK.right).map(f => s"[${FOLPrinter.prettyFormula(f)}]").reduce(_ ++ ", " ++ _))
+      else if (!K.isSubset(rightSequent.right, botK.right + impRight))
+        proof.InvalidProofTactic("Conclusion is missing the following formulas from the right premise: " + (rightSequent.right -- botK.right).map(f => s"[${FOLPrinter.prettyFormula(f)}]").reduce(_ ++ ", " ++ _))
+      else if (!K.isSubset(botK.right, leftSequent.right union rightSequent.right + implication))
+        proof.InvalidProofTactic("Conclusion has extraneous formulas apart from premises and implication: " ++ (botK.right.removedAll(leftSequent.right union rightSequent.right + implication)).map(f => s"[${FOLPrinter.prettyFormula(f)}]").reduce(_ ++ ", " ++ _))
       else
         proof.ValidProofTactic(bot, Seq(K.RightIff(botK, -1, -2, phiK, psiK)), Seq(prem1, prem2))
     }
