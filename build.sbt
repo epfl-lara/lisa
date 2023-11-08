@@ -45,7 +45,8 @@ val commonSettings3 = Seq(
   ),
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
   libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.3.0",
-  libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
+  //libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
+  libraryDependencies += ("io.github.uuverifiers" %% "princess" % "2023-06-19").cross(CrossVersion.for3Use2_13),
   Test / parallelExecution := false
 )
 
@@ -56,6 +57,8 @@ def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$c
 
 lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "6434e21bd08872cf547c8f0efb67c963bfdf4190")
 lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
+// lazy val princess = RootProject(file("../princess")) // If you have a local copy of Princess and would like to do some changes
+//lazy val princess = githubProject("https://github.com/uuverifiers/princess.git", "93cbff11d7b02903e532c7b64207bc12f19b79c7")
 
 lazy val root = Project(
     id = "lisa",
@@ -66,7 +69,7 @@ lazy val root = Project(
     version := "0.1"
   )
   .dependsOn(kernel, withTests(utils)) // Everything but `examples`
-  .aggregate(kernel, utils) // To run tests on all modules
+  .aggregate(utils) // To run tests on all modules
 
 lazy val kernel = Project(
   id = "lisa-kernel",

@@ -21,7 +21,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
    * A formula is a tree whose nodes are either terms or labeled by predicates or logical connectors.
    */
   sealed trait Formula extends TreeWithLabel[FormulaLabel] {
-    private[fol] val uniqueNumber: Long = Formula.getNewId
+    val uniqueNumber: Long = Formula.getNewId
     private[fol] var polarFormula: Option[SimpleFormula] = None
     val arity: Int = label.arity
 

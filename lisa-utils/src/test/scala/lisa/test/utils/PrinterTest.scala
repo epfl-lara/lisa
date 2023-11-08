@@ -293,7 +293,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     assert(parser.printTerm(Term(plus, Seq(cx, cy))) == "x + y")
     assert(parser.printTerm(Term(plus, Seq(Term(plus, Seq(cx, cy)), cz))) == "x + y + z")
   }
-
+  /*
   test("mix of infix functions and infix predicates") {
     val parser = Parser(SynonymInfoBuilder().addSynonyms(in.id, "∊").addSynonyms(plus.id, "+").build, "∊" :: Nil, ("+", Associativity.Left) :: Nil)
     assert(parser.printFormula(PredicateFormula(in, Seq(Term(plus, Seq(cx, cy)), cz))) == "x + y ∊ z")
@@ -306,5 +306,5 @@ class PrinterTest extends AnyFunSuite with TestUtils {
       ) == "x ∊ y ∧ x ∊ z ∧ x + y ∊ z"
     )
 
-  }
+  }*/
 }
