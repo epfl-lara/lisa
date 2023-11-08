@@ -21,13 +21,13 @@ import F.|-
 object Substitution {
   def validRule(using lib: lisa.prooflib.Library, proof: lib.Proof)(r: (proof.Fact | F.Formula | lib.JUSTIFICATION)): Boolean =
     r match {
-      case F.equality(_) => true
-      case F.Iff(_) => true
+      case F.equality(_, _) => true
+      case F.Iff(_, _) => true
+      case _: Formula => false
       case j: lib.JUSTIFICATION => j.statement.right.size == 1 && validRule(j.statement.right.head)
       case f: proof.Fact @unchecked => proof.sequentOfFact(f).right.size == 1 && validRule(proof.sequentOfFact(f).right.head)
       // case j: RunningTheory#Justification =>
       //  proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.size == 1 && validRule(proof.sequentOfFact(j.asInstanceOf[lib.theory.Justification]).right.head)
-      case _ => false
     }
 
   object ApplyRules extends ProofTactic {
@@ -565,13 +565,13 @@ object Substitution {
         case f: proof.Fact =>
           val seq = proof.getSequent(f)
           val phi = seq.right.head
-          val sp = new BasicStepTactic.SUBPROOF(using proof)(None)({
+          val sp = TacticSubproof {
             val x = applyLeftRight(phi)(premise)(rightLeft, toLeft, toRight)
             proof.library.have(x)
             proof.library.andThen(SimpleDeducedSteps.Discharge(f))
-          })
+          }
 
-          BasicStepTactic.unwrapTactic(sp.judgement.asInstanceOf[proof.ProofTacticJudgement])("Subproof substitution fail.")
+          BasicStepTactic.unwrapTactic(sp)("Subproof substitution fail.")
       }
 
     }
