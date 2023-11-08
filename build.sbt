@@ -46,7 +46,8 @@ val commonSettings3 = Seq(
   ),
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
   libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.3.0",
-  libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
+  //libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
+  libraryDependencies += ("io.github.uuverifiers" %% "princess" % "2023-06-19").cross(CrossVersion.for3Use2_13),
   Test / parallelExecution := false
 )
 
@@ -56,9 +57,7 @@ def withTests(project: Project): ClasspathDependency =
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
 lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "6434e21bd08872cf547c8f0efb67c963bfdf4190")
-//.settings(
-//  scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
-//)
+
 lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
 scallion/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
@@ -72,7 +71,7 @@ lazy val root = Project(
     version := "0.1"
   )
   .dependsOn(kernel, withTests(utils)) // Everything but `examples`
-  .aggregate(kernel, utils) // To run tests on all modules
+  .aggregate(utils) // To run tests on all modules
 
 lazy val kernel = Project(
   id = "lisa-kernel",
