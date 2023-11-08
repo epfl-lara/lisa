@@ -363,11 +363,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       )
       proof.map(proo =>
         if needed == true then
-//<<<<<<< HEAD
           val sequent = ((proo.reverse.zip(list).flatMap((proof, bf) => proof.bot.left - bf._2).toSet + branch.beta.head) |- ())
-//=======
- //         val sequent = ((proo.flatMap(_.bot.left).toSet -- list.map(_._2)) |- ()) +<< branch.beta.head
-//>>>>>>> cmain
           (LeftOr(sequent, treversed.reverse, branch.beta.head.args) :: proo, treversed.size)
         else (proo, proo.size - 1)
       )
