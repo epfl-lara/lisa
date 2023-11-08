@@ -68,9 +68,9 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of first premise does not contain φ as claimed.")
       else if (!K.contains(rightSequent.left, phiK))
         proof.InvalidProofTactic("Left-hand side of second premise does not contain φ as claimed.")
-      else if (!K.isSameSet(botK.left + phiK, leftSequent.left ++ rightSequent.left))
+      else if (!K.isSameSet(botK.left + phiK, leftSequent.left ++ rightSequent.left) || (leftSequent.left.contains(phiK) && !botK.left.contains(phiK)))
         proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(botK.right + phiK, leftSequent.right ++ rightSequent.right))
+      else if (!K.isSameSet(botK.right + phiK, leftSequent.right ++ rightSequent.right)|| (rightSequent.right.contains(phiK) && !botK.right.contains(phiK)))
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
       else
         proof.ValidProofTactic(bot, Seq(K.Cut(botK, -1, -2, phiK)), Seq(prem1, prem2))
