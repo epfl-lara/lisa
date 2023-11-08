@@ -166,7 +166,10 @@ object BasicStepTactic {
         proof.InvalidProofTactic(s"Premises and disjuncts expected to be equal in number, but ${premises.length} premises and ${disjuncts.length} disjuncts received.")
       else if (!K.isSameSet(botK.right, premiseSequents.map(_.right).reduce(_ union _)))
         proof.InvalidProofTactic("Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
-      else if (!K.isSameSet(disjunctsK.foldLeft(botK.left)(_ + _), premiseSequents.map(_.left).reduce(_ union _) + disjunction))
+      else if (
+          premiseSequents.zip(disjunctsK).forall((sequent, disjunct) => K.isSubset(sequent.left, botK.left + disjunct)) // \forall i. premise_i.left \subset bot.left + phi_i
+          && !K.isSubset(botK.left, premiseSequents.map(_.left).reduce(_ union _) + disjunction) // bot.left \subseteq \bigcup premise_i.left
+        )
         proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftOr(botK, Range(-1, -premises.length - 1, -1), disjunctsK)), premises.toSeq)
