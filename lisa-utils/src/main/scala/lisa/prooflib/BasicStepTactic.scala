@@ -68,9 +68,9 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of first premise does not contain φ as claimed.")
       else if (!K.contains(rightSequent.left, phiK))
         proof.InvalidProofTactic("Left-hand side of second premise does not contain φ as claimed.")
-      else if (!K.isSameSet(botK.left + phiK, leftSequent.left ++ rightSequent.left))
+      else if (!K.isSameSet(botK.left + phiK, leftSequent.left ++ rightSequent.left) || (leftSequent.left.contains(phiK) && !botK.left.contains(phiK)))
         proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(botK.right + phiK, leftSequent.right ++ rightSequent.right))
+      else if (!K.isSameSet(botK.right + phiK, leftSequent.right ++ rightSequent.right) || (rightSequent.right.contains(phiK) && !botK.right.contains(phiK)))
         proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
       else
         proof.ValidProofTactic(bot, Seq(K.Cut(botK, -1, -2, phiK)), Seq(prem1, prem2))
@@ -166,7 +166,10 @@ object BasicStepTactic {
         proof.InvalidProofTactic(s"Premises and disjuncts expected to be equal in number, but ${premises.length} premises and ${disjuncts.length} disjuncts received.")
       else if (!K.isSameSet(botK.right, premiseSequents.map(_.right).reduce(_ union _)))
         proof.InvalidProofTactic("Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
-      else if (!K.isSameSet(disjunctsK.foldLeft(botK.left)(_ + _), premiseSequents.map(_.left).reduce(_ union _) + disjunction))
+      else if (
+        premiseSequents.zip(disjunctsK).forall((sequent, disjunct) => K.isSubset(sequent.left, botK.left + disjunct)) // \forall i. premise_i.left \subset bot.left + phi_i
+        && !K.isSubset(botK.left, premiseSequents.map(_.left).reduce(_ union _) + disjunction) // bot.left \subseteq \bigcup premise_i.left
+      )
         proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftOr(botK, Range(-1, -premises.length - 1, -1), disjunctsK)), premises.toSeq)
@@ -561,7 +564,10 @@ object BasicStepTactic {
         proof.InvalidProofTactic(s"Premises and conjuncts expected to be equal in number, but ${premises.length} premises and ${conjuncts.length} conjuncts received.")
       else if (!K.isSameSet(botK.left, premiseSequents.map(_.left).reduce(_ union _)))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(conjunctsK.foldLeft(botK.right)(_ + _), premiseSequents.map(_.right).reduce(_ union _) + conjunction))
+      else if (
+        premiseSequents.zip(conjunctsK).forall((sequent, conjunct) => K.isSubset(sequent.right, botK.right + conjunct)) // \forall i. premise_i.right \subset bot.right + phi_i
+        && !K.isSubset(botK.right, premiseSequents.map(_.right).reduce(_ union _) + conjunction) // bot.right \subseteq \bigcup premise_i.right
+      )
         proof.InvalidProofTactic("Right-hand side of conclusion + conjuncts is not the same as the union of the right-hand sides of the premises + φ∧ψ....")
       else
         proof.ValidProofTactic(bot, Seq(K.RightAnd(botK, Range(-1, -premises.length - 1, -1), conjunctsK)), premises)
@@ -692,8 +698,21 @@ object BasicStepTactic {
 
       if (!K.isSameSet(botK.left, leftSequent.left union rightSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(botK.right + impLeft + impRight, leftSequent.right union rightSequent.right + implication))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises + φ⇔ψ.")
+      else if (!K.isSubset(leftSequent.right, botK.right + impLeft))
+        proof.InvalidProofTactic(
+          "Conclusion is missing the following formulas from the left premise: " + (leftSequent.right -- botK.right).map(f => s"[${FOLPrinter.prettyFormula(f)}]").reduce(_ ++ ", " ++ _)
+        )
+      else if (!K.isSubset(rightSequent.right, botK.right + impRight))
+        proof.InvalidProofTactic(
+          "Conclusion is missing the following formulas from the right premise: " + (rightSequent.right -- botK.right).map(f => s"[${FOLPrinter.prettyFormula(f)}]").reduce(_ ++ ", " ++ _)
+        )
+      else if (!K.isSubset(botK.right, leftSequent.right union rightSequent.right + implication))
+        proof.InvalidProofTactic(
+          "Conclusion has extraneous formulas apart from premises and implication: " ++ (botK.right
+            .removedAll(leftSequent.right union rightSequent.right + implication))
+            .map(f => s"[${FOLPrinter.prettyFormula(f)}]")
+            .reduce(_ ++ ", " ++ _)
+        )
       else
         proof.ValidProofTactic(bot, Seq(K.RightIff(botK, -1, -2, phiK, psiK)), Seq(prem1, prem2))
     }

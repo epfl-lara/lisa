@@ -2,6 +2,8 @@ import lisa.prooflib.Substitution.{ApplyRules as Substitute}
 
 object Example extends lisa.Main {
 
+
+
   val x = variable
   val y = variable
   val P = predicate[1]
@@ -67,10 +69,6 @@ object Example extends lisa.Main {
 
   val inductiveSet = DEF(x) --> in(∅, x) /\ forall(y, in(y, x) ==> in(succ(y), x))
   show
-
-
-
-
 
    */
 
