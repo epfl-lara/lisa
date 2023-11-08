@@ -71,10 +71,6 @@ object Example extends lisa.Main {
   val inductiveSet = DEF(x) --> in(∅, x) /\ forall(y, in(y, x) ==> in(succ(y), x))
   show
 
-
-
-
-
    */
 
   /*
