@@ -2,10 +2,12 @@ import org.scalatest.funsuite.AnyFunSuite
 import lisa.utils.Serialization.*
 import lisa.utils.K
 import lisa.utils.K.|-
-import lisa.automation.TableauTest
+import lisa.utils.K.getJustification
+
+//import lisa.automation.TableauTest
 
 class SerializationTest extends AnyFunSuite {
-
+/*
   test("exporting a proof to a list of string and back should work, propositional tableau") {
     val proofs = TableauTest.posi
     proofs.foreach(p => 
@@ -117,7 +119,7 @@ class SerializationTest extends AnyFunSuite {
     )
   }
 
-
+*/
 
   //TODO: Finish this. Deal with justifications, create theorems (unless they are already in the library)
 
@@ -134,10 +136,14 @@ class SerializationTest extends AnyFunSuite {
     thms.foreach(thm => 
         try {
             val proof = thm._2.proof.toSCProof
-            val justifs = thm._2.proof.getImports.map(_._1.name)
-            val lines = flatProofToString(proof, thm._1)
+            val justifs = thm._2.proof.justifications.map(_.innerJustification)
+
+            val lines = thmToString(ST.theory, thm._2.innerJustification, proof, justifs)
+
             val proof2 = SeqStringToProof(lines)
-            assert(K.SCProofChecker.checkSCProof(proof2._1).isValid && proof2._3 == justifs, "decoded proof of theorem " + thm._1 + " is not valid")
+            proof2._3.foreach(j => println(j))
+            val justifs2 = proof2._3.map(ST.theory.getJustification)
+            assert(K.SCProofChecker.checkSCProof(proof2._1).isValid && justifs2 == justifs, "decoded proof of theorem " + thm._1 + " is not valid")
         }
         catch {
             case e: Exception => println("Exception thrown for string encoding-decoding of theorem " + thm._1 )

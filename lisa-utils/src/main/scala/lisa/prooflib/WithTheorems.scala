@@ -269,6 +269,8 @@ trait WithTheorems {
     override inline def asOutsideFact(j: JUSTIFICATION): OutsideFact = j
 
     override def sequentOfOutsideFact(j: JUSTIFICATION): F.Sequent = j.statement
+
+    def justifications:List[JUSTIFICATION] = getImports.map(_._1)
   }
 
   sealed abstract class JUSTIFICATION {

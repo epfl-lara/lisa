@@ -7,6 +7,20 @@ object Serialization {
 
     type Line = Int
 
+    def termLabelToString(label: TermLabel): String = 
+        label match 
+            case l: ConstantFunctionLabel =>  "cfl_" + l.id.name + "_" + l.id.no + "_" + l.arity
+            case l: SchematicFunctionLabel => "sfl_" + l.id.name + "_" + l.id.no + "_" + l.arity
+            case l: VariableLabel =>          "vl_" + l.id.name + "_" + l.id.no
+
+    def formulaLabelToString(label:FormulaLabel): String = 
+        label match 
+            case l: ConstantPredicateLabel =>  "cpl_" + l.id.name + "_" + l.id.no + "_" + l.arity
+            case l: SchematicPredicateLabel => "spl_" + l.id.name + "_" + l.id.no + "_" + l.arity
+            case l: ConstantConnectorLabel =>  "ccl_" + l.id.name + "_" + l.id.no + "_" + l.arity
+            case l: SchematicConnectorLabel => "scl_" + l.id.name + "_" + l.id.no + "_" + l.arity
+            case l: VariableFormulaLabel =>  "vfl_" + l.id.name + "_" + l.id.no
+            case l: BinderLabel => "bl_" + l.id.name + "_"+ l.id.no
 
     def proofToStringSeq(proof: SCProof, thmName:String, justifications: List[String]): Seq[String] = {
 
@@ -18,20 +32,7 @@ object Serialization {
         val formulaMap = MutMap[Long, Line]()
 
         
-        def termLabelToString(label: TermLabel): String = 
-            label match 
-                case l: ConstantFunctionLabel =>  "cfl_" + l.id.name + "_" + l.id.no + "_" + l.arity
-                case l: SchematicFunctionLabel => "sfl_" + l.id.name + "_" + l.id.no + "_" + l.arity
-                case l: VariableLabel =>          "vl_" + l.id.name + "_" + l.id.no
-
-        def formulaLabelToString(label:FormulaLabel): String = 
-            label match 
-                case l: ConstantPredicateLabel =>  "cpl_" + l.id.name + "_" + l.id.no + "_" + l.arity
-                case l: SchematicPredicateLabel => "spl_" + l.id.name + "_" + l.id.no + "_" + l.arity
-                case l: ConstantConnectorLabel =>  "ccl_" + l.id.name + "_" + l.id.no + "_" + l.arity
-                case l: SchematicConnectorLabel => "scl_" + l.id.name + "_" + l.id.no + "_" + l.arity
-                case l: VariableFormulaLabel =>  "vfl_" + l.id.name + "_" + l.id.no
-                case l: BinderLabel => "bl_" + l.id.name + "_"+ l.id.no
+        
 
         def lineOfTerm(term: Term): Line = 
             termMap.get(term.uniqueNumber) match 
@@ -311,7 +312,20 @@ object Serialization {
       * @param thmName
       * @return
       */
-    def flatProofToString(proof: SCProof, thmName:String, justifications: List[String]) = proofToStringSeq(minimizeProofOnce(proof), thmName, justifications)
+    def flatProofToString(proof: SCProof, thmName:String, justifications: List[String]) = 
+        proofToStringSeq(minimizeProofOnce(proof), thmName, justifications)
+
+
+
+    def thmToString(theory:RunningTheory, thm: theory.Theorem, proof:SCProof, justifications: List[theory.Justification]): Seq[String] = {
+        val justNames = justifications.map {
+            case theory.Axiom(name, ax) => "a_"+name
+            case theory.Theorem(name, proposition, withSorry) => "t_"+name
+            case theory.FunctionDefinition(label, out, expression, withSorry) => "f_"+termLabelToString(label)
+            case theory.PredicateDefinition(label, expression) => "p_"+formulaLabelToString(label)
+        }
+        flatProofToString(proof, thm.name, justNames)
+    }
 
 
     def main(args: Array[String]): Unit = {
@@ -320,19 +334,21 @@ object Serialization {
         val x = VariableLabel("x")
         val y = VariableLabel("y")
         val z = VariableLabel("z")
-        val a = PredicateFormula(ConstantPredicateLabel("A", 0), Seq())
+        val a = PredicateFormula(ConstantPredicateLabel("Aadé", 0), Seq())
         val b = PredicateFormula(ConstantPredicateLabel("B", 0), Seq())
         val fp = ConstantPredicateLabel("F", 1)
         val sT = VariableLabel("t")
         val phi = formulaVariable()
         val psi = formulaVariable()
-        val PierceLaw = SCProof(
+        val PierceLaw = SCProof(IndexedSeq(
             Hypothesis(phi |- phi, phi),
             Weakening(phi |- (phi, psi), 0),
             RightImplies(() |- (phi, phi ==> psi), 1, phi, psi),
             LeftImplies((phi ==> psi) ==> phi |- phi, 2, 0, (phi ==> psi), phi),
             RightImplies(() |- ((phi ==> psi) ==> phi) ==> phi, 3, (phi ==> psi) ==> phi, phi)
-            )
+            ),
+            IndexedSeq()
+        )
 
         val t0 = Hypothesis(fp(x) |- fp(x), fp(x))
         val t1 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, List((x, y)), LambdaTermFormula(Seq(sT), fp(sT)))
