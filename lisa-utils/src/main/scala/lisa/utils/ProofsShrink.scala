@@ -299,4 +299,6 @@ object ProofsShrink {
     optimizeFixedPoint(flattenProof(proof))
   }
 
+
+  def minimizeProofOnce(proof:SCProof): SCProof = deadStepsElimination(factorProof(simplifyProof(flattenProof(proof))))
 }

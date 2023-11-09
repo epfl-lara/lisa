@@ -38,6 +38,7 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
    */
   sealed case class Term(label: TermLabel, args: Seq[Term]) extends TreeWithLabel[TermLabel] {
     require(label.arity == args.size)
+    val uniqueNumber: Long = TermCounters.getNewId
     val arity: Int = label.arity
 
     override def freeVariables: Set[VariableLabel] = label match {
@@ -54,6 +55,13 @@ private[fol] trait TermDefinitions extends TermLabelDefinitions {
       case l: SchematicTermLabel => args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.schematicTermLabels) + l
     }
     override def freeSchematicTermLabels: Set[SchematicTermLabel] = schematicTermLabels
+  }
+  private object TermCounters {
+    var totalNumberOfTerms: Long = 0
+    def getNewId: Long = {
+      totalNumberOfTerms += 1
+      totalNumberOfTerms
+    }
   }
 
   /**
