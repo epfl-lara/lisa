@@ -23,7 +23,6 @@ class TableauTest extends AnyFunSuite {
   }
 
 
-
   test(s"First Order Quantifier Free Positive cases (${posqf.size})"){
     assert(posqf.forall(_._3), posqf.map((i, f, b, proof, judg) => (s"$i $b" + (if !b then s" $f" else ""))).mkString("\n"))
     if posqf.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then

@@ -291,7 +291,7 @@ trait ProofsHelpers {
       // THM(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
       val intName = "definition_" + fullName
       val out = Variable(freshId(lambda.allSchematicLabels.map(_.id), "y"))
-      val defThm = new THM(F.ExistsOne(out, out === lambda.body), intName, line, file, InternalStatement)({
+      val defThm = THM(F.ExistsOne(out, out === lambda.body), intName, line, file, InternalStatement)({
         have(SimpleDeducedSteps.simpleFunctionDefinition(lambda, out))
       })
       new SimpleFunctionDefinition[N](name, fullName, line, file)(lambda, out, defThm)

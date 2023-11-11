@@ -262,7 +262,7 @@ trait WithTheorems {
     }
   }
 
-  sealed class BaseProof(val owningTheorem: THM) extends Proof(Nil) {
+  sealed class BaseProof(val owningTheorem: THMFromProof) extends Proof(Nil) {
     val goal: F.Sequent = owningTheorem.goal
     val possibleGoal: Option[F.Sequent] = Some(goal)
     type OutsideFact = JUSTIFICATION
@@ -310,16 +310,64 @@ trait WithTheorems {
 
   }
 
-  class THM(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit) extends JUSTIFICATION {
+  sealed abstract class THM extends JUSTIFICATION {
+    
+    def kernelProof: Option[K.SCProof]
+    def highProof: Option[BaseProof]
+    val innerJustification: theory.Theorem
+    def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(statement.underlying)
+    val name: String
+  }
+  object THM {
+    def apply(using om: OutputManager)(statement: F.Sequent, fullName: String, line: Int, file: String, kind: TheoremKind)(computeProof: Proof ?=> Unit) = 
+      THMFromProof(statement, fullName, line, file, kind)(computeProof)
+    
+    def fromKernel(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, innerThm : theory.Theorem, getProof: () => Option[K.SCProof]) = 
+      THMFromKernel(statement, fullName, kind, innerThm, getProof)
+
+    def fromSCProof(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, getProof: () => K.SCProof, justifs:Seq[theory.Justification]): THM = 
+      val proof = getProof()
+      theory.theorem(fullName, statement.underlying, proof, justifs) match {
+        case K.Judgement.ValidJustification(just) =>
+          fromKernel(statement, fullName, kind, just.asInstanceOf, () => Some(getProof()))
+        case wrongJudgement: K.Judgement.InvalidJustification[?] =>
+          om.lisaThrow(
+            LisaException.InvalidKernelJustificationComputation(
+              "The proof was rejected by LISA's logical kernel. ",
+              wrongJudgement,
+              None
+            )
+          )
+      }
+
+
+  }
+
+  class THMFromKernel (using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm : theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
+
+    
+    def repr: String = innerJustification.repr
+    val innerJustification: theory.Theorem = innerThm
+    def kernelProof: Option[K.SCProof] = getProof()
+    def highProof: Option[BaseProof] = None
+
+    val goal: F.Sequent = statement
+    val name: String = fullName //could change in the future
+
+
+
+  }
+
+  class THMFromProof(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit) extends THM {
 
     val goal: F.Sequent = statement
     val name: String = fullName
 
     val proof: BaseProof = new BaseProof(this)
+    def kernelProof: Option[K.SCProof] = Some(proof.toSCProof)
+    def highProof: Option[BaseProof] = Some(proof)
 
     val innerJustification: theory.Theorem = prove(computeProof)
-
-    def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(goal.underlying)
     def repr: String = innerJustification.repr
 
     private def prove(computeProof: Proof ?=> Unit): theory.Theorem = {
@@ -353,12 +401,13 @@ trait WithTheorems {
 
   }
 
+
   given thmConv: Conversion[library.THM, theory.Theorem] = _.innerJustification
 
   trait TheoremKind {
     val kind2: String
     def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
-      val thm = new THM(statement, name.value, line.value, file.value, this)(computeProof) {}
+      val thm = THM(statement, name.value, line.value, file.value, this)(computeProof) 
       if (this == Theorem) {
         show(thm)
       }

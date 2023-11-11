@@ -14,14 +14,24 @@ class SerializationTest extends AnyFunSuite {
 
   val theory = K.RunningTheory()
 
-  def test(proof:K.SCProof, name:String, theory: K.RunningTheory, justs: List[theory.Justification]): Unit = {
-    thmToFile("test", theory, name, proof, justs)
+
+  def test(proof:K.SCProof, name:String, theory: K.RunningTheory, justs: List[theory.Justification]) = {
+    thmToFile("test", theory, List((name, proof, justs)))
     val thm = thmFromFile("test", theory)
     File("test.trees").delete()
     File("test.proof").delete()
+    thm.head
   }
 
-  test("exporting a proof to a list of string and back should work, propositional tableau") {
+  def testMulti(theory: K.RunningTheory, thms: List[(String, K.SCProof, List[theory.Justification])]) = {
+    thmToFile("test", theory, thms)
+    val thm = thmFromFile("test", theory)
+    File("test.trees").delete()
+    File("test.proof").delete()
+    thm
+  }
+
+  test("exporting a proof to a file and back should work, propositional tableau") {
     val proofs = TableauTest.posi
     proofs.foreach(p => 
         try {
@@ -36,7 +46,7 @@ class SerializationTest extends AnyFunSuite {
     )
   }
 
-  test("exporting a proof to a list of string and back should work, propositional OL tautology") {
+  test("exporting a proof to a file and back should work, propositional OL tautology") {
     val proofs = TableauTest.posi
     proofs.foreach(p => 
         try {
@@ -55,7 +65,7 @@ class SerializationTest extends AnyFunSuite {
     )
   }
 
-  test("exporting a proof to a list of string and back should work, first order quantifier free tableau") {
+  test("exporting a proof to a file and back should work, first order quantifier free tableau") {
     val proofs = TableauTest.posqf
     proofs.foreach(p => 
         try {
@@ -70,7 +80,7 @@ class SerializationTest extends AnyFunSuite {
     )
   }
 
-  test("exporting a proof to a list of string and back should work, first order quantifier free OL tautology") {
+  test("exporting a proof to a file and back should work, first order quantifier free OL tautology") {
     val proofs = TableauTest.posqf
     proofs.foreach(p => 
         try {
@@ -89,7 +99,7 @@ class SerializationTest extends AnyFunSuite {
     )
   }
 
-  test("exporting a proof to a list of string and back should work, first order easy tableau") {
+  test("exporting a proof to a file and back should work, first order easy tableau") {
     val proofs = TableauTest.poseasy
     proofs.foreach(p => 
         try {
@@ -105,7 +115,7 @@ class SerializationTest extends AnyFunSuite {
     )
   }
 
-  test("exporting a proof to a list of string and back should work, first order hard tableau") {
+  test("exporting a proof to a file and back should work, first order hard tableau") {
     val proofs = TableauTest.poshard
     proofs.foreach(p => 
         try {
@@ -122,7 +132,7 @@ class SerializationTest extends AnyFunSuite {
 
 
 
-  test("exporting a proof to a list of string and back should work, with imports") {
+  test("exporting a proof to a file and back should work, with imports") {
     import lisa.mathematics.settheory.SetTheory as ST
     val thms = List(
         //("russelsParadox", ST.russelsParadox), 
@@ -133,8 +143,8 @@ class SerializationTest extends AnyFunSuite {
     )
     thms.foreach(thm => 
         try {
-            val proof = thm._2.proof.toSCProof
-            val justifs = thm._2.proof.justifications.map(_.innerJustification)
+            val proof = thm._2.kernelProof.get
+            val justifs = thm._2.highProof.get.justifications.map(_.innerJustification)
 
             test(proof, thm._1 + "_test", ST.theory, justifs)
         }
@@ -143,6 +153,31 @@ class SerializationTest extends AnyFunSuite {
                 throw e
         }
     )
+  }
+
+  test("exporting multiple theorems at once to a file and back should work") {
+    import lisa.mathematics.settheory.SetTheory as ST
+    val thms = List(
+        //("russelsParadox", ST.russelsParadox), 
+        ("setUnionMembership", ST.setUnionMembership), 
+        ("inductiveSetExists", ST.inductiveSetExists), 
+        ("setWithNoElementsIsEmpty", ST.setWithNoElementsIsEmpty), 
+        ("emptySetIsItsOwnOnlySubset", ST.emptySetIsItsOwnOnlySubset)
+    )
+
+    val thmBack = testMulti(ST.theory, thms.map(thm => 
+        val proof = thm._2.kernelProof.get
+        val justifs = thm._2.highProof.get.justifications.map(_.innerJustification)
+
+        (thm._1, proof, justifs)
+    ))
+    assert(thmBack.length == thms.length)
+    thmBack.zip(thms).foreach(pair => {
+        val thm = pair._1
+        val thmOrig = pair._2
+        assert(thm._1.name == thmOrig._1)
+        assert(thm._1.proposition == thmOrig._2.innerJustification.proposition)
+    })
   }
 
 
