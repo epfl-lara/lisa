@@ -287,8 +287,6 @@ trait ProofsHelpers {
 
   object SimpleFunctionDefinition {
     def apply[N <: F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {
-
-      // THM(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit)
       val intName = "definition_" + fullName
       val out = Variable(freshId(lambda.allSchematicLabels.map(_.id), "y"))
       val defThm = THM(F.ExistsOne(out, out === lambda.body), intName, line, file, InternalStatement)({

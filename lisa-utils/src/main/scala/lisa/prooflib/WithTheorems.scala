@@ -345,9 +345,11 @@ trait WithTheorems {
 
   class THMFromKernel (using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm : theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
 
+
     
     def repr: String = innerJustification.repr
     val innerJustification: theory.Theorem = innerThm
+    assert(innerThm.name == fullName)
     def kernelProof: Option[K.SCProof] = getProof()
     def highProof: Option[BaseProof] = None
 
@@ -367,15 +369,25 @@ trait WithTheorems {
     def kernelProof: Option[K.SCProof] = Some(proof.toSCProof)
     def highProof: Option[BaseProof] = Some(proof)
 
-    val innerJustification: theory.Theorem = prove(computeProof)
+    import lisa.utils.Serialization.*
+    val innerJustification: theory.Theorem = 
+      if library._withCache then
+        oneThmFromFile("cache/"+name, library.theory) match {
+          case Some(thm) => thm
+            
+          case None => 
+            val (thm, scp, justifs) = prove(computeProof)
+            thmsToFile("cache/"+name, theory,  List((name, scp, justifs)))
+            thm
+        }
+      else 
+        prove(computeProof)._1
     def repr: String = innerJustification.repr
 
-    private def prove(computeProof: Proof ?=> Unit): theory.Theorem = {
+    private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, SCProof, List[theory.Justification]) = {
       try {
         computeProof(using proof)
       } catch {
-        /*case e: NotImplementedError =>
-          om.lisaThrow(new UnimplementedProof(this))*/
         case e: UserLisaException =>
           om.lisaThrow(e)
       }
@@ -384,10 +396,11 @@ trait WithTheorems {
         om.lisaThrow(new UnimplementedProof(this))
 
       val scp = proof.toSCProof
-      theory.theorem(name, goal.underlying, scp, proof.getImports.map(_._1.innerJustification)) match {
+      val justifs = proof.getImports.map(_._1.innerJustification)
+      theory.theorem(name, goal.underlying, scp, justifs) match {
         case K.Judgement.ValidJustification(just) =>
           library.last = Some(this)
-          just
+          (just, scp, justifs)
         case wrongJudgement: K.Judgement.InvalidJustification[?] =>
           om.lisaThrow(
             LisaException.InvalidKernelJustificationComputation(
@@ -406,11 +419,11 @@ trait WithTheorems {
 
   trait TheoremKind {
     val kind2: String
+
     def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
       val thm = THM(statement, name.value, line.value, file.value, this)(computeProof) 
-      if (this == Theorem) {
+      if this == Theorem then
         show(thm)
-      }
       thm
     }
 

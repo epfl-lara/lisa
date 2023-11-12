@@ -6,6 +6,8 @@ import scala.collection.mutable.{Map => MutMap}
 import lisa.utils.K.*
 import lisa.utils.ProofsShrink.*
 
+
+
 object Serialization {
 
     inline def restate:Byte = 0
@@ -590,7 +592,9 @@ object Serialization {
                     val nl = j.tail
                     j(0) match
                         case 'a' => theory.getAxiom(nl).get
-                        case 't' => theory.getTheorem(nl).get
+                        case 't' => 
+                            println("nl: " + nl)
+                            theory.getTheorem(nl).get
                         case 'f' => 
                             nl.split("_") match
                                 case Array(name, no, arity) => theory.getDefinition(ConstantFunctionLabel(Identifier(name, no.toInt), arity.toInt)).get
@@ -608,7 +612,7 @@ object Serialization {
     }
 
 
-    def thmToFile(filename:String, theory:RunningTheory,theorems: List[(String, SCProof, List[theory.Justification])]): Unit = {
+    def thmsToFile(filename:String, theory:RunningTheory,theorems: List[(String, SCProof, List[theory.Justification])]): Unit = {
         val treesDOS = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(filename+".trees")))
         val proofDOS = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(filename+".proof")))
         thmsToDataStream(treesDOS, proofDOS, theory, theorems)
@@ -616,13 +620,27 @@ object Serialization {
         proofDOS.close()
     }
 
-    def thmFromFile(filename:String, theory:RunningTheory): Seq[(theory.Theorem, SCProof)] = {
+    def thmsFromFile(filename:String, theory:RunningTheory): Seq[(theory.Theorem, SCProof)] = {
         val treesDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(File(filename+".trees"))))
         val proofDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(File(filename+".proof"))))
         val thm = thmsFromDataStream(treesDIS, proofDIS, theory, false)
         treesDIS.close()
         proofDIS.close()
         thm
+    }
+
+    def oneThmFromFile(filename:String, theory:RunningTheory): Option[theory.Theorem] = {
+        val treeFile = File(filename+".trees")
+        val proofFile = File(filename+".proof")
+        if treeFile.isFile() && proofFile.isFile() then
+            val treesDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(treeFile)))
+            val proofDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(proofFile)))
+            val thm = thmsFromDataStream(treesDIS, proofDIS, theory, false)
+            treesDIS.close()
+            proofDIS.close()
+            Some(thm.head._1)
+        else
+            None
     }
 
 

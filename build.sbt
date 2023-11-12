@@ -92,6 +92,7 @@ lazy val utils = Project(
   .dependsOn(silex)
   .dependsOn(scallion % "compile->compile")
   .settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
+  .settings(libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.12.3")
 
 
 

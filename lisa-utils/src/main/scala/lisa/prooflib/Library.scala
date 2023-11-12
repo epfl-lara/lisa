@@ -30,6 +30,8 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
   var last: Option[JUSTIFICATION] = None
 
+  var _withCache: Boolean = false
+
   val knownDefs: scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
 
   def addSymbol(s: F.ConstantFunctionLabel[?] | F.ConstantPredicateLabel[?] | F.Constant): Unit = {
