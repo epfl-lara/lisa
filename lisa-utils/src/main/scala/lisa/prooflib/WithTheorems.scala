@@ -18,12 +18,25 @@ import scala.collection.mutable.Stack as stack
 trait WithTheorems {
   library: Library =>
 
+  /**
+   * The main builder for proofs. It is a mutable object that can be used to build a proof step by step.
+   * It is used either to construct a theorem/lemma ([[BaseProof]]) or to construct a subproof ([[InnerProof]]).
+   * We can add proof tactics to it producing intermediate results. In the end, obtain a [[K.SCProof]] from it.
+   *
+   * @param assump list of starting assumptions, usually propagated from outer proofs.
+   */
   sealed abstract class Proof(assump: List[F.Formula]) {
     val possibleGoal: Option[F.Sequent]
     type SelfType = this.type
     type OutsideFact >: JUSTIFICATION
     type Fact = ProofStep | InstantiatedFact | OutsideFact | Int
 
+    /**
+     * A proven fact (from a previously proven step, a theorem or a definition) with specific instantiations of free variables.
+     *
+     * @param fact The base fact
+     * @param insts The instantiation of free variables
+     */
     case class InstantiatedFact(
         fact: Fact,
         insts: Seq[F.SubstPair] /*,
@@ -44,8 +57,21 @@ trait WithTheorems {
     private var assumptions: List[F.Formula] = assump
     private var discharges: List[Fact] = Nil
 
+    /**
+     * the theorem that is being proved (paritally, if subproof) by this proof.
+     *
+     * @return The theorem
+     */
     def owningTheorem: THM
 
+    /**
+     * A proof step, containing a high level ProofTactic and the corresponding K.SCProofStep. If the tactic produce more than one
+     * step, they must be encapsulated in a subproof. Usually constructed with [[ValidProofTactic.validate]]
+     *
+     * @param judgement The result of the tactic
+     * @param scps The corresponding [[K.SCProofStep]]
+     * @param position The position of the step in the proof
+     */
     case class ProofStep private (judgement: ValidProofTactic, scps: K.SCProofStep, position: Int) {
       val bot: F.Sequent = judgement.bot
       def innerBot: K.Sequent = scps.bot
@@ -69,6 +95,10 @@ trait WithTheorems {
 
       }
     }
+
+    /**
+     * A proof step can be constructed from a succesfully executed tactic
+     */
     def newProofStep(judgement: ValidProofTactic): ProofStep =
       ProofStep.newProofStep(judgement)
 
@@ -91,6 +121,11 @@ trait WithTheorems {
       instantiatedFacts = (instFact, steps.length - 1) :: instantiatedFacts
     }
 
+    /**
+     * Add an assumption the the proof, i.e. a formula that is automatically on the left side of the sequent.
+     *
+     * @param f
+     */
     def addAssumption(f: F.Formula): Unit = {
       if (!assumptions.contains(f)) assumptions = f :: assumptions
     }
@@ -123,6 +158,11 @@ trait WithTheorems {
      */
     def getDischarges: List[Fact] = discharges
 
+    /**
+     * Produce the low level [[K.SCProof]] corresponding to the proof. Automatically eliminates any formula in the discharges that is still left of the sequent.
+     *
+     * @return
+     */
     def toSCProof: K.SCProof = {
       import lisa.utils.KernelHelpers.{-<<, ->>}
       val finalSteps = discharges.foldLeft(steps.map(_.scps))((cumul, next) => {
@@ -136,6 +176,12 @@ trait WithTheorems {
       K.SCProof(finalSteps.reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
     }
 
+    /**
+     * For a fact, returns the sequent that the fact proove and the position of the fact in the proof.
+     *
+     * @param fact Any fact, possibly instantiated, belonging to the proof
+     * @return its proven sequent and position
+     */
     def sequentAndIntOfFact(fact: Fact): (F.Sequent, Int) = fact match {
       case i: Int =>
         (
@@ -195,10 +241,22 @@ trait WithTheorems {
     def getSequent(f: Fact): F.Sequent = sequentOfFact(f)
     def mostRecentStep: ProofStep = steps.head
 
+    /**
+     * The number of steps in the proof. This is not the same as the number of steps in the corresponding [[K.SCProof]].
+     * This also does not count the number of steps in the subproof.
+     *
+     * @return
+     */
     def length: Int = steps.length
 
+    /**
+     * The set of symbols that can't be instantiated because they are free in an assumption.
+     */
     def lockedSymbols: Set[F.SchematicLabel[?]] = assumptions.toSet.flatMap(f => f.freeSchematicLabels.toSet)
 
+    /**
+     * Used to "lift" the type of a justification when the compiler can't infer it.
+     */
     def asOutsideFact(j: JUSTIFICATION): OutsideFact
 
     @nowarn("msg=.*It would fail on pattern case: _: InnerProof.*")
@@ -207,6 +265,10 @@ trait WithTheorems {
       case _: BaseProof => 0
     }
 
+    /**
+     * Create a subproof inside the current proof. The subproof will have the same assumptions as the current proof.
+     * Can have a goal known in advance (usually for a user-written subproof) or not (usually for a tactic-generated subproof).
+     */
     def newInnerProof(possibleGoal: Option[F.Sequent]) = new InnerProof(possibleGoal)
     final class InnerProof(val possibleGoal: Option[F.Sequent]) extends Proof(this.getAssumptions) {
       val parent: Proof.this.type = Proof.this
@@ -262,6 +324,9 @@ trait WithTheorems {
     }
   }
 
+  /**
+   * Top-level instance of [[Proof]] directly proving a theorem
+   */
   sealed class BaseProof(val owningTheorem: THMFromProof) extends Proof(Nil) {
     val goal: F.Sequent = owningTheorem.goal
     val possibleGoal: Option[F.Sequent] = Some(goal)
@@ -273,13 +338,44 @@ trait WithTheorems {
     def justifications: List[JUSTIFICATION] = getImports.map(_._1)
   }
 
+  /**
+   * Abstract class representing theorems, axioms and different kinds of definitions. Corresponds to a [[theory.Justification]].
+   */
   sealed abstract class JUSTIFICATION {
+
+    /**
+     * A pretty representation of the justification
+     */
     def repr: String
+
+    /**
+     * The inner kernel justification
+     */
     def innerJustification: theory.Justification
+
+    /**
+     * The sequent that the justification proves
+     */
     def statement: F.Sequent
+
+    /**
+     * The complete name of the justification. Two justifications should never have the same full name. Typically, path is used to disambiguate.
+     */
     def fullName: String
+
+    /**
+     * The short name of the justification (without the path).
+     */
     val name: String = fullName.split("\\.").last
+
+    /**
+     * The "owning" object of the justification. Typically, the package/object in which it is defined.
+     */
     val owner = fullName.split("\\.").dropRight(1).mkString(".")
+
+    /**
+     * Returns if the statement is unconditionaly proven or if it depends on some sorry step (including in the other justifications it relies on)
+     */
     def withSorry: Boolean = innerJustification match {
       case thm: theory.Theorem => thm.withSorry
       case fd: theory.FunctionDefinition => fd.withSorry
@@ -288,6 +384,9 @@ trait WithTheorems {
     }
   }
 
+  /**
+   * A Justification, corresponding to [[K.Axiom]]
+   */
   class AXIOM(innerAxiom: theory.Axiom, val axiom: F.Formula, val fullName: String) extends JUSTIFICATION {
     def innerJustification: theory.Axiom = innerAxiom
     val statement: F.Sequent = F.Sequent(Set(), Set(axiom))
@@ -297,7 +396,14 @@ trait WithTheorems {
     def repr: String = innerJustification.repr
   }
 
-  def Axiom(using fullName: sourcecode.FullName)(nameBackup: String, axiom: F.Formula): AXIOM = {
+  /**
+   * Introduces a new axiom in the theory.
+   *
+   * @param fullName The name of the axiom, including the path. Usually fetched automatically by the compiler.
+   * @param axiom The axiomatized formula.
+   * @return
+   */
+  def Axiom(using fullName: sourcecode.FullName)(axiom: F.Formula): AXIOM = {
     val ax: Option[theory.Axiom] = theory.addAxiom(fullName.value, axiom.underlying)
     ax match {
       case None => throw new InvalidAxiomException("Not all symbols belong to the theory", fullName.value, axiom, library)
@@ -305,7 +411,9 @@ trait WithTheorems {
     }
   }
 
-  // def Axiom(using om: OutputManager, line: Int, file: String)(ax: theory.Axiom): AXIOM = AXIOM(line, file, ax.)
+  /**
+   * A Justification, corresponding to [[K.FunctionDefinition]] or [[K.PredicateDefinition]]
+   */
   abstract class DEFINITION(line: Int, file: String) extends JUSTIFICATION {
     val fullName: String
     def repr: String = innerJustification.repr
@@ -314,20 +422,69 @@ trait WithTheorems {
 
   }
 
+  /**
+   * A proven, reusable statement. A justification corresponding to [[K.Theorem]].
+   */
   sealed abstract class THM extends JUSTIFICATION {
 
+    /**
+     * The underlying Kernel proof [[K.SCProof]], if it is still available. Proofs are not kept in memory for efficiency.
+     */
     def kernelProof: Option[K.SCProof]
+
+    /**
+     * The high level [[Proof]], if one was used to obtain the theorem. If the theorem was not produced by such high level proof but directly by a low level one, this is None.
+     */
     def highProof: Option[BaseProof]
     val innerJustification: theory.Theorem
+
+    /**
+     * A pretty representation of the goal of the theorem
+     */
     def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(statement.underlying)
   }
   object THM {
+
+    /**
+     * Standard way to construct a theorem using a high level proof.
+     *
+     * @param om The output manager, available in any file extending [[lisa.utils.BasicMain]]
+     * @param statement The statement of the theorem
+     * @param fullName The full name of the theorem, including the path. Usually fetched automatically by the compiler.
+     * @param line The line at which the theorem is defined. Usually fetched automatically by the compiler. Used for error reporting
+     * @param file The file in which the theorem is defined. Usually fetched automatically by the compiler. Used for error reporting
+     * @param kind The kind of theorem (Theorem, Lemma, Corollary)
+     * @param computeProof The proof computation. The proof is built by adding proof steps to the proof object. The proof object is an impicit argument of computeProof,
+     * @see <a href="https://docs.scala-lang.org/scala3/reference/contextual/context-functions.html">Context Functions in Scala</a>
+     * @return
+     */
     def apply(using om: OutputManager)(statement: F.Sequent, fullName: String, line: Int, file: String, kind: TheoremKind)(computeProof: Proof ?=> Unit) =
       THMFromProof(statement, fullName, line, file, kind)(computeProof)
 
+    /**
+     * Constructs a "high level" theorem from an existing theorem in the
+     *
+     * @param om The output manager, available in any file extending [[lisa.utils.BasicMain]]
+     * @param statement The statement of the theorem
+     * @param fullName The full name of the theorem, including the path/package.
+     * @param kind The kind of theorem (Theorem, Lemma, Corollary)
+     * @param innerThm The inner theorem, coming from the kernel
+     * @param getProof If available, a way to compute the Kernel proof again.
+     */
     def fromKernel(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) =
       THMFromKernel(statement, fullName, kind, innerThm, getProof)
 
+    /**
+     * Construct a theorem (both in the kernel and high level) from a proof.
+     *
+     * @param om The output manager, available in any file extending [[lisa.utils.BasicMain]]
+     * @param statement The statement of the theorem
+     * @param fullName The full name of the theorem, including the path/package.
+     * @param kind The kind of theorem (Theorem, Lemma, Corollary)
+     * @param getProof The kernel proof.
+     * @param justifs low level justifications used to justify the proof's imports
+     * @return
+     */
     def fromSCProof(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, getProof: () => K.SCProof, justifs: Seq[theory.Justification]): THM =
       val proof = getProof()
       theory.theorem(fullName, statement.underlying, proof, justifs) match {
@@ -345,6 +502,10 @@ trait WithTheorems {
 
   }
 
+  /**
+   * A theorem that was produced from a kernel theorem and not from a high level proof. See [[THM.fromKernel]].
+   * Those are typically theorems imported from another tool, or from serialization.
+   */
   class THMFromKernel(using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
 
     def repr: String = innerJustification.repr
@@ -357,6 +518,10 @@ trait WithTheorems {
 
   }
 
+  /**
+   * A theorem that was produced from a high level proof. See [[THM.apply]].
+   * Typical way to construct a theorem in the library, but serialization for example will produce a [[THMFromKernel]].
+   */
   class THMFromProof(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit) extends THM {
 
     val goal: F.Sequent = statement
@@ -369,11 +534,11 @@ trait WithTheorems {
     val innerJustification: theory.Theorem =
       if library._withCache then
         oneThmFromFile("cache/" + name, library.theory) match {
-          case Some(thm) => thm
+          case Some(thm) => thm // try to get the theorem from file
 
           case None =>
-            val (thm, scp, justifs) = prove(computeProof)
-            thmsToFile("cache/" + name, theory, List((name, scp, justifs)))
+            val (thm, scp, justifs) = prove(computeProof) // if fail, prove it
+            thmsToFile("cache/" + name, theory, List((name, scp, justifs))) // and save it to the file
             thm
         }
       else prove(computeProof)._1
@@ -421,10 +586,25 @@ trait WithTheorems {
     }
 
   }
+
+  /**
+   * A "Theorem" kind of theorem, by opposition with a lemma or corollary. The difference is that theorem are always printed when a file defining one is run.
+   */
   object Theorem extends TheoremKind { val kind2: String = "Theorem" }
+
+  /**
+   * Lemmas are like theorems, but are conceptually less importants and are not printed when a file defining one is run.
+   */
   object Lemma extends TheoremKind { val kind2: String = "Lemma" }
+
+  /**
+   * Corollaries are like theorems, but are conceptually less importants and are not printed when a file defining one is run.
+   */
   object Corollary extends TheoremKind { val kind2: String = "Corollary" }
 
+  /**
+   * Internal statements are internally produced theorems, for example as intermediate step in definitions.
+   */
   object InternalStatement extends TheoremKind { val kind2: String = "Internal, automatically produced" }
 
 }

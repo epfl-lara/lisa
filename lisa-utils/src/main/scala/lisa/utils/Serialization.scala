@@ -8,6 +8,7 @@ import scala.collection.mutable.{Map => MutMap}
 
 object Serialization {
 
+  // Define codes for the various proof steps
   inline def restate: Byte = 0
   inline def restateTrue: Byte = 1
   inline def hypothesis: Byte = 2
@@ -41,12 +42,14 @@ object Serialization {
 
   type Line = Int
 
+  // Injectively represent a TermLabel as a string
   def termLabelToString(label: TermLabel): String =
     label match
       case l: ConstantFunctionLabel => "cfl_" + l.id.name + "_" + l.id.no + "_" + l.arity
       case l: SchematicFunctionLabel => "sfl_" + l.id.name + "_" + l.id.no + "_" + l.arity
       case l: VariableLabel => "vl_" + l.id.name + "_" + l.id.no
 
+  // Injectively represent a FormulaLabel as a string.
   def formulaLabelToString(label: FormulaLabel): String =
     label match
       case l: ConstantPredicateLabel => "cpl_" + l.id.name + "_" + l.id.no + "_" + l.arity
@@ -56,6 +59,7 @@ object Serialization {
       case l: VariableFormulaLabel => "vfl_" + l.id.name + "_" + l.id.no
       case l: BinderLabel => "bl_" + l.id.name + "_" + l.id.no
 
+  // write a term label to an OutputStream
   def termLabelToDOS(label: TermLabel, dos: DataOutputStream): Unit =
     label match
       case l: ConstantFunctionLabel =>
@@ -72,6 +76,7 @@ object Serialization {
         dos.writeByte(2)
         dos.writeUTF(l.id.name)
         dos.writeInt(l.id.no)
+  // write a formula label to an OutputStream
   def formulaLabelToDOS(label: FormulaLabel, dos: DataOutputStream): Unit =
     label match
       case l: ConstantPredicateLabel =>
@@ -100,6 +105,9 @@ object Serialization {
         dos.writeByte(8)
         dos.writeUTF(l.id.name)
 
+  /**
+   * Main function that, when given a proof, will serialize it to a file. It will also serialize all the formulas appearing in it to another file.
+   */
   def proofsToDataStream(treesDOS: DataOutputStream, proofDOS: DataOutputStream, theorems: Seq[(String, SCProof, List[String])]): Unit = {
 
     val termMap = MutMap[Long, Line]()
@@ -107,6 +115,7 @@ object Serialization {
 
     var line = -1
 
+    // Compute the line of a term. If it is not in the map, add it to the map and write it to the tree file
     def lineOfTerm(term: Term): Line =
       termMap.get(term.uniqueNumber) match
         case Some(line) => line
@@ -118,6 +127,7 @@ object Serialization {
           termMap(term.uniqueNumber) = line
           line
 
+    // Compute the line of a formula. If it is not in the map, add it to the map and write it to the tree file
     def lineOfFormula(formula: Formula): Line =
       formulaMap.get(formula.uniqueNumber) match
         case Some(line) => line
@@ -141,6 +151,7 @@ object Serialization {
           formulaMap(formula.uniqueNumber) = line
           line
 
+    // Write a sequent to the proof file.
     def sequentToProofDOS(sequent: Sequent): Unit =
       proofDOS.writeShort(sequent.left.size)
       sequent.left.foreach(f => proofDOS.writeInt(lineOfFormula(f)))
@@ -165,6 +176,13 @@ object Serialization {
       lff.vars.foreach(v => formulaLabelToDOS(v, proofDOS))
       proofDOS.writeInt(body)
 
+    /**
+     * Write a proof step to the proof file.
+     * First write the code describing the proof step, then the "bot" sequent, then the various parameters in order.
+     * List are described by first writing (as a short) the number of elements in the list.
+     *
+     * @param ps
+     */
     def proofStepToProofDOS(ps: SCProofStep): Unit = {
       ps match {
         case Restate(bot, t1) =>
@@ -386,6 +404,7 @@ object Serialization {
     val termMap = MutMap[Line, Term]()
     val formulaMap = MutMap[Line, Formula]()
 
+    // Read a label from the tree file, reversing the effect of termLabelToDOS and formulaLabelToDOS.
     def labelFromInputStream(dis: DataInputStream): Label = {
       val labelType = dis.readByte()
       labelType match
@@ -438,6 +457,7 @@ object Serialization {
 
     }
 
+    // Read and reconstruct all the terms and formulas in the tree file. Fill the table with it.
     var lineNo = -1
     try {
       while true do
@@ -465,8 +485,6 @@ object Serialization {
 
     // Terms and Formulas finished, deal with the proof now.
 
-    // case "Restate" => Restate(sequentFromString(parts(1)), parts(2).toInt)
-
     def lttFromProofDIS(): LambdaTermTerm =
       val vars = (1 to proofDIS.readShort()).map(_ => labelFromInputStream(proofDIS).asInstanceOf[VariableLabel]).toSeq
       val body = termMap(proofDIS.readInt())
@@ -489,6 +507,7 @@ object Serialization {
       val right = (1 to rightSize).map(_ => formulaMap(proofDIS.readInt())).toSet
       Sequent(left, right)
 
+    // Read a proof step from the proof file. Inverse of proofStepToProofDOS
     def proofStepFromProofDIS(): SCProofStep = {
       val psType = proofDIS.readByte()
       if (psType == restate) Restate(sequentFromProofDIS(), proofDIS.readInt())
@@ -578,6 +597,7 @@ object Serialization {
       else throw new Exception("Unknown proof step type: " + psType)
     }
 
+    // for each given theorem, write it to the file.
     val numberThm = proofDIS.readShort()
     (1 to numberThm)
       .map(_ =>
@@ -595,6 +615,10 @@ object Serialization {
 
   }
 
+  /**
+   * Write a list of theorems to a pair of OutputStrem, one for the formulas and term trees, one for the proof.
+   * Each theorem has a name, a proof and a list of justifications, with a name for those justifications that can be fetched in the code base.
+   */
   def thmsToDataStream(treesDOS: DataOutputStream, proofDOS: DataOutputStream, theory: RunningTheory, theorems: List[(String, SCProof, List[(String, theory.Justification)])]): Unit = {
     proofsToDataStream(
       treesDOS,
@@ -611,6 +635,13 @@ object Serialization {
     )
   }
 
+  /**
+   * Read theorems from two files, one for the formulas and term trees, one for the proof.
+   * Theorems are validated in the kernel. Justifications are fetched from the code base using the name written in the file.
+   * This uses java reflection, for example to obtain the theorem [[scala.mathematics.settheory.SetTheoryLibrary.russelsParadox]] from the
+   * string "scala.mathematics.settheory.SetTheoryLibrary.russelsParadox".
+   * A bit ugly, but don't really have better for now.
+   */
   def thmsFromDataStream(treesDIS: DataInputStream, proofDIS: DataInputStream, theory: RunningTheory, debug: Boolean = false): Seq[(theory.Theorem, SCProof)] = {
     proofsFromDataStream(treesDIS, proofDIS).map { (name, proof, justifications) =>
       val justs = justifications.map { j =>
@@ -640,6 +671,10 @@ object Serialization {
 
   }
 
+  /**
+   * Write a list of theorems to a pair file, one for the formulas and term trees, one for the proof.
+   * Each theorem has a name, a proof and a list of justifications, with a name for those justifications that can be fetched in the code base.
+   */
   def thmsToFile(filename: String, theory: RunningTheory, theorems: List[(String, SCProof, List[(String, theory.Justification)])]): Unit = {
     val directory = File(filename).getParentFile()
     if (directory != null) && !directory.exists() then directory.mkdirs()
@@ -654,6 +689,10 @@ object Serialization {
     proofDOS.close()
   }
 
+  /**
+   * Read theorems from two files, one for the formulas and term trees, one for the proof.
+   * Theorems are validated in the kernel. Justifications are fetched from the code base using the name written in the file.
+   */
   def thmsFromFile(filename: String, theory: RunningTheory): Seq[(theory.Theorem, SCProof)] = {
     val treesDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(File(filename + ".trees"))))
     val proofDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(File(filename + ".proof"))))
@@ -663,6 +702,9 @@ object Serialization {
     thm
   }
 
+  /**
+   * Same as [[thmsFromFile]] but only returns the first theorem (usually because we know there is only one theorem in the file).
+   */
   def oneThmFromFile(filename: String, theory: RunningTheory): Option[theory.Theorem] = {
     val treeFile = File(filename + ".trees")
     val proofFile = File(filename + ".proof")

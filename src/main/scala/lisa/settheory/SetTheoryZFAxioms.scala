@@ -22,7 +22,6 @@ private[settheory] trait SetTheoryZFAxioms extends SetTheoryZAxioms {
    * satisfy `P` for each `a ∈ x`.
    */
   final val replacementSchema: AXIOM = Axiom(
-    "replacementSchema",
     forall(A, in(A, x) ==> existsOne(B, P(x, A, B))) ==>
       exists(y, forall(B, in(B, y) <=> exists(A, in(A, x) /\ P(x, A, B))))
   )

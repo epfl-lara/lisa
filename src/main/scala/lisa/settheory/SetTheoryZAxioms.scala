@@ -19,7 +19,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * `() |- (x = y) ⇔ ∀ z. z ∈ x ⇔ z ∈ y`
    */
-  final val extensionalityAxiom: this.AXIOM = Axiom("extensionalityAxiom", forall(z, in(z, x) <=> in(z, y)) <=> (x === y))
+  final val extensionalityAxiom: this.AXIOM = Axiom(forall(z, in(z, x) <=> in(z, y)) <=> (x === y))
 
   /**
    * Pairing Axiom --- For any sets `x` and `y`, there is a set that contains
@@ -31,7 +31,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * This axiom defines [[unorderedPair]] as the function symbol representing
    * this set.
    */
-  final val pairAxiom: AXIOM = Axiom("pairAxiom", in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z))
+  final val pairAxiom: AXIOM = Axiom(in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z))
 
   /**
    * Comprehension/Separation Schema --- For a formula `ϕ(_, _)` and a set `z`,
@@ -44,7 +44,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * This schema represents an infinite collection of axioms, one for each
    * formula `ϕ(x, z)`.
    */
-  final val comprehensionSchema: AXIOM = Axiom("comprehensionSchema", exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x, z)))))
+  final val comprehensionSchema: AXIOM = Axiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x, z)))))
 
   /**
    * Empty Set Axiom --- From the Comprehension Schema follows the existence of
@@ -56,7 +56,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * `() |- !(x ∈ ∅)`
    */
-  final val emptySetAxiom: AXIOM = Axiom("emptySetAxiom", !in(x, emptySet))
+  final val emptySetAxiom: AXIOM = Axiom(!in(x, emptySet))
 
   /**
    * Union Axiom --- For any set `x`, there exists a set `union(x)` which is the
@@ -69,7 +69,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * This axiom defines [[union]] as the function symbol representing this set.
    */
-  final val unionAxiom: AXIOM = Axiom("unionAxiom", in(z, union(x)) <=> exists(y, in(y, x) /\ in(z, y)))
+  final val unionAxiom: AXIOM = Axiom(in(z, union(x)) <=> exists(y, in(y, x) /\ in(z, y)))
 
   /**
    * Subset Axiom --- For sets `x` and `y`, `x` is a subset of `y` iff every
@@ -79,7 +79,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * This axiom defines the [[subset]] symbol as this predicate.
    */
-  final val subsetAxiom: AXIOM = Axiom("subsetAxiom", subset(x, y) <=> forall(z, in(z, x) ==> in(z, y)))
+  final val subsetAxiom: AXIOM = Axiom(subset(x, y) <=> forall(z, in(z, x) ==> in(z, y)))
 
   /**
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted
@@ -90,7 +90,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    * This axiom defines [[powerSet]] as the function symbol representing this
    * set.
    */
-  final val powerAxiom: AXIOM = Axiom("powerAxiom", in(x, powerSet(y)) <=> subset(x, y))
+  final val powerAxiom: AXIOM = Axiom(in(x, powerSet(y)) <=> subset(x, y))
 
   /**
    * Infinity Axiom --- There exists an infinite set.
@@ -105,7 +105,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * `() |- ∃ x. inductive(x)`
    */
-  final val infinityAxiom: AXIOM = Axiom("infinityAxiom", exists(x, in(emptySet, x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))))
+  final val infinityAxiom: AXIOM = Axiom(exists(x, in(emptySet, x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))))
 
   /**
    * Foundation/Regularity Axiom --- Every non-empty set `x` has an `∈`-minimal
@@ -114,7 +114,7 @@ private[settheory] trait SetTheoryZAxioms extends SetTheoryDefinitions {
    *
    * `() |- (x != ∅) ==> ∃ y ∈ x. ∀ z. z ∈ x ⇒ ! z ∈ y`
    */
-  final val foundationAxiom: AXIOM = Axiom("foundationAxiom", !(x === emptySet) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
+  final val foundationAxiom: AXIOM = Axiom(!(x === emptySet) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
 
   private val zAxioms: Set[(String, AXIOM)] = Set(
     ("EmptySet", emptySetAxiom),

@@ -26,6 +26,7 @@ import lisa.utils.FOLPrinter
  * for readability and faster compilation.
  */
 object Recursion extends lisa.Main {
+  _withCache = true
 
   // var defs
   private val w = variable
