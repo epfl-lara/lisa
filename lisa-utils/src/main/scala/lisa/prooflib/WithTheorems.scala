@@ -393,7 +393,7 @@ trait WithTheorems {
     if (statement.underlying != theory.sequentFromJustification(innerAxiom)) {
       throw new InvalidAxiomException("The provided kernel axiom and desired statement don't match.", name, axiom, library)
     }
-    def repr: String = innerJustification.repr
+    def repr: String = s" Axiom $name := $axiom"
   }
 
   /**
@@ -417,6 +417,7 @@ trait WithTheorems {
   abstract class DEFINITION(line: Int, file: String) extends JUSTIFICATION {
     val fullName: String
     def repr: String = innerJustification.repr
+
     def label: F.ConstantLabel[?]
     knownDefs.update(label, Some(this))
 
