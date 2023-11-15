@@ -18,7 +18,6 @@ import lisa.prooflib.Substitution
  * [[https://link.springer.com/book/10.1007/3-540-44761-X]]
  */
 object SetTheory extends lisa.Main {
-  _withCache = true
 
   // var defs
   private val w = variable

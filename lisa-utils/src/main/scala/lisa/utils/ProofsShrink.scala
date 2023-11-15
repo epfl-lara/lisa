@@ -94,14 +94,14 @@ object ProofsShrink {
               val (k, sequent) = resolve(i)
               val imported = subProof.imports(j)
               if (sequent != imported) {
-                Some((Restate(imported, k), -(j - 1) -> imported))
+                Some((Restate(imported, k), j -> imported))
               } else {
-                None
+                Some((Restate(imported, k), j -> imported))
               }
             }.unzip
-            val rewrittenMap = rewrittenSeq.zipWithIndex.map { case ((i, sequent), j) => i -> (offset + acc.size + j, sequent) }.toMap
-            val childTopPremises = subPremises.map(i => rewrittenMap.getOrElse(i, resolve(i))).toIndexedSeq
-            acc ++ rewrittenPremises ++ flattenProofRecursive(subProof.steps, childTopPremises, offset + acc.size + rewrittenPremises.size)
+            val rewrittenMap = rewrittenSeq.map { case (j, sequent) => j -> (offset + acc.size - j - 1 + rewrittenSeq.size, sequent) }.toMap
+            val childTopPremises = subPremises.zipWithIndex.map((i, j) => rewrittenMap(j)).toIndexedSeq
+            acc ++ rewrittenPremises.reverse ++ flattenProofRecursive(subProof.steps, childTopPremises, offset + acc.size + rewrittenPremises.size)
           case _ =>
             acc :+ mapPremises(step, i => resolve(i)._1)
         }
@@ -111,6 +111,7 @@ object ProofsShrink {
     }
     SCProof(flattenProofRecursive(proof.steps, proof.imports.zipWithIndex.map { case (imported, i) => (-i - 1, imported) }, 0), proof.imports)
   }
+
 
   /**
    * Eliminates all steps that are not indirectly referenced by the conclusion (last step) of the proof.

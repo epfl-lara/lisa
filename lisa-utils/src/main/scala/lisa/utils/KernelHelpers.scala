@@ -463,6 +463,11 @@ object KernelHelpers {
    */
   def checkProof(proof: SCProof, output: String => Unit = println): Unit = {
     val judgement = SCProofChecker.checkSCProof(proof)
-    output(FOLPrinter.prettySCProof(judgement))
+    val pl = proof.totalLength
+    if pl > 100 then 
+      output("...")
+      output(s"Proof is too long to be displayed [$pl steps]")
+    else 
+      output(FOLPrinter.prettySCProof(judgement))
   }
 }

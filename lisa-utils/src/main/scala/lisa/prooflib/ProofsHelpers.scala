@@ -146,17 +146,17 @@ trait ProofsHelpers {
   )
   class definitionWithVars[N <: Arity](val args: Variable *** N) {
 
-    // inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
-    // inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
+    // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
+    // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantFunctionLabelOfArity[N] =
-      FunctionDefinition[N](name.value, name.value, line.value, file.value)(args.toSeq, t.out, t.f, t.just).label
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantFunctionLabelOfArity[N] =
+      FunctionDefinition[N](name.value, line.value, file.value)(args.toSeq, t.out, t.f, t.just).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] =
-      SimpleFunctionDefinition[N](name.value, name.value, line.value, file.value)(lambda(args.toSeq, term).asInstanceOf).label
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] =
+      SimpleFunctionDefinition[N](name.value, line.value, file.value)(lambda(args.toSeq, term).asInstanceOf).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantPredicateLabelOfArity[N] =
-      PredicateDefinition[N](name.value, name.value, line.value, file.value)(lambda(args.toSeq, formula).asInstanceOf).label
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantPredicateLabelOfArity[N] =
+      PredicateDefinition[N](name.value, line.value, file.value)(lambda(args.toSeq, formula).asInstanceOf).label
 
   }
 
@@ -170,7 +170,7 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by unique existance" of a function symbol
    */
-  class FunctionDefinition[N <: F.Arity](using om: OutputManager)(val name: String, val fullName: String, line: Int, file: String)(
+  class FunctionDefinition[N <: F.Arity](using om: OutputManager)(val fullName: String, line: Int, file: String)(
       val vars: Seq[F.Variable],
       val out: F.Variable,
       val f: F.Formula,
@@ -279,24 +279,24 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by equality" of a function symbol
    */
-  class SimpleFunctionDefinition[N <: F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)(
+  class SimpleFunctionDefinition[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(
       val lambda: LambdaExpression[Term, Term, N],
       out: F.Variable,
       j: JUSTIFICATION
-  ) extends FunctionDefinition[N](name, fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {}
+  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {}
 
   object SimpleFunctionDefinition {
-    def apply[N <: F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {
+    def apply[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {
       val intName = "definition_" + fullName
       val out = Variable(freshId(lambda.allSchematicLabels.map(_.id), "y"))
       val defThm = THM(F.ExistsOne(out, out === lambda.body), intName, line, file, InternalStatement)({
         have(SimpleDeducedSteps.simpleFunctionDefinition(lambda, out))
       })
-      new SimpleFunctionDefinition[N](name, fullName, line, file)(lambda, out, defThm)
+      new SimpleFunctionDefinition[N](fullName, line, file)(lambda, out, defThm)
     }
   }
 
-  class PredicateDefinition[N <: F.Arity](using om: OutputManager)(name: String, fullName: String, line: Int, file: String)(val lambda: LambdaExpression[Term, Formula, N])
+  class PredicateDefinition[N <: F.Arity](using om: OutputManager)(val fullName: String, line: Int, file: String)(val lambda: LambdaExpression[Term, Formula, N])
       extends DEFINITION(line, file) {
 
     lazy val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf

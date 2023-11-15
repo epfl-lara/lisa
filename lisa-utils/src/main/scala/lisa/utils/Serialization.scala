@@ -560,7 +560,8 @@ object Serialization {
                 val justifications = (1 to justificationsSize).map(_ => proofDIS.readUTF()).toList
                 val importsSize = proofDIS.readInt()
                 val imports = (1 to importsSize).map(_ => sequentFromProofDIS()).toSeq
-                val steps = (1 to proofDIS.readInt()).map(_ => proofStepFromProofDIS()).toSeq
+                val noSteps = proofDIS.readInt()
+                val steps = (1 to noSteps).map(_ => proofStepFromProofDIS()).toSeq
 
 
                 (thmName, new SCProof(steps.toIndexedSeq, imports.toIndexedSeq), justifications)
@@ -572,14 +573,14 @@ object Serialization {
     }
 
 
-    def thmsToDataStream(treesDOS: DataOutputStream, proofDOS: DataOutputStream, theory:RunningTheory, theorems: List[(String, SCProof, List[theory.Justification])]): Unit = {
+    def thmsToDataStream(treesDOS: DataOutputStream, proofDOS: DataOutputStream, theory:RunningTheory, theorems: List[(String, SCProof, List[(String, theory.Justification)])]): Unit = {
         proofsToDataStream(treesDOS, proofDOS, theorems.map(
             (name, proof, justs) =>
                 val justNames = justs.map {
-                    case theory.Axiom(name, ax) => "a" + name
-                    case theory.Theorem(name, proposition, withSorry) => "t" + name
-                    case theory.FunctionDefinition(label, out, expression, withSorry) => "f" + label.id.name+"_"+label.id.no+"_"+label.arity
-                    case theory.PredicateDefinition(label, expression) => "p" + label.id.name+"_"+label.id.no+"_"+label.arity
+                    case (obj, theory.Axiom(name, ax)) => "a" + obj + "$" + name
+                    case (obj, theory.Theorem(name, proposition, withSorry)) => "t" + obj + "$" + name
+                    case (obj, theory.FunctionDefinition(label, out, expression, withSorry)) => "f" + obj + "$" + label.id.name+"_"+label.id.no+"_"+label.arity
+                    case (obj, theory.PredicateDefinition(label, expression)) => "p" + obj + "$" + label.id.name+"_"+label.id.no+"_"+label.arity
                 }
                 (name, minimizeProofOnce(proof), justNames)
         ))
@@ -590,16 +591,22 @@ object Serialization {
             (name, proof, justifications) =>
                 val justs = justifications.map { j =>
                     val nl = j.tail
+                    val Array(obj, name) = nl.split("\\$")
+                    try{
+                        Class.forName(obj + "$").getField("MODULE$").get(null)
+                    }
+                    catch {case _ => "Not found: " + obj}
+                    Class.forName("lisa.settheory.SetTheoryLibrary" + "$").getField("MODULE$").get(null)
+
                     j(0) match
-                        case 'a' => theory.getAxiom(nl).get
+                        case 'a' => theory.getAxiom(name).get
                         case 't' => 
-                            println("nl: " + nl)
-                            theory.getTheorem(nl).get
+                            theory.getTheorem(name).get
                         case 'f' => 
-                            nl.split("_") match
+                            name.split("_") match
                                 case Array(name, no, arity) => theory.getDefinition(ConstantFunctionLabel(Identifier(name, no.toInt), arity.toInt)).get
                         case 'p' => 
-                            nl.split("_") match
+                            name.split("_") match
                                 case Array(name, no, arity) => theory.getDefinition(ConstantPredicateLabel(Identifier(name, no.toInt), arity.toInt)).get
                 }
                 if debug then
@@ -612,9 +619,15 @@ object Serialization {
     }
 
 
-    def thmsToFile(filename:String, theory:RunningTheory,theorems: List[(String, SCProof, List[theory.Justification])]): Unit = {
-        val treesDOS = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(filename+".trees")))
-        val proofDOS = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(filename+".proof")))
+    def thmsToFile(filename:String, theory:RunningTheory,theorems: List[(String, SCProof, List[(String, theory.Justification)])]): Unit = {
+        val directory = File(filename).getParentFile()
+        if !directory.exists() then directory.mkdirs()
+        val treeFile = File(filename+".trees")
+        if !treeFile.exists() then treeFile.createNewFile()
+        val proofFile = File(filename+".proof")
+        if !proofFile.exists() then proofFile.createNewFile()
+        val treesDOS = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(treeFile)))
+        val proofDOS = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(proofFile)))
         thmsToDataStream(treesDOS, proofDOS, theory, theorems)
         treesDOS.close()
         proofDOS.close()

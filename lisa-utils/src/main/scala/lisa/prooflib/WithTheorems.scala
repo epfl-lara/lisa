@@ -277,6 +277,9 @@ trait WithTheorems {
     def repr: String
     def innerJustification: theory.Justification
     def statement: F.Sequent
+    def fullName:String
+    val name: String = fullName.split("\\.").last
+    val owner = fullName.split("\\.").dropRight(1).mkString(".")
     def withSorry: Boolean = innerJustification match {
       case thm: theory.Theorem => thm.withSorry
       case fd: theory.FunctionDefinition => fd.withSorry
@@ -285,7 +288,7 @@ trait WithTheorems {
     }
   }
 
-  class AXIOM(innerAxiom: theory.Axiom, val axiom: F.Formula, val name: String) extends JUSTIFICATION {
+  class AXIOM(innerAxiom: theory.Axiom, val axiom: F.Formula, val fullName: String) extends JUSTIFICATION {
     def innerJustification: theory.Axiom = innerAxiom
     val statement: F.Sequent = F.Sequent(Set(), Set(axiom))
     if (statement.underlying != theory.sequentFromJustification(innerAxiom)) {
@@ -294,16 +297,17 @@ trait WithTheorems {
     def repr: String = innerJustification.repr
   }
 
-  def Axiom(name: String, axiom: F.Formula): AXIOM = {
-    val ax: Option[theory.Axiom] = theory.addAxiom(name, axiom.underlying)
+  def Axiom(using fullName: sourcecode.FullName)(nameBackup: String, axiom: F.Formula): AXIOM = {
+    val ax: Option[theory.Axiom] = theory.addAxiom(fullName.value, axiom.underlying)
     ax match {
-      case None => throw new InvalidAxiomException("Not all symbols belong to the theory", name, axiom, library)
-      case Some(value) => AXIOM(value, axiom, name)
+      case None => throw new InvalidAxiomException("Not all symbols belong to the theory", fullName.value, axiom, library)
+      case Some(value) => AXIOM(value, axiom, fullName.value)
     }
   }
 
   // def Axiom(using om: OutputManager, line: Int, file: String)(ax: theory.Axiom): AXIOM = AXIOM(line, file, ax.)
   abstract class DEFINITION(line: Int, file: String) extends JUSTIFICATION {
+    val fullName: String
     def repr: String = innerJustification.repr
     def label: F.ConstantLabel[?]
     knownDefs.update(label, Some(this))
@@ -316,7 +320,6 @@ trait WithTheorems {
     def highProof: Option[BaseProof]
     val innerJustification: theory.Theorem
     def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(statement.underlying)
-    val name: String
   }
   object THM {
     def apply(using om: OutputManager)(statement: F.Sequent, fullName: String, line: Int, file: String, kind: TheoremKind)(computeProof: Proof ?=> Unit) = 
@@ -354,7 +357,6 @@ trait WithTheorems {
     def highProof: Option[BaseProof] = None
 
     val goal: F.Sequent = statement
-    val name: String = fullName //could change in the future
 
 
 
@@ -363,7 +365,6 @@ trait WithTheorems {
   class THMFromProof(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit) extends THM {
 
     val goal: F.Sequent = statement
-    val name: String = fullName
 
     val proof: BaseProof = new BaseProof(this)
     def kernelProof: Option[K.SCProof] = Some(proof.toSCProof)
@@ -384,7 +385,8 @@ trait WithTheorems {
         prove(computeProof)._1
     def repr: String = innerJustification.repr
 
-    private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, SCProof, List[theory.Justification]) = {
+    library.last = Some(this)
+    private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, SCProof, List[(String, theory.Justification)]) = {
       try {
         computeProof(using proof)
       } catch {
@@ -396,10 +398,9 @@ trait WithTheorems {
         om.lisaThrow(new UnimplementedProof(this))
 
       val scp = proof.toSCProof
-      val justifs = proof.getImports.map(_._1.innerJustification)
-      theory.theorem(name, goal.underlying, scp, justifs) match {
+      val justifs = proof.getImports.map(e => (e._1.owner, e._1.innerJustification))
+      theory.theorem(name, goal.underlying, scp, justifs.map(_._2)) match {
         case K.Judgement.ValidJustification(just) =>
-          library.last = Some(this)
           (just, scp, justifs)
         case wrongJudgement: K.Judgement.InvalidJustification[?] =>
           om.lisaThrow(
@@ -420,7 +421,7 @@ trait WithTheorems {
   trait TheoremKind {
     val kind2: String
 
-    def apply(using om: OutputManager, name: sourcecode.Name, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
+    def apply(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
       val thm = THM(statement, name.value, line.value, file.value, this)(computeProof) 
       if this == Theorem then
         show(thm)
