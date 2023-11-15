@@ -112,7 +112,6 @@ object ProofsShrink {
     SCProof(flattenProofRecursive(proof.steps, proof.imports.zipWithIndex.map { case (imported, i) => (-i - 1, imported) }, 0), proof.imports)
   }
 
-
   /**
    * Eliminates all steps that are not indirectly referenced by the conclusion (last step) of the proof.
    * This procedure is applied recursively on all subproofs. The elimination of unused top-level imports can be configured.
@@ -300,6 +299,5 @@ object ProofsShrink {
     optimizeFixedPoint(flattenProof(proof))
   }
 
-
-  def minimizeProofOnce(proof:SCProof): SCProof = deadStepsElimination(factorProof(simplifyProof(flattenProof(proof))))
+  def minimizeProofOnce(proof: SCProof): SCProof = deadStepsElimination(factorProof(simplifyProof(flattenProof(proof))))
 }

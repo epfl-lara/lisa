@@ -296,8 +296,7 @@ trait ProofsHelpers {
     }
   }
 
-  class PredicateDefinition[N <: F.Arity](using om: OutputManager)(val fullName: String, line: Int, file: String)(val lambda: LambdaExpression[Term, Formula, N])
-      extends DEFINITION(line, file) {
+  class PredicateDefinition[N <: F.Arity](using om: OutputManager)(val fullName: String, line: Int, file: String)(val lambda: LambdaExpression[Term, Formula, N]) extends DEFINITION(line, file) {
 
     lazy val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity

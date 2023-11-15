@@ -5,12 +5,7 @@ import lisa.utils.Serialization.*
 trait BasicMain {
   val library: Library
 
-
-
-
-
   private val realOutput: String => Unit = println
-
 
   given om: OutputManager = new OutputManager {
     def finishOutput(exception: Exception): Nothing = {

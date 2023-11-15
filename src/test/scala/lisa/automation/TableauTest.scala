@@ -1,55 +1,40 @@
 package lisa.test.automation
 
-
-import org.scalatest.funsuite.AnyFunSuite
-
-import lisa.settheory.SetTheoryLibrary.{given, _}
+import lisa.automation.Tableau._
 import lisa.prooflib.Exports.*
 import lisa.prooflib.Substitution.*
+import lisa.settheory.SetTheoryLibrary.{_, given}
 import lisa.utils.K.SCProofChecker.checkSCProof
-import lisa.utils.parsing.FOLPrinter.{prettyTerm, prettyFormula, prettySCProof}
-import lisa.automation.Tableau._
+import lisa.utils.parsing.FOLPrinter.prettyFormula
+import lisa.utils.parsing.FOLPrinter.prettySCProof
+import lisa.utils.parsing.FOLPrinter.prettyTerm
+import org.scalatest.funsuite.AnyFunSuite
 
 class TableauTest extends AnyFunSuite {
   import TableauTest.*
 
-  test(s"Propositional Positive cases (${posi.size})"){
+  test(s"Propositional Positive cases (${posi.size})") {
     assert(posi.forall(_._3), posi.map((i, f, b, proof, judg) => s"$i $b" + (if !b then s" $f" else "")).mkString("\n"))
     if posi.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then
-      fail("A proof is wrong: " + posi.map(tup =>
-        if tup._5.nonEmpty & !tup._5.get.isValid then
-          prettySCProof(tup._5.get) + "\n"
-      ).mkString("\n"))
+      fail("A proof is wrong: " + posi.map(tup => if tup._5.nonEmpty & !tup._5.get.isValid then prettySCProof(tup._5.get) + "\n").mkString("\n"))
   }
 
-
-  test(s"First Order Quantifier Free Positive cases (${posqf.size})"){
+  test(s"First Order Quantifier Free Positive cases (${posqf.size})") {
     assert(posqf.forall(_._3), posqf.map((i, f, b, proof, judg) => (s"$i $b" + (if !b then s" $f" else ""))).mkString("\n"))
     if posqf.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then
-      fail("A proof is wrong: " + posi.map(tup =>
-        if tup._5.nonEmpty & !tup._5.get.isValid then
-          prettySCProof(tup._5.get) + "\n"
-      ).mkString("\n"))
+      fail("A proof is wrong: " + posi.map(tup => if tup._5.nonEmpty & !tup._5.get.isValid then prettySCProof(tup._5.get) + "\n").mkString("\n"))
   }
 
-
-  test(s"First Order Easy Positive cases (${poseasy.size})"){
+  test(s"First Order Easy Positive cases (${poseasy.size})") {
     assert(poseasy.forall(_._3), poseasy.map((i, f, b, proof, judg) => (s"$i $b" + (if !b then s" $f" else ""))).mkString("\n"))
     if poseasy.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then
-      fail("A proof is wrong: " + posi.map(tup =>
-        if tup._5.nonEmpty & !tup._5.get.isValid then
-          prettySCProof(tup._5.get) + "\n"
-      ).mkString("\n"))
+      fail("A proof is wrong: " + posi.map(tup => if tup._5.nonEmpty & !tup._5.get.isValid then prettySCProof(tup._5.get) + "\n").mkString("\n"))
   }
 
-
-  test(s"First Order Hard Positive cases (${poshard.size})"){
+  test(s"First Order Hard Positive cases (${poshard.size})") {
     assert(poshard.forall(_._3), poshard.map((i, f, b, proof, judg) => (s"$i $b" + (if !b then s" $f" else ""))).mkString("\n"))
     if poshard.exists(tup => tup._5.nonEmpty & !tup._5.get.isValid) then
-      fail("A proof is wrong: " + posi.map(tup =>
-        if tup._5.nonEmpty & !tup._5.get.isValid then
-          prettySCProof(tup._5.get) + "\n"
-      ).mkString("\n"))
+      fail("A proof is wrong: " + posi.map(tup => if tup._5.nonEmpty & !tup._5.get.isValid then prettySCProof(tup._5.get) + "\n").mkString("\n"))
   }
 
 }
@@ -89,7 +74,6 @@ object TableauTest {
     (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof))
   )
 
-
   // Quantifier Free
 
   val posqf = List(
@@ -100,7 +84,6 @@ object TableauTest {
     val res = solve(() |- f._1)
     (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof))
   )
-  
 
   // First Order Easy
 
@@ -112,7 +95,6 @@ object TableauTest {
     val res = solve(() |- f._1)
     (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof))
   )
-  
 
   // First Order Hard, from https://isabelle.in.tum.de/library/FOL/FOL-ex/Quantifiers_Cla.html
 
@@ -144,5 +126,5 @@ object TableauTest {
     val res = solve(() |- f._1)
     (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof))
   )
-  
+
 }

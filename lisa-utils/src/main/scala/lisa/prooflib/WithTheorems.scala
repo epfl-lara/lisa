@@ -270,14 +270,14 @@ trait WithTheorems {
 
     override def sequentOfOutsideFact(j: JUSTIFICATION): F.Sequent = j.statement
 
-    def justifications:List[JUSTIFICATION] = getImports.map(_._1)
+    def justifications: List[JUSTIFICATION] = getImports.map(_._1)
   }
 
   sealed abstract class JUSTIFICATION {
     def repr: String
     def innerJustification: theory.Justification
     def statement: F.Sequent
-    def fullName:String
+    def fullName: String
     val name: String = fullName.split("\\.").last
     val owner = fullName.split("\\.").dropRight(1).mkString(".")
     def withSorry: Boolean = innerJustification match {
@@ -315,20 +315,20 @@ trait WithTheorems {
   }
 
   sealed abstract class THM extends JUSTIFICATION {
-    
+
     def kernelProof: Option[K.SCProof]
     def highProof: Option[BaseProof]
     val innerJustification: theory.Theorem
     def prettyGoal: String = lisa.utils.FOLPrinter.prettySequent(statement.underlying)
   }
   object THM {
-    def apply(using om: OutputManager)(statement: F.Sequent, fullName: String, line: Int, file: String, kind: TheoremKind)(computeProof: Proof ?=> Unit) = 
+    def apply(using om: OutputManager)(statement: F.Sequent, fullName: String, line: Int, file: String, kind: TheoremKind)(computeProof: Proof ?=> Unit) =
       THMFromProof(statement, fullName, line, file, kind)(computeProof)
-    
-    def fromKernel(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, innerThm : theory.Theorem, getProof: () => Option[K.SCProof]) = 
+
+    def fromKernel(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) =
       THMFromKernel(statement, fullName, kind, innerThm, getProof)
 
-    def fromSCProof(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, getProof: () => K.SCProof, justifs:Seq[theory.Justification]): THM = 
+    def fromSCProof(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, getProof: () => K.SCProof, justifs: Seq[theory.Justification]): THM =
       val proof = getProof()
       theory.theorem(fullName, statement.underlying, proof, justifs) match {
         case K.Judgement.ValidJustification(just) =>
@@ -343,13 +343,10 @@ trait WithTheorems {
           )
       }
 
-
   }
 
-  class THMFromKernel (using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm : theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
+  class THMFromKernel(using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
 
-
-    
     def repr: String = innerJustification.repr
     val innerJustification: theory.Theorem = innerThm
     assert(innerThm.name == fullName)
@@ -357,8 +354,6 @@ trait WithTheorems {
     def highProof: Option[BaseProof] = None
 
     val goal: F.Sequent = statement
-
-
 
   }
 
@@ -371,18 +366,17 @@ trait WithTheorems {
     def highProof: Option[BaseProof] = Some(proof)
 
     import lisa.utils.Serialization.*
-    val innerJustification: theory.Theorem = 
+    val innerJustification: theory.Theorem =
       if library._withCache then
-        oneThmFromFile("cache/"+name, library.theory) match {
+        oneThmFromFile("cache/" + name, library.theory) match {
           case Some(thm) => thm
-            
-          case None => 
+
+          case None =>
             val (thm, scp, justifs) = prove(computeProof)
-            thmsToFile("cache/"+name, theory,  List((name, scp, justifs)))
+            thmsToFile("cache/" + name, theory, List((name, scp, justifs)))
             thm
         }
-      else 
-        prove(computeProof)._1
+      else prove(computeProof)._1
     def repr: String = innerJustification.repr
 
     library.last = Some(this)
@@ -415,16 +409,14 @@ trait WithTheorems {
 
   }
 
-
   given thmConv: Conversion[library.THM, theory.Theorem] = _.innerJustification
 
   trait TheoremKind {
     val kind2: String
 
     def apply(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
-      val thm = THM(statement, name.value, line.value, file.value, this)(computeProof) 
-      if this == Theorem then
-        show(thm)
+      val thm = THM(statement, name.value, line.value, file.value, this)(computeProof)
+      if this == Theorem then show(thm)
       thm
     }
 
