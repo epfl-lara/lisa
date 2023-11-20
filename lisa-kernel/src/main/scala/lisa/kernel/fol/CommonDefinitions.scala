@@ -26,7 +26,7 @@ private[fol] trait CommonDefinitions {
 
     val counterSeparator: Char = '_'
     val delimiter: Char = '`'
-    val forbiddenChars: Set[Char] = ("()[]{}?" + delimiter + counterSeparator).toSet
+    val forbiddenChars: Set[Char] = ("()[]{}?,;" + delimiter + counterSeparator).toSet
     def isValidIdentifier(s: String): Boolean = s.forall(c => !forbiddenChars.contains(c) && !c.isWhitespace)
   }
 

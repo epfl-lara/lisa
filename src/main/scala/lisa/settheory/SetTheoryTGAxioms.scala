@@ -12,7 +12,6 @@ private[settheory] trait SetTheoryTGAxioms extends SetTheoryZFAxioms {
   private val z = variable
 
   final val tarskiAxiom: AXIOM = Axiom(
-    "tarskiAxiom",
     forall(
       x,
       in(x, universe(x)) /\

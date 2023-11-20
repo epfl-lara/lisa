@@ -17,7 +17,7 @@ class ProofTacticTestLib extends AnyFunSuite with BasicMain {
   private val P = predicate[1]
 
   // generate a placeholde theorem to take ownership of proofs for test
-  val placeholderTheorem = Theorem(P(x) |- P(x)) { have(P(x) |- P(x)) by Hypothesis }
+  val placeholderTheorem: THMFromProof = Theorem(P(x) |- P(x)) { have(P(x) |- P(x)) by Hypothesis }.asInstanceOf
 
   // generates an empty proof owned by the placeholder theorem for testing
   def generateTestProof() = new BaseProof(placeholderTheorem)
