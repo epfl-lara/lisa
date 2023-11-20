@@ -63,9 +63,6 @@ lazy val root = Project(
     base = file(".")
   )
   .settings(commonSettings3)
-  .settings(
-    version := "0.1"
-  )
   .dependsOn(kernel, withTests(utils)) // Everything but `examples`
   .aggregate(utils) // To run tests on all modules
 
@@ -77,6 +74,13 @@ lazy val kernel = Project(
   .settings(
     crossScalaVersions := Seq(scala3)
   )
+
+lazy val sets = Project(
+  id = "lisa-sets",
+  base = file("lisa-sets")
+)
+  .settings(commonSettings3)
+  .dependsOn(kernel, withTests(utils))
 
 lazy val utils = Project(
   id = "lisa-utils",

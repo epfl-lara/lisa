@@ -47,6 +47,7 @@ object UserLisaException {
   class InvalidProofFromFileException(errorMessage: String, file: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
     def showError: String = errorMessage
   }
+  
   class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.fol.FOL.Formula, library: lisa.prooflib.Library)(using sourcecode.Line, sourcecode.File)
       extends UserLisaException(errorMessage) {
     def showError: String = s"The desired axiom \"$name\" contains symbol that are not part of the theory.\n" +
