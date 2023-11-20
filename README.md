@@ -86,7 +86,7 @@ with `sbt command` or `sbt "command; command; ..."`.
 
 ## License and Distribution
 
-   Copyright © 2023 EPFL
+   Copyright 2023 EPFL
 
    Licensed under the Apache License, Version 2.0 (the "License"); you may not
    use this file except in compliance with the License. You may obtain a copy of
