@@ -10,7 +10,6 @@ project/metals.sbt
 target
 *.scala.semanticdb
 
-.github
 *.iml
 
 # silex and scallion
