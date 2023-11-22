@@ -1,6 +1,4 @@
-package lisa.maths
-package settheory
-package orderings
+package lisa.maths.settheory.orderings
 
 object Orderings {
   // export everything in this package

@@ -1,18 +1,16 @@
 package lisa.automation.settheory
 
-import lisa.automation.kernel.SimplePropositionalSolver.*
+import lisa.SetTheoryLibrary.{_, given}
+import lisa.fol.FOL.{_, given}
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.mathematics.settheory.SetTheory
+import lisa.maths.settheory.SetTheory
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
-import lisa.settheory.SetTheoryLibrary
 import lisa.utils.Printer
-import lisa.fol.FOL.{_, given}
 
 object SetTheoryTactics {
-  import lisa.settheory.SetTheoryLibrary.{_, given}
   // var defs
   private val x = variable
   private val y = variable
@@ -43,7 +41,7 @@ object SetTheoryTactics {
    */
   object UniqueComprehension extends ProofTactic {
     def apply(using
-        proof: SetTheoryLibrary.Proof,
+        proof: Proof,
         line: sourcecode.Line,
         file: sourcecode.File,
         om: OutputManager
@@ -51,7 +49,7 @@ object SetTheoryTactics {
         bot: Sequent
     ): proof.ProofTacticJudgement = {
       require(separationPredicate.bounds.length == 2) // separationPredicate takes two args
-      given SetTheoryLibrary.type = SetTheoryLibrary
+      given lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
       // fresh variable names to avoid conflicts
       val botWithAssumptions = bot ++ (proof.getAssumptions |- ())
       val takenIDs = (botWithAssumptions.freeVariables ++ separationPredicate.body.freeVariables ++ originalSet.freeVariables).map(_.id)

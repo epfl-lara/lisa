@@ -1,11 +1,7 @@
-package lisa.maths
-package settheory
-package orderings
+package lisa.maths.settheory.orderings
 
-import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.settheory.SetTheoryTactics.*
-import lisa.kernel.proof.SequentCalculus as SC
+
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
@@ -14,11 +10,6 @@ import lisa.maths.settheory.orderings.Ordinals.*
 import lisa.maths.settheory.orderings.PartialOrders.*
 import lisa.maths.settheory.orderings.Segments.*
 import lisa.maths.settheory.orderings.WellOrders.*
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib
-import lisa.automation.Substitution
-import lisa.utils.FOLPrinter
 
 /**
  * This file is dedicated to proving the well-ordered and transfinite recursion
@@ -26,6 +17,7 @@ import lisa.utils.FOLPrinter
  * for readability and faster compilation.
  */
 object Recursion extends lisa.Main {
+  _withCache = true
 
   // var defs
   private val w = variable

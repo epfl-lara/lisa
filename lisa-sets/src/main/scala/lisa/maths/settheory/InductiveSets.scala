@@ -4,34 +4,22 @@ package lisa.maths
 //import lisa.maths.Quantifiers.*
 //import lisa.automation.Substitution
 
-import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.settheory.SetTheory.*
 
 object InductiveSets extends lisa.Main {
 
   // var defs
-  private val w = variable
+  private val a = variable
   private val x = variable
   private val y = variable
   private val z = variable
-  private val h = formulaVariable
+  private val r = variable
   private val t = variable
-  private val a = variable
-  private val b = variable
-  private val c = variable
-  private val d = variable
 
   // relation and function symbols
-  private val r = variable
-  private val p = variable
-  private val q = variable
-  private val f = variable
-  private val g = variable
 
   private val P = predicate[1]
-  private val Q = predicate[1]
   private val schemPred = predicate[1]
 
   /**

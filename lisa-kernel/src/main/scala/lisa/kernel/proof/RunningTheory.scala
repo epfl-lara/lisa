@@ -2,12 +2,10 @@ package lisa.kernel.proof
 
 import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.RunningTheoryJudgement._
-import lisa.kernel.proof.SCProofChecker._
 import lisa.kernel.proof.SequentCalculus._
 
 import scala.collection.immutable.Set
 import scala.collection.mutable.{Map => mMap}
-import scala.collection.mutable.{Set => mSet}
 
 /**
  * This class describes the theory, i.e. the context and language, in which theorems are proven.

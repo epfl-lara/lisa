@@ -1,18 +1,8 @@
-package lisa.maths
-package settheory
-package orderings
+package lisa.maths.settheory.orderings
 
-import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.automation.kernel.SimplePropositionalSolver.*
 import lisa.automation.settheory.SetTheoryTactics.*
-import lisa.kernel.proof.SequentCalculus as SC
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib
-import lisa.automation.Substitution
-import lisa.utils.FOLPrinter
 
 object PartialOrders extends lisa.Main {
 

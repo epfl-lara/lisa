@@ -9,7 +9,7 @@ ThisBuild / versionScheme := Some("semver-spec")
 ThisBuild / scalacOptions ++= Seq(
       "-feature",
       "-deprecation",
-      "-unchecked"
+      "-unchecked",
     )
 ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
 ThisBuild / semanticdbEnabled := true

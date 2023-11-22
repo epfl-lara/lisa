@@ -1,11 +1,8 @@
-package lisa.maths
-package settheory
+package lisa.maths.settheory
 
 import lisa.automation.kernel.CommonTactics.Definition
-import lisa.automation.kernel.OLPropositionalSolver.Tautology
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
-import lisa.automation.Substitution
 
 /**
  * Set Theory Library
@@ -34,7 +31,6 @@ object SetTheory extends lisa.Main {
   // relation and function symbols
   private val r = variable
   private val p = variable
-  private val q = variable
   private val f = variable
   private val g = variable
 

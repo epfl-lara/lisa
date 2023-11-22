@@ -1,10 +1,4 @@
 package lisa.maths
-package fol
-
-import lisa.automation.Tableau
-import lisa.automation.kernel.OLPropositionalSolver.Tautology
-import lisa.automation.kernel.SimplePropositionalSolver.*
-import lisa.automation.Substitution
 
 /**
  * Implements theorems about first-order logic.
@@ -15,8 +9,6 @@ object Quantifiers extends lisa.Main {
   private val y = variable
   private val z = variable
   private val a = variable
-  private val b = variable
-  private val c = variable
   private val p = formulaVariable
   private val P = predicate[1]
   private val Q = predicate[1]

@@ -1,9 +1,9 @@
-package lisa.automation.kernel
+package lisa.automation
 
+import lisa.automation.Substitution
 import lisa.fol.FOL as F
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.*
-import lisa.automation.Substitution
 import lisa.utils.K.{_, given}
 
 /**
@@ -12,54 +12,50 @@ import lisa.utils.K.{_, given}
  */
 object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
 
-    /**
-     * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
-     *
-     * @param proof The ongoing proof object in which the step happens.
-     * @param bot The desired conclusion.
-     */
-    def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      val botK = bot.underlying
-      solveSequent(botK) match {
-        case Left(value) => proof.ValidProofTactic(bot, value.steps, Seq())
-        case Right((msg, seq)) => proof.InvalidProofTactic(msg)
-      }
+  /**
+   * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
+   *
+   * @param proof The ongoing proof object in which the step happens.
+   * @param bot The desired conclusion.
+   */
+  def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    val botK = bot.underlying
+    solveSequent(botK) match {
+      case Left(value) => proof.ValidProofTactic(bot, value.steps, Seq())
+      case Right((msg, seq)) => proof.InvalidProofTactic(msg)
     }
+  }
 
-    /**
-     * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
-     * Uses the given already proven facts as assumptions to reach the desired goal.
-     *
-     * @param proof The ongoing proof object in which the step happens.
-     * @param premise A previously proven step necessary to reach the conclusion.
-     * @param bot   The desired conclusion.
-     */
-    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
-      from(using lib, proof)(Seq(premise)*)(bot)
+  /**
+   * Given a targeted conclusion sequent, try to prove it using laws of propositional logic and reflexivity and symmetry of equality.
+   * Uses the given already proven facts as assumptions to reach the desired goal.
+   *
+   * @param proof The ongoing proof object in which the step happens.
+   * @param premise A previously proven step necessary to reach the conclusion.
+   * @param bot   The desired conclusion.
+   */
+  def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
+    from(using lib, proof)(Seq(premise)*)(bot)
 
-    def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      val botK = bot.underlying
-      val premsFormulas: Seq[((proof.Fact, Formula), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
-      val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
-      val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
+  def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    val botK = bot.underlying
+    val premsFormulas: Seq[((proof.Fact, Formula), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
+    val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
+    val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
 
-      solveSequent(sqToProve) match {
-        case Left(value) =>
-          val subpr = SCSubproof(value)
-          val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
-            val ((prem, form), position) = cur
-            Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
-          })
-          val steps = (initProof ++ stepsList.reverse).toIndexedSeq
-          proof.ValidProofTactic(bot, steps, premises)
-        case Right((msg, seq)) =>
-          proof.InvalidProofTactic(msg)
-      }
+    solveSequent(sqToProve) match {
+      case Left(value) =>
+        val subpr = SCSubproof(value)
+        val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
+          val ((prem, form), position) = cur
+          Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
+        })
+        val steps = (initProof ++ stepsList.reverse).toIndexedSeq
+        proof.ValidProofTactic(bot, steps, premises)
+      case Right((msg, seq)) =>
+        proof.InvalidProofTactic(msg)
     }
-
-
-
-
+  }
 
   /**
    * This function returns a proof of the given sequent if such a proof exists using only the rules of propositional logic and reflexivity and symmetry of equality.

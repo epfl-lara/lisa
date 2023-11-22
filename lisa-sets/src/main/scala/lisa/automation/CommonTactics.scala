@@ -1,6 +1,6 @@
 package lisa.automation.kernel
 
-import lisa.automation.kernel.OLPropositionalSolver.Tautology
+import lisa.automation.Tautology
 import lisa.fol.FOLHelpers.*
 import lisa.fol.FOL as F
 import lisa.prooflib.BasicStepTactic.*

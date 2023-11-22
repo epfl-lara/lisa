@@ -5,13 +5,13 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.{_, given}
+import lisa.prooflib.*
 import lisa.utils.FOLPrinter
 import lisa.utils.K
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.unification.UnificationUtils
 import lisa.utils.unification.UnificationUtils.getContextFormulaSet
-import lisa.prooflib.*
 
 import scala.annotation.nowarn
 import scala.collection.mutable.{Map as MMap}

@@ -1,8 +1,8 @@
 package lisa
 
-import lisa.prooflib.Library
-import lisa.kernel.proof.RunningTheory
 import lisa.fol.FOL.{_, given}
+import lisa.kernel.proof.RunningTheory
+import lisa.prooflib.Library
 
 /**
  * Specific implementation of [[utilities.Library]] for Set Theory, with a RunningTheory that is supposed to be used by the standard library.
@@ -10,7 +10,6 @@ import lisa.fol.FOL.{_, given}
 object SetTheoryLibrary extends lisa.prooflib.Library {
 
   val theory = new RunningTheory()
-
 
   // Predicates
   /**
@@ -82,15 +81,12 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   private val B = variable
   private val P = predicate[3]
 
+  ////////////
+  // Axioms //
+  ////////////
 
-
-                    ////////////
-                    // Axioms //
-                    ////////////
-    
-
-    // Z
-    ////////
+  // Z
+  ////////
 
   /**
    * Extensionality Axiom --- Two sets are equal iff they have the same
@@ -195,11 +191,8 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    */
   final val foundationAxiom: AXIOM = Axiom(!(x === emptySet) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
 
-
-
-    // ZF
-    /////////
-    
+  // ZF
+  /////////
 
   /**
    * Replacement Schema --- If a predicate `P` is 'functional' over `x`, i.e.,
@@ -213,24 +206,22 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   )
 
   final val tarskiAxiom: AXIOM = Axiom(
+    forall(
+      x,
+      in(x, universe(x)) /\
         forall(
-        x,
-        in(x, universe(x)) /\
-            forall(
-            y,
-            in(y, universe(x)) ==> (in(powerSet(y), universe(x)) /\ subset(powerSet(y), universe(x))) /\
-                forall(z, subset(z, universe(x)) ==> (sim(y, universe(x)) /\ in(y, universe(x))))
-            )
+          y,
+          in(y, universe(x)) ==> (in(powerSet(y), universe(x)) /\ subset(powerSet(y), universe(x))) /\
+            forall(z, subset(z, universe(x)) ==> (sim(y, universe(x)) /\ in(y, universe(x))))
         )
     )
+  )
 
-
-
-    /**
-      * The set of all axioms of Tarski-Grothedick (TG) set theory.
-      *
-      * @return
-      */
+  /**
+   * The set of all axioms of Tarski-Grothedick (TG) set theory.
+   *
+   * @return
+   */
   def axioms: Set[(String, AXIOM)] = Set(
     ("EmptySet", emptySetAxiom),
     ("extensionalityAxiom", extensionalityAxiom),
@@ -248,7 +239,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   /////////////
   // Aliases //
   /////////////
-  
+
   // Unicode symbols
 
   val ∅ = emptySet
@@ -261,7 +252,5 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
     def =/=(that: Term): Formula = !(===(thi, that))
 
   }
-
-
 
 }
