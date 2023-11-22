@@ -650,7 +650,6 @@ object Serialization {
         try {
           Class.forName(obj + "$").getField("MODULE$").get(null)
         } catch { case _ => "Not found: " + obj }
-
         j(0) match
           case 'a' => theory.getAxiom(name).get
           case 't' =>
