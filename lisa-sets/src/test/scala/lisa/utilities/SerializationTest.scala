@@ -1,5 +1,6 @@
 package lisa.test.utils
 
+import lisa.automation.Tautology
 import lisa.test.automation.TableauTest
 import lisa.utils.K
 import lisa.utils.K.getJustification
@@ -28,8 +29,8 @@ class SerializationTest extends AnyFunSuite {
   def testMulti(theory: K.RunningTheory, thms: List[(String, K.SCProof, List[theory.Justification])]) = {
     thmsToFile(testfile, theory, thms.map(thm => (thm._1, thm._2, thm._3.map(("test", _)))))
     val thm = thmsFromFile(testfile, theory)
-    File(testfile + "test.trees").delete()
-    File(testfile + "test.proof").delete()
+    File(testfile + ".trees").delete()
+    File(testfile + ".proof").delete()
     thm
   }
 
@@ -54,7 +55,7 @@ class SerializationTest extends AnyFunSuite {
       try {
         val formula = p._2
         val no = p._1
-        val proof = lisa.automation.kernel.OLPropositionalSolver.solveSequent(() |- formula.underlying) match {
+        val proof = Tautology.solveSequent(() |- formula.underlying) match {
           case Left(proof) => proof
           case Right(_) => throw new Exception("OLPropositionalSolver failed to prove a tautology")
         }
@@ -88,7 +89,7 @@ class SerializationTest extends AnyFunSuite {
       try {
         val formula = p._2
         val no = p._1
-        val proof = lisa.automation.kernel.OLPropositionalSolver.solveSequent(() |- formula.underlying) match {
+        val proof = Tautology.solveSequent(() |- formula.underlying) match {
           case Left(proof) => proof
           case Right(_) => throw new Exception("OLPropositionalSolver failed to prove a tautology")
         }
@@ -132,7 +133,7 @@ class SerializationTest extends AnyFunSuite {
   }
 
   test("exporting a proof to a file and back should work, with imports") {
-    import lisa.mathematics.settheory.SetTheory as ST
+    import lisa.maths.settheory.SetTheory as ST
     val thms = List(
       // ("russelsParadox", ST.russelsParadox),
       ("setUnionMembership", ST.setUnionMembership),
@@ -155,7 +156,7 @@ class SerializationTest extends AnyFunSuite {
   }
 
   test("exporting multiple theorems at once to a file and back should work") {
-    import lisa.mathematics.settheory.SetTheory as ST
+    import lisa.maths.settheory.SetTheory as ST
     val thms = List(
       // ("russelsParadox", ST.russelsParadox),
       ("setUnionMembership", ST.setUnionMembership),

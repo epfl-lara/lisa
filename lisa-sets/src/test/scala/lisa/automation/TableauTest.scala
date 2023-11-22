@@ -1,9 +1,10 @@
 package lisa.test.automation
 
-import lisa.automation.Tableau._
+import lisa.SetTheoryLibrary.{_, given}
+import lisa.automation.Substitution.*
+import lisa.automation.Tableau.*
+import lisa.fol.FOL.*
 import lisa.prooflib.Exports.*
-import lisa.prooflib.Substitution.*
-import lisa.settheory.SetTheoryLibrary.{_, given}
 import lisa.utils.K.SCProofChecker.checkSCProof
 import lisa.utils.parsing.FOLPrinter.prettyFormula
 import lisa.utils.parsing.FOLPrinter.prettySCProof

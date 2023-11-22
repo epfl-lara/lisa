@@ -7,7 +7,6 @@ import lisa.maths.settheory.orderings.InclusionOrders.*
 import lisa.maths.settheory.orderings.PartialOrders.*
 import lisa.maths.settheory.orderings.WellOrders.*
 
-
 object Ordinals extends lisa.Main {
 
   // var defs

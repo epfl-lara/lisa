@@ -1,7 +1,6 @@
 package lisa.maths.settheory.orderings
 
 import lisa.automation.settheory.SetTheoryTactics.*
-
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
@@ -22,7 +21,6 @@ object Induction extends lisa.Main {
   private val x = variable
   private val y = variable
   private val z = variable
-  
 
   // relation and function symbols
 
