@@ -11,8 +11,8 @@ import lisa.utils.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
-  * Check that a simple incorrect theorem is not accepted and a single correct theorem is accepted.
-  */
+ * Check that a simple incorrect theorem is not accepted and a single correct theorem is accepted.
+ */
 class TheoriesHelpersTest extends AnyFunSuite {
   export TestTheory.*
 
@@ -20,7 +20,7 @@ class TheoriesHelpersTest extends AnyFunSuite {
     val (s0, s1) = (ConstantFunctionLabel("0", 0), ConstantFunctionLabel("1", 0))
     runningTestTheory.addSymbol(s0)
     runningTestTheory.addSymbol(s1)
-    
+
     val (c0, c1) = (s0(), s1())
     val judgement = runningTestTheory.theorem("False theorem", c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq())
     assert(!judgement.isValid)
