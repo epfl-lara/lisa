@@ -63,7 +63,7 @@ lazy val root = Project(
     base = file(".")
   )
   .settings(commonSettings3)
-  .dependsOn(kernel, withTests(utils)) // Everything but `examples`
+  .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
   .aggregate(utils) // To run tests on all modules
 
 lazy val kernel = Project(
@@ -80,7 +80,7 @@ lazy val sets = Project(
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
-  .dependsOn(kernel, withTests(utils))
+  .dependsOn(kernel, utils)
 
 lazy val utils = Project(
   id = "lisa-utils",
