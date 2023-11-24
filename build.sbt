@@ -80,7 +80,7 @@ lazy val sets = Project(
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
-  .dependsOn(kernel, utils)
+  .dependsOn(kernel, withTests(utils))
 
 lazy val utils = Project(
   id = "lisa-utils",
