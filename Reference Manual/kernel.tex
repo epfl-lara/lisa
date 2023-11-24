@@ -165,7 +165,7 @@ For formulas, we use greek letters such as $\phi$, $\psi$, $\tau$ to denote arbi
 
 \subsection{Substitution}
 \label{subsec:substitution}
-On top of basic building blocks of terms and formulas, there is one important type of operations: substitution of schematic symbols, which has to be implemented in a capture-avoiding way. We start with the subcase of variable substitution:
+On top of basic building blocks of terms and formulas, there is one important type of operation: substitution of schematic symbols, which has to be implemented in a capture-avoiding way. We start with the subcase of variable substitution:
 \begin{definition}[Capture-avoiding Substitution of variables]
   Given a base term $t$, a variable $x$ and another term $r$, the substitution of $x$ by $r$ inside $t$ is denoted by $ t[x := r] $ and is computed by replacing all occurences of $x$ by $r$.
 
@@ -752,7 +752,7 @@ LISA's kernel allows to define two kinds of objects: Function (or Term) symbols 
     FunctionDefinition(f, y, lambda(Seq(x1,...,x2), φ)) 
   \end{lstlisting}
   corresponds to \\
-  \hspace*{1.3em}``For any $\vec{x}$, let $f^n(\vec{x}) \textnormal{ be the unique } y \textnormal{ such that } \phi$ holds."
+  \hspace*{1.3em}``For any $\vec{x}$, let $f^n(\vec{x}) \textnormal{ be the unique } y \textnormal{ such that } \varphi$ holds."
 
   \caption{Definitions in LISA.}
   \label{fig:definitions}
@@ -1078,7 +1078,7 @@ Now, consider again
   val f: SchematicFunctionLabel("f", 2)
 \end{lstlisting}
 even with the above \lstinline|apply| trick, \lstinline|f(x, y)| would not compile, since \lstinline|f| can apply to \lstinline|Term| arguments, but not to \lstinline|TermLabel|. Hence we first need to apply \lstinline|x| and \lstinline|y| to an empty list of argument, such as in \lstinline|f(x(), y())|.
-This can be done automatically with implicit conversions. Implicit conversion is the mechanism allowing to cast an object of a type to an other in a canonical way. It is define with the \lstinline|given| keyword:
+This can be done automatically with implicit conversions. Implicit conversion is the mechanism allowing to cast an object of a type to an other in a canonical way. It is defined with the \lstinline|given| keyword:
 %
 \begin{lstlisting}[language=Scala]
   given Conversion[TermLabel, Term] = (t: Term) => Term(t, Seq())

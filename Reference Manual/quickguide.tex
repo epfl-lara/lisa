@@ -186,7 +186,7 @@ is equivalent to
     have (Y) by Tactic2(s1)
   \end{lstlisting}
 \end{minipage}
-\lstinline|thenHave| allows us to not give a name to every step when we're doing linear reasoning. Finally, in lines 5 and 8, we see that tactic can refer not only to steps of the current proof, but also to previously proven theorems and axioms, such as \lstinline|emptySetAxiom|. The \lstinline|of| keyword indicates the the axiom (or step) is instantiated in a particular way. For example:
+\lstinline|thenHave| allows us to not give a name to every step when we're doing linear reasoning. Finally, in lines 5 and 8, we see that tactic can refer not only to steps of the current proof, but also to previously proven theorems and axioms, such as \lstinline|emptySetAxiom|. The \lstinline|of| keyword indicates the axiom (or step) is instantiated in a particular way. For example:
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
     emptySetAxiom             // ==  !(x ∈ ∅)
