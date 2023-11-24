@@ -16,3 +16,6 @@ target
 
 silex/*
 scallion/*
+
+# caching of theorems
+cache

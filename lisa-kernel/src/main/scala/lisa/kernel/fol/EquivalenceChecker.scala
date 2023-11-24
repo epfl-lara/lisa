@@ -1,6 +1,5 @@
 package lisa.kernel.fol
 
-import java.lang
 import scala.collection.mutable
 import scala.math.Numeric.IntIsIntegral
 

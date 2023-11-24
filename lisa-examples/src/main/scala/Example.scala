@@ -1,4 +1,4 @@
-import lisa.prooflib.Substitution.{ApplyRules as Substitute}
+import lisa.automation.Substitution.{ApplyRules as Substitute}
 
 object Example extends lisa.Main {
 

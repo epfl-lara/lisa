@@ -11,6 +11,9 @@ import lisa.utils.KernelHelpers.{_, given}
 import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
+/**
+ * Extensive tests for the file lisa.kernel.Substitution
+ */
 class SubstitutionTest extends AnyFunSuite {
   private val x = variable
   private val x1 = VariableLabel(Identifier("x", 1))
