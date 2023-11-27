@@ -41,6 +41,7 @@ class TableauTest extends AnyFunSuite {
 }
 object TableauTest {
 
+  val u = variable
   val w = variable
   val x = variable
   val y = variable
@@ -56,9 +57,13 @@ object TableauTest {
   val g = function[1]
   val h = function[2]
 
+
+  val D = predicate[1]
+  val E = predicate[2]
   val P = predicate[1]
   val Q = predicate[1]
   val R = predicate[2]
+
 
   var doprint: Boolean = false
   def printif(s: Any) = if doprint then println(s) else ()
@@ -99,6 +104,18 @@ object TableauTest {
 
   // First Order Hard, from https://isabelle.in.tum.de/library/FOL/FOL-ex/Quantifiers_Cla.html
 
+
+
+  val a1 = forall(x, forall(y, forall(z, ((E(x, y) /\ E(y, z)) ==> E(x, z)))))
+  val a2 = forall(x, forall(y, (E(x, y) ==> E(f(x), f(y)))))
+  val a3 = forall(x, E(f(g(x)), g(f(x))))
+  val biga = forall(x, forall(y, forall(z, 
+    ((E(x, y) /\ E(y, z)) ==> E(x, z)) /\
+    (E(x, y) ==> E(f(x), f(y))) /\
+    E(f(g(x)), g(f(x)))
+  )))
+
+
   val poshard = List(
     forall(x, P(x) ==> Q(x)) ==> (forall(x, P(x)) ==> forall(x, Q(x))),
     forall(x, forall(y, R(x, y))) ==> forall(y, forall(x, R(x, y))),
@@ -122,10 +139,19 @@ object TableauTest {
     (exists(x, P(x) /\ exists(y, R(x, y)))) ==> exists(x, exists(y, P(x) /\ R(x, y))),
     exists(x, exists(y, P(x) /\ R(x, y))) <=> (exists(x, P(x) /\ exists(y, R(x, y)))),
     exists(y, forall(x, P(x) ==> R(x, y))) ==> (forall(x, P(x)) ==> exists(y, R(x, y))),
-    forall(x, P(x)) ==> P(y)
+    forall(x, P(x)) ==> P(y),
+    !forall(x, D(x) /\ !D(f(x))),
+    !forall(x, (D(x) /\ !D(f(x))) \/ (D(x) /\ !D(x))),
+    forall(x, forall(y, (E(x, y) ==> E(f(x), f(y)) ) /\ E( f(g(x)), g(f(x))) ))  ==> E(f(f(g(u))), f(g(f(u)))),
+    !(forall(x, !((E(f(x), x)))) /\ forall(x, forall(y, !(E(x, y)) /\ E(f(x), g(x))))),
+    a1 /\ a2 /\ a3 ==> E(f(f(g(u))), f(g(f(u)))),
+    a1 /\ a2 /\ a3 ==> E(f(g(f(u))), g(f(f(u)))),
+    biga ==> E(f(f(g(u))), f(g(f(u)))),
+    biga ==> E(f(g(f(u))), g(f(f(u)))),
   ).zipWithIndex.map(f =>
     val res = solve(() |- f._1)
     (f._2, f._1, res.nonEmpty, res, res.map(checkSCProof))
   )
+
 
 }
