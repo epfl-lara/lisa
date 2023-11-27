@@ -26,7 +26,7 @@ val commonSettings = Seq(
 
 
 val scala2 = "2.13.8"
-val scala3 = "3.2.2"
+val scala3 = "3.3.1"
 
 val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
