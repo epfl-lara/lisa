@@ -232,8 +232,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * When multiple substitutions are possible, the one with the smallest size is returned. (Maybe there is a better heuristic, like distance from the root?)
    */
   def close(branch: Branch): Option[(Substitution, Set[Formula])] = {
-    // println("close")
-    // println("maxIndex: " + branch.maxIndex)
     val newMap = branch.atoms._1
       .flatMap(pred => pred.freeVariables.filter(v => branch.unifiable.contains(v)))
       .map(v => v -> VariableLabel(Identifier(v.id.name, v.id.no + branch.maxIndex + 1)))
@@ -241,7 +239,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     val newMapTerm = newMap.map((k, v) => k -> VariableTerm(v))
     val inverseNewMap = newMap.map((k, v) => v -> k).toMap
     val inverseNewMapTerm = inverseNewMap.map((k, v) => k -> VariableTerm(v))
-    // println("newMap: " + newMap)
     val pos = branch.atoms._1.map(pred => substituteVariablesInFormula(pred, newMapTerm, Seq())).asInstanceOf[List[PredicateFormula]].iterator
     var substitutions: List[(Substitution, Set[Formula])] = Nil
 
@@ -251,16 +248,13 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       val neg = branch.atoms._2.iterator
       while (neg.hasNext) {
         val n = neg.next()
-        // println("unifying... " + prettyFormula(p) + "  " + prettyFormula(n))
         unifyPred(p, n, branch) match
           case None => ()
           case Some(unif) =>
-            // println("unif found: " + (prettySubst(unif) + "    " + prettyFormula(p) + " : " + prettyFormula(n)))
             substitutions = (unif, Set(p, !n)) :: substitutions
       }
     }
 
-    // println("Subst: " + substitutions.map((s, f) => prettySubst(s) + "     " + f.map(prettyFormula(_))))
 
     val cr1 = substitutions.map((sub, set) =>
       (
@@ -274,7 +268,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         set.map(f => substituteVariablesInFormula(f, inverseNewMapTerm, Seq()))
       )
     )
-    // println("cr1: " + cr1.map((s, f) => prettySubst(s) + "     " + f.map(prettyFormula(_))))
 
     val cr = cr1.filterNot(s =>
       s._1.exists((x, t) =>
@@ -282,7 +275,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         v
       )
     )
-    // println("cr: " + cr.map((s, f) => prettySubst(s)))
 
     cr.sortBy(_._1.size).headOption
 
