@@ -34,10 +34,10 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
   val knownDefs: scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
 
-  def addSymbol(s: F.ConstantFunctionLabel[?] | F.ConstantPredicateLabel[?] | F.Constant): Unit = {
+  def addSymbol(s: F.ConstantFunctionLabel[?] | F.ConstantAtomicLabel[?] | F.Constant): Unit = {
     s match {
       case s: F.ConstantFunctionLabel[?] => theory.addSymbol(s.underlyingLabel)
-      case s: F.ConstantPredicateLabel[?] => theory.addSymbol(s.underlyingLabel)
+      case s: F.ConstantAtomicLabel[?] => theory.addSymbol(s.underlyingLabel)
       case s: F.Constant => theory.addSymbol(s.underlyingLabel)
     }
     knownDefs.update(s, None)

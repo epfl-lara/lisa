@@ -54,7 +54,7 @@ object KernelHelpers {
     }
   }
 
-  extension [L <: PredicateLabel](label: L) {
+  extension [L <: AtomicLabel](label: L) {
     def apply(args: Term*): Formula = PredicateFormula(label, args)
     @targetName("applySeq")
     def apply(args: Seq[Term]): Formula = PredicateFormula(label, args)
@@ -101,8 +101,8 @@ object KernelHelpers {
 
   given Conversion[TermLabel, Term] = Term(_, Seq())
   given Conversion[Term, TermLabel] = _.label
-  given Conversion[PredicateLabel, PredicateFormula] = PredicateFormula(_, Seq())
-  given Conversion[PredicateFormula, PredicateLabel] = _.label
+  given Conversion[AtomicLabel, PredicateFormula] = PredicateFormula(_, Seq())
+  given Conversion[PredicateFormula, AtomicLabel] = _.label
 
   given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula(_, Seq())
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
@@ -196,7 +196,7 @@ object KernelHelpers {
 
   // Instatiation functions for formulas lifted to sequents.
 
-  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Sequent = {
+  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicAtomicLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
 
@@ -207,7 +207,7 @@ object KernelHelpers {
   def instantiateSchemaInSequent(
       s: Sequent,
       mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+      mPred: Map[SchematicAtomicLabel, LambdaTermFormula],
       mTerm: Map[SchematicTermLabel, LambdaTermTerm]
   ): Sequent = {
     s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))
@@ -372,7 +372,7 @@ object KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check. See also [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
      */
     def predicateDefinition(symbol: String, expression: LambdaTermFormula): RunningTheoryJudgement[theory.PredicateDefinition] = {
-      val label = ConstantPredicateLabel(symbol, expression.vars.size)
+      val label = ConstantAtomicLabel(symbol, expression.vars.size)
       theory.makePredicateDefinition(label, expression)
     }
 
@@ -391,7 +391,7 @@ object KernelHelpers {
     def findUndefinedSymbols(phi: Formula): Set[ConstantLabel] = phi match {
       case PredicateFormula(label, args) =>
         label match {
-          case l: ConstantPredicateLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case l: ConstantAtomicLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
           case _ => args.flatMap(findUndefinedSymbols).toSet
         }
       case ConnectorFormula(label, args) => args.flatMap(findUndefinedSymbols).toSet

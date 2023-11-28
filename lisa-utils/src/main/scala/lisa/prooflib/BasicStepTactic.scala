@@ -1088,7 +1088,7 @@ object BasicStepTactic {
           val Eq = F.equality // (F.equality: (F.|->[F.**[F.Term, 2], F.Formula]))
           f match {
             case F.PredicateFormula(e, Seq(l, r)) =>
-              (F.equality: F.PredicateLabel) == (e: F.PredicateLabel) && l == r // termequality
+              (F.equality: F.AtomicLabel) == (e: F.AtomicLabel) && l == r // termequality
             case _ => false
           }
         )

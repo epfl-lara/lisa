@@ -309,7 +309,7 @@ trait ProofsHelpers {
     lazy val label: ConstantPredicateLabelOfArity[N] = {
       (
         if (vars.length == 0) F.ConstantFormula(name)
-        else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf[N])
+        else F.ConstantAtomicLabel[N](name, vars.length.asInstanceOf[N])
       ).asInstanceOf[ConstantPredicateLabelOfArity[N]]
     }
 
@@ -357,7 +357,7 @@ trait ProofsHelpers {
     val statement: F.Sequent = () |- Iff(
       (label match {
         case l: F.ConstantFormula => l
-        case l: F.ConstantPredicateLabel[?] => l(vars)
+        case l: F.ConstantAtomicLabel[?] => l(vars)
       }),
       lambda.body
     )
