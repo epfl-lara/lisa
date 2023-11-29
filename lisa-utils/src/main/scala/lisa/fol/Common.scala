@@ -442,7 +442,7 @@ trait Common {
 
   /**
    * A AtomLabel is a [[LisaObject]] of type ((Term ** N) |-> Formula), that is represented by a predicate label.
-   * It can be either a [[SchematicPredicateLabel]] or a [[ConstantAtomLabel]].
+   * It can be either a [[SchematicPredicateLabel]] or a [[ConstantAtomicLabel]].
    */
   sealed trait AtomLabel extends (Seq[Term] |-> Formula) with Absolute {
     val arity: Arity
@@ -462,7 +462,7 @@ trait Common {
   }
   type ConstantPredicateLabelOfArity[N <: Arity] <: ConstantConstOrPredLabel = N match {
     case 0 => ConstantFormula
-    case N => ConstantAtomLabel[N]
+    case N => ConstantAtomicLabel[N]
   }
 
   sealed trait SchematicAtomLabel extends AtomLabel with SchematicLabel[Seq[Term] |-> Formula] {
@@ -483,7 +483,7 @@ trait Common {
     val label: VariableFormula = this
     val args: Seq[Nothing] = Seq()
     val underlyingLabel: K.VariableFormulaLabel = K.VariableFormulaLabel(id)
-    val underlying = K.PredicateFormula(underlyingLabel, Seq())
+    val underlying = K.AtomicFormula(underlyingLabel, Seq())
     override def applyUnsafe(args: Term ** 0): Formula = this
     @nowarn("msg=Unreachable")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula = {
@@ -511,8 +511,8 @@ trait Common {
     override val arity: 0 = 0
     val label: ConstantFormula = this
     val args: Seq[Nothing] = Seq()
-    val underlyingLabel: K.ConstantAtomLabel = K.ConstantAtomLabel(id, 0)
-    val underlying = K.PredicateFormula(underlyingLabel, Seq())
+    val underlyingLabel: K.ConstantAtomicLabel = K.ConstantAtomicLabel(id, 0)
+    val underlying = K.AtomicFormula(underlyingLabel, Seq())
     override def applyUnsafe(args: Term ** 0): Formula = this
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty
@@ -555,10 +555,10 @@ trait Common {
   }
 
   /**
-   * A constant predicate label corresponding to [[K.ConstantAtomLabel]].
+   * A constant predicate label corresponding to [[K.ConstantAtomicLabel]].
    */
-  case class ConstantAtomLabel[N <: Arity](id: Identifier, arity: N) extends ConstantConstOrPredLabel with ConstantLabel[Term ** N |-> Formula] with ((Term ** N) |-> Formula) {
-    val underlyingLabel: K.ConstantAtomLabel = K.ConstantAtomLabel(id, arity)
+  case class ConstantAtomicLabel[N <: Arity](id: Identifier, arity: N) extends ConstantConstOrPredLabel with ConstantLabel[Term ** N |-> Formula] with ((Term ** N) |-> Formula) {
+    val underlyingLabel: K.ConstantAtomicLabel = K.ConstantAtomicLabel(id, arity)
     private var infix = false
     def applyUnsafe(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     def unapplySeq(f: PredicateFormula): Seq[Term] = f match {
@@ -568,15 +568,15 @@ trait Common {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels: Set[SchematicLabel[?]] = Set.empty
-    def rename(newid: Identifier): ConstantAtomLabel[N] = ConstantAtomLabel(newid, arity)
-    def freshRename(taken: Iterable[Identifier]): ConstantAtomLabel[N] = rename(K.freshId(taken, id))
+    def rename(newid: Identifier): ConstantAtomicLabel[N] = ConstantAtomicLabel(newid, arity)
+    def freshRename(taken: Iterable[Identifier]): ConstantAtomicLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
     def mkString(args: Seq[Term]): String = if (infix) (args(0).toString() + " " + toString() + " " + args(1).toString()) else toString() + "(" + args.mkString(", ") + ")"
     override def mkStringSeparated(args: Seq[Term]): String = if (infix) "(" + mkString(args) + ")" else mkString(args)
   }
-  object ConstantAtomLabel {
-    def infix[N <: Arity](id: Identifier, arity: N): ConstantAtomLabel[N] =
-      val x = new ConstantAtomLabel[N](id, arity)
+  object ConstantAtomicLabel {
+    def infix[N <: Arity](id: Identifier, arity: N): ConstantAtomicLabel[N] =
+      val x = new ConstantAtomicLabel[N](id, arity)
       x.infix = true
       x
   }
@@ -587,7 +587,7 @@ trait Common {
   case class PredicateFormula(p: AtomLabel, args: Seq[Term]) extends AtomicFormula with Absolute {
     assert(p.arity != 0)
     val label: AtomLabel = p
-    override val underlying = K.PredicateFormula(p.underlyingLabel, args.map(_.underlying))
+    override val underlying = K.AtomicFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula =
       p.substituteUnsafe(map).applyUnsafe(args.map[Term]((x: Term) => x.substituteUnsafe(map)))
 

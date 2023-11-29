@@ -20,9 +20,9 @@ class IncorrectProofsTests extends ProofCheckerSuite {
     implicit def proofStepToProof(proofStep: SCProofStep): SCProof = SCProof(proofStep)
 
     val (fl, gl, hl) = (VariableFormulaLabel("f"), VariableFormulaLabel("g"), VariableFormulaLabel("h"))
-    val f = PredicateFormula(fl, Seq.empty) // Some arbitrary formulas
-    val g = PredicateFormula(gl, Seq.empty)
-    val h = PredicateFormula(hl, Seq.empty)
+    val f = AtomicFormula(fl, Seq.empty) // Some arbitrary formulas
+    val g = AtomicFormula(gl, Seq.empty)
+    val h = AtomicFormula(hl, Seq.empty)
 
     val incorrectProofs: Seq[SCProof] = List(
       SCProof(

@@ -45,7 +45,7 @@ class RunningTheory {
    * @param label The name and arity of the new symbol
    * @param expression The formula, depending on terms, that define the symbol.
    */
-  sealed case class PredicateDefinition private[RunningTheory] (label: ConstantAtomLabel, expression: LambdaTermFormula) extends Definition
+  sealed case class PredicateDefinition private[RunningTheory] (label: ConstantAtomicLabel, expression: LambdaTermFormula) extends Definition
 
   /**
    * Define a function symbol as the unique element that has some property. The existence and uniqueness
@@ -63,7 +63,7 @@ class RunningTheory {
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
 
   private[proof] val funDefinitions: mMap[ConstantFunctionLabel, Option[FunctionDefinition]] = mMap.empty
-  private[proof] val predDefinitions: mMap[ConstantAtomLabel, Option[PredicateDefinition]] = mMap(equality -> None, top -> None, bot -> None)
+  private[proof] val predDefinitions: mMap[ConstantAtomicLabel, Option[PredicateDefinition]] = mMap(equality -> None, top -> None, bot -> None)
 
   private[proof] val knownSymbols: mMap[Identifier, ConstantLabel] = mMap(equality.id -> equality)
 
@@ -113,7 +113,7 @@ class RunningTheory {
    * @param expression The functional formula defining the predicate.
    * @return A definition object if the parameters are correct,
    */
-  def makePredicateDefinition(label: ConstantAtomLabel, expression: LambdaTermFormula): RunningTheoryJudgement[this.PredicateDefinition] = {
+  def makePredicateDefinition(label: ConstantAtomicLabel, expression: LambdaTermFormula): RunningTheoryJudgement[this.PredicateDefinition] = {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label))
@@ -196,7 +196,7 @@ class RunningTheory {
     case Theorem(name, proposition, _) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
     case PredicateDefinition(label, LambdaTermFormula(vars, body)) =>
-      val inner = ConnectorFormula(Iff, Seq(PredicateFormula(label, vars.map(VariableTerm.apply)), body))
+      val inner = ConnectorFormula(Iff, Seq(AtomicFormula(label, vars.map(VariableTerm.apply)), body))
       Sequent(Set(), Set(inner))
     case FunctionDefinition(label, out, LambdaTermFormula(vars, body), _) =>
       val inner = BinderFormula(
@@ -205,7 +205,7 @@ class RunningTheory {
         ConnectorFormula(
           Iff,
           Seq(
-            PredicateFormula(equality, Seq(Term(label, vars.map(VariableTerm.apply)), VariableTerm(out))),
+            AtomicFormula(equality, Seq(Term(label, vars.map(VariableTerm.apply)), VariableTerm(out))),
             body
           )
         )
@@ -242,7 +242,7 @@ class RunningTheory {
       knownSymbols.update(s.id, s)
       s match {
         case c: ConstantFunctionLabel => funDefinitions.update(c, None)
-        case c: ConstantAtomLabel => predDefinitions.update(c, None)
+        case c: ConstantAtomicLabel => predDefinitions.update(c, None)
       }
     } else {}
   }
@@ -270,9 +270,9 @@ class RunningTheory {
    * @return Weather phi belongs to the specified language
    */
   def belongsToTheory(phi: Formula): Boolean = phi match {
-    case PredicateFormula(label, args) =>
+    case AtomicFormula(label, args) =>
       label match {
-        case l: ConstantAtomLabel => isSymbol(l) && args.forall(belongsToTheory)
+        case l: ConstantAtomicLabel => isSymbol(l) && args.forall(belongsToTheory)
         case _ => args.forall(belongsToTheory)
       }
     case ConnectorFormula(label, args) => args.forall(belongsToTheory)
@@ -315,7 +315,7 @@ class RunningTheory {
    */
   def isSymbol(label: ConstantLabel): Boolean = label match {
     case c: ConstantFunctionLabel => funDefinitions.contains(c)
-    case c: ConstantAtomLabel => predDefinitions.contains(c)
+    case c: ConstantAtomicLabel => predDefinitions.contains(c)
   }
 
   /**
@@ -344,7 +344,7 @@ class RunningTheory {
   /**
    * Get the definition of the given label, if it is defined in the theory.
    */
-  def getDefinition(label: ConstantAtomLabel): Option[PredicateDefinition] = predDefinitions.get(label).flatten
+  def getDefinition(label: ConstantAtomicLabel): Option[PredicateDefinition] = predDefinitions.get(label).flatten
 
   /**
    * Get the definition of the given label, if it is defined in the theory.
@@ -365,7 +365,7 @@ class RunningTheory {
    * Get the definition for the given identifier, if it is defined in the theory.
    */
   def getDefinition(name: Identifier): Option[Definition] = knownSymbols.get(name).flatMap {
-    case f: ConstantAtomLabel => getDefinition(f)
+    case f: ConstantAtomicLabel => getDefinition(f)
     case f: ConstantFunctionLabel => getDefinition(f)
   }
 

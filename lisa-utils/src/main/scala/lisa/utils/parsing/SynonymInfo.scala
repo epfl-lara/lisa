@@ -12,7 +12,7 @@ case class SynonymInfo(private val synonymToCanonical: Map[String, CanonicalId])
   def getPrintName(id: String): String = synonymToCanonical.get(id).map(_.print).getOrElse(id)
 
   /**
-   * @return the synonym of `id` that is used to construct the corresponding `ConstantAtomLabel` or
+   * @return the synonym of `id` that is used to construct the corresponding `ConstantAtomicLabel` or
    *         `ConstantFunctionLabel`. If not available, `id` has no known synonyms, so return `id` itself.
    */
   def getInternalName(id: String): String = synonymToCanonical.get(id).map(_.internal).getOrElse(id)

@@ -54,7 +54,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
     val generator = nameGenerator()
     () => {
       val id = generator()
-      PredicateFormula(ConstantAtomLabel(id, 0), Seq.empty)
+      AtomicFormula(ConstantAtomicLabel(id, 0), Seq.empty)
     }
   }
 
@@ -81,7 +81,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
             // Reuse existing name
             connectors(random.nextInt(connectors.size))
           }
-        PredicateFormula(ConstantAtomLabel(name, 0), Seq.empty)
+        AtomicFormula(ConstantAtomicLabel(name, 0), Seq.empty)
       } else {
         // Branch
         val nextP = p * c
@@ -169,7 +169,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
   def repeatApply[T](n: Int)(f: T => T)(initial: T): T = if (n > 0) repeatApply(n - 1)(f)(f(initial)) else initial
   def commutativeShuffle(iterations: Int)(random: Random)(f: Formula): Formula = {
     def transform(f: Formula): Formula = f match {
-      case PredicateFormula(label, args) => f
+      case AtomicFormula(label, args) => f
       case ConnectorFormula(label, args) =>
         val newArgs = label match {
           case And | Or | Iff => random.shuffle(args)
@@ -182,7 +182,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
   }
   def associativeShuffle(iterations: Int)(random: Random)(f: Formula): Formula = {
     def transform(f: Formula): Formula = f match {
-      case PredicateFormula(label, args) => f
+      case AtomicFormula(label, args) => f
       // Simple for now, assume binary operations
       case ConnectorFormula(label1 @ (And | Or), Seq(ConnectorFormula(label2, Seq(a1, a2)), a3)) if label1 == label2 =>
         if (random.nextBoolean()) {
@@ -206,7 +206,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
       if (random.nextDouble() < p) neg(neg(transform(f)))
       else
         f match {
-          case _: PredicateFormula => f
+          case _: AtomicFormula => f
           case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(transform))
           case BinderFormula(label, bound, inner) => BinderFormula(label, bound, transform(inner))
         }
@@ -214,7 +214,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
   }
   def addDeMorgans(p: Double)(random: Random)(f: Formula): Formula = {
     def transform(f: Formula): Formula = f match {
-      case _: PredicateFormula => f
+      case _: AtomicFormula => f
       case ConnectorFormula(label, args) =>
         val map: Map[ConnectorLabel, ConnectorLabel] = Map(And -> Or, Or -> And)
         map.get(label) match {
