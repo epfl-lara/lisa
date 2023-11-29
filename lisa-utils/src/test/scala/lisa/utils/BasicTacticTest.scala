@@ -1477,23 +1477,23 @@ class BasicTacticTest extends ProofTacticTestLib {
     val Z = LambdaTermFormula(Seq(x, y), g(x, y))
 
     val correct = List(
-      ("'P('x); 'f('x) |- 'R('y)", "'P('x); ('x = 'x) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](f -> Y)),
-      ("'P('x); 'Q('x) /\\ 'f('x) |- 'R('y)", "'P('x); 'Q('x) /\\ 'x = 'x |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](f -> Y)),
-      ("'P('x); 'h('x, 'y) |- 'R('y)", "'P('x); 'g('x, 'y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z)),
-      ("'h('y, 'y); 'h('x, 'y) |- 'R('y)", "'g('y, 'y); 'g('x, 'y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z)),
-      ("'P('x); 'g('x, 'y) |- 'R('y)", "'P('x); 'g('x, 'y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z)),
-      ("'P('x); 'g('x, 'y) |- 'R('y); 'f('x)", "'P('x); 'g('x, 'y) |- 'R('y); 'x = 'x", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z, f -> Y))
+      ("'P('x); 'f('x) |- 'R('y)", "'P('x); ('x = 'x) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](f -> Y)),
+      ("'P('x); 'Q('x) /\\ 'f('x) |- 'R('y)", "'P('x); 'Q('x) /\\ 'x = 'x |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](f -> Y)),
+      ("'P('x); 'h('x, 'y) |- 'R('y)", "'P('x); 'g('x, 'y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z)),
+      ("'h('y, 'y); 'h('x, 'y) |- 'R('y)", "'g('y, 'y); 'g('x, 'y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z)),
+      ("'P('x); 'g('x, 'y) |- 'R('y)", "'P('x); 'g('x, 'y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z)),
+      ("'P('x); 'g('x, 'y) |- 'R('y); 'f('x)", "'P('x); 'g('x, 'y) |- 'R('y); 'x = 'x", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z, f -> Y))
     )
 
     val incorrect = List(
-      ("'P('x); 'f('x) = 'y |- 'R('y)", "'P('x); !('x = 'y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](f -> Y)),
-      ("'P('x); 'f('x) |- 'R('y)", "'P('x); 'Q('y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](f -> Y)),
-      ("'P('x); 'h('x, 'y) |- 'R('y)", "'P('x); 'h('x, 'y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z)),
-      ("'h('y, 'y); 'h('x, 'y) |- 'R('y)", "'g('y, 'y); 'g('y, 'y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z)),
-      ("'P('x); 'g('x, 'y) |- 'R('y)", "'P('x); 'h('x, 'y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z)),
-      ("'P('x); 'g('x, 'y) |- 'R('y); 'f('x)", "'P('x); 'g('x, 'y) |- 'R('y); 'x = 't", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z, f -> Y)),
-      ("'P('x); 'g('x, 'y) |- 'R('y); 'f('x)", "'P('x); 'g('x, 'y) |- 'R('y); 'x = 'x", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z)),
-      ("'P('x); 'g('x, 'y) |- 'R('y); 'f('x)", "'P('x); 'g('x, 'y) |- 'R('y)", Map[SchematicAtomLabel, LambdaTermFormula](h -> Z, f -> Y))
+      ("'P('x); 'f('x) = 'y |- 'R('y)", "'P('x); !('x = 'y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](f -> Y)),
+      ("'P('x); 'f('x) |- 'R('y)", "'P('x); 'Q('y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](f -> Y)),
+      ("'P('x); 'h('x, 'y) |- 'R('y)", "'P('x); 'h('x, 'y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z)),
+      ("'h('y, 'y); 'h('x, 'y) |- 'R('y)", "'g('y, 'y); 'g('y, 'y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z)),
+      ("'P('x); 'g('x, 'y) |- 'R('y)", "'P('x); 'h('x, 'y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z)),
+      ("'P('x); 'g('x, 'y) |- 'R('y); 'f('x)", "'P('x); 'g('x, 'y) |- 'R('y); 'x = 't", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z, f -> Y)),
+      ("'P('x); 'g('x, 'y) |- 'R('y); 'f('x)", "'P('x); 'g('x, 'y) |- 'R('y); 'x = 'x", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z)),
+      ("'P('x); 'g('x, 'y) |- 'R('y); 'f('x)", "'P('x); 'g('x, 'y) |- 'R('y)", Map[SchematicAtomicLabel, LambdaTermFormula](h -> Z, f -> Y))
     )
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2, termMap) =>

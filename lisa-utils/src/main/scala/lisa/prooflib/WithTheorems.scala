@@ -41,7 +41,7 @@ trait WithTheorems {
         fact: Fact,
         insts: Seq[F.SubstPair] /*,
         instsConn: Map[K.SchematicConnectorLabel, K.LambdaFormulaFormula],
-        instsPred: Map[K.SchematicAtomLabel, K.LambdaTermFormula],
+        instsPred: Map[K.SchematicAtomicLabel, K.LambdaTermFormula],
         instsTerm: Map[K.SchematicTermLabel, K.LambdaTermTerm]*/
     ) {
       val baseFormula: F.Sequent = sequentOfFact(fact)

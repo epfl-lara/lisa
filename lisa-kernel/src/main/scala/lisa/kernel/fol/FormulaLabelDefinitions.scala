@@ -63,19 +63,19 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A schematic symbol whose arguments are any number of Terms. This means the symbol is either a variable formula or a predicate schema
    */
-  sealed trait SchematicAtomLabel extends SchematicFormulaLabel with AtomLabel
+  sealed trait SchematicAtomicLabel extends SchematicFormulaLabel with AtomLabel
 
   /**
    * A predicate symbol of arity 0 that can be instantiated with any formula.
    */
-  sealed case class VariableFormulaLabel(id: Identifier) extends SchematicAtomLabel {
+  sealed case class VariableFormulaLabel(id: Identifier) extends SchematicAtomicLabel {
     val arity = 0
   }
 
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking term arguments.
    */
-  sealed case class SchematicPredicateLabel(id: Identifier, arity: Int) extends SchematicAtomLabel
+  sealed case class SchematicPredicateLabel(id: Identifier, arity: Int) extends SchematicAtomicLabel
 
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking formula arguments.

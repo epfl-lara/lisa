@@ -117,7 +117,7 @@ class RunningTheory {
     val LambdaTermFormula(vars, body) = expression
     if (belongsToTheory(body))
       if (isAvailable(label))
-        if (body.freeSchematicTermLabels.subsetOf(vars.toSet) && body.schematicPredicateLabels.isEmpty) {
+        if (body.freeSchematicTermLabels.subsetOf(vars.toSet) && body.schematicAtomicLabels.isEmpty) {
           val newDef = PredicateDefinition(label, expression)
           predDefinitions.update(label, Some(newDef))
           knownSymbols.update(label.id, label)
@@ -251,7 +251,7 @@ class RunningTheory {
    * Add all constant symbols in the sequent. Note that this can't be reversed and will prevent from giving them a definition later.
    */
   def makeFormulaBelongToTheory(phi: Formula): Unit = {
-    phi.constantPredicateLabels.foreach(addSymbol)
+    phi.constantAtomicLabels.foreach(addSymbol)
     phi.constantTermLabels.foreach(addSymbol)
   }
 

@@ -590,7 +590,7 @@ object Serialization {
           sequentFromProofDIS(),
           proofDIS.readInt(),
           (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicConnectorLabel], lffFromProofDIS())).toMap,
-          (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicAtomLabel], ltfFromProofDIS())).toMap,
+          (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicAtomicLabel], ltfFromProofDIS())).toMap,
           (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicTermLabel], lttFromProofDIS())).toMap
         )
       else if (psType == sorry) Sorry(sequentFromProofDIS())

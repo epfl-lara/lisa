@@ -196,7 +196,7 @@ object KernelHelpers {
 
   // Instatiation functions for formulas lifted to sequents.
 
-  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicAtomLabel, LambdaTermFormula]): Sequent = {
+  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicAtomicLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
 
@@ -207,7 +207,7 @@ object KernelHelpers {
   def instantiateSchemaInSequent(
       s: Sequent,
       mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-      mPred: Map[SchematicAtomLabel, LambdaTermFormula],
+      mPred: Map[SchematicAtomicLabel, LambdaTermFormula],
       mTerm: Map[SchematicTermLabel, LambdaTermTerm]
   ): Sequent = {
     s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))

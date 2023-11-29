@@ -81,19 +81,19 @@ object FOLHelpers {
     case fl: K.BinderLabel => asFrontLabel(fl)
   def asFrontLabel(pl: K.AtomLabel): AtomLabel = pl match
     case pl: K.ConstantAtomicLabel => asFrontLabel(pl)
-    case pl: K.SchematicAtomLabel => asFrontLabel(pl)
+    case pl: K.SchematicAtomicLabel => asFrontLabel(pl)
   def asFrontLabel(cl: K.ConnectorLabel): ConnectorLabel = cl match
     case cl: K.ConstantConnectorLabel => asFrontLabel(cl)
     case cl: K.SchematicConnectorLabel => asFrontLabel(cl)
   def asFrontLabel[N <: Arity](cpl: K.ConstantAtomicLabel): ConstantPredicateLabelOfArity[N] = cpl.arity.asInstanceOf[N] match
     case n: 0 => ConstantFormula(cpl.id)
     case n: N => ConstantAtomicLabel(cpl.id, cpl.arity.asInstanceOf)
-  def asFrontLabel(sfl: K.SchematicFormulaLabel): SchematicAtomLabel | SchematicConnectorLabel[?] =
+  def asFrontLabel(sfl: K.SchematicFormulaLabel): SchematicAtomicLabel | SchematicConnectorLabel[?] =
     sfl match
       case v: K.VariableFormulaLabel => asFrontLabel(v)
       case v: K.SchematicPredicateLabel => asFrontLabel(v)
       case v: K.SchematicConnectorLabel => asFrontLabel(v)
-  def asFrontLabel(svop: K.SchematicAtomLabel): SchematicAtomLabel = svop match
+  def asFrontLabel(svop: K.SchematicAtomicLabel): SchematicAtomicLabel = svop match
     case v: K.VariableFormulaLabel => asFrontLabel(v)
     case v: K.SchematicPredicateLabel => asFrontLabel(v)
   def asFrontLabel(v: K.VariableFormulaLabel): VariableFormula = VariableFormula(v.id)

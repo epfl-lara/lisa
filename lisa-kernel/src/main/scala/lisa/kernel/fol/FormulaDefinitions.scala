@@ -33,12 +33,12 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     /**
      * @return The list of constant predicate symbols in the formula.
      */
-    def constantPredicateLabels: Set[ConstantAtomicLabel]
+    def constantAtomicLabels: Set[ConstantAtomicLabel]
 
     /**
      * @return The list of schematic predicate symbols in the formula, including variable formulas .
      */
-    def schematicPredicateLabels: Set[SchematicAtomLabel]
+    def schematicAtomicLabels: Set[SchematicAtomicLabel]
 
     /**
      * @return The list of schematic connector symbols in the formula.
@@ -49,7 +49,7 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
      * @return The list of schematic connector, predicate and formula variable symbols in the formula.
      */
     def schematicFormulaLabels: Set[SchematicFormulaLabel] =
-      (schematicPredicateLabels.toSet: Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet: Set[SchematicFormulaLabel])
+      (schematicAtomicLabels.toSet: Set[SchematicFormulaLabel]) union (schematicConnectorLabels.toSet: Set[SchematicFormulaLabel])
 
     /**
      * @return The list of free formula variable symbols in the formula
@@ -78,12 +78,12 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
       args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.freeSchematicTermLabels)
     override def freeVariables: Set[VariableLabel] =
       args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
-    override def constantPredicateLabels: Set[ConstantAtomicLabel] = label match {
+    override def constantAtomicLabels: Set[ConstantAtomicLabel] = label match {
       case l: ConstantAtomicLabel => Set(l)
       case _ => Set()
     }
-    override def schematicPredicateLabels: Set[SchematicAtomLabel] = label match {
-      case l: SchematicAtomLabel => Set(l)
+    override def schematicAtomicLabels: Set[SchematicAtomicLabel] = label match {
+      case l: SchematicAtomicLabel => Set(l)
       case _ => Set()
     }
     override def schematicConnectorLabels: Set[SchematicConnectorLabel] = Set()
@@ -108,10 +108,10 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
       args.foldLeft(Set.empty[SchematicTermLabel])((prev, next) => prev union next.freeSchematicTermLabels)
     override def freeVariables: Set[VariableLabel] =
       args.foldLeft(Set.empty[VariableLabel])((prev, next) => prev union next.freeVariables)
-    override def constantPredicateLabels: Set[ConstantAtomicLabel] =
-      args.foldLeft(Set.empty[ConstantAtomicLabel])((prev, next) => prev union next.constantPredicateLabels)
-    override def schematicPredicateLabels: Set[SchematicAtomLabel] =
-      args.foldLeft(Set.empty[SchematicAtomLabel])((prev, next) => prev union next.schematicPredicateLabels)
+    override def constantAtomicLabels: Set[ConstantAtomicLabel] =
+      args.foldLeft(Set.empty[ConstantAtomicLabel])((prev, next) => prev union next.constantAtomicLabels)
+    override def schematicAtomicLabels: Set[SchematicAtomicLabel] =
+      args.foldLeft(Set.empty[SchematicAtomicLabel])((prev, next) => prev union next.schematicAtomicLabels)
     override def schematicConnectorLabels: Set[SchematicConnectorLabel] = label match {
       case l: ConstantConnectorLabel =>
         args.foldLeft(Set.empty[SchematicConnectorLabel])((prev, next) => prev union next.schematicConnectorLabels)
@@ -130,8 +130,8 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
     override def schematicTermLabels: Set[SchematicTermLabel] = inner.schematicTermLabels
     override def freeSchematicTermLabels: Set[SchematicTermLabel] = inner.freeSchematicTermLabels - bound
     override def freeVariables: Set[VariableLabel] = inner.freeVariables - bound
-    override def constantPredicateLabels: Set[ConstantAtomicLabel] = inner.constantPredicateLabels
-    override def schematicPredicateLabels: Set[SchematicAtomLabel] = inner.schematicPredicateLabels
+    override def constantAtomicLabels: Set[ConstantAtomicLabel] = inner.constantAtomicLabels
+    override def schematicAtomicLabels: Set[SchematicAtomicLabel] = inner.schematicAtomicLabels
     override def schematicConnectorLabels: Set[SchematicConnectorLabel] = inner.schematicConnectorLabels
     override def freeVariableFormulaLabels: Set[VariableFormulaLabel] = inner.freeVariableFormulaLabels
   }
