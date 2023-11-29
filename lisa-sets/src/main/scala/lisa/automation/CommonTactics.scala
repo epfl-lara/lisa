@@ -241,18 +241,18 @@ object CommonTactics {
 
           val fxs =  f.applyUnsafe(xs)
 
-          val expected = P.substitute(y := f(xs))
+          val expected = P.substitute(y := fxs)
           if (!F.isSame(expected, bot.right.head)) {
-            return proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form Q(f(xs)).")
+            return proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form Q(fxs).")
           }
 
           TacticSubproof {
-            lib.have(F.∀(y, (y === f(xs)) <=> P(Seq(y)))) by Tautology.from(uniqueness, definition.of(subst: _*))
-            lib.thenHave((y === f(xs)) <=> P(Seq(y))) by InstantiateForall(y)
-            lib.thenHave((f(xs) === f(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f(xs)))
-            lib.thenHave(P(Seq(f(xs)))) by Restate
-            lib.thenHave(phi ==> Q(f(xs))) by Tautology
-            lib.thenHave(phi |- Q(f(xs))) by Restate
+            lib.have(F.∀(y, (y === fxs) <=>P)) by Tautology.from(uniqueness, definition.of(subst: _*))
+            lib.thenHave((y === fxs) <=>P) by InstantiateForall(y)
+            lib.thenHave((fxs === fxs) <=> P.substitute(y:=fxs)) by InstFunSchema(Map(y -> fxs))
+            lib.thenHave(P.substitute(y:=fxs)) by Restate
+            lib.thenHave(phi ==> Q(fxs)) by Tautology
+            lib.thenHave(phi |- Q(fxs)) by Restate
           }
 
         case _ => proof.InvalidProofTactic("Could not get definition of function.")

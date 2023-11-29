@@ -61,11 +61,11 @@ trait Lambdas extends Common {
    * Construct a Lambda expression with multiple variables
    */
   def lambda[T <: LisaObject[T], R <: LisaObject[R], N <: Arity, Tu <: Tuple](bounds: Tu, body: R)(using Tuple.Union[Tu] <:< SchematicLabel[T], Tuple.Size[Tu] =:= N): LambdaExpression[T, R, N] = {
-    val boundsSeq = bounds.asInstanceOf[SchematicLabel[T] ** N].toSeq
-    LambdaExpression[T, R, N](boundsSeq, body, boundsSeq.length.asInstanceOf)
+    val boundsSeq = bounds.toList
+    LambdaExpression[T, R, N](boundsSeq.asInstanceOf, body, boundsSeq.length.asInstanceOf)
   }
   def lambda[T <: LisaObject[T], R <: LisaObject[R]](bounds: Seq[SchematicLabel[T]], body: R): LambdaExpression[T, R, ?] = {
-    val boundsSeq = bounds.toSeq
+    val boundsSeq = bounds
     LambdaExpression(boundsSeq, body, boundsSeq.length.asInstanceOf)
   }
 

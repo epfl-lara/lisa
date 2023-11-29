@@ -61,7 +61,7 @@ object InductiveSets extends lisa.Main {
    * Natural Numbers (Inductive definition) --- The intersection of all
    * inductive sets is the set of natural numbers, N.
    */
-  val naturalsInductive = DEF(EmptyTuple) --> The(z, ∀(t, in(t, z) <=> (∀(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
+  val naturalsInductive = DEF() --> The(z, ∀(t, in(t, z) <=> (∀(y, inductive(y) ==> in(t, y)))))(inductiveIntersectionUniqueness)
 
   /**
    * Theorem --- Natural numbers form an inductive set

@@ -493,8 +493,8 @@ object Substitution {
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val newleft = if (toLeft) isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.left
-          val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.right
+          val newleft = if (toLeft) isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.applyUnsafe(Seq(right))) else originSequent.left
+          val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.applyUnsafe(Seq(right))) else originSequent.right
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
@@ -529,8 +529,8 @@ object Substitution {
 
           val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
           val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val newleft = if (toLeft) isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.left
-          val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.right
+          val newleft = if (toLeft) isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.applyUnsafe(Seq(right))) else originSequent.left
+          val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.applyUnsafe(Seq(right))) else originSequent.right
           val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
           val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
 

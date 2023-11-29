@@ -146,24 +146,30 @@ trait ProofsHelpers {
   class The(val out: Variable, val f: Formula)(
       val just: JUSTIFICATION
   )
-  class definitionWithVars[N <: Arity](val args: Variable ** N) {
+  class definitionWithVars[N <: Arity](val args: Seq[Variable]) {
 
     // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
     // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
 
     inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantFunctionLabelOfArity[N] =
-      FunctionDefinition[N](name.value, line.value, file.value)(args.toSeq, t.out, t.f, t.just).label
+      FunctionDefinition[N](name.value, line.value, file.value)(args, t.out, t.f, t.just).label
 
     inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] =
-      SimpleFunctionDefinition[N](name.value, line.value, file.value)(lambda(args.toSeq, term).asInstanceOf).label
+      SimpleFunctionDefinition[N](name.value, line.value, file.value)(lambda(args, term).asInstanceOf).label
 
     inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantPredicateLabelOfArity[N] =
-      PredicateDefinition[N](name.value, line.value, file.value)(lambda(args.toSeq, formula).asInstanceOf).label
+      PredicateDefinition[N](name.value, line.value, file.value)(lambda(args, formula).asInstanceOf).label
 
   }
 
-  def DEF[N <: Arity, T <: Tuple](args: T)(using Tuple.Size[T] =:= N, Tuple.Union[T] <:< Variable): definitionWithVars[N] = new definitionWithVars[N](args.asInstanceOf)
-  def DEF(arg: Variable): definitionWithVars[1] = new definitionWithVars[1](Seq(arg)) // todo conversion to empty tuple gets bad type
+  def DEF(): definitionWithVars[0] = new definitionWithVars[0](Nil)
+  def DEF(a: Variable): definitionWithVars[1] = new definitionWithVars[1](Seq(a)) 
+  def DEF(a: Variable, b: Variable): definitionWithVars[2] = new definitionWithVars[2](Seq(a, b)) 
+  def DEF(a: Variable, b: Variable, c: Variable): definitionWithVars[3] = new definitionWithVars[3](Seq(a, b, c))
+  def DEF(a: Variable, b: Variable, c: Variable, d: Variable): definitionWithVars[4] = new definitionWithVars[4](Seq(a, b, c, d))
+  def DEF(a: Variable, b: Variable, c: Variable, d: Variable, e: Variable): definitionWithVars[5] = new definitionWithVars[5](Seq(a, b, c, d, e))
+  def DEF(a: Variable, b: Variable, c: Variable, d: Variable, e: Variable, f: Variable): definitionWithVars[6] = new definitionWithVars[6](Seq(a, b, c, d, e, f))
+  def DEF(a: Variable, b: Variable, c: Variable, d: Variable, e: Variable, f: Variable, g: Variable): definitionWithVars[7] = new definitionWithVars[7](Seq(a, b, c, d, e, f, g))
 
   // def DEF: definitionWithVars[0] = new definitionWithVars[0](EmptyTuple) //todo conversion to empty tuple gets bad type
 
