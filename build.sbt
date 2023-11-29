@@ -94,7 +94,15 @@ lazy val utils = Project(
   .dependsOn(scallion % "compile->compile")
   .settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
 
-
+ThisBuild / assemblyMergeStrategy := {
+  case PathList("module-info.class") => MergeStrategy.discard
+  case x if x.endsWith("/module-info.class") => MergeStrategy.discard
+  case x if x.endsWith(".class") => MergeStrategy.first
+  case x if x.endsWith(".tasty") => MergeStrategy.first
+  case x =>
+    val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
+    oldStrategy(x)
+}
 
 
 lazy val examples = Project(
