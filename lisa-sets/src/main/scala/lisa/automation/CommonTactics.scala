@@ -173,20 +173,21 @@ object CommonTactics {
           }
           val y = definition.out
           val vars = definition.vars
+          val fxs =  f.applyUnsafe(xs)
 
           // Instantiate terms in the definition
           val subst = vars.zip(xs).map(tup => tup._1 := tup._2)
           val P = definition.f.substitute(subst: _*)
-          val expected = P.substitute(y := f(xs))
+          val expected = P.substitute(y := fxs)
           if (!F.isSame(expected, bot.right.head)) {
             return proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form P(f(xs)).")
           }
 
           TacticSubproof {
-            lib.have(F.∀(y, (y === f(xs)) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
-            lib.thenHave((y === f(xs)) <=> P) by InstantiateForall(y)
-            lib.thenHave((f(xs) === f(xs)) <=> P.substitute(y := f(xs))) by InstFunSchema(Map(y -> f(xs)))
-            lib.thenHave(P.substitute(y := f(xs))) by Restate
+            lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
+            lib.thenHave((y === fxs) <=> P) by InstantiateForall(y)
+            lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstFunSchema(Map(y -> fxs))
+            lib.thenHave(P.substitute(y :=fxs)) by Restate
           }
 
         case _ => proof.InvalidProofTactic("Could not get definition of function.")
@@ -237,6 +238,8 @@ object CommonTactics {
             case _ =>
               return proof.InvalidProofTactic("Definition is not conditional.")
           }
+
+          val fxs =  f.applyUnsafe(xs)
 
           val expected = P.substitute(y := f(xs))
           if (!F.isSame(expected, bot.right.head)) {

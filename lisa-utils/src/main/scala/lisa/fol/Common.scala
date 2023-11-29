@@ -753,9 +753,8 @@ trait Common {
 
   // Application methods for |->
 
-  extension [S, T <: LisaObject[T]] (t: Seq[S] |-> T) {
+  extension [S, T <: LisaObject[T]] (t: (S ** -1) |-> T) {
     def apply(s1: Seq[S]): T = t.applyUnsafe(s1) 
-    //def apply(s:S*): T = t.applyUnsafe(s.toSeq)
   }
 
   extension [S, T <: LisaObject[T]] (t: (S ** 1) |-> T) {
