@@ -69,7 +69,7 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
   where $\mathcal{L}_{Predicate}$ is the set of \textit{predicate labels}:
   %
   \begin{align}
-    \mathcal{L}_{Predicate} := & ~\ConstantAtomicLabel(\textnormal{Id}, \textnormal{Arity})    \\
+    \mathcal{L}_{Predicate} := & ~\ConstantPredKerLabel(\textnormal{Id}, \textnormal{Arity})    \\
     \mid                       & ~\SchematicPredicateLabel(\textnormal{Id}, \textnormal{Arity})~,
   \end{align}
   %
@@ -114,11 +114,11 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
 \end{definition}
 \begin{example}[Formula]The following are typical examples of formula labels:
   \begin{align*}
-    \True           & := \ConstantAtomicLabel(``\True", 0)             \\
-    \False          & := \ConstantAtomicLabel(``\False", 0)            \\
+    \True           & := \ConstantPredKerLabel(``\True", 0)             \\
+    \False          & := \ConstantPredKerLabel(``\False", 0)            \\
     X               & := \SchematicPredicateLabel(``X", 0)                \\
-    =               & := \ConstantAtomicLabel(``=", 2)                 \\
-    {\in}           & := \ConstantAtomicLabel(``{\in}", 2)             \\
+    =               & := \ConstantPredKerLabel(``=", 2)                 \\
+    {\in}           & := \ConstantPredKerLabel(``{\in}", 2)             \\
     P               & := \SchematicPredicateLabel(``P", 1)                \\
     \neg            & := \ConstantConnectorLabel(``{\neg}", 1)            \\
     \land           & := \ConstantConnectorLabel(``{\land}", -1)          \\
@@ -728,7 +728,7 @@ LISA's kernel allows to define two kinds of objects: Function (or Term) symbols 
   A definition in LISA is one of those two kinds of objects: A predicate definition or a function definition.
   \begin{lstlisting}
   PredicateDefinition(
-    label: ConstantAtomicLabel,
+    label: ConstantPredKerLabel,
     expression: LambdaTermFormula
   )
 \end{lstlisting}
@@ -807,7 +807,7 @@ Once a definition has been introduced, future theorems can refer to those defini
           A predicate definition &
           \begin{lstlisting}[linewidth=19.5em]
   PredicateDefinition(
-    label: ConstantAtomicLabel,
+    label: ConstantPredKerLabel,
     expression: LambdaTermFormula
     )
 
@@ -861,7 +861,7 @@ Once a definition has been introduced, future theorems can refer to those defini
           \makecell[l]{Make a new        \\predicate definition} &
           \begin{lstlisting}[linewidth=19.5em]
   makePredicateDefinition(
-    label: ConstantAtomicLabel,
+    label: ConstantPredKerLabel,
     expression: LambdaTermFormula
     )
           \end{lstlisting}

@@ -310,7 +310,7 @@ trait ProofsHelpers {
     lazy val label: ConstantPredicateLabelOfArity[N] = {
       (
         if (vars.length == 0) F.ConstantFormula(name)
-        else F.ConstantAtomicLabel[N](name, vars.length.asInstanceOf[N])
+        else F.ConstantPredKerLabel[N](name, vars.length.asInstanceOf[N])
       ).asInstanceOf[ConstantPredicateLabelOfArity[N]]
     }
 

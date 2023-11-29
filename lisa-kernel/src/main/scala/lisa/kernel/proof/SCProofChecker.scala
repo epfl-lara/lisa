@@ -42,7 +42,7 @@ object SCProofChecker {
            *    Γ |- Γ
            */
           case RestateTrue(s) =>
-            val truth = Sequent(Set(), Set(AtomicFormula(top, Nil)))
+            val truth = Sequent(Set(), Set(PredKerFormula(top, Nil)))
             if (isSameSequent(s, truth)) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The desired conclusion is not a trivial tautology")
           /*
            *
@@ -180,7 +180,7 @@ object SCProofChecker {
            */
           case LeftExistsOne(b, t1, phi, x) =>
             val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
-            val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(AtomicFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
+            val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredKerFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
             if (isSameSet(b.right, ref(t1).right))
               if (isSameSet(b.left + temp, ref(t1).left + BinderFormula(ExistsOne, x, phi)))
                 SCValidProof(SCProof(step))
@@ -296,7 +296,7 @@ object SCProofChecker {
            */
           case RightExistsOne(b, t1, phi, x) =>
             val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
-            val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(AtomicFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
+            val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(PredKerFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
             if (isSameSet(b.left, ref(t1).left))
               if (isSameSet(b.right + temp, ref(t1).right + BinderFormula(ExistsOne, x, phi)))
                 SCValidProof(SCProof(step))
@@ -322,7 +322,7 @@ object SCProofChecker {
            */
           case LeftRefl(b, t1, phi) =>
             phi match {
-              case AtomicFormula(`equality`, Seq(left, right)) =>
+              case PredKerFormula(`equality`, Seq(left, right)) =>
                 if (isSameTerm(left, right))
                   if (isSameSet(b.right, ref(t1).right))
                     if (isSameSet(b.left + phi, ref(t1).left))
@@ -340,7 +340,7 @@ object SCProofChecker {
            */
           case RightRefl(b, phi) =>
             phi match {
-              case AtomicFormula(`equality`, Seq(left, right)) =>
+              case PredKerFormula(`equality`, Seq(left, right)) =>
                 if (isSameTerm(left, right))
                   if (contains(b.right, phi))
                     SCValidProof(SCProof(step))
@@ -358,7 +358,7 @@ object SCProofChecker {
             val (s_es, t_es) = equals.unzip
             val phi_s_for_f = lambdaPhi(s_es)
             val phi_t_for_f = lambdaPhi(t_es)
-            val sEqT_es = equals map { case (s, t) => AtomicFormula(equality, Seq(s, t)) }
+            val sEqT_es = equals map { case (s, t) => PredKerFormula(equality, Seq(s, t)) }
 
             if (isSameSet(b.right, ref(t1).right))
               if (
@@ -380,7 +380,7 @@ object SCProofChecker {
            *  Γ, (s=t)_ |- φ(t_), Δ
            */
           case RightSubstEq(b, t1, equals, lambdaPhi) =>
-            val sEqT_es = equals map { case (s, t) => AtomicFormula(equality, Seq(s, t)) }
+            val sEqT_es = equals map { case (s, t) => PredKerFormula(equality, Seq(s, t)) }
             if (isSameSet(ref(t1).left ++ sEqT_es, b.left)) {
               val (s_es, t_es) = equals.unzip
               val phi_s_for_f = lambdaPhi(s_es)

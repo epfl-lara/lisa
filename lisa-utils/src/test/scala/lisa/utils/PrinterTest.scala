@@ -31,17 +31,17 @@ class PrinterTest extends AnyFunSuite with TestUtils {
       FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(Neg, Seq(b)))), ConnectorFormula(Neg, Seq(c))))) == "¬a ∧ ¬b ∧ ¬c"
     )
 
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, AtomicFormula(equality, Seq(x, x))))) == "a ∧ 'x = 'x")
+    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, PredKerFormula(equality, Seq(x, x))))) == "a ∧ 'x = 'x")
 
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))) == "∀'x. 'x = 'x")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))))) == "a ∧ (∀'x. 'x = 'x)")
+    assert(FOLParser.printFormula(BinderFormula(Forall, x, PredKerFormula(equality, Seq(x, x)))) == "∀'x. 'x = 'x")
+    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, PredKerFormula(equality, Seq(x, x)))))) == "a ∧ (∀'x. 'x = 'x)")
     assert(FOLParser.printFormula(ConnectorFormula(And, Seq(BinderFormula(Forall, x, b), a))) == "(∀'x. b) ∧ a")
     assert(FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "a ∧ (∀'x. b) ∧ a")
     assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "a ∧ (∀'x. b) ∨ a")
 
     assert(FOLParser.printFormula(BinderFormula(Forall, x, BinderFormula(Exists, y, BinderFormula(ExistsOne, z, a)))) == "∀'x. ∃'y. ∃!'z. a")
 
-    assert(FOLParser.printFormula(AtomicFormula(ConstantAtomicLabel("f", 3), Seq(x, y, z))) == "f('x, 'y, 'z)")
+    assert(FOLParser.printFormula(PredKerFormula(ConstantPredKerLabel("f", 3), Seq(x, y, z))) == "f('x, 'y, 'z)")
   }
 
   test("constant") {
@@ -77,17 +77,17 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("0-ary predicate") {
-    assert(FOLParser.printFormula(AtomicFormula(ConstantAtomicLabel("a", 0), Seq())) == "a")
+    assert(FOLParser.printFormula(PredKerFormula(ConstantPredKerLabel("a", 0), Seq())) == "a")
   }
 
   test("predicate application") {
-    assert(FOLParser.printFormula(AtomicFormula(ConstantAtomicLabel("p", 3), Seq(cx, cy, cz))) == "p(x, y, z)")
-    assert(FOLParser.printFormula(AtomicFormula(ConstantAtomicLabel("p", 3), Seq(x, y, z))) == "p('x, 'y, 'z)")
+    assert(FOLParser.printFormula(PredKerFormula(ConstantPredKerLabel("p", 3), Seq(cx, cy, cz))) == "p(x, y, z)")
+    assert(FOLParser.printFormula(PredKerFormula(ConstantPredKerLabel("p", 3), Seq(x, y, z))) == "p('x, 'y, 'z)")
   }
 
   test("equality") {
-    assert(FOLParser.printFormula(AtomicFormula(equality, Seq(cx, cx))) == "x = x")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, AtomicFormula(equality, Seq(x, x))))) == "a ∧ 'x = 'x")
+    assert(FOLParser.printFormula(PredKerFormula(equality, Seq(cx, cx))) == "x = x")
+    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, PredKerFormula(equality, Seq(x, x))))) == "a ∧ 'x = 'x")
   }
 
   test("toplevel connectors") {
@@ -166,9 +166,9 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("quantifiers") {
-    assert(FOLParser.printFormula(BinderFormula(Forall, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∀'x. p")
-    assert(FOLParser.printFormula(BinderFormula(Exists, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∃'x. p")
-    assert(FOLParser.printFormula(BinderFormula(ExistsOne, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∃!'x. p")
+    assert(FOLParser.printFormula(BinderFormula(Forall, VariableLabel("x"), PredKerFormula(ConstantPredKerLabel("p", 0), Seq()))) == "∀'x. p")
+    assert(FOLParser.printFormula(BinderFormula(Exists, VariableLabel("x"), PredKerFormula(ConstantPredKerLabel("p", 0), Seq()))) == "∃'x. p")
+    assert(FOLParser.printFormula(BinderFormula(ExistsOne, VariableLabel("x"), PredKerFormula(ConstantPredKerLabel("p", 0), Seq()))) == "∃!'x. p")
   }
 
   test("nested quantifiers") {
@@ -182,7 +182,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
         BinderFormula(
           Forall,
           x,
-          ConnectorFormula(And, Seq(AtomicFormula(ConstantAtomicLabel("p", 1), Seq(x)), AtomicFormula(ConstantAtomicLabel("q", 1), Seq(x))))
+          ConnectorFormula(And, Seq(PredKerFormula(ConstantPredKerLabel("p", 1), Seq(x)), PredKerFormula(ConstantPredKerLabel("q", 1), Seq(x))))
         )
       ) == "∀'x. p('x) ∧ q('x)"
     )
@@ -194,8 +194,8 @@ class PrinterTest extends AnyFunSuite with TestUtils {
         ConnectorFormula(
           And,
           Seq(
-            BinderFormula(Forall, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 1), Seq(x))),
-            AtomicFormula(ConstantAtomicLabel("q", 1), Seq(x))
+            BinderFormula(Forall, VariableLabel("x"), PredKerFormula(ConstantPredKerLabel("p", 1), Seq(x))),
+            PredKerFormula(ConstantPredKerLabel("q", 1), Seq(x))
           )
         )
       ) == "(∀'x. p('x)) ∧ q('x)"
@@ -215,35 +215,35 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("complex formulas") {
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))) == "∀'x. 'x = 'x")
+    assert(FOLParser.printFormula(BinderFormula(Forall, x, PredKerFormula(equality, Seq(x, x)))) == "∀'x. 'x = 'x")
   }
 
   test("sequent") {
-    val forallEq = BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))
+    val forallEq = BinderFormula(Forall, x, PredKerFormula(equality, Seq(x, x)))
     assert(FOLParser.printSequent(Sequent(Set(), Set(forallEq))) == "⊢ ∀'x. 'x = 'x")
     assert(FOLParser.printSequent(Sequent(Set(forallEq), Set(forallEq))) == "∀'x. 'x = 'x ⊢ ∀'x. 'x = 'x")
-    val existsXEq = BinderFormula(Exists, x, AtomicFormula(equality, Seq(x, x)))
+    val existsXEq = BinderFormula(Exists, x, PredKerFormula(equality, Seq(x, x)))
     assert(FOLParser.printSequent(Sequent(Set(forallEq), Set(existsXEq))) == "∀'x. 'x = 'x ⊢ ∃'x. 'x = 'x")
   }
 
   // warning: this test might be flaky because formula order is not fixed in sequents but fixed in the string representation
   test("sequent with multiple formulas") {
-    val forallEq = BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))
-    val existsXEq = BinderFormula(Exists, x, AtomicFormula(equality, Seq(x, x)))
-    val existsYEq = BinderFormula(Exists, y, AtomicFormula(equality, Seq(y, y)))
+    val forallEq = BinderFormula(Forall, x, PredKerFormula(equality, Seq(x, x)))
+    val existsXEq = BinderFormula(Exists, x, PredKerFormula(equality, Seq(x, x)))
+    val existsYEq = BinderFormula(Exists, y, PredKerFormula(equality, Seq(y, y)))
     assert(
       FOLParser.printSequent(Sequent(Set(forallEq), Set(existsYEq, existsXEq))) == "∀'x. 'x = 'x ⊢ ∃'y. 'y = 'y; " +
         "∃'x. 'x = 'x"
     )
     assert(
-      FOLParser.printSequent(Sequent(Set(forallEq, AtomicFormula(ConstantAtomicLabel("p", 0), Seq())), Set(existsYEq, existsXEq))) == "∀'x. 'x = 'x; p ⊢ ∃'y. 'y = 'y; ∃'x. 'x = 'x"
+      FOLParser.printSequent(Sequent(Set(forallEq, PredKerFormula(ConstantPredKerLabel("p", 0), Seq())), Set(existsYEq, existsXEq))) == "∀'x. 'x = 'x; p ⊢ ∃'y. 'y = 'y; ∃'x. 'x = 'x"
     )
   }
 
   // warning: this test might be flaky because formula order is not fixed in sequents but fixed in the string representation
   test("sequents from Mapping and SetTheory") {
     val va = VariableLabel("a")
-    val leftAndRight = BinderFormula(ExistsOne, x, AtomicFormula(sPhi2, Seq(x, va)))
+    val leftAndRight = BinderFormula(ExistsOne, x, PredKerFormula(sPhi2, Seq(x, va)))
     assert(FOLParser.printSequent(Sequent(Set(leftAndRight), Set(leftAndRight))) == "∃!'x. 'phi('x, 'a) ⊢ ∃!'x. 'phi('x, 'a)")
 
     assert(
@@ -274,18 +274,18 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("infix predicates") {
-    val in = ConstantAtomicLabel("∊", 2)
-    val prefixIn = ConstantAtomicLabel("elem", 2)
+    val in = ConstantPredKerLabel("∊", 2)
+    val prefixIn = ConstantPredKerLabel("elem", 2)
     val parser = Parser(SynonymInfoBuilder().addSynonyms(prefixIn.id, in.id).build, in.id :: Nil, Nil)
-    assert(parser.printFormula(AtomicFormula(in, Seq(cx, cy))) == "x ∊ y")
-    assert(parser.printFormula(AtomicFormula(in, Seq(x, y))) == "'x ∊ 'y")
-    assert(parser.printFormula(ConnectorFormula(And, Seq(AtomicFormula(in, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
-    assert(parser.printFormula(ConnectorFormula(Or, Seq(a, AtomicFormula(in, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
+    assert(parser.printFormula(PredKerFormula(in, Seq(cx, cy))) == "x ∊ y")
+    assert(parser.printFormula(PredKerFormula(in, Seq(x, y))) == "'x ∊ 'y")
+    assert(parser.printFormula(ConnectorFormula(And, Seq(PredKerFormula(in, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
+    assert(parser.printFormula(ConnectorFormula(Or, Seq(a, PredKerFormula(in, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
 
-    assert(parser.printFormula(AtomicFormula(prefixIn, Seq(cx, cy))) == "x ∊ y")
-    assert(parser.printFormula(AtomicFormula(prefixIn, Seq(x, y))) == "'x ∊ 'y")
-    assert(parser.printFormula(ConnectorFormula(And, Seq(AtomicFormula(prefixIn, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
-    assert(parser.printFormula(ConnectorFormula(Or, Seq(a, AtomicFormula(prefixIn, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
+    assert(parser.printFormula(PredKerFormula(prefixIn, Seq(cx, cy))) == "x ∊ y")
+    assert(parser.printFormula(PredKerFormula(prefixIn, Seq(x, y))) == "'x ∊ 'y")
+    assert(parser.printFormula(ConnectorFormula(And, Seq(PredKerFormula(prefixIn, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
+    assert(parser.printFormula(ConnectorFormula(Or, Seq(a, PredKerFormula(prefixIn, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
   }
 
   test("infix functions") {
@@ -296,12 +296,12 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   /*
   test("mix of infix functions and infix predicates") {
     val parser = Parser(SynonymInfoBuilder().addSynonyms(in.id, "∊").addSynonyms(plus.id, "+").build, "∊" :: Nil, ("+", Associativity.Left) :: Nil)
-    assert(parser.printFormula(AtomicFormula(in, Seq(Term(plus, Seq(cx, cy)), cz))) == "x + y ∊ z")
+    assert(parser.printFormula(PredKerFormula(in, Seq(Term(plus, Seq(cx, cy)), cz))) == "x + y ∊ z")
     assert(
       parser.printFormula(
         ConnectorFormula(
           And,
-          Seq(ConnectorFormula(And, Seq(AtomicFormula(in, Seq(cx, cy)), AtomicFormula(in, Seq(cx, cz)))), AtomicFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
+          Seq(ConnectorFormula(And, Seq(PredKerFormula(in, Seq(cx, cy)), PredKerFormula(in, Seq(cx, cz)))), PredKerFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
         )
       ) == "x ∊ y ∧ x ∊ z ∧ x + y ∊ z"
     )

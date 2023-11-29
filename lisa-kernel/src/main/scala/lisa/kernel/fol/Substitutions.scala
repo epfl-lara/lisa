@@ -88,7 +88,7 @@ trait Substitutions extends FormulaDefinitions {
    * @return t[m]
    */
   def substituteVariablesInFormula(phi: Formula, m: Map[VariableLabel, Term], takenIds: Seq[Identifier] = Seq[Identifier]()): Formula = phi match {
-    case AtomicFormula(label, args) => AtomicFormula(label, args.map(substituteVariablesInTerm(_, m)))
+    case PredKerFormula(label, args) => PredKerFormula(label, args.map(substituteVariablesInTerm(_, m)))
     case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteVariablesInFormula(_, m)))
     case BinderFormula(label, bound, inner) =>
       val newSubst = m - bound
@@ -109,8 +109,8 @@ trait Substitutions extends FormulaDefinitions {
    * @return t[m]
    */
   def substituteFormulaVariables(phi: Formula, m: Map[VariableFormulaLabel, Formula], takenIds: Seq[Identifier] = Seq[Identifier]()): Formula = phi match {
-    case AtomicFormula(label: VariableFormulaLabel, _) => m.getOrElse(label, phi)
-    case _: AtomicFormula => phi
+    case PredKerFormula(label: VariableFormulaLabel, _) => m.getOrElse(label, phi)
+    case _: PredKerFormula => phi
     case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteFormulaVariables(_, m, takenIds)))
     case BinderFormula(label, bound, inner) =>
       val fv = m.values.flatMap(_.freeVariables).toSet
@@ -132,7 +132,7 @@ trait Substitutions extends FormulaDefinitions {
   def instantiateTermSchemas(phi: Formula, m: Map[SchematicTermLabel, LambdaTermTerm]): Formula = {
     require(m.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case AtomicFormula(label, args) => AtomicFormula(label, args.map(a => instantiateTermSchemasInTerm(a, m)))
+      case PredKerFormula(label, args) => PredKerFormula(label, args.map(a => instantiateTermSchemasInTerm(a, m)))
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiateTermSchemas(_, m)))
       case BinderFormula(label, bound, inner) =>
         val newSubst = m - bound
@@ -155,7 +155,7 @@ trait Substitutions extends FormulaDefinitions {
   def instantiatePredicateSchemas(phi: Formula, m: Map[SchematicAtomLabel, LambdaTermFormula]): Formula = {
     require(m.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case AtomicFormula(label, args) =>
+      case PredKerFormula(label, args) =>
         label match {
           case label: SchematicAtomLabel if m.contains(label) => m(label)(args)
           case _ => phi
@@ -181,7 +181,7 @@ trait Substitutions extends FormulaDefinitions {
   def instantiateConnectorSchemas(phi: Formula, m: Map[SchematicConnectorLabel, LambdaFormulaFormula]): Formula = {
     require(m.forall { case (symbol, LambdaFormulaFormula(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case _: AtomicFormula => phi
+      case _: PredKerFormula => phi
       case ConnectorFormula(label, args) =>
         val newArgs = args.map(instantiateConnectorSchemas(_, m))
         label match {
@@ -215,11 +215,11 @@ trait Substitutions extends FormulaDefinitions {
     require(mPred.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
     require(mTerm.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case AtomicFormula(label, args) =>
+      case PredKerFormula(label, args) =>
         val newArgs = args.map(a => instantiateTermSchemasInTerm(a, mTerm))
         label match {
           case label: SchematicAtomLabel if mPred.contains(label) => mPred(label)(newArgs)
-          case _ => AtomicFormula(label, newArgs)
+          case _ => PredKerFormula(label, newArgs)
         }
       case ConnectorFormula(label, args) =>
         val newArgs = args.map(a => instantiateSchemas(a, mCon, mPred, mTerm))

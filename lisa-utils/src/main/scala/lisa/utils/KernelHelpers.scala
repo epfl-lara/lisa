@@ -55,11 +55,11 @@ object KernelHelpers {
   }
 
   extension [L <: AtomLabel](label: L) {
-    def apply(args: Term*): Formula = AtomicFormula(label, args)
+    def apply(args: Term*): Formula = PredKerFormula(label, args)
     @targetName("applySeq")
-    def apply(args: Seq[Term]): Formula = AtomicFormula(label, args)
+    def apply(args: Seq[Term]): Formula = PredKerFormula(label, args)
     def unapply(f: Formula): Option[Seq[Term]] = f match {
-      case AtomicFormula(`label`, args) => Some(args)
+      case PredKerFormula(`label`, args) => Some(args)
       case _ => None
     }
   }
@@ -93,18 +93,18 @@ object KernelHelpers {
   }
 
   extension (t: Term) {
-    infix def ===(u: Term): Formula = AtomicFormula(equality, Seq(t, u))
-    infix def ＝(u: Term): Formula = AtomicFormula(equality, Seq(t, u))
+    infix def ===(u: Term): Formula = PredKerFormula(equality, Seq(t, u))
+    infix def ＝(u: Term): Formula = PredKerFormula(equality, Seq(t, u))
   }
 
   /* Conversions */
 
   given Conversion[TermLabel, Term] = Term(_, Seq())
   given Conversion[Term, TermLabel] = _.label
-  given Conversion[AtomLabel, AtomicFormula] = AtomicFormula(_, Seq())
-  given Conversion[AtomicFormula, AtomLabel] = _.label
+  given Conversion[AtomLabel, PredKerFormula] = PredKerFormula(_, Seq())
+  given Conversion[PredKerFormula, AtomLabel] = _.label
 
-  given Conversion[VariableFormulaLabel, AtomicFormula] = AtomicFormula(_, Seq())
+  given Conversion[VariableFormulaLabel, PredKerFormula] = PredKerFormula(_, Seq())
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
   given Conversion[Formula, Sequent] = () |- _
 
@@ -372,7 +372,7 @@ object KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check. See also [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
      */
     def predicateDefinition(symbol: String, expression: LambdaTermFormula): RunningTheoryJudgement[theory.PredicateDefinition] = {
-      val label = ConstantAtomicLabel(symbol, expression.vars.size)
+      val label = ConstantPredKerLabel(symbol, expression.vars.size)
       theory.makePredicateDefinition(label, expression)
     }
 
@@ -389,9 +389,9 @@ object KernelHelpers {
      * @return The List of undefined symols
      */
     def findUndefinedSymbols(phi: Formula): Set[ConstantLabel] = phi match {
-      case AtomicFormula(label, args) =>
+      case PredKerFormula(label, args) =>
         label match {
-          case l: ConstantAtomicLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case l: ConstantPredKerLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
           case _ => args.flatMap(findUndefinedSymbols).toSet
         }
       case ConnectorFormula(label, args) => args.flatMap(findUndefinedSymbols).toSet

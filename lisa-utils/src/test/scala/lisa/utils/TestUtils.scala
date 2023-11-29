@@ -8,8 +8,8 @@ import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
 
 trait TestUtils {
-  val (a, b, c) = (ConstantAtomicLabel("a", 0), ConstantAtomicLabel("b", 0), ConstantAtomicLabel("c", 0))
-  val p = ConstantAtomicLabel("p", 1)
+  val (a, b, c) = (ConstantPredKerLabel("a", 0), ConstantPredKerLabel("b", 0), ConstantPredKerLabel("c", 0))
+  val p = ConstantPredKerLabel("p", 1)
   val (x, y, z) = (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
   val (x1, y1, z1) = (VariableLabel("x1"), VariableLabel("y1"), VariableLabel("z1"))
   val (xPrime, yPrime, zPrime) = (VariableLabel("x'"), VariableLabel("y'"), VariableLabel("z'"))
@@ -18,9 +18,9 @@ trait TestUtils {
   val (sf1, sf2, sf3) = (SchematicFunctionLabel("f", 1), SchematicFunctionLabel("f", 2), SchematicFunctionLabel("f", 3))
   val (sPhi1, sPhi2) = (SchematicPredicateLabel("phi", 1), SchematicPredicateLabel("phi", 2))
   val (sc1, sc2) = (SchematicConnectorLabel("c", 1), SchematicConnectorLabel("c", 2))
-  val (in, plus) = (ConstantAtomicLabel("elem", 2), ConstantFunctionLabel("+", 2))
+  val (in, plus) = (ConstantPredKerLabel("elem", 2), ConstantFunctionLabel("+", 2))
 
-  given Conversion[AtomLabel, AtomicFormula] = AtomicFormula(_, Seq.empty)
+  given Conversion[AtomLabel, PredKerFormula] = PredKerFormula(_, Seq.empty)
 
   given Conversion[ConstantFunctionLabel, Term] = Term(_, Seq())
 

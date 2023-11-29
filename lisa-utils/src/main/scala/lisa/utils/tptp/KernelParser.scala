@@ -32,7 +32,7 @@ object KernelParser {
    */
   def convertToKernel(formula: FOF.Formula): K.Formula = {
     formula match {
-      case FOF.AtomicFormula(f, args) => K.AtomicFormula(K.ConstantAtomicLabel(f, args.size), args map convertTermToKernel)
+      case FOF.AtomicFormula(f, args) => K.PredKerFormula(K.ConstantPredKerLabel(f, args.size), args map convertTermToKernel)
       case FOF.QuantifiedFormula(quantifier, variableList, body) =>
         quantifier match {
           case FOF.! => variableList.foldRight(convertToKernel(body))((s, f) => K.Forall(K.VariableLabel(s), f))
@@ -63,8 +63,8 @@ object KernelParser {
     K.ConnectorFormula(
       K.Or,
       formula.map {
-        case CNF.PositiveAtomic(formula) => K.AtomicFormula(K.ConstantAtomicLabel(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
-        case CNF.NegativeAtomic(formula) => !K.AtomicFormula(K.ConstantAtomicLabel(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
+        case CNF.PositiveAtomic(formula) => K.PredKerFormula(K.ConstantPredKerLabel(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
+        case CNF.NegativeAtomic(formula) => !K.PredKerFormula(K.ConstantPredKerLabel(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
         case CNF.Equality(left, right) => K.equality(convertTermToKernel(left), convertTermToKernel(right))
         case CNF.Inequality(left, right) => !K.equality(convertTermToKernel(left), convertTermToKernel(right))
       }

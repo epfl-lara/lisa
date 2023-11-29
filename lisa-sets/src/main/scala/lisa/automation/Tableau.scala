@@ -102,7 +102,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       beta: List[ConnectorFormula], // label = Or
       delta: List[BinderFormula], // Exists(...))
       gamma: List[BinderFormula], // Forall(...)
-      atoms: (List[AtomicFormula], List[AtomicFormula]), // split into positive and negatives!
+      atoms: (List[PredKerFormula], List[PredKerFormula]), // split into positive and negatives!
       unifiable: Map[VariableLabel, BinderFormula], // map between metavariables and the original formula they came from
       skolemized: Set[VariableLabel], // set of variables that have been skolemized
       triedInstantiation: Map[VariableLabel, Set[Term]], // map between metavariables and the term they were already instantiated with
@@ -119,9 +119,9 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         if (gamma.nonEmpty && gamma.head.uniqueNumber == f.uniqueNumber) copy(gamma = gamma.tail) else throw Exception("First formula of gamma is not f")
       case ConnectorFormula(And, args) =>
         if (alpha.nonEmpty && alpha.head.uniqueNumber == f.uniqueNumber) copy(alpha = alpha.tail) else throw Exception("First formula of alpha is not f")
-      case f @ AtomicFormula(id, args) =>
+      case f @ PredKerFormula(id, args) =>
         throw Exception("Should not pop Atoms")
-      case f @ ConnectorFormula(Neg, List(AtomicFormula(id, args))) =>
+      case f @ ConnectorFormula(Neg, List(PredKerFormula(id, args))) =>
         throw Exception("Should not pop Atoms")
       case _ => ???
 
@@ -130,9 +130,9 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       case f @ ConnectorFormula(Or, args) => this.copy(beta = f :: beta)
       case f @ BinderFormula(Exists, x, inner) => this.copy(delta = f :: delta)
       case f @ BinderFormula(Forall, x, inner) => this.copy(gamma = f :: gamma)
-      case f @ AtomicFormula(id, args) =>
+      case f @ PredKerFormula(id, args) =>
         this.copy(atoms = (f :: atoms._1, atoms._2))
-      case ConnectorFormula(Neg, List(f @ AtomicFormula(id, args))) =>
+      case ConnectorFormula(Neg, List(f @ PredKerFormula(id, args))) =>
         this.copy(atoms = (atoms._1, f :: atoms._2))
       case _ => ???
 
@@ -164,7 +164,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         (l :+ nf, nn, ns)
       )
       (ConnectorFormula(label, nArgs), nnId, nSeen)
-    case pf: AtomicFormula => (pf, nextId, seen)
+    case pf: PredKerFormula => (pf, nextId, seen)
     case BinderFormula(label, x, inner) =>
       if (seen.contains(x))
         val (nInner, nnId, nSeen) = makeVariableNamesUnique(inner, nextId + 1, seen)
@@ -211,9 +211,9 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
   /**
    * Detect if two atoms can be unified, and if so, return a substitution that unifies them.
    */
-  def unifyPred(pos: AtomicFormula, neg: AtomicFormula, br: Branch): Option[Substitution] = {
+  def unifyPred(pos: PredKerFormula, neg: PredKerFormula, br: Branch): Option[Substitution] = {
     (pos, neg) match
-      case (AtomicFormula(id1, args1), AtomicFormula(id2, args2)) if (id1 == id2 && args1.size == args2.size) =>
+      case (PredKerFormula(id1, args1), PredKerFormula(id2, args2)) if (id1 == id2 && args1.size == args2.size) =>
         args1
           .zip(args2)
           .foldLeft(Some(Substitution.empty): Option[Substitution])((prev, next) =>
@@ -239,7 +239,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     val newMapTerm = newMap.map((k, v) => k -> VariableTerm(v))
     val inverseNewMap = newMap.map((k, v) => v -> k).toMap
     val inverseNewMapTerm = inverseNewMap.map((k, v) => k -> VariableTerm(v))
-    val pos = branch.atoms._1.map(pred => substituteVariablesInFormula(pred, newMapTerm, Seq())).asInstanceOf[List[AtomicFormula]].iterator
+    val pos = branch.atoms._1.map(pred => substituteVariablesInFormula(pred, newMapTerm, Seq())).asInstanceOf[List[PredKerFormula]].iterator
     var substitutions: List[(Substitution, Set[Formula])] = Nil
 
     while (pos.hasNext) {
@@ -437,6 +437,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
   def instantiate(f: Formula, x: VariableLabel, t: Term): Formula = f match
     case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiate(_, x, t)))
-    case AtomicFormula(id, args) => AtomicFormula(id, args.map(substituteVariablesInTerm(_, Substitution(x -> t))))
+    case PredKerFormula(id, args) => PredKerFormula(id, args.map(substituteVariablesInTerm(_, Substitution(x -> t))))
     case BinderFormula(label, y, inner) => if (x == y) f else BinderFormula(label, y, instantiate(inner, x, t))
 }
