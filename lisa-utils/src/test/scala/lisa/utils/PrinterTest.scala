@@ -41,7 +41,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
 
     assert(FOLParser.printFormula(BinderFormula(Forall, x, BinderFormula(Exists, y, BinderFormula(ExistsOne, z, a)))) == "∀'x. ∃'y. ∃!'z. a")
 
-    assert(FOLParser.printFormula(PredicateFormula(ConstantAtomicLabel("f", 3), Seq(x, y, z))) == "f('x, 'y, 'z)")
+    assert(FOLParser.printFormula(PredicateFormula(ConstantAtomLabel("f", 3), Seq(x, y, z))) == "f('x, 'y, 'z)")
   }
 
   test("constant") {
@@ -77,12 +77,12 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("0-ary predicate") {
-    assert(FOLParser.printFormula(PredicateFormula(ConstantAtomicLabel("a", 0), Seq())) == "a")
+    assert(FOLParser.printFormula(PredicateFormula(ConstantAtomLabel("a", 0), Seq())) == "a")
   }
 
   test("predicate application") {
-    assert(FOLParser.printFormula(PredicateFormula(ConstantAtomicLabel("p", 3), Seq(cx, cy, cz))) == "p(x, y, z)")
-    assert(FOLParser.printFormula(PredicateFormula(ConstantAtomicLabel("p", 3), Seq(x, y, z))) == "p('x, 'y, 'z)")
+    assert(FOLParser.printFormula(PredicateFormula(ConstantAtomLabel("p", 3), Seq(cx, cy, cz))) == "p(x, y, z)")
+    assert(FOLParser.printFormula(PredicateFormula(ConstantAtomLabel("p", 3), Seq(x, y, z))) == "p('x, 'y, 'z)")
   }
 
   test("equality") {
@@ -166,9 +166,9 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("quantifiers") {
-    assert(FOLParser.printFormula(BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∀'x. p")
-    assert(FOLParser.printFormula(BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∃'x. p")
-    assert(FOLParser.printFormula(BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∃!'x. p")
+    assert(FOLParser.printFormula(BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq()))) == "∀'x. p")
+    assert(FOLParser.printFormula(BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq()))) == "∃'x. p")
+    assert(FOLParser.printFormula(BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq()))) == "∃!'x. p")
   }
 
   test("nested quantifiers") {
@@ -182,7 +182,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
         BinderFormula(
           Forall,
           x,
-          ConnectorFormula(And, Seq(PredicateFormula(ConstantAtomicLabel("p", 1), Seq(x)), PredicateFormula(ConstantAtomicLabel("q", 1), Seq(x))))
+          ConnectorFormula(And, Seq(PredicateFormula(ConstantAtomLabel("p", 1), Seq(x)), PredicateFormula(ConstantAtomLabel("q", 1), Seq(x))))
         )
       ) == "∀'x. p('x) ∧ q('x)"
     )
@@ -194,8 +194,8 @@ class PrinterTest extends AnyFunSuite with TestUtils {
         ConnectorFormula(
           And,
           Seq(
-            BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 1), Seq(x))),
-            PredicateFormula(ConstantAtomicLabel("q", 1), Seq(x))
+            BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 1), Seq(x))),
+            PredicateFormula(ConstantAtomLabel("q", 1), Seq(x))
           )
         )
       ) == "(∀'x. p('x)) ∧ q('x)"
@@ -236,7 +236,7 @@ class PrinterTest extends AnyFunSuite with TestUtils {
         "∃'x. 'x = 'x"
     )
     assert(
-      FOLParser.printSequent(Sequent(Set(forallEq, PredicateFormula(ConstantAtomicLabel("p", 0), Seq())), Set(existsYEq, existsXEq))) == "∀'x. 'x = 'x; p ⊢ ∃'y. 'y = 'y; ∃'x. 'x = 'x"
+      FOLParser.printSequent(Sequent(Set(forallEq, PredicateFormula(ConstantAtomLabel("p", 0), Seq())), Set(existsYEq, existsXEq))) == "∀'x. 'x = 'x; p ⊢ ∃'y. 'y = 'y; ∃'x. 'x = 'x"
     )
   }
 
@@ -274,8 +274,8 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("infix predicates") {
-    val in = ConstantAtomicLabel("∊", 2)
-    val prefixIn = ConstantAtomicLabel("elem", 2)
+    val in = ConstantAtomLabel("∊", 2)
+    val prefixIn = ConstantAtomLabel("elem", 2)
     val parser = Parser(SynonymInfoBuilder().addSynonyms(prefixIn.id, in.id).build, in.id :: Nil, Nil)
     assert(parser.printFormula(PredicateFormula(in, Seq(cx, cy))) == "x ∊ y")
     assert(parser.printFormula(PredicateFormula(in, Seq(x, y))) == "'x ∊ 'y")

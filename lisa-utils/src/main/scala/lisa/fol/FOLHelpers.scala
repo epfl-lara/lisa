@@ -80,14 +80,14 @@ object FOLHelpers {
     case fl: K.AtomicLabel => asFrontLabel(fl)
     case fl: K.BinderLabel => asFrontLabel(fl)
   def asFrontLabel(pl: K.AtomicLabel): AtomicLabel = pl match
-    case pl: K.ConstantAtomicLabel => asFrontLabel(pl)
+    case pl: K.ConstantAtomLabel => asFrontLabel(pl)
     case pl: K.SchematicAtomicLabel => asFrontLabel(pl)
   def asFrontLabel(cl: K.ConnectorLabel): ConnectorLabel = cl match
     case cl: K.ConstantConnectorLabel => asFrontLabel(cl)
     case cl: K.SchematicConnectorLabel => asFrontLabel(cl)
-  def asFrontLabel[N <: Arity](cpl: K.ConstantAtomicLabel): ConstantPredicateLabelOfArity[N] = cpl.arity.asInstanceOf[N] match
+  def asFrontLabel[N <: Arity](cpl: K.ConstantAtomLabel): ConstantPredicateLabelOfArity[N] = cpl.arity.asInstanceOf[N] match
     case n: 0 => ConstantFormula(cpl.id)
-    case n: N => ConstantAtomicLabel(cpl.id, cpl.arity.asInstanceOf)
+    case n: N => ConstantAtomLabel(cpl.id, cpl.arity.asInstanceOf)
   def asFrontLabel(sfl: K.SchematicFormulaLabel): SchematicAtomicLabel | SchematicConnectorLabel[?] =
     sfl match
       case v: K.VariableFormulaLabel => asFrontLabel(v)

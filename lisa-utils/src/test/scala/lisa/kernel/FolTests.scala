@@ -60,20 +60,20 @@ class FolTests extends AnyFunSuite {
       val r = gen.between(0, 7)
       if (r <= 1) {
         val name = "" + ('A' to 'E')(gen.between(0, 5))
-        PredicateFormula(ConstantAtomicLabel(name, 0), Seq())
+        PredicateFormula(ConstantAtomLabel(name, 0), Seq())
       } else if (r <= 3) {
         val name = "" + ('A' to 'E')(gen.between(0, 5))
-        PredicateFormula(ConstantAtomicLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
+        PredicateFormula(ConstantAtomLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
       } else if (r <= 5) {
         val s = gen.between(0, 3)
         if (s == 0) PredicateFormula(equality, Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
         else {
           val name = "" + ('A' to 'E')(gen.between(0, 5))
-          PredicateFormula(ConstantAtomicLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+          PredicateFormula(ConstantAtomLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
         }
       } else {
         val name = "" + ('A' to 'E')(gen.between(0, 5))
-        PredicateFormula(ConstantAtomicLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+        PredicateFormula(ConstantAtomLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
       }
 
     } else {
@@ -98,9 +98,9 @@ class FolTests extends AnyFunSuite {
   private val x = VariableLabel("x")
   private val y = VariableLabel("y")
   private val z = VariableLabel("z")
-  private val a = PredicateFormula(ConstantAtomicLabel("A", 0), Seq())
-  private val b = PredicateFormula(ConstantAtomicLabel("B", 0), Seq())
-  private val fp = ConstantAtomicLabel("F", 1)
+  private val a = PredicateFormula(ConstantAtomLabel("A", 0), Seq())
+  private val b = PredicateFormula(ConstantAtomLabel("B", 0), Seq())
+  private val fp = ConstantAtomLabel("F", 1)
   private val sT = VariableLabel("t")
 
   def test_some_random_formulas(n: Int, maxDepth: Int): Unit = {

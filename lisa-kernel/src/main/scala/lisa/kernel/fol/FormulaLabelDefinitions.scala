@@ -30,15 +30,15 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A standard predicate symbol. Typical example are equality (=) and membership (∈)
    */
-  sealed case class ConstantAtomicLabel(id: Identifier, arity: Int) extends AtomicLabel with ConstantLabel
+  sealed case class ConstantAtomLabel(id: Identifier, arity: Int) extends AtomicLabel with ConstantLabel
 
   /**
    * The equality symbol (=) for first order logic.
    * It is represented as any other predicate symbol but has unique semantic and deduction rules.
    */
-  val equality: ConstantAtomicLabel = ConstantAtomicLabel(Identifier("="), 2)
-  val top: ConstantAtomicLabel = ConstantAtomicLabel(Identifier("⊤"), 0)
-  val bot: ConstantAtomicLabel = ConstantAtomicLabel(Identifier("⊥"), 0)
+  val equality: ConstantAtomLabel = ConstantAtomLabel(Identifier("="), 2)
+  val top: ConstantAtomLabel = ConstantAtomLabel(Identifier("⊤"), 0)
+  val bot: ConstantAtomLabel = ConstantAtomLabel(Identifier("⊥"), 0)
 
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.

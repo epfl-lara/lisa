@@ -54,7 +54,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
     val generator = nameGenerator()
     () => {
       val id = generator()
-      PredicateFormula(ConstantAtomicLabel(id, 0), Seq.empty)
+      PredicateFormula(ConstantAtomLabel(id, 0), Seq.empty)
     }
   }
 
@@ -81,7 +81,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
             // Reuse existing name
             connectors(random.nextInt(connectors.size))
           }
-        PredicateFormula(ConstantAtomicLabel(name, 0), Seq.empty)
+        PredicateFormula(ConstantAtomLabel(name, 0), Seq.empty)
       } else {
         // Branch
         val nextP = p * c

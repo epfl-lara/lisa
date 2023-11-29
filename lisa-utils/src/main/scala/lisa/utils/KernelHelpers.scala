@@ -372,7 +372,7 @@ object KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check. See also [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
      */
     def predicateDefinition(symbol: String, expression: LambdaTermFormula): RunningTheoryJudgement[theory.PredicateDefinition] = {
-      val label = ConstantAtomicLabel(symbol, expression.vars.size)
+      val label = ConstantAtomLabel(symbol, expression.vars.size)
       theory.makePredicateDefinition(label, expression)
     }
 
@@ -391,7 +391,7 @@ object KernelHelpers {
     def findUndefinedSymbols(phi: Formula): Set[ConstantLabel] = phi match {
       case PredicateFormula(label, args) =>
         label match {
-          case l: ConstantAtomicLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
+          case l: ConstantAtomLabel => ((if (theory.isSymbol(l)) Nil else List(l)) ++ args.flatMap(findUndefinedSymbols)).toSet
           case _ => args.flatMap(findUndefinedSymbols).toSet
         }
       case ConnectorFormula(label, args) => args.flatMap(findUndefinedSymbols).toSet

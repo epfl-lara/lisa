@@ -323,7 +323,7 @@ class Parser(
   case class Termula(label: RangedLabel, args: Seq[Termula], range: (Int, Int)) {
     def toTerm: Term = label.folLabel match {
       case _: BinderLabel | _: ConnectorLabel => throw ExpectedTermGotFormula(range)
-      case t: ConstantAtomicLabel => Term(ConstantFunctionLabel(t.id, t.arity), args.map(_.toTerm))
+      case t: ConstantAtomLabel => Term(ConstantFunctionLabel(t.id, t.arity), args.map(_.toTerm))
       case t: SchematicPredicateLabel => Term(SchematicFunctionLabel(t.id, t.arity), args.map(_.toTerm))
       case v: VariableFormulaLabel => Term(VariableLabel(v.id), Seq())
     }
@@ -363,7 +363,7 @@ class Parser(
         def apply(f: FOL.FormulaLabel): RangedLabel = RangedLabel(f, UNKNOWN_RANGE)
       }
       val newLabel = t.label match {
-        case ConstantFunctionLabel(id, arity) => ConstantAtomicLabel(id, arity)
+        case ConstantFunctionLabel(id, arity) => ConstantAtomLabel(id, arity)
         case SchematicFunctionLabel(id, arity) => SchematicPredicateLabel(id, arity)
         case VariableLabel(id) => VariableFormulaLabel(id)
       }
@@ -499,7 +499,7 @@ class Parser(
       t.label.folLabel match {
         case VariableFormulaLabel(id) => SchematicToken(id, t.label.range) ~ None
         case SchematicPredicateLabel(id, _) => SchematicToken(id, t.range) ~ Some(RangedTermulaSeq(t.args, argsRange))
-        case ConstantAtomicLabel(id, arity) =>
+        case ConstantAtomLabel(id, arity) =>
           ConstantToken(synonymToCanonical.getPrintName(id), t.label.range) ~
             (if (arity == 0) None else Some(RangedTermulaSeq(t.args, argsRange)))
         case _ => throw UnreachableException
@@ -512,7 +512,7 @@ class Parser(
         val args: Seq[Termula] = optArgs.map(_.ts).getOrElse(Seq())
         val l = p match {
 
-          case ConstantToken(id, _) => ConstantAtomicLabel(synonymToCanonical.getInternalName(id), args.size)
+          case ConstantToken(id, _) => ConstantAtomLabel(synonymToCanonical.getInternalName(id), args.size)
           case SchematicToken(id, _) =>
             if (args.isEmpty) VariableFormulaLabel(id) else SchematicPredicateLabel(id, args.size)
           case SchematicConnectorToken(id, _) => SchematicConnectorLabel(id, args.size)
@@ -541,11 +541,11 @@ class Parser(
     val infixFunctionLabels: List[PrecedenceLevel[RangedLabel]] = infixFunctions.map({ case (l, assoc) =>
       elem(InfixKind(l)).map[RangedLabel](
         {
-          case InfixToken(`l`, range) => RangedLabel(ConstantAtomicLabel(synonymToCanonical.getInternalName(l), INFIX_ARITY), range)
+          case InfixToken(`l`, range) => RangedLabel(ConstantAtomLabel(synonymToCanonical.getInternalName(l), INFIX_ARITY), range)
           case _ => throw UnreachableException
         },
         {
-          case RangedLabel(ConstantAtomicLabel(id, INFIX_ARITY), range) => Seq(InfixToken(synonymToCanonical.getPrintName(id), range))
+          case RangedLabel(ConstantAtomLabel(id, INFIX_ARITY), range) => Seq(InfixToken(synonymToCanonical.getPrintName(id), range))
           case _ => throw UnreachableException
         }
       ) has assoc
@@ -554,11 +554,11 @@ class Parser(
     val infixPredicateLabels: List[PrecedenceLevel[RangedLabel]] = infixPredicates.map(l =>
       elem(InfixKind(l)).map[RangedLabel](
         {
-          case InfixToken(`l`, range) => RangedLabel(ConstantAtomicLabel(synonymToCanonical.getInternalName(l), INFIX_ARITY), range)
+          case InfixToken(`l`, range) => RangedLabel(ConstantAtomLabel(synonymToCanonical.getInternalName(l), INFIX_ARITY), range)
           case _ => throw UnreachableException
         },
         {
-          case RangedLabel(ConstantAtomicLabel(id, INFIX_ARITY), range) => Seq(InfixToken(synonymToCanonical.getPrintName(id), range))
+          case RangedLabel(ConstantAtomLabel(id, INFIX_ARITY), range) => Seq(InfixToken(synonymToCanonical.getPrintName(id), range))
           case _ => throw UnreachableException
         }
       ) has Associativity.None
@@ -609,7 +609,7 @@ class Parser(
     )(
       (l, conn, r) => Termula(conn, Seq(l, r), (l.range._1, r.range._2)),
       {
-        case Termula(pred @ RangedLabel(ConstantAtomicLabel(_, INFIX_ARITY), _), Seq(l, r), _) => (l, pred, r)
+        case Termula(pred @ RangedLabel(ConstantAtomLabel(_, INFIX_ARITY), _), Seq(l, r), _) => (l, pred, r)
         case Termula(conn @ RangedLabel(_: ConnectorLabel, _), Seq(l, r), _) =>
           (l, conn, r)
         case Termula(conn @ RangedLabel(_: ConnectorLabel, _), l +: rest, _) if rest.nonEmpty =>

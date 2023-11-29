@@ -627,7 +627,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val r: List[NormalFormula] = phi match {
         case PolarPredicate(label, args) =>
           val lab = label match {
-            case _: ConstantAtomicLabel => "cp_" + label.id + "_" + label.arity
+            case _: ConstantAtomLabel => "cp_" + label.id + "_" + label.arity
             case _: SchematicAtomicLabel => "sp_" + label.id + "_" + label.arity
           }
           if (label == top) {
@@ -675,7 +675,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val r: List[NormalFormula] = phi match {
         case PolarPredicate(label, args) =>
           val lab = label match {
-            case _: ConstantAtomicLabel => "cp_" + label.id + "_" + label.arity
+            case _: ConstantAtomLabel => "cp_" + label.id + "_" + label.arity
             case _: SchematicAtomicLabel => "sp_" + label.id + "_" + label.arity
           }
           if (label == top) {

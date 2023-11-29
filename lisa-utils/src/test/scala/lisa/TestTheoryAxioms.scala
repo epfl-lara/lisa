@@ -5,8 +5,8 @@ import lisa.kernel.proof.RunningTheory
 import lisa.utils.KernelHelpers.{_, given}
 
 trait TestTheoryAxioms {
-  final val p1 = ConstantAtomicLabel("p1", 1)
-  final val p2 = ConstantAtomicLabel("p2", 1)
+  final val p1 = ConstantAtomLabel("p1", 1)
+  final val p2 = ConstantAtomLabel("p2", 1)
   final val f1 = ConstantFunctionLabel("f1", 1)
   final val fixedElement = ConstantFunctionLabel("fixedElement", 0)
   final val anotherFixed = ConstantFunctionLabel("anotherElement", 0)

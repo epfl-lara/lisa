@@ -44,8 +44,8 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("0-ary predicate") {
-    assert(FOLParser.parseFormula("a") == PredicateFormula(ConstantAtomicLabel("a", 0), Seq()))
-    assert(FOLParser.parseFormula("a()") == PredicateFormula(ConstantAtomicLabel("a", 0), Seq()))
+    assert(FOLParser.parseFormula("a") == PredicateFormula(ConstantAtomLabel("a", 0), Seq()))
+    assert(FOLParser.parseFormula("a()") == PredicateFormula(ConstantAtomLabel("a", 0), Seq()))
   }
 
   test("boolean constants") {
@@ -61,8 +61,8 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("predicate application") {
-    assert(FOLParser.parseFormula("p(x, y, z)") == PredicateFormula(ConstantAtomicLabel("p", 3), Seq(cx, cy, cz)))
-    assert(FOLParser.parseFormula("p('x, 'y, 'z)") == PredicateFormula(ConstantAtomicLabel("p", 3), Seq(x, y, z)))
+    assert(FOLParser.parseFormula("p(x, y, z)") == PredicateFormula(ConstantAtomLabel("p", 3), Seq(cx, cy, cz)))
+    assert(FOLParser.parseFormula("p('x, 'y, 'z)") == PredicateFormula(ConstantAtomLabel("p", 3), Seq(x, y, z)))
   }
 
   test("equality") {
@@ -131,13 +131,13 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("quantifiers") {
-    assert(FOLParser.parseFormula("∀ 'x. (p)") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq())))
-    assert(FOLParser.parseFormula("∃ 'x. (p)") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq())))
-    assert(FOLParser.parseFormula("∃! 'x. (p)") == BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq())))
+    assert(FOLParser.parseFormula("∀ 'x. (p)") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq())))
+    assert(FOLParser.parseFormula("∃ 'x. (p)") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq())))
+    assert(FOLParser.parseFormula("∃! 'x. (p)") == BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq())))
 
-    assert(FOLParser.parseFormula("∀ 'x. p") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq())))
-    assert(FOLParser.parseFormula("∃ 'x. p") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq())))
-    assert(FOLParser.parseFormula("∃! 'x. p") == BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 0), Seq())))
+    assert(FOLParser.parseFormula("∀ 'x. p") == BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq())))
+    assert(FOLParser.parseFormula("∃ 'x. p") == BinderFormula(Exists, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq())))
+    assert(FOLParser.parseFormula("∃! 'x. p") == BinderFormula(ExistsOne, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 0), Seq())))
   }
 
   test("nested quantifiers") {
@@ -150,7 +150,7 @@ class ParserTest extends AnyFunSuite with TestUtils {
       FOLParser.parseFormula("∀ 'x. p('x) ∧ q('x)") == BinderFormula(
         Forall,
         x,
-        ConnectorFormula(And, Seq(PredicateFormula(ConstantAtomicLabel("p", 1), Seq(x)), PredicateFormula(ConstantAtomicLabel("q", 1), Seq(x))))
+        ConnectorFormula(And, Seq(PredicateFormula(ConstantAtomLabel("p", 1), Seq(x)), PredicateFormula(ConstantAtomLabel("q", 1), Seq(x))))
       )
     )
 
@@ -160,8 +160,8 @@ class ParserTest extends AnyFunSuite with TestUtils {
       FOLParser.parseFormula("(∀ 'x. p('x)) ∧ q('x)") == ConnectorFormula(
         And,
         Seq(
-          BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomicLabel("p", 1), Seq(x))),
-          PredicateFormula(ConstantAtomicLabel("q", 1), Seq(x))
+          BinderFormula(Forall, VariableLabel("x"), PredicateFormula(ConstantAtomLabel("p", 1), Seq(x))),
+          PredicateFormula(ConstantAtomLabel("q", 1), Seq(x))
         )
       )
     )
@@ -201,7 +201,7 @@ class ParserTest extends AnyFunSuite with TestUtils {
     assert(FOLParser.parseSequent("∀x. 'x = 'x ⊢ ∃x. 'x = 'x; ∃y. 'y = 'y") == Sequent(Set(forallEq), Set(existsYEq, existsXEq)))
     assert(
       FOLParser.parseSequent("p ; ∀x. 'x = 'x ⊢ ∃x. 'x = 'x; ∃y. 'y = 'y") ==
-        Sequent(Set(forallEq, PredicateFormula(ConstantAtomicLabel("p", 0), Seq())), Set(existsYEq, existsXEq))
+        Sequent(Set(forallEq, PredicateFormula(ConstantAtomLabel("p", 0), Seq())), Set(existsYEq, existsXEq))
     )
   }
 
