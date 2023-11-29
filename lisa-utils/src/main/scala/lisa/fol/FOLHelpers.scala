@@ -36,7 +36,7 @@ object FOLHelpers {
     LambdaExpression(s, a._2, s.length.asInstanceOf)
   }
 
-  given [T <: LisaObject[T]]: Conversion[T, T *** 1] = ***.apply[T, 1](_)
+  given [T <: LisaObject[T]]: Conversion[T, T ** 1] = **.apply[T, 1](_)
 
   given Conversion[Int, Arity] = _.asInstanceOf
 

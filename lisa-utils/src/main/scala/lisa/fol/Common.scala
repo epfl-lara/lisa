@@ -18,31 +18,15 @@ trait Common {
   export K.Identifier
   type Arity = Int & Singleton
 
-  /**
-   * Define the type of tuples of Arity N. If N=-1, T***N = List[T] (arbitrary arity).
-   */
-  @showAsInfix
-  /*
-  type ***[+T, N <: Arity] <: (Tuple | Seq[T]) & Matchable = N match {
-    case -1 => Seq[T]
-    case 0 => EmptyTuple
-    case _ => T *: (T *** (N - 1))
-  }*/
-  opaque type ***[+T, N <: Arity] >: Seq[T] = Seq[T]
-  object *** {
-    def apply[T, N <: Arity](args: T*): T *** N = args.toSeq
-    def unapplySeq[T, N <: Arity](arg: T *** N): Option[Seq[T]] = Some(arg)
-  }
 
   /**
-   * The union of the types of N-tuples and lists. Usually, filling a List for a T**N forfeits arity checking at compile time.
-   */
-  type **[+T, N <: Arity] = ***[T, N]
+    * Type of sequences of length N
+    */
+  opaque type **[+T, N <: Arity]  >: Seq[T] = Seq[T]
   object ** {
     def apply[T, N <: Arity](args: T*): T ** N = args.toSeq
     def unapplySeq[T, N <: Arity](arg: T ** N): Option[Seq[T]] = Some(arg)
   }
-
 
   extension [T, N <: Arity](self: T ** N) {
     def toSeq: Seq[T] = self
@@ -773,7 +757,7 @@ trait Common {
     def apply(s1: Seq[S]): T = t.applyUnsafe(s1) 
     //def apply(s:S*): T = t.applyUnsafe(s.toSeq)
   }
-  
+
   extension [S, T <: LisaObject[T]] (t: (S ** 1) |-> T) {
     def apply(s1: S): T = t.applyUnsafe(Seq(s1)) 
   }

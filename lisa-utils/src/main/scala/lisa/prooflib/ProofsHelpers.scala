@@ -146,7 +146,7 @@ trait ProofsHelpers {
   class The(val out: Variable, val f: Formula)(
       val just: JUSTIFICATION
   )
-  class definitionWithVars[N <: Arity](val args: Variable *** N) {
+  class definitionWithVars[N <: Arity](val args: Variable ** N) {
 
     // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
     // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
