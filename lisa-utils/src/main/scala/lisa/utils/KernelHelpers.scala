@@ -54,7 +54,7 @@ object KernelHelpers {
     }
   }
 
-  extension [L <: AtomicLabel](label: L) {
+  extension [L <: AtomLabel](label: L) {
     def apply(args: Term*): Formula = PredicateFormula(label, args)
     @targetName("applySeq")
     def apply(args: Seq[Term]): Formula = PredicateFormula(label, args)
@@ -101,8 +101,8 @@ object KernelHelpers {
 
   given Conversion[TermLabel, Term] = Term(_, Seq())
   given Conversion[Term, TermLabel] = _.label
-  given Conversion[AtomicLabel, PredicateFormula] = PredicateFormula(_, Seq())
-  given Conversion[PredicateFormula, AtomicLabel] = _.label
+  given Conversion[AtomLabel, PredicateFormula] = PredicateFormula(_, Seq())
+  given Conversion[PredicateFormula, AtomLabel] = _.label
 
   given Conversion[VariableFormulaLabel, PredicateFormula] = PredicateFormula(_, Seq())
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
@@ -196,7 +196,7 @@ object KernelHelpers {
 
   // Instatiation functions for formulas lifted to sequents.
 
-  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicAtomicLabel, LambdaTermFormula]): Sequent = {
+  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicAtomLabel, LambdaTermFormula]): Sequent = {
     s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
   }
 
@@ -207,7 +207,7 @@ object KernelHelpers {
   def instantiateSchemaInSequent(
       s: Sequent,
       mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-      mPred: Map[SchematicAtomicLabel, LambdaTermFormula],
+      mPred: Map[SchematicAtomLabel, LambdaTermFormula],
       mTerm: Map[SchematicTermLabel, LambdaTermTerm]
   ): Sequent = {
     s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))

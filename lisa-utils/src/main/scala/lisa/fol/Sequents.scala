@@ -53,7 +53,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
             case sl: SchematicPredicateLabel[?] =>
               p._2 match {
                 case l: LambdaExpression[Term, Formula, ?] @unchecked if (l.bounds.isEmpty || l.bounds.head.isInstanceOf[Variable]) & l.body.isInstanceOf[Formula] => (sl, l)
-                case s: AtomicLabel =>
+                case s: AtomLabel =>
                   val vars = nFreshId(Seq(s.id), s.arity).map(id => Variable(id))
                   (sl, LambdaExpression(vars, s.applyUnsafe(vars), s.arity))
               }

@@ -424,7 +424,7 @@ trait Common {
    */
   sealed trait Formula extends TermOrFormula with LisaObject[Formula] with ((Term ** 0) |-> Formula) {
     val arity: Arity = 0
-    // val label:AtomicLabel|ConnectorLabel
+    // val label:AtomLabel|ConnectorLabel
     // val args:Seq[Term]|Seq[Formula]
     def applyUnsafe(args: Term ** 0): Formula = this
     val underlying: K.Formula
@@ -436,26 +436,26 @@ trait Common {
   /////////////////////
 
   sealed trait AtomicFormula extends Formula {
-    val label: AtomicLabel
+    val label: AtomLabel
     val args: Seq[Term]
   }
 
   /**
-   * A AtomicLabel is a [[LisaObject]] of type ((Term ** N) |-> Formula), that is represented by a predicate label.
+   * A AtomLabel is a [[LisaObject]] of type ((Term ** N) |-> Formula), that is represented by a predicate label.
    * It can be either a [[SchematicPredicateLabel]] or a [[ConstantAtomLabel]].
    */
-  sealed trait AtomicLabel extends (Seq[Term] |-> Formula) with Absolute {
+  sealed trait AtomLabel extends (Seq[Term] |-> Formula) with Absolute {
     val arity: Arity
     def id: Identifier
-    val underlyingLabel: K.AtomicLabel
+    val underlyingLabel: K.AtomLabel
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): (Seq[Term] |-> Formula)
-    def rename(newid: Identifier): AtomicLabel
-    def freshRename(taken: Iterable[Identifier]): AtomicLabel
+    def rename(newid: Identifier): AtomLabel
+    def freshRename(taken: Iterable[Identifier]): AtomLabel
     def mkString(args: Seq[Term]): String
     def mkStringSeparated(args: Seq[Term]): String = mkString(args)
   }
 
-  sealed trait ConstantConstOrPredLabel extends AtomicLabel with ConstantLabel[Seq[Term] |-> Formula] {
+  sealed trait ConstantConstOrPredLabel extends AtomLabel with ConstantLabel[Seq[Term] |-> Formula] {
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ConstantConstOrPredLabel
     override def rename(newid: Identifier): ConstantConstOrPredLabel
     def freshRename(taken: Iterable[Identifier]): ConstantConstOrPredLabel
@@ -465,11 +465,11 @@ trait Common {
     case N => ConstantAtomLabel[N]
   }
 
-  sealed trait SchematicAtomicLabel extends AtomicLabel with SchematicLabel[Seq[Term] |-> Formula] {
-    override def rename(newid: Identifier): SchematicAtomicLabel
-    def freshRename(taken: Iterable[Identifier]): SchematicAtomicLabel
+  sealed trait SchematicAtomLabel extends AtomLabel with SchematicLabel[Seq[Term] |-> Formula] {
+    override def rename(newid: Identifier): SchematicAtomLabel
+    def freshRename(taken: Iterable[Identifier]): SchematicAtomLabel
   }
-  type SchematicPredicateLabelOfArity[N <: Arity] <: SchematicAtomicLabel = N match {
+  type SchematicPredicateLabelOfArity[N <: Arity] <: SchematicAtomLabel = N match {
     case 0 => VariableFormula
     case N => SchematicPredicateLabel[N]
   }
@@ -478,7 +478,7 @@ trait Common {
    * A Variable for formulas, corresponding to [[K.VariableFormulaLabel]], is a schematic symbol for formulas.
    * It counts both as the label and as the term itself.
    */
-  case class VariableFormula(id: Identifier) extends SchematicAtomicLabel with AtomicFormula with Absolute with SchematicLabel[Formula] {
+  case class VariableFormula(id: Identifier) extends SchematicAtomLabel with AtomicFormula with Absolute with SchematicLabel[Formula] {
     override val arity: 0 = 0
     val label: VariableFormula = this
     val args: Seq[Nothing] = Seq()
@@ -524,10 +524,10 @@ trait Common {
   }
 
   /**
-   * A schematic predicate label (corresponding to [[K.SchematicPredicateLabel]]) is a [[AtomicLabel]] and also a [[SchematicLabel]].
+   * A schematic predicate label (corresponding to [[K.SchematicPredicateLabel]]) is a [[AtomLabel]] and also a [[SchematicLabel]].
    * It can be substituted by any expression of type (Term ** N) |-> Formula
    */
-  case class SchematicPredicateLabel[N <: Arity](id: Identifier, arity: N) extends SchematicAtomicLabel with SchematicLabel[(Term ** N) |-> Formula] with ((Term ** N) |-> Formula) {
+  case class SchematicPredicateLabel[N <: Arity](id: Identifier, arity: N) extends SchematicAtomLabel with SchematicLabel[(Term ** N) |-> Formula] with ((Term ** N) |-> Formula) {
     val underlyingLabel: K.SchematicPredicateLabel = K.SchematicPredicateLabel(id, arity)
     def applyUnsafe(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     def unapplySeq(t: AppliedTerm): Seq[Term] = t match {
@@ -584,9 +584,9 @@ trait Common {
   /**
    * A formula made from a predicate label of arity N and N arguments
    */
-  case class PredicateFormula(p: AtomicLabel, args: Seq[Term]) extends AtomicFormula with Absolute {
+  case class PredicateFormula(p: AtomLabel, args: Seq[Term]) extends AtomicFormula with Absolute {
     assert(p.arity != 0)
-    val label: AtomicLabel = p
+    val label: AtomLabel = p
     override val underlying = K.PredicateFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula =
       p.substituteUnsafe(map).applyUnsafe(args.map[Term]((x: Term) => x.substituteUnsafe(map)))

@@ -469,7 +469,7 @@ object Serialization {
             termMap(lineNo) = Term(l, args)
           case l: FormulaLabel =>
             val formula = label match
-              case l: AtomicLabel =>
+              case l: AtomLabel =>
                 val args = (1 to l.arity).map(_ => termMap(treesDIS.readInt())).toSeq
                 PredicateFormula(l, args)
               case l: ConnectorLabel =>
@@ -590,7 +590,7 @@ object Serialization {
           sequentFromProofDIS(),
           proofDIS.readInt(),
           (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicConnectorLabel], lffFromProofDIS())).toMap,
-          (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicAtomicLabel], ltfFromProofDIS())).toMap,
+          (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicAtomLabel], ltfFromProofDIS())).toMap,
           (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicTermLabel], lttFromProofDIS())).toMap
         )
       else if (psType == sorry) Sorry(sequentFromProofDIS())

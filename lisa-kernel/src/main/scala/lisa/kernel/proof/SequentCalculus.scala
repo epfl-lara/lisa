@@ -317,7 +317,7 @@ object SequentCalculus {
       bot: Sequent,
       t1: Int,
       mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-      mPred: Map[SchematicAtomicLabel, LambdaTermFormula],
+      mPred: Map[SchematicAtomLabel, LambdaTermFormula],
       mTerm: Map[SchematicTermLabel, LambdaTermTerm]
   ) extends SCProofStep { val premises = Seq(t1) }
 

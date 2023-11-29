@@ -97,7 +97,7 @@ class SubstitutionTest extends AnyFunSuite {
   }
 
   test("Substitution of Predicates in Formulas") {
-    case class $(f: Formula, m: (SchematicAtomicLabel, LambdaTermFormula)*)
+    case class $(f: Formula, m: (SchematicAtomLabel, LambdaTermFormula)*)
     extension (c: $) {
       inline infix def _VS_(t2: Formula): Assertion = {
         assert(
@@ -141,7 +141,7 @@ class SubstitutionTest extends AnyFunSuite {
   }
 
   test("Simultaneous Substitutions in Formulas") {
-    case class $(f: Formula, m: ((SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicAtomicLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm))*)
+    case class $(f: Formula, m: ((SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicAtomLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm))*)
     extension (c: $) {
       inline infix def _VS_(t2: Formula): Assertion = {
         val mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula] = c.m
@@ -150,9 +150,9 @@ class SubstitutionTest extends AnyFunSuite {
           })
           .toMap
           .asInstanceOf
-        val mPred: Map[SchematicAtomicLabel, LambdaTermFormula] = c.m
+        val mPred: Map[SchematicAtomLabel, LambdaTermFormula] = c.m
           .collect({
-            case e if e._1.isInstanceOf[SchematicAtomicLabel] => e
+            case e if e._1.isInstanceOf[SchematicAtomLabel] => e
           })
           .toMap
           .asInstanceOf

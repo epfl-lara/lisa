@@ -20,7 +20,7 @@ trait TestUtils {
   val (sc1, sc2) = (SchematicConnectorLabel("c", 1), SchematicConnectorLabel("c", 2))
   val (in, plus) = (ConstantAtomLabel("elem", 2), ConstantFunctionLabel("+", 2))
 
-  given Conversion[AtomicLabel, PredicateFormula] = PredicateFormula(_, Seq.empty)
+  given Conversion[AtomLabel, PredicateFormula] = PredicateFormula(_, Seq.empty)
 
   given Conversion[ConstantFunctionLabel, Term] = Term(_, Seq())
 
