@@ -248,8 +248,8 @@ object CommonTactics {
             lib.thenHave((y === f(xs)) <=> P(Seq(y))) by InstantiateForall(y)
             lib.thenHave((f(xs) === f(xs)) <=> P(Seq(f(xs)))) by InstFunSchema(Map(y -> f(xs)))
             lib.thenHave(P(Seq(f(xs)))) by Restate
-            lib.thenHave(phi ==> Q(Seq(f(xs)))) by Tautology
-            lib.thenHave(phi |- Q(Seq(f(xs)))) by Restate
+            lib.thenHave(phi ==> Q(f(xs))) by Tautology
+            lib.thenHave(phi |- Q(f(xs))) by Restate
           }
 
         case _ => proof.InvalidProofTactic("Could not get definition of function.")

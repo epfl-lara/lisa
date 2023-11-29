@@ -66,7 +66,7 @@ trait Predef extends Common {
   val ∃! : ExistsOne.type = existsOne
 
   extension (f: Formula) {
-    def unary_! = Neg(f *: EmptyTuple)
+    def unary_! = Neg(f)
     infix inline def ==>(g: Formula): Formula = Implies(f, g)
     infix inline def <=>(g: Formula): Formula = Iff(f, g)
     infix inline def /\(g: Formula): Formula = And(List(f, g))

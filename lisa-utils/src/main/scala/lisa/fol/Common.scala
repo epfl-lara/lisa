@@ -6,8 +6,6 @@ import lisa.utils.UserLisaException
 import scala.annotation.nowarn
 import scala.annotation.showAsInfix
 import scala.compiletime.ops.int.-
-import scala.reflect.ClassTag
-import scala.runtime.ScalaRunTime
 
 import K.given_Conversion_Identifier_String
 
@@ -24,31 +22,31 @@ trait Common {
    * Define the type of tuples of Arity N. If N=-1, T***N = List[T] (arbitrary arity).
    */
   @showAsInfix
+  /*
   type ***[+T, N <: Arity] <: (Tuple | Seq[T]) & Matchable = N match {
     case -1 => Seq[T]
     case 0 => EmptyTuple
     case _ => T *: (T *** (N - 1))
+  }*/
+  opaque type ***[+T, N <: Arity] >: Seq[T] = Seq[T]
+  object *** {
+    def apply[T, N <: Arity](args: T*): T *** N = args.toSeq
+    def unapplySeq[T, N <: Arity](arg: T *** N): Option[Seq[T]] = Some(arg)
   }
 
   /**
    * The union of the types of N-tuples and lists. Usually, filling a List for a T**N forfeits arity checking at compile time.
    */
-  type **[+T, N <: Arity] = Seq[T] | ***[T, N]
+  type **[+T, N <: Arity] = ***[T, N]
+  object ** {
+    def apply[T, N <: Arity](args: T*): T ** N = args.toSeq
+    def unapplySeq[T, N <: Arity](arg: T ** N): Option[Seq[T]] = Some(arg)
+  }
+
 
   extension [T, N <: Arity](self: T ** N) {
-    @nowarn("msg=checked at runtime")
-    @nowarn("msg=match may not be exhaustive")
-    def toSeq: Seq[T] = self match {
-      case l: Seq[T] => l
-      case tup: Tuple =>
-        tup.productIterator.toSeq.asInstanceOf[Seq[T]]
-    }
-    @nowarn("msg=checked at runtime")
-    @nowarn("msg=match may not be exhaustive")
-    def map[U](f: T => U): U ** N = self match {
-      case l: Seq[T] => l.map(f).asInstanceOf[(U ** (N))]
-      case tup: Tuple => tup.map[[t] =>> U]([u] => (x: u) => f(x.asInstanceOf[T])).asInstanceOf
-    }
+    def toSeq: Seq[T] = self
+    def map[U](f: T => U): U ** N = self.map(f).asInstanceOf[(U ** (N))]
 
   }
 
@@ -133,7 +131,7 @@ trait Common {
    */
   @showAsInfix
   infix trait |->[-I, +O <: LisaObject[O]] extends LisaObject[I |-> O] {
-    def apply(arg: I): O
+    def applyUnsafe(arg: I): O
 
   }
 
@@ -179,7 +177,7 @@ trait Common {
   /**
    * ConstantLabel represent constants in the theory and can't be freely substituted.
    */
-  sealed trait ConstantLabel[-A <: LisaObject[A]] extends Label[A] with Matchable {
+  sealed trait ConstantLabel[-A <: LisaObject[A]] extends Label[A] {
     this: A & LisaObject[A] =>
     def rename(newid: Identifier): ConstantLabel[A]
     def freshRename(taken: Iterable[Identifier]): ConstantLabel[A]
@@ -206,7 +204,7 @@ trait Common {
    * a [[ConstantFunctionLabel]] or a [[SchematicFunctionLabel]].
    */
   sealed trait Term extends TermOrFormula with LisaObject[Term] with (Term ** 0 |-> Term) {
-    def apply(args: Term ** 0): Term = this
+    def applyUnsafe(args: Term ** 0): Term = this
     val underlying: K.Term
     val label: TermLabel
     val args: Seq[Term]
@@ -316,7 +314,7 @@ trait Common {
     val args: Seq[Nothing] = Seq.empty
     override val underlyingLabel: K.VariableLabel = K.VariableLabel(id)
     override val underlying = K.VariableTerm(underlyingLabel)
-    override def apply(args: Term ** 0) = this
+    override def applyUnsafe(args: Term ** 0) = this
     @nowarn("msg=Unreachable")
     override def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
       map.get(this.asInstanceOf) match {
@@ -346,7 +344,7 @@ trait Common {
     val args: Seq[Nothing] = Seq.empty
     override val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, 0)
     override val underlying = K.Term(underlyingLabel, Seq())
-    override def apply(args: Term ** 0) = this
+    override def applyUnsafe(args: Term ** 0) = this
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Constant = this
     override def rename(newid: Identifier): Constant = Constant(newid)
     def freshRename(taken: Iterable[Identifier]): Constant = rename(K.freshId(taken, id))
@@ -362,7 +360,7 @@ trait Common {
    */
   case class SchematicFunctionLabel[N <: Arity](val id: Identifier, val arity: N) extends SchematicTermLabel with SchematicLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.SchematicTermLabel = K.SchematicFunctionLabel(id, arity)
-    def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
+    def applyUnsafe(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     def unapplySeq(t: AppliedTerm): Seq[Term] = t match {
       case AppliedTerm(label, args) if (label == this) => args
       case _ => Seq.empty
@@ -393,7 +391,7 @@ trait Common {
   case class ConstantFunctionLabel[N <: Arity](id: Identifier, arity: N) extends ConstantTermLabel with ConstantLabel[((Term ** N) |-> Term)] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
     var infix: Boolean = false
-    def apply(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
+    def applyUnsafe(args: (Term ** N)): Term = AppliedTerm(this, args.toSeq)
     def unapplySeq(t: AppliedTerm): Seq[Term] = t match {
       case AppliedTerm(label, args) if (label == this) => args
       case _ => Seq.empty
@@ -423,7 +421,7 @@ trait Common {
     assert(f.arity != 0)
     override val underlying = K.Term(f.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
-      f.substituteUnsafe(map)(
+      f.substituteUnsafe(map).applyUnsafe(
         args.map[Term]((x: Term) => x.substituteUnsafe(map))
       )
     }
@@ -444,7 +442,7 @@ trait Common {
     val arity: Arity = 0
     // val label:AtomicLabel|ConnectorLabel
     // val args:Seq[Term]|Seq[Formula]
-    def apply(args: Term ** 0): Formula = this
+    def applyUnsafe(args: Term ** 0): Formula = this
     val underlying: K.Formula
     def toStringSeparated() = toString()
   }
@@ -502,7 +500,7 @@ trait Common {
     val args: Seq[Nothing] = Seq()
     val underlyingLabel: K.VariableFormulaLabel = K.VariableFormulaLabel(id)
     val underlying = K.PredicateFormula(underlyingLabel, Seq())
-    override def apply(args: Term ** 0): Formula = this
+    override def applyUnsafe(args: Term ** 0): Formula = this
     @nowarn("msg=Unreachable")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula = {
       map.get(this.asInstanceOf) match {
@@ -531,7 +529,7 @@ trait Common {
     val args: Seq[Nothing] = Seq()
     val underlyingLabel: K.ConstantAtomicLabel = K.ConstantAtomicLabel(id, 0)
     val underlying = K.PredicateFormula(underlyingLabel, Seq())
-    override def apply(args: Term ** 0): Formula = this
+    override def applyUnsafe(args: Term ** 0): Formula = this
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
     def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     def allSchematicLabels: Set[SchematicLabel[?]] = Set.empty
@@ -547,7 +545,7 @@ trait Common {
    */
   case class SchematicPredicateLabel[N <: Arity](id: Identifier, arity: N) extends SchematicAtomicLabel with SchematicLabel[(Term ** N) |-> Formula] with ((Term ** N) |-> Formula) {
     val underlyingLabel: K.SchematicPredicateLabel = K.SchematicPredicateLabel(id, arity)
-    def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
+    def applyUnsafe(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     def unapplySeq(t: AppliedTerm): Seq[Term] = t match {
       case AppliedTerm(label, args) if (label == this) => args
       case _ => Seq.empty
@@ -578,7 +576,7 @@ trait Common {
   case class ConstantAtomicLabel[N <: Arity](id: Identifier, arity: N) extends ConstantConstOrPredLabel with ConstantLabel[Term ** N |-> Formula] with ((Term ** N) |-> Formula) {
     val underlyingLabel: K.ConstantAtomicLabel = K.ConstantAtomicLabel(id, arity)
     private var infix = false
-    def apply(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
+    def applyUnsafe(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
     def unapplySeq(f: PredicateFormula): Seq[Term] = f match {
       case PredicateFormula(label, args) if (label == this) => args
       case _ => Seq.empty
@@ -607,7 +605,7 @@ trait Common {
     val label: AtomicLabel = p
     override val underlying = K.PredicateFormula(p.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula =
-      p.substituteUnsafe(map)(args.map[Term]((x: Term) => x.substituteUnsafe(map)))
+      p.substituteUnsafe(map).applyUnsafe(args.map[Term]((x: Term) => x.substituteUnsafe(map)))
 
     def freeSchematicLabels: Set[SchematicLabel[?]] = p.freeSchematicLabels ++ args.toSeq.flatMap(_.freeSchematicLabels)
     def allSchematicLabels: Set[SchematicLabel[?]] = p.allSchematicLabels ++ args.toSeq.flatMap(_.allSchematicLabels)
@@ -653,7 +651,7 @@ trait Common {
       }
     }
     // def apply(args: Seq[Formula]): Formula = apply(args)
-    def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
+    def applyUnsafe(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
     def unapplySeq(f: PredicateFormula): Seq[Term] = f match {
       case PredicateFormula(label, args) if (label == this) => args
       case _ => Seq.empty
@@ -675,7 +673,7 @@ trait Common {
     val underlyingLabel: K.ConstantConnectorLabel
     def id: Identifier = underlyingLabel.id
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
-    def apply(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
+    def applyUnsafe(args: Formula ** N): Formula = ConnectorFormula(this, args.toSeq)
     def unapplySeq(f: ConnectorFormula): Seq[Formula] = f match {
       case ConnectorFormula(label, args) if (label == this) => args
       case _ => Seq.empty
@@ -701,7 +699,7 @@ trait Common {
       val p2 = p.substituteUnsafe(map)
       p2 match {
         case p2: ConnectorLabel => ConnectorFormula(p2, args.map[Formula]((x: Formula) => x.substituteUnsafe(map)))
-        case _ => p2(args.map[Formula]((x: Formula) => x.substituteUnsafe(map)))
+        case _ => p2.applyUnsafe(args.map[Formula]((x: Formula) => x.substituteUnsafe(map)))
       }
     }
 
@@ -727,10 +725,11 @@ trait Common {
   /**
    * A binder label that exactly correspond to a kernel binder, i.e. \exists, \forall and \exists!
    */
-  trait BaseBinderLabel extends BinderLabel with Absolute {
+  trait BaseBinderLabel extends BinderLabel with |->[(Variable, Formula), BinderFormula] with Absolute {
     val underlyingLabel: K.BinderLabel
 
-    def apply(arg: (Variable, Formula)): BinderFormula = BinderFormula(this, arg._1, arg._2)
+    def applyUnsafe(arg: (Variable, Formula)): BinderFormula = BinderFormula(this, arg._1, arg._2)
+    def apply(v:Variable, f:Formula): BinderFormula = applyUnsafe((v, f))
     inline def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     inline def allSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
@@ -741,12 +740,12 @@ trait Common {
   /**
    * A quantified formula made of a [[BaseBinderLabel]] and an underlying formula, in a namefull representation.
    */
-  case class BinderFormula(f: BaseBinderLabel, bound: Variable, body: Formula) extends Formula with Absolute {
+  case class BinderFormula(f: BaseBinderLabel, bound: Variable, body: Formula) extends Absolute with Formula with LisaObject[BinderFormula] {
     override val underlying = K.BinderFormula(f.underlyingLabel, bound.underlyingLabel, body.underlying)
 
     def allSchematicLabels: Set[Common.this.SchematicLabel[?]] = body.allSchematicLabels + bound
     def freeSchematicLabels: Set[Common.this.SchematicLabel[?]] = body.freeSchematicLabels - bound
-    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula = {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): BinderFormula = {
       val newSubst = map - bound.asInstanceOf
       if (map.values.flatMap(_.freeSchematicLabels).toSet.contains(bound)) {
         val taken: Set[SchematicLabel[?]] = body.allSchematicLabels ++ map.keys
@@ -760,7 +759,36 @@ trait Common {
     // override def toString():String = f.toString()+bound.toString()+". "+body.toString()
     override def toString(): String = f.toString() + "(" + bound.toString() + ", " + body.toString() + ")"
 
+
   }
   def instantiateBinder(f: BinderFormula, t: Term): Formula = f.body.substituteUnsafe(Map(f.bound -> t))
+
+
+
+
+
+  // Application methods for |->
+
+  extension [S, T <: LisaObject[T]] (t: Seq[S] |-> T) {
+    def apply(s1: Seq[S]): T = t.applyUnsafe(s1) 
+    //def apply(s:S*): T = t.applyUnsafe(s.toSeq)
+  }
+  
+  extension [S, T <: LisaObject[T]] (t: (S ** 1) |-> T) {
+    def apply(s1: S): T = t.applyUnsafe(Seq(s1)) 
+  }
+  extension [S, T <: LisaObject[T]] (t: (S ** 2) |-> T) {
+    def apply(s1: S, s2: S): T = t.applyUnsafe(Seq(s1, s2)) 
+  }
+  extension [S <: LisaObject[S], T <: LisaObject[T]] (t: (S ** 3) |-> T) {
+    def apply(s1: S, s2: S, s3: S): T = t.applyUnsafe(Seq(s1, s2, s3)) 
+  }
+  extension [S <: LisaObject[S], T <: LisaObject[T]] (t: (S ** 4) |-> T) {
+    def apply(s1: S, s2: S, s3: S, s4:S): T = t.applyUnsafe(Seq(s1, s2, s3, s4)) 
+  }
+  extension [S <: LisaObject[S], T <: LisaObject[T]] (t: (S ** 5) |-> T) {
+    def apply(s1: S, s2: S, s3: S, s4:S, s5:S): T = t.applyUnsafe(Seq(s1, s2, s3, s4, s5)) 
+  }
+
 
 }

@@ -419,7 +419,7 @@ object UnificationUtils {
       if (innerSubstitutions.exists(_.isEmpty)) None
       else {
         val retrieved = innerSubstitutions.map(_.get)
-        val body = first.label(retrieved.map(_.body))
+        val body = first.label.applyUnsafe(retrieved.map(_.body))
         val lambda =
           retrieved.foldLeft(TermRewriteLambda(body = body)) { case (currentLambda, nextLambda) =>
             TermRewriteLambda(

@@ -163,7 +163,7 @@ trait ProofsHelpers {
   }
 
   def DEF[N <: Arity, T <: Tuple](args: T)(using Tuple.Size[T] =:= N, Tuple.Union[T] <:< Variable): definitionWithVars[N] = new definitionWithVars[N](args.asInstanceOf)
-  def DEF(arg: Variable): definitionWithVars[1] = new definitionWithVars[1](EmptyTuple.*:[Variable, EmptyTuple](arg)) // todo conversion to empty tuple gets bad type
+  def DEF(arg: Variable): definitionWithVars[1] = new definitionWithVars[1](Seq(arg)) // todo conversion to empty tuple gets bad type
 
   // def DEF: definitionWithVars[0] = new definitionWithVars[0](EmptyTuple) //todo conversion to empty tuple gets bad type
 
@@ -178,8 +178,9 @@ trait ProofsHelpers {
       val f: F.Formula,
       j: JUSTIFICATION
   ) extends DEFINITION(line, file) {
+    def funWithArgs = label.applyUnsafe(vars)
     override def repr: String =
-      s" ${if (withSorry) " Sorry" else ""} Definition of function symbol ${label(vars)} := the ${out} such that ${(out === label(vars)) <=> f})\n"
+      s" ${if (withSorry) " Sorry" else ""} Definition of function symbol ${funWithArgs} := the ${out} such that ${(out === funWithArgs) <=> f})\n"
 
     // val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
 
@@ -266,13 +267,7 @@ trait ProofsHelpers {
       () |- F.Forall(
         out,
         Iff(
-          equality(
-            (label match {
-              case l: F.Constant => l
-              case l: F.ConstantFunctionLabel[?] => l(vars)
-            }),
-            out
-          ),
+          equality(label.applyUnsafe(vars), out),
           f
         )
       )
@@ -354,14 +349,7 @@ trait ProofsHelpers {
       }
     }
 
-    val statement: F.Sequent = () |- Iff(
-      (label match {
-        case l: F.ConstantFormula => l
-        case l: F.ConstantAtomicLabel[?] => l(vars)
-      }),
-      lambda.body
-    )
-
+    val statement: F.Sequent = () |- Iff(label.applyUnsafe(vars), lambda.body)
     library.last = Some(this)
   }
 }

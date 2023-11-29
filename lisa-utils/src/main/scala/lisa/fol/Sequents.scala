@@ -42,7 +42,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
                   (p._1.asInstanceOf, l)
                 case s: TermLabel =>
                   val vars = nFreshId(Seq(s.id), s.arity).map(id => Variable(id))
-                  (sl, LambdaExpression(vars, s(vars), s.arity))
+                  (sl, LambdaExpression(vars, s.applyUnsafe(vars), s.arity))
               }
           }
         )
@@ -55,7 +55,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
                 case l: LambdaExpression[Term, Formula, ?] @unchecked if (l.bounds.isEmpty || l.bounds.head.isInstanceOf[Variable]) & l.body.isInstanceOf[Formula] => (sl, l)
                 case s: AtomicLabel =>
                   val vars = nFreshId(Seq(s.id), s.arity).map(id => Variable(id))
-                  (sl, LambdaExpression(vars, s(vars), s.arity))
+                  (sl, LambdaExpression(vars, s.applyUnsafe(vars), s.arity))
               }
           }
         )
@@ -66,7 +66,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
               case l: LambdaExpression[Formula, Formula, ?] @unchecked if (l.bounds.isEmpty || l.bounds.head.isInstanceOf[VariableFormula]) & l.body.isInstanceOf[Formula] => (sl, l)
               case s: ConnectorLabel =>
                 val vars = nFreshId(Seq(s.id), s.arity).map(VariableFormula.apply)
-                (sl, LambdaExpression(vars, s(vars), s.arity))
+                (sl, LambdaExpression(vars, s.applyUnsafe(vars), s.arity))
             }
         }
       )

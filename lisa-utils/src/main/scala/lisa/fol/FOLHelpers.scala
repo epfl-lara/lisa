@@ -36,7 +36,7 @@ object FOLHelpers {
     LambdaExpression(s, a._2, s.length.asInstanceOf)
   }
 
-  given [T <: LisaObject[T]]: Conversion[T, T *** 1] = _ *: EmptyTuple
+  given [T <: LisaObject[T]]: Conversion[T, T *** 1] = ***.apply[T, 1](_)
 
   given Conversion[Int, Arity] = _.asInstanceOf
 
@@ -72,7 +72,7 @@ object FOLHelpers {
   def asFrontLabel(v: K.VariableLabel): Variable = Variable(v.id)
 
   // Term
-  def asFront(t: K.Term): Term = asFrontLabel(t.label)(t.args.map(asFront))
+  def asFront(t: K.Term): Term = asFrontLabel(t.label).applyUnsafe(t.args.map(asFront))
 
   // FormulaLabel
   def asFrontLabel(fl: K.FormulaLabel): AtomicLabel | ConnectorLabel | BinderLabel = fl match
@@ -119,11 +119,11 @@ object FOLHelpers {
     case f: K.ConnectorFormula => asFront(f)
     case f: K.BinderFormula => asFront(f)
   def asFront(pf: K.PredicateFormula): Formula =
-    asFrontLabel(pf.label)(pf.args.map(asFront))
+    asFrontLabel(pf.label).applyUnsafe(pf.args.map(asFront))
   def asFront(cf: K.ConnectorFormula): Formula =
-    asFrontLabel(cf.label)(cf.args.map(asFront))
+    asFrontLabel(cf.label).applyUnsafe(cf.args.map(asFront))
   def asFront(bf: K.BinderFormula): BinderFormula =
-    asFrontLabel(bf.label)(asFrontLabel(bf.bound), asFront(bf.inner))
+    asFrontLabel(bf.label).apply(asFrontLabel(bf.bound), asFront(bf.inner))
 
   // Sequents
   def asFront(s: K.Sequent): Sequent = Sequent(s.left.map(asFront), s.right.map(asFront))
@@ -132,5 +132,7 @@ object FOLHelpers {
   def asFrontLambda(l: K.LambdaTermTerm): LambdaExpression[Term, Term, ?] = LambdaExpression(l.vars.map(asFrontLabel), asFront(l.body), l.vars.size)
   def asFrontLambda(l: K.LambdaTermFormula): LambdaExpression[Term, Formula, ?] = LambdaExpression(l.vars.map(asFrontLabel), asFront(l.body), l.vars.size)
   def asFrontLambda(l: K.LambdaFormulaFormula): LambdaExpression[Formula, Formula, ?] = LambdaExpression(l.vars.map(asFrontLabel), asFront(l.body), l.vars.size)
+
+
 
 }

@@ -383,7 +383,8 @@ object Substitution {
       else {
         val induct = condflat(t.args.map(te => findSubterm2(te, subs)))
         if (!induct._2) (t, false)
-        else (t.label(induct._1), true)
+        else 
+          (t.label.applyUnsafe(induct._1), true)
 
       }
 
