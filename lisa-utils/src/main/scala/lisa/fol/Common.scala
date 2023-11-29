@@ -422,12 +422,9 @@ trait Common {
   /**
    * The type of formulas, corresponding to [[K.Formula]]
    */
-  sealed trait Formula extends TermOrFormula with LisaObject[Formula] with ((Term ** 0) |-> Formula) {
-    val arity: Arity = 0
-    // val label:AtomicLabel|ConnectorLabel
-    // val args:Seq[Term]|Seq[Formula]
-    def applyUnsafe(args: Term ** 0): Formula = this
+  sealed trait Formula extends TermOrFormula with LisaObject[Formula]  with (Term ** 0 |-> Formula){
     val underlying: K.Formula
+    def applyUnsafe(args: Term ** 0): Formula = this
     def toStringSeparated() = toString()
   }
 
