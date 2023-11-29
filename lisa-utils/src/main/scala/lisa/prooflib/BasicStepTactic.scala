@@ -43,7 +43,7 @@ object BasicStepTactic {
   object RewriteTrue extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
-      if (!K.isSameSequent(botK, () `K|-` K.PredKerFormula(K.top, Nil)))
+      if (!K.isSameSequent(botK, () `K|-` K.AtomicFormula(K.top, Nil)))
         proof.InvalidProofTactic("The desired conclusion is not a trivial tautology.")
       else
         proof.ValidProofTactic(bot, Seq(K.RestateTrue(botK)), Seq())
@@ -501,7 +501,7 @@ object BasicStepTactic {
         K.BinderFormula(
           K.Forall,
           xK,
-          K.ConnectorFormula(K.Iff, List(K.PredKerFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
+          K.ConnectorFormula(K.Iff, List(K.AtomicFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
         )
       )
       lazy val quantified = K.BinderFormula(K.ExistsOne, xK, phiK)
@@ -954,7 +954,7 @@ object BasicStepTactic {
         K.BinderFormula(
           K.Forall,
           xK,
-          K.ConnectorFormula(K.Iff, List(K.PredKerFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
+          K.ConnectorFormula(K.Iff, List(K.AtomicFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
         )
       )
       lazy val quantified = K.BinderFormula(K.ExistsOne, xK, phiK)
@@ -1036,7 +1036,7 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
       else
         faK match {
-          case K.PredKerFormula(K.equality, Seq(left, right)) =>
+          case K.AtomicFormula(K.equality, Seq(left, right)) =>
             if (K.isSameTerm(left, right))
               proof.ValidProofTactic(bot, Seq(K.LeftRefl(botK, -1, faK)), Seq(premise))
             else
@@ -1071,7 +1071,7 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
       else
         faK match {
-          case K.PredKerFormula(K.equality, Seq(left, right)) =>
+          case K.AtomicFormula(K.equality, Seq(left, right)) =>
             if (K.isSameTerm(left, right))
               proof.ValidProofTactic(bot, Seq(K.RightRefl(botK, faK)), Seq())
             else
@@ -1124,7 +1124,7 @@ object BasicStepTactic {
       lazy val (s_es, t_es) = equalsK.unzip
       lazy val phi_s = lambdaPhiK(s_es)
       lazy val phi_t = lambdaPhiK(t_es)
-      lazy val equalities = equalsK map { case (s, t) => K.PredKerFormula(K.equality, Seq(s, t)) }
+      lazy val equalities = equalsK map { case (s, t) => K.AtomicFormula(K.equality, Seq(s, t)) }
 
       if (!K.isSameSet(botK.right, premiseSequent.right))
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
@@ -1159,7 +1159,7 @@ object BasicStepTactic {
       lazy val (s_es, t_es) = equalsK.unzip
       lazy val phi_s = lambdaPhiK(s_es)
       lazy val phi_t = lambdaPhiK(t_es)
-      lazy val equalities = equalsK map { case (s, t) => K.PredKerFormula(K.equality, Seq(s, t)) }
+      lazy val equalities = equalsK map { case (s, t) => K.AtomicFormula(K.equality, Seq(s, t)) }
 
       if (!K.isSameSet(botK.left, premiseSequent.left ++ equalities))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (s=t)_.")

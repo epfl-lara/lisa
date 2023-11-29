@@ -7,8 +7,8 @@ object TestTheoryLibrary extends Library {
 
   export lisa.fol.FOL.{*, given}
 
-  final val p1 = ConstantPredKerLabel("p1", 1)
-  final val p2 = ConstantPredKerLabel("p2", 1)
+  final val p1 = ConstantAtomicLabel("p1", 1)
+  final val p2 = ConstantAtomicLabel("p2", 1)
   final val f1 = ConstantFunctionLabel("f1", 1)
   final val fixedElement = Constant("fixedElement")
   final val anotherFixed = Constant("anotherElement")

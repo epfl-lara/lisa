@@ -4,7 +4,7 @@ import lisa.utils.K
 
 trait Predef extends Common {
 
-  val equality: ConstantPredKerLabel[2] = ConstantPredKerLabel[2](K.Identifier("="), 2)
+  val equality: ConstantAtomicLabel[2] = ConstantAtomicLabel[2](K.Identifier("="), 2)
   val === = equality
   val ＝ = equality
 

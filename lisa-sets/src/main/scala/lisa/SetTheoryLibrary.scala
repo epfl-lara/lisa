@@ -15,17 +15,17 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   /**
    * The symbol for the set membership predicate.
    */
-  final val in = ConstantPredKerLabel("elem", 2)
+  final val in = ConstantAtomicLabel("elem", 2)
 
   /**
    * The symbol for the subset predicate.
    */
-  final val subset = ConstantPredKerLabel("subsetOf", 2)
+  final val subset = ConstantAtomicLabel("subsetOf", 2)
 
   /**
    * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
    */
-  final val sim = ConstantPredKerLabel("sameCardinality", 2) // Equicardinality
+  final val sim = ConstantAtomicLabel("sameCardinality", 2) // Equicardinality
   /**
    * Set Theory basic predicates
    */

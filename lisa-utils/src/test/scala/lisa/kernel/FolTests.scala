@@ -60,20 +60,20 @@ class FolTests extends AnyFunSuite {
       val r = gen.between(0, 7)
       if (r <= 1) {
         val name = "" + ('A' to 'E')(gen.between(0, 5))
-        PredKerFormula(ConstantPredKerLabel(name, 0), Seq())
+        AtomicFormula(ConstantAtomicLabel(name, 0), Seq())
       } else if (r <= 3) {
         val name = "" + ('A' to 'E')(gen.between(0, 5))
-        PredKerFormula(ConstantPredKerLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
+        AtomicFormula(ConstantAtomicLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
       } else if (r <= 5) {
         val s = gen.between(0, 3)
-        if (s == 0) PredKerFormula(equality, Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+        if (s == 0) AtomicFormula(equality, Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
         else {
           val name = "" + ('A' to 'E')(gen.between(0, 5))
-          PredKerFormula(ConstantPredKerLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+          AtomicFormula(ConstantAtomicLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
         }
       } else {
         val name = "" + ('A' to 'E')(gen.between(0, 5))
-        PredKerFormula(ConstantPredKerLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
+        AtomicFormula(ConstantAtomicLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
       }
 
     } else {
@@ -98,9 +98,9 @@ class FolTests extends AnyFunSuite {
   private val x = VariableLabel("x")
   private val y = VariableLabel("y")
   private val z = VariableLabel("z")
-  private val a = PredKerFormula(ConstantPredKerLabel("A", 0), Seq())
-  private val b = PredKerFormula(ConstantPredKerLabel("B", 0), Seq())
-  private val fp = ConstantPredKerLabel("F", 1)
+  private val a = AtomicFormula(ConstantAtomicLabel("A", 0), Seq())
+  private val b = AtomicFormula(ConstantAtomicLabel("B", 0), Seq())
+  private val fp = ConstantAtomicLabel("F", 1)
   private val sT = VariableLabel("t")
 
   def test_some_random_formulas(n: Int, maxDepth: Int): Unit = {

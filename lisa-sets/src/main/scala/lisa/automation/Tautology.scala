@@ -109,8 +109,8 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
   def findBestAtom(f: Formula): Option[Formula] = {
     val atoms: scala.collection.mutable.Map[Formula, Int] = scala.collection.mutable.Map.empty
     def findAtoms2(f: Formula, add: Formula => Unit): Unit = f match {
-      case PredKerFormula(label, _) if label != top && label != bot => add(f)
-      case PredKerFormula(_, _) => ()
+      case AtomicFormula(label, _) if label != top && label != bot => add(f)
+      case AtomicFormula(_, _) => ()
       case ConnectorFormula(label, args) =>
         label match {
           case label: ConstantConnectorLabel => args.foreach(c => findAtoms2(c, add))
@@ -172,10 +172,10 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
 
   private def findSubterm2(f: Formula, subs: Seq[(VariableLabel, Term)]): (Formula, Boolean) = {
     f match {
-      case PredKerFormula(label, args) =>
+      case AtomicFormula(label, args) =>
         val induct = condflat(args.map(findSubterm2(_, subs)))
         if (!induct._2) (f, false)
-        else (PredKerFormula(label, induct._1), true)
+        else (AtomicFormula(label, induct._1), true)
       case ConnectorFormula(label, args) =>
         val induct = condflat(args.map(findSubterm2(_, subs)))
         if (!induct._2) (f, false)
@@ -201,7 +201,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
     if (eq.nonEmpty) (eq.get._1(), true)
     else
       f match {
-        case PredKerFormula(label, args) =>
+        case AtomicFormula(label, args) =>
           (f, false)
         case ConnectorFormula(label, args) =>
           val induct = condflat(args.map(findSubformula2(_, subs)))

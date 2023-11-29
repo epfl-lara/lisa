@@ -19,9 +19,9 @@ class ProofTests extends AnyFunSuite {
   private val x = VariableLabel("x")
   private val y = VariableLabel("y")
   private val z = VariableLabel("z")
-  private val a = PredicateFormula(ConstantPredKerLabel("A", 0), Seq())
-  private val b = PredicateFormula(ConstantPredKerLabel("B", 0), Seq())
-  private val fp = ConstantPredKerLabel("F", 1)
+  private val a = PredicateFormula(ConstantAtomicLabel("A", 0), Seq())
+  private val b = PredicateFormula(ConstantAtomicLabel("B", 0), Seq())
+  private val fp = ConstantAtomicLabel("F", 1)
   val sT = VariableLabel("t")
 
   test("Verification of Pierce law") {
@@ -44,7 +44,7 @@ class ProofTests extends AnyFunSuite {
   test("Commutativity on a random large formula") {
     val k = 9
     val r = new Random()
-    val vars = (0 until 1 << k).map(i => PredicateFormula(ConstantPredKerLabel(s"P$i", 0), Seq()))
+    val vars = (0 until 1 << k).map(i => PredicateFormula(ConstantAtomicLabel(s"P$i", 0), Seq()))
 
     val pairs = vars.grouped(2)
     val sPairs = vars.grouped(2)
