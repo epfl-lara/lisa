@@ -43,7 +43,7 @@ object UnreachableException extends ParserException("Internal error: expected un
 class PrintFailedException(inp: Sequent | Formula | Term) extends ParserException(s"Printing of $inp failed unexpectedly")
 
 /**
- * @param synonymToCanonical information about synonyms that correspond to the same FunctionLabel / AtomLabel.
+ * @param synonymToCanonical information about synonyms that correspond to the same FunctionLabel / AtomicLabel.
  *                           Can be constructed with [[lisa.utils.SynonymInfoBuilder]]
  * @param infixPredicates list of infix predicates' names
  * @param infixFunctions list of infix functions and their associativity in the decreasing order of priority
@@ -312,12 +312,12 @@ class Parser(
    * <p> - to be converted to a formula, `args` of the termula are interpreted as formulas until a predicate application is observed;
    * `args` of the predicate application are terms.
    *
-   * <p> Convention: since the difference between `TermLabel`s and `AtomLabel`s is purely semantic and Termula needs
+   * <p> Convention: since the difference between `TermLabel`s and `AtomicLabel`s is purely semantic and Termula needs
    * FormulaLabels (because of connector and binder labels), all TermLabels are translated to the corresponding
    * PredicateLabels (see [[toTermula]]).
    *
-   * @param label `AtomLabel` for predicates and functions, `ConnectorLabel` or `BinderLabel`
-   * @param args Predicate / function arguments for `AtomLabel`, connected formulas for `ConnectorLabel`,
+   * @param label `AtomicLabel` for predicates and functions, `ConnectorLabel` or `BinderLabel`
+   * @param args Predicate / function arguments for `AtomicLabel`, connected formulas for `ConnectorLabel`,
    *             `Seq(VariableFormulaLabel(bound), inner)` for `BinderLabel`
    */
   case class Termula(label: RangedLabel, args: Seq[Termula], range: (Int, Int)) {
@@ -329,7 +329,7 @@ class Parser(
     }
 
     def toFormula: Formula = label.folLabel match {
-      case p: AtomLabel => AtomicFormula(p, args.map(_.toTerm))
+      case p: AtomicLabel => AtomicFormula(p, args.map(_.toTerm))
       case c: ConnectorLabel => ConnectorFormula(c, args.map(_.toFormula))
       case b: BinderLabel =>
         args match {
@@ -523,7 +523,7 @@ class Parser(
         Termula(RangedLabel(l, p.range), args, (p.range._1, optArgs.map(_.range._2).getOrElse(p.range._2)))
       },
       {
-        case t @ Termula(RangedLabel(_: AtomLabel, _), _, _) => Seq(reconstructPrefixApplication(t))
+        case t @ Termula(RangedLabel(_: AtomicLabel, _), _, _) => Seq(reconstructPrefixApplication(t))
         case t @ Termula(RangedLabel(SchematicConnectorLabel(id, _), r), args, _) =>
           val argsRange = (t.label.range._2 + 1, t.range._2)
           Seq(SchematicConnectorToken(id, r) ~ Some(RangedTermulaSeq(args, argsRange)))

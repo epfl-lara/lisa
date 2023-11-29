@@ -469,7 +469,7 @@ object Serialization {
             termMap(lineNo) = Term(l, args)
           case l: FormulaLabel =>
             val formula = label match
-              case l: AtomLabel =>
+              case l: AtomicLabel =>
                 val args = (1 to l.arity).map(_ => termMap(treesDIS.readInt())).toSeq
                 AtomicFormula(l, args)
               case l: ConnectorLabel =>

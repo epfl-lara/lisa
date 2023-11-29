@@ -54,7 +54,7 @@ object KernelHelpers {
     }
   }
 
-  extension [L <: AtomLabel](label: L) {
+  extension [L <: AtomicLabel](label: L) {
     def apply(args: Term*): Formula = AtomicFormula(label, args)
     @targetName("applySeq")
     def apply(args: Seq[Term]): Formula = AtomicFormula(label, args)
@@ -101,8 +101,8 @@ object KernelHelpers {
 
   given Conversion[TermLabel, Term] = Term(_, Seq())
   given Conversion[Term, TermLabel] = _.label
-  given Conversion[AtomLabel, AtomicFormula] = AtomicFormula(_, Seq())
-  given Conversion[AtomicFormula, AtomLabel] = _.label
+  given Conversion[AtomicLabel, AtomicFormula] = AtomicFormula(_, Seq())
+  given Conversion[AtomicFormula, AtomicLabel] = _.label
 
   given Conversion[VariableFormulaLabel, AtomicFormula] = AtomicFormula(_, Seq())
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)

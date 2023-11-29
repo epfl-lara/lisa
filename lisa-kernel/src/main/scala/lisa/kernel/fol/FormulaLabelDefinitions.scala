@@ -16,7 +16,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    * The label for a predicate, namely a function taking a fixed number of terms and returning a formula.
    * In logical terms it is a predicate symbol.
    */
-  sealed trait AtomLabel extends FormulaLabel {
+  sealed trait AtomicLabel extends FormulaLabel {
     require(arity < MaxArity && arity >= 0)
   }
 
@@ -30,7 +30,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A standard predicate symbol. Typical example are equality (=) and membership (∈)
    */
-  sealed case class ConstantAtomicLabel(id: Identifier, arity: Int) extends AtomLabel with ConstantLabel
+  sealed case class ConstantAtomicLabel(id: Identifier, arity: Int) extends AtomicLabel with ConstantLabel
 
   /**
    * The equality symbol (=) for first order logic.
@@ -63,7 +63,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A schematic symbol whose arguments are any number of Terms. This means the symbol is either a variable formula or a predicate schema
    */
-  sealed trait SchematicAtomicLabel extends SchematicFormulaLabel with AtomLabel
+  sealed trait SchematicAtomicLabel extends SchematicFormulaLabel with AtomicLabel
 
   /**
    * A predicate symbol of arity 0 that can be instantiated with any formula.

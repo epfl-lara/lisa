@@ -66,9 +66,9 @@ private[fol] trait FormulaDefinitions extends FormulaLabelDefinitions with TermD
   }
 
   /**
-   * The formula counterpart of [[AtomLabel]].
+   * The formula counterpart of [[AtomicLabel]].
    */
-  sealed case class AtomicFormula(label: AtomLabel, args: Seq[Term]) extends Formula {
+  sealed case class AtomicFormula(label: AtomicLabel, args: Seq[Term]) extends Formula {
     require(label.arity == args.size)
     override def constantTermLabels: Set[ConstantFunctionLabel] =
       args.foldLeft(Set.empty[ConstantFunctionLabel])((prev, next) => prev union next.constantTermLabels)

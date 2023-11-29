@@ -20,7 +20,7 @@ trait TestUtils {
   val (sc1, sc2) = (SchematicConnectorLabel("c", 1), SchematicConnectorLabel("c", 2))
   val (in, plus) = (ConstantAtomicLabel("elem", 2), ConstantFunctionLabel("+", 2))
 
-  given Conversion[AtomLabel, AtomicFormula] = AtomicFormula(_, Seq.empty)
+  given Conversion[AtomicLabel, AtomicFormula] = AtomicFormula(_, Seq.empty)
 
   given Conversion[ConstantFunctionLabel, Term] = Term(_, Seq())
 

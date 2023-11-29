@@ -80,7 +80,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     private[EquivalenceChecker] var normalForm: Option[NormalFormula] = None
     def getNormalForm = normalForm
   }
-  case class SimplePredicate(id: AtomLabel, args: Seq[Term], polarity: Boolean) extends SimpleFormula {
+  case class SimplePredicate(id: AtomicLabel, args: Seq[Term], polarity: Boolean) extends SimpleFormula {
     override def toString: String = s"SimplePredicate($id, $args, $polarity)"
     val size = 1
   }
@@ -125,7 +125,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     def recoverFormula: Formula = toFormulaAIG(this)
   }
   sealed abstract class NonTraversable extends NormalFormula
-  case class NormalPredicate(id: AtomLabel, args: Seq[Term], polarity: Boolean) extends NonTraversable {
+  case class NormalPredicate(id: AtomicLabel, args: Seq[Term], polarity: Boolean) extends NonTraversable {
     override def toString: String = s"NormalPredicate($id, $args, $polarity)"
   }
   case class NormalSchemConnector(id: SchematicConnectorLabel, args: Seq[NormalFormula], polarity: Boolean) extends NonTraversable
