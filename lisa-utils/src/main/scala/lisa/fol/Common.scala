@@ -455,12 +455,12 @@ trait Common {
     def mkStringSeparated(args: Seq[Term]): String = mkString(args)
   }
 
-  sealed trait ConstantAtomicLabel extends AtomLabel with ConstantLabel[Seq[Term] |-> Formula] {
-    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ConstantAtomicLabel
-    override def rename(newid: Identifier): ConstantAtomicLabel
-    def freshRename(taken: Iterable[Identifier]): ConstantAtomicLabel
+  sealed trait ConstantConstOrPredLabel extends AtomLabel with ConstantLabel[Seq[Term] |-> Formula] {
+    def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ConstantConstOrPredLabel
+    override def rename(newid: Identifier): ConstantConstOrPredLabel
+    def freshRename(taken: Iterable[Identifier]): ConstantConstOrPredLabel
   }
-  type ConstantPredicateLabelOfArity[N <: Arity] <: ConstantAtomicLabel = N match {
+  type ConstantPredicateLabelOfArity[N <: Arity] <: ConstantConstOrPredLabel = N match {
     case 0 => ConstantFormula
     case N => ConstantAtomicLabel[N]
   }
@@ -507,7 +507,7 @@ trait Common {
    * A Constant formula, corresponding to [[K.ConstantFormulaLabel]].
    * It counts both as the label and as the formula itself. Usually either True or False.
    */
-  case class ConstantFormula(id: Identifier) extends ConstantAtomicLabel with AtomicFormula with Absolute with ConstantLabel[Formula] {
+  case class ConstantFormula(id: Identifier) extends ConstantConstOrPredLabel with AtomicFormula with Absolute with ConstantLabel[Formula] {
     override val arity: 0 = 0
     val label: ConstantFormula = this
     val args: Seq[Nothing] = Seq()
@@ -557,7 +557,7 @@ trait Common {
   /**
    * A constant predicate label corresponding to [[K.ConstantAtomicLabel]].
    */
-  case class ConstantAtomicLabel[N <: Arity](id: Identifier, arity: N) extends ConstantAtomicLabel with ConstantLabel[Term ** N |-> Formula] with ((Term ** N) |-> Formula) {
+  case class ConstantAtomicLabel[N <: Arity](id: Identifier, arity: N) extends ConstantConstOrPredLabel with ConstantLabel[Term ** N |-> Formula] with ((Term ** N) |-> Formula) {
     val underlyingLabel: K.ConstantAtomicLabel = K.ConstantAtomicLabel(id, arity)
     private var infix = false
     def applyUnsafe(args: (Term ** N)): Formula = PredicateFormula(this, args.toSeq)
