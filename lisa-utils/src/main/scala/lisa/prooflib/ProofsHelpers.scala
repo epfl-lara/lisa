@@ -184,7 +184,7 @@ trait ProofsHelpers {
       val f: F.Formula,
       j: JUSTIFICATION
   ) extends DEFINITION(line, file) {
-    def funWithArgs = label.applyUnsafe(vars)
+    def funWithArgs = label.applySeq(vars)
     override def repr: String =
       s" ${if (withSorry) " Sorry" else ""} Definition of function symbol ${funWithArgs} := the ${out} such that ${(out === funWithArgs) <=> f})\n"
 
@@ -273,7 +273,7 @@ trait ProofsHelpers {
       () |- F.Forall(
         out,
         Iff(
-          equality(label.applyUnsafe(vars), out),
+          equality(label.applySeq(vars), out),
           f
         )
       )
@@ -355,7 +355,7 @@ trait ProofsHelpers {
       }
     }
 
-    val statement: F.Sequent = () |- Iff(label.applyUnsafe(vars), lambda.body)
+    val statement: F.Sequent = () |- Iff(label.applySeq(vars), lambda.body)
     library.last = Some(this)
   }
 }
