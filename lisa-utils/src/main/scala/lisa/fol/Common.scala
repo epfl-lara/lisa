@@ -342,8 +342,9 @@ trait Common {
       case AppliedFunction(label, args) if (label == this) => args
       case _ => Seq.empty
     }
+    @nowarn("msg=the type test for.*cannot be checked at runtime because its type arguments")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ((Term ** N) |-> Term) = {
-      map.get(this.asInstanceOf) match {
+      map.get(this) match {
         case Some(subst) =>
           subst match {
             case s: ((Term ** N) |-> Term) => s
@@ -573,6 +574,7 @@ trait Common {
       case AppliedFunction(label, args) if (label == this) => args
       case _ => Seq.empty
     }
+    @nowarn("msg=the type test for.*cannot be checked at runtime because its type arguments")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Term ** N, Formula] = {
       map.get(this.asInstanceOf) match {
         case Some(subst) =>
@@ -664,6 +666,7 @@ trait Common {
       case AppliedPredicate(label, args) if (label == this) => args
       case _ => Seq.empty
     }
+    @nowarn("msg=the type test for.*cannot be checked at runtime because its type arguments")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Formula ** N, Formula] = {
       map.get(this.asInstanceOf) match {
         case Some(subst) =>
