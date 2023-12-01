@@ -38,4 +38,15 @@ abstract class OutputManager {
     e.printStackTrace(PrintWriter(stringWriter))
     output(Console.RESET)
   }
+
+
+
+}
+object OutputManager {
+  def RED(s: String): String = Console.RED + s + Console.RESET
+  def GREEN(s: String): String = Console.GREEN + s + Console.RESET
+  def BLUE(s: String): String = Console.BLUE + s + Console.RESET
+  def YELLOW(s: String): String = Console.YELLOW + s + Console.RESET
+  def CYAN(s: String): String = Console.CYAN + s + Console.RESET
+  def MAGENTA(s: String): String = Console.MAGENTA + s + Console.RESET
 }

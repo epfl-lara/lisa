@@ -141,10 +141,18 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     def asSequent: Sequent = (beta ++ delta ++ gamma ++ atoms._1 ++ atoms._2.map(a => !a)).toSet |- Set() // inefficient, not used
 
     import Branch.*
+    import lisa.prooflib.OutputManager.*
     override def toString(): String =
       val pretUnif = unifiable.map((x, f) => x.id + " -> " + prettyFormula(f)).mkString("Unif(", ", ", ")")
       // val pretTried = triedInstantiation.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Tried(", ", ", ")")
-      s"Branch(${prettyIte(alpha, "alpha")}, ${prettyIte(beta, "beta")}, ${prettyIte(delta, "delta")}, ${prettyIte(gamma, "gamma")}, ${prettyIte(atoms._1, "+")}, ${prettyIte(atoms._2, "-")}, $pretUnif, _, _)"
+      (s"Branch(" +
+        s"${RED(prettyIte(alpha, "alpha"))}, " +
+        s"${GREEN(prettyIte(beta, "beta"))}, " +
+        s"${BLUE(prettyIte(delta, "delta"))}, " +
+        s"${YELLOW(prettyIte(gamma, "gamma"))}, " +
+        s"${MAGENTA(prettyIte(atoms._1, "+"))}, ${CYAN(prettyIte(atoms._2, "-"))}, " +
+        s"$pretUnif, _, _)"
+      ).split("'").mkString("")
 
   }
   object Branch {
@@ -349,6 +357,8 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     (r, inst)
   }
 
+  var debug = true
+  def pr(o: Any) = if debug then println(o)
   /**
    * Decide if a branch can be closed, and if not, explode it.
    * Main routine of the decision procedure. If it succeeds, return a proof of the branch.
@@ -356,8 +366,9 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * The return integer is the size of the proof: Used to avoid computing the size every time in linear time.
    */
   def decide(branch: Branch): Option[(List[SCProofStep], Int)] = {
-    // println(" ")
-    // println("decide: " + branch)
+    if debug then Thread.sleep(100)
+    pr(" ")
+    pr("decide: " + branch)
     val closeSubst = close(branch)
     if (closeSubst.nonEmpty && closeSubst.get._1.isEmpty) // If branch can be closed without Instantiation (Hyp)
       Some((List(RestateTrue(Sequent(closeSubst.get._2, Set()))), 0))
@@ -379,8 +390,10 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         else (proof, step)
       )
     else if (branch.beta.nonEmpty) // If branch contains a Beta formula (LeftOr)
+      pr("beta")
       val list = beta(branch)
       val (proof, treversed, needed) = list.foldLeft((Some(Nil): Option[List[SCProofStep]], Nil: List[Int], true: Boolean))((prev, next) =>
+        pr("choice: " + prettyFormula(next._2))
         prev match
           case (None, _, _) => prev // proof failed
           case (_, _, false) =>
@@ -417,6 +430,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       )
     else if (closeSubst.nonEmpty && closeSubst.get._1.nonEmpty) // If branch can be closed with Instantiation (LeftForall)
       val (x, t) = closeSubst.get._1.minBy((x, t) => branch.varsOrder(x))
+      pr("close: " + x + " -> " + prettyTerm(t))
       val (recBranch, instantiated) = applyInst(branch, x, t)
       val upperProof = decide(recBranch)
       upperProof.map((proof, step) =>
