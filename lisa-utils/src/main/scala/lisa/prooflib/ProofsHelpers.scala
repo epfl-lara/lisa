@@ -151,20 +151,20 @@ trait ProofsHelpers {
     // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
     // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantFunctionLabelOfArity[N] =
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantTermLabelOfArity[N] =
       FunctionDefinition[N](name.value, line.value, file.value)(args, t.out, t.f, t.just).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] =
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantTermLabelOfArity[N] =
       SimpleFunctionDefinition[N](name.value, line.value, file.value)(lambda(args, term).asInstanceOf).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantPredicateLabelOfArity[N] =
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantAtomicLabelOfArity[N] =
       PredicateDefinition[N](name.value, line.value, file.value)(lambda(args, formula).asInstanceOf).label
 
   }
 
   def DEF(): definitionWithVars[0] = new definitionWithVars[0](Nil)
-  def DEF(a: Variable): definitionWithVars[1] = new definitionWithVars[1](Seq(a)) 
-  def DEF(a: Variable, b: Variable): definitionWithVars[2] = new definitionWithVars[2](Seq(a, b)) 
+  def DEF(a: Variable): definitionWithVars[1] = new definitionWithVars[1](Seq(a))
+  def DEF(a: Variable, b: Variable): definitionWithVars[2] = new definitionWithVars[2](Seq(a, b))
   def DEF(a: Variable, b: Variable, c: Variable): definitionWithVars[3] = new definitionWithVars[3](Seq(a, b, c))
   def DEF(a: Variable, b: Variable, c: Variable, d: Variable): definitionWithVars[4] = new definitionWithVars[4](Seq(a, b, c, d))
   def DEF(a: Variable, b: Variable, c: Variable, d: Variable, e: Variable): definitionWithVars[5] = new definitionWithVars[5](Seq(a, b, c, d, e))
@@ -190,7 +190,7 @@ trait ProofsHelpers {
 
     // val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
 
-    lazy val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
+    lazy val label: ConstantTermLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
 
     val innerJustification: theory.FunctionDefinition = {
       val conclusion: F.Sequent = j.statement
@@ -216,8 +216,8 @@ trait ProofsHelpers {
       }
       val proven = conclusion.right.head match {
         case F.BinderFormula(F.ExistsOne, bound, inner) => inner
-        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.ConnectorFormula(F.Iff, Seq(l, r)))) if F.isSame(l, x === y) => r
-        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.ConnectorFormula(F.Iff, Seq(l, r)))) if F.isSame(r, x === y) => l
+        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(l, x === y) => r
+        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(r, x === y) => l
         case _ =>
           om.lisaThrow(
             UserInvalidDefinitionException(
@@ -307,11 +307,11 @@ trait ProofsHelpers {
     lazy val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity
 
-    lazy val label: ConstantPredicateLabelOfArity[N] = {
+    lazy val label: ConstantAtomicLabelOfArity[N] = {
       (
         if (vars.length == 0) F.ConstantFormula(name)
         else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf[N])
-      ).asInstanceOf[ConstantPredicateLabelOfArity[N]]
+      ).asInstanceOf[ConstantAtomicLabelOfArity[N]]
     }
 
     val innerJustification: theory.PredicateDefinition = {

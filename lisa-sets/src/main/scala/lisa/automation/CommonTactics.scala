@@ -110,10 +110,10 @@ object CommonTactics {
 
       // Infer y from the equalities in the uniqueness sequent
       uniquenessSeq.right.collectFirst {
-        case F.PredicateFormula(F.`equality`, Seq(`x`, (y: F.Variable))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
+        case F.AppliedPredicate(F.`equality`, Seq(`x`, (y: F.Variable))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
           y
 
-        case F.PredicateFormula(F.`equality`, List(F.AppliedTerm(y: F.Variable, _), F.AppliedTerm(`x`, _))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
+        case F.AppliedPredicate(F.`equality`, List(F.AppliedFunction(y: F.Variable, _), F.AppliedFunction(`x`, _))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
           y
       } match {
         case Some(y) => ExistenceAndUniqueness.withParameters(phi, x, y)(existence, uniqueness)(bot)
@@ -144,11 +144,11 @@ object CommonTactics {
         case _ => return proof.InvalidProofTactic("Could not get definition of function.")
       }
       val method = expr.f.substituteUnsafe(expr.vars.zip(xs).toMap) match {
-        case F.ConnectorFormula(
+        case F.AppliedConnector(
               F.And,
               Seq(
-                F.ConnectorFormula(F.Implies, Seq(a, _)),
-                F.ConnectorFormula(F.Implies, Seq(b, _))
+                F.AppliedConnector(F.Implies, Seq(a, _)),
+                F.AppliedConnector(F.Implies, Seq(b, _))
               )
             ) if F.isSame(F.Neg(a), b) =>
           conditional
@@ -173,7 +173,7 @@ object CommonTactics {
           }
           val y = definition.out
           val vars = definition.vars
-          val fxs =  f.applyUnsafe(xs)
+          val fxs = f.applyUnsafe(xs)
 
           // Instantiate terms in the definition
           val subst = vars.zip(xs).map(tup => tup._1 := tup._2)
@@ -187,7 +187,7 @@ object CommonTactics {
             lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
             lib.thenHave((y === fxs) <=> P) by InstantiateForall(y)
             lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstFunSchema(Map(y -> fxs))
-            lib.thenHave(P.substitute(y :=fxs)) by Restate
+            lib.thenHave(P.substitute(y := fxs)) by Restate
           }
 
         case _ => proof.InvalidProofTactic("Could not get definition of function.")
@@ -224,11 +224,11 @@ object CommonTactics {
           // Unfold the conditional definition to find Q
           val phi = F.And(bot.left.toSeq)
           val Q: F.LambdaExpression[F.Term, F.Formula, 1] = P.body match {
-            case F.ConnectorFormula(
+            case F.AppliedConnector(
                   F.And,
                   Seq(
-                    F.ConnectorFormula(F.Implies, Seq(a, f)),
-                    F.ConnectorFormula(F.Implies, Seq(b, g))
+                    F.AppliedConnector(F.Implies, Seq(a, f)),
+                    F.AppliedConnector(F.Implies, Seq(b, g))
                   )
                 ) if F.isSame(F.Neg(a), b) =>
               if (F.isSame(a, phi)) F.lambda(y, f)
@@ -239,7 +239,7 @@ object CommonTactics {
               return proof.InvalidProofTactic("Definition is not conditional.")
           }
 
-          val fxs =  f.applyUnsafe(xs)
+          val fxs = f.applyUnsafe(xs)
 
           val expected = P.substitute(y := fxs)
           if (!F.isSame(expected, bot.right.head)) {
@@ -247,10 +247,10 @@ object CommonTactics {
           }
 
           TacticSubproof {
-            lib.have(F.∀(y, (y === fxs) <=>P)) by Tautology.from(uniqueness, definition.of(subst: _*))
-            lib.thenHave((y === fxs) <=>P) by InstantiateForall(y)
-            lib.thenHave((fxs === fxs) <=> P.substitute(y:=fxs)) by InstFunSchema(Map(y -> fxs))
-            lib.thenHave(P.substitute(y:=fxs)) by Restate
+            lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
+            lib.thenHave((y === fxs) <=> P) by InstantiateForall(y)
+            lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstFunSchema(Map(y -> fxs))
+            lib.thenHave(P.substitute(y := fxs)) by Restate
             lib.thenHave(phi ==> Q(fxs)) by Tautology
             lib.thenHave(phi |- Q(fxs)) by Restate
           }

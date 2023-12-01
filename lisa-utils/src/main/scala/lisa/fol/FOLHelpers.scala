@@ -6,7 +6,6 @@ import lisa.utils.FOLParser
 import lisa.utils.K
 import lisa.utils.LisaException
 
-
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs. Best imported through utilities.Helpers
  * Usage:
@@ -59,7 +58,7 @@ object FOLHelpers {
   def asFrontLabel(tl: K.TermLabel): TermLabel[?] = tl match
     case tl: K.ConstantFunctionLabel => asFrontLabel(tl)
     case tl: K.SchematicTermLabel => asFrontLabel(tl)
-  def asFrontLabel[N <: Arity](cfl: K.ConstantFunctionLabel): ConstantFunctionLabelOfArity[N] = cfl.arity.asInstanceOf[N] match
+  def asFrontLabel[N <: Arity](cfl: K.ConstantFunctionLabel): ConstantTermLabelOfArity[N] = cfl.arity.asInstanceOf[N] match
     case n: 0 => Constant(cfl.id)
     case n: N => ConstantFunctionLabel[N](cfl.id, n)
   def asFrontLabel(stl: K.SchematicTermLabel): SchematicTermLabel[?] = stl match
@@ -71,7 +70,6 @@ object FOLHelpers {
 
   // Term
   def asFront(t: K.Term): Term = asFrontLabel(t.label).applySeq(t.args.map(asFront))
-  
 
   // FormulaLabel
   def asFrontLabel(fl: K.FormulaLabel): AtomicLabel[?] | ConnectorLabel | BinderLabel = fl match
@@ -84,7 +82,7 @@ object FOLHelpers {
   def asFrontLabel(cl: K.ConnectorLabel): ConnectorLabel = cl match
     case cl: K.ConstantConnectorLabel => asFrontLabel(cl)
     case cl: K.SchematicConnectorLabel => asFrontLabel(cl)
-  def asFrontLabel[N <: Arity](cpl: K.ConstantAtomicLabel): ConstantPredicateLabelOfArity[N] = cpl.arity.asInstanceOf[N] match
+  def asFrontLabel[N <: Arity](cpl: K.ConstantAtomicLabel): ConstantAtomicLabelOfArity[N] = cpl.arity.asInstanceOf[N] match
     case n: 0 => ConstantFormula(cpl.id)
     case n: N => ConstantPredicateLabel(cpl.id, cpl.arity.asInstanceOf)
   def asFrontLabel(sfl: K.SchematicFormulaLabel): SchematicAtomicLabel[?] | SchematicConnectorLabel[?] =
@@ -131,7 +129,5 @@ object FOLHelpers {
   def asFrontLambda(l: K.LambdaTermTerm): LambdaExpression[Term, Term, ?] = LambdaExpression(l.vars.map(asFrontLabel), asFront(l.body), l.vars.size)
   def asFrontLambda(l: K.LambdaTermFormula): LambdaExpression[Term, Formula, ?] = LambdaExpression(l.vars.map(asFrontLabel), asFront(l.body), l.vars.size)
   def asFrontLambda(l: K.LambdaFormulaFormula): LambdaExpression[Formula, Formula, ?] = LambdaExpression(l.vars.map(asFrontLabel), asFront(l.body), l.vars.size)
-
-
 
 }

@@ -255,7 +255,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       }
     }
 
-
     val cr1 = substitutions.map((sub, set) =>
       (
         sub.flatMap((v, t) =>
