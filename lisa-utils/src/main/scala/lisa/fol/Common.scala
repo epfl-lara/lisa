@@ -30,7 +30,7 @@ trait Common {
 
   extension [T, N <: Arity](self: T ** N) {
     def toSeq: Seq[T] = self
-    def map[U](f: T => U): U ** N = self.map(f).asInstanceOf[(U ** (N))]
+    def map[U](f: T => U): U ** N = self.map(f)
 
   }
 
@@ -77,8 +77,8 @@ trait Common {
     def lift: T & this.type = this
 
     /**
-     * Substitution in the LisaObject of schematics by values. It is not guaranteed by the type system that types of schematics and values match, and the substitution can fail if that is the case.
-     * This is the substitution that should be implemented.
+     * Substitution in the LisaObject of schematics symbols by values. It is not guaranteed by the type system that types of schematics and values match, and the substitution can fail if that is the case.
+     * This is the substitution function that should be implemented.
      */
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): T
     def substituteUnsafe2[A <: SchematicLabel[?], B <: LisaObject[B]](map: Map[A, B]): T = substituteUnsafe(map.asInstanceOf)
@@ -294,7 +294,7 @@ trait Common {
     val underlying = K.VariableTerm(underlyingLabel)
     def applyUnsafe(args: Term ** 0) = this
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term = {
-      map.get(this.asInstanceOf) match {
+      map.get(this) match {
         case Some(subst) =>
           subst match {
             case s: Term => s
@@ -527,7 +527,7 @@ trait Common {
     val underlying = K.AtomicFormula(underlyingLabel, Seq.empty)
     def applyUnsafe(args: Term ** 0): Formula = this
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Formula = {
-      map.get(this.asInstanceOf) match {
+      map.get(this) match {
         case Some(subst) =>
           subst match {
             case s: Formula => s
@@ -576,7 +576,7 @@ trait Common {
     }
     @nowarn("msg=the type test for.*cannot be checked at runtime because its type arguments")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Term ** N, Formula] = {
-      map.get(this.asInstanceOf) match {
+      map.get(this) match {
         case Some(subst) =>
           subst match {
             case s: |->[Term ** N, Formula] => s
@@ -668,7 +668,7 @@ trait Common {
     }
     @nowarn("msg=the type test for.*cannot be checked at runtime because its type arguments")
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): |->[Formula ** N, Formula] = {
-      map.get(this.asInstanceOf) match {
+      map.get(this) match {
         case Some(subst) =>
           subst match {
             case s: |->[Formula ** N, Formula] => s
@@ -763,7 +763,7 @@ trait Common {
     def allSchematicLabels: Set[Common.this.SchematicLabel[?]] = body.allSchematicLabels + bound
     def freeSchematicLabels: Set[Common.this.SchematicLabel[?]] = body.freeSchematicLabels - bound
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): BinderFormula = {
-      val newSubst = map - bound.asInstanceOf
+      val newSubst = map - bound
       if (map.values.flatMap(_.freeSchematicLabels).toSet.contains(bound)) {
         val taken: Set[SchematicLabel[?]] = body.allSchematicLabels ++ map.keys
         val newBound: Variable = bound.rename(lisa.utils.KernelHelpers.freshId(taken.map(_.id), bound.id))
