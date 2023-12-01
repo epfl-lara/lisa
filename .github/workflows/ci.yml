@@ -21,4 +21,8 @@ jobs:
         run: sbt "scalafixAll --check"
       - name: Check format
         run: sbt scalafmtCheckAll
+      - name: Compile sets
+        run: sbt "lisa-sets / compile"
+      - name: Compile examples
+        run: sbt "lisa-examples / compile"
 
