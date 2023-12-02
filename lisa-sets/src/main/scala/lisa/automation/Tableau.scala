@@ -106,6 +106,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       atoms: (List[AtomicFormula], List[AtomicFormula]), // split into positive and negatives!
       unifiable: Map[VariableLabel, (BinderFormula, Int)], // map between metavariables and the original formula they came from, with the penalty associated to the complexity of the formula.
       numberInstantiated: Map[VariableLabel, Int], // map between variables and the number of times they have been instantiated
+
       skolemized: Set[VariableLabel], // set of variables that have been skolemized
       triedInstantiation: Map[VariableLabel, Set[Term]], // map between metavariables and the term they were already instantiated with
       maxIndex: Int, // the maximum index used for skolemization and metavariables
