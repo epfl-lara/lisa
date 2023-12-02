@@ -1,11 +1,10 @@
 package lisa.automation
 import lisa.fol.FOL as F
 import lisa.prooflib.Library
+import lisa.prooflib.OutputManager.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-
-import lisa.prooflib.OutputManager.*
 import lisa.utils.parsing.FOLPrinter.prettyFormula
 import lisa.utils.parsing.FOLPrinter.prettySCProof
 import lisa.utils.parsing.FOLPrinter.prettySequent
@@ -78,7 +77,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     proof match
       case None => None
       case Some((p, _)) => Some(SCProof((Restate(sequent, p.length) :: Weakening(nf |- (), p.length - 1) :: p).reverse.toIndexedSeq, IndexedSeq.empty))
-    
+
   }
 
   /**
@@ -153,8 +152,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         s"${BLUE(prettyIte(delta, "delta"))}, " +
         s"${YELLOW(prettyIte(gamma, "gamma"))}, " +
         s"${MAGENTA(prettyIte(atoms._1, "+"))}, ${CYAN(prettyIte(atoms._2, "-"))}, " +
-        s"$pretUnif, _, _)"
-      ).split("'").mkString("").split("_").mkString("")
+        s"$pretUnif, _, _)").split("'").mkString("").split("_").mkString("")
 
   }
   object Branch {
@@ -235,7 +233,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
   }
 
-
   /**
    * Detect if a branch can be closed, and if so, return a list of substitutions that closes it along with the formulas used to close it
    * If it can't be closed, returns None
@@ -290,16 +287,16 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
   }
 
-  def bestSubst(substs: List[(Substitution, Set[Formula])], branch:Branch): Option[(Substitution, Set[Formula])] = {
+  def bestSubst(substs: List[(Substitution, Set[Formula])], branch: Branch): Option[(Substitution, Set[Formula])] = {
     if substs.isEmpty then return None
     val minSize = substs.minBy(_._1.size)
     val smallSubst = substs.filter(_._1.size == minSize._1.size)
-    //Up to this, it is necessary for completeness. From this, it is heuristic.
+    // Up to this, it is necessary for completeness. From this, it is heuristic.
 
     val best = smallSubst.minBy(s => substitutionScore(s._1, branch))
     Some(best)
   }
-  def formulaPenalty(f:Formula, branch:Branch): Int = f match
+  def formulaPenalty(f: Formula, branch: Branch): Int = f match
     case ConnectorFormula(And, args) => 10 + args.map(formulaPenalty(_, branch)).sum
     case ConnectorFormula(Or, args) => 40 + args.map(formulaPenalty(_, branch)).sum
     case BinderFormula(Exists, x, inner) => 30 + formulaPenalty(inner, branch)
@@ -308,17 +305,16 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     case ConnectorFormula(Neg, List(AtomicFormula(id, args))) => 0
     case _ => ???
 
-  def substitutionScore(subst:Substitution, branch:Branch): Int = {
+  def substitutionScore(subst: Substitution, branch: Branch): Int = {
     def pairPenalty(v: VariableLabel, t: Term) = {
       val variablePenalty = branch.unifiable(v)._2 + branch.numberInstantiated(v) * 20
       def termPenalty(t: Term): Int = t match
-        case VariableTerm(x) => if branch.unifiable.contains(x) then branch.unifiable(x)._2*1 else 0
+        case VariableTerm(x) => if branch.unifiable.contains(x) then branch.unifiable(x)._2 * 1 else 0
         case Term(label, args) => 100 + args.map(termPenalty).sum
       variablePenalty + termPenalty(t)
     }
     subst.map((v, t) => pairPenalty(v, t)).sum
   }
-
 
   /**
    * Explodes one And formula
@@ -372,10 +368,10 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newBound), Seq())
         (newInner, newBound)
     val b1 = branch.copy(
-      gamma = branch.gamma.tail, 
-      unifiable = branch.unifiable + (nb -> (f, formulaPenalty(f.inner, branch))), 
+      gamma = branch.gamma.tail,
+      unifiable = branch.unifiable + (nb -> (f, formulaPenalty(f.inner, branch))),
       numberInstantiated = branch.numberInstantiated + (nb -> (branch.numberInstantiated.getOrElse(f.bound, 0))),
-      maxIndex = branch.maxIndex + 1, 
+      maxIndex = branch.maxIndex + 1,
       varsOrder = branch.varsOrder + (nb -> branch.varsOrder.size)
     )
     (b1.prepended(ni), nb, ni)
@@ -392,10 +388,12 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       case Some(s) => branch.triedInstantiation + (x -> (s + t))
 
     val inst = instantiate(f.inner, f.bound, t)
-    val r = branch.prepended(inst).copy(
-      triedInstantiation = newTried,
-      numberInstantiated = branch.numberInstantiated + (x -> (branch.numberInstantiated(x) + 1)),
-    )
+    val r = branch
+      .prepended(inst)
+      .copy(
+        triedInstantiation = newTried,
+        numberInstantiated = branch.numberInstantiated + (x -> (branch.numberInstantiated(x) + 1))
+      )
     (r, inst)
   }
 

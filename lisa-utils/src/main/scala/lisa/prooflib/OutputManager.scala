@@ -39,8 +39,6 @@ abstract class OutputManager {
     output(Console.RESET)
   }
 
-
-
 }
 object OutputManager {
   def RED(s: String): String = Console.RED + s + Console.RESET
