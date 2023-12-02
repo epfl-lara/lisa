@@ -88,7 +88,7 @@ trait Substitutions extends FormulaDefinitions {
    * @return t[m]
    */
   def substituteVariablesInFormula(phi: Formula, m: Map[VariableLabel, Term], takenIds: Seq[Identifier] = Seq[Identifier]()): Formula = phi match {
-    case PredicateFormula(label, args) => PredicateFormula(label, args.map(substituteVariablesInTerm(_, m)))
+    case AtomicFormula(label, args) => AtomicFormula(label, args.map(substituteVariablesInTerm(_, m)))
     case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteVariablesInFormula(_, m)))
     case BinderFormula(label, bound, inner) =>
       val newSubst = m - bound
@@ -109,8 +109,8 @@ trait Substitutions extends FormulaDefinitions {
    * @return t[m]
    */
   def substituteFormulaVariables(phi: Formula, m: Map[VariableFormulaLabel, Formula], takenIds: Seq[Identifier] = Seq[Identifier]()): Formula = phi match {
-    case PredicateFormula(label: VariableFormulaLabel, _) => m.getOrElse(label, phi)
-    case _: PredicateFormula => phi
+    case AtomicFormula(label: VariableFormulaLabel, _) => m.getOrElse(label, phi)
+    case _: AtomicFormula => phi
     case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(substituteFormulaVariables(_, m, takenIds)))
     case BinderFormula(label, bound, inner) =>
       val fv = m.values.flatMap(_.freeVariables).toSet
@@ -132,7 +132,7 @@ trait Substitutions extends FormulaDefinitions {
   def instantiateTermSchemas(phi: Formula, m: Map[SchematicTermLabel, LambdaTermTerm]): Formula = {
     require(m.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case PredicateFormula(label, args) => PredicateFormula(label, args.map(a => instantiateTermSchemasInTerm(a, m)))
+      case AtomicFormula(label, args) => AtomicFormula(label, args.map(a => instantiateTermSchemasInTerm(a, m)))
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiateTermSchemas(_, m)))
       case BinderFormula(label, bound, inner) =>
         val newSubst = m - bound
@@ -152,12 +152,12 @@ trait Substitutions extends FormulaDefinitions {
    * @param m The map from schematic predicate symbols to lambda expressions Term(s) -> Formula [[LambdaTermFormula]].
    * @return phi[m]
    */
-  def instantiatePredicateSchemas(phi: Formula, m: Map[SchematicVarOrPredLabel, LambdaTermFormula]): Formula = {
+  def instantiatePredicateSchemas(phi: Formula, m: Map[SchematicAtomicLabel, LambdaTermFormula]): Formula = {
     require(m.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case PredicateFormula(label, args) =>
+      case AtomicFormula(label, args) =>
         label match {
-          case label: SchematicVarOrPredLabel if m.contains(label) => m(label)(args)
+          case label: SchematicAtomicLabel if m.contains(label) => m(label)(args)
           case _ => phi
         }
       case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiatePredicateSchemas(_, m)))
@@ -181,7 +181,7 @@ trait Substitutions extends FormulaDefinitions {
   def instantiateConnectorSchemas(phi: Formula, m: Map[SchematicConnectorLabel, LambdaFormulaFormula]): Formula = {
     require(m.forall { case (symbol, LambdaFormulaFormula(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case _: PredicateFormula => phi
+      case _: AtomicFormula => phi
       case ConnectorFormula(label, args) =>
         val newArgs = args.map(instantiateConnectorSchemas(_, m))
         label match {
@@ -208,18 +208,18 @@ trait Substitutions extends FormulaDefinitions {
   def instantiateSchemas(
       phi: Formula,
       mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-      mPred: Map[SchematicVarOrPredLabel, LambdaTermFormula],
+      mPred: Map[SchematicAtomicLabel, LambdaTermFormula],
       mTerm: Map[SchematicTermLabel, LambdaTermTerm]
   ): Formula = {
     require(mCon.forall { case (symbol, LambdaFormulaFormula(arguments, body)) => arguments.length == symbol.arity })
     require(mPred.forall { case (symbol, LambdaTermFormula(arguments, body)) => arguments.length == symbol.arity })
     require(mTerm.forall { case (symbol, LambdaTermTerm(arguments, body)) => arguments.length == symbol.arity })
     phi match {
-      case PredicateFormula(label, args) =>
+      case AtomicFormula(label, args) =>
         val newArgs = args.map(a => instantiateTermSchemasInTerm(a, mTerm))
         label match {
-          case label: SchematicVarOrPredLabel if mPred.contains(label) => mPred(label)(newArgs)
-          case _ => PredicateFormula(label, newArgs)
+          case label: SchematicAtomicLabel if mPred.contains(label) => mPred(label)(newArgs)
+          case _ => AtomicFormula(label, newArgs)
         }
       case ConnectorFormula(label, args) =>
         val newArgs = args.map(a => instantiateSchemas(a, mCon, mPred, mTerm))

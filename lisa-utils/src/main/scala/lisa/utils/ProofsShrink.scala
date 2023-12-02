@@ -172,8 +172,8 @@ object ProofsShrink {
       isSubset(subset.left, superset.left) && isSubset(subset.right, superset.right)
     def schematicConnectorLabels(sequent: Sequent): Set[SchematicConnectorLabel] =
       (sequent.left ++ sequent.right).flatMap(_.schematicConnectorLabels)
-    def schematicPredicatesLabels(sequent: Sequent): Set[SchematicVarOrPredLabel] =
-      (sequent.left ++ sequent.right).flatMap(_.schematicPredicateLabels)
+    def schematicPredicatesLabels(sequent: Sequent): Set[SchematicAtomicLabel] =
+      (sequent.left ++ sequent.right).flatMap(_.schematicAtomicLabels)
     def schematicTermLabels(sequent: Sequent): Set[SchematicTermLabel] =
       (sequent.left ++ sequent.right).flatMap(_.schematicTermLabels)
     def schematicLabels(sequent: Sequent): Set[SchematicLabel] = {

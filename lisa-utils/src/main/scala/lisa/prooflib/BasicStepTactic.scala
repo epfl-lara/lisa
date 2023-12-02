@@ -43,7 +43,7 @@ object BasicStepTactic {
   object RewriteTrue extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
-      if (!K.isSameSequent(botK, () `K|-` K.PredicateFormula(K.top, Nil)))
+      if (!K.isSameSequent(botK, () `K|-` K.AtomicFormula(K.top, Nil)))
         proof.InvalidProofTactic("The desired conclusion is not a trivial tautology.")
       else
         proof.ValidProofTactic(bot, Seq(K.RestateTrue(botK)), Seq())
@@ -130,7 +130,7 @@ object BasicStepTactic {
 
       if (!pivot.isEmpty && pivot.tail.isEmpty)
         pivot.head match {
-          case F.ConnectorFormula(F.And, Seq(phi, psi)) =>
+          case F.AppliedConnector(F.And, Seq(phi, psi)) =>
             if (premiseSequent.left.contains(phi))
               LeftAnd.withParameters(phi, psi)(premise)(bot)
             else
@@ -280,7 +280,7 @@ object BasicStepTactic {
           proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the premises.")
       else
         pivot.head match {
-          case F.ConnectorFormula(F.Implies, Seq(phi, psi)) => LeftIff.withParameters(phi, psi)(premise)(bot)
+          case F.AppliedConnector(F.Implies, Seq(phi, psi)) => LeftIff.withParameters(phi, psi)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer a pivot implication from premise.")
         }
     }
@@ -501,7 +501,7 @@ object BasicStepTactic {
         K.BinderFormula(
           K.Forall,
           xK,
-          K.ConnectorFormula(K.Iff, List(K.PredicateFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
+          K.ConnectorFormula(K.Iff, List(K.AtomicFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
         )
       )
       lazy val quantified = K.BinderFormula(K.ExistsOne, xK, phiK)
@@ -528,7 +528,7 @@ object BasicStepTactic {
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
-            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.ConnectorFormula(F.Iff, Seq(_, phi)))) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
+            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.AppliedConnector(F.Iff, Seq(_, phi)))) => LeftExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
         } else
@@ -624,7 +624,7 @@ object BasicStepTactic {
 
       if (!pivot.isEmpty && pivot.tail.isEmpty)
         pivot.head match {
-          case F.ConnectorFormula(F.Or, Seq(phi, psi)) =>
+          case F.AppliedConnector(F.Or, Seq(phi, psi)) =>
             if (premiseSequent.left.contains(phi))
               RightOr.withParameters(phi, psi)(premise)(bot)
             else
@@ -728,7 +728,7 @@ object BasicStepTactic {
           proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the premises.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
-          case F.ConnectorFormula(F.Implies, Seq(phi, psi)) => RightIff.withParameters(phi, psi)(prem1, prem2)(bot)
+          case F.AppliedConnector(F.Implies, Seq(phi, psi)) => RightIff.withParameters(phi, psi)(prem1, prem2)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an implication as pivot from premise and conclusion.")
         }
       else
@@ -954,7 +954,7 @@ object BasicStepTactic {
         K.BinderFormula(
           K.Forall,
           xK,
-          K.ConnectorFormula(K.Iff, List(K.PredicateFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
+          K.ConnectorFormula(K.Iff, List(K.AtomicFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
         )
       )
       lazy val quantified = K.BinderFormula(K.ExistsOne, xK, phiK)
@@ -981,7 +981,7 @@ object BasicStepTactic {
         else if (instantiatedPivot.tail.isEmpty) {
           instantiatedPivot.head match {
             // ∃_. ∀x. _ ⇔ φ == extract ==> x, phi
-            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.ConnectorFormula(F.Iff, Seq(_, phi)))) =>
+            case F.BinderFormula(F.Exists, _, F.BinderFormula(F.Forall, x, F.AppliedConnector(F.Iff, Seq(_, phi)))) =>
               RightExistsOne.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
           }
@@ -1036,7 +1036,7 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
       else
         faK match {
-          case K.PredicateFormula(K.equality, Seq(left, right)) =>
+          case K.AtomicFormula(K.equality, Seq(left, right)) =>
             if (K.isSameTerm(left, right))
               proof.ValidProofTactic(bot, Seq(K.LeftRefl(botK, -1, faK)), Seq(premise))
             else
@@ -1071,7 +1071,7 @@ object BasicStepTactic {
         proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
       else
         faK match {
-          case K.PredicateFormula(K.equality, Seq(left, right)) =>
+          case K.AtomicFormula(K.equality, Seq(left, right)) =>
             if (K.isSameTerm(left, right))
               proof.ValidProofTactic(bot, Seq(K.RightRefl(botK, faK)), Seq())
             else
@@ -1087,8 +1087,8 @@ object BasicStepTactic {
         val pivot: Option[F.Formula] = bot.right.find(f =>
           val Eq = F.equality // (F.equality: (F.|->[F.**[F.Term, 2], F.Formula]))
           f match {
-            case F.PredicateFormula(e, Seq(l, r)) =>
-              (F.equality: F.PredicateLabel) == (e: F.PredicateLabel) && l == r // termequality
+            case F.AppliedPredicate(e, Seq(l, r)) =>
+              (F.equality) == (e) && l == r // termequality
             case _ => false
           }
         )
@@ -1124,7 +1124,7 @@ object BasicStepTactic {
       lazy val (s_es, t_es) = equalsK.unzip
       lazy val phi_s = lambdaPhiK(s_es)
       lazy val phi_t = lambdaPhiK(t_es)
-      lazy val equalities = equalsK map { case (s, t) => K.PredicateFormula(K.equality, Seq(s, t)) }
+      lazy val equalities = equalsK map { case (s, t) => K.AtomicFormula(K.equality, Seq(s, t)) }
 
       if (!K.isSameSet(botK.right, premiseSequent.right))
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
@@ -1159,7 +1159,7 @@ object BasicStepTactic {
       lazy val (s_es, t_es) = equalsK.unzip
       lazy val phi_s = lambdaPhiK(s_es)
       lazy val phi_t = lambdaPhiK(t_es)
-      lazy val equalities = equalsK map { case (s, t) => K.PredicateFormula(K.equality, Seq(s, t)) }
+      lazy val equalities = equalsK map { case (s, t) => K.AtomicFormula(K.equality, Seq(s, t)) }
 
       if (!K.isSameSet(botK.left, premiseSequent.left ++ equalities))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (s=t)_.")
@@ -1175,10 +1175,10 @@ object BasicStepTactic {
 
     def apply2(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      val premRight = F.ConnectorFormula(F.Or, premiseSequent.right.toSeq)
-      val botRight = F.ConnectorFormula(F.Or, bot.right.toSeq)
+      val premRight = F.AppliedConnector(F.Or, premiseSequent.right.toSeq)
+      val botRight = F.AppliedConnector(F.Or, bot.right.toSeq)
 
-      val equalities = bot.left.toSeq.collect { case F.PredicateFormula(F.equality, Seq(l, r)) => (l, r) }
+      val equalities = bot.left.toSeq.collect { case F.AppliedPredicate(F.equality, Seq(l, r)) => (l, r) }
       val undereqs = equalities.toList.map(p => (p._1.underlying, p._2.underlying))
       val canReach = UnificationUtils.getContextFormula(
         first = premRight,

@@ -16,7 +16,7 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
    * The label for a predicate, namely a function taking a fixed number of terms and returning a formula.
    * In logical terms it is a predicate symbol.
    */
-  sealed trait PredicateLabel extends FormulaLabel {
+  sealed trait AtomicLabel extends FormulaLabel {
     require(arity < MaxArity && arity >= 0)
   }
 
@@ -30,15 +30,15 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A standard predicate symbol. Typical example are equality (=) and membership (∈)
    */
-  sealed case class ConstantPredicateLabel(id: Identifier, arity: Int) extends PredicateLabel with ConstantLabel
+  sealed case class ConstantAtomicLabel(id: Identifier, arity: Int) extends AtomicLabel with ConstantLabel
 
   /**
    * The equality symbol (=) for first order logic.
    * It is represented as any other predicate symbol but has unique semantic and deduction rules.
    */
-  val equality: ConstantPredicateLabel = ConstantPredicateLabel(Identifier("="), 2)
-  val top: ConstantPredicateLabel = ConstantPredicateLabel(Identifier("⊤"), 0)
-  val bot: ConstantPredicateLabel = ConstantPredicateLabel(Identifier("⊥"), 0)
+  val equality: ConstantAtomicLabel = ConstantAtomicLabel(Identifier("="), 2)
+  val top: ConstantAtomicLabel = ConstantAtomicLabel(Identifier("⊤"), 0)
+  val bot: ConstantAtomicLabel = ConstantAtomicLabel(Identifier("⊥"), 0)
 
   /**
    * The label for a connector, namely a function taking a fixed number of formulas and returning another formula.
@@ -63,19 +63,19 @@ private[fol] trait FormulaLabelDefinitions extends CommonDefinitions {
   /**
    * A schematic symbol whose arguments are any number of Terms. This means the symbol is either a variable formula or a predicate schema
    */
-  sealed trait SchematicVarOrPredLabel extends SchematicFormulaLabel with PredicateLabel
+  sealed trait SchematicAtomicLabel extends SchematicFormulaLabel with AtomicLabel
 
   /**
    * A predicate symbol of arity 0 that can be instantiated with any formula.
    */
-  sealed case class VariableFormulaLabel(id: Identifier) extends SchematicVarOrPredLabel {
+  sealed case class VariableFormulaLabel(id: Identifier) extends SchematicAtomicLabel {
     val arity = 0
   }
 
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking term arguments.
    */
-  sealed case class SchematicPredicateLabel(id: Identifier, arity: Int) extends SchematicVarOrPredLabel
+  sealed case class SchematicPredicateLabel(id: Identifier, arity: Int) extends SchematicAtomicLabel
 
   /**
    * A predicate symbol of non-zero arity that can be instantiated with any functional formula taking formula arguments.

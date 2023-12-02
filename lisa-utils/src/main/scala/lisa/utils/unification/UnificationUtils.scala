@@ -203,7 +203,7 @@ object UnificationUtils {
           }
         }
 
-        case (ConnectorFormula(labelR, argsR), ConnectorFormula(labelT, argsT)) if labelR == labelT =>
+        case (AppliedConnector(labelR, argsR), AppliedConnector(labelT, argsT)) if labelR == labelT =>
           if (argsR.length != argsT.length)
             // quick discard
             None
@@ -222,7 +222,7 @@ object UnificationUtils {
           else if (template == reference && reference == formulaSubstitution.getOrElse(template, reference)) Some(formulaSubstitution, termSubstitution)
           else None
 
-        case (PredicateFormula(labelR, argsR), PredicateFormula(labelT, argsT)) if labelR == labelT =>
+        case (AppliedPredicate(labelR, argsR), AppliedPredicate(labelT, argsT)) if labelR == labelT =>
           if (argsR.length != argsT.length)
             // quick discard
             None
@@ -419,7 +419,7 @@ object UnificationUtils {
       if (innerSubstitutions.exists(_.isEmpty)) None
       else {
         val retrieved = innerSubstitutions.map(_.get)
-        val body = first.label(retrieved.map(_.body))
+        val body = first.label.applySeq(retrieved.map(_.body))
         val lambda =
           retrieved.foldLeft(TermRewriteLambda(body = body)) { case (currentLambda, nextLambda) =>
             TermRewriteLambda(
@@ -564,7 +564,7 @@ object UnificationUtils {
           innerSubst.map(s => s.copy(body = BinderFormula(labelF, freshVar, s.body)))
         }
 
-        case (ConnectorFormula(labelF, argsF), ConnectorFormula(labelS, argsS)) =>
+        case (AppliedConnector(labelF, argsF), AppliedConnector(labelS, argsS)) =>
           if (argsF.length != argsS.length)
             // quick discard
             None
@@ -575,7 +575,7 @@ object UnificationUtils {
             if (innerSubstitutions.exists(_.isEmpty)) None
             else {
               val retrieved = innerSubstitutions.map(_.get)
-              val body = ConnectorFormula(labelF, retrieved.map(_.body))
+              val body = AppliedConnector(labelF, retrieved.map(_.body))
               val lambda =
                 retrieved.foldLeft(FormulaRewriteLambda(body = body)) { case (currentLambda, nextLambda) =>
                   FormulaRewriteLambda(
@@ -588,7 +588,7 @@ object UnificationUtils {
             }
           }
 
-        case (PredicateFormula(labelF, argsF), PredicateFormula(labelS, argsS)) =>
+        case (AppliedPredicate(labelF, argsF), AppliedPredicate(labelS, argsS)) =>
           if (argsF.length != argsS.length)
             // quick discard
             None
@@ -599,7 +599,7 @@ object UnificationUtils {
             if (innerSubstitutions.exists(_.isEmpty)) None
             else {
               val retrieved = innerSubstitutions.map(_.get)
-              val body = PredicateFormula(labelF, retrieved.map(_.body))
+              val body = AppliedPredicate(labelF, retrieved.map(_.body))
               val lambda =
                 retrieved.foldLeft(FormulaRewriteLambda(body = body)) { case (currentLambda, nextLambda) =>
                   FormulaRewriteLambda(

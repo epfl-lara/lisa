@@ -548,7 +548,7 @@ object Recursion extends lisa.Main {
                     )
                   ) by Tautology.from(
                     lastStep,
-                    universalEquivalenceDistribution of (P -> lambda(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))), Q -> lambda(
+                    universalEquivalenceDistribution of (P := lambda(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))), Q := lambda(
                       b,
                       (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b))
                     ))

@@ -56,7 +56,7 @@ object SetTheoryTactics {
       val t1 = Variable(freshId(takenIDs, x.id))
       val t2 = Variable(freshId(takenIDs, y.id))
 
-      val prop = (in(t2, originalSet) /\ separationPredicate(Seq(t2, originalSet)))
+      val prop = (in(t2, originalSet) /\ separationPredicate(t2, originalSet)) // TODO (Seq(t2, originalSet)
       def fprop(z: Term) = forall(t2, in(t2, z) <=> prop)
 
       /**

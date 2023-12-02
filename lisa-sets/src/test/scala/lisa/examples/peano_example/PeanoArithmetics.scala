@@ -23,7 +23,7 @@ object PeanoArithmetics extends lisa.prooflib.Library {
   final val ax6timesDistrib: Formula = forall(x, forall(y, times(x, s(y)) === plus(times(x, y), x)))
   final val ax7induction: Formula = (sPhi(zero) /\ forall(x, sPhi(x) ==> sPhi(s(x)))) ==> forall(x, sPhi(x))
 
-  final val functions: Set[ConstantTermLabel] = Set(ConstantFunctionLabel("0", 0), s, plus, times)
+  final val functions: Set[ConstantTermLabel[?]] = Set(ConstantFunctionLabel("0", 0), s, plus, times)
   functions.foreach(l => theory.addSymbol(l.underlyingLabel))
 
   private val peanoAxioms: Set[(String, Formula)] = Set(
