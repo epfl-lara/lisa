@@ -1,6 +1,7 @@
 package lisa.automation
 import lisa.fol.FOL as F
 import lisa.prooflib.Library
+import lisa.prooflib.OutputManager.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.utils.K
 import lisa.utils.K.{_, given}
@@ -73,7 +74,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     val nf = reducedNNFForm(fnamed)
     val uv = VariableLabel(Identifier("§", nextId))
     val proof = decide(Branch.empty(nextId + 1, uv).prepended(nf))
-
     proof match
       case None => None
       case Some((p, _)) => Some(SCProof((Restate(sequent, p.length) :: Weakening(nf |- (), p.length - 1) :: p).reverse.toIndexedSeq, IndexedSeq.empty))
@@ -103,7 +103,9 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       delta: List[BinderFormula], // Exists(...))
       gamma: List[BinderFormula], // Forall(...)
       atoms: (List[AtomicFormula], List[AtomicFormula]), // split into positive and negatives!
-      unifiable: Map[VariableLabel, BinderFormula], // map between metavariables and the original formula they came from
+      unifiable: Map[VariableLabel, (BinderFormula, Int)], // map between metavariables and the original formula they came from, with the penalty associated to the complexity of the formula.
+      numberInstantiated: Map[VariableLabel, Int], // map between variables and the number of times they have been instantiated
+
       skolemized: Set[VariableLabel], // set of variables that have been skolemized
       triedInstantiation: Map[VariableLabel, Set[Term]], // map between metavariables and the term they were already instantiated with
       maxIndex: Int, // the maximum index used for skolemization and metavariables
@@ -142,14 +144,20 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
     import Branch.*
     override def toString(): String =
-      val pretUnif = unifiable.map((x, f) => x.id + " -> " + prettyFormula(f)).mkString("Unif(", ", ", ")")
+      val pretUnif = unifiable.map((x, f) => x.id + " -> " + prettyFormula(f._1) + " : " + f._2).mkString("Unif(", ", ", ")")
       // val pretTried = triedInstantiation.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Tried(", ", ", ")")
-      s"Branch(${prettyIte(alpha, "alpha")}, ${prettyIte(beta, "beta")}, ${prettyIte(delta, "delta")}, ${prettyIte(gamma, "gamma")}, ${prettyIte(atoms._1, "+")}, ${prettyIte(atoms._2, "-")}, $pretUnif, _, _)"
+      (s"Branch(" +
+        s"${RED(prettyIte(alpha, "alpha"))}, " +
+        s"${GREEN(prettyIte(beta, "beta"))}, " +
+        s"${BLUE(prettyIte(delta, "delta"))}, " +
+        s"${YELLOW(prettyIte(gamma, "gamma"))}, " +
+        s"${MAGENTA(prettyIte(atoms._1, "+"))}, ${CYAN(prettyIte(atoms._2, "-"))}, " +
+        s"$pretUnif, _, _)").split("'").mkString("").split("_").mkString("")
 
   }
   object Branch {
-    def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Set.empty, Map.empty, 1, Map.empty, VariableLabel(Identifier("§uv", 0)))
-    def empty(n: Int, uv: VariableLabel) = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Set.empty, Map.empty, n, Map.empty, uv)
+    def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, 1, Map.empty, VariableLabel(Identifier("§uv", 0)))
+    def empty(n: Int, uv: VariableLabel) = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, n, Map.empty, uv)
     def prettyIte(l: Iterable[Formula], head: String): String = l match
       case Nil => "Nil"
       case _ => l.map(prettyFormula(_, true)).mkString(head + "(", ", ", ")")
@@ -275,8 +283,37 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       )
     )
 
-    cr.sortBy(_._1.size).headOption
+    bestSubst(cr, branch)
 
+  }
+
+  def bestSubst(substs: List[(Substitution, Set[Formula])], branch: Branch): Option[(Substitution, Set[Formula])] = {
+    if substs.isEmpty then return None
+    val minSize = substs.minBy(_._1.size)
+    val smallSubst = substs.filter(_._1.size == minSize._1.size)
+    // Up to this, it is necessary for completeness. From this, it is heuristic.
+
+    val best = smallSubst.minBy(s => substitutionScore(s._1, branch))
+    Some(best)
+  }
+  def formulaPenalty(f: Formula, branch: Branch): Int = f match
+    case ConnectorFormula(And, args) => 10 + args.map(formulaPenalty(_, branch)).sum
+    case ConnectorFormula(Or, args) => 40 + args.map(formulaPenalty(_, branch)).sum
+    case BinderFormula(Exists, x, inner) => 30 + formulaPenalty(inner, branch)
+    case BinderFormula(Forall, x, inner) => 200 + formulaPenalty(inner, branch)
+    case AtomicFormula(id, args) => 0
+    case ConnectorFormula(Neg, List(AtomicFormula(id, args))) => 0
+    case _ => ???
+
+  def substitutionScore(subst: Substitution, branch: Branch): Int = {
+    def pairPenalty(v: VariableLabel, t: Term) = {
+      val variablePenalty = branch.unifiable(v)._2 + branch.numberInstantiated(v) * 20
+      def termPenalty(t: Term): Int = t match
+        case VariableTerm(x) => if branch.unifiable.contains(x) then branch.unifiable(x)._2 * 1 else 0
+        case Term(label, args) => 100 + args.map(termPenalty).sum
+      variablePenalty + termPenalty(t)
+    }
+    subst.map((v, t) => pairPenalty(v, t)).sum
   }
 
   /**
@@ -330,7 +367,13 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         val newBound = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
         val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newBound), Seq())
         (newInner, newBound)
-    val b1 = branch.copy(gamma = branch.gamma.tail, unifiable = branch.unifiable + (nb -> f), maxIndex = branch.maxIndex + 1, varsOrder = branch.varsOrder + (nb -> branch.varsOrder.size))
+    val b1 = branch.copy(
+      gamma = branch.gamma.tail,
+      unifiable = branch.unifiable + (nb -> (f, formulaPenalty(f.inner, branch))),
+      numberInstantiated = branch.numberInstantiated + (nb -> (branch.numberInstantiated.getOrElse(f.bound, 0))),
+      maxIndex = branch.maxIndex + 1,
+      varsOrder = branch.varsOrder + (nb -> branch.varsOrder.size)
+    )
     (b1.prepended(ni), nb, ni)
   }
 
@@ -339,13 +382,18 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * This does not backtracking: The metavariable remains available if it needs further instantiation.
    */
   def applyInst(branch: Branch, x: VariableLabel, t: Term): (Branch, Formula) = {
-    val f = branch.unifiable(x)
+    val f = branch.unifiable(x)._1
     val newTried = branch.triedInstantiation.get(x) match
       case None => branch.triedInstantiation + (x -> Set(t))
       case Some(s) => branch.triedInstantiation + (x -> (s + t))
 
     val inst = instantiate(f.inner, f.bound, t)
-    val r = branch.prepended(inst).copy(triedInstantiation = newTried)
+    val r = branch
+      .prepended(inst)
+      .copy(
+        triedInstantiation = newTried,
+        numberInstantiated = branch.numberInstantiated + (x -> (branch.numberInstantiated(x) + 1))
+      )
     (r, inst)
   }
 
@@ -356,8 +404,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * The return integer is the size of the proof: Used to avoid computing the size every time in linear time.
    */
   def decide(branch: Branch): Option[(List[SCProofStep], Int)] = {
-    // println(" ")
-    // println("decide: " + branch)
+
     val closeSubst = close(branch)
     if (closeSubst.nonEmpty && closeSubst.get._1.isEmpty) // If branch can be closed without Instantiation (Hyp)
       Some((List(RestateTrue(Sequent(closeSubst.get._2, Set()))), 0))
@@ -421,8 +468,8 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       val upperProof = decide(recBranch)
       upperProof.map((proof, step) =>
         if proof.head.bot.left.contains(instantiated) then
-          val sequent = (proof.head.bot -<< instantiated) +<< branch.unifiable(x)
-          (LeftForall(sequent, step, branch.unifiable(x).inner, branch.unifiable(x).bound, t) :: proof, step + 1)
+          val sequent = (proof.head.bot -<< instantiated) +<< branch.unifiable(x)._1
+          (LeftForall(sequent, step, branch.unifiable(x)._1.inner, branch.unifiable(x)._1.bound, t) :: proof, step + 1)
         else (proof, step)
       )
     else None
