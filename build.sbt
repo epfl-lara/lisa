@@ -18,6 +18,7 @@ ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports"
 
 
 
+
 val commonSettings = Seq(
   crossScalaVersions := Seq("2.12.13", "2.13.4", "3.0.1", "3.2.0"),
   run / fork := true

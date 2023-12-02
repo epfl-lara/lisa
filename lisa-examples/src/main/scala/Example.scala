@@ -2,8 +2,6 @@ import lisa.automation.Substitution.{ApplyRules as Substitute}
 
 object Example extends lisa.Main {
 
-
-
   val x = variable
   val y = variable
   val P = predicate[1]
