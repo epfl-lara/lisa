@@ -56,6 +56,8 @@ trait WithTheorems {
     private var instantiatedFacts: List[(InstantiatedFact, Int)] = Nil
     private var assumptions: List[F.Formula] = assump
     private var discharges: List[Fact] = Nil
+    private val localdefs: mMap[LocalyDefinedVariable, (Formula, Fact)] = Map.empty
+    private var localdefElims: List[(Formula, Fact)] = Map.empty
 
     /**
      * the theorem that is being proved (paritally, if subproof) by this proof.
@@ -135,13 +137,16 @@ trait WithTheorems {
     }
 
     def addDefinition(v: LocalyDefinedVariable, defin: F.Formula, eliminator: Fact): Unit = {
-      ??? //TODO
-      //Register definition for call with definitionOf(v)
-      //make statement `defin |- defin` available for call with definitionOf(v)
-      //assume(defin)
+      if localdefs.contains(v) then throw new UserInvalidDefinitionException("Variable already defined with" + localdefs(v) + " in current proof")
+      localdefElims = (defin, eliminator) :: localdefElims
+      val assumption = assume(using this)(defin)
+      localdefs.update(v, (defin, assumption))
+
       //End of proof, existentially quantify and cut using eliminator
       //Order of local definitions and assumptions matters
     }
+
+    def getDefinition(v: LocalyDefinedVariable): Fact = localdefs(v)._2
 
     // Getters
 
