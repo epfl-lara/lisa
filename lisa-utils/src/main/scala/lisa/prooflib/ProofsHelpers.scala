@@ -358,4 +358,39 @@ trait ProofsHelpers {
     val statement: F.Sequent = () |- Iff(label.applySeq(vars), lambda.body)
     library.last = Some(this)
   }
+
+
+
+  /////////////////////////
+  //  Local Definitions  //
+  /////////////////////////
+
+
+
+  opaque type LocalyDefinedVariable <: Variable = Variable
+
+  def pick(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(f: Formula): LocalyDefinedVariable = {
+    f match
+      case Exists(x, inner) =>
+        val id = freshId((f.allSchematicLabels ++ proof.lockedSymbols ++ proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id), name.value)
+        val c = Variable(id)
+        proof.addDefinition(c, inner.substitute(x := c))
+        c
+
+      case _ => throw new Exception("Pick is used to obtain a witness of an existential statement.")
+
+    
+    
+  }
+
+
+
+
+
+
+
+
+
+
+
 }

@@ -134,6 +134,15 @@ trait WithTheorems {
       if (!discharges.contains(ji)) discharges = ji :: discharges
     }
 
+    def addDefinition(v: LocalyDefinedVariable, defin: F.Formula, eliminator: Fact): Unit = {
+      ??? //TODO
+      //Register definition for call with definitionOf(v)
+      //make statement `defin |- defin` available for call with definitionOf(v)
+      //assume(defin)
+      //End of proof, existentially quantify and cut using eliminator
+      //Order of local definitions and assumptions matters
+    }
+
     // Getters
 
     /**
