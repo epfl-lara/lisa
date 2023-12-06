@@ -192,9 +192,10 @@ trait WithTheorems {
       import lisa.utils.KernelHelpers.{-<<, ->>}
       val finalSteps = eliminations.foldLeft[(List[SC.SCProofStep], F.Sequent)]((steps.map(_.scps), steps.head.bot)) { (cumul_bot, f_elim) =>
         val (cumul, bot) = cumul_bot
+        println("huadfjhaoefh")
         val (f, elim) = f_elim
         val i = cumul.size
-        val elimSteps = elim(i, bot)
+        val elimSteps = elim(i-1, bot)
         (elimSteps.foldLeft(cumul)((cumul2, step) => step :: cumul2), bot -<< f)
       }
 

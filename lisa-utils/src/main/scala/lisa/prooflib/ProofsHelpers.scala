@@ -369,6 +369,10 @@ trait ProofsHelpers {
 
   opaque type LocalyDefinedVariable <: Variable = Variable
 
+  extension (using proof: library.Proof)(c: LocalyDefinedVariable) {
+    def definition: proof.Fact = proof.getDefinition(c)
+  }
+
   def pick(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: proof.Fact): LocalyDefinedVariable = {
     val seq = proof.sequentOfFact(fact)
     seq.right.head match
