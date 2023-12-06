@@ -25,7 +25,10 @@ trait WithTheorems {
    *
    * @param assump list of starting assumptions, usually propagated from outer proofs.
    */
-  sealed abstract class Proof(assump: List[F.Formula]) {
+  // TODO: reseal this class
+  // see https://github.com/lampepfl/dotty/issues/19031
+  // and https://github.com/epfl-lara/lisa/issues/190
+  abstract class Proof(assump: List[F.Formula]) {
     val possibleGoal: Option[F.Sequent]
     type SelfType = this.type
     type OutsideFact >: JUSTIFICATION
@@ -273,11 +276,11 @@ trait WithTheorems {
      */
     def asOutsideFact(j: JUSTIFICATION): OutsideFact
 
-    @nowarn("msg=.*It would fail on pattern case: _: InnerProof.*")
-    def depth: Int = this match {
-      case p: Proof#InnerProof => 1 + p.parent.depth
-      case _: BaseProof => 0
-    }
+    def depth: Int =
+      (this: @unchecked) match {
+        case p: Proof#InnerProof => 1 + p.parent.depth
+        case _: BaseProof => 0
+      }
 
     /**
      * Create a subproof inside the current proof. The subproof will have the same assumptions as the current proof.
