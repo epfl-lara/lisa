@@ -262,11 +262,11 @@ trait WithTheorems {
      */
     def asOutsideFact(j: JUSTIFICATION): OutsideFact
 
-    def depth: Int = 
-    (this: @unchecked) match {
-      case p: Proof#InnerProof => 1 + p.parent.depth
-      case _: BaseProof => 0
-    }
+    def depth: Int =
+      (this: @unchecked) match {
+        case p: Proof#InnerProof => 1 + p.parent.depth
+        case _: BaseProof => 0
+      }
 
     /**
      * Create a subproof inside the current proof. The subproof will have the same assumptions as the current proof.
