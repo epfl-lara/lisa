@@ -1,5 +1,8 @@
 # Change List
 
+## 2023-12-06
+Re-added discovery of formulas which could not be substituted for error reporting to `Substitution.ApplyRules`
+
 ## 2023-12-02
 Creation of the present Change Liste, going back to October 2023
 
