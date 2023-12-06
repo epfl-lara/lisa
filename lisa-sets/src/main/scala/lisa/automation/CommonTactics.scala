@@ -145,11 +145,11 @@ object CommonTactics {
       }
       val method: (F.ConstantFunctionLabel[?], proof.Fact) => Seq[F.Term] => F.Sequent => proof.ProofTacticJudgement = 
         expr.f.substituteUnsafe(expr.vars.zip(xs).toMap) match {
-          case F.ConnectorFormula(
+          case F.AppliedConnector(
                 F.And,
                 Seq(
-                  F.ConnectorFormula(F.Implies, Seq(a, _)),
-                  F.ConnectorFormula(F.Implies, Seq(b, _))
+                  F.AppliedConnector(F.Implies, Seq(a, _)),
+                  F.AppliedConnector(F.Implies, Seq(b, _))
                 )
               ) if F.isSame(F.Neg(a), b) =>
             conditional(using lib, proof)
