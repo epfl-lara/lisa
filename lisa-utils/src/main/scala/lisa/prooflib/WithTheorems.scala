@@ -25,6 +25,9 @@ trait WithTheorems {
    *
    * @param assump list of starting assumptions, usually propagated from outer proofs.
    */
+  // TODO: reseal this class
+  // see https://github.com/lampepfl/dotty/issues/19031
+  // and https://github.com/epfl-lara/lisa/issues/190
   abstract class Proof(assump: List[F.Formula]) {
     val possibleGoal: Option[F.Sequent]
     type SelfType = this.type
