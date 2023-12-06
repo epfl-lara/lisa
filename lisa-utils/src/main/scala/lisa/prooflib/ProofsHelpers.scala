@@ -369,12 +369,13 @@ trait ProofsHelpers {
 
   opaque type LocalyDefinedVariable <: Variable = Variable
 
-  def pick(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(f: Formula): LocalyDefinedVariable = {
-    f match
+  def pick(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: proof.Fact): LocalyDefinedVariable = {
+    val seq = proof.sequentOfFact(fact)
+    seq.right.head match
       case Exists(x, inner) =>
-        val id = freshId((f.allSchematicLabels ++ proof.lockedSymbols ++ proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id), name.value)
+        val id = freshId((seq.allSchematicLabels ++ proof.lockedSymbols ++ proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id), name.value)
         val c = Variable(id)
-        proof.addDefinition(c, inner.substitute(x := c))
+        proof.addDefinition(c, inner.substitute(x := c), fact)
         c
 
       case _ => throw new Exception("Pick is used to obtain a witness of an existential statement.")
