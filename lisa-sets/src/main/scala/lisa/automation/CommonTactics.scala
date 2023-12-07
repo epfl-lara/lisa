@@ -143,18 +143,19 @@ object CommonTactics {
         case Some(value: lib.FunctionDefinition[?]) => value
         case _ => return proof.InvalidProofTactic("Could not get definition of function.")
       }
-      val method = expr.f.substituteUnsafe(expr.vars.zip(xs).toMap) match {
-        case F.AppliedConnector(
-              F.And,
-              Seq(
-                F.AppliedConnector(F.Implies, Seq(a, _)),
-                F.AppliedConnector(F.Implies, Seq(b, _))
-              )
-            ) if F.isSame(F.Neg(a), b) =>
-          conditional
+      val method: (F.ConstantFunctionLabel[?], proof.Fact) => Seq[F.Term] => F.Sequent => proof.ProofTacticJudgement = 
+        expr.f.substituteUnsafe(expr.vars.zip(xs).toMap) match {
+          case F.AppliedConnector(
+                F.And,
+                Seq(
+                  F.AppliedConnector(F.Implies, Seq(a, _)),
+                  F.AppliedConnector(F.Implies, Seq(b, _))
+                )
+              ) if F.isSame(F.Neg(a), b) =>
+            conditional(using lib, proof)
 
-        case _ => unconditional
-      }
+          case _ => unconditional(using lib, proof)
+        }
       method(f, uniqueness)(xs)(bot)
     }
 
