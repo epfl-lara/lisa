@@ -148,14 +148,20 @@ trait WithTheorems {
     }
 
     def addDefinition(v: LocalyDefinedVariable, defin: F.Formula, eliminator: Fact): Unit = {
-      if localdefs.contains(v) then ??? //throw new UserInvalidDefinitionException("Variable already defined with" + localdefs(v) + " in current proof")
+      if localdefs.contains(v) then 
+        throw new UserInvalidDefinitionException("v", "Variable already defined with" + localdefs(v) + " in current proof")
+      val (els, eli) = sequentAndIntOfFact(eliminator)
+      val exf = K.Exists(v.underlyingLabel, f)
+      if els.right.size != 1 || !K.isSame(els.right.head.underlying, exf) then 
+        throw new UserInvalidDefinitionException("v", "Eliminator fact for " + v + " in a definition should have a single formula, equivalent to " + exf + ", on the right side.")
       val assumption = assume(using this)(defin)
       localdefs.update(v, (defin, assumption))
       val f = defin.underlying
-      val exf = K.Exists(v.underlyingLabel, f)
-      addElimination(defin, (i, sequent) => List(
-        SC.LeftExists(sequent.underlying -<< f +<< exf, i, f, v.underlyingLabel),
-        SC.Cut((sequent.underlying -<< exf) ++ (sequent.underlying ->> f), i, i+1, exf)
+      addElimination(defin, (i, sequent) => 
+        val resSequent = (sequent.underlying -<< f)
+        List(
+          SC.LeftExists(resSequent +<< exf, i, f, v.underlyingLabel),
+          SC.Cut(resSequent ++<< els.underlying, eli, i+1, exf)
       ))
 
       //End of proof, existentially quantify and cut using eliminator
@@ -192,14 +198,15 @@ trait WithTheorems {
       import lisa.utils.KernelHelpers.{-<<, ->>}
       val finalSteps = eliminations.foldLeft[(List[SC.SCProofStep], F.Sequent)]((steps.map(_.scps), steps.head.bot)) { (cumul_bot, f_elim) =>
         val (cumul, bot) = cumul_bot
-        println("huadfjhaoefh")
         val (f, elim) = f_elim
         val i = cumul.size
         val elimSteps = elim(i-1, bot)
         (elimSteps.foldLeft(cumul)((cumul2, step) => step :: cumul2), bot -<< f)
       }
 
-      K.SCProof(finalSteps._1.reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
+      val r = K.SCProof(finalSteps._1.reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
+      println(lisa.utils.parsing.FOLPrinter.prettySCProof(r))
+      r
     }
 
     /**
