@@ -36,8 +36,6 @@ object Substitution {
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | F.Formula | lib.JUSTIFICATION)*)(
         premise: proof.Fact
     )(bot: F.Sequent): proof.ProofTacticJudgement = {
-      // lazy val substitutionsK = substitutions.map()
-
       // figure out instantiations for rules
       // takes a premise
       val premiseSequent: F.Sequent = proof.getSequent(premise)
@@ -156,8 +154,30 @@ object Substitution {
           takenFormulaVars
         )
 
-        lazy val violatingFormulaLeft: Option[Formula] = Some(top) // TODO
-        lazy val violatingFormulaRight: Option[Formula] = Some(top) // TODO
+        lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x => bot.right.find(y => UnificationUtils.getContextFormula(
+          x,
+          y,
+          freeEqualities,
+          freeIffs,
+          confinedEqualities,
+          takenTermVars,
+          confinedIffs,
+          takenFormulaVars
+        ).isDefined))
+
+        lazy val leftPairs = filteredPrem zip filteredPrem.map(x => filteredBot.find(y => UnificationUtils.getContextFormula(
+          x,
+          y,
+          freeEqualities,
+          freeIffs,
+          confinedEqualities,
+          takenTermVars,
+          confinedIffs,
+          takenFormulaVars
+        ).isDefined))
+
+        lazy val violatingFormulaLeft = leftPairs.find(_._2.isEmpty)
+        lazy val violatingFormulaRight = rightPairs.find(_._2.isEmpty)
 
         if (leftContextsOpt.isEmpty)
           proof.InvalidProofTactic(s"Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formula: ${violatingFormulaLeft.get}")
