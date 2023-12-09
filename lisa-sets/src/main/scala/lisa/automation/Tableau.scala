@@ -24,6 +24,10 @@ import scala.collection.immutable.HashSet
 
 object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
 
+  var debug = true
+  def pr(s: Object) = if debug then println(s)
+
+
   def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
     solve(bot) match {
       case Some(value) => proof.ValidProofTactic(bot, value.steps, Seq())
@@ -72,6 +76,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     val (fnamed, nextId, _) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
 
     val nf = reducedNNFForm(fnamed)
+    println(prettyFormula(nf))
     val uv = VariableLabel(Identifier("§", nextId))
     val proof = decide(Branch.empty(nextId + 1, uv).prepended(nf))
     proof match
