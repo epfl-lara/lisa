@@ -2,7 +2,7 @@ package lisa.automation.settheory
 
 import lisa.SetTheoryLibrary.{_, given}
 import lisa.fol.FOL.{_, given}
-import lisa.kernel.proof.SequentCalculus as SC
+import lisa.kernel.proof.SequentCalculus as SCunique
 import lisa.maths.settheory.SetTheory
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.Library
@@ -45,10 +45,10 @@ object SetTheoryTactics {
         line: sourcecode.Line,
         file: sourcecode.File,
         om: OutputManager
-    )(originalSet: Term, separationPredicate: LambdaTF[2])( // TODO dotty forgets that Term <:< LisaObject[Term]
+    )(originalSet: Term, separationPredicate: LambdaTF[1])( // TODO dotty forgets that Term <:< LisaObject[Term]
         bot: Sequent
     ): proof.ProofTacticJudgement = {
-      require(separationPredicate.bounds.length == 2) // separationPredicate takes two args
+      require(separationPredicate.bounds.length == 1) // separationPredicate takes two args
       given lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
       // fresh variable names to avoid conflicts
       val botWithAssumptions = bot ++ (proof.getAssumptions |- ())
@@ -56,7 +56,7 @@ object SetTheoryTactics {
       val t1 = Variable(freshId(takenIDs, x.id))
       val t2 = Variable(freshId(takenIDs, y.id))
 
-      val prop = (in(t2, originalSet) /\ separationPredicate(t2, originalSet)) // TODO (Seq(t2, originalSet)
+      val prop = (in(t2, originalSet) /\ separationPredicate(t2)) // TODO (Seq(t2, originalSet)
       def fprop(z: Term) = forall(t2, in(t2, z) <=> prop)
 
       /**

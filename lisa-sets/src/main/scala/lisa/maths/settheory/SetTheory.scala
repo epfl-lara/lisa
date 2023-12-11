@@ -848,7 +848,7 @@ object SetTheory extends lisa.Main {
   val setIntersectionUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))
   ) {
-    have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))) by UniqueComprehension(x, lambda((t, z), in(t, y)))
+    have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))) by UniqueComprehension(x, lambda(t, in(t, y)))
   }
 
   /**
@@ -896,7 +896,7 @@ object SetTheory extends lisa.Main {
   val unaryIntersectionUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (exists(b, in(b, x)) /\ ∀(b, in(b, x) ==> in(t, b)))))
   ) {
-    val uniq = have(∃!(z, ∀(t, in(t, z) <=> (in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b)))))) by UniqueComprehension(union(x), lambda((t, z), ∀(b, in(b, x) ==> in(t, b))))
+    val uniq = have(∃!(z, ∀(t, in(t, z) <=> (in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b)))))) by UniqueComprehension(union(x), lambda(t, ∀(b, in(b, x) ==> in(t, b))))
 
     val lhs = have((in(t, union(x)) /\ ∀(b, in(b, x) ==> in(t, b))) |- ∀(b, in(b, x) ==> in(t, b)) /\ exists(b, in(b, x))) subproof {
       val unionAx = have(in(t, union(x)) |- exists(b, in(b, x) /\ in(t, b))) by Weakening(unionAxiom of (z -> t))
@@ -960,7 +960,7 @@ object SetTheory extends lisa.Main {
   val setDifferenceUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))
   ) {
-    have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))) by UniqueComprehension(x, lambda((t, z), !in(t, y)))
+    have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))) by UniqueComprehension(x, lambda(t, !in(t, y)))
   }
 
   /**
@@ -988,9 +988,9 @@ object SetTheory extends lisa.Main {
   val intersectionOfPredicateClassExists = Theorem(
     ∃(x, P(x)) |- ∃(z, ∀(t, in(t, z) <=> ∀(y, P(y) ==> in(t, y))))
   ) {
-    have(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ φ(t, x))))) by InstFunSchema(Map(z -> x))(comprehensionSchema)
+    have(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ φ(t))))) by InstFunSchema(Map(z -> x))(comprehensionSchema)
 
-    val conjunction = thenHave(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) by InstPredSchema(Map(φ -> lambda(Seq(t, x), ∀(y, P(y) ==> in(t, y)))))
+    val conjunction = thenHave(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) by InstPredSchema(Map(φ -> lambda(t, ∀(y, P(y) ==> in(t, y)))))
 
     have(∀(y, P(y) ==> in(t, y)) |- ∀(y, P(y) ==> in(t, y))) by Hypothesis
     thenHave(∀(y, P(y) ==> in(t, y)) /\ P(x) |- ∀(y, P(y) ==> in(t, y))) by Weakening
@@ -1034,7 +1034,7 @@ object SetTheory extends lisa.Main {
   val secondInPairSingletonUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, union(p)) /\ ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p)))))))
   ) {
-    have(thesis) by UniqueComprehension(union(p), lambda((t, x), ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p))))))
+    have(thesis) by UniqueComprehension(union(p), lambda(t, ((!(union(p) === unaryIntersection(p))) ==> (!in(t, unaryIntersection(p))))))
   }
 
   /**
@@ -1347,7 +1347,7 @@ object SetTheory extends lisa.Main {
   ) {
     have(∃!(z, ∀(t, in(t, z) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))))) by UniqueComprehension(
       powerSet(powerSet(setUnion(x, y))),
-      lambda((t, z), ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))
+      lambda(t, ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))
     )
   }
 
@@ -1825,7 +1825,7 @@ object SetTheory extends lisa.Main {
   ) {
     val uniq = have(∃!(z, ∀(t, in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(t, a), r)))))) by UniqueComprehension(
       union(union(r)),
-      lambda((t, b), ∃(a, in(pair(t, a), r)))
+      lambda(t, ∃(a, in(pair(t, a), r)))
     )
 
     // eliminating t \in UU r
@@ -1893,7 +1893,7 @@ object SetTheory extends lisa.Main {
   ) {
     val uniq = have(∃!(z, ∀(t, in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(a, t), r)))))) by UniqueComprehension(
       union(union(r)),
-      lambda((t, b), ∃(a, in(pair(a, t), r)))
+      lambda(t, ∃(a, in(pair(a, t), r)))
     )
 
     // eliminating t \in UU r
@@ -2316,7 +2316,7 @@ object SetTheory extends lisa.Main {
   val setOfFunctionsUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))
   ) {
-    have(thesis) by UniqueComprehension(powerSet(cartesianProduct(x, y)), lambda((t, z), functionalOver(t, x)))
+    have(thesis) by UniqueComprehension(powerSet(cartesianProduct(x, y)), lambda(t, functionalOver(t, x)))
   }
 
   /**
@@ -2593,7 +2593,7 @@ object SetTheory extends lisa.Main {
   ) {
     have(∃!(g, ∀(t, in(t, g) <=> (in(t, f) /\ ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))))) by UniqueComprehension(
       f,
-      lambda((t, b), ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))
+      lambda(t, ∃(y, ∃(z, in(y, x) /\ (t === pair(y, z)))))
     )
   }
 
@@ -2822,7 +2822,7 @@ object SetTheory extends lisa.Main {
   ) {
     have(∃!(z, ∀(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))) by UniqueComprehension(
       powerSet(Sigma(x, f)),
-      lambda((z, y), (subset(x, relationDomain(z)) /\ functional(z)))
+      lambda(z, (subset(x, relationDomain(z)) /\ functional(z)))
     )
   }
 
@@ -3237,7 +3237,7 @@ object SetTheory extends lisa.Main {
 
     have((ydef, surjective(f, x, powerSet(x))) |- ()) by Cut(existsZ, existsToContra)
     val yToContra = thenHave((∃(y, ydef), surjective(f, x, powerSet(x))) |- ()) by LeftExists
-    val yexists = have(∃(y, ydef)) by Restate.from(comprehensionSchema of (z -> x, φ -> lambda((t, z), !in(t, app(f, t)))))
+    val yexists = have(∃(y, ydef)) by Restate.from(comprehensionSchema of (z -> x, φ -> lambda(t, !in(t, app(f, t)))))
 
     have(thesis) by Cut(yexists, yToContra)
   }

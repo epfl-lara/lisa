@@ -113,7 +113,7 @@ object PartialOrders extends lisa.Main {
   val setOfLowerBoundsUniqueness = Theorem(
     () |- ∃!(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ lowerBound(t, y, p))))
   ) {
-    have(thesis) by UniqueComprehension(secondInPair(p), lambda((t, x), lowerBound(t, y, p)))
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda(t, lowerBound(t, y, p)))
   }
 
   /**
@@ -136,7 +136,7 @@ object PartialOrders extends lisa.Main {
   val setOfUpperBoundsUniqueness = Theorem(
     () |- ∃!(z, ∀(t, in(t, z) <=> (in(t, secondInPair(p)) /\ upperBound(t, y, p))))
   ) {
-    have(thesis) by UniqueComprehension(secondInPair(p), lambda((t, x), upperBound(t, y, p)))
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda(t, upperBound(t, y, p)))
   }
 
   /**

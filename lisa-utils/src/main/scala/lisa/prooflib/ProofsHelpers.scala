@@ -365,27 +365,44 @@ trait ProofsHelpers {
   //  Local Definitions  //
   /////////////////////////
 
+  import lisa.utils.parsing.FOLPrinter.prettySCProof
+  import lisa.utils.KernelHelpers.apply
 
+  class LocalyDefinedVariable(val proof: library.Proof, defin: Variable => proof.Fact)(id: Identifier) extends Variable(id) {
+    
+    val definition: proof.Fact = defin(this)
+    val definingFormula = proof.sequentOfFact(definition).right.head
 
-  opaque type LocalyDefinedVariable <: Variable = Variable
-
-  extension (using proof: library.Proof)(c: LocalyDefinedVariable) {
-    def definition: proof.Fact = proof.getDefinition(c)
+    //proof.addDefinition(this, defin(this), fact)
+    //val definition: proof.Fact = proof.getDefinition(this)
   }
 
-  def pick(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: proof.Fact): LocalyDefinedVariable = {
-    val seq = proof.sequentOfFact(fact)
-    seq.right.head match
+
+  def pick(using _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: _proof.Fact): LocalyDefinedVariable {val proof: _proof.type} = {
+
+    val (els, eli) = _proof.sequentAndIntOfFact(fact)
+    els.right.head match
       case Exists(x, inner) =>
-        val id = freshId((seq.allSchematicLabels ++ proof.lockedSymbols ++ proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id), name.value)
-        val c = Variable(id)
-        proof.addDefinition(c, inner.substitute(x := c), fact)
-        c
+        val id = freshId((els.allSchematicLabels ++ _proof.lockedSymbols ++ _proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id), name.value)
+        val c: LocalyDefinedVariable = LocalyDefinedVariable(_proof, c => assume(inner.substitute(x := c)))(id)
+        val defin = c.definingFormula
+        val definU = defin.underlying
+        val exDefinU = K.Exists(c.underlyingLabel, definU)
+
+        if els.right.size != 1 || !K.isSame(els.right.head.underlying, exDefinU) then 
+          throw new UserInvalidDefinitionException(c.id, "Eliminator fact for " + c + " in a definition should have a single formula, equivalent to " + exDefinU + ", on the right side.")
+        
+        _proof.addElimination(defin, (i, sequent) => 
+          val resSequent = (sequent.underlying -<< definU)
+          List(
+            SC.LeftExists(resSequent +<< exDefinU, i, definU, c.underlyingLabel),
+            SC.Cut(resSequent ++<< els.underlying, eli, i+1, exDefinU)
+        ))
+
+        c.asInstanceOf[LocalyDefinedVariable {val proof: _proof.type}]
 
       case _ => throw new Exception("Pick is used to obtain a witness of an existential statement.")
 
-    
-    
   }
 
 

@@ -35,7 +35,7 @@ object InclusionOrders extends lisa.Main {
   val inclusionOnUniqueness = Lemma(
     () |- existsOne(z, forall(t, in(t, z) <=> (in(t, cartesianProduct(a, a)) /\ exists(y, exists(x, in(y, x) /\ (t === pair(y, x)))))))
   ) {
-    have(thesis) by UniqueComprehension(cartesianProduct(a, a), lambda((t, a), exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))
+    have(thesis) by UniqueComprehension(cartesianProduct(a, a), lambda(t, exists(y, exists(x, in(y, x) /\ (t === pair(y, x))))))
   }
 
   /**

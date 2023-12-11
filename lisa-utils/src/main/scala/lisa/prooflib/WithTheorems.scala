@@ -9,6 +9,7 @@ import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.UserLisaException.*
 import lisa.utils.parsing.UnreachableException
+import lisa.utils.parsing.FOLPrinter.prettySCProof
 
 import scala.annotation.nowarn
 import scala.collection.mutable.Buffer as mBuf
@@ -59,7 +60,6 @@ trait WithTheorems {
     private var instantiatedFacts: List[(InstantiatedFact, Int)] = Nil
     private var assumptions: List[F.Formula] = assump
     private var eliminations: List[(F.Formula, (Int, F.Sequent) => List[K.SCProofStep])] = Nil
-    private val localdefs: mMap[LocalyDefinedVariable, (F.Formula, Fact)] = mMap.empty
 
     /**
      * the theorem that is being proved (paritally, if subproof) by this proof.
@@ -146,29 +146,17 @@ trait WithTheorems {
         SC.Cut((sequent.underlying -<< fu) ++ (s1.underlying ->> fu), t1, i, fu) 
       ))
     }
-
-    def addDefinition(v: LocalyDefinedVariable, defin: F.Formula, eliminator: Fact): Unit = {
+/*
+    def addDefinition(v: LocalyDefinedVariable, defin: F.Formula): Unit = {
       if localdefs.contains(v) then 
-        throw new UserInvalidDefinitionException("v", "Variable already defined with" + localdefs(v) + " in current proof")
-      val (els, eli) = sequentAndIntOfFact(eliminator)
-      val exf = K.Exists(v.underlyingLabel, f)
-      if els.right.size != 1 || !K.isSame(els.right.head.underlying, exf) then 
-        throw new UserInvalidDefinitionException("v", "Eliminator fact for " + v + " in a definition should have a single formula, equivalent to " + exf + ", on the right side.")
-      val assumption = assume(using this)(defin)
-      localdefs.update(v, (defin, assumption))
-      val f = defin.underlying
-      addElimination(defin, (i, sequent) => 
-        val resSequent = (sequent.underlying -<< f)
-        List(
-          SC.LeftExists(resSequent +<< exf, i, f, v.underlyingLabel),
-          SC.Cut(resSequent ++<< els.underlying, eli, i+1, exf)
-      ))
-
-      //End of proof, existentially quantify and cut using eliminator
-      //Order of local definitions and assumptions matters
+        throw new UserInvalidDefinitionException("v", "Variable already defined with" + v.definition + " in current proof")
+      else {
+        localdefs(v) = defin
+        addAssumption(defin)
+      }
     }
-
     def getDefinition(v: LocalyDefinedVariable): Fact = localdefs(v)._2
+*/
 
     // Getters
 
@@ -205,9 +193,10 @@ trait WithTheorems {
       }
 
       val r = K.SCProof(finalSteps._1.reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
-      println(lisa.utils.parsing.FOLPrinter.prettySCProof(r))
       r
     }
+
+    def currentSCProof: K.SCProof = K.SCProof(steps.map(_.scps).reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
 
     /**
      * For a fact, returns the sequent that the fact proove and the position of the fact in the proof.

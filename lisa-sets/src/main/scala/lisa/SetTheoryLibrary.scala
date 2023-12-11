@@ -76,7 +76,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   private val x = variable
   private val y = variable
   private val z = variable
-  final val φ = predicate[2]
+  final val φ = predicate[1]
   private val A = variable
   private val B = variable
   private val P = predicate[3]
@@ -119,7 +119,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * This schema represents an infinite collection of axioms, one for each
    * formula `ϕ(x, z)`.
    */
-  final val comprehensionSchema: AXIOM = Axiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x, z)))))
+  final val comprehensionSchema: AXIOM = Axiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x)))))
 
   /**
    * Empty Set Axiom --- From the Comprehension Schema follows the existence of

@@ -504,7 +504,7 @@ object Recursion extends lisa.Main {
                 // B defined by x => x < a1 /\ k1 x != k2 x exists
                 val B = variable
                 val BDef = forall(x, in(x, B) <=> (in(x, initialSegment(p, a1)) /\ !(app(k1, x) === app(k2, x))))
-                val BExists = have(exists(B, BDef)) by Weakening(comprehensionSchema of (z -> initialSegment(p, a1), φ -> lambda((x, z), !(app(k1, x) === app(k2, x)))))
+                val BExists = have(exists(B, BDef)) by Weakening(comprehensionSchema of (z -> initialSegment(p, a1), φ -> lambda(x, !(app(k1, x) === app(k2, x)))))
 
                 // B forms a subset of p1
                 val subsetB = have(BDef |- subset(B, p1)) subproof {

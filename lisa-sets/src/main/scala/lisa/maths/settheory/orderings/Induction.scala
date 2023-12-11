@@ -76,7 +76,7 @@ object Induction extends lisa.Main {
 
       // z exists by comprehension
       val zExists = have(exists(z, zDef)) subproof {
-        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda((t, x), !Q(t)))
+        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda(t, !Q(t)))
         have(thesis) by Cut(lastStep, existsOneImpliesExists of P -> lambda(z, zDef))
       }
 
