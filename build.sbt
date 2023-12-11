@@ -43,7 +43,7 @@ val commonSettings3 = commonSettings ++ Seq(
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
   libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.3.0",
   //libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
-  libraryDependencies += ("io.github.uuverifiers" %% "princess" % "2023-06-19").cross(CrossVersion.for3Use2_13),
+  libraryDependencies += ("io.github.uuverifiers" %% "princess" % "2023-06-19" % "provided").cross(CrossVersion.for3Use2_13),
   Test / parallelExecution := false
 )
 
@@ -63,7 +63,8 @@ lazy val root = Project(
     id = "lisa",
     base = file(".")
   )
-  .settings(commonSettings3)
+  .settings(commonSettings3,
+            assemblyPackageScala / assembleArtifact := false)
   .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
   .aggregate(utils) // To run tests on all modules
 
