@@ -124,6 +124,7 @@ trait ProofsHelpers {
     def of(insts: F.SubstPair*): proof.InstantiatedFact = {
       proof.InstantiatedFact(fact, insts)
     }
+    def statement: F.Sequent = proof.sequentOfFact(fact)
   }
 
   def currentProof(using p: library.Proof): Library#Proof = p
@@ -371,7 +372,7 @@ trait ProofsHelpers {
   class LocalyDefinedVariable(val proof: library.Proof, defin: Variable => proof.Fact)(id: Identifier) extends Variable(id) {
     
     val definition: proof.Fact = defin(this)
-    val definingFormula = proof.sequentOfFact(definition).right.head
+    lazy val definingFormula = proof.sequentOfFact(definition).right.head
 
     //proof.addDefinition(this, defin(this), fact)
     //val definition: proof.Fact = proof.getDefinition(this)
