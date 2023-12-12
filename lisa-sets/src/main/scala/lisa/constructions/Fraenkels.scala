@@ -19,17 +19,24 @@ object Fraenkels {
 
   //Axiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x)))))
 
-  class Comprehension(_proof: Proof, val t: Term, val filter: (Term**1) |-> Formula, id:Identifier) extends LocalyDefinedVariable(_proof, c => comprehensionSchema)(id) {
+  class Comprehension(_proof: Proof, val t: Term, val filter: (Term**1) |-> Formula, id:Identifier) extends LocalyDefinedVariable(_proof, id) {
+    given proof.type = proof
 
-    val fullFormula = innerComp(this, filter, t)
-    val xb = fullFormula.bound
-    
-    override lazy val definingFormula: Formula = fullFormula.body //in(xb, this) <=> (in(xb, t) /\ filter(x))
-    override val definition: proof.Fact = {
-      val a = assume(using proof)(fullFormula)
+    /**
+      * forall(x, in(x, y) <=> (in(x, t) /\ φ(x)))
+      */
+    override val definition: proof.Fact = assume(using proof)(innerComp(this, filter, t))
 
-      InstantiateForall(using SetTheoryLibrary, proof)(xb)(a)(forall(xb, definingFormula) |- definingFormula).validate(summon[sourcecode.Line], summon[sourcecode.File])
+    val xb = definingFormula.asInstanceOf[BinderFormula].bound
+
+    private val instDef: proof.Fact = {
+      InstantiateForall(using SetTheoryLibrary, proof)(xb)(definition)(definingFormula |- definingFormula.asInstanceOf[BinderFormula].body).validate(summon[sourcecode.Line], summon[sourcecode.File])
     }
+
+    /**
+      * in(elem, y) <=> (in(elem, t) /\ φ(elem))
+      */
+    def elim(elem: Term): proof.Fact = instDef of (xb := elem)
 
     override def toString: String = s"$id{$xb ∈ $t | ${filter(x)}}"
   }
@@ -45,7 +52,7 @@ object Fraenkels {
       val c = Comprehension(_proof, t, filter, id)
       val (compS, compI) = _proof.sequentAndIntOfFact(comprehensionSchema of (φ := filter, z := t, y := c))
 
-      val defin = c.fullFormula
+      val defin = c.definingFormula
       val definU = defin.underlying
       val exDefinU = K.Exists(c.underlyingLabel, definU)
 

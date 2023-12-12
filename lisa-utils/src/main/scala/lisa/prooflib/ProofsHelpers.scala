@@ -369,9 +369,9 @@ trait ProofsHelpers {
   import lisa.utils.parsing.FOLPrinter.prettySCProof
   import lisa.utils.KernelHelpers.apply
 
-  class LocalyDefinedVariable(val proof: library.Proof, defin: Variable => proof.Fact)(id: Identifier) extends Variable(id) {
+  abstract class LocalyDefinedVariable(val proof: library.Proof, id: Identifier) extends Variable(id) {
     
-    val definition: proof.Fact = defin(this)
+    val definition: proof.Fact
     lazy val definingFormula = proof.sequentOfFact(definition).right.head
 
     //proof.addDefinition(this, defin(this), fact)
@@ -385,7 +385,7 @@ trait ProofsHelpers {
     els.right.head match
       case Exists(x, inner) =>
         val id = freshId((els.allSchematicLabels ++ _proof.lockedSymbols ++ _proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id), name.value)
-        val c: LocalyDefinedVariable = LocalyDefinedVariable(_proof, c => assume(inner.substitute(x := c)))(id)
+        val c: LocalyDefinedVariable = new LocalyDefinedVariable(_proof, id){ val definition = assume(using proof)(inner.substitute(x := this))}
         val defin = c.definingFormula
         val definU = defin.underlying
         val exDefinU = K.Exists(c.underlyingLabel, definU)
