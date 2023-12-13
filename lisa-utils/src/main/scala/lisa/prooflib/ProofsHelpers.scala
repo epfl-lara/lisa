@@ -35,7 +35,7 @@ trait ProofsHelpers {
       }
     }
 
-    infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(computeProof: proof.InnerProof ?=> Unit): proof.ProofStep = {
+    infix def subproof(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(computeProof: proof.InnerProof ?=> Unit): proof.ProofStep = {
       val botWithAssumptions = HaveSequent.this.bot ++ (proof.getAssumptions |- ())
       val iProof: proof.InnerProof = new proof.InnerProof(Some(botWithAssumptions))
       computeProof(using iProof)

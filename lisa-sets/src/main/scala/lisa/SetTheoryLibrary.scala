@@ -79,7 +79,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   final val φ = predicate[1]
   private val A = variable
   private val B = variable
-  private val P = predicate[3]
+  private val P = predicate[2]
 
   ////////////
   // Axioms //
@@ -201,8 +201,8 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * satisfy `P` for each `a ∈ x`.
    */
   final val replacementSchema: AXIOM = Axiom(
-    forall(A, in(A, x) ==> existsOne(B, P(x, A, B))) ==>
-      exists(y, forall(B, in(B, y) <=> exists(A, in(A, x) /\ P(x, A, B))))
+    forall(x, in(x, A) ==> ∀(y, ∀(z, (P(x, y) /\ P(x, z)) ==> (y === z)))) ==>
+      exists(B, forall(y, in(y, B) <=> exists(x, in(x, A) /\ P(x, y))))
   )
 
   final val tarskiAxiom: AXIOM = Axiom(

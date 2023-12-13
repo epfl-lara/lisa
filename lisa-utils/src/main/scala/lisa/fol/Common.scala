@@ -30,7 +30,6 @@ trait Common {
 
   extension [T, N <: Arity](self: T ** N) {
     def toSeq: Seq[T] = self
-    def map[U](f: T => U): U ** N = self.map(f)
 
   }
 

@@ -851,6 +851,7 @@ object SetTheory extends lisa.Main {
     have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))) by UniqueComprehension(x, lambda(t, in(t, y)))
   }
 
+
   /**
    * Binary Set Intersection --- Intersection of two sets.
    *
