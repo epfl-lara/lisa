@@ -14,14 +14,21 @@ import lisa.maths.settheory.SetTheory.functional
 
 
 object FraenkelsThm extends lisa.Main {
+  import lisa.maths.settheory.SetTheory.*
+  import Fraenkels.*
 
+
+  private val s = variable
   private val x = variable
+  private val x_1 = variable
   private val y = variable
+  private val f = function[1]
   private val z = variable
   private val A = variable
   private val B = variable
   private val C = variable
   private val P = predicate[2]
+  private val Q = predicate[1]
   private val Filter = predicate[1]
   private val Map = function[1]
 
@@ -64,12 +71,80 @@ object FraenkelsThm extends lisa.Main {
     have(thesis) by Tautology.from(manyForall, primReplacement of (P := lambda((A, B), P(A, B) /\ ∀(C, P(A, C) ==> (B === C)) )))
   }
 
+  val onePointRule = Theorem(
+    ∃(x, (x===y) /\ Q(x)) <=> Q(y)
+  ) {
+    val s1 = have(∃(x, (x===y) /\ Q(x)) ==> Q(y)) subproof {
+      assume(∃(x, (x===y) /\ Q(x)))
+      val ex = pick(lastStep)
+      val s1 = have(Q(ex)) by Tautology.from(ex.definition)
+      val s2 = have(ex === y) by Tautology.from(ex.definition)
+      have(Q(y)) by Substitution.ApplyRules(s2)(s1)
+    }
+    val s2 = have(Q(y) ==> ∃(x, (x===y) /\ Q(x))) subproof{
+      assume(Q(y))
+      thenHave((y === y) /\ Q(y)) by Restate
+      thenHave(∃(x, (x===y) /\ Q(x))) by RightExists
+      thenHave(thesis) by Restate.from
+    }
+    have(thesis) by Tautology.from(s1, s2)
+  }
+
+
+  val singletonMap = Lemma(
+    ∃(x_1, in(x_1, singleton(∅)) /\ (x === f(x_1))) <=> (x === f(∅))
+  ) {
+    val s1 = have(∃(x_1, in(x_1, singleton(∅)) /\ (x === f(x_1))) ==> (x === f(∅))) subproof {
+      have(x === f(∅) |- x === f(∅)) by Restate
+      thenHave((x_1 === ∅, x === f(x_1)) |- x === f(∅)) by Substitution.ApplyRules(x_1 === ∅)
+      thenHave((x_1 === ∅) /\ (x === f(x_1)) |- x === f(∅)) by Restate
+      thenHave((in(x_1, singleton(∅))) /\ ((x === f(x_1))) |- x === f(∅)) by Substitution.ApplyRules(singletonHasNoExtraElements of (y := x_1, x := ∅))
+      thenHave(∃(x_1, in(x_1, singleton(∅)) /\ ((x === f(x_1)))) |- x === f(∅)) by LeftExists
+
+    } 
+
+    val s2 = have( (x === f(∅)) ==> ∃(x_1, in(x_1, singleton(∅)) /\ (x === f(x_1)))) subproof {
+      have(x === f(∅) |- (∅ === ∅) /\ (x === f(∅))) by Restate
+      thenHave(x === f(∅) |- in(∅, singleton(∅)) /\ (x === f(∅))) by Substitution.ApplyRules(singletonHasNoExtraElements of (y := x_1, x := ∅))
+      thenHave(x === f(∅) |- ∃(x_1, in(x_1, singleton(∅)) /\ (x === f(x_1)))) by RightExists
+      thenHave(thesis) by Restate.from
+
+    }
+
+    have(thesis) by Tautology.from(s1, s2)
+  }
+
+
+  val testCollector = Theorem(
+    ∃(s, ∀(x, in(x, s) <=> (x === f(∅))))
+  ) {
+    val r = singleton(∅).collect(lambda(x, top), f)
+
+    have(in(x, r) <=> (x === f(∅))) by Substitution.ApplyRules(singletonMap)(r.elim(x))
+    thenHave(∀(x, in(x, r) <=> (x === f(∅)))) by RightForall
+    thenHave(thesis) by RightExists
+  }
+
+
+  val testMap = Theorem(
+    ∃(s, ∀(x, in(x, s) <=> (x === f(∅))))
+  ) {
+    val r = singleton(∅).map(f)
+    have(in(x, r) <=> (x === f(∅))) by Substitution.ApplyRules(singletonMap)(r.elim(x))
+    thenHave(∀(x, in(x, r) <=> (x === f(∅)))) by RightForall
+    thenHave(thesis) by RightExists
+  }
+
+
+  //Cantor's Theorem with filter
+
 }
 
 object Fraenkels {
   import lisa.fol.FOL.{*, given}
-  import FraenkelsThm.{primReplacement, replacement, functionalIsFunctional}
+  import FraenkelsThm.{primReplacement, replacement, functionalIsFunctional, onePointRule}
   import lisa.automation.Tautology 
+  import lisa.automation.Substitution
   private val x = variable 
   private val y = variable 
   private val z = variable
@@ -77,6 +152,7 @@ object Fraenkels {
   private val B = variable
   private val C = variable
   private val P = predicate[2]
+  private val Q = predicate[1]
   private val Filter = predicate[1]
   private val Map = function[1]
 
@@ -89,14 +165,12 @@ object Fraenkels {
     given proof.type = proof
 
     protected lazy val replacer: (Term**2) |-> Formula = lambda((A, B), filter(A) /\ (B === map(A)))
-
     
     private val mainFact = have(
       ∃(B, ∀(y, in(y, B) <=> ∃(x, in(x, A) /\ P(x, y)))).substitute(P := replacer)
     ) subproof {
       have(thesis) by Tautology.from(primReplacement of (P := replacer), functionalIsFunctional of (Filter := filter, Map := map))
     }
-    
 
     /**
       * forall(y, in(y, B) <=> ∃(x, in(x, A) /\ filter(x) /\ (y === map(x))
@@ -106,7 +180,7 @@ object Fraenkels {
     val elem_bound = definingFormula.asInstanceOf[BinderFormula].bound
 
     
-    private val instDef: proof.Fact = {
+    protected val instDef: proof.Fact = {
       InstantiateForall(using SetTheoryLibrary, proof)(elem_bound)(definition)(
         definingFormula |- definingFormula.asInstanceOf[BinderFormula].body).validate(summon[sourcecode.Line], summon[sourcecode.File])
     }
@@ -116,16 +190,9 @@ object Fraenkels {
     //Add elimination to proof
     {
       val (compS, compI) = proof.sequentAndIntOfFact(mainFact of (A := t))
-
       val definU = definingFormula.underlying
       val exDefinU = K.BinderFormula(K.Exists, underlyingLabel, definU)
-
-
-      println(compS)
-      println(lisa.utils.parsing.FOLPrinter.prettyFormula(exDefinU))
-
       _proof.addElimination(definingFormula, (i, sequent) => 
-        
         val resSequent = (sequent.underlying -<< definU)
         List(
           SC.LeftExists(resSequent +<< exDefinU, i, definU, underlyingLabel),
@@ -153,7 +220,7 @@ object Fraenkels {
 
     val elem_bound = definingFormula.asInstanceOf[BinderFormula].bound
 
-    private val instDef: proof.Fact = {
+    protected val instDef: proof.Fact = {
       InstantiateForall(using SetTheoryLibrary, proof)(elem_bound)(definition)(definingFormula |- definingFormula.asInstanceOf[BinderFormula].body).validate(summon[sourcecode.Line], summon[sourcecode.File])
     }
 
@@ -208,11 +275,44 @@ object Fraenkels {
         throw new Exception(s"Name $name is already used in the proof")
       val id = name.value
       inline def _map = map
+      inline def _t = t
       val c = new Comprehension(_proof, t, lambda(x, top), map, id) {
-        override lazy val replacer: (Term**2) |-> Formula = lambda((A, B), B === _map(A))
+
+        override val instDef: proof.Fact = {
+          val elim_formula = (forall(elem_bound, in(elem_bound, B) <=> ∃(x, in(x, A) /\ P(x, elem_bound))).substitute(P := lambda((A, B), B === _map(A)), A := _t, B := this)).body
+
+          have(TacticSubproof(using proof) { 
+            val s = have(definingFormula |- definingFormula.asInstanceOf[BinderFormula].body) by InstantiateForall(elem_bound)(definition)
+            thenHave(definingFormula |- elim_formula) by Restate.from
+          })
+          
+            
+        }
       }
       c.asInstanceOf[Comprehension {val proof: _proof.type}]
     }
+
+    def filter(using _proof: Proof, name: sourcecode.Name)(filter: (Term**1) |-> Formula): Comprehension {val proof: _proof.type} = {
+      if (_proof.lockedSymbols ++ _proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id.name).contains(name.value) then
+        throw new Exception(s"Name $name is already used in the proof")
+      val id = name.value
+      inline def _filter = filter
+      inline def _t = t
+      val c = new Comprehension(_proof, t, filter, lambda(x, x), id) {
+
+        override val instDef: proof.Fact = {
+          have(TacticSubproof(using proof) {
+            val ex = new Variable(freshId(definingFormula.allSchematicLabels.map(_.id), "x"))
+            have(definingFormula |- definingFormula.asInstanceOf[BinderFormula].body) by InstantiateForall(elem_bound)(definition)
+            have(in(elem_bound, this) <=> ∃(ex, (ex === elem_bound) /\ in(ex, _t) /\ _filter(ex))) by Tautology.from(lastStep)
+            thenHave(in(elem_bound, this) <=> (in(elem_bound, _t) /\ _filter(elem_bound))) by Substitution.ApplyRules(onePointRule of (y := elem_bound, Q := lambda(ex, in(ex, _t) /\ _filter(ex))))
+          })
+        }
+
+      }
+      c.asInstanceOf[Comprehension {val proof: _proof.type}]
+    }
+
 
   }
 
