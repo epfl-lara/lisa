@@ -369,6 +369,12 @@ trait ProofsHelpers {
   import lisa.utils.parsing.FOLPrinter.prettySCProof
   import lisa.utils.KernelHelpers.apply
 
+  /**
+    * A term with a definition, local to a proof.
+    *
+    * @param proof
+    * @param id
+    */
   abstract class LocalyDefinedVariable(val proof: library.Proof, id: Identifier) extends Variable(id) {
     
     val definition: proof.Fact
@@ -379,7 +385,12 @@ trait ProofsHelpers {
   }
 
 
-  def pick(using _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: _proof.Fact): LocalyDefinedVariable {val proof: _proof.type} = {
+  /**
+    * A witness for a statement of the form ∃(x, P(x)) is a (fresh) variable y such that P(y) holds. This is a local definition, typically used with `val y = witness(fact)`
+    * where `fact` is a fact of the form `∃(x, P(x))`. The property P(y) can then be used with y.elim
+    * 
+    */
+  def witness(using _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: _proof.Fact): LocalyDefinedVariable {val proof: _proof.type} = {
 
     val (els, eli) = _proof.sequentAndIntOfFact(fact)
     els.right.head match

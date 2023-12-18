@@ -1192,7 +1192,7 @@ object Recursion extends lisa.Main {
     existsOne(x, P(x)) |- forall(y, forall(z, (P(y) /\ P(z)) ==> (y === z)))
   ) {
     val a1 = assume(exists(x, forall(y, P(y) <=> (y === x))))
-    val xe = pick(a1)
+    val xe = witness(a1)
     have(P(y) <=> (y === xe)) by InstantiateForall(y)(xe.definition)
     val py = thenHave(P(y) |- y === xe) by Weakening
     have(P(z) <=> (z === xe)) by InstantiateForall(z)(xe.definition)
