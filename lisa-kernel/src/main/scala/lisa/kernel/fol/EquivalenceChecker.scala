@@ -313,7 +313,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
 
     t match {
       case Term(label: VariableLabel, _) =>
-        if (subst.contains(i - label.id.no)) VariableTerm(VariableLabel(subst(i - label.id.no)))
+        if ((label.id.name == "x") && subst.contains(i - label.id.no)) VariableTerm(VariableLabel(subst(i - label.id.no)))
         else if (label.id.name.head == '$') VariableTerm(VariableLabel(Identifier(label.id.name.tail, label.id.no)))
         else {
           throw new Exception("This case should be unreachable, error")

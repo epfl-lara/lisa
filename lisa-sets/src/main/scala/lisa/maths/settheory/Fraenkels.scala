@@ -22,8 +22,9 @@ object FraenkelsThm extends lisa.Main {
   private val x = variable
   private val x_1 = variable
   private val y = variable
-  private val f = function[1]
   private val z = variable
+  private val f = function[1]
+  private val t = variable
   private val A = variable
   private val B = variable
   private val C = variable
@@ -135,6 +136,50 @@ object FraenkelsThm extends lisa.Main {
     thenHave(thesis) by RightExists
   }
 
+  val testFilter = Theorem(
+    ∃(x, Q(x)) |- ∃(z, ∀(t, in(t, z) <=> ∀(y, Q(y) ==> in(t, y))))
+  ) {
+    val s1 = assume(∃(x_1, Q(x_1)))
+    val x = pick(s1)
+    val z = x.filter(lambda(t, ∀(y, Q(y) ==> in(t, y))))
+    have(∀(y, Q(y) ==> in(t, y)) <=> (in(t, x) /\ ∀(y, Q(y) ==> in(t, y)))) by Tableau
+    have( in(t, z) <=> ∀(y, Q(y) ==> in(t, y)) ) by Substitution.ApplyRules(lastStep)(z.elim(t))
+    thenHave( ∀(t, in(t, z) <=> ∀(y, Q(y) ==> in(t, y))) ) by RightForall
+    thenHave(thesis) by RightExists
+
+    /*
+    have(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ φ(t))))) by InstFunSchema(Map(z -> x))(comprehensionSchema)
+    val conjunction = thenHave(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) by InstPredSchema(Map(φ -> lambda(t, ∀(y, P(y) ==> in(t, y)))))
+
+    have(∀(y, P(y) ==> in(t, y)) |- ∀(y, P(y) ==> in(t, y))) by Hypothesis
+    thenHave(∀(y, P(y) ==> in(t, y)) /\ P(x) |- ∀(y, P(y) ==> in(t, y))) by Weakening
+    thenHave(∀(y, P(y) ==> in(t, y)) /\ P(x) |- P(x) ==> in(t, x)) by InstantiateForall(x)
+    thenHave(∀(y, P(y) ==> in(t, y)) /\ P(x) |- in(t, x) /\ ∀(y, P(y) ==> in(t, y))) by Tautology
+    val fwd = thenHave(P(x) |- ∀(y, P(y) ==> in(t, y)) ==> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))) by Restate
+
+    have((in(t, x) /\ ∀(y, P(y) ==> in(t, y))) |- (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))) by Hypothesis
+    val bwd = thenHave((in(t, x) /\ ∀(y, P(y) ==> in(t, y))) ==> (∀(y, P(y) ==> in(t, y)))) by Restate
+
+    val lhs = have(P(x) |- ∀(y, P(y) ==> in(t, y)) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))) by RightIff(fwd, bwd)
+
+    val form = formulaVariable
+    have((in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))) |- in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))) by Hypothesis
+    val rhs = thenHave(
+      Set((in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))), (∀(y, P(y) ==> in(t, y)) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y))))) |- (in(t, z) <=> (∀(y, P(y) ==> in(t, y))))
+    ) by RightSubstIff(List((∀(y, P(y) ==> in(t, y)), (in(t, x) /\ ∀(y, P(y) ==> in(t, y))))), lambda(form, in(t, z) <=> (form)))
+
+    have((P(x), (in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y))))) |- in(t, z) <=> (∀(y, P(y) ==> in(t, y)))) by Cut(lhs, rhs)
+    thenHave((P(x), ∀(t, (in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) |- in(t, z) <=> (∀(y, P(y) ==> in(t, y)))) by LeftForall
+    thenHave((P(x), ∀(t, (in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) |- ∀(t, in(t, z) <=> (∀(y, P(y) ==> in(t, y))))) by RightForall
+    thenHave((P(x), ∀(t, (in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) |- ∃(z, ∀(t, in(t, z) <=> (∀(y, P(y) ==> in(t, y)))))) by RightExists
+    val cutRhs = thenHave((P(x), ∃(z, ∀(t, (in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y))))))) |- ∃(z, ∀(t, in(t, z) <=> (∀(y, P(y) ==> in(t, y)))))) by LeftExists
+
+    have(P(x) |- ∃(z, ∀(t, in(t, z) <=> (∀(y, P(y) ==> in(t, y)))))) by Cut(conjunction, cutRhs)
+    thenHave(∃(x, P(x)) |- ∃(z, ∀(t, in(t, z) <=> (∀(y, P(y) ==> in(t, y)))))) by LeftExists
+    */
+
+  }
+
 
   //Cantor's Theorem with filter
 
@@ -169,7 +214,7 @@ object Fraenkels {
     private val mainFact = have(
       ∃(B, ∀(y, in(y, B) <=> ∃(x, in(x, A) /\ P(x, y)))).substitute(P := replacer)
     ) subproof {
-      have(thesis) by Tautology.from(primReplacement of (P := replacer), functionalIsFunctional of (Filter := filter, Map := map))
+      val s = have(thesis) by Tautology.from(primReplacement of (P := replacer), functionalIsFunctional of (Filter := filter, Map := map))
     }
 
     /**
@@ -181,8 +226,7 @@ object Fraenkels {
 
     
     protected val instDef: proof.Fact = {
-      InstantiateForall(using SetTheoryLibrary, proof)(elem_bound)(definition)(
-        definingFormula |- definingFormula.asInstanceOf[BinderFormula].body).validate(summon[sourcecode.Line], summon[sourcecode.File])
+      have(definingFormula |- definingFormula.asInstanceOf[BinderFormula].body) by InstantiateForall(using SetTheoryLibrary, proof)(elem_bound)(definition)
     }
 
     def elim(elem: Term) = instDef of (elem_bound := elem)
