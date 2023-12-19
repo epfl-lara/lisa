@@ -36,6 +36,18 @@ object Comprehensions {
 
   //Comprehension
 
+  /**
+    * A Comprehension is a local definition of a set from a base set, a filter and a map. In Set builder notation, it denotes
+    * {map(x) | x in A /\ filter(x)}.
+    * It is represented by a variable usable locally in the proof. The assumptions corresponding to the definition of that variable are automatically eliminated.
+    * To obtain the defining property of the comprehension, use the [[elim]] fact.
+    *
+    * @param _proof the [[Proof]] in which the comprehension is valid
+    * @param t The base set
+    * @param filter A filter on elements of the base set
+    * @param map A map from elements of the base set to elements of the comprehension
+    * @param id The identifier of the variable encoding the comprehension.
+    */
   class Comprehension(_proof: Proof, val t: Term, val filter: (Term**1) |-> Formula, val map: (Term**1) |-> Term, id:Identifier) extends LocalyDefinedVariable(_proof, id) {
     given proof.type = proof
 
@@ -59,6 +71,11 @@ object Comprehensions {
       have(definingFormula |- definingFormula.asInstanceOf[BinderFormula].body) by InstantiateForall(using SetTheoryLibrary, proof)(elem_bound)(definition)
     }
 
+    /**
+      * `in(elem, B) <=> ∃(x, in(x, A) /\ filter(x) /\ (elem === map(x))`
+      * if built with term.map, `in(elem, B) <=> ∃(x, in(x, A) /\ (elem === map(x))`
+      * if built with term.filter, `in(elem, B) <=> (in(elem, t) /\ filter(elem))`
+      */
     def elim(elem: Term) = instDef of (elem_bound := elem)
 
     //Add elimination to proof
@@ -73,6 +90,8 @@ object Comprehensions {
           SC.Cut(resSequent, compI, i+1, exDefinU)
       ))
     }
+
+    override def toStringFull: String = s"$id{${map(elem_bound)} | ${elem_bound} ∈ $t /\ ${filter(elem_bound) }]}"
   }
 
 
@@ -87,9 +106,7 @@ object Comprehensions {
   class Replacement(_proof: Proof, val t: Term, val replacer: (Term**2) |-> Formula, id:Identifier) extends LocalyDefinedVariable(_proof, id) {
     given proof.type = proof
 
-    /**
-      * forall(x, in(x, y) <=> (in(x, t) /\ φ(x)))
-      */
+    
     override val definition: proof.Fact = assume(using proof)(innerRepl(this, replacer, t))
 
     val elem_bound = definingFormula.asInstanceOf[BinderFormula].bound
@@ -117,7 +134,7 @@ object Comprehensions {
 
 
     /**
-      * in(elem, y) <=> (in(elem, t) /\ φ(elem))
+      * in(elem, y) <=> ∃(x, in(x, t) /\ replacer(x, y) /\ ∀(z, P(x, z) ==> (z === y))
       */
     def elim(elem: Term): proof.Fact = instDef of (elem_bound := elem)
 

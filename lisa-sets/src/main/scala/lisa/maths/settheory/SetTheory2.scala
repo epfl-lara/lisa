@@ -64,7 +64,7 @@ object SetTheory2 extends lisa.Main {
   ) {
     val s1 = have(∃(x, (x===y) /\ Q(x)) ==> Q(y)) subproof {
       assume(∃(x, (x===y) /\ Q(x)))
-      val ex = pick(lastStep)
+      val ex = witness(lastStep)
       val s1 = have(Q(ex)) by Tautology.from(ex.definition)
       val s2 = have(ex === y) by Tautology.from(ex.definition)
       have(Q(y)) by Substitution.ApplyRules(s2)(s1)
@@ -79,6 +79,9 @@ object SetTheory2 extends lisa.Main {
   }
 
 
+  /**
+    * Theorem - `∃(x_1, in(x_1, singleton(∅)) /\ (x === f(x_1))) <=> (x === f(∅))`
+    */
   val singletonMap = Lemma(
     ∃(x_1, in(x_1, singleton(∅)) /\ (x === f(x_1))) <=> (x === f(∅))
   ) {
