@@ -111,7 +111,7 @@ $e \in B \iff (\exists x. x \in A \land P(x, e) \land \forall z. \psi(x, z) \imp
 Moreover, we most often want to map a set by a known function. In those case, LISA provides refined versions \lstinline|t.filter|, \lstinline|t.map| and \lstinline|t.collect|, which are detailed in table \ref{tab:comprehensions}. In particular, these versions already prove the functionality requirement of replacement.
 \begin{table}[h]
   \begin{tabular}{l|l}
-    \textbf{\lstinline|val c = |} & \textbf{\lstinline|x.elim(e)|} \\ \hline
+    \textbf{\lstinline|val c = |} & \textbf{\lstinline|c.elim(e)|} \\ \hline
     \lstinline|t.replace(P)| & $e \in c \iff (\exists x. x \in t \land P(x, e) \land ∀ z. P(x, z) \implies z = e)$ \\
     \lstinline|t.collect(F, M)| & $e \in c \iff (\exists x. x \in t \land F(x) \land M(x) = e)$ \\
     \lstinline|t.map(M)| & $e \in c \iff (\exists x. x \in t \land M(x) = e)$ \\
