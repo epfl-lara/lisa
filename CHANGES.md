@@ -4,10 +4,13 @@
 Introduction of local definitions, with methods `witness`, `t.replace`, `t.collect`, `t.map` and `t.filter`. Update of the manual, describing how those work, along with some corrections to the statement of axioms ot match LISA's presentation. Include test cases using each, and proved some required theorems. Fix an error in the reconstruction of OL-normalized formulas used in some tactics.
 
 ## 2023-12-06
+Re-added discovery of formulas which could not be substituted for error reporting to `Substitution.ApplyRules`
+
 Upgrade to Scala 3.3.1
 
 - the `Proof` class has been temporarily unsealed, till [lampepfl/dotty#19031](https://github.com/lampepfl/dotty/issues/19031) / [epfl-lara/lisa#190](https://github.com/epfl-lara/lisa/issues/190) is fixed
 - minor fixes to address compilation errors, mostly involving explicitly specifying types or implicits in some places.
+
 
 ## 2023-12-02
 Creation of the present Change Liste, going back to October 2023
