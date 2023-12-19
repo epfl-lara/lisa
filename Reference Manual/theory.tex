@@ -106,7 +106,7 @@ LISA allows to write, for an arbitrary term \lstinline|t| and lambda expression 
   \lstinline|val c = t.replace(P)|
 \end{center}
 One can then use \lstinline|c.elim(e)| to obtain the fact 
-$$e \in B \iff (\exists x. x \in A \land P(x, e) \land ∀ z. \psi(x, z) \implies z = y)$$. As in the case of local definitions, this statement will automatically be eliminated from the context at the end of the proof.
+$e \in B \iff (\exists x. x \in A \land P(x, e) \land \forall z. \psi(x, z) \implies z = y)$. As in the case of local definitions, this statement will automatically be eliminated from the context at the end of the proof.
 
 Moreover, we most often want to map a set by a known function. In those case, LISA provides refined versions \lstinline|t.filter|, \lstinline|t.map| and \lstinline|t.collect|, which are detailed in table \ref{tab:comprehensions}. In particular, these versions already prove the functionality requirement of replacement.
 \begin{table}[h]
@@ -120,3 +120,5 @@ Moreover, we most often want to map a set by a known function. In those case, LI
   \caption{Comprehensions in LISA}
   \label{tab:comprehensions}
 \end{table}
+
+Note that each of those expressions is represented as a variable symbol in the kernel proof, and the definitions are only valid inside the current proof. They should not appear in theorem statements (in which case they should be properly introduced as defined constants).
