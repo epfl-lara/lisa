@@ -4,10 +4,11 @@ import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
-import Ordinals.*
 import lisa.maths.settheory.orderings.PartialOrders.*
 import lisa.maths.settheory.orderings.Segments.*
 import lisa.maths.settheory.orderings.WellOrders.*
+
+import Ordinals.*
 
 object Induction extends lisa.Main {
 

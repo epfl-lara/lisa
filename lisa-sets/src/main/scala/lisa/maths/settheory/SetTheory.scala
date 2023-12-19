@@ -3,6 +3,7 @@ package lisa.maths.settheory
 import lisa.automation.kernel.CommonTactics.Definition
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
+
 import scala.collection.immutable.{Map => ScalaMap}
 
 /**
@@ -852,7 +853,6 @@ object SetTheory extends lisa.Main {
   ) {
     have(∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))) by UniqueComprehension(x, lambda(t, in(t, y)))
   }
-
 
   /**
    * Binary Set Intersection --- Intersection of two sets.
@@ -3679,6 +3679,4 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, domainOfRelationalUnion)
   }
 
-
-  
 }

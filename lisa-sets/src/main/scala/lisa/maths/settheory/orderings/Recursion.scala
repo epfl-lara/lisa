@@ -5,10 +5,11 @@ import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
 import lisa.maths.settheory.orderings.Induction.*
-import Ordinals.*
 import lisa.maths.settheory.orderings.PartialOrders.*
 import lisa.maths.settheory.orderings.Segments.*
 import lisa.maths.settheory.orderings.WellOrders.*
+
+import Ordinals.*
 
 /**
  * This file is dedicated to proving the well-ordered and transfinite recursion
@@ -1209,7 +1210,7 @@ object Recursion extends lisa.Main {
   private val R = predicate[2]
   val strictReplacementSchema = Theorem(
     forall(x, in(x, A) ==> existsOne(y, R(x, y)))
-    |- exists(B, forall(y, in(y, B) <=> exists(x, in(x, A) /\ R(x, y))))
+      |- exists(B, forall(y, in(y, B) <=> exists(x, in(x, A) /\ R(x, y))))
   ) {
     assume(forall(x, in(x, A) ==> existsOne(y, R(x, y))))
     thenHave(in(x, A) ==> existsOne(y, R(x, y))) by InstantiateForall(x)
