@@ -360,8 +360,6 @@ trait ProofsHelpers {
     library.last = Some(this)
   }
 
-
-
   /////////////////////////
   //  Local Definitions  //
   /////////////////////////
@@ -370,61 +368,52 @@ trait ProofsHelpers {
   import lisa.utils.KernelHelpers.apply
 
   /**
-    * A term with a definition, local to a proof.
-    *
-    * @param proof
-    * @param id
-    */
+   * A term with a definition, local to a proof.
+   *
+   * @param proof
+   * @param id
+   */
   abstract class LocalyDefinedVariable(val proof: library.Proof, id: Identifier) extends Variable(id) {
-    
+
     val definition: proof.Fact
     lazy val definingFormula = proof.sequentOfFact(definition).right.head
 
-    //proof.addDefinition(this, defin(this), fact)
-    //val definition: proof.Fact = proof.getDefinition(this)
+    // proof.addDefinition(this, defin(this), fact)
+    // val definition: proof.Fact = proof.getDefinition(this)
   }
 
-
   /**
-    * A witness for a statement of the form ∃(x, P(x)) is a (fresh) variable y such that P(y) holds. This is a local definition, typically used with `val y = witness(fact)`
-    * where `fact` is a fact of the form `∃(x, P(x))`. The property P(y) can then be used with y.elim
-    * 
-    */
-  def witness(using _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: _proof.Fact): LocalyDefinedVariable {val proof: _proof.type} = {
+   * A witness for a statement of the form ∃(x, P(x)) is a (fresh) variable y such that P(y) holds. This is a local definition, typically used with `val y = witness(fact)`
+   * where `fact` is a fact of the form `∃(x, P(x))`. The property P(y) can then be used with y.elim
+   */
+  def witness(using _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: _proof.Fact): LocalyDefinedVariable { val proof: _proof.type } = {
 
     val (els, eli) = _proof.sequentAndIntOfFact(fact)
     els.right.head match
       case Exists(x, inner) =>
         val id = freshId((els.allSchematicLabels ++ _proof.lockedSymbols ++ _proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id), name.value)
-        val c: LocalyDefinedVariable = new LocalyDefinedVariable(_proof, id){ val definition = assume(using proof)(inner.substitute(x := this))}
+        val c: LocalyDefinedVariable = new LocalyDefinedVariable(_proof, id) { val definition = assume(using proof)(inner.substitute(x := this)) }
         val defin = c.definingFormula
         val definU = defin.underlying
         val exDefinU = K.Exists(c.underlyingLabel, definU)
 
-        if els.right.size != 1 || !K.isSame(els.right.head.underlying, exDefinU) then 
+        if els.right.size != 1 || !K.isSame(els.right.head.underlying, exDefinU) then
           throw new UserInvalidDefinitionException(c.id, "Eliminator fact for " + c + " in a definition should have a single formula, equivalent to " + exDefinU + ", on the right side.")
-        
-        _proof.addElimination(defin, (i, sequent) => 
-          val resSequent = (sequent.underlying -<< definU)
-          List(
-            SC.LeftExists(resSequent +<< exDefinU, i, definU, c.underlyingLabel),
-            SC.Cut(resSequent ++<< els.underlying, eli, i+1, exDefinU)
-        ))
 
-        c.asInstanceOf[LocalyDefinedVariable {val proof: _proof.type}]
+        _proof.addElimination(
+          defin,
+          (i, sequent) =>
+            val resSequent = (sequent.underlying -<< definU)
+            List(
+              SC.LeftExists(resSequent +<< exDefinU, i, definU, c.underlyingLabel),
+              SC.Cut(resSequent ++<< els.underlying, eli, i + 1, exDefinU)
+            )
+        )
+
+        c.asInstanceOf[LocalyDefinedVariable { val proof: _proof.type }]
 
       case _ => throw new Exception("Pick is used to obtain a witness of an existential statement.")
 
   }
-
-
-
-
-
-
-
-
-
-
 
 }

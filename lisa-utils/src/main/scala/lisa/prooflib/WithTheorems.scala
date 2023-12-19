@@ -8,8 +8,8 @@ import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.UserLisaException.*
-import lisa.utils.parsing.UnreachableException
 import lisa.utils.parsing.FOLPrinter.prettySCProof
+import lisa.utils.parsing.UnreachableException
 
 import scala.annotation.nowarn
 import scala.collection.mutable.Buffer as mBuf
@@ -142,13 +142,17 @@ trait WithTheorems {
       val (s1, t1) = sequentAndIntOfFact(ji)
       val f = s1.right.head
       val fu = f.underlying
-      addElimination(f, (i, sequent) => List( 
-        SC.Cut((sequent.underlying -<< fu) ++ (s1.underlying ->> fu), t1, i, fu) 
-      ))
+      addElimination(
+        f,
+        (i, sequent) =>
+          List(
+            SC.Cut((sequent.underlying -<< fu) ++ (s1.underlying ->> fu), t1, i, fu)
+          )
+      )
     }
-/*
+    /*
     def addDefinition(v: LocalyDefinedVariable, defin: F.Formula): Unit = {
-      if localdefs.contains(v) then 
+      if localdefs.contains(v) then
         throw new UserInvalidDefinitionException("v", "Variable already defined with" + v.definition + " in current proof")
       else {
         localdefs(v) = defin
@@ -156,7 +160,7 @@ trait WithTheorems {
       }
     }
     def getDefinition(v: LocalyDefinedVariable): Fact = localdefs(v)._2
-*/
+     */
 
     // Getters
 
@@ -188,7 +192,7 @@ trait WithTheorems {
         val (cumul, bot) = cumul_bot
         val (f, elim) = f_elim
         val i = cumul.size
-        val elimSteps = elim(i-1, bot)
+        val elimSteps = elim(i - 1, bot)
         (elimSteps.foldLeft(cumul)((cumul2, step) => step :: cumul2), bot -<< f)
       }
 
