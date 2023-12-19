@@ -1,5 +1,8 @@
 # Change List
 
+## 2023-12-19
+Introduction of local definitions, with methods `witness`, `t.replace`, `t.collect`, `t.map` and `t.filter`. Update of the manual, describing how those work, along with some corrections to the statement of axioms ot match LISA's presentation. Include test cases using each, and proved some required theorems. Fix an error in the reconstruction of OL-normalized formulas used in some tactics.
+
 ## 2023-12-06
 Upgrade to Scala 3.3.1
 

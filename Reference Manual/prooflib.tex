@@ -21,7 +21,6 @@ object MyTheoryName extends lisa.Main {
     have(thesis) by Tautology.from(step1, step2)
   } 
 
-
   val emptySetIsASubset = Theorem(
     ∅ ⊆ x
   ) {
@@ -40,7 +39,59 @@ object MyTheoryName extends lisa.Main {
 
 In this chapter, we will describe how each of these construct is made possible and how they translate to statements in the Kernel.
 
-\section*{WIP}
+\section{Richer FOL}
+
+
+
+\section{Proof Builders}
+
+\subsection{Proofs}
+
+\subsection{Facts}
+
+\subsection{Instantiations}
+
+\subsection{Local Definitions}
+\label{sec:localDefinitions}
+The following line of reasonning is standard in mathematical proofs. Suppose we have already proven the following fact:
+$$\exists x. P(x)$$
+And want to prove the property $\phi$.
+A proof of $\phi$ using the previous theorem would naturally be obtained the following way:
+\begin{quotation}
+  Since we have proven $\exists x. P(x)$, let $c$ be an arbitrary value such that $P(c)$ holds.
+  Hence we prove $\phi$, using the fact that $P(c)$: (...).
+\end{quotation}
+However, introducing a definition locally corresponding to a statement of the form
+$$\exists x. P(x)$$
+is not a built-in feature of first order logic.  This can however be simulated by introducing a fresh variable symbol $c$, that must stay fresh in the rest of the proof, and the assumption $P(c)$. The rest of the proof is then carried out under this assumption. When the proof is finished, the end statement should not contain $c$ free as it is a \textit{local} definition, and the assumption can be eliminated using the LeftExists and Cut rules. Such a $c$ is called a \textit{witness}. 
+Formally, the proof in (...) is a proof of $P(c) \vdash \phi$. This can be transformed into a proof of $\phi$ by mean of the following steps:
+\begin{center}
+  \AxiomC{$P(c) \vdash \phi$}
+  \UnaryInfC{$\exists x. P(x) \vdash  \phi$}
+  \RightLabel{\text { LeftExists}}
+  \AxiomC{$\exists x. P(x)$}
+  \RightLabel{\text { Cut}}
+  \BinaryInfC{$\phi$}
+\end{center}
+Not that for this step to be correct, $c$ must not be free in $\phi$. This correspond to the fact that $c$ is an arbitrary free symbol.
+
+This simulation is provided by LISA through the \lstinline|witness|{} method. It takes as argument a fact showing $\exists x. P(x)$, and introduce a new symbol with the desired property. For an example, see figure \ref{fig:localDefinitionExample}.
+
+\begin{figure}
+  \begin{lstlisting}[language=lisa, frame=single]
+    val existentialAxiom = Axiom(exists(x, in(x, emptySet)))
+    val falso = Theorem(⊥) {
+      val c = witness(existentialAxiom)
+      have(⊥) by Tautology.from(
+            c.definition, emptySetAxiom of (x:= c))
+    }
+  \end{lstlisting}
+  \caption{An example use of local definitions in LISA}
+  \label{fig:localDefinitionExample}
+  \end{figure}
+
+
+\section{DSL}
 
 %It is important to note that when multiple such files are developed, they all use the same underlying \lstinline|RunningTheory|{}. This makes it possible to use results proved previously by means of a simple \lstinline|import|{} statement as one would import a regular object. Similarly, one should also import as usual automation and tactics developed alongside. It is expected in the medium term that \lstinline|lisa.Main|{} will come with basic automation.
 %All imported theory objects will be run through as well, but only the result of the selected one will be printed.
