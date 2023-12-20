@@ -30,7 +30,6 @@ trait Common {
 
   extension [T, N <: Arity](self: T ** N) {
     def toSeq: Seq[T] = self
-    def map[U](f: T => U): U ** N = self.map(f)
 
   }
 
@@ -747,6 +746,10 @@ trait Common {
 
     def applyUnsafe(arg: (Variable, Formula)): BinderFormula = BinderFormula(this, arg._1, arg._2)
     def apply(v: Variable, f: Formula): BinderFormula = applyUnsafe((v, f))
+    def unapply(b: BinderFormula): Option[(Variable, Formula)] = b match {
+      case BinderFormula(label, v, f) if (label == this) => Some((v, f))
+      case _ => None
+    }
     inline def freeSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     inline def allSchematicLabels: Set[SchematicLabel[?]] = Set.empty
     inline def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): this.type = this
