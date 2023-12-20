@@ -8,6 +8,7 @@ import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.UserLisaException.*
+import lisa.utils.parsing.FOLPrinter.prettySCProof
 import lisa.utils.parsing.UnreachableException
 
 import scala.annotation.nowarn
@@ -58,7 +59,7 @@ trait WithTheorems {
     private var imports: List[(OutsideFact, F.Sequent)] = Nil
     private var instantiatedFacts: List[(InstantiatedFact, Int)] = Nil
     private var assumptions: List[F.Formula] = assump
-    private var discharges: List[Fact] = Nil
+    private var eliminations: List[(F.Formula, (Int, F.Sequent) => List[K.SCProofStep])] = Nil
 
     /**
      * the theorem that is being proved (paritally, if subproof) by this proof.
@@ -133,9 +134,33 @@ trait WithTheorems {
       if (!assumptions.contains(f)) assumptions = f :: assumptions
     }
 
-    def addDischarge(ji: Fact): Unit = {
-      if (!discharges.contains(ji)) discharges = ji :: discharges
+    def addElimination(f: F.Formula, elim: (Int, F.Sequent) => List[K.SCProofStep]): Unit = {
+      eliminations = (f, elim) :: eliminations
     }
+
+    def addDischarge(ji: Fact): Unit = {
+      val (s1, t1) = sequentAndIntOfFact(ji)
+      val f = s1.right.head
+      val fu = f.underlying
+      addElimination(
+        f,
+        (i, sequent) =>
+          List(
+            SC.Cut((sequent.underlying -<< fu) ++ (s1.underlying ->> fu), t1, i, fu)
+          )
+      )
+    }
+    /*
+    def addDefinition(v: LocalyDefinedVariable, defin: F.Formula): Unit = {
+      if localdefs.contains(v) then
+        throw new UserInvalidDefinitionException("v", "Variable already defined with" + v.definition + " in current proof")
+      else {
+        localdefs(v) = defin
+        addAssumption(defin)
+      }
+    }
+    def getDefinition(v: LocalyDefinedVariable): Fact = localdefs(v)._2
+     */
 
     // Getters
 
@@ -157,27 +182,25 @@ trait WithTheorems {
     def getAssumptions: List[F.Formula] = assumptions
 
     /**
-     * @return The list of Formula, typically proved by outer theorems or axioms that will get discharged in the end of the proof.
-     */
-    def getDischarges: List[Fact] = discharges
-
-    /**
      * Produce the low level [[K.SCProof]] corresponding to the proof. Automatically eliminates any formula in the discharges that is still left of the sequent.
      *
      * @return
      */
     def toSCProof: K.SCProof = {
       import lisa.utils.KernelHelpers.{-<<, ->>}
-      val finalSteps = discharges.foldLeft(steps.map(_.scps))((cumul, next) => {
-        val (s1, t1) = sequentAndIntOfFact(next)
-        val s = s1.underlying
-        val lastStep = cumul.head
-        val t2 = cumul.length - 1
-        SC.Cut((lastStep.bot -<< s.right.head) ++ (s ->> s.right.head), t1, t2, s.right.head) :: cumul
-      })
+      val finalSteps = eliminations.foldLeft[(List[SC.SCProofStep], F.Sequent)]((steps.map(_.scps), steps.head.bot)) { (cumul_bot, f_elim) =>
+        val (cumul, bot) = cumul_bot
+        val (f, elim) = f_elim
+        val i = cumul.size
+        val elimSteps = elim(i - 1, bot)
+        (elimSteps.foldLeft(cumul)((cumul2, step) => step :: cumul2), bot -<< f)
+      }
 
-      K.SCProof(finalSteps.reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
+      val r = K.SCProof(finalSteps._1.reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
+      r
     }
+
+    def currentSCProof: K.SCProof = K.SCProof(steps.map(_.scps).reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
 
     /**
      * For a fact, returns the sequent that the fact proove and the position of the fact in the proof.

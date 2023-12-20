@@ -143,7 +143,7 @@ object CommonTactics {
         case Some(value: lib.FunctionDefinition[?]) => value
         case _ => return proof.InvalidProofTactic("Could not get definition of function.")
       }
-      val method: (F.ConstantFunctionLabel[?], proof.Fact) => Seq[F.Term] => F.Sequent => proof.ProofTacticJudgement = 
+      val method: (F.ConstantFunctionLabel[?], proof.Fact) => Seq[F.Term] => F.Sequent => proof.ProofTacticJudgement =
         expr.f.substituteUnsafe(expr.vars.zip(xs).toMap) match {
           case F.AppliedConnector(
                 F.And,
