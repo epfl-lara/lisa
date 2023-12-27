@@ -374,6 +374,34 @@ object SCProofChecker {
                 )
             else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
 
+          case LeftSubstEq2(b, t1, equals, lambdaPhi) =>
+            val (s_es, t_es) = equals.unzip
+            val (phi_args, phi_body) = lambdaPhi
+
+            val phi_s_for_f = instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
+            val phi_t_for_f = instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
+            val sEqT_es = equals map { 
+              case (s, t) => 
+                assert(s.vars.size == t.vars.size)
+                val base = AtomicFormula(equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(VariableTerm))))
+                (s.vars).foldLeft(base: Formula) { case (acc, s_arg) => BinderFormula(Forall, s_arg, acc) }
+              }
+
+            if (isSameSet(b.right, ref(t1).right))
+              if (
+                isSameSet(b.left + phi_t_for_f, ref(t1).left ++ sEqT_es + phi_s_for_f) ||
+                isSameSet(b.left + phi_s_for_f, ref(t1).left ++ sEqT_es + phi_t_for_f)
+              )
+                SCValidProof(SCProof(step))
+              else
+                SCInvalidProof(
+                  SCProof(step),
+                  Nil,
+                  "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped)."
+                )
+            else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
+
+
           /*
            *    Γ |- φ(s_), Δ
            * ---------------------
