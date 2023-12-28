@@ -4,10 +4,11 @@ import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
-import lisa.maths.settheory.orderings.Ordinals.*
 import lisa.maths.settheory.orderings.PartialOrders.*
 import lisa.maths.settheory.orderings.Segments.*
 import lisa.maths.settheory.orderings.WellOrders.*
+
+import Ordinals.*
 
 object Induction extends lisa.Main {
 
@@ -76,7 +77,7 @@ object Induction extends lisa.Main {
 
       // z exists by comprehension
       val zExists = have(exists(z, zDef)) subproof {
-        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda((t, x), !Q(t)))
+        have(existsOne(z, zDef)) by UniqueComprehension(A, lambda(t, !Q(t)))
         have(thesis) by Cut(lastStep, existsOneImpliesExists of P -> lambda(z, zDef))
       }
 

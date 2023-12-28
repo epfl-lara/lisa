@@ -35,7 +35,7 @@ trait ProofsHelpers {
       }
     }
 
-    infix def subproof(using proof: Library#Proof, om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(computeProof: proof.InnerProof ?=> Unit): proof.ProofStep = {
+    infix def subproof(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(computeProof: proof.InnerProof ?=> Unit): proof.ProofStep = {
       val botWithAssumptions = HaveSequent.this.bot ++ (proof.getAssumptions |- ())
       val iProof: proof.InnerProof = new proof.InnerProof(Some(botWithAssumptions))
       computeProof(using iProof)
@@ -124,6 +124,7 @@ trait ProofsHelpers {
     def of(insts: F.SubstPair*): proof.InstantiatedFact = {
       proof.InstantiatedFact(fact, insts)
     }
+    def statement: F.Sequent = proof.sequentOfFact(fact)
   }
 
   def currentProof(using p: library.Proof): Library#Proof = p
@@ -146,24 +147,30 @@ trait ProofsHelpers {
   class The(val out: Variable, val f: Formula)(
       val just: JUSTIFICATION
   )
-  class definitionWithVars[N <: Arity](val args: Variable *** N) {
+  class definitionWithVars[N <: Arity](val args: Seq[Variable]) {
 
     // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: Term) = simpleDefinition(lambda(args, t, args.length))
     // inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(f: Formula) = predicateDefinition(lambda(args, f, args.length))
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantFunctionLabelOfArity[N] =
-      FunctionDefinition[N](name.value, line.value, file.value)(args.toSeq, t.out, t.f, t.just).label
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(t: The): ConstantTermLabelOfArity[N] =
+      FunctionDefinition[N](name.value, line.value, file.value)(args, t.out, t.f, t.just).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantFunctionLabelOfArity[N] =
-      SimpleFunctionDefinition[N](name.value, line.value, file.value)(lambda(args.toSeq, term).asInstanceOf).label
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Term): ConstantTermLabelOfArity[N] =
+      SimpleFunctionDefinition[N](name.value, line.value, file.value)(lambda(args, term).asInstanceOf).label
 
-    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantPredicateLabelOfArity[N] =
-      PredicateDefinition[N](name.value, line.value, file.value)(lambda(args.toSeq, formula).asInstanceOf).label
+    inline infix def -->(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(formula: Formula): ConstantAtomicLabelOfArity[N] =
+      PredicateDefinition[N](name.value, line.value, file.value)(lambda(args, formula).asInstanceOf).label
 
   }
 
-  def DEF[N <: Arity, T <: Tuple](args: T)(using Tuple.Size[T] =:= N, Tuple.Union[T] <:< Variable): definitionWithVars[N] = new definitionWithVars[N](args.asInstanceOf)
-  def DEF(arg: Variable): definitionWithVars[1] = new definitionWithVars[1](EmptyTuple.*:[Variable, EmptyTuple](arg)) // todo conversion to empty tuple gets bad type
+  def DEF(): definitionWithVars[0] = new definitionWithVars[0](Nil)
+  def DEF(a: Variable): definitionWithVars[1] = new definitionWithVars[1](Seq(a))
+  def DEF(a: Variable, b: Variable): definitionWithVars[2] = new definitionWithVars[2](Seq(a, b))
+  def DEF(a: Variable, b: Variable, c: Variable): definitionWithVars[3] = new definitionWithVars[3](Seq(a, b, c))
+  def DEF(a: Variable, b: Variable, c: Variable, d: Variable): definitionWithVars[4] = new definitionWithVars[4](Seq(a, b, c, d))
+  def DEF(a: Variable, b: Variable, c: Variable, d: Variable, e: Variable): definitionWithVars[5] = new definitionWithVars[5](Seq(a, b, c, d, e))
+  def DEF(a: Variable, b: Variable, c: Variable, d: Variable, e: Variable, f: Variable): definitionWithVars[6] = new definitionWithVars[6](Seq(a, b, c, d, e, f))
+  def DEF(a: Variable, b: Variable, c: Variable, d: Variable, e: Variable, f: Variable, g: Variable): definitionWithVars[7] = new definitionWithVars[7](Seq(a, b, c, d, e, f, g))
 
   // def DEF: definitionWithVars[0] = new definitionWithVars[0](EmptyTuple) //todo conversion to empty tuple gets bad type
 
@@ -178,12 +185,13 @@ trait ProofsHelpers {
       val f: F.Formula,
       j: JUSTIFICATION
   ) extends DEFINITION(line, file) {
+    def funWithArgs = label.applySeq(vars)
     override def repr: String =
-      s" ${if (withSorry) " Sorry" else ""} Definition of function symbol ${label(vars)} := the ${out} such that ${(out === label(vars)) <=> f})\n"
+      s" ${if (withSorry) " Sorry" else ""} Definition of function symbol ${funWithArgs} := the ${out} such that ${(out === funWithArgs) <=> f})\n"
 
     // val expr = LambdaExpression[Term, Formula, N](vars, f, valueOf[N])
 
-    lazy val label: ConstantFunctionLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
+    lazy val label: ConstantTermLabelOfArity[N] = (if (vars.length == 0) F.Constant(name) else F.ConstantFunctionLabel[N](name, vars.length.asInstanceOf)).asInstanceOf
 
     val innerJustification: theory.FunctionDefinition = {
       val conclusion: F.Sequent = j.statement
@@ -209,8 +217,8 @@ trait ProofsHelpers {
       }
       val proven = conclusion.right.head match {
         case F.BinderFormula(F.ExistsOne, bound, inner) => inner
-        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.ConnectorFormula(F.Iff, Seq(l, r)))) if F.isSame(l, x === y) => r
-        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.ConnectorFormula(F.Iff, Seq(l, r)))) if F.isSame(r, x === y) => l
+        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(l, x === y) => r
+        case F.BinderFormula(F.Exists, x, F.BinderFormula(F.Forall, y, F.AppliedConnector(F.Iff, Seq(l, r)))) if F.isSame(r, x === y) => l
         case _ =>
           om.lisaThrow(
             UserInvalidDefinitionException(
@@ -266,13 +274,7 @@ trait ProofsHelpers {
       () |- F.Forall(
         out,
         Iff(
-          equality(
-            (label match {
-              case l: F.Constant => l
-              case l: F.ConstantFunctionLabel[?] => l(vars)
-            }),
-            out
-          ),
+          equality(label.applySeq(vars), out),
           f
         )
       )
@@ -306,11 +308,11 @@ trait ProofsHelpers {
     lazy val vars: Seq[F.Variable] = lambda.bounds.asInstanceOf
     val arity = lambda.arity
 
-    lazy val label: ConstantPredicateLabelOfArity[N] = {
+    lazy val label: ConstantAtomicLabelOfArity[N] = {
       (
         if (vars.length == 0) F.ConstantFormula(name)
         else F.ConstantPredicateLabel[N](name, vars.length.asInstanceOf[N])
-      ).asInstanceOf[ConstantPredicateLabelOfArity[N]]
+      ).asInstanceOf[ConstantAtomicLabelOfArity[N]]
     }
 
     val innerJustification: theory.PredicateDefinition = {
@@ -354,14 +356,64 @@ trait ProofsHelpers {
       }
     }
 
-    val statement: F.Sequent = () |- Iff(
-      (label match {
-        case l: F.ConstantFormula => l
-        case l: F.ConstantPredicateLabel[?] => l(vars)
-      }),
-      lambda.body
-    )
-
+    val statement: F.Sequent = () |- Iff(label.applySeq(vars), lambda.body)
     library.last = Some(this)
   }
+
+  /////////////////////////
+  //  Local Definitions  //
+  /////////////////////////
+
+  import lisa.utils.parsing.FOLPrinter.prettySCProof
+  import lisa.utils.KernelHelpers.apply
+
+  /**
+   * A term with a definition, local to a proof.
+   *
+   * @param proof
+   * @param id
+   */
+  abstract class LocalyDefinedVariable(val proof: library.Proof, id: Identifier) extends Variable(id) {
+
+    val definition: proof.Fact
+    lazy val definingFormula = proof.sequentOfFact(definition).right.head
+
+    // proof.addDefinition(this, defin(this), fact)
+    // val definition: proof.Fact = proof.getDefinition(this)
+  }
+
+  /**
+   * A witness for a statement of the form ∃(x, P(x)) is a (fresh) variable y such that P(y) holds. This is a local definition, typically used with `val y = witness(fact)`
+   * where `fact` is a fact of the form `∃(x, P(x))`. The property P(y) can then be used with y.elim
+   */
+  def witness(using _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File, name: sourcecode.Name)(fact: _proof.Fact): LocalyDefinedVariable { val proof: _proof.type } = {
+
+    val (els, eli) = _proof.sequentAndIntOfFact(fact)
+    els.right.head match
+      case Exists(x, inner) =>
+        val id = freshId((els.allSchematicLabels ++ _proof.lockedSymbols ++ _proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id), name.value)
+        val c: LocalyDefinedVariable = new LocalyDefinedVariable(_proof, id) { val definition = assume(using proof)(inner.substitute(x := this)) }
+        val defin = c.definingFormula
+        val definU = defin.underlying
+        val exDefinU = K.Exists(c.underlyingLabel, definU)
+
+        if els.right.size != 1 || !K.isSame(els.right.head.underlying, exDefinU) then
+          throw new UserInvalidDefinitionException(c.id, "Eliminator fact for " + c + " in a definition should have a single formula, equivalent to " + exDefinU + ", on the right side.")
+
+        _proof.addElimination(
+          defin,
+          (i, sequent) =>
+            val resSequent = (sequent.underlying -<< definU)
+            List(
+              SC.LeftExists(resSequent +<< exDefinU, i, definU, c.underlyingLabel),
+              SC.Cut(resSequent ++<< els.underlying, eli, i + 1, exDefinU)
+            )
+        )
+
+        c.asInstanceOf[LocalyDefinedVariable { val proof: _proof.type }]
+
+      case _ => throw new Exception("Pick is used to obtain a witness of an existential statement.")
+
+  }
+
 }

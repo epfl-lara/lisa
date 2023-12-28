@@ -5,10 +5,11 @@ import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
 import lisa.maths.settheory.orderings.Induction.*
-import lisa.maths.settheory.orderings.Ordinals.*
 import lisa.maths.settheory.orderings.PartialOrders.*
 import lisa.maths.settheory.orderings.Segments.*
 import lisa.maths.settheory.orderings.WellOrders.*
+
+import Ordinals.*
 
 /**
  * This file is dedicated to proving the well-ordered and transfinite recursion
@@ -504,7 +505,7 @@ object Recursion extends lisa.Main {
                 // B defined by x => x < a1 /\ k1 x != k2 x exists
                 val B = variable
                 val BDef = forall(x, in(x, B) <=> (in(x, initialSegment(p, a1)) /\ !(app(k1, x) === app(k2, x))))
-                val BExists = have(exists(B, BDef)) by Weakening(comprehensionSchema of (z -> initialSegment(p, a1), φ -> lambda((x, z), !(app(k1, x) === app(k2, x)))))
+                val BExists = have(exists(B, BDef)) by Weakening(comprehensionSchema of (z -> initialSegment(p, a1), φ -> lambda(x, !(app(k1, x) === app(k2, x)))))
 
                 // B forms a subset of p1
                 val subsetB = have(BDef |- subset(B, p1)) subproof {
@@ -548,7 +549,7 @@ object Recursion extends lisa.Main {
                     )
                   ) by Tautology.from(
                     lastStep,
-                    universalEquivalenceDistribution of (P -> lambda(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))), Q -> lambda(
+                    universalEquivalenceDistribution of (P := lambda(b, in(b, B) ==> (in(pair(n, b), p2) \/ (n === b))), Q := lambda(
                       b,
                       (in(b, initialSegment(p, a1)) /\ !(app(k1, b) === app(k2, b))) ==> (in(pair(n, b), p2) \/ (n === b))
                     ))
@@ -1186,6 +1187,36 @@ object Recursion extends lisa.Main {
     thenHave(exists(g, in(g, w) /\ in(z, relationDomain(g)) /\ (app(uw, z) === F(orderedRestriction(g, z, p)))) |- app(uw, z) === F(orderedRestriction(uw, z, p))) by LeftExists
     have(thesis) by Tautology.from(gExists, lastStep)
 
+  }
+
+  val uniquenessFromExistsOne = Theorem(
+    existsOne(x, P(x)) |- forall(y, forall(z, (P(y) /\ P(z)) ==> (y === z)))
+  ) {
+    val a1 = assume(exists(x, forall(y, P(y) <=> (y === x))))
+    val xe = witness(a1)
+    have(P(y) <=> (y === xe)) by InstantiateForall(y)(xe.definition)
+    val py = thenHave(P(y) |- y === xe) by Weakening
+    have(P(z) <=> (z === xe)) by InstantiateForall(z)(xe.definition)
+    val pz = thenHave(P(z) |- z === xe) by Weakening
+    have((P(y), P(z)) |- (y === z)) by Substitution.ApplyRules(pz)(py)
+    have((P(y) /\ P(z)) ==> (y === z)) by Tautology.from(lastStep)
+    thenHave(forall(z, (P(y) /\ P(z)) ==> (y === z))) by RightForall
+    thenHave(thesis) by RightForall
+
+  }
+
+  private val A = variable
+  private val B = variable
+  private val R = predicate[2]
+  val strictReplacementSchema = Theorem(
+    forall(x, in(x, A) ==> existsOne(y, R(x, y)))
+      |- exists(B, forall(y, in(y, B) <=> exists(x, in(x, A) /\ R(x, y))))
+  ) {
+    assume(forall(x, in(x, A) ==> existsOne(y, R(x, y))))
+    thenHave(in(x, A) ==> existsOne(y, R(x, y))) by InstantiateForall(x)
+    have(in(x, A) ==> ∀(y, ∀(z, (R(x, y) /\ R(x, z)) ==> (y === z)))) by Tautology.from(uniquenessFromExistsOne of (P := lambda(y, R(x, y))), lastStep)
+    thenHave(forall(x, in(x, A) ==> ∀(y, ∀(z, (R(x, y) /\ R(x, z)) ==> (y === z))))) by RightForall
+    have(thesis) by Tautology.from(lastStep, replacementSchema of (SchematicPredicateLabel("P", 2) -> R))
   }
 
   /**
@@ -1842,13 +1873,17 @@ object Recursion extends lisa.Main {
       val sPsi = SchematicPredicateLabel("P", 3)
 
       have(forall(y, in(y, initialSegment(p, x)) ==> existsOne(g, fun(g, y)))) by Restate
+      println(existsOne(g, fun(g, y)))
+      println(lastStep.bot)
       have(exists(w, forall(t, in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y))))) by Tautology.from(
         lastStep,
-        replacementSchema of (x -> initialSegment(p, x), sPsi -> lambda((x, y, g), fun(g, y)))
+        strictReplacementSchema of (A -> initialSegment(p, x), R -> lambda((y, g), fun(g, y)))
       )
     }
 
     have(thesis) by Tautology.from(lastStep, funExists)
+    println("thesis")
+    println(lastStep.bot)
   }
 
   /**

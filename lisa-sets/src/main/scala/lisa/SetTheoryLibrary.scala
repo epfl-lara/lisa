@@ -76,10 +76,10 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   private val x = variable
   private val y = variable
   private val z = variable
-  final val φ = predicate[2]
+  final val φ = predicate[1]
   private val A = variable
   private val B = variable
-  private val P = predicate[3]
+  private val P = predicate[2]
 
   ////////////
   // Axioms //
@@ -119,7 +119,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * This schema represents an infinite collection of axioms, one for each
    * formula `ϕ(x, z)`.
    */
-  final val comprehensionSchema: AXIOM = Axiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x, z)))))
+  final val comprehensionSchema: AXIOM = Axiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x)))))
 
   /**
    * Empty Set Axiom --- From the Comprehension Schema follows the existence of
@@ -201,8 +201,8 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * satisfy `P` for each `a ∈ x`.
    */
   final val replacementSchema: AXIOM = Axiom(
-    forall(A, in(A, x) ==> existsOne(B, P(x, A, B))) ==>
-      exists(y, forall(B, in(B, y) <=> exists(A, in(A, x) /\ P(x, A, B))))
+    forall(x, in(x, A) ==> ∀(y, ∀(z, (P(x, y) /\ P(x, z)) ==> (y === z)))) ==>
+      exists(B, forall(y, in(y, B) <=> exists(x, in(x, A) /\ P(x, y))))
   )
 
   final val tarskiAxiom: AXIOM = Axiom(
@@ -249,7 +249,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
     def ∈(that: Term): Formula = in(thi, that)
     def ⊆(that: Term): Formula = subset(thi, that)
 
-    def =/=(that: Term): Formula = !(===(thi, that))
+    def =/=(that: Term): Formula = !(thi === that)
 
   }
 

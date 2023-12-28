@@ -52,7 +52,7 @@ object Serialization {
   // Injectively represent a FormulaLabel as a string.
   def formulaLabelToString(label: FormulaLabel): String =
     label match
-      case l: ConstantPredicateLabel => "cpl_" + l.id.name + "_" + l.id.no + "_" + l.arity
+      case l: ConstantAtomicLabel => "cpl_" + l.id.name + "_" + l.id.no + "_" + l.arity
       case l: SchematicPredicateLabel => "spl_" + l.id.name + "_" + l.id.no + "_" + l.arity
       case l: ConstantConnectorLabel => "ccl_" + l.id.name + "_" + l.id.no + "_" + l.arity
       case l: SchematicConnectorLabel => "scl_" + l.id.name + "_" + l.id.no + "_" + l.arity
@@ -79,7 +79,7 @@ object Serialization {
   // write a formula label to an OutputStream
   def formulaLabelToDOS(label: FormulaLabel, dos: DataOutputStream): Unit =
     label match
-      case l: ConstantPredicateLabel =>
+      case l: ConstantAtomicLabel =>
         dos.writeByte(3)
         dos.writeUTF(l.id.name)
         dos.writeInt(l.id.no)
@@ -133,7 +133,7 @@ object Serialization {
         case Some(line) => line
         case None =>
           val nextLine = formula match
-            case PredicateFormula(label, args) =>
+            case AtomicFormula(label, args) =>
               val na = args.map(t => lineOfTerm(t))
               formulaLabelToDOS(label, treesDOS)
               na.foreach(t => treesDOS.writeInt(t))
@@ -426,7 +426,7 @@ object Serialization {
           val name = dis.readUTF()
           val no = dis.readInt()
           val arity = dis.readInt()
-          ConstantPredicateLabel(Identifier(name, no), arity)
+          ConstantAtomicLabel(Identifier(name, no), arity)
         case 4 =>
           val name = dis.readUTF()
           val no = dis.readInt()
@@ -469,9 +469,9 @@ object Serialization {
             termMap(lineNo) = Term(l, args)
           case l: FormulaLabel =>
             val formula = label match
-              case l: PredicateLabel =>
+              case l: AtomicLabel =>
                 val args = (1 to l.arity).map(_ => termMap(treesDIS.readInt())).toSeq
-                PredicateFormula(l, args)
+                AtomicFormula(l, args)
               case l: ConnectorLabel =>
                 val ar = treesDIS.readShort()
                 val args = (1 to ar).map(_ => formulaMap(treesDIS.readInt())).toSeq
@@ -590,7 +590,7 @@ object Serialization {
           sequentFromProofDIS(),
           proofDIS.readInt(),
           (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicConnectorLabel], lffFromProofDIS())).toMap,
-          (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicVarOrPredLabel], ltfFromProofDIS())).toMap,
+          (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicAtomicLabel], ltfFromProofDIS())).toMap,
           (1 to proofDIS.readShort()).map(_ => (labelFromInputStream(proofDIS).asInstanceOf[SchematicTermLabel], lttFromProofDIS())).toMap
         )
       else if (psType == sorry) Sorry(sequentFromProofDIS())
@@ -659,7 +659,7 @@ object Serialization {
               case Array(name, no, arity) => theory.getDefinition(ConstantFunctionLabel(Identifier(name, no.toInt), arity.toInt)).get
           case 'p' =>
             name.split("_") match
-              case Array(name, no, arity) => theory.getDefinition(ConstantPredicateLabel(Identifier(name, no.toInt), arity.toInt)).get
+              case Array(name, no, arity) => theory.getDefinition(ConstantAtomicLabel(Identifier(name, no.toInt), arity.toInt)).get
       }
       if debug then
         // To avoid conflicts where a theorem already exists, for example in test suits.

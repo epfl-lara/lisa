@@ -80,7 +80,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     private[EquivalenceChecker] var normalForm: Option[NormalFormula] = None
     def getNormalForm = normalForm
   }
-  case class SimplePredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean) extends SimpleFormula {
+  case class SimplePredicate(id: AtomicLabel, args: Seq[Term], polarity: Boolean) extends SimpleFormula {
     override def toString: String = s"SimplePredicate($id, $args, $polarity)"
     val size = 1
   }
@@ -125,7 +125,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     def recoverFormula: Formula = toFormulaAIG(this)
   }
   sealed abstract class NonTraversable extends NormalFormula
-  case class NormalPredicate(id: PredicateLabel, args: Seq[Term], polarity: Boolean) extends NonTraversable {
+  case class NormalPredicate(id: AtomicLabel, args: Seq[Term], polarity: Boolean) extends NonTraversable {
     override def toString: String = s"NormalPredicate($id, $args, $polarity)"
   }
   case class NormalSchemConnector(id: SchematicConnectorLabel, args: Seq[NormalFormula], polarity: Boolean) extends NonTraversable
@@ -141,7 +141,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     else {
       val r: Formula = f match {
         case NormalPredicate(id, args, polarity) =>
-          if (polarity) PredicateFormula(id, args) else ConnectorFormula(Neg, Seq(PredicateFormula(id, args)))
+          if (polarity) AtomicFormula(id, args) else ConnectorFormula(Neg, Seq(AtomicFormula(id, args)))
         case NormalSchemConnector(id, args, polarity) =>
           val f = ConnectorFormula(id, args.map(toFormulaAIG))
           if (polarity) f else ConnectorFormula(Neg, Seq(f))
@@ -151,7 +151,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
         case NormalForall(x, inner, polarity) =>
           val f = BinderFormula(Forall, VariableLabel(x), toFormulaAIG(inner))
           if (polarity) f else ConnectorFormula(Neg, Seq(f))
-        case NormalLiteral(polarity) => if (polarity) PredicateFormula(top, Seq()) else PredicateFormula(bot, Seq())
+        case NormalLiteral(polarity) => if (polarity) AtomicFormula(top, Seq()) else AtomicFormula(bot, Seq())
       }
       f.formulaAIG = Some(r)
       r
@@ -171,7 +171,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     }
     val r = f match{
       case NormalPredicate(id, args, polarity) =>
-        if (positive==polarity)  PredicateFormula(id, args) else ConnectorFormula(Neg, Seq(PredicateFormula(id, args)))
+        if (positive==polarity)  AtomicFormula(id, args) else ConnectorFormula(Neg, Seq(AtomicFormula(id, args)))
       case NormalSchemConnector(id, args, polarity) =>
         val f = ConnectorFormula(id, args.map(toFormulaNNF(_, true)))
         if (positive==polarity)  f else ConnectorFormula(Neg, Seq(f))
@@ -185,7 +185,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
           BinderFormula(Forall, VariableLabel(x), toFormulaNNF(inner, true))
         else
           BinderFormula(Exists, VariableLabel(x), toFormulaNNF(inner, false))
-      case NormalLiteral(polarity) => if (polarity) PredicateFormula(top, Seq()) else PredicateFormula(bot, Seq())
+      case NormalLiteral(polarity) => if (polarity) AtomicFormula(top, Seq()) else AtomicFormula(bot, Seq())
     }
     if (positive) f.formulaP = Some(r)
     else  f.formulaN = Some(r)
@@ -246,7 +246,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       getInversePolar(f.polarFormula.get)
     } else {
       val r = f match {
-        case PredicateFormula(label, args) =>
+        case AtomicFormula(label, args) =>
           if (label == top) SimpleLiteral(polarity)
           else if (label == bot) SimpleLiteral(!polarity)
           else SimplePredicate(label, args, polarity)
@@ -279,7 +279,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
             case Exists => SimpleForall(bound.id, polarize(inner, false), !polarity)
             case ExistsOne =>
               val y = VariableLabel(freshId(inner.freeVariables.map(_.id), bound.id))
-              val c = PredicateFormula(equality, Seq(VariableTerm(bound), VariableTerm(y)))
+              val c = AtomicFormula(equality, Seq(VariableTerm(bound), VariableTerm(y)))
               val newInner = polarize(ConnectorFormula(Iff, Seq(c, inner)), true)
               SimpleForall(y.id, SimpleForall(bound.id, newInner, false), !polarity)
           }
@@ -313,7 +313,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
 
     t match {
       case Term(label: VariableLabel, _) =>
-        if (subst.contains(i - label.id.no)) VariableTerm(VariableLabel(subst(i - label.id.no)))
+        if ((label.id.name == "x") && subst.contains(i - label.id.no)) VariableTerm(VariableLabel(subst(i - label.id.no)))
         else if (label.id.name.head == '$') VariableTerm(VariableLabel(Identifier(label.id.name.tail, label.id.no)))
         else {
           throw new Exception("This case should be unreachable, error")
@@ -489,7 +489,7 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
     // transform a LISA formula into a simpler, desugarised version with less symbols. Conjunction, implication, iff, existsOne are treated as alliases and translated.
     def removeSugar1(phi: Formula): PolarFormula = {
       phi match {
-        case PredicateFormula(label, args) =>
+        case AtomicFormula(label, args) =>
           if (label == top) PolarLiteral(true)
           else if (label == bot) PolarLiteral(false)
           else PolarPredicate(label, args.toList)
@@ -627,8 +627,8 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val r: List[NormalFormula] = phi match {
         case PolarPredicate(label, args) =>
           val lab = label match {
-            case _: ConstantPredicateLabel => "cp_" + label.id + "_" + label.arity
-            case _: SchematicVarOrPredLabel => "sp_" + label.id + "_" + label.arity
+            case _: ConstantAtomicLabel => "cp_" + label.id + "_" + label.arity
+            case _: SchematicAtomicLabel => "sp_" + label.id + "_" + label.arity
           }
           if (label == top) {
             phi.normalForm = Some(NLiteral(true))
@@ -675,8 +675,8 @@ private[fol] trait EquivalenceChecker extends FormulaDefinitions {
       val r: List[NormalFormula] = phi match {
         case PolarPredicate(label, args) =>
           val lab = label match {
-            case _: ConstantPredicateLabel => "cp_" + label.id + "_" + label.arity
-            case _: SchematicVarOrPredLabel => "sp_" + label.id + "_" + label.arity
+            case _: ConstantAtomicLabel => "cp_" + label.id + "_" + label.arity
+            case _: SchematicAtomicLabel => "sp_" + label.id + "_" + label.arity
           }
           if (label == top) {
             phi.normalForm = Some(NLiteral(true))

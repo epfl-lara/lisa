@@ -36,8 +36,6 @@ object Substitution {
     def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(substitutions: (proof.Fact | F.Formula | lib.JUSTIFICATION)*)(
         premise: proof.Fact
     )(bot: F.Sequent): proof.ProofTacticJudgement = {
-      // lazy val substitutionsK = substitutions.map()
-
       // figure out instantiations for rules
       // takes a premise
       val premiseSequent: F.Sequent = proof.getSequent(premise)
@@ -87,28 +85,28 @@ object Substitution {
         substitutions.foreach {
           case f: F.Formula =>
             f match {
-              case F.PredicateFormula(F.equality, Seq(l, r)) =>
+              case F.AppliedPredicate(F.equality, Seq(l, r)) =>
                 confinedEqualitiesPre = (l, r) :: confinedEqualitiesPre
-              case F.ConnectorFormula(F.Iff, Seq(l, r)) =>
+              case F.AppliedConnector(F.Iff, Seq(l, r)) =>
                 confinedIffsPre = (l, r) :: confinedIffsPre
               case _ => ()
             }
           case j: lib.JUSTIFICATION =>
             j.statement.right.head match {
-              case F.PredicateFormula(F.equality, Seq(l, r)) =>
+              case F.AppliedPredicate(F.equality, Seq(l, r)) =>
                 updateSource((l, r), j)
                 freeEqualitiesPre = (l, r) :: freeEqualitiesPre
-              case F.ConnectorFormula(F.Iff, Seq(l, r)) =>
+              case F.AppliedConnector(F.Iff, Seq(l, r)) =>
                 updateSource((l, r), j)
                 freeIffsPre = (l, r) :: freeIffsPre
               case _ => ()
             }
           case f: proof.Fact @unchecked =>
             proof.sequentOfFact(f).right.head match {
-              case F.PredicateFormula(F.equality, Seq(l, r)) =>
+              case F.AppliedPredicate(F.equality, Seq(l, r)) =>
                 updateSource((l, r), f)
                 confinedEqualitiesPre = (l, r) :: confinedEqualitiesPre
-              case F.ConnectorFormula(F.Iff, Seq(l, r)) =>
+              case F.AppliedConnector(F.Iff, Seq(l, r)) =>
                 updateSource((l, r), f)
                 confinedIffsPre = (l, r) :: confinedIffsPre
               case _ => ()
@@ -122,14 +120,14 @@ object Substitution {
         val confinedIffs: List[(F.Formula, F.Formula)] = confinedIffsPre ++ confinedIffsPre.map(_.swap)
 
         val filteredPrem: Seq[F.Formula] = (premiseSequent.left filter {
-          case F.PredicateFormula(F.equality, Seq(l, r)) if freeEqualities.contains((l, r)) || confinedEqualities.contains((l, r)) => false
-          case F.ConnectorFormula(F.Iff, Seq(l, r)) if freeIffs.contains((l, r)) || confinedIffs.contains((l, r)) => false
+          case F.AppliedPredicate(F.equality, Seq(l, r)) if freeEqualities.contains((l, r)) || confinedEqualities.contains((l, r)) => false
+          case F.AppliedConnector(F.Iff, Seq(l, r)) if freeIffs.contains((l, r)) || confinedIffs.contains((l, r)) => false
           case _ => true
         }).toSeq
 
         val filteredBot: Seq[F.Formula] = (bot.left filter {
-          case F.PredicateFormula(F.equality, Seq(l, r)) if freeEqualities.contains((l, r)) || confinedEqualities.contains((l, r)) => false
-          case F.ConnectorFormula(F.Iff, Seq(l, r)) if freeIffs.contains((l, r)) || confinedIffs.contains((l, r)) => false
+          case F.AppliedPredicate(F.equality, Seq(l, r)) if freeEqualities.contains((l, r)) || confinedEqualities.contains((l, r)) => false
+          case F.AppliedConnector(F.Iff, Seq(l, r)) if freeIffs.contains((l, r)) || confinedIffs.contains((l, r)) => false
           case _ => true
         }).toSeq
 
@@ -156,8 +154,30 @@ object Substitution {
           takenFormulaVars
         )
 
-        lazy val violatingFormulaLeft: Option[Formula] = Some(top) // TODO
-        lazy val violatingFormulaRight: Option[Formula] = Some(top) // TODO
+        lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x => bot.right.find(y => UnificationUtils.getContextFormula(
+          x,
+          y,
+          freeEqualities,
+          freeIffs,
+          confinedEqualities,
+          takenTermVars,
+          confinedIffs,
+          takenFormulaVars
+        ).isDefined))
+
+        lazy val leftPairs = filteredPrem zip filteredPrem.map(x => filteredBot.find(y => UnificationUtils.getContextFormula(
+          x,
+          y,
+          freeEqualities,
+          freeIffs,
+          confinedEqualities,
+          takenTermVars,
+          confinedIffs,
+          takenFormulaVars
+        ).isDefined))
+
+        lazy val violatingFormulaLeft = leftPairs.find(_._2.isEmpty)
+        lazy val violatingFormulaRight = rightPairs.find(_._2.isEmpty)
 
         if (leftContextsOpt.isEmpty)
           proof.InvalidProofTactic(s"Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formula: ${violatingFormulaLeft.get}")
@@ -167,15 +187,15 @@ object Substitution {
           // actually construct proof
           TacticSubproof {
 
-            def eq(rule: (Term, Term)) = PredicateFormula(equality, Seq(rule._1, rule._2))
-            def iff(rule: (Formula, Formula)) = ConnectorFormula(Iff, Seq(rule._1, rule._2))
+            def eq(rule: (Term, Term)) = AppliedPredicate(equality, Seq(rule._1, rule._2))
+            def iff(rule: (Formula, Formula)) = AppliedConnector(Iff, Seq(rule._1, rule._2))
 
             def eqSource(rule: (Term, Term)) = lib.have(eq(rule) |- eq(rule)) by SimpleDeducedSteps.Restate
             def iffSource(rule: (Formula, Formula)) = lib.have(iff(rule) |- iff(rule)) by SimpleDeducedSteps.Restate
             val leftContexts: Seq[UnificationUtils.FormulaRewriteLambda] = leftContextsOpt.get // remove the options
             val rightContexts: Seq[UnificationUtils.FormulaRewriteLambda] = rightContextsOpt.get // remove the options
 
-            val leftBody = ConnectorFormula(And, leftContexts.map(f => f.body))
+            val leftBody = AppliedConnector(And, leftContexts.map(f => f.body))
 
             val defaultLeft = UnificationUtils.FormulaRewriteLambda(body = leftBody)
 
@@ -187,7 +207,7 @@ object Substitution {
               )
             }
 
-            val rightBody = ConnectorFormula(Or, rightContexts.map(f => f.body))
+            val rightBody = AppliedConnector(Or, rightContexts.map(f => f.body))
 
             val defaultRight = UnificationUtils.FormulaRewriteLambda(body = rightBody)
 
@@ -274,7 +294,7 @@ object Substitution {
               val (formulaInputsL, formulaInputsR) = (formulaInputs.map(_._1), formulaInputs.map(_._2))
 
               // get premise into the right form
-              val prem = ConnectorFormula(And, filteredPrem.toSeq) |- ConnectorFormula(Or, premiseSequent.right.toSeq)
+              val prem = AppliedConnector(And, filteredPrem.toSeq) |- AppliedConnector(Or, premiseSequent.right.toSeq)
               val eqs = termInputs.map(eq(_))
               val iffs = formulaInputs.map(iff(_))
               val premiseWithSubst = prem ++<< (eqs |- ()) ++<< (iffs |- ())
@@ -383,7 +403,8 @@ object Substitution {
       else {
         val induct = condflat(t.args.map(te => findSubterm2(te, subs)))
         if (!induct._2) (t, false)
-        else (t.label(induct._1), true)
+        else
+          (t.label.applySeq(induct._1), true)
 
       }
 
@@ -392,14 +413,14 @@ object Substitution {
       f match {
         case f: VariableFormula => (f, false)
         case f: ConstantFormula => (f, false)
-        case PredicateFormula(label, args) =>
+        case AppliedPredicate(label, args) =>
           val induct = condflat(args.map(findSubterm2(_, subs)))
           if (!induct._2) (f, false)
-          else (PredicateFormula(label, induct._1), true)
-        case ConnectorFormula(label, args) =>
+          else (AppliedPredicate(label, induct._1), true)
+        case AppliedConnector(label, args) =>
           val induct = condflat(args.map(findSubterm2(_, subs)))
           if (!induct._2) (f, false)
-          else (ConnectorFormula(label, induct._1), true)
+          else (AppliedConnector(label, induct._1), true)
         case BinderFormula(label, bound, inner) =>
           val fv_in_f = subs.flatMap(e => e._2.freeVariables + e._1)
           if (!fv_in_f.contains(bound)) {
@@ -422,10 +443,10 @@ object Substitution {
       else
         f match {
           case f: AtomicFormula => (f, false)
-          case ConnectorFormula(label, args) =>
+          case AppliedConnector(label, args) =>
             val induct = condflat(args.map(findSubformula2(_, subs)))
             if (!induct._2) (f, false)
-            else (ConnectorFormula(label, induct._1), true)
+            else (AppliedConnector(label, induct._1), true)
           case BinderFormula(label, bound, inner) =>
             val fv_in_f = subs.flatMap(_._2.freeVariables)
             if (!fv_in_f.contains(bound)) {
@@ -468,13 +489,13 @@ object Substitution {
     )(premise: proof.Fact)(rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true): proof.ProofTacticJudgement = {
       import lisa.utils.K
       val originSequent = proof.getSequent(premise)
-      val leftOrigin = ConnectorFormula(And, originSequent.left.toSeq)
-      val rightOrigin = ConnectorFormula(Or, originSequent.right.toSeq)
+      val leftOrigin = AppliedConnector(And, originSequent.left.toSeq)
+      val rightOrigin = AppliedConnector(Or, originSequent.right.toSeq)
 
       if (!toLeft && !toRight) return proof.InvalidProofTactic("applyLeftRight called with no substitution selected (toLeft or toRight).")
 
       phi match {
-        case PredicateFormula(label, args) if label == equality =>
+        case AppliedPredicate(label, args) if label == equality =>
           val left = args(0)
           val right = args(1)
           val fv_in_phi = (originSequent.left ++ originSequent.right).flatMap(_.allSchematicLabels).map(_.id)
@@ -490,12 +511,12 @@ object Substitution {
                 case v: proof.ValidProofTactic => return v
               }
 
-          val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val newleft = if (toLeft) isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.left
-          val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.right
-          val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
-          val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
+          val leftForm = AppliedConnector(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
+          val rightForm = AppliedConnector(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
+          val newleft = if (toLeft) isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.applyUnsafe(Seq(right))) else originSequent.left
+          val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.applyUnsafe(Seq(right))) else originSequent.right
+          val result1: Sequent = (AppliedConnector(And, newleft.toSeq), phi) |- rightOrigin
+          val result2: Sequent = result1.left |- AppliedConnector(Or, newright.toSeq)
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
           if (toLeft)
             scproof = scproof :+ K.LeftSubstEq(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaTermFormula(Seq(v.underlyingLabel), leftForm.underlying))
@@ -510,7 +531,7 @@ object Substitution {
             Seq(premise)
           )
 
-        case ConnectorFormula(label, args) if label == Iff =>
+        case AppliedConnector(label, args) if label == Iff =>
           val left = args(0)
           val right = args(1)
           val fv_in_phi = (originSequent.left ++ originSequent.right).flatMap(_.allSchematicLabels).map(_.id)
@@ -526,12 +547,12 @@ object Substitution {
                 case v: proof.ValidProofTactic => return v
               }
 
-          val leftForm = ConnectorFormula(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val rightForm = ConnectorFormula(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
-          val newleft = if (toLeft) isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.left
-          val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get(Seq(right))) else originSequent.right
-          val result1: Sequent = (ConnectorFormula(And, newleft.toSeq), phi) |- rightOrigin
-          val result2: Sequent = result1.left |- ConnectorFormula(Or, newright.toSeq)
+          val leftForm = AppliedConnector(And, isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
+          val rightForm = AppliedConnector(Or, isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.body).toSeq)
+          val newleft = if (toLeft) isolatedLeft.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.applyUnsafe(Seq(right))) else originSequent.left
+          val newright = if (toRight) isolatedRight.map((f, ltf) => if (ltf.isEmpty) f else ltf.get.applyUnsafe(Seq(right))) else originSequent.right
+          val result1: Sequent = (AppliedConnector(And, newleft.toSeq), phi) |- rightOrigin
+          val result2: Sequent = result1.left |- AppliedConnector(Or, newright.toSeq)
 
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
           if (toLeft)

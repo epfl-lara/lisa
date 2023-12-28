@@ -18,6 +18,7 @@ ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports"
 
 
 
+
 val commonSettings = Seq(
   crossScalaVersions := Seq("2.12.13", "2.13.4", "3.0.1", "3.2.0"),
   run / fork := true
@@ -25,7 +26,7 @@ val commonSettings = Seq(
 
 
 val scala2 = "2.13.8"
-val scala3 = "3.2.2"
+val scala3 = "3.3.1"
 
 val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
@@ -93,7 +94,15 @@ lazy val utils = Project(
   .dependsOn(scallion % "compile->compile")
   .settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
 
-
+ThisBuild / assemblyMergeStrategy := {
+  case PathList("module-info.class") => MergeStrategy.discard
+  case x if x.endsWith("/module-info.class") => MergeStrategy.discard
+  case x if x.endsWith(".class") => MergeStrategy.first
+  case x if x.endsWith(".tasty") => MergeStrategy.first
+  case x =>
+    val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
+    oldStrategy(x)
+}
 
 
 lazy val examples = Project(

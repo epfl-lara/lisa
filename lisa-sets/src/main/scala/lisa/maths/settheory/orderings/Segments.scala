@@ -4,9 +4,10 @@ import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
-import lisa.maths.settheory.orderings.Ordinals.*
 import lisa.maths.settheory.orderings.PartialOrders.*
 import lisa.maths.settheory.orderings.WellOrders.*
+
+import Ordinals.*
 
 object Segments extends lisa.Main {
 
@@ -38,7 +39,7 @@ object Segments extends lisa.Main {
   val initialSegmentUniqueness = Lemma(
     existsOne(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ in(pair(t, a), secondInPair(p)))))
   ) {
-    have(thesis) by UniqueComprehension(firstInPair(p), lambda((t, z), in(pair(t, a), secondInPair(p))))
+    have(thesis) by UniqueComprehension(firstInPair(p), lambda(t, in(pair(t, a), secondInPair(p))))
   }
 
   val initialSegment = DEF(p, a) --> The(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ in(pair(t, a), secondInPair(p)))))(initialSegmentUniqueness)
@@ -46,7 +47,7 @@ object Segments extends lisa.Main {
   val initialSegmentLeqUniqueness = Lemma(
     existsOne(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ (in(pair(t, a), secondInPair(p)) \/ (t === a)))))
   ) {
-    have(thesis) by UniqueComprehension(firstInPair(p), lambda((t, z), (in(pair(t, a), secondInPair(p)) \/ (t === a))))
+    have(thesis) by UniqueComprehension(firstInPair(p), lambda(t, (in(pair(t, a), secondInPair(p)) \/ (t === a))))
   }
 
   val initialSegmentLeq = DEF(p, a) --> The(z, forall(t, in(t, z) <=> (in(t, firstInPair(p)) /\ (in(pair(t, a), secondInPair(p)) \/ (t === a)))))(initialSegmentLeqUniqueness)
@@ -54,7 +55,7 @@ object Segments extends lisa.Main {
   val initialSegmentOrderUniqueness = Lemma(
     existsOne(z, forall(t, in(t, z) <=> (in(t, secondInPair(p)) /\ (in(firstInPair(t), initialSegment(p, a)) /\ in(secondInPair(t), initialSegment(p, a))))))
   ) {
-    have(thesis) by UniqueComprehension(secondInPair(p), lambda((t, z), (in(firstInPair(t), initialSegment(p, a)) /\ in(secondInPair(t), initialSegment(p, a)))))
+    have(thesis) by UniqueComprehension(secondInPair(p), lambda(t, (in(firstInPair(t), initialSegment(p, a)) /\ in(secondInPair(t), initialSegment(p, a)))))
   }
 
   val initialSegmentOrder =
