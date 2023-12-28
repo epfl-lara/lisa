@@ -76,7 +76,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     val (fnamed, nextId, _) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
 
     val nf = reducedNNFForm(fnamed)
-    println(prettyFormula(nf))
     val uv = VariableLabel(Identifier("§", nextId))
     val proof = decide(Branch.empty(nextId + 1, uv).prepended(nf))
     proof match

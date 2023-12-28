@@ -1,6 +1,7 @@
 package lisa.utils
 
-import lisa.utils.K.*
+import lisa.utils.K.{LeftSubstEq => _, RightSubstEq => _, LeftSubstIff => _, RightSubstIff => _, *}
+import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.ProofsShrink.*
 
 import java.io._

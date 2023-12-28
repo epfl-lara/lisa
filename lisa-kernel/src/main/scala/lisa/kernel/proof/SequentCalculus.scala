@@ -284,6 +284,9 @@ object SequentCalculus {
    */
   case class LeftSubstEq(bot: Sequent, t1: Int, equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends SCProofStep { val premises = Seq(t1) }
 
+  //def LeftSubstEq(bot: Sequent, t1: Int, equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula): LeftSubstEq2 =
+  //  LeftSubstEq2(bot, t1, equals.map { case (a, b) => (LambdaTermTerm(Seq(), a), LambdaTermTerm(Seq(), b)) }, (lambdaPhi.vars, lambdaPhi.body))
+
   case class LeftSubstEq2(bot: Sequent, t1: Int, equals: List[(LambdaTermTerm, LambdaTermTerm)], lambdaPhi: (Seq[SchematicTermLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
 
   /**
@@ -295,6 +298,11 @@ object SequentCalculus {
    */
   case class RightSubstEq(bot: Sequent, t1: Int, equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends SCProofStep { val premises = Seq(t1) }
 
+  //def RightSubstEq(bot: Sequent, t1: Int, equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula): RightSubstEq2 =
+  //  RightSubstEq2(bot, t1, equals.map { case (a, b) => (LambdaTermTerm(Seq(), a), LambdaTermTerm(Seq(), b)) }, (lambdaPhi.vars, lambdaPhi.body))
+
+  case class RightSubstEq2(bot: Sequent, t1: Int, equals: List[(LambdaTermTerm, LambdaTermTerm)], lambdaPhi: (Seq[SchematicTermLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
+
   /**
    * <pre>
    *    Γ, φ(a1,...an) |- Δ
@@ -304,6 +312,11 @@ object SequentCalculus {
    */
   case class LeftSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends SCProofStep { val premises = Seq(t1) }
 
+  //def LeftSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula): LeftSubstIff2 =
+  //  LeftSubstIff2(bot, t1, equals.map { case (a, b) => (LambdaTermFormula(Seq(), a), LambdaTermFormula(Seq(), b)) }, (lambdaPhi.vars, lambdaPhi.body))
+
+  case class LeftSubstIff2(bot: Sequent, t1: Int, equals: List[(LambdaTermFormula, LambdaTermFormula)], lambdaPhi: (Seq[SchematicAtomicLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
+
   /**
    * <pre>
    *    Γ |- φ(a1,...an), Δ
@@ -312,6 +325,11 @@ object SequentCalculus {
    * </pre>
    */
   case class RightSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula) extends SCProofStep { val premises = Seq(t1) }
+
+  //def RightSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula): RightSubstIff2 =
+  //  RightSubstIff2(bot, t1, equals.map { case (a, b) => (LambdaTermFormula(Seq(), a), LambdaTermFormula(Seq(), b)) }, (lambdaPhi.vars, lambdaPhi.body))
+
+  case class RightSubstIff2(bot: Sequent, t1: Int, equals: List[(LambdaTermFormula, LambdaTermFormula)], lambdaPhi: (Seq[SchematicAtomicLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
 
   // Rule for schemas
 

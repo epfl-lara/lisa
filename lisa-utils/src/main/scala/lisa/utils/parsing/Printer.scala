@@ -156,6 +156,10 @@ class Printer(parser: Parser) {
               case RightSubstEq(_, t1, _, _) => pretty("R. SubstEq", t1)
               case LeftSubstIff(_, t1, _, _) => pretty("L. SubstIff", t1)
               case RightSubstIff(_, t1, _, _) => pretty("R. SubstIff", t1)
+              case LeftSubstEq2(_, t1, _, _) => pretty("L. SubstEq2", t1)
+              case RightSubstEq2(_, t1, _, _) => pretty("R. SubstEq2", t1)
+              case LeftSubstIff2(_, t1, _, _) => pretty("L. SubstIff2", t1)
+              case RightSubstIff2(_, t1, _, _) => pretty("R. SubstIff2", t1)
               case InstSchema(_, t1, _, _, _) => pretty("Schema Instantiation", t1)
               case Sorry(_) => pretty("Sorry")
               case SCSubproof(_, _) => throw UnreachableException
