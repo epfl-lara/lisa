@@ -1,10 +1,10 @@
 % !TEX program = xelatex
 
 % Page size:
-\documentclass[11pt,b5paper,fullpage]{book}
+\documentclass[11pt,b5paper]{book}
   % Reduce margins whatever the original text area size was.
   \edef\mtht{\the\textheight}
-  \edef\mtwd{\the\textwidth}
+  \edef\mtwd{\dimexpr\the\textwidth+1cm}
   \usepackage[paperwidth=\dimexpr\mtwd+1.4cm\relax,
               paperheight=\dimexpr\mtht+1.8cm\relax,
               text={\mtwd,\mtht},
