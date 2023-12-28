@@ -1,9 +1,9 @@
 \chapter{Developping Mathematics with Prooflib}
 \label{chapt:prooflib}
-LISA's kernel offers all the necessary tools to develops proofs, but  reading and writing proofs written directly in its language is cumbersome. 
-To develop and maintain a library of mathematical development, LISA offers a dedicate interface and DSL to write proofs: Prooflib
-LISA provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features.
-\autoref{fig:theoryFileExample} is a reminder from \autoref{chapt:quickguide} of the canonical way to write a theory file in LISA.
+Lisa's kernel offers all the necessary tools to develops proofs, but  reading and writing proofs written directly in its language is cumbersome. 
+To develop and maintain a library of mathematical development, Lisa offers a dedicate interface and DSL to write proofs: Prooflib
+Lisa provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features.
+\autoref{fig:theoryFileExample} is a reminder from \autoref{chapt:quickguide} of the canonical way to write a theory file in Lisa.
 
 \begin{figure}
 \begin{lstlisting}[language=lisa, frame=single]
@@ -33,7 +33,7 @@ object MyTheoryName extends lisa.Main {
 
 }
 \end{lstlisting}
-\caption{An example of a theory file in LISA}
+\caption{An example of a theory file in Lisa}
 \label{fig:theoryFileExample}
 \end{figure}
 
@@ -75,7 +75,7 @@ Formally, the proof in (...) is a proof of $P(c) \vdash \phi$. This can be trans
 \end{center}
 Not that for this step to be correct, $c$ must not be free in $\phi$. This correspond to the fact that $c$ is an arbitrary free symbol.
 
-This simulation is provided by LISA through the \lstinline|witness|{} method. It takes as argument a fact showing $\exists x. P(x)$, and introduce a new symbol with the desired property. For an example, see figure \ref{fig:localDefinitionExample}.
+This simulation is provided by Lisa through the \lstinline|witness|{} method. It takes as argument a fact showing $\exists x. P(x)$, and introduce a new symbol with the desired property. For an example, see figure \ref{fig:localDefinitionExample}.
 
 \begin{figure}
   \begin{lstlisting}[language=lisa, frame=single]
@@ -86,7 +86,7 @@ This simulation is provided by LISA through the \lstinline|witness|{} method. It
             c.definition, emptySetAxiom of (x:= c))
     }
   \end{lstlisting}
-  \caption{An example use of local definitions in LISA}
+  \caption{An example use of local definitions in Lisa}
   \label{fig:localDefinitionExample}
   \end{figure}
 

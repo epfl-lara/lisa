@@ -19,3 +19,6 @@ scallion/*
 
 # caching of theorems
 cache
+
+# emacs backup files
+*~
