@@ -1,7 +1,17 @@
 % !TEX program = xelatex
-\documentclass[11pt,a4paper]{book}
 
-\input{macro}
+% Page size:
+\documentclass[11pt,b5paper,fullpage]{book}
+  % Reduce margins whatever the original text area size was.
+  \edef\mtht{\the\textheight}
+  \edef\mtwd{\the\textwidth}
+  \usepackage[paperwidth=\dimexpr\mtwd+0.8cm\relax,
+              paperheight=\dimexpr\mtht+1.8cm\relax,
+              text={\mtwd,\mtht},
+              left=0.4cm,
+              top=1.3cm]{geometry}
+
+\input{macro} % also imports
 \input{shortcuts} 
 
 \title{LISA Reference Manual (WIP)}
@@ -13,7 +23,7 @@
 %\newfontfamily\titlefont{Arial}
 
 \begin{titlepage}
-%\titlefont 
+\sf
 %\fontfamily{\sfdefault}\selectfont
 
     \begin{center}
@@ -29,21 +39,26 @@
              
         \vspace{1.5cm}
  
-        {\Large Laboratory for Automated Reasoning and Analysis\\ EPFL, Switzerland}
+        {\Large Laboratory for Automated Reasoning and Analysis \\ \ \\ EPFL, Switzerland}
 
         \vspace{1.5cm}
 
         \date{}
 
     \end{center}
-    \vspace*{10em}
-    \begin{flushright}\huge
-        \begin{tabular}{l}
-         Contributors: \hspace*{2em} \\[1em]
+
+   \vfill
+
+   \begin{flushright}
+    \begin{minipage}{15em}
+      \Large
+         Contributors: \\[1ex]
+        \hspace*{3em} \begin{tabular}{l}
          Simon Guilloud\\
          Sankalp Gambhir
         \end{tabular}
-    \end{flushright}
+    \end{minipage}
+   \end{flushright}
              
  \end{titlepage}
 \chapter*{Introduction}
