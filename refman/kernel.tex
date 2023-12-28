@@ -1,17 +1,17 @@
 %\part{Reference Manual}
-\chapter{LISA's trusted code: The Kernel}
+\chapter{Lisa's trusted code: The Kernel}
 \label{chapt:kernel}
-LISA's kernel is the starting point of LISA, formalising the foundations of the whole theorem prover. It is the only trusted code base, meaning that if it is bug-free then no further erroneous code can violate the soundness property and prove invalid statements. Hence, the two main goals of the kernel are to be efficient and trustworthy.
+Lisa's kernel is the starting point of Lisa, formalising the foundations of the whole theorem prover. It is the only trusted code base, meaning that if it is bug-free then no further erroneous code can violate the soundness property and prove invalid statements. Hence, the two main goals of the kernel are to be efficient and trustworthy.
 
 
-LISA's foundations are based on very traditional (in the mathematical community) foundational theory of all mathematics: \textbf{First Order Logic}, expressed using \textbf{Sequent Calculus} (augmented with schematic symbols), with axioms of \textbf{Set Theory}.
-While the LISA library is built on top of Set Theory axioms, the kernel is actually theory-agnostic and is sound to use with any other set of axioms. Hence, we defer Set Theory to chapter~\ref{chapt:settheory}.
+Lisa's foundations are based on very traditional (in the mathematical community) foundational theory of all mathematics: \textbf{First Order Logic}, expressed using \textbf{Sequent Calculus} (augmented with schematic symbols), with axioms of \textbf{Set Theory}.
+While the Lisa library is built on top of Set Theory axioms, the kernel is actually theory-agnostic and is sound to use with any other set of axioms. Hence, we defer Set Theory to chapter~\ref{chapt:settheory}.
 
 \section{First Order Logic}
 \label{sec:FOL}
 \subsection{Syntax}
 \begin{definition}[Terms]
-  In LISA, the set of terms $\mathcal{T}$ is defined by the following grammar:
+  In Lisa, the set of terms $\mathcal{T}$ is defined by the following grammar:
   \begin{align}
     \mathcal{T} := & ~\mathcal{L}_{Term}(\List[\mathcal{T}])~,
   \end{align}
@@ -86,14 +86,14 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
     \mathcal{L}_{Binder} := \forall \mid \exists \mid \exists!
   \end{align}
 
-  Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they take, so that connectors and predicates of arity 0 are essentially the same thing. Hence, LISA, does not permit connectors of arity 0 and suggests the use of predicates instead.
+  Connectors and predicates, like terms, can exist in either constant or schematic forms. Note that connectors and predicates vary only in the type of arguments they take, so that connectors and predicates of arity 0 are essentially the same thing. Hence, Lisa, does not permit connectors of arity 0 and suggests the use of predicates instead.
   A contrario to schematic terms of arity 0, schematic predicates of arity 0 can't be bound, but they still play a special role sometimes, so we introduce a special notation for them
   %
   $$
     \FormulaVar(X) \equiv \SchematicPredicateLabel(X, 0)~.
   $$
   %
-  Moreover, in LISA, a contrario to constant predicates and term symbols, which can be freely created, there is only the following finite set of constant connector symbols in LISA:
+  Moreover, in Lisa, a contrario to constant predicates and term symbols, which can be freely created, there is only the following finite set of constant connector symbols in Lisa:
   %
   $$
     \operatorname{Neg}(\neg, 1)\mid \operatorname{Implies}(\rightarrow, 2)\mid \operatorname{Iff}(\leftrightarrow, 2)\mid \operatorname{And}(\land, -1)\mid \operatorname{Or}(\lor, -1)~,
@@ -127,7 +127,7 @@ Schematic symbols on the other hand, are uninterpreted --- they can represent an
     \leftrightarrow & := \ConstantConnectorLabel(``{\leftrightarrow}", 2) \\
     c               & := \SchematicConnectorLabel(``{c}", 3)              \\
   \end{align*}
-  Note that in the case of $\ConstantConnectorLabel$, the list is exhaustive: $\neg, \land, \lor, \rightarrow$ and $\leftrightarrow$ are the only logical connectors accepted by LISA.
+  Note that in the case of $\ConstantConnectorLabel$, the list is exhaustive: $\neg, \land, \lor, \rightarrow$ and $\leftrightarrow$ are the only logical connectors accepted by Lisa.
   The following are examples of Formulas:
   \begin{gather*}
     \True() := \True(\Nil)\\
@@ -210,7 +210,7 @@ Those expressions are a generalization of terms, and would be part of our logic 
 $$\lambda x y.~ t_{x,y}$$
 
 Similarly to how variables can be substituted by terms, schematic terms labels of arity greater than 0 can be substituted by such lambda terms.
-% As the definition of such substitution is rather convoluted to describe, we prefer to show examples and redirect the reader to the source code of LISA for a technical definition. \footnote{Note that in lambda calculus, this would simply be iterated beta-reduction.}
+% As the definition of such substitution is rather convoluted to describe, we prefer to show examples and redirect the reader to the source code of Lisa for a technical definition. \footnote{Note that in lambda calculus, this would simply be iterated beta-reduction.}
 The substitution is defined in a manner similar to that of variable substitution with the base case
 %
 \begin{equation*}
@@ -282,11 +282,11 @@ Note that in the last case, $X$ and $Y$ are $\FormulaVar$. Substitution of funct
 \subsection{The Equivalence Checker}
 \label{subsec:equivalencechecker}
 
-While proving theorems, trivial syntactical transformations such as $p\land q \equiv q\land p$ significantly increase the length of proofs, which is desirable neither to the user nor the machine. Moreover, the proof checker will very often have to check whether two formulas that appear in different sequents are the same. Hence, instead of using pure syntactical equality, LISA implements a powerful equivalence checker able to detect a class of equivalence-preserving logical transformations. For example, we would like the  formulas $p\land q$ and $q\land p$ to be naturally treated as equivalent.
+While proving theorems, trivial syntactical transformations such as $p\land q \equiv q\land p$ significantly increase the length of proofs, which is desirable neither to the user nor the machine. Moreover, the proof checker will very often have to check whether two formulas that appear in different sequents are the same. Hence, instead of using pure syntactical equality, Lisa implements a powerful equivalence checker able to detect a class of equivalence-preserving logical transformations. For example, we would like the  formulas $p\land q$ and $q\land p$ to be naturally treated as equivalent.
 
 For soundness, the relation decided by the algorithm should be contained in the $\iff$ ``if and only if'' relation of first order logic. However, it is well known that this relationship is in general undecidable, and even the $\iff$ relation for propositional logic is coNP-complete. For practicality, we need a relation that is efficiently computable.
 
-The decision procedure implemented in LISA takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality.
+The decision procedure implemented in Lisa takes time quadratic in the size of the formula, which means that it is not significantly slower than syntactic equality.
 It is based on an algorithm that decides the word problem for Ortholattices \cite{guilloudFormulaNormalizationsVerification2023}.
 Ortholattices are a generalization of Boolean algebra where instead of the law of distributivity, the weaker absorption law (L9, \autoref{tab:ortholatticeLaws}) holds. In particular, every identity in the theory of ortholattices is also a theorem of propositional logic.
 \begin{table}[bth]
@@ -321,7 +321,7 @@ We write $s\sim_\OL t$ if both $s\leq_\OL t$ and $s\geq_\OL t$ hold.
 \end{theorem}
 Moreover, the algorithm works with structure sharing with the same complexity, which is very relevant for example when $x \leftrightarrow y$ is expanded to $(x \land y) \lor (\neg x \land \neg y)$. It can produce a normal form in this case as well.
 
-LISA's Kernel contains an algorithm, called the $\FOLalg{}$ Equivalence Checker which further extends OL inequality algorithm to first order logic formulas. It first expresses the formula using de Bruijn indices, then desugars $\exists. \phi$ into $\neg \forall. \neg \phi$. It then extends the OL algorithm with the rules in \autoref{tab:Olextension}.
+Lisa's Kernel contains an algorithm, called the $\FOLalg{}$ Equivalence Checker which further extends OL inequality algorithm to first order logic formulas. It first expresses the formula using de Bruijn indices, then desugars $\exists. \phi$ into $\neg \forall. \neg \phi$. It then extends the OL algorithm with the rules in \autoref{tab:Olextension}.
 
 \begin{table}[ht]
   \centering
@@ -344,8 +344,8 @@ LISA's Kernel contains an algorithm, called the $\FOLalg{}$ Equivalence Checker 
 \end{table}
 
 
-In particular, the implementation in LISA also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. It also expresses $\rightarrow$ and $\leftrightarrow$ in terms of $\lor$ and $\land$.
-A more detailed discussion of extension of ortholattices to first-order logic, proof of correctness and implementation details can be found in \cite{guilloudFormulaNormalizationsVerification2023} and \cite{guilloudLISAModernProof2023}.
+In particular, the implementation in Lisa also takes into account symmetry and reflexivity of equality as well as alpha-equivalence, by which we mean renaming of bound variables. It also expresses $\rightarrow$ and $\leftrightarrow$ in terms of $\lor$ and $\land$.
+A more detailed discussion of extension of ortholattices to first-order logic, proof of correctness and implementation details can be found in \cite{guilloudFormulaNormalizationsVerification2023} and \cite{guilloudLisaModernProof2023}.
 
 
 
@@ -354,7 +354,7 @@ A more detailed discussion of extension of ortholattices to first-order logic, p
 \label{sec:proofs_lk}
 \subsection{Sequent Calculus}
 \label{subsec:lk}
-The deductive system used by LISA is an extended version of the classical Sequent Calculus. 
+The deductive system used by Lisa is an extended version of the classical Sequent Calculus. 
 %
 \begin{definition}
   A \textbf{sequent} is a pair $(\Gamma, \Sigma)$ of (possibly empty) sets of formulas, noted:
@@ -378,7 +378,7 @@ The deductive system used by LISA is an extended version of the classical Sequen
 \end{definition}
 A sequent $\phi \vdash \psi$ is logically (but not conceptually) equivalent to a sequent $\vdash \phi \rightarrow \psi$. The distinction is similar to the distinction between meta-implication and inner implication in Isabelle \cite{paulsonIsabelleNext7001993}, for example. Typically, a theorem or a lemma should have its various assumptions on the left-hand side of the sequent and a single conclusion on the right. During proofs however, there may be multiple elements on the right side. \footnote{In a strict description of Sequent Calculus, this is in particular needed to have double negation elimination.}
 
-Sequents are manipulated in a proof using \emph{deduction rules}. A deduction rule, also called a proof step, has zero or more prerequisite sequents (which we call \emph{premises} of the rule) and one conclusion sequent. All the basic deduction rules used in LISA's kernel are shown in \autoref{fig:deduct_rules_1}.
+Sequents are manipulated in a proof using \emph{deduction rules}. A deduction rule, also called a proof step, has zero or more prerequisite sequents (which we call \emph{premises} of the rule) and one conclusion sequent. All the basic deduction rules used in Lisa's kernel are shown in \autoref{fig:deduct_rules_1}.
 This includes first rules of propositional logic, then rules for quantifiers, then equality rules. Moreover, we include equal-for-equal and equivalent-for-equivalent substitutions. While those substitution rules are deduced steps, and hence could technically be omitted, simulating them can sometimes take a high number of steps, so they are included as base steps for efficiency.
 Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
 
@@ -558,7 +558,7 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
       \end{center}
     \end{minipage}
   }
-  \caption{Deduction rules allowed by LISA's kernel. Different occurrences of the same symbols need not represent equal elements, but only elements with the same \FOLalg{} normal form.}
+  \caption{Deduction rules allowed by Lisa's kernel. Different occurrences of the same symbols need not represent equal elements, but only elements with the same \FOLalg{} normal form.}
   \label{fig:deduct_rules_1}
   % \label{fig:deduct_rules_2}
 \end{figure}
@@ -591,9 +591,9 @@ The root of the proof shows the concluding statement, and the leaves are either 
   \label{fig:exampleProof}
 \end{figure}
 
-In the LISA kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof.
+In the Lisa kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof.
 a proof step can also be refered to by multiple subsequent proof steps, so that proofs are actually directed acyclic graphs (DAG) rather than trees. For the proof to be the linearization of a rooted DAG, the proof steps must only refer to numbers smaller than their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list.
-\autoref{fig:exampleProofLinear} shows the proof of Pierce's Law as linearized in LISA's kernel.
+\autoref{fig:exampleProofLinear} shows the proof of Pierce's Law as linearized in Lisa's kernel.
 %
 \begin{figure}[ht]
   \begin{align*}
@@ -653,7 +653,7 @@ Finally, \autoref{fig:exampleProofQuantifiers} shows a proof with quantifiers.
   \label{fig:exampleProofQuantifiers}
 \end{figure}
 
-For every proof step, LISA's kernel actually expects more than only the premises and conclusion of the rule. The proof step also contains some parameters indicating how the deduction rule is precisely applied. This makes proof checking much simpler, and hence more trustworthy. Outside the kernel, LISA includes tactic which will infer such parameters automatically (see \autoref{sec:tactics}), so that in practice the user never has to write them.
+For every proof step, Lisa's kernel actually expects more than only the premises and conclusion of the rule. The proof step also contains some parameters indicating how the deduction rule is precisely applied. This makes proof checking much simpler, and hence more trustworthy. Outside the kernel, Lisa includes tactic which will infer such parameters automatically (see \autoref{sec:tactics}), so that in practice the user never has to write them.
 \autoref{fig:ExampleProofPierceScala} shows how a kernel proof is written in scala.
 
 \begin{figure}[ht]
@@ -667,12 +667,12 @@ val PierceLawProof = SCProof(IndexedSeq(
     RightImplies(() |- (( φ ==> ψ ) ==> φ) ==> φ, 3, ( φ ==> ψ ) ==> φ, φ)
 ), Seq.empty /* no imports */ )
     \end{lstlisting}
-  \caption{The proof from~\autoref{fig:exampleProof} written for LISA's kernel. The second argument (empty here) is the sequence of proof imports. The symbols \lstinline|==>| and \lstinline||-| are ligatures for ==> and |- and are syntactic sugar defined outside the kernel.}
+  \caption{The proof from~\autoref{fig:exampleProof} written for Lisa's kernel. The second argument (empty here) is the sequence of proof imports. The symbols \lstinline|==>| and \lstinline||-| are ligatures for ==> and |- and are syntactic sugar defined outside the kernel.}
   \label{fig:ExampleProofPierceScala}
 \end{figure}
 
 \paragraph*{Subproofs}
-To organize proofs, LISA's kernel also defines the Subproof proof step. A Subproof is a single proof step in a large proof with arbitrarily many premises:
+To organize proofs, Lisa's kernel also defines the Subproof proof step. A Subproof is a single proof step in a large proof with arbitrarily many premises:
 \begin{lstlisting}
   SCSubproof(sp: SCProof, premises: Seq[Int])
 \end{lstlisting}
@@ -682,7 +682,7 @@ A Subproof only has an organizational purpose and allows to more easily write ta
 \subsection{Proof Checker}
 \label{subsec:proofchecker}
 
-In LISA, a proof object by itself has no guarantee to be correct. It is possible to write a wrong proof. LISA contains a \textit{proof checking} function, which, given a proof, will verify if it is correct. To be correct, a proof must satisfy the following conditions:
+In Lisa, a proof object by itself has no guarantee to be correct. It is possible to write a wrong proof. Lisa contains a \textit{proof checking} function, which, given a proof, will verify if it is correct. To be correct, a proof must satisfy the following conditions:
 \begin{enumerate}
   \item No proof step must refer to itself or a posterior proof step as a premise.
   \item Every proof step must be correctly constructed, with the bottom sequent correctly following from the premises by the deduction rule and its arguments.
@@ -714,18 +714,18 @@ Note that there exists a proof step, called Sorry, used to  represent unimplemen
 
 In mathematics as a discipline, theorems don't exist in isolation. They depend on some agreed upon set of axioms, definitions, and previously proven theorems. Formally, theorems are developed within theories. A theory is defined by a language, which contains the symbols allowed in the theory, and by a set of axioms, which are assumed to hold true within it.
 
-In LISA, a \lstinline|Theory|{} is a mutable object that starts as the pure theory of predicate logic: It has no known symbols and no axioms. Then we can introduce into it elements of Set Theory (symbols $\in$, $\emptyset$, $\bigcup$ and set theory axioms, see Chapter~\ref{chapt:settheory}) or of any other theory.
+In Lisa, a \lstinline|Theory|{} is a mutable object that starts as the pure theory of predicate logic: It has no known symbols and no axioms. Then we can introduce into it elements of Set Theory (symbols $\in$, $\emptyset$, $\bigcup$ and set theory axioms, see Chapter~\ref{chapt:settheory}) or of any other theory.
 
 To conduct a proof inside a \lstinline|Theory|{}, using its axioms, the proof should be normally constructed and the needed axioms specified in the imports of the proof. Then, the proof can be given to the \lstinline|Theory|{} to check, along with \textit{justifications} for all imports of the proof. A justification is either an axiom, a previously proven theorem, or a definition. The \lstinline|Theory|{} object will check that every import of the proof is properly justified by a \textit{justification} in the theory, i.e. that the proof is in fact not conditional in the theory. Then, it will pass the proof to the proof checker. If the proof is correct, it will return a \lstinline|Theorem|{} encapsulating the sequent. This theorem will be allowed to be used in all further proofs as an import, exactly like an axiom. Axioms and theorems also have a name.
 
 \subsection{Definitions}
 \label{subsec:definitions}
 The user can also introduce definitions in the \lstinline|Theory|{}.
-LISA's kernel allows to define two kinds of objects: Function (or Term) symbols and Predicate symbols.
+Lisa's kernel allows to define two kinds of objects: Function (or Term) symbols and Predicate symbols.
 
 
 \begin{figure}
-  A definition in LISA is one of those two kinds of objects: A predicate definition or a function definition.
+  A definition in Lisa is one of those two kinds of objects: A predicate definition or a function definition.
   \begin{lstlisting}
   PredicateDefinition(
     label: ConstantAtomicLabel,
@@ -754,7 +754,7 @@ LISA's kernel allows to define two kinds of objects: Function (or Term) symbols 
   corresponds to \\
   \hspace*{1.3em}``For any $\vec{x}$, let $f^n(\vec{x}) \textnormal{ be the unique } y \textnormal{ such that } \varphi$ holds."
 
-  \caption{Definitions in LISA.}
+  \caption{Definitions in Lisa.}
   \label{fig:definitions}
 \end{figure}
 
@@ -963,14 +963,14 @@ getTheorem(name: String)
     \fi
   }
 
-\section{Using LISA's Kernel}
+\section{Using Lisa's Kernel}
 \label{sec:kernelHelpers}
-The kernel itself is a logical core, whose main purpose is to attest correctness of mathematical developments and proofs. In particular, it is not intended to be used directly to formalise a large library, as doing so would be very verbose. It instead serves as either a foundation for LISA's user interface and automation, or as a tool to write and verify formal proofs produced by other programs.
-Nonetheless, LISA's kernel comes with a set of utilities and features and syntactic sugar that make the kernel more user-friendly.
+The kernel itself is a logical core, whose main purpose is to attest correctness of mathematical developments and proofs. In particular, it is not intended to be used directly to formalise a large library, as doing so would be very verbose. It instead serves as either a foundation for Lisa's user interface and automation, or as a tool to write and verify formal proofs produced by other programs.
+Nonetheless, Lisa's kernel comes with a set of utilities and features and syntactic sugar that make the kernel more user-friendly.
 \subsection{Syntactic Sugar}
 
 \paragraph{Aliases}
-Scala accepts most unicode symbols in identifiers, allowing LISA to define alternative representation for logical symbols
+Scala accepts most unicode symbols in identifiers, allowing Lisa to define alternative representation for logical symbols
 \begin{center}
   \begin{tabular}{| c | c |}
 
@@ -990,7 +990,7 @@ Scala accepts most unicode symbols in identifiers, allowing LISA to define alter
   \end{tabular}
 \end{center}
 \paragraph{Identifiers}
-An identifier is a pair of a string and a number. Note that LISA kernel does not accept whitespace nor symbols among \lstinline|()[]{}_| as part of identifiers. The underscore can be used to write both the string and the integer part of an identifier at once. For example,
+An identifier is a pair of a string and a number. Note that Lisa kernel does not accept whitespace nor symbols among \lstinline|()[]{}_| as part of identifiers. The underscore can be used to write both the string and the integer part of an identifier at once. For example,
 
 \begin{lstlisting}[language=Scala]
   val x: VariableLabel("x_4")
@@ -1028,7 +1028,7 @@ The strict syntax to construct the sequent $\phi, \psi \vdash \gamma, \delta$ is
 \begin{lstlisting}[language=Scala]
   Sequent(Set(phi, psi), Set(phi, psi))
 \end{lstlisting}
-but thanks again to  extensions and implicit conversions, LISA accepts
+but thanks again to  extensions and implicit conversions, Lisa accepts
 \begin{lstlisting}[language=Scala]
   (phi, psi) |- (phi, psi)
 \end{lstlisting}

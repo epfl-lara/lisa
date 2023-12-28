@@ -9,20 +9,20 @@ Actual mathematical functions on the other hand, are proper sets which contains 
 
 Indeed, on one hand a predicate symbol defines a truth value on all possible sets, but on the other hand it is impossible to use the symbol alone, without applying it to arguments, or to quantify over function symbol.
 
-LISA is based on set theory. More specifically, it is based on ZF with (still not decided) an axiom of choice, of global choice, or Tarski's universes.
+Lisa is based on set theory. More specifically, it is based on ZF with (still not decided) an axiom of choice, of global choice, or Tarski's universes.
 
 ZF Set Theory stands for Zermelo-Fraenkel Set Theory. It contains a set of initial predicate symbols and function symbols, as shown in Figure \ref{fig:symbolszf}. It also contains the 7 axioms of Zermelo (Figure \ref{fig:axiomsz}), which are technically sufficient to formalize a large portion of mathematics, plus the axiom of replacement of Fraenkel (Figure \ref{fig:axiomszf}), which is needed to formalize more complex mathematical theories.
 In a more typical mathematical introduction to Set Theory, ZF would naturally only contain the set membership symbol $\in$. Axioms defining the other symbols would then only express the existence of functions or predicates with those properties, from which we could get the same symbols using extensions by definitions.
 
 In a very traditional sense, an axiomatization is any possibly infinite semi-recursive set of axioms. Hence, in its full generality, Axioms should be any function producing possibly infinitely many formulas.
-This is however not a convenient definition. In practice, all infinite axiomatizations are schematic, meaning that they are expressable using schematic variables. Axioms \ref{axz:comprehension} (comprehension schema) and \ref{axzf:replacement} (replacement schema) are such examples of axiom schema, and motivates the use of schematic variables in LISA.
+This is however not a convenient definition. In practice, all infinite axiomatizations are schematic, meaning that they are expressable using schematic variables. Axioms \ref{axz:comprehension} (comprehension schema) and \ref{axzf:replacement} (replacement schema) are such examples of axiom schema, and motivates the use of schematic variables in Lisa.
 
 
 
 \begin{figure}
   \begin{center}
     \begin{tabular}{l|c|l}
-      {}                         & Math symbol       & LISA Kernel             \\ \hline
+      {}                         & Math symbol       & Lisa Kernel             \\ \hline
       Set Membership predicate   & $\in$             & \lstinline$in(s,t)$     \\
       Subset predicate           & $\subset$         & \lstinline$subset(s,t)$ \\
       Empty Set constant         & $\emptyset$       & \lstinline$emptyset()$  \\
@@ -101,14 +101,14 @@ Note that the replacement axiom \autoref{axzf:replacement} is conditional of the
 $$ \exists B, \forall y. y \in B \iff (\exists x. x \in A \land P(y, e) \land ∀ z. \psi(x, z) \implies z = y) $$
 Which maps elements of $A$ through the functional component of $\psi$ only. If $\psi$ is functional, those are equivalent.
 
-LISA allows to write, for an arbitrary term \lstinline|t| and lambda expression \lstinline|P: (Term, Term) \mapsto Formula|,
+Lisa allows to write, for an arbitrary term \lstinline|t| and lambda expression \lstinline|P: (Term, Term) \mapsto Formula|,
 \begin{center}
   \lstinline|val c = t.replace(P)|
 \end{center}
 One can then use \lstinline|c.elim(e)| to obtain the fact 
 $e \in B \iff (\exists x. x \in A \land P(x, e) \land \forall z. \psi(x, z) \implies z = y)$. As in the case of local definitions, this statement will automatically be eliminated from the context at the end of the proof.
 
-Moreover, we most often want to map a set by a known function. In those case, LISA provides refined versions \lstinline|t.filter|, \lstinline|t.map| and \lstinline|t.collect|, which are detailed in table \ref{tab:comprehensions}. In particular, these versions already prove the functionality requirement of replacement.
+Moreover, we most often want to map a set by a known function. In those case, Lisa provides refined versions \lstinline|t.filter|, \lstinline|t.map| and \lstinline|t.collect|, which are detailed in table \ref{tab:comprehensions}. In particular, these versions already prove the functionality requirement of replacement.
 \begin{table}[h]
   \begin{tabular}{l|l}
     \textbf{\lstinline|val c = |} & \textbf{\lstinline|c.elim(e)|} \\ \hline
@@ -117,7 +117,7 @@ Moreover, we most often want to map a set by a known function. In those case, LI
     \lstinline|t.map(M)| & $e \in c \iff (\exists x. x \in t \land M(x) = e)$ \\
     \lstinline|t.filter(F)| & $e \in c \iff e \in t \land F(e)$ \\   
   \end{tabular}
-  \caption{Comprehensions in LISA}
+  \caption{Comprehensions in Lisa}
   \label{tab:comprehensions}
 \end{table}
 
