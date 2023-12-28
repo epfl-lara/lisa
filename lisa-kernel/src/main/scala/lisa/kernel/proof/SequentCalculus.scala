@@ -284,6 +284,8 @@ object SequentCalculus {
    */
   case class LeftSubstEq(bot: Sequent, t1: Int, equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula) extends SCProofStep { val premises = Seq(t1) }
 
+  case class LeftSubstEq2(bot: Sequent, t1: Int, equals: List[(LambdaTermTerm, LambdaTermTerm)], lambdaPhi: (Seq[SchematicTermLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
+
   /**
    * <pre>
    *    Γ |- φ(s1,...,sn), Δ
