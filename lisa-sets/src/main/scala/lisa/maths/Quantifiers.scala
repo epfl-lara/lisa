@@ -55,7 +55,7 @@ object Quantifiers extends lisa.Main {
     (x === y) /\ (y === z) |- (x === z)
   ) {
     have((x === y) |- (x === y)) by Hypothesis
-    thenHave(((x === y), (y === z)) |- (x === z)) by RightSubstEq.apply2
+    thenHave(((x === y), (y === z)) |- (x === z)) by RightSubstEq.withParametersSimple(List((y, z)), lambda(y, x === y))
     thenHave(thesis) by Restate
   }
 
@@ -95,7 +95,7 @@ object Quantifiers extends lisa.Main {
   ) {
     have(exists(x, P(x) /\ (y === x)) |- P(y)) subproof {
       have(P(x) |- P(x)) by Hypothesis
-      thenHave((P(x), y === x) |- P(y)) by RightSubstEq.withParameters(List((y, x)), lambda(y, P(y)))
+      thenHave((P(x), y === x) |- P(y)) by RightSubstEq.withParametersSimple(List((y, x)), lambda(y, P(y)))
       thenHave(P(x) /\ (y === x) |- P(y)) by Restate
       thenHave(thesis) by LeftExists
     }

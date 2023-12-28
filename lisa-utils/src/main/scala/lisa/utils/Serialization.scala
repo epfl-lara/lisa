@@ -321,41 +321,57 @@ object Serialization {
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
           proofDOS.writeShort(equals.size)
-          equals.foreach(t =>
-            proofDOS.writeInt(lineOfTerm(t._1))
-            proofDOS.writeInt(lineOfTerm(t._2))
+          equals.foreach(ltts =>
+            lttToProofDOS(ltts._1)
+            lttToProofDOS(ltts._2)
           )
-          ltfToProofDOS(lambdaPhi)
+          proofDOS.writeShort(lambdaPhi._1.size)
+          lambdaPhi._1.foreach(stl =>
+            termLabelToDOS(stl, proofDOS)
+          )
+          proofDOS.writeInt(lineOfFormula(lambdaPhi._2))
         case RightSubstEq(bot, t1, equals, lambdaPhi) =>
           proofDOS.writeByte(rightSubstEq)
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
           proofDOS.writeShort(equals.size)
-          equals.foreach(t =>
-            proofDOS.writeInt(lineOfTerm(t._1))
-            proofDOS.writeInt(lineOfTerm(t._2))
+          equals.foreach(ltts =>
+            lttToProofDOS(ltts._1)
+            lttToProofDOS(ltts._2)
           )
-          ltfToProofDOS(lambdaPhi)
+          proofDOS.writeShort(lambdaPhi._1.size)
+          lambdaPhi._1.foreach(stl =>
+            termLabelToDOS(stl, proofDOS)
+          )
+          proofDOS.writeInt(lineOfFormula(lambdaPhi._2))
         case LeftSubstIff(bot, t1, equals, lambdaPhi) =>
           proofDOS.writeByte(leftSubstIff)
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
           proofDOS.writeShort(equals.size)
-          equals.foreach(t =>
-            proofDOS.writeInt(lineOfFormula(t._1))
-            proofDOS.writeInt(lineOfFormula(t._2))
+          equals.foreach(ltts =>
+            ltfToProofDOS(ltts._1)
+            ltfToProofDOS(ltts._2)
           )
-          lffToProofDOS(lambdaPhi)
+          proofDOS.writeShort(lambdaPhi._1.size)
+          lambdaPhi._1.foreach(stl =>
+            formulaLabelToDOS(stl, proofDOS)
+          )
+          proofDOS.writeInt(lineOfFormula(lambdaPhi._2))
         case RightSubstIff(bot, t1, equals, lambdaPhi) =>
           proofDOS.writeByte(rightSubstIff)
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
           proofDOS.writeShort(equals.size)
-          equals.foreach(t =>
-            proofDOS.writeInt(lineOfFormula(t._1))
-            proofDOS.writeInt(lineOfFormula(t._2))
+          equals.foreach(ltts =>
+            ltfToProofDOS(ltts._1)
+            ltfToProofDOS(ltts._2)
           )
-          lffToProofDOS(lambdaPhi)
+          proofDOS.writeShort(lambdaPhi._1.size)
+          lambdaPhi._1.foreach(stl =>
+            formulaLabelToDOS(stl, proofDOS)
+          )
+          proofDOS.writeInt(lineOfFormula(lambdaPhi._2))
         case InstSchema(bot, t1, mCon, mPred, mTerm) =>
           proofDOS.writeByte(instSchema)
           sequentToProofDOS(bot)
@@ -562,29 +578,29 @@ object Serialization {
         LeftSubstEq(
           sequentFromProofDIS(),
           proofDIS.readInt(),
-          (1 to proofDIS.readShort()).map(_ => (termMap(proofDIS.readInt()), termMap(proofDIS.readInt()))).toList,
-          ltfFromProofDIS()
+          (1 to proofDIS.readShort()).map(_ => (lttFromProofDIS(), lttFromProofDIS())).toList,
+          ((1 to proofDIS.readShort()).map(_ => labelFromInputStream(proofDIS).asInstanceOf[SchematicTermLabel]).toList, formulaMap(proofDIS.readInt()))
         )
       else if (psType == rightSubstEq)
         RightSubstEq(
           sequentFromProofDIS(),
           proofDIS.readInt(),
-          (1 to proofDIS.readShort()).map(_ => (termMap(proofDIS.readInt()), termMap(proofDIS.readInt()))).toList,
-          ltfFromProofDIS()
+          (1 to proofDIS.readShort()).map(_ => (lttFromProofDIS(), lttFromProofDIS())).toList,
+          ((1 to proofDIS.readShort()).map(_ => labelFromInputStream(proofDIS).asInstanceOf[SchematicTermLabel]).toList, formulaMap(proofDIS.readInt()))
         )
       else if (psType == leftSubstIff)
         LeftSubstIff(
           sequentFromProofDIS(),
           proofDIS.readInt(),
-          (1 to proofDIS.readShort()).map(_ => (formulaMap(proofDIS.readInt()), formulaMap(proofDIS.readInt()))).toList,
-          lffFromProofDIS()
+          (1 to proofDIS.readShort()).map(_ => (ltfFromProofDIS(), ltfFromProofDIS())).toList,
+          ((1 to proofDIS.readShort()).map(_ => labelFromInputStream(proofDIS).asInstanceOf[SchematicAtomicLabel]).toList, formulaMap(proofDIS.readInt()))
         )
       else if (psType == rightSubstIff)
         RightSubstIff(
           sequentFromProofDIS(),
           proofDIS.readInt(),
-          (1 to proofDIS.readShort()).map(_ => (formulaMap(proofDIS.readInt()), formulaMap(proofDIS.readInt()))).toList,
-          lffFromProofDIS()
+          (1 to proofDIS.readShort()).map(_ => (ltfFromProofDIS(), ltfFromProofDIS())).toList,
+          ((1 to proofDIS.readShort()).map(_ => labelFromInputStream(proofDIS).asInstanceOf[SchematicAtomicLabel]).toList, formulaMap(proofDIS.readInt()))
         )
       else if (psType == instSchema)
         InstSchema(

@@ -1111,26 +1111,44 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftSubstEq extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(
+
+    def withParametersSimple(using lib: Library, proof: lib.Proof)(
         equals: List[(F.Term, F.Term)],
         lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      withParameters(equals.map { case (a, b) => (F.lambda(Seq(), a), F.lambda(Seq(), b)) }, (lambdaPhi.bounds.asInstanceOf[Seq[F.SchematicTermLabel[?]]], lambdaPhi.body))(premise)(bot)
+    }
 
+    def withParameters(using lib: Library, proof: lib.Proof)(
+        equals: List[(F.LambdaExpression[F.Term, F.Term, ?], F.LambdaExpression[F.Term, F.Term, ?])],
+        lambdaPhi: (Seq[F.SchematicTermLabel[?]], F.Formula)
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
-      lazy val equalsK = equals.map((p: (F.Term, F.Term)) => (p._1.underlying, p._2.underlying))
-
-      lazy val lambdaPhiK = F.underlyingLTF(lambdaPhi)
-      lazy val (s_es, t_es) = equalsK.unzip
-      lazy val phi_s = lambdaPhiK(s_es)
-      lazy val phi_t = lambdaPhiK(t_es)
-      lazy val equalities = equalsK map { case (s, t) => K.AtomicFormula(K.equality, Seq(s, t)) }
+      lazy val equalsK = equals.map(p => (p._1.underlyingLTT, p._2.underlyingLTT))
+      lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlyingLabel), lambdaPhi._2.underlying)
+      
+      val (s_es, t_es) = equalsK.unzip
+      val (phi_args, phi_body) = lambdaPhiK
+      /*if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+        SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
+      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+        SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
+      else {*/
+      val phi_s = K.instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
+      val phi_t = K.instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
+      val sEqT_es = equalsK map { 
+        case (s, t) => 
+          assert(s.vars.size == t.vars.size)
+          val base = K.AtomicFormula(K.equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
+          (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
+      }
 
       if (!K.isSameSet(botK.right, premiseSequent.right))
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
       else if (
-        !K.isSameSet(botK.left + phi_s, premiseSequent.left ++ equalities + phi_t) &&
-        !K.isSameSet(botK.left + phi_t, premiseSequent.left ++ equalities + phi_s)
+        !K.isSameSet(botK.left + phi_s, premiseSequent.left ++ sEqT_es + phi_t) &&
+        !K.isSameSet(botK.left + phi_t, premiseSequent.left ++ sEqT_es + phi_s)
       )
         proof.InvalidProofTactic("Left-hand side of the conclusion + φ(s_) is not the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped).")
       else
@@ -1146,22 +1164,39 @@ object BasicStepTactic {
    * </pre>
    */
   object RightSubstEq extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(
+    def withParametersSimple(using lib: Library, proof: lib.Proof)(
         equals: List[(F.Term, F.Term)],
         lambdaPhi: F.LambdaExpression[F.Term, F.Formula, ?]
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      withParameters(equals.map { case (a, b) => (F.lambda(Seq(), a), F.lambda(Seq(), b)) }, (lambdaPhi.bounds.asInstanceOf[Seq[F.SchematicTermLabel[?]]], lambdaPhi.body))(premise)(bot)
+    }
 
-      lazy val lambdaPhiK = F.underlyingLTF(lambdaPhi)
+    def withParameters(using lib: Library, proof: lib.Proof)(
+        equals: List[(F.LambdaExpression[F.Term, F.Term, ?], F.LambdaExpression[F.Term, F.Term, ?])],
+        lambdaPhi: (Seq[F.SchematicTermLabel[?]], F.Formula)
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
-      lazy val equalsK = equals.map((p: (F.Term, F.Term)) => (p._1.underlying, p._2.underlying))
+      lazy val equalsK = equals.map(p => (p._1.underlyingLTT, p._2.underlyingLTT))
+      lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlyingLabel), lambdaPhi._2.underlying)
 
-      lazy val (s_es, t_es) = equalsK.unzip
-      lazy val phi_s = lambdaPhiK(s_es)
-      lazy val phi_t = lambdaPhiK(t_es)
-      lazy val equalities = equalsK map { case (s, t) => K.AtomicFormula(K.equality, Seq(s, t)) }
+      val (s_es, t_es) = equalsK.unzip
+      val (phi_args, phi_body) = lambdaPhiK
+      /*if (phi_args.size != equals.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+        SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
+      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+        SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
+      else {*/
+      val phi_s = K.instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
+      val phi_t = K.instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
+      val sEqT_es = equalsK map { 
+        case (s, t) => 
+          assert(s.vars.size == t.vars.size)
+          val base = K.AtomicFormula(K.equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
+          (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
+      }
 
-      if (!K.isSameSet(botK.left, premiseSequent.left ++ equalities))
+      if (!K.isSameSet(botK.left, premiseSequent.left ++ sEqT_es))
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (s=t)_.")
       else if (
         !K.isSameSet(botK.right + phi_s, premiseSequent.right + phi_t) &&
@@ -1173,7 +1208,8 @@ object BasicStepTactic {
 
     }
 
-    def apply2(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+
+    /*def apply2(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       val premRight = F.AppliedConnector(F.Or, premiseSequent.right.toSeq)
       val botRight = F.AppliedConnector(F.Or, bot.right.toSeq)
@@ -1192,7 +1228,7 @@ object BasicStepTactic {
         val termLambda = canReach.get.toLambdaTF
         withParameters(equalities.toList, termLambda)(premise)(bot)
 
-    }
+    }*/
   }
 
   /**
@@ -1203,26 +1239,44 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftSubstIff extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof)(
+    def withParametersSimple(using lib: Library, proof: lib.Proof)(
         equals: List[(F.Formula, F.Formula)],
         lambdaPhi: F.LambdaExpression[F.Formula, F.Formula, ?]
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      withParameters(equals.map { case (a, b) => (F.lambda(Seq(), a), F.lambda(Seq(), b)) }, (lambdaPhi.bounds.asInstanceOf[Seq[F.SchematicAtomicLabel[?]]], lambdaPhi.body))(premise)(bot)
+    }
+
+    def withParameters(using lib: Library, proof: lib.Proof)(
+        equals: List[(F.LambdaExpression[F.Term, F.Formula, ?], F.LambdaExpression[F.Term, F.Formula, ?])],
+        lambdaPhi: (Seq[F.SchematicAtomicLabel[?]], F.Formula)
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
 
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
-      lazy val equalsK = equals.map((p: (F.Formula, F.Formula)) => (p._1.underlying, p._2.underlying))
-      lazy val lambdaPhiK = F.underlyingLFF(lambdaPhi)
+      lazy val equalsK = equals.map(p => (p._1.underlyingLTF, p._2.underlyingLTF))
+      lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlyingLabel), lambdaPhi._2.underlying)
 
-      lazy val (psi_es, tau_es) = equalsK.unzip
-      lazy val phi_psi = lambdaPhiK(psi_es)
-      lazy val phi_tau = lambdaPhiK(tau_es)
-      lazy val implications = equalsK map { case (s, t) => K.ConnectorFormula(K.Iff, Seq(s, t)) }
+      val (psi_s, tau_s) = equalsK.unzip
+      val (phi_args, phi_body) = lambdaPhiK
+      /*if (phi_args.size != phi_s.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+        SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
+      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+        SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
+      else {*/
+      val phi_psi = K.instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
+      val phi_tau = K.instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
+      val psiIffTau = equalsK map { 
+        case (s, t) => 
+          assert(s.vars.size == t.vars.size)
+          val base = K.ConnectorFormula(K.Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
+          (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
+      }
 
       if (!K.isSameSet(botK.right, premiseSequent.right))
         proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
       else if (
-        !K.isSameSet(botK.left + phi_psi, premiseSequent.left ++ implications + phi_tau) &&
-        !K.isSameSet(botK.left + phi_tau, premiseSequent.left ++ implications + phi_psi)
+        !K.isSameSet(botK.left + phi_psi, premiseSequent.left ++ psiIffTau + phi_tau) &&
+        !K.isSameSet(botK.left + phi_tau, premiseSequent.left ++ psiIffTau + phi_psi)
       )
         proof.InvalidProofTactic("Left-hand side of the conclusion + φ(ψ_) is not the same as left-hand side of the premise + (ψ ⇔ τ)_ + φ(τ_) (or with ψ_ and τ_ swapped).")
       else
@@ -1238,22 +1292,40 @@ object BasicStepTactic {
    * </pre>
    */
   object RightSubstIff extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof)(
+    def withParametersSimple(using lib: Library, proof: lib.Proof)(
         equals: List[(F.Formula, F.Formula)],
         lambdaPhi: F.LambdaExpression[F.Formula, F.Formula, ?]
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      withParameters(equals.map { case (a, b) => (F.lambda(Seq(), a), F.lambda(Seq(), b)) }, (lambdaPhi.bounds.asInstanceOf[Seq[F.SchematicAtomicLabel[?]]], lambdaPhi.body))(premise)(bot)
+    }
+
+    def withParameters(using lib: Library, proof: lib.Proof)(
+        equals: List[(F.LambdaExpression[F.Term, F.Formula, ?], F.LambdaExpression[F.Term, F.Formula, ?])],
+        lambdaPhi: (Seq[F.SchematicAtomicLabel[?]], F.Formula)
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
 
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
-      lazy val equalsK = equals.map((p: (F.Formula, F.Formula)) => (p._1.underlying, p._2.underlying))
-      lazy val lambdaPhiK = F.underlyingLFF(lambdaPhi)
+      lazy val equalsK = equals.map(p => (p._1.underlyingLTF, p._2.underlyingLTF))
+      lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlyingLabel), lambdaPhi._2.underlying)
 
-      lazy val (psi_es, tau_es) = equalsK.unzip
-      lazy val phi_psi = lambdaPhiK(psi_es)
-      lazy val phi_tau = lambdaPhiK(tau_es)
-      lazy val implications = equalsK map { case (s, t) => K.ConnectorFormula(K.Iff, Seq(s, t)) }
+      val (psi_s, tau_s) = equalsK.unzip
+      val (phi_args, phi_body) = lambdaPhiK
+      /*if (phi_args.size != psi_s.size) 
+        SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
+      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+        SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
+      else {*/
+      val phi_psi = K.instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
+      val phi_tau = K.instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
+      val psiIffTau = equalsK map { 
+        case (s, t) => 
+          assert(s.vars.size == t.vars.size)
+          val base = K.ConnectorFormula(K.Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
+          (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
+      }
 
-      if (!K.isSameSet(botK.left, premiseSequent.left ++ implications)) {
+      if (!K.isSameSet(botK.left, premiseSequent.left ++ psiIffTau)) {
         proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ⇔ τ)_.")
       } else if (
         !K.isSameSet(botK.right + phi_psi, premiseSequent.right + phi_tau) &&
@@ -1261,7 +1333,7 @@ object BasicStepTactic {
       )
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(ψ_) is not the same as right-hand side of the premise + φ(τ_) (or with ψ_ and τ_ swapped).")
       else
-        proof.ValidProofTactic(bot, Seq(K.RightSubstIff(botK, -1, equalsK, F.underlyingLFF(lambdaPhi))), Seq(premise))
+        proof.ValidProofTactic(bot, Seq(K.RightSubstIff(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
     }
   }
 
