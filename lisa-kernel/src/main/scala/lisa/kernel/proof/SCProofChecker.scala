@@ -565,27 +565,12 @@ object SCProofChecker {
                   isSameSet(b.right + phi_psi_for_q, ref(t1).right + phi_tau_for_q)
                 )
                   SCValidProof(SCProof(step))
-                else {
-                  println("In RightSubstIff2")
-                  val phi_vars = phi_args.map(_.asInstanceOf[VariableFormulaLabel])
-                  val lambdaPhi2 = LambdaFormulaFormula(phi_args.map(_.asInstanceOf[VariableFormulaLabel]), phi_body)
-
-                  val args = psi_s.map(_.body)
-
-                  val lambdas: Seq[LambdaTermFormula] = args.map(a => LambdaTermFormula(Seq(), a))
-                  println( instantiatePredicateSchemas(phi_body, (phi_vars zip lambdas).toMap)  ==  substituteFormulaVariables(phi_body, (phi_vars zip args).toMap)   ) //false
-
-                  store_equals = equals
-                  store_lambdaPhi = lambdaPhi
-
-
-
+                else 
                   SCInvalidProof(
                     SCProof(step),
                     Nil,
                     "Right-hand side of the premise and the conclusion should be the same with each containing one of φ[τ/?q] and φ[ψ/?q], but it isn't the case."
                   )
-                }
               else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + ψ⇔τ must be the same as left-hand side of the premise.")
             //}
 

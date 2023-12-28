@@ -17,7 +17,6 @@ object K {
     LeftSubstEq2(bot, t1, equals.map { case (a, b) => (LambdaTermTerm(Seq(), a), LambdaTermTerm(Seq(), b)) }, (lambdaPhi.vars, lambdaPhi.body))
 
   def RightSubstEq(bot: Sequent, t1: Int, equals: List[(Term, Term)], lambdaPhi: LambdaTermFormula): RightSubstEq2 =
-    println("called")
     RightSubstEq2(bot, t1, equals.map { case (a, b) => (LambdaTermTerm(Seq(), a), LambdaTermTerm(Seq(), b)) }, (lambdaPhi.vars, lambdaPhi.body))
 
   def LeftSubstIff(bot: Sequent, t1: Int, equals: List[(Formula, Formula)], lambdaPhi: LambdaFormulaFormula): LeftSubstIff2 =
