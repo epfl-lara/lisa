@@ -12,7 +12,6 @@
 \usepackage[dvipsnames]{xcolor}
 \usepackage{csquotes}
 \usepackage[strings]{underscore}
-\usepackage{hyperref} 
 \usepackage{bussproofs}
 \usepackage{makecell}
 \usepackage{subcaption}
@@ -24,6 +23,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{newunicodechar} %To map unicode in listings to a different font than Fira Code
 \renewcommand\sfdefault{ua1}
+
 \sloppy % better (?) margin handling
 
 
@@ -47,20 +47,6 @@
 \newcommand*{\definitionautorefname}{Definition}
 
 
-% URLs
-
-\hypersetup{
-    colorlinks=true,
-    linkcolor=blue,
-    filecolor=magenta,      
-    urlcolor=blue,
-    pdftitle={LISA Reference Manual},
-    pdfpagemode=FullScreen,
-}
-\urlstyle{same}
-
-
-
 %  Code fonts
 
 %\usepackage{lstfiracode}
@@ -79,6 +65,7 @@
 
 
 %  Correct lstlisting parsing of unicode character. Add unicode points at the end.
+% To add: code for \vdash 
 \makeatletter
 \lst@InputCatcodes
 \def\lst@DefEC{%
@@ -104,7 +91,7 @@
 \def\verbatim@nolig@list{}
 \makeatother
 
-\definecolor{green}{rgb}{0, 0.6, 0}
+\definecolor{green}{rgb}{0, 0.35, 0}
 
 \definecolor{comments}{RGB}{80,0,110}
 
