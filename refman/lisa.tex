@@ -1,0 +1,58 @@
+% !TEX program = xelatex
+
+% Page size:
+\documentclass[11pt,b5paper]{book}
+  % Reduce margins whatever the original text area size was.
+  \edef\mtht{\the\textheight}
+  \edef\mtwd{\dimexpr\the\textwidth+1cm}
+  \usepackage[paperwidth=\dimexpr\mtwd+1.4cm\relax,
+              paperheight=\dimexpr\mtht+1.8cm\relax,
+              text={\mtwd,\mtht},
+              left=0.7cm,
+              top=1.3cm]{geometry}
+
+\input{macro} % also imports
+\input{shortcuts} 
+
+\newcommand{\ourtitle}{Lisa Manual}
+\newcommand{\ournames}{Simon Guilloud, Sankalp Gambhir, Viktor Kun\v{c}ak}
+\title{\ourtitle}
+\author{\ournames}
+\date{}
+
+% PDF links and meta data
+\usepackage{hyperref} 
+\makeatletter
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={\@title},
+    pdfauthor={\@author}
+}
+\makeatother
+\urlstyle{same}
+
+\begin{document} 
+\input{titlepage.tex}
+
+% Uncomment once the chapter says something useful to readers as opposed to authors:
+%\chapter*{Introduction}
+%This document aims to give a complete documentation on Lisa. Tentatively, every chapter and section will explain a part or concept of Lisa, and explains both its implementation and its theoretical foundations. 
+
+\tableofcontents
+
+\input{quickguide.tex}
+
+\input{kernel.tex}
+
+\input{prooflib.tex}
+
+\input{theory.tex}
+
+\input{theorytopics.tex}
+
+\bibliographystyle{plain}
+\bibliography{sguilloud.bib}
+\end{document}
