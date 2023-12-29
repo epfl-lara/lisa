@@ -1130,11 +1130,11 @@ object BasicStepTactic {
       
       val (s_es, t_es) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      /*if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
-        SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
-        SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-      else {*/
+      if (phi_args.size != s_es.size) 
+        return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
+      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+        return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
+      
       val phi_s = K.instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
       val phi_t = K.instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
       val sEqT_es = equalsK map { 
@@ -1182,11 +1182,11 @@ object BasicStepTactic {
 
       val (s_es, t_es) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      /*if (phi_args.size != equals.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
-        SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
-        SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-      else {*/
+      if (phi_args.size != s_es.size) 
+        return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
+      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+        return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
+      
       val phi_s = K.instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
       val phi_t = K.instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
       val sEqT_es = equalsK map { 
@@ -1208,27 +1208,6 @@ object BasicStepTactic {
 
     }
 
-
-    /*def apply2(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      lazy val premiseSequent = proof.getSequent(premise)
-      val premRight = F.AppliedConnector(F.Or, premiseSequent.right.toSeq)
-      val botRight = F.AppliedConnector(F.Or, bot.right.toSeq)
-
-      val equalities = bot.left.toSeq.collect { case F.AppliedPredicate(F.equality, Seq(l, r)) => (l, r) }
-      val undereqs = equalities.toList.map(p => (p._1.underlying, p._2.underlying))
-      val canReach = UnificationUtils.getContextFormula(
-        first = premRight,
-        second = botRight,
-        confinedTermRules = equalities,
-        takenTermVariables = equalities.flatMap(e => e._1.freeVariables ++ e._2.freeVariables).toSet
-      )
-
-      if (canReach.isEmpty) proof.InvalidProofTactic("Could not find a set of equalities to rewrite premise into conclusion successfully.")
-      else
-        val termLambda = canReach.get.toLambdaTF
-        withParameters(equalities.toList, termLambda)(premise)(bot)
-
-    }*/
   }
 
   /**
@@ -1258,11 +1237,11 @@ object BasicStepTactic {
 
       val (psi_s, tau_s) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      /*if (phi_args.size != phi_s.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
-        SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
-        SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-      else {*/
+      if (phi_args.size != psi_s.size) 
+        return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
+      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+        return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
+      
       val phi_psi = K.instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
       val phi_tau = K.instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
       val psiIffTau = equalsK map { 
@@ -1311,11 +1290,11 @@ object BasicStepTactic {
 
       val (psi_s, tau_s) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      /*if (phi_args.size != psi_s.size) 
-        SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
-        SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-      else {*/
+      if (phi_args.size != psi_s.size) 
+        return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
+      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+        return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
+      
       val phi_psi = K.instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
       val phi_tau = K.instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
       val psiIffTau = equalsK map { 

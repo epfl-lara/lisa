@@ -36,7 +36,7 @@ class ProofTests extends AnyFunSuite {
 
   test("Verification of substitution") {
     val t0 = Hypothesis(fp(x) |- fp(x), fp(x))
-    val t1 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, List((x, y)), LambdaTermFormula(Seq(sT), fp(sT)))
+    val t1 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), y)))), (Seq(sT), fp(sT)))
     val pr = new SCProof(IndexedSeq(t0, t1))
     assert(predicateVerifier(pr).isValid)
   }

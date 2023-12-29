@@ -1,5 +1,13 @@
 package lisa.maths.settheory
 
+
+/**
+  * 
+  * Revamp of the set theory library from scratch, since most of the current one is severely outdated.
+  * We can make a better presentation and organisation of theorems, better automation, uniform comments/latex tags, etc.
+  * 
+  * 
+  */
 object SetTheory2 extends lisa.Main {
   import lisa.maths.settheory.SetTheory.*
   // import Comprehensions.*

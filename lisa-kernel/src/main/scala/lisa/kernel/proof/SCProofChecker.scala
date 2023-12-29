@@ -357,11 +357,11 @@ object SCProofChecker {
           case LeftSubstEq(b, t1, equals, lambdaPhi) =>
             val (s_es, t_es) = equals.unzip
             val (phi_args, phi_body) = lambdaPhi
-            /*if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+            if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
               SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
             else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
               SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-            else {*/
+            else {
               val phi_s_for_f = instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
               val phi_t_for_f = instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
               val sEqT_es = equals map { 
@@ -384,7 +384,7 @@ object SCProofChecker {
                     "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped)."
                   )
               else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
-            //}
+            }
 
           /*
            *    Γ |- φ(s_), Δ
@@ -394,11 +394,11 @@ object SCProofChecker {
           case RightSubstEq(b, t1, equals, lambdaPhi) =>
             val (s_es, t_es) = equals.unzip
             val (phi_args, phi_body) = lambdaPhi
-            /*if (phi_args.size != equals.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+            if (phi_args.size != equals.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
               SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
             else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
               SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-            else {*/
+            else {
               val phi_s_for_f = instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
               val phi_t_for_f = instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
               val sEqT_es = equals map { 
@@ -421,7 +421,7 @@ object SCProofChecker {
                     "Right-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case."
                   )
               else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the premise.")
-            //}
+            }
 
           /*
            *    Γ, φ(ψ_) |- Δ
@@ -431,11 +431,11 @@ object SCProofChecker {
           case LeftSubstIff(b, t1, equals, lambdaPhi) =>
             val (phi_s, tau_s) = equals.unzip
             val (phi_args, phi_body) = lambdaPhi
-            /*if (phi_args.size != phi_s.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+            if (phi_args.size != phi_s.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
               SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
             else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
               SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-            else {*/
+            else {
               val phi_psi_for_q = instantiatePredicateSchemas(phi_body, (phi_args zip phi_s).toMap)
               val phi_tau_for_q = instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
               val psiIffTau = equals map { 
@@ -458,7 +458,7 @@ object SCProofChecker {
                     "Left-hand sides of the conclusion + φ(ψ_) must be the same as left-hand side of the premise + (ψ⇔τ)_ + φ(τ_) (or with ψ and τ swapped)."
                   )
               else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
-            //}
+            }
 
           /*
            *    Γ |- φ[ψ/?p], Δ
@@ -468,11 +468,11 @@ object SCProofChecker {
           case RightSubstIff(b, t1, equals, lambdaPhi) =>
             val (psi_s, tau_s) = equals.unzip
             val (phi_args, phi_body) = lambdaPhi
-            /*if (phi_args.size != psi_s.size) 
+            if (phi_args.size != psi_s.size) 
               SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
             else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
               SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-            else {*/
+            else {
               val phi_psi_for_q = instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
               val phi_tau_for_q = instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
               val psiIffTau = equals map { 
@@ -495,7 +495,7 @@ object SCProofChecker {
                     "Right-hand side of the premise and the conclusion should be the same with each containing one of φ[τ/?q] and φ[ψ/?q], but it isn't the case."
                   )
               else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + ψ⇔τ must be the same as left-hand side of the premise.")
-            //}
+            }
 
 
 
