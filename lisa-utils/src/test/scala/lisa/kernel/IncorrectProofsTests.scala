@@ -85,6 +85,7 @@ class IncorrectProofsTests extends ProofCheckerSuite {
         Hypothesis(emptySeq +<< f +>> f, f),
         RightOr(emptySeq +<< f +>> (f \/ g) +>> g, 0, f, g) // supplemental right g
       )
+      
     )
 
     incorrectProofs.foreach(checkIncorrectProof)
