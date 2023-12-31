@@ -1,17 +1,17 @@
-\chapter{Quick Guide for writing proofs in LISA}
+\chapter{Starting with Proofs in Lisa}
 \label{chapt:quickguide}
-LISA is a proof assistant, i.e. a tool to help humans to write completely formal proofs of mathematical statements. 
+Lisa is a proof assistant. Proof assistants support development of formal proofs of mathematical statements. 
 
-The centerpiece of LISA (called the kernel) contains a definition of first order logic (FOL), which is a logical framework to make formal mathematical statements and proofs. This kernel is what provides correctness guarantees to the user. It only accepts a small set of formal deduction rule such as ``if $a$ is true and $b$ is true then $a\land b$ is true". 
-This is in contrast with human-written proofs, which can contain a wide variety of complex or implicit arguments. Hence, if a proof is accepted as being correct by the kernel, we are guaranteed that it indeed is\footnote{Of course, it is always possible that the kernel itself has a bug in its implementation, but because it is a very small and simple program, we can build strong confidence that it is correct.}.
-LISA's kernel is described in details in \autoref{chapt:kernel}.
+The centerpiece of Lisa (called the \emph{kernel}) contains a mechanized implementation of first order logic (FOL), a logical framework to write mathematical statements and their proofs. This kernel is what provides correctness guarantees to the user. The kernel only accepts a small set of formal deduction rule such as ``if $a$ is true and $b$ is true then $a\land b$ is true''.
+This is in contrast to human-written proofs, which may contain a wide variety of complex or implicit arguments. If a proof is accepted as being correct by the kernel, it is expected to meet objective criteria for valid proofs according to the field of formal mathematical logic.\footnote{It is possible that the kernel itself has an implementation bug, but because it is a very small and simple program available in open source, we can build strong confidence that it is correct.}
+Lisa's kernel is described in more detail in \autoref{chapt:kernel}.
 
-However, building advanced math such as topology or probability theory only from those primitive constructions would be excessively tedious. Instead, we use them as primitive building blocs which can be combined and automatized. Beyond the correctness guarantees of the kernel, LISA's purpose is to provide tools to make writing formal proofs easier. This include automation, via decision procedure which automatically prove theorems and deductions, and layers of abstraction (helpers, domain specific language) which make the presentation of formal statements and proofs closer to the traditional, human way of writing proofs. 
-This is not unlike programming languages: assembly is in theory sufficient to write any program on a computer, but high level programming languages offer many convenient features which make writing complex programs easier and which are ultimately translated into assembly. 
-\autoref{chapt:prooflib} explain in details how all these layers of abstraction and automation work. The rest of the present chapter will give a quick guide on how to use LISA. If you are not familiar with first order logic, we suggest you first read an introduction to first order logic such as \url{lara.epfl.ch/w/sav08/predicate_logic_informally}.
+Writing mathematical theories (for example, group theory, combinatorics, topology, theory of computation) directly from these primitive constructions would be tedious. Instead, we use them as building blocs that can be combined and automatized. Beyond the correctness guarantees of the kernel, Lisa's purpose is to provide tools to make writing formal proofs easier. This include automation, via search procedures that automatically prove theorems, and layers of abstraction (helpers, domain specific language), which make the presentation of formal statements and proofs closer to the traditional, human way of writing proofs. 
+This is similar to programming languages: machine language is sufficient to write any program on a computer, but high level programming languages offer many convenient features which make writing complex programs easier and which are ultimately translated into assembly automatically. 
+\autoref{chapt:prooflib} explains how these layers of abstraction and automation work. The rest of the present chapter gives a quick guide on how to use Lisa.
 
 \section{Installation}
-LISA requires the Scala programming language to run. You can download and install Scala following \url{www.scala-lang.org/download/}. Once this is done, clone the LISA repository:
+Lisa requires the Scala programming language to run. You can download and install Scala following the instructions at the Scala home page\footnote{\url{www.scala-lang.org/}}. Subsequently, clone the Lisa git repository:
 \begin{lstlisting}[language=console]
 > git clone https://github.com/epfl-lara/lisa
 \end{lstlisting}
@@ -20,37 +20,36 @@ To test your installation, do
 > cd lisa
 > sbt
 \end{lstlisting}
-SBT is a tool to run scala project and manage versions and dependencies. When it finished loading, do
+\lstinline|sbt| is a tool to run a Scala project and manage versions and dependencies. Once inside sbt, run the following commands:
 \begin{lstlisting}[language=console]
 > project lisa-examples
 > run
 \end{lstlisting}
-Wait for the LISA codebase to be compiled and then press the number corresponding to "Example". You should obtain the following result:
+Wait for the Lisa codebase to be compiled and then press the number corresponding to "Example". You should obtain the result demonstrating some example theorems proven, such as the following:
+
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
 \begin{lstlisting}[language=console]
   @*Theorem fixedPointDoubleApplication := 
-    ∀'x. 'P('x) ==> 'P('f('x)) ⊢ 'P('x) ==> 'P('f('f('x)))
+    ∀'x. 'P('x) ==> 'P('f('x)) |- 'P('x) ==> 'P('f('f('x)))
 
-  Theorem emptySetIsASubset := ⊢ subsetOf(emptySet, 'x)
+  Theorem emptySetIsASubset := |- subsetOf(emptySet, 'x)
 
   Theorem setWithElementNonEmpty := 
-    elem('y, 'x) ⊢ ¬('x = emptySet)
+    elem('y, 'x) |- ¬('x = emptySet)
 
-  Theorem powerSetNonEmpty := ⊢ ¬(powerSet('x) = emptySet)
+  Theorem powerSetNonEmpty := |- ¬(powerSet('x) = emptySet)
   *@
 \end{lstlisting}
 \end{minipage}
 
-
-
 \section{Development Environment}
-To write LISA proofs, you can use any text editor or IDE. We recommend using \emph{Visual Studio Code} with the \emph{Metals} plugin.
+To write Lisa proofs, you can use any text editor or IDE. We recommend using \emph{Visual Studio Code} (henceforth VSCode) with the \emph{Metals} plugin.
 
 \subsection*{A Note on Special Characters}
-Math is full of special character. Lisa usually admits both an ascii name and a unicode name for such symbols. By enabling ligatures, common ascii characters such as \lstinline|=|\lstinline|=|\lstinline|>| are rendered as \lstinline|==>|. 
-The present document uses the font \href{https://github.com/tonsky/FiraCode}{Fira Code}. Once installed on your system, you can activate it and ligatures on VSCode the following way:
+Math often uses symbols beyond the Latin alphabet. Lisa usually admits both an English alphabet name and a unicode name for such symbols. By enabling \emph{font ligatures}, common character sequences, such as \lstinline|=|\lstinline|=|\lstinline|>| are rendered as \lstinline|==>|. 
+The present document also uses the font \href{https://github.com/tonsky/FiraCode}{Fira Code}. Once installed on your system, you can activate it and ligatures on VSCode the following way:
 \begin{enumerate}
-  \item Press ctrl-shift-P
+  \item Press Ctrl-Shift-P
   \item Search for ``Open User Settings (JSON)''
   \item in the \lstinline|settings.json| file, add:
   \begin{lstlisting}
@@ -58,7 +57,7 @@ The present document uses the font \href{https://github.com/tonsky/FiraCode}{Fir
 "editor.fontLigatures": true,
   \end{lstlisting}
 \end{enumerate}
-Other symbols such as \lstinline|∀| are unicode symbols, which can be entered via their unicode code, depending on your OS\footnote{alt+numpad on windows, ctrl-shift-U+code on Linux}, or by using an extension for VS Code such as \emph{Fast Unicode Math Characters}, \emph{Insert Unicode} or \emph{Unicode Latex}.
+Other symbols such as \lstinline|∀| are Unicode symbols, which can be entered via their unicode code, depending on your OS\footnote{alt+numpad on windows, Ctrl-Shift-U+code on Linux}, or by using an extension for VS Code such as \emph{Fast Unicode Math Characters}, \emph{Insert Unicode} or \emph{Unicode Latex}.
 A cheat sheet of the most common symbols and how to input them is in \autoref{tab:Unicode}.
 \begin{table}
   \center
@@ -75,13 +74,13 @@ A cheat sheet of the most common symbols and how to input them is in \autoref{ta
     \lstinline| ⊆   | & U+2286           & subseteq \\ \hline
     \lstinline| ∅   | & U+2205           & emptyset \\ 
   \end{tabular}
-  \caption{Most frequently used Unicode symbols and ligatures.}
+  \caption{Frequently used Unicode symbols and ligatures.}
   \label{tab:Unicode}
 \end{table}
-Note that by default, unicode characters will not be printed correctly on a Windows console. You will need to activate the corresponding charset and pick a font with support for unicode in your console's options, such as Consolas.
+Note that by default, Unicode characters may not be printed correctly on a Windows console. You will need to activate the corresponding charset and pick a font with support for unicode in your console's options, such as Consolas.
 
 \section{Writing theory files}
-LISA provides a canonical way of writing and organizing kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features.
+Lisa provides a canonical way of writing and organizing kernel proofs by mean of a set of utilities and a domain-specific language (DSL) made possible by some of Scala's features.
 To prove some theorems by yourself, start by creating a file named \lstinline|MyTheoryName.scala| right next to the Example.scala file\footnote{The relative path is lisa/lisa-examples/src/main/scala}.
 Then simply write:
 
@@ -92,11 +91,11 @@ object MyTheoryName extends lisa.Main {
 }
 \end{lstlisting}
 \end{minipage}
-and that's it! This will give you access to all the necessary LISA features. Let see how one can use them to prove a theorem:
+and that's it! This will give you access to all the necessary Lisa features. Let see how one can use them to prove a theorem:
 $$
   \forall x. P(x) \implies P(f(x)) \vdash P(x) \implies P(f(f(x)))
 $$
-To state the theorem, we first need to tell LISA that $x$ is a variable, $f$ is a function symbol and $P$ a predicate symbol. 
+To state the theorem, we first need to tell Lisa that $x$ is a variable, $f$ is a function symbol and $P$ a predicate symbol. 
 
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
 \begin{lstlisting}[language=lisa, frame=single]
@@ -109,7 +108,7 @@ object MyTheoryName extends lisa.Main {
 \end{lstlisting}
 \end{minipage}
 
-where \lstinline|[1]| indicates that the symbol is of arity 1 (it takes a single argument). The symbols \lstinline|x, f, P| are scala identifiers that can be freely used in theorem statements and proofs, but they are also formal symbols of FOL in LISA's kernel. 
+where \lstinline|[1]| indicates that the symbol is of arity 1 (it takes a single argument). The symbols \lstinline|x, f, P| are scala identifiers that can be freely used in theorem statements and proofs, but they are also formal symbols of FOL in Lisa's kernel. 
 We now can state our theorem:
 
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
@@ -148,14 +147,14 @@ object MyTheoryName extends lisa.Main {
 \end{lstlisting}
 \end{minipage}
 First, we use the \lstinline|assume| construct in line 6.
-This tells to LISA that the assumed formula is understood as being implicitly on the left hand side of every statement in the rest of the proof. 
+This tells to Lisa that the assumed formula is understood as being implicitly on the left hand side of every statement in the rest of the proof. 
 
 Then, we need to instantiate the quantified formula twice using a specialized tactic. In lines 7 and 8, we use \lstinline|have| to state that a formula or sequent is true (given the assumption inside \lstinline|assume|), and that the proof of this is produced by the tactic \lstinline|InstantiateForall|.
 We'll see more about the interface of a tactic later. To be able to reuse intermediate steps at any point later, we also assign the intermediates step to a variable.
 
 Finally, the last line says that the conclusion of the theorem itself, \lstinline|thesis|, can be proven using the tactic \lstinline|Tautology| and the two intermediate steps we reached. \lstinline|Tautology| is a tactic that is able to do reasoning with propositional connectives. It implements a complete decision procedure for propositional logic that is described in \autoref{tact:Tautology}.
 
-LISA is based on set theory, so you can also use set-theoretic primitives such as in the following theorem.
+Lisa is based on set theory, so you can also use set-theoretic primitives such as in the following theorem.
 
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
@@ -186,7 +185,7 @@ is equivalent to
     have (Y) by Tactic2(s1)
   \end{lstlisting}
 \end{minipage}
-\lstinline|thenHave| allows us to not give a name to every step when we're doing linear reasoning. Finally, in lines 5 and 8, we see that tactic can refer not only to steps of the current proof, but also to previously proven theorems and axioms, such as \lstinline|emptySetAxiom|. The \lstinline|of| keyword indicates the the axiom (or step) is instantiated in a particular way. For example:
+\lstinline|thenHave| allows us to not give a name to every step when we're doing linear reasoning. Finally, in lines 5 and 8, we see that tactic can refer not only to steps of the current proof, but also to previously proven theorems and axioms, such as \lstinline|emptySetAxiom|. The \lstinline|of| keyword indicates the axiom (or step) is instantiated in a particular way. For example:
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
     emptySetAxiom             // ==  !(x ∈ ∅)
@@ -194,7 +193,7 @@ is equivalent to
   \end{lstlisting}
 \end{minipage}
 
-LISA also allows to introduce definitions. There are essentially two kind of definitions, \emph{aliases} and definition via \emph{unique existence}.
+Lisa also allows to introduce definitions. There are essentially two kind of definitions, \emph{aliases} and definition via \emph{unique existence}.
 An alias defines a constant, a function or predicate as being equal (or equivalent) to a given formula or term. For example,
 
 \noindent\begin{minipage}{\linewidth}\vspace{1em}
