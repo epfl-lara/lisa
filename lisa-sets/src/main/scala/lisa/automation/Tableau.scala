@@ -27,7 +27,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
   var debug = true
   def pr(s: Object) = if debug then println(s)
 
-
   def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
     solve(bot) match {
       case Some(value) => proof.ValidProofTactic(bot, value.steps, Seq())

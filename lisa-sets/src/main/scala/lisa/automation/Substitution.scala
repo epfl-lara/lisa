@@ -154,27 +154,39 @@ object Substitution {
           takenFormulaVars
         )
 
-        lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x => bot.right.find(y => UnificationUtils.getContextFormula(
-          x,
-          y,
-          freeEqualities,
-          freeIffs,
-          confinedEqualities,
-          takenTermVars,
-          confinedIffs,
-          takenFormulaVars
-        ).isDefined))
+        lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x =>
+          bot.right.find(y =>
+            UnificationUtils
+              .getContextFormula(
+                x,
+                y,
+                freeEqualities,
+                freeIffs,
+                confinedEqualities,
+                takenTermVars,
+                confinedIffs,
+                takenFormulaVars
+              )
+              .isDefined
+          )
+        )
 
-        lazy val leftPairs = filteredPrem zip filteredPrem.map(x => filteredBot.find(y => UnificationUtils.getContextFormula(
-          x,
-          y,
-          freeEqualities,
-          freeIffs,
-          confinedEqualities,
-          takenTermVars,
-          confinedIffs,
-          takenFormulaVars
-        ).isDefined))
+        lazy val leftPairs = filteredPrem zip filteredPrem.map(x =>
+          filteredBot.find(y =>
+            UnificationUtils
+              .getContextFormula(
+                x,
+                y,
+                freeEqualities,
+                freeIffs,
+                confinedEqualities,
+                takenTermVars,
+                confinedIffs,
+                takenFormulaVars
+              )
+              .isDefined
+          )
+        )
 
         lazy val violatingFormulaLeft = leftPairs.find(_._2.isEmpty)
         lazy val violatingFormulaRight = rightPairs.find(_._2.isEmpty)
@@ -519,9 +531,19 @@ object Substitution {
           val result2: Sequent = result1.left |- AppliedConnector(Or, newright.toSeq)
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
           if (toLeft)
-            scproof = scproof :+ K.LeftSubstEq(result1.underlying, scproof.length - 1, List(K.LambdaTermTerm(Seq(), left.underlying) -> (K.LambdaTermTerm(Seq(), right.underlying))), (Seq(v.underlyingLabel), leftForm.underlying))
+            scproof = scproof :+ K.LeftSubstEq(
+              result1.underlying,
+              scproof.length - 1,
+              List(K.LambdaTermTerm(Seq(), left.underlying) -> (K.LambdaTermTerm(Seq(), right.underlying))),
+              (Seq(v.underlyingLabel), leftForm.underlying)
+            )
           if (toRight)
-            scproof = scproof :+ K.RightSubstEq(result2.underlying, scproof.length - 1, List(K.LambdaTermTerm(Seq(), left.underlying) -> (K.LambdaTermTerm(Seq(), right.underlying))), (Seq(v.underlyingLabel), rightForm.underlying))
+            scproof = scproof :+ K.RightSubstEq(
+              result2.underlying,
+              scproof.length - 1,
+              List(K.LambdaTermTerm(Seq(), left.underlying) -> (K.LambdaTermTerm(Seq(), right.underlying))),
+              (Seq(v.underlyingLabel), rightForm.underlying)
+            )
           val bot = newleft + phi |- newright
           scproof = scproof :+ K.Restate(bot.underlying, scproof.length - 1)
 
@@ -556,10 +578,19 @@ object Substitution {
 
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
           if (toLeft)
-            scproof = scproof :+ K.LeftSubstIff(result1.underlying, scproof.length - 1, List(K.LambdaTermFormula(Seq(), left.underlying) -> (K.LambdaTermFormula(Seq(), right.underlying))), (Seq(H.underlyingLabel), leftForm.underlying))
+            scproof = scproof :+ K.LeftSubstIff(
+              result1.underlying,
+              scproof.length - 1,
+              List(K.LambdaTermFormula(Seq(), left.underlying) -> (K.LambdaTermFormula(Seq(), right.underlying))),
+              (Seq(H.underlyingLabel), leftForm.underlying)
+            )
           if (toRight)
-            scproof =
-              scproof :+ K.RightSubstIff(result2.underlying, scproof.length - 1, List(K.LambdaTermFormula(Seq(), left.underlying) -> (K.LambdaTermFormula(Seq(), right.underlying))), (Seq(H.underlyingLabel), rightForm.underlying))
+            scproof = scproof :+ K.RightSubstIff(
+              result2.underlying,
+              scproof.length - 1,
+              List(K.LambdaTermFormula(Seq(), left.underlying) -> (K.LambdaTermFormula(Seq(), right.underlying))),
+              (Seq(H.underlyingLabel), rightForm.underlying)
+            )
 
           val bot = newleft + phi |- newright
           scproof = scproof :+ K.Restate(bot.underlying, scproof.length - 1)

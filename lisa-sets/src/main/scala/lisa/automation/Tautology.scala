@@ -144,10 +144,20 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
 
       val seq1 = AugSequent((atom :: s.decisions._1, s.decisions._2), lambdaF(Seq(top())))
       val proof1 = solveAugSequent(seq1, offset)
-      val subst1 = RightSubstIff(atom :: s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF, offset + proof1.length - 1, List((LambdaTermFormula(Seq(), atom), LambdaTermFormula(Seq(), top()))), (lambdaF.vars, lambdaF.body))
+      val subst1 = RightSubstIff(
+        atom :: s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF,
+        offset + proof1.length - 1,
+        List((LambdaTermFormula(Seq(), atom), LambdaTermFormula(Seq(), top()))),
+        (lambdaF.vars, lambdaF.body)
+      )
       val seq2 = AugSequent((s.decisions._1, atom :: s.decisions._2), lambdaF(Seq(bot())))
       val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
-      val subst2 = RightSubstIff(Neg(atom) :: s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF, offset + proof1.length + proof2.length - 1 + 1, List((LambdaTermFormula(Seq(), atom), LambdaTermFormula(Seq(), bot()))), (lambdaF.vars, lambdaF.body))
+      val subst2 = RightSubstIff(
+        Neg(atom) :: s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF,
+        offset + proof1.length + proof2.length - 1 + 1,
+        List((LambdaTermFormula(Seq(), atom), LambdaTermFormula(Seq(), bot()))),
+        (lambdaF.vars, lambdaF.body)
+      )
       val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
       val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
       val redStep = Restate(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- s.formula, offset + proof1.length + proof2.length + 4 - 1)

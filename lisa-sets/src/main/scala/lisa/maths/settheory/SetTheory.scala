@@ -532,11 +532,17 @@ object SetTheory extends lisa.Main {
     // backward direction
     //      a = c and b = d => up ab = up cd (and the other case)
     have(unorderedPair(a, b) === unorderedPair(a, b)) by RightRefl
-    thenHave((a === c, b === d) |- unorderedPair(a, b) === unorderedPair(c, d)) by RightSubstEq.withParametersSimple(List((a, c), (b, d)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(x, y)))
+    thenHave((a === c, b === d) |- unorderedPair(a, b) === unorderedPair(c, d)) by RightSubstEq.withParametersSimple(
+      List((a, c), (b, d)),
+      lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(x, y))
+    )
     val lhs = thenHave(Set((a === c) /\ (b === d)) |- unorderedPair(a, b) === unorderedPair(c, d)) by Restate
 
     have(unorderedPair(a, b) === unorderedPair(b, a)) by InstFunSchema(ScalaMap(x -> a, y -> b))(unorderedPairSymmetry)
-    thenHave((a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq.withParametersSimple(List((a, d), (b, c)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x)))
+    thenHave((a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq.withParametersSimple(
+      List((a, d), (b, c)),
+      lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x))
+    )
     val rhs = thenHave(Set((a === d) /\ (b === c)) |- (unorderedPair(a, b) === unorderedPair(c, d))) by Restate
 
     have((((a === d) /\ (b === c)) \/ ((a === c) /\ (b === d))) |- (unorderedPair(a, b) === unorderedPair(c, d))) by LeftOr(lhs, rhs)
@@ -1485,10 +1491,16 @@ object SetTheory extends lisa.Main {
 
           have(prem |- in(unorderedPair(a, b), powerSet(setUnion(x, y)))) by Weakening(unorderedPairInPowerSet of (x -> setUnion(x, y)))
           val zab =
-            thenHave((prem, (z === unorderedPair(a, b))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParametersSimple(List((z, unorderedPair(a, b))), lambda(a, in(a, powerSet(setUnion(x, y)))))
+            thenHave((prem, (z === unorderedPair(a, b))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParametersSimple(
+              List((z, unorderedPair(a, b))),
+              lambda(a, in(a, powerSet(setUnion(x, y))))
+            )
           have(prem |- in(unorderedPair(a, a), powerSet(setUnion(x, y)))) by Weakening(unorderedPairInPowerSet of (x -> setUnion(x, y), b -> a))
           val zaa =
-            thenHave((prem, (z === unorderedPair(a, a))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParametersSimple(List((z, unorderedPair(a, a))), lambda(a, in(a, powerSet(setUnion(x, y)))))
+            thenHave((prem, (z === unorderedPair(a, a))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParametersSimple(
+              List((z, unorderedPair(a, a))),
+              lambda(a, in(a, powerSet(setUnion(x, y))))
+            )
 
           val cutRhs = have((prem, (z === unorderedPair(a, b)) \/ (z === singleton(a))) |- in(z, powerSet(setUnion(x, y)))) by LeftOr(zab, zaa)
 
@@ -2373,10 +2385,11 @@ object SetTheory extends lisa.Main {
       val lhs = have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ ⊤))) subproof {
         val iff = have(prem |- (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) by Restate
         have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> in(pair(x, y), f))) by Restate
-        val subst = thenHave((prem /\ ((z === y) <=> in(pair(x, y), f)), (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by RightSubstIff.withParametersSimple(
-          List(((in(pair(x, y), f)), (prem ==> in(pair(x, y), f)))),
-          lambda(h, ((z === y) <=> h))
-        )
+        val subst = thenHave((prem /\ ((z === y) <=> in(pair(x, y), f)), (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by RightSubstIff
+          .withParametersSimple(
+            List(((in(pair(x, y), f)), (prem ==> in(pair(x, y), f)))),
+            lambda(h, ((z === y) <=> h))
+          )
 
         have((prem /\ ((z === y) <=> in(pair(x, y), f)), prem) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by Cut(iff, subst)
         thenHave(thesis) by Restate

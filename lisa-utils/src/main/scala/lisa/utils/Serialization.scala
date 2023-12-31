@@ -1,7 +1,7 @@
 package lisa.utils
 
-import lisa.utils.K.{LeftSubstEq => _, RightSubstEq => _, LeftSubstIff => _, RightSubstIff => _, *}
 import lisa.kernel.proof.SequentCalculus.*
+import lisa.utils.K.{LeftSubstEq => _, LeftSubstIff => _, RightSubstEq => _, RightSubstIff => _, _}
 import lisa.utils.ProofsShrink.*
 
 import java.io._
@@ -326,9 +326,7 @@ object Serialization {
             lttToProofDOS(ltts._2)
           )
           proofDOS.writeShort(lambdaPhi._1.size)
-          lambdaPhi._1.foreach(stl =>
-            termLabelToDOS(stl, proofDOS)
-          )
+          lambdaPhi._1.foreach(stl => termLabelToDOS(stl, proofDOS))
           proofDOS.writeInt(lineOfFormula(lambdaPhi._2))
         case RightSubstEq(bot, t1, equals, lambdaPhi) =>
           proofDOS.writeByte(rightSubstEq)
@@ -340,9 +338,7 @@ object Serialization {
             lttToProofDOS(ltts._2)
           )
           proofDOS.writeShort(lambdaPhi._1.size)
-          lambdaPhi._1.foreach(stl =>
-            termLabelToDOS(stl, proofDOS)
-          )
+          lambdaPhi._1.foreach(stl => termLabelToDOS(stl, proofDOS))
           proofDOS.writeInt(lineOfFormula(lambdaPhi._2))
         case LeftSubstIff(bot, t1, equals, lambdaPhi) =>
           proofDOS.writeByte(leftSubstIff)
@@ -354,9 +350,7 @@ object Serialization {
             ltfToProofDOS(ltts._2)
           )
           proofDOS.writeShort(lambdaPhi._1.size)
-          lambdaPhi._1.foreach(stl =>
-            formulaLabelToDOS(stl, proofDOS)
-          )
+          lambdaPhi._1.foreach(stl => formulaLabelToDOS(stl, proofDOS))
           proofDOS.writeInt(lineOfFormula(lambdaPhi._2))
         case RightSubstIff(bot, t1, equals, lambdaPhi) =>
           proofDOS.writeByte(rightSubstIff)
@@ -368,9 +362,7 @@ object Serialization {
             ltfToProofDOS(ltts._2)
           )
           proofDOS.writeShort(lambdaPhi._1.size)
-          lambdaPhi._1.foreach(stl =>
-            formulaLabelToDOS(stl, proofDOS)
-          )
+          lambdaPhi._1.foreach(stl => formulaLabelToDOS(stl, proofDOS))
           proofDOS.writeInt(lineOfFormula(lambdaPhi._2))
         case InstSchema(bot, t1, mCon, mPred, mTerm) =>
           proofDOS.writeByte(instSchema)

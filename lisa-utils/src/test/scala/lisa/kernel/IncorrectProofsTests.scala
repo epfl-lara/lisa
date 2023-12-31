@@ -56,7 +56,7 @@ class IncorrectProofsTests extends ProofCheckerSuite {
       ),
       SCProof(
         Hypothesis(emptySeq +<< (f <=> g) +>> (f <=> g), f <=> g),
-        LeftSubstIff(emptySeq +<< (h <=> g) +<< (f <=> h) +>> (f <=> g), 0, List(( (LambdaTermFormula(Seq(), f), LambdaTermFormula(Seq(), h)) )), (Seq(gl), f <=> g))
+        LeftSubstIff(emptySeq +<< (h <=> g) +<< (f <=> h) +>> (f <=> g), 0, List(((LambdaTermFormula(Seq(), f), LambdaTermFormula(Seq(), h)))), (Seq(gl), f <=> g))
       ),
       SCProof(
         Hypothesis(emptySeq +<< f +>> f, f),
@@ -85,7 +85,6 @@ class IncorrectProofsTests extends ProofCheckerSuite {
         Hypothesis(emptySeq +<< f +>> f, f),
         RightOr(emptySeq +<< f +>> (f \/ g) +>> g, 0, f, g) // supplemental right g
       )
-      
     )
 
     incorrectProofs.foreach(checkIncorrectProof)

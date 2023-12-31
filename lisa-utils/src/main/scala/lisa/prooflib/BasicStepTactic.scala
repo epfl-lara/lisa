@@ -1127,21 +1127,20 @@ object BasicStepTactic {
       lazy val botK = bot.underlying
       lazy val equalsK = equals.map(p => (p._1.underlyingLTT, p._2.underlyingLTT))
       lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlyingLabel), lambdaPhi._2.underlying)
-      
+
       val (s_es, t_es) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      if (phi_args.size != s_es.size) 
+      if (phi_args.size != s_es.size)
         return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
       else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
         return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
-      
+
       val phi_s = K.instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
       val phi_t = K.instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
-      val sEqT_es = equalsK map { 
-        case (s, t) => 
-          assert(s.vars.size == t.vars.size)
-          val base = K.AtomicFormula(K.equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
-          (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
+      val sEqT_es = equalsK map { case (s, t) =>
+        assert(s.vars.size == t.vars.size)
+        val base = K.AtomicFormula(K.equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
+        (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
       }
 
       if (!K.isSameSet(botK.right, premiseSequent.right))
@@ -1182,18 +1181,17 @@ object BasicStepTactic {
 
       val (s_es, t_es) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      if (phi_args.size != s_es.size) 
+      if (phi_args.size != s_es.size)
         return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
       else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
         return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
-      
+
       val phi_s = K.instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
       val phi_t = K.instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
-      val sEqT_es = equalsK map { 
-        case (s, t) => 
-          assert(s.vars.size == t.vars.size)
-          val base = K.AtomicFormula(K.equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
-          (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
+      val sEqT_es = equalsK map { case (s, t) =>
+        assert(s.vars.size == t.vars.size)
+        val base = K.AtomicFormula(K.equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
+        (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
       }
 
       if (!K.isSameSet(botK.left, premiseSequent.left ++ sEqT_es))
@@ -1237,18 +1235,17 @@ object BasicStepTactic {
 
       val (psi_s, tau_s) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      if (phi_args.size != psi_s.size) 
+      if (phi_args.size != psi_s.size)
         return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
       else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
         return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
-      
+
       val phi_psi = K.instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
       val phi_tau = K.instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
-      val psiIffTau = equalsK map { 
-        case (s, t) => 
-          assert(s.vars.size == t.vars.size)
-          val base = K.ConnectorFormula(K.Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
-          (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
+      val psiIffTau = equalsK map { case (s, t) =>
+        assert(s.vars.size == t.vars.size)
+        val base = K.ConnectorFormula(K.Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
+        (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
       }
 
       if (!K.isSameSet(botK.right, premiseSequent.right))
@@ -1290,18 +1287,17 @@ object BasicStepTactic {
 
       val (psi_s, tau_s) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      if (phi_args.size != psi_s.size) 
+      if (phi_args.size != psi_s.size)
         return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
       else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
         return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
-      
+
       val phi_psi = K.instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
       val phi_tau = K.instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
-      val psiIffTau = equalsK map { 
-        case (s, t) => 
-          assert(s.vars.size == t.vars.size)
-          val base = K.ConnectorFormula(K.Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
-          (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
+      val psiIffTau = equalsK map { case (s, t) =>
+        assert(s.vars.size == t.vars.size)
+        val base = K.ConnectorFormula(K.Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
+        (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.BinderFormula(K.Forall, s_arg, acc) }
       }
 
       if (!K.isSameSet(botK.left, premiseSequent.left ++ psiIffTau)) {
