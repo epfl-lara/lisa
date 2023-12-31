@@ -1,5 +1,11 @@
 # Change List
 
+## 2023-12-31
+Expanded the Substitution rules to allow substitution under quantifiers when a statement of the form $\forall x. f(x) = g(x)$ is given.
+
+## 2023-12-29
+Update to the user manual, change format to B5 and more improvements.
+
 ## 2023-12-19
 Introduction of local definitions, with methods `witness`, `t.replace`, `t.collect`, `t.map` and `t.filter`. Update of the manual, describing how those work, along with some corrections to the statement of axioms ot match LISA's presentation. Include test cases using each, and proved some required theorems. Fix an error in the reconstruction of OL-normalized formulas used in some tactics.
 
