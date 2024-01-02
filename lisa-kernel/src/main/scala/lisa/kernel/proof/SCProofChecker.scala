@@ -564,8 +564,4 @@ object SCProofChecker {
     else possibleError.get
   }
 
-
-  var store_equals: List[(LambdaTermFormula, LambdaTermFormula)] = null
-  var store_lambdaPhi: (Seq[SchematicAtomicLabel], Formula) = null
-
 }
