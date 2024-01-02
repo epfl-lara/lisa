@@ -79,14 +79,13 @@ trait Sequents extends Common with lisa.fol.Lambdas with Predef {
       this.right.head match {
         case r @ Forall(x, f) =>
           val t = args.head
-          val newf = f.substitute(x:=t)
+          val newf = f.substitute(x := t)
           val s0 = K.Hypothesis((newf |- newf).underlying, newf.underlying)
-          val s1 = K.LeftForall((r |- newf).underlying, index+1, f.underlying, x.underlyingLabel, t.underlying)
-          val s2 = K.Cut((this.left|- newf).underlying, index, index+2, r.underlying)
-          if args.tail.isEmpty then
-            (this.left |- newf, Seq(s0, s1, s2))
-          else 
-            (this.left |- newf).instantiateForallWithProof(args.tail, index+3) match {
+          val s1 = K.LeftForall((r |- newf).underlying, index + 1, f.underlying, x.underlyingLabel, t.underlying)
+          val s2 = K.Cut((this.left |- newf).underlying, index, index + 2, r.underlying)
+          if args.tail.isEmpty then (this.left |- newf, Seq(s0, s1, s2))
+          else
+            (this.left |- newf).instantiateForallWithProof(args.tail, index + 3) match {
               case (s, p) => (s, Seq(s0, s1, s2) ++ p)
             }
 
@@ -94,7 +93,6 @@ trait Sequents extends Common with lisa.fol.Lambdas with Predef {
       }
 
     }
-
 
     /**
      * Given 3 substitution maps like the kernel accepts, i.e. Substitution of Predicate Connector and Term schemas, do the substitution

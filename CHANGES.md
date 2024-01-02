@@ -1,5 +1,10 @@
 # Change List
 
+
+## 2024-01-02
+The of keyword can now be used to instantiate quantified variables in facts whose right hand side is a single universaly quantified formula. This can be combined freely with instantiation of ffree schematic symbols. Manual and tests update.
+
+
 ## 2023-12-31
 Expanded the Substitution rules to allow substitution under quantifiers when a statement of the form $\forall x. f(x) = g(x)$ is given.
 

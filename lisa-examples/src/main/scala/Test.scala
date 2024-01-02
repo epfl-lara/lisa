@@ -8,12 +8,15 @@ object Test extends lisa.Main {
   val y = variable
   val z = variable
   val a = variable
+  val c = variable
+  val d = variable
 
   val f = function[1]
   val g = function[1]
   val h = function[2]
 
   val E = predicate[2]
+  val P = predicate[2]
 
   val assump1 = ∀(u, ∀(v, ∀(w, E(u, v) ==> (E(v, w) ==> E(u, w)))))
   val assump2 = ∀(x, ∀(y, E(x, y) ==> (E(f(x), f(y)))))
@@ -44,6 +47,12 @@ object Test extends lisa.Main {
     val s2 = have(∀(x, E(x, y))) by Restate.from(s1 of y)
     have(thesis) by Tautology.from(s2 of f(x), s2 of (x, y := h(x, y)))
 
+  }
+
+  val ax = Axiom(∀(x, ∀(y, P(x, y))))
+  val thm4 = Theorem(c === d) {
+    have(thesis) by Restate.from(ax of (c, d, P := ===))
+    showCurrentProof()
   }
 
 }

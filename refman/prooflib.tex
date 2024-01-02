@@ -93,10 +93,38 @@ This simulation is provided by Lisa through the \lstinline|witness|{} method. It
 
 \section{DSL}
 
-%It is important to note that when multiple such files are developed, they all use the same underlying \lstinline|RunningTheory|{}. This makes it possible to use results proved previously by means of a simple \lstinline|import|{} statement as one would import a regular object. Similarly, one should also import as usual automation and tactics developed alongside. It is expected in the medium term that \lstinline|lisa.Main|{} will come with basic automation.
-%All imported theory objects will be run through as well, but only the result of the selected one will be printed.
+\subsection{Instantiations with ``of''}
 
+With lisa's kernel, it is possible to instantiate a theorem proving $P(x)$ to obtain a proof of $P(t)$, for any term $t$, using the \texttt{Inst} rule from \autoref{fig:deduct_rules_1}. Lisa's DSL provides a more convenient way to do so, using the \lstinline|of| keyword. It is used like so:
+\begin{lstlisting}[language=lisa, frame=single]
+  val ax = Axiom(P(x))
+  val falso = Theorem(P(c) /\ P(d)) {
+    have(thesis) by RightAnd(ax of (x := c), ax of (x := d))
+  }
+\end{lstlisting}
+\lstinline|x := d| is called a substitution pair, and is equivalent to the tuple \lstinline|(x, d)|. Arbitrarily many substitution pairs can be given as argument to \lstinline|of|, and the instantiations are done simultaneously. \lstinline|ax of (x := c)| is called an \lstinline|InstantiatedFact|, whose statement is $P(c)$, and which can be used exactly like theorems, axioms and intermediate steps in the proof. Internally, Lisa produces a proof step corresponding to the instantiation using the \texttt{Inst} rule.
 
+The \lstinline|of| keyword can also instantiate universaly quantified formulas of a fact, when it contains a single formula. For example, the following code is valid:
+\begin{lstlisting}[language=lisa, frame=single]
+  val ax = Axiom(∀(x, P(x)))
+  val thm = Theorem(P(c) /\ P(d)) {
+    have(thesis) by RightAnd(ax of c, ax of d)
+  }
+\end{lstlisting}
+Here, \lstinline|ax of c| is a fact whose proven statement is again $P(c)$. It is possible to instantiate multiple $\forall$ quantifiers at once. For example if \lstinline|ax| is an axiom of the form $\forall x, \forall y, P(x, y)$, then \lstinline|ax of (c, d)| is a fact whose proven statement is $P(c, d)$. It is also possible to combine instantiation of free symbols and quantified variables. For example, if \lstinline|ax| is an axiom of the form $\forall x, \forall y, P(x, y)$, then \lstinline|ax of (c, y, P := ===)| is a fact whose proven statement is $(c = y)$.
 
+Formally, the \lstinline|of| keyword takes as argument arbitrarily many terms and substitution pairs. If there is at least on term given as argument, the base fact must have a single universaly quantified formula on the right (an arbitrarily many formulas on the left). The number of given terms must be at most the number of leading universal quantifiers. Moreover, a substitution cannot instantiate any locked symbol (i.e. a symbol part of an assumption or definition). The ordering of substitution pairs does not matter, but the ordering of terms does. The resulting fact is obtained by firstreplacing the free symbols in the formula by the given substitution pairs, and then instantiating the quantified variables in the formula by the given terms
 
+In general, for the following proof
+\begin{lstlisting}[language=lisa, frame=single]
+  val ax = Axiom(∀(x, ∀(y, P(x, y))))
+  val thm = Theorem(c == d) {
+    have(thesis) by Restate.from(ax of (c, d, P := ===))
+  }
+\end{lstlisting}
+Lisa will produce the following inner statements:
+\begin{lstlisting}
+   -1 Import 0                 (  ) ⊢  ∀(x, ∀(y, P(x, y)))
+    0 SequentInstantiationRule (  ) ⊢  c === d
+\end{lstlisting}
 

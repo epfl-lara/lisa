@@ -43,7 +43,7 @@ trait WithTheorems {
      */
     case class InstantiatedFact(
         fact: Fact,
-        insts: Seq[F.SubstPair|F.Term]
+        insts: Seq[F.SubstPair | F.Term]
     ) {
       val baseFormula: F.Sequent = sequentOfFact(fact)
       val (result, proof) = {
@@ -51,8 +51,9 @@ trait WithTheorems {
           case t: F.Term => Left(t)
           case sp: F.SubstPair => Right(sp)
         }
-        val (s1, p1) = if terms.isEmpty then (baseFormula, Seq()) else baseFormula.instantiateForallWithProof(terms, -1)
-        val (s2, p2) = if substPairs.isEmpty then (s1, p1) else s1.instantiateWithProof(substPairs.map(sp => (sp._1, sp._2)).toMap, p1.length-1)
+
+        val (s1, p1) = if substPairs.isEmpty then (baseFormula, Seq()) else baseFormula.instantiateWithProof(substPairs.map(sp => (sp._1, sp._2)).toMap, -1)
+        val (s2, p2) = if terms.isEmpty then (s1, p1) else s1.instantiateForallWithProof(terms, p1.length - 1)
         (s2, p1 ++ p2)
       }
 
