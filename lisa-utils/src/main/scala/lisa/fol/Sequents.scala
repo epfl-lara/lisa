@@ -10,7 +10,7 @@ import lisa.utils.K
 
 import scala.annotation.showAsInfix
 
-trait Sequents extends Common with lisa.fol.Lambdas {
+trait Sequents extends Common with lisa.fol.Lambdas with Predef {
   object SequentInstantiationRule extends ProofTactic
   given ProofTactic = SequentInstantiationRule
 
@@ -30,7 +30,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
      * @param map
      * @return
      */
-    def substituteWithProof(map: Map[SchematicLabel[_], _ <: LisaObject[_]]): (Sequent, Seq[K.SCProofStep]) = {
+    def instantiateWithProof(map: Map[SchematicLabel[_], _ <: LisaObject[_]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
 
       val mTerm: Map[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]] =
         map.collect[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]](p =>
@@ -70,9 +70,31 @@ trait Sequents extends Common with lisa.fol.Lambdas {
             }
         }
       )
-      (substituteUnsafe(map), substituteWithProofLikeKernel(mConn, mPred, mTerm))
+      (substituteUnsafe(map), instantiateWithProofLikeKernel(mConn, mPred, mTerm, index))
 
     }
+
+    def instantiateForallWithProof(args: Seq[Term], index: Int): (Sequent, Seq[K.SCProofStep]) = {
+      if this.right.size != 1 then throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula")
+      this.right.head match {
+        case r @ Forall(x, f) =>
+          val t = args.head
+          val newf = f.substitute(x:=t)
+          val s0 = K.Hypothesis((newf |- newf).underlying, newf.underlying)
+          val s1 = K.LeftForall((r |- newf).underlying, index+1, f.underlying, x.underlyingLabel, t.underlying)
+          val s2 = K.Cut((this.left|- newf).underlying, index, index+2, r.underlying)
+          if args.tail.isEmpty then
+            (this.left |- newf, Seq(s0, s1, s2))
+          else 
+            (this.left |- newf).instantiateForallWithProof(args.tail, index+3) match {
+              case (s, p) => (s, Seq(s0, s1, s2) ++ p)
+            }
+
+        case _ => throw new IllegalArgumentException("Right side of sequent must be a single universaly quantified formula")
+      }
+
+    }
+
 
     /**
      * Given 3 substitution maps like the kernel accepts, i.e. Substitution of Predicate Connector and Term schemas, do the substitution
@@ -83,10 +105,11 @@ trait Sequents extends Common with lisa.fol.Lambdas {
      * @param mTerm The substitution of function schemas
      * @return
      */
-    def substituteWithProofLikeKernel(
+    def instantiateWithProofLikeKernel(
         mCon: Map[SchematicConnectorLabel[?], LambdaExpression[Formula, Formula, ?]],
         mPred: Map[SchematicPredicateLabel[?] | VariableFormula, LambdaExpression[Term, Formula, ?]],
-        mTerm: Map[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]]
+        mTerm: Map[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]],
+        index: Int
     ): Seq[K.SCProofStep] = {
       val premiseSequent = this.underlying
       val mConK = mCon.map((sl, le) => (sl.underlyingLabel, underlyingLFF(le)))
@@ -104,7 +127,7 @@ trait Sequents extends Common with lisa.fol.Lambdas {
       )
       val botK = lisa.utils.KernelHelpers.instantiateSchemaInSequent(premiseSequent, mConK, mPredK, mTermK)
       val smap = Map[SchematicLabel[?], LisaObject[?]]() ++ mCon ++ mPred ++ mTerm
-      Seq(K.InstSchema(botK, -1, mConK, mPredK, mTermK))
+      Seq(K.InstSchema(botK, index, mConK, mPredK, mTermK))
     }
 
     infix def +<<(f: Formula): Sequent = this.copy(left = this.left + f)
