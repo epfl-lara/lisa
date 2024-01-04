@@ -168,9 +168,9 @@ trait Sequents extends Common with lisa.fol.Lambdas with Predef {
     infix def ++?(s1: Sequent): Sequent = this addAllIfNotExists s1
 
     override def toString =
-      (if left.size == 1 then left.head.toString else "( " + left.mkString(", ") + " )") +
+      (if left.size == 0 then "" else if left.size == 1 then left.head.toString else "( " + left.mkString(", ") + " )") +
         " ⊢ " +
-        (if right.size == 1 then right.head.toString else "( " + right.mkString(", ") + " )")
+        (if right.size == 0 then "" else if right.size == 1 then right.head.toString else "( " + right.mkString(", ") + " )")
 
   }
 

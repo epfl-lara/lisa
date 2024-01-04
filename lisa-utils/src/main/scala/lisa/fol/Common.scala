@@ -377,7 +377,7 @@ trait Common {
     def rename(newid: Identifier): ConstantFunctionLabel[N] = ConstantFunctionLabel(newid, arity)
     def freshRename(taken: Iterable[Identifier]): ConstantFunctionLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Term]): String = if (infix) (args(0).toString() + " " + toString() + " " + args(1).toString()) else toString() + "(" + args.mkString(", ") + ")"
+    def mkString(args: Seq[Term]): String = if (infix) (args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated()) else toString() + "(" + args.mkString(", ") + ")"
     override def mkStringSeparated(args: Seq[Term]): String = if (infix) "(" + mkString(args) + ")" else mkString(args)
   }
   object ConstantFunctionLabel {
@@ -398,7 +398,7 @@ trait Common {
     def freeSchematicLabels: Set[SchematicLabel[?]] = label.freeSchematicLabels ++ args.flatMap(_.freeSchematicLabels)
     def allSchematicLabels: Set[SchematicLabel[?]] = label.allSchematicLabels ++ args.flatMap(_.allSchematicLabels)
     override def toString: String = label.mkString(args)
-    override def toStringSeparated(): String = label.mkString(args)
+    override def toStringSeparated(): String = label.mkStringSeparated(args)
   }
 
   //////////////////////////////////////
@@ -610,7 +610,7 @@ trait Common {
     def rename(newid: Identifier): ConstantPredicateLabel[N] = ConstantPredicateLabel(newid, arity)
     def freshRename(taken: Iterable[Identifier]): ConstantPredicateLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Term]): String = if (infix) (args(0).toString() + " " + toString() + " " + args(1).toString()) else toString() + "(" + args.mkString(", ") + ")"
+    def mkString(args: Seq[Term]): String = if (infix) (args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated()) else toString() + "(" + args.mkString(", ") + ")"
     override def mkStringSeparated(args: Seq[Term]): String = if (infix) "(" + mkString(args) + ")" else mkString(args)
   }
   object ConstantPredicateLabel {
@@ -632,7 +632,7 @@ trait Common {
     def allSchematicLabels: Set[SchematicLabel[?]] = label.allSchematicLabels ++ args.toSeq.flatMap(_.allSchematicLabels)
 
     override def toString: String = label.mkString(args)
-    override def toStringSeparated(): String = label.mkString(args)
+    override def toStringSeparated(): String = label.mkStringSeparated(args)
   }
 
   ////////////////

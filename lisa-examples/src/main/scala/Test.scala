@@ -1,4 +1,3 @@
-
 object Test extends lisa.Main {
 
   val u = variable
@@ -24,8 +23,6 @@ object Test extends lisa.Main {
 
   val goal = E(f(f(g(a))), g(f(f(a))))
 
-
-  
   val thm = Theorem((assump1, assump2, assump3) |- goal) {
     have(thesis) by Tableau
   }
@@ -43,7 +40,7 @@ object Test extends lisa.Main {
   }
 
   val thm3 = Theorem(∀(y, ∀(x, E(x, y))) |- E(f(x), y) /\ E(x, h(x, y))) {
-    val s1 = assume (∀(y, ∀(x, E(x, y))))
+    val s1 = assume(∀(y, ∀(x, E(x, y))))
     val s2 = have(∀(x, E(x, y))) by Restate.from(s1 of y)
     have(thesis) by Tautology.from(s2 of f(x), s2 of (x, y := h(x, y)))
 
