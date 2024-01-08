@@ -1,3 +1,4 @@
+
 object Test extends lisa.Main {
 
   val u = variable
@@ -22,6 +23,7 @@ object Test extends lisa.Main {
   val assump3 = ∀(z, E(f(g(z)), g(f(z))))
 
   val goal = E(f(f(g(a))), g(f(f(a))))
+
 
   val thm = Theorem((assump1, assump2, assump3) |- goal) {
     have(thesis) by Tableau
