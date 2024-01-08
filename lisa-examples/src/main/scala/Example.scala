@@ -9,10 +9,8 @@ object Example extends lisa.Main {
 
   // Simple proof with LISA's DSL
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
-    assume(∀(x, P(x) ==> P(f(x))))
-    val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
-    val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
-    have(thesis) by Tautology.from(step1, step2)
+    val a1 = assume(∀(x, P(x) ==> P(f(x))))
+    have(thesis) by Tautology.from(a1 of x, a1 of f(x))
   }
 
   // Example of set theoretic development

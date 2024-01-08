@@ -451,6 +451,8 @@ trait WithTheorems {
    * A proven, reusable statement. A justification corresponding to [[K.Theorem]].
    */
   sealed abstract class THM extends JUSTIFICATION {
+    def repr: String =
+      s" Theorem ${name} := ${statement}${if (withSorry) " (!! Relies on Sorry)" else ""}"
 
     /**
      * The underlying Kernel proof [[K.SCProof]], if it is still available. Proofs are not kept in memory for efficiency.
@@ -533,7 +535,6 @@ trait WithTheorems {
    */
   class THMFromKernel(using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
 
-    def repr: String = innerJustification.repr
     val innerJustification: theory.Theorem = innerThm
     assert(innerThm.name == fullName)
     def kernelProof: Option[K.SCProof] = getProof()
@@ -567,7 +568,6 @@ trait WithTheorems {
             thm
         }
       else prove(computeProof)._1
-    def repr: String = innerJustification.repr
 
     library.last = Some(this)
     private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, SCProof, List[(String, theory.Justification)]) = {
