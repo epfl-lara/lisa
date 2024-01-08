@@ -154,27 +154,39 @@ object Substitution {
           takenFormulaVars
         )
 
-        lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x => bot.right.find(y => UnificationUtils.getContextFormula(
-          x,
-          y,
-          freeEqualities,
-          freeIffs,
-          confinedEqualities,
-          takenTermVars,
-          confinedIffs,
-          takenFormulaVars
-        ).isDefined))
+        lazy val rightPairs = premiseSequent.right zip premiseSequent.right.map(x =>
+          bot.right.find(y =>
+            UnificationUtils
+              .getContextFormula(
+                x,
+                y,
+                freeEqualities,
+                freeIffs,
+                confinedEqualities,
+                takenTermVars,
+                confinedIffs,
+                takenFormulaVars
+              )
+              .isDefined
+          )
+        )
 
-        lazy val leftPairs = filteredPrem zip filteredPrem.map(x => filteredBot.find(y => UnificationUtils.getContextFormula(
-          x,
-          y,
-          freeEqualities,
-          freeIffs,
-          confinedEqualities,
-          takenTermVars,
-          confinedIffs,
-          takenFormulaVars
-        ).isDefined))
+        lazy val leftPairs = filteredPrem zip filteredPrem.map(x =>
+          filteredBot.find(y =>
+            UnificationUtils
+              .getContextFormula(
+                x,
+                y,
+                freeEqualities,
+                freeIffs,
+                confinedEqualities,
+                takenTermVars,
+                confinedIffs,
+                takenFormulaVars
+              )
+              .isDefined
+          )
+        )
 
         lazy val violatingFormulaLeft = leftPairs.find(_._2.isEmpty)
         lazy val violatingFormulaRight = rightPairs.find(_._2.isEmpty)
@@ -308,7 +320,7 @@ object Substitution {
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (p = left formulas)
-              lib.thenHave(sequentAfterEq) by BasicStepTactic.LeftSubstEq.withParameters(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
+              lib.thenHave(sequentAfterEq) by BasicStepTactic.LeftSubstEq.withParametersSimple(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
 
               // left <=>
               val formSubstR = Map((formulaVars zip formulaInputsR)*)
@@ -317,7 +329,7 @@ object Substitution {
               val sequentAfterIff = sequentAfterIffPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (x = right terms)
-              lib.thenHave(sequentAfterIff) by BasicStepTactic.LeftSubstIff(formulaInputs.toList, lambda(formulaVars, ctx.body.substituteUnsafe2(eqSubst)))
+              lib.thenHave(sequentAfterIff) by BasicStepTactic.LeftSubstIff.withParametersSimple(formulaInputs.toList, lambda(formulaVars, ctx.body.substituteUnsafe2(eqSubst)))
               sequentAfterIff
             }
 
@@ -365,7 +377,7 @@ object Substitution {
               val sequentAfterEq = sequentAfterEqPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (p = left formulas)
-              lib.thenHave(sequentAfterEq) by BasicStepTactic.RightSubstEq.withParameters(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
+              lib.thenHave(sequentAfterEq) by BasicStepTactic.RightSubstEq.withParametersSimple(termInputs.toList, lambda(termVars, ctx.body.substituteUnsafe2(formSubstL)))
 
               // right <=>
               val formSubstR = Map((formulaVars zip formulaInputsR)*)
@@ -374,7 +386,7 @@ object Substitution {
               val sequentAfterIff = sequentAfterIffPre ++<< (eqs |- ()) ++<< (iffs |- ())
 
               // this uses the "lambda" (λx. Λp. body) (x = right terms)
-              lib.thenHave(sequentAfterIff) by BasicStepTactic.RightSubstIff(formulaInputs.toList, lambda(formulaVars, ctx.body.substituteUnsafe2(eqSubst)))
+              lib.thenHave(sequentAfterIff) by BasicStepTactic.RightSubstIff.withParametersSimple(formulaInputs.toList, lambda(formulaVars, ctx.body.substituteUnsafe2(eqSubst)))
 
             }
             // discharge any assumptions
@@ -519,9 +531,19 @@ object Substitution {
           val result2: Sequent = result1.left |- AppliedConnector(Or, newright.toSeq)
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
           if (toLeft)
-            scproof = scproof :+ K.LeftSubstEq(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaTermFormula(Seq(v.underlyingLabel), leftForm.underlying))
+            scproof = scproof :+ K.LeftSubstEq(
+              result1.underlying,
+              scproof.length - 1,
+              List(K.LambdaTermTerm(Seq(), left.underlying) -> (K.LambdaTermTerm(Seq(), right.underlying))),
+              (Seq(v.underlyingLabel), leftForm.underlying)
+            )
           if (toRight)
-            scproof = scproof :+ K.RightSubstEq(result2.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaTermFormula(Seq(v.underlyingLabel), rightForm.underlying))
+            scproof = scproof :+ K.RightSubstEq(
+              result2.underlying,
+              scproof.length - 1,
+              List(K.LambdaTermTerm(Seq(), left.underlying) -> (K.LambdaTermTerm(Seq(), right.underlying))),
+              (Seq(v.underlyingLabel), rightForm.underlying)
+            )
           val bot = newleft + phi |- newright
           scproof = scproof :+ K.Restate(bot.underlying, scproof.length - 1)
 
@@ -556,10 +578,19 @@ object Substitution {
 
           var scproof: Seq[K.SCProofStep] = Seq(K.Restate((leftOrigin |- rightOrigin).underlying, -1))
           if (toLeft)
-            scproof = scproof :+ K.LeftSubstIff(result1.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaFormulaFormula(Seq(H.underlyingLabel), leftForm.underlying))
+            scproof = scproof :+ K.LeftSubstIff(
+              result1.underlying,
+              scproof.length - 1,
+              List(K.LambdaTermFormula(Seq(), left.underlying) -> (K.LambdaTermFormula(Seq(), right.underlying))),
+              (Seq(H.underlyingLabel), leftForm.underlying)
+            )
           if (toRight)
-            scproof =
-              scproof :+ K.RightSubstIff(result2.underlying, scproof.length - 1, List(left.underlying -> right.underlying), K.LambdaFormulaFormula(Seq(H.underlyingLabel), rightForm.underlying))
+            scproof = scproof :+ K.RightSubstIff(
+              result2.underlying,
+              scproof.length - 1,
+              List(K.LambdaTermFormula(Seq(), left.underlying) -> (K.LambdaTermFormula(Seq(), right.underlying))),
+              (Seq(H.underlyingLabel), rightForm.underlying)
+            )
 
           val bot = newleft + phi |- newright
           scproof = scproof :+ K.Restate(bot.underlying, scproof.length - 1)

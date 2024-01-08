@@ -507,26 +507,39 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
             \RightLabel{\text{ InstSchema}}
             \UnaryInfC{$\Gamma[\psi(\vec{v}) := {\schem{p}(\vec{v})}] \vdash \Delta[\psi(\vec{v}) := {\schem{p}(\vec{v})}]$}
             \DisplayProof
-          }               \\[5ex]
-
-          \AxiomC{$\Gamma, \phi[\schem{f} := s] \vdash \Delta$}
-          \RightLabel{\text{ LeftSubstEq}}
-          \UnaryInfC{$\Gamma, s = t, \phi[\schem{f} := t] \vdash \Delta$}
-          \DisplayProof &
-          \AxiomC{$\Gamma \vdash \phi[\schem{f} := s], \Delta$}
-          \RightLabel{\text{ RightSubstEq}}
-          \UnaryInfC{$\Gamma, s = t \vdash \phi[\schem{f} := t], \Delta$}
-          \DisplayProof
+          }               
           \\[5ex]
 
-          \AxiomC{$\Gamma, \phi[{\schem{p}} := a] \vdash \Delta$}
-          \RightLabel{\text{ LeftSubstIff}}
-          \UnaryInfC{$\Gamma, a \leftrightarrow b, \phi[{\schem{p}} = b] \vdash \Delta$}
-          \DisplayProof &
-          \AxiomC{$\Gamma \vdash \phi[{\schem{p}} := a], \Delta$}
-          \RightLabel{\text{ RightSubstIff}}
-          \UnaryInfC{$\Gamma, a \leftrightarrow b \vdash \phi[{\schem{p}} := b], \Delta$}
-          \DisplayProof
+          \multicolumn{2}{c}{
+            \AxiomC{$\Gamma, \phi[\schem{f} := s] \vdash \Delta$}
+            \RightLabel{\text{ LeftSubstEq}}
+            \UnaryInfC{$\Gamma, \forall \vec x. s(\vec x) = t(\vec x), \phi[\schem{f} := t] \vdash \Delta$}
+            \DisplayProof 
+          }
+          \\[5ex]
+
+          \multicolumn{2}{c}{
+            \AxiomC{$\Gamma \vdash \phi[\schem{f} := s], \Delta$}
+            \RightLabel{\text{ RightSubstEq}}
+            \UnaryInfC{$\Gamma,  \forall \vec x. s(\vec x) = t(\vec x) \vdash \phi[\schem{f} := t], \Delta$}
+            \DisplayProof
+          }
+          \\[5ex]
+
+          \multicolumn{2}{c}{
+            \AxiomC{$\Gamma, \phi[{\schem{p}} := a] \vdash \Delta$}
+            \RightLabel{\text{ LeftSubstIff}}
+            \UnaryInfC{$\Gamma,  \forall \vec x. a(\vec x) \leftrightarrow b(\vec x), \phi[{\schem{p}} = b] \vdash \Delta$}
+            \DisplayProof
+          }
+          \\[5ex]
+
+          \multicolumn{2}{c}{
+            \AxiomC{$\Gamma \vdash \phi[{\schem{p}} := a], \Delta$}
+            \RightLabel{\text{ RightSubstIff}}
+            \UnaryInfC{$\Gamma, \forall \vec x. a(\vec x) \leftrightarrow b(\vec x) \vdash \phi[{\schem{p}} := b], \Delta$}
+            \DisplayProof
+          }
           \\[5ex]
 
           \AxiomC{$\Gamma, t = t \vdash \Delta$}
@@ -562,7 +575,7 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
 
           \multicolumn{2}{c}{
             \AxiomC{}
-            \RightLabel{\text { Sorry: admit a statement as axiom. Usage transitively tracked.}}
+            \RightLabel{\text { Sorry: admit a statement without proof. Usage transitively tracked.}}
             \UnaryInfC{$\Gamma \vdash \Delta$}
             \DisplayProof
           }

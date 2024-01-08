@@ -65,7 +65,7 @@ object CommonTactics {
 
           val forward = lib.have(phi |- ((x === y) ==> substPhi)) subproof {
             lib.assume(phi)
-            lib.thenHave((x === y) |- substPhi) by RightSubstEq.withParameters(List((x, y)), F.lambda(x, phi))
+            lib.thenHave((x === y) |- substPhi) by RightSubstEq.withParametersSimple(List((x, y)), F.lambda(x, phi))
             lib.thenHave((x === y) ==> substPhi) by Restate
           }
 

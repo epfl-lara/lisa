@@ -1873,8 +1873,6 @@ object Recursion extends lisa.Main {
       val sPsi = SchematicPredicateLabel("P", 3)
 
       have(forall(y, in(y, initialSegment(p, x)) ==> existsOne(g, fun(g, y)))) by Restate
-      println(existsOne(g, fun(g, y)))
-      println(lastStep.bot)
       have(exists(w, forall(t, in(t, w) <=> exists(y, in(y, initialSegment(p, x)) /\ fun(t, y))))) by Tautology.from(
         lastStep,
         strictReplacementSchema of (A -> initialSegment(p, x), R -> lambda((y, g), fun(g, y)))
@@ -1882,8 +1880,6 @@ object Recursion extends lisa.Main {
     }
 
     have(thesis) by Tautology.from(lastStep, funExists)
-    println("thesis")
-    println(lastStep.bot)
   }
 
   /**

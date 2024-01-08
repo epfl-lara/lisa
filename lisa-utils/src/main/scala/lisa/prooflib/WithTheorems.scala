@@ -43,13 +43,19 @@ trait WithTheorems {
      */
     case class InstantiatedFact(
         fact: Fact,
-        insts: Seq[F.SubstPair] /*,
-        instsConn: Map[K.SchematicConnectorLabel, K.LambdaFormulaFormula],
-        instsPred: Map[K.SchematicAtomicLabel, K.LambdaTermFormula],
-        instsTerm: Map[K.SchematicTermLabel, K.LambdaTermTerm]*/
+        insts: Seq[F.SubstPair | F.Term]
     ) {
       val baseFormula: F.Sequent = sequentOfFact(fact)
-      val result: F.Sequent = baseFormula.substitute(insts*)
+      val (result, proof) = {
+        val (terms, substPairs) = insts.partitionMap {
+          case t: F.Term => Left(t)
+          case sp: F.SubstPair => Right(sp)
+        }
+
+        val (s1, p1) = if substPairs.isEmpty then (baseFormula, Seq()) else baseFormula.instantiateWithProof(substPairs.map(sp => (sp._1, sp._2)).toMap, -1)
+        val (s2, p2) = if terms.isEmpty then (s1, p1) else s1.instantiateForallWithProof(terms, p1.length - 1)
+        (s2, p1 ++ p2)
+      }
 
     }
 
@@ -112,16 +118,8 @@ trait WithTheorems {
     }
 
     private def addInstantiatedFact(instFact: InstantiatedFact): Unit = {
-      val (s, i) = sequentAndIntOfFact(instFact.fact)
-      // newProofStep(BasicStepTactic.InstSchema(using library, this)(instFact.instsConn, instFact.instsPred, instFact.instsTerm)(i).asInstanceOf[ValidProofTactic])
-      // newProofStep(BasicStepTactic.InstSchema(using library, this)(instFact.insts)(i).asInstanceOf[ValidProofTactic])
-      val instMap = Map(instFact.insts.map(s => (s._1, (s._2.asInstanceOf: F.LisaObject[_])))*)
-      val instStep = {
-        val res = s.substituteWithProof(instMap)
-
-        ValidProofTactic(res._1, res._2, Seq(instFact.fact))(using F.SequentInstantiationRule)
-      }
-      newProofStep(instStep)
+      val step = ValidProofTactic(instFact.result, instFact.proof, Seq(instFact.fact))(using F.SequentInstantiationRule)
+      newProofStep(step)
       instantiatedFacts = (instFact, steps.length - 1) :: instantiatedFacts
     }
 

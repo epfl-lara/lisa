@@ -115,7 +115,7 @@ object InductiveSets extends lisa.Main {
     val form = formulaVariable
     val inductIff = thenHave(
       (∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))), inductive(z) <=> (in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))) |- inductive(z)
-    ) by RightSubstIff(List((inductive(z), in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))), lambda(form, form))
+    ) by RightSubstIff.withParametersSimple(List((inductive(z), in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))), lambda(form, form))
 
     val inductDef = have(inductive(z) <=> (in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))) by InstFunSchema(Map(x -> z))(inductive.definition)
 

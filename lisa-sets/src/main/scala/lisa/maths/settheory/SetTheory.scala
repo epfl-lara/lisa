@@ -97,7 +97,7 @@ object SetTheory extends lisa.Main {
     // forward direction
     have(fprop(z) |- fprop(z)) by Hypothesis
     thenHave(fprop(z) /\ (z === a) |- fprop(z)) by Weakening
-    thenHave((fprop(z) /\ (z === a), (z === a)) |- fprop(a)) by RightSubstEq.withParameters(List((z, a)), lambda(Seq(z), fprop(z)))
+    thenHave((fprop(z) /\ (z === a), (z === a)) |- fprop(a)) by RightSubstEq.withParametersSimple(List((z, a)), lambda(Seq(z), fprop(z)))
     val forward = thenHave(fprop(z) |- (z === a) ==> fprop(a)) by Restate
 
     // backward direction
@@ -177,10 +177,10 @@ object SetTheory extends lisa.Main {
 
       val fwd = have(∃(a, in(z, a) /\ in(a, unorderedPair(x, y))) ==> (in(z, x) \/ in(z, y))) subproof {
         have((in(z, a), a === x) |- in(z, a)) by Hypothesis
-        val tax = thenHave((in(z, a), a === x) |- in(z, x)) by RightSubstEq.withParameters(List((a, x)), lambda(a, in(z, a)))
+        val tax = thenHave((in(z, a), a === x) |- in(z, x)) by RightSubstEq.withParametersSimple(List((a, x)), lambda(a, in(z, a)))
 
         have((in(z, a), a === y) |- in(z, a)) by Hypothesis
-        val tay = thenHave((in(z, a), a === y) |- in(z, y)) by RightSubstEq.withParameters(List((a, y)), lambda(a, in(z, a)))
+        val tay = thenHave((in(z, a), a === y) |- in(z, y)) by RightSubstEq.withParametersSimple(List((a, y)), lambda(a, in(z, a)))
 
         have((in(z, a), (a === x) \/ (a === y)) |- (in(z, x), in(z, y))) by LeftOr(tax, tay)
         thenHave((in(z, a), in(a, unorderedPair(x, y))) |- (in(z, x), in(z, y))) by Substitution.ApplyRules(upairax)
@@ -191,7 +191,7 @@ object SetTheory extends lisa.Main {
 
       val bwd = have(((in(z, x) \/ in(z, y)) ==> ∃(a, in(z, a) /\ in(a, unorderedPair(x, y))))) subproof {
         have((in(z, x), (a === x)) |- in(z, x)) by Hypothesis
-        thenHave((in(z, x), (a === x)) |- in(z, a)) by RightSubstEq.withParameters(List((a, x)), lambda(a, in(z, a)))
+        thenHave((in(z, x), (a === x)) |- in(z, a)) by RightSubstEq.withParametersSimple(List((a, x)), lambda(a, in(z, a)))
         thenHave((in(z, x), (a === x)) |- in(z, a) /\ ((a === x) \/ (a === y))) by Tautology
         andThen(Substitution.applySubst(upairax, false))
         thenHave((in(z, x), (a === x)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by RightExists
@@ -199,7 +199,7 @@ object SetTheory extends lisa.Main {
         val tax = thenHave((in(z, x)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Restate
 
         have((in(z, y), (a === y)) |- in(z, y)) by Hypothesis
-        thenHave((in(z, y), (a === y)) |- in(z, a)) by RightSubstEq.withParameters(List((a, y)), lambda(a, in(z, a)))
+        thenHave((in(z, y), (a === y)) |- in(z, a)) by RightSubstEq.withParametersSimple(List((a, y)), lambda(a, in(z, a)))
         thenHave((in(z, y), (a === y)) |- in(z, a) /\ ((a === x) \/ (a === y))) by Tautology
         andThen(Substitution.applySubst(upairax, false))
         thenHave((in(z, y), (a === y)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by RightExists
@@ -260,7 +260,7 @@ object SetTheory extends lisa.Main {
     have((in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))) by Restate
     val succEq = thenHave(
       (successor(y) === union(unorderedPair(y, unorderedPair(y, y)))) |- (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(successor(y), x))
-    ) by RightSubstEq.withParameters(
+    ) by RightSubstEq.withParametersSimple(
       List((successor(y), union(unorderedPair(y, unorderedPair(y, y))))),
       lambda(z, (in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> (in(y, x) ==> in(z, x)))
     )
@@ -291,7 +291,7 @@ object SetTheory extends lisa.Main {
         ∀(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> ∀(y, in(y, x) ==> in(successor(y), x)),
         in(∅, x) /\ ∀(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))
       ) |- in(∅, x) /\ ∀(y, in(y, x) ==> in(successor(y), x))
-    ) by RightSubstIff(
+    ) by RightSubstIff.withParametersSimple(
       List((∀(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)), ∀(y, in(y, x) ==> in(successor(y), x)))),
       lambda(form, in(∅, x) /\ form)
     )
@@ -301,7 +301,7 @@ object SetTheory extends lisa.Main {
         ∀(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> ∀(y, in(y, x) ==> in(successor(y), x)),
         in(∅, x) /\ ∀(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))
       ) |- inductive(x)
-    ) by RightSubstIff(List((inductive(x), in(∅, x) /\ ∀(y, in(y, x) ==> in(successor(y), x)))), lambda(form, form))
+    ) by RightSubstIff.withParametersSimple(List((inductive(x), in(∅, x) /\ ∀(y, in(y, x) ==> in(successor(y), x)))), lambda(form, form))
     val cut1 = have(
       (
         ∀(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x)) <=> ∀(y, in(y, x) ==> in(successor(y), x)),
@@ -532,11 +532,17 @@ object SetTheory extends lisa.Main {
     // backward direction
     //      a = c and b = d => up ab = up cd (and the other case)
     have(unorderedPair(a, b) === unorderedPair(a, b)) by RightRefl
-    thenHave((a === c, b === d) |- unorderedPair(a, b) === unorderedPair(c, d)) by RightSubstEq.withParameters(List((a, c), (b, d)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(x, y)))
+    thenHave((a === c, b === d) |- unorderedPair(a, b) === unorderedPair(c, d)) by RightSubstEq.withParametersSimple(
+      List((a, c), (b, d)),
+      lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(x, y))
+    )
     val lhs = thenHave(Set((a === c) /\ (b === d)) |- unorderedPair(a, b) === unorderedPair(c, d)) by Restate
 
     have(unorderedPair(a, b) === unorderedPair(b, a)) by InstFunSchema(ScalaMap(x -> a, y -> b))(unorderedPairSymmetry)
-    thenHave((a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq.withParameters(List((a, d), (b, c)), lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x)))
+    thenHave((a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq.withParametersSimple(
+      List((a, d), (b, c)),
+      lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x))
+    )
     val rhs = thenHave(Set((a === d) /\ (b === c)) |- (unorderedPair(a, b) === unorderedPair(c, d))) by Restate
 
     have((((a === d) /\ (b === c)) \/ ((a === c) /\ (b === d))) |- (unorderedPair(a, b) === unorderedPair(c, d))) by LeftOr(lhs, rhs)
@@ -593,7 +599,7 @@ object SetTheory extends lisa.Main {
     // backward direction
     //  x === y |- {x} === {y}
     have(singleton(x) === singleton(x)) by RightRefl
-    thenHave((x === y) |- singleton(x) === singleton(y)) by RightSubstEq.withParameters(List((x, y)), lambda(a, singleton(x) === singleton(a)))
+    thenHave((x === y) |- singleton(x) === singleton(y)) by RightSubstEq.withParametersSimple(List((x, y)), lambda(a, singleton(x) === singleton(a)))
     val bwd = thenHave((x === y) ==> (singleton(x) === singleton(y))) by Restate
 
     have((singleton(x) === singleton(y)) <=> (x === y)) by RightIff(fwd, bwd)
@@ -619,9 +625,9 @@ object SetTheory extends lisa.Main {
         val pairAxab = have(in(z, unorderedPair(a, b)) |- (z === a) \/ (z === b)) by Tautology.from(pairAxiom of (x -> a, y -> b))
 
         have(in(a, x) /\ in(b, x) |- in(a, x)) by Restate
-        val za = thenHave((in(a, x) /\ in(b, x), (z === a)) |- in(z, x)) by RightSubstEq.withParameters(List((z, a)), lambda(a, in(a, x)))
+        val za = thenHave((in(a, x) /\ in(b, x), (z === a)) |- in(z, x)) by RightSubstEq.withParametersSimple(List((z, a)), lambda(a, in(a, x)))
         have(in(a, x) /\ in(b, x) |- in(b, x)) by Restate
-        val zb = thenHave((in(a, x) /\ in(b, x), (z === b)) |- in(z, x)) by RightSubstEq.withParameters(List((z, b)), lambda(a, in(a, x)))
+        val zb = thenHave((in(a, x) /\ in(b, x), (z === b)) |- in(z, x)) by RightSubstEq.withParametersSimple(List((z, b)), lambda(a, in(a, x)))
 
         val zab = have((in(a, x) /\ in(b, x), (z === a) \/ (z === b)) |- in(z, x)) by LeftOr(za, zb)
 
@@ -665,7 +671,7 @@ object SetTheory extends lisa.Main {
     //  (a === c) /\ (b === d) ==> pair a b === pair c d
     val fwd = have(((a === c) /\ (b === d)) ==> (pair(a, b) === pair(c, d))) subproof {
       have((pair(a, b) === pair(a, b))) by RightRefl
-      thenHave(Set((a === c), (b === d)) |- (pair(a, b) === pair(c, d))) by RightSubstEq.withParameters(List((a, c), (b, d)), lambda(Seq(x, y), pair(a, b) === pair(x, y)))
+      thenHave(Set((a === c), (b === d)) |- (pair(a, b) === pair(c, d))) by RightSubstEq.withParametersSimple(List((a, c), (b, d)), lambda(Seq(x, y), pair(a, b) === pair(x, y)))
       thenHave(thesis) by Restate
     }
 
@@ -680,7 +686,7 @@ object SetTheory extends lisa.Main {
             c
           ))) \/ ((unorderedPair(a, b) === singleton(c)) /\ (singleton(a) === unorderedPair(c, d))))
         ) |- (((unorderedPair(a, b) === unorderedPair(c, d)) /\ (singleton(a) === singleton(c))) \/ ((unorderedPair(a, b) === singleton(c)) /\ (singleton(a) === unorderedPair(c, d))))
-      ) by RightSubstIff(
+      ) by RightSubstIff.withParametersSimple(
         List(
           (
             (unorderedPair(unorderedPair(a, b), singleton(a)) === unorderedPair(unorderedPair(c, d), singleton(c))),
@@ -749,7 +755,7 @@ object SetTheory extends lisa.Main {
     // now we need to show that the assumption is indeed true
     // this requires destruction of the existential quantifier in lhs
     have(in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x)) |- in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x))) by Hypothesis
-    val innerRhs2 = thenHave((in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)), x === y) |- in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x))) by LeftSubstEq.withParameters(
+    val innerRhs2 = thenHave((in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)), x === y) |- in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x))) by LeftSubstEq.withParametersSimple(
       List((x, y)),
       lambda(Seq(y), in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)))
     )
@@ -1010,7 +1016,7 @@ object SetTheory extends lisa.Main {
     have((in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))) |- in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))) by Hypothesis
     val rhs = thenHave(
       Set((in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))), (∀(y, P(y) ==> in(t, y)) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y))))) |- (in(t, z) <=> (∀(y, P(y) ==> in(t, y))))
-    ) by RightSubstIff(List((∀(y, P(y) ==> in(t, y)), (in(t, x) /\ ∀(y, P(y) ==> in(t, y))))), lambda(form, in(t, z) <=> (form)))
+    ) by RightSubstIff.withParametersSimple(List((∀(y, P(y) ==> in(t, y)), (in(t, x) /\ ∀(y, P(y) ==> in(t, y))))), lambda(form, in(t, z) <=> (form)))
 
     have((P(x), (in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y))))) |- in(t, z) <=> (∀(y, P(y) ==> in(t, y)))) by Cut(lhs, rhs)
     thenHave((P(x), ∀(t, (in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) |- in(t, z) <=> (∀(y, P(y) ==> in(t, y)))) by LeftForall
@@ -1458,7 +1464,7 @@ object SetTheory extends lisa.Main {
     // (a, b) \in x * y ⟹ a ∈ x ∧ b ∈ y
     val fwd = have(in(pair(a, b), cartesianProduct(x, y)) ==> (in(a, x) /\ in(b, y))) subproof {
       have((a === c, b === d, in(c, x) /\ in(d, y)) |- in(c, x) /\ in(d, y)) by Hypothesis
-      thenHave((a === c, b === d, in(c, x) /\ in(d, y)) |- in(a, x) /\ in(b, y)) by RightSubstEq.withParameters(List((a, c), (b, d)), lambda(Seq(a, b), in(a, x) /\ in(b, y)))
+      thenHave((a === c, b === d, in(c, x) /\ in(d, y)) |- in(a, x) /\ in(b, y)) by RightSubstEq.withParametersSimple(List((a, c), (b, d)), lambda(Seq(a, b), in(a, x) /\ in(b, y)))
       thenHave(Set((a === c) /\ (b === d), in(c, x) /\ in(d, y)) |- in(a, x) /\ in(b, y)) by Restate
       andThen(Substitution.applySubst(pairExtensionality))
       thenHave((pair(a, b) === pair(c, d)) /\ in(c, x) /\ in(d, y) |- in(a, x) /\ in(b, y)) by Restate
@@ -1485,10 +1491,16 @@ object SetTheory extends lisa.Main {
 
           have(prem |- in(unorderedPair(a, b), powerSet(setUnion(x, y)))) by Weakening(unorderedPairInPowerSet of (x -> setUnion(x, y)))
           val zab =
-            thenHave((prem, (z === unorderedPair(a, b))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParameters(List((z, unorderedPair(a, b))), lambda(a, in(a, powerSet(setUnion(x, y)))))
+            thenHave((prem, (z === unorderedPair(a, b))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParametersSimple(
+              List((z, unorderedPair(a, b))),
+              lambda(a, in(a, powerSet(setUnion(x, y))))
+            )
           have(prem |- in(unorderedPair(a, a), powerSet(setUnion(x, y)))) by Weakening(unorderedPairInPowerSet of (x -> setUnion(x, y), b -> a))
           val zaa =
-            thenHave((prem, (z === unorderedPair(a, a))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParameters(List((z, unorderedPair(a, a))), lambda(a, in(a, powerSet(setUnion(x, y)))))
+            thenHave((prem, (z === unorderedPair(a, a))) |- in(z, powerSet(setUnion(x, y)))) by RightSubstEq.withParametersSimple(
+              List((z, unorderedPair(a, a))),
+              lambda(a, in(a, powerSet(setUnion(x, y))))
+            )
 
           val cutRhs = have((prem, (z === unorderedPair(a, b)) \/ (z === singleton(a))) |- in(z, powerSet(setUnion(x, y)))) by LeftOr(zab, zaa)
 
@@ -1849,7 +1861,7 @@ object SetTheory extends lisa.Main {
           a,
           in(pair(t, a), r)
         ))
-      ) by RightSubstIff(List((∃(a, in(pair(t, a), r)), in(t, union(union(r))) /\ ∃(a, in(pair(t, a), r)))), lambda(h, in(t, z) <=> h))
+      ) by RightSubstIff.withParametersSimple(List((∃(a, in(pair(t, a), r)), in(t, union(union(r))) /\ ∃(a, in(pair(t, a), r)))), lambda(h, in(t, z) <=> h))
       have((in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(t, a), r)))) |- in(t, z) <=> (∃(a, in(pair(t, a), r)))) by Cut(subst, cutRhs)
       thenHave(∀(t, in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(t, a), r)))) |- in(t, z) <=> (∃(a, in(pair(t, a), r)))) by LeftForall
       thenHave(∀(t, in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(t, a), r)))) |- ∀(t, in(t, z) <=> (∃(a, in(pair(t, a), r))))) by RightForall
@@ -1917,7 +1929,7 @@ object SetTheory extends lisa.Main {
           a,
           in(pair(a, t), r)
         ))
-      ) by RightSubstIff(List((∃(a, in(pair(a, t), r)), in(t, union(union(r))) /\ ∃(a, in(pair(a, t), r)))), lambda(h, in(t, z) <=> h))
+      ) by RightSubstIff.withParametersSimple(List((∃(a, in(pair(a, t), r)), in(t, union(union(r))) /\ ∃(a, in(pair(a, t), r)))), lambda(h, in(t, z) <=> h))
       have((in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(a, t), r)))) |- in(t, z) <=> (∃(a, in(pair(a, t), r)))) by Cut(subst, cutRhs)
       thenHave(∀(t, in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(a, t), r)))) |- in(t, z) <=> (∃(a, in(pair(a, t), r)))) by LeftForall
       thenHave(∀(t, in(t, z) <=> (in(t, union(union(r))) /\ ∃(a, in(pair(a, t), r)))) |- ∀(t, in(t, z) <=> (∃(a, in(pair(a, t), r))))) by RightForall
@@ -2373,10 +2385,11 @@ object SetTheory extends lisa.Main {
       val lhs = have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ ⊤))) subproof {
         val iff = have(prem |- (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) by Restate
         have(prem /\ ((z === y) <=> in(pair(x, y), f)) |- ((z === y) <=> in(pair(x, y), f))) by Restate
-        val subst = thenHave((prem /\ ((z === y) <=> in(pair(x, y), f)), (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by RightSubstIff(
-          List(((in(pair(x, y), f)), (prem ==> in(pair(x, y), f)))),
-          lambda(h, ((z === y) <=> h))
-        )
+        val subst = thenHave((prem /\ ((z === y) <=> in(pair(x, y), f)), (in(pair(x, y), f)) <=> (prem ==> in(pair(x, y), f))) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by RightSubstIff
+          .withParametersSimple(
+            List(((in(pair(x, y), f)), (prem ==> in(pair(x, y), f)))),
+            lambda(h, ((z === y) <=> h))
+          )
 
         have((prem /\ ((z === y) <=> in(pair(x, y), f)), prem) |- ((z === y) <=> (prem ==> in(pair(x, y), f)))) by Cut(iff, subst)
         thenHave(thesis) by Restate
@@ -2386,7 +2399,7 @@ object SetTheory extends lisa.Main {
         val topIff = have(prem |- (!prem ==> (y === ∅)) <=> ⊤) by Restate
         val topSubst = have(
           (prem /\ ((z === y) <=> in(pair(x, y), f)), ((!prem ==> (y === ∅)) <=> ⊤)) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === ∅))))
-        ) by RightSubstIff(List(((!prem ==> (y === ∅)), ⊤)), lambda(h, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ h))))(lhs)
+        ) by RightSubstIff.withParametersSimple(List(((!prem ==> (y === ∅)), ⊤)), lambda(h, ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ h))))(lhs)
 
         have((prem /\ ((z === y) <=> in(pair(x, y), f)), prem) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === ∅))))) by Cut(topIff, topSubst)
         thenHave((prem, ((z === y) <=> in(pair(x, y), f))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === ∅))))) by Restate
@@ -2417,7 +2430,7 @@ object SetTheory extends lisa.Main {
         have(!prem /\ ((z === y) <=> (y === ∅)) |- ((z === y) <=> (y === ∅))) by Restate
         val subst = thenHave(
           (!prem /\ ((z === y) <=> (y === ∅)), ((y === ∅)) <=> (!prem ==> (y === ∅))) |- ((z === y) <=> (!prem ==> (y === ∅)))
-        ) by RightSubstIff(List((((y === ∅)), (!prem ==> (y === ∅)))), lambda(h, ((z === y) <=> h)))
+        ) by RightSubstIff.withParametersSimple(List((((y === ∅)), (!prem ==> (y === ∅)))), lambda(h, ((z === y) <=> h)))
 
         have((!prem /\ ((z === y) <=> (y === ∅)), !prem) |- ((z === y) <=> (!prem ==> (y === ∅)))) by Cut(iff, subst)
         thenHave(thesis) by Restate
@@ -2427,7 +2440,7 @@ object SetTheory extends lisa.Main {
         val topIff = have(!prem |- (prem ==> in(pair(x, y), f)) <=> ⊤) by Restate
         val topSubst = have(
           (!prem /\ ((z === y) <=> (y === ∅)), ((prem ==> in(pair(x, y), f)) <=> ⊤)) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === ∅))))
-        ) by RightSubstIff(List(((prem ==> in(pair(x, y), f)), ⊤)), lambda(h, ((z === y) <=> ((!prem ==> (y === ∅)) /\ h))))(lhs)
+        ) by RightSubstIff.withParametersSimple(List(((prem ==> in(pair(x, y), f)), ⊤)), lambda(h, ((z === y) <=> ((!prem ==> (y === ∅)) /\ h))))(lhs)
 
         have((!prem /\ ((z === y) <=> (y === ∅)), !prem) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === ∅))))) by Cut(topIff, topSubst)
         thenHave((!prem, ((z === y) <=> (y === ∅))) |- ((z === y) <=> ((prem ==> in(pair(x, y), f)) /\ (!prem ==> (y === ∅))))) by Restate
@@ -3216,7 +3229,7 @@ object SetTheory extends lisa.Main {
       inRangeImpliesPullbackExists of (z -> y),
       functionFromImpliesFunctional of (y -> powerSet(x))
     )
-    val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq.withParameters(
+    val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq.withParametersSimple(
       List((x, relationDomain(f))),
       lambda(x, ∃(z, in(z, x) /\ (app(f, z) === y)))
     )
@@ -3231,7 +3244,7 @@ object SetTheory extends lisa.Main {
     have(ydef |- ydef) by Hypothesis
     thenHave(ydef |- in(z, y) <=> (in(z, x) /\ !in(z, app(f, z)))) by InstantiateForall(z)
     thenHave((ydef, in(z, x), (app(f, z) === y)) |- in(z, y) <=> (in(z, x) /\ !in(z, app(f, z)))) by Weakening
-    thenHave((ydef, in(z, x), (app(f, z) === y)) |- in(z, app(f, z)) <=> (in(z, x) /\ !in(z, app(f, z)))) by RightSubstEq.withParameters(
+    thenHave((ydef, in(z, x), (app(f, z) === y)) |- in(z, app(f, z)) <=> (in(z, x) /\ !in(z, app(f, z)))) by RightSubstEq.withParametersSimple(
       List((y, app(f, z))),
       lambda(y, in(z, y) <=> (in(z, x) /\ !in(z, app(f, z))))
     )

@@ -480,6 +480,7 @@ trait Common {
    */
   sealed trait SchematicAtomicLabel[A <: (Formula | (Seq[Term] |-> Formula)) & LisaObject[A]] extends AtomicLabel[A] with SchematicLabel[A] {
     this: A & LisaObject[A] =>
+    val underlyingLabel: K.SchematicAtomicLabel
     override def rename(newid: Identifier): SchematicAtomicLabel[A]
     def freshRename(taken: Iterable[Identifier]): SchematicAtomicLabel[A]
 

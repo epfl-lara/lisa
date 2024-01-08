@@ -40,23 +40,23 @@ class IncorrectProofsTests extends ProofCheckerSuite {
 
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(yl), x === y)) // wrong variable replaced
+        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(yl), x === y)) // wrong variable replaced
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +>> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(xl), x === y)) // missing hypothesis
+        RightSubstEq(emptySeq +<< (x === y) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(xl), x === y)) // missing hypothesis
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, List((x, z)), LambdaTermFormula(Seq(xl), x === z)) // replacement mismatch
+        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(xl), x === z)) // replacement mismatch
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        LeftSubstEq(emptySeq +<< (z === y) +<< (x === z) +>> (x === y), 0, List((x, z)), LambdaTermFormula(Seq(yl), x === y))
+        LeftSubstEq(emptySeq +<< (z === y) +<< (x === z) +>> (x === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(yl), x === y))
       ),
       SCProof(
         Hypothesis(emptySeq +<< (f <=> g) +>> (f <=> g), f <=> g),
-        LeftSubstIff(emptySeq +<< (h <=> g) +<< (f <=> h) +>> (f <=> g), 0, List((f, h)), LambdaFormulaFormula(Seq(gl), f <=> g))
+        LeftSubstIff(emptySeq +<< (h <=> g) +<< (f <=> h) +>> (f <=> g), 0, List(((LambdaTermFormula(Seq(), f), LambdaTermFormula(Seq(), h)))), (Seq(gl), f <=> g))
       ),
       SCProof(
         Hypothesis(emptySeq +<< f +>> f, f),
