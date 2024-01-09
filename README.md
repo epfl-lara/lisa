@@ -2,7 +2,7 @@
 
 LISA is a proof assistant based on first-order logic, sequent calculus, and set
 theory. To get started, take a look at the [Reference
-Manual](Reference%20Manual/lisa.pdf).
+Manual](refman/lisa.pdf).
 
 LISA is developed and maintained by the [Laboratory for Automated Reasoning and
 Analysis (LARA)](https://lara.epfl.ch) at the [EPFL](https://epfl.ch).

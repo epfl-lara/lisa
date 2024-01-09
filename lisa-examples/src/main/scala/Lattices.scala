@@ -1,4 +1,22 @@
 object Lattices extends lisa.Main {
+
+
+
+  val x = variable
+  val P = predicate[1]
+  val f = function[1]
+
+  val fixedPointDoubleApplication = Theorem(
+    ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
+  ) {
+    sorry
+  }
+  
+
+
+
+
+
   // We introduce the signature of lattices
   val <= = ConstantPredicateLabel.infix("<=", 2)
   addSymbol(<=)
@@ -16,7 +34,6 @@ object Lattices extends lisa.Main {
 
   // We now states the axioms of lattices
 
-  val x = variable
   val y = variable
   val z = variable
 
