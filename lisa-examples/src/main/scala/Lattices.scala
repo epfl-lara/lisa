@@ -1,4 +1,19 @@
 object Lattices extends lisa.Main {
+
+
+  val fixedPointDoubleApplication = Theorem(
+    ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
+  ) {
+      val a1 = assume(∀(x, P(x) ==> P(f(x))))
+      have(thesis) by Tautology.from(a1 of x, a1 of f(x))
+  }
+  
+
+
+
+
+
+
   // We introduce the signature of lattices
   val <= = ConstantPredicateLabel.infix("<=", 2)
   addSymbol(<=)
