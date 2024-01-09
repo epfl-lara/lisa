@@ -1,14 +1,17 @@
 object Lattices extends lisa.Main {
 
 
+
+  val x = variable
+  val P = predicate[1]
+  val f = function[1]
+
   val fixedPointDoubleApplication = Theorem(
     ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
   ) {
-      val a1 = assume(∀(x, P(x) ==> P(f(x))))
-      have(thesis) by Tautology.from(a1 of x, a1 of f(x))
+    sorry
   }
   
-
 
 
 
@@ -31,7 +34,6 @@ object Lattices extends lisa.Main {
 
   // We now states the axioms of lattices
 
-  val x = variable
   val y = variable
   val z = variable
 
