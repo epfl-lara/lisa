@@ -76,15 +76,15 @@ object Lattices extends lisa.Main {
               (left, right) match {
                 // 1. left is a join. In that case, lub gives us the decomposition
                 case (u(a: Term, b: Term), _) =>
-                  val s1 = solve(a <= right)
-                  val s2 = solve(b <= right)
-                  if s1.isValid & s2.isValid then 
-                    have(left <= right) by Tautology.from(lub of (x := a, y := b, z := right), have(s1), have(s2))
-                  else return proof.InvalidProofTactic("The inequality is not true in general ")
+                  ???
 
                 // 2. right is a meet. In that case, glb gives us the decomposition
                 case (_, n(a: Term, b: Term)) =>
-                  ???
+
+                  val s1 = solve(left <= a)
+                  val s2 = solve(left <= b)
+                  if s1.isValid & s2.isValid then have(left <= right) by Tautology.from(glb of (x := a, y := b, z := left), have(s1), have(s2))
+                  else return proof.InvalidProofTactic("The inequality is not true in general ")
 
                 // 3. left is a meet, right is a join. In that case, we try all pairs.
                 case (n(a: Term, b: Term), u(c: Term, d: Term)) =>
@@ -111,7 +111,6 @@ object Lattices extends lisa.Main {
                   }
                   if result.isEmpty then return proof.InvalidProofTactic("The inequality is not true in general 3")
 
-
                 // 4. left is a meet, right is a variable or unknown term.
                 case (n(a: Term, b: Term), _) =>
                   val result = LazyList(a, b)
@@ -123,18 +122,27 @@ object Lattices extends lisa.Main {
                         meetUpperBound of (x := a, y := b),
                         transitivity of (x := left, y := e, z := right)
                       )
-
                     }
                   if result.isEmpty then return proof.InvalidProofTactic("The inequality is not true in general")
 
                 // 5. left is a variable or unknown term, right is a join.
                 case (_, u(c: Term, d: Term)) =>
-                    ???
+                  val result = LazyList(c, d)
+                    .map { e => (e, solve(left <= e)) }
+                    .find { _._2.isValid }
+                    .map { case (e, step) =>
+                      have(left <= right) by Tautology.from(
+                        have(step),
+                        joinLowerBound of (x := c, y := d),
+                        transitivity of (x := left, y := e, z := right)
+                      )
+                    }
+                  if result.isEmpty then return proof.InvalidProofTactic("The inequality is not true in general")
 
                 // 6. left and right are variables or unknown terms.
                 case _ =>
                   if !(left == right) then return proof.InvalidProofTactic("The inequality is not true in general 6")
-                  else ???
+                  else have(left <= right) by Restate.from(reflexivity of (x := left))
 
               }
             }
@@ -158,7 +166,7 @@ object Lattices extends lisa.Main {
 
   // uncomment when the tactic is implemented
 
-  /*
+  
   val test1 = Theorem(x <= x) {
     have(thesis) by Whitman.solve
   }
@@ -180,7 +188,7 @@ object Lattices extends lisa.Main {
   val semiDistributivity = Theorem((x u (y n z)) <= ((x u y) n (x u z))) {
     have(thesis) by Whitman.solve
   }
-   */
+   
 
  
 }
