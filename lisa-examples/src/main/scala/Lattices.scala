@@ -166,7 +166,7 @@ object Lattices extends lisa.Main {
 
   // uncomment when the tactic is implemented
 
-  
+  /*
   val test1 = Theorem(x <= x) {
     have(thesis) by Whitman.solve
   }
@@ -188,7 +188,6 @@ object Lattices extends lisa.Main {
   val semiDistributivity = Theorem((x u (y n z)) <= ((x u y) n (x u z))) {
     have(thesis) by Whitman.solve
   }
-   
-
- 
+  */
+  
 }
