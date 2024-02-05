@@ -545,6 +545,7 @@ trait WithTheorems {
   }
 
   var totthm = 0
+
   /**
    * A theorem that was produced from a high level proof. See [[THM.apply]].
    * Typical way to construct a theorem in the library, but serialization for example will produce a [[THMFromKernel]].
@@ -559,21 +560,21 @@ trait WithTheorems {
 
     import lisa.utils.Serialization.*
     val innerJustification: theory.Theorem =
-      if library._draft.nonEmpty && library._draft.get.value != file then //if the draft option is activated, and the theorem is not in the file where the draft option is given, then we replace the proof by sorry
-        //println("skip!")
+      if library._draft.nonEmpty && library._draft.get.value != file
+      then // if the draft option is activated, and the theorem is not in the file where the draft option is given, then we replace the proof by sorry
+        // println("skip!")
         theory.theorem(name, goal.underlying, SCProof(SC.Sorry(goal.underlying)), IndexedSeq.empty) match {
-        case K.Judgement.ValidJustification(just) =>
-          just
-        case wrongJudgement: K.Judgement.InvalidJustification[?] =>
-          om.lisaThrow(
-            LisaException.InvalidKernelJustificationComputation(
-              "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
-              wrongJudgement,
-              Some(proof)
+          case K.Judgement.ValidJustification(just) =>
+            just
+          case wrongJudgement: K.Judgement.InvalidJustification[?] =>
+            om.lisaThrow(
+              LisaException.InvalidKernelJustificationComputation(
+                "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
+                wrongJudgement,
+                Some(proof)
+              )
             )
-          )
-      }
-
+        }
       else if library._withCache then
         oneThmFromFile("cache/" + name, library.theory) match {
           case Some(thm) => thm // try to get the theorem from file
@@ -588,8 +589,8 @@ trait WithTheorems {
     library.last = Some(this)
 
     /**
-      * Construct the kernel theorem from the high level proof
-      */
+     * Construct the kernel theorem from the high level proof
+     */
     private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, SCProof, List[(String, theory.Justification)]) = {
       try {
         computeProof(using proof)
