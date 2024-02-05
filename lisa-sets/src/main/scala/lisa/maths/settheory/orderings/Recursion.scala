@@ -17,7 +17,6 @@ import Ordinals.*
  * for readability and faster compilation.
  */
 object Recursion extends lisa.Main {
-
   // var defs
   private val w = variable
   private val x = variable
