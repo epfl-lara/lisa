@@ -30,7 +30,16 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
   var last: Option[JUSTIFICATION] = None
 
+  // Options for files
   var _withCache: Boolean = false
+  def withCache(using file: sourcecode.File, om: OutputManager)(): Unit = 
+    if last.nonEmpty then om.output(OutputManager.WARNING("Warning: withCache option needs to be used before the first definition or theorem."))
+    else _withCache = true
+    
+  var _draft:  Option[sourcecode.File] = None
+  def draft(using file: sourcecode.File, om: OutputManager)(): Unit = 
+    if last.nonEmpty then om.output(OutputManager.WARNING("Warning: draft option needs to be used before the first definition or theorem."))
+    else _draft = Some(file)
 
   val knownDefs: scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
 
