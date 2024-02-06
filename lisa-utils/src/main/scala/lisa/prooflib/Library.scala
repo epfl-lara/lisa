@@ -36,7 +36,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     if last.nonEmpty then om.output(OutputManager.WARNING("Warning: withCache option should be used before the first definition or theorem."))
     else _withCache = true
 
-  var _draft: Option[sourcecode.File] = None
+  private[prooflib] var _draft: Option[sourcecode.File] = None
   def draft(using file: sourcecode.File, om: OutputManager)(): Unit =
     if last.nonEmpty then om.output(OutputManager.WARNING("Warning: draft option should be used before the first definition or theorem."))
     else _draft = Some(file)
