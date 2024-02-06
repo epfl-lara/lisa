@@ -544,8 +544,6 @@ trait WithTheorems {
 
   }
 
-  var totthm = 0
-
   /**
    * A theorem that was produced from a high level proof. See [[THM.apply]].
    * Typical way to construct a theorem in the library, but serialization for example will produce a [[THMFromKernel]].
