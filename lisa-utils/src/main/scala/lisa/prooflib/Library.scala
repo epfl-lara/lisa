@@ -31,7 +31,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   var last: Option[JUSTIFICATION] = None
 
   // Options for files
-   private[prooflib] var _withCache: Boolean = false
+  private[prooflib] var _withCache: Boolean = false
   def withCache(using file: sourcecode.File, om: OutputManager)(): Unit =
     if last.nonEmpty then om.output(OutputManager.WARNING("Warning: withCache option should be used before the first definition or theorem."))
     else _withCache = true
