@@ -47,4 +47,6 @@ object OutputManager {
   def YELLOW(s: String): String = Console.YELLOW + s + Console.RESET
   def CYAN(s: String): String = Console.CYAN + s + Console.RESET
   def MAGENTA(s: String): String = Console.MAGENTA + s + Console.RESET
+
+  def WARNING(s: String): String = Console.YELLOW + "⚠ " + s + Console.RESET
 }

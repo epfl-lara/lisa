@@ -283,3 +283,15 @@ If a \lstinline|subst| is a formula rather than a proven fact, then it should be
   thenHave(A, f(t) === t |- P(s) /\ s===t) 
       .by Substitution.ApplyRules(subst, f(t) === t)
 \end{lstlisting}
+
+
+\subsection*{File Options}
+Some options can be set at the start of a file, which will affect the behaviour of Lisa. These options are intended for use at a development stage.
+
+\vspace{2em}
+\begin{tabularx}{0.9\columnwidth}{|l|X|}
+  \lstinline|draft()| & Theorems outside of the current file are assumed to be true and not checked for correctness. This can speed up repetitive runs during proof drafts.
+  \\[4ex]
+  \lstinline|withCache()| & Kernel proofs will be stored in binary files when theorems are constructed. On future runs with the option enabled, theorems will be constructed from the stored low level proofs. This skips running tactics to construct or search for proofs.\\
+  
+\end{tabularx}
