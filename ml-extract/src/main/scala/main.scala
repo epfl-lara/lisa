@@ -4,48 +4,53 @@ import lisa.utils.FOLPrinter.*
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.K
 import lisa.prooflib.ProofTacticLib.*
+import lisa.fol.FOLHelpers.*
 
-// def sequent2code(sq: Sequent): String = prettySequent(sq).replace("⊢", "|-").replace("'", "")
-def sequent2code(sq: Sequent): String = toFront(sq).toString
+def sequent2code(sq: Sequent): String = prettySequent(sq).replace("⊢", "|-").replace("'", "")
+// def sequent2code(sq: Sequent): String = asFront(sq).toString
 
 def scproof2code(p: K.SCProof): String = {
-  p.steps.map(scproofstep2line).mkString("\n")
+  p.steps.zipWithIndex.map((ps, i) => scproofstep2line(ps, i)).mkString("\n")
 }
-def scproofstep2line(ps: SCProofStep): String = {
-  ps match {
-    case Restate(bot, t1) => "have(" + sequent2code(bot) + ") by Restate"
-    case RestateTrue(bot) => "have(" + sequent2code(bot) + ") by Restate"
-    case Hypothesis(bot, phi) => "have(" + sequent2code(bot) + ") by Hypothesis"
-    case Cut(bot, t1, t2, phi) => "have(" + sequent2code(bot) + ") by Cut"
-    case LeftAnd(bot, t1, t2, phi) => "have(" + sequent2code(bot) + ") by LeftAnd"
-    case LeftOr(bot, t1, disjuncts) => "have(" + sequent2code(bot) + ") by LeftOr"
-    case LeftImplies(bot, t1, t2, phi, psi) => "have(" + sequent2code(bot) + ") by LeftImplies"
-    case LeftIff(bot, t1, phi, psi) => "have(" + sequent2code(bot) + ") by LeftIff"
-    case LeftNot(bot, t1, phi) => "have(" + sequent2code(bot) + ") by LeftNot"
-    case LeftForall(bot, t1, phi, x, t) => "have(" + sequent2code(bot) + ") by LeftForall"
-    case LeftExists(bot, t1, phi, x) => "have(" + sequent2code(bot) + ") by LeftExists"
-    case LeftExistsOne(bot, t1, phi, x) => "have(" + sequent2code(bot) + ") by LeftExistsOne"
-    case RightAnd(bot, t, conjuncts) => "have(" + sequent2code(bot) + ") by RightAnd"
-    case RightOr(bot, t1, phi, psi) => "have(" + sequent2code(bot) + ") by RightOr"
-    case RightImplies(bot, t1, phi, psi) => "have(" + sequent2code(bot) + ") by RightImplies"
-    case RightIff(bot, t1, t2, phi, psi) => "have(" + sequent2code(bot) + ") by RightIff"
-    case RightNot(bot, t1, phi) => "have(" + sequent2code(bot) + ") by RightNot"
-    case RightForall(bot, t1, phi, x) => "have(" + sequent2code(bot) + ") by RightForall"
-    case RightExists(bot, t1, phi, x, t) => "have(" + sequent2code(bot) + ") by RightExists"
-    case RightExistsOne(bot, t1, phi, x) => "have(" + sequent2code(bot) + ") by RightExistsOne"
-    case Weakening(bot, t1) => "have(" + sequent2code(bot) + ") by Weakening"
-    case LeftRefl(bot, t1, phi) => "have(" + sequent2code(bot) + ") by LeftRefl"
-    case RightRefl(bot, phi) => "have(" + sequent2code(bot) + ") by RightRefl"
-    case LeftSubstEq(bot, t1, equals, lambdaPhi) => "have(" + sequent2code(bot) + ") by LeftSubstEq"
-    case RightSubstEq(bot, t1, equals, lambdaPhi) => "have(" + sequent2code(bot) + ") by RightSubstEq"
-    case LeftSubstIff(bot, t1, equals, lambdaPhi) => "have(" + sequent2code(bot) + ") by LeftSubstIff"
-    case RightSubstIff(bot, t1, equals, lambdaPhi) => "have(" + sequent2code(bot) + ") by RightSubstIff"
-    case InstSchema(bot, t1, mCon, mPred, mTerm) => "have(" + sequent2code(bot) + ") by InstSchema"
+
+def scproofstep2line(ps: SCProofStep, stepNum: Int): String = {
+  def index2stepvar(i: Int): String =
+    if i < 0 then s"s${stepNum + i}"
+    else s"s$i"
+
+  ps match
+    case Restate(bot, t1) => s"val s$stepNum = have(${sequent2code(bot)}) by Restate(${index2stepvar(t1)})"
+    case RestateTrue(bot) => s"val s$stepNum = have(${sequent2code(bot)}) by Restate"
+    case Hypothesis(bot, phi) => s"val s$stepNum = assume(${sequent2code(bot)}) by Hypothesis"
+    case Cut(bot, t1, t2, phi) => s"val s$stepNum = have(${sequent2code(bot)}) by Cut(${index2stepvar(t1)}, ${index2stepvar(t2)})"
+    case LeftAnd(bot, t1, phi, psi) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftAnd(${index2stepvar(t1)})"
+    case LeftOr(bot, t, disjuncts) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftOr(${t.map(index2stepvar).mkString(", ")})"
+    case LeftImplies(bot, t1, t2, phi, psi) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftImplies(${index2stepvar(t1)}, ${index2stepvar(t2)})"
+    case LeftIff(bot, t1, phi, psi) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftIff(${index2stepvar(t1)})"
+    case LeftNot(bot, t1, phi) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftNot(${index2stepvar(t1)})"
+    case LeftForall(bot, t1, phi, x, t) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftForall(${index2stepvar(t1)})"
+    case LeftExists(bot, t1, phi, x) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftExists(${index2stepvar(t1)})"
+    case LeftExistsOne(bot, t1, phi, x) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftExistsOne(${index2stepvar(t1)})"
+    case RightAnd(bot, t, conjuncts) => s"val s$stepNum = have(${sequent2code(bot)}) by RightAnd(${t.mkString(", ")})"
+    case RightOr(bot, t1, phi, psi) => s"val s$stepNum = have(${sequent2code(bot)}) by RightOr(${index2stepvar(t1)})"
+    case RightImplies(bot, t1, phi, psi) => s"val s$stepNum = have(${sequent2code(bot)}) by RightImplies(${index2stepvar(t1)})"
+    case RightIff(bot, t1, t2, phi, psi) => s"val s$stepNum = have(${sequent2code(bot)}) by RightIff(${index2stepvar(t1)}, ${index2stepvar(t2)})"
+    case RightNot(bot, t1, phi) => s"val s$stepNum = have(${sequent2code(bot)}) by RightNot(${index2stepvar(t1)})"
+    case RightForall(bot, t1, phi, x) => s"val s$stepNum = have(${sequent2code(bot)}) by RightForall(${index2stepvar(t1)})"
+    case RightExists(bot, t1, phi, x, t) => s"val s$stepNum = have(${sequent2code(bot)}) by RightExists(${index2stepvar(t1)})"
+    case RightExistsOne(bot, t1, phi, x) => s"val s$stepNum = have(${sequent2code(bot)}) by RightExistsOne(${index2stepvar(t1)})"
+    case Weakening(bot, t1) => s"val s$stepNum = have(${sequent2code(bot)}) by Weakening(${index2stepvar(t1)})"
+    case LeftRefl(bot, t1, phi) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftRefl(${index2stepvar(t1)})"
+    case RightRefl(bot, phi) => s"val s$stepNum = have(${sequent2code(bot)}) by RightRefl"
+    case LeftSubstEq(bot, t1, equals, lambdaPhi) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftSubstEq(${index2stepvar(t1)})"
+    case RightSubstEq(bot, t1, equals, lambdaPhi) => s"val s$stepNum = have(${sequent2code(bot)}) by RightSubstEq(${index2stepvar(t1)})"
+    case LeftSubstIff(bot, t1, equals, lambdaPhi) => s"val s$stepNum = have(${sequent2code(bot)}) by LeftSubstIff(${index2stepvar(t1)})"
+    case RightSubstIff(bot, t1, equals, lambdaPhi) => s"val s$stepNum = have(${sequent2code(bot)}) by RightSubstIff(${index2stepvar(t1)})"
+    case InstSchema(bot, t1, mCon, mPred, mTerm) => s"val s$stepNum = have(${sequent2code(bot)}) by InstSchema(${index2stepvar(t1)})"
     case sp @ SCSubproof(_, _) =>
-      if sp.sp.length == 1 then scproofstep2line(sp.sp.steps(0))
-      else "have(" + sequent2code(sp.bot) + ") subproof {\n" + scproof2code(sp.sp) + "\n}"
-    case Sorry(bot) => "have(" + sequent2code(bot) + ") by Sorry"
-  }
+      if sp.sp.length == 1 then scproofstep2line(sp.sp.steps(0), stepNum)
+      else s"have(${sequent2code(sp.bot)}) subproof {\n" + scproof2code(sp.sp) + "\n}"
+    case Sorry(bot) => s"val s$stepNum = have(${sequent2code(bot)}) by Sorry"
 }
 
 object MLExtract extends lisa.Main {
@@ -89,14 +94,13 @@ object MLExtract extends lisa.Main {
   println(prettySCProof(thm1.proof.toSCProof))
   println(scproof2code(thm1.proof.toSCProof))
 
-  // // A standard theorem about reordering quantifiers. Does the converse hold?
-  // val thm11 = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
-  //   have(S(x, y) |- S(x, y)) by Restate
-  //   have(∀(y, S(x, y)) |- S(x, y)) by LeftForall
-  //   have(∀(y, S(x, y)) |- ∃(x, S(x, y))) by RightExists
-  //   have(∃(x, ∀(y, S(x, y))) |- ∃(x, S(x, y))) by LeftExists
-  //   have(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) by RightForall
-  // }
+  val thm11 = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
+    val s0 = have(S(x, y) |- S(x, y)) by Restate
+    val s1 = thenHave(∀(y, S(x, y)) |- S(x, y)) by LeftForall
+    val s2 = have(∀(y, S(x, y)) |- ∃(x, S(x, y))) by RightExists(s1)
+    val s3 = have(∃(x, ∀(y, S(x, y))) |- ∃(x, S(x, y))) by LeftExists(s2)
+    val s4 = have(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) by RightForall(s3)
+  }
 
   // A standard and important property of ∀: It distributes over conjunction. This is useful to justify prenex normal form.
   val thm2 = Theorem((∀(x, Q(x)) /\ ∀(x, R(x))) <=> ∀(x, Q(x) /\ R(x))) {
