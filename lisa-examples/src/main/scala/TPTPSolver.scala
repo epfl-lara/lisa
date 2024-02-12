@@ -10,6 +10,7 @@ import lisa.utils.tptp.KernelParser.*
 import lisa.utils.tptp.ProblemGatherer.*
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.proof.SCProofChecker.checkSCProof
 
 object TPTPSolver extends lisa.Main {
   try {
@@ -55,8 +56,10 @@ object TPTPSolver extends lisa.Main {
           // Attempting proof by Tableau
           proveSequent(seq, timeoutTableau, Tableau.solve) match {
             case Solved(proof) =>
-              nbProblemsSolvedByTableau += 1
-            // writeProof(p, proof, "examples/proofs/tableau/")
+              if (checkSCProof(proof).isValid)
+                nbProblemsSolvedByTableau += 1
+                // writeProof(p, proof, "examples/proofs/tableau/")
+              else throw new Exception("Tableau proof is not valid")
             case _ => ()
           }
 
@@ -66,13 +69,15 @@ object TPTPSolver extends lisa.Main {
             case _ => None
           proveSequent(seq, timeoutTautology, tautologySolver) match {
             case Solved(proof) =>
-              nbProblemsSolvedByTautology += 1
-            // writeProof(p, proof, "examples/proofs/tautology/")
+              if (checkSCProof(proof).isValid)
+                nbProblemsSolvedByTautology += 1
+                // writeProof(p, proof, "examples/proofs/tautology/")
+              else throw new Exception("Tautology proof is not valid")
             case _ => ()
           }
         }
       } catch {
-        case _ => ()
+        case e => println(s"Error while processing $probfile: $e")
       }
     }
   } catch {

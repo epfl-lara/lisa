@@ -13,7 +13,7 @@ object RunSolver {
   case class Solved(proof: SCProof) extends SolverResult
   case object Unsolved extends SolverResult
   case object Timeout extends SolverResult
-  case class SolverException(e: Exception) extends SolverResult
+  case class SolverThrow(t: Throwable) extends SolverResult
 
   def proveSequent(sequent: Sequent, timeout: Duration, solver: Sequent => Option[SCProof]): SolverResult = {
     val (futureSolver, cancelSolver) = Future.interruptibly { solver(sequent) }
@@ -25,9 +25,9 @@ object RunSolver {
       case _: TimeoutException =>
         cancelSolver()
         Timeout
-      case e: Exception =>
+      case t: Throwable =>
         cancelSolver()
-        SolverException(e)
+        SolverThrow(t)
   }
 
   // Class to handle future cancellation
@@ -94,6 +94,7 @@ object RunSolver {
         catch {
           case ie: InterruptedException => throw new CancellationException()
           case td: ThreadDeath => throw new CancellationException()
+          case t: Throwable => throw t
         } finally {
           if (!exit() && Thread.interrupted())
             () // If we were interrupted and flag was not cleared
