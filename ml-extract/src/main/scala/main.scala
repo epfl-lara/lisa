@@ -9,11 +9,11 @@ import lisa.utils.KernelHelpers.lambda
 import lisa.utils.ProofsShrink.*
 import lisa.automation.Tableau
 
-// TODO: fix printing of ∧ and ∨ with > 2 arguments
-// TODO: determine when calling withParameters is necessary instead of using it by default
+// TODO: fix printing of ∧ and ∨ with > 2 arguments, currently handled as recursive binary operators
+// TODO: determine when calling withParameters is necessary instead of using it by default -> build the high level proof tree
 // TODO: remove unnecessary variables "val s_..." in generated proofs
-// TODO: generate better random variable names
-// TODO: handle automatic variable declaration  before theorems/proofs
+// TODO: generate more realistic variable names
+// TODO: handle automatic global variable declaration before theorems/proofs
 
 def scproof2code(p: K.SCProof, premises: Seq[String] = Seq.empty, indent: Int = 0, varPrefix: String = "s"): String = {
   def scproofstep2line(ps: SCProofStep, stepNum: Int, premises: Seq[String], indent: Int, varPrefix: String): String = {
