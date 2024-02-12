@@ -110,11 +110,3 @@ lazy val examples = Project(
   .settings(commonSettings)
   .settings(commonSettings3)
   .dependsOn(root)
-
-lazy val mlextract = Project(
-  id = "ml-extract",
-  base = file("ml-extract")
-)
-  .settings(commonSettings)
-  .settings(commonSettings3)
-  .dependsOn(root)
