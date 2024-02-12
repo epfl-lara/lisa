@@ -35,7 +35,12 @@ object KernelParser {
    */
   def convertToKernel(formula: FOF.Formula): K.Formula = {
     formula match {
-      case FOF.AtomicFormula(f, args) => K.AtomicFormula(K.ConstantAtomicLabel(cleanVarname(f), args.size), args map convertTermToKernel)
+      case FOF.AtomicFormula(f, args) =>
+        K.AtomicFormula(
+          if args.isEmpty then K.VariableFormulaLabel(cleanVarname(f))
+          else K.SchematicPredicateLabel(cleanVarname(f), args.size),
+          args map convertTermToKernel
+        )
       case FOF.QuantifiedFormula(quantifier, variableList, body) =>
         quantifier match {
           case FOF.! => variableList.foldRight(convertToKernel(body))((s, f) => K.Forall(K.VariableLabel(s), f))
@@ -62,12 +67,18 @@ object KernelParser {
   }
 
   def convertToKernel(formula: CNF.Formula): K.Formula = {
+    def atomicFormulaToKernel(formula: CNF.AtomicFormula): K.Formula =
+      K.AtomicFormula(
+        if formula.args.isEmpty then K.VariableFormulaLabel(cleanVarname(formula.f))
+        else K.SchematicPredicateLabel(cleanVarname(formula.f), formula.args.size),
+        formula.args.map(convertTermToKernel).toList
+      )
 
     K.ConnectorFormula(
       K.Or,
       formula.map {
-        case CNF.PositiveAtomic(formula) => K.AtomicFormula(K.ConstantAtomicLabel(cleanVarname(formula.f), formula.args.size), formula.args.map(convertTermToKernel).toList)
-        case CNF.NegativeAtomic(formula) => !K.AtomicFormula(K.ConstantAtomicLabel(cleanVarname(formula.f), formula.args.size), formula.args.map(convertTermToKernel).toList)
+        case CNF.PositiveAtomic(formula) => atomicFormulaToKernel(formula)
+        case CNF.NegativeAtomic(formula) => !atomicFormulaToKernel(formula)
         case CNF.Equality(left, right) => K.equality(convertTermToKernel(left), convertTermToKernel(right))
         case CNF.Inequality(left, right) => !K.equality(convertTermToKernel(left), convertTermToKernel(right))
       }
@@ -79,7 +90,12 @@ object KernelParser {
    * @return the same term in LISA
    */
   def convertTermToKernel(term: CNF.Term): K.Term = term match {
-    case CNF.AtomicTerm(f, args) => K.Term(K.ConstantFunctionLabel(cleanVarname(f), args.size), args map convertTermToKernel)
+    case CNF.AtomicTerm(f, args) =>
+      K.Term(
+        if args.isEmpty then K.VariableLabel(cleanVarname(f))
+        else K.SchematicFunctionLabel(cleanVarname(f), args.size),
+        args map convertTermToKernel
+      )
     case CNF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
     case CNF.DistinctObject(name) => ???
   }
@@ -90,7 +106,11 @@ object KernelParser {
    */
   def convertTermToKernel(term: FOF.Term): K.Term = term match {
     case FOF.AtomicTerm(f, args) =>
-      K.Term(K.ConstantFunctionLabel(cleanVarname(f), args.size), args map convertTermToKernel)
+      K.Term(
+        if args.isEmpty then K.VariableLabel(cleanVarname(f))
+        else K.SchematicFunctionLabel(cleanVarname(f), args.size),
+        args map convertTermToKernel
+      )
     case FOF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
     case FOF.DistinctObject(name) => ???
     case FOF.NumberTerm(value) => ???
