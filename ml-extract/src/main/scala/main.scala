@@ -10,7 +10,6 @@ import lisa.utils.ProofsShrink.*
 import lisa.automation.Tableau
 
 // TODO: fix printing of ∧ and ∨ with > 2 arguments, currently handled as recursive binary operators
-// TODO: determine when calling withParameters is necessary instead of using it by default -> build the high level proof tree
 // TODO: remove unnecessary variables "val s_..." in generated proofs
 // TODO: generate more realistic variable names
 // TODO: handle automatic global variable declaration before theorems/proofs
@@ -32,81 +31,69 @@ def scproof2code(p: K.SCProof, premises: Seq[String] = Seq.empty, indent: Int = 
       case sp @ SCSubproof(_, _) =>
         varDecl + s"have(${sequent2code(sp.bot)}) subproof {\n" + scproof2code(sp.sp, sp.premises.map(index2stepvar), indent + 1, s"${varPrefix}_$stepNum") + "\n" + "  " * indent + "}"
       case _ =>
-        val (bot_, step_ref_seq, tactic_name, opening, closing) = (ps match
-          case Restate(bot, t1) => (bot, Seq(t1), "Restate", ".from(", ")")
-          case RestateTrue(bot) => (bot, null, "Restate", null, null)
-          case Hypothesis(bot, phi) => (bot, null, "Hypothesis", null, null)
-          // case Cut(bot, t1, t2, phi) => (bot, Seq(t1, t2), "Cut", "(", ")")
-          case Cut(bot, t1, t2, phi) => (bot, Seq(t1, t2), s"Cut.withParameters(${formula2code(phi)})", "(", ")")
-          // case LeftAnd(bot, t1, phi, psi) => (bot, Seq(t1), "LeftAnd", "(", ")")
-          case LeftAnd(bot, t1, phi, psi) => (bot, Seq(t1), s"LeftAnd.withParameters(${formula2code(phi)}, ${formula2code(psi)})", "(", ")")
-          // case LeftOr(bot, t, disjuncts) => (bot, t, "LeftOr", "(", ")")
-          case LeftOr(bot, t, disjuncts) => (bot, t, s"LeftOr.withParameters(${disjuncts.map(formula2code).mkString(", ")})", "(", ")")
-          // case LeftImplies(bot, t1, t2, phi, psi) => (bot, Seq(t1, t2), "LeftImplies", "(", ")")
-          case LeftImplies(bot, t1, t2, phi, psi) => (bot, Seq(t1, t2), s"LeftImplies.withParameters(${formula2code(phi)}, ${formula2code(psi)})", "(", ")")
-          // case LeftIff(bot, t1, phi, psi) => (bot, Seq(t1), "LeftIff", "(", ")")
-          case LeftIff(bot, t1, phi, psi) => (bot, Seq(t1), s"LeftIff.withParameters(${formula2code(phi)}, ${formula2code(psi)})", "(", ")")
-          // case LeftNot(bot, t1, phi) => (bot, Seq(t1), "LeftNot", "(", ")")
-          case LeftNot(bot, t1, phi) => (bot, Seq(t1), s"LeftNot.withParameters(${formula2code(phi)})", "(", ")")
-          // case LeftForall(bot, t1, phi, x, t) => (bot, Seq(t1), "LeftForall", "(", ")")
-          case LeftForall(bot, t1, phi, x, t) => (bot, Seq(t1), s"LeftForall.withParameters(${formula2code(phi)}, ${asFrontLabel(x)}, ${term2code(t)})", "(", ")")
-          // case LeftExists(bot, t1, phi, x) => (bot, Seq(t1), "LeftExists", "(", ")")
-          case LeftExists(bot, t1, phi, x) => (bot, Seq(t1), s"LeftExists.withParameters(${formula2code(phi)}, ${asFrontLabel(x)})", "(", ")")
-          // case LeftExistsOne(bot, t1, phi, x) => (bot, Seq(t1), "LeftExistsOne", "(", ")")
-          case LeftExistsOne(bot, t1, phi, x) => (bot, Seq(t1), s"LeftExistsOne.withParameters(${formula2code(phi)}, ${asFrontLabel(x)})", "(", ")")
-          // case RightAnd(bot, t, conjuncts) => (bot, t, "RightAnd", "(", ")")
-          case RightAnd(bot, t, conjuncts) => (bot, t, s"RightAnd.withParameters(${conjuncts.map(formula2code).mkString(", ")})", "(", ")")
-          // case RightOr(bot, t1, phi, psi) => (bot, Seq(t1), "RightOr", "(", ")")
-          case RightOr(bot, t1, phi, psi) => (bot, Seq(t1), s"RightOr.withParameters(${formula2code(phi)}, ${formula2code(psi)})", "(", ")")
-          // case RightImplies(bot, t1, phi, psi) => (bot, Seq(t1), "RightImplies", "(", ")")
-          case RightImplies(bot, t1, phi, psi) => (bot, Seq(t1), s"RightImplies.withParameters(${formula2code(phi)}, ${formula2code(psi)})", "(", ")")
-          // case RightIff(bot, t1, t2, phi, psi) => (bot, Seq(t1, t2), "RightIff", "(", ")")
-          case RightIff(bot, t1, t2, phi, psi) => (bot, Seq(t1, t2), s"RightIff.withParameters(${formula2code(phi)}, ${formula2code(psi)})", "(", ")")
-          // case RightNot(bot, t1, phi) => (bot, Seq(t1), "RightNot", "(", ")")
-          case RightNot(bot, t1, phi) => (bot, Seq(t1), s"RightNot.withParameters(${formula2code(phi)})", "(", ")")
-          // case RightForall(bot, t1, phi, x) => (bot, Seq(t1), "RightForall", "(", ")")
-          case RightForall(bot, t1, phi, x) => (bot, Seq(t1), s"RightForall.withParameters(${formula2code(phi)}, ${asFrontLabel(x)})", "(", ")")
-          // case RightExists(bot, t1, phi, x, t) => (bot, Seq(t1), "RightExists", "(", ")")
-          case RightExists(bot, t1, phi, x, t) => (bot, Seq(t1), s"RightExists.withParameters(${formula2code(phi)}, ${asFrontLabel(x)}, ${term2code(t)})", "(", ")")
-          // case RightExistsOne(bot, t1, phi, x) => (bot, Seq(t1), "RightExistsOne", "(", ")")
-          case RightExistsOne(bot, t1, phi, x) => (bot, Seq(t1), s"RightExistsOne.withParameters(${formula2code(phi)}, ${asFrontLabel(x)})", "(", ")")
-          case Weakening(bot, t1) => (bot, Seq(t1), "Weakening", "(", ")")
-          // case LeftRefl(bot, t1, phi) => (bot, Seq(t1), "LeftRefl", "(", ")")
-          case LeftRefl(bot, t1, phi) => (bot, Seq(t1), s"LeftRefl.withParameters(${formula2code(phi)})", "(", ")")
-          // case RightRefl(bot, phi) => (bot, null, "RightRefl", null, null)
-          case RightRefl(bot, phi) => (bot, null, s"RightRefl.withParameters(${formula2code(phi)})", null, null)
-          // case LeftSubstEq(bot, t1, equals, lambdaPhi) => (bot, Seq(t1), "LeftSubstEq", "(", ")")
-          case LeftSubstEq(bot, t1, equals, lambdaPhi) => (bot, Seq(t1), s"LeftSubstEq.withParameters(List(${equals
-                .map((a, b) => s"((${term2code(a)}), (${term2code(b)}))")
-                .mkString(", ")}), lambda(Seq(${lambdaPhi.vars.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi.body)}))", "(", ")")
-          // case RightSubstEq(bot, t1, equals, lambdaPhi) => (bot, Seq(t1), "RightSubstEq", "(", ")")
-          case RightSubstEq(bot, t1, equals, lambdaPhi) => (bot, Seq(t1), s"RightSubstEq.withParameters(List(${equals
-                .map((a, b) => s"((${term2code(a)}), (${term2code(b)}))")
-                .mkString(", ")}), lambda(Seq(${lambdaPhi.vars.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi.body)}))", "(", ")")
-          case LeftSubstIff(bot, t1, equals, lambdaPhi) => (bot, Seq(t1), s"LeftSubstIff(List(${equals
+        var tacticName = ps.getClass.getSimpleName
+        var opening = "("
+        var closing = ")"
+        val (bot_, step_ref_seq) = (ps match
+          case Restate(bot, t1) =>
+            opening = ".from("
+            (bot, Seq(t1))
+          case RestateTrue(bot) =>
+            tacticName = "Restate"
+            (bot, null)
+          case Hypothesis(bot, phi) => (bot, null)
+          case Cut(bot, t1, t2, phi) => (bot, Seq(t1, t2))
+          case LeftAnd(bot, t1, phi, psi) => (bot, Seq(t1))
+          case LeftOr(bot, t, disjuncts) => (bot, t)
+          case LeftImplies(bot, t1, t2, phi, psi) => (bot, Seq(t1, t2))
+          case LeftIff(bot, t1, phi, psi) => (bot, Seq(t1))
+          case LeftNot(bot, t1, phi) => (bot, Seq(t1))
+          case LeftForall(bot, t1, phi, x, t) => (bot, Seq(t1))
+          case LeftExists(bot, t1, phi, x) => (bot, Seq(t1))
+          case LeftExistsOne(bot, t1, phi, x) => (bot, Seq(t1))
+          case RightAnd(bot, t, conjuncts) => (bot, t)
+          case RightOr(bot, t1, phi, psi) => (bot, Seq(t1))
+          case RightImplies(bot, t1, phi, psi) => (bot, Seq(t1))
+          case RightIff(bot, t1, t2, phi, psi) => (bot, Seq(t1, t2))
+          case RightNot(bot, t1, phi) => (bot, Seq(t1))
+          case RightForall(bot, t1, phi, x) => (bot, Seq(t1))
+          case RightExists(bot, t1, phi, x, t) => (bot, Seq(t1))
+          case RightExistsOne(bot, t1, phi, x) => (bot, Seq(t1))
+          case Weakening(bot, t1) => (bot, Seq(t1))
+          case LeftRefl(bot, t1, phi) => (bot, Seq(t1))
+          case RightRefl(bot, phi) => (bot, null)
+          case LeftSubstEq(bot, t1, equals, lambdaPhi) => (bot, Seq(t1))
+          case RightSubstEq(bot, t1, equals, lambdaPhi) => (bot, Seq(t1))
+          case LeftSubstIff(bot, t1, equals, lambdaPhi) =>
+            tacticName = s"LeftSubstIff(List(${equals
                 .map((a, b) => s"((${formula2code(a)}), (${formula2code(b)}))")
-                .mkString(", ")}), lambda(Seq(${lambdaPhi.vars.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi.body)}))", "(", ")")
-          case RightSubstIff(bot, t1, equals, lambdaPhi) => (bot, Seq(t1), s"RightSubstIff(List(${equals
+                .mkString(", ")}), lambda(Seq(${lambdaPhi.vars.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi.body)}))"
+            (bot, Seq(t1))
+          case RightSubstIff(bot, t1, equals, lambdaPhi) =>
+            tacticName = s"RightSubstIff(List(${equals
                 .map((a, b) => s"((${formula2code(a)}), (${formula2code(b)}))")
-                .mkString(", ")}), lambda(Seq(${lambdaPhi.vars.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi.body)}))", "(", ")")
+                .mkString(", ")}), lambda(Seq(${lambdaPhi.vars.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi.body)}))"
+            (bot, Seq(t1))
           case InstSchema(bot, t1, mCon, mPred, mTerm) =>
             if mCon.isEmpty && mPred.isEmpty then
-              (bot, Seq(t1), s"InstFunSchema(Map(${mTerm.toList
+              tacticName = s"InstFunSchema(Map(${mTerm.toList
                   .map((k, v) => s"${asFrontLabel(k)} -> ${term2code(v.body)}")
-                  .mkString(", ")}))", "(", ")")
+                  .mkString(", ")}))"
+              (bot, Seq(t1))
             else if mCon.isEmpty && mTerm.isEmpty then
-              (bot, Seq(t1), s"InstPredSchema(Map(${mPred.toList
+              tacticName = s"InstPredSchema(Map(${mPred.toList
                   .map((k, v) => s"${asFrontLabel(k)} -> ${formula2code(v.body)}")
-                  .mkString(", ")}))", "(", ")")
+                  .mkString(", ")}))"
+              (bot, Seq(t1))
             else throw new Exception("InstSchema not implemented")
-          case _ => throw new Exception(s"tactic ${ps.getClass.getName} not implemented")
+          case _ => throw new Exception(s"Tactic ${ps.getClass.getName} not implemented")
         )
 
         varDecl + (
           if (step_ref_seq != null && step_ref_seq.size == 1 && stepNum > 0 && step_ref_seq.head + 1 == stepNum)
-            then s"thenHave(${sequent2code(bot_)}) by $tactic_name"
+          then s"thenHave(${sequent2code(bot_)}) by $tacticName"
           else
-            s"have(${sequent2code(bot_)}) by $tactic_name" + (
+            s"have(${sequent2code(bot_)}) by $tacticName" + (
               if step_ref_seq == null then ""
               else s"$opening${step_ref_seq.map(index2stepvar).mkString(", ")}$closing"
             )
@@ -158,35 +145,35 @@ object MLExtract extends lisa.Main {
     thenHave(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) by RightForall
   }
 
-  // println(prettyProof(thm1.proof))
-  // println(prettySCProof(thm1.proof.toSCProof))
-  // println(scproof2code(thm1.proof.toSCProof))
-  // println(scproof2code(optimizeProofIteratively(thm1.proof.toSCProof)))
+  // println(prettyProof(thm1.highProof.get))
+  // println(prettySCProof(thm1.kernelProof.get))
+  // println(scproof2code(thm1.kernelProof.get))
+  // println(scproof2code(optimizeProofIteratively(thm1.kernelProof.get)))
 
   val thm1_raw = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
     val s_0 = have(S(x, y) ⊢ S(x, y)) subproof {
       val s_0_0 = have(S(x, y) ⊢ S(x, y)) by Restate
     }
     val s_1 = have(∀(y, S(x, y)) ⊢ S(x, y)) subproof {
-      val s_1_0 = have(∀(y, S(x, y)) ⊢ S(x, y)) by LeftForall.withParameters(S(x, y), y, y)(s_0)
+      val s_1_0 = have(∀(y, S(x, y)) ⊢ S(x, y)) by LeftForall(s_0)
     }
     val s_2 = have(∀(y, S(x, y)) ⊢ ∃(x, S(x, y))) subproof {
-      val s_2_0 = have(∀(y, S(x, y)) ⊢ ∃(x, S(x, y))) by RightExists.withParameters(S(x, y), x, x)(s_1)
+      val s_2_0 = have(∀(y, S(x, y)) ⊢ ∃(x, S(x, y))) by RightExists(s_1)
     }
     val s_3 = have(∃(x, ∀(y, S(x, y))) ⊢ ∃(x, S(x, y))) subproof {
-      val s_3_0 = have(∃(x, ∀(y, S(x, y))) ⊢ ∃(x, S(x, y))) by LeftExists.withParameters(∀(y, S(x, y)), x)(s_2)
+      val s_3_0 = have(∃(x, ∀(y, S(x, y))) ⊢ ∃(x, S(x, y))) by LeftExists(s_2)
     }
     val s_4 = have(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) subproof {
-      val s_4_0 = have(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) by RightForall.withParameters(∃(x, S(x, y)), y)(s_3)
+      val s_4_0 = have(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) by RightForall(s_3)
     }
   }
 
   val thm1_optimized = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
     val s_0 = have(S(x, y) ⊢ S(x, y)) by Restate
-    val s_1 = thenHave(∀(y, S(x, y)) ⊢ S(x, y)) by LeftForall.withParameters(S(x, y), y, y)
-    val s_2 = thenHave(∀(y, S(x, y)) ⊢ ∃(x, S(x, y))) by RightExists.withParameters(S(x, y), x, x)
-    val s_3 = thenHave(∃(x, ∀(y, S(x, y))) ⊢ ∃(x, S(x, y))) by LeftExists.withParameters(∀(y, S(x, y)), x)
-    val s_4 = thenHave(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) by RightForall.withParameters(∃(x, S(x, y)), y)
+    val s_1 = thenHave(∀(y, S(x, y)) ⊢ S(x, y)) by LeftForall
+    val s_2 = thenHave(∀(y, S(x, y)) ⊢ ∃(x, S(x, y))) by RightExists
+    val s_3 = thenHave(∃(x, ∀(y, S(x, y))) ⊢ ∃(x, S(x, y))) by LeftExists
+    val s_4 = thenHave(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) by RightForall
   }
 
   // A standard and important property of ∀: It distributes over conjunction. This is useful to justify prenex normal form.
@@ -214,99 +201,100 @@ object MLExtract extends lisa.Main {
     have(thesis) by Tautology.from(forward, backward)
   }
 
-  // println(prettyProof(thm2.proof))
-  // println(prettySCProof(thm2.proof.toSCProof))
-  // println(scproof2code(thm2.proof.toSCProof))
-  // println(scproof2code(optimizeProofIteratively(thm2.proof.toSCProof)))
+  // println(prettyProof(thm2.highProof.get))
+  // println(prettySCProof(thm2.kernelProof.get))
+  // println(scproof2code(thm2.kernelProof.get))
+  // println(scproof2code(optimizeProofIteratively(thm2.kernelProof.get)))
 
   val thm2_raw = Theorem((∀(x, Q(x)) /\ ∀(x, R(x))) <=> ∀(x, Q(x) /\ R(x))) {
-    val s_0 = have(( ∀(x, R(x)), ∀(x, Q(x)) ) ⊢ ∀(x, (Q(x) ∧ R(x)))) subproof {
-      val s_0_0 = have(( R(x), Q(x) ) ⊢ (Q(x) ∧ R(x))) subproof {
-        val s_0_0_0 = have(( R(x), Q(x) ) ⊢ (Q(x) ∧ R(x))) by Restate
+    val s_0 = have((∀(x, R(x)), ∀(x, Q(x))) ⊢ ∀(x, (Q(x) ∧ R(x)))) subproof {
+      val s_0_0 = have((R(x), Q(x)) ⊢ (Q(x) ∧ R(x))) subproof {
+        val s_0_0_0 = have((R(x), Q(x)) ⊢ (Q(x) ∧ R(x))) by Restate
       }
-      val s_0_1 = have(( R(x), ∀(x, Q(x)) ) ⊢ (Q(x) ∧ R(x))) subproof {
-        val s_0_1_0 = have(( R(x), ∀(x, Q(x)) ) ⊢ (Q(x) ∧ R(x))) by LeftForall.withParameters(Q(x), x, x)(s_0_0)
+      val s_0_1 = have((R(x), ∀(x, Q(x))) ⊢ (Q(x) ∧ R(x))) subproof {
+        val s_0_1_0 = have((R(x), ∀(x, Q(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall(s_0_0)
       }
-      val s_0_2 = have(( ∀(x, R(x)), ∀(x, Q(x)) ) ⊢ (Q(x) ∧ R(x))) subproof {
-        val s_0_2_0 = have(( ∀(x, R(x)), ∀(x, Q(x)) ) ⊢ (Q(x) ∧ R(x))) by LeftForall.withParameters(R(x), x, x)(s_0_1)
+      val s_0_2 = have((∀(x, R(x)), ∀(x, Q(x))) ⊢ (Q(x) ∧ R(x))) subproof {
+        val s_0_2_0 = have((∀(x, R(x)), ∀(x, Q(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall(s_0_1)
       }
-      val s_0_3 = have(( ∀(x, R(x)), ∀(x, Q(x)) ) ⊢ ∀(x, (Q(x) ∧ R(x)))) subproof {
-        val s_0_3_0 = have(( ∀(x, R(x)), ∀(x, Q(x)) ) ⊢ ∀(x, (Q(x) ∧ R(x)))) by RightForall.withParameters((Q(x) ∧ R(x)), x)(s_0_2)
+      val s_0_3 = have((∀(x, R(x)), ∀(x, Q(x))) ⊢ ∀(x, (Q(x) ∧ R(x)))) subproof {
+        val s_0_3_0 = have((∀(x, R(x)), ∀(x, Q(x))) ⊢ ∀(x, (Q(x) ∧ R(x)))) by RightForall(s_0_2)
       }
-      val s_0_4 = thenHave(( ∀(x, R(x)), ∀(x, Q(x)) ) ⊢ ∀(x, (Q(x) ∧ R(x)))) by Restate
+      val s_0_4 = thenHave((∀(x, R(x)), ∀(x, Q(x))) ⊢ ∀(x, (Q(x) ∧ R(x)))) by Restate
     }
     val s_1 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) subproof {
       val s_1_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, (Q(x) ∧ R(x)))) subproof {
         val s_1_0_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, (Q(x) ∧ R(x)))) by Hypothesis
       }
       val s_1_1 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) subproof {
-        val s_1_1_0 = have(( ∀(x, (Q(x) ∧ R(x))), (Q(x) ∧ R(x)) ) ⊢ (Q(x) ∧ R(x))) subproof {
-          val s_1_1_0_0 = have(( ∀(x, (Q(x) ∧ R(x))), (Q(x) ∧ R(x)) ) ⊢ (Q(x) ∧ R(x))) by Restate
+        val s_1_1_0 = have((∀(x, (Q(x) ∧ R(x))), (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) subproof {
+          val s_1_1_0_0 = have((∀(x, (Q(x) ∧ R(x))), (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) by Restate
         }
         val s_1_1_1 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) subproof {
-          val s_1_1_1_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall.withParameters((Q(x) ∧ R(x)), x, x)(s_1_1_0)
+          val s_1_1_1_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall(s_1_1_0)
         }
       }
       val s_1_2 = have(∀(x, (Q(x) ∧ R(x))) ⊢ Q(x)) subproof {
         val s_1_2_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ Q(x)) by Weakening(s_1_1)
       }
       val s_1_3 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, Q(x))) subproof {
-        val s_1_3_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, Q(x))) by RightForall.withParameters(Q(x), x)(s_1_2)
+        val s_1_3_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, Q(x))) by RightForall(s_1_2)
       }
       val s_1_4 = have(∀(x, (Q(x) ∧ R(x))) ⊢ R(x)) subproof {
         val s_1_4_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ R(x)) by Weakening(s_1_1)
       }
       val s_1_5 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, R(x))) subproof {
-        val s_1_5_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, R(x))) by RightForall.withParameters(R(x), x)(s_1_4)
+        val s_1_5_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, R(x))) by RightForall(s_1_4)
       }
       val s_1_6 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) subproof {
-        val s_1_6_0 = have((  ) ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x)))) by Restate.from(s_1_3)
-        val s_1_6_1 = have((  ) ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) by Restate.from(s_1_5)
-        val s_1_6_2 = have(( ∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x))) ) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) subproof {
-          val s_1_6_2_0 = have((  ) ⊢ ⊤) by Restate
-          val s_1_6_2_1 = thenHave(( ∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x))) ) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Restate
+        val s_1_6_0 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x)))) by Restate.from(s_1_3)
+        val s_1_6_1 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) by Restate.from(s_1_5)
+        val s_1_6_2 = have((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) subproof {
+          val s_1_6_2_0 = have(() ⊢ ⊤) by Restate
+          val s_1_6_2_1 = thenHave((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Restate
         }
-        val s_1_6_3 = have(( ∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x))) ) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut.withParameters((∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))))(s_1_6_0, s_1_6_2)
-        val s_1_6_4 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut.withParameters((∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x))))(s_1_6_1, s_1_6_3)
+        val s_1_6_3 = have((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut(s_1_6_0, s_1_6_2)
+        val s_1_6_4 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut(s_1_6_1, s_1_6_3)
       }
       val s_1_7 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Restate
     }
-    val s_2 = have((  ) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) subproof {
-      val s_2_0 = have((  ) ⊢ ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_0)
-      val s_2_1 = have((  ) ⊢ (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) by Restate.from(s_1)
-      val s_2_2 = have(( ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) subproof {
-        val s_2_2_0 = have((  ) ⊢ ⊤) by Restate
-        val s_2_2_1 = thenHave(( ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Restate
+    val s_2 = have(() ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) subproof {
+      val s_2_0 = have(() ⊢ ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_0)
+      val s_2_1 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) by Restate.from(s_1)
+      val s_2_2 = have((((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) subproof {
+        val s_2_2_0 = have(() ⊢ ⊤) by Restate
+        val s_2_2_1 =
+          thenHave((((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Restate
       }
-      val s_2_3 = have((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut.withParameters(((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))))(s_2_0, s_2_2)
-      val s_2_4 = have((  ) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut.withParameters((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))))(s_2_1, s_2_3)
+      val s_2_3 = have((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_2_0, s_2_2)
+      val s_2_4 = have(() ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_2_1, s_2_3)
     }
   }
 
   val thm2_optimized = Theorem((∀(x, Q(x)) /\ ∀(x, R(x))) <=> ∀(x, Q(x) /\ R(x))) {
-    val s_0 = have(( R(x), Q(x) ) ⊢ (Q(x) ∧ R(x))) by Restate
-    val s_1 = thenHave(( R(x), ∀(x, Q(x)) ) ⊢ (Q(x) ∧ R(x))) by LeftForall.withParameters(Q(x), x, x)
-    val s_2 = thenHave(( ∀(x, R(x)), ∀(x, Q(x)) ) ⊢ (Q(x) ∧ R(x))) by LeftForall.withParameters(R(x), x, x)
-    val s_3 = thenHave(( ∀(x, R(x)), ∀(x, Q(x)) ) ⊢ ∀(x, (Q(x) ∧ R(x)))) by RightForall.withParameters((Q(x) ∧ R(x)), x)
-    val s_4 = have(( ∀(x, (Q(x) ∧ R(x))), (Q(x) ∧ R(x)) ) ⊢ (Q(x) ∧ R(x))) by Restate
-    val s_5 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall.withParameters((Q(x) ∧ R(x)), x, x)
+    val s_0 = have((R(x), Q(x)) ⊢ (Q(x) ∧ R(x))) by Restate
+    val s_1 = thenHave((R(x), ∀(x, Q(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall
+    val s_2 = thenHave((∀(x, R(x)), ∀(x, Q(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall
+    val s_3 = thenHave((∀(x, R(x)), ∀(x, Q(x))) ⊢ ∀(x, (Q(x) ∧ R(x)))) by RightForall
+    val s_4 = have((∀(x, (Q(x) ∧ R(x))), (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) by Restate
+    val s_5 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall
     val s_6 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ Q(x)) by Weakening
-    val s_7 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, Q(x))) by RightForall.withParameters(Q(x), x)
+    val s_7 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, Q(x))) by RightForall
     val s_8 = have(∀(x, (Q(x) ∧ R(x))) ⊢ R(x)) by Weakening(s_5)
-    val s_9 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, R(x))) by RightForall.withParameters(R(x), x)
-    val s_10 = have((  ) ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x)))) by Restate.from(s_7)
-    val s_11 = have((  ) ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) by Restate.from(s_9)
-    val s_12 = have((  ) ⊢ ⊤) by Restate
-    val s_13 = thenHave(( ∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x))) ) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Restate
-    val s_14 = have(( ∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x))) ) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut.withParameters((∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))))(s_10, s_13)
-    val s_15 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut.withParameters((∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x))))(s_11, s_14)
-    val s_16 = have((  ) ⊢ ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_3)
-    val s_17 = have((  ) ⊢ (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) by Restate.from(s_15)
-    val s_18 = have(( ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_12)
-    val s_19 = have((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut.withParameters(((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))))(s_16, s_18)
-    val s_20 = have((  ) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut.withParameters((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))))(s_17, s_19)
+    val s_9 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, R(x))) by RightForall
+    val s_10 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x)))) by Restate.from(s_7)
+    val s_11 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) by Restate.from(s_9)
+    val s_12 = have(() ⊢ ⊤) by Restate
+    val s_13 = thenHave((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Restate
+    val s_14 = have((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut(s_10, s_13)
+    val s_15 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut(s_11, s_14)
+    val s_16 = have(() ⊢ ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_3)
+    val s_17 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) by Restate.from(s_15)
+    val s_18 =
+      have((((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_12)
+    val s_19 = have((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_16, s_18)
+    val s_20 = have(() ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_17, s_19)
   }
-
 
   // This theorem requires instantiating the assumption twice, once with x and once with f(x), and then combine the two.
   // Since x is free is the sequent step1, then step 1 is true with anything substituted for x.
@@ -318,89 +306,151 @@ object MLExtract extends lisa.Main {
     have(thesis) by Tautology.from(step1, step1 of (x := f(x)))
   }
 
-  // println(prettyProof(thm3.proof))
-  // println(prettySCProof(thm3.proof.toSCProof))
-  // println(scproof2code(thm3.proof.toSCProof))
-  // println(scproof2code(optimizeProofIteratively(thm3.proof.toSCProof)))
+  // println(prettyProof(thm3.highProof.get))
+  // println(prettySCProof(thm3.kernelProof.get))
+  // println(scproof2code(thm3.kernelProof.get))
+  // println(scproof2code(optimizeProofIteratively(thm3.kernelProof.get)))
 
   val thm3_raw = Theorem(∀(x, Q(x) ==> Q(f(x))) |- (Q(x) ==> Q(f(f(x))))) {
     val s_0 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ ∀(x, (Q(x) ==> Q(f(x))))) subproof {
       val s_0_0 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ ∀(x, (Q(x) ==> Q(f(x))))) by Hypothesis
     }
     val s_1 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) subproof {
-      val s_1_0 = have(( ∀(x, (Q(x) ==> Q(f(x)))), (Q(x) ==> Q(f(x))) ) ⊢ (Q(x) ==> Q(f(x)))) subproof {
-        val s_1_0_0 = have(( ∀(x, (Q(x) ==> Q(f(x)))), (Q(x) ==> Q(f(x))) ) ⊢ (Q(x) ==> Q(f(x)))) by Restate
+      val s_1_0 = have((∀(x, (Q(x) ==> Q(f(x)))), (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) subproof {
+        val s_1_0_0 = have((∀(x, (Q(x) ==> Q(f(x)))), (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by Restate
       }
       val s_1_1 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) subproof {
-        val s_1_1_0 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by LeftForall.withParameters((Q(x) ==> Q(f(x))), x, x)(s_1_0)
+        val s_1_1_0 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by LeftForall(s_1_0)
       }
     }
     val s_2 = have(∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ⊢ (Q(f(x)) ==> Q(f(f(x))))) subproof {
       val s_2_0 = have(∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ⊢ (Q(f(x)) ==> Q(f(f(x))))) by InstFunSchema(Map(x -> f(x)))(s_1)
     }
     val s_3 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))) subproof {
-      val s_3_0 = have((  ) ⊢ (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x))))) by Restate.from(s_1)
-      val s_3_1 = have((  ) ⊢ (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) by Restate.from(s_2)
-      val s_3_2 = have(( ∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x))))) ) ⊢ (Q(x) ==> Q(f(f(x))))) subproof {
-        val s_3_2_0 = have(Q(f(x)) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊤) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(⊤)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by Restate
-        val s_3_2_1 = thenHave(Q(f(x)) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by RightSubstIff(List(((Q(f(x))), (⊤))), lambda(Seq(MaRvIn_1), ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ MaRvIn_1) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(MaRvIn_1)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))))
-        val s_3_2_2 = have(¬(Q(f(x))) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊥) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(⊥)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by Restate
-        val s_3_2_3 = thenHave(¬(Q(f(x))) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by RightSubstIff(List(((Q(f(x))), (⊥))), lambda(Seq(MaRvIn_1), ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ MaRvIn_1) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(MaRvIn_1)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))))
-        val s_3_2_4 = thenHave((  ) ⊢ ( Q(f(x)), ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))) )) by Restate
-        val s_3_2_5 = have((  ) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by Cut.withParameters(Q(f(x)))(s_3_2_4, s_3_2_1)
-        val s_3_2_6 = thenHave((  ) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by Restate
-        val s_3_2_7 = thenHave(( ∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x))))) ) ⊢ (Q(x) ==> Q(f(f(x))))) by Restate
+      val s_3_0 = have(() ⊢ (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x))))) by Restate.from(s_1)
+      val s_3_1 = have(() ⊢ (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) by Restate.from(s_2)
+      val s_3_2 = have((∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) subproof {
+        val s_3_2_0 = have(
+          Q(f(x)) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊤) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(⊤)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))
+        ) by Restate
+        val s_3_2_1 = thenHave(
+          Q(f(x)) ⊢ ¬(
+            ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+          )
+        ) by RightSubstIff(
+          List(((Q(f(x))), (⊤))),
+          lambda(
+            Seq(MaRvIn_1),
+            ¬(
+              ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ MaRvIn_1) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(MaRvIn_1)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(
+                Q(f(f(x)))
+              ))
+            )
+          )
+        )
+        val s_3_2_2 = have(
+          ¬(Q(f(x))) ⊢ ¬(
+            ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊥) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(⊥)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+          )
+        ) by Restate
+        val s_3_2_3 = thenHave(
+          ¬(Q(f(x))) ⊢ ¬(
+            ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+          )
+        ) by RightSubstIff(
+          List(((Q(f(x))), (⊥))),
+          lambda(
+            Seq(MaRvIn_1),
+            ¬(
+              ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ MaRvIn_1) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(MaRvIn_1)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(
+                Q(f(f(x)))
+              ))
+            )
+          )
+        )
+        val s_3_2_4 = thenHave(
+          () ⊢ (Q(f(x)), ¬(
+            ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+          ))
+        ) by Restate
+        val s_3_2_5 = have(
+          () ⊢ ¬(
+            ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+          )
+        ) by Cut(s_3_2_4, s_3_2_1)
+        val s_3_2_6 = thenHave(
+          () ⊢ ¬(
+            ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+          )
+        ) by Restate
+        val s_3_2_7 =
+          thenHave((∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) by Restate
       }
-      val s_3_3 = have(( ∀(x, (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x))))) ) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut.withParameters((∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))))(s_3_0, s_3_2)
-      val s_3_4 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut.withParameters((∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x))))))(s_3_1, s_3_3)
+      val s_3_3 = have((∀(x, (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut(s_3_0, s_3_2)
+      val s_3_4 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut(s_3_1, s_3_3)
     }
   }
 
   val thm3_optimized = Theorem(∀(x, Q(x) ==> Q(f(x))) |- (Q(x) ==> Q(f(f(x))))) {
-    val s_0 = have(( ∀(x, (Q(x) ==> Q(f(x)))), (Q(x) ==> Q(f(x))) ) ⊢ (Q(x) ==> Q(f(x)))) by Restate
-    val s_1 = thenHave(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by LeftForall.withParameters((Q(x) ==> Q(f(x))), x, x)
+    val s_0 = have((∀(x, (Q(x) ==> Q(f(x)))), (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by Restate
+    val s_1 = thenHave(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by LeftForall
     val s_2 = thenHave(∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ⊢ (Q(f(x)) ==> Q(f(f(x))))) by InstFunSchema(Map(x -> f(x)))
-    val s_3 = have((  ) ⊢ (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x))))) by Restate.from(s_1)
-    val s_4 = have((  ) ⊢ (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) by Restate.from(s_2)
-    val s_5 = have(Q(f(x)) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊤) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(⊤)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by Restate
-    val s_6 = thenHave(Q(f(x)) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by Restate
-    val s_7 = have(¬(Q(f(x))) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊥) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(⊥)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by Restate
-    val s_8 = thenHave((  ) ⊢ ( Q(f(x)), ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))) )) by Restate
-    val s_9 = have((  ) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))) by Cut.withParameters(Q(f(x)))(s_8, s_6)
-    val s_10 = thenHave(( ∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x))))) ) ⊢ (Q(x) ==> Q(f(f(x))))) by Restate
-    val s_11 = have(( ∀(x, (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x))))) ) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut.withParameters((∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))))(s_3, s_10)
-    val s_12 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut.withParameters((∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x))))))(s_4, s_11)
+    val s_3 = have(() ⊢ (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x))))) by Restate.from(s_1)
+    val s_4 = have(() ⊢ (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) by Restate.from(s_2)
+    val s_5 = have(
+      Q(f(x)) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊤) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(⊤)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))
+    ) by Restate
+    val s_6 = thenHave(
+      Q(f(x)) ⊢ ¬(
+        ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+      )
+    ) by Restate
+    val s_7 = have(
+      ¬(Q(f(x))) ⊢ ¬(((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊥) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(⊥)))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x))))))
+    ) by Restate
+    val s_8 = thenHave(
+      () ⊢ (Q(f(x)), ¬(
+        ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+      ))
+    ) by Restate
+    val s_9 = have(
+      () ⊢ ¬(
+        ((((¬(((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x))) ∧ ¬(Q(f(f(x)))))) ∧ ¬(((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x)) ∧ ¬(Q(f(x)))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x))))))) ∧ Q(x)) ∧ ¬(Q(f(f(x)))))
+      )
+    ) by Cut(s_8, s_6)
+    val s_10 = thenHave((∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) by Restate
+    val s_11 = have((∀(x, (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut(s_3, s_10)
+    val s_12 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut(s_4, s_11)
   }
-
 
   val thm1bis = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
     have(thesis) by Tableau
   }
 
-  // println(prettyProof(thm1bis.proof))
-  // println(prettySCProof(thm1bis.proof.toSCProof))
-  // println(scproof2code(thm1bis.proof.toSCProof))
-  // println(scproof2code(optimizeProofIteratively(thm1bis.proof.toSCProof)))
+  // println(prettyProof(thm1bis.highProof.get))
+  // println(prettySCProof(thm1bis.kernelProof.get))
+  // println(scproof2code(thm1bis.kernelProof.get))
+  // println(scproof2code(optimizeProofIteratively(thm1bis.kernelProof.get)))
 
   val thm1bis_raw = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
     val s_0 = have(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) subproof {
-      val s_0_0 = have(( S(x, y_1), ¬(S(x, y_1)) ) ⊢ (  )) by Restate
-      val s_0_1 = thenHave(( ¬(S(x, y_1)), ∀(y, S(x, y)) ) ⊢ (  )) by LeftForall.withParameters(S(x, y), y, y_1)
-      val s_0_2 = thenHave(( ∀(y, S(x, y)), ∀(x_2, ¬(S(x_2, y_1))) ) ⊢ (  )) by LeftForall.withParameters(¬(S(x_2, y_1)), x_2, x)
-      val s_0_3 = thenHave(( ∀(x_2, ¬(S(x_2, y_1))), ∃(x, ∀(y, S(x, y))) ) ⊢ (  )) by LeftExists.withParameters(∀(y, S(x, y)), x)
-      val s_0_4 = thenHave(( ∃(x, ∀(y, S(x, y))), ∃(y_1, ∀(x_2, ¬(S(x_2, y_1)))) ) ⊢ (  )) by LeftExists.withParameters(∀(x_2, ¬(S(x_2, y_1))), y_1)
-      val s_0_5 = thenHave((∃(x, ∀(y, S(x, y))) ∧ ∃(y_1, ∀(x_2, ¬(S(x_2, y_1))))) ⊢ (  )) by Weakening
-      val s_0_6 = thenHave((∃(x, ∀(y, S(x, y))) ∧ ∃(y_1, ∀(x_2, ¬(S(x_2, y_1))))) ⊢ (  )) by Weakening
+      val s_0_0 = have((S(x, y_1), ¬(S(x, y_1))) ⊢ ()) by Restate
+      val s_0_1 = thenHave((S(x, y_1), ∀(x_2, ¬(S(x_2, y_1)))) ⊢ ()) by LeftForall
+      val s_0_2 = thenHave((∀(x_2, ¬(S(x_2, y_1))), ∀(y, S(x, y))) ⊢ ()) by LeftForall
+      val s_0_3 = thenHave((∀(x_2, ¬(S(x_2, y_1))), ∃(x, ∀(y, S(x, y)))) ⊢ ()) by LeftExists
+      val s_0_4 = thenHave((∃(x, ∀(y, S(x, y))), ∃(y_1, ∀(x_2, ¬(S(x_2, y_1))))) ⊢ ()) by LeftExists
+      val s_0_5 = thenHave((∃(x, ∀(y, S(x, y))) ∧ ∃(y_1, ∀(x_2, ¬(S(x_2, y_1))))) ⊢ ()) by Weakening
+      val s_0_6 = thenHave((∃(x, ∀(y, S(x, y))) ∧ ∃(y_1, ∀(x_2, ¬(S(x_2, y_1))))) ⊢ ()) by Weakening
       val s_0_7 = thenHave(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) by Restate
     }
   }
 
   val thm1bis_optimized = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
-    val s_0 = have(( S(x, y_1), ¬(S(x, y_1)) ) ⊢ (  )) by Restate
-    val s_1 = thenHave(( ¬(S(x, y_1)), ∀(y, S(x, y)) ) ⊢ (  )) by LeftForall.withParameters(S(x, y), y, y_1)
-    val s_2 = thenHave(( ∀(y, S(x, y)), ∀(x_2, ¬(S(x_2, y_1))) ) ⊢ (  )) by LeftForall.withParameters(¬(S(x_2, y_1)), x_2, x)
-    val s_3 = thenHave(( ∀(x_2, ¬(S(x_2, y_1))), ∃(x, ∀(y, S(x, y))) ) ⊢ (  )) by LeftExists.withParameters(∀(y, S(x, y)), x)
-    val s_4 = thenHave(( ∃(x, ∀(y, S(x, y))), ∃(y_1, ∀(x_2, ¬(S(x_2, y_1)))) ) ⊢ (  )) by LeftExists.withParameters(∀(x_2, ¬(S(x_2, y_1))), y_1)
+    val s_0 = have((S(x, y_1), ¬(S(x, y_1))) ⊢ ()) by Restate
+    val s_1 = thenHave((S(x, y_1), ∀(x_2, ¬(S(x_2, y_1)))) ⊢ ()) by LeftForall
+    val s_2 = thenHave((∀(x_2, ¬(S(x_2, y_1))), ∀(y, S(x, y))) ⊢ ()) by LeftForall
+    val s_3 = thenHave((∀(x_2, ¬(S(x_2, y_1))), ∃(x, ∀(y, S(x, y)))) ⊢ ()) by LeftExists
+    val s_4 = thenHave((∃(x, ∀(y, S(x, y))), ∃(y_1, ∀(x_2, ¬(S(x_2, y_1))))) ⊢ ()) by LeftExists
     val s_5 = thenHave(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) by Restate
   }
 
