@@ -610,7 +610,8 @@ trait Common {
     def rename(newid: Identifier): ConstantPredicateLabel[N] = ConstantPredicateLabel(newid, arity)
     def freshRename(taken: Iterable[Identifier]): ConstantPredicateLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Term]): String = if (infix) (args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated()) else toString() + "(" + args.mkString(", ") + ")"
+    def mkString(args: Seq[Term]): String =
+      if (infix) ("(" + args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated() + ")") else toString() + "(" + args.mkString(", ") + ")"
     override def mkStringSeparated(args: Seq[Term]): String = if (infix) "(" + mkString(args) + ")" else mkString(args)
   }
   object ConstantPredicateLabel {

@@ -27,7 +27,10 @@ object KernelParser {
    */
   def parseToKernel(formula: String): K.Formula = convertToKernel(Parser.fof(formula))
 
-  def cleanVarname(f: String): String = f.replaceAll(Identifier.counterSeparator.toString, "")
+  def cleanVarname(f: String): String =
+    val forbiddenChars = Identifier.forbiddenChars ++ Set('\\', '/', '\'', '"', '`', '.', ',', ';', ':', '!', '%', '^', '&', '*', '|', '-', '+', '=', '<', '>', '~', '@', '#')
+    // replace all the forbidden chars + whitespaces by '0'
+    f.map(c => if (forbiddenChars.contains(c) || c.isWhitespace) then '0' else c)
 
   /**
    * @param formula a tptp formula in leo parser
@@ -96,7 +99,7 @@ object KernelParser {
         else K.SchematicFunctionLabel(cleanVarname(f), args.size),
         args map convertTermToKernel
       )
-    case CNF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
+    case CNF.Variable(name) => K.VariableTerm(K.VariableLabel(cleanVarname(name)))
     case CNF.DistinctObject(name) => ???
   }
 
@@ -111,7 +114,7 @@ object KernelParser {
         else K.SchematicFunctionLabel(cleanVarname(f), args.size),
         args map convertTermToKernel
       )
-    case FOF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
+    case FOF.Variable(name) => K.VariableTerm(K.VariableLabel(cleanVarname(name)))
     case FOF.DistinctObject(name) => ???
     case FOF.NumberTerm(value) => ???
   }
@@ -171,7 +174,7 @@ object KernelParser {
     if (problem.spc.contains("CNF")) problem.formulas.map(_.formula) |- ()
     else
       problem.formulas.foldLeft[LK.Sequent](() |- ())((s, f) =>
-        if (f._1 == "axiom") s +<< f._3
+        if (Set("axiom", "hypothesis", "lemma").contains(f._1)) s +<< f._3
         else if (f._1 == "conjecture" && s.right.isEmpty) s +>> f._3
         else throw Exception("Can only agglomerate axioms and one conjecture into a sequents")
       )

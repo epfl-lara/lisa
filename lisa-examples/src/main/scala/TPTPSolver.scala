@@ -19,6 +19,13 @@ object TPTPSolver extends lisa.Main {
 
   class ProblemSolverResults(val problem: Problem, val solverName: String, val solverStatus: String, val proofCode: String, val proofType: ProofType)
 
+  val spc = Seq("PRP", "FOF") // type of problems we want to extract and solve
+  // val spc = Seq("CNF") // almost no CNF problems are solved by Tableau, TODO: investigate why
+
+  // We limit the execution time to solve each problem
+  val timeoutTableau = .1.second
+  val timeoutTautology = .1.second
+
   val exportOnlySolvedProblems = true
   val exportOptimizedProofs = true
   val exportBySolverProofs = true
@@ -26,19 +33,12 @@ object TPTPSolver extends lisa.Main {
   val jsonResultsPath: String = "/home/auguste/Documents/EPFL/PhD/Projects/lisa/lisa-examples/src/main/resources/TPTPResults.json"
   val TPTPProblemPath: String = "/home/auguste/Documents/EPFL/PhD/Projects/TPTP-v8.2.0/Problems/"
 
-  val spc = Seq("PRP", "FOF") // type of problems we want to extract and solve
-  // val spc = Seq("CNF") // almost no CNF problems are solved by Tableau, TODO: investigate why
+  val d = new File(TPTPProblemPath)
+  val libraries = d.listFiles.filter(_.isDirectory)
+  val probfiles = libraries.flatMap(_.listFiles).filter(_.isFile)
 
-  // val d = new File(TPTPProblemPath)
-  // val libraries = d.listFiles.filter(_.isDirectory)
-  // val probfiles = libraries.flatMap(_.listFiles).filter(_.isFile)
-
-  val d = new File(TPTPProblemPath + "SYN/")
-  val probfiles = d.listFiles.filter(_.isFile)
-
-  // We limit the execution time to solve each problem
-  val timeoutTableau = .1.second
-  val timeoutTautology = .1.second
+  // val d = new File(TPTPProblemPath + "SYN/")
+  // val probfiles = d.listFiles.filter(_.isFile)
 
   var nbProblemsExtracted = 0
   var nbProblemsSolved = Map("Tableau" -> 0, "Tautology" -> 0)
@@ -120,8 +120,8 @@ object TPTPSolver extends lisa.Main {
         "problemFile" -> r.problem.file,
         "solver" -> r.solverName,
         "solverStatus" -> r.solverStatus,
-        "solverProofCode" -> r.proofCode,
-        "proofType" -> r.proofType.getClass.getSimpleName.stripSuffix("$")
+        "proofType" -> r.proofType.getClass.getSimpleName.stripSuffix("$"),
+        "solverProofCode" -> r.proofCode
       )
     ),
     jsonWriter,
