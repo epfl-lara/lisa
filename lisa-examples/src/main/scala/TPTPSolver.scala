@@ -88,7 +88,7 @@ object TPTPSolver extends lisa.Main {
 def writeProof(problem: Problem, proof: SCProof, path: String): Unit = {
   val file = new File(path + problem.name + ".sc")
   val bw = new FileWriter(file)
-  val fileContent = generateStandaloneTheoremFileContent(problem.name, problemToSequent(problem), proof)
+  val fileContent = generateStandaloneTheoremFileContent(problem.name, proof)
   bw.write(fileContent)
   bw.close()
 }

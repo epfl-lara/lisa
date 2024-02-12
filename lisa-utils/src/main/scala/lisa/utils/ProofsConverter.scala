@@ -12,15 +12,27 @@ object ProofsConverter {
 // TODO: remove unnecessary variables "val s_..." in generated proofs -> need to detect which steps are used later in other steps
 // TODO: generate more realistic variable names
 
-  private def indent(s: String, indent: Int = 2): String = s.split("\n").map(" " * indent + _).mkString("\n")
-  private def unindent(s: String, indent: Int = 2): String = s.split("\n").map(_.drop(indent)).mkString("\n")
+  private def indent(s: String, indent: Int = 2): String = s.split("\n").map(s => if s == "" then "" else " " * indent + s).mkString("\n")
+  private def unindent(s: String, indent: Int = 2): String = s.split("\n").map(_.stripPrefix(" " * indent)).mkString("\n")
 
+  /**
+   * Converts a Sequent, Formula or Term to a valid Scala/Lisa code
+   *
+   * @param f formula to convert
+   * @return Scala code representing the formula in string format
+   */
   private def any2code(a: K.Sequent | K.Formula | K.Term): String = (a match
     case sq: K.Sequent => asFront(sq)
     case form: K.Formula => asFront(form)
     case term: K.Term => asFront(term)
   ).toString.replace("⇒", "==>").replace("⇔", "<=>")
 
+  /**
+   * Converts a SCProof to a valid Scala/Lisa code using tactics.
+   *
+   * @param p proof to convert
+   * @return Scala code representing the proof in string format
+   */
   private def scproof2code(p: K.SCProof): String = {
     def scproof2codeAux(p: K.SCProof, varPrefix: String = "s", implicitPremises: Seq[String] = Seq.empty): String = {
       def scproofstep2code(ps: SCProofStep, stepNum: Int, implicitPremises: Seq[String], varPrefix: String): String = {
@@ -91,6 +103,12 @@ object ProofsConverter {
     unindent(scproof2codeAux(p))
   }
 
+  /**
+   * Extracts all formulas from a proof
+   *
+   * @param proof proof to extract formulas from
+   * @return set of formulas
+   */
   private def extractFormulasFromProof(proof: K.SCProof): Set[K.Formula] =
     proof.steps.foldLeft(Set.empty[K.Formula])((prev, next) => {
       prev ++ (next match
@@ -103,6 +121,12 @@ object ProofsConverter {
       )
     })
 
+  /**
+   * Extracts all variables, functions, formula variables, predicates and connectors from a set of formulas
+   *
+   * @param formulas set of formulas to extract variables from
+   * @return tuple of sets of variables, functions, formula variables, predicates and connectors
+   */
   private def extractVariables(
       formulas: Set[K.Formula]
   ): (Set[K.VariableLabel], Set[K.SchematicFunctionLabel], Set[K.VariableFormulaLabel], Set[K.SchematicPredicateLabel], Set[K.SchematicConnectorLabel]) =
@@ -130,6 +154,15 @@ object ProofsConverter {
       )
     })
 
+  /**
+   * Generates a valid Scala/Lisa code to declare variables, functions, formula variables, predicates and connectors
+   * used in a set of formulas
+   *
+   * @param formulas set of formulas to generate variables for
+   * @param accessibility accessibility of the variables (e.g. "private")
+   *
+   * @return Scala code representing the variables in string format
+   */
   private def generateVariablesCode(formulas: Set[K.Formula], accessibility: String): String =
     val (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet) = extractVariables(formulas)
     val access = if accessibility != "" then accessibility.strip() + " " else ""
@@ -139,25 +172,60 @@ object ProofsConverter {
       predicateSet.map(p => access + s"val ${p.id} = predicate[${p.arity}]").toList.sorted ++
       connectorSet.map(c => access + s"val ${c.id} = connector[${c.arity}]").toList.sorted).mkString("\n")
 
-  private def generateVariablesCode(statement: K.Sequent, proof: K.SCProof, accessibility: String = "private"): String =
-    generateVariablesCode(extractFormulasFromProof(proof) + K.sequentToFormula(statement), accessibility)
+  /**
+   * Generates a valid Scala/Lisa code to declare variables, functions, formula variables, predicates and connectors
+   * used in a proof
+   *
+   * @param proof proof to generate variables for
+   * @param accessibility accessibility of the variables (e.g. "private")
+   *
+   * @return Scala code representing the variables in string format
+   */
+  private def generateVariablesCode(proof: K.SCProof, accessibility: String = "private"): String =
+    generateVariablesCode(extractFormulasFromProof(proof), accessibility)
 
-  private def generateTheoremCode(name: String, statement: K.Sequent, proof: K.SCProof): String = {
+  /**
+   * Generates a valid Scala/Lisa code of a theorem and its proof
+   *
+   * @param name name of the theorem
+   * @param proof proof of the theorem
+   *
+   * @return Scala code representing the theorem in string format
+   */
+  private def generateTheoremCode(name: String, proof: K.SCProof): String = {
     s"val $name = Theorem(\n" +
-      indent(any2code(statement)) +
+      indent(any2code(proof.conclusion)) +
       s"\n) {\n" +
       indent(scproof2code(proof)) +
       s"\n}"
   }
 
-  def generateStandaloneTheoremFileContent(name: String, statement: K.Sequent, proof: K.SCProof): String =
+  /**
+   * Generates a valid Scala/Lisa code of a theorem and its proof in a standalone file, including the necessary variables declarations.
+   * The theorem and its proof must be self-contained, i.e. no dependencies to other theorems, axioms, definitions, etc.
+   *
+   * @param name name of the theorem
+   * @param proof proof of the theorem
+   *
+   * @return Scala code representing the theorem in string format
+   */
+  def generateStandaloneTheoremFileContent(name: String, proof: K.SCProof): String =
     val camelName = "[A-Za-z0-9]+".r.findAllIn(name).map(_.capitalize).mkString
     s"object $camelName extends lisa.Main {\n\n" +
       indent(
-        generateVariablesCode(statement, proof) +
+        generateVariablesCode(proof) +
           "\n\n" +
-          generateTheoremCode(name, statement, proof)
+          generateTheoremCode(name, proof)
       ) +
       "\n}"
+
+  /**
+   * Parse and check that a generated theorem file is valid, i.e. that it compiles and the theorem is proven
+   * @param fileContent content of the generated file
+   * @return true if the file is valid, false otherwise
+   */
+  def checkGeneratedFileContent(fileContent: String): Boolean =
+    // TODO
+    false
 
 }
