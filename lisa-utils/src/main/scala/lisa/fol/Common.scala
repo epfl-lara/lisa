@@ -708,7 +708,11 @@ trait Common {
     def rename(newid: Identifier): ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")
     def freshRename(taken: Iterable[Identifier]): ConstantConnectorLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Formula]): String = if (args.length == 2) (args(0).toString() + " " + toString() + " " + args(1).toString()) else toString() + "(" + args.mkString(", ") + ")"
+    def mkString(args: Seq[Formula]): String = if (args.length == 1) {
+      underlyingLabel match
+        case K.Neg => toString() + "(" + args(0).toString() + ")"
+        case _ => args(0).toString()
+    } else "(" + args.mkString(" " + toString() + " ") + ")"
     override def mkStringSeparated(args: Seq[Formula]): String = if (args.length == 2) "(" + mkString(args) + ")" else mkString(args)
 
   }

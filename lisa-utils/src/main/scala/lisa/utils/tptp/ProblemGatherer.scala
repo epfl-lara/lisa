@@ -4,8 +4,7 @@ import lisa.utils.tptp.KernelParser.*
 
 object ProblemGatherer {
   // Path to the TPTP problems directory
-  // val path = getClass.getResource("/TPTP/Problems/").getPath
-  val TPTPProblemPath = "/home/auguste/Documents/EPFL/PhD/Projects/TPTP-v8.2.0/Problems/"
+  val TPTPProblemPath: String = getClass.getResource("/TPTP/Problems/").getPath
 
   /**
    * @return sequence of tptp problems in the library lib with the tags in spc.

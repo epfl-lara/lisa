@@ -9,7 +9,6 @@ import lisa.utils.KernelHelpers.lambda
 
 object ProofsConverter {
 
-// TODO: fix printing of ∧ and ∨ with > 2 arguments, currently handled as recursive binary operators (see FOLHelpers.scala)
 // TODO: remove unnecessary variables "val s_..." in generated proofs -> need to keep track of which steps are used in other steps
 // TODO: generate more realistic variable names
 // TODO: handle automatic global variable declaration before theorems/proofs
@@ -65,14 +64,14 @@ object ProofsConverter {
             case LeftSubstEq(bot, t1, equals, lambdaPhi) => (bot, Seq(t1))
             case RightSubstEq(bot, t1, equals, lambdaPhi) => (bot, Seq(t1))
             case LeftSubstIff(bot, t1, equals, lambdaPhi) =>
-              tacticName = s"LeftSubstIff(List(${equals
-                  .map((a, b) => s"((${formula2code(a)}), (${formula2code(b)}))")
-                  .mkString(", ")}), lambda(Seq(${lambdaPhi.vars.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi.body)}))"
+              tacticName = s"LeftSubstIff.withParametersSimple(List(${equals
+                  .map((a, b) => s"((${formula2code(a.body)}), (${formula2code(b.body)}))")
+                  .mkString(", ")}), lambda(Seq(${lambdaPhi._1.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi._2)}))"
               (bot, Seq(t1))
             case RightSubstIff(bot, t1, equals, lambdaPhi) =>
-              tacticName = s"RightSubstIff(List(${equals
-                  .map((a, b) => s"((${formula2code(a)}), (${formula2code(b)}))")
-                  .mkString(", ")}), lambda(Seq(${lambdaPhi.vars.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi.body)}))"
+              tacticName = s"RightSubstIff.withParametersSimple(List(${equals
+                  .map((a, b) => s"((${formula2code(a.body)}), (${formula2code(b.body)}))")
+                  .mkString(", ")}), lambda(Seq(${lambdaPhi._1.map(asFrontLabel).mkString(", ")}), ${formula2code(lambdaPhi._2)}))"
               (bot, Seq(t1))
             case InstSchema(bot, t1, mCon, mPred, mTerm) =>
               if mCon.isEmpty && mPred.isEmpty then

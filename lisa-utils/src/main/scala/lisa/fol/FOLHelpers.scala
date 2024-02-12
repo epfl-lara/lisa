@@ -118,10 +118,7 @@ object FOLHelpers {
   def asFront(pf: K.AtomicFormula): Formula =
     asFrontLabel(pf.label).applySeq(pf.args.map(asFront))
   def asFront(cf: K.ConnectorFormula): Formula =
-    cf.label match
-      case K.And | K.Or if cf.args.size == 1 => asFront(cf.args(0))
-      case K.And | K.Or => cf.args.map(asFront).reduceLeft((a, b) => asFrontLabel(cf.label)(Seq(a, b))) // TODO: handle this more gracefully
-      case _ => asFrontLabel(cf.label).applyUnsafe(cf.args.map(asFront))
+    asFrontLabel(cf.label).applyUnsafe(cf.args.map(asFront))
   def asFront(bf: K.BinderFormula): BinderFormula =
     asFrontLabel(bf.label).apply(asFrontLabel(bf.bound), asFront(bf.inner))
 
