@@ -9,7 +9,7 @@ import lisa.utils.KernelHelpers.lambda
 
 object ProofsConverter {
 
-// TODO: fix printing of ∧ and ∨ with > 2 arguments, currently handled as recursive binary operators
+// TODO: fix printing of ∧ and ∨ with > 2 arguments, currently handled as recursive binary operators (see FOLHelpers.scala)
 // TODO: remove unnecessary variables "val s_..." in generated proofs -> need to keep track of which steps are used in other steps
 // TODO: generate more realistic variable names
 // TODO: handle automatic global variable declaration before theorems/proofs
