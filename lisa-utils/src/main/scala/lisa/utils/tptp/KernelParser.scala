@@ -19,7 +19,7 @@ import Parser.TPTPParseException
 
 object KernelParser {
 
-  private case class ProblemMetadata(file: String, domain: String, problem: String, status: String, spc: Seq[String])
+  case class ProblemMetadata(file: String, domain: String, problem: String, status: String, spc: Seq[String])
 
   /**
    * @param formula A formula in the tptp language
@@ -107,13 +107,8 @@ object KernelParser {
     }
   }
 
-  private def problemToKernel(problemFile: File, md: ProblemMetadata): Problem = {
+  def problemToKernel(problemFile: File, md: ProblemMetadata): Problem = {
     val file = io.Source.fromFile(problemFile)
-    val pattern = "SPC\\s*:\\s*[A-z]{3}(_[A-z]{3})*".r
-    val g = file.getLines()
-
-    def search(): String = pattern.findFirstIn(g.next()).getOrElse(search())
-
     val i = Parser.problem(file)
     val sq = i.formulas map {
       case TPTP.FOFAnnotated(name, role, formula, annotations) =>
@@ -208,13 +203,9 @@ object KernelParser {
         println("\t[" + pbarContent + "] (" + (i + 1) + " / " + probfiles.size + ") " + d.getName())
       }
 
-      try {
-        val md = getProblemInfos(p)
-        if (md.spc.exists(spc.contains)) current :+ problemToKernel(p, md)
-        else current
-      } catch {
-        case _ => current
-      }
+      val md = getProblemInfos(p)
+      if (md.spc.exists(spc.contains)) current :+ problemToKernel(p, md)
+      else current
     })
     r
   }
@@ -223,7 +214,7 @@ object KernelParser {
    * @param file a file containing a tptp problem
    * @return the metadata info (file name, domain, problem, status and spc) in the file
    */
-  private def getProblemInfos(file: File): ProblemMetadata = {
+  def getProblemInfos(file: File): ProblemMetadata = {
     val pattern = "((File)|(Domain)|(Problem)|(Status)|(SPC))\\s*:.*".r
     val s = io.Source.fromFile(file)
     val g = s.getLines()

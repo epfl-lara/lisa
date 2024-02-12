@@ -2,69 +2,106 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import java.util.concurrent.CancellationException
+import java.io.File
 
-import lisa.utils.tptp.Example.*
-import lisa.utils.tptp.KernelParser.annotatedFormulaToKernel
-import lisa.utils.tptp.KernelParser.parseToKernel
-import lisa.utils.tptp.KernelParser.problemToSequent
-import lisa.utils.tptp.ProblemGatherer.getPRPproblems
+import lisa.utils.tptp.*
+import lisa.utils.tptp.KernelParser.*
+import lisa.utils.tptp.KernelParser.getProblemInfos
+import lisa.utils.tptp.ProblemGatherer.*
 import lisa.utils.ProofsConverter.*
+import lisa.kernel.proof.SCProof
+import java.io.FileWriter
+import lisa.kernel.proof.SequentCalculus.Sequent
 
 object TPTPSolver extends lisa.Main {
   try {
-    println("Fetching problems from TPTP library...")
-    val probs = getPRPproblems
+    val spc = Seq("PRP", "FOF") // type of problems we want to extract and solve
+    // val spc = Seq("PRP", "FOF", "CNF") // almost no CNF problems are solved by Tableau, TODO: investigate why
 
-    println("Number of problems found: " + probs.size)
+    // val d = new File(TPTPProblemPath)
+    // val libraries = d.listFiles.filter(_.isDirectory)
+    // val probfiles = libraries.flatMap(_.listFiles).filter(_.isFile)
+
+    val d = new File(TPTPProblemPath + "SYN/")
+    val probfiles = d.listFiles.filter(_.isFile)
 
     // We limit the execution time to solve each problem
-    val timeoutTableau = 1.second
-    val timeoutTautology = 1.second
+    val timeoutTableau = .2.second
+    val timeoutTautology = .2.second
 
-    var tableauProofs = List[Option[SCProof]]()
-    var tautologyProofs = List[Option[SCProof]]()
+    var problems = List[Problem]()
+    var tableauProofs = List[SolverResult]()
+    var tautologyProofs = List[SolverResult]()
 
-    for ((p, i) <- probs.zipWithIndex) {
+    for ((probfile, i) <- probfiles.zipWithIndex) {
       // Progress bar
-      if ((i + 1) % 10 == 0 || i + 1 == probs.size) {
+      if ((i + 1) % 10 == 0 || i + 1 == probfiles.size) {
         val pbarLength = 30
-        var pbarContent = "=" * (((i + 1) * pbarLength) / probs.size)
+        var pbarContent = "=" * (((i + 1) * pbarLength) / probfiles.size)
         pbarContent += " " * (pbarLength - pbarContent.length)
         print("[" + pbarContent + "]")
-        print(" -- Processed " + (i + 1) + "/" + probs.size)
-        print(" -- " + tableauProofs.count(_.isDefined) + " solved by Tableau")
-        println(" -- " + tautologyProofs.count(_.isDefined) + " solved by Tautology")
+        print(" -- " + (i + 1) + "/" + probfiles.size + " processed files")
+        print(" -- " + problems.size + " extracted problems")
+        print(" -- Tableau: " + tableauProofs.count(_.isInstanceOf[Solved]) + " solved")
+        println(" -- Tautology: " + tautologyProofs.count(_.isInstanceOf[Solved]) + " solved")
       }
 
-      val seq = problemToSequent(p)
+      // Try to extract the problem
+      try {
+        val md = getProblemInfos(probfile)
+        if (md.spc.exists(spc.contains)) {
+          val p = problemToKernel(probfile, md)
+          problems = problems :+ p
+          val seq = problemToSequent(p)
 
-      // Attempting proof by Tableau
-      val (futureTableau, cancelTableau) = Future.interruptibly { Tableau.solve(seq) }
-      tableauProofs = tableauProofs :+ (
-        try Await.result(futureTableau, timeoutTableau)
-        catch
-          case _ =>
-            cancelTableau()
-            None
-      )
+          // Attempting proof by Tableau
+          tableauProofs = tableauProofs :+ solveProblem(p, timeoutTableau, Tableau.solve)
 
-      // Attempting proof by Tautology
-      val (futureTautology, cancelTautology) = Future.interruptibly {
-        Tautology.solveSequent(seq) match
-          case Left(proof) => Some(proof)
-          case _ => None
+          // Attempting proof by Tautology
+          def tautologySolver(s: lisa.utils.K.Sequent): Option[SCProof] = Tautology.solveSequent(s) match
+            case Left(proof) => Some(proof)
+            case _ => None
+          tautologyProofs = tautologyProofs :+ solveProblem(p, timeoutTautology, tautologySolver)
+        }
+      } catch {
+        case _ => ()
       }
-      tautologyProofs = tautologyProofs :+ (
-        try Await.result(futureTautology, timeoutTautology)
-        catch
-          case _ =>
-            cancelTautology()
-            None
-      )
+
     }
   } catch {
     case error: NullPointerException => println("You can download the tptp library at http://www.tptp.org/ and put it in main/resources")
   }
+}
+
+sealed trait SolverResult
+case class Solved(proof: SCProof) extends SolverResult
+case object Unsolved extends SolverResult
+case object Timeout extends SolverResult
+case object Error extends SolverResult
+
+def solveProblem(problem: Problem, timeout: FiniteDuration, solver: Sequent => Option[SCProof]): SolverResult = {
+  val seq = problemToSequent(problem)
+  val (futureSolver, cancelSolver) = Future.interruptibly { solver(seq) }
+  try
+    Await.result(futureSolver, timeout) match
+      case Some(proof) => Solved(proof)
+      case None => Unsolved
+  catch
+    case e: TimeoutException =>
+      cancelSolver()
+      Timeout
+    case _ =>
+      cancelSolver()
+      Error
+}
+
+def writeProof(problem: Problem, proof: SCProof, path: String): Unit = {
+  // TODO
+  val file = new File(path + problem.name + ".sc")
+  val bw = new FileWriter(file)
+  val proofCode = scproof2code(proof)
+  bw.write(proof.toString)
+  bw.close()
 }
 
 final class Interrupt extends (() => Boolean) {
