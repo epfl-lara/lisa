@@ -131,10 +131,10 @@ object Kernel2Code extends lisa.Main {
         val s_1_5_0 = have(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, R(x))) by RightForall(s_1_4)
       }
       val s_1_6 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) subproof {
-        val s_1_6_0 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x)))) by Restate.from(s_1_3)
-        val s_1_6_1 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) by Restate.from(s_1_5)
+        val s_1_6_0 = have((∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x)))) by Restate.from(s_1_3)
+        val s_1_6_1 = have((∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) by Restate.from(s_1_5)
         val s_1_6_2 = have((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) subproof {
-          val s_1_6_2_0 = have(() ⊢ ⊤) by Restate
+          val s_1_6_2_0 = have(⊤) by Restate
           val s_1_6_2_1 = thenHave((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Restate
         }
         val s_1_6_3 = have((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut(s_1_6_0, s_1_6_2)
@@ -142,16 +142,16 @@ object Kernel2Code extends lisa.Main {
       }
       val s_1_7 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Restate
     }
-    val s_2 = have(() ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) subproof {
-      val s_2_0 = have(() ⊢ ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_0)
-      val s_2_1 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) by Restate.from(s_1)
+    val s_2 = have(((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) subproof {
+      val s_2_0 = have(((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_0)
+      val s_2_1 = have((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) by Restate.from(s_1)
       val s_2_2 = have((((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) subproof {
-        val s_2_2_0 = have(() ⊢ ⊤) by Restate
+        val s_2_2_0 = have(⊤) by Restate
         val s_2_2_1 =
           thenHave((((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Restate
       }
       val s_2_3 = have((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_2_0, s_2_2)
-      val s_2_4 = have(() ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_2_1, s_2_3)
+      val s_2_4 = have(((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_2_1, s_2_3)
     }
   }
 
@@ -166,18 +166,18 @@ object Kernel2Code extends lisa.Main {
     val s_7 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, Q(x))) by RightForall
     val s_8 = have(∀(x, (Q(x) ∧ R(x))) ⊢ R(x)) by Weakening(s_5)
     val s_9 = thenHave(∀(x, (Q(x) ∧ R(x))) ⊢ ∀(x, R(x))) by RightForall
-    val s_10 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x)))) by Restate.from(s_7)
-    val s_11 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) by Restate.from(s_9)
-    val s_12 = have(() ⊢ ⊤) by Restate
+    val s_10 = have((∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x)))) by Restate.from(s_7)
+    val s_11 = have((∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) by Restate.from(s_9)
+    val s_12 = have(⊤) by Restate
     val s_13 = thenHave((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, Q(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Restate
     val s_14 = have((∀(x, (Q(x) ∧ R(x))), (∀(x, (Q(x) ∧ R(x))) ==> ∀(x, R(x)))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut(s_10, s_13)
     val s_15 = have(∀(x, (Q(x) ∧ R(x))) ⊢ (∀(x, Q(x)) ∧ ∀(x, R(x)))) by Cut(s_11, s_14)
-    val s_16 = have(() ⊢ ((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_3)
-    val s_17 = have(() ⊢ (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) by Restate.from(s_15)
+    val s_16 = have(((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_3)
+    val s_17 = have((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) by Restate.from(s_15)
     val s_18 =
       have((((∀(x, R(x)) ∧ ∀(x, Q(x))) ==> ∀(x, (Q(x) ∧ R(x)))), (∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x))))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Restate.from(s_12)
     val s_19 = have((∀(x, (Q(x) ∧ R(x))) ==> (∀(x, Q(x)) ∧ ∀(x, R(x)))) ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_16, s_18)
-    val s_20 = have(() ⊢ ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_17, s_19)
+    val s_20 = have(((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))) by Cut(s_17, s_19)
   }
 
   // This theorem requires instantiating the assumption twice, once with x and once with f(x), and then combine the two.
@@ -212,8 +212,8 @@ object Kernel2Code extends lisa.Main {
       val s_2_1 = have(∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ⊢ (Q(f(x)) ==> Q(f(f(x))))) by InstFunSchema(Map(x -> f(x)))(s_1)
     }
     val s_3 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))) subproof {
-      val s_3_0 = have(() ⊢ (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x))))) by Restate.from(s_1)
-      val s_3_1 = have(() ⊢ (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) by Restate.from(s_2)
+      val s_3_0 = have((∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x))))) by Restate.from(s_1)
+      val s_3_1 = have((∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) by Restate.from(s_2)
       val s_3_2 = have((∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) subproof {
         val s_3_2_0 = have(
           Q(f(x)) ⊢ ¬((¬((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊤ ∧ ¬(Q(f(f(x)))))) ∧ ¬((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(⊤))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(f(x))))))
@@ -247,10 +247,10 @@ object Kernel2Code extends lisa.Main {
           ))
         ) by Restate
         val s_3_2_5 = have(
-          () ⊢ ¬((¬((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x)) ∧ ¬(Q(f(f(x)))))) ∧ ¬((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(x))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(f(x))))))
+          ¬((¬((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x)) ∧ ¬(Q(f(f(x)))))) ∧ ¬((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(x))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(f(x))))))
         ) by Cut(s_3_2_4, s_3_2_1)
         val s_3_2_6 = thenHave(
-          () ⊢ ¬((¬((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x)) ∧ ¬(Q(f(f(x)))))) ∧ ¬((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(x))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(f(x))))))
+          ¬((¬((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x)) ∧ ¬(Q(f(f(x)))))) ∧ ¬((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(x))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(f(x))))))
         ) by Restate
         val s_3_2_7 =
           thenHave((∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) by Restate
@@ -264,8 +264,8 @@ object Kernel2Code extends lisa.Main {
     val s_0 = have((∀(x, (Q(x) ==> Q(f(x)))), (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by Restate
     val s_1 = thenHave(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by LeftForall
     val s_2 = thenHave(∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ⊢ (Q(f(x)) ==> Q(f(f(x))))) by InstFunSchema(Map(x -> f(x)))
-    val s_3 = have(() ⊢ (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x))))) by Restate.from(s_1)
-    val s_4 = have(() ⊢ (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) by Restate.from(s_2)
+    val s_3 = have((∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x))))) by Restate.from(s_1)
+    val s_4 = have((∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) by Restate.from(s_2)
     val s_5 = have(
       Q(f(x)) ⊢ ¬((¬((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ ⊤ ∧ ¬(Q(f(f(x)))))) ∧ ¬((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(⊤))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(f(x))))))
     ) by Restate
@@ -281,7 +281,7 @@ object Kernel2Code extends lisa.Main {
       ))
     ) by Restate
     val s_9 = have(
-      () ⊢ ¬((¬((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x)) ∧ ¬(Q(f(f(x)))))) ∧ ¬((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(x))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(f(x))))))
+      ¬((¬((∀(x_1, ¬((Q(x_1) ∧ ¬(Q(f(x_1)))))) ∧ Q(f(x)) ∧ ¬(Q(f(f(x)))))) ∧ ¬((∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(x))))) ∧ ∀(x, ¬((Q(x) ∧ ¬(Q(f(x)))))) ∧ Q(x) ∧ ¬(Q(f(f(x))))))
     ) by Cut(s_8, s_6)
     val s_10 = thenHave((∀(x, (Q(x) ==> Q(f(x)))), (∀(x, (Q(x) ==> Q(f(x)))) ==> (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) by Restate
     val s_11 = have((∀(x, (Q(x) ==> Q(f(x)))), (∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ==> (Q(f(x)) ==> Q(f(f(x)))))) ⊢ (Q(x) ==> Q(f(f(x))))) by Cut(s_3, s_10)
