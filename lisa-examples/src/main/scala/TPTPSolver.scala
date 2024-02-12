@@ -11,6 +11,8 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.ProofsShrink.optimizeProofIteratively
 
+// TODO: separate axioms and definitions from the main sequent and give names to hypotheses
+
 object TPTPSolver extends lisa.Main {
   sealed trait ProofType
   case object BySolver extends ProofType
@@ -20,7 +22,6 @@ object TPTPSolver extends lisa.Main {
   class ProblemSolverResults(val problem: Problem, val solverName: String, val solverStatus: String, val proofCode: String, val proofType: ProofType)
 
   val spc = Seq("PRP", "FOF") // type of problems we want to extract and solve
-  // val spc = Seq("CNF") // almost no CNF problems are solved by Tableau, TODO: investigate why
 
   // We limit the execution time to solve each problem
   val timeoutTableau = .1.second
@@ -30,8 +31,10 @@ object TPTPSolver extends lisa.Main {
   val exportOptimizedProofs = true
   val exportBySolverProofs = true
 
-  val jsonResultsPath: String = "/home/auguste/Documents/EPFL/PhD/Projects/lisa/lisa-examples/src/main/resources/TPTPResults.json"
-  val TPTPProblemPath: String = "/home/auguste/Documents/EPFL/PhD/Projects/TPTP-v8.2.0/Problems/"
+  val jsonResultsPath: String = null
+  if (jsonResultsPath == null) throw new Exception("Please specify a path for the JSON results file")
+  val TPTPProblemPath: String = null
+  if (TPTPProblemPath == null) throw new Exception("Please specify a path for the TPTP problems")
 
   val d = new File(TPTPProblemPath)
   val libraries = d.listFiles.filter(_.isDirectory)
