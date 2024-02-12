@@ -8,9 +8,7 @@ object Kernel2Code extends lisa.Main {
 
   val x = variable
   val y = variable
-  val z = variable
   val f = function[1]
-  val P = formulaVariable
   val Q = predicate[1]
   val R = predicate[1]
   val S = predicate[2]
@@ -29,9 +27,8 @@ object Kernel2Code extends lisa.Main {
     thenHave(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) by RightForall
   }
 
-  // println(generateTheoremCode("thm1_raw", thm1.statement.underlying, thm1.kernelProof.get))
-  // println()
-  // println(generateTheoremCode("thm1_optimized", thm1.statement.underlying, optimizeProofIteratively(thm1.kernelProof.get)))
+  // println(generateStandaloneTheoremFileContent("thm1_raw", thm1.statement.underlying, thm1.kernelProof.get))
+  // println(generateStandaloneTheoremFileContent("thm1_optimized", thm1.statement.underlying, optimizeProofIteratively(thm1.kernelProof.get)))
 
   val thm1_raw = Theorem(
     ∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))
@@ -88,9 +85,8 @@ object Kernel2Code extends lisa.Main {
     have(thesis) by Tautology.from(forward, backward)
   }
 
-  // println(generateTheoremCode("thm2_raw", thm2.statement.underlying, thm2.kernelProof.get))
-  // println()
-  // println(generateTheoremCode("thm2_optimized", thm2.statement.underlying, optimizeProofIteratively(thm2.kernelProof.get)))
+  // println(generateStandaloneTheoremFileContent("thm2_raw", thm2.statement.underlying, thm2.kernelProof.get))
+  // println(generateStandaloneTheoremFileContent("thm2_optimized", thm2.statement.underlying, optimizeProofIteratively(thm2.kernelProof.get)))
 
   val thm2_raw = Theorem(
     ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))
@@ -196,9 +192,8 @@ object Kernel2Code extends lisa.Main {
     have(thesis) by Tautology.from(step1, step1 of (x := f(x)))
   }
 
-  // println(generateTheoremCode("thm3_raw", thm3.statement.underlying, thm3.kernelProof.get))
-  // println()
-  // println(generateTheoremCode("thm3_optimized", thm3.statement.underlying, optimizeProofIteratively(thm3.kernelProof.get)))
+  // println(generateStandaloneTheoremFileContent("thm3_raw", thm3.statement.underlying, thm3.kernelProof.get))
+  // println(generateStandaloneTheoremFileContent("thm3_optimized", thm3.statement.underlying, optimizeProofIteratively(thm3.kernelProof.get)))
 
   val thm3_raw = Theorem(
     ∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))
@@ -301,9 +296,8 @@ object Kernel2Code extends lisa.Main {
     have(thesis) by Tableau
   }
 
-  // println(generateTheoremCode("thm1bis_raw", thm1bis.statement.underlying, thm1bis.kernelProof.get))
-  // println()
-  // println(generateTheoremCode("thm1bis_optimized", thm1bis.statement.underlying, optimizeProofIteratively(thm1bis.kernelProof.get)))
+  // println(generateStandaloneTheoremFileContent("thm1bis_raw", thm1bis.statement.underlying, thm1bis.kernelProof.get))
+  // println(generateStandaloneTheoremFileContent("thm1bis_optimized", thm1bis.statement.underlying, optimizeProofIteratively(thm1bis.kernelProof.get)))
 
   val thm1bis_raw = Theorem(
     ∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))

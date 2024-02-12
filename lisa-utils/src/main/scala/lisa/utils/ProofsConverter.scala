@@ -9,9 +9,8 @@ import lisa.fol.FOLHelpers.*
 
 object ProofsConverter {
 
-// TODO: remove unnecessary variables "val s_..." in generated proofs -> need to keep track of which steps are used in other steps
+// TODO: remove unnecessary variables "val s_..." in generated proofs -> need to detect which steps are used later in other steps
 // TODO: generate more realistic variable names
-// TODO: handle automatic global variable declaration before theorems/proofs
 
   private def indent(s: String, indent: Int = 2): String = s.split("\n").map(" " * indent + _).mkString("\n")
   private def unindent(s: String, indent: Int = 2): String = s.split("\n").map(_.drop(indent)).mkString("\n")
@@ -22,13 +21,13 @@ object ProofsConverter {
     case term: K.Term => asFront(term)
   ).toString.replace("⇒", "==>").replace("⇔", "<=>")
 
-  def scproof2code(p: K.SCProof): String = {
-    def scproof2codeAux(p: K.SCProof, varPrefix: String = "s", premises: Seq[String] = Seq.empty): String = {
-      def scproofstep2code(ps: SCProofStep, stepNum: Int, premises: Seq[String], varPrefix: String): String = {
+  private def scproof2code(p: K.SCProof): String = {
+    def scproof2codeAux(p: K.SCProof, varPrefix: String = "s", implicitPremises: Seq[String] = Seq.empty): String = {
+      def scproofstep2code(ps: SCProofStep, stepNum: Int, implicitPremises: Seq[String], varPrefix: String): String = {
 
         def index2stepvar(i: Int): String =
-          if i < -premises.size then throw new Exception(s"step $i is not defined")
-          else if i < 0 then premises(-i - 1)
+          if i < -implicitPremises.size then throw new Exception(s"step $i is not defined")
+          else if i < 0 then implicitPremises(-i - 1)
           else s"${varPrefix}_$i"
 
         ps match
@@ -43,93 +42,122 @@ object ProofsConverter {
             var tacticName = ps.getClass.getSimpleName
             var opening = "("
             var closing = ")"
-            val (bot_, step_ref_seq) = (ps match
-              case Restate(bot, t1) =>
-                opening = ".from("
-                (bot, Seq(t1))
-              case RestateTrue(bot) =>
-                tacticName = "Restate"
-                (bot, null)
-              case Hypothesis(bot, phi) => (bot, null)
-              case Cut(bot, t1, t2, phi) => (bot, Seq(t1, t2))
-              case LeftAnd(bot, t1, phi, psi) => (bot, Seq(t1))
-              case LeftOr(bot, t, disjuncts) => (bot, t)
-              case LeftImplies(bot, t1, t2, phi, psi) => (bot, Seq(t1, t2))
-              case LeftIff(bot, t1, phi, psi) => (bot, Seq(t1))
-              case LeftNot(bot, t1, phi) => (bot, Seq(t1))
-              case LeftForall(bot, t1, phi, x, t) => (bot, Seq(t1))
-              case LeftExists(bot, t1, phi, x) => (bot, Seq(t1))
-              case LeftExistsOne(bot, t1, phi, x) => (bot, Seq(t1))
-              case RightAnd(bot, t, conjuncts) => (bot, t)
-              case RightOr(bot, t1, phi, psi) => (bot, Seq(t1))
-              case RightImplies(bot, t1, phi, psi) => (bot, Seq(t1))
-              case RightIff(bot, t1, t2, phi, psi) => (bot, Seq(t1, t2))
-              case RightNot(bot, t1, phi) => (bot, Seq(t1))
-              case RightForall(bot, t1, phi, x) => (bot, Seq(t1))
-              case RightExists(bot, t1, phi, x, t) => (bot, Seq(t1))
-              case RightExistsOne(bot, t1, phi, x) => (bot, Seq(t1))
-              case Weakening(bot, t1) => (bot, Seq(t1))
-              case LeftRefl(bot, t1, phi) => (bot, Seq(t1))
-              case RightRefl(bot, phi) => (bot, null)
-              case LeftSubstEq(bot, t1, equals, lambdaPhi) =>
+            ps match
+              case Restate(_, _) => opening = ".from("
+              case RestateTrue(_) => tacticName = "Restate"
+              case LeftSubstEq(_, _, equals, lambdaPhi) =>
                 tacticName = s"LeftSubstEq.withParametersSimple(List(${equals
                     .map((a, b) => s"((${any2code(a.body)}), (${any2code(b.body)}))")
                     .mkString(", ")}), lambda(Seq(${lambdaPhi._1.map(asFrontLabel).mkString(", ")}), ${any2code(lambdaPhi._2)}))"
-                (bot, Seq(t1))
-              case RightSubstEq(bot, t1, equals, lambdaPhi) =>
+              case RightSubstEq(_, _, equals, lambdaPhi) =>
                 tacticName = s"RightSubstEq.withParametersSimple(List(${equals
                     .map((a, b) => s"((${any2code(a.body)}), (${any2code(b.body)}))")
                     .mkString(", ")}), lambda(Seq(${lambdaPhi._1.map(asFrontLabel).mkString(", ")}), ${any2code(lambdaPhi._2)}))"
-                (bot, Seq(t1))
-              case LeftSubstIff(bot, t1, equals, lambdaPhi) =>
+              case LeftSubstIff(_, _, equals, lambdaPhi) =>
                 tacticName = s"LeftSubstIff.withParametersSimple(List(${equals
                     .map((a, b) => s"((${any2code(a.body)}), (${any2code(b.body)}))")
                     .mkString(", ")}), lambda(Seq(${lambdaPhi._1.map(asFrontLabel).mkString(", ")}), ${any2code(lambdaPhi._2)}))"
-                (bot, Seq(t1))
-              case RightSubstIff(bot, t1, equals, lambdaPhi) =>
+              case RightSubstIff(_, _, equals, lambdaPhi) =>
                 tacticName = s"RightSubstIff.withParametersSimple(List(${equals
                     .map((a, b) => s"((${any2code(a.body)}), (${any2code(b.body)}))")
                     .mkString(", ")}), lambda(Seq(${lambdaPhi._1.map(asFrontLabel).mkString(", ")}), ${any2code(lambdaPhi._2)}))"
-                (bot, Seq(t1))
-              case InstSchema(bot, t1, mCon, mPred, mTerm) =>
+              case InstSchema(_, _, mCon, mPred, mTerm) =>
                 if mCon.isEmpty && mPred.isEmpty then
                   tacticName = s"InstFunSchema(Map(${mTerm.toList
                       .map((k, v) => s"${asFrontLabel(k)} -> ${any2code(v.body)}")
                       .mkString(", ")}))"
-                  (bot, Seq(t1))
                 else if mCon.isEmpty && mTerm.isEmpty then
                   tacticName = s"InstPredSchema(Map(${mPred.toList
                       .map((k, v) => s"${asFrontLabel(k)} -> ${any2code(v.body)}")
                       .mkString(", ")}))"
-                  (bot, Seq(t1))
                 else throw new Exception("InstSchema not implemented")
-              case _ => throw new Exception(s"Tactic ${ps.getClass.getName} not implemented")
-            )
+              case _ => ()
 
             indent(
               s"val ${varPrefix}_$stepNum = " + (
-                if (step_ref_seq != null && step_ref_seq.size == 1 && stepNum > 0 && step_ref_seq.head + 1 == stepNum)
-                then s"thenHave(${any2code(bot_)}) by $tacticName"
+                if (ps.premises.size == 1 && ps.premises.head + 1 == stepNum && stepNum > 0)
+                then s"thenHave(${any2code(ps.bot)}) by $tacticName"
                 else
-                  s"have(${any2code(bot_)}) by $tacticName" + (
-                    if step_ref_seq == null then ""
-                    else s"$opening${step_ref_seq.map(index2stepvar).mkString(", ")}$closing"
+                  s"have(${any2code(ps.bot)}) by $tacticName" + (
+                    if ps.premises.size == 0 then ""
+                    else s"$opening${ps.premises.map(index2stepvar).mkString(", ")}$closing"
                   )
               )
             )
       }
 
-      p.steps.zipWithIndex.map((ps, i) => scproofstep2code(ps, i, premises, varPrefix)).mkString("\n")
+      p.steps.zipWithIndex.map((ps, i) => scproofstep2code(ps, i, implicitPremises, varPrefix)).mkString("\n")
     }
     unindent(scproof2codeAux(p))
   }
 
-  def generateTheoremCode(name: String, statement: K.Sequent, proof: K.SCProof): String = {
+  private def extractFormulasFromProof(proof: K.SCProof): Set[K.Formula] =
+    proof.steps.foldLeft(Set.empty[K.Formula])((prev, next) => {
+      prev ++ (next match
+        case sp @ SCSubproof(subproof, _) => extractFormulasFromProof(subproof)
+        case LeftSubstEq(_, _, _, lambdaPhi) => Seq(lambdaPhi._2, K.sequentToFormula(next.bot))
+        case RightSubstEq(_, _, _, lambdaPhi) => Seq(lambdaPhi._2, K.sequentToFormula(next.bot))
+        case LeftSubstIff(_, _, _, lambdaPhi) => Seq(lambdaPhi._2, K.sequentToFormula(next.bot))
+        case RightSubstIff(_, _, _, lambdaPhi) => Seq(lambdaPhi._2, K.sequentToFormula(next.bot))
+        case _ => Seq(K.sequentToFormula(next.bot))
+      )
+    })
+
+  private def extractVariables(
+      formulas: Set[K.Formula]
+  ): (Set[K.VariableLabel], Set[K.SchematicFunctionLabel], Set[K.VariableFormulaLabel], Set[K.SchematicPredicateLabel], Set[K.SchematicConnectorLabel]) =
+    def extractVariablesAux(
+        formula: K.Formula
+    ): (Set[K.VariableLabel], Set[K.SchematicFunctionLabel], Set[K.VariableFormulaLabel], Set[K.SchematicPredicateLabel], Set[K.SchematicConnectorLabel]) =
+      var variableSet = formula.schematicTermLabels.collect { case v: K.VariableLabel => v }
+      var functionSet = formula.schematicTermLabels.collect { case f: K.SchematicFunctionLabel => f }
+      var formulaVariableSet = formula.schematicAtomicLabels.collect { case v: K.VariableFormulaLabel => v }
+      var predicateSet = formula.schematicAtomicLabels.collect { case p: K.SchematicPredicateLabel => p }
+      var connectorSet = formula.schematicConnectorLabels.collect { case c: K.SchematicConnectorLabel => c }
+      (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet)
+
+    formulas.foldLeft(
+      (Set.empty[K.VariableLabel], Set.empty[K.SchematicFunctionLabel], Set.empty[K.VariableFormulaLabel], Set.empty[K.SchematicPredicateLabel], Set.empty[K.SchematicConnectorLabel])
+    )((prev, next) => {
+      val (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet) = prev
+      val (variableSet_, functionSet_, formulaVariableSet_, predicateSet_, connectorSet_) = extractVariablesAux(next)
+      (
+        variableSet ++ variableSet_,
+        functionSet ++ functionSet_,
+        formulaVariableSet ++ formulaVariableSet_,
+        predicateSet ++ predicateSet_,
+        connectorSet ++ connectorSet_
+      )
+    })
+
+  private def generateVariablesCode(formulas: Set[K.Formula], accessibility: String): String =
+    val (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet) = extractVariables(formulas)
+    val access = if accessibility != "" then accessibility.strip() + " " else ""
+    (variableSet.map(v => access + s"val ${v.id} = variable").toList.sorted ++
+      functionSet.map(f => access + s"val ${f.id} = function[${f.arity}]").toList.sorted ++
+      formulaVariableSet.map(v => access + s"val ${v.id} = formulaVariable").toList.sorted ++
+      predicateSet.map(p => access + s"val ${p.id} = predicate[${p.arity}]").toList.sorted ++
+      connectorSet.map(c => access + s"val ${c.id} = connector[${c.arity}]").toList.sorted).mkString("\n")
+
+  private def generateVariablesCode(statement: K.Sequent, proof: K.SCProof, accessibility: String = "private"): String =
+    generateVariablesCode(extractFormulasFromProof(proof) + K.sequentToFormula(statement), accessibility)
+
+  private def generateTheoremCode(name: String, statement: K.Sequent, proof: K.SCProof): String = {
     s"val $name = Theorem(\n" +
       indent(any2code(statement)) +
       s"\n) {\n" +
       indent(scproof2code(proof)) +
       s"\n}"
   }
+
+  def generateStandaloneTheoremFileContent(name: String, statement: K.Sequent, proof: K.SCProof): String =
+    val camelName = "[A-Za-z0-9]+".r.findAllIn(name).map(_.capitalize).mkString
+    s"object $camelName extends lisa.Main {\n\n" +
+      indent(
+        generateVariablesCode(statement, proof) +
+          "\n\n" +
+          generateTheoremCode(name, statement, proof)
+      ) +
+      "\n}"
 
 }
