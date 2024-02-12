@@ -25,3 +25,6 @@ cache
 
 # data extracted
 data_extract
+
+# TPTP data
+lisa-utils/src/main/resources
