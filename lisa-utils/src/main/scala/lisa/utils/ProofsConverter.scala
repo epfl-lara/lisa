@@ -21,7 +21,7 @@ object ProofsConverter {
    * @param f formula to convert
    * @return Scala code representing the formula in string format
    */
-  private def any2code(a: K.Sequent | K.Formula | K.Term): String = (a match
+  def any2code(a: K.Sequent | K.Formula | K.Term): String = (a match
     case sq: K.Sequent => asFront(sq)
     case form: K.Formula => asFront(form)
     case term: K.Term => asFront(term)
@@ -109,7 +109,7 @@ object ProofsConverter {
    * @param proof proof to extract formulas from
    * @return set of formulas
    */
-  private def extractFormulasFromProof(proof: K.SCProof): Set[K.Formula] =
+  def extractFormulasFromProof(proof: K.SCProof): Set[K.Formula] =
     proof.steps.foldLeft(Set.empty[K.Formula])((prev, next) => {
       prev ++ (next match
         case sp @ SCSubproof(subproof, _) => extractFormulasFromProof(subproof)
@@ -122,37 +122,40 @@ object ProofsConverter {
     })
 
   /**
-   * Extracts all variables, functions, formula variables, predicates and connectors from a set of formulas
+   * Extracts all symbols: variables, functions, formula variables, predicates and connectors from a set of formulas
    *
    * @param formulas set of formulas to extract variables from
    * @return tuple of sets of variables, functions, formula variables, predicates and connectors
    */
-  private def extractVariables(
+  def extractSymbols(
       formulas: Set[K.Formula]
   ): (Set[K.VariableLabel], Set[K.SchematicFunctionLabel], Set[K.VariableFormulaLabel], Set[K.SchematicPredicateLabel], Set[K.SchematicConnectorLabel]) =
     def extractVariablesAux(
         formula: K.Formula
     ): (Set[K.VariableLabel], Set[K.SchematicFunctionLabel], Set[K.VariableFormulaLabel], Set[K.SchematicPredicateLabel], Set[K.SchematicConnectorLabel]) =
-      var variableSet = formula.schematicTermLabels.collect { case v: K.VariableLabel => v }
-      var functionSet = formula.schematicTermLabels.collect { case f: K.SchematicFunctionLabel => f }
-      var formulaVariableSet = formula.schematicAtomicLabels.collect { case v: K.VariableFormulaLabel => v }
-      var predicateSet = formula.schematicAtomicLabels.collect { case p: K.SchematicPredicateLabel => p }
-      var connectorSet = formula.schematicConnectorLabels.collect { case c: K.SchematicConnectorLabel => c }
+      val variableSet = formula.schematicTermLabels.collect { case v: K.VariableLabel => v } ++ formula.freeVariables ++ formula.freeSchematicTermLabels.collect { case v: K.VariableLabel => v }
+      // val constantSet = formula.constantTermLabels.collect { case c: K.ConstantFunctionLabel if c.arity == 0 => c }
+      val functionSet = formula.schematicTermLabels.collect { case f: K.SchematicFunctionLabel => f } ++ formula.freeSchematicTermLabels.collect { case f: K.SchematicFunctionLabel => f }
+      // val constantFunctionSet = formula.constantTermLabels.collect { case c: K.ConstantFunctionLabel if c.arity > 0 => c }
+      val formulaVariableSet = formula.schematicAtomicLabels.collect { case v: K.VariableFormulaLabel => v } ++ formula.freeVariableFormulaLabels
+      val predicateSet = formula.schematicAtomicLabels.collect { case p: K.SchematicPredicateLabel => p }
+      // val constantPredicateSet = formula.constantAtomicLabels
+      val connectorSet = formula.schematicConnectorLabels.collect { case c: K.SchematicConnectorLabel => c }
       (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet)
 
-    formulas.foldLeft(
-      (Set.empty[K.VariableLabel], Set.empty[K.SchematicFunctionLabel], Set.empty[K.VariableFormulaLabel], Set.empty[K.SchematicPredicateLabel], Set.empty[K.SchematicConnectorLabel])
-    )((prev, next) => {
-      val (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet) = prev
-      val (variableSet_, functionSet_, formulaVariableSet_, predicateSet_, connectorSet_) = extractVariablesAux(next)
-      (
-        variableSet ++ variableSet_,
-        functionSet ++ functionSet_,
-        formulaVariableSet ++ formulaVariableSet_,
-        predicateSet ++ predicateSet_,
-        connectorSet ++ connectorSet_
-      )
-    })
+    formulas.foldLeft((Set.empty[K.VariableLabel], Set.empty[K.SchematicFunctionLabel], Set.empty[K.VariableFormulaLabel], Set.empty[K.SchematicPredicateLabel], Set.empty[K.SchematicConnectorLabel]))(
+      (prev, next) => {
+        val (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet) = prev
+        val (variableSet_, functionSet_, formulaVariableSet_, predicateSet_, connectorSet_) = extractVariablesAux(next)
+        (
+          variableSet ++ variableSet_,
+          functionSet ++ functionSet_,
+          formulaVariableSet ++ formulaVariableSet_,
+          predicateSet ++ predicateSet_,
+          connectorSet ++ connectorSet_
+        )
+      }
+    )
 
   /**
    * Generates a valid Scala/Lisa code to declare variables, functions, formula variables, predicates and connectors
@@ -164,7 +167,7 @@ object ProofsConverter {
    * @return Scala code representing the variables in string format
    */
   private def generateVariablesCode(formulas: Set[K.Formula], accessibility: String): String =
-    val (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet) = extractVariables(formulas)
+    val (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet) = extractSymbols(formulas)
     val access = if accessibility != "" then accessibility.strip() + " " else ""
     (variableSet.map(v => access + s"val ${v.id} = variable").toList.sorted ++
       functionSet.map(f => access + s"val ${f.id} = function[${f.arity}]").toList.sorted ++
@@ -181,7 +184,7 @@ object ProofsConverter {
    *
    * @return Scala code representing the variables in string format
    */
-  private def generateVariablesCode(proof: K.SCProof, accessibility: String = "private"): String =
+  def generateVariablesCode(proof: K.SCProof, accessibility: String = "private"): String =
     generateVariablesCode(extractFormulasFromProof(proof), accessibility)
 
   /**
@@ -193,7 +196,9 @@ object ProofsConverter {
    * @return Scala code representing the theorem in string format
    */
   private def generateTheoremCode(name: String, proof: K.SCProof): String = {
-    s"val $name = Theorem(\n" +
+    // lowercase and underscore-separated version of the theorem name
+    val filteredName = "[A-Za-z0-9]+".r.findAllIn(name).mkString("_").toLowerCase
+    s"val $filteredName = Theorem(\n" +
       indent(any2code(proof.conclusion)) +
       s"\n) {\n" +
       indent(scproof2code(proof)) +
