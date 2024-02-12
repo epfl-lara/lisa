@@ -7,10 +7,12 @@ import java.util.concurrent.CancellationException
 
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Sequent
+import lisa.kernel.proof.SCProofChecker.checkSCProof
 
 object RunSolver {
   sealed trait SolverResult
   case class Solved(proof: SCProof) extends SolverResult
+  case class InvalidProof(proof: SCProof) extends SolverResult
   case object Unsolved extends SolverResult
   case object Timeout extends SolverResult
   case class SolverThrow(t: Throwable) extends SolverResult
@@ -19,7 +21,9 @@ object RunSolver {
     val (futureSolver, cancelSolver) = Future.interruptibly { solver(sequent) }
     try
       Await.result(futureSolver, timeout) match
-        case Some(proof) => Solved(proof)
+        case Some(proof) =>
+          if (checkSCProof(proof).isValid) Solved(proof)
+          else InvalidProof(proof)
         case None => Unsolved
     catch
       case _: TimeoutException =>

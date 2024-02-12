@@ -166,7 +166,7 @@ object ProofsConverter {
    *
    * @return Scala code representing the variables in string format
    */
-  private def generateVariablesCode(formulas: Set[K.Formula], accessibility: String): String =
+  def generateSymbolDeclarationCode(formulas: Set[K.Formula], accessibility: String): String =
     val (variableSet, functionSet, formulaVariableSet, predicateSet, connectorSet) = extractSymbols(formulas)
     val access = if accessibility != "" then accessibility.strip() + " " else ""
     (variableSet.map(v => access + s"val ${v.id} = variable").toList.sorted ++
@@ -184,8 +184,8 @@ object ProofsConverter {
    *
    * @return Scala code representing the variables in string format
    */
-  def generateVariablesCode(proof: K.SCProof, accessibility: String = "private"): String =
-    generateVariablesCode(extractFormulasFromProof(proof), accessibility)
+  def generateSymbolDeclarationCode(proof: K.SCProof, accessibility: String = "private"): String =
+    generateSymbolDeclarationCode(extractFormulasFromProof(proof), accessibility)
 
   /**
    * Generates a valid Scala/Lisa code of a theorem and its proof
@@ -195,15 +195,34 @@ object ProofsConverter {
    *
    * @return Scala code representing the theorem in string format
    */
-  private def generateTheoremCode(name: String, proof: K.SCProof): String = {
+  def generateTheoremCode(name: String, statementString: String, proofCode: String): String = {
     // lowercase and underscore-separated version of the theorem name
     val filteredName = "[A-Za-z0-9]+".r.findAllIn(name).mkString("_").toLowerCase
     s"val $filteredName = Theorem(\n" +
-      indent(any2code(proof.conclusion)) +
+      indent(statementString) +
       s"\n) {\n" +
-      indent(scproof2code(proof)) +
+      indent(proofCode) +
       s"\n}"
   }
+
+  /**
+   * Generates a valid Scala/Lisa code of a theorem and its proof in a standalone file, including the necessary variables declarations.
+   * The theorem and its proof must be self-contained, i.e. no dependencies to other theorems, axioms, definitions, etc.
+   *
+   * @param name name of the theorem
+   * @param proofCode code of the proof of the theorem
+   *
+   * @return Scala code representing the theorem in string format
+   */
+  def generateStandaloneTheoremFileContent(name: String, statementString: String, proofCode: String, symbolDeclarations: String): String =
+    val camelName = "[A-Za-z0-9]+".r.findAllIn(name).map(_.capitalize).mkString
+    s"object $camelName extends lisa.Main {\n\n" +
+      indent(
+        symbolDeclarations +
+          "\n\n" +
+          generateTheoremCode(name, statementString, proofCode)
+      ) +
+      "\n}"
 
   /**
    * Generates a valid Scala/Lisa code of a theorem and its proof in a standalone file, including the necessary variables declarations.
@@ -215,14 +234,7 @@ object ProofsConverter {
    * @return Scala code representing the theorem in string format
    */
   def generateStandaloneTheoremFileContent(name: String, proof: K.SCProof): String =
-    val camelName = "[A-Za-z0-9]+".r.findAllIn(name).map(_.capitalize).mkString
-    s"object $camelName extends lisa.Main {\n\n" +
-      indent(
-        generateVariablesCode(proof) +
-          "\n\n" +
-          generateTheoremCode(name, proof)
-      ) +
-      "\n}"
+    generateStandaloneTheoremFileContent(name, any2code(proof.conclusion), scproof2code(proof), generateSymbolDeclarationCode(proof))
 
   /**
    * Parse and check that a generated theorem file is valid, i.e. that it compiles and the theorem is proven
