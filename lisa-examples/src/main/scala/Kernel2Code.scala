@@ -29,12 +29,13 @@ object Kernel2Code extends lisa.Main {
     thenHave(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) by RightForall
   }
 
-  // println(prettyProof(thm1.highProof.get))
-  // println(prettySCProof(thm1.kernelProof.get))
-  // println(scproof2code(thm1.kernelProof.get))
-  // println(scproof2code(optimizeProofIteratively(thm1.kernelProof.get)))
+  // println(generateTheoremCode("thm1_raw", thm1.statement.underlying, thm1.kernelProof.get))
+  // println()
+  // println(generateTheoremCode("thm1_optimized", thm1.statement.underlying, optimizeProofIteratively(thm1.kernelProof.get)))
 
-  val thm1_raw = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
+  val thm1_raw = Theorem(
+    ∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))
+  ) {
     val s_0 = have(S(x, y) ⊢ S(x, y)) subproof {
       val s_0_0 = have(S(x, y) ⊢ S(x, y)) by Restate
     }
@@ -52,7 +53,9 @@ object Kernel2Code extends lisa.Main {
     }
   }
 
-  val thm1_optimized = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
+  val thm1_optimized = Theorem(
+    ∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))
+  ) {
     val s_0 = have(S(x, y) ⊢ S(x, y)) by Restate
     val s_1 = thenHave(∀(y, S(x, y)) ⊢ S(x, y)) by LeftForall
     val s_2 = thenHave(∀(y, S(x, y)) ⊢ ∃(x, S(x, y))) by RightExists
@@ -85,12 +88,13 @@ object Kernel2Code extends lisa.Main {
     have(thesis) by Tautology.from(forward, backward)
   }
 
-  // println(prettyProof(thm2.highProof.get))
-  // println(prettySCProof(thm2.kernelProof.get))
-  // println(scproof2code(thm2.kernelProof.get))
-  // println(scproof2code(optimizeProofIteratively(thm2.kernelProof.get)))
+  // println(generateTheoremCode("thm2_raw", thm2.statement.underlying, thm2.kernelProof.get))
+  // println()
+  // println(generateTheoremCode("thm2_optimized", thm2.statement.underlying, optimizeProofIteratively(thm2.kernelProof.get)))
 
-  val thm2_raw = Theorem((∀(x, Q(x)) /\ ∀(x, R(x))) <=> ∀(x, Q(x) /\ R(x))) {
+  val thm2_raw = Theorem(
+    ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))
+  ) {
     val s_0 = have((∀(x, R(x)), ∀(x, Q(x))) ⊢ ∀(x, (Q(x) ∧ R(x)))) subproof {
       val s_0_0 = have((R(x), Q(x)) ⊢ (Q(x) ∧ R(x))) subproof {
         val s_0_0_0 = have((R(x), Q(x)) ⊢ (Q(x) ∧ R(x))) by Restate
@@ -155,7 +159,9 @@ object Kernel2Code extends lisa.Main {
     }
   }
 
-  val thm2_optimized = Theorem((∀(x, Q(x)) /\ ∀(x, R(x))) <=> ∀(x, Q(x) /\ R(x))) {
+  val thm2_optimized = Theorem(
+    ((∀(x, Q(x)) ∧ ∀(x, R(x))) <=> ∀(x, (Q(x) ∧ R(x))))
+  ) {
     val s_0 = have((R(x), Q(x)) ⊢ (Q(x) ∧ R(x))) by Restate
     val s_1 = thenHave((R(x), ∀(x, Q(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall
     val s_2 = thenHave((∀(x, R(x)), ∀(x, Q(x))) ⊢ (Q(x) ∧ R(x))) by LeftForall
@@ -190,12 +196,13 @@ object Kernel2Code extends lisa.Main {
     have(thesis) by Tautology.from(step1, step1 of (x := f(x)))
   }
 
-  // println(prettyProof(thm3.highProof.get))
-  // println(prettySCProof(thm3.kernelProof.get))
-  // println(scproof2code(thm3.kernelProof.get))
-  // println(scproof2code(optimizeProofIteratively(thm3.kernelProof.get)))
+  // println(generateTheoremCode("thm3_raw", thm3.statement.underlying, thm3.kernelProof.get))
+  // println()
+  // println(generateTheoremCode("thm3_optimized", thm3.statement.underlying, optimizeProofIteratively(thm3.kernelProof.get)))
 
-  val thm3_raw = Theorem(∀(x, Q(x) ==> Q(f(x))) |- (Q(x) ==> Q(f(f(x))))) {
+  val thm3_raw = Theorem(
+    ∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))
+  ) {
     val s_0 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ ∀(x, (Q(x) ==> Q(f(x))))) subproof {
       val s_0_0 = have(∀(x, (Q(x) ==> Q(f(x)))) ⊢ ∀(x, (Q(x) ==> Q(f(x))))) by Hypothesis
     }
@@ -260,7 +267,9 @@ object Kernel2Code extends lisa.Main {
     }
   }
 
-  val thm3_optimized = Theorem(∀(x, Q(x) ==> Q(f(x))) |- (Q(x) ==> Q(f(f(x))))) {
+  val thm3_optimized = Theorem(
+    ∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(f(x))))
+  ) {
     val s_0 = have((∀(x, (Q(x) ==> Q(f(x)))), (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by Restate
     val s_1 = thenHave(∀(x, (Q(x) ==> Q(f(x)))) ⊢ (Q(x) ==> Q(f(x)))) by LeftForall
     val s_2 = thenHave(∀(x_1, (Q(x_1) ==> Q(f(x_1)))) ⊢ (Q(f(x)) ==> Q(f(f(x))))) by InstFunSchema(Map(x -> f(x)))
@@ -292,12 +301,13 @@ object Kernel2Code extends lisa.Main {
     have(thesis) by Tableau
   }
 
-  // println(prettyProof(thm1bis.highProof.get))
-  // println(prettySCProof(thm1bis.kernelProof.get))
-  // println(scproof2code(thm1bis.kernelProof.get))
-  // println(scproof2code(optimizeProofIteratively(thm1bis.kernelProof.get)))
+  // println(generateTheoremCode("thm1bis_raw", thm1bis.statement.underlying, thm1bis.kernelProof.get))
+  // println()
+  // println(generateTheoremCode("thm1bis_optimized", thm1bis.statement.underlying, optimizeProofIteratively(thm1bis.kernelProof.get)))
 
-  val thm1bis_raw = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
+  val thm1bis_raw = Theorem(
+    ∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))
+  ) {
     val s_0 = have(∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))) subproof {
       val s_0_0 = have((S(x, y_1), ¬(S(x, y_1))) ⊢ ()) by Restate
       val s_0_1 = thenHave((S(x, y_1), ∀(x_2, ¬(S(x_2, y_1)))) ⊢ ()) by LeftForall
@@ -310,7 +320,9 @@ object Kernel2Code extends lisa.Main {
     }
   }
 
-  val thm1bis_optimized = Theorem(∃(x, ∀(y, S(x, y))) |- ∀(y, ∃(x, S(x, y)))) {
+  val thm1bis_optimized = Theorem(
+    ∃(x, ∀(y, S(x, y))) ⊢ ∀(y, ∃(x, S(x, y)))
+  ) {
     val s_0 = have((S(x, y_1), ¬(S(x, y_1))) ⊢ ()) by Restate
     val s_1 = thenHave((S(x, y_1), ∀(x_2, ¬(S(x_2, y_1)))) ⊢ ()) by LeftForall
     val s_2 = thenHave((∀(x_2, ¬(S(x_2, y_1))), ∀(y, S(x, y))) ⊢ ()) by LeftForall
