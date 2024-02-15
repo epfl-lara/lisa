@@ -215,7 +215,7 @@ trait Sequents extends Common with lisa.fol.Lambdas with Predef {
    * @tparam S The type of elements in that set
    * @tparam T The type to convert from
    */
-  protected trait FormulaSetConverter[T] {
+  trait FormulaSetConverter[T] {
     def apply(t: T): Set[Formula]
   }
 

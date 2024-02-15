@@ -135,6 +135,8 @@ trait Common {
      * Renames the symbol with an identifier that is fresh for the given list.
      */
     def freshRename(taken: Iterable[Identifier]): Label[A]
+
+    
   }
 
   /**
