@@ -10,6 +10,8 @@ import lisa.SetTheoryLibrary.{given, *}
 import lisa.SetTheoryLibrary
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.maths.settheory.SetTheory.functional
+import lisa.prooflib.OutputManager
+import lisa.maths.settheory.SetTheory.{singleton, app}
 
 object TypeLib extends lisa.Main {
 
@@ -20,12 +22,13 @@ object TypeLib extends lisa.Main {
   extension (t:Term) {
     def |=>(o:Term): Term = TypeLib.temp(t, o)
   }
-  val app: ConstantFunctionLabel[2] = ConstantFunctionLabel("app", 2)
+  val app: ConstantFunctionLabel[2] = lisa.maths.settheory.SetTheory.app
   addSymbol(|=>)
-  addSymbol(app)
 
   val f = variable
   val x = variable
+  val y = variable
+  val z = variable
   val A = variable
   val B = variable
   val F = function[1]
@@ -39,6 +42,26 @@ object TypeLib extends lisa.Main {
 
   val testTheorem = Theorem((x is A, f is (A |=> B), F is (A |=> B) |> (A |=> B) ) |- (F(f).@@(x) is B)) {
     have(thesis) by TypeCheck.prove
+  }
+
+  val  𝔹 = DEF() --> unorderedPair(∅, singleton(∅))
+
+  val empty_in_B = Theorem( (∅ :: 𝔹) ) {
+    have( ∅ :: unorderedPair(∅, singleton(∅))) by Tautology.from(pairAxiom of (z := ∅, x := ∅, y := singleton(∅)))
+    thenHave(thesis ) by Substitution.ApplyRules(𝔹.shortDefinition)
+  }
+
+  val sing_empty_in_B = Theorem( (singleton(∅) :: 𝔹) ) {
+    have( singleton(∅) :: unorderedPair(∅, singleton(∅))) by Tautology.from(pairAxiom of (z := singleton(∅), x := ∅, y := singleton(∅)))
+    thenHave(thesis ) by Substitution.ApplyRules(𝔹.shortDefinition)
+  }
+
+  val Zero = DEF() --> (∅.typedWith(𝔹)(empty_in_B), 𝔹)
+
+  //val One = DEF() --> singleton(∅).typedWith(𝔹)(sing_empty_in_B) :: 𝔹
+
+  val zero_in_B = Theorem( (Zero :: 𝔹) ) {
+    have( Zero :: 𝔹) by TypeCheck.prove
   }
 
 
@@ -214,11 +237,74 @@ object TypeSystem  {
 
 
   
+  ///////////////////////
+  ///// Definitions /////
+  ///////////////////////
+
+  /* 
+  class SimpleFunctionDefinition[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(
+      val lambda: LambdaExpression[Term, Term, N],
+      out: F.Variable,
+      j: JUSTIFICATION
+  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {}
+
+  object SimpleFunctionDefinition {
+    def apply[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {
+      val intName = "definition_" + fullName
+      val out = Variable(freshId(lambda.allSchematicLabels.map(_.id), "y"))
+      val defThm = THM(F.ExistsOne(out, out === lambda.body), intName, line, file, InternalStatement)({
+        have(SimpleDeducedSteps.simpleFunctionDefinition(lambda, out))
+      })
+      new SimpleFunctionDefinition[N](fullName, line, file)(lambda, out, defThm)
+    }
+  }
+  */
+
+  class TypedSimpleConstantDefinition[A <: Class](using om: OutputManager)(fullName: String, line: Int, file: String)(
+      val expression: Term,
+      out: Variable,
+      j: JUSTIFICATION,
+      val typ:A
+  ) extends SimpleFunctionDefinition[0](fullName, line, file)(lambda[Term, Term](Seq[Variable](), expression).asInstanceOf, out, j) {
+    val typingName = "typing_" + fullName
+    val typingJudgement = THM( label :: typ, typingName, line, file, InternalStatement)({
+      have(expression :: typ) by TypeCheck.prove
+      thenHave(thesis) by lisa.automation.Substitution.ApplyRules(getShortDefinition(label).get)
+    })
+    println(typingJudgement.statement)
+    val typedLabel: TypedConstant[A] = TypedConstant(label.id, typ, typingJudgement)
 
 
+  }
+  object TypedSimpleConstantDefinition {
+    def apply[A <: Class](using om: OutputManager)(fullName: String, line: Int, file: String)(expression: Term, typ:A): TypedSimpleConstantDefinition[A] = {
+      val intName = "definition_" + fullName
+      val out = Variable(freshId(expression.allSchematicLabels.map(_.id), "y"))
+      val defThm = THM(ExistsOne(out, out === expression), intName, line, file, InternalStatement)({
+        have(lisa.prooflib.SimpleDeducedSteps.simpleFunctionDefinition(lambda(Seq[Variable](), expression), out))
+      })
+      new TypedSimpleConstantDefinition(fullName, line, file)(expression, out, defThm, typ)
+    }
+  }
+  extension (d: definitionWithVars[0]) {
+    inline infix def -->[A<:Class](
+          using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term:Term, typ: A): TypedConstant[A] =
+      TypedSimpleConstantDefinition[A](name.value, line.value, file.value)(term, typ).typedLabel
+  }
   
+  extension (c: Constant) {
+    def typedWith[A <: Class](typ:A)(justif: JUSTIFICATION) : TypedConstant[A] = 
+      if justif.statement.right.size != 1  || justif.statement.left.size != 0 || !K.isSame((c is typ).asFormula.underlying, justif.statement.right.head.underlying) then
+        throw new IllegalArgumentException(s"A proof of typing of $c must be of the form ${c :: typ}, but the given justification shows ${justif.statement}.")
+      else TypedConstant(c.id, typ, justif)
+  }
 
 
+
+
+  /////////////////////////
+  ///// Type Checking /////
+  /////////////////////////
   object TypeCheck extends ProofTactic {
     val x = variable
 
@@ -286,7 +372,6 @@ object TypeSystem  {
                   case inType |=> outType => typ match
                     case None => 
                       if K.isSame((arg is inType).asFormula.underlying, (arg is arg).asFormula.underlying) then
-                        println(term)
                         have(term is outType) by Tautology.from(
                           funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
                           funcProof,
@@ -296,7 +381,6 @@ object TypeSystem  {
                       else throw TypingException("Function " + func + " found to have type " + funcType + ", but argument " + arg + " has type " + argType + " instead of expected " + inType + ".")
                     case Some(typ) if K.isSame((term is typ).asFormula.underlying, (term is outType).asFormula.underlying) =>
                       if K.isSame((arg is inType).asFormula.underlying, (arg is argType).asFormula.underlying) then
-                        println(term)
                         have(term is outType) by Tautology.from(
                           funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
                           funcProof,
@@ -304,7 +388,6 @@ object TypeSystem  {
                         )
                         typ
                       else 
-                        println("error")
                         throw TypingException("Function " + func + " found to have type " + funcType + ", but argument " + arg + " has type " + argType + " instead of expected " + inType + ".")
                       
                     case _ => 

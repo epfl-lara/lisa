@@ -27,6 +27,9 @@ trait Main extends BasicMain {
     def definition: JUSTIFICATION = {
       getDefinition(symbol).get
     }
+    def shortDefinition: JUSTIFICATION = {
+      getShortDefinition(symbol).get
+    }
   }
 
 }

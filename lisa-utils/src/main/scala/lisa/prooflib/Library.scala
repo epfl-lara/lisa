@@ -42,6 +42,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     else _draft = Some(file)
 
   val knownDefs: scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
+  val shortDefs: scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
 
   def addSymbol(s: F.ConstantFunctionLabel[?] | F.ConstantPredicateLabel[?] | F.Constant): Unit = {
     s match {
@@ -53,6 +54,10 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   }
 
   def getDefinition(label: F.ConstantLabel[?]): Option[JUSTIFICATION] = knownDefs.get(label) match {
+    case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
+    case Some(value) => value
+  }
+  def getShortDefinition(label: F.ConstantLabel[?]): Option[JUSTIFICATION] = shortDefs.get(label) match {
     case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
     case Some(value) => value
   }

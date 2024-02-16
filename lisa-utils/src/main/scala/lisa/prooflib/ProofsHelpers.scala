@@ -290,7 +290,17 @@ trait ProofsHelpers {
       val lambda: LambdaExpression[Term, Term, N],
       out: F.Variable,
       j: JUSTIFICATION
-  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {}
+  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {
+
+    private val term = label.applySeq(lambda.bounds.asInstanceOf)
+    private val simpleProp = lambda.body === term
+    val simplePropName = "simpleDef_" + fullName
+    val simpleDef = THM(simpleProp, simplePropName, line, file, InternalStatement)({
+        have(thesis) by Restate.from(this of term)
+    })
+    shortDefs.update(label, Some(simpleDef))
+
+  }
 
   object SimpleFunctionDefinition {
     def apply[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {
