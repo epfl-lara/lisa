@@ -9,11 +9,17 @@ object HOLTest extends lisa.HOL{
     val f = variable(𝔹 |=> 𝔹)
     val g = variable(𝔹 |=> (𝔹 |=> 𝔹))
 
-    val expr = g.@@(x).@@(f.@@(y))
+    val expr = g*(x)*(f*(y))
+
     println(expr)
     val typecheckTest = TypingTheorem(expr :: 𝔹)
-    println(typecheckTest.statement.toString)
-    println("hello !" + typecheckTest.statement)
-    println(typecheckTest.statement)
+
+
+    val expr2 = g*(x)*(Abstraction(x, f*(x))*(y))
+    println(expr2)
+    println(computeType(expr2))
+    val typecheckTest2 = TypingTheorem(expr2 :: 𝔹)
+
+
 
 }

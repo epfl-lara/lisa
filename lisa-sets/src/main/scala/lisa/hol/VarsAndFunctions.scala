@@ -10,87 +10,23 @@ import lisa.fol.FOL.{Identifier, Term}
 
 object VarsAndFunctions {
 
+  def main(args: Array[String]): Unit = {
+    val x = variable(𝔹)
+    val testTerm = Abstraction(x, x)
 
-  
-
-  class TypedForall( val v: F.Variable, val prop: F.Formula ) extends F.BinderFormula(F.forall, v, v match {
-    case v: TypedVar => (v is v.typ) ==> prop
-    case _ => prop
-  }
-  ) {
-    override def toString = s"∀$v. $prop"
-  }
-
-
-  def tforall(v: TypedVar, prop: F.Formula): TypedForall = TypedForall(v, prop)
-
-  var counter: Int = -1
-
-  type VarTypeAssignment = F.Formula & TypeAssignment[Type] {val t:Variable}
-  
-
-  def nextId: Identifier = {
-    counter += 1
-    Identifier("$λ", counter)
+    println(testTerm)
   }
 
   type Type = Term
 
-  class TypedVar( id: Identifier, val typ: Type ) extends F.Variable(id){
-    override def toString = s"(${id.name}: $typ)"
-  }
-  
-  def variable(using name: sourcecode.Name)(typ: Type): Variable = new TypedVar(Identifier(name.value), typ)
-
-  def setTuple( vars: Seq[Term] ): Term = {
-    vars.foldRight[Term](∅) { (acc, v) => 
-      pair(v, acc)
-    }
-  }
-
-  class AbstrVar( id: Identifier, val prop:Formula ) extends F.Variable(id){
-    override def toString = s"(${id.name})"
-  }
-
-  class Abstraction(
-    val bound: TypedVar,
-    val body: Term,
-    val repr: F.Variable,
-    val freeVarsTuple: Term,
-    val prop: F.Formula
-  ) extends AppliedFunction(repr, freeVarsTuple) {
-
-    override def toString = s"(λ$bound. $body)"
-  }
-
-  object Abstraction {
-    def apply(bound: TypedVar, body: Term): Abstraction = {
-      val repr = F.Variable(nextId)
-      val freevars = (body.freeVariables - bound).toSeq.sortBy(_.id.name)
-      val freeVarsTuple = setTuple(freevars)
-      val inner = tforall(bound, app(app(repr, freeVarsTuple), bound) === body)
-      val prop = freevars.foldRight[Formula](inner) { (v, acc) => 
-        v match {
-          case v: TypedVar => tforall(v, acc)
-          case _ => F.forall(v, acc)
-        }
-      }
-      val abstrRepr = new AbstrVar(nextId, prop)
-      new Abstraction(bound, body, abstrRepr, freeVarsTuple, prop)
-    }
-  }
-
-
-
-
-
   private def HOLSeqToFOLSeq(left: Set[Term], right: Term): (Set[VarTypeAssignment], Set[Formula]) = {
     val frees = left.flatMap(_.freeVariables) ++ right.freeVariables
-    val (r1, r2) = frees.foldLeft((List.empty[VarTypeAssignment], List.empty[Formula])) { 
+    val (r1, r2) = frees.foldLeft((List.empty[VarTypeAssignment], List.empty[Formula])) {
+      case ((acc1, acc2), a: AbstrVar) => 
+        (acc1, a.defin :: acc2)
       case ((acc1, acc2), v: TypedVar) => 
         ((v is v.typ).asInstanceOf[VarTypeAssignment] :: acc1, acc2)
-      case ((acc1, acc2), a: AbstrVar) => 
-        (acc1, a.prop :: acc2)
+
       case ((acc1, acc2), v) => 
         (acc1, acc2)
     }
@@ -115,13 +51,145 @@ object VarsAndFunctions {
   }
 
 
-  def TypingTheorem(using lisa.prooflib.OutputManager)(assignment: TypeAssignment[Type]): THM = 
+  def TypingTheorem(using om: lisa.prooflib.OutputManager, name: sourcecode.FullName)(assignment: TypeAssignment[Type]): THM = 
     val (l1, l2) = HOLSeqToFOLSeq(Set.empty, assignment.t)
-    Theorem(F.Sequent(l1 ++ l2, Set(assignment.t is assignment.typ))) {
+    Theorem(using om, name)(F.Sequent(l1 ++ l2, Set(assignment.t is assignment.typ))) {
       have(thesis) by TypeChecker.prove
     }
     
   
+
+  ///////////////////////////////////////
+  /////////// Typed Variables ///////////
+  ///////////////////////////////////////
+
+  class TypedForall( val v: Variable, val prop: Formula ) extends BinderFormula(forall, v, v match {
+    case v: TypedVar => (v is v.typ) ==> prop
+    case _ => prop
+  }
+  ) {
+    override def toString = s"∀$v. $prop"
+  }
+
+
+  def tforall(v: TypedVar, prop: Formula): TypedForall = TypedForall(v, prop)
+
+  var counter: Int = 0
+
+  type VarTypeAssignment = Formula & TypeAssignment[Type] {val t:Variable}
+  
+
+  def nextId: Identifier = {
+    counter += 1
+    Identifier("$λ", counter)
+  }
+
+
+  class TypedVar( id: Identifier, val typ: Type ) extends Variable(id){
+    def toStringFull = s"(${id.name}: $typ)"
+  }
+
+  def variable(using name: sourcecode.Name)(typ: Type): TypedVar = new TypedVar(Identifier(name.value), typ)
+
+  ///////////////////////////////////////
+  ///////// Lambda Abstractions /////////
+  ///////////////////////////////////////
+
+
+  class AbstrVar( id: Identifier, val defin:AbstractionDefinition ) extends TypedVar(id, defin.typ){
+  }
+
+  trait Abstraction {
+    this : Term =>
+    def asTerm: Abstraction & Term = this
+
+    val bound: TypedVar
+    val body: Term
+    val repr: Variable
+    val freeVars: Seq[TypedVar]
+    val defin: AbstractionDefinition
+
+    override def toString = s"λ_${repr.id.no}($bound, $body)"
+  }
+
+  private class AbstractionClosureWithoutFreeVars(
+    val reprId: Identifier,
+    val bound: TypedVar,
+    val body: Term,
+    defin: AbstractionDefinition
+  ) extends AbstrVar(reprId, defin) with Abstraction{
+
+    val repr: Variable = this
+    val freeVars: Seq[TypedVar] = Seq.empty
+    //override def toString = s"(λ$bound. $body)"
+  }
+
+  private class AbstractionClosureWithFreeVars(
+    val repr: Variable,
+    val bound: TypedVar,
+    val body: Term,
+    val freeVars: Seq[TypedVar],
+    val defin: AbstractionDefinition
+  ) extends AppliedFunction(freeVars.tail.foldRight(repr: Term)((acc, v) => app(acc, v)), freeVars.head) with Abstraction {
+    //override def toString = s"(λ$bound. $body)"
+  }
+
+
+  object Abstraction {
+    def apply(bound: TypedVar, body: Term): Abstraction & Term = {
+      val repr = Variable(nextId)
+      val freeVars: Seq[TypedVar] = (body.freeVariables - bound).toSeq.sortBy(_.id.name).map {
+        case v: TypedVar => v
+        case _ => throw new IllegalArgumentException("Abstraction body must not contain free untyped variables.")
+      }
+      val inner = tforall(bound, 
+        app(
+          freeVars.foldRight[Term](repr) { (acc, v) => 
+            app(acc, v)
+          },
+        bound) === body
+        )
+      val bodyProp = freeVars.foldRight[Formula](inner) { (v, acc) => 
+        tforall(v, acc)
+      }
+      val outType = computeType(body)
+      val defin = new AbstractionDefinition(repr, bound, body, freeVars, outType, bodyProp)
+      if freeVars.isEmpty then new AbstractionClosureWithoutFreeVars(repr.id, bound, body, defin)
+      else new AbstractionClosureWithFreeVars(AbstrVar(repr.id, defin), bound, body, freeVars, defin)
+    }.asTerm
+  }
+  def λ(bound: TypedVar, body: Term) = Abstraction(bound, body)
+  
+  class AbstractionDefinition(
+    val reprVar: Variable,
+    val bound: TypedVar,
+    val body: Term,
+    val freeVars: Seq[TypedVar],
+    val outType: Type,
+    val bodyProp: Formula
+  ) extends AppliedConnector(And, Seq(reprVar is freeVars.foldRight(bound.typ |=> outType)((v, acc) => v.typ |=> acc), bodyProp)) {
+    val typ = freeVars.foldRight(bound.typ |=> outType)((v, acc) => v.typ |=> acc)
+  }
+
+
+  def computeType(t:Term): Type = t match
+    case t: TypedVar => t.typ
+    case t: TypedConstant[?] => t.typ match
+      case t: Term => t
+      case _ => throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
+    case t: AppliedFunction => computeType(t.func) match
+      case inType |=> outType => 
+        if computeType(t.arg) == inType then outType
+        else throw new IllegalArgumentException("Argument " + t.arg + " of function " + t.func + " has type " + computeType(t.arg) + " instead of expected " + inType + ".")
+      case funcType => throw new IllegalArgumentException("Function " + t.func + " expected to have function type A |=> B, but has type " + funcType + ". ")
+    case af: AppliedFunctional => 
+      ???
+    case _ => throw new IllegalArgumentException("computeTypes only support fully typed terms.")
+
+
+
+
+
 
 
 

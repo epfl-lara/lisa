@@ -9,7 +9,7 @@ import lisa.prooflib.BasicMain
 trait HOL extends BasicMain {
   export lisa.maths.settheory.types.TypeSystem.*
   export lisa.maths.settheory.types.TypeLib.{Zero, One, 𝔹, |=>}
-  export lisa.hol.VarsAndFunctions.*
+  export lisa.hol.VarsAndFunctions.{main => _, *}
   export SetTheoryLibrary.{given, _}
 
   export lisa.fol.FOL as F

@@ -40,7 +40,7 @@ object TypeLib extends lisa.Main {
   // C |> D is the functional class of functionals from the class C to the class D
   // F is C |> D desugars into ∀(x, (x is C) => (F(x) is D))
 
-  val testTheorem = Theorem((x is A, f is (A |=> B), F is (A |=> B) |> (A |=> B) ) |- (F(f).@@(x) is B)) {
+  val testTheorem = Theorem((x is A, f is (A |=> B), F is (A |=> B) |> (A |=> B) ) |- (F(f)*(x) is B)) {
     have(thesis) by TypeChecker.prove
   }
 
@@ -110,6 +110,7 @@ object TypeSystem  {
     def is(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf
     def ::(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf
     def @@(t2: Term): AppliedFunction = AppliedFunction(t, t2)
+    def *(t2: Term): AppliedFunction = AppliedFunction(t, t2)
   }
 
 
@@ -123,8 +124,8 @@ object TypeSystem  {
     val typ: A
     val asFormula: Formula = this
 
-    override def toString() = t.toStringSeparated() + " ∈ " + typ.toStringSeparated()
-    override def toStringSeparated(): String = "(" + toString + ")"
+    override def toString() = t.toStringSeparated() + "::" + typ.toStringSeparated()
+    override def toStringSeparated(): String = "(" + toString() + ")"
   }
   object TypeAssignment {
 
@@ -231,9 +232,12 @@ object TypeSystem  {
 
 
 
-  class AppliedFunction(func: Term, arg: Term) extends AppliedFunctional(app, Seq(func, arg)) with LisaObject[AppliedFunction] {
+  class AppliedFunction(val func: Term, val arg: Term) extends AppliedFunctional(app, Seq(func, arg)) with LisaObject[AppliedFunction] {
     
     override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): AppliedFunction = this
+
+    override def toString(): String = func.toStringSeparated() + "*(" + arg.toStringSeparated() + ")"
+    override def toStringSeparated(): String = toString()
   }
   object AppliedFunction {
     def unapply(af: AppliedFunctional): Option[(Term, Term)] = af match
@@ -247,24 +251,6 @@ object TypeSystem  {
   ///// Definitions /////
   ///////////////////////
 
-  /* 
-  class SimpleFunctionDefinition[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(
-      val lambda: LambdaExpression[Term, Term, N],
-      out: F.Variable,
-      j: JUSTIFICATION
-  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {}
-
-  object SimpleFunctionDefinition {
-    def apply[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {
-      val intName = "definition_" + fullName
-      val out = Variable(freshId(lambda.allSchematicLabels.map(_.id), "y"))
-      val defThm = THM(F.ExistsOne(out, out === lambda.body), intName, line, file, InternalStatement)({
-        have(SimpleDeducedSteps.simpleFunctionDefinition(lambda, out))
-      })
-      new SimpleFunctionDefinition[N](fullName, line, file)(lambda, out, defThm)
-    }
-  }
-  */
 
   class TypedSimpleConstantDefinition[A <: Class](using om: OutputManager)(fullName: String, line: Int, file: String)(
       val expression: Term,
@@ -307,9 +293,14 @@ object TypeSystem  {
 
 
 
+
+
+
+
   /////////////////////////
   ///// Type Checking /////
   /////////////////////////
+
   object TypeChecker extends ProofTactic {
     val x = variable
 
@@ -333,9 +324,13 @@ object TypeSystem  {
       )
       if success != null then success else if typingError != null then typingError else proof.InvalidProofTactic("The right hand side of the goal must be a typing judgement")
     
+    private def fullFlat(context: Seq[Formula]): Seq[Formula] = context.flatMap{
+      case AppliedConnector(And, cunj) => fullFlat(cunj)
+      case f => Seq(f)
+    }
 
     def typecheck(using lib: SetTheoryLibrary.type, proof: lib.Proof)(context: Seq[Formula], term:Term, typ: Option[Class]): proof.ProofTacticJudgement = 
-      val typingAssumptions: Map[Term, Seq[Class]] = context.collect{
+      val typingAssumptions: Map[Term, Seq[Class]] = fullFlat(context).collect{
         case TypeAssignment(term, typ) => (term, typ)
       }.groupBy(_._1).map((t, l) => (t, l.map(_._2)))
       
