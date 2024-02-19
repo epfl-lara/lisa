@@ -180,19 +180,43 @@ object VarsAndFunctions {
   }
 
 
-  def computeType(t:Term): Type = t match
-    case t: TypedVar => t.typ
-    case t: TypedConstant[?] => t.typ match
-      case t: Term => t
-      case _ => throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
-    case t: AppliedFunction => computeType(t.func) match
-      case inType |=> outType => 
-        if computeType(t.arg) == inType then outType
-        else throw new IllegalArgumentException("Argument " + t.arg + " of function " + t.func + " has type " + computeType(t.arg) + " instead of expected " + inType + ".")
-      case funcType => throw new IllegalArgumentException("Function " + t.func + " expected to have function type A |=> B, but has type " + funcType + ". ")
-    case af: AppliedFunctional => 
-      ???
-    case _ => throw new IllegalArgumentException("computeTypes only support fully typed terms.")
+  def computeType(t:Term): Type = 
+    t match
+      case t: TypedVar => t.typ
+      case t: TypedConstant[?] => t.typ match
+        case t: Term => t
+        case _ => throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
+      case t: AppliedFunction => computeType(t.func) match
+        case inType |=> outType => 
+          if computeType(t.arg) == inType then outType
+          else throw new IllegalArgumentException("Argument " + t.arg + " of function " + t.func + " has type " + computeType(t.arg) + " instead of expected " + inType + ".")
+        case funcType => throw new IllegalArgumentException("Function " + t.func + " expected to have function type A |=> B, but has type " + funcType + ". ")
+      case AppliedFunctional(label, args) => 
+        label match
+          case label: TypedConstantFunctional[?] => 
+            val labelType = label.typ
+            if args.zip(labelType.in).forall((arg, inType) => 
+              (inType == any) || {
+                val argType = computeType(arg)
+                K.isSame((arg is inType).asFormula.underlying, (arg is argType).asFormula.underlying)
+              }
+            ) then
+              val subst = (labelType.args zip args).map((v, a) => (v := a))
+              labelType.out match {
+                case t: Term => t.substitute(subst: _*)
+                case f: (Term**1 |-> Formula) @unchecked => throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
+              }
+            else 
+              val argsTypes = args.map(arg =>
+                try computeType(arg)
+                catch
+                  case e: IllegalArgumentException => "?"
+                computeType
+              )
+              throw new IllegalArgumentException("Function " + label + " has type " + labelType + " but was applied to arguments " + args + " of types " + argsTypes + ".")
+          case _ => throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
+      case _ => 
+        throw new IllegalArgumentException("computeTypes only support fully typed terms. " + t + " is not fully typed.")
 
 
 
