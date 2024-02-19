@@ -85,13 +85,15 @@ object TypeSystem  {
 
   type SmallClass = Term
 
-  case class FunctionalClass(in: Seq[Class], out: Class, arity: Int) {
+  case class FunctionalClass(in: Seq[Class], args: Seq[Variable], out: Class, arity: Int) {
     def formula[N <: Arity](f: (Term**N |-> Term)): Formula = 
-      val args = (1 to arity).map(i => freshVariable(in.toSeq :+ out, "%x" + i))
       val inner = (args.zip(in.toSeq).map((term, typ) => (term is typ).asFormula).reduceLeft((a, b) => a /\ b)) ==> (f.applySeq(args) is out)
       args.foldRight(inner)((v, form) => forall(v, form))
 
     override def toString(): String = in.map(_.toStringSeparated()).mkString("(", ", ", ")") + " |> " + out.toStringSeparated()
+  }
+  object FunctionalClass {
+    def apply(in: Seq[Class], out: Class, arity: Int): FunctionalClass = FunctionalClass(in, Seq.empty, out, arity)
   }
 
   extension [N <: Arity](f: (Term**N |-> Term)) {
@@ -99,16 +101,19 @@ object TypeSystem  {
   }
 
   extension[A <: Class] (c: Class) {
-    def |>(out: Class): FunctionalClass = FunctionalClass(Seq(c), out, 1)
-    def |>(out: FunctionalClass): FunctionalClass = FunctionalClass(c +: out.in, out.out, out.arity+1)
+    //(1 to arity).map(i => freshVariable(in.toSeq :+ out, "%x" + i))
+    def |>(out: Class): FunctionalClass = FunctionalClass(Seq(c),Seq(freshVariable(Seq(out), "$x")), out, 1)
+    def |>(out: FunctionalClass): FunctionalClass = 
+      val newVar = freshVariable(out.in.toSeq :+ out.out, "$x")
+      FunctionalClass(c +: out.in, newVar +: out.args, out.out, out.arity+1)
     def toStringSeparated(): String = c match
       case t: Term => t.toStringSeparated()
       case f: (Term**1 |-> Formula) @unchecked => f.toStringSeparated()
   }
 
   extension [A <: Class](t: Term) {
-    def is(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf
-    def ::(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf
+    def is(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf[TypeAssignment[A] & Formula]
+    def ::(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf[TypeAssignment[A] & Formula]
     def @@(t2: Term): AppliedFunction = AppliedFunction(t, t2)
     def *(t2: Term): AppliedFunction = AppliedFunction(t, t2)
   }
@@ -136,7 +141,8 @@ object TypeSystem  {
     def apply[A <: Class](t: Term, typ:A): TypeAssignment[A] = 
       val form = typ match
         case f: Term => in(t, f)
-        case f : (Term**1 |-> Formula) @unchecked => f(t)
+        case f : (Term**1 |-> Formula) @unchecked => 
+          ((f: Term**1 |-> Formula)(t): Formula)
       form match
         case f: VariableFormula => 
           throw new IllegalArgumentException("Class formula cannot be a variable formula, as we require a type to have no free variable.")
@@ -221,8 +227,12 @@ object TypeSystem  {
 
 
 
+
   class TypedConstantFunctional[N <: Arity](
-    id : Identifier, arity: N, val typ: FunctionalClass, val justif: JUSTIFICATION
+    id : Identifier,
+    arity: N,
+    val typ: FunctionalClass,
+    val justif: JUSTIFICATION
   ) extends ConstantFunctionLabel[N](id, arity) with LisaObject[TypedConstantFunctional[N]] {
     
     override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): TypedConstantFunctional[N] = this
@@ -407,18 +417,25 @@ object TypeSystem  {
                         val labelType = labelTypes.find(labelType =>
                           labelType.arity == args.size && 
                           (args zip argTypes).zip(labelType.in.toSeq).forall((argAndTypes, inType) => 
-                            K.isSame((argAndTypes._1 is inType).asFormula.underlying, (argAndTypes._1 is argAndTypes._2).asFormula.underlying)
+                            K.isSame((argAndTypes._1 is inType).asFormula.underlying, (argAndTypes._1 is argAndTypes._2).asFormula.underlying) // || inType == any
                           )
                         )
                         if labelType.isEmpty then
                           throw TypingException("Function " + label + " expected to have type (" + argTypes.mkString(", ") + ") |=> ? but is assigned " + labelTypes.mkString(" & ") + ". Note that terms having multiple different types is only partialy supported.")
                         else 
                           val out: Class = labelType.get.out
+                          
                           val in: Seq[Class] = labelType.get.in.toSeq
                           val labelProp = labelType.get.formula(label.asInstanceOf)
                           val labelPropStatement = have( labelProp ) by Restate
-                          have(term is out) by Tautology.from(
-                            (argTypesProofs :+ labelPropStatement.of(args: _*) ) : _*
+                          val labInst = labelPropStatement.of(args: _*)
+                          val subst = (labelType.get.args zip args).map((v, a) => (v := a))
+                          val typingJudgement = term is (out match {
+                            case t: Term => t.substitute(subst: _*)
+                            case f: (Term**1 |-> Formula) @unchecked => f.substitute(subst: _*)
+                          })
+                          have(typingJudgement) by Tautology.from(
+                            (argTypesProofs :+ labInst ) : _*
                           )
                           out
                       case Some(typValue) => val labelType = labelTypes.find(labelType =>

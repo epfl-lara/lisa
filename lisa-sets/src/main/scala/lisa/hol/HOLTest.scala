@@ -2,12 +2,12 @@ package lisa.hol
 
 object HOLTest extends lisa.HOL{
 
-    val x = variable(𝔹)
-    val y = variable(𝔹)
-    val z = variable(𝔹)
+    val x = typedvar(𝔹)
+    val y = typedvar(𝔹)
+    val z = typedvar(𝔹)
 
-    val f = variable(𝔹 |=> 𝔹)
-    val g = variable(𝔹 |=> (𝔹 |=> 𝔹))
+    val f = typedvar(𝔹 |=> 𝔹)
+    val g = typedvar(𝔹 |=> (𝔹 |=> 𝔹))
 
     val expr = g*(x)*(f*(y))
 

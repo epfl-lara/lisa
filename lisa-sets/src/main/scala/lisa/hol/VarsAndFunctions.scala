@@ -11,7 +11,7 @@ import lisa.fol.FOL.{Identifier, Term}
 object VarsAndFunctions {
 
   def main(args: Array[String]): Unit = {
-    val x = variable(𝔹)
+    val x = typedvar(𝔹)
     val testTerm = Abstraction(x, x)
 
     println(testTerm)
@@ -85,11 +85,19 @@ object VarsAndFunctions {
   }
 
 
-  class TypedVar( id: Identifier, val typ: Type ) extends Variable(id){
+  class TypedVar( id: Identifier, val typ: Type ) extends Variable(id) {
+    override def substituteUnsafe(map: Map[SchematicLabel[?], LisaObject[?]]): Term = 
+      if map.contains(this) then map(this).asInstanceOf[Term]
+      else 
+        val typ2 = typ.substituteUnsafe(map)
+        if typ2 == typ then this
+        else new TypedVar(id, typ2)
+
     def toStringFull = s"(${id.name}: $typ)"
+    
   }
 
-  def variable(using name: sourcecode.Name)(typ: Type): TypedVar = new TypedVar(Identifier(name.value), typ)
+  def typedvar(using name: sourcecode.Name)(typ: Type): TypedVar = new TypedVar(Identifier(name.value), typ)
 
   ///////////////////////////////////////
   ///////// Lambda Abstractions /////////
@@ -197,35 +205,37 @@ object VarsAndFunctions {
 
   // Sequent Syntax
 
-  trait TernSetConverter[T] {
+  trait TermSetConverter[T] {
     def apply(t: T): Set[Term]
   }
 
-  given TernSetConverter[Unit] with {
+  given TermSetConverter[Unit] with {
     override def apply(u: Unit): Set[Term] = Set.empty
   }
 
-  given TernSetConverter[EmptyTuple] with {
+  given TermSetConverter[EmptyTuple] with {
     override def apply(t: EmptyTuple): Set[Term] = Set.empty
   }
 
-  given [H <: Term, T <: Tuple](using c: TernSetConverter[T]): TernSetConverter[H *: T] with {
+  given [H <: Term, T <: Tuple](using c: TermSetConverter[T]): TermSetConverter[H *: T] with {
     override def apply(t: H *: T): Set[Term] = c.apply(t.tail) + t.head
   }
 
-  given term_to_set[T <: Term]: TernSetConverter[T] with {
+  given term_to_set[T <: Term]: TermSetConverter[T] with {
     override def apply(f: T): Set[Term] = Set(f)
   }
 
-  given iterable_to_set[T <: Term, I <: Iterable[T]]: TernSetConverter[I] with {
+  given term_iterable_to_set[T <: Term, I <: Iterable[T]]: TermSetConverter[I] with {
     override def apply(s: I): Set[Term] = s.toSet
   }
 
-  private def any2set[A, T <: A](any: T)(using c: TernSetConverter[T]): Set[Term] = c.apply(any)
+  private def any2set[A, T <: A](any: T)(using c: TermSetConverter[T]): Set[Term] = c.apply(any)
 
-  extension [A, T1 <: A](left: T1)(using TernSetConverter[T1]) {
+  extension [A, T1 <: A](left: T1)(using TermSetConverter[T1]) {
     infix def |-(right: Term): HOLSequent = HOLSequent(any2set(left), right)
     infix def ⊢(right: Term): HOLSequent = HOLSequent(any2set(left), right)
   }
+
+  given Conversion[Term, HOLSequent] = HOLSequent(Set(), _)
 
 }
