@@ -41,7 +41,7 @@ object TypeLib extends lisa.Main {
   // F is C |> D desugars into ∀(x, (x is C) => (F(x) is D))
 
   val testTheorem = Theorem((x is A, f is (A |=> B), F is (A |=> B) |> (A |=> B) ) |- (F(f).@@(x) is B)) {
-    have(thesis) by TypeCheck.prove
+    have(thesis) by TypeChecker.prove
   }
 
   val  𝔹 = DEF() --> unorderedPair(∅, singleton(∅))
@@ -58,10 +58,16 @@ object TypeLib extends lisa.Main {
 
   val Zero = DEF() --> (∅.typedWith(𝔹)(empty_in_B), 𝔹)
 
-  //val One = DEF() --> singleton(∅).typedWith(𝔹)(sing_empty_in_B) :: 𝔹
+  val One = {
+    val One = DEF() --> singleton(∅)
+    val One_in_B = Theorem( (One :: 𝔹) ) {
+      have(thesis) by Substitution.ApplyRules(One.shortDefinition)(sing_empty_in_B)
+    }
+    One.typedWith(𝔹)(One_in_B)
+  }
 
   val zero_in_B = Theorem( (Zero :: 𝔹) ) {
-    have( Zero :: 𝔹) by TypeCheck.prove
+    have( Zero :: 𝔹) by TypeChecker.prove
   }
 
 
@@ -101,8 +107,8 @@ object TypeSystem  {
   }
 
   extension [A <: Class](t: Term) {
-    def is(clas:A): TypeAssignement[A] & Formula = TypeAssignement(t, clas).asInstanceOf
-    def ::(clas:A): TypeAssignement[A] & Formula = TypeAssignement(t, clas).asInstanceOf
+    def is(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf
+    def ::(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf
     def @@(t2: Term): AppliedFunction = AppliedFunction(t, t2)
   }
 
@@ -111,7 +117,7 @@ object TypeSystem  {
     * A type assumption is a pair of a variable and a type.
     * It is also a formula, equal to the type applied to the variable.
     */
-  sealed trait TypeAssignement[A <: Class]{
+  sealed trait TypeAssignment[A <: Class]{
     this: Formula =>
     val t: Term
     val typ: A
@@ -120,49 +126,49 @@ object TypeSystem  {
     override def toString() = t.toStringSeparated() + " ∈ " + typ.toStringSeparated()
     override def toStringSeparated(): String = "(" + toString + ")"
   }
-  object TypeAssignement {
+  object TypeAssignment {
 
     /**
       * A type assumption is a pair of a variable and a type.
       * It is also a formula, equal to the type applied to the variable.
       */
-    def apply[A <: Class](t: Term, typ:A): TypeAssignement[A] = 
+    def apply[A <: Class](t: Term, typ:A): TypeAssignment[A] = 
       val form = typ match
         case f: Term => in(t, f)
         case f : (Term**1 |-> Formula) @unchecked => f(t)
       form match
         case f: VariableFormula => 
           throw new IllegalArgumentException("Class formula cannot be a variable formula, as we require a type to have no free variable.")
-        case f: ConstantFormula => new TypeAssumptionConstant(t, typ, f)
-        case f: AppliedPredicate => new TypeAssumptionPredicate(t, typ, f)
-        case f: AppliedConnector => new TypeAssumptionConnector(t, typ, f)
-        case f: BinderFormula => new TypeAssumptionBinder(t, typ, f)
+        case f: ConstantFormula => new TypeAssignmentConstant(t, typ, f)
+        case f: AppliedPredicate => new TypeAssignmentPredicate(t, typ, f)
+        case f: AppliedConnector => new TypeAssignmentConnector(t, typ, f)
+        case f: BinderFormula => new TypeAssignmentBinder(t, typ, f)
 
     def unapply(ta: Formula): Option[(Term, Class)] = ta match
-      case ta: TypeAssignement[?] => Some((ta.t, ta.typ))
+      case ta: TypeAssignment[?] => Some((ta.t, ta.typ))
       case in(x, set) => Some((x, set))
       case AppliedPredicate(label, args) if label.arity == 1 => Some((args.head, label.asInstanceOf[Term**1 |-> Formula]))
       case _ => None
     
   }
-  val is = TypeAssignement
+  val is = TypeAssignment
 
-  given [A <: Class]: Conversion[TypeAssignement[A], Formula] = _.asInstanceOf[Formula]
+  given [A <: Class]: Conversion[TypeAssignment[A], Formula] = _.asInstanceOf[Formula]
   /*
-  given [A <: Class]: Conversion[TypeAssignement[A], Sequent] = ta => Sequent(Set.empty, Set(ta))
-  given [A <: Class]: FormulaSetConverter[TypeAssignement[A]] with {
-      override def apply(f: TypeAssignement[A]): Set[Formula] = Set(f.asInstanceOf[Formula])
+  given [A <: Class]: Conversion[TypeAssignment[A], Sequent] = ta => Sequent(Set.empty, Set(ta))
+  given [A <: Class]: FormulaSetConverter[TypeAssignment[A]] with {
+      override def apply(f: TypeAssignment[A]): Set[Formula] = Set(f.asInstanceOf[Formula])
   }
 */
   
 
-  private class TypeAssumptionConstant[A <: Class](val t: Term, val typ:A, formula: ConstantFormula) extends ConstantFormula(formula.id) with TypeAssignement[A]
-  private class TypeAssumptionPredicate[A <: Class](val t: Term, val typ:A, formula: AppliedPredicate) extends AppliedPredicate(formula.label, formula.args) with TypeAssignement[A]
-  private class TypeAssumptionConnector[A <: Class](val t: Term, val typ:A,  formula: AppliedConnector) extends AppliedConnector(formula.label, formula.args) with TypeAssignement[A]
-  private class TypeAssumptionBinder[A <: Class](val t: Term, val typ:A,  formula: BinderFormula) extends BinderFormula(formula.f, formula.bound, formula.body) with TypeAssignement[A]
+  private class TypeAssignmentConstant[A <: Class](val t: Term, val typ:A, formula: ConstantFormula) extends ConstantFormula(formula.id) with TypeAssignment[A]
+  private class TypeAssignmentPredicate[A <: Class](val t: Term, val typ:A, formula: AppliedPredicate) extends AppliedPredicate(formula.label, formula.args) with TypeAssignment[A]
+  private class TypeAssignmentConnector[A <: Class](val t: Term, val typ:A,  formula: AppliedConnector) extends AppliedConnector(formula.label, formula.args) with TypeAssignment[A]
+  private class TypeAssignmentBinder[A <: Class](val t: Term, val typ:A,  formula: BinderFormula) extends BinderFormula(formula.f, formula.bound, formula.body) with TypeAssignment[A]
 
 
-  type TypingContext = Iterable[TypeAssignement[?]]
+  type TypingContext = Iterable[TypeAssignment[?]]
 
 
   sealed trait FunctionalTypeAssignment[N <: Arity]{
@@ -203,7 +209,7 @@ object TypeSystem  {
 
   class TypedConstant[A <: Class]
     (id: Identifier, val typ: A, val justif: JUSTIFICATION) extends Constant(id) with LisaObject[TypedConstant[A]]  {
-    val formula = TypeAssignement(this, typ)
+    val formula = TypeAssignment(this, typ)
     assert(justif.statement.left.isEmpty && (justif.statement.right.head == formula))
 
     override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): TypedConstant[A] = this
@@ -268,10 +274,9 @@ object TypeSystem  {
   ) extends SimpleFunctionDefinition[0](fullName, line, file)(lambda[Term, Term](Seq[Variable](), expression).asInstanceOf, out, j) {
     val typingName = "typing_" + fullName
     val typingJudgement = THM( label :: typ, typingName, line, file, InternalStatement)({
-      have(expression :: typ) by TypeCheck.prove
+      have(expression :: typ) by TypeChecker.prove
       thenHave(thesis) by lisa.automation.Substitution.ApplyRules(getShortDefinition(label).get)
     })
-    println(typingJudgement.statement)
     val typedLabel: TypedConstant[A] = TypedConstant(label.id, typ, typingJudgement)
 
 
@@ -305,7 +310,7 @@ object TypeSystem  {
   /////////////////////////
   ///// Type Checking /////
   /////////////////////////
-  object TypeCheck extends ProofTactic {
+  object TypeChecker extends ProofTactic {
     val x = variable
 
     class TypingException(val msg: String) extends Exception(msg)
@@ -317,7 +322,7 @@ object TypeSystem  {
       bot.right.find(goal =>
         goal match
           case (term is typ) => 
-            val ptj = typecheck(using SetTheoryLibrary)(context.toSeq, term, typ)
+            val ptj = typecheck(using SetTheoryLibrary)(context.toSeq, term, Some(typ))
             if ptj.isValid then
               success = ptj
               true
@@ -329,9 +334,9 @@ object TypeSystem  {
       if success != null then success else if typingError != null then typingError else proof.InvalidProofTactic("The right hand side of the goal must be a typing judgement")
     
 
-    def typecheck(using lib: SetTheoryLibrary.type, proof: lib.Proof)(context: Seq[Formula], term:Term, typ: Class): proof.ProofTacticJudgement = 
+    def typecheck(using lib: SetTheoryLibrary.type, proof: lib.Proof)(context: Seq[Formula], term:Term, typ: Option[Class]): proof.ProofTacticJudgement = 
       val typingAssumptions: Map[Term, Seq[Class]] = context.collect{
-        case TypeAssignement(term, typ) => (term, typ)
+        case TypeAssignment(term, typ) => (term, typ)
       }.groupBy(_._1).map((t, l) => (t, l.map(_._2)))
       
       val functionalTypingAssumptions: Map[(? |-> Term), Seq[FunctionalClass]] = context.collect{
@@ -371,14 +376,15 @@ object TypeSystem  {
                 funcType match
                   case inType |=> outType => typ match
                     case None => 
-                      if K.isSame((arg is inType).asFormula.underlying, (arg is arg).asFormula.underlying) then
+                      if K.isSame((arg is inType).asFormula.underlying, (arg is argType).asFormula.underlying) then
                         have(term is outType) by Tautology.from(
                           funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
                           funcProof,
                             argProof
                         )
                         outType
-                      else throw TypingException("Function " + func + " found to have type " + funcType + ", but argument " + arg + " has type " + argType + " instead of expected " + inType + ".")
+                      else throw 
+                        TypingException("Function " + func + " found to have type " + funcType + ", but argument " + arg + " has type " + argType + " instead of expected " + inType + ".")
                     case Some(typ) if K.isSame((term is typ).asFormula.underlying, (term is outType).asFormula.underlying) =>
                       if K.isSame((arg is inType).asFormula.underlying, (arg is argType).asFormula.underlying) then
                         have(term is outType) by Tautology.from(
@@ -450,7 +456,7 @@ object TypeSystem  {
                 else throw TypingException("Constant " + c + " expected to be of type " + typ + " but is assigned " + possibleTypes.mkString(" & ") + ".")
 
           }
-          innerTypecheck(typingAssumptions, term, Some(typ))
+          innerTypecheck(typingAssumptions, term, typ)
         }
         catch {
           case e: TypingException => 
