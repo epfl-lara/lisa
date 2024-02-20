@@ -85,7 +85,7 @@ object InclusionOrders extends lisa.Main {
   }
 
   /**
-   * Theorem --- the inclusion order on the any set is a relation.
+   * Theorem --- the inclusion order on any set is a relation.
    */
   val inclusionIsRelation = Theorem(
     () |- relationBetween(inclusionOn(a), a, a)
@@ -100,16 +100,52 @@ object InclusionOrders extends lisa.Main {
     have(thesis) by Tautology.from(subs, relationBetween.definition of (r -> inclusionOn(a), a -> a, b -> a))
   }
 
+  /**
+    * Theorem --- the inclusion order on the any set is anti-reflexive.
+    * 
+    * `∀x ∈ a, (x, x) ∉ ∈_a`
+    */
   val inclusionIsAntiReflexive = Theorem(
     antiReflexive(inclusionOn(a), a)
   ) {
-    sorry
+    val rel = inclusionOn(a)
+
+    val antiReflexivity = have(!in(pair(x, x), rel)) subproof {
+      assume(in(pair(x, x), rel))
+      val xx = have(in(x, x)) by Tautology.from(inclusionOrderElem of (a -> a, b -> x, c -> x))
+      have(bot) by Tautology.from(xx, inclusionAntiReflexive of (x -> x))
+      thenHave(thesis) by Restate
+    }
+
+    val quant = thenHave(forall(x, !in(pair(x, x), rel))) by RightForall
+    have(thesis) by Tautology.from(quant, inclusionIsRelation, antiReflexive.definition of (r -> rel, x -> a))
   }
 
+  /**
+    * Theorem --- the inclusion order on the any set is anti-symmetric.
+    * 
+    * `∀x, y ∈ a, (x, y) ∈ ∈_a ∧ (y, x) ∈ ∈_a ⇒ x = y`
+    */
   val inclusionIsAntiSymmetric = Theorem(
     antiSymmetric(inclusionOn(a), a)
   ) {
-    sorry
+    val rel = inclusionOn(a)
+
+    val antiSymmetry = have((in(pair(y, z), rel), in(pair(z, y), rel)) |- (y === z)) subproof {
+      assume(in(pair(y, z), rel), in(pair(z, y), rel))
+
+      val yz = have(in(y, z)) by Tautology.from(inclusionOrderElem of (a -> a, b -> y, c -> z))
+      val zy = have(in(z, y)) by Tautology.from(inclusionOrderElem of (a -> a, b -> z, c -> y))
+
+      have(bot) by Tautology.from(yz, zy, inclusionAntiSymmetric of (x -> z))
+      thenHave(thesis) by Weakening
+    }
+    
+    thenHave((in(pair(y, z), rel) /\ in(pair(z, y), rel)) ==> (y === z)) by Weakening
+    thenHave(forall(z, (in(pair(y, z), rel) /\ in(pair(z, y), rel)) ==> (y === z))) by RightForall
+    val quant = thenHave(forall(y, forall(z, (in(pair(y, z), rel) /\ in(pair(z, y), rel)) ==> (y === z)))) by RightForall
+    
+    have(thesis) by Tautology.from(quant, inclusionIsRelation, antiSymmetric.definition of (r -> rel, x -> a))
   }
 
   /**
