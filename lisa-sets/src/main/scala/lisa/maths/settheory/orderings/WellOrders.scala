@@ -5,6 +5,7 @@ import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
 import lisa.maths.settheory.orderings.PartialOrders.*
+import lisa.automation.kernel.CommonTactics.*
 
 object WellOrders extends lisa.Main {
 
@@ -136,5 +137,28 @@ object WellOrders extends lisa.Main {
     // and transitive
 
     sorry
+  }
+
+  val intersectionOfTransitiveSetsIsTransitive = Theorem(
+    transitiveSet(a) /\ transitiveSet(b) |- transitiveSet(a ∩ b)
+  ) {
+    val s = a ∩ b
+
+    have(transitiveSet(x) |- forall(z, forall(y, (in(z, y) /\ in(y, x)) ==> in(z, x)))) by Weakening(transitiveSet.definition)
+    val transDef = thenHave(transitiveSet(x) |- z ∈ y ==> y ∈ x ==> z ∈ x) by InstantiateForall(z, y)
+
+    have(x ∈ y /\ y ∈ s |- x ∈ s) subproof {
+      assumeAll
+
+      have(y ∈ a /\ y ∈ b) by Tautology.from(setIntersectionMembership of (x := a, y := b, t := y))
+      have(x ∈ a /\ x ∈ b) by Tautology.from(lastStep, transDef of (x := a, y := x, z := y), transDef of (x := b, y := x, z := y))
+
+      have(thesis) by Tautology.from(lastStep, setIntersectionMembership of (x := a, y := b, t := x))
+    }
+
+    thenHave((x ∈ y /\ y ∈ s) ==> x ∈ s) by Restate
+    thenHave(forall(y, x ∈ y /\ y ∈ s ==> x ∈ s)) by RightForall
+    thenHave(forall(x, forall(y, x ∈ y /\ y ∈ s ==> x ∈ s))) by RightForall
+    have(thesis) by Tautology.from(lastStep, transitiveSetInclusionDef of (x := s))
   }
 }
