@@ -127,7 +127,7 @@ object InclusionOrders extends lisa.Main {
   }
 
   /**
-    * Theorem --- the inclusion order on the any set is anti-symmetric.
+    * Theorem --- the inclusion order on any set is anti-symmetric.
     * 
     * `∀x, y ∈ a, (x, y) ∈ ∈_a ∧ (y, x) ∈ ∈_a ⇒ x = y`
     */
@@ -326,7 +326,7 @@ object InclusionOrders extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, inclusionIsRelation of (a -> b), total.definition of (r -> inb, x -> b))
   }
 
-  val inclusionPartialOrderOnSubset = Lemma(
+  val inclusionPartialOrderOnSubset = Theorem(
     (partialOrder(inclusionOrderOn(a)), b ⊆ a) |- partialOrder(inclusionOrderOn(b))
   ) {
     assumeAll
@@ -421,7 +421,7 @@ object InclusionOrders extends lisa.Main {
 
     val incDef = have(inclusionOrderOn(x) === pair(x, inclusionOn(x))) by Tautology.from(inclusionOrderOn.definition of (inclusionOrderOn(x), a -> x))
 
-    val totalOrdering = have(totalOrder(ordb)) by Tautology.from(inclusionTotalOrderOnSubset of (a -> a, b -> b), wellOrder.definition of (p -> orda))
+    val totalOrdering = have(totalOrder(ordb)) by Tautology.from(inclusionTotalOrderOnSubset, wellOrder.definition of (p -> orda))
 
     val minElems = have(c ⊆ b /\ !(c === ∅) |- exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ inb \/ (z === y)))) subproof {
       assumeAll
