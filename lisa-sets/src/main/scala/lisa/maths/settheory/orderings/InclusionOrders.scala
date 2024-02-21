@@ -3,9 +3,14 @@ package lisa.maths.settheory.orderings
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
-import lisa.maths.settheory.orderings.PartialOrders.*
+import lisa.automation.kernel.CommonTactics.*
+
+import PartialOrders.*
+import WellOrders.*
 
 object InclusionOrders extends lisa.Main {
+
+  draft()
 
   // var defs
   private val w = variable
@@ -239,5 +244,219 @@ object InclusionOrders extends lisa.Main {
       secondInPairReduction of (x -> emptySet, y -> emptySet)
     )(totalOrder.definition of p -> pair(emptySet, emptySet))
     have(thesis) by Tautology.from(lastStep, emptySetPartialOrder, emptyRelationTotalOnItself)
+  }
+
+  val lowerPairInInclusionOrderSubset = Lemma(
+    (b ⊆ a, pair(x, y) ∈ inclusionOn(a), x ∈ b, y ∈ b) |- pair(x, y) ∈ inclusionOn(b)
+  ) {
+    assumeAll
+
+    have(x ∈ y) by Tautology.from(inclusionOrderElem of (a -> a, b -> x, c -> y))
+    thenHave(x ∈ y /\ x ∈ b /\ y ∈ b) by Tautology
+    have(thesis) by Tautology.from(inclusionOrderElem of (a -> b, b -> x, c -> y), lastStep)
+  }
+
+  val liftPairInInclusionRelationSubset = Lemma(
+    (b ⊆ a, pair(x, y) ∈ inclusionOn(b)) |- pair(x, y) ∈ inclusionOn(a)
+  ) {
+    assumeAll
+
+    have(x ∈ y /\ x ∈ b /\ y ∈ b) by Tautology.from(inclusionOrderElem of (a -> b, b -> x, c -> y))
+    have(x ∈ y /\ x ∈ a /\ y ∈ a) by Tautology.from(lastStep, elementOfSubset of (y -> b, z -> a), elementOfSubset of (x -> y, y-> b, z -> a))
+    have(thesis) by Tautology.from(inclusionOrderElem of (a -> a, b -> x, c -> y), lastStep)
+  }
+
+  val inclusionOrderTransitivityHoldsForSubsets = Lemma(
+    (b ⊆ a, transitive(inclusionOn(a), a)) |- transitive(inclusionOn(b), b)
+  ) {
+    assumeAll
+
+    val ina = inclusionOn(a)
+    val inb = inclusionOn(b)
+
+    have(in(pair(x, y), inb) /\ in(pair(y, z), inb) |- in(pair(x, z), inb)) subproof {
+      assumeAll
+
+      val pairsInA = have(pair(x, y) ∈ ina /\ pair(y, z) ∈ ina) by Tautology.from(liftPairInInclusionRelationSubset, liftPairInInclusionRelationSubset of (x -> y, y -> z))
+
+      val xzInB = have(x ∈ b /\ z ∈ b) by Tautology.from(inclusionOrderElem of (a -> b, b -> x, c -> y), inclusionOrderElem of (a -> b, b -> y, c -> z))
+
+      // but we know ina is transitive
+      have(transitive(ina, a)) by Restate
+
+      have(forall(x, forall(y, forall(z, (in(pair(x, y), ina) /\ in(pair(y, z), ina)) ==> in(pair(x, z), ina))))) by Tautology.from(transitive.definition of (r -> ina, x -> a), lastStep)
+      thenHave((in(pair(x, y), ina) /\ in(pair(y, z), ina)) ==> in(pair(x, z), ina)) by InstantiateForall(x, y, z)
+
+      have(thesis) by Tautology.from(pairsInA, lastStep, xzInB, lowerPairInInclusionOrderSubset of y -> z)
+
+    }
+
+    thenHave((in(pair(x, y), inb) /\ in(pair(y, z), inb)) ==> in(pair(x, z), inb)) by Restate
+    thenHave(forall(z, (in(pair(x, y), inb) /\ in(pair(y, z), inb)) ==> in(pair(x, z), inb))) by RightForall
+    thenHave(forall(y, forall(z, (in(pair(x, y), inb) /\ in(pair(y, z), inb)) ==> in(pair(x, z), inb)))) by RightForall
+    thenHave(forall(x, forall(y, forall(z, (in(pair(x, y), inb) /\ in(pair(y, z), inb)) ==> in(pair(x, z), inb))))) by RightForall
+    have(thesis) by Tautology.from(lastStep, inclusionIsRelation of (a -> b), transitive.definition of (r -> inb, x -> b))
+  }
+
+  val inclusionOrderTotalityHoldsForSubsets = Lemma(
+    (b ⊆ a, total(inclusionOn(a), a)) |- total(inclusionOn(b), b)
+  ) {
+    assumeAll
+
+    val ina = inclusionOn(a)
+    val inb = inclusionOn(b)
+
+    have(x ∈ b /\ y ∈ b |- (pair(x, y) ∈ inb) \/ (pair(y, x) ∈ inb) \/ (x === y)) subproof {
+      assumeAll
+
+      val xyInA = have(x ∈ a /\ y ∈ a) by Tautology.from(elementOfSubset of (x -> x, y -> b, z -> a), elementOfSubset of (x -> y, y -> b, z -> a))
+
+      // but we know ina is total
+      have(total(ina, a)) by Restate
+
+      have(forall(x, forall(y, (x ∈ a /\ y ∈ a) ==> (pair(x, y) ∈ ina \/ (pair(y, x) ∈ ina) \/ (x === y))))) by Tautology.from(total.definition of (r -> ina, x -> a), lastStep)
+      thenHave((x ∈ a /\ y ∈ a) ==> (pair(x, y) ∈ ina \/ (pair(y, x) ∈ ina) \/ (x === y))) by InstantiateForall(x, y)
+
+      have(thesis) by Tautology.from(lastStep, xyInA, lowerPairInInclusionOrderSubset, lowerPairInInclusionOrderSubset of (y -> x, x -> y))
+    }
+
+    thenHave((x ∈ b /\ y ∈ b) ==> (pair(x, y) ∈ inb) \/ (pair(y, x) ∈ inb) \/ (x === y)) by Restate
+    thenHave(forall(y, (x ∈ b /\ y ∈ b) ==> (pair(x, y) ∈ inb) \/ (pair(y, x) ∈ inb) \/ (x === y))) by RightForall
+    thenHave(forall(x, forall(y, (x ∈ b /\ y ∈ b) ==> (pair(x, y) ∈ inb) \/ (pair(y, x) ∈ inb) \/ (x === y)))) by RightForall
+    have(thesis) by Tautology.from(lastStep, inclusionIsRelation of (a -> b), total.definition of (r -> inb, x -> b))
+  }
+
+  val inclusionPartialOrderOnSubset = Lemma(
+    (partialOrder(inclusionOrderOn(a)), b ⊆ a) |- partialOrder(inclusionOrderOn(b))
+  ) {
+    assumeAll
+
+    val orda = inclusionOrderOn(a)
+    val ordb = inclusionOrderOn(b)
+    val ina = inclusionOn(a)
+    val inb = inclusionOn(b)
+
+    val incDef = have(inclusionOrderOn(x) === pair(x, inclusionOn(x))) by Tautology.from(inclusionOrderOn.definition of (inclusionOrderOn(x), a -> x))
+
+    // we get 2/3 properties for free with the inclusion order
+    val antiSymmetry = have(antiSymmetric(ordb._2, ordb._1)) subproof {
+      have(antiSymmetric(inb, b)) by Weakening(inclusionIsAntiSymmetric of (a -> b))
+      thenHave(antiSymmetric(pair(b, inb)._2, pair(b, inb)._1)) by Substitution.ApplyRules(_1.definition of (x -> b, y -> inb), _2.definition of (x -> b, y -> inb))
+      thenHave(thesis) by Substitution.ApplyRules(incDef of (x -> b))
+    }
+    val irreflexivity = have(irreflexive(ordb._2, ordb._1)) subproof {
+      have(irreflexive(inb, b)) by Weakening(inclusionIsAntiReflexive of (a -> b))
+      thenHave(irreflexive(pair(b, inb)._2, pair(b, inb)._1)) by Substitution.ApplyRules(_1.definition of (x -> b, y -> inb), _2.definition of (x -> b, y -> inb))
+      thenHave(thesis) by Substitution.ApplyRules(incDef of (x -> b))
+    }
+
+    // we need to prove transitivity
+
+    val transitivity = have(transitive(ordb._2, ordb._1)) subproof {
+      // we know ina is transitive
+      have(transitive(ina, a)) subproof {
+        have(transitive(orda._2, orda._1)) by Tautology.from(partialOrder.definition of (p -> orda))
+        thenHave(transitive(pair(a, ina)._2, pair(a, ina)._1)) by Substitution.ApplyRules(incDef of (x -> a))
+        thenHave(transitive(ina, a)) by Substitution.ApplyRules(_1.definition of (x -> a, y -> ina), _2.definition of (x -> a, y -> ina))
+      }
+      // so inb must be too
+      have(transitive(inb, b)) by Tautology.from(inclusionOrderTransitivityHoldsForSubsets, lastStep)
+
+      thenHave(transitive(pair(b, inb)._2, pair(b, inb)._1)) by Substitution.ApplyRules(_1.definition of (x -> b, y -> inb), _2.definition of (x -> b, y -> inb))
+      thenHave(thesis) by Substitution.ApplyRules(incDef of (x -> b))
+    }
+
+    val relational = have(relationBetween(ordb._2, ordb._1, ordb._1)) subproof {
+      have(relationBetween(inb, b, b)) by Weakening(inclusionIsRelation of (a -> b))
+      thenHave(relationBetween(pair(b, inb)._2, pair(b, inb)._1, pair(b, inb)._1)) by Substitution.ApplyRules(_1.definition of (x -> b, y -> inb), _2.definition of (x -> b, y -> inb))
+      thenHave(thesis) by Substitution.ApplyRules(incDef of (x -> b))
+    }
+
+    have(thesis) by Tautology.from(antiSymmetry, irreflexivity, transitivity, relational, partialOrder.definition of (p -> ordb))
+  }
+
+  val inclusionTotalOrderOnSubset = Theorem(
+    (totalOrder(inclusionOrderOn(a)), b ⊆ a) |- totalOrder(inclusionOrderOn(b))
+  ) {
+    assumeAll
+
+    val orda = inclusionOrderOn(a)
+    val ordb = inclusionOrderOn(b)
+
+    val ina = inclusionOn(a)
+    val inb = inclusionOn(b)
+
+    val incDef = have(inclusionOrderOn(x) === pair(x, inclusionOn(x))) by Tautology.from(inclusionOrderOn.definition of (inclusionOrderOn(x), a -> x))
+
+    val partialOrdering = have(partialOrder(ordb)) by Tautology.from(inclusionPartialOrderOnSubset of (a -> a, b -> b), totalOrder.definition of (p -> orda))
+    
+    val totality = have(total(ordb._2, ordb._1)) subproof {
+      // we know ina is total
+      have(total(ina, a)) subproof {
+        have(total(orda._2, orda._1)) by Tautology.from(totalOrder.definition of (p -> orda))
+        thenHave(total(pair(a, ina)._2, pair(a, ina)._1)) by Substitution.ApplyRules(incDef of (x -> a))
+        thenHave(total(ina, a)) by Substitution.ApplyRules(_1.definition of (x -> a, y -> ina), _2.definition of (x -> a, y -> ina))
+      }
+
+      // so inb is total
+      have(total(inb, b)) by Tautology.from(inclusionOrderTotalityHoldsForSubsets, lastStep)
+      thenHave(total(pair(b, inb)._2, pair(b, inb)._1)) by Substitution.ApplyRules(_1.definition of (x -> b, y -> inb), _2.definition of (x -> b, y -> inb))
+      thenHave(total(ordb._2, ordb._1)) by Substitution.ApplyRules(incDef of (x -> b))
+
+    }
+
+    have(thesis) by Tautology.from(partialOrdering, totality, totalOrder.definition of (p -> ordb))
+  }
+
+  val inclusionWellOrderOnSubset = Theorem(
+    (wellOrder(inclusionOrderOn(a)), b ⊆ a) |- wellOrder(inclusionOrderOn(b))
+  ) {
+    assumeAll
+
+    val orda = inclusionOrderOn(a)
+    val ordb = inclusionOrderOn(b)
+
+    val ina = inclusionOn(a)
+    val inb = inclusionOn(b)
+
+    val incDef = have(inclusionOrderOn(x) === pair(x, inclusionOn(x))) by Tautology.from(inclusionOrderOn.definition of (inclusionOrderOn(x), a -> x))
+
+    val totalOrdering = have(totalOrder(ordb)) by Tautology.from(inclusionTotalOrderOnSubset of (a -> a, b -> b), wellOrder.definition of (p -> orda))
+
+    val minElems = have(c ⊆ b /\ !(c === ∅) |- exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ inb \/ (z === y)))) subproof {
+      assumeAll
+
+      have(forall(c, (c ⊆ orda._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ orda._2 \/ (z === y)))))) by Tautology.from(wellOrder.definition of (p -> orda))
+      thenHave(forall(c, (c ⊆ pair(a, ina)._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ pair(a, ina)._2 \/ (z === y)))))) by Substitution.ApplyRules(incDef of (x -> a))
+      thenHave(forall(c, (c ⊆ a /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y)))))) by Substitution.ApplyRules(_1.definition of (x -> a, y -> ina), _2.definition of (x -> a, y -> ina))
+      thenHave((c ⊆ a /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y))))) by InstantiateForall(c)
+      val exz = have(exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y))))) by Tautology.from(lastStep, subsetTransitivity of (a -> c, b -> b, c -> a))
+
+      // reduce (z, y) ∈ ina to (z, y) ∈ inb under quantifiers
+      have((z ∈ c, y ∈ c, pair(z, y) ∈ ina \/ (z === y)) |- (pair(z, y) ∈ inb) \/ (z === y)) subproof {
+        assumeAll
+        have(z ∈ b /\ y ∈ b) by Tautology.from(elementOfSubset of (x -> z, y -> c, z -> b), elementOfSubset of (x -> y, y -> c, z -> b))
+        have(thesis) by Tautology.from(lowerPairInInclusionOrderSubset of (x -> z), lastStep)
+      }
+
+      // quantifiers >:)
+      thenHave((z ∈ c, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y))) |- y ∈ c ==> (pair(z, y) ∈ inb \/ (z === y))) by Tautology
+      thenHave((z ∈ c, forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y)))) |- y ∈ c ==> (pair(z, y) ∈ inb \/ (z === y))) by LeftForall
+      thenHave((z ∈ c, forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y)))) |- forall(y, y ∈ c ==> (pair(z, y) ∈ inb \/ (z === y)))) by RightForall
+      thenHave(z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y))) |- z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ inb \/ (z === y)))) by Tautology
+      thenHave(z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y))) |- exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ inb \/ (z === y))))) by RightExists
+      thenHave(exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y)))) |- exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ inb \/ (z === y))))) by LeftExists
+
+      have(thesis) by Tautology.from(exz, lastStep)
+    }
+
+    have(wellOrder(ordb)) subproof {
+      have((c ⊆ b /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ inb \/ (z === y)))) by Restate.from(minElems)
+      thenHave(forall(c, (c ⊆ b /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ inb \/ (z === y))))) by RightForall
+      thenHave(forall(c, (c ⊆ pair(b, inb)._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ pair(b, inb)._2 \/ (z === y))))) by Substitution.ApplyRules(_1.definition of (x -> b, y -> inb), _2.definition of (x -> b, y -> inb))
+      thenHave(forall(c, (c ⊆ ordb._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ ordb._2 \/ (z === y))))) by Substitution.ApplyRules(incDef of (x -> b))
+
+      have(thesis) by Tautology.from(lastStep, totalOrdering, wellOrder.definition of (p -> ordb))
+    }
   }
 }
