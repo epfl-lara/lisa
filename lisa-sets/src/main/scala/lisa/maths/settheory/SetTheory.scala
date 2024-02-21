@@ -1,6 +1,6 @@
 package lisa.maths.settheory
 
-import lisa.automation.kernel.CommonTactics.Definition
+import lisa.automation.kernel.CommonTactics.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 
@@ -133,7 +133,11 @@ object SetTheory extends lisa.Main {
    * @param x set
    * @param y set
    */
-  def properSubset(x: Term, y: Term) = subset(x, y) /\ !(x === y)
+  val properSubset = DEF (x, y) --> subset(x, y) /\ !(x === y)
+
+  // alias infix operator
+  extension (x: Term) infix def ⊂(y: Term): Formula = properSubset(x, y)
+  val ⊂ = properSubset 
 
   /**
    * Singleton Set --- `{x}`. Shorthand for `{x, x}`.
@@ -398,6 +402,22 @@ object SetTheory extends lisa.Main {
     }
 
     have(thesis) by Tautology.from(fwd, bwd)
+  }
+
+  /**
+    * Theorem --- An element of a subset is also an element of the superset.
+    * 
+    *   `x ∈ y, y ⊆ z ⊢ x ∈ z`
+    * 
+    * Easier to use version of the subset axiom.
+    */
+  val elementOfSubset = Theorem(
+    (x ∈ y, y ⊆ z) ⊢ (x ∈ z)
+  ) {
+    assumeAll
+    have(forall(x, x ∈ y ==> x ∈ z)) by Weakening(subsetAxiom of (x := y, y := z))
+    thenHave(x ∈ y ==> x ∈ z) by InstantiateForall(x)
+    thenHave(thesis) by Weakening
   }
 
   /**
@@ -794,7 +814,7 @@ object SetTheory extends lisa.Main {
    *    `∃ x. P(x) ⊂ x ⊢ ⊥`
    */
   val powerSetNonInclusion = Theorem(
-    exists(x, properSubset(powerSet(x), x)) |- ()
+    exists(x, powerSet(x) ⊂ x) |- ()
   ) {
     val lhs = have(subset(powerSet(x), x) |- subset(powerSet(x), x)) by Hypothesis
 
@@ -808,8 +828,8 @@ object SetTheory extends lisa.Main {
     have(subset(powerSet(x), x) |- !in(powerSet(x), powerSet(x)) /\ in(powerSet(x), powerSet(x))) by RightAnd(contraLhs, contraRhs)
     thenHave(subset(powerSet(x), x) |- ()) by Restate
     thenHave(subset(powerSet(x), x) |- (x === powerSet(x))) by Weakening
-    thenHave(properSubset(powerSet(x), x) |- ()) by Restate
-    thenHave(∃(x, properSubset(powerSet(x), x)) |- ()) by LeftExists
+    have(powerSet(x) ⊂ x |- ()) by Tautology.from(lastStep, ⊂.definition of (x -> powerSet(x), y -> x))
+    thenHave(∃(x, powerSet(x) ⊂ x) |- ()) by LeftExists
   }
 
   val inclusionAntiSymmetric = Theorem(
@@ -1339,6 +1359,12 @@ object SetTheory extends lisa.Main {
     thenHave(forall(z, in(z, secondInPair(pair(x, y))) <=> in(z, y))) by RightForall
     have(thesis) by Tautology.from(lastStep, extensionalityAxiom of x -> secondInPair(pair(x, y)))
   }
+
+  object _1:
+    def definition = firstInPairReduction
+
+  object _2:
+    def definition = secondInPairReduction
 
   /**
    * Theorem --- Pair Reconstruction
