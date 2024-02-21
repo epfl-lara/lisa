@@ -892,20 +892,23 @@ object SetTheory extends lisa.Main {
    */
   val setIntersection = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
 
-  val setIntersectionCommutativity = Theorem(
-    setIntersection(x, y) === setIntersection(y, x)
-  ) {
-    sorry
+  extension (x: Term) {
+    infix def ∩(y: Term) = setIntersection(x, y)
   }
 
   val setIntersectionMembership = Theorem(
-    in(t, setIntersection(x, y)) <=> (in(t, x) /\ in(t, y))
+    t ∈ (x ∩ y) <=> t ∈ x /\ t ∈ y
   ) {
-    sorry
+    have(∀(t, t ∈ (x ∩ y) <=> (t ∈ x /\ t ∈ y))) by InstantiateForall(setIntersection(x, y))(setIntersection.definition)
+    thenHave(t ∈ (x ∩ y) <=> (t ∈ x /\ t ∈ y)) by InstantiateForall(t)
   }
 
-  extension (x: Term) {
-    infix def ∩(y: Term) = setIntersection(x, y)
+  val setIntersectionCommutativity = Theorem(
+    x ∩ y === y ∩ x
+  ) {
+    have(t ∈ (x ∩ y) <=> t ∈ (y ∩ x)) by Tautology.from(setIntersectionMembership of (x -> y, y -> x))
+    thenHave(∀(t, t ∈ (x ∩ y) <=> t ∈ (y ∩ x))) by RightForall
+    have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> x ∩ y, y -> y ∩ x))
   }
 
   val intersectionOfSubsets = Lemma(
