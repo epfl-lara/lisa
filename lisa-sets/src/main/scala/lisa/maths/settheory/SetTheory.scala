@@ -906,9 +906,24 @@ object SetTheory extends lisa.Main {
   val setIntersectionCommutativity = Theorem(
     x ∩ y === y ∩ x
   ) {
-    have(t ∈ (x ∩ y) <=> t ∈ (y ∩ x)) by Tautology.from(setIntersectionMembership of (x -> y, y -> x))
+    have(t ∈ (x ∩ y) <=> t ∈ (y ∩ x)) by Tautology.from(setIntersectionMembership of (x -> y, y -> x), setIntersectionMembership)
     thenHave(∀(t, t ∈ (x ∩ y) <=> t ∈ (y ∩ x))) by RightForall
     have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x -> x ∩ y, y -> y ∩ x))
+  }
+
+  val intersectionSubsetLeft = Theorem(
+    x ∩ y ⊆ x
+  ) {
+    have(t ∈ (x ∩ y) ==> t ∈ x) by Tautology.from(setIntersectionMembership)
+    thenHave(∀(t, t ∈ (x ∩ y) ==> t ∈ x)) by RightForall
+    have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> x ∩ y, y -> x))
+  }
+
+  val intersectionSubsetRight = Theorem(
+    x ∩ y ⊆ y
+  ) {
+    have(y ∩ x ⊆ y) by Restate.from(intersectionSubsetLeft of (x -> y, y -> x))
+    thenHave(thesis) by Substitution.ApplyRules(setIntersectionCommutativity)
   }
 
   val intersectionOfSubsets = Lemma(
@@ -988,6 +1003,27 @@ object SetTheory extends lisa.Main {
    * @param x set
    */
   val intersection = DEF(x) --> The(z, ∀(t, in(t, z) <=> (∃(b, in(b, x)) /\ ∀(b, in(b, x) ==> in(t, b)))))(intersectionUniqueness)
+
+  val intersectionSubsetOfEveryElement = Lemma(
+    x ∈ y ==> intersection(y) ⊆ x
+  ) {
+    val inter = intersection(y)
+    have(in(x, y) |- subset(inter, x)) subproof {
+      assume(in(x, y))
+
+      have(forall(t, in(t, inter) <=> (exists(x, in(x, y)) /\ forall(x, in(x, y) ==> in(t, x))))) by Weakening(intersection.definition of (inter, x -> y))
+      val interDef = thenHave(in(t, inter) <=> (exists(x, in(x, y)) /\ forall(x, in(x, y) ==> in(t, x)))) by InstantiateForall(t)
+
+      thenHave(in(t, inter) |- forall(x, in(x, y) ==> in(t, x))) by Weakening
+      thenHave(in(t, inter) |- in(x, y) ==> in(t, x)) by InstantiateForall(x)
+      thenHave(in(t, inter) ==> in(t, x)) by Restate
+      thenHave(forall(t, in(t, inter) ==> in(t, x))) by RightForall
+
+      have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> inter, y -> x))
+    }
+
+    thenHave(in(x, y) ==> subset(inter, x)) by Restate
+  }
 
   val setDifferenceUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))
