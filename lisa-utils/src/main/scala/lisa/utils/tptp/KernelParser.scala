@@ -4,8 +4,7 @@ import leo.datastructures.TPTP
 import leo.datastructures.TPTP.CNF
 import leo.datastructures.TPTP.FOF
 import leo.modules.input.TPTPParser as Parser
-import lisa.kernel.fol.FOL as K
-import lisa.kernel.proof.SequentCalculus as LK
+import lisa.utils.K
 import lisa.utils.KernelHelpers.*
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
@@ -57,6 +56,10 @@ object KernelParser {
       case FOF.Inequality(left, right) => !K.equality(convertTermToKernel(left), convertTermToKernel(right))
     }
   }
+  
+  def convertToKernel(sequent: FOF.Sequent): K.Sequent = {
+    K.Sequent(sequent.lhs.map(convertToKernel).toSet, sequent.rhs.map(convertToKernel).toSet)
+  }
 
   def convertToKernel(formula: CNF.Formula): K.Formula = {
 
@@ -93,16 +96,22 @@ object KernelParser {
     case FOF.NumberTerm(value) => ???
   }
 
-  /**
-   * @param formula an annotated tptp formula
-   * @return the corresponding LISA formula augmented with name and role.
-   */
-  def annotatedFormulaToKernel(formula: String): AnnotatedFormula = {
+/**
+  * @param formula an annotated tptp statement
+  * @return the corresponding LISA formula augmented with name and role.
+  */
+  def annotatedStatementToKernel(formula:String): AnnotatedStatement = {
     val i = Parser.annotatedFOF(formula)
-    i.formula match {
-      case FOF.Logical(formula) => AnnotatedFormula(i.role, i.name, convertToKernel(formula))
-    }
+    i match
+      case TPTP.FOFAnnotated(name, role, formula, annotations) =>
+        formula match {
+          case FOF.Logical(formula) => AnnotatedFormula(role, name, convertToKernel(formula), annotations)
+          case FOF.Sequent(antecedent, succedent) =>
+            AnnotatedSequent(role, name, K.Sequent(antecedent.map(convertToKernel).toSet, succedent.map(convertToKernel).toSet), annotations)
+        }
+
   }
+
 
   private def problemToKernel(problemFile: File, md: ProblemMetadata): Problem = {
     val file = io.Source.fromFile(problemFile)
@@ -115,11 +124,13 @@ object KernelParser {
     val sq = i.formulas map {
       case TPTP.FOFAnnotated(name, role, formula, annotations) =>
         formula match {
-          case FOF.Logical(formula) => AnnotatedFormula(role, name, convertToKernel(formula))
+          case FOF.Logical(formula) => AnnotatedFormula(role, name, convertToKernel(formula), annotations)
+          case FOF.Sequent(antecedent, succedent) =>
+            AnnotatedSequent(role, name, K.Sequent(antecedent.map(convertToKernel).toSet, succedent.map(convertToKernel).toSet), annotations)
         }
       case TPTP.CNFAnnotated(name, role, formula, annotations) =>
         formula match {
-          case CNF.Logical(formula) => AnnotatedFormula(role, name, convertToKernel(formula))
+          case CNF.Logical(formula) => AnnotatedFormula(role, name, convertToKernel(formula), annotations)
         }
       case _ => throw FileNotAcceptedException("Only FOF formulas are supported", problemFile.getPath)
     }
@@ -149,12 +160,12 @@ object KernelParser {
    * @param problem a problem, containing a list of annotated formulas from a tptp file
    * @return a sequent with axioms of the problem on the left, and the conjecture on the right
    */
-  def problemToSequent(problem: Problem): LK.Sequent = {
-    if (problem.spc.contains("CNF")) problem.formulas.map(_.formula) |- ()
+  def problemToSequent(problem: Problem): K.Sequent = {
+    if (problem.spc.contains("CNF")) problem.formulas.map(_.asInstanceOf[AnnotatedFormula].formula) |- ()
     else
-      problem.formulas.foldLeft[LK.Sequent](() |- ())((s, f) =>
-        if (f._1 == "axiom") s +<< f._3
-        else if (f._1 == "conjecture" && s.right.isEmpty) s +>> f._3
+      problem.formulas.foldLeft[K.Sequent](() |- ())((s, f) =>
+        if (f.role == "axiom") s +<< f.asInstanceOf[AnnotatedFormula].formula
+        else if (f.role == "conjecture" && s.right.isEmpty) s +>> f.asInstanceOf[AnnotatedFormula].formula
         else throw Exception("Can only agglomerate axioms and one conjecture into a sequents")
       )
   }

@@ -1,4 +1,5 @@
 import lisa.automation.Substitution.{ApplyRules as Substitute}
+import lisa.automation.Tableau
 
 object Example extends lisa.Main {
 
@@ -52,6 +53,11 @@ object Example extends lisa.Main {
       powerAxiom of (x := ∅, y := x),
       emptySetIsASubset
     )
+  }
+
+  val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))){
+    have (thesis) by Tableau
+    println(lisa.utils.FOLPrinter.prettySCProof(summon[Proof].toSCProof))
   }
 
   /*
