@@ -143,7 +143,7 @@ object WellOrders extends lisa.Main {
     transitiveSet(a) /\ transitiveSet(b) |- transitiveSet(a ∩ b)
   ) {
     assumeAll
-    
+
     val s = a ∩ b
 
     have(transitiveSet(x) |- forall(z, forall(y, (z ∈ y /\ y ∈ x) ==> in(z, x)))) by Weakening(transitiveSetInclusionDef)

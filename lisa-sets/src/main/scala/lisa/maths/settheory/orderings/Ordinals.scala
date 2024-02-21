@@ -1,12 +1,12 @@
 package lisa.maths.settheory.orderings
 
+import lisa.automation.kernel.CommonTactics.assumeAll
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
 import lisa.maths.settheory.orderings.PartialOrders.*
 import lisa.maths.settheory.orderings.WellOrders.*
-import lisa.automation.kernel.CommonTactics.assumeAll
 
 object Ordinals extends lisa.Main {
 
@@ -407,7 +407,13 @@ object Ordinals extends lisa.Main {
         assume(in(pair(x, y), incRel), in(pair(y, z), incRel))
 
         val ord = have(in(a, s) ==> ordinal(a)) by InstantiateForall
-        val ordxyz = have(ordinal(x) /\ ordinal(y) /\ ordinal(z)) by Tautology.from(ord of a -> x, ord of a -> y, ord of a -> z, inclusionOrderElem of (b -> x, c -> y, a -> s), inclusionOrderElem of (b -> y, c -> z, a -> s))
+        val ordxyz = have(ordinal(x) /\ ordinal(y) /\ ordinal(z)) by Tautology.from(
+          ord of a -> x,
+          ord of a -> y,
+          ord of a -> z,
+          inclusionOrderElem of (b -> x, c -> y, a -> s),
+          inclusionOrderElem of (b -> y, c -> z, a -> s)
+        )
 
         have(in(x, y) /\ in(y, z) /\ in(z, s) /\ in(x, s)) by Tautology.from(inclusionOrderElem of (b -> y, c -> z, a -> s), inclusionOrderElem of (b -> x, c -> y, a -> s))
         have(in(x, z) /\ in(z, s) /\ in(x, s)) by Tautology.from(ordinalInclusionTransitive, lastStep, ordxyz)
