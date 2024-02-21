@@ -271,9 +271,8 @@ object CommonTactics {
         case F.AppliedConnector(F.And, fs) => fs.flatMap(deconstruct)
         case _ => Seq(f)
 
-    val goal = proof.possibleGoal.get
-    val assumptions = goal.left.flatMap(deconstruct).toSeq
+    val lhs = proof.possibleGoal.get.left.toSeq
+    val assumptions = lhs.flatMap(deconstruct).toSeq diff proof.getAssumptions
 
     lib.assume(using proof)(assumptions: _*)
-
 }
