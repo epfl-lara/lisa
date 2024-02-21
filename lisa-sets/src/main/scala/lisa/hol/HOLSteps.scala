@@ -28,13 +28,13 @@ object HOLSteps extends lisa.HOL {
 
   val A = variable
   val x = typedvar(A)
-  val eqRefl = Axiom(F.forall(A, tforall(x, x.=:=(A)(x) === One)))
+  val eqRefl = Axiom(F.forall(A, tforall(x, (x =:= x) === One)))
 
 
   object REFL extends ProofTactic {
 
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
-      have(t.=:=(computeType(t))(t)) by Tautology.from(eqRefl)
+      have(t =:= t) by Tautology.from(eqRefl)
     }
   }
 }

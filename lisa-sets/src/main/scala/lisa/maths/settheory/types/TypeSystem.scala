@@ -246,7 +246,12 @@ object TypeSystem  {
     
     override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): AppliedFunction = this
 
-    override def toString(): String = func.toStringSeparated() + "*(" + arg.toStringSeparated() + ")"
+    override def toString(): String = 
+      func match
+        case AppliedFunction(af @ AppliedFunctional(label, args), t1) if label.id.name == "=:=" => 
+          s"(${t1.toStringSeparated()} =:=_${args.head.toStringSeparated()} ${arg.toStringSeparated()})"
+        case _ =>
+          func.toStringSeparated() + "*(" + arg.toStringSeparated() + ")"
     override def toStringSeparated(): String = toString()
   }
   object AppliedFunction {
@@ -312,7 +317,7 @@ object TypeSystem  {
   /////////////////////////
 
   object TypeChecker extends ProofTactic {
-    val x = variable
+    private val x = variable
 
     class TypingException(val msg: String) extends Exception(msg)
 
@@ -407,51 +412,70 @@ object TypeSystem  {
                     throw TypingException("Function " + func + " expected to have function type ? |=> " + typ + ", but has type " + funcType + ". Note that terms having multiple different types is only partialy supported.")
 
               case AppliedFunctional(label, args) => 
-                val (argTypes, argTypesProofs) = args.map(arg => (innerTypecheck(context2, arg, None), lastStep)).unzip
-                functionalTypingAssumptions.get(label) match // TODO handle TypedConstantFunctional
-                  case None => 
-                    throw TypingException("Function " + label + " expected to have type (" + argTypes.mkString(", ") + ") |=> ? but is untyped.")
-                  case Some(labelTypes) =>
-                    typ match
-                      case None => 
-                        val labelType = labelTypes.find(labelType =>
-                          labelType.arity == args.size && 
-                          (args zip argTypes).zip(labelType.in.toSeq).forall((argAndTypes, inType) => 
-                            K.isSame((argAndTypes._1 is inType).asFormula.underlying, (argAndTypes._1 is argAndTypes._2).asFormula.underlying) // || inType == any
-                          )
+                val (argTypes, argTypesProofs) = args.map(arg => 
+                  try (innerTypecheck(context2, arg, None), lastStep)
+                  catch 
+                    case e: TypingException => (any, any.definition of (x := arg)) //if no type could be constructed the normal way, we give it "any"
+                ).unzip
+                val labelTypes = label match
+                  case label: TypedConstantFunctional[?] => 
+                    (label.typ, () => label.justif) +: 
+                      functionalTypingAssumptions.getOrElse(label, Nil).map(fc => (fc, () => (have( fc.formula(label.asInstanceOf) ) by Restate) ))
+                      
+                  case _ => functionalTypingAssumptions.getOrElse(label, Nil).map(fc => (fc, () => have( fc.formula(label.asInstanceOf) ) by Restate ))
+                  functionalTypingAssumptions.get(label)
+                if labelTypes.isEmpty then
+                  throw TypingException("Function " + label + " expected to have type (" + argTypes.mkString(", ") + ") |=> ? but is untyped.")
+                else
+                  typ match
+                    case None => 
+                      labelTypes.find((labelType, step) =>
+                        labelType.arity == args.size && 
+                        (args zip argTypes).zip(labelType.in.toSeq).forall((argAndTypes, inType) => 
+                          K.isSame((argAndTypes._1 is inType).asFormula.underlying, (argAndTypes._1 is argAndTypes._2).asFormula.underlying) //
                         )
-                        if labelType.isEmpty then
+                      ) match 
+                        case None =>
                           throw TypingException("Function " + label + " expected to have type (" + argTypes.mkString(", ") + ") |=> ? but is assigned " + labelTypes.mkString(" & ") + ". Note that terms having multiple different types is only partialy supported.")
-                        else 
-                          val out: Class = labelType.get.out
+                        case Some(labelType, step) =>
+                          val out: Class = labelType.out
                           
-                          val in: Seq[Class] = labelType.get.in.toSeq
-                          val labelProp = labelType.get.formula(label.asInstanceOf)
-                          val labelPropStatement = have( labelProp ) by Restate
+                          val in: Seq[Class] = labelType.in.toSeq
+                          //val labelProp = labelType.formula(label.asInstanceOf)
+                          val labelPropStatement = step()
+                          Thread.sleep(5)
                           val labInst = labelPropStatement.of(args: _*)
-                          val subst = (labelType.get.args zip args).map((v, a) => (v := a))
-                          val typingJudgement = term is (out match {
+                          val subst = (labelType.args zip args).map((v, a) => (v := a))
+                          val newOut: Class = out match {
                             case t: Term => t.substitute(subst: _*)
                             case f: (Term**1 |-> Formula) @unchecked => f.substitute(subst: _*)
-                          })
-                          have(typingJudgement) by Tautology.from(
+                          }
+                          have(term is newOut) by Tautology.from(
                             (argTypesProofs :+ labInst ) : _*
                           )
-                          out
-                      case Some(typValue) => val labelType = labelTypes.find(labelType =>
-                          labelType.arity == args.size && 
-                          (args zip argTypes).zip(labelType.in.toSeq).forall((argAndTypes, inType) => 
-                            K.isSame((argAndTypes._1 is inType).asFormula.underlying, (argAndTypes._1 is argAndTypes._2).asFormula.underlying)
-                          ) &&
-                          K.isSame((term is labelType.out).asFormula.underlying, (term is typValue).asFormula.underlying)
-                        )
-                        if labelType.isEmpty then
+                          newOut
+                    case Some(typValue) => 
+                      labelTypes.find((labelType, step) =>
+                        labelType.arity == args.size && 
+                        (args zip argTypes).zip(labelType.in.toSeq).forall((argAndTypes, inType) => 
+                          K.isSame((argAndTypes._1 is inType).asFormula.underlying, (argAndTypes._1 is argAndTypes._2).asFormula.underlying)
+                        ) && {
+                          val subst = (labelType.args zip args).map((v, a) => (v := a))
+                          val newOut: Class = labelType.out match {
+                            case t: Term => t.substitute(subst: _*)
+                            case f: (Term**1 |-> Formula) @unchecked => f.substitute(subst: _*)
+                          }
+                          K.isSame((term is newOut).asFormula.underlying, (term is typValue).asFormula.underlying)
+                          
+                        }
+                      ) match
+                        case None =>
                           throw TypingException("Function " + label + " expected to have type (" + argTypes.mkString(", ") + ") |=> " + typValue + " but is assigned " + labelTypes.mkString(" & ") + ". Note that terms having multiple different types is only partialy supported.")
-                        else 
-                          val out: Class = labelType.get.out
-                          val in: Seq[Class] = labelType.get.in.toSeq
-                          val labelProp = labelType.get.formula(label.asInstanceOf)
-                          val labelPropStatement = have( labelProp ) by Restate
+                        case Some(labelType, step) =>
+                          val out: Class = labelType.out
+                          val in: Seq[Class] = labelType.in.toSeq
+                          //val labelProp = labelType.formula(label.asInstanceOf)
+                          val labelPropStatement = step()
                           have(term is typValue) by Tautology.from(
                             (argTypesProofs :+ labelPropStatement.of(args: _*) ) : _*
                           )
@@ -466,6 +490,9 @@ object TypeSystem  {
                 if possibleTypes.isEmpty then 
                   throw TypingException("Constant " + c + " expected to be of type " + typ + " but is untyped.")
                 else throw TypingException("Constant " + c + " expected to be of type " + typ + " but is assigned " + possibleTypes.mkString(" & ") + ".")
+
+              case _: AppliedFunctional => 
+                throw Exception("Why is this not handled by the previous case? Scala reports an incomplete match")
 
           }
           innerTypecheck(typingAssumptions, term, typ)
