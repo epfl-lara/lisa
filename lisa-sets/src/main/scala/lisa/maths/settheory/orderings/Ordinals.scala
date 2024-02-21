@@ -361,15 +361,22 @@ object Ordinals extends lisa.Main {
 
     // we need inc to be a relation, antiReflexive, transitive, and antiSymmetric
     val relational = have(relationBetween(inc._2, inc._1, inc._1)) subproof {
-      have(relationBetween(pair(s, incRel)._2, pair(s, incRel)._1, pair(s, incRel)._1)) by Substitution.ApplyRules(firstInPairReduction of (x -> incRel, y -> s), secondInPairReduction of (x -> incRel, y -> s))(inclusionIsRelation of a -> s)
+      have(relationBetween(pair(s, incRel)._2, pair(s, incRel)._1, pair(s, incRel)._1)) by Substitution.ApplyRules(
+        firstInPairReduction of (x -> incRel, y -> s),
+        secondInPairReduction of (x -> incRel, y -> s)
+      )(inclusionIsRelation of a -> s)
       thenHave(thesis) by Substitution.ApplyRules(inclusionOrderOn.definition of a -> s)
     }
     val antiReflexivity = have(antiReflexive(inc._2, inc._1)) subproof {
-      have(antiReflexive(pair(s, incRel)._2, pair(s, incRel)._1)) by Substitution.ApplyRules(firstInPairReduction of (x -> incRel, y -> s), secondInPairReduction of (x -> incRel, y -> s))(inclusionIsAntiReflexive of a -> s)
+      have(antiReflexive(pair(s, incRel)._2, pair(s, incRel)._1)) by Substitution.ApplyRules(firstInPairReduction of (x -> incRel, y -> s), secondInPairReduction of (x -> incRel, y -> s))(
+        inclusionIsAntiReflexive of a -> s
+      )
       thenHave(thesis) by Substitution.ApplyRules(inclusionOrderOn.definition of a -> s)
     }
     val antiSymmetry = have(antiSymmetric(inc._2, inc._1)) subproof {
-      have(antiSymmetric(pair(s, incRel)._2, pair(s, incRel)._1)) by Substitution.ApplyRules(firstInPairReduction of (x -> incRel, y -> s), secondInPairReduction of (x -> incRel, y -> s))(inclusionIsAntiSymmetric of a -> s)
+      have(antiSymmetric(pair(s, incRel)._2, pair(s, incRel)._1)) by Substitution.ApplyRules(firstInPairReduction of (x -> incRel, y -> s), secondInPairReduction of (x -> incRel, y -> s))(
+        inclusionIsAntiSymmetric of a -> s
+      )
       thenHave(thesis) by Substitution.ApplyRules(inclusionOrderOn.definition of a -> s)
     }
     val transitivity = have(transitive(inc._1, inc._2)) subproof {
@@ -452,7 +459,7 @@ object Ordinals extends lisa.Main {
 
     val inc = inclusionOrderOn(s)
     val incRel = inclusionOn(s)
-  
+
     sorry
   }
 

@@ -133,11 +133,11 @@ object SetTheory extends lisa.Main {
    * @param x set
    * @param y set
    */
-  val properSubset = DEF (x, y) --> subset(x, y) /\ !(x === y)
+  val properSubset = DEF(x, y) --> subset(x, y) /\ !(x === y)
 
   // alias infix operator
   extension (x: Term) infix def ⊂(y: Term): Formula = properSubset(x, y)
-  val ⊂ = properSubset 
+  val ⊂ = properSubset
 
   /**
    * Singleton Set --- `{x}`. Shorthand for `{x, x}`.
@@ -405,12 +405,12 @@ object SetTheory extends lisa.Main {
   }
 
   /**
-    * Theorem --- An element of a subset is also an element of the superset.
-    * 
-    *   `x ∈ y, y ⊆ z ⊢ x ∈ z`
-    * 
-    * Easier to use version of the subset axiom.
-    */
+   * Theorem --- An element of a subset is also an element of the superset.
+   *
+   *   `x ∈ y, y ⊆ z ⊢ x ∈ z`
+   *
+   * Easier to use version of the subset axiom.
+   */
   val elementOfSubset = Theorem(
     (x ∈ y, y ⊆ z) ⊢ (x ∈ z)
   ) {

@@ -1,11 +1,11 @@
 package lisa.maths.settheory.orderings
 
+import lisa.automation.kernel.CommonTactics.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.orderings.InclusionOrders.*
 import lisa.maths.settheory.orderings.PartialOrders.*
-import lisa.automation.kernel.CommonTactics.*
 
 object WellOrders extends lisa.Main {
 

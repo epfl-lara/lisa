@@ -1,9 +1,9 @@
 package lisa.maths.settheory.orderings
 
+import lisa.automation.kernel.CommonTactics.*
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
-import lisa.automation.kernel.CommonTactics.*
 
 import PartialOrders.*
 import WellOrders.*
@@ -106,10 +106,10 @@ object InclusionOrders extends lisa.Main {
   }
 
   /**
-    * Theorem --- the inclusion order on the any set is anti-reflexive.
-    * 
-    * `∀x ∈ a, (x, x) ∉ ∈_a`
-    */
+   * Theorem --- the inclusion order on the any set is anti-reflexive.
+   *
+   * `∀x ∈ a, (x, x) ∉ ∈_a`
+   */
   val inclusionIsAntiReflexive = Theorem(
     antiReflexive(inclusionOn(a), a)
   ) {
@@ -127,10 +127,10 @@ object InclusionOrders extends lisa.Main {
   }
 
   /**
-    * Theorem --- the inclusion order on any set is anti-symmetric.
-    * 
-    * `∀x, y ∈ a, (x, y) ∈ ∈_a ∧ (y, x) ∈ ∈_a ⇒ x = y`
-    */
+   * Theorem --- the inclusion order on any set is anti-symmetric.
+   *
+   * `∀x, y ∈ a, (x, y) ∈ ∈_a ∧ (y, x) ∈ ∈_a ⇒ x = y`
+   */
   val inclusionIsAntiSymmetric = Theorem(
     antiSymmetric(inclusionOn(a), a)
   ) {
@@ -145,11 +145,11 @@ object InclusionOrders extends lisa.Main {
       have(bot) by Tautology.from(yz, zy, inclusionAntiSymmetric of (x -> z))
       thenHave(thesis) by Weakening
     }
-    
+
     thenHave((in(pair(y, z), rel) /\ in(pair(z, y), rel)) ==> (y === z)) by Weakening
     thenHave(forall(z, (in(pair(y, z), rel) /\ in(pair(z, y), rel)) ==> (y === z))) by RightForall
     val quant = thenHave(forall(y, forall(z, (in(pair(y, z), rel) /\ in(pair(z, y), rel)) ==> (y === z)))) by RightForall
-    
+
     have(thesis) by Tautology.from(quant, inclusionIsRelation, antiSymmetric.definition of (r -> rel, x -> a))
   }
 
@@ -262,7 +262,7 @@ object InclusionOrders extends lisa.Main {
     assumeAll
 
     have(x ∈ y /\ x ∈ b /\ y ∈ b) by Tautology.from(inclusionOrderElem of (a -> b, b -> x, c -> y))
-    have(x ∈ y /\ x ∈ a /\ y ∈ a) by Tautology.from(lastStep, elementOfSubset of (y -> b, z -> a), elementOfSubset of (x -> y, y-> b, z -> a))
+    have(x ∈ y /\ x ∈ a /\ y ∈ a) by Tautology.from(lastStep, elementOfSubset of (y -> b, z -> a), elementOfSubset of (x -> y, y -> b, z -> a))
     have(thesis) by Tautology.from(inclusionOrderElem of (a -> a, b -> x, c -> y), lastStep)
   }
 
@@ -389,7 +389,7 @@ object InclusionOrders extends lisa.Main {
     val incDef = have(inclusionOrderOn(x) === pair(x, inclusionOn(x))) by Tautology.from(inclusionOrderOn.definition of (inclusionOrderOn(x), a -> x))
 
     val partialOrdering = have(partialOrder(ordb)) by Tautology.from(inclusionPartialOrderOnSubset of (a -> a, b -> b), totalOrder.definition of (p -> orda))
-    
+
     val totality = have(total(ordb._2, ordb._1)) subproof {
       // we know ina is total
       have(total(ina, a)) subproof {
@@ -428,7 +428,10 @@ object InclusionOrders extends lisa.Main {
 
       have(forall(c, (c ⊆ orda._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ orda._2 \/ (z === y)))))) by Tautology.from(wellOrder.definition of (p -> orda))
       thenHave(forall(c, (c ⊆ pair(a, ina)._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ pair(a, ina)._2 \/ (z === y)))))) by Substitution.ApplyRules(incDef of (x -> a))
-      thenHave(forall(c, (c ⊆ a /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y)))))) by Substitution.ApplyRules(_1.definition of (x -> a, y -> ina), _2.definition of (x -> a, y -> ina))
+      thenHave(forall(c, (c ⊆ a /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y)))))) by Substitution.ApplyRules(
+        _1.definition of (x -> a, y -> ina),
+        _2.definition of (x -> a, y -> ina)
+      )
       thenHave((c ⊆ a /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y))))) by InstantiateForall(c)
       val exz = have(exists(z, z ∈ c /\ forall(y, y ∈ c ==> (pair(z, y) ∈ ina \/ (z === y))))) by Tautology.from(lastStep, subsetTransitivity of (a -> c, b -> b, c -> a))
 
@@ -453,7 +456,10 @@ object InclusionOrders extends lisa.Main {
     have(wellOrder(ordb)) subproof {
       have((c ⊆ b /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ inb \/ (z === y)))) by Restate.from(minElems)
       thenHave(forall(c, (c ⊆ b /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ inb \/ (z === y))))) by RightForall
-      thenHave(forall(c, (c ⊆ pair(b, inb)._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ pair(b, inb)._2 \/ (z === y))))) by Substitution.ApplyRules(_1.definition of (x -> b, y -> inb), _2.definition of (x -> b, y -> inb))
+      thenHave(forall(c, (c ⊆ pair(b, inb)._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ pair(b, inb)._2 \/ (z === y))))) by Substitution.ApplyRules(
+        _1.definition of (x -> b, y -> inb),
+        _2.definition of (x -> b, y -> inb)
+      )
       thenHave(forall(c, (c ⊆ ordb._1 /\ !(c === ∅)) ==> exists(z, z ∈ c /\ forall(y, y ∈ c ==> pair(z, y) ∈ ordb._2 \/ (z === y))))) by Substitution.ApplyRules(incDef of (x -> b))
 
       have(thesis) by Tautology.from(lastStep, totalOrdering, wellOrder.definition of (p -> ordb))
