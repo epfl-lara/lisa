@@ -261,4 +261,18 @@ object CommonTactics {
     }
   }
 
+  /**
+   * Assume every formula on the LHS of the goal sequent, deconstructing
+   * conjunctions.
+   */
+  def assumeAll(using lib: Library, proof: lib.Proof) =
+    def deconstruct(f: F.Formula): Seq[F.Formula] =
+      f match
+        case F.AppliedConnector(F.And, fs) => fs.flatMap(deconstruct)
+        case _ => Seq(f)
+
+    val lhs = proof.possibleGoal.get.left.toSeq
+    val assumptions = lhs.flatMap(deconstruct).toSeq diff proof.getAssumptions
+
+    lib.assume(using proof)(assumptions: _*)
 }

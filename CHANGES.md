@@ -1,5 +1,10 @@
 # Change List
 
+## 2024-02-20
+Added extension for notations `._1` and `._2` for `firstInPair(_)` and `secondInPair(_)`.
+
+Added `assumeAll` keyword to deconstruct the LHS of the goal and assume all discovered formulas.
+
 ## 2024-02-05
 The "draft()" option can now be used at the start of a file to skip checking proofs of theorem outside this file during development.
 
