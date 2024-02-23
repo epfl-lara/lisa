@@ -117,7 +117,7 @@ object VarsAndFunctions {
     val freeVars: Seq[TypedVar]
     val defin: AbstractionDefinition
 
-    override def toString = s"λ_${repr.id.no}($bound, $body)"
+    override def toString = s"${repr.id}($bound, $body)"
   }
 
   private class AbstractionClosureWithoutFreeVars(
@@ -138,7 +138,7 @@ object VarsAndFunctions {
     val body: Term,
     val freeVars: Seq[TypedVar],
     val defin: AbstractionDefinition
-  ) extends AppliedFunction(freeVars.tail.foldRight(repr: Term)((acc, v) => app(acc, v)), freeVars.head) with Abstraction {
+  ) extends AppliedFunction(freeVars.tail.foldLeft(repr: Term)((acc, v) => AppliedFunction(acc, v)), freeVars.head) with Abstraction {
     //override def toString = s"(λ$bound. $body)"
   }
 
@@ -151,13 +151,11 @@ object VarsAndFunctions {
         case _ => throw new IllegalArgumentException("Abstraction body must not contain free untyped variables.")
       }
       val inner = tforall(bound, 
-        app(
-          freeVars.foldRight[Term](repr) { (acc, v) => 
-            app(acc, v)
-          },
-        bound) === body
+          (freeVars.foldLeft[Term](repr) { (acc, v) => 
+            acc*v
+          } * bound) === body
         )
-      val bodyProp = freeVars.foldRight[Formula](inner) { (v, acc) => 
+      val bodyProp = freeVars.foldLeft[Formula](inner) { (acc, v) => 
         tforall(v, acc)
       }
       val outType = computeType(body)
@@ -175,22 +173,29 @@ object VarsAndFunctions {
     val freeVars: Seq[TypedVar],
     val outType: Type,
     val bodyProp: Formula
-  ) extends AppliedConnector(And, Seq(reprVar is freeVars.foldRight(bound.typ |=> outType)((v, acc) => v.typ |=> acc), bodyProp)) {
-    val typ = freeVars.foldRight(bound.typ |=> outType)((v, acc) => v.typ |=> acc)
+  ) extends AppliedConnector(And, Seq(reprVar is freeVars.foldLeft(bound.typ |=> outType)((acc, v) => v.typ |=> acc), bodyProp)) {
+    val typ = freeVars.foldLeft(bound.typ |=> outType)((acc, v) => v.typ |=> acc)
   }
 
+  var i: Int = 0
 
   def computeType(t:Term): Type = 
+    val r = {
+    Thread.sleep(10)
     t match
-      case t: TypedVar => t.typ
-      case t: TypedConstant[?] => t.typ match
-        case t: Term => t
-        case _ => throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
-      case t: AppliedFunction => computeType(t.func) match
-        case inType |=> outType => 
-          if computeType(t.arg) == inType then outType
-          else throw new IllegalArgumentException("Argument " + t.arg + " of function " + t.func + " has type " + computeType(t.arg) + " instead of expected " + inType + ".")
-        case funcType => throw new IllegalArgumentException("Function " + t.func + " expected to have function type A |=> B, but has type " + funcType + ". ")
+      case t: TypedVar => 
+        t.typ
+      case t: TypedConstant[?] => 
+        t.typ match
+          case t: Term => t
+          case _ => throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
+      case t: AppliedFunction => 
+        val funcType = computeType(t.func)
+        funcType match
+          case inType |=> outType => 
+            if computeType(t.arg) == inType then outType
+            else throw new IllegalArgumentException("Argument " + t.arg + " of function " + t.func + " has type " + computeType(t.arg) + " instead of expected " + inType + ".")
+          case funcType => throw new IllegalArgumentException("Function " + t.func + " expected to have function type A |=> B, but has type " + funcType + ". ")
       case AppliedFunctional(label, args) => 
         label match
           case label: TypedConstantFunctional[?] => 
@@ -214,9 +219,12 @@ object VarsAndFunctions {
                 computeType
               )
               throw new IllegalArgumentException("Function " + label + " has type " + labelType + " but was applied to arguments " + args + " of types " + argsTypes + ".")
-          case _ => throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
+          case _ => 
+            throw new IllegalArgumentException("computeTypes only support subterms typed by terms, not untyped or typed by classes.")
       case _ => 
         throw new IllegalArgumentException("computeTypes only support fully typed terms. " + t + " is not fully typed.")
+      }
+      r
 
 
 

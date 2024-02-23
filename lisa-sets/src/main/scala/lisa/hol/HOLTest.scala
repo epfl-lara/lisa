@@ -6,7 +6,7 @@ object HOLTest extends lisa.HOL{
     val y = typedvar(𝔹)
     val f = typedvar(𝔹 |=> 𝔹)
     val g = typedvar(𝔹 |=> (𝔹 |=> 𝔹))
-
+    val h = typedvar((𝔹 |=> 𝔹) |=> 𝔹)
 
     output("------Expression 1------")
     val expr1 = g*(x)*(f*(y))
@@ -39,6 +39,12 @@ object HOLTest extends lisa.HOL{
 
     val typecheckTest4 = TypingTheorem(expr4 :: 𝔹 )
 
+    output("------Expression 5------")
+    val expr5 = λ(h,  λ(f, f*(x)) =:= h)
+    output("expr5: " + expr5)
+    output("expr5 type: " + computeType(expr5))
+
+    val typecheckTest5 = TypingTheorem(expr5 :: (((𝔹 |=> 𝔹) |=> 𝔹) |=> 𝔹) )
 
 
 }

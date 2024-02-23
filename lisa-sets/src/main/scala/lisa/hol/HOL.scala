@@ -26,16 +26,16 @@ trait HOL extends BasicMain {
     TypedConstantFunctional[1]("=:=", 1, FunctionalClass(Seq(any), Seq(A), (A |=> (A |=> 𝔹)), 1), typing_of_eq)
   }
 
-  val eq : TypedConstantFunctional[1] = =:=
+  val holeq : TypedConstantFunctional[1] = =:=
 
   extension (t1:Term) {
     def =:=(t2:Term): Term = 
       val A = computeType(t1)
       if (A == computeType(t2)) 
-        eq.applySeq(Seq(A))*(t1)*(t2) 
+        holeq.applySeq(Seq(A))*(t1)*(t2) 
       else 
         throw new TypingException("in expression " + t1 + " =:= " + t2 + " the types " + A + "of left-hand side and " + computeType(t2) + " of right-hand side do not match.")
-    def equalityOfType(A:Term) (t2:Term): Term = eq.applySeq(Seq(A))*(t1)*(t2) //compute A with computeType, possibly.
+    def equalityOfType(A:Term) (t2:Term): Term = holeq.applySeq(Seq(A))*(t1)*(t2) //compute A with computeType, possibly.
   }
 
 
