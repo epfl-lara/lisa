@@ -31,7 +31,11 @@ object KernelParser {
    */
   def convertToKernel(formula: FOF.Formula): K.Formula = {
     formula match {
-      case FOF.AtomicFormula(f, args) => K.AtomicFormula(K.ConstantAtomicLabel(f, args.size), args map convertTermToKernel)
+      case FOF.AtomicFormula(f, args) => 
+        if f == "$true" then K.top
+        else if f == "$false" then K.bot
+        else K.AtomicFormula(K.ConstantAtomicLabel(f, args.size), args map convertTermToKernel)
+        K.AtomicFormula(K.ConstantAtomicLabel(f, args.size), args map convertTermToKernel)
       case FOF.QuantifiedFormula(quantifier, variableList, body) =>
         quantifier match {
           case FOF.! => variableList.foldRight(convertToKernel(body))((s, f) => K.Forall(K.VariableLabel(s), f))
