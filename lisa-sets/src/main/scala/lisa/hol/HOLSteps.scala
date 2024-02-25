@@ -38,6 +38,8 @@ object HOLSteps extends lisa.HOL {
   val x = typedvar(A)
   val y = typedvar(A)
   val z = typedvar(A) 
+
+  val eqCorrect = Theorem(((x::A), (y::A)) |- ((x =:= y)===One) <=> (x===y)) {sorry}
   val eqRefl = Theorem((x =:= x)) {sorry}
 
   val eqTrans = Theorem( ((x =:= y),  (y =:= z))  |- (x =:= z) )  {sorry}
