@@ -46,5 +46,4 @@ object HOLTest extends lisa.HOL{
 
     val typecheckTest5 = TypingTheorem(expr5 :: (((𝔹 |=> 𝔹) |=> 𝔹) |=> 𝔹) )
 
-
 }

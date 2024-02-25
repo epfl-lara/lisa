@@ -2,6 +2,7 @@
 package lisa.hol
 import lisa.maths.settheory.types.TypeSystem.*
 import lisa.maths.settheory.types.TypeLib.*
+import TypeChecker.*
 import lisa.maths.settheory.SetTheory.{pair, ∅}
 
 import lisa.fol.FOL as F
@@ -19,9 +20,9 @@ object VarsAndFunctions {
 
   type Type = Term
 
-  private def HOLSeqToFOLSeq(left: Set[Term], right: Term): (Set[VarTypeAssignment], Set[Formula]) = {
+  private def HOLSeqToFOLSeq(left: Set[Term], right: Term): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = {
     val frees = left.flatMap(_.freeVariables) ++ right.freeVariables
-    val (r1, r2) = frees.foldLeft((List.empty[VarTypeAssignment], List.empty[Formula])) {
+    val (r1, r2) = frees.foldLeft((List.empty[VarTypeAssignment], List.empty[AbstractionDefinition])) {
       case ((acc1, acc2), a: AbstrVar) => 
         (acc1, a.defin :: acc2)
       case ((acc1, acc2), v: TypedVar) => 
@@ -37,10 +38,69 @@ object VarsAndFunctions {
   class HOLSequent(
     val premises: Set[Term],
     val conclusion: Term,
-    varTypes: Set[VarTypeAssignment],
-    abstrs: Set[Formula]
+    val varTypes: Set[VarTypeAssignment],
+    val abstrs: Set[AbstractionDefinition]
     ) extends F.Sequent(premises.map(_ === One) ++ varTypes ++ abstrs, Set(conclusion === One)) {
+
+      infix def +<<(t: Term): HOLSequent = HOLSequent(this.premises + t, conclusion)
+      infix def -<<(t: Term): HOLSequent = HOLSequent(this.premises - t, conclusion)
+
+      override infix def +<<(f: Formula): F.Sequent = 
+        f match 
+          case ===(t, One) => +<<(t)
+          case ===(One, t) => +<<(t)
+          case _ => super.+<<(f)
+      override infix def -<<(f: Formula): F.Sequent = 
+        f match 
+          case ===(t, One) => -<<(t)
+          case ===(One, t) => -<<(t)
+          case _ => super.-<<(f)
+
+      infix def ++<<(s1: HOLSequent): HOLSequent = HOLSequent(this.premises ++ s1.premises, conclusion)
+      infix def --<<(s1: HOLSequent): HOLSequent = HOLSequent(this.premises -- s1.premises, conclusion)
+
+      override infix def ++<<(s1: F.Sequent): F.Sequent = 
+        s1 match 
+          case s1: HOLSequent => ++<<(s1)
+          case s1: F.Sequent => super.++<<(s1)
+      override infix def --<<(s1: F.Sequent): F.Sequent = 
+        s1 match 
+          case s1: HOLSequent => --<<(s1)
+          case s1: F.Sequent => super.--<<(s1)
+
+  }
+
+  import F.{given}
+
+  val =:= : TypedConstantFunctional[1] ={
+    val =:= =  F.ConstantFunctionLabel.infix("=:=", 1)
+    addSymbol(=:=)
+    val typing_of_eq = Axiom(F.forall(A, =:=(A) :: (A |=> (A |=> 𝔹))))
+    TypedConstantFunctional[1]("=:=", 1, FunctionalClass(Seq(any), Seq(A), (A |=> (A |=> 𝔹)), 1), typing_of_eq)
+  }
+
+  val holeq : TypedConstantFunctional[1] = =:=
+
+  object eqOne {
+    def unapply(f: Formula): Option[Term] = f match {
+      case ===(t, One) => Some(t)
+      case ===(One, t) => Some(t)
+      case _ => None
+    }
     
+      def apply(t: Term): Formula = t === One
+  }
+
+  given Conversion[Term, F.Formula] = t => eqOne(t)
+
+  extension (t1:Term) {
+    def =:=(t2:Term): Term = 
+      val A = computeType(t1)
+      if (A == computeType(t2)) 
+        holeq.applySeq(Seq(A))*(t1)*(t2) 
+      else 
+        throw new TypingException("in expression " + t1 + " =:= " + t2 + " the types " + A + "of left-hand side and " + computeType(t2) + " of right-hand side do not match.")
+    def equalityOfType(A:Term) (t2:Term): Term = holeq.applySeq(Seq(A))*(t1)*(t2) //compute A with computeType, possibly.
   }
 
   object HOLSequent {
@@ -48,6 +108,43 @@ object VarsAndFunctions {
       val (valTypes, abstr) = HOLSeqToFOLSeq(premises, conclusion)
       new HOLSequent(premises, conclusion, valTypes, abstr)
     }
+
+    def toHOLSequent(s: F.Sequent): HOLSequent = 
+      if s.isInstanceOf[HOLSequent] then 
+        return s.asInstanceOf[HOLSequent]
+      if s.right.size != 1 then 
+        throw new IllegalArgumentException("Sequent must have exactly one conclusion.")
+      val r = s.right.head
+      r match 
+        case eqOne(t) => 
+          var vartypes = List.empty[VarTypeAssignment]
+          var abstr = List.empty[AbstractionDefinition]
+          var prems = Set.empty[Term]
+          s.left.foreach {
+            case v: VarTypeAssignment => vartypes = v :: vartypes
+            case a: AbstractionDefinition => abstr = a :: abstr
+            case eqOne(t) => prems = prems + t
+            case _ => throw new IllegalArgumentException("Premises must be of the form t === One, be a type assignment or an abstraction definition.")
+          }
+          new HOLSequent(prems.toSet, t, vartypes.toSet, abstr.toSet)
+        case _ => 
+          throw new IllegalArgumentException("Conclusion must be of the form t === One.")
+      
+
+
+    def unapply(s: F.Sequent): Option[(Set[Term], Term)] = 
+      if s.isInstanceOf[HOLSequent] then 
+        val s1 = s.asInstanceOf[HOLSequent]
+        Some((s1.premises, s1.conclusion))
+      else 
+        try {
+          val s1 = toHOLSequent(s)
+          Some((s1.premises, s1.conclusion))
+        }
+        catch
+          case e: IllegalArgumentException => return None
+
+
   }
 
 
@@ -87,6 +184,7 @@ object VarsAndFunctions {
 
   class TypedVar( id: Identifier, val typ: Type ) extends Variable(id) {
     override def substituteUnsafe(map: Map[SchematicLabel[?], LisaObject[?]]): Term = 
+
       if map.contains(this) then map(this).asInstanceOf[Term]
       else 
         val typ2 = typ.substituteUnsafe(map)

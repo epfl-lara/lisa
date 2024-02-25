@@ -17,28 +17,16 @@ trait HOL extends BasicMain {
   export F.{Term, variable, given}
 
 
+
   private val A = variable
 
-  val =:= : TypedConstantFunctional[1] ={
-    val =:= =  F.ConstantFunctionLabel.infix("=:=", 1)
-    addSymbol(=:=)
-    val typing_of_eq = Axiom(F.forall(A, =:=(A) :: (A |=> (A |=> 𝔹))))
-    TypedConstantFunctional[1]("=:=", 1, FunctionalClass(Seq(any), Seq(A), (A |=> (A |=> 𝔹)), 1), typing_of_eq)
-  }
 
-  val holeq : TypedConstantFunctional[1] = =:=
+  def assume(using proof: library.Proof)(t: Term): proof.ProofStep =
+    proof.addAssumption(eqOne(t))
+    val seq = HOLSequent(Set(), t)
+    val r = have(seq) by lisa.prooflib.BasicStepTactic.Hypothesis
 
-  extension (t1:Term) {
-    def =:=(t2:Term): Term = 
-      val A = computeType(t1)
-      if (A == computeType(t2)) 
-        holeq.applySeq(Seq(A))*(t1)*(t2) 
-      else 
-        throw new TypingException("in expression " + t1 + " =:= " + t2 + " the types " + A + "of left-hand side and " + computeType(t2) + " of right-hand side do not match.")
-    def equalityOfType(A:Term) (t2:Term): Term = holeq.applySeq(Seq(A))*(t1)*(t2) //compute A with computeType, possibly.
-  }
-
-
+    r
 
   
 

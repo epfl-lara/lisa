@@ -118,6 +118,12 @@ object TypeSystem  {
     def *(t2: Term): AppliedFunction = AppliedFunction(t, t2)
   }
 
+  object * {def unapply(t: Term): Option[(Term, Term)] = t match {
+    case AppliedFunction(f, a) => Some((f, a))
+    case app(f, a) => Some((f, a))
+    case _ => None
+  }}
+
 
   /**
     * A type assumption is a pair of a variable and a type.
@@ -244,7 +250,7 @@ object TypeSystem  {
 
   class AppliedFunction(val func: Term, val arg: Term) extends AppliedFunctional(app, Seq(func, arg)) with LisaObject[AppliedFunction] {
     
-    override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): AppliedFunction = this
+    override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): AppliedFunction = AppliedFunction(func.substituteUnsafe(map), arg.substituteUnsafe(map))
 
     override def toString(): String = 
       func match
