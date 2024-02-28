@@ -614,7 +614,7 @@ The root of the proof shows the concluding statement, and the leaves are either 
 \end{figure}
 
 In the Lisa kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof.
-a proof step can also be refered to by multiple subsequent proof steps, so that proofs are actually directed acyclic graphs (DAG) rather than trees. For the proof to be the linearization of a rooted DAG, the proof steps must only refer to numbers smaller than their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list.
+a proof step can also be referred to by multiple subsequent proof steps, so that proofs are actually directed acyclic graphs (DAG) rather than trees. For the proof to be the linearization of a rooted DAG, the proof steps must only refer to numbers smaller than their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list.
 \autoref{fig:exampleProofLinear} shows the proof of Pierce's Law as linearized in Lisa's kernel.
 %
 \begin{figure}[ht]
@@ -1106,7 +1106,7 @@ This can be done automatically with implicit conversions. Implicit conversion is
   given Conversion[TermLabel, Term] = (t: Term) => Term(t, Seq())
 \end{lstlisting}
 %
-Now, every time a \lstinline|TermLabel| is writen in a place where a \lstinline|Term| is expected, it will be converted implicitly.
+Now, every time a \lstinline|TermLabel| is written in a place where a \lstinline|Term| is expected, it will be converted implicitly.
 
 To learn more about Scala 3 and its capabilities, see its documentation at {\footnotesize\url{https://docs.scala-lang.org/scala3/book/introduction.html}}. 
 
