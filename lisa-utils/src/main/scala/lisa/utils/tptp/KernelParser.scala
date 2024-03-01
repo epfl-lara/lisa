@@ -23,23 +23,25 @@ object KernelParser {
    * @param formula A formula in the tptp language
    * @return the corresponding LISA formula
    */
-  def parseToKernel(formula: String): K.Formula = convertToKernel(Parser.fof(formula))
+  def parseToKernel(formula: String)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): K.Formula = convertToKernel(
+    Parser.fof(formula)
+  )
 
   /**
    * @param formula a tptp formula in leo parser
    * @return the same formula in LISA
    */
-  def convertToKernel(formula: FOF.Formula): K.Formula = {
+  def convertToKernel(formula: FOF.Formula)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): K.Formula = {
     formula match {
-      case FOF.AtomicFormula(f, args) => 
-        if f == "$true" then K.top
-        else if f == "$false" then K.bot
-        else K.AtomicFormula(K.ConstantAtomicLabel(f, args.size), args map convertTermToKernel)
-        K.AtomicFormula(K.ConstantAtomicLabel(f, args.size), args map convertTermToKernel)
+      case FOF.AtomicFormula(f, args) =>
+        if f == "$true" then K.top()
+        else if f == "$false" then K.bot()
+        else K.AtomicFormula(mapAtom(f, args.size), args map convertTermToKernel)
+      // else throw new Exception("Unknown atomic formula kind: " + kind +" in " + f)
       case FOF.QuantifiedFormula(quantifier, variableList, body) =>
         quantifier match {
-          case FOF.! => variableList.foldRight(convertToKernel(body))((s, f) => K.Forall(K.VariableLabel(s), f))
-          case FOF.? => variableList.foldRight(convertToKernel(body))((s, f) => K.Exists(K.VariableLabel(s), f))
+          case FOF.! => variableList.foldRight(convertToKernel(body))((s, f) => K.Forall(mapVariable(s), f))
+          case FOF.? => variableList.foldRight(convertToKernel(body))((s, f) => K.Exists(mapVariable(s), f))
         }
       case FOF.UnaryFormula(connective, body) =>
         connective match {
@@ -60,18 +62,18 @@ object KernelParser {
       case FOF.Inequality(left, right) => !K.equality(convertTermToKernel(left), convertTermToKernel(right))
     }
   }
-  
-  def convertToKernel(sequent: FOF.Sequent): K.Sequent = {
+
+  def convertToKernel(sequent: FOF.Sequent)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): K.Sequent = {
     K.Sequent(sequent.lhs.map(convertToKernel).toSet, sequent.rhs.map(convertToKernel).toSet)
   }
 
-  def convertToKernel(formula: CNF.Formula): K.Formula = {
+  def convertToKernel(formula: CNF.Formula)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): K.Formula = {
 
     K.ConnectorFormula(
       K.Or,
       formula.map {
-        case CNF.PositiveAtomic(formula) => K.AtomicFormula(K.ConstantAtomicLabel(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
-        case CNF.NegativeAtomic(formula) => !K.AtomicFormula(K.ConstantAtomicLabel(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
+        case CNF.PositiveAtomic(formula) => K.AtomicFormula(mapAtom(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
+        case CNF.NegativeAtomic(formula) => !K.AtomicFormula(mapAtom(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
         case CNF.Equality(left, right) => K.equality(convertTermToKernel(left), convertTermToKernel(right))
         case CNF.Inequality(left, right) => !K.equality(convertTermToKernel(left), convertTermToKernel(right))
       }
@@ -82,9 +84,9 @@ object KernelParser {
    * @param term a tptp term in leo parser
    * @return the same term in LISA
    */
-  def convertTermToKernel(term: CNF.Term): K.Term = term match {
-    case CNF.AtomicTerm(f, args) => K.Term(K.ConstantFunctionLabel(f, args.size), args map convertTermToKernel)
-    case CNF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
+  def convertTermToKernel(term: CNF.Term)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): K.Term = term match {
+    case CNF.AtomicTerm(f, args) => K.Term(mapTerm(f, args.size), args map convertTermToKernel)
+    case CNF.Variable(name) => K.VariableTerm(mapVariable(name))
     case CNF.DistinctObject(name) => ???
   }
 
@@ -92,19 +94,21 @@ object KernelParser {
    * @param term a tptp term in leo parser
    * @return the same term in LISA
    */
-  def convertTermToKernel(term: FOF.Term): K.Term = term match {
+  def convertTermToKernel(term: FOF.Term)(using mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): K.Term = term match {
+
     case FOF.AtomicTerm(f, args) =>
-      K.Term(K.ConstantFunctionLabel(f, args.size), args map convertTermToKernel)
-    case FOF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
+      K.Term(mapTerm(f, args.size), args map convertTermToKernel)
+    case FOF.Variable(name) => K.VariableTerm(mapVariable(name))
     case FOF.DistinctObject(name) => ???
     case FOF.NumberTerm(value) => ???
+
   }
 
-/**
-  * @param formula an annotated tptp statement
-  * @return the corresponding LISA formula augmented with name and role.
-  */
-  def annotatedStatementToKernel(formula:String): AnnotatedStatement = {
+  /**
+   * @param formula an annotated tptp statement
+   * @return the corresponding LISA formula augmented with name and role.
+   */
+  def annotatedStatementToKernel(formula: String)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): AnnotatedStatement = {
     val i = Parser.annotatedFOF(formula)
     i match
       case TPTP.FOFAnnotated(name, role, formula, annotations) =>
@@ -116,8 +120,11 @@ object KernelParser {
 
   }
 
-
-  private def problemToKernel(problemFile: File, md: ProblemMetadata): Problem = {
+  private def problemToKernel(problemFile: File, md: ProblemMetadata)(using
+      mapAtom: (String, Int) => K.AtomicLabel,
+      mapTerm: (String, Int) => K.TermLabel,
+      mapVariable: String => K.VariableLabel
+  ): Problem = {
     val file = io.Source.fromFile(problemFile)
     val pattern = "SPC\\s*:\\s*[A-z]{3}(_[A-z]{3})*".r
     val g = file.getLines()
@@ -145,7 +152,7 @@ object KernelParser {
    * @param problemFile a file containning a tptp problem
    * @return a Problem object containing the data of the tptp problem in LISA representation
    */
-  def problemToKernel(problemFile: File): Problem = {
+  def problemToKernel(problemFile: File)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Problem = {
     problemToKernel(problemFile, getProblemInfos(problemFile))
   }
 
@@ -153,7 +160,7 @@ object KernelParser {
    * @param problemFile a path to a file containing a tptp problem
    * @return a Problem object containing the data of the tptp problem in LISA representation
    */
-  def problemToKernel(problemFile: String): Problem = {
+  def problemToKernel(problemFile: String)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Problem = {
     problemToKernel(File(problemFile))
   }
 
@@ -173,6 +180,17 @@ object KernelParser {
         else throw Exception("Can only agglomerate axioms and one conjecture into a sequents")
       )
   }
+
+  def sanitize(s: String) =
+    val pieces = s.split("_")
+    val lead = pieces.init
+    val last = pieces.last
+    if last.nonEmpty && last.forall(_.isDigit) && last.head != '0' then lead.mkString("$u") + "_" + last
+    else pieces.mkString("$u")
+
+  val mapAtom: ((String, Int) => K.AtomicLabel) = (f, n) => K.ConstantAtomicLabel(sanitize(f), n)
+  val mapTerm: ((String, Int) => K.TermLabel) = (f, n) => K.ConstantFunctionLabel(sanitize(f), n)
+  val mapVariable: (String => K.VariableLabel) = f => K.VariableLabel(sanitize(f))
 
   /**
    * Given a folder containing folders containing problem (typical organisation of TPTP library) and a list of spc,
@@ -208,7 +226,7 @@ object KernelParser {
 
     val r = probfiles.foldRight(List.empty[Problem])((p, current) => {
       val md = getProblemInfos(p)
-      if (md.spc.exists(spc.contains)) problemToKernel(p, md) :: current
+      if (md.spc.exists(spc.contains)) problemToKernel(p, md)(using mapAtom, mapTerm, mapVariable) :: current
       else current
     })
     r

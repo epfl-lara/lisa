@@ -1,16 +1,19 @@
 package lisa.utils.tptp
 
-import leo.modules.input.{TPTPParser => Parser}
-import Parser.TPTPParseException
+import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
+import leo.modules.input.{TPTPParser => Parser}
+import lisa.utils.K
 
+import java.io.File
+
+import Parser.TPTPParseException
 import ProofParser.*
 import KernelParser.*
-import lisa.utils.K
-import java.io.File
 
 object Test {
   def main(args: Array[String]): Unit = {
+    /*
     val stringfof = """fof(intersection_defn,axiom,
     ! [B,C,D] :  member(D,intersection(B,C)), inference(hyp, param(4, $fot(X), 5, 6), [i1, i2]))."""
 
@@ -34,6 +37,7 @@ object Test {
     val stringfof3 = "fof(i6, plain, [~(~(($true & ((~(a_1) & a_1) | (~(b_2) & b_2))))), ($true & ((~(a_1) & a_1) | (~(b_2) & b_2))), $true, ((~(a_1) & a_1) | (~(b_2) & b_2)), (~(a_1) & a_1), ~(a_1), a_1] --> [], inference(leftHyp, param(6, 5), [])). "
     val annotatedFormulaFOF3 = Parser.annotatedFOF(stringfof3)
     given numbermap: (String => Int) = _ => 0
+    given stepmap: (String => FOF.Sequent) = _ => ???
     annotatedFormulaFOF3 match {
       case Inference.Hypothesis(step, name) => println(s"Found a proof:\n ${lisa.utils.parsing.FOLPrinter.prettySCProof(K.SCProof(step))}")
       case _ => println(s"Did not find a hypothesis")
@@ -41,26 +45,44 @@ object Test {
 
 
     println("Now, full proof")
-    val proofFile = new File("/home/sguilloud/Desktop/tstpProblem.p")
+    val proofFile = new File("/home/sguilloud/Desktop/LISA935_sol.p")
     val proof = reconstructProof(proofFile)
-    println(s"Proof:\n${lisa.utils.parsing.FOLPrinter.prettySCProof(proof)}")
+    //println(s"Proof:\n${lisa.utils.parsing.FOLPrinter.prettySCProof(proof)}")
     println("Proof successfuly constructed!")
-    val jdg = K.SCProofChecker.checkSCProof(proof)
-    println(s"Proof is correct: ${jdg.isValid}")
+    /*val jdg = K.SCProofChecker.checkSCProof(proof)
+    println(s"Proof is correct: ${jdg.isValid}")*/
+    K.checkProof(proof, println)
 
     println("--------- Now, producing files")
 
+    val desktop = "/home/sguilloud/Desktop/"
     import K.*
     val x = variable
     val P = predicate(1)
-    val sequent = () |- P(x)
+    val phi = formulaVariable()
+    val psi = formulaVariable()
+    val a = formulaVariable()
+    val b = formulaVariable()
 
+    val easy = (Seq(() |- a, () |- (a ==> b)), () |- b)
+
+    val pierceLaw = () |- (((phi ==> psi) ==> phi) ==> phi)
+
+    //problemToFile(desktop, "pierceLaw", Seq(), pierceLaw, "Test for Lisa2tptp")
+
+    problemToFile(desktop, "Lisa_777", "easy", easy._1, easy._2, "Test for Lisa2tptp")
+
+    println("finished printing!")
+
+
+    //val sequent = () |- P.apply(x)
+     */
 
   }
 
 }
 
-/* 
+/*
 
     // Alpha rules
     case gs3.NNOT:        resultingString, childrenHypotheses = alphaStep(proof, hypotheses, target, "leftNotNot")
@@ -79,5 +101,5 @@ object Test {
     case gs3.ALL:        resultingString, childrenHypotheses = gammaStep(proof, hypotheses, target, "leftForall")
     case gs3.NEX:        resultingString, childrenHypotheses = gammaStep(proof, hypotheses, target, "leftNotEx")
     // Weakening rule
-    case gs3.W:        
-*/
+    case gs3.W:
+ */

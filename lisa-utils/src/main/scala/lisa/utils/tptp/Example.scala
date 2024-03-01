@@ -6,6 +6,8 @@ import lisa.utils.tptp.KernelParser.parseToKernel
 import lisa.utils.tptp.KernelParser.problemToSequent
 import lisa.utils.tptp.ProblemGatherer.getPRPproblems
 
+import KernelParser.{mapAtom, mapTerm, mapVariable}
+
 object Example {
 
   val prettyFormula = lisa.utils.parsing.FOLParser.printFormula
@@ -27,11 +29,11 @@ object Example {
     )
 
     println("\n---Individual Fetched Formulas---")
-    axioms.foreach(a => println(prettyFormula(parseToKernel(a))))
-    println(prettyFormula(parseToKernel(conjecture)))
+    axioms.foreach(a => println(prettyFormula(parseToKernel(a)(using mapAtom, mapTerm, mapVariable))))
+    println(prettyFormula(parseToKernel(conjecture)(using mapAtom, mapTerm, mapVariable)))
 
     println("\n---Annotated Formulas---")
-    anStatements.map(annotatedStatementToKernel).foreach(f => printAnnotatedStatement(f))
+    anStatements.map(annotatedStatementToKernel(_)(using mapAtom, mapTerm, mapVariable)).foreach(f => printAnnotatedStatement(f))
 
     println("\n---Problems---")
 
@@ -64,7 +66,6 @@ object Example {
     else if (a.role == "conjecture") println("Prove " + a.name + ": " + prettyStatement)
     else println(a.role + " " + a.name + ": " + prettyStatement)
   }
-
 
   def printProblem(p: Problem): Unit = {
     println("Problem: " + p.name + " (" + p.domain + ") ---")

@@ -36,7 +36,7 @@ private[fol] trait TermLabelDefinitions extends CommonDefinitions {
    * @param arity The arity of the function symbol. Must be greater than 1.
    */
   sealed case class SchematicFunctionLabel(id: Identifier, arity: Int) extends SchematicTermLabel {
-    require(arity >= 1 && arity < MaxArity)
+    require(arity >= 1 && arity < MaxArity, "Trying to define SchemaFunctionLabel with arity " + arity + " for symbol " + id.name + "_" + id.no)
   }
 
   /**
