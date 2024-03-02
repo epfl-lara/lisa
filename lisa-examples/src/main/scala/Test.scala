@@ -1,7 +1,7 @@
 object Test extends lisa.Main {
   import lisa.automation.atp.Goeland
 
-  draft()
+  // draft()
 
   val u = variable
   val v = variable
@@ -62,7 +62,7 @@ object Test extends lisa.Main {
    */
 
   val thm2 = Theorem(∀(y, ∀(x, E(x, y))) |- ∀(y, ∀(x, E(f(x), h(x, y))))) {
-    have(thesis) by Goeland
+    have(thesis) by Goeland("goeland/Test.thm2_sol")
   }
 
 }
