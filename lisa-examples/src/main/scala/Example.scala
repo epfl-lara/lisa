@@ -1,5 +1,5 @@
 import lisa.automation.Substitution.{ApplyRules as Substitute}
-import lisa.automation.Tableau  
+import lisa.automation.Tableau
 import lisa.automation.atp.Goeland
 
 object Example extends lisa.Main {
@@ -56,12 +56,12 @@ object Example extends lisa.Main {
     )
   }
 
-  val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))){
-    have (thesis) by Tableau
+  val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
+    have(thesis) by Tableau
   }
 
-  val buveurs2 = Theorem(exists(x, P(x) ==> forall(y, P(y)))){
-    have (thesis) by Goeland("goeland/Example.buveurs2_sol")
+  val buveurs2 = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
+    have(thesis) by Goeland("goeland/Example.buveurs2_sol")
   }
 
   /*

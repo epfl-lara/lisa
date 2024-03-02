@@ -1,9 +1,7 @@
-
-
 object Test extends lisa.Main {
   import lisa.automation.atp.Goeland
 
-  //draft()
+  draft()
 
   val u = variable
   val v = variable
@@ -36,42 +34,35 @@ object Test extends lisa.Main {
 
   val goal = E(f(f(g(a))), g(f(f(a))))
 
-
-
-  val gothm0 = Theorem ( (p /\ q) \/ (p /\ r) |- (p /\ (q \/ r)) ) {
+  val gothm0 = Theorem((p /\ q) \/ (p /\ r) |- (p /\ (q \/ r))) {
     have(thesis) by Goeland("goeland/Test.gothm0_sol")
   }
 
-  val gothm1 = Theorem ( (p /\ (q \/ r)) |- (p /\ q) \/ (p /\ r) ) {
+  val gothm1 = Theorem((p /\ (q \/ r)) |- (p /\ q) \/ (p /\ r)) {
     have(thesis) by Goeland("goeland/Test.gothm1_sol")
   }
 
-
-  val gothm2 = Theorem ( (Q(x), Q(x) ==> R(y)) |- R(y) ) {
+  val gothm2 = Theorem((Q(x), Q(x) ==> R(y)) |- R(y)) {
     have(thesis) by Goeland("goeland/Test.gothm2_sol")
   }
 
-  val gothm3 = Theorem ( !s(∅) ==> !forall(x, s(x)) ) {
+  val gothm3 = Theorem(!s(∅) ==> !forall(x, s(x))) {
     have(thesis) by Goeland("goeland/Test.gothm3_sol")
   }
 
-  val gothm4 = Theorem (() |- ∃(x, ∀(y, Q(x) ==> Q(y)))) {
+  val gothm4 = Theorem(() |- ∃(x, ∀(y, Q(x) ==> Q(y)))) {
     have(thesis) by Goeland("goeland/Test.gothm4_sol")
   }
-  
-/*
+
+  /*
   val thm1 = Theorem(∀(x, E(x, x)) |- ∀(x, E(f(x), f(x)))) {
     val s1 = assume(∀(x, E(x, x)))
     have(thesis) by RightForall(s1 of f(x))
   }
-*/
-  
-  /*
+   */
+
   val thm2 = Theorem(∀(y, ∀(x, E(x, y))) |- ∀(y, ∀(x, E(f(x), h(x, y))))) {
     have(thesis) by Goeland
   }
-  */
-
-
 
 }
