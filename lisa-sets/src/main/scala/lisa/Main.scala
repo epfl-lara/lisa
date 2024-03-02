@@ -16,6 +16,8 @@ trait Main extends BasicMain {
   export lisa.automation.Tautology
   export lisa.automation.Substitution
   export lisa.automation.Tableau
+  export lisa.automation.Apply
+  export lisa.automation.Exact
 
   knownDefs.update(emptySet, Some(emptySetAxiom))
   knownDefs.update(unorderedPair, Some(pairAxiom))
