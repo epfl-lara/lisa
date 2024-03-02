@@ -1,7 +1,7 @@
 object Test extends lisa.Main {
   import lisa.automation.atp.Goeland
 
-  // draft()
+  draft()
 
   val u = variable
   val v = variable
@@ -54,15 +54,12 @@ object Test extends lisa.Main {
     have(thesis) by Goeland("goeland/Test.gothm4_sol")
   }
 
-  /*
-  val thm1 = Theorem(∀(x, E(x, x)) |- ∀(x, E(f(x), f(x)))) {
-    val s1 = assume(∀(x, E(x, x)))
-    have(thesis) by RightForall(s1 of f(x))
+  val gothm5 = Theorem(∀(x, E(x, x)) |- ∀(x, E(f(x), f(x)))) {
+    have(thesis) by Goeland//("goeland/Test.gothm5_sol")
   }
-   */
 
-  val thm2 = Theorem(∀(y, ∀(x, E(x, y))) |- ∀(y, ∀(x, E(f(x), h(x, y))))) {
-    have(thesis) by Goeland("goeland/Test.thm2_sol")
+  val gothm6 = Theorem(∀(y, ∀(x, E(x, y))) |- ∀(y, ∀(x, E(f(x), h(x, y))))) {
+    have(thesis) by Goeland//("goeland/Test.thm6_sol")
   }
 
 }
