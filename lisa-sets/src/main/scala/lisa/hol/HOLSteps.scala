@@ -89,23 +89,33 @@ object HOLSteps extends lisa.HOL {
   }
 
 
-/*
+
   /**
    *  |- f = g    |- x = y
    *  ---------------------
    *        |- f x = g y
    */
   object MK_COMB extends ProofTactic {
-    def apply(using proof: Proof)(f: Term, x: Term): proof.ProofTacticJudgement = TacticSubproof{
-      val typ = computeType(f)
-      val typ2 = computeType(x)
-      val f1 = proof.facts.head.statement
-      val x1 = proof.facts.tail.head.statement
-      if f1.right.size != 1 || f1.right.head != (f =:= x) then
-        return proof.InvalidProofTactic(s"The first fact should $f =:= $x")
-      else have(holeq(typ2)*f*x) by Restate.from(MK_COMB of (A := typ, B := typ2, f := f, x := x))
+    def apply(using proof: Proof)(f1: proof.Fact, f2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+      val fg = f1.statement
+      val xy = f2.statement
+      (fg, xy) match {
+        case (HOLSequent(left1, =:=(typ1)*f*g), HOLSequent(left2, =:=(typ2)*x*y) )  => //equality is too strict
+        typ1 match {
+          case |=>(`typ2`, b) => 
+            val s1 = have(REFL(f*x))
+            val s2 = have((f :: typ1, g::typ1) |- (f===g)) by Tautology.from(f1, eqCorrect of (HOLSteps.x := f, HOLSteps.y := g, A := typ1))
+            val s3 = have((x :: typ2, y::typ2) |- (x===y)) by Tautology.from(f2, eqCorrect of (HOLSteps.x := x, HOLSteps.y := y, A := typ2))
+            val s4 = have(f*x =:= g*y) by Substitution.ApplyRules(s2, s3)(s1)
+
+          case _ => 
+            return proof.InvalidProofTactic(s"Types don't agree: fun types are $typ1 and arg types are $typ2")
+        }
+        case _ => 
+          return proof.InvalidProofTactic(s"The facts should be of the form f =:= g and x =:= y")
+      }
     }
   }
-*/
+
 
 }
