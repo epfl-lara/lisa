@@ -52,7 +52,12 @@ object HOLSteps extends lisa.HOL {
   object REFL extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
       val typ = computeType(t)
-      have(holeq(typ)*t*t) by Restate.from(eqRefl of (A := typ, x := t))
+      println(s"Type of $t is $typ")
+      println(holeq(typ)*t*t)
+      println("from: " + (eqRefl of (A := typ, x := t)).statement)
+      val h = have(holeq(typ)*t*t)
+      println("h: " + h.x)
+      have(holeq(typ)*t*t) by Weakening(eqRefl of (A := typ, x := t))
     }
   }
 
@@ -115,6 +120,14 @@ object HOLSteps extends lisa.HOL {
           return proof.InvalidProofTactic(s"The facts should be of the form f =:= g and x =:= y")
       }
     }
+  }
+
+  val f = typedvar(A |=> 𝔹)
+  val g = typedvar(A |=> 𝔹)
+  val test2 = Theorem((f =:= g, x =:= y) |- (f*x =:= g*y)) {
+    val a1 = assume(f =:= g)
+    val a2 = assume(x =:= y)
+    have(MK_COMB(a1, a2))
   }
 
 
