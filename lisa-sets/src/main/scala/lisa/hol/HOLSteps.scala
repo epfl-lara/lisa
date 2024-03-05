@@ -14,7 +14,7 @@ import lisa.maths.settheory.SetTheory.{singleton, app}
 object HOLSteps extends lisa.HOL {
   import lisa.SetTheoryLibrary.*
 
-  draft()
+  //draft()
   
   //REFL
   //TRANS
@@ -51,13 +51,9 @@ object HOLSteps extends lisa.HOL {
    */
   object REFL extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
-      val typ = computeType(t)
-      println(s"Type of $t is $typ")
-      println(holeq(typ)*t*t)
-      println("from: " + (eqRefl of (A := typ, x := t)).statement)
-      val h = have(holeq(typ)*t*t)
-      println("h: " + h.x)
-      have(holeq(typ)*t*t) by Weakening(eqRefl of (A := typ, x := t))
+      val s1 = have(ProofType(t)) //t::A
+      val typ = s1.statement.right.head.asInstanceOf[TypeAssignment[Term]].typ
+      have(holeq(typ)*t*t) by Tautology.from(eqRefl of (x := t, A := typ), s1)
     }
   }
 
@@ -101,7 +97,7 @@ object HOLSteps extends lisa.HOL {
    *        |- f x = g y
    */
   object MK_COMB extends ProofTactic {
-    def apply(using proof: Proof)(f1: proof.Fact, f2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+    def apply(using proof: Proof)(f1: proof.Fact, f2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof {
       val fg = f1.statement
       val xy = f2.statement
       (fg, xy) match {
@@ -111,7 +107,8 @@ object HOLSteps extends lisa.HOL {
             val s1 = have(REFL(f*x))
             val s2 = have((f :: typ1, g::typ1) |- (f===g)) by Tautology.from(f1, eqCorrect of (HOLSteps.x := f, HOLSteps.y := g, A := typ1))
             val s3 = have((x :: typ2, y::typ2) |- (x===y)) by Tautology.from(f2, eqCorrect of (HOLSteps.x := x, HOLSteps.y := y, A := typ2))
-            val s4 = have(f*x =:= g*y) by Substitution.ApplyRules(s2, s3)(s1)
+            val s4 = have(f*x =:= f*y) by Substitution.ApplyRules(s3)(s1)
+            val s5 = have(f*x =:= g*y) by Substitution.ApplyRules(s2)(s4)
 
           case _ => 
             return proof.InvalidProofTactic(s"Types don't agree: fun types are $typ1 and arg types are $typ2")
@@ -130,5 +127,81 @@ object HOLSteps extends lisa.HOL {
     have(MK_COMB(a1, a2))
   }
 
+  object ABS extends ProofTactic {
+
+  }
+
+  object BETA extends ProofTactic {
+    def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
+      t match
+        case (l:Abstraction)*(r: TypedVar) if l.bound == r => 
+          have(l.BETA)
+        case _ => 
+          return proof.InvalidProofTactic(s"The term should be of the form (λx. t) x")  
+      
+    }
+
+  }
+
+  val test5 = Theorem( λ(x, x)*x =:= x) {
+    have(BETA(λ(x, x)*x))
+  }
+
+  val test6 = Theorem( λ(x, x)*x =:= (x)) {
+    have(BETA(λ(x, x)*x))
+  }
+  
+  val test7 = Theorem( λ(x, y)*x =:= (y)) {
+    have(BETA(λ(x, y)*x))
+  }
+  
+  val test8 = Theorem( λ(x, x =:= x)*x =:= (x =:= x)) {
+    have(BETA(λ(x, x =:= x)*x))
+  }
+  
+  val test9 = Theorem( λ(x, x =:= y)*x =:= (x =:= y)) {
+    have(BETA(λ(x, x =:= y)*x))
+  }
+  
+  val test10 = Theorem( λ(x, λ(y, x))*x =:= λ(y, x)) {
+    have(BETA(λ(x, λ(y, x))*x))
+  }
+  
+  val test11 = Theorem( λ(x, λ(y, y))*x =:= λ(y, y)) {
+    have(BETA(λ(x, λ(y, y))*x))
+  }
+
+  val test12 = Theorem( λ(x, λ(y, x =:= y))*x =:= λ(y, x =:= y)) {
+    have(BETA(λ(x, λ(y, x =:= y))*x))
+  }
+
+
+  val test13 = Theorem( λ(x, λ(y, λ(z, x)))*x =:= λ(y, λ(z, x))) {
+    have(BETA(λ(x, λ(y, λ(z, x)))*x))
+  }
+
+  val test14 = Theorem( λ(x, λ(y, λ(z, y) =:= λ(w, x)))*x =:= λ(y, λ(z, y) =:= λ(w, x))) {
+    have(BETA(λ(x, λ(y, λ(z, y) =:= λ(w, x)))*x))
+  }
+
+  object ASSUME extends ProofTactic {
+
+  }
+
+  object EQ_MP extends ProofTactic {
+
+  }
+
+  object DEDUCT_ANTISYM_RULE extends ProofTactic {
+
+  }
+
+  object INST extends ProofTactic {
+
+  }
+
+  object INST_TYPE extends ProofTactic {
+
+  }
 
 }

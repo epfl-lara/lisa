@@ -20,8 +20,8 @@ trait ProofsHelpers {
 
   given Library = library
 
-  class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    val x: lisa.fol.FOL.Sequent = bot
+  class HaveSequent private[ProofsHelpers] (val bot: Sequent) {
+    //val x: lisa.fol.FOL.Sequent = bot
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
@@ -44,7 +44,7 @@ trait ProofsHelpers {
 
   }
 
-  class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
+  class AndThenSequent private[ProofsHelpers] (val bot: Sequent) {
 
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
       By(proof, line, file).asInstanceOf[By { val _proof: proof.type }]

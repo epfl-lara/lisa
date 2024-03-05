@@ -7,6 +7,9 @@ import lisa.maths.settheory.SetTheory.{pair, ∅}
 
 import lisa.fol.FOL as F
 import lisa.fol.FOL.{Identifier, Term}
+import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.SetTheoryLibrary
+import lisa.hol.VarsAndFunctions.HOLSequent.toHOLSequent
 
 
 object VarsAndFunctions {
@@ -20,19 +23,20 @@ object VarsAndFunctions {
 
   type Type = Term
 
-  private def HOLSeqToFOLSeq(left: Set[Term], right: Term): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = {
-    val frees = left.flatMap(_.freeVariables) ++ right.freeVariables
+  def computeContext(terms: Set[Term]): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = 
+    val frees = terms.flatMap(_.freeVariables)
     val (r1, r2) = frees.foldLeft((List.empty[VarTypeAssignment], List.empty[AbstractionDefinition])) {
       case ((acc1, acc2), a: AbstrVar) => 
         (acc1, a.defin :: acc2)
       case ((acc1, acc2), v: TypedVar) => 
         ((v is v.typ).asInstanceOf[VarTypeAssignment] :: acc1, acc2)
-
       case ((acc1, acc2), v) => 
         (acc1, acc2)
     }
     (r1.toSet, r2.toSet)
-    
+
+  private def HOLSeqToFOLSeq(left: Set[Term], right: Term): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = {
+    computeContext(left + right)
   }
 
   class HOLSequent(
@@ -211,11 +215,49 @@ object VarsAndFunctions {
 
     val bound: TypedVar
     val body: Term
-    val repr: Variable
+    val repr: AbstrVar
     val freeVars: Seq[TypedVar]
     val defin: AbstractionDefinition
 
-    override def toString = s"${repr.id}($bound, $body)"
+
+    val origin: Term
+
+    override def toString = s"${repr.id}($bound. $body)"
+
+    import HOLSteps.{=:= => _, debug => _, *, given}
+
+    private lazy val t = this * bound
+    lazy val betaName = "beta_" + repr.id
+
+    lazy val BETA = THM( t =:= body, betaName, summon[sourcecode.Line].value, summon[sourcecode.File].value, InternalStatement) {
+      if debug then println("BETA_in")
+      val context = VarsAndFunctions.computeContext(Set(t, body))
+      assume((context._1 ++ context._2).toSeq: _*)
+      val outType = defin.outType
+      val pro = have(defin.bodyProp |- defin.bodyProp) by Restate
+      if debug then println("defin.bodyProp: " + defin.bodyProp)
+      if debug then println("freeVars: " + freeVars)
+      if debug then println("this: " + this)
+      if debug then println("Enter foreach")
+      freeVars.reverse.foreach(v => 
+        if debug then println("v: " + v)
+        if debug then println("v.typ: " + v.typ)
+        if debug then println("lastStep of v: " + (lastStep of v).statement)
+        have(lastStep.statement.right.head.asInstanceOf[TypedForall].prop) by Weakening(lastStep of v)
+      )
+      val aftFreeVars = lastStep
+      if debug then println("aftFreeVars.statement.right.head:          " + aftFreeVars.statement.right.head)
+      if debug then println("aftFreeVars.statement.right.head of bound: " + (aftFreeVars of bound).statement.right.head)
+      if debug then println("t === body: " + (t === body).substituteUnsafe(Map()))
+      val h = have((bound::bound.typ) |- (t === body)) by Weakening(aftFreeVars of bound)
+      val h2 = have((bound::bound.typ, t::outType, body::outType) |- ((t =:= body) === One) ) by Substitution.ApplyRules(eqCorrect of (x := t, y := body, A := outType))(h)
+      val h3 = have(ProofType(body))
+      val h4 = have(((bound::bound.typ, t::outType) |- ((t =:= body) === One)) ++<? h3.statement) by Cut.withParameters(body::outType)(h3, h2)
+      val h5 = have(ProofType(t))
+      val h6 = have(((bound::bound.typ) |- ((t =:= body) === One)) ++<? h3.statement ++<? h5.statement) by Cut.withParameters(t::outType)(h5, h4)
+      val c = thenHave(t =:= body) by Restate
+      if debug then println("BETA_out")
+    }
   }
 
   private class AbstractionClosureWithoutFreeVars(
@@ -225,42 +267,47 @@ object VarsAndFunctions {
     defin: AbstractionDefinition
   ) extends AbstrVar(reprId, defin) with Abstraction{
 
-    val repr: Variable = this
+    val repr: AbstrVar = this
     val freeVars: Seq[TypedVar] = Seq.empty
+    val origin = this
     //override def toString = s"(λ$bound. $body)"
   }
 
   private class AbstractionClosureWithFreeVars(
-    val repr: Variable,
+    val repr: AbstrVar,
     val bound: TypedVar,
     val body: Term,
     val freeVars: Seq[TypedVar],
     val defin: AbstractionDefinition
-  ) extends AppliedFunction(freeVars.tail.foldLeft(repr: Term)((acc, v) => AppliedFunction(acc, v)), freeVars.head) with Abstraction {
+  ) extends AppliedFunction(freeVars.init.foldLeft(repr: Term)((acc, v) => acc*v), freeVars.last) with Abstraction {
     //override def toString = s"(λ$bound. $body)"
+    val origin = AppliedFunction(freeVars.init.foldLeft(repr: Term)((acc, v) => acc*v), freeVars.last)
   }
 
 
   object Abstraction {
+
+    val cache = collection.mutable.Map.empty[(TypedVar, Term), Abstraction & Term]
     def apply(bound: TypedVar, body: Term): Abstraction & Term = {
-      val repr = Variable(nextId)
-      val freeVars: Seq[TypedVar] = (body.freeVariables - bound).toSeq.sortBy(_.id.name).map {
-        case v: TypedVar => v
-        case _ => throw new IllegalArgumentException("Abstraction body must not contain free untyped variables.")
-      }
-      val inner = tforall(bound, 
-          (freeVars.foldLeft[Term](repr) { (acc, v) => 
-            acc*v
-          } * bound) === body
-        )
-      val bodyProp = freeVars.foldLeft[Formula](inner) { (acc, v) => 
-        tforall(v, acc)
-      }
-      val outType = computeType(body)
-      val defin = new AbstractionDefinition(repr, bound, body, freeVars, outType, bodyProp)
-      if freeVars.isEmpty then new AbstractionClosureWithoutFreeVars(repr.id, bound, body, defin)
-      else new AbstractionClosureWithFreeVars(AbstrVar(repr.id, defin), bound, body, freeVars, defin)
-    }.asTerm
+      cache.getOrElseUpdate((bound, body), {
+        val freeVars: Seq[TypedVar] = (body.freeVariables - bound).toSeq.sortBy(_.id.name).collect {
+          case v: TypedVar => v
+        }
+        val repr = Variable(nextId)
+        val inner = tforall(bound, 
+            (freeVars.foldLeft[Term](repr) { (acc, v) => 
+              acc*v
+            } * bound) === body
+          )
+        val bodyProp = freeVars.foldLeft[Formula](inner) { (acc, v) => 
+          tforall(v, acc)
+        }
+        val outType = computeType(body)
+        val defin = new AbstractionDefinition(repr, bound, body, freeVars, outType, bodyProp)
+        if freeVars.isEmpty then new AbstractionClosureWithoutFreeVars(repr.id, bound, body, defin)
+        else new AbstractionClosureWithFreeVars(AbstrVar(repr.id, defin), bound, body, freeVars, defin)
+      }.asTerm)
+    }
   }
   def λ(bound: TypedVar, body: Term) = Abstraction(bound, body)
   
@@ -271,15 +318,22 @@ object VarsAndFunctions {
     val freeVars: Seq[TypedVar],
     val outType: Type,
     val bodyProp: Formula
-  ) extends AppliedConnector(And, Seq(reprVar is freeVars.foldLeft(bound.typ |=> outType)((acc, v) => v.typ |=> acc), bodyProp)) {
-    val typ = freeVars.foldLeft(bound.typ |=> outType)((acc, v) => v.typ |=> acc)
+  ) extends AppliedConnector(And, Seq(reprVar is freeVars.foldRight(bound.typ |=> outType)((v, acc) => v.typ |=> acc), bodyProp)) {
+    val typ = freeVars.foldRight(bound.typ |=> outType)((v, acc) => v.typ |=> acc)
   }
 
   var i: Int = 0
 
+  object ProofType extends ProofTactic {
+    def apply(using proof: SetTheoryLibrary.Proof)(t:Term): proof.ProofTacticJudgement =
+      val context = HOLSeqToFOLSeq(Set(), t)
+      TypeChecker.typecheck(context._1.toSeq ++ context._2.toSet, t, None)
+  }
+
+  var debug = false
   def computeType(t:Term): Type = 
     val r = {
-    Thread.sleep(10)
+    Thread.sleep(1)
     t match
       case t: TypedVar => 
         t.typ
@@ -292,7 +346,8 @@ object VarsAndFunctions {
         funcType match
           case inType |=> outType => 
             if computeType(t.arg) == inType then outType
-            else throw new IllegalArgumentException("Argument " + t.arg + " of function " + t.func + " has type " + computeType(t.arg) + " instead of expected " + inType + ".")
+            else 
+              throw new IllegalArgumentException("Argument " + t.arg + " of function " + t.func + " has type " + computeType(t.arg) + " instead of expected " + inType + ".")
           case funcType => throw new IllegalArgumentException("Function " + t.func + " expected to have function type A |=> B, but has type " + funcType + ". ")
       case AppliedFunctional(label, args) => 
         label match
