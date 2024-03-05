@@ -35,6 +35,10 @@ object VarsAndFunctions {
     }
     (r1.toSet, r2.toSet)
 
+  def computeContextOfFormulas(formulas: Set[Formula]): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = 
+    val vars = formulas.flatMap(_.freeVariables)
+    computeContext(vars.toSet)
+
   private def HOLSeqToFOLSeq(left: Set[Term], right: Term): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = {
     computeContext(left + right)
   }
@@ -222,6 +226,8 @@ object VarsAndFunctions {
 
     val origin: Term
 
+    def typ: Type
+
     override def toString = s"${repr.id}($bound. $body)"
 
     import HOLSteps.{=:= => _, debug => _, *, given}
@@ -282,6 +288,7 @@ object VarsAndFunctions {
   ) extends AppliedFunction(freeVars.init.foldLeft(repr: Term)((acc, v) => acc*v), freeVars.last) with Abstraction {
     //override def toString = s"(λ$bound. $body)"
     val origin = AppliedFunction(freeVars.init.foldLeft(repr: Term)((acc, v) => acc*v), freeVars.last)
+    val typ = bound.typ |=> defin.outType
   }
 
 

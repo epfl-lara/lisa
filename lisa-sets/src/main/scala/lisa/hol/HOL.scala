@@ -25,9 +25,12 @@ trait HOL extends BasicMain {
     proof.addAssumption(eqOne(t))
     val seq = HOLSequent(Set(), t)
     val r = have(seq) by lisa.prooflib.BasicStepTactic.Hypothesis
-
     r
 
+
+  def withCTX(s:F.Sequent): F.Sequent =
+    val ctx = computeContextOfFormulas(s.left ++ s.right)
+    s ++<< ((ctx._1 ++ ctx._2) |- ())
   
 
 }
