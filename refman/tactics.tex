@@ -1,0 +1,20 @@
+\chapter{Tactics: Specifications and Use}
+\label{chapt:tactics}
+
+\subsection*{Goeland}
+Goeland\cite{DBLP:conf/cade/CaillerRDRB22} is an Automated Theorem prover for first order logic. The Goeland tactic exports a statement in SC-TPTP format, and call Goeland to prove it. Goeland produce a proof file in the SC-TPTP format, from which Lisa rebuilds a kernel proof.
+\paragraph*{Usage}.
+\newline\begin{lstlisting}[language=lisa, frame=single]
+  val gothm = Theorem (() |- ∃(x, ∀(y, Q(x) ==> Q(y)))) {
+    have(thesis) by Goeland
+  }
+
+  //or
+
+  val gothm = Theorem (() |- ∃(x, ∀(y, Q(x) ==> Q(y)))) {
+    have(thesis) by Goeland("goeland/Test.gothm_sol")
+  }
+\end{lstlisting}
+Goeland can only be used from linux systems, and the proof files produced by Goeland should be published along the Lisa library. Calling Goeland without arguments is only available in draft mode. It will produce a proof file for the theorem (if it succeeds). When the draft mode is disabled, for publication, Lisa will provide a file name that should be happended to the tactic. This ensures that the proof can be replayed in any system using the Lisa library.
+
+Goeland is a complete solver for first order logic, but equality is not yet supported. It is a faster alternative to the Tableau tactic.

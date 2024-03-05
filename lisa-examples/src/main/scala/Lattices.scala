@@ -1,7 +1,5 @@
 object Lattices extends lisa.Main {
 
-
-
   val x = variable
   val P = predicate[1]
   val f = function[1]
@@ -11,11 +9,6 @@ object Lattices extends lisa.Main {
   ) {
     sorry
   }
-  
-
-
-
-
 
   // We introduce the signature of lattices
   val <= = ConstantPredicateLabel.infix("<=", 2)
@@ -49,7 +42,6 @@ object Lattices extends lisa.Main {
     have(thesis) by Tautology.from(lub of (z := (x u y)), reflexivity of (x := (x u y)))
   }
 
-
   val meetUpperBound = Theorem(((x n y) <= x) /\ ((x n y) <= y)) {
     sorry
   }
@@ -57,7 +49,6 @@ object Lattices extends lisa.Main {
     val s1 = have((x u y) <= (y u x)) by Tautology.from(lub of (z := (y u x)), joinLowerBound of (x := y, y := x))
     have(thesis) by Tautology.from(s1, s1 of (x := y, y := x), antisymmetry of (x := x u y, y := y u x))
   }
-
 
   val meetCommutative = Theorem((x n y) === (y n x)) {
     sorry
@@ -97,7 +88,6 @@ object Lattices extends lisa.Main {
 
                 // 2. right is a meet. In that case, glb gives us the decomposition
                 case (_, n(a: Term, b: Term)) =>
-
                   val s1 = solve(left <= a)
                   val s2 = solve(left <= b)
                   if s1.isValid & s2.isValid then have(left <= right) by Tautology.from(glb of (x := a, y := b, z := left), have(s1), have(s2))
@@ -131,7 +121,7 @@ object Lattices extends lisa.Main {
                 // 4. left is a meet, right is a variable or unknown term.
                 case (n(a: Term, b: Term), _) =>
                   val result = LazyList(a, b)
-                    .map { e =>  (e, solve(e <= right)) }
+                    .map { e => (e, solve(e <= right)) }
                     .find { _._2.isValid }
                     .map { case (e, step) =>
                       have(left <= right) by Tautology.from(
@@ -180,7 +170,6 @@ object Lattices extends lisa.Main {
     }
   }
 
-
   // uncomment when the tactic is implemented
 
   /*
@@ -205,6 +194,6 @@ object Lattices extends lisa.Main {
   val semiDistributivity = Theorem((x u (y n z)) <= ((x u y) n (x u z))) {
     have(thesis) by Whitman.solve
   }
-  */
-  
+   */
+
 }

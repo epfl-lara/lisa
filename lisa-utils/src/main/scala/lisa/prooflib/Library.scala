@@ -40,6 +40,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
   def draft(using file: sourcecode.File, om: OutputManager)(): Unit =
     if last.nonEmpty then om.output(OutputManager.WARNING("Warning: draft option should be used before the first definition or theorem."))
     else _draft = Some(file)
+  def isDraft = _draft.nonEmpty
 
   val knownDefs: scala.collection.mutable.Map[F.ConstantLabel[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
 
