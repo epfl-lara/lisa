@@ -112,11 +112,12 @@ object TypeSystem  {
   }
 
   extension [A <: Class](t: Term) {
-    def is(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf[TypeAssignment[A] & Formula]
-    def ::(clas:A): TypeAssignment[A] & Formula = TypeAssignment(t, clas).asInstanceOf[TypeAssignment[A] & Formula]
+    def is(clas:A): Formula with TypeAssignment[A] = TypeAssignment(t, clas).asInstanceOf[Formula with TypeAssignment[A]]
+    def ::(clas:A): Formula with TypeAssignment[A] = TypeAssignment(t, clas).asInstanceOf[Formula with TypeAssignment[A]]
     def @@(t2: Term): AppliedFunction = AppliedFunction(t, t2)
     def *(t2: Term): AppliedFunction = AppliedFunction(t, t2)
   }
+
 
   object * {def unapply(t: Term): Option[(Term, Term)] = t match {
     case AppliedFunction(f, a) => Some((f, a))
@@ -449,7 +450,6 @@ object TypeSystem  {
                           val in: Seq[Class] = labelType.in.toSeq
                           //val labelProp = labelType.formula(label.asInstanceOf)
                           val labelPropStatement = step()
-                          Thread.sleep(5)
                           val labInst = labelPropStatement.of(args: _*)
                           val subst = (labelType.args zip args).map((v, a) => (v := a))
                           val newOut: Class = out match {

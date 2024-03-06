@@ -340,7 +340,6 @@ object VarsAndFunctions {
   var debug = false
   def computeType(t:Term): Type = 
     val r = {
-    Thread.sleep(1)
     t match
       case t: TypedVar => 
         t.typ

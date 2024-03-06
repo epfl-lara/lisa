@@ -133,12 +133,10 @@ trait WithTheorems {
     }
 
     def addElimination(f: F.Formula, elim: (Int, F.Sequent) => List[K.SCProofStep]): Unit = {
-      println("add elimination: " + f)
       eliminations = (f, elim) :: eliminations
     }
 
     def addDischarge(ji: Fact): Unit = {
-      println("add discharge: " + sequentOfFact(ji))
       val (s1, t1) = sequentAndIntOfFact(ji)
       val f = s1.right.head
       val fu = f.underlying
@@ -189,13 +187,10 @@ trait WithTheorems {
     def toSCProof: K.SCProof = {
       import lisa.utils.KernelHelpers.{-<<, ->>}
       val finalSteps = eliminations.foldLeft[(List[SC.SCProofStep], F.Sequent)]((steps.map(_.scps), steps.head.bot)) { (cumul_bot, f_elim) =>
-        println("eliminating: " + f_elim._1)
         val (cumul, bot) = cumul_bot
         val (f, elim) = f_elim
         val i = cumul.size
         val elimSteps = elim(i - 1, bot)
-        println("bot              : " + bot)
-        println("bot -<< f        : " + (bot -<< f))
         (elimSteps.foldLeft(cumul)((cumul2, step) => step :: cumul2), bot -<< f)
       }
 

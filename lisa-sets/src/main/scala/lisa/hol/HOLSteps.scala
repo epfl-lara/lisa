@@ -8,7 +8,8 @@ import lisa.automation.*
 
 import lisa.maths.settheory.SetTheory.{singleton, app}
 import ap.Prover.Proof
-import lisa.maths.settheory.types.TypeLib.B
+import lisa.kernel.proof.SCProofChecker.checkSCProof
+import lisa.utils.KernelHelpers.checkProof
 
 /**
   * Here we define and implement all the basic steps from HOL Light
@@ -38,12 +39,18 @@ object HOLSteps extends lisa.HOL {
 
   val A = variable
   val B = variable
+  val v = typedvar(B)
   val w = typedvar(A)
   val x = typedvar(A)
   val y = typedvar(A)
   val z = typedvar(A) 
+  val e = typedvar(A |=> A)
   val f = typedvar(A |=> B)
   val g = typedvar(A |=> B)
+  val h = typedvar(B |=> A)
+
+  val p = typedvar(𝔹)
+  val q = typedvar(𝔹)
 
   val eqCorrect = Theorem(((x::A), (y::A)) |- ((x =:= y)===One) <=> (x===y)) {sorry}
   val eqRefl = Theorem((x =:= x)) {sorry}
@@ -54,6 +61,8 @@ object HOLSteps extends lisa.HOL {
   val funcUnique2 =  Lemma((f :: (A |=> B), g :: (A |=> B), tforall(x, f*x === g*x)) |- ((f =:= g) === One)) {
     have(thesis) by Substitution.ApplyRules(eqCorrect of (HOLSteps.x := f, HOLSteps.y := g, A := (A |=> B)))(funcUnique)
   }
+
+  val propExt = Theorem((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One)) |- (p === q)) {sorry}
 
   /**
    *  ------------------
@@ -89,15 +98,6 @@ object HOLSteps extends lisa.HOL {
     }
   }
 
-  
-
-  val test1 = Theorem((w =:= x, x =:= y, y =:= z) |- (w =:=z)) {
-    val a1 = assume(w =:= x)
-    val a2 = assume(x =:= y)
-    val a3 = assume(y =:= z)
-    val s1 = have(TRANS(a1, a2))
-    have(TRANS(s1, a3))
-  }
 
 
 
@@ -130,16 +130,10 @@ object HOLSteps extends lisa.HOL {
   }
 
 
-  val test2 = Theorem((f =:= g, x =:= y) |- (f*x =:= g*y)) {
-    val a1 = assume(f =:= g)
-    val a2 = assume(x =:= y)
-    have(MK_COMB(a1, a2))
-  }
-
   /**
-    *     |- t = u
+    *     |- t =:= u
     * ---------------------
-    *  |- λx. t = λx. u
+    *  |- λx. t =:= λx. u
     * 
     */
   object ABS extends ProofTactic {
@@ -213,27 +207,9 @@ object HOLSteps extends lisa.HOL {
       }
     }
   }
-  /*
-  val test_abs_1 = Theorem((y =:= z) |- (λ(x, y) =:= λ(x, z))) {
-    assume(y =:= z)
-    have(ABS(x)(lastStep))
-  }
 
-  val thm_abs_2 = Theorem(λ(x, λ(y, y)) =:= λ(x, λ(z, z))) {
-    have(λ(y, y) =:= λ(z, z)) by Sorry
-    have(ABS(x)(lastStep))
-  }
 
-  val thm_abs_3 = Theorem(λ(x, λ(y, x)) =:= λ(x, λ(z, x))) {
-    have(λ(y, x) =:= λ(z, x)) by Sorry
-    have(ABS(x)(lastStep))
-  }
 
-  val test_abs_4 = Theorem(λ(x, λ(y, f*x =:= g*(λ(z, y)*x))) =:= λ(x, λ(z, z =:= x))) {
-    have(λ(y, f*x =:= g*(λ(z, y)*x)) =:= λ(z, z =:= x)) by Sorry
-    have(ABS(x)(lastStep))
-  }
-*/
   object BETA extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
       t match
@@ -247,7 +223,6 @@ object HOLSteps extends lisa.HOL {
 
   object BETA_PRIM extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=> 
-      println("Entering BETA_PRIM")
       t match
         case (l:Abstraction)*(r: TypedVar) if l.bound == r => 
           val b = l.BETA
@@ -257,9 +232,7 @@ object HOLSteps extends lisa.HOL {
           ctx._2.foreach(a => assume(a))
           val bt = have((r::r.typ) |- ((l*r =:= l.body) === One)) by Restate.from(s1)
           val ptlr = have(ProofType(l*r))
-          println("ptlr.statement: " + ptlr.statement)
           val ptlb = have(ProofType(l.body))
-          println("ptlb.statement: " + ptlb.statement)
           val bth = have((r::r.typ, l*r :: l.defin.outType, l.body :: l.defin.outType) |- (l*r === l.body)) by Substitution.ApplyRules(
             eqCorrect of (HOLSteps.x := l*r, HOLSteps.y := l.body, A := l.defin.outType)
           )(bt)
@@ -269,55 +242,16 @@ object HOLSteps extends lisa.HOL {
 
 
         case _ => 
-          return proof.InvalidProofTactic(s"The term should be of the form (λx. t) x")  
-      println("Exiting BETA_PRIM")
+          return proof.InvalidProofTactic(s"The term should be of the form (λx. t) x")
     }
   }
-/*
-  val test_beta_1 = Theorem( λ(x, x)*x =:= x) {
-    have(BETA(λ(x, x)*x))
-  }
-
-  val test_beta_2 = Theorem( λ(x, x)*x =:= (x)) {
-    have(BETA(λ(x, x)*x))
-  }
-  
-  val test_beta_3 = Theorem( λ(x, y)*x =:= (y)) {
-    have(BETA(λ(x, y)*x))
-  }
-  
-  val test_beta_4 = Theorem( λ(x, x =:= x)*x =:= (x =:= x)) {
-    have(BETA(λ(x, x =:= x)*x))
-  }
-  
-  val test_beta_5 = Theorem( λ(x, x =:= y)*x =:= (x =:= y)) {
-    have(BETA(λ(x, x =:= y)*x))
-  }
-  
-  val test_beta_6 = Theorem( λ(x, λ(y, x))*x =:= λ(y, x)) {
-    have(BETA(λ(x, λ(y, x))*x))
-  }
-  
-  val test_beta_7 = Theorem( λ(x, λ(y, y))*x =:= λ(y, y)) {
-    have(BETA(λ(x, λ(y, y))*x))
-  }
-
-  val test_beta_8 = Theorem( λ(x, λ(y, x =:= y))*x =:= λ(y, x =:= y)) {
-    have(BETA(λ(x, λ(y, x =:= y))*x))
-  }
 
 
-  val test_beta_9 = Theorem( λ(x, λ(y, λ(z, x)))*x =:= λ(y, λ(z, x))) {
-    have(BETA(λ(x, λ(y, λ(z, x)))*x))
-  }
-
-  val test_beta_10 = Theorem( λ(x, λ(y, λ(z, y) =:= λ(w, x)))*x =:= λ(y, λ(z, y) =:= λ(w, x))) {
-    have(BETA(λ(x, λ(y, λ(z, y) =:= λ(w, x)))*x))
-  }
-*/
-  // λ(x, t*x) = t
+  // λ(x, t*x) === t
   object ETA_PRIM extends ProofTactic {
     def apply(using proof: Proof)(x: TypedVar, t: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=> 
+      if t.freeVariables.contains(x) then
+      return proof.InvalidProofTactic(s"Variable $x is free in the term $t")
       val lxtx = λ(x, t*x)
       val ctx = computeContext(Set(lxtx, t))
       ctx._1.foreach(a => assume(a))
@@ -333,9 +267,11 @@ object HOLSteps extends lisa.HOL {
       have((lxtx === t)) by Cut(have(ProofType(t)), r2)
     }
   }
-
+  // λ(x, t*x) =:= t
   object ETA extends ProofTactic {
     def apply(using proof: Proof)(x: TypedVar, t: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=> 
+      if t.freeVariables.contains(x) then
+      return proof.InvalidProofTactic(s"Variable $x is free in the term $t")
       val lxtx = λ(x, t*x)
       val ctx = computeContext(Set(lxtx, t))
       ctx._1.foreach(a => assume(a))
@@ -354,61 +290,95 @@ object HOLSteps extends lisa.HOL {
     }
   }
 
-  val test_eta_1 = Theorem(λ(x, f*x) =:= f) {
-    have(ETA(x, f))
-  }
-  val test_eta_prim_1 = Theorem(withCTX(λ(x, f*x) === f)) {
-    have(ETA_PRIM(x, f))
-    println("lastStep.statement: " + lastStep.statement)
-    println("thesis            : " + thesis)
-  }
-
-  val f2 = λ(y, y)
-  val test_eta_2 = Theorem(λ(x, f2*x) =:= f2) {
-    have(ETA(x, f2))
-  }
-  val test_eta_prim_2 = Theorem(withCTX(λ(x, f2*x) === f2)) {
-    have(ETA_PRIM(x, f2))
-  }
-
-  val f3 = λ(y, y =:= x) // ??? require(!t.freeVariables.contains(x))
-  val test_eta_3 = Theorem(λ(x, f3*x) =:= f3) {
-    have(ETA(x, f3))
-  }
-  val test_eta_prim_3 = Theorem(withCTX(λ(x, f3*x) === f3)) {
-    have(ETA_PRIM(x, f3))
-  }
-
-  val f4 = λ(y, λ(z, f*y))
-  val test_eta_4 = Theorem(λ(x, f4*x) =:= f4) {
-    have(ETA(x, f4))
-  }
-  val test_eta_prim_4 = Theorem(withCTX(λ(x, f4*x) === f4)) {
-    have(ETA_PRIM(x, f4))
-  }
-
-  val f5 = f2
-  val test_eta_5 = Theorem(λ(y, f5*y) =:= f5) {
-    have(ETA(y, f5))
-  }
-  val test_eta_prim_5 = Theorem(withCTX(λ(y, f5*y) === f5)) {
-    have(ETA_PRIM(y, f5))
-  }
-
+  /**
+    * ---------------
+    *     t |- t
+    */
   object ASSUME extends ProofTactic {
+    def apply(using proof: Proof)(t:Term): proof.ProofTacticJudgement = TacticSubproof {
+      val typ = computeType(t)
+      if typ == 𝔹 then
+        have(t |- t) by Restate
+      else
+        return proof.InvalidProofTactic(s"Term $t is not a boolean")
+    }
 
   }
 
+
+  /**
+    *  |- t = u    |- t
+    * -------------------
+    *       |- u
+    */
   object EQ_MP extends ProofTactic {
+    def apply(using proof: Proof)(eq: proof.Fact, p: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+      if eq.statement.right.size != 1 then
+        return proof.InvalidProofTactic(s"The first premise should be of the form (t =:= u) === One")
+      eq.statement.right.head match
+        case (=:=(`𝔹`)*t*u) === One => 
+          if p.statement.right.size != 1 then
+            return proof.InvalidProofTactic(s"The second premise should prove $t but proves ${p.statement.right}")
+          p.statement.right.head match
+            case eqOne(`t`) =>
+              eq.statement.left.foreach(f => assume(f))
+              val h1 = have((t :: 𝔹, u :: 𝔹) |- t === u) by Substitution.ApplyRules(eqCorrect of (x := t, y := u, A := 𝔹))(eq)
+              p.statement.left.foreach(f => assume(f))
+              val h2 = have((t :: 𝔹, u :: 𝔹) |- (u === One)) by Substitution.ApplyRules(h1)(p)
+              val pt = have(ProofType(t))
+              println("h2: " + h2.statement)
+              println("pt: " + pt.statement)
+              val h3 = have(Discharge(pt)(h2))
+              val h4 = have(Discharge(have(ProofType(u)))(h3))
+    
+            case _ =>
+              return proof.InvalidProofTactic(s"The second premise should prove $t but proves ${p.statement.right}")
+        case _ =>
+          return proof.InvalidProofTactic(s"The first premise should be of the form (t =:= u) === One ")
+          
+    }
 
   }
 
+  /**
+    *      A |- p   B |- q
+    * -------------------------
+    *   A - p, B - q |- p = q
+    */
   object DEDUCT_ANTISYM_RULE extends ProofTactic {
+    def apply(using proof: Proof)(t1: proof.Fact, t2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+      if t1.statement.right.size != 1 || t2.statement.right.size != 1 then
+        return proof.InvalidProofTactic(s"The premises should be of the form p === One and q === One")
+      val left1 = t1.statement.left
+      val c1 = t1.statement.right.head
+      val left2 = t2.statement.left
+      val c2 = t2.statement.right.head
+      (c1, c2) match 
+        case (eqOne(p), eqOne(q)) =>
+          (left1 - c2).foreach(f => assume(f))
+          (left2 - c1).foreach(f => assume(f))
+          val h1 = have(((p :: 𝔹): F.Formula, (q :: 𝔹): F.Formula) |- ((p=:=q) === One)) by Substitution.ApplyRules(
+              eqCorrect of (x := p, y := q, A := 𝔹)
+            )(propExt of (HOLSteps.p := p, HOLSteps.q := q))
+          val h2 = have(Discharge(have(ProofType(p)))(h1))
+          have(Discharge(have(ProofType(q)))(h2))
+
+        
+        case _ =>
+          return proof.InvalidProofTactic(s"The premises should be of the form p === One and q === One")
+        
+    }
 
   }
 
   object INST extends ProofTactic {
-
+    def apply(using proof: Proof)(x: TypedVar, t:Term, prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+      val pt = ProofType(t)
+      if !pt.isValid then return proof.InvalidProofTactic(s"Can't compute type judgement for $t: " + pt.asInstanceOf[proof.InvalidProofTactic].message)
+      Discharge(have(pt))(prem of (x := t))
+    }
+      
+        
   }
 
   object INST_TYPE extends ProofTactic {

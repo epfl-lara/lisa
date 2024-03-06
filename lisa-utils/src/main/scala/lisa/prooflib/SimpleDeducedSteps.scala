@@ -64,7 +64,7 @@ object SimpleDeducedSteps {
           val f = next._1.right.head
           K.Cut((prev.bot removeLeft f) ++ (next._1 removeRight f), -next._2 - 3, next._2, f)
         }),
-        proof.mostRecentStep +: premises
+        premise +: premises
       )
     }
 

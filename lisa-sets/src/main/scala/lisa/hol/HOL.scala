@@ -8,13 +8,13 @@ import lisa.prooflib.BasicMain
  */
 trait HOL extends BasicMain {
   export lisa.maths.settheory.types.TypeSystem.*
-  export lisa.maths.settheory.types.TypeLib.{any, Zero, One, 𝔹, |=>}
+  export lisa.maths.settheory.types.TypeLib.{any, Zero, One, 𝔹, |=>, |-}
   export TypeChecker.*
   export lisa.hol.VarsAndFunctions.{main => _, given, *}
   export SetTheoryLibrary.{*, given}
   val STL = SetTheoryLibrary
   val F: lisa.fol.FOL.type = lisa.fol.FOL
-  export F.{Term, variable, given}
+  export F.{Term, variable, ===, given}
 
 
 
