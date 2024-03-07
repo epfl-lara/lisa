@@ -2,7 +2,7 @@
 .idea
 .metals
 .vscode
-project/metals.sbt
+*/metals.sbt
 
 # build-related
 .bsp
@@ -22,3 +22,9 @@ cache
 
 # emacs backup files
 *~
+
+# data extracted
+data_extract
+
+# TPTP data
+lisa-utils/src/main/resources

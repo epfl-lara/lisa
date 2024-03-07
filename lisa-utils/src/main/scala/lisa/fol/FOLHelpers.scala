@@ -84,7 +84,11 @@ object FOLHelpers {
     case cl: K.SchematicConnectorLabel => asFrontLabel(cl)
   def asFrontLabel[N <: Arity](cpl: K.ConstantAtomicLabel): ConstantAtomicLabelOfArity[N] = cpl.arity.asInstanceOf[N] match
     case n: 0 => ConstantFormula(cpl.id)
-    case n: N => ConstantPredicateLabel(cpl.id, cpl.arity.asInstanceOf)
+    case n: N =>
+      if (cpl.id == Identifier("="))
+        ConstantPredicateLabel.infix("===", cpl.arity.asInstanceOf)
+      else
+        ConstantPredicateLabel(cpl.id, cpl.arity.asInstanceOf)
   def asFrontLabel(sfl: K.SchematicFormulaLabel): SchematicAtomicLabel[?] | SchematicConnectorLabel[?] =
     sfl match
       case v: K.VariableFormulaLabel => asFrontLabel(v)

@@ -10,6 +10,7 @@ import lisa.utils.KernelHelpers.*
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
 import lisa.utils.tptp.*
+import lisa.kernel.fol.FOL.*
 
 import java.io.File
 import scala.util.matching.Regex
@@ -18,7 +19,7 @@ import Parser.TPTPParseException
 
 object KernelParser {
 
-  private case class ProblemMetadata(file: String, domain: String, problem: String, status: String, spc: Seq[String])
+  case class ProblemMetadata(file: String, domain: String, problem: String, status: String, spc: Seq[String])
 
   /**
    * @param formula A formula in the tptp language
@@ -26,13 +27,23 @@ object KernelParser {
    */
   def parseToKernel(formula: String): K.Formula = convertToKernel(Parser.fof(formula))
 
+  def cleanVarname(f: String): String =
+    val forbiddenChars = Identifier.forbiddenChars ++ Set('\\', '/', '\'', '"', '`', '.', ',', ';', ':', '!', '%', '^', '&', '*', '|', '-', '+', '=', '<', '>', '~', '@', '#')
+    // replace all the forbidden chars + whitespaces by '0'
+    f.map(c => if (forbiddenChars.contains(c) || c.isWhitespace) then '0' else c)
+
   /**
    * @param formula a tptp formula in leo parser
    * @return the same formula in LISA
    */
   def convertToKernel(formula: FOF.Formula): K.Formula = {
     formula match {
-      case FOF.AtomicFormula(f, args) => K.AtomicFormula(K.ConstantAtomicLabel(f, args.size), args map convertTermToKernel)
+      case FOF.AtomicFormula(f, args) =>
+        K.AtomicFormula(
+          if args.isEmpty then K.VariableFormulaLabel(cleanVarname(f))
+          else K.SchematicPredicateLabel(cleanVarname(f), args.size),
+          args map convertTermToKernel
+        )
       case FOF.QuantifiedFormula(quantifier, variableList, body) =>
         quantifier match {
           case FOF.! => variableList.foldRight(convertToKernel(body))((s, f) => K.Forall(K.VariableLabel(s), f))
@@ -59,12 +70,18 @@ object KernelParser {
   }
 
   def convertToKernel(formula: CNF.Formula): K.Formula = {
+    def atomicFormulaToKernel(formula: CNF.AtomicFormula): K.Formula =
+      K.AtomicFormula(
+        if formula.args.isEmpty then K.VariableFormulaLabel(cleanVarname(formula.f))
+        else K.SchematicPredicateLabel(cleanVarname(formula.f), formula.args.size),
+        formula.args.map(convertTermToKernel).toList
+      )
 
     K.ConnectorFormula(
       K.Or,
       formula.map {
-        case CNF.PositiveAtomic(formula) => K.AtomicFormula(K.ConstantAtomicLabel(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
-        case CNF.NegativeAtomic(formula) => !K.AtomicFormula(K.ConstantAtomicLabel(formula.f, formula.args.size), formula.args.map(convertTermToKernel).toList)
+        case CNF.PositiveAtomic(formula) => atomicFormulaToKernel(formula)
+        case CNF.NegativeAtomic(formula) => !atomicFormulaToKernel(formula)
         case CNF.Equality(left, right) => K.equality(convertTermToKernel(left), convertTermToKernel(right))
         case CNF.Inequality(left, right) => !K.equality(convertTermToKernel(left), convertTermToKernel(right))
       }
@@ -76,8 +93,13 @@ object KernelParser {
    * @return the same term in LISA
    */
   def convertTermToKernel(term: CNF.Term): K.Term = term match {
-    case CNF.AtomicTerm(f, args) => K.Term(K.ConstantFunctionLabel(f, args.size), args map convertTermToKernel)
-    case CNF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
+    case CNF.AtomicTerm(f, args) =>
+      K.Term(
+        if args.isEmpty then K.VariableLabel(cleanVarname(f))
+        else K.SchematicFunctionLabel(cleanVarname(f), args.size),
+        args map convertTermToKernel
+      )
+    case CNF.Variable(name) => K.VariableTerm(K.VariableLabel(cleanVarname(name)))
     case CNF.DistinctObject(name) => ???
   }
 
@@ -87,8 +109,12 @@ object KernelParser {
    */
   def convertTermToKernel(term: FOF.Term): K.Term = term match {
     case FOF.AtomicTerm(f, args) =>
-      K.Term(K.ConstantFunctionLabel(f, args.size), args map convertTermToKernel)
-    case FOF.Variable(name) => K.VariableTerm(K.VariableLabel(name))
+      K.Term(
+        if args.isEmpty then K.VariableLabel(cleanVarname(f))
+        else K.SchematicFunctionLabel(cleanVarname(f), args.size),
+        args map convertTermToKernel
+      )
+    case FOF.Variable(name) => K.VariableTerm(K.VariableLabel(cleanVarname(name)))
     case FOF.DistinctObject(name) => ???
     case FOF.NumberTerm(value) => ???
   }
@@ -104,13 +130,8 @@ object KernelParser {
     }
   }
 
-  private def problemToKernel(problemFile: File, md: ProblemMetadata): Problem = {
+  def problemToKernel(problemFile: File, md: ProblemMetadata): Problem = {
     val file = io.Source.fromFile(problemFile)
-    val pattern = "SPC\\s*:\\s*[A-z]{3}(_[A-z]{3})*".r
-    val g = file.getLines()
-
-    def search(): String = pattern.findFirstIn(g.next()).getOrElse(search())
-
     val i = Parser.problem(file)
     val sq = i.formulas map {
       case TPTP.FOFAnnotated(name, role, formula, annotations) =>
@@ -153,7 +174,7 @@ object KernelParser {
     if (problem.spc.contains("CNF")) problem.formulas.map(_.formula) |- ()
     else
       problem.formulas.foldLeft[LK.Sequent](() |- ())((s, f) =>
-        if (f._1 == "axiom") s +<< f._3
+        if (Set("axiom", "hypothesis", "lemma").contains(f._1)) s +<< f._3
         else if (f._1 == "conjecture" && s.right.isEmpty) s +>> f._3
         else throw Exception("Can only agglomerate axioms and one conjecture into a sequents")
       )
@@ -174,11 +195,15 @@ object KernelParser {
       if (d.isDirectory) {
         if (d.listFiles().isEmpty) println("empty directory")
         d.listFiles.filter(_.isDirectory)
-
       } else throw new Exception("Specified path is not a directory.")
     } else throw new Exception("Specified path does not exist.")
 
-    probfiles.map(d => gatherFormulas(spc, d.getPath)).toSeq
+    probfiles.zipWithIndex
+      .map((d, i) => {
+        println("[ " + (i + 1) + " / " + probfiles.size + " ] Gathering formulas from " + d.getName())
+        gatherFormulas(spc, d.getPath)
+      })
+      .toSeq
   }
 
   def gatherFormulas(spc: Seq[String], path: String): Seq[Problem] = {
@@ -187,13 +212,22 @@ object KernelParser {
       if (d.isDirectory) {
         if (d.listFiles().isEmpty) println("empty directory")
         d.listFiles.filter(_.isFile)
-
       } else throw new Exception("Specified path is not a directory.")
     } else throw new Exception("Specified path does not exist.")
 
-    val r = probfiles.foldRight(List.empty[Problem])((p, current) => {
+    val r = probfiles.zipWithIndex.foldLeft(List.empty[Problem])((current, p_i) => {
+      val (p, i) = p_i
+
+      // Progress bar
+      if ((i + 1) % 100 == 0 || i + 1 == probfiles.size) {
+        val pbarLength = 30
+        var pbarContent = "=" * (((i + 1) * pbarLength) / probfiles.size)
+        pbarContent += " " * (pbarLength - pbarContent.length)
+        println("\t[" + pbarContent + "] (" + (i + 1) + " / " + probfiles.size + ") " + d.getName())
+      }
+
       val md = getProblemInfos(p)
-      if (md.spc.exists(spc.contains)) problemToKernel(p, md) :: current
+      if (md.spc.exists(spc.contains)) current :+ problemToKernel(p, md)
       else current
     })
     r
@@ -203,7 +237,7 @@ object KernelParser {
    * @param file a file containing a tptp problem
    * @return the metadata info (file name, domain, problem, status and spc) in the file
    */
-  private def getProblemInfos(file: File): ProblemMetadata = {
+  def getProblemInfos(file: File): ProblemMetadata = {
     val pattern = "((File)|(Domain)|(Problem)|(Status)|(SPC))\\s*:.*".r
     val s = io.Source.fromFile(file)
     val g = s.getLines()

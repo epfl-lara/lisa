@@ -610,7 +610,8 @@ trait Common {
     def rename(newid: Identifier): ConstantPredicateLabel[N] = ConstantPredicateLabel(newid, arity)
     def freshRename(taken: Iterable[Identifier]): ConstantPredicateLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Term]): String = if (infix) (args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated()) else toString() + "(" + args.mkString(", ") + ")"
+    def mkString(args: Seq[Term]): String =
+      if (infix) ("(" + args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated() + ")") else toString() + "(" + args.mkString(", ") + ")"
     override def mkStringSeparated(args: Seq[Term]): String = if (infix) "(" + mkString(args) + ")" else mkString(args)
   }
   object ConstantPredicateLabel {
@@ -708,7 +709,11 @@ trait Common {
     def rename(newid: Identifier): ConstantConnectorLabel[N] = throw new Error("Can't rename a constant connector label")
     def freshRename(taken: Iterable[Identifier]): ConstantConnectorLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Formula]): String = if (args.length == 2) (args(0).toString() + " " + toString() + " " + args(1).toString()) else toString() + "(" + args.mkString(", ") + ")"
+    def mkString(args: Seq[Formula]): String = if (args.length == 1) {
+      underlyingLabel match
+        case K.Neg => toString() + "(" + args(0).toString() + ")"
+        case _ => args(0).toString()
+    } else "(" + args.mkString(" " + toString() + " ") + ")"
     override def mkStringSeparated(args: Seq[Formula]): String = if (args.length == 2) "(" + mkString(args) + ")" else mkString(args)
 
   }

@@ -3,14 +3,22 @@ package lisa.utils.tptp
 import lisa.utils.tptp.KernelParser.*
 
 object ProblemGatherer {
+  // Path to the TPTP problems directory
+  val TPTPProblemPath: String = getClass.getResource("/TPTP/Problems/").getPath
 
   /**
-   * The tptp library needs to be included in main/resources. It can be found at http://www.tptp.org/
+   * @return sequence of tptp problems in the library lib with the tags in spc.
+   */
+  def getLibProblems(spc: Seq[String], lib: String): Seq[Problem] = gatherFormulas(spc, TPTPProblemPath + lib + "/")
+
+  /**
+   * This takes up to several minutes to run.
+   * @return sequence of all tptp problems with the tags in spc.
+   */
+  def getAllProblems(spc: Seq[String]): Seq[Problem] = gatherAllTPTPFormulas(spc, TPTPProblemPath).flatten
+
+  /**
    * @return sequence of tptp problems with the PRP (propositional) tag.
    */
-  def getPRPproblems: Seq[Problem] = {
-    val path = getClass.getResource("/TPTP/Problems/SYN/").getPath
-    gatherFormulas(Seq("PRP"), path)
-  }
-
+  def getPRPproblems: Seq[Problem] = getLibProblems(Seq("PRP"), "SYN")
 }
