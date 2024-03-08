@@ -10,19 +10,19 @@ object HOLStepsTests extends lisa.HOL {
   // REFL
 
 
-  // TRANS
+  // _TRANS
 
   val test_trans_1 = Theorem((w =:= x, x =:= y, y =:= z) |- (w =:=z)) {
     val a1 = assume(w =:= x)
     val a2 = assume(x =:= y)
     val a3 = assume(y =:= z)
-    val s1 = have(TRANS(a1, a2))
-    have(TRANS(s1, a3))
+    val s1 = have(_TRANS(a1, a2))
+    have(_TRANS(s1, a3))
   }
   println("Starting tests")
   val now = System.currentTimeMillis()
 
-  /*
+
   // MK_Comb
 
   val test_mkcomb_1 = Theorem((f =:= g, x =:= y) |- (f*x =:= g*y)) {
@@ -157,26 +157,26 @@ object HOLStepsTests extends lisa.HOL {
   val test_assume_4 = Theorem( expr  |- expr ){
     have(ASSUME(expr))
   }
-  */
+  
 
   val (a1, a2) = (p, q)
   val test_eqmp_1 = Theorem((a1 =:= a2, a1) |- a2) {
     val s1 = assume(p =:= q)
     val s2 = assume(p)
-    have(EQ_MP(s1, s2))
+    have(_EQ_MP(s1, s2))
   }
 
   val (a3, a4) = (λ(x, p) =:= λ(x, p), λ(p, q)*p)
   val test_eqmp_2 = Theorem((a3 =:= a4, a3) |- a4) {
     val s1 = assume(a3 =:= a4)
     val s2 = assume(a3)
-    have(EQ_MP(s1, s2))
+    have(_EQ_MP(s1, s2))
   }
 
   val test_eqmp_3 = Theorem(λ(p, p)*p |- p ) {
     val s1 = have(BETA(λ(p, p)*p))
     val s2 = assume(λ(p, p)*p)
-    have(EQ_MP(s1, s2))
+    have(_EQ_MP(s1, s2))
   }
 
   val test_deductantisymrule_1 = Theorem(withCTX(((p === One) ==> (q === One), (q === One) ==> (p === One)) |- ((p =:= q) === One))){
@@ -185,6 +185,19 @@ object HOLStepsTests extends lisa.HOL {
     val s1 = have(q |- p) by Restate
     val s2 = have(p |- q) by Restate
     have(DEDUCT_ANTISYM_RULE(s1, s2))
+  }
+  
+
+  val test_inst_5 = Theorem(λ(x, λ(x, y)*x)*y =:= y){
+    val s1 = have(BETA(λ(x, λ(x, y)*x)*x))
+    println("s1: " + s1.statement)
+    val s2 = have(INST(x, y, s1)) // λ(x, λ(x, y)*x)*y === λ(x, y)*y
+    println("s2: " + s2.statement)
+    val s3 = have(BETA(λ(x, y)*x)) // λ(x, y)*x =:= y
+    println("s3: " + s3.statement)
+    val s4 = have(INST(x, y, s3)) // λ(x, y)*y =:= y
+    println("s4: " + s4.statement)
+    have(_TRANS(s2, s4))
   }
 
   

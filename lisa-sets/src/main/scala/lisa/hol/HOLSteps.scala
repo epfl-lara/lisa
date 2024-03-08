@@ -20,13 +20,13 @@ object HOLSteps extends lisa.HOL {
   //draft()
   
   //REFL
-  //TRANS
+  //_TRANS
   //MK_COMB
   //ABS
   //BETA
   //ETA
   //ASSUME
-  //EQ_MP
+  //_EQ_MP
   //DEDUCT_ANTISYM_RULE
   //INST
   //INST_TYPE
@@ -81,17 +81,29 @@ object HOLSteps extends lisa.HOL {
    *  ---------------------
    *        |- s = u
    */
-  object TRANS extends ProofTactic {
+  object _TRANS extends ProofTactic {
     def apply(using proof: Proof)(t1: proof.Fact, t2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
       val s1 = t1.statement
       val s2 = t2.statement
+      println("s1: " + s1)
+      println("s2: " + s2)
       (s1, s2) match {
-        case (HOLSequent(left1, =:=(aa)*s*ta), HOLSequent(left2, =:=(ab)*tb*u) ) if ta == tb && aa == ab => //equality is too strict
-          have((left1 ++ left2) |- (s =:= u)) by Tautology.from(eqTrans of (x := s, y := ta, z := u), t1, t2)
+        case (HOLSequent(left1, =:=(aa)*s*ta), HOLSequent(left2, =:=(ab)*tb*u) ) => //equality is too strict
+          if ta == tb then
+            if aa == ab then
+              println("eqTrans: " + (eqTrans of (x := s, y := ta, z := u)).statement)
+              val r0 = have((s1.left ++ s2.left + (s::aa) + (ta :: aa) + (u :: aa) ) |- ((s =:= u) === One)) by Tautology.from(eqTrans of (x := s, y := ta, z := u), t1, t2)
+              val r1 = have(Discharge(have(ProofType(s)))(r0))
+              val r2 = have(Discharge(have(ProofType(ta)))(r1))
+              have(Discharge(have(ProofType(u)))(r2))
+            else 
+              return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
+          else 
+            return proof.InvalidProofTactic(s"Middle elements don't agree: $ta and $tb")
 
-
+        case (HOLSequent(left1, right1), HOLSequent(left2, right2) ) => 
+          return proof.InvalidProofTactic(s"The facts should have equalities")
         case _ => 
-
           return proof.InvalidProofTactic(s"The facts should be of the form s =:= t and t =:= u")
       }
 
@@ -311,7 +323,7 @@ object HOLSteps extends lisa.HOL {
     * -------------------
     *       |- u
     */
-  object EQ_MP extends ProofTactic {
+  object _EQ_MP extends ProofTactic {
     def apply(using proof: Proof)(eq: proof.Fact, p: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
       if eq.statement.right.size != 1 then
         return proof.InvalidProofTactic(s"The first premise should be of the form (t =:= u) === One")
@@ -326,8 +338,6 @@ object HOLSteps extends lisa.HOL {
               p.statement.left.foreach(f => assume(f))
               val h2 = have((t :: 𝔹, u :: 𝔹) |- (u === One)) by Substitution.ApplyRules(h1)(p)
               val pt = have(ProofType(t))
-              println("h2: " + h2.statement)
-              println("pt: " + pt.statement)
               val h3 = have(Discharge(pt)(h2))
               val h4 = have(Discharge(have(ProofType(u)))(h3))
     
@@ -373,9 +383,9 @@ object HOLSteps extends lisa.HOL {
 
   object INST extends ProofTactic {
     def apply(using proof: Proof)(x: TypedVar, t:Term, prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
-      val pt = ProofType(t)
-      if !pt.isValid then return proof.InvalidProofTactic(s"Can't compute type judgement for $t: " + pt.asInstanceOf[proof.InvalidProofTactic].message)
-      Discharge(have(pt))(prem of (x := t))
+      prem.statement match
+        case HOLSequent(left, right) =>
+          have(HOLSequent(left.map(p => HOLSubst(p, x, t)), HOLSubst(right, x, t))) by Sorry
     }
       
         
@@ -383,6 +393,22 @@ object HOLSteps extends lisa.HOL {
 
   object INST_TYPE extends ProofTactic {
 
+    def apply(using proof: Proof)(x: F.Variable, t:Term, prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+      val r = prem of (x := t)
+      have(r.statement) by Restate.from(r)
+    }
+
+  }
+
+
+  def HOLSubst(t:Term, x:TypedVar, u:Term): Term = {
+    t match
+      case v:TypedVar if v.id == x.id && v.typ == x.typ  => u
+      case a:Abstraction => 
+        if a.bound == x then a
+        else λ(a.bound, HOLSubst(a.body, x, u))
+      case a:AppliedFunction => HOLSubst(a.func, x, u)*HOLSubst(a.arg, x, u)
+      case _ => t
   }
 
 }

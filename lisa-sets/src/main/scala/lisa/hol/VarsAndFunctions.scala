@@ -150,7 +150,9 @@ object VarsAndFunctions {
           Some((s1.premises, s1.conclusion))
         }
         catch
-          case e: IllegalArgumentException => return None
+          case e: IllegalArgumentException => 
+            println(e.getMessage())
+            return None
 
 
   }
@@ -200,6 +202,8 @@ object VarsAndFunctions {
         else new TypedVar(id, typ2)
 
     def toStringFull = s"(${id.name}: $typ)"
+
+    def instType(map: Map[SchematicLabel[?], LisaObject[?]]): TypedVar = new TypedVar(id, typ.substituteUnsafe(map))
     
   }
 
@@ -236,25 +240,14 @@ object VarsAndFunctions {
     lazy val betaName = "beta_" + repr.id
 
     lazy val BETA = THM( t =:= body, betaName, summon[sourcecode.Line].value, summon[sourcecode.File].value, InternalStatement) {
-      if debug then println("BETA_in")
       val context = VarsAndFunctions.computeContext(Set(t, body))
       assume((context._1 ++ context._2).toSeq: _*)
       val outType = defin.outType
       val pro = have(defin.bodyProp |- defin.bodyProp) by Restate
-      if debug then println("defin.bodyProp: " + defin.bodyProp)
-      if debug then println("freeVars: " + freeVars)
-      if debug then println("this: " + this)
-      if debug then println("Enter foreach")
       freeVars.reverse.foreach(v => 
-        if debug then println("v: " + v)
-        if debug then println("v.typ: " + v.typ)
-        if debug then println("lastStep of v: " + (lastStep of v).statement)
         have(lastStep.statement.right.head.asInstanceOf[TypedForall].prop) by Weakening(lastStep of v)
       )
       val aftFreeVars = lastStep
-      if debug then println("aftFreeVars.statement.right.head:          " + aftFreeVars.statement.right.head)
-      if debug then println("aftFreeVars.statement.right.head of bound: " + (aftFreeVars of bound).statement.right.head)
-      if debug then println("t === body: " + (t === body).substituteUnsafe(Map()))
       val h = have((bound::bound.typ) |- (t === body)) by Weakening(aftFreeVars of bound)
       val h2 = have((bound::bound.typ, t::outType, body::outType) |- ((t =:= body) === One) ) by Substitution.ApplyRules(eqCorrect of (x := t, y := body, A := outType))(h)
       val h3 = have(ProofType(body))
@@ -262,7 +255,6 @@ object VarsAndFunctions {
       val h5 = have(ProofType(t))
       val h6 = have(((bound::bound.typ) |- ((t =:= body) === One)) ++<? h3.statement ++<? h5.statement) by Cut.withParameters(t::outType)(h5, h4)
       val c = thenHave(t =:= body) by Restate
-      if debug then println("BETA_out")
     }
   }
 
@@ -272,6 +264,11 @@ object VarsAndFunctions {
     val body: Term,
     defin: AbstractionDefinition
   ) extends AbstrVar(reprId, defin) with Abstraction{
+    override def substituteUnsafe(map: Map[F.SchematicLabel[?], F.LisaObject[?]]): Term = 
+      if map.contains(repr) then map(repr).asInstanceOf[Term]
+      else 
+        val newMap = map - bound
+        AbstractionClosureWithoutFreeVars(reprId, bound.instType(newMap), body.substituteUnsafe(newMap), defin.substituteUnsafe(newMap).asInstanceOf)
 
     val repr: AbstrVar = this
     val freeVars: Seq[TypedVar] = Seq.empty
@@ -327,6 +324,19 @@ object VarsAndFunctions {
     val bodyProp: Formula
   ) extends AppliedConnector(And, Seq(reprVar is freeVars.foldRight(bound.typ |=> outType)((v, acc) => v.typ |=> acc), bodyProp)) {
     val typ = freeVars.foldRight(bound.typ |=> outType)((v, acc) => v.typ |=> acc)
+
+    override def substituteUnsafe(map: Map[F.SchematicLabel[?], F.LisaObject[?]]): Formula = 
+      if map.contains(reprVar) then super.substituteUnsafe(map)
+      else 
+        val newMap = map - bound -- freeVars
+        AbstractionDefinition(
+          reprVar, 
+          bound.instType(map - bound), 
+          body.substituteUnsafe(newMap), 
+          freeVars.map(_.instType(newMap)), 
+          outType.substituteUnsafe(newMap), 
+          bodyProp.substituteUnsafe(newMap)
+        )
   }
 
   var i: Int = 0
