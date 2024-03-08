@@ -177,7 +177,13 @@ object TypeSystem  {
   
 
   private class TypeAssignmentConstant[A <: Class](val t: Term, val typ:A, formula: ConstantFormula) extends ConstantFormula(formula.id) with TypeAssignment[A]
-  private class TypeAssignmentPredicate[A <: Class](val t: Term, val typ:A, formula: AppliedPredicate) extends AppliedPredicate(formula.label, formula.args) with TypeAssignment[A]
+  private class TypeAssignmentPredicate[A <: Class](val t: Term, val typ:A, formula: AppliedPredicate) extends AppliedPredicate(formula.label, formula.args) with TypeAssignment[A] {
+    override def substituteUnsafe(map: Map[FOL.SchematicLabel[?], FOL.LisaObject[?]]): FOL.Formula = 
+      if map.keySet.exists(_ == typ) then super.substituteUnsafe(map)
+      else
+        val newArgs = args.map(_.substituteUnsafe(map))
+        if newArgs == args then this else TypeAssignmentPredicate(t, typ, formula.copy(args = newArgs))
+  }
   private class TypeAssignmentConnector[A <: Class](val t: Term, val typ:A,  formula: AppliedConnector) extends AppliedConnector(formula.label, formula.args) with TypeAssignment[A]
   private class TypeAssignmentBinder[A <: Class](val t: Term, val typ:A,  formula: BinderFormula) extends BinderFormula(formula.f, formula.bound, formula.body) with TypeAssignment[A]
 

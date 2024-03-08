@@ -191,13 +191,21 @@ object HOLStepsTests extends lisa.HOL {
   val test_inst_5 = Theorem(λ(x, λ(x, y)*x)*y =:= y){
     val s1 = have(BETA(λ(x, λ(x, y)*x)*x))
     println("s1: " + s1.statement)
-    val s2 = have(INST(x, y, s1)) // λ(x, λ(x, y)*x)*y === λ(x, y)*y
+    val s2 = have(INST(Seq((x, y)), s1)) // λ(x, λ(x, y)*x)*y === λ(x, y)*y
     println("s2: " + s2.statement)
     val s3 = have(BETA(λ(x, y)*x)) // λ(x, y)*x =:= y
     println("s3: " + s3.statement)
-    val s4 = have(INST(x, y, s3)) // λ(x, y)*y =:= y
+    val s4 = have(INST(Seq((x, y)), s3)) // λ(x, y)*y =:= y
     println("s4: " + s4.statement)
     have(_TRANS(s2, s4))
+  }
+
+  val test_inst_6 = Theorem(λ(x, f*z) =:= λ(x, f*z)){
+    val s0 = have(REFL(λ(x, y)))
+    val s1 = have(INST(Seq((y, f*z)), s0))
+    val s2 = have(REFL(λ(x, f*z) ))
+    have(_TRANS(s1, s2))
+
   }
 
   

@@ -104,7 +104,12 @@ object HOLSteps extends lisa.HOL {
         case (HOLSequent(left1, right1), HOLSequent(left2, right2) ) => 
           return proof.InvalidProofTactic(s"The facts should have equalities")
         case _ => 
-          return proof.InvalidProofTactic(s"The facts should be of the form s =:= t and t =:= u")
+          s1 match 
+            case HOLSequent(left1, right1) => 
+              return proof.InvalidProofTactic(s"The second fact is not parsable as an HOL sequent")
+            case _ =>
+              return proof.InvalidProofTactic(s"The first fact is not parsable as an HOL sequent")
+
       }
 
     }
@@ -382,10 +387,15 @@ object HOLSteps extends lisa.HOL {
   }
 
   object INST extends ProofTactic {
-    def apply(using proof: Proof)(x: TypedVar, t:Term, prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+    def apply(using proof: Proof)(inst: Seq[(TypedVar, Term)], prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+      /*
       prem.statement match
         case HOLSequent(left, right) =>
           have(HOLSequent(left.map(p => HOLSubst(p, x, t)), HOLSubst(right, x, t))) by Sorry
+          */
+      val r = prem.of(inst.map(_ := _): _*)
+      have(r.statement) by Restate.from(r)
+
     }
       
         
@@ -400,6 +410,12 @@ object HOLSteps extends lisa.HOL {
 
   }
 
+  /*
+  def HOLSubstType(t:Term, A:F.Variable, u:Term): Term = {
+    t match
+      case v: TypedVar if v.typ == A => TypedVar(v.id, u.typ)
+  }
+*/
 
   def HOLSubst(t:Term, x:TypedVar, u:Term): Term = {
     t match

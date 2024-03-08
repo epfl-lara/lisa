@@ -256,6 +256,15 @@ object VarsAndFunctions {
       val h6 = have(((bound::bound.typ) |- ((t =:= body) === One)) ++<? h3.statement ++<? h5.statement) by Cut.withParameters(t::outType)(h5, h4)
       val c = thenHave(t =:= body) by Restate
     }
+/*
+    def instantiate(map: Map[TypedVar, Term]): Abstraction & Term = 
+      this match
+        case th: AbstractionClosureWithoutFreeVars => th
+        case 
+     */ 
+    
+
+    //def substituteUnsafe(map: Map[F.SchematicLabel[?], F.LisaObject[?]]): Term = instantiate(map.asInstanceOf[Map[TypedVar, Term]])
   }
 
   private class AbstractionClosureWithoutFreeVars(
@@ -287,6 +296,21 @@ object VarsAndFunctions {
     val origin = AppliedFunction(freeVars.init.foldLeft(repr: Term)((acc, v) => acc*v), freeVars.last)
     val typ = bound.typ |=> defin.outType
   }
+/*
+  private class InstantiatedAbstraction(
+    val base: AbstractionClosureWithFreeVars,
+    val args: List[Term]
+  ) extends AppliedFunction(args.init.foldLeft(base.repr: Term)((acc, v) => acc*v), args.last) with Abstraction {
+    val repr = base.repr
+    //val bound = ???
+    //val body = ???
+    //val freeVars = base.freeVars.map(_.substitute(instVar := instTerm))
+    val defin = base.defin
+    val origin = base.origin.substituteUnsafe((base.freeVars zip args).toMap)
+    val typ = base.typ
+  } 
+
+*/
 
 
   object Abstraction {
