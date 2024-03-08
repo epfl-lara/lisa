@@ -10,6 +10,7 @@ import lisa.maths.settheory.SetTheory.{singleton, app}
 import ap.Prover.Proof
 import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.utils.KernelHelpers.checkProof
+import lisa.fol.FOLHelpers.freshVariable
 
 /**
   * Here we define and implement all the basic steps from HOL Light
@@ -409,6 +410,49 @@ object HOLSteps extends lisa.HOL {
     }
 
   }
+
+  object DEF_RED extends ProofTactic {
+    def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
+      t match
+        case ia: InstAbstraction =>
+          val base = ia.base
+          val insts = ia.insts
+          val ctx = computeContext(Set(t))
+          val x = TypedVar(freshVariable(ctx._1 ++ ctx._2  +t, base.defin.bound.id).id, base.defin.bound.typ)
+          val a1 = assume(base.defin.bodyProp)
+          val eq = a1.of((insts :+ x): _*)
+          eq match
+            case =:=(a)*l*r => //ia.repr*insts...*x = ir.repr.body
+              val pure = have(BETA(λ(x, r)*x)) // λ(x, r)*x =:= r
+              thenHave()
+              thenHave(withCTX( tforall(x, (λ(x, r)*x) =:= r))) by RightForall
+            
+            case _ => 
+              throw new Exception("Was expecting an equation but got " + eq)
+          
+
+    }
+  }
+
+  /*
+  object BETA_2 extends ProofTactic {
+    def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
+      t match
+        case (l:Abstraction)*(u:Term) => 
+          have(l.)
+    }
+  }
+
+  object BETA_REDUCE extends ProofTactic {
+    def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
+      t match
+        case (l:Abstraction)*u => 
+          val res = l.body
+          have(l.body)
+          have(b.statement) by Weakening(b)
+    }
+  }
+  */
 
   /*
   def HOLSubstType(t:Term, A:F.Variable, u:Term): Term = {
