@@ -11,6 +11,10 @@ import ap.Prover.Proof
 import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.utils.KernelHelpers.checkProof
 import lisa.fol.FOLHelpers.freshVariable
+import ap.parser.ApInput.Absyn.Type
+import lisa.utils.Serialization.instSchema
+import lisa.prooflib.BasicStepTactic
+import lisa.prooflib.SimpleDeducedSteps.Discharge
 
 /**
   * Here we define and implement all the basic steps from HOL Light
@@ -86,13 +90,10 @@ object HOLSteps extends lisa.HOL {
     def apply(using proof: Proof)(t1: proof.Fact, t2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
       val s1 = t1.statement
       val s2 = t2.statement
-      println("s1: " + s1)
-      println("s2: " + s2)
       (s1, s2) match {
         case (HOLSequent(left1, =:=(aa)*s*ta), HOLSequent(left2, =:=(ab)*tb*u) ) => //equality is too strict
           if ta == tb then
             if aa == ab then
-              println("eqTrans: " + (eqTrans of (x := s, y := ta, z := u)).statement)
               val r0 = have((s1.left ++ s2.left + (s::aa) + (ta :: aa) + (u :: aa) ) |- ((s =:= u) === One)) by Tautology.from(eqTrans of (x := s, y := ta, z := u), t1, t2)
               val r1 = have(Discharge(have(ProofType(s)))(r0))
               val r2 = have(Discharge(have(ProofType(ta)))(r1))
@@ -387,15 +388,38 @@ object HOLSteps extends lisa.HOL {
 
   }
 
+  def sanityProofCheck(using p: Proof)(message: String): Unit = {
+    val csc = p.toSCProof
+    if checkSCProof(csc).isValid then
+      println("Proof is valid. " + message)
+      Thread.sleep(100)
+    else 
+      checkProof(csc)
+      throw Exception("Proof is not valid: " + message)
+  }
+
   object INST extends ProofTactic {
-    def apply(using proof: Proof)(inst: Seq[(TypedVar, Term)], prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
-      /*
-      prem.statement match
-        case HOLSequent(left, right) =>
-          have(HOLSequent(left.map(p => HOLSubst(p, x, t)), HOLSubst(right, x, t))) by Sorry
-          */
-      val r = prem.of(inst.map(_ := _): _*)
-      have(r.statement) by Restate.from(r)
+    def apply(using proof: Proof)(inst: Seq[(TypedVar, Term)], prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+
+      val h0 = prem.of(inst.map(_ := _): _*)
+      val h1 = inst.foldLeft(h0: ip.Fact)((acc, p) => 
+        have( Discharge(have( ProofType(p._2) ))(acc) ) 
+      )
+      h0.statement.right.head match
+        case eqOne(r) =>
+          val def_red_r = have(DEF_RED(r)) // r === r2
+          def_red_r.statement.right.head match {
+            case `r` === r2 =>
+              have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Substitution.ApplyRules(def_red_r)(h1)
+            case fail === _ =>
+              throw new Exception(s"Was expecting an equation with left hand side $r but got $fail")
+            case _ =>
+              throw new Exception(s"Was expecting an equation as return of DEF_RED but got ${def_red_r.statement.right.head}")
+          }
+
+        case _ => 
+          throw new Exception(s"Was expecting an r === One but got ${h0.statement.right.head}")
+
 
     }
       
@@ -412,25 +436,80 @@ object HOLSteps extends lisa.HOL {
   }
 
   object DEF_RED extends ProofTactic {
-    def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
+    def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       t match
-        case ia: InstAbstraction =>
+        case ia: InstAbstraction => //  $λ*a*b*c...
           val base = ia.base
           val insts = ia.insts
-          val ctx = computeContext(Set(t))
-          val x = TypedVar(freshVariable(ctx._1 ++ ctx._2  +t, base.defin.bound.id).id, base.defin.bound.typ)
           val a1 = assume(base.defin.bodyProp)
-          val eq = a1.of((insts :+ x): _*)
-          eq match
-            case =:=(a)*l*r => //ia.repr*insts...*x = ir.repr.body
-              val pure = have(BETA(λ(x, r)*x)) // λ(x, r)*x =:= r
-              thenHave()
-              thenHave(withCTX( tforall(x, (λ(x, r)*x) =:= r))) by RightForall
-            
-            case _ => 
-              throw new Exception("Was expecting an equation but got " + eq)
-          
+          val eq = insts.foldLeft(a1: ip.Fact)((acc, inst) =>
+            val i1 = acc of inst
+            i1.statement.right.head match
+              case F.==>(left, right) =>  //   |- inst :: x.typ    --- not checking that type of insts match types freevars
+                val i2 = have((i.statement.left + left) |- right) by Restate.from(i1)
+                val b1 = have(ProofType(inst._2))
+                val b2 = have(Discharge(b1)(i2))
+                b2
+              case _ =>
+                throw new Exception(s"Was expecting an implication  while unfolfing instantiations, but got ${i1.statement.right.head}." +
+                  s"\n The instantiation was $inst. \n The formula was ${a1.statement}." )
+          )
+          eq.statement.right.head match
+            case F.forall(x: TypedVar, F.==>(tp, l === r)) => //ia.repr*insts...*x = ir.repr.body
+              val def_red_r = have(DEF_RED(r)) // r === r'
+              def_red_r.statement.right.head match
+                case `r` === r2 => 
+                  val lambdar = λ(x, r2)
+                  val ctx = computeContext(Set(t, lambdar))
+                  val assump = ctx._1 ++ ctx._2
+                  val ctxlr = computeContext(Set(lambdar, r2))
+                  val i0 = have((assump + (x::x.typ)) |- (t*x === r)) by Weakening(eq of x)
+                  val xx = freshVariable[F.Sequent](Seq(i0.statement, def_red_r.statement), "xx")
+                  val i1 = have((assump + (x::x.typ) + (r === r2)) |- (t*x === r2)) by RightSubstEq.withParametersSimple(List((r, r2)), F.lambda(xx, t*x === xx))(i0) //Substitution.ApplyRules(def_red_r)(i0)
+                  val i2 = have(Discharge(def_red_r)(i1))
+                  val pure = have(BETA_PRIM(lambdar*x)) // λ(x, r)*x === r
+                  val h = have((assump + (x::x.typ) + (r === lambdar*x)) |- t*x === lambdar*x) by RightSubstEq.withParametersSimple(List((r, lambdar*x)), F.lambda(xx, t*x === xx))(i2)  // Substitution.ApplyRules(pure)(i2)
+                  val h0 = have(Discharge(pure)(h))
+                  thenHave(assump |- (x::x.typ ==> (t*x === lambdar*x))) by Restate.from
+                  val h1 = thenHave(assump |- tforall(x, t*x === lambdar*x)) by RightForall
+                  val iatyp = x.typ |=> base.defin.outType
+                  val h2 = have((assump + (t :: iatyp) + (lambdar :: iatyp))  |- (lambdar === t)) by Tautology.from(
+                    funcUnique2 of (f := λ(x, r), g := t, A := x.typ, B := base.defin.outType),
+                    eq,
+                    h0
+                  )
+                  val h3 = have(Discharge(have(ProofType(lambdar)))(h2))
+                  val ptt = have(ProofType(t))
+                  val h4 = have(Discharge(ptt)(h3))
+                  
+                case fail === _ => 
+                  throw new Exception(s"Was expecting an equation with left hand side $r but got $fail")
+                case _ => 
+                  throw new Exception(s"Was expecting an equation as return of DEF_RED but got ${def_red_r.statement.right.head}")
+            case F.forall(x: TypedVar, F.==>(tp, r)) =>
+              throw new Exception("Was expecting something of the form ∀(x, x::T => l === r) but got" + eq.statement)
+            case F.forall(x: TypedVar, r) =>
+              throw new Exception("Was expecting something of the form ∀(x,  x::T => f) but got" + eq.statement)
+            case r => 
+              throw new Exception(s"Was expecting a formula of the form ∀(x, f) but got $r")
 
+
+        case abs: Abstraction => 
+          have(abs === abs) by Restate
+        case v: TypedVar => 
+          have(v === v) by Restate
+        case f*u =>
+          val s1 = have(DEF_RED(f))
+          val s2 = have(DEF_RED(u))
+          (s1.statement.left ++ s2.statement.left).foreach(f => assume(f))
+          (s1.statement.right.head, s2.statement.right.head) match
+            case (`f` === f2, `u` === u2) =>
+              have(f*u === f*u) by Restate
+              thenHave(f*u ===f2*u2) by Substitution.ApplyRules(s1, s2)
+            case (fail1, fail2) =>
+              throw new Exception(s"Was expecting two equations with left hand side $f but got $fail1 and with left hand side $u but got $fail2")
+        case t => 
+          have(t === t) by Restate
     }
   }
 

@@ -54,13 +54,16 @@ object SimpleDeducedSteps {
       val seqs = ss map (e => e.underlying)
       if (!seqs.forall(_.right.size == 1))
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
-      val s = seqs.head
+      val seqs2 = seqs.filter(s => premise.statement.left.exists(f2 => K.isSame(s.right.head, f2.underlying)))
+      if (seqs2.isEmpty)
+        return proof.ValidProofTactic(premise.statement, Seq(K.Restate(premise.statement.underlying, -1)), Seq(premise))
+      val s = seqs2.head
       val f = s.right.head
       val first = K.Cut((proof.getSequent(premise).underlying removeLeft f) ++ (s removeRight f), -2, -1, f)
 
       proof.ValidProofTactic(
         (proof.getSequent(premise) removeAllLeft (ss.flatMap(_.right).toSet)) ++<< (F.Sequent(ss.flatMap(_.left).toSet, Set())),
-        seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
+        seqs2.tail.zipWithIndex.scanLeft(first)((prev, next) => {
           val f = next._1.right.head
           K.Cut((prev.bot removeLeft f) ++ (next._1 removeRight f), -next._2 - 3, next._2, f)
         }),

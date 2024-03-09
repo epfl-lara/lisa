@@ -257,14 +257,7 @@ object VarsAndFunctions {
       val c = thenHave(t =:= body) by Restate
     }
 
-     def substituteUnsafe(map: Map[F.SchematicLabel[?], F.LisaObject[?]]): Term = InstAbstraction(this, freeVars.map(map).asInstanceOf)
-  }
-
-  class InstAbstraction(
-    val base: Abstraction,
-    val insts: List[Term]
-  ) extends AppliedFunction(insts.init.foldLeft(base.repr: Term)((acc, v) => acc*v), insts.last) {
-    
+     
   }
 
   private class AbstractionClosureWithoutFreeVars(
@@ -295,22 +288,23 @@ object VarsAndFunctions {
     //override def toString = s"(λ$bound. $body)"
     val origin = AppliedFunction(freeVars.init.foldLeft(repr: Term)((acc, v) => acc*v), freeVars.last)
     val typ = bound.typ |=> defin.outType
+    override def substituteUnsafe(map: Map[F.SchematicLabel[?], F.LisaObject[?]]): AppliedFunction = 
+      if map.contains(repr) then super.substituteUnsafe(map)
+      else 
+        val r = InstAbstraction(this, freeVars.map(v => map.getOrElse(v, v)).asInstanceOf)
+        val exp = super.substituteUnsafe(map)
+        if !(r == exp) then 
+          println("r: " + r)
+          println("exp: " + exp)
+        r
   }
-/*
-  private class InstantiatedAbstraction(
-    val base: AbstractionClosureWithFreeVars,
-    val args: List[Term]
-  ) extends AppliedFunction(args.init.foldLeft(base.repr: Term)((acc, v) => acc*v), args.last) with Abstraction {
-    val repr = base.repr
-    //val bound = ???
-    //val body = ???
-    //val freeVars = base.freeVars.map(_.substitute(instVar := instTerm))
-    val defin = base.defin
-    val origin = base.origin.substituteUnsafe((base.freeVars zip args).toMap)
-    val typ = base.typ
-  } 
 
-*/
+  class InstAbstraction(
+    val base: Abstraction,
+    val insts: List[Term]
+  ) extends AppliedFunction(insts.init.foldLeft(base.repr: Term)((acc, v) => acc*v), insts.last) {
+
+  }
 
 
   object Abstraction {
