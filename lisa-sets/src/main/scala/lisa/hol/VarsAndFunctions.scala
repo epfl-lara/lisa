@@ -23,8 +23,10 @@ object VarsAndFunctions {
 
   type Type = Term
 
-  def computeContext(terms: Set[Term]): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = 
-    val frees = terms.flatMap(_.freeVariables)
+  def computeContext(terms: Set[Term]) = computeContextKnown(terms, Set.empty)
+
+  def computeContextKnown(terms: Set[Term], known: Set[Variable]): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = 
+    val frees = terms.flatMap(_.freeVariables) -- known
     val (r1, r2) = frees.foldLeft((List.empty[VarTypeAssignment], List.empty[AbstractionDefinition])) {
       case ((acc1, acc2), a: AbstrVar) => 
         (acc1, a.defin :: acc2)
@@ -33,11 +35,12 @@ object VarsAndFunctions {
       case ((acc1, acc2), v) => 
         (acc1, acc2)
     }
-    (r1.toSet, r2.toSet)
+    val rec = if r2.isEmpty then (Set(), Set()) else computeContextOfFormulas(r2.toSet, frees)
+    (r1.toSet, r2.toSet ++ rec._2)
 
-  def computeContextOfFormulas(formulas: Set[Formula]): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = 
-    val vars = formulas.flatMap(_.freeVariables)
-    computeContext(vars.toSet)
+  def computeContextOfFormulas(formulas: Set[Formula], known: Set[Variable] = Set()): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = 
+    val vars = formulas.flatMap(_.freeVariables) -- known
+    computeContextKnown(vars.toSet, Set.empty)
 
   private def HOLSeqToFOLSeq(left: Set[Term], right: Term): (Set[VarTypeAssignment], Set[AbstractionDefinition]) = {
     computeContext(left + right)
@@ -313,7 +316,7 @@ object VarsAndFunctions {
     def apply(bound: TypedVar, body: Term): Abstraction & Term = {
       cache.getOrElseUpdate((bound, body), {
         val freeVars: Seq[TypedVar] = (body.freeVariables - bound).toSeq.sortBy(_.id.name).collect {
-          case v: TypedVar => v
+          case v: TypedVar if !v.isInstanceOf[AbstrVar] => v
         }
         val repr = Variable(nextId)
         val inner = tforall(bound, 

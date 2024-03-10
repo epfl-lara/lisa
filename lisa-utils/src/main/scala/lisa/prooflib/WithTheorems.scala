@@ -67,6 +67,8 @@ trait WithTheorems {
     private var assumptions: List[F.Formula] = assump
     private var eliminations: List[(F.Formula, (Int, F.Sequent) => List[K.SCProofStep])] = Nil
 
+    def cleanAssumptions: Unit = assumptions = Nil
+
     /**
      * the theorem that is being proved (paritally, if subproof) by this proof.
      *

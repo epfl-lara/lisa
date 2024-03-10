@@ -17,8 +17,8 @@ trait Sequents extends Common with lisa.fol.Lambdas with Predef {
   case class Sequent(left: Set[Formula], right: Set[Formula]) extends LisaObject[Sequent] with Absolute {
     def underlying: lisa.kernel.proof.SequentCalculus.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
 
-    def allSchematicLabels: Set[SchematicLabel[?]] = left.flatMap(_.allSchematicLabels)
-    def freeSchematicLabels: Set[SchematicLabel[?]] = left.flatMap(_.freeSchematicLabels)
+    def allSchematicLabels: Set[SchematicLabel[?]] = left.flatMap(_.allSchematicLabels) ++ right.flatMap(_.allSchematicLabels)
+    def freeSchematicLabels: Set[SchematicLabel[?]] = left.flatMap(_.freeSchematicLabels) ++ right.flatMap(_.freeSchematicLabels)
     def substituteUnsafe(map: Map[SchematicLabel[?], ? <: LisaObject[?]]): Sequent = Sequent(left.map(_.substituteUnsafe(map)), right.map(_.substituteUnsafe(map)))
 
     /*Ok for now but what when we have more*/
