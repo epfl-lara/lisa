@@ -1,6 +1,6 @@
 
 package lisa.hol
-import lisa.maths.settheory.types.TypeSystem.*
+import lisa.maths.settheory.types.TypeSystem.{`*` => _, *}
 import lisa.maths.settheory.types.TypeLib.*
 import TypeChecker.*
 import lisa.maths.settheory.SetTheory.{pair, ∅}
@@ -13,6 +13,8 @@ import lisa.hol.VarsAndFunctions.HOLSequent.toHOLSequent
 
 
 object VarsAndFunctions {
+
+  private given lisa.prooflib.OutputManager = HOLSteps.om
 
   def main(args: Array[String]): Unit = {
     val x = typedvar(𝔹)
@@ -80,6 +82,8 @@ object VarsAndFunctions {
           case s1: F.Sequent => super.--<<(s1)
 
   }
+
+
 
   import F.{given}
 
@@ -167,7 +171,15 @@ object VarsAndFunctions {
       have(thesis) by TypeChecker.prove
     }
     
-  
+  extension (t:Term) {
+    def * (t2:Term): Term = HOLApplication(t, t2)
+  }
+
+  object * {def unapply(t: Term): Option[(Term, Term)] = t match {
+    case AppliedFunction(f, a) => Some((f, a))
+    case app(f, a) => Some((f, a))
+    case _ => None
+  }}
 
   ///////////////////////////////////////
   /////////// Typed Variables ///////////
@@ -194,8 +206,61 @@ object VarsAndFunctions {
     Identifier("$λ", counter)
   }
 
+  sealed trait TypedHOLTerm {
+    this : Term =>
+    val typ: Type
+    def asTerm: Term & TypedHOLTerm = this
+    var typThm: Option[JUSTIFICATION] = None // conditional proof of this :: typ
+  }
 
-  class TypedVar( id: Identifier, val typ: Type ) extends Variable(id) {
+  class PolymorphicConstant[N <: Arity](label: TypedConstantFunctional[N], args: Term**N) extends AppliedFunctional(label, args.toSeq) with TypedHOLTerm {
+    val typ = {
+      val subst = (label.typ.args zip args.toSeq).map((v, a) => (v := a))
+      label.typ.out.asInstanceOf[Term].substitute(subst: _*)
+    }
+
+  }
+  class HOLConstant(id: Identifier, override val typ: Term, val thm: JUSTIFICATION) extends TypedConstant[Term](id, typ, thm) with TypedHOLTerm {
+    typThm = Some(thm)
+  }
+
+  type HOLTerm = HOLApplication | TypedVar | Abstraction | TypedConstant[Term] | PolymorphicConstant[?]
+
+  var i = 0
+  extension (ht: HOLTerm)
+    def typ = ht match
+      case ht: TypedHOLTerm => ht.typ
+      case tc: TypedConstant[?] => tc.typ.asInstanceOf[Term]
+    
+    def getTypThmOrElseUpdate(computeProof: Proof ?=> Unit): JUSTIFICATION = {
+      ht match
+        case ht: TypedHOLTerm => 
+          ht.typThm match
+            case Some(thm) => thm
+            case None => 
+              val name = "¢typ_hol_" + i
+              i += 1
+              val ctx = computeContext(Set(ht.asTerm))
+              val newthm = THM( (ctx._1 ++ ctx._2) |- (ht.asTerm::ht.typ), name, summon[sourcecode.Line].value, summon[sourcecode.File].value, InternalStatement)(pr ?=> computeProof(using pr))
+              ht.typThm = Some(newthm)
+              newthm
+        case tc: TypedConstant[?] => tc.justif
+      
+      
+    }
+
+  class HOLApplication(func: Term, arg: Term) extends AppliedFunction(func, arg) with TypedHOLTerm {
+    val typ = computeType(func) match {
+      case inType |=> outType => 
+        if computeType(arg) == inType then outType
+        else 
+          throw new IllegalArgumentException("Argument " + arg + " of function " + func + " has type " + computeType(arg) + " instead of expected " + inType + ".")
+      case funcType => throw new IllegalArgumentException("Function " + func + " expected to have function type A |=> B, but has type " + funcType + ". ")
+    }
+
+  }
+
+  class TypedVar( id: Identifier, val typ: Type ) extends Variable(id) with TypedHOLTerm {
     override def substituteUnsafe(map: Map[SchematicLabel[?], LisaObject[?]]): Term = 
 
       if map.contains(this) then map(this).asInstanceOf[Term]
@@ -220,9 +285,11 @@ object VarsAndFunctions {
   class AbstrVar( id: Identifier, val defin:AbstractionDefinition ) extends TypedVar(id, defin.typ){
   }
 
-  trait Abstraction {
+
+
+  trait Abstraction  extends TypedHOLTerm{
     this : Term =>
-    def asTerm: Abstraction & Term = this
+    override def asTerm: Abstraction & Term = this
 
     val bound: TypedVar
     val body: Term
@@ -233,14 +300,15 @@ object VarsAndFunctions {
 
     val origin: Term
 
-    def typ: Type
+    val typ: Type
+
 
     override def toString = s"${repr.id}($bound. $body)"
 
-    import HOLSteps.{=:= => _, debug => _, *, given}
 
     private lazy val t = this * bound
     lazy val betaName = "beta_" + repr.id
+    import HOLSteps.{=:= => _, *, given}
 
     lazy val BETA = THM( t =:= body, betaName, summon[sourcecode.Line].value, summon[sourcecode.File].value, InternalStatement) {
       val context = VarsAndFunctions.computeContext(Set(t, body))
@@ -269,6 +337,7 @@ object VarsAndFunctions {
     val body: Term,
     defin: AbstractionDefinition
   ) extends AbstrVar(reprId, defin) with Abstraction{
+
     override def substituteUnsafe(map: Map[F.SchematicLabel[?], F.LisaObject[?]]): Term = 
       if map.contains(repr) then map(repr).asInstanceOf[Term]
       else 
@@ -288,6 +357,7 @@ object VarsAndFunctions {
     val freeVars: Seq[TypedVar],
     val defin: AbstractionDefinition
   ) extends AppliedFunction(freeVars.init.foldLeft(repr: Term)((acc, v) => acc*v), freeVars.last) with Abstraction {
+
     //override def toString = s"(λ$bound. $body)"
     val origin = AppliedFunction(freeVars.init.foldLeft(repr: Term)((acc, v) => acc*v), freeVars.last)
     val typ = bound.typ |=> defin.outType
@@ -305,7 +375,8 @@ object VarsAndFunctions {
   class InstAbstraction(
     val base: Abstraction,
     val insts: List[Term]
-  ) extends AppliedFunction(insts.init.foldLeft(base.repr: Term)((acc, v) => acc*v), insts.last) {
+  ) extends AppliedFunction(insts.init.foldLeft(base.repr: Term)((acc, v) => acc @@ v), insts.last) with TypedHOLTerm {
+    val typ = base.typ
 
   }
 
@@ -321,8 +392,8 @@ object VarsAndFunctions {
         val repr = Variable(nextId)
         val inner = tforall(bound, 
             (freeVars.foldLeft[Term](repr) { (acc, v) => 
-              acc*v
-            } * bound) === body
+              acc @@ v
+            } @@ bound) === body
           )
         val bodyProp = freeVars.foldLeft[Formula](inner) { (acc, v) => 
           tforall(v, acc)
@@ -360,13 +431,47 @@ object VarsAndFunctions {
         )
   }
 
-  var i: Int = 0
+  var j: Int = 0
+
+
+
 
   object ProofType extends ProofTactic {
-    def apply(using proof: SetTheoryLibrary.Proof)(t:Term): proof.ProofTacticJudgement =
-      val context = HOLSeqToFOLSeq(Set(), t)
+    def apply2(using proof: SetTheoryLibrary.Proof)(t:Term): proof.ProofTacticJudgement =
+      val context = computeContext(Set(t))
       TypeChecker.typecheck(context._1.toSeq ++ context._2.toSet, t, None)
+
+
+
+    def apply(using proof: SetTheoryLibrary.Proof)(t:Term): proof.ProofTacticJudgement = TacticSubproof {
+      given SetTheoryLibrary.type = SetTheoryLibrary
+      val r = if true then apply2(t) else t match 
+        case t: TypedHOLTerm => 
+          //println("Good: Caching for " + t)
+          val r = t.asInstanceOf[HOLTerm].getTypThmOrElseUpdate {
+            have(apply2(t.asTerm))
+          }
+          lisa.prooflib.SimpleDeducedSteps.Restate.from(r)(r.statement)
+        case tc: TypedConstant[?] => 
+          //println("Good: Caching for " + t)
+          lisa.prooflib.SimpleDeducedSteps.Restate.from(tc.justif)(tc.justif.statement)
+        case _ => 
+          println("Warning: No caching for " + t)
+          println("it has class " + t.getClass())
+          apply2(t)
+        //val rt = apply2(t)
+
+        val r1 = have(r)
+        val r2 = have(r1.statement) by lisa.prooflib.BasicStepTactic.Weakening(r1)
+    }
+
+      
   }
+
+
+
+
+
 
   var debug = false
   def computeType(t:Term): Type = 
@@ -415,7 +520,6 @@ object VarsAndFunctions {
         throw new IllegalArgumentException("computeTypes only support fully typed terms. " + t + " is not fully typed.")
       }
       r
-
 
 
 

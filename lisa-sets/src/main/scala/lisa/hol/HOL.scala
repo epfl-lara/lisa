@@ -7,7 +7,7 @@ import lisa.prooflib.BasicMain
  * The parent trait of all theory files containing mathematical development
  */
 trait HOL extends BasicMain {
-  export lisa.maths.settheory.types.TypeSystem.*
+  export lisa.maths.settheory.types.TypeSystem.{`*` => _, *}
   export lisa.maths.settheory.types.TypeLib.{any, Zero, One, 𝔹, |=>, |-}
   export TypeChecker.*
   export lisa.hol.VarsAndFunctions.{main => _, given, *}

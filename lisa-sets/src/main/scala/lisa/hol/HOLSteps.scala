@@ -7,15 +7,12 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.automation.*
 
 import lisa.maths.settheory.SetTheory.{singleton, app}
-import ap.Prover.Proof
 import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.utils.KernelHelpers.checkProof
 import lisa.fol.FOLHelpers.freshVariable
-import ap.parser.ApInput.Absyn.Type
 import lisa.utils.Serialization.instSchema
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.SimpleDeducedSteps.Discharge
-import lisa.automation.Tableau.pr
 
 /**
   * Here we define and implement all the basic steps from HOL Light
@@ -59,6 +56,8 @@ object HOLSteps extends lisa.HOL {
   val q = typedvar(𝔹)
   val r = typedvar(𝔹)
 
+
+
   val eqCorrect = Theorem(((x::A), (y::A)) |- ((x =:= y)===One) <=> (x===y)) {sorry}
   val eqRefl = Theorem((x =:= x)) {sorry}
 
@@ -70,6 +69,8 @@ object HOLSteps extends lisa.HOL {
   }
 
   val propExt = Theorem((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One)) |- (p === q)) {sorry}
+
+
 
   /**
    *  ------------------
@@ -99,7 +100,9 @@ object HOLSteps extends lisa.HOL {
               val r0 = have((s1.left ++ s2.left + (s::aa) + (ta :: aa) + (u :: aa) ) |- ((s =:= u) === One)) by Tautology.from(eqTrans of (x := s, y := ta, z := u), t1, t2)
               val r1 = have(Discharge(have(ProofType(s)))(r0))
               val r2 = have(Discharge(have(ProofType(ta)))(r1))
-              have(Discharge(have(ProofType(u)))(r2))
+              val r3 = have(Discharge(have(ProofType(u)))(r2))
+              have(Clean.all(r3))
+              
             else 
               return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
           else 
@@ -169,30 +172,14 @@ object HOLSteps extends lisa.HOL {
           val lctx = lctx12._1 ++ lctx12._2
           lctx.foreach(a => 
             assume(a))
-          val typjudgt = {
-            val j = ProofType(t)
-            j match
-              case j: ip.ValidProofTactic => have(j)
-              case j: ip.InvalidProofTactic => return proof.InvalidProofTactic(s"Can't compute type judgement for $t: " + j.message)
-          }
-          val typjudgltx = {
-            val j = ProofType(lt*x)
-            j match
-              case j: ip.ValidProofTactic => have(j)
-              case j: ip.InvalidProofTactic => return proof.InvalidProofTactic(s"Can't compute type judgement for $lt: " + j.message)
-          }
-          val typjudgu = {
-            val j = ProofType(u)
-            j match
-              case j: ip.ValidProofTactic => have(j)
-              case j: ip.InvalidProofTactic => return proof.InvalidProofTactic(s"Can't compute type judgement for $u: " + j.message)
-          }
-          val typjudglux = {
-            val j = ProofType(lu*x)
-            j match
-              case j: ip.ValidProofTactic => have(j)
-              case j: ip.InvalidProofTactic => return proof.InvalidProofTactic(s"Can't compute type judgement for $lu: " + j.message)
-          }
+          val typjudgt = have(ProofType(t))
+
+          val typjudgltx = have(ProofType(lt*x))
+
+          val typjudgu = have(ProofType(u))
+
+          val typjudglux = have(ProofType(lu*x))
+
 
           val ctx12 = computeContext(Set(t, u))
           val ctx = ctx12._1 ++ ctx12._2
@@ -252,9 +239,11 @@ object HOLSteps extends lisa.HOL {
           val s2c = lastStep.statement.right.head // lt*x = lu*x
           val is2 = have(((x::x.typ) ==> s2c)) by Restate.from(lastStep)
           val qs2 = have(tforall(x, (lt*x)===(lu*x))) by RightForall(is2)
-          ip.addDischarge(have(ProofType(lt)))
-          ip.addDischarge(have(ProofType(lu)))
-          have((lt:: (x.typ |=> typ1), lu:: (x.typ |=> typ1)) |- ((lt =:= lu) === One)) by Tautology.from(funcUnique2 of (f := lt, g := lu, HOLSteps.x := x, A := x.typ, B := typ1), qs2)
+          val h1 = have((lt:: (x.typ |=> typ1), lu:: (x.typ |=> typ1)) |- ((lt =:= lu) === One)) by Tautology.from(funcUnique2 of (f := lt, g := lu, HOLSteps.x := x, A := x.typ, B := typ1), qs2)
+
+          val h2 = have( Discharge(have(ProofType(lt)))(h1) )
+          val h3 = have( Discharge(have(ProofType(lu)))(h2) )
+          have(Clean.all(h3))
 
 
         case _ => 
@@ -383,6 +372,7 @@ object HOLSteps extends lisa.HOL {
               val pt = have(ProofType(t))
               val h3 = have(Discharge(pt)(h2))
               val h4 = have(Discharge(have(ProofType(u)))(h3))
+              have(Clean.all(h4))
     
             case _ =>
               return proof.InvalidProofTactic(s"The second premise should prove $t but proves ${p.statement.right}")
@@ -447,7 +437,7 @@ object HOLSteps extends lisa.HOL {
           def_red_r.statement.right.head match {
             case `r` === r2 =>
               val s = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Substitution.ApplyRules(def_red_r)(h1)
-              have(Clean.allLambdas(s))
+              val s1 = have(Clean.all(s))
             case fail === _ =>
               throw new Exception(s"Was expecting an equation with left hand side $r but got $fail")
             case _ =>
@@ -567,8 +557,6 @@ object HOLSteps extends lisa.HOL {
   object Clean {
     def lambda(using proof: Proof)(defin: AbstractionDefinition)(prem: proof.Fact) : proof.ProofTacticJudgement = TacticSubproof{ ip ?=> 
       ip.cleanAssumptions
-      if (prem.statement -<< defin).freeVariables.contains(defin.reprVar) then
-        return proof.InvalidProofTactic(s"The lambda ${defin.reprVar} is used in the premise and it's definition can't be eliminated")
       val lctx12 = computeContextOfFormulas(Set(defin), Set())
       val lctx = lctx12._1 ++ lctx12._2
       val exdefin = F.exists(defin.reprVar, defin)
@@ -593,6 +581,36 @@ object HOLSteps extends lisa.HOL {
           allLambdas(h)
         case None => 
           have(prem.statement) by Restate.from(prem)
+    }
+
+    def variable(using proof: Proof)(ta: TypeAssignment[Term])(prem: proof.Fact) : proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+      ip.cleanAssumptions
+      val (v, typ) = ta.t match
+        case v: F.Variable => (v, ta.typ)
+        case _ => return proof.InvalidProofTactic(s"Can only eliminate type assignment of variables")
+
+      if (prem.statement -<< ta).freeVariables.contains(v) then
+        return proof.InvalidProofTactic(s"The variable ${v} is used in the premise and it's type assignment can't be eliminated")
+
+      val exv = F.exists(v, ta)
+      val p1 = have(exv) by Sorry
+      val p2 = have(LeftExists(prem)(prem.statement -<< ta +<< exv))
+      val p3 = have(Discharge(p1)(p2))
+    }
+
+    def allVariables(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+      val statement = prem.statement
+      val vars = statement.left.collect[TypeAssignment[Term]]{case (v:F.Variable) is (typ:Term) if !(statement -<< v).freeVariables.contains(v) => (v :: typ)}
+      if vars.nonEmpty then
+        val h = have(Clean.variable(vars.head)(prem))
+        allVariables(h)
+      else
+        have(prem.statement) by Restate.from(prem)
+    }
+
+    def all(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+      val h1 = have(Clean.allLambdas(prem))
+      val h2 = have(Clean.allVariables(h1))
     }
   }
 

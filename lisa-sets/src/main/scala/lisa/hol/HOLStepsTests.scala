@@ -2,7 +2,6 @@ package lisa.hol
 import lisa.hol.HOLSteps.*
 import lisa.prooflib.BasicStepTactic.* 
 import lisa.prooflib.SimpleDeducedSteps.Restate
-import java.beans.Beans
 
 object HOLStepsTests extends lisa.HOL {
   
@@ -13,18 +12,23 @@ object HOLStepsTests extends lisa.HOL {
 
   // _TRANS
 
+  println("Starting tests")
+  val tt = w =:=z
+  val now = System.currentTimeMillis()
+
+  println("starting test1")
 
   val test_trans_1 = Theorem((w =:= x, x =:= y, y =:= z) |- (w =:=z)) {
+    println("enters proof")
     val a1 = assume(w =:= x)
     val a2 = assume(x =:= y)
     val a3 = assume(y =:= z)
     val s1 = have(_TRANS(a1, a2))
     have(_TRANS(s1, a3))
   }
-  println("Starting tests")
-  val now = System.currentTimeMillis()
 
-  // MK_Comb
+  println("starting mk_comb")
+  // MK_COMB
 
   val test_mkcomb_1 = Theorem((f =:= g, x =:= y) |- (f*x =:= g*y)) {
     val a1 = assume(f =:= g)
@@ -199,78 +203,61 @@ object HOLStepsTests extends lisa.HOL {
     have(INST(Seq((p, q)), lastStep))
   }
 
-  println("Starting test 2")
   val test_inst_2 = Theorem(q) {
     have(q) by Sorry
     have(INST(Seq((p, p=:=p)), lastStep))
   }
-  println("Starting test 3")
+  
   val test_inst_3 = Theorem(p =:= p){
     have(p =:= q) by Sorry
     have(INST(Seq((q, p)), lastStep))
   }
   
-
-  
-  println("Starting test 4")
   val test_inst_4 = Theorem(p =:= q) {
     have(p) by Sorry
     have(INST(Seq((p, p=:=q)), lastStep))
   }
 
-  println("Starting test 5")
   val test_inst_5 = Theorem(λ(x, y)*z =:= z){
     have(λ(x, y)*w =:= w) by Sorry
     have(INST(Seq((w, z)), lastStep))
   }
 
-
-  println("Starting test 6")
   val test_inst_6 = Theorem(λ(x, y)*z =:= y){
     have(BETA(λ(x, y)*x))
     have(INST(Seq((x, z)), lastStep))
   }
 
-  println("Starting test 7")
   val test_inst_7 = Theorem(λ(x, x)*z =:= z){
     have(λ(x, x)*x =:= x) by Sorry
     have(INST(Seq((x, z)), lastStep))
   }
 
-  println("Starting test 8")
   val test_inst_8 = Theorem(λ(x, x =:= y)*z =:= (z =:= y)){
     have(BETA(λ(x, x =:= y)*x))
     have(INST(Seq((x, z)), lastStep))
   }
 
-
-  println("Starting test 9")
   val test_inst_9 = Theorem(λ(x, λ(y, x))*z =:= λ(y, z)){
     have(BETA(λ(x, λ(y, x))*x))
     have(INST(Seq((x, z)), lastStep))
   }
   
-  println("Starting test 10")
   val test_inst_10 = Theorem(λ(x, λ(y, y) =:= λ(y, x))*z =:= (λ(y, y) =:= λ(y, z))){
     have(BETA(λ(x, λ(y, y) =:= λ(y, x))*x))
     have(INST(Seq((x, z)), lastStep))
   }
 
-  println("Starting test 11")
   val test_inst_11 = Theorem(λ(x, λ(y, λ(z, x)))*w =:= λ(y, λ(z, w))){
     have(BETA(λ(x, λ(y, λ(z, x)))*x))
     have(INST(Seq((x, w)), lastStep))
   }
 
-  println("Starting test 12")
   val test_inst_12 = Theorem(λ(p, q)*p){
     have(λ(p, r)*p) by Sorry
     have(INST(Seq((r, q)), lastStep))
-    println("thesis:    " + thesis)
-    println("statement: " + lastStep.statement)
   }
 
-  println("Starting test 13")
   val test_inst_13 = Theorem(λ(x, λ(x, y)*x)*y =:= y){
     val s1 = have(BETA(λ(x, λ(x, y)*x)*x))
     val s2 = have(INST(Seq((x, y)), s1)) // λ(x, λ(x, y)*x)*y === λ(x, y)*y
@@ -280,11 +267,9 @@ object HOLStepsTests extends lisa.HOL {
   }
 
 
-  println("Starting test 14")
   val test_inst_14 = Theorem(λ(x, f*z) =:= λ(x, f*z)){
     val s0 = have(REFL(λ(x, v)))
     val s1 = have(INST(Seq((v, f*z)), s0))
-    println("after inst")
     val s2 = have(REFL(λ(x, f*z) ))
     have(_TRANS(s1, s2))
 
