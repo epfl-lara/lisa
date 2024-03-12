@@ -4,6 +4,7 @@ import Core.*
 import upickle.default.{ReadWriter => RW, *}
 import Parser._
 import upickle.default
+import java.io.File
 
 object JSONParser:
   case class SplitProofStep(name: String, dep1: Int, dep2: Int, strdep: String, termdep: String, termsdeps: List[List[String]], typesdeps: List[List[String]])
@@ -13,8 +14,10 @@ object JSONParser:
   given rws: RW[SplitProofStep] = macroRW 
   given rw: RW[RawStep] = macroRW 
 
-  def readJSON(fileName: String) = 
-    read[Array[RawStep]](java.io.File(fileName))
+  val fileBase = "/home/sankalp/projects/lisa/lisa-working-2/prooftrace2"
+
+  def readJSON(file: File) = 
+    read[Array[RawStep]](file)
 
   case class UnknownProofStepException(name: String) extends Exception
   case class CouldNotParseException(msg: String, next: String) extends Exception(s"Could not parse\n\tMessage: $msg\n\tNext: $next")
@@ -65,7 +68,7 @@ object JSONParser:
 
 
   def getProofs =
-    val rawSteps = readJSON("prooftrace2.proofs")
+    val rawSteps = readJSON(File(s"$fileBase.proofs"))
     val mapped = rawSteps.foldLeft(Map.empty[Int, ProofStep]) { case (map, RawStep(i, step)) =>
       val readStep = processSplitStep(step, map)
       map + (i -> readStep)
@@ -76,16 +79,16 @@ object JSONParser:
 
   def getTheorems =
     given rwt: RW[TheoremRef] = macroRW
-    read[List[TheoremRef]]("prooftrace2.names")
+    read[List[TheoremRef]](File(s"$fileBase.names"))
 
   def getStatements =
     case class Sequent(hy: List[String], cc: String)
     case class TheoremStatement(id: Int, th: Sequent)
     given rwns: RW[Sequent] = macroRW
     given rwn: RW[TheoremStatement] = macroRW
-    read[Array[TheoremStatement]](java.io.File("prooftrace2.theorems")).map(th => th.id -> (th.th.hy.map(parseTerm), parseTerm(th.th.cc))).toMap
+    read[Array[TheoremStatement]](File(s"$fileBase.theorems")).map(th => th.id -> (th.th.hy.map(parseTerm), parseTerm(th.th.cc))).toMap
 
 @main def hello(): Unit =
   // val m = JSONParser.getProofs
-  val thm = JSONParser.getStatements(18)
+  val thm = JSONParser.getStatements(188)
   println(thm._2.pretty)
