@@ -1,0 +1,11 @@
+[
+{"id": 18, "nm": "AND_DEF"},
+{"id": 463, "nm": "EXISTS_DEF"},
+{"id": 830, "nm": "EXISTS_UNIQUE_DEF"},
+{"id": 421, "nm": "FORALL_DEF"},
+{"id": 715, "nm": "F_DEF"},
+{"id": 188, "nm": "IMP_DEF"},
+{"id": 716, "nm": "NOT_DEF"},
+{"id": 567, "nm": "OR_DEF"},
+{"id": 0, "nm": "T_DEF"}
+]
