@@ -67,6 +67,8 @@ trait WithTheorems {
     private var assumptions: List[F.Formula] = assump
     private var eliminations: List[(F.Formula, (Int, F.Sequent) => List[K.SCProofStep])] = Nil
 
+    def cleanAssumptions: Unit = assumptions = Nil
+
     /**
      * the theorem that is being proved (paritally, if subproof) by this proof.
      *
@@ -560,7 +562,6 @@ trait WithTheorems {
     val innerJustification: theory.Theorem =
       if library._draft.nonEmpty && library._draft.get.value != file
       then // if the draft option is activated, and the theorem is not in the file where the draft option is given, then we replace the proof by sorry
-        // println("skip!")
         theory.theorem(name, goal.underlying, SCProof(SC.Sorry(goal.underlying)), IndexedSeq.empty) match {
           case K.Judgement.ValidJustification(just) =>
             just

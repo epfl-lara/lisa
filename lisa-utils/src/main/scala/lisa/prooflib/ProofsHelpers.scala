@@ -20,13 +20,13 @@ trait ProofsHelpers {
 
   given Library = library
 
-  class HaveSequent private[ProofsHelpers] (bot: Sequent) {
-    val x: lisa.fol.FOL.Sequent = bot
+  class HaveSequent /*private[ProofsHelpers]*/ (val bot: Sequent) {
+    //val x: lisa.fol.FOL.Sequent = bot
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
 
-      private val bot = HaveSequent.this.bot ++ (F.iterable_to_set(_proof.getAssumptions) |- ())
+      val bot = HaveSequent.this.bot ++ (F.iterable_to_set(_proof.getAssumptions) |- ())
       inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact = {
         tactic(bot).validate(line, file)
       }
@@ -44,7 +44,7 @@ trait ProofsHelpers {
 
   }
 
-  class AndThenSequent private[ProofsHelpers] (bot: Sequent) {
+  class AndThenSequent private[ProofsHelpers] (val bot: Sequent) {
 
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } =
       By(proof, line, file).asInstanceOf[By { val _proof: proof.type }]
@@ -290,7 +290,17 @@ trait ProofsHelpers {
       val lambda: LambdaExpression[Term, Term, N],
       out: F.Variable,
       j: JUSTIFICATION
-  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {}
+  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {
+
+    private val term = label.applySeq(lambda.bounds.asInstanceOf)
+    private val simpleProp = lambda.body === term
+    val simplePropName = "simpleDef_" + fullName
+    val simpleDef = THM(simpleProp, simplePropName, line, file, InternalStatement)({
+        have(thesis) by Restate.from(this of term)
+    })
+    shortDefs.update(label, Some(simpleDef))
+
+  }
 
   object SimpleFunctionDefinition {
     def apply[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {

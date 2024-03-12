@@ -48,16 +48,21 @@ class Apply(using val lib: Library, val proof: lib.Proof)(thm: proof.Fact) exten
     */
   private def normalForm(seq: Sequent): Sequent =
     def removeImplies(s: Sequent): Sequent = 
-      s.right.head match
-        case AppliedConnector(Implies, Seq(phi, psi)) => s.left + phi |- psi
-        case _ => s
+      if s.right.isEmpty then 
+        s 
+      else
+        s.right.head match
+          case AppliedConnector(Implies, Seq(phi, psi)) => removeImplies(s.left + phi |- psi)
+          case _ => s
 
+    
+    
     def removeConjunctions(s: Sequent): Sequent = 
-      s.left.flatMap(f =>
-        f match
-          case AppliedConnector(And, Seq(phi, psi)) => Set(phi, psi)
-          case _ => Set(f)
-      ) |- s.right
+      def rec(f: Formula): Set[Formula] = 
+      f match
+        case AppliedConnector(And, Seq(phi, psi)) => rec(phi) ++ rec(psi)
+        case _ => Set(f)
+      s.left.flatMap(rec) |- s.right
 
     removeConjunctions(removeImplies(seq))
 
@@ -106,127 +111,139 @@ class Apply(using val lib: Library, val proof: lib.Proof)(thm: proof.Fact) exten
   private def substitute(using _proof: lib.Proof)(fact: _proof.Fact, fSubst: FormulaSubstitution, tSubst: TermSubstitution): _proof.Fact =
     fact.of(fSubst.toFSubstPair: _*).of(tSubst.toTSubstPair: _*)
 
-
   /**
-    * Applies on method with a sequence as an argument instead of a varargs.
-    */
-  infix def onSeq(premises: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement = on(premises : _*)(bot)
+  * Applies on method with a varargs instead of a sequence.
+  */
+  infix def on(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement = on(premises.toSeq)(bot)
+
 
   /**
     * Executes the tactic. See class description for use cases.
     *
     * @param premises the facts that are applied to the theorem
+    * @param excluding the variables that are not to be substituted
     * @param bot the sequent the user want to prove
     */
-  infix def on(premises: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement =
+  infix def on(premises: Seq[proof.Fact], excluding: Iterable[Variable | VariableFormula] = Set())(bot: Sequent): proof.ProofTacticJudgement =
 
-    boundary:
-      TacticSubproof { sp ?=>
+    if thm == null then
+      proof.InvalidProofTactic("The theorem is null. Please check that it has been defined earlier in the proof.")
+    else if premises.exists(_ == null) then
+      proof.InvalidProofTactic("One of the premises is null. Please check that they all have been defined earlier in the proof.")
+    else
+      // STEP 0: Separate the variables and the variable formula in their respective sets
+      val (excludingTVars, excludingFVars) = excluding.foldLeft[(Set[Variable], Set[VariableFormula])](Set(), Set())((acc, v) => v match
+        case v: Variable => (acc._1 + v, acc._2)
+        case v: VariableFormula => (acc._1, acc._2 + v)
+      )
 
-        // STEP 1: Convert the given theorem, facts and sequent to their normal forms
-        val botNormalized: Sequent = normalForm(bot)
-        val thmNormalized: sp.Fact = lib.have(normalForm(thm.statement)) by Restate.from(thm)
-        val premisesNormalized = premises.map(p => lib.have(normalForm(p.statement)) by Restate.from(p))
-        
-        // STEP 2: Unify the conclusion of the sequent the user want to prove and the conclusion
-        val botCcl: Formula = botNormalized.right.head
-        val thmCcl: Formula = thmNormalized.statement.right.head
+      boundary:
+        TacticSubproof { sp ?=>
 
-        matchFormula(botCcl, thmCcl) match
-          case Some((formulaCclAssignment, termCclAssignment)) =>
+          // STEP 1: Convert the given theorem, facts and sequent to their normal forms
+          val botNormalized: Sequent = normalForm(bot)
+          val thmNormalized: sp.Fact = lib.have(normalForm(thm.statement)) by Restate.from(thm)
+          val premisesNormalized = premises.map(p => lib.have(normalForm(p.statement)) by Restate.from(p))
+          
+          // STEP 2: Unify the conclusion of the sequent the user want to prove and the conclusion
+          val thmAfterCclUnification: sp.Fact = 
+            (botNormalized.right.isEmpty, thmNormalized.statement.right.isEmpty) match
+              case (true, true) => thmNormalized
+              case (true, false) => break(proof.InvalidProofTactic(s"The given theorem could not prove the sequent."))
+              case (false, true) => break(proof.InvalidProofTactic(s"The given theorem could not prove the sequent."))
+              case (false, false) => 
+                val botCcl: Formula = botNormalized.right.head
+                val thmCcl: Formula = thmNormalized.statement.right.head
 
-            //Unification succeeded, subtitution can be performed
-            val thmAfterCclUnification: sp.Fact = substitute(thmNormalized, formulaCclAssignment, termCclAssignment)
+                matchFormula(botCcl, thmCcl, excludingTVars, excludingFVars) match
+                  //Unification succeeded, subtitution can be performed
+                  case Some((formulaCclAssignment, termCclAssignment)) => substitute(thmNormalized, formulaCclAssignment, termCclAssignment)
+                  // STEP 2 failed
+                  case None => break(proof.InvalidProofTactic(s"The conclusion of the goal and the theorem could not be unified."))
 
-            // STEP 3: Process each fact
-            val thmAfterPrems: sp.Fact = {
+          // STEP 3: Process each fact
+          val thmAfterPrems: sp.Fact = {
 
-              premisesNormalized.foldLeft(lib.have(thmAfterCclUnification))((updatedThm, premNormalized) => {
+            premisesNormalized.foldLeft(lib.have(thmAfterCclUnification))((updatedThm, premNormalized) => {
 
-                
-                val premCcl: Formula = premNormalized.statement.right.head
+              
+              val premCcl: Formula = premNormalized.statement.right.head
 
-                // STEP 3.1: Unify the conclusion of the fact with a premise of the theorem
-                // Three possibilities:
-                //   - the unification succeeded and the variables in the theorem are subtituted to match the conclusion of the fact;
-                //   - if the unification did not succeeded, try the unification in the other direction, i.e. try to specify the fact
-                //     instead of the theorem. If this works, make the susbtitution inside the fact;
-                //   - both unifications do not succeed and the fact is dropped.
-                //     TODO: add a warning when the fact is dropped
-                val conclusionsUnification: Option[(sp.Fact, sp.Fact)] = 
-                  searchPremises(updatedThm.statement, premCcl) match
-                    case Some((fSubstAfterPrem, tSubstAfterPrem)) => Some((substitute(updatedThm, fSubstAfterPrem, tSubstAfterPrem), premNormalized))
-                    case None => 
-                      searchPremisesRev(updatedThm.statement, premCcl) match
-                        case Some((fSubstAfterPrem, tSubstAfterPrem)) => Some((updatedThm, substitute(premNormalized, fSubstAfterPrem, tSubstAfterPrem)))
-                        case None =>  None
+              // STEP 3.1: Unify the conclusion of the fact with a premise of the theorem
+              // Three possibilities:
+              //   - the unification succeeded and the variables in the theorem are subtituted to match the conclusion of the fact;
+              //   - if the unification did not succeeded, try the unification in the other direction, i.e. try to specify the fact
+              //     instead of the theorem. If this works, make the susbtitution inside the fact;
+              //   - both unifications do not succeed and the fact is dropped.
+              //     TODO: add a warning when the fact is dropped
+              val conclusionsUnification: Option[(sp.Fact, sp.Fact)] = 
+                searchPremises(updatedThm.statement, premCcl, excludingTVars, excludingFVars) match
+                  case Some((fSubstAfterPrem, tSubstAfterPrem)) => Some((substitute(updatedThm, fSubstAfterPrem, tSubstAfterPrem), premNormalized))
+                  case None => 
+                    searchPremisesRev(updatedThm.statement, premCcl, excludingTVars, excludingFVars) match
+                      case Some((fSubstAfterPrem, tSubstAfterPrem)) => Some((updatedThm, substitute(premNormalized, fSubstAfterPrem, tSubstAfterPrem)))
+                      case None =>  None
 
-                
+              conclusionsUnification match 
+                case Some(updatedThmAfterCclUnification, premAfterCclUnification) =>
 
+                  // STEP 3.2: For each premise of the fact:
+                  //   - check if it is in the sequent the user want to prove. If yes, add it to the preconditions of the theorem
+                  //     using weakening;
+                  //   - else if it matches one of the premises of the theorem specify the theorem by using the appropriate sustitution.
+                  //     When performing this operation, the conclusion of the fact must be temporarily removed from the premises of the theorem
+                  //     to avoid buggy situations in case the fact is of the form p |- p;
+                  //   - else add the premise to the premises of the theorem using weakening.
+                  val premCclAfterCclUnification: Formula = premAfterCclUnification.statement.right.head
 
-                conclusionsUnification match 
-                  case Some(updatedThmAfterCclUnification, premAfterCclUnification) =>
-
-                    // STEP 3.2: For each premise of the fact:
-                    //   - check if it is in the sequent the user want to prove. If yes, add it to the preconditions of the theorem
-                    //     using weakening;
-                    //   - else if it matches one of the premises of the theorem specify the theorem by using the appropriate sustitution.
-                    //     When performing this operation, the conclusion of the fact must be temporarily removed from the premises of the theorem
-                    //     to avoid buggy situations in case the fact is of the form p |- p;
-                    //   - else add the premise to the premises of the theorem using weakening.
-                    val premCclAfterCclUnification: Formula = premAfterCclUnification.statement.right.head
-
-                    val updatedThmAfterWeakening: sp.Fact = 
-                      premAfterCclUnification.statement.left.foldLeft(updatedThmAfterCclUnification)((updatedThmDuringWeakening, premPrem) => {
-                        if botNormalized.left.contains(premPrem) then 
-                          lib.have(updatedThmDuringWeakening.statement +<< premPrem) by Weakening(updatedThmDuringWeakening)
-                        else 
-                          searchPremises(updatedThmDuringWeakening.statement -<? premCclAfterCclUnification, premPrem) match
-                            case Some((fSubstDuringWeakening, tSubstDuringWeakening)) =>
-                              substitute(updatedThmDuringWeakening, fSubstDuringWeakening, tSubstDuringWeakening)
-                            case None =>
-                              lib.have(updatedThmDuringWeakening.statement +<< premPrem) by Weakening(updatedThmDuringWeakening)
-                      })
+                  val updatedThmAfterWeakening: sp.Fact = 
+                    premAfterCclUnification.statement.left.foldLeft(updatedThmAfterCclUnification)((updatedThmDuringWeakening, premPrem) => {
+                      if botNormalized.left.contains(premPrem) then 
+                        lib.have(updatedThmDuringWeakening.statement +<< premPrem) by Weakening(updatedThmDuringWeakening)
+                      else 
+                        searchPremises(updatedThmDuringWeakening.statement -<? premCclAfterCclUnification, premPrem, excludingTVars, excludingFVars) match
+                          case Some((fSubstDuringWeakening, tSubstDuringWeakening)) =>
+                            substitute(updatedThmDuringWeakening, fSubstDuringWeakening, tSubstDuringWeakening)
+                          case None =>
+                            lib.have(updatedThmDuringWeakening.statement +<< premPrem) by Weakening(updatedThmDuringWeakening)
+                    })
 
 
-                    // STEP 3.3 Use cut to apply the conclusion of the fact to the theorem
-                    // TODO: maybe throw a warning when the fact cannot be applied instead of making the proof crash
-                    val cutStep: sp.ProofTacticJudgement = Cut(premAfterCclUnification, updatedThmAfterWeakening)(updatedThmAfterWeakening.statement -<? premCclAfterCclUnification)
+                  // STEP 3.3 Use cut to apply the conclusion of the fact to the theorem
+                  // TODO: maybe throw a warning when the fact cannot be applied instead of making the proof crash
+                  val cutStep: sp.ProofTacticJudgement = Cut(premAfterCclUnification, updatedThmAfterWeakening)(updatedThmAfterWeakening.statement -<? premCclAfterCclUnification)
 
-                    if cutStep.isValid then
-                      lib.have(cutStep)
-                    else
-                      break(proof.InvalidProofTactic(s"The following argument could not be applied to the theorem\n${premAfterCclUnification.statement}"))
+                  if cutStep.isValid then
+                    lib.have(cutStep)
+                  else
+                    break(proof.InvalidProofTactic(s"The following argument could not be applied to the theorem\n${premAfterCclUnification.statement} \n Deduced theorem: ${updatedThmAfterWeakening.statement}"))
 
-                    
 
-                  // STEP 3.1 failed: the fact is dropped
-                  case None => updatedThm
-                    
-              })
-            }
-            
-            // STEP 4: If some cases, after all these operations, the theorem can remain too general to prove the sequent.
-            //         To avoid such situation, perform a last unification between the premises of the sequent and those 
-            //         of the theorem.
-            val thmAfterLastUnification: sp.Fact = botNormalized.left.foldLeft(thmAfterPrems)((updatedThm, premBot) => {
-              searchPremises(updatedThm.statement, premBot) match 
-                case Some(fSubst, tSubst) => substitute(updatedThm, fSubst, tSubst)
+                // STEP 3.1 failed: the fact is dropped
                 case None => updatedThm
+                  
             })
+          }
+          
+          // STEP 4: If some cases, after all these operations, the theorem can remain too general to prove the sequent.
+          //         To avoid such situation, perform a last unification between the premises of the sequent and those 
+          //         of the theorem.
+          val thmAfterLastUnification: sp.Fact = botNormalized.left.foldLeft(thmAfterPrems)((updatedThm, premBot) => {
+            searchPremises(updatedThm.statement, premBot, excludingTVars, excludingFVars) match 
+              case Some(fSubst, tSubst) => substitute(updatedThm, fSubst, tSubst)
+              case None => updatedThm
+          })
 
-            // STEP 5: Prove the sequent using the theorem obtained with the previous steps. Weakening is necessary in case 
-            //         additional preconditions that do not appear in the theorem are present in the sequent.
-            val finalStep: sp.ProofTacticJudgement = Weakening(thmAfterLastUnification)(bot)
-            if finalStep.isValid then
-              lib.have(finalStep)
-            else
-              break(proof.InvalidProofTactic(s"The given theorem could not prove the sequent\n. Deduced theorem: ${thmAfterLastUnification.statement}"))
+          // STEP 5: Prove the sequent using the theorem obtained with the previous steps. Weakening is necessary in case 
+          //         additional preconditions that do not appear in the theorem are present in the sequent.
+          val finalStep: sp.ProofTacticJudgement = Weakening(thmAfterLastUnification)(bot)
+          if finalStep.isValid then
+            lib.have(finalStep)
+          else
+            break(proof.InvalidProofTactic(s"The given theorem could not prove the sequent.\n Deduced theorem: ${thmAfterLastUnification.statement}"))
 
-          // STEP 2 failed
-          case None => break(proof.InvalidProofTactic(s"The conclusion of the goal and the theorem could not be unified."))
 
-      }
+        }
 
 }
 
