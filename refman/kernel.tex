@@ -614,7 +614,7 @@ The root of the proof shows the concluding statement, and the leaves are either 
 \end{figure}
 
 In the Lisa kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof.
-a proof step can also be refered to by multiple subsequent proof steps, so that proofs are actually directed acyclic graphs (DAG) rather than trees. For the proof to be the linearization of a rooted DAG, the proof steps must only refer to numbers smaller than their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list.
+a proof step can also be referred to by multiple subsequent proof steps, so that proofs are actually directed acyclic graphs (DAG) rather than trees. For the proof to be the linearization of a rooted DAG, the proof steps must only refer to numbers smaller than their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list.
 \autoref{fig:exampleProofLinear} shows the proof of Pierce's Law as linearized in Lisa's kernel.
 %
 \begin{figure}[ht]
@@ -682,7 +682,7 @@ For every proof step, Lisa's kernel actually expects more than only the premises
   \centering
   \begin{lstlisting}[language=scala, showspaces=false]
 val PierceLawProof = SCProof(IndexedSeq(
-    Hypothesis(φ |- φ,   φ),
+    Hypothesis( φ |- φ,   φ),
     Weakening( φ |- ( φ, ψ ), 0),
     RightImplies(() |- ( φ, φ ==> ψ ), 1,   φ, ψ)
     LeftImplies(( φ ==> ψ ) ==> φ |- φ, 2, 0,   φ ==> ψ, φ),
@@ -811,7 +811,7 @@ Once a definition has been introduced, future theorems can refer to those defini
   Theorem(
     name: String,
     proposition: Sequent
-    )
+  )
 
           \end{lstlisting}
           \\ %\hline
@@ -821,7 +821,7 @@ Once a definition has been introduced, future theorems can refer to those defini
   Axiom(
     name: String,
     ax: Formula
-    )
+  )
 
           \end{lstlisting}
           \\ %\hline
@@ -831,7 +831,7 @@ Once a definition has been introduced, future theorems can refer to those defini
   PredicateDefinition(
     label: ConstantAtomicLabel,
     expression: LambdaTermFormula
-    )
+  )
 
           \end{lstlisting}
           \\ %\hline
@@ -842,7 +842,7 @@ Once a definition has been introduced, future theorems can refer to those defini
     label: ConstantFunctionLabel,
     out: VariableLabel,
     expression: LambdaTermFormula
-    )
+  )
 
           \end{lstlisting}
           \\ %\hline
@@ -867,7 +867,7 @@ Once a definition has been introduced, future theorems can refer to those defini
     statement: Sequent,
     proof: SCProof,
     justs: Seq[Justification]
-    )
+  )
           \end{lstlisting}
           \\ %\hline
 
@@ -876,7 +876,7 @@ Once a definition has been introduced, future theorems can refer to those defini
   addAxiom(
     name: String,
     f: Formula
-    )
+  )
           \end{lstlisting}
           \\ %\hline
 
@@ -885,7 +885,7 @@ Once a definition has been introduced, future theorems can refer to those defini
   makePredicateDefinition(
     label: ConstantAtomicLabel,
     expression: LambdaTermFormula
-    )
+  )
           \end{lstlisting}
           \\ %\hline
 
@@ -897,7 +897,7 @@ Once a definition has been introduced, future theorems can refer to those defini
     label: ConstantFunctionLabel,
     out: VariableLabel,
     expression: LambdaTermFormula
-    )
+  )
           \end{lstlisting}
           \\ %\hline
         \end{tabular}
@@ -1106,7 +1106,7 @@ This can be done automatically with implicit conversions. Implicit conversion is
   given Conversion[TermLabel, Term] = (t: Term) => Term(t, Seq())
 \end{lstlisting}
 %
-Now, every time a \lstinline|TermLabel| is writen in a place where a \lstinline|Term| is expected, it will be converted implicitly.
+Now, every time a \lstinline|TermLabel| is written in a place where a \lstinline|Term| is expected, it will be converted implicitly.
 
 To learn more about Scala 3 and its capabilities, see its documentation at {\footnotesize\url{https://docs.scala-lang.org/scala3/book/introduction.html}}. 
 

@@ -64,8 +64,8 @@ A cheat sheet of the most common symbols and how to input them is in \autoref{ta
   \begin{tabular}{c|c|c}
     Rendering         & Input            & Name     \\ \hline
     \lstinline| === | & ===              & equality \\ \hline
-    \lstinline| \/  | & \textbackslash / & and      \\ \hline
-    \lstinline| /\  | & /\textbackslash  & or       \\ \hline
+    \lstinline| \/  | & \textbackslash / & or       \\ \hline
+    \lstinline| /\  | & /\textbackslash  & and      \\ \hline
     \lstinline| ==> | & ==>              & implies  \\ \hline
     \lstinline+ |-  + &  |-              & vdash    \\ \hline
     \lstinline| ∀   | & U+2200           & forall   \\ \hline
@@ -225,7 +225,7 @@ tries to justify \lstinline|statement| by showing it is equivalent to \lstinline
 \end{lstlisting}
 tries to justify \lstinline|statement| by showing it is equivalent to the previously proven \lstinline|premise|.
 
-\subsubsection*{Tautology}
+\subsubsection*{Tautology}\label{tact:Tautology}
 \lstinline|Tautology| is a propositional solver based upon restate, but complete. It is able to prove every formula inference that holds in classical propositional logic. However, in the worst case its complexity can be exponential in the size of the formula. Usage:
 
 \begin{lstlisting}[language=lisa]

@@ -53,7 +53,7 @@ In this chapter, we will describe how each of these construct is made possible a
 
 \subsection{Local Definitions}
 \label{sec:localDefinitions}
-The following line of reasonning is standard in mathematical proofs. Suppose we have already proven the following fact:
+The following line of reasoning is standard in mathematical proofs. Suppose we have already proven the following fact:
 $$\exists x. P(x)$$
 And want to prove the property $\phi$.
 A proof of $\phi$ using the previous theorem would naturally be obtained the following way:
@@ -80,10 +80,10 @@ This simulation is provided by Lisa through the \lstinline|witness|{} method. It
 \begin{figure}
   \begin{lstlisting}[language=lisa, frame=single]
     val existentialAxiom = Axiom(exists(x, in(x, emptySet)))
-    val falso = Theorem(⊥) {
+    val falso = Theorem( ⊥ ) {
       val c = witness(existentialAxiom)
-      have(⊥) by Tautology.from(
-            c.definition, emptySetAxiom of (x:= c))
+      have( ⊥ ) by Tautology.from(
+            c.definition, emptySetAxiom of (x := c))
     }
   \end{lstlisting}
   \caption{An example use of local definitions in Lisa}
@@ -104,7 +104,7 @@ With lisa's kernel, it is possible to instantiate a theorem proving $P(x)$ to ob
 \end{lstlisting}
 \lstinline|x := d| is called a substitution pair, and is equivalent to the tuple \lstinline|(x, d)|. Arbitrarily many substitution pairs can be given as argument to \lstinline|of|, and the instantiations are done simultaneously. \lstinline|ax of (x := c)| is called an \lstinline|InstantiatedFact|, whose statement is $P(c)$, and which can be used exactly like theorems, axioms and intermediate steps in the proof. Internally, Lisa produces a proof step corresponding to the instantiation using the \texttt{Inst} rule.
 
-The \lstinline|of| keyword can also instantiate universaly quantified formulas of a fact, when it contains a single formula. For example, the following code is valid:
+The \lstinline|of| keyword can also instantiate universally quantified formulas of a fact, when it contains a single formula. For example, the following code is valid:
 \begin{lstlisting}[language=lisa, frame=single]
   val ax = Axiom(∀(x, P(x)))
   val thm = Theorem(P(c) /\ P(d)) {
@@ -113,7 +113,7 @@ The \lstinline|of| keyword can also instantiate universaly quantified formulas o
 \end{lstlisting}
 Here, \lstinline|ax of c| is a fact whose proven statement is again $P(c)$. It is possible to instantiate multiple $\forall$ quantifiers at once. For example if \lstinline|ax| is an axiom of the form $\forall x, \forall y, P(x, y)$, then \lstinline|ax of (c, d)| is a fact whose proven statement is $P(c, d)$. It is also possible to combine instantiation of free symbols and quantified variables. For example, if \lstinline|ax| is an axiom of the form $\forall x, \forall y, P(x, y)$, then \lstinline|ax of (c, y, P := ===)| is a fact whose proven statement is $(c = y)$.
 
-Formally, the \lstinline|of| keyword takes as argument arbitrarily many terms and substitution pairs. If there is at least on term given as argument, the base fact must have a single universaly quantified formula on the right (an arbitrarily many formulas on the left). The number of given terms must be at most the number of leading universal quantifiers. Moreover, a substitution cannot instantiate any locked symbol (i.e. a symbol part of an assumption or definition). The ordering of substitution pairs does not matter, but the ordering of terms does. The resulting fact is obtained by firstreplacing the free symbols in the formula by the given substitution pairs, and then instantiating the quantified variables in the formula by the given terms
+Formally, the \lstinline|of| keyword takes as argument arbitrarily many terms and substitution pairs. If there is at least one term given as argument, the base fact must have a single universally quantified formula on the right (an arbitrarily many formulas on the left). The number of given terms must be at most the number of leading universal quantifiers. Moreover, a substitution cannot instantiate any locked symbol (i.e. a symbol part of an assumption or definition). The ordering of substitution pairs does not matter, but the ordering of terms does. The resulting fact is obtained by first replacing the free symbols in the formula by the given substitution pairs, and then instantiating the quantified variables in the formula by the given terms
 
 In general, for the following proof
 \begin{lstlisting}[language=lisa, frame=single]

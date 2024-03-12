@@ -15,7 +15,7 @@ ZF Set Theory stands for Zermelo-Fraenkel Set Theory. It contains a set of initi
 In a more typical mathematical introduction to Set Theory, ZF would naturally only contain the set membership symbol $\in$. Axioms defining the other symbols would then only express the existence of functions or predicates with those properties, from which we could get the same symbols using extensions by definitions.
 
 In a very traditional sense, an axiomatization is any possibly infinite semi-recursive set of axioms. Hence, in its full generality, Axioms should be any function producing possibly infinitely many formulas.
-This is however not a convenient definition. In practice, all infinite axiomatizations are schematic, meaning that they are expressable using schematic variables. Axioms \ref{axz:comprehension} (comprehension schema) and \ref{axzf:replacement} (replacement schema) are such examples of axiom schema, and motivates the use of schematic variables in Lisa.
+This is however not a convenient definition. In practice, all infinite axiomatizations are schematic, meaning that they are expressible using schematic variables. Axioms \ref{axz:comprehension} (comprehension schema) and \ref{axzf:replacement} (replacement schema) are such examples of axiom schema, and motivates the use of schematic variables in Lisa.
 
 
 
@@ -24,9 +24,9 @@ This is however not a convenient definition. In practice, all infinite axiomatiz
     \begin{tabular}{l|c|l}
       {}                         & Math symbol       & Lisa Kernel             \\ \hline
       Set Membership predicate   & $\in$             & \lstinline$in(s,t)$     \\
-      Subset predicate           & $\subset$         & \lstinline$subset(s,t)$ \\
+      Subset predicate           & $\subseteq$       & \lstinline$subset(s,t)$ \\
       Empty Set constant         & $\emptyset$       & \lstinline$emptyset()$  \\
-      Unordered Pair constant    & $(\cdot, \cdot )$ & \lstinline$pair(s,t)$   \\
+      Ordered Pair constant      & $(\cdot, \cdot )$ & \lstinline$pair(s,t)$   \\
       Power Set function         & $\mathcal P$      & \lstinline$powerSet(s)$ \\
       Set Union/Flatten function & $\bigcup$         & \lstinline$union(x)$    \\
     \end{tabular}
@@ -94,7 +94,7 @@ This also naturally corresponds to \textit{comprehensions} over collections in p
   \caption{Comprehensions in various programming languages}
   \label{tab:comprehensionsProgramming}
 \end{table}
-Those are typicaly syntactic sugar for a more verbose expression. For example in scala, \lstinline|(0 to 9).filter(x => x % 2 == 0).map(x => -x)|. However this kind of expressions is not possible in first order logic: We can't built in any way a term that contains formulas as subexpressions, as in \lstinline|filter|. So if we want to use such constructions, we need to simulate it as we did for local definitions in \autoref{sec:localDefinitions}.
+Those are typically syntactic sugar for a more verbose expression. For example in scala, \lstinline|(0 to 9).filter(x => x % 2 == 0).map(x => -x)|. However this kind of expressions is not possible in first order logic: We can't built in any way a term that contains formulas as subexpressions, as in \lstinline|filter|. So if we want to use such constructions, we need to simulate it as we did for local definitions in \autoref{sec:localDefinitions}.
 
 It turns out that the comprehension schema is a consequence of the replacement schema when the value plugged for $\psi(x, y)$ is $\phi(x) \land y = x$, i.e. when $\psi$ denotes a restriction of the diagonal relation. Hence, what follows is built only from replacement.
 Note that the replacement axiom \autoref{axzf:replacement} is conditional of the schematic symbol $\psi$ being a functional relation. It is more convenient to move this condition inside the axiom, to obtain a non-conditional equivalence. This is the approach adopted in Isabelle/ZF \cite{noelExperimentingIsabelleZF1993}. We instead can prove and use
