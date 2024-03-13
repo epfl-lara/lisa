@@ -371,9 +371,12 @@ object HOLSteps extends lisa.HOL {
           p.statement.right.head match
             case eqOne(`t`) =>
               eq.statement.left.foreach(f => assume(f))
-              val h1 = have((t :: 𝔹, u :: 𝔹) |- t === u) by Substitution.ApplyRules(eqCorrect of (x := t, y := u, A := 𝔹))(eq)
               p.statement.left.foreach(f => assume(f))
-              val h2 = have((t :: 𝔹, u :: 𝔹) |- (u === One)) by Substitution.ApplyRules(h1)(p)
+              val vt = typedvar(𝔹)
+              val hp = have((t :: 𝔹, u :: 𝔹) |- p.statement.right) by Weakening(p)
+              val h1 = have((t :: 𝔹, u :: 𝔹) |- t === u) by Tautology.from(eqCorrect of (x := t, y := u, A := 𝔹), eq)
+              val hc = have((t :: 𝔹, u :: 𝔹, (t === u)) |- (u === One)) by RightSubstEq.withParametersSimple(List((t, u)), F.lambda(vt, vt === One))(hp)
+              val h2 = have((t :: 𝔹, u :: 𝔹) |- (u === One)) by Cut(h1, hc)
               val pt = have(ProofType(t))
               val h3 = have(Discharge(pt)(h2))
               val h4 = have(Discharge(have(ProofType(u)))(h3))
