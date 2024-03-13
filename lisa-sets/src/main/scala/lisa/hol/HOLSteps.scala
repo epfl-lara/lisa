@@ -408,9 +408,12 @@ object HOLSteps extends lisa.HOL {
         case (eqOne(p), eqOne(q)) =>
           (left1 - c2).foreach(f => assume(f))
           (left2 - c1).foreach(f => assume(f))
-          val h1 = have(((p :: 𝔹): F.Formula, (q :: 𝔹): F.Formula) |- ((p=:=q) === One)) by Substitution.ApplyRules(
-              eqCorrect of (x := p, y := q, A := 𝔹)
-            )(propExt of (HOLSteps.p := p, HOLSteps.q := q))
+          val qp = have((p :: 𝔹, q :: 𝔹) |- (q === One) ==> (p === One)) by Weakening(t1)
+          val pq = have((p :: 𝔹, q :: 𝔹) |- (p === One) ==> (q === One)) by Weakening(t2)
+          val pivot = have((p :: 𝔹, q :: 𝔹) |- (q === One) <=> (p === One)) by RightAnd(pq, qp)
+
+          val h0 = have((p :: 𝔹, q :: 𝔹) |- (p === q)) by Cut(pivot, propExt of (HOLSteps.p -> p, HOLSteps.q -> q))
+          val h1 = have((p :: 𝔹, q :: 𝔹) |- (p =:= q === One)) by Tautology.from(h0, eqCorrect of (A -> 𝔹, x -> p, y -> q))
           val h2 = have(Discharge(have(ProofType(p)))(h1))
           have(Discharge(have(ProofType(q)))(h2))
 
