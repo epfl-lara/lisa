@@ -13,6 +13,7 @@ import lisa.fol.FOLHelpers.freshVariable
 import lisa.utils.Serialization.instSchema
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.SimpleDeducedSteps.Discharge
+import lisa.hol.VarsAndFunctions.computeType
 
 /**
   * Here we define and implement all the basic steps from HOL Light
