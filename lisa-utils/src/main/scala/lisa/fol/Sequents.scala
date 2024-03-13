@@ -89,7 +89,7 @@ trait Sequents extends Common with lisa.fol.Lambdas with Predef {
               case (s, p) => (s, Seq(s0, s1, s2) ++ p)
             }
 
-        case _ => throw new IllegalArgumentException("Right side of sequent must be a single universaly quantified formula")
+        case _ => throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula")
       }
 
     }
