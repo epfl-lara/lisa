@@ -138,12 +138,16 @@ object HOLSteps extends lisa.HOL {
         case (HOLSequent(left1, =:=(typ1)*f*g), HOLSequent(left2, =:=(typ2)*x*y) )  => //equality is too strict
         typ1 match {
           case |=>(`typ2`, b) => 
+            (f1.statement.left ++ f2.statement.left).foreach(assume(_))
+            val vx = typedvar(computeType(x))
+            val vf = typedvar(computeType(f))
             val s1 = have(REFL(f*x))
             val s2 = have((f :: typ1, g::typ1) |- (f===g)) by Tautology.from(f1, eqCorrect of (HOLSteps.x := f, HOLSteps.y := g, A := typ1))
             val s3 = have((x :: typ2, y::typ2) |- (x===y)) by Tautology.from(f2, eqCorrect of (HOLSteps.x := x, HOLSteps.y := y, A := typ2))
-            val s4 = have(f*x =:= f*y) by Substitution.ApplyRules(s3)(s1)
-            val s5 = have(f*x =:= g*y) by Substitution.ApplyRules(s2)(s4)
-
+            val s4 = have((x === y) |- (f*x =:= f*y) === One) by RightSubstEq.withParametersSimple(List((x, y)), F.lambda(vx, f*x =:= f*vx))(s1)
+            val s5 = have(((x === y), (f === g)) |- (f*x =:= g*y) === One) by RightSubstEq.withParametersSimple(List((f, g)), F.lambda(vf, f*x =:= vf*y))(s4)
+            val s6 = have((x :: typ2, y::typ2, (f === g)) |- (f*x =:= g*y) === One) by Cut(s3, s5)
+            val s7 = have((x :: typ2, y::typ2, f :: typ1, g::typ1) |- (f*x =:= g*y) === One) by Cut(s2, s6)
           case _ => 
             return proof.InvalidProofTactic(s"Types don't agree: fun types are $typ1 and arg types are $typ2")
         }
