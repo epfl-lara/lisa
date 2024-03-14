@@ -84,7 +84,7 @@ object HOLImport extends lisa.HOL {
       val store = constants("HOL@" + sanitizeName(name))
       store match
         case JustConstant(c) => c
-        case Functional(f, freeType, params, innerDef) =>
+        case Functional(f, freeType, params, _) =>
           val subst = matchTerm(tpe, freeType)
           if subst.isEmpty then
             throw MalformedTypeInstantiationException
@@ -219,15 +219,15 @@ object HOLImport extends lisa.HOL {
             }
             val typedLabel = TypedConstantFunctional(newLabel.id, newLabel.arity, FunctionalClass(freeTypes.map(x => any), freeTypes, tpe, newLabel.arity), typingProof)
             val f = typedLabel.applySeq(freeTypes)
-            val innerDef = Lemma((ctx :+ (f :: tpe)) |- (f =:= term) === One) {
-              val typingProof = TypingTheorem(term :: tpe)
+            val innerDef = Lemma((f =:= term)) {
+              val typingProof = have(ProofType(term))
+              val fTyping = have(ProofType(f))
 
               if !ctx.isEmpty then assume(ctx: _*)
-              assume(in(f, tpe))
               have(zDef(f)) by Weakening(newLabel.definition of f)
               have(base(f)) by Weakening(lastStep.of(orderedAbstractions: _*))
               thenHave(f === term) by Weakening
-              have(thesis) by Tautology.from(lastStep, typingProof, eqCorrect of (A -> tpe, x -> f, y -> term))
+              have(thesis) by Tautology.from(lastStep, fTyping, typingProof, eqCorrect of (A -> tpe, x -> f, y -> term))
             }
             Constants.register(typedLabel, tpe, freeTypes, innerDef)
             newLabel.definition
