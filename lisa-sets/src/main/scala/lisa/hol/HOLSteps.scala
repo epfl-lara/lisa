@@ -174,7 +174,7 @@ object HOLSteps extends lisa.HOL {
       val s1 = prem.statement
       s1 match {
         case HOLSequent(left, =:=(typ1)*t*u) => 
-          left.foreach(assume)
+          (s1.left - (x :: x.typ)).foreach(assume(_))
           val lt = λ(x, t)
           val lu = λ(x, u)
           val lctx12 = computeContext(Set(lt, lu))
