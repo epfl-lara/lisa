@@ -384,6 +384,7 @@ object HOLSteps extends lisa.HOL {
               val pt = have(ProofType(t))
               val h3 = have(Discharge(pt)(h2))
               val h4 = have(Discharge(have(ProofType(u)))(h3))
+              proof.cleanAssumptions
               have(Clean.all(h4))
     
             case _ =>
