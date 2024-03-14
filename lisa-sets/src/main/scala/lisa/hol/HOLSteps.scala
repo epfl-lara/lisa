@@ -596,7 +596,7 @@ object HOLSteps extends lisa.HOL {
           val h = have(Clean.lambda(defin)(prem))
           allLambdas(h)
         case None => 
-          have(prem.statement) by Restate.from(prem)
+          have(prem.statement) by Weakening(prem)
     }
 
     def variable(using proof: Proof)(ta: TypeAssignment[Term])(prem: proof.Fact) : proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
@@ -621,7 +621,7 @@ object HOLSteps extends lisa.HOL {
         val h = have(Clean.variable(vars.head)(prem))
         allVariables(h)
       else
-        have(prem.statement) by Restate.from(prem)
+        have(prem.statement) by Weakening(prem)
     }
 
     def all(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
