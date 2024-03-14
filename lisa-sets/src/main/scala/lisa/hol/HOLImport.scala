@@ -16,6 +16,7 @@ import sourcecode.Name
 import lisa.utils.Serialization.termLabelToString
 import lisa.utils.unification.UnificationUtils.matchTerm
 import lisa.maths.settheory.types.TypeSystem
+import lisa.hol.VarsAndFunctions.TypingTheorem
 
 object HOLImport extends lisa.HOL {
 
@@ -61,12 +62,12 @@ object HOLImport extends lisa.HOL {
   object Constants:
     sealed trait LabelStore
     case class JustConstant[A <: TypeSystem.Class](c: TypedConstant[A]) extends LabelStore
-    case class Functional[N <: Arity](f: TypedConstantFunctional[N], freeType: F.Term, params: Seq[F.Variable]) extends LabelStore
+    case class Functional[N <: Arity](f: TypedConstantFunctional[N], freeType: F.Term, params: Seq[F.Variable], innerDef: JUSTIFICATION) extends LabelStore
 
     case object MalformedTypeInstantiationException extends Exception
     
     private val illegalChars = "}]`)[{(,;?_."
-    private val subst = illegalChars.zipWithIndex.toMap.view.mapValues(c => ('A' + c).toChar)
+    private val subst = illegalChars.zipWithIndex.toMap.view.mapValues(c => (9312 + c).toChar)
 
     def sanitizeName(name: String): String = 
       name.map(c => if subst.contains(c) then subst(c) else c)
@@ -74,18 +75,16 @@ object HOLImport extends lisa.HOL {
     private val constants = scala.collection.mutable.HashMap.empty[String, LabelStore]
     def register[A <: TypeSystem.Class](c: TypedConstant[A]): Unit =
       // two things should not have the same name, as they cannot be distinguished by no. from HOL
-      println(s"Registering ${c.id.name}")
       constants.update(c.id.name, JustConstant(c))
-    def register[N <: Arity](c: TypedConstantFunctional[N], tpe: F.Term, params: Seq[F.Variable]): Unit =
+    def register[N <: Arity](c: TypedConstantFunctional[N], tpe: F.Term, params: Seq[F.Variable], innerDef: JUSTIFICATION): Unit =
       // two things should not have the same name, as they cannot be distinguished by no. from HOL
-      println(s"Registering ${c.id.name}")
-      constants.update(c.id.name, Functional(c, tpe, params))
+      constants.update(c.id.name, Functional(c, tpe, params, innerDef))
     def get(name: String, tpe: Term) =
       // guaranteed to be safe if we read theorems in the order HOL produces them
       val store = constants("HOL@" + sanitizeName(name))
       store match
         case JustConstant(c) => c
-        case Functional(f, freeType, params) =>
+        case Functional(f, freeType, params, _) =>
           val subst = matchTerm(tpe, freeType)
           if subst.isEmpty then
             throw MalformedTypeInstantiationException
@@ -94,14 +93,18 @@ object HOLImport extends lisa.HOL {
             val inputs = params.map(p => substs.getOrElse(p, p))
             f.applySeq(inputs)
 
-    def getDefinition(name: String) =
-      constants("HOL@" + name) match
+    def getDefinition(name: String): JUSTIFICATION =
+      constants("HOL@" + sanitizeName(name)) match
         case JustConstant(c) => c.definition
-        case Functional(f, freeType, params) => f.definition
-      
+        case Functional(_, _, _, innerDef) => 
+          // the definition, instantiated into a usable form at time of construction
+          innerDef
+          
 
-    constants.update("HOL@T", JustConstant(One))
-    constants.update("HOL@F", JustConstant(Zero))
+    // handling equality separately
+    val equality = Functional(=:=, (A |=> (A |=> B)), Seq(A), eqCorrect)
+    constants.update("HOL@=", equality)
+    
     
   import Constants.{register, get, getDefinition, sanitizeName}
 
@@ -110,12 +113,12 @@ object HOLImport extends lisa.HOL {
     def transformed: ctx.ProofTacticJudgement =
       proof match
         case HOLL.REFL(term) => REFL(toLisaTerm(term))
-        case HOLL.TRANS(left, right) => ???
+        case HOLL.TRANS(left, right) => _TRANS(reconstruct(left), reconstruct(right))
         case HOLL.MK_COMB(left, right) => MK_COMB(reconstruct(left), reconstruct(right))
         case HOLL.ABS(absVar, from) => ABS(asVar(toLisaTerm(absVar)))(reconstruct(from))
         case HOLL.BETA(term) => BETA(toLisaTerm(term))
         case HOLL.ASSUME(term) => ASSUME(toLisaTerm(term))
-        case HOLL.EQ_MP(left, right) => ???
+        case HOLL.EQ_MP(left, right) => _EQ_MP(reconstruct(left), reconstruct(right))
         case HOLL.DEDUCT_ANTISYM_RULE(left, right) => DEDUCT_ANTISYM_RULE(reconstruct(left), reconstruct(right))
         case HOLL.INST(from, insts) => 
           val inner = reconstruct(from)
@@ -160,6 +163,7 @@ object HOLImport extends lisa.HOL {
   private def isDefinition(proof: HOLL.ProofStep): Boolean = proof.isInstanceOf[HOLL.DEFINITION]
 
   case class MalformedDefinitionException(id: Int, term: HOLL.Term) extends Exception(s"Malformed definition at id $id: ${term.pretty}")
+  case class MalformedDefinitionFormat(id: Identifier) extends Exception(s"Definition of $id is not of the form forall(v, (v = $id) <=> (context => v = term))")
     
   val lisaThms = 
     for 
@@ -174,7 +178,6 @@ object HOLImport extends lisa.HOL {
         import HOLL.{Combination, Constant}
         conclusion match 
           case Combination(Combination(Constant("=", _), Constant(name, typ)), defTerm) =>
-            println(typ.pretty)
             val term = toLisaTerm(defTerm)
             val tpe = toLisaType(typ)
             val freeTypes = tpe.freeVariables.toSeq
@@ -195,7 +198,8 @@ object HOLImport extends lisa.HOL {
               ls.sortWith((l, r) => dependencies.getOrElse(l, Nil).contains(r))
               ls
             val z = variable
-            inline def base(z: Term) = F.and((context._1 ++ context._2).toSeq) ==> (z === term)
+            val ctx = (context._1 ++ context._2).toSeq
+            inline def base(z: Term) = F.and(ctx) ==> (z === term)
             inline def zDef(z: Term) = 
               orderedAbstractions.foldRight(base(z))((label, inner) => forall(label, inner))
             val just = Lemma(existsOne(z, zDef(z))) {
@@ -203,7 +207,9 @@ object HOLImport extends lisa.HOL {
             }
             val newLabel = 
               FunctionDefinition(sanitizeName(s"HOL@$name"), thm.id, "HOLLight")(freeTypes, z, zDef(z), just).label
-            val typingProof = Lemma((newLabel.applySeq(freeTypes) :: tpe)) {
+            val baseTypingFormula: F.Formula = (newLabel.applySeq(freeTypes) :: tpe)
+            val quantifiedTypingFormula = freeTypes.foldRight(baseTypingFormula)((v, step) => forall(v, step))
+            val typingProof = Lemma(quantifiedTypingFormula) {
               // have(zDef(constant)) by InstantiateForall(constant)(constant.definition)
               // val instDef = thenHave(base(constant)) by InstantiateForall(orderedAbstractions: _*)
               // val typed = have(TypingTheorem(term :: tpe))
@@ -211,8 +217,19 @@ object HOLImport extends lisa.HOL {
               // have(constant :: tpe) by Substitution.ApplyRules(lastStep)(typed)
               sorry
             }
-            val typedLabel = TypedConstantFunctional(newLabel.id, newLabel.arity, FunctionalClass(freeTypes.map(x => any), freeTypes, tpe, newLabel.arity), just)
-            Constants.register(typedLabel, tpe, freeTypes)
+            val typedLabel = TypedConstantFunctional(newLabel.id, newLabel.arity, FunctionalClass(freeTypes.map(x => any), freeTypes, tpe, newLabel.arity), typingProof)
+            val f = typedLabel.applySeq(freeTypes)
+            val innerDef = Lemma((f =:= term)) {
+              val typingProof = have(ProofType(term))
+              val fTyping = have(ProofType(f))
+
+              if !ctx.isEmpty then assume(ctx: _*)
+              have(zDef(f)) by Weakening(newLabel.definition of f)
+              have(base(f)) by Weakening(lastStep.of(orderedAbstractions: _*))
+              thenHave(f === term) by Weakening
+              have(thesis) by Tautology.from(lastStep, fTyping, typingProof, eqCorrect of (A -> tpe, x -> f, y -> term))
+            }
+            Constants.register(typedLabel, tpe, freeTypes, innerDef)
             newLabel.definition
           case _ => throw MalformedDefinitionException(thm.id, conclusion)
       else

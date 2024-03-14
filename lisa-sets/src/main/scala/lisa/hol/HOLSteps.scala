@@ -13,6 +13,7 @@ import lisa.fol.FOLHelpers.freshVariable
 import lisa.utils.Serialization.instSchema
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.SimpleDeducedSteps.Discharge
+import lisa.hol.VarsAndFunctions.computeType
 
 /**
   * Here we define and implement all the basic steps from HOL Light
@@ -138,12 +139,20 @@ object HOLSteps extends lisa.HOL {
         case (HOLSequent(left1, =:=(typ1)*f*g), HOLSequent(left2, =:=(typ2)*x*y) )  => //equality is too strict
         typ1 match {
           case |=>(`typ2`, b) => 
+            (f1.statement.left ++ f2.statement.left).foreach(assume(_))
+            val vx = typedvar(computeType(x))
+            val vf = typedvar(computeType(f))
             val s1 = have(REFL(f*x))
             val s2 = have((f :: typ1, g::typ1) |- (f===g)) by Tautology.from(f1, eqCorrect of (HOLSteps.x := f, HOLSteps.y := g, A := typ1))
             val s3 = have((x :: typ2, y::typ2) |- (x===y)) by Tautology.from(f2, eqCorrect of (HOLSteps.x := x, HOLSteps.y := y, A := typ2))
-            val s4 = have(f*x =:= f*y) by Substitution.ApplyRules(s3)(s1)
-            val s5 = have(f*x =:= g*y) by Substitution.ApplyRules(s2)(s4)
-
+            val s4 = have((x === y) |- (f*x =:= f*y) === One) by RightSubstEq.withParametersSimple(List((x, y)), F.lambda(vx, f*x =:= f*vx))(s1)
+            val s5 = have(((x === y), (f === g)) |- (f*x =:= g*y) === One) by RightSubstEq.withParametersSimple(List((f, g)), F.lambda(vf, f*x =:= vf*y))(s4)
+            val s6 = have((x :: typ2, y::typ2, (f === g)) |- (f*x =:= g*y) === One) by Cut(s3, s5)
+            val s7 = have((x :: typ2, y::typ2, f :: typ1, g::typ1) |- (f*x =:= g*y) === One) by Cut(s2, s6)
+            val d1 = have( Discharge(have(ProofType(x)))(s7) )
+            val d2 = have( Discharge(have(ProofType(y)))(d1) )
+            val d3 = have( Discharge(have(ProofType(f)))(d2) )
+            val d4 = have( Discharge(have(ProofType(g)))(d3) )
           case _ => 
             return proof.InvalidProofTactic(s"Types don't agree: fun types are $typ1 and arg types are $typ2")
         }
@@ -165,7 +174,7 @@ object HOLSteps extends lisa.HOL {
       val s1 = prem.statement
       s1 match {
         case HOLSequent(left, =:=(typ1)*t*u) => 
-          left.foreach(assume)
+          (s1.left - (x :: x.typ)).foreach(assume(_))
           val lt = λ(x, t)
           val lu = λ(x, u)
           val lctx12 = computeContext(Set(lt, lu))
@@ -366,12 +375,16 @@ object HOLSteps extends lisa.HOL {
           p.statement.right.head match
             case eqOne(`t`) =>
               eq.statement.left.foreach(f => assume(f))
-              val h1 = have((t :: 𝔹, u :: 𝔹) |- t === u) by Substitution.ApplyRules(eqCorrect of (x := t, y := u, A := 𝔹))(eq)
               p.statement.left.foreach(f => assume(f))
-              val h2 = have((t :: 𝔹, u :: 𝔹) |- (u === One)) by Substitution.ApplyRules(h1)(p)
+              val vt = typedvar(𝔹)
+              val hp = have((t :: 𝔹, u :: 𝔹) |- p.statement.right) by Weakening(p)
+              val h1 = have((t :: 𝔹, u :: 𝔹) |- t === u) by Tautology.from(eqCorrect of (x := t, y := u, A := 𝔹), eq)
+              val hc = have((t :: 𝔹, u :: 𝔹, (t === u)) |- (u === One)) by RightSubstEq.withParametersSimple(List((t, u)), F.lambda(vt, vt === One))(hp)
+              val h2 = have((t :: 𝔹, u :: 𝔹) |- (u === One)) by Cut(h1, hc)
               val pt = have(ProofType(t))
               val h3 = have(Discharge(pt)(h2))
               val h4 = have(Discharge(have(ProofType(u)))(h3))
+              proof.cleanAssumptions
               have(Clean.all(h4))
     
             case _ =>
@@ -400,9 +413,12 @@ object HOLSteps extends lisa.HOL {
         case (eqOne(p), eqOne(q)) =>
           (left1 - c2).foreach(f => assume(f))
           (left2 - c1).foreach(f => assume(f))
-          val h1 = have(((p :: 𝔹): F.Formula, (q :: 𝔹): F.Formula) |- ((p=:=q) === One)) by Substitution.ApplyRules(
-              eqCorrect of (x := p, y := q, A := 𝔹)
-            )(propExt of (HOLSteps.p := p, HOLSteps.q := q))
+          val qp = have((p :: 𝔹, q :: 𝔹) |- (q === One) ==> (p === One)) by Weakening(t1)
+          val pq = have((p :: 𝔹, q :: 𝔹) |- (p === One) ==> (q === One)) by Weakening(t2)
+          val pivot = have((p :: 𝔹, q :: 𝔹) |- (q === One) <=> (p === One)) by RightAnd(pq, qp)
+
+          val h0 = have((p :: 𝔹, q :: 𝔹) |- (p === q)) by Cut(pivot, propExt of (HOLSteps.p -> p, HOLSteps.q -> q))
+          val h1 = have((p :: 𝔹, q :: 𝔹) |- (p =:= q === One)) by Tautology.from(h0, eqCorrect of (A -> 𝔹, x -> p, y -> q))
           val h2 = have(Discharge(have(ProofType(p)))(h1))
           have(Discharge(have(ProofType(q)))(h2))
 
@@ -580,7 +596,7 @@ object HOLSteps extends lisa.HOL {
           val h = have(Clean.lambda(defin)(prem))
           allLambdas(h)
         case None => 
-          have(prem.statement) by Restate.from(prem)
+          have(prem.statement) by Weakening(prem)
     }
 
     def variable(using proof: Proof)(ta: TypeAssignment[Term])(prem: proof.Fact) : proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
@@ -605,7 +621,7 @@ object HOLSteps extends lisa.HOL {
         val h = have(Clean.variable(vars.head)(prem))
         allVariables(h)
       else
-        have(prem.statement) by Restate.from(prem)
+        have(prem.statement) by Weakening(prem)
     }
 
     def all(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
