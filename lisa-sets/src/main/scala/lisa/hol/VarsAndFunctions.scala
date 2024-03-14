@@ -190,7 +190,11 @@ object VarsAndFunctions {
     case _ => prop
   }
   ) {
-    override def toString = s"∀$v. $prop"
+    override def toString = 
+      val typeStr = v match
+        case v: TypedVar => s" : ${v.typ}"
+        case _ => "" 
+      s"∀$v$typeStr. $prop"
   }
 
 
