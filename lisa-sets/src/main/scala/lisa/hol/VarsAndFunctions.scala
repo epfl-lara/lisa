@@ -1,7 +1,8 @@
 
 package lisa.hol
-import lisa.maths.settheory.types.TypeSystem.{`*` => _, *}
-import lisa.maths.settheory.types.TypeLib.*
+import lisa.maths.settheory.types.TypeSystem.{`*` => _,  *}
+import lisa.maths.settheory.types.TypeLib
+import lisa.maths.settheory.types.TypeLib.{𝔹 => _, *}
 import TypeChecker.*
 import lisa.maths.settheory.SetTheory.{pair, ∅}
 
@@ -87,10 +88,25 @@ object VarsAndFunctions {
 
   import F.{given}
 
+  class ConstantTypeTerm(id: Identifier, val nonEmptyThm: JUSTIFICATION) extends Constant(id)
+
+  private given TypeLib.library.type = TypeLib.library
+  val boolNonEmpty = Theorem(exists(x, in(x, TypeLib.𝔹))) {
+    have(thesis) by RightExists(One.justif)
+  }
+
+  val T = variable
+  val nonEmptyTypeExists = Theorem(exists(T, exists(x, in(x, T)))) {
+    sorry
+  }
+  val 𝔹 = ConstantTypeTerm("𝔹", boolNonEmpty)
+
+
   val =:= : TypedConstantFunctional[1] ={
     val =:= =  F.ConstantFunctionLabel.infix("=:=", 1)
     addSymbol(=:=)
-    val typing_of_eq = Axiom(F.forall(A, =:=(A) :: (A |=> (A |=> 𝔹))))
+    val typ =  (A |=> (A |=> 𝔹))
+    val typing_of_eq = Axiom(F.forall(A, =:=(A) :: typ))
     TypedConstantFunctional[1]("=:=", 1, FunctionalClass(Seq(any), Seq(A), (A |=> (A |=> 𝔹)), 1), typing_of_eq)
   }
 
@@ -280,6 +296,7 @@ object VarsAndFunctions {
   }
 
   def typedvar(using name: sourcecode.Name)(typ: Type): TypedVar = new TypedVar(Identifier(name.value), typ)
+
 
   ///////////////////////////////////////
   ///////// Lambda Abstractions /////////
@@ -527,11 +544,39 @@ object VarsAndFunctions {
 
 
 
+  object TypeNonEmptyProof extends ProofTactic {
+    val A = variable
+    val B = variable
+    val nonEmptyFuncSpace = Theorem(exists(x, in(x, A)) |- exists(x, in(x, (A |=> B)))) {
+      sorry
+    }
+    
+    def apply(using proof: Proof)(typ: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+      typ match {
+        case ctt: ConstantTypeTerm => have(ctt.nonEmptyThm)
+        case v: Variable => 
+          val x = freshVariable(Set(v), "x")
+          have(exists(x, in(x, v)) |- exists(x, in(x, v)))
+        case a |=> b => 
+          val x = freshVariable(Set(a, b), "x")
+          val s1 = have(TypeNonEmptyProof(a))
+          have(exists(x, in(x, a |=> b))) by Cut(s1, nonEmptyFuncSpace of (A := a, B := b))
+      }
+    }
+  }
 
 
 
 
-
+  class NonEmptyType(val x: Variable, val typ: Term) extends BinderFormula(exists, x, in(x, typ)) {
+    override def toString = s"∃${variable}. ${typ}"
+  }
+  object NonEmptyType {
+    def apply(typ: Term): NonEmptyType = 
+      val x = freshVariable(Set(typ), "x")
+      new NonEmptyType(x, typ)
+    def unapply(t: NonEmptyType): Some[(Variable, Term)] = Some(t.x, t.typ)
+  }
 
   // Sequent Syntax
 

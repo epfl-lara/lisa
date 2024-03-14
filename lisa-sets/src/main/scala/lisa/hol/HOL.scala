@@ -8,7 +8,7 @@ import lisa.prooflib.BasicMain
  */
 trait HOL extends BasicMain {
   export lisa.maths.settheory.types.TypeSystem.{`*` => _, *}
-  export lisa.maths.settheory.types.TypeLib.{any, Zero, One, 𝔹, |=>, |-}
+  export lisa.maths.settheory.types.TypeLib.{any, Zero, One, |=>, |-}
   export TypeChecker.*
   export lisa.hol.VarsAndFunctions.{main => _, given, *}
   export SetTheoryLibrary.{*, given}

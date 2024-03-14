@@ -10,6 +10,7 @@ import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.{_, given}
+import lisa.kernel.proof.SCProofChecker.checkSCProof
 
 import scala.annotation.targetName
 
@@ -424,6 +425,19 @@ trait ProofsHelpers {
 
       case _ => throw new Exception("Pick is used to obtain a witness of an existential statement.")
 
+  }
+
+  /**
+   * Check correctness of the proof, using LISA's logical kernel, to the current point.
+   */
+    def sanityProofCheck(using p: Proof)(message: String): Unit = {
+    val csc = p.toSCProof
+    if checkSCProof(csc).isValid then
+      println("Proof is valid. " + message)
+      Thread.sleep(100)
+    else 
+      checkProof(csc)
+      throw Exception("Proof is not valid: " + message)
   }
 
 }

@@ -430,15 +430,7 @@ object HOLSteps extends lisa.HOL {
 
   }
 
-  def sanityProofCheck(using p: Proof)(message: String): Unit = {
-    val csc = p.toSCProof
-    if checkSCProof(csc).isValid then
-      println("Proof is valid. " + message)
-      Thread.sleep(100)
-    else 
-      checkProof(csc)
-      throw Exception("Proof is not valid: " + message)
-  }
+
 
   object INST extends ProofTactic {
     def apply(using proof: Proof)(inst: Seq[(TypedVar, Term)], prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
@@ -609,14 +601,16 @@ object HOLSteps extends lisa.HOL {
         return proof.InvalidProofTactic(s"The variable ${v} is used in the premise and it's type assignment can't be eliminated")
 
       val exv = F.exists(v, ta)
-      val p1 = have(exv) by Sorry
+
+      val p1 = have(TypeNonEmptyProof(ta.typ))
       val p2 = have(LeftExists(prem)(prem.statement -<< ta +<< exv))
       val p3 = have(Discharge(p1)(p2))
     }
 
+
     def allVariables(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       val statement = prem.statement
-      val vars = statement.left.collect[TypeAssignment[Term]]{case (v:F.Variable) is (typ:Term) if !(statement -<< v).freeVariables.contains(v) => (v :: typ)}
+      val vars = statement.left.collectFirst[TypeAssignment[Term]]{case (v:F.Variable) is (typ:Term) if !(statement -<< v).freeVariables.contains(v) => (v :: typ)}
       if vars.nonEmpty then
         val h = have(Clean.variable(vars.head)(prem))
         allVariables(h)
@@ -624,11 +618,31 @@ object HOLSteps extends lisa.HOL {
         have(prem.statement) by Weakening(prem)
     }
 
+    def typeVar(using proof: Proof)(net: NonEmptyType)(prem: proof.Fact) : proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+      println(s"Cleaning type variable ${net.x} :: ${net.typ}")
+      val p2 = have(LeftExists(prem)(prem.statement -<< net ++<< nonEmptyTypeExists.statement))
+      val p3 = have(Discharge(nonEmptyTypeExists)(p2))
+    }
+
+    def allTypeVars(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+      println(s"Cleaning all type variables in: " + prem.statement)	
+      val statement = prem.statement
+      val types = statement.left.collectFirst[NonEmptyType]{case net: NonEmptyType => net}
+      if types.nonEmpty then
+        val h = have(Clean.typeVar(types.head)(prem))
+        allTypeVars(h)
+      else
+        have(prem.statement) by Weakening(prem)
+    }
+
     def all(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       val h1 = have(Clean.allLambdas(prem))
       val h2 = have(Clean.allVariables(h1))
+      val h3 = have(Clean.allTypeVars(h2))
     }
   }
+
+
 
   /*
   def HOLSubstType(t:Term, A:F.Variable, u:Term): Term = {
