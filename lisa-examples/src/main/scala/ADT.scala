@@ -20,7 +20,7 @@ import lisa.prooflib.SimpleDeducedSteps.InstantiateForall
 import scala.collection.immutable.ArraySeq
 import scala.collection.immutable.HashMap
 import lisa.utils.parsing.UnreachableException
-import lisa.maths.settheory.types.TypeLib.{ |=>, given}
+import lisa.maths.settheory.types.TypeLib.{any, |=>, given}
 import lisa.maths.settheory.types.TypeSystem.{*, given}
 
 object String extends lisa.Main {
@@ -143,8 +143,8 @@ object String extends lisa.Main {
     val variables: Seq[Variable] = for i <- 0 until arity yield Variable(s"a${i}")
 
     val typeVariables: Seq[Variable] = 
-      def termTypeVars(term: Term): Seq[Variable] = 
-        term match
+      def termTypeVars(appliedTerm: Term): Seq[Variable] = 
+        appliedTerm match
           case v: Variable => Seq(v)
           case _: Constant => Seq.empty
           case af : AppliedFunctional => af.args.flatMap(termTypeVars)
@@ -164,16 +164,16 @@ object String extends lisa.Main {
      *
      * @param args the arguments of this instance of the constructor
      */
+    def appliedTerm(targs: Seq[Term], args: Seq[Term]): Term = pair(emptySet, subterm(targs, args))
 
-    //def term(args: Seq[Term]): Term = pair(nameTerm, subterm(args))
-    def term(args: Seq[Term]): Term = pair(emptySet, subterm(args))
+    def appliedTerm(args: Seq[Term]): Term = appliedTerm(typeVariables, args)
 
-    val term: Term = term(variables)
+    val appliedTerm: Term = appliedTerm(variables)
 
     /**
-     * @see [[this.term]]
+     * @see [[this.appliedTerm]]
      */
-    def subterm(args: Seq[Term]): Term = args.foldRight(emptySet)((t, acc: Term) => pair(t, acc))
+    def subterm(targs: Seq[Term], args: Seq[Term]): Term = args.foldRight(emptySet)((t, acc: Term) => pair(t.substitute(typeVariables.zip(targs).map(_ := _): _*), acc))
 
     // /**
     //  * Theorem --- Injectivity of constructors.
@@ -198,8 +198,8 @@ object String extends lisa.Main {
     //       val lys = lb.applyUnsafe(ys)
 
     //       // internal representation of this constructor instantiated with xs ys
-    //       val txs = term(xs)
-    //       val tys = term(ys)
+    //       val txs = appliedTerm(xs)
+    //       val tys = appliedTerm(ys)
 
     //       // we first prove that lxs === lys <=> txs === tys
     //       // and then use pair extensionality (i.e. injectivity) to complete the proof
@@ -238,26 +238,31 @@ object String extends lisa.Main {
 
   class TypedConstructor(using line: sourcecode.Line, file: sourcecode.File)(cons: Constructor, adt: ADT)  {
 
+    val fullName = s"${adt.name}/${cons.name}"
+
     val typeVariables = adt.typeVariables
+    val typeArity = typeVariables.length
 
     val typeArgs = cons.typeArgs.map{
-      case Self => adt.term
+      case Self => adt.appliedTerm
       case BaseType(t) => t
     }
-    val typ = typeArgs.foldRight[Term](adt.term)((a, b) => a |=> b)
-    def app(c: Term)(s: Seq[Term]): Term = s.foldLeft(c)((acc, v) => acc*v)  
 
+    val typ = typeArgs.foldRight[Term](adt.appliedTerm)((a, b) => a |=> b) 
 
-    val typedFunctionUniqueness = Lemma(existsOne(c, (c :: typ) /\ cons.variables.foldRight(app(c)(cons.variables) === cons.term)(forall(_, _)))) {
+    def appSeq(f: Term) = cons.variables.foldLeft(f)((acc, v) => f * v)
+
+    val untypedFunctionalDefinition = (c :: typ) /\ cons.variables.foldRight(appSeq(c) === cons.appliedTerm)(forall(_, _))
+    val untypedFunctionalUniqueness = Lemma(existsOne(c, untypedFunctionalDefinition)) {
       sorry
     }
 
-    val term = FunctionDefinition[0](s"${adt.name}/${cons.name}", line.value, file.value)(Seq(), c, (c :: typ) /\ cons.variables.foldRight(app(c)(cons.variables) === cons.term)(forall(_, _)), typedFunctionUniqueness).label
 
-    val typeChecking = Theorem(term :: typ) {
-      have((term === term) <=> (term :: typ) /\ cons.variables.foldRight(app(term)(cons.variables) === cons.term)(forall(_, _))) by InstantiateForall(term)(term.definition)
-      thenHave(thesis) by Tautology
-    }
+    val untypedFunctional = FunctionDefinition(fullName, line.value, file.value)(typeVariables, c, untypedFunctionalDefinition, untypedFunctionalUniqueness).label
+    val typing = Axiom(typeVariables.foldRight[Formula](untypedFunctional.applySeq(typeVariables) :: typ)(forall(_, _)))
+    val typedFunctional = TypedConstantFunctional(fullName, typeArity, FunctionalClass(Seq.fill(typeArity)(any), typeVariables, typ, typeArity), typing)
+
+    def apply(terms: Term*) = typedFunctional.applySeq(terms)
   }
 
   // General purpose theorems
@@ -600,7 +605,7 @@ object String extends lisa.Main {
     def consVarMembership(c: Constructor, s: Term): Formula = consVarMembership(c, c.variables, s)
     def consExVarMembership(c: Constructor, s: Term): Formula = consVarMembership(c, exVar(c), s)
 
-    def isConstructor(c: Constructor, x: Term, s: Term): Formula = exVar(c).foldRight(consVarMembership(c, exVar(c), s) /\ (x === c.term(exVar(c))))((exv, f) => exists(exv, f))
+    def isConstructor(c: Constructor, x: Term, s: Term): Formula = exVar(c).foldRight(consVarMembership(c, exVar(c), s) /\ (x === c.appliedTerm(exVar(c))))((exv, f) => exists(exv, f))
     def isConstructor(x: Term, s: Term): Formula = \/ (constructors.map(c => isConstructor(c, x, s)))
 
 
@@ -623,7 +628,7 @@ object String extends lisa.Main {
 
       val subsetSeq = 
         for c <- constructors yield
-          val labelWithExVar = c.term(exVar(c))
+          val labelWithExVar = c.appliedTerm(exVar(c))
           val labelEq = labelWithExVar === x
 
           val consExVarMembershipS = consExVarMembership(c, s)
@@ -658,11 +663,11 @@ object String extends lisa.Main {
 
     }
 
-    val succInSmallH = constructorMap.map((k, c) => k -> Lemma(consVarMembership(c, s) |- inSmallH(s)(c.term)) {
+    val succInSmallH = constructorMap.map((k, c) => k -> Lemma(consVarMembership(c, s) |- inSmallH(s)(c.appliedTerm)) {
 
         val andl = have(consVarMembership(c, s) |- consVarMembership(c, s)) by Hypothesis
-        val andr = have(c.term === c.term) by Restate
-        have(consVarMembership(c, s) |- consVarMembership(c, s) /\ (c.term === c.term)) by RightAnd(andl, andr)
+        val andr = have(c.appliedTerm === c.appliedTerm) by Restate
+        have(consVarMembership(c, s) |- consVarMembership(c, s) /\ (c.appliedTerm === c.appliedTerm)) by RightAnd(andl, andr)
 
         ((c.variables.zip(exVar(c))).foldRight((lastStep, c.variables, List[Variable]()))) ( (el, acc) => 
 
@@ -673,18 +678,18 @@ object String extends lisa.Main {
           val varsRight = v :: accVb
 
           val vars = varsLeft ++ varsRight
-          val rightSeq = accVb.foldRight(consVarMembership(c, vars, s) /\ (c.term(vars) === c.term))((exV, f) =>
+          val rightSeq = accVb.foldRight(consVarMembership(c, vars, s) /\ (c.appliedTerm(vars) === c.appliedTerm))((exV, f) =>
             exists(exV, f)
           )
 
           (thenHave(consVarMembership(c, s) |- exists(v, rightSeq)) by RightExists, varsLeft, varsRight)
         )._1
 
-        thenHave(consVarMembership(c, s) |- inSmallH(s)(c.term)) by Tautology
+        thenHave(consVarMembership(c, s) |- inSmallH(s)(c.appliedTerm)) by Tautology
     })
 
 
-    //BIG H
+    //BIG H0
     def inBigH(f: Term)(x: Term) = !(f === emptySet) /\ inSmallH(unionRange(f))(x)
 
     val bigHMonotonic = Lemma(subset(f, g) |- inBigH(f)(x) ==> inBigH(g)(x)) {
@@ -767,23 +772,26 @@ object String extends lisa.Main {
       have(thesis) by Apply(uniqueByExtension of (schemPred := lambda(t, forall(g, gDef(g) ==> in(t, unionRange(g)))))).on(lastStep)
     }
 
-  
-    val term = FunctionDefinition[0](name, line.value, file.value)(Seq(), z, forall(t, in(t, z) <=> forall(g, gDef(g) ==> in(t, unionRange(g)))), termExistence).label
+    
+    val term = FunctionDefinition(name, line.value, file.value)(typeVariables, z, forall(t, in(t, z) <=> forall(g, gDef(g) ==> in(t, unionRange(g)))), termExistence).label
 
+    val appliedTerm = term.applySeq(typeVariables)
 
-    val inTerm = Lemma(gDef(g) |- in(x, term) <=> in(x, unionRange(g))) {
-      have((term === term) <=> termDefinition(term)) by InstantiateForall(term)(term.definition)
-      thenHave(termDefinition(term)) by Tautology
-      val termDef = thenHave(in(x, term) <=> forall(g, gDef(g) ==> in(x, unionRange(g)))) by InstantiateForall(x)
-      val termDefL = have(in(x, term) |- forall(g, gDef(g) ==> in(x, unionRange(g)))) by Apply(equivalenceApply).on(termDef)
-      val termDefR = have(forall(g, gDef(g) ==> in(x, unionRange(g))) |- in(x, term)) by Apply(equivalenceRevApply).on(termDef)
+    def apply(terms: Term*) = term.applySeq(terms)
+
+    val inTerm = Lemma(gDef(g) |- in(x, appliedTerm) <=> in(x, unionRange(g))) {
+      have((appliedTerm === appliedTerm) <=> termDefinition(appliedTerm)) by InstantiateForall(appliedTerm)(term.definition)
+      thenHave(termDefinition(appliedTerm)) by Tautology
+      val termDef = thenHave(in(x, appliedTerm) <=> forall(g, gDef(g) ==> in(x, unionRange(g)))) by InstantiateForall(x)
+      val termDefL = have(in(x, appliedTerm) |- forall(g, gDef(g) ==> in(x, unionRange(g)))) by Apply(equivalenceApply).on(termDef)
+      val termDefR = have(forall(g, gDef(g) ==> in(x, unionRange(g))) |- in(x, appliedTerm)) by Apply(equivalenceRevApply).on(termDef)
 
 
       have(forall(g, gDef(g) ==> in(x, unionRange(g))) |- forall(g, gDef(g) ==> in(x, unionRange(g)))) by Hypothesis
       thenHave(forall(g, gDef(g) ==> in(x, unionRange(g))) |- gDef(g) ==> in(x, unionRange(g))) by InstantiateForall(g)
       thenHave((forall(g, gDef(g) ==> in(x, unionRange(g))), gDef(g)) |- in(x, unionRange(g))) by Restate
 
-      val caseL = have((gDef(g), in(x, term)) |- in(x, unionRange(g))) by Apply(lastStep).on(termDefL)
+      val caseL = have((gDef(g), in(x, appliedTerm)) |- in(x, unionRange(g))) by Apply(lastStep).on(termDefL)
 
       //have((gDef(g), in(x, unionRange(g), gDef(f) /\ !in(x, unionRange()))))) |- in(x, unionRange(g))) by Hypothesis
       //thenHave()
@@ -792,7 +800,7 @@ object String extends lisa.Main {
 
     }
 
-    val adtHasAnHeightLemma = Lemma(gDef(g) |- (in(x, term) <=> ∃(n, in(n, N) /\ in(x, app(g, n))))) {
+    val adtHasAnHeightLemma = Lemma(gDef(g) |- (in(x, appliedTerm) <=> ∃(n, in(n, N) /\ in(x, app(g, n))))) {
       val substDomain = have((relationDomain(g) === N) |- (relationDomain(g) === N)) by Hypothesis
       have((in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> (in(n, relationDomain(g)) /\ in(x, app(g, n)))) by Exact(equivalenceReflexivity)
       thenHave(gDef(g) |- (in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> (in(n, N) /\ in(x, app(g, n)))) by Substitution.ApplyRules(substDomain)
@@ -801,66 +809,66 @@ object String extends lisa.Main {
         existentialEquivalenceDistribution of (P := lambda(n, in(n, relationDomain(g)) /\ in(x, app(g, n))), Q := lambda(n, in(n, N) /\ in(x, app(g, n))))
       ).on(lastStep)
 
-      have(gDef(g) |- (in(x, term) <=> ∃(n, in(n, relationDomain(g)) /\ in(x, app(g, n))))) by Apply(equivalenceRewriting).on(unionRangeMembership.asInstanceOf, inTerm.asInstanceOf)
+      have(gDef(g) |- (in(x, appliedTerm) <=> ∃(n, in(n, relationDomain(g)) /\ in(x, app(g, n))))) by Apply(equivalenceRewriting).on(unionRangeMembership.asInstanceOf, inTerm.asInstanceOf)
       have(thesis) by Apply(equivalenceRewriting).on(lastStep, rew)
     }
 
-    val adtHasAnHeightGenLemma = constructorMap.map((k, c) => k -> Lemma(gDef(g) |- (consVarMembership(c, term) <=> ∃(n, in(n, N) /\ consVarMembership(c, app(g, n))))) {
+    val adtHasAnHeightGenLemma = constructorMap.map((k, c) => k -> Lemma(gDef(g) |- (consVarMembership(c, appliedTerm) <=> ∃(n, in(n, N) /\ consVarMembership(c, app(g, n))))) {
       
-      val imp0 = have((gDef(g), ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- consVarMembership(c, term)) subproof {
+      val imp0 = have((gDef(g), ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- consVarMembership(c, appliedTerm)) subproof {
         val andSeq = for((v, ty) <- c.variables.zip(c.typeArgs)) yield
           ty match
             case Self => 
               have((gDef(g), in(n, N) /\ in(v, app(g, n))) |- in(n, N) /\ in(v, app(g, n))) by Restate
               thenHave((gDef(g), in(n, N) /\ in(v, app(g, n))) |- exists(n, in(n, N) /\ in(v, app(g, n)))) by RightExists
-              have((gDef(g), in(n, N) /\ in(v, app(g, n))) |- in(v, term)) by Apply(equivalenceRevApply).on(lastStep, adtHasAnHeightLemma.asInstanceOf)
+              have((gDef(g), in(n, N) /\ in(v, app(g, n))) |- in(v, appliedTerm)) by Apply(equivalenceRevApply).on(lastStep, adtHasAnHeightLemma.asInstanceOf)
             case BaseType(t) =>
               have((gDef(g), in(n, N) /\ in(v, t)) |- in(v, t)) by Restate
-          thenHave((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- in(v, getTermOrElse(ty, term))) by Weakening
+          thenHave((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- in(v, getTermOrElse(ty, appliedTerm))) by Weakening
           
-        have((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- consVarMembership(c, term)) by AndAggregate(andSeq)
-        thenHave((gDef(g), exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- consVarMembership(c, term)) by LeftExists
+        have((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- consVarMembership(c, appliedTerm)) by AndAggregate(andSeq)
+        thenHave((gDef(g), exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- consVarMembership(c, appliedTerm)) by LeftExists
       }
 
-      val imp1 = have((gDef(g), consVarMembership(c, term)) |- ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) subproof {
+      val imp1 = have((gDef(g), consVarMembership(c, appliedTerm)) |- ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) subproof {
         sorry
       }
 
       have(thesis) by Tautology.from(imp0, imp1)
     })
 
-    val adtSuccessorLemma = constructorMap.map((k, c) => k -> Lemma((gDef(g), in(n, N)) |- consVarMembership(c, app(g, n)) ==> in(c.term, app(g, successor(n)))) {
+    val adtSuccessorLemma = constructorMap.map((k, c) => k -> Lemma((gDef(g), in(n, N)) |- consVarMembership(c, app(g, n)) ==> in(c.appliedTerm, app(g, successor(n)))) {
       
-      val s0 = have(consVarMembership(c, app(g, n)) |- inSmallH(app(g, n))(c.term)) by Restate.from(succInSmallH(k) of (s := app(g, n)))
-      val s1 = have((gDef(g), in(n, N)) |- in(c.term, app(g, successor(n))) <=> inSmallH(app(g, n))(c.term)) by Exact(inGSucc)
+      val s0 = have(consVarMembership(c, app(g, n)) |- inSmallH(app(g, n))(c.appliedTerm)) by Restate.from(succInSmallH(k) of (s := app(g, n)))
+      val s1 = have((gDef(g), in(n, N)) |- in(c.appliedTerm, app(g, successor(n))) <=> inSmallH(app(g, n))(c.appliedTerm)) by Exact(inGSucc)
       
-      have((gDef(g), in(n, N), inSmallH(app(g, n))(c.term),  in(c.term, app(g, successor(n))) <=> inSmallH(app(g, n))(c.term)) |- in(c.term, app(g, successor(n)))) by Exact(equivalenceRevApply)
-      have((gDef(g), in(n, N), inSmallH(app(g, n))(c.term)) |- in(c.term, app(g, successor(n)))) by Cut(s1, lastStep)
-      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.term, app(g, successor(n)))) by Cut(s0, lastStep)
+      have((gDef(g), in(n, N), inSmallH(app(g, n))(c.appliedTerm),  in(c.appliedTerm, app(g, successor(n))) <=> inSmallH(app(g, n))(c.appliedTerm)) |- in(c.appliedTerm, app(g, successor(n)))) by Exact(equivalenceRevApply)
+      have((gDef(g), in(n, N), inSmallH(app(g, n))(c.appliedTerm)) |- in(c.appliedTerm, app(g, successor(n)))) by Cut(s1, lastStep)
+      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, app(g, successor(n)))) by Cut(s0, lastStep)
     })
 
     val adtTypechecking = constructorMap.map((k, c) => { k ->
-      Lemma(removeConstants(consVarMembership(c, term) ==> in(c.term, term))) {
+      Lemma(removeConstants(consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm))) {
     
-      val succNIsTerm = have((gDef(g), in(n, N), in(c.term, app(g, successor(n)))) |- in(c.term, term)) subproof {
+      val succNIsTerm = have((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, appliedTerm)) subproof {
         have(in(n, N) |- in(successor(n), N)) by Apply(equivalenceApply).on(successorIsNat.asInstanceOf)
-        val s0l = thenHave((gDef(g), in(n, N), in(c.term, app(g, successor(n)))) |- in(successor(n), N)) by Weakening
+        val s0l = thenHave((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(successor(n), N)) by Weakening
 
-        val s0r = have((gDef(g), in(n, N), in(c.term, app(g, successor(n)))) |- in(c.term, app(g, successor(n)))) by Restate
-        have((gDef(g), in(n, N), in(c.term, app(g, successor(n)))) |- in(successor(n), N) /\ in(c.term, app(g, successor(n)))) by RightAnd(s0l, s0r)
-        thenHave((gDef(g), in(n, N), in(c.term, app(g, successor(n)))) |- exists(m, in(m, N) /\ in(c.term, app(g, m)))) by RightExists
-        have((gDef(g), in(n, N), in(c.term, app(g, successor(n)))) |- in(c.term, term)) by Apply(equivalenceRevApply).on(lastStep, adtHasAnHeightLemma.asInstanceOf)
+        val s0r = have((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, app(g, successor(n)))) by Restate
+        have((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(successor(n), N) /\ in(c.appliedTerm, app(g, successor(n)))) by RightAnd(s0l, s0r)
+        thenHave((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- exists(m, in(m, N) /\ in(c.appliedTerm, app(g, m)))) by RightExists
+        have((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, appliedTerm)) by Apply(equivalenceRevApply).on(lastStep, adtHasAnHeightLemma.asInstanceOf)
       }
 
-      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.term, app(g, successor(n)))) by Restate.from(adtSuccessorLemma(k))
-      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.term, term)) by Cut(lastStep, succNIsTerm)
-      thenHave((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- in(c.term, term)) by Restate
-      val s1 = thenHave((gDef(g), exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- in(c.term, term)) by LeftExists
-      have((gDef(g), consVarMembership(c, term)) |- exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) by Apply(equivalenceApply).on(adtHasAnHeightGenLemma(k).asInstanceOf)
-      have((gDef(g), consVarMembership(c, term)) |- in(c.term, term)) by Cut(lastStep, s1)
-      thenHave(gDef(g) |- consVarMembership(c, term) ==> in(c.term, term)) by Restate
-      thenHave(exists(g, gDef(g)) |- consVarMembership(c, term) ==> in(c.term, term)) by LeftExists
-      have(consVarMembership(c, term) ==> in(c.term, term)) by Cut(gExistence, lastStep)
+      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, app(g, successor(n)))) by Restate.from(adtSuccessorLemma(k))
+      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, appliedTerm)) by Cut(lastStep, succNIsTerm)
+      thenHave((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- in(c.appliedTerm, appliedTerm)) by Restate
+      val s1 = thenHave((gDef(g), exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- in(c.appliedTerm, appliedTerm)) by LeftExists
+      have((gDef(g), consVarMembership(c, appliedTerm)) |- exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) by Apply(equivalenceApply).on(adtHasAnHeightGenLemma(k).asInstanceOf)
+      have((gDef(g), consVarMembership(c, appliedTerm)) |- in(c.appliedTerm, appliedTerm)) by Cut(lastStep, s1)
+      thenHave(gDef(g) |- consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by Restate
+      thenHave(exists(g, gDef(g)) |- consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by LeftExists
+      have(consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by Cut(gExistence, lastStep)
       thenHave(thesis) by Restate
     }
   })
@@ -892,7 +900,7 @@ object String extends lisa.Main {
         
         val orSeq = 
           for c <- constructors yield
-            val labelWithExVar = c.term(exVar(c))
+            val labelWithExVar = c.appliedTerm(exVar(c))
 
             val andSeq0 = 
               for (v, ty) <- exVar(c).zip(c.typeArgs) yield
@@ -942,14 +950,14 @@ object String extends lisa.Main {
     }
 
     def structuralInductionPrecond(c: Constructor): Formula =
-      exVar(c).zip(c.typeArgs).foldRight[Formula](P(c.term(exVar(c)))) ( (el, fc) =>
+      exVar(c).zip(c.typeArgs).foldRight[Formula](P(c.appliedTerm(exVar(c)))) ( (el, fc) =>
           val (v, ty) = el
           ty match
-            case Self => forall(v, in(v, term) ==> (P(v) ==> fc))
+            case Self => forall(v, in(v, appliedTerm) ==> (P(v) ==> fc))
             case BaseType(t) => forall(v, in(v, t) ==> fc)
         )
 
-    val structuralInduction = THM(constructors.foldRight[Formula](forall(x, in(x, term) ==> P(x)))( (c, f) => structuralInductionPrecond(c) ==> f), s"${name} structural induction", line.value, file.value, Theorem)  {
+    val structuralInduction = THM(constructors.foldRight[Formula](forall(x, in(x, appliedTerm) ==> P(x)))( (c, f) => structuralInductionPrecond(c) ==> f), s"${name} structural induction", line.value, file.value, Theorem)  {
 
       val preconditions = /\ (constructors.map(structuralInductionPrecond))
             
@@ -968,10 +976,10 @@ object String extends lisa.Main {
           (for (k, c) <- constructorMap yield
 
             val precond = structuralInductionPrecond(c)
-            val labelWithExVar = c.term(exVar(c))
+            val labelWithExVar = c.appliedTerm(exVar(c))
             val consExVarMembershipAppGM = consExVarMembership(c, app(g, m))
             val consExVarMembershipAppGMEx = ∃(m, in(m, N) /\ consExVarMembership(c, app(g, m)))
-            val consExVarMembershipTerm = consExVarMembership(c, term)
+            val consExVarMembershipTerm = consExVarMembership(c, appliedTerm)
 
             val consExVarMembershipAppGMToTerm = have((gDef(g), in(m, N), consExVarMembershipAppGM) |- consExVarMembershipTerm) subproof {
               have((gDef(g), in(m, N), consExVarMembershipAppGM) |- in(m, N) /\ consExVarMembershipAppGM) by Restate
@@ -1050,25 +1058,25 @@ object String extends lisa.Main {
       thenHave((gDef(g), preconditions, in(n, N)) |- in(x, app(g, n)) ==> P(x)) by InstantiateForall(x)
       thenHave((gDef(g), preconditions, in(n, N) /\ in(x, app(g, n))) |- P(x)) by Restate
       val exImpliesP = thenHave((gDef(g), preconditions, exists(n, in(n, N) /\ in(x, app(g, n)))) |- P(x)) by LeftExists
-      have((gDef(g), in(x, term)) |- exists(n, in(n, N) /\ in(x, app(g, n)))) by Apply(equivalenceApply of (p1 := in(x, term))).on(adtHasAnHeightLemma.asInstanceOf)
+      have((gDef(g), in(x, appliedTerm)) |- exists(n, in(n, N) /\ in(x, app(g, n)))) by Apply(equivalenceApply of (p1 := in(x, appliedTerm))).on(adtHasAnHeightLemma.asInstanceOf)
 
-      have((gDef(g), preconditions, in(x, term)) |- P(x)) by Cut(lastStep, exImpliesP)
-      thenHave((exists(g, gDef(g)), preconditions, in(x, term)) |- P(x)) by LeftExists
-      have(preconditions |- in(x, term) ==> P(x)) by Apply(lastStep).on(gExistence.asInstanceOf)
-      thenHave(preconditions |- forall(x, in(x, term) ==> P(x))) by RightForall
+      have((gDef(g), preconditions, in(x, appliedTerm)) |- P(x)) by Cut(lastStep, exImpliesP)
+      thenHave((exists(g, gDef(g)), preconditions, in(x, appliedTerm)) |- P(x)) by LeftExists
+      have(preconditions |- in(x, appliedTerm) ==> P(x)) by Apply(lastStep).on(gExistence.asInstanceOf)
+      thenHave(preconditions |- forall(x, in(x, appliedTerm) ==> P(x))) by RightForall
       thenHave(thesis) by Restate
     }
 
     show(structuralInduction)
 
     // // // Theorem 2.1
-    val patternMatchingThm = THM(in(x, term) |- removeConstants(isConstructor(x, term)), s"${name} pattern constructors", line.value, file.value, Theorem) {
+    val patternMatchingThm = THM(in(x, appliedTerm) |- removeConstants(isConstructor(x, appliedTerm)), s"${name} pattern constructors", line.value, file.value, Theorem) {
 
       def ineqPrecond(c: Constructor): Formula =
-        exVar(c).zip(c.typeArgs).foldRight[Formula](!(x === c.term(exVar(c)))) ( (el, fc) =>
+        exVar(c).zip(c.typeArgs).foldRight[Formula](!(x === c.appliedTerm(exVar(c)))) ( (el, fc) =>
             val (v, ty) = el
             ty match
-              case Self => forall(v, in(v, term) ==> (!(x === v) ==> fc))
+              case Self => forall(v, in(v, appliedTerm) ==> (!(x === v) ==> fc))
               case BaseType(t) => forall(v, in(v, t) ==> fc)
         )
 
@@ -1076,25 +1084,25 @@ object String extends lisa.Main {
 
 
       def negIneqPrecond(c: Constructor): Formula =
-        exVar(c).zip(c.typeArgs).foldRight[Formula](x === c.term(exVar(c))) ( (el, fc) =>
+        exVar(c).zip(c.typeArgs).foldRight[Formula](x === c.appliedTerm(exVar(c))) ( (el, fc) =>
             val (v, ty) = el
             ty match
-              case Self => exists(v, in(v, term) /\ (!(x === v) /\ fc))
+              case Self => exists(v, in(v, appliedTerm) /\ (!(x === v) /\ fc))
               case BaseType(t) => exists(v, in(v, t) /\ fc)
         )
 
       val negPreconditions = \/ (constructors.map(negIneqPrecond))
 
       def negWeakIneqPrecond(c: Constructor): Formula =
-        exVar(c).zip(c.typeArgs).foldRight[Formula](c.term(exVar(c)) === x) ( (el, fc) =>
+        exVar(c).zip(c.typeArgs).foldRight[Formula](c.appliedTerm(exVar(c)) === x) ( (el, fc) =>
             val (v, ty) = el
-            exists(v, in(v, getTermOrElse(ty, term)) /\ fc)
+            exists(v, in(v, getTermOrElse(ty, appliedTerm)) /\ fc)
         )
 
       val orSeq = 
         for c <- constructors yield
           val s0l = have(negIneqPrecond(c) |- negWeakIneqPrecond(c)) subproof {
-            have(x === c.term(exVar(c)) |- c.term(exVar(c)) === x) by Restate
+            have(x === c.appliedTerm(exVar(c)) |- c.appliedTerm(exVar(c)) === x) by Restate
 
             exVar(c).zip(c.typeArgs).foldRight(lastStep)( (el, fact) =>
               val (v, ty) = el
@@ -1108,31 +1116,31 @@ object String extends lisa.Main {
                     !(x === v) /\ left
                   case _ => left
 
-              val weakr = thenHave(in(v, getTermOrElse(ty, term)) /\ left |- right) by Weakening
-              val weakl = have(in(v, getTermOrElse(ty, term)) /\ left |- in(v, getTermOrElse(ty, term))) by Restate
+              val weakr = thenHave(in(v, getTermOrElse(ty, appliedTerm)) /\ left |- right) by Weakening
+              val weakl = have(in(v, getTermOrElse(ty, appliedTerm)) /\ left |- in(v, getTermOrElse(ty, appliedTerm))) by Restate
 
-              have(in(v, getTermOrElse(ty, term)) /\ left |- in(v, getTermOrElse(ty, term)) /\ right) by RightAnd(weakl, weakr)
-              thenHave(in(v, getTermOrElse(ty, term)) /\ left |- exists(v, in(v, getTermOrElse(ty, term)) /\ right)) by RightExists
-              thenHave(exists(v, in(v, getTermOrElse(ty, term)) /\ left) |- exists(v, in(v, getTermOrElse(ty, term)) /\ right)) by LeftExists
+              have(in(v, getTermOrElse(ty, appliedTerm)) /\ left |- in(v, getTermOrElse(ty, appliedTerm)) /\ right) by RightAnd(weakl, weakr)
+              thenHave(in(v, getTermOrElse(ty, appliedTerm)) /\ left |- exists(v, in(v, getTermOrElse(ty, appliedTerm)) /\ right)) by RightExists
+              thenHave(exists(v, in(v, getTermOrElse(ty, appliedTerm)) /\ left) |- exists(v, in(v, getTermOrElse(ty, appliedTerm)) /\ right)) by LeftExists
             )
 
           }
-          val s0r = have(negWeakIneqPrecond(c) |- isConstructor(c, x, term)) by Tableau
-          have(negIneqPrecond(c) |- isConstructor(c, x, term)) by Cut(s0l, s0r)
-          thenHave(negIneqPrecond(c) |- isConstructor(x, term)) by Weakening
+          val s0r = have(negWeakIneqPrecond(c) |- isConstructor(c, x, appliedTerm)) by Tableau
+          have(negIneqPrecond(c) |- isConstructor(c, x, appliedTerm)) by Cut(s0l, s0r)
+          thenHave(negIneqPrecond(c) |- isConstructor(x, appliedTerm)) by Weakening
       
-      val weaken = have(negPreconditions |- isConstructor(x, term)) by OrAggregate(orSeq)
+      val weaken = have(negPreconditions |- isConstructor(x, appliedTerm)) by OrAggregate(orSeq)
 
-      have(preconditions |- forall(z, in(z, term) ==> !(x === z))) by Exact(structuralInduction of (P := lambda(z, !(x === z))))
-      thenHave(preconditions |- in(x, term) ==> !(x === x)) by InstantiateForall(x)
-      val ind = thenHave(preconditions |- !in(x, term)) by Restate
-      thenHave(!negPreconditions |- !in(x, term)) by Restate
-      thenHave(in(x, term) |- negPreconditions) by Restate
+      have(preconditions |- forall(z, in(z, appliedTerm) ==> !(x === z))) by Exact(structuralInduction of (P := lambda(z, !(x === z))))
+      thenHave(preconditions |- in(x, appliedTerm) ==> !(x === x)) by InstantiateForall(x)
+      val ind = thenHave(preconditions |- !in(x, appliedTerm)) by Restate
+      thenHave(!negPreconditions |- !in(x, appliedTerm)) by Restate
+      thenHave(in(x, appliedTerm) |- negPreconditions) by Restate
 
 
       
 
-      have(in(x, term) |- isConstructor(x, term)) by Cut(lastStep, weaken)
+      have(in(x, appliedTerm) |- isConstructor(x, appliedTerm)) by Cut(lastStep, weaken)
       thenHave(thesis) by Restate
     }
 
@@ -1174,6 +1182,10 @@ object String extends lisa.Main {
         override def apply(t: H *: T): ConstructorBuilder = adt_to_const(t.head) ++ any_to_const(t.tail)
   }
 
+  given term_tuple_to_const[H <: ADT, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
+          override def apply(t: H *: T): ConstructorBuilder = adt_to_const(t.head) ++ any_to_const(t.tail)
+  }
+
   
 
   given type_to_const: ConstructorConverter[Type] with {
@@ -1182,6 +1194,10 @@ object String extends lisa.Main {
 
   given adt_to_const: ConstructorConverter[ADT] with {
     override def apply(a: ADT): ConstructorBuilder = ConstructorBuilder(Self)
+  }
+
+  given term_to_const: ConstructorConverter[Term] with {
+      override def apply(te: Term): ConstructorBuilder = ConstructorBuilder(BaseType(te))
   }
 
   given ConstructorConverter[Seq[Type]] with {
@@ -1293,7 +1309,7 @@ object String extends lisa.Main {
 
 
 
-  val define(list: ADT, constructors(nil, cons)) = () | (T, list)
+  // val define(list: ADT, constructors(nil, cons)) = () | (T, list)
   //val define(tree: ADT, constructors(leaf, node)) = emptySet | (tree, tree)
 
   // val mirror: Term = constructors(tree) (
@@ -1326,9 +1342,6 @@ object String extends lisa.Main {
 
   //(nat, zero, succ) = ADT of (() | (T, self))
 
-  val adt = ADT("Nat", Seq(Constructor("Zero", Seq()), Constructor("Succ", Seq(Self))))
-  val tzero = TypedConstructor(adt.constructorMap("Zero"), adt)
-  val tsucc = TypedConstructor(adt.constructorMap("Succ"), adt)
   // // println(tzero.typeChecking.statement)
   // // println(tsucc.typeChecking.statement)
 
@@ -1342,3 +1355,24 @@ object String extends lisa.Main {
   
 
 }
+
+object HOLTest extends lisa.HOL{
+
+  import String.*
+
+    val x = typedvar(𝔹)
+
+    val typ = variable
+
+    val list = ADT("List", Seq(Constructor("Nil", Seq()), Constructor("Cons", Seq(BaseType(typ), Self))))
+    val nil = TypedConstructor(list.constructorMap("Nil"), list)
+    val cons = TypedConstructor(list.constructorMap("Cons"), list)
+
+
+    val l = typedvar(list.term.applySeq(Seq(𝔹)))
+
+    val typecheckNil = TypingTheorem(nil(𝔹) :: list(𝔹))
+    val typecheckCons = TypingTheorem(cons(𝔹) * x :: (list(𝔹) |=> list(𝔹)))
+    
+
+  }
