@@ -15,7 +15,6 @@ import lisa.kernel.proof.SequentCalculus.*
 import java.time.Instant
 import java.security.cert.Extension
 import lisa.prooflib.BasicStepTactic.LeftExistsOne
-import lisa.utils.Serialization.hypothesis
 import lisa.prooflib.SimpleDeducedSteps.InstantiateForall
 import scala.collection.immutable.ArraySeq
 import scala.collection.immutable.HashMap
@@ -23,33 +22,7 @@ import lisa.utils.parsing.UnreachableException
 import lisa.maths.settheory.types.TypeLib.{any, |=>, given}
 import lisa.maths.settheory.types.TypeSystem.{*, given}
 
-object String extends lisa.Main {
-  draft()
-
-  val circ = ConstantFunctionLabel.infix("o", 2)
-
-  def char(c: Char) =
-
-    val zero = Constant("0")
-    val one = Constant("1")
-    val e = Constant("Ɛ")
-
-    addSymbol(zero)
-    addSymbol(one)
-    addSymbol(circ)
-    addSymbol(e)
-
-    def toBinary(v: Int, b: Int = 8, buffer: Term = emptySet): Term =
-      if b == 0 then buffer
-      else toBinary(v >> 1, b - 1, circ(if v % 2 == 1 then one else zero, buffer))
-
-    toBinary(c)
-
-  def string(s: String) =
-    // val stringTitle = variable
-    // (DEF(stringTitle) --> s.foldRight(emptySet)((c, acc: Term) => circ(char(c), acc)))(Constant(s))
-    s.foldRight(emptySet)((c, acc: Term) => circ(char(c), acc))
-
+object ADTExternalTheorems extends lisa.Main {
   val a = variable
   val b = variable
   val c = variable
@@ -58,214 +31,19 @@ object String extends lisa.Main {
   val f = variable
   val g = variable
 
-  val i = variable
-  val j = variable
-  val k = variable
-  val l = variable
-
   val n = variable
-  val n1 = variable
-  val n2 = variable
   val m = variable
 
   val p = formulaVariable
   val p1 = formulaVariable
   val p2 = formulaVariable
   val p3 = formulaVariable
-  val q = formulaVariable
-
-  val r = variable
-  val s = variable
-  val t = variable
 
   val x = variable
   val y = variable
-  val z = variable
-
-  val A = variable
-  val B = variable
-  val S = variable
-
-  val F = function[1]
 
   val P = predicate[1]
   val P2 = predicate[2]
-
-  val Q = predicate[1]
-
-  val schemPred = predicate[1]
-
-
-  def \/(s: Iterable[Formula]) = 
-    if s.isEmpty then False 
-    else s.fold(False)(_ \/ _)
-  def /\(s: Iterable[Formula]) = 
-    if s.isEmpty then True
-    else s.fold(True)(_ /\ _)
-
-  def removeConstants(f: Formula): Formula =
-    f match
-      case Or(False, phi) => removeConstants(phi)
-      case Or(phi, False) => removeConstants(phi)
-      case Or(phi, psi) => removeConstants(phi) \/ removeConstants(psi)
-      case And(True, phi) => removeConstants(phi)
-      case And(phi, True) => removeConstants(phi)
-      case And(phi, psi) => removeConstants(phi) /\ removeConstants(psi)
-      case Implies(True, phi) => removeConstants(phi)
-      case Implies(phi, psi) => Implies(removeConstants(phi), removeConstants(psi))
-      case _ => f
-    
-
-  sealed trait Type
-  case object Self extends Type
-  case class BaseType(t: Term) extends Type
-
-  type Tag = String
-
-  /**
-   * One of the constructors of an algebraic data type.
-   *
-   * @tparam N arity of the constructor, i.e. the number of arguments it takes
-   * @param adt name of the ADT
-   * @param name name of the constructor
-   * @param typeArgs types of the parameters of the constructor
-   */
-  class Constructor(using line: sourcecode.Line, file: sourcecode.File)(val name: String, val typeArgs: Seq[Type], val tag: Tag = null) {
-
-    /**
-     * Number of arguments in this constructor
-     */
-    val arity: Int = typeArgs.length
-
-    /**
-     * List of variables used in the definition of this constructor
-     */
-    val variables: Seq[Variable] = for i <- 0 until arity yield Variable(s"a${i}")
-
-    val typeVariables: Seq[Variable] = 
-      def termTypeVars(appliedTerm: Term): Seq[Variable] = 
-        appliedTerm match
-          case v: Variable => Seq(v)
-          case _: Constant => Seq.empty
-          case af : AppliedFunctional => af.args.flatMap(termTypeVars)
-        
-      typeArgs.flatMap({
-        case Self => Seq.empty
-        case BaseType(te) => termTypeVars(te)
-      }).distinct
-              
-    /**
-     * Internally, an instance of this constructor is represented as a list.
-     * The first element of this list is the complete name of this constructor
-     * and the following elements are its arguments. We represent lists as chained
-     * pairs followed by the empty set.
-     *
-     * e.g. Cons(1, Cons(2, Nil)) --> (1, (2, ∅))
-     *
-     * @param args the arguments of this instance of the constructor
-     */
-    def appliedTerm(targs: Seq[Term], args: Seq[Term]): Term = pair(emptySet, subterm(targs, args))
-
-    def appliedTerm(args: Seq[Term]): Term = appliedTerm(typeVariables, args)
-
-    val appliedTerm: Term = appliedTerm(variables)
-
-    /**
-     * @see [[this.appliedTerm]]
-     */
-    def subterm(targs: Seq[Term], args: Seq[Term]): Term = args.foldRight(emptySet)((t, acc: Term) => pair(t.substitute(typeVariables.zip(targs).map(_ := _): _*), acc))
-
-    // /**
-    //  * Theorem --- Injectivity of constructors.
-    //  *
-    //  *    Two instances of this constructor are equal if and only if all of their arguments are pairwise equal
-    //  *
-    //  * e.g. Cons(head1, tail1) === Cons(head2, tail2) <=> head1 === head1
-    //  */
-    // lazy val injectivityThm =
-    //   label match
-    //     case lb: Constant =>
-    //       Theorem(lb === lb) {
-    //         have(thesis) by Tautology
-    //       }
-    //     case lb: ConstantFunctionLabel[?] =>
-    //       // variable sequences x_0, ..., x_n-1 and y_0, ..., y_n-1
-    //       val xs = for i <- 0 until arity yield Variable(s"x${i}")
-    //       val ys = for i <- 0 until arity yield Variable(s"y${i}")
-
-    //       // this constructor instantiated with xs and ys
-    //       val lxs = lb.applyUnsafe(xs)
-    //       val lys = lb.applyUnsafe(ys)
-
-    //       // internal representation of this constructor instantiated with xs ys
-    //       val txs = appliedTerm(xs)
-    //       val tys = appliedTerm(ys)
-
-    //       // we first prove that lxs === lys <=> txs === tys
-    //       // and then use pair extensionality (i.e. injectivity) to complete the proof
-    //       Theorem((lxs === lys) <=> xs.zip(ys).map(_ === _).reduce(_ /\ _)) {
-
-    //         val cons1def = have(lxs === txs) by Tautology.from(label.definition.of((variables.zip(xs).map((v, xvar) => v := xvar) :+ lxs): _*))
-    //         val cons1defFlipped = thenHave(txs === lxs) by Tautology
-
-    //         val cons2def = have(lys === tys) by Tautology.from(label.definition.of((variables.zip(ys).map((v, yvar) => v := yvar) :+ lys): _*))
-    //         val cons2defFlipped = thenHave(tys === lys) by Tautology
-
-    //         have(lxs === lys |- lxs === tys) by Tautology.from(cons2def, equalityTransitivity of (x := lxs, y := lys, z := tys))
-    //         val imp1 = have(lxs === lys |- txs === tys) by Tautology.from(cons1defFlipped, lastStep, equalityTransitivity of (x := txs, y := lxs, z := tys))
-
-    //         have(txs === tys |- lxs === tys) by Tautology.from(cons1def, equalityTransitivity of (x := lxs, y := txs, z := tys))
-    //         val imp2 = have(txs === tys |- lxs === lys) by Tautology.from(lastStep, cons2defFlipped, equalityTransitivity of (x := lxs, y := tys, z := lys))
-
-    //         have((lxs === lys) <=> (txs === tys)) by Tautology.from(imp1, imp2)
-
-    //         // now chaining pair extentionality
-
-    //         have((lxs === lys) <=> (subterm(xs) === subterm(ys))) by Tautology.from(lastStep, pairExtensionality of (a := nameTerm, b := subterm(xs), c := nameTerm, d := subterm(ys)))
-
-    //         // list of the possible cuts of xs and ys without the first one (empty list, full list)
-    //         val cumulX = xs.scanLeft[(List[Variable], List[Variable])]((Nil, xs.toList))((acc, _) => (acc._2.head :: acc._1, acc._2.tail)).tail
-    //         val cumulY = xs.scanLeft[(List[Variable], List[Variable])]((Nil, ys.toList))((acc, _) => (acc._2.head :: acc._1, acc._2.tail)).tail
-
-    //         for pl <- cumulX.zip(cumulY) do
-    //           val left = pl._1._1.zip(pl._2._1).map(_ === _).reduce(_ /\ _)
-    //           val rightX = subterm(pl._1._2)
-    //           val rightY = subterm(pl._2._2)
-    //           have((lxs === lys) <=> left /\ (rightX === rightY)) by Tautology.from(lastStep, pairExtensionality of (a := pl._1._1.head, b := rightX, c := pl._2._1.head, d := rightY))
-    //       }
-
-  }
-
-  class TypedConstructor(using line: sourcecode.Line, file: sourcecode.File)(cons: Constructor, adt: ADT)  {
-
-    val fullName = s"${adt.name}/${cons.name}"
-
-    val typeVariables = adt.typeVariables
-    val typeArity = typeVariables.length
-
-    val typeArgs = cons.typeArgs.map{
-      case Self => adt.appliedTerm
-      case BaseType(t) => t
-    }
-
-    val typ = typeArgs.foldRight[Term](adt.appliedTerm)((a, b) => a |=> b) 
-
-    def appSeq(f: Term) = cons.variables.foldLeft(f)((acc, v) => f * v)
-
-    val untypedFunctionalDefinition = (c :: typ) /\ cons.variables.foldRight(appSeq(c) === cons.appliedTerm)(forall(_, _))
-    val untypedFunctionalUniqueness = Lemma(existsOne(c, untypedFunctionalDefinition)) {
-      sorry
-    }
-
-
-    val untypedFunctional = FunctionDefinition(fullName, line.value, file.value)(typeVariables, c, untypedFunctionalDefinition, untypedFunctionalUniqueness).label
-    val typing = Axiom(typeVariables.foldRight[Formula](untypedFunctional.applySeq(typeVariables) :: typ)(forall(_, _)))
-    val typedFunctional = TypedConstantFunctional(fullName, typeArity, FunctionalClass(Seq.fill(typeArity)(any), typeVariables, typ, typeArity), typing)
-
-    def apply(terms: Term*) = typedFunctional.applySeq(terms)
-  }
-
-  // General purpose theorems
 
   val substitutionThm = Lemma((x === y, P(x)) |- P(y)) {
     val s0 = have(x === y |- x === y) by Restate
@@ -412,21 +190,186 @@ object String extends lisa.Main {
   // Axiom: Successor is not empty
   val inSuccessor = Axiom(in(n, successor(n)))
 
-  // Helper: compute the union of the range of a functional
-  def unionRange(f: Term) = union(relationRange(f))
-  def restrRange(f: Term, n: Term) = relationRange(restrictedFunction(f, n))
-
   val unionEmpty = Lemma(union(emptySet) === emptySet) {
     sorry
-  }
-
-  val unionRangeMonotonic = Lemma(subset(f, g) |- subset(unionRange(f), unionRange(g))) {
-    have(thesis) by Apply(unionMonotic).on(rangeMonotonic.asInstanceOf)
   }
 
   val restrictedFunctionEmptyDomain = Lemma(restrictedFunction(f, emptySet) === emptySet) {
     sorry
   }
+
+
+}
+
+object ADTTactic{
+
+  import ADTExternalTheorems.*
+
+  /**
+    * Variable imports
+    */
+  val k = variable
+  val r = variable
+  val s = variable
+  val t = variable
+
+  val z = variable
+  val Q = predicate[1]
+
+  val schemPred = predicate[1]
+
+
+  def \/(s: Iterable[Formula]) = 
+    if s.isEmpty then False 
+    else s.fold(False)(_ \/ _)
+  def /\(s: Iterable[Formula]) = 
+    if s.isEmpty then True
+    else s.fold(True)(_ /\ _)
+
+  def removeConstants(f: Formula): Formula =
+    f match
+      case Or(False, phi) => removeConstants(phi)
+      case Or(phi, False) => removeConstants(phi)
+      case Or(phi, psi) => removeConstants(phi) \/ removeConstants(psi)
+      case And(True, phi) => removeConstants(phi)
+      case And(phi, True) => removeConstants(phi)
+      case And(phi, psi) => removeConstants(phi) /\ removeConstants(psi)
+      case Implies(True, phi) => removeConstants(phi)
+      case Implies(phi, psi) => Implies(removeConstants(phi), removeConstants(psi))
+      case _ => f
+    
+
+  sealed trait Type
+  case object Self extends Type
+  case class BaseType(t: Term) extends Type
+
+  type Tag = String
+
+  /**
+   * One of the constructors of an algebraic data type.
+   *
+   * @tparam N arity of the constructor, i.e. the number of arguments it takes
+   * @param adt name of the ADT
+   * @param name name of the constructor
+   * @param typeArgs types of the parameters of the constructor
+   */
+  class Constructor(using line: sourcecode.Line, file: sourcecode.File)(val name: String, val typeArgs: Seq[Type], val tag: Tag = null) {
+
+    /**
+     * Number of arguments in this constructor
+     */
+    val arity: Int = typeArgs.length
+
+    /**
+     * List of variables used in the definition of this constructor
+     */
+    val variables: Seq[Variable] = for i <- 0 until arity yield Variable(s"a${i}")
+
+    val typeVariables: Seq[Variable] = 
+      def termTypeVars(appliedTerm: Term): Seq[Variable] = 
+        appliedTerm match
+          case v: Variable => Seq(v)
+          case _: Constant => Seq.empty
+          case af : AppliedFunctional => af.args.flatMap(termTypeVars)
+        
+      typeArgs.flatMap({
+        case Self => Seq.empty
+        case BaseType(te) => termTypeVars(te)
+      }).distinct
+              
+    /**
+     * Internally, an instance of this constructor is represented as a list.
+     * The first element of this list is the complete name of this constructor
+     * and the following elements are its arguments. We represent lists as chained
+     * pairs followed by the empty set.
+     *
+     * e.g. Cons(1, Cons(2, Nil)) --> (1, (2, ∅))
+     *
+     * @param args the arguments of this instance of the constructor
+     */
+    def appliedTerm(targs: Seq[Term], args: Seq[Term]): Term = pair(emptySet, subterm(targs, args))
+
+    def appliedTerm(args: Seq[Term]): Term = appliedTerm(typeVariables, args)
+
+    val appliedTerm: Term = appliedTerm(variables)
+
+    /**
+     * @see [[this.appliedTerm]]
+     */
+    def subterm(targs: Seq[Term], args: Seq[Term]): Term = args.foldRight(emptySet)((t, acc: Term) => pair(t.substitute(typeVariables.zip(targs).map(_ := _): _*), acc))
+
+    // /**
+    //  * Theorem --- Injectivity of constructors.
+    //  *
+    //  *    Two instances of this constructor are equal if and only if all of their arguments are pairwise equal
+    //  *
+    //  * e.g. Cons(head1, tail1) === Cons(head2, tail2) <=> head1 === head1
+    //  */
+    // lazy val injectivityThm =
+    //   label match
+    //     case lb: Constant =>
+    //       Theorem(lb === lb) {
+    //         have(thesis) by Tautology
+    //       }
+    //     case lb: ConstantFunctionLabel[?] =>
+    //       // variable sequences x_0, ..., x_n-1 and y_0, ..., y_n-1
+    //       val xs = for i <- 0 until arity yield Variable(s"x${i}")
+    //       val ys = for i <- 0 until arity yield Variable(s"y${i}")
+
+    //       // this constructor instantiated with xs and ys
+    //       val lxs = lb.applyUnsafe(xs)
+    //       val lys = lb.applyUnsafe(ys)
+
+    //       // internal representation of this constructor instantiated with xs ys
+    //       val txs = appliedTerm(xs)
+    //       val tys = appliedTerm(ys)
+
+    //       // we first prove that lxs === lys <=> txs === tys
+    //       // and then use pair extensionality (i.e. injectivity) to complete the proof
+    //       Theorem((lxs === lys) <=> xs.zip(ys).map(_ === _).reduce(_ /\ _)) {
+
+    //         val cons1def = have(lxs === txs) by Tautology.from(label.definition.of((variables.zip(xs).map((v, xvar) => v := xvar) :+ lxs): _*))
+    //         val cons1defFlipped = thenHave(txs === lxs) by Tautology
+
+    //         val cons2def = have(lys === tys) by Tautology.from(label.definition.of((variables.zip(ys).map((v, yvar) => v := yvar) :+ lys): _*))
+    //         val cons2defFlipped = thenHave(tys === lys) by Tautology
+
+    //         have(lxs === lys |- lxs === tys) by Tautology.from(cons2def, equalityTransitivity of (x := lxs, y := lys, z := tys))
+    //         val imp1 = have(lxs === lys |- txs === tys) by Tautology.from(cons1defFlipped, lastStep, equalityTransitivity of (x := txs, y := lxs, z := tys))
+
+    //         have(txs === tys |- lxs === tys) by Tautology.from(cons1def, equalityTransitivity of (x := lxs, y := txs, z := tys))
+    //         val imp2 = have(txs === tys |- lxs === lys) by Tautology.from(lastStep, cons2defFlipped, equalityTransitivity of (x := lxs, y := tys, z := lys))
+
+    //         have((lxs === lys) <=> (txs === tys)) by Tautology.from(imp1, imp2)
+
+    //         // now chaining pair extentionality
+
+    //         have((lxs === lys) <=> (subterm(xs) === subterm(ys))) by Tautology.from(lastStep, pairExtensionality of (a := nameTerm, b := subterm(xs), c := nameTerm, d := subterm(ys)))
+
+    //         // list of the possible cuts of xs and ys without the first one (empty list, full list)
+    //         val cumulX = xs.scanLeft[(List[Variable], List[Variable])]((Nil, xs.toList))((acc, _) => (acc._2.head :: acc._1, acc._2.tail)).tail
+    //         val cumulY = xs.scanLeft[(List[Variable], List[Variable])]((Nil, ys.toList))((acc, _) => (acc._2.head :: acc._1, acc._2.tail)).tail
+
+    //         for pl <- cumulX.zip(cumulY) do
+    //           val left = pl._1._1.zip(pl._2._1).map(_ === _).reduce(_ /\ _)
+    //           val rightX = subterm(pl._1._2)
+    //           val rightY = subterm(pl._2._2)
+    //           have((lxs === lys) <=> left /\ (rightX === rightY)) by Tautology.from(lastStep, pairExtensionality of (a := pl._1._1.head, b := rightX, c := pl._2._1.head, d := rightY))
+    //       }
+
+  }
+
+
+
+  // Helper: compute the union of the range of a functional
+  def unionRange(f: Term) = union(relationRange(f))
+  def restrRange(f: Term, n: Term) = relationRange(restrictedFunction(f, n))
+
+
+  val unionRangeMonotonic = Lemma(subset(f, g) |- subset(unionRange(f), unionRange(g))) {
+    have(thesis) by Apply(unionMonotic).on(rangeMonotonic.asInstanceOf)
+  }
+
 
   val unionRangeEmpty = Lemma(unionRange(emptySet) === emptySet) {
     have(!in(pair(a, t), emptySet)) by Exact(emptySetAxiom)
@@ -617,9 +560,9 @@ object String extends lisa.Main {
 
     //SMALL H
 
-    def inSmallH(s: Term)(x: Term) = isConstructor(x, s) \/ in(x, s)
+    def inInductiveFun(s: Term)(x: Term) = isConstructor(x, s) \/ in(x, s)
 
-    val smallHMonotonic = Lemma(subset(s, t) |- inSmallH(s)(x) ==> inSmallH(t)(x)) {
+    val inductiveFunMonotonic = Lemma(subset(s, t) |- inInductiveFun(s)(x) ==> inInductiveFun(t)(x)) {
 
       val subsetST = subset(s, t)
 
@@ -663,7 +606,7 @@ object String extends lisa.Main {
 
     }
 
-    val succInSmallH = constructorMap.map((k, c) => k -> Lemma(consVarMembership(c, s) |- inSmallH(s)(c.appliedTerm)) {
+    val constructorInInductiveFun = constructorMap.map((k, c) => k -> Lemma(consVarMembership(c, s) |- inInductiveFun(s)(c.appliedTerm)) {
 
         val andl = have(consVarMembership(c, s) |- consVarMembership(c, s)) by Hypothesis
         val andr = have(c.appliedTerm === c.appliedTerm) by Restate
@@ -685,217 +628,217 @@ object String extends lisa.Main {
           (thenHave(consVarMembership(c, s) |- exists(v, rightSeq)) by RightExists, varsLeft, varsRight)
         )._1
 
-        thenHave(consVarMembership(c, s) |- inSmallH(s)(c.appliedTerm)) by Tautology
+        thenHave(consVarMembership(c, s) |- inInductiveFun(s)(c.appliedTerm)) by Tautology
     })
 
 
     //BIG H0
-    def inBigH(f: Term)(x: Term) = !(f === emptySet) /\ inSmallH(unionRange(f))(x)
+    def inTransRecFun(f: Term)(x: Term) = !(f === emptySet) /\ inInductiveFun(unionRange(f))(x)
 
-    val bigHMonotonic = Lemma(subset(f, g) |- inBigH(f)(x) ==> inBigH(g)(x)) {
+    val transRecFunMonotonic = Lemma(subset(f, g) |- inTransRecFun(f)(x) ==> inTransRecFun(g)(x)) {
       val s0l = have(subset(f, g) |- subset(unionRange(f), unionRange(g))) by Restate.from(unionRangeMonotonic)
-      val s0r = have(subset(unionRange(f), unionRange(g)) |- inSmallH(unionRange(f))(x) ==> inSmallH(unionRange(g))(x)) by Restate.from(smallHMonotonic of (s := unionRange(f), t := unionRange(g)))
-      have(subset(f, g) |- inSmallH(unionRange(f))(x) ==> inSmallH(unionRange(g))(x)) by Cut(s0l, s0r)
-      val s1r = thenHave((subset(f, g), inBigH(f)(x)) |- inSmallH(unionRange(g))(x)) by Weakening
+      val s0r = have(subset(unionRange(f), unionRange(g)) |- inInductiveFun(unionRange(f))(x) ==> inInductiveFun(unionRange(g))(x)) by Restate.from(inductiveFunMonotonic of (s := unionRange(f), t := unionRange(g)))
+      have(subset(f, g) |- inInductiveFun(unionRange(f))(x) ==> inInductiveFun(unionRange(g))(x)) by Cut(s0l, s0r)
+      val s1r = thenHave((subset(f, g), inTransRecFun(f)(x)) |- inInductiveFun(unionRange(g))(x)) by Weakening
 
-      val s1l = have((subset(f, g), inBigH(f)(x)) |- !(g === emptySet)) by Weakening(subsetNotEmpty of (x := f, y := g))
-      have((subset(f, g), inBigH(f)(x)) |- inBigH(g)(x)) by RightAnd(s1l, s1r)
+      val s1l = have((subset(f, g), inTransRecFun(f)(x)) |- !(g === emptySet)) by Weakening(subsetNotEmpty of (x := f, y := g))
+      have((subset(f, g), inTransRecFun(f)(x)) |- inTransRecFun(g)(x)) by RightAnd(s1l, s1r)
     }
 
-    def gDef(g: Term) = functional(g) /\ (relationDomain(g) === N) /\ forall(b, in(b, N) ==> forall(x, in(x, app(g, b)) <=> inBigH(restrictedFunction(g, b))(x)))
+    def isHeightFun(g: Term) = functional(g) /\ (relationDomain(g) === N) /\ forall(b, in(b, N) ==> forall(x, in(x, app(g, b)) <=> inTransRecFun(restrictedFunction(g, b))(x)))
 
-    val gNotEmpty = Lemma(gDef(g) |- !(g === emptySet)) {
-      val subst = have(gDef(g) |- relationDomain(g) === N) by Restate
-      have((gDef(g), relationDomain(g) === emptySet, N === emptySet) |- ()) by Weakening(natNotEmpty)
-      thenHave((gDef(g), relationDomain(g) === emptySet, emptySet === emptySet) |- ()) by Substitution.ApplyRules(subst)
-      thenHave(gDef(g) |- !(relationDomain(g) === emptySet)) by Restate
-      have(gDef(g) |- !(g === emptySet)) by Apply(emptyFunction).on(lastStep)
+    val heightFunNonEmpty = Lemma(isHeightFun(g) |- !(g === emptySet)) {
+      val subst = have(isHeightFun(g) |- relationDomain(g) === N) by Restate
+      have((isHeightFun(g), relationDomain(g) === emptySet, N === emptySet) |- ()) by Weakening(natNotEmpty)
+      thenHave((isHeightFun(g), relationDomain(g) === emptySet, emptySet === emptySet) |- ()) by Substitution.ApplyRules(subst)
+      thenHave(isHeightFun(g) |- !(relationDomain(g) === emptySet)) by Restate
+      have(isHeightFun(g) |- !(g === emptySet)) by Apply(emptyFunction).on(lastStep)
     }
 
-    val inG = Lemma((gDef(g), in(n, N)) |- in(x, app(g, n)) <=> inBigH(restrictedFunction(g, n))(x)) {
+    val hasHeightBelow = Lemma((isHeightFun(g), in(n, N)) |- in(x, app(g, n)) <=> inTransRecFun(restrictedFunction(g, n))(x)) {
       have(
-        forall(b, in(b, N) ==> forall(x, in(x, app(g, b)) <=> inBigH(restrictedFunction(g, b))(x))) |- forall(b, in(b, N) ==> forall(x, in(x, app(g, b)) <=> inBigH(restrictedFunction(g, b))(x)))
+        forall(b, in(b, N) ==> forall(x, in(x, app(g, b)) <=> inTransRecFun(restrictedFunction(g, b))(x))) |- forall(b, in(b, N) ==> forall(x, in(x, app(g, b)) <=> inTransRecFun(restrictedFunction(g, b))(x)))
       ) by Hypothesis
-      thenHave(gDef(g) |- in(n, N) ==> forall(x, in(x, app(g, n)) <=> inBigH(restrictedFunction(g, n))(x))) by InstantiateForall(n)
-      thenHave((gDef(g), in(n, N)) |- forall(x, in(x, app(g, n)) <=> inBigH(restrictedFunction(g, n))(x))) by Restate
-      thenHave((gDef(g), in(n, N)) |- in(x, app(g, n)) <=> inBigH(restrictedFunction(g, n))(x)) by InstantiateForall(x)
+      thenHave(isHeightFun(g) |- in(n, N) ==> forall(x, in(x, app(g, n)) <=> inTransRecFun(restrictedFunction(g, n))(x))) by InstantiateForall(n)
+      thenHave((isHeightFun(g), in(n, N)) |- forall(x, in(x, app(g, n)) <=> inTransRecFun(restrictedFunction(g, n))(x))) by Restate
+      thenHave((isHeightFun(g), in(n, N)) |- in(x, app(g, n)) <=> inTransRecFun(restrictedFunction(g, n))(x)) by InstantiateForall(x)
     }
 
     // Lemma 1.3
-    val cumulativeLemma = Lemma((gDef(g), in(n, N)) |- ∀(m, in(m, successor(n)) ==> subset(app(g, m), app(g, n)))) {
-      have((gDef(g), in(n, N)) |- subset(m, n) <=> in(m, successor(n))) by Exact(natSubset)
-      thenHave((gDef(g), in(n, N)) |- in(m, successor(n)) <=> subset(m, n)) by Restate
-      val imp0 = have((gDef(g), in(n, N)) |- in(m, successor(n)) ==> subset(m, n)) by Apply(equivalenceApply).on(lastStep)
+    val heightFunCumulative = Lemma((isHeightFun(g), in(n, N)) |- ∀(m, in(m, successor(n)) ==> subset(app(g, m), app(g, n)))) {
+      have((isHeightFun(g), in(n, N)) |- subset(m, n) <=> in(m, successor(n))) by Exact(natSubset)
+      thenHave((isHeightFun(g), in(n, N)) |- in(m, successor(n)) <=> subset(m, n)) by Restate
+      val imp0 = have((isHeightFun(g), in(n, N)) |- in(m, successor(n)) ==> subset(m, n)) by Apply(equivalenceApply).on(lastStep)
 
-      have((gDef(g), in(n, N), subset(m, n)) |- in(x, app(g, m)) <=> inBigH(restrictedFunction(g, m))(x)) by Apply(inG).on(subsetIsNat.asInstanceOf)
-      val eq1 = have((gDef(g), in(n, N), subset(m, n), in(x, app(g, m))) |- inBigH(restrictedFunction(g, m))(x)) by Apply(equivalenceRevApply of (p1 := in(x, app(g, m)))).on(lastStep)
+      have((isHeightFun(g), in(n, N), subset(m, n)) |- in(x, app(g, m)) <=> inTransRecFun(restrictedFunction(g, m))(x)) by Apply(hasHeightBelow).on(subsetIsNat.asInstanceOf)
+      val eq1 = have((isHeightFun(g), in(n, N), subset(m, n), in(x, app(g, m))) |- inTransRecFun(restrictedFunction(g, m))(x)) by Apply(equivalenceRevApply of (p1 := in(x, app(g, m)))).on(lastStep)
 
-      have(subset(m, n) |- inBigH(restrictedFunction(g, m))(x) ==> inBigH(restrictedFunction(g, n))(x)) by Apply(bigHMonotonic).on(restrictedFunctionDomainMonotonic.asInstanceOf)
-      have((gDef(g), in(n, N), subset(m, n), inBigH(restrictedFunction(g, m))(x)) |- in(x, app(g, n))) by Apply(equivalenceRevApply).on(lastStep, inG.asInstanceOf)
-      have((gDef(g), in(n, N), subset(m, n), in(x, app(g, m))) |- in(x, app(g, n))) by Cut(eq1, lastStep)
-      thenHave((gDef(g), in(n, N), subset(m, n)) |- in(x, app(g, m)) ==> in(x, app(g, n))) by Restate
-      thenHave((gDef(g), in(n, N), subset(m, n)) |- forall(x, in(x, app(g, m)) ==> in(x, app(g, n)))) by RightForall
-      have((gDef(g), in(n, N), subset(m, n)) |- subset(app(g, m), app(g, n))) by Apply(equivalenceRevApply).on(lastStep, subsetAxiom.asInstanceOf)
-      have((gDef(g), in(n, N)) |- in(m, successor(n)) ==> subset(app(g, m), app(g, n))) by Apply(lastStep).on(imp0)
+      have(subset(m, n) |- inTransRecFun(restrictedFunction(g, m))(x) ==> inTransRecFun(restrictedFunction(g, n))(x)) by Apply(transRecFunMonotonic).on(restrictedFunctionDomainMonotonic.asInstanceOf)
+      have((isHeightFun(g), in(n, N), subset(m, n), inTransRecFun(restrictedFunction(g, m))(x)) |- in(x, app(g, n))) by Apply(equivalenceRevApply).on(lastStep, hasHeightBelow.asInstanceOf)
+      have((isHeightFun(g), in(n, N), subset(m, n), in(x, app(g, m))) |- in(x, app(g, n))) by Cut(eq1, lastStep)
+      thenHave((isHeightFun(g), in(n, N), subset(m, n)) |- in(x, app(g, m)) ==> in(x, app(g, n))) by Restate
+      thenHave((isHeightFun(g), in(n, N), subset(m, n)) |- forall(x, in(x, app(g, m)) ==> in(x, app(g, n)))) by RightForall
+      have((isHeightFun(g), in(n, N), subset(m, n)) |- subset(app(g, m), app(g, n))) by Apply(equivalenceRevApply).on(lastStep, subsetAxiom.asInstanceOf)
+      have((isHeightFun(g), in(n, N)) |- in(m, successor(n)) ==> subset(app(g, m), app(g, n))) by Apply(lastStep).on(imp0)
       thenHave(thesis) by RightForall
     }
 
-    val adtLevelZeroLemma = Lemma(gDef(g) |- !in(x, app(g, emptySet))) {
-      have(gDef(g) |- in(x, app(g, emptySet)) <=> inBigH(restrictedFunction(g, emptySet))(x)) by Apply(inG).on(zeroIsNat.asInstanceOf)
-      thenHave(gDef(g) |- in(x, app(g, emptySet)) <=> inBigH(emptySet)(x)) by Substitution.ApplyRules(restrictedFunctionEmptyDomain)
+    val heightZero = Lemma(isHeightFun(g) |- !in(x, app(g, emptySet))) {
+      have(isHeightFun(g) |- in(x, app(g, emptySet)) <=> inTransRecFun(restrictedFunction(g, emptySet))(x)) by Apply(hasHeightBelow).on(zeroIsNat.asInstanceOf)
+      thenHave(isHeightFun(g) |- in(x, app(g, emptySet)) <=> inTransRecFun(emptySet)(x)) by Substitution.ApplyRules(restrictedFunctionEmptyDomain)
     }
 
 
-    val inGSucc = Lemma((gDef(g), in(n, N)) |- in(x, app(g, successor(n))) <=> inSmallH(app(g, n))(x)) {
-      val restrFunNotEmpty = have(gDef(g) |- !(restrictedFunction(g, successor(n)) === emptySet)) by Apply(restrictedFunctionNotEmpty).on(gNotEmpty.asInstanceOf, zeroIsNotSucc.asInstanceOf)
+    val succHeightWeak = Lemma((isHeightFun(g), in(n, N)) |- in(x, app(g, successor(n))) <=> inInductiveFun(app(g, n))(x)) {
+      val restrFunNotEmpty = have(isHeightFun(g) |- !(restrictedFunction(g, successor(n)) === emptySet)) by Apply(restrictedFunctionNotEmpty).on(heightFunNonEmpty.asInstanceOf, zeroIsNotSucc.asInstanceOf)
       
-      val unionRangeSubst = have((gDef(g), in(n, N)) |- unionRange(restrictedFunction(g, successor(n))) === app(g, n)) by Apply(unionRangeLemma).on(cumulativeLemma.asInstanceOf)
-      have((gDef(g), in(n, N)) |- in(x, app(g, successor(n))) <=> inBigH(restrictedFunction(g, successor(n)))(x)) by Apply(inG).on(equivalenceApply of (p1 := in(n, N)), successorIsNat.asInstanceOf)
-      thenHave((gDef(g), in(n, N)) |- in(x, app(g, successor(n))) <=> !(restrictedFunction(g, successor(n)) === emptySet) /\ inSmallH(app(g, n))(x)) by Substitution.ApplyRules(unionRangeSubst)
+      val unionRangeSubst = have((isHeightFun(g), in(n, N)) |- unionRange(restrictedFunction(g, successor(n))) === app(g, n)) by Apply(unionRangeLemma).on(heightFunCumulative.asInstanceOf)
+      have((isHeightFun(g), in(n, N)) |- in(x, app(g, successor(n))) <=> inTransRecFun(restrictedFunction(g, successor(n)))(x)) by Apply(hasHeightBelow).on(equivalenceApply of (p1 := in(n, N)), successorIsNat.asInstanceOf)
+      thenHave((isHeightFun(g), in(n, N)) |- in(x, app(g, successor(n))) <=> !(restrictedFunction(g, successor(n)) === emptySet) /\ inInductiveFun(app(g, n))(x)) by Substitution.ApplyRules(unionRangeSubst)
       have(thesis) by Tautology.from(lastStep, restrFunNotEmpty)
     }
 
-    val gExistence = Lemma(exists(g, gDef(g))) {
+    val heightFunExistence = Lemma(exists(g, isHeightFun(g))) {
       sorry
     }
 
-    val gUniqueness = Lemma(existsOne(g, gDef(g))) {
+    val heightFunUniqueness = Lemma(existsOne(g, isHeightFun(g))) {
       sorry
     }
 
-    def termDefinition(z: Term): Formula = forall(t, in(t, z) <=> forall(g, gDef(g) ==> in(t, unionRange(g))))
+    def termDefinition(z: Term): Formula = forall(t, in(t, z) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g))))
 
     val termExistence = Lemma(existsOne(z, termDefinition(z))) {
-      have(exists(z, forall(t, in(t, z) <=> forall(g, gDef(g) ==> in(t, unionRange(g)))))) subproof {
+      have(exists(z, forall(t, in(t, z) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g)))))) subproof {
         sorry
       }
-      have(thesis) by Apply(uniqueByExtension of (schemPred := lambda(t, forall(g, gDef(g) ==> in(t, unionRange(g)))))).on(lastStep)
+      have(thesis) by Apply(uniqueByExtension of (schemPred := lambda(t, forall(g, isHeightFun(g) ==> in(t, unionRange(g)))))).on(lastStep)
     }
 
     
-    val term = FunctionDefinition(name, line.value, file.value)(typeVariables, z, forall(t, in(t, z) <=> forall(g, gDef(g) ==> in(t, unionRange(g)))), termExistence).label
+    val term = FunctionDefinition(name, line.value, file.value)(typeVariables, z, forall(t, in(t, z) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g)))), termExistence).label
 
     val appliedTerm = term.applySeq(typeVariables)
 
     def apply(terms: Term*) = term.applySeq(terms)
 
-    val inTerm = Lemma(gDef(g) |- in(x, appliedTerm) <=> in(x, unionRange(g))) {
+    val inTerm = Lemma(isHeightFun(g) |- in(x, appliedTerm) <=> in(x, unionRange(g))) {
       have((appliedTerm === appliedTerm) <=> termDefinition(appliedTerm)) by InstantiateForall(appliedTerm)(term.definition)
       thenHave(termDefinition(appliedTerm)) by Tautology
-      val termDef = thenHave(in(x, appliedTerm) <=> forall(g, gDef(g) ==> in(x, unionRange(g)))) by InstantiateForall(x)
-      val termDefL = have(in(x, appliedTerm) |- forall(g, gDef(g) ==> in(x, unionRange(g)))) by Apply(equivalenceApply).on(termDef)
-      val termDefR = have(forall(g, gDef(g) ==> in(x, unionRange(g))) |- in(x, appliedTerm)) by Apply(equivalenceRevApply).on(termDef)
+      val termDef = thenHave(in(x, appliedTerm) <=> forall(g, isHeightFun(g) ==> in(x, unionRange(g)))) by InstantiateForall(x)
+      val termDefL = have(in(x, appliedTerm) |- forall(g, isHeightFun(g) ==> in(x, unionRange(g)))) by Apply(equivalenceApply).on(termDef)
+      val termDefR = have(forall(g, isHeightFun(g) ==> in(x, unionRange(g))) |- in(x, appliedTerm)) by Apply(equivalenceRevApply).on(termDef)
 
 
-      have(forall(g, gDef(g) ==> in(x, unionRange(g))) |- forall(g, gDef(g) ==> in(x, unionRange(g)))) by Hypothesis
-      thenHave(forall(g, gDef(g) ==> in(x, unionRange(g))) |- gDef(g) ==> in(x, unionRange(g))) by InstantiateForall(g)
-      thenHave((forall(g, gDef(g) ==> in(x, unionRange(g))), gDef(g)) |- in(x, unionRange(g))) by Restate
+      have(forall(g, isHeightFun(g) ==> in(x, unionRange(g))) |- forall(g, isHeightFun(g) ==> in(x, unionRange(g)))) by Hypothesis
+      thenHave(forall(g, isHeightFun(g) ==> in(x, unionRange(g))) |- isHeightFun(g) ==> in(x, unionRange(g))) by InstantiateForall(g)
+      thenHave((forall(g, isHeightFun(g) ==> in(x, unionRange(g))), isHeightFun(g)) |- in(x, unionRange(g))) by Restate
 
-      val caseL = have((gDef(g), in(x, appliedTerm)) |- in(x, unionRange(g))) by Apply(lastStep).on(termDefL)
+      val caseL = have((isHeightFun(g), in(x, appliedTerm)) |- in(x, unionRange(g))) by Apply(lastStep).on(termDefL)
 
-      //have((gDef(g), in(x, unionRange(g), gDef(f) /\ !in(x, unionRange()))))) |- in(x, unionRange(g))) by Hypothesis
+      //have((isHeightFun(g), in(x, unionRange(g), isHeightFun(f) /\ !in(x, unionRange()))))) |- in(x, unionRange(g))) by Hypothesis
       //thenHave()
 
       sorry
 
     }
 
-    val adtHasAnHeightLemma = Lemma(gDef(g) |- (in(x, appliedTerm) <=> ∃(n, in(n, N) /\ in(x, app(g, n))))) {
+    val termHasHeight = Lemma(isHeightFun(g) |- (in(x, appliedTerm) <=> ∃(n, in(n, N) /\ in(x, app(g, n))))) {
       val substDomain = have((relationDomain(g) === N) |- (relationDomain(g) === N)) by Hypothesis
       have((in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> (in(n, relationDomain(g)) /\ in(x, app(g, n)))) by Exact(equivalenceReflexivity)
-      thenHave(gDef(g) |- (in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> (in(n, N) /\ in(x, app(g, n)))) by Substitution.ApplyRules(substDomain)
-      thenHave(gDef(g) |- forall(n, (in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> (in(n, N) /\ in(x, app(g, n))))) by RightForall
-      val rew = have(gDef(g) |- exists(n, in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> exists(n, in(n, N) /\ in(x, app(g, n)))) by Apply(
+      thenHave(isHeightFun(g) |- (in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> (in(n, N) /\ in(x, app(g, n)))) by Substitution.ApplyRules(substDomain)
+      thenHave(isHeightFun(g) |- forall(n, (in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> (in(n, N) /\ in(x, app(g, n))))) by RightForall
+      val rew = have(isHeightFun(g) |- exists(n, in(n, relationDomain(g)) /\ in(x, app(g, n))) <=> exists(n, in(n, N) /\ in(x, app(g, n)))) by Apply(
         existentialEquivalenceDistribution of (P := lambda(n, in(n, relationDomain(g)) /\ in(x, app(g, n))), Q := lambda(n, in(n, N) /\ in(x, app(g, n))))
       ).on(lastStep)
 
-      have(gDef(g) |- (in(x, appliedTerm) <=> ∃(n, in(n, relationDomain(g)) /\ in(x, app(g, n))))) by Apply(equivalenceRewriting).on(unionRangeMembership.asInstanceOf, inTerm.asInstanceOf)
+      have(isHeightFun(g) |- (in(x, appliedTerm) <=> ∃(n, in(n, relationDomain(g)) /\ in(x, app(g, n))))) by Apply(equivalenceRewriting).on(unionRangeMembership.asInstanceOf, inTerm.asInstanceOf)
       have(thesis) by Apply(equivalenceRewriting).on(lastStep, rew)
     }
 
-    val adtHasAnHeightGenLemma = constructorMap.map((k, c) => k -> Lemma(gDef(g) |- (consVarMembership(c, appliedTerm) <=> ∃(n, in(n, N) /\ consVarMembership(c, app(g, n))))) {
+    val termsHaveHeight = constructorMap.map((k, c) => k -> Lemma(isHeightFun(g) |- (consVarMembership(c, appliedTerm) <=> ∃(n, in(n, N) /\ consVarMembership(c, app(g, n))))) {
       
-      val imp0 = have((gDef(g), ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- consVarMembership(c, appliedTerm)) subproof {
+      val imp0 = have((isHeightFun(g), ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- consVarMembership(c, appliedTerm)) subproof {
         val andSeq = for((v, ty) <- c.variables.zip(c.typeArgs)) yield
           ty match
             case Self => 
-              have((gDef(g), in(n, N) /\ in(v, app(g, n))) |- in(n, N) /\ in(v, app(g, n))) by Restate
-              thenHave((gDef(g), in(n, N) /\ in(v, app(g, n))) |- exists(n, in(n, N) /\ in(v, app(g, n)))) by RightExists
-              have((gDef(g), in(n, N) /\ in(v, app(g, n))) |- in(v, appliedTerm)) by Apply(equivalenceRevApply).on(lastStep, adtHasAnHeightLemma.asInstanceOf)
+              have((isHeightFun(g), in(n, N) /\ in(v, app(g, n))) |- in(n, N) /\ in(v, app(g, n))) by Restate
+              thenHave((isHeightFun(g), in(n, N) /\ in(v, app(g, n))) |- exists(n, in(n, N) /\ in(v, app(g, n)))) by RightExists
+              have((isHeightFun(g), in(n, N) /\ in(v, app(g, n))) |- in(v, appliedTerm)) by Apply(equivalenceRevApply).on(lastStep, termHasHeight.asInstanceOf)
             case BaseType(t) =>
-              have((gDef(g), in(n, N) /\ in(v, t)) |- in(v, t)) by Restate
-          thenHave((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- in(v, getTermOrElse(ty, appliedTerm))) by Weakening
+              have((isHeightFun(g), in(n, N) /\ in(v, t)) |- in(v, t)) by Restate
+          thenHave((isHeightFun(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- in(v, getTermOrElse(ty, appliedTerm))) by Weakening
           
-        have((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- consVarMembership(c, appliedTerm)) by AndAggregate(andSeq)
-        thenHave((gDef(g), exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- consVarMembership(c, appliedTerm)) by LeftExists
+        have((isHeightFun(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- consVarMembership(c, appliedTerm)) by AndAggregate(andSeq)
+        thenHave((isHeightFun(g), exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- consVarMembership(c, appliedTerm)) by LeftExists
       }
 
-      val imp1 = have((gDef(g), consVarMembership(c, appliedTerm)) |- ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) subproof {
+      val imp1 = have((isHeightFun(g), consVarMembership(c, appliedTerm)) |- ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) subproof {
         sorry
       }
 
       have(thesis) by Tautology.from(imp0, imp1)
     })
 
-    val adtSuccessorLemma = constructorMap.map((k, c) => k -> Lemma((gDef(g), in(n, N)) |- consVarMembership(c, app(g, n)) ==> in(c.appliedTerm, app(g, successor(n)))) {
+    val heightConstructor = constructorMap.map((k, c) => k -> Lemma((isHeightFun(g), in(n, N)) |- consVarMembership(c, app(g, n)) ==> in(c.appliedTerm, app(g, successor(n)))) {
       
-      val s0 = have(consVarMembership(c, app(g, n)) |- inSmallH(app(g, n))(c.appliedTerm)) by Restate.from(succInSmallH(k) of (s := app(g, n)))
-      val s1 = have((gDef(g), in(n, N)) |- in(c.appliedTerm, app(g, successor(n))) <=> inSmallH(app(g, n))(c.appliedTerm)) by Exact(inGSucc)
+      val s0 = have(consVarMembership(c, app(g, n)) |- inInductiveFun(app(g, n))(c.appliedTerm)) by Restate.from(constructorInInductiveFun(k) of (s := app(g, n)))
+      val s1 = have((isHeightFun(g), in(n, N)) |- in(c.appliedTerm, app(g, successor(n))) <=> inInductiveFun(app(g, n))(c.appliedTerm)) by Exact(succHeightWeak)
       
-      have((gDef(g), in(n, N), inSmallH(app(g, n))(c.appliedTerm),  in(c.appliedTerm, app(g, successor(n))) <=> inSmallH(app(g, n))(c.appliedTerm)) |- in(c.appliedTerm, app(g, successor(n)))) by Exact(equivalenceRevApply)
-      have((gDef(g), in(n, N), inSmallH(app(g, n))(c.appliedTerm)) |- in(c.appliedTerm, app(g, successor(n)))) by Cut(s1, lastStep)
-      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, app(g, successor(n)))) by Cut(s0, lastStep)
+      have((isHeightFun(g), in(n, N), inInductiveFun(app(g, n))(c.appliedTerm),  in(c.appliedTerm, app(g, successor(n))) <=> inInductiveFun(app(g, n))(c.appliedTerm)) |- in(c.appliedTerm, app(g, successor(n)))) by Exact(equivalenceRevApply)
+      have((isHeightFun(g), in(n, N), inInductiveFun(app(g, n))(c.appliedTerm)) |- in(c.appliedTerm, app(g, successor(n)))) by Cut(s1, lastStep)
+      have((isHeightFun(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, app(g, successor(n)))) by Cut(s0, lastStep)
     })
 
-    val adtTypechecking = constructorMap.map((k, c) => { k ->
+    val typing = constructorMap.map((k, c) => { k ->
       Lemma(removeConstants(consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm))) {
     
-      val succNIsTerm = have((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, appliedTerm)) subproof {
+      val succNIsTerm = have((isHeightFun(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, appliedTerm)) subproof {
         have(in(n, N) |- in(successor(n), N)) by Apply(equivalenceApply).on(successorIsNat.asInstanceOf)
-        val s0l = thenHave((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(successor(n), N)) by Weakening
+        val s0l = thenHave((isHeightFun(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(successor(n), N)) by Weakening
 
-        val s0r = have((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, app(g, successor(n)))) by Restate
-        have((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(successor(n), N) /\ in(c.appliedTerm, app(g, successor(n)))) by RightAnd(s0l, s0r)
-        thenHave((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- exists(m, in(m, N) /\ in(c.appliedTerm, app(g, m)))) by RightExists
-        have((gDef(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, appliedTerm)) by Apply(equivalenceRevApply).on(lastStep, adtHasAnHeightLemma.asInstanceOf)
+        val s0r = have((isHeightFun(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, app(g, successor(n)))) by Restate
+        have((isHeightFun(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(successor(n), N) /\ in(c.appliedTerm, app(g, successor(n)))) by RightAnd(s0l, s0r)
+        thenHave((isHeightFun(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- exists(m, in(m, N) /\ in(c.appliedTerm, app(g, m)))) by RightExists
+        have((isHeightFun(g), in(n, N), in(c.appliedTerm, app(g, successor(n)))) |- in(c.appliedTerm, appliedTerm)) by Apply(equivalenceRevApply).on(lastStep, termHasHeight.asInstanceOf)
       }
 
-      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, app(g, successor(n)))) by Restate.from(adtSuccessorLemma(k))
-      have((gDef(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, appliedTerm)) by Cut(lastStep, succNIsTerm)
-      thenHave((gDef(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- in(c.appliedTerm, appliedTerm)) by Restate
-      val s1 = thenHave((gDef(g), exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- in(c.appliedTerm, appliedTerm)) by LeftExists
-      have((gDef(g), consVarMembership(c, appliedTerm)) |- exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) by Apply(equivalenceApply).on(adtHasAnHeightGenLemma(k).asInstanceOf)
-      have((gDef(g), consVarMembership(c, appliedTerm)) |- in(c.appliedTerm, appliedTerm)) by Cut(lastStep, s1)
-      thenHave(gDef(g) |- consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by Restate
-      thenHave(exists(g, gDef(g)) |- consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by LeftExists
-      have(consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by Cut(gExistence, lastStep)
+      have((isHeightFun(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, app(g, successor(n)))) by Restate.from(heightConstructor(k))
+      have((isHeightFun(g), in(n, N), consVarMembership(c, app(g, n))) |- in(c.appliedTerm, appliedTerm)) by Cut(lastStep, succNIsTerm)
+      thenHave((isHeightFun(g), in(n, N) /\ consVarMembership(c, app(g, n))) |- in(c.appliedTerm, appliedTerm)) by Restate
+      val s1 = thenHave((isHeightFun(g), exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) |- in(c.appliedTerm, appliedTerm)) by LeftExists
+      have((isHeightFun(g), consVarMembership(c, appliedTerm)) |- exists(n, in(n, N) /\ consVarMembership(c, app(g, n)))) by Apply(equivalenceApply).on(termsHaveHeight(k).asInstanceOf)
+      have((isHeightFun(g), consVarMembership(c, appliedTerm)) |- in(c.appliedTerm, appliedTerm)) by Cut(lastStep, s1)
+      thenHave(isHeightFun(g) |- consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by Restate
+      thenHave(exists(g, isHeightFun(g)) |- consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by LeftExists
+      have(consVarMembership(c, appliedTerm) ==> in(c.appliedTerm, appliedTerm)) by Cut(heightFunExistence, lastStep)
       thenHave(thesis) by Restate
     }
   })
 
     
-    lazy val succInG = Lemma((gDef(g), in(n, N)) |- in(x, app(g, successor(n))) <=> isConstructor(x, app(g, n))) {
+    lazy val succHeightStrong = Lemma((isHeightFun(g), in(n, N)) |- in(x, app(g, successor(n))) <=> isConstructor(x, app(g, n))) {
 
-      val impl = have((gDef(g), in(n, N), inSmallH(app(g, n))(x)) |- isConstructor(x, app(g, n))) subproof {
+      val impl = have((isHeightFun(g), in(n, N), inInductiveFun(app(g, n))(x)) |- isConstructor(x, app(g, n))) subproof {
         
-        def prop(n: Term) = inSmallH(app(g, n))(x) ==> isConstructor(x, app(g, n))
+        def prop(n: Term) = inInductiveFun(app(g, n))(x) ==> isConstructor(x, app(g, n))
         
-        have(inSmallH(app(g, emptySet))(x) |- isConstructor(x, app(g, emptySet)) \/ in(x, app(g, emptySet))) by Hypothesis
-        val baseCase = have(gDef(g) |- prop(emptySet)) by Tautology.from(lastStep, adtLevelZeroLemma)
+        have(inInductiveFun(app(g, emptySet))(x) |- isConstructor(x, app(g, emptySet)) \/ in(x, app(g, emptySet))) by Hypothesis
+        val baseCase = have(isHeightFun(g) |- prop(emptySet)) by Tautology.from(lastStep, heightZero)
       
-        val indThm = have((gDef(g), prop(emptySet)) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m)))) ==> forall(n, in(n, N) ==> prop(n))) by Exact(natInduction of (P := lambda(k, prop(k))))
-        val indPart0 = have(gDef(g) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m)))) ==> forall(n, in(n, N) ==> prop(n))) by Cut(baseCase, indThm)
+        val indThm = have((isHeightFun(g), prop(emptySet)) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m)))) ==> forall(n, in(n, N) ==> prop(n))) by Exact(natInduction of (P := lambda(k, prop(k))))
+        val indPart0 = have(isHeightFun(g) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m)))) ==> forall(n, in(n, N) ==> prop(n))) by Cut(baseCase, indThm)
         
         val succInN = have(in(m, N) |- in(successor(m), N)) by Apply(equivalenceApply of (p1 := in(m, N))).on(successorIsNat.asInstanceOf)
         val succSuccInN = have(in(m, N) |- in(successor(successor(m)), N)) by Apply(equivalenceApply).on(succInN, successorIsNat.asInstanceOf)
         have(in(m, N) |- in(successor(m), successor(successor(m)))) by Apply(inSuccessor).on(succInN)
         val inSuccSucc = have(in(m, N) |- in(m, successor(successor(m)))) by Apply(natTransitive).on(lastStep, succSuccInN, inSuccessor.asInstanceOf)
 
-        have((gDef(g), in(m, N)) |- forall(k, in(k, successor(successor(m))) ==> subset(app(g, k), app(g, successor(m))))) by Apply(cumulativeLemma).on(succInN)
-        thenHave((gDef(g), in(m, N)) |- in(m, successor(successor(m))) ==> subset(app(g, m), app(g, successor(m)))) by InstantiateForall(m)
-        have((gDef(g), in(m, N)) |- subset(app(g, m), app(g, successor(m)))) by Apply(lastStep).on(inSuccSucc)
-        have((gDef(g), in(m, N)) |- forall(x, in(x, app(g, m)) ==> in(x, app(g, successor(m))))) by Apply(equivalenceApply).on(lastStep, subsetAxiom)
-        val escalate0 = thenHave((gDef(g), in(m, N)) |- in(y, app(g, m)) ==> in(y, app(g, successor(m)))) by InstantiateForall(y)
+        have((isHeightFun(g), in(m, N)) |- forall(k, in(k, successor(successor(m))) ==> subset(app(g, k), app(g, successor(m))))) by Apply(heightFunCumulative).on(succInN)
+        thenHave((isHeightFun(g), in(m, N)) |- in(m, successor(successor(m))) ==> subset(app(g, m), app(g, successor(m)))) by InstantiateForall(m)
+        have((isHeightFun(g), in(m, N)) |- subset(app(g, m), app(g, successor(m)))) by Apply(lastStep).on(inSuccSucc)
+        have((isHeightFun(g), in(m, N)) |- forall(x, in(x, app(g, m)) ==> in(x, app(g, successor(m))))) by Apply(equivalenceApply).on(lastStep, subsetAxiom)
+        val escalate0 = thenHave((isHeightFun(g), in(m, N)) |- in(y, app(g, m)) ==> in(y, app(g, successor(m)))) by InstantiateForall(y)
 
         
         val orSeq = 
@@ -904,49 +847,49 @@ object String extends lisa.Main {
 
             val andSeq0 = 
               for (v, ty) <- exVar(c).zip(c.typeArgs) yield
-                have((gDef(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- in(v, getTermOrElse(ty, app(g, successor(m))))) by Weakening(escalate0 of (y := v))
+                have((isHeightFun(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- in(v, getTermOrElse(ty, app(g, successor(m))))) by Weakening(escalate0 of (y := v))
 
-            val s0l = have((gDef(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- consExVarMembership(c, app(g, successor(m)))) by AndAggregate(andSeq0)
-            val s0r = have((gDef(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- labelWithExVar === x) by Restate
+            val s0l = have((isHeightFun(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- consExVarMembership(c, app(g, successor(m)))) by AndAggregate(andSeq0)
+            val s0r = have((isHeightFun(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- labelWithExVar === x) by Restate
 
-            have((gDef(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- consExVarMembership(c, app(g, successor(m))) /\ (labelWithExVar === x)) by RightAnd(s0l, s0r)
+            have((isHeightFun(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- consExVarMembership(c, app(g, successor(m))) /\ (labelWithExVar === x)) by RightAnd(s0l, s0r)
 
             exVar(c).foldRight(lastStep) ( (v, acc) => 
-                thenHave((gDef(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- exists(v, acc.statement.right.head)) by RightExists
+                thenHave((isHeightFun(g), in(m, N), consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x)) |- exists(v, acc.statement.right.head)) by RightExists
               )
             
             (exVar(c).foldRight((lastStep, consExVarMembership(c, app(g, m)) /\ (labelWithExVar === x))) ( (v, acc) => 
                 val (accFact, accSeq) = acc
-                (thenHave((gDef(g), in(m, N), exists(v, accSeq)) |- isConstructor(c, x, app(g, successor(m)))) by LeftExists, exists(v, accSeq))
+                (thenHave((isHeightFun(g), in(m, N), exists(v, accSeq)) |- isConstructor(c, x, app(g, successor(m)))) by LeftExists, exists(v, accSeq))
               ))._1
 
-            thenHave((gDef(g), in(m, N), isConstructor(c, x, app(g, m))) |- isConstructor(x, app(g, successor(m)))) by Weakening
+            thenHave((isHeightFun(g), in(m, N), isConstructor(c, x, app(g, m))) |- isConstructor(x, app(g, successor(m)))) by Weakening
         
 
         
-        val escalate1 = have((gDef(g), in(m, N), isConstructor(x, app(g, m))) |- isConstructor(x, app(g, successor(m)))) by OrAggregate(orSeq)
+        val escalate1 = have((isHeightFun(g), in(m, N), isConstructor(x, app(g, m))) |- isConstructor(x, app(g, successor(m)))) by OrAggregate(orSeq)
 
 
-        val s0 = have((gDef(g), in(m, N), in(x, app(g, successor(m)))) |- inSmallH(app(g, m))(x)) by Apply(equivalenceApply of (p1 := in(x, app(g, successor(m))))).on(inGSucc.asInstanceOf)
+        val s0 = have((isHeightFun(g), in(m, N), in(x, app(g, successor(m)))) |- inInductiveFun(app(g, m))(x)) by Apply(equivalenceApply of (p1 := in(x, app(g, successor(m))))).on(succHeightWeak.asInstanceOf)
         have(prop(m) |- prop(m)) by Hypothesis
-        have((gDef(g), in(m, N), in(x, app(g, successor(m))), prop(m)) |- isConstructor(x, app(g, m))) by Apply(lastStep).on(s0)
-        have((gDef(g), in(m, N), in(x, app(g, successor(m))), prop(m)) |- isConstructor(x, app(g, successor(m)))) by Cut(lastStep, escalate1)
+        have((isHeightFun(g), in(m, N), in(x, app(g, successor(m))), prop(m)) |- isConstructor(x, app(g, m))) by Apply(lastStep).on(s0)
+        have((isHeightFun(g), in(m, N), in(x, app(g, successor(m))), prop(m)) |- isConstructor(x, app(g, successor(m)))) by Cut(lastStep, escalate1)
 
 
-        thenHave((gDef(g), in(m, N), prop(m), inSmallH(app(g, successor(m)))(x)) |- isConstructor(x, app(g, successor(m)))) by Tautology
-        thenHave((gDef(g), in(m, N), prop(m)) |- prop(successor(m))) by Restate
-        thenHave(gDef(g) |- in(m, N) ==> (prop(m) ==> prop(successor(m)))) by Restate
-        thenHave(gDef(g) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m))))) by RightForall
-        have(gDef(g) |- forall(n, in(n, N) ==> prop(n))) by Apply(indPart0).on(lastStep)
-        thenHave(gDef(g) |- in(n, N) ==> prop(n)) by InstantiateForall(n)
+        thenHave((isHeightFun(g), in(m, N), prop(m), inInductiveFun(app(g, successor(m)))(x)) |- isConstructor(x, app(g, successor(m)))) by Tautology
+        thenHave((isHeightFun(g), in(m, N), prop(m)) |- prop(successor(m))) by Restate
+        thenHave(isHeightFun(g) |- in(m, N) ==> (prop(m) ==> prop(successor(m)))) by Restate
+        thenHave(isHeightFun(g) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m))))) by RightForall
+        have(isHeightFun(g) |- forall(n, in(n, N) ==> prop(n))) by Apply(indPart0).on(lastStep)
+        thenHave(isHeightFun(g) |- in(n, N) ==> prop(n)) by InstantiateForall(n)
         thenHave(thesis) by Restate
       }
-      val impr = have((gDef(g), in(n, N)) |- isConstructor(x, app(g, n)) ==> inSmallH(app(g, n))(x)) subproof {
+      val impr = have((isHeightFun(g), in(n, N)) |- isConstructor(x, app(g, n)) ==> inInductiveFun(app(g, n))(x)) subproof {
         have(thesis) by Tautology
       }
 
-      have((gDef(g), in(n, N)) |- inSmallH(app(g, n))(x) <=> isConstructor(x, app(g, n))) by Tautology.from(impl, impr)
-      have(thesis) by Apply(equivalenceRewriting).on(lastStep, inGSucc.asInstanceOf)
+      have((isHeightFun(g), in(n, N)) |- inInductiveFun(app(g, n))(x) <=> isConstructor(x, app(g, n))) by Tautology.from(impl, impr)
+      have(thesis) by Apply(equivalenceRewriting).on(lastStep, succHeightWeak.asInstanceOf)
     }
 
     def structuralInductionPrecond(c: Constructor): Formula =
@@ -963,15 +906,15 @@ object String extends lisa.Main {
             
       def prop(n: Term) = forall(x, in(x, app(g, n)) ==> P(x)) 
 
-      val baseCase = have(gDef(g) |- prop(emptySet)) subproof {
-        have(gDef(g) |- in(x, app(g, emptySet)) ==> P(x)) by Weakening(adtLevelZeroLemma)
+      val baseCase = have(isHeightFun(g) |- prop(emptySet)) subproof {
+        have(isHeightFun(g) |- in(x, app(g, emptySet)) ==> P(x)) by Weakening(heightZero)
         thenHave(thesis) by RightForall
       }
 
-      val inductionThm = have((gDef(g), prop(emptySet)) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m)))) ==> forall(n, in(n, N) ==> prop(n))) by Exact(natInduction of (P := lambda(k, prop(k))))
-      val indPart0 = have(gDef(g) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m)))) ==> forall(n, in(n, N) ==> prop(n))) by Cut(baseCase, inductionThm)
+      val inductionThm = have((isHeightFun(g), prop(emptySet)) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m)))) ==> forall(n, in(n, N) ==> prop(n))) by Exact(natInduction of (P := lambda(k, prop(k))))
+      val indPart0 = have(isHeightFun(g) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m)))) ==> forall(n, in(n, N) ==> prop(n))) by Cut(baseCase, inductionThm)
       
-      val inductiveCase = have((gDef(g), preconditions) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m))))) subproof {
+      val inductiveCase = have((isHeightFun(g), preconditions) |- forall(m, in(m, N) ==> (prop(m) ==> prop(successor(m))))) subproof {
         val orSeq = 
           (for (k, c) <- constructorMap yield
 
@@ -981,16 +924,16 @@ object String extends lisa.Main {
             val consExVarMembershipAppGMEx = ∃(m, in(m, N) /\ consExVarMembership(c, app(g, m)))
             val consExVarMembershipTerm = consExVarMembership(c, appliedTerm)
 
-            val consExVarMembershipAppGMToTerm = have((gDef(g), in(m, N), consExVarMembershipAppGM) |- consExVarMembershipTerm) subproof {
-              have((gDef(g), in(m, N), consExVarMembershipAppGM) |- in(m, N) /\ consExVarMembershipAppGM) by Restate
-              val consVarL = thenHave((gDef(g), in(m, N), consExVarMembershipAppGM) |- consExVarMembershipAppGMEx) by RightExists
-              val s0 = have(gDef(g) |- consExVarMembershipTerm <=> consExVarMembershipAppGMEx) by Restate.from(adtHasAnHeightGenLemma(k).of(c.variables.zip(exVar(c)).map(_ := _) : _*))
+            val consExVarMembershipAppGMToTerm = have((isHeightFun(g), in(m, N), consExVarMembershipAppGM) |- consExVarMembershipTerm) subproof {
+              have((isHeightFun(g), in(m, N), consExVarMembershipAppGM) |- in(m, N) /\ consExVarMembershipAppGM) by Restate
+              val consVarL = thenHave((isHeightFun(g), in(m, N), consExVarMembershipAppGM) |- consExVarMembershipAppGMEx) by RightExists
+              val s0 = have(isHeightFun(g) |- consExVarMembershipTerm <=> consExVarMembershipAppGMEx) by Restate.from(termsHaveHeight(k).of(c.variables.zip(exVar(c)).map(_ := _) : _*))
               have((consExVarMembershipTerm <=> consExVarMembershipAppGMEx, consExVarMembershipAppGMEx) |- consExVarMembershipTerm) by Restate.from(equivalenceRevApply of (p1 := consExVarMembershipTerm, p2 := consExVarMembershipAppGMEx))
-              val consVarR = have((gDef(g), consExVarMembershipAppGMEx) |- consExVarMembershipTerm) by Cut(s0, lastStep)
+              val consVarR = have((isHeightFun(g), consExVarMembershipAppGMEx) |- consExVarMembershipTerm) by Cut(s0, lastStep)
               have(thesis) by Cut(consVarL, consVarR)
             }
 
-            have((gDef(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- precond) by Restate
+            have((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- precond) by Restate
 
 
             exVar(c).zip(c.typeArgs).foldLeft(lastStep)( (fact, el) =>
@@ -999,7 +942,7 @@ object String extends lisa.Main {
 
               ccl match
                 case Forall(_, phi) => 
-                  val instantiation = thenHave((gDef(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- phi) by InstantiateForall(v)
+                  val instantiation = thenHave((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- phi) by InstantiateForall(v)
                   
                   phi match 
                     case Implies(membership, psi) => 
@@ -1011,66 +954,65 @@ object String extends lisa.Main {
                               thenHave(prop(m) |- in(v, app(g, m)) ==> P(v)) by InstantiateForall(v)
                               val pv = thenHave((prop(m), consExVarMembershipAppGM) |- P(v)) by Weakening
 
-                              have((gDef(g), precond, in(m, N), prop(m), consExVarMembershipTerm, consExVarMembershipAppGM, P(v)) |- theta) by Weakening(instantiation)
-                              have((gDef(g), precond, in(m, N), prop(m), consExVarMembershipTerm, consExVarMembershipAppGM) |- theta) by Cut(pv, lastStep)
-                              have((gDef(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- theta) by Cut(consExVarMembershipAppGMToTerm, lastStep)
+                              have((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipTerm, consExVarMembershipAppGM, P(v)) |- theta) by Weakening(instantiation)
+                              have((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipTerm, consExVarMembershipAppGM) |- theta) by Cut(pv, lastStep)
+                              have((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- theta) by Cut(consExVarMembershipAppGMToTerm, lastStep)
                               
                             case _ => throw UnreachableException
 
                         case BaseType(t) =>
-                          thenHave((gDef(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- psi) by Restate
+                          thenHave((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- psi) by Restate
                     case _ => throw UnreachableException
                 case _ => throw UnreachableException
             )
 
-            val substL = thenHave((gDef(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- P(labelWithExVar)) by Restate
+            val substL = thenHave((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipAppGM) |- P(labelWithExVar)) by Restate
             val substR = have((labelWithExVar === x, P(labelWithExVar)) |- P(x)) by Restate.from(substitutionThm of (x := labelWithExVar, y := x))
-            have((gDef(g), precond, in(m, N), prop(m), consExVarMembershipAppGM, labelWithExVar === x) |- P(x)) by Cut(substL, substR)
+            have((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipAppGM, labelWithExVar === x) |- P(x)) by Cut(substL, substR)
 
-            thenHave((gDef(g), precond, in(m, N), prop(m), consExVarMembershipAppGM /\ (labelWithExVar === x)) |- P(x)) by Restate
+            thenHave((isHeightFun(g), precond, in(m, N), prop(m), consExVarMembershipAppGM /\ (labelWithExVar === x)) |- P(x)) by Restate
 
             (exVar(c).foldRight((lastStep, consExVarMembershipAppGM /\ (labelWithExVar === x))) ( (v, acc) => 
               val (accFact, accSeq) = acc
-              (thenHave((gDef(g), precond, in(m, N), prop(m), exists(v, accSeq)) |- P(x)) by LeftExists, exists(v, accSeq))
+              (thenHave((isHeightFun(g), precond, in(m, N), prop(m), exists(v, accSeq)) |- P(x)) by LeftExists, exists(v, accSeq))
             ))._1
 
-            thenHave((gDef(g), preconditions, in(m, N), prop(m), isConstructor(c, x, app(g, m))) |- P(x)) by Weakening).toSeq
+            thenHave((isHeightFun(g), preconditions, in(m, N), prop(m), isConstructor(c, x, app(g, m))) |- P(x)) by Weakening).toSeq
 
-        val appsucc = have((gDef(g), in(m, N), in(x, app(g, successor(m)))) |- isConstructor(x, app(g, m))) by Apply(equivalenceApply).on(succInG.asInstanceOf)
+        val appsucc = have((isHeightFun(g), in(m, N), in(x, app(g, successor(m)))) |- isConstructor(x, app(g, m))) by Apply(equivalenceApply).on(succHeightStrong.asInstanceOf)
 
-        have((gDef(g), preconditions, in(m, N), prop(m), isConstructor(x, app(g, m))) |- P(x)) by OrAggregate(orSeq)
-        have((gDef(g), preconditions, in(m, N), prop(m), in(x, app(g, successor(m)))) |- P(x)) by Apply(lastStep).on(appsucc)
-        thenHave((gDef(g), preconditions, in(m, N), prop(m)) |- in(x, app(g, successor(m))) ==> P(x)) by Restate
+        have((isHeightFun(g), preconditions, in(m, N), prop(m), isConstructor(x, app(g, m))) |- P(x)) by OrAggregate(orSeq)
+        have((isHeightFun(g), preconditions, in(m, N), prop(m), in(x, app(g, successor(m)))) |- P(x)) by Apply(lastStep).on(appsucc)
+        thenHave((isHeightFun(g), preconditions, in(m, N), prop(m)) |- in(x, app(g, successor(m))) ==> P(x)) by Restate
 
 
-        have((gDef(g), preconditions, in(m, N), prop(m), in(x, app(g, successor(m)))) |- P(x)) by Apply(lastStep).on(appsucc)
-        thenHave((gDef(g), preconditions, in(m, N), prop(m)) |- in(x, app(g, successor(m))) ==> P(x)) by Restate
+        have((isHeightFun(g), preconditions, in(m, N), prop(m), in(x, app(g, successor(m)))) |- P(x)) by Apply(lastStep).on(appsucc)
+        thenHave((isHeightFun(g), preconditions, in(m, N), prop(m)) |- in(x, app(g, successor(m))) ==> P(x)) by Restate
 
-        thenHave((gDef(g), preconditions, in(m, N), prop(m)) |- prop(successor(m))) by RightForall
-        thenHave((gDef(g), preconditions) |- in(m, N) ==> (prop(m) ==> prop(successor(m)))) by Restate
+        thenHave((isHeightFun(g), preconditions, in(m, N), prop(m)) |- prop(successor(m))) by RightForall
+        thenHave((isHeightFun(g), preconditions) |- in(m, N) ==> (prop(m) ==> prop(successor(m)))) by Restate
         thenHave(thesis) by RightForall
       }
 
 
-      have((gDef(g), preconditions) |- forall(n, in(n, N) ==> prop(n))) by Apply(indPart0).on(lastStep)
-      thenHave((gDef(g), preconditions) |- in(n, N) ==> prop(n)) by InstantiateForall(n)
-      thenHave((gDef(g), preconditions, in(n, N)) |- prop(n)) by Restate
-      thenHave((gDef(g), preconditions, in(n, N)) |- in(x, app(g, n)) ==> P(x)) by InstantiateForall(x)
-      thenHave((gDef(g), preconditions, in(n, N) /\ in(x, app(g, n))) |- P(x)) by Restate
-      val exImpliesP = thenHave((gDef(g), preconditions, exists(n, in(n, N) /\ in(x, app(g, n)))) |- P(x)) by LeftExists
-      have((gDef(g), in(x, appliedTerm)) |- exists(n, in(n, N) /\ in(x, app(g, n)))) by Apply(equivalenceApply of (p1 := in(x, appliedTerm))).on(adtHasAnHeightLemma.asInstanceOf)
+      have((isHeightFun(g), preconditions) |- forall(n, in(n, N) ==> prop(n))) by Apply(indPart0).on(lastStep)
+      thenHave((isHeightFun(g), preconditions) |- in(n, N) ==> prop(n)) by InstantiateForall(n)
+      thenHave((isHeightFun(g), preconditions, in(n, N)) |- prop(n)) by Restate
+      thenHave((isHeightFun(g), preconditions, in(n, N)) |- in(x, app(g, n)) ==> P(x)) by InstantiateForall(x)
+      thenHave((isHeightFun(g), preconditions, in(n, N) /\ in(x, app(g, n))) |- P(x)) by Restate
+      val exImpliesP = thenHave((isHeightFun(g), preconditions, exists(n, in(n, N) /\ in(x, app(g, n)))) |- P(x)) by LeftExists
+      have((isHeightFun(g), in(x, appliedTerm)) |- exists(n, in(n, N) /\ in(x, app(g, n)))) by Apply(equivalenceApply of (p1 := in(x, appliedTerm))).on(termHasHeight.asInstanceOf)
 
-      have((gDef(g), preconditions, in(x, appliedTerm)) |- P(x)) by Cut(lastStep, exImpliesP)
-      thenHave((exists(g, gDef(g)), preconditions, in(x, appliedTerm)) |- P(x)) by LeftExists
-      have(preconditions |- in(x, appliedTerm) ==> P(x)) by Apply(lastStep).on(gExistence.asInstanceOf)
+      have((isHeightFun(g), preconditions, in(x, appliedTerm)) |- P(x)) by Cut(lastStep, exImpliesP)
+      thenHave((exists(g, isHeightFun(g)), preconditions, in(x, appliedTerm)) |- P(x)) by LeftExists
+      have(preconditions |- in(x, appliedTerm) ==> P(x)) by Apply(lastStep).on(heightFunExistence.asInstanceOf)
       thenHave(preconditions |- forall(x, in(x, appliedTerm) ==> P(x))) by RightForall
       thenHave(thesis) by Restate
     }
 
     show(structuralInduction)
 
-    // // // Theorem 2.1
-    val patternMatchingThm = THM(in(x, appliedTerm) |- removeConstants(isConstructor(x, appliedTerm)), s"${name} pattern constructors", line.value, file.value, Theorem) {
+    val patternMatching = THM(in(x, appliedTerm) |- removeConstants(isConstructor(x, appliedTerm)), s"${name} pattern constructors", line.value, file.value, Theorem) {
 
       def ineqPrecond(c: Constructor): Formula =
         exVar(c).zip(c.typeArgs).foldRight[Formula](!(x === c.appliedTerm(exVar(c)))) ( (el, fc) =>
@@ -1144,212 +1086,232 @@ object String extends lisa.Main {
       thenHave(thesis) by Restate
     }
 
-    show(patternMatchingThm)
+    show(patternMatching)
 
   
     val totalTime = (System.nanoTime - before) / 1000000
     println(s"Total time: $totalTime ms")
   }
 
+    class TypedConstructor(using line: sourcecode.Line, file: sourcecode.File)(cons: Constructor, adt: ADT)  {
+
+    val fullName = s"${adt.name}/${cons.name}"
+
+    val typeVariables = adt.typeVariables
+    val typeArity = typeVariables.length
+
+    val typeArgs = cons.typeArgs.map{
+      case Self => adt.appliedTerm
+      case BaseType(t) => t
+    }
+
+    val typ = typeArgs.foldRight[Term](adt.appliedTerm)((a, b) => a |=> b) 
+
+    def appSeq(f: Term) = cons.variables.foldLeft(f)((acc, v) => f * v)
+
+    val untypedFunctionalDefinition = (c :: typ) /\ cons.variables.foldRight(appSeq(c) === cons.appliedTerm)(forall(_, _))
+    val untypedFunctionalUniqueness = Lemma(existsOne(c, untypedFunctionalDefinition)) {
+      sorry
+    }
+
+
+    val untypedFunctional = FunctionDefinition(fullName, line.value, file.value)(typeVariables, c, untypedFunctionalDefinition, untypedFunctionalUniqueness).label
+    val typing = Axiom(typeVariables.foldRight[Formula](untypedFunctional.applySeq(typeVariables) :: typ)(forall(_, _)))
+    val typedFunctional = TypedConstantFunctional(fullName, typeArity, FunctionalClass(Seq.fill(typeArity)(any), typeVariables, typ, typeArity), typing)
+
+    def apply(terms: Term*) = typedFunctional.applySeq(terms)
+  }
+
 
  
+  object ADTSyntax {
 
-  //ADT("nat", Seq(Constructor[0]("nat", "base1", Seq()), Constructor[1]("nat", "cons", Seq(Self))))
-  //ADT("nat", Seq(Constructor[0]("nat", "base1", Seq()), Constructor[0]("nat", "base2", Seq()), Constructor[1]("nat", "param", Seq(BaseType(emptySet))), Constructor[2]("nat", "cons", Seq(BaseType(emptySet), Self))))
-  //ADT("tree", Seq(Constructor[0]("tree", "redLeaf", Seq()), Constructor[0]("tree", "blackLeaf", Seq()), Constructor[1]("tree", "paramLeaf", Seq(BaseType(T))), Constructor[1]("tree", "oneNode", Seq(Self)), Constructor[2]("tree", "twoNode", Seq(Self, Self)), Constructor[4]("tree", "fourNode", Seq(BaseType(singleton(emptySet)), Self, BaseType(singleton(emptySet)), Self))))
+    protected trait ConstructorConverter[T] {
+      def apply(t: T): ConstructorBuilder
+    }
 
-  def AllGood = Theorem(True) {
-    have(thesis) by Tautology
-  }
-  
-  protected trait ConstructorConverter[T] {
-    def apply(t: T): ConstructorBuilder
-  }
+    given unit_to_cons: ConstructorConverter[Unit] with {
+      override def apply(u: Unit): ConstructorBuilder = ConstructorBuilder.empty
+    }
 
-  given unit_to_cons: ConstructorConverter[Unit] with {
-    override def apply(u: Unit): ConstructorBuilder = ConstructorBuilder.empty
-  }
+    given empty_to_const: ConstructorConverter[EmptyTuple] with {
+      override def apply(t: EmptyTuple): ConstructorBuilder = ConstructorBuilder.empty
+    }
 
-  given empty_to_const: ConstructorConverter[EmptyTuple] with {
-    override def apply(t: EmptyTuple): ConstructorBuilder = ConstructorBuilder.empty
-  }
+    given tuple_to_const[H <: Type, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
+      override def apply(t: H *: T): ConstructorBuilder = type_to_const(t.head) ++ any_to_const(t.tail)
+    }
 
-  given tuple_to_const[H <: Type, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
-    override def apply(t: H *: T): ConstructorBuilder = type_to_const(t.head) ++ any_to_const(t.tail)
-  }
-
-  given adt_tuple_to_const[H <: ADT, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
-        override def apply(t: H *: T): ConstructorBuilder = adt_to_const(t.head) ++ any_to_const(t.tail)
-  }
-
-  given term_tuple_to_const[H <: ADT, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
+    given adt_tuple_to_const[H <: ADT, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
           override def apply(t: H *: T): ConstructorBuilder = adt_to_const(t.head) ++ any_to_const(t.tail)
+    }
+
+    given term_tuple_to_const[H <: ADT, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
+            override def apply(t: H *: T): ConstructorBuilder = adt_to_const(t.head) ++ any_to_const(t.tail)
+    }
+
+    
+
+    given type_to_const: ConstructorConverter[Type] with {
+      override def apply(t: Type): ConstructorBuilder = ConstructorBuilder(t)
+    }
+
+    given adt_to_const: ConstructorConverter[ADT] with {
+      override def apply(a: ADT): ConstructorBuilder = ConstructorBuilder(Self)
+    }
+
+    given term_to_const: ConstructorConverter[Term] with {
+        override def apply(te: Term): ConstructorBuilder = ConstructorBuilder(BaseType(te))
+    }
+
+    given ConstructorConverter[Seq[Type]] with {
+      override def apply(s: Seq[Type]): ConstructorBuilder = ConstructorBuilder(s: _*)
+    }
+
+    def any_to_const[T](any: T)(using c: ConstructorConverter[T]): ConstructorBuilder = c(any)
+
+    extension [T1](left: T1)(using ConstructorConverter[T1]) {
+      infix def |[T2](right: T2)(using ConstructorConverter[T2]): ADTBuilder = any_to_const(left) | any_to_const(right)
+    }
+
+
+
+    protected trait VariableSeqConverter[T] {
+      def apply(t: T): Seq[Variable]
+    }
+
+    given unit_to_varseq: VariableSeqConverter[Unit] with {
+      override def apply(u: Unit): Seq[Variable] = Seq.empty
+    }
+
+    given empty_to_varseq: VariableSeqConverter[EmptyTuple] with {
+      override def apply(t: EmptyTuple): Seq[Variable] = Seq.empty
+    }
+
+    given tuple_to_varseq[H <: Variable, T <: Tuple](using VariableSeqConverter[T]): VariableSeqConverter[H *: T] with {
+      override def apply(t: H *: T): Seq[Variable] = t.head +: any_to_varseq(t.tail)
+    }
+
+    given var_to_varseq: VariableSeqConverter[Variable] with {
+      override def apply(v: Variable): Seq[Variable] = Seq[Variable](v)
+    }
+
+    def any_to_varseq[T](any: T)(using c: VariableSeqConverter[T]): Seq[Variable] = c(any)
+
+    extension [T1](left: T1)(using VariableSeqConverter[T1]) {
+      infix def ->(right: Term): (Seq[Variable], Term) = (any_to_varseq(left), right)
+    }
+
+    object ADTBuilder {
+      def empty: ADTBuilder = apply(Seq())
+    }
+
+    object ConstructorBuilder {
+      def empty: ConstructorBuilder = ConstructorBuilder()
+    }
+
+    case class ConstructorBuilder(param: Type*) {
+      infix def | (b: ConstructorBuilder): ADTBuilder = this | ADTBuilder(Seq(b))
+      infix def | (b: ADTBuilder): ADTBuilder = ADTBuilder(this +: b.cons )
+      infix def ++ (b: ConstructorBuilder): ConstructorBuilder = ConstructorBuilder((param.toSeq ++ b.param.toSeq): _*)
+    }
+
+    case class ADTBuilder(cons: Seq[ConstructorBuilder]) {
+      infix def | (b: ADTBuilder): ADTBuilder = ADTBuilder(cons ++ b.cons)
+      infix def | (b: ConstructorBuilder): ADTBuilder = ADTBuilder(cons :+ b)
+      infix def | (u: Unit): ADTBuilder = this | any_to_const(u)
+      infix def | (t: Type): ADTBuilder = this | any_to_const(t)
+      infix def | (s: Seq[Type]): ADTBuilder = this | any_to_const(s)
+      infix def | (t: EmptyTuple): ADTBuilder = this | any_to_const(t)
+      infix def | [T <: Tuple](t: Type *: T)(using c: ConstructorConverter[T]): ADTBuilder = this | (any_to_const(t.head) ++ any_to_const(t.tail))
+
   }
+
+    case class constructors(c: Constructor *)
+
+    object constructors {
+      def apply(c: Constructor*): constructors = new constructors(c: _*)
+      // def apply(adt: ADT)(cases: Case*): Term = ???
+    }
+
+
+    object define {
+      def unapply(using name: sourcecode.FullName)(c: ADTBuilder): (ADT, constructors) = 
+        val constr = c.cons.zipWithIndex.map((c, i) => Constructor(s"Constructor$i", c.param, s"$i")) 
+        (ADT(name.value, constr), constructors(constr: _*))
+    }
+
+    // ? WIP
+    // object ADT {
+    // object Case {
+    //   def apply(c: Constructor)(f: (Seq[Variable], Term)): Case = new Case(c)(f)
+    //   def apply(c: Constructor)(f: => Term): Case = new Case(c)((Seq.empty, f))
+    // }
+
+    // case class Case(c: Constructor)(f: (Seq[Variable], Term)) {
+    //   //def apply(args: Term *): Term = f(args: _*)
+    // }
+
+    // // val mirror: Term = constructors(tree) (
+    // //   Case(leaf){
+    // //     leaf()
+    // //   }, 
+    // //   Case(node) {
+    // //     (l, r) -> node(app(mirror, r), app(mirror, l))
+    // //   }
+    // // )
+
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // // val define(list: ADT, constructors(nil, cons)) = () | (T, list)
+  // //val define(tree: ADT, constructors(leaf, node)) = emptySet | (tree, tree)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  // // val ADT(list, matches(nil, cons)) = () | (T, Self)
 
   
 
-  given type_to_const: ConstructorConverter[Type] with {
-    override def apply(t: Type): ConstructorBuilder = ConstructorBuilder(t)
-  }
+  // //(nat, zero, succ) = ADT of (() | (T, self))
 
-  given adt_to_const: ConstructorConverter[ADT] with {
-    override def apply(a: ADT): ConstructorBuilder = ConstructorBuilder(Self)
-  }
+  // // // println(tzero.typeChecking.statement)
+  // // // println(tsucc.typeChecking.statement)
 
-  given term_to_const: ConstructorConverter[Term] with {
-      override def apply(te: Term): ConstructorBuilder = ConstructorBuilder(BaseType(te))
-  }
+  // // ADT("List", Seq(Constructor("List", "Nil", Seq()), Constructor("List", "Cons", Seq(T, Self))))
 
-  given ConstructorConverter[Seq[Type]] with {
-    override def apply(s: Seq[Type]): ConstructorBuilder = ConstructorBuilder(s: _*)
-  }
+  // // ADT("Tree", Seq(Constructor("Tree", "Leaf", Seq()), Constructor("Tree", "Node", Seq(Self, Self))))
 
-  def any_to_const[T](any: T)(using c: ConstructorConverter[T]): ConstructorBuilder = c(any)
-
-  extension [T1](left: T1)(using ConstructorConverter[T1]) {
-    infix def |[T2](right: T2)(using ConstructorConverter[T2]): ADTBuilder = any_to_const(left) | any_to_const(right)
-  }
-
-
-
-  protected trait VariableSeqConverter[T] {
-    def apply(t: T): Seq[Variable]
-  }
-
-  given unit_to_varseq: VariableSeqConverter[Unit] with {
-    override def apply(u: Unit): Seq[Variable] = Seq.empty
-  }
-
-  given empty_to_varseq: VariableSeqConverter[EmptyTuple] with {
-    override def apply(t: EmptyTuple): Seq[Variable] = Seq.empty
-  }
-
-  given tuple_to_varseq[H <: Variable, T <: Tuple](using VariableSeqConverter[T]): VariableSeqConverter[H *: T] with {
-    override def apply(t: H *: T): Seq[Variable] = t.head +: any_to_varseq(t.tail)
-  }
-
-  given var_to_varseq: VariableSeqConverter[Variable] with {
-    override def apply(v: Variable): Seq[Variable] = Seq[Variable](v)
-  }
-
-  def any_to_varseq[T](any: T)(using c: VariableSeqConverter[T]): Seq[Variable] = c(any)
-
-  extension [T1](left: T1)(using VariableSeqConverter[T1]) {
-    infix def ->(right: Term): (Seq[Variable], Term) = (any_to_varseq(left), right)
-  }
-
-  object ADTBuilder {
-    def empty: ADTBuilder = apply(Seq())
-  }
-
-  object ConstructorBuilder {
-    def empty: ConstructorBuilder = ConstructorBuilder()
-  }
-
-  case class ConstructorBuilder(param: Type*) {
-    infix def | (b: ConstructorBuilder): ADTBuilder = this | ADTBuilder(Seq(b))
-    infix def | (b: ADTBuilder): ADTBuilder = ADTBuilder(this +: b.cons )
-    infix def ++ (b: ConstructorBuilder): ConstructorBuilder = ConstructorBuilder((param.toSeq ++ b.param.toSeq): _*)
-  }
-
-  case class ADTBuilder(cons: Seq[ConstructorBuilder]) {
-    infix def | (b: ADTBuilder): ADTBuilder = ADTBuilder(cons ++ b.cons)
-    infix def | (b: ConstructorBuilder): ADTBuilder = ADTBuilder(cons :+ b)
-    infix def | (u: Unit): ADTBuilder = this | any_to_const(u)
-    infix def | (t: Type): ADTBuilder = this | any_to_const(t)
-    infix def | (s: Seq[Type]): ADTBuilder = this | any_to_const(s)
-    infix def | (t: EmptyTuple): ADTBuilder = this | any_to_const(t)
-    infix def | [T <: Tuple](t: Type *: T)(using c: ConstructorConverter[T]): ADTBuilder = this | (any_to_const(t.head) ++ any_to_const(t.tail))
-
-  }
-
-  case class constructors(c: Constructor *)
-
-  object constructors {
-    def apply(c: Constructor*): constructors = new constructors(c: _*)
-    def apply(adt: ADT)(cases: Case*): Term = ???
-  }
-
-  // object matches {
-  //   def unapplySeq[N <: Arity](using name: sourcecode.FullName)(c: ADTBuilder): Option[Seq[Constructor]] = 
-  //     Some(c.cons.zipWithIndex.map((c, i) => Constructor(name.value, s"Constructor$i", c.param)))
-  // }
-
-  object define {
-    def unapply(using name: sourcecode.FullName)(c: ADTBuilder): (ADT, constructors) = 
-      val constr = c.cons.zipWithIndex.map((c, i) => Constructor(s"Constructor$i", c.param, s"$i")) 
-      (ADT(name.value, constr), constructors(constr: _*))
-  }
-
-
-  val cT = Constant("T")
-  addSymbol(cT)
-
-  val T = BaseType(cT)
-
-  object Case {
-    def apply(c: Constructor)(f: (Seq[Variable], Term)): Case = new Case(c)(f)
-    def apply(c: Constructor)(f: => Term): Case = new Case(c)((Seq.empty, f))
-  }
-
-  case class Case(c: Constructor)(f: (Seq[Variable], Term)) {
-    //def apply(args: Term *): Term = f(args: _*)
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // val define(list: ADT, constructors(nil, cons)) = () | (T, list)
-  //val define(tree: ADT, constructors(leaf, node)) = emptySet | (tree, tree)
-
-  // val mirror: Term = constructors(tree) (
-  //   Case(leaf){
-  //     leaf()
-  //   }, 
-  //   Case(node) {
-  //     (l, r) -> node(app(mirror, r), app(mirror, l))
-  //   }
-  // )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-  // val ADT(list, matches(nil, cons)) = () | (T, Self)
-
-  
-
-  //(nat, zero, succ) = ADT of (() | (T, self))
-
-  // // println(tzero.typeChecking.statement)
-  // // println(tsucc.typeChecking.statement)
-
-  // AllGood
-  // ADT("List", Seq(Constructor("List", "Nil", Seq()), Constructor("List", "Cons", Seq(T, Self))))
-  // AllGood
-  // ADT("Tree", Seq(Constructor("Tree", "Leaf", Seq()), Constructor("Tree", "Node", Seq(Self, Self))))
-  // AllGood
     
 
   
@@ -1358,7 +1320,7 @@ object String extends lisa.Main {
 
 object HOLTest extends lisa.HOL{
 
-  import String.*
+  import ADTTactic.*
 
     val x = typedvar(𝔹)
 
