@@ -11,6 +11,10 @@ import lisa.fol.FOL.{Identifier, Term}
 import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.SetTheoryLibrary
 import lisa.hol.VarsAndFunctions.HOLSequent.toHOLSequent
+import lisa.maths.settheory.SetTheory.cartesianProduct
+import lisa.maths.settheory.SetTheory.secondInPair
+import lisa.fol.FOLHelpers.freshVariable
+import lisa.utils.unification.UnificationUtils.matchTerm
 
 
 object VarsAndFunctions {
@@ -95,9 +99,21 @@ object VarsAndFunctions {
     have(thesis) by RightExists(One.justif)
   }
 
+  val G = function[1]
+  val λ = variable
+  //val functionsRelativization = Axiom(∀(x, (x ∈ A) ==> (G(x) ∈ B)) ==> ∃(λ, (λ ∈ (A |=> B)) /\ ∀(x, (λ*x) === G(x))) )
+
+
+  val functionalExtentionality = Axiom({
+    val f = typedvar(A |=> B)
+    val g = typedvar(A |=> B)
+    val x = typedvar(A)
+    ((f :: (A |=> B)) /\ (g :: (A |=> B)) /\ tforall(x, f*x === g*x)) ==> (f === g)
+  })
+
   val T = variable
   val nonEmptyTypeExists = Theorem(exists(T, exists(x, in(x, T)))) {
-    sorry
+    have(thesis) by RightExists(boolNonEmpty)
   }
   val 𝔹 = ConstantTypeTerm("𝔹", boolNonEmpty)
 
@@ -108,6 +124,12 @@ object VarsAndFunctions {
     val typ =  (A |=> (A |=> 𝔹))
     val typing_of_eq = Axiom(F.forall(A, =:=(A) :: typ))
     TypedConstantFunctional[1]("=:=", 1, FunctionalClass(Seq(any), Seq(A), (A |=> (A |=> 𝔹)), 1), typing_of_eq)
+  }
+  lazy val eqDefin = {
+    val x = typedvar(A)
+    val y = typedvar(A)
+    val eqDefin = Axiom(((x::A) /\ (y::A)) ==> ((x =:= y)===One) <=> (x===y))
+    eqDefin
   }
 
   val holeq : TypedConstantFunctional[1] = =:=
@@ -328,8 +350,9 @@ object VarsAndFunctions {
 
 
     private lazy val t = this * bound
-    lazy val betaName = "beta_" + repr.id
+    lazy val betaName = "¢beta_" + repr.id
     import HOLSteps.{=:= => _, *, given}
+    
 
     lazy val BETA = THM( t =:= body, betaName, summon[sourcecode.Line].value, summon[sourcecode.File].value, InternalStatement) {
       val context = VarsAndFunctions.computeContext(Set(t, body))
@@ -450,6 +473,14 @@ object VarsAndFunctions {
           outType.substituteUnsafe(newMap), 
           bodyProp.substituteUnsafe(newMap)
         )
+
+    
+    import HOLSteps.{=:= => _, *, given}
+    lazy val elimName = "¢elim_" + reprVar.id
+    lazy val elim = Axiom(exists(reprVar, this))
+
+
+
   }
 
   var j: Int = 0
@@ -547,9 +578,7 @@ object VarsAndFunctions {
   object TypeNonEmptyProof extends ProofTactic {
     val A = variable
     val B = variable
-    val nonEmptyFuncSpace = Theorem(exists(x, in(x, A)) |- exists(x, in(x, (A |=> B)))) {
-      sorry
-    }
+    val nonEmptyFuncSpace = Axiom(exists(x, in(x, B)) ==> exists(x, in(x, (A |=> B))))
     
     def apply(using proof: Proof)(typ: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       typ match {
@@ -559,8 +588,8 @@ object VarsAndFunctions {
           have(exists(x, in(x, v)) |- exists(x, in(x, v)))
         case a |=> b => 
           val x = freshVariable(Set(a, b), "x")
-          val s1 = have(TypeNonEmptyProof(a))
-          have(exists(x, in(x, a |=> b))) by Cut(s1, nonEmptyFuncSpace of (A := a, B := b))
+          val s1 = have(TypeNonEmptyProof(b))
+          have(exists(x, in(x, a |=> b))) by Tautology.from(s1, nonEmptyFuncSpace of (A := a, B := b))
       }
     }
   }

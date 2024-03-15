@@ -15,6 +15,8 @@ import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.SimpleDeducedSteps.Discharge
 import lisa.hol.VarsAndFunctions.computeType
 import lisa.automation.Tableau.pr
+import lisa.maths.settheory.SetTheory.definition
+import lisa.maths.settheory.SetTheory.singletonNonEmpty
 
 /**
   * Here we define and implement all the basic steps from HOL Light
@@ -58,19 +60,65 @@ object HOLSteps extends lisa.HOL {
   val q = typedvar(𝔹)
   val r = typedvar(𝔹)
 
+  val eqCorrect = Theorem((x::A, y::A) |- ((x =:= y)===One) <=> (x===y)) {
+    have(thesis) by Restate.from(eqDefin)
+  }
+  val eqRefl = Theorem((x =:= x)) {
+    have(x::A |- (x === x)) by Restate
+    thenHave(x =:= x) by Substitution.ApplyRules(eqCorrect of (HOLSteps.y := x))
 
+  }
 
-  val eqCorrect = Theorem(((x::A), (y::A)) |- ((x =:= y)===One) <=> (x===y)) {sorry}
-  val eqRefl = Theorem((x =:= x)) {sorry}
+  val eqTrans = Theorem( ((x =:= y),  (y =:= z))  |- (x =:= z) )  {
+    have((x::A, y::A, z::A, x === y, y === z)|- (x === y)) by Restate
+    thenHave((x::A, y::A, z::A, x === y, y === z)|- (x === z)) by Substitution.ApplyRules(y === z)
+    thenHave(((x::A, y::A, z::A, eqOne(x =:= y), y === z)|- (x === z))) by Substitution.ApplyRules(eqCorrect)
+    thenHave(((x::A, y::A, z::A, eqOne(x =:= y), eqOne(y =:= z))|- (x === z))) by Substitution.ApplyRules(eqCorrect of (x := y, y := z))
+    thenHave(((x::A, y::A, z::A, eqOne(x =:= y), eqOne(y =:= z))|- eqOne(x =:= z))) by Substitution.ApplyRules(eqCorrect of (y := z))
+  }
 
-  val eqTrans = Theorem( ((x =:= y),  (y =:= z))  |- (x =:= z) )  {sorry}
-
-  val funcUnique = Theorem((f :: (A |=> B), g :: (A |=> B), tforall(x, f*x === g*x)) |- (f === g)) {sorry}
+  val funcUnique = Theorem((f :: (A |=> B), g :: (A |=> B), tforall(x, f*x === g*x)) |- (f === g)) {have(thesis) by Restate.from(functionalExtentionality)}
   val funcUnique2 =  Lemma((f :: (A |=> B), g :: (A |=> B), tforall(x, f*x === g*x)) |- ((f =:= g) === One)) {
     have(thesis) by Substitution.ApplyRules(eqCorrect of (HOLSteps.x := f, HOLSteps.y := g, A := (A |=> B)))(funcUnique)
   }
 
-  val propExt = Theorem((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One)) |- (p === q)) {sorry}
+  val Bdef = Theorem((x ∈ 𝔹) |- ((x === Zero) \/ (x === One))) {
+    val s1 = have    ((x ∈ unorderedPair(∅, singleton(∅))) |- ((x === ∅ )\/ (x === singleton(∅)))) by Weakening(pairAxiom of (z := x, x := ∅ , y := singleton(∅)))
+    val beq = have(unorderedPair(∅, singleton(∅)) === 𝔹) by Weakening(𝔹.definition of 𝔹)
+    val s2 = have((x ∈ 𝔹) |- ((x === ∅) \/ (x === singleton(∅)))) by Substitution.ApplyRules(beq)(s1)
+    val zeq = have(∅ === Zero) by Weakening(Zero.definition of Zero)
+    val s3 = have((x ∈ 𝔹) |- ((x === Zero) \/ (x === singleton(∅)))) by Substitution.ApplyRules(zeq)(s2)
+    val oeq = have(singleton(∅) === One) by Weakening(One.definition of One)
+    have((x ∈ 𝔹) |- ((x === Zero) \/ (x === One))) by Substitution.ApplyRules(oeq)(s3)
+  }
+
+  val propExt = Theorem((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One)) |- (p === q)) {
+
+    val h2 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), p === One) |- (p === One)) by Restate
+    val h3 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), p === One) |- (q === One)) by Restate
+    val h4 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), p === One) |- (p === q)) by Substitution.ApplyRules(h3)(h2)
+
+    val neq = have ((p === Zero, p === One )|- ()) subproof {
+      val zeq = have(∅ === Zero) by Weakening(Zero.definition of Zero)
+      val oeq = have(singleton(∅) === One) by Weakening(One.definition of One)
+      have(∅ ∈ singleton(∅)) by Weakening(pairAxiom of (x:= ∅, y := ∅, z := ∅))
+      have((∅ === singleton(∅)) |- ()) by Restate.from(singletonNonEmpty of (x:= ∅))
+
+      thenHave ((p === singleton(∅), p === ∅) |- ()) by Substitution.ApplyRules(p === ∅)
+      thenHave ((p === singleton(∅), p === Zero) |- ()) by Substitution.ApplyRules(zeq)
+      thenHave ((p === One, p === Zero) |- ()) by Substitution.ApplyRules(oeq)
+    }
+    val i1 = have((p :: 𝔹  |- (!(p === One)) <=> (p === Zero))) by Tautology.from(Bdef of ( x:= p), neq)
+    val i2 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One)) |- !(q === One) <=> !(p === One)) by Tautology
+    val i3 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One)) |- (q === Zero) <=> (p === Zero)) by Tautology.from(i2, i1, i1 of (p:=q))
+
+    val j2 = have    ((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- p === Zero) by Tautology.from(Bdef of (x := p))
+    val j3 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- q === Zero) by Tautology.from(lastStep)
+    val j4 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- (p === q)) by Substitution.ApplyRules(j3)(j2)
+
+    have(thesis) by Tautology.from(j4, i3, h4)
+
+  }
 
 
 
@@ -576,7 +624,7 @@ object HOLSteps extends lisa.HOL {
       lctx.foreach(a => 
         assume(a)
       )
-      val s1 = have(exdefin) by Sorry
+      val s1 = defin.elim
       val s3 = have(Discharge(s1)(s2))
     }
 
