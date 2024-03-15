@@ -14,6 +14,7 @@ import lisa.utils.Serialization.instSchema
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.SimpleDeducedSteps.Discharge
 import lisa.hol.VarsAndFunctions.computeType
+import lisa.automation.Tableau.pr
 
 /**
   * Here we define and implement all the basic steps from HOL Light
@@ -570,7 +571,7 @@ object HOLSteps extends lisa.HOL {
       val exdefin = F.exists(defin.reprVar, defin)
 
       val goal = ((prem.statement -<< defin) +<< exdefin)
-      LeftExists.debug = true
+    
       val s2 = have(LeftExists(prem)(((prem.statement -<< defin) +<< exdefin)))
       lctx.foreach(a => 
         assume(a)
@@ -583,6 +584,7 @@ object HOLSteps extends lisa.HOL {
       val statement = prem.statement
       val defins = statement.left.collect{case d: AbstractionDefinition => d}
       val candidate = defins.find(d => !(statement -<< d).freeVariables.contains(d.reprVar))
+
       candidate match
         case Some(defin: AbstractionDefinition) => 
           val h = have(Clean.lambda(defin)(prem))
@@ -610,7 +612,7 @@ object HOLSteps extends lisa.HOL {
 
     def allVariables(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       val statement = prem.statement
-      val vars = statement.left.collectFirst[TypeAssignment[Term]]{case (v:F.Variable) is (typ:Term) if !(statement -<< v).freeVariables.contains(v) => (v :: typ)}
+      val vars = statement.left.collectFirst[TypeAssignment[Term]]{case f @ ((v:F.Variable) is (typ:Term)) if !(statement -<< f).freeVariables.contains(v) => (v :: typ)}
       if vars.nonEmpty then
         val h = have(Clean.variable(vars.head)(prem))
         allVariables(h)
@@ -619,13 +621,11 @@ object HOLSteps extends lisa.HOL {
     }
 
     def typeVar(using proof: Proof)(net: NonEmptyType)(prem: proof.Fact) : proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
-      println(s"Cleaning type variable ${net.x} :: ${net.typ}")
       val p2 = have(LeftExists(prem)(prem.statement -<< net ++<< nonEmptyTypeExists.statement))
       val p3 = have(Discharge(nonEmptyTypeExists)(p2))
     }
 
     def allTypeVars(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
-      println(s"Cleaning all type variables in: " + prem.statement)	
       val statement = prem.statement
       val types = statement.left.collectFirst[NonEmptyType]{case net: NonEmptyType => net}
       if types.nonEmpty then
@@ -636,6 +636,7 @@ object HOLSteps extends lisa.HOL {
     }
 
     def all(using proof: Proof)(prem:proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+      ip.cleanAssumptions
       val h1 = have(Clean.allLambdas(prem))
       val h2 = have(Clean.allVariables(h1))
       val h3 = have(Clean.allTypeVars(h2))

@@ -15,7 +15,7 @@ object HOLStepsTests extends lisa.HOL {
   println("Starting tests")
   val tt = w =:=z
   val now = System.currentTimeMillis()
-/*
+
   println("starting test1")
 
   val test_trans_1 = Theorem((w =:= x, x =:= y, y =:= z) |- (w =:=z)) {
@@ -187,15 +187,15 @@ object HOLStepsTests extends lisa.HOL {
     val s2 = assume(λ(p, p)*p)
     have(_EQ_MP(s1, s2))
   }
-  */
+  
 
-  val test_eqmp_3_5 = Theorem( p ) {
+  val test_eqmp_4 = Theorem( p ) {
     val s1 = have(BETA(λ(q, p)*q))
     val s2 = have(λ(q, p)*q) by Sorry
     have(_EQ_MP(s1, s2))
   }
 
-  /*
+  
 
   val test_deductantisymrule_1 = Theorem(withCTX(((p === One) ==> (q === One), (q === One) ==> (p === One)) |- ((p =:= q) === One))){
     assume((p === One) ==> (q === One))
@@ -283,7 +283,7 @@ object HOLStepsTests extends lisa.HOL {
     have(_TRANS(s1, s2))
 
   }
-*/
+
 
 
   // Those don't hold because they require alpha equivalence to conclude the proof.
