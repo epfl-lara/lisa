@@ -115,15 +115,23 @@ object HOLImport extends lisa.HOL {
         case HOLL.REFL(term) => REFL(toLisaTerm(term))
         case HOLL.TRANS(left, right) => _TRANS(reconstruct(left), reconstruct(right))
         case HOLL.MK_COMB(left, right) => MK_COMB(reconstruct(left), reconstruct(right))
-        case HOLL.ABS(absVar, from) => ABS(asVar(toLisaTerm(absVar)))(reconstruct(from))
+        case HOLL.ABS(absVar, from) => 
+          val pf = reconstruct(from)
+          ABS(asVar(toLisaTerm(absVar)))(pf)
         case HOLL.BETA(term) => BETA(toLisaTerm(term))
         case HOLL.ASSUME(term) => ASSUME(toLisaTerm(term))
-        case HOLL.EQ_MP(left, right) => _EQ_MP(reconstruct(left), reconstruct(right))
+        case HOLL.EQ_MP(left, right) =>
+          println(left.getClass().getName())
+          val pf = reconstruct(left)
+          println(s"abstracting from ${pf.statement}") 
+          _EQ_MP(reconstruct(left), reconstruct(right))
         case HOLL.DEDUCT_ANTISYM_RULE(left, right) => DEDUCT_ANTISYM_RULE(reconstruct(left), reconstruct(right))
         case HOLL.INST(from, insts) => 
           val inner = reconstruct(from)
           val instss = insts.toSeq.map((k, v) => asVar(toLisaTerm(k)) -> toLisaTerm(v))
-          INST(instss, inner)
+          val fin = INST(instss, inner)
+          println(s"Instantiating\n\t${inner.statement}\nto\n\t${library.have(fin).statement}")
+          fin
         case HOLL.INST_TYPE(from, insts) =>
           def singleTypeInst = (step: ctx.Fact, inst: (HOLL.TypeVariable, HOLL.Type)) =>
             val x = 
@@ -147,7 +155,9 @@ object HOLImport extends lisa.HOL {
           // what does it look like?
           ???
 
-    library.have(transformed)
+    val tr = library.have(transformed)
+    println(s"Produced from ${proof.getClass().getName()} :: ${tr.statement}")
+    tr
     
 
   /**
@@ -229,6 +239,7 @@ object HOLImport extends lisa.HOL {
               thenHave(f === term) by Weakening
               have(thesis) by Tautology.from(lastStep, fTyping, typingProof, eqCorrect of (A -> tpe, x -> f, y -> term))
             }
+            println(s"DEFINING ${innerDef.statement}")
             Constants.register(typedLabel, tpe, freeTypes, innerDef)
             newLabel.definition
           case _ => throw MalformedDefinitionException(thm.id, conclusion)
@@ -240,6 +251,7 @@ object HOLImport extends lisa.HOL {
         THM(sequent, thm.nm, thm.id, "HOL.Import", Theorem):
           val proof = steps(thm.id)
           reconstruct(proof)
+          println(s"PROVED :: \n\t${lastStep.statement}\nNEEDED ::\n\t$sequent")
 
   @main 
   def importHOLLight =

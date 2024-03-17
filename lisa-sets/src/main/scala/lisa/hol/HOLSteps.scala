@@ -202,6 +202,12 @@ object HOLSteps extends lisa.HOL {
             val d2 = have( Discharge(have(ProofType(y)))(d1) )
             val d3 = have( Discharge(have(ProofType(f)))(d2) )
             val d4 = have( Discharge(have(ProofType(g)))(d3) )
+            println("================================== STRT MK COMB ==================================")
+            println(s"f1 ${f1.statement}")
+            println(s"f2 ${f2.statement}")
+            println(s"assumes ${summon[Proof].getAssumptions}")
+            println(s"last ${lastStep.statement}")
+            println("================================== ENDS MK COMB ==================================")
           case _ => 
             return proof.InvalidProofTactic(s"Types don't agree: fun types are $typ1 and arg types are $typ2")
         }
@@ -296,6 +302,15 @@ object HOLSteps extends lisa.HOL {
           }
           val s2c = lastStep.statement.right.head // lt*x = lu*x
           val is2 = have(((x::x.typ) ==> s2c)) by Restate.from(lastStep)
+          println("=================================== REACHING ABS FORALL ===================================")
+          println(s"s1 is ${s1}")
+          println(s"Premise is ${is2.statement}")
+          println(s"we start with ${proof.getAssumptions}")
+          println(s"s assumes ${s1.left - (x:: x.typ)}")
+          println(s"lctx assumes $lctx")
+          println(s"ctx assumes ${ctx - (x :: x.typ)}")
+          println(s"we assume ${summon[Proof].getAssumptions}")
+          // println(s"we have ${have(() |- tforall(x, (lt*x)===(lu*x))).by.bot}")
           val qs2 = have(tforall(x, (lt*x)===(lu*x))) by RightForall(is2)
           val h1 = have((lt:: (x.typ |=> typ1), lu:: (x.typ |=> typ1)) |- ((lt =:= lu) === One)) by Tautology.from(funcUnique2 of (f := lt, g := lu, HOLSteps.x := x, A := x.typ, B := typ1), qs2)
 
@@ -435,6 +450,16 @@ object HOLSteps extends lisa.HOL {
               val h4 = have(Discharge(have(ProofType(u)))(h3))
               proof.cleanAssumptions
               have(Clean.all(h4))
+              println("================================== STRT EQ MP ==================================")
+              println(s"eq ${eq.statement}")
+              println(s"p ${p.statement}")
+              println(s"h2 ${h2.statement}")
+              println(s"pt ${pt.statement}")
+              println(s"h3 ${h3.statement}")
+              println(s"h4 ${h4.statement}")
+              println(s"last ${lastStep.statement}")
+              println(s"t ++ u \n\t $t \n\t $u")
+              println("================================== ENDS EQ MP ==================================")
     
             case _ =>
               return proof.InvalidProofTactic(s"The second premise should prove $t but proves ${p.statement.right}")
@@ -470,6 +495,13 @@ object HOLSteps extends lisa.HOL {
           val h1 = have((p :: 𝔹, q :: 𝔹) |- (p =:= q === One)) by Tautology.from(h0, eqCorrect of (A -> 𝔹, x -> p, y -> q))
           val h2 = have(Discharge(have(ProofType(p)))(h1))
           have(Discharge(have(ProofType(q)))(h2))
+              println("================================== STRT DEDUCT ==================================")
+              println(s"t1 ${t1.statement}")
+              println(s"t2 ${t2.statement}")
+              println(s"h1 ${h1.statement}")
+              println(s"h2 ${h2.statement}")
+              println(s"last ${lastStep.statement}")
+              println("================================== ENDS DEDUCT ==================================")
 
         
         case _ =>
@@ -495,6 +527,15 @@ object HOLSteps extends lisa.HOL {
             case `r` === r2 =>
               val s = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Substitution.ApplyRules(def_red_r)(h1)
               val s1 = have(Clean.all(s))
+              println("================================== STRT INST ==================================")
+              println(s"prem ${prem.statement}")
+              println(s"insts \n\t${inst}")
+              println(s"h0 ${h0.statement}")
+              println(s"h1 ${h1.statement}")
+              println(s"s  ${s.statement}")
+              println(s"s1 ${s1.statement}")
+              println(s"last ${lastStep.statement}")
+              println("================================== ENDS INST ==================================")
             case fail === _ =>
               throw new Exception(s"Was expecting an equation with left hand side $r but got $fail")
             case _ =>
