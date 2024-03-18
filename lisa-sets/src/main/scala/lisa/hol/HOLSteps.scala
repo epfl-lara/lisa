@@ -139,12 +139,14 @@ object HOLSteps extends lisa.HOL {
         case (HOLSequent(left1, =:=(aa)*s*ta), HOLSequent(left2, =:=(ab)*tb*u) ) => //equality is too strict
           if ta == tb then
             if aa == ab then
-              val r0 = have((s1.left ++ s2.left + (s::aa) + (ta :: aa) + (u :: aa) ) |- ((s =:= u) === One)) by Tautology.from(eqTrans of (x := s, y := ta, z := u), t1, t2)
-              val r1 = have(Discharge(have(ProofType(s)))(r0))
-              val r2 = have(Discharge(have(ProofType(ta)))(r1))
-              val r3 = have(Discharge(have(ProofType(u)))(r2))
-              have(Clean.all(r3))
-              
+              (s1.left ++ s2.left).foreach(assume(_))
+              val p0 = have(s1) by Weakening(t1)
+              val r0 = have(((s :: aa), (ta :: aa), (u :: aa), (ta =:= u) === One) |- (s =:= u) === One) by Cut(p0, eqTrans of (x := s, y := ta, z := u, A := aa))
+              val r1 = have(((s :: aa), (ta :: aa), (u :: aa)) |- (s =:= u) === One) by Cut(t2, r0)
+              val r2 = have(Discharge(have(ProofType(s)))(r1))
+              val r3 = have(Discharge(have(ProofType(ta)))(r2))
+              val r4 = have(Discharge(have(ProofType(u)))(r3))
+              have(Clean.all(r4))
             else 
               return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
           else 
