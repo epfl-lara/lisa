@@ -321,14 +321,59 @@ object HOLSteps extends lisa.HOL {
 
 
 
+  /**
+   * BETA_CONV((λx. t) u) produces |- (λx. t) x =:= t[x := u] 
+   */
+  object BETA_CONV extends ProofTactic {
+    def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
+      t match
+        case (l:Abstraction)*(r: Term) => 
+          val tp = computeType(r)
+          if tp == l.bound.typ then
+            println(s"CHECKING BETA SHAPE ${l.BETA.statement}")
+            val rhs = l.BETA.statement.right.head.asInstanceOf[F.AppliedPredicate].args(0).asInstanceOf[AppliedFunction].arg
+            println(s"[BETA] RHS ${rhs}")
+            println(s"[BETA] LB and R ${l.bound}, $r")
+            println(s"[BETA] RHS SUBST ${rhs.substitute(l.bound := r)}")
+            println(s"[BETA] RHS CLASS ${rhs.getClass().getName()}")
+            println(s"[BETA] RHS CLASS ${rhs.substitute(l.bound := r).getClass().getName()}")
+            println(s"[BETA] CHECKING BETA INSTS ${(l.BETA of (l.bound := r)).statement}")
+            val b = l.BETA of (l.bound := r)
+            val h = have(b.statement) by Weakening(b) // add any floating assumptions in
+            val h1 = have(Discharge(have(ProofType(r)))(h))
+            h.statement.right.head match
+              case eqOne(r) =>
+                println(s"ASKING DEF RED FOR $r")
+                val def_red_r = have(DEF_RED(r)) // r === r2
+                def_red_r.statement.right.head match
+                  case `r` === r2 =>
+                    val s = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Substitution.ApplyRules(def_red_r)(h1)
+                    have(Clean.all(s))
+                  case _ => 
+                    return proof.InvalidProofTactic(s"Beta definition has malformed shape. Expected term === One.")
+              case _ => 
+                return proof.InvalidProofTactic(s"Beta definition has malformed shape. Expected term === One.")
+          else
+            return proof.InvalidProofTactic(s"Beta redex has malformed argument type. Expected type ${l.bound.typ}, got $tp .")
+        case _ => 
+          return proof.InvalidProofTactic(s"The term should be of the form (λx. t) v")  
+    }
+  }
+
+  /**
+   * BETA((λx. t) x) produces |- (λx. t) x =:= t 
+   */
   object BETA extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
       t match
-        case (l:Abstraction)*(r: TypedVar) if l.bound == r => 
-          val b = l.BETA
-          have(b.statement) by Weakening(b)
+        case (l:Abstraction)*(r: TypedVar) => 
+          println(s"BETA GOT AS INPUT $t")
+          // assure the right shape is present, and pass to the general case
+          have(BETA_CONV(t))
         case _ => 
-          return proof.InvalidProofTactic(s"The term should be of the form (λx. t) x")  
+          println(t)
+          println(Abstraction.cache)
+          return proof.InvalidProofTactic(s"The term should be of the form (λx. t) y")  
     }
   }
 
