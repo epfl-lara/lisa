@@ -554,6 +554,183 @@ object HOLSteps extends lisa.HOL {
 
   }
 
+  object SYM extends ProofTactic {
+    def apply(using proof: Proof)(p: proof.Fact): proof.ProofTacticJudgement = TacticSubproof {
+      val stmt = p.statement
+      stmt match
+        case HOLSequent(left, =:=(typ)*s*t) =>
+          // flip
+          left.foreach(assume(_))
+          val s0 = have((s :: typ, t :: typ) |- (s =:= t) === One) by Weakening(p)
+          val s1 = have((s :: typ, t :: typ) |- (t =:= s) === One) by Cut(s0, eqSym of (x := s, y := t))
+          val s2 = have(Discharge(have(ProofType(s)))(s1))
+          val s3 = have(Discharge(have(ProofType(s)))(s2))
+        case _ => return proof.InvalidProofTactic(s"Sequent must contain an equality s =:= t to flip.")
+    }
+  }
+
+  /**
+   * Apply equality transitivity, but flip the equalities if necessary.
+   * 
+   * @see [[_TRANS]]
+   */
+  object _TRANS_SYM extends ProofTactic {
+    def apply(using proof: Proof)(p1: proof.Fact, p2: proof.Fact): proof.ProofTacticJudgement =
+      val s1 = p1.statement
+      val s2 = p2.statement
+      (s1, s2) match
+        case (HOLSequent(left1, =:=(aa)*s*ta), HOLSequent(left2, =:=(ab)*tb*u) ) => //equality is too strict
+          if aa == ab then
+            // fine as is?
+            if ta == tb then
+              _TRANS(p1, p2)
+            // flip first?
+            else if s == tb then
+              _TRANS(have(SYM(p1)), p2)
+            // flip second?
+            else if u == ta then
+              _TRANS(p1, have(SYM(p2)))
+            // flip both?
+            else if u == s then
+              _TRANS(have(SYM(p1)), have(SYM(p2)))
+            else
+              proof.InvalidProofTactic(s"Could not construct an instance of transitivity from terms: \n\t$s\n\t$ta\n\t$tb\n\t$u")
+          else 
+            proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
+
+        case (HOLSequent(left1, right1), HOLSequent(left2, right2) ) => 
+          proof.InvalidProofTactic(s"The facts should have equalities")
+        case _ => 
+          s1 match 
+            case HOLSequent(left1, right1) => 
+              proof.InvalidProofTactic(s"The second fact is not parsable as an HOL sequent")
+            case _ =>
+              proof.InvalidProofTactic(s"The first fact is not parsable as an HOL sequent")
+  }
+
+  /**
+   * |- λx. t = λy. t[x := y] if y is not free in t
+   * 
+   */
+  private object _ALPHA_CONV extends ProofTactic {
+    def apply(using proof: Proof)(t: Term, x: TypedVar, y: TypedVar): proof.ProofTacticJudgement = TacticSubproof {
+      if t.freeVariables.contains(y) then
+        val ld = λ(x, t)
+        if x == y then
+          // trivial
+          have(REFL(ld))
+        else
+          val s0 = have(BETA((ld * x)))               // |- (λx. t) x =:= t
+          val s1 = have(INST(Seq(x -> y), s0))        // |- (λx. t) y =:= t[x := y]
+          val s2 = have(ABS(y)(s1))                   // |- (λy. (λx. t) y) =:= λy. t[x := y]
+          val s3 = have(ETA(y, ld))                   // |- (λy. (λx. t) y) =:= (λx. t)
+          val s4 = have(_TRANS_SYM(s2, s3))           // |- (λx. t) =:= λy. t[x := y]
+      else
+        return proof.InvalidProofTactic(s"Not applicable: the variable $y is free in the term $t.")
+    }
+  }
+
+  /**
+   * Recursively replace every bound x by y in t.
+   * 
+   * Will not behave nicely on non-HOL terms.
+   */
+  private object _ALPHA_CONV_REC extends ProofTactic {
+    def apply(using proof: Proof)(t: Term, x: TypedVar, y: TypedVar): proof.ProofTacticJudgement = TacticSubproof {
+      t match
+        case AppliedFunction(func, arg) =>
+          val fconv = have(_ALPHA_CONV_REC(func, x, y))     // |- func = func.rec(x -> y)
+          val aconv = have(_ALPHA_CONV_REC(arg, x, y))      // |- arg = arg.rec(x -> y)
+          have(MK_COMB(fconv, aconv))                       // |- func * arg = func.rec * arg.rec
+        case abs: Abstraction =>
+          if abs.bound == x then
+            val i0 = have(_ALPHA_CONV(abs.body, x, y))      // |- λx. t = λy. t[x := y]
+            val i1 = have(_ALPHA_CONV_REC(abs.body, x, y))  // |- t = t.rec(x -> y)
+            val i2 = have(INST(Seq(x -> y), i1))            // |- t[x := y] = t.rec(x -> y)[x := y]
+            val i3 = have(ABS(y)(i2))                       // |- λy. t[x := y] = λy. t.rec(x -> y)[x := y]
+            have(_TRANS(i0, i3))
+          else
+            val inner = have(_ALPHA_CONV_REC(abs.body, x, y)) // |- t = t.rec(x -> y)
+            have(ABS(x)(inner))                             // |- λx. t = λx. t.rec(x -> y)
+        case _ => 
+          have(REFL(t))                                     // |- t = t
+    }
+  }
+
+  /**
+   * Given two terms, if they are alpha-equivalent, produce a proof of it, else fail.
+   */
+  object ALPHA_EQUIVALENCE extends ProofTactic {
+
+    private val name = "alph"
+
+    private def alphaEquivalent(t1: Term, t2: Term): Boolean = 
+      val res = t1 == t2 || {
+        (t1, t2) match
+          case (a1: AppliedFunction, a2: AppliedFunction) =>
+            alphaEquivalent(a1.func, a2.func) && alphaEquivalent(a1.arg, a2.arg)
+          case (a1: (AbstrVar | Abstraction), a2: (AbstrVar | Abstraction)) =>
+            println(s"Found abstraction vars $a1 and $a2")
+            val d1 = a1 match
+              case a: AbstrVar => a.defin
+              case a: Abstraction => a.defin
+            val d2 = a2 match
+              case a: AbstrVar => a.defin
+              case a: Abstraction => a.defin
+            if d1.bound.typ == d2.bound.typ && d1.freeVars.zip(d2.freeVars).forall(_.typ == _.typ) then
+              val freshBound = TypedVar(F.freshId((d1.freeVariables ++ d2.freeVariables + d1.bound + d2.bound).map(_.id), name), d1.bound.typ)
+              val freshFrees = 
+                d1.freeVars.foldRight(List.empty[TypedVar]) {
+                  case (v, vars) => 
+                    val newVar = TypedVar(F.freshId((d1.freeVariables ++ d2.freeVariables ++ vars + d1.bound + d2.bound).map(_.id), name), v.typ)
+                    newVar :: vars
+                }
+              val b1 = d1.body.substitute(d1.freeVars.zip(freshFrees).map(_ := _) :+ (d1.bound := freshBound): _*)
+              val b2 = d2.body.substitute(d2.freeVars.zip(freshFrees).map(_ := _) :+ (d2.bound := freshBound): _*)
+              alphaEquivalent(b1, b2)
+            else false
+          case _ => 
+            if t1 != t2 then println(s"Found ${t1.getClass().getName()} and ${t2.getClass.getName()} and failed")
+            t1 == t2
+      }
+      println(s"Checking $t1 and $t2 for alpha eq, it's $res")
+      res
+
+
+    private def alpha(using proof: Proof)(t1: Term, t2: Term): proof.ProofTacticJudgement = TacticSubproof {
+      (t1, t2) match 
+        case (f1: AppliedFunction, f2: AppliedFunction) => // f * u, g * v
+          val funs = have(ALPHA_EQUIVALENCE(f1.func, f2.func))  // |- f = g
+          val args = have(ALPHA_EQUIVALENCE(f1.arg, f2.arg))    // |- u = v
+          have(MK_COMB(funs, args))                             // |- f * u = g * v
+        case (a1: Abstraction, a2: Abstraction) => // λx. t, λy. s
+          val fresh = TypedVar(F.freshId((a1.freeVariables ++ a2.freeVariables + a1.bound + a2.bound).map(_.id), name), a1.bound.typ)
+          val s1 = have(_ALPHA_CONV_REC(t1, a1.bound, fresh))   // |- λx. t = λz. t[x := z]
+          val s2 = have(_ALPHA_CONV_REC(t2, a2.bound, fresh))   // |- λy. s = λz. s[y := z]
+          val b1 = a1.body.substitute(a1.bound := fresh)        // t[x := z]
+          val b2 = a2.body.substitute(a2.bound := fresh)        // s[y := z]
+          val inner = have(ALPHA_EQUIVALENCE(b1, b2))           // |- t[x := z] = s[y := z]
+          val abs = have(ABS(fresh)(inner))                     // |- λz. t[x := z] = λz. s[y := z]
+          val s3 = have(_TRANS(s1, abs))                        // |- λx. t = λz. s[y := z]
+          val s4 = have(SYM(s2))                                // |- λz. s[y := z] = λy. s
+          have(_TRANS(s3, s4))                                  // |- λx. t = λy. s
+        case (v1: AbstrVar, v2: Abstraction) => 
+          have(v1 =:= v2) by Sorry
+        case (v1: Abstraction, v2: AbstrVar) => 
+          have(v1 =:= v2) by Sorry
+        case (v1: AbstrVar, v2: AbstrVar) => 
+          have(v1 =:= v2) by Sorry
+        case _ => 
+          println(s"Found reflexively $t1 and $t2")
+          have(REFL(t1))                                        // |- t = t
+    }
+
+    def apply(using proof: Proof)(t1: Term, t2: Term): proof.ProofTacticJudgement = 
+      if alphaEquivalent(t1, t2) then
+        alpha(t1, t2)
+      else proof.InvalidProofTactic(s"Given terms are not alpha equivalent: $t1 and $t2.")
+  }
+
   object DEF_RED extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       t match
