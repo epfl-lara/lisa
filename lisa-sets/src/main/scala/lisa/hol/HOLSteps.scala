@@ -1,5 +1,4 @@
 package lisa.hol
-import VarsAndFunctions.*
 import lisa.fol.FOL as F
 import lisa.prooflib.BasicStepTactic.* 
 import lisa.prooflib.SimpleDeducedSteps.* 
@@ -13,7 +12,6 @@ import lisa.fol.FOLHelpers.freshVariable
 import lisa.utils.Serialization.instSchema
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.SimpleDeducedSteps.Discharge
-import lisa.hol.VarsAndFunctions.computeType
 import lisa.automation.Tableau.pr
 import lisa.maths.settheory.SetTheory.definition
 import lisa.maths.settheory.SetTheory.singletonNonEmpty
@@ -37,12 +35,6 @@ object HOLSteps extends lisa.HOL {
   //DEDUCT_ANTISYM_RULE
   //INST
   //INST_TYPE
-
-  
-
-
-
-  import lisa.hol.HOLTest.=:=
 
   val A = variable
   val B = variable
