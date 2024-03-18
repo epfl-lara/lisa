@@ -19,7 +19,7 @@ import lisa.utils.unification.UnificationUtils.matchTerm
 
 object VarsAndFunctions {
 
-  private given lisa.prooflib.OutputManager = HOLSteps.om
+  private given lisa.prooflib.OutputManager = lisa.maths.settheory.SetTheory.om
 
   def main(args: Array[String]): Unit = {
     val x = typedvar(𝔹)
@@ -132,7 +132,7 @@ object VarsAndFunctions {
     eqDefin
   }
 
-  val holeq : TypedConstantFunctional[1] = =:=
+  val holeq : TypedConstantFunctional[1] = VarsAndFunctions.=:=
 
   object eqOne {
     def unapply(f: Formula): Option[Term] = f match {
@@ -351,7 +351,7 @@ object VarsAndFunctions {
 
     private lazy val t = this * bound
     lazy val betaName = "¢beta_" + repr.id
-    import HOLSteps.{=:= => _, *, given}
+    // import HOLSteps.{=:= => _, *, given}
     
 
     lazy val BETA = THM( t =:= body, betaName, summon[sourcecode.Line].value, summon[sourcecode.File].value, InternalStatement) {
@@ -364,7 +364,7 @@ object VarsAndFunctions {
       )
       val aftFreeVars = lastStep
       val h = have((bound::bound.typ) |- (t === body)) by Weakening(aftFreeVars of bound)
-      val h2 = have((bound::bound.typ, t::outType, body::outType) |- ((t =:= body) === One) ) by Substitution.ApplyRules(eqCorrect of (x := t, y := body, A := outType))(h)
+      val h2 = have((bound::bound.typ, t::outType, body::outType) |- ((t =:= body) === One) ) by Substitution.ApplyRules(HOLSteps.eqCorrect of (x := t, y := body, A := outType))(h)
       val h3 = have(ProofType(body))
       val h4 = have(((bound::bound.typ, t::outType) |- ((t =:= body) === One)) ++<? h3.statement) by Cut.withParameters(body::outType)(h3, h2)
       val h5 = have(ProofType(t))
