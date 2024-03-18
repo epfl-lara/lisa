@@ -69,6 +69,11 @@ object HOLSteps extends lisa.HOL {
     thenHave(((x::A, y::A, z::A, eqOne(x =:= y), eqOne(y =:= z))|- eqOne(x =:= z))) by Substitution.ApplyRules(eqCorrect of (y := z))
   }
 
+
+  val eqSym = Theorem( (x =:= y) |- (y =:= x) )  {
+    sorry
+  }
+
   val funcUnique = Theorem((f :: (A |=> B), g :: (A |=> B), tforall(x, f*x === g*x)) |- (f === g)) {have(thesis) by Restate.from(functionalExtentionality)}
   val funcUnique2 =  Lemma((f :: (A |=> B), g :: (A |=> B), tforall(x, f*x === g*x)) |- ((f =:= g) === One)) {
     have(thesis) by Substitution.ApplyRules(eqCorrect of (HOLSteps.x := f, HOLSteps.y := g, A := (A |=> B)))(funcUnique)
