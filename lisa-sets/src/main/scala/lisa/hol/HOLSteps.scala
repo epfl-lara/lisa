@@ -561,7 +561,7 @@ object HOLSteps extends lisa.HOL {
           val base = ia.base
           val insts = ia.insts
           val a1 = assume(base.defin.bodyProp)
-          val eq = insts.foldLeft(a1: ip.Fact)((acc, inst) =>
+          val eq = insts.foldRight(a1: ip.Fact)((inst, acc) =>
             val i1 = acc of inst
             i1.statement.right.head match
               case F.==>(left, right) =>  //   |- inst :: x.typ    --- not checking that type of insts match types freevars
