@@ -166,8 +166,39 @@ object HOLSteps extends lisa.HOL {
     }
   }
 
+  /**
+   * Apply transitivity of equality, but with alpha equivalence.
+   */
+  object TRANS extends ProofTactic {
+    def apply(using proof: Proof)(t1: proof.Fact, t2: proof.Fact): proof.ProofTacticJudgement = 
+      val s1 = t1.statement
+      val s2 = t2.statement
 
+      (s1, s2) match {
+        case (HOLSequent(left1, =:=(aa)*s*ta), HOLSequent(left2, =:=(ab)*tb*u) ) => //equality is too strict
+            if aa == ab then
+              if ta == tb then
+                _TRANS(t1, t2)
+              else
+                // try to see if ta alpha_eq tb
+                TacticSubproof:
+                  val alpha = have(ALPHA_EQUIVALENCE(ta, tb))
+                  val s1 = have(_TRANS(t1, alpha))
+                  val s2 = have(_TRANS(s1, t2))
+            else 
+              return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
 
+        case (HOLSequent(left1, right1), HOLSequent(left2, right2) ) => 
+          return proof.InvalidProofTactic(s"The facts should have equalities")
+        case _ => 
+          s1 match 
+            case HOLSequent(left1, right1) => 
+              return proof.InvalidProofTactic(s"The second fact is not parsable as an HOL sequent")
+            case _ =>
+              return proof.InvalidProofTactic(s"The first fact is not parsable as an HOL sequent")
+
+      }
+  }
 
   /**
    *  |- f = g    |- x = y
