@@ -119,28 +119,28 @@ object HOLImport extends lisa.HOL {
     def transformed: ctx.ProofTacticJudgement =
       proof match
         case HOLL.REFL(term) => REFL(toLisaTerm(term))
-            case HOLL.TRANS(left, right) => 
-              val l = rec(left)
-              val r = rec(right)
-              TRANS(l, r)
-            case HOLL.MK_COMB(left, right) => 
-              val l = rec(left)
-              val r = rec(right)
-              MK_COMB(l, r)
+        case HOLL.TRANS(left, right) => 
+          val l = rec(left)
+          val r = rec(right)
+          TRANS(l, r)
+        case HOLL.MK_COMB(left, right) => 
+          val l = rec(left)
+          val r = rec(right)
+          MK_COMB(l, r)
         case HOLL.ABS(absVar, from) => 
-              val pf = rec(from)
+          val pf = rec(from)
           ABS(asVar(toLisaTerm(absVar)))(pf)
-            case HOLL.BETA(term) => 
-              val inp = toLisaTerm(term)
-              val fin = BETA(inp)
-              fin
+        case HOLL.BETA(term) => 
+          val inp = toLisaTerm(term)
+          val fin = BETA(inp)
+          fin
         case HOLL.ASSUME(term) => ASSUME(toLisaTerm(term))
         case HOLL.EQ_MP(left, right) =>
-              val pf = rec(left)
-              EQ_MP(rec(left), rec(right))
-            case HOLL.DEDUCT_ANTISYM_RULE(left, right) => DEDUCT_ANTISYM_RULE(rec(left), rec(right))
+          val pf = rec(left)
+          EQ_MP(rec(left), rec(right))
+        case HOLL.DEDUCT_ANTISYM_RULE(left, right) => DEDUCT_ANTISYM_RULE(rec(left), rec(right))
         case HOLL.INST(from, insts) => 
-              val inner = rec(from)
+          val inner = rec(from)
           val instss = insts.toSeq.map((k, v) => asVar(toLisaTerm(k)) -> toLisaTerm(v))
           val fin = INST(instss, inner)
           fin
@@ -152,7 +152,7 @@ object HOLImport extends lisa.HOL {
                 case _ => throw ExpectedVariableException              
             val typ = toLisaType(inst._2)
             library.have(INST_TYPE(x, typ, step))
-              val fin = insts.foldLeft(rec(from))(singleTypeInst)
+          val fin = insts.foldLeft(rec(from))(singleTypeInst)
           Restate.from(fin)(fin.statement)
         case HOLL.AXIOM(term) => 
           // prove the axioms and simply retrieve them
@@ -168,8 +168,6 @@ object HOLImport extends lisa.HOL {
           ???
 
     val tr = library.have(transformed)
-        println(s"[RECONSTRUCT] Produced from ${proof.getClass().getName()}:\t${tr.statement}")
-        library.sanityProofCheck("[SANITY TEST]")
     tr
       }
     
