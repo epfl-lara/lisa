@@ -392,8 +392,11 @@ object HOLSteps extends lisa.HOL {
                 val def_red_r = have(DEF_RED(r)) // r === r2
                 def_red_r.statement.right.head match
                   case `r` === r2 =>
-                    val s = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Substitution.ApplyRules(def_red_r)(h1)
-                    have(Clean.all(s))
+                    val x = typedvar(𝔹)
+                    val s0 = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r)) by Weakening(h1)
+                    val s1 = have((h1.statement.left ++ def_red_r.statement.left + (r === r2)) |- eqOne(r2)) by RightSubstEq.withParametersSimple(List(r -> r2), F.lambda(x, eqOne(x)))(s0)
+                    val s2 = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Cut(def_red_r, s1)
+                    have(Clean.all(s2))
                   case _ => 
                     return proof.InvalidProofTactic(s"Beta definition has malformed shape. Expected term === One.")
               case _ => 
