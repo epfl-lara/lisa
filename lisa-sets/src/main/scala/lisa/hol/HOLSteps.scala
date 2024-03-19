@@ -279,7 +279,6 @@ object HOLSteps extends lisa.HOL {
 
           val typjudglux = have(ProofType(lu*x))
 
-          library.sanityProofCheck("[SANITY TEST: ABS1]")
 
           val ctx12 = computeContext(Set(t, u))
           val ctx = ctx12._1 ++ ctx12._2
@@ -288,27 +287,22 @@ object HOLSteps extends lisa.HOL {
             Seq(typjudgt, typjudgltx, typjudgu, typjudglux).foreach( a =>
               assume(a.statement.right.head)
             )
-            library.sanityProofCheck("[SANITY TEST: ABS ltx_lux -2]")
             assume(x :: x.typ)
             
             val ltprop = assume(lt.defin.bodyProp)
             val luprop = assume(lu.defin.bodyProp)
-            library.sanityProofCheck("[SANITY TEST: ABS ltx_lux -1]")
             val bt1 = have(BETA(lt*x))
             val bt = have((x :: x.typ) |- ((lt*x =:= t) === One)) by Weakening(bt1)
-            library.sanityProofCheck("[SANITY TEST: ABS ltx_lux 0]")
             val bth = {
               val phi = F.formulaVariable
               val sl = (lt*x =:= t) === One
               val sr = lt*x === t
               val bth0 = have((x :: x.typ, sl <=> sr ) |- (lt*x === t)) by RightSubstIff.withParametersSimple(List((sl, sr)), F.lambda(phi, phi))(bt)
-              library.sanityProofCheck("[SANITY TEST: ABS ltx_lux after RightSubstIff]")
               have(Discharge(eqCorrect of (HOLSteps.x := lt*x, HOLSteps.y := t, A := typ1))(bth0))
             }
             
             val btc = lastStep.statement // x::x.typ |- lt(a)...(z)(x) = t
 
-            library.sanityProofCheck("[SANITY TEST: ABS ltx_lux 1]")
             val bu1 = have(BETA(lu*x))
             val bu = have((x :: x.typ) |- ((lu*x =:= u) === One)) by Restate.from(bu1)
             //val buh = have((x :: x.typ) |- (lu*x === u)) by Substitution.ApplyRules(eqCorrect of (HOLSteps.x := lu*x, HOLSteps.y := u, A := typ1))(bu)
@@ -321,14 +315,12 @@ object HOLSteps extends lisa.HOL {
             }
             val buc = lastStep.statement // x::x.typ |- lt(a)...(z)(x) = u
 
-            library.sanityProofCheck("[SANITY TEST: ABS ltx_lux 2]")
             val s0 = have(t===u) by Tautology.from(prem, eqCorrect of (HOLSteps.x := t, HOLSteps.y := u, A := typ1))
             val s1 = {
               val xx = freshVariable(Seq(lt*x), "xx")
               val s10 = have((x :: x.typ, t === u) |- (lt*x === u)) by RightSubstEq.withParametersSimple(List((t, u)), F.lambda(xx, lt*x === xx))(bth)
               have(Discharge(s0)(s10))
             }
-            library.sanityProofCheck("[SANITY TEST: ABS ltx_lux 3]")
             //val s1 = have((x :: x.typ) |- ((lt*x)===u)) by Substitution.ApplyRules(s0)(bth)
             val s2 = {
               val xx = freshVariable(Seq(lt*x), "xx")
@@ -341,7 +333,6 @@ object HOLSteps extends lisa.HOL {
             //by RightSubstEq.withParametersSimple(List((r, r2)), F.lambda(xx, t*x === xx))(i0) //Substitution.ApplyRules(def_red_r)(i0)
             //      val i2 = have(Discharge(def_red_r)(i1))
 
-            library.sanityProofCheck("[SANITY TEST: ABS ltx lux 4]")
 
             Seq(typjudgt, typjudgltx, typjudgu, typjudglux).foreach( a =>
               have(Discharge(a)(lastStep))
@@ -363,7 +354,6 @@ object HOLSteps extends lisa.HOL {
         case _ => 
           return proof.InvalidProofTactic(s"The fact should be of the form t =:= u")
       }
-      library.sanityProofCheck("[SANITY TEST: ABS finale]")
     }
   }
 
