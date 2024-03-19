@@ -980,9 +980,10 @@ object HOLSteps extends lisa.HOL {
       val lctx = lctx12._1 ++ lctx12._2
       val exdefin = F.exists(defin.reprVar, defin)
 
-      val goal = ((prem.statement -<< defin) +<< exdefin)
+      val goal = ((prem.statement.removeAllLeft(defin.args.toSet + defin)) +<< exdefin)
     
-      val s2 = have(LeftExists(prem)(((prem.statement -<< defin) +<< exdefin)))
+      val s0 = have((prem.statement.removeAllLeft(defin.args.toSet + defin)) +<< defin) by Weakening(prem)
+      val s2 = have(LeftExists(s0)(goal))
       lctx.foreach(a => 
         assume(a)
       )
@@ -993,7 +994,9 @@ object HOLSteps extends lisa.HOL {
     def allLambdas(using proof: Proof)(prem: proof.Fact) : proof.ProofTacticJudgement = TacticSubproof{ ip ?=> 
       val statement = prem.statement
       val defins = statement.left.collect{case d: AbstractionDefinition => d}
-      val candidate = defins.find(d => !(statement -<< d).freeVariables.contains(d.reprVar))
+      val candidate = defins.find(d => !(statement.removeAllLeft(d.args.toSet + d)).freeVariables.contains(d.reprVar))
+      println(s"[CLEANING] Found defins ${defins.mkString(" ")}")
+      println(s"[CLEANING] Found candidate ${candidate.mkString(" ")}")
 
       candidate match
         case Some(defin: AbstractionDefinition) => 
