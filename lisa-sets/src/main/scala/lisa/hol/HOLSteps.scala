@@ -875,6 +875,7 @@ object HOLSteps extends lisa.HOL {
         case ia: InstAbstraction => //  $λ*a*b*c...
           val base = ia.base
           val insts = ia.insts
+          ip.cleanAssumptions
           val a1 = assume(base.defin.bodyProp)
           val eq = insts.foldRight(a1: ip.Fact)((inst, acc) =>
             val i1 = acc of inst
