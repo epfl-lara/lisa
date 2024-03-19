@@ -16,7 +16,7 @@ abstract class OutputManager {
 
   def finishOutput(exception: Exception): Nothing
 
-  def lisaThrow(le: LisaException): Nothing =
+  def lisaThrow(le: LisaException): Nothing = throw le /*
     le match {
       case ule: UserLisaException =>
         ule.fixTrace()
@@ -31,7 +31,7 @@ abstract class OutputManager {
         output(e.underlying.repr)
         finishOutput(e)
 
-    }
+    }*/
 
   def log(e: Exception): Unit = {
     stringWriter.write("\n[" + Console.RED + "Error" + Console.RESET + "] ")

@@ -154,18 +154,9 @@ object HOLSteps extends lisa.HOL {
               val r4 = have(Discharge(have(ProofType(u)))(r3))
               ip.cleanAssumptions
               have(Clean.all(r4))
-
-              println("================================== STRT _TRANS ==================================")
-              println(s"t1   ${t1.statement}")
-              println(s"t2   ${t2.statement}")
-              println(s"r4   ${r4.statement}")
-              println(s"last ${lastStep.statement}")
-              println("================================== ENDS _TRANS ==================================")
             else 
               return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
           else 
-            println(t1.statement)
-            println(t2.statement)
             return proof.InvalidProofTactic(s"Middle elements don't agree: $ta and $tb")
 
         case (HOLSequent(left1, right1), HOLSequent(left2, right2) ) => 
@@ -304,7 +295,7 @@ object HOLSteps extends lisa.HOL {
             val btc = lastStep.statement // x::x.typ |- lt(a)...(z)(x) = t
 
             val bu1 = have(BETA(lu*x))
-            val bu = have((x :: x.typ) |- ((lu*x =:= u) === One)) by Restate.from(bu1)
+            val bu = have((x :: x.typ) |- ((lu*x =:= u) === One)) by Weakening(bu1)
             //val buh = have((x :: x.typ) |- (lu*x === u)) by Substitution.ApplyRules(eqCorrect of (HOLSteps.x := lu*x, HOLSteps.y := u, A := typ1))(bu)
             val buh = {
               val phi = F.formulaVariable
@@ -341,11 +332,9 @@ object HOLSteps extends lisa.HOL {
           val s2c = lastStep.statement.right.head // lt*x = lu*x
           val is2 = have(((x::x.typ) ==> s2c)) by Restate.from(lastStep)
 
-          // println(s"we have ${have(() |- tforall(x, (lt*x)===(lu*x))).by.bot}")
           val qs2 = have(tforall(x, (lt*x)===(lu*x))) by RightForall(is2)
           val h1 = have((lt:: (x.typ |=> typ1), lu:: (x.typ |=> typ1)) |- ((lt =:= lu) === One)) by Tautology.from(funcUnique2 of (f := lt, g := lu, HOLSteps.x := x, A := x.typ, B := typ1), qs2)
 
-          library.sanityProofCheck("[SANITY TEST: ABS before discharge]")
           val h2 = have( Discharge(have(ProofType(lt)))(h1) )
           val h3 = have( Discharge(have(ProofType(lu)))(h2) )
           have(Clean.all(h3))
@@ -368,20 +357,13 @@ object HOLSteps extends lisa.HOL {
         case (l:Abstraction)*(r: Term) => 
           val tp = computeType(r)
           if tp == l.bound.typ then
-            println(s"CHECKING BETA SHAPE ${l.BETA.statement}")
             val rhs = l.BETA.statement.right.head.asInstanceOf[F.AppliedPredicate].args(0).asInstanceOf[AppliedFunction].arg
-            println(s"[BETA] RHS ${rhs}")
-            println(s"[BETA] LB and R ${l.bound}, $r")
-            println(s"[BETA] RHS SUBST ${rhs.substitute(l.bound := r)}")
-            println(s"[BETA] RHS CLASS ${rhs.getClass().getName()}")
-            println(s"[BETA] RHS CLASS ${rhs.substitute(l.bound := r).getClass().getName()}")
-            println(s"[BETA] CHECKING BETA INSTS ${(l.BETA of (l.bound := r)).statement}")
             val b = l.BETA of (l.bound := r)
             val h = have(b.statement) by Weakening(b) // add any floating assumptions in
             val h1 = have(Discharge(have(ProofType(r)))(h))
             h.statement.right.head match
               case eqOne(r) =>
-                println(s"ASKING DEF RED FOR $r")
+                //println(s"ASKING DEF RED FOR $r")
                 val def_red_r = have(DEF_RED(r)) // r === r2
                 def_red_r.statement.right.head match
                   case `r` === r2 =>
@@ -409,12 +391,12 @@ object HOLSteps extends lisa.HOL {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{
       t match
         case (l:Abstraction)*(r: TypedVar) => 
-          println(s"BETA GOT AS INPUT $t")
+          //println(s"BETA GOT AS INPUT $t")
           // assure the right shape is present, and pass to the general case
           have(BETA_CONV(t))
         case _ => 
-          println(t)
-          println(Abstraction.cache)
+          //println(t)
+          //println(Abstraction.cache)
           return proof.InvalidProofTactic(s"The term should be of the form (λx. t) y")  
 
     }
@@ -528,19 +510,19 @@ object HOLSteps extends lisa.HOL {
               val h4 = have(Discharge(have(ProofType(u)))(h3))
               ip.cleanAssumptions
               have(Clean.all(h4))
-              println("================================== STRT EQ MP ==================================")
-              println(s"eq ${eq.statement}")
-              println(s"p ${p.statement}")
-              println(s"h2 ${h2.statement}")
-              println(s"pt ${pt.statement}")
-              println(s"h3 ${h3.statement}")
-              println(s"h4 ${h4.statement}")
-              println(s"last ${lastStep.statement}")
-              println(s"t ++ u \n\t $t \n\t $u")
-              println("================================== ENDS EQ MP ==================================")
+              //println("================================== STRT EQ MP ==================================")
+              //println(s"eq ${eq.statement}")
+              //println(s"p ${p.statement}")
+              //println(s"h2 ${h2.statement}")
+              //println(s"pt ${pt.statement}")
+              //println(s"h3 ${h3.statement}")
+              //println(s"h4 ${h4.statement}")
+              //println(s"last ${lastStep.statement}")
+              //println(s"t ++ u \n\t $t \n\t $u")
+              //println("================================== ENDS EQ MP ==================================")
     
             case _ =>
-              println(s"EQ_MP got \n\t${eq.statement}\n\t${p.statement}")
+              //println(s"EQ_MP got \n\t${eq.statement}\n\t${p.statement}")
               return proof.InvalidProofTactic(s"The second premise should prove $t but proves ${p.statement.right}")
         case _ =>
           return proof.InvalidProofTactic(s"The first premise should be of the form (t =:= u) === One ")
@@ -606,13 +588,13 @@ object HOLSteps extends lisa.HOL {
           val h1 = have((p :: 𝔹, q :: 𝔹) |- (p =:= q === One)) by Tautology.from(h0, eqCorrect of (A -> 𝔹, x -> p, y -> q))
           val h2 = have(Discharge(have(ProofType(p)))(h1))
           have(Discharge(have(ProofType(q)))(h2))
-              println("================================== STRT DEDUCT ==================================")
-              println(s"t1 ${t1.statement}")
-              println(s"t2 ${t2.statement}")
-              println(s"h1 ${h1.statement}")
-              println(s"h2 ${h2.statement}")
-              println(s"last ${lastStep.statement}")
-              println("================================== ENDS DEDUCT ==================================")
+              //println("================================== STRT DEDUCT ==================================")
+              //println(s"t1 ${t1.statement}")
+              //println(s"t2 ${t2.statement}")
+              //println(s"h1 ${h1.statement}")
+              //println(s"h2 ${h2.statement}")
+              //println(s"last ${lastStep.statement}")
+              //println("================================== ENDS DEDUCT ==================================")
 
         
         case _ =>
@@ -633,6 +615,7 @@ object HOLSteps extends lisa.HOL {
       )
       h0.statement.right.head match
         case eqOne(r) =>
+
           val def_red_r = have(DEF_RED(r)) // r === r2
           def_red_r.statement.right.head match {
             case `r` === r2 =>
@@ -640,21 +623,6 @@ object HOLSteps extends lisa.HOL {
               val s1 = have((h1.statement.left ++ def_red_r.statement.left + (r === r2)) |- eqOne(r2)) by RightSubstEq.withParametersSimple(List(r -> r2), F.lambda(x, eqOne(x)))(s0)
               val s2 = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Cut(def_red_r, s1)
               have(Clean.all(s2))
-              // val rhs = r.asInstanceOf[AppliedFunction].arg
-              println("================================== STRT INST ==================================")
-              println(s"prem ${prem.statement}")
-              println(s"insts \n\t${inst}")
-              println(s"r  ${r}")
-              // println(s"r.rhs      $rhs")
-              // println(s"r.rhs.type ${rhs.getClass.getName}")
-              println(s"r2 ${r2}")
-              println(s"h0 ${h0.statement}")
-              println(s"h1 ${h1.statement}")
-              println(s"s0 ${s0.statement}")
-              println(s"s1 ${s1.statement}")
-              println(s"s2 ${s2.statement}")
-              println(s"last ${lastStep.statement}")
-              println("================================== ENDS INST ==================================")
             case fail === _ =>
               throw new Exception(s"Was expecting an equation with left hand side $r but got $fail")
             case _ =>
@@ -762,31 +730,29 @@ object HOLSteps extends lisa.HOL {
   private object _ALPHA_CONV_REC extends ProofTactic {
     def apply(using proof: Proof)(t: Term, x: TypedVar, y: TypedVar): proof.ProofTacticJudgement = TacticSubproof {
       t match
-        case AppliedFunction(func, arg) =>
-          val fconv = have(_ALPHA_CONV_REC(func, x, y))     // |- func = func.rec(x -> y)
-          val aconv = have(_ALPHA_CONV_REC(arg, x, y))      // |- arg = arg.rec(x -> y)
-          have(MK_COMB(fconv, aconv))                       // |- func * arg = func.rec * arg.rec
         case abs: Abstraction =>
-          if abs.bound == x then
-            val i0 = have(_ALPHA_CONV(abs.body, x, y))      // |- λx. t = λy. t[x := y]
-            val i1 = have(_ALPHA_CONV_REC(abs.body, x, y))  // |- t = t.rec(x -> y)
-            val i2 = have(INST(Seq(x -> y), i1))            // |- t[x := y] = t.rec(x -> y)[x := y]
-            val i3 = have(ABS(y)(i2))                       // |- λy. t[x := y] = λy. t.rec(x -> y)[x := y]
-            println(s"===================== STRT ALPHA CONV REC =====================")
-            println(s"t : $t")
-            println(s"x : $x")
-            println(s"y : $y")
-            println(s"i0 : ${i0.statement}")
-            println(s"i1 : ${i1.statement}")
-            println(s"i2 : ${i2.statement}")
-            println(s"i3 : ${i3.statement}")
-            println(s"===================== ENDS ALPHA CONV REC =====================")
+          if abs.bound == x then 
+            val b = abs.body
+            val i0 = have(_ALPHA_CONV(b, x, y))             // |- λx. b = λy. b[x := y]
+            val i1 = have(_ALPHA_CONV_REC(b, x, y))  // |- b = b.rec(x -> y)
+            val i2 = have(INST(Seq(x -> y), i1))            // |- b[x := y] = b.rec(x -> y)[x := y]
+            val i3 = have(ABS(y)(i2))                       // |- λy. b[x := y] = λy. b.rec(x -> y)[x := y]
+
+            
             have(_TRANS_SYM(i0, i3))
           else
             val inner = have(_ALPHA_CONV_REC(abs.body, x, y)) // |- t = t.rec(x -> y)
-            have(ABS(x)(inner))                             // |- λx. t = λx. t.rec(x -> y)
+            have(ABS(abs.bound)(inner))                             // |- λx. t = λx. t.rec(x -> y)
+        case af:AppliedFunction =>
+          val func = af.func
+          val arg = af.arg
+          val fconv = have(_ALPHA_CONV_REC(func, x, y))     // |- func = func.rec(x -> y)
+          val aconv = have(_ALPHA_CONV_REC(arg, x, y))      // |- arg = arg.rec(x -> y)
+          have(MK_COMB(fconv, aconv))                       // |- func * arg = func.rec * arg.rec
         case _ => 
           have(REFL(t))                                     // |- t = t
+
+        val res = lastStep.statement.right.head.asInstanceOf[F.AppliedPredicate].args(0)
     }
   }
 
@@ -803,7 +769,6 @@ object HOLSteps extends lisa.HOL {
           case (a1: AppliedFunction, a2: AppliedFunction) =>
             alphaEquivalent(a1.func, a2.func) && alphaEquivalent(a1.arg, a2.arg)
           case (a1: (AbstrVar | Abstraction), a2: (AbstrVar | Abstraction)) =>
-            println(s"Found abstraction vars $a1 and $a2")
             val d1 = a1 match
               case a: AbstrVar => a.defin
               case a: Abstraction => a.defin
@@ -823,10 +788,10 @@ object HOLSteps extends lisa.HOL {
               alphaEquivalent(b1, b2)
             else false
           case _ => 
-            //if t1 != t2 then println(s"Found ${t1.getClass().getName()} and ${t2.getClass.getName()} and failed")
+            //if t1 != t2 then //println(s"Found ${t1.getClass().getName()} and ${t2.getClass.getName()} and failed")
             t1 == t2
       }
-      println(s"Checking $t1 and $t2 for alpha eq, it's $res")
+      //println(s"Checking $t1 and $t2 for alpha eq, it's $res")
       res
 
 
@@ -854,7 +819,7 @@ object HOLSteps extends lisa.HOL {
         case (v1: AbstrVar, v2: AbstrVar) => 
           have(v1 =:= v2) by Sorry
         case _ => 
-          println(s"Found reflexively $t1 and $t2")
+          //println(s"Found reflexively $t1 and $t2")
           have(REFL(t1))                                        // |- t = t
     }
 
@@ -908,11 +873,11 @@ object HOLSteps extends lisa.HOL {
                   val pure = have(BETA_PRIM(lambdar*x)) // λ(x, r)*x === r
                   val h0 = have(Discharge(pure)(h))
                   thenHave(assump |- (x::x.typ ==> (t*x === lambdar*x))) by Restate.from
-                  println(s"DEF RED DATA")
-                  println(lastStep.statement)
+                  //println(s"DEF RED DATA")
+                  //println(lastStep.statement)
                   val resSeq = have(assump |- tforall(x, t*x === lambdar*x)).by.bot 
-                  println(resSeq)
-                  println((resSeq.left ++ resSeq.right).flatMap(_.freeVariables))
+                  //println(resSeq)
+                  //println((resSeq.left ++ resSeq.right).flatMap(_.freeVariables))
                   val h1 = thenHave(assump |- tforall(x, t*x === lambdar*x)) by RightForall
                   val iatyp = x.typ |=> base.defin.outType
                   val fu = funcUnique of (f := lambdar, g := t, A := x.typ, B := base.defin.outType)
@@ -949,16 +914,18 @@ object HOLSteps extends lisa.HOL {
         case f*u =>
           val s1 = have(DEF_RED(f))
           val s2 = have(DEF_RED(u))
-          println(s"[DEF RED] Found f $f with definition ${s1.statement}")
-          println(s"[DEF RED] Found u $u with definition ${s2.statement}")
+          //println(s"[DEF RED] Found f $f with definition ${s1.statement}")
+          //println(s"[DEF RED] Found u $u with definition ${s2.statement}")
           (s1.statement.left ++ s2.statement.left).foreach(f => assume(f))
           (s1.statement.right.head, s2.statement.right.head) match
             case (`f` === f2, `u` === u2) =>
               val x = typedvar(computeType(f))
               val y = typedvar(computeType(u))
               val s3 = have(f*u === f*u) by Restate
-              val s4 = have((f === f2, u === u2) |- f*u === f2*u2) by RightSubstEq.withParametersSimple(List(f -> f2, u -> u2), F.lambda(Seq(x, y), f * u === x * y))(s3)
-              val s5 = have((u === u2) |- f*u === f2*u2) by Cut(s1, s4)
+              val k = freshVariable(Set(f*u === f2*u2) ++ lastStep.statement.left, "k")
+              val s4 = have((f === f2) |- app(f, u) === app(f2, u)) by RightSubstEq.withParametersSimple(List(f -> f2), F.lambda(Seq(k), app(f, u) === app(k, u)))(s3)
+              val s45 = have((f === f2, u === u2) |- app(f, u) === app(f2, u2)) by RightSubstEq.withParametersSimple(List(u -> u2), F.lambda(Seq(k), app(f, u) === app(f2, k)))(s4)
+              val s5 = have((u === u2) |- f*u === f2*u2) by Cut(s1, s45)
               val s6 = have(f*u === f2*u2) by Cut(s2, s5)
             case (fail1, fail2) =>
               throw new Exception(s"Was expecting two equations with left hand side $f but got $fail1 and with left hand side $u but got $fail2")
@@ -990,8 +957,8 @@ object HOLSteps extends lisa.HOL {
       val statement = prem.statement
       val defins = statement.left.collect{case d: AbstractionDefinition => d}
       val candidate = defins.find(d => !(statement.removeAllLeft(d.args.toSet + d)).freeVariables.contains(d.reprVar))
-      println(s"[CLEANING] Found defins ${defins.mkString(" ")}")
-      println(s"[CLEANING] Found candidate ${candidate.mkString(" ")}")
+      //println(s"[CLEANING] Found defins ${defins.mkString(" ")}")
+      //println(s"[CLEANING] Found candidate ${candidate.mkString(" ")}")
 
       candidate match
         case Some(defin: AbstractionDefinition) => 

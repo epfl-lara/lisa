@@ -421,6 +421,7 @@ object VarsAndFunctions {
     val insts: List[Term]
   ) extends AppliedFunction(insts.init.foldLeft(base.repr: Term)((acc, v) => acc @@ v), insts.last) with TypedHOLTerm {
     val typ = base.typ
+    override def toString(): String = "I"+super.toString()
 
   }
 
