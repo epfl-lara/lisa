@@ -1,6 +1,6 @@
-object HOLTest extends lisa.HOL{
+object HOLTest extends lisa.HOL {
   import lisa.maths.settheory.types.ADTTactic.*
-  import lisa.maths.settheory.types.ADTSyntax.*
+  import ADTSyntax.*
 
   val typ = variable
 
