@@ -690,9 +690,8 @@ object HOLSteps extends lisa.HOL {
       stmt match
         case HOLSequent(left, =:=(typ)*s*t) =>
           // flip
-          left.foreach(assume(_))
-          val s0 = have((s :: typ, t :: typ) |- (s =:= t) === One) by Weakening(p)
-          val s1 = have((s :: typ, t :: typ) |- (t =:= s) === One) by Cut(s0, eqSym of (x := s, y := t))
+          val s0 = have((stmt.left + (s :: typ) + (t :: typ)) |- (s =:= t) === One) by Weakening(p)
+          val s1 = have((stmt.left + (s :: typ) + (t :: typ)) |- (t =:= s) === One) by Cut(s0, eqSym of (x := s, y := t, A -> typ))
           val s2 = have(Discharge(have(ProofType(s)))(s1))
           val s3 = have(Discharge(have(ProofType(s)))(s2))
         case _ => return proof.InvalidProofTactic(s"Sequent must contain an equality s =:= t to flip.")
