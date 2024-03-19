@@ -555,6 +555,38 @@ object HOLSteps extends lisa.HOL {
   }
 
   /**
+    *  |- t = u    |- s
+    * -------------------
+    *       |- u
+    * 
+    * where s and t and alpha equivalent.
+    * 
+    * @see [[_EQ_MP]]
+    */
+  object EQ_MP extends ProofTactic {
+    def apply(using proof: Proof)(eq: proof.Fact, p: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+      if eq.statement.right.size != 1 then
+        return proof.InvalidProofTactic(s"The first premise should be of the form (t =:= u) === One")
+      eq.statement.right.head match
+        case (=:=(`𝔹`)*t*u) === One => 
+          p.statement.right.head match
+            case eqOne(s) =>
+              if s == t then
+                have(_EQ_MP(eq, p))
+              else
+                val s0 = have(ALPHA_EQUIVALENCE(s, t))      // |- s = t
+                val s1 = have(_TRANS(s0, eq))               // |- s = u
+                have(_EQ_MP(s1, p))
+            case _ => return proof.InvalidProofTactic(s"Second premise to EQ_MP must be of the form s === One")
+          
+        case _ =>
+          return proof.InvalidProofTactic(s"The first premise should be of the form (t =:= u) === One ")
+          
+    }
+
+  }
+
+  /**
     *      A |- p   B |- q
     * -------------------------
     *   A - p, B - q |- p = q
