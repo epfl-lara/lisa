@@ -907,9 +907,9 @@ object HOLSteps extends lisa.HOL {
                   val goal = have((assump + (x::x.typ)) |- (t*x === r)).by.bot
                   val i0 = have((assump + (x::x.typ)) |- (t*x === r)) by Weakening(eq of x)
                   val xx = freshVariable[F.Sequent](Seq(i0.statement, def_red_r.statement), "xx")
-                  val i1 = have((assump + (x::x.typ) + (r === r2)) |- (t*x === r2)) by RightSubstEq.withParametersSimple(List((r, r2)), F.lambda(xx, t*x === xx))(i0) //Substitution.ApplyRules(def_red_r)(i0)
+                  val i1 = have((assump + (x::x.typ) + (r === r2)) |- (t*x === r2)) by RightSubstEq.withParametersSimple(List((r, r2)), F.lambda(xx, t*x === xx))(i0) 
                   val i2 = have(Discharge(def_red_r)(i1))
-                  val h = have((assump + (x::x.typ) + (r2 === lambdar*x)) |- t*x === lambdar*x) by RightSubstEq.withParametersSimple(List((r2, lambdar*x)), F.lambda(xx, t*x === xx))(i2)  // Substitution.ApplyRules(pure)(i2)
+                  val h = have((assump + (x::x.typ) + (r2 === lambdar*x)) |- t*x === lambdar*x) by RightSubstEq.withParametersSimple(List((r2, lambdar*x)), F.lambda(xx, t*x === xx))(i2) 
                   val pure = have(BETA_PRIM(lambdar*x)) // λ(x, r)*x === r
                   val h0 = have(Discharge(pure)(h))
                   thenHave(assump |- (x::x.typ ==> (t*x === lambdar*x))) by Restate.from
@@ -959,8 +959,12 @@ object HOLSteps extends lisa.HOL {
           (s1.statement.left ++ s2.statement.left).foreach(f => assume(f))
           (s1.statement.right.head, s2.statement.right.head) match
             case (`f` === f2, `u` === u2) =>
-              have(f*u === f*u) by Restate
-              thenHave(f*u ===f2*u2) by Substitution.ApplyRules(s1, s2)
+              val x = typedvar(computeType(f))
+              val y = typedvar(computeType(u))
+              val s3 = have(f*u === f*u) by Restate
+              val s4 = have((f === f2, u === u2) |- f*u === f2*u2) by RightSubstEq.withParametersSimple(List(f -> f2, u -> u2), F.lambda(Seq(x, y), f * u === x * y))(s3)
+              val s5 = have((u === u2) |- f*u === f2*u2) by Cut(s1, s4)
+              val s6 = have(f*u === f2*u2) by Cut(s2, s5)
             case (fail1, fail2) =>
               throw new Exception(s"Was expecting two equations with left hand side $f but got $fail1 and with left hand side $u but got $fail2")
         case t => 
