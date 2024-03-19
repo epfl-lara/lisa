@@ -319,7 +319,6 @@ object VarsAndFunctions {
 
   def typedvar(using name: sourcecode.Name)(typ: Type): TypedVar = new TypedVar(Identifier(name.value), typ)
 
-
   ///////////////////////////////////////
   ///////// Lambda Abstractions /////////
   ///////////////////////////////////////

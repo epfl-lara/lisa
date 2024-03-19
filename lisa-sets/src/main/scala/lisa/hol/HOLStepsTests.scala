@@ -285,7 +285,6 @@ object HOLStepsTests extends lisa.HOL {
   }
 
 
-
   // Those don't hold because they require alpha equivalence to conclude the proof.
 /*
   println("Starting test 15")

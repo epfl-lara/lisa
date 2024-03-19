@@ -3,6 +3,7 @@
 .metals
 .vscode
 project/metals.sbt
+sbt-launch.jar
 
 # build-related
 .bsp

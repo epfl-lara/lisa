@@ -128,7 +128,6 @@ object HOLSteps extends lisa.HOL {
       val s1 = have(ProofType(t)) //t::A
       val typ = s1.statement.right.head.asInstanceOf[TypeAssignment[Term]].typ
       have(holeq(typ)*t*t) by Tautology.from(eqRefl of (x := t, A := typ), s1)
-
     }
   }
 
@@ -617,11 +616,9 @@ object HOLSteps extends lisa.HOL {
         
         case _ =>
           return proof.InvalidProofTactic(s"The premises should be of the form p === One and q === One")
-
     }
 
   }
-
 
 
   object INST extends ProofTactic {
