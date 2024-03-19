@@ -641,20 +641,23 @@ object HOLSteps extends lisa.HOL {
           val def_red_r = have(DEF_RED(r)) // r === r2
           def_red_r.statement.right.head match {
             case `r` === r2 =>
-              val s = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Substitution.ApplyRules(def_red_r)(h1)
-              val s1 = have(Clean.all(s))
-              val rhs = r.asInstanceOf[AppliedFunction].arg
+              val s0 = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r)) by Weakening(h1)
+              val s1 = have((h1.statement.left ++ def_red_r.statement.left + (r === r2)) |- eqOne(r2)) by RightSubstEq.withParametersSimple(List(r -> r2), F.lambda(x, eqOne(x)))(s0)
+              val s2 = have((h1.statement.left ++ def_red_r.statement.left) |- eqOne(r2)) by Cut(def_red_r, s1)
+              have(Clean.all(s2))
+              // val rhs = r.asInstanceOf[AppliedFunction].arg
               println("================================== STRT INST ==================================")
               println(s"prem ${prem.statement}")
               println(s"insts \n\t${inst}")
               println(s"r  ${r}")
-              println(s"r.rhs      $rhs")
-              println(s"r.rhs.type ${rhs.getClass.getName}")
+              // println(s"r.rhs      $rhs")
+              // println(s"r.rhs.type ${rhs.getClass.getName}")
               println(s"r2 ${r2}")
               println(s"h0 ${h0.statement}")
               println(s"h1 ${h1.statement}")
-              println(s"s  ${s.statement}")
+              println(s"s0 ${s0.statement}")
               println(s"s1 ${s1.statement}")
+              println(s"s2 ${s2.statement}")
               println(s"last ${lastStep.statement}")
               println("================================== ENDS INST ==================================")
             case fail === _ =>
