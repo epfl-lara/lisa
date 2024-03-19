@@ -128,6 +128,7 @@ object HOLSteps extends lisa.HOL {
       val s1 = have(ProofType(t)) //t::A
       val typ = s1.statement.right.head.asInstanceOf[TypeAssignment[Term]].typ
       have(holeq(typ)*t*t) by Tautology.from(eqRefl of (x := t, A := typ), s1)
+
     }
   }
 
@@ -242,12 +243,7 @@ object HOLSteps extends lisa.HOL {
             val d2 = have( Discharge(have(ProofType(y)))(d1) )
             val d3 = have( Discharge(have(ProofType(f)))(d2) )
             val d4 = have( Discharge(have(ProofType(g)))(d3) )
-            println("================================== STRT MK COMB ==================================")
-            println(s"f1 ${f1.statement}")
-            println(s"f2 ${f2.statement}")
-            println(s"assumes ${summon[Proof].getAssumptions}")
-            println(s"last ${lastStep.statement}")
-            println("================================== ENDS MK COMB ==================================")
+
           case _ => 
             return proof.InvalidProofTactic(s"Types don't agree: fun types are $typ1 and arg types are $typ2")
         }
@@ -290,7 +286,6 @@ object HOLSteps extends lisa.HOL {
           val ltx_lux = have((x::x.typ) |- (lt*x === lu*x)) subproof { iip ?=>
             Seq(typjudgt, typjudgltx, typjudgu, typjudglux).foreach( a =>
               assume(a.statement.right.head)
-              iip.addDischarge(a)
             )
             assume(x :: x.typ)
             
@@ -338,21 +333,19 @@ object HOLSteps extends lisa.HOL {
             //by RightSubstEq.withParametersSimple(List((r, r2)), F.lambda(xx, t*x === xx))(i0) //Substitution.ApplyRules(def_red_r)(i0)
             //      val i2 = have(Discharge(def_red_r)(i1))
 
+
+            Seq(typjudgt, typjudgltx, typjudgu, typjudglux).foreach( a =>
+              have(Discharge(a)(lastStep))
+            )
           }
           val s2c = lastStep.statement.right.head // lt*x = lu*x
           val is2 = have(((x::x.typ) ==> s2c)) by Restate.from(lastStep)
-          println("=================================== REACHING ABS FORALL ===================================")
-          println(s"s1 is ${s1}")
-          println(s"Premise is ${is2.statement}")
-          println(s"we start with ${proof.getAssumptions}")
-          println(s"s assumes ${s1.left - (x:: x.typ)}")
-          println(s"lctx assumes $lctx")
-          println(s"ctx assumes ${ctx - (x :: x.typ)}")
-          println(s"we assume ${summon[Proof].getAssumptions}")
+
           // println(s"we have ${have(() |- tforall(x, (lt*x)===(lu*x))).by.bot}")
           val qs2 = have(tforall(x, (lt*x)===(lu*x))) by RightForall(is2)
           val h1 = have((lt:: (x.typ |=> typ1), lu:: (x.typ |=> typ1)) |- ((lt =:= lu) === One)) by Tautology.from(funcUnique2 of (f := lt, g := lu, HOLSteps.x := x, A := x.typ, B := typ1), qs2)
 
+          library.sanityProofCheck("[SANITY TEST: ABS before discharge]")
           val h2 = have( Discharge(have(ProofType(lt)))(h1) )
           val h3 = have( Discharge(have(ProofType(lu)))(h2) )
           have(Clean.all(h3))
@@ -405,6 +398,7 @@ object HOLSteps extends lisa.HOL {
             return proof.InvalidProofTactic(s"Beta redex has malformed argument type. Expected type ${l.bound.typ}, got $tp .")
         case _ => 
           return proof.InvalidProofTactic(s"The term should be of the form (λx. t) v")  
+
     }
   }
 
@@ -422,6 +416,7 @@ object HOLSteps extends lisa.HOL {
           println(t)
           println(Abstraction.cache)
           return proof.InvalidProofTactic(s"The term should be of the form (λx. t) y")  
+
     }
   }
 
@@ -581,7 +576,7 @@ object HOLSteps extends lisa.HOL {
           
         case _ =>
           return proof.InvalidProofTactic(s"The first premise should be of the form (t =:= u) === One ")
-          
+
     }
 
   }
@@ -622,7 +617,7 @@ object HOLSteps extends lisa.HOL {
         
         case _ =>
           return proof.InvalidProofTactic(s"The premises should be of the form p === One and q === One")
-        
+
     }
 
   }
