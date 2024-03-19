@@ -513,7 +513,7 @@ object HOLSteps extends lisa.HOL {
     *       |- u
     */
   object _EQ_MP extends ProofTactic {
-    def apply(using proof: Proof)(eq: proof.Fact, p: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+    def apply(using proof: Proof)(eq: proof.Fact, p: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       if eq.statement.right.size != 1 then
         return proof.InvalidProofTactic(s"The first premise should be of the form (t =:= u) === One")
       eq.statement.right.head match
@@ -522,28 +522,27 @@ object HOLSteps extends lisa.HOL {
             return proof.InvalidProofTactic(s"The second premise should prove $t but proves ${p.statement.right}")
           p.statement.right.head match
             case eqOne(`t`) =>
-              eq.statement.left.foreach(f => assume(f))
-              p.statement.left.foreach(f => assume(f))
+              val assumptions = eq.statement.left ++ p.statement.left
               val vt = typedvar(𝔹)
-              val hp = have((t :: 𝔹, u :: 𝔹) |- p.statement.right) by Weakening(p)
-              val h1 = have((t :: 𝔹, u :: 𝔹) |- t === u) by Tautology.from(eqCorrect of (x := t, y := u, A := 𝔹), eq)
-              val hc = have((t :: 𝔹, u :: 𝔹, (t === u)) |- (u === One)) by RightSubstEq.withParametersSimple(List((t, u)), F.lambda(vt, vt === One))(hp)
-              val h2 = have((t :: 𝔹, u :: 𝔹) |- (u === One)) by Cut(h1, hc)
+              val hp = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- p.statement.right) by Weakening(p)
+              val h1 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- t === u) by Tautology.from(eqCorrect of (x := t, y := u, A := 𝔹), eq)
+              val hc = have((assumptions + (t :: 𝔹) + (u :: 𝔹) + (t === u)) |- (u === One)) by RightSubstEq.withParametersSimple(List((t, u)), F.lambda(vt, vt === One))(hp)
+              val h2 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- (u === One)) by Cut(h1, hc)
               val pt = have(ProofType(t))
               val h3 = have(Discharge(pt)(h2))
               val h4 = have(Discharge(have(ProofType(u)))(h3))
-              proof.cleanAssumptions
+              ip.cleanAssumptions
               have(Clean.all(h4))
-              // println("================================== STRT EQ MP ==================================")
-              // println(s"eq ${eq.statement}")
-              // println(s"p ${p.statement}")
-              // println(s"h2 ${h2.statement}")
-              // println(s"pt ${pt.statement}")
-              // println(s"h3 ${h3.statement}")
-              // println(s"h4 ${h4.statement}")
-              // println(s"last ${lastStep.statement}")
-              // println(s"t ++ u \n\t $t \n\t $u")
-              // println("================================== ENDS EQ MP ==================================")
+              println("================================== STRT EQ MP ==================================")
+              println(s"eq ${eq.statement}")
+              println(s"p ${p.statement}")
+              println(s"h2 ${h2.statement}")
+              println(s"pt ${pt.statement}")
+              println(s"h3 ${h3.statement}")
+              println(s"h4 ${h4.statement}")
+              println(s"last ${lastStep.statement}")
+              println(s"t ++ u \n\t $t \n\t $u")
+              println("================================== ENDS EQ MP ==================================")
     
             case _ =>
               println(s"EQ_MP got \n\t${eq.statement}\n\t${p.statement}")
