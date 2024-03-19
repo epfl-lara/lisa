@@ -743,7 +743,7 @@ object HOLSteps extends lisa.HOL {
    */
   private object _ALPHA_CONV extends ProofTactic {
     def apply(using proof: Proof)(t: Term, x: TypedVar, y: TypedVar): proof.ProofTacticJudgement = TacticSubproof {
-      if t.freeVariables.contains(y) then
+      if !t.freeVariables.contains(y) then
         val ld = λ(x, t)
         if x == y then
           // trivial
