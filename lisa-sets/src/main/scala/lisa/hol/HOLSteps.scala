@@ -777,7 +777,16 @@ object HOLSteps extends lisa.HOL {
             val i1 = have(_ALPHA_CONV_REC(abs.body, x, y))  // |- t = t.rec(x -> y)
             val i2 = have(INST(Seq(x -> y), i1))            // |- t[x := y] = t.rec(x -> y)[x := y]
             val i3 = have(ABS(y)(i2))                       // |- λy. t[x := y] = λy. t.rec(x -> y)[x := y]
-            have(_TRANS(i0, i3))
+            println(s"===================== STRT ALPHA CONV REC =====================")
+            println(s"t : $t")
+            println(s"x : $x")
+            println(s"y : $y")
+            println(s"i0 : ${i0.statement}")
+            println(s"i1 : ${i1.statement}")
+            println(s"i2 : ${i2.statement}")
+            println(s"i3 : ${i3.statement}")
+            println(s"===================== ENDS ALPHA CONV REC =====================")
+            have(_TRANS_SYM(i0, i3))
           else
             val inner = have(_ALPHA_CONV_REC(abs.body, x, y)) // |- t = t.rec(x -> y)
             have(ABS(x)(inner))                             // |- λx. t = λx. t.rec(x -> y)
