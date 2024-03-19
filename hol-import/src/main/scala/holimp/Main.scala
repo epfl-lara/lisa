@@ -14,7 +14,7 @@ object JSONParser:
   given rws: RW[SplitProofStep] = macroRW 
   given rw: RW[RawStep] = macroRW 
 
-  val fileBase = "./proofs/prooftrace2"
+  val fileBase = "/home/sankalp/projects/lisa/lisa-working-2/proofs/prooftrace2"
 
   def readJSON(file: File) = 
     read[Array[RawStep]](file)
@@ -23,8 +23,7 @@ object JSONParser:
   case class CouldNotParseException(msg: String, next: String) extends Exception(s"Could not parse\n\tMessage: $msg\n\tNext: $next")
   case object IncompleteParsingException extends Exception
   case object UnreachableCaseException extends Exception
-
-
+  
   extension [T] (res: ParseResult[T])
     def getDone =
       res match
