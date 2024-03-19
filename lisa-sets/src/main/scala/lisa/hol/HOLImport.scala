@@ -108,29 +108,41 @@ object HOLImport extends lisa.HOL {
     
   import Constants.{register, get, getDefinition, sanitizeName}
 
-  private def reconstruct(proof: HOLL.ProofStep)(using library: HOLSteps.library.type, ctx: library.Proof): ctx.Fact =
+  private val theoremCache = collection.mutable.HashMap.empty[HOLL.ProofStep, library.THM]
+
+  private def reconstruct(using library: HOLSteps.library.type, ctx: library.Proof)(proof: HOLL.ProofStep): ctx.Fact =
     import HOLSteps._
+    object Rec:
+      val rec = (p: HOLL.ProofStep) => theoremCache.getOrElse(p, recm(p))
+      val recm: HOLL.ProofStep => ctx.ProofStep = memoized(rec_(_))
+      def rec_(proof: HOLL.ProofStep): ctx.ProofStep = {
     def transformed: ctx.ProofTacticJudgement =
       proof match
         case HOLL.REFL(term) => REFL(toLisaTerm(term))
-        case HOLL.TRANS(left, right) => _TRANS(reconstruct(left), reconstruct(right))
-        case HOLL.MK_COMB(left, right) => MK_COMB(reconstruct(left), reconstruct(right))
+            case HOLL.TRANS(left, right) => 
+              val l = rec(left)
+              val r = rec(right)
+              TRANS(l, r)
+            case HOLL.MK_COMB(left, right) => 
+              val l = rec(left)
+              val r = rec(right)
+              MK_COMB(l, r)
         case HOLL.ABS(absVar, from) => 
-          val pf = reconstruct(from)
+              val pf = rec(from)
           ABS(asVar(toLisaTerm(absVar)))(pf)
-        case HOLL.BETA(term) => BETA(toLisaTerm(term))
+            case HOLL.BETA(term) => 
+              val inp = toLisaTerm(term)
+              val fin = BETA(inp)
+              fin
         case HOLL.ASSUME(term) => ASSUME(toLisaTerm(term))
         case HOLL.EQ_MP(left, right) =>
-          println(left.getClass().getName())
-          val pf = reconstruct(left)
-          println(s"abstracting from ${pf.statement}") 
-          _EQ_MP(reconstruct(left), reconstruct(right))
-        case HOLL.DEDUCT_ANTISYM_RULE(left, right) => DEDUCT_ANTISYM_RULE(reconstruct(left), reconstruct(right))
+              val pf = rec(left)
+              EQ_MP(rec(left), rec(right))
+            case HOLL.DEDUCT_ANTISYM_RULE(left, right) => DEDUCT_ANTISYM_RULE(rec(left), rec(right))
         case HOLL.INST(from, insts) => 
-          val inner = reconstruct(from)
+              val inner = rec(from)
           val instss = insts.toSeq.map((k, v) => asVar(toLisaTerm(k)) -> toLisaTerm(v))
           val fin = INST(instss, inner)
-          println(s"Instantiating\n\t${inner.statement}\nto\n\t${library.have(fin).statement}")
           fin
         case HOLL.INST_TYPE(from, insts) =>
           def singleTypeInst = (step: ctx.Fact, inst: (HOLL.TypeVariable, HOLL.Type)) =>
@@ -140,7 +152,7 @@ object HOLImport extends lisa.HOL {
                 case _ => throw ExpectedVariableException              
             val typ = toLisaType(inst._2)
             library.have(INST_TYPE(x, typ, step))
-          val fin = insts.foldLeft(reconstruct(from))(singleTypeInst)
+              val fin = insts.foldLeft(rec(from))(singleTypeInst)
           Restate.from(fin)(fin.statement)
         case HOLL.AXIOM(term) => 
           // prove the axioms and simply retrieve them
@@ -156,9 +168,13 @@ object HOLImport extends lisa.HOL {
           ???
 
     val tr = library.have(transformed)
-    println(s"Produced from ${proof.getClass().getName()} :: ${tr.statement}")
+        println(s"[RECONSTRUCT] Produced from ${proof.getClass().getName()}:\t${tr.statement}")
+        library.sanityProofCheck("[SANITY TEST]")
     tr
+      }
     
+    val res = Rec.rec(proof)
+    res
 
   /**
     * Checks if this HOL Light sequent is a "new_basic_definition".
@@ -247,11 +263,15 @@ object HOLImport extends lisa.HOL {
         val lisaHyps = hypotheses.toSet.map(toLisaTerm)
         val lisaConc = toLisaTerm(conclusion)
         val sequent = HOLSequent(lisaHyps, lisaConc)
-
-        THM(sequent, thm.nm, thm.id, "HOL.Import", Theorem):
           val proof = steps(thm.id)
-          reconstruct(proof)
+
+        val res = THM(sequent, thm.nm, thm.id, "HOL.Import", Theorem):
+          val step = reconstruct(proof)
+          have(Clean.all(step))
           println(s"PROVED :: \n\t${lastStep.statement}\nNEEDED ::\n\t$sequent")
+
+        theoremCache.update(proof, res)
+        res
 
   @main 
   def importHOLLight =
