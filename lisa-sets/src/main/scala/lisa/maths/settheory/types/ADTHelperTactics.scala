@@ -1,3 +1,5 @@
+package lisa.maths.settheory.types
+
 import lisa.fol.FOL.*
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*

@@ -1,3 +1,5 @@
+package lisa.maths.settheory.types
+
 import lisa.SetTheoryLibrary
 import lisa.maths.settheory.SetTheory
 import lisa.maths.settheory.SetTheory.*
@@ -18,201 +20,6 @@ import scala.collection.immutable.HashMap
 import lisa.utils.parsing.UnreachableException
 import lisa.maths.settheory.types.TypeLib.{any, |=>, given}
 import lisa.maths.settheory.types.TypeSystem.{*, given}
-
-object ADTExternalTheorems extends lisa.Main {
-  val pair = ConstantFunctionLabel("pair", 2)
-  addSymbol(pair)
-
-  val a = variable
-  val b = variable
-  val c = variable
-  val d = variable
-
-  val f = variable
-  val g = variable
-
-  val n = variable
-  val m = variable
-
-  val p = formulaVariable
-  val p1 = formulaVariable
-  val p2 = formulaVariable
-  val p3 = formulaVariable
-
-  val x = variable
-  val y = variable
-
-  val P = predicate[1]
-  val P2 = predicate[2]
-
-  val substitutionThm = Lemma((x === y, P(x)) |- P(y)) {
-    val s0 = have(x === y |- x === y) by Restate
-    have(P(x) |- P(x)) by Hypothesis
-    thenHave(thesis) by Substitution.ApplyRules(s0)
-  }
-
-  val equivalenceRewriting = Lemma((p1 <=> p2, p2 <=> p3) |- p1 <=> p3) {
-    have(thesis) by Tautology
-  }
-
-  val equivalenceReflexivity = Lemma(p1 <=> p1) {
-    have(thesis) by Tautology
-  }
-
-  val equivalenceApply = Lemma((p1 <=> p2, p1) |- p2) {
-    have(thesis) by Tautology
-  }
-
-  val permExists = Lemma(exists(x, exists(y, P2(x, y))) <=> exists(y, exists(x, P2(x, y)))) {
-    have(thesis) by Tableau
-  }
-
-  val equivalenceRevApply = Lemma((p2 <=> p1, p1) |- p2) {
-    have(thesis) by Tautology
-  }
-
-  val negEquivalence = Lemma(p1 <=> p2 |- !p1 <=> !p2) {
-    have(thesis) by Tautology
-  }
-
-  val restrictedFunctionRangeMembership = Lemma(functional(g) |- in(y, relationRange(restrictedFunction(f, d))) <=> ∃(m, in(m, d) /\ (app(restrictedFunction(f, d), m) === y))) {
-    sorry
-  }
-
-  val rangeMonotonic = Lemma(subset(f, g) |- subset(relationRange(f), relationRange(g))) {
-    sorry
-  }
-
-  val restrictedFunctionDomainMonotonic = Lemma(subset(m, n) |- subset(restrictedFunction(f, m), restrictedFunction(f, n))) {
-    sorry
-  }
-
-  val functionRangeMembership = Lemma(functional(g) |- in(y, relationRange(f)) <=> ∃(m, in(m, relationDomain(f)) /\ (app(f, m) === y))) {
-    sorry
-  }
-
-  val rightAndEquivalence = Lemma(p1 <=> p2 |- (p1 /\ p) <=> (p2 /\ p)) {
-    have(thesis) by Tableau
-  }
-
-  val notInSelf = Lemma(in(x, x) |- ()) {
-    sorry
-  }
-
-  val elementOrEmpty = Lemma(exists(y, in(y, x)) \/ (x === emptySet)) {
-    sorry
-  }
-
-  val unionMonotic = Lemma(subset(x, y) |- subset(union(x), union(y))) {
-    sorry
-  }
-
-  val subsetNotEmpty = Lemma((subset(x, y), !(x === emptySet)) |- !(y === emptySet)) {
-    sorry
-  }
-
-  val restrictedFunctionNotEmpty = Lemma((!(g === emptySet), !(n === emptySet)) |- !(restrictedFunction(g, n) === emptySet)) {
-    sorry
-  }
-
-  val emptyFunction = Lemma(!(relationDomain(g) === emptySet) |- !(g === emptySet)) {
-    sorry
-  }
-
-  val pairExtensionality = Lemma((pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))) {
-    sorry
-  }
-
-
-  // natural numbers
-  val N = Constant("N")
-  addSymbol(N)
-
-  // Axiom: N is an ordinal
-  val naturalOrdinal = Axiom(ordinal(N))
-
-  // Axiom: 0 ∈ N
-  val zeroIsNat = Lemma(in(emptySet, N)) {
-    sorry
-  }
-
-  val natNotEmpty = Lemma(!(N === emptySet)) {
-    sorry
-  }
-
-  val zeroInNat = Lemma(in(n, N) |- in(emptySet, n) \/ (n === emptySet)) {
-    sorry
-  }
-
-  val successorHomorphic = Lemma((in(n, N)) |- in(m, n) <=> in(successor(m), successor(n))) {
-    sorry
-  }
-
-  val successorInjectivity = Lemma((n === m) <=> (successor(n) === successor(m))) {
-    sorry
-  }
-
-  // Axiom: 0 ∈ N
-  val zeroIsInSuccessor = Lemma(in(n, N) |- in(emptySet, successor(n))) {
-    sorry
-  }
-
-  // Axiom: if n ∈ N then successor(n) ∈ N
-  val successorIsNat = Lemma(in(n, N) <=> in(successor(n), N)) {
-    sorry
-  }
-
-  val natWeakTransitive = Lemma((in(a, b), in(b, N)) |- in(a, N)) {
-    sorry
-  }
-
-  // Axiom: Successor is not empty
-  val successorNotEmpty = Lemma(in(n, N) |- exists(m, in(m, successor(n)))) {
-    sorry
-  }
-
-  val natTransitive = Lemma((in(a, b), in(b, c), in(c, N)) |- in(a, c)) {
-    sorry
-  }
-
-  val natTotalOrder = Lemma((in(a, N), in(b, N)) |- in(a, successor(b)) \/ in(b, a)) {
-    sorry
-  }
-
-  val zeroIsNotSucc = Lemma(!(successor(n) === emptySet)) {
-    sorry
-  }
-
-  val natSubset = Lemma(in(b, N) |- subset(a, b) <=> in(a, successor(b))) {
-    sorry
-  }
-
-  val subsetIsNat = Lemma(subset(a, b) |- in(b, N) ==> in(a, N)) {
-    sorry
-  }
-
-  val natInduction = Lemma(P(emptySet) ==> (forall(m, in(m, N) ==> (P(m) ==> P(successor(m)))) ==> forall(n, in(n, N) ==> P(n)))) {
-    sorry
-  }
-
-  // Axiom: Successor is not empty
-  val inSuccessor = Axiom(in(n, successor(n)))
-
-  val unionEmpty = Lemma(union(emptySet) === emptySet) {
-    sorry
-  }
-
-  val restrictedFunctionEmptyDomain = Lemma(restrictedFunction(f, emptySet) === emptySet) {
-    sorry
-  }
-
-  def toTerm(n: Int): Term = 
-    if n == 0 then
-      emptySet
-    else 
-      successor(toTerm(n - 1))
-
-}
 
 object ADTTactic{
 
@@ -803,10 +610,33 @@ object ADTTactic{
       }
 
       val imp1 = have((isHeightFun(g), consVarMembership(c, appliedTerm)) |- ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) subproof {
+        val nSeq: Seq[Variable] = (0 until c.variables.size).map(i => Variable(s"n$i"))
+        val max = if c.arity == 0 then emptySet else nSeq.reduce[Term](setUnion(_, _))
+        
+        val maxInN = have(/\ (nSeq.map(n => in(n, N))) |- in(max, N)) by Sorry
+
+        val andSeq = for ((v, ty), ni) <- c.variables.zip(c.typeArgs).zip(nSeq) yield
+          have(subset(ni, max)) by Sorry
+          have(in(max, N) |- in(ni, successor(max))) by Apply(equivalenceApply).on(lastStep, natSubset.asInstanceOf)
+          val niInMax = have(/\ (nSeq.map(n => in(n, N))) |- in(ni, successor(max))) by Cut(maxInN, lastStep)
+
+          ty match
+            case Self => 
+              have((isHeightFun(g), in(n, N)) |- in(ni, successor(n)) ==> subset(app(g, ni), app(g, n))) by InstantiateForall(ni)(heightFunCumulative)
+              have((isHeightFun(g), in(max, N), in(ni, successor(max))) |- subset(app(g, ni), app(g, max))) by Restate.from(lastStep of (n := max))
+              have((isHeightFun(g), /\ (nSeq.map(n => in(n, N)))) |- subset(app(g, ni), app(g, max))) by Apply(lastStep).on(Seq(maxInN, niInMax), excluding = nSeq)
+              have((isHeightFun(g), /\ (nSeq.map(n => in(n, N)))) |- forall(z, in(z, app(g, ni)) ==> in(z, app(g, max)))) by Apply(equivalenceApply).on(Seq(lastStep, subsetAxiom), excluding = nSeq)
+              thenHave((isHeightFun(g), /\ (nSeq.map(n => in(n, N)))) |- in(v, app(g, ni)) ==> in(v, app(g, max))) by InstantiateForall(v)
+              thenHave((isHeightFun(g), /\ (nSeq.map(n => in(n, N))), in(v, app(g, ni))) |- in(v, app(g, max))) by Restate
+            case BaseType(t) =>
+              have((/\ (nSeq.map(n => in(n, N))), isHeightFun(g), in(v, t)) |- in(v, t)) by Restate
+
+          have((/\ (nSeq.map(n => in(n, N))), isHeightFun(g), in(v, getTermOrElse(ty, app(g, ni)))) |- in(max, N) /\ in(v, getTermOrElse(ty, app(g, max)))) by RightAnd(maxInN, lastStep)
+          thenHave(nSeq.map(n => in(n, N) /\ in(v, getTermOrElse(ty, app(g, n)))).toSet + isHeightFun(g) |- in(max, N) /\ in(v, getTermOrElse(ty, app(g, max)))) by Weakening
+          thenHave(nSeq.map(n => in(n, N) /\ in(v, getTermOrElse(ty, app(g, n)))).toSet + isHeightFun(g) |- in(max, N) /\ in(v, getTermOrElse(ty, app(g, max)))) by Weakening
+          thenHave(nSeq.map(n => in(n, N) /\ in(v, getTermOrElse(ty, app(g, n)))).toSet + isHeightFun(g) |- ∃(n, in(n, N) /\ in(v, getTermOrElse(ty, app(g, n))))) by RightExists
+
         sorry
-        // /\ c.variables.zip(c.typeArgs).zipWithIndex.map(((v: Variable, ty: Type), i: Int) => 
-        //   in(v, getTermOrElse(app(g, Variable(s"n$i"))))
-        // )
       }
 
       have(thesis) by Tautology.from(imp0, imp1)
@@ -1468,33 +1298,202 @@ object ADTTactic{
 
   }
 
+  object ADTExternalTheorems extends lisa.Main {
+    val pair = ConstantFunctionLabel("pair", 2)
+    addSymbol(pair)
+
+    val a = variable
+    val b = variable
+    val c = variable
+    val d = variable
+
+    val f = variable
+    val g = variable
+
+    val n = variable
+    val m = variable
+
+    val p = formulaVariable
+    val p1 = formulaVariable
+    val p2 = formulaVariable
+    val p3 = formulaVariable
+
+    val x = variable
+    val y = variable
+
+    val P = predicate[1]
+    val P2 = predicate[2]
+
+    val substitutionThm = Lemma((x === y, P(x)) |- P(y)) {
+      val s0 = have(x === y |- x === y) by Restate
+      have(P(x) |- P(x)) by Hypothesis
+      thenHave(thesis) by Substitution.ApplyRules(s0)
+    }
+
+    val equivalenceRewriting = Lemma((p1 <=> p2, p2 <=> p3) |- p1 <=> p3) {
+      have(thesis) by Tautology
+    }
+
+    val equivalenceReflexivity = Lemma(p1 <=> p1) {
+      have(thesis) by Tautology
+    }
+
+    val equivalenceApply = Lemma((p1 <=> p2, p1) |- p2) {
+      have(thesis) by Tautology
+    }
+
+    val permExists = Lemma(exists(x, exists(y, P2(x, y))) <=> exists(y, exists(x, P2(x, y)))) {
+      have(thesis) by Tableau
+    }
+
+    val equivalenceRevApply = Lemma((p2 <=> p1, p1) |- p2) {
+      have(thesis) by Tautology
+    }
+
+    val negEquivalence = Lemma(p1 <=> p2 |- !p1 <=> !p2) {
+      have(thesis) by Tautology
+    }
+
+    val restrictedFunctionRangeMembership = Lemma(functional(g) |- in(y, relationRange(restrictedFunction(f, d))) <=> ∃(m, in(m, d) /\ (app(restrictedFunction(f, d), m) === y))) {
+      sorry
+    }
+
+    val rangeMonotonic = Lemma(subset(f, g) |- subset(relationRange(f), relationRange(g))) {
+      sorry
+    }
+
+    val restrictedFunctionDomainMonotonic = Lemma(subset(m, n) |- subset(restrictedFunction(f, m), restrictedFunction(f, n))) {
+      sorry
+    }
+
+    val functionRangeMembership = Lemma(functional(g) |- in(y, relationRange(f)) <=> ∃(m, in(m, relationDomain(f)) /\ (app(f, m) === y))) {
+      sorry
+    }
+
+    val rightAndEquivalence = Lemma(p1 <=> p2 |- (p1 /\ p) <=> (p2 /\ p)) {
+      have(thesis) by Tableau
+    }
+
+    val notInSelf = Lemma(in(x, x) |- ()) {
+      sorry
+    }
+
+    val elementOrEmpty = Lemma(exists(y, in(y, x)) \/ (x === emptySet)) {
+      sorry
+    }
+
+    val unionMonotic = Lemma(subset(x, y) |- subset(union(x), union(y))) {
+      sorry
+    }
+
+    val subsetNotEmpty = Lemma((subset(x, y), !(x === emptySet)) |- !(y === emptySet)) {
+      sorry
+    }
+
+    val restrictedFunctionNotEmpty = Lemma((!(g === emptySet), !(n === emptySet)) |- !(restrictedFunction(g, n) === emptySet)) {
+      sorry
+    }
+
+    val emptyFunction = Lemma(!(relationDomain(g) === emptySet) |- !(g === emptySet)) {
+      sorry
+    }
+
+    val pairExtensionality = Lemma((pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))) {
+      sorry
+    }
+
+
+    // natural numbers
+    val N = Constant("N")
+    addSymbol(N)
+
+    // Axiom: N is an ordinal
+    val naturalOrdinal = Axiom(ordinal(N))
+
+    // Axiom: 0 ∈ N
+    val zeroIsNat = Lemma(in(emptySet, N)) {
+      sorry
+    }
+
+    val natNotEmpty = Lemma(!(N === emptySet)) {
+      sorry
+    }
+
+    val zeroInNat = Lemma(in(n, N) |- in(emptySet, n) \/ (n === emptySet)) {
+      sorry
+    }
+
+    val successorHomorphic = Lemma((in(n, N)) |- in(m, n) <=> in(successor(m), successor(n))) {
+      sorry
+    }
+
+    val successorInjectivity = Lemma((n === m) <=> (successor(n) === successor(m))) {
+      sorry
+    }
+
+    // Axiom: 0 ∈ N
+    val zeroIsInSuccessor = Lemma(in(n, N) |- in(emptySet, successor(n))) {
+      sorry
+    }
+
+    // Axiom: if n ∈ N then successor(n) ∈ N
+    val successorIsNat = Lemma(in(n, N) <=> in(successor(n), N)) {
+      sorry
+    }
+
+    val natWeakTransitive = Lemma((in(a, b), in(b, N)) |- in(a, N)) {
+      sorry
+    }
+
+    // Axiom: Successor is not empty
+    val successorNotEmpty = Lemma(in(n, N) |- exists(m, in(m, successor(n)))) {
+      sorry
+    }
+
+    val natTransitive = Lemma((in(a, b), in(b, c), in(c, N)) |- in(a, c)) {
+      sorry
+    }
+
+    val natTotalOrder = Lemma((in(a, N), in(b, N)) |- in(a, successor(b)) \/ in(b, a)) {
+      sorry
+    }
+
+    val zeroIsNotSucc = Lemma(!(successor(n) === emptySet)) {
+      sorry
+    }
+
+    val natSubset = Lemma(in(b, N) |- subset(a, b) <=> in(a, successor(b))) {
+      sorry
+    }
+
+    val subsetIsNat = Lemma(subset(a, b) |- in(b, N) ==> in(a, N)) {
+      sorry
+    }
+
+    val natInduction = Lemma(P(emptySet) ==> (forall(m, in(m, N) ==> (P(m) ==> P(successor(m)))) ==> forall(n, in(n, N) ==> P(n)))) {
+      sorry
+    }
+
+    // Axiom: Successor is not empty
+    val inSuccessor = Axiom(in(n, successor(n)))
+
+    val unionEmpty = Lemma(union(emptySet) === emptySet) {
+      sorry
+    }
+
+    val restrictedFunctionEmptyDomain = Lemma(restrictedFunction(f, emptySet) === emptySet) {
+      sorry
+    }
+
+    def toTerm(n: Int): Term = 
+      if n == 0 then
+        emptySet
+      else 
+        successor(toTerm(n - 1))
+
+  }
+
     
 
   
-
 }
-
-object HOLTest extends lisa.HOL{
-
-  import ADTTactic.*
-  import ADTSyntax.*
-
-    val x = typedvar(𝔹)
-
-    val typ = variable
-
-    val define(list: ADT, constructors(nil, cons)) = () | (typ, list)
-    val define(list2: ADT, constructors(nil2, cons2)) = () | (typ, list(list(typ)))
-    val define(truth: ADT, constructors(truthCons)) = ()
-    val define(adt1: ADT, constructors(c1)) = emptySet
-    val define(adt2: ADT, constructors(c2)) = list(𝔹)
-
-
-    val typecheckNil = TypingTheorem(nil(𝔹) :: list(𝔹))
-    val typecheckCons = TypingTheorem(cons(𝔹) :: (𝔹 |=> (list(𝔹) |=> list(𝔹))))
-    val typecheckNil2 = TypingTheorem(nil(list(𝔹)) :: list(list(𝔹)))
-
-    show(list.injectivity2(nil, cons))
-    
-
-  }
