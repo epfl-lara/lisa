@@ -1,4 +1,5 @@
 import lisa.SetTheoryLibrary
+import lisa.maths.settheory.SetTheory
 import lisa.maths.settheory.SetTheory.*
 //import lisa.maths.settheory.InductiveSets.*
 import lisa.maths.settheory.Comprehensions.*
@@ -13,16 +14,15 @@ import lisa.prooflib.Library
 
 import lisa.kernel.proof.SequentCalculus.*
 import java.time.Instant
-import java.security.cert.Extension
-import lisa.prooflib.BasicStepTactic.LeftExistsOne
-import lisa.prooflib.SimpleDeducedSteps.InstantiateForall
-import scala.collection.immutable.ArraySeq
 import scala.collection.immutable.HashMap
 import lisa.utils.parsing.UnreachableException
 import lisa.maths.settheory.types.TypeLib.{any, |=>, given}
 import lisa.maths.settheory.types.TypeSystem.{*, given}
 
 object ADTExternalTheorems extends lisa.Main {
+  val pair = ConstantFunctionLabel("pair", 2)
+  addSymbol(pair)
+
   val a = variable
   val b = variable
   val c = variable
@@ -119,6 +119,10 @@ object ADTExternalTheorems extends lisa.Main {
     sorry
   }
 
+  val pairExtensionality = Lemma((pair(a, b) === pair(c, d)) <=> ((a === c) /\ (b === d))) {
+    sorry
+  }
+
 
   // natural numbers
   val N = Constant("N")
@@ -141,6 +145,10 @@ object ADTExternalTheorems extends lisa.Main {
   }
 
   val successorHomorphic = Lemma((in(n, N)) |- in(m, n) <=> in(successor(m), successor(n))) {
+    sorry
+  }
+
+  val successorInjectivity = Lemma((n === m) <=> (successor(n) === successor(m))) {
     sorry
   }
 
@@ -198,6 +206,11 @@ object ADTExternalTheorems extends lisa.Main {
     sorry
   }
 
+  def toTerm(n: Int): Term = 
+    if n == 0 then
+      emptySet
+    else 
+      successor(toTerm(n - 1))
 
 }
 
@@ -244,6 +257,7 @@ object ADTTactic{
   case class BaseType(t: Term) extends Type
 
   type Tag = String
+  var tagCounter = 0
 
   /**
    * One of the constructors of an algebraic data type.
@@ -253,7 +267,12 @@ object ADTTactic{
    * @param name name of the constructor
    * @param typeArgs types of the parameters of the constructor
    */
-  class Constructor(using line: sourcecode.Line, file: sourcecode.File)(val name: String, val typeArgs: Seq[Type], val tag: Tag = null) {
+  class Constructor(using line: sourcecode.Line, file: sourcecode.File)(val name: String, val typeArgs: Seq[Type]) {
+
+    val tag: Int = tagCounter
+    tagCounter = tagCounter + 1
+
+    val tagTerm: Term = toTerm(tag)
 
     /**
      * Number of arguments in this constructor
@@ -276,6 +295,7 @@ object ADTTactic{
         case Self => Seq.empty
         case BaseType(te) => termTypeVars(te)
       }).distinct
+
               
     /**
      * Internally, an instance of this constructor is represented as a list.
@@ -287,7 +307,7 @@ object ADTTactic{
      *
      * @param args the arguments of this instance of the constructor
      */
-    def appliedTerm(targs: Seq[Term], args: Seq[Term]): Term = pair(emptySet, subterm(targs, args))
+    def appliedTerm(targs: Seq[Term], args: Seq[Term]): Term = pair(tagTerm, subterm(targs, args))
 
     def appliedTerm(args: Seq[Term]): Term = appliedTerm(typeVariables, args)
 
@@ -298,64 +318,49 @@ object ADTTactic{
      */
     def subterm(targs: Seq[Term], args: Seq[Term]): Term = args.foldRight(emptySet)((t, acc: Term) => pair(t.substitute(typeVariables.zip(targs).map(_ := _): _*), acc))
 
-    // /**
-    //  * Theorem --- Injectivity of constructors.
-    //  *
-    //  *    Two instances of this constructor are equal if and only if all of their arguments are pairwise equal
-    //  *
-    //  * e.g. Cons(head1, tail1) === Cons(head2, tail2) <=> head1 === head1
-    //  */
-    // lazy val injectivityThm =
-    //   label match
-    //     case lb: Constant =>
-    //       Theorem(lb === lb) {
-    //         have(thesis) by Tautology
-    //       }
-    //     case lb: ConstantFunctionLabel[?] =>
-    //       // variable sequences x_0, ..., x_n-1 and y_0, ..., y_n-1
-    //       val xs = for i <- 0 until arity yield Variable(s"x${i}")
-    //       val ys = for i <- 0 until arity yield Variable(s"y${i}")
+    def subterm(args: Seq[Term]): Term = subterm(typeVariables, args)
 
-    //       // this constructor instantiated with xs and ys
-    //       val lxs = lb.applyUnsafe(xs)
-    //       val lys = lb.applyUnsafe(ys)
+    def subterm: Term = subterm(variables)
 
-    //       // internal representation of this constructor instantiated with xs ys
-    //       val txs = appliedTerm(xs)
-    //       val tys = appliedTerm(ys)
+    /**
+     * Theorem --- Injectivity of constructors.
+     *
+     *    Two instances of this constructor are equal if and only if all of their arguments are pairwise equal
+     *
+     * e.g. Cons(head1, tail1) === Cons(head2, tail2) <=> head1 === head1
+     */
+    val injectivityThm =
 
-    //       // we first prove that lxs === lys <=> txs === tys
-    //       // and then use pair extensionality (i.e. injectivity) to complete the proof
-    //       Theorem((lxs === lys) <=> xs.zip(ys).map(_ === _).reduce(_ /\ _)) {
+      // variable sequences x_0, ..., x_n-1 and y_0, ..., y_n-1
+      val xs = for i <- 0 until arity yield Variable(s"x${i}")
+      val ys = for i <- 0 until arity yield Variable(s"y${i}")
 
-    //         val cons1def = have(lxs === txs) by Tautology.from(label.definition.of((variables.zip(xs).map((v, xvar) => v := xvar) :+ lxs): _*))
-    //         val cons1defFlipped = thenHave(txs === lxs) by Tautology
+      // internal representation of this constructor instantiated with xs ys
+      val txs = appliedTerm(xs)
+      val tys = appliedTerm(ys)
 
-    //         val cons2def = have(lys === tys) by Tautology.from(label.definition.of((variables.zip(ys).map((v, yvar) => v := yvar) :+ lys): _*))
-    //         val cons2defFlipped = thenHave(tys === lys) by Tautology
+      if arity == 0 then 
+        Theorem(txs === tys) {
+          have(thesis) by Restate
+        }
+      else
+        // follows from pair injectivity
+        Theorem((txs === tys) <=> /\ (xs.zip(ys).map(_ === _))) {
+        
 
-    //         have(lxs === lys |- lxs === tys) by Tautology.from(cons2def, equalityTransitivity of (x := lxs, y := lys, z := tys))
-    //         val imp1 = have(lxs === lys |- txs === tys) by Tautology.from(cons1defFlipped, lastStep, equalityTransitivity of (x := txs, y := lxs, z := tys))
+          have((txs === tys) <=> ((tagTerm === tagTerm) /\ (subterm(xs) === subterm(ys)))) by Exact(pairExtensionality)
+          thenHave((txs === tys) <=> (subterm(xs) === subterm(ys))) by Tautology
 
-    //         have(txs === tys |- lxs === tys) by Tautology.from(cons1def, equalityTransitivity of (x := lxs, y := txs, z := tys))
-    //         val imp2 = have(txs === tys |- lxs === lys) by Tautology.from(lastStep, cons2defFlipped, equalityTransitivity of (x := lxs, y := tys, z := lys))
+          // list of the possible cuts of xs and ys without the first one (empty list, full list)
+          val cumulX = xs.scanLeft[(List[Variable], List[Variable])]((Nil, xs.toList))((acc, _) => (acc._2.head :: acc._1, acc._2.tail)).tail
+          val cumulY = xs.scanLeft[(List[Variable], List[Variable])]((Nil, ys.toList))((acc, _) => (acc._2.head :: acc._1, acc._2.tail)).tail
 
-    //         have((lxs === lys) <=> (txs === tys)) by Tautology.from(imp1, imp2)
-
-    //         // now chaining pair extentionality
-
-    //         have((lxs === lys) <=> (subterm(xs) === subterm(ys))) by Tautology.from(lastStep, pairExtensionality of (a := nameTerm, b := subterm(xs), c := nameTerm, d := subterm(ys)))
-
-    //         // list of the possible cuts of xs and ys without the first one (empty list, full list)
-    //         val cumulX = xs.scanLeft[(List[Variable], List[Variable])]((Nil, xs.toList))((acc, _) => (acc._2.head :: acc._1, acc._2.tail)).tail
-    //         val cumulY = xs.scanLeft[(List[Variable], List[Variable])]((Nil, ys.toList))((acc, _) => (acc._2.head :: acc._1, acc._2.tail)).tail
-
-    //         for pl <- cumulX.zip(cumulY) do
-    //           val left = pl._1._1.zip(pl._2._1).map(_ === _).reduce(_ /\ _)
-    //           val rightX = subterm(pl._1._2)
-    //           val rightY = subterm(pl._2._2)
-    //           have((lxs === lys) <=> left /\ (rightX === rightY)) by Tautology.from(lastStep, pairExtensionality of (a := pl._1._1.head, b := rightX, c := pl._2._1.head, d := rightY))
-    //       }
+          for pl <- cumulX.zip(cumulY) do
+            val left = /\ (pl._1._1.zip(pl._2._1).map(_ === _))
+            val rightX = subterm(pl._1._2)
+            val rightY = subterm(pl._2._2)
+            have((txs === tys) <=> left /\ (rightX === rightY)) by Tautology.from(lastStep, pairExtensionality of (a := pl._1._1.head, b := rightX, c := pl._2._1.head, d := rightY))
+        }
 
   }
 
@@ -372,15 +377,15 @@ object ADTTactic{
 
 
   val unionRangeEmpty = Lemma(unionRange(emptySet) === emptySet) {
-    have(!in(pair(a, t), emptySet)) by Exact(emptySetAxiom)
-    thenHave(forall(a, !in(pair(a, t), emptySet))) by RightForall
-    val s0 = thenHave(!exists(a, in(pair(a, t), emptySet))) by Restate
+    have(!in(SetTheory.pair(a, t), emptySet)) by Exact(emptySetAxiom)
+    thenHave(forall(a, !in(SetTheory.pair(a, t), emptySet))) by RightForall
+    val s0 = thenHave(!exists(a, in(SetTheory.pair(a, t), emptySet))) by Restate
 
     have(!in(t, emptySet)) by Exact(emptySetAxiom)
-    have(in(t, emptySet) <=> exists(a, in(pair(a, t), emptySet))) by Tautology.from(lastStep, s0)
-    val defRHS = thenHave(forall(t, in(t, emptySet) <=> exists(a, in(pair(a, t), emptySet)))) by RightForall
+    have(in(t, emptySet) <=> exists(a, in(SetTheory.pair(a, t), emptySet))) by Tautology.from(lastStep, s0)
+    val defRHS = thenHave(forall(t, in(t, emptySet) <=> exists(a, in(SetTheory.pair(a, t), emptySet)))) by RightForall
 
-    have((relationRange(emptySet) === emptySet) <=> forall(t, in(t, emptySet) <=> exists(a, in(pair(a, t), emptySet)))) by InstantiateForall(emptySet)(
+    have((relationRange(emptySet) === emptySet) <=> forall(t, in(t, emptySet) <=> exists(a, in(SetTheory.pair(a, t), emptySet)))) by InstantiateForall(emptySet)(
       relationRange.definition of (r := emptySet, z := emptySet)
     )
     have(relationRange(emptySet) === emptySet) by Apply(equivalenceRevApply).on(defRHS, lastStep)
@@ -532,7 +537,7 @@ object ADTTactic{
     have(thesis) by Apply(equivalenceApply).on(lastStep, extensionalityAxiom.asInstanceOf)
   }
 
-  class ADT(using line: sourcecode.Line, file: sourcecode.File)(val name: String, val constructors: Seq[Constructor]) {
+  class UntypedADT(using line: sourcecode.Line, file: sourcecode.File)(val name: String, val constructors: Seq[Constructor]) {
 
     println(s"Generating $name...")
 
@@ -558,7 +563,6 @@ object ADTTactic{
         case BaseType(te) => te
       } 
 
-    //SMALL H
 
     def inInductiveFun(s: Term)(x: Term) = isConstructor(x, s) \/ in(x, s)
 
@@ -632,7 +636,6 @@ object ADTTactic{
     })
 
 
-    //BIG H0
     def inTransRecFun(f: Term)(x: Term) = !(f === emptySet) /\ inInductiveFun(unionRange(f))(x)
 
     val transRecFunMonotonic = Lemma(subset(f, g) |- inTransRecFun(f)(x) ==> inTransRecFun(g)(x)) {
@@ -664,7 +667,6 @@ object ADTTactic{
       thenHave((isHeightFun(g), in(n, N)) |- in(x, app(g, n)) <=> inTransRecFun(restrictedFunction(g, n))(x)) by InstantiateForall(x)
     }
 
-    // Lemma 1.3
     val heightFunCumulative = Lemma((isHeightFun(g), in(n, N)) |- ∀(m, in(m, successor(n)) ==> subset(app(g, m), app(g, n)))) {
       have((isHeightFun(g), in(n, N)) |- subset(m, n) <=> in(m, successor(n))) by Exact(natSubset)
       thenHave((isHeightFun(g), in(n, N)) |- in(m, successor(n)) <=> subset(m, n)) by Restate
@@ -698,19 +700,40 @@ object ADTTactic{
       have(thesis) by Tautology.from(lastStep, restrFunNotEmpty)
     }
 
-    val heightFunExistence = Lemma(exists(g, isHeightFun(g))) {
+    val heightFunUniqueness = Lemma(existsOne(g, isHeightFun(g))) {
       sorry
     }
 
-    val heightFunUniqueness = Lemma(existsOne(g, isHeightFun(g))) {
+    val heightFunUniqueness2 = Lemma((isHeightFun(f), isHeightFun(g)) |- f === g) {
       sorry
+    }
+
+    val heightFunExistence = Lemma(exists(g, isHeightFun(g))) {
+      have(thesis) by Apply(existsOneImpliesExists of (P := lambda(g, isHeightFun(g)))).on(heightFunUniqueness.asInstanceOf)
     }
 
     def termDefinition(z: Term): Formula = forall(t, in(t, z) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g))))
 
     val termExistence = Lemma(existsOne(z, termDefinition(z))) {
+      val heightFunUniqueness3 = have((isHeightFun(f), isHeightFun(g)) |- f === g) subproof {
+        have(thesis) by Restate.from(heightFunUniqueness2)
+      }
+
       have(exists(z, forall(t, in(t, z) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g)))))) subproof {
-        sorry
+        have((isHeightFun(f), isHeightFun(g), in(t, unionRange(f))) |- in(t, unionRange(f))) by Restate
+        thenHave((isHeightFun(f), isHeightFun(g), in(t, unionRange(f))) |- in(t, unionRange(g))) by Substitution.ApplyRules(heightFunUniqueness3)
+        thenHave((isHeightFun(f), in(t, unionRange(f))) |- isHeightFun(g) ==> in(t, unionRange(g))) by Restate
+        val sl = thenHave((isHeightFun(f), in(t, unionRange(f))) |- forall(g, isHeightFun(g) ==> in(t, unionRange(g)))) by RightForall
+
+        have(forall(g, isHeightFun(g) ==> in(t, unionRange(g))) |- forall(g, isHeightFun(g) ==> in(t, unionRange(g)))) by Hypothesis
+        thenHave(forall(g, isHeightFun(g) ==> in(t, unionRange(g))) |- isHeightFun(f) ==> in(t, unionRange(f))) by InstantiateForall(f)
+        val sr = thenHave((forall(g, isHeightFun(g) ==> in(t, unionRange(g))), isHeightFun(f)) |- in(t, unionRange(f))) by Restate
+
+        have(isHeightFun(f) |- in(t, unionRange(f)) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g)))) by Tautology.from(sl, sr)
+        thenHave(isHeightFun(f) |- forall(t, in(t, unionRange(f)) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g))))) by RightForall
+        thenHave(isHeightFun(f) |- exists(z, forall(t, in(t, z) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g)))))) by RightExists
+        thenHave(exists(f, isHeightFun(f)) |- exists(z, forall(t, in(t, z) <=> forall(g, isHeightFun(g) ==> in(t, unionRange(g)))))) by LeftExists
+        have(thesis) by Cut(heightFunExistence.asInstanceOf,lastStep)
       }
       have(thesis) by Apply(uniqueByExtension of (schemPred := lambda(t, forall(g, isHeightFun(g) ==> in(t, unionRange(g)))))).on(lastStep)
     }
@@ -723,6 +746,9 @@ object ADTTactic{
     def apply(terms: Term*) = term.applySeq(terms)
 
     val inTerm = Lemma(isHeightFun(g) |- in(x, appliedTerm) <=> in(x, unionRange(g))) {
+      val heightFunUniqueness3 = have((isHeightFun(f), isHeightFun(g)) |- f === g) subproof {
+        have(thesis) by Restate.from(heightFunUniqueness2)
+      }
       have((appliedTerm === appliedTerm) <=> termDefinition(appliedTerm)) by InstantiateForall(appliedTerm)(term.definition)
       thenHave(termDefinition(appliedTerm)) by Tautology
       val termDef = thenHave(in(x, appliedTerm) <=> forall(g, isHeightFun(g) ==> in(x, unionRange(g)))) by InstantiateForall(x)
@@ -736,10 +762,13 @@ object ADTTactic{
 
       val caseL = have((isHeightFun(g), in(x, appliedTerm)) |- in(x, unionRange(g))) by Apply(lastStep).on(termDefL)
 
-      //have((isHeightFun(g), in(x, unionRange(g), isHeightFun(f) /\ !in(x, unionRange()))))) |- in(x, unionRange(g))) by Hypothesis
-      //thenHave()
+      have((isHeightFun(f), isHeightFun(g), in(x, unionRange(g))) |- in(x, unionRange(g))) by Restate
+      thenHave((isHeightFun(f), isHeightFun(g), in(x, unionRange(g))) |- in(x, unionRange(f))) by Substitution.ApplyRules(heightFunUniqueness3)
+      thenHave((isHeightFun(g), in(x, unionRange(g))) |- isHeightFun(f) ==> in(x, unionRange(f))) by Restate
+      thenHave((isHeightFun(g), in(x, unionRange(g))) |- forall(f, isHeightFun(f) ==> in(x, unionRange(f)))) by RightForall
+      val caseR = have((isHeightFun(g), in(x, unionRange(g))) |- in(x, appliedTerm)) by Cut(lastStep, termDefR)
 
-      sorry
+      have(thesis) by Tautology.from(caseL, caseR)
 
     }
 
@@ -775,6 +804,9 @@ object ADTTactic{
 
       val imp1 = have((isHeightFun(g), consVarMembership(c, appliedTerm)) |- ∃(n, in(n, N) /\ consVarMembership(c, app(g, n)))) subproof {
         sorry
+        // /\ c.variables.zip(c.typeArgs).zipWithIndex.map(((v: Variable, ty: Type), i: Int) => 
+        //   in(v, getTermOrElse(app(g, Variable(s"n$i"))))
+        // )
       }
 
       have(thesis) by Tautology.from(imp0, imp1)
@@ -1010,8 +1042,6 @@ object ADTTactic{
       thenHave(thesis) by Restate
     }
 
-    show(structuralInduction)
-
     val patternMatching = THM(in(x, appliedTerm) |- removeConstants(isConstructor(x, appliedTerm)), s"${name} pattern constructors", line.value, file.value, Theorem) {
 
       def ineqPrecond(c: Constructor): Formula =
@@ -1086,40 +1116,191 @@ object ADTTactic{
       thenHave(thesis) by Restate
     }
 
-    show(patternMatching)
-
   
     val totalTime = (System.nanoTime - before) / 1000000
     println(s"Total time: $totalTime ms")
   }
 
-    class TypedConstructor(using line: sourcecode.Line, file: sourcecode.File)(cons: Constructor, adt: ADT)  {
+    class TypedConstructor(using line: sourcecode.Line, file: sourcecode.File)(val inner: Constructor, adt: UntypedADT)  {
 
-    val fullName = s"${adt.name}/${cons.name}"
+    val fullName = s"${adt.name}/${inner.name}"
 
     val typeVariables = adt.typeVariables
     val typeArity = typeVariables.length
 
-    val typeArgs = cons.typeArgs.map{
+    val typeArgs = inner.typeArgs.map{
       case Self => adt.appliedTerm
       case BaseType(t) => t
     }
 
     val typ = typeArgs.foldRight[Term](adt.appliedTerm)((a, b) => a |=> b) 
 
-    def appSeq(f: Term) = cons.variables.foldLeft(f)((acc, v) => f * v)
+    def appSeq(f: Term)(args: Seq[Term]): Term = args.foldLeft(f)((acc, v) => f * v)
+    def appSeq(f: Term): Term = appSeq(f)(inner.variables)
 
-    val untypedFunctionalDefinition = (c :: typ) /\ cons.variables.foldRight(appSeq(c) === cons.appliedTerm)(forall(_, _))
+    val untypedFunctionalDefinition = (c :: typ) /\ inner.variables.foldRight(appSeq(c) === inner.appliedTerm)(forall(_, _))
     val untypedFunctionalUniqueness = Lemma(existsOne(c, untypedFunctionalDefinition)) {
       sorry
     }
 
 
     val untypedFunctional = FunctionDefinition(fullName, line.value, file.value)(typeVariables, c, untypedFunctionalDefinition, untypedFunctionalUniqueness).label
+
     val typing = Axiom(typeVariables.foldRight[Formula](untypedFunctional.applySeq(typeVariables) :: typ)(forall(_, _)))
     val typedFunctional = TypedConstantFunctional(fullName, typeArity, FunctionalClass(Seq.fill(typeArity)(any), typeVariables, typ, typeArity), typing)
 
     def apply(terms: Term*) = typedFunctional.applySeq(terms)
+    
+    /**
+     * Theorem --- Injectivity of constructors.
+     *
+     *    Two instances of this constructor are equal if and only if all of their arguments are pairwise equal
+     *
+     * e.g. Cons(head1, tail1) === Cons(head2, tail2) <=> head1 === head2 /\ tail1 === tail2
+     */
+    val injectivity1 =
+
+      val tappterm = untypedFunctional.applySeq(typeVariables)
+
+      // variable sequences x_0, ..., x_n-1 and y_0, ..., y_n-1
+      val xs = for i <- 0 until inner.arity yield Variable(s"x${i}")
+      val ys = for i <- 0 until inner.arity yield Variable(s"y${i}")
+      val tappFun = untypedFunctional.applySeq(typeVariables)
+      val tappterm1 = appSeq(tappFun)(xs)
+      val tappterm2 = appSeq(tappFun)(ys)
+
+      if inner.arity == 0 then
+          Theorem(tappterm1 === tappterm2) {
+            have(thesis) by Restate
+          }
+      else 
+          Theorem((tappterm1 === tappterm2) <=> /\ (xs.zip(ys).map(_ === _))) {
+
+            val txs = inner.appliedTerm(xs)
+            val tys = inner.appliedTerm(ys)
+
+            
+
+            have(forall(c, (tappFun === c) <=> ((c :: typ) /\ inner.variables.foldRight(appSeq(c) === inner.appliedTerm)(forall(_, _))))) by Exact(untypedFunctional.definition)
+            thenHave((tappFun === tappFun) <=> ((tappFun :: typ) /\ inner.variables.foldRight(appSeq(tappFun) === inner.appliedTerm)(forall(_, _)))) by InstantiateForall(tappFun)
+            val tappFunDef = thenHave(inner.variables.foldRight(appSeq(tappFun) === inner.appliedTerm)(forall(_, _))) by Tautology
+
+            xs.zip(inner.variables).foldLeft(tappFunDef)((fact, p) => 
+              val (x, v) = p
+              fact.statement.right.head match
+                case Forall(_, phi) => thenHave(phi.substitute(v := x)) by InstantiateForall(x)
+                case _ => throw UnreachableException   
+            )
+            val tappTerm1Def = thenHave(tappterm1 === txs) by Restate
+
+            have(tappFunDef.statement) by Restate.from(tappFunDef)
+
+            ys.zip(inner.variables).foldLeft(tappFunDef)((fact, p) => 
+              val (y, v) = p
+              fact.statement.right.head match
+                case Forall(_, phi) => thenHave(phi.substitute(v := y)) by InstantiateForall(y)
+                case _ => throw UnreachableException   
+            )
+            val tappTerm2Def = thenHave(tappterm2 === tys) by Restate
+
+            val tappTerm1DefFlipped = have(txs === tappterm1) by Restate.from(tappTerm1Def)
+            val tappTerm2DefFlipped = have(tys === tappterm2) by Restate.from(tappTerm2Def)
+
+            have(tappterm1 === tappterm2 |- tappterm1 === tys) by Apply(equalityTransitivity of (y := tappterm2)).on(tappTerm2Def)
+            val imp1 = have(tappterm1 === tappterm2 |- txs === tys) by Apply(equalityTransitivity).on(tappTerm1DefFlipped, lastStep)
+
+            have(txs === tys |- tappterm1 === tys) by Apply(equalityTransitivity of (y := txs)).on(tappTerm1Def)
+            val imp2 = have(txs === tys |- tappterm1 === tappterm2) by Apply(equalityTransitivity).on(tappTerm2DefFlipped, lastStep)
+
+            have((tappterm1 === tappterm2) <=> (txs === tys)) by Tautology.from(imp1, imp2)
+            have(thesis) by Apply(equivalenceRewriting).on(lastStep, inner.injectivityThm.asInstanceOf)
+          }
+  
+    
+  }
+
+  class TypedADT(val inner: UntypedADT, val constructors: Seq[TypedConstructor]) {
+
+    def apply(terms: Term*) = inner.term.applySeq(terms)
+
+
+    def injectivity2(c1: TypedConstructor, c2: TypedConstructor) =
+      require(c1.inner.tag != c2.inner.tag, "The given constructors must be different.")
+
+      val tappFunC1 = c1.untypedFunctional.applySeq(c1.typeVariables)
+      val tappFunC2 = c2.untypedFunctional.applySeq(c2.typeVariables)
+      val appC1 = c1.appSeq(tappFunC1)
+      val appC2 = c2.appSeq(tappFunC2)
+      val t1 = c1.inner.appliedTerm
+      val t2 = c2.inner.appliedTerm
+      val tagTerm1 = c1.inner.tagTerm
+      val tagTerm2 = c2.inner.tagTerm
+
+      Theorem(!(appC1 === appC2)) {
+
+        val diffTag = have(!(tagTerm1 === tagTerm2)) subproof {
+          val tag1 = c1.inner.tag
+          val tag2 = c2.inner.tag
+
+          val minTag: Int = Math.min(tag1, tag2)
+          val maxTag: Int = Math.max(tag1, tag2)
+
+          val start = have(tagTerm1 === tagTerm2 |- toTerm(maxTag) === toTerm(minTag)) by Restate
+
+          (1 to minTag).foldLeft(start)((fact, i) => 
+            val midMaxTag = toTerm(maxTag - i)
+            val midMinTag = toTerm(minTag - i)
+
+            have(successor(midMaxTag) === successor(midMinTag) |- midMaxTag === midMinTag) by Apply(equivalenceApply).on(successorInjectivity.asInstanceOf)
+            have(tagTerm1 === tagTerm2 |- midMaxTag === midMinTag) by Cut(fact, lastStep)
+          )
+
+          val chainInjectivity = thenHave(!(toTerm(maxTag - minTag) === emptySet) |- !(tagTerm1 === tagTerm2)) by Restate
+
+          have(!(toTerm(maxTag - minTag) === emptySet)) by Exact(zeroIsNotSucc)
+          have(!(tagTerm1 === tagTerm2)) by Cut(lastStep, chainInjectivity)
+        }
+        
+        val defUnfolding = have(appC1 === appC2 |- t1 === t2) subproof {
+          have(forall(c, (tappFunC1 === c) <=> ((c :: c1.typ) /\ c1.inner.variables.foldRight(c1.appSeq(c) === t1)(forall(_, _))))) by Exact(c1.untypedFunctional.definition)
+          thenHave((tappFunC1 === tappFunC1) <=> ((tappFunC1 :: c1.typ) /\ c1.inner.variables.foldRight(appC1 === t1)(forall(_, _)))) by InstantiateForall(tappFunC1)
+          thenHave(c1.inner.variables.foldRight(appC1 === t1)(forall(_, _))) by Tautology
+
+          c1.inner.variables.foldLeft(lastStep)((fact, v) => 
+            fact.statement.right.head match
+              case Forall(_, phi) => thenHave(phi.substitute(v := x)) by InstantiateForall(x)
+              case _ => throw UnreachableException   
+          )
+          val tappTerm1Def = thenHave(t1 === appC1) by Restate
+
+          have(forall(c, (tappFunC2 === c) <=> ((c :: c2.typ) /\ c2.inner.variables.foldRight(c2.appSeq(c) === t2)(forall(_, _))))) by Exact(c2.untypedFunctional.definition)
+          thenHave((tappFunC2 === tappFunC2) <=> ((tappFunC2 :: c2.typ) /\ c2.inner.variables.foldRight(appC2 === t2)(forall(_, _)))) by InstantiateForall(tappFunC2)
+          thenHave(c2.inner.variables.foldRight(appC2 === t2)(forall(_, _))) by Tautology
+
+          c2.inner.variables.foldLeft(lastStep)((fact, v) => 
+            fact.statement.right.head match
+              case Forall(_, phi) => thenHave(phi) by InstantiateForall(v)
+              case _ => throw UnreachableException   
+          )
+          val tappTerm2Def = thenHave(appC2 === t2) by Restate
+
+          have(appC1 === appC2 |- appC1 === t2) by Apply(equalityTransitivity of (y := appC2)).on(tappTerm2Def)
+          val imp1 = have(appC1 === appC2 |- t1 === t2) by Apply(equalityTransitivity).on(tappTerm1Def, lastStep)
+        }
+
+        have(t1 === t2 |- (tagTerm1 === tagTerm2) /\ (c1.inner.subterm === c2.inner.subterm)) by Apply(equivalenceRevApply).on(pairExtensionality of (a := tagTerm1, b := c1.inner.subterm, c := tagTerm2, d := c2.inner.subterm))
+        thenHave(!(tagTerm1 === tagTerm2) |- !(t1 === t2)) by Weakening
+
+        have(!(t1 === t2)) by Cut(diffTag, lastStep)
+        thenHave(t1 === t2 |- ()) by Restate
+
+        have(appC1 === appC2 |- ()) by Cut(defUnfolding, lastStep)
+      }
+
+    val induction = inner.structuralInduction
+
+
+  
   }
 
 
@@ -1130,7 +1311,7 @@ object ADTTactic{
       def apply(t: T): ConstructorBuilder
     }
 
-    given unit_to_cons: ConstructorConverter[Unit] with {
+    given unit_to_const: ConstructorConverter[Unit] with {
       override def apply(u: Unit): ConstructorBuilder = ConstructorBuilder.empty
     }
 
@@ -1146,8 +1327,8 @@ object ADTTactic{
           override def apply(t: H *: T): ConstructorBuilder = adt_to_const(t.head) ++ any_to_const(t.tail)
     }
 
-    given term_tuple_to_const[H <: ADT, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
-            override def apply(t: H *: T): ConstructorBuilder = adt_to_const(t.head) ++ any_to_const(t.tail)
+    given term_tuple_to_const[H <: Term, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[H *: T] with {
+            override def apply(t: H *: T): ConstructorBuilder = term_to_const(t.head) ++ any_to_const(t.tail)
     }
 
     
@@ -1212,33 +1393,57 @@ object ADTTactic{
 
     case class ConstructorBuilder(param: Type*) {
       infix def | (b: ConstructorBuilder): ADTBuilder = this | ADTBuilder(Seq(b))
-      infix def | (b: ADTBuilder): ADTBuilder = ADTBuilder(this +: b.cons )
+      infix def | (b: ADTBuilder): ADTBuilder = ADTBuilder(this +: b.inner )
       infix def ++ (b: ConstructorBuilder): ConstructorBuilder = ConstructorBuilder((param.toSeq ++ b.param.toSeq): _*)
     }
 
-    case class ADTBuilder(cons: Seq[ConstructorBuilder]) {
-      infix def | (b: ADTBuilder): ADTBuilder = ADTBuilder(cons ++ b.cons)
-      infix def | (b: ConstructorBuilder): ADTBuilder = ADTBuilder(cons :+ b)
+    case class ADTBuilder(inner: Seq[ConstructorBuilder]) {
+      infix def | (b: ADTBuilder): ADTBuilder = ADTBuilder(inner ++ b.inner)
+      infix def | (b: ConstructorBuilder): ADTBuilder = ADTBuilder(inner :+ b)
       infix def | (u: Unit): ADTBuilder = this | any_to_const(u)
       infix def | (t: Type): ADTBuilder = this | any_to_const(t)
       infix def | (s: Seq[Type]): ADTBuilder = this | any_to_const(s)
       infix def | (t: EmptyTuple): ADTBuilder = this | any_to_const(t)
       infix def | [T <: Tuple](t: Type *: T)(using c: ConstructorConverter[T]): ADTBuilder = this | (any_to_const(t.head) ++ any_to_const(t.tail))
 
+      val signature: Seq[Signature] = inner.zipWithIndex.map((c, i) => (s"Constructor$i", c.param))
+
   }
 
-    case class constructors(c: Constructor *)
+    case class constructors(c: TypedConstructor *)
 
-    object constructors {
-      def apply(c: Constructor*): constructors = new constructors(c: _*)
-      // def apply(adt: ADT)(cases: Case*): Term = ???
+    type Signature = (String, Seq[Type])
+    object ADT {
+      def apply(name: String, sig: Signature*): (TypedADT, constructors) =
+        val untypedConstructors = 
+          for s <- sig yield
+            val (consName, types) = s
+            Constructor(consName, types)
+
+        val untypedADT = new UntypedADT(name, untypedConstructors)
+
+        val typedConstructors = 
+          for c <- untypedConstructors yield
+            TypedConstructor(c, untypedADT)
+        
+        (TypedADT(untypedADT, typedConstructors), constructors(typedConstructors: _*))
+
+
     }
+
+    type ADT = TypedADT
 
 
     object define {
-      def unapply(using name: sourcecode.FullName)(c: ADTBuilder): (ADT, constructors) = 
-        val constr = c.cons.zipWithIndex.map((c, i) => Constructor(s"Constructor$i", c.param, s"$i")) 
-        (ADT(name.value, constr), constructors(constr: _*))
+      var adtCounter = 0
+      def unapply(using name: sourcecode.FullName)(builder: ADTBuilder): (TypedADT, constructors) =
+        adtCounter = adtCounter + 1
+        ADT(s"ADT$adtCounter", builder.signature: _*)
+
+      def unapply(using name: sourcecode.FullName)(builder: Unit): (TypedADT, constructors) = unapply(ADTBuilder(Seq(unit_to_const(builder))))
+      def unapply(using name: sourcecode.FullName)(builder: Term): (TypedADT, constructors) = unapply(ADTBuilder(Seq(term_to_const(builder))))
+      def unapply(using name: sourcecode.FullName)(builder: Type): (TypedADT, constructors) = unapply(ADTBuilder(Seq(type_to_const(builder))))
+      def unapply(using name: sourcecode.FullName)(builder: ADT): (TypedADT, constructors) = unapply(ADTBuilder(Seq(adt_to_const(builder))))
     }
 
     // ? WIP
@@ -1263,55 +1468,6 @@ object ADTTactic{
 
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // // val define(list: ADT, constructors(nil, cons)) = () | (T, list)
-  // //val define(tree: ADT, constructors(leaf, node)) = emptySet | (tree, tree)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-  // // val ADT(list, matches(nil, cons)) = () | (T, Self)
-
-  
-
-  // //(nat, zero, succ) = ADT of (() | (T, self))
-
-  // // // println(tzero.typeChecking.statement)
-  // // // println(tsucc.typeChecking.statement)
-
-  // // ADT("List", Seq(Constructor("List", "Nil", Seq()), Constructor("List", "Cons", Seq(T, Self))))
-
-  // // ADT("Tree", Seq(Constructor("Tree", "Leaf", Seq()), Constructor("Tree", "Node", Seq(Self, Self))))
-
     
 
   
@@ -1321,20 +1477,24 @@ object ADTTactic{
 object HOLTest extends lisa.HOL{
 
   import ADTTactic.*
+  import ADTSyntax.*
 
     val x = typedvar(𝔹)
 
     val typ = variable
 
-    val list = ADT("List", Seq(Constructor("Nil", Seq()), Constructor("Cons", Seq(BaseType(typ), Self))))
-    val nil = TypedConstructor(list.constructorMap("Nil"), list)
-    val cons = TypedConstructor(list.constructorMap("Cons"), list)
+    val define(list: ADT, constructors(nil, cons)) = () | (typ, list)
+    val define(list2: ADT, constructors(nil2, cons2)) = () | (typ, list(list(typ)))
+    val define(truth: ADT, constructors(truthCons)) = ()
+    val define(adt1: ADT, constructors(c1)) = emptySet
+    val define(adt2: ADT, constructors(c2)) = list(𝔹)
 
-
-    val l = typedvar(list.term.applySeq(Seq(𝔹)))
 
     val typecheckNil = TypingTheorem(nil(𝔹) :: list(𝔹))
-    val typecheckCons = TypingTheorem(cons(𝔹) * x :: (list(𝔹) |=> list(𝔹)))
+    val typecheckCons = TypingTheorem(cons(𝔹) :: (𝔹 |=> (list(𝔹) |=> list(𝔹))))
+    val typecheckNil2 = TypingTheorem(nil(list(𝔹)) :: list(list(𝔹)))
+
+    show(list.injectivity2(nil, cons))
     
 
   }
