@@ -1,7 +1,5 @@
 # Change List
 
-## 2024-03-02
-Addition of a tactic that proves a sequent by applying a generic theorem on facts provided by the user. It can be used via `by Apply(thm).on(fact1, fact2,...)`. Replaces cases where using `Tautology` was overkill.
 ## 2024-02-05
 The "draft()" option can now be used at the start of a file to skip checking proofs of theorem outside this file during development.
 

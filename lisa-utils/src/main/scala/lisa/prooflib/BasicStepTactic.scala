@@ -446,6 +446,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(bot, Seq(K.LeftExists(botK, -1, phiK, xK)), Seq(premise))
     }
 
+    var debug = false
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
@@ -470,14 +471,14 @@ object BasicStepTactic {
             case Some(F.BinderFormula(F.Exists, x, phi)) => LeftExists.withParameters(phi, x)(premise)(bot)
             case _ => proof.InvalidProofTactic("Could not infer an existensially quantified pivot from premise and conclusion.")
           }
-        } else proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise + ∃x. φ.")
+        } else proof.InvalidProofTactic("Ambigous application of LeftExists, multiple pivots corresponding to the unquantified formula found.")
       else if (pivot.tail.isEmpty)
         pivot.head match {
           case F.BinderFormula(F.Exists, x, phi) => LeftExists.withParameters(phi, x)(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not infer an existentially quantified pivot from premise and conclusion.")
         }
       else
-        proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise + ∃x. φ.")
+        proof.InvalidProofTactic("Ambigous application of LeftExists, multiple pivots corresponding to the quantified formula found.")
     }
   }
 
@@ -1440,7 +1441,7 @@ object BasicStepTactic {
     }
   }
 
-  // TODO make specific support for subproofs written inside tactics.
+  // TODO make specific support for subproofs written inside tactics.kkkkkkk
 
   inline def TacticSubproof(using proof: Library#Proof)(inline computeProof: proof.InnerProof ?=> Unit): proof.ProofTacticJudgement =
     val iProof: proof.InnerProof = new proof.InnerProof(None)
