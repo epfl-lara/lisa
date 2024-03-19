@@ -137,14 +137,9 @@ object HOLSteps extends lisa.HOL {
    *        |- s = u
    */
   object _TRANS extends ProofTactic {
-    def apply(using proof: Proof)(t1: proof.Fact, t2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
+    def apply(using proof: Proof)(t1: proof.Fact, t2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       val s1 = t1.statement
       val s2 = t2.statement
-
-      // println("================================== STRT _TRANS ==================================")
-      // println(s"t1 ${t1.statement}")
-      // println(s"t2 ${t2.statement}")
-      // println("================================== ENDS _TRANS ==================================")
       (s1, s2) match {
         case (HOLSequent(left1, =:=(aa)*s*ta), HOLSequent(left2, =:=(ab)*tb*u) ) => //equality is too strict
           if ta == tb then
@@ -156,7 +151,15 @@ object HOLSteps extends lisa.HOL {
               val r2 = have(Discharge(have(ProofType(s)))(r1))
               val r3 = have(Discharge(have(ProofType(ta)))(r2))
               val r4 = have(Discharge(have(ProofType(u)))(r3))
+              ip.cleanAssumptions
               have(Clean.all(r4))
+
+              println("================================== STRT _TRANS ==================================")
+              println(s"t1   ${t1.statement}")
+              println(s"t2   ${t2.statement}")
+              println(s"r4   ${r4.statement}")
+              println(s"last ${lastStep.statement}")
+              println("================================== ENDS _TRANS ==================================")
             else 
               return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
           else 
