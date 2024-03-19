@@ -828,7 +828,7 @@ object HOLSteps extends lisa.HOL {
               alphaEquivalent(b1, b2)
             else false
           case _ => 
-            if t1 != t2 then println(s"Found ${t1.getClass().getName()} and ${t2.getClass.getName()} and failed")
+            //if t1 != t2 then println(s"Found ${t1.getClass().getName()} and ${t2.getClass.getName()} and failed")
             t1 == t2
       }
       println(s"Checking $t1 and $t2 for alpha eq, it's $res")
