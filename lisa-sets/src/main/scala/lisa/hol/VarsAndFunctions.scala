@@ -374,7 +374,7 @@ object VarsAndFunctions {
      
   }
 
-  private class AbstractionClosureWithoutFreeVars(
+  class AbstractionClosureWithoutFreeVars private[VarsAndFunctions] (
     val reprId: Identifier,
     val bound: TypedVar,
     val body: Term,
@@ -393,7 +393,7 @@ object VarsAndFunctions {
     //override def toString = s"(λ$bound. $body)"
   }
 
-  private class AbstractionClosureWithFreeVars(
+  class AbstractionClosureWithFreeVars private[VarsAndFunctions] (
     val repr: AbstrVar,
     val bound: TypedVar,
     val body: Term,
@@ -421,14 +421,16 @@ object VarsAndFunctions {
   ) extends AppliedFunction(insts.init.foldLeft(base.repr: Term)((acc, v) => acc @@ v), insts.last) with TypedHOLTerm {
     val typ = base.typ
 
+    override def toString() = "I"+super.toString()
+
   }
 
 
   object Abstraction {
 
-    val cache = collection.mutable.Map.empty[(TypedVar, Term), Abstraction & Term]
+    val cache = collection.mutable.ListMap.empty[(F.Identifier, Term, Term), Abstraction & Term]
     def apply(bound: TypedVar, body: Term): Abstraction & Term = {
-      cache.getOrElseUpdate((bound, body), {
+      cache.getOrElseUpdate((bound.id, bound.typ, body), {
         val freeVars: Seq[TypedVar] = (body.freeVariables - bound).toSeq.sortBy(_.id.name).collect {
           case v: TypedVar if !v.isInstanceOf[AbstrVar] => v
         }
@@ -442,6 +444,19 @@ object VarsAndFunctions {
           tforall(v, acc)
         }
         val outType = computeType(body)
+        println("Creating new lambda: " + repr)
+        println("bound is: " + bound)
+        println("body is: " + body)
+        println("key is: " + (bound.id, bound.typ, body))
+        val weird = cache.find((k, v) => k == (bound.id, bound.typ, body))
+        println("sanity: " + weird)
+        weird match
+          case None => ()
+          case Some(value) => 
+            println("new key hash: " + (bound.id, bound.typ, body).hashCode)
+            println("old key hash: " +  value._1.hashCode)
+        
+
         val defin = new AbstractionDefinition(repr, bound, body, freeVars, outType, bodyProp)
         if freeVars.isEmpty then new AbstractionClosureWithoutFreeVars(repr.id, bound, body, defin)
         else new AbstractionClosureWithFreeVars(AbstrVar(repr.id, defin), bound, body, freeVars, defin)

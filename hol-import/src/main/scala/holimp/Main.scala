@@ -14,7 +14,7 @@ object JSONParser:
   given rws: RW[SplitProofStep] = macroRW 
   given rw: RW[RawStep] = macroRW 
 
-  val fileBase = "/home/sankalp/projects/lisa/lisa-working-2/proofs/prooftrace2"
+  val fileBase = "../proofs/prooftrace2"
 
   def readJSON(file: File) = 
     read[Array[RawStep]](file)

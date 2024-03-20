@@ -114,6 +114,7 @@ object ProofPrinter {
     }
   }
 
+  def prettyProofCropped(proof: Library#Proof, maximum:Int): String = prettyFullProofLines(proof, None).takeRight(maximum).mkString("\n")
   def prettyProof(proof: Library#Proof): String = prettyFullProofLines(proof, None).mkString("\n")
   def prettyProof(proof: Library#Proof, indent: Int): String = (" " * indent) + prettyFullProofLines(proof, None).mkString("\n" + (" " * indent))
 

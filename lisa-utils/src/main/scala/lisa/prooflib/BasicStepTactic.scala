@@ -1201,6 +1201,7 @@ object BasicStepTactic {
         !K.isSameSet(botK.right + phi_s, premiseSequent.right + phi_t) &&
         !K.isSameSet(botK.right + phi_t, premiseSequent.right + phi_s)
       )
+        import lisa.utils.FOLPrinter.prettyFormula
         proof.InvalidProofTactic("Right-hand side of the conclusion + φ(s_) is not the same as right-hand side of the premise + φ(t_) (or with s_ and t_ swapped).")
       else
         proof.ValidProofTactic(bot, Seq(K.RightSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
