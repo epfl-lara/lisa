@@ -670,7 +670,9 @@ object HOLSteps extends lisa.HOL {
 
     def apply(using proof: Proof)(x: F.Variable, t:Term, prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
       val r = prem of (x := t)
-      have(r.statement) by Restate.from(r)
+      val s0 = have(r.statement) by Restate.from(r)
+      println("HERE ====================== Calling INST_TYPE")
+      have(DEF_RED.THM(s0))
     }
 
   }
@@ -897,6 +899,10 @@ object HOLSteps extends lisa.HOL {
   object DEF_RED extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       t match
+        case tyaout: TypeInstAbstractionWithout => 
+          ???
+        case tyawith: TypeInstAbstractionWith => 
+          ???
         case ia: InstAbstraction => //  $λ*a*b*c...
           val base = ia.base
           val insts = ia.insts

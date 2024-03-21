@@ -383,6 +383,8 @@ object VarsAndFunctions {
 
     override def substituteUnsafe(map: Map[F.SchematicLabel[?], F.LisaObject[?]]): Term = 
       if map.contains(repr) then map(repr).asInstanceOf[Term]
+      else if (defin.freeVariables.exists(v => map.contains(v))) then 
+        TypeInstAbstractionWithout(this, map.asInstanceOf)
       else 
         val newMap = map - bound
         AbstractionClosureWithoutFreeVars(reprId, bound.instType(newMap), body.substituteUnsafe(newMap), defin.substituteUnsafe(newMap).asInstanceOf)
@@ -406,6 +408,8 @@ object VarsAndFunctions {
     val typ = bound.typ |=> defin.outType
     override def substituteUnsafe(map: Map[F.SchematicLabel[?], F.LisaObject[?]]): AppliedFunction = 
       if map.contains(repr) then super.substituteUnsafe(map)
+      else if (defin.freeVariables.exists(v => map.contains(v))) then 
+        TypeInstAbstractionWith(this, map.asInstanceOf)
       else 
         val r = InstAbstraction(this, freeVars.map(v => map.getOrElse(v, v)).asInstanceOf)
         val exp = super.substituteUnsafe(map)
@@ -425,10 +429,21 @@ object VarsAndFunctions {
 
   }
 
+  class TypeInstAbstractionWithout(
+    val base:AbstractionClosureWithoutFreeVars,
+    val typeinst: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]
+  ) extends AbstractionClosureWithoutFreeVars(base.reprId, base.bound.substituteUnsafe(typeinst).asInstanceOf, base.body.substituteUnsafe(typeinst), base.defin.substituteUnsafe(typeinst).asInstanceOf)
+
+  class TypeInstAbstractionWith(
+    val base:AbstractionClosureWithFreeVars,
+    val typeinst: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]
+  ) extends AbstractionClosureWithFreeVars(base.repr.substituteUnsafe(typeinst).asInstanceOf, base.bound.substituteUnsafe(typeinst).asInstanceOf, base.body.substituteUnsafe(typeinst), base.freeVars.asInstanceOf, base.defin.substituteUnsafe(typeinst).asInstanceOf)
+  
+
 
   object Abstraction {
 
-    val cache = collection.mutable.ListMap.empty[(F.Identifier, Term, Term), Abstraction & Term]
+    val cache = collection.mutable.HashMap.empty[(F.Identifier, Term, Term), Abstraction & Term]
     def apply(bound: TypedVar, body: Term): Abstraction & Term = {
       cache.getOrElseUpdate((bound.id, bound.typ, body), {
         val freeVars: Seq[TypedVar] = (body.freeVariables - bound).toSeq.sortBy(_.id.name).collect {
