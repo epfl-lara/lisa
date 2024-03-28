@@ -15,6 +15,7 @@ import lisa.prooflib.SimpleDeducedSteps.Discharge
 import lisa.automation.Tableau.pr
 import lisa.maths.settheory.SetTheory.definition
 import lisa.maths.settheory.SetTheory.singletonNonEmpty
+import lisa.hol.VarsAndFunctions.{AbstractionClosureWithoutFreeVars, TypeInstAbstractionWithout, TypeInstAbstractionWith}
 
 /**
   * Here we define and implement all the basic steps from HOL Light

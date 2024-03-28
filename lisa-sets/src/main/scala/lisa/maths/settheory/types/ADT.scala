@@ -3,7 +3,7 @@ package lisa.maths.settheory.types
 import lisa.SetTheoryLibrary
 import lisa.maths.settheory.SetTheory
 import lisa.maths.settheory.SetTheory.*
-//import lisa.maths.settheory.InductiveSets.*
+// import lisa.maths.settheory.InductiveSets.*
 import lisa.maths.settheory.Comprehensions.*
 import lisa.maths.settheory.orderings.Ordinals.*
 import lisa.maths.settheory.orderings.Recursion.*
@@ -346,7 +346,7 @@ object ADTTactic{
 
   class UntypedADT(using line: sourcecode.Line, file: sourcecode.File)(val name: String, val constructors: Seq[Constructor]) {
 
-    println(s"Generating $name...")
+    //println(s"Generating $name...")
 
     val before =  System.nanoTime
 
@@ -948,7 +948,7 @@ object ADTTactic{
 
   
     val totalTime = (System.nanoTime - before) / 1000000
-    println(s"Total time: $totalTime ms")
+    //println(s"Total time: $totalTime ms")
   }
 
     class TypedConstructor(using line: sourcecode.Line, file: sourcecode.File)(val inner: Constructor, adt: UntypedADT)  {

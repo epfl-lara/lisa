@@ -1,113 +1,69 @@
-import lisa.automation.Substitution.{ApplyRules as Substitute}
-
-object Example extends lisa.Main {
-
-  val x = variable
-  val y = variable
-  val P = predicate[1]
-  val f = function[1]
-
-  // Simple proof with LISA's DSL
-  val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
-    val a1 = assume(∀(x, P(x) ==> P(f(x))))
-    have(thesis) by Tautology.from(a1 of x, a1 of f(x))
-  }
-
-  // Example of set theoretic development
-
-  /**
-   * Theorem --- The empty set is a subset of every set.
-   *
-   *    `|- ∅ ⊆ x`
-   */
-  val emptySetIsASubset = Theorem(
-    ∅ ⊆ x
-  ) {
-    have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
-    val rhs = thenHave(∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
-    have(thesis) by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
-  }
-
-  /**
-   * Theorem --- If a set has an element, then it is not the empty set.
-   *
-   *    `y ∈ x ⊢ ! x = ∅`
-   */
-  val setWithElementNonEmpty = Theorem(
-    (y ∈ x) |- x =/= ∅
-  ) {
-    have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
-  }
-
-  /**
-   * Theorem --- A power set is never empty.
-   *
-   *   `|- !powerAxiom(x) = ∅`
-   */
-  val powerSetNonEmpty = Theorem(
-    powerSet(x) =/= ∅
-  ) {
-    have(thesis) by Tautology.from(
-      setWithElementNonEmpty of (y := ∅, x := powerSet(x)),
-      powerAxiom of (x := ∅, y := x),
-      emptySetIsASubset
-    )
-  }
-
-  /*
-
-  import lisa.mathematics.settheory.SetTheory.*
 
 
-  // Examples of definitions
-  val succ = DEF(x) --> union(unorderedPair(x, singleton(x)))
-  show
+object HOLTypechecking extends lisa.HOL{
 
-  val inductiveSet = DEF(x) --> in(∅, x) /\ forall(y, in(y, x) ==> in(succ(y), x))
-  show
+    val x = typedvar(𝔹)
+    val y = typedvar(𝔹)
+    val f = typedvar(𝔹 |=> 𝔹)
+    val g = typedvar(𝔹 |=> (𝔹 |=> 𝔹))
+    val h = typedvar((𝔹 |=> 𝔹) |=> 𝔹)
 
-   */
+    output("------Expression 1------")
+    val expr1 = g*(x)*(f*(y))
+    output("expr1: " + expr1)
+    output("expr1 type: " + computeType(expr1))
 
-  /*
+    val typecheckTest = TypingTheorem(expr1 :: 𝔹)
 
 
+    output("------Expression 2------")
+    val expr2 = g*(x)*(λ(x, f*(x))*(y))
+    output("expr2: " + expr2)
+    output("expr2 type: " + computeType(expr2))
 
-// Simple tactic definition for LISA DSL
-import lisa.automation.kernel.OLPropositionalSolver.*
+    val typecheckTest2 = TypingTheorem(expr2 :: 𝔹)
 
-// object SimpleTautology extends ProofTactic {
-//   def solveFormula(using proof: library.Proof)(f: Formula, decisionsPos: List[Formula], decisionsNeg: List[Formula]): proof.ProofTacticJudgement = {
-//     val redF = reducedForm(f)
-//     if (redF == ⊤) {
-//       Restate(decisionsPos |- f :: decisionsNeg)
-//     } else if (redF == ⊥) {
-//       proof.InvalidProofTactic("Sequent is not a propositional tautology")
-//     } else {
-//       val atom = findBestAtom(redF).get
-//       def substInRedF(f: Formula) = redF.substituted(atom -> f)
-//       TacticSubproof {
-//         have(solveFormula(substInRedF(⊤), atom :: decisionsPos, decisionsNeg))
-//         val step2 = thenHave(atom :: decisionsPos |- redF :: decisionsNeg) by Substitution2(⊤ <=> atom)
-//         have(solveFormula(substInRedF(⊥), decisionsPos, atom :: decisionsNeg))
-//         val step4 = thenHave(decisionsPos |- redF :: atom :: decisionsNeg) by Substitution2(⊥ <=> atom)
-//         have(decisionsPos |- redF :: decisionsNeg) by Cut(step4, step2)
-//         thenHave(decisionsPos |- f :: decisionsNeg) by Restate
-//       }
-//     }
-//   }
-//   def solveSequent(using proof: library.Proof)(bot: Sequent) =
-//     TacticSubproof { // Since the tactic above works on formulas, we need an extra step to convert an arbitrary sequent to an equivalent formula
-//       have(solveFormula(sequentToFormula(bot), Nil, Nil))
-//       thenHave(bot) by Restate.from
-//     }
-// }
-   */
-  // val a = formulaVariable()
-  // val b = formulaVariable()
-  // val c = formulaVariable()
-  // val testTheorem = Lemma((a /\ (b \/ c)) <=> ((a /\ b) \/ (a /\ c))) {
-  //   have(thesis) by SimpleTautology.solveSequent
-  // }
-  // show
 
+    output("------Expression 3------")
+    val expr3 = x =:= y
+    output("expr3: " + expr3)
+    output("expr3 type: " + computeType(expr3))
+
+    val typecheckTest3 = TypingTheorem(expr3 :: 𝔹 )
+
+
+    output("------Expression 4------")
+    val expr4 = (g*(x)) =:= λ(x, f*(x))
+    output("expr4: " + expr4)
+    output("expr4 type: " + computeType(expr4))
+
+    val typecheckTest4 = TypingTheorem(expr4 :: 𝔹 )
+
+    output("------Expression 5------")
+    val expr5 = λ(h,  λ(f, f*(x)) =:= h)
+    output("expr5: " + expr5)
+    output("expr5 type: " + computeType(expr5))
+
+    val typecheckTest5 = TypingTheorem(expr5 :: (((𝔹 |=> 𝔹) |=> 𝔹) |=> 𝔹) )
+
+}
+
+object HOLProofs extends lisa.HOL{
+}
+
+object ADT extends lisa.HOL {
+  import lisa.maths.settheory.types.ADTTactic.*
+  import ADTSyntax.*
+
+  val typ = variable
+
+  val define(list: ADT, constructors(nil, cons)) = () | (typ, list)
+  val define(weird: ADT, constructors(c1, c2, c3)) = () | (Self, Self) | (BaseType(emptySet), Self, typ)
+
+  val typecheckNil = TypingTheorem(nil(𝔹) :: list(𝔹))
+  val typecheckCons = TypingTheorem(cons(𝔹) :: (𝔹 |=> (list(𝔹) |=> list(𝔹))))
+}
+
+object HOLImport extends lisa.HOL{
+  lisa.hol.HOLImport.importHOLLight
 }
