@@ -191,7 +191,7 @@ object HOLImport extends lisa.HOL {
     
   val lisaThms = 
     for 
-      thm <- thms.sortBy(_.id)
+      thm <- thms.sortBy(_.id).take(15)
     yield
       println(s"Processing ${thm.id}")
       val (hypotheses, conclusion) = stmts(thm.id)

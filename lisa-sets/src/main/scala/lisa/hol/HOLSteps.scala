@@ -272,21 +272,7 @@ object HOLSteps extends lisa.HOL {
           }
           catch{
             case e: Exception => 
-              println("lu: " + lu)
-              println("lu type: " + computeType(lu))
-              println("lu.bound: " + lu.bound)
-              println("lu.origin: " + lu.origin)
-              println("lu.class: " + lu.getClass().getName())
               val luC = lu.asInstanceOf[VarsAndFunctions.AbstractionClosureWithoutFreeVars]
-              println("luC.typ: " + luC.typ)
-              println("luC.defin.typ: " + luC.defin.typ)
-              println("luC.defin.bound: " + luC.defin.bound)
-              println("luC.defin.bound.typ: " + luC.defin.bound.typ)
-              println("luC.defin.body: " + luC.defin.body)
-              println("u : " + u)
-              println("u type: " + computeType(u))
-              println("x: " + x)
-              println("x type: " + computeType(x))
               Thread.sleep(200)
               throw e
           }
@@ -556,35 +542,14 @@ object HOLSteps extends lisa.HOL {
                 val s0 = have(ALPHA_EQUIVALENCE(s, t))      // |- s = t
                 val s1_step = _TRANS(s0, eq)
                 if !s1_step.isValid then {
-                  println("s: " + s)
-                  println("t: " + t)
                   val culps0 = s0.statement.right.head.asInstanceOf[F.AppliedPredicate].args(0).args(1)
                   val culpeq = eq.statement.right.head.asInstanceOf[F.AppliedPredicate].args(0).args(0).args(1)
-                  println("culps0: " + culps0)
-                  println("culpseq: " + culpeq)
                   val rs0 = culps0.args(1).asInstanceOf[AbstractionClosureWithoutFreeVars]
                   val req = culpeq.args(1).asInstanceOf[AbstractionClosureWithoutFreeVars]
-                  println("rs0: " + rs0)
-                  println("req: " + req)
-                  println("rs0.bound: " + rs0.bound)
-                  println("req.bound: " + req.bound)
-                  println("rs0.bound.id: " + rs0.bound.id)
-                  println("req.bound.id: " + req.bound.id)
-                  println("rs0.bound.typ: " + rs0.bound.typ)
-                  println("req.bound.typ: " + req.bound.typ)
-                  println("rs0.body: " + rs0.body)
-                  println("req.body: " + req.body)
                   val nrs0 = λ(rs0.bound, rs0.body)
                   val nreq = λ(req.bound, req.body)
-                  println("nrs0: " + nrs0)
-                  println("nreq: " + nreq)
-                  println("printing cache:")
                   val abstrlist = Abstraction.cache.toList
                   val elem = abstrlist(13)
-                  println("elem: " + elem)
-                  println("equals rs0: " + (elem._1 == (rs0.bound.id, rs0.bound.typ, rs0.body)))
-                  println("equals req: " + (elem._1 == (req.bound.id, req.bound.typ, req.body)))
-                  Abstraction.cache.foreach(println)
 
                   Thread.sleep(200)
 
@@ -672,7 +637,6 @@ object HOLSteps extends lisa.HOL {
     def apply(using proof: Proof)(x: F.Variable, t:Term, prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof{
       val r = prem of (x := t)
       val s0 = have(r.statement) by Restate.from(r)
-      println("HERE ====================== Calling INST_TYPE")
       have(DEF_RED.THM(s0))
     }
 
@@ -761,38 +725,19 @@ object HOLSteps extends lisa.HOL {
   private object _ALPHA_CONV_REC extends ProofTactic {
     var debug = false
     def apply(using proof: Proof)(t: Term, x: TypedVar, y: TypedVar): proof.ProofTacticJudgement = TacticSubproof {
-      if debug then println("========== _ALPHA_CONV_REC ==========")
-      if debug then println("t: " + t)
-      if debug then println("x: " + x)
-      if debug then println("y: " + y)
       t match
         case abs: Abstraction =>
-          if debug then println("t/abs is an Abstraction")
-          if debug then println("abs.bound: " + abs.bound)
           if abs.bound == x then
             val i0 = have(_ALPHA_CONV(abs.body, x, y))      // |- λx. t = λy. t[x := y]
             val i1 = have(_ALPHA_CONV_REC(abs.body, x, y))  // |- t = t.rec(x -> y)
             val i2 = have(INST(Seq(x -> y), i1))            // |- t[x := y] = t.rec(x -> y)[x := y]
             val i3 = have(ABS(y)(i2))                       // |- λy. t[x := y] = λy. t.rec(x -> y)[x := y]
             if !(_TRANS_SYM(i0, i3).isValid) then
-              debug = true
-              println("========== _ALPHA_CONV_REC ==========")
-              println("_TRANS_SYM step failed ")
-              println("t: " + t)
-              println("abs.body:   " + abs.body)
-              println("x: " + x)
-              println("y: " + y)
-              println("i0.statement.right : " + i0.statement.right.head)
-              println("i1.statement.right : " + i1.statement.right.head)
-              println("i2.statement.right : " + i2.statement.right.head)
-              println("i3.statement.right : " + i3.statement.right.head)
               val i1bis = have(_ALPHA_CONV_REC(abs.body, x, y))  // |- t = t.rec(x -> y)
               
             have(_TRANS_SYM(i0, i3))
           else
-            if debug then println("no bound match")
             val inner = have(_ALPHA_CONV_REC(abs.body, x, y)) // |- t = t.rec(x -> y)
-            if debug then println("inner.statement.right: " + inner.statement.right.head)
             have(ABS(abs.bound)(inner))                             // |- λx. t = λx. t.rec(x -> y)
 
         case AppliedFunction(func, arg) =>
@@ -861,23 +806,6 @@ object HOLSteps extends lisa.HOL {
           
 
           val s3_step = _TRANS(s1, abs)
-          // if ! s3_step.isValid then
-          //   println("======== Start alpha =========")
-          //   println("a1: " + a1)
-          //   println("a2: " + a2)
-          //   println("a1.bound: " + a1.bound)
-          //   println("a2.bound: " + a2.bound)
-          //   println("a1.body: " + a2.body)
-          //   println("a2.body: " + a2.body)
-          //   println("b1: " + b1)
-          //   println("b2: " + b2)
-          //   println("rb1: " + rb1)
-          //   println("rb2: " + rb2)
-          //   println("inner: " + inner.statement.right.head)
-          //   println("innerRed: " + innerRed.statement.right.head)
-          //   println("abs: " + abs.statement.right.head)
-            
-          //   println("s1: " + s1.statement.right)
           val s3 = have(s3_step)                        // |- λx. t = λz. s[y := z]
           val s4 = have(SYM(s2))                                // |- λz. s[y := z] = λy. s
           have(_TRANS(s3, s4))                                  // |- λx. t = λy. s
@@ -900,10 +828,10 @@ object HOLSteps extends lisa.HOL {
   object DEF_RED extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       t match
-        case tyaout: TypeInstAbstractionWithout => 
+        /*case tyaout: TypeInstAbstractionWithout => 
           ???
         case tyawith: TypeInstAbstractionWith => 
-          ???
+          ???*/
         case ia: InstAbstraction => //  $λ*a*b*c...
           val base = ia.base
           val insts = ia.insts
