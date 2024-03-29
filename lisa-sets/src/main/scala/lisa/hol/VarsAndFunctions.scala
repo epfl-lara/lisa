@@ -208,6 +208,8 @@ object VarsAndFunctions {
     Theorem(using om, name)(F.Sequent(l1 ++ l2, Set(assignment.t is assignment.typ))) {
       have(thesis) by TypeChecker.prove
     }
+
+
     
   extension (t:Term) {
     def * (t2:Term): Term = HOLApplication(t, t2)

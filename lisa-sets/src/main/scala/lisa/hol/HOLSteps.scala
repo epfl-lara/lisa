@@ -20,7 +20,7 @@ import lisa.hol.VarsAndFunctions.{AbstractionClosureWithoutFreeVars, TypeInstAbs
 /**
   * Here we define and implement all the basic steps from HOL Light
   */
-object HOLSteps extends lisa.HOL {
+object HOLSteps extends lisa._HOL {
   import lisa.SetTheoryLibrary.*
 
   //draft()
@@ -37,21 +37,21 @@ object HOLSteps extends lisa.HOL {
   //INST
   //INST_TYPE
 
-  val A = variable
-  val B = variable
-  val v = typedvar(B)
-  val w = typedvar(A)
-  val x = typedvar(A)
-  val y = typedvar(A)
-  val z = typedvar(A) 
-  val e = typedvar(A |=> A)
-  val f = typedvar(A |=> B)
-  val g = typedvar(A |=> B)
-  val h = typedvar(B |=> A)
+  private val A = variable
+  private val B = variable
+  private val v = typedvar(B)
+  private val w = typedvar(A)
+  private val x = typedvar(A)
+  private val y = typedvar(A)
+  private val z = typedvar(A) 
+  private val e = typedvar(A |=> A)
+  private val f = typedvar(A |=> B)
+  private val g = typedvar(A |=> B)
+  private val h = typedvar(B |=> A)
 
-  val p = typedvar(𝔹)
-  val q = typedvar(𝔹)
-  val r = typedvar(𝔹)
+  private val p = typedvar(𝔹)
+  private val q = typedvar(𝔹)
+  private val r = typedvar(𝔹)
 
   val eqCorrect = Theorem((x::A, y::A) |- ((x =:= y)===One) <=> (x===y)) {
     have(thesis) by Restate.from(eqDefin)

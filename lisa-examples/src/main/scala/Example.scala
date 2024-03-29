@@ -1,25 +1,33 @@
 
 
+
 object ITP2024_Examples extends lisa.HOL {
 
   ///////////////////////////
   /////////// HOL ///////////
   ///////////////////////////
 
-    val x = typedvar(𝔹)
-    val y = typedvar(𝔹)
-    val f = typedvar(𝔹 |=> 𝔹)
-    val g = typedvar(𝔹 |=> (𝔹 |=> 𝔹))
-    val h = typedvar((𝔹 |=> 𝔹) |=> 𝔹)
+  val x = typedvar(𝔹)
+  val y = typedvar(𝔹)
+  val f = typedvar(𝔹 |=> 𝔹)
+  val g = typedvar(𝔹 |=> (𝔹 |=> 𝔹))
+  val h = typedvar((𝔹 |=> 𝔹) |=> 𝔹)
 
-    
 
-    output("------Expression 5------")
-    val expr5 = λ(h,  λ(f, f*(x)) =:= h)
-    output("expr5: " + expr5)
-    output("expr5 type: " + computeType(expr5))
 
-    val typecheckTest5 = TypingTheorem(expr5 :: (((𝔹 |=> 𝔹) |=> 𝔹) |=> 𝔹) )
+
+  // :: is equivalent to ∈
+  val typecheckTest = Theorem(λ(h,  λ(f, f*(x)) =:= h) :: (((𝔹 |=> 𝔹) |=> 𝔹) |=> 𝔹) ) {
+    have(thesis) by TypeCheck
+  }
+
+  val doubleBeta = Theorem(λ(x, λ(x, y)*x)*y =:= y){
+    val s1 = have(BETA(λ(x, λ(x, y)*x)*x)) // λ(x, λ(x, y)*x)*x === λ(x, y)*x
+    val s2 = have(INST(Seq((x, y)), s1)) // λ(x, λ(x, y)*x)*y === λ(x, y)*y
+    val s3 = have(BETA(λ(x, y)*x)) // λ(x, y)*x =:= y
+    val s4 = have(INST(Seq((x, y)), s3)) // λ(x, y)*y =:= y
+    have(_TRANS(s2, s4))
+  }
 
     
 

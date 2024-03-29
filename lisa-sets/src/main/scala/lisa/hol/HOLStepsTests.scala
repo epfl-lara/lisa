@@ -5,6 +5,21 @@ import lisa.prooflib.SimpleDeducedSteps.Restate
 
 object HOLStepsTests extends lisa.HOL {
   
+  private val A = variable
+  private val B = variable
+  private val v = typedvar(B)
+  private val w = typedvar(A)
+  private val x = typedvar(A)
+  private val y = typedvar(A)
+  private val z = typedvar(A) 
+  private val e = typedvar(A |=> A)
+  private val f = typedvar(A |=> B)
+  private val g = typedvar(A |=> B)
+  private val h = typedvar(B |=> A)
+
+  private val p = typedvar(𝔹)
+  private val q = typedvar(𝔹)
+  private val r = typedvar(𝔹)
 
 
   // REFL
