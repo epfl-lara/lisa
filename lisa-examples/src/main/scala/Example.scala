@@ -31,11 +31,14 @@ object ITP2024_Examples extends lisa.HOL {
   import lisa.maths.settheory.types.ADTTactic.*
   import ADTSyntax.*
 
-  val typ = variable
+  // Type variable
+  val A = variable
 
-  val define(list: ADT, constructors(nil, cons)) = () | (typ, list)
-  val define(weird: ADT, constructors(c1, c2, c3)) = () | (Self, Self) | (BaseType(emptySet), Self, typ)
+  // Defining polymorphic lists with two constructors: nil taking no arguments, representing the empty list,
+  // and cons taking an element and a list, representing the prepending of an element to a list.
+  val define(list: ADT, constructors(nil, cons)) = () | (A, list)
 
   val typecheckNil = TypingTheorem(nil(𝔹) :: list(𝔹))
   val typecheckCons = TypingTheorem(cons(𝔹) :: (𝔹 |=> (list(𝔹) |=> list(𝔹))))
+
 }
