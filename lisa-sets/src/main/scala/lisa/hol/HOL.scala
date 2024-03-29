@@ -19,6 +19,7 @@ trait _HOL extends BasicMain {
   //export lisa.hol.HOLSteps.*
 
 
+
   def assume(using proof: library.Proof)(t: Term): proof.ProofStep =
     proof.addAssumption(eqOne(t))
     val seq = HOLSequent(Set(), t)
@@ -35,6 +36,15 @@ trait _HOL extends BasicMain {
 
 trait HOL extends _HOL {
   export lisa.hol.HOLSteps.*
+
+  export lisa.prooflib.BasicStepTactic.*
+  export lisa.prooflib.SimpleDeducedSteps.*
+
+  export lisa.automation.Tautology
+  export lisa.automation.Substitution
+  export lisa.automation.Tableau
+  export lisa.automation.Apply
+  export lisa.automation.Exact
 
   def Theorem(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = 
     val (l1, l2) = computeContext(statement.freeVariables.toSet)

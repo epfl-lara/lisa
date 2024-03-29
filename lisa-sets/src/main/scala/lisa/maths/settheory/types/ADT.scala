@@ -56,6 +56,7 @@ object ADTTactic{
       case And(phi, psi) => removeConstants(phi) /\ removeConstants(psi)
       case Implies(True, phi) => removeConstants(phi)
       case Implies(phi, psi) => Implies(removeConstants(phi), removeConstants(psi))
+      case Iff(phi, psi) => Iff(removeConstants(phi), removeConstants(psi))
       case _ => f
     
 
@@ -965,7 +966,7 @@ object ADTTactic{
 
     val typ = typeArgs.foldRight[Term](adt.appliedTerm)((a, b) => a |=> b) 
 
-    def appSeq(f: Term)(args: Seq[Term]): Term = args.foldLeft(f)((acc, v) => f * v)
+    def appSeq(f: Term)(args: Seq[Term]): Term = args.foldLeft(f)((acc, v) => acc * v)
     def appSeq(f: Term): Term = appSeq(f)(inner.variables)
 
     val untypedFunctionalDefinition = (c :: typ) /\ inner.variables.foldRight(appSeq(c) === inner.appliedTerm)(forall(_, _))
@@ -990,13 +991,12 @@ object ADTTactic{
      */
     val injectivity1 =
 
-      val tappterm = untypedFunctional.applySeq(typeVariables)
-
       // variable sequences x_0, ..., x_n-1 and y_0, ..., y_n-1
       val xs = for i <- 0 until inner.arity yield Variable(s"x${i}")
       val ys = for i <- 0 until inner.arity yield Variable(s"y${i}")
-      val tappFun = untypedFunctional.applySeq(typeVariables)
+      val tappFun = typedFunctional.applySeq(typeVariables)
       val tappterm1 = appSeq(tappFun)(xs)
+      println(tappterm1)
       val tappterm2 = appSeq(tappFun)(ys)
 
       if inner.arity == 0 then
@@ -1004,7 +1004,7 @@ object ADTTactic{
             have(thesis) by Restate
           }
       else 
-          Theorem((tappterm1 === tappterm2) <=> /\ (xs.zip(ys).map(_ === _))) {
+          Theorem(removeConstants((tappterm1 === tappterm2) <=> /\ (xs.zip(ys).map(_ === _)))) {
 
             val txs = inner.appliedTerm(xs)
             val tys = inner.appliedTerm(ys)
