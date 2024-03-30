@@ -335,6 +335,8 @@ object TypeSystem  {
   ///// Type Checking /////
   /////////////////////////
 
+  def TypeCheck(using proof: SetTheoryLibrary.Proof) = (bot:lisa.fol.FOL.Sequent) => TypeChecker.prove(bot)
+
   object TypeChecker extends ProofTactic {
     private val x = variable
 

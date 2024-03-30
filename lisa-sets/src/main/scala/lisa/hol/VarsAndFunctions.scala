@@ -208,6 +208,8 @@ object VarsAndFunctions {
     Theorem(using om, name)(F.Sequent(l1 ++ l2, Set(assignment.t is assignment.typ))) {
       have(thesis) by TypeChecker.prove
     }
+
+
     
   extension (t:Term) {
     def * (t2:Term): Term = HOLApplication(t, t2)
@@ -413,9 +415,7 @@ object VarsAndFunctions {
       else 
         val r = InstAbstraction(this, freeVars.map(v => map.getOrElse(v, v)).asInstanceOf)
         val exp = super.substituteUnsafe(map)
-        if !(r == exp) then 
-          println("r: " + r)
-          println("exp: " + exp)
+        
         r
   }
 
@@ -459,17 +459,6 @@ object VarsAndFunctions {
           tforall(v, acc)
         }
         val outType = computeType(body)
-        println("Creating new lambda: " + repr)
-        println("bound is: " + bound)
-        println("body is: " + body)
-        println("key is: " + (bound.id, bound.typ, body))
-        val weird = cache.find((k, v) => k == (bound.id, bound.typ, body))
-        println("sanity: " + weird)
-        weird match
-          case None => ()
-          case Some(value) => 
-            println("new key hash: " + (bound.id, bound.typ, body).hashCode)
-            println("old key hash: " +  value._1.hashCode)
         
 
         val defin = new AbstractionDefinition(repr, bound, body, freeVars, outType, bodyProp)
@@ -528,19 +517,14 @@ object VarsAndFunctions {
       given SetTheoryLibrary.type = SetTheoryLibrary
       val r = if true then apply2(t) else t match 
         case t: TypedHOLTerm => 
-          //println("Good: Caching for " + t)
           val r = t.asInstanceOf[HOLTerm].getTypThmOrElseUpdate {
             have(apply2(t.asTerm))
           }
           lisa.prooflib.SimpleDeducedSteps.Restate.from(r)(r.statement)
         case tc: TypedConstant[?] => 
-          //println("Good: Caching for " + t)
           lisa.prooflib.SimpleDeducedSteps.Restate.from(tc.justif)(tc.justif.statement)
         case _ => 
-          println("Warning: No caching for " + t)
-          println("it has class " + t.getClass())
           apply2(t)
-        //val rt = apply2(t)
 
         val r1 = have(r)
         val r2 = have(r1.statement) by lisa.prooflib.BasicStepTactic.Weakening(r1)

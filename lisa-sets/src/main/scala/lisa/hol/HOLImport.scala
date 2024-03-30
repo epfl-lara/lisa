@@ -19,6 +19,10 @@ import lisa.maths.settheory.types.TypeSystem
 import lisa.hol.VarsAndFunctions.TypingTheorem
 
 object HOLImport extends lisa.HOL {
+  private val A = variable
+  private val B = variable
+  private val x = typedvar(A)
+  private val y = typedvar(A)
 
   import library._
   
@@ -191,7 +195,7 @@ object HOLImport extends lisa.HOL {
     
   val lisaThms = 
     for 
-      thm <- thms.sortBy(_.id)
+      thm <- thms.sortBy(_.id).take(15)
     yield
       println(s"Processing ${thm.id}")
       val (hypotheses, conclusion) = stmts(thm.id)
@@ -263,7 +267,7 @@ object HOLImport extends lisa.HOL {
         val sequent = HOLSequent(lisaHyps, lisaConc)
           val proof = steps(thm.id)
 
-        val res = THM(sequent, thm.nm, thm.id, "HOL.Import", Theorem):
+        val res = THM(sequent, thm.nm, thm.id, "HOL.Import", lisa.SetTheoryLibrary.Theorem):
           val step = reconstruct(proof)
           have(Clean.all(step))
           println(s"PROVED :: \n\t${lastStep.statement}\nNEEDED ::\n\t$sequent")
