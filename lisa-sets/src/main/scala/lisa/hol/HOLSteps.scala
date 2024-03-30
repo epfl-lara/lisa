@@ -897,6 +897,17 @@ object HOLSteps extends lisa.HOL {
       else proof.InvalidProofTactic(s"Given terms are not alpha equivalent: $t1 and $t2.")
   }
 
+  /**
+    * For a term `r`, prove that `r === r2`, where `r2` is its canonical form,
+    * with internal instantiations eliminated.
+    *
+    * For example, `DEF_RED((λf. f x) [x := y])` proves that 
+    * `(λf. f x) [x := y] === λf. f y` . 
+    *
+    * Eliminates [[InstAbstraction]], [[TypeInstAbstractionWithout]], and
+    * [[TypeInstAbstractionWith]]. Produces a trivial proof of `r === r` if the
+    * term is already canonical.
+    */
   object DEF_RED extends ProofTactic {
     def apply(using proof: Proof)(t: Term): proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
       t match
