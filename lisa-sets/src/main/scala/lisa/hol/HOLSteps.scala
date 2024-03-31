@@ -897,7 +897,76 @@ object HOLSteps extends lisa._HOL {
               throw new Exception(s"Was expecting a definition of the form ∀(x: TypedVar,  x::T => f) but got $instDef")
           
         case tyawith: TypeInstAbstractionWith => 
-          ???*/
+          ip.cleanAssumptions
+          val freeVars = tyawith.base.freeVars
+          val inst = tyawith.typeinst
+          val newTypes = freeVars.map(v => v.typ.substituteUnsafe(inst))
+          val newVars = freeVars.zip(newTypes).map((v, t) => TypedVar(v.id, t))
+          val bodyProp = tyawith.base.defin.bodyProp
+          val baseStmt = have(Restate(bodyProp |- bodyProp)).of(inst.map(_ := _.asInstanceOf).toSeq: _*)
+          val instStmt = newVars.foldLeft(baseStmt: ip.Fact) { case (step, v) =>
+            val s0 = step of v
+            s0.statement.right.head match
+              case F.==>(left, right) =>
+                val s1 = have(step.statement.left + (v :: v.typ) |- right) by Restate.from(s0)
+                s1
+              case _ =>
+                throw new Exception(s"Malformed definition. Expected type qualified proposition (x :: T ==> P(x)) but got ${s0.statement.right.head}")
+          }
+          val instDef = instStmt.statement.right.head
+          val (x, oldType, newType) = instDef match
+            case F.forall(xOld: F.Variable, F.==>(_ is (tp: Term), _)) => 
+              val newType = tp.substituteUnsafe(inst)
+              val x = TypedVar(xOld.id, newType)
+              (x, tp, newType)
+            case _ => 
+              throw new Exception(s"Was expecting a definition of the form ∀(x: TypedVar,  x::T => f) but got $instDef")
+          
+          instDef match
+            case F.forall(_, F.==>(v2 is (tp2: Term), l === r)) =>
+              assert(tp2 == newType, s"Malformed type instantiation. Expected $tp2 == $newType.")
+              val defR = have(DEF_RED(r))
+              defR.statement.right.head match
+                case `r` === r2 => 
+                  // r2 is the canonical form of r, so λ(x, r2) is the canonical form of t
+                  val lambdaR = λ(x, r2)
+                  val ctx = computeContext(Set(t, lambdaR))
+                  val assumptions = ctx._1 ++ ctx._2 + instDef
+
+                  val sv = F.Variable("@@substitutionVariable@@") // dummy substitution variable
+
+                  // we also know that l = t * x
+                  val a1 = have(instDef |- instDef) by Hypothesis
+                  val s0 = have(assumptions + (x is newType) |- t*x === r) by Weakening(a1 of x)
+                  val s1 = have(assumptions + (x is newType) + (r === r2) |- t*x === r2) by RightSubstEq.withParametersSimple(List(r -> r2), F.lambda(sv, t*x === sv))(s0)
+                  val s2 = have(assumptions + (x is newType) |- t*x === r2) by Cut(defR, s1)
+
+                  // abstract away x
+                  // λ(x, r) * x === r
+                  val pure = have(BETA_PRIM(lambdaR*x)) // λ(x, r)*x === r
+                  val s3 = have(assumptions + (x is newType) + (lambdaR*x === r2) |- t*x === lambdaR*x) by RightSubstEq.withParametersSimple(List(r2 -> lambdaR*x), F.lambda(sv, t*x === sv))(s2)
+                  val s4 = have(assumptions + (x is newType) |- t*x === lambdaR*x) by Cut(pure, s3)
+                  val s5 = have(assumptions |- (x is newType) ==> (t*x === lambdaR*x)) by Restate.from(s4)
+                  val s6 = have(assumptions |- tforall(x, t*x === lambdaR*x)) by RightForall(s5)
+
+                  // eliminate x, t === lambdaR by functional extensionality
+                  val newOutType = tyawith.base.defin.outType.substitute(inst.map(_ := _.asInstanceOf).toSeq: _*)
+                  val absType = newType |=> newOutType
+                  val funcExt = funcUnique of (f := lambdaR, g := t, A := newType, B := newOutType)
+                  val s7 = have(assumptions + (t is absType) + (lambdaR is absType) |- (t === lambdaR)) by Tautology.from(funcExt, s6)
+
+                  // remove extra assumptions and clean up
+                  val s8 = have(Discharge(have(ProofType(t)))(s7))
+                  val s9 = have(Discharge(have(ProofType(lambdaR)))(s8))
+
+                  val defFold = have(Restate(tyawith.base.defin |- bodyProp))
+                  val s10 = have(Discharge(defFold)(s9))
+                case _ => 
+                  throw new Exception(s"Was expecting an equality but got ${defR.statement.right.head}")
+
+            case _ => 
+              throw new Exception(s"Was expecting a definition of the form ∀(x: TypedVar,  x::T => f) but got $instDef")
+
         case ia: InstAbstraction => //  $λ*a*b*c...
           val base = ia.base
           val insts = ia.insts
