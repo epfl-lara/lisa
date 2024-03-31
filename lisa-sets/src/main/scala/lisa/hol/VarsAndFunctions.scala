@@ -446,7 +446,7 @@ object VarsAndFunctions {
   class TypeInstAbstractionWith(
     val base:AbstractionClosureWithFreeVars,
     val typeinst: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]
-  ) extends AbstractionClosureWithFreeVars(base.repr.substituteUnsafe(typeinst).asInstanceOf, base.bound.substituteUnsafe(typeinst).asInstanceOf, base.body.substituteUnsafe(typeinst), base.freeVars.asInstanceOf, base.defin.substituteUnsafe(typeinst).asInstanceOf)
+  ) extends AbstractionClosureWithFreeVars(base.repr.substituteUnsafe(typeinst).asInstanceOf, base.bound.substituteUnsafe(typeinst).asInstanceOf, base.body.substituteUnsafe(typeinst), base.freeVars.map(_.substituteUnsafe(typeinst)).asInstanceOf, base.defin.substituteUnsafe(typeinst).asInstanceOf)
   
 
 
