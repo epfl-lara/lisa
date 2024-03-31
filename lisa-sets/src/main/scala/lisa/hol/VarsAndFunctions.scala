@@ -327,6 +327,15 @@ object VarsAndFunctions {
 
 
   class AbstrVar( id: Identifier, val defin:AbstractionDefinition ) extends TypedVar(id, defin.typ){
+    override def substituteUnsafe(map: Map[SchematicLabel[?], LisaObject[?]]): Term = 
+
+      if map.contains(this) then map(this).asInstanceOf[Term]
+      else 
+        val typ2 = defin.typ.substituteUnsafe(map)
+        if typ2 == defin.typ then this
+        else 
+          val t = new AbstrVar(id, defin.substituteUnsafe(map - this).asInstanceOf) // TODO: appropriate?
+          t
   }
 
 
