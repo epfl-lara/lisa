@@ -10,9 +10,5 @@ This branch is an archive containing the implementation of the features presente
  - Then, clone the present project.
  - In the root folder, run `sbt`.
  - Type `project lisa-examples` in the `sbt` interactive console.
- - Then `run`
-    - For examples of typechecking proofs within Lisa, select `HOLTypechecking` as the main class (number 3).
-    - For an example of ADT definition and typecheking within Lisa, select `ADT` as the main class (number 1).
-    - For an example of automatic import of a part of HOL Light library in Lisa, select `HOLImport` as the main class (number 2).
-
+ - Then `run`.
 - All examples are implemented in [Example.scala](https://github.com/epfl-lara/lisa/blob/itp2024-archive/lisa-sets/src/main/scala/lisa/hol/Example.scala) .

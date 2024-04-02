@@ -8,51 +8,54 @@ import lisa.prooflib.*
 import lisa.utils.unification.UnificationUtils.*
 import scala.util.boundary, boundary.break
 
-
-object OrAggregate extends ProofTactic {
-
-  def apply(using lib: Library, proof: lib.Proof)(facts: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement =
-
+object QuantifiersIntro extends ProofTactic {
+  def apply(using lib: Library, proof: lib.Proof)(vars: Seq[Variable], rightToLeft: Boolean = true)(fact: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
     TacticSubproof { sp ?=>
-      if facts.isEmpty then
-          lib.have(bot) by Restate
+      if vars.isEmpty then
+        lib.have(bot) by Restate.from(fact)
       else
-        val left = facts.head.statement.left.filter(bot.left.contains)
-        val right = bot.right
+        val diff: Sequent = bot -- fact.statement
 
-        val start = lib.have( left + False |- right) by Restate
+        diff match
+          case Sequent(s, _) if s.size == 1 =>
+            val diffRest = bot.left -- s
+            val f = s.head
+            val fWithoutQuant = (fact.statement.left -- diffRest).head
+            f match
+              case BinderFormula(Forall, _, _) => 
+                vars.foldRight[(sp.Fact, Formula)](fact, fWithoutQuant)( (v, acc) => 
+                  val (accFact, accFormula) = acc
+                  val newFormula = forall(v, accFormula)
+                  (lib.have(diffRest + newFormula |- bot.right) by LeftForall(accFact), newFormula)
+                )
+              case BinderFormula(Exists, _, _) => 
+                vars.foldRight[(sp.Fact, Formula)](fact, fWithoutQuant)( (v, acc) => 
+                  val (accFact, accFormula) = acc
+                  val newFormula = exists(v, accFormula)
+                  (lib.have(diffRest + newFormula |- bot.right) by LeftExists(accFact), newFormula)
+                )
+              case _ => return proof.InvalidProofTactic(s"The formula that changed is not quantified: $f.")
+          case Sequent(_, s) if s.size == 1 =>
+            val diffRest = bot.right -- s
+            val f = s.head
+            val fWithoutQuant = (fact.statement.right -- diffRest).head
+            f match
+              case BinderFormula(Forall, _, _) => 
+                vars.foldRight[(sp.Fact, Formula)](fact, fWithoutQuant)( (v, acc) => 
+                  val (accFact, accFormula) = acc
+                  val newFormula = forall(v, accFormula)
+                  (lib.have(bot.left |- diffRest + newFormula) by RightForall(accFact), newFormula)
+                )
+              case BinderFormula(Exists, _, _) => 
+                vars.foldRight[(sp.Fact, Formula)](fact, fWithoutQuant)( (v, acc) => 
+                  val (accFact, accFormula) = acc
+                  val newFormula = exists(v, accFormula)
+                  (lib.have(bot.left |- diffRest + newFormula) by RightExists(accFact), newFormula)
+                )
+              case _ => return proof.InvalidProofTactic(s"The formula that changed is not quantified: $f.")
+          case Sequent(s1, s2) if s1.isEmpty && s2.isEmpty => lib.have(bot) by Restate.from(fact)
+          case _ => return proof.InvalidProofTactic("Two or more formulas in the sequent have changed.")
 
-        facts.foldLeft((start, False.asInstanceOf[Formula])) (
-          (acc, fact) => 
-            val (aggreg, tail) = acc
 
-            val head = (fact.statement.left -- left).head
-
-            (lib.have(left + (tail \/ head) |- right) by LeftOr(aggreg, fact), tail \/ head)
-        )
-    }  
-}
-
-object AndAggregate extends ProofTactic {
-
-  def apply(using lib: Library, proof: lib.Proof)(facts: Seq[proof.Fact])(bot: Sequent): proof.ProofTacticJudgement =
-
-    
-
-    TacticSubproof { sp ?=>
-      if facts.isEmpty then
-        lib.have(bot) by Restate
-      else
-        val left = bot.left
-        val start = lib.have( left |- True) by Restate
-
-        facts.foldLeft((start, True.asInstanceOf[Formula])) (
-          (acc, fact) => 
-            val (aggreg, tail) = acc
-
-            val head = fact.statement.right.head
-
-            (lib.have(left |- tail /\ head) by RightAnd(aggreg, fact), tail /\ head)
-        )
     }  
 }

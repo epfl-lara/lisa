@@ -1,7 +1,5 @@
 
-import lisa.automation.Exact
-
-object ITP2024_Examples extends lisa.HOL {
+object ITP2024_HOL_Examples extends lisa.HOL {
 
   ///////////////////////////
   /////////// HOL ///////////
@@ -29,47 +27,91 @@ object ITP2024_Examples extends lisa.HOL {
     have(_TRANS(s2, s4))
   }
 
-    
+}
 
   ////////////////////////////
   /////////// ADTs ///////////
   ////////////////////////////
 
-
+object ITP2024_ADT_Examples extends lisa.Main {
   import lisa.maths.settheory.types.ADTTactic.*
-  import lisa.fol.FOL.*
+  import lisa.maths.settheory.types.TypeSystem.*
   import ADTSyntax.*
-  import lisa.prooflib.SimpleDeducedSteps.*
 
-
-  // Type variable
+  // variable declarations
   val A = variable
+  val B = variable
+  val C = variable
 
-  // Defining polymorphic lists with two constructors: nil taking no arguments, representing the empty list,
-  // and cons taking an element and a list, representing the prepending of an element to a list.
+  val a0 = variable
+  val a1 = variable
+  val b0 = variable
+  val b1 = variable
+
+  val l = variable
+  val x = variable
+  val y = variable
+
+  val opt = variable
+  val P = predicate[1]
+
+  
+  // Examples of ADT
+
+  // Product type with only constructor pair :: A -> B -> A * B
+  val define(product: ADT, constructors(pair)) = (A, B)
+
+  // Sum type with constructors left :: A -> A + B and right :: B -> A + B
+  val define(sum: ADT, constructors(left, right)) = A | B 
+
+  // Boolean type with two constructors: true :: bool and false :: bool
+  val define(bool: ADT, constructors(tru, fals)) = () | ()
+
+  // Unit type with only one constructor (and value): u :: unit
+  val define(unit, constructors(u)) = ()
+
+  // Empty type with no constructors 
+  val define(nothing: ADT, constructors()) = None
+
+  // Option type with two constructors: none :: Option A and some :: A -> Option A
+  val define(option: ADT, constructors(none, some)) = () | A
+
+  // Natural numbers with two constructors: zero :: int and succ :: int -> int
+  val define(int: ADT, constructors(zero, succ)) = () | int
+
+  // List type with two constructors: nil :: list A and cons :: A -> list A -> list A
   val define(list: ADT, constructors(nil, cons)) = () | (A, list)
 
-  // Theorem: nil(𝔹) has type list(𝔹)
-  val typecheckNil = Theorem(nil(𝔹) :: list(𝔹)) {
-    have(forall(A, nil(A) :: list(A))) by Restate.from(nil.typing)
-    thenHave(thesis) by InstantiateForall(𝔹)
-  }
+  
+  // Example of theorem on lists using introduction rules, injectivity of constructors and structural induction
+  // Theorem: l != cons * x * l for any x of type A and list l of A
+  val listNeqPrepend = Theorem((l :: list(A), x :: A) |- !(l === cons(A) * x * l)) {
+    val typeNil = have(nil(A) :: list(A)) by TypeChecker.prove
+    val typeCons = have((y :: A, l :: list(A)) |- cons(A) * y * l :: list(A)) by TypeChecker.prove
+    have(x :: A ==> !(nil(A) === cons(A) * x * nil(A))) by Tautology.from(list.injectivity(nil, cons) of (b0 := x, b1 := nil(A)), typeNil)
+    val baseCase = thenHave(forall(x, x :: A ==> !(nil(A) === cons(A) * x * nil(A)))) by RightForall
 
-  // Theorem: cons(𝔹) has type 𝔹 -> list(𝔹) -> list(𝔹)
-  val typecheckCons = Theorem(cons(𝔹) :: (𝔹 |=> (list(𝔹) |=> list(𝔹)))) {
-    have(forall(A, cons(A) :: (A |=> (list(A) |=> list(A))))) by Restate.from(cons.typing)
-    thenHave(thesis) by InstantiateForall(𝔹)
-  }
+    have((y :: A ==> !(l === cons(A) * y * l), y :: A, l :: list(A)) |- x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l))) by Tautology.from(
+      cons.injectivity of (a0 := y, a1 := l, b0 := x, b1 := cons(A) * y * l),
+      typeCons
+    )
+    thenHave((y :: A ==> !(l === cons(A) * y * l), y :: A, l :: list(A)) |- forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))) by RightForall
+    thenHave((forall(x, x :: A ==> !(l === cons(A) * x * l)), y :: A, l :: list(A)) |- forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))) by LeftForall
+    thenHave(y :: A |- l :: list(A) ==> (forall(x, x :: A ==> !(l === cons(A) * x * l)) ==>  forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l))))) by Tautology
+    thenHave(y :: A |- forall(l, l :: list(A) ==> (forall(x, x :: A ==> !(l === cons(A) * x * l)) ==>  forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))))) by RightForall
+    thenHave(y :: A ==> forall(l, l :: list(A) ==> (forall(x, x :: A ==> !(l === cons(A) * x * l)) ==>  forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))))) by Restate
+    val inductiveCase = thenHave(forall(y, y :: A ==> forall(l, l :: list(A) ==> (forall(x, x :: A ==> !(l === cons(A) * x * l)) ==>  forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l))))))) by RightForall
 
-
-  val a = typedvar(A)
-  val l1 = typedvar(list(A))
-  val l2 = typedvar(list(A))
-
-  // Theorem: Two lists with the same head are equal if and only if their tails are equal
-  val prependSameElement = Theorem((cons(A) * a * l1 === cons(A) * a * l2) <=> (l1 === l2)) {
-    have((cons(A) * a * l1 === cons(A) * a * l2) <=> ((a === a) /\ (l1 === l2))) by Exact(cons.injectivity1 of (x := a)) 
-    thenHave(thesis) by Weakening
+    have(forall(l, l :: list(A) ==> forall(x, x :: A ==> !(l === cons(A) * x * l)))) by Tautology.from(
+      list.induction of (P := lambda(l, forall(x, x :: A ==> !(l === cons(A) * x * l)))), 
+      baseCase,
+      inductiveCase,
+    )
+    
+    thenHave(l :: list(A) ==> forall(x, x :: A ==> !(l === cons(A) * x * l))) by InstantiateForall(l)
+    thenHave(l :: list(A) |- forall(x, x :: A ==> !(l === cons(A) * x * l))) by Tautology
+    thenHave(l :: list(A) |- x :: A ==> !(l === cons(A) * x * l)) by InstantiateForall(x)
+    thenHave(thesis) by Tautology
   }
 
 }
