@@ -23,7 +23,7 @@ import lisa.prooflib.OutputManager
 object Goeland extends ProofTactic with ProofSequentTactic {
   private var i : Int = 0
   
-  val goelandExec = "../goeland_linux_release"
+  val goelandExec = "../bin/goeland_linux_release"
 
   class OsNotSupportedException(msg: String) extends Exception(msg)
   
@@ -58,7 +58,7 @@ object Goeland extends ProofTactic with ProofSequentTactic {
       case Success(value) => proof.ValidProofTactic(bot, value.steps, Seq())
       case Failure(e) => e match
         case e: FileNotFoundException  => throw new Exception("For compatibility reasons, external provers can't be called in non-draft mode" +
-          " and all proofs must have already been generated and be available in static files. You can enable draft mode by adding `draft()` at the top of your workingfile.")
+          " unless all proofs have already been generated and be available in static files. You can enable draft mode by adding `draft()` at the top of your working file.")
         case e: OsNotSupportedException => throw e
         case e => 
           throw e
@@ -71,7 +71,7 @@ object Goeland extends ProofTactic with ProofSequentTactic {
 
   /**
     * Solve a sequent using the Goéland automated theorem prover, and return the kernel proof.
-    * At the moment, this option is only available on Linux system.
+    * At the moment, this option is only available on Linux systems.
     */
   def solveK(using line: sourcecode.Line, file: sourcecode.File)(axioms: Seq[K.Sequent], sequent: K.Sequent, source:String, generateProofs : Boolean): Try[K.SCProof] = {
     val filename = source
@@ -104,7 +104,7 @@ object Goeland extends ProofTactic with ProofSequentTactic {
       else if OS.contains("win") then
         Failure(OsNotSupportedException("The Goeland automated theorem prover is not yet supported on Windows."))
       else 
-        Failure(OsNotSupportedException("The Goeland automated theorem prover is for now only supported on Linux."))
+        Failure(OsNotSupportedException("The Goeland automated theorem prover is only supported on Linux for now."))
     else 
       if File(foldername+outputname+".p").exists() then
         val proof = reconstructProof(new File(foldername+outputname+".p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
