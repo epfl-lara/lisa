@@ -55,6 +55,7 @@ def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$c
 lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "6434e21bd08872cf547c8f0efb67c963bfdf4190")
 
 lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
+lazy val customTstpParser = githubProject("https://github.com/SimonGuilloud/scala-tptp-parser.git", "eae9c1b7a9546f74779d77ff50fa6e8a1654cfa0")
 
 scallion/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
@@ -92,7 +93,8 @@ lazy val utils = Project(
   .dependsOn(kernel)
   .dependsOn(silex)
   .dependsOn(scallion % "compile->compile")
-  .settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
+  .dependsOn(customTstpParser)
+  //.settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
 
 ThisBuild / assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard

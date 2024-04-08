@@ -1,14 +1,16 @@
 # Change List
 
+## 2024-03-02 
+Support for reconstructing proofs from file in SC-TPTP format. Support and inclusion of Goeland as a tactic. Doc in the manual.
+
 ## 2024-03-02
 Addition of a tactic that proves a sequent by applying a generic theorem on facts provided by the user. It can be used via `by Apply(thm).on(fact1, fact2,...)`. Replaces cases where using `Tautology` was overkill.
+
 ## 2024-02-05
 The "draft()" option can now be used at the start of a file to skip checking proofs of theorem outside this file during development.
 
-
 ## 2024-01-02
-The "of" keyword can now be used to instantiate quantified variables in facts whose right hand side is a single universaly quantified formula. This can be combined freely with instantiation of ffree schematic symbols. Manual and tests update.
-
+The "of" keyword can now be used to instantiate quantified variables in facts whose right hand side is a single universaly quantified formula. This can be combined freely with instantiation of free schematic symbols. Manual and tests update.
 
 ## 2023-12-31
 Expanded the Substitution rules to allow substitution under quantifiers when a statement of the form $\forall x. f(x) = g(x)$ is given.
