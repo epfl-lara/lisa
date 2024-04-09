@@ -51,6 +51,7 @@ class CongruenceTest extends AnyFunSuite {
   val xf = formulaVariable
 
   val Ff = SchematicConnectorLabel("Ff", 1)
+  val Fp = SchematicPredicateLabel("Fp", 1)
 
   val onef = formulaVariable
   val twof = formulaVariable
@@ -366,8 +367,6 @@ class CongruenceTest extends AnyFunSuite {
 
   }
 
-
-
   test("divide-mult-shift in formulas by 2 egraph test") {
 
     val egraph = new EGraphTerms()
@@ -423,6 +422,63 @@ class CongruenceTest extends AnyFunSuite {
     assert(egraph.idEq(xf, fx))
 
   }
+
+  //////////////////////////////////////
+  //// With both terms and formulas ////
+  //////////////////////////////////////
+
+  test("2 terms 6 predicates with congruence egraph test") {
+    val egraph = new EGraphTerms()
+    egraph.add(Ff(Ff(Fp(a))))
+    egraph.add(Ff(Ff(Fp(b))))
+    egraph.merge(a, b)
+    assert(egraph.idEq(a, b))
+    assert(egraph.idEq(Fp(a), Fp(b)))
+    assert(egraph.idEq(Ff(Fp(a)), Ff(Fp(b))))
+    assert(egraph.idEq(Ff(Ff(Fp(a))), Ff(Ff(Fp(b)))))
+    assert(!egraph.idEq(Fp(a), Ff(Fp(a))))
+    assert(!egraph.idEq(Fp(a), Ff(Fp(b))))
+    assert(!egraph.idEq(Fp(b), Ff(Fp(a))))
+    assert(!egraph.idEq(Fp(b), Ff(Ff(Fp(b)))))
+    assert(!egraph.idEq(Ff(Fp(a)), Ff(Ff(Fp(b)))))
+    assert(egraph.formulaUF.getClasses.size == 3)
+
+    egraph.merge(Fp(a), Ff(Fp(a)))
+    assert(egraph.idEq(Fp(a), Ff(Fp(b))))
+    assert(egraph.idEq(Fp(b), Ff(Fp(a))))
+    assert(egraph.idEq(Ff(Fp(a)), Ff(Ff(Fp(a)))))
+    assert(egraph.idEq(Fp(b), Ff(Ff(Fp(a)))))
+    assert(egraph.formulaUF.getClasses.size == 1)
+
+  }
+
+    test("6 terms 6 predicates with congruence egraph test") {
+    val egraph = new EGraphTerms()
+    egraph.add(Ff(Ff(Fp(F(F(a))))))
+    egraph.add(Ff(Ff(Fp(F(F(b))))))
+    egraph.merge(a, b)
+    assert(egraph.idEq(a, b))
+    assert(egraph.idEq(F(a), F(b)))
+    assert(egraph.idEq(Fp(F(F(a))), Fp(F(F(b)))))
+    assert(egraph.idEq(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b)))))))
+    assert(egraph.formulaUF.getClasses.size == 3)
+    assert(egraph.termUF.getClasses.size == 3)
+
+    egraph.merge(Fp(F(F(b))), Ff(Fp(F(F(a)))))
+    assert(egraph.formulaUF.getClasses.size == 1)
+
+  }
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*
