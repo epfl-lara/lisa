@@ -157,7 +157,7 @@ class EGraphTerms() {
 
   val formulaMap = mutable.Map[Formula, Set[Formula]]()
   val formulaParents = mutable.Map[Formula, mutable.Set[AppliedConnector]]()
-  var formulaWorklist = List[AppliedConnector | AppliedPredicate]()
+  var formulaWorklist = List[Formula]()
   val formulaUF = new UnionFind[Formula]()
 
 
@@ -285,8 +285,7 @@ class EGraphTerms() {
     mergeWithStep(id1, id2, TermExternal((id1, id2)))
   }
   def merge(id1: Formula, id2: Formula): Unit = {
-    //mergeWithStep(id1, id2, FormulaExternal((id1, id2)))
-    ???
+    mergeWithStep(id1, id2, FormulaExternal((id1, id2)))
   }
 
   protected def mergeWithStep(id1: Term, id2: Term, step: TermStep): Unit = {
@@ -312,7 +311,6 @@ class EGraphTerms() {
           val canonicalPTerm = canonicalize(pTerm) 
           if termSeen.contains(canonicalPTerm) then 
             val qTerm = termSeen(canonicalPTerm)
-
             Some((pTerm, qTerm, cause))
             mergeWithStep(pTerm, qTerm, TermCongruence((pTerm, qTerm)))
           else
@@ -330,7 +328,34 @@ class EGraphTerms() {
       termParents(id) = termSeen.values.to(mutable.Set)
   }
 
-  protected def mergeWithStep(id1: Formula, id2: Formula, step: FormulaStep): Unit = ???
+  protected def mergeWithStep(id1: Formula, id2: Formula, step: FormulaStep): Unit = 
+    if formulaUF.find(id1) == formulaUF.find(id2) then ()
+    else
+      formulaProofMap((id1, id2)) = step
+      val newSet = formulaMap(formulaUF.find(id1)) ++ formulaMap(formulaUF.find(id2))
+      val newparents = formulaParents(formulaUF.find(id1)) ++ formulaParents(formulaUF.find(id2))
+      formulaUF.union(id1, id2)
+      val newId1 = formulaUF.find(id1)
+      val newId2 = formulaUF.find(id2)
+      formulaMap(newId1) = newSet
+      formulaMap(newId2) = newSet
+      formulaParents(newId1) = newparents
+      formulaParents(newId2) = newparents
+      val id = formulaUF.find(id2)
+      formulaWorklist = id :: formulaWorklist
+      val cause = (id1, id2)
+      val formulaSeen = mutable.Map[Formula, AppliedConnector]()
+      newparents.foreach { 
+        case pFormula: AppliedConnector =>
+          val canonicalPFormula = canonicalize(pFormula) 
+          if formulaSeen.contains(canonicalPFormula) then 
+            val qFormula = formulaSeen(canonicalPFormula)
+            Some((pFormula, qFormula, cause))
+            mergeWithStep(pFormula, qFormula, FormulaCongruence((pFormula, qFormula)))
+          else
+            formulaSeen(canonicalPFormula) = pFormula
+      }
+      formulaParents(id) = formulaSeen.values.to(mutable.Set)
 
 
   //def prove(id1: ENode, id2:ENode, base: SC.Sequent, stepString: String, thmName: String = "Congruence Proof"): Option[LVL2.LVL2Proof] = ???

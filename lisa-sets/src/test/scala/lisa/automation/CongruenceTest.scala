@@ -31,8 +31,35 @@ class CongruenceTest extends AnyFunSuite {
   val << = ConstantFunctionLabel.infix("<<", 2)
   val / = ConstantFunctionLabel.infix("/", 2)
 
+  
+  val af = formulaVariable
+  val bf = formulaVariable
+  val cf = formulaVariable
+  val df = formulaVariable
+  val ef = formulaVariable
+  val ff = formulaVariable
+  val gf = formulaVariable
+  val hf = formulaVariable
+  val if_ = formulaVariable
+  val jf = formulaVariable
+  val kf = formulaVariable
+  val lf = formulaVariable
+  val mf = formulaVariable
+  val nf = formulaVariable
+  val of = formulaVariable
 
-  test("3 elements no congruence egraph test") {
+  val xf = formulaVariable
+
+  val Ff = SchematicConnectorLabel("Ff", 1)
+
+  val onef = formulaVariable
+  val twof = formulaVariable
+  val `*f` = SchematicConnectorLabel("*f", 2)
+  val `<<f` = SchematicConnectorLabel("<<f", 2)
+  val `/f` = SchematicConnectorLabel("/f", 2)
+
+
+  test("3 terms no congruence egraph test") {
     val egraph = new EGraphTerms()
     egraph.add(a)
     egraph.add(b)
@@ -43,7 +70,7 @@ class CongruenceTest extends AnyFunSuite {
 
   }
 
-  test("8 elements no congruence egraph test") {
+  test("8 terms no congruence egraph test") {
     val egraph = new EGraphTerms()
     egraph.add(a)
     egraph.add(b)
@@ -64,7 +91,7 @@ class CongruenceTest extends AnyFunSuite {
 
   }
 
-  test("15 elements no congruence egraph test") {
+  test("15 terms no congruence egraph test") {
     val egraph = new EGraphTerms()
     egraph.add(a)
     egraph.add(b)
@@ -99,7 +126,7 @@ class CongruenceTest extends AnyFunSuite {
 
   }
 
-  test("15 elements no congruence egraph test with redundant merges") {
+  test("15 terms no congruence egraph test with redundant merges") {
     val egraph = new EGraphTerms()
     egraph.add(a)
     egraph.add(b)
@@ -142,7 +169,7 @@ class CongruenceTest extends AnyFunSuite {
 
   }
 
-  test("4 elements withcongruence egraph test") {
+  test("4 terms withcongruence egraph test") {
     val egraph = new EGraphTerms()
     egraph.add(F(a))
     egraph.add(F(b))
@@ -158,7 +185,7 @@ class CongruenceTest extends AnyFunSuite {
 
 
 
-  test("divide-mult-shift by 2 egraph test") {
+  test("divide-mult-shift in terms by 2 egraph test") {
 
     val egraph = new EGraphTerms()
     egraph.add(one)
@@ -192,7 +219,7 @@ class CongruenceTest extends AnyFunSuite {
 
   }
 
-  test("long chain congruence eGraph") {
+  test("long chain of terms congruence eGraph") {
     val egraph = new EGraphTerms()
     egraph.add(x)
     val fx = egraph.add(F(x))
@@ -213,6 +240,190 @@ class CongruenceTest extends AnyFunSuite {
     assert(egraph.idEq(x, fx))
 
   }
+
+
+  test("3 formulas no congruence egraph test") {
+    val egraph = new EGraphTerms()
+    egraph.add(af)
+    egraph.add(bf)
+    egraph.add(cf)
+    egraph.merge(af, bf)
+    assert(egraph.idEq(af, bf))
+    assert(!egraph.idEq(af, cf))
+
+  }
+
+  test("8 formulas no congruence egraph test") {
+    val egraph = new EGraphTerms()
+    egraph.add(af)
+    egraph.add(bf)
+    egraph.add(cf)
+    egraph.add(df)
+    egraph.add(ef)
+    egraph.add(ff)
+    egraph.add(gf)
+    egraph.add(hf)
+    egraph.merge(af, bf)
+    egraph.merge(cf, df)
+    egraph.merge(ef, ff)
+    egraph.merge(gf, hf)
+    egraph.merge(af, cf)
+    egraph.merge(ff, hf)
+    egraph.merge(af, ff)
+    assert(egraph.idEq(af, hf))
+
+  }
+
+  test("15 formulas no congruence egraph test") {
+    val egraph = new EGraphTerms()
+    egraph.add(af)
+    egraph.add(bf)
+    egraph.add(cf)
+    egraph.add(df)
+    egraph.add(ef)
+    egraph.add(ff)
+    egraph.add(gf)
+    egraph.add(hf)
+    egraph.add(if_)
+    egraph.add(jf)
+    egraph.add(kf)
+    egraph.add(lf)
+    egraph.add(mf)
+    egraph.add(nf)
+    egraph.add(of)
+    egraph.merge(af, cf)
+    egraph.merge(ef, ff)
+    egraph.merge(if_, kf)
+    egraph.merge(mf, nf)
+    egraph.merge(af, bf)
+    egraph.merge(of, mf)
+    egraph.merge(if_, mf)
+    egraph.merge(gf, hf)
+    egraph.merge(lf, kf)
+    egraph.merge(cf, df)
+    egraph.merge(af, ef)
+    egraph.merge(af, if_)
+    egraph.merge(gf, ef)
+    egraph.merge(if_, jf)
+    assert(egraph.idEq(af, of))
+
+  }
+
+  test("15 formulas no congruence egraph test with redundant merges") {
+    val egraph = new EGraphTerms()
+    egraph.add(af)
+    egraph.add(bf)
+    egraph.add(cf)
+    egraph.add(df)
+    egraph.add(ef)
+    egraph.add(ff)
+    egraph.add(gf)
+    egraph.add(hf)
+    egraph.add(if_)
+    egraph.add(jf)
+    egraph.add(kf)
+    egraph.add(lf)
+    egraph.add(mf)
+    egraph.add(nf)
+    egraph.add(of)
+    egraph.merge(af, cf)
+    egraph.merge(ef, ff)
+    egraph.merge(if_, kf)
+    egraph.merge(mf, nf)
+    egraph.merge(af, bf)
+    egraph.merge(of, mf)
+    egraph.merge(if_, mf)
+    egraph.merge(gf, hf)
+    egraph.merge(lf, kf)
+    egraph.merge(bf, cf)
+    egraph.merge(ff, ef)
+    egraph.merge(of, if_)
+    egraph.merge(gf, ef)
+    egraph.merge(if_, jf)
+
+    assert(egraph.idEq(bf, cf))
+    assert(egraph.idEq(ff, hf))
+    assert(egraph.idEq(if_, of))
+    assert(!egraph.idEq(af, df))
+    assert(!egraph.idEq(bf, gf))
+    assert(!egraph.idEq(ff, if_))
+    assert(!egraph.idEq(nf, cf))
+    assert(egraph.formulaUF.getClasses.size == 4)
+
+  }
+
+  test("4 formulas withcongruence egraph test") {
+    val egraph = new EGraphTerms()
+    egraph.add(Ff(af))
+    egraph.add(Ff(bf))
+    egraph.merge(af, bf)
+    assert(egraph.idEq(af, bf))
+    assert(egraph.idEq(Ff(af), Ff(bf)))
+    assert(!egraph.idEq(af, Ff(af)))
+    assert(!egraph.idEq(af, Ff(bf)))
+    assert(!egraph.idEq(bf, Ff(af)))
+    assert(!egraph.idEq(bf, Ff(bf)))
+
+  }
+
+
+
+  test("divide-mult-shift in formulas by 2 egraph test") {
+
+    val egraph = new EGraphTerms()
+    egraph.add(onef)
+    egraph.add(twof)
+    egraph.add(af)
+    val ax2    = egraph.add(`*f`(af, twof))
+    val ax2_d2 = egraph.add(`/f`(`*f`(af, twof), twof))
+    val `2d2`  = egraph.add(`/f`(twof, twof))
+    val ax_2d2 = egraph.add(`*f`(af, `/f`(twof, twof)))
+    val ax1    = egraph.add(`*f`(af, onef))
+    val as1    = egraph.add(`<<f`(af, onef))
+
+    egraph.merge(ax2, as1)
+    egraph.merge(ax2_d2, ax_2d2)
+    egraph.merge(`2d2`, onef)
+    egraph.merge(ax1, af)
+
+
+    assert(egraph.idEq(onef, `2d2`))
+    assert(egraph.idEq(ax2, as1))
+    assert(egraph.idEq(ax2_d2, ax_2d2))
+    assert(egraph.idEq(ax_2d2, ax1))
+    assert(egraph.idEq(ax_2d2, af))
+
+    assert(!egraph.idEq(ax2, ax2_d2))
+    assert(!egraph.idEq(ax2, `2d2`))
+    assert(!egraph.idEq(ax2, ax_2d2))
+    assert(!egraph.idEq(ax2, ax1))
+    assert(!egraph.idEq(ax2, af))
+    assert(!egraph.idEq(ax2_d2, `2d2`))
+
+  }
+
+  test("long chain of formulas congruence eGraph") {
+    val egraph = new EGraphTerms()
+    egraph.add(xf)
+    val fx = egraph.add(Ff(xf))
+    val ffx = egraph.add(Ff(fx))
+    val fffx = egraph.add(Ff(ffx))
+    val ffffx = egraph.add(Ff(fffx))
+    val fffffx = egraph.add(Ff(ffffx))
+    val ffffffx = egraph.add(Ff(fffffx))
+    val fffffffx = egraph.add(Ff(ffffffx))
+    val ffffffffx = egraph.add(Ff(fffffffx))
+
+
+    egraph.merge(ffffffffx, xf)
+    egraph.merge(fffffx, xf)
+    assert(egraph.idEq(fffx, xf))
+    assert(egraph.idEq(ffx, xf))
+    assert(egraph.idEq(fx, xf))
+    assert(egraph.idEq(xf, fx))
+
+  }
+
 
 /*
 
