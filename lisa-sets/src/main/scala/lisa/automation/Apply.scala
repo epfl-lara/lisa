@@ -137,7 +137,7 @@ class Apply(using val lib: Library, val proof: lib.Proof)(thm: proof.Fact) exten
         case v: VariableFormula => (acc._1, acc._2 + v)
       )
 
-      boundary:
+      boundary{
         TacticSubproof { sp ?=>
 
           // STEP 1: Convert the given theorem, facts and sequent to their normal forms
@@ -240,11 +240,11 @@ class Apply(using val lib: Library, val proof: lib.Proof)(thm: proof.Fact) exten
           if finalStep.isValid then
             lib.have(finalStep)
           else
-            break(proof.InvalidProofTactic(s"The given theorem could not prove the sequent.\n Deduced theorem: ${thmAfterLastUnification.statement}"))
+            break(proof.InvalidProofTactic(s"The given theorem could not prove the sequent.\n Deduced theorem: ${thmAfterLastUnification.statement}\n Expected: ${bot}"))
 
 
         }
-
+      }
 }
 
 /**
