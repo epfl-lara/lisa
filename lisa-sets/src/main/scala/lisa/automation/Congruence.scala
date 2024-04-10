@@ -1,5 +1,9 @@
 package lisa.automation
-import lisa.fol.FOL.*
+import lisa.fol.FOL.{*, given}
+import lisa.prooflib.BasicStepTactic.*
+import lisa.prooflib.ProofTacticLib.*
+import lisa.prooflib.SimpleDeducedSteps.*
+import lisa.prooflib.*
 
 object Congruence {
   
@@ -358,7 +362,40 @@ class EGraphTerms() {
       formulaParents(id) = formulaSeen.values.to(mutable.Set)
 
 
-  //def prove(id1: ENode, id2:ENode, base: SC.Sequent, stepString: String, thmName: String = "Congruence Proof"): Option[LVL2.LVL2Proof] = ???
+  def prove(using lib: Library, proof: lib.Proof)(id1: Term, id2:Term, base: Sequent): proof.ProofTacticJudgement = 
+    TacticSubproof { proveInner(id1, id2, base) }
+
+  def proveInner(using lib: Library, proof: lib.Proof)(id1: Term, id2:Term, base: Sequent): Unit = {
+    import lib.*
+    val steps = explain(id1, id2)
+    steps match {
+      case None => throw new Exception("No proof found in the egraph")
+      case Some(steps) => 
+        if steps.isEmpty then have(base.left |- (base.right + (id1 === id2))) by Restate
+
+        steps.foreach {
+          case TermExternal((l, r)) => 
+            val goalSequent = base.left |- (base.right + (id1 === r))
+            if l == id1 then 
+              have(goalSequent) by Restate
+            else
+              val x = freshVariable(id1)
+              have(goalSequent) by RightSubstEq.withParametersSimple(List((l, r)), lambda(x, id1 === x))(lastStep)
+          case TermCongruence((l, r)) => 
+            ???
+            /*
+            val proof = prove(lib, proof)(l, r, base)
+            proof match
+              case Proof.ProofTacticJudgement(_, _, _, _, _) => ()
+              case _ => throw new Exception("Invalid proof")
+            */
+        }
+    }
+
+
+
+
+  }
 
 
 }

@@ -50,6 +50,8 @@ object FOLHelpers {
   def predicate[N <: Arity: ValueOf](using name: sourcecode.Name): SchematicPredicateLabel[N] = SchematicPredicateLabel[N](name.value, valueOf[N])
   def connector[N <: Arity: ValueOf](using name: sourcecode.Name): SchematicConnectorLabel[N] = SchematicConnectorLabel[N](name.value, valueOf[N])
 
+  def freshVariable(using name: sourcecode.Name)(elems: LisaObject[?]*): Variable = Variable(freshId(elems.flatMap(_.freeVariables).map(_.id), name.value))
+
   ////////////////////////////////////////
   //    Kernel to Front transformers    //
   ////////////////////////////////////////

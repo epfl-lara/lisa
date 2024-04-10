@@ -310,6 +310,7 @@ trait Common {
     def mkString(args: Seq[Term]): String = if (args.size == 0) toString() else toString() + "(" + "illegal_arguments: " + args.mkString(", ") + ")"
   }
 
+
   /**
    * A Constant, corresponding to [[K.ConstantLabel]], is a label for terms.
    * It counts both as the label and as the term itself.

@@ -4,7 +4,10 @@ import lisa.automation.Congruence.*
 import org.scalatest.funsuite.AnyFunSuite
 
 
-class CongruenceTest extends AnyFunSuite {
+class CongruenceTest extends AnyFunSuite with lisa.Main {
+
+  given lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
+
   val a = variable
   val b = variable
   val c = variable
@@ -182,6 +185,8 @@ class CongruenceTest extends AnyFunSuite {
     assert(!egraph.idEq(b, F(a)))
     assert(!egraph.idEq(b, F(b)))
 
+    assert(egraph.explain(F(a), F(b)) == Some(List(egraph.TermCongruence((F(a), F(b))))) )
+
   }
 
 
@@ -218,6 +223,14 @@ class CongruenceTest extends AnyFunSuite {
     assert(!egraph.idEq(ax2, a))
     assert(!egraph.idEq(ax2_d2, `2d2`))
 
+    assert(egraph.explain(one, `2d2`) == Some(List(egraph.TermExternal((one, `2d2`)))) )
+    assert(egraph.explain(ax2, as1) == Some(List(egraph.TermExternal((ax2, as1)))) )
+    assert(egraph.explain(ax2_d2, ax_2d2) == Some(List(egraph.TermExternal((ax2_d2, ax_2d2)))) )
+
+    assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.TermCongruence((ax_2d2, ax1)))) )
+    assert(egraph.explain(ax_2d2, a) == Some(List(egraph.TermCongruence((ax_2d2, ax1)), egraph.TermExternal((ax1, a))) ))
+
+
   }
 
   test("long chain of terms congruence eGraph") {
@@ -239,6 +252,8 @@ class CongruenceTest extends AnyFunSuite {
     assert(egraph.idEq(ffx, x))
     assert(egraph.idEq(fx, x))
     assert(egraph.idEq(x, fx))
+
+    assert(egraph.explain(fx, x) == Some(List(egraph.TermCongruence(fx, fffx), egraph.TermCongruence(fffx, ffffffffx), egraph.TermExternal(ffffffffx, x))))
 
   }
 
@@ -365,6 +380,8 @@ class CongruenceTest extends AnyFunSuite {
     assert(!egraph.idEq(bf, Ff(af)))
     assert(!egraph.idEq(bf, Ff(bf)))
 
+    assert(egraph.explain(Ff(af), Ff(bf)) == Some(List(egraph.FormulaCongruence((Ff(af), Ff(bf))))) )
+
   }
 
   test("divide-mult-shift in formulas by 2 egraph test") {
@@ -399,6 +416,16 @@ class CongruenceTest extends AnyFunSuite {
     assert(!egraph.idEq(ax2, af))
     assert(!egraph.idEq(ax2_d2, `2d2`))
 
+    assert(egraph.explain(onef, `2d2`) == Some(List(egraph.FormulaExternal((onef, `2d2`)))) )
+    assert(egraph.explain(ax2, as1) == Some(List(egraph.FormulaExternal((ax2, as1)))) )
+    assert(egraph.explain(ax2_d2, ax_2d2) == Some(List(egraph.FormulaExternal((ax2_d2, ax_2d2)))) )
+
+    assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.FormulaCongruence((ax_2d2, ax1)))) )
+    assert(egraph.explain(ax_2d2, af) == Some(List(egraph.FormulaCongruence((ax_2d2, ax1)), egraph.FormulaExternal((ax1, af))) ))
+
+    
+
+
   }
 
   test("long chain of formulas congruence eGraph") {
@@ -420,6 +447,7 @@ class CongruenceTest extends AnyFunSuite {
     assert(egraph.idEq(ffx, xf))
     assert(egraph.idEq(fx, xf))
     assert(egraph.idEq(xf, fx))
+    assert(egraph.explain(fx, xf) == Some(List(egraph.FormulaCongruence(fx, ffffffffx), egraph.FormulaExternal(ffffffffx, xf))))
 
   }
 
@@ -470,162 +498,72 @@ class CongruenceTest extends AnyFunSuite {
   }
 
 
+  test("15 terms no congruence proofs test with redundant merges") {
+    import lib.*
+    val egraph = new EGraphTerms()
+    egraph.add(a)
+    egraph.add(b)
+    egraph.add(c)
+    egraph.add(d)
+    egraph.add(e)
+    egraph.add(f)
+    egraph.add(g)
+    egraph.add(h)
+    egraph.add(i)
+    egraph.add(j)
+    egraph.add(k)
+    egraph.add(l)
+    egraph.add(m)
+    egraph.add(n)
+    egraph.add(o)
+    egraph.merge(a, c)
+    egraph.merge(e, f)
+    egraph.merge(i, k)
+    egraph.merge(m, n)
+    egraph.merge(a, b)
+    egraph.merge(o, m)
+    egraph.merge(i, m)
+    egraph.merge(g, h)
+    egraph.merge(l, k)
+    egraph.merge(b, c)
+    egraph.merge(f, e)
+    egraph.merge(o, i)
+    egraph.merge(g, e)
+    egraph.merge(i, j)
+    val base = List(a === c, e === f, i === k, m === n, a === b, o === m, i === m, g === h, l === k, b === c, f === e, o === i, g === e, i === j)
 
+    val test1 = Theorem(base |- (b === c)) {
+      egraph.proveInner(b, c, base |- ())
+    }
 
+    val test2 = Theorem(base |- (f === h)) {
+      egraph.proveInner(f, h, base |- ())
+    }
 
+    val test3 = Theorem(base |- (i === o)) {
+      egraph.proveInner(i, o, base |- ())
+    }
 
+    val test4 = Theorem(base |- (o === i)) {
+      egraph.proveInner(o, i, base |- ())
+    }
 
-
-
-
-
-
+  }
 
 /*
-
-  // Tests with Proofs
-  println("\n\n With Explains \n\n")
-
-  test("4 elements with congruence egraph test with explain") {
+  test("4 elements with congruence proof test with explain") {
+    import lib.*
     val egraph = new EGraphTerms()
-    val id1 = egraph.add(Term(a, List()))
-    val id2 = egraph.add(Term(b, List()))
-    val id3 = egraph.add(Term(F, List(id1)))
-    val id4 = egraph.add(Term(F, List(id2)))
-    egraph.merge(id1, id2)
-    assert(egraph.explain(id3, id4) == Some(List(egraph.Congruence((id3, id4)))) )
+    egraph.add(F(a))
+    egraph.add(F(b))
+    egraph.merge(a, b)
+    val test5 = Theorem(a===b |- F(a) === F(b)) {
+      egraph.proveInner(a, b, () |- ())
+    }
   }
+*/
 
-  test("divide-mult-shift by 2 egraph test with explain") {
-
-    val egraph = new EGraphTerms()
-    val one = egraph.add(Term("one", List()))
-    val two = egraph.add(Term("two", List()))
-    val a = egraph.add(Term("a", List()))
-    val ax2 = egraph.add(Term("*", List(a, two)))
-    val ax2_d2 = egraph.add(Term("/", List(ax2, two)))
-    val `2d2` = egraph.add(Term("/", List(two, two)))
-    val ax_2d2 = egraph.add(Term("*", List(a, `2d2`)))
-    val ax1 = egraph.add(Term("*", List(a, one)))
-
-    val as1 = egraph.add(Term("<<", List(a, one)))
-    val * : TermSymbol = FunctionSymbol("*", 2)
-
-    egraph.merge(ax2, as1)
-    egraph.merge(ax2_d2, ax_2d2)
-    egraph.merge(`2d2`, one)
-    egraph.merge(ax1, a)
-
-    assert(egraph.explain(one, `2d2`) == Some(List(egraph.External((one, `2d2`)))) )
-    assert(egraph.explain(ax2, as1) == Some(List(egraph.External((ax2, as1)))) )
-    assert(egraph.explain(ax2_d2, ax_2d2) == Some(List(egraph.External((ax2_d2, ax_2d2)))) )
-
-    assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.Congruence((ax_2d2, ax1)))) )
-    assert(egraph.explain(ax_2d2, a) == Some(List(egraph.Congruence((ax_2d2, ax1)), egraph.External((ax1, a))) ))
-
-
-  }
-
-  test("long chain congruence eGraph with explain") {
-    val egraph = new EGraphTerms()
-    val x = egraph.add(Term("x", List()))
-    val fx = egraph.add(Term(F, List(x)))
-    val ffx = egraph.add(Term(F, List(fx)))
-    val fffx = egraph.add(Term(F, List(ffx)))
-    val ffffx = egraph.add(Term(F, List(fffx)))
-    val fffffx = egraph.add(Term(F, List(ffffx)))
-    val ffffffx = egraph.add(Term(F, List(fffffx)))
-    val fffffffx = egraph.add(Term(F, List(ffffffx)))
-    val ffffffffx = egraph.add(Term(F, List(fffffffx)))
-
-
-    egraph.merge(ffffffffx, x)
-    egraph.merge(fffffx, x)
-    assert(egraph.idEq(fffx, x))
-    assert(egraph.idEq(ffx, x))
-    assert(egraph.idEq(fx, x))
-    assert(egraph.idEq(x, fx))
-    assert(egraph.explain(fx, x) == Some(List(egraph.Congruence(fx, ffffffffx), egraph.External(ffffffffx, x))))
-
-  }
-}
-
-class EGraphTermTestWithProofs extends AnyFunSuite {
-  import Constants.*
-
-
-  println("\n\n With Proofs \n\n")
-
-
-  test("15 elements no congruence egraph test with redundant merges") {
-    val egraph = new EGraphTerms()
-    val id1 = egraph.add(Term(a, List()))
-    val id2 = egraph.add(Term(b, List()))
-    val id3 = egraph.add(Term(c, List()))
-    val id4 = egraph.add(Term(d, List()))
-    val id5 = egraph.add(Term(e, List()))
-    val id6 = egraph.add(Term(f, List()))
-    val id7 = egraph.add(Term(g, List()))
-    val id8 = egraph.add(Term(h, List()))
-    val id9 = egraph.add(Term(i, List()))
-    val id10 = egraph.add(Term(j, List()))
-    val id11 = egraph.add(Term(k, List()))
-    val id12 = egraph.add(Term(l, List()))
-    val id13 = egraph.add(Term(m, List()))
-    val id14 = egraph.add(Term(n, List()))
-    val id15 = egraph.add(Term(o, List()))
-    val base = Seq((id1, id3), (id5, id6), (id9, id11), (id13, id14), (id1, id2), (id15, id13), (id9, id13), (id7, id8), (id12, id11), (id2, id3), (id6, id5), (id15, id9), (id7, id5), (id9, id10))
-    egraph.merge(id1, id3)
-    egraph.merge(id5, id6)
-    egraph.merge(id9, id11)
-    egraph.merge(id13, id14)
-    egraph.merge(id1, id2)
-    egraph.merge(id15, id13)
-    egraph.merge(id9, id13)
-    egraph.merge(id7, id8)
-    egraph.merge(id12, id11)
-    egraph.merge(id2, id3)
-    egraph.merge(id6, id5)
-    egraph.merge(id15, id9)
-    egraph.merge(id7, id5)
-    egraph.merge(id9, id10)
-    assert(egraph.idEq(id2, id3))
-    assert(egraph.idEq(id6, id8))
-    assert(egraph.idEq(id9, id15))
-
-    println(s"\n Proving ${id2} === ${id3} \n")
-    println(egraph.prove(id2, id3, SC.Sequent(base.map(_ === _), List()), "s"))
-
-    println(s"\n Proving ${id6} === ${id8} \n")
-    println(egraph.prove(id6, id8, SC.Sequent(base.map(_ === _), List()), "s"))
-
-    println(s"\n Proving ${id9} === ${id15} \n")
-    println(egraph.prove(id9, id15, SC.Sequent(base.map(_ === _), List()), "s"))
-
-
-    println(s"\n Proving ${id15} === ${id9} \n")
-    println(egraph.prove(id15, id9, SC.Sequent(base.map(_ === _), List()), "s"))
-
-
-
-
-  }
-
-
-  test("4 elements with congruence egraph test with explain") {
-    val egraph = new EGraphTerms()
-    val id1 = egraph.add(Term(a, List()))
-    val id2 = egraph.add(Term(b, List()))
-    val id3 = egraph.add(Term(F, List(id1)))
-    val id4 = egraph.add(Term(F, List(id2)))
-    egraph.merge(id1, id2)
-    assert(egraph.explain(id3, id4) == Some(List(egraph.Congruence((id3, id4)))) )
-
-    println(s"\n Proving ${id3} === ${id4} \n")
-    println(egraph.explain(id3, id4))
-    println(egraph.prove(id3, id4, SC.Sequent(List(id1 === id2), List()), "s"))
-  }
-
+  /*
 
   test("divide-mult-shift by 2 egraph test with explain") {
 
@@ -715,6 +653,6 @@ class EGraphTermTestWithProofs extends AnyFunSuite {
     println(shorten(egraph.prove(fx, x, SC.Sequent(ctx, List()), "s").get.toString()))
 
   }
-*/
 
+*/
 }
