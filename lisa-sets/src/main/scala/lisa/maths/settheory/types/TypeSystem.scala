@@ -12,7 +12,6 @@ import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.maths.settheory.SetTheory.functional
 import lisa.prooflib.OutputManager
 import lisa.maths.settheory.SetTheory.{singleton, app}
-import lisa.hol.HOLSteps.p
 
 object TypeLib extends lisa.Main {
 

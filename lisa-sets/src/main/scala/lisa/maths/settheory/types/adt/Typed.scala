@@ -52,7 +52,7 @@ class ADT[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(
 
   def applyUnsafe(args: Term ** N): Term = underlying.term(args.toSeq)
   def applySeq(args: Seq[Term]): Term = underlying.term(args)
-  //def apply(args: Term*): Term = underlying.term(args)
+  def apply(args: Term*): Term = underlying.term(args)
 }
 
 class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(

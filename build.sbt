@@ -60,8 +60,6 @@ lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8
 scallion/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 
-lazy val holimp = RootProject(file("./hol-import/"))
-
 lazy val root = Project(
     id = "lisa",
     base = file(".")
@@ -84,7 +82,6 @@ lazy val sets = Project(
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
-  .dependsOn(holimp)
   .dependsOn(kernel, withTests(utils))
 
 lazy val utils = Project(
