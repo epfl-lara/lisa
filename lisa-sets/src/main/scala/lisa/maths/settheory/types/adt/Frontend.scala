@@ -1,9 +1,5 @@
 package lisa.maths.settheory.types.adt
 
-export ADTSyntax.{ |, define, constructors, constructor_to_term, adt_to_term, function_to_term, Case, fun }
-export lisa.maths.settheory.types.TypeSystem.*
-
-
 /**
  * This object provides a DSL for defining algebraic data types (ADTs) in Lisa.
  *
@@ -135,25 +131,21 @@ private[adt] object ADTSyntax {
     override def apply(t: T): ConstructorBuilder = ConstructorBuilder(Seq(GroundType(t)))
   }
 
-  given adt_to_const: ConstructorConverter[ADT] with {
+  given adt_to_const[N <: Arity]: ConstructorConverter[ADT[N]] with {
 
     /**
      * Converts an ADT into a constructor taking one inductive argument.
      */
-    override def apply(a: ADT): ConstructorBuilder = 
-      if a == null then
-        ConstructorBuilder(Seq(Self))
-      else 
-        ConstructorBuilder(Seq(GroundType(a)))
+    override def apply(a: ADT[N]): ConstructorBuilder = ConstructorBuilder(Seq(Self))
   }
 
-  given adt_tuple_to_const[T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[ADT *: T] with {
+  given adt_tuple_to_const[N <: Arity, T <: Tuple](using ConstructorConverter[T]): ConstructorConverter[ADT[N] *: T] with {
 
     /**
      * Converts a tuple prepended with a type into a constructor taking an argument and whose other arguments are deduced from
      * applying recursively the conversion to the tuple.
      */
-    override def apply(t: ADT *: T): ConstructorBuilder =
+    override def apply(t: ADT[N] *: T): ConstructorBuilder =
       any_to_const(t.head) ++ any_to_const(t.tail)
   }
 
@@ -207,16 +199,11 @@ private[adt] object ADTSyntax {
     infix def |[T](t: T)(using c: ConstructorConverter[T]): ADTBuilder = this | any_to_const(t)
 
     /**
-     * List of type variables appearing in the specification of this algebraic data type
-     */
-    val typeVariables: Seq[Variable] = constructors.flatMap(_.typeVariables)
-
-    /**
      * Outputs the constructors of this ADT.
      *
      * @param names the names of the constructors
      */
-    def build(names: Seq[String]): (ADT, constructors) =
+    def build[N <: Arity](typeVariables: Variable ** N, names: Seq[String]): (ADT[N], constructors[N]) =
 
       val trimmedNames = (if size == 0 then names else names.tail).take(size + 1)
       require(
@@ -224,15 +211,16 @@ private[adt] object ADTSyntax {
         s"The number of new identifiers for constructors must match the given specification.\nNew identifiers: ${names.length - 1}, number of constructors: ${constructors.length}."
       )
 
-      val typeVarsSet = typeVariables.toSet
+      val typeVarsSet = typeVariables.toSeq.toSet
       val syntacticCons = constructors.map(c => 
           c.build(Helpers.chooseVars("x", c.size, typeVarsSet), Helpers.chooseVars("y", c.size, typeVarsSet))
         )
-      val syntacticADT = SyntacticADT(trimmedNames.head, syntacticCons, typeVariables)
+      val syntacticADT = SyntacticADT[N](trimmedNames.head, syntacticCons, typeVariables)
       val semanticCons = trimmedNames.tail.zip(syntacticCons).map(SemanticConstructor(_, _, syntacticADT))
-      val semanticADT = SemanticADT(syntacticADT, semanticCons)
+      val semanticADT = SemanticADT[N](syntacticADT, semanticCons)
       val cons = semanticCons.map(Constructor(_)) 
-      (ADT(semanticADT, cons), new constructors(cons : _*))
+      (ADT[N](semanticADT, cons), new constructors[N](cons : _*))
+  
   }
 
   /**
@@ -244,28 +232,66 @@ private[adt] object ADTSyntax {
      * Creates an empty [[ADTBuilder]].
      */
     def empty: ADTBuilder = ADTBuilder(Seq.empty)
+
+    /**
+     * Creates an empty [[ADTBuilder]].
+     */
+    def | = empty
   }
 
- 
+  case class PolymorphicADTBuilder[N <: Arity](typeVariable: Variable ** N, specification: ADTBuilder) {
+    def build(names: Seq[String]) = specification.build(typeVariable, names)
+    def | (b: ConstructorBuilder): PolymorphicADTBuilder[N] = PolymorphicADTBuilder(typeVariable, specification | b)
+    def |[T] (t: T)(using ConstructorConverter[T]): PolymorphicADTBuilder[N] = PolymorphicADTBuilder(typeVariable, specification | any_to_const(t))
+  }
+
+  extension (u: Unit)
+    def --> (builder: ADTBuilder): PolymorphicADTBuilder[0] = PolymorphicADTBuilder[0](**(), builder)
+    def --> (builder: ConstructorBuilder): PolymorphicADTBuilder[0] = --> (builder.toADTBuilder)
+    def -->[T](t: T)(using ConstructorConverter[T]): PolymorphicADTBuilder[0] = --> (any_to_const(t))
+
+  extension (v: Variable)
+    def --> (builder: ADTBuilder): PolymorphicADTBuilder[1] = PolymorphicADTBuilder[1](**(v), builder)
+    def --> (builder: ConstructorBuilder): PolymorphicADTBuilder[1] = --> (builder.toADTBuilder)
+    def -->[T](t: T)(using ConstructorConverter[T]): PolymorphicADTBuilder[1] = --> (any_to_const(t))
+
+  extension (v: (Variable, Variable))
+    def --> (builder: ADTBuilder): PolymorphicADTBuilder[2] = PolymorphicADTBuilder[2](**(v._1, v._2), builder)
+    def --> (builder: ConstructorBuilder): PolymorphicADTBuilder[2] = --> (builder.toADTBuilder)
+    def -->[T](t: T)(using ConstructorConverter[T]): PolymorphicADTBuilder[2] = --> (any_to_const(t))
+
+  extension (v: (Variable, Variable, Variable))
+    def --> (builder: ADTBuilder): PolymorphicADTBuilder[3] = PolymorphicADTBuilder[3](**(v._1, v._2, v._3), builder)
+    def --> (builder: ConstructorBuilder): PolymorphicADTBuilder[3] = --> (builder.toADTBuilder)
+    def -->[T](t: T)(using ConstructorConverter[T]): PolymorphicADTBuilder[3] = --> (any_to_const(t))
+
+  extension (v: (Variable, Variable, Variable, Variable))
+    def --> (builder: ADTBuilder): PolymorphicADTBuilder[4] = PolymorphicADTBuilder[4](**(v._1, v._2, v._3, v._4), builder)
+    def --> (builder: ConstructorBuilder): PolymorphicADTBuilder[4] = --> (builder.toADTBuilder)
+    def -->[T](t: T)(using ConstructorConverter[T]): PolymorphicADTBuilder[4] = --> (any_to_const(t))
+
+  extension (v: (Variable, Variable, Variable, Variable, Variable))
+    def --> (builder: ADTBuilder): PolymorphicADTBuilder[5] = PolymorphicADTBuilder[5](**(v._1, v._2, v._3, v._4, v._5), builder)
+    def --> (builder: ConstructorBuilder): PolymorphicADTBuilder[5] = --> (builder.toADTBuilder)
+    def -->[T](t: T)(using ConstructorConverter[T]): PolymorphicADTBuilder[5] = --> (any_to_const(t))
+
 
   /**
     * Lists all constructors of this ADT.
     */
-  case class constructors(cons: Constructor*)
+  case class constructors[N <: Arity](cons: Constructor[N]*)
 
   /**
     * Companion object for the [[constructors]] class.
     */
   object constructors {
-    def unapplySeq(adt: ADT): Seq[Constructor] = adt.constructors
+    def unapplySeq[N <: Arity](adt: ADT[N]): Seq[Constructor[N]] = adt.constructors
   }
 
-
-  object define {
-
+  object Macro {
     import scala.quoted._
 
-    private inline def extractNames[T](e: T): Seq[String] = ${extractNames('{e})}
+    inline def extractNames[T](e: T): Seq[String] = ${extractNames('{e})}
 
     private def extractNames[T](using Quotes)(e: Expr[T]) : Expr[Seq[String]]  =
 
@@ -296,23 +322,27 @@ private[adt] object ADTSyntax {
       val trav = traverser(subscope)
       trav.traverseTree(tree)(scope)
       Expr(trav.constructorNames)
+  }
 
+  object define {
     /**
       * Extracts the constructors from an ADT.
       *
       * @param adt the ADT
       * @return a tuple containing the ADT and its constructors
       */
-    private def extractConstructors(adt: ADT): (ADT, constructors) = (adt, constructors(adt.constructors : _*))
+    private def extractConstructors[N <: Arity](adt: ADT[N]): (ADT[N], constructors[N]) = (adt, constructors(adt.constructors : _*))
 
-    inline def unapply(builder: ADTBuilder): (ADT, constructors) = builder.build(extractNames(builder))
+    inline def unapply[N <: Arity](builder: PolymorphicADTBuilder[N]): (ADT[N], constructors[N]) = builder.build(Macro.extractNames(builder))
+
+    inline def unapply(builder: ADTBuilder): (ADT[0], constructors[0]) = unapply[0](() --> builder)
 
     /**
       * Returns an ADT containing only one constructor out of a [[ConstructorBuilder]].
       * 
       * @param builder the builder of the unique constructor of the ADT
       */
-    private inline def unapply(builder: ConstructorBuilder): (ADT, constructors) = unapply(builder.toADTBuilder)
+    private inline def unapply(builder: ConstructorBuilder): (ADT[0], constructors[0]) = unapply(builder.toADTBuilder)
 
     /**
       * Returns an ADT isomorphic to a given type. It has only one constructor taking as only argument an element of
@@ -321,7 +351,7 @@ private[adt] object ADTSyntax {
       *
       * @param t type given by the user
       */
-    inline def unapply(t: Term): (ADT, constructors) = unapply(term_to_const(t))
+    inline def unapply(t: Term): (ADT[0], constructors[0]) = unapply(term_to_const(t))
 
     /**
       * Returns the unit type. This is an ADT containing only one value and hence having only one 
@@ -330,15 +360,7 @@ private[adt] object ADTSyntax {
       *
       * @param u user specification indicating that they want to generate the unit type
       */
-    inline def unapply(u: Unit): (ADT, constructors) = unapply(unit_to_const(u))
-
-    /**
-      * Returns the empty type (also known as void or nothing). This is an empty ADT with no constructors.
-      * Needs to be inline in order to fetch the name of the ADT.
-      *
-      * @param n user specification indicating that they want to generate the void type
-      */
-    inline def unapply(n: None.type): (ADT, constructors) = unapply(ADTBuilder.empty)
+    inline def unapply(u: Unit): (ADT[0], constructors[0]) = unapply(unit_to_const(u))
 
     /**
       * Returns a product type (also known as tuple). This is an ADT containing only one constructor.
@@ -347,27 +369,26 @@ private[adt] object ADTSyntax {
       *
       * @param t user specification of the tuple
       */
-    inline def unapply[T <: Tuple](t: (ADT | Term) *: T)(using ConstructorConverter[T]): (ADT, constructors) = 
+    inline def unapply[N <: Arity, T <: Tuple](t: (ADT[N] | Term) *: T)(using ConstructorConverter[T]): (ADT[0], constructors[0]) = 
       t.head match
-        case a: ADT => unapply(any_to_const(a *: t.tail))
+        case a: ADT[N] => unapply(adt_tuple_to_const(a *: t.tail))
         case term: Term => unapply(any_to_const(term *: t.tail))
-      
-
   }
 
-  given constructor_to_term: Conversion[Constructor, Term] = c => c.applySeq(c.typeVariables)
-  given adt_to_term: Conversion[ADT, Term] = adt => adt.apply(adt.typeVariables: _*)
-  given function_to_term: Conversion[ADTFunction, Term] = fun => fun.apply(fun.typeVariables: _*)
+  given adt_to_term: Conversion[ADT[0], Term] = _.applyUnsafe(**())
+  given fun_to_term: Conversion[ADTFunction[0], Term] = _.applyUnsafe(**())
+  given constructor_to_term: Conversion[Constructor[0], Term] = _.applyUnsafe(**())
+  extension (adt: ADT[1]) def apply(t1: Term) = adt.applyUnsafe(**(t1))
 
 
-  class CaseBuilder[T] {
-    private val underlying = scala.collection.mutable.Map[SemanticConstructor, (Seq[Variable], T)]()
-    def += (cons: Constructor, value: (Seq[Variable], T)) = underlying += (cons.underlying -> value)
-    def build: Map[SemanticConstructor, (Seq[Variable], T)] = underlying.toMap
+  class CaseBuilder[N <: Arity, T] {
+    private val underlying = scala.collection.mutable.Map[SemanticConstructor[N], (Seq[Variable], T)]()
+    def += (cons: Constructor[N], value: (Seq[Variable], T)) = underlying += (cons.underlying -> value)
+    def build: Map[SemanticConstructor[N], (Seq[Variable], T)] = underlying.toMap
   }
 
-  case class Case(cons: Constructor, vars: Variable*) {  
-    def subproof (using proof: lisa.SetTheoryLibrary.Proof, line: sourcecode.Line, file: sourcecode.File, builder: CaseBuilder[proof.ProofStep])(subproof: proof.InnerProof ?=> Unit): Unit =
+  case class Case[N <: Arity](cons: Constructor[N], vars: Variable*) {  
+    def subproof (using proof: lisa.SetTheoryLibrary.Proof, line: sourcecode.Line, file: sourcecode.File, builder: CaseBuilder[N, proof.ProofStep])(subproof: proof.InnerProof ?=> Unit): Unit =
     //   //val botWithAssumptions = HaveSequent.this.bot ++ (proof.getAssumptions |- ())
     //   //val iProof: proof.InnerProof = new proof.InnerProof(Some(botWithAssumptions))
       val iProof: proof.InnerProof = new proof.InnerProof(None)
@@ -375,15 +396,15 @@ private[adt] object ADTSyntax {
       val proofStep = (new lisa.prooflib.BasicStepTactic.SUBPROOF(using proof)(None)(iProof)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
       builder += (cons, (vars, proofStep))
     
-    def apply(body : Term)(using builder: CaseBuilder[Term]) = builder += (cons, (vars, body))
+    def apply(body : Term)(using builder: CaseBuilder[N, Term]) = builder += (cons, (vars, body))
   }
 
 
 
-  def fun(adt: ADT, returnType: Term)(using name: sourcecode.Name)(cases: CaseBuilder[Term] ?=> Unit): ADTFunction = {
-    val builder = CaseBuilder[Term]
+  def fun[N <: Arity](adt: ADT[N], returnType: Term)(using name: sourcecode.Name)(cases: CaseBuilder[N, Term] ?=> Unit): ADTFunction[N] = {
+    val builder = CaseBuilder[N, Term]
     cases(using builder)
-    ADTFunction(SemanticFunction(name.value, adt.underlying, builder.build, returnType), adt)
+    ADTFunction(SemanticFunction[N](name.value, adt.underlying, builder.build, returnType), adt)
   }
 
 }

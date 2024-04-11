@@ -4,11 +4,11 @@ import lisa.maths.settheory.SetTheory.{*, given}
 import ADTDefinitions.*
 import Helpers.*
 
-class Induction(adt: SemanticADT) extends lisa.prooflib.ProofTacticLib.ProofTactic {
+class Induction[N <: Arity](adt: SemanticADT[N]) extends lisa.prooflib.ProofTacticLib.ProofTactic {
 
 
 
-  private def prove(using proof: lisa.SetTheoryLibrary.Proof)(subproofs: Map[SemanticConstructor, (Seq[Variable], proof.Fact)])(bot: Sequent) =
+  private def prove(using proof: lisa.SetTheoryLibrary.Proof)(subproofs: Map[SemanticConstructor[N], (Seq[Variable], proof.Fact)])(bot: Sequent) =
 
     val P = predicate[1]
 
@@ -50,12 +50,12 @@ class Induction(adt: SemanticADT) extends lisa.prooflib.ProofTacticLib.ProofTact
           case _ => UnreachableException
     }
 
-  def apply(using proof: lisa.SetTheoryLibrary.Proof)(cases: ADTSyntax.CaseBuilder[proof.ProofStep] ?=> Unit)(bot: Sequent) = 
-    val builder = ADTSyntax.CaseBuilder[proof.ProofStep]
+  def apply(using proof: lisa.SetTheoryLibrary.Proof)(cases: ADTSyntax.CaseBuilder[N, proof.ProofStep] ?=> Unit)(bot: Sequent) = 
+    val builder = ADTSyntax.CaseBuilder[N, proof.ProofStep]
     cases(using builder)
     prove(using proof)(builder.build)(bot)
 }
 
 object Induction {
-  def apply(adt: ADT) = new Induction(adt.underlying)
+  def apply[N <: Arity](adt: ADT[N]) = new Induction(adt.underlying)
 }

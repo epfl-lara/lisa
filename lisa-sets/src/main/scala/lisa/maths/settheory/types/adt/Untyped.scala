@@ -22,12 +22,6 @@ import lisa.maths.settheory.types.TypeSystem.{ :: }
 import lisa.maths.Quantifiers.{universalEquivalenceDistribution}
 import lisa.fol.FOL.Variable
 
-
-
-
-
-
-
 /**
  * Helpers for constructors
  */
@@ -41,10 +35,12 @@ private object Constructors {
 
 /**
  * Syntactic set theoretical interpretation of a constructor for an algebraic data type.
- * In set theory, a constructor is a tuple containing the arguments it has been applied to in addition to a tag
- * uniquely identifying it. 
- * The semantic interpretation of a constructor is given by a set function mapping the constructor arguments to the
- * algebraic data type (cf. [[SemanticConstructor]]).
+ * In set theory, a constructor is a tuple containing the arguments it has been applied to, in addition to a tag
+ * uniquely identifying it.
+ * 
+ * E.g. `cons(1, nil())` is represented as `(tagcons, (1, ((tagnil, ∅), ∅)))`
+ * 
+ * Constructors injectivity is proved within this class.
  *
  * @constructor creates a new constructor out of a user specification
  * @param specification types that the constructor takes as arguments
@@ -208,10 +204,13 @@ private class SyntacticConstructor(
 }
 
 /**
-  * Syntactic set theoretical interpretation of an algebraic data type. That is the least set closed under syntactic introduction rules
-  * (also known as constructors).
+  * Syntactic set theoretical interpretation of an algebraic data type. That is the least set closed under [[SyntacticConstructor]].
+  * 
+  * E.g. list is the smallest set containing nil and closed under the syntactic operation cons.
+  * 
+  * Injectivity between different constructors, introduction rules and structural induction are proved within this class.
   *
-  * @constructor creates a new algebraic data type out of a user specification
+  * @constructor creates a new algebraic data type out of a user specification.
   * @param line the line at which the ADT is defined. Usually fetched automatically by the compiler. 
   * Used for error reporting
   * @param file the file in which the ADT is defined. Usually fetched automatically by the compiler. 
@@ -220,11 +219,14 @@ private class SyntacticConstructor(
   * @param constructors constructors of the ADT
   * @param typeVariables type variables used in the definition of this ADT
   */
-private class SyntacticADT(using line: sourcecode.Line, file: sourcecode.File)(
+private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(
   val name: String, 
   val constructors: Seq[SyntacticConstructor],
-  val typeVariables: Seq[Variable],
+  val typeVariables: Variable ** N,
   ) {
+
+  val typeVariablesSeq: Seq[Variable] = typeVariables.toSeq
+  val typeArity: N = typeVariablesSeq.length.asInstanceOf[N]
 
   // ***************
   // * INJECTIVITY *
@@ -331,7 +333,6 @@ private class SyntacticADT(using line: sourcecode.Line, file: sourcecode.File)(
    */
   private def isInIntroductionFunctionImage(s: Term)(y: Term): Formula = isConstructor(y, s) \/ in(y, s)
 
-  private [adt] def isIntroductionFunctionImage(s: Term)(t: Term): Formula = forall(y, in(x, t) <=> isInIntroductionFunctionImage(s)(y))
 
   /**
    * Lemma --- The introduction function is monotonic with respect to set inclusion.
@@ -388,8 +389,6 @@ private class SyntacticADT(using line: sourcecode.Line, file: sourcecode.File)(
     thenHave(subsetST |- isConstructorXS ==> isConstructorXT) by RightImplies
     have(thesis) by Cut(lastStep, ADTThm.unionPreimageMonotonic of (P := lambda(s, isConstructorXS)))
   }
-
-
 
 
   /**
@@ -483,12 +482,12 @@ private class SyntacticADT(using line: sourcecode.Line, file: sourcecode.File)(
    *
    * @return a formula that is true if and only if g is the height function
    */
-  private [adt] def isTheHeightFunction(h: Term): Formula =
+  private def isTheHeightFunction(h: Term): Formula =
     functional(h) /\ (relationDomain(h) === N) /\ forall(n, in(n, N) ==> forall(x, in(x, app(h, n)) <=> isInExtendedIntroductionFunctionImage(restrictedFunction(h, n))(x)))
 
   // Caching
   private val fIsTheHeightFunction: Formula = isTheHeightFunction(f)
-  private [adt] val hIsTheHeightFunction: Formula = isTheHeightFunction(h)
+  private val hIsTheHeightFunction: Formula = isTheHeightFunction(h)
 
   /**
    * Lemma --- There exists a unique height function for this ADT.
@@ -706,12 +705,12 @@ private class SyntacticADT(using line: sourcecode.Line, file: sourcecode.File)(
   /**
    * Class function defining the ADT. Takes as parameters the type variables of the ADT and return the set of all its instances.
    */
-  val polymorphicTerm = FunctionDefinition(name, line.value, file.value)(typeVariables, z, termDefinition(z), termExistence).label
+  val polymorphicTerm = FunctionDefinition[N](name, line.value, file.value)(typeVariablesSeq, z, termDefinition(z), termExistence).label
 
   /**
    * The set of all instances of the ADT where the type variables are not instantiated (i.e. are kept variable).
    */
-  val term = polymorphicTerm.applySeq(typeVariables)
+  val term = polymorphicTerm.applySeq(typeVariablesSeq)
 
   /**
    * Definition of this ADT's term.
@@ -1190,8 +1189,14 @@ private class SyntacticADT(using line: sourcecode.Line, file: sourcecode.File)(
 
 /**
   * Semantic set theoretical interpretation of a constructor for an algebraic data type.
-  * Function from the arguments' domains to the set of instances of the algebraic data type.
+  * That is a function from the arguments' domains to the set of instances of the algebraic data type.
+  * Since polymorphism is supported, this function is parametrized by the type variables appearing inside
+  * the specification of the ADT. In this sense, a constructor is a class function whose parameters are 
+  * type variables and whose body is the set theoretic function detailed above.
+  * 
+  * Injectivity and introduction rule are proven within this class.
   *
+  * @constructor generates a class function for the constructor
   * @param line the line at which the constructor is defined. Usually fetched automatically by the compiler. 
   * Used for error reporting
   * @param file the file in which the constructor is defined. Usually fetched automatically by the compiler. 
@@ -1200,10 +1205,10 @@ private class SyntacticADT(using line: sourcecode.Line, file: sourcecode.File)(
   * @param underlying the syntactic constructor
   * @param adt the algebraic data type to which the constructor belongs
   */
-class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
+private class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(
   val name: String,
   val underlying: SyntacticConstructor,
-  val adt: SyntacticADT,
+  val adt: SyntacticADT[N],
 ) {
    /**
      * Full name of the constructor, i.e. concatenation of the ADT name and the constructor name.
@@ -1213,10 +1218,14 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     /**
      * Type variables that may appear in the signature of the constructor.
      */
-    val typeVariables: Seq[Variable] = adt.typeVariables
+    val typeVariables: Variable ** N = adt.typeVariables
 
-    val typeArity: Int = typeVariables.length
+    val typeVariablesSeq: Seq[Variable] = adt.typeVariablesSeq
 
+    /**
+      * Number of type variables in the signature of the constructor.
+      */
+    val typeArity: N = adt.typeArity
 
     /**
      * Variables used for constructor arguments.
@@ -1235,24 +1244,29 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
 
 
     /**
-     * Variables of the constructor with their respective syntactic domain.
+     * Variables of the constructor with their respective domain or a special symbol in case the domain is the ADT.
      */
     val syntacticSignature: Seq[(Variable, ConstructorArgument)] = underlying.signature
 
+    /**
+     * Constructor arguments with their respective domains.
+     * 
+     * @param vars the constructor arguments
+     */
     def semanticSignature(vars: Seq[Variable]): Seq[(Variable, Term)] = vars.zip(underlying.specification.map(getOrElse(_, adt.term)))
 
     /**
-     * Variables of the constructor with their respective semantic domain.
+     * Variables of the constructor with their respective domains.
      */
     val semanticSignature: Seq[(Variable, Term)] = semanticSignature(variables)
 
     /**
-     * Variables of the constructor with their respective semantic domain.
+     * Variables of the constructor with their respective domains.
      */
     val semanticSignature1: Seq[(Variable, Term)] = semanticSignature
 
     /**
-     * Alternative set of variables of the constructor with their respective semantic domain.
+     * Alternative set of variables of the constructor with their respective domain.
      */
     val semanticSignature2: Seq[(Variable, Term)] = semanticSignature(variables2)
 
@@ -1297,17 +1311,34 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     /**
      * Class function representing the constructor
      */
-    private [adt] val classFunction = FunctionDefinition(fullName, line.value, file.value)(typeVariables, c, untypedDefinition, uniqueness).label
+    private val classFunction = FunctionDefinition[N](fullName, line.value, file.value)(typeVariablesSeq, c, untypedDefinition, uniqueness).label
 
     /**
-     * Constructor where type variables are instantiated with schematic symbols.
+     * Constructor where type variables are instantiated with schematic variables.
      */
-    private val term = classFunction.applySeq(typeVariables)
+    private val term = classFunction.applySeq(typeVariablesSeq)
 
- 
+    /**
+     * Constructor where type variables are instantiated with schematic variables and arguments instantiated.
+     * 
+     * @param args the instances of the constructor arguments
+     */
     def appliedTerm(args: Seq[Term]): Term = appSeq(term)(args)
+
+    /**
+     * Constructor where type variables and arguments are instantiated with schematic variables.
+     */
     val appliedTerm: Term = appliedTerm(variables)
+
+    /**
+     * Constructor where type variables and arguments are instantiated with schematic variables.
+     */
     val appliedTerm1: Term = appliedTerm
+
+    /**
+     * Constructor where type variables and arguments are instantiated with schematic variables.
+     * Arguments variables are however drawn from an alternative set of variables.
+     */
     val appliedTerm2: Term = appliedTerm(variables2)
 
     /**
@@ -1315,22 +1346,26 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
      *
      *     `∀x1, ..., xn. c(x1, ..., xn) = (tagc, (x1, (..., (xn, ∅)...))`
      */
-    private [adt] val shortDefinition = Lemma(forallSeq(variables, wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm))) {
+    val shortDefinition = Lemma(forallSeq(variables, wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm))) {
       have(forall(c, (term === c) <=> untypedDefinition)) by Exact(classFunction.definition)
       thenHave((term === term) <=> ((term :: typ) /\ forallSeq(variables, wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)))) by InstantiateForall(term)
       thenHave(thesis) by Weakening
     }
 
-    
-
     /**
-     * Introduction rule for this constructor.
+     * Lemma --- Introduction rule for this constructor.
+     * 
+     *    `∀A1, ..., Am. c[A1, ..., Am] ∈ T1 -> ... -> Tn -> ADT`
+     * 
+     * where Ai are the type variables of the ADT and Ti are domains of the constructor arguments.
+     * 
+     * e.g. `∀T. nil(T) ∈ list(T)` and  `∀T. cons(T) ∈ T -> list(T) -> list(T)`
      */
-    val intro = Lemma(forallSeq(typeVariables, term :: typ)) {
+    val intro = Lemma(forallSeq(typeVariablesSeq, term :: typ)) {
       have(forall(c, (term === c) <=> untypedDefinition)) by Exact(classFunction.definition)
       thenHave((term === term) <=> ((term :: typ) /\ forallSeq(variables, wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)))) by InstantiateForall(term)
       thenHave(term :: typ) by Weakening
-      thenHave(thesis) by QuantifiersIntro(typeVariables)
+      thenHave(thesis) by QuantifiersIntro(typeVariablesSeq)
     }
 
     /**
@@ -1399,7 +1434,7 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     /**
      * Case generated by the constructor when performing a proof by induction
      */
-    private [adt] lazy val inductiveCase: Formula =
+    lazy val inductiveCase: Formula =
       syntacticSignature.foldRight[Formula](P(appliedTerm1))
         ((el, fc) =>
           val (v, typ) = el
@@ -1410,19 +1445,18 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
 }
 
 /**
-  * Semantic set theoretical interpretation of an algebraic data type. That is the least set closed under introduction functions 
-  * (also known as constructors).
+  * Semantic set theoretical interpretation of an algebraic data type. That is the least set closed under [[SemanticConstructor]].
+  * 
+  * E.g. list is the smallest set containing nil and closed under the cons function.
+  *  
+  * Injectivity between different constructors, structural induction and elimination rule are proved within this class.
   *
-  * @param line the line at which the ADT is defined. Usually fetched automatically by the compiler. 
-  * Used for error reporting
-  * @param file the file in which the ADT is defined. Usually fetched automatically by the compiler. 
-  * Used for error reporting
-  * @param name the name of the ADT
+  * @param underlying the syntactic representation of the ADT
   * @param constructors constructors of the ADT
   */
-  class SemanticADT(
-    val underlying: SyntacticADT, 
-    val constructors: Seq[SemanticConstructor]
+  class SemanticADT[N <: Arity](
+    val underlying: SyntacticADT[N], 
+    val constructors: Seq[SemanticConstructor[N]]
     ) {
 
     /**
@@ -1433,7 +1467,14 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     /**
      * Type variables of this ADT.
      */
-    val typeVariables: Seq[Variable] = underlying.typeVariables
+    val typeVariables: Variable ** N = underlying.typeVariables
+
+    val typeVariablesSeq: Seq[Variable] = underlying.typeVariablesSeq
+
+    /**
+      * Number of type variables in this ADT.
+      */
+    val typeArity: N = underlying.typeArity
 
     def term(args: Seq[Term]) = underlying.polymorphicTerm.applySeq(args)
     val term: Term = underlying.term
@@ -1445,7 +1486,7 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
      *
      * e.g. Nil != Cons(head, tail)
      */
-    def injectivity(c1: SemanticConstructor, c2: SemanticConstructor) =
+    def injectivity(c1: SemanticConstructor[N], c2: SemanticConstructor[N]) =
 
       val vars1WellTyped: Set[Formula] = wellTypedSet(c1.semanticSignature1)
       val vars2WellTyped: Set[Formula] = wellTypedSet(c2.semanticSignature2)
@@ -1569,7 +1610,7 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     /**
       * Returns a map binding each constructor to formula describing whether x is an instance of it.
       */
-    private lazy val isConstructorMap: Map[SemanticConstructor, Formula] =
+    private lazy val isConstructorMap: Map[SemanticConstructor[N], Formula] =
       constructors.map(c => c -> existsSeq(c.variables, wellTypedFormula(c.semanticSignature)) /\ (x === c.appliedTerm)).toMap
 
     /**
@@ -1590,7 +1631,7 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
       val inductionPreconditionsIneq = /\(inductionPreconditionIneq.map(_._2))
 
       // Weakening of the negation of the induction preconditions
-      val weakNegInductionPreconditionIneq: Map[SemanticConstructor, Formula] = constructors
+      val weakNegInductionPreconditionIneq: Map[SemanticConstructor[N], Formula] = constructors
         .map(c =>
           c ->
             c.semanticSignature
