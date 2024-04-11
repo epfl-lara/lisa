@@ -54,37 +54,5 @@ object Test extends lisa.Main {
     have(thesis) by Restate.from(ax of (c, d, P := ===))
     showCurrentProof()
   }
-/*
-  {
-    val A = variable
-    val B = variable
-    val app = function[2]
-    val f = variable
-    val g = variable
-    val x = variable
-    val y = variable
-    val thm5 = Theorem(() |- ()) {
-      val s1 = have((f ∈ A, x ∈ B) |- (app(f, x) === app(f, x))) by Sorry
-      val s2 = have((f ∈ A, g ∈ A) |- (f===g)) by Sorry
-      val s3 = have((x ∈ B, y ∈ B) |- (x===y)) by Sorry
-      have((x ∈ B, y ∈ B, f ∈ A, g ∈ A) |- (app(f, x) === app(g, y))) by Substitution.ApplyRules(s2, s3)(s1)
-    }
-  }
-*/
-
-/*
-  {
-    val f = function[1]
-    val x = variable
-    val y = variable
-    val P = formulaVariable
-    val Q = predicate[1]
-    val thm6 = Theorem(() |- ()) {
-      val s1 = have (P |- (f(x) === f(y)) ) by Sorry
-      assume(Q(f(x)))
-      thenHave( Q(f(y)) ) by Substitution.ApplyRules(s1)
-    }
-  }
-  */
 
 }
