@@ -1,9 +1,9 @@
 package lisa.utils.memoization
 
 case class MemoizationStats(hits: Int, miss: Int, faulted: Int):
-    def withHit = MemoizationStats(hits + 1, miss, faulted)
-    def withMiss = MemoizationStats(hits, miss + 1, faulted)
-    def withFault = MemoizationStats(hits, miss, faulted + 1)
+  def withHit = MemoizationStats(hits + 1, miss, faulted)
+  def withMiss = MemoizationStats(hits, miss + 1, faulted)
+  def withFault = MemoizationStats(hits, miss, faulted + 1)
 
 case object InfiniteRecursionDetectedException extends Exception
 
@@ -15,20 +15,19 @@ class Memoized[From, To](fun: From => To) extends Function[From, To]:
   protected def handleFault(): To =
     throw InfiniteRecursionDetectedException
 
-  def apply(v: From): To = 
+  def apply(v: From): To =
     val stored = memory.get(v)
     val seen = visited.contains(v)
     if stored.isEmpty then
       // compute
       visited.add(v)
       if seen then
-          stats = stats.withFault
-          handleFault()
+        stats = stats.withFault
+        handleFault()
       else
-          stats = stats.withMiss
-          memory.update(v, fun(v))
-    else
-      stats = stats.withHit
+        stats = stats.withMiss
+        memory.update(v, fun(v))
+    else stats = stats.withHit
     memory(v)
 
 class MemoizedWithDefault[From, To](fun: From => To, default: To) extends Memoized[From, To](fun):

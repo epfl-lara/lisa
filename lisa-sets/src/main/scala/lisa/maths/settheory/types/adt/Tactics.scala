@@ -1,13 +1,40 @@
+/**
+  * Defines a set of tactics to reason on Algebraic Data Types
+  */
+
 package lisa.maths.settheory.types.adt
 
 import lisa.maths.settheory.SetTheory.{*, given}
 import ADTDefinitions.*
 import Helpers.*
 
+/**
+  * Tactic performing a structural induction proof over an algebraic data type.
+  * 
+  * ===Usage===
+  * {{{
+  * have(forall(x, x :: adt => P(x))) by Induction(adt) {
+  *   Case(c1, x1, ..., xn) subproof {
+  *     // proof of P(xi) /\ ... P(xj) => P(c1(x1, ..., xn))
+  *   }
+  *   ...
+  *   Case(cm, x1, ..., xk) subproof {
+  *     // proof of P(xi) /\ ... P(xj) => P(c1(x1, ..., xn'))
+  *   }
+  * }
+  * }}}
+  * @param adt the algebraic data type to perform induction on
+  */
 class Induction[N <: Arity](adt: SemanticADT[N]) extends lisa.prooflib.ProofTacticLib.ProofTactic {
 
-
-
+  /**
+    * Given a proof of the claim for each case (possibly using the induction hypothesis), reassemble the subproofs to generate
+    * a proof of the claim for every element of the ADT.
+    *
+    * @param proof the scope in which the induction is performed
+    * @param subproofs the proofs of the claim for each case in addition to the variables used by the user
+    * @param bot the claim
+    */
   private def prove(using proof: lisa.SetTheoryLibrary.Proof)(subproofs: Map[SemanticConstructor[N], (Seq[Variable], proof.Fact)])(bot: Sequent) =
 
     val P = predicate[1]
@@ -50,12 +77,23 @@ class Induction[N <: Arity](adt: SemanticADT[N]) extends lisa.prooflib.ProofTact
           case _ => UnreachableException
     }
 
+  /**
+    * Executes the tactic with a more user-friendly syntax.
+    *
+    * @param proof the scope in which the induction is performed
+    * @param cases the cases to prove. A [[CaseBuilder]] is a mutable data structure that register every case that
+    * has been added to the tactic.
+    * @param bot the claim
+    */
   def apply(using proof: lisa.SetTheoryLibrary.Proof)(cases: ADTSyntax.CaseBuilder[N, proof.ProofStep] ?=> Unit)(bot: Sequent) = 
     val builder = ADTSyntax.CaseBuilder[N, proof.ProofStep]
     cases(using builder)
     prove(using proof)(builder.build)(bot)
 }
 
+/**
+  * Companion object for the [[Induction]] tactic class.
+  */
 object Induction {
   def apply[N <: Arity](adt: ADT[N]) = new Induction(adt.underlying)
 }

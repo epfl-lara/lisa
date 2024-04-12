@@ -130,7 +130,6 @@ object FOLHelpers {
   def asFrontLambda(l: K.LambdaTermFormula): LambdaExpression[Term, Formula, ?] = LambdaExpression(l.vars.map(asFrontLabel), asFront(l.body), l.vars.size)
   def asFrontLambda(l: K.LambdaFormulaFormula): LambdaExpression[Formula, Formula, ?] = LambdaExpression(l.vars.map(asFrontLabel), asFront(l.body), l.vars.size)
 
-
   def freshVariable[A <: LisaObject[A]](obj: A, name: Identifier): Variable = Variable(freshId(obj.allSchematicLabels.map(_.id), name))
   def freshVariable[A <: LisaObject[A]](objs: Iterable[A], name: Identifier): Variable = Variable(freshId(objs.flatMap(_.allSchematicLabels).map(_.id), name))
 }

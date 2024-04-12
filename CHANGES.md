@@ -1,5 +1,9 @@
 # Change List
 
+## 2024-04-12
+Addition of simply typed lambda calculus with top level polymorphism and inductive poylmorphic algebraic data types.
+Addition of tactics for typechecking and structural induction over ADTs.
+
 ## 2024-03-02
 Addition of a tactic that proves a sequent by applying a generic theorem on facts provided by the user. It can be used via `by Apply(thm).on(fact1, fact2,...)`. Replaces cases where using `Tautology` was overkill.
 

@@ -59,14 +59,12 @@ object SimpleDeducedSteps {
         Restate.from(premise)(premise.statement)
       else
         TacticSubproof: ip ?=>
-          ss.foldLeft(premise: ip.Fact)(
-            (prem, discharge) =>
-              val seq = discharge._2
-              if prem.statement.left.exists(f => F.isSame(f, seq.right.head)) then
-                val goal = prem.statement -<? seq.right.head ++<? (seq.left |- ())
-                lib.have(Cut(discharge._1, prem)(goal))
-              else
-                prem
+          ss.foldLeft(premise: ip.Fact)((prem, discharge) =>
+            val seq = discharge._2
+            if prem.statement.left.exists(f => F.isSame(f, seq.right.head)) then
+              val goal = prem.statement -<? seq.right.head ++<? (seq.left |- ())
+              lib.have(Cut(discharge._1, prem)(goal))
+            else prem
           )
     }
 

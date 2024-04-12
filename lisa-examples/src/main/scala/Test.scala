@@ -1,4 +1,3 @@
-import lisa.maths.settheory.types.TypeLib.|=>
 
 object Test extends lisa.Main {
 

@@ -136,7 +136,6 @@ trait Common {
      */
     def freshRename(taken: Iterable[Identifier]): Label[A]
 
-    
   }
 
   /**
@@ -314,22 +313,19 @@ trait Common {
     def canEqual(that: Any): Boolean =
       that.isInstanceOf[Variable]
 
-    //Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
     override def equals(that: Any): Boolean =
       that match {
         case other: Variable =>
-          (     (this eq other)                     //optional, but highly recommended sans very specific knowledge about this exact class implementation
-            ||  (     other.canEqual(this)          //optional only if this class is marked final
-                  &&  (hashCode == other.hashCode)  //optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
-                  &&  (     (id == other.id)
-                      )
-                )
-          )
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((id == other.id))))
         case _ =>
           false
       }
 
-    //Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
     override def hashCode(): Int =
       id.##
   }
@@ -359,22 +355,19 @@ trait Common {
     def canEqual(that: Any): Boolean =
       that.isInstanceOf[Constant]
 
-    //Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
     override def equals(that: Any): Boolean =
       that match {
         case other: Constant =>
-          (     (this eq other)                     //optional, but highly recommended sans very specific knowledge about this exact class implementation
-            ||  (     other.canEqual(this)          //optional only if this class is marked final
-                  &&  (hashCode == other.hashCode)  //optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
-                  &&  (     (id == other.id)
-                      )
-                )
-          )
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((id == other.id))))
         case _ =>
           false
       }
 
-    //Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
     override def hashCode(): Int =
       id.##
   }
@@ -415,23 +408,20 @@ trait Common {
     def canEqual(that: Any): Boolean =
       that.isInstanceOf[SchematicFunctionLabel[?]]
 
-    //Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
     override def equals(that: Any): Boolean =
       that match {
         case other: SchematicFunctionLabel[N] =>
-          (     (this eq other)                     //optional, but highly recommended sans very specific knowledge about this exact class implementation
-            ||  (     other.canEqual(this)          //optional only if this class is marked final
-                  &&  (hashCode == other.hashCode)  //optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
-                  &&  (     (id == other.id)
-                        &&  (arity == other.arity)
-                      )
-                )
-          )
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((id == other.id)
+              && (arity == other.arity))))
         case _ =>
           false
       }
 
-    //Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
     override def hashCode(): Int =
       31 * (
         id.##
@@ -457,29 +447,27 @@ trait Common {
     def rename(newid: Identifier): ConstantFunctionLabel[N] = ConstantFunctionLabel(newid, arity)
     def freshRename(taken: Iterable[Identifier]): ConstantFunctionLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Term]): String = if (infix & args.size == 2) (args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated()) else toString() + "(" + args.mkString(", ") + ")"
+    def mkString(args: Seq[Term]): String =
+      if (infix & args.size == 2) (args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated()) else toString() + "(" + args.mkString(", ") + ")"
     override def mkStringSeparated(args: Seq[Term]): String = if (infix) "(" + mkString(args) + ")" else mkString(args)
 
     def canEqual(that: Any): Boolean =
       that.isInstanceOf[SchematicFunctionLabel[?]]
 
-    //Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
     override def equals(that: Any): Boolean =
       that match {
         case other: ConstantFunctionLabel[N] =>
-          (     (this eq other)                     //optional, but highly recommended sans very specific knowledge about this exact class implementation
-            ||  (     other.canEqual(this)          //optional only if this class is marked final
-                  &&  (hashCode == other.hashCode)  //optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
-                  &&  (     (id == other.id)
-                        &&  (arity == other.arity)
-                      )
-                )
-          )
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((id == other.id)
+              && (arity == other.arity))))
         case _ =>
           false
       }
 
-    //Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
     override def hashCode(): Int =
       31 * (
         id.##
@@ -509,23 +497,20 @@ trait Common {
     def canEqual(that: Any): Boolean =
       that.isInstanceOf[AppliedFunctional]
 
-    //Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
     override def equals(that: Any): Boolean =
       that match {
         case other: AppliedFunctional =>
-          (     (this eq other)                     //optional, but highly recommended sans very specific knowledge about this exact class implementation
-            ||  (     other.canEqual(this)          //optional only if this class is marked final
-                  &&  (hashCode == other.hashCode)  //optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
-                  &&  (     (label == other.label)
-                        &&  (args == other.args)
-                      )
-                )
-          )
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((label == other.label)
+              && (args == other.args))))
         case _ =>
           false
       }
 
-    //Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
     override def hashCode(): Int =
       31 * (
         label.##
@@ -941,6 +926,5 @@ trait Common {
   extension [S <: LisaObject[S], T <: LisaObject[T]](t: (S ** 5) |-> T) {
     def apply(s1: S, s2: S, s3: S, s4: S, s5: S): T = t.applyUnsafe(Seq(s1, s2, s3, s4, s5))
   }
-
 
 }

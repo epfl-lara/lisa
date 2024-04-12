@@ -22,7 +22,7 @@ trait ProofsHelpers {
   given Library = library
 
   class HaveSequent /*private[ProofsHelpers]*/ (val bot: Sequent) {
-    //val x: lisa.fol.FOL.Sequent = bot
+    // val x: lisa.fol.FOL.Sequent = bot
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
@@ -297,7 +297,7 @@ trait ProofsHelpers {
     private val simpleProp = lambda.body === term
     val simplePropName = "simpleDef_" + fullName
     val simpleDef = THM(simpleProp, simplePropName, line, file, InternalStatement)({
-        have(thesis) by Restate.from(this of term)
+      have(thesis) by Restate.from(this of term)
     })
     shortDefs.update(label, Some(simpleDef))
 
@@ -430,12 +430,12 @@ trait ProofsHelpers {
   /**
    * Check correctness of the proof, using LISA's logical kernel, to the current point.
    */
-    def sanityProofCheck(using p: Proof)(message: String): Unit = {
+  def sanityProofCheck(using p: Proof)(message: String): Unit = {
     val csc = p.toSCProof
     if checkSCProof(csc).isValid then
       println("Proof is valid. " + message)
       Thread.sleep(100)
-    else 
+    else
       checkProof(csc)
       throw Exception("Proof is not valid: " + message)
   }
