@@ -4,7 +4,7 @@ import lisa.automation.Congruence.*
 import org.scalatest.funsuite.AnyFunSuite
 
 
-class CongruenceTest extends AnyFunSuite with lisa.Main {
+class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
   given lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
 
@@ -30,9 +30,9 @@ class CongruenceTest extends AnyFunSuite with lisa.Main {
 
   val one = variable
   val two = variable
-  val * = ConstantFunctionLabel.infix("*", 2)
-  val << = ConstantFunctionLabel.infix("<<", 2)
-  val / = ConstantFunctionLabel.infix("/", 2)
+  val * = SchematicFunctionLabel("*", 2)
+  val << = SchematicFunctionLabel("<<", 2)
+  val / = SchematicFunctionLabel("/", 2)
 
   
   val af = formulaVariable
@@ -533,24 +533,24 @@ class CongruenceTest extends AnyFunSuite with lisa.Main {
     val base = List(a === c, e === f, i === k, m === n, a === b, o === m, i === m, g === h, l === k, b === c, f === e, o === i, g === e, i === j)
 
     val test1 = Theorem(base |- (b === c)) {
-      egraph.proveInner(b, c, base |- ())
+      egraph.proveInnerTerm(b, c, base |- ())
     }
 
     val test2 = Theorem(base |- (f === h)) {
-      egraph.proveInner(f, h, base |- ())
+      egraph.proveInnerTerm(f, h, base |- ())
     }
 
     val test3 = Theorem(base |- (i === o)) {
-      egraph.proveInner(i, o, base |- ())
+      egraph.proveInnerTerm(i, o, base |- ())
     }
 
     val test4 = Theorem(base |- (o === i)) {
-      egraph.proveInner(o, i, base |- ())
+      egraph.proveInnerTerm(o, i, base |- ())
     }
 
   }
 
-/*
+
   test("4 elements with congruence proof test with explain") {
     import lib.*
     val egraph = new EGraphTerms()
@@ -558,72 +558,66 @@ class CongruenceTest extends AnyFunSuite with lisa.Main {
     egraph.add(F(b))
     egraph.merge(a, b)
     val test5 = Theorem(a===b |- F(a) === F(b)) {
-      egraph.proveInner(a, b, () |- ())
+      egraph.proveInnerTerm(F(a), F(b), (a === b) |- ())
     }
   }
-*/
 
-  /*
 
-  test("divide-mult-shift by 2 egraph test with explain") {
+  test("divide-mult-shift by 2 in terms egraph test with proofs") {
+
+    println("shift test: ")
 
     val egraph = new EGraphTerms()
-    val one = egraph.add(Term("one", List()))
-    val two = egraph.add(Term("two", List()))
-    val a = egraph.add(Term("a", List()))
-    val ax2 = egraph.add(Term("*", List(a, two)))
-    val ax2_d2 = egraph.add(Term("/", List(ax2, two)))
-    val `2d2` = egraph.add(Term("/", List(two, two)))
-    val ax_2d2 = egraph.add(Term("*", List(a, `2d2`)))
-    val ax1 = egraph.add(Term("*", List(a, one)))
-
-    val as1 = egraph.add(Term("<<", List(a, one)))
-    val * : TermSymbol = FunctionSymbol("*", 2)
+    egraph.add(one)
+    egraph.add(two)
+    egraph.add(a)
+    val ax2    = egraph.add(`*`(a, two))
+    val ax2_d2 = egraph.add(`/`(`*`(a, two), two))
+    val `2d2`  = egraph.add(`/`(two, two))
+    val ax_2d2 = egraph.add(`*`(a, `/`(two, two)))
+    val ax1    = egraph.add(`*`(a, one))
+    val as1    = egraph.add(`<<`(a, one))
 
     egraph.merge(ax2, as1)
     egraph.merge(ax2_d2, ax_2d2)
     egraph.merge(`2d2`, one)
     egraph.merge(ax1, a)
-    val ctx = List(ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
 
-    assert(egraph.explain(one, `2d2`) == Some(List(egraph.External((one, `2d2`)))) )
-    assert(egraph.explain(ax2, as1) == Some(List(egraph.External((ax2, as1)))) )
-    assert(egraph.explain(ax2_d2, ax_2d2) == Some(List(egraph.External((ax2_d2, ax_2d2)))) )
+    val base = List[Formula](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
 
-    assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.Congruence((ax_2d2, ax1)))) )
-    assert(egraph.explain(ax_2d2, a) == Some(List(egraph.Congruence((ax_2d2, ax1)), egraph.External((ax1, a))) ))
+    val one_2d2 = Theorem(base |- (one === `2d2`)) {
+      egraph.proveInnerTerm(one, `2d2`, base  |- ())
+    }
 
-    println(s"\n Proving ${one} === ${`2d2`} \n")
-    println(egraph.prove(one, `2d2`, SC.Sequent(ctx, List()), "s"))
+    val ax2_as1 = Theorem(base |- (ax2 === as1)) {
+      egraph.proveInnerTerm(ax2, as1, base  |- ())
+    }
 
-    println(s"\n Proving ${ax2} === ${as1} \n")
-    println(egraph.prove(ax2, as1, SC.Sequent(ctx, List()), "s"))
+    val ax2_d2_ax_2d2 = Theorem(base |- (ax2_d2 === ax_2d2)) {
+      egraph.proveInnerTerm(ax2_d2, ax_2d2, base  |- ())
+    }
 
-    println(s"\n Proving ${ax2_d2} === ${ax_2d2} \n")
-    println(egraph.prove(ax2_d2, ax_2d2, SC.Sequent(ctx, List()), "s"))
+    val ax_2d2_ax1 = Theorem(base |- (ax_2d2 === ax1)) {
+      egraph.proveInnerTerm(ax_2d2, ax1, base  |- ())
+    }
 
-    println(s"\n Proving ${ax_2d2} === ${ax1} \n")
-    println(egraph.prove(ax_2d2, ax1, SC.Sequent(ctx, List()), "s"))
-
-    println(s"\n Proving ${ax_2d2} === ${a} \n")
-    println(egraph.prove(ax_2d2, a, SC.Sequent(ctx, List()), "s"))
-
+    val ax_2d2_a = Theorem(base |- (ax_2d2 === a)) {
+      egraph.proveInnerTerm(ax_2d2, a, base  |- ())
+    }
 
   }
 
-
-  test("long chain congruence eGraph with explain") {
+  test("long chain of termscongruence eGraph with proofs") {
     val egraph = new EGraphTerms()
-    val x = egraph.add(Term("x", List()))
-    val fx = egraph.add(Term(F, List(x)))
-    val ffx = egraph.add(Term(F, List(fx)))
-    val fffx = egraph.add(Term(F, List(ffx)))
-    val ffffx = egraph.add(Term(F, List(fffx)))
-    val fffffx = egraph.add(Term(F, List(ffffx)))
-    val ffffffx = egraph.add(Term(F, List(fffffx)))
-    val fffffffx = egraph.add(Term(F, List(ffffffx)))
-    val ffffffffx = egraph.add(Term(F, List(fffffffx)))
-
+    egraph.add(x)
+    val fx = egraph.add(F(x))
+    val ffx = egraph.add(F(fx))
+    val fffx = egraph.add(F(ffx))
+    val ffffx = egraph.add(F(fffx))
+    val fffffx = egraph.add(F(ffffx))
+    val ffffffx = egraph.add(F(fffffx))
+    val fffffffx = egraph.add(F(ffffffx))
+    val ffffffffx = egraph.add(F(fffffffx))
 
     egraph.merge(ffffffffx, x)
     egraph.merge(fffffx, x)
@@ -632,27 +626,21 @@ class CongruenceTest extends AnyFunSuite with lisa.Main {
     assert(egraph.idEq(fx, x))
     assert(egraph.idEq(x, fx))
 
-    val ctx = List(ffffffffx === x, fffffx === x)
-    def shorten(s:String): String = 
-      s.replace("F(F(F(F(F(F(F(F(x))))))))", "F8x")
-      .replace("F(F(F(F(F(F(F(x)))))))", "F7x")
-      .replace("F(F(F(F(F(F(x))))))", "F6x")
-      .replace("F(F(F(F(F(x)))))", "F5x")
-      .replace("F(F(F(F(x)))", "F4x")
-      .replace("F(F(F(x)))", "F3x")
-      .replace("F(F(x))", "F2x")
-      .replace("F(x)", "Fx")
 
-    println(s"\n Proving ${fffx} === ${x} \n")
-    println(shorten(egraph.prove(fffx, x, SC.Sequent(ctx, List()), "s").get.toString()))
+    val base = List(ffffffffx === x, fffffx === x)
 
-    println(s"\n Proving ${ffx} === ${x} \n")
-    println(shorten(egraph.prove(ffx, x, SC.Sequent(ctx, List()), "s").get.toString()))
-
-    println(s"\n Proving ${fx} === ${x} \n")
-    println(shorten(egraph.prove(fx, x, SC.Sequent(ctx, List()), "s").get.toString()))
+  
+    val test2 = Theorem(base |- fffx === x) {
+      egraph.proveInnerTerm(fffx, x, base |- ())
+    }
+    val test3 = Theorem(base |- ffx === x) {
+      egraph.proveInnerTerm(ffx, x, base |- ())
+    }
+    val test4 = Theorem(base |- fx === x) {
+      egraph.proveInnerTerm(fx, x, base |- ())
+    }
 
   }
 
-*/
+
 }

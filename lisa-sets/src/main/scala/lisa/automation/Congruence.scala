@@ -4,6 +4,7 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
+import lisa.utils.parsing.UnreachableException
 
 object Congruence {
   
@@ -362,17 +363,16 @@ class EGraphTerms() {
       formulaParents(id) = formulaSeen.values.to(mutable.Set)
 
 
-  def prove(using lib: Library, proof: lib.Proof)(id1: Term, id2:Term, base: Sequent): proof.ProofTacticJudgement = 
-    TacticSubproof { proveInner(id1, id2, base) }
+  def proveTerm(using lib: Library, proof: lib.Proof)(id1: Term, id2:Term, base: Sequent): proof.ProofTacticJudgement = 
+    TacticSubproof { proveInnerTerm(id1, id2, base) }
 
-  def proveInner(using lib: Library, proof: lib.Proof)(id1: Term, id2:Term, base: Sequent): Unit = {
+  def proveInnerTerm(using lib: Library, proof: lib.Proof)(id1: Term, id2:Term, base: Sequent): Unit = {
     import lib.*
     val steps = explain(id1, id2)
     steps match {
       case None => throw new Exception("No proof found in the egraph")
       case Some(steps) => 
         if steps.isEmpty then have(base.left |- (base.right + (id1 === id2))) by Restate
-
         steps.foreach {
           case TermExternal((l, r)) => 
             val goalSequent = base.left |- (base.right + (id1 === r))
@@ -382,19 +382,114 @@ class EGraphTerms() {
               val x = freshVariable(id1)
               have(goalSequent) by RightSubstEq.withParametersSimple(List((l, r)), lambda(x, id1 === x))(lastStep)
           case TermCongruence((l, r)) => 
-            ???
-            /*
-            val proof = prove(lib, proof)(l, r, base)
-            proof match
-              case Proof.ProofTacticJudgement(_, _, _, _, _) => ()
-              case _ => throw new Exception("Invalid proof")
-            */
+            val prev = if id1 != l then lastStep else null
+            val leqr = have(base.left |- (base.right + (l === r))) subproof { sp ?=>
+              (l, r) match
+                case (AppliedFunction(labell, argsl), AppliedFunction(labelr, argsr)) if labell == labelr && argsl.size == argsr.size => 
+                  var freshn = freshId((l.freeVariables ++ r.freeVariables).map(_.id), "n").no
+                  val ziped = (argsl zip argsr)
+                  var zip = List[(Term, Term)]()
+                  var children = List[Term]()
+                  var vars = List[Variable]()
+                  var steps = List[sp.ProofStep]()
+                  ziped.reverse.foreach { (al, ar) =>
+                    if al == ar then children = al :: children
+                    else {
+                      val x = Variable(Identifier("n", freshn))
+                      freshn = freshn + 1
+                      children = x :: children
+                      vars = x :: vars
+                      steps = have(proveTerm(al, ar, base)) :: steps
+                      zip = (al, ar) :: zip
+                    }
+                  }
+                  have(base.left |- (base.right + (l === l))) by Restate
+                  val eqs = zip.map((l, r) => l === r)
+                  val goal = have((base.left ++ eqs) |- (base.right + (l === r))).by.bot
+                  have((base.left ++ eqs) |- (base.right + (l === r))) by RightSubstEq.withParametersSimple(zip, lambda(vars, l === labelr.applyUnsafe(children)))(lastStep)
+                  steps.foreach { s =>
+                    have(
+                      if s.bot.left.contains(s.bot.right.head) then lastStep.bot else lastStep.bot -<< s.bot.right.head
+                    ) by Cut(s, lastStep)
+                  }
+                case _ => 
+                  println(s"l: $l")
+                  println(s"r: $r")
+                  throw UnreachableException
+        
+            }
+            if id1 != l then
+              val goalSequent = base.left |- (base.right + (id1 === r))
+              val x = freshVariable(id1)
+              have(goalSequent +<< (l === r)) by RightSubstEq.withParametersSimple(List((l, r)), lambda(x, id1 === x))(prev)
+              have(goalSequent) by Cut(leqr, lastStep)
         }
     }
+  }
 
+  def proveFormula(using lib: Library, proof: lib.Proof)(id1: Formula, id2:Formula, base: Sequent): proof.ProofTacticJudgement = 
+    TacticSubproof { proveInnerFormula(id1, id2, base) }
 
-
-
+  def proveInnerFormula(using lib: Library, proof: lib.Proof)(id1: Formula, id2:Formula, base: Sequent): Unit = {
+    import lib.*
+    val steps = explain(id1, id2)
+    steps match {
+      case None => throw new Exception("No proof found in the egraph")
+      case Some(steps) => 
+        if steps.isEmpty then have(base.left |- (base.right + (id1 <=> id2))) by Restate
+        steps.foreach {
+          case FormulaExternal((l, r)) => 
+            val goalSequent = base.left |- (base.right + (id1 <=> r))
+            if l == id1 then 
+              have(goalSequent) by Restate
+            else
+              val x = freshVariableFormula(id1)
+              have(goalSequent) by RightSubstIff.withParametersSimple(List((l, r)), lambda(x, id1 <=> x))(lastStep)
+          case FormulaCongruence((l, r)) => 
+            val prev = if id1 != l then lastStep else null
+            val leqr = have(base.left |- (base.right + (l <=> r))) subproof { sp ?=>
+              (l, r) match
+                case (AppliedConnector(labell, argsl), AppliedConnector(labelr, argsr)) if labell == labelr && argsl.size == argsr.size => 
+                  var freshn = freshId((l.freeVariableFormulas ++ r.freeVariableFormulas).map(_.id), "n").no
+                  val ziped = (argsl zip argsr)
+                  var zip = List[(Formula, Formula)]()
+                  var children = List[Formula]()
+                  var vars = List[VariableFormula]()
+                  var steps = List[sp.ProofStep]()
+                  ziped.reverse.foreach { (al, ar) =>
+                    if al == ar then children = al :: children
+                    else {
+                      val x = VariableFormula(Identifier("n", freshn))
+                      freshn = freshn + 1
+                      children = x :: children
+                      vars = x :: vars
+                      steps = have(proveFormula(al, ar, base)) :: steps
+                      zip = (al, ar) :: zip
+                    }
+                  }
+                  have(base.left |- (base.right + (l <=> l))) by Restate
+                  val eqs = zip.map((l, r) => l <=> r)
+                  val goal = have((base.left ++ eqs) |- (base.right + (l <=> r))).by.bot
+                  have((base.left ++ eqs) |- (base.right + (l <=> r))) by RightSubstIff.withParametersSimple(zip, lambda(vars, l <=> labelr.applyUnsafe(children)))(lastStep)
+                  steps.foreach { s =>
+                    have(
+                      if s.bot.left.contains(s.bot.right.head) then lastStep.bot else lastStep.bot -<< s.bot.right.head
+                    ) by Cut(s, lastStep)
+                  }
+                case _ => 
+                  println(s"l: $l")
+                  println(s"r: $r")
+                  throw UnreachableException
+        
+            }
+            if id1 != l then
+              val goalSequent = base.left |- (base.right + (id1 <=> r))
+              val x = freshVariableFormula(id1)
+              have(goalSequent +<< (l <=> r)) by RightSubstIff.withParametersSimple(List((l, r)), lambda(x, id1 <=> x))(prev)
+              have(goalSequent) by Cut(lastStep, leqr)
+        
+        }
+    }
   }
 
 
