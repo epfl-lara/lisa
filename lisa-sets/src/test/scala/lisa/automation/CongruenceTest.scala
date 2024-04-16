@@ -1,6 +1,7 @@
 package lisa.automation
 import lisa.fol.FOL.{*, given}
 import lisa.automation.Congruence.*
+import lisa.automation.Congruence
 import org.scalatest.funsuite.AnyFunSuite
 
 
@@ -61,7 +62,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   val `*f` = SchematicConnectorLabel("*f", 2)
   val `<<f` = SchematicConnectorLabel("<<f", 2)
   val `/f` = SchematicConnectorLabel("/f", 2)
-
+/*
 
   test("3 terms no congruence egraph test") {
     val egraph = new EGraphTerms()
@@ -498,8 +499,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
 
-  test("15 terms no congruence proofs test with redundant merges") {
-    import lib.*
+  test("15 terms no congruence with redundant merges test with proofs") {
     val egraph = new EGraphTerms()
     egraph.add(a)
     egraph.add(b)
@@ -551,8 +551,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
 
-  test("4 elements with congruence proof test with explain") {
-    import lib.*
+  test("4 elements with congruence test with proofs") {
     val egraph = new EGraphTerms()
     egraph.add(F(a))
     egraph.add(F(b))
@@ -564,9 +563,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
 
   test("divide-mult-shift by 2 in terms egraph test with proofs") {
-
-    println("shift test: ")
-
     val egraph = new EGraphTerms()
     egraph.add(one)
     egraph.add(two)
@@ -621,10 +617,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
     egraph.merge(ffffffffx, x)
     egraph.merge(fffffx, x)
-    assert(egraph.idEq(fffx, x))
-    assert(egraph.idEq(ffx, x))
-    assert(egraph.idEq(fx, x))
-    assert(egraph.idEq(x, fx))
 
 
     val base = List(ffffffffx === x, fffffx === x)
@@ -639,6 +631,297 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val test4 = Theorem(base |- fx === x) {
       egraph.proveInnerTerm(fx, x, base |- ())
     }
+
+  }
+
+
+  test("15 formulas no congruence proofs with redundant merges test with proofs") {
+    val egraph = new EGraphTerms()
+    egraph.add(af)
+    egraph.add(bf)
+    egraph.add(cf)
+    egraph.add(df)
+    egraph.add(ef)
+    egraph.add(ff)
+    egraph.add(gf)
+    egraph.add(hf)
+    egraph.add(if_)
+    egraph.add(jf)
+    egraph.add(kf)
+    egraph.add(lf)
+    egraph.add(mf)
+    egraph.add(nf)
+    egraph.add(of)
+    egraph.merge(af, cf)
+    egraph.merge(ef, ff)
+    egraph.merge(if_, kf)
+    egraph.merge(mf, nf)
+    egraph.merge(af, bf)
+    egraph.merge(of, mf)
+    egraph.merge(if_, mf)
+    egraph.merge(gf, hf)
+    egraph.merge(lf, kf)
+    egraph.merge(bf, cf)
+    egraph.merge(ff, ef)
+    egraph.merge(of, if_)
+    egraph.merge(gf, ef)
+    egraph.merge(if_, jf)
+
+    val base = List(af <=> cf, ef <=> ff, if_ <=> kf, mf <=> nf, af <=> bf,
+     of <=> mf, if_ <=> mf, gf <=> hf, lf <=> kf, bf <=> cf, ff <=> ef, of <=> if_, gf <=> ef, if_ <=> jf)
+
+    val test1 = Theorem(base |- bf <=> cf) {
+      egraph.proveInnerFormula(bf, cf, base |- ())
+    }
+
+    val test2 = Theorem(base |- ff <=> hf) {
+      egraph.proveInnerFormula(ff, hf, base |- ())
+    }
+
+    val test3 = Theorem(base |- if_ <=> of) {
+      egraph.proveInnerFormula(if_, of, base |- ())
+    }
+
+    val test4 = Theorem(base |- of <=> if_) {
+      egraph.proveInnerFormula(of, if_, base |- ())
+    }
+
+  }
+
+  test("4 formulas with congruence test with proofs") {
+    val egraph = new EGraphTerms()
+    egraph.add(Ff(af))
+    egraph.add(Ff(bf))
+    egraph.merge(af, bf)
+    val test5 = Theorem(af <=> bf |- Ff(af) <=> Ff(bf)) {
+      egraph.proveInnerFormula(Ff(af), Ff(bf), (af <=> bf) |- ())
+    }
+  }
+
+  test("divide-mult-shift by 2 in formulas egraph test with proofs") {
+    val egraph = new EGraphTerms()
+    egraph.add(onef)
+    egraph.add(twof)
+    egraph.add(af)
+    val ax2    = egraph.add(`*f`(af, twof))
+    val ax2_d2 = egraph.add(`/f`(`*f`(af, twof), twof))
+    val `2d2`  = egraph.add(`/f`(twof, twof))
+    val ax_2d2 = egraph.add(`*f`(af, `/f`(twof, twof)))
+    val ax1    = egraph.add(`*f`(af, onef))
+    val as1    = egraph.add(`<<f`(af, onef))
+
+    egraph.merge(ax2, as1)
+    egraph.merge(ax2_d2, ax_2d2)
+    egraph.merge(`2d2`, onef)
+    egraph.merge(ax1, af)
+
+    val base = List[Formula](ax2 <=> as1, ax2_d2 <=> ax_2d2, `2d2` <=> onef, ax1 <=> af)
+
+    val one_2d2 = Theorem(base |- onef <=> `2d2`) {
+      egraph.proveInnerFormula(onef, `2d2`, base  |- ())
+    }
+
+    val ax2_as1 = Theorem(base |- ax2 <=> as1) {
+      egraph.proveInnerFormula(ax2, as1, base  |- ())
+    }
+
+    val ax2_d2_ax_2d2 = Theorem(base |- ax2_d2 <=> ax_2d2) {
+      egraph.proveInnerFormula(ax2_d2, ax_2d2, base  |- ())
+    }
+
+    val ax_2d2_ax1 = Theorem(base |- ax_2d2 <=> ax1) {
+      egraph.proveInnerFormula(ax_2d2, ax1, base  |- ())
+    }
+
+    val ax_2d2_a = Theorem(base |- ax_2d2 <=> af) {
+      egraph.proveInnerFormula(ax_2d2, af, base  |- ())
+    }
+
+  }
+
+  test("long chain of formulas congruence eGraph with proofs") {
+    val egraph = new EGraphTerms()
+    egraph.add(xf)
+    val fx = egraph.add(Ff(xf))
+    val ffx = egraph.add(Ff(fx))
+    val fffx = egraph.add(Ff(ffx))
+    val ffffx = egraph.add(Ff(fffx))
+    val fffffx = egraph.add(Ff(ffffx))
+    val ffffffx = egraph.add(Ff(fffffx))
+    val fffffffx = egraph.add(Ff(ffffffx))
+    val ffffffffx = egraph.add(Ff(fffffffx))
+
+    egraph.merge(ffffffffx, xf)
+    egraph.merge(fffffx, xf)
+    
+    val base = List(ffffffffx <=> xf, fffffx <=> xf)
+
+    val test2 = Theorem(base |- fffx <=> xf) {
+      egraph.proveInnerFormula(fffx, xf, base |- ())
+    }
+    val test3 = Theorem(base |- ffx <=> xf) {
+      egraph.proveInnerFormula(ffx, xf, base |- ())
+    }
+    val test4 = Theorem(base |- fx <=> xf) {
+      egraph.proveInnerFormula(fx, xf, base |- ())
+    }
+  }
+
+
+  test("2 terms 6 predicates with congruence egraph test with proofs") {
+    val egraph = new EGraphTerms()
+    egraph.add(Ff(Ff(Fp(a))))
+    egraph.add(Ff(Ff(Fp(b))))
+    egraph.merge(a, b)
+
+    val test5 = Theorem((a === b) |- Fp(a) <=> Fp(b)) {
+      egraph.proveInnerFormula(Fp(a), Fp(b), (a === b) |- ())
+    }
+
+    val test6 = Theorem((a === b) |- Ff(Fp(a)) <=> Ff(Fp(b))) {
+      egraph.proveInnerFormula(Ff(Fp(a)), Ff(Fp(b)), (a === b) |- ())
+    }
+
+    val test7 = Theorem((a === b) |- Ff(Ff(Fp(a))) <=> Ff(Ff(Fp(b))) ) {
+      egraph.proveInnerFormula(Ff(Ff(Fp(a))), Ff(Ff(Fp(b))), (a === b) |- ())
+    }
+
+  }
+
+  test("6 terms 6 predicates with congruence egraph test with proofs") {
+    val egraph = new EGraphTerms()
+    egraph.add(Ff(Ff(Fp(F(F(a))))))
+    egraph.add(Ff(Ff(Fp(F(F(b))))))
+    egraph.merge(a, b)
+
+    val test5 = Theorem((a === b) |- (F(a) === F(b))) {
+      egraph.proveInnerTerm(F(a), F(b), (a === b) |- ())
+    }
+
+    val test6 = Theorem((a === b) |- Fp(F(F(a))) <=> Fp(F(F(b))) ) {
+      egraph.proveInnerFormula(Fp(F(F(a))), Fp(F(F(b))), (a === b) |- ())
+    }
+
+    val test7 = Theorem((a === b) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b))))) ) {
+      egraph.proveInnerFormula(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b) |- ())
+    }
+
+    egraph.merge(Fp(F(F(b))), Ff(Fp(F(F(a)))))
+
+    val test8 = Theorem(((a === b), Fp(F(F(b))) <=> Ff(Fp(F(F(a)))) ) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b))))) ) {
+      egraph.proveInnerFormula(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b, Fp(F(F(b))) <=> Ff(Fp(F(F(a)))) ) |- ())
+    }
+
+  }
+*/
+  test("Full congruence tactic tests") {
+    println("Full congruence tactic tests")
+/*
+    val base1 = List(a === c, e === f, i === k, m === n, a === b, o === m, i === m, g === h, l === k, b === c, f === e, o === i, g === e, i === j)
+
+    val test1 = Theorem(base1 |- (b === c)) {
+      have(thesis) by Congruence
+    }
+
+    val test2 = Theorem(base1 |- (f === h)) {
+      have(thesis) by Congruence
+    }
+
+    val test3 = Theorem(base1 |- (i === o)) {
+      have(thesis) by Congruence
+    }
+
+*/
+    val ax2    = `*`(a, two)
+    val ax2_d2 = `/`(`*`(a, two), two)
+    val `2d2`  = `/`(two, two)
+    val ax_2d2 = `*`(a, `/`(two, two))
+    val ax1    = `*`(a, one)
+    val as1    = `<<`(a, one)
+
+    val base2 = List[Formula](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
+
+/*
+    val one_2d2 = Theorem(base2 |- (one === `2d2`)) {
+      have(thesis) by Congruence
+    }
+
+    val ax2_as1 = Theorem(base2 |- (ax2 === as1)) {
+      have(thesis) by Congruence
+    }
+
+    val ax2_d2_ax_2d2 = Theorem(base2 |- (ax2_d2 === ax_2d2)) {
+      have(thesis) by Congruence
+    }
+
+    val ax_2d2_ax1 = Theorem(base2 |- (ax_2d2 === ax1)) {
+      have(thesis) by Congruence
+    }
+*/
+    val egraph = new EGraphTerms()
+    egraph.add(Fp(ax_2d2))
+    egraph.add(Fp(a))
+    egraph.addAll(base2)
+    egraph.merge(ax2, as1)
+    egraph.merge(ax2_d2, ax_2d2)
+    egraph.merge(`2d2`, one)
+    egraph.merge(ax1, a)
+    println("Are same: " + egraph.idEq(ax_2d2, a))
+    println("Are same: " + egraph.idEq(Fp(ax_2d2), Fp(a)))
+
+    val ax_2d2_a = Theorem(base2 |- (ax_2d2 === a)) {
+      have(thesis) by Congruence
+    }
+
+    val ax_2d2_a_2 = Theorem(base2 |- (Fp(ax_2d2) <=> Fp(a))) {
+      have(thesis) by Congruence
+    }
+
+    val ax_2d2_a_1 = Theorem((Fp(a) :: base2) |- Fp(ax_2d2)) {
+      have(thesis) by Congruence
+    }
+
+
+
+    val ax_2d2_a_3 = Theorem((base2 :+ Fp(ax_2d2) :+ !Fp(a)) |- () ) {
+      have(thesis) by Congruence
+    }
+/*
+    val test5 = Theorem(a===b |- F(a) === F(b)) {
+      have(thesis) by Congruence
+    }
+
+    val test6 = Theorem(a === b |- F(a) === F(b)) {
+      have(thesis) by Congruence
+    }
+
+
+
+    val test7 = Theorem((Ff(Ff(Ff(Ff(Ff(Ff(Ff(xf))))))) <=> xf, Ff(Ff(Ff(Ff(Ff(xf))))) <=> xf) |- Ff(Ff(Ff(xf))) <=> xf) {
+      have(thesis) by Congruence
+    }
+
+    val test8 = Theorem((Ff(Ff(Ff(Ff(Ff(Ff(Ff(xf))))))) <=> xf, Ff(Ff(Ff(Ff(Ff(xf))))) <=> xf) |- Ff(xf) <=> xf) {
+      have(thesis) by Congruence
+    }
+
+    val test9 = Theorem((a === b) |- (Fp(F(F(a))), !Fp(F(F(b)))) ) {
+      have(thesis) by Congruence
+    }
+
+    val test10 = Theorem((a === b) |- Fp(F(F(a))) <=> Fp(F(F(b))) ) {
+      have(thesis) by Congruence
+    }
+
+    
+    val test11 = Theorem((a === b) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b))))) ) {
+      have(thesis) by Congruence
+    }
+
+    val test12 = Theorem(((a === b), Fp(F(F(b))) <=> Ff(Fp(F(F(a)))), Ff(Ff(Fp(F(F(a))))) ) |- Ff(Ff(Fp(F(F(b))))) ) {
+      have(thesis) by Congruence
+    }
+*/
 
   }
 

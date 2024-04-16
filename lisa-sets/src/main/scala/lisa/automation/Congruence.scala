@@ -5,8 +5,86 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
 import lisa.utils.parsing.UnreachableException
+import leo.datastructures.TPTP.CNF.AtomicFormula
 
-object Congruence {
+object Congruence  extends ProofTactic with ProofSequentTactic {
+    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = TacticSubproof {
+      import lib.*
+
+      val egraph = new EGraphTerms()
+      egraph.addAll(bot.left)
+      egraph.addAll(bot.right)
+
+      bot.left.foreach{
+        case (left === right) => egraph.merge(left, right)
+        case (left <=> right) => egraph.merge(left, right)
+        case _ => ()
+      }
+
+      if isSameSequent(bot, ⊤) then
+        have(bot) by Restate
+      else if bot.left.exists { lf =>
+        bot.right.exists { rf =>
+          if egraph.idEq(lf, rf) then
+            val base = have(bot.left |- (bot.right + lf) ) by Restate
+            val eq = have(egraph.proveFormula(lf, rf, bot))
+            val a = formulaVariable
+            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(List((lf, rf)), lambda(a, a))(base)
+            have(bot) by Cut(eq, lastStep)
+            true
+          else false
+        } ||
+        bot.left.exists{ 
+          case rf2 @ Neg(rf) if egraph.idEq(lf, rf)=>
+            val base = have((bot.left + !lf) |- bot.right ) by Restate
+            val eq = have(egraph.proveFormula(lf, rf, bot))
+            val a = formulaVariable
+            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(List((lf, rf)), lambda(a, !a))(base)
+            have(bot) by Cut(eq, lastStep)
+            true
+          case _  => false
+        } || {
+        lf match
+          case !(a === b) if egraph.idEq(a, b) => 
+            have(egraph.proveTerm(a, b, bot))
+            true
+          case !(a <=> b) if egraph.idEq(a, b) => 
+            have(egraph.proveFormula(a, b, bot))
+            true
+          case _ => false
+        }
+
+      } then ()
+      else if bot.right.exists { rf =>
+        bot.right.exists{ 
+          case lf2 @ Neg(lf) if egraph.idEq(lf, rf)=>
+            val base = have((bot.left) |- (bot.right + !rf) ) by Restate
+            val eq = have(egraph.proveFormula(lf, rf, bot))
+            val a = formulaVariable
+            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(List((lf, rf)), lambda(a, !a))(base)
+            have(bot) by Cut(eq, lastStep)
+            true
+          case _  => false
+        } || {
+        rf match
+          case (a === b) if egraph.idEq(a, b) => 
+            have(egraph.proveTerm(a, b, bot))
+            true
+          case (a <=> b) if egraph.idEq(a, b) =>
+            have(egraph.proveFormula(a, b, bot))
+            true
+          case (a <=> b) =>
+            println(s"Found unprovable equivalence: $a <=> $b")
+            println(egraph.classOf(a))
+            println(egraph.classOf(b))
+            false
+          case _ => false
+        }
+      } then ()
+      else
+        return proof.InvalidProofTactic(s"No congruence found to show sequent\n $bot")
+    }
+
   
 }
 
@@ -283,6 +361,13 @@ class EGraphTerms() {
         )
         node
       case _ => node
+
+  def addAll(nodes: Iterable[Term|Formula]): Unit = 
+    nodes.foreach{
+      case node: Term => add(node)
+      case node: Formula => add(node)
+    }
+    
     
 
 
@@ -391,7 +476,7 @@ class EGraphTerms() {
                   var zip = List[(Term, Term)]()
                   var children = List[Term]()
                   var vars = List[Variable]()
-                  var steps = List[sp.ProofStep]()
+                  var steps = List[(Formula, sp.ProofStep)]()
                   ziped.reverse.foreach { (al, ar) =>
                     if al == ar then children = al :: children
                     else {
@@ -399,7 +484,7 @@ class EGraphTerms() {
                       freshn = freshn + 1
                       children = x :: children
                       vars = x :: vars
-                      steps = have(proveTerm(al, ar, base)) :: steps
+                      steps = (al === ar, have(proveTerm(al, ar, base))) :: steps
                       zip = (al, ar) :: zip
                     }
                   }
@@ -409,8 +494,8 @@ class EGraphTerms() {
                   have((base.left ++ eqs) |- (base.right + (l === r))) by RightSubstEq.withParametersSimple(zip, lambda(vars, l === labelr.applyUnsafe(children)))(lastStep)
                   steps.foreach { s =>
                     have(
-                      if s.bot.left.contains(s.bot.right.head) then lastStep.bot else lastStep.bot -<< s.bot.right.head
-                    ) by Cut(s, lastStep)
+                      if s._2.bot.left.contains(s._1) then lastStep.bot else lastStep.bot -<< s._1
+                    ) by Cut(s._2, lastStep)
                   }
                 case _ => 
                   println(s"l: $l")
@@ -455,7 +540,7 @@ class EGraphTerms() {
                   var zip = List[(Formula, Formula)]()
                   var children = List[Formula]()
                   var vars = List[VariableFormula]()
-                  var steps = List[sp.ProofStep]()
+                  var steps = List[(Formula, sp.ProofStep)]()
                   ziped.reverse.foreach { (al, ar) =>
                     if al == ar then children = al :: children
                     else {
@@ -463,7 +548,7 @@ class EGraphTerms() {
                       freshn = freshn + 1
                       children = x :: children
                       vars = x :: vars
-                      steps = have(proveFormula(al, ar, base)) :: steps
+                      steps = (al <=> ar, have(proveFormula(al, ar, base))) :: steps
                       zip = (al, ar) :: zip
                     }
                   }
@@ -473,8 +558,36 @@ class EGraphTerms() {
                   have((base.left ++ eqs) |- (base.right + (l <=> r))) by RightSubstIff.withParametersSimple(zip, lambda(vars, l <=> labelr.applyUnsafe(children)))(lastStep)
                   steps.foreach { s =>
                     have(
-                      if s.bot.left.contains(s.bot.right.head) then lastStep.bot else lastStep.bot -<< s.bot.right.head
-                    ) by Cut(s, lastStep)
+                      if s._2.bot.left.contains(s._1) then lastStep.bot else lastStep.bot -<< s._1
+                    ) by Cut(s._2, lastStep)
+                  }
+
+                case (AppliedPredicate(labell, argsl), AppliedPredicate(labelr, argsr)) if labell == labelr && argsl.size == argsr.size => 
+                  var freshn = freshId((l.freeVariableFormulas ++ r.freeVariableFormulas).map(_.id), "n").no
+                  val ziped = (argsl zip argsr)
+                  var zip = List[(Term, Term)]()
+                  var children = List[Term]()
+                  var vars = List[Variable]()
+                  var steps = List[(Formula, sp.ProofStep)]()
+                  ziped.reverse.foreach { (al, ar) =>
+                    if al == ar then children = al :: children
+                    else {
+                      val x = Variable(Identifier("n", freshn))
+                      freshn = freshn + 1
+                      children = x :: children
+                      vars = x :: vars
+                      steps = (al === ar, have(proveTerm(al, ar, base))) :: steps
+                      zip = (al, ar) :: zip
+                    }
+                  }
+                  have(base.left |- (base.right + (l <=> l))) by Restate
+                  val eqs = zip.map((l, r) => l === r)
+                  val goal = have((base.left ++ eqs) |- (base.right + (l <=> r))).by.bot
+                  have((base.left ++ eqs) |- (base.right + (l <=> r))) by RightSubstEq.withParametersSimple(zip, lambda(vars, l <=> labelr.applyUnsafe(children)))(lastStep)
+                  steps.foreach { s =>
+                    have(
+                      if s._2.bot.left.contains(s._1) then lastStep.bot else lastStep.bot -<< s._1
+                    ) by Cut(s._2, lastStep)
                   }
                 case _ => 
                   println(s"l: $l")
@@ -486,7 +599,7 @@ class EGraphTerms() {
               val goalSequent = base.left |- (base.right + (id1 <=> r))
               val x = freshVariableFormula(id1)
               have(goalSequent +<< (l <=> r)) by RightSubstIff.withParametersSimple(List((l, r)), lambda(x, id1 <=> x))(prev)
-              have(goalSequent) by Cut(lastStep, leqr)
+              have(goalSequent) by Cut(leqr, lastStep)
         
         }
     }
