@@ -4,10 +4,10 @@ package lisa.maths.settheory.types.adt
  * This object provides a DSL for defining algebraic data types (ADTs) and functions over ADT in Lisa.
  * For usage examples, please refer to the documentation of the package or the reference manual.
  */
-private[adt] object ADTSyntax {
+object ADTSyntax {
 
   import ADTDefinitions.*
-  import lisa.fol.FOL.*
+  import lisa.maths.settheory.SetTheory.{*, given}
 
   /**
    * Builder for defining a constructor specification.
@@ -430,15 +430,18 @@ private[adt] object ADTSyntax {
 
   /**
     * Mutable data structure that registers the patterns that have been filled inside a pattern matching syntax.
+    * 
+    * @tparam N the type variables of the ADT
+    * @param comp the complementary information stored in the builder
     */
-  class CaseBuilder[N <: Arity, T] {
+  class CaseBuilder[N <: Arity, T, R](val comp : R) {
 
     /**
       * The underlying mutable map between patterns and the body of the corresponding cases. For each
       * patterns stores the variables that have been used to represent its arguments.
       * 
       */
-    private val underlying = scala.collection.mutable.Map[SemanticConstructor[N], (Seq[Variable], T)]()
+    private val underlying = scala.collection.mutable.Map[Constructor[N], (Seq[Variable], T)]()
 
     /**
       * Adds a case to the pattern matching
@@ -446,12 +449,41 @@ private[adt] object ADTSyntax {
       * @param cons the pattern / constructor
       * @param value the value next to the variables that are used for the pattern's arguments
       */
-    def += (cons: Constructor[N], value: (Seq[Variable], T)) = underlying += (cons.underlying -> value)
+    def += (cons: Constructor[N], value: (Seq[Variable], T)) = underlying += (cons -> value)
+
+    /**
+      * Checks if the cases of a pattern matching are valid. Specifically, it checks that:
+      * - All constructors are covered
+      * - There are no extra cases
+      * - The number of variables provided by the user matches the arity of the constructor
+      *
+      * @param adt the ADT over which the pattern matching is performed
+      * @return an error message if the pattern matching is invalid, None otherwise
+      */
+    def isValid(adt: ADT[N]): Option[String] = 
+      val constructors = adt.constructors.toSet
+      val casesConstructors = underlying.keySet.toSet
+
+      val constructorsMinusCases = constructors -- casesConstructors
+      val casesMinusConstructors = casesConstructors -- constructors
+
+      // STEP 1: Check that all constructors are covered
+      if !constructorsMinusCases.isEmpty then 
+        Some(s"Case for ${constructorsMinusCases.head.name} is missing.")
+      // STEP 2: Check that there are no extra cases
+      else if !casesMinusConstructors.isEmpty then 
+        Some(s"${casesMinusConstructors.head.name} is not a constructor of ${adt.name}.")
+      else
+        underlying.keys.foldLeft[Option[String]](None)((acc, c) => 
+          val vars = underlying(c)._1.toSet
+          // STEP 3: Check that for each case the number of variables provided by the user matches the arity of the constructor
+          acc.orElse(Some(s"Case ${c.name}: ${vars.size} variables were provided whereas the arity of ${c.name} is ${c.arity}.").filter(_ => vars.size != c.underlying.arity))
+        )
 
     /**
       * Outputs an immutable map out of the underlying mutable one
       */
-    def build: Map[SemanticConstructor[N], (Seq[Variable], T)] = underlying.toMap
+    def build: Map[Constructor[N], (Seq[Variable], T)] = underlying.toMap
   }
 
   /**
@@ -475,13 +507,35 @@ private[adt] object ADTSyntax {
       * @param builder the builder of the induction proof
       * @param subproof the proof of the case (possibly using the induction hypothesis)
       */
-    def subproof (using proof: lisa.SetTheoryLibrary.Proof, line: sourcecode.Line, file: sourcecode.File, builder: CaseBuilder[N, proof.ProofStep])(subproof: proof.InnerProof ?=> Unit): Unit =
-    //   //val botWithAssumptions = HaveSequent.this.bot ++ (proof.getAssumptions |- ())
-    //   //val iProof: proof.InnerProof = new proof.InnerProof(Some(botWithAssumptions))
-      val iProof: proof.InnerProof = new proof.InnerProof(None)
+    def subproof (using proof: Proof, line: sourcecode.Line, file: sourcecode.File, builder: CaseBuilder[N, proof.ProofStep, (Sequent, Seq[Term], Variable)])(subproof: proof.InnerProof ?=> Unit): Unit =
+      val (bot, args, adtVar) = builder.comp
+      val prop = bot.right.head
+      val consTerm = appSeq(cons.underlying.term(args))(vars)
+      val subst = adtVar -> consTerm
+
+      val assumptions = 
+        (wellTypedSet(cons.underlying.semanticSignature(vars).map(p => (p._1, p._2.substitute(cons.underlying.typeVariablesSeq.zip(args).map(SubstPair(_, _)) : _*))))
+        ++ 
+        cons.underlying.syntacticSignature(vars).filter(_._2 == Self).map((v, _) => prop.substitute(adtVar -> v)))
+
+      //val botWithAssumptions = bot.substitute(subst) ++ ((assumptions ++ proof.getAssumptions) |- ())
+      val botWithAssumptions = bot.substitute(subst) ++ (assumptions |- ())
+       
+
+
+      val iProof: proof.InnerProof = new proof.InnerProof(Some(botWithAssumptions))
       subproof(using iProof)
-      val proofStep = (new lisa.prooflib.BasicStepTactic.SUBPROOF(using proof)(None)(iProof)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
-      builder += (cons, (vars, proofStep))
+      val proofStep = (new SUBPROOF(using proof)(None)(iProof)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
+
+      def subproofWithExtraStep: proof.ProofTacticJudgement = TacticSubproof{ ip ?=>
+        val fullSeq = Tautology(using lisa.SetTheoryLibrary, ip)(proofStep)(botWithAssumptions)
+        if fullSeq.isValid then
+          fullSeq.validate(line, file)
+        else 
+          return proof.InvalidProofTactic(s"Proof of case ${cons.name} is invalid.\nExpected: ${botWithAssumptions}.")
+      }
+
+      builder += (cons, (vars, subproofWithExtraStep.validate(line, file)))
     
     /**
       * Used in the context of a function definition. Adds the body of the case to a builder.
@@ -489,7 +543,7 @@ private[adt] object ADTSyntax {
       * @param body the body of this case
       * @param builder the builder for the function definition
       */
-    def apply(body : Term)(using builder: CaseBuilder[N, Term]) = builder += (cons, (vars, body))
+    def apply(body : Term)(using builder: CaseBuilder[N, Term, Unit]) = builder += (cons, (vars, body))
   }
 
   /**
@@ -500,10 +554,13 @@ private[adt] object ADTSyntax {
     * @param name the name of this functions
     * @param cases the definition of the function for each constructor
     */
-  def fun[N <: Arity](adt: ADT[N], returnType: Term)(using name: sourcecode.Name)(cases: CaseBuilder[N, Term] ?=> Unit): ADTFunction[N] = {
-    val builder = CaseBuilder[N, Term]
+  def fun[N <: Arity](adt: ADT[N], returnType: Term)(using name: sourcecode.Name)(cases: CaseBuilder[N, Term, Unit] ?=> Unit): ADTFunction[N] = {
+    val builder = CaseBuilder[N, Term, Unit](())
     cases(using builder)
-    ADTFunction(SemanticFunction[N](name.value, adt.underlying, builder.build, returnType), adt)
+    builder.isValid(adt) match
+      case None => 
+        ADTFunction(SemanticFunction[N](name.value, adt.underlying, builder.build.map((k, v) => (k.underlying, v)), returnType), adt)
+      case Some(msg) => throw IllegalArgumentException(msg)
   }
 
 }

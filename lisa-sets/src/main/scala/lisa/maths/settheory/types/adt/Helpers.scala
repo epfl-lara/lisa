@@ -246,7 +246,27 @@ private[adt] object ADTDefinitions {
   /**
    * The specification of a constructor can either contain terms or a self reference, i.e. a reference to the ADT itself.
    */
-  trait ConstructorArgument 
+  trait ConstructorArgument {
+    /**
+     * Returns the term associated to a constructor argument, or in case it is a self reference, returns the term associated to the ADT.
+     *
+     * @param arg the constructor argument
+     * @param adt the term representing the ADT
+     */
+    def getOrElse(adt: Term): Term =
+      this match {
+        case Self => adt
+        case GroundType(term) => term
+      }
+    
+    /**
+      * Substitutes the type variables of a constructor argument.
+      */
+    def substitute(p: SubstPair*): ConstructorArgument = 
+      this match
+        case Self => Self
+        case GroundType(t) => GroundType(t.substitute(p : _*))
+  }
   
   /**
    * A symbol for self reference
@@ -259,18 +279,6 @@ private[adt] object ADTDefinitions {
     * @param t the underlying term
     */
   case class GroundType(t: Term) extends ConstructorArgument
-
-  /**
-   * Returns the term associated to a constructor argument, or in case it is a self reference, returns the term associated to the ADT.
-   *
-   * @param arg the constructor argument
-   * @param adt the term representing the ADT
-   */
-  def getOrElse(arg: ConstructorArgument, adt: Term): Term =
-    arg match {
-      case Self => adt
-      case GroundType(term) => term
-    }
 
   /**
    * Shorthand for the union of the range of a function.
@@ -319,7 +327,7 @@ private[adt] object ADTDefinitions {
     * @param s the terms and their respective type
     * @param orElse the term to use in case of a self reference
     */
-  def wellTyped(s: Seq[(Term, ConstructorArgument)])(orElse: Term): Seq[Formula] = s.map((t, arg) => t :: getOrElse(arg, orElse))
+  def wellTyped(s: Seq[(Term, ConstructorArgument)])(orElse: Term): Seq[Formula] = s.map((t, arg) => t :: arg.getOrElse(orElse))
 
   /**
    * Returns a set of formulas asserting that all terms of a sequence are well-typed. 

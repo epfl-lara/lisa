@@ -80,8 +80,7 @@ object ADTExample extends lisa.Main {
   // ************************
 
   Theorem(x :: bool |- not * (not * x) === x) {
-
-    have(forall(x, x :: bool ==> (not * (not * x) === x))) by Induction(bool) {
+    have(thesis) by Induction() {
       Case(tru) subproof {
         val notFals = have(not * fals === tru) by Restate.from((not.elim(fals)))
         have(fals === not * tru) by Restate.from(not.elim(tru))
@@ -93,9 +92,6 @@ object ADTExample extends lisa.Main {
         have(not * (not * fals) === fals) by Substitution.ApplyRules(lastStep)(notTrue)
       }
     }
-
-
-    have(x :: bool ==> (not * (not * x) === x)) by InstantiateForall(x)(lastStep)
   }
 
   // ****************************
@@ -107,7 +103,7 @@ object ADTExample extends lisa.Main {
     val typeNil = have(nil(A) :: list(A)) by TypeChecker.prove
     val typeCons = have((y :: A, l :: list(A)) |- cons(A) * y * l :: list(A)) by TypeChecker.prove
 
-    have(forall(l, l :: list(A) ==> forall(x, x :: A ==> !(l === cons(A) * x * l)))) by Induction(list){
+    have(l :: list(A) |- forall(x, x :: A ==> !(l === cons(A) * x * l))) by Induction(){
       Case(nil) subproof {
         have(x :: A ==> !(nil(A) === cons(A) * x * nil(A))) by Tautology.from(list.injectivity(nil, cons) of (y0 := x, y1 := nil(A)), typeNil)
         thenHave(forall(x, x :: A ==> !(nil(A) === cons(A) * x * nil(A)))) by RightForall
@@ -121,9 +117,7 @@ object ADTExample extends lisa.Main {
         thenHave((forall(x, x :: A ==> !(l === cons(A) * x * l)), y :: A, l :: list(A)) |- forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))) by LeftForall
       }
     }
-    
-    thenHave(l :: list(A) ==> forall(x, x :: A ==> !(l === cons(A) * x * l))) by InstantiateForall(l)
-    thenHave(l :: list(A) |- forall(x, x :: A ==> !(l === cons(A) * x * l))) by Tautology
+
     thenHave(l :: list(A) |- x :: A ==> !(l === cons(A) * x * l)) by InstantiateForall(x)
     thenHave(thesis) by Tautology
   }

@@ -27,34 +27,15 @@ import lisa.maths.settheory.types.TypeSystem.{::, *}
 class SemanticFunction[N <: Arity](name: String, adt: SemanticADT[N], cases: Map[SemanticConstructor[N], (Seq[Variable], Term)], returnType: Term)(using line: sourcecode.Line, file: sourcecode.File) {
 
   /**
-   * Requirements for the function to be well defined. If they are met, returns a map binding
-   * each constructor to a theorem stating that the case is well typed.
-   *
-   * @throws IllegalArgumentException if the requirements are not met
+   * Map binding each constructor to a theorem stating that the case is well typed.
    */
   private val checkReturnType: Map[SemanticConstructor[N], THM] =
-    val constructors = adt.constructors.toSet
-    val casesConstructors = cases.keySet
-
-    val constructorsMinusCases = constructors -- casesConstructors
-    val casesMinusConstructors = casesConstructors -- constructors
-
-    // STEP 1: Check that all constructors are covered
-    if !constructorsMinusCases.isEmpty then throw new IllegalArgumentException(s"Case for ${constructorsMinusCases.head.fullName} is missing.")
-    // STEP 2: Check that there are no extra cases
-    else if !casesMinusConstructors.isEmpty then throw new IllegalArgumentException(s"${casesMinusConstructors.head.fullName} is not a constructor of ${adt.name}.")
-    else
-      (for c <- cases.keys yield
-        val (vars, body) = cases(c)
-        // STEP 3: Check that for each case the number of variables provided by the user matches the arity of the constructor
-        if vars.length != c.arity then throw new IllegalArgumentException(s"Case ${c.fullName}: ${vars.length} variables were provided whereas the arity of ${c.fullName} is ${c.arity}.")
-        // STEP 4: Check for each case that the body is well typed.
-        // If this is the case, generate a theorem stating it.
-        else
-          c -> Lemma(wellTyped(c.semanticSignature(vars)) |- body :: returnType) {
-            have(thesis) by TypeChecker.prove
-          }
-      ).toMap
+    (for c <- cases.keys yield
+      val (vars, body) = cases(c)
+        c -> Lemma(wellTyped(c.semanticSignature(vars)) |- body :: returnType) {
+          have(thesis) by TypeChecker.prove
+        }
+    ).toMap
 
   /**
    * Type variables appearing in this function's domain.
@@ -97,12 +78,18 @@ class SemanticFunction[N <: Arity](name: String, adt: SemanticADT[N], cases: Map
   /**
    * Set theoretic definition of the constructor.
    */
-  private val untypedFunctional = FunctionDefinition(fullName, line.value, file.value)(typeVariablesSeq, f, untypedDefinition, uniqueness).label
+  private val classFunction = FunctionDefinition(fullName, line.value, file.value)(typeVariablesSeq, f, untypedDefinition, uniqueness).label
+
+  /**
+    * Identifier of this function.
+    */
+  val id: Identifier = classFunction.id
+
 
   /**
    * Function where type variables are instantiated with schematic symbols.
    */
-  val term = untypedFunctional.applySeq(typeVariablesSeq)
+  val term = classFunction.applySeq(typeVariablesSeq)
 
   /**
    * Lemma --- The body of this function correpsonds to the cases provided by the user.
@@ -112,7 +99,7 @@ class SemanticFunction[N <: Arity](name: String, adt: SemanticADT[N], cases: Map
   val shortDefinition = cases.map((c, caseDef) =>
     val (vars, body) = caseDef
     c -> Lemma(simplify(wellTypedFormula(c.semanticSignature(vars))) ==> (term * c.appliedTerm(vars) === body)) {
-      have(forall(f, (term === f) <=> untypedDefinition)) by Exact(untypedFunctional.definition)
+      have(forall(f, (term === f) <=> untypedDefinition)) by Exact(classFunction.definition)
       thenHave((term === term) <=> (term :: typ) /\ (/\(cases.map((c, caseDef) => {
         val (vars, body) = caseDef
         forallSeq(vars, wellTypedFormula(c.semanticSignature(vars)) ==> (term * c.appliedTerm(vars) === body))
@@ -134,7 +121,7 @@ class SemanticFunction[N <: Arity](name: String, adt: SemanticADT[N], cases: Map
    * where `T` is the return type of this function
    */
   val intro = Lemma(forallSeq(typeVariablesSeq, term :: typ)) {
-    have(forall(f, (term === f) <=> untypedDefinition)) by Exact(untypedFunctional.definition)
+    have(forall(f, (term === f) <=> untypedDefinition)) by Exact(classFunction.definition)
     thenHave((term === term) <=> (term :: typ) /\ (/\(cases.map((c, caseDef) => {
       val (vars, body) = caseDef
       forallSeq(vars, /\(wellTyped(c.semanticSignature(vars))) ==> (term * c.appliedTerm(vars) === body))

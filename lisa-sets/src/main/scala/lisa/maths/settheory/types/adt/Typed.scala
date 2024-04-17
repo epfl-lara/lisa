@@ -87,6 +87,12 @@ class ADT[N <: Arity] private[adt] (using line: sourcecode.Line, file: sourcecod
   val name = underlying.name
 
   /**
+    * Identifier of this ADT.
+    */
+  val id: Identifier = underlying.id
+  ADT.identifiersToADT.addOne(id -> this)
+
+  /**
    * Theorem --- Structural induction principle
    *
    *  e.g. `P(nil) => (∀x :: T, l :: list(T). P(l) => P(cons(x, l)))) => ∀l :: list(T). P(l)`
@@ -158,6 +164,52 @@ class ADT[N <: Arity] private[adt] (using line: sourcecode.Line, file: sourcecod
    * @param args the types to instantiate the type variables with
    */
   def apply(args: Term*): Term = underlying.term(args)
+}
+
+private object ADT {
+  /**
+    * Global map from object identifiers to ADTs
+    */
+  private val identifiersToADT: scala.collection.mutable.Map[Identifier, ADT[?]] = scala.collection.mutable.Map.empty
+
+  /**
+    * Checks if a label is an ADT, and returns it if it is the case.
+    *
+    * @param l the label to check
+    */
+  def unapply(l: Label[?]): Option[ADT[?]] = getADT(l.id)
+
+  /**
+    * Checks if a term is an instance of an ADT and if it is the case, returns
+    * the appropriate instances of the type variables.
+    *
+    * @param term the term to check
+    */
+  def unapply(obj: Term): Option[(ADT[?], Seq[Term])] = 
+    obj match
+      case l: Label[?] =>
+        val lwidened: Label[?] = l 
+        unapply(lwidened).map((_, Seq.empty))
+      case AppliedFunctional(l, args) => unapply(l).map((_, args))
+      case _ => None
+
+  /**
+    * Checks if a class is an instance of an ADT and if it is the case, returns
+    * the appropriate instances of the type variables.
+    *
+    * @param c the class to check
+    */
+  def unapply(c: Class): Option[(ADT[?], Seq[Term])] = 
+    c match
+      case t: Term => unapply(t)
+      case _ => None
+    
+  /**
+    * Returns the ADT associated with an identifier.
+    *
+    * @param id the identifier of the ADT
+    */
+  def getADT(id: Identifier): Option[ADT[?]] = identifiersToADT.get(id)
 }
 
 /**

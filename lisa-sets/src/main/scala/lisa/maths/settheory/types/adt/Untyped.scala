@@ -374,7 +374,7 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
         else
           // STEP 2.1: Prove that we can expand the domain of the (quantified) variables of the constructor
           val andSeq =
-            for (v, ty) <- c.signature2 yield have((subsetST, varsWellTypedS) |- in(v, getOrElse(ty, t))) by Weakening(subsetElimination of (z := v))
+            for (v, ty) <- c.signature2 yield have((subsetST, varsWellTypedS) |- in(v, ty.getOrElse(t))) by Weakening(subsetElimination of (z := v))
           val expandingDomain = have((subsetST, varsWellTypedS) |- varsWellTypedT) by RightAnd(andSeq: _*)
           val weakeningLabelEq = have(labelEq |- labelEq) by Hypothesis
           have((subsetST, varsWellTypedS, labelEq) |- varsWellTypedT /\ labelEq) by RightAnd(expandingDomain, weakeningLabelEq)
@@ -846,9 +846,9 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
                 case GroundType(t) =>
                   have((/\(nSeq.map(n => in(n, N))), hIsTheHeightFunction, in(v, t)) |- in(v, t)) by Restate
 
-              have((/\(nSeq.map(n => in(n, N))), hIsTheHeightFunction, in(v, getOrElse(ty, app(h, ni)))) |- in(max, N) /\ in(v, getOrElse(ty, app(h, max)))) by RightAnd(maxInN, lastStep)
-              thenHave(nSeq.map(n => in(n, N) /\ in(v, getOrElse(ty, app(h, n)))).toSet + hIsTheHeightFunction |- in(max, N) /\ in(v, getOrElse(ty, app(h, max)))) by Weakening
-              thenHave(nSeq.map(n => in(n, N) /\ in(v, getOrElse(ty, app(h, n)))).toSet + hIsTheHeightFunction |- ∃(n, in(n, N) /\ in(v, getOrElse(ty, app(h, n))))) by RightExists
+              have((/\(nSeq.map(n => in(n, N))), hIsTheHeightFunction, in(v, ty.getOrElse(app(h, ni)))) |- in(max, N) /\ in(v, ty.getOrElse(app(h, max)))) by RightAnd(maxInN, lastStep)
+              thenHave(nSeq.map(n => in(n, N) /\ in(v, ty.getOrElse(app(h, n)))).toSet + hIsTheHeightFunction |- in(max, N) /\ in(v, ty.getOrElse(app(h, max)))) by Weakening
+              thenHave(nSeq.map(n => in(n, N) /\ in(v, ty.getOrElse(app(h, n)))).toSet + hIsTheHeightFunction |- ∃(n, in(n, N) /\ in(v, ty.getOrElse(app(h, n))))) by RightExists
 
             sorry
           }
@@ -983,7 +983,7 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
               else
                 val liftHeightAndSequence =
                   for (v, ty) <- c.signature
-                  yield have((hIsTheHeightFunction, in(n, N), constructorVarsInHN) |- in(v, getOrElse(ty, app(h, successor(n))))) by Weakening(liftHeight of (y := v))
+                  yield have((hIsTheHeightFunction, in(n, N), constructorVarsInHN) |- in(v, ty.getOrElse(app(h, successor(n))))) by Weakening(liftHeight of (y := v))
 
                 val left = have((hIsTheHeightFunction, in(n, N), constructorVarsInHN) |- constructorVarsInHSuccN) by RightAnd(liftHeightAndSequence: _*)
                 val right = have(x === c.term |- x === c.term) by Hypothesis
@@ -1259,6 +1259,15 @@ private class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file:
     val variables2: Seq[Variable] = underlying.variables2
 
     /**
+     * Set of variables for this constructor with their respective domain or a 
+     * special symbol in case the domain is the ADT.
+     * 
+     * @param vars variables
+     */
+    def syntacticSignature(vars: Seq[Variable]): Seq[(Variable, ConstructorArgument)] = 
+      vars.zip(underlying.specification)
+
+    /**
      * Variables of this constructor with their respective domain or a special symbol in case the domain is the ADT.
      */
     val syntacticSignature: Seq[(Variable, ConstructorArgument)] = underlying.signature
@@ -1268,7 +1277,7 @@ private class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file:
      * 
      * @param vars this constructor arguments
      */
-    def semanticSignature(vars: Seq[Variable]): Seq[(Variable, Term)] = vars.zip(underlying.specification.map(getOrElse(_, adt.term)))
+    def semanticSignature(vars: Seq[Variable]): Seq[(Variable, Term)] = vars.zip(underlying.specification.map(_.getOrElse(adt.term)))
 
     /**
      * Variables of this constructor with their respective domains.
@@ -1329,9 +1338,21 @@ private class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file:
     private val classFunction = FunctionDefinition[N](fullName, line.value, file.value)(typeVariablesSeq, c, untypedDefinition, uniqueness).label
 
     /**
+      * Identifier of this constructor.
+      */
+    val id: Identifier = classFunction.id
+
+    /**
+      * This constructor in which type variables are instantiated.
+      *
+      * @param args the instances of this constructor's type variables
+      */
+    def term(args: Seq[Term]): Term = classFunction.applySeq(args)
+
+    /**
      * Constructor where type variables are instantiated with schematic variables.
      */
-    private val term = classFunction.applySeq(typeVariablesSeq)
+    private val term: Term = term(typeVariablesSeq)
 
     /**
      * Constructor where type variables are instantiated with schematic variables and arguments instantiated.
@@ -1479,6 +1500,11 @@ private class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file:
      * Name of this ADT.
      */
     val name: String = underlying.name
+
+    /**
+      * Identifier of this ADT.
+      */
+    val id: Identifier = underlying.polymorphicTerm.id
 
     /**
      * Type variables of this ADT.
@@ -1692,12 +1718,12 @@ private class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file:
                         thenHave(!(x === v) /\ left |- right) by Weakening
                       case _ => ()
 
-                    val weakr = thenHave(in(v, getOrElse(ty, term)) /\ left |- right) by Weakening
-                    val weakl = have(in(v, getOrElse(ty, term)) /\ left |- in(v, getOrElse(ty, term))) by Restate
+                    val weakr = thenHave(in(v, ty.getOrElse(term)) /\ left |- right) by Weakening
+                    val weakl = have(in(v, ty.getOrElse(term)) /\ left |- in(v, ty.getOrElse(term))) by Restate
 
-                    have((v :: getOrElse(ty, term)) /\ left |- (v :: getOrElse(ty, term)) /\ right) by RightAnd(weakl, weakr)
-                    thenHave((v :: getOrElse(ty, term)) /\ left |- exists(v, (v :: getOrElse(ty, term)) /\ right)) by RightExists
-                    thenHave(exists(v, (v :: getOrElse(ty, term)) /\ left) |- exists(v, (v :: getOrElse(ty, term)) /\ right)) by LeftExists
+                    have((v :: ty.getOrElse(term)) /\ left |- (v :: ty.getOrElse(term)) /\ right) by RightAnd(weakl, weakr)
+                    thenHave((v :: ty.getOrElse(term)) /\ left |- exists(v, (v :: ty.getOrElse(term)) /\ right)) by RightExists
+                    thenHave(exists(v, (v :: ty.getOrElse(term)) /\ left) |- exists(v, (v :: ty.getOrElse(term)) /\ right)) by LeftExists
                   )
 
               }
