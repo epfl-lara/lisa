@@ -39,7 +39,7 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
             val base = have((bot.left + !lf) |- bot.right ) by Restate
             val eq = have(egraph.proveFormula(lf, rf, bot))
             val a = formulaVariable
-            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(List((lf, rf)), lambda(a, !a))(base)
+            have((bot.left + (lf <=> rf)) |- (bot.right) ) by LeftSubstIff.withParametersSimple(List((lf, rf)), lambda(a, !a))(base)
             have(bot) by Cut(eq, lastStep)
             true
           case _  => false
@@ -391,11 +391,12 @@ class EGraphTerms() {
       termMap(newId2) = newSet
       termParents(newId1) = newparents
       termParents(newId2) = newparents
+    
       val id = termUF.find(id2)
       termWorklist = id :: termWorklist
       val cause = (id1, id2)
       val termSeen = mutable.Map[Term, AppliedFunction]()
-      val formulaSeen = mutable.Map[Formula, Formula]()
+      val formulaSeen = mutable.Map[Formula, AppliedPredicate]()
       newparents.foreach { 
         case pTerm: AppliedFunction =>
           val canonicalPTerm = canonicalize(pTerm) 
@@ -415,7 +416,7 @@ class EGraphTerms() {
           else
             formulaSeen(canonicalPFormula) = pFormula
       }
-      termParents(id) = termSeen.values.to(mutable.Set)
+      termParents(id) = (termSeen.values.to(mutable.Set): mutable.Set[AppliedFunction | AppliedPredicate])  ++ formulaSeen.values.to(mutable.Set)
   }
 
   protected def mergeWithStep(id1: Formula, id2: Formula, step: FormulaStep): Unit = 

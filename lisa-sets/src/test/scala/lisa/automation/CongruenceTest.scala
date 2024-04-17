@@ -62,7 +62,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   val `*f` = SchematicConnectorLabel("*f", 2)
   val `<<f` = SchematicConnectorLabel("<<f", 2)
   val `/f` = SchematicConnectorLabel("/f", 2)
-/*
+
 
   test("3 terms no congruence egraph test") {
     val egraph = new EGraphTerms()
@@ -813,10 +813,10 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     }
 
   }
-*/
+
   test("Full congruence tactic tests") {
-    println("Full congruence tactic tests")
-/*
+    println("Full congruence tactic tests\n")
+
     val base1 = List(a === c, e === f, i === k, m === n, a === b, o === m, i === m, g === h, l === k, b === c, f === e, o === i, g === e, i === j)
 
     val test1 = Theorem(base1 |- (b === c)) {
@@ -831,7 +831,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       have(thesis) by Congruence
     }
 
-*/
+
     val ax2    = `*`(a, two)
     val ax2_d2 = `/`(`*`(a, two), two)
     val `2d2`  = `/`(two, two)
@@ -841,7 +841,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
     val base2 = List[Formula](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
 
-/*
+
     val one_2d2 = Theorem(base2 |- (one === `2d2`)) {
       have(thesis) by Congruence
     }
@@ -857,18 +857,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val ax_2d2_ax1 = Theorem(base2 |- (ax_2d2 === ax1)) {
       have(thesis) by Congruence
     }
-*/
-    val egraph = new EGraphTerms()
-    egraph.add(Fp(ax_2d2))
-    egraph.add(Fp(a))
-    egraph.addAll(base2)
-    egraph.merge(ax2, as1)
-    egraph.merge(ax2_d2, ax_2d2)
-    egraph.merge(`2d2`, one)
-    egraph.merge(ax1, a)
-    println("Are same: " + egraph.idEq(ax_2d2, a))
-    println("Are same: " + egraph.idEq(Fp(ax_2d2), Fp(a)))
-
+    
     val ax_2d2_a = Theorem(base2 |- (ax_2d2 === a)) {
       have(thesis) by Congruence
     }
@@ -881,12 +870,10 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       have(thesis) by Congruence
     }
 
-
-
     val ax_2d2_a_3 = Theorem((base2 :+ Fp(ax_2d2) :+ !Fp(a)) |- () ) {
       have(thesis) by Congruence
     }
-/*
+
     val test5 = Theorem(a===b |- F(a) === F(b)) {
       have(thesis) by Congruence
     }
@@ -894,8 +881,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val test6 = Theorem(a === b |- F(a) === F(b)) {
       have(thesis) by Congruence
     }
-
-
 
     val test7 = Theorem((Ff(Ff(Ff(Ff(Ff(Ff(Ff(xf))))))) <=> xf, Ff(Ff(Ff(Ff(Ff(xf))))) <=> xf) |- Ff(Ff(Ff(xf))) <=> xf) {
       have(thesis) by Congruence
@@ -921,7 +906,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val test12 = Theorem(((a === b), Fp(F(F(b))) <=> Ff(Fp(F(F(a)))), Ff(Ff(Fp(F(F(a))))) ) |- Ff(Ff(Fp(F(F(b))))) ) {
       have(thesis) by Congruence
     }
-*/
+
 
   }
 
