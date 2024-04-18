@@ -135,6 +135,7 @@ trait Common {
      * Renames the symbol with an identifier that is fresh for the given list.
      */
     def freshRename(taken: Iterable[Identifier]): Label[A]
+
   }
 
   /**
@@ -276,7 +277,7 @@ trait Common {
   sealed trait FunctionLabel[N <: Arity] extends TermLabel[(Term ** N) |-> Term] with ((Term ** N) |-> Term) {
     val underlyingLabel: K.TermLabel
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): (Term ** N) |-> Term
-    def applyUnsafe(args: (Term ** N)): Term = AppliedFunction(this, args.toSeq)
+    def applyUnsafe(args: (Term ** N)): Term = AppliedFunctional(this, args.toSeq)
     override def rename(newid: Identifier): FunctionLabel[N]
     def freshRename(taken: Iterable[Identifier]): FunctionLabel[N]
   }
@@ -285,7 +286,7 @@ trait Common {
    * A Variable, corresponding to [[K.VariableLabel]], is a schematic symbol for terms.
    * It counts both as the label and as the term itself.
    */
-  case class Variable(id: Identifier) extends SchematicTermLabel[Term] with Term with Absolute {
+  class Variable(val id: Identifier) extends SchematicTermLabel[Term] with Term with Absolute {
     val arity: 0 = 0
     val label: Variable = this
     val args: Seq[Nothing] = Seq.empty
@@ -308,13 +309,35 @@ trait Common {
     def freshRename(taken: Iterable[Identifier]): Variable = rename(K.freshId(taken, id))
     override def toString(): String = id
     def mkString(args: Seq[Term]): String = if (args.size == 0) toString() else toString() + "(" + "illegal_arguments: " + args.mkString(", ") + ")"
+
+    def canEqual(that: Any): Boolean =
+      that.isInstanceOf[Variable]
+
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    override def equals(that: Any): Boolean =
+      that match {
+        case other: Variable =>
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((id == other.id))))
+        case _ =>
+          false
+      }
+
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    override def hashCode(): Int =
+      id.##
+  }
+  object Variable {
+    def unapply(variable: Variable): Option[Identifier] = Some(variable.id)
   }
 
   /**
    * A Constant, corresponding to [[K.ConstantLabel]], is a label for terms.
    * It counts both as the label and as the term itself.
    */
-  case class Constant(id: Identifier) extends Term with Absolute with ConstantTermLabel[Constant] with LisaObject[Constant] {
+  class Constant(val id: Identifier) extends Term with Absolute with ConstantTermLabel[Constant] with LisaObject[Constant] {
     val arity: 0 = 0
     val label: Constant = this
     val args: Seq[Nothing] = Seq.empty
@@ -328,17 +351,39 @@ trait Common {
     def freshRename(taken: Iterable[Identifier]): Constant = rename(K.freshId(taken, id))
     override def toString(): String = id
     def mkString(args: Seq[Term]): String = if (args.size == 0) toString() else toString() + "(" + "illegal_arguments: " + args.mkString(", ") + ")"
+
+    def canEqual(that: Any): Boolean =
+      that.isInstanceOf[Constant]
+
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    override def equals(that: Any): Boolean =
+      that match {
+        case other: Constant =>
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((id == other.id))))
+        case _ =>
+          false
+      }
+
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    override def hashCode(): Int =
+      id.##
+  }
+  object Constant {
+    def unapply(constant: Constant): Option[Identifier] = Some(constant.id)
   }
 
   /**
    * A schematic functional label (corresponding to [[K.SchematicFunctionLabel]]) is a functional label and also a schematic label.
    * It can be substituted by any expression of type (Term ** N) |-> Term
    */
-  case class SchematicFunctionLabel[N <: Arity](val id: Identifier, val arity: N) extends SchematicTermLabel[(Term ** N) |-> Term] with FunctionLabel[N] {
+  class SchematicFunctionLabel[N <: Arity](val id: Identifier, val arity: N) extends SchematicTermLabel[(Term ** N) |-> Term] with FunctionLabel[N] {
     val underlyingLabel: K.SchematicTermLabel = K.SchematicFunctionLabel(id, arity)
 
-    def unapplySeq(t: AppliedFunction): Seq[Term] = t match {
-      case AppliedFunction(label, args) if (label == this) => args
+    def unapplySeq(t: AppliedFunctional): Seq[Term] = t match {
+      case AppliedFunctional(label, args) if (label == this) => args
       case _ => Seq.empty
     }
     @nowarn("msg=the type test for.*cannot be checked at runtime because its type arguments")
@@ -359,16 +404,41 @@ trait Common {
     override def toString(): String = id
     def mkString(args: Seq[Term]): String = toString() + "(" + args.mkString(", ") + ")"
     override def mkStringSeparated(args: Seq[Term]): String = mkString(args)
+
+    def canEqual(that: Any): Boolean =
+      that.isInstanceOf[SchematicFunctionLabel[?]]
+
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    override def equals(that: Any): Boolean =
+      that match {
+        case other: SchematicFunctionLabel[N] =>
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((id == other.id)
+              && (arity == other.arity))))
+        case _ =>
+          false
+      }
+
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    override def hashCode(): Int =
+      31 * (
+        id.##
+      ) + arity.##
+  }
+  object SchematicFunctionLabel {
+    def unapply[N <: Arity](sfl: SchematicFunctionLabel[N]): Option[(Identifier, N)] = Some((sfl.id, sfl.arity))
   }
 
   /**
    * A constant functional label of arity N.
    */
-  case class ConstantFunctionLabel[N <: Arity](id: Identifier, arity: N) extends ConstantTermLabel[((Term ** N) |-> Term)] with FunctionLabel[N] {
+  class ConstantFunctionLabel[N <: Arity](val id: Identifier, val arity: N) extends ConstantTermLabel[((Term ** N) |-> Term)] with FunctionLabel[N] {
     val underlyingLabel: K.ConstantFunctionLabel = K.ConstantFunctionLabel(id, arity)
     private var infix: Boolean = false
-    def unapplySeq(t: AppliedFunction): Seq[Term] = t match {
-      case AppliedFunction(label, args) if (label == this) => args
+    def unapplySeq(t: AppliedFunctional): Seq[Term] = t match {
+      case AppliedFunctional(label, args) if (label == this) => args
       case _ => Seq.empty
     }
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): ConstantFunctionLabel[N] = this
@@ -377,20 +447,44 @@ trait Common {
     def rename(newid: Identifier): ConstantFunctionLabel[N] = ConstantFunctionLabel(newid, arity)
     def freshRename(taken: Iterable[Identifier]): ConstantFunctionLabel[N] = rename(K.freshId(taken, id))
     override def toString(): String = id
-    def mkString(args: Seq[Term]): String = if (infix) (args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated()) else toString() + "(" + args.mkString(", ") + ")"
+    def mkString(args: Seq[Term]): String =
+      if (infix & args.size == 2) (args(0).toStringSeparated() + " " + toString() + " " + args(1).toStringSeparated()) else toString() + "(" + args.mkString(", ") + ")"
     override def mkStringSeparated(args: Seq[Term]): String = if (infix) "(" + mkString(args) + ")" else mkString(args)
+
+    def canEqual(that: Any): Boolean =
+      that.isInstanceOf[SchematicFunctionLabel[?]]
+
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    override def equals(that: Any): Boolean =
+      that match {
+        case other: ConstantFunctionLabel[N] =>
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((id == other.id)
+              && (arity == other.arity))))
+        case _ =>
+          false
+      }
+
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    override def hashCode(): Int =
+      31 * (
+        id.##
+      ) + arity.##
   }
   object ConstantFunctionLabel {
     def infix[N <: Arity](id: Identifier, arity: N): ConstantFunctionLabel[N] =
       val x = ConstantFunctionLabel[N](id, arity)
       x.infix = true
       x
+    def unapply[N <: Arity](cfl: ConstantFunctionLabel[N]): Option[(Identifier, N)] = Some((cfl.id, cfl.arity))
   }
 
   /**
    * A term made from a functional label of arity N and N arguments
    */
-  case class AppliedFunction(label: FunctionLabel[?], args: Seq[Term]) extends Term with Absolute {
+  class AppliedFunctional(val label: FunctionLabel[?], val args: Seq[Term]) extends Term with Absolute {
     override val underlying = K.Term(label.underlyingLabel, args.map(_.underlying))
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): Term =
       label.substituteUnsafe(map).applyUnsafe(args.map[Term]((x: Term) => x.substituteUnsafe(map)))
@@ -399,6 +493,31 @@ trait Common {
     def allSchematicLabels: Set[SchematicLabel[?]] = label.allSchematicLabels ++ args.flatMap(_.allSchematicLabels)
     override def toString: String = label.mkString(args)
     override def toStringSeparated(): String = label.mkStringSeparated(args)
+
+    def canEqual(that: Any): Boolean =
+      that.isInstanceOf[AppliedFunctional]
+
+    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
+    override def equals(that: Any): Boolean =
+      that match {
+        case other: AppliedFunctional =>
+          ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
+          || (other.canEqual(this) // optional only if this class is marked final
+            && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
+            && ((label == other.label)
+              && (args == other.args))))
+        case _ =>
+          false
+      }
+
+    // Intentionally avoiding the call to super.hashCode because no ancestor has overridden hashCode (see note 7 below)
+    override def hashCode(): Int =
+      31 * (
+        label.##
+      ) + args.##
+  }
+  object AppliedFunctional {
+    def unapply(af: AppliedFunctional): Option[(FunctionLabel[?], Seq[Term])] = Some((af.label, af.args))
   }
 
   //////////////////////////////////////
@@ -570,8 +689,8 @@ trait Common {
    */
   case class SchematicPredicateLabel[N <: Arity](id: Identifier, arity: N) extends SchematicAtomicLabel[(Term ** N) |-> Formula] with PredicateLabel[N] {
     val underlyingLabel: K.SchematicPredicateLabel = K.SchematicPredicateLabel(id, arity)
-    def unapplySeq(t: AppliedFunction): Seq[Term] = t match {
-      case AppliedFunction(label, args) if (label == this) => args
+    def unapplySeq(t: AppliedFunctional): Seq[Term] = t match {
+      case AppliedFunctional(label, args) if (label == this) => args
       case _ => Seq.empty
     }
     @nowarn("msg=the type test for.*cannot be checked at runtime because its type arguments")

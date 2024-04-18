@@ -20,7 +20,7 @@ ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports"
 
 
 val commonSettings = Seq(
-  crossScalaVersions := Seq("2.12.13", "2.13.4", "3.0.1", "3.2.0"),
+  crossScalaVersions := Seq("3.3.1"),
   run / fork := true
 )
 
@@ -40,10 +40,11 @@ val commonSettings3 = commonSettings ++ Seq(
     // "-source:future", re-enable when liancheng/scalafix-organize-imports#221 is fixed
 
   ),
+  javaOptions += "-Xmx10G",
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
   libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.3.0",
   //libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
-  libraryDependencies += ("io.github.uuverifiers" %% "princess" % "2023-06-19").cross(CrossVersion.for3Use2_13),
+  // libraryDependencies += ("io.github.uuverifiers" %% "princess" % "2023-06-19").cross(CrossVersion.for3Use2_13),
   Test / parallelExecution := false
 )
 

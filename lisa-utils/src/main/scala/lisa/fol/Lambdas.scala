@@ -36,7 +36,7 @@ trait Lambdas extends Common {
      */
     def substituteUnsafe(map: Map[SchematicLabel[_], LisaObject[_]]): LambdaExpression[T, R, N] = {
       val newSubst = map -- seqBounds
-      val conflict = map.values.flatMap(_.freeSchematicLabels).toSet.intersect(bounds.asInstanceOf)
+      val conflict = map.values.flatMap(_.freeSchematicLabels).toSet.intersect(bounds.toSet.asInstanceOf)
       if (conflict.nonEmpty) {
         val taken = (map.values.flatMap(_.allSchematicLabels).map(_.id) ++ map.keys.map(_.id)).toList
         val newBounds = seqBounds.scanLeft[List[Identifier]](taken)((list, v: SchematicLabel[T]) => freshId(list, v.id) :: list).map(_.head).zip(seqBounds).map(v => v._2.rename(v._1))
