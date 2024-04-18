@@ -4,12 +4,14 @@
 
 package lisa.maths.settheory.types.adt
 
+import lisa.maths.settheory.SetTheory.{_, given}
+import lisa.maths.settheory.types.TypeLib.|=>
+import lisa.maths.settheory.types.TypeSystem.::
+import lisa.maths.settheory.types.TypeSystem._
+
 import ADTDefinitions.*
-import lisa.maths.settheory.SetTheory.{*, given}
 import Helpers.*
 import Helpers.{/\, ===, \/}
-import lisa.maths.settheory.types.TypeLib.{|=>}
-import lisa.maths.settheory.types.TypeSystem.{::, *}
 
 /**
  * Set theoretic interpretation of a function over an ADT.

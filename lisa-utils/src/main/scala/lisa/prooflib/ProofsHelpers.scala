@@ -1,5 +1,6 @@
 package lisa.prooflib
 
+import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.prooflib.BasicStepTactic.Rewrite
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
@@ -10,7 +11,6 @@ import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.parsing.FOLPrinter
 import lisa.utils.{_, given}
-import lisa.kernel.proof.SCProofChecker.checkSCProof
 
 import scala.annotation.targetName
 

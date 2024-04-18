@@ -6,7 +6,10 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
 import lisa.utils.unification.UnificationUtils.*
-import scala.util.boundary, boundary.break
+
+import scala.util.boundary
+
+import boundary.break
 
 
 /**

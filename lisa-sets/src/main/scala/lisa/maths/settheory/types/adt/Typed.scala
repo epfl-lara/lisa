@@ -4,9 +4,10 @@
 
 package lisa.maths.settheory.types.adt
 
-import lisa.maths.settheory.SetTheory.{*, given}
-import lisa.maths.settheory.types.TypeLib.{any}
-import lisa.maths.settheory.types.TypeSystem.{TypedConstantFunctional, FunctionalClass}
+import lisa.maths.settheory.SetTheory.{_, given}
+import lisa.maths.settheory.types.TypeLib.any
+import lisa.maths.settheory.types.TypeSystem.FunctionalClass
+import lisa.maths.settheory.types.TypeSystem.TypedConstantFunctional
 
 /**
  * Type theoretic interpretation of a constructor, that is a function whose type is
