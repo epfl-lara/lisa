@@ -1,5 +1,9 @@
 # Change List
 
+## 2024-04-12
+Addition of simply typed lambda calculus with top level polymorphism and inductive poylmorphic algebraic data types.
+Addition of tactics for typechecking and structural induction over ADTs.
+
 ## 2024-03-02 
 Support for reconstructing proofs from file in SC-TPTP format. Support and inclusion of Goeland as a tactic. Doc in the manual.
 

@@ -1,5 +1,6 @@
 package lisa.prooflib
 
+import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.prooflib.BasicStepTactic.Rewrite
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
@@ -20,8 +21,9 @@ trait ProofsHelpers {
 
   given Library = library
 
-  class HaveSequent private[ProofsHelpers] (val bot: Sequent) {
-    val x: lisa.fol.FOL.Sequent = bot
+
+  class HaveSequent (val bot: Sequent) {
+
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
 
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
@@ -290,7 +292,17 @@ trait ProofsHelpers {
       val lambda: LambdaExpression[Term, Term, N],
       out: F.Variable,
       j: JUSTIFICATION
-  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {}
+  ) extends FunctionDefinition[N](fullName, line, file)(lambda.bounds.asInstanceOf, out, out === lambda.body, j) {
+
+    private val term = label.applySeq(lambda.bounds.asInstanceOf)
+    private val simpleProp = lambda.body === term
+    val simplePropName = "simpleDef_" + fullName
+    val simpleDef = THM(simpleProp, simplePropName, line, file, InternalStatement)({
+      have(thesis) by Restate.from(this of term)
+    })
+    shortDefs.update(label, Some(simpleDef))
+
+  }
 
   object SimpleFunctionDefinition {
     def apply[N <: F.Arity](using om: OutputManager)(fullName: String, line: Int, file: String)(lambda: LambdaExpression[Term, Term, N]): SimpleFunctionDefinition[N] = {
@@ -414,6 +426,19 @@ trait ProofsHelpers {
 
       case _ => throw new Exception("Pick is used to obtain a witness of an existential statement.")
 
+  }
+
+  /**
+   * Check correctness of the proof, using LISA's logical kernel, to the current point.
+   */
+  def sanityProofCheck(using p: Proof)(message: String): Unit = {
+    val csc = p.toSCProof
+    if checkSCProof(csc).isValid then
+      println("Proof is valid. " + message)
+      Thread.sleep(100)
+    else
+      checkProof(csc)
+      throw Exception("Proof is not valid: " + message)
   }
 
 }

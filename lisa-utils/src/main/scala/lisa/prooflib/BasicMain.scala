@@ -15,6 +15,7 @@ trait BasicMain {
     }
     val stringWriter: java.io.StringWriter = new java.io.StringWriter()
   }
+  export om.output
 
   /**
    * This specific implementation make sure that what is "shown" in theory files is only printed for the one we run, and not for the whole library.

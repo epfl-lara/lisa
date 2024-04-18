@@ -113,7 +113,7 @@ object CommonTactics {
         case F.AppliedPredicate(F.`equality`, Seq(`x`, (y: F.Variable))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
           y
 
-        case F.AppliedPredicate(F.`equality`, List(F.AppliedFunction(y: F.Variable, _), F.AppliedFunction(`x`, _))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
+        case F.AppliedPredicate(F.`equality`, List(F.AppliedFunctional(y: F.Variable, _), F.AppliedFunctional(`x`, _))) if x != y && F.contains(uniquenessSeq.left, phi.substitute(x := y)) =>
           y
       } match {
         case Some(y) => ExistenceAndUniqueness.withParameters(phi, x, y)(existence, uniqueness)(bot)

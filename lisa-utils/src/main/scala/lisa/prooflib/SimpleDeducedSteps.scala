@@ -50,22 +50,22 @@ object SimpleDeducedSteps {
 
   object Discharge extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(premise: proof.Fact): proof.ProofTacticJudgement = {
-      val ss = premises map (e => proof.getSequent(e))
-      val seqs = ss map (e => e.underlying)
+      val ss = premises zip (premises map (e => proof.getSequent(e)))
+      val seqs = ss.map(_._2)
       if (!seqs.forall(_.right.size == 1))
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
-      val s = seqs.head
-      val f = s.right.head
-      val first = K.Cut((proof.getSequent(premise).underlying removeLeft f) ++ (s removeRight f), -2, -1, f)
-
-      proof.ValidProofTactic(
-        (proof.getSequent(premise) removeAllLeft (ss.flatMap(_.right).toSet)) ++<< (F.Sequent(ss.flatMap(_.left).toSet, Set())),
-        seqs.tail.zipWithIndex.scanLeft(first)((prev, next) => {
-          val f = next._1.right.head
-          K.Cut((prev.bot removeLeft f) ++ (next._1 removeRight f), -next._2 - 3, next._2, f)
-        }),
-        proof.mostRecentStep +: premises
-      )
+      val seqAny = ss.find((_, s) => premise.statement.left.exists(f2 => F.isSame(s.right.head, f2)))
+      if (seqAny.isEmpty)
+        Restate.from(premise)(premise.statement)
+      else
+        TacticSubproof: ip ?=>
+          ss.foldLeft(premise: ip.Fact)((prem, discharge) =>
+            val seq = discharge._2
+            if prem.statement.left.exists(f => F.isSame(f, seq.right.head)) then
+              val goal = prem.statement -<? seq.right.head ++<? (seq.left |- ())
+              lib.have(Cut(discharge._1, prem)(goal))
+            else prem
+          )
     }
 
   }
