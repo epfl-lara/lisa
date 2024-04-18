@@ -1,8 +1,10 @@
 import lisa.automation.Substitution.{ApplyRules as Substitute}
 import lisa.automation.Tableau
 import lisa.automation.atp.Goeland
+import lisa.automation.Congruence
 
 object Example extends lisa.Main {
+  draft()
 
   val x = variable
   val y = variable
@@ -61,7 +63,27 @@ object Example extends lisa.Main {
   }
 
   val buveurs2 = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
-    have(thesis) by Goeland("goeland/Example.buveurs2_sol")
+    have(thesis) by Goeland//("goeland/Example.buveurs2_sol")
+  }
+
+
+  val a = variable
+  val one = variable
+  val two = variable
+  val * = SchematicFunctionLabel("*", 2)
+  val << = SchematicFunctionLabel("<<", 2)
+  val / = SchematicFunctionLabel("/", 2)
+  private val star: SchematicFunctionLabel[2] = *
+  private val shift: SchematicFunctionLabel[2] = <<
+  private val divide: SchematicFunctionLabel[2] = /
+  
+  extension (t:Term) {
+    def *(u:Term) = star(t, u)
+    def <<(u:Term) = shift(t, u)
+    def /(u:Term) = divide(t, u)
+  }
+  val congruence = Theorem(((a*two) === (a<<one), a*(two/two) === (a*two)/two, (two/two) === one, (a*one) === a) |- ((a<<one)/two) === a) {
+    have(thesis) by Congruence
   }
 
   /*

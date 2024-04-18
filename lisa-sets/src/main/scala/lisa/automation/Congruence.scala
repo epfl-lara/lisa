@@ -7,6 +7,25 @@ import lisa.prooflib.*
 import lisa.utils.parsing.UnreachableException
 import leo.datastructures.TPTP.CNF.AtomicFormula
 
+/**
+  * This tactic tries to prove a sequent by congruence.
+  * Consider the congruence closure of all terms and formulas in the sequent, with respect to all === and <=> left of the sequent.
+  * The sequent is provable by congruence if one of the following conditions is met:
+  *    - The right side contains an equality s === t or equivalence a <=> b provable in the congruence closure.
+  *    - The left side contains an negated equality !(s === t) or equivalence !(a <=> b) provable in the congruence closure.
+  *    - There is a formula a on the left and b on the right such that a and b are congruent.
+  *    - There are two formulas a and !b on the left such that a and b are congruent.
+  *    - There are two formulas a and !b on the right such that a and b are congruent.
+  *    - The sequent is Ol-valid without equality reasoning
+  * Note that complete congruence closure modulo OL is an open problem.
+  * 
+  * The tactic uses an egraph datastructure to compute the congruence closure.
+  * The egraph itselfs relies on two underlying union-find datastructure, one for terms and one for formulas.
+  * The union-finds are equiped with an `explain` method that produces a path between any two elements in the same equivalence class.
+  * Each edge of the path can come from an external equality, or be the consequence of congruence.
+  * The tactic uses uses this path to produce needed proofs.
+  * 
+  */
 object Congruence  extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = TacticSubproof {
       import lib.*
@@ -73,11 +92,6 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
           case (a <=> b) if egraph.idEq(a, b) =>
             have(egraph.proveFormula(a, b, bot))
             true
-          case (a <=> b) =>
-            println(s"Found unprovable equivalence: $a <=> $b")
-            println(egraph.classOf(a))
-            println(egraph.classOf(b))
-            false
           case _ => false
         }
       } then ()
