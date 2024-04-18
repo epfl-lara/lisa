@@ -333,7 +333,6 @@ trait Common {
     def unapply(variable: Variable): Option[Identifier] = Some(variable.id)
   }
 
-
   /**
    * A Constant, corresponding to [[K.ConstantLabel]], is a label for terms.
    * It counts both as the label and as the term itself.

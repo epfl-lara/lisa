@@ -348,7 +348,6 @@ object KernelHelpers {
     def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
       if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
       else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Restate(statement, proof.length - 1)), justifications)
-
       else InvalidJustification(s"The proof proves \n    ${FOLPrinter.prettySequent(proof.conclusion)}\ninstead of claimed \n    ${FOLPrinter.prettySequent(statement)}", None)
     }
 

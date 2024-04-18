@@ -245,7 +245,7 @@ class EGraphTerms() {
 
 
   val termMap = mutable.Map[Term, Set[Term]]()
-  val termParents = mutable.Map[Term, mutable.Set[AppliedFunction | AppliedPredicate]]()
+  val termParents = mutable.Map[Term, mutable.Set[AppliedFunctional | AppliedPredicate]]()
   var termWorklist = List[Term]()
   val termUF = new UnionFind[Term]()
 
@@ -334,8 +334,8 @@ class EGraphTerms() {
   def idEq(id1: Formula, id2: Formula): Boolean = formulaUF.find(id1) == formulaUF.find(id2)
 
   def canonicalize(node: Term): Term = node match
-    case AppliedFunction(label, args) => 
-      AppliedFunction(label, args.map(termUF.find.asInstanceOf))
+    case AppliedFunctional(label, args) => 
+      AppliedFunctional(label, args.map(termUF.find.asInstanceOf))
     case _ => node
   
     
@@ -350,7 +350,7 @@ class EGraphTerms() {
     if termMap.contains(node) then return node
     makeSingletonEClass(node)
     node match
-      case node @ AppliedFunction(_, args) => 
+      case node @ AppliedFunctional(_, args) => 
         args.foreach(child => 
           add(child)
           termParents(child).add(node)
@@ -409,10 +409,10 @@ class EGraphTerms() {
       val id = termUF.find(id2)
       termWorklist = id :: termWorklist
       val cause = (id1, id2)
-      val termSeen = mutable.Map[Term, AppliedFunction]()
+      val termSeen = mutable.Map[Term, AppliedFunctional]()
       val formulaSeen = mutable.Map[Formula, AppliedPredicate]()
       newparents.foreach { 
-        case pTerm: AppliedFunction =>
+        case pTerm: AppliedFunctional =>
           val canonicalPTerm = canonicalize(pTerm) 
           if termSeen.contains(canonicalPTerm) then 
             val qTerm = termSeen(canonicalPTerm)
@@ -430,7 +430,7 @@ class EGraphTerms() {
           else
             formulaSeen(canonicalPFormula) = pFormula
       }
-      termParents(id) = (termSeen.values.to(mutable.Set): mutable.Set[AppliedFunction | AppliedPredicate])  ++ formulaSeen.values.to(mutable.Set)
+      termParents(id) = (termSeen.values.to(mutable.Set): mutable.Set[AppliedFunctional | AppliedPredicate])  ++ formulaSeen.values.to(mutable.Set)
   }
 
   protected def mergeWithStep(id1: Formula, id2: Formula, step: FormulaStep): Unit = 
@@ -485,7 +485,7 @@ class EGraphTerms() {
             val prev = if id1 != l then lastStep else null
             val leqr = have(base.left |- (base.right + (l === r))) subproof { sp ?=>
               (l, r) match
-                case (AppliedFunction(labell, argsl), AppliedFunction(labelr, argsr)) if labell == labelr && argsl.size == argsr.size => 
+                case (AppliedFunctional(labell, argsl), AppliedFunctional(labelr, argsr)) if labell == labelr && argsl.size == argsr.size => 
                   var freshn = freshId((l.freeVariables ++ r.freeVariables).map(_.id), "n").no
                   val ziped = (argsl zip argsr)
                   var zip = List[(Term, Term)]()
