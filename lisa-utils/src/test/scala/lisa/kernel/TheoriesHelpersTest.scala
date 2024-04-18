@@ -28,7 +28,7 @@ class TheoriesHelpersTest extends AnyFunSuite {
       judgement.get
       fail("Shouldn't be able to get a theorem from an invalid judgement")
     } catch {
-      
+
       case InvalidJustificationException(msg, None) => ()
     }
 
