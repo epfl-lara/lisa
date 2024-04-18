@@ -1,10 +1,12 @@
 package lisa.utils.tptp
 
 import lisa.utils.parsing.FOLParser.*
-import lisa.utils.tptp.KernelParser.annotatedFormulaToKernel
+import lisa.utils.tptp.KernelParser.annotatedStatementToKernel
 import lisa.utils.tptp.KernelParser.parseToKernel
 import lisa.utils.tptp.KernelParser.problemToSequent
 import lisa.utils.tptp.ProblemGatherer.getPRPproblems
+
+import KernelParser.{mapAtom, mapTerm, mapVariable}
 
 object Example {
 
@@ -27,11 +29,11 @@ object Example {
     )
 
     println("\n---Individual Fetched Formulas---")
-    axioms.foreach(a => println(prettyFormula(parseToKernel(a))))
-    println(prettyFormula(parseToKernel(conjecture)))
+    axioms.foreach(a => println(prettyFormula(parseToKernel(a)(using mapAtom, mapTerm, mapVariable))))
+    println(prettyFormula(parseToKernel(conjecture)(using mapAtom, mapTerm, mapVariable)))
 
     println("\n---Annotated Formulas---")
-    anStatements.map(annotatedFormulaToKernel).foreach(printAnnotatedFormula)
+    anStatements.map(annotatedStatementToKernel(_)(using mapAtom, mapTerm, mapVariable)).foreach(f => printAnnotatedStatement(f))
 
     println("\n---Problems---")
 
@@ -55,16 +57,20 @@ object Example {
   }
 
   // Utility
-  def printAnnotatedFormula(a: AnnotatedFormula): Unit = {
-    if (a.role == "axiom") println("Given " + a.name + ": " + prettyFormula(a.formula))
-    else if (a.role == "conjecture") println("Prove " + a.name + ": " + prettyFormula(a.formula))
-    else println(a.role + " " + a.name + ": " + prettyFormula(a.formula))
+  def printAnnotatedStatement(a: AnnotatedStatement): Unit = {
+    val prettyStatement = a match {
+      case f: AnnotatedFormula => prettyFormula(f.formula)
+      case s: AnnotatedSequent => prettySequent(s.sequent)
+    }
+    if (a.role == "axiom") println("Given " + a.name + ": " + prettyStatement)
+    else if (a.role == "conjecture") println("Prove " + a.name + ": " + prettyStatement)
+    else println(a.role + " " + a.name + ": " + prettyStatement)
   }
 
   def printProblem(p: Problem): Unit = {
     println("Problem: " + p.name + " (" + p.domain + ") ---")
     println("Status: " + p.status)
     println("SPC: " + p.spc.mkString(", "))
-    p.formulas.foreach(printAnnotatedFormula)
+    p.formulas.foreach(printAnnotatedStatement)
   }
 }
