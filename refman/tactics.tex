@@ -1,6 +1,59 @@
 \chapter{Tactics: Specifications and Use}
 \label{chapt:tactics}
 
+\subsection*{Congruence}
+The \lstinline|Congruence| tactic is used to prove sequents whose validity directly follow from the congruence closure of all equalities and formula equivalences given left of the sequent.
+Specifically, it works in the following cases:
+\begin{itemize}
+  \item The right side contains an equality s === t or equivalence a <=> b provable in the congruence closure.
+  \item The left side contains an negated equality !(s === t) or equivalence !(a <=> b) provable in the congruence closure.
+  \item There is a formula a on the left and b on the right such that a and b are congruent.
+  \item There are two formulas a and !b on the left such that a and b are congruent.
+  \item There are two formulas a and !b on the right such that a and b are congruent.
+  \item The sequent is Ol-valid without equality reasoning
+\end{itemize}
+Note that congruence closure modulo OL is an open problem.
+
+\begin{example}
+  The following statements are provable by \lstinline|Congruence|:
+\newline\begin{lstlisting}[language=lisa, frame=single]
+val congruence1 = Theorem ((a === b, b === c) |- f(a) === f(c)) {
+  have(thesis) by Congruence
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=lisa, frame=single]
+val congruence2 = Theorem (
+  (F(F(F(F(F(F(F(x))))))) === x, F(F(F(F(F(x))))) === x) 
+  |- (F(x) === x)
+) {
+  have(thesis) by Congruence
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=lisa, frame=single]
+val congruence3 = Theorem (
+  (a === b, b === c, P(f(c)) <=> Q, P(f(a))) 
+  |- Q
+) {
+  have(thesis) by Congruence
+}
+\end{lstlisting}
+  
+\end{example}
+
+The tactic computes the congruence closure of all terms and formulas, with respect to the given equalities and equivalences, using an egraph datastructure \cite{willseyEggFastExtensible2021, nelsonFastDecisionProcedures1980}. The egraph contains two union-find datastructure which maintain equivalence classes of formulas and terms, respectively. The union-finds are equiped with an explain method, which can output a path of equalities between any two points in the same equivalence class, as in \cite{nelsonFastDecisionProcedures1980}. Each such equality can come from the left hand-side of the sequent being proven (we call those \textit{external equalities}), or be consequences of congruence. For an equality labelled by a congruence, the equalities between all children terms can recursively be explained.
+
+\begin{example}
+  Consider again the sequent
+  $$
+  a = b, b = c \vdash f(a) = f(c)
+  $$
+  the domain of our egraph is$\lbrace a, b, c, f(a), f(c) \rbrace$. When $a$ and $b$ are merged and then $b$ and $c$ are emrged, the egraph detects that $f(a)$ and $f(c)$ are congruent and should also be merged. The explanation of $f(a) = f(c)$ is then \lstinline|Congruence($f(a)$, $f(c)$)|, and the explanation of $a = c$ is \lstinline|External($a$, $b$), External($b$, $c$)|.
+\end{example}
+
+Once the congruence closure is computed, the tactic checks if the sequent is satisfies any of the above conditions and returns a proof if it does (and otherwise fails).
+
 \subsection*{Goeland}
 Goeland\cite{DBLP:conf/cade/CaillerRDRB22} is an Automated Theorem prover for first order logic. The Goeland tactic exports a statement in SC-TPTP format, and call Goeland to prove it. Goeland produce a proof file in the SC-TPTP format, from which Lisa rebuilds a kernel proof.
 \paragraph*{Usage}.

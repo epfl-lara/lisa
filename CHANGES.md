@@ -1,6 +1,9 @@
 # Change List
 
 ## 2024-04-12
+Addition of the Congruence tactic, solving sequents by congruence closure using egraphs.
+
+## 2024-04-12
 Addition of simply typed lambda calculus with top level polymorphism and inductive poylmorphic algebraic data types.
 Addition of tactics for typechecking and structural induction over ADTs.
 
