@@ -7,7 +7,7 @@ trait BasicMain {
 
   private val realOutput: String => Unit = println
 
-  given om: OutputManager = new OutputManager {
+  val om: OutputManager = new OutputManager {
     def finishOutput(exception: Exception): Nothing = {
       log(exception)
       main(Array[String]())
@@ -23,5 +23,7 @@ trait BasicMain {
   def main(args: Array[String]): Unit = {
     realOutput(om.stringWriter.toString)
   }
+
+  given om.type = om
 
 }
