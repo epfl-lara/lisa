@@ -14,19 +14,14 @@ ThisBuild / scalacOptions ++= Seq(
 ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
-ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
-
-
-
 
 val commonSettings = Seq(
-  crossScalaVersions := Seq("3.3.1"),
+  crossScalaVersions := Seq("3.3.3"),
   run / fork := true
 )
 
-
 val scala2 = "2.13.8"
-val scala3 = "3.3.1"
+val scala3 = "3.3.3"
 
 val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
