@@ -53,11 +53,13 @@ silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 
 lazy val root = Project(
     id = "lisa",
-    base = file(".")
+    base = file("."),
   )
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
   .aggregate(utils) // To run tests on all modules
+
+Compile / run := (sets / Compile / run).evaluated
 
 lazy val kernel = Project(
   id = "lisa-kernel",
