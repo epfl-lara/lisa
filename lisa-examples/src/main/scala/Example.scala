@@ -76,10 +76,6 @@ object Example extends lisa.Main {
   private val star: SchematicFunctionLabel[2] = *
   private val shift: SchematicFunctionLabel[2] = <<
   private val divide: SchematicFunctionLabel[2] = /
-  
-  while (true) {
-    ()
-  }
 
   extension (t:Term) {
     def *(u:Term) = star(t, u)
