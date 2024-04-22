@@ -121,7 +121,7 @@ object Example extends lisa.Main:
         thenHave(bot) by Restate.from
       }
   }
-  
+
   val a = formulaVariable()
   val b = formulaVariable()
   val c = formulaVariable()
@@ -131,9 +131,9 @@ object Example extends lisa.Main:
   show
 
 /**
-  * Example showing discharge of proofs using the Goeland theorem prover. Will
-  * fail if Goeland is not available on PATH. 
-  */
+ * Example showing discharge of proofs using the Goeland theorem prover. Will
+ * fail if Goeland is not available on PATH.
+ */
 object GoelandExample extends lisa.Main:
   val x = variable
   val y = variable
@@ -141,6 +141,5 @@ object GoelandExample extends lisa.Main:
   val f = function[1]
 
   val buveurs2 = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
-    have(thesis) by Goeland//("goeland/Example.buveurs2_sol")
+    have(thesis) by Goeland // ("goeland/Example.buveurs2_sol")
   }
-  
