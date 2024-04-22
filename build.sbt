@@ -31,15 +31,10 @@ val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
-
-    // "-source:future", re-enable when liancheng/scalafix-organize-imports#221 is fixed
-
   ),
   javaOptions += "-Xmx10G",
-  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
-  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.3.0",
-  //libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
-  // libraryDependencies += ("io.github.uuverifiers" %% "princess" % "2023-06-19").cross(CrossVersion.for3Use2_13),
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test",
+  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.1",
   Test / parallelExecution := false
 )
 
