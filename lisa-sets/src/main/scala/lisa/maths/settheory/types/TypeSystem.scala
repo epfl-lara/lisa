@@ -11,19 +11,12 @@ import lisa.SetTheoryLibrary
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.prooflib.OutputManager
 import lisa.maths.settheory.SetTheory.singleton
-import lisa.maths.settheory.functions.{functional, app}
+import lisa.maths.settheory.functions.{functional, app, |=>}
 
 object TypeLib extends lisa.Main {
-
   import TypeSystem.*
 
-  val |=> : ConstantFunctionLabel[2] = ConstantFunctionLabel.infix("|=>", 2)
-  private inline def  temp = |=>
-  extension (t:Term) {
-    def |=>(o:Term): Term = TypeLib.temp(t, o)
-  }
   val app: ConstantFunctionLabel[2] = lisa.maths.settheory.functions.app
-  addSymbol(|=>)
 
   val f = variable
   val x = variable
@@ -76,7 +69,7 @@ object TypeLib extends lisa.Main {
 object TypeSystem  {
 
   import TypeLib.{
-    |=>, app, f, x, A, B, funcspaceAxiom, any, definition, given
+    app, f, x, A, B, funcspaceAxiom, any, definition, given
   }
 
   

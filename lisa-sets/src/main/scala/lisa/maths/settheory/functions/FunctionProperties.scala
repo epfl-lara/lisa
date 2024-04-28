@@ -7,23 +7,16 @@ package lisa.maths.settheory.functions
  * ([[FunctionPoperties.invertibleFunction]]).
  */
 object FunctionProperties extends lisa.Main {
-  import lisa.maths.settheory.SetTheory.{
-    relation,
-    pair,
-    relationBetween,
-    emptySetIsASubset,
-    cartesianProduct,
-    relationRange,
-    subsetEqualitySymmetry,
-    relationDomain,
-  }
+  import lisa.maths.settheory.SetTheory.{relation, pair, relationBetween, emptySetIsASubset, cartesianProduct, subsetEqualitySymmetry}
   import lisa.maths.settheory.functions.Functionals.{
     functionFromImpliesFunctional,
     functionFrom,
     app,
+    functionRange,
+    functionDomain,
     functionImpliesRangeSubsetOfCodomain,
     inRangeImpliesPullbackExists,
-    functionFromImpliesDomainEq,
+    functionFromImpliesDomainEq
   }
 
   // var defs
@@ -84,19 +77,19 @@ object FunctionProperties extends lisa.Main {
    */
   val inverseFunctionOf = DEF(g, f, x, y) --> functionFrom(g, y, x) /\ functionFrom(f, x, y) /\ ∀(a, (in(a, y) ==> (a === app(f, app(g, a)))) /\ (in(a, x) ==> (a === app(g, app(f, a)))))
 
-  // val inverseFunctionExistsIfInvertible = makeTHM(
+  // val inverseFunctionExistsIfInvertible = Theorem(
   //    invertibleFunction(f, x, y) <=> ∃(g, inverseFunctionOf(g, f, x, y))
   // ) {
   //   ???
   // }
 
-  // val inverseFunctionIsUniqueIfItExists = makeTHM(
+  // val inverseFunctionIsUniqueIfItExists = Theorem(
   //   ∃(g, inverseFunctionOf(g, f, x, y)) |- ∃!(g, inverseFunctionOf(g, f, x, y))
   // ) {
   //   ???
   // }
 
-  // val inverseFunctionUniqueness = makeTHM(
+  // val inverseFunctionUniqueness = Theorem(
   //    ∃!(g, invertibleFunction(f) ==> inverseFunctionOf(g, f, x, y))
   // ) {
   //   ???
@@ -108,19 +101,19 @@ object FunctionProperties extends lisa.Main {
    * Theorem --- if a function is [[surjective]], its range is equal to its codomain.
    */
   val surjectiveImpliesRangeIsCodomain = Theorem(
-    surjective(f, x, y) |- (y === relationRange(f))
+    surjective(f, x, y) |- (y === functionRange(f))
   ) {
     have(surjective(f, x, y) |- ∀(b, in(b, y) ==> ∃(a, in(pair(a, b), f)))) by Tautology.from(surjective.definition)
     val surjDef = thenHave(surjective(f, x, y) |- in(b, y) ==> ∃(a, in(pair(a, b), f))) by InstantiateForall(b)
-    have(∀(t, in(t, relationRange(f)) <=> (∃(a, in(pair(a, t), f))))) by InstantiateForall(relationRange(f))(relationRange.definition of (r -> f))
-    val rangeDef = thenHave(in(b, relationRange(f)) <=> (∃(a, in(pair(a, b), f)))) by InstantiateForall(b)
+    have(∀(t, in(t, functionRange(f)) <=> (∃(a, in(pair(a, t), f))))) by InstantiateForall(functionRange(f))(functionRange.definition of (r -> f))
+    val rangeDef = thenHave(in(b, functionRange(f)) <=> (∃(a, in(pair(a, b), f)))) by InstantiateForall(b)
 
-    have(surjective(f, x, y) |- in(b, y) ==> in(b, relationRange(f))) by Tautology.from(surjDef, rangeDef)
-    thenHave(surjective(f, x, y) |- ∀(b, in(b, y) ==> in(b, relationRange(f)))) by RightForall
-    val surjsub = andThen(Substitution.applySubst(subsetAxiom of (x -> y, y -> relationRange(f))))
+    have(surjective(f, x, y) |- in(b, y) ==> in(b, functionRange(f))) by Tautology.from(surjDef, rangeDef)
+    thenHave(surjective(f, x, y) |- ∀(b, in(b, y) ==> in(b, functionRange(f)))) by RightForall
+    val surjsub = andThen(Substitution.applySubst(subsetAxiom of (x -> y, y -> functionRange(f))))
 
-    have((surjective(f, x, y), functionFrom(f, x, y)) |- subset(y, relationRange(f)) /\ subset(relationRange(f), y)) by RightAnd(surjsub, functionImpliesRangeSubsetOfCodomain)
-    val funceq = andThen(Substitution.applySubst(subsetEqualitySymmetry of (x -> y, y -> relationRange(f))))
+    have((surjective(f, x, y), functionFrom(f, x, y)) |- subset(y, functionRange(f)) /\ subset(functionRange(f), y)) by RightAnd(surjsub, functionImpliesRangeSubsetOfCodomain)
+    val funceq = andThen(Substitution.applySubst(subsetEqualitySymmetry of (x -> y, y -> functionRange(f))))
 
     val surjfunc = have(surjective(f, x, y) |- functionFrom(f, x, y)) by Tautology.from(surjective.definition)
 
@@ -152,21 +145,21 @@ object FunctionProperties extends lisa.Main {
     val yInPower = thenHave(ydef |- in(y, powerSet(x))) by Restate
 
     // y \in range(f)
-    have(surjective(f, x, powerSet(x)) |- (powerSet(x) === relationRange(f))) by Restate.from(surjectiveImpliesRangeIsCodomain of (y -> powerSet(x)))
-    andThen(Substitution.applySubst(extensionalityAxiom of (x -> powerSet(x), y -> relationRange(f))))
-    val surjRange = thenHave(surjective(f, x, powerSet(x)) |- in(y, powerSet(x)) <=> in(y, relationRange(f))) by InstantiateForall(y)
-    val yInRange = have((ydef, surjective(f, x, powerSet(x))) |- in(y, relationRange(f))) by Tautology.from(yInPower, surjRange)
+    have(surjective(f, x, powerSet(x)) |- (powerSet(x) === functionRange(f))) by Restate.from(surjectiveImpliesRangeIsCodomain of (y -> powerSet(x)))
+    andThen(Substitution.applySubst(extensionalityAxiom of (x -> powerSet(x), y -> functionRange(f))))
+    val surjRange = thenHave(surjective(f, x, powerSet(x)) |- in(y, powerSet(x)) <=> in(y, functionRange(f))) by InstantiateForall(y)
+    val yInRange = have((ydef, surjective(f, x, powerSet(x))) |- in(y, functionRange(f))) by Tautology.from(yInPower, surjRange)
 
     // \exists z. z \in x /\ f(z) = y
     val surjToFunFrom = have(surjective(f, x, powerSet(x)) |- functionFrom(f, x, powerSet(x))) by Tautology.from(surjective.definition of (y -> powerSet(x)))
-    val existsZdom = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, relationDomain(f)) /\ (app(f, z) === y))) by Tautology.from(
+    val existsZdom = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, functionDomain(f)) /\ (app(f, z) === y))) by Tautology.from(
       yInRange,
       surjective.definition of (y -> powerSet(x)),
       inRangeImpliesPullbackExists of (z -> y),
       functionFromImpliesFunctional of (y -> powerSet(x))
     )
-    val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (relationDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq.withParametersSimple(
-      List((x, relationDomain(f))),
+    val xeqdom = thenHave((ydef, surjective(f, x, powerSet(x)), (functionDomain(f) === x)) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by RightSubstEq.withParametersSimple(
+      List((x, functionDomain(f))),
       lambda(x, ∃(z, in(z, x) /\ (app(f, z) === y)))
     )
     val existsZ = have((ydef, surjective(f, x, powerSet(x))) |- ∃(z, in(z, x) /\ (app(f, z) === y))) by Tautology.from(

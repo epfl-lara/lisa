@@ -40,7 +40,10 @@ package object functions {
     unionOfFunctionsIsAFunction,
     unionOfFunctionsWithDisjointDomains,
     unionOfFunctionSet,
-    domainOfFunctionalUnion
+    domainOfFunctionalUnion,
+    |=>,
+    functionRange,
+    functionDomain
   }
   export lisa.maths.settheory.functions.FunctionProperties.{surjective, onto, injective, oneone, bijective, invertibleFunction, inverseFunctionOf, surjectiveImpliesRangeIsCodomain, cantorTheorem}
 }

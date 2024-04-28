@@ -18,7 +18,7 @@ import Helpers.{/\, \/, ===}
 import ADTDefinitions.*
 import ADTHelperTheorems as ADTThm
 import ADTThm.{N, pair, pairExtensionality}
-import lisa.maths.settheory.types.TypeLib.{ |=>}
+import lisa.maths.settheory.functions.|=>
 import lisa.maths.settheory.types.TypeSystem.{ :: }
 import lisa.maths.Quantifiers.{universalEquivalenceDistribution}
 import lisa.fol.FOL.Variable
