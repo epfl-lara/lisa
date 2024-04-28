@@ -9,9 +9,9 @@ import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.SetTheoryLibrary.{given, *}
 import lisa.SetTheoryLibrary
 import lisa.kernel.proof.SequentCalculus.SCProofStep
-import lisa.maths.settheory.SetTheory.functional
 import lisa.prooflib.OutputManager
-import lisa.maths.settheory.SetTheory.{singleton, app}
+import lisa.maths.settheory.SetTheory.singleton
+import lisa.maths.settheory.functions.{functional, app}
 
 object TypeLib extends lisa.Main {
 
@@ -22,7 +22,7 @@ object TypeLib extends lisa.Main {
   extension (t:Term) {
     def |=>(o:Term): Term = TypeLib.temp(t, o)
   }
-  val app: ConstantFunctionLabel[2] = lisa.maths.settheory.SetTheory.app
+  val app: ConstantFunctionLabel[2] = lisa.maths.settheory.functions.app
   addSymbol(|=>)
 
   val f = variable

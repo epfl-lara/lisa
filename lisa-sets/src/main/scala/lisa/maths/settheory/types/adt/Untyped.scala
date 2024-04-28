@@ -12,6 +12,7 @@
 package lisa.maths.settheory.types.adt
 
 import lisa.maths.settheory.SetTheory.{*, given}
+import lisa.maths.settheory.functions.*
 import Helpers.*
 import Helpers.{/\, \/, ===}
 import ADTDefinitions.*
@@ -1744,9 +1745,3 @@ private class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file:
       have(x :: term |- isConstructor) by Cut(lastStep, strengtheningOfInductionPreconditions)
     }
   }
-
-
-
-
-
-

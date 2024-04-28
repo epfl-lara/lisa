@@ -2,7 +2,7 @@ package lisa.maths.settheory
 
 import lisa.SetTheoryLibrary
 import lisa.SetTheoryLibrary.*
-import lisa.maths.settheory.SetTheory.functional
+import lisa.maths.settheory.functions.functional
 import lisa.prooflib.BasicStepTactic.RightForall
 import lisa.prooflib.BasicStepTactic.TacticSubproof
 import lisa.prooflib.SimpleDeducedSteps.*
