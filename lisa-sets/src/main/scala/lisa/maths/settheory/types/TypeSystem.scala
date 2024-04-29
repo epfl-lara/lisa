@@ -16,8 +16,6 @@ import lisa.maths.settheory.functions.{functional, app, functionFromApplication,
 object TypeLib extends lisa.Main {
   import TypeSystem.*
 
-  val app: ConstantFunctionLabel[2] = lisa.maths.settheory.functions.app
-
   val f = variable
   val x = variable
   val y = variable
@@ -69,10 +67,8 @@ object TypeLib extends lisa.Main {
 object TypeSystem  {
 
   import TypeLib.{
-    app, f, x, y, a, any, definition, given
+    f, x, y, a, any, definition, given
   }
-
-  
 
   type Class = Term | (Term**1 |-> Formula)
 

@@ -293,6 +293,22 @@ object Functionals extends lisa.Main {
     def |=>(y: Term): Term = setOfFunctions(x, y)
   }
 
+  // class SetOfFunctions(val x: Term, val y: Term) extends AppliedFunctional(setOfFunctions, Seq(x, y)) with LisaObject[SetOfFunctions] {
+  //   override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): SetOfFunctions = SetOfFunctions(x.substituteUnsafe(map), y.substituteUnsafe(map))
+
+  //   override def toString(): String = x.toStringSeparated() + " |=> " + y.toStringSeparated()
+  //   override def toStringSeparated(): String = toString()
+  // }
+  // object SetOfFunctions {
+  //   def unapply(sof: SetOfFunctions): Option[(Term, Term)] = sof match
+  //     case AppliedFunctional(label, Seq(x, y)) if label == setOfFunctions => Some((x, y))
+  //     case _ => None
+  // }
+  // extension (x: Term) {
+  //   // Infix notation for a set of functions: x |=> y
+  //   def |=>(y: Term): Term = SetOfFunctions(x, y)
+  // }
+
   /**
    * Function From (x to y) --- denoted  `f ∈ x → y` or `f: x → y`.
    */
