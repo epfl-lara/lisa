@@ -58,8 +58,6 @@ object CommonTactics {
         val gammaPrime = uniquenessSeq.left.filter(f => !F.isSame(f, phi) && !F.isSame(f, substPhi))
 
         TacticSubproof {
-          val x = variable
-          val y = variable
           // There's got to be a better way of importing have/thenHave/assume methods
           // but I did not find one
 

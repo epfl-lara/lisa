@@ -20,9 +20,10 @@ object FunctionProperties extends lisa.Main {
     pairInCartesianProduct,
     singletonHasNoExtraElements,
     cartesianProductIsRelation,
-    elemInItsPowerSet
+    elemInItsPowerSet,
+    elemOfCartesianProduct
   }
-  import lisa.maths.Quantifiers.{equalityTransitivity}
+  import lisa.maths.Quantifiers.{equalityTransitivity, existentialEquivalenceDistribution}
   import lisa.maths.settheory.functions.Functionals.{
     functionFromImpliesFunctional,
     functionFrom,
@@ -42,11 +43,16 @@ object FunctionProperties extends lisa.Main {
   private val a = variable
   private val b = variable
   private val p = variable
+  private val A = variable
+  private val B = variable
 
   // relation and function symbols
   private val r = variable
   private val f = variable
   private val g = variable
+
+  private val P = predicate[1]
+  private val Q = predicate[1]
 
   /**
    * Surjective (function) --- a function `f: x → y` is surjective iff it
@@ -350,6 +356,95 @@ object FunctionProperties extends lisa.Main {
       funcOver,
       setOfFunctionsDef,
       functionFrom.definition of (f := constantFunction(x, t), y := singleton(t))
+    )
+  }
+
+  /**
+   * Theorem --- Sigma with a constant function is the cartesian product
+   *
+   *    `Σ(A, constantFunction(A, t)) = A × t`
+   */
+  val sigmaIsCartesianProductWhenBIsConstant = Theorem(
+    Sigma(A, constantFunction(A, t)) === cartesianProduct(A, t)
+  ) {
+    have(∀(p, in(p, Sigma(A, constantFunction(A, t))) <=> (∃(a, ∃(b, (p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a))))))) by InstantiateForall(
+      Sigma(A, constantFunction(A, t))
+    )(
+      Sigma.definition of (B -> constantFunction(A, t))
+    )
+    val sigmaDef = thenHave(in(p, Sigma(A, constantFunction(A, t))) <=> (∃(a, ∃(b, (p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a)))))) by InstantiateForall(p)
+
+    have((in(a, A) /\ in(b, app(constantFunction(A, t), a))) <=> (in(a, A) /\ in(b, t))) subproof {
+      val constApp = have(in(a, A) <=> (in(a, A) /\ (app(constantFunction(A, t), a) === t))) by Tautology.from(
+        constantFunctionApplication of (x := A)
+      )
+
+      val lhs = have(in(a, A) /\ in(b, app(constantFunction(A, t), a)) |- (in(a, A) /\ in(b, t))) subproof {
+        val inA = assume(in(a, A))
+        val subst = have(app(constantFunction(A, t), a) === t) by Tautology.from(constApp, inA)
+
+        assume(in(b, app(constantFunction(A, t), a)))
+        thenHave(in(a, A) /\ in(b, app(constantFunction(A, t), a))) by Tautology
+        thenHave(thesis) by Substitution.ApplyRules(subst)
+      }
+
+      val rhs = have(in(a, A) /\ in(b, t) |- (in(a, A) /\ in(b, app(constantFunction(A, t), a)))) subproof {
+        val inA = assume(in(a, A))
+        val subst = have(app(constantFunction(A, t), a) === t) by Tautology.from(constApp, inA)
+
+        assume(in(b, t))
+        thenHave(in(a, A) /\ in(b, t)) by Tautology
+        thenHave(thesis) by Substitution.ApplyRules(subst)
+      }
+
+      have(thesis) by Tautology.from(lhs, rhs)
+    }
+    have(((p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a))) <=> ((p === pair(a, b)) /\ in(a, A) /\ in(b, t))) by Tautology.from(lastStep)
+    thenHave(∀(b, ((p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a))) <=> ((p === pair(a, b)) /\ in(a, A) /\ in(b, t)))) by RightForall
+    have(∃(b, ((p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a)))) <=> ∃(b, ((p === pair(a, b)) /\ in(a, A) /\ in(b, t)))) by Cut(
+      lastStep,
+      existentialEquivalenceDistribution of (P := lambda(b, (p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a))), Q := lambda(b, (p === pair(a, b)) /\ in(a, A) /\ in(b, t)))
+    )
+    thenHave(∀(a, ∃(b, ((p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a)))) <=> ∃(b, ((p === pair(a, b)) /\ in(a, A) /\ in(b, t))))) by RightForall
+    val constApp = have(∃(a, ∃(b, ((p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a))))) <=> ∃(a, ∃(b, ((p === pair(a, b)) /\ in(a, A) /\ in(b, t))))) by Cut(
+      lastStep,
+      existentialEquivalenceDistribution of (P := lambda(a, ∃(b, (p === pair(a, b)) /\ in(a, A) /\ in(b, app(constantFunction(A, t), a)))), Q := lambda(
+        a,
+        ∃(b, (p === pair(a, b)) /\ in(a, A) /\ in(b, t))
+      ))
+    )
+    val simplSigmaDef = have(in(p, Sigma(A, constantFunction(A, t))) <=> (∃(a, ∃(b, (p === pair(a, b)) /\ in(a, A) /\ in(b, t))))) by Substitution.ApplyRules(constApp)(sigmaDef)
+
+    have(in(p, Sigma(A, constantFunction(A, t))) <=> in(p, cartesianProduct(A, t))) by Tautology.from(simplSigmaDef, elemOfCartesianProduct of (x := A, y := t, t := p))
+    val ext = thenHave(∀(p, in(p, Sigma(A, constantFunction(A, t))) <=> in(p, cartesianProduct(A, t)))) by RightForall
+
+    have(thesis) by Tautology.from(ext, extensionalityAxiom of (x := Sigma(A, constantFunction(A, t)), y := cartesianProduct(A, t)))
+  }
+
+  /**
+   * Theorem --- Pi with a constant function is the set of functions.
+   *
+   *    `Π(A, constantFunction(A, t)) = A |=> t`
+   */
+  val piIsSetOfFunctionsWhenBIsConstant = Theorem(
+    Pi(A, constantFunction(A, t)) === (A |=> t)
+  ) {
+    have(∀(g, in(g, setOfFunctions(A, t)) <=> (in(g, powerSet(cartesianProduct(A, t))) /\ functionalOver(g, A)))) by InstantiateForall(setOfFunctions(A, t))(
+      setOfFunctions.definition of (x -> A, y -> t)
+    )
+    val setOfFunctionsDef = thenHave(in(g, setOfFunctions(A, t)) <=> (in(g, powerSet(cartesianProduct(A, t))) /\ functionalOver(g, A))) by InstantiateForall(g)
+
+    have(∀(g, in(g, Pi(A, constantFunction(A, t))) <=> (in(g, powerSet(Sigma(A, constantFunction(A, t)))) /\ functionalOver(g, A)))) by InstantiateForall(Pi(A, constantFunction(A, t)))(
+      Pi.definition of (x -> A, f -> constantFunction(A, t))
+    )
+    thenHave(∀(g, in(g, Pi(A, constantFunction(A, t))) <=> (in(g, powerSet(cartesianProduct(A, t))) /\ functionalOver(g, A)))) by Substitution.ApplyRules(sigmaIsCartesianProductWhenBIsConstant)
+    thenHave(in(g, Pi(A, constantFunction(A, t))) <=> (in(g, powerSet(cartesianProduct(A, t))) /\ functionalOver(g, A))) by InstantiateForall(g)
+    thenHave(in(g, Pi(A, constantFunction(A, t))) <=> in(g, setOfFunctions(A, t))) by Substitution.ApplyRules(setOfFunctionsDef)
+    val ext = thenHave(∀(g, in(g, Pi(A, constantFunction(A, t))) <=> in(g, setOfFunctions(A, t)))) by RightForall
+
+    have(thesis) by Tautology.from(
+      ext,
+      extensionalityAxiom of (x := Pi(A, constantFunction(A, t)), y := setOfFunctions(A, t))
     )
   }
 }

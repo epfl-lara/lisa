@@ -46,7 +46,14 @@ package object functions {
     functionDomain,
     emptySetFunctional,
     inAppIsFunction,
-    functionFromApplication
+    functionFromApplication,
+    sigmaUniqueness,
+    Sigma,
+    sigmaWithEmptySet,
+    pairsInSigma,
+    piUniqueness,
+    Pi,
+    piWithEmptySet
   }
   export lisa.maths.settheory.functions.FunctionProperties.{
     surjective,
