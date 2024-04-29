@@ -9,31 +9,9 @@ import lisa.automation.kernel.CommonTactics.ExistenceAndUniqueness
  * ([[FunctionPoperties.invertibleFunction]]), or being constant ([[FunctionProperties.constantFunction]]).
  */
 object FunctionProperties extends lisa.Main {
-  import lisa.maths.settheory.SetTheory.{
-    relation,
-    pair,
-    relationBetween,
-    emptySetIsASubset,
-    cartesianProduct,
-    subsetEqualitySymmetry,
-    singleton,
-    pairInCartesianProduct,
-    singletonHasNoExtraElements,
-    cartesianProductIsRelation,
-    elemInItsPowerSet,
-    elemOfCartesianProduct
-  }
-  import lisa.maths.Quantifiers.{equalityTransitivity, existentialEquivalenceDistribution}
-  import lisa.maths.settheory.functions.Functionals.{
-    functionFromImpliesFunctional,
-    functionFrom,
-    app,
-    functionRange,
-    functionDomain,
-    functionImpliesRangeSubsetOfCodomain,
-    inRangeImpliesPullbackExists,
-    functionFromImpliesDomainEq
-  }
+  import lisa.maths.settheory.SetTheory.*
+  import lisa.maths.Quantifiers.*
+  import lisa.maths.settheory.functions.Functionals.*
 
   // var defs
   private val x = variable
