@@ -240,6 +240,7 @@ private [adt] object Helpers {
 private[adt] object ADTDefinitions {
 
   import lisa.maths.settheory.SetTheory.*
+  import lisa.maths.settheory.functions.*
   import lisa.maths.settheory.types.TypeSystem.*
   import Helpers.{/\}
 
@@ -372,6 +373,7 @@ private[adt] object ADTDefinitions {
 private [adt] object ADTHelperTheorems {
 
   import lisa.maths.settheory.SetTheory.{*, given}
+  import lisa.maths.settheory.functions.*
   import lisa.maths.Quantifiers.{existentialEquivalenceDistribution, equalityInExistentialQuantifier,
     existentialConjunctionWithClosedFormula, equalityTransitivity}
   import ADTDefinitions.*

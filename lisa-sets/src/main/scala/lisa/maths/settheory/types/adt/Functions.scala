@@ -5,7 +5,7 @@
 package lisa.maths.settheory.types.adt
 
 import lisa.maths.settheory.SetTheory.{_, given}
-import lisa.maths.settheory.types.TypeLib.|=>
+import lisa.maths.settheory.functions.|=>
 import lisa.maths.settheory.types.TypeSystem.::
 import lisa.maths.settheory.types.TypeSystem._
 
@@ -34,9 +34,9 @@ class SemanticFunction[N <: Arity](name: String, adt: SemanticADT[N], cases: Map
   private val checkReturnType: Map[SemanticConstructor[N], THM] =
     (for c <- cases.keys yield
       val (vars, body) = cases(c)
-        c -> Lemma(wellTyped(c.semanticSignature(vars)) |- body :: returnType) {
-          have(thesis) by TypeChecker.prove
-        }
+      c -> Lemma(wellTyped(c.semanticSignature(vars)) |- body :: returnType) {
+        have(thesis) by TypeChecker.prove
+      }
     ).toMap
 
   /**
@@ -83,10 +83,9 @@ class SemanticFunction[N <: Arity](name: String, adt: SemanticADT[N], cases: Map
   private val classFunction = FunctionDefinition(fullName, line.value, file.value)(typeVariablesSeq, f, untypedDefinition, uniqueness).label
 
   /**
-    * Identifier of this function.
-    */
+   * Identifier of this function.
+   */
   val id: Identifier = classFunction.id
-
 
   /**
    * Function where type variables are instantiated with schematic symbols.
