@@ -1,5 +1,7 @@
 object ADTExample extends lisa.Main {
   import lisa.maths.settheory.types.adt.{*, given}
+  import lisa.maths.settheory.functions.*
+  import lisa.maths.settheory.SetTheory.{cartesianProduct, relationBetween, relation, pair,emptySetIsASubset}
 
   // variable declarations
   val A = variable
@@ -122,4 +124,12 @@ object ADTExample extends lisa.Main {
     thenHave(thesis) by Tautology
   }
 
+  private val a = variable
+  private val b = variable
+  private val r = variable
+  private val f = variable
+
+  val aasdd = Theorem(in(a, setOfFunctions(r, f))) {
+    sorry
+  }
 }

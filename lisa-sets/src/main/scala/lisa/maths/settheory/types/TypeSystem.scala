@@ -11,7 +11,7 @@ import lisa.SetTheoryLibrary
 import lisa.kernel.proof.SequentCalculus.SCProofStep
 import lisa.prooflib.OutputManager
 import lisa.maths.settheory.SetTheory.singleton
-import lisa.maths.settheory.functions.{functional, app, |=>}
+import lisa.maths.settheory.functions.{functional, app, functionFromApplication, |=>}
 
 object TypeLib extends lisa.Main {
   import TypeSystem.*
@@ -21,11 +21,11 @@ object TypeLib extends lisa.Main {
   val f = variable
   val x = variable
   val y = variable
+  val a = variable
   val z = variable
   val A = variable
   val B = variable
   val F = function[1]
-  val funcspaceAxiom = Axiom(f ∈ (A |=> B) ==> (x ∈ A ==> app(f, x) ∈ B))
   val any = DEF(x) --> top
 
 
@@ -69,7 +69,7 @@ object TypeLib extends lisa.Main {
 object TypeSystem  {
 
   import TypeLib.{
-    app, f, x, A, B, funcspaceAxiom, any, definition, given
+    app, f, x, y, a, any, definition, given
   }
 
   
@@ -399,7 +399,7 @@ object TypeSystem  {
                     case None => 
                       if K.isSame((arg is inType).asFormula.underlying, (arg is argType).asFormula.underlying) then
                         have(term is outType) by Tautology.from(
-                          funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
+                          functionFromApplication of (f := func, a := arg, x := inType, y := outType),
                           funcProof,
                             argProof
                         )
@@ -409,7 +409,7 @@ object TypeSystem  {
                     case Some(typ) if K.isSame((term is typ).asFormula.underlying, (term is outType).asFormula.underlying) =>
                       if K.isSame((arg is inType).asFormula.underlying, (arg is argType).asFormula.underlying) then
                         have(term is outType) by Tautology.from(
-                          funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
+                          functionFromApplication of (f := func, a := arg, x := inType, y := outType),
                           funcProof,
                             argProof
                         )

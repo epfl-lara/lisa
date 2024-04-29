@@ -411,6 +411,65 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(emptySetIsASubset, powerAxiom of (x := ∅, y := x), setWithElementNonEmpty of (y := ∅, x := powerSet(x)))
   }
 
+  /**
+   * Theorem ---  Subset reflexivity
+   *
+   * Every set is a [[subset]] of itself. In other words, the [[subset]]
+   * predicate induces a [[reflexive]] [[relation]] on sets.
+   */
+  val subsetReflexivity = Theorem(
+    subset(x, x)
+  ) {
+    val subdef = have(subset(x, x) <=> ∀(z, ⊤)) by Restate.from(subsetAxiom of (y -> x))
+    thenHave(subset(x, x) <=> ⊤) by Substitution.ApplyRules(closedFormulaUniversal)
+    thenHave(thesis) by Restate
+  }
+
+  /**
+   * Theorem --- If a set belongs to a [[singleton]], it must be the single element.
+   *
+   *    `y ∈ {x} <=> y = x`
+   */
+  val singletonHasNoExtraElements = Theorem(
+    in(y, singleton(x)) <=> (x === y)
+  ) {
+    // specialization of the pair axiom to a singleton
+
+    have(in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstFunSchema(ScalaMap(x -> x, y -> x, z -> y))(pairAxiom)
+    thenHave(in(y, singleton(x)) <=> (x === y)) by Restate
+  }
+
+  /**
+   * Theorem --- Every set is a member of its power set.
+   *
+   *    `x ∈ P(x)`
+   */
+  val elemInItsPowerSet = Theorem(
+    in(x, powerSet(x))
+  ) {
+    have(thesis) by Tautology.from(powerAxiom of (y := x), subsetReflexivity)
+  }
+
+  /**
+   * Lemma --- The power set of the empty set is the set containing the empty set.
+   *
+   *    `P(∅) = {∅}`
+   */
+  val powerSetEmptySet = Theorem(
+    powerSet(∅) === singleton(∅)
+  ) {
+    val powerAx = have(in(x, powerSet(∅)) <=> subset(x, ∅)) by Weakening(powerAxiom of (y := ∅))
+
+    have(in(x, powerSet(∅)) <=> in(x, singleton(∅))) by Tautology.from(
+      powerAx,
+      emptySetIsItsOwnOnlySubset,
+      singletonHasNoExtraElements of (y := x, x := ∅)
+    )
+    val ext = thenHave(∀(x, in(x, powerSet(∅)) <=> in(x, singleton(∅)))) by RightForall
+
+    have(thesis) by Tautology.from(ext, extensionalityAxiom of (x := powerSet(∅), y := singleton(∅)))
+  }
+
   //////////////////////////////////////////////////////////////////////////////
 
   /**
@@ -450,20 +509,6 @@ object SetTheory extends lisa.Main {
     thenHave((z === y) |- in(z, unorderedPair(x, y))) by Tautology
     thenHave((y === y) |- in(y, unorderedPair(x, y))) by InstFunSchema(ScalaMap(z -> y))
     thenHave(in(y, unorderedPair(x, y))) by LeftRefl
-  }
-
-  /**
-   * Theorem --- If a set belongs to a [[singleton]], it must be the single element.
-   *
-   *    `y ∈ {x} <=> y = x`
-   */
-  val singletonHasNoExtraElements = Theorem(
-    in(y, singleton(x)) <=> (x === y)
-  ) {
-    // specialization of the pair axiom to a singleton
-
-    have(in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstFunSchema(ScalaMap(x -> x, y -> x, z -> y))(pairAxiom)
-    thenHave(in(y, singleton(x)) <=> (x === y)) by Restate
   }
 
   /**
@@ -1954,6 +1999,26 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * Theorem --- the relation domain of the empty set is the empty set.
+   */
+  val domainOfEmptySetIsEmpty = Theorem(
+    relationDomain(∅) === ∅
+  ) {
+    have(∀(t, in(t, relationDomain(∅)) <=> ∃(a, in(pair(t, a), ∅)))) by InstantiateForall(relationDomain(∅))(
+      relationDomain.definition of (r := ∅)
+    )
+    val domainDef = thenHave(in(t, relationDomain(∅)) <=> ∃(a, in(pair(t, a), ∅))) by InstantiateForall(t) // todo: check if can be simplified with shortDefinition
+    val contraPosDomainDef = have(!in(t, relationDomain(∅)) <=> ∀(a, !in(pair(t, a), ∅))) by Tautology.from(domainDef)
+    have(!in(pair(t, a), ∅)) by Tautology.from(emptySetAxiom of (x := pair(t, a)))
+    val nothingInEmpty = thenHave(∀(a, !in(pair(t, a), ∅))) by RightForall
+
+    have(!in(t, relationDomain(∅))) by Tautology.from(nothingInEmpty, contraPosDomainDef)
+    thenHave(∀(t, !in(t, relationDomain(∅)))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, setWithNoElementsIsEmpty of (x := relationDomain(∅)))
+  }
+
+  /**
    * (Binary) Relation Range --- The set containing the second elements of every
    * pair in a relation `r`. Alternatively, the set of elements which another
    * element relates to by `r`.
@@ -2058,6 +2123,23 @@ object SetTheory extends lisa.Main {
   }
 
   /**
+   * Theorem --- The Cartesian Product of two sets is a relation.
+   */
+  val cartesianProductIsRelation = Theorem(
+    relation(cartesianProduct(x, y))
+  ) {
+    // trivially follows from the fact that a relation is a subset of the cartesian product
+    have(relationBetween(cartesianProduct(x, y), x, y)) by Tautology.from(
+      subsetReflexivity of (x := cartesianProduct(x, y)),
+      relationBetween.definition of (r := cartesianProduct(x, y), a := x, b := y)
+    )
+    thenHave(∃(b, relationBetween(cartesianProduct(x, y), x, b))) by RightExists
+    val relationSpec = thenHave(∃(a, ∃(b, relationBetween(cartesianProduct(x, y), a, b)))) by RightExists
+
+    have(thesis) by Tautology.from(relationSpec, relation.definition of (r := cartesianProduct(x, y)))
+  }
+
+  /**
    * (Binary) Relation Field --- The union of the domain and range of a
    * relation, or the set of all elements related by `r`.
    *
@@ -2130,33 +2212,6 @@ object SetTheory extends lisa.Main {
 
   // TODO: any subset of a functional is functional
   // TODO: a functional over something restricted to x is still functional
-
-  /**
-   * Sigma Pi Lambda
-   */
-
-  /**
-   * Dependent Sum (Sigma)
-   *
-   * TODO: explain
-   */
-  // val Sigma = DEF(x, f) --> union(restrictedFunction(f, x))
-
-  // val piUniqueness = Theorem(
-  //   ∃!(z, ∀(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))
-  // ) {
-  //   have(∃!(z, ∀(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))) by UniqueComprehension(
-  //     powerSet(Sigma(x, f)),
-  //     lambda(z, (subset(x, relationDomain(z)) /\ functional(z)))
-  //   )
-  // }
-
-  /**
-   * Dependent Product (Pi)
-   *
-   * TODO: explain
-   */
-  // val Pi = DEF(x, f) --> The(z, ∀(g, in(g, z) <=> (in(g, powerSet(Sigma(x, f))) /\ (subset(x, relationDomain(g)) /\ functional(g)))))(piUniqueness)
 
   /**
    * Properties of relations
@@ -2341,28 +2396,10 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, total.definition of (r -> emptySet, x -> emptySet), emptySetRelationOnItself)
   }
 
-  /**
-   * Cantor theorem
-   */
-
   // smaller needed lemmas
   // f from x to y => range f <= y
   // f from x to y => dom f = x
   // x <= y, y <= x |- x = y
-
-  /**
-   * Theorem ---  Subset reflexivity
-   *
-   * Every set is a [[subset]] of itself. In other words, the [[subset]]
-   * predicate induces a [[reflexive]] [[relation]] on sets.
-   */
-  val subsetReflexivity = Theorem(
-    subset(x, x)
-  ) {
-    val subdef = have(subset(x, x) <=> ∀(z, ⊤)) by Restate.from(subsetAxiom of (y -> x))
-    thenHave(subset(x, x) <=> ⊤) by Substitution.ApplyRules(closedFormulaUniversal)
-    thenHave(thesis) by Restate
-  }
 
   /**
    * Theorem --- Symmetry of Equality and Subset

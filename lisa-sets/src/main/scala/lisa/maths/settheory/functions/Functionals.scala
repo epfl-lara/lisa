@@ -62,6 +62,34 @@ object Functionals extends lisa.Main {
   val functionalOver = DEF(f, x) --> functional(f) /\ (functionDomain(f) === x)
 
   /**
+   * Theorem --- The empty set is a functional relation.
+   *
+   *   `functional(∅)`
+   */
+  val emptySetFunctional = Theorem(
+    functional(∅)
+  ) {
+    val isRelation = have(relation(∅)) subproof {
+      // ∅ ⊆ A x B, so it must be a (empty) relation
+      have(relationBetween(∅, a, b)) by Tautology.from(emptySetIsASubset of (x := cartesianProduct(a, b)), relationBetween.definition of (r := ∅))
+      thenHave(∃(b, relationBetween(∅, a, b))) by RightExists
+      val relationSpec = thenHave(∃(a, ∃(b, relationBetween(∅, a, b)))) by RightExists
+
+      have(thesis) by Tautology.from(relationSpec, relation.definition of (r := ∅))
+    }
+
+    val uniqueY = have(∀(x, ∃(y, in(pair(x, y), ∅)) ==> ∃!(y, in(pair(x, y), ∅)))) subproof {
+      // contradiction directly from the emptySetAxiom: there is nothing in the empty set
+      have(in(pair(x, y), ∅) |- ∃!(y, in(pair(x, y), ∅))) by Tautology.from(emptySetAxiom of (x := pair(x, y)))
+      thenHave(∃(y, in(pair(x, y), ∅)) |- ∃!(y, in(pair(x, y), ∅))) by LeftExists
+      thenHave(∃(y, in(pair(x, y), ∅)) ==> ∃!(y, in(pair(x, y), ∅))) by Restate
+      thenHave(thesis) by RightForall
+    }
+
+    have(thesis) by Tautology.from(isRelation, uniqueY, functional.definition of (f := ∅))
+  }
+
+  /**
    * Lemma --- If `f` is a function, then `t ∈ f` implies `t = (x, y)` such that `x ∈ functionDomain(f)`.
    */
   val functionalMembership = Lemma(
@@ -254,8 +282,8 @@ object Functionals extends lisa.Main {
    * x, b ∈ y`, it is a filtering on the power set of their product, i.e. `x
    * → y ⊆ PP(x * y)`.
    */
-  val |=> = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))(setOfFunctionsUniqueness)
-  val setOfFunctions = |=>
+  val setOfFunctions = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x))))(setOfFunctionsUniqueness)
+  val |=> = setOfFunctions
 
   extension (x: Term) {
     // Infix notation for a set of functions: x |=> y
@@ -277,6 +305,50 @@ object Functionals extends lisa.Main {
     val funSetDef = thenHave(in(f, x |=> y) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
 
     val funOver = have(functionFrom(f, x, y) |- functional(f)) by Tautology.from(funSetDef, functionFrom.definition, functionalOver.definition)
+  }
+
+  /**
+   * Theorem --- if `f` is a [[functionFrom]] `x` to `y`, i.e. `f ∈ x → y`,
+   * then `x` is precisely its domain as a relation.
+   */
+  val functionFromImpliesDomainEq = Theorem(
+    functionFrom(f, x, y) |- (functionDomain(f) === x)
+  ) {
+    have(∀(t, in(t, x |=> y) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(x |=> y)(setOfFunctions.definition)
+    val funSetDef = thenHave(in(f, x |=> y) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
+
+    have(thesis) by Tautology.from(functionFrom.definition, funSetDef, functionalOver.definition)
+  }
+
+  /**
+   * Theorem --- the range of a function is a subset of its codomain.
+   */
+  val functionImpliesRangeSubsetOfCodomain = Theorem(
+    functionFrom(f, x, y) |- subset(functionRange(f), y)
+  ) {
+    have(∀(t, in(t, x |=> y) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(x |=> y)(setOfFunctions.definition)
+    val funSetDef = thenHave(in(f, x |=> y) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
+
+    have(functionFrom(f, x, y) |- ∀(z, in(z, f) ==> in(z, cartesianProduct(x, y)))) by Tautology.from(
+      functionFrom.definition,
+      funSetDef,
+      powerAxiom of (x -> f, y -> cartesianProduct(x, y)),
+      subsetAxiom of (x -> f, y -> cartesianProduct(x, y))
+    )
+    thenHave(functionFrom(f, x, y) |- in(pair(a, t), f) ==> in(pair(a, t), cartesianProduct(x, y))) by InstantiateForall(pair(a, t))
+    thenHave((functionFrom(f, x, y), in(pair(a, t), f)) |- in(pair(a, t), cartesianProduct(x, y))) by Restate
+    andThen(Substitution.applySubst(pairInCartesianProduct of (b -> t)))
+    thenHave((functionFrom(f, x, y), in(pair(a, t), f)) |- in(t, y)) by Weakening
+    val funFromty = thenHave((functionFrom(f, x, y), ∃(a, in(pair(a, t), f))) |- in(t, y)) by LeftExists
+
+    have(∀(t, in(t, functionRange(f)) <=> (∃(a, in(pair(a, t), f))))) by InstantiateForall(functionRange(f))(functionRange.definition of (r -> f))
+    thenHave(in(t, functionRange(f)) <=> (∃(a, in(pair(a, t), f)))) by InstantiateForall(t)
+    val ranat = thenHave(in(t, functionRange(f)) |- ∃(a, in(pair(a, t), f))) by Weakening
+
+    have((functionFrom(f, x, y), in(t, functionRange(f))) |- in(t, y)) by Cut(ranat, funFromty)
+    thenHave((functionFrom(f, x, y)) |- in(t, functionRange(f)) ==> in(t, y)) by Restate
+    thenHave((functionFrom(f, x, y)) |- ∀(t, in(t, functionRange(f)) ==> in(t, y))) by RightForall
+    andThen(Substitution.applySubst(subsetAxiom of (x -> functionRange(f))))
   }
 
   val functionApplicationUniqueness = Theorem(
@@ -390,6 +462,54 @@ object Functionals extends lisa.Main {
   val app =
     DEF(f, x) --> The(z, ((functional(f) /\ in(x, functionDomain(f))) ==> in(pair(x, z), f)) /\ ((!functional(f) \/ !in(x, functionDomain(f))) ==> (z === ∅)))(functionApplicationUniqueness)
 
+  /**
+   * Theorem -- Function application typing
+   *
+   *   `f ∈ x → y, a ∈ x |- f(a) ∈ y`
+   */
+  val functionFromApplication = Theorem(
+    in(f, x |=> y) /\ in(a, x) |- in(app(f, a), y)
+  ) {
+    val thm = have(functionFrom(f, x, y) /\ in(a, x) |- in(app(f, a), y)) subproof {
+      val funcFrom = assume(functionFrom(f, x, y))
+      val inDomain = assume(in(a, x))
+
+      val isFunctional = have(functional(f)) by Tautology.from(funcFrom, functionFromImpliesFunctional)
+      val relDomainEq = have(functionDomain(f) === x) by Tautology.from(funcFrom, functionFromImpliesDomainEq)
+      val inRelDomain = have(in(a, functionDomain(f))) by Substitution.ApplyRules(relDomainEq)(inDomain)
+
+      val appDef = have(
+        ((functional(f) /\ in(a, functionDomain(f))) ==> in(pair(a, app(f, a)), f))
+          /\ ((!functional(f) \/ !in(a, functionDomain(f))) ==> (app(f, a) === ∅))
+      ) by InstantiateForall(app(f, a))(
+        app.definition of (x := a)
+      )
+
+      have(in(pair(a, app(f, a)), f)) by Tautology.from(
+        isFunctional,
+        inRelDomain,
+        appDef
+      )
+      val pairInF = thenHave(∃(z, in(pair(z, app(f, a)), f))) by RightExists
+
+      have(∀(t, in(t, functionRange(f)) <=> ∃(z, in(pair(z, t), f)))) by InstantiateForall(functionRange(f))(
+        functionRange.definition of (r := f)
+      )
+      val rangeDef = thenHave(in(app(f, a), functionRange(f)) <=> ∃(z, in(pair(z, app(f, a)), f))) by InstantiateForall(app(f, a))
+
+      val appInRange = have(in(app(f, a), functionRange(f))) by Tautology.from(rangeDef, pairInF)
+
+      have(subset(functionRange(f), y)) by Weakening(functionImpliesRangeSubsetOfCodomain)
+      thenHave(∀(z, in(z, functionRange(f)) ==> in(z, y))) by Substitution.ApplyRules(subsetAxiom of (x := functionRange(f)))
+      thenHave(in(app(f, a), functionRange(f)) ==> in(app(f, a), y)) by InstantiateForall(app(f, a))
+
+      have(thesis) by Tautology.from(appInRange, lastStep)
+    }
+
+    have(thesis) by Tautology.from(thm, functionFrom.definition)
+
+  }
+
   val pairInFunctionIsApp = Theorem(
     functional(f) /\ in(a, functionDomain(f)) |- in(pair(a, b), f) <=> (app(f, a) === b)
   ) {
@@ -415,6 +535,37 @@ object Functionals extends lisa.Main {
     thenHave(in(a, functionDomain(f))) by Substitution.ApplyRules(domEQ)
 
     have(thesis) by Tautology.from(lastStep, functionalOver.definition, pairInFunctionIsApp)
+  }
+
+  /**
+   * Lemma --- If something is in the application of function `f` to `x`, then
+   *  `f` is functional, `x` is in the domain of `f`, and the pair `(x, f(x))` is
+   *  in `f`. Essentially an inversion lemma for [[app]].
+   */
+  val inAppIsFunction = Lemma(
+    in(y, app(f, x)) |- functional(f) /\ in(x, functionDomain(f)) /\ in(pair(x, app(f, x)), f)
+  ) {
+    assume(in(y, app(f, x)))
+
+    val appIsNotEmpty = have(!(app(f, x) === ∅)) by Tautology.from(
+      setWithElementNonEmpty of (x := app(f, x))
+    )
+
+    val appDef = have(
+      ((functional(f) /\ in(x, functionDomain(f))) ==> in(pair(x, app(f, x)), f))
+        /\ ((!functional(f) \/ !in(x, functionDomain(f))) ==> (app(f, x) === ∅))
+    ) by InstantiateForall(app(f, x))(
+      app.definition
+    )
+
+    val isFunctional = have(functional(f) /\ in(x, functionDomain(f))) by Tautology.from(appDef, appIsNotEmpty)
+
+    val pairIn = have(in(pair(x, app(f, x)), f)) by Tautology.from(
+      appDef,
+      isFunctional
+    )
+
+    have(thesis) by Tautology.from(isFunctional, pairIn)
   }
 
   val elemOfFunctional = Theorem(
@@ -680,50 +831,6 @@ object Functionals extends lisa.Main {
     functionalOver(f, x) |- (functionDomain(f) === x)
   ) {
     have(thesis) by Tautology.from(functionalOver.definition)
-  }
-
-  /**
-   * Theorem --- if `f` is a [[functionFrom]] `x` to `y`, i.e. `f ∈ x → y`,
-   * then `x` is precisely its domain as a relation.
-   */
-  val functionFromImpliesDomainEq = Theorem(
-    functionFrom(f, x, y) |- (functionDomain(f) === x)
-  ) {
-    have(∀(t, in(t, x |=> y) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(x |=> y)(setOfFunctions.definition)
-    val funSetDef = thenHave(in(f, x |=> y) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
-
-    have(thesis) by Tautology.from(functionFrom.definition, funSetDef, functionalOver.definition)
-  }
-
-  /**
-   * Theorem --- the range of a function is a subset of its codomain.
-   */
-  val functionImpliesRangeSubsetOfCodomain = Theorem(
-    functionFrom(f, x, y) |- subset(functionRange(f), y)
-  ) {
-    have(∀(t, in(t, x |=> y) <=> (in(t, powerSet(cartesianProduct(x, y))) /\ functionalOver(t, x)))) by InstantiateForall(x |=> y)(setOfFunctions.definition)
-    val funSetDef = thenHave(in(f, x |=> y) <=> (in(f, powerSet(cartesianProduct(x, y))) /\ functionalOver(f, x))) by InstantiateForall(f)
-
-    have(functionFrom(f, x, y) |- ∀(z, in(z, f) ==> in(z, cartesianProduct(x, y)))) by Tautology.from(
-      functionFrom.definition,
-      funSetDef,
-      powerAxiom of (x -> f, y -> cartesianProduct(x, y)),
-      subsetAxiom of (x -> f, y -> cartesianProduct(x, y))
-    )
-    thenHave(functionFrom(f, x, y) |- in(pair(a, t), f) ==> in(pair(a, t), cartesianProduct(x, y))) by InstantiateForall(pair(a, t))
-    thenHave((functionFrom(f, x, y), in(pair(a, t), f)) |- in(pair(a, t), cartesianProduct(x, y))) by Restate
-    andThen(Substitution.applySubst(pairInCartesianProduct of (b -> t)))
-    thenHave((functionFrom(f, x, y), in(pair(a, t), f)) |- in(t, y)) by Weakening
-    val funFromty = thenHave((functionFrom(f, x, y), ∃(a, in(pair(a, t), f))) |- in(t, y)) by LeftExists
-
-    have(∀(t, in(t, functionRange(f)) <=> (∃(a, in(pair(a, t), f))))) by InstantiateForall(functionRange(f))(functionRange.definition of (r -> f))
-    thenHave(in(t, functionRange(f)) <=> (∃(a, in(pair(a, t), f)))) by InstantiateForall(t)
-    val ranat = thenHave(in(t, functionRange(f)) |- ∃(a, in(pair(a, t), f))) by Weakening
-
-    have((functionFrom(f, x, y), in(t, functionRange(f))) |- in(t, y)) by Cut(ranat, funFromty)
-    thenHave((functionFrom(f, x, y)) |- in(t, functionRange(f)) ==> in(t, y)) by Restate
-    thenHave((functionFrom(f, x, y)) |- ∀(t, in(t, functionRange(f)) ==> in(t, y))) by RightForall
-    andThen(Substitution.applySubst(subsetAxiom of (x -> functionRange(f))))
   }
 
   /**

@@ -43,7 +43,25 @@ package object functions {
     domainOfFunctionalUnion,
     |=>,
     functionRange,
-    functionDomain
+    functionDomain,
+    emptySetFunctional,
+    inAppIsFunction,
+    functionFromApplication
   }
-  export lisa.maths.settheory.functions.FunctionProperties.{surjective, onto, injective, oneone, bijective, invertibleFunction, inverseFunctionOf, surjectiveImpliesRangeIsCodomain, cantorTheorem}
+  export lisa.maths.settheory.functions.FunctionProperties.{
+    surjective,
+    onto,
+    injective,
+    oneone,
+    bijective,
+    invertibleFunction,
+    inverseFunctionOf,
+    surjectiveImpliesRangeIsCodomain,
+    cantorTheorem,
+    constantFunction,
+    constantFunctionDomain,
+    constantFunctionIsFunctional,
+    constantFunctionFunctionFrom,
+    constantFunctionApplication
+  }
 }
