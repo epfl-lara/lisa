@@ -406,7 +406,6 @@ class EGraphTerms() {
           val canonicalPTerm = canonicalize(pTerm) 
           if termSeen.contains(canonicalPTerm) then 
             val qTerm = termSeen(canonicalPTerm)
-            Some((pTerm, qTerm, cause))
             mergeWithStep(pTerm, qTerm, TermCongruence((pTerm, qTerm)))
           else
             termSeen(canonicalPTerm) = pTerm
@@ -414,8 +413,6 @@ class EGraphTerms() {
           val canonicalPFormula = canonicalize(pFormula) 
           if formulaSeen.contains(canonicalPFormula) then 
             val qFormula = formulaSeen(canonicalPFormula)
-
-            Some((pFormula, qFormula, cause))
             mergeWithStep(pFormula, qFormula, FormulaCongruence((pFormula, qFormula)))
           else
             formulaSeen(canonicalPFormula) = pFormula
@@ -441,7 +438,6 @@ class EGraphTerms() {
           val canonicalPFormula = canonicalize(pFormula) 
           if formulaSeen.contains(canonicalPFormula) then 
             val qFormula = formulaSeen(canonicalPFormula)
-            Some((pFormula, qFormula, cause))
             mergeWithStep(pFormula, qFormula, FormulaCongruence((pFormula, qFormula)))
           else
             formulaSeen(canonicalPFormula) = pFormula
