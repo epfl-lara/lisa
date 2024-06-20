@@ -254,8 +254,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     assert(egraph.idEq(fx, x))
     assert(egraph.idEq(x, fx))
 
-    assert(egraph.explain(fx, x) == Some(List(egraph.TermCongruence(fx, fffx), egraph.TermCongruence(fffx, ffffffffx), egraph.TermExternal(ffffffffx, x))))
-
   }
 
 

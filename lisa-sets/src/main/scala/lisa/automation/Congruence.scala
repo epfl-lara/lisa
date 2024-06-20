@@ -240,24 +240,18 @@ import scala.collection.mutable
 
 class EGraphTerms() {
 
-  type ENode = Term | Formula
-
-
-
   val termMap = mutable.Map[Term, Set[Term]]()
   val termParents = mutable.Map[Term, mutable.Set[AppliedFunctional | AppliedPredicate]]()
-  var termWorklist = List[Term]()
   val termUF = new UnionFind[Term]()
-
-
 
 
   val formulaMap = mutable.Map[Formula, Set[Formula]]()
   val formulaParents = mutable.Map[Formula, mutable.Set[AppliedConnector]]()
-  var formulaWorklist = List[Formula]()
   val formulaUF = new UnionFind[Formula]()
 
 
+  def find(id: Term): Term = termUF.find(id)
+  def find(id: Formula): Formula = formulaUF.find(id)
 
 
   trait TermStep
@@ -330,19 +324,19 @@ class EGraphTerms() {
   def classOf(id: Term): Set[Term] = termMap(id)
   def classOf(id: Formula): Set[Formula] = formulaMap(id)
 
-  def idEq(id1: Term, id2: Term): Boolean = termUF.find(id1) == termUF.find(id2)
-  def idEq(id1: Formula, id2: Formula): Boolean = formulaUF.find(id1) == formulaUF.find(id2)
+  def idEq(id1: Term, id2: Term): Boolean = find(id1) == find(id2)
+  def idEq(id1: Formula, id2: Formula): Boolean = find(id1) == find(id2)
 
   def canonicalize(node: Term): Term = node match
     case AppliedFunctional(label, args) => 
-      AppliedFunctional(label, args.map(termUF.find.asInstanceOf))
+      AppliedFunctional(label, args.map(t => find(t)))
     case _ => node
   
     
   def canonicalize(node: Formula): Formula = {
     node match
-      case AppliedPredicate(label, args) => AppliedPredicate(label, args.map(termUF.find))
-      case AppliedConnector(label, args) => AppliedConnector(label, args.map(formulaUF.find))
+      case AppliedPredicate(label, args) => AppliedPredicate(label, args.map(find))
+      case AppliedConnector(label, args) => AppliedConnector(label, args.map(find))
       case node => node
   }
 
@@ -393,21 +387,17 @@ class EGraphTerms() {
   }
 
   protected def mergeWithStep(id1: Term, id2: Term, step: TermStep): Unit = {
-    if termUF.find(id1) == termUF.find(id2) then ()
+    if find(id1) == find(id2) then ()
     else
       termProofMap((id1, id2)) = step
-      val newSet = termMap(termUF.find(id1)) ++ termMap(termUF.find(id2))
-      val newparents = termParents(termUF.find(id1)) ++ termParents(termUF.find(id2))
+      val newSet = termMap(find(id1)) ++ termMap(find(id2))
+      val newparents = termParents(find(id1)) ++ termParents(find(id2))
       termUF.union(id1, id2)
-      val newId1 = termUF.find(id1)
-      val newId2 = termUF.find(id2)
-      termMap(newId1) = newSet
-      termMap(newId2) = newSet
-      termParents(newId1) = newparents
-      termParents(newId2) = newparents
+      val newId = find(id1)
+      termMap(newId) = newSet
+      termParents(newId) = newparents
     
-      val id = termUF.find(id2)
-      termWorklist = id :: termWorklist
+      val id = find(id2)
       val cause = (id1, id2)
       val termSeen = mutable.Map[Term, AppliedFunctional]()
       val formulaSeen = mutable.Map[Formula, AppliedPredicate]()
@@ -434,20 +424,16 @@ class EGraphTerms() {
   }
 
   protected def mergeWithStep(id1: Formula, id2: Formula, step: FormulaStep): Unit = 
-    if formulaUF.find(id1) == formulaUF.find(id2) then ()
+    if find(id1) == find(id2) then ()
     else
       formulaProofMap((id1, id2)) = step
-      val newSet = formulaMap(formulaUF.find(id1)) ++ formulaMap(formulaUF.find(id2))
-      val newparents = formulaParents(formulaUF.find(id1)) ++ formulaParents(formulaUF.find(id2))
+      val newSet = formulaMap(find(id1)) ++ formulaMap(find(id2))
+      val newparents = formulaParents(find(id1)) ++ formulaParents(find(id2))
       formulaUF.union(id1, id2)
-      val newId1 = formulaUF.find(id1)
-      val newId2 = formulaUF.find(id2)
-      formulaMap(newId1) = newSet
-      formulaMap(newId2) = newSet
-      formulaParents(newId1) = newparents
-      formulaParents(newId2) = newparents
-      val id = formulaUF.find(id2)
-      formulaWorklist = id :: formulaWorklist
+      val newId = find(id1)
+      formulaMap(newId) = newSet
+      formulaParents(newId) = newparents
+      val id = find(id2)
       val cause = (id1, id2)
       val formulaSeen = mutable.Map[Formula, AppliedConnector]()
       newparents.foreach { 
