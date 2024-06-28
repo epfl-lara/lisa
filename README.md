@@ -11,4 +11,4 @@ This branch is an archive containing the implementation of the features presente
  - In the root folder, run `sbt`.
  - Type `project lisa-examples` in the `sbt` interactive console.
  - Then `run`.
-- All examples are implemented in [Example.scala](https://github.com/epfl-lara/lisa/blob/itp2024-archive/lisa-sets/src/main/scala/lisa/hol/Example.scala) .
+- All examples are implemented in [Example.scala](lisa-examples/src/main/scala/Example.scala) .
