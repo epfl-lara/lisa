@@ -19,8 +19,6 @@ trait ProofsHelpers {
 
   import lisa.fol.FOL.{given, *}
 
-  given Library = library
-
   class HaveSequent(val bot: Sequent) {
 
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
