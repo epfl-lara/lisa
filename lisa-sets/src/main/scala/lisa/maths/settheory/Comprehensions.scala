@@ -177,7 +177,7 @@ object Comprehensions {
     }
 
     def filter(using _proof: Proof, name: sourcecode.Name)(filter: (Term ** 1) |-> Formula): Comprehension { val proof: _proof.type } = {
-      if (_proof.lockedSymbols ++ _proof.possibleGoal.toSet.flatMap(_.allSchematicLabels)).map(_.id.name).contains(name.value) then throw new Exception(s"Name $name is already used in the proof")
+      if (_proof.lockedSymbols ++ _proof.possibleGoal.toSet.flatMap(_.freeSchematicLabels)).map(_.id.name).contains(name.value) then throw new Exception(s"Name $name is already used in the proof")
       val id = name.value
       inline def _filter = filter
       inline def _t = t

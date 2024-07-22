@@ -1,5 +1,8 @@
 # Change List
 
+## 2024-06-25
+Repair two broken tests, small improvements to 
+
 ## 2024-04-12
 Addition of the Congruence tactic, solving sequents by congruence closure using egraphs.
 
