@@ -15,13 +15,13 @@ ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
+val scala2 = "2.13.8"
+val scala3 = "3.4.2"
+
 val commonSettings = Seq(
-  crossScalaVersions := Seq("3.3.3"),
+  crossScalaVersions := Seq(scala3, scala2),
   run / fork := true
 )
-
-val scala2 = "2.13.8"
-val scala3 = "3.3.3"
 
 val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
@@ -30,7 +30,7 @@ val commonSettings2 = commonSettings ++ Seq(
 val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
-    "-language:implicitConversions",
+    "-language:implicitConversions"
   ),
   javaOptions += "-Xmx10G",
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test",

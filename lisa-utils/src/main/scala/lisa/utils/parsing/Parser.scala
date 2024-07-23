@@ -605,7 +605,7 @@ class Parser(
         infixPredicateLabels ++
         ((and has Associativity.Left) ::
           (or has Associativity.Left) ::
-          (toplevelConnector has Associativity.None) :: Nil): _*
+          (toplevelConnector has Associativity.None) :: Nil)*
     )(
       (l, conn, r) => Termula(conn, Seq(l, r), (l.range._1, r.range._2)),
       {

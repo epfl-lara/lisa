@@ -12,7 +12,7 @@ trait ParsingUtils extends Operators { self: Parsers =>
     /**
      * Indicates the associativity of the operator.
      */
-    def has(associativity: lisa.utils.parsing.Associativity): PrecedenceLevel[Op] = PrecedenceLevel(operator, associativity)
+    infix def has(associativity: lisa.utils.parsing.Associativity): PrecedenceLevel[Op] = PrecedenceLevel(operator, associativity)
   }
 
   def singleInfix[Op, A](elem: Syntax[A], op: Syntax[Op])(function: (A, Op, A) => A, inverse: PartialFunction[A, (A, Op, A)] = PartialFunction.empty): Syntax[A] =

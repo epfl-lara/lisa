@@ -112,7 +112,7 @@ class Apply(using val lib: Library, val proof: lib.Proof)(thm: proof.Fact) exten
     * @param tSubst the assignment for term variables
     */
   private def substitute(using _proof: lib.Proof)(fact: _proof.Fact, fSubst: FormulaSubstitution, tSubst: TermSubstitution): _proof.Fact =
-    fact.of(fSubst.toFSubstPair: _*).of(tSubst.toTSubstPair: _*)
+    fact.of(fSubst.toFSubstPair*).of(tSubst.toTSubstPair*)
 
   /**
   * Applies on method with a varargs instead of a sequence.
