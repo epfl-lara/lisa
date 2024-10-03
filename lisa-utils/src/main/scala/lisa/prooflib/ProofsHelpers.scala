@@ -122,7 +122,7 @@ trait ProofsHelpers {
   }
 
   extension (using proof: library.Proof)(fact: proof.Fact) {
-    def of(insts: (F.SubstPair | F.Term)*): proof.InstantiatedFact = {
+    infix def of(insts: (F.SubstPair | F.Term)*): proof.InstantiatedFact = {
       proof.InstantiatedFact(fact, insts)
     }
     def statement: F.Sequent = proof.sequentOfFact(fact)

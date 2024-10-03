@@ -178,14 +178,14 @@ object CommonTactics {
 
           // Instantiate terms in the definition
           val subst = vars.zip(xs).map(tup => tup._1 := tup._2)
-          val P = definition.f.substitute(subst: _*)
+          val P = definition.f.substitute(subst*)
           val expected = P.substitute(y := fxs)
           if (!F.isSame(expected, bot.right.head)) {
             return proof.InvalidProofTactic("Right-hand side of bottom sequent should be of the form P(f(xs)).")
           }
 
           TacticSubproof {
-            lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
+            lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst*))
             lib.thenHave((y === fxs) <=> P) by InstantiateForall(y)
             lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstFunSchema(Map(y -> fxs))
             lib.thenHave(P.substitute(y := fxs)) by Restate
@@ -218,7 +218,7 @@ object CommonTactics {
           // val instantiations: Seq[(F.SchematicTermLabel, F.LambdaTermTerm)] = vars.zip(xs.map(x => F.LambdaTermTerm(Seq(), x)))
 
           val subst = vars.zip(xs).map(tup => tup._1 := tup._2)
-          val P = definition.f.substitute(subst: _*)
+          val P = definition.f.substitute(subst*)
           // Instantiate terms in the definition
           // val P = F.LambdaTermFormula(Seq(y), expr(xs))
 
@@ -248,7 +248,7 @@ object CommonTactics {
           }
 
           TacticSubproof {
-            lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst: _*))
+            lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst*))
             lib.thenHave((y === fxs) <=> P) by InstantiateForall(y)
             lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstFunSchema(Map(y -> fxs))
             lib.thenHave(P.substitute(y := fxs)) by Restate
