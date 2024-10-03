@@ -240,7 +240,8 @@ import scala.collection.mutable
 
 class EGraphTerms() {
 
-  val termParents = mutable.Map[Term, mutable.Set[AppliedFunctional | AppliedPredicate]]()
+  val termParentsT = mutable.Map[Term, mutable.Set[AppliedFunctional]]()
+  val termParentsF = mutable.Map[Term, mutable.Set[AppliedPredicate]]()
   val termUF = new UnionFind[Term]()
 
 
@@ -307,7 +308,8 @@ class EGraphTerms() {
 
   def makeSingletonEClass(node:Term): Term = {
     termUF.add(node)
-    termParents(node) = mutable.Set()
+    termParentsT(node) = mutable.Set()
+    termParentsF(node) = mutable.Set()
     node
   }
   def makeSingletonEClass(node:Formula): Formula = {
@@ -318,6 +320,8 @@ class EGraphTerms() {
 
   def idEq(id1: Term, id2: Term): Boolean = find(id1) == find(id2)
   def idEq(id1: Formula, id2: Formula): Boolean = find(id1) == find(id2)
+
+  
 
   def canonicalize(node: Term): Term = node match
     case AppliedFunctional(label, args) => 
@@ -335,14 +339,16 @@ class EGraphTerms() {
   def add(node: Term): Term =
     if termUF.parent.contains(node) then return node
     makeSingletonEClass(node)
+    codes(node) = codes.size
     node match
       case node @ AppliedFunctional(_, args) => 
         args.foreach(child => 
           add(child)
-          termParents(find(child)).add(node)
+          termParentsT(find(child)).add(node)
         )
-        node
-      case _ => node
+      case _ => ()
+    termSigs(canSig(node)) = node
+    node
   
   def add(node: Formula): Formula =
     if formulaUF.parent.contains(node) then return node
@@ -351,7 +357,7 @@ class EGraphTerms() {
       case node @ AppliedPredicate(_, args) => 
         args.foreach(child => 
           add(child)
-          termParents(find(child)).add(node)
+          termParentsF(find(child)).add(node)
         )
         node
       case node @ AppliedConnector(_, args) =>
@@ -378,38 +384,54 @@ class EGraphTerms() {
     mergeWithStep(id1, id2, FormulaExternal((id1, id2)))
   }
 
+  type Sig = (TermLabel[?]|Term, List[Int])
+  val termSigs = mutable.Map[Sig, Term]()
+  val codes = mutable.Map[Term, Int]()
+
+  def canSig(node: Term): Sig = node match
+    case AppliedFunctional(label, args) => 
+      (label, args.map(a => codes(find(a))).toList)
+    case _ => (node, List())
+
   protected def mergeWithStep(id1: Term, id2: Term, step: TermStep): Unit = {
     if find(id1) == find(id2) then ()
     else
       termProofMap((id1, id2)) = step
-      val newparents = termParents(find(id1)) ++ termParents(find(id2))
+      val parentsT1 = termParentsT(find(id1))
+      val parentsF1 = termParentsF(find(id1))
+
+      val parentsT2 = termParentsT(find(id2))
+      val parentsF2 = termParentsF(find(id2))
+      val preSigs : Map[Term, Sig] = parentsT1.map(t => (t, canSig(t))).toMap
+      codes(find(id2)) = codes(find(id1)) //assume parents(find(id1)) >= parents(find(id2))
       termUF.union(id1, id2)
       val newId = find(id1)
     
-      val termSeen = mutable.Map[Term, AppliedFunctional]()
       val formulaSeen = mutable.Map[Formula, AppliedPredicate]()
       var formWorklist = List[(Formula, Formula, FormulaStep)]()
       var termWorklist = List[(Term, Term, TermStep)]()
       
-      newparents.foreach { 
+      parentsT2.foreach { 
         case pTerm: AppliedFunctional =>
-          val canonicalPTerm = canonicalize(pTerm) 
-          if termSeen.contains(canonicalPTerm) then 
-            val qTerm = termSeen(canonicalPTerm)
+          val canonicalPTerm = canSig(pTerm) 
+          if termSigs.contains(canonicalPTerm) then 
+            val qTerm = termSigs(canonicalPTerm)
             termWorklist = (pTerm, qTerm, TermCongruence((pTerm, qTerm))) :: termWorklist
-            //mergeWithStep(pTerm, qTerm, TermCongruence((pTerm, qTerm)))
           else
-            termSeen(canonicalPTerm) = pTerm
+            termSigs(canonicalPTerm) = pTerm
+      }
+      (parentsF2 ++ parentsF1).foreach {
         case pFormula: AppliedPredicate =>
           val canonicalPFormula = canonicalize(pFormula) 
           if formulaSeen.contains(canonicalPFormula) then 
             val qFormula = formulaSeen(canonicalPFormula)
             formWorklist = (pFormula, qFormula, FormulaCongruence((pFormula, qFormula))) :: formWorklist
-            //mergeWithStep(pFormula, qFormula, FormulaCongruence((pFormula, qFormula)))
           else
             formulaSeen(canonicalPFormula) = pFormula
       }
-      termParents(newId) = (termSeen.values.to(mutable.Set): mutable.Set[AppliedFunctional | AppliedPredicate])  ++ formulaSeen.values.to(mutable.Set)
+      termParentsT(newId) = termParentsT(id1)
+      termParentsT(newId).addAll(termParentsT(id2))
+      termParentsF(newId) = formulaSeen.values.to(mutable.Set)
       formWorklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
       termWorklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
   }
