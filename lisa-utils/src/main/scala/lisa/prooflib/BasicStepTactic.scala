@@ -187,7 +187,7 @@ object BasicStepTactic {
         else
           proof.InvalidProofTactic("Right-hand side of conclusion is not a superset of the one of the premises.")
       } else if (pivots.forall(_.tail.isEmpty))
-        LeftOr.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
+        LeftOr.withParameters(pivots.map(_.head)*)(premises*)(bot)
       else
         // some extraneous formulae
         proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
@@ -586,7 +586,7 @@ object BasicStepTactic {
         else
           proof.InvalidProofTactic("Left-hand side of conclusion is not a superset of the one of the premises.")
       } else if (pivots.forall(_.tail.isEmpty))
-        RightAnd.withParameters(pivots.map(_.head): _*)(premises: _*)(bot)
+        RightAnd.withParameters(pivots.map(_.head)*)(premises*)(bot)
       else
         // some extraneous formulae
         proof.InvalidProofTactic("Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises +φ∧ψ.")

@@ -47,10 +47,10 @@ class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[A
 
     val prop = lambda[Term, Formula](x, propFun(x))
     val typeVariablesSubstPairs = adt.typeVariables.toSeq.zip(typeVariablesSubst).map(SubstPair(_, _))
-    val instTerm = adt(typeVariablesSubst : _*)
+    val instTerm = adt(typeVariablesSubst*)
 
-    adt.constructors.foldLeft[proof.Fact](adt.induction.of((typeVariablesSubstPairs :+ (P := prop)): _*)) ( (acc, c) =>
-      val inductiveCaseProof = cases(c)._1.zip(c.underlying.underlying.specification.map(_.substitute(typeVariablesSubstPairs : _*))).foldRight[proof.Fact](cases(c)._2) ( (el, acc2) =>
+    adt.constructors.foldLeft[proof.Fact](adt.induction.of((typeVariablesSubstPairs :+ (P := prop))*)) ( (acc, c) =>
+      val inductiveCaseProof = cases(c)._1.zip(c.underlying.underlying.specification.map(_.substitute(typeVariablesSubstPairs*))).foldRight[proof.Fact](cases(c)._2) ( (el, acc2) =>
         val (v, ty) = el
         val accRight: Formula = acc2.statement.right.head
         ty match 
@@ -140,7 +140,7 @@ class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[A
 
         val prop = inferedProp.getOrElse(bot.right.head)
         val propFunction = (t: Term) => inferedProp.getOrElse(bot.right.head).substitute(inferedVar -> t)
-        val assignment = inferedVar :: inferedADT(inferedArgs : _*)
+        val assignment = inferedVar :: inferedADT(inferedArgs*)
         val context = (if inferedProp.isDefined then bot else bot -<< assignment).left
         val builder = ADTSyntax.CaseBuilder[N, proof.ProofStep, (Sequent, Seq[Term], Variable)]((context |- prop, inferedArgs, inferedVar))
         cases(using builder)
