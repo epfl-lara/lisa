@@ -13,6 +13,8 @@ import lisa.maths.settheory.SetTheory.functional
 import lisa.prooflib.OutputManager
 import lisa.maths.settheory.SetTheory.{singleton, app}
 
+import annotation.nowarn
+
 object TypeLib extends lisa.Main {
 
   import TypeSystem.*
@@ -40,7 +42,7 @@ object TypeLib extends lisa.Main {
   // C |> D is the functional class of functionals from the class C to the class D
   // F is C |> D desugars into ∀(x, (x is C) => (F(x) is D))
 
-  val testTheorem = Theorem((x is A, f is (A |=> B), F is (A |=> B) |> (A |=> B) ) |- (F(f)*(x) is B)) {
+  val testTheorem = Theorem((x `is` A, f `is` (A |=> B), F `is` (A |=> B) |> (A |=> B) ) |- (F(f)*(x) `is` B)) {
     have(thesis) by TypeChecker.prove
   }
 
@@ -87,7 +89,7 @@ object TypeSystem  {
 
   case class FunctionalClass(in: Seq[Class], args: Seq[Variable], out: Class, arity: Int) {
     def formula[N <: Arity](f: (Term**N |-> Term)): Formula = 
-      val inner = (args.zip(in.toSeq).map((term, typ) => (term is typ).asFormula).reduceLeft((a, b) => a /\ b)) ==> (f.applySeq(args) is out)
+      val inner = (args.zip(in.toSeq).map((term, typ) => (term `is` typ).asFormula).reduceLeft((a, b) => a /\ b)) ==> (f.applySeq(args) `is` out)
       args.foldRight(inner)((v, form) => forall(v, form))
 
     override def toString(): String = in.map(_.toStringSeparated()).mkString("(", ", ", ")") + " |> " + out.toStringSeparated()
@@ -112,8 +114,8 @@ object TypeSystem  {
   }
 
   extension [A <: Class](t: Term) {
-    def is(clas:A): Formula with TypeAssignment[A] = TypeAssignment(t, clas).asInstanceOf[Formula with TypeAssignment[A]]
-    def ::(clas:A): Formula with TypeAssignment[A] = TypeAssignment(t, clas).asInstanceOf[Formula with TypeAssignment[A]]
+    def is(clas:A): Formula & TypeAssignment[A] = TypeAssignment(t, clas).asInstanceOf[Formula & TypeAssignment[A]]
+    def ::(clas:A): Formula & TypeAssignment[A] = TypeAssignment(t, clas).asInstanceOf[Formula & TypeAssignment[A]]
     def @@(t2: Term): AppliedFunction = AppliedFunction(t, t2)
     def *(t2: Term): AppliedFunction = AppliedFunction(t, t2)
   }
@@ -220,7 +222,7 @@ object TypeSystem  {
 
     def unapply[N <: Arity](f: Formula): Option[((Term ** N) |-> Term, FunctionalClass)] = 
       f match 
-        case ta: FunctionalTypeAssignment[N] => Some((ta.functional, ta.typ))
+        case ta: FunctionalTypeAssignment[N] @unchecked => Some((ta.functional, ta.typ))
         case _ => None
   }
   private class FunctionalTypeAssignmentConstant[N <: Arity](val functional: Term**N |-> Term, val typ: FunctionalClass, formula: ConstantFormula) extends ConstantFormula(formula.id) with FunctionalTypeAssignment[N]
@@ -310,15 +312,19 @@ object TypeSystem  {
       new TypedSimpleConstantDefinition(fullName, line, file)(expression, out, defThm, typ)
     }
   }
+
+  
   extension (d: definitionWithVars[0]) {
+    @nowarn
     inline infix def -->[A<:Class](
           using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term:Term, typ: A): TypedConstant[A] =
       TypedSimpleConstantDefinition[A](name.value, line.value, file.value)(term, typ).typedLabel
   }
   
+  
   extension (c: Constant) {
     def typedWith[A <: Class](typ:A)(justif: JUSTIFICATION) : TypedConstant[A] = 
-      if justif.statement.right.size != 1  || justif.statement.left.size != 0 || !K.isSame((c is typ).asFormula.underlying, justif.statement.right.head.underlying) then
+      if justif.statement.right.size != 1  || justif.statement.left.size != 0 || !K.isSame((c `is` typ).asFormula.underlying, justif.statement.right.head.underlying) then
         throw new IllegalArgumentException(s"A proof of typing of $c must be of the form ${c :: typ}, but the given justification shows ${justif.statement}.")
       else TypedConstant(c.id, typ, justif)
   }
@@ -345,7 +351,7 @@ object TypeSystem  {
       var typingError: proof.ProofTacticJudgement = null
       bot.right.find(goal =>
         goal match
-          case (term is typ) => 
+          case (term `is` typ) => 
             val ptj = typecheck(using SetTheoryLibrary)(context.toSeq, term, Some(typ))
             if ptj.isValid then
               success = ptj
@@ -378,21 +384,21 @@ object TypeSystem  {
           def innerTypecheck(context2: Map[Term, Seq[Class]], term:Term, typ:Option[Class]): Class= {
             val possibleTypes = typingAssumptions.getOrElse(term, Nil)
             if typ == Some(any) then 
-              have(term is any) by Restate.from(TypeLib.any.definition of (x := term))
+              have(term `is` any) by Restate.from(TypeLib.any.definition of (x := term))
               any
             else if typ.isEmpty && possibleTypes.size >=1 then
-              have(term is possibleTypes.head) by Restate
+              have(term `is` possibleTypes.head) by Restate
               possibleTypes.head
             else if (typ.nonEmpty && possibleTypes.contains(typ.get)) then
-              have(term is typ.get) by Restate
+              have(term `is` typ.get) by Restate
               typ.get
             else term match
               case tc: TypedConstant[?] => 
                 if typ.isEmpty then
-                  have(tc is tc.typ) by Restate.from(tc.justif)
+                  have(tc `is` tc.typ) by Restate.from(tc.justif)
                   tc.typ
-                else if K.isSame((tc is typ.get).asFormula.underlying, (tc is tc.typ).asFormula.underlying) then
-                  have(tc is typ.get) by Restate.from(tc.justif)
+                else if K.isSame((tc `is` typ.get).asFormula.underlying, (tc `is` tc.typ).asFormula.underlying) then
+                  have(tc `is` typ.get) by Restate.from(tc.justif)
                   typ.get
                 else throw TypingException("Constant " + tc + " expected to be of type " + typ + " but has type " + tc.typ + ".")
 
@@ -404,8 +410,8 @@ object TypeSystem  {
                 funcType match
                   case inType |=> outType => typ match
                     case None => 
-                      if K.isSame((arg is inType).asFormula.underlying, (arg is argType).asFormula.underlying) then
-                        have(term is outType) by Tautology.from(
+                      if K.isSame((arg `is` inType).asFormula.underlying, (arg `is` argType).asFormula.underlying) then
+                        have(term `is` outType) by Tautology.from(
                           funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
                           funcProof,
                             argProof
@@ -413,9 +419,9 @@ object TypeSystem  {
                         outType
                       else throw 
                         TypingException("Function " + func + " found to have type " + funcType + ", but argument " + arg + " has type " + argType + " instead of expected " + inType + ".")
-                    case Some(typ) if K.isSame((term is typ).asFormula.underlying, (term is outType).asFormula.underlying) =>
-                      if K.isSame((arg is inType).asFormula.underlying, (arg is argType).asFormula.underlying) then
-                        have(term is outType) by Tautology.from(
+                    case Some(typ) if K.isSame((term `is` typ).asFormula.underlying, (term `is` outType).asFormula.underlying) =>
+                      if K.isSame((arg `is` inType).asFormula.underlying, (arg `is` argType).asFormula.underlying) then
+                        have(term `is` outType) by Tautology.from(
                           funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
                           funcProof,
                             argProof
@@ -450,7 +456,7 @@ object TypeSystem  {
                       labelTypes.find((labelType, step) =>
                         labelType.arity == args.size && 
                         (args zip argTypes).zip(labelType.in.toSeq).forall((argAndTypes, inType) => 
-                          K.isSame((argAndTypes._1 is inType).asFormula.underlying, (argAndTypes._1 is argAndTypes._2).asFormula.underlying) //
+                          K.isSame((argAndTypes._1 `is` inType).asFormula.underlying, (argAndTypes._1 `is` argAndTypes._2).asFormula.underlying) //
                         )
                       ) match 
                         case None =>
@@ -461,28 +467,28 @@ object TypeSystem  {
                           val in: Seq[Class] = labelType.in.toSeq
                           //val labelProp = labelType.formula(label.asInstanceOf)
                           val labelPropStatement = step()
-                          val labInst = labelPropStatement.of(args: _*)
+                          val labInst = labelPropStatement.of(args*)
                           val subst = (labelType.args zip args).map((v, a) => (v := a))
                           val newOut: Class = out match {
-                            case t: Term => t.substitute(subst: _*)
-                            case f: (Term**1 |-> Formula) @unchecked => f.substitute(subst: _*)
+                            case t: Term => t.substitute(subst*)
+                            case f: (Term**1 |-> Formula) @unchecked => f.substitute(subst*)
                           }
-                          have(term is newOut) by Tautology.from(
-                            (argTypesProofs :+ labInst ) : _*
+                          have(term `is` newOut) by Tautology.from(
+                            (argTypesProofs :+ labInst )*
                           )
                           newOut
                     case Some(typValue) => 
                       labelTypes.find((labelType, step) =>
                         labelType.arity == args.size && 
                         (args zip argTypes).zip(labelType.in.toSeq).forall((argAndTypes, inType) => 
-                          K.isSame((argAndTypes._1 is inType).asFormula.underlying, (argAndTypes._1 is argAndTypes._2).asFormula.underlying)
+                          K.isSame((argAndTypes._1 `is` inType).asFormula.underlying, (argAndTypes._1 `is` argAndTypes._2).asFormula.underlying)
                         ) && {
                           val subst = (labelType.args zip args).map((v, a) => (v := a))
                           val newOut: Class = labelType.out match {
-                            case t: Term => t.substitute(subst: _*)
-                            case f: (Term**1 |-> Formula) @unchecked => f.substitute(subst: _*)
+                            case t: Term => t.substitute(subst*)
+                            case f: (Term**1 |-> Formula) @unchecked => f.substitute(subst*)
                           }
-                          K.isSame((term is newOut).asFormula.underlying, (term is typValue).asFormula.underlying)
+                          K.isSame((term `is` newOut).asFormula.underlying, (term `is` typValue).asFormula.underlying)
                           
                         }
                       ) match
@@ -493,8 +499,8 @@ object TypeSystem  {
                           val in: Seq[Class] = labelType.in.toSeq
                           //val labelProp = labelType.formula(label.asInstanceOf)
                           val labelPropStatement = step()
-                          have(term is typValue) by Tautology.from(
-                            (argTypesProofs :+ labelPropStatement.of(args: _*) ) : _*
+                          have(term `is` typValue) by Tautology.from(
+                            (argTypesProofs :+ labelPropStatement.of(args*) )*
                           )
                           typValue
 

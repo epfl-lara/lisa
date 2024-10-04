@@ -605,7 +605,7 @@ class Parser(
         infixPredicateLabels ++
         ((and has Associativity.Left) ::
           (or has Associativity.Left) ::
-          (toplevelConnector has Associativity.None) :: Nil): _*
+          (toplevelConnector has Associativity.None) :: Nil)*
     )(
       (l, conn, r) => Termula(conn, Seq(l, r), (l.range._1, r.range._2)),
       {
@@ -640,6 +640,7 @@ class Parser(
         val (id, r) = t match {
           case ConstantToken(id, r) => (id, r)
           case SchematicToken(id, r) => (id, r)
+          case _ => throw UnreachableException
         }
         RangedLabel(VariableFormulaLabel(id), r)
       },

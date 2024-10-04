@@ -30,7 +30,7 @@ trait Sequents extends Common with lisa.fol.Lambdas with Predef {
      * @param map
      * @return
      */
-    def instantiateWithProof(map: Map[SchematicLabel[_], _ <: LisaObject[_]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
+    def instantiateWithProof(map: Map[SchematicLabel[?], ? <: LisaObject[?]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
 
       val mTerm: Map[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]] =
         map.collect[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]](p =>

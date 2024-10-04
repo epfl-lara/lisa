@@ -144,18 +144,21 @@ class SubstitutionTest extends AnyFunSuite {
     case class $(f: Formula, m: ((SchematicConnectorLabel, LambdaFormulaFormula) | (SchematicAtomicLabel, LambdaTermFormula) | (SchematicTermLabel, LambdaTermTerm))*)
     extension (c: $) {
       inline infix def _VS_(t2: Formula): Assertion = {
+        @annotation.nowarn
         val mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula] = c.m
           .collect({
             case e if e._1.isInstanceOf[SchematicConnectorLabel] => e
           })
           .toMap
           .asInstanceOf
+        @annotation.nowarn
         val mPred: Map[SchematicAtomicLabel, LambdaTermFormula] = c.m
           .collect({
             case e if e._1.isInstanceOf[SchematicAtomicLabel] => e
           })
           .toMap
           .asInstanceOf
+        @annotation.nowarn
         val mTerm: Map[SchematicTermLabel, LambdaTermTerm] = c.m
           .collect({
             case e if e._1.isInstanceOf[SchematicTermLabel] => e

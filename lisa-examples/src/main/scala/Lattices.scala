@@ -21,8 +21,8 @@ object Lattices extends lisa.Main {
   // Enables infix notation
   extension (left: Term) {
     def <=(right: Term): Formula = Lattices.<=.applyUnsafe(Seq(left, right))
-    def u(right: Term): Term = Lattices.u.applyUnsafe(Seq(left, right))
-    def n(right: Term): Term = Lattices.n.applyUnsafe(Seq(left, right))
+    infix def u(right: Term): Term = Lattices.u.applyUnsafe(Seq(left, right))
+    infix def n(right: Term): Term = Lattices.n.applyUnsafe(Seq(left, right))
   }
 
   // We now states the axioms of lattices
