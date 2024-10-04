@@ -46,15 +46,7 @@ def withTests(project: Project): ClasspathDependency =
 
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
-lazy val scallion = githubProject("https://github.com/sankalpgambhir/scallion.git", "6434e21bd08872cf547c8f0efb67c963bfdf4190")
-
-lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8670a5fa8ea2dd5649a00424710274a5d18")
 lazy val customTstpParser = githubProject("https://github.com/SimonGuilloud/scala-tptp-parser.git", "eae9c1b7a9546f74779d77ff50fa6e8a1654cfa0")
-
-scallion/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
-scallion/scalacOptions += "-Wconf:any:silent"
-
-silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 
 lazy val root = Project(
     id = "lisa",
@@ -86,11 +78,11 @@ lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")
 )
-
-  .settings(commonSettings3)
+  .settings(commonSettings3 ++ Seq(
+    libraryDependencies += "ch.epfl.lara" %% "scallion" % "0.6" from "https://github.com/epfl-lara/scallion/releases/download/v0.6/scallion_3-0.6.jar",
+    libraryDependencies += "ch.epfl.lara" %% "silex" % "0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar",
+  ))
   .dependsOn(kernel)
-  .dependsOn(silex)
-  .dependsOn(scallion % "compile->compile")
   .dependsOn(customTstpParser)
   //.settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
 
