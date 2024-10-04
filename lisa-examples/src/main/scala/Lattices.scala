@@ -21,8 +21,8 @@ object Lattices extends lisa.Main {
   // Enables infix notation
   extension (left: Term) {
     def <=(right: Term): Formula = Lattices.<=.applyUnsafe(Seq(left, right))
-    def u(right: Term): Term = Lattices.u.applyUnsafe(Seq(left, right))
-    def n(right: Term): Term = Lattices.n.applyUnsafe(Seq(left, right))
+    infix def u(right: Term): Term = Lattices.u.applyUnsafe(Seq(left, right))
+    infix def n(right: Term): Term = Lattices.n.applyUnsafe(Seq(left, right))
   }
 
   // We now states the axioms of lattices
@@ -33,35 +33,35 @@ object Lattices extends lisa.Main {
   val reflexivity = Axiom(x <= x)
   val antisymmetry = Axiom(((x <= y) /\ (y <= x)) ==> (x === y))
   val transitivity = Axiom(((x <= y) /\ (y <= z)) ==> (x <= z))
-  val lub = Axiom(((x <= z) /\ (y <= z)) <=> ((x `u` y) <= z))
-  val glb = Axiom(((z <= x) /\ (z <= y)) <=> (z <= (x `n` y)))
+  val lub = Axiom(((x <= z) /\ (y <= z)) <=> ((x u y) <= z))
+  val glb = Axiom(((z <= x) /\ (z <= y)) <=> (z <= (x n y)))
 
   // Let's prove some properties !
 
-  val joinLowerBound = Theorem((x <= (x `u` y)) /\ (y <= (x `u` y))) {
-    have(thesis) by Tautology.from(lub of (z := (x `u` y)), reflexivity of (x := (x `u` y)))
+  val joinLowerBound = Theorem((x <= (x u y)) /\ (y <= (x u y))) {
+    have(thesis) by Tautology.from(lub of (z := (x u y)), reflexivity of (x := (x u y)))
   }
 
-  val meetUpperBound = Theorem(((x `n` y) <= x) /\ ((x `n` y) <= y)) {
+  val meetUpperBound = Theorem(((x n y) <= x) /\ ((x n y) <= y)) {
     sorry
   }
-  val joinCommutative = Theorem((x `u` y) === (y `u` x)) {
-    val s1 = have((x `u` y) <= (y `u` x)) by Tautology.from(lub of (z := (y `u` x)), joinLowerBound of (x := y, y := x))
-    have(thesis) by Tautology.from(s1, s1 of (x := y, y := x), antisymmetry of (x := x `u` y, y := y `u` x))
+  val joinCommutative = Theorem((x u y) === (y u x)) {
+    val s1 = have((x u y) <= (y u x)) by Tautology.from(lub of (z := (y u x)), joinLowerBound of (x := y, y := x))
+    have(thesis) by Tautology.from(s1, s1 of (x := y, y := x), antisymmetry of (x := x u y, y := y u x))
   }
 
-  val meetCommutative = Theorem((x `n` y) === (y `n` x)) {
+  val meetCommutative = Theorem((x n y) === (y n x)) {
     sorry
   }
-  val joinAbsorption = Theorem((x <= y) |- (x `u` y) === y) {
-    sorry
-  }
-
-  val meetAbsorption = Theorem((x <= y) |- (x `n` y) === x) {
+  val joinAbsorption = Theorem((x <= y) |- (x u y) === y) {
     sorry
   }
 
-  val joinAssociative = Theorem((x `u` (y `u` z)) === ((x `u` y) `u` z)) {
+  val meetAbsorption = Theorem((x <= y) |- (x n y) === x) {
+    sorry
+  }
+
+  val joinAssociative = Theorem((x u (y u z)) === ((x u y) u z)) {
     sorry
   }
 
