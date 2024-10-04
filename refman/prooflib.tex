@@ -6,34 +6,7 @@ Lisa provides a canonical way of writing and organizing Kernel proofs by mean of
 \autoref{fig:theoryFileExample} is a reminder from \autoref{chapt:quickguide} of the canonical way to write a theory file in Lisa.
 
 \begin{figure}
-\begin{lstlisting}[language=lisa, frame=single]
-object MyTheoryName extends lisa.Main {
-  val x = variable
-  val f = function[1]
-  val P = predicate[1]
-
-  val fixedPointDoubleApplication = Theorem( 
-    ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
-  ) {
-    assume(∀(x, P(x) ==> P(f(x))))
-    val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
-    val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
-    have(thesis) by Tautology.from(step1, step2)
-  } 
-
-  val emptySetIsASubset = Theorem(
-    ∅ ⊆ x
-  ) {
-    have((y ∈ ∅) ==> (y ∈ x)) by Tautology.from(
-                            emptySetAxiom of (x := y))
-    val rhs = thenHave (∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
-    have(thesis) by Tautology.from(
-                            subsetAxiom of (x := ∅, y := x), rhs)
-  }
-
-}
-\end{lstlisting}
-\caption{An example of a theory file in Lisa}
+\lisaCode{src/MyTheoryName.scala}{An example of a theory file in Lisa}{firstline=3}
 \label{fig:theoryFileExample}
 \end{figure}
 
