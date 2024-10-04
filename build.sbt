@@ -16,10 +16,10 @@ ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 val scala2 = "2.13.8"
-val scala3 = "3.4.2"
-
+val scala3 = "3.5.1"
 val commonSettings = Seq(
-  crossScalaVersions := Seq(scala3, scala2),
+  crossScalaVersions := Seq(scala3),
+
   run / fork := true
 )
 
@@ -30,7 +30,10 @@ val commonSettings2 = commonSettings ++ Seq(
 val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
-    "-language:implicitConversions"
+    "-language:implicitConversions",
+    //"-rewrite", "-source", "3.4-migration",
+    "-Wconf:msg=.*will never be selected.*:silent"
+
   ),
   javaOptions += "-Xmx10G",
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test",
@@ -49,6 +52,8 @@ lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8
 lazy val customTstpParser = githubProject("https://github.com/SimonGuilloud/scala-tptp-parser.git", "eae9c1b7a9546f74779d77ff50fa6e8a1654cfa0")
 
 scallion/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
+scallion/scalacOptions += "-Wconf:any:silent"
+
 silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 
 lazy val root = Project(

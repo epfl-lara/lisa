@@ -13,6 +13,8 @@ import lisa.maths.settheory.SetTheory.functional
 import lisa.prooflib.OutputManager
 import lisa.maths.settheory.SetTheory.{singleton, app}
 
+import annotation.nowarn
+
 object TypeLib extends lisa.Main {
 
   import TypeSystem.*
@@ -220,7 +222,7 @@ object TypeSystem  {
 
     def unapply[N <: Arity](f: Formula): Option[((Term ** N) |-> Term, FunctionalClass)] = 
       f match 
-        case ta: FunctionalTypeAssignment[N] => Some((ta.functional, ta.typ))
+        case ta: FunctionalTypeAssignment[N] @unchecked => Some((ta.functional, ta.typ))
         case _ => None
   }
   private class FunctionalTypeAssignmentConstant[N <: Arity](val functional: Term**N |-> Term, val typ: FunctionalClass, formula: ConstantFormula) extends ConstantFormula(formula.id) with FunctionalTypeAssignment[N]
@@ -310,11 +312,15 @@ object TypeSystem  {
       new TypedSimpleConstantDefinition(fullName, line, file)(expression, out, defThm, typ)
     }
   }
+
+  
   extension (d: definitionWithVars[0]) {
+    @nowarn
     inline infix def -->[A<:Class](
           using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term:Term, typ: A): TypedConstant[A] =
       TypedSimpleConstantDefinition[A](name.value, line.value, file.value)(term, typ).typedLabel
   }
+  
   
   extension (c: Constant) {
     def typedWith[A <: Class](typ:A)(justif: JUSTIFICATION) : TypedConstant[A] = 

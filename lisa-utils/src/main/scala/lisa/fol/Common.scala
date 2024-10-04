@@ -408,10 +408,9 @@ trait Common {
     def canEqual(that: Any): Boolean =
       that.isInstanceOf[SchematicFunctionLabel[?]]
 
-    // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
     override def equals(that: Any): Boolean =
       that match {
-        case other: SchematicFunctionLabel[N] =>
+        case other: SchematicFunctionLabel[_] =>
           ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
           || (other.canEqual(this) // optional only if this class is marked final
             && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff
@@ -457,7 +456,7 @@ trait Common {
     // Intentionally avoiding the call to super.equals because no ancestor has overridden equals (see note 7 below)
     override def equals(that: Any): Boolean =
       that match {
-        case other: ConstantFunctionLabel[N] =>
+        case other: ConstantFunctionLabel[_] =>
           ((this eq other) // optional, but highly recommended sans very specific knowledge about this exact class implementation
           || (other.canEqual(this) // optional only if this class is marked final
             && (hashCode == other.hashCode) // optional, exceptionally execution efficient if hashCode is cached, at an obvious space inefficiency tradeoff

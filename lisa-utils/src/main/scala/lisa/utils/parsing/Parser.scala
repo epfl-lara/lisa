@@ -640,6 +640,7 @@ class Parser(
         val (id, r) = t match {
           case ConstantToken(id, r) => (id, r)
           case SchematicToken(id, r) => (id, r)
+          case _ => throw UnreachableException
         }
         RangedLabel(VariableFormulaLabel(id), r)
       },

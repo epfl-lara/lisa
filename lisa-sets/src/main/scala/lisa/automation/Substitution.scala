@@ -42,7 +42,7 @@ object Substitution {
 
       // make sure substitutions are all valid
       val violatingSubstitutions = substitutions.collect {
-        case f: proof.Fact if !validRule(f) => proof.sequentOfFact(f)
+        case f : proof.Fact @unchecked if !validRule(f) => proof.sequentOfFact(f)
         case j: lib.JUSTIFICATION if !validRule(j) => j.statement
       }
 
