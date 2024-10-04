@@ -38,7 +38,8 @@ val commonSettings3 = commonSettings ++ Seq(
   javaOptions += "-Xmx10G",
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test",
   libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.1",
-  Test / parallelExecution := false
+  Test / parallelExecution := false,
+  Test / fork := true
 )
 
 def withTests(project: Project): ClasspathDependency =
