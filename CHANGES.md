@@ -1,6 +1,10 @@
 # Change List
 
 ## 2024-10-04
+Bump version to 0.7.
+Update sbt to 1.10.1.
+Move `scallion` and `silex` to depend on jars via GitHub releases instead of cloning and compiling locally.
+Tests now fork the jvm and use jvm options correctly, which also removes the relevant warning during testing.
 Repair two broken tests, small improvements to congruence tactic.
 
 ## 2024-10-03
