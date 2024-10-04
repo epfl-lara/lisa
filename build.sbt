@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.6"
+ThisBuild / version      := "0.7"
 ThisBuild / homepage := Some(url("https://github.com/epfl-lara/lisa"))
 ThisBuild / startYear := Some(2021)
 ThisBuild / organization := "ch.epfl.lara"
