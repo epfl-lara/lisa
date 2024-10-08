@@ -54,7 +54,7 @@ private[lambdafol] trait Syntax {
     }
   }
 
-  protected trait Expression {
+  sealed trait Expression {
     val typ: Type
     val uniqueNumber: Long = ExpressionCounters.getNewId
     val containsFormulas : Boolean
@@ -185,5 +185,25 @@ private[lambdafol] trait Syntax {
   val exists = Constant(Identifier("∃"), (Term -> Formula) -> Formula)
   val epsilon = Constant(Identifier("ε"), (Term -> Formula) -> Term)
 
+
+  /**
+   * Performs simultaneous substitution of multiple variables by multiple terms in a term.
+   * @param t The base term
+   * @param m A map from variables to terms.
+   * @return t[m]
+   */
+  def substituteVariables(e: Expression, m: Map[Variable, Expression]): Expression = e match {
+    case v: Variable => 
+      m.get(v) match {
+        case Some(r) => 
+          if (r.typ == v.typ) r 
+          else throw new IllegalArgumentException("Type mismatch in substitution: " + v + " -> " + r)
+        case None => v
+      }
+    case c: Constant => c
+    case Application(f, arg) => Application(substituteVariables(f, m), substituteVariables(arg, m))
+    case Lambda(v, t) => 
+      Lambda(v, substituteVariables(t, m - v))
+  }
 
 }
