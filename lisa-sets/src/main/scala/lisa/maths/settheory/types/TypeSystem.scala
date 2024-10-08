@@ -9,32 +9,23 @@ import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.SetTheoryLibrary.{given, *}
 import lisa.SetTheoryLibrary
 import lisa.kernel.proof.SequentCalculus.SCProofStep
-import lisa.maths.settheory.SetTheory.functional
 import lisa.prooflib.OutputManager
-import lisa.maths.settheory.SetTheory.{singleton, app}
+import lisa.maths.settheory.SetTheory.singleton
+import lisa.maths.settheory.functions.{functional, app, functionFromApplication, |=>}
 
 import annotation.nowarn
 
 object TypeLib extends lisa.Main {
-
   import TypeSystem.*
-
-  val |=> : ConstantFunctionLabel[2] = ConstantFunctionLabel.infix("|=>", 2)
-  private inline def  temp = |=>
-  extension (t:Term) {
-    def |=>(o:Term): Term = TypeLib.temp(t, o)
-  }
-  val app: ConstantFunctionLabel[2] = lisa.maths.settheory.SetTheory.app
-  addSymbol(|=>)
 
   val f = variable
   val x = variable
   val y = variable
+  val a = variable
   val z = variable
   val A = variable
   val B = variable
   val F = function[1]
-  val funcspaceAxiom = Axiom(f ∈ (A |=> B) ==> (x ∈ A ==> app(f, x) ∈ B))
   val any = DEF(x) --> top
 
 
@@ -78,10 +69,8 @@ object TypeLib extends lisa.Main {
 object TypeSystem  {
 
   import TypeLib.{
-    |=>, app, f, x, A, B, funcspaceAxiom, any, definition, given
+    f, x, y, a, any, definition, given
   }
-
-  
 
   type Class = Term | (Term**1 |-> Formula)
 
@@ -412,7 +401,7 @@ object TypeSystem  {
                     case None => 
                       if K.isSame((arg `is` inType).asFormula.underlying, (arg `is` argType).asFormula.underlying) then
                         have(term `is` outType) by Tautology.from(
-                          funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
+                          functionFromApplication of (f := func, a := arg, x := inType, y := outType),
                           funcProof,
                             argProof
                         )
@@ -422,7 +411,7 @@ object TypeSystem  {
                     case Some(typ) if K.isSame((term `is` typ).asFormula.underlying, (term `is` outType).asFormula.underlying) =>
                       if K.isSame((arg `is` inType).asFormula.underlying, (arg `is` argType).asFormula.underlying) then
                         have(term `is` outType) by Tautology.from(
-                          funcspaceAxiom of (f := func, x := arg, A:= inType, B:= outType),
+                          functionFromApplication of (f := func, a := arg, x := inType, y := outType),
                           funcProof,
                             argProof
                         )
