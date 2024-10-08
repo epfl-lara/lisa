@@ -1,11 +1,17 @@
 # Change List
 
+## 2024-10-04
+Bump version to 0.7.
+Update sbt to 1.10.1.
+Move `scallion` and `silex` to depend on jars via GitHub releases instead of cloning and compiling locally.
+Tests now fork the jvm and use jvm options correctly, which also removes the relevant warning during testing.
+Repair two broken tests, small improvements to congruence tactic.
+
 ## 2024-10-03
 Update to Scala 3.5.1. Silence warnings from scallion and other erroneous ones.
 
 ## 2024-07-22
 Resealed the `Proof` trait following a fix of the relevant compiler bug [scala/scala3#19031](https://github.com/scala/scala3/issues/19031). 
-
 Updated to Scala 3.4.2, and relevant minor syntax changes from `-rewrite -source 3.4-migration`.
 
 ## 2024-04-12

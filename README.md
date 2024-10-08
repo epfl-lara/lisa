@@ -1,20 +1,23 @@
 # LISA = LISA Is Sets Automated
 
-LISA is a proof assistant based on first-order logic, sequent calculus, and set
-theory. To get started, take a look at the [Reference
-Manual](refman/lisa.pdf).
+LISA is a proof assistant based on first-order logic sequent calculus and set
+theory. To get started, check the [Reference Manual](refman/lisa.pdf).
 
 LISA is developed and maintained by the [Laboratory for Automated Reasoning and
 Analysis (LARA)](https://lara.epfl.ch) at the [EPFL](https://epfl.ch).
 
 For details regarding the design of LISA and techniques implemented here, you
 can check the following publications:
-
- - Simon Guilloud, Sankalp Gambhir, and Viktor Kunčak. LISA - A Modern Proof
-   System. In 14th International Conference on Interactive Theorem Proving (ITP
-   2023). Leibniz International Proceedings in Informatics (LIPIcs), Volume 268,
-   pp. 17:1-17:19, Schloss Dagstuhl - Leibniz-Zentrum für Informatik (2023)
+ 
+ - Simon Guilloud, Sankalp Gambhir, and Viktor Kunčak.
+   LISA - A Modern Proof System.
+   In 14th International Conference on Interactive Theorem Proving
+   (ITP 2023). LIPIcs, Volume 268, pp. 17:1-17:19
    https://doi.org/10.4230/LIPIcs.ITP.2023.17
+ - Simon Guilloud, Sankalp Gambhir, Andrea Gilot, Viktor Kuncak:
+   Mechanized HOL Reasoning in Set Theory.
+   In 15th International Conference on Interactive Theorem Proving
+   (ITP 2024): 18:1-18:18
  - Guilloud, S., Bucev, M., Milovančević, D., Kunčak, V. (2023). Formula
    Normalizations in Verification. In: Enea, C., Lal, A. (eds) Computer Aided
    Verification. CAV 2023. Lecture Notes in Computer Science, vol 13966.
