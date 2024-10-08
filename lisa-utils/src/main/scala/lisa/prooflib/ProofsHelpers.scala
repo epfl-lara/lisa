@@ -19,8 +19,6 @@ trait ProofsHelpers {
 
   import lisa.fol.FOL.{given, *}
 
-  given Library = library
-
   class HaveSequent(val bot: Sequent) {
 
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
@@ -122,7 +120,7 @@ trait ProofsHelpers {
   }
 
   extension (using proof: library.Proof)(fact: proof.Fact) {
-    def of(insts: (F.SubstPair | F.Term)*): proof.InstantiatedFact = {
+    infix def of(insts: (F.SubstPair | F.Term)*): proof.InstantiatedFact = {
       proof.InstantiatedFact(fact, insts)
     }
     def statement: F.Sequent = proof.sequentOfFact(fact)

@@ -266,7 +266,7 @@ private[adt] object ADTDefinitions {
     def substitute(p: SubstPair*): ConstructorArgument = 
       this match
         case Self => Self
-        case GroundType(t) => GroundType(t.substitute(p : _*))
+        case GroundType(t) => GroundType(t.substitute(p*))
   }
   
   /**

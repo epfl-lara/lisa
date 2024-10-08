@@ -14,19 +14,14 @@ ThisBuild / scalacOptions ++= Seq(
 ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
-ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
-
-
-
-
-val commonSettings = Seq(
-  crossScalaVersions := Seq("3.3.1"),
-  run / fork := true
-)
-
 
 val scala2 = "2.13.8"
-val scala3 = "3.3.1"
+val scala3 = "3.5.1"
+val commonSettings = Seq(
+  crossScalaVersions := Seq(scala3),
+
+  run / fork := true
+)
 
 val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
@@ -36,15 +31,13 @@ val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
-
-    // "-source:future", re-enable when liancheng/scalafix-organize-imports#221 is fixed
+    //"-rewrite", "-source", "3.4-migration",
+    "-Wconf:msg=.*will never be selected.*:silent"
 
   ),
   javaOptions += "-Xmx10G",
-  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test",
-  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.3.0",
-  //libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.1",
-  // libraryDependencies += ("io.github.uuverifiers" %% "princess" % "2023-06-19").cross(CrossVersion.for3Use2_13),
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test",
+  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.1",
   Test / parallelExecution := false
 )
 
@@ -59,15 +52,19 @@ lazy val silex = githubProject("https://github.com/epfl-lara/silex.git", "fc07a8
 lazy val customTstpParser = githubProject("https://github.com/SimonGuilloud/scala-tptp-parser.git", "eae9c1b7a9546f74779d77ff50fa6e8a1654cfa0")
 
 scallion/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
+scallion/scalacOptions += "-Wconf:any:silent"
+
 silex/scalacOptions ~= (_.filterNot(Set("-Wvalue-discard")))
 
 lazy val root = Project(
     id = "lisa",
-    base = file(".")
+    base = file("."),
   )
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
   .aggregate(utils) // To run tests on all modules
+
+Compile / run := (sets / Compile / run).evaluated
 
 lazy val kernel = Project(
   id = "lisa-kernel",

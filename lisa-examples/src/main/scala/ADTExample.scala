@@ -46,12 +46,12 @@ object ADTExample extends lisa.Main {
   show(nil.intro)
   show(cons.intro)
 
-  Lemma(nil(A) :: list(A)){
+  Lemma(nil(A) :: list(A)) {
     have(thesis) by TypeChecker.prove
-  } 
-  Lemma((x :: A, l :: list(A)) |- cons(A) * x * l :: list(A)){
+  }
+  Lemma((x :: A, l :: list(A)) |- cons(A) * x * l :: list(A)) {
     have(thesis) by TypeChecker.prove
-  } 
+  }
 
   // Induction
   show(list.induction)
@@ -69,11 +69,10 @@ object ADTExample extends lisa.Main {
   }
 
   val pred = fun(nat, nat):
-    Case(zero): 
-      zero 
-    Case(succ, n): 
+    Case(zero):
+      zero
+    Case(succ, n):
       n
-
 
   // ************************
   // * 4 : Induction Tactic *
@@ -103,16 +102,16 @@ object ADTExample extends lisa.Main {
     val typeNil = have(nil(A) :: list(A)) by TypeChecker.prove
     val typeCons = have((y :: A, l :: list(A)) |- cons(A) * y * l :: list(A)) by TypeChecker.prove
 
-    have(l :: list(A) |- forall(x, x :: A ==> !(l === cons(A) * x * l))) by Induction(){
+    have(l :: list(A) |- forall(x, x :: A ==> !(l === cons(A) * x * l))) by Induction() {
       Case(nil) subproof {
         have(x :: A ==> !(nil(A) === cons(A) * x * nil(A))) by Tautology.from(list.injectivity(nil, cons) of (y0 := x, y1 := nil(A)), typeNil)
         thenHave(forall(x, x :: A ==> !(nil(A) === cons(A) * x * nil(A)))) by RightForall
       }
       Case(cons, y, l) subproof {
         have((y :: A ==> !(l === cons(A) * y * l), y :: A, l :: list(A)) |- x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l))) by Tautology.from(
-             cons.injectivity of (x0 := y, x1 := l, y0 := x, y1 := cons(A) * y * l),
-             typeCons
-           )
+          cons.injectivity of (x0 := y, x1 := l, y0 := x, y1 := cons(A) * y * l),
+          typeCons
+        )
         thenHave((y :: A ==> !(l === cons(A) * y * l), y :: A, l :: list(A)) |- forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))) by RightForall
         thenHave((forall(x, x :: A ==> !(l === cons(A) * x * l)), y :: A, l :: list(A)) |- forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))) by LeftForall
       }

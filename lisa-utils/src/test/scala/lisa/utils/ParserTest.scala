@@ -268,9 +268,9 @@ class ParserTest extends AnyFunSuite with TestUtils {
       FOLParser.parseFormula("f(x y)")
     } catch {
       case e: UnexpectedInputException => assert(e.getMessage.startsWith("""
-          |f(x y)
-          |    ^
-          |Unexpected input""".stripMargin))
+                                                                           |f(x y)
+                                                                           |    ^
+                                                                           |Unexpected input""".stripMargin))
     }
   }
 
@@ -280,9 +280,9 @@ class ParserTest extends AnyFunSuite with TestUtils {
     } catch {
       case e: UnexpectedInputException =>
         assert(e.getMessage.startsWith("""
-            |x = (a /\ b)
-            |     ^^^^^^
-            |Unexpected input: expected term""".stripMargin))
+                                         |x = (a /\ b)
+                                         |     ^^^^^^
+                                         |Unexpected input: expected term""".stripMargin))
     }
   }
 }

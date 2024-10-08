@@ -376,7 +376,7 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
           // STEP 2.1: Prove that we can expand the domain of the (quantified) variables of the constructor
           val andSeq =
             for (v, ty) <- c.signature2 yield have((subsetST, varsWellTypedS) |- in(v, ty.getOrElse(t))) by Weakening(subsetElimination of (z := v))
-          val expandingDomain = have((subsetST, varsWellTypedS) |- varsWellTypedT) by RightAnd(andSeq: _*)
+          val expandingDomain = have((subsetST, varsWellTypedS) |- varsWellTypedT) by RightAnd(andSeq*)
           val weakeningLabelEq = have(labelEq |- labelEq) by Hypothesis
           have((subsetST, varsWellTypedS, labelEq) |- varsWellTypedT /\ labelEq) by RightAnd(expandingDomain, weakeningLabelEq)
 
@@ -391,7 +391,7 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
     // STEP 3: Prove that this holds for any constructor
     // ? Steps 2 and 3 can be merged and optimized through the repeated use of an external theorem like [[ADTHelperTheorems.unionPreimageMonotonic]]
     if constructors.isEmpty then have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
-    else have((subsetST, isConstructorXS) |- isConstructorXT) by LeftOr(isConstructorXSImpliesT: _*)
+    else have((subsetST, isConstructorXS) |- isConstructorXT) by LeftOr(isConstructorXSImpliesT*)
 
     // STEP 4: Prove the thesis by showing that making the union with the function argument does not change the monotonicity
     thenHave(subsetST |- isConstructorXS ==> isConstructorXT) by RightImplies
@@ -821,7 +821,7 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
               case GroundType(t) =>
                 have((hIsTheHeightFunction, in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- in(v, t)) by Restate
 
-            have((hIsTheHeightFunction, in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- constructorVarsInDomain(c, term)) by RightAnd(andSeq: _*)
+            have((hIsTheHeightFunction, in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- constructorVarsInDomain(c, term)) by RightAnd(andSeq*)
             thenHave((hIsTheHeightFunction, exists(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n)))) |- constructorVarsInDomain(c, term)) by LeftExists
           }
 
@@ -986,7 +986,7 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
                   for (v, ty) <- c.signature
                   yield have((hIsTheHeightFunction, in(n, N), constructorVarsInHN) |- in(v, ty.getOrElse(app(h, successor(n))))) by Weakening(liftHeight of (y := v))
 
-                val left = have((hIsTheHeightFunction, in(n, N), constructorVarsInHN) |- constructorVarsInHSuccN) by RightAnd(liftHeightAndSequence: _*)
+                val left = have((hIsTheHeightFunction, in(n, N), constructorVarsInHN) |- constructorVarsInHSuccN) by RightAnd(liftHeightAndSequence*)
                 val right = have(x === c.term |- x === c.term) by Hypothesis
 
                 have((hIsTheHeightFunction, in(n, N), constructorVarsInHN, (x === c.term)) |- constructorVarsInHSuccN /\ (x === c.term )) by RightAnd(
@@ -999,7 +999,7 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
 
               thenHave((hIsTheHeightFunction, in(n, N), isConstructorCXHN) |- isConstructorXHSuccN) by Weakening
 
-          have((hIsTheHeightFunction, in(n, N), isConstructorXHN) |- isConstructorXHSuccN) by LeftOr(liftConstructorHeightOrSequence: _*)
+          have((hIsTheHeightFunction, in(n, N), isConstructorXHN) |- isConstructorXHSuccN) by LeftOr(liftConstructorHeightOrSequence*)
 
       // STEP 1.5: Show that x ∈ introductionFunction(height(n + 1)) => for some c, x = c(x1, ..., xn)
       // with xi, ..., xj ∈ height(n + 1).
@@ -1157,7 +1157,7 @@ private class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: source
             ).toSeq
 
 
-          have((hIsTheHeightFunction, structuralInductionPreconditions, in(n, N), inductionFormulaN, isConstructor(x, app(h, n))) |- P(x)) by LeftOr(orSeq: _*)
+          have((hIsTheHeightFunction, structuralInductionPreconditions, in(n, N), inductionFormulaN, isConstructor(x, app(h, n))) |- P(x)) by LeftOr(orSeq*)
       }
 
       // STEP 2.2: Prove that if x ∈ height(n + 1) then P(x) holds.
@@ -1735,7 +1735,7 @@ private class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file:
               have(!inductionPreconditionIneq(c) |- isConstructorMap(c)) by Cut(conditionStrenghtening, lastStep)
               thenHave(!inductionPreconditionIneq(c) |- isConstructor) by Weakening
 
-          have(thesis) by LeftOr(negInductionPreconditionsOrSequence: _*)
+          have(thesis) by LeftOr(negInductionPreconditionsOrSequence*)
       }
 
       // STEP 2: Conclude
