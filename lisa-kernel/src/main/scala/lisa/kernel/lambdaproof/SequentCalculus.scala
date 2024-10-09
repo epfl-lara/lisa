@@ -279,45 +279,44 @@ object SequentCalculus {
 
   /**
    * <pre>
-   *    Γ, φ(s1,...,sn) |- Δ
-   * ---------------------
-   *  Γ, s1=t1, ..., sn=tn, φ(t1,...tn) |- Δ
+   *  Γ, φ(s) |- Δ     Σ1 |- s=t, Π     
+   * ----------------------------------------
+   *             Γ, Σ φ(t) |- Δ, Π
    * </pre>
-   * equals elements must have type Term -> ... -> Term
+   * equals elements must have type ... -> ... -> Term
    */
   //case class LeftSubstEq(bot: Sequent, t1: Int, equals: List[(LambdaTermTerm, LambdaTermTerm)], lambdaPhi: (Seq[SchematicTermLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
-  case class LeftSubstEq(bot: Sequent, t1: Int, equals: List[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftSubstEq(bot: Sequent, t1: Int, t2: Int, s: Expression, t: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1) }
 
   /**
    * <pre>
-   *    Γ |- φ(s1,...,sn), Δ
-   * ---------------------
-   *  Γ, s1=t1, ..., sn=tn |- φ(t1,...tn), Δ
+   *  Γ |- φ(s), Δ     Σ1 |- s=t, Π
+   * ---------------------------------
+   *         Γ, Σ |- φ(t), Δ, Π
    * </pre>
-   * equals elements must have type Term -> ... -> Term
+   * equals elements must have type ... -> ... -> Term
    */
-  case class RightSubstEq(bot: Sequent, t1: Int, equals: List[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
+  case class RightSubstEq(bot: Sequent, t1: Int, t2: Int, s: Expression, t: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1) }
 
   /**
    * <pre>
-   *    Γ, φ(a1,...an) |- Δ
-   * ---------------------
-   *  Γ, a1⇔b1, ..., an⇔bn, φ(b1,...bn) |- Δ
+   *   Γ, φ(ψ) |- Δ     Σ |- ψ⇔τ, Π     
+   * --------------------------------
+   *        Γ, Σ φ(τ) |- Δ, Π
    * </pre>
-   * equals elements must have type Term -> ... -> Term
+   * equals elements must have type ... -> ... -> Formula
    */
-  case class LeftSubstIff(bot: Sequent, t1: Int, equals: List[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftSubstIff(bot: Sequent, t1: Int, t2: Int, psi: Expression, tau: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1) }
 
   /**
    * <pre>
-   *    Γ |- φ(a1,...an), Δ
-   * ---------------------
-   *  Γ, a1⇔b1, ..., an⇔bn |- φ(b1,...bn), Δ
+   *   Γ |- φ(ψ), Δ     Σ |- ψ⇔τ, Π     
+   * --------------------------------
+   *        Γ, Σ |- φ(τ), Δ, Π
    * </pre>
-   * equals elements must have type Term -> ... -> Term
+   * equals elements must have type ... -> ... -> Formula
    */
-
-  case class RightSubstIff(bot: Sequent, t1: Int, equals: List[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
+  case class RightSubstIff(bot: Sequent, t1: Int, t2: Int, psi: Expression, tau: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1) }
 
   // Rule for schemas
 

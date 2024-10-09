@@ -35,22 +35,19 @@ private[lambdafol] trait Syntax {
   sealed trait Type {
     def ->(to: Type): Arrow = Arrow(this, to)
     val isFunctional: Boolean
-    val isPredicate: Boolean
+    def isPredicate: Boolean = !isFunctional
     val depth: Int 
   }
   case object Term extends Type {
     val isFunctional = true
-    val isPredicate = false
     val depth = 0
   }
   case object Formula extends Type {
     val isFunctional = false
-    val isPredicate = true
     val depth = 0
   }
   sealed case class Arrow(from: Type, to: Type) extends Type {
-    val isFunctional = from == Term && to.isFunctional
-    val isPredicate = from == Term && to.isPredicate
+    val isFunctional = to.isFunctional
     val depth = 1+to.depth
   }
 
@@ -227,6 +224,11 @@ private[lambdafol] trait Syntax {
     case Application(f, arg) => Application(substituteVariables(f, m), substituteVariables(arg, m))
     case Lambda(v, t) => 
       Lambda(v, substituteVariables(t, m - v))
+  }
+
+  def flatTypeParameters(t: Type): List[Type] = t match {
+    case Arrow(a, b) => a :: flatTypeParameters(b)
+    case _ => List()
   }
 
 }
