@@ -34,10 +34,31 @@ private[lambdafol] trait Syntax {
 
   sealed trait Type {
     def ->(to: Type): Arrow = Arrow(this, to)
+    val isFunctional: Boolean
+    val isPredicate: Boolean
+    val depth: Int 
   }
-  case object Term extends Type
-  case object Formula extends Type
-  sealed case class Arrow(from: Type, to: Type) extends Type
+  case object Term extends Type {
+    val isFunctional = true
+    val isPredicate = false
+    val depth = 0
+  }
+  case object Formula extends Type {
+    val isFunctional = false
+    val isPredicate = true
+    val depth = 0
+  }
+  sealed case class Arrow(from: Type, to: Type) extends Type {
+    val isFunctional = from == Term && to.isFunctional
+    val isPredicate = from == Term && to.isPredicate
+    val depth = 1+to.depth
+  }
+
+  def depth(t:Type): Int = t match {
+    case Arrow(a, b) => 1 + depth(b)
+    case _ => 0
+  }
+  
 
   def legalApplication(typ1: Type, typ2: Type): Option[Type] = {
     typ1 match {
@@ -114,6 +135,7 @@ private[lambdafol] trait Syntax {
       case Application(Application(`equality`, arg1), arg2) => Some((arg1, arg2))
       case _ => None
     }
+    def apply(arg1: Expression, arg2: Expression): Expression = equality(arg1)(arg2)
   }
 
   object Neg {
@@ -135,6 +157,7 @@ private[lambdafol] trait Syntax {
       case Application(Application(`iff`, arg1), arg2) => Some((arg1, arg2))
       case _ => None
     }
+    def apply(arg1: Expression, arg2: Expression): Expression = iff(arg1)(arg2)
   }
   object And {
     def unapply (e: Expression): Option[(Expression, Expression)] = e match {

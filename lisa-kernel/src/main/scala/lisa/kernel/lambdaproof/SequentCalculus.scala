@@ -324,7 +324,7 @@ object SequentCalculus {
   case class InstSchema(
       bot: Sequent,
       t1: Int,
-      mCon: Map[Variable, Expression]
+      subst: Map[Variable, Expression]
   ) extends SCProofStep { val premises = Seq(t1) }
 
   // Proof Organisation rules
