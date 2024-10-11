@@ -115,7 +115,7 @@ trait ProofsHelpers {
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
     om.output("Current proof of " + _proof.owningTheorem.prettyGoal + ": ")
     om.output(
-      lisa.utils.parsing.ProofPrinter.prettyProof(_proof, 2)
+      lisa.utils.ProofPrinter.prettyProof(_proof, 2)
     )
   }
 

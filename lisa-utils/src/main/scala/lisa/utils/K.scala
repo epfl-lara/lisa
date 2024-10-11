@@ -11,6 +11,6 @@ object K {
   export lisa.kernel.proof.RunningTheoryJudgement as Judgement
   export lisa.kernel.proof.RunningTheoryJudgement.*
   export lisa.utils.KernelHelpers.{*, given}
-  export lisa.utils.parsing.FOLPrinter.*
+  export ProofPrinter.*
 
 }

@@ -1,4 +1,5 @@
 package lisa.kernel.fol
+import lisa.kernel.fol.OLEquivalenceChecker
 
 /**
  * The concrete implementation of first order logic.
@@ -7,4 +8,4 @@ package lisa.kernel.fol
  * import lisa.fol.FOL._
  * </pre>
  */
-object FOL extends FormulaDefinitions with EquivalenceChecker with Substitutions {}
+object FOL extends OLEquivalenceChecker {}
