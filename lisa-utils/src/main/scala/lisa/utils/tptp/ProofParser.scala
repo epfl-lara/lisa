@@ -16,24 +16,26 @@ object ProofParser {
   val TPTPversion = "TPTP v8.0.0"
   val rand = scala.util.Random()
 
-  given mapAtom: ((String, Int) => K.AtomicLabel) = (f, n) =>
+  type MapTriplet = ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)
+
+  val mapAtom: ((String, Int) => K.Expression) = (f, n) =>
     val kind = f.head
     val id = f.tail
     if kind == 's' then
-      if n == 0 then K.VariableFormulaLabel(sanitize(id))
-      else K.SchematicPredicateLabel(sanitize(id), n)
-    else if kind == 'c' then K.ConstantAtomicLabel(sanitize(id), n)
+      K.Variable(sanitize(id), K.predicateType(n))
+    else if kind == 'c' then K.Constant(sanitize(id), K.predicateType(n))
     else throw new Exception(s"Unknown kind of atomic label: $f")
-  given mapTerm: ((String, Int) => K.TermLabel) = (f, n) =>
+  val mapTerm: ((String, Int) => K.Expression) = (f, n) =>
     val kind = f.head
     val id = f.tail
-    if kind == 's' then K.SchematicFunctionLabel(sanitize(id), n)
-    else if kind == 'c' then K.ConstantFunctionLabel(sanitize(id), n)
-    else if n == 0 then K.VariableLabel(sanitize(f))
-    else K.SchematicFunctionLabel(sanitize(f), n)
-  given mapVariable: (String => K.VariableLabel) = f =>
-    if f.head == 'X' then K.VariableLabel(f.tail)
-    else K.VariableLabel(f)
+    if kind == 's' then K.Variable(sanitize(id), K.functionType(n))
+    else if kind == 'c' then K.Constant(sanitize(id), K.functionType(n))
+    else throw new Exception(s"Unknown kind of term label: $f")
+  val mapVariable: (String => K.Variable) = f =>
+    if f.head == 'X' then K.Variable(f.tail, K.Term)
+    else K.Variable(f, K.Term)
+
+  given maps: MapTriplet = (mapAtom, mapTerm, mapVariable)
 
   def problemToFile(fileDirectory: String, fileName: String, name: String, axioms: Seq[K.Sequent], conjecture: K.Sequent, source: String): File = {
     // case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement])
@@ -80,51 +82,44 @@ object ProofParser {
   def isLowerWord(s: String): Boolean = s.head.isLower && s.tail.forall(_.isLetterOrDigit)
   inline def quoted(s: String): String = if isLowerWord(s) then s else s"'$s'"
 
-  def termToFOFTerm(term: K.Term): FOF.Term = {
-    val K.Term(label, args) = term
-    label match
-      case K.ConstantFunctionLabel(id, arity) =>
+  def termToFOFTerm(term: K.Expression): FOF.Term = {
+    term match {
+      case K.Variable(id, K.Term) => FOF.Variable(quoted("X" + id))
+      case K.Constant(id, K.Term) => FOF.AtomicTerm(quoted("c" + id), Seq())
+      case K.Multiapp(K.Constant(id, typ), args) =>
         FOF.AtomicTerm(quoted("c" + id), args.map(termToFOFTerm))
-      case K.SchematicFunctionLabel(id, arity) =>
+      case K.Multiapp(K.Variable(id, typ), args) =>
         FOF.AtomicTerm(quoted("s" + id), args.map(termToFOFTerm))
-      case K.VariableLabel(id) => FOF.Variable("X" + id)
+      case K.Epsilon(v, f) => throw new Exception("Epsilon terms are not supported")
+      case _ => throw new Exception("The expression is not purely first order")
+    }
   }
-  def formulaToFOFFormula(formula: K.Formula): FOF.Formula = {
+  def formulaToFOFFormula(formula: K.Expression): FOF.Formula = {
     formula match
-      case K.AtomicFormula(label, args) =>
-        label match
-          case K.equality => FOF.Equality(termToFOFTerm(args(0)), termToFOFTerm(args(1)))
-          case K.top => FOF.AtomicFormula("$true", Seq())
-          case K.bot => FOF.AtomicFormula("$false", Seq())
-          case K.ConstantAtomicLabel(id, arity) => FOF.AtomicFormula(quoted("c" + id), args.map(termToFOFTerm))
-          case K.SchematicPredicateLabel(id, arity) => FOF.AtomicFormula(quoted("s" + id), args.map(termToFOFTerm))
-          case K.VariableFormulaLabel(id) => FOF.AtomicFormula(quoted("s" + id), Seq())
-      case K.ConnectorFormula(label, args) =>
-        label match
-          case K.Neg => FOF.UnaryFormula(FOF.~, formulaToFOFFormula(args.head))
-          case K.Implies => FOF.BinaryFormula(FOF.Impl, formulaToFOFFormula(args(0)), formulaToFOFFormula(args(1)))
-          case K.Iff => FOF.BinaryFormula(FOF.<=>, formulaToFOFFormula(args(0)), formulaToFOFFormula(args(1)))
-          case K.And =>
-            if args.size == 0 then FOF.AtomicFormula("$true", Seq())
-            else if args.size == 1 then formulaToFOFFormula(args(0))
-            else FOF.BinaryFormula(FOF.&, formulaToFOFFormula(args(0)), formulaToFOFFormula(args(1)))
-          case K.Or =>
-            if args.size == 0 then FOF.AtomicFormula("$false", Seq())
-            else if args.size == 1 then formulaToFOFFormula(args(0))
-            else FOF.BinaryFormula(FOF.|, formulaToFOFFormula(args(0)), formulaToFOFFormula(args(1)))
-          case scl: K.SchematicConnectorLabel => throw new Exception(s"Schematic connectors are unsupported")
-      case K.BinderFormula(label, bound, inner) =>
-        label match
-          case K.Forall => FOF.QuantifiedFormula(FOF.!, Seq("X" + bound.id), formulaToFOFFormula(inner))
-          case K.Exists => FOF.QuantifiedFormula(FOF.?, Seq("X" + bound.id), formulaToFOFFormula(inner))
-          case K.ExistsOne => ???
+      case K.equality(left, right) =>
+        FOF.Equality(termToFOFTerm(left), termToFOFTerm(right))
+      case K.top => FOF.AtomicFormula("$true", Seq())
+      case K.bot => FOF.AtomicFormula("$false", Seq())
+      case K.neg(f) => FOF.UnaryFormula(FOF.~, formulaToFOFFormula(f))
+      case K.and(f1, f2) => FOF.BinaryFormula(FOF.&, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
+      case K.or(f1, f2) => FOF.BinaryFormula(FOF.|, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
+      case K.implies(f1, f2) => FOF.BinaryFormula(FOF.Impl, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
+      case K.iff(f1, f2) => FOF.BinaryFormula(FOF.<=>, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
+      case K.forall(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.!, Seq(quoted("X" + v.id)), formulaToFOFFormula(f))
+      case K.exists(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.?, Seq(quoted("X" + v.id)), formulaToFOFFormula(f))
+      case K.Multiapp(K.Constant(id, typ), args) =>
+        FOF.AtomicFormula(quoted("c" + id), args.map(termToFOFTerm))
+      case K.Multiapp(K.Variable(id, typ), args) =>
+        FOF.AtomicFormula(quoted("s" + id), args.map(termToFOFTerm))
+      case _ => throw new Exception("The expression is not purely first order")
+        
   }
 
-  def formulaToFOFStatement(formula: K.Formula): FOF.Statement = {
+  def formulaToFOFStatement(formula: K.Expression): FOF.Statement = {
     FOF.Logical(formulaToFOFFormula(formula))
   }
 
-  def reconstructProof(file: File)(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): K.SCProof = {
+  def reconstructProof(file: File)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.SCProof = {
     val problem = Parser.problem(io.Source.fromFile(file))
     val nameMap = scala.collection.mutable.Map[String, (Int, FOF.Sequent)]()
     var prems = List[K.Sequent]()
@@ -155,11 +150,8 @@ object ProofParser {
     K.SCProof(steps.reverse.toIndexedSeq, prems.reverse.toIndexedSeq)
   }
 
-  def annotatedStatementToProofStep(ann: FOFAnnotated, numbermap: String => Int, sequentmap: String => FOF.Sequent)(using
-      mapAtom: (String, Int) => K.AtomicLabel,
-      mapTerm: (String, Int) => K.TermLabel,
-      mapVariable: String => K.VariableLabel
-  ): Option[(K.SCProofStep, String)] = {
+  def annotatedStatementToProofStep(ann: FOFAnnotated, numbermap: String => Int, sequentmap: String => FOF.Sequent)
+      (using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): Option[(K.SCProofStep, String)] = {
     given (String => Int) = numbermap
     given (String => FOF.Sequent) = sequentmap
     val r = ann match {
@@ -197,7 +189,7 @@ object ProofParser {
         }
     }
     object Term {
-      def unapply(ann_seq: GeneralTerm)(using mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[K.Term] =
+      def unapply(ann_seq: GeneralTerm)(using maps: MapTriplet): Option[K.Expression] =
         ann_seq match {
           case GeneralTerm(List(GeneralFormulaData(FOTData(term))), None) => Some(convertTermToKernel(term))
           case _ => None
@@ -256,7 +248,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("hyp", Seq(StrOrNum(n), StrOrNum(m)), Seq())) =>
             if (sequent.lhs(n.toInt) == sequent.rhs(m.toInt)) then
@@ -272,7 +264,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("cut", Seq(StrOrNum(n), StrOrNum(m)), Seq(t1, t2))) =>
             val formula1 = sequentmap(t1).rhs(n.toInt)
@@ -289,7 +281,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftHyp", Seq(StrOrNum(n), StrOrNum(m)), Seq())) =>
             val left = sequent.lhs.map(convertToKernel)
@@ -305,7 +297,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotNot", Seq(StrOrNum(n)), Seq(t1))) =>
             Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
@@ -316,7 +308,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftAnd", Seq(StrOrNum(n)), Seq(t1))) =>
             Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
@@ -327,7 +319,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotOr", Seq(StrOrNum(n)), Seq(t1))) =>
             Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
@@ -338,7 +330,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotImp", Seq(StrOrNum(n)), Seq(t1))) =>
             Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
@@ -350,12 +342,12 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotAnd", Seq(StrOrNum(n)), Seq(t1, t2))) =>
             val f = sequent.lhs(n.toInt)
             val (a, b) = convertToKernel(f) match {
-              case K.ConnectorFormula(K.Neg, Seq(K.ConnectorFormula(K.And, Seq(x, y)))) => (x, y)
+              case K.Neg(K.And(x, y)) => (x, y)
               case _ => throw new Exception(s"Expected a negated conjunction, but got $f")
             }
             Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(K.Neg(a), K.Neg(b))), name))
@@ -367,12 +359,12 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftOr", Seq(StrOrNum(n)), Seq(t1, t2))) =>
             val f = sequent.lhs(n.toInt)
             val (a, b) = convertToKernel(f) match {
-              case K.ConnectorFormula(K.Or, Seq(x, y)) => (x, y)
+              case K.Or(x, y) => (x, y)
               case _ => throw new Exception(s"Expected a disjunction, but got $f")
             }
             Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(a, b))), name)
@@ -384,12 +376,12 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftImp1", Seq(StrOrNum(n)), Seq(t1, t2))) =>
             val f = sequent.lhs(n.toInt)
             val (a, b) = convertToKernel(f) match {
-              case K.ConnectorFormula(K.Implies, Seq(x, y)) => (x, y)
+              case K.Implies(x, y) => (x, y)
               case _ => throw new Exception(s"Expected an implication, but got $f")
             }
             Some((K.LeftImplies(convertToKernel(sequent), numbermap(t1), numbermap(t2), a, b), name))
@@ -401,12 +393,12 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftImp2", Seq(StrOrNum(n)), Seq(t1, t2))) =>
             val f = sequent.lhs(n.toInt)
             val (a, b) = convertToKernel(f) match {
-              case K.ConnectorFormula(K.Implies, Seq(x, y)) => (x, y)
+              case K.Implies(x, y) => (x, y)
               case _ => throw new Exception(s"Expected an implication, but got $f")
             }
             Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(K.Neg(a), b)), name))
@@ -418,19 +410,19 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotForall", Seq(StrOrNum(n), Term(xl)), Seq(t1))) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
             val x = xl match
-              case K.Term(x: K.VariableLabel, Seq()) => x
+              case x: K.Variable => x
               case _ => throw new Exception(s"Expected a variable, but got $xl")
-            val (y: K.VariableLabel, phi: K.Formula) = convertToKernel(f) match {
-              case K.ConnectorFormula(K.Neg, Seq(K.BinderFormula(K.Forall, x, phi))) => (x, phi)
+            val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
+              case K.Neg(K.forall(K.Lambda(x, phi))) => (x, phi)
               case _ => throw new Exception(s"Expected a universal quantification, but got $f")
             }
             if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))
-            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariablesInFormula(K.ConnectorFormula(K.Neg, Seq(phi)), Map(y -> xl), Seq()), x), name))
+            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(K.Neg(phi), Map(y -> xl)), x), name))
           case _ => None
         }
     }
@@ -439,19 +431,19 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftEx", Seq(StrOrNum(n), Term(xl)), Seq(t1))) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
             val x = xl match
-              case K.Term(x: K.VariableLabel, Seq()) => x
+              case x:K.Variable => x
               case _ => throw new Exception(s"Expected a variable, but got $xl")
-            val (y: K.VariableLabel, phi: K.Formula) = convertToKernel(f) match {
-              case K.BinderFormula(K.Exists, x, phi) => (x, phi)
+            val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
+              case K.Exists(Lambda(x, phi)) => (x, phi)
               case _ => throw new Exception(s"Expected an existential quantification, but got $f")
             }
             if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))
-            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariablesInFormula(phi, Map(y -> xl), Seq()), x), name))
+            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(phi, Map(y -> xl)), x), name))
           case _ => None
         }
     }
@@ -460,12 +452,12 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftForall", Seq(StrOrNum(n), Term(t)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val (x, phi) = convertToKernel(f) match {
-              case K.BinderFormula(K.Forall, x, phi) => (x, phi)
+              case K.Forall(K.Lambda(x, phi)) => (x, phi)
               case _ => throw new Exception(s"Expected a universal quantification, but got $f")
             }
             Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), phi, x, t), name))
@@ -477,15 +469,15 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotEx", Seq(StrOrNum(n), Term(t)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val (x, phi) = convertToKernel(f) match {
-              case K.ConnectorFormula(K.Neg, Seq(K.BinderFormula(K.Exists, x, phi))) => (x, phi)
+              case K.Neg(K.Exists(K.Lambda(x, phi))) => (x, phi)
               case _ => throw new Exception(s"Expected a negated existential quantification, but got $f")
             }
-            Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), K.ConnectorFormula(K.Neg, Seq(phi)), x, t), name))
+            Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), K.Neg(phi), x, t), name))
           case _ => None
         }
     }
@@ -494,7 +486,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
-      )(using mapAtom: (String, Int) => K.AtomicLabel, mapTerm: (String, Int) => K.TermLabel, mapVariable: String => K.VariableLabel): Option[(K.SCProofStep, String)] =
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightNot", Seq(StrOrNum(n)), Seq(t1))) =>
             Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))

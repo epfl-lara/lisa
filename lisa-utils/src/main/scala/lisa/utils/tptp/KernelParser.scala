@@ -23,7 +23,7 @@ object KernelParser {
    * @param formula A formula in the tptp language
    * @return the corresponding LISA formula
    */
-  def parseToKernel(formula: String)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): K.Expression = convertToKernel(
+  def parseToKernel(formula: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = convertToKernel(
     Parser.fof(formula)
   )(using mapAtom, mapTerm, mapVariable)
 
@@ -31,7 +31,7 @@ object KernelParser {
    * @param formula a tptp formula in leo parser
    * @return the same formula in LISA
    */
-  def convertToKernel(formula: FOF.Formula)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): K.Expression = {
+  def convertToKernel(formula: FOF.Formula)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = {
     val (mapAtom, mapTerm, mapVariable) = maps
     formula match {
       case FOF.AtomicFormula(f, args) =>
@@ -66,11 +66,11 @@ object KernelParser {
     }
   }
 
-  def convertToKernel(sequent: FOF.Sequent)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): K.Sequent = {
+  def convertToKernel(sequent: FOF.Sequent)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Sequent = {
     K.Sequent(sequent.lhs.map(convertToKernel).toSet, sequent.rhs.map(convertToKernel).toSet)
   }
 
-  def convertToKernel(formula: CNF.Formula)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): K.Expression = {
+  def convertToKernel(formula: CNF.Formula)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = {
     K.multior(
       formula.map {
         case CNF.PositiveAtomic(formula) => multiapply(mapAtom(formula.f, formula.args.size))(formula.args.map(convertTermToKernel).toList)
@@ -85,7 +85,7 @@ object KernelParser {
    * @param term a tptp term in leo parser
    * @return the same term in LISA
    */
-  def convertTermToKernel(term: CNF.Term)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): K.Expression = 
+  def convertTermToKernel(term: CNF.Term)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = 
     val (mapAtom, mapTerm, mapVariable) = maps
     term match {
       case CNF.AtomicTerm(f, args) => K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
@@ -97,7 +97,7 @@ object KernelParser {
    * @param term a tptp term in leo parser
    * @return the same term in LISA
    */
-  def convertTermToKernel(term: FOF.Term)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): K.Expression = 
+  def convertTermToKernel(term: FOF.Term)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = 
     val (mapAtom, mapTerm, mapVariable) = maps
     term match {
       case FOF.AtomicTerm(f, args) =>
@@ -111,7 +111,7 @@ object KernelParser {
    * @param formula an annotated tptp statement
    * @return the corresponding LISA formula augmented with name and role.
    */
-  def annotatedStatementToKernel(formula: String)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): AnnotatedStatement = {
+  def annotatedStatementToKernel(formula: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): AnnotatedStatement = {
     val i = Parser.annotatedFOF(formula)
     i match
       case TPTP.FOFAnnotated(name, role, formula, annotations) =>
@@ -123,7 +123,7 @@ object KernelParser {
 
   }
 
-  private def problemToKernel(problemFile: File, md: ProblemMetadata)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): Problem = {
+  private def problemToKernel(problemFile: File, md: ProblemMetadata)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): Problem = {
     val (mapAtom, mapTerm, mapVariable) = maps
     val file = io.Source.fromFile(problemFile)
     val pattern = "SPC\\s*:\\s*[A-z]{3}(_[A-z]{3})*".r
@@ -152,7 +152,7 @@ object KernelParser {
    * @param problemFile a file containning a tptp problem
    * @return a Problem object containing the data of the tptp problem in LISA representation
    */
-  def problemToKernel(problemFile: File)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): Problem = {
+  def problemToKernel(problemFile: File)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): Problem = {
     problemToKernel(problemFile, getProblemInfos(problemFile))
   }
 
@@ -160,7 +160,7 @@ object KernelParser {
    * @param problemFile a path to a file containing a tptp problem
    * @return a Problem object containing the data of the tptp problem in LISA representation
    */
-  def problemToKernel(problemFile: String)(using maps: ((String, Int) => K.Constant, (String, Int) => K.Constant, String => K.Variable)): Problem = {
+  def problemToKernel(problemFile: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): Problem = {
     problemToKernel(File(problemFile))
   }
 

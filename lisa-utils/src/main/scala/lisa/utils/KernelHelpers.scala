@@ -82,6 +82,15 @@ object KernelHelpers {
 
   /* Infix syntax */
 
+  object Multiapp {
+    def unapply(e: Expression): Option[(Expression, Seq[Expression])] = 
+      def inner(e: Expression): Option[List[Expression]] = e match 
+        case Application(f, arg) => inner(f) map (l => arg :: l)
+        case _ => None
+      inner(e).map(l => {val rev = l.reverse; (rev.head, rev.tail)})
+      
+  }
+
   extension (f: Expression) {
     def unary_! = neg(f)
     infix inline def ==>(g: Expression): Expression = implies(f)(g)
