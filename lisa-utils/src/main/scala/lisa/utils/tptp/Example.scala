@@ -1,17 +1,15 @@
 package lisa.utils.tptp
 
-import lisa.utils.parsing.FOLParser.*
 import lisa.utils.tptp.KernelParser.annotatedStatementToKernel
 import lisa.utils.tptp.KernelParser.parseToKernel
 import lisa.utils.tptp.KernelParser.problemToSequent
 import lisa.utils.tptp.ProblemGatherer.getPRPproblems
+import lisa.utils.K.{repr, given}
 
 import KernelParser.{mapAtom, mapTerm, mapVariable}
 
 object Example {
 
-  val prettyFormula = lisa.utils.parsing.FOLParser.printFormula
-  val prettySequent = lisa.utils.parsing.FOLParser.printSequent
   def tptpExample(): Unit = {
     val axioms = List(
       "( ~ ( ? [X] : ( big_s(X) & big_q(X) ) ) )",
@@ -29,8 +27,8 @@ object Example {
     )
 
     println("\n---Individual Fetched Formulas---")
-    axioms.foreach(a => println(prettyFormula(parseToKernel(a)(using mapAtom, mapTerm, mapVariable))))
-    println(prettyFormula(parseToKernel(conjecture)(using mapAtom, mapTerm, mapVariable)))
+    axioms.foreach(a => println(parseToKernel(a)(using mapAtom, mapTerm, mapVariable).repr))
+    println(parseToKernel(conjecture)(using mapAtom, mapTerm, mapVariable).repr)
 
     println("\n---Annotated Formulas---")
     anStatements.map(annotatedStatementToKernel(_)(using mapAtom, mapTerm, mapVariable)).foreach(f => printAnnotatedStatement(f))
@@ -48,7 +46,7 @@ object Example {
         val seq = problemToSequent(probs.head)
         printProblem(probs.head)
         println("\n---Sequent---")
-        println(prettySequent(seq))
+        println(seq.repr)
       }
     } catch {
       case error: NullPointerException => println("You can download the tptp library at http://www.tptp.org/ and put it in main/resources")
@@ -59,8 +57,8 @@ object Example {
   // Utility
   def printAnnotatedStatement(a: AnnotatedStatement): Unit = {
     val prettyStatement = a match {
-      case f: AnnotatedFormula => prettyFormula(f.formula)
-      case s: AnnotatedSequent => prettySequent(s.sequent)
+      case f: AnnotatedFormula => f.formula.repr
+      case s: AnnotatedSequent => s.sequent.repr
     }
     if (a.role == "axiom") println("Given " + a.name + ": " + prettyStatement)
     else if (a.role == "conjecture") println("Prove " + a.name + ": " + prettyStatement)

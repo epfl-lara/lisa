@@ -13,12 +13,16 @@ import scala.annotation.targetName
  */
 object KernelHelpers {
 
+  def predicateType(arity: Int) = Range(0, arity).foldLeft(Formula: Type)((acc, _) => Term -> acc)
+  def functionType(arity: Int) = Range(0, arity).foldLeft(Term: Type)((acc, _) => Term -> acc)
+
   /////////////////
   // FOL helpers //
   /////////////////
 
   /* Prefix syntax */
 
+  val Equality = equality
   val === = equality
   val ⊤ : Expression = top
   val ⊥ : Expression = bot
@@ -72,6 +76,10 @@ object KernelHelpers {
     }
   }
 
+  def multiand(args: Seq[Expression]): Expression = args.reduceLeft(and(_)(_))
+  def multior(args: Seq[Expression]): Expression = args.reduceLeft(or(_)(_))
+  def multiapply(f: Expression)(args: Seq[Expression]): Expression = args.foldLeft(f)(_(_))
+
   /* Infix syntax */
 
   extension (f: Expression) {
@@ -98,6 +106,16 @@ object KernelHelpers {
       recurse(f).reverse
 
     def repr: String = f match
+      case equality(a, b) => s"${a.repr} === ${b.repr}"
+      case neg(a) => s"!${a.repr}"
+      case and(a, b) => s"(${a.repr} /\\ ${b.repr})"
+      case or(a, b) => s"(${a.repr} \\/ ${b.repr})"
+      case implies(a, b) => s"(${a.repr} ==> ${b.repr})"
+      case iff(a, b) => s"(${a.repr} <=> ${b.repr})"
+      case forall(v, inner) => s"(forall(${v.repr}, ${inner.repr})"
+      case exists(v, inner) => s"(exists(${v.repr}, ${inner.repr})"
+      case epsilon(v, inner) => s"(epsilon(${v.repr}, ${inner.repr})"
+
       case Application(f, arg) => s"${f.repr}(${arg.repr})"
       case Constant(id, typ) => id.toString
       case Lambda(v, body) => s"lambda(${v.repr}, ${body.repr})"
@@ -369,7 +387,7 @@ object KernelHelpers {
     def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
       if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
       else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Restate(statement, proof.length - 1)), justifications)
-      else InvalidJustification(s"The proof proves \n    ${FOLPrinter.prettySequent(proof.conclusion)}\ninstead of claimed \n    ${FOLPrinter.prettySequent(statement)}", None)
+      else InvalidJustification(s"The proof proves \n    ${proof.conclusion.repr}\ninstead of claimed \n    ${statement.repr}", None)
     }
 
     /**
@@ -419,8 +437,8 @@ object KernelHelpers {
 
   extension (just: RunningTheory#Justification) {
     def repr: String = just match {
-      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${FOLPrinter.prettySequent(thm.proposition)}${if (thm.withSorry) " (!! Relies on Sorry)" else ""}\n"
-      case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${FOLPrinter.prettyFormula(axiom.ax)}\n"
+      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${thm.proposition.repr}${if (thm.withSorry) " (!! Relies on Sorry)" else ""}\n"
+      case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${axiom.ax.repr}\n"
       case d: RunningTheory#Definition =>
         s" Definition of  symbol ${d.cst.id} : ${d.cst.typ} := ${d.expression}\n"
 

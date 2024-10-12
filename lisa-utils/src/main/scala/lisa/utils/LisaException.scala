@@ -8,6 +8,7 @@ import lisa.kernel.proof.SCProof
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.KernelHelpers.repr
+import lisa.utils.KernelHelpers.prettySCProof
 
 abstract class LisaException(errorMessage: String)(using val line: sourcecode.Line, val file: sourcecode.File) extends Exception(errorMessage) {
   def showError: String
@@ -24,12 +25,12 @@ object LisaException {
     def showError: String = "Construction of proof succedded, but the resulting proof or definition has been reported to be faulty. This may be due to an internal bug.\n" +
       "The resulting faulty event is:\n" +
       s"$underlying.message\n${underlying.error match {
-          case Some(judgement) => FOLPrinter.prettySCProof(judgement)
+          case Some(judgement) => prettySCProof(judgement)
           case None => ""
         }}"
   }
 
-  class InvalidKernelAxiomException(errorMessage: String, name: String, formula: lisa.kernel.fol.FOL.Formula, theory: lisa.kernel.proof.RunningTheory)(using sourcecode.Line, sourcecode.File)
+  class InvalidKernelAxiomException(errorMessage: String, name: String, formula: lisa.kernel.fol.FOL.Expression, theory: lisa.kernel.proof.RunningTheory)(using sourcecode.Line, sourcecode.File)
       extends LisaException(errorMessage) {
     def showError: String = s"The desired axiom \"$name\" contains symbol that are not part of the theory.\n" +
       s"The symbols {${theory.findUndefinedSymbols(formula)}} are undefined."

@@ -19,7 +19,7 @@ sealed trait AnnotatedStatement {
   }
 }
 
-case class AnnotatedFormula(role: String, name: String, formula: K.Formula, annotations: TPTP.Annotations) extends AnnotatedStatement
+case class AnnotatedFormula(role: String, name: String, formula: K.Expression, annotations: TPTP.Annotations) extends AnnotatedStatement
 
 case class AnnotatedSequent(role: String, name: String, sequent: K.Sequent, annotations: TPTP.Annotations) extends AnnotatedStatement
 
