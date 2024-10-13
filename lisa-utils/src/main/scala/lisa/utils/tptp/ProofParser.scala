@@ -439,7 +439,7 @@ object ProofParser {
               case x:K.Variable => x
               case _ => throw new Exception(s"Expected a variable, but got $xl")
             val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
-              case K.Exists(Lambda(x, phi)) => (x, phi)
+              case K.Exists(K.Lambda(x, phi)) => (x, phi)
               case _ => throw new Exception(s"Expected an existential quantification, but got $f")
             }
             if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))

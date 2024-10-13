@@ -1,12 +1,12 @@
 package lisa.utils
 
-import lisa.fol.FOL as F
+//import lisa.fol.FOL as F
 import lisa.kernel.fol.FOL
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib.ProofTactic
+//import lisa.prooflib.Library
+//import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.KernelHelpers.repr
 import lisa.utils.KernelHelpers.prettySCProof
 
@@ -16,6 +16,7 @@ abstract class LisaException(errorMessage: String)(using val line: sourcecode.Li
 
 import lisa.utils.KernelHelpers.{_, given}
 
+/*
 import java.io.File
 object LisaException {
   case class InvalidKernelJustificationComputation(errorMessage: String, underlying: RunningTheoryJudgement.InvalidJustification[?], proof: Option[Library#Proof])(using
@@ -37,6 +38,7 @@ object LisaException {
   }
 
 }
+
 
 /**
  * Error made by the user, should be "explained"
@@ -64,3 +66,5 @@ object UserLisaException {
   }
 
 }
+  */
+
