@@ -22,7 +22,7 @@ object SequentCalculus {
    * @param right the right side of the sequent
    */
   case class Sequent(left: Set[Expression], right: Set[Expression]){
-    require(left.forall(_.typ == Formula) && right.forall(_.typ == Formula), "Sequent can only contain formulas")
+    require(left.forall(_.sort == Formula) && right.forall(_.sort == Formula), "Sequent can only contain formulas")
   }
 
   /**

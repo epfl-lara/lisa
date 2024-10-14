@@ -32,32 +32,32 @@ private[fol] trait Syntax {
 
 
 
-  sealed trait Type {
-    def ->(to: Type): Arrow = Arrow(this, to)
+  sealed trait Sort {
+    def ->(to: Sort): Arrow = Arrow(this, to)
     val isFunctional: Boolean
     def isPredicate: Boolean = !isFunctional
     val depth: Int 
   }
-  case object Term extends Type {
+  case object Term extends Sort {
     val isFunctional = true
     val depth = 0
   }
-  case object Formula extends Type {
+  case object Formula extends Sort {
     val isFunctional = false
     val depth = 0
   }
-  sealed case class Arrow(from: Type, to: Type) extends Type {
+  sealed case class Arrow(from: Sort, to: Sort) extends Sort {
     val isFunctional = to.isFunctional
     val depth = 1+to.depth
   }
 
-  def depth(t:Type): Int = t match {
+  def depth(t:Sort): Int = t match {
     case Arrow(a, b) => 1 + depth(b)
     case _ => 0
   }
   
 
-  def legalApplication(typ1: Type, typ2: Type): Option[Type] = {
+  def legalApplication(typ1: Sort, typ2: Sort): Option[Sort] = {
     typ1 match {
       case Arrow(`typ2`, to) => Some(to)
       case _ => None
@@ -73,13 +73,13 @@ private[fol] trait Syntax {
   }
 
   sealed trait Expression {
-    val typ: Type
+    val sort: Sort
     val uniqueNumber: Long = ExpressionCounters.getNewId
     val containsFormulas : Boolean
     def apply(arg: Expression): Application = Application(this, arg)
     def unapplySeq(arg: Expression): Option[Seq[Expression]] = arg match {
       case Application(f, arg) if f == this => Some(arg :: Nil)
-      case Application(f, arg) => f.unapplySeq(arg).map(fargs => fargs :+ arg)
+      case Application(f, arg) => unapplySeq(f).map(fargs => fargs :+ arg)
       case _ => None
     }
     
@@ -100,23 +100,23 @@ private[fol] trait Syntax {
     
   }
 
-  case class Variable(id: Identifier, typ:Type) extends Expression {
-    val containsFormulas = typ == Formula
+  case class Variable(id: Identifier, sort:Sort) extends Expression {
+    val containsFormulas = sort == Formula
     def freeVariables: Set[Variable] = Set(this)
     def constants: Set[Constant] = Set()
     def allVariables: Set[Variable] = Set(this)
   }
-  case class Constant(id: Identifier, typ: Type) extends Expression {
-    val containsFormulas = typ == Formula
+  case class Constant(id: Identifier, sort: Sort) extends Expression {
+    val containsFormulas = sort == Formula
     def freeVariables: Set[Variable] = Set()
     def constants: Set[Constant] = Set(this)
     def allVariables: Set[Variable] = Set()
   }
   case class Application(f: Expression, arg: Expression) extends Expression {
-    private val legalapp = legalApplication(f.typ, arg.typ)
+    private val legalapp = legalApplication(f.sort, arg.sort)
     require(legalapp.isDefined, s"Application of $f to $arg is not legal")
-    val typ = legalapp.get
-    val containsFormulas = typ == Formula || f.containsFormulas || arg.containsFormulas
+    val sort = legalapp.get
+    val containsFormulas = sort == Formula || f.containsFormulas || arg.containsFormulas
 
     def freeVariables: Set[Variable] = f.freeVariables union arg.freeVariables
     def constants: Set[Constant] = f.constants union arg.constants
@@ -125,7 +125,7 @@ private[fol] trait Syntax {
 
   case class Lambda(v: Variable, body: Expression) extends Expression {
     val containsFormulas = body.containsFormulas
-    val typ = (v.typ -> body.typ)
+    val sort = (v.sort -> body.sort)
 
     def freeVariables: Set[Variable] = body.freeVariables - v
     def constants: Set[Constant] = body.constants
@@ -222,8 +222,8 @@ private[fol] trait Syntax {
     case v: Variable => 
       m.get(v) match {
         case Some(r) => 
-          if (r.typ == v.typ) r 
-          else throw new IllegalArgumentException("Type mismatch in substitution: " + v + " -> " + r)
+          if (r.sort == v.sort) r 
+          else throw new IllegalArgumentException("Sort mismatch in substitution: " + v + " -> " + r)
         case None => v
       }
     case c: Constant => c
@@ -232,7 +232,7 @@ private[fol] trait Syntax {
       Lambda(v, substituteVariables(t, m - v))
   }
 
-  def flatTypeParameters(t: Type): List[Type] = t match {
+  def flatTypeParameters(t: Sort): List[Sort] = t match {
     case Arrow(a, b) => a :: flatTypeParameters(b)
     case _ => List()
   }

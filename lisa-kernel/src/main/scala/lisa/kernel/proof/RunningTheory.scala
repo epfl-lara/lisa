@@ -84,9 +84,9 @@ class RunningTheory {
 
 
   def makeDefinition(cst: Constant, expression: Expression, vars: Seq[Variable]): RunningTheoryJudgement[this.Definition] = {
-    if (cst.typ.depth == vars.length)
-      if (flatTypeParameters(cst.typ) zip vars.map(_.typ) forall { case (a, b) => a == b })
-        if (cst.typ == expression.typ)
+    if (cst.sort.depth == vars.length)
+      if (flatTypeParameters(cst.sort) zip vars.map(_.sort) forall { case (a, b) => a == b })
+        if (cst.sort == expression.sort)
           if (belongsToTheory(expression))
             if (isAvailable(cst))
               if (expression.freeVariables.isEmpty) {
@@ -175,7 +175,7 @@ class RunningTheory {
     case Theorem(name, proposition, _) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
     case Definition(cst, e, vars) =>
-      if (cst.typ.isPredicate){
+      if (cst.sort.isPredicate){
         val inner = iff(vars.foldLeft(cst: Expression)(_(_)))(vars.foldLeft(e)(_(_)))
         Sequent(Set(), Set(inner))
       } else {
@@ -193,7 +193,7 @@ class RunningTheory {
    * @return true if the axiom was added to the theory, false else.
    */
   def addAxiom(name: String, f: Expression): Option[Axiom] = {
-    if (f.typ == Formula && belongsToTheory(f)) {
+    if (f.sort == Formula && belongsToTheory(f)) {
       val ax = Axiom(name, f)
       theoryAxioms.update(name, ax)
       Some(ax)
@@ -279,12 +279,12 @@ class RunningTheory {
   /**
    * Verify if a given formula is an axiom of the theory
    */
-  def isAxiom(f: Expression): Boolean = f.typ == Formula && theoryAxioms.exists(a => isSame(a._2.ax, f))
+  def isAxiom(f: Expression): Boolean = f.sort == Formula && theoryAxioms.exists(a => isSame(a._2.ax, f))
 
   /**
    * Get the Axiom that is the same as the given formula, if it exists in the theory.
    */
-  def getAxiom(f: Expression): Option[Axiom] = if (f.typ == Formula) theoryAxioms.find(a => isSame(a._2.ax, f)).map(_._2) else None
+  def getAxiom(f: Expression): Option[Axiom] = if (f.sort == Formula) theoryAxioms.find(a => isSame(a._2.ax, f)).map(_._2) else None
 
   /**
    * Get the definition of the given label, if it is defined in the theory.

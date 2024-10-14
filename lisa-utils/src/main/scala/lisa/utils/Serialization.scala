@@ -44,26 +44,26 @@ object Serialization {
 
   type Line = Int
 
-  def typeToString(t: Type): String =
+  def typeToString(t: Sort): String =
     t match
       case Term => "T"
       case Formula => "F"
       case Arrow(from, to) => s">${typeToString(from)}${typeToString(to)}"
   
-  def constantToSting(c: Constant): String = "cst_" + c.id.name + "_" + c.id.no + "_" + typeToString(c.typ)
-  def variableToSting(v: Variable): String = "var_" + v.id.name + "_" + v.id.no + "_" + typeToString(v.typ)
+  def constantToSting(c: Constant): String = "cst_" + c.id.name + "_" + c.id.no + "_" + typeToString(c.sort)
+  def variableToSting(v: Variable): String = "var_" + v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)
 
   def constantToDos(c: Constant, dos: DataOutputStream): Unit =
     dos.writeByte(0)
     dos.writeUTF(c.id.name)
     dos.writeInt(c.id.no)
-    dos.writeUTF(typeToString(c.typ))
+    dos.writeUTF(typeToString(c.sort))
   
   def variableToDOS(v: Variable, dos: DataOutputStream): Unit =
     dos.writeByte(1)
     dos.writeUTF(v.id.name)
     dos.writeInt(v.id.no)
-    dos.writeUTF(typeToString(v.typ))
+    dos.writeUTF(typeToString(v.sort))
 
   /*
   def formulaLabelToDOS(label: FormulaLabel, dos: DataOutputStream): Unit =
@@ -114,12 +114,12 @@ object Serialization {
               treesDOS.writeByte(0)
               treesDOS.writeUTF(v.id.name)
               treesDOS.writeInt(v.id.no)
-              treesDOS.writeUTF(typeToString(v.typ))
+              treesDOS.writeUTF(typeToString(v.sort))
             case c: Constant =>
               treesDOS.writeByte(1)
               treesDOS.writeUTF(c.id.name)
               treesDOS.writeInt(c.id.no)
-              treesDOS.writeUTF(typeToString(c.typ))
+              treesDOS.writeUTF(typeToString(c.sort))
             case Lambda(v, inner) =>
               treesDOS.writeByte(2)
               val vi = lineOfExpr(v)
@@ -351,7 +351,7 @@ object Serialization {
 
   }
 
-  def typeFromString(s: String): (Type, String) =
+  def typeFromString(s: String): (Sort, String) =
     if s(0) == 'T' then (Term, s.drop(1))
     else if s(0) == 'F' then (Formula, s.drop(1))
     else if s(0) == '>' then
@@ -378,13 +378,13 @@ object Serialization {
           case 0 =>
             val name = treesDIS.readUTF()
             val no = treesDIS.readInt()
-            val typ = treesDIS.readUTF()
-            Variable(Identifier(name, no), typeFromString(typ)._1)
+            val sort = treesDIS.readUTF()
+            Variable(Identifier(name, no), typeFromString(sort)._1)
           case 1 =>
             val name = treesDIS.readUTF()
             val no = treesDIS.readInt()
-            val typ = treesDIS.readUTF()
-            Constant(Identifier(name, no), typeFromString(typ)._1)
+            val sort = treesDIS.readUTF()
+            Constant(Identifier(name, no), typeFromString(sort)._1)
           case 2 =>
             val v = exprMap(treesDIS.readInt())
             val body = exprMap(treesDIS.readInt()) 
@@ -560,8 +560,8 @@ object Serialization {
           case (obj, theory.Axiom(name, ax)) => "a" + obj + "$" + name
           case (obj, theory.Theorem(name, proposition, withSorry)) => "t" + obj + "$" + name
           case (obj, theory.Definition(label, expression, vars)) => 
-            "d" + obj + "$" + label.id.name + "_" + label.id.no + "_" + typeToString(label.typ) //+ "__" + 
-            //vars.size + vars.map(v => v.id.name + "_" + v.id.no + "_" + typeToString(v.typ)).mkString("__")
+            "d" + obj + "$" + label.id.name + "_" + label.id.no + "_" + typeToString(label.sort) //+ "__" + 
+            //vars.size + vars.map(v => v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)).mkString("__")
         }
         //(name, minimizeProofOnce(proof), justNames)
         (name, proof, justNames)
@@ -589,8 +589,8 @@ object Serialization {
           case 't' =>
             theory.getTheorem(name).get
           case 'd' =>
-            val Array(id, no, typ) = name.split("_")
-            val cst = Constant(Identifier(id, no.toInt), typeFromString(typ)._1)
+            val Array(id, no, sort) = name.split("_")
+            val cst = Constant(Identifier(id, no.toInt), typeFromString(sort)._1)
             theory.getDefinition(cst).get
       }
       if debug then

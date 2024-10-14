@@ -46,7 +46,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * returns true if the first argument implies the second by the laws of ortholattices.
    */
   def isImplying(e1: Expression, e2: Expression): Boolean = {
-    require(e1.typ == Formula && e2.typ == Formula) 
+    require(e1.sort == Formula && e2.sort == Formula) 
     val nf1 = computeNormalForm(simplify(e1))
     val nf2 = computeNormalForm(simplify(e2))
     latticesLEQ(nf1, nf2)
@@ -71,7 +71,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
   private var totSimpleExpr = 0
   sealed abstract class SimpleExpression {
-    val typ: Type
+    val sort: Sort
     val containsFormulas : Boolean
 
     val uniqueKey = totSimpleExpr
@@ -105,47 +105,47 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     }
   }
 
-  case class SimpleVariable(id: Identifier, typ:Type, polarity: Boolean) extends SimpleExpression {
-    val containsFormulas: Boolean = typ == Formula
+  case class SimpleVariable(id: Identifier, sort:Sort, polarity: Boolean) extends SimpleExpression {
+    val containsFormulas: Boolean = sort == Formula
     val size = 1
   }
-  case class SimpleBoundVariable(no: Int, typ: Type, polarity: Boolean) extends SimpleExpression {
-    val containsFormulas: Boolean = typ == Formula
+  case class SimpleBoundVariable(no: Int, sort: Sort, polarity: Boolean) extends SimpleExpression {
+    val containsFormulas: Boolean = sort == Formula
     val size = 1
   }
-  case class SimpleConstant(id: Identifier, typ: Type, polarity: Boolean) extends SimpleExpression {
-    val containsFormulas: Boolean = typ == Formula
+  case class SimpleConstant(id: Identifier, sort: Sort, polarity: Boolean) extends SimpleExpression {
+    val containsFormulas: Boolean = sort == Formula
     val size = 1
   }
   case class SimpleApplication(f: SimpleExpression, arg: SimpleExpression, polarity: Boolean) extends SimpleExpression {
-    private val legalapp = legalApplication(f.typ, arg.typ) // Optimize after debugging
-    val typ = legalapp.get
-    val containsFormulas: Boolean = typ == Formula || f.containsFormulas || arg.containsFormulas
+    private val legalapp = legalApplication(f.sort, arg.sort) // Optimize after debugging
+    val sort = legalapp.get
+    val containsFormulas: Boolean = sort == Formula || f.containsFormulas || arg.containsFormulas
     val size = f.size + arg.size
   }
   case class SimpleLambda(v: Variable, body: SimpleExpression) extends SimpleExpression {
     val containsFormulas: Boolean = body.containsFormulas
-    val typ = (v.typ -> body.typ)
+    val sort = (v.sort -> body.sort)
     val size = body.size
   }
   case class SimpleAnd(children: Seq[SimpleExpression], polarity: Boolean) extends SimpleExpression{
     val containsFormulas: Boolean = true
-    val typ = Formula
+    val sort = Formula
     val size = children.map(_.size).sum+1
   }
   case class SimpleForall(id: Identifier, body: SimpleExpression, polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = true
-    val typ = Formula
+    val sort = Formula
     val size = body.size +1
   }
   case class SimpleLiteral(polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = true
-    val typ = Formula
+    val sort = Formula
     val size = 1
   }
   case class SimpleEquality(left: SimpleExpression, right: SimpleExpression, polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = true
-    val typ = Formula
+    val sort = Formula
     val size = left.size + right.size + 1
   }
 
@@ -158,10 +158,10 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case e: SimpleForall => e.copy(polarity = !e.polarity)
         case e: SimpleLiteral => e.copy(polarity = !e.polarity)
         case e: SimpleEquality => e.copy(polarity = !e.polarity)
-        case e: SimpleVariable if e.typ == Formula => e.copy(polarity = !e.polarity)
-        case e: SimpleBoundVariable if e.typ == Formula => e.copy(polarity = !e.polarity)
-        case e: SimpleConstant if e.typ == Formula => e.copy(polarity = !e.polarity)
-        case e: SimpleApplication if e.typ == Formula => e.copy(polarity = !e.polarity)
+        case e: SimpleVariable if e.sort == Formula => e.copy(polarity = !e.polarity)
+        case e: SimpleBoundVariable if e.sort == Formula => e.copy(polarity = !e.polarity)
+        case e: SimpleConstant if e.sort == Formula => e.copy(polarity = !e.polarity)
+        case e: SimpleApplication if e.sort == Formula => e.copy(polarity = !e.polarity)
         case _ => throw new Exception("Cannot invert expression that is not a formula")
       }
       e.inverse = Some(inverse)
@@ -183,9 +183,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           val f = equality(toExpressionAIG(left))(toExpressionAIG(right))
           if (polarity) f else neg(f)
         case SimpleLiteral(polarity) => if (polarity) top else bot
-        case SimpleVariable(id, typ, polarity) => if (polarity) Variable(id, typ) else neg(Variable(id, typ))
-        case SimpleBoundVariable(no, typ, polarity) => throw new Exception("This case should be unreachable. Can't call toFormulaAIG on a bound variable")
-        case SimpleConstant(id, typ, polarity) => if (polarity) Constant(id, typ) else neg(Constant(id, typ))
+        case SimpleVariable(id, sort, polarity) => if (polarity) Variable(id, sort) else neg(Variable(id, sort))
+        case SimpleBoundVariable(no, sort, polarity) => throw new Exception("This case should be unreachable. Can't call toFormulaAIG on a bound variable")
+        case SimpleConstant(id, sort, polarity) => if (polarity) Constant(id, sort) else neg(Constant(id, sort))
         case SimpleApplication(f, arg, polarity) => 
           val g = Application(toExpressionAIG(f), toExpressionAIG(arg))
           if (polarity) 
@@ -225,13 +225,13 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
       case SimpleLiteral(polarity) => 
         if (positive == polarity) top
         else bot
-      case SimpleVariable(id, typ, polarity) => 
-        if (polarity == positive) Variable(id, typ)
-        else neg(Variable(id, typ))
-      case SimpleBoundVariable(no, typ, polarity) => throw new Exception("This case should be unreachable. Can't call toExpressionNNF on a bound variable")
-      case SimpleConstant(id, typ, polarity) => 
-        if (polarity == positive) Constant(id, typ)
-        else neg(Constant(id, typ))
+      case SimpleVariable(id, sort, polarity) => 
+        if (polarity == positive) Variable(id, sort)
+        else neg(Variable(id, sort))
+      case SimpleBoundVariable(no, sort, polarity) => throw new Exception("This case should be unreachable. Can't call toExpressionNNF on a bound variable")
+      case SimpleConstant(id, sort, polarity) => 
+        if (polarity == positive) Constant(id, sort)
+        else neg(Constant(id, sort))
       case SimpleApplication(f, arg, polarity) => 
         if (polarity == positive)
           Application(toExpressionNNF(f, true), toExpressionNNF(arg, true))
@@ -274,37 +274,37 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     case Lambda(v, body) => SimpleLambda(v, polarize(body, true))
     case Constant(`top`, Formula) => SimpleLiteral(true)
     case Constant(`bot`, Formula) => SimpleLiteral(false)
-    case Constant(id, typ) => SimpleConstant(id, typ, polarity)
-    case Variable(id, typ) => SimpleVariable(id, typ, polarity)
+    case Constant(id, sort) => SimpleConstant(id, sort, polarity)
+    case Variable(id, sort) => SimpleVariable(id, sort, polarity)
   }
 
-  def toLocallyNameless(e: SimpleExpression, subst: Map[(Identifier, Type), Int], i: Int): SimpleExpression = e match {
+  def toLocallyNameless(e: SimpleExpression, subst: Map[(Identifier, Sort), Int], i: Int): SimpleExpression = e match {
     case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless(_, subst, i)), polarity)
     case SimpleForall(x, inner, polarity) => SimpleForall(x, toLocallyNameless(inner, subst + ((x, Term) -> i), i + 1), polarity)
     case e: SimpleLiteral => e
     case SimpleEquality(left, right, polarity) => SimpleEquality(toLocallyNameless(left, subst, i), toLocallyNameless(right, subst, i), polarity)
     case v: SimpleVariable => 
-      if (subst.contains((v.id, v.typ))) SimpleBoundVariable(i - subst((v.id, v.typ)), v.typ, v.polarity)
+      if (subst.contains((v.id, v.sort))) SimpleBoundVariable(i - subst((v.id, v.sort)), v.sort, v.polarity)
       else v
     case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
     case e: SimpleConstant => e
     case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless(arg1, subst, i), toLocallyNameless(arg2, subst, i), polarity)
-    case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless(inner, subst + ((x.id, x.typ) -> i), i + 1))
+    case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless(inner, subst + ((x.id, x.sort) -> i), i + 1))
   }
 
-  def fromLocallyNameless(e: SimpleExpression, subst: Map[Int, (Identifier, Type)], i: Int): SimpleExpression = e match {
+  def fromLocallyNameless(e: SimpleExpression, subst: Map[Int, (Identifier, Sort)], i: Int): SimpleExpression = e match {
     case SimpleAnd(children, polarity) => SimpleAnd(children.map(fromLocallyNameless(_, subst, i)), polarity)
     case SimpleForall(x, inner, polarity) => SimpleForall(x, fromLocallyNameless(inner, subst + (i -> (x, Term)), i + 1), polarity)
     case e: SimpleLiteral => e
     case SimpleEquality(left, right, polarity) => SimpleEquality(fromLocallyNameless(left, subst, i), fromLocallyNameless(right, subst, i), polarity)
-    case SimpleBoundVariable(no, typ, polarity) => 
+    case SimpleBoundVariable(no, sort, polarity) => 
       val dist = i - no
-      if (subst.contains(dist)) {val (id, typ) = subst(dist); SimpleVariable(id, typ, polarity)}
+      if (subst.contains(dist)) {val (id, sort) = subst(dist); SimpleVariable(id, sort, polarity)}
       else throw new Exception("This case should be unreachable, error")
     case v: SimpleVariable => v
     case e: SimpleConstant => e
     case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(fromLocallyNameless(arg1, subst, i), fromLocallyNameless(arg2, subst, i), polarity)
-    case SimpleLambda(x, inner) => SimpleLambda(x, fromLocallyNameless(inner, subst + (i -> (x.id, x.typ)), i + 1))
+    case SimpleLambda(x, inner) => SimpleLambda(x, fromLocallyNameless(inner, subst + (i -> (x.id, x.sort)), i + 1))
   }
 
   def simplify(e: Expression): SimpleExpression = toLocallyNameless(polarize(e, true), Map.empty, 0)
@@ -330,11 +330,11 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
           case SimpleApplication(f, arg, true) => SimpleApplication(computeNormalForm(f), computeNormalForm(arg), true)
 
-          case SimpleBoundVariable(no, typ, true) => e
+          case SimpleBoundVariable(no, sort, true) => e
 
-          case SimpleVariable(id, typ, true) => e
+          case SimpleVariable(id, sort, true) => e
 
-          case SimpleConstant(id, typ, true) => e
+          case SimpleConstant(id, sort, true) => e
 
           case SimpleEquality(left, right, true) => 
             val l = computeNormalForm(left)
@@ -419,7 +419,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
   
   def latticesLEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean = {
-    require(e1.typ == Formula && e2.typ == Formula)
+    require(e1.sort == Formula && e2.sort == Formula)
     if (e1.uniqueKey == e2.uniqueKey) true
     else
       e1.lessThanCached(e2) match {
@@ -470,7 +470,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   def latticesEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean = 
     if (e1.uniqueKey == e2.uniqueKey) true
     else if (e1.containsFormulas && e2.containsFormulas) {
-      if (e1.typ == Formula) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
+      if (e1.sort == Formula) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
       else (e1, e2) match {
         case (s1: SimpleBoundVariable, s2: SimpleBoundVariable) => s1 == s2
         case (s1: SimpleVariable, s2: SimpleVariable) => s1 == s2

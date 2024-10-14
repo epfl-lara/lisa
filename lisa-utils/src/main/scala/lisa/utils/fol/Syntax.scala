@@ -10,210 +10,224 @@ import scala.annotation.showAsInfix
 import scala.annotation.targetName
 
 trait Syntax {
+
+  type IsSort[T] = Sort{type Self = T}
   
 
+  trait T
+  trait F
+  trait Arrow[A: Sort, B: Sort]
 
-
-
-
-
-
-  object First {
-    trait T
-    trait F
-    trait Arrow[A: Type, B: Type]
-
-    trait Type {
-      type Self
-      val underlying: K.Type
-    }
-    given given_TermType:  (Type{type Self = T}) with
-      val underlying = K.Term
-    given given_FormulaType: (Type{type Self = F}) with
-      val underlying = K.Formula
-    given given_ArrowType[A : Type, B : Type]: (Type{type Self = Arrow[A, B]}) with
-      val underlying = K.Arrow(summon[Type{type Self = A}].underlying, summon[Type{type Self = B}].underlying)
-
-    class SubstPair[T: Type] private (val _1: Var[T], val _2: Expr[T]) {
-      // def toTuple = (_1, _2)
-    }
-    object SubstPair {
-      def apply[T : Type](_1: Var[T], _2: Expr[T]) = new SubstPair(_1, _2)
-    }
-
-    given [T: Type]: Conversion[(Var[T], Expr[T]), SubstPair[T]] = s => SubstPair(s._1, s._2)
-
-
-    trait Expr[S : Type] {
-      val typ: K.Type = summon[Type{type Self = S}].underlying
-      def underlying: K.Expression
-      def substUnsafe(m: Map[Var[?], Expr[?]]): Expr[S]
-      def substituteWithCheck(m: Map[Var[?], Expr[?]]): Expr[S] = {
-        if m.forall((k, v) => k.typ == v.typ) then
-          substUnsafe(m)
-        else 
-          val culprit = m.find((k, v) => k.typ != v.typ).get
-          throw new IllegalArgumentException("Type mismatch in substitution: " + culprit._1 + " -> " + culprit._2)
-      }
-      def substitute(pairs: SubstPair[?]*): Expr[S] = 
-        substituteWithCheck(pairs.view.map(s => (s._1, s._2)).toMap)
-
-      def freeVars: Set[Var[?]] 
-      def freeTermVars: Set[Var[T]]
-    }
-
-
-    type Formula = Expr[F]
-    type Term = Expr[T]
-
-    case class Var[S : Type](id: K.Identifier) extends Expr[S] {
-      val underlying: K.Variable = K.Variable(id, typ)
-      def substUnsafe(m: Map[Var[?], Expr[?]]): Expr[S] = m.getOrElse(this, this).asInstanceOf[Expr[S]]
-      def freeVars: Set[Var[?]] = Set(this)
-      def freeTermVars: Set[Var[T]] = if typ == K.Term then Set(this.asInstanceOf) else Set.empty
-      def rename(newId: K.Identifier): Var[S] = Var(newId)
-      def freshRename(existing: Iterable[Expr[?]]): Var[S] = {
-        val newId = K.freshId(existing.flatMap(_.freeVars.map(_.id)), id)
-        Var(newId)
-      }
-
-      def :=(replacement: Expr[S]) = SubstPair(this, replacement)
-    }
-    case class Cst[S : Type](id: K.Identifier) extends Expr[S] {
-      val underlying: K.Constant = K.Constant(id, typ)
-      def substUnsafe(m: Map[Var[?], Expr[?]]): Cst[S] = this
-      def freeVars: Set[Var[?]] = Set.empty
-      def freeTermVars: Set[Var[T]] = Set.empty
-      def rename(newId: K.Identifier): Cst[S] = Cst(newId)
-    }
-    case class App[T1 : Type, T2 : Type](f: Expr[Arrow[T1, T2]], arg: Expr[T1]) extends Expr[T2] {
-      val underlying: K.Application = K.Application(f.underlying, arg.underlying)
-      def substUnsafe(m: Map[Var[?], Expr[?]]): App[T1, T2] = App(f.substUnsafe(m), arg.substUnsafe(m))
-      def freeVars: Set[Var[?]] = f.freeVars ++ arg.freeVars
-      def freeTermVars: Set[Var[T]] = f.freeTermVars ++ arg.freeTermVars
-    }
-    case class Abs[T1 : Type, T2 : Type](v: Var[T1], body: Expr[T2]) extends Expr[Arrow[T1, T2]] {
-      val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
-      def substUnsafe(m: Map[Var[?], Expr[?]]): Abs[T1, T2] = Abs(v, body.substUnsafe(m - v))
-      def freeVars: Set[Var[?]] = body.freeVars - v
-      def freeTermVars: Set[Var[T]] = body.freeTermVars.filterNot(_ == v)
-    }
-
-    extension [T1 : Type, T2 : Type](f: Expr[Arrow[T1, T2]]) {
-      def apply(arg: Expr[T1]): Expr[T2] = App(f, arg)
-    }
-
-
-    val x = Var[T]("x")
-    val y: Expr[F] = Var("x")
-    val z: Expr[Arrow[T, F]] = Var("x")
-    z(x)
-
-
+  type Formula = Expr[F]
+  type Term = Expr[T]
     @showAsInfix
-    infix type |->[I, O] = (I, O) match {
-      case (Expr[T], Expr[F]) => Expr[Arrow[T, F]]
-    }
+  infix type >>:[I, O] = (I, O) match {
+    case (Expr[a], Expr[b]) => Expr[Arrow[a, b]]
+  }
+  type SortOf[T] = T match {
+    case Expr[t] => t
   }
 
-  object FirstTest {
-    import First._
+  trait Sort {
+    type Self
+    val underlying: K.Sort
+  }
+  given given_TermType:  IsSort[T] with
+    val underlying = K.Term
+  given given_FormulaType: IsSort[F] with
+    val underlying = K.Formula
+  given given_ArrowType[A : Sort as ta, B : Sort as tb]: (IsSort[Arrow[A, B]]) with
+    val underlying = K.Arrow(ta.underlying, tb.underlying)
 
-    val x1: Term = Var("x")
-    val y1: Formula	= Var("y")
-    val z1: (Term |-> Formula) = Var("z")
+  class SubstPair[T: Sort] private (val _1: Var[T], val _2: Expr[T])
+  object SubstPair {
+    def apply[T : Sort](_1: Var[T], _2: Expr[T]) = new SubstPair(_1, _2)
+  }
+
+  given [T: Sort]: Conversion[(Var[T], Expr[T]), SubstPair[T]] = s => SubstPair(s._1, s._2)
+
+
+  trait LisaObject {
+    def substituteUnsafe(m: Map[Var[?], Expr[?]]): LisaObject
+    def substituteWithCheck(m: Map[Var[?], Expr[?]]): LisaObject = {
+      if m.forall((k, v) => k.sort == v.sort) then
+        substituteUnsafe(m)
+      else 
+        val culprit = m.find((k, v) => k.sort != v.sort).get
+        throw new IllegalArgumentException("Sort mismatch in substitution: " + culprit._1 + " -> " + culprit._2)
+    }
+    def substitute(pairs: SubstPair[?]*): LisaObject = 
+      substituteWithCheck(pairs.view.map(s => (s._1, s._2)).toMap)
+
+    def freeVars: Set[Var[?]] 
+    def freeTermVars: Set[Var[T]]
+    def constants: Set[Cst[?]]
+  }
+  trait Expr[S: Sort] extends LisaObject {
+    val sort: K.Sort = summon[IsSort[S]].underlying
+    private val arity = K.flatTypeParameters(sort).size
+    def underlying: K.Expression
+
+    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Expr[S]
+    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Expr[S] =
+      super.substituteWithCheck(m).asInstanceOf[Expr[S]]
+    override def substitute(pairs: SubstPair[?]*): LisaObject = 
+      super.substitute(pairs: _*).asInstanceOf[Expr[S]]
+
+    def unapply[T1, T2](e: Expr[Arrow[T1, T2]]): Option[Expr[T1]] = e match {
+      case App[T1, T2](f, arg) if f == this => Some(arg)
+      case _ => None
+    }
+    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.map(a => s"(${a})")})"
+    final def defaultMkStringSeparated(args: Seq[Expr[?]]): String = s"(${defaultMkString(args)})"
+    var mkString: Seq[Expr[?]] => String = defaultMkString
+    var mkStringSeparated: Seq[Expr[?]] => String = defaultMkStringSeparated
+  }
+  
+  class Multiapp(f: Expr[?]):
+    def unapply (e: Expr[?]): Option[Seq[Expr[?]]] = 
+      def inner(e: Expr[?]): Option[List[Expr[?]]] = e match
+        case App(f2, arg) if f == f2 => Some(List(arg))
+        case App(f2, arg) => inner(f2).map(arg :: _)
+        case _ => None
+      inner(e).map(_.reverse)
+    
+  
+
+  def unfoldAllApp(e:Expr[?]): (Expr[?], List[Expr[?]]) = e match
+    case App(f, arg) =>
+      val (f1, args) = unfoldAllApp(f)
+      (f1, arg :: args )
+    case _ => (e, Nil)
+
+
+
+
+  case class Var[S : Sort](id: K.Identifier) extends Expr[S] {
+    val underlying: K.Variable = K.Variable(id, sort)
+    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Expr[S] = m.getOrElse(this, this).asInstanceOf[Expr[S]]
+    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Expr[S] =
+      super.substituteWithCheck(m).asInstanceOf[Expr[S]]
+    override def substitute(pairs: SubstPair[?]*): Expr[S] = 
+      super.substitute(pairs: _*).asInstanceOf[Expr[S]]
+    def freeVars: Set[Var[?]] = Set(this)
+    def freeTermVars: Set[Var[T]] = if sort == K.Term then Set(this.asInstanceOf) else Set.empty
+    def constants: Set[Cst[?]] = Set.empty
+    def rename(newId: K.Identifier): Var[S] = Var(newId)
+    def freshRename(existing: Iterable[Expr[?]]): Var[S] = {
+      val newId = K.freshId(existing.flatMap(_.freeVars.map(_.id)), id)
+      Var(newId)
+    }
+    override def toString(): String = id.toString
+    def :=(replacement: Expr[S]) = SubstPair(this, replacement)
+  }
+
+  object Var {
+    def apply(id: String, sort: K.Sort): Var[?] = Var(id)(using new Sort { type Self = T; val underlying = sort })
+  }
+
+
+  case class Cst[S : Sort](id: K.Identifier) extends Expr[S] {
+    private var infix: Boolean = false
+    def setInfix(): Unit = infix = true
+    val underlying: K.Constant = K.Constant(id, sort)
+    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Cst[S] = this
+    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Expr[S] =
+      super.substituteWithCheck(m).asInstanceOf[Cst[S]]
+    override def substitute(pairs: SubstPair[?]*): Cst[S] = 
+      super.substitute(pairs: _*).asInstanceOf[Cst[S]]
+    def freeVars: Set[Var[?]] = Set.empty
+    def freeTermVars: Set[Var[T]] = Set.empty
+    def constants: Set[Cst[?]] = Set(this)
+    def rename(newId: K.Identifier): Cst[S] = Cst(newId)
+    override def toString(): String = id.toString
+    mkString = (args: Seq[Expr[?]]) => 
+      if infix && args.size == 2 then 
+        s"${args(0)} $this ${args(1)}"
+      else if infix & args.size > 2 then
+        s"(${args(0)} $this ${args(1)})${args.drop(2).map(_.mkStringSeparated).mkString})"
+      else 
+        defaultMkString(args)
+    mkStringSeparated = (args: Seq[Expr[?]]) => 
+      if infix && args.size == 2 then 
+        s"${args(0)} $this ${args(1)}"
+      else if infix & args.size > 2 then
+        s"(${args(0)} $this ${args(1)})${args.drop(2).map(_.mkStringSeparated).mkString})"
+      else 
+        defaultMkStringSeparated(args)
+  }
+
+  object Cst {
+    def apply(id: String, sort: K.Sort): Cst[?] = Cst(id)(using new Sort { type Self = T; val underlying = sort })
+  }
+
+  class Binder[T1: Sort, T2: Sort, T3: Sort](id: K.Identifier) extends Cst[Arrow[Arrow[T1, T2], T3]](id) {
+    def apply(v1: Var[T1], e: Expr[T2]): App[Arrow[T1, T2], T3] = App(this, Abs(v1, e))
+    mkString = (args: Seq[Expr[?]]) =>
+      if args.size == 0 then toString
+      else args(0) match {
+        case Abs(v, e) => s"$id($v, $e)${args.drop(1).map(_.mkStringSeparated).mkString}"
+        case _ => defaultMkString(args)
+      }
+    mkStringSeparated = (args: Seq[Expr[?]]) =>
+      args match {
+        case Seq(Abs(v, e)) => s"($id($v, $e))"
+        case _ => defaultMkStringSeparated(args)
+      }
+  }
+
+
+  case class App[T1 : Sort, T2 : Sort](f: Expr[Arrow[T1, T2]], arg: Expr[T1]) extends Expr[T2] {
+    val underlying: K.Application = K.Application(f.underlying, arg.underlying)
+    def substituteUnsafe(m: Map[Var[?], Expr[?]]): App[T1, T2] = App[T1, T2](f.substituteUnsafe(m), arg.substituteUnsafe(m))
+    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): App[T1, T2] =
+      super.substituteWithCheck(m).asInstanceOf[App[T1, T2]]
+    override def substitute(pairs: SubstPair[?]*): App[T1, T2] = 
+      super.substitute(pairs: _*).asInstanceOf[App[T1, T2]]
+    def freeVars: Set[Var[?]] = f.freeVars ++ arg.freeVars
+    def freeTermVars: Set[Var[T]] = f.freeTermVars ++ arg.freeTermVars
+    def constants: Set[Cst[?]] = f.constants ++ arg.constants
+    override def toString(): String = 
+      val (f, args) = unfoldAllApp(this)
+      f.mkString(args)
+  }
+
+  object App {
+    def apply(f: Expr[?], arg: Expr[?]): Expr[?] = 
+      val rsort = K.legalApplication(f.sort, arg.sort)
+      rsort match 
+        case Some(to) => 
+          App(f.asInstanceOf, arg.asInstanceOf)(using new Sort { type Self = T; val underlying = to }, new Sort { type Self = T; val underlying = to })
+        case None => throw new IllegalArgumentException(s"Cannot apply $f of sort ${f.sort} to $arg of sort ${arg.sort}")
+  }
+
+
+  case class Abs[T1 : Sort, T2 : Sort](v: Var[T1], body: Expr[T2]) extends Expr[Arrow[T1, T2]] {
+    val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
+    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Abs[T1, T2] = Abs(v, body.substituteUnsafe(m - v))
+    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Abs[T1, T2] =
+      super.substituteWithCheck(m).asInstanceOf[Abs[T1, T2]]
+    override def substitute(pairs: SubstPair[?]*): Abs[T1, T2] = 
+      super.substitute(pairs: _*).asInstanceOf[Abs[T1, T2]]
+    def freeVars: Set[Var[?]] = body.freeVars - v
+    def freeTermVars: Set[Var[T]] = body.freeTermVars.filterNot(_ == v)
+    def constants: Set[Cst[?]] = body.constants
+    override def toString(): String = s"Abs($v, $body)"
+  }
+
+
+  extension [T1, T2](f: Expr[Arrow[T1, T2]]) {
+    def apply(using IsSort[T1], IsSort[T2])(arg: Expr[T1]): Expr[T2] = App(f, arg)
   }
 
 
 
 
-  object Third {
-    trait Expr {
-      val typ: K.Type
-    }
+  private val x = Var[T]("x")
+  private val y = Var[F]("x")
+  private val z: Expr[Arrow[T, F]] = Var("x")
+  z(x)
 
-
-    opaque type Term <: Expr = Expr
-    opaque type Formula <: Expr = Expr
-    opaque type |->[A, B] <: Expr = Expr
-
-    sealed trait Type {
-      type Self <: Expr 
-      val underlying: K.Type
-      val isExpr: (Expr =:= Self)
-    }
-    given (Term is Type) with
-      val underlying = K.Term
-      val isExpr = summon[Expr =:= Term]
-    given (Formula is Type) with
-      val underlying = K.Formula
-      val isExpr = summon[Expr =:= Formula]
-    given [A : Type, B : Type]: ((|->[A, B]) is Type) with
-      val underlying = K.Arrow(summon[Type{type Self = A}].underlying, summon[Type{type Self = B}].underlying)
-      val isExpr = summon[Expr =:= |->[A, B]]
-
-
-    case class Var(id: K.Identifier, typ: K.Type) extends Expr
-    object Var {
-      def apply[T: Type](id: String): Var & T = 
-        val evT = summon[Type{type Self = T}]
-        (new Var(id, evT.underlying)).asInstanceOf
-    }
-    case class Cst(id: K.Identifier, typ: K.Type) extends Expr
-    case class App(f: Expr, arg: Expr, typ: K.Type) extends Expr
-    case class Abs(v: Var, body: Expr, typ: K.Type) extends Expr
-
-  }
-
-
-  object Fourth {
-
-    trait Expr[T <: Expr[T]] {
-      val typ: K.Type
-    }
-
-    /*
-    opaque type Term <: Expr[?] = Expr[?]
-    opaque type Formula <: Expr[?] = Expr[?]
-    opaque type |->[A, B] <: Expr[?] = Expr[?]
-*/
-
-    sealed trait Term extends Expr[Term] {
-    }
-    sealed trait Formula extends Expr[Formula] {
-    }
-    sealed trait |->[A, B] extends Expr[|->[A, B]] {
-    }
-
-    sealed trait Type {
-      type Self <: Expr[?]
-      val underlying: K.Type
-    }
-    given (Term is Type) with
-      val underlying = K.Term
-    given (Formula is Type) with
-      val underlying = K.Formula
-    given [A : Type, B : Type]: ((|->[A, B]) is Type) with
-      val underlying = K.Arrow(summon[Type{type Self = A}].underlying, summon[Type{type Self = B}].underlying)
-
-    case class Var[T<: Expr[T]](id: K.Identifier, typ: K.Type) extends Expr[T]
-    object Var {
-      def apply[T <: Expr[T] : Type](id: String): Var[T] = 
-        val evT = summon[Type{type Self = T}]
-        (new Var(id, evT.underlying)).asInstanceOf
-    }
-
-
-
-  }
-
-  object FourthTest {
-    import Fourth._
-
-    val x: Var[Term] = Var("x")
-    val y: Var[Formula] = Var("y")
-    val z: Var[ |->[Term, Formula]] = Var("z")
-  }
 
 
 }

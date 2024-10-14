@@ -51,8 +51,8 @@ object SCProofChecker {
            *   Γ, φ |- φ, Δ
            */
           case Hypothesis(Sequent(left, right), phi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
             else if (contains(left, phi))
               if (contains(right, phi)) SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Right-hand side does not contain formula φ")
@@ -64,8 +64,8 @@ object SCProofChecker {
            *       Γ, Σ |- Δ, Π
            */
           case Cut(b, t1, t2, phi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
             else if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left) && (!contains(ref(t1).left, phi) || contains(b.left, phi)))
               if (isSameSet(b.right + phi, ref(t2).right union ref(t1).right) && (!contains(ref(t2).right, phi) || contains(b.right, phi)))
                 if (contains(ref(t2).left, phi))
@@ -83,10 +83,10 @@ object SCProofChecker {
            *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
            */
           case LeftAnd(b, t1, phi, psi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (psi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
             else if (isSameSet(ref(t1).right, b.right)) {
               val phiAndPsi = and(phi)(psi)
               if (
@@ -103,9 +103,9 @@ object SCProofChecker {
            *    Γ, Σ, φ∨ψ |- Δ, Π
            */
           case LeftOr(b, t, disjuncts) =>
-            if (disjuncts.exists(phi => phi.typ != Formula)){
-              val culprit = disjuncts.find(phi => phi.typ != Formula).get
-              SCInvalidProof(SCProof(step), Nil, "all φs must be a formula, but " + culprit + " is a " + culprit.typ)
+            if (disjuncts.exists(phi => phi.sort != Formula)){
+              val culprit = disjuncts.find(phi => phi.sort != Formula).get
+              SCInvalidProof(SCProof(step), Nil, "all φs must be a formula, but " + culprit + " is a " + culprit.sort)
             } else if (isSameSet(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _))) {
               val phiOrPsi = disjuncts.reduceLeft(or(_)(_))
               if (
@@ -121,10 +121,10 @@ object SCProofChecker {
            *    Γ, Σ, φ⇒ψ |- Δ, Π
            */
           case LeftImplies(b, t1, t2, phi, psi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (psi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
             else {
               val phiImpPsi = implies(phi)(psi)
               if (isSameSet(b.right + phi, ref(t1).right union ref(t2).right))
@@ -139,10 +139,10 @@ object SCProofChecker {
            *  Γ, φ⇔ψ |- Δ              Γ, φ⇔ψ |- Δ
            */
           case LeftIff(b, t1, phi, psi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (psi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
             else {
               val phiImpPsi = implies(phi)(psi)
               val psiImpPhi = implies(psi)(phi)
@@ -164,8 +164,8 @@ object SCProofChecker {
            *   Γ, ¬φ |- Δ
            */
           case LeftNot(b, t1, phi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
             else {
               val nPhi = neg(phi)
               if (isSameSet(b.left, ref(t1).left + nPhi))
@@ -181,12 +181,12 @@ object SCProofChecker {
            *  Γ, ∀x. φ |- Δ
            */
           case LeftForall(b, t1, phi, x, t) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (x.typ != Term) 
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.typ)
-            else if (t.typ != Term) 
-              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Term) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+            else if (t.sort != Term) 
+              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
             else if (isSameSet(b.right, ref(t1).right))
               if (isSameSet(b.left + substituteVariables(phi, Map(x -> t)), ref(t1).left + forall(Lambda(x, phi))))
                 SCValidProof(SCProof(step))
@@ -199,10 +199,10 @@ object SCProofChecker {
            *  Γ, ∃x. φ|- Δ
            */
           case LeftExists(b, t1, phi, x) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (x.typ != Term) 
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Term) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
             else if (isSameSet(b.right, ref(t1).right))
               if (isSameSet(b.left + phi, ref(t1).left + exists(Lambda(x, phi))))
                 if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
@@ -218,9 +218,9 @@ object SCProofChecker {
            *    Γ, Σ |- φ∧ψ, Π, Δ
            */
           case RightAnd(b, t, cunjuncts) =>
-            if (cunjuncts.exists(phi => phi.typ != Formula)){
-              val culprit = cunjuncts.find(phi => phi.typ != Formula).get
-              SCInvalidProof(SCProof(step), Nil, "all φs must be a formula, but " + culprit + " is a " + culprit.typ)
+            if (cunjuncts.exists(phi => phi.sort != Formula)){
+              val culprit = cunjuncts.find(phi => phi.sort != Formula).get
+              SCInvalidProof(SCProof(step), Nil, "all φs must be a formula, but " + culprit + " is a " + culprit.sort)
             } else {
               val phiAndPsi = cunjuncts.reduce(and(_)(_))
               if (isSameSet(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _)))
@@ -239,10 +239,10 @@ object SCProofChecker {
            *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
            */
           case RightOr(b, t1, phi, psi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (psi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
             else {
               val phiOrPsi = or(phi)(psi)
               if (isSameSet(ref(t1).left, b.left))
@@ -261,10 +261,10 @@ object SCProofChecker {
            *  Γ |- φ⇒ψ, Δ
            */
           case RightImplies(b, t1, phi, psi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (psi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
             else {
               val phiImpPsi = implies(phi)(psi)
               if (isSameSet(ref(t1).left, b.left + phi))
@@ -279,10 +279,10 @@ object SCProofChecker {
            *      Γ, Σ |- φ⇔ψ, Π, Δ
            */
           case RightIff(b, t1, t2, phi, psi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (psi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
             else {
               val phiImpPsi = implies(phi)(psi)
               val psiImpPhi = implies(psi)(phi)
@@ -303,8 +303,8 @@ object SCProofChecker {
            *   Γ |- ¬φ, Δ
            */
           case RightNot(b, t1, phi) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
             else {
               val nPhi = neg(phi)
               if (isSameSet(b.right, ref(t1).right + nPhi))
@@ -319,10 +319,10 @@ object SCProofChecker {
            *  Γ |- ∀x. φ, Δ
            */
           case RightForall(b, t1, phi, x) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (x.typ != Term) 
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Term) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
             else if (isSameSet(b.left, ref(t1).left))
               if (isSameSet(b.right + phi, ref(t1).right + forall(Lambda(x, phi))))
                 if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
@@ -336,12 +336,12 @@ object SCProofChecker {
            *  Γ |- ∃x. φ, Δ
            */
           case RightExists(b, t1, phi, x, t) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (x.typ != Term) 
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.typ)
-            else if (t.typ != Term) 
-              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Term) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+            else if (t.sort != Term) 
+              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
             else if (isSameSet(b.left, ref(t1).left))
               if (isSameSet(b.right + substituteVariables(phi, Map(x -> t)), ref(t1).right + exists(Lambda(x, phi))))
                 SCValidProof(SCProof(step))
@@ -356,12 +356,12 @@ object SCProofChecker {
            * </pre>
            */
           case RightEpsilon(b, t1, phi, x, t) =>
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (x.typ != Term) 
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.typ)
-            else if (t.typ != Term) 
-              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Term) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+            else if (t.sort != Term) 
+              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
             else if (isSameSet(b.left, ref(t1).left)) {
               val expected_top = substituteVariables(phi, Map(x -> t))
               val expected_bot = substituteVariables(phi, Map(x -> epsilon(Lambda(x, phi))))
@@ -391,12 +391,12 @@ object SCProofChecker {
            */
           case LeftBeta(b, t1, phi, lambda, t, x) => 
             val Lambda(y, e) = lambda
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (y.typ != t.typ) 
-              SCInvalidProof(SCProof(step), Nil, "t must have the same type as y, but they are " + t.typ + " and " + y.typ)
-            else if (e.typ != x.typ) 
-              SCInvalidProof(SCProof(step), Nil, "e must have the same type as x, but they are " + e.typ + " and " + x.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (y.sort != t.sort) 
+              SCInvalidProof(SCProof(step), Nil, "t must have the same type as y, but they are " + t.sort + " and " + y.sort)
+            else if (e.sort != x.sort) 
+              SCInvalidProof(SCProof(step), Nil, "e must have the same type as x, but they are " + e.sort + " and " + x.sort)
             else if (isSameSet(b.left, ref(t1).left)) {
               val redex = lambda(t)
               val normalized = substituteVariables(e, Map(y -> t))
@@ -417,12 +417,12 @@ object SCProofChecker {
            */
           case RightBeta(b, t1, phi, lambda, t, x) => 
             val Lambda(y, e) = lambda
-            if (phi.typ != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.typ)
-            else if (y.typ != t.typ) 
-              SCInvalidProof(SCProof(step), Nil, "t must have the same type as y, but they are " + t.typ + " and " + y.typ)
-            else if (e.typ != x.typ) 
-              SCInvalidProof(SCProof(step), Nil, "e must have the same type as x, but they are " + e.typ + " and " + x.typ)
+            if (phi.sort != Formula) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (y.sort != t.sort) 
+              SCInvalidProof(SCProof(step), Nil, "t must have the same type as y, but they are " + t.sort + " and " + y.sort)
+            else if (e.sort != x.sort) 
+              SCInvalidProof(SCProof(step), Nil, "e must have the same type as x, but they are " + e.sort + " and " + x.sort)
             else if (isSameSet(b.right, ref(t1).right)) {
               val redex = lambda(t)
               val normalized = substituteVariables(e, Map(y -> t))
@@ -476,9 +476,9 @@ object SCProofChecker {
            */
           case LeftSubstEq(b, t1, t2, s, t, vars, lambdaPhi) =>
             val (phi_arg, phi_body) = lambdaPhi
-            if (s.typ != phi_arg.typ || t.typ != phi_arg.typ) 
+            if (s.sort != phi_arg.sort || t.sort != phi_arg.sort) 
               SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of s and t.")
-            else if (!s.typ.isFunctional) 
+            else if (!s.sort.isFunctional) 
               SCInvalidProof(SCProof(step), Nil, "Can only substitute function-like terms (with type _ -> ... -> _ -> Term)")
             else {
               val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> s))
@@ -518,9 +518,9 @@ object SCProofChecker {
            */
           case RightSubstEq(b, t1, t2, s, t, vars, lambdaPhi) =>
             val (phi_arg, phi_body) = lambdaPhi
-            if (s.typ != phi_arg.typ || t.typ != phi_arg.typ) 
+            if (s.sort != phi_arg.sort || t.sort != phi_arg.sort) 
               SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of s and t.")
-            else if (!s.typ.isFunctional) 
+            else if (!s.sort.isFunctional) 
               SCInvalidProof(SCProof(step), Nil, "Can only substitute function-like terms (with type _ -> ... -> _ -> Term)")
             else {
               val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> s))
@@ -556,9 +556,9 @@ object SCProofChecker {
            */
           case LeftSubstIff(b, t1, t2, psi, tau, vars, lambdaPhi) =>
             val (phi_arg, phi_body) = lambdaPhi
-            if (psi.typ != phi_arg.typ || tau.typ != phi_arg.typ) 
+            if (psi.sort != phi_arg.sort || tau.sort != phi_arg.sort) 
               SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of ψ and τ.")
-            else if (!psi.typ.isPredicate) 
+            else if (!psi.sort.isPredicate) 
               SCInvalidProof(SCProof(step), Nil, "Can only substitute predicate-like terms (with type Term -> ... -> Term -> Formula)")
             else {
               val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> psi))
@@ -598,9 +598,9 @@ object SCProofChecker {
            */
           case RightSubstIff(b, t1, t2, psi, tau, vars, lambdaPhi) =>
             val (phi_arg, phi_body) = lambdaPhi
-            if (psi.typ != phi_arg.typ || tau.typ != phi_arg.typ) 
+            if (psi.sort != phi_arg.sort || tau.sort != phi_arg.sort) 
               SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of ψ and τ.")
-            else if (!psi.typ.isPredicate) 
+            else if (!psi.sort.isPredicate) 
               SCInvalidProof(SCProof(step), Nil, "Can only substitute predicate-like terms (with type Term -> ... -> Term -> Formula)")
             else {
               val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> psi))

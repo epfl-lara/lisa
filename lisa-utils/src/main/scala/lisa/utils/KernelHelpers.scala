@@ -13,8 +13,8 @@ import scala.annotation.targetName
  */
 object KernelHelpers {
 
-  def predicateType(arity: Int) = Range(0, arity).foldLeft(Formula: Type)((acc, _) => Term -> acc)
-  def functionType(arity: Int) = Range(0, arity).foldLeft(Term: Type)((acc, _) => Term -> acc)
+  def predicateType(arity: Int) = Range(0, arity).foldLeft(Formula: Sort)((acc, _) => Term -> acc)
+  def functionType(arity: Int) = Range(0, arity).foldLeft(Term: Sort)((acc, _) => Term -> acc)
 
   /////////////////
   // FOL helpers //
@@ -53,7 +53,7 @@ object KernelHelpers {
     def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
     @targetName("forallUnapply")
     def unapply(e: Expression): Option[(Variable, Expression)] = e match {
-      case forall(Lambda(x, inner)) => Some((x, inner))
+      case Application(forall, Lambda(x, inner)) => Some((x, inner))
       case _ => None
     }
   }
@@ -62,7 +62,7 @@ object KernelHelpers {
     def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
     @targetName("existsUnapply")
     def unapply(e: Expression): Option[(Variable, Expression)] = e match {
-      case exists(Lambda(x, inner)) => Some((x, inner))
+      case Application(exists, Lambda(x, inner)) => Some((x, inner))
       case _ => None
     }
   }
@@ -71,7 +71,7 @@ object KernelHelpers {
     def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
     @targetName("epsilonUnapply")
     def unapply(e: Expression): Option[(Variable, Expression)] = e match {
-      case epsilon(Lambda(x, inner)) => Some((x, inner))
+      case Application(epsilon, Lambda(x, inner)) => Some((x, inner))
       case _ => None
     }
   }
@@ -126,15 +126,15 @@ object KernelHelpers {
       case epsilon(v, inner) => s"(epsilon(${v.repr}, ${inner.repr})"
 
       case Application(f, arg) => s"${f.repr}(${arg.repr})"
-      case Constant(id, typ) => id.toString
+      case Constant(id, sort) => id.toString
       case Lambda(v, body) => s"lambda(${v.repr}, ${body.repr})"
-      case Variable(id, typ) => id.toString
+      case Variable(id, sort) => id.toString
 
     def fullRepr: String = f match
       case Application(f, arg) => s"${f.fullRepr}(${arg.fullRepr})"
-      case Constant(id, typ) => s"cst(${id},${typ})"
+      case Constant(id, sort) => s"cst(${id},${sort})"
       case Lambda(v, body) => s"λ${v.fullRepr}.${body.fullRepr}"
-      case Variable(id, typ) => s"v(${id},${typ})" 
+      case Variable(id, sort) => s"v(${id},${sort})" 
   }
 
   /* Conversions */
@@ -324,14 +324,14 @@ object KernelHelpers {
   def reduceLambda(f: Lambda, t: Expression): Expression = substituteVariables(f.body, Map(f.v -> t))
 
   // declare symbols easily: "val x = variable;"
-  def HOvariable(using name: sourcecode.Name)(typ: Type): Variable = Variable(name.value, typ)
+  def HOvariable(using name: sourcecode.Name)(sort: Sort): Variable = Variable(name.value, sort)
   def variable(using name: sourcecode.Name): Variable = Variable(name.value, Term)
-  def v(id: Identifier, typ:Type): Variable = Variable(id, typ)
-  def function(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Term: Type)((acc, _)=> Term -> acc))
+  def v(id: Identifier, sort:Sort): Variable = Variable(id, sort)
+  def function(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Term: Sort)((acc, _)=> Term -> acc))
   def formulaVariable(using name: sourcecode.Name): Variable = Variable(name.value, Formula)
-  def predicate(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Formula: Type)((acc, _)=> Term -> acc))
-  def connector(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Formula: Type)((acc, _)=> Formula -> acc))
-  def cst(id: Identifier, typ:Type): Constant = Constant(id, typ)
+  def predicate(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Term -> acc))
+  def connector(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Formula -> acc))
+  def cst(id: Identifier, sort:Sort): Constant = Constant(id, sort)
 
   // Conversions from String to Identifier
   class InvalidIdentifierException(identifier: String, errorMessage: String) extends LisaException(errorMessage) {
@@ -404,13 +404,13 @@ object KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check. See also [[lisa.kernel.proof.RunningTheory.makePredicateDefinition]]
      */
     def definition(symbol: String, expression: Expression): RunningTheoryJudgement[theory.Definition] = {
-      val label = Constant(symbol, expression.typ)
+      val label = Constant(symbol, expression.sort)
       val vars = expression.leadingVars()
-      if (vars.length == expression.typ.depth) then
+      if (vars.length == expression.sort.depth) then
         theory.makeDefinition(label, expression, vars)
       else 
         var maxid = expression.maxVarId()-1
-        val newvars = flatTypeParameters(expression.typ).drop(vars.length).map(t => {maxid+=1;Variable(Identifier("x", maxid), t)})
+        val newvars = flatTypeParameters(expression.sort).drop(vars.length).map(t => {maxid+=1;Variable(Identifier("x", maxid), t)})
         theory.makeDefinition(label, expression, vars ++ newvars)
     }
 
@@ -427,7 +427,7 @@ object KernelHelpers {
      * @return The List of undefined symols
      */
     def findUndefinedSymbols(phi: Expression): Set[Constant] = phi match {
-      case Variable(id, typ) => Set.empty
+      case Variable(id, sort) => Set.empty
       case cst: Constant => if (theory.isSymbol(cst)) Set.empty else Set(cst)
       case Lambda(v, inner) => findUndefinedSymbols(inner)
       case Application(f, arg) => findUndefinedSymbols(f) ++ findUndefinedSymbols(arg)
@@ -449,7 +449,7 @@ object KernelHelpers {
       case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${thm.proposition.repr}${if (thm.withSorry) " (!! Relies on Sorry)" else ""}\n"
       case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${axiom.ax.repr}\n"
       case d: RunningTheory#Definition =>
-        s" Definition of  symbol ${d.cst.id} : ${d.cst.typ} := ${d.expression}\n"
+        s" Definition of  symbol ${d.cst.id} : ${d.cst.sort} := ${d.expression}\n"
 
     }
   }
