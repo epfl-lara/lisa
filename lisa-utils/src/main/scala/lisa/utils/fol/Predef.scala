@@ -6,13 +6,13 @@ import K.given
 trait Predef extends Syntax {
 
 
-  def variable[S](using IsSort[SortOf[S]])(id: K.Identifier): Var[SortOf[S]] = new Var(id)
-  def constant[S](using IsSort[SortOf[S]])(id: K.Identifier): Cst[SortOf[S]] = new Cst(id)
+  def variable[S](using IsSort[SortOf[S]])(id: K.Identifier): Variable[SortOf[S]] = new Variable(id)
+  def constant[S](using IsSort[SortOf[S]])(id: K.Identifier): Constant[SortOf[S]] = new Constant(id)
   def binder[S1, S2, S3](using IsSort[SortOf[S1]], IsSort[SortOf[S2]], IsSort[SortOf[S3]])
             (id: K.Identifier): Binder[SortOf[S1], SortOf[S2], SortOf[S3]] = new Binder(id)
 
-  def variable[S](using name: sourcecode.Name, is: IsSort[SortOf[S]]): Var[SortOf[S]] = new Var(name.value)
-  def constant[S](using name: sourcecode.Name, is: IsSort[SortOf[S]]): Cst[SortOf[S]] = new Cst(name.value)
+  def variable[S](using name: sourcecode.Name, is: IsSort[SortOf[S]]): Variable[SortOf[S]] = new Variable(name.value)
+  def constant[S](using name: sourcecode.Name, is: IsSort[SortOf[S]]): Constant[SortOf[S]] = new Constant(name.value)
   def binder[S1, S2, S3](using name: sourcecode.Name)
             (using IsSort[SortOf[S1]], IsSort[SortOf[S2]], IsSort[SortOf[S3]]): Binder[SortOf[S1], SortOf[S2], SortOf[S3]] = new Binder(name.value)
 
@@ -52,16 +52,16 @@ trait Predef extends Syntax {
   val <=> : iff.type = iff
   val ⇔ : iff.type = iff
 
-  val forall = constant[(Term >>: Formula) >>: Formula]("∀")
+  val forall = binder[Term, Formula, Formula]("∀")
   val ∀ : forall.type = forall
 
-  val exists = constant[(Term >>: Formula) >>: Formula]("∃")
+  val exists = binder[Term, Formula, Formula]("∃")
   val ∃ : exists.type = exists
 
-  val epsilon = constant[(Term >>: Formula) >>: Term]("ε")
+  val epsilon = binder[Term, Formula, Term]("ε")
   val ε : epsilon.type = epsilon
 
-  val existsOne = constant[(Term >>: Formula) >>: Formula]("∃!")
+  val existsOne = binder[Term, Formula, Formula]("∃!")
   val ∃! : existsOne.type = existsOne
 
 
@@ -82,11 +82,11 @@ trait Predef extends Syntax {
     case a: K.Application => asFrontApplication(a)
     case l: K.Lambda => asFrontLambda(l)
 
-  def asFrontConstant(c: K.Constant): Cst[?] = 
-    new Cst[T](c.id)(using new Sort { type Self = T; val underlying = c.sort })
+  def asFrontConstant(c: K.Constant): Constant[?] = 
+    new Constant[T](c.id)(using new Sort { type Self = T; val underlying = c.sort })
 
-  def asFrontVariable(v: K.Variable): Var[?] =
-    new Var[T](v.id)(using new Sort { type Self = T; val underlying = v.sort })
+  def asFrontVariable(v: K.Variable): Variable[?] =
+    new Variable[T](v.id)(using new Sort { type Self = T; val underlying = v.sort })
   
   def asFrontApplication(a: K.Application): App[?, ?] = 
     new App[T, T](asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg).asInstanceOf)(

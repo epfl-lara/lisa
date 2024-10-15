@@ -2,38 +2,37 @@ package lisa.fol
 
 //import lisa.kernel.proof.SequentCalculus.Sequent
 
-/*
+
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.Library
 import lisa.prooflib.ProofTacticLib.ProofTactic
-*/
+
 import lisa.utils.K
 
 import scala.annotation.showAsInfix
 
 trait Sequents extends Predef {
-  /*
+  
   object SequentInstantiationRule extends ProofTactic
   given ProofTactic = SequentInstantiationRule
-  */
 
   case class Sequent(left: Set[Formula], right: Set[Formula]) extends LisaObject{
     def underlying: lisa.kernel.proof.SequentCalculus.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
 
-    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Sequent = Sequent(left.map(_.substituteUnsafe(m)), right.map(_.substituteUnsafe(m)))
-    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Sequent =
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Sequent = Sequent(left.map(_.substituteUnsafe(m)), right.map(_.substituteUnsafe(m)))
+    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Sequent =
       super.substituteWithCheck(m).asInstanceOf[Sequent]
     override def substitute(pairs: SubstPair[?]*): Sequent =
       super.substitute(pairs*).asInstanceOf[Sequent]
 
-    def freeVars: Set[Var[?]] = left.flatMap(_.freeVars) ++ right.flatMap(_.freeVars)
-    def freeTermVars: Set[Var[T]] = left.flatMap(_.freeTermVars) ++ right.flatMap(_.freeTermVars)
-    def constants: Set[Cst[?]] = left.flatMap(_.constants) ++ right.flatMap(_.constants)
+    def freeVars: Set[Variable[?]] = left.flatMap(_.freeVars) ++ right.flatMap(_.freeVars)
+    def freeTermVars: Set[Variable[T]] = left.flatMap(_.freeTermVars) ++ right.flatMap(_.freeTermVars)
+    def constants: Set[Constant[?]] = left.flatMap(_.constants) ++ right.flatMap(_.constants)
 
 
 
     
-    /*
+    
     /*Ok for now but what when we have more*/
     /**
      * Substitute schematic symbols inside this, and produces a kernel proof.
@@ -43,34 +42,19 @@ trait Sequents extends Predef {
      * @param map
      * @return
      */
-    def instantiateWithProof(map: Map[Var[?], Expr[?]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
-
-      val mTerm: Map[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]] =
-        map.collect[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]](p =>
-          p._1 match {
-            case sl: Variable => (sl, LambdaExpression[Term, Term, 0](Seq(), p._2.asInstanceOf[Term], 0))
-            case sl: SchematicFunctionLabel[?] =>
-              p._2 match {
-                case l: LambdaExpression[Term, Term, ?] @unchecked if (l.bounds.isEmpty || l.bounds.head.isInstanceOf[Variable]) & l.body.isInstanceOf[Term] =>
-                  (sl, l)
-                case s: TermLabel[?] =>
-                  val vars = nFreshId(Seq(s.id), s.arity).map(id => Variable(id))
-                  (sl, LambdaExpression(vars, s.applySeq(vars), s.arity))
-              }
-          }
-        )
-      (substituteUnsafe(map), instantiateWithProofLikeKernel(mConn, mPred, mTerm, index))
+    def instantiateWithProof(map: Map[Variable[?], Expr[?]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
+      (substituteUnsafe(map), instantiateWithProofLikeKernel(map, index))
 
     }
 
     def instantiateForallWithProof(args: Seq[Term], index: Int): (Sequent, Seq[K.SCProofStep]) = {
       if this.right.size != 1 then throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula")
       this.right.head match {
-        case r @ Forall(x, f) =>
+        case r @ forall(x, f) =>
           val t = args.head
-          val newf = f.substitute(x := t)
+          val newf: Formula = f.substitute(x := t)
           val s0 = K.Hypothesis((newf |- newf).underlying, newf.underlying)
-          val s1 = K.LeftForall((r |- newf).underlying, index + 1, f.underlying, x.underlyingLabel, t.underlying)
+          val s1 = K.LeftForall((r |- newf).underlying, index + 1, f.underlying, x.underlying, t.underlying)
           val s2 = K.Cut((this.left |- newf).underlying, index, index + 2, r.underlying)
           if args.tail.isEmpty then (this.left |- newf, Seq(s0, s1, s2))
           else
@@ -93,30 +77,15 @@ trait Sequents extends Predef {
      * @return
      */
     def instantiateWithProofLikeKernel(
-        mCon: Map[SchematicConnectorLabel[?], LambdaExpression[Formula, Formula, ?]],
-        mPred: Map[SchematicPredicateLabel[?] | VariableFormula, LambdaExpression[Term, Formula, ?]],
-        mTerm: Map[SchematicFunctionLabel[?] | Variable, LambdaExpression[Term, Term, ?]],
+        map: Map[Variable[?], Expr[?]],
         index: Int
     ): Seq[K.SCProofStep] = {
       val premiseSequent = this.underlying
-      val mConK = mCon.map((sl, le) => (sl.underlyingLabel, underlyingLFF(le)))
-      val mPredK = mPred.map((sl, le) =>
-        sl match {
-          case v: VariableFormula => (v.underlyingLabel, underlyingLTF(le))
-          case spl: SchematicPredicateLabel[?] => (spl.underlyingLabel, underlyingLTF(le))
-        }
-      )
-      val mTermK = mTerm.map((sl, le) =>
-        sl match {
-          case v: Variable => (v.underlyingLabel, underlyingLTT(le))
-          case sfl: SchematicFunctionLabel[?] => (sfl.underlyingLabel, underlyingLTT(le))
-        }
-      )
-      val botK = lisa.utils.KernelHelpers.instantiateSchemaInSequent(premiseSequent, mConK, mPredK, mTermK)
-      val smap = Map[SchematicLabel[?], LisaObject[?]]() ++ mCon ++ mPred ++ mTerm
-      Seq(K.InstSchema(botK, index, mConK, mPredK, mTermK))
+      val mapK = map.map((v, e) => (v.underlying, e.underlying))
+      val botK = lisa.utils.KernelHelpers.substituteVariablesInSequent(premiseSequent, mapK)
+      Seq(K.InstSchema(botK, index, mapK))
     }
-*/
+
 
     infix def +<<(f: Formula): Sequent = this.copy(left = this.left + f)
     infix def -<<(f: Formula): Sequent = this.copy(left = this.left - f)
@@ -186,13 +155,13 @@ trait Sequents extends Predef {
     K.isImplyingSequent(sequent1.underlying, sequent2.underlying)
   }
 
-  def isSubset(s1: Set[Expr[?]], s2: Set[Expr[?]]): Boolean = {
+  def isSubset[A, B](s1: Set[Expr[A]], s2: Set[Expr[B]]): Boolean = {
     K.isSubset(s1.map(_.underlying), s2.map(_.underlying))
   }
-  def isSameSet(s1: Set[Expr[?]], s2: Set[Expr[?]]): Boolean =
+  def isSameSet[A, B](s1: Set[Expr[A]], s2: Set[Expr[B]]): Boolean =
     K.isSameSet(s1.map(_.underlying), s2.map(_.underlying))
 
-  def contains(s: Set[Expr[?]], f: Expr[?]): Boolean = {
+  def contains[A, B](s: Set[Expr[A]], f: Expr[B]): Boolean = {
     K.contains(s.map(_.underlying), f.underlying)
   }
 

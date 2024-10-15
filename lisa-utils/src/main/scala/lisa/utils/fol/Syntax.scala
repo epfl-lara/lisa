@@ -12,7 +12,6 @@ import scala.annotation.targetName
 trait Syntax {
 
   type IsSort[T] = Sort{type Self = T}
-  
 
   trait T
   trait F
@@ -39,17 +38,19 @@ trait Syntax {
   given given_ArrowType[A : Sort as ta, B : Sort as tb]: (IsSort[Arrow[A, B]]) with
     val underlying = K.Arrow(ta.underlying, tb.underlying)
 
-  class SubstPair[T: Sort] private (val _1: Var[T], val _2: Expr[T])
+  class SubstPair[T: Sort] private (val _1: Variable[T], val _2: Expr[T])
   object SubstPair {
-    def apply[T : Sort](_1: Var[T], _2: Expr[T]) = new SubstPair(_1, _2)
+    def apply[T : Sort](_1: Variable[T], _2: Expr[T]) = new SubstPair(_1, _2)
   }
 
-  given [T: Sort]: Conversion[(Var[T], Expr[T]), SubstPair[T]] = s => SubstPair(s._1, s._2)
+  def unsafeSortEvidence[S](sort: K.Sort) : IsSort[S] = new Sort { type Self = S; val underlying = sort }
+
+  given [T: Sort]: Conversion[(Variable[T], Expr[T]), SubstPair[T]] = s => SubstPair(s._1, s._2)
 
 
   trait LisaObject {
-    def substituteUnsafe(m: Map[Var[?], Expr[?]]): LisaObject
-    def substituteWithCheck(m: Map[Var[?], Expr[?]]): LisaObject = {
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): LisaObject
+    def substituteWithCheck(m: Map[Variable[?], Expr[?]]): LisaObject = {
       if m.forall((k, v) => k.sort == v.sort) then
         substituteUnsafe(m)
       else 
@@ -59,19 +60,19 @@ trait Syntax {
     def substitute(pairs: SubstPair[?]*): LisaObject = 
       substituteWithCheck(pairs.view.map(s => (s._1, s._2)).toMap)
 
-    def freeVars: Set[Var[?]] 
-    def freeTermVars: Set[Var[T]]
-    def constants: Set[Cst[?]]
+    def freeVars: Set[Variable[?]] 
+    def freeTermVars: Set[Variable[T]]
+    def constants: Set[Constant[?]]
   }
   trait Expr[S: Sort] extends LisaObject {
     val sort: K.Sort = summon[IsSort[S]].underlying
     private val arity = K.flatTypeParameters(sort).size
     def underlying: K.Expression
 
-    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Expr[S]
-    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Expr[S] =
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Expr[S]
+    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Expr[S] =
       super.substituteWithCheck(m).asInstanceOf[Expr[S]]
-    override def substitute(pairs: SubstPair[?]*): LisaObject = 
+    override def substitute(pairs: SubstPair[?]*): Expr[S] = 
       super.substitute(pairs: _*).asInstanceOf[Expr[S]]
 
     def unapply[T1, T2](e: Expr[Arrow[T1, T2]]): Option[Expr[T1]] = e match {
@@ -103,43 +104,43 @@ trait Syntax {
 
 
 
-  case class Var[S : Sort](id: K.Identifier) extends Expr[S] {
+  case class Variable[S : Sort](id: K.Identifier) extends Expr[S] {
     val underlying: K.Variable = K.Variable(id, sort)
-    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Expr[S] = m.getOrElse(this, this).asInstanceOf[Expr[S]]
-    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Expr[S] =
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Expr[S] = m.getOrElse(this, this).asInstanceOf[Expr[S]]
+    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Expr[S] =
       super.substituteWithCheck(m).asInstanceOf[Expr[S]]
     override def substitute(pairs: SubstPair[?]*): Expr[S] = 
       super.substitute(pairs: _*).asInstanceOf[Expr[S]]
-    def freeVars: Set[Var[?]] = Set(this)
-    def freeTermVars: Set[Var[T]] = if sort == K.Term then Set(this.asInstanceOf) else Set.empty
-    def constants: Set[Cst[?]] = Set.empty
-    def rename(newId: K.Identifier): Var[S] = Var(newId)
-    def freshRename(existing: Iterable[Expr[?]]): Var[S] = {
+    def freeVars: Set[Variable[?]] = Set(this)
+    def freeTermVars: Set[Variable[T]] = if sort == K.Term then Set(this.asInstanceOf) else Set.empty
+    def constants: Set[Constant[?]] = Set.empty
+    def rename(newId: K.Identifier): Variable[S] = Variable(newId)
+    def freshRename(existing: Iterable[Expr[?]]): Variable[S] = {
       val newId = K.freshId(existing.flatMap(_.freeVars.map(_.id)), id)
-      Var(newId)
+      Variable(newId)
     }
     override def toString(): String = id.toString
     def :=(replacement: Expr[S]) = SubstPair(this, replacement)
   }
 
-  object Var {
-    def apply(id: String, sort: K.Sort): Var[?] = Var(id)(using new Sort { type Self = T; val underlying = sort })
+  object Variable {
+    def unsafe(id: String, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
   }
 
 
-  case class Cst[S : Sort](id: K.Identifier) extends Expr[S] {
+  case class Constant[S : Sort](id: K.Identifier) extends Expr[S] {
     private var infix: Boolean = false
     def setInfix(): Unit = infix = true
     val underlying: K.Constant = K.Constant(id, sort)
-    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Cst[S] = this
-    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Expr[S] =
-      super.substituteWithCheck(m).asInstanceOf[Cst[S]]
-    override def substitute(pairs: SubstPair[?]*): Cst[S] = 
-      super.substitute(pairs: _*).asInstanceOf[Cst[S]]
-    def freeVars: Set[Var[?]] = Set.empty
-    def freeTermVars: Set[Var[T]] = Set.empty
-    def constants: Set[Cst[?]] = Set(this)
-    def rename(newId: K.Identifier): Cst[S] = Cst(newId)
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Constant[S] = this
+    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Expr[S] =
+      super.substituteWithCheck(m).asInstanceOf[Constant[S]]
+    override def substitute(pairs: SubstPair[?]*): Constant[S] = 
+      super.substitute(pairs: _*).asInstanceOf[Constant[S]]
+    def freeVars: Set[Variable[?]] = Set.empty
+    def freeTermVars: Set[Variable[T]] = Set.empty
+    def constants: Set[Constant[?]] = Set(this)
+    def rename(newId: K.Identifier): Constant[S] = Constant(newId)
     override def toString(): String = id.toString
     mkString = (args: Seq[Expr[?]]) => 
       if infix && args.size == 2 then 
@@ -157,12 +158,16 @@ trait Syntax {
         defaultMkStringSeparated(args)
   }
 
-  object Cst {
-    def apply(id: String, sort: K.Sort): Cst[?] = Cst(id)(using new Sort { type Self = T; val underlying = sort })
+  object Constant {
+    def unsafe(id: String, sort: K.Sort): Constant[?] = Constant(id)(using unsafeSortEvidence(sort))
   }
 
-  class Binder[T1: Sort, T2: Sort, T3: Sort](id: K.Identifier) extends Cst[Arrow[Arrow[T1, T2], T3]](id) {
-    def apply(v1: Var[T1], e: Expr[T2]): App[Arrow[T1, T2], T3] = App(this, Abs(v1, e))
+  class Binder[T1: Sort, T2: Sort, T3: Sort](id: K.Identifier) extends Constant[Arrow[Arrow[T1, T2], T3]](id) {
+    def apply(v1: Variable[T1], e: Expr[T2]): App[Arrow[T1, T2], T3] = App(this, Abs(v1, e))
+    def unapply(e: Expr[?]): Option[(Variable[T1], Expr[T2])] = e match {
+      case App(f:Expr[Arrow[Arrow[T1, T2], T3]], Abs(v, e)) if f == this => Some((v, e))
+      case _ => None
+    }
     mkString = (args: Seq[Expr[?]]) =>
       if args.size == 0 then toString
       else args(0) match {
@@ -179,40 +184,45 @@ trait Syntax {
 
   case class App[T1 : Sort, T2 : Sort](f: Expr[Arrow[T1, T2]], arg: Expr[T1]) extends Expr[T2] {
     val underlying: K.Application = K.Application(f.underlying, arg.underlying)
-    def substituteUnsafe(m: Map[Var[?], Expr[?]]): App[T1, T2] = App[T1, T2](f.substituteUnsafe(m), arg.substituteUnsafe(m))
-    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): App[T1, T2] =
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[T1, T2] = App[T1, T2](f.substituteUnsafe(m), arg.substituteUnsafe(m))
+    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): App[T1, T2] =
       super.substituteWithCheck(m).asInstanceOf[App[T1, T2]]
     override def substitute(pairs: SubstPair[?]*): App[T1, T2] = 
       super.substitute(pairs: _*).asInstanceOf[App[T1, T2]]
-    def freeVars: Set[Var[?]] = f.freeVars ++ arg.freeVars
-    def freeTermVars: Set[Var[T]] = f.freeTermVars ++ arg.freeTermVars
-    def constants: Set[Cst[?]] = f.constants ++ arg.constants
+    def freeVars: Set[Variable[?]] = f.freeVars ++ arg.freeVars
+    def freeTermVars: Set[Variable[T]] = f.freeTermVars ++ arg.freeTermVars
+    def constants: Set[Constant[?]] = f.constants ++ arg.constants
     override def toString(): String = 
       val (f, args) = unfoldAllApp(this)
       f.mkString(args)
   }
 
   object App {
-    def apply(f: Expr[?], arg: Expr[?]): Expr[?] = 
+    def unsafe(f: Expr[?], arg: Expr[?]): Expr[?] = 
       val rsort = K.legalApplication(f.sort, arg.sort)
       rsort match 
         case Some(to) => 
-          App(f.asInstanceOf, arg.asInstanceOf)(using new Sort { type Self = T; val underlying = to }, new Sort { type Self = T; val underlying = to })
+          App(f.asInstanceOf, arg.asInstanceOf)(using unsafeSortEvidence(to), unsafeSortEvidence(arg.sort))
         case None => throw new IllegalArgumentException(s"Cannot apply $f of sort ${f.sort} to $arg of sort ${arg.sort}")
   }
 
 
-  case class Abs[T1 : Sort, T2 : Sort](v: Var[T1], body: Expr[T2]) extends Expr[Arrow[T1, T2]] {
+  case class Abs[T1 : Sort, T2 : Sort](v: Variable[T1], body: Expr[T2]) extends Expr[Arrow[T1, T2]] {
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
-    def substituteUnsafe(m: Map[Var[?], Expr[?]]): Abs[T1, T2] = Abs(v, body.substituteUnsafe(m - v))
-    override def substituteWithCheck(m: Map[Var[?], Expr[?]]): Abs[T1, T2] =
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] = Abs(v, body.substituteUnsafe(m - v))
+    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] =
       super.substituteWithCheck(m).asInstanceOf[Abs[T1, T2]]
     override def substitute(pairs: SubstPair[?]*): Abs[T1, T2] = 
       super.substitute(pairs: _*).asInstanceOf[Abs[T1, T2]]
-    def freeVars: Set[Var[?]] = body.freeVars - v
-    def freeTermVars: Set[Var[T]] = body.freeTermVars.filterNot(_ == v)
-    def constants: Set[Cst[?]] = body.constants
+    def freeVars: Set[Variable[?]] = body.freeVars - v
+    def freeTermVars: Set[Variable[T]] = body.freeTermVars.filterNot(_ == v)
+    def constants: Set[Constant[?]] = body.constants
     override def toString(): String = s"Abs($v, $body)"
+  }
+
+  object Abs {
+    def unsafe(v: Variable[?], body: Expr[?]): Expr[?] = 
+      Abs(v.asInstanceOf, body.asInstanceOf)(using unsafeSortEvidence(v.sort), unsafeSortEvidence(body.sort))
   }
 
 
@@ -222,10 +232,9 @@ trait Syntax {
 
 
 
-
-  private val x = Var[T]("x")
-  private val y = Var[F]("x")
-  private val z: Expr[Arrow[T, F]] = Var("x")
+  private val x = Variable[T]("x")
+  private val y = Variable[F]("x")
+  private val z: Expr[Arrow[T, F]] = Variable("x")
   z(x)
 
 
