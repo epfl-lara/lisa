@@ -6,7 +6,7 @@ import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.prooflib.Library
-//import lisa.prooflib.ProofTacticLib.ProofTactic
+// import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.KernelHelpers.repr
 import lisa.utils.KernelHelpers.prettySCProof
 
@@ -19,6 +19,7 @@ import lisa.utils.KernelHelpers.{_, given}
 
 import java.io.File
 object LisaException {
+  
   case class InvalidKernelJustificationComputation(errorMessage: String, underlying: RunningTheoryJudgement.InvalidJustification[?], proof: Option[Library#Proof])(using
       sourcecode.Line,
       sourcecode.File
@@ -40,12 +41,14 @@ object LisaException {
 }
 
 
+
 /**
  * Error made by the user, should be "explained"
  */
 abstract class UserLisaException(var errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends LisaException(errorMessage) {
   def fixTrace(): Unit = ()
 }
+
 object UserLisaException {
   class InvalidProofFromFileException(errorMessage: String, file: String)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
     def showError: String = errorMessage

@@ -389,7 +389,7 @@ object SCProofChecker {
            *     Γ |- φ[e[t/y]/x], Δ
            * </pre>
            */
-          case LeftBeta(b, t1, phi, lambda, t, x) => 
+          case RightBeta(b, t1, phi, lambda, t, x) => 
             val Lambda(y, e) = lambda
             if (phi.sort != Formula) 
               SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
@@ -415,7 +415,7 @@ object SCProofChecker {
            *     Γ, φ[e[t/y]/x] |- Δ
            * </pre>
            */
-          case RightBeta(b, t1, phi, lambda, t, x) => 
+          case LeftBeta(b, t1, phi, lambda, t, x) => 
             val Lambda(y, e) = lambda
             if (phi.sort != Formula) 
               SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)

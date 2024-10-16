@@ -5,7 +5,7 @@ package lisa.fol
 
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib.ProofTactic
+//import lisa.prooflib.ProofTacticLib.ProofTactic
 
 import lisa.utils.K
 
@@ -13,8 +13,9 @@ import scala.annotation.showAsInfix
 
 trait Sequents extends Predef {
   
-  object SequentInstantiationRule extends ProofTactic
-  given ProofTactic = SequentInstantiationRule
+  
+  ??? // TODO object SequentInstantiationRule extends ProofTactic
+  ??? // TODO given ProofTactic = SequentInstantiationRule
 
   case class Sequent(left: Set[Formula], right: Set[Formula]) extends LisaObject{
     def underlying: lisa.kernel.proof.SequentCalculus.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
@@ -22,7 +23,7 @@ trait Sequents extends Predef {
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Sequent = Sequent(left.map(_.substituteUnsafe(m)), right.map(_.substituteUnsafe(m)))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Sequent =
       super.substituteWithCheck(m).asInstanceOf[Sequent]
-    override def substitute(pairs: SubstPair[?]*): Sequent =
+    override def substitute(pairs: SubstPair*): Sequent =
       super.substitute(pairs*).asInstanceOf[Sequent]
 
     def freeVars: Set[Variable[?]] = left.flatMap(_.freeVars) ++ right.flatMap(_.freeVars)

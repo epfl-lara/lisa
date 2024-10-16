@@ -4,7 +4,7 @@ import lisa.prooflib.ProofTacticLib.{_, given}
 import lisa.prooflib.*
 import lisa.utils.K
 import lisa.utils.KernelHelpers.{|- => `K|-`, _}
-//import lisa.utils.UserLisaException
+import lisa.utils.UserLisaException
 import lisa.utils.unification.UnificationUtils
 
 object BasicStepTactic {
@@ -1446,6 +1446,7 @@ object BasicStepTactic {
       judgement
     }
   }
+*/
   class SUBPROOF(using val proof: Library#Proof)(statement: Option[F.Sequent])(val iProof: proof.InnerProof) extends ProofTactic {
     val bot: Option[F.Sequent] = statement
     val botK: Option[K.Sequent] = statement map (_.underlying)
@@ -1477,5 +1478,4 @@ object BasicStepTactic {
     }
   }
 
-*/
 }

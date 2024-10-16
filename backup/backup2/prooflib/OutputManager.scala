@@ -25,7 +25,7 @@ abstract class OutputManager {
 
       case e: LisaException.InvalidKernelJustificationComputation =>
         e.proof match {
-          case Some(value) => ??? // TODO output(lisa.prooflib.ProofPrinter.prettyProof(value))
+          case Some(value) => output(lisa.prooflib.ProofPrinter.prettyProof(value))
           case None => ()
         }
         output(e.underlying.repr)

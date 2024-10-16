@@ -96,4 +96,39 @@ trait Predef extends Syntax {
     new Abs[T, T](asFrontVariable(l.v).asInstanceOf, asFrontExpression(l.body).asInstanceOf)(
       using new Sort { type Self = T; val underlying = l.sort })
 
+  def greatestId(exprs: Seq[K.Expression | Expr[?] | K.Identifier ]): Int = 
+    exprs.view.flatMap({
+      case e: K.Expression => e.freeVariables.map(_.id)
+      case e: Expr[?] => e.freeVars.map(_.id)
+      case id: K.Identifier => Seq(id)
+    }).map(_.no).max
+
+  def freshId(exprs: Seq[K.Expression | Expr[?] | K.Identifier ], base: String): K.Identifier = {
+    val i = exprs.view.flatMap({
+      case e: K.Expression => e.freeVariables.map(_.id)
+      case e: Expr[?] => e.freeVars.map(_.id)
+      case id: K.Identifier => Seq(id)
+    }).filter(_.name == base).map(_.no).max
+    K.Identifier(base, i + 1)
+  }
+
+  def nFreshIds(n: Int, exprs: Seq[K.Expression | Expr[?] | K.Identifier ], base: String): Seq[K.Identifier] = {
+    val i = exprs.view.flatMap({
+      case e: K.Expression => e.freeVariables.map(_.id)
+      case e: Expr[?] => e.freeVars.map(_.id)
+      case id: K.Identifier => Seq(id)
+    }).filter(_.name == base).map(_.no).max
+    (i + 1 to i + n).map(K.Identifier(base, _))
+  }
+
+
+
+
+  val f = variable[Formula >>: Term]("f")
+  val x: Expr[?] = variable[Term]("x")
+  val y: Expr[F] = variable[Formula]("x")
+  val g: Expr[Arrow[F, T]] = variable[Formula >>: Term]("g")
+  val h: Expr[?] = variable[Formula >>: Term]("g")
+
+
 }

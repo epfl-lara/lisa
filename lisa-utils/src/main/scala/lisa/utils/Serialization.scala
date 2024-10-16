@@ -269,6 +269,22 @@ object Serialization {
           proofDOS.writeByte(weakening)
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
+        case LeftBeta(bot, t1, phi, lambda, t, x) =>
+          proofDOS.writeByte(leftBeta)
+          sequentToProofDOS(bot)
+          proofDOS.writeInt(t1)
+          proofDOS.writeInt(lineOfExpr(phi))
+          proofDOS.writeInt(lineOfExpr(lambda))
+          proofDOS.writeInt(lineOfExpr(t))
+          proofDOS.writeInt(lineOfExpr(x))
+        case RightBeta(bot, t1, phi, lambda, t, x) =>
+          proofDOS.writeByte(rightBeta)
+          sequentToProofDOS(bot)
+          proofDOS.writeInt(t1)
+          proofDOS.writeInt(lineOfExpr(phi))
+          proofDOS.writeInt(lineOfExpr(lambda))
+          proofDOS.writeInt(lineOfExpr(t))
+          proofDOS.writeInt(lineOfExpr(x))
         case LeftRefl(bot, t1, fa) =>
           proofDOS.writeByte(leftRefl)
           sequentToProofDOS(bot)

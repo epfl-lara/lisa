@@ -4,7 +4,7 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
-//import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
 
@@ -50,11 +50,11 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     knownDefs.update(s, None)
 
   def getDefinition(label: F.Constant[?]): Option[JUSTIFICATION] = knownDefs.get(label) match {
-    case None => ??? // TODO throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
+    case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
     case Some(value) => value
   }
   def getShortDefinition(label: F.Constant[?]): Option[JUSTIFICATION] = shortDefs.get(label) match {
-    case None => ??? // TODO throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
+    case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
     case Some(value) => value
   }
 
@@ -65,6 +65,20 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     theory.theorem(name, statement, proof, justifications)
 
   // DEFINITION Syntax
+
+  /*
+  /**
+   * Allows to create a definition by shortcut of a function symbol:
+   */
+  def makeSimpleFunctionDefinition(symbol: String, expression: K.LambdaTermTerm): K.Judgement[theory.FunctionDefinition] = {
+    import K.*
+    val LambdaTermTerm(vars, body) = expression
+
+    val out: VariableLabel = VariableLabel(freshId((vars.map(_.id) ++ body.schematicTermLabels.map(_.id)).toSet, "y"))
+    val proof: SCProof = simpleFunctionDefinition(expression, out)
+    theory.functionDefinition(symbol, LambdaTermFormula(vars, out === body), out, proof, out === body, Nil)
+  }
+    */
 
   /**
    * Allows to create a definition by shortcut of a predicate symbol:

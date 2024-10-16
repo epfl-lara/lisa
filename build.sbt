@@ -33,8 +33,7 @@ val commonSettings3 = commonSettings ++ Seq(
     "-language:implicitConversions",
     //"-rewrite", "-source", "3.4-migration",
     "-Wconf:msg=.*will never be selected.*:silent",
-    "-language:experimental.modularity",
-    "-source future"
+    "-language:experimental.modularity"
 
   ),
   javaOptions += "-Xmx10G",
