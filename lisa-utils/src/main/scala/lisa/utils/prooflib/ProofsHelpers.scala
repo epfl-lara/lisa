@@ -18,7 +18,6 @@ trait ProofsHelpers {
 
   import lisa.fol.FOL.{given, *}
 
-  /*
   class HaveSequent(val bot: Sequent) {
 
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
@@ -68,7 +67,7 @@ trait ProofsHelpers {
 
   def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
     case judg: proof.ProofTacticJudgement => judg.validate(line, file)
-    case fact: proof.Fact @unchecked => ??? // TODO HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Rewrite(using library, proof)(fact))
+    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Rewrite(using library, proof)(fact))
   }
 
   /**
@@ -103,7 +102,7 @@ trait ProofsHelpers {
    */
   def assume(using proof: library.Proof)(fs: Formula*): proof.ProofStep = {
     fs.foreach(f => proof.addAssumption(f))
-    ??? // TODO have(() |- fs.toSet) by BasicStepTactic.Hypothesis
+    have(() |- fs.toSet) by BasicStepTactic.Hypothesis
   }
 
   def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
@@ -128,10 +127,7 @@ trait ProofsHelpers {
   }
 
   def currentProof(using p: library.Proof): Library#Proof = p
-*/
 
-
-/*
 
   ////////////////////////////////////////
   //  DSL for definitions and theorems  //
@@ -309,7 +305,7 @@ trait ProofsHelpers {
         loop(lastStep.bot.right.head, List())
       val eqStep = lastStep // appliedCst === body
       // j is exists(x, prop(x))
-      val existsStep = ??? //have(propEpsilon) by  // prop(body)
+      val existsStep = ??? // have(propEpsilon) by // prop(body)
       val s3 = have(propCst) by BasicStepTactic.RightSubstEq.withParametersSimple[T](appliedCst, body, Seq(), (epsilonVar, inner))(j, lastStep)
       ???
     }
@@ -355,5 +351,5 @@ trait ProofsHelpers {
       checkProof(csc)
       throw Exception("Proof is not valid: " + message)
   }
-*/
+
 }

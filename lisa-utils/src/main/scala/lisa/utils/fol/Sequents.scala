@@ -1,11 +1,8 @@
 package lisa.fol
 
-//import lisa.kernel.proof.SequentCalculus.Sequent
-
-
 import lisa.prooflib.BasicStepTactic
 import lisa.prooflib.Library
-//import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.prooflib.ProofTacticLib.ProofTactic
 
 import lisa.utils.K
 
@@ -14,8 +11,8 @@ import scala.annotation.showAsInfix
 trait Sequents extends Predef {
   
   
-  ??? // TODO object SequentInstantiationRule extends ProofTactic
-  ??? // TODO given ProofTactic = SequentInstantiationRule
+  object SequentInstantiationRule extends ProofTactic
+  given ProofTactic = SequentInstantiationRule
 
   case class Sequent(left: Set[Formula], right: Set[Formula]) extends LisaObject{
     def underlying: lisa.kernel.proof.SequentCalculus.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))

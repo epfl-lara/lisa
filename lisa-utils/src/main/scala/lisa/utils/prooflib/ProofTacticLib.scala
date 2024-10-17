@@ -9,7 +9,7 @@ import lisa.prooflib.ProofPrinter
 object ProofTacticLib {
   type Arity = Int & Singleton
 
-  /*
+  
   /**
    * A ProofTactic is an object that relies on a step of premises and which can be translated into pure Sequent Calculus.
    */
@@ -47,7 +47,7 @@ object ProofTacticLib {
       val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
       source.close()
       Console.RED + proof.owningTheorem.prettyGoal + Console.RESET + "\n" +
-        ??? // TODO ProofPrinter.prettyProof(proof, 2) + "\n" +
+        ProofPrinter.prettyProof(proof, 2) + "\n" +
         "  " * (1 + proof.depth) + Console.RED + textline + Console.RESET + "\n\n" +
         s"   Proof tactic ${tactic.name} used in.(${file.value.split("/").last.split("\\\\").last}:${line.value}) did not succeed:\n" +
         "   " + errorMessage
@@ -61,7 +61,7 @@ object ProofTacticLib {
       extends lisa.utils.LisaException(errorMessage) {
     def showError: String = "A proof tactic used in another proof tactic returned an unexpected error. This may indicate an implementation error in either of the two tactics.\n" +
       "Status of the proof at time of the error is:" +
-      ??? // TODO ProofPrinter.prettyProof(failure.proof)
+      ProofPrinter.prettyProof(failure.proof)
   }
-*/
+
 }

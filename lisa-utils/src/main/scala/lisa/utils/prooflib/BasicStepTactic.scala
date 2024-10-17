@@ -8,7 +8,7 @@ import lisa.utils.KernelHelpers.{|- => `K|-`, _}
 import lisa.utils.unification.UnificationUtils
 
 object BasicStepTactic {
-/*
+
   def unwrapTactic(using lib: Library, proof: lib.Proof)(using tactic: ProofTactic)(judgement: proof.ProofTacticJudgement)(message: String): proof.ProofTacticJudgement = {
     judgement match {
       case j: proof.ValidProofTactic => proof.ValidProofTactic(j.bot, j.scps, j.imports)
@@ -1477,5 +1477,5 @@ object BasicStepTactic {
     }
   }
 
-*/
+
 }

@@ -1,14 +1,13 @@
 package lisa.prooflib
 
 import lisa.kernel.proof.SCProofCheckerJudgement
-//import lisa.prooflib.BasicStepTactic.SUBPROOF
+import lisa.prooflib.BasicStepTactic.SUBPROOF
 import lisa.prooflib.Library
 import lisa.prooflib.*
 import lisa.utils.*
 
 object ProofPrinter {
 
-  /*
   private def spaceSeparator(compact: Boolean): String = if (compact) "" else " "
 
   private def commaSeparator(compact: Boolean, symbol: String = ","): String = s"$symbol${spaceSeparator(compact)}"
@@ -126,6 +125,4 @@ object ProofPrinter {
   def prettySimpleProof(proof: Library#Proof, error: Option[(IndexedSeq[Int], String)]): String = prettyProofLines(proof, error).mkString("\n")
   def prettySimpleProof(proof: Library#Proof, indent: Int, error: Option[(IndexedSeq[Int], String)]): String = prettyProofLines(proof, None).mkString("\n" + " " * indent)
 
-  // def prettyProof(judgement: InvalidProofTactic): String = prettyProof(judgement.tactic.proof)
-*/
 }

@@ -50,11 +50,11 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
     knownDefs.update(s, None)
 
   def getDefinition(label: F.Constant[?]): Option[JUSTIFICATION] = knownDefs.get(label) match {
-    case None => ??? // TODO throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
+    case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
     case Some(value) => value
   }
   def getShortDefinition(label: F.Constant[?]): Option[JUSTIFICATION] = shortDefs.get(label) match {
-    case None => ??? // TODO throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
+    case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
     case Some(value) => value
   }
 

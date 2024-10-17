@@ -401,7 +401,7 @@ object BasicStepTactic {
         val in: F.Formula = instantiatedPivot.head
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
-            case g @ F.forall(x, phi) => ??? // TODO UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVars - x)).isDefined
+            case g @ F.forall(x, phi) => UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVars - x)).isDefined
             case _ => false
           }
         )
@@ -908,7 +908,7 @@ object BasicStepTactic {
         val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
           f match {
             case g @ F.exists(x, phi) =>
-              ??? // TODO UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVars - x)).isDefined
+              UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVars - x)).isDefined
             case _ => false
           }
         )
