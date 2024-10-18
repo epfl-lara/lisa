@@ -48,6 +48,16 @@ object UnificationUtils:
     def contains[A](v: Variable[A]): Boolean = 
       underlying.contains(v)
 
+    /** 
+     * Checks whether any susbtitution contains the given variable. Needed for
+     * verifying ill-formed substitutions containing bound variables.
+     *
+     * Eg: if `v` is externally bound, then `x` and `f(v)` have no matcher under
+     * capture avoiding substitution. 
+     */
+    def substitutes[A](v: Variable[A]): Boolean =
+      underlying.values.exists(_.freeVars.contains(v))
+
   object Substitution:
     /** The empty substitution */
     def empty: Substitution = Substitution(Map.empty)
@@ -63,14 +73,21 @@ object UnificationUtils:
    * @return substitution (Option) from variables to terms. `None` iff a
    * substitution does not exist.
    */
-  def matchExpr[A](expr: Expr[A], pattern: Expr[A], subst: Substitution = Substitution.empty): Option[Substitution] = 
-    if expr eq pattern then
+  def matchExpr[A](using ctx: RewriteContext)(expr: Expr[A], pattern: Expr[A], subst: Substitution = Substitution.empty): Option[Substitution] =
+    // chosen equality: ortholattice equivalence
+    inline def eq(l: Expr[A], r: Expr[A]) = isSame(l, r)
+
+    if eq(expr, pattern) then
+      // trivial, done
       Some(subst)
     else
       (expr, pattern) match
-        case (v @ Variable(_), _) => 
+        case (v @ Variable(_), _) if ctx.isFree(v) => 
           subst(v) match
-            case Some(e) => if e == pattern then Some(subst) else None
+            case Some(e) => 
+              // this variable has been assigned before.
+              // is that subst compatible with this instance?
+              if eq(e, pattern) then Some(subst) else None
             case None =>
               // first encounter
               Some(subst + (v -> pattern))
@@ -82,14 +99,11 @@ object UnificationUtils:
 
         case (Abs(ve, fe), Abs(vp, fp)) =>
           val freshVar = ve.freshRename(Seq(fe, fp))
-          val inner = matchExpr(
+          matchExpr(using ctx.bind(freshVar))(
                         fe.substitute(ve := freshVar), 
                         fp.substitute(vp := freshVar), 
                         subst
-                      )
-          // did the bound variable need to be assigned?
-          // if yes, fail
-          inner.filterNot(_.contains(freshVar))
+          ).filterNot(_.substitutes(freshVar))
 
         case _ => None
 
