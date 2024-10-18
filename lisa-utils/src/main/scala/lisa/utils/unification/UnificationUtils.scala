@@ -7,15 +7,32 @@ import lisa.fol.FOL.{_, given}
  */
 object UnificationUtils:
 
-  class Substitution:
-    def apply[A](v: Variable[A]): Option[Expr[A]] = ???
+  /**
+    * Immutable representation of a typed variable substitution.
+    *
+    * Types are discarded for storage but are guaranteed to be sound by
+    * construction. 
+    *
+    * @param assignments mappings to initialize the substitution with
+    */
+  class Substitution private (assignments: Map[Variable[?], Expr[?]]):
+    private val underlying: Map[Variable[?], Expr[?]] = assignments
+    
+    /** (Optionally) retrieves a variable's mapping */
+    def apply[A](v: Variable[A]): Option[Expr[A]] = 
+      underlying.get(v).map(_.asInstanceOf)
 
-    def +[A](mapping: (Variable[A], Expr[A])): Substitution = ???
+    /** Creates a new subtitution with a new mapping added */
+    def +[A](mapping: (Variable[A], Expr[A])): Substitution = 
+      Substitution(underlying + mapping)
 
-    def contains[A](v: Variable[A]): Boolean = ???
+    /** Checks whether a variable is assigned by this subtitution */
+    def contains[A](v: Variable[A]): Boolean = 
+      underlying.contains(v)
 
   object Substitution:
-    def empty: Substitution = ???
+    /** The empty substitution */
+    def empty: Substitution = Substitution(Map.empty)
 
   /**
    * Performs first-order matching for two terms. Returns a (most-general)
