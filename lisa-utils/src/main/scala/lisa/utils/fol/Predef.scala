@@ -15,6 +15,7 @@ trait Predef extends Syntax {
   def constant[S](using name: sourcecode.Name, is: IsSort[SortOf[S]]): Constant[SortOf[S]] = new Constant(name.value)
   def binder[S1, S2, S3](using name: sourcecode.Name)
             (using IsSort[SortOf[S1]], IsSort[SortOf[S2]], IsSort[SortOf[S3]]): Binder[SortOf[S1], SortOf[S2], SortOf[S3]] = new Binder(name.value)
+  
 
   val equality = constant[Term >>: Term >>: Formula]("===")
   val === = equality
@@ -120,15 +121,6 @@ trait Predef extends Syntax {
     }).filter(_.name == base).map(_.no).max
     (i + 1 to i + n).map(K.Identifier(base, _))
   }
-
-
-
-
-  val f = variable[Formula >>: Term]("f")
-  val x: Expr[?] = variable[Term]("x")
-  val y: Expr[F] = variable[Formula]("x")
-  val g: Expr[Arrow[F, T]] = variable[Formula >>: Term]("g")
-  val h: Expr[?] = variable[Formula >>: Term]("g")
 
 
 }

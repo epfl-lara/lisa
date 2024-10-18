@@ -22,6 +22,10 @@ object KernelHelpers {
 
   /* Prefix syntax */
 
+  extension (s: Sort) {
+    def >>:(t: Sort) : Sort = Arrow(t, s)
+  }
+
   val Equality = equality
   val === = equality
   val ⊤ : Expression = top
@@ -92,6 +96,7 @@ object KernelHelpers {
   }
 
   extension (f: Expression) {
+    def apply(args: Expression*): Expression = multiapply(f)(args)
     def unary_! = neg(f)
     infix inline def ==>(g: Expression): Expression = implies(f)(g)
     infix inline def <=>(g: Expression): Expression = iff(f)(g)
@@ -199,7 +204,18 @@ object KernelHelpers {
     def fullRepr: String = s"${s.left.map(_.fullRepr).mkString(", ")} |- ${s.right.map(_.fullRepr).mkString(", ")}"
   }
 
-  // TODO: Should make less generic
+  def betaReduce(e: Expression): Expression = e match {
+    case Application(f, arg) => 
+      val f1 = betaReduce(f)
+      val a2 = betaReduce(arg)
+      f1 match
+        case Lambda(v, body) => betaReduce(substituteVariables(body, Map(v -> a2)))
+        case _ => Application(f1, betaReduce(a2))
+    case Lambda(v, inner) => 
+      Lambda(v, betaReduce(inner))
+    case _ => e
+  }
+
   /**
    * Represents a converter of some object into a set.
    * @tparam S The type of elements in that set
@@ -320,17 +336,25 @@ object KernelHelpers {
   def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
   def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
 */
+  def lambda(x: Variable, t: Expression): Lambda = Lambda(x, t)
   def lambda(xs: Seq[Variable], t: Expression): Expression = xs.foldRight(t)((x, t) => Lambda(x, t))
   def reduceLambda(f: Lambda, t: Expression): Expression = substituteVariables(f.body, Map(f.v -> t))
 
   // declare symbols easily: "val x = variable;"
   def HOvariable(using name: sourcecode.Name)(sort: Sort): Variable = Variable(name.value, sort)
   def variable(using name: sourcecode.Name): Variable = Variable(name.value, Term)
-  def v(id: Identifier, sort:Sort): Variable = Variable(id, sort)
   def function(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Term: Sort)((acc, _)=> Term -> acc))
   def formulaVariable(using name: sourcecode.Name): Variable = Variable(name.value, Formula)
   def predicate(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Term -> acc))
   def connector(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Formula -> acc))
+  def cst(using name: sourcecode.Name)(sort: Sort): Constant = Constant(name.value, sort)
+
+  def HOvariable(sort: Sort)(id: Identifier): Variable = Variable(id, sort)
+  def variable(id: Identifier): Variable = Variable(id, Term)
+  def function(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Term: Sort)((acc, _)=> Term -> acc))
+  def formulaVariable(id: Identifier): Variable = Variable(id, Formula)
+  def predicate(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Term -> acc))
+  def connector(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Formula -> acc))
   def cst(id: Identifier, sort:Sort): Constant = Constant(id, sort)
 
   // Conversions from String to Identifier

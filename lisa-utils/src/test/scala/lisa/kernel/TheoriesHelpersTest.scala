@@ -17,11 +17,10 @@ class TheoriesHelpersTest extends AnyFunSuite {
   export TestTheory.*
 
   test("theorem with incorrect statement") {
-    val (s0, s1) = (ConstantFunctionLabel("0", 0), ConstantFunctionLabel("1", 0))
-    runningTestTheory.addSymbol(s0)
-    runningTestTheory.addSymbol(s1)
+    val (c0, c1) = (Constant("0", Term), Constant("1", Term))
+    runningTestTheory.addSymbol(c0)
+    runningTestTheory.addSymbol(c1)
 
-    val (c0, c1) = (s0(), s1())
     val judgement = runningTestTheory.theorem("False theorem", c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq())
     assert(!judgement.isValid)
     try {

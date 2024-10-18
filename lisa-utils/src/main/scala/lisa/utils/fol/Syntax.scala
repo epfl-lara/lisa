@@ -258,15 +258,6 @@ trait Syntax {
 
 
 
-
-
-  private val x = Variable[T]("x")
-  private val y = Variable[F]("x")
-  private val z: Expr[Arrow[T, F]] = Variable("x")
-  z(x)
-
-
-
 }
 
 

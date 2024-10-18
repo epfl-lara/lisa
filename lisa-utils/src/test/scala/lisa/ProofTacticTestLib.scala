@@ -8,13 +8,14 @@ import lisa.prooflib.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.LazyList
+import leo.datastructures.TPTP.FOF.Term
 
 trait ProofTacticTestLib extends AnyFunSuite with BasicMain {
 
   export lisa.test.TestTheoryLibrary.{_, given}
 
-  private val x: lisa.fol.FOL.Variable = variable
-  private val P = predicate[1]
+  private val x = variable[Term]
+  private val P = variable[Term >>: Formula]
 
   // generate a placeholde theorem to take ownership of proofs for test
   val placeholderTheorem: THMFromProof = Theorem(P(x) |- P(x)) { have(P(x) |- P(x)) by Hypothesis }.asInstanceOf

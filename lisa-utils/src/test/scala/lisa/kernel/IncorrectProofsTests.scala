@@ -19,10 +19,7 @@ class IncorrectProofsTests extends ProofCheckerSuite {
     // Shorthand
     implicit def proofStepToProof(proofStep: SCProofStep): SCProof = SCProof(proofStep)
 
-    val (fl, gl, hl) = (VariableFormulaLabel("f"), VariableFormulaLabel("g"), VariableFormulaLabel("h"))
-    val f = AtomicFormula(fl, Seq.empty) // Some arbitrary formulas
-    val g = AtomicFormula(gl, Seq.empty)
-    val h = AtomicFormula(hl, Seq.empty)
+    val (f, g, h) = (Variable("f", Formula), Variable("g", Formula), Variable("h", Formula))
 
     val incorrectProofs: Seq[SCProof] = List(
       SCProof(
@@ -40,23 +37,23 @@ class IncorrectProofsTests extends ProofCheckerSuite {
 
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(yl), x === y)) // wrong variable replaced
+        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, 1, x, z, Seq(), (y, x === y)) // wrong variable replaced
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(xl), x === y)) // missing hypothesis
+        RightSubstEq(emptySeq +<< (x === y) +>> (z === y), 0, 1, x, z, Seq(), (x, x === y)) // missing hypothesis
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(xl), x === z)) // replacement mismatch
+        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, 1, x, z, Seq(), (x, x === z)) // replacement mismatch
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        LeftSubstEq(emptySeq +<< (z === y) +<< (x === z) +>> (x === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(yl), x === y))
+        LeftSubstEq(emptySeq +<< (z === y) +<< (x === z) +>> (x === y), 0, 1, x, z, Seq(), (y, x === y))
       ),
       SCProof(
         Hypothesis(emptySeq +<< (f <=> g) +>> (f <=> g), f <=> g),
-        LeftSubstIff(emptySeq +<< (h <=> g) +<< (f <=> h) +>> (f <=> g), 0, List(((LambdaTermFormula(Seq(), f), LambdaTermFormula(Seq(), h)))), (Seq(gl), f <=> g))
+        LeftSubstIff(emptySeq +<< (h <=> g) +<< (f <=> h) +>> (f <=> g), 0, 1, f, h, Seq(), (g, f <=> g))
       ),
       SCProof(
         Hypothesis(emptySeq +<< f +>> f, f),

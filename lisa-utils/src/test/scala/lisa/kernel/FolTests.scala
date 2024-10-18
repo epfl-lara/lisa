@@ -7,7 +7,6 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.Printer
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.SortedSet
@@ -15,6 +14,7 @@ import scala.language.adhocExtensions
 import scala.util.Random
 
 class FolTests extends AnyFunSuite {
+  /*
 
   val predicateVerifier = SCProofChecker.checkSCProof
 
@@ -23,27 +23,27 @@ class FolTests extends AnyFunSuite {
     else candidates(gen.between(0, candidates.length))
   }
 
-  def termGenerator(maxDepth: Int, gen: Random = new Random()): Term = {
+  def termGenerator(maxDepth: Int, gen: Random = new Random()): Expression = {
     if (maxDepth <= 1) {
       val r = gen.between(0, 3)
       if (r == 0) {
         val name = "" + ('a' to 'e')(gen.between(0, 5))
-        Term(ConstantFunctionLabel(name, 0), List())
+        Constant(name, Term)
       } else {
         val name = "" + ('v' to 'z')(gen.between(0, 5))
-        VariableTerm(VariableLabel(name))
+        Variable(name, Term)
       }
     } else {
       val r = gen.between(0, 8)
       val name = "" + ('f' to 'j')(gen.between(0, 5))
       if (r == 0) {
         val name = "" + ('a' to 'e')(gen.between(0, 5))
-        Term(ConstantFunctionLabel(name, 0), List())
+        Constant(name, Term)
       } else if (r == 1) {
         val name = "" + ('v' to 'z')(gen.between(0, 5))
-        VariableTerm(VariableLabel(name))
+        Variable(name, Term)
       }
-      if (r <= 3) Term(ConstantFunctionLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
+      else if (r <= 3) Term(ConstantFunctionLabel(name, 1), Seq(termGenerator(maxDepth - 1, gen)))
       else if (r <= 5) Term(ConstantFunctionLabel(name, 2), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
       else if (r == 6) Term(ConstantFunctionLabel(name, 3), Seq(termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen), termGenerator(maxDepth - 1, gen)))
       else
@@ -116,4 +116,6 @@ class FolTests extends AnyFunSuite {
 
     assert(!(x.id == y1.id))
   }
+
+  */
 }

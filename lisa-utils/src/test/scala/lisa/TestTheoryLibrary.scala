@@ -7,19 +7,18 @@ object TestTheoryLibrary extends Library {
 
   export lisa.fol.FOL.{*, given}
 
-  final val p1 = ConstantPredicateLabel("p1", 1)
-  final val p2 = ConstantPredicateLabel("p2", 1)
-  final val f1 = ConstantFunctionLabel("f1", 1)
-  final val fixedElement = Constant("fixedElement")
-  final val anotherFixed = Constant("anotherElement")
-
+  final val p1 = constant[Term >>: Formula]
+  final val p2 = constant[Term >>: Formula]
+  final val f1 = constant[Term >>: Term]
+  final val fixedElement = constant[Term]
+  final val anotherFixed = constant[Term]
   addSymbol(p1)
   addSymbol(p2)
   addSymbol(f1)
   addSymbol(fixedElement)
   addSymbol(anotherFixed)
 
-  private final val x = Variable("x")
+  private final val x = variable[Term]
   final val p1_implies_p2_f: Formula = forall(x, p1(x) ==> p2(x))
   final val ax2 = p1(fixedElement)
   final val same_fixed_f = fixedElement === anotherFixed

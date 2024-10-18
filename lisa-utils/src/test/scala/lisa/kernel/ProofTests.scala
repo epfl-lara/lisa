@@ -8,7 +8,6 @@ import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.Printer
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
@@ -16,23 +15,23 @@ import scala.util.Random
 
 class ProofTests extends AnyFunSuite {
 
-  private val x = VariableLabel("x")
-  private val y = VariableLabel("y")
-  private val z = VariableLabel("z")
-  val f = SchematicFunctionLabel("f", 1)
-  val f2 = SchematicFunctionLabel("f2", 1)
-  val g = ConstantFunctionLabel("g", 2)
-  val g2 = SchematicFunctionLabel("g2", 2)
-  private val a = AtomicFormula(ConstantAtomicLabel("A", 0), Seq())
-  private val b = AtomicFormula(ConstantAtomicLabel("B", 0), Seq())
-  private val fp = ConstantAtomicLabel("F", 1)
-  val sT = VariableLabel("t")
+  private val x = variable
+  private val y = variable
+  private val z = variable
+  val f = function(1)
+  val f2 = function(1)
+  val g = cst("g", Term >>: Term >>: Term)
+  val g2 = function(2)
+  private val a = cst("A", Formula)
+  private val b = cst("A", Formula)
+  private val fp = cst("F", Term >>: Formula)
+  val sT = variable("t")
 
-  val X = VariableFormulaLabel("X")
-  val P = SchematicPredicateLabel("f", 1)
-  val P2 = SchematicPredicateLabel("f2", 1)
-  val Q = ConstantAtomicLabel("g", 2)
-  val Q2 = SchematicPredicateLabel("g2", 2)
+  val X = formulaVariable("X")
+  val P = predicate(1)
+  val P2 = predicate(1)
+  val Q = cst(Term >>: Term >>: Formula)
+  val Q2 = predicate(2)
 
   test("Verification of Pierce law") {
     val s0 = Hypothesis(a |- a, a)
@@ -47,56 +46,75 @@ class ProofTests extends AnyFunSuite {
   test("Verification of LeftSubstEq") {
     {
       val t0 = Hypothesis(fp(x) |- fp(x), fp(x))
-      val t1 = LeftSubstEq(Set(fp(y), x === y) |- fp(x), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), y)))), (Seq(sT), fp(sT)))
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      val t1 = Hypothesis(x === y |- x === y, x === y)
+      val t2 = LeftSubstEq(Set(fp(y), x === y) |- fp(x), 0, 1, x, y, Seq(), (sT, fp(sT)))
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, fp(f(x))) |- exists(x, fp(f(x))), exists(x, fp(f(x))))
-      val t1 = LeftSubstEq(
-        Set(exists(x, fp(g(x, x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(f(x))),
+      val t1 = Sorry(forall(y, f(y) === g(y, y)) |- f(y) === g(y, y))
+      val t2 = LeftSubstEq(
+        Set(exists(x, fp(lambda(x, g(x, x))(x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(f(x))),
         0,
-        List((LambdaTermTerm(Seq(x), f(x)), LambdaTermTerm(Seq(x), g(x, x)))),
-        (Seq(f2), exists(x, fp(f2(x))))
+        1,
+        f, lambda(x, g(x, x)),
+        Seq(y),
+        (f2, exists(x, fp(f2(x))))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      val t3 = LeftBeta(
+        Set(exists(x, fp(g(x, x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(f(x))),
+        3,
+        exists(x, fp(y)),
+        lambda(x, g(x, x)),
+        x,
+        y
+      )
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2, t3))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, fp(f(x))) |- exists(x, fp(f(x))), exists(x, fp(f(x))))
-      val t1 = LeftSubstEq(
-        Set(exists(x, fp(g(x, x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(f(x))),
+      val t1 = Sorry(forall(y, f(y) === g(y, y)) |- f(y) === g(y, y))
+      val t2 = LeftSubstEq(
+        Set(exists(x, fp(lambda(x, g(x, x))(x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(f(x))),
         0,
-        List((LambdaTermTerm(Seq(y), f(y)), LambdaTermTerm(Seq(z), g(z, z)))),
-        (Seq(f2), exists(x, fp(f2(x))))
+        1,
+        f, lambda(z, g(z, z)),
+        Seq(y),
+        (f2, exists(x, fp(f2(x))))
+      )
+      val t3 = LeftBeta(
+        Set(exists(x, fp(g(x, x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(f(x))),
+        3,
+        exists(x, fp(y)),
+        lambda(x, g(x, x)),
+        x,
+        y
+      )
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2, t3))).isValid)
+    }
+    {
+      val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, z))))) |- exists(x, forall(y, fp(g(y, g(x, z))))), exists(x, forall(y, fp(g(y, g(x, z))))))
+      val t1 = Sorry(forall(y, forall(z, g(y, z) === g(z, y))) |- g(y, z) === g(z, y))
+      val t2 = LeftSubstEq(
+        Set(exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(y, g(x, z))))), forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(z, y)))) |- exists(x, forall(y, fp(g(y, g(x, z))))),
+        0,
+        1,
+        g, lambda(Seq(y, z), g(z, y)),
+        Seq(y, z),
+        (g2, exists(x, forall(y, fp(g2(y, g(x, z))))))
       )
       assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, z))))) |- exists(x, forall(y, fp(g(y, g(x, z))))), exists(x, forall(y, fp(g(y, g(x, z))))))
-      val t1 = LeftSubstEq(
-        Set(exists(x, forall(y, fp(g(g(x, z), y)))), forall(y, forall(z, g(y, z) === g(z, y)))) |- exists(x, forall(y, fp(g(y, g(x, z))))),
+      val t1 = Sorry(forall(y, forall(z, g(y, z) === g(z, y))) |- g(y, z) === g(z, y))
+      val t2 = LeftSubstEq(
+        Set(exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(y, lambda(Seq(y, z), g(z, y))(x, z))))), forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(z, y)))) |- exists(x, forall(y, fp(g(y, g(x, z))))),
         0,
-        List((LambdaTermTerm(Seq(y, z), g(y, z)), LambdaTermTerm(Seq(y, z), g(z, y)))),
-        (Seq(g2), exists(x, forall(y, fp(g2(y, g(x, z))))))
-      )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
-    }
-    {
-      val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, z))))) |- exists(x, forall(y, fp(g(y, g(x, z))))), exists(x, forall(y, fp(g(y, g(x, z))))))
-      val t1 = LeftSubstEq(
-        Set(exists(x, forall(y, fp(g(g(z, x), y)))), forall(y, forall(z, g(y, z) === g(z, y)))) |- exists(x, forall(y, fp(g(y, g(x, z))))),
-        0,
-        List((LambdaTermTerm(Seq(y, z), g(y, z)), LambdaTermTerm(Seq(y, z), g(z, y)))),
-        (Seq(g2), exists(x, forall(y, fp(g2(y, g2(x, z))))))
-      )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
-    }
-    {
-      val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, f(z)))))) |- exists(x, forall(y, fp(g(y, g(x, f(z)))))), exists(x, forall(y, fp(g(y, g(x, f(z)))))))
-      val t1 = LeftSubstEq(
-        Set(exists(x, forall(y, fp(g(g(g(z, z), x), y)))), forall(y, f(y) === g(y, y)), forall(y, forall(z, g(y, z) === g(z, y)))) |- exists(x, forall(y, fp(g(y, g(x, f(z)))))),
-        0,
-        List((LambdaTermTerm(Seq(y, z), g(y, z)), LambdaTermTerm(Seq(y, z), g(z, y))), (LambdaTermTerm(Seq(y), f(y)), LambdaTermTerm(Seq(z), g(z, z)))),
-        (Seq(g2, f2), exists(x, forall(y, fp(g2(y, g2(x, f2(z)))))))
+        1,
+        g, lambda(Seq(y, z), g(z, y)),
+        Seq(y, z),
+        (g2, exists(x, forall(y, fp(g2(y, g2(x, z))))))
       )
       assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
     }
@@ -105,145 +123,213 @@ class ProofTests extends AnyFunSuite {
   test("Verification of RightSubstEq") {
     {
       val t0 = Hypothesis(fp(x) |- fp(x), fp(x))
-      val t1 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), y)))), (Seq(sT), fp(sT)))
+      val t1 = Hypothesis(x === y |- x === y, x === y)
+      val t2 = RightSubstEq(Set(fp(x), x === y) |- fp(y), 0, 1, x, y, Seq(), (sT, fp(sT)))
       assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, fp(f(x))) |- exists(x, fp(f(x))), exists(x, fp(f(x))))
-      val t1 = RightSubstEq(
-        Set(exists(x, fp(f(x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(g(x, x))),
+      val t1 = Sorry(forall(y, f(y) === g(y, y)) |- f(y) === g(y, y))
+      val t2 = RightSubstEq(
+        Set(exists(x, fp(f(x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(lambda(x, g(x, x))(x))),
         0,
-        List((LambdaTermTerm(Seq(x), f(x)), LambdaTermTerm(Seq(x), g(x, x)))),
-        (Seq(f2), exists(x, fp(f2(x))))
+        1,
+        f, lambda(x, g(x, x)),
+        Seq(y),
+        (f2, exists(x, fp(f2(x))))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      val t3 = RightBeta(
+        Set(exists(x, fp(f(x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(g(x, x))),
+        3,
+        exists(x, fp(y)),
+        lambda(x, g(x, x)),
+        x,
+        y
+      )
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2, t3))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, fp(f(x))) |- exists(x, fp(f(x))), exists(x, fp(f(x))))
-      val t1 = RightSubstEq(
+      val t1 = Sorry(forall(y, f(y) === g(y, y)) |- f(y) === g(y, y))
+      val t2 = RightSubstEq(
+        Set(exists(x, fp(f(x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(lambda(z, g(z, z))(x))),
+        0,
+        1,
+        f, lambda(z, g(z, z)),
+        Seq(y),
+        (f2, exists(x, fp(f2(x))))
+      )
+      val t3 = RightBeta(
         Set(exists(x, fp(f(x))), forall(y, f(y) === g(y, y))) |- exists(x, fp(g(x, x))),
-        0,
-        List((LambdaTermTerm(Seq(y), f(y)), LambdaTermTerm(Seq(z), g(z, z)))),
-        (Seq(f2), exists(x, fp(f2(x))))
+        3,
+        exists(x, fp(y)),
+        lambda(x, g(x, x)),
+        x,
+        y
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2, t3))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, z))))) |- exists(x, forall(y, fp(g(y, g(x, z))))), exists(x, forall(y, fp(g(y, g(x, z))))))
-      val t1 = RightSubstEq(
-        Set(exists(x, forall(y, fp(g(y, g(x, z))))), forall(y, forall(z, g(y, z) === g(z, y)))) |- exists(x, forall(y, fp(g(g(x, z), y)))),
+      val t1 = Sorry(forall(y, forall(z, g(y, z) === g(z, y))) |- g(y, z) === g(z, y))
+      val t2 = RightSubstEq(
+        Set(exists(x, forall(y, fp(g(y, g(x, z))))), forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(z, y)))) |- exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(g(x, z), y)))),
         0,
-        List((LambdaTermTerm(Seq(y, z), g(y, z)), LambdaTermTerm(Seq(y, z), g(z, y)))),
-        (Seq(g2), exists(x, forall(y, fp(g2(y, g(x, z))))))
+        1,
+        g, lambda(Seq(y, z), g(z, y)),
+        Seq(y, z),
+        (g2, exists(x, forall(y, fp(g2(y, g(x, z))))))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, z))))) |- exists(x, forall(y, fp(g(y, g(x, z))))), exists(x, forall(y, fp(g(y, g(x, z))))))
-      val t1 = RightSubstEq(
-        Set(exists(x, forall(y, fp(g(y, g(x, z))))), forall(y, forall(z, g(y, z) === g(z, y)))) |- exists(x, forall(y, fp(g(g(z, x), y)))),
+      val t1 = Sorry(forall(y, forall(z, g(y, z) === g(z, y))) |- g(y, z) === g(z, y))
+      val t2 = RightSubstEq(
+        Set(exists(x, forall(y, fp(g(y, g(x, z))))), forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(z, y)))) |- exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(lambda(Seq(y, z), g(z, y))(x, z), y)))),
         0,
-        List((LambdaTermTerm(Seq(y, z), g(y, z)), LambdaTermTerm(Seq(y, z), g(z, y)))),
-        (Seq(g2), exists(x, forall(y, fp(g2(y, g2(x, z))))))
+        1,
+        g, lambda(Seq(y, z), g(z, y)),
+        Seq(y, z),
+        (g2, exists(x, forall(y, fp(g2(y, g2(x, z))))))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2))).isValid)
     }
-    {
-      val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, f(z)))))) |- exists(x, forall(y, fp(g(y, g(x, f(z)))))), exists(x, forall(y, fp(g(y, g(x, f(z)))))))
-      val t1 = RightSubstEq(
-        Set(exists(x, forall(y, fp(g(y, g(x, f(z)))))), forall(y, f(y) === g(y, y)), forall(y, forall(z, g(y, z) === g(z, y)))) |- exists(x, forall(y, fp(g(g(g(z, z), x), y)))),
-        0,
-        List((LambdaTermTerm(Seq(y, z), g(y, z)), LambdaTermTerm(Seq(y, z), g(z, y))), (LambdaTermTerm(Seq(y), f(y)), LambdaTermTerm(Seq(z), g(z, z)))),
-        (Seq(g2, f2), exists(x, forall(y, fp(g2(y, g2(x, f2(z)))))))
-      )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
-    }
-
   }
 
-  test("Verification of LeftSubstIff") {
+
+  test ("Verification of LeftSubstIff") {
     {
       val t0 = Hypothesis(P(x) |- P(x), P(x))
-      val t1 = LeftSubstIff(Set(P(y), P(x) <=> P(y)) |- P(x), 0, List(((LambdaTermFormula(Seq(), P(x)), LambdaTermFormula(Seq(), P(y))))), (Seq(X), X))
-      val pr = new SCProof(IndexedSeq(t0, t1))
-      assert(checkSCProof(pr).isValid)
+      val t1 = Hypothesis(P(x) <=> P(y) |- P(x) <=> P(y), P(x) <=> P(y))
+      val t2 = LeftSubstIff(Set(P(y), P(x) <=> P(y)) |- P(x), 0, 1, P(x), P(y), Seq(), (X, P(X)))
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, P(x)) |- exists(x, P(x)), exists(x, P(x)))
-      val t1 = LeftSubstIff(
-        Set(exists(x, Q(x, x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, P(x)),
+      val t1 = Sorry(forall(y, P(y) <=> Q(y, y)) |- P(y) <=> Q(y, y))
+      val t2 = LeftSubstIff(
+        Set(exists(x, lambda(x, Q(x, x))(x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, P(x)),
         0,
-        List((LambdaTermFormula(Seq(x), P(x)), LambdaTermFormula(Seq(x), Q(x, x)))),
-        (Seq(P2), exists(x, P2(x)))
+        1,
+        P, lambda(x, Q(x, x)),
+        Seq(y),
+        (P2, exists(x, P2(x)))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      val t3 = LeftBeta(
+        Set(exists(x, Q(x, x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, P(x)),
+        2,
+        exists(x, X),
+        lambda(x, Q(x, x)),
+        x,
+        X
+      )
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2, t3))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, P(x)) |- exists(x, P(x)), exists(x, P(x)))
-      val t1 = LeftSubstIff(
-        Set(exists(x, Q(x, x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, P(x)),
+      val t1 = Sorry(forall(y, P(y) <=> Q(y, y)) |- P(y) <=> Q(y, y))
+      val t2 = LeftSubstIff(
+        Set(exists(x, lambda(z, Q(z, z))(x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, P(x)),
         0,
-        List((LambdaTermFormula(Seq(y), P(y)), LambdaTermFormula(Seq(z), Q(z, z)))),
-        (Seq(P2), exists(x, P2(x)))
+        1,
+        P, lambda(z, Q(z, z)),
+        Seq(y),
+        (P2, exists(x, P2(x)))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      val t3 = LeftBeta(
+        Set(exists(x, Q(x, x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, P(x)),
+        2,
+        exists(x, X),
+        lambda(z, Q(z, z)),
+        x,
+        X
+      )
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2, t3))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, forall(y, Q(y, g(x, z)))) |- exists(x, forall(y, Q(y, g(x, z)))), exists(x, forall(y, Q(y, g(x, z)))))
-      val t1 = LeftSubstIff(
-        Set(exists(x, forall(y, Q(g(x, z), y))), forall(x, forall(y, Q(x, y) <=> Q(y, x)))) |- exists(x, forall(y, Q(y, g(x, z)))),
+      val t1 = Sorry(forall(y, forall(z, Q(y, z) <=> Q(z, y))) |- Q(y, z) <=> Q(z, y))
+      val t2 = LeftSubstIff(
+        Set(exists(x, forall(y, lambda(Seq(y, z), Q(z, y))(y, g(x, z)))), forall(x, forall(y, Q(x, y) <=> Q(y, x)))) |- exists(x, forall(y, Q(y, g(x, z)))),
         0,
-        List((LambdaTermFormula(Seq(y, z), Q(y, z)), LambdaTermFormula(Seq(y, z), Q(z, y)))),
-        (Seq(Q2), exists(x, forall(y, Q2(y, g(x, z)))))
+        1,
+        Q, lambda(Seq(y, z), Q(z, y)),
+        Seq(y, z),
+        (Q2, exists(x, forall(y, Q2(y, g(x, z)))))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2))).isValid)
     }
-
   }
 
   test("Verification of RightSubstIff") {
     {
       val t0 = Hypothesis(P(x) |- P(x), P(x))
-      val t1 = RightSubstIff(Set(P(x), P(x) <=> P(y)) |- P(y), 0, List(((LambdaTermFormula(Seq(), P(x)), LambdaTermFormula(Seq(), P(y))))), (Seq(X), X))
-      val pr = new SCProof(IndexedSeq(t0, t1))
-      assert(checkSCProof(pr).isValid)
+      val t1 = Hypothesis(P(x) <=> P(y) |- P(x) <=> P(y), P(x) <=> P(y))
+      val t2 = RightSubstIff(Set(P(x), P(x) <=> P(y)) |- P(y), 0, 1, P(x), P(y), Seq(), (X, P(X)))
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, P(x)) |- exists(x, P(x)), exists(x, P(x)))
-      val t1 = RightSubstIff(
-        Set(exists(x, P(x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, Q(x, x)),
+      val t1 = Sorry(forall(y, P(y) <=> Q(y, y)) |- P(y) <=> Q(y, y))
+      val t2 = RightSubstIff(
+        Set(exists(x, P(x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, lambda(x, Q(x, x))(x)),
         0,
-        List((LambdaTermFormula(Seq(x), P(x)), LambdaTermFormula(Seq(x), Q(x, x)))),
-        (Seq(P2), exists(x, P2(x)))
+        1,
+        P, lambda(x, Q(x, x)),
+        Seq(y),
+        (P2, exists(x, P2(x)))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      val t3 = RightBeta(
+        Set(exists(x, P(x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, Q(x, x)),
+        2,
+        exists(x, X),
+        lambda(x, Q(x, x)),
+        x,
+        X
+      )
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2, t3))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, P(x)) |- exists(x, P(x)), exists(x, P(x)))
-      val t1 = RightSubstIff(
-        Set(exists(x, P(x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, Q(x, x)),
+      val t1 = Sorry(forall(y, P(y) <=> Q(y, y)) |- P(y) <=> Q(y, y))
+      val t2 = RightSubstIff(
+        Set(exists(x, P(x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, lambda(z, Q(z, z))(x)),
         0,
-        List((LambdaTermFormula(Seq(y), P(y)), LambdaTermFormula(Seq(z), Q(z, z)))),
-        (Seq(P2), exists(x, P2(x)))
+        1,
+        P, lambda(z, Q(z, z)),
+        Seq(y),
+        (P2, exists(x, P2(x)))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      val t3 = RightBeta(
+        Set(exists(x, P(x)), forall(y, P(y) <=> Q(y, y))) |- exists(x, Q(x, x)),
+        2,
+        exists(x, X),
+        lambda(z, Q(z, z)),
+        x,
+        X
+      )
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2, t3))).isValid)
     }
     {
       val t0 = Hypothesis(exists(x, forall(y, Q(y, g(x, z)))) |- exists(x, forall(y, Q(y, g(x, z)))), exists(x, forall(y, Q(y, g(x, z)))))
-      val t1 = RightSubstIff(
-        Set(exists(x, forall(y, Q(y, g(x, z)))), forall(x, forall(y, Q(x, y) <=> Q(y, x)))) |- exists(x, forall(y, Q(g(x, z), y))),
+      val t1 = Sorry(forall(y, forall(z, Q(y, z) <=> Q(z, y))) |- Q(y, z) <=> Q(z, y))
+      val t2 = RightSubstIff(
+        Set(exists(x, forall(y, Q(y, g(x, z)))), forall(x, forall(y, Q(x, y) <=> Q(y, x)))) |- exists(x, lambda(Seq(y, z), Q(z, y))(g(x, z), y)),
         0,
-        List((LambdaTermFormula(Seq(y, z), Q(y, z)), LambdaTermFormula(Seq(y, z), Q(z, y)))),
-        (Seq(Q2), exists(x, forall(y, Q2(g(x, z), y))))
+        1,
+        Q, lambda(Seq(y, z), Q(z, y)),
+        Seq(y, z),
+        (Q2, exists(x, forall(y, Q2(y, g(x, z)))))
       )
-      assert(checkSCProof(SCProof(IndexedSeq(t0, t1))).isValid)
+      assert(checkSCProof(SCProof(IndexedSeq(t0, t1, t2))).isValid)
     }
   }
 
   test("Commutativity on a random large formula") {
     val k = 9
     val r = new Random()
-    val vars = (0 until 1 << k).map(i => AtomicFormula(ConstantAtomicLabel(s"P$i", 0), Seq()))
+    val vars = (0 until 1 << k).map(i => Constant(s"P$i", Formula))
 
     val pairs = vars.grouped(2)
     val sPairs = vars.grouped(2)
