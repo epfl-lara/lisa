@@ -71,7 +71,7 @@ trait Syntax {
     def freeTermVars: Set[Variable[T]]
     def constants: Set[Constant[?]]
   }
-  trait Expr[S: Sort] extends LisaObject {
+  sealed trait Expr[S: Sort] extends LisaObject {
     val sort: K.Sort = summon[IsSort[S]].underlying
     private val arity = K.flatTypeParameters(sort).size
     def underlying: K.Expression
