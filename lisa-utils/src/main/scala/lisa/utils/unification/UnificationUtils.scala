@@ -17,6 +17,17 @@ object UnificationUtils:
   object Substitution:
     def empty: Substitution = ???
 
+  /**
+   * Performs first-order matching for two terms. Returns a (most-general)
+   * substitution from variables to terms such that `expr` substituted is equal
+   * to `pattern`, if one exists.
+   *
+   * @param expr the reference term (to substitute in)
+   * @param pattern the pattern to match against
+   * @param subst partial substitution to match under
+   * @return substitution (Option) from variables to terms. `None` iff a
+   * substitution does not exist.
+   */
   def matchExpr[A](expr: Expr[A], pattern: Expr[A], subst: Substitution = Substitution.empty): Option[Substitution] = 
     if expr eq pattern then
       Some(subst)
