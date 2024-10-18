@@ -8,6 +8,24 @@ import lisa.fol.FOL.{_, given}
 object UnificationUtils:
 
   /**
+    * Context containing information and constraints pertaining to matching,
+    * unification, and rewriting.
+    *
+    * @param boundVariables variables in terms that cannot be substituted
+    */
+  case class RewriteContext(
+    boundVariables: Set[Variable[?]]
+  ):
+    def isFree[A](v: Variable[A]) = !isBound(v)
+    def isBound[A](v: Variable[A]) = boundVariables.contains(v)
+    def bind[A](v: Variable[A]) = this.copy(boundVariables = boundVariables + v)
+
+  object RewriteContext:
+    def empty = RewriteContext(Set.empty)
+    def withBound(vars: Iterable[Variable[?]]) =
+      RewriteContext(vars.toSet)
+
+  /**
     * Immutable representation of a typed variable substitution.
     *
     * Types are discarded for storage but are guaranteed to be sound by
