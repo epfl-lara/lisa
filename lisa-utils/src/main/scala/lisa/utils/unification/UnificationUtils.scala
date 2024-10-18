@@ -100,7 +100,7 @@ object UnificationUtils:
               // first encounter
               Some(subst + (v -> pattern))
         case (App(fe, arge), App(fp, argp)) if fe.sort == fp.sort =>
-          // the sort of fp are already runtime checked here; the sort of argp
+          // the sort of fp is already runtime checked here; the sort of argp
           // is implied by combination of static and runtime checks
           matchExpr(fe, fp.asInstanceOf, subst)
             .flatMap(subst => matchExpr(arge, argp.asInstanceOf, subst))
