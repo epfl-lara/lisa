@@ -1,15 +1,55 @@
 package lisa.utils.unification
 
 import lisa.fol.FOL.{_, given}
-//import lisa.fol.FOLHelpers.*
-
-//import lisa.kernel.fol.FOL.*
-//import lisa.utils.KernelHelpers.{_, given}
 
 /**
  * General utilities for unification, substitution, and rewriting
  */
-object UnificationUtils {
+object UnificationUtils:
+
+  class Substitution:
+    def apply[A](v: Variable[A]): Option[Expr[A]] = ???
+
+    def +[A](mapping: (Variable[A], Expr[A])): Substitution = ???
+
+    def contains[A](v: Variable[A]): Boolean = ???
+
+  object Substitution:
+    def empty: Substitution = ???
+
+  def matchExpr[A](expr: Expr[A], pattern: Expr[A], subst: Substitution = Substitution.empty): Option[Substitution] = 
+    if expr eq pattern then
+      Some(subst)
+    else
+      (expr, pattern) match
+        case (v @ Variable(_), _) => 
+          subst(v) match
+            case Some(e) => if e == pattern then Some(subst) else None
+            case None =>
+              // first encounter
+              Some(subst + (v -> pattern))
+        case (App(fe, arge), App(fp, argp)) if fe.sort == fp.sort =>
+          // the sort of fp are already runtime checked here; the sort of argp
+          // is implied by combination of static and runtime checks
+          matchExpr(fe, fp.asInstanceOf, subst)
+            .flatMap(subst => matchExpr(arge, argp.asInstanceOf, subst))
+
+        case (Abs(ve, fe), Abs(vp, fp)) =>
+          val freshVar = ve.freshRename(Seq(fe, fp))
+          val inner = matchExpr(
+                        fe.substitute(ve := freshVar), 
+                        fp.substitute(vp := freshVar), 
+                        subst
+                      )
+          // did the bound variable need to be assigned?
+          // if yes, fail
+          inner.filterNot(_.contains(freshVar))
+
+        case _ => None
+
+end UnificationUtils
+
+// object UnificationUtils {
 /*
   extension [A](seq: Seq[A]) {
 
@@ -615,4 +655,4 @@ object UnificationUtils {
     }
   }
 */
-}
+// }
