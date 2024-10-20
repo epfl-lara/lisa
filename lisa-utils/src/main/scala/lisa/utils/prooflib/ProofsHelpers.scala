@@ -297,7 +297,7 @@ trait ProofsHelpers {
             val freshX = Variable.unsafe(fresh, body1.sort)
             val right: Term = applyVars(leading.reverse, freshX).asInstanceOf[Term]
             var instRight: Term = applyVars(leading.reverse, body1).asInstanceOf[Term]
-            thenHave(appliedCst === instRight) by RightBeta.withParameters(appliedCst === right, lam, vAbs, freshX)
+            thenHave(appliedCst === instRight) by Beta
           case App(f, a: Variable[?]) => loop(expr, a :: leading)
           case _ => throw new Exception("Unreachable")
         }

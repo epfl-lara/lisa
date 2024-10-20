@@ -30,17 +30,16 @@ object Serialization {
   inline def rightExists: Byte = 18
   inline def rightEpsilon: Byte = 19
   inline def weakening: Byte = 20
-  inline def leftBeta: Byte = 21
-  inline def rightBeta: Byte = 22
-  inline def leftRefl: Byte = 23
-  inline def rightRefl: Byte = 24
-  inline def leftSubstEq: Byte = 25
-  inline def rightSubstEq: Byte = 26
-  inline def leftSubstIff: Byte = 27
-  inline def rightSubstIff: Byte = 28
-  inline def instSchema: Byte = 29
-  inline def scSubproof: Byte = 30
-  inline def sorry: Byte = 31
+  inline def beta: Byte = 21
+  inline def leftRefl: Byte = 22
+  inline def rightRefl: Byte = 23
+  inline def leftSubstEq: Byte = 24
+  inline def rightSubstEq: Byte = 25
+  inline def leftSubstIff: Byte = 26
+  inline def rightSubstIff: Byte = 27
+  inline def instSchema: Byte = 28
+  inline def scSubproof: Byte = 29
+  inline def sorry: Byte = 30
 
   type Line = Int
 
@@ -269,22 +268,10 @@ object Serialization {
           proofDOS.writeByte(weakening)
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
-        case LeftBeta(bot, t1, phi, lambda, t, x) =>
-          proofDOS.writeByte(leftBeta)
+        case Beta(bot, t1) =>
+          proofDOS.writeByte(beta)
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(lambda))
-          proofDOS.writeInt(lineOfExpr(t))
-          proofDOS.writeInt(lineOfExpr(x))
-        case RightBeta(bot, t1, phi, lambda, t, x) =>
-          proofDOS.writeByte(rightBeta)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(lambda))
-          proofDOS.writeInt(lineOfExpr(t))
-          proofDOS.writeInt(lineOfExpr(x))
         case LeftRefl(bot, t1, fa) =>
           proofDOS.writeByte(leftRefl)
           sequentToProofDOS(bot)
@@ -477,22 +464,10 @@ object Serialization {
           exprMap(proofDIS.readInt())
         )
       else if (psType == weakening) Weakening(sequentFromProofDIS(), proofDIS.readInt())
-      else if (psType == leftBeta) 
-        LeftBeta(sequentFromProofDIS(), 
-          proofDIS.readInt(), 
-          exprMap(proofDIS.readInt()), 
-          exprMap(proofDIS.readInt()).asInstanceOf[Lambda], 
-          exprMap(proofDIS.readInt()), 
-          exprMap(proofDIS.readInt()).asInstanceOf[Variable]
+      else if (psType == beta) 
+        Beta(sequentFromProofDIS(), 
+          proofDIS.readInt()
         )
-      else if (psType == rightBeta) 
-        RightBeta(sequentFromProofDIS(), 
-        proofDIS.readInt(), 
-        exprMap(proofDIS.readInt()), 
-        exprMap(proofDIS.readInt()).asInstanceOf[Lambda], 
-        exprMap(proofDIS.readInt()), 
-        exprMap(proofDIS.readInt()).asInstanceOf[Variable]
-      )
       else if (psType == leftRefl) LeftRefl(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
       else if (psType == rightRefl) RightRefl(sequentFromProofDIS(), exprMap(proofDIS.readInt()))
       else if (psType == leftSubstEq)

@@ -132,72 +132,6 @@ private[fol] trait Syntax {
     def allVariables: Set[Variable] = body.allVariables
   }
   
-  /*
-  object Equality {
-    def unapply (e: Expression): Option[(Expression, Expression)] = e match {
-      case Application(Application(`equality`, arg1), arg2) => Some((arg1, arg2))
-      case _ => None
-    }
-    def apply(arg1: Expression, arg2: Expression): Expression = equality(arg1)(arg2)
-  }
-
-  object Neg {
-    def unapply (e: Expression): Option[Expression] = e match {
-      case Application(`neg`, arg) => Some(arg)
-      case _ => None
-    }
-    def apply(arg: Expression): Expression = neg(arg)
-  }
-  object Implies {
-    def unapply (e: Expression): Option[(Expression, Expression)] = e match {
-      case Application(Application(`implies`, arg1), arg2) => Some((arg1, arg2))
-      case _ => None
-    }
-    def apply(arg1: Expression, arg2: Expression): Expression = implies(arg1)(arg2)
-  }
-  object Iff {
-    def unapply (e: Expression): Option[(Expression, Expression)] = e match {
-      case Application(Application(`iff`, arg1), arg2) => Some((arg1, arg2))
-      case _ => None
-    }
-    def apply(arg1: Expression, arg2: Expression): Expression = iff(arg1)(arg2)
-  }
-  object And {
-    def unapply (e: Expression): Option[(Expression, Expression)] = e match {
-      case Application(Application(`and`, arg1), arg2) => Some((arg1, arg2))
-      case _ => None
-    }
-    def apply(args: Iterable[Expression]): Expression = args.reduceLeft(and(_)(_))
-  }
-  object Or {
-    def unapply (e: Expression): Option[(Expression, Expression)] = e match {
-      case Application(Application(`or`, arg1), arg2) => Some((arg1, arg2))
-      case _ => None
-    }
-    def apply(args: Iterable[Expression]): Expression = args.reduceLeft(and(_)(_))
-  }
-  object Forall {
-    def unapply (e: Expression): Option[(Variable, Expression)] = e match {
-      case Application(`forall`, Lambda(v, body)) => Some((v, body))
-      case _ => None
-    }
-    def apply(v: Variable, body: Expression): Expression = forall(Lambda(v, body))
-  }
-  object Exists {
-    def unapply (e: Expression): Option[(Variable, Expression)] = e match {
-      case Application(`exists`, Lambda(v, body)) => Some((v, body))
-      case _ => None
-    }
-    def apply(v: Variable, body: Expression): Expression = exists(Lambda(v, body))
-  }
-  object Epsilon {
-    def unapply (e: Expression): Option[(Variable, Expression)] = e match {
-      case Application(`epsilon`, Lambda(v, body)) => Some((v, body))
-      case _ => None
-    }
-    def apply(v: Variable, body: Expression): Expression = epsilon(Lambda(v, body))
-  }
-*/
 
   val equality = Constant(Identifier("="),  Term -> (Term -> Formula))
   val top = Constant(Identifier("⊤"), Formula)
@@ -229,12 +163,32 @@ private[fol] trait Syntax {
     case c: Constant => c
     case Application(f, arg) => Application(substituteVariables(f, m), substituteVariables(arg, m))
     case Lambda(v, t) => 
-      Lambda(v, substituteVariables(t, m - v))
+      val newSubst = m - v
+      val fv = m.values.flatMap(_.freeVariables).toSet
+      if (fv.contains(v)) {
+        val newBound = Variable(freshId(fv.view.map(_.id) ++ m.keys.view.map(_.id), v.id), v.sort)
+        Lambda(newBound, substituteVariables(t, newSubst + (v -> newBound)))
+      }
+      else Lambda(v, substituteVariables(t, m - v))
   }
 
   def flatTypeParameters(t: Sort): List[Sort] = t match {
     case Arrow(a, b) => a :: flatTypeParameters(b)
     case _ => List()
+  }
+
+  def betaReduce(e: Expression): Expression = e match {
+    case Application(f, arg) => {
+      val f1 = betaReduce(f)
+      val a2 = betaReduce(arg)
+      f1 match {
+        case Lambda(v, body) => betaReduce(substituteVariables(body, Map(v -> a2)))
+        case _ => Application(f1, betaReduce(a2))
+      }
+    }
+    case Lambda(v, inner) => 
+      Lambda(v, betaReduce(inner))
+    case _ => e
   }
 
 }
