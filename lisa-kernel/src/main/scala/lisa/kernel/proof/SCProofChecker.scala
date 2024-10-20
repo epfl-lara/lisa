@@ -381,33 +381,6 @@ object SCProofChecker {
               SCValidProof(SCProof(step))
             else SCInvalidProof(SCProof(step), Nil, "Conclusion cannot be trivially derived from premise.")
 
-
-          /**
-           * <pre>
-           *    Γ |- φ[(λy. e)t/x], Δ
-           * ---------------------------
-           *     Γ |- φ[e[t/y]/x], Δ
-           * </pre>
-           */
-          case RightBeta(b, t1, phi, lambda, t, x) => 
-            val Lambda(y, e) = lambda
-            if (phi.sort != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
-            else if (y.sort != t.sort) 
-              SCInvalidProof(SCProof(step), Nil, "t must have the same type as y, but they are " + t.sort + " and " + y.sort)
-            else if (e.sort != x.sort) 
-              SCInvalidProof(SCProof(step), Nil, "e must have the same type as x, but they are " + e.sort + " and " + x.sort)
-            else if (isSameSet(b.left, ref(t1).left)) {
-              val redex = lambda(t)
-              val normalized = substituteVariables(e, Map(y -> t))
-              val phi_redex = substituteVariables(phi, Map(x -> redex))
-              val phi_normalized = substituteVariables(phi, Map(x -> normalized))
-              if (isSameSet(b.right + phi_redex, ref(t1).right + phi_normalized) || isSameSet(b.right + phi_normalized, ref(t1).right + phi_redex))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of the conclusion + φ[(λy. e)t/x] must be the same as right-hand side of the premise + φ[e[t/y]/x] (or the opposite)")
-            } else SCInvalidProof(SCProof(step), Nil, "Left-hand sides or conclusion and premise must be the same.")
-
-
           /**
            * <pre>
            *    Γ, φ[(λy. e)t/x] |- Δ
@@ -415,24 +388,10 @@ object SCProofChecker {
            *     Γ, φ[e[t/y]/x] |- Δ
            * </pre>
            */
-          case LeftBeta(b, t1, phi, lambda, t, x) => 
-            val Lambda(y, e) = lambda
-            if (phi.sort != Formula) 
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
-            else if (y.sort != t.sort) 
-              SCInvalidProof(SCProof(step), Nil, "t must have the same type as y, but they are " + t.sort + " and " + y.sort)
-            else if (e.sort != x.sort) 
-              SCInvalidProof(SCProof(step), Nil, "e must have the same type as x, but they are " + e.sort + " and " + x.sort)
-            else if (isSameSet(b.right, ref(t1).right)) {
-              val redex = lambda(t)
-              val normalized = substituteVariables(e, Map(y -> t))
-              val phi_redex = substituteVariables(phi, Map(x -> redex))
-              val phi_normalized = substituteVariables(phi, Map(x -> normalized))
-              if (isSameSet(b.left + phi_redex, ref(t1).left + phi_normalized) || isSameSet(b.left + phi_normalized, ref(t1).left + phi_redex))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of the conclusion + φ[(λy. e)t/x] must be the same as left-hand side of the premise + φ[e[t/y]/x] (or the opposite)")
-            } else SCInvalidProof(SCProof(step), Nil, "Right-hand sides or conclusion and premise must be the same.")
-
+          case Beta(b, t1) => 
+            if (isSame(betaReduce(sequentToFormula(b)), betaReduce(sequentToFormula(ref(t1))))) {
+              SCValidProof(SCProof(step))
+            } else SCInvalidProof(SCProof(step), Nil, "The conclusion is not beta-OL-equivalent to the premise.")
 
           // Equality Rules
           /*
@@ -510,9 +469,9 @@ object SCProofChecker {
                     SCInvalidProof(SCProof(step), Nil, "The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
                   } else SCValidProof(SCProof(step))
                 }
-                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
+                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion + φ(s) must be the same as left-hand side of the premises + φ(t).")
               }
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premises must be the same as the right-hand side of the conclusion + s=t.")
             }
 
                       /*
@@ -591,9 +550,9 @@ object SCProofChecker {
                     SCInvalidProof(SCProof(step), Nil, "The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
                   } else SCValidProof(SCProof(step))
                 }
-                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
+                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion the same as the left-hand sides of the premises.")
               }
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premises + φ(t) must be the same as right-hand sides of the premises + φ(s) + s=t.")
             }
 
 

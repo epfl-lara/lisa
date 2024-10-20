@@ -257,17 +257,9 @@ object SequentCalculus {
    *     Γ |- φ[e[t/y]/x], Δ
    * </pre>
    */
-  case class LeftBeta(bot: Sequent, t1: Int, phi: Expression, lambda: Lambda, t: Expression, x: Variable) extends SCProofStep { val premises = Seq(t1) }
+  case class Beta(bot: Sequent, t1: Int) extends SCProofStep { val premises = Seq(t1) }
 
 
-  /**
-   * <pre>
-   *    Γ, φ[(λy. e)t/x] |- Δ
-   * ---------------------------
-   *     Γ, φ[e[t/y]/x] |- Δ
-   * </pre>
-   */
-  case class RightBeta(bot: Sequent, t1: Int, phi: Expression, lambda: Lambda, t: Expression, x: Variable) extends SCProofStep { val premises = Seq(t1) }
 
   // Equality Rules
   /**
@@ -297,7 +289,7 @@ object SequentCalculus {
    * equals elements must have type ... -> ... -> Term
    */
   //case class LeftSubstEq(bot: Sequent, t1: Int, equals: List[(LambdaTermTerm, LambdaTermTerm)], lambdaPhi: (Seq[SchematicTermLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
-  case class LeftSubstEq(bot: Sequent, t1: Int, t2: Int, s: Expression, t: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftSubstEq(bot: Sequent, t1: Int, t2: Int, s: Expression, t: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1, t2) }
 
   /**
    * <pre>
@@ -307,7 +299,7 @@ object SequentCalculus {
    * </pre>
    * equals elements must have type ... -> ... -> Term
    */
-  case class RightSubstEq(bot: Sequent, t1: Int, t2: Int, s: Expression, t: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1) }
+  case class RightSubstEq(bot: Sequent, t1: Int, t2: Int, s: Expression, t: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1, t2) }
 
   /**
    * <pre>
@@ -317,7 +309,7 @@ object SequentCalculus {
    * </pre>
    * equals elements must have type ... -> ... -> Formula
    */
-  case class LeftSubstIff(bot: Sequent, t1: Int, t2: Int, psi: Expression, tau: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftSubstIff(bot: Sequent, t1: Int, t2: Int, psi: Expression, tau: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1, t2) }
 
   /**
    * <pre>
@@ -327,7 +319,7 @@ object SequentCalculus {
    * </pre>
    * equals elements must have type ... -> ... -> Formula
    */
-  case class RightSubstIff(bot: Sequent, t1: Int, t2: Int, psi: Expression, tau: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1) }
+  case class RightSubstIff(bot: Sequent, t1: Int, t2: Int, psi: Expression, tau: Expression, vars: Seq[Variable], lambdaPhi: (Variable, Expression)) extends SCProofStep { val premises = Seq(t1, t2) }
 
   // Rule for schemas
 

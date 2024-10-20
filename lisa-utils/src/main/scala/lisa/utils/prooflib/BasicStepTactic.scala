@@ -988,65 +988,15 @@ object BasicStepTactic {
 
   */
 
-  object RightBeta extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)
-    (phi: F.Formula, lambda: F.Abs[?, ?], t: F.Expr[?], x: F.Variable[?])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      lazy val premiseSequent = proof.getSequent(premise).underlying
-      lazy val phiK = phi.underlying
-      lazy val lambdaK = lambda.underlying
-      lazy val tK = t.underlying
-      lazy val xK = x.underlying
-      lazy val botK = bot.underlying
-      lazy val y = lambda.v.underlying
-      lazy val e = lambda.body.underlying
-      if (phi.sort != K.Formula) 
-        return proof.InvalidProofTactic("φ must be a formula, but it is a " + phi.sort)
-      else if (y.sort != t.sort) 
-        return proof.InvalidProofTactic("y must have the same type as t, but they are " + y.sort + " and " + t.sort)
-      else if (e.sort != x.sort) 
-        return proof.InvalidProofTactic("e must have the same type as x, but they are " + e.sort + " and " + x.sort)
-      else if (K.isSameSet(botK.left, premiseSequent.left)) {
-        val redex = lambdaK(tK)
-        val normalized = K.substituteVariables(e, Map(y -> tK))
-        val phi_redex = K.substituteVariables(phiK, Map(xK -> redex))
-        val phi_normalized = K.substituteVariables(phiK, Map(xK -> normalized))
-        if (K.isSameSet(botK.right + phi_redex, premiseSequent.right + phi_normalized) || K.isSameSet(botK.right + phi_normalized, premiseSequent.right + phi_redex))
-          return proof.ValidProofTactic(bot, Seq(K.LeftBeta(botK, -1, phiK, lambdaK, tK, xK)), Seq(premise))
-        else 
-          return proof.InvalidProofTactic("Right-hand side of the conclusion + φ[λy.e]t/x must be the same as right-hand side of the premise + φ[e[t/y]/x] (or the opposite)")
-      } else 
-        return proof.InvalidProofTactic("Left-hand side of the conclusion must be the same as the left-hand side of the premise")
-    }
-  }
-
-  object LeftBeta extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)
-    (phi: F.Formula, lambda: F.Abs[?, ?], t: F.Expr[?], x: F.Variable[?])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      lazy val premiseSequent = proof.getSequent(premise).underlying
-      lazy val phiK = phi.underlying
-      lazy val lambdaK = lambda.underlying
-      lazy val tK = t.underlying
-      lazy val xK = x.underlying
-      lazy val botK = bot.underlying
-      lazy val y = lambda.v.underlying
-      lazy val e = lambda.body.underlying
-      if (phi.sort != K.Formula) 
-        return proof.InvalidProofTactic("φ must be a formula, but it is a " + phi.sort)
-      else if (y.sort != t.sort) 
-        return proof.InvalidProofTactic("y must have the same type as t, but they are " + y.sort + " and " + t.sort)
-      else if (e.sort != x.sort) 
-        return proof.InvalidProofTactic("e must have the same type as x, but they are " + e.sort + " and " + x.sort)
-      else if (K.isSameSet(botK.right, premiseSequent.right)) {
-        val redex = lambdaK(tK)
-        val normalized = K.substituteVariables(e, Map(y -> tK))
-        val phi_redex = K.substituteVariables(phiK, Map(xK -> redex))
-        val phi_normalized = K.substituteVariables(phiK, Map(xK -> normalized))
-        if (K.isSameSet(botK.left + phi_redex, premiseSequent.left + phi_normalized) || K.isSameSet(botK.left + phi_normalized, premiseSequent.left + phi_redex))
-          return proof.ValidProofTactic(bot, Seq(K.LeftBeta(botK, -1, phiK, lambdaK, tK, xK)), Seq(premise))
-        else 
-          return proof.InvalidProofTactic("Left-hand side of the conclusion + φ[λy.e]t/x must be the same as left-hand side of the premise + φ[e[t/y]/x] (or the opposite)")
-      } else 
-        return proof.InvalidProofTactic("Right-hand side of the conclusion must be the same as the right-hand side of the premise")
+  object Beta extends ProofTactic with ProofFactSequentTactic {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      val botK = bot.underlying
+      val red1 = K.betaReduce(K.sequentToFormula(botK))
+      val red2 = K.betaReduce(K.sequentToFormula(proof.getSequent(premise).underlying))
+      if (!K.isSame(red1,red2))
+        proof.InvalidProofTactic("The conclusion is not beta-OL-equivalent to the premise.")
+      else
+        proof.ValidProofTactic(bot, Seq(K.Beta(botK, -1)), Seq(premise))
     }
   }
 

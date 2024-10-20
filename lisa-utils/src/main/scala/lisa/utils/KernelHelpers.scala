@@ -23,7 +23,7 @@ object KernelHelpers {
   /* Prefix syntax */
 
   extension (s: Sort) {
-    def >>:(t: Sort) : Sort = Arrow(t, s)
+    def >>:(t: Sort) : Sort = Arrow(s, t)
   }
 
   val Equality = equality
@@ -52,12 +52,13 @@ object KernelHelpers {
   val ε = epsilon
 
 
+
   extension (binder: forall.type) {
     @targetName("forallApply")
     def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
     @targetName("forallUnapply")
     def unapply(e: Expression): Option[(Variable, Expression)] = e match {
-      case Application(forall, Lambda(x, inner)) => Some((x, inner))
+      case Application(`forall`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
     }
   }
@@ -66,7 +67,7 @@ object KernelHelpers {
     def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
     @targetName("existsUnapply")
     def unapply(e: Expression): Option[(Variable, Expression)] = e match {
-      case Application(exists, Lambda(x, inner)) => Some((x, inner))
+      case Application(`exists`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
     }
   }
@@ -75,7 +76,7 @@ object KernelHelpers {
     def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
     @targetName("epsilonUnapply")
     def unapply(e: Expression): Option[(Variable, Expression)] = e match {
-      case Application(epsilon, Lambda(x, inner)) => Some((x, inner))
+      case Application(`epsilon`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
     }
   }
@@ -202,18 +203,6 @@ object KernelHelpers {
     def repr: String = s"${s.left.map(_.repr).mkString(", ")} |- ${s.right.map(_.repr).mkString(", ")}"
     
     def fullRepr: String = s"${s.left.map(_.fullRepr).mkString(", ")} |- ${s.right.map(_.fullRepr).mkString(", ")}"
-  }
-
-  def betaReduce(e: Expression): Expression = e match {
-    case Application(f, arg) => 
-      val f1 = betaReduce(f)
-      val a2 = betaReduce(arg)
-      f1 match
-        case Lambda(v, body) => betaReduce(substituteVariables(body, Map(v -> a2)))
-        case _ => Application(f1, betaReduce(a2))
-    case Lambda(v, inner) => 
-      Lambda(v, betaReduce(inner))
-    case _ => e
   }
 
   /**
@@ -497,6 +486,12 @@ object KernelHelpers {
     }
   }
 
+
+  extension (judg: SCProofCheckerJudgement) {
+    def repr: String = prettySCProof(judg)
+  }
+
+
   /**
    * output a readable representation of a proof.
    */
@@ -606,8 +601,7 @@ object KernelHelpers {
               case LeftImplies(_, t1, t2, _, _) => pretty("Left ⇒", t1, t2)
               case LeftIff(_, t1, _, _) => pretty("Left ⇔", t1)
               case Weakening(_, t1) => pretty("Weakening", t1)
-              case LeftBeta(_, t1, _, _, _, _) => pretty("Left β", t1)
-              case RightBeta(_, t1, _, _, _, _) => pretty("Right β", t1)
+              case Beta(_, t1) => pretty("Beta", t1)
               case LeftRefl(_, t1, _) => pretty("L. Refl", t1)
               case RightRefl(_, _) => pretty("R. Refl")
               case LeftSubstEq(_, t1, t2, _, _, _, _) => pretty("L. SubstEq", t1, t2)

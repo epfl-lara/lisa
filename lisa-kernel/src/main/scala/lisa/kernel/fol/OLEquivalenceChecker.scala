@@ -33,13 +33,10 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   @deprecated("Use isSame instead", "0.8")
   def isSameTerm(term1: Expression, term2: Expression): Boolean = isSame(term1, term2)
   def isSame(e1: Expression, e2: Expression): Boolean = {
-    if (e1.containsFormulas != e2.containsFormulas) false
-    else if (!e1.containsFormulas) e1 == e2
-    else {
-      val nf1 = computeNormalForm(simplify(e1))
-      val nf2 = computeNormalForm(simplify(e2))
-      latticesEQ(nf1, nf2)
-    }
+    val nf1 = computeNormalForm(simplify(e1))
+    val nf2 = computeNormalForm(simplify(e2))
+    latticesEQ(nf1, nf2)
+    
   }
 
   /**
@@ -469,17 +466,15 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
   def latticesEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean = 
     if (e1.uniqueKey == e2.uniqueKey) true
-    else if (e1.containsFormulas && e2.containsFormulas) {
-      if (e1.sort == Formula) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
-      else (e1, e2) match {
-        case (s1: SimpleBoundVariable, s2: SimpleBoundVariable) => s1 == s2
-        case (s1: SimpleVariable, s2: SimpleVariable) => s1 == s2
-        case (s1: SimpleConstant, s2: SimpleConstant) => s1 == s2
-        case (SimpleApplication(f1, arg1, polarity1), SimpleApplication(f2, arg2, polarity2)) =>
-          polarity1 == polarity2 && latticesEQ(f1, f2) && latticesEQ(arg1, arg2)
-        case (SimpleLambda(x1, body1), SimpleLambda(x2, body2)) =>
-          latticesEQ(body1, body2)
-        case (_, _) => false
-      }
-    } else e1 == e2
+    else if (e1.sort == Formula) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
+    else (e1, e2) match {
+      case (s1: SimpleBoundVariable, s2: SimpleBoundVariable) => s1 == s2
+      case (s1: SimpleVariable, s2: SimpleVariable) => s1 == s2
+      case (s1: SimpleConstant, s2: SimpleConstant) => s1 == s2
+      case (SimpleApplication(f1, arg1, polarity1), SimpleApplication(f2, arg2, polarity2)) =>
+        polarity1 == polarity2 && latticesEQ(f1, f2) && latticesEQ(arg1, arg2)
+      case (SimpleLambda(x1, body1), SimpleLambda(x2, body2)) =>
+        latticesEQ(body1, body2)
+      case (_, _) => false
+    }
 }

@@ -39,7 +39,7 @@ abstract class ProofCheckerSuite extends AnyFunSuite {
     assert(isSameSequent(proof.conclusion, expected), s"(${proof.conclusion.repr} did not equal ${expected.repr})")
   }
 
-  def checkIncorrectProof(incorrectProof: SCProof): Unit = {
+  inline def checkIncorrectProof(incorrectProof: SCProof): Unit = {
     assert(
       !checkSCProof(incorrectProof).isValid,
       s"(incorrect proof with conclusion '${incorrectProof.conclusion.repr}' was accepted by the proof checker)\nSequent: ${incorrectProof.conclusion}"
