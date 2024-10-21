@@ -17,7 +17,7 @@ trait Predef extends Syntax {
             (using IsSort[SortOf[S1]], IsSort[SortOf[S2]], IsSort[SortOf[S3]]): Binder[SortOf[S1], SortOf[S2], SortOf[S3]] = new Binder(name.value)
   
 
-  val equality = constant[Term >>: Term >>: Formula]("===")
+  val equality = constant[Term >>: Term >>: Formula]("=")
   val === = equality
   val ＝ = equality
 
