@@ -28,7 +28,19 @@ object SequentCalculus {
   /**
    * Simple method that transforms a sequent to a logically equivalent formula.
    */
-  def sequentToFormula(s: Sequent): Expression = implies(s.left.reduce(and(_)(_)))(s.right.reduce(or(_)(_)))
+  def sequentToFormula(s: Sequent): Expression = {
+    val left = {
+      if  (s.left.isEmpty) top
+      else if (s.left.size == 1) s.left.head
+      else s.left.reduce(and(_)(_))
+    }
+    val right ={
+      if  (s.right.isEmpty) bot
+      else if (s.right.size == 1) s.right.head
+      else s.right.reduce(or(_)(_))
+    }
+    implies(left)(right)
+  }
 
   /**
    * Checks whether two sequents are equivalent, with respect to [[isSameTerm]].

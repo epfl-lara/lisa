@@ -2,6 +2,7 @@ package lisa.kernel.fol
 
 private[fol] trait Syntax {
 
+  type SimpleExpression
 
   sealed case class Identifier(val name: String, val no: Int) {
     require(no >= 0, "Variable index must be positive")
@@ -73,6 +74,8 @@ private[fol] trait Syntax {
   }
 
   sealed trait Expression {
+    private[fol] var polarExpr: Option[SimpleExpression] = None
+    def getPolarExpr : Option[SimpleExpression] = polarExpr
     val sort: Sort
     val uniqueNumber: Long = ExpressionCounters.getNewId
     val containsFormulas : Boolean

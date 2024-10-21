@@ -190,7 +190,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
   }
   def addDoubleNegations(p: Double)(random: Random)(f: Expression): Expression = {
     def transform(f: Expression): Expression =
-      if (random.nextDouble() < p) neg(neg(transform(f)))
+      if (random.nextDouble() < p && f.sort == Formula) neg(neg(transform(f)))
       else
         f match {
           case Application(f, arg) => Application(transform(f), transform(arg))

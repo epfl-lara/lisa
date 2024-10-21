@@ -98,16 +98,18 @@ trait Syntax {
 
     def #@@(args: Seq[Expr[?]]): Expr[?] = 
       Multiapp.unsafe(this, args)
+
+    def structuralToString: String = this match
+      case Variable(id) => s"Variable($id, $sort)"
+      case Constant(id) => s"Constant($id, $sort)"
+      case App(f, arg) => s"App(${f.structuralToString}, ${arg.structuralToString})"
+      case Abs(v, body) => s"Abs(${v.structuralToString}, ${body.structuralToString})"
+    
   }
 
   extension [T1, T2](f: Expr[Arrow[T1, T2]]) 
     def apply(using IsSort[T1], IsSort[T2])(arg: Expr[T1]): Expr[T2] = App(f, arg)
 
-/*
-  type RetExpr[T] <: Expr[?] = T match
-    case Arrow[a, b] => Expr[b]
-    case _ => Expr[?]
-  */
 
   type RetExpr[T] = Expr[?]
 

@@ -82,8 +82,10 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     def getNNF_neg = NNF_neg
     private[OLEquivalenceChecker] var formulaAIG: Option[Expression] = None
     def getFormulaAIG = formulaAIG
-    private[OLEquivalenceChecker] var normalForm: Option[SimpleExpression] = if (containsFormulas) None else Some(this)
+    private[OLEquivalenceChecker] var normalForm: Option[SimpleExpression] = None
       def getNormalForm = normalForm
+    private[OLEquivalenceChecker] var namelessForm: Option[SimpleExpression] = None
+      def getNamelessForm = normalForm
 
     // caching for lessThan
     private val lessThanBitSet: mutable.Set[Long] = new mutable.HashSet()
@@ -243,50 +245,80 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
 
 
-  def polarize(e: Expression, polarity:Boolean): SimpleExpression = e match {
-    case neg(arg) => 
-      polarize(arg, !polarity)
-    case implies(arg1, arg2) =>
-      SimpleAnd(Seq(polarize(arg1, true), polarize(arg2, false)), !polarity)
-    case iff(arg1, arg2) =>
-      val l1 = polarize(arg1, true)
-      val r1 = polarize(arg2, true)
-      SimpleAnd(
-        Seq(
-          SimpleAnd(Seq(l1, getInversePolar(r1)), false),
-          SimpleAnd(Seq(getInversePolar(l1), r1), false)
-        ), polarity)
-    case and(arg1, arg2) =>
-      SimpleAnd(Seq(polarize(arg1, true), polarize(arg2, true)), polarity)
-    case or(arg1, arg2) => 
-      SimpleAnd(Seq(polarize(arg1, false), polarize(arg2, false)), !polarity)
-    case forall(Lambda(v, body)) =>
-      SimpleForall(v.id, polarize(body, true), polarity)
-    case exists(Lambda(v, body)) =>
-      SimpleForall(v.id, polarize(body, false), !polarity)
-    case equality(arg1, arg2) =>
-      SimpleEquality(polarize(arg1, true), polarize(arg2, true), polarity)
-    case Application(f, arg) => 
-      SimpleApplication(polarize(f, true), polarize(arg, true), polarity)
-    case Lambda(v, body) => SimpleLambda(v, polarize(body, true))
-    case Constant(`top`, Formula) => SimpleLiteral(true)
-    case Constant(`bot`, Formula) => SimpleLiteral(false)
-    case Constant(id, sort) => SimpleConstant(id, sort, polarity)
-    case Variable(id, sort) => SimpleVariable(id, sort, polarity)
-  }
+  def polarize(e: Expression, polarity:Boolean): SimpleExpression = 
+    if (polarity & e.polarExpr.isDefined) {
+      e.polarExpr.get
+    } else if (!polarity & e.polarExpr.isDefined) {
+      getInversePolar(e.polarExpr.get)
+    } else {
+      val r = e match {
+        case neg(arg) => 
+          polarize(arg, !polarity)
+        case implies(arg1, arg2) =>
+          SimpleAnd(Seq(polarize(arg1, true), polarize(arg2, false)), !polarity)
+        case iff(arg1, arg2) =>
+          val l1 = polarize(arg1, true)
+          val r1 = polarize(arg2, true)
+          SimpleAnd(
+            Seq(
+              SimpleAnd(Seq(l1, getInversePolar(r1)), false),
+              SimpleAnd(Seq(getInversePolar(l1), r1), false)
+            ), polarity)
+        case and(arg1, arg2) =>
+          SimpleAnd(Seq(polarize(arg1, true), polarize(arg2, true)), polarity)
+        case or(arg1, arg2) => 
+          SimpleAnd(Seq(polarize(arg1, false), polarize(arg2, false)), !polarity)
+        case forall(Lambda(v, body)) =>
+          SimpleForall(v.id, polarize(body, true), polarity)
+        case exists(Lambda(v, body)) =>
+          SimpleForall(v.id, polarize(body, false), !polarity)
+        case equality(arg1, arg2) =>
+          SimpleEquality(polarize(arg1, true), polarize(arg2, true), polarity)
+        case Application(f, arg) => 
+          SimpleApplication(polarize(f, true), polarize(arg, true), polarity)
+        case Lambda(v, body) => SimpleLambda(v, polarize(body, true))
+        case Constant(`top`, Formula) => SimpleLiteral(true)
+        case Constant(`bot`, Formula) => SimpleLiteral(false)
+        case Constant(id, sort) => SimpleConstant(id, sort, polarity)
+        case Variable(id, sort) => SimpleVariable(id, sort, polarity)
+      }
+      if (polarity) e.polarExpr = Some(r)
+      else e.polarExpr = Some(getInversePolar(r))
+      r
+    }
 
-  def toLocallyNameless(e: SimpleExpression, subst: Map[(Identifier, Sort), Int], i: Int): SimpleExpression = e match {
-    case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless(_, subst, i)), polarity)
-    case SimpleForall(x, inner, polarity) => SimpleForall(x, toLocallyNameless(inner, subst + ((x, Term) -> i), i + 1), polarity)
+  def toLocallyNameless(e: SimpleExpression): SimpleExpression = 
+    e.namelessForm match {
+      case None => 
+        val r = e match {
+          case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless), polarity)
+          case SimpleForall(x, inner, polarity) => SimpleForall(x, toLocallyNameless2(inner, Map((x, Term) -> 0), 1), polarity)
+          case e: SimpleLiteral => e
+          case SimpleEquality(left, right, polarity) => SimpleEquality(toLocallyNameless(left), toLocallyNameless(right), polarity)
+          case v: SimpleVariable => v
+          case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
+          case e: SimpleConstant => e
+          case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless(arg1), toLocallyNameless(arg2), polarity)
+          case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless2(inner, Map((x.id, Term) -> 0), 1))
+        }
+          
+          toLocallyNameless2(e, Map.empty, 0)
+        e.namelessForm = Some(r)
+        r
+      case Some(value) => value
+    }
+  def toLocallyNameless2(e: SimpleExpression, subst: Map[(Identifier, Sort), Int], i: Int): SimpleExpression = e match {
+    case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless2(_, subst, i)), polarity)
+    case SimpleForall(x, inner, polarity) => SimpleForall(x, toLocallyNameless2(inner, subst + ((x, Term) -> i), i + 1), polarity)
     case e: SimpleLiteral => e
-    case SimpleEquality(left, right, polarity) => SimpleEquality(toLocallyNameless(left, subst, i), toLocallyNameless(right, subst, i), polarity)
+    case SimpleEquality(left, right, polarity) => SimpleEquality(toLocallyNameless2(left, subst, i), toLocallyNameless2(right, subst, i), polarity)
     case v: SimpleVariable => 
       if (subst.contains((v.id, v.sort))) SimpleBoundVariable(i - subst((v.id, v.sort)), v.sort, v.polarity)
       else v
     case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
     case e: SimpleConstant => e
-    case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless(arg1, subst, i), toLocallyNameless(arg2, subst, i), polarity)
-    case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless(inner, subst + ((x.id, x.sort) -> i), i + 1))
+    case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless2(arg1, subst, i), toLocallyNameless2(arg2, subst, i), polarity)
+    case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless2(inner, subst + ((x.id, x.sort) -> i), i + 1))
   }
 
   def fromLocallyNameless(e: SimpleExpression, subst: Map[Int, (Identifier, Sort)], i: Int): SimpleExpression = e match {
@@ -304,7 +336,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     case SimpleLambda(x, inner) => SimpleLambda(x, fromLocallyNameless(inner, subst + (i -> (x.id, x.sort)), i + 1))
   }
 
-  def simplify(e: Expression): SimpleExpression = toLocallyNameless(polarize(e, true), Map.empty, 0)
+  def simplify(e: Expression): SimpleExpression = toLocallyNameless(polarize(e, true))
 
 
   //////////////////////

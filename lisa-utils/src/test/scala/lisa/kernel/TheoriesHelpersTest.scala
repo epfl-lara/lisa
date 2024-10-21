@@ -17,7 +17,7 @@ class TheoriesHelpersTest extends AnyFunSuite {
   export TestTheory.*
 
   test("theorem with incorrect statement") {
-    val (c0, c1) = (Constant("0", Term), Constant("1", Term))
+    val (c0, c1) = (Constant("Z", Term), Constant("S", Term))
     runningTestTheory.addSymbol(c0)
     runningTestTheory.addSymbol(c1)
 
@@ -27,12 +27,15 @@ class TheoriesHelpersTest extends AnyFunSuite {
       judgement.get
       fail("Shouldn't be able to get a theorem from an invalid judgement")
     } catch {
-
       case InvalidJustificationException(msg, None) => ()
     }
 
+
     // same theorem but with correct statement
-    assert(runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid)
+
+
+    assert(runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid,
+           runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).repr)
   }
 
 }
