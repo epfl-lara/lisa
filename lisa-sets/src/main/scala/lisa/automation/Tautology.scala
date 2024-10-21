@@ -39,7 +39,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
 
   def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
     val botK = bot.underlying
-    val premsFormulas: Seq[((proof.Fact, Formula), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
+    val premsFormulas: Seq[((proof.Fact, Expression), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
     val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
     val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
 
@@ -67,7 +67,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
    */
   def solveSequent(s: Sequent): Either[SCProof, (String, Sequent)] = {
     val augSeq = augmentSequent(s)
-    val MaRvIn = VariableFormulaLabel(freshId(augSeq.formula.schematicFormulaLabels.map(_.id), "MaRvIn")) // arbitrary name that is unlikely to already exist in the formula
+    val MaRvIn = Variable(freshId(augSeq.formula.freeVariables.map(_.id), "MaRvIn"), Formula) // arbitrary name that is unlikely to already exist in the formula
 
     try {
       val steps = solveAugSequent(augSeq, 0)(using MaRvIn)
@@ -78,7 +78,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
           (
             "The statement may be incorrect or not provable within propositional logic.\n" +
               "The proof search failed because it needed the truth of the following sequent:\n" +
-              s"${lisa.utils.FOLPrinter.prettySequent(e.unsolvable)}",
+              s"${e.unsolvable.repr}",
             e.unsolvable
           )
         )
@@ -88,36 +88,31 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
   // From there, private code.
 
   // Augmented Sequent
-  private case class AugSequent(decisions: (List[Formula], List[Formula]), formula: Formula)
+  private case class AugSequent(decisions: (List[Expression], List[Expression]), formula: Expression)
 
   // Transform a sequent into a format more adequate for solving
   private def augmentSequent(s: Sequent): AugSequent = {
     val f = reducedForm(sequentToFormula(s))
-    val atoms: scala.collection.mutable.Map[Formula, Int] = scala.collection.mutable.Map.empty
+    val atoms: scala.collection.mutable.Map[Expression, Int] = scala.collection.mutable.Map.empty
     AugSequent((Nil, Nil), f)
   }
 
-  def reduceSequent(s: Sequent): Formula = {
+  def reduceSequent(s: Sequent): Expression = {
     val p = simplify(sequentToFormula(s))
     val nf = computeNormalForm(p)
     val fln = fromLocallyNameless(nf, Map.empty, 0)
-    val res = toFormulaAIG(fln)
+    val res = toExpressionAIG(fln)
     res
   }
 
   // Find all "atoms" of the formula.
   // We mean atom in the propositional logic sense, so any formula starting with a predicate symbol, a binder or a schematic connector is an atom here.
-  def findBestAtom(f: Formula): Option[Formula] = {
-    val atoms: scala.collection.mutable.Map[Formula, Int] = scala.collection.mutable.Map.empty
-    def findAtoms2(f: Formula, add: Formula => Unit): Unit = f match {
-      case AtomicFormula(label, _) if label != top && label != bot => add(f)
-      case AtomicFormula(_, _) => ()
-      case ConnectorFormula(label, args) =>
-        label match {
-          case label: ConstantConnectorLabel => args.foreach(c => findAtoms2(c, add))
-          case SchematicConnectorLabel(id, arity) => add(f)
-        }
-      case BinderFormula(label, bound, inner) => add(f)
+  def findBestAtom(f: Expression): Option[Expression] = {
+    val atoms: scala.collection.mutable.Map[Expression, Int] = scala.collection.mutable.Map.empty
+    def findAtoms2(f: Expression, add: Expression => Unit): Unit = f match {
+      case And(f1, f2) => findAtoms2(f1, add); findAtoms2(f2, add)
+      case Neg(f1) => findAtoms2(f1, add)
+      case _ if f != top && f != bot => add(f)
     }
     findAtoms2(f, a => atoms.update(a, { val g = atoms.get(a); if (g.isEmpty) 1 else g.get + 1 }))
     if (atoms.isEmpty) None else Some(atoms.toList.maxBy(_._2)._1)
@@ -128,11 +123,11 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
   // Given a sequent, return a proof of that sequent if on exists that only uses propositional logic rules and reflexivity of equality.
   // Alternates between reducing the formulas using the OL algorithm for propositional logic and branching on an atom using excluded middle.
   // An atom is a subformula of the input that is either a predicate, a binder or a schematic connector, i.e. a subformula that has not meaning in propositional logic.
-  private def solveAugSequent(s: AugSequent, offset: Int)(using MaRvIn: VariableFormulaLabel): List[SCProofStep] = {
+  private def solveAugSequent(s: AugSequent, offset: Int)(using MaRvIn: Variable): List[SCProofStep] = {
     val bestAtom = findBestAtom(s.formula)
     val redF = reducedForm(s.formula)
     if (redF == top()) {
-      List(RestateTrue(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- s.formula))
+      List(RestateTrue(s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- s.formula))
     } else if (bestAtom.isEmpty) {
       assert(redF == bot()) // sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
       val res = s.decisions._1 |- redF :: s.decisions._2 // the branch that can't be closed
@@ -145,69 +140,42 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
 
       val seq1 = AugSequent((atom :: s.decisions._1, s.decisions._2), lambdaF(Seq(top())))
       val proof1 = solveAugSequent(seq1, offset)
+      val hyp1 = RestateTrue(atom |- atom)
       val subst1 = RightSubstIff(
-        atom :: s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF,
+        atom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- redF,
+        offset + proof1.length - 2,
         offset + proof1.length - 1,
-        List((LambdaTermFormula(Seq(), atom), LambdaTermFormula(Seq(), top()))),
+        atom, top,
+        Seq(),
         (lambdaF.vars, lambdaF.body)
       )
+      val negatom = Neg(atom)
       val seq2 = AugSequent((s.decisions._1, atom :: s.decisions._2), lambdaF(Seq(bot())))
       val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
+      val hyp2 = RestateTrue(negatom |- negatom)
       val subst2 = RightSubstIff(
-        Neg(atom) :: s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF,
-        offset + proof1.length + proof2.length - 1 + 1,
-        List((LambdaTermFormula(Seq(), atom), LambdaTermFormula(Seq(), bot()))),
+        negatom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- redF,
+        offset + proof1.length + proof2.length + 1 - 2,
+        offset + proof1.length + proof2.length + 1 - 1,
+        atom, bot,
+        Seq(),
         (lambdaF.vars, lambdaF.body)
       )
-      val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
-      val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
-      val redStep = Restate(s.decisions._1 ++ s.decisions._2.map((f: Formula) => Neg(f)) |- s.formula, offset + proof1.length + proof2.length + 4 - 1)
+      val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
+      val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
+      val redStep = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- s.formula, offset + proof1.length + proof2.length + 4 - 1)
       redStep :: cutStep :: red2 :: subst2 :: proof2 ++ (subst1 :: proof1)
 
     }
   }
 
+
+  
+
+
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
-  private def findSubterm2(t: Term, subs: Seq[(VariableLabel, Term)]): (Term, Boolean) = {
-    val eq = subs.find(s => isSameTerm(t, s._2))
-    if (eq.nonEmpty) (eq.get._1(), true)
-    else {
-      val induct = condflat(t.args.map(te => findSubterm2(te, subs)))
-      if (!induct._2) (t, false)
-      else (Term(t.label, induct._1), true)
-
-    }
-
-  }
-
-  private def findSubterm2(f: Formula, subs: Seq[(VariableLabel, Term)]): (Formula, Boolean) = {
-    f match {
-      case AtomicFormula(label, args) =>
-        val induct = condflat(args.map(findSubterm2(_, subs)))
-        if (!induct._2) (f, false)
-        else (AtomicFormula(label, induct._1), true)
-      case ConnectorFormula(label, args) =>
-        val induct = condflat(args.map(findSubterm2(_, subs)))
-        if (!induct._2) (f, false)
-        else (ConnectorFormula(label, induct._1), true)
-      case BinderFormula(label, bound, inner) =>
-        val fv_in_f = subs.flatMap(e => e._2.freeVariables + e._1)
-        if (!fv_in_f.contains(bound)) {
-          val induct = findSubterm2(inner, subs)
-          if (!induct._2) (f, false)
-          else (BinderFormula(label, bound, induct._1), true)
-        } else {
-          val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
-          val newInner = substituteVariablesInFormula(inner, Map(bound -> newv()), Seq.empty)
-          val induct = findSubterm2(newInner, subs)
-          if (!induct._2) (f, false)
-          else (BinderFormula(label, newv, induct._1), true)
-        }
-    }
-  }
-
-  private def findSubformula2(f: Formula, subs: Seq[(VariableFormulaLabel, Formula)]): (Formula, Boolean) = {
+  private def findSubformula2(f: Expression, subs: Seq[(VariableFormulaLabel, Expression)]): (Expression, Boolean) = {
     val eq = subs.find(s => isSame(f, s._2))
     if (eq.nonEmpty) (eq.get._1(), true)
     else
@@ -233,21 +201,8 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
           }
       }
   }
-  def findSubterm(t: Term, subs: Seq[(VariableLabel, Term)]): Option[LambdaTermTerm] = {
-    val vars = subs.map(_._1)
-    val r = findSubterm2(t, subs)
-    if (r._2) Some(LambdaTermTerm(vars, r._1))
-    else None
-  }
 
-  def findSubterm(f: Formula, subs: Seq[(VariableLabel, Term)]): Option[LambdaTermFormula] = {
-    val vars = subs.map(_._1)
-    val r = findSubterm2(f, subs)
-    if (r._2) Some(LambdaTermFormula(vars, r._1))
-    else None
-  }
-
-  def findSubformula(f: Formula, subs: Seq[(VariableFormulaLabel, Formula)]): Option[LambdaFormulaFormula] = {
+  def findSubformula(f: Expression, subs: Seq[(VariableFormulaLabel, Expression)]): Option[LambdaFormulaFormula] = {
     val vars = subs.map(_._1)
     val r = findSubformula2(f, subs)
     if (r._2) Some(LambdaFormulaFormula(vars, r._1))
