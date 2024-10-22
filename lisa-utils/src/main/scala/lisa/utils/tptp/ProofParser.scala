@@ -287,7 +287,7 @@ object ProofParser {
             val left = sequent.lhs.map(convertToKernel)
             val right = sequent.rhs.map(convertToKernel)
             val formula = left(n.toInt)
-            if (formula == K.Neg(left(m.toInt)) || K.Neg(formula) == left(m.toInt)) then Some((K.RestateTrue(K.Sequent(left.toSet, right.toSet)), name))
+            if (formula == K.neg(left(m.toInt)) || K.neg(formula) == left(m.toInt)) then Some((K.RestateTrue(K.Sequent(left.toSet, right.toSet)), name))
             else None
           case _ =>
             None
@@ -350,7 +350,7 @@ object ProofParser {
               case K.Neg(K.And(x, y)) => (x, y)
               case _ => throw new Exception(s"Expected a negated conjunction, but got $f")
             }
-            Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(K.Neg(a), K.Neg(b))), name))
+            Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(K.neg(a), K.neg(b))), name))
           case _ => None
         }
     }
@@ -401,7 +401,7 @@ object ProofParser {
               case K.Implies(x, y) => (x, y)
               case _ => throw new Exception(s"Expected an implication, but got $f")
             }
-            Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(K.Neg(a), b)), name))
+            Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(K.neg(a), b)), name))
           case _ => None
         }
     }
@@ -422,7 +422,7 @@ object ProofParser {
               case _ => throw new Exception(s"Expected a universal quantification, but got $f")
             }
             if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))
-            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(K.Neg(phi), Map(y -> xl)), x), name))
+            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(K.neg(phi), Map(y -> xl)), x), name))
           case _ => None
         }
     }
@@ -439,7 +439,7 @@ object ProofParser {
               case x:K.Variable => x
               case _ => throw new Exception(s"Expected a variable, but got $xl")
             val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
-              case K.Exists(K.Lambda(x, phi)) => (x, phi)
+              case K.Exists(x, phi) => (x, phi)
               case _ => throw new Exception(s"Expected an existential quantification, but got $f")
             }
             if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))
@@ -457,7 +457,7 @@ object ProofParser {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftForall", Seq(StrOrNum(n), Term(t)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val (x, phi) = convertToKernel(f) match {
-              case K.Forall(K.Lambda(x, phi)) => (x, phi)
+              case K.Forall(x, phi) => (x, phi)
               case _ => throw new Exception(s"Expected a universal quantification, but got $f")
             }
             Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), phi, x, t), name))
@@ -474,10 +474,10 @@ object ProofParser {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotEx", Seq(StrOrNum(n), Term(t)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val (x, phi) = convertToKernel(f) match {
-              case K.Neg(K.Exists(K.Lambda(x, phi))) => (x, phi)
+              case K.Neg(K.Exists(x, phi)) => (x, phi)
               case _ => throw new Exception(s"Expected a negated existential quantification, but got $f")
             }
-            Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), K.Neg(phi), x, t), name))
+            Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), K.neg(phi), x, t), name))
           case _ => None
         }
     }

@@ -4,7 +4,6 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
-import lisa.utils.parsing.UnreachableException
 
 
 
@@ -20,6 +19,7 @@ import scala.collection.mutable
 
 
 class EGraphTermsSimp() {
+  /*
 
   val termParents = mutable.Map[Term, mutable.Set[AppliedFunctional]]()
   val termUF = new UnionFind[Term]()
@@ -167,6 +167,6 @@ class EGraphTermsSimp() {
         }
     }
   }
-
+*/
 
 }

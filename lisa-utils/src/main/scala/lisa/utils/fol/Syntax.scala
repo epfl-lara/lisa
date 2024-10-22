@@ -13,9 +13,9 @@ trait Syntax {
 
   type IsSort[T] = Sort{type Self = T}
 
-  trait T
-  trait F
-  trait Arrow[A: Sort, B: Sort]
+  sealed trait T
+  sealed trait F
+  sealed trait Arrow[A: Sort, B: Sort]
 
   type Formula = Expr[F]
   type Term = Expr[T]
@@ -55,6 +55,12 @@ trait Syntax {
   given [T: Sort]: Conversion[(Variable[T], Expr[T]), SubstPair{type S = T}] = s => SubstPair(s._1, s._2)
 
 
+  type ArgsTo[S1, Target] <: NonEmptyTuple = S1 match {
+    case Arrow[a, Target] => Tuple1[Expr[a]]
+    case Arrow[a, b] => Expr[a] *: ArgsTo[b, Target]
+  }
+
+
   trait LisaObject {
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): LisaObject
     def substituteWithCheck(m: Map[Variable[?], Expr[?]]): LisaObject = {
@@ -82,11 +88,31 @@ trait Syntax {
     override def substitute(pairs: SubstPair*): Expr[S] = 
       super.substitute(pairs*).asInstanceOf[Expr[S]]
 
-      
-    def unapply[T1, T2](e: Expr[Arrow[T1, T2]]): Option[Expr[T1]] = (e: @unchecked) match {
+    def unapplySeq[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] = 
+      def inner[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] = e match
+        case App(f2, arg) if this == f2 => Some((arg *: EmptyTuple).asInstanceOf[ArgsTo[S, Target]])
+        case App(f2, arg) => inner(f2).map(value => (arg *: value).asInstanceOf[ArgsTo[S, Target]])
+        case _ => None
+      inner[Target](e)
+
+    @targetName("unapplySeq2")
+    def unapplySeq(e: Expr[?]): Option[Seq[Expr[?]]] = Multiapp(this).unapply(e)
+
+
+    /*
+    @targetName("unapply2")
+    def unapply[T1, T2, T3](e: Expr[T3]): Option[(Expr[T1], Expr[T2])] = (e: @unchecked) match 
+      case App[T2, T3](e1, a2) => e1 match 
+        case App[T1, T2 >>: T3](f, a1) if f == this => Some((a1, a2))
+        case _ => None
+      case _ => None
+        
+    @targetName("unapply1")  
+    def unapply[T1, T2](e: Expr[T2]): Option[Expr[T1]] = (e: @unchecked) match {
       case App[T1, T2](f, arg)  if f == this => Some(arg)
       case _ => None
     }
+      */
     final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.map(a => s"(${a})")})"
     final def defaultMkStringSeparated(args: Seq[Expr[?]]): String = s"(${defaultMkString(args)})"
     var mkString: Seq[Expr[?]] => String = defaultMkString
@@ -105,6 +131,11 @@ trait Syntax {
       case App(f, arg) => s"App(${f.structuralToString}, ${arg.structuralToString})"
       case Abs(v, body) => s"Abs(${v.structuralToString}, ${body.structuralToString})"
     
+  }
+  object #@ {
+    def unapply[T1, T2](e: Expr[T2]): Option[(Expr[Arrow[T1, T2]], Expr[T1])] = (e: @unchecked) match
+      case App[T1, T2](f, arg) => Some((f, arg))
+      case _ => None
   }
 
   extension [T1, T2](f: Expr[Arrow[T1, T2]]) 
@@ -197,7 +228,7 @@ trait Syntax {
   class Binder[T1: Sort, T2: Sort, T3: Sort](id: K.Identifier) extends Constant[Arrow[Arrow[T1, T2], T3]](id) {
     def apply(v1: Variable[T1], e: Expr[T2]): App[Arrow[T1, T2], T3] = App(this, Abs(v1, e))
     @targetName("unapplyBinder")
-    def unapply(e: Expr[?]): Option[(Variable[T1], Expr[T2])] = e match {
+    def unapply(e: Expr[T3]): Option[(Variable[T1], Expr[T2])] = e match {
       case App(f:Expr[Arrow[Arrow[T1, T2], T3]], Abs(v, e)) if f == this => Some((v, e))
       case _ => None
     }
@@ -257,6 +288,7 @@ trait Syntax {
     def unsafe(v: Variable[?], body: Expr[?]): Expr[?] = 
       Abs(v.asInstanceOf, body.asInstanceOf)(using unsafeSortEvidence(v.sort), unsafeSortEvidence(body.sort))
   }
+
 
 
 

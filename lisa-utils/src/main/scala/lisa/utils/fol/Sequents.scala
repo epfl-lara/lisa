@@ -48,7 +48,7 @@ trait Sequents extends Predef {
     def instantiateForallWithProof(args: Seq[Term], index: Int): (Sequent, Seq[K.SCProofStep]) = {
       if this.right.size != 1 then throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula")
       this.right.head match {
-        case r @ forall(x, f) =>
+        case r @ App(forall, Abs(x: Variable[T], f: Formula)) =>
           val t = args.head
           val newf: Formula = f.substitute(x := t)
           val s0 = K.Hypothesis((newf |- newf).underlying, newf.underlying)

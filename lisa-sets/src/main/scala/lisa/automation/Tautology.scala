@@ -127,85 +127,82 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
     val bestAtom = findBestAtom(s.formula)
     val redF = reducedForm(s.formula)
     if (redF == top()) {
-      List(RestateTrue(s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- s.formula))
+      List(RestateTrue(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- s.formula))
     } else if (bestAtom.isEmpty) {
       assert(redF == bot()) // sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
       val res = s.decisions._1 |- redF :: s.decisions._2 // the branch that can't be closed
       throw new NoProofFoundException(res)
     } else {
       val atom = bestAtom.get
-      val optLambda = findSubformula(redF, Seq((MaRvIn, atom)))
+      val optLambda = findSubformula(redF, MaRvIn, atom)
       if (optLambda.isEmpty) return solveAugSequent(AugSequent(s.decisions, redF), offset)
       val lambdaF = optLambda.get
 
-      val seq1 = AugSequent((atom :: s.decisions._1, s.decisions._2), lambdaF(Seq(top())))
+      val seq1 = AugSequent((atom :: s.decisions._1, s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> top)))
       val proof1 = solveAugSequent(seq1, offset)
       val hyp1 = RestateTrue(atom |- atom)
       val subst1 = RightSubstIff(
-        atom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- redF,
+        atom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
         offset + proof1.length - 2,
         offset + proof1.length - 1,
         atom, top,
         Seq(),
-        (lambdaF.vars, lambdaF.body)
+        (MaRvIn, lambdaF)
       )
-      val negatom = Neg(atom)
-      val seq2 = AugSequent((s.decisions._1, atom :: s.decisions._2), lambdaF(Seq(bot())))
+      val negatom = neg(atom)
+      val seq2 = AugSequent((s.decisions._1, atom :: s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> top)))
       val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
       val hyp2 = RestateTrue(negatom |- negatom)
       val subst2 = RightSubstIff(
-        negatom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- redF,
+        negatom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
         offset + proof1.length + proof2.length + 1 - 2,
         offset + proof1.length + proof2.length + 1 - 1,
         atom, bot,
         Seq(),
-        (lambdaF.vars, lambdaF.body)
+        (MaRvIn, lambdaF)
       )
-      val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
-      val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
-      val redStep = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => Neg(f)) |- s.formula, offset + proof1.length + proof2.length + 4 - 1)
+      val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
+      val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
+      val redStep = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- s.formula, offset + proof1.length + proof2.length + 4 - 1)
       redStep :: cutStep :: red2 :: subst2 :: proof2 ++ (subst1 :: proof1)
 
     }
   }
 
 
-  
+
 
 
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
-  private def findSubformula2(f: Expression, subs: Seq[(VariableFormulaLabel, Expression)]): (Expression, Boolean) = {
-    val eq = subs.find(s => isSame(f, s._2))
-    if (eq.nonEmpty) (eq.get._1(), true)
+  private def findSubformula2(f: Expression, x: Variable, e: Expression, fv: Set[Variable]): (Expression, Boolean) = {
+    if (isSame(f, e)) (x, true)
     else
       f match {
-        case AtomicFormula(label, args) =>
-          (f, false)
-        case ConnectorFormula(label, args) =>
-          val induct = condflat(args.map(findSubformula2(_, subs)))
-          if (!induct._2) (f, false)
-          else (ConnectorFormula(label, induct._1), true)
-        case BinderFormula(label, bound, inner) =>
-          val fv_in_f = subs.flatMap(_._2.freeVariables)
-          if (!fv_in_f.contains(bound)) {
-            val induct = findSubformula2(inner, subs)
+        case Application(f, arg) =>
+          val rf = findSubformula2(f, x, e, fv)
+          val ra = findSubformula2(arg, x, e, fv)
+          if (rf._2 || ra._2) (Application(rf._1, ra._1), true)
+          else (f, false)
+        case Lambda(v, inner) =>
+          if (!fv.contains(v)) {
+            val induct = findSubformula2(inner, x, e, fv)
             if (!induct._2) (f, false)
-            else (BinderFormula(label, bound, induct._1), true)
+            else (Lambda(v, induct._1), true)
           } else {
-            val newv = VariableLabel(freshId((f.freeVariables ++ fv_in_f).map(_.id), bound.id))
-            val newInner = substituteVariablesInFormula(inner, Map(bound -> newv()), Seq.empty)
-            val induct = findSubformula2(newInner, subs)
+            val newv = Variable(freshId((f.freeVariables ++ fv).map(_.id), v.id), v.sort)
+            val newInner = substituteVariables(inner, Map(v -> newv))
+            val induct = findSubformula2(newInner, x, e, fv + newv)
             if (!induct._2) (f, false)
-            else (BinderFormula(label, newv, induct._1), true)
+            else (Lambda(newv, induct._1), true)
           }
+        case _ => (f, false)
       }
   }
 
-  def findSubformula(f: Expression, subs: Seq[(VariableFormulaLabel, Expression)]): Option[LambdaFormulaFormula] = {
-    val vars = subs.map(_._1)
-    val r = findSubformula2(f, subs)
-    if (r._2) Some(LambdaFormulaFormula(vars, r._1))
+  def findSubformula(f: Expression, x: Variable, e: Expression): Option[Expression] = {
+    val r = findSubformula2(f, x, e, e.freeVariables)
+    if (r._2) Some(r._1)
     else None
   }
 

@@ -48,7 +48,7 @@ object KernelParser {
         }
       case FOF.UnaryFormula(connective, body) =>
         connective match {
-          case FOF.~ => K.Neg(convertToKernel(body))
+          case FOF.~ => K.neg(convertToKernel(body))
         }
       case FOF.BinaryFormula(connective, left, right) =>
         connective match {
