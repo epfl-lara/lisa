@@ -33,53 +33,79 @@ object KernelHelpers {
   val True: Expression = top
   val False: Expression = bot
 
-  val Neg = neg
   val ¬ = neg
   val ! = neg
-  val And = and
   val /\ = and
-  val Or = or
   val \/ = or
-  val Implies = implies
   val ==> = implies
-  val Iff = iff
   val <=> = iff
-  val Forall = forall
   val ∀ = forall
-  val Exists = exists
   val ∃ = exists
-  val Epsilon = epsilon
   val ε = epsilon
 
 
 
-  extension (binder: forall.type) {
-    @targetName("forallApply")
-    def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
-    @targetName("forallUnapply")
-    def unapply(e: Expression): Option[(Variable, Expression)] = e match {
+  // UnapplyMethods
+
+  object And :
+    def unapply(e: Expression): Option[(Expression, Expression)] = e match 
+      case Application(Application(`and`, l), r) => Some((l, r))
+      case _ => None
+
+  object Or :
+    def unapply(e: Expression): Option[(Expression, Expression)] = e match
+      case Application(Application(`or`, l), r) => Some((l, r))
+      case _ => None
+
+  object Neg :
+    def unapply(e: Expression): Option[Expression] = e match
+      case Application(`neg`, a) => Some(a)
+      case _ => None
+      
+  object Implies :
+    def unapply(e: Expression): Option[(Expression, Expression)] = e match
+      case Application(Application(`implies`, l), r) => Some((l, r))
+      case _ => None
+
+  object Iff :
+    def unapply(e: Expression): Option[(Expression, Expression)] = e match
+      case Application(Application(`iff`, l), r) => Some((l, r))
+      case _ => None
+
+  object Forall :
+    def unapply(e: Expression): Option[(Variable, Expression)] = e match
       case Application(`forall`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
-    }
-  }
-  extension (binder: exists.type) {
-    @targetName("existsApply")
-    def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
-    @targetName("existsUnapply")
-    def unapply(e: Expression): Option[(Variable, Expression)] = e match {
+
+  object Exists :
+    def unapply(e: Expression): Option[(Variable, Expression)] = e match
       case Application(`exists`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
-    }
-  }
-  extension (binder: epsilon.type) {
-    @targetName("epsilonApply")
-    def apply(bound: Variable, inner: Expression): Expression = binder(Lambda(bound, inner))
-    @targetName("epsilonUnapply")
-    def unapply(e: Expression): Option[(Variable, Expression)] = e match {
+
+  object Epsilon :
+    def unapply(e: Expression): Option[(Variable, Expression)] = e match
       case Application(`epsilon`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
-    }
-  }
+
+  object Multiand :
+    def unapply(e: Expression): Option[Seq[Expression]] = e match
+      case Application(Application(`and`, l), r) => Some(l +: unapply(r).getOrElse(Seq(r)))
+      case _ => None
+  
+  object Multior :
+    def unapply(e: Expression): Option[Seq[Expression]] = e match
+      case Application(Application(`or`, l), r) => Some(l +: unapply(r).getOrElse(Seq(r)))
+      case _ => None
+
+  object Multiapp :
+    def unapply(e: Expression): Option[(Expression, Seq[Expression])] = 
+      def inner(e: Expression): Option[List[Expression]] = e match 
+        case Application(f, arg) => inner(f) map (l => arg :: l)
+        case _ => None
+      inner(e).map(l => {val rev = l.reverse; (rev.head, rev.tail)})
+
+
+
 
   def multiand(args: Seq[Expression]): Expression = args.reduceLeft(and(_)(_))
   def multior(args: Seq[Expression]): Expression = args.reduceLeft(or(_)(_))
@@ -87,14 +113,7 @@ object KernelHelpers {
 
   /* Infix syntax */
 
-  object Multiapp {
-    def unapply(e: Expression): Option[(Expression, Seq[Expression])] = 
-      def inner(e: Expression): Option[List[Expression]] = e match 
-        case Application(f, arg) => inner(f) map (l => arg :: l)
-        case _ => None
-      inner(e).map(l => {val rev = l.reverse; (rev.head, rev.tail)})
-      
-  }
+
 
   extension (f: Expression) {
     def apply(args: Expression*): Expression = multiapply(f)(args)

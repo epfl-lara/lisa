@@ -4,7 +4,6 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
-import lisa.utils.parsing.UnreachableException
 import leo.datastructures.TPTP.CNF.AtomicFormula
 
 /**
@@ -35,6 +34,7 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
       egraph.addAll(bot.right)
 
       bot.left.foreach{
+        case equality(left, right) => ???
         case (left === right) => egraph.merge(left, right)
         case (left <=> right) => egraph.merge(left, right)
         case _ => ()
