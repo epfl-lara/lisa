@@ -483,9 +483,9 @@ object SCProofChecker {
             val (phi_arg, phi_body) = lambdaPhi
             if (psi.sort != phi_arg.sort || tau.sort != phi_arg.sort) 
               SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of ψ and τ.")
-            else if (!psi.sort.isPredicate) 
+            else /*if (!psi.sort.isPredicate) 
               SCInvalidProof(SCProof(step), Nil, "Can only substitute predicate-like terms (with type Term -> ... -> Term -> Formula)")
-            else {
+            else */{
               val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> psi))
               val phi_t_for_f = substituteVariables(phi_body, Map(phi_arg -> tau))
 
@@ -534,7 +534,11 @@ object SCProofChecker {
 
               val inner1 = vars.foldLeft(s)(_(_))
               val inner2 = vars.foldLeft(t)(_(_))
-              val sEqt = equality(inner1)(inner2)
+              val sEqt = 
+                if (s.sort.isFunctional)
+                  equality(inner1)(inner2)
+                else 
+                  iff(inner1)(inner2)
               val varss = vars.toSet
 
               if (

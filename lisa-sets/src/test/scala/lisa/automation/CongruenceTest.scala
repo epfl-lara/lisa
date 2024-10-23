@@ -66,7 +66,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
 
   test("3 terms no congruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(a)
     egraph.add(b)
     egraph.add(c)
@@ -77,7 +77,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("8 terms no congruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(a)
     egraph.add(b)
     egraph.add(c)
@@ -98,7 +98,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("15 terms no congruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(a)
     egraph.add(b)
     egraph.add(c)
@@ -133,7 +133,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("15 terms no congruence egraph test with redundant merges") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(a)
     egraph.add(b)
     egraph.add(c)
@@ -176,7 +176,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("4 terms withcongruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(F(a))
     egraph.add(F(b))
     egraph.merge(a, b)
@@ -195,7 +195,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
   test("divide-mult-shift in terms by 2 egraph test") {
 
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(one)
     egraph.add(two)
     egraph.add(a)
@@ -236,7 +236,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("long chain of terms congruence eGraph") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(x)
     val fx = egraph.add(F(x))
     val ffx = egraph.add(F(fx))
@@ -259,7 +259,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
 
   test("3 formulas no congruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(af)
     egraph.add(bf)
     egraph.add(cf)
@@ -270,7 +270,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("8 formulas no congruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(af)
     egraph.add(bf)
     egraph.add(cf)
@@ -291,7 +291,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("15 formulas no congruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(af)
     egraph.add(bf)
     egraph.add(cf)
@@ -326,7 +326,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("15 formulas no congruence egraph test with redundant merges") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(af)
     egraph.add(bf)
     egraph.add(cf)
@@ -369,7 +369,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("4 formulas withcongruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(Ff(af))
     egraph.add(Ff(bf))
     egraph.merge(af, bf)
@@ -386,7 +386,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
   test("divide-mult-shift in formulas by 2 egraph test") {
 
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(onef)
     egraph.add(twof)
     egraph.add(af)
@@ -429,7 +429,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("long chain of formulas congruence eGraph") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(xf)
     val fx = egraph.add(Ff(xf))
     val ffx = egraph.add(Ff(fx))
@@ -456,7 +456,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   //////////////////////////////////////
 
   test("2 terms 6 predicates with congruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(Ff(Ff(Fp(a))))
     egraph.add(Ff(Ff(Fp(b))))
     egraph.merge(a, b)
@@ -481,7 +481,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
     test("6 terms 6 predicates with congruence egraph test") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(Ff(Ff(Fp(F(F(a))))))
     egraph.add(Ff(Ff(Fp(F(F(b))))))
     egraph.merge(a, b)
@@ -499,7 +499,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
 
   test("15 terms no congruence with redundant merges test with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(a)
     egraph.add(b)
     egraph.add(c)
@@ -551,7 +551,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
 
   test("4 elements with congruence test with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(F(a))
     egraph.add(F(b))
     egraph.merge(a, b)
@@ -562,7 +562,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
 
   test("divide-mult-shift by 2 in terms egraph test with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(one)
     egraph.add(two)
     egraph.add(a)
@@ -603,7 +603,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("long chain of termscongruence eGraph with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(x)
     val fx = egraph.add(F(x))
     val ffx = egraph.add(F(fx))
@@ -635,7 +635,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
 
   test("15 formulas no congruence proofs with redundant merges test with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(af)
     egraph.add(bf)
     egraph.add(cf)
@@ -688,7 +688,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("4 formulas with congruence test with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(Ff(af))
     egraph.add(Ff(bf))
     egraph.merge(af, bf)
@@ -698,7 +698,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("divide-mult-shift by 2 in formulas egraph test with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(onef)
     egraph.add(twof)
     egraph.add(af)
@@ -739,7 +739,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("long chain of formulas congruence eGraph with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(xf)
     val fx = egraph.add(Ff(xf))
     val ffx = egraph.add(Ff(fx))
@@ -768,7 +768,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
 
   test("2 terms 6 predicates with congruence egraph test with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(Ff(Ff(Fp(a))))
     egraph.add(Ff(Ff(Fp(b))))
     egraph.merge(a, b)
@@ -788,7 +788,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("6 terms 6 predicates with congruence egraph test with proofs") {
-    val egraph = new EGraphTerms()
+    val egraph = new EGraphExpr()
     egraph.add(Ff(Ff(Fp(F(F(a))))))
     egraph.add(Ff(Ff(Fp(F(F(b))))))
     egraph.merge(a, b)
