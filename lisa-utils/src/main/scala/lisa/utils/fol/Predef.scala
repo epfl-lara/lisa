@@ -5,23 +5,6 @@ import K.given
 
 trait Predef extends Syntax {
 
-  private val e : Expr[F] = ???
-  val eee : Term >>: Term >>: Formula = equality
-  val (x, y) = eee.unapplySeq[F](e).get
-
-  def printt(t: Term): Unit = println(t)
-
-
-  def printv(v: Variable[?]): Unit = println(v.id)
-  e match {
-    case exists(x, f) => printv(x); print(f)
-    case ===[Arrow[T, F]](l) => print(l)
-    case ===[F](l, r) => print(l); print(r)
-    case #@[T, Arrow[T, F]](`===`, l) #@ r => printt(l: Term); printt(r)
-    case eee[F](l: Expr[T], r: Expr[T]) => print(l); print(r)
-    case (l === r) => print(l); print(r)
-  }
-
 
   def variable[S](using IsSort[SortOf[S]])(id: K.Identifier): Variable[SortOf[S]] = new Variable(id)
   def constant[S](using IsSort[SortOf[S]])(id: K.Identifier): Constant[SortOf[S]] = new Constant(id)

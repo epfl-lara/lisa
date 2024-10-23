@@ -18,7 +18,7 @@ import scala.collection.mutable
 
 
 
-class EGraphTermsSimp() {
+class EGraphExprSimp() {
   /*
 
   val termParents = mutable.Map[Term, mutable.Set[AppliedFunctional]]()

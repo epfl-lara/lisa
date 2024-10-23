@@ -1116,7 +1116,7 @@ object BasicStepTactic {
   object LeftSubstEq extends ProofTactic {
 
     def withParametersSimple[T1, T2](using lib: Library, proof: lib.Proof)(
-      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[2])
+      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[F.F])
     )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       withParameters(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
     }
@@ -1241,7 +1241,7 @@ object BasicStepTactic {
    */
   object LeftSubstIff extends ProofTactic {
     def withParametersSimple[T1, T2](using lib: Library, proof: lib.Proof)(
-      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[2])
+      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[F.F])
     )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
       LeftSubstEq.withParametersSimple(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
 
@@ -1304,14 +1304,14 @@ object BasicStepTactic {
    */
   object RightSubstIff extends ProofTactic {
     def withParametersSimple[T1, T2](using lib: Library, proof: lib.Proof)(
-      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[2])
+      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[F.F])
     )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
-      LeftSubstEq.withParametersSimple(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
+      RightSubstEq.withParametersSimple(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
 
     def withParameters(using lib: Library, proof: lib.Proof)(
       s: F.Expr[?], t: F.Expr[?], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[?], F.Expr[?])
     )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
-      LeftSubstEq.withParameters(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
+      RightSubstEq.withParameters(s, t, vars, lambdaPhi.asInstanceOf)(prem1, prem2)(bot)
 
       /*
     def withParametersSimple(using lib: Library, proof: lib.Proof)(

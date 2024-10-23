@@ -8,7 +8,7 @@ import lisa.utils.K
 import lisa.utils.KernelHelpers.{_, given}
 
 object SimpleDeducedSteps {
-/*
+
 
   object Restate extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement =
@@ -83,7 +83,7 @@ object SimpleDeducedSteps {
               // by construction the premise is well-formed
               // verify the formula structure and instantiate
               f match {
-                case psi @ K.Forall(K.Lambda(x, inner)) =>
+                case psi @ K.Forall(x, inner) =>
                   val tempVar = K.Variable(K.freshId(psi.freeVariables.map(_.id), x.id), K.Term)
                   // instantiate the formula with input
                   val in = K.substituteVariables(inner, Map(x -> t)) 
@@ -151,7 +151,7 @@ object SimpleDeducedSteps {
 
   }
 
-  */
+  
 
   
   /*

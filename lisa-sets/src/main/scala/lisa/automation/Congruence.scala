@@ -5,6 +5,7 @@ import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
 import leo.datastructures.TPTP.CNF.AtomicFormula
+import scala.annotation.targetName
 
 /**
   * This tactic tries to prove a sequent by congruence.
@@ -29,12 +30,11 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = TacticSubproof {
       import lib.*
 
-      val egraph = new EGraphTerms()
+      val egraph = new EGraphExpr()
       egraph.addAll(bot.left)
       egraph.addAll(bot.right)
 
       bot.left.foreach{
-        case equality(left, right) => ???
         case (left === right) => egraph.merge(left, right)
         case (left <=> right) => egraph.merge(left, right)
         case _ => ()
@@ -47,18 +47,20 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
           if egraph.idEq(lf, rf) then
             val base = have(bot.left |- (bot.right + lf) ) by Restate
             val eq = have(egraph.proveFormula(lf, rf, bot))
-            val a = formulaVariable
-            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(List((lf, rf)), lambda(a, a))(base)
+            val a = variable[Formula]
+            val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
+            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(lf, rf, Seq(), (a, a))(base, eqstep)
             have(bot) by Cut(eq, lastStep)
             true
           else false
         } ||
         bot.left.exists{ 
-          case rf2 @ Neg(rf) if egraph.idEq(lf, rf)=>
+          case rf2 @ neg(rf) if egraph.idEq(lf, rf)=>
             val base = have((bot.left + !lf) |- bot.right ) by Restate
             val eq = have(egraph.proveFormula(lf, rf, bot))
-            val a = formulaVariable
-            have((bot.left + (lf <=> rf)) |- (bot.right) ) by LeftSubstIff.withParametersSimple(List((lf, rf)), lambda(a, !a))(base)
+            val a = variable[Formula]
+            val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
+            have((bot.left + (lf <=> rf)) |- (bot.right) ) by LeftSubstIff.withParametersSimple(lf, rf, Seq(), (a, !a))(base, eqstep)
             have(bot) by Cut(eq, lastStep)
             true
           case _  => false
@@ -76,11 +78,12 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
       } then ()
       else if bot.right.exists { rf =>
         bot.right.exists{ 
-          case lf2 @ Neg(lf) if egraph.idEq(lf, rf)=>
+          case lf2 @ neg(lf) if egraph.idEq(lf, rf)=>
             val base = have((bot.left) |- (bot.right + !rf) ) by Restate
             val eq = have(egraph.proveFormula(lf, rf, bot))
-            val a = formulaVariable
-            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(List((lf, rf)), lambda(a, !a))(base)
+            val a = variable[Formula]
+            val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
+            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(lf, rf, Seq(), (a, !a))(base, eqstep)
             have(bot) by Cut(eq, lastStep)
             true
           case _  => false
@@ -238,36 +241,28 @@ class UnionFind[T]  {
 
 import scala.collection.mutable
 
-class EGraphTerms() {
+class EGraphExpr() {
 
-  val termParentsT = mutable.Map[Term, mutable.Set[AppliedFunctional]]()
-  val termParentsF = mutable.Map[Term, mutable.Set[AppliedPredicate]]()
-  val termUF = new UnionFind[Term]()
-
-
-  val formulaParents = mutable.Map[Formula, mutable.Set[AppliedConnector]]()
-  val formulaUF = new UnionFind[Formula]()
+  val parents = mutable.Map[Expr[?], mutable.Set[App[?, ?]]]()
+  val UF = new UnionFind[Expr[?]]()
 
 
-  def find(id: Term): Term = termUF.find(id)
-  def find(id: Formula): Formula = formulaUF.find(id)
 
-  trait TermStep
-  case class TermExternal(between: (Term, Term)) extends TermStep
-  case class TermCongruence(between: (Term, Term)) extends TermStep
 
-  trait FormulaStep
-  case class FormulaExternal(between: (Formula, Formula)) extends FormulaStep
-  case class FormulaCongruence(between: (Formula, Formula)) extends FormulaStep
+  def find(id: Expr[?]): Expr[?] = UF.find(id)
 
-  val termProofMap = mutable.Map[(Term, Term), TermStep]()
-  val formulaProofMap = mutable.Map[(Formula, Formula), FormulaStep]()
+  trait Step
+  case class ExternalStep(between: (Expr[?], Expr[?])) extends ExprStep
+  case class CongruenceStep(between: (Expr[?], Expr[?])) extends ExprStep
 
-  def explain(id1: Term, id2: Term): Option[List[TermStep]] = {
-    val steps = termUF.explain(id1, id2)
-    steps.map(_.foldLeft((id1, List[TermStep]())) {
+
+  val proofMap = mutable.Map[(Expr[?], Expr[?]), ExprStep]()
+
+  def explain(id1: Expr[?], id2: Expr[?]): Option[List[ExprStep]] = {
+    val steps = UF.explain(id1, id2)
+    steps.map(_.foldLeft((id1, List[ExprStep]())) {
       case ((prev, acc), step) =>
-      termProofMap(step) match
+      proofMap(step) match
         case s @ TermExternal((l, r)) => 
           if l == prev then
             (r, s :: acc)
@@ -284,89 +279,38 @@ class EGraphTerms() {
     }._2.reverse)
   }
 
-  def explain(id1: Formula, id2: Formula): Option[List[FormulaStep]] = {
-    val steps = formulaUF.explain(id1, id2)
-    steps.map(_.foldLeft((id1, List[FormulaStep]())) {
-      case ((prev, acc), step) =>
-      formulaProofMap(step) match
-        case s @ FormulaExternal((l, r)) => 
-          if l == prev then
-            (r, s :: acc)
-          else if r == prev then
-            (l, FormulaExternal(r, l) :: acc)
-          else throw new Exception("Invalid proof recovered: It is not a chain")
-        case s @ FormulaCongruence((l, r)) => 
-          if l == prev then
-            (r, s :: acc)
-          else if r == prev then
-            (l, FormulaCongruence(r, l) :: acc)
-          else throw new Exception("Invalid proof recovered: It is not a chain")
 
-    }._2.reverse)
-  }
-
-
-  def makeSingletonEClass(node:Term): Term = {
-    termUF.add(node)
-    termParentsT(node) = mutable.Set()
-    termParentsF(node) = mutable.Set()
-    node
-  }
-  def makeSingletonEClass(node:Formula): Formula = {
-    formulaUF.add(node)
-    formulaParents(node) = mutable.Set()
+  def makeSingletonEClass(node:Expr[?]): Expr[?] = {
+    UF.add(node)
+    parents(node) = mutable.Set()
     node
   }
 
-  def idEq(id1: Term, id2: Term): Boolean = find(id1) == find(id2)
-  def idEq(id1: Formula, id2: Formula): Boolean = find(id1) == find(id2)
+  def idEqT(id1: Term, id2: Term): Boolean = find(id1) == find(id2)
+  def idEqF(id1: Formula, id2: Formula): Boolean = find(id1) == find(id2)
 
   
 
-  def canonicalize(node: Term): Term = node match
-    case AppliedFunctional(label, args) => 
-      AppliedFunctional(label, args.map(t => find(t)))
+  def canonicalize(node: Expr[?]): Expr[?] = node match
+    case node @ App(f, a) => App(find(f), find(t))
     case _ => node
   
     
-  def canonicalize(node: Formula): Formula = {
-    node match
-      case AppliedPredicate(label, args) => AppliedPredicate(label, args.map(find))
-      case AppliedConnector(label, args) => AppliedConnector(label, args.map(find))
-      case node => node
-  }
 
-  def add(node: Term): Term =
-    if termUF.parent.contains(node) then return node
+  def add(node: Expr[?]): Expr[?] =
+    if UF.parent.contains(node) then return node
     makeSingletonEClass(node)
     codes(node) = codes.size
     node match
-      case node @ AppliedFunctional(_, args) => 
-        args.foreach(child => 
-          add(child)
-          termParentsT(find(child)).add(node)
-        )
+      case node @ App(f, a) =>
+        add(f)
+        parents(find(f)).add(node)
+        add(a)
+        parents(find(a)).add(node)
       case _ => ()
     termSigs(canSig(node)) = node
     node
-  
-  def add(node: Formula): Formula =
-    if formulaUF.parent.contains(node) then return node
-    makeSingletonEClass(node)
-    node match
-      case node @ AppliedPredicate(_, args) => 
-        args.foreach(child => 
-          add(child)
-          termParentsF(find(child)).add(node)
-        )
-        node
-      case node @ AppliedConnector(_, args) =>
-        args.foreach(child => 
-          add(child)
-          formulaParents(find(child)).add(node)
-        )
-        node
-      case _ => node
+
 
   def addAll(nodes: Iterable[Term|Formula]): Unit = 
     nodes.foreach{
@@ -377,39 +321,35 @@ class EGraphTerms() {
     
 
 
-  def merge(id1: Term, id2: Term): Unit = {
-    mergeWithStep(id1, id2, TermExternal((id1, id2)))
-  }
-  def merge(id1: Formula, id2: Formula): Unit = {
-    mergeWithStep(id1, id2, FormulaExternal((id1, id2)))
+  def merge(id1: Expr[?], id2: Expr[?]): Unit = {
+    mergeWithStep(id1, id2, ExternalStep((id1, id2)))
   }
 
-  type Sig = (TermLabel[?]|Term, List[Int])
-  val termSigs = mutable.Map[Sig, Term]()
-  val codes = mutable.Map[Term, Int]()
+  type Sig = Expr[?] | (Int, Int)
+  val termSigs = mutable.Map[Sig, Expr[?]]()
+  val codes = mutable.Map[Expr[?], Int]()
 
-  def canSig(node: Term): Sig = node match
-    case AppliedFunctional(label, args) => 
-      (label, args.map(a => codes(find(a))).toList)
+  def canSig(node: Expr[?]): Sig = node match
+    case App(f, g) => (codes(find(f)), codes(find(g)))
     case _ => (node, List())
 
-  protected def mergeWithStep(id1: Term, id2: Term, step: TermStep): Unit = {
+  protected def mergeWithStep(id1: Term, id2: Term, step: Step): Unit = {
     if find(id1) == find(id2) then ()
     else
-      termProofMap((id1, id2)) = step
-      val parentsT1 = termParentsT(find(id1))
-      val parentsF1 = termParentsF(find(id1))
+      proofMap((id1, id2)) = step
+      val parentsT1 = parents(find(id1))
+      val parentsF1 = parents(find(id1))
 
-      val parentsT2 = termParentsT(find(id2))
-      val parentsF2 = termParentsF(find(id2))
+      val parentsT2 = parents(find(id2))
+      val parentsF2 = parents(find(id2))
       val preSigs : Map[Term, Sig] = parentsT1.map(t => (t, canSig(t))).toMap
       codes(find(id2)) = codes(find(id1)) //assume parents(find(id1)) >= parents(find(id2))
-      termUF.union(id1, id2)
+      UF.union(id1, id2)
       val newId = find(id1)
     
       val formulaSeen = mutable.Map[Formula, AppliedPredicate]()
-      var formWorklist = List[(Formula, Formula, FormulaStep)]()
-      var termWorklist = List[(Term, Term, TermStep)]()
+      var formWorklist = List[(Formula, Formula, ExprStep)]()
+      var termWorklist = List[(Term, Term, ExprStep)]()
       
       parentsT2.foreach { 
         case pTerm: AppliedFunctional =>
@@ -429,23 +369,23 @@ class EGraphTerms() {
           else
             formulaSeen(canonicalPFormula) = pFormula
       }
-      termParentsT(newId) = termParentsT(id1)
-      termParentsT(newId).addAll(termParentsT(id2))
-      termParentsF(newId) = formulaSeen.values.to(mutable.Set)
+      parents(newId) = parents(id1)
+      parents(newId).addAll(parents(id2))
+      parents(newId) = formulaSeen.values.to(mutable.Set)
       formWorklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
       termWorklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
   }
 
-  protected def mergeWithStep(id1: Formula, id2: Formula, step: FormulaStep): Unit = 
+  protected def mergeWithStep(id1: Formula, id2: Formula, step: ExprStep): Unit = 
     if find(id1) == find(id2) then ()
     else
-      formulaProofMap((id1, id2)) = step
-      val newparents = formulaParents(find(id1)) ++ formulaParents(find(id2))
-      formulaUF.union(id1, id2)
+      proofMap((id1, id2)) = step
+      val newparents = parents(find(id1)) ++ parents(find(id2))
+      UF.union(id1, id2)
       val newId = find(id1)
 
       val formulaSeen = mutable.Map[Formula, AppliedConnector]()
-      var formWorklist = List[(Formula, Formula, FormulaStep)]()
+      var formWorklist = List[(Formula, Formula, ExprStep)]()
 
       newparents.foreach { 
         case pFormula: AppliedConnector =>
@@ -457,7 +397,7 @@ class EGraphTerms() {
           else
             formulaSeen(canonicalPFormula) = pFormula
       }
-      formulaParents(newId) = formulaSeen.values.to(mutable.Set)
+      parents(newId) = formulaSeen.values.to(mutable.Set)
       formWorklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
 
 
