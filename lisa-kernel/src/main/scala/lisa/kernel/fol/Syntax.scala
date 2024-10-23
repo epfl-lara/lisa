@@ -36,19 +36,22 @@ private[fol] trait Syntax {
   sealed trait Sort {
     def ->(to: Sort): Arrow = Arrow(this, to)
     val isFunctional: Boolean
-    def isPredicate: Boolean = !isFunctional
+    def isPredicate: Boolean
     val depth: Int 
   }
   case object Term extends Sort {
     val isFunctional = true
+    val isPredicate = false
     val depth = 0
   }
   case object Formula extends Sort {
     val isFunctional = false
+    val isPredicate = true
     val depth = 0
   }
   sealed case class Arrow(from: Sort, to: Sort) extends Sort {
-    val isFunctional = to.isFunctional
+    val isFunctional = from == Term && to.isFunctional
+    val isPredicate = from == Term && to.isPredicate
     val depth = 1+to.depth
   }
 

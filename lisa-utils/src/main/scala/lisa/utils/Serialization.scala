@@ -35,11 +35,9 @@ object Serialization {
   inline def rightRefl: Byte = 23
   inline def leftSubstEq: Byte = 24
   inline def rightSubstEq: Byte = 25
-  inline def leftSubstIff: Byte = 26
-  inline def rightSubstIff: Byte = 27
-  inline def instSchema: Byte = 28
-  inline def scSubproof: Byte = 29
-  inline def sorry: Byte = 30
+  inline def instSchema: Byte = 26
+  inline def scSubproof: Byte = 27
+  inline def sorry: Byte = 28
 
   type Line = Int
 
@@ -281,49 +279,29 @@ object Serialization {
           proofDOS.writeByte(rightRefl)
           sequentToProofDOS(bot)
           proofDOS.writeInt(lineOfExpr(fa))
-        case LeftSubstEq(bot, t1, t2, s, t, vars, lambdaPhi) =>
+        case LeftSubstEq(bot, t1, equals, lambdaPhi) =>
           proofDOS.writeByte(leftSubstEq)
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
-          proofDOS.writeInt(t2)
-          proofDOS.writeInt(lineOfExpr(s))
-          proofDOS.writeInt(lineOfExpr(t))
-          proofDOS.writeShort(vars.size)
-          vars.foreach(v => proofDOS.writeInt(lineOfExpr(v)))
-          proofDOS.writeInt(lineOfExpr(lambdaPhi._1))
+          proofDOS.writeShort(equals.size)
+          equals.foreach(ltts =>
+            proofDOS.writeInt(lineOfExpr(ltts._1))
+            proofDOS.writeInt(lineOfExpr(ltts._2))
+          )
+          proofDOS.writeShort(lambdaPhi._1.size)
+          lambdaPhi._1.foreach(stl => proofDOS.writeInt(lineOfExpr(stl)))
           proofDOS.writeInt(lineOfExpr(lambdaPhi._2))
-        case RightSubstEq(bot, t1, t2, s, t, vars, lambdaPhi) =>
-          proofDOS.writeByte(rightSubstEq)
+        case RightSubstEq(bot, t1, equals, lambdaPhi) =>
+          proofDOS.writeByte(leftSubstEq)
           sequentToProofDOS(bot)
           proofDOS.writeInt(t1)
-          proofDOS.writeInt(t2)
-          proofDOS.writeInt(lineOfExpr(s))
-          proofDOS.writeInt(lineOfExpr(t))
-          proofDOS.writeShort(vars.size)
-          vars.foreach(v => proofDOS.writeInt(lineOfExpr(v)))
-          proofDOS.writeInt(lineOfExpr(lambdaPhi._1))
-          proofDOS.writeInt(lineOfExpr(lambdaPhi._2))
-        case LeftSubstIff(bot, t1, t2, s, t, vars, lambdaPhi) =>
-          proofDOS.writeByte(leftSubstIff)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(t2)
-          proofDOS.writeInt(lineOfExpr(s))
-          proofDOS.writeInt(lineOfExpr(t))
-          proofDOS.writeShort(vars.size)
-          vars.foreach(v => proofDOS.writeInt(lineOfExpr(v)))
-          proofDOS.writeInt(lineOfExpr(lambdaPhi._1))
-          proofDOS.writeInt(lineOfExpr(lambdaPhi._2))
-        case RightSubstIff(bot, t1, t2, s, t, vars, lambdaPhi) =>
-          proofDOS.writeByte(rightSubstIff)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(t2)
-          proofDOS.writeInt(lineOfExpr(s))
-          proofDOS.writeInt(lineOfExpr(t))
-          proofDOS.writeShort(vars.size)
-          vars.foreach(v => proofDOS.writeInt(lineOfExpr(v)))
-          proofDOS.writeInt(lineOfExpr(lambdaPhi._1))
+          proofDOS.writeShort(equals.size)
+          equals.foreach(ltts =>
+            proofDOS.writeInt(lineOfExpr(ltts._1))
+            proofDOS.writeInt(lineOfExpr(ltts._2))
+          )
+          proofDOS.writeShort(lambdaPhi._1.size)
+          lambdaPhi._1.foreach(stl => proofDOS.writeInt(lineOfExpr(stl)))
           proofDOS.writeInt(lineOfExpr(lambdaPhi._2))
         case InstSchema(bot, t1, m) =>
           proofDOS.writeByte(instSchema)
@@ -474,41 +452,15 @@ object Serialization {
         LeftSubstEq(
           sequentFromProofDIS(),
           proofDIS.readInt(),
-          proofDIS.readInt(),
-          exprMap(proofDIS.readInt()),
-          exprMap(proofDIS.readInt()),
-          (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList,
-          (exprMap(proofDIS.readInt()).asInstanceOf[Variable], exprMap(proofDIS.readInt()))
+          (1 to proofDIS.readShort()).map(_ => (exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))).toList,
+          ((1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList, exprMap(proofDIS.readInt()))
         )
       else if (psType == rightSubstEq)
         RightSubstEq(
           sequentFromProofDIS(),
           proofDIS.readInt(),
-          proofDIS.readInt(),
-          exprMap(proofDIS.readInt()),
-          exprMap(proofDIS.readInt()),
-          (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList,
-          (exprMap(proofDIS.readInt()).asInstanceOf[Variable], exprMap(proofDIS.readInt()))
-        )
-      else if (psType == leftSubstIff)
-        LeftSubstIff(
-          sequentFromProofDIS(),
-          proofDIS.readInt(),
-          proofDIS.readInt(),
-          exprMap(proofDIS.readInt()),
-          exprMap(proofDIS.readInt()),
-          (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList,
-          (exprMap(proofDIS.readInt()).asInstanceOf[Variable], exprMap(proofDIS.readInt()))
-        )
-      else if (psType == rightSubstIff)
-        RightSubstIff(
-          sequentFromProofDIS(),
-          proofDIS.readInt(),
-          proofDIS.readInt(),
-          exprMap(proofDIS.readInt()),
-          exprMap(proofDIS.readInt()),
-          (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList,
-          (exprMap(proofDIS.readInt()).asInstanceOf[Variable], exprMap(proofDIS.readInt()))
+          (1 to proofDIS.readShort()).map(_ => (exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))).toList,
+          ((1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList, exprMap(proofDIS.readInt()))
         )
       else if (psType == instSchema)
         InstSchema(

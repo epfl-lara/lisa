@@ -428,40 +428,117 @@ object SCProofChecker {
               case _ => SCInvalidProof(SCProof(step), Nil, s"φ is not an equality.")
             }
 
-          /*
-           *   Γ, φ(s) |- Δ     Σ |- s=t, Π     
-           * --------------------------------
-           *        Γ, Σ φ(t) |- Δ, Π
+          /**
+           * <pre>
+           *                     Γ, φ(s_) |- Δ      
+           * -----------------------------------------------------
+           *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_, φ(t_) |- Δ
+           * </pre>
+           * equals elements must have type ... -> ... -> Term
            */
-          case LeftSubstEq(b, t1, t2, s, t, vars, lambdaPhi) =>
-            val (phi_arg, phi_body) = lambdaPhi
-            if (s.sort != phi_arg.sort || t.sort != phi_arg.sort) 
-              SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of s and t.")
-            else /*if (!s.sort.isFunctional) 
-              SCInvalidProof(SCProof(step), Nil, "Can only substitute function-like terms (with type _ -> ... -> _ -> Term)")
-            else */{
-              val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> s))
-              val phi_t_for_f = substituteVariables(phi_body, Map(phi_arg -> t))
+          case LeftSubstEq(b, t1, equals, lambdaPhi) =>
+            val (s_es, t_es) = equals.unzip
+            val (phi_args, phi_body) = lambdaPhi
+            if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+              SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
+            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
+              SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
+            else {
+              val phi_s_for_f = substituteVariables(phi_body, (phi_args zip s_es).toMap)
+              val phi_t_for_f = substituteVariables(phi_body, (phi_args zip t_es).toMap)
+              val sEqT_es = equals map { 
+                case (s, t) => 
+                  val no = ((s.freeVariables ++ t.freeVariables).view.map(_.id.no) ++ Seq(0)).max+1
+                  val vars = (no until no+s.sort.depth).map(i => Variable(Identifier("x", i), Term))
+                  val inner1 = vars.foldLeft(s)(_(_))
+                  val inner2 = vars.foldLeft(t)(_(_))
+                  val base = if (inner1.sort == Formula) iff(inner1)(inner2) else equality(inner1)(inner2)
+                  vars.foldRight(base : Expression) { case (s_arg, acc) => forall(Lambda(s_arg, acc)) }
+              }
 
-              val inner1 = vars.foldLeft(s)(_(_))
-              val inner2 = vars.foldLeft(t)(_(_))
-              val sEqt = 
-                if (s.sort.isFunctional)
-                  equality(inner1)(inner2)
-                else 
-                  iff(inner1)(inner2)
+              if (isSameSet(b.right, ref(t1).right))
+                if (
+                  isSameSet(b.left + phi_t_for_f, ref(t1).left ++ sEqT_es + phi_s_for_f) ||
+                  isSameSet(b.left + phi_s_for_f, ref(t1).left ++ sEqT_es + phi_t_for_f)
+                )
+                  SCValidProof(SCProof(step))
+                else
+                  SCInvalidProof(
+                    SCProof(step),
+                    Nil,
+                    "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped)."
+                  )
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
+            }
+
+          /*
+           *  Γ |- φ(s), Δ     Σ |- s=t, Π
+           * ---------------------------------
+           *         Γ, Σ |- φ(t), Δ, Π
+           */
+          case RightSubstEq(b, t1, equals, lambdaPhi) =>
+            val (s_es, t_es) = equals.unzip
+            val (phi_args, phi_body) = lambdaPhi
+            if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+              SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
+            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
+              SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
+            else {
+              val phi_s_for_f = substituteVariables(phi_body, (phi_args zip s_es).toMap)
+              val phi_t_for_f = substituteVariables(phi_body, (phi_args zip t_es).toMap)
+              val sEqT_es = equals map { 
+                case (s, t) => 
+                  val no = ((s.freeVariables ++ t.freeVariables).view.map(_.id.no) ++ Seq(0)).max+1
+                  val vars = (no until no+s.sort.depth).map(i => Variable(Identifier("x", i), Term))
+                  val inner1 = vars.foldLeft(s)(_(_))
+                  val inner2 = vars.foldLeft(t)(_(_))
+                  val base = if (inner1.sort == Formula) iff(inner1)(inner2) else equality(inner1)(inner2)
+                  vars.foldRight(base : Expression) { case (s_arg, acc) => forall(Lambda(s_arg, acc)) }
+              }
+
+              if (isSameSet(b.left, ref(t1).left ++ sEqT_es))
+                if (
+                  isSameSet(b.right + phi_t_for_f, ref(t1).right + phi_s_for_f) ||
+                  isSameSet(b.right + phi_s_for_f, ref(t1).right + phi_t_for_f)
+                )
+                  SCValidProof(SCProof(step))
+                else
+                  SCInvalidProof(
+                    SCProof(step),
+                    Nil,
+                    "Right-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case."
+                  )
+              else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the premise.")
+            }
+
+
+/*
+          /*
+           *    Γ |- φ[ψ/?p], Δ
+           * ---------------------
+           *  Γ, ψ⇔τ |- φ[τ/?p], Δ
+           */
+          case RightSubstIff(b, t1, t2, psi, tau, vars, lambdaPhi) =>
+            val (phi_arg, phi_body) = lambdaPhi
+            if (psi.sort != phi_arg.sort || tau.sort != phi_arg.sort) 
+              SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of ψ and τ.")
+            else if (!psi.sort.isPredicate) 
+              SCInvalidProof(SCProof(step), Nil, "Can only substitute predicate-like terms (with type Term -> ... -> Term -> Formula)")
+            else {
+              val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> psi))
+              val phi_t_for_f = substituteVariables(phi_body, Map(phi_arg -> tau))
+
+              val inner1 = vars.foldLeft(psi)(_(_))
+              val inner2 = vars.foldLeft(tau)(_(_))
+              val sEqt = iff(inner1)(inner2)
               val varss = vars.toSet
 
               if (
-                isSubset(ref(t1).right, b.right) &&
+                isSubset(ref(t1).right, b.right + phi_s_for_f) &&
                 isSubset(ref(t2).right, b.right + sEqt) &&
-                isSubset(b.right, ref(t1).right union ref(t2).right)
+                isSubset(b.right, ref(t1).right union ref(t2).right + phi_t_for_f) 
               ) {
-                if (
-                  isSubset(ref(t1).left, b.left + phi_s_for_f) &&
-                  isSubset(ref(t2).left, b.left) &&
-                  isSubset(b.left, ref(t1).left union ref(t2).left + phi_t_for_f)
-                ) {
+                if (isSameSet(b.left, ref(t1).left union ref(t2).left)) {
                   if ( 
                     ref(t2).left.exists(f => f.freeVariables.intersect(varss).nonEmpty) || 
                     ref(t2).right.exists(f => !isSame(f, sEqt) && f.freeVariables.intersect(varss).nonEmpty)
@@ -469,12 +546,12 @@ object SCProofChecker {
                     SCInvalidProof(SCProof(step), Nil, "The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
                   } else SCValidProof(SCProof(step))
                 }
-                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion + φ(s) must be the same as left-hand side of the premises + φ(t).")
+                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
               }
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premises must be the same as the right-hand side of the conclusion + s=t.")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
             }
 
-                      /*
+                                  /*
            *   Γ, φ(ψ) |- Δ     Σ |- a⇔b, Π     
            * --------------------------------
            *        Γ, Σ φ(b) |- Δ, Π
@@ -515,91 +592,7 @@ object SCProofChecker {
               }
               else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
             }
-
-
-          /*
-           *  Γ |- φ(s), Δ     Σ |- s=t, Π
-           * ---------------------------------
-           *         Γ, Σ |- φ(t), Δ, Π
-           */
-          case RightSubstEq(b, t1, t2, s, t, vars, lambdaPhi) =>
-            val (phi_arg, phi_body) = lambdaPhi
-            if (s.sort != phi_arg.sort || t.sort != phi_arg.sort) 
-              SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of s and t.")
-            else if (!s.sort.isFunctional) 
-              SCInvalidProof(SCProof(step), Nil, "Can only substitute function-like terms (with type _ -> ... -> _ -> Term)")
-            else {
-              val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> s))
-              val phi_t_for_f = substituteVariables(phi_body, Map(phi_arg -> t))
-
-              val inner1 = vars.foldLeft(s)(_(_))
-              val inner2 = vars.foldLeft(t)(_(_))
-              val sEqt = 
-                if (s.sort.isFunctional)
-                  equality(inner1)(inner2)
-                else 
-                  iff(inner1)(inner2)
-              val varss = vars.toSet
-
-              if (
-                isSubset(ref(t1).right, b.right + phi_s_for_f) &&
-                isSubset(ref(t2).right, b.right + sEqt) &&
-                isSubset(b.right, ref(t1).right union ref(t2).right + phi_t_for_f) 
-              ) {
-                if (isSameSet(b.left, ref(t1).left union ref(t2).left)) {
-                  if ( 
-                    ref(t2).left.exists(f => f.freeVariables.intersect(varss).nonEmpty) || 
-                    ref(t2).right.exists(f => !isSame(f, sEqt) && f.freeVariables.intersect(varss).nonEmpty)
-                  ) {
-                    SCInvalidProof(SCProof(step), Nil, "The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
-                  } else SCValidProof(SCProof(step))
-                }
-                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion the same as the left-hand sides of the premises.")
-              }
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premises + φ(t) must be the same as right-hand sides of the premises + φ(s) + s=t.")
-            }
-
-
-
-          /*
-           *    Γ |- φ[ψ/?p], Δ
-           * ---------------------
-           *  Γ, ψ⇔τ |- φ[τ/?p], Δ
-           */
-          case RightSubstIff(b, t1, t2, psi, tau, vars, lambdaPhi) =>
-            val (phi_arg, phi_body) = lambdaPhi
-            if (psi.sort != phi_arg.sort || tau.sort != phi_arg.sort) 
-              SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of ψ and τ.")
-            else if (!psi.sort.isPredicate) 
-              SCInvalidProof(SCProof(step), Nil, "Can only substitute predicate-like terms (with type Term -> ... -> Term -> Formula)")
-            else {
-              val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> psi))
-              val phi_t_for_f = substituteVariables(phi_body, Map(phi_arg -> tau))
-
-              val inner1 = vars.foldLeft(psi)(_(_))
-              val inner2 = vars.foldLeft(tau)(_(_))
-              val sEqt = iff(inner1)(inner2)
-              val varss = vars.toSet
-
-              if (
-                isSubset(ref(t1).right, b.right + phi_s_for_f) &&
-                isSubset(ref(t2).right, b.right + sEqt) &&
-                isSubset(b.right, ref(t1).right union ref(t2).right + phi_t_for_f) 
-              ) {
-                if (isSameSet(b.left, ref(t1).left union ref(t2).left)) {
-                  if ( 
-                    ref(t2).left.exists(f => f.freeVariables.intersect(varss).nonEmpty) || 
-                    ref(t2).right.exists(f => !isSame(f, sEqt) && f.freeVariables.intersect(varss).nonEmpty)
-                  ) {
-                    SCInvalidProof(SCProof(step), Nil, "The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
-                  } else SCValidProof(SCProof(step))
-                }
-                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
-              }
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
-            }
-
-
+*/
 
           /**
            * <pre>
