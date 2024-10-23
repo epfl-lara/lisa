@@ -52,10 +52,7 @@ private[fol] trait Syntax {
     val depth = 1+to.depth
   }
 
-  def depth(t:Sort): Int = t match {
-    case Arrow(a, b) => 1 + depth(b)
-    case _ => 0
-  }
+  def depth(t:Sort): Int = t.depth
   
 
   def legalApplication(typ1: Sort, typ2: Sort): Option[Sort] = {
