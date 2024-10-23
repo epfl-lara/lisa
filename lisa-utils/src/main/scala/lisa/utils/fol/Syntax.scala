@@ -77,8 +77,8 @@ trait Syntax {
     def freeTermVars: Set[Variable[T]]
     def constants: Set[Constant[?]]
   }
-  sealed trait Expr[S: Sort] extends LisaObject {
-    val sort: K.Sort = summon[IsSort[S]].underlying
+  sealed trait Expr[S] extends LisaObject {
+    val sort: K.Sort
     private val arity = K.flatTypeParameters(sort).size
     def underlying: K.Expression
 
@@ -167,7 +167,8 @@ trait Syntax {
 
 
 
-  case class Variable[S : Sort](id: K.Identifier) extends Expr[S] {
+  case class Variable[S : Sort as sortEv](id: K.Identifier) extends Expr[S] {
+    val sort: K.Sort = sortEv.underlying
     val underlying: K.Variable = K.Variable(id, sort)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Expr[S] = m.getOrElse(this, this).asInstanceOf[Expr[S]]
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Expr[S] =
@@ -191,7 +192,8 @@ trait Syntax {
   }
 
 
-  case class Constant[S : Sort](id: K.Identifier) extends Expr[S] {
+  case class Constant[S : Sort as sortEv](id: K.Identifier) extends Expr[S] {
+    val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
     def setInfix(): Unit = infix = true
     val underlying: K.Constant = K.Constant(id, sort)
@@ -246,7 +248,11 @@ trait Syntax {
   }
 
 
-  case class App[T1 : Sort, T2 : Sort](f: Expr[Arrow[T1, T2]], arg: Expr[T1]) extends Expr[T2] {
+  case class App[T1, T2](f: Expr[Arrow[T1, T2]], arg: Expr[T1]) extends Expr[T2] {
+    val sort: K.Sort = f.sort match
+      case K.Arrow(from, to) if from == arg.sort => to
+      case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
+    
     val underlying: K.Application = K.Application(f.underlying, arg.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[T1, T2] = App[T1, T2](f.substituteUnsafe(m), arg.substituteUnsafe(m))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): App[T1, T2] =
@@ -266,12 +272,13 @@ trait Syntax {
       val rsort = K.legalApplication(f.sort, arg.sort)
       rsort match 
         case Some(to) => 
-          App(f.asInstanceOf, arg.asInstanceOf)(using unsafeSortEvidence(to), unsafeSortEvidence(arg.sort))
+          App(f.asInstanceOf, arg)
         case None => throw new IllegalArgumentException(s"Cannot apply $f of sort ${f.sort} to $arg of sort ${arg.sort}")
   }
 
 
-  case class Abs[T1 : Sort, T2 : Sort](v: Variable[T1], body: Expr[T2]) extends Expr[Arrow[T1, T2]] {
+  case class Abs[T1, T2](v: Variable[T1], body: Expr[T2]) extends Expr[Arrow[T1, T2]] {
+    val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] = Abs(v, body.substituteUnsafe(m - v))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] =
@@ -286,7 +293,7 @@ trait Syntax {
 
   object Abs {
     def unsafe(v: Variable[?], body: Expr[?]): Expr[?] = 
-      Abs(v.asInstanceOf, body.asInstanceOf)(using unsafeSortEvidence(v.sort), unsafeSortEvidence(body.sort))
+      Abs(v.asInstanceOf, body.asInstanceOf)
   }
 
 

@@ -114,6 +114,18 @@ object KernelHelpers {
   /* Infix syntax */
 
 
+  extension (e: exists.type) 
+    @targetName("existsApply")
+    def apply(v: Variable, inner: Expression): Expression = exists(lambda(v, inner))
+
+  extension (e: forall.type)
+    @targetName("forallApply")
+    def apply(v: Variable, inner: Expression): Expression = forall(lambda(v, inner))
+  
+  extension (e: epsilon.type)
+    @targetName("epsilonApply")
+    def apply(v: Variable, inner: Expression): Expression = epsilon(lambda(v, inner))
+  
 
   extension (f: Expression) {
     def apply(args: Expression*): Expression = multiapply(f)(args)
