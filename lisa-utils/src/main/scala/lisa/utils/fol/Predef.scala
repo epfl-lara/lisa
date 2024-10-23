@@ -90,12 +90,10 @@ trait Predef extends Syntax {
     new Variable[T](v.id)(using new Sort { type Self = T; val underlying = v.sort })
   
   def asFrontApplication(a: K.Application): App[?, ?] = 
-    new App[T, T](asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg).asInstanceOf)(
-      using new Sort { type Self = T; val underlying = a.sort })
+    new App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))
   
   def asFrontLambda(l: K.Lambda): Abs[?, ?] =
-    new Abs[T, T](asFrontVariable(l.v).asInstanceOf, asFrontExpression(l.body).asInstanceOf)(
-      using new Sort { type Self = T; val underlying = l.sort })
+    new Abs(asFrontVariable(l.v).asInstanceOf, asFrontExpression(l.body))
 
   def greatestId(exprs: Seq[K.Expression | Expr[?] | K.Identifier ]): Int = 
     exprs.view.flatMap({
@@ -123,4 +121,19 @@ trait Predef extends Syntax {
   }
 
 
+  object Functional :
+    def unapply(e: Expr[?]): Option[Seq[K.Sort]] = 
+      if e.sort.isFunctional then Some(K.flatTypeParameters(e.sort)) else None
+    
+    def unapply(s: K.Sort): Option[Seq[K.Sort]] = 
+      if s.isFunctional then Some(K.flatTypeParameters(s)) else None
+      
+  object Predicate:
+    def unapply(e: Expr[?]): Option[Seq[K.Sort]] = 
+      if e.sort.isPredicate then Some(K.flatTypeParameters(e.sort)) else None
+    
+    def unapply(s: K.Sort): Option[Seq[K.Sort]] = 
+      if s.isPredicate then Some(K.flatTypeParameters(s)) else None
+
+  
 }

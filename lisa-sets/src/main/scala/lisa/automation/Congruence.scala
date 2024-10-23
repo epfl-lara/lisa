@@ -249,31 +249,31 @@ class EGraphExpr() {
 
 
 
-  def find(id: Expr[?]): Expr[?] = UF.find(id)
+  def find[T](id: Expr[T]): Expr[T] = UF.find(id).asInstanceOf[Expr[T]]
 
   trait Step
-  case class ExternalStep(between: (Expr[?], Expr[?])) extends ExprStep
-  case class CongruenceStep(between: (Expr[?], Expr[?])) extends ExprStep
+  case class ExternalStep(between: (Expr[?], Expr[?])) extends Step
+  case class CongruenceStep(between: (Expr[?], Expr[?])) extends Step
 
 
-  val proofMap = mutable.Map[(Expr[?], Expr[?]), ExprStep]()
+  val proofMap = mutable.Map[(Expr[?], Expr[?]), Step]()
 
-  def explain(id1: Expr[?], id2: Expr[?]): Option[List[ExprStep]] = {
+  def explain(id1: Expr[?], id2: Expr[?]): Option[List[Step]] = {
     val steps = UF.explain(id1, id2)
-    steps.map(_.foldLeft((id1, List[ExprStep]())) {
+    steps.map(_.foldLeft((id1, List[Step]())) {
       case ((prev, acc), step) =>
       proofMap(step) match
-        case s @ TermExternal((l, r)) => 
+        case s @ ExternalStep((l, r)) => 
           if l == prev then
             (r, s :: acc)
           else if r == prev then
-            (l, TermExternal(r, l) :: acc)
+            (l, ExternalStep(r, l) :: acc)
           else throw new Exception("Invalid proof recovered: It is not a chain")
-        case s @ TermCongruence((l, r)) => 
+        case s @ CongruenceStep((l, r)) => 
           if l == prev then
             (r, s :: acc)
           else if r == prev then
-            (l, TermCongruence(r, l) :: acc)
+            (l, CongruenceStep(r, l) :: acc)
           else throw new Exception("Invalid proof recovered: It is not a chain")
 
     }._2.reverse)
@@ -292,7 +292,7 @@ class EGraphExpr() {
   
 
   def canonicalize(node: Expr[?]): Expr[?] = node match
-    case node @ App(f, a) => App(find(f), find(t))
+    case node @ App(f, a) => App.unsafe(find(f), find(a))
     case _ => node
   
     
@@ -331,95 +331,70 @@ class EGraphExpr() {
 
   def canSig(node: Expr[?]): Sig = node match
     case App(f, g) => (codes(find(f)), codes(find(g)))
-    case _ => (node, List())
+    case _ => node
 
-  protected def mergeWithStep(id1: Term, id2: Term, step: Step): Unit = {
+  protected def mergeWithStep(id1: Expr[?], id2: Expr[?], step: Step): Unit = {
+    if id1.sort != id2.sort then throw new IllegalArgumentException("Cannot merge nodes of different sorts")
     if find(id1) == find(id2) then ()
     else
       proofMap((id1, id2)) = step
-      val parentsT1 = parents(find(id1))
-      val parentsF1 = parents(find(id1))
+      val parents1 = parents(find(id1))
+      val parents2 = parents(find(id2))
 
-      val parentsT2 = parents(find(id2))
-      val parentsF2 = parents(find(id2))
-      val preSigs : Map[Term, Sig] = parentsT1.map(t => (t, canSig(t))).toMap
-      codes(find(id2)) = codes(find(id1)) //assume parents(find(id1)) >= parents(find(id2))
-      UF.union(id1, id2)
-      val newId = find(id1)
-    
-      val formulaSeen = mutable.Map[Formula, AppliedPredicate]()
-      var formWorklist = List[(Formula, Formula, ExprStep)]()
-      var termWorklist = List[(Term, Term, ExprStep)]()
-      
-      parentsT2.foreach { 
-        case pTerm: AppliedFunctional =>
-          val canonicalPTerm = canSig(pTerm) 
-          if termSigs.contains(canonicalPTerm) then 
-            val qTerm = termSigs(canonicalPTerm)
-            termWorklist = (pTerm, qTerm, TermCongruence((pTerm, qTerm))) :: termWorklist
-          else
-            termSigs(canonicalPTerm) = pTerm
-      }
-      (parentsF2 ++ parentsF1).foreach {
-        case pFormula: AppliedPredicate =>
-          val canonicalPFormula = canonicalize(pFormula) 
-          if formulaSeen.contains(canonicalPFormula) then 
-            val qFormula = formulaSeen(canonicalPFormula)
-            formWorklist = (pFormula, qFormula, FormulaCongruence((pFormula, qFormula))) :: formWorklist
-          else
-            formulaSeen(canonicalPFormula) = pFormula
-      }
-      parents(newId) = parents(id1)
-      parents(newId).addAll(parents(id2))
-      parents(newId) = formulaSeen.values.to(mutable.Set)
-      formWorklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
-      termWorklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
+
+    if find(id1) == find(id2) then return ()
+
+    proofMap((id1, id2)) = step
+    val (small, big ) = if parents(find(id1)).size < parents(find(id2)).size then
+      (id1, id2) else (id2, id1)
+    codes(find(small)) = codes(find(big))
+    UF.union(id1, id2)
+    val newId = find(id1)
+    var worklist = List[(Expr[?], Expr[?], Step)]()
+
+    parents(small).foreach { pExpr =>
+      val canonicalPExpr = canSig(pExpr) 
+      if termSigs.contains(canonicalPExpr) then 
+        val qExpr = termSigs(canonicalPExpr)
+
+        worklist = (pExpr, qExpr, CongruenceStep((pExpr, qExpr))) :: worklist
+      else
+        termSigs(canonicalPExpr) = pExpr
+    }
+    parents(newId) = parents(big)
+    parents(newId).addAll(parents(small))
+    worklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
   }
 
-  protected def mergeWithStep(id1: Formula, id2: Formula, step: ExprStep): Unit = 
-    if find(id1) == find(id2) then ()
-    else
-      proofMap((id1, id2)) = step
-      val newparents = parents(find(id1)) ++ parents(find(id2))
-      UF.union(id1, id2)
-      val newId = find(id1)
-
-      val formulaSeen = mutable.Map[Formula, AppliedConnector]()
-      var formWorklist = List[(Formula, Formula, ExprStep)]()
-
-      newparents.foreach { 
-        case pFormula: AppliedConnector =>
-          val canonicalPFormula = canonicalize(pFormula) 
-          if formulaSeen.contains(canonicalPFormula) then 
-            val qFormula = formulaSeen(canonicalPFormula)
-            formWorklist = (pFormula, qFormula, FormulaCongruence((pFormula, qFormula))) :: formWorklist
-            //mergeWithStep(pFormula, qFormula, FormulaCongruence((pFormula, qFormula)))
-          else
-            formulaSeen(canonicalPFormula) = pFormula
-      }
-      parents(newId) = formulaSeen.values.to(mutable.Set)
-      formWorklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
 
 
-  def proveTerm(using lib: Library, proof: lib.Proof)(id1: Term, id2:Term, base: Sequent): proof.ProofTacticJudgement = 
-    TacticSubproof { proveInnerTerm(id1, id2, base) }
+  def proveTerm[S](using lib: Library, proof: lib.Proof)(id1: Expr[S], id2:Expr[S], base: Sequent): proof.ProofTacticJudgement = 
+    TacticSubproof { proveInner(id1, id2, base) }
 
-  def proveInnerTerm(using lib: Library, proof: lib.Proof)(id1: Term, id2:Term, base: Sequent): Unit = {
+  def proveInner[S](using lib: Library, proof: lib.Proof)(id1: Expr[S], id2:Expr[S], base: Sequent): Unit = {
     import lib.*
     val steps = explain(id1, id2)
+    val sort = id1.sort
+    val (eqOp, vars) = sort match
+      case Functional(argSorts) =>
+        ???
+      case Predicate(argSorts) =>
+        ???
+    
     steps match {
       case None => throw new Exception("No proof found in the egraph")
+
       case Some(steps) => 
         if steps.isEmpty then have(base.left |- (base.right + (id1 === id2))) by Restate
         steps.foreach {
-          case TermExternal((l, r)) => 
+          case ExternalStep((l, r)) => 
             val goalSequent = base.left |- (base.right + (id1 === r))
             if l == id1 then 
               have(goalSequent) by Restate
             else
               val x = freshVariable(id1)
               have(goalSequent) by RightSubstEq.withParametersSimple(List((l, r)), lambda(x, id1 === x))(lastStep)
-          case TermCongruence((l, r)) => 
+          case CongruenceStep((l, r)) => 
             val prev = if id1 != l then lastStep else null
             val leqr = have(base.left |- (base.right + (l === r))) subproof { sp ?=>
               (l, r) match
