@@ -1114,61 +1114,55 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftSubstEq extends ProofTactic {
-
-    def withParametersSimple[T1, T2](using lib: Library, proof: lib.Proof)(
-      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[F.F])
-    )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      withParameters(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
+    @deprecated("Use withParameters instead", "0.9")
+    def withParametersSimple(using lib: Library, proof: lib.Proof)(
+        equals: List[(F.Term, F.Term)],
+        lambdaPhi: (Seq[F.Variable[?]], F.Formula)
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      withParameters(equals, lambdaPhi)(premise)(bot)
     }
 
     def withParameters(using lib: Library, proof: lib.Proof)(
-      s: F.Expr[?], t: F.Expr[?], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[?], F.Expr[?])
-    )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      lazy val premiseSequent1 = proof.getSequent(prem1).underlying
-      lazy val premiseSequent2 = proof.getSequent(prem2).underlying
+        equals: List[(F.Expr[?], F.Expr[?])],
+        lambdaPhi: (Seq[F.Variable[?]], F.Formula)
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
-      lazy val sK = s.underlying
-      lazy val tK = t.underlying
-      lazy val varsK = vars.map(_.underlying)
-      val lambdaPhiK = (lambdaPhi._1.underlying, lambdaPhi._2.underlying)
-      val (phi_arg, phi_body) = lambdaPhiK
+      lazy val equalsK = equals.map(p => (p._1.underlying, p._2.underlying))
+      lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlying), lambdaPhi._2.underlying)
 
-      if (s.sort != phi_arg.sort || t.sort != phi_arg.sort) 
-        return proof.InvalidProofTactic("The types of the variable of φ must be the same as the types of s and t.")
-      else if (!s.sort.isFunctional) 
-        return proof.InvalidProofTactic("Can only substitute function-like terms (with type _ -> ... -> _ -> Term)")
-      val phi_s_for_f = K.substituteVariables(phi_body, Map(phi_arg -> sK))
-      val phi_t_for_f = K.substituteVariables(phi_body, Map(phi_arg -> tK))
-
-      val inner1 = varsK.foldLeft(sK)(_(_))
-      val inner2 = varsK.foldLeft(tK)(_(_))
-      val sEqt = K.equality(inner1)(inner2)
-      val varss = varsK.toSet
-
-      if (
-        K.isSubset(premiseSequent1.right, botK.right) &&
-        K.isSubset(premiseSequent2.right, botK.right + sEqt) &&
-        K.isSubset(botK.right, premiseSequent1.right union premiseSequent2.right)
-      ) {
-        if (
-          K.isSubset(premiseSequent1.left, botK.left + phi_s_for_f) &&
-          K.isSubset(premiseSequent2.left, botK.left) &&
-          K.isSubset(botK.left, premiseSequent1.left union premiseSequent2.left + phi_t_for_f)
-        ) {
-          if ( 
-            premiseSequent2.left.exists(f => f.freeVariables.intersect(varss).nonEmpty) || 
-            premiseSequent2.right.exists(f => !K.isSame(f, sEqt) && f.freeVariables.intersect(varss).nonEmpty)
-          ) {
-            return proof.InvalidProofTactic("The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
-          } else  proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, -2, sK, tK, varsK, lambdaPhiK)), Seq(prem1, prem2))
+      val (s_es, t_es) = equalsK.unzip
+      val (phi_args, phi_body) = lambdaPhiK
+      if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+        proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
+      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
+        proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
+      else {
+        val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
+        val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
+        val sEqT_es = equalsK map { 
+          case (s, t) => 
+            val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).max+1
+            val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Term))
+            val inner1 = vars.foldLeft(s)(_(_))
+            val inner2 = vars.foldLeft(t)(_(_))
+            val base = if (inner1.sort == K.Formula) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
+            vars.foldLeft(base : K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
         }
-        else return proof.InvalidProofTactic("Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
-      }
-      else return proof.InvalidProofTactic("Right-hand sides of the premise and the conclusion aren't the same.")
-      
 
+        if (K.isSameSet(botK.right, premiseSequent.right))
+          if (
+            K.isSameSet(botK.left + phi_t_for_f, premiseSequent.left ++ sEqT_es + phi_s_for_f) ||
+            K.isSameSet(botK.left + phi_s_for_f, premiseSequent.left ++ sEqT_es + phi_t_for_f)
+          )
+            proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
+          else
+            proof.InvalidProofTactic("Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped).")
+        else proof.InvalidProofTactic("Right-hand sides of the premise and the conclusion aren't the same.")
+      }
     }
   }
+
 
   /**
    * <pre>
@@ -1178,186 +1172,59 @@ object BasicStepTactic {
    * </pre>
    */
   object RightSubstEq extends ProofTactic {
-    def withParametersSimple[T1](using lib: Library, proof: lib.Proof)(
-      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[F.F])
-    )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      withParameters(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
-    }
-
-    def withParameters(using lib: Library, proof: lib.Proof)(
-      s: F.Expr[?], t: F.Expr[?], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[?], F.Formula)
-    )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      lazy val premiseSequent1 = proof.getSequent(prem1).underlying
-      lazy val premiseSequent2 = proof.getSequent(prem2).underlying
-      lazy val botK = bot.underlying
-      lazy val sK = s.underlying
-      lazy val tK = t.underlying
-      lazy val varsK = vars.map(_.underlying)
-      val lambdaPhiK = (lambdaPhi._1.underlying, lambdaPhi._2.underlying)
-      val (phi_arg, phi_body) = lambdaPhiK
-
-      if (s.sort != phi_arg.sort || t.sort != phi_arg.sort) 
-        return proof.InvalidProofTactic("The types of the variable of φ must be the same as the types of s and t.")
-      else if (!s.sort.isFunctional) 
-        return proof.InvalidProofTactic("Can only substitute function-like terms (with type _ -> ... -> _ -> Term)")
-      val phi_s_for_f = K.substituteVariables(phi_body, Map(phi_arg -> sK))
-      val phi_t_for_f = K.substituteVariables(phi_body, Map(phi_arg -> tK))
-
-      val inner1 = varsK.foldLeft(sK)(_(_))
-      val inner2 = varsK.foldLeft(tK)(_(_))
-      val sEqt = K.equality(inner1)(inner2)
-      val varss = varsK.toSet
-
-      if (
-        K.isSubset(premiseSequent1.right, botK.right) &&
-        K.isSubset(premiseSequent2.right, botK.right + sEqt) &&
-        K.isSubset(botK.right, premiseSequent1.right union premiseSequent2.right)
-      ) {
-        if (
-          K.isSubset(premiseSequent1.left, botK.left + phi_s_for_f) &&
-          K.isSubset(premiseSequent2.left, botK.left) &&
-          K.isSubset(botK.left, premiseSequent1.left union premiseSequent2.left + phi_t_for_f)
-        ) {
-          if ( 
-            premiseSequent2.left.exists(f => f.freeVariables.intersect(varss).nonEmpty) || 
-            premiseSequent2.right.exists(f => !K.isSame(f, sEqt) && f.freeVariables.intersect(varss).nonEmpty)
-          ) {
-            proof.InvalidProofTactic("The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
-          } else proof.ValidProofTactic(bot, Seq(K.RightSubstEq(botK, -1, -2, sK, tK, varsK, lambdaPhiK)), Seq(prem1, prem2))
-        }
-        else proof.InvalidProofTactic("Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
-      }
-      else proof.InvalidProofTactic("Right-hand sides of the premise and the conclusion aren't the same.")
-    }
-
-  }
-
-  /**
-   * <pre>
-   *           Γ, φ(a1,...an) |- Δ
-   * ----------------------------------------
-   *  Γ, a1⇔b1, ..., an⇔bn, φ(b1,...bn) |- Δ
-   * </pre>
-   */
-  object LeftSubstIff extends ProofTactic {
-    def withParametersSimple[T1, T2](using lib: Library, proof: lib.Proof)(
-      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[F.F])
-    )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
-      LeftSubstEq.withParametersSimple(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
-
-    def withParameters(using lib: Library, proof: lib.Proof)(
-      s: F.Expr[?], t: F.Expr[?], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[?], F.Expr[?])
-    )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
-      LeftSubstEq.withParameters(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
-      /*{
-      lazy val premiseSequent1 = proof.getSequent(prem1).underlying
-      lazy val premiseSequent2 = proof.getSequent(prem2).underlying
-      lazy val botK = bot.underlying
-      lazy val sK = s.underlying
-      lazy val tK = t.underlying
-      lazy val varsK = vars.map(_.underlying)
-      val lambdaPhiK = (lambdaPhi._1.underlying, lambdaPhi._2.underlying)
-      val (phi_arg, phi_body) = lambdaPhiK
-
-      if (s.sort != phi_arg.sort || t.sort != phi_arg.sort) 
-        return proof.InvalidProofTactic("The types of the variable of φ must be the same as the types of s and t.")
-      else if (!s.sort.isFunctional) 
-        return proof.InvalidProofTactic("Can only substitute function-like terms (with type _ -> ... -> _ -> Term)")
-      val phi_s_for_f = K.substituteVariables(phi_body, Map(phi_arg -> sK))
-      val phi_t_for_f = K.substituteVariables(phi_body, Map(phi_arg -> tK))
-
-      val inner1 = varsK.foldLeft(sK)(_(_))
-      val inner2 = varsK.foldLeft(tK)(_(_))
-      val sEqt = K.Iff(inner1)(inner2)
-      val varss = varsK.toSet
-
-      if (
-        K.isSubset(premiseSequent1.right, botK.right) &&
-        K.isSubset(premiseSequent2.right, botK.right + sEqt) &&
-        K.isSubset(botK.right, premiseSequent1.right union premiseSequent2.right)
-      ) {
-        if (
-          K.isSubset(premiseSequent1.left, botK.left + phi_s_for_f) &&
-          K.isSubset(premiseSequent2.left, botK.left) &&
-          K.isSubset(botK.left, premiseSequent1.left union premiseSequent2.left + phi_t_for_f)
-        ) {
-          if ( 
-            premiseSequent2.left.exists(f => f.freeVariables.intersect(varss).nonEmpty) || 
-            premiseSequent2.right.exists(f => !K.isSame(f, sEqt) && f.freeVariables.intersect(varss).nonEmpty)
-          ) {
-            return proof.InvalidProofTactic("The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
-          } else  proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, -2, sK, tK, varsK, lambdaPhiK)), Seq(prem1, prem2))
-        }
-        else return proof.InvalidProofTactic("Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
-      }
-      else return proof.InvalidProofTactic("Right-hand sides of the premise and the conclusion aren't the same.")
-      */
-
-  }
-
-  /**
-   * <pre>
-   *           Γ |- φ(a1,...an), Δ
-   * ----------------------------------------
-   *  Γ, a1⇔b1, ..., an⇔bn |- φ(b1,...bn), Δ
-   * </pre>
-   */
-  object RightSubstIff extends ProofTactic {
-    def withParametersSimple[T1, T2](using lib: Library, proof: lib.Proof)(
-      s: F.Expr[T1], t: F.Expr[T1], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[T1], F.Expr[F.F])
-    )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
-      RightSubstEq.withParametersSimple(s, t, vars, lambdaPhi)(prem1, prem2)(bot)
-
-    def withParameters(using lib: Library, proof: lib.Proof)(
-      s: F.Expr[?], t: F.Expr[?], vars: Seq[F.Variable[?]], lambdaPhi: (F.Variable[?], F.Expr[?])
-    )(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
-      RightSubstEq.withParameters(s, t, vars, lambdaPhi.asInstanceOf)(prem1, prem2)(bot)
-
-      /*
+    @deprecated("Use withParameters instead", "0.9")
     def withParametersSimple(using lib: Library, proof: lib.Proof)(
-        equals: List[(F.Formula, F.Formula)],
-        lambdaPhi: F.LambdaExpression[F.Formula, F.Formula, ?]
+        equals: List[(F.Term, F.Term)],
+        lambdaPhi: (Seq[F.Variable[?]], F.Formula)
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      withParameters(equals.map { case (a, b) => (F.lambda(Seq(), a), F.lambda(Seq(), b)) }, (lambdaPhi.bounds.asInstanceOf[Seq[F.SchematicAtomicLabel[?]]], lambdaPhi.body))(premise)(bot)
+      withParameters(equals, lambdaPhi)(premise)(bot)
     }
 
     def withParameters(using lib: Library, proof: lib.Proof)(
-        equals: List[(F.LambdaExpression[F.Term, F.Formula, ?], F.LambdaExpression[F.Term, F.Formula, ?])],
-        lambdaPhi: (Seq[F.SchematicAtomicLabel[?]], F.Formula)
+        equals: List[(F.Expr[?], F.Expr[?])],
+        lambdaPhi: (Seq[F.Variable[?]], F.Formula)
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
-      lazy val equalsK = equals.map(p => (p._1.underlyingLTF, p._2.underlyingLTF))
+      lazy val equalsK = equals.map(p => (p._1.underlying, p._2.underlying))
       lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlying), lambdaPhi._2.underlying)
 
-      val (psi_s, tau_s) = equalsK.unzip
+      val (s_es, t_es) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      if (phi_args.size != psi_s.size)
-        return proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
-      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
-        return proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
+      if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+        proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
+      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
+        proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
+      else {
+        val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
+        val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
+        val sEqT_es = equalsK map { 
+          case (s, t) => 
+            val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).max+1
+            val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Term))
+            val inner1 = vars.foldLeft(s)(_(_))
+            val inner2 = vars.foldLeft(t)(_(_))
+            val base = if (inner1.sort == K.Formula) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
+            vars.foldLeft(base : K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
+        }
 
-      val phi_psi = K.instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
-      val phi_tau = K.instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
-      val psiIffTau = equalsK map { case (s, t) =>
-        assert(s.vars.size == t.vars.size)
-        val base = K.ConnectorFormula(K.Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(K.VariableTerm))))
-        (s.vars).foldLeft(base: K.Formula) { case (acc, s_arg) => K.forall(s_arg, acc) }
+        if (K.isSameSet(botK.right, premiseSequent.right ++ sEqT_es))
+          if (
+            K.isSameSet(botK.left + phi_t_for_f, premiseSequent.left + phi_s_for_f) ||
+            K.isSameSet(botK.left + phi_s_for_f, premiseSequent.left + phi_t_for_f)
+          )
+            proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
+          else
+            proof.InvalidProofTactic("ight-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case.")
+        else proof.InvalidProofTactic("Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the premise.")
       }
-
-      if (!K.isSameSet(botK.left, premiseSequent.left ++ psiIffTau)) {
-        proof.InvalidProofTactic("Left-hand side of the conclusion is not the same as the left-hand side of the premise + (ψ ⇔ τ)_.")
-      } else if (
-        !K.isSameSet(botK.right + phi_psi, premiseSequent.right + phi_tau) &&
-        !K.isSameSet(botK.right + phi_tau, premiseSequent.right + phi_psi)
-      )
-        proof.InvalidProofTactic("Right-hand side of the conclusion + φ(ψ_) is not the same as right-hand side of the premise + φ(τ_) (or with ψ_ and τ_ swapped).")
-      else
-        proof.ValidProofTactic(bot, Seq(K.RightSubstIff(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
     }
-        */
   }
+  
+  @deprecated("Use LeftSubstEq instead", "0.9")
+  val LeftSubstIff = LeftSubstEq
+  @deprecated("Use RightSubstEq instead", "0.9")
+  val RightSubstIff = RightSubstEq
 
   /**
    * <pre>
