@@ -4,8 +4,8 @@ import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
-import leo.datastructures.TPTP.CNF.AtomicFormula
-import scala.annotation.targetName
+import lisa.utils.K
+import leo.datastructures.TPTP.AnnotatedFormula.FormulaType
 
 /**
   * This tactic tries to prove a sequent by congruence.
@@ -27,82 +27,82 @@ import scala.annotation.targetName
   * 
   */
 object Congruence  extends ProofTactic with ProofSequentTactic {
-    def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = TacticSubproof {
-      import lib.*
+  def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = TacticSubproof {
+    import lib.*
 
-      val egraph = new EGraphExpr()
-      egraph.addAll(bot.left)
-      egraph.addAll(bot.right)
+    val egraph = new EGraphExpr()
+    egraph.addAll(bot.left)
+    egraph.addAll(bot.right)
 
-      bot.left.foreach{
-        case (left === right) => egraph.merge(left, right)
-        case (left <=> right) => egraph.merge(left, right)
-        case _ => ()
-      }
-
-      if isSameSequent(bot, ⊤) then
-        have(bot) by Restate
-      else if bot.left.exists { lf =>
-        bot.right.exists { rf =>
-          if egraph.idEq(lf, rf) then
-            val base = have(bot.left |- (bot.right + lf) ) by Restate
-            val eq = have(egraph.proveFormula(lf, rf, bot))
-            val a = variable[Formula]
-            val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
-            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(lf, rf, Seq(), (a, a))(base, eqstep)
-            have(bot) by Cut(eq, lastStep)
-            true
-          else false
-        } ||
-        bot.left.exists{ 
-          case rf2 @ neg(rf) if egraph.idEq(lf, rf)=>
-            val base = have((bot.left + !lf) |- bot.right ) by Restate
-            val eq = have(egraph.proveFormula(lf, rf, bot))
-            val a = variable[Formula]
-            val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
-            have((bot.left + (lf <=> rf)) |- (bot.right) ) by LeftSubstIff.withParametersSimple(lf, rf, Seq(), (a, !a))(base, eqstep)
-            have(bot) by Cut(eq, lastStep)
-            true
-          case _  => false
-        } || {
-        lf match
-          case !(a === b) if egraph.idEq(a, b) => 
-            have(egraph.proveTerm(a, b, bot))
-            true
-          case !(a <=> b) if egraph.idEq(a, b) => 
-            have(egraph.proveFormula(a, b, bot))
-            true
-          case _ => false
-        }
-
-      } then ()
-      else if bot.right.exists { rf =>
-        bot.right.exists{ 
-          case lf2 @ neg(lf) if egraph.idEq(lf, rf)=>
-            val base = have((bot.left) |- (bot.right + !rf) ) by Restate
-            val eq = have(egraph.proveFormula(lf, rf, bot))
-            val a = variable[Formula]
-            val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
-            have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParametersSimple(lf, rf, Seq(), (a, !a))(base, eqstep)
-            have(bot) by Cut(eq, lastStep)
-            true
-          case _  => false
-        } || {
-        rf match
-          case (a === b) if egraph.idEq(a, b) => 
-            have(egraph.proveTerm(a, b, bot))
-            true
-          case (a <=> b) if egraph.idEq(a, b) =>
-            have(egraph.proveFormula(a, b, bot))
-            true
-          case _ => false
-        }
-      } then ()
-      else
-        return proof.InvalidProofTactic(s"No congruence found to show sequent\n $bot")
+    bot.left.foreach{
+      case (left === right) => egraph.merge(left, right)
+      case (left <=> right) => egraph.merge(left, right)
+      case _ => ()
     }
 
-  
+    if isSameSequent(bot, ⊤) then
+      have(bot) by Restate
+    else if bot.left.exists { lf =>
+      bot.right.exists { rf =>
+        if egraph.idEq(lf, rf) then
+          val base = have(bot.left |- (bot.right + lf) ) by Restate
+          val eq = have(egraph.proveFormula(lf, rf, bot))
+          val a = variable[Formula]
+          val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
+          have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParameters(Seq((lf, rf)), (Seq(a), a))(base, eqstep)
+          have(bot) by Cut(eq, lastStep)
+          true
+        else false
+      } ||
+      bot.left.exists{ 
+        case rf2 @ neg(rf) if egraph.idEq(lf, rf)=>
+          val base = have((bot.left + !lf) |- bot.right ) by Restate
+          val eq = have(egraph.proveFormula(lf, rf, bot))
+          val a = variable[Formula]
+          val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
+          have((bot.left + (lf <=> rf)) |- (bot.right) ) by LeftSubstIff.withParameters(Seq((lf, rf)), (Seq(a), !a))(base, eqstep)
+          have(bot) by Cut(eq, lastStep)
+          true
+        case _  => false
+      } || {
+      lf match
+        case !(a === b) if egraph.idEq(a, b) => 
+          have(egraph.proveTerm(a, b, bot))
+          true
+        case !(a <=> b) if egraph.idEq(a, b) => 
+          have(egraph.proveFormula(a, b, bot))
+          true
+        case _ => false
+      }
+
+    } then ()
+    else if bot.right.exists { rf =>
+      bot.right.exists{ 
+        case lf2 @ neg(lf) if egraph.idEq(lf, rf)=>
+          val base = have((bot.left) |- (bot.right + !rf) ) by Restate
+          val eq = have(egraph.proveFormula(lf, rf, bot))
+          val a = variable[Formula]
+          val eqstep = have((lf <=> rf) |- (lf <=> rf)) by Restate
+          have((bot.left + (lf <=> rf)) |- (bot.right) ) by RightSubstIff.withParameters(Seq((lf, rf)), (Seq(a), !a))(base, eqstep)
+          have(bot) by Cut(eq, lastStep)
+          true
+        case _  => false
+      } || {
+      rf match
+        case (a === b) if egraph.idEq(a, b) => 
+          have(egraph.proveTerm(a, b, bot))
+          true
+        case (a <=> b) if egraph.idEq(a, b) =>
+          have(egraph.proveFormula(a, b, bot))
+          true
+        case _ => false
+      }
+    } then ()
+    else
+      return proof.InvalidProofTactic(s"No congruence found to show sequent\n $bot")
+  }
+
+
 }
 
 
@@ -117,8 +117,8 @@ class UnionFind[T]  {
   var unionCounter = 0
 
   /**
-    * add a new element to the union-find.
-    */
+     * add a new element to the union-find.
+     */
   def add(x: T): Unit = {
     parent(x) = x
     realParent(x) = (x, ((x, x), true, 0))
@@ -126,10 +126,10 @@ class UnionFind[T]  {
   }
 
   /**
-    *
-    * @param x the element whose parent we want to find
-    * @return the root of x
-    */
+     *
+     * @param x the element whose parent we want to find
+     * @return the root of x
+     */
   def find(x: T): T = {
     if parent(x) == x then
       x
@@ -145,8 +145,8 @@ class UnionFind[T]  {
   }
 
   /**
-    * Merges the classes of x and y
-    */
+     * Merges the classes of x and y
+     */
   def union(x: T, y: T): Unit = {
     unionCounter += 1
     val xRoot = find(x)
@@ -188,9 +188,9 @@ class UnionFind[T]  {
   }
 
   /**
-    * Returns a path from x to y made of pairs of elements (u, v)
-    * such that union(u, v) was called.
-    */
+     * Returns a path from x to y made of pairs of elements (u, v)
+     * such that union(u, v) was called.
+     */
   def explain(x:T, y:T): Option[List[(T, T)]]= {
 
     if (x == y) then return Some(List())
@@ -223,27 +223,27 @@ class UnionFind[T]  {
 
 
   /**
-    * Returns the set of all roots of all classes
-    */
+     * Returns the set of all roots of all classes
+     */
   def getClasses: Set[T] = parent.keys.map(find).toSet
 
   /**
-    * Add all elements in the collection to the union-find
-    */
+     * Add all elements in the collection to the union-find
+     */
   def addAll(xs: Iterable[T]): Unit = xs.foreach(add)
 
 }
 
 
-///////////////////////////////
-///////// E-graph /////////////
-///////////////////////////////
+ ///////////////////////////////
+ ///////// E-graph /////////////
+ ///////////////////////////////
 
 import scala.collection.mutable
 
 class EGraphExpr() {
 
-  val parents = mutable.Map[Expr[?], mutable.Set[App[?, ?]]]()
+  val parents = mutable.Map[Expr[?], mutable.Set[Expr[?]]]()
   val UF = new UnionFind[Expr[?]]()
 
 
@@ -286,52 +286,54 @@ class EGraphExpr() {
     node
   }
 
-  def idEqT(id1: Term, id2: Term): Boolean = find(id1) == find(id2)
-  def idEqF(id1: Formula, id2: Formula): Boolean = find(id1) == find(id2)
+  def idEq(id1: Expr[?], id2: Expr[?]): Boolean = find(id1) == find(id2)
 
   
-
-  def canonicalize(node: Expr[?]): Expr[?] = node match
-    case node @ App(f, a) => App.unsafe(find(f), find(a))
+  def canonicalize(node: Expr[?]) : Expr[?] = node match
+    case App(f, a) => App.unsafe(canonicalize(f), find(a))
     case _ => node
-  
-    
 
-  def add(node: Expr[?]): Expr[?] =
-    if UF.parent.contains(node) then return node
-    makeSingletonEClass(node)
-    codes(node) = codes.size
-    node match
-      case node @ App(f, a) =>
-        add(f)
-        parents(find(f)).add(node)
-        add(a)
-        parents(find(a)).add(node)
-      case _ => ()
-    termSigs(canSig(node)) = node
-    node
 
+
+  def add(node: Expr[?]): Expr[?] = 
+    if codes.contains(node) then node
+    else
+      codes(node) = codes.size
+    if node.sort == K.Term || node.sort == K.Formula then
+      makeSingletonEClass(node)
+      node match 
+        case Multiapp(f, args) => 
+          args.foreach(child => 
+            add(child)
+            parents(find(child)).add(node)
+          )
+      mapSigs(canSig(node)) = node
+    node  
 
   def addAll(nodes: Iterable[Term|Formula]): Unit = 
     nodes.foreach{
-      case node: Term => add(node)
-      case node: Formula => add(node)
+      case node: Term if node.sort == K.Term => add(node)
+      case node: Formula if node.sort == K.Formula => add(node)
     }
     
     
 
-
-  def merge(id1: Expr[?], id2: Expr[?]): Unit = {
+  def merge[S](id1: Expr[S], id2: Expr[S]): Unit = {
     mergeWithStep(id1, id2, ExternalStep((id1, id2)))
   }
 
-  type Sig = Expr[?] | (Int, Int)
-  val termSigs = mutable.Map[Sig, Expr[?]]()
+  def mergeUnsafe(id1: Expr[?], id2: Expr[?]): Unit = {
+      mergeWithStep(id1, id2, ExternalStep((id1, id2)))
+    }
+
+  type Sig = (Expr[?], List[Int])
+  val mapSigs = mutable.Map[Sig, Expr[?]]()
   val codes = mutable.Map[Expr[?], Int]()
 
   def canSig(node: Expr[?]): Sig = node match
-    case App(f, g) => (codes(find(f)), codes(find(g)))
-    case _ => node
+    case Multiapp(label, args) => 
+      (label, args.map(a => codes(find(a))).toList)
+    case _ => (node, List())
 
   protected def mergeWithStep(id1: Expr[?], id2: Expr[?], step: Step): Unit = {
     if id1.sort != id2.sort then throw new IllegalArgumentException("Cannot merge nodes of different sorts")
@@ -354,12 +356,12 @@ class EGraphExpr() {
 
     parents(small).foreach { pExpr =>
       val canonicalPExpr = canSig(pExpr) 
-      if termSigs.contains(canonicalPExpr) then 
-        val qExpr = termSigs(canonicalPExpr)
+      if mapSigs.contains(canonicalPExpr) then 
+        val qExpr = mapSigs(canonicalPExpr)
 
         worklist = (pExpr, qExpr, CongruenceStep((pExpr, qExpr))) :: worklist
       else
-        termSigs(canonicalPExpr) = pExpr
+        mapSigs(canonicalPExpr) = pExpr
     }
     parents(newId) = parents(big)
     parents(newId).addAll(parents(small))
@@ -367,36 +369,29 @@ class EGraphExpr() {
   }
 
 
+  def proveExpr[S](using lib: Library, proof: lib.Proof)(id1: Expr[S], id2:Expr[S], base: Sequent): proof.ProofTacticJudgement = 
+    TacticSubproof { proveInnerTerm(id1, id2, base) }
 
-  def proveTerm[S](using lib: Library, proof: lib.Proof)(id1: Expr[S], id2:Expr[S], base: Sequent): proof.ProofTacticJudgement = 
-    TacticSubproof { proveInner(id1, id2, base) }
 
-  def proveInner[S](using lib: Library, proof: lib.Proof)(id1: Expr[S], id2:Expr[S], base: Sequent): Unit = {
+
+  def proveInnerTerm(using lib: Library, proof: lib.Proof)(id1: Expr[?], id2:Expr[?], base: Sequent): Unit = {
     import lib.*
     val steps = explain(id1, id2)
-    val sort = id1.sort
-    val (eqOp, vars) = sort match
-      case Functional(argSorts) =>
-        ???
-      case Predicate(argSorts) =>
-        ???
-    
     steps match {
       case None => throw new Exception("No proof found in the egraph")
-
       case Some(steps) => 
-        if steps.isEmpty then have(base.left |- (base.right + (id1 === id2))) by Restate
+        if steps.isEmpty then have(base.left |- (base.right + (makeEq(id1, id2)))) by Restate
         steps.foreach {
           case ExternalStep((l, r)) => 
-            val goalSequent = base.left |- (base.right + (id1 === r))
+            val goalSequent = base.left |- (base.right + (makeEq(id1, r)))
             if l == id1 then 
               have(goalSequent) by Restate
             else
-              val x = freshVariable(id1)
-              have(goalSequent) by RightSubstEq.withParametersSimple(List((l, r)), lambda(x, id1 === x))(lastStep)
+              val x = variable[Term](freshId(Seq(id1)))
+              have(goalSequent) by RightSubstEq.withParameters(List((l, r)), (Seq(x),makeEq(id1, x))(lastStep)
           case CongruenceStep((l, r)) => 
             val prev = if id1 != l then lastStep else null
-            val leqr = have(base.left |- (base.right + (l === r))) subproof { sp ?=>
+            val leqr = have(base.left |- (base.right + (makeEq(l, r)))) subproof { sp ?=>
               (l, r) match
                 case (AppliedFunctional(labell, argsl), AppliedFunctional(labelr, argsr)) if labell == labelr && argsl.size == argsr.size => 
                   var freshn = freshId((l.freeVariables ++ r.freeVariables).map(_.id), "n").no
@@ -419,7 +414,7 @@ class EGraphExpr() {
                   have(base.left |- (base.right + (l === l))) by Restate
                   val eqs = zip.map((l, r) => l === r)
                   val goal = have((base.left ++ eqs) |- (base.right + (l === r))).by.bot
-                  have((base.left ++ eqs) |- (base.right + (l === r))) by RightSubstEq.withParametersSimple(zip, lambda(vars, l === labelr.applyUnsafe(children)))(lastStep)
+                  have((base.left ++ eqs) |- (base.right + (l === r))) by RightSubstEq.withParameters(zip, (vars, l === Multiapply(labelr, children)))(lastStep)
                   steps.foreach { s =>
                     have(
                       if s._2.bot.left.contains(s._1) then lastStep.bot else lastStep.bot -<< s._1
@@ -434,7 +429,7 @@ class EGraphExpr() {
             if id1 != l then
               val goalSequent = base.left |- (base.right + (id1 === r))
               val x = freshVariable(id1)
-              have(goalSequent +<< (l === r)) by RightSubstEq.withParametersSimple(List((l, r)), lambda(x, id1 === x))(prev)
+              have(goalSequent +<< (l === r)) by RightSubstEq.withParameters(List((l, r)), lambda(x, id1 === x))(prev)
               have(goalSequent) by Cut(leqr, lastStep)
         }
     }
@@ -451,14 +446,14 @@ class EGraphExpr() {
       case Some(steps) => 
         if steps.isEmpty then have(base.left |- (base.right + (id1 <=> id2))) by Restate
         steps.foreach {
-          case FormulaExternal((l, r)) => 
+          case ExternalStep((l, r)) => 
             val goalSequent = base.left |- (base.right + (id1 <=> r))
             if l == id1 then 
               have(goalSequent) by Restate
             else
               val x = freshVariableFormula(id1)
-              have(goalSequent) by RightSubstIff.withParametersSimple(List((l, r)), lambda(x, id1 <=> x))(lastStep)
-          case FormulaCongruence((l, r)) => 
+              have(goalSequent) by RightSubstIff.withParameters(List((l, r)), lambda(x, id1 <=> x))(lastStep)
+          case CongruenceStep((l, r)) => 
             val prev = if id1 != l then lastStep else null
             val leqr = have(base.left |- (base.right + (l <=> r))) subproof { sp ?=>
               (l, r) match
@@ -483,7 +478,7 @@ class EGraphExpr() {
                   have(base.left |- (base.right + (l <=> l))) by Restate
                   val eqs = zip.map((l, r) => l <=> r)
                   val goal = have((base.left ++ eqs) |- (base.right + (l <=> r))).by.bot
-                  have((base.left ++ eqs) |- (base.right + (l <=> r))) by RightSubstIff.withParametersSimple(zip, lambda(vars, l <=> labelr.applyUnsafe(children)))(lastStep)
+                  have((base.left ++ eqs) |- (base.right + (l <=> r))) by RightSubstIff.withParameters(zip, lambda(vars, l <=> labelr.applyUnsafe(children)))(lastStep)
                   steps.foreach { s =>
                     have(
                       if s._2.bot.left.contains(s._1) then lastStep.bot else lastStep.bot -<< s._1
@@ -511,7 +506,7 @@ class EGraphExpr() {
                   have(base.left |- (base.right + (l <=> l))) by Restate
                   val eqs = zip.map((l, r) => l === r)
                   val goal = have((base.left ++ eqs) |- (base.right + (l <=> r))).by.bot
-                  have((base.left ++ eqs) |- (base.right + (l <=> r))) by RightSubstEq.withParametersSimple(zip, lambda(vars, l <=> labelr.applyUnsafe(children)))(lastStep)
+                  have((base.left ++ eqs) |- (base.right + (l <=> r))) by RightSubstEq.withParameters(zip, lambda(vars, l <=> labelr.applyUnsafe(children)))(lastStep)
                   steps.foreach { s =>
                     have(
                       if s._2.bot.left.contains(s._1) then lastStep.bot else lastStep.bot -<< s._1
@@ -526,7 +521,7 @@ class EGraphExpr() {
             if id1 != l then
               val goalSequent = base.left |- (base.right + (id1 <=> r))
               val x = freshVariableFormula(id1)
-              have(goalSequent +<< (l <=> r)) by RightSubstIff.withParametersSimple(List((l, r)), lambda(x, id1 <=> x))(prev)
+              have(goalSequent +<< (l <=> r)) by RightSubstIff.withParameters(List((l, r)), lambda(x, id1 <=> x))(prev)
               have(goalSequent) by Cut(leqr, lastStep)
         
         }

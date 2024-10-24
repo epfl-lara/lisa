@@ -36,7 +36,7 @@ private[fol] trait Syntax {
   sealed trait Sort {
     def ->(to: Sort): Arrow = Arrow(this, to)
     val isFunctional: Boolean
-    def isPredicate: Boolean
+    val isPredicate: Boolean
     val depth: Int 
   }
   case object Term extends Sort {
