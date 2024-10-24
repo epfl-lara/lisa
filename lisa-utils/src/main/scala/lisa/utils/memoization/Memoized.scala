@@ -8,9 +8,9 @@ case class MemoizationStats(hits: Int, miss: Int, faulted: Int):
 case object InfiniteRecursionDetectedException extends Exception
 
 class Memoized[From, To](fun: From => To) extends Function[From, To]:
-  private val visited = scala.collection.mutable.HashSet.empty[From]
-  private val memory = scala.collection.mutable.HashMap.empty[From, To]
-  private var stats = MemoizationStats(0, 0, 0)
+  protected val visited = scala.collection.mutable.HashSet.empty[From]
+  protected val memory = scala.collection.mutable.HashMap.empty[From, To]
+  protected var stats = MemoizationStats(0, 0, 0)
 
   protected def handleFault(): To =
     throw InfiniteRecursionDetectedException
