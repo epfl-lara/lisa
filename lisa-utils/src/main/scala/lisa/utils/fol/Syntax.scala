@@ -26,15 +26,15 @@ trait Syntax {
     case Expr[t] => t
   }
 
-  sealed trait Sort {
+  trait Sort {
     type Self
     val underlying: K.Sort
   }
 
 
-  sealed trait T extends Sort
-  sealed trait F extends Sort
-  sealed trait Arrow[A: Sort, B: Sort] extends Sort
+  sealed trait T
+  sealed trait F
+  sealed trait Arrow[A: Sort, B: Sort]
   //final class UnsafeSort(val underlying: K.Sort) extends Sort:
   //  type Self = UnsafeSort
 
@@ -94,7 +94,7 @@ trait Syntax {
     override def substitute(pairs: SubstPair*): Expr[S] = 
       super.substitute(pairs*).asInstanceOf[Expr[S]]
 
-    def unapplySeq[Target <: Sort](e: Expr[Target]): Option[ArgsTo[S, Target]] = 
+    def unapplySeq[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] = 
       def inner[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] = e match
         case App(f2, arg) if this == f2 => Some((arg *: EmptyTuple).asInstanceOf[ArgsTo[S, Target]])
         case App(f2, arg) => inner(f2).map(value => (arg *: value).asInstanceOf[ArgsTo[S, Target]])
@@ -104,21 +104,6 @@ trait Syntax {
     @targetName("unapplySeq2")
     def unapplySeq(e: Expr[?]): Option[Seq[Expr[?]]] = Multiapp(this).unapply(e)
 
-
-    /*
-    @targetName("unapply2")
-    def unapply[T1, T2, T3](e: Expr[T3]): Option[(Expr[T1], Expr[T2])] = (e: @unchecked) match 
-      case App[T2, T3](e1, a2) => e1 match 
-        case App[T1, T2 >>: T3](f, a1) if f == this => Some((a1, a2))
-        case _ => None
-      case _ => None
-        
-    @targetName("unapply1")  
-    def unapply[T1, T2](e: Expr[T2]): Option[Expr[T1]] = (e: @unchecked) match {
-      case App[T1, T2](f, arg)  if f == this => Some(arg)
-      case _ => None
-    }
-      */
     final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.map(a => s"(${a})")})"
     final def defaultMkStringSeparated(args: Seq[Expr[?]]): String = s"(${defaultMkString(args)})"
     var mkString: Seq[Expr[?]] => String = defaultMkString
@@ -243,7 +228,7 @@ trait Syntax {
   class Binder[T1: Sort, T2: Sort, T3: Sort](id: K.Identifier) extends Constant[Arrow[Arrow[T1, T2], T3]](id) {
     def apply(v1: Variable[T1], e: Expr[T2]): App[Arrow[T1, T2], T3] = App(this, Abs(v1, e))
     @targetName("unapplyBinder")
-    def unapply(e: Expr[T3]): Option[(Variable[T1], Expr[T2])] = e match {
+    def unapply(e: Expr[?]): Option[(Variable[T1], Expr[T2])] = e match {
       case App(f:Expr[Arrow[Arrow[T1, T2], T3]], Abs(v, e)) if f == this => Some((v, e))
       case _ => None
     }
@@ -304,10 +289,15 @@ trait Syntax {
     override def toString(): String = s"Abs($v, $body)"
   }
 
-  object Abs {
+  object Abs:
     def unsafe(v: Variable[?], body: Expr[?]): Expr[?] = 
-      Abs(v.asInstanceOf, body.asInstanceOf)
-  }
+      new Abs(v.asInstanceOf, body.asInstanceOf)
+    
+    def apply[S1, S2](v: Variable[S1], body: Expr[S2]): Abs[S1, S2] = new Abs(v, body)
+
+    def apply(xs: Seq[Variable[?]], t: Expr[?]): Expr[?] = xs.foldRight(t)((x, t) => new Abs(x, t))
+
+  val lambda = Abs
 
 
 

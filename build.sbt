@@ -16,7 +16,8 @@ ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 val scala2 = "2.13.8"
-val scala3 = "3.5.1"
+val scala3 = "3.5.2"
+//val scala3 = "3.6.2-RC1-bin-20241023-31e7359-NIGHTLY"
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
 
@@ -72,6 +73,13 @@ lazy val kernel = Project(
 lazy val sets = Project(
   id = "lisa-sets",
   base = file("lisa-sets")
+)
+  .settings(commonSettings3)
+  .dependsOn(kernel, withTests(utils))
+
+lazy val sets2 = Project(
+  id = "lisa-sets2",
+  base = file("lisa-sets2")
 )
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils))

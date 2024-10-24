@@ -1426,7 +1426,7 @@ class BasicTacticTest extends ProofTacticTestLib {
   }
 
   // instfunschema
-  test("Tactic Tests: InstFunSchema") {
+  test("Tactic Tests: InstSchema") {
     val x = variable
     val y = variable
     val f = SchematicFunctionLabel("f", 1)
@@ -1456,12 +1456,12 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2, termMap) =>
       val prem = introduceSequent(stmt1)
-      InstFunSchema(termMap)(prem)(stmt2)
+      InstSchema(termMap)(prem)(stmt2)
     }
   }
 
   // instpredschema
-  test("Tactic Tests: InstPredSchema") {
+  test("Tactic Tests: InstSchema") {
     val x = variable
     val y = variable
     val f = SchematicPredicateLabel("f", 1)
@@ -1492,7 +1492,7 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2, termMap) =>
       val prem = introduceSequent(stmt1)
-      InstPredSchema(termMap)(prem)(stmt2)
+      InstSchema(termMap)(prem)(stmt2)
     }
   }
    */

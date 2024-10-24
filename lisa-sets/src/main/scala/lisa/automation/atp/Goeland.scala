@@ -81,10 +81,10 @@ object Goeland extends ProofTactic with ProofSequentTactic {
     val directory = File(foldername)
     if (directory != null) && !directory.exists() then directory.mkdirs()
 
-    val freevars = (sequent.left.flatMap(_.freeVariables) ++ sequent.right.flatMap(_.freeVariables) ).toSet.map(x => x -> K.Term(K.VariableLabel(K.Identifier("X"+x.id.name, x.id.no)), Seq())).toMap
+    val freevars = (sequent.left.flatMap(_.freeVariables) ++ sequent.right.flatMap(_.freeVariables) ).toSet.map(x => x -> K.Variable(K.Identifier("X"+x.id.name, x.id.no), x.sort) ).toMap
 
     val backMap = freevars.map{
-      case (x: K.VariableLabel, K.Term(xx: K.VariableLabel, _)) => xx -> K.LambdaTermTerm(Seq(), K.Term(x, Seq()))
+      case (x: K.Variable, xx: K.Variable) => xx -> x
       case _ => throw new Exception("This should not happen")
     }
     val r = problemToFile(foldername, filename, "question"+i, axioms, sequent, source)
