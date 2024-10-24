@@ -142,7 +142,9 @@ trait Syntax {
     def apply(using IsSort[T1], IsSort[T2])(arg: Expr[T1]): Expr[T2] = App(f, arg)
 
 
-  type RetExpr[T] = Expr[?]
+  type RetExpr[T] <: Expr[?] = T match {
+    case Arrow[a, b] => Expr[b]
+  }
 
   class Multiapp(f: Expr[?]):
     def unapply (e: Expr[?]): Option[Seq[Expr[?]]] = 
@@ -155,14 +157,19 @@ trait Syntax {
   object Multiapp:
     def unsafe(f: Expr[?], args: Seq[Expr[?]]): Expr[?] = 
       args.foldLeft(f)((f, arg) => App.unsafe(f, arg))
+    def unapply(e: Expr[?]): Some[(Expr[?], Seq[Expr[?]])] = Some(unfoldAllApp(e))
   
   
 
-  def unfoldAllApp(e:Expr[?]): (Expr[?], List[Expr[?]]) = e match
-    case App(f, arg) =>
-      val (f1, args) = unfoldAllApp(f)
-      (f1, arg :: args )
-    case _ => (e, Nil)
+
+  def unfoldAllApp(e:Expr[?]): (Expr[?], List[Expr[?]]) = 
+    def rec(e: Expr[?]): (Expr[?], List[Expr[?]]) = e match
+      case App(f, arg) =>
+        val (f1, args) = unfoldAllApp(f)
+        (f1, arg :: args )
+      case _ => (e, Nil)
+    val (f, args) = rec(e)
+    (f, args.reverse)
 
 
 

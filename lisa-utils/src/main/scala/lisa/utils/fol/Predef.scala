@@ -102,7 +102,7 @@ trait Predef extends Syntax {
       case id: K.Identifier => Seq(id)
     }).map(_.no).max
 
-  def freshId(exprs: Seq[K.Expression | Expr[?] | K.Identifier ], base: String): K.Identifier = {
+  def freshId(exprs: Seq[K.Expression | Expr[?] | K.Identifier ], base: String = "x"): K.Identifier = {
     val i = exprs.view.flatMap({
       case e: K.Expression => e.freeVariables.map(_.id)
       case e: Expr[?] => e.freeVars.map(_.id)
@@ -111,7 +111,7 @@ trait Predef extends Syntax {
     K.Identifier(base, i + 1)
   }
 
-  def nFreshIds(n: Int, exprs: Seq[K.Expression | Expr[?] | K.Identifier ], base: String): Seq[K.Identifier] = {
+  def nFreshIds(n: Int, exprs: Seq[K.Expression | Expr[?] | K.Identifier ], base: String = "x"): Seq[K.Identifier] = {
     val i = exprs.view.flatMap({
       case e: K.Expression => e.freeVariables.map(_.id)
       case e: Expr[?] => e.freeVars.map(_.id)
@@ -136,4 +136,13 @@ trait Predef extends Syntax {
       if s.isPredicate then Some(K.flatTypeParameters(s)) else None
 
   
+  def makeEq(s: Expr[?], t: Expr[?]): Formula = 
+    if s.sort != t.sort || !(s.sort.isFunctional || s.sort.isPredicate) then throw new IllegalArgumentException("Can only make equality between predicate and functional expressions")
+    val no = ((s.freeVars ++ t.freeVars).view.map(_.id.no) ++ Seq(-1)).max+1
+    val vars = (no until no+s.sort.depth).map(i => variable[Term](K.Identifier("x", i)))
+    val inner1 = vars.foldLeft(s)(_ #@ _)
+    val inner2 = vars.foldLeft(t)(_ #@ _)
+    val base = if (inner1.sort == K.Formula) iff #@ inner1 #@ inner2 else equality #@ inner1 #@ inner2
+    vars.foldRight(base : Formula) { case (s_arg, acc) => forall(s_arg, acc) }
+
 }

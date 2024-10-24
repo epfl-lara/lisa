@@ -441,14 +441,14 @@ object SCProofChecker {
             val (phi_args, phi_body) = lambdaPhi
             if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
               SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
+            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort || !(arg.sort.isFunctional || arg.sort.isPredicate) })
               SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
             else {
               val phi_s_for_f = substituteVariables(phi_body, (phi_args zip s_es).toMap)
               val phi_t_for_f = substituteVariables(phi_body, (phi_args zip t_es).toMap)
               val sEqT_es = equals map { 
                 case (s, t) => 
-                  val no = ((s.freeVariables ++ t.freeVariables).view.map(_.id.no) ++ Seq(0)).max+1
+                  val no = ((s.freeVariables ++ t.freeVariables).view.map(_.id.no) ++ Seq(-1)).max+1
                   val vars = (no until no+s.sort.depth).map(i => Variable(Identifier("x", i), Term))
                   val inner1 = vars.foldLeft(s)(_(_))
                   val inner2 = vars.foldLeft(t)(_(_))

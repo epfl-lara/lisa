@@ -140,26 +140,20 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
 
       val seq1 = AugSequent((atom :: s.decisions._1, s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> top)))
       val proof1 = solveAugSequent(seq1, offset)
-      val hyp1 = RestateTrue(atom |- atom)
       val subst1 = RightSubstIff(
         atom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
-        offset + proof1.length - 2,
         offset + proof1.length - 1,
-        atom, top,
-        Seq(),
-        (MaRvIn, lambdaF)
+        Seq((atom, top)),
+        (Seq(MaRvIn), lambdaF)
       )
       val negatom = neg(atom)
       val seq2 = AugSequent((s.decisions._1, atom :: s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> top)))
       val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
-      val hyp2 = RestateTrue(negatom |- negatom)
       val subst2 = RightSubstIff(
         negatom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
-        offset + proof1.length + proof2.length + 1 - 2,
         offset + proof1.length + proof2.length + 1 - 1,
-        atom, bot,
-        Seq(),
-        (MaRvIn, lambdaF)
+        Seq((atom, bot)),
+        (Seq(MaRvIn), lambdaF)
       )
       val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
       val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
