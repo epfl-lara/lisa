@@ -4,33 +4,6 @@ import lisa.utils.K
 import K.given
 
 trait Predef extends Syntax {
-  //Current
-  val e: Formula = ???
-
-  def printt(t: Term) = println(t)
-  def printf(f: Formula) = println(f)
-
-  trait Test
-
-  
-  def validSubstitutionRule
-    (rule: (Test | Formula)): Unit =
-      rule match
-        // as formula
-        //case l === r => {printt(l); printt(r)}
-        case ===[F](l, r) => {printt(l); printt(r)}
-        //case === #@ l #@ r => {printt(l); printt(r)}
-        //case l <=> r => {printf(l); printf(r)}
-   
-
-  /*
-  e match
-      //case App(App(`===`, left), right) => ()
-      //case left === right => ()
-      //case ===(left, right) => ()
-      case ===[F](left, right) => ()
-      case _ => ()
-        */
 
   export K.{given_Conversion_String_Identifier, given_Conversion_Identifier_String}
 
