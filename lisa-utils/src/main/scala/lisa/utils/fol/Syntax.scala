@@ -8,14 +8,12 @@ import lisa.utils.K.given_Conversion_String_Identifier
 import scala.annotation.nowarn
 import scala.annotation.showAsInfix
 import scala.annotation.targetName
+import scala.util.Sorting
 
 trait Syntax {
 
   type IsSort[T] = Sort{type Self = T}
 
-  sealed trait T
-  sealed trait F
-  sealed trait Arrow[A: Sort, B: Sort]
 
   type Formula = Expr[F]
   type Term = Expr[T]
@@ -28,10 +26,18 @@ trait Syntax {
     case Expr[t] => t
   }
 
-  trait Sort {
+  sealed trait Sort {
     type Self
     val underlying: K.Sort
   }
+
+
+  sealed trait T extends Sort
+  sealed trait F extends Sort
+  sealed trait Arrow[A: Sort, B: Sort] extends Sort
+  //final class UnsafeSort(val underlying: K.Sort) extends Sort:
+  //  type Self = UnsafeSort
+
   given given_TermType:  IsSort[T] with
     val underlying = K.Term
   given given_FormulaType: IsSort[F] with
@@ -88,7 +94,7 @@ trait Syntax {
     override def substitute(pairs: SubstPair*): Expr[S] = 
       super.substitute(pairs*).asInstanceOf[Expr[S]]
 
-    def unapplySeq[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] = 
+    def unapplySeq[Target <: Sort](e: Expr[Target]): Option[ArgsTo[S, Target]] = 
       def inner[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] = e match
         case App(f2, arg) if this == f2 => Some((arg *: EmptyTuple).asInstanceOf[ArgsTo[S, Target]])
         case App(f2, arg) => inner(f2).map(value => (arg *: value).asInstanceOf[ArgsTo[S, Target]])
