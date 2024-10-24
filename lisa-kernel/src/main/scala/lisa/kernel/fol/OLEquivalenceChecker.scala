@@ -14,13 +14,14 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     res
   }
 
-  def reducedNNFForm(formula: Expression): Expression = {
-    val p = simplify(formula)
+  def reducedNNFForm(expr: Expression): Expression = {
+    val p = simplify(expr)
     val nf = computeNormalForm(p)
     val fln = fromLocallyNameless(nf, Map.empty, 0)
     val res = toExpressionNNF(fln, true)
     res
   }
+
   def reduceSet(s: Set[Expression]): Set[Expression] = {
     var res: List[Expression] = Nil
     s.map(reducedForm)
@@ -245,7 +246,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
 
 
-  def polarize(e: Expression, polarity:Boolean): SimpleExpression = 
+  def polarize(e: Expression, polarity:Boolean): SimpleExpression = {
     if (polarity & e.polarExpr.isDefined) {
       e.polarExpr.get
     } else if (!polarity & e.polarExpr.isDefined) {
@@ -277,8 +278,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case Application(f, arg) => 
           SimpleApplication(polarize(f, true), polarize(arg, true), polarity)
         case Lambda(v, body) => SimpleLambda(v, polarize(body, true))
-        case Constant(`top`, Formula) => SimpleLiteral(true)
-        case Constant(`bot`, Formula) => SimpleLiteral(false)
+        case `top` => SimpleLiteral(polarity)
+        case `bot` => SimpleLiteral(!polarity)
         case Constant(id, sort) => SimpleConstant(id, sort, polarity)
         case Variable(id, sort) => SimpleVariable(id, sort, polarity)
       }
@@ -286,6 +287,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
       else e.polarExpr = Some(getInversePolar(r))
       r
     }
+  }
 
   def toLocallyNameless(e: SimpleExpression): SimpleExpression = 
     e.namelessForm match {
