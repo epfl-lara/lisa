@@ -5,6 +5,8 @@ import K.given
 
 trait Predef extends Syntax {
 
+  export K.{given_Conversion_String_Identifier, given_Conversion_Identifier_String}
+
 
   def variable[S](using IsSort[SortOf[S]])(id: K.Identifier): Variable[SortOf[S]] = new Variable(id)
   def constant[S](using IsSort[SortOf[S]])(id: K.Identifier): Constant[SortOf[S]] = new Constant(id)
@@ -90,10 +92,10 @@ trait Predef extends Syntax {
     case l: K.Lambda => asFrontLambda(l)
 
   def asFrontConstant(c: K.Constant): Constant[?] = 
-    new Constant[T](c.id)(using new Sort { type Self = T; val underlying = c.sort })
+    new Constant[T](c.id)(using unsafeSortEvidence(c.sort))
 
   def asFrontVariable(v: K.Variable): Variable[?] =
-    new Variable[T](v.id)(using new Sort { type Self = T; val underlying = v.sort })
+    new Variable[T](v.id)(using unsafeSortEvidence(v.sort))
   
   def asFrontApplication(a: K.Application): App[?, ?] = 
     new App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))

@@ -15,17 +15,17 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   /**
    * The symbol for the set membership predicate.
    */
-  final val in = ConstantPredicateLabel("elem", 2)
+  final val in = constant[Term >>: Term >>: Formula]("elem")
 
   /**
    * The symbol for the subset predicate.
    */
-  final val subset = ConstantPredicateLabel("subsetOf", 2)
+  final val subset = constant[Term >>: Term >>: Formula]("subsetOf")
 
   /**
    * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
    */
-  final val sim = ConstantPredicateLabel("sameCardinality", 2) // Equicardinality
+  final val sim = constant[Term >>: Term >>: Formula]("sameCardinality") // Equicardinality
   /**
    * Set Theory basic predicates
    */
@@ -36,32 +36,33 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   /**
    * The symbol for the empty set constant.
    */
-  final val emptySet = Constant("emptySet")
+  final val emptySet = constant[Term ]("emptySet")
 
   /**
    * The symbol for the unordered pair function.
    */
-  final val unorderedPair = ConstantFunctionLabel("unorderedPair", 2)
+  final val unorderedPair = constant[Term >>: Term >>: Term]("unorderedPair")
 
   /**
    * The symbol for the powerset function.
    */
-  final val powerSet = ConstantFunctionLabel("powerSet", 1)
+  final val powerSet = constant[Term >>: Term]("powerSet")
 
   /**
    * The symbol for the set union function.
    */
-  final val union = ConstantFunctionLabel("union", 1)
+  final val union = constant[Term >>: Term]("union")
 
   /**
    * The symbol for the universe function. Defined in TG set theory.
    */
-  final val universe = ConstantFunctionLabel("universe", 1)
+  final val universe = constant[Term >>: Term]("universe")
 
   /**
    * Set Theory basic functions.
    */
   final val functions = Set(unorderedPair, powerSet, union, universe)
+
 
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
@@ -73,13 +74,13 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   functions.foreach(s => addSymbol(s))
   addSymbol(emptySet)
 
-  private val x = variable
-  private val y = variable
-  private val z = variable
-  final val φ = predicate[1]
-  private val A = variable
-  private val B = variable
-  private val P = predicate[2]
+  private val x = variable[Term]
+  private val y = variable[Term]
+  private val z = variable[Term]
+  final val φ = variable[Term >>: Formula]
+  private val A = variable[Term]
+  private val B = variable[Term]
+  private val P = variable[Term >>: Term >>: Formula]
 
   ////////////
   // Axioms //
@@ -94,7 +95,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    *
    * `() |- (x = y) ⇔ ∀ z. z ∈ x ⇔ z ∈ y`
    */
-  final val extensionalityAxiom: this.AXIOM = Axiom(forall(z, in(z, x) <=> in(z, y)) <=> (x === y))
+  final val extensionalityAxiom: this.AXIOM = Axiom(forall(z, (z ∈ x) <=> (z ∈ y)) <=> (x === y))
 
   /**
    * Pairing Axiom --- For any sets `x` and `y`, there is a set that contains
@@ -106,7 +107,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * This axiom defines [[unorderedPair]] as the function symbol representing
    * this set.
    */
-  final val pairAxiom: AXIOM = Axiom(in(z, unorderedPair(x, y)) <=> (x === z) \/ (y === z))
+  final val pairAxiom: AXIOM = Axiom(z ∈ unorderedPair(x, y) <=> (x === z) \/ (y === z))
 
   /**
    * Comprehension/Separation Schema --- For a formula `ϕ(_, _)` and a set `z`,
@@ -119,7 +120,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * This schema represents an infinite collection of axioms, one for each
    * formula `ϕ(x, z)`.
    */
-  final val comprehensionSchema: AXIOM = Axiom(exists(y, forall(x, in(x, y) <=> (in(x, z) /\ φ(x)))))
+  final val comprehensionSchema: AXIOM = Axiom(exists(y, forall(x, (x ∈ y) <=> ((x ∈ z) /\ φ(x)))))
 
   /**
    * Empty Set Axiom --- From the Comprehension Schema follows the existence of
@@ -131,7 +132,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    *
    * `() |- !(x ∈ ∅)`
    */
-  final val emptySetAxiom: AXIOM = Axiom(!in(x, emptySet))
+  final val emptySetAxiom: AXIOM = Axiom(!(x ∈ emptySet))
 
   /**
    * Union Axiom --- For any set `x`, there exists a set `union(x)` which is the
@@ -144,7 +145,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    *
    * This axiom defines [[union]] as the function symbol representing this set.
    */
-  final val unionAxiom: AXIOM = Axiom(in(z, union(x)) <=> exists(y, in(y, x) /\ in(z, y)))
+  final val unionAxiom: AXIOM = Axiom(z ∈ union(x) <=> exists(y, (y ∈ x) /\ (z ∈ y)))
 
   /**
    * Subset Axiom --- For sets `x` and `y`, `x` is a subset of `y` iff every
@@ -154,7 +155,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    *
    * This axiom defines the [[subset]] symbol as this predicate.
    */
-  final val subsetAxiom: AXIOM = Axiom(subset(x, y) <=> forall(z, in(z, x) ==> in(z, y)))
+  final val subsetAxiom: AXIOM = Axiom((x ⊆ y) <=> forall(z, (z ∈ x) ==> (z ∈ y)))
 
   /**
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted
@@ -165,7 +166,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * This axiom defines [[powerSet]] as the function symbol representing this
    * set.
    */
-  final val powerAxiom: AXIOM = Axiom(in(x, powerSet(y)) <=> subset(x, y))
+  final val powerAxiom: AXIOM = Axiom(x ∈ powerSet(y) <=> x ⊆ y)
 
   /**
    * Infinity Axiom --- There exists an infinite set.
@@ -180,7 +181,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    *
    * `() |- ∃ x. inductive(x)`
    */
-  final val infinityAxiom: AXIOM = Axiom(exists(x, in(emptySet, x) /\ forall(y, in(y, x) ==> in(union(unorderedPair(y, unorderedPair(y, y))), x))))
+  final val infinityAxiom: AXIOM = Axiom(exists(x, emptySet ∈ x /\ forall(y, (y ∈ x) ==> union(unorderedPair(y, unorderedPair(y, y))) ∈ x )))
 
   /**
    * Foundation/Regularity Axiom --- Every non-empty set `x` has an `∈`-minimal
@@ -189,7 +190,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    *
    * `() |- (x != ∅) ==> ∃ y ∈ x. ∀ z. z ∈ x ⇒ ! z ∈ y`
    */
-  final val foundationAxiom: AXIOM = Axiom(!(x === emptySet) ==> exists(y, in(y, x) /\ forall(z, in(z, x) ==> !in(z, y))))
+  final val foundationAxiom: AXIOM = Axiom(!(x === emptySet) ==> exists(y, (y ∈ x) /\ forall(z, (z ∈ x) ==> !(z ∈ y))))
 
   // ZF
   /////////
@@ -201,18 +202,18 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * satisfy `P` for each `a ∈ x`.
    */
   final val replacementSchema: AXIOM = Axiom(
-    forall(x, in(x, A) ==> ∀(y, ∀(z, (P(x, y) /\ P(x, z)) ==> (y === z)))) ==>
-      exists(B, forall(y, in(y, B) <=> exists(x, in(x, A) /\ P(x, y))))
+    forall(x, (x ∈ A) ==> ∀(y, ∀(z, (P(x)(y) /\ P(x)(z)) ==> (y === z)))) ==>
+      exists(B, forall(y, (y ∈ B) <=> exists(x, (x ∈ A) /\ P(x)(y))))
   )
 
   final val tarskiAxiom: AXIOM = Axiom(
     forall(
       x,
-      in(x, universe(x)) /\
+      (x ∈ universe(x)) /\
         forall(
           y,
-          in(y, universe(x)) ==> (in(powerSet(y), universe(x)) /\ subset(powerSet(y), universe(x))) /\
-            forall(z, subset(z, universe(x)) ==> (sim(y, universe(x)) /\ in(y, universe(x))))
+          (y ∈ universe(x)) ==> ((powerSet(y) ∈ universe(x)) /\ (powerSet(y) ⊆ universe(x))) /\
+            forall(z, (z ⊆ universe(x)) ==> (sim(y)(universe(x)) /\ (y ∈ universe(x))))
         )
     )
   )
@@ -245,12 +246,12 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   val ∅ = emptySet
   val ∈ = in
 
-  extension (thi: Term) {
-    def ∈(that: Term): Formula = in(thi, that)
-    def ⊆(that: Term): Formula = subset(thi, that)
+  extension (l: Term) 
+    def ∈(r: Term): Formula = in(l)(r)
+    def ⊆(r: Term): Formula = subset(l)(r)
+    def =/=(r: Term): Formula = !(l === r)
 
-    def =/=(that: Term): Formula = !(thi === that)
 
-  }
+  def unorderedPair(x: Term, y: Term): Term = App(App(unorderedPair, x), y)
 
 }
