@@ -83,7 +83,7 @@ object SetTheory extends lisa.Main {
    * where `P(t)` does not contain `z` as a free variable.
    *
    * @example {{{
-   * have(∃(z, ∀(t, in(t, z) ⇔ myProperty(t))) ⊢ ∃!(z, ∀(t, in(t, z) ⇔ myProperty(t)))) by InstPredSchema(ScalaMap(schemPred -> (t, myProperty(t))))`
+   * have(∃(z, ∀(t, in(t, z) ⇔ myProperty(t))) ⊢ ∃!(z, ∀(t, in(t, z) ⇔ myProperty(t)))) by InstSchema(ScalaMap(schemPred -> (t, myProperty(t))))`
    * }}}
    *
    * Instantiation will fail if `myProperty(t)` contains `z` as a free variable.
@@ -103,12 +103,12 @@ object SetTheory extends lisa.Main {
     // backward direction
     have(fprop(z) |- fprop(z)) by Hypothesis
     val instLhs = thenHave(fprop(z) |- prop(z)) by InstantiateForall(t)
-    val instRhs = thenHave(fprop(a) |- prop(a)) by InstFunSchema(ScalaMap(z -> a))
+    val instRhs = thenHave(fprop(a) |- prop(a)) by InstSchema(ScalaMap(z -> a))
 
     have((fprop(z), fprop(a)) |- prop(z) /\ prop(a)) by RightAnd(instLhs, instRhs)
     thenHave(fprop(z) /\ fprop(a) |- in(t, a) <=> in(t, z)) by Tautology
     val extLhs = thenHave(fprop(z) /\ fprop(a) |- ∀(t, in(t, a) <=> in(t, z))) by RightForall
-    val extRhs = have(∀(t, in(t, a) <=> in(t, z)) <=> (a === z)) by InstFunSchema(ScalaMap(x -> a, y -> z))(extensionalityAxiom)
+    val extRhs = have(∀(t, in(t, a) <=> in(t, z)) <=> (a === z)) by InstSchema(ScalaMap(x -> a, y -> z))(extensionalityAxiom)
 
     have(fprop(z) /\ fprop(a) |- (∀(t, in(t, a) <=> in(t, z)) <=> (a === z)) /\ ∀(t, in(t, a) <=> in(t, z))) by RightAnd(extLhs, extRhs)
     thenHave(fprop(z) /\ fprop(a) |- (a === z)) by Tautology
@@ -195,7 +195,7 @@ object SetTheory extends lisa.Main {
         thenHave((in(z, x), (a === x)) |- in(z, a) /\ ((a === x) \/ (a === y))) by Tautology
         andThen(Substitution.applySubst(upairax, false))
         thenHave((in(z, x), (a === x)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by RightExists
-        thenHave((in(z, x), (x === x)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by InstFunSchema(ScalaMap(a -> x))
+        thenHave((in(z, x), (x === x)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by InstSchema(ScalaMap(a -> x))
         val tax = thenHave((in(z, x)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Restate
 
         have((in(z, y), (a === y)) |- in(z, y)) by Hypothesis
@@ -203,7 +203,7 @@ object SetTheory extends lisa.Main {
         thenHave((in(z, y), (a === y)) |- in(z, a) /\ ((a === x) \/ (a === y))) by Tautology
         andThen(Substitution.applySubst(upairax, false))
         thenHave((in(z, y), (a === y)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by RightExists
-        thenHave((in(z, y), (y === y)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by InstFunSchema(ScalaMap(a -> y))
+        thenHave((in(z, y), (y === y)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by InstSchema(ScalaMap(a -> y))
         val tay = thenHave((in(z, y)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by Restate
 
         have((in(z, x) \/ in(z, y)) |- ∃(a, in(z, a) /\ in(a, unorderedPair(x, y)))) by LeftOr(tax, tay)
@@ -252,7 +252,7 @@ object SetTheory extends lisa.Main {
   ) {
     val form = formulaVariable
 
-    have(∀(x, (x === successor(y)) <=> (x === union(unorderedPair(y, unorderedPair(y, y)))))) by InstFunSchema(ScalaMap(x -> y))(successor.definition)
+    have(∀(x, (x === successor(y)) <=> (x === union(unorderedPair(y, unorderedPair(y, y)))))) by InstSchema(ScalaMap(x -> y))(successor.definition)
     thenHave(((successor(y) === successor(y)) <=> (successor(y) === union(unorderedPair(y, unorderedPair(y, y)))))) by InstantiateForall(successor(y))
     val succDef = thenHave((successor(y) === union(unorderedPair(y, unorderedPair(y, y))))) by Restate
     val inductDef = have(inductive(x) <=> in(∅, x) /\ ∀(y, in(y, x) ==> in(successor(y), x))) by Restate.from(inductive.definition)
@@ -343,7 +343,7 @@ object SetTheory extends lisa.Main {
   val setWithNoElementsIsEmpty = Theorem(
     ∀(y, !in(y, x)) |- (x === ∅)
   ) {
-    have(!in(y, ∅)) by InstFunSchema(ScalaMap(x -> y))(emptySetAxiom)
+    have(!in(y, ∅)) by InstSchema(ScalaMap(x -> y))(emptySetAxiom)
     thenHave(() |- (!in(y, ∅), in(y, x))) by Weakening
     val lhs = thenHave(in(y, ∅) ==> in(y, x)) by Restate
 
@@ -355,7 +355,7 @@ object SetTheory extends lisa.Main {
     thenHave(∀(y, !in(y, x)) |- in(y, x) <=> in(y, ∅)) by LeftForall
     val exLhs = thenHave(∀(y, !in(y, x)) |- ∀(y, in(y, x) <=> in(y, ∅))) by RightForall
 
-    have(∀(z, in(z, x) <=> in(z, ∅)) <=> (x === ∅)) by InstFunSchema(ScalaMap(x -> x, y -> ∅))(extensionalityAxiom)
+    have(∀(z, in(z, x) <=> in(z, ∅)) <=> (x === ∅)) by InstSchema(ScalaMap(x -> x, y -> ∅))(extensionalityAxiom)
     val exRhs = thenHave(∀(y, in(y, x) <=> in(y, ∅)) <=> (x === ∅)) by Restate
 
     have(∀(y, !in(y, x)) |- (∀(y, in(y, x) <=> in(y, ∅)) <=> (x === ∅)) /\ ∀(y, in(y, x) <=> in(y, ∅))) by RightAnd(exLhs, exRhs)
@@ -435,7 +435,7 @@ object SetTheory extends lisa.Main {
   ) {
     // specialization of the pair axiom to a singleton
 
-    have(in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstFunSchema(ScalaMap(x -> x, y -> x, z -> y))(pairAxiom)
+    have(in(y, unorderedPair(x, x)) <=> (x === y) \/ (x === y)) by InstSchema(ScalaMap(x -> x, y -> x, z -> y))(pairAxiom)
     thenHave(in(y, singleton(x)) <=> (x === y)) by Restate
   }
 
@@ -501,13 +501,13 @@ object SetTheory extends lisa.Main {
   val secondElemInPair = Theorem(
     in(y, unorderedPair(x, y))
   ) {
-    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstFunSchema(ScalaMap(x -> x, y -> y, z -> z))(pairAxiom)
+    val lhs = have(in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) by InstSchema(ScalaMap(x -> x, y -> y, z -> z))(pairAxiom)
     have((z === y) |- (z === y)) by Hypothesis
     val rhs = thenHave((z === y) |- (z === x) \/ (z === y)) by Restate
     val factset = have((z === y) |- (in(z, unorderedPair(x, y)) <=> ((z === x) \/ (z === y))) /\ ((z === x) \/ (z === y))) by RightAnd(lhs, rhs)
 
     thenHave((z === y) |- in(z, unorderedPair(x, y))) by Tautology
-    thenHave((y === y) |- in(y, unorderedPair(x, y))) by InstFunSchema(ScalaMap(z -> y))
+    thenHave((y === y) |- in(y, unorderedPair(x, y))) by InstSchema(ScalaMap(z -> y))
     thenHave(in(y, unorderedPair(x, y))) by LeftRefl
   }
 
@@ -583,7 +583,7 @@ object SetTheory extends lisa.Main {
     )
     val lhs = thenHave(Set((a === c) /\ (b === d)) |- unorderedPair(a, b) === unorderedPair(c, d)) by Restate
 
-    have(unorderedPair(a, b) === unorderedPair(b, a)) by InstFunSchema(ScalaMap(x -> a, y -> b))(unorderedPairSymmetry)
+    have(unorderedPair(a, b) === unorderedPair(b, a)) by InstSchema(ScalaMap(x -> a, y -> b))(unorderedPairSymmetry)
     thenHave((a === d, b === c) |- (unorderedPair(a, b) === unorderedPair(c, d))) by RightSubstEq.withParametersSimple(
       List((a, d), (b, c)),
       lambda(Seq(x, y), unorderedPair(a, b) === unorderedPair(y, x))
@@ -604,13 +604,13 @@ object SetTheory extends lisa.Main {
   val singletonNonEmpty = Theorem(
     !(singleton(x) === ∅)
   ) {
-    val reflLhs = have(in(x, singleton(x)) <=> (x === x)) by InstFunSchema(ScalaMap(y -> x))(singletonHasNoExtraElements)
+    val reflLhs = have(in(x, singleton(x)) <=> (x === x)) by InstSchema(ScalaMap(y -> x))(singletonHasNoExtraElements)
 
     val reflRhs = have((x === x)) by RightRefl
     have((x === x) /\ (in(x, singleton(x)) <=> (x === x))) by RightAnd(reflLhs, reflRhs)
     val lhs = thenHave(in(x, singleton(x))) by Tautology
 
-    val rhs = have(in(x, singleton(x)) |- !(singleton(x) === ∅)) by InstFunSchema(ScalaMap(y -> x, x -> singleton(x)))(setWithElementNonEmpty)
+    val rhs = have(in(x, singleton(x)) |- !(singleton(x) === ∅)) by InstSchema(ScalaMap(y -> x, x -> singleton(x)))(setWithElementNonEmpty)
 
     have(!(singleton(x) === ∅)) by Cut(lhs, rhs)
   }
@@ -625,18 +625,18 @@ object SetTheory extends lisa.Main {
   ) {
     // forward direction
     // {x} === {y} |- x === y
-    have(∀(z, in(z, singleton(x)) <=> in(z, singleton(y))) <=> (singleton(x) === singleton(y))) by InstFunSchema(ScalaMap(x -> singleton(x), y -> singleton(y)))(extensionalityAxiom)
+    have(∀(z, in(z, singleton(x)) <=> in(z, singleton(y))) <=> (singleton(x) === singleton(y))) by InstSchema(ScalaMap(x -> singleton(x), y -> singleton(y)))(extensionalityAxiom)
     thenHave((singleton(x) === singleton(y)) |- ∀(z, in(z, singleton(x)) <=> in(z, singleton(y)))) by Tautology
     val singiff = thenHave((singleton(x) === singleton(y)) |- in(z, singleton(x)) <=> in(z, singleton(y))) by InstantiateForall(z)
 
-    val singX = have(in(z, singleton(x)) <=> (z === x)) by InstFunSchema(ScalaMap(y -> z))(singletonHasNoExtraElements)
+    val singX = have(in(z, singleton(x)) <=> (z === x)) by InstSchema(ScalaMap(y -> z))(singletonHasNoExtraElements)
     have((singleton(x) === singleton(y)) |- (in(z, singleton(x)) <=> in(z, singleton(y))) /\ (in(z, singleton(x)) <=> (z === x))) by RightAnd(singiff, singX)
     val yToX = thenHave((singleton(x) === singleton(y)) |- (in(z, singleton(y)) <=> (z === x))) by Tautology
 
-    val singY = have(in(z, singleton(y)) <=> (z === y)) by InstFunSchema(ScalaMap(x -> y))(singX)
+    val singY = have(in(z, singleton(y)) <=> (z === y)) by InstSchema(ScalaMap(x -> y))(singX)
     have((singleton(x) === singleton(y)) |- (in(z, singleton(y)) <=> (z === x)) /\ (in(z, singleton(y)) <=> (z === y))) by RightAnd(yToX, singY)
     thenHave((singleton(x) === singleton(y)) |- ((z === x) <=> (z === y))) by Tautology
-    thenHave((singleton(x) === singleton(y)) |- ((x === x) <=> (x === y))) by InstFunSchema(ScalaMap(z -> x))
+    thenHave((singleton(x) === singleton(y)) |- ((x === x) <=> (x === y))) by InstSchema(ScalaMap(z -> x))
 
     thenHave((singleton(x) === singleton(y)) |- (x === y)) by Restate
     val fwd = thenHave((singleton(x) === singleton(y)) ==> (x === y)) by Tautology
@@ -786,7 +786,7 @@ object SetTheory extends lisa.Main {
   ) {
     val X = singleton(x)
 
-    have(!(X === ∅) ==> ∃(y, in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)))) by InstFunSchema(ScalaMap(x -> X))(foundationAxiom)
+    have(!(X === ∅) ==> ∃(y, in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)))) by InstSchema(ScalaMap(x -> X))(foundationAxiom)
     val lhs = thenHave(!(X === ∅) |- ∃(y, in(y, X) /\ ∀(z, in(z, X) ==> !in(z, y)))) by Restate
 
     have(in(y, X) |- in(y, X) <=> (x === y)) by Weakening(singletonHasNoExtraElements)
@@ -794,7 +794,7 @@ object SetTheory extends lisa.Main {
 
     have((in(x, X), (in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by Hypothesis
     thenHave((in(x, X), ∀(z, in(z, X) ==> !in(z, x)), in(y, X)) |- in(z, X) ==> !in(z, x)) by LeftForall
-    thenHave((in(x, X), ∀(z, in(z, X) ==> !in(z, x)), in(x, X)) |- in(x, X) ==> !in(x, x)) by InstFunSchema(ScalaMap(z -> x, y -> x))
+    thenHave((in(x, X), ∀(z, in(z, X) ==> !in(z, x)), in(x, X)) |- in(x, X) ==> !in(x, x)) by InstSchema(ScalaMap(z -> x, y -> x))
     val coreRhs = thenHave(in(x, X) /\ ∀(z, in(z, X) ==> !in(z, x)) |- !in(x, x)) by Restate
 
     // now we need to show that the assumption is indeed true
@@ -843,12 +843,12 @@ object SetTheory extends lisa.Main {
   ) {
     val lhs = have(subset(powerSet(x), x) |- subset(powerSet(x), x)) by Hypothesis
 
-    val rhs = have(in(powerSet(x), powerSet(x)) <=> subset(powerSet(x), x)) by InstFunSchema(ScalaMap(x -> powerSet(x), y -> x))(powerAxiom)
+    val rhs = have(in(powerSet(x), powerSet(x)) <=> subset(powerSet(x), x)) by InstSchema(ScalaMap(x -> powerSet(x), y -> x))(powerAxiom)
 
     have(subset(powerSet(x), x) |- subset(powerSet(x), x) /\ (in(powerSet(x), powerSet(x)) <=> subset(powerSet(x), x))) by RightAnd(lhs, rhs)
     val contraLhs = thenHave(subset(powerSet(x), x) |- in(powerSet(x), powerSet(x))) by Tautology
 
-    val contraRhs = have(!in(powerSet(x), powerSet(x))) by InstFunSchema(ScalaMap(x -> powerSet(x)))(selfNonInclusion)
+    val contraRhs = have(!in(powerSet(x), powerSet(x))) by InstSchema(ScalaMap(x -> powerSet(x)))(selfNonInclusion)
 
     have(subset(powerSet(x), x) |- !in(powerSet(x), powerSet(x)) /\ in(powerSet(x), powerSet(x))) by RightAnd(contraLhs, contraRhs)
     thenHave(subset(powerSet(x), x) |- ()) by Restate
@@ -1042,9 +1042,9 @@ object SetTheory extends lisa.Main {
   val intersectionOfPredicateClassExists = Theorem(
     ∃(x, P(x)) |- ∃(z, ∀(t, in(t, z) <=> ∀(y, P(y) ==> in(t, y))))
   ) {
-    have(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ φ(t))))) by InstFunSchema(ScalaMap(z -> x))(comprehensionSchema)
+    have(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ φ(t))))) by InstSchema(ScalaMap(z -> x))(comprehensionSchema)
 
-    val conjunction = thenHave(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) by InstPredSchema(ScalaMap(φ -> lambda(t, ∀(y, P(y) ==> in(t, y)))))
+    val conjunction = thenHave(∃(z, ∀(t, in(t, z) <=> (in(t, x) /\ ∀(y, P(y) ==> in(t, y)))))) by InstSchema(ScalaMap(φ -> lambda(t, ∀(y, P(y) ==> in(t, y)))))
 
     have(∀(y, P(y) ==> in(t, y)) |- ∀(y, P(y) ==> in(t, y))) by Hypothesis
     thenHave(∀(y, P(y) ==> in(t, y)) /\ P(x) |- ∀(y, P(y) ==> in(t, y))) by Weakening
@@ -1224,7 +1224,7 @@ object SetTheory extends lisa.Main {
       thenHave((union(pair(x, y)) === unaryIntersection(pair(x, y))) |- in(z, union(pair(x, y))) <=> in(z, unaryIntersection(pair(x, y)))) by InstantiateForall(z)
 
       have((union(pair(x, y)) === unaryIntersection(pair(x, y))) |- (((z === x) \/ (z === y)) <=> (z === x))) by Tautology.from(lastStep, unionPair, pairUnaryIntersection)
-      thenHave((union(pair(x, y)) === unaryIntersection(pair(x, y))) |- (((y === x) \/ (y === y)) <=> (y === x))) by InstFunSchema(ScalaMap(z -> y))
+      thenHave((union(pair(x, y)) === unaryIntersection(pair(x, y))) |- (((y === x) \/ (y === y)) <=> (y === x))) by InstSchema(ScalaMap(z -> y))
       thenHave(thesis) by Restate
     }
 

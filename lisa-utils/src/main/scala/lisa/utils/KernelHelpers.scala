@@ -177,12 +177,6 @@ object KernelHelpers {
   /* Conversions */
 
   /*
-  given Conversion[TermLabel, Expression] = Expression(_, Seq())
-  given Conversion[Expression, TermLabel] = _.label
-  given Conversion[AtomicLabel, AtomicFormula] = AtomicFormula(_, Seq())
-  given Conversion[AtomicFormula, AtomicLabel] = _.label
-
-  given Conversion[VariableFormulaLabel, AtomicFormula] = AtomicFormula(_, Seq())
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
 */
   given Conversion[Expression, Sequent] = () |- _
@@ -277,25 +271,6 @@ object KernelHelpers {
   def substituteVariablesInSequent(s: Sequent, m: Map[Variable, Expression]): Sequent = {
     s.left.map(phi => substituteVariables(phi, m)) |- s.right.map(phi => substituteVariables(phi, m))
   }
-
-  /*
-  def instantiatePredicateSchemaInSequent(s: Sequent, m: Map[SchematicAtomicLabel, LambdaTermFormula]): Sequent = {
-    s.left.map(phi => instantiatePredicateSchemas(phi, m)) |- s.right.map(phi => instantiatePredicateSchemas(phi, m))
-  }
-
-  def instantiateFunctionSchemaInSequent(s: Sequent, m: Map[SchematicTermLabel, LambdaTermTerm]): Sequent = {
-    s.left.map(phi => instantiateTermSchemas(phi, m)) |- s.right.map(phi => instantiateTermSchemas(phi, m))
-  }
-
-  def instantiateSchemaInSequent(
-      s: Sequent,
-      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-      mPred: Map[SchematicAtomicLabel, LambdaTermFormula],
-      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
-  ): Sequent = {
-    s.left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)) |- s.right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm))
-  }
-    */
 
   //////////////////////
   // SCProofs helpers //

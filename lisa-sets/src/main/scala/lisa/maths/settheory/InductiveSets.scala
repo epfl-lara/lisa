@@ -38,7 +38,7 @@ object InductiveSets extends lisa.Main {
     ∃(z, ∀(t, in(t, z) <=> ∀(y, inductive(y) ==> in(t, y))))
   ) {
     val inductExt =
-      have(∃(x, inductive(x)) |- ∃(z, ∀(t, in(t, z) <=> ∀(y, inductive(y) ==> in(t, y))))) by InstPredSchema(Map(P -> lambda(x, inductive(x))))(intersectionOfPredicateClassExists)
+      have(∃(x, inductive(x)) |- ∃(z, ∀(t, in(t, z) <=> ∀(y, inductive(y) ==> in(t, y))))) by InstSchema(Map(P -> lambda(x, inductive(x))))(intersectionOfPredicateClassExists)
     have(∃(z, ∀(t, in(t, z) <=> ∀(y, inductive(y) ==> in(t, y))))) by Cut(inductiveSetExists, inductExt)
   }
 
@@ -51,7 +51,7 @@ object InductiveSets extends lisa.Main {
     val prop = ∀(y, inductive(y) ==> in(t, y))
     val fprop = ∀(t, in(t, z) <=> prop)
 
-    val existsRhs = have(∃(z, fprop) |- ∃!(z, fprop)) by InstPredSchema(Map(schemPred -> (t, prop)))(uniqueByExtension)
+    val existsRhs = have(∃(z, fprop) |- ∃!(z, fprop)) by InstSchema(Map(schemPred -> (t, prop)))(uniqueByExtension)
     val existsLhs = have(∃(z, fprop)) by Restate.from(inductiveIntersectionExistence)
 
     have(∃!(z, fprop)) by Cut(existsLhs, existsRhs)
@@ -117,11 +117,11 @@ object InductiveSets extends lisa.Main {
       (∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x)))), inductive(z) <=> (in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))) |- inductive(z)
     ) by RightSubstIff.withParametersSimple(List((inductive(z), in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))), lambda(form, form))
 
-    val inductDef = have(inductive(z) <=> (in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))) by InstFunSchema(Map(x -> z))(inductive.definition)
+    val inductDef = have(inductive(z) <=> (in(∅, z) /\ ∀(y, in(y, z) ==> in(successor(y), z)))) by InstSchema(Map(x -> z))(inductive.definition)
 
     have((∀(t, in(t, z) <=> (∀(x, inductive(x) ==> in(t, x))))) |- inductive(z)) by Cut(inductDef, inductIff)
     val inductExpansion =
-      thenHave((forall(t, in(t, naturalsInductive) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(naturalsInductive)) by InstFunSchema(Map(z -> naturalsInductive))
+      thenHave((forall(t, in(t, naturalsInductive) <=> (forall(x, inductive(x) ==> in(t, x))))) |- inductive(naturalsInductive)) by InstSchema(Map(z -> naturalsInductive))
 
     have((naturalsInductive === naturalsInductive) <=> forall(t, in(t, naturalsInductive) <=> (forall(x, inductive(x) ==> in(t, x))))) by InstantiateForall(naturalsInductive)(
       naturalsInductive.definition
