@@ -1120,14 +1120,14 @@ object BasicStepTactic {
   object LeftSubstEq extends ProofTactic {
     @deprecated("Use withParameters instead", "0.9")
     def withParametersSimple(using lib: Library, proof: lib.Proof)(
-        equals: List[(F.Term, F.Term)],
+        equals: Seq[(F.Term, F.Term)],
         lambdaPhi: (Seq[F.Variable[?]], F.Formula)
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       withParameters(equals, lambdaPhi)(premise)(bot)
     }
 
     def withParameters(using lib: Library, proof: lib.Proof)(
-        equals: List[(F.Expr[?], F.Expr[?])],
+        equals: Seq[(F.Expr[?], F.Expr[?])],
         lambdaPhi: (Seq[F.Variable[?]], F.Formula)
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
@@ -1178,14 +1178,14 @@ object BasicStepTactic {
   object RightSubstEq extends ProofTactic {
     @deprecated("Use withParameters instead", "0.9")
     def withParametersSimple(using lib: Library, proof: lib.Proof)(
-        equals: List[(F.Term, F.Term)],
+        equals: Seq[(F.Term, F.Term)],
         lambdaPhi: (Seq[F.Variable[?]], F.Formula)
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       withParameters(equals, lambdaPhi)(premise)(bot)
     }
 
     def withParameters(using lib: Library, proof: lib.Proof)(
-        equals: List[(F.Expr[?], F.Expr[?])],
+        equals: Seq[(F.Expr[?], F.Expr[?])],
         lambdaPhi: (Seq[F.Variable[?]], F.Formula)
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
