@@ -5,7 +5,8 @@ import lisa.prooflib.*
 import lisa.utils.K
 import lisa.utils.KernelHelpers.{|- => `K|-`, _}
 //import lisa.utils.UserLisaException
-import lisa.utils.unification.UnificationUtils
+import lisa.utils.unification.UnificationUtils.*
+import lisa.utils.collection.Extensions.*
 
 object BasicStepTactic {
 
@@ -399,16 +400,18 @@ object BasicStepTactic {
         // go through conclusion to find a matching quantified formula
 
         val in: F.Formula = instantiatedPivot.head
-        val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
+        val quantifiedPhi: Option[(F.Formula, Substitution)] = pivot.collectFirstDefined(f =>
           f match {
-            case g @ F.forall(x, phi) => ??? // TODO UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVars - x)).isDefined
-            case _ => false
+            case g @ F.forall(x, phi) => 
+              val ctx = RewriteContext.withBound(phi.freeVars - x)
+              matchExpr(using ctx)(phi, in).map(f -> _)
+            case _ => None
           }
         )
 
         quantifiedPhi match {
-          case Some(F.forall(x, phi)) =>
-            LeftForall.withParameters(phi, x, ??? /* TODO UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVars - x)).get._2.getOrElse(x, x)*/)(premise)(bot)
+          case Some((F.forall(x, phi), subst)) =>
+            LeftForall.withParameters(phi, x, subst(x).getOrElse(x))(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not match discovered quantified pivot with premise.")
         }
       } else proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
@@ -905,17 +908,18 @@ object BasicStepTactic {
 
         val in: F.Formula = instantiatedPivot.head
 
-        val quantifiedPhi: Option[F.Formula] = pivot.find(f =>
+        val quantifiedPhi: Option[(F.Formula, Substitution)] = pivot.collectFirstDefined(f =>
           f match {
             case g @ F.exists(x, phi) =>
-              ??? // TODO UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVars - x)).isDefined
-            case _ => false
+              val ctx = RewriteContext.withBound(phi.freeVars - x)
+              matchExpr(using ctx)(phi, in).map(f -> _)
+            case _ => None
           }
         )
 
         quantifiedPhi match {
-          case Some(F.exists(x, phi)) =>
-            RightExists.withParameters(phi, x, ??? /* TODO UnificationUtils.matchFormula(in, phi, takenTermVariables = (phi.freeVars - x)).get._2.getOrElse(x, x)*/)(premise)(bot)
+          case Some((F.exists(x, phi), subst)) =>
+            RightExists.withParameters(phi, x, subst(x).getOrElse(x))(premise)(bot)
           case _ => proof.InvalidProofTactic("Could not match discovered quantified pivot with premise.")
         }
       } else proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
