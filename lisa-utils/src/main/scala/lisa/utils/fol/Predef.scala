@@ -15,6 +15,12 @@ trait Predef extends Syntax {
   def constant[S](using name: sourcecode.Name, is: IsSort[SortOf[S]]): Constant[SortOf[S]] = new Constant(name.value)
   def binder[S1, S2, S3](using name: sourcecode.Name)
             (using IsSort[SortOf[S1]], IsSort[SortOf[S2]], IsSort[SortOf[S3]]): Binder[SortOf[S1], SortOf[S2], SortOf[S3]] = new Binder(name.value)
+
+  def variable(id: K.Identifier, s: K.Sort): Variable[?] = Variable.unsafe(id, s)
+  def constant(id: K.Identifier, s: K.Sort): Constant[?] = Constant.unsafe(id, s)
+
+  def variable(using name: sourcecode.Name)(s: K.Sort): Variable[?] = Variable.unsafe(name.value, s)
+  def constant(using name: sourcecode.Name)(s: K.Sort): Constant[?] = Constant.unsafe(name.value, s)
   
 
   val equality = constant[Term >>: Term >>: Formula]("=")
@@ -102,7 +108,7 @@ trait Predef extends Syntax {
       case id: K.Identifier => Seq(id)
     }).map(_.no).max
 
-  def freshId(exprs: Seq[K.Expression | Expr[?] | K.Identifier ], base: String = "x"): K.Identifier = {
+  def freshId(exprs: Iterable[K.Expression | Expr[?] | K.Identifier ], base: String = "x"): K.Identifier = {
     val i = exprs.view.flatMap({
       case e: K.Expression => e.freeVariables.map(_.id)
       case e: Expr[?] => e.freeVars.map(_.id)
