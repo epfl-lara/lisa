@@ -27,32 +27,42 @@ object UnificationUtils:
 
   /**
    * Immutable representation of a typed variable substitution.
+   * 
+   * Wraps an immutable map while preserving variable types.
    *
    * Types are discarded for storage but are guaranteed to be sound by
    * construction.
    *
    * @param assignments mappings to initialize the substitution with
    */
-  class Substitution private (assignments: Map[Variable[?], Expr[?]]):
-    private val underlying: Map[Variable[?], Expr[?]] = assignments
+  class Substitution private (
+      protected val assignments: Map[Variable[?], Expr[?]], 
+      protected val freeVariables: Set[Variable[?]]
+    ):
+    // invariant:
+    // require(
+    //   freeVariables == assignments.keySet ++ assignments.values.flatMap(_.freeVars)
+    // )
+
 
     /**
      * (Optionally) retrieves a variable's mapping
      */
     def apply[A](v: Variable[A]): Option[Expr[A]] =
-      underlying.get(v).map(_.asInstanceOf)
+      assignments.get(v).map(_.asInstanceOf)
 
     /**
      * Creates a new subtitution with a new mapping added
      */
     def +[A](mapping: (Variable[A], Expr[A])): Substitution =
-      Substitution(underlying + mapping)
+      val newfree = mapping._2.freeVars + mapping._1
+      Substitution(assignments + mapping, freeVariables ++ newfree)
 
     /**
      * Checks whether a variable is assigned by this subtitution
      */
     def contains[A](v: Variable[A]): Boolean =
-      underlying.contains(v)
+      assignments.contains(v)
 
     /**
      * Checks whether any susbtitution contains the given variable. Needed for
@@ -62,13 +72,13 @@ object UnificationUtils:
      * capture avoiding substitution.
      */
     def substitutes[A](v: Variable[A]): Boolean =
-      underlying.values.exists(_.freeVars.contains(v))
+      freeVariables(v)
 
   object Substitution:
     /**
      * The empty substitution
      */
-    def empty: Substitution = Substitution(Map.empty)
+    def empty: Substitution = Substitution(Map.empty, Set.empty)
 
   /**
    * Performs first-order matching for two terms. Returns a (most-general)
