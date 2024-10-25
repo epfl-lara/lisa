@@ -1238,14 +1238,19 @@ object BasicStepTactic {
    * </pre>
    */
   object InstSchema extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof
-    )(map: Map[F.Variable[?], F.Expr[?]])(premise: proof.Fact): proof.ProofTacticJudgement = {
+    def unsafe(using lib: Library, proof: lib.Proof)(map: Map[F.Variable[?], F.Expr[?]])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
       val premiseSequent = proof.getSequent(premise).underlying
       val mapK = map.map((v, e) => (v.underlying, e.underlying))
       val botK = K.substituteVariablesInSequent(premiseSequent, mapK)
       val res = proof.getSequent(premise).substituteUnsafe(map)
       proof.ValidProofTactic(res, Seq(K.InstSchema(botK, -1, mapK)), Seq(premise))
-    }
+
+    def apply(using lib: Library, proof: lib.Proof)(subst: F.SubstPair*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
+      val map = subst.map(p => (p._1, p._2)).toMap
+      unsafe(using lib, proof)(map)(premise)(bot)
+
+    
+
   }
   object Subproof extends ProofTactic {
     def apply(using proof: Library#Proof)(statement: Option[F.Sequent])(iProof: proof.InnerProof) = {

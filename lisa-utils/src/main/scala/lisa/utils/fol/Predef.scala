@@ -156,4 +156,6 @@ trait Predef extends Syntax {
     val base = if (inner1.sort == K.Formula) iff #@ inner1 #@ inner2 else equality #@ inner1 #@ inner2
     vars.foldRight(base : Formula) { case (s_arg, acc) => forall(s_arg, acc) }
 
+
+
 }

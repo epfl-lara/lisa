@@ -123,7 +123,7 @@ object Peano { /*
       x
     )
 
-    val inductionInstance: SCProofStep = SC.InstPredSchema(
+    val inductionInstance: SCProofStep = SC.InstSchema(
       () |- ((plus(zero, zero) === plus(zero, zero)) /\ forall(x, (plus(x, zero) === plus(zero, x)) ==> (plus(s(x), zero) === plus(zero, s(x))))) ==> forall(
         x,
         plus(x, zero) === plus(zero, x)
@@ -238,7 +238,7 @@ object Peano { /*
 
     val inductionInstance = {
       val inductionOnY0 = SC.Rewrite(() |- (sPhi(zero) /\ forall(y, sPhi(y) ==> sPhi(s(y)))) ==> forall(y, sPhi(y)), -1)
-      val inductionInstance1 = SC.InstPredSchema(
+      val inductionInstance1 = SC.InstSchema(
         () |-
           ((plus(s(x), zero) === plus(x, s(zero))) /\
             forall(y, (plus(x, s(y)) === plus(s(x), y)) ==> (plus(x, s(s(y))) === plus(s(x), s(y))))) ==>
@@ -320,7 +320,7 @@ object Peano { /*
 
     val inductionInstance = {
       val inductionOnY0 = SC.Rewrite(() |- (sPhi(zero) /\ forall(y, sPhi(y) ==> sPhi(s(y)))) ==> forall(y, sPhi(y)), -1)
-      val inductionInstance1 = SC.InstPredSchema(
+      val inductionInstance1 = SC.InstSchema(
         () |-
           ((plus(x, zero) === plus(zero, x)) /\
             forall(y, (plus(x, y) === plus(y, x)) ==> (plus(x, s(y)) === plus(s(y), x)))) ==>
