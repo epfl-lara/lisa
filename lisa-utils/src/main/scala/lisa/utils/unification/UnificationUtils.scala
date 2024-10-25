@@ -14,16 +14,57 @@ object UnificationUtils:
    * @param boundVariables variables in terms that cannot be substituted
    */
   case class RewriteContext(
-      boundVariables: Set[Variable[?]]
+      boundVariables: Set[Variable[?]],
+      freeRules: Set[(Expr[?], Expr[?])],
+      confinedRules: Set[(Expr[?], Expr[?])],
   ):
+    /**
+      * Checks if a variable is free under this context.
+      */
     def isFree[A](v: Variable[A]) = !isBound(v)
+
+    /**
+      * Checks if a variable is bound under this context.
+      */
     def isBound[A](v: Variable[A]) = boundVariables.contains(v)
-    def bind[A](v: Variable[A]) = this.copy(boundVariables = boundVariables + v)
+
+    /**
+      * A copy of this context with the given variable additionally bound.
+      */
+    def withBound[A](v: Variable[A]) = 
+      this.copy(boundVariables = boundVariables + v)
+
+    /**
+      * A copy of this context with the given variables additionally bound.
+      */
+    def withBound(vs: Iterable[Variable[?]]) = 
+      this.copy(boundVariables = boundVariables ++ vs)
+
+    /**
+      * A copy of this context with the given pair added as a _free_ rewrite
+      * rule, whose variables may be instantiated during rewriting.
+      */
+    def withFreeRule[A](l: Expr[A], r: Expr[A]) =
+      this.copy(freeRules = freeRules + (l -> r))
+
+    /**
+      * A copy of this context with the given pair added as a _confined_ rewrite
+      * rule, whose variables may *not* be instantiated during rewriting.
+      */
+    def withConfinedRule[A](l: Expr[A], r: Expr[A]) =
+      this.copy(confinedRules = confinedRules + (l -> r))
 
   object RewriteContext:
-    def empty = RewriteContext(Set.empty)
+    /**
+      * The empty rewrite context.
+      */
+    def empty = RewriteContext(Set.empty, Set.empty, Set.empty)
+
+    /**
+      * A rewrite context with the given variables considered bound.
+      */
     def withBound(vars: Iterable[Variable[?]]) =
-      RewriteContext(vars.toSet)
+      RewriteContext(vars.toSet, Set.empty, Set.empty)
 
   /**
    * Immutable representation of a typed variable substitution.
