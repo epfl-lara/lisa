@@ -28,8 +28,8 @@ object Substitution:
     (rule: proof.Fact | F.Formula): RewriteRule =
       rule match
         case f: Formula @unchecked => (f: @unchecked) match
-          case `===` #@ (l: Term) #@ (r: Term) => TermRewriteRule(l, r)
-          case `<=>` #@ (l: Formula) #@ (r: Formula) => FormulaRewriteRule(l, r)
+          case === #@ (l: Term) #@ (r: Term) => TermRewriteRule(l, r)
+          case <=> #@ (l: Formula) #@ (r: Formula) => FormulaRewriteRule(l, r)
         case f: proof.Fact @unchecked => extractRule(proof.getSequent(f).right.head)
 
   /**
@@ -61,8 +61,8 @@ object Substitution:
     (rule: (proof.Fact | F.Formula)): Boolean =
       rule match
         // as formula
-        case f: Formula @ unchecked => f match
-          case ===(l, r) => true
+        case f: Formula @unchecked => f match
+          case === #@ l #@ r => true
           case <=> #@ l #@ r => true
           case _ => false
         // as a justification
