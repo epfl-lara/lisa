@@ -6,8 +6,7 @@ import K.given
 trait Predef extends Syntax {
 
   export K.{given_Conversion_String_Identifier, given_Conversion_Identifier_String}
-
-
+  
   def variable[S](using IsSort[SortOf[S]])(id: K.Identifier): Variable[SortOf[S]] = new Variable(id)
   def constant[S](using IsSort[SortOf[S]])(id: K.Identifier): Constant[SortOf[S]] = new Constant(id)
   def binder[S1, S2, S3](using IsSort[SortOf[S1]], IsSort[SortOf[S2]], IsSort[SortOf[S3]])
@@ -73,8 +72,6 @@ trait Predef extends Syntax {
   val existsOne = binder[Term, Formula, Formula]("∃!")
   val ∃! : existsOne.type = existsOne
 
-
-
   extension (f: Formula) {
     def unary_! = neg(f)
     infix inline def ==>(g: Formula): Formula = implies(f)(g)
@@ -84,6 +81,12 @@ trait Predef extends Syntax {
     infix inline def \/(g: Formula): Formula = or(f)(g)
     infix inline def ∨(g: Formula): Formula = or(f)(g)
   }
+
+  inline def andAll(forms: IterableOnce[Formula]): Formula =
+    forms.iterator.reduce(_ /\ _)
+
+  inline def orAll(forms: IterableOnce[Formula]): Formula =
+    forms.iterator.reduce(_ \/ _)
 
   def asFrontExpression(e: K.Expression): Expr[?] = e match
     case c: K.Constant => asFrontConstant(c)
