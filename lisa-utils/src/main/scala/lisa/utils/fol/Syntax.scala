@@ -104,7 +104,7 @@ trait Syntax {
     @targetName("unapplySeq2")
     def unapplySeq(e: Expr[?]): Option[Seq[Expr[?]]] = Multiapp(this).unapply(e)
 
-    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.map(a => s"(${a})")})"
+    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.map(a => s"${a}").mkString(", ")})"
     final def defaultMkStringSeparated(args: Seq[Expr[?]]): String = s"(${defaultMkString(args)})"
     var mkString: Seq[Expr[?]] => String = defaultMkString
     var mkStringSeparated: Seq[Expr[?]] => String = defaultMkStringSeparated
@@ -219,6 +219,8 @@ trait Syntax {
         s"(${args(0)} $this ${args(1)})${args.drop(2).map(_.mkStringSeparated).mkString})"
       else 
         defaultMkStringSeparated(args)
+
+    def asBinder[T1: Sort, T2: Sort, T3: Sort](using S =:= Arrow[Arrow[T1, T2], T3]): Binder[T1, T2, T3] & Constant[Arrow[Arrow[T1, T2], T3]] = new Binder[T1, T2, T3](id)
   }
 
   object Constant {
