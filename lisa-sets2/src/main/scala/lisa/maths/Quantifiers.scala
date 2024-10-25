@@ -46,6 +46,11 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tableau
   }
 
+  val ∃! = DEF(lambda(P, exists(x, forall(y, P(y) <=> (x === y))))).asBinder[T, F, F]
+  val existsOne = ∃!
+  println(∃!.definition)
+
+
   /**
    * Theorem --- If there exists a *unique* element satisfying a predicate,
    * then we can say there *exists* an element satisfying it as well.

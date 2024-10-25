@@ -154,7 +154,7 @@ trait ProofsHelpers {
     val r = inner(e)
     (r._1.reverse, r._2)
 
-  def DEF[S: Sort](using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)
+  def DEF[S: Sort](using name: sourcecode.FullName)(using om: OutputManager, line: sourcecode.Line, file: sourcecode.File)
             (e: Expr[S]): Constant[S] = 
     val (vars, body) = leadingVarsAndBody(e)
     if vars.size == e.sort.depth then 

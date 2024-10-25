@@ -69,9 +69,6 @@ trait Predef extends Syntax {
   val epsilon = binder[Term, Formula, Term]("ε")
   val ε : epsilon.type = epsilon
 
-  val existsOne = binder[Term, Formula, Formula]("∃!")
-  val ∃! : existsOne.type = existsOne
-
   extension (f: Formula) {
     def unary_! = neg(f)
     infix inline def ==>(g: Formula): Formula = implies(f)(g)
