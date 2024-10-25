@@ -1,6 +1,8 @@
 package lisa.utils.unification
 
 import lisa.fol.FOL.{_, given}
+import lisa.prooflib.Library
+import lisa.prooflib.SimpleDeducedSteps
 
 /**
  * General utilities for unification, substitution, and rewriting
@@ -84,7 +86,6 @@ object UnificationUtils:
     // require(
     //   freeVariables == assignments.keySet ++ assignments.values.flatMap(_.freeVars)
     // )
-
 
     /**
      * (Optionally) retrieves a variable's mapping
@@ -304,7 +305,7 @@ end UnificationUtils
  * generation state
  * @param reference the reference terms
  * @param template the terms to match
- * @param substitution currently accumulated susbtitutions to variables
+ * @param substitution currently accumulated substitutions to variables
  * @return substitution (Option) from variables to terms. `None` if a
  * substitution does not exist.
  */
@@ -364,8 +365,8 @@ end UnificationUtils
  * @param context all information about restricted variables and fresh name generation state
  * @param reference the reference formula
  * @param template the formula to match
- * @param formulaSubstitution currently accumulated susbtitutions to formula variables
- * @param termSubstitution currently accumulated susbtitutions to term variables
+ * @param formulaSubstitution currently accumulated substitutions to formula variables
+ * @param termSubstitution currently accumulated substitutions to term variables
  * @return substitution pair (Option) from formula variables to formulas, and
  * variables to terms. `None` if a substitution does not exist.
  */
