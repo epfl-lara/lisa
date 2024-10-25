@@ -93,20 +93,20 @@ object UnificationUtils:
       assignments.get(v).map(_.asInstanceOf)
 
     /**
-     * Creates a new subtitution with a new mapping added
+     * Creates a new substitution with a new mapping added
      */
     def +[A](mapping: (Variable[A], Expr[A])): Substitution =
       val newfree = mapping._2.freeVars + mapping._1
       Substitution(assignments + mapping, freeVariables ++ newfree)
 
     /**
-     * Checks whether a variable is assigned by this subtitution
+     * Checks whether a variable is assigned by this substitution
      */
     def contains[A](v: Variable[A]): Boolean =
       assignments.contains(v)
 
     /**
-     * Checks whether any susbtitution contains the given variable. Needed for
+     * Checks whether any substitution contains the given variable. Needed for
      * verifying ill-formed substitutions containing bound variables.
      *
      * Eg: if `v` is externally bound, then `x` and `f(v)` have no matcher under
@@ -125,10 +125,13 @@ object UnificationUtils:
    * Performs first-order matching for two terms. Returns a (most-general)
    * substitution from variables to terms such that `expr` substituted is equal
    * to `pattern`, if one exists.
+   * 
+   * Does not use rewrite rules provided by `ctx`, if any.
    *
    * @param expr the reference term (to substitute in)
    * @param pattern the pattern to match against
    * @param subst partial substitution to match under
+   * @param ctx (implicit) context to match under
    * @return substitution (Option) from variables to terms. `None` iff a
    * substitution does not exist.
    */
@@ -158,7 +161,7 @@ object UnificationUtils:
 
         case (Abs(ve, fe), Abs(vp, fp)) =>
           val freshVar = ve.freshRename(Seq(fe, fp))
-          matchExpr(using ctx.bind(freshVar))(
+          matchExpr(using ctx.withBound(freshVar))(
             fe.substitute(ve := freshVar),
             fp.substitute(vp := freshVar),
             subst
