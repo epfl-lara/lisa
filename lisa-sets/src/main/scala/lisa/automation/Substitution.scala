@@ -176,8 +176,8 @@ object Substitution:
             TacticSubproof:
               val leftRewrites = leftSubsts.get
               val rightRewrites = rightSubsts.get
-              val leftRules = leftRewrites.map(_.rule)
-              val rightRules = rightRewrites.map(_.rule)
+              val leftRules = leftRewrites.head.rules
+              val rightRules = rightRewrites.head.rules
 
               // instantiated discharges
 
