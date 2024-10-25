@@ -16,7 +16,7 @@ ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 val scala2 = "2.13.8"
-val scala3 = "3.5.1"
+val scala3 = "3.5.2"
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
 
