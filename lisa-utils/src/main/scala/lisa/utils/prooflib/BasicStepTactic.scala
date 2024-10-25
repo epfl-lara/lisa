@@ -947,7 +947,7 @@ object BasicStepTactic {
         K.BinderFormula(
           K.Forall,
           xK,
-          K.ConnectorFormula(K.Iff, List(K.AtomicFormula(K.equality, List(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
+          K.ConnectorFormula(K.Iff, Seq(K.AtomicFormula(K.equality, Seq(K.VariableTerm(xK), K.VariableTerm(y))), phiK))
         )
       )
       lazy val quantified = K.BinderFormula(K.ExistsOne, xK, phiK)
