@@ -169,6 +169,42 @@ object UnificationUtils:
 
         case _ => None
 
+  
+  sealed trait RewriteRule:
+    type Base
+    def l: Expr[Base]
+    def r: Expr[Base]
+    /**
+     * Flip this rewrite rule
+     */
+    def swap: RewriteRule
+    /** 
+     * The trivial hypothesis step that can be used as a source for this rewrite 
+     */
+    def source(using lib: Library, proof: lib.Proof): proof.Fact
+    def toFormula: Formula = ???
+
+  case class TermRewriteRule(l: Term, r: Term) extends RewriteRule:
+    type Base = T
+    def swap: TermRewriteRule = TermRewriteRule(r, l)
+    def source(using lib: Library, proof: lib.Proof): proof.Fact =
+      lib.have(l === r |- l === r) by SimpleDeducedSteps.Restate
+
+  case class FormulaRewriteRule(l: Formula, r: Formula) extends RewriteRule:
+    type Base = F
+    def swap: FormulaRewriteRule = FormulaRewriteRule(r, l)
+    def source(using lib: Library, proof: lib.Proof): proof.Fact =
+      lib.have(l <=> r |- l <=> r) by SimpleDeducedSteps.Restate
+
+  case class RewriteResult(valut: Int):
+    def toLeft: Formula = ???
+    def toRight: Formula = ???
+    def rule: RewriteRule = ???
+    def lambda: (Seq[Variable[?]], Formula) = ???
+
+  def rewrite[A](using ctx: RewriteContext)(from: Expr[A], to: Expr[A]): Option[RewriteResult] =
+    ???
+
 end UnificationUtils
 
 // object UnificationUtils {
