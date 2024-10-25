@@ -37,8 +37,8 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
     egraph.addAll(bot.right)
     
     bot.left.foreach{
-      case `===` #@ l #@ r => egraph.merge(l, r)
-      case `<=>` #@ l #@ r => egraph.merge(l, r)
+      case === #@ l #@ r => egraph.merge(l, r)
+      case <=> #@ l #@ r => egraph.merge(l, r)
       case _ => ()
     }
 
@@ -66,10 +66,10 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
         case _  => false
       } || {
       lf match
-        case neg  #@ (`===` #@ a #@ b) if egraph.idEq(a, b) => 
+        case neg  #@ (=== #@ a #@ b) if egraph.idEq(a, b) => 
           have(egraph.proveExpr(a, b, bot))
           true
-        case neg  #@  (`<=>` #@ a #@ b) if egraph.idEq(a, b) => 
+        case neg  #@  (<=> #@ a #@ b) if egraph.idEq(a, b) => 
           have(egraph.proveExpr(a, b, bot))
           true
         case _ => false
@@ -88,10 +88,10 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
         case _  => false
       } || {
       rf match
-        case (`===` #@ a #@ b) if egraph.idEq(a, b) => 
+        case (=== #@ a #@ b) if egraph.idEq(a, b) => 
           have(egraph.proveExpr(a, b, bot))
           true
-        case (`<=>` #@ a #@ b) if egraph.idEq(a, b) =>
+        case (<=> #@ a #@ b) if egraph.idEq(a, b) =>
           have(egraph.proveExpr(a, b, bot))
           true
         case _ => false
