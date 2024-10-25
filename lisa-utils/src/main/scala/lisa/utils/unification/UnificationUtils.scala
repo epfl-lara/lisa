@@ -3,6 +3,8 @@ package lisa.utils.unification
 import lisa.fol.FOL.{_, given}
 import lisa.prooflib.Library
 import lisa.prooflib.SimpleDeducedSteps
+import lisa.utils.KernelHelpers.freshId
+import lisa.utils.memoization.memoized
 
 /**
  * General utilities for unification, substitution, and rewriting
@@ -17,8 +19,8 @@ object UnificationUtils:
    */
   case class RewriteContext(
       boundVariables: Set[Variable[?]],
-      freeRules: Set[(Expr[?], Expr[?])],
-      confinedRules: Set[(Expr[?], Expr[?])],
+      freeRules: Set[RewriteRule],
+      confinedRules: Set[RewriteRule],
   ):
     /**
       * Checks if a variable is free under this context.
@@ -46,15 +48,38 @@ object UnificationUtils:
       * A copy of this context with the given pair added as a _free_ rewrite
       * rule, whose variables may be instantiated during rewriting.
       */
-    def withFreeRule[A](l: Expr[A], r: Expr[A]) =
-      this.copy(freeRules = freeRules + (l -> r))
+    def withFreeRule[A](rule: RewriteRule) =
+      this.copy(freeRules = freeRules + rule)
 
     /**
       * A copy of this context with the given pair added as a _confined_ rewrite
       * rule, whose variables may *not* be instantiated during rewriting.
       */
-    def withConfinedRule[A](l: Expr[A], r: Expr[A]) =
-      this.copy(confinedRules = confinedRules + (l -> r))
+    def withConfinedRule[A](rule: RewriteRule) =
+      this.copy(confinedRules = confinedRules + rule)
+    
+    /**
+      * (Deterministic) variables assigned to rewrite rules.
+      *
+      * In place of generic holes in the presence of several rewrite rules,
+      * their representatives are used.
+      *
+      */
+    def ruleRepresentatives = 
+      allRules.map(representativeVariable)
+  
+    /**
+      * All rules (free + confined) in this context.
+      */
+    def allRules: Seq[RewriteRule] = ??? // freeRules ++ confinedRules
+
+    protected val representativeVariable = memoized(__representativeVariable)
+
+    private def __representativeVariable(rule: RewriteRule): Variable[?] = 
+      val id = ??? // freshRepr
+      rule match
+        case TermRewriteRule(_, _) => Variable[T](id) 
+        case FormulaRewriteRule(_, _) => Variable[F](id)
 
   object RewriteContext:
     /**
@@ -182,28 +207,34 @@ object UnificationUtils:
     /** 
      * The trivial hypothesis step that can be used as a source for this rewrite 
      */
-    def source(using lib: Library, proof: lib.Proof): proof.Fact
-    def toFormula: Formula = ???
+    def source(using lib: Library, proof: lib.Proof): proof.Fact =
+      val form = toFormula
+      lib.have(using proof)(form |- form) by SimpleDeducedSteps.Restate
+    /**
+      * Reduce this rewrite rule to a formula representing the equivalence.
+      */
+    def toFormula: Formula
 
   case class TermRewriteRule(l: Term, r: Term) extends RewriteRule:
     type Base = T
     def swap: TermRewriteRule = TermRewriteRule(r, l)
-    def source(using lib: Library, proof: lib.Proof): proof.Fact =
-      lib.have(l === r |- l === r) by SimpleDeducedSteps.Restate
+    def toFormula: Formula = l === r
 
   case class FormulaRewriteRule(l: Formula, r: Formula) extends RewriteRule:
     type Base = F
     def swap: FormulaRewriteRule = FormulaRewriteRule(r, l)
-    def source(using lib: Library, proof: lib.Proof): proof.Fact =
-      lib.have(l <=> r |- l <=> r) by SimpleDeducedSteps.Restate
+    def toFormula: Formula = l <=> r
 
-  case class RewriteResult(valut: Int):
+  case class RewriteResult[A](ctx: RewriteContext, context: Expr[A]):
     def toLeft: Formula = ???
     def toRight: Formula = ???
-    def rule: RewriteRule = ???
-    def lambda: (Seq[Variable[?]], Formula) = ???
+    def vars: Seq[Variable[?]] = ctx.ruleRepresentatives
+    def lambda: Expr[A] = context
+    def rules: Seq[RewriteRule] = ctx.allRules
 
-  def rewrite[A](using ctx: RewriteContext)(from: Expr[A], to: Expr[A]): Option[RewriteResult] =
+  type FormulaRewriteResult = RewriteResult[F]
+
+  def rewrite[A](using ctx: RewriteContext)(from: Expr[A], to: Expr[A]): Option[RewriteResult[A]] =
     ???
 
 end UnificationUtils
