@@ -61,8 +61,8 @@ object Substitution:
     (rule: (proof.Fact | F.Formula)): Boolean =
       rule match
         // as formula
-        case f: Expr[?] => f match
-          case === #@ l #@ r => true
+        case f: Formula @ unchecked => f match
+          case ===(l, r) => true
           case <=> #@ l #@ r => true
           case _ => false
         // as a justification
