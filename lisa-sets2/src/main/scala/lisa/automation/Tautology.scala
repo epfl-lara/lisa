@@ -108,11 +108,11 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
   // We mean atom in the propositional logic sense, so any formula starting with a predicate symbol, a binder or a schematic connector is an atom here.
   def findBestAtom(f: Expression): Option[Expression] = {
     val atoms: scala.collection.mutable.Map[Expression, Int] = scala.collection.mutable.Map.empty
-    def findAtoms2(f: Expression, add: Expression => Unit): Unit = f match {
+    def findAtoms2(fi: Expression, add: Expression => Unit): Unit = fi match {
       case And(f1, f2) => findAtoms2(f1, add); findAtoms2(f2, add)
       case Neg(f1) => findAtoms2(f1, add)
-      case _ if f != top && f != bot => add(f)
-      case _ => throw new Exception("Unreachable case in findBestAtom")
+      case _ if fi != top && fi != bot => add(fi)
+      case _ => throw new Exception(s"Unreachable case in findBestAtom. \ninner: ${fi.repr},\n outer: ${f.repr}")
     }
     findAtoms2(f, a => atoms.update(a, { val g = atoms.get(a); if (g.isEmpty) 1 else g.get + 1 }))
     if (atoms.isEmpty) None else Some(atoms.toList.maxBy(_._2)._1)
@@ -124,11 +124,12 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
   // Alternates between reducing the formulas using the OL algorithm for propositional logic and branching on an atom using excluded middle.
   // An atom is a subformula of the input that is either a predicate, a binder or a schematic connector, i.e. a subformula that has not meaning in propositional logic.
   private def solveAugSequent(s: AugSequent, offset: Int)(using MaRvIn: Variable): List[SCProofStep] = {
-    val bestAtom = findBestAtom(s.formula)
     val redF = reducedForm(s.formula)
     if (redF == top()) {
       List(RestateTrue(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- s.formula))
-    } else if (bestAtom.isEmpty) {
+    } else 
+      val bestAtom = findBestAtom(redF)
+      if (bestAtom.isEmpty) {
       assert(redF == bot()) // sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
       val res = s.decisions._1 |- redF :: s.decisions._2 // the branch that can't be closed
       throw new NoProofFoundException(res)
@@ -169,29 +170,31 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
 
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
-  private def findSubformula2(f: Expression, x: Variable, e: Expression, fv: Set[Variable]): (Expression, Boolean) = {
-    if (isSame(f, e)) (x, true)
+  private def findSubformula2(outer: Expression, x: Variable, e: Expression, fv: Set[Variable]): (Expression, Boolean) = {
+    if (isSame(outer, e)) (x, true)
     else
-      f match {
+      val res = outer match {
         case Application(f, arg) =>
           val rf = findSubformula2(f, x, e, fv)
           val ra = findSubformula2(arg, x, e, fv)
           if (rf._2 || ra._2) (Application(rf._1, ra._1), true)
-          else (f, false)
+          else (outer, false)
         case Lambda(v, inner) =>
           if (!fv.contains(v)) {
             val induct = findSubformula2(inner, x, e, fv)
-            if (!induct._2) (f, false)
+            if (!induct._2) (outer, false)
             else (Lambda(v, induct._1), true)
           } else {
-            val newv = Variable(freshId((f.freeVariables ++ fv).map(_.id), v.id), v.sort)
+            val newv = Variable(freshId((outer.freeVariables ++ fv).map(_.id), v.id), v.sort)
             val newInner = substituteVariables(inner, Map(v -> newv))
             val induct = findSubformula2(newInner, x, e, fv + newv)
-            if (!induct._2) (f, false)
+            if (!induct._2) (outer, false)
             else (Lambda(newv, induct._1), true)
           }
-        case _ => (f, false)
+        case _ => (outer, false)
       }
+      //assert(res._1.sort == f.sort, s"Sort mismatch in findSubformula2. ${res._1.repr} : ${res._1.sort} != ${f.repr} : ${f.sort}")
+      res
   }
 
   def findSubformula(f: Expression, x: Variable, e: Expression): Option[Expression] = {

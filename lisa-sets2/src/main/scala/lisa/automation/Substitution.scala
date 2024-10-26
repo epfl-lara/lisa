@@ -19,6 +19,7 @@ import scala.collection.mutable.{Map as MMap}
 import F.{*, given}
 
 object Substitution:
+  /*
 
   /**
    * Extracts a raw substitution into a `RewriteRule`.
@@ -229,6 +230,8 @@ object Substitution:
               thenHave(bot) by Weakening
 
   end Apply
+
+  */
 
   // object applySubst extends ProofTactic {
 

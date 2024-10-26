@@ -214,6 +214,7 @@ object UnificationUtils:
       * Reduce this rewrite rule to a formula representing the equivalence.
       */
     def toFormula: Formula
+  
 
   case class TermRewriteRule(l: Term, r: Term) extends RewriteRule:
     type Base = T
