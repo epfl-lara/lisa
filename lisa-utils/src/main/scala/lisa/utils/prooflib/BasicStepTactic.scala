@@ -1154,7 +1154,7 @@ object BasicStepTactic {
             vars.foldLeft(base : K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
         }
 
-        if (K.isSameSet(botK.right, premiseSequent.right))
+        if (K.isSameSet(botK.right, premiseSequent.right)) then
           if (
             K.isSameSet(botK.left + phi_t_for_f, premiseSequent.left ++ sEqT_es + phi_s_for_f) ||
             K.isSameSet(botK.left + phi_s_for_f, premiseSequent.left ++ sEqT_es + phi_t_for_f)

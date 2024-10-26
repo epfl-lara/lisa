@@ -231,9 +231,9 @@ trait ProofsHelpers {
     val right = expr#@@(vars)
     val statement = 
       if appliedCst.sort == K.Term then 
-        () |- iff.#@(appliedCst).#@(right).asInstanceOf[Formula]
+        () |- (equality #@ appliedCst #@ right).asInstanceOf[Formula]
       else 
-        () |- equality.#@(appliedCst).#@(right).asInstanceOf[Formula]
+        () |- (iff #@ appliedCst #@ right).asInstanceOf[Formula]
     library.last = Some(this)
   }
 
