@@ -189,6 +189,7 @@ private[fol] trait Syntax {
         case _ => Application(f1, betaReduce(a2))
       }
     }
+    case Lambda(v, Application(f, arg)) if v == arg => f
     case Lambda(v, inner) => 
       Lambda(v, betaReduce(inner))
     case _ => e
