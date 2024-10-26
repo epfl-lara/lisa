@@ -10,6 +10,7 @@ object Quantifiers extends lisa.Main {
 
   private val X = variable[Formula]
   private val Y = variable[Formula]
+  private val Z = variable[Formula]
   private val x = variable[Term]
   private val y = variable[Term]
   private val z = variable[Term]
@@ -67,15 +68,13 @@ object Quantifiers extends lisa.Main {
     thenHave(∃(x, ∀(y, (x === y) <=> P(y))) |- ∃(x, P(x))) by LeftExists
     thenHave(lambda(P, ∃(x, ∀(y, (x === y) <=> P(y))))(P) |- ∃(x, P(x))) by Beta
     thenHave((
-         lambda(P, ∃(x, ∀(y, (x === y) <=> P(y))))(P) <=> ∃!(x, P(x)),
-        ∃!(x, P(x))
+         lambda(P, ∃(x, ∀(y, (x === y) <=> P(y))))(P) <=> ∃!(P),
+        ∃!(P)
       ) 
-      |- ∃(x, P(x))) by LeftSubstEq
-      .withParameters(List((∃!(x, P(x)), lambda(P, ∃(x, ∀(y, (x === y) <=> P(y))))(P))), (Seq(X), X))
-    have(thesis) by Tautology.from(lastStep, existsOne.definition)
+      |- ∃(x, P(x))) by LeftSubstEq.withParameters(List((∃!(P), lambda(P, ∃(x, ∀(y, (x === y) <=> P(y))))(P))), (Seq(X), X))
+    have(∃!(P) |- ∃(x, P(x))) by Tautology.from(lastStep, existsOne.definition)
+    thenHave(thesis) by Beta
   }
-
-  assert(false)
 
   /**
    * Theorem --- Equality relation is transitive.

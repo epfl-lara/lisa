@@ -175,11 +175,13 @@ class RunningTheory {
     case Theorem(name, proposition, _) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
     case Definition(cst, e, vars) =>
-      if (cst.sort.isPredicate){
-        val inner = iff(vars.foldLeft(cst: Expression)(_(_)))(vars.foldLeft(e)(_(_)))
+      val left = vars.foldLeft(cst: Expression)(_(_))
+      val right = vars.foldLeft(e)(_(_))
+      if (left.sort == Formula) {
+        val inner = iff(left)(right)
         Sequent(Set(), Set(inner))
       } else {
-        val inner = equality(vars.foldLeft(cst: Expression)(_(_)))(vars.foldLeft(e)(_(_)))
+        val inner = equality(left)(right)
         Sequent(Set(), Set(inner))
       }
   }
