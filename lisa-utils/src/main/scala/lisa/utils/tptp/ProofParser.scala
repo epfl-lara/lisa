@@ -5,6 +5,7 @@ import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
 import leo.modules.input.{TPTPParser => Parser}
 import lisa.utils.K
+import K.repr
 
 import java.io.File
 
@@ -107,11 +108,17 @@ object ProofParser {
       case K.iff(f1, f2) => FOF.BinaryFormula(FOF.<=>, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
       case K.forall(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.!, Seq(quoted("X" + v.id)), formulaToFOFFormula(f))
       case K.exists(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.?, Seq(quoted("X" + v.id)), formulaToFOFFormula(f))
+      case K.forall(p) =>
+        val x = K.freshId(p.freeVariables.map(_.id), "x")
+        FOF.QuantifiedFormula(FOF.!, Seq(quoted("X" + x)), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Term))))
+      case K.exists(p) =>
+        val x = K.freshId(p.freeVariables.map(_.id), "x")
+        FOF.QuantifiedFormula(FOF.?, Seq(quoted("X" + x)), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Term))))
       case K.Multiapp(K.Constant(id, typ), args) =>
         FOF.AtomicFormula(quoted("c" + id), args.map(termToFOFTerm))
       case K.Multiapp(K.Variable(id, typ), args) =>
         FOF.AtomicFormula(quoted("s" + id), args.map(termToFOFTerm))
-      case _ => throw new Exception("The expression is not purely first order")
+      case _ => throw new Exception("The expression is not purely first order: " + formula)
         
   }
 
