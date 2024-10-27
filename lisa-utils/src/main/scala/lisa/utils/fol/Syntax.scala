@@ -193,7 +193,7 @@ trait Syntax {
   case class Constant[S : Sort as sortEv](id: K.Identifier) extends Expr[S] {
     val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
-    def setInfix(): Constant[S] = 
+    def printInfix(): Constant[S] = 
       infix = true
       this
     val underlying: K.Constant = K.Constant(id, sort)
