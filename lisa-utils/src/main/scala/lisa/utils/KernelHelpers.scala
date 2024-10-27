@@ -174,6 +174,38 @@ object KernelHelpers {
       case Variable(id, sort) => s"v(${id},${sort})" 
   }
 
+  extension (se: SimpleExpression) {
+    def repr: String = se match
+      case SimpleAnd(children, polarity) => 
+        val pol = if polarity then "" else "!"
+        s"${pol}and(${children.map(_.repr).mkString(", ")})"
+      case SimpleForall(x, inner, polarity) => 
+        val pol = if polarity then "" else "!"
+        s"${pol}∀$x.${inner.repr}"
+      case SimpleLiteral(polarity) => 
+        val pol = if polarity then "" else "!"
+        s"${pol}lit"
+      case SimpleEquality(left, right, polarity) => 
+        val pol = if polarity then "" else "!"
+        s"${pol}(${left.repr} === ${right.repr})"
+      case SimpleVariable(id, sort, polarity) => 
+        val pol = if polarity then "" else "!"
+        s"${pol}${id}"
+      case SimpleBoundVariable(no, sort, polarity) => 
+        val pol = if polarity then "" else "!"
+        s"${pol}bv$no"
+      case SimpleConstant(id, sort, polarity) => 
+        val pol = if polarity then "" else "!"
+        s"${pol}${id}"
+      case SimpleApplication(arg1, arg2, polarity) => 
+        val pol = if polarity then "" else "!"
+        s"${pol}(${arg1.repr}(${arg2.repr}))"
+      case SimpleLambda(x, inner) => 
+        s"λ${x.repr}.${inner.repr}"
+
+
+  }
+
   /* Conversions */
 
   /*

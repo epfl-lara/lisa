@@ -66,16 +66,12 @@ object Quantifiers extends lisa.Main {
     thenHave(∀(y, (x === y) <=> P(y)) |- P(x)) by InstSchema(y := x)
     thenHave(∀(y, (x === y) <=> P(y)) |- ∃(x, P(x))) by RightExists
     thenHave(∃(x, ∀(y, (x === y) <=> P(y))) |- ∃(x, P(x))) by LeftExists
-    thenHave(lambda(P, ∃(x, ∀(y, (x === y) <=> P(y))))(P) |- ∃(x, P(x))) by Beta
-    thenHave((
-         lambda(P, ∃(x, ∀(y, (x === y) <=> P(y))))(P) <=> ∃!(P),
-        ∃!(P)
-      ) 
-      |- ∃(x, P(x))) by LeftSubstEq.withParameters(List((∃!(P), lambda(P, ∃(x, ∀(y, (x === y) <=> P(y))))(P))), (Seq(X), X))
-    have(∃!(P) |- ∃(x, P(x))) by Tautology.from(lastStep, existsOne.definition)
-    thenHave(thesis) by Beta
+    thenHave((∃(x, ∀(y, (x === y) <=> P(y))) <=> ∃!(P), ∃!(P) ) |- ∃(x, P(x))) by 
+          LeftSubstEq.withParameters(List((∃!(P), ∃(x, ∀(y, (x === y) <=> P(y))))), (Seq(X), X))
+    have(thesis) by Tautology.from(lastStep, existsOne.definition)
   }
 
+  
   /**
    * Theorem --- Equality relation is transitive.
    */
@@ -188,6 +184,7 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tableau
   }
 
+  /*
   /**
    * Theorem --- Universal quantification of equivalence implies equivalence
    * of unique existential quantification.
@@ -225,7 +222,6 @@ object Quantifiers extends lisa.Main {
       lastStep,
       existentialEquivalenceDistribution of (P := lambda(z, forall(y, (y === z) <=> P(y))), Q := lambda(z, forall(y, (y === z) <=> Q(y))))
     )
-
     thenHave(thesis) by Restate
   }
 
@@ -279,4 +275,5 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tautology.from(fwd, bwd)
   }
 
+*/
 }

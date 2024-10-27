@@ -193,7 +193,9 @@ trait Syntax {
   case class Constant[S : Sort as sortEv](id: K.Identifier) extends Expr[S] {
     val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
-    def setInfix(): Unit = infix = true
+    def setInfix(): Constant[S] = 
+      infix = true
+      this
     val underlying: K.Constant = K.Constant(id, sort)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Constant[S] = this
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Expr[S] =

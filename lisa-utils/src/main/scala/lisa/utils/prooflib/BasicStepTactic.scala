@@ -995,8 +995,8 @@ object BasicStepTactic {
   object Beta extends ProofTactic with ProofFactSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
-      val red1 = K.betaReduce(K.sequentToFormula(botK))
-      val red2 = K.betaReduce(K.sequentToFormula(proof.getSequent(premise).underlying))
+      val red1 = K.sequentToFormula(botK).betaNormalForm
+      val red2 = K.sequentToFormula(proof.getSequent(premise).underlying).betaNormalForm
       if (!K.isSame(red1,red2))
         proof.InvalidProofTactic("The conclusion is not beta-OL-equivalent to the premise.")
       else
@@ -1212,14 +1212,14 @@ object BasicStepTactic {
             vars.foldLeft(base : K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
         }
 
-        if (K.isSameSet(botK.right, premiseSequent.right ++ sEqT_es))
+        if (K.isSameSet(botK.left, premiseSequent.left ++ sEqT_es))
           if (
-            K.isSameSet(botK.left + phi_t_for_f, premiseSequent.left + phi_s_for_f) ||
-            K.isSameSet(botK.left + phi_s_for_f, premiseSequent.left + phi_t_for_f)
+            K.isSameSet(botK.right + phi_t_for_f, premiseSequent.right + phi_s_for_f) ||
+            K.isSameSet(botK.right + phi_s_for_f, premiseSequent.right + phi_t_for_f)
           )
-            proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
+            proof.ValidProofTactic(bot, Seq(K.RightSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
           else
-            proof.InvalidProofTactic("ight-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case.")
+            proof.InvalidProofTactic("Right-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case.")
         else proof.InvalidProofTactic("Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the premise.")
       }
     }

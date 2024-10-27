@@ -45,18 +45,18 @@ trait Predef extends Syntax {
   val ¬ : neg.type = neg
   val ! : neg.type = neg
 
-  val and = constant[Formula >>: Formula >>: Formula]("∧")
+  val and = constant[Formula >>: Formula >>: Formula]("∧").setInfix()
   val /\ : and.type = and
   val ∧ : and.type = and
 
-  val or = constant[Formula >>: Formula >>: Formula]("∨")
+  val or = constant[Formula >>: Formula >>: Formula]("∨").setInfix()
   val \/ : or.type = or
   val ∨ : or.type = or
 
-  val implies = constant[Formula >>: Formula >>: Formula]("⇒")
+  val implies = constant[Formula >>: Formula >>: Formula]("⇒").setInfix()
   val ==> : implies.type = implies
 
-  val iff = constant[Formula >>: Formula >>: Formula]("⇔")
+  val iff = constant[Formula >>: Formula >>: Formula]("⇔").setInfix()
   val <=> : iff.type = iff
   val ⇔ : iff.type = iff
 

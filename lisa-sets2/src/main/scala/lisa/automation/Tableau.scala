@@ -64,12 +64,10 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
   inline def solve(sequent: F.Sequent): Option[SCProof] = solve(sequent.underlying)
 
   def solve(sequent: K.Sequent): Option[SCProof] = {
-
     val f = K.multiand(sequent.left.toSeq ++ sequent.right.map(f => K.neg(f)))
     val taken = f.allVariables
     val nextIdNow = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no + 1
     val (fnamed, nextId) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
-
     val nf = reducedNNFForm(fnamed)
     val uv = Variable(Identifier("§", nextId), Term)
     val proof = decide(Branch.empty(nextId + 1, uv).prepended(nf))
