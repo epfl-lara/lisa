@@ -8,6 +8,7 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.proof.*
 
 import scala.annotation.targetName
+import lisa.utils.unification.UnificationUtils.matchExpr
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs at the Kernel level.
  */
@@ -101,8 +102,13 @@ object KernelHelpers {
     def unapply(e: Expression): Option[(Expression, Seq[Expression])] = 
       def inner(e: Expression): Option[List[Expression]] = e match 
         case Application(f, arg) => inner(f) map (l => arg :: l)
+        case _ => Some(List(e))
+      val r = inner(e)
+      r match
+        case Some(l) if l.size > 1 => 
+          val rev = l.reverse
+          Some(rev.head, rev.tail)
         case _ => None
-      inner(e).map(l => {val rev = l.reverse; (rev.head, rev.tail)})
 
 
 
