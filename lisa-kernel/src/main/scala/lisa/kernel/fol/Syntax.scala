@@ -85,6 +85,22 @@ private[fol] trait Syntax {
       case Application(f, arg) => unapplySeq(f).map(fargs => fargs :+ arg)
       case _ => None
     }
+
+    val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
+        case Application(f, arg) => {
+          val f1 = f.betaNormalForm
+          val a2 = arg.betaNormalForm
+          f1 match {
+            case Lambda(v, body) => (substituteVariables(body, Map(v -> a2)).betaNormalForm, false)
+            case _ if f.isBetaNormal && arg.isBetaNormal => (this, true) 
+            case _ => (Application(f1, a2), false)
+          }
+        }
+        case Lambda(v, Application(f, arg)) if v == arg => (f.betaNormalForm, false)
+        case Lambda(v, inner) if inner.isBetaNormal => (this, true)
+        case Lambda(v, inner) => (Lambda(v, inner.betaNormalForm), false)
+        case _ => (this, true)
+    }
     
     /**
      * @return The list of free variables in the tree.
@@ -178,21 +194,6 @@ private[fol] trait Syntax {
   def flatTypeParameters(t: Sort): List[Sort] = t match {
     case Arrow(a, b) => a :: flatTypeParameters(b)
     case _ => List()
-  }
-
-  def betaReduce(e: Expression): Expression = e match {
-    case Application(f, arg) => {
-      val f1 = betaReduce(f)
-      val a2 = betaReduce(arg)
-      f1 match {
-        case Lambda(v, body) => betaReduce(substituteVariables(body, Map(v -> a2)))
-        case _ => Application(f1, betaReduce(a2))
-      }
-    }
-    case Lambda(v, Application(f, arg)) if v == arg => f
-    case Lambda(v, inner) => 
-      Lambda(v, betaReduce(inner))
-    case _ => e
   }
 
 }

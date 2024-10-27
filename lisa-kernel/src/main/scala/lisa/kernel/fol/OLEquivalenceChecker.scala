@@ -7,7 +7,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
 
   def reducedForm(expr: Expression): Expression = {
-    val p = simplify(expr)
+    val bnf = expr.betaNormalForm
+    val p = simplify(bnf)
     val nf = computeNormalForm(p)
     val fln = fromLocallyNameless(nf, Map.empty, 0)
     val res = toExpressionAIG(fln)
@@ -15,6 +16,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   }
 
   def reducedNNFForm(expr: Expression): Expression = {
+    val bnf = expr.betaNormalForm
     val p = simplify(expr)
     val nf = computeNormalForm(p)
     val fln = fromLocallyNameless(nf, Map.empty, 0)
@@ -34,8 +36,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   @deprecated("Use isSame instead", "0.8")
   def isSameTerm(term1: Expression, term2: Expression): Boolean = isSame(term1, term2)
   def isSame(e1: Expression, e2: Expression): Boolean = {
-    val nf1 = computeNormalForm(simplify(e1))
-    val nf2 = computeNormalForm(simplify(e2))
+    val nf1 = computeNormalForm(simplify(e1.betaNormalForm))
+    val nf2 = computeNormalForm(simplify(e2.betaNormalForm))
     latticesEQ(nf1, nf2)
     
   }
@@ -45,8 +47,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    */
   def isImplying(e1: Expression, e2: Expression): Boolean = {
     require(e1.sort == Formula && e2.sort == Formula) 
-    val nf1 = computeNormalForm(simplify(e1))
-    val nf2 = computeNormalForm(simplify(e2))
+    val nf1 = computeNormalForm(simplify(e1.betaNormalForm))
+    val nf2 = computeNormalForm(simplify(e2.betaNormalForm))
     latticesLEQ(nf1, nf2)
   }
 
@@ -271,8 +273,16 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           SimpleAnd(Seq(polarize(arg1, false), polarize(arg2, false)), !polarity)
         case forall(Lambda(v, body)) =>
           SimpleForall(v.id, polarize(body, true), polarity)
+        case forall(p) => 
+          val fresh = freshId(p.freeVariables.map(_.id), Identifier("x", 0))
+          val newInner = polarize(Application(p, Variable(fresh, Term)), true)
+          SimpleForall(fresh, newInner, polarity)
         case exists(Lambda(v, body)) =>
           SimpleForall(v.id, polarize(body, false), !polarity)
+        case exists(p) =>
+          val fresh = freshId(p.freeVariables.map(_.id), Identifier("x", 0))
+          val newInner = polarize(Application(p, Variable(fresh, Term)), false)
+          SimpleForall(fresh, newInner, !polarity)
         case equality(arg1, arg2) =>
           SimpleEquality(polarize(arg1, true), polarize(arg2, true), polarity)
         case Application(f, arg) => 

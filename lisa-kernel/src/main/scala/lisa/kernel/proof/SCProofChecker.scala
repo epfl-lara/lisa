@@ -389,7 +389,7 @@ object SCProofChecker {
            * </pre>
            */
           case Beta(b, t1) => 
-            if (isSame(betaReduce(sequentToFormula(b)), betaReduce(sequentToFormula(ref(t1))))) {
+            if (isSame(sequentToFormula(b).betaNormalForm, sequentToFormula(ref(t1)).betaNormalForm)) {
               SCValidProof(SCProof(step))
             } else SCInvalidProof(SCProof(step), Nil, "The conclusion is not beta-OL-equivalent to the premise.")
 
