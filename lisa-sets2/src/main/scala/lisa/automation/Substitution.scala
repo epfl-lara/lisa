@@ -19,7 +19,6 @@ import scala.collection.mutable.{Map as MMap}
 import F.{*, given}
 
 object Substitution:
-  /*
 
   /**
    * Extracts a raw substitution into a `RewriteRule`.
@@ -44,14 +43,13 @@ object Substitution:
       substitutions.foldLeft((Map.empty, RewriteContext.empty)):
         case ((source, ctx), rule) =>
           val erule = extractRule(rule)
-          val (l, r) = (erule.l, erule.r)
           rule match
             case f: Formula @unchecked => 
-              (source + (erule -> erule.source), ctx.withConfinedRule(l, r).withBound(f.freeVars))
+              (source + (erule -> erule.source), ctx.withConfinedRule(erule).withBound(f.freeVars))
             case j: lib.JUSTIFICATION =>
-              (source + (erule -> j), ctx.withFreeRule(l, r))
+              (source + (erule -> j), ctx.withFreeRule(erule))
             case f: proof.Fact @unchecked =>
-              (source + (erule -> f), ctx.withConfinedRule(l, r))
+              (source + (erule -> f), ctx.withConfinedRule(erule))
   
   /**
    * Checks if a raw substitution input can be used as a rewrite rule (is === or
@@ -128,7 +126,7 @@ object Substitution:
           // formula set to another where a formula maps to another by the
           // rewrites above
           inline def collectRewritingPairs
-            (base: Set[Formula], target: Set[Formula]): Option[Seq[RewriteResult]] =
+            (base: Set[Formula], target: Set[Formula]): Option[Seq[FormulaRewriteResult]] =
               base.iterator.map: formula =>
                 target.collectFirstDefined: target =>
                   rewrite(using ctx)(formula, target)
@@ -177,8 +175,8 @@ object Substitution:
             TacticSubproof:
               val leftRewrites = leftSubsts.get
               val rightRewrites = rightSubsts.get
-              val leftRules = leftRewrites.map(_.rule)
-              val rightRules = rightRewrites.map(_.rule)
+              val leftRules = leftRewrites.head.rules
+              val rightRules = rightRewrites.head.rules
 
               // instantiated discharges
 
@@ -194,8 +192,8 @@ object Substitution:
               val leftFormulas = leftRules.map(_.toFormula)
               val preLeft = leftRewrites.map(_.toLeft)
               val postLeft = leftRewrites.map(_.toRight)
-              val leftVars = leftRewrites.head.lambda._1
-              val leftLambda = andAll(leftRewrites.map(_.lambda._2))
+              val leftVars = leftRewrites.head.vars
+              val leftLambda = andAll(leftRewrites.map(_.lambda))
               thenHave(andAll(preLeft) |- premise.right) by Restate
               thenHave(andAll(preLeft) +: leftFormulas |- premise.right) by Weakening
               thenHave(andAll(postLeft) +: leftFormulas |- premise.right) by LeftSubstEq.withParameters(leftRules.map(r => r.l -> r.r), leftVars -> leftLambda)
@@ -206,8 +204,8 @@ object Substitution:
               val rightFormulas = rightRules.map(_.toFormula)
               val preRight = rightRewrites.map(_.toLeft).toSet
               val postRight = rightRewrites.map(_.toRight).toSet
-              val rightVars = rightRewrites.head.lambda._1
-              val rightLambda = orAll(rightRewrites.map(_.lambda._2))
+              val rightVars = rightRewrites.head.vars
+              val rightLambda = orAll(rightRewrites.map(_.lambda))
               thenHave(rpremise.left |- orAll(preRight)) by Restate
               thenHave(rpremise.left ++ rightFormulas |- orAll(preRight)) by Weakening
               thenHave(rpremise.left ++ rightFormulas |- orAll(postRight)) by RightSubstEq.withParameters(rightRules.map(r => r.l -> r.r), rightVars -> rightLambda)
@@ -230,8 +228,6 @@ object Substitution:
               thenHave(bot) by Weakening
 
   end Apply
-
-  */
 
   // object applySubst extends ProofTactic {
 
