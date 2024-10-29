@@ -3,13 +3,22 @@ package lisa.utils.unification
 import lisa.fol.FOL.{_, given}
 import lisa.prooflib.Library
 import lisa.prooflib.SimpleDeducedSteps
+import lisa.utils.K
 import lisa.utils.KernelHelpers.freshId
 import lisa.utils.memoization.memoized
+import lisa.utils.collection.Extensions.*
+import lisa.utils.collection.{VecSet => Set}
+import lisa.fol.FOL
 
 /**
  * General utilities for unification, substitution, and rewriting
  */
 object UnificationUtils:
+
+  /**
+    * Chosen equality for terms in matching and rewriting.
+    */
+  inline def eq[A](l: Expr[A], r: Expr[A]) = isSame(l, r)
 
   /**
    * Context containing information and constraints pertaining to matching,
@@ -57,27 +66,17 @@ object UnificationUtils:
       */
     def withConfinedRule[A](rule: RewriteRule) =
       this.copy(confinedRules = confinedRules + rule)
-    
-    /**
-      * (Deterministic) variables assigned to rewrite rules.
-      *
-      * In place of generic holes in the presence of several rewrite rules,
-      * their representatives are used.
-      *
-      */
-    def ruleRepresentatives = 
-      allRules.map(representativeVariable)
   
     /**
       * All rules (free + confined) in this context.
       */
-    def allRules: Seq[RewriteRule] = ??? // freeRules ++ confinedRules
+    def allRules: Set[RewriteRule] = freeRules ++ confinedRules
 
-    protected val representativeVariable = memoized(__representativeVariable)
+    val representativeVariable = memoized(__representativeVariable)
 
-    private def __representativeVariable(rule: RewriteRule): Variable[?] = 
+    private def __representativeVariable(rule: InstantiatedRewriteRule): Variable[?] = 
       val id = ??? // freshRepr
-      rule match
+      rule.rule match
         case TermRewriteRule(_, _) => Variable[T](id) 
         case FormulaRewriteRule(_, _) => Variable[F](id)
 
@@ -91,7 +90,7 @@ object UnificationUtils:
       * A rewrite context with the given variables considered bound.
       */
     def withBound(vars: Iterable[Variable[?]]) =
-      RewriteContext(vars.toSet, Set.empty, Set.empty)
+      RewriteContext(vars.to(Set), Set.empty, Set.empty)
 
   /**
    * Immutable representation of a typed variable substitution.
@@ -140,6 +139,9 @@ object UnificationUtils:
      */
     def substitutes[A](v: Variable[A]): Boolean =
       freeVariables(v)
+
+    def asSubstPair: Seq[SubstPair] =
+      assignments.map((v, e) => v := e.asInstanceOf).toSeq
 
   object Substitution:
     /**
@@ -198,22 +200,32 @@ object UnificationUtils:
   
   sealed trait RewriteRule:
     type Base
+    
     def l: Expr[Base]
+    
     def r: Expr[Base]
+    
     /**
      * Flip this rewrite rule
      */
     def swap: RewriteRule
+    
     /** 
      * The trivial hypothesis step that can be used as a source for this rewrite 
      */
     def source(using lib: Library, proof: lib.Proof): proof.Fact =
       val form = toFormula
       lib.have(using proof)(form |- form) by SimpleDeducedSteps.Restate
+    
     /**
       * Reduce this rewrite rule to a formula representing the equivalence.
       */
     def toFormula: Formula
+    
+    /**
+      * The sort of the terms in this rewrite rule.
+      */
+    def sort: K.Sort = l.sort
   
 
   case class TermRewriteRule(l: Term, r: Term) extends RewriteRule:
@@ -226,17 +238,117 @@ object UnificationUtils:
     def swap: FormulaRewriteRule = FormulaRewriteRule(r, l)
     def toFormula: Formula = l <=> r
 
-  case class RewriteResult[A](ctx: RewriteContext, context: Expr[A]):
-    def toLeft: Formula = ???
-    def toRight: Formula = ???
-    def vars: Seq[Variable[?]] = ctx.ruleRepresentatives
+  case class InstantiatedRewriteRule(rule: RewriteRule, subst: Substitution) extends RewriteRule:
+    type Base = rule.Base
+    def l: Expr[rule.Base] = rule.l.substitute(subst.asSubstPair*)
+    def r: Expr[rule.Base] = rule.r.substitute(subst.asSubstPair*)
+    def toFormula: Formula = rule.toFormula.substitute(subst.asSubstPair*)
+    def swap: RewriteRule = InstantiatedRewriteRule(rule.swap, subst)
+
+  
+  /**
+    * Given a single *free* rewrite rule, checks whether it rewrite `from` to
+    * `to` under this context. If the rewrite succeeds, returns the rule and
+    * the instantiation of the rule corresponding to the rewrite step.
+    *
+    * @param from term to rewrite from
+    * @param to term to rewrite into
+    * @param rule *free* rewrite rule to use
+    */
+  private def rewriteOneWithFree[A](from: Expr[A], to: Expr[A], rule: RewriteRule {type Base = A}): Option[InstantiatedRewriteRule] =
+    val ctx = RewriteContext.empty
+    // attempt to rewrite with all bound variables discarded
+    rewriteOneWith(using ctx)(from, to, rule)
+
+  /**
+    * Given a single rewrite rule, checks whether it rewrite `from` to `to`
+    * under this context. The rewrite rule is considered *confined* by the
+    * context. See [[rewriteOneWithFree]] for free rules. If the rewrite
+    * succeeds, returns the rule and the instantiation of the rule
+    * corresponding to the rewrite step.
+    *
+    * @param ctx (implicit) context to rewrite under
+    * @param from term to rewrite from
+    * @param to term to rewrite into
+    * @param rule *free* rewrite rule to use
+    */
+  private def rewriteOneWith[A](using ctx: RewriteContext)(from: Expr[A], to: Expr[A], rule: RewriteRule {type Base = A}): Option[InstantiatedRewriteRule] =
+      val (l: Expr[A], r: Expr[A]) = (rule.l, rule.r)
+      // match the left side
+      matchExpr(l, from, Substitution.empty)
+        // based on this partial substitution, try to match the right side
+        // note: given that first match succeeded, any extension of it is still a successful matcher for l -> from
+        .flatMap(partialSubst => matchExpr(r, to, partialSubst))
+        // if succeeded, pair the rule together and ship out
+        .map(finalSubst => InstantiatedRewriteRule(rule, finalSubst)) 
+
+  /**
+    * Tries to find a *top-level* rewrite from `from` to `to` using the
+    * rewrite rules in the implicit context. The rewrite rule unifying the two
+    * terms is returned if one exists.
+    * 
+    * @param from term to rewrite from
+    * @param to term to rewrite into
+    */
+  private def rewriteOne[A]
+    (using ctx: RewriteContext)
+    (from: Expr[A], to: Expr[A]): Option[InstantiatedRewriteRule] =
+      // rule sort is runtime checked
+      lazy val confinedRewrite = ctx.confinedRules
+                                  .filter(_.sort == from.sort)
+                                  .collectFirstDefined(rule => rewriteOneWith(from, to, rule.asInstanceOf))
+      lazy val freeRewrite      = ctx.freeRules
+                                  .filter(_.sort == from.sort)
+                                  .collectFirstDefined(rule => rewriteOneWithFree(from, to, rule.asInstanceOf))
+    
+      // confined rules take precedence
+      // local rewrites are more likely to succeed than global ones
+      // (anecdotally) :)
+      confinedRewrite.orElse(freeRewrite)
+
+  case class RewriteResult[A](ctx: RewriteContext, usedRules: Set[InstantiatedRewriteRule], context: Expr[A]):
+    def toLeft: Expr[A] = 
+      context.substitute((vars `lazyZip` rules.map(_.l)).map((v, e) => v := e.asInstanceOf)*)
+    def toRight: Expr[A] = 
+      context.substitute((vars `lazyZip` rules.map(_.r)).map((v, e) => v := e.asInstanceOf)*)
+    def vars: Seq[Variable[?]] = usedRules.map(ctx.representativeVariable).toSeq
     def lambda: Expr[A] = context
-    def rules: Seq[RewriteRule] = ctx.allRules
+    def rules: Set[InstantiatedRewriteRule] = usedRules
+    def substitutes(v: Variable[?]): Boolean =
+      usedRules.exists(_.subst.substitutes(v))
+
+    // invariant:
+    // require( (vars `zip` rules).forall((v, e) => v.Sort == rule.Base ) ) // equality is over types
 
   type FormulaRewriteResult = RewriteResult[F]
 
   def rewrite[A](using ctx: RewriteContext)(from: Expr[A], to: Expr[A]): Option[RewriteResult[A]] =
-    ???
+    lazy val rule = rewriteOne(from, to)
+
+    if eq(from, to) then
+      Some(RewriteResult(ctx, Set.empty, from))
+    else if rule.isDefined then
+      val irule = rule.get
+      Some(RewriteResult(ctx, Set(irule), ctx.representativeVariable(irule).asInstanceOf))
+    else 
+      (from, to) match 
+        case (App(fe, arge), App(fp, argp)) if fe.sort == fp.sort =>
+          lazy val fun = rewrite(fe, fp.asInstanceOf)
+          lazy val arg = rewrite(arge, argp.asInstanceOf)
+
+          for 
+            f <- fun
+            a <- arg
+          yield RewriteResult(ctx, f.rules ++ a.rules, f.context #@ a.context)
+
+        case (Abs(ve, fe), Abs(vp, fp)) =>
+          val freshVar = ve.freshRename(Seq(fe, fp))
+          rewrite(fe.substitute(ve := freshVar), fp.substitute(vp := freshVar))
+            .filterNot(_.substitutes(freshVar))
+            .map:
+              case RewriteResult(c, r, e) => 
+                RewriteResult(c, r, Abs(freshVar, e))
+        case _ => None
 
 end UnificationUtils
 
