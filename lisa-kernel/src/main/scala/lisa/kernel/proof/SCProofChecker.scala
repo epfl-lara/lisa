@@ -495,19 +495,20 @@ object SCProofChecker {
                   val base = if (inner1.sort == Formula) iff(inner1)(inner2) else equality(inner1)(inner2)
                   vars.foldRight(base : Expression) { case (s_arg, acc) => forall(Lambda(s_arg, acc)) }
               }
-
               if (isSameSet(b.left, ref(t1).left ++ sEqT_es))
                 if (
                   isSameSet(b.right + phi_t_for_f, ref(t1).right + phi_s_for_f) ||
                   isSameSet(b.right + phi_s_for_f, ref(t1).right + phi_t_for_f)
-                )
+                ) {
                   SCValidProof(SCProof(step))
-                else
+                }
+                else {
+                  
                   SCInvalidProof(
                     SCProof(step),
                     Nil,
                     "Right-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case."
-                  )
+                  )}
               else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the premise.")
             }
 

@@ -541,6 +541,10 @@ object KernelHelpers {
    */
   def checkProof(proof: SCProof, output: String => Unit = println): Unit = {
     val judgement = SCProofChecker.checkSCProof(proof)
+    if judgement.isValid then
+      output("Proof is valid")
+    else
+      output("Proof is invalid")
     val pl = proof.totalLength
     if pl > 100 then
       output("...")
@@ -607,7 +611,8 @@ object KernelHelpers {
         val currentTree = tree :+ i
         val showErrorForLine = judgement match {
           case SCValidProof(_, _) => false
-          case SCInvalidProof(proof, position, _) => currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0)
+          case SCInvalidProof(proof, position, _) => 
+            currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0)
         }
         val prefix = (Seq.fill(level - topMostIndices.size)(None) ++ Seq.fill(topMostIndices.size)(None) :+ Some(i)) ++ Seq.fill(maxLevel - level)(None)
         val prefixString = prefix.map(_.map(_.toString).getOrElse("")).zipWithIndex.map { case (v, i1) => leftPadSpaces(v, maxNumberingLengths(i1)) }.mkString(" ")
