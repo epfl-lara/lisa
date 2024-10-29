@@ -71,3 +71,6 @@ sealed class VecSet[A] private (protected val evec: Vector[A], protected val ese
       eset(elem) match
         case false => new VecSet(evec :+ elem, eset + elem)
         case true => this
+
+    override def toSeq: Seq[A] = evec
+    override def toVector: Vector[A] = evec
