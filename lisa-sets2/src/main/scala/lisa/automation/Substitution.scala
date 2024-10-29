@@ -17,6 +17,7 @@ import scala.annotation.nowarn
 import scala.collection.mutable.{Map as MMap}
 
 import F.{*, given}
+import lisa.utils.collection.VecSet
 
 object Substitution:
 
@@ -175,13 +176,13 @@ object Substitution:
             TacticSubproof:
               val leftRewrites = leftSubsts.get
               val rightRewrites = rightSubsts.get
-              val leftRules = leftRewrites.head.rules
-              val rightRules = rightRewrites.head.rules
+              val leftRules = leftRewrites.to(VecSet).flatMap(_.rules)
+              val rightRules = rightRewrites.to(VecSet).flatMap(_.rules)
 
               // instantiated discharges
 
-              val leftDischarges = leftRules.map(r => r -> sourceMap(r))
-              val rightDischarges = rightRules.map(r => r -> sourceMap(r))
+              val leftDischarges = leftRules.map(r => r -> proof.InstantiatedFact(sourceMap(r.rule), r.subst.asSubstPair))
+              val rightDischarges = rightRules.map(r => r -> proof.InstantiatedFact(sourceMap(r.rule), r.subst.asSubstPair))
 
               val discharges = leftDischarges ++ rightDischarges
 
@@ -195,8 +196,8 @@ object Substitution:
               val leftVars = leftRewrites.head.vars
               val leftLambda = andAll(leftRewrites.map(_.lambda))
               thenHave(andAll(preLeft) |- premise.right) by Restate
-              thenHave(andAll(preLeft) +: leftFormulas |- premise.right) by Weakening
-              thenHave(andAll(postLeft) +: leftFormulas |- premise.right) by LeftSubstEq.withParameters(leftRules.map(r => r.l -> r.r), leftVars -> leftLambda)
+              thenHave(leftFormulas + andAll(preLeft) |- premise.right) by Weakening
+              thenHave(leftFormulas + andAll(postLeft) |- premise.right) by LeftSubstEq.withParameters(leftRules.map(r => r.l -> r.r).toSeq, leftVars -> leftLambda)
 
               val rpremise = lastStep.bot
 
@@ -207,8 +208,8 @@ object Substitution:
               val rightVars = rightRewrites.head.vars
               val rightLambda = orAll(rightRewrites.map(_.lambda))
               thenHave(rpremise.left |- orAll(preRight)) by Restate
-              thenHave(rpremise.left ++ rightFormulas |- orAll(preRight)) by Weakening
-              thenHave(rpremise.left ++ rightFormulas |- orAll(postRight)) by RightSubstEq.withParameters(rightRules.map(r => r.l -> r.r), rightVars -> rightLambda)
+              thenHave(rightFormulas ++ rpremise.left |- orAll(preRight)) by Weakening
+              thenHave(rightFormulas ++ rpremise.left |- orAll(postRight)) by RightSubstEq.withParameters(rightRules.map(r => r.l -> r.r).toSeq, rightVars -> rightLambda)
 
               // rewrite to destruct sequent
               thenHave(postLeft ++ leftFormulas ++ rightFormulas |- postRight) by Restate
