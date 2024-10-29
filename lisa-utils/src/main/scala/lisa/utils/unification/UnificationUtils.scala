@@ -4,7 +4,6 @@ import lisa.fol.FOL.{_, given}
 import lisa.prooflib.Library
 import lisa.prooflib.SimpleDeducedSteps
 import lisa.utils.K
-import lisa.utils.KernelHelpers.freshId
 import lisa.utils.memoization.memoized
 import lisa.utils.collection.Extensions.*
 import lisa.utils.collection.{VecSet => Set}
@@ -31,6 +30,10 @@ object UnificationUtils:
       freeRules: Set[RewriteRule],
       confinedRules: Set[RewriteRule],
   ):
+    // when a context is constructed, update the global ID counter to make sure
+    // we aren't conflicting with variable names in the rewrite rules
+    RewriteContext.updateIDCounts(this)
+
     /**
       * Checks if a variable is free under this context.
       */
@@ -75,10 +78,12 @@ object UnificationUtils:
     val representativeVariable = memoized(__representativeVariable)
 
     private def __representativeVariable(rule: InstantiatedRewriteRule): Variable[?] = 
-      val id = ??? // freshRepr
+      val id = RewriteContext.freshRepresentative
       rule.rule match
         case TermRewriteRule(_, _) => Variable[T](id) 
         case FormulaRewriteRule(_, _) => Variable[F](id)
+        // should not reach under general use, but why not:
+        case r: InstantiatedRewriteRule => representativeVariable(r)
 
   object RewriteContext:
     /**
@@ -91,6 +96,31 @@ object UnificationUtils:
       */
     def withBound(vars: Iterable[Variable[?]]) =
       RewriteContext(vars.to(Set), Set.empty, Set.empty)
+
+    private object IDCounter:
+      val reprName = "@@internalRewriteVar@@"
+      private var current = 0
+      def setIDCountTo(limit: Int): Unit = 
+        current = math.max(limit, current)
+      def nextIDCount: Int =
+        current += 1
+        current
+       
+    import IDCounter.{reprName, setIDCountTo, nextIDCount}
+
+    private def freshRepresentative: Identifier =
+      Identifier(reprName, nextIDCount)
+
+    private def maxVarId[A](expr: Expr[A]): Int = 
+      expr match
+        case Variable(id: Identifier) => id.no
+        case Constant(id) => 0
+        case App(f, arg) => math.max(maxVarId(f), maxVarId(arg))
+        case Abs(v: Variable[?], body: Expr[?]) => math.max(maxVarId(v), maxVarId(body))
+
+    private def updateIDCounts(ctx: RewriteContext): Unit =
+      val max = ctx.allRules.map(r => maxVarId(r.toFormula)).max + 1
+      setIDCountTo(max)
 
   /**
    * Immutable representation of a typed variable substitution.
