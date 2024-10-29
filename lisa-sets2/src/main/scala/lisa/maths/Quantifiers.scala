@@ -3,6 +3,7 @@ package lisa.maths
 import lisa.utils.Serialization.sorry
 import lisa.prooflib.BasicStepTactic.Sorry
 import lisa.utils.K.repr
+import lisa.automation.atp.Goeland
 /**
  * Implements theorems about first-order logic.
  */
@@ -38,6 +39,7 @@ object Quantifiers extends lisa.Main {
   ) {
     have(thesis) by Tableau
   }
+  draft()
 
   /**
    * Theorem --- A formula is equivalent to itself existentially quantified if

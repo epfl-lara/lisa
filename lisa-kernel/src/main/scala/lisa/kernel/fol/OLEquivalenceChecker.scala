@@ -472,7 +472,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             case (_, SimpleLiteral(true)) => true
 
             case (SimpleEquality(l1, r1, pol1), SimpleEquality(l2, r2, pol2)) =>
-              pol1 == pol2 && latticesEQ(l1, l2) && latticesEQ(r1, r2)
+              pol1 == pol2 && ((latticesEQ(l1, l2) && latticesEQ(r1, r2)) || (latticesEQ(l1, r2) && latticesEQ(r1, l2)))
 
             case (SimpleForall(x1, body1, polarity1), SimpleForall(x2, body2, polarity2)) =>
               polarity1 == polarity2 && (if (polarity1) latticesLEQ(body1, body2) else latticesLEQ(body2, body1))
