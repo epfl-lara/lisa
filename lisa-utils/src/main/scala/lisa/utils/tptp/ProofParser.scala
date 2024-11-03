@@ -545,7 +545,8 @@ object ProofParser {
               case K.equality(s, t) => (s, t)
               case _ => throw new Exception(s"Expected an existential quantification, but got $f")
             }
-            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name)) 
+            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name))
+
           case _ => None
         }
     }

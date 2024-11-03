@@ -230,6 +230,13 @@ object Substitution:
 
   end Apply
 
+  object Unfold extends ProofTactic:
+    def apply(using lib: Library, proof: lib.Proof)(definition: Definition)(premise: proof.Fact): proof.ProofTacticJudgement =
+      ???
+
+
+  end Unfold
+
   // object applySubst extends ProofTactic {
 
   //   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
