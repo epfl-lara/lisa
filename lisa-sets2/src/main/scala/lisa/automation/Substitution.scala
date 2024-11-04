@@ -231,7 +231,7 @@ object Substitution:
   end Apply
 
   object Unfold extends ProofTactic:
-    def apply(using lib: Library, proof: lib.Proof)(definition: Definition)(premise: proof.Fact): proof.ProofTacticJudgement =
+    def apply(using lib: Library, proof: lib.Proof)(definition: lib.theory.Definition)(premise: proof.Fact): proof.ProofTacticJudgement =
       ???
 
 
