@@ -26,11 +26,11 @@ object UnorderedPair extends lisa.Main:
   val secondMember = Theorem( y ∈ (x <> y) ):
     have(thesis) by Tautology.from(<>.definition of (z := y))
 
-  val symmetry = Theorem( (x <> y) === (y <> x) ):
-    val fwd = have(z ∈ (x <> y) <=> ((z === x) \/ (z === y))) by Restate.from(<>.definition)
-    val bwd = have(z ∈ (y <> x) <=> ((z === y) \/ (z === x))) by Restate.from(<>.definition of (x := y, y := x))
+  // val symmetry = Theorem( (x <> y) === (y <> x) ):
+  //   val fwd = have(z ∈ (x <> y) <=> ((z === x) \/ (z === y))) by Restate.from(<>.definition)
+  //   val bwd = have(z ∈ (y <> x) <=> ((z === y) \/ (z === x))) by Restate.from(<>.definition of (x := y, y := x))
 
-    have(z ∈ (x <> y) <=> z ∈ (y <> x)) by Tautology.from(fwd, bwd)
-    thenHave(thesis) by Extensionality.tactic
+  //   have(z ∈ (x <> y) <=> z ∈ (y <> x)) by Tautology.from(fwd, bwd)
+  //   thenHave(thesis) by Extensionality.tactic
 
 end UnorderedPair
