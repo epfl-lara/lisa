@@ -40,10 +40,10 @@ object Extensionality extends lisa.Main:
           val pivot = z ∈ xe <=> z ∈ ye
           val qpivot = forall(z, pivot)
           val eq = xe === ye
-          val implication = 
-            proof.InstantiatedFact(implied, Seq(x := xe, y := ye))
+          val baseSequent = premise ->> pivot
+          val implication = proof.InstantiatedFact(implied, Seq(x := xe, y := ye))
 
-          have(premise ->> pivot +>> qpivot) by RightForall.withParameters(pivot, z)(premiseStep)
-          have(premise ->> pivot +>> eq) by Cut.withParameters(qpivot)(lastStep, implication)
+          have(baseSequent +>> qpivot) by RightForall.withParameters(pivot, z)(premiseStep)
+          have(baseSequent +>> eq) by Cut.withParameters(qpivot)(lastStep, implication)
 
 end Extensionality
