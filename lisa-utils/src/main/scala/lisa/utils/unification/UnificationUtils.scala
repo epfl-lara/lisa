@@ -119,7 +119,7 @@ object UnificationUtils:
         case Abs(v: Variable[?], body: Expr[?]) => math.max(maxVarId(v), maxVarId(body))
 
     private def updateIDCounts(ctx: RewriteContext): Unit =
-      val max = ctx.allRules.map(r => maxVarId(r.toFormula)).max + 1
+      val max = ctx.allRules.map(r => maxVarId(r.toFormula)).maxOption.getOrElse(0) + 1
       setIDCountTo(max)
 
   /**
