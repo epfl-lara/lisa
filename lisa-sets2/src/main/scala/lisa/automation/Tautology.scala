@@ -148,7 +148,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
         (Seq(MaRvIn), lambdaF)
       )
       val negatom = neg(atom)
-      val seq2 = AugSequent((s.decisions._1, atom :: s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> top)))
+      val seq2 = AugSequent((negatom :: s.decisions._1, s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> bot)))
       val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
       val subst2 = RightSubstIff(
         negatom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
