@@ -232,7 +232,7 @@ trait Syntax {
   class Binder[T1: Sort, T2: Sort, T3: Sort](id: K.Identifier) extends Constant[Arrow[Arrow[T1, T2], T3]](id) {
     def apply(v1: Variable[T1], e: Expr[T2]): App[Arrow[T1, T2], T3] = App(this, Abs(v1, e))
     @targetName("unapplyBinder")
-    def unapply(e: Expr[?]): Option[(Variable[T1], Expr[T2])] = e match {
+    def unapply(e: Expr[T3]): Option[(Variable[T1], Expr[T2])] = e match {
       case App(f:Expr[Arrow[Arrow[T1, T2], T3]], Abs(v, e)) if f == this => Some((v, e))
       case _ => None
     }
