@@ -20,8 +20,6 @@ object Singleton extends lisa.Main:
       */
     def unary_~ = singleton(x)
 
-  show(singleton.definition)
-
   val membership = Theorem( x ∈ ~x ):
     have(x ∈ (x <> x)) by Restate.from(UnorderedPair.firstMember of (y := x)) 
     thenHave(thesis) by Substitution.Apply(singleton.definition)
