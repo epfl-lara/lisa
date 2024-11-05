@@ -992,6 +992,10 @@ object BasicStepTactic {
 
   */
 
+  object RightEpsilon extends ProofTactic with ProofFactSequentTactic {
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = ???
+  }
+
   object Beta extends ProofTactic with ProofFactSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
