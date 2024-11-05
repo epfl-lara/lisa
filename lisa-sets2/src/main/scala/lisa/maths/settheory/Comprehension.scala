@@ -1,6 +1,5 @@
 package lisa.maths.settheory
 
-import scala.annotation.targetName
 import lisa.automation.Substitution
 
 object Comprehension extends lisa.Main:
