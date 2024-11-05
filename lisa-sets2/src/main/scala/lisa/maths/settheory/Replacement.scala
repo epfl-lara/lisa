@@ -31,9 +31,9 @@ object Replacement extends lisa.Main:
     val inst = replacementSchema of (A := t, P := lambda(x, lambda(y, y === f(x))))
     val conditional = have(∀(x, x ∈ t ==> ∀(y, ∀(z, ((y === f(x)) /\ (z === f(x))) ==> (y === z) ))) |- ∃(s, ∀(x, (x ∈ s) <=> ∃(y, y ∈ t /\ (y === f(x))))) ) by Weakening(inst)
 
-    have(∀(y, ∀(z, ((y === f(x)) /\ (z === f(x))) ==> (y === z)))) subproof:
+    val eqTautology =
       have(((y === f(x)) /\ (z === f(x))) ==> (y === z)) by Weakening(Equality.transitivity of (x := y, y := f(x), z := z))
-      thenHave(thesis) by Quantifiers.quantifyAll
+      thenHave(∀(y, ∀(z, ((y === f(x)) /\ (z === f(x))) ==> (y === z)))) by Quantifiers.quantifyAll
 
     thenHave(x ∈ t ==> ∀(y, ∀(z, ((y === f(x)) /\ (z === f(x))) ==> (y === z)))) by Weakening
     thenHave(∀(x, x ∈ t ==> ∀(y, ∀(z, ((y === f(x)) /\ (z === f(x))) ==> (y === z))))) by RightForall
