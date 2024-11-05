@@ -286,15 +286,11 @@ object Quantifiers extends lisa.Main {
   /**
     * Quantify all variables in a formula on the right side of the premise sequent.
     * 
+    * <pre>
     *         Γ ⊢ φ, Δ
     * -------------------------- x, y, ..., z do not appear in Γ
     *  Γ ⊢ ∀x.∀y. ... ∀z. φ, Δ
-    *
-    * @param lib
-    * @param proof
-    * @param premiseStep
-    * @param conclusion
-    * @return
+    * </pre>
     */
   def quantifyAll(using lib: Library, proof: lib.Proof)(premiseStep: proof.Fact)(conclusion: Sequent) =
     def isQuantifiedOf(target: Formula, pivot: Formula, vars: List[Variable[T]] = Nil): Option[List[Variable[T]]] =
