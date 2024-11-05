@@ -992,7 +992,31 @@ object BasicStepTactic {
 
   */
 
+  /**
+   * <pre>
+   *       Γ |- φ[t/x], Δ
+   * --------------------------
+   *     Γ|- φ[(εx. φ)/x], Δ
+   * </pre>
+   */
   object RightEpsilon extends ProofTactic with ProofFactSequentTactic {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable[F.T], t: F.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      lazy val premiseSequent = proof.getSequent(premise).underlying
+      lazy val xK = x.underlying
+      lazy val tK = t.underlying
+      lazy val phiK = phi.underlying
+      lazy val botK = bot.underlying
+      lazy val epsilonTerm = K.epsilon(xK, phiK)
+      lazy val instantiated = K.substituteVariables(phiK, Map(xK -> tK))
+      lazy val bound = K.substituteVariables(phiK, Map(xK -> epsilonTerm))
+
+      if (!K.isSameSet(botK.left, premiseSequent.left))
+        proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise.")
+      else if (!K.isSameSet(botK.right + instantiated, premiseSequent.right + bound))
+        proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + φ[(εx. φ)/x].")
+      else
+        proof.ValidProofTactic(bot, Seq(K.RightEpsilon(botK, -1, phiK, xK, tK)), Seq(premise))
+    }
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = ???
   }
 
