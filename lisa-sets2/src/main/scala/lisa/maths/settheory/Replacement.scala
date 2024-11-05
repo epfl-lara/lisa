@@ -14,14 +14,13 @@ object Replacement extends lisa.Main:
   val f = variable[Term >>: Term]
   val P = variable[Term >>: Term >>: Formula]
 
-  private val replacement: Constant[Arrow[T, Arrow[Arrow[T, T], T]]] = DEF ( lambda(t, lambda(f, ε(s, ∀(x, (x ∈ s) <=> ∃(y, y ∈ t /\ (y === f(x))))))) )
+  val map = DEF ( lambda(t, lambda(f, ε(s, ∀(x, (x ∈ s) <=> ∃(y, y ∈ t /\ (y === f(x))))))) )
+
+  val replacement: map.type = map
 
   extension (t: Term)
     def map(function: Term >>: Term): Term =
       replacement(t)(function)
-
-  // this has to be after the extension for compilation
-  val map = replacement
 
   /**
     * The existence of the image of a set under a function. Or, the functional
