@@ -998,8 +998,13 @@ object BasicStepTactic {
    * --------------------------
    *     Γ|- φ[(εx. φ)/x], Δ
    * </pre>
+   *
+   * Note that if Δ contains φ[(εx. φ)/x] as well, the parameter inference will
+   * fail. Use [[RightEpsilon.withParameters]] instead.
    */
   object RightEpsilon extends ProofTactic with ProofFactSequentTactic {
+    def collectEpsilons(in: F.Expr[?]): Set[F.Term] = ???
+
     def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Formula, x: F.Variable[F.T], t: F.Term)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlying
@@ -1017,7 +1022,42 @@ object BasicStepTactic {
       else
         proof.ValidProofTactic(bot, Seq(K.RightEpsilon(botK, -1, phiK, xK, tK)), Seq(premise))
     }
-    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = ???
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
+      val premiseSequent = proof.getSequent(premise)
+      val pivotSet = bot.right -- premiseSequent.right
+      val targetSet = premiseSequent.right -- bot.right
+
+      inline def theFailure = 
+        proof.InvalidProofTactic("Could not infer an epsilon pivot from premise and conclusion.")
+
+      if pivotSet.size == 0 || targetSet.size == 0 then
+        theFailure
+      else if pivotSet.size == 1 && targetSet.size == 1 then
+        val pivot = pivotSet.head
+        val target = targetSet.head
+        
+        // the new binding is one of these
+        val epsilons = collectEpsilons(target)
+
+        val newBindingOption = epsilons.collectFirstDefined: 
+          case eps @ F.ε(x, phi) =>
+            val asTerm = (eps : F.Term)
+            val substituted = phi.substitute(x := eps) 
+            if F.isSame(substituted, target) then Some(eps) else None
+          case _ => None
+
+        newBindingOption match
+          case Some(F.ε(x, phi)) =>
+            // match pivot with phi to discover t
+            val pivotMatch = matchExpr(using RewriteContext.withBound(phi.freeVars - x))(phi, pivot)
+            pivotMatch match
+              case Some(subst) if subst.contains(x) =>
+                val t = subst(x).get
+                RightEpsilon.withParameters(phi, x, t)(premise)(bot)
+              case _ => theFailure
+          case _ => theFailure
+      else
+        theFailure
   }
 
   object Beta extends ProofTactic with ProofFactSequentTactic {
