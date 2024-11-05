@@ -45,11 +45,11 @@ object Replacement extends lisa.Main:
     * 
     * `∀(x, x ∈ s.map(f) <=> ∃(y, y ∈ s /\ x === f(y)))`
     */
-  val definition: THM = Theorem( ∀(x, x ∈ s.map(f) <=> ∃(y, y ∈ s /\ x === f(y))) ):
-    have    ( ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ x === f(y))) |- ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ x === f(y))) ) by Hypothesis
-    thenHave( ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ x === f(y))) |- ∀(x, x ∈ ε(t, ∀(x, x ∈ t <=> ∃(y, y ∈ s /\ x === f(y)))) <=> ∃(y, y ∈ s /\ x === f(y))) ) by RightEpsilon
-    thenHave( ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ x === f(y))) |- ∀(x, x ∈ s.map(f) <=> ∃(y, y ∈ s /\ x === f(y))) ) by Substitution.Apply(map.definition)
-    thenHave( ∃(y, ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ x === f(y)))) |- ∀(x, x ∈ s.map(f) <=> ∃(y, y ∈ s /\ x === f(y))) ) by LeftExists
+  val definition: THM = Theorem( ∀(x, x ∈ s.map(f) <=> ∃(y, y ∈ s /\ (x === f(y)))) ):
+    have    ( ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ (x === f(y)))) |- ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ (x === f(y)))) ) by Hypothesis
+    thenHave( ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ (x === f(y)))) |- ∀(x, x ∈ ε(t, ∀(x, x ∈ t <=> ∃(y, y ∈ s /\ (x === f(y))))) <=> ∃(y, y ∈ s /\ (x === f(y)))) ) by RightEpsilon
+    thenHave( ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ (x === f(y)))) |- ∀(x, x ∈ s.map(f) <=> ∃(y, y ∈ s /\ (x === f(y)))) ) by Substitution.Apply(map.definition)
+    thenHave( ∃(y, ∀(x, x ∈ y <=> ∃(y, y ∈ s /\ (x === f(y))))) |- ∀(x, x ∈ s.map(f) <=> ∃(y, y ∈ s /\ (x === f(y)))) ) by LeftExists
     have(thesis) by Cut(existence, lastStep)
 
   /**
@@ -58,12 +58,12 @@ object Replacement extends lisa.Main:
    * `x ∈ s ==> f(x) ∈ s.map(f)`
    */
   val unfolding: THM = Theorem( x ∈ s ==> f(x) ∈ s.map(f) ):
-    have(x ∈ s |- x ∈ s /\ f(x) === f(x)) by Restate
-    val cond = thenHave(x ∈ s |- ∃(y, y ∈ s /\ f(x) === f(y))) by RightExists
+    have(x ∈ s |- x ∈ s /\ (f(x) === f(x))) by Restate
+    val cond = thenHave(x ∈ s |- ∃(y, y ∈ s /\ (f(x) === f(y)))) by RightExists
 
     val inst = 
-      have(f(x) ∈ s.map(f) <=> ∃(y, y ∈ s /\ f(x) === f(y))) by InstantiateForall(f(x))(definition)
-      thenHave(∃(y, y ∈ s /\ f(x) === f(y)) |- f(x) ∈ s.map(f)) by Weakening
+      have(f(x) ∈ s.map(f) <=> ∃(y, y ∈ s /\ (f(x) === f(y)))) by InstantiateForall(f(x))(definition)
+      thenHave(∃(y, y ∈ s /\ (f(x) === f(y))) |- f(x) ∈ s.map(f)) by Weakening
 
     have(x ∈ s |- f(x) ∈ s.map(f)) by Cut(cond, inst)
 
