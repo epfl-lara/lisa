@@ -85,7 +85,7 @@ object Goeland extends ProofTactic with ProofSequentTactic {
 
     val backMap = freevars.map{
       case (x: K.Variable, xx: K.Variable) => xx -> x
-      case _ => throw new Exception("This should not happen")
+      case null => throw new Exception("This should not happen")
     }
     val r = problemToFile(foldername, filename, "question"+i, axioms, sequent, source)
     i += 1
