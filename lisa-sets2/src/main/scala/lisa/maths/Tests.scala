@@ -1,10 +1,8 @@
 package lisa.maths
-import lisa.automation.atp.Goeland
+import lisa.automation.atp.*
 import lisa.utils.KernelHelpers.checkProof
 import lisa.utils.tptp.*
-import java.io.*
-import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
-import lisa.kernel.proof.SCProofCheckerJudgement.SCValidProof
+
 
 object Tests extends lisa.Main {
   draft()
@@ -13,10 +11,18 @@ object Tests extends lisa.Main {
   val y = variable[Term]
   val z = variable[Term]
   val P = variable[Term >>: Formula]
+  val f = variable[Term >>: Term]
+  
 
-  val ppp = ProofParser.reconstructProof(new File("goeland/testEgg.p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
+  //val ppp = ProofParser.reconstructProof(new File("goeland/testEgg.p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
 
-  checkProof(ppp)
+  //checkProof(ppp)
+
+  val rule8 = Axiom(forall(x, x === f(f(f(f(f(f(f(f(x))))))))) )
+  val rule5 = Axiom(forall(x, x === f(f(f(f(f(x)))))) )
+
+  val saturation = Theorem(∅ === f(∅)):
+    have(thesis) by Egg.from(rule8, rule5)
 
   /*
   val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {

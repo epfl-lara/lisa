@@ -25,7 +25,8 @@ import sys.process._
 object Egg extends ProofTactic with ProofSequentTactic {
   private var i : Int = 0
   
-  val goelandExec = "../bin/egg-sc-tptp"
+  val eggExec_linux = "../bin/egg-sc-tptp"
+  val eggExec_windows = "..\\bin\\egg-sc-tptp.exe"
 
   class OsNotSupportedException(msg: String) extends Exception(msg)
   
@@ -91,12 +92,11 @@ object Egg extends ProofTactic with ProofSequentTactic {
     }
     val r = problemToFile(foldername, filename, "question"+i, axioms, sequent, source)
     i += 1
-
     if generateProofs then
       val OS = System.getProperty("os.name")
       if OS.contains("nix") || OS.contains("nux") || OS.contains("aix") then
-        val ret = s"chmod u+x \"$goelandExec\"".!
-        val cmd = (s"$goelandExec $foldername$filename.p $foldername$outputname.p") // TODO
+        val ret = s"chmod u+x \"$eggExec_linux\"".!
+        val cmd = (s"$eggExec_linux $foldername$filename.p $foldername$outputname.p") // TODO
         val res = try {
           cmd.!!
         } catch {
@@ -105,8 +105,16 @@ object Egg extends ProofTactic with ProofSequentTactic {
         }
         val proof = reconstructProof(new File(foldername+outputname+".p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
         Success(proof)
-      else if OS.contains("win") then
-        Failure(OsNotSupportedException("The Egg automated theorem prover is not yet supported on Windows."))
+      else if OS.contains("win") || OS.contains("Win") then
+        val cmd = (s"$eggExec_windows $foldername$filename.p $foldername$outputname.p --level1") // TODO
+        val res = try {
+          cmd.!!
+        } catch {
+          case e: Exception => 
+            throw e
+        }
+        val proof = reconstructProof(new File(foldername+outputname+".p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
+        Success(proof)
       else 
         Failure(OsNotSupportedException("The Egg automated theorem prover is only supported on Linux for now."))
     else 
