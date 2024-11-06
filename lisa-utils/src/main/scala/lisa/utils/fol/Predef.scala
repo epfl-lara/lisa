@@ -1,9 +1,10 @@
 package lisa.fol
 
 import lisa.utils.K
+import lisa.utils.fol.ExprOps
 import K.given
 
-trait Predef extends Syntax {
+trait Predef extends ExprOps {
 
   export K.{given_Conversion_String_Identifier, given_Conversion_Identifier_String}
   
