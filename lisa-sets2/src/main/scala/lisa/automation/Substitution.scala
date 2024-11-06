@@ -43,11 +43,11 @@ object Substitution:
         val erule = extractRule(rule)
         rule match
           case f: Expr[Formula] @unchecked =>
-            (source + (erule -> erule.source), ctx.withConfinedRule(erule).withBound(f.freeVars))
+            (source + (erule -> erule.source) + (erule.swap -> erule.source), ctx.withConfinedRule(erule).withConfinedRule(erule.swap))
           case j: lib.JUSTIFICATION =>
-            (source + (erule -> j), ctx.withFreeRule(erule))
+            (source + (erule -> j) + (erule.swap -> j), ctx.withFreeRule(erule).withFreeRule(erule.swap))
           case f: proof.Fact @unchecked =>
-            (source + (erule -> f), ctx.withConfinedRule(erule))
+            (source + (erule -> f) + (erule.swap -> f), ctx.withConfinedRule(erule).withConfinedRule(erule.swap))
 
   /**
    * Checks if a raw substitution input can be used as a rewrite rule (is === or
