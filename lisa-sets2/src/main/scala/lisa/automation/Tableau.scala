@@ -149,7 +149,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
   }
   object Branch {
-    def empty =                       Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, 1, Map.empty, Variable(Identifier("§uv", 0), Term))
+    def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, 1, Map.empty, Variable(Identifier("§uv", 0), Term))
     def empty(n: Int, uv: Variable) = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, n, Map.empty, uv)
     def prettyIte(l: Iterable[Expression], head: String): String = l match
       case Nil => "Nil"
@@ -286,7 +286,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         case c: Constant => 40
         case Application(f, a) => 100 + termPenalty(f) + termPenalty(a)
         case Lambda(v, inner) => 100 + termPenalty(inner)
-      1*variablePenalty + 1*termPenalty(t)
+      1 * variablePenalty + 1 * termPenalty(t)
     }
     subst.map((v, t) => pairPenalty(v, t)).sum
   }
@@ -310,8 +310,8 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
   def beta(branch: Branch): List[(Branch, Expression)] = {
     val f = branch.beta.head
     val b1 = branch.copy(beta = branch.beta.tail)
-    f match 
-      case Or(l, r) => 
+    f match
+      case Or(l, r) =>
         List((b1.prepended(l), l), (b1.prepended(r), r))
       case _ => throw Exception("Error: First formula of beta is not an Or")
   }
@@ -323,7 +323,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    */
   def delta(branch: Branch): (Branch, Variable, Expression) = {
     val f = branch.delta.head
-    f match 
+    f match
       case Exists(v, body) =>
         if branch.skolemized.contains(v) then
           val newV = Variable(Identifier(v.id.name, branch.maxIndex), Term)
@@ -358,8 +358,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         )
         (b1.prepended(ni), nb, ni)
       case _ => throw Exception("Error: First formula of gamma is not a Forall")
-    
-    
+
   }
 
   /**
@@ -399,8 +398,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       val rec = alpha(branch)
       decide(rec).map((proof, step) =>
         branch.alpha.head match
-          case Application(Application(and, left), right) => 
-        
+          case Application(Application(and, left), right) =>
             if proof.head.bot.left.contains(left) || proof.head.bot.left.contains(right) then
               val sequent = proof.head.bot.copy(left = (proof.head.bot.left - left - right) + branch.alpha.head)
               (Weakening(sequent, proof.size - 1) :: proof, step + 1)

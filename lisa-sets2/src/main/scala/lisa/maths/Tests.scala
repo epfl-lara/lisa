@@ -15,14 +15,12 @@ object Tests extends lisa.Main {
   val P = variable[Term >>: Formula]
 
   val ppp = ProofParser.reconstructProof(new File("goeland/testEgg.p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
-  
+
   checkProof(ppp)
-  
-  
 
   /*
   val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
     have(thesis) by Goeland // ("goeland/Example.buveurs2_sol")
   }
-    */
+   */
 }

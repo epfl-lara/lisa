@@ -5,7 +5,7 @@ package lisa.maths.settheory
  * We can make a better presentation and organisation of theorems, better automation, uniform comments/latex tags, etc.
  */
 object SetTheory2 extends lisa.Main {
-  //import lisa.maths.settheory.SetTheory.*
+  // import lisa.maths.settheory.SetTheory.*
   // import Comprehensions.*
 
   /*
@@ -105,5 +105,5 @@ object SetTheory2 extends lisa.Main {
 
     have(thesis) by Tautology.from(s1, s2)
   }
-*/
+   */
 }

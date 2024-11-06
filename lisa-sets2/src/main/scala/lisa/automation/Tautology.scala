@@ -127,46 +127,42 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
     val redF = reducedForm(s.formula)
     if (redF == top()) {
       List(RestateTrue(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- s.formula))
-    } else 
+    } else
       val bestAtom = findBestAtom(redF)
       if (bestAtom.isEmpty) {
-      assert(redF == bot()) // sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
-      val res = s.decisions._1 |- redF :: s.decisions._2 // the branch that can't be closed
-      throw new NoProofFoundException(res)
-    } else {
-      val atom = bestAtom.get
-      val optLambda = findSubformula(redF, MaRvIn, atom)
-      if (optLambda.isEmpty) return solveAugSequent(AugSequent(s.decisions, redF), offset)
-      val lambdaF = optLambda.get
+        assert(redF == bot()) // sanity check; If the formula has no atom left in it and is reduced, it should be either ⊤ or ⊥.
+        val res = s.decisions._1 |- redF :: s.decisions._2 // the branch that can't be closed
+        throw new NoProofFoundException(res)
+      } else {
+        val atom = bestAtom.get
+        val optLambda = findSubformula(redF, MaRvIn, atom)
+        if (optLambda.isEmpty) return solveAugSequent(AugSequent(s.decisions, redF), offset)
+        val lambdaF = optLambda.get
 
-      val seq1 = AugSequent((atom :: s.decisions._1, s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> top)))
-      val proof1 = solveAugSequent(seq1, offset)
-      val subst1 = RightSubstIff(
-        atom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
-        offset + proof1.length - 1,
-        Seq((atom, top)),
-        (Seq(MaRvIn), lambdaF)
-      )
-      val negatom = neg(atom)
-      val seq2 = AugSequent((negatom :: s.decisions._1, s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> bot)))
-      val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
-      val subst2 = RightSubstIff(
-        negatom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
-        offset + proof1.length + proof2.length + 1 - 1,
-        Seq((atom, bot)),
-        (Seq(MaRvIn), lambdaF)
-      )
-      val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
-      val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
-      val redStep = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- s.formula, offset + proof1.length + proof2.length + 4 - 1)
-      redStep :: cutStep :: red2 :: subst2 :: proof2 ++ (subst1 :: proof1)
+        val seq1 = AugSequent((atom :: s.decisions._1, s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> top)))
+        val proof1 = solveAugSequent(seq1, offset)
+        val subst1 = RightSubstIff(
+          atom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
+          offset + proof1.length - 1,
+          Seq((atom, top)),
+          (Seq(MaRvIn), lambdaF)
+        )
+        val negatom = neg(atom)
+        val seq2 = AugSequent((negatom :: s.decisions._1, s.decisions._2), substituteVariables(lambdaF, Map(MaRvIn -> bot)))
+        val proof2 = solveAugSequent(seq2, offset + proof1.length + 1)
+        val subst2 = RightSubstIff(
+          negatom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
+          offset + proof1.length + proof2.length + 1 - 1,
+          Seq((atom, bot)),
+          (Seq(MaRvIn), lambdaF)
+        )
+        val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
+        val cutStep = Cut(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF, offset + proof1.length + proof2.length + 3 - 1, offset + proof1.length + 1 - 1, atom)
+        val redStep = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- s.formula, offset + proof1.length + proof2.length + 4 - 1)
+        redStep :: cutStep :: red2 :: subst2 :: proof2 ++ (subst1 :: proof1)
 
-    }
+      }
   }
-
-
-
-
 
   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
@@ -193,7 +189,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
           }
         case _ => (outer, false)
       }
-      //assert(res._1.sort == f.sort, s"Sort mismatch in findSubformula2. ${res._1.repr} : ${res._1.sort} != ${f.repr} : ${f.sort}")
+      // assert(res._1.sort == f.sort, s"Sort mismatch in findSubformula2. ${res._1.repr} : ${res._1.sort} != ${f.repr} : ${f.sort}")
       res
   }
 

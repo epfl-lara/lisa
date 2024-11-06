@@ -9,21 +9,26 @@ object UnorderedPair extends lisa.Main:
   private val P = variable[Term >>: Formula]
   private val Q = variable[Term >>: Term >>: Formula]
 
-  /** Unordered pair of sets */
+  /**
+   * Unordered pair of sets
+   */
   val upair = unorderedPair
-  /** Unordered pair of sets */
+
+  /**
+   * Unordered pair of sets
+   */
   val <> = upair
 
   extension (t: Expr[Term])
     /**
-      * Infix notation for an unordered pair.
-      */
-    infix def <> (s: Expr[Term]) = upair(t)(s)
+     * Infix notation for an unordered pair.
+     */
+    infix def <>(s: Expr[Term]) = upair(t)(s)
 
-  val firstMember = Theorem( x ∈ (x <> y) ):
+  val firstMember = Theorem(x ∈ (x <> y)):
     have(thesis) by Tautology.from(<>.definition of (z := x))
-  
-  val secondMember = Theorem( y ∈ (x <> y) ):
+
+  val secondMember = Theorem(y ∈ (x <> y)):
     have(thesis) by Tautology.from(<>.definition of (z := y))
 
   // val symmetry = Theorem( (x <> y) === (y <> x) ):
