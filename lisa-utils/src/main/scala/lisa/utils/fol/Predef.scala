@@ -7,15 +7,15 @@ trait Predef extends Syntax {
 
   export K.{given_Conversion_String_Identifier, given_Conversion_Identifier_String}
   
-  def variable[S](using IsSort[SortOf[S]])(id: K.Identifier): Variable[SortOf[S]] = new Variable(id)
-  def constant[S](using IsSort[SortOf[S]])(id: K.Identifier): Constant[SortOf[S]] = new Constant(id)
-  def binder[S1, S2, S3](using IsSort[SortOf[S1]], IsSort[SortOf[S2]], IsSort[SortOf[S3]])
-            (id: K.Identifier): Binder[SortOf[S1], SortOf[S2], SortOf[S3]] = new Binder(id)
+  def variable[S](using IsSort[S])(id: K.Identifier): Variable[S] = new Variable(id)
+  def constant[S](using IsSort[S])(id: K.Identifier): Constant[S] = new Constant(id)
+  def binder[S1, S2, S3](using IsSort[S1], IsSort[S2], IsSort[S3])
+            (id: K.Identifier): Binder[S1, S2, S3] = new Binder(id)
 
-  def variable[S](using name: sourcecode.Name, is: IsSort[SortOf[S]]): Variable[SortOf[S]] = new Variable(name.value)
-  def constant[S](using name: sourcecode.Name, is: IsSort[SortOf[S]]): Constant[SortOf[S]] = new Constant(name.value)
+  def variable[S](using name: sourcecode.Name, is: IsSort[S]): Variable[S] = new Variable(name.value)
+  def constant[S](using name: sourcecode.Name, is: IsSort[S]): Constant[S] = new Constant(name.value)
   def binder[S1, S2, S3](using name: sourcecode.Name)
-            (using IsSort[SortOf[S1]], IsSort[SortOf[S2]], IsSort[SortOf[S3]]): Binder[SortOf[S1], SortOf[S2], SortOf[S3]] = new Binder(name.value)
+            (using IsSort[S1], IsSort[S2], IsSort[S3]): Binder[S1, S2, S3] = new Binder(name.value)
 
   def variable(id: K.Identifier, s: K.Sort): Variable[?] = Variable.unsafe(id, s)
   def constant(id: K.Identifier, s: K.Sort): Constant[?] = Constant.unsafe(id, s)
@@ -28,9 +28,9 @@ trait Predef extends Syntax {
   val === = equality
   val ＝ = equality
 
-  extension (t: Term) {
-    infix def ===(u: Term): Formula = equality(t)(u)
-    infix def ＝(u: Term): Formula = equality(t)(u)
+  extension (t: Expr[Term]) {
+    infix def ===(u: Expr[Term]): Expr[Formula] = equality(t)(u)
+    infix def ＝(u: Expr[Term]): Expr[Formula] = equality(t)(u)
   }
 
   val top = constant[Formula]("⊤")
@@ -69,20 +69,20 @@ trait Predef extends Syntax {
   val epsilon = binder[Term, Formula, Term]("ε")
   val ε : epsilon.type = epsilon
 
-  extension (f: Formula) {
+  extension (f: Expr[Formula]) {
     def unary_! = neg(f)
-    infix inline def ==>(g: Formula): Formula = implies(f)(g)
-    infix inline def <=>(g: Formula): Formula = iff(f)(g)
-    infix inline def /\(g: Formula): Formula = and(f)(g)
-    infix inline def ∧(g: Formula): Formula = and(f)(g)
-    infix inline def \/(g: Formula): Formula = or(f)(g)
-    infix inline def ∨(g: Formula): Formula = or(f)(g)
+    infix inline def ==>(g: Expr[Formula]): Expr[Formula] = implies(f)(g)
+    infix inline def <=>(g: Expr[Formula]): Expr[Formula] = iff(f)(g)
+    infix inline def /\(g: Expr[Formula]): Expr[Formula] = and(f)(g)
+    infix inline def ∧(g: Expr[Formula]): Expr[Formula] = and(f)(g)
+    infix inline def \/(g: Expr[Formula]): Expr[Formula] = or(f)(g)
+    infix inline def ∨(g: Expr[Formula]): Expr[Formula] = or(f)(g)
   }
 
-  inline def andAll(forms: IterableOnce[Formula]): Formula =
+  inline def andAll(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
     forms.iterator.reduce(_ /\ _)
 
-  inline def orAll(forms: IterableOnce[Formula]): Formula =
+  inline def orAll(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
     forms.iterator.reduce(_ \/ _)
 
   def asFrontExpression(e: K.Expression): Expr[?] = e match
@@ -92,10 +92,10 @@ trait Predef extends Syntax {
     case l: K.Lambda => asFrontLambda(l)
 
   def asFrontConstant(c: K.Constant): Constant[?] = 
-    new Constant[T](c.id)(using unsafeSortEvidence(c.sort))
+    new Constant[Term](c.id)(using unsafeSortEvidence(c.sort))
 
   def asFrontVariable(v: K.Variable): Variable[?] =
-    new Variable[T](v.id)(using unsafeSortEvidence(v.sort))
+    new Variable[Term](v.id)(using unsafeSortEvidence(v.sort))
   
   def asFrontApplication(a: K.Application): App[?, ?] = 
     new App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))
@@ -144,14 +144,14 @@ trait Predef extends Syntax {
       if s.isPredicate then Some(K.flatTypeParameters(s)) else None
 
   
-  def makeEq(s: Expr[?], t: Expr[?]): Formula = 
+  def makeEq(s: Expr[?], t: Expr[?]): Expr[Formula] = 
     if s.sort != t.sort || !(s.sort.isFunctional || s.sort.isPredicate) then throw new IllegalArgumentException("Can only make equality between predicate and functional expressions")
     val no = ((s.freeVars ++ t.freeVars).view.map(_.id.no) ++ Seq(-1)).max+1
     val vars = (no until no+s.sort.depth).map(i => variable[Term](K.Identifier("x", i)))
     val inner1 = vars.foldLeft(s)(_ #@ _)
     val inner2 = vars.foldLeft(t)(_ #@ _)
     val base = if (inner1.sort == K.Formula) iff #@ inner1 #@ inner2 else equality #@ inner1 #@ inner2
-    vars.foldRight(base : Formula) { case (s_arg, acc) => forall(s_arg, acc) }
+    vars.foldRight(base : Expr[Formula]) { case (s_arg, acc) => forall(s_arg, acc) }
 
 
 

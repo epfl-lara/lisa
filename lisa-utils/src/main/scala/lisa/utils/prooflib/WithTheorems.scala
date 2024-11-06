@@ -24,7 +24,7 @@ trait WithTheorems {
    *
    * @param assump list of starting assumptions, usually propagated from outer proofs.
    */
-  sealed abstract class Proof(assump: List[F.Formula]) {
+  sealed abstract class Proof(assump: List[F.Expr[F.Formula]]) {
     
     val possibleGoal: Option[F.Sequent]
     type SelfType = this.type
@@ -39,12 +39,12 @@ trait WithTheorems {
      */
     case class InstantiatedFact(
         fact: Fact,
-        insts: Seq[F.SubstPair | F.Term]
+        insts: Seq[F.SubstPair | F.Expr[F.Term]]
     ) {
       val baseFormula: F.Sequent = sequentOfFact(fact)
       val (result, proof) = {
         val (terms, substPairs) = insts.partitionMap {e =>
-          if e.isInstanceOf[F.Expr[?]] then Left(e.asInstanceOf[F.Term])
+          if e.isInstanceOf[F.Expr[?]] then Left(e.asInstanceOf[F.Expr[F.Term]])
           else Right(e.asInstanceOf[F.SubstPair])
         }
 
@@ -60,8 +60,8 @@ trait WithTheorems {
     private var steps: List[ProofStep] = Nil
     private var imports: List[(OutsideFact, F.Sequent)] = Nil
     private var instantiatedFacts: List[(InstantiatedFact, Int)] = Nil
-    private var assumptions: List[F.Formula] = assump
-    private var eliminations: List[(F.Formula, (Int, F.Sequent) => List[K.SCProofStep])] = Nil
+    private var assumptions: List[F.Expr[F.Formula]] = assump
+    private var eliminations: List[(F.Expr[F.Formula], (Int, F.Sequent) => List[K.SCProofStep])] = Nil
 
     def cleanAssumptions: Unit = assumptions = Nil
 
@@ -126,11 +126,11 @@ trait WithTheorems {
      *
      * @param f
      */
-    def addAssumption(f: F.Formula): Unit = {
+    def addAssumption(f: F.Expr[F.Formula]): Unit = {
       if (!assumptions.contains(f)) assumptions = f :: assumptions
     }
 
-    def addElimination(f: F.Formula, elim: (Int, F.Sequent) => List[K.SCProofStep]): Unit = {
+    def addElimination(f: F.Expr[F.Formula], elim: (Int, F.Sequent) => List[K.SCProofStep]): Unit = {
       eliminations = (f, elim) :: eliminations
     }
 
@@ -164,7 +164,7 @@ trait WithTheorems {
     /**
      * @return The list of formulas that are assumed for the reminder of the proof.
      */
-    def getAssumptions: List[F.Formula] = assumptions
+    def getAssumptions: List[F.Expr[F.Formula]] = assumptions
 
     /**
      * Produce the low level [[K.SCProof]] corresponding to the proof. Automatically eliminates any formula in the discharges that is still left of the sequent.
@@ -400,7 +400,7 @@ trait WithTheorems {
   /**
    * A Justification, corresponding to [[K.Axiom]]
    */
-  class AXIOM(innerAxiom: theory.Axiom, val axiom: F.Formula, val fullName: String) extends JUSTIFICATION {
+  class AXIOM(innerAxiom: theory.Axiom, val axiom: F.Expr[F.Formula], val fullName: String) extends JUSTIFICATION {
     def innerJustification: theory.Axiom = innerAxiom
     val statement: F.Sequent = F.Sequent(Set(), Set(axiom))
     if (statement.underlying != theory.sequentFromJustification(innerAxiom)) {
@@ -416,7 +416,7 @@ trait WithTheorems {
    * @param axiom The axiomatized formula.
    * @return
    */
-  def Axiom(using fullName: sourcecode.FullName)(axiom: F.Formula): AXIOM = {
+  def Axiom(using fullName: sourcecode.FullName)(axiom: F.Expr[F.Formula]): AXIOM = {
     val ax: Option[theory.Axiom] = theory.addAxiom(fullName.value, axiom.underlying)
     ax match {
       case None => throw new InvalidAxiomException("Not all symbols belong to the theory", fullName.value, axiom, library)

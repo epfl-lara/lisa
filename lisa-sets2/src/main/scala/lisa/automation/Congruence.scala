@@ -80,7 +80,7 @@ object Congruence  extends ProofTactic with ProofSequentTactic {
       bot.right.exists{ 
         case lf2 @ neg #@ (lf) if egraph.idEq(lf, rf)=>
           val base = have((bot.left) |- (bot.right + !rf) ) by Restate
-          val eq = have(egraph.proveExpr[F](lf.asInstanceOf, rf, bot))
+          val eq = have(egraph.proveExpr[Formula](lf.asInstanceOf, rf, bot))
           val a = variable[Formula]
           have((bot.left + makeEq(lf, rf)) |- (bot.right) ) by RightSubstEq.withParameters(Seq((lf, rf)), (Seq(a), !a))(base)
           have(bot) by Cut(eq, lastStep)
@@ -309,10 +309,10 @@ class EGraphExpr() {
       mapSigs(canSig(node)) = node
     node  
 
-  def addAll(nodes: Iterable[Term|Formula]): Unit = 
+  def addAll(nodes: Iterable[Expr[Term]|Expr[Formula]]): Unit = 
     nodes.foreach{ e => (e: @unchecked) match
-      case node: Term if node.sort == K.Term => add(node)
-      case node: Formula if node.sort == K.Formula => add(node)
+      case node: Expr[Term] if node.sort == K.Term => add(node)
+      case node: Expr[Formula] if node.sort == K.Formula => add(node)
       case _ => ()
     }
     
@@ -398,7 +398,7 @@ class EGraphExpr() {
                   var zip = List[(Expr[?], Expr[?])]()
                   var children = List[Expr[?]]()
                   var vars = List[Variable[?]]()
-                  var steps = List[(Formula, sp.ProofStep)]()
+                  var steps = List[(Expr[Formula], sp.ProofStep)]()
                   ziped.reverse.foreach { (al, ar) =>
                     if al == ar then children = al :: children
                     else {

@@ -47,8 +47,8 @@ object Serialization {
       case Formula => "F"
       case Arrow(from, to) => s">${typeToString(from)}${typeToString(to)}"
   
-  def constantToSting(c: Constant): String = "cst_" + c.id.name + "_" + c.id.no + "_" + typeToString(c.sort)
-  def variableToSting(v: Variable): String = "var_" + v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)
+  def constantToString(c: Constant): String = "cst_" + c.id.name + "_" + c.id.no + "_" + typeToString(c.sort)
+  def variableToString(v: Variable): String = "var_" + v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)
 
   def constantToDos(c: Constant, dos: DataOutputStream): Unit =
     dos.writeByte(0)

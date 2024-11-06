@@ -14,7 +14,7 @@ object Singleton extends lisa.Main:
 
   val singleton = DEF ( lambda(x, x <> x) )
 
-  extension (t: Term)
+  extension (t: Expr[Term])
     /**
       * Prefix notation for singleton set
       */

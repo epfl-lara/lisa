@@ -16,10 +16,10 @@ object Replacement extends lisa.Main:
 
   val map = DEF ( lambda(t, lambda(f, ε(s, ∀(x, (x ∈ s) <=> ∃(y, y ∈ t /\ (y === f(x))))))) )
 
-  val replacement: map.type = map
+  private val replacement: map.type = map
 
-  extension (t: Term)
-    def map(function: Term >>: Term): Term =
+  extension (t: Expr[Term])
+    def map(function: Expr[Term >>: Term]): Expr[Term] =
       replacement(t)(function)
 
   /**
@@ -56,7 +56,7 @@ object Replacement extends lisa.Main:
    * 
    * `x ∈ s ==> f(x) ∈ s.map(f)`
    */
-  val unfolding: THM = Theorem( x ∈ s ==> f(x) ∈ s.map(f) ):
+  val unfolding = Theorem( x ∈ s ==> f(x) ∈ s.map(f) ):
     have(x ∈ s |- x ∈ s /\ (f(x) === f(x))) by Restate
     val cond = thenHave(x ∈ s |- ∃(y, y ∈ s /\ (f(x) === f(y)))) by RightExists
 

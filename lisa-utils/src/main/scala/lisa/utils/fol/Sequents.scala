@@ -14,7 +14,7 @@ trait Sequents extends Predef {
   object SequentInstantiationRule extends ProofTactic
   given ProofTactic = SequentInstantiationRule
 
-  case class Sequent(left: Set[Formula], right: Set[Formula]) extends LisaObject{
+  case class Sequent(left: Set[Expr[Formula]], right: Set[Expr[Formula]]) extends LisaObject{
     def underlying: lisa.kernel.proof.SequentCalculus.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
 
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Sequent = Sequent(left.map(_.substituteUnsafe(m)), right.map(_.substituteUnsafe(m)))
@@ -24,7 +24,7 @@ trait Sequents extends Predef {
       super.substitute(pairs*).asInstanceOf[Sequent]
 
     def freeVars: Set[Variable[?]] = left.flatMap(_.freeVars) ++ right.flatMap(_.freeVars)
-    def freeTermVars: Set[Variable[T]] = left.flatMap(_.freeTermVars) ++ right.flatMap(_.freeTermVars)
+    def freeTermVars: Set[Variable[Term]] = left.flatMap(_.freeTermVars) ++ right.flatMap(_.freeTermVars)
     def constants: Set[Constant[?]] = left.flatMap(_.constants) ++ right.flatMap(_.constants)
 
 
@@ -45,12 +45,12 @@ trait Sequents extends Predef {
 
     }
 
-    def instantiateForallWithProof(args: Seq[Term], index: Int): (Sequent, Seq[K.SCProofStep]) = {
+    def instantiateForallWithProof(args: Seq[Expr[Term]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
       if this.right.size != 1 then throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula")
       this.right.head match {
-        case r @ App(forall, Abs(x: Variable[T], f: Formula)) =>
+        case r @ App(forall, Abs(x: Variable[Term], f: Expr[Formula])) =>
           val t = args.head
-          val newf: Formula = f.substitute(x := t)
+          val newf = f.substitute(x := t)
           val s0 = K.Hypothesis((newf |- newf).underlying, newf.underlying)
           val s1 = K.LeftForall((r |- newf).underlying, index + 1, f.underlying, x.underlying, t.underlying)
           val s2 = K.Cut((this.left |- newf).underlying, index, index + 2, r.underlying)
@@ -85,10 +85,10 @@ trait Sequents extends Predef {
     }
 
 
-    infix def +<<(f: Formula): Sequent = this.copy(left = this.left + f)
-    infix def -<<(f: Formula): Sequent = this.copy(left = this.left - f)
-    infix def +>>(f: Formula): Sequent = this.copy(right = this.right + f)
-    infix def ->>(f: Formula): Sequent = this.copy(right = this.right - f)
+    infix def +<<(f: Expr[Formula]): Sequent = this.copy(left = this.left + f)
+    infix def -<<(f: Expr[Formula]): Sequent = this.copy(left = this.left - f)
+    infix def +>>(f: Expr[Formula]): Sequent = this.copy(right = this.right + f)
+    infix def ->>(f: Expr[Formula]): Sequent = this.copy(right = this.right - f)
     infix def ++<<(s1: Sequent): Sequent = this.copy(left = this.left ++ s1.left)
     infix def --<<(s1: Sequent): Sequent = this.copy(left = this.left -- s1.left)
     infix def ++>>(s1: Sequent): Sequent = this.copy(right = this.right ++ s1.right)
@@ -96,27 +96,27 @@ trait Sequents extends Predef {
     infix def ++(s1: Sequent): Sequent = this.copy(left = this.left ++ s1.left, right = this.right ++ s1.right)
     infix def --(s1: Sequent): Sequent = this.copy(left = this.left -- s1.left, right = this.right -- s1.right)
 
-    infix def removeLeft(f: Formula): Sequent = this.copy(left = this.left.filterNot(isSame(_, f)))
-    infix def removeRight(f: Formula): Sequent = this.copy(right = this.right.filterNot(isSame(_, f)))
+    infix def removeLeft(f: Expr[Formula]): Sequent = this.copy(left = this.left.filterNot(isSame(_, f)))
+    infix def removeRight(f: Expr[Formula]): Sequent = this.copy(right = this.right.filterNot(isSame(_, f)))
     infix def removeAllLeft(s1: Sequent): Sequent = this.copy(left = this.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))))
-    infix def removeAllLeft(s1: Set[Formula]): Sequent = this.copy(left = this.left.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
+    infix def removeAllLeft(s1: Set[Expr[Formula]]): Sequent = this.copy(left = this.left.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
     infix def removeAllRight(s1: Sequent): Sequent = this.copy(right = this.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
-    infix def removeAllRight(s1: Set[Formula]): Sequent = this.copy(right = this.right.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
+    infix def removeAllRight(s1: Set[Expr[Formula]]): Sequent = this.copy(right = this.right.filterNot(e1 => s1.exists(e2 => isSame(e1, e2))))
     infix def removeAll(s1: Sequent): Sequent =
       this.copy(left = this.left.filterNot(e1 => s1.left.exists(e2 => isSame(e1, e2))), right = this.right.filterNot(e1 => s1.right.exists(e2 => isSame(e1, e2))))
 
-    infix def addLeftIfNotExists(f: Formula): Sequent = if (this.left.exists(isSame(_, f))) this else (this +<< f)
-    infix def addRightIfNotExists(f: Formula): Sequent = if (this.right.exists(isSame(_, f))) this else (this +>> f)
+    infix def addLeftIfNotExists(f: Expr[Formula]): Sequent = if (this.left.exists(isSame(_, f))) this else (this +<< f)
+    infix def addRightIfNotExists(f: Expr[Formula]): Sequent = if (this.right.exists(isSame(_, f))) this else (this +>> f)
     infix def addAllLeftIfNotExists(s1: Sequent): Sequent = this ++<< s1.copy(left = s1.left.filterNot(e1 => this.left.exists(isSame(_, e1))))
     infix def addAllRightIfNotExists(s1: Sequent): Sequent = this ++>> s1.copy(right = s1.right.filterNot(e1 => this.right.exists(isSame(_, e1))))
     infix def addAllIfNotExists(s1: Sequent): Sequent =
       this ++ s1.copy(left = s1.left.filterNot(e1 => this.left.exists(isSame(_, e1))), right = s1.right.filterNot(e1 => this.right.exists(isSame(_, e1))))
 
     // OL shorthands
-    infix def +<?(f: Formula): Sequent = this addLeftIfNotExists f
-    infix def -<?(f: Formula): Sequent = this removeLeft f
-    infix def +>?(f: Formula): Sequent = this addRightIfNotExists f
-    infix def ->?(f: Formula): Sequent = this removeRight f
+    infix def +<?(f: Expr[Formula]): Sequent = this addLeftIfNotExists f
+    infix def -<?(f: Expr[Formula]): Sequent = this removeLeft f
+    infix def +>?(f: Expr[Formula]): Sequent = this addRightIfNotExists f
+    infix def ->?(f: Expr[Formula]): Sequent = this removeRight f
     infix def ++<?(s1: Sequent): Sequent = this addAllLeftIfNotExists s1
     infix def --<?(s1: Sequent): Sequent = this removeAllLeft s1
     infix def ++>?(s1: Sequent): Sequent = this addAllRightIfNotExists s1
@@ -133,7 +133,7 @@ trait Sequents extends Predef {
 
   val emptySeq: Sequent = Sequent(Set.empty, Set.empty)
 
-  given Conversion[Formula, Sequent] = f => Sequent(Set.empty, Set(f))
+  given Conversion[Expr[Formula], Sequent] = f => Sequent(Set.empty, Set(f))
 
   def isSame(e1: Expr[?], e2: Expr[?]): Boolean = {
     e1.sort == e2.sort && K.isSame(e1.underlying, e2.underlying)
@@ -146,7 +146,7 @@ trait Sequents extends Predef {
   /**
    * returns true if the first argument implies the second by the laws of ortholattices.
    */
-  def isImplying[S: Sort](e1: Formula, e2: Formula): Boolean = {
+  def isImplying[S: Sort](e1: Expr[Formula], e2: Expr[Formula]): Boolean = {
     K.isImplying(e1.underlying, e2.underlying)
   }
   def isImplyingSequent(sequent1: Sequent, sequent2: Sequent): Boolean = {
@@ -169,30 +169,30 @@ trait Sequents extends Predef {
    * @tparam T The type to convert from
    */
   trait FormulaSetConverter[T] {
-    def apply(t: T): Set[Formula]
+    def apply(t: T): Set[Expr[Formula]]
   }
 
   given FormulaSetConverter[Unit] with {
-    override def apply(u: Unit): Set[Formula] = Set.empty
+    override def apply(u: Unit): Set[Expr[Formula]] = Set.empty
   }
 
   given FormulaSetConverter[EmptyTuple] with {
-    override def apply(t: EmptyTuple): Set[Formula] = Set.empty
+    override def apply(t: EmptyTuple): Set[Expr[Formula]] = Set.empty
   }
 
-  given [H <: Formula, T <: Tuple](using c: FormulaSetConverter[T]): FormulaSetConverter[H *: T] with {
-    override def apply(t: H *: T): Set[Formula] = c.apply(t.tail) + t.head
+  given [H <: Expr[Formula], T <: Tuple](using c: FormulaSetConverter[T]): FormulaSetConverter[H *: T] with {
+    override def apply(t: H *: T): Set[Expr[Formula]] = c.apply(t.tail) + t.head
   }
 
-  given formula_to_set[T <: Formula]: FormulaSetConverter[T] with {
-    override def apply(f: T): Set[Formula] = Set(f)
+  given formula_to_set[T <: Expr[Formula]]: FormulaSetConverter[T] with {
+    override def apply(f: T): Set[Expr[Formula]] = Set(f)
   }
 
-  given iterable_to_set[T <: Formula, I <: Iterable[T]]: FormulaSetConverter[I] with {
-    override def apply(s: I): Set[Formula] = s.toSet
+  given iterable_to_set[T <: Expr[Formula], I <: Iterable[T]]: FormulaSetConverter[I] with {
+    override def apply(s: I): Set[Expr[Formula]] = s.toSet
   }
 
-  private def any2set[A, T <: A](any: T)(using c: FormulaSetConverter[T]): Set[Formula] = c.apply(any)
+  private def any2set[A, T <: A](any: T)(using c: FormulaSetConverter[T]): Set[Expr[Formula]] = c.apply(any)
 
   extension [A, T1 <: A](left: T1)(using FormulaSetConverter[T1]) {
     infix def |-[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))

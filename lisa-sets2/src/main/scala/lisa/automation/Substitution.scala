@@ -26,11 +26,11 @@ object Substitution:
    */
   def extractRule
     (using lib: Library, proof: lib.Proof)
-    (rule: proof.Fact | F.Formula): RewriteRule =
+    (rule: proof.Fact | Expr[Formula]): RewriteRule =
       rule match
-        case f: Formula @unchecked => (f: @unchecked) match
-          case === #@ (l: Term) #@ (r: Term) => TermRewriteRule(l, r)
-          case <=> #@ (l: Formula) #@ (r: Formula) => FormulaRewriteRule(l, r)
+        case f: Expr[Formula] @unchecked => (f: @unchecked) match
+          case === #@ (l: Expr[Term]) #@ (r: Expr[Term]) => TermRewriteRule(l, r)
+          case <=> #@ (l: Expr[Formula]) #@ (r: Expr[Formula]) => FormulaRewriteRule(l, r)
         case f: proof.Fact @unchecked => extractRule(proof.getSequent(f).right.head)
 
   /**
@@ -40,12 +40,12 @@ object Substitution:
    */
   def partition
     (using lib: Library, proof: lib.Proof)
-    (substitutions: Seq[proof.Fact | F.Formula]): (Map[RewriteRule, proof.Fact], RewriteContext) =
+    (substitutions: Seq[proof.Fact | Expr[Formula]]): (Map[RewriteRule, proof.Fact], RewriteContext) =
       substitutions.foldLeft((Map.empty, RewriteContext.empty)):
         case ((source, ctx), rule) =>
           val erule = extractRule(rule)
           rule match
-            case f: Formula @unchecked => 
+            case f: Expr[Formula] @unchecked => 
               (source + (erule -> erule.source), ctx.withConfinedRule(erule).withBound(f.freeVars))
             case j: lib.JUSTIFICATION =>
               (source + (erule -> j), ctx.withFreeRule(erule))
@@ -58,10 +58,10 @@ object Substitution:
    */ 
   def validSubstitutionRule
     (using lib: lisa.prooflib.Library, proof: lib.Proof)
-    (rule: (proof.Fact | F.Formula)): Boolean =
+    (rule: (proof.Fact | Expr[Formula])): Boolean =
       rule match
         // as formula
-        case f: Formula @unchecked => f match
+        case f: Expr[Formula] @unchecked => f match
           case === #@ l #@ r => true
           case <=> #@ l #@ r => true
           case _ => false
@@ -73,7 +73,7 @@ object Substitution:
   object Apply extends ProofTactic:
     def apply
       (using lib: Library, proof: lib.Proof)
-      (substitutions: (proof.Fact | F.Formula)*)
+      (substitutions: (proof.Fact | Expr[Formula])*)
       (premiseStep: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
 
         // are all substitution rules actually valid?
@@ -83,7 +83,7 @@ object Substitution:
           case f: proof.Fact @unchecked if !validSubstitutionRule(f) => proof.getSequent(f)
 
         val violatingFormulas = substitutions.collect:
-          case f: F.Formula @unchecked  if !validSubstitutionRule(f) => f
+          case f: Expr[Formula] @unchecked  if !validSubstitutionRule(f) => f
 
         if violatingFacts.nonEmpty then
           val msgBase = "Substitution rules must have a single equality or equivalence on the right-hand side. Violating sequents passed:\n"
@@ -127,7 +127,7 @@ object Substitution:
           // formula set to another where a formula maps to another by the
           // rewrites above
           inline def collectRewritingPairs
-            (base: Set[Formula], target: Set[Formula]): Option[Seq[FormulaRewriteResult]] =
+            (base: Set[Expr[Formula]], target: Set[Expr[Formula]]): Option[Seq[FormulaRewriteResult]] =
               base.iterator.map: formula =>
                 target.collectFirstDefined: target =>
                   rewrite(using ctx)(formula, target)
@@ -137,7 +137,7 @@ object Substitution:
           // in `target`. Guaranteed to be non-empty if
           // `collectRewritingPairs(base, target)` is None.
           inline def collectViolatingPairs
-            (base: Set[Formula], target: Set[Formula]): Set[Formula] =
+            (base: Set[Expr[Formula]], target: Set[Expr[Formula]]): Set[Expr[Formula]] =
                 premise.left.filter: formula =>
                   bot.left.forall: target =>
                     rewrite(using ctx)(formula, target).isEmpty
@@ -241,7 +241,7 @@ object Substitution:
 
   //   private def condflat[T](s: Seq[(T, Boolean)]): (Seq[T], Boolean) = (s.map(_._1), s.exists(_._2))
 
-  //   private def findSubterm2(t: Term, subs: Seq[(Variable, Term)]): (Term, Boolean) = {
+  //   private def findSubterm2(t: Expr[Term], subs: Seq[(Variable, Expr[Term])]): (Expr[Term], Boolean) = {
   //     val eq = subs.find(s => isSameTerm(t, s._2))
   //     if (eq.nonEmpty) (eq.get._1, true)
   //     else {
@@ -253,7 +253,7 @@ object Substitution:
   //     }
 
   //   }
-  //   private def findSubterm2(f: Formula, subs: Seq[(Variable, Term)]): (Formula, Boolean) = {
+  //   private def findSubterm2(f: Expr[Formula], subs: Seq[(Variable, Expr[Term])]): (Expr[Formula], Boolean) = {
   //     f match {
   //       case f: VariableFormula => (f, false)
   //       case f: ConstantFormula => (f, false)
@@ -281,7 +281,7 @@ object Substitution:
   //     }
   //   }
 
-  //   private def findSubformula2(f: Formula, subs: Seq[(VariableFormula, Formula)]): (Formula, Boolean) = {
+  //   private def findSubformula2(f: Expr[Formula], subs: Seq[(VariableFormula, Expr[Formula])]): (Expr[Formula], Boolean) = {
   //     val eq = subs.find(s => isSame(f, s._2))
   //     if (eq.nonEmpty) (eq.get._1, true)
   //     else
@@ -307,21 +307,21 @@ object Substitution:
   //       }
   //   }
 
-  //   def findSubterm(t: Term, subs: Seq[(Variable, Term)]): Option[LambdaExpression[Term, Term, ?]] = {
+  //   def findSubterm(t: Expr[Term], subs: Seq[(Variable, Expr[Term])]): Option[LambdaExpression[Expr[Term], Expr[Term], ?]] = {
   //     val vars = subs.map(_._1)
   //     val r = findSubterm2(t, subs)
   //     if (r._2) Some(LambdaExpression(vars, r._1, vars.size))
   //     else None
   //   }
 
-  //   def findSubterm(f: Formula, subs: Seq[(Variable, Term)]): Option[LambdaExpression[Term, Formula, ?]] = {
+  //   def findSubterm(f: Expr[Formula], subs: Seq[(Variable, Expr[Term])]): Option[LambdaExpression[Expr[Term], Expr[Formula], ?]] = {
   //     val vars = subs.map(_._1)
   //     val r = findSubterm2(f, subs)
   //     if (r._2) Some(LambdaExpression(vars, r._1, vars.size))
   //     else None
   //   }
 
-  //   def findSubformula(f: Formula, subs: Seq[(VariableFormula, Formula)]): Option[LambdaExpression[Formula, Formula, ?]] = {
+  //   def findSubformula(f: Expr[Formula], subs: Seq[(VariableFormula, Expr[Formula])]): Option[LambdaExpression[Expr[Formula], Expr[Formula], ?]] = {
   //     val vars = subs.map(_._1)
   //     val r = findSubformula2(f, subs)
   //     if (r._2) Some(LambdaExpression(vars, r._1, vars.size))
@@ -329,7 +329,7 @@ object Substitution:
   //   }
 
   //   def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(
-  //       phi: Formula
+  //       phi: Expr[Formula]
   //   )(premise: proof.Fact)(rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true): proof.ProofTacticJudgement = {
   //     import lisa.utils.K
   //     val originSequent = proof.getSequent(premise)
@@ -432,7 +432,7 @@ object Substitution:
   //           scproof,
   //           Seq(premise)
   //         )
-  //       case _ => proof.InvalidProofTactic(s"Formula in applySingleSimp need to be of the form a=b or q<=>p and not ${phi}")
+  //       case _ => proof.InvalidProofTactic(s"Expr[Formula] in applySingleSimp need to be of the form a=b or q<=>p and not ${phi}")
   //     }
   //   }
 
@@ -442,11 +442,11 @@ object Substitution:
   //       proof: lib.Proof,
   //       line: sourcecode.Line,
   //       file: sourcecode.File
-  //   )(f: proof.Fact | Formula, rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true)(
+  //   )(f: proof.Fact | Expr[Formula], rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true)(
   //       premise: proof.Fact
   //   ): proof.ProofTacticJudgement = {
   //     f match {
-  //       case phi: Formula => applyLeftRight(phi)(premise)(rightLeft, toLeft, toRight)
+  //       case phi: Expr[Formula] => applyLeftRight(phi)(premise)(rightLeft, toLeft, toRight)
   //       case f: proof.Fact =>
   //         val seq = proof.getSequent(f)
   //         val phi = seq.right.head
@@ -461,11 +461,11 @@ object Substitution:
 
   //   }
 
-  //   def toLeft(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false)(
+  //   def toLeft(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Expr[Formula], rightLeft: Boolean = false)(
   //       premise: proof.Fact
   //   ): proof.ProofTacticJudgement = apply(f, rightLeft, toLeft = true, toRight = false)(premise)
 
-  //   def toRight(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false)(
+  //   def toRight(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Expr[Formula], rightLeft: Boolean = false)(
   //       premise: proof.Fact
   //   ): proof.ProofTacticJudgement = apply(f, rightLeft, toLeft = false, toRight = true)(premise)
 
