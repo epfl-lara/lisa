@@ -145,7 +145,7 @@ object UnificationUtils:
      * (Optionally) retrieves a variable's mapping
      */
     def apply[A](v: Variable[A]): Option[Expr[A]] =
-      assignments.get(v).map(_.asInstanceOf)
+      assignments.get(v).map(_.asInstanceOf[Expr[A]])
 
     /**
      * Creates a new substitution with a new mapping added
