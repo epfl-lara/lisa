@@ -53,6 +53,6 @@ trait ExprOps extends Syntax {
       * @return the (depth-first) sequence of sub-expressions to which `f`
       * applies
       */
-    def collect(f: PartialFunction[Expr[?], Expr[?]]): Seq[Expr[?]] = 
+    def collect[B](f: PartialFunction[Expr[?], Expr[B]]): Seq[Expr[B]] = 
       e.subexpressions.collect(f).toVector
 }
