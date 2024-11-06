@@ -1,13 +1,13 @@
 package lisa.utils.unification
 
-import lisa.fol.FOL.{_, given}
-import lisa.prooflib.Library
-import lisa.prooflib.SimpleDeducedSteps
+import lisa.utils.fol.FOL.{_, given}
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.SimpleDeducedSteps
 import lisa.utils.K
 import lisa.utils.memoization.memoized
 import lisa.utils.collection.Extensions.*
 import lisa.utils.collection.{VecSet => Set}
-import lisa.fol.FOL
+import lisa.utils.fol.FOL
 
 /**
  * General utilities for unification, substitution, and rewriting

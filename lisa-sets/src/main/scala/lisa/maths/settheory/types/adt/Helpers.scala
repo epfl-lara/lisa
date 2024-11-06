@@ -13,11 +13,11 @@ package lisa.maths.settheory.types.adt
   * 
   * given a proof of the sequents without quantification.
   */
-object QuantifiersIntro extends lisa.prooflib.ProofTacticLib.ProofTactic {
+object QuantifiersIntro extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 
-  import lisa.prooflib.SimpleDeducedSteps.Restate
-  import lisa.prooflib.BasicStepTactic.*
-  import lisa.fol.FOL.*
+  import lisa.utils.prooflib.SimpleDeducedSteps.Restate
+  import lisa.utils.prooflib.BasicStepTactic.*
+  import lisa.utils.fol.FOL.*
 
   /**
     * Executes the tactic on a specific goal.
@@ -28,7 +28,7 @@ object QuantifiersIntro extends lisa.prooflib.ProofTacticLib.ProofTactic {
     * @param fact the proof of the sequent without quantification
     * @param bot the statement to prove
     */
-  def apply(using lib: lisa.prooflib.Library, proof: lib.Proof)(vars: Seq[Variable])(fact: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+  def apply(using lib: lisa.utils.prooflib.Library, proof: lib.Proof)(vars: Seq[Variable])(fact: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
     TacticSubproof { sp ?=>
       if vars.isEmpty then
         lib.have(bot) by Restate.from(fact)
@@ -84,7 +84,7 @@ object QuantifiersIntro extends lisa.prooflib.ProofTacticLib.ProofTactic {
  */
 private [adt] object Helpers {
 
-  import lisa.fol.FOL.{*, given}
+  import lisa.utils.fol.FOL.{*, given}
 
   /**
     * Benchmarks a block of code.

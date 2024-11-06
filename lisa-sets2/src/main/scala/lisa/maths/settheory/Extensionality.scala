@@ -1,9 +1,9 @@
 package lisa.maths.settheory
 
-import lisa.prooflib.ProofTacticLib.ProofTactic
-import lisa.prooflib.Library
+import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.prooflib.Library
 import lisa.SetTheoryLibrary
-import lisa.prooflib.ProofTacticLib.ProofFactSequentTactic
+import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
 
 object Extensionality extends lisa.Main:
 

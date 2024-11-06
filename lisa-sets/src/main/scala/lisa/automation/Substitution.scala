@@ -1,13 +1,13 @@
 package lisa.automation
 
-import lisa.fol.FOL as F
+import lisa.utils.fol.FOL as F
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus
-import lisa.prooflib.BasicStepTactic
-import lisa.prooflib.SimpleDeducedSteps
-import lisa.prooflib.ProofTacticLib.{*, given}
-import lisa.prooflib.*
+import lisa.utils.prooflib.BasicStepTactic
+import lisa.utils.prooflib.SimpleDeducedSteps
+import lisa.utils.prooflib.ProofTacticLib.{*, given}
+import lisa.utils.prooflib.*
 import lisa.utils.K
 import lisa.utils.UserLisaException
 import lisa.utils.unification.UnificationUtils.*
@@ -57,7 +57,7 @@ object Substitution:
    * <=>, basically).
    */ 
   def validSubstitutionRule
-    (using lib: lisa.prooflib.Library, proof: lib.Proof)
+    (using lib: lisa.utils.prooflib.Library, proof: lib.Proof)
     (rule: (proof.Fact | F.Formula)): Boolean =
       rule match
         // as formula
@@ -321,7 +321,7 @@ object Substitution:
   //     else None
   //   }
 
-  //   def applyLeftRight(using lib: lisa.prooflib.Library, proof: lib.Proof)(
+  //   def applyLeftRight(using lib: lisa.utils.prooflib.Library, proof: lib.Proof)(
   //       phi: Formula
   //   )(premise: proof.Fact)(rightLeft: Boolean = false, toLeft: Boolean = true, toRight: Boolean = true): proof.ProofTacticJudgement = {
   //     import lisa.utils.K
@@ -431,7 +431,7 @@ object Substitution:
 
   //   @nowarn("msg=.*the type test for proof.Fact cannot be checked at runtime*")
   //   def apply(using
-  //       lib: lisa.prooflib.Library,
+  //       lib: lisa.utils.prooflib.Library,
   //       proof: lib.Proof,
   //       line: sourcecode.Line,
   //       file: sourcecode.File
@@ -454,11 +454,11 @@ object Substitution:
 
   //   }
 
-  //   def toLeft(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false)(
+  //   def toLeft(using lib: lisa.utils.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false)(
   //       premise: proof.Fact
   //   ): proof.ProofTacticJudgement = apply(f, rightLeft, toLeft = true, toRight = false)(premise)
 
-  //   def toRight(using lib: lisa.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false)(
+  //   def toRight(using lib: lisa.utils.prooflib.Library, proof: lib.Proof, line: sourcecode.Line, file: sourcecode.File)(f: proof.Fact | Formula, rightLeft: Boolean = false)(
   //       premise: proof.Fact
   //   ): proof.ProofTacticJudgement = apply(f, rightLeft, toLeft = false, toRight = true)(premise)
 

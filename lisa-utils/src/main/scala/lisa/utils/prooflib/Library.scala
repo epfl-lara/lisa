@@ -1,10 +1,10 @@
-package lisa.prooflib
+package lisa.utils.prooflib
 
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
-//import lisa.prooflib.ProofTacticLib.ProofTactic
+//import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
 
@@ -15,7 +15,7 @@ import scala.collection.mutable.Stack as stack
  * to write and use Theorems and Definitions.
  * @param theory The inner RunningTheory
  */
-abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.ProofsHelpers {
+abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.prooflib.ProofsHelpers {
 
   val theory: RunningTheory
   given library: this.type = this
@@ -25,7 +25,7 @@ abstract class Library extends lisa.prooflib.WithTheorems with lisa.prooflib.Pro
 
   val K = lisa.utils.K
   val SC: SequentCalculus.type = K.SC
-  private[prooflib] val F = lisa.fol.FOL
+  private[prooflib] val F = lisa.utils.fol.FOL
   import F.{given}
 
   var last: Option[JUSTIFICATION] = None

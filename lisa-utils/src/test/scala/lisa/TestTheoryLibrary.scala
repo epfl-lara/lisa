@@ -1,11 +1,11 @@
 package lisa.test
 
-import lisa.prooflib.Library
+import lisa.utils.prooflib.Library
 
 object TestTheoryLibrary extends Library {
   val theory: TestTheory.runningTestTheory.type = TestTheory.runningTestTheory
 
-  export lisa.fol.FOL.{*, given}
+  export lisa.utils.fol.FOL.{*, given}
 
   final val p1 = constant[Term >>: Formula]
   final val p2 = constant[Term >>: Formula]

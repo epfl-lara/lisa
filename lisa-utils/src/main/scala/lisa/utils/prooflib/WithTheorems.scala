@@ -1,9 +1,9 @@
-package lisa.prooflib
+package lisa.utils.prooflib
 
 import lisa.kernel.proof.RunningTheory
-import lisa.prooflib.ProofTacticLib.ProofTactic
-import lisa.prooflib.ProofTacticLib.UnimplementedProof
-import lisa.prooflib.*
+import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.prooflib.ProofTacticLib.UnimplementedProof
+import lisa.utils.prooflib.*
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
@@ -314,7 +314,7 @@ trait WithTheorems {
         this match {
           case vpt: ValidProofTactic => newProofStep(vpt)
           case ipt: InvalidProofTactic =>
-            val e = lisa.prooflib.ProofTacticLib.UnapplicableProofTactic(ipt.tactic, ipt.proof, ipt.message)(using line, file)
+            val e = lisa.utils.prooflib.ProofTacticLib.UnapplicableProofTactic(ipt.tactic, ipt.proof, ipt.message)(using line, file)
             e.setStackTrace(ipt.stack)
             throw e
         }
@@ -324,7 +324,7 @@ trait WithTheorems {
     /**
      * A Kernel Sequent Calculus proof step that has been correctly produced.
      */
-    case class ValidProofTactic(bot: lisa.fol.FOL.Sequent, scps: Seq[K.SCProofStep], imports: Seq[Fact])(using val tactic: ProofTactic) extends ProofTacticJudgement {}
+    case class ValidProofTactic(bot: lisa.utils.fol.FOL.Sequent, scps: Seq[K.SCProofStep], imports: Seq[Fact])(using val tactic: ProofTactic) extends ProofTacticJudgement {}
 
     /**
      * A proof step which led to an error when computing the corresponding K.Sequent Calculus proof step.

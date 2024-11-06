@@ -1,8 +1,8 @@
 package lisa.automation.atp
-import lisa.fol.FOL as F
-import lisa.prooflib.Library
-import lisa.prooflib.OutputManager
-import lisa.prooflib.ProofTacticLib.*
+import lisa.utils.fol.FOL as F
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.OutputManager
+import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.K
 import lisa.utils.tptp.*
 

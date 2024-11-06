@@ -1,4 +1,4 @@
-package lisa.prooflib
+package lisa.utils.prooflib
 
 import lisa.utils.Serialization.*
 

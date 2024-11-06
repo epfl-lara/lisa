@@ -1,10 +1,10 @@
 package lisa.maths
 
 import lisa.utils.Serialization.sorry
-import lisa.prooflib.BasicStepTactic.Sorry
+import lisa.utils.prooflib.BasicStepTactic.Sorry
 import lisa.utils.K.repr
 import lisa.automation.atp.Goeland
-import lisa.prooflib.Library
+import lisa.utils.prooflib.Library
 import lisa.utils.Printing
 
 /**

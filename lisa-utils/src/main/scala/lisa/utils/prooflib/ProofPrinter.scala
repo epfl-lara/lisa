@@ -1,9 +1,9 @@
-package lisa.prooflib
+package lisa.utils.prooflib
 
 import lisa.kernel.proof.SCProofCheckerJudgement
-import lisa.prooflib.BasicStepTactic.SUBPROOF
-import lisa.prooflib.Library
-import lisa.prooflib.*
+import lisa.utils.prooflib.BasicStepTactic.SUBPROOF
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.*
 import lisa.utils.*
 
 object ProofPrinter {

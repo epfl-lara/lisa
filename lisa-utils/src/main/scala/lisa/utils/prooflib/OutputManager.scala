@@ -1,4 +1,4 @@
-package lisa.prooflib
+package lisa.utils.prooflib
 
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
@@ -25,7 +25,7 @@ abstract class OutputManager {
 
       case e: LisaException.InvalidKernelJustificationComputation =>
         e.proof match {
-          case Some(value) => output(lisa.prooflib.ProofPrinter.prettyProof(value))
+          case Some(value) => output(lisa.utils.prooflib.ProofPrinter.prettyProof(value))
           case None => ()
         }
         output(e.underlying.repr)

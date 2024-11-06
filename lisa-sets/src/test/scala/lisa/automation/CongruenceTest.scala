@@ -1,5 +1,5 @@
 package lisa.automation
-import lisa.fol.FOL.{*, given}
+import lisa.utils.fol.FOL.{*, given}
 import lisa.automation.Congruence.*
 import lisa.automation.Congruence
 import org.scalatest.funsuite.AnyFunSuite

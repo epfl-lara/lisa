@@ -1,4 +1,4 @@
-package lisa.fol
+package lisa.utils.fol
 
 import lisa.utils.K
 import lisa.utils.fol.ExprOps

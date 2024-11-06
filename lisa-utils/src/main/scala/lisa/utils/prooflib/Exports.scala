@@ -1,6 +1,6 @@
-package lisa.prooflib
+package lisa.utils.prooflib
 
 object Exports {
   export BasicStepTactic.*
-  export lisa.prooflib.SimpleDeducedSteps.*
+  export lisa.utils.prooflib.SimpleDeducedSteps.*
 }

@@ -1,9 +1,9 @@
-package lisa.prooflib
+package lisa.utils.prooflib
 
-import lisa.fol.FOL as F
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.ProofTacticLib.{_, given}
-import lisa.prooflib.*
+import lisa.utils.fol.FOL as F
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.*
 import lisa.utils.K
 import lisa.utils.KernelHelpers.{_, given}
 

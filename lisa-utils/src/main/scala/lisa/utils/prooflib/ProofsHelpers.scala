@@ -1,10 +1,10 @@
-package lisa.prooflib
+package lisa.utils.prooflib
 
 import lisa.kernel.proof.SCProofChecker.checkSCProof
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.ProofTacticLib.*
-import lisa.prooflib.SimpleDeducedSteps.*
-import lisa.prooflib.*
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.ProofTacticLib.*
+import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.*
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.K.Identifier
 import lisa.utils.LisaException
@@ -16,7 +16,7 @@ import scala.annotation.targetName
 trait ProofsHelpers {
   library: Library & WithTheorems =>
 
-  import lisa.fol.FOL.{given, *}
+  import lisa.utils.fol.FOL.{given, *}
 
   class HaveSequent(val bot: Sequent) {
 

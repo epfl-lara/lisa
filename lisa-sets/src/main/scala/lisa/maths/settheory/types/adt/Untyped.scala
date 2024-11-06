@@ -21,7 +21,7 @@ import ADTThm.{N, pair, pairExtensionality}
 import lisa.maths.settheory.functions.|=>
 import lisa.maths.settheory.types.TypeSystem.{ :: }
 import lisa.maths.Quantifiers.{universalEquivalenceDistribution}
-import lisa.fol.FOL.Variable
+import lisa.utils.fol.FOL.Variable
 
 /**
  * Helpers for constructors

@@ -4,8 +4,8 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.*
-import lisa.prooflib.Library
-import lisa.prooflib.OutputManager
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.OutputManager
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printer
 
