@@ -43,7 +43,7 @@ class SubstitutionTest extends AnyFunSuite {
   private val e2 = connector(2)
   case class $(t: Expression, m: (Variable, Expression)*){
     inline infix def _VS_(t2: Expression): Assertion = {
-      assert(isSame(betaReduce(substituteVariables(t, m.toMap)), t2), "\n - " + substituteVariables(t, m.toMap).repr + " didn't match " + t2.repr)
+      assert(isSame(substituteVariables(t, m.toMap).betaNormalForm, t2), "\n - " + substituteVariables(t, m.toMap).repr + " didn't match " + t2.repr)
     }
   }
   test("First Order Substitutions") {

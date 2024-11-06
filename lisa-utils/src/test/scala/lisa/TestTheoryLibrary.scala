@@ -19,7 +19,7 @@ object TestTheoryLibrary extends Library {
   addSymbol(anotherElement)
 
   private final val x = variable[Term]
-  final val p1_implies_p2_f: Formula = forall(x, p1(x) ==> p2(x))
+  final val p1_implies_p2_f: Expr[Formula] = forall(x, p1(x) ==> p2(x))
   final val ax2 = p1(fixedElement)
   final val same_fixed_f = fixedElement === anotherElement
   final val fixed_point_f = forall(x, (f1(x) === fixedElement) <=> (x === fixedElement))
