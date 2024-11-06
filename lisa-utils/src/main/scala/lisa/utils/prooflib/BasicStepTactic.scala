@@ -1003,7 +1003,8 @@ object BasicStepTactic {
    * fail. Use [[RightEpsilon.withParameters]] instead.
    */
   object RightEpsilon extends ProofTactic with ProofFactSequentTactic {
-    def collectEpsilons(in: F.Expr[?]): Set[F.Expr[F.Term]] = ???
+    def collectEpsilons(in: F.Expr[?]): Set[F.Expr[F.Term]] = 
+      in.collect { case e @ F.ε(_, _) => e.asInstanceOf[F.Expr[F.Term]] }.toSet
 
     def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], x: F.Variable[F.Term], t: F.Expr[F.Term])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
