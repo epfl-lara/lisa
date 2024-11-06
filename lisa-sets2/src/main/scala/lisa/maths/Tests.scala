@@ -12,11 +12,6 @@ object Tests extends lisa.Main {
   val z = variable[Term]
   val P = variable[Term >>: Formula]
   val f = variable[Term >>: Term]
-  
-
-  //val ppp = ProofParser.reconstructProof(new File("goeland/testEgg.p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
-
-  //checkProof(ppp)
 
   val rule8 = Axiom(forall(x, x === f(f(f(f(f(f(f(f(x))))))))) )
   val rule5 = Axiom(forall(x, x === f(f(f(f(f(x)))))) )
@@ -24,9 +19,4 @@ object Tests extends lisa.Main {
   val saturation = Theorem(∅ === f(∅)):
     have(thesis) by Egg.from(rule8, rule5)
 
-  /*
-  val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
-    have(thesis) by Goeland // ("goeland/Example.buveurs2_sol")
-  }
-   */
 }
