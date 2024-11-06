@@ -18,6 +18,7 @@ import scala.collection.mutable.{Map as MMap}
 
 import F.{*, given}
 import lisa.utils.collection.VecSet
+import lisa.utils.Printing.printList
 
 object Substitution:
 
@@ -134,27 +135,29 @@ object Substitution:
             target.forall: target =>
               rewrite(using ctx)(formula, target).isEmpty
 
+        inline def ruleList: String =
+          val printed = substitutions.map:
+            case f: Expr[?] => f
+            case f: proof.Fact @unchecked => proof.getSequent(f)
+          printList(printed)
+
+        inline def ruleMsg = s"\nSubstitution rules given:\n$ruleList"
+
         val leftSubsts = collectRewritingPairs(premise.left, bot.left)
         val rightSubsts = collectRewritingPairs(premise.right, bot.right)
 
         if leftSubsts.isEmpty then
           // error, find formulas that failed to rewrite
-          val msgBase = "Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formulas:"
-          val msgList =
-            collectViolatingPairs(premise.left, bot.left).zipWithIndex
-              .map:
-                case (formula, i) => s"\t${i + 1}. $formula"
+          val msgBase = "Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formulas:\n"
+          val formulaList = printList(collectViolatingPairs(premise.left, bot.left))
 
-          proof.InvalidProofTactic(msgBase + msgList.mkString("\n"))
+          proof.InvalidProofTactic(msgBase + formulaList + ruleMsg)
         else if rightSubsts.isEmpty then
           // error, find formulas that failed to rewrite
-          val msgBase = "Could not rewrite LHS of premise into conclusion with given substitutions.\nViolating Formulas:"
-          val msgList =
-            collectViolatingPairs(premise.right, bot.right).zipWithIndex
-              .map:
-                case (formula, i) => s"\t${i + 1}. $formula"
+          val msgBase = "Could not rewrite RHS of premise into conclusion with given substitutions.\nViolating Formulas:\n"
+          val formulaList = printList(collectViolatingPairs(premise.right, bot.right))
 
-          proof.InvalidProofTactic(msgBase + msgList.mkString("\n"))
+          proof.InvalidProofTactic(msgBase + formulaList + ruleMsg)
         else
           // rewriting is possible, construct the proof
 
