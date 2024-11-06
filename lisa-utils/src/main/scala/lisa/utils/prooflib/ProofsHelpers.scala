@@ -152,7 +152,7 @@ trait ProofsHelpers {
         (v +: vars, bodyR)
       case _ => (Seq(), e)
     val r = inner(e)
-    (r._1.reverse, r._2)
+    (r._1, r._2)
 
   def DEF[S: Sort](using name: sourcecode.FullName)(using om: OutputManager, line: sourcecode.Line, file: sourcecode.File)
             (e: Expr[S]): Constant[S] = 
