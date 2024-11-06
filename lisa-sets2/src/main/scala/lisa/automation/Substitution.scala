@@ -130,8 +130,8 @@ object Substitution:
         // in `target`. Guaranteed to be non-empty if
         // `collectRewritingPairs(base, target)` is None.
         inline def collectViolatingPairs(base: Set[Expr[Formula]], target: Set[Expr[Formula]]): Set[Expr[Formula]] =
-          premise.left.filter: formula =>
-            bot.left.forall: target =>
+          base.filter: formula =>
+            target.forall: target =>
               rewrite(using ctx)(formula, target).isEmpty
 
         val leftSubsts = collectRewritingPairs(premise.left, bot.left)
