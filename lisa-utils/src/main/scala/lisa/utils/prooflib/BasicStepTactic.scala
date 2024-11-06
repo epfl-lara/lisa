@@ -1025,8 +1025,8 @@ object BasicStepTactic {
     }
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
       val premiseSequent = proof.getSequent(premise)
-      val pivotSet = bot.right -- premiseSequent.right
-      val targetSet = premiseSequent.right -- bot.right
+      val pivotSet = premiseSequent.right -- bot.right
+      val targetSet = bot.right -- premiseSequent.right
 
       inline def theFailure = 
         proof.InvalidProofTactic("Could not infer an epsilon pivot from premise and conclusion.")
