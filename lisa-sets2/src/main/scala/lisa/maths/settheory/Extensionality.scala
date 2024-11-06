@@ -27,10 +27,10 @@ object Extensionality extends lisa.Main:
   def tactic(using proof: Proof)(premiseStep: proof.Fact)(conclusion: Sequent) =
     val premise = proof.getSequent(premiseStep)
     val boundVars = premise.left.flatMap(_.freeVars)
-    inline def valid(z1: Variable[T], z2: Variable[T], x: Expr[T], y: Expr[T]) =
+    inline def valid(z1: Variable[Term], z2: Variable[Term], x: Expr[Term], y: Expr[Term]) =
       z1 == z2 && !boundVars.contains(z1) && conclusion.right.exists(isSame(_, x === y))
-    val pivot: Option[(Variable[T], Expr[T], Expr[T])] = premise.right.collectFirst:
-      case (<=> #@ (∈ #@ (z1: Variable[T]) #@ (x: Expr[T])) #@ (∈ #@ (z2: Variable[T]) #@ (y: Expr[T]))) if valid(z1, z2, x, y) => (z1, x, y)
+    val pivot: Option[(Variable[Term], Expr[Term], Expr[Term])] = premise.right.collectFirst:
+      case (<=> #@ (∈ #@ (z1: Variable[Term]) #@ (x: Expr[Term])) #@ (∈ #@ (z2: Variable[Term]) #@ (y: Expr[Term]))) if valid(z1, z2, x, y) => (z1, x, y)
 
     pivot match
       case None => 

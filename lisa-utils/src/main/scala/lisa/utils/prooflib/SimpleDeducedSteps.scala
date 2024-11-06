@@ -64,7 +64,7 @@ object SimpleDeducedSteps {
    * Returns a subproof containing the instantiation steps
    */
   object InstantiateForall extends ProofTactic with ProofSequentTactic {
-    def apply(using lib: Library, proof: lib.Proof)(phi: F.Formula, t: F.Term*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], t: F.Expr[F.Term]*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
       val phiK = phi.underlying
       val tK = t map (_.underlying)
@@ -127,7 +127,7 @@ object SimpleDeducedSteps {
       }
     }
 
-    def apply(using lib: Library, proof: lib.Proof)(t: F.Term*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Term]*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val prem = proof.getSequent(premise)
       if (prem.right.tail.isEmpty) {
         // well formed

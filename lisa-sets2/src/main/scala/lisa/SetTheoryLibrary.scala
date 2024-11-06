@@ -246,12 +246,12 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   val ∅ = emptySet
   val ∈ = in
 
-  extension (l: Term) 
-    def ∈(r: Term): Formula = in(l)(r)
-    def ⊆(r: Term): Formula = subset(l)(r)
-    def =/=(r: Term): Formula = !(l === r)
+  extension (l: Expr[Term]) 
+    def ∈(r: Expr[Term]): Expr[Formula] = in(l)(r)
+    def ⊆(r: Expr[Term]): Expr[Formula] = subset(l)(r)
+    def =/=(r: Expr[Term]): Expr[Formula] = !(l === r)
 
 
-  def unorderedPair(x: Term, y: Term): Term = App(App(unorderedPair, x), y)
+  def unorderedPair(x: Expr[Term], y: Expr[Term]): Expr[Term] = App(App(unorderedPair, x), y)
 
 }

@@ -14,11 +14,11 @@ object UnorderedPair extends lisa.Main:
   /** Unordered pair of sets */
   val <> = upair
 
-  extension (t: Term)
+  extension (t: Expr[Term])
     /**
       * Infix notation for an unordered pair.
       */
-    infix def <> (s: Term) = upair(t)(s)
+    infix def <> (s: Expr[Term]) = upair(t)(s)
 
   val firstMember = Theorem( x ∈ (x <> y) ):
     have(thesis) by Tautology.from(<>.definition of (z := x))

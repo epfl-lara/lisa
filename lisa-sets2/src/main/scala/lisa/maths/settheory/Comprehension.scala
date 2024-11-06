@@ -12,10 +12,10 @@ object Comprehension extends lisa.Main:
 
   val filter = DEF ( lambda(t, lambda(φ, ε(s, ∀(x, (x ∈ s) <=> (x ∈ t /\ φ(x)))))) )
 
-  val comprehension: filter.type = filter
+  private val comprehension: filter.type = filter
 
-  extension (t: Term)
-    def filter(predicate: Term >>: Formula): Term =
+  extension (t: Expr[Term])
+    def filter(predicate: Expr[Term >>: Formula]): Expr[Term] =
       comprehension(t)(predicate)
 
   val existence = Theorem( ∃(s, ∀(x, (x ∈ s) <=> (x ∈ t /\ φ(x)))) ):

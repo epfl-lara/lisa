@@ -14,17 +14,8 @@ trait Syntax {
 
   type IsSort[T] = Sort{type Self = T}
 
-
-  type Formula = Expr[F]
-  type Term = Expr[T]
-    @showAsInfix
-  infix type >>:[I, O] = (I, O) match {
-    case (Expr[a], Expr[b]) => Expr[Arrow[a, b]]
-  }
-  
-  type SortOf[T] = T match {
-    case Expr[t] => t
-  }
+  @showAsInfix
+  infix type >>:[I, O] = Arrow[I, O]
 
   trait Sort {
     type Self
@@ -32,15 +23,15 @@ trait Syntax {
   }
 
 
-  sealed trait T
-  sealed trait F
+  sealed trait Term
+  sealed trait Formula
   sealed trait Arrow[A: Sort, B: Sort]
   //final class UnsafeSort(val underlying: K.Sort) extends Sort:
   //  type Self = UnsafeSort
 
-  given given_TermType:  IsSort[T] with
+  given given_TermType:  IsSort[Term] with
     val underlying = K.Term
-  given given_FormulaType: IsSort[F] with
+  given given_FormulaType: IsSort[Formula] with
     val underlying = K.Formula
   given given_ArrowType[A : Sort as ta, B : Sort as tb]: (IsSort[Arrow[A, B]]) with
     val underlying = K.Arrow(ta.underlying, tb.underlying)
@@ -80,7 +71,7 @@ trait Syntax {
       substituteWithCheck(pairs.view.map(s => (s._1, s._2)).toMap)
 
     def freeVars: Set[Variable[?]] 
-    def freeTermVars: Set[Variable[T]]
+    def freeTermVars: Set[Variable[Term]]
     def constants: Set[Constant[?]]
   }
   sealed trait Expr[S] extends LisaObject {
@@ -174,7 +165,7 @@ trait Syntax {
     override def substitute(pairs: SubstPair*): Expr[S] = 
       super.substitute(pairs*).asInstanceOf[Expr[S]]
     def freeVars: Set[Variable[?]] = Set(this)
-    def freeTermVars: Set[Variable[T]] = if sort == K.Term then Set(this.asInstanceOf) else Set.empty
+    def freeTermVars: Set[Variable[Term]] = if sort == K.Term then Set(this.asInstanceOf) else Set.empty
     def constants: Set[Constant[?]] = Set.empty
     def rename(newId: K.Identifier): Variable[S] = Variable(newId)
     def freshRename(existing: Iterable[Expr[?]]): Variable[S] = {
@@ -203,7 +194,7 @@ trait Syntax {
     override def substitute(pairs: SubstPair*): Constant[S] = 
       super.substitute(pairs*).asInstanceOf[Constant[S]]
     def freeVars: Set[Variable[?]] = Set.empty
-    def freeTermVars: Set[Variable[T]] = Set.empty
+    def freeTermVars: Set[Variable[Term]] = Set.empty
     def constants: Set[Constant[?]] = Set(this)
     def rename(newId: K.Identifier): Constant[S] = Constant(newId)
     override def toString(): String = id.toString
@@ -262,7 +253,7 @@ trait Syntax {
     override def substitute(pairs: SubstPair*): App[T1, T2] = 
       super.substitute(pairs*).asInstanceOf[App[T1, T2]]
     def freeVars: Set[Variable[?]] = f.freeVars ++ arg.freeVars
-    def freeTermVars: Set[Variable[T]] = f.freeTermVars ++ arg.freeTermVars
+    def freeTermVars: Set[Variable[Term]] = f.freeTermVars ++ arg.freeTermVars
     def constants: Set[Constant[?]] = f.constants ++ arg.constants
     override def toString(): String = 
       val (f, args) = unfoldAllApp(this)
@@ -288,7 +279,7 @@ trait Syntax {
     override def substitute(pairs: SubstPair*): Abs[T1, T2] = 
       super.substitute(pairs*).asInstanceOf[Abs[T1, T2]]
     def freeVars: Set[Variable[?]] = body.freeVars - v
-    def freeTermVars: Set[Variable[T]] = body.freeTermVars.filterNot(_ == v)
+    def freeTermVars: Set[Variable[Term]] = body.freeTermVars.filterNot(_ == v)
     def constants: Set[Constant[?]] = body.constants
     override def toString(): String = s"Abs($v, $body)"
   }

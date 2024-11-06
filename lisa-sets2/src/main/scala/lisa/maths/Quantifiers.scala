@@ -54,7 +54,7 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tableau
   }
 
-  val ∃! = DEF(lambda(P, exists(x, forall(y, P(y) <=> (x === y))))).asBinder[T, F, F]
+  val ∃! = DEF(lambda(P, exists(x, forall(y, P(y) <=> (x === y))))).asBinder[Term, Formula, Formula]
   val existsOne = ∃!
   println(∃!.definition)
 
@@ -293,7 +293,7 @@ object Quantifiers extends lisa.Main {
     * </pre>
     */
   def quantifyAll(using lib: Library, proof: lib.Proof)(premiseStep: proof.Fact)(conclusion: Sequent) =
-    def isQuantifiedOf(target: Formula, pivot: Formula, vars: List[Variable[T]] = Nil): Option[List[Variable[T]]] =
+    def isQuantifiedOf(target: Expr[Formula], pivot: Expr[Formula], vars: List[Variable[Term]] = Nil): Option[List[Variable[Term]]] =
       target match
         case ∀(x, inner) => 
           if isSame(inner, pivot) then Some(vars) else isQuantifiedOf(inner, pivot, x :: vars) 

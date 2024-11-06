@@ -80,8 +80,8 @@ object UnificationUtils:
     private def __representativeVariable(rule: InstantiatedRewriteRule): Variable[?] = 
       val id = RewriteContext.freshRepresentative
       rule.rule match
-        case TermRewriteRule(_, _) => Variable[T](id) 
-        case FormulaRewriteRule(_, _) => Variable[F](id)
+        case TermRewriteRule(_, _) => Variable[Term](id) 
+        case FormulaRewriteRule(_, _) => Variable[Formula](id)
         // should not reach under general use, but why not:
         case r: InstantiatedRewriteRule => representativeVariable(r)
 
@@ -250,7 +250,7 @@ object UnificationUtils:
     /**
       * Reduce this rewrite rule to a formula representing the equivalence.
       */
-    def toFormula: Formula
+    def toFormula: Expr[Formula]
     
     /**
       * The sort of the terms in this rewrite rule.
@@ -258,21 +258,21 @@ object UnificationUtils:
     def sort: K.Sort = l.sort
   
 
-  case class TermRewriteRule(l: Term, r: Term) extends RewriteRule:
-    type Base = T
+  case class TermRewriteRule(l: Expr[Term], r: Expr[Term]) extends RewriteRule:
+    type Base = Term
     def swap: TermRewriteRule = TermRewriteRule(r, l)
-    def toFormula: Formula = l === r
+    def toFormula: Expr[Formula] = l === r
 
-  case class FormulaRewriteRule(l: Formula, r: Formula) extends RewriteRule:
-    type Base = F
+  case class FormulaRewriteRule(l: Expr[Formula], r: Expr[Formula]) extends RewriteRule:
+    type Base = Formula
     def swap: FormulaRewriteRule = FormulaRewriteRule(r, l)
-    def toFormula: Formula = l <=> r
+    def toFormula: Expr[Formula] = l <=> r
 
   case class InstantiatedRewriteRule(rule: RewriteRule, subst: Substitution) extends RewriteRule:
     type Base = rule.Base
     def l: Expr[rule.Base] = rule.l.substitute(subst.asSubstPair*)
     def r: Expr[rule.Base] = rule.r.substitute(subst.asSubstPair*)
-    def toFormula: Formula = rule.toFormula.substitute(subst.asSubstPair*)
+    def toFormula: Expr[Formula] = rule.toFormula.substitute(subst.asSubstPair*)
     def swap: RewriteRule = InstantiatedRewriteRule(rule.swap, subst)
 
   
@@ -350,7 +350,7 @@ object UnificationUtils:
     // invariant:
     // require( (vars `zip` rules).forall((v, e) => v.Sort == rule.Base ) ) // equality is over types
 
-  type FormulaRewriteResult = RewriteResult[F]
+  type FormulaRewriteResult = RewriteResult[Formula]
 
   def rewrite[A](using ctx: RewriteContext)(from: Expr[A], to: Expr[A]): Option[RewriteResult[A]] =
     lazy val rule = rewriteOne(from, to)
@@ -409,10 +409,10 @@ end UnificationUtils
  * All the information required for performing rewrites.
  */
   case class RewriteContext(
-      freeFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
-      freeTermRules: Seq[(Term, Term)] = Seq.empty,
-      confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
-      confinedTermRules: Seq[(Term, Term)] = Seq.empty,
+      freeFormulaRules: Seq[(Expr[Formula], Expr[Formula])] = Seq.empty,
+      freeTermRules: Seq[(Expr[Term], Expr[Term])] = Seq.empty,
+      confinedFormulaRules: Seq[(Expr[Formula], Expr[Formula])] = Seq.empty,
+      confinedTermRules: Seq[(Expr[Term], Expr[Term])] = Seq.empty,
       takenFormulaVars: Set[VariableFormula] = Set.empty,
       takenTermVars: Set[Variable] = Set.empty
   ) {
@@ -448,10 +448,10 @@ end UnificationUtils
 
   // substitutions
 
-  type TermSubstitution = Map[Variable, Term]
+  type TermSubstitution = Map[Variable, Expr[Term]]
   val TermSubstitution = Map // don't abuse pls O.o
 
-  type FormulaSubstitution = Map[VariableFormula, Formula]
+  type FormulaSubstitution = Map[VariableFormula, Expr[Formula]]
   val FormulaSubstitution = Map
 
   /**
@@ -467,7 +467,7 @@ end UnificationUtils
  * @return substitution (Option) from variables to terms. `None` iff a
  * substitution does not exist.
  */
-  def matchTerm(reference: Term, template: Term, takenVariables: Iterable[Variable] = Iterable.empty): Option[TermSubstitution] = {
+  def matchTerm(reference: Expr[Term], template: Expr[Term], takenVariables: Iterable[Variable] = Iterable.empty): Option[TermSubstitution] = {
     val context = RewriteContext(takenTermVars = takenVariables.toSet)
     matchTermRecursive(using context)(reference, template, TermSubstitution.empty)
   }
@@ -483,7 +483,7 @@ end UnificationUtils
  * @return substitution (Option) from variables to terms. `None` if a
  * substitution does not exist.
  */
-  private def matchTermRecursive(using context: RewriteContext)(reference: Term, template: Term, substitution: TermSubstitution): Option[TermSubstitution] =
+  private def matchTermRecursive(using context: RewriteContext)(reference: Expr[Term], template: Expr[Term], substitution: TermSubstitution): Option[TermSubstitution] =
     if (reference == template)
       Some(substitution)
     else
@@ -521,8 +521,8 @@ end UnificationUtils
  * variables to terms. `None` if a substitution does not exist.
  */
   def matchFormula(
-      reference: Formula,
-      template: Formula,
+      reference: Expr[Formula],
+      template: Expr[Formula],
       takenTermVariables: Iterable[Variable] = Iterable.empty,
   ): Option[(FormulaSubstitution, TermSubstitution)] = {
     val context = RewriteContext(
@@ -546,7 +546,7 @@ end UnificationUtils
  */
   private def matchFormulaRecursive(using
       context: RewriteContext
-  )(reference: Formula, template: Formula, formulaSubstitution: FormulaSubstitution, termSubstitution: TermSubstitution): Option[(FormulaSubstitution, TermSubstitution)] = {
+  )(reference: Expr[Formula], template: Expr[Formula], formulaSubstitution: FormulaSubstitution, termSubstitution: TermSubstitution): Option[(FormulaSubstitution, TermSubstitution)] = {
     if (isSame(reference, template))
       Some((formulaSubstitution, termSubstitution))
     else
@@ -621,7 +621,7 @@ end UnificationUtils
  * @example Commutativity of a function with instantiation can be `((f(x, y)
  * -> f(y, x)), Map(x -> pair(a, b), y -> c))`
  */
-  type TermRule = ((Term, Term), TermSubstitution)
+  type TermRule = ((Expr[Term], Expr[Term]), TermSubstitution)
 
   /**
  * A formula rewrite rule (`l -> r`) with an accompanying instantiation,
@@ -631,7 +631,7 @@ end UnificationUtils
  * FormulaSubstitution.empty)`.
  * @example `((P(x) \/ Q -> Q /\ R(x)), Map(Q -> A \/ B, x -> f(t)))`
  */
-  type FormulaRule = ((Formula, Formula), (FormulaSubstitution, TermSubstitution))
+  type FormulaRule = ((Expr[Formula], Expr[Formula]), (FormulaSubstitution, TermSubstitution))
 
   /**
  * A lambda representing a term, with inputs as terms. Carries extra
@@ -647,7 +647,7 @@ end UnificationUtils
   case class TermRewriteLambda(
       termVars: Seq[Variable] = Seq.empty,
       termRules: Seq[(Variable, TermRule)] = Seq.empty,
-      body: Term
+      body: Expr[Term]
   ) {}
 
   /**
@@ -669,7 +669,7 @@ end UnificationUtils
   case class FormulaRewriteLambda(
       termRules: Seq[(Variable, TermRule)] = Seq.empty,
       formulaRules: Seq[(VariableFormula, FormulaRule)] = Seq.empty,
-      body: Formula
+      body: Expr[Formula]
   ) {
 
     /**
@@ -677,14 +677,14 @@ end UnificationUtils
  *
  * Use if **know that only term rewrites were applied**.
  */
-    def toLambdaTF: LambdaExpression[Term, Formula, ?] = LambdaExpression(termRules.map(_._1), body, termRules.size)
+    def toLambdaTF: LambdaExpression[Expr[Term], Expr[Formula], ?] = LambdaExpression(termRules.map(_._1), body, termRules.size)
 
     /**
  * **Unsafe** conversion to a formula lambda, discarding rule and term information
  *
  * Use if **know that only formula rewrites were applied**.
  */
-    def toLambdaFF: LambdaExpression[Formula, Formula, ?] = LambdaExpression(formulaRules.map(_._1), body, formulaRules.size)
+    def toLambdaFF: LambdaExpression[Expr[Formula], Expr[Formula], ?] = LambdaExpression(formulaRules.map(_._1), body, formulaRules.size)
   }
 
   /**
@@ -703,7 +703,7 @@ end UnificationUtils
  *
  * Reduces to matching using [[matchTermRecursive]].
  */
-  private def canRewrite(using context: RewriteContext)(first: Term, second: Term, rule: (Term, Term)): Option[TermSubstitution] =
+  private def canRewrite(using context: RewriteContext)(first: Expr[Term], second: Expr[Term], rule: (Expr[Term], Expr[Term])): Option[TermSubstitution] =
     matchTermRecursive(termRewriteConnector(first, second), termRewriteConnector(rule._1, rule._2), TermSubstitution.empty)
 
   /**
@@ -713,7 +713,7 @@ end UnificationUtils
  *
  * Reduces to matching using [[matchFormulaRecursive]].
  */
-  private def canRewrite(using context: RewriteContext)(first: Formula, second: Formula, rule: (Formula, Formula)): Option[(FormulaSubstitution, TermSubstitution)] =
+  private def canRewrite(using context: RewriteContext)(first: Expr[Formula], second: Expr[Formula], rule: (Expr[Formula], Expr[Formula])): Option[(FormulaSubstitution, TermSubstitution)] =
     matchFormulaRecursive(formulaRewriteConnector(first, second), formulaRewriteConnector(rule._1, rule._2), FormulaSubstitution.empty, TermSubstitution.empty)
 
   /**
@@ -729,10 +729,10 @@ end UnificationUtils
  * @param takenTermVariables variables to *not* instantiate, i.e., treat as constant, for confined rules
  */
   def getContextTerm(
-      first: Term,
-      second: Term,
-      freeTermRules: Seq[(Term, Term)],
-      confinedTermRules: Seq[(Term, Term)] = Seq.empty,
+      first: Expr[Term],
+      second: Expr[Term],
+      freeTermRules: Seq[(Expr[Term], Expr[Term])],
+      confinedTermRules: Seq[(Expr[Term], Expr[Term])] = Seq.empty,
       takenTermVariables: Set[Variable] = Set.empty
   ): Option[TermRewriteLambda] = {
     val context = RewriteContext(
@@ -750,7 +750,7 @@ end UnificationUtils
  * @param first source term
  * @param second destination term
  */
-  private def getContextRecursive(using context: RewriteContext)(first: Term, second: Term): Option[TermRewriteLambda] = {
+  private def getContextRecursive(using context: RewriteContext)(first: Expr[Term], second: Expr[Term]): Option[TermRewriteLambda] = {
     // check if there exists a substitution
     lazy val validSubstitution =
       context.confinedTermRules
@@ -826,13 +826,13 @@ end UnificationUtils
  * treat as constant, for confined rules
  */
   def getContextFormula(
-      first: Formula,
-      second: Formula,
-      freeTermRules: Seq[(Term, Term)] = Seq.empty,
-      freeFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
-      confinedTermRules: Seq[(Term, Term)] = Seq.empty,
+      first: Expr[Formula],
+      second: Expr[Formula],
+      freeTermRules: Seq[(Expr[Term], Expr[Term])] = Seq.empty,
+      freeFormulaRules: Seq[(Expr[Formula], Expr[Formula])] = Seq.empty,
+      confinedTermRules: Seq[(Expr[Term], Expr[Term])] = Seq.empty,
       takenTermVariables: Set[Variable] = Set.empty,
-      confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
+      confinedFormulaRules: Seq[(Expr[Formula], Expr[Formula])] = Seq.empty,
       takenFormulaVariables: Set[VariableFormula] = Set.empty
   ): Option[FormulaRewriteLambda] = {
     val context = RewriteContext(
@@ -847,13 +847,13 @@ end UnificationUtils
   }
 
   def getContextFormulaSet(
-      first: Seq[Formula],
-      second: Seq[Formula],
-      freeTermRules: Seq[(Term, Term)],
-      freeFormulaRules: Seq[(Formula, Formula)],
-      confinedTermRules: Seq[(Term, Term)] = Seq.empty,
+      first: Seq[Expr[Formula]],
+      second: Seq[Expr[Formula]],
+      freeTermRules: Seq[(Expr[Term], Expr[Term])],
+      freeFormulaRules: Seq[(Expr[Formula], Expr[Formula])],
+      confinedTermRules: Seq[(Expr[Term], Expr[Term])] = Seq.empty,
       takenTermVariables: Set[Variable] = Set.empty,
-      confinedFormulaRules: Seq[(Formula, Formula)] = Seq.empty,
+      confinedFormulaRules: Seq[(Expr[Formula], Expr[Formula])] = Seq.empty,
       takenFormulaVariables: Set[VariableFormula] = Set.empty
   ): Option[Seq[FormulaRewriteLambda]] = {
     val context = RewriteContext(
@@ -885,11 +885,11 @@ end UnificationUtils
  * @param first source formula
  * @param second destination formula
  */
-  private def getContextRecursive(using context: RewriteContext)(first: Formula, second: Formula): Option[FormulaRewriteLambda] = {
+  private def getContextRecursive(using context: RewriteContext)(first: Expr[Formula], second: Expr[Formula]): Option[FormulaRewriteLambda] = {
     // check if there exists a substitution
     lazy val validSubstitution =
       context.confinedFormulaRules
-        .getFirst { (l: Formula, r: Formula) =>
+        .getFirst { (l: Expr[Formula], r: Expr[Formula]) =>
           val subst = canRewrite(using context)(first, second, (l, r))
           subst.map(s => ((l, r), s))
         }
