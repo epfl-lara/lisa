@@ -158,12 +158,12 @@ object CommonTactics {
     }
 
     /**
-     * <pre>
-     *
-     * -------------  if f(xs) = The(y, P(y)) is a function definition
-     * |- P(f(xs))
-     * </pre>
-     */
+   * <pre>
+   *
+   * -------------  if f(xs) = The(y, P(y)) is a function definition
+   * |- P(f(xs))
+   * </pre>
+   */
     def unconditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lib.getDefinition(f) match {
         case Some(definition: lib.FunctionDefinition[?]) =>
@@ -194,12 +194,12 @@ object CommonTactics {
     }
 
     /**
-     * <pre>
-     *
-     * -------------- if f(xs) = The(y, (φ ==> Q(y)) /\ (!φ ==> R(y)))
-     * φ |- Q(f(xs))
-     * </pre>
-     */
+   * <pre>
+   *
+   * -------------- if f(xs) = The(y, (φ ==> Q(y)) /\ (!φ ==> R(y)))
+   * φ |- Q(f(xs))
+   * </pre>
+   */
     def conditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lib.getDefinition(f) match {
         case Some(definition: lib.FunctionDefinition[?]) =>
@@ -258,5 +258,5 @@ object CommonTactics {
       }
     }
   }
-*/
+   */
 }

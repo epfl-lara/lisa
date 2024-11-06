@@ -12,17 +12,16 @@ object Singleton extends lisa.Main:
   private val P = variable[Term >>: Formula]
   private val Q = variable[Term >>: Term >>: Formula]
 
-  val singleton = DEF ( lambda(x, x <> x) )
+  val singleton = DEF(lambda(x, x <> x))
 
   extension (t: Expr[Term])
     /**
-      * Prefix notation for singleton set
-      */
+     * Prefix notation for singleton set
+     */
     def unary_~ = singleton(x)
 
-  val membership = Theorem( x ∈ ~x ):
-    have(x ∈ (x <> x)) by Restate.from(UnorderedPair.firstMember of (y := x)) 
+  val membership = Theorem(x ∈ ~x):
+    have(x ∈ (x <> x)) by Restate.from(UnorderedPair.firstMember of (y := x))
     thenHave(thesis) by Substitution.Apply(singleton.definition)
-
 
 end Singleton

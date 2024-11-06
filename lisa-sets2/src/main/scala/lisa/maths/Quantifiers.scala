@@ -58,7 +58,6 @@ object Quantifiers extends lisa.Main {
   val existsOne = ∃!
   println(∃!.definition)
 
-
   /**
    * Theorem --- If there exists a *unique* element satisfying a predicate,
    * then we can say there *exists* an element satisfying it as well.
@@ -71,12 +70,11 @@ object Quantifiers extends lisa.Main {
     thenHave(∀(y, (x === y) <=> P(y)) |- P(x)) by InstSchema(y := x)
     thenHave(∀(y, (x === y) <=> P(y)) |- ∃(x, P(x))) by RightExists
     thenHave(∃(x, ∀(y, (x === y) <=> P(y))) |- ∃(x, P(x))) by LeftExists
-    thenHave((∃(x, ∀(y, (x === y) <=> P(y))) <=> ∃!(P), ∃!(P) ) |- ∃(x, P(x))) by 
-          LeftSubstEq.withParameters(List((∃!(P), ∃(x, ∀(y, (x === y) <=> P(y))))), (Seq(X), X))
+    thenHave((∃(x, ∀(y, (x === y) <=> P(y))) <=> ∃!(P), ∃!(P)) |- ∃(x, P(x))) by
+      LeftSubstEq.withParameters(List((∃!(P), ∃(x, ∀(y, (x === y) <=> P(y))))), (Seq(X), X))
     have(thesis) by Tautology.from(lastStep, existsOne.definition)
   }
 
-  
   /**
    * Theorem --- Equality relation is transitive.
    */
@@ -280,48 +278,42 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tautology.from(fwd, bwd)
   }
 
-*/
-  
+   */
 
   /**
-    * Quantify all variables in a formula on the right side of the premise sequent.
-    * 
-    * <pre>
-    *         Γ ⊢ φ, Δ
-    * -------------------------- x, y, ..., z do not appear in Γ
-    *  Γ ⊢ ∀x.∀y. ... ∀z. φ, Δ
-    * </pre>
-    */
+   * Quantify all variables in a formula on the right side of the premise sequent.
+   *
+   * <pre>
+   *         Γ ⊢ φ, Δ
+   * -------------------------- x, y, ..., z do not appear in Γ
+   *  Γ ⊢ ∀x.∀y. ... ∀z. φ, Δ
+   * </pre>
+   */
   def quantifyAll(using lib: Library, proof: lib.Proof)(premiseStep: proof.Fact)(conclusion: Sequent) =
     def isQuantifiedOf(target: Expr[Formula], pivot: Expr[Formula], vars: List[Variable[Term]] = Nil): Option[List[Variable[Term]]] =
       target match
-        case ∀(x, inner) => 
-          if isSame(inner, pivot) then Some(vars) else isQuantifiedOf(inner, pivot, x :: vars) 
+        case ∀(x, inner) =>
+          if isSame(inner, pivot) then Some(vars) else isQuantifiedOf(inner, pivot, x :: vars)
         case _ => None
     val premise = proof.getSequent(premiseStep)
     val difference = premise.right -- conclusion.right
 
-    if difference.isEmpty then
-      Restate(using lib, proof)(premiseStep)(conclusion)
-    else if difference.size > 1 then
-      proof.InvalidProofTactic(s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${Printing.printList(difference)}")
+    if difference.isEmpty then Restate(using lib, proof)(premiseStep)(conclusion)
+    else if difference.size > 1 then proof.InvalidProofTactic(s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${Printing.printList(difference)}")
     else
       val rdifference = conclusion.right -- premise.right
-      if rdifference.size != 1 then
-        proof.InvalidProofTactic(s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${Printing.printList(rdifference)}")
+      if rdifference.size != 1 then proof.InvalidProofTactic(s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${Printing.printList(rdifference)}")
       else
         val pivot = difference.head
         val target = rdifference.head
         val varsOption = isQuantifiedOf(target, pivot)
 
-        if varsOption.isEmpty then
-          proof.InvalidProofTactic("Could not find a formula to quantify over in the conclusion.")
+        if varsOption.isEmpty then proof.InvalidProofTactic("Could not find a formula to quantify over in the conclusion.")
         else
           val vars = varsOption.get
           val conflicts = vars.toSet -- premise.left.flatMap(_.freeVars)
 
-          if conflicts.nonEmpty then
-            proof.InvalidProofTactic(s"Variables ${conflicts.mkString(", ")} to be quantified appear in the LHS of the conclusion.")
+          if conflicts.nonEmpty then proof.InvalidProofTactic(s"Variables ${conflicts.mkString(", ")} to be quantified appear in the LHS of the conclusion.")
           else
             // safe, proceed
             TacticSubproof:
@@ -334,7 +326,7 @@ object Quantifiers extends lisa.Main {
                 val quant = ∀(v, pivot)
                 lib.thenHave(base +>> quant) by RightForall.withParameters(pivot, v)
                 quant
-            
+
               lib.thenHave(conclusion) by Restate
-              
+
 }

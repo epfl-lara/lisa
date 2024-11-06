@@ -14,12 +14,11 @@ object Pair extends lisa.Main:
   private val Q = variable[Term >>: Term >>: Formula]
 
   /**
-    * An ordered pair.
-    */
-  val pair = DEF ( lambda(x, lambda(y, ~x <> (x <> y))) )
+   * An ordered pair.
+   */
+  val pair = DEF(lambda(x, lambda(y, ~x <> (x <> y))))
 
-  extension (t: Expr[Term])
-    infix def :: (s: Expr[Term]) = pair(t)(s)
+  extension (t: Expr[Term]) infix def ::(s: Expr[Term]) = pair(t)(s)
 
   // val firstMemberExists = Theorem(exists(x, exists(y, p === x :: y)) ==> exists(y, p === x :: y)):
   //   have(p === x :: y |- p === x :: y) by Restate

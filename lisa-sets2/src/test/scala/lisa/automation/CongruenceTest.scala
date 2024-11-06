@@ -4,9 +4,7 @@ import lisa.automation.Congruence.*
 import lisa.automation.Congruence
 import org.scalatest.funsuite.AnyFunSuite
 
-
 class CongruenceTest extends AnyFunSuite with lisa.TestMain {
-
 
   given lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
 
@@ -36,7 +34,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   val << = SchematicFunctionLabel("<<", 2)
   val / = SchematicFunctionLabel("/", 2)
 
-  
   val af = formulaVariable
   val bf = formulaVariable
   val cf = formulaVariable
@@ -63,7 +60,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   val `*f` = SchematicConnectorLabel("*f", 2)
   val `<<f` = SchematicConnectorLabel("<<f", 2)
   val `/f` = SchematicConnectorLabel("/f", 2)
-
 
   test("3 terms no congruence egraph test") {
     val egraph = new EGraphExpr()
@@ -187,11 +183,9 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     assert(!egraph.idEq(b, F(a)))
     assert(!egraph.idEq(b, F(b)))
 
-    assert(egraph.explain(F(a), F(b)) == Some(List(egraph.TermCongruence((F(a), F(b))))) )
+    assert(egraph.explain(F(a), F(b)) == Some(List(egraph.TermCongruence((F(a), F(b))))))
 
   }
-
-
 
   test("divide-mult-shift in terms by 2 egraph test") {
 
@@ -199,18 +193,17 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.add(one)
     egraph.add(two)
     egraph.add(a)
-    val ax2    = egraph.add(*(a, two))
+    val ax2 = egraph.add(*(a, two))
     val ax2_d2 = egraph.add(/(*(a, two), two))
-    val `2d2`  = egraph.add(/(two, two))
+    val `2d2` = egraph.add(/(two, two))
     val ax_2d2 = egraph.add(*(a, /(two, two)))
-    val ax1    = egraph.add(*(a, one))
-    val as1    = egraph.add(<<(a, one))
+    val ax1 = egraph.add(*(a, one))
+    val as1 = egraph.add(<<(a, one))
 
     egraph.merge(ax2, as1)
     egraph.merge(ax2_d2, ax_2d2)
     egraph.merge(`2d2`, one)
     egraph.merge(ax1, a)
-
 
     assert(egraph.idEq(one, `2d2`))
     assert(egraph.idEq(ax2, as1))
@@ -225,13 +218,12 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     assert(!egraph.idEq(ax2, a))
     assert(!egraph.idEq(ax2_d2, `2d2`))
 
-    assert(egraph.explain(one, `2d2`) == Some(List(egraph.TermExternal((one, `2d2`)))) )
-    assert(egraph.explain(ax2, as1) == Some(List(egraph.TermExternal((ax2, as1)))) )
-    assert(egraph.explain(ax2_d2, ax_2d2) == Some(List(egraph.TermExternal((ax2_d2, ax_2d2)))) )
+    assert(egraph.explain(one, `2d2`) == Some(List(egraph.TermExternal((one, `2d2`)))))
+    assert(egraph.explain(ax2, as1) == Some(List(egraph.TermExternal((ax2, as1)))))
+    assert(egraph.explain(ax2_d2, ax_2d2) == Some(List(egraph.TermExternal((ax2_d2, ax_2d2)))))
 
-    assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.TermCongruence((ax_2d2, ax1)))) )
-    assert(egraph.explain(ax_2d2, a) == Some(List(egraph.TermCongruence((ax_2d2, ax1)), egraph.TermExternal((ax1, a))) ))
-
+    assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.TermCongruence((ax_2d2, ax1)))))
+    assert(egraph.explain(ax_2d2, a) == Some(List(egraph.TermCongruence((ax_2d2, ax1)), egraph.TermExternal((ax1, a)))))
 
   }
 
@@ -247,7 +239,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val fffffffx = egraph.add(F(ffffffx))
     val ffffffffx = egraph.add(F(fffffffx))
 
-
     egraph.merge(ffffffffx, x)
     egraph.merge(fffffx, x)
     assert(egraph.idEq(fffx, x))
@@ -256,7 +247,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     assert(egraph.idEq(x, fx))
 
   }
-
 
   test("3 formulas no congruence egraph test") {
     val egraph = new EGraphExpr()
@@ -380,7 +370,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     assert(!egraph.idEq(bf, Ff(af)))
     assert(!egraph.idEq(bf, Ff(bf)))
 
-    assert(egraph.explain(Ff(af), Ff(bf)) == Some(List(egraph.FormulaCongruence((Ff(af), Ff(bf))))) )
+    assert(egraph.explain(Ff(af), Ff(bf)) == Some(List(egraph.FormulaCongruence((Ff(af), Ff(bf))))))
 
   }
 
@@ -390,18 +380,17 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.add(onef)
     egraph.add(twof)
     egraph.add(af)
-    val ax2    = egraph.add(`*f`(af, twof))
+    val ax2 = egraph.add(`*f`(af, twof))
     val ax2_d2 = egraph.add(`/f`(`*f`(af, twof), twof))
-    val `2d2`  = egraph.add(`/f`(twof, twof))
+    val `2d2` = egraph.add(`/f`(twof, twof))
     val ax_2d2 = egraph.add(`*f`(af, `/f`(twof, twof)))
-    val ax1    = egraph.add(`*f`(af, onef))
-    val as1    = egraph.add(`<<f`(af, onef))
+    val ax1 = egraph.add(`*f`(af, onef))
+    val as1 = egraph.add(`<<f`(af, onef))
 
     egraph.merge(ax2, as1)
     egraph.merge(ax2_d2, ax_2d2)
     egraph.merge(`2d2`, onef)
     egraph.merge(ax1, af)
-
 
     assert(egraph.idEq(onef, `2d2`))
     assert(egraph.idEq(ax2, as1))
@@ -416,15 +405,12 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     assert(!egraph.idEq(ax2, af))
     assert(!egraph.idEq(ax2_d2, `2d2`))
 
-    assert(egraph.explain(onef, `2d2`) == Some(List(egraph.FormulaExternal((onef, `2d2`)))) )
-    assert(egraph.explain(ax2, as1) == Some(List(egraph.FormulaExternal((ax2, as1)))) )
-    assert(egraph.explain(ax2_d2, ax_2d2) == Some(List(egraph.FormulaExternal((ax2_d2, ax_2d2)))) )
+    assert(egraph.explain(onef, `2d2`) == Some(List(egraph.FormulaExternal((onef, `2d2`)))))
+    assert(egraph.explain(ax2, as1) == Some(List(egraph.FormulaExternal((ax2, as1)))))
+    assert(egraph.explain(ax2_d2, ax_2d2) == Some(List(egraph.FormulaExternal((ax2_d2, ax_2d2)))))
 
-    assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.FormulaCongruence((ax_2d2, ax1)))) )
-    assert(egraph.explain(ax_2d2, af) == Some(List(egraph.FormulaCongruence((ax_2d2, ax1)), egraph.FormulaExternal((ax1, af))) ))
-
-    
-
+    assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.FormulaCongruence((ax_2d2, ax1)))))
+    assert(egraph.explain(ax_2d2, af) == Some(List(egraph.FormulaCongruence((ax_2d2, ax1)), egraph.FormulaExternal((ax1, af)))))
 
   }
 
@@ -439,7 +425,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val ffffffx = egraph.add(Ff(fffffx))
     val fffffffx = egraph.add(Ff(ffffffx))
     val ffffffffx = egraph.add(Ff(fffffffx))
-
 
     egraph.merge(ffffffffx, xf)
     egraph.merge(fffffx, xf)
@@ -480,7 +465,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
   }
 
-    test("6 terms 6 predicates with congruence egraph test") {
+  test("6 terms 6 predicates with congruence egraph test") {
     val egraph = new EGraphExpr()
     egraph.add(Ff(Ff(Fp(F(F(a))))))
     egraph.add(Ff(Ff(Fp(F(F(b))))))
@@ -496,7 +481,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     assert(egraph.formulaUF.getClasses.size == 1)
 
   }
-
 
   test("15 terms no congruence with redundant merges test with proofs") {
     val egraph = new EGraphExpr()
@@ -549,29 +533,27 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
   }
 
-
   test("4 elements with congruence test with proofs") {
     val egraph = new EGraphExpr()
     egraph.add(F(a))
     egraph.add(F(b))
     egraph.merge(a, b)
-    val test5 = Theorem(a===b |- F(a) === F(b)) {
+    val test5 = Theorem(a === b |- F(a) === F(b)) {
       egraph.proveInnerTerm(F(a), F(b), (a === b) |- ())
     }
   }
-
 
   test("divide-mult-shift by 2 in terms egraph test with proofs") {
     val egraph = new EGraphExpr()
     egraph.add(one)
     egraph.add(two)
     egraph.add(a)
-    val ax2    = egraph.add(`*`(a, two))
+    val ax2 = egraph.add(`*`(a, two))
     val ax2_d2 = egraph.add(`/`(`*`(a, two), two))
-    val `2d2`  = egraph.add(`/`(two, two))
+    val `2d2` = egraph.add(`/`(two, two))
     val ax_2d2 = egraph.add(`*`(a, `/`(two, two)))
-    val ax1    = egraph.add(`*`(a, one))
-    val as1    = egraph.add(`<<`(a, one))
+    val ax1 = egraph.add(`*`(a, one))
+    val as1 = egraph.add(`<<`(a, one))
 
     egraph.merge(ax2, as1)
     egraph.merge(ax2_d2, ax_2d2)
@@ -581,23 +563,23 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val base = List[Formula](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
 
     val one_2d2 = Theorem(base |- (one === `2d2`)) {
-      egraph.proveInnerTerm(one, `2d2`, base  |- ())
+      egraph.proveInnerTerm(one, `2d2`, base |- ())
     }
 
     val ax2_as1 = Theorem(base |- (ax2 === as1)) {
-      egraph.proveInnerTerm(ax2, as1, base  |- ())
+      egraph.proveInnerTerm(ax2, as1, base |- ())
     }
 
     val ax2_d2_ax_2d2 = Theorem(base |- (ax2_d2 === ax_2d2)) {
-      egraph.proveInnerTerm(ax2_d2, ax_2d2, base  |- ())
+      egraph.proveInnerTerm(ax2_d2, ax_2d2, base |- ())
     }
 
     val ax_2d2_ax1 = Theorem(base |- (ax_2d2 === ax1)) {
-      egraph.proveInnerTerm(ax_2d2, ax1, base  |- ())
+      egraph.proveInnerTerm(ax_2d2, ax1, base |- ())
     }
 
     val ax_2d2_a = Theorem(base |- (ax_2d2 === a)) {
-      egraph.proveInnerTerm(ax_2d2, a, base  |- ())
+      egraph.proveInnerTerm(ax_2d2, a, base |- ())
     }
 
   }
@@ -617,10 +599,8 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.merge(ffffffffx, x)
     egraph.merge(fffffx, x)
 
-
     val base = List(ffffffffx === x, fffffx === x)
 
-  
     val test2 = Theorem(base |- fffx === x) {
       egraph.proveInnerTerm(fffx, x, base |- ())
     }
@@ -632,7 +612,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     }
 
   }
-
 
   test("15 formulas no congruence proofs with redundant merges test with proofs") {
     val egraph = new EGraphExpr()
@@ -666,8 +645,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.merge(gf, ef)
     egraph.merge(if_, jf)
 
-    val base = List(af <=> cf, ef <=> ff, if_ <=> kf, mf <=> nf, af <=> bf,
-     of <=> mf, if_ <=> mf, gf <=> hf, lf <=> kf, bf <=> cf, ff <=> ef, of <=> if_, gf <=> ef, if_ <=> jf)
+    val base = List(af <=> cf, ef <=> ff, if_ <=> kf, mf <=> nf, af <=> bf, of <=> mf, if_ <=> mf, gf <=> hf, lf <=> kf, bf <=> cf, ff <=> ef, of <=> if_, gf <=> ef, if_ <=> jf)
 
     val test1 = Theorem(base |- bf <=> cf) {
       egraph.proveInnerFormula(bf, cf, base |- ())
@@ -702,12 +680,12 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.add(onef)
     egraph.add(twof)
     egraph.add(af)
-    val ax2    = egraph.add(`*f`(af, twof))
+    val ax2 = egraph.add(`*f`(af, twof))
     val ax2_d2 = egraph.add(`/f`(`*f`(af, twof), twof))
-    val `2d2`  = egraph.add(`/f`(twof, twof))
+    val `2d2` = egraph.add(`/f`(twof, twof))
     val ax_2d2 = egraph.add(`*f`(af, `/f`(twof, twof)))
-    val ax1    = egraph.add(`*f`(af, onef))
-    val as1    = egraph.add(`<<f`(af, onef))
+    val ax1 = egraph.add(`*f`(af, onef))
+    val as1 = egraph.add(`<<f`(af, onef))
 
     egraph.merge(ax2, as1)
     egraph.merge(ax2_d2, ax_2d2)
@@ -717,23 +695,23 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val base = List[Formula](ax2 <=> as1, ax2_d2 <=> ax_2d2, `2d2` <=> onef, ax1 <=> af)
 
     val one_2d2 = Theorem(base |- onef <=> `2d2`) {
-      egraph.proveInnerFormula(onef, `2d2`, base  |- ())
+      egraph.proveInnerFormula(onef, `2d2`, base |- ())
     }
 
     val ax2_as1 = Theorem(base |- ax2 <=> as1) {
-      egraph.proveInnerFormula(ax2, as1, base  |- ())
+      egraph.proveInnerFormula(ax2, as1, base |- ())
     }
 
     val ax2_d2_ax_2d2 = Theorem(base |- ax2_d2 <=> ax_2d2) {
-      egraph.proveInnerFormula(ax2_d2, ax_2d2, base  |- ())
+      egraph.proveInnerFormula(ax2_d2, ax_2d2, base |- ())
     }
 
     val ax_2d2_ax1 = Theorem(base |- ax_2d2 <=> ax1) {
-      egraph.proveInnerFormula(ax_2d2, ax1, base  |- ())
+      egraph.proveInnerFormula(ax_2d2, ax1, base |- ())
     }
 
     val ax_2d2_a = Theorem(base |- ax_2d2 <=> af) {
-      egraph.proveInnerFormula(ax_2d2, af, base  |- ())
+      egraph.proveInnerFormula(ax_2d2, af, base |- ())
     }
 
   }
@@ -752,7 +730,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
     egraph.merge(ffffffffx, xf)
     egraph.merge(fffffx, xf)
-    
+
     val base = List(ffffffffx <=> xf, fffffx <=> xf)
 
     val test2 = Theorem(base |- fffx <=> xf) {
@@ -765,7 +743,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       egraph.proveInnerFormula(fx, xf, base |- ())
     }
   }
-
 
   test("2 terms 6 predicates with congruence egraph test with proofs") {
     val egraph = new EGraphExpr()
@@ -781,7 +758,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       egraph.proveInnerFormula(Ff(Fp(a)), Ff(Fp(b)), (a === b) |- ())
     }
 
-    val test7 = Theorem((a === b) |- Ff(Ff(Fp(a))) <=> Ff(Ff(Fp(b))) ) {
+    val test7 = Theorem((a === b) |- Ff(Ff(Fp(a))) <=> Ff(Ff(Fp(b)))) {
       egraph.proveInnerFormula(Ff(Ff(Fp(a))), Ff(Ff(Fp(b))), (a === b) |- ())
     }
 
@@ -797,18 +774,18 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       egraph.proveInnerTerm(F(a), F(b), (a === b) |- ())
     }
 
-    val test6 = Theorem((a === b) |- Fp(F(F(a))) <=> Fp(F(F(b))) ) {
+    val test6 = Theorem((a === b) |- Fp(F(F(a))) <=> Fp(F(F(b)))) {
       egraph.proveInnerFormula(Fp(F(F(a))), Fp(F(F(b))), (a === b) |- ())
     }
 
-    val test7 = Theorem((a === b) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b))))) ) {
+    val test7 = Theorem((a === b) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b)))))) {
       egraph.proveInnerFormula(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b) |- ())
     }
 
     egraph.merge(Fp(F(F(b))), Ff(Fp(F(F(a)))))
 
-    val test8 = Theorem(((a === b), Fp(F(F(b))) <=> Ff(Fp(F(F(a)))) ) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b))))) ) {
-      egraph.proveInnerFormula(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b, Fp(F(F(b))) <=> Ff(Fp(F(F(a)))) ) |- ())
+    val test8 = Theorem(((a === b), Fp(F(F(b))) <=> Ff(Fp(F(F(a))))) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b)))))) {
+      egraph.proveInnerFormula(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b, Fp(F(F(b))) <=> Ff(Fp(F(F(a))))) |- ())
     }
 
   }
@@ -830,16 +807,14 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       have(thesis) by Congruence
     }
 
-
-    val ax2    = `*`(a, two)
+    val ax2 = `*`(a, two)
     val ax2_d2 = `/`(`*`(a, two), two)
-    val `2d2`  = `/`(two, two)
+    val `2d2` = `/`(two, two)
     val ax_2d2 = `*`(a, `/`(two, two))
-    val ax1    = `*`(a, one)
-    val as1    = `<<`(a, one)
+    val ax1 = `*`(a, one)
+    val as1 = `<<`(a, one)
 
     val base2 = List[Formula](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
-
 
     val one_2d2 = Theorem(base2 |- (one === `2d2`)) {
       have(thesis) by Congruence
@@ -856,7 +831,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val ax_2d2_ax1 = Theorem(base2 |- (ax_2d2 === ax1)) {
       have(thesis) by Congruence
     }
-    
+
     val ax_2d2_a = Theorem(base2 |- (ax_2d2 === a)) {
       have(thesis) by Congruence
     }
@@ -869,11 +844,11 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       have(thesis) by Congruence
     }
 
-    val ax_2d2_a_3 = Theorem((base2 :+ Fp(ax_2d2) :+ !Fp(a)) |- () ) {
+    val ax_2d2_a_3 = Theorem((base2 :+ Fp(ax_2d2) :+ !Fp(a)) |- ()) {
       have(thesis) by Congruence
     }
 
-    val test5 = Theorem(a===b |- F(a) === F(b)) {
+    val test5 = Theorem(a === b |- F(a) === F(b)) {
       have(thesis) by Congruence
     }
 
@@ -889,25 +864,22 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       have(thesis) by Congruence
     }
 
-    val test9 = Theorem((a === b) |- (Fp(F(F(a))), !Fp(F(F(b)))) ) {
+    val test9 = Theorem((a === b) |- (Fp(F(F(a))), !Fp(F(F(b))))) {
       have(thesis) by Congruence
     }
 
-    val test10 = Theorem((a === b) |- Fp(F(F(a))) <=> Fp(F(F(b))) ) {
+    val test10 = Theorem((a === b) |- Fp(F(F(a))) <=> Fp(F(F(b)))) {
       have(thesis) by Congruence
     }
 
-    
-    val test11 = Theorem((a === b) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b))))) ) {
+    val test11 = Theorem((a === b) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b)))))) {
       have(thesis) by Congruence
     }
 
-    val test12 = Theorem(((a === b), Fp(F(F(b))) <=> Ff(Fp(F(F(a)))), Ff(Ff(Fp(F(F(a))))) ) |- Ff(Ff(Fp(F(F(b))))) ) {
+    val test12 = Theorem(((a === b), Fp(F(F(b))) <=> Ff(Fp(F(F(a)))), Ff(Ff(Fp(F(F(a)))))) |- Ff(Ff(Fp(F(F(b)))))) {
       have(thesis) by Congruence
     }
-
 
   }
-
 
 }

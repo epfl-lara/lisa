@@ -14,16 +14,16 @@ object Extensionality extends lisa.Main:
   private val P = variable[Term >>: Formula]
   private val Q = variable[Term >>: Term >>: Formula]
 
-  val implied = Theorem( forall(z, z ∈ x <=> z ∈ y) |- (x === y) ):
+  val implied = Theorem(forall(z, z ∈ x <=> z ∈ y) |- (x === y)):
     have(thesis) by Weakening(extensionalityAxiom)
 
   /**
-    * Given that z ∈ x <=> z ∈ y, prove that x = y if z is free.
-    * 
-    *  Γ ⊢ z ∈ x <=> z ∈ y, Δ
-    * ------------------------ z not in Γ
-    *      Γ ⊢ x === y, Δ
-    */
+   * Given that z ∈ x <=> z ∈ y, prove that x = y if z is free.
+   *
+   *  Γ ⊢ z ∈ x <=> z ∈ y, Δ
+   * ------------------------ z not in Γ
+   *      Γ ⊢ x === y, Δ
+   */
   def tactic(using proof: Proof)(premiseStep: proof.Fact)(conclusion: Sequent) =
     val premise = proof.getSequent(premiseStep)
     val boundVars = premise.left.flatMap(_.freeVars)
@@ -33,7 +33,7 @@ object Extensionality extends lisa.Main:
       case (<=> #@ (∈ #@ (z1: Variable[Term]) #@ (x: Expr[Term])) #@ (∈ #@ (z2: Variable[Term]) #@ (y: Expr[Term]))) if valid(z1, z2, x, y) => (z1, x, y)
 
     pivot match
-      case None => 
+      case None =>
         proof.InvalidProofTactic("Could not find a formula of the form z ∈ x <=> z ∈ y in the RHS of the premise.")
       case Some((z, xe, ye)) =>
         TacticSubproof:

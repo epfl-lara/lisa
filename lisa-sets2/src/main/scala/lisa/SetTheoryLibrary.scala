@@ -36,7 +36,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   /**
    * The symbol for the empty set constant.
    */
-  final val emptySet = constant[Term ]("emptySet")
+  final val emptySet = constant[Term]("emptySet")
 
   /**
    * The symbol for the unordered pair function.
@@ -62,7 +62,6 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    * Set Theory basic functions.
    */
   final val functions = Set(unorderedPair, powerSet, union, universe)
-
 
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
@@ -181,7 +180,7 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
    *
    * `() |- ∃ x. inductive(x)`
    */
-  final val infinityAxiom: AXIOM = Axiom(exists(x, emptySet ∈ x /\ forall(y, (y ∈ x) ==> union(unorderedPair(y, unorderedPair(y, y))) ∈ x )))
+  final val infinityAxiom: AXIOM = Axiom(exists(x, emptySet ∈ x /\ forall(y, (y ∈ x) ==> union(unorderedPair(y, unorderedPair(y, y))) ∈ x)))
 
   /**
    * Foundation/Regularity Axiom --- Every non-empty set `x` has an `∈`-minimal
@@ -246,11 +245,10 @@ object SetTheoryLibrary extends lisa.prooflib.Library {
   val ∅ = emptySet
   val ∈ = in
 
-  extension (l: Expr[Term]) 
+  extension (l: Expr[Term])
     def ∈(r: Expr[Term]): Expr[Formula] = in(l)(r)
     def ⊆(r: Expr[Term]): Expr[Formula] = subset(l)(r)
     def =/=(r: Expr[Term]): Expr[Formula] = !(l === r)
-
 
   def unorderedPair(x: Expr[Term], y: Expr[Term]): Expr[Term] = App(App(unorderedPair, x), y)
 
