@@ -1,13 +1,13 @@
 package lisa.automation
 
-import lisa.fol.FOL as F
+import lisa.utils.fol.FOL as F
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus
-import lisa.prooflib.BasicStepTactic
-import lisa.prooflib.SimpleDeducedSteps
-import lisa.prooflib.ProofTacticLib.{*, given}
-import lisa.prooflib.*
+import lisa.utils.prooflib.BasicStepTactic
+import lisa.utils.prooflib.SimpleDeducedSteps
+import lisa.utils.prooflib.ProofTacticLib.{*, given}
+import lisa.utils.prooflib.*
 import lisa.utils.K
 import lisa.utils.UserLisaException
 import lisa.utils.unification.UnificationUtils.*
@@ -53,7 +53,7 @@ object Substitution:
    * Checks if a raw substitution input can be used as a rewrite rule (is === or
    * <=>, basically).
    */
-  def validSubstitutionRule(using lib: lisa.prooflib.Library, proof: lib.Proof)(rule: (proof.Fact | Expr[Formula])): Boolean =
+  def validSubstitutionRule(using lib: lisa.utils.prooflib.Library, proof: lib.Proof)(rule: (proof.Fact | Expr[Formula])): Boolean =
     rule match
       // as formula
       case f: Expr[Formula] @unchecked =>

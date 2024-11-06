@@ -1,9 +1,9 @@
 package lisa.automation
 
 import lisa.automation.Substitution
-import lisa.fol.FOL as F
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib.*
+import lisa.utils.fol.FOL as F
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.K.{_, given}
 
 /**

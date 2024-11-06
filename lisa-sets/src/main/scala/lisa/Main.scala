@@ -1,17 +1,17 @@
 package lisa
 
 import lisa.SetTheoryLibrary
-import lisa.prooflib.BasicMain
+import lisa.utils.prooflib.BasicMain
 
 /**
  * The parent trait of all theory files containing mathematical development
  */
 trait Main extends BasicMain {
 
-  export lisa.fol.FOL.{*, given}
+  export lisa.utils.fol.FOL.{*, given}
   export SetTheoryLibrary.{given, _}
-  export lisa.prooflib.BasicStepTactic.*
-  export lisa.prooflib.SimpleDeducedSteps.*
+  export lisa.utils.prooflib.BasicStepTactic.*
+  export lisa.utils.prooflib.SimpleDeducedSteps.*
 
   export lisa.automation.Tautology
   export lisa.automation.Substitution

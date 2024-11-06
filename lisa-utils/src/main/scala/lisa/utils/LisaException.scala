@@ -1,12 +1,12 @@
 package lisa.utils
 
-import lisa.fol.FOL as F
+import lisa.utils.fol.FOL as F
 import lisa.kernel.fol.FOL
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
-import lisa.prooflib.Library
-// import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.prooflib.Library
+// import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.KernelHelpers.repr
 import lisa.utils.KernelHelpers.prettySCProof
 
@@ -54,7 +54,7 @@ object UserLisaException {
     def showError: String = errorMessage
   }
 
-  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.fol.FOL.Expr[lisa.fol.FOL.Formula], library: lisa.prooflib.Library)(using sourcecode.Line, sourcecode.File)
+  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.utils.fol.FOL.Expr[lisa.utils.fol.FOL.Formula], library: lisa.utils.prooflib.Library)(using sourcecode.Line, sourcecode.File)
       extends UserLisaException(errorMessage) {
     def showError: String = s"The desired axiom \"$name\" contains symbol that are not part of the theory.\n" +
       s"The symbols {${library.theory.findUndefinedSymbols(formula.underlying)}} are undefined."
@@ -64,7 +64,7 @@ object UserLisaException {
     def showError: String = ""
   }
 
-  class UndefinedSymbolException(errorMessage: String, symbol: F.Constant[?], library: lisa.prooflib.Library)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
+  class UndefinedSymbolException(errorMessage: String, symbol: F.Constant[?], library: lisa.utils.prooflib.Library)(using sourcecode.Line, sourcecode.File) extends UserLisaException(errorMessage) {
     def showError: String = s"The desired symbol \"$symbol\" is unknown and has not been defined.\n"
   }
 

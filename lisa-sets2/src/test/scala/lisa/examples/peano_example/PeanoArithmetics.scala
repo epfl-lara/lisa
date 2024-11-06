@@ -4,8 +4,8 @@ import lisa.kernel.fol.FOL.*
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.KernelHelpers.{_, given}
 
-object PeanoArithmetics extends lisa.prooflib.Library {
-  export lisa.fol.FOL.{*, given}
+object PeanoArithmetics extends lisa.utils.prooflib.Library {
+  export lisa.utils.fol.FOL.{*, given}
   final val (x, y, z) =
     (variable, variable, variable)
 

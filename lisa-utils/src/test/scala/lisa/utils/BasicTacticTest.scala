@@ -1,9 +1,9 @@
 package lisa.utils
 
 //import lisa.kernel.proof.SequentCalculus as SC
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.ProofTacticLib
 import lisa.test.ProofTacticTestLib
 //import org.scalatest.funsuite.AnyFunSuite
 
@@ -20,14 +20,14 @@ class BasicTacticTest extends ProofTacticTestLib {
   val S = variable[Term >>: Term >>: Formula]
   // hypothesis
   test("Tactic Tests: Hypothesis") {
-    val correct = List[lisa.fol.FOL.Sequent](
+    val correct = List[lisa.utils.fol.FOL.Sequent](
       (P(x) |- P(x)),
       (P(x) |- (P(x),  Q(x))),
       ((P(x), Q(x)) |- (P(x), Q(x))),
       ((P(x), Q(x)) |- P(x))
     )
 
-    val incorrect = List[lisa.fol.FOL.Sequent](
+    val incorrect = List[lisa.utils.fol.FOL.Sequent](
       (P(x) |- ()),
       (() |- ()),
       (() |- P(x)),

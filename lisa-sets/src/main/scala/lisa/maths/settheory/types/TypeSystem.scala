@@ -1,15 +1,15 @@
 package lisa.maths.settheory.types
 
-import lisa.prooflib.ProofTacticLib.*
-import lisa.fol.FOL
+import lisa.utils.prooflib.ProofTacticLib.*
+import lisa.utils.fol.FOL
 import lisa.automation.Tautology
-import lisa.fol.FOL.{*, given}
-import lisa.prooflib.BasicStepTactic.* 
-import lisa.prooflib.SimpleDeducedSteps.*
+import lisa.utils.fol.FOL.{*, given}
+import lisa.utils.prooflib.BasicStepTactic.* 
+import lisa.utils.prooflib.SimpleDeducedSteps.*
 import lisa.SetTheoryLibrary.{given, *}
 import lisa.SetTheoryLibrary
 import lisa.kernel.proof.SequentCalculus.SCProofStep
-import lisa.prooflib.OutputManager
+import lisa.utils.prooflib.OutputManager
 import lisa.maths.settheory.SetTheory.singleton
 import lisa.maths.settheory.functions.{functional, app, functionFromApplication, |=>}
 
@@ -228,7 +228,7 @@ object TypeSystem  {
     val formula = TypeAssignment(this, typ)
     assert(justif.statement.left.isEmpty && (justif.statement.right.head == formula))
 
-    override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): TypedConstant[A] = this
+    override def substituteUnsafe(map: Map[lisa.utils.fol.FOL.SchematicLabel[?], lisa.utils.fol.FOL.LisaObject[?]]): TypedConstant[A] = this
   }
 
   // Function Labels
@@ -244,7 +244,7 @@ object TypeSystem  {
     val justif: JUSTIFICATION
   ) extends ConstantFunctionLabel[N](id, arity) with LisaObject[TypedConstantFunctional[N]] {
     
-    override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): TypedConstantFunctional[N] = this
+    override def substituteUnsafe(map: Map[lisa.utils.fol.FOL.SchematicLabel[?], lisa.utils.fol.FOL.LisaObject[?]]): TypedConstantFunctional[N] = this
   }
 
 
@@ -253,7 +253,7 @@ object TypeSystem  {
 
   class AppliedFunction(val func: Term, val arg: Term) extends AppliedFunctional(app, Seq(func, arg)) with LisaObject[AppliedFunction] {
     
-    override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): AppliedFunction = AppliedFunction(func.substituteUnsafe(map), arg.substituteUnsafe(map))
+    override def substituteUnsafe(map: Map[lisa.utils.fol.FOL.SchematicLabel[?], lisa.utils.fol.FOL.LisaObject[?]]): AppliedFunction = AppliedFunction(func.substituteUnsafe(map), arg.substituteUnsafe(map))
 
     override def toString(): String = 
       func match
@@ -296,7 +296,7 @@ object TypeSystem  {
       val intName = "definition_" + fullName
       val out = Variable(freshId(expression.allSchematicLabels.map(_.id), "y"))
       val defThm = THM(ExistsOne(out, out === expression), intName, line, file, InternalStatement)({
-        have(lisa.prooflib.SimpleDeducedSteps.simpleFunctionDefinition(lambda(Seq[Variable](), expression), out))
+        have(lisa.utils.prooflib.SimpleDeducedSteps.simpleFunctionDefinition(lambda(Seq[Variable](), expression), out))
       })
       new TypedSimpleConstantDefinition(fullName, line, file)(expression, out, defThm, typ)
     }
@@ -334,7 +334,7 @@ object TypeSystem  {
 
     class TypingException(val msg: String) extends Exception(msg)
 
-    def prove(using proof: SetTheoryLibrary.Proof)(bot:lisa.fol.FOL.Sequent): proof.ProofTacticJudgement = 
+    def prove(using proof: SetTheoryLibrary.Proof)(bot:lisa.utils.fol.FOL.Sequent): proof.ProofTacticJudgement = 
       val context = bot.left
       var success: proof.ProofTacticJudgement = null
       var typingError: proof.ProofTacticJudgement = null

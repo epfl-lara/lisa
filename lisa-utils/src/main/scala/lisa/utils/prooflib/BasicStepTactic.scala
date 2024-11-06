@@ -1,7 +1,7 @@
-package lisa.prooflib
-import lisa.fol.FOL as F
-import lisa.prooflib.ProofTacticLib.{_, given}
-import lisa.prooflib.*
+package lisa.utils.prooflib
+import lisa.utils.fol.FOL as F
+import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.*
 import lisa.utils.K
 import lisa.utils.KernelHelpers.{|- => `K|-`, _}
 //import lisa.utils.UserLisaException

@@ -2,15 +2,15 @@ package lisa.automation.settheory
 
 import lisa.SetTheoryLibrary.{_, given}
 import lisa.automation.Tautology
-import lisa.fol.FOL.{_, given}
+import lisa.utils.fol.FOL.{_, given}
 import lisa.kernel.proof.SequentCalculus as SCunique
 import lisa.maths.Quantifiers
 import lisa.maths.settheory.SetTheory
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib.{_, given}
-import lisa.prooflib.SimpleDeducedSteps.Restate
-import lisa.prooflib.*
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.SimpleDeducedSteps.Restate
+import lisa.utils.prooflib.*
 import lisa.utils.Printer
 import lisa.utils.unification.UnificationUtils.FormulaSubstitution
 import lisa.utils.unification.UnificationUtils.TermSubstitution

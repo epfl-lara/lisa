@@ -1,8 +1,8 @@
-package lisa.fol
+package lisa.utils.fol
 
-import lisa.prooflib.BasicStepTactic
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.prooflib.BasicStepTactic
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 
 import lisa.utils.K
 

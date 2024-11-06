@@ -1,6 +1,6 @@
 package lisa.utils.fol
 
-import lisa.fol.Syntax
+import lisa.utils.fol.Syntax
 
 /**
   * Functional Tree-like operations for expressions.

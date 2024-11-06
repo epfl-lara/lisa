@@ -1,4 +1,4 @@
-package lisa.fol
+package lisa.utils.fol
 
 object FOL extends Sequents {
   //export lisa.utils.K
