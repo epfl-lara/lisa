@@ -39,7 +39,8 @@ object SequentCalculus {
       else if (s.right.size == 1) s.right.head
       else s.right.reduce(or(_)(_))
     }
-    implies(left)(right)
+    if (s.left.isEmpty) right
+    else implies(left)(right)
   }
 
   /**
