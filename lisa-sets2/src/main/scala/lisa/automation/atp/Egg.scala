@@ -24,6 +24,8 @@ import sys.process._
   */
 object Egg extends ProofTactic with ProofSequentTactic {
   private var i : Int = 0
+
+  var timeLimit = 5
   
   val eggExec_linux = "../bin/egg-sc-tptp"
   val eggExec_windows = "..\\bin\\egg-sc-tptp.exe"
@@ -96,7 +98,7 @@ object Egg extends ProofTactic with ProofSequentTactic {
       val OS = System.getProperty("os.name")
       if OS.contains("nix") || OS.contains("nux") || OS.contains("aix") then
         val ret = s"chmod u+x \"$eggExec_linux\"".!
-        val cmd = (s"$eggExec_linux $foldername$filename.p $foldername$outputname.p") // TODO
+        val cmd = (s"$eggExec_linux $foldername$filename.p $foldername$outputname.p --level1") // TODO
         val res = try {
           cmd.!!
         } catch {
