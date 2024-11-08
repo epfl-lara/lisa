@@ -8,6 +8,6 @@ object Equality extends lisa.Main:
 
   val transitivity = Theorem((x === y, y === z) |- (x === z)):
     have((x === y, y === z) |- (x === y)) by Hypothesis
-    thenHave(thesis) by InstSchema(y := z)
+    thenHave(thesis) by RightSubstEq.withParameters(Seq(y -> z), Seq(y) -> (x === y))
 
 end Equality

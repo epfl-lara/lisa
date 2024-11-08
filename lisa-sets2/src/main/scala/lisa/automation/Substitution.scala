@@ -206,14 +206,14 @@ object Substitution:
             // rewrite to destruct sequent
             thenHave(postLeft ++ leftFormulas ++ rightFormulas |- postRight) by Restate
 
-            val dpremise = lastStep.bot
+            val postRewriteSequent = lastStep.bot
 
             // discharge assumptions
-            discharges.foldLeft(dpremise):
+            discharges.foldLeft(postRewriteSequent):
               case (premise, (rule, source)) =>
                 val sseq = proof.getSequent(source)
                 val form = rule.toFormula
-                val nextSequent = premise.left - form ++ sseq.left |- premise.right ++ sseq.right - form
+                val nextSequent = premise.left.filterNot(isSame(_, form)) ++ sseq.left |- premise.right ++ sseq.right.filterNot(isSame(_, form))
                 have(nextSequent) by Cut.withParameters(form)(source, lastStep)
                 nextSequent
 

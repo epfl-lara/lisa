@@ -9,6 +9,7 @@ import scala.annotation.nowarn
 import scala.annotation.showAsInfix
 import scala.annotation.targetName
 import scala.util.Sorting
+import lisa.utils.KernelHelpers.freshId
 
 trait Syntax {
 
@@ -178,6 +179,7 @@ trait Syntax {
 
   object Variable {
     def unsafe(id: String, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
+    def unsafe(id: Identifier, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
   }
 
 
@@ -273,7 +275,14 @@ trait Syntax {
   case class Abs[T1, T2](v: Variable[T1], body: Expr[T2]) extends Expr[Arrow[T1, T2]] {
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
-    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] = Abs(v, body.substituteUnsafe(m - v))
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] = 
+      lazy val frees = m.values.flatMap(_.freeVars).toSet
+      if m.keySet.contains(v) || frees.contains(v) then
+        // rename
+        val v1: Variable[T1] = Variable.unsafe(freshId(frees.map(_.id), v.id), v.sort).asInstanceOf
+        new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
+      else
+        new Abs(v, body.substituteUnsafe(m))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] =
       super.substituteWithCheck(m).asInstanceOf[Abs[T1, T2]]
     override def substitute(pairs: SubstPair*): Abs[T1, T2] = 
