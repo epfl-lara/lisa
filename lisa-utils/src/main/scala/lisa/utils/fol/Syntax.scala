@@ -178,6 +178,7 @@ trait Syntax {
 
   object Variable {
     def unsafe(id: String, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
+    def unsafe(id: Identifier, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
   }
 
 
