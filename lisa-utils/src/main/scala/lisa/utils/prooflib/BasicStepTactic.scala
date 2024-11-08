@@ -1000,7 +1000,7 @@ object BasicStepTactic {
    * </pre>
    *
    * Note that if Δ contains φ[(εx. φ)/x] as well, the parameter inference will
-   * fail. Use [[RightEpsilon.withParameters]] instead.
+   * fail. In that case, use [[RightEpsilon.withParameters]] instead.
    */
   object RightEpsilon extends ProofTactic with ProofFactSequentTactic {
     def collectEpsilons(in: F.Expr[?]): Set[F.Expr[F.Term]] = 
@@ -1042,7 +1042,6 @@ object BasicStepTactic {
 
         val newBindingOption = epsilons.collectFirstDefined: 
           case eps @ F.ε(x, phi) =>
-            val asTerm = (eps : F.Expr[F.Term])
             val substituted = phi.substitute(x := eps) 
             if F.isSame(substituted, target) then Some(eps) else None
           case _ => None
