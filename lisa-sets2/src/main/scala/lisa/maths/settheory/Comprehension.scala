@@ -24,8 +24,8 @@ object Comprehension extends lisa.Main:
   val definition: THM = Theorem(∀(x, x ∈ s.filter(φ) <=> (x ∈ s /\ φ(x)))):
     have(∀(x, x ∈ y <=> (x ∈ s /\ φ(x))) |- ∀(x, x ∈ y <=> (x ∈ s /\ φ(x)))) by Hypothesis
     thenHave(∀(x, x ∈ y <=> (x ∈ s /\ φ(x))) |- ∀(x, x ∈ ε(t, ∀(x, x ∈ t <=> (x ∈ s /\ φ(x)))) <=> (x ∈ s /\ φ(x)))) by RightEpsilon
-    thenHave(∀(x, x ∈ y <=> (x ∈ s /\ φ(x))) |- ∀(x, x ∈ s.filter(φ) <=> (x ∈ s /\ φ(x)))) by Substitution.Apply(filter.definition)
+    thenHave(∀(x, x ∈ y <=> (x ∈ s /\ φ(x))) |- ∀(x, x ∈ s.filter(φ) <=> (x ∈ s /\ φ(x)))) by Substitution.Apply(filter.definition of (t := s))
     thenHave(∃(y, ∀(x, x ∈ y <=> (x ∈ s /\ φ(x)))) |- ∀(x, x ∈ s.filter(φ) <=> (x ∈ s /\ φ(x)))) by LeftExists
-    have(thesis) by Cut(existence, lastStep)
+    have(thesis) by Cut.withParameters(∃(t, ∀(x, (x ∈ t) <=> (x ∈ s /\ φ(x)))))(existence of (t := s), lastStep)
 
 end Comprehension
