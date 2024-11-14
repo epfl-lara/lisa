@@ -75,6 +75,13 @@ lazy val sets = Project(
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils))
 
+lazy val topologies = Project(
+  id = "lisa-topology",
+  base = file("lisa-topology")
+)
+  .settings(commonSettings3)
+  .dependsOn(kernel, withTests(utils))
+
 lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")
