@@ -1,25 +1,50 @@
 package lisa.maths.topology
 
-import lisa.kernel.Definition
+import lisa.maths.settheory.*
 
-object TopologyMath extends lisa.Main {
+object Topology extends lisa.Main {
 
-  // var defs
   private val X, T = variable
   private val S, A, B, Y = variable
 
-  val discreteTopology = DEF(X, T) --> T === powerSet(X)
-  val indiscreteTopology = DEF(X, T) --> ∅ ∈ T /\ X ∈ T /\ forall(S, in(S, T) ==> (S === X \/ S === ∅))
+  /**
+   * Bounded quantifiers --- These express the usual `∀x ∈ G ϕ` and `∃x ∈ G ϕ`, for some variables (sets) `x` and `G`, which
+   * are shorthands for `∀x (x ∈ G ==> ϕ)` and `∃x (x ∈ G ==> ϕ)`, respectively.
+   */
+  def ∀(x: Variable, range: Variable, inner: Formula): Formula = forall(x, in(x, range) ==> inner)
 
-  val discreteIsTopology = Theorem(
-    discreteTopology(X, T) ==> topology(X, T)
-  ) {
-    sorry
-  }
+  def ∃(x: Variable, range: Variable, inner: Formula): Formula = exists(x, in(x, range) ==> inner)
 
-  val indiscreteIsTopology = Theorem(
-    indiscreteTopology(X, T) ==> topology(X, T)
-  ) {
-    sorry
-  }
+  def ∃!(x: Variable, range: Variable, inner: Formula): Formula = existsOne(x, in(x, range) ==> inner)
+
+  /**
+   * The ground set X cannot be empty
+   */
+  val nonEmpty = DEF(X) --> !(X === ∅)
+
+  /**
+   * All elements of T are subsets of X
+   */
+  val setOfSubsets = DEF(X, T) --> ∀(S, T, S ⊆ X)
+
+  /**
+   * X and the empty set ∅ belong to T
+   */
+  val containsExtremes = DEF(X, T) --> ∅ ∈ T /\ X ∈ T
+
+  /**
+   * The union of any (finite or infinite) number of sets in T belongs to T
+   */
+  val containsUnion = DEF(T) --> ∀(A, T, ∀(B, T, union(unorderedPair(A, B)) ∈ T))
+
+  /**
+   * The intersection of two sets in T belongs to T
+   */
+  val containsIntersection = DEF(T) --> forall(Y, in(Y, powerSet(T)) ==> union(Y) ∈ T)
+
+  /**
+   * By Definition 1.1.1 from the book the pair (X, T) is called a topological space.
+   * Or T is a topology on X
+   */
+  val topology = DEF(X, T) --> nonEmpty(X) /\ setOfSubsets(X, T) /\ containsExtremes(X, T) /\ containsUnion(T) /\ containsIntersection(T)
 }
