@@ -1,6 +1,6 @@
 package Topology
 
-import lisa.maths.topology.*
+import lisa.maths.topology.Topology.*
 import lisa.maths.settheory.*
 
 object Instances extends lisa.Main {
@@ -12,13 +12,13 @@ object Instances extends lisa.Main {
   val indiscreteTopology = DEF(X, T) --> ∅ ∈ T /\ X ∈ T /\ forall(S, in(S, T) ==> ((S === X) \/ (S === ∅)))
 
   val discreteIsTopology = Theorem(
-    discreteTopology(X, T) ==> Topology.topology(X, T)
+    discreteTopology(X, T) ==> topology(X, T)
   ) {
     sorry
   }
 
   val indiscreteIsTopology = Theorem(
-    indiscreteTopology(X, T) ==> Topology.topology(X, T)
+    indiscreteTopology(X, T) ==> topology(X, T)
   ) {
     sorry
   }
