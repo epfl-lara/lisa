@@ -1,5 +1,4 @@
 package lisa.maths.topology
-
 import lisa.maths.settheory.*
 
 object Topology extends lisa.Main {
@@ -35,12 +34,12 @@ object Topology extends lisa.Main {
   /**
    * The union of any (finite or infinite) number of sets in T belongs to T
    */
-  val containsUnion = DEF(T) --> ∀(A, T, ∀(B, T, union(unorderedPair(A, B)) ∈ T))
+  val containsUnion = DEF(T) --> ∀(Y, powerSet(T), union(Y) ∈ T)
 
   /**
    * The intersection of two sets in T belongs to T
    */
-  val containsIntersection = DEF(T) --> forall(Y, in(Y, powerSet(T)) ==> union(Y) ∈ T)
+  val containsIntersection = DEF(T) --> ∀(A, T, ∀(B, T, union(A, B) ∈ T))
 
   /**
    * By Definition 1.1.1 from the book the pair (X, T) is called a topological space.
