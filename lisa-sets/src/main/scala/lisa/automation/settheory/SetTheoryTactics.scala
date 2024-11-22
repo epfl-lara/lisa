@@ -2,6 +2,7 @@ package lisa.automation.settheory
 
 import lisa.SetTheoryLibrary.{_, given}
 import lisa.automation.Tautology
+import lisa.automation.kernel.CommonTactics.ExistenceAndUniqueness
 import lisa.fol.FOL.{_, given}
 import lisa.kernel.proof.SequentCalculus as SCunique
 import lisa.maths.Quantifiers
@@ -21,8 +22,10 @@ object SetTheoryTactics {
   private val x = variable
   private val y = variable
   private val z = variable
+  private val v = variable
   private val h = formulaVariable
   private val P = predicate[1]
+  private val Q = predicate[1]
   private val schemPred = predicate[1]
 
   /**
@@ -197,4 +200,99 @@ object SetTheoryTactics {
       unwrapTactic(sp)("Subproof for unique comprehension failed.")
     }
   }
+
+  /**
+   * Defines the element that is uniquely given by the uniqueness theorem, or falls back to the error element if the
+   * assumptions of the theorem are not satisfied.
+   *
+   * This is useful in defining specific elements in groups, where their uniqueness (and existence) strongly rely
+   * on the assumption of the group structure.
+   */
+  object TheConditional {
+    def apply(using om: OutputManager)(u: Variable, f: Formula)(just: JUSTIFICATION, defaultValue: Term = ∅): The = {
+      val seq = just.statement
+
+      if (seq.left.isEmpty) {
+        The(u, f)(just)
+      } else {
+        val prem = if (seq.left.size == 1) seq.left.head else And(seq.left.toSeq)
+        val completeDef = (prem ==> f) /\ (!prem ==> (u === defaultValue))
+        val substF = completeDef.substitute(u := defaultValue)
+        val substDef = completeDef.substitute(u := v)
+
+        val completeUniquenessTheorem = Lemma(
+          ∃!(u, completeDef)
+        ) {
+          val case1 = have(prem |- ∃!(u, completeDef)) subproof {
+            // We prove the equivalence f <=> completeDef so that we can substitute it in the uniqueness quantifier
+            val equiv = have(prem |- ∀(u, f <=> completeDef)) subproof {
+              have(f |- f) by Hypothesis
+              thenHave((prem, f) |- f) by Weakening
+              val left = thenHave(f |- (prem ==> f)) by Restate
+
+              have(prem |- prem) by Hypothesis
+              thenHave((prem, !prem) |- ()) by LeftNot
+              thenHave((prem, !prem) |- (u === defaultValue)) by Weakening
+              val right = thenHave(prem |- (!prem ==> (u === defaultValue))) by Restate
+
+              have((prem, f) |- completeDef) by RightAnd(left, right)
+              val forward = thenHave(prem |- f ==> completeDef) by Restate
+
+              have(completeDef |- completeDef) by Hypothesis
+              thenHave((prem, completeDef) |- completeDef) by Weakening
+              thenHave((prem, completeDef) |- f) by Tautology
+              val backward = thenHave(prem |- completeDef ==> f) by Restate
+
+              have(prem |- f <=> completeDef) by RightIff(forward, backward)
+              thenHave(thesis) by RightForall
+            }
+
+            val substitution = have((∃!(u, f), ∀(u, f <=> completeDef)) |- ∃!(u, completeDef)) by Tautology.from(
+              Quantifiers.uniqueExistentialEquivalenceDistribution of (P := lambda(u, f), Q := lambda(u, completeDef))
+            )
+
+            val implication = have((prem, ∃!(u, f)) |- ∃!(u, completeDef)) by Cut(equiv, substitution)
+            val uniqueness = have(prem |- ∃!(u, f)) by Restate.from(just)
+            have(prem |- ∃!(u, completeDef)) by Cut(uniqueness, implication)
+          }
+
+          val case2 = have(!prem |- ∃!(u, completeDef)) subproof {
+            val existence = have(!prem |- ∃(u, completeDef)) subproof {
+              have(!prem |- !prem) by Hypothesis
+              thenHave((prem, !prem) |- ()) by LeftNot
+              thenHave((prem, !prem) |- substF) by Weakening
+              val left = thenHave(!prem |- (prem ==> substF)) by Restate
+
+              have(defaultValue === defaultValue) by RightRefl
+              thenHave(!prem |- defaultValue === defaultValue) by Weakening
+              val right = thenHave(!prem ==> (defaultValue === defaultValue)) by Restate
+
+              have(!prem |- (prem ==> substF) /\ (!prem ==> (defaultValue === defaultValue))) by RightAnd(left, right)
+              thenHave(thesis) by RightExists.withParameters(defaultValue)
+            }
+
+            val uniqueness = have((!prem, completeDef, substDef) |- (u === v)) subproof {
+              assume(!prem)
+              assume(completeDef)
+              assume(substDef)
+
+              val eq1 = have(u === defaultValue) by Tautology
+              val eq2 = have(defaultValue === v) by Tautology
+              val p = have((u === defaultValue) /\ (defaultValue === v)) by RightAnd(eq1, eq2)
+
+              val transitivity = Quantifiers.equalityTransitivity of (x -> u, y -> defaultValue, z -> v)
+              have(thesis) by Cut(p, transitivity)
+            }
+
+            have(thesis) by ExistenceAndUniqueness(completeDef)(existence, uniqueness)
+          }
+
+          have(thesis) by Tautology.from(case1, case2)
+        }
+
+        The(u, completeDef)(completeUniquenessTheorem)
+      }
+    }
+  }
+
 }
