@@ -16,7 +16,7 @@ object Instances extends lisa.Main {
   private val S, A, B, Y = variable
 
   val discreteTopology = DEF(X, T) --> nonEmpty(X) /\ (T === powerSet(X))
-  val indiscreteTopology = DEF(X, T) --> nonEmpty(X) /\ ∅ ∈ T /\ X ∈ T /\ forall(S, in(S, T) ==> ((S === X) \/ (S === ∅)))
+  val indiscreteTopology = DEF(X, T) --> nonEmpty(X) /\ (T === unorderedPair(∅, X))
 
   val discreteIsTopology = Theorem(
     discreteTopology(X, T) |- topology(X, T)
@@ -37,17 +37,23 @@ object Instances extends lisa.Main {
       val hasEmpty = have(∅ ∈ T) by Tautology.from(a1, a2)
 
       val b1 = have(in(X, T) <=> in(X, powerSet(X))) by InstantiateForall(X)(ext)
-      val b2 = have(in(X, T) <=> forall(z, in(z, X) ==> in(z, X))) by Tautology.from(b1, powerAxiom of (x := X, y := X), subsetAxiom of (x := X, y := X))
-      val b3 = have(forall(z, in(z, X) ==> in(z, X))) subproof {
-        val c1 = have(in(z, X) ==> in(z, X)) by Tautology
-        thenHave(thesis) by RightForall
-      }
-      val hasFull = have(X ∈ T) by Tautology.from(b2, b3)
+      val hasFull = have(X ∈ T) by Tautology.from(elemInItsPowerSet of (x := X), b1)
       have(thesis) by Tautology.from(hasEmpty, hasFull, containsExtremes.definition)
+    }
+    val contUn = have(containsUnion(T)) subproof {
+      val a1 = have(in(Y, powerSet(T)) |- (union(Y) ∈ T)) subproof {
+        sorry
+      }
+      val a2 = have(in(Y, powerSet(T)) ==> (union(Y) ∈ T)) by Tautology.from(a1)
+      val a3 = thenHave(forall(Y, in(Y, powerSet(T)) ==> (union(Y) ∈ T))) by RightForall
+      have(thesis) by Tautology.from(a3, containsUnion.definition)
+      /*val a1 = have(powerSet(T) === powerSet(powerSet(X))) by Tautology.from(discreteDef)
+      val a2 = have(forall(z, z ∈ powerSet(T) ==> z ∈ powerSet(powerSet(X)))) by Tautology.from(a1, extensionalityAxiom of (y := powerSet(powerSet(X)), x := powerSet(T)))
+      val a3 = thenHave(Y ∈ powerSet(T) ==> Y ∈ powerSet(powerSet(X))) by InstantiateForall(Y)
+      val a4 = have(Y ∈ powerSet(powerSet(X)) <=> forall(z, in(z, Y) ==> in(z, powerSet(X)))) by Tautology.from(powerAxiom of (x := Y, y := powerSet(X)), subsetAxiom of (x := Y, y := powerSet(X)))*/
     }
     sorry
     /*
-    val contUn = have(containsUnion(T)) subproof {}
     val contInt = have(containsIntersection(T))
     have(thesis) by Tautology.from(nonE, subset, contEx, contUn, contInt)
      */
