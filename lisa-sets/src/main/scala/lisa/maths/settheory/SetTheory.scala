@@ -917,16 +917,21 @@ object SetTheory extends lisa.Main {
    */
   val setIntersection = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ in(t, y))))(setIntersectionUniqueness)
 
-  val setIntersectionCommutativity = Theorem(
-    setIntersection(x, y) === setIntersection(y, x)
-  ) {
-    sorry
-  }
-
   val setIntersectionMembership = Theorem(
     in(t, setIntersection(x, y)) <=> (in(t, x) /\ in(t, y))
   ) {
-    sorry
+    have(forall(t, in(t, setIntersection(x, y)) <=> (in(t, x) /\ in(t, y)))) by InstantiateForall(setIntersection(x, y))(setIntersection.definition)
+    thenHave(thesis) by InstantiateForall(t)
+  }
+
+  val setIntersectionCommutativity = Theorem(
+    setIntersection(x, y) === setIntersection(y, x)
+  ) {
+    val left = have(in(t, setIntersection(x, y)) <=> (in(t, y) /\ in(t, x))) by Tautology.from(setIntersectionMembership)
+    val right = have(in(t, setIntersection(y, x)) <=> (in(t, y) /\ in(t, x))) by Tautology.from(setIntersectionMembership of (x := y, y := x))
+    have(in(t, setIntersection(x, y)) <=> in(t, setIntersection(y, x))) by Tautology.from(left, right)
+    val equalityPrepare = thenHave(forall(t, (in(t, setIntersection(x, y)) <=> in(t, setIntersection(y, x))))) by RightForall
+    have(thesis) by Tautology.from(equalityPrepare, extensionalityAxiom of (x := setIntersection(x, y), y := setIntersection(y, x)))
   }
 
   extension (x: Term) {
