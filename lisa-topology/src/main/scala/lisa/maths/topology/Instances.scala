@@ -18,8 +18,8 @@ object Instances extends lisa.Main {
   import lisa.maths.settheory.SetTheory.*
   // var defs
   private val x, y, z, a, b, c, t, p, f, s = variable
-  private val X, T = variable
-  private val S, A, B, Y = variable
+  private val X, T, T1, T2 = variable
+  private val S, A, B, Y, o, O, O2 = variable
 
   val discreteTopology = DEF(X, T) --> nonEmpty(X) /\ (T === powerSet(X))
 
@@ -473,4 +473,66 @@ object Instances extends lisa.Main {
     }
     have(discreteTopology(X, T)) by Tautology.from(lastStep, topo, discreteTopology.definition)
   }
+
+  // -------------------
+  // Mappings
+  // -------------------
+  val mapping = DEF(f, X, T1, Y, T2) -->
+    (functionFrom(f, X, Y) /\ topology(X, T1) /\ topology(Y, T2))
+
+  // -------------------
+  // Continuity
+  // -------------------
+  val continuous = DEF(f, X, T1, Y, T2) -->
+    (mapping(f, X, T1, Y, T2) /\ forall(O, O ∈ T2 ==> inverseImage(f, O) ∈ T1))
+
+  // -------------------
+  // Connectedness
+  // -------------------
+  val clopen = DEF(X, T, A) --> (
+    topology(X, T) /\
+      A ∈ T /\ setDifference(X, A) ∈ T
+  )
+
+  val connectedTop = DEF(X, T) --> (
+    topology(X, T) /\
+      forall(A, clopen(X, T, A) ==> ((A === emptySet) \/ (A === X)))
+  )
+
+  // Couldn't import surjectivity from FunctionProperties without an error, so here it is
+  val surjective = DEF(f, x, y) --> functionFrom(f, x, y) /\ ∀(b, in(b, y) ==> ∃(a, in(pair(a, b), f)))
+
+  // -------------------
+  // Intermediate value theorem
+  // -------------------
+  val intermediateValueThm = Theorem((connectedTop(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y)) |- connectedTop(Y, T2)) {
+    sorry
+  }
+
+  // -------------------
+  // Compactness
+  // -------------------
+
+  val cover = DEF(X, O) -->
+    forall(o, in(o, O) ==> subset(o, X)) /\
+    subset(X, union(O))
+
+  val openCover = DEF(X, T, O) -->
+    cover(X, O) /\ subset(O, T)
+
+  val finite = DEF(X) --> (X === emptySet) // TODO
+
+  val compactness = DEF(X, T) -->
+    topology(X, T) /\
+    forall(
+      O,
+      openCover(X, T, O) ==>
+        exists(
+          O2, // Another subcovering
+          subset(O2, O) /\
+            openCover(X, T, O2) /\
+            finite(O2)
+        )
+    )
+
 }
