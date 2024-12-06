@@ -10,7 +10,7 @@ import lisa.maths.settheory.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.SetTheoryBasics.*
 
-object Instances extends lisa.Main {
+object Intersection extends lisa.Main {
   // var defs
   private val x, y, z, a, b, c, t, p = variable
   private val X, T = variable

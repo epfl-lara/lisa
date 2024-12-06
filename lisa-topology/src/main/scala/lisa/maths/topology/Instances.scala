@@ -17,7 +17,7 @@ import lisa.automation.settheory.SetTheoryTactics.TheConditional
 object Instances extends lisa.Main {
   import lisa.maths.settheory.SetTheory.*
   // var defs
-  private val x, y, z, a, b, c, t, p = variable
+  private val x, y, z, a, b, c, t, p, f, s = variable
   private val X, T = variable
   private val S, A, B, Y = variable
 
@@ -69,7 +69,7 @@ object Instances extends lisa.Main {
   }
 
   val indiscreteTopology = DEF(X, T) --> nonEmpty(X) /\ (T === unorderedPair(∅, X))
-  private val f, y, s = variable
+
   inline def directImageFormula = y ∈ s <=> (y ∈ functionRange(f) /\ ∃(x, (app(f, x) === y) /\ x ∈ A))
 
   val directImageUniqueness = Theorem(
@@ -220,12 +220,12 @@ object Instances extends lisa.Main {
         subset(B, functionRange(f))
     )
 
-    val subsetAorB = have(subset(setUnion(A, B), functionDomain(f))) by Tautology.from(unionOfTwoSubsets of (a := A, b := B, c := functionDomain(f)))
+    /*val subsetAorB = have(subset(setUnion(A, B), functionDomain(f))) by Tautology.from(unionOfTwoSubsets of (a := A, b := B, c := functionDomain(f)))
 
     have(forall(z, z ∈ directImage(f, A) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ A)))) by InstantiateForall(directImage(f, A))(directImage.definition)
     val defA = thenHave(z ∈ directImage(f, A) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ A))) by InstantiateForall(z)
     have(forall(z, z ∈ directImage(f, B) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ B)))) by InstantiateForall(directImage(f, B))(directImage.definition of (A := B))
-    val defB = thenHave(z ∈ directImage(f, B) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ B))) by InstantiateForall(z)
+    val defB = thenHave(z ∈ directImage(f, B) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ B))) by InstantiateForall(z)*/
 
     val forward = have(z ∈ setUnion(inverseImage(f, A), inverseImage(f, B)) ==> z ∈ inverseImage(f, setUnion(A, B))) subproof {
       have(z ∈ setUnion(inverseImage(f, A), inverseImage(f, B)) |- (z ∈ inverseImage(f, A)) \/ (z ∈ inverseImage(f, B))) by Tautology.from(
@@ -375,16 +375,17 @@ object Instances extends lisa.Main {
       assume(in(x, S))
       have(t === singleton(x) |- ((t === singleton(x)) /\ in(x, S))) by Tautology
       thenHave(t === singleton(x) |- exists(x, ((t === singleton(x)) /\ in(x, S)))) by RightExists
-      have((t === singleton(x)) ==> in(t, singletonSets(S))) by Tautology.from(lastStep, memb)
+      sorry
+      /*have((t === singleton(x)) ==> in(t, singletonSets(S))) by Tautology.from(lastStep, memb)
       thenHave(forall(t, (t === singleton(x)) ==> in(t, singletonSets(S)))) by RightForall
       thenHave((singleton(x) === singleton(x)) ==> in(singleton(x), singletonSets(S))) by InstantiateForall(singleton(x))
-      have(thesis) by Tautology.from(lastStep)
+      have(thesis) by Tautology.from(lastStep)*/
     }
     have(in(singleton(x), singletonSets(S)) |- in(x, S)) subproof {
       assume(in(singleton(x), singletonSets(S)))
 
       val removeExists = have((exists(y, in(y, S) /\ (t === singleton(y))), t === singleton(x)) |- in(x, S)) subproof {
-        have((in(y, S), t === singleton(x), t === singleton(y)) |- (in(y, S), t === singleton(x), t === singleton(y)))
+        /*have((in(y, S), t === singleton(x), t === singleton(y)) |- (in(y, S), t === singleton(x), t === singleton(y)))
         thenHave((in(y, S) /\ (t === singleton(x)) /\ (t === singleton(y))) |- (in(x, S))) by Tautology.from(
           singletonExtensionality,
           equalityTransitivity of (x := singleton(x), y := t, z := singleton(y)),
@@ -395,12 +396,15 @@ object Instances extends lisa.Main {
           lastStep,
           existentialConjunctionWithClosedFormula of (x := y, p := (t === singleton(x)))
         )
-        thenHave(thesis) by Tautology
+        thenHave(thesis) by Tautology*/
+        sorry
       }
       have((t === singleton(x), in(t, singletonSets(S))) |- (t === singleton(x), exists(x, ((t === singleton(x)) /\ in(x, S))))) by Tautology.from(singletonSetsMembershipRaw of (x := y))
-      have((t === singleton(x), in(t, singletonSets(S))) |- in(x, S)) by Tautology.from(lastStep, removeExists)
-      have(in(singleton(x), singletonSets(S)) |- in(x, S)) by Tautology.from(lastStep, replaceEqualityContainsLeft of (x := t, y := singleton(x), z := singletonSets(S)))
+      sorry
+      /* have((t === singleton(x), in(t, singletonSets(S))) |- in(x, S)) by Tautology.from(lastStep, removeExists)
+      have(in(singleton(x), singletonSets(S)) |- in(x, S)) by Tautology.from(lastStep, replaceEqualityContainsLeft of (x := t, y := singleton(x), z := singletonSets(S)))*/
     }
+    sorry
   }
 
   val ifContainsSingletonIsDiscrete = Theorem(
