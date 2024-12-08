@@ -17,7 +17,7 @@ import lisa.automation.settheory.SetTheoryTactics.TheConditional
 object Instances extends lisa.Main {
   import lisa.maths.settheory.SetTheory.*
   // var defs
-  private val x, y, z, a, b, c, t, p, f, s = variable
+  private val x, y, z, a, b, c, t, p, f, r, s = variable
   private val X, T, T1, T2 = variable
   private val S, A, B, Y, o, O, O2 = variable
 
@@ -70,83 +70,83 @@ object Instances extends lisa.Main {
 
   val indiscreteTopology = DEF(X, T) --> nonEmpty(X) /\ (T === unorderedPair(∅, X))
 
-  inline def directImageFormula = y ∈ s <=> (y ∈ functionRange(f) /\ ∃(x, (app(f, x) === y) /\ x ∈ A))
+  inline def directImageFormula = y ∈ s <=> (y ∈ Y /\ ∃(x, (app(f, x) === y) /\ x ∈ A))
 
   val directImageUniqueness = Theorem(
-    (functional(f), subset(A, functionDomain(f))) |- ∃!(s, forall(y, directImageFormula))
+    (functionFrom(f, X, Y), subset(A, X)) |- ∃!(s, forall(y, directImageFormula))
   ) {
-    have(∃!(s, forall(y, directImageFormula))) by UniqueComprehension(functionRange(f), lambda(y, ∃(x, (app(f, x) === y) /\ x ∈ A)))
+    have(∃!(s, forall(y, directImageFormula))) by UniqueComprehension(Y, lambda(y, ∃(x, (app(f, x) === y) /\ x ∈ A)))
     thenHave(thesis) by Weakening
   }
 
-  val directImage = DEF(f, A) --> TheConditional(s, forall(y, directImageFormula))(directImageUniqueness)
+  val directImage = DEF(f, X, Y, A) --> TheConditional(s, forall(y, directImageFormula))(directImageUniqueness)
 
   val directImageSetUnion = Theorem(
-    functional(f) /\
-      subset(A, functionDomain(f)) /\
-      subset(B, functionDomain(f))
-      |- setUnion(directImage(f, A), directImage(f, B)) === directImage(f, setUnion(A, B))
+    functionFrom(f, X, Y) /\
+      subset(A, X) /\
+      subset(B, X)
+      |- setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B)) === directImage(f, X, Y, setUnion(A, B))
   ) {
     assume(
-      functional(f) /\
-        subset(A, functionDomain(f)) /\
-        subset(B, functionDomain(f))
+      functionFrom(f, X, Y) /\
+        subset(A, X) /\
+        subset(B, X)
     )
 
-    val subsetAorB = have(subset(setUnion(A, B), functionDomain(f))) by Tautology.from(unionOfTwoSubsets of (a := A, b := B, c := functionDomain(f)))
+    val subsetAorB = have(subset(setUnion(A, B), X)) by Tautology.from(unionOfTwoSubsets of (a := A, b := B, c := X))
 
-    have(forall(z, z ∈ directImage(f, A) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ A)))) by InstantiateForall(directImage(f, A))(directImage.definition)
-    val defA = thenHave(z ∈ directImage(f, A) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ A))) by InstantiateForall(z)
-    have(forall(z, z ∈ directImage(f, B) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ B)))) by InstantiateForall(directImage(f, B))(directImage.definition of (A := B))
-    val defB = thenHave(z ∈ directImage(f, B) <=> (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ B))) by InstantiateForall(z)
+    have(forall(z, z ∈ directImage(f, X, Y, A) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ A)))) by InstantiateForall(directImage(f, X, Y, A))(directImage.definition)
+    val defA = thenHave(z ∈ directImage(f, X, Y, A) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ A))) by InstantiateForall(z)
+    have(forall(z, z ∈ directImage(f, X, Y, B) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ B)))) by InstantiateForall(directImage(f, X, Y, B))(directImage.definition of (A := B))
+    val defB = thenHave(z ∈ directImage(f, X, Y, B) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ B))) by InstantiateForall(z)
     have(
-      subset(setUnion(A, B), functionDomain(f)) |-
+      subset(setUnion(A, B), X) |-
         forall(
           z,
-          z ∈ directImage(f, setUnion(A, B)) <=>
-            (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B)))
+          z ∈ directImage(f, X, Y, setUnion(A, B)) <=>
+            (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B)))
         )
-    ) by InstantiateForall(directImage(f, setUnion(A, B)))(directImage.definition of (A := setUnion(A, B)))
+    ) by InstantiateForall(directImage(f, X, Y, setUnion(A, B)))(directImage.definition of (A := setUnion(A, B)))
     thenHave(
-      subset(setUnion(A, B), functionDomain(f)) |-
-        z ∈ directImage(f, setUnion(A, B)) <=>
-        (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B)))
+      subset(setUnion(A, B), X) |-
+        z ∈ directImage(f, X, Y, setUnion(A, B)) <=>
+        (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B)))
     ) by InstantiateForall(z)
     val defAorB = have(
-      z ∈ directImage(f, setUnion(A, B)) <=>
-        (z ∈ functionRange(f) /\ ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B)))
+      z ∈ directImage(f, X, Y, setUnion(A, B)) <=>
+        (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B)))
     ) by Tautology.from(lastStep, subsetAorB)
 
-    val forward = have(z ∈ setUnion(directImage(f, A), directImage(f, B)) ==> z ∈ directImage(f, setUnion(A, B))) subproof {
-      val firstPart = have(z ∈ setUnion(directImage(f, A), directImage(f, B)) |- (z ∈ directImage(f, A)) \/ (z ∈ directImage(f, B))) by Tautology.from(
-        setUnionMembership of (x := directImage(f, A), y := directImage(f, B))
+    val forward = have(z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B)) ==> z ∈ directImage(f, X, Y, setUnion(A, B))) subproof {
+      val firstPart = have(z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B)) |- (z ∈ directImage(f, X, Y, A)) \/ (z ∈ directImage(f, X, Y, B))) by Tautology.from(
+        setUnionMembership of (x := directImage(f, X, Y, A), y := directImage(f, X, Y, B))
       )
-      assume(z ∈ setUnion(directImage(f, A), directImage(f, B)))
-      have(z ∈ functionRange(f) /\ ((∃(x, (app(f, x) === z) /\ x ∈ A)) \/ ∃(x, (app(f, x) === z) /\ x ∈ B))) by Tautology.from(
+      assume(z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B)))
+      have(z ∈ Y /\ ((∃(x, (app(f, x) === z) /\ x ∈ A)) \/ ∃(x, (app(f, x) === z) /\ x ∈ B))) by Tautology.from(
         defA,
         defB,
         firstPart
       )
-      val partialResult = thenHave(z ∈ functionRange(f) /\ (∃(x, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))))) by Tautology
+      val partialResult = thenHave(z ∈ Y /\ (∃(x, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))))) by Tautology
       have(
-        (z ∈ functionRange(f), (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B)))
+        (z ∈ Y, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B)))
           |-
             (app(f, x) === z) /\ x ∈ setUnion(A, B)
       ) by Tautology.from(setUnionMembership of (x := A, y := B, z := x), defAorB)
-      thenHave((z ∈ functionRange(f), (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))) |- exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) by RightExists
-      have((z ∈ functionRange(f), (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))) |- z ∈ directImage(f, setUnion(A, B))) by Tautology.from(lastStep, defAorB)
-      thenHave((z ∈ functionRange(f), exists(x, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B)))) |- z ∈ directImage(f, setUnion(A, B))) by LeftExists
-      have(z ∈ directImage(f, setUnion(A, B))) by Tautology.from(lastStep, partialResult)
+      thenHave((z ∈ Y, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))) |- exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) by RightExists
+      have((z ∈ Y, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))) |- z ∈ directImage(f, X, Y, setUnion(A, B))) by Tautology.from(lastStep, defAorB)
+      thenHave((z ∈ Y, exists(x, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B)))) |- z ∈ directImage(f, X, Y, setUnion(A, B))) by LeftExists
+      have(z ∈ directImage(f, X, Y, setUnion(A, B))) by Tautology.from(lastStep, partialResult)
     }
-    val backward = have(z ∈ directImage(f, setUnion(A, B)) ==> z ∈ setUnion(directImage(f, A), directImage(f, B))) subproof {
+    val backward = have(z ∈ directImage(f, X, Y, setUnion(A, B)) ==> z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))) subproof {
       val intermediate = have(
-        z ∈ functionRange(f) /\ (app(f, x) === z) /\ x ∈ setUnion(A, B) |-
-          (z ∈ functionRange(f) /\ (app(f, x) === z) /\ x ∈ A)
-          \/ (z ∈ functionRange(f) /\ (app(f, x) === z) /\ x ∈ B)
+        z ∈ Y /\ (app(f, x) === z) /\ x ∈ setUnion(A, B) |-
+          (z ∈ Y /\ (app(f, x) === z) /\ x ∈ A)
+          \/ (z ∈ Y /\ (app(f, x) === z) /\ x ∈ B)
       ) by Tautology.from(setUnionMembership of (x := A, y := B, z := x))
 
-      assume(z ∈ directImage(f, setUnion(A, B)))
-      have(z ∈ functionRange(f) /\ exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) by Tautology.from(defAorB)
+      assume(z ∈ directImage(f, X, Y, setUnion(A, B)))
+      have(z ∈ Y /\ exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) by Tautology.from(defAorB)
       have((app(f, x) === z) /\ x ∈ A |- (app(f, x) === z) /\ x ∈ A) by Tautology
       val existsA = thenHave(
         (app(f, x) === z) /\ x ∈ A |-
@@ -158,105 +158,105 @@ object Instances extends lisa.Main {
           exists(x, (app(f, x) === z) /\ x ∈ B)
       ) by RightExists
       have(
-        z ∈ functionRange(f) /\ (app(f, x) === z) /\ x ∈ setUnion(A, B) |-
-          (z ∈ directImage(f, A)) \/ (z ∈ directImage(f, B))
+        z ∈ Y /\ (app(f, x) === z) /\ x ∈ setUnion(A, B) |-
+          (z ∈ directImage(f, X, Y, A)) \/ (z ∈ directImage(f, X, Y, B))
       ) by Tautology.from(intermediate, existsA, existsB, defA, defB)
       have(
-        (z ∈ functionRange(f), (app(f, x) === z) /\ x ∈ setUnion(A, B)) |-
-          z ∈ setUnion(directImage(f, A), directImage(f, B))
-      ) by Tautology.from(lastStep, setUnionMembership of (x := directImage(f, A), y := directImage(f, B), z := z))
+        (z ∈ Y, (app(f, x) === z) /\ x ∈ setUnion(A, B)) |-
+          z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))
+      ) by Tautology.from(lastStep, setUnionMembership of (x := directImage(f, X, Y, A), y := directImage(f, X, Y, B), z := z))
       thenHave(
-        (z ∈ functionRange(f), exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) |-
-          z ∈ setUnion(directImage(f, A), directImage(f, B))
+        (z ∈ Y, exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) |-
+          z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))
       ) by LeftExists
-      have(z ∈ setUnion(directImage(f, A), directImage(f, B))) by Tautology.from(lastStep, defAorB)
+      have(z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))) by Tautology.from(lastStep, defAorB)
     }
-    have(z ∈ directImage(f, setUnion(A, B)) <=> z ∈ setUnion(directImage(f, A), directImage(f, B))) by RightIff(forward, backward)
-    thenHave(∀(z, z ∈ directImage(f, setUnion(A, B)) <=> z ∈ setUnion(directImage(f, A), directImage(f, B)))) by RightForall
-    andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, setUnion(A, B)), y := setUnion(directImage(f, A), directImage(f, B)))))
+    have(z ∈ directImage(f, X, Y, setUnion(A, B)) <=> z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))) by RightIff(forward, backward)
+    thenHave(∀(z, z ∈ directImage(f, X, Y, setUnion(A, B)) <=> z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B)))) by RightForall
+    andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, setUnion(A, B)), y := setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B)))))
   }
 
-  /*inline def directImageUnionFormula = y ∈ s <=> y ∈ functionRange(f) /\ ∃(A, y ∈ directImage(f, A))
+  /*inline def directImageUnionFormula = y ∈ s <=> y ∈ Y /\ ∃(A, y ∈ directImage(f, A))
   val directImageUnionUniqueness = Theorem(
     functional(f) |- ∃!(s, ∀(y, directImageUnionFormula))
   ) {
-    have(∃!(s, ∀(y, directImageUnionFormula))) by UniqueComprehension(functionRange(f), lambda(y, ∃(A, y ∈ directImage(f, A))))
+    have(∃!(s, ∀(y, directImageUnionFormula))) by UniqueComprehension(Y, lambda(y, ∃(A, y ∈ directImage(f, A))))
     thenHave(thesis) by Weakening
   }
 
   val directImageUnion = DEF(f, A) --> TheConditional(s, forall(z, z ∈ s <=> ∃(A, z ∈ directImage(f, A))))(directImageUnionUniqueness)
 
   val directImageUnionThm = Theorem(
-    functional(f) /\ forall(A, A ∈ T ==> subset(A, functionDomain(f))) |-
+    functional(f) /\ forall(A, A ∈ T ==> subset(A, X)) |-
       union(directImage(f, T)) === directImage(f, union(A))
   ) {
     sorry
   }*/
 
-  inline def inverseImageFormula = x ∈ s <=> (x ∈ functionDomain(f) /\ app(f, x) ∈ B)
+  inline def preimageFormula = x ∈ s <=> (x ∈ X /\ app(f, x) ∈ B)
 
-  val inverseImageUniqueness = Theorem(
-    (functional(f), subset(B, functionRange(f))) |- ∃!(s, forall(x, inverseImageFormula))
+  val preimageUniqueness = Theorem(
+    (functionFrom(f, X, Y), subset(B, Y)) |- ∃!(s, forall(x, preimageFormula))
   ) {
-    have(∃!(s, forall(x, inverseImageFormula))) by UniqueComprehension(functionDomain(f), lambda(x, app(f, x) ∈ B))
+    have(∃!(s, forall(x, preimageFormula))) by UniqueComprehension(X, lambda(x, app(f, x) ∈ B))
     thenHave(thesis) by Weakening
   }
 
-  val inverseImage = DEF(f, B) --> TheConditional(s, forall(x, inverseImageFormula))(inverseImageUniqueness)
+  val preimage = DEF(f, X, Y, B) --> TheConditional(s, forall(x, preimageFormula))(preimageUniqueness)
 
-  val inverseImageSetUnion = Theorem(
-    functional(f) /\
-      subset(A, functionRange(f)) /\
-      subset(B, functionRange(f))
-      |- setUnion(inverseImage(f, A), inverseImage(f, B)) === inverseImage(f, setUnion(A, B))
+  val preimageSetUnion = Theorem(
+    functionFrom(f, X, Y) /\
+      subset(A, Y) /\
+      subset(B, Y)
+      |- setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)) === preimage(f, X, Y, setUnion(A, B))
   ) {
     assume(
-      functional(f) /\
-        subset(A, functionRange(f)) /\
-        subset(B, functionRange(f))
+      functionFrom(f, X, Y) /\
+        subset(A, Y) /\
+        subset(B, Y)
     )
 
-    val subsetAorB = have(subset(setUnion(A, B), functionRange(f))) by Tautology.from(unionOfTwoSubsets of (a := A, b := B, c := functionRange(f)))
+    val subsetAorB = have(subset(setUnion(A, B), Y)) by Tautology.from(unionOfTwoSubsets of (a := A, b := B, c := Y))
 
-    have(forall(z, z ∈ inverseImage(f, A) <=> (z ∈ functionDomain(f) /\ app(f, z) ∈ A))) by InstantiateForall(inverseImage(f, A))(inverseImage.definition of (B := A))
-    val defA = thenHave(z ∈ inverseImage(f, A) <=> (z ∈ functionDomain(f) /\ app(f, z) ∈ A)) by InstantiateForall(z)
-    have(forall(z, z ∈ inverseImage(f, B) <=> (z ∈ functionDomain(f) /\ app(f, z) ∈ B))) by InstantiateForall(inverseImage(f, B))(inverseImage.definition)
-    val defB = thenHave(z ∈ inverseImage(f, B) <=> (z ∈ functionDomain(f) /\ app(f, z) ∈ B)) by InstantiateForall(z)
+    have(forall(z, z ∈ preimage(f, X, Y, A) <=> (z ∈ X /\ app(f, z) ∈ A))) by InstantiateForall(preimage(f, X, Y, A))(preimage.definition of (B := A))
+    val defA = thenHave(z ∈ preimage(f, X, Y, A) <=> (z ∈ X /\ app(f, z) ∈ A)) by InstantiateForall(z)
+    have(forall(z, z ∈ preimage(f, X, Y, B) <=> (z ∈ X /\ app(f, z) ∈ B))) by InstantiateForall(preimage(f, X, Y, B))(preimage.definition)
+    val defB = thenHave(z ∈ preimage(f, X, Y, B) <=> (z ∈ X /\ app(f, z) ∈ B)) by InstantiateForall(z)
     have(
-      subset(setUnion(A, B), functionRange(f)) |-
+      subset(setUnion(A, B), Y) |-
         forall(
           z,
-          z ∈ inverseImage(f, setUnion(A, B)) <=>
-            (z ∈ functionDomain(f) /\ app(f, z) ∈ setUnion(A, B))
+          z ∈ preimage(f, X, Y, setUnion(A, B)) <=>
+            (z ∈ X /\ app(f, z) ∈ setUnion(A, B))
         )
-    ) by InstantiateForall(inverseImage(f, setUnion(A, B)))(inverseImage.definition of (B := setUnion(A, B)))
+    ) by InstantiateForall(preimage(f, X, Y, setUnion(A, B)))(preimage.definition of (B := setUnion(A, B)))
     thenHave(
-      subset(setUnion(A, B), functionRange(f)) |-
-        z ∈ inverseImage(f, setUnion(A, B)) <=> (z ∈ functionDomain(f) /\ app(f, z) ∈ setUnion(A, B))
+      subset(setUnion(A, B), Y) |-
+        z ∈ preimage(f, X, Y, setUnion(A, B)) <=> (z ∈ X /\ app(f, z) ∈ setUnion(A, B))
     ) by InstantiateForall(z)
     val defAorB = have(
-      z ∈ inverseImage(f, setUnion(A, B)) <=> (z ∈ functionDomain(f) /\ app(f, z) ∈ setUnion(A, B))
+      z ∈ preimage(f, X, Y, setUnion(A, B)) <=> (z ∈ X /\ app(f, z) ∈ setUnion(A, B))
     ) by Tautology.from(lastStep, subsetAorB)
 
-    val forward = have(z ∈ setUnion(inverseImage(f, A), inverseImage(f, B)) ==> z ∈ inverseImage(f, setUnion(A, B))) subproof {
-      val firstPart = have(z ∈ setUnion(inverseImage(f, A), inverseImage(f, B)) |- (z ∈ inverseImage(f, A)) \/ (z ∈ inverseImage(f, B))) by Tautology.from(
-        setUnionMembership of (x := inverseImage(f, A), y := inverseImage(f, B))
+    val forward = have(z ∈ setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)) ==> z ∈ preimage(f, X, Y, setUnion(A, B))) subproof {
+      val firstPart = have(z ∈ setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)) |- (z ∈ preimage(f, X, Y, A)) \/ (z ∈ preimage(f, X, Y, B))) by Tautology.from(
+        setUnionMembership of (x := preimage(f, X, Y, A), y := preimage(f, X, Y, B))
       )
-      assume(z ∈ setUnion(inverseImage(f, A), inverseImage(f, B)))
-      have(z ∈ functionDomain(f) /\ ((app(f, z) ∈ A) \/ (app(f, z) ∈ B))) by Tautology.from(
+      assume(z ∈ setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)))
+      have(z ∈ X /\ ((app(f, z) ∈ A) \/ (app(f, z) ∈ B))) by Tautology.from(
         defA,
         defB,
         firstPart
       )
-      val partialResult = have(z ∈ functionDomain(f) /\ (app(f, z) ∈ setUnion(A, B))) by Tautology.from(
+      val partialResult = have(z ∈ X /\ (app(f, z) ∈ setUnion(A, B))) by Tautology.from(
         lastStep,
         setUnionMembership of (x := A, y := B, z := app(f, z))
       )
       have(thesis) by Tautology.from(defAorB, lastStep)
     }
-    val backward = have(z ∈ inverseImage(f, setUnion(A, B)) ==> z ∈ setUnion(inverseImage(f, A), inverseImage(f, B))) subproof {
-      assume(z ∈ inverseImage(f, setUnion(A, B)))
-      have((z ∈ inverseImage(f, A)) \/ (z ∈ inverseImage(f, B))) by Tautology.from(
+    val backward = have(z ∈ preimage(f, X, Y, setUnion(A, B)) ==> z ∈ setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B))) subproof {
+      assume(z ∈ preimage(f, X, Y, setUnion(A, B)))
+      have((z ∈ preimage(f, X, Y, A)) \/ (z ∈ preimage(f, X, Y, B))) by Tautology.from(
         defAorB,
         setUnionMembership of (x := A, y := B, z := app(f, z)),
         defA,
@@ -264,12 +264,207 @@ object Instances extends lisa.Main {
       )
       have(thesis) by Tautology.from(
         lastStep,
-        setUnionMembership of (x := inverseImage(f, A), y := inverseImage(f, B), z := z)
+        setUnionMembership of (x := preimage(f, X, Y, A), y := preimage(f, X, Y, B), z := z)
       )
     }
-    have(z ∈ inverseImage(f, setUnion(A, B)) <=> z ∈ setUnion(inverseImage(f, A), inverseImage(f, B))) by RightIff(forward, backward)
-    thenHave(∀(z, z ∈ inverseImage(f, setUnion(A, B)) <=> z ∈ setUnion(inverseImage(f, A), inverseImage(f, B)))) by RightForall
-    andThen(Substitution.applySubst(extensionalityAxiom of (x := inverseImage(f, setUnion(A, B)), y := setUnion(inverseImage(f, A), inverseImage(f, B)))))
+    have(z ∈ preimage(f, X, Y, setUnion(A, B)) <=> z ∈ setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B))) by RightIff(forward, backward)
+    thenHave(∀(z, z ∈ preimage(f, X, Y, setUnion(A, B)) <=> z ∈ setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)))) by RightForall
+    andThen(Substitution.applySubst(extensionalityAxiom of (x := preimage(f, X, Y, setUnion(A, B)), y := setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)))))
+  }
+
+  // Couldn't import surjectivity from FunctionProperties without an error, so here it is
+  val surjective = DEF(f, x, y) --> functionFrom(f, x, y) /\ ∀(b, in(b, y) ==> ∃(a, in(pair(a, b), f)))
+
+  /**
+   * Theorem --- if a function is [[surjective]], its range is equal to its codomain.
+   */
+  val surjectiveImpliesRangeIsCodomain = Theorem(
+    surjective(f, x, y) |- (y === functionRange(f))
+  ) {
+    have(surjective(f, x, y) |- ∀(b, in(b, y) ==> ∃(a, in(pair(a, b), f)))) by Tautology.from(surjective.definition)
+    val surjDef = thenHave(surjective(f, x, y) |- in(b, y) ==> ∃(a, in(pair(a, b), f))) by InstantiateForall(b)
+    have(∀(t, in(t, functionRange(f)) <=> (∃(a, in(pair(a, t), f))))) by InstantiateForall(functionRange(f))(functionRange.definition of (r -> f))
+    val rangeDef = thenHave(in(b, functionRange(f)) <=> (∃(a, in(pair(a, b), f)))) by InstantiateForall(b)
+
+    have(surjective(f, x, y) |- in(b, y) ==> in(b, functionRange(f))) by Tautology.from(surjDef, rangeDef)
+    thenHave(surjective(f, x, y) |- ∀(b, in(b, y) ==> in(b, functionRange(f)))) by RightForall
+    val surjsub = andThen(Substitution.applySubst(subsetAxiom of (x -> y, y -> functionRange(f))))
+
+    have((surjective(f, x, y), functionFrom(f, x, y)) |- subset(y, functionRange(f)) /\ subset(functionRange(f), y)) by RightAnd(surjsub, functionImpliesRangeSubsetOfCodomain)
+    val funceq = andThen(Substitution.applySubst(subsetEqualitySymmetry of (x -> y, y -> functionRange(f))))
+
+    val surjfunc = have(surjective(f, x, y) |- functionFrom(f, x, y)) by Tautology.from(surjective.definition)
+
+    have(thesis) by Cut(surjfunc, funceq)
+  }
+
+  val preimageDifference = Theorem(
+    (functionFrom(f, X, Y), subset(A, Y))
+      |- setDifference(X, preimage(f, X, Y, A)) === preimage(f, X, Y, setDifference(Y, A))
+  ) {
+    assume(functionFrom(f, X, Y), subset(A, Y))
+
+    have(forall(t, t ∈ setDifference(Y, A) <=> (in(t, Y) /\ !in(t, A)))) by InstantiateForall(setDifference(Y, A))(setDifference.definition of (x := Y, y := A))
+    val defDiffY = thenHave(z ∈ setDifference(Y, A) <=> (in(z, Y) /\ !in(z, A))) by InstantiateForall(z)
+
+    val forward = have(x ∈ setDifference(X, preimage(f, X, Y, A)) ==> x ∈ preimage(f, X, Y, setDifference(Y, A))) subproof {
+      assume(x ∈ setDifference(X, preimage(f, X, Y, A)))
+      sorry
+    }
+
+    val backward = have(x ∈ preimage(f, X, Y, setDifference(Y, A)) ==> x ∈ setDifference(X, preimage(f, X, Y, A))) subproof {
+      assume(x ∈ preimage(f, X, Y, setDifference(Y, A)))
+      sorry
+    }
+
+    have(x ∈ setDifference(X, preimage(f, X, Y, A)) <=> x ∈ preimage(f, X, Y, setDifference(Y, A))) by RightIff(forward, backward)
+    thenHave(∀(x, x ∈ setDifference(X, preimage(f, X, Y, A)) <=> x ∈ preimage(f, X, Y, setDifference(Y, A)))) by RightForall
+    andThen(Substitution.applySubst(extensionalityAxiom of (x := setDifference(X, preimage(f, X, Y, A)), y := preimage(f, X, Y, setDifference(Y, A)))))
+  }
+
+  val directImageEmptySet = Theorem(
+    (functionFrom(f, X, Y))
+      |- directImage(f, X, Y, emptySet) === emptySet
+  ) {
+    assume(functionFrom(f, X, Y))
+
+    have(subset(emptySet, X) |- forall(z, z ∈ directImage(f, X, Y, emptySet) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ emptySet)))) by InstantiateForall(directImage(f, X, Y, emptySet))(
+      directImage.definition of (A := emptySet)
+    )
+    thenHave(subset(emptySet, X) |- y ∈ directImage(f, X, Y, emptySet) <=> (y ∈ Y /\ ∃(x, (app(f, x) === y) /\ x ∈ emptySet))) by InstantiateForall(y)
+    val defA = have(y ∈ directImage(f, X, Y, emptySet) <=> (y ∈ Y /\ ∃(x, (app(f, x) === y) /\ x ∈ emptySet))) by Tautology.from(lastStep, emptySetIsASubset of (x := X))
+
+    val noElements = have(!in(y, directImage(f, X, Y, emptySet))) subproof {
+      assume(in(y, directImage(f, X, Y, emptySet)))
+      have((app(f, x) === y) /\ x ∈ emptySet |- x ∈ emptySet) by Tautology
+      have((app(f, x) === y) /\ x ∈ emptySet |- False) by Tautology.from(lastStep, emptySetAxiom)
+      thenHave(∃(x, (app(f, x) === y) /\ x ∈ emptySet) |- False) by LeftExists
+      have(False) by Tautology.from(lastStep, defA)
+    }
+    thenHave(∀(y, !in(y, directImage(f, X, Y, emptySet)))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, setWithNoElementsIsEmpty of (x := directImage(f, X, Y, emptySet)))
+  }
+
+  val directImageSubset = Theorem(
+    (functionFrom(f, X, Y), subset(A, X))
+      |- directImage(f, X, Y, A) ⊆ functionRange(f)
+  ) {
+    assume(functionFrom(f, X, Y), subset(A, X))
+
+    have(forall(y, y ∈ relationRange(f) <=> ∃(x, in(pair(x, y), f)))) by InstantiateForall(relationRange(f))(relationRange.definition of (r := f))
+    val defRange = thenHave(z ∈ relationRange(f) <=> ∃(x, in(pair(x, z), f))) by InstantiateForall(z)
+
+    have(forall(z, z ∈ directImage(f, X, Y, A) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ A)))) by InstantiateForall(directImage(f, X, Y, A))(directImage.definition)
+    val defA = thenHave(z ∈ directImage(f, X, Y, A) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ A))) by InstantiateForall(z)
+
+    have(z ∈ directImage(f, X, Y, A) ==> z ∈ functionRange(f)) subproof {
+      assume(z ∈ directImage(f, X, Y, A))
+      have(∃(x, (app(f, x) === z) /\ x ∈ A)) by Tautology.from(defA)
+      have(x ∈ A /\ (app(f, x) === z) |- pair(x, z) ∈ f) by Tautology.from(
+        pairInFunctionIsApp of (a := x, b := z),
+        functionFromImpliesFunctional of (x := X, y := Y),
+        subsetTactic of (x := A, y := X, z := x),
+        functionFromImpliesDomainEq of (x := X, y := Y),
+        replaceEqualityContainsRight of (x := functionDomain(f), y := X, z := x)
+      )
+      thenHave(x ∈ A /\ (app(f, x) === z) |- ∃(x, pair(x, z) ∈ f)) by RightExists
+      have(x ∈ A /\ (app(f, x) === z) |- z ∈ relationRange(f)) by Tautology.from(lastStep, defRange)
+      thenHave(∃(x, x ∈ A /\ (app(f, x) === z)) |- z ∈ relationRange(f)) by LeftExists
+      have(∃(x, x ∈ A /\ (app(f, x) === z)) |- z ∈ relationRange(f) /\ z ∈ Y) by Tautology.from(
+        lastStep,
+        functionImpliesRangeSubsetOfCodomain of (x := X, y := Y),
+        subsetTactic of (x := relationRange(f), y := Y)
+      )
+      have(thesis) by Tautology.from(lastStep, defA)
+    }
+
+    thenHave(forall(z, z ∈ directImage(f, X, Y, A) ==> z ∈ functionRange(f))) by RightForall
+    have(thesis) by Tautology.from(subsetAxiom of (x := directImage(f, X, Y, A), y := functionRange(f)), lastStep)
+  }
+
+  val directImageX = Theorem(
+    functionFrom(f, X, Y)
+      |- directImage(f, X, Y, X) === functionRange(f)
+  ) {
+    assume(functionFrom(f, X, Y))
+
+    have(subset(X, X) |- forall(z, z ∈ directImage(f, X, Y, X) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ X)))) by InstantiateForall(directImage(f, X, Y, X))(directImage.definition of (A := X))
+    thenHave(subset(X, X) |- z ∈ directImage(f, X, Y, X) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ X))) by InstantiateForall(z)
+    val defIm = have(z ∈ directImage(f, X, Y, X) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ X))) by Tautology.from(
+      lastStep,
+      subsetReflexivity of (x := X)
+    )
+
+    val forward = have(z ∈ directImage(f, X, Y, X) ==> z ∈ functionRange(f)) by Tautology.from(
+      directImageSubset of (A := X),
+      subsetReflexivity of (x := X),
+      subsetTactic of (x := directImage(f, X, Y, X), y := functionRange(f))
+    )
+
+    val backward = have(z ∈ functionRange(f) ==> z ∈ directImage(f, X, Y, X)) subproof {
+      assume(z ∈ functionRange(f))
+
+      have(subset(functionRange(f), Y)) by Tautology.from(functionImpliesRangeSubsetOfCodomain of (x := X, y := Y))
+      val zInY = have(z ∈ Y) by Tautology.from(lastStep, subsetTactic of (x := functionRange(f), y := Y))
+
+      have(x ∈ functionDomain(f) /\ (app(f, x) === z) |- x ∈ X /\ (app(f, x) === z)) by Tautology.from(
+        functionFromImpliesDomainEq of (x := X, y := Y),
+        replaceEqualityContainsRight of (x := functionDomain(f), y := X, z := x)
+      )
+      thenHave(x ∈ functionDomain(f) /\ (app(f, x) === z) |- exists(x, (app(f, x) === z) /\ x ∈ X)) by RightExists
+      have(x ∈ functionDomain(f) /\ (app(f, x) === z) |- z ∈ directImage(f, X, Y, X)) by Tautology.from(
+        lastStep,
+        defIm,
+        zInY
+      )
+      thenHave(exists(x, x ∈ functionDomain(f) /\ (app(f, x) === z)) |- z ∈ directImage(f, X, Y, X)) by LeftExists
+
+      have(thesis) by Tautology.from(
+        lastStep,
+        functionRangeMembership of (y := z),
+        functionFromImpliesFunctional of (x := X, y := Y)
+      )
+    }
+
+    have(z ∈ directImage(f, X, Y, X) <=> z ∈ functionRange(f)) by RightIff(forward, backward)
+    thenHave(∀(z, z ∈ directImage(f, X, Y, X) <=> z ∈ functionRange(f))) by RightForall
+    andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, X), y := functionRange(f))))
+  }
+
+  val applyDirectImage = Theorem(
+    A === B |- directImage(f, X, Y, A) === directImage(f, X, Y, B)
+  ) {
+    sorry
+  }
+
+  val directImagePreimage = Theorem(
+    (functionFrom(f, X, Y), subset(A, Y))
+      |- directImage(f, X, Y, preimage(f, X, Y, A)) ⊆ A
+  ) {
+    assume(functionFrom(f, X, Y), subset(A, Y))
+    sorry
+  }
+
+  val directImagePreimageSurjective = Theorem(
+    (functionFrom(f, X, Y), surjective(f, X, Y), subset(A, Y))
+      |- directImage(f, X, Y, preimage(f, X, Y, A)) === A
+  ) {
+    assume(functionFrom(f, X, Y), surjective(f, X, Y), subset(A, Y))
+
+    val forward = have(x ∈ directImage(f, X, Y, preimage(f, X, Y, A)) ==> x ∈ A) by Tautology.from(
+      subsetTactic of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A, z := x),
+      directImagePreimage
+    )
+
+    val backward = have(x ∈ A ==> x ∈ directImage(f, X, Y, preimage(f, X, Y, A))) subproof {
+      assume(x ∈ A)
+      sorry
+    }
+
+    have(x ∈ directImage(f, X, Y, preimage(f, X, Y, A)) <=> x ∈ A) by RightIff(forward, backward)
+    thenHave(∀(x, x ∈ directImage(f, X, Y, preimage(f, X, Y, A)) <=> x ∈ A)) by RightForall
+    andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A)))
   }
 
   val indiscreteIsTopology = Theorem(
@@ -484,7 +679,7 @@ object Instances extends lisa.Main {
   // Continuity
   // -------------------
   val continuous = DEF(f, X, T1, Y, T2) -->
-    (mapping(f, X, T1, Y, T2) /\ forall(O, O ∈ T2 ==> inverseImage(f, O) ∈ T1))
+    (mapping(f, X, T1, Y, T2) /\ forall(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1))
 
   // -------------------
   // Connectedness
@@ -499,14 +694,101 @@ object Instances extends lisa.Main {
       forall(A, clopen(X, T, A) ==> ((A === emptySet) \/ (A === X)))
   )
 
-  // Couldn't import surjectivity from FunctionProperties without an error, so here it is
-  val surjective = DEF(f, x, y) --> functionFrom(f, x, y) /\ ∀(b, in(b, y) ==> ∃(a, in(pair(a, b), f)))
-
   // -------------------
   // Intermediate value theorem
   // -------------------
   val intermediateValueThm = Theorem((connectedTop(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y)) |- connectedTop(Y, T2)) {
-    sorry
+    assume(connectedTop(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y))
+    val xIsTop = have(topology(X, T1)) by Tautology.from(continuous.definition, mapping.definition)
+    val yIsTop = have(topology(Y, T2)) by Tautology.from(continuous.definition, mapping.definition)
+
+    val xIsConnected = have(forall(A, clopen(X, T1, A) ==> ((A === emptySet) \/ (A === X)))) by Tautology.from(connectedTop.definition of (T := T1))
+    val isContinuous = have(forall(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1)) by Tautology.from(continuous.definition)
+
+    val fIsFunction = have(functionFrom(f, X, Y)) by Tautology.from(continuous.definition, mapping.definition)
+
+    have(clopen(Y, T2, A) ==> ((A === emptySet) \/ (A === Y))) subproof {
+      assume(clopen(Y, T2, A))
+
+      val aIsSubset = have(A ⊆ Y) subproof {
+        have(A ∈ T2) by Tautology.from(clopen.definition of (X := Y, T := T2))
+        have(A ∈ powerSet(Y)) by Tautology.from(
+          lastStep,
+          yIsTop,
+          topology.definition of (X := Y, T := T2),
+          setOfSubsets.definition of (X := Y, T := T2),
+          subsetTactic of (x := T2, y := powerSet(Y), z := A)
+        )
+        have(thesis) by Tautology.from(lastStep, powerAxiom of (x := A, y := Y))
+      }
+
+      val preimageA = have(A ∈ T2 ==> preimage(f, X, Y, A) ∈ T1) by InstantiateForall(A)(isContinuous)
+      val yIsClopen = have(A ∈ T2 /\ setDifference(Y, A) ∈ T2) by Tautology.from(clopen.definition of (X := Y, T := T2))
+      val part1 = have(preimage(f, X, Y, A) ∈ T1) by Tautology.from(yIsClopen, preimageA)
+      val preimageYA = have(setDifference(Y, A) ∈ T2 ==> preimage(f, X, Y, setDifference(Y, A)) ∈ T1) by InstantiateForall(setDifference(Y, A))(isContinuous)
+      have(preimage(f, X, Y, setDifference(Y, A)) ∈ T1) by Tautology.from(yIsClopen, preimageYA)
+      val part2 = have(setDifference(X, preimage(f, X, Y, A)) ∈ T1) by Tautology.from(
+        lastStep,
+        aIsSubset,
+        fIsFunction,
+        preimageDifference,
+        replaceEqualityContainsLeft of (x := setDifference(X, preimage(f, X, Y, A)), y := preimage(f, X, Y, setDifference(Y, A)), z := T1)
+      )
+
+      // So f^-1(A) is clopen
+      val inverseIsClopen = have(clopen(X, T1, preimage(f, X, Y, A))) by Tautology.from(
+        xIsTop,
+        part1,
+        part2,
+        clopen.definition of (T := T1, A := preimage(f, X, Y, A))
+      )
+
+      // Hence (f^-1(A) === emptySet) \/ (preimage(f, X, Y, A) === X) by connectedness of X
+      have(clopen(X, T1, preimage(f, X, Y, A)) ==> (preimage(f, X, Y, A) === emptySet) \/ (preimage(f, X, Y, A) === X)) by InstantiateForall(preimage(f, X, Y, A))(xIsConnected)
+      val preImageIsConnected = have((preimage(f, X, Y, A) === emptySet) \/ (preimage(f, X, Y, A) === X)) by Tautology.from(
+        lastStep,
+        inverseIsClopen
+      )
+
+      // Use the fact that f(emptyset)=emptyset, f(f^-1(A)) = A (by surjectivity), f(X) = Y (by surjectivity) to conclude
+      val firstCase = have(preimage(f, X, Y, A) === emptySet |- A === emptySet) subproof {
+        assume(preimage(f, X, Y, A) === emptySet)
+        have(thesis) by Tautology.from(
+          lastStep,
+          fIsFunction,
+          aIsSubset,
+          applyDirectImage of (A := preimage(f, X, Y, A), B := emptySet),
+          directImagePreimageSurjective,
+          directImageEmptySet,
+          equalityTransitivity of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := directImage(f, X, Y, emptySet), z := emptySet),
+          equalitySymmetry of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A),
+          equalityTransitivity of (x := A, y := directImage(f, X, Y, preimage(f, X, Y, A)), z := emptySet)
+        )
+      }
+
+      val secondCase = have(preimage(f, X, Y, A) === X |- A === Y) subproof {
+        assume(preimage(f, X, Y, A) === X)
+        have(thesis) by Tautology.from(
+          lastStep,
+          fIsFunction,
+          aIsSubset,
+          applyDirectImage of (A := preimage(f, X, Y, A), B := X),
+          directImagePreimageSurjective,
+          directImageX,
+          surjectiveImpliesRangeIsCodomain of (x := X, y := Y),
+          equalitySymmetry of (x := Y, y := functionRange(f)),
+          equalityTransitivity of (x := directImage(f, X, Y, X), y := functionRange(f), z := Y),
+          equalityTransitivity of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := directImage(f, X, Y, X), z := Y),
+          equalitySymmetry of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A),
+          equalityTransitivity of (x := A, y := directImage(f, X, Y, preimage(f, X, Y, A)), z := Y)
+        )
+      }
+
+      have(thesis) by Tautology.from(preImageIsConnected, firstCase, secondCase)
+    }
+
+    val allClopen = thenHave(forall(A, clopen(Y, T2, A) ==> ((A === emptySet) \/ (A === Y)))) by RightForall
+    have(connectedTop(Y, T2)) by Tautology.from(allClopen, yIsTop, connectedTop.definition of (X := Y, T := T2))
   }
 
   // -------------------
