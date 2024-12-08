@@ -19,7 +19,7 @@ object Instances extends lisa.Main {
   // var defs
   private val x, y, z, a, b, c, t, p, f, r, s = variable
   private val X, T, T1, T2 = variable
-  private val S, A, B, Y, o, O, O2 = variable
+  private val S, A, B, Y, o, O, O2, O3 = variable
 
   val discreteTopology = DEF(X, T) --> nonEmpty(X) /\ (T === powerSet(X))
 
@@ -133,9 +133,9 @@ object Instances extends lisa.Main {
           |-
             (app(f, x) === z) /\ x ∈ setUnion(A, B)
       ) by Tautology.from(setUnionMembership of (x := A, y := B, z := x), defAorB)
-      thenHave((z ∈ Y, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))) |- exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) by RightExists
+      thenHave((z ∈ Y, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))) |- ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) by RightExists
       have((z ∈ Y, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B))) |- z ∈ directImage(f, X, Y, setUnion(A, B))) by Tautology.from(lastStep, defAorB)
-      thenHave((z ∈ Y, exists(x, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B)))) |- z ∈ directImage(f, X, Y, setUnion(A, B))) by LeftExists
+      thenHave((z ∈ Y, ∃(x, (app(f, x) === z) /\ ((x ∈ A) \/ (x ∈ B)))) |- z ∈ directImage(f, X, Y, setUnion(A, B))) by LeftExists
       have(z ∈ directImage(f, X, Y, setUnion(A, B))) by Tautology.from(lastStep, partialResult)
     }
     val backward = have(z ∈ directImage(f, X, Y, setUnion(A, B)) ==> z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))) subproof {
@@ -146,16 +146,16 @@ object Instances extends lisa.Main {
       ) by Tautology.from(setUnionMembership of (x := A, y := B, z := x))
 
       assume(z ∈ directImage(f, X, Y, setUnion(A, B)))
-      have(z ∈ Y /\ exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) by Tautology.from(defAorB)
+      have(z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) by Tautology.from(defAorB)
       have((app(f, x) === z) /\ x ∈ A |- (app(f, x) === z) /\ x ∈ A) by Tautology
       val existsA = thenHave(
         (app(f, x) === z) /\ x ∈ A |-
-          exists(x, (app(f, x) === z) /\ x ∈ A)
+          ∃(x, (app(f, x) === z) /\ x ∈ A)
       ) by RightExists
       have((app(f, x) === z) /\ x ∈ B |- (app(f, x) === z) /\ x ∈ B) by Tautology
       val existsB = thenHave(
         (app(f, x) === z) /\ x ∈ B |-
-          exists(x, (app(f, x) === z) /\ x ∈ B)
+          ∃(x, (app(f, x) === z) /\ x ∈ B)
       ) by RightExists
       have(
         z ∈ Y /\ (app(f, x) === z) /\ x ∈ setUnion(A, B) |-
@@ -166,7 +166,7 @@ object Instances extends lisa.Main {
           z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))
       ) by Tautology.from(lastStep, setUnionMembership of (x := directImage(f, X, Y, A), y := directImage(f, X, Y, B), z := z))
       thenHave(
-        (z ∈ Y, exists(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) |-
+        (z ∈ Y, ∃(x, (app(f, x) === z) /\ x ∈ setUnion(A, B))) |-
           z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))
       ) by LeftExists
       have(z ∈ setUnion(directImage(f, X, Y, A), directImage(f, X, Y, B))) by Tautology.from(lastStep, defAorB)
@@ -412,13 +412,13 @@ object Instances extends lisa.Main {
         functionFromImpliesDomainEq of (x := X, y := Y),
         replaceEqualityContainsRight of (x := functionDomain(f), y := X, z := x)
       )
-      thenHave(x ∈ functionDomain(f) /\ (app(f, x) === z) |- exists(x, (app(f, x) === z) /\ x ∈ X)) by RightExists
+      thenHave(x ∈ functionDomain(f) /\ (app(f, x) === z) |- ∃(x, (app(f, x) === z) /\ x ∈ X)) by RightExists
       have(x ∈ functionDomain(f) /\ (app(f, x) === z) |- z ∈ directImage(f, X, Y, X)) by Tautology.from(
         lastStep,
         defIm,
         zInY
       )
-      thenHave(exists(x, x ∈ functionDomain(f) /\ (app(f, x) === z)) |- z ∈ directImage(f, X, Y, X)) by LeftExists
+      thenHave(∃(x, x ∈ functionDomain(f) /\ (app(f, x) === z)) |- z ∈ directImage(f, X, Y, X)) by LeftExists
 
       have(thesis) by Tautology.from(
         lastStep,
@@ -467,6 +467,18 @@ object Instances extends lisa.Main {
     andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A)))
   }
 
+  val preimageY = Theorem(
+    functionFrom(f, X, Y) |- preimage(f, X, Y, Y) === X
+  ) {
+    sorry
+  }
+
+  val imageSurjective = Theorem(
+    (functionFrom(f, X, Y), surjective(f, X, Y)) |- directImage(f, X, Y, X) === Y
+  ) {
+    sorry
+  }
+
   val indiscreteIsTopology = Theorem(
     indiscreteTopology(X, T) ==> topology(X, T)
   ) {
@@ -507,12 +519,12 @@ object Instances extends lisa.Main {
         )
         have((in(z, Y) /\ in(a, z)) |- (in(a, X) /\ (z === X) /\ in(z, Y))) by Tautology.from(lastStep, emptySetAxiom of (x := a))
         have((in(z, Y) /\ in(a, z)) |- (in(a, X) /\ in(X, Y))) by Tautology.from(lastStep, replaceEqualityContainsLeft of (x := z, y := X, z := Y))
-        thenHave(exists(z, in(z, Y) /\ in(a, z)) |- (in(a, X) /\ in(X, Y))) by LeftExists
+        thenHave(∃(z, in(z, Y) /\ in(a, z)) |- (in(a, X) /\ in(X, Y))) by LeftExists
         val before = have(in(a, union(Y)) ==> (in(a, X) /\ in(X, Y))) by Tautology.from(lastStep, unionAxiom of (z := a, x := Y, y := z), emptySetAxiom of (x := a))
         thenHave(in(a, union(Y)) ==> in(a, X)) by Tautology
         val base = thenHave(forall(a, in(a, union(Y)) ==> in(a, X))) by RightForall
         val cond1 = have(forall(a, !in(a, union(Y))) |- union(Y) === ∅) by Tautology.from(setWithNoElementsIsEmpty of (y := a, x := union(Y)))
-        val cond2 = have(exists(a, in(a, union(Y))) |- union(Y) === X) subproof {
+        val cond2 = have(∃(a, in(a, union(Y))) |- union(Y) === X) subproof {
           val unionGrow = have(in(a, union(Y)) |- (X ⊆ union(Y))) by Tautology.from(before, unionDoesntShrink of (x := X, y := Y))
           have(in(a, union(Y)) |- (union(Y) === X)) by Tautology.from(base, unionGrow, subsetAxiom of (x := union(Y), y := X, z := a), equalityBySubset of (x := union(Y), y := X))
           thenHave(thesis) by LeftExists
@@ -574,32 +586,32 @@ object Instances extends lisa.Main {
   }
 
   val singletonSetsUniquenes = Theorem(
-    ∃!(z, ∀(t, in(t, z) <=> exists(x, in(x, S) /\ (t === singleton(x)))))
+    ∃!(z, ∀(t, in(t, z) <=> ∃(x, in(x, S) /\ (t === singleton(x)))))
   ) {
-    val implicationProof = have(exists(x, in(x, S) /\ (t === singleton(x))) ==> in(t, union(cartesianProduct(S, S)))) subproof { sorry }
-    have(() |- existsOne(z, forall(t, in(t, z) <=> exists(x, in(x, S) /\ (t === singleton(x)))))) by UniqueComprehension.fromOriginalSet(
+    val implicationProof = have(∃(x, in(x, S) /\ (t === singleton(x))) ==> in(t, union(cartesianProduct(S, S)))) subproof { sorry }
+    have(() |- existsOne(z, forall(t, in(t, z) <=> ∃(x, in(x, S) /\ (t === singleton(x)))))) by UniqueComprehension.fromOriginalSet(
       union(cartesianProduct(S, S)),
-      lambda(t, exists(x, in(x, S) /\ (t === singleton(x)))),
+      lambda(t, ∃(x, in(x, S) /\ (t === singleton(x)))),
       implicationProof
     )
   }
-  val singletonSets = DEF(S) --> The(z, ∀(t, in(t, z) <=> exists(x, in(x, S) /\ (t === singleton(x)))))(singletonSetsUniquenes)
+  val singletonSets = DEF(S) --> The(z, ∀(t, in(t, z) <=> ∃(x, in(x, S) /\ (t === singleton(x)))))(singletonSetsUniquenes)
 
   val singletonSetsMembershipRaw = Theorem(
-    in(t, singletonSets(S)) <=> exists(x, ((t === singleton(x)) /\ in(x, S)))
+    in(t, singletonSets(S)) <=> ∃(x, ((t === singleton(x)) /\ in(x, S)))
   ) {
-    have(∀(t, in(t, singletonSets(S)) <=> exists(x, in(x, S) /\ (t === singleton(x))))) by InstantiateForall(singletonSets(S))(singletonSets.definition)
+    have(∀(t, in(t, singletonSets(S)) <=> ∃(x, in(x, S) /\ (t === singleton(x))))) by InstantiateForall(singletonSets(S))(singletonSets.definition)
     thenHave(thesis) by InstantiateForall(t)
   }
 
   val singletonSetsMembership = Theorem(
     in(x, S) <=> in(singleton(x), singletonSets(S))
   ) {
-    val memb = have(in(t, singletonSets(S)) <=> exists(x, ((t === singleton(x)) /\ in(x, S)))) by Tautology.from(singletonSetsMembershipRaw)
+    val memb = have(in(t, singletonSets(S)) <=> ∃(x, ((t === singleton(x)) /\ in(x, S)))) by Tautology.from(singletonSetsMembershipRaw)
     have(in(x, S) |- in(singleton(x), singletonSets(S))) subproof {
       assume(in(x, S))
       have(t === singleton(x) |- ((t === singleton(x)) /\ in(x, S))) by Tautology
-      thenHave(t === singleton(x) |- exists(x, ((t === singleton(x)) /\ in(x, S)))) by RightExists
+      thenHave(t === singleton(x) |- ∃(x, ((t === singleton(x)) /\ in(x, S)))) by RightExists
       sorry
       /*have((t === singleton(x)) ==> in(t, singletonSets(S))) by Tautology.from(lastStep, memb)
       thenHave(forall(t, (t === singleton(x)) ==> in(t, singletonSets(S)))) by RightForall
@@ -609,22 +621,22 @@ object Instances extends lisa.Main {
     have(in(singleton(x), singletonSets(S)) |- in(x, S)) subproof {
       assume(in(singleton(x), singletonSets(S)))
 
-      val removeExists = have((exists(y, in(y, S) /\ (t === singleton(y))), t === singleton(x)) |- in(x, S)) subproof {
+      val removeExists = have((∃(y, in(y, S) /\ (t === singleton(y))), t === singleton(x)) |- in(x, S)) subproof {
         /*have((in(y, S), t === singleton(x), t === singleton(y)) |- (in(y, S), t === singleton(x), t === singleton(y)))
         thenHave((in(y, S) /\ (t === singleton(x)) /\ (t === singleton(y))) |- (in(x, S))) by Tautology.from(
           singletonExtensionality,
           equalityTransitivity of (x := singleton(x), y := t, z := singleton(y)),
           replaceEqualityContainsLeft of (z := S)
         )
-        thenHave(exists(y, in(y, S) /\ (t === singleton(x)) /\ (t === singleton(y))) |- (in(x, S))) by LeftExists
-        have(exists(y, in(y, S) /\ (t === singleton(y))) /\ (t === singleton(x)) |- (in(x, S))) by Tautology.from(
+        thenHave(∃(y, in(y, S) /\ (t === singleton(x)) /\ (t === singleton(y))) |- (in(x, S))) by LeftExists
+        have(∃(y, in(y, S) /\ (t === singleton(y))) /\ (t === singleton(x)) |- (in(x, S))) by Tautology.from(
           lastStep,
           existentialConjunctionWithClosedFormula of (x := y, p := (t === singleton(x)))
         )
         thenHave(thesis) by Tautology*/
         sorry
       }
-      have((t === singleton(x), in(t, singletonSets(S))) |- (t === singleton(x), exists(x, ((t === singleton(x)) /\ in(x, S))))) by Tautology.from(singletonSetsMembershipRaw of (x := y))
+      have((t === singleton(x), in(t, singletonSets(S))) |- (t === singleton(x), ∃(x, ((t === singleton(x)) /\ in(x, S))))) by Tautology.from(singletonSetsMembershipRaw of (x := y))
       sorry
       /* have((t === singleton(x), in(t, singletonSets(S))) |- in(x, S)) by Tautology.from(lastStep, removeExists)
       have(in(singleton(x), singletonSets(S)) |- in(x, S)) by Tautology.from(lastStep, replaceEqualityContainsLeft of (x := t, y := singleton(x), z := singletonSets(S)))*/
@@ -804,12 +816,12 @@ object Instances extends lisa.Main {
 
   val finite = DEF(X) --> (X === emptySet) // TODO
 
-  val compactness = DEF(X, T) -->
+  val compact = DEF(X, T) -->
     topology(X, T) /\
     forall(
       O,
       openCover(X, T, O) ==>
-        exists(
+        ∃(
           O2, // Another subcovering
           subset(O2, O) /\
             openCover(X, T, O2) /\
@@ -817,4 +829,48 @@ object Instances extends lisa.Main {
         )
     )
 
+  val heineBorelThm = Theorem((compact(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y)) |- compact(Y, T2)) {
+    assume(compact(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y))
+
+    val xIsTop = have(topology(X, T1)) by Tautology.from(continuous.definition, mapping.definition)
+    val yIsTop = have(topology(Y, T2)) by Tautology.from(continuous.definition, mapping.definition)
+
+    val xIsCompact = have(forall(O, openCover(X, T1, O) ==> ∃(O2, subset(O2, O) /\ openCover(X, T1, O2) /\ finite(O2)))) by Tautology.from(
+      compact.definition of (T := T1)
+    )
+    val isContinuous = have(forall(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1)) by Tautology.from(continuous.definition)
+
+    val fIsFunction = have(functionFrom(f, X, Y)) by Tautology.from(continuous.definition, mapping.definition)
+
+    have(openCover(Y, T2, O) |- ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) subproof {
+      assume(openCover(Y, T2, O))
+
+      // TODO: change O is not the correct subcover for X, it should be unionPreimage(O)
+      // We have an open cover of X
+      val isOpenCover = have(openCover(X, T1, O)) subproof {
+        sorry
+      }
+
+      // Whence the existence of a finite subcover O3
+      // TODO: change O is not the correct cover for X, it should be unionPreimage(O) (to be defined)
+      have(openCover(X, T1, O) ==> ∃(O3, subset(O3, O) /\ openCover(X, T1, O3) /\ finite(O3))) by InstantiateForall(O)(xIsCompact)
+      val existsO3 = have(∃(O3, subset(O3, O) /\ openCover(X, T1, O3) /\ finite(O3))) by Tautology.from(lastStep, isOpenCover)
+
+      // From that finite subcover O3, we can recover a finite subcover O2 of Y
+      // TODO: change O is not the correct cover for X, it should be unionPreimage(O) (to be defined)
+      have(subset(O3, O) /\ openCover(X, T1, O3) /\ finite(O3) |- ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) subproof {
+        assume(subset(O3, O), openCover(X, T1, O3), finite(O3))
+        sorry
+      }
+
+      // Concluding
+      // TODO: change O is not the correct cover for X, it should be unionPreimage(O) (to be defined)
+      thenHave(∃(O3, subset(O3, O) /\ openCover(X, T1, O3) /\ finite(O3)) |- ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) by LeftExists
+      have(thesis) by Tautology.from(lastStep, existsO3)
+    }
+    thenHave(openCover(Y, T2, O) ==> ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) by Tautology
+    val yIsCompact = thenHave(forall(O, openCover(Y, T2, O) ==> ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2)))) by RightForall
+
+    have(thesis) by Tautology.from(yIsCompact, yIsTop, compact.definition of (X := Y, T := T2))
+  }
 }
