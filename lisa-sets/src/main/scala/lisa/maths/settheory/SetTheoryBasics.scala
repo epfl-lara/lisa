@@ -191,6 +191,6 @@ object SetTheoryBasics extends lisa.Main {
   val equalitySymmetry = Theorem(
     x === y |- y === x
   ) {
-    sorry
+    have(thesis) by Tautology.from(equalityBySubset, equalityBySubset of (x := y, y := x))
   }
 }
