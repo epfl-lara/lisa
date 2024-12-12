@@ -100,6 +100,20 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := setIntersection(x, y), y := z))
   }
 
+  val subsetUnderIntersection = Theorem((z ⊆ (x ∩ y)) |- (z ⊆ x /\ z ⊆ y)) {
+    assume(z ⊆ (x ∩ y))
+    have(forall(t, in(t, z) ==> in(t, x ∩ y))) by Tautology.from(subsetAxiom of (x := z, y := x ∩ y, z := t))
+    thenHave(in(t, z) ==> in(t, x ∩ y)) by InstantiateForall(t)
+    val both = have((in(t, z) ==> in(t, x)) /\ (in(t, z) ==> in(t, y))) by Tautology.from(lastStep, setIntersectionMembership of (x := x, y := y))
+    have(in(t, z) ==> in(t, x)) by Weakening(both)
+    thenHave(forall(t, in(t, z) ==> in(t, x))) by RightForall
+    val first = have(z ⊆ x) by Tautology.from(lastStep, subsetAxiom of (x := z, y := x, z := t))
+    have(in(t, z) ==> in(t, y)) by Weakening(both)
+    thenHave(forall(t, in(t, z) ==> in(t, y))) by RightForall
+    val second = have(z ⊆ y) by Tautology.from(lastStep, subsetAxiom of (x := z, y := y, z := t))
+    have(thesis) by Tautology.from(first, second)
+  }
+
   val subsetClosedSetUnion = Theorem((x ⊆ z, y ⊆ z) |- setUnion(x, y) ⊆ z) {
     assume(x ⊆ z, y ⊆ z)
     have(forall(t, in(t, x) ==> in(t, z))) by Tautology.from(subsetAxiom of (y := z, z := t))
