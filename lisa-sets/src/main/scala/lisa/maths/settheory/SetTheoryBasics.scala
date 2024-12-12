@@ -147,6 +147,12 @@ object SetTheoryBasics extends lisa.Main {
     thenHave(thesis) by Tautology
   }
 
+  val differenceShrinks = Theorem(setDifference(x, y) ⊆ x) {
+    have(in(z, setDifference(x, y)) ==> in(z, x)) by Tautology.from(setDifferenceMembership of (t := z))
+    thenHave(forall(z, in(z, setDifference(x, y)) ==> in(z, x))) by RightForall
+    have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := setDifference(x, y), y := x))
+  }
+
   /**
    * Lemma --- Range introduction and elimination rules. If en element is in the image of a function, then it has a preimage inside its domain.
    *

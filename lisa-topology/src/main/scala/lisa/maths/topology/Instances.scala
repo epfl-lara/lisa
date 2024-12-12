@@ -231,31 +231,16 @@ object Instances extends lisa.Main {
     assume(functionFrom(f, X, Y))
     val first = have(preimage(f, X, Y, Y) ⊆ X) by Tautology.from(subsetReflexivity of (x := Y), preimageSubset of (A := Y))
 
-    have(in(z, X) ==> in(z, preimage(f, X, Y, Y))) subproof {
-      assume(in(z, X))
-      sorry
-    }
+    have(in(z, X) ==> in(z, preimage(f, X, Y, Y))) by Tautology.from(
+      functionFromApplication of (x := X, y := Y, a := z),
+      functionFrom.definition of (x := X, y := Y),
+      preimageMembership of (x := z, B := Y),
+      subsetReflexivity of (x := Y)
+    )
     thenHave(forall(z, in(z, X) ==> in(z, preimage(f, X, Y, Y)))) by RightForall
-    sorry
-    // have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := X, y := preimage(f, X, Y, Y)))
+    val second = have(X ⊆ preimage(f, X, Y, Y)) by Tautology.from(lastStep, subsetAxiom of (x := X, y := preimage(f, X, Y, Y)))
+    have(thesis) by Tautology.from(first, second, equalityBySubset of (x := X, y := preimage(f, X, Y, Y)))
   }
-
-  inline def preimagesFormula = x ∈ s <=> (x ∈ X /\ ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a))))
-
-  val preimagesUniqueness = Theorem(
-    (functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- ∃!(s, forall(x, preimagesFormula))
-  ) {
-    have(∃!(s, forall(x, preimagesFormula))) by UniqueComprehension(X, lambda(x, ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a)))))
-    thenHave(thesis) by Weakening
-  }
-
-  val preimages = DEF(f, X, Y, A) --> TheConditional(s, forall(x, preimagesFormula))(preimagesUniqueness)
-
-  /*val preimagesMembership = Theorem((functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- x ∈ unionPreimage(f, X, Y, A) <=> (x ∈ X /\ app(f, x) ∈ union(A))) {
-    assume(functionFrom(f, X, Y) /\ A ⊆ powerSet(Y))
-    have(forall(x, x ∈ unionPreimage(f, X, Y, A) <=> (x ∈ X /\ app(f, x) ∈ union(A)))) by InstantiateForall(unionPreimage(f, X, Y, A))(unionPreimage.definition)
-    thenHave(thesis) by InstantiateForall(x)
-  }*/
 
   val preimageSetUnion = Theorem(
     functionFrom(f, X, Y) /\
@@ -325,6 +310,62 @@ object Instances extends lisa.Main {
     andThen(Substitution.applySubst(extensionalityAxiom of (x := preimage(f, X, Y, setUnion(A, B)), y := setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)))))
   }
 
+  val preimageDifference = Theorem(
+    (functionFrom(f, X, Y), subset(A, Y))
+      |- setDifference(X, preimage(f, X, Y, A)) === preimage(f, X, Y, setDifference(Y, A))
+  ) {
+    assume(functionFrom(f, X, Y), subset(A, Y))
+
+    have(forall(t, t ∈ setDifference(Y, A) <=> (in(t, Y) /\ !in(t, A)))) by InstantiateForall(setDifference(Y, A))(setDifference.definition of (x := Y, y := A))
+    val defDiffY = thenHave(z ∈ setDifference(Y, A) <=> (in(z, Y) /\ !in(z, A))) by InstantiateForall(z)
+
+    val forward = have(x ∈ setDifference(X, preimage(f, X, Y, A)) ==> x ∈ preimage(f, X, Y, setDifference(Y, A))) subproof {
+      assume(x ∈ setDifference(X, preimage(f, X, Y, A)))
+
+      have(in(x, X) /\ !in(x, preimage(f, X, Y, A))) by Tautology.from(setDifferenceMembership of (t := x, x := X, y := preimage(f, X, Y, A)))
+      have(in(x, X) /\ !in(app(f, x), A)) by Tautology.from(lastStep, preimageMembership of (B := A))
+      // (x ∈ X /\ app(f, x) ∈ setDifference(Y, A))
+      have(in(x, X) /\ in(app(f, x), setDifference(Y, A))) by Tautology.from(
+        lastStep,
+        functionFromApplication of (x := X, y := Y, a := x),
+        functionFrom.definition of (x := X, y := Y),
+        setDifferenceMembership of (t := app(f, x), x := Y, y := A)
+      )
+      have(thesis) by Tautology.from(lastStep, differenceShrinks of (x := Y, y := A), preimageMembership of (B := setDifference(Y, A)))
+    }
+
+    val backward = have(x ∈ preimage(f, X, Y, setDifference(Y, A)) ==> x ∈ setDifference(X, preimage(f, X, Y, A))) subproof {
+      assume(x ∈ preimage(f, X, Y, setDifference(Y, A)))
+      have(x ∈ X /\ app(f, x) ∈ Y /\ !(app(f, x) ∈ A)) by Tautology.from(
+        preimageMembership of (B := setDifference(Y, A)),
+        setDifferenceMembership of (t := app(f, x), x := Y, y := A),
+        differenceShrinks of (x := Y, y := A)
+      )
+      have(thesis) by Tautology.from(lastStep, preimageMembership of (B := A, t := x), setDifferenceMembership of (t := x, x := X, y := preimage(f, X, Y, A)))
+    }
+
+    have(x ∈ setDifference(X, preimage(f, X, Y, A)) <=> x ∈ preimage(f, X, Y, setDifference(Y, A))) by RightIff(forward, backward)
+    thenHave(∀(x, x ∈ setDifference(X, preimage(f, X, Y, A)) <=> x ∈ preimage(f, X, Y, setDifference(Y, A)))) by RightForall
+    andThen(Substitution.applySubst(extensionalityAxiom of (x := setDifference(X, preimage(f, X, Y, A)), y := preimage(f, X, Y, setDifference(Y, A)))))
+  }
+
+  inline def preimagesFormula = x ∈ s <=> (x ∈ X /\ ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a))))
+
+  val preimagesUniqueness = Theorem(
+    (functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- ∃!(s, forall(x, preimagesFormula))
+  ) {
+    have(∃!(s, forall(x, preimagesFormula))) by UniqueComprehension(X, lambda(x, ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a)))))
+    thenHave(thesis) by Weakening
+  }
+
+  val preimages = DEF(f, X, Y, A) --> TheConditional(s, forall(x, preimagesFormula))(preimagesUniqueness)
+
+  /*val preimagesMembership = Theorem((functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- x ∈ unionPreimage(f, X, Y, A) <=> (x ∈ X /\ app(f, x) ∈ union(A))) {
+    assume(functionFrom(f, X, Y) /\ A ⊆ powerSet(Y))
+    have(forall(x, x ∈ unionPreimage(f, X, Y, A) <=> (x ∈ X /\ app(f, x) ∈ union(A)))) by InstantiateForall(unionPreimage(f, X, Y, A))(unionPreimage.definition)
+    thenHave(thesis) by InstantiateForall(x)
+  }*/
+
   val preimageUnionThm = Theorem(
     (functionFrom(f, X, Y), A ⊆ powerSet(Y)) |-
       preimage(f, X, Y, union(A)) === union(preimages(f, X, Y, A))
@@ -356,30 +397,6 @@ object Instances extends lisa.Main {
     val surjfunc = have(surjective(f, x, y) |- functionFrom(f, x, y)) by Tautology.from(surjective.definition)
 
     have(thesis) by Cut(surjfunc, funceq)
-  }
-
-  val preimageDifference = Theorem(
-    (functionFrom(f, X, Y), subset(A, Y))
-      |- setDifference(X, preimage(f, X, Y, A)) === preimage(f, X, Y, setDifference(Y, A))
-  ) {
-    assume(functionFrom(f, X, Y), subset(A, Y))
-
-    have(forall(t, t ∈ setDifference(Y, A) <=> (in(t, Y) /\ !in(t, A)))) by InstantiateForall(setDifference(Y, A))(setDifference.definition of (x := Y, y := A))
-    val defDiffY = thenHave(z ∈ setDifference(Y, A) <=> (in(z, Y) /\ !in(z, A))) by InstantiateForall(z)
-
-    val forward = have(x ∈ setDifference(X, preimage(f, X, Y, A)) ==> x ∈ preimage(f, X, Y, setDifference(Y, A))) subproof {
-      assume(x ∈ setDifference(X, preimage(f, X, Y, A)))
-      sorry
-    }
-
-    val backward = have(x ∈ preimage(f, X, Y, setDifference(Y, A)) ==> x ∈ setDifference(X, preimage(f, X, Y, A))) subproof {
-      assume(x ∈ preimage(f, X, Y, setDifference(Y, A)))
-      sorry
-    }
-
-    have(x ∈ setDifference(X, preimage(f, X, Y, A)) <=> x ∈ preimage(f, X, Y, setDifference(Y, A))) by RightIff(forward, backward)
-    thenHave(∀(x, x ∈ setDifference(X, preimage(f, X, Y, A)) <=> x ∈ preimage(f, X, Y, setDifference(Y, A)))) by RightForall
-    andThen(Substitution.applySubst(extensionalityAxiom of (x := setDifference(X, preimage(f, X, Y, A)), y := preimage(f, X, Y, setDifference(Y, A)))))
   }
 
   val directImageEmptySet = Theorem(
@@ -443,55 +460,6 @@ object Instances extends lisa.Main {
     have(thesis) by Tautology.from(subsetAxiom of (x := directImage(f, X, Y, A), y := functionRange(f)), lastStep)
   }
 
-  val directImageX = Theorem(
-    functionFrom(f, X, Y)
-      |- directImage(f, X, Y, X) === functionRange(f)
-  ) {
-    assume(functionFrom(f, X, Y))
-
-    have(subset(X, X) |- forall(z, z ∈ directImage(f, X, Y, X) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ X)))) by InstantiateForall(directImage(f, X, Y, X))(directImage.definition of (A := X))
-    thenHave(subset(X, X) |- z ∈ directImage(f, X, Y, X) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ X))) by InstantiateForall(z)
-    val defIm = have(z ∈ directImage(f, X, Y, X) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ X))) by Tautology.from(
-      lastStep,
-      subsetReflexivity of (x := X)
-    )
-
-    val forward = have(z ∈ directImage(f, X, Y, X) ==> z ∈ functionRange(f)) by Tautology.from(
-      directImageSubset of (A := X),
-      subsetReflexivity of (x := X),
-      subsetTactic of (x := directImage(f, X, Y, X), y := functionRange(f))
-    )
-
-    val backward = have(z ∈ functionRange(f) ==> z ∈ directImage(f, X, Y, X)) subproof {
-      assume(z ∈ functionRange(f))
-
-      have(subset(functionRange(f), Y)) by Tautology.from(functionImpliesRangeSubsetOfCodomain of (x := X, y := Y))
-      val zInY = have(z ∈ Y) by Tautology.from(lastStep, subsetTactic of (x := functionRange(f), y := Y))
-
-      have(x ∈ functionDomain(f) /\ (app(f, x) === z) |- x ∈ X /\ (app(f, x) === z)) by Tautology.from(
-        functionFromImpliesDomainEq of (x := X, y := Y),
-        replaceEqualityContainsRight of (x := functionDomain(f), y := X, z := x)
-      )
-      thenHave(x ∈ functionDomain(f) /\ (app(f, x) === z) |- ∃(x, (app(f, x) === z) /\ x ∈ X)) by RightExists
-      have(x ∈ functionDomain(f) /\ (app(f, x) === z) |- z ∈ directImage(f, X, Y, X)) by Tautology.from(
-        lastStep,
-        defIm,
-        zInY
-      )
-      thenHave(∃(x, x ∈ functionDomain(f) /\ (app(f, x) === z)) |- z ∈ directImage(f, X, Y, X)) by LeftExists
-
-      have(thesis) by Tautology.from(
-        lastStep,
-        functionRangeMembership of (y := z),
-        functionFromImpliesFunctional of (x := X, y := Y)
-      )
-    }
-
-    have(z ∈ directImage(f, X, Y, X) <=> z ∈ functionRange(f)) by RightIff(forward, backward)
-    thenHave(∀(z, z ∈ directImage(f, X, Y, X) <=> z ∈ functionRange(f))) by RightForall
-    andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, X), y := functionRange(f))))
-  }
-
   val applyDirectImage = Theorem(
     A === B |- directImage(f, X, Y, A) === directImage(f, X, Y, B)
   ) {
@@ -537,21 +505,53 @@ object Instances extends lisa.Main {
       directImagePreimage
     )
 
-    val backward = have(x ∈ A ==> x ∈ directImage(f, X, Y, preimage(f, X, Y, A))) subproof {
-      assume(x ∈ A)
-      sorry
+    val backward = have(y ∈ A ==> y ∈ directImage(f, X, Y, preimage(f, X, Y, A))) subproof {
+      assume(y ∈ A)
+      have(x ∈ functionDomain(f) /\ (app(f, x) === y) |- (app(f, x) === y) /\ x ∈ preimage(f, X, Y, A)) by Tautology.from(
+        functionFromImpliesDomainEq of (x := X, y := Y),
+        replaceEqualityContainsRight of (x := functionDomain(f), y := X, z := x),
+        replaceEqualityContainsLeft of (x := app(f, x), z := A),
+        preimageMembership of (B := A)
+      )
+      thenHave(x ∈ functionDomain(f) /\ (app(f, x) === y) |- ∃(x, (app(f, x) === y) /\ x ∈ preimage(f, X, Y, A))) by RightExists
+      have(x ∈ functionDomain(f) /\ (app(f, x) === y) |- y ∈ directImage(f, X, Y, preimage(f, X, Y, A))) by Tautology.from(
+        lastStep,
+        subsetTactic of (x := A, y := Y, z := y),
+        directImageMembership of (A := preimage(f, X, Y, A)),
+        preimageSubset
+      )
+      thenHave(∃(x, x ∈ functionDomain(f) /\ (app(f, x) === y)) |- y ∈ directImage(f, X, Y, preimage(f, X, Y, A))) by LeftExists
+      have(thesis) by Tautology.from(
+        lastStep,
+        functionRangeMembership,
+        subsetTactic of (x := A, y := Y, z := y),
+        surjectiveImpliesRangeIsCodomain of (x := X, y := Y),
+        replaceEqualityContainsRight of (x := Y, y := functionRange(f), z := y),
+        functionFromImpliesFunctional of (x := X, y := Y)
+      )
     }
 
-    have(x ∈ directImage(f, X, Y, preimage(f, X, Y, A)) <=> x ∈ A) by RightIff(forward, backward)
+    have(x ∈ directImage(f, X, Y, preimage(f, X, Y, A)) <=> x ∈ A) by RightIff(forward, backward of (y := x))
     thenHave(∀(x, x ∈ directImage(f, X, Y, preimage(f, X, Y, A)) <=> x ∈ A)) by RightForall
     andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A)))
+  }
+
+  val directImageX = Theorem(
+    functionFrom(f, X, Y)
+      |- directImage(f, X, Y, X) === functionRange(f)
+  ) {
+    assume(functionFrom(f, X, Y))
+
   }
 
   val imageSurjective = Theorem(
     (functionFrom(f, X, Y), surjective(f, X, Y)) |- directImage(f, X, Y, X) === Y
   ) {
-    // Should be fairly easy using surjectiveImpliesRangeIsCodomain and directImageX
-    sorry
+    have(thesis) by Tautology.from(
+      surjectiveImpliesRangeIsCodomain of (x := X, y := Y),
+      directImageX,
+      equalityTransitivity of (x := Y, y := functionRange(f), z := directImage(f, X, Y, X))
+    )
   }
 
   val indiscreteIsTopology = Theorem(
