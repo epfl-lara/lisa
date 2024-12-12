@@ -204,6 +204,17 @@ object Instances extends lisa.Main {
 
   val preimage = DEF(f, X, Y, B) --> TheConditional(s, forall(x, preimageFormula))(preimageUniqueness)
 
+  inline def unionPreimageFormula = x ∈ s <=> (x ∈ X /\ app(f, x) ∈ union(A))
+
+  val unionPreimageUniqueness = Theorem(
+    (functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- ∃!(s, forall(x, unionPreimageFormula))
+  ) {
+    have(∃!(s, forall(x, unionPreimageFormula))) by UniqueComprehension(X, lambda(x, app(f, x) ∈ union(A)))
+    thenHave(thesis) by Weakening
+  }
+
+  val unionPreimage = DEF(f, X, Y, A) --> TheConditional(s, forall(x, unionPreimageFormula))(unionPreimageUniqueness)
+
   val preimageSetUnion = Theorem(
     functionFrom(f, X, Y) /\
       subset(A, Y) /\
@@ -270,6 +281,13 @@ object Instances extends lisa.Main {
     have(z ∈ preimage(f, X, Y, setUnion(A, B)) <=> z ∈ setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B))) by RightIff(forward, backward)
     thenHave(∀(z, z ∈ preimage(f, X, Y, setUnion(A, B)) <=> z ∈ setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)))) by RightForall
     andThen(Substitution.applySubst(extensionalityAxiom of (x := preimage(f, X, Y, setUnion(A, B)), y := setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)))))
+  }
+
+  val preimageUnionThm = Theorem(
+    (functionFrom(f, X, Y), A ⊆ powerSet(Y)) |-
+      preimage(f, X, Y, union(A)) === unionPreimage(f, X, Y, A)
+  ) {
+    sorry
   }
 
   // Couldn't import surjectivity from FunctionProperties without an error, so here it is
@@ -465,6 +483,12 @@ object Instances extends lisa.Main {
     have(x ∈ directImage(f, X, Y, preimage(f, X, Y, A)) <=> x ∈ A) by RightIff(forward, backward)
     thenHave(∀(x, x ∈ directImage(f, X, Y, preimage(f, X, Y, A)) <=> x ∈ A)) by RightForall
     andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A)))
+  }
+
+  val preimageSubset = Theorem(
+    (functionFrom(f, X, Y), subset(A, Y)) |- preimage(f, X, Y, A) ⊆ X
+  ) {
+    sorry
   }
 
   val preimageY = Theorem(
@@ -845,27 +869,49 @@ object Instances extends lisa.Main {
     have(openCover(Y, T2, O) |- ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) subproof {
       assume(openCover(Y, T2, O))
 
-      // TODO: change O is not the correct subcover for X, it should be unionPreimage(O)
-      // We have an open cover of X
-      val isOpenCover = have(openCover(X, T1, O)) subproof {
-        sorry
+      // have(cover(Y, O)) by Tautology.from(cover.definition of (X := Y, O := O))
+      // have(O ⊆ T2 ==> (union(O) ∈ T2)) by InstantiateForall(containsUnion.definition of (T := T2))(O)
+      /*val unionInT2 = have(union(O) ∈ T2) by Tautology.from(
+        openCover.definition of (X := Y, T := T2),
+        containsUnion.definition of (T := T2),
+        lastStep
+      )*/
+
+      // We have an open cover of X, that's unionPreimage(f, X, Y, O)
+      val isOpenCover = have(openCover(X, T1, unionPreimage(f, X, Y, O))) subproof {
+        val isCover = have(cover(X, unionPreimage(f, X, Y, O))) subproof {
+          sorry
+        }
+        have(z ∈ unionPreimage(f, X, Y, O) ==> z ∈ T1) subproof {
+          assume(z ∈ unionPreimage(f, X, Y, O))
+
+          sorry
+        } /*Tautology.from(
+          // preimageSubset of (f := f, X := X, Y := Y, A := union(O)),
+          // preimageUnionThm of (f := f, X := X, Y := Y, O := O)
+          sorry
+        )*/
+        thenHave(forall(z, z ∈ unionPreimage(f, X, Y, O) ==> z ∈ T1)) by RightForall
+        val isSubset = have(unionPreimage(f, X, Y, O) ⊆ T1) by Tautology.from(
+          subsetAxiom of (x := unionPreimage(f, X, Y, O), y := T1),
+          lastStep
+        )
+        have(thesis) by Tautology.from(openCover.definition of (T := T1, O := unionPreimage(f, X, Y, O)), isCover, isSubset)
       }
 
       // Whence the existence of a finite subcover O3
-      // TODO: change O is not the correct cover for X, it should be unionPreimage(O) (to be defined)
-      have(openCover(X, T1, O) ==> ∃(O3, subset(O3, O) /\ openCover(X, T1, O3) /\ finite(O3))) by InstantiateForall(O)(xIsCompact)
-      val existsO3 = have(∃(O3, subset(O3, O) /\ openCover(X, T1, O3) /\ finite(O3))) by Tautology.from(lastStep, isOpenCover)
+      have(openCover(X, T1, unionPreimage(f, X, Y, O)) ==> ∃(O3, subset(O3, unionPreimage(f, X, Y, O)) /\ openCover(X, T1, O3) /\ finite(O3))) by InstantiateForall(unionPreimage(f, X, Y, O))(
+        xIsCompact
+      )
+      val existsO3 = have(∃(O3, subset(O3, unionPreimage(f, X, Y, O)) /\ openCover(X, T1, O3) /\ finite(O3))) by Tautology.from(lastStep, isOpenCover)
 
-      // From that finite subcover O3, we can recover a finite subcover O2 of Y
-      // TODO: change O is not the correct cover for X, it should be unionPreimage(O) (to be defined)
-      have(subset(O3, O) /\ openCover(X, T1, O3) /\ finite(O3) |- ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) subproof {
-        assume(subset(O3, O), openCover(X, T1, O3), finite(O3))
+      have(subset(O3, unionPreimage(f, X, Y, O)) /\ openCover(X, T1, O3) /\ finite(O3) |- ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) subproof {
+        assume(subset(O3, unionPreimage(f, X, Y, O)), openCover(X, T1, O3), finite(O3))
         sorry
       }
 
       // Concluding
-      // TODO: change O is not the correct cover for X, it should be unionPreimage(O) (to be defined)
-      thenHave(∃(O3, subset(O3, O) /\ openCover(X, T1, O3) /\ finite(O3)) |- ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) by LeftExists
+      thenHave(∃(O3, subset(O3, unionPreimage(f, X, Y, O)) /\ openCover(X, T1, O3) /\ finite(O3)) |- ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) by LeftExists
       have(thesis) by Tautology.from(lastStep, existsO3)
     }
     thenHave(openCover(Y, T2, O) ==> ∃(O2, subset(O2, O) /\ openCover(Y, T2, O2) /\ finite(O2))) by Tautology
