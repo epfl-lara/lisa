@@ -138,7 +138,7 @@ object SingletonSet extends lisa.Main {
   ) {
     val form = formulaVariable
     val memb = have(in(t, singletonSets(S)) <=> exists(x, ((t === singleton(x)) /\ in(x, S)))) by Tautology.from(singletonSetsMembershipRaw)
-    have(in(x, S) |- in(singleton(x), singletonSets(S))) subproof {
+    val forward = have(in(x, S) |- in(singleton(x), singletonSets(S))) subproof {
       assume(in(x, S))
       have(t === singleton(x) |- ((t === singleton(x)) /\ in(x, S))) by Tautology
       thenHave(t === singleton(x) |- exists(x, ((t === singleton(x)) /\ in(x, S)))) by RightExists
@@ -147,41 +147,18 @@ object SingletonSet extends lisa.Main {
       thenHave((singleton(x) === singleton(x)) ==> in(singleton(x), singletonSets(S))) by InstantiateForall(singleton(x))
       have(thesis) by Tautology.from(lastStep)
     }
-    have(in(singleton(x), singletonSets(S)) |- in(x, S)) subproof {
+    val backward = have(in(singleton(x), singletonSets(S)) |- in(x, S)) subproof {
       assume(in(singleton(x), singletonSets(S)))
-      have(() |- exists(y, ((singleton(x) === singleton(y)) /\ in(y, S)))) by Tautology.from(singletonSetsMembershipRaw of (t := singleton(x), y := x))
-      thenHave(((singleton(x) === singleton(y)) <=> (x === y)) |- exists(y, (x === y) /\ in(y, S))) by RightSubstIff
-        .withParametersSimple(
-          List(((singleton(x) === singleton(y)), (x === y))),
-          lambda(form, (exists(y, form /\ in(y, S))))
-        )
-
-      // thenHave(exists(y, (x === y) /\ in(y, S))) by Restate(singletonExtensionality)
-      /*
-      val removeExists = have((exists(y, in(y, S) /\ (t === singleton(y))), t === singleton(x)) |- in(x, S)) subproof {
-        have((in(y, S), t === singleton(x), t === singleton(y)) |- (in(y, S), t === singleton(x), t === singleton(y)))
-        have((in(y, S) /\ (t === singleton(x)) /\ (t === singleton(y))) |- (in(x, S))) by Tautology.from(
-          lastStep,
-          singletonExtensionality,
-          equalityTransitivity of (x := singleton(x), y := t, z := singleton(y)),
-          replaceEqualityContainsLeft of (z := S)
-        )
-        // thenHave(exists(y, in(y, S) /\ (t === singleton(x)) /\ (t === singleton(y))) |- (in(x, S))) by LeftExists
-        sorry
-        /*have(exists(y, in(y, S) /\ (t === singleton(y))) /\ (t === singleton(x)) |- (in(x, S))) by Tautology.from(
-          lastStep,
-          existentialConjunctionWithClosedFormula of (x := y, p := forall(z, in(z, z) <=> in(z, z)))
-        )
-        // Substitution.ApplyRules(existentialConjunctionWithClosedFormula)
-        thenHave(thesis) by Tautology*/
+      have(exists(y, ((singleton(x) === singleton(y)) /\ in(y, S))) |- in(x, S)) subproof {
+        have(((singleton(x) === singleton(y)) /\ in(y, S)) |- in(x, S)) by Tautology.from(replaceEqualityContainsLeft of (z := S), singletonExtensionality)
+        thenHave(thesis) by LeftExists
       }
-      // have((t === singleton(x), in(t, singletonSets(S))) |- (t === singleton(x), exists(x, ((t === singleton(x)) /\ in(x, S))))) by Tautology.from(singletonSetsMembershipRaw of (x := y))
-      sorry
-      have((t === singleton(x), in(t, singletonSets(S))) |- in(x, S)) by Tautology.from(lastStep, removeExists)
-      have(in(singleton(x), singletonSets(S)) |- in(x, S)) by Tautology.from(lastStep, replaceEqualityContainsLeft of (x := t, y := singleton(x), z := singletonSets(S)))
-       */
-      sorry
+      have(thesis) by Tautology.from(lastStep, singletonSetsMembershipRaw of (t := singleton(x), y := x))
     }
+    have(thesis) by Tautology.from(forward, backward)
+  }
+
+  val unionSingletonSets = Theorem(union(singletonSets(S)) === S) {
     sorry
   }
 
@@ -190,6 +167,8 @@ object SingletonSet extends lisa.Main {
   ) {
     assume(∀(x, x ∈ X ==> singleton(x) ∈ T), topology(X, T))
     val topo = have(nonEmpty(X) /\ setOfSubsets(X, T) /\ containsExtremes(X, T) /\ containsUnion(T) /\ containsIntersection(T)) by Tautology.from(topology.definition)
+    have(forall(Y, (Y ⊆ T) ==> (union(Y) ∈ T))) by Tautology.from(topo, containsUnion.definition)
+    val contUnion = thenHave(singletonSets(S) ⊆ T ==> (union(singletonSets(S)) ∈ T)) by InstantiateForall(singletonSets(S))
     have(∀(x, x ∈ X ==> singleton(x) ∈ T)) by Tautology
     val singleDef = thenHave((x ∈ X) ==> (singleton(x) ∈ T)) by InstantiateForall(x)
     have(T === powerSet(X)) subproof {
@@ -200,18 +179,22 @@ object SingletonSet extends lisa.Main {
       // For any S ⊆ X we have S = U{x} -> S ∈ T by unionDef
       have((S ⊆ X) |- S ∈ T) subproof {
         assume(S ⊆ X)
-        // prove union(cartesianProduct(S, S)) ⊆ T
-        // -> S = union(union(cartesianProduct(S, S))) in T
         have(forall(z, in(z, S) ==> in(z, X))) by Tautology.from(subsetAxiom of (x := S, y := X))
         thenHave(in(z, S) ==> in(z, X)) by InstantiateForall(z)
         have(in(z, S) ==> in(singleton(z), T)) by Tautology.from(lastStep, singleDef of (x := z))
-        // have(in(z, S) /\ forall(a, in(z, S) <=> in(singleton(z), V)) |- in(singleton(z), V))
-        // have(in(z, S) ==> in(singleton(z), T)) by Tautology.from(sorry)
-        // have(in(singleton(z), singleton(S)) ==> in(singleton(z), T))
-        // have(singleton(S) ⊆ T)
-        // have(union(singleton(S)) ∈ T)
-        // have(S ∈ T)
-        sorry
+        have(in(singleton(z), singletonSets(S)) ==> in(singleton(z), T)) by Tautology.from(lastStep, singletonSetsMembership of (x := z))
+
+        have(((t === singleton(z)) /\ in(z, S)) |- in(t, singletonSets(S)) ==> in(t, T)) by Tautology.from(
+          lastStep,
+          replaceEqualityContainsLeft of (x := t, y := singleton(z), z := singletonSets(S)),
+          replaceEqualityContainsLeft of (x := t, y := singleton(z), z := T)
+        )
+        thenHave(exists(z, (t === singleton(z)) /\ in(z, S)) |- in(t, singletonSets(S)) ==> in(t, T)) by LeftExists
+        have(in(t, singletonSets(S)) ==> in(t, T)) by Tautology.from(lastStep, singletonSetsMembershipRaw of (x := z))
+        thenHave(forall(t, in(t, singletonSets(S)) ==> in(t, T))) by RightForall
+        have(singletonSets(S) ⊆ T) by Tautology.from(lastStep, subsetAxiom of (x := singletonSets(S), y := T))
+        have(union(singletonSets(S)) ∈ T) by Tautology.from(lastStep, contUnion)
+        have(thesis) by Tautology.from(lastStep, unionSingletonSets, replaceEqualityContainsLeft of (x := union(singletonSets(S)), y := S, z := T))
       }
       have(in(S, powerSet(X)) ==> in(S, T)) by Tautology.from(lastStep, powerAxiom of (x := S, y := X))
       thenHave(forall(S, in(S, powerSet(X)) ==> in(S, T))) by RightForall
