@@ -1035,6 +1035,11 @@ object SetTheory extends lisa.Main {
    */
   val setDifference = DEF(x, y) --> The(z, ∀(t, in(t, z) <=> (in(t, x) /\ !in(t, y))))(setDifferenceUniqueness)
 
+  val setDifferenceMembership = Theorem(in(t, setDifference(x, y)) <=> (in(t, x) /\ !in(t, y))) {
+    have(∀(t, in(t, setDifference(x, y)) <=> (in(t, x) /\ !in(t, y)))) by InstantiateForall(setDifference(x, y))(setDifference.definition)
+    thenHave(thesis) by InstantiateForall(t)
+  }
+
   /**
    * Theorem --- Intersection of a non-empty Class is a Set
    *

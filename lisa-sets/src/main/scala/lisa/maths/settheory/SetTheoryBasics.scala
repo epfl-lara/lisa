@@ -4,8 +4,10 @@ import lisa.automation.kernel.CommonTactics.Definition
 import lisa.automation.settheory.SetTheoryTactics.*
 import lisa.maths.Quantifiers.*
 import lisa.maths.settheory.SetTheory.*
+import lisa.maths.settheory.functions.Functionals.*
 
 import scala.collection.immutable.{Map => ScalaMap}
+import lisa.maths.settheory.SetTheory.relationDomain
 
 object SetTheoryBasics extends lisa.Main {
 
@@ -19,6 +21,8 @@ object SetTheoryBasics extends lisa.Main {
   private val c = variable
   private val d = variable
   private val t = variable
+  private val f = variable
+  private val r = variable
 
   /**
    * Theorems about basic sets
@@ -149,4 +153,64 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := x, y := union(y)))
   }
 
+  val subsetTactic = Theorem((x ⊆ y, z ∈ x) |- z ∈ y) {
+    assume(x ⊆ y, z ∈ x)
+
+    have(forall(z, z ∈ x ==> z ∈ y)) by Tautology.from(subsetAxiom)
+    thenHave(z ∈ x ==> z ∈ y) by InstantiateForall(z)
+    thenHave(thesis) by Tautology
+  }
+
+  val differenceShrinks = Theorem(setDifference(x, y) ⊆ x) {
+    have(in(z, setDifference(x, y)) ==> in(z, x)) by Tautology.from(setDifferenceMembership of (t := z))
+    thenHave(forall(z, in(z, setDifference(x, y)) ==> in(z, x))) by RightForall
+    have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := setDifference(x, y), y := x))
+  }
+
+  /**
+   * Lemma --- Range introduction and elimination rules. If en element is in the image of a function, then it has a preimage inside its domain.
+   *
+   *     `functional(f) |- y ⊆ Im(f) <=> ∃x ∈ Dom(f). f(x) = y`
+   */
+  val functionRangeMembership = Lemma(functional(f) |- in(y, relationRange(f)) <=> ∃(x, in(x, relationDomain(f)) /\ (app(f, x) === y))) {
+    assume(functional(f))
+
+    have(forall(y, y ∈ relationRange(f) <=> ∃(x, in(pair(x, y), f)))) by InstantiateForall(relationRange(f))(relationRange.definition of (r := f))
+    val defRange = thenHave(y ∈ relationRange(f) <=> ∃(x, in(pair(x, y), f))) by InstantiateForall(y)
+
+    have(∀(x, x ∈ relationDomain(f) <=> ∃(y, pair(x, y) ∈ f))) by InstantiateForall(relationDomain(f))(relationDomain.definition of (r := f))
+    val defDomain = thenHave(x ∈ relationDomain(f) <=> ∃(y, pair(x, y) ∈ f)) by InstantiateForall(x)
+
+    val forward = have(y ∈ relationRange(f) ==> ∃(x, in(x, relationDomain(f)) /\ (app(f, x) === y))) subproof {
+      assume(y ∈ relationRange(f))
+      have(pair(x, y) ∈ f |- pair(x, y) ∈ f) by Tautology
+      thenHave(pair(x, y) ∈ f |- ∃(y, pair(x, y) ∈ f)) by RightExists
+      have(pair(x, y) ∈ f |- x ∈ relationDomain(f) /\ (app(f, x) === y)) by Tautology.from(
+        lastStep,
+        pairInFunctionIsApp of (a := x, b := y),
+        defDomain
+      )
+      thenHave(in(pair(x, y), f) |- ∃(x, x ∈ relationDomain(f) /\ (app(f, x) === y))) by RightExists
+      thenHave(∃(x, in(pair(x, y), f)) |- ∃(x, x ∈ relationDomain(f) /\ (app(f, x) === y))) by LeftExists
+      have(thesis) by Tautology.from(lastStep, defRange)
+    }
+
+    val backward = have(∃(x, in(x, relationDomain(f)) /\ (app(f, x) === y)) |- y ∈ relationRange(f)) subproof {
+      have(in(x, relationDomain(f)) /\ (app(f, x) === y) |- pair(x, y) ∈ f) by Tautology.from(pairInFunctionIsApp of (a := x, b := y))
+      thenHave(in(x, relationDomain(f)) /\ (app(f, x) === y) |- ∃(x, pair(x, y) ∈ f)) by RightExists
+      have(in(x, relationDomain(f)) /\ (app(f, x) === y) |- y ∈ relationRange(f)) by Tautology.from(
+        lastStep,
+        defRange
+      )
+      thenHave(thesis) by LeftExists
+    }
+
+    have(thesis) by Tautology.from(forward, backward)
+  }
+
+  val equalitySymmetry = Theorem(
+    x === y |- y === x
+  ) {
+    have(thesis) by Tautology.from(equalityBySubset, equalityBySubset of (x := y, y := x))
+  }
 }
