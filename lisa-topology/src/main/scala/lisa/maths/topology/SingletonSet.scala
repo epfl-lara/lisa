@@ -160,43 +160,34 @@ object SingletonSet extends lisa.Main {
 
   val unionSingletonSets = Theorem(union(singletonSets(S)) === S) {
 
-    val elementInSingleton = have(in(x, singleton(x))) subproof { 
-      have(thesis) by Tautology.from(pairAxiom of (x := x, y := x, z := x))
-    }
-
-    val singletonSetsDefInstantiated = have(in(z, singletonSets(S)) <=> exists(x, in(x, S) /\ (z === singleton(x)))) subproof {
-      have((singletonSets(S) === singletonSets(S)) <=> ∀(t, in(t, singletonSets(S)) <=> exists(x, in(x, S) /\ (t === singleton(x))))) by 
-        InstantiateForall(singletonSets(S))(singletonSets.definition)
-      thenHave(∀(t, in(t, singletonSets(S)) <=> exists(x, in(x, S) /\ (t === singleton(x))))) by Tautology
-      thenHave(thesis) by InstantiateForall(z)
-    }
+    val elementInSingleton = have(in(x, singleton(x))) by Tautology.from(pairAxiom of (x := x, y := x, z := x))
 
     val fwd = have(in(x, union(singletonSets(S))) |- in(x, S)) subproof {
       have(in(z, S) |- in(z, S)) by Restate
-      val introduceZ = thenHave((in(z, S), (x === z)) |- in(x, S)) by Substitution.ApplyRules(x === z)
-      have((in(z, S), in(x, singleton(z))) |- in(x, S)) by Tautology.from(introduceZ, singletonHasNoExtraElements of (y := x, x := z))
+      thenHave((in(z, S), (x === z)) |- in(x, S)) by Substitution.ApplyRules(x === z)
+      have((in(z, S), in(x, singleton(z))) |- in(x, S)) by Tautology.from(lastStep, singletonHasNoExtraElements of (y := x, x := z))
       thenHave((in(z, S), in(x, y), (y === singleton(z))) |- in(x, S)) by Substitution.ApplyRules(y === singleton(z))
       thenHave((in(z, S) /\ (y === singleton(z)), in(x, y)) |- in(x, S)) by Tautology
       thenHave((exists(z, in(z, S) /\ (y === singleton(z))), in(x, y)) |- in(x, S)) by LeftExists
-      val existsZ = thenHave(exists(z, in(z, S) /\ (y === singleton(z))) /\ in(x, y) |- in(x, S)) by Tautology
-      have(in(y, singletonSets(S)) /\ in(x, y) |- in(x, S)) by Tautology.from(existsZ, singletonSetsDefInstantiated of (x := z, z := y))
-      val existsY = thenHave(exists(y, in(y, singletonSets(S)) /\ in(x, y)) |- in(x, S)) by LeftExists
-      have(thesis) by Tautology.from(existsY, unionAxiom of (z := x, x := singletonSets(S)))
+      thenHave(exists(z, in(z, S) /\ (y === singleton(z))) /\ in(x, y) |- in(x, S)) by Tautology
+      have(in(y, singletonSets(S)) /\ in(x, y) |- in(x, S)) by Tautology.from(lastStep, singletonSetsMembershipRaw of (x := z, t := y))
+      thenHave(exists(y, in(y, singletonSets(S)) /\ in(x, y)) |- in(x, S)) by LeftExists
+      have(thesis) by Tautology.from(lastStep, unionAxiom of (z := x, x := singletonSets(S)))
     }
 
     val bwd = have(in(x, S) |- in(x, union(singletonSets(S)))) subproof {
       assume(in(x, S))
       have(in(x, S) /\ (singleton(x) === singleton(x))) by Restate
-      val existsY = thenHave(exists(y, in(y, S) /\ (singleton(x) === singleton(y)))) by RightExists
-      have(in(singleton(x), singletonSets(S)) /\ in(x, singleton(x))) by 
-        Tautology.from(existsY, singletonSetsDefInstantiated of (x := y, z := singleton(x)), elementInSingleton)
-      val prepForUnion = thenHave(exists(y, in(y, singletonSets(S)) /\ in(x, y))) by RightExists
-      have(thesis) by Tautology.from(prepForUnion, unionAxiom of (z := x, x := singletonSets(S)))
+      thenHave(exists(y, in(y, S) /\ (singleton(x) === singleton(y)))) by RightExists
+      have(in(singleton(x), singletonSets(S)) /\ in(x, singleton(x))) by
+        Tautology.from(lastStep, singletonSetsMembershipRaw of (x := y, t := singleton(x)), elementInSingleton)
+      thenHave(exists(y, in(y, singletonSets(S)) /\ in(x, y))) by RightExists
+      have(thesis) by Tautology.from(lastStep, unionAxiom of (z := x, x := singletonSets(S)))
     }
 
     have(in(x, union(singletonSets(S))) <=> in(x, S)) by Tautology.from(fwd, bwd)
-    val prepForExt = thenHave(forall(x, in(x, union(singletonSets(S))) <=> in(x, S))) by RightForall
-    have(thesis) by Tautology.from(prepForExt, extensionalityAxiom of (z := x, x := union(singletonSets(S)), y := S))
+    thenHave(forall(x, in(x, union(singletonSets(S))) <=> in(x, S))) by RightForall
+    have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (z := x, x := union(singletonSets(S)), y := S))
   }
 
   val ifContainsSingletonIsDiscrete = Theorem(
