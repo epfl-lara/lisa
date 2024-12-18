@@ -24,31 +24,45 @@ object Continuity extends lisa.Main {
   // -------------------
   // Mappings
   // -------------------
+  /*
+   * A mapping is a function between topological spaces
+   */
   val mapping = DEF(f, X, T1, Y, T2) -->
     (functionFrom(f, X, Y) /\ topology(X, T1) /\ topology(Y, T2))
 
   // -------------------
   // Continuity
   // -------------------
+  /**
+   * A function f is continuous if the preimage of any open set in the codomain is open in the domain
+   */
   val continuous = DEF(f, X, T1, Y, T2) -->
     (mapping(f, X, T1, Y, T2) /\ forall(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1))
 
   // -------------------
   // Connectedness
   // -------------------
+  /*
+   * A set A is clopen if it is both open and closed
+   */
   val clopen = DEF(X, T, A) --> (
     topology(X, T) /\
       A ∈ T /\ setDifference(X, A) ∈ T
   )
 
+  /**
+   * A topological space is connected if the only clopen sets are the empty set and the whole space
+   */
   val connectedTop = DEF(X, T) --> (
     topology(X, T) /\
       forall(A, clopen(X, T, A) ==> ((A === emptySet) \/ (A === X)))
   )
 
-  // -------------------
-  // Intermediate value theorem
-  // -------------------
+  /**
+   * Intermediate value theorem
+   *
+   * The image of a connected space by a continuous, surjective mapping is a connected space
+   */
   val intermediateValueThm = Theorem((connectedTop(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y)) |- connectedTop(Y, T2)) {
     assume(connectedTop(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y))
     val xIsTop = have(topology(X, T1)) by Tautology.from(continuous.definition, mapping.definition)

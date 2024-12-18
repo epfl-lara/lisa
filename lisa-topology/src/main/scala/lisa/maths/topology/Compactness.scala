@@ -26,15 +26,22 @@ object Compactness extends lisa.Main {
   // Compactness
   // -------------------
 
+  // A cover of X is a set of subsets of X that covers X (i.e. their union is a superset of X)
   val cover = DEF(X, O) -->
     forall(o, in(o, O) ==> subset(o, X)) /\
     subset(X, union(O))
 
+  // Open cover is a cover that is a set of open sets!
   val openCover = DEF(X, T, O) -->
     cover(X, O) /\ subset(O, T)
 
-  val finite = DEF(X) --> (X === emptySet) // TODO
+  // TODO: we need a notion of finiteness/cardinality for that
+  val finite = DEF(X) --> (X === emptySet)
 
+  /*
+   * Compact spaces
+   * A topological space is compact if every open cover has a finite subcover
+   */
   val compact = DEF(X, T) -->
     topology(X, T) /\
     forall(
@@ -46,6 +53,9 @@ object Compactness extends lisa.Main {
         )
     )
 
+  /**
+   * Intermediate lemma for Heine-Borel theorem
+   */
   val coverDirectImage = Theorem(
     (functionFrom(f, X, Y), A ⊆ powerSet(X), cover(X, A)) |- cover(directImage(f, X, Y, X), directImages(f, X, Y, A))
   ) {
@@ -54,7 +64,10 @@ object Compactness extends lisa.Main {
     sorry
   }
 
-  /* Any subset of an open cover is an open cover */
+  /**
+   * Lemma --
+   * Any subset of an open cover is an open cover
+   */
   val subsetOpenCover = Theorem(
     (openCover(X, T, O), subset(O2, O), cover(X, O2)) |- openCover(X, T, O2)
   ) {
@@ -67,7 +80,10 @@ object Compactness extends lisa.Main {
     )
   }
 
-  /* The preimages of some set in P(Y) are in P(X) */
+  /**
+   * Lemma --
+   * The preimages of some set in P(Y) are in P(X)
+   */
   val preimagesInPowerSet = Theorem(
     (functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- preimages(f, X, Y, A) ⊆ powerSet(X)
   ) {
@@ -80,7 +96,10 @@ object Compactness extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := preimages(f, X, Y, A), y := powerSet(X)))
   }
 
-  /* The set of direct images is finite */
+  /**
+   * Lemma --
+   * The set of direct images is finite
+   */
   val directImageFinite = Theorem(
     (functionFrom(f, X, Y), A ⊆ powerSet(X), finite(A)) |- finite(directImages(f, X, Y, A))
   ) {
@@ -90,6 +109,11 @@ object Compactness extends lisa.Main {
     sorry
   }
 
+  /**
+   * Heine-Borel theorem
+   *
+   * The image of a compact space by a continuous, surjective mapping is a compact space
+   */
   val heineBorelThm = Theorem((compact(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y)) |- compact(Y, T2)) {
     assume(compact(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y))
 
