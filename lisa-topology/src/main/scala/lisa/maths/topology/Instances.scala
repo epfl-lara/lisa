@@ -981,13 +981,11 @@ object Instances extends lisa.Main {
         have(thesis) by Tautology.from(isSubset, finiteCover, covering)
       }
 
-      have(
+      thenHave(
         subset(O3, preimages(f, X, Y, O)) /\ cover(X, O3) /\ finite(O3)
           |-
           ∃(O2, subset(O2, O) /\ cover(Y, O2) /\ finite(O2))
-      ) subproof {
-        sorry
-      }
+      ) by RightExists
 
       // Concluding
       thenHave(∃(O3, subset(O3, preimages(f, X, Y, O)) /\ cover(X, O3) /\ finite(O3)) |- ∃(O2, subset(O2, O) /\ cover(Y, O2) /\ finite(O2))) by LeftExists
