@@ -7,7 +7,6 @@ import lisa.automation.kernel.CommonTactics.Definition
 
 import lisa.maths.topology.DiscreteTopology.*
 import lisa.maths.topology.Topology.*
-import lisa.maths.topology.Instances.*
 import lisa.maths.settheory.*
 import lisa.maths.settheory.SetTheory.*
 import lisa.maths.settheory.SetTheoryBasics.*
