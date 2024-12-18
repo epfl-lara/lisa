@@ -43,8 +43,10 @@ object DirectPreimages extends lisa.Main {
     have(thesis) by Cut(surjfunc, funceq)
   }
 
+  // The formula for direct image that will be used throughout the definitions and theorems of uniqueness
   inline def directImageFormula = y ∈ s <=> (y ∈ Y /\ ∃(x, (app(f, x) === y) /\ x ∈ A))
 
+  // This direct image is unique
   val directImageUniqueness = Theorem(
     (functionFrom(f, X, Y), subset(A, X)) |- ∃!(s, forall(y, directImageFormula))
   ) {
@@ -52,14 +54,25 @@ object DirectPreimages extends lisa.Main {
     thenHave(thesis) by Weakening
   }
 
+  /**
+   * Direct image by a function
+   *  f(A) = { y ∈ Y | ∃x ∈ A, f(x) = y }
+   */
   val directImage = DEF(f, X, Y, A) --> TheConditional(s, forall(y, directImageFormula))(directImageUniqueness)
 
+  /*
+   * Useful statement about membership in the direct image
+   */
   val directImageMembership = Theorem((functionFrom(f, X, Y), subset(A, X)) |- y ∈ directImage(f, X, Y, A) <=> (y ∈ Y /\ ∃(x, (app(f, x) === y) /\ x ∈ A))) {
     assume(functionFrom(f, X, Y) /\ subset(A, X))
     have(forall(z, z ∈ directImage(f, X, Y, A) <=> (z ∈ Y /\ ∃(x, (app(f, x) === z) /\ x ∈ A)))) by InstantiateForall(directImage(f, X, Y, A))(directImage.definition)
     thenHave(thesis) by InstantiateForall(y)
   }
 
+  /**
+   * Theorem
+   * f(A ∪ B) = f(A) ∪ f(B)
+   */
   val directImageSetUnion = Theorem(
     functionFrom(f, X, Y) /\
       subset(A, X) /\
@@ -164,14 +177,25 @@ object DirectPreimages extends lisa.Main {
     thenHave(thesis) by Weakening
   }
 
+  /**
+   * Preimage by a function
+   * f^(-1)(B) = { x ∈ X | f(x) ∈ B }
+   */
   val preimage = DEF(f, X, Y, B) --> TheConditional(s, forall(x, preimageFormula))(preimageUniqueness)
 
+  /**
+   * Useful statement about membership in the preimage
+   */
   val preimageMembership = Theorem((functionFrom(f, X, Y), subset(B, Y)) |- x ∈ preimage(f, X, Y, B) <=> (x ∈ X /\ app(f, x) ∈ B)) {
     assume(functionFrom(f, X, Y) /\ subset(B, Y))
     have(forall(x, x ∈ preimage(f, X, Y, B) <=> (x ∈ X /\ app(f, x) ∈ B))) by InstantiateForall(preimage(f, X, Y, B))(preimage.definition)
     thenHave(thesis) by InstantiateForall(x)
   }
 
+  /**
+   * Theorem -- the preimage is always in the domain
+   * f^(-1)(A) ⊆ X
+   */
   val preimageSubset = Theorem(
     (functionFrom(f, X, Y), subset(A, Y)) |- preimage(f, X, Y, A) ⊆ X
   ) {
@@ -181,6 +205,10 @@ object DirectPreimages extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := preimage(f, X, Y, A), y := X))
   }
 
+  /**
+   * Theorem -- the preimage of the codomain is the domain
+   * f^(-1)(Y) = X
+   */
   val preimageY = Theorem(
     functionFrom(f, X, Y) |- preimage(f, X, Y, Y) === X
   ) {
@@ -198,40 +226,10 @@ object DirectPreimages extends lisa.Main {
     have(thesis) by Tautology.from(first, second, equalityBySubset of (x := X, y := preimage(f, X, Y, Y)))
   }
 
-  inline def preimagesFormula = x ∈ s <=> (x ∈ powerSet(X) /\ ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a))))
-
-  val preimagesUniqueness = Theorem(
-    (functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- ∃!(s, forall(x, preimagesFormula))
-  ) {
-    have(∃!(s, forall(x, preimagesFormula))) by UniqueComprehension(powerSet(X), lambda(x, ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a)))))
-    thenHave(thesis) by Weakening
-  }
-
-  val preimages = DEF(f, X, Y, A) --> TheConditional(s, forall(x, preimagesFormula))(preimagesUniqueness)
-
-  val preimagesMembership = Theorem((functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- x ∈ preimages(f, X, Y, A) <=> (x ∈ powerSet(X) /\ ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a))))) {
-    assume(functionFrom(f, X, Y) /\ A ⊆ powerSet(Y))
-    have(forall(x, x ∈ preimages(f, X, Y, A) <=> (x ∈ powerSet(X) /\ ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a)))))) by InstantiateForall(preimages(f, X, Y, A))(preimages.definition)
-    thenHave(thesis) by InstantiateForall(x)
-  }
-
-  inline def directImagesFormula = y ∈ s <=> (y ∈ powerSet(Y) /\ ∃(a, a ∈ A /\ (y === directImage(f, X, Y, a))))
-
-  val directImagesUniqueness = Theorem(
-    (functionFrom(f, X, Y), A ⊆ powerSet(X)) |- ∃!(s, forall(y, directImagesFormula))
-  ) {
-    have(∃!(s, forall(y, directImagesFormula))) by UniqueComprehension(powerSet(Y), lambda(y, ∃(a, a ∈ A /\ (y === directImage(f, X, Y, a)))))
-    thenHave(thesis) by Weakening
-  }
-
-  val directImages = DEF(f, X, Y, A) --> TheConditional(s, forall(y, directImagesFormula))(directImagesUniqueness)
-
-  val directImagesMembership = Theorem((functionFrom(f, X, Y), A ⊆ powerSet(X)) |- y ∈ directImages(f, X, Y, A) <=> (y ∈ powerSet(Y) /\ ∃(a, a ∈ A /\ (y === directImage(f, X, Y, a))))) {
-    assume(functionFrom(f, X, Y) /\ A ⊆ powerSet(X))
-    have(forall(y, y ∈ directImages(f, X, Y, A) <=> (y ∈ powerSet(Y) /\ ∃(a, a ∈ A /\ (y === directImage(f, X, Y, a)))))) by InstantiateForall(directImages(f, X, Y, A))(directImages.definition)
-    thenHave(thesis) by InstantiateForall(y)
-  }
-
+  /**
+   * Theorem -- the preimage of the union is the union of the preimages (case with only two subsets)
+   * f^(-1)(A ∪ B) = f^(-1)(A) ∪ f^(-1)(B)
+   */
   val preimageSetUnion = Theorem(
     functionFrom(f, X, Y) /\
       subset(A, Y) /\
@@ -300,6 +298,60 @@ object DirectPreimages extends lisa.Main {
     andThen(Substitution.applySubst(extensionalityAxiom of (x := preimage(f, X, Y, setUnion(A, B)), y := setUnion(preimage(f, X, Y, A), preimage(f, X, Y, B)))))
   }
 
+  /**
+   * **************
+   * Set of preimages of a set of subsets
+   * Useful for the lemma about the preimage of the union
+   * ***************
+   */
+  inline def preimagesFormula = x ∈ s <=> (x ∈ powerSet(X) /\ ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a))))
+
+  val preimagesUniqueness = Theorem(
+    (functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- ∃!(s, forall(x, preimagesFormula))
+  ) {
+    have(∃!(s, forall(x, preimagesFormula))) by UniqueComprehension(powerSet(X), lambda(x, ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a)))))
+    thenHave(thesis) by Weakening
+  }
+
+  /**
+   * Set of preimages of a set of subsets
+   * { f^(-1)(A_i) | A_i ∈ A }
+   */
+  val preimages = DEF(f, X, Y, A) --> TheConditional(s, forall(x, preimagesFormula))(preimagesUniqueness)
+
+  /**
+   * Useful statement about membership in the preimages
+   */
+  val preimagesMembership = Theorem((functionFrom(f, X, Y), A ⊆ powerSet(Y)) |- x ∈ preimages(f, X, Y, A) <=> (x ∈ powerSet(X) /\ ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a))))) {
+    assume(functionFrom(f, X, Y) /\ A ⊆ powerSet(Y))
+    have(forall(x, x ∈ preimages(f, X, Y, A) <=> (x ∈ powerSet(X) /\ ∃(a, a ∈ A /\ (x === preimage(f, X, Y, a)))))) by InstantiateForall(preimages(f, X, Y, A))(preimages.definition)
+    thenHave(thesis) by InstantiateForall(x)
+  }
+
+  inline def directImagesFormula = y ∈ s <=> (y ∈ powerSet(Y) /\ ∃(a, a ∈ A /\ (y === directImage(f, X, Y, a))))
+
+  val directImagesUniqueness = Theorem(
+    (functionFrom(f, X, Y), A ⊆ powerSet(X)) |- ∃!(s, forall(y, directImagesFormula))
+  ) {
+    have(∃!(s, forall(y, directImagesFormula))) by UniqueComprehension(powerSet(Y), lambda(y, ∃(a, a ∈ A /\ (y === directImage(f, X, Y, a)))))
+    thenHave(thesis) by Weakening
+  }
+
+  /**
+   * Set of direct images of a set of subsets
+   * { f(A_i) | A_i ∈ A }
+   */
+  val directImages = DEF(f, X, Y, A) --> TheConditional(s, forall(y, directImagesFormula))(directImagesUniqueness)
+
+  /**
+   * Useful statement about membership in the direct images
+   */
+  val directImagesMembership = Theorem((functionFrom(f, X, Y), A ⊆ powerSet(X)) |- y ∈ directImages(f, X, Y, A) <=> (y ∈ powerSet(Y) /\ ∃(a, a ∈ A /\ (y === directImage(f, X, Y, a))))) {
+    assume(functionFrom(f, X, Y) /\ A ⊆ powerSet(X))
+    have(forall(y, y ∈ directImages(f, X, Y, A) <=> (y ∈ powerSet(Y) /\ ∃(a, a ∈ A /\ (y === directImage(f, X, Y, a)))))) by InstantiateForall(directImages(f, X, Y, A))(directImages.definition)
+    thenHave(thesis) by InstantiateForall(y)
+  }
+
   val preimageDifference = Theorem(
     (functionFrom(f, X, Y), subset(A, Y))
       |- setDifference(X, preimage(f, X, Y, A)) === preimage(f, X, Y, setDifference(Y, A))
@@ -339,6 +391,13 @@ object DirectPreimages extends lisa.Main {
     andThen(Substitution.applySubst(extensionalityAxiom of (x := setDifference(X, preimage(f, X, Y, A)), y := preimage(f, X, Y, setDifference(Y, A)))))
   }
 
+  /**
+   * Theorem -- generalization of `preimageSetUnion`
+   * The preimage of arbitrary union is the union of preimages
+   * f^(-1)(⋃B) = ⋃(f^(-1)(B))
+   *
+   * This is why we needed the definition of `preimages`!
+   */
   val preimageUnionThm = Theorem(
     (functionFrom(f, X, Y), B ⊆ powerSet(Y)) |-
       preimage(f, X, Y, union(B)) === union(preimages(f, X, Y, B))
@@ -346,6 +405,10 @@ object DirectPreimages extends lisa.Main {
     sorry
   }
 
+  /**
+   * Theorem -- direct image of the empty set
+   * f(∅) = ∅
+   */
   val directImageEmptySet = Theorem(
     (functionFrom(f, X, Y))
       |- directImage(f, X, Y, emptySet) === emptySet
@@ -370,6 +433,10 @@ object DirectPreimages extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, setWithNoElementsIsEmpty of (x := directImage(f, X, Y, emptySet)))
   }
 
+  /**
+   * Theorem -- the direct image is always in the codomain
+   * f(A) ⊆ f(X)
+   */
   val directImageSubset = Theorem(
     (functionFrom(f, X, Y), subset(A, X))
       |- directImage(f, X, Y, A) ⊆ functionRange(f)
@@ -407,6 +474,11 @@ object DirectPreimages extends lisa.Main {
     have(thesis) by Tautology.from(subsetAxiom of (x := directImage(f, X, Y, A), y := functionRange(f)), lastStep)
   }
 
+  /**
+   * Theorem -- congruence/substitution property for the direct image
+   *
+   * Needed as a lemma for other proofs
+   */
   val applyDirectImage = Theorem(
     A === B |- directImage(f, X, Y, A) === directImage(f, X, Y, B)
   ) {
@@ -419,6 +491,10 @@ object DirectPreimages extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x := directImage(f, X, Y, A), y := directImage(f, X, Y, B)))
   }
 
+  /**
+   * Theorem -- the direct image of the preimage is always a subset of the original set
+   * f(f^(-1)(A)) ⊆ A
+   */
   val directImagePreimage = Theorem(
     (functionFrom(f, X, Y), subset(A, Y))
       |- directImage(f, X, Y, preimage(f, X, Y, A)) ⊆ A
@@ -441,6 +517,9 @@ object DirectPreimages extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A))
   }
 
+  /**
+   * Theorem -- refinement of `directImagePreimage` in case of surjective functions (we have equality!)
+   */
   val directImagePreimageSurjective = Theorem(
     (functionFrom(f, X, Y), surjective(f, X, Y), subset(A, Y))
       |- directImage(f, X, Y, preimage(f, X, Y, A)) === A
@@ -483,6 +562,10 @@ object DirectPreimages extends lisa.Main {
     andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, preimage(f, X, Y, A)), y := A)))
   }
 
+  /**
+   * Theorem -- the direct image of the domain is the function range
+   * f(X) = functionRange(f)
+   */
   val directImageX = Theorem(
     functionFrom(f, X, Y)
       |- directImage(f, X, Y, X) === functionRange(f)
@@ -532,6 +615,10 @@ object DirectPreimages extends lisa.Main {
     andThen(Substitution.applySubst(extensionalityAxiom of (x := directImage(f, X, Y, X), y := functionRange(f))))
   }
 
+  /**
+   * Theorem -- the direct image of the domain is precisely Y if the function is surjective
+   * f(X) = Y
+   */
   val imageSurjective = Theorem(
     (functionFrom(f, X, Y), surjective(f, X, Y)) |- directImage(f, X, Y, X) === Y
   ) {
