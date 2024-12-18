@@ -37,7 +37,7 @@ object Continuity extends lisa.Main {
    * A function f is continuous if the preimage of any open set in the codomain is open in the domain
    */
   val continuous = DEF(f, X, T1, Y, T2) -->
-    (mapping(f, X, T1, Y, T2) /\ forall(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1))
+    (mapping(f, X, T1, Y, T2) /\ ∀(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1))
 
   // -------------------
   // Connectedness
@@ -55,7 +55,7 @@ object Continuity extends lisa.Main {
    */
   val connectedTop = DEF(X, T) --> (
     topology(X, T) /\
-      forall(A, clopen(X, T, A) ==> ((A === emptySet) \/ (A === X)))
+      ∀(A, clopen(X, T, A) ==> ((A === emptySet) \/ (A === X)))
   )
 
   /**
@@ -68,8 +68,8 @@ object Continuity extends lisa.Main {
     val xIsTop = have(topology(X, T1)) by Tautology.from(continuous.definition, mapping.definition)
     val yIsTop = have(topology(Y, T2)) by Tautology.from(continuous.definition, mapping.definition)
 
-    val xIsConnected = have(forall(A, clopen(X, T1, A) ==> ((A === emptySet) \/ (A === X)))) by Tautology.from(connectedTop.definition of (T := T1))
-    val isContinuous = have(forall(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1)) by Tautology.from(continuous.definition)
+    val xIsConnected = have(∀(A, clopen(X, T1, A) ==> ((A === emptySet) \/ (A === X)))) by Tautology.from(connectedTop.definition of (T := T1))
+    val isContinuous = have(∀(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1)) by Tautology.from(continuous.definition)
 
     val fIsFunction = have(functionFrom(f, X, Y)) by Tautology.from(continuous.definition, mapping.definition)
 
@@ -153,7 +153,7 @@ object Continuity extends lisa.Main {
       have(thesis) by Tautology.from(preImageIsConnected, firstCase, secondCase)
     }
 
-    val allClopen = thenHave(forall(A, clopen(Y, T2, A) ==> ((A === emptySet) \/ (A === Y)))) by RightForall
+    val allClopen = thenHave(∀(A, clopen(Y, T2, A) ==> ((A === emptySet) \/ (A === Y)))) by RightForall
     have(connectedTop(Y, T2)) by Tautology.from(allClopen, yIsTop, connectedTop.definition of (X := Y, T := T2))
   }
 }

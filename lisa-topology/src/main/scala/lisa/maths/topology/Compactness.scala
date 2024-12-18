@@ -28,7 +28,7 @@ object Compactness extends lisa.Main {
 
   // A cover of X is a set of subsets of X that covers X (i.e. their union is a superset of X)
   val cover = DEF(X, O) -->
-    forall(o, in(o, O) ==> subset(o, X)) /\
+    ∀(o, in(o, O) ==> subset(o, X)) /\
     subset(X, union(O))
 
   // Open cover is a cover that is a set of open sets!
@@ -44,7 +44,7 @@ object Compactness extends lisa.Main {
    */
   val compact = DEF(X, T) -->
     topology(X, T) /\
-    forall(
+    ∀(
       O,
       openCover(X, T, O) ==>
         ∃(
@@ -55,13 +55,45 @@ object Compactness extends lisa.Main {
 
   /**
    * Intermediate lemma for Heine-Borel theorem
+   * about covering the directImage with directImages
    */
   val coverDirectImage = Theorem(
     (functionFrom(f, X, Y), A ⊆ powerSet(X), cover(X, A)) |- cover(directImage(f, X, Y, X), directImages(f, X, Y, A))
   ) {
     assume(functionFrom(f, X, Y), A ⊆ powerSet(X), cover(X, A))
 
-    sorry
+    // Part 1
+    have(X ⊆ union(A)) by Tautology.from(cover.definition of (X := X, O := A))
+    have(directImage(f, X, Y, X) ⊆ directImage(f, X, Y, union(A))) by Tautology.from(
+      directImageMonotonicity of (A := X, B := union(A)),
+      subsetClosedUnion of (x := A, y := X),
+      lastStep
+    )
+    val isSubset = have(directImage(f, X, Y, X) ⊆ union(directImages(f, X, Y, A))) by Tautology.from(
+      lastStep,
+      directImageUnionThm,
+      replaceEqualitySubsetRight of (z := directImage(f, X, Y, X), x := union(directImages(f, X, Y, A)), y := directImage(f, X, Y, union(A)))
+    )
+
+    // Part 2
+    have(a ∈ A /\ (o === directImage(f, X, Y, a)) |- o ⊆ directImage(f, X, Y, X)) by Tautology.from(
+      subsetTactic of (x := A, y := powerSet(X), z := a),
+      powerAxiom of (x := a, y := X),
+      directImageMonotonicity of (A := a, B := X),
+      subsetReflexivity of (x := X),
+      equalityBySubset of (x := o, y := directImage(f, X, Y, a)),
+      subsetTransitivity of (a := o, b := directImage(f, X, Y, a), c := directImage(f, X, Y, X))
+    )
+    thenHave(∃(a, a ∈ A /\ (o === directImage(f, X, Y, a))) |- o ⊆ directImage(f, X, Y, X)) by LeftExists
+    have(o ∈ directImages(f, X, Y, A) |- o ⊆ directImage(f, X, Y, X)) by Tautology.from(
+      lastStep,
+      directImagesMembership of (y := o)
+    )
+    thenHave(o ∈ directImages(f, X, Y, A) ==> o ⊆ directImage(f, X, Y, X)) by Tautology
+    val elementsSubsets = thenHave(∀(o, o ∈ directImages(f, X, Y, A) ==> o ⊆ directImage(f, X, Y, X))) by RightForall
+
+    // Conclude
+    have(thesis) by Tautology.from(isSubset, elementsSubsets, cover.definition of (X := directImage(f, X, Y, X), O := directImages(f, X, Y, A)))
   }
 
   /**
@@ -92,7 +124,7 @@ object Compactness extends lisa.Main {
     have(x ∈ preimages(f, X, Y, A) ==> x ∈ powerSet(X)) by Tautology.from(
       preimagesMembership of (A := A, x := x)
     )
-    thenHave(forall(x, x ∈ preimages(f, X, Y, A) ==> x ∈ powerSet(X))) by RightForall
+    thenHave(∀(x, x ∈ preimages(f, X, Y, A) ==> x ∈ powerSet(X))) by RightForall
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := preimages(f, X, Y, A), y := powerSet(X)))
   }
 
@@ -120,17 +152,17 @@ object Compactness extends lisa.Main {
     val xIsTop = have(topology(X, T1)) by Tautology.from(continuous.definition, mapping.definition)
     val yIsTop = have(topology(Y, T2)) by Tautology.from(continuous.definition, mapping.definition)
 
-    val xIsCompact = have(forall(O, openCover(X, T1, O) ==> ∃(O2, subset(O2, O) /\ cover(X, O2) /\ finite(O2)))) by Tautology.from(
+    val xIsCompact = have(∀(O, openCover(X, T1, O) ==> ∃(O2, subset(O2, O) /\ cover(X, O2) /\ finite(O2)))) by Tautology.from(
       compact.definition of (T := T1)
     )
-    val isContinuous = have(forall(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1)) by Tautology.from(continuous.definition)
+    val isContinuous = have(∀(O, O ∈ T2 ==> preimage(f, X, Y, O) ∈ T1)) by Tautology.from(continuous.definition)
 
     val fIsFunction = have(functionFrom(f, X, Y)) by Tautology.from(continuous.definition, mapping.definition)
 
     have(openCover(Y, T2, O) |- ∃(O2, subset(O2, O) /\ cover(Y, O2) /\ finite(O2))) subproof {
       assume(openCover(Y, T2, O))
 
-      have(forall(O, (O ⊆ T2) ==> (union(O) ∈ T2))) by Tautology.from(
+      have(∀(O, (O ⊆ T2) ==> (union(O) ∈ T2))) by Tautology.from(
         containsUnion.definition of (T := T2),
         yIsTop,
         topology.definition of (X := Y, T := T2)
@@ -201,7 +233,7 @@ object Compactness extends lisa.Main {
               oInPowerSet
             )
           }
-          thenHave(forall(x, x ∈ X ==> x ∈ union(preimages(f, X, Y, O)))) by RightForall
+          thenHave(∀(x, x ∈ X ==> x ∈ union(preimages(f, X, Y, O)))) by RightForall
           val secondPart = have(subset(X, union(preimages(f, X, Y, O)))) by Tautology.from(
             lastStep,
             subsetAxiom of (x := X, y := union(preimages(f, X, Y, O)))
@@ -235,7 +267,7 @@ object Compactness extends lisa.Main {
           thenHave(∃(a, a ∈ O /\ (z === preimage(f, X, Y, a))) |- z ∈ T1) by LeftExists
           have(thesis) by Tautology.from(existsa, lastStep)
         }
-        thenHave(forall(z, z ∈ preimages(f, X, Y, O) ==> z ∈ T1)) by RightForall
+        thenHave(∀(z, z ∈ preimages(f, X, Y, O) ==> z ∈ T1)) by RightForall
         val isOpenSubset = have(preimages(f, X, Y, O) ⊆ T1) by Tautology.from(
           subsetAxiom of (x := preimages(f, X, Y, O), y := T1),
           lastStep
@@ -309,7 +341,7 @@ object Compactness extends lisa.Main {
           // Since z is in directImages, then we precisely have ∃(a, a ∈ O3 /\ (z === directImage(f, X, Y, a))) by `directImagesMembership`
           have(thesis) by Tautology.from(lastStep, directImagesMembership of (A := O3, y := z), fIsFunction, o3InPowerSet)
         }
-        thenHave(forall(z, z ∈ directImages(f, X, Y, O3) ==> z ∈ O)) by RightForall
+        thenHave(∀(z, z ∈ directImages(f, X, Y, O3) ==> z ∈ O)) by RightForall
         val isSubset = have(directImages(f, X, Y, O3) ⊆ O) by Tautology.from(lastStep, subsetAxiom of (x := directImages(f, X, Y, O3), y := O))
 
         // That is also covering Y
@@ -353,7 +385,7 @@ object Compactness extends lisa.Main {
       have(thesis) by Tautology.from(lastStep, existsO3)
     }
     thenHave(openCover(Y, T2, O) ==> ∃(O2, subset(O2, O) /\ cover(Y, O2) /\ finite(O2))) by Tautology
-    val yIsCompact = thenHave(forall(O, openCover(Y, T2, O) ==> ∃(O2, subset(O2, O) /\ cover(Y, O2) /\ finite(O2)))) by RightForall
+    val yIsCompact = thenHave(∀(O, openCover(Y, T2, O) ==> ∃(O2, subset(O2, O) /\ cover(Y, O2) /\ finite(O2)))) by RightForall
 
     have(thesis) by Tautology.from(yIsCompact, yIsTop, compact.definition of (X := Y, T := T2))
   }
