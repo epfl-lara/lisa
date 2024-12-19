@@ -213,4 +213,8 @@ object SetTheoryBasics extends lisa.Main {
   ) {
     have(thesis) by Tautology.from(equalityBySubset, equalityBySubset of (x := y, y := x))
   }
+
+  val equalityReflexivity = Theorem(x === x) {
+    have(thesis) by Tautology.from(equalityBySubset of (x := x, y := x))
+  }
 }
