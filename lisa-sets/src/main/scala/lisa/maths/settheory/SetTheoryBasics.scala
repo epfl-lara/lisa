@@ -28,6 +28,10 @@ object SetTheoryBasics extends lisa.Main {
    * Theorems about basic sets
    */
 
+  /*
+    Theorem: Equality by Subset
+    x is equal to y iff x ⊆ y and y ⊆ x
+   */
   val equalityBySubset = Theorem((x === y) <=> (x ⊆ y /\ y ⊆ x)) {
     val forward = have(x === y |- x ⊆ y /\ y ⊆ x) subproof {
       assume(x === y)
@@ -54,6 +58,10 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(forward, backward)
   }
 
+  /*
+    Theorem: Equality replaces contains right side
+    if x is equal to y then we have z ∈ x iff z ∈ y for any z
+   */
   val replaceEqualityContainsRight = Theorem((x === y) ==> ((z ∈ x) <=> (z ∈ y))) {
     have((x === y) |- ((z ∈ x) <=> (z ∈ y))) subproof {
       assume(x === y)
@@ -63,6 +71,10 @@ object SetTheoryBasics extends lisa.Main {
     thenHave(thesis) by Tautology
   }
 
+  /*
+    Theorem: Equality replaces contains left side
+    if x is equal to y then we have x ∈ z iff y ∈ z for any z
+   */
   val replaceEqualityContainsLeft = Theorem((x === y) ==> ((x ∈ z) <=> (y ∈ z))) {
     have(((x === y), (y ∈ z)) |- (x ∈ z)) subproof {
       have((y ∈ z, (x === y)) |- (y ∈ z)) by Tautology
@@ -71,6 +83,10 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, lastStep of (x := y, y := x))
   }
 
+  /*
+    Theorem: Equality replaces subset right side
+    if x is equal to y then we have z ⊆ x iff z ⊆ y for any z
+   */
   val replaceEqualitySubsetRight = Theorem((x === y) ==> ((z ⊆ x) <=> (z ⊆ y))) {
     val side = have(((x === y), (z ⊆ x)) |- (z ⊆ y)) subproof {
       assume((x === y) /\ (z ⊆ x))
@@ -79,6 +95,10 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(side, side of (x := y, y := x))
   }
 
+  /*
+    Theorem: Equality replaces subset left side
+    if x is equal to y then we have x ⊆ z iff y ⊆ z for any z
+   */
   val replaceEqualitySubsetLeft = Theorem((x === y) ==> ((x ⊆ z) <=> (y ⊆ z))) {
     val side = have(((x === y), (x ⊆ z)) |- (y ⊆ z)) subproof {
       assume((x === y) /\ (x ⊆ z))
@@ -91,6 +111,10 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(side, side of (x := y, y := x))
   }
 
+  /*
+    Theorem: Subset is closed under intersection
+    if x ⊆ z and y ⊆ z we have x ∩ y ⊆ z
+   */
   val subsetClosedIntersection = Theorem((x ⊆ z, y ⊆ z) |- (x ∩ y) ⊆ z) {
     assume(x ⊆ z, y ⊆ z)
     have(forall(t, in(t, x) ==> in(t, z))) by Tautology.from(subsetAxiom of (y := z, z := t))
@@ -104,6 +128,10 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := setIntersection(x, y), y := z))
   }
 
+  /*
+    Theorem: Intersection means subset of both elements
+    if z ⊆ x ∩ y we know z ⊆ x and z ⊆ y
+   */
   val subsetUnderIntersection = Theorem((z ⊆ (x ∩ y)) |- (z ⊆ x /\ z ⊆ y)) {
     assume(z ⊆ (x ∩ y))
     have(forall(t, in(t, z) ==> in(t, x ∩ y))) by Tautology.from(subsetAxiom of (x := z, y := x ∩ y, z := t))
@@ -118,6 +146,10 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(first, second)
   }
 
+  /*
+    Theorem: Subset is closed under setUnion
+    if x ⊆ z and y ⊆ z we have x u y ⊆ z
+   */
   val subsetClosedSetUnion = Theorem((x ⊆ z, y ⊆ z) |- setUnion(x, y) ⊆ z) {
     assume(x ⊆ z, y ⊆ z)
     have(forall(t, in(t, x) ==> in(t, z))) by Tautology.from(subsetAxiom of (y := z, z := t))
@@ -131,6 +163,11 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := setUnion(x, y), y := z))
   }
 
+  /*
+    Theorem: Subset is closed under union
+    The union of any (finite or infinite) number of sets in y is still in y
+    if x ⊆ powerSet(y) we have union(x) ⊆ y
+   */
   val subsetClosedUnion = Theorem((x ⊆ powerSet(y)) |- union(x) ⊆ y) {
     assume(x ⊆ powerSet(y))
     have(forall(z, in(z, x) ==> in(z, powerSet(y)))) by Tautology.from(subsetAxiom of (y := powerSet(y)))
@@ -144,6 +181,11 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := union(x)))
   }
 
+  /*
+    Theorem: Union doesnt shrink
+    The union of any (finite or infinite) number of sets where one set is x has to include x
+    if x ∈ y we have x ⊆ unnion(y)
+   */
   val unionDoesntShrink = Theorem((x ∈ y) |- (x ⊆ union(y))) {
     assume(in(x, y))
     thenHave(in(z, x) |- (in(z, x) /\ in(x, y))) by Tautology
@@ -153,6 +195,10 @@ object SetTheoryBasics extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := x, y := union(y)))
   }
 
+  /*
+    Theorem: Subset propagates over elementOf
+    if z ∈ x and x ⊆ y we have z ∈ y
+   */
   val subsetTactic = Theorem((x ⊆ y, z ∈ x) |- z ∈ y) {
     assume(x ⊆ y, z ∈ x)
 
@@ -161,6 +207,10 @@ object SetTheoryBasics extends lisa.Main {
     thenHave(thesis) by Tautology
   }
 
+  /*
+    Theorem: Difference shrinks
+    x \ y ⊆ x
+   */
   val differenceShrinks = Theorem(setDifference(x, y) ⊆ x) {
     have(in(z, setDifference(x, y)) ==> in(z, x)) by Tautology.from(setDifferenceMembership of (t := z))
     thenHave(forall(z, in(z, setDifference(x, y)) ==> in(z, x))) by RightForall
