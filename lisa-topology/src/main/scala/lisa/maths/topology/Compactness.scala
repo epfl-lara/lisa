@@ -54,7 +54,7 @@ object Compactness extends lisa.Main {
     )
 
   /**
-   * Intermediate lemma for Heine-Borel theorem
+   * Intermediate lemma for theorem below
    * about covering the directImage with directImages
    */
   val coverDirectImage = Theorem(
@@ -142,11 +142,9 @@ object Compactness extends lisa.Main {
   }
 
   /**
-   * Heine-Borel theorem
-   *
    * The image of a compact space by a continuous, surjective mapping is a compact space
    */
-  val heineBorelThm = Theorem((compact(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y)) |- compact(Y, T2)) {
+  val imageCompactThm = Theorem((compact(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y)) |- compact(Y, T2)) {
     assume(compact(X, T1), continuous(f, X, T1, Y, T2), surjective(f, X, Y))
 
     val xIsTop = have(topology(X, T1)) by Tautology.from(continuous.definition, mapping.definition)
