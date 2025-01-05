@@ -5,6 +5,7 @@
 package lisa.maths.settheory.types.adt
 
 import lisa.maths.settheory.SetTheory.{*, given}
+
 import ADTDefinitions.*
 import Helpers.*
 

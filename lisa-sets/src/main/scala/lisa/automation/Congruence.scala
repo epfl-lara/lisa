@@ -1,11 +1,11 @@
 package lisa.automation
+import leo.datastructures.TPTP.CNF.AtomicFormula
 import lisa.fol.FOL.{*, given}
 import lisa.prooflib.BasicStepTactic.*
 import lisa.prooflib.ProofTacticLib.*
 import lisa.prooflib.SimpleDeducedSteps.*
 import lisa.prooflib.*
 import lisa.utils.parsing.UnreachableException
-import leo.datastructures.TPTP.CNF.AtomicFormula
 
 /**
   * This tactic tries to prove a sequent by congruence.

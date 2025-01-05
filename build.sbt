@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.7"
+ThisBuild / version := "0.7"
 ThisBuild / homepage := Some(url("https://github.com/epfl-lara/lisa"))
 ThisBuild / startYear := Some(2021)
 ThisBuild / organization := "ch.epfl.lara"
@@ -7,10 +7,10 @@ ThisBuild / organizationHomepage := Some(url("https://lara.epfl.ch"))
 ThisBuild / licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
 ThisBuild / versionScheme := Some("semver-spec")
 ThisBuild / scalacOptions ++= Seq(
-      "-feature",
-      "-deprecation",
-      "-unchecked",
-    )
+  "-feature",
+  "-deprecation",
+  "-unchecked"
+)
 ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
@@ -19,7 +19,6 @@ val scala2 = "2.13.8"
 val scala3 = "3.5.1"
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
-
   run / fork := true
 )
 
@@ -31,9 +30,8 @@ val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
-    //"-rewrite", "-source", "3.4-migration",
+    // "-rewrite", "-source", "3.4-migration",
     "-Wconf:msg=.*will never be selected.*:silent"
-
   ),
   javaOptions += "-Xmx10G",
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test",
@@ -50,9 +48,9 @@ def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$c
 lazy val customTstpParser = githubProject("https://github.com/SimonGuilloud/scala-tptp-parser.git", "eae9c1b7a9546f74779d77ff50fa6e8a1654cfa0")
 
 lazy val root = Project(
-    id = "lisa",
-    base = file("."),
-  )
+  id = "lisa",
+  base = file(".")
+)
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
   .aggregate(utils) // To run tests on all modules
@@ -75,17 +73,26 @@ lazy val sets = Project(
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils))
 
+lazy val topologies = Project(
+  id = "lisa-topology",
+  base = file("lisa-topology")
+)
+  .settings(commonSettings3)
+  .dependsOn(kernel, sets, withTests(utils))
+
 lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")
 )
-  .settings(commonSettings3 ++ Seq(
-    libraryDependencies += "ch.epfl.lara" %% "scallion" % "0.6" from "https://github.com/epfl-lara/scallion/releases/download/v0.6/scallion_3-0.6.jar",
-    libraryDependencies += "ch.epfl.lara" %% "silex" % "0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar",
-  ))
+  .settings(
+    commonSettings3 ++ Seq(
+      libraryDependencies += "ch.epfl.lara" %% "scallion" % "0.6" from "https://github.com/epfl-lara/scallion/releases/download/v0.6/scallion_3-0.6.jar",
+      libraryDependencies += "ch.epfl.lara" %% "silex" % "0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar"
+    )
+  )
   .dependsOn(kernel)
   .dependsOn(customTstpParser)
-  //.settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
+//.settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
 
 ThisBuild / assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard
@@ -96,7 +103,6 @@ ThisBuild / assemblyMergeStrategy := {
     val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
     oldStrategy(x)
 }
-
 
 lazy val examples = Project(
   id = "lisa-examples",

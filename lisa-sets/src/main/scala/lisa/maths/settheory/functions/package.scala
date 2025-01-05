@@ -71,4 +71,27 @@ package object functions {
     constantFunctionFunctionFrom,
     constantFunctionApplication
   }
+  /*export lisa.maths.settheory.functions.DirectPreimages.{
+    directImage,
+    directImageMembership,
+    directImageSetUnion,
+    preimage,
+    preimageMembership,
+    preimageSubset,
+    preimageY,
+    preimages,
+    preimagesMembership,
+    directImages,
+    directImagesMembership,
+    preimageSetUnion,
+    preimageDifference,
+    preimageUnionThm,
+    directImageEmptySet,
+    directImageSubset,
+    applyDirectImage,
+    directImagePreimage,
+    directImagePreimageSurjective,
+    directImageX,
+    imageSurjective
+  }*/
 }
