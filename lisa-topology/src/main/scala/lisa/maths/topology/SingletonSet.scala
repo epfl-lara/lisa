@@ -22,9 +22,14 @@ object SingletonSet extends lisa.Main {
   private val X, T = variable
   private val S, A, B, Y = variable
 
-  val singletonSetsUniquenes = Theorem(
+  /*
+    Theorem: singletonSets exists and it is unique
+    exists unique set z whose members are {x} for each x in S
+   */
+  val singletonSetsUniqueness = Theorem(
     ∃!(z, ∀(t, in(t, z) <=> exists(x, in(x, S) /\ (t === singleton(x)))))
   ) {
+    // prove that {x} for each x in S is member of U(SxS)
     val implicationProof = have(exists(x, in(x, S) /\ (t === singleton(x))) ==> in(t, union(cartesianProduct(S, S)))) subproof {
 
       val elementInSingleton = have(in(x, singleton(x))) subproof {
@@ -33,13 +38,13 @@ object SingletonSet extends lisa.Main {
 
       val singletonInPowerSet = have(in(x, S) |- in(singleton(x), powerSet(S))) subproof {
         assume(in(x, S))
-        val introduceY = thenHave((x === y) |- in(y, S)) by Substitution.ApplyRules(x === y)
-        val useSingleton = have(in(y, singleton(x)) |- in(y, S)) by Tautology.from(introduceY, singletonHasNoExtraElements)
+        thenHave((x === y) |- in(y, S)) by Substitution.ApplyRules(x === y)
+        have(in(y, singleton(x)) |- in(y, S)) by Tautology.from(lastStep, singletonHasNoExtraElements)
         thenHave(() |- (!(in(y, singleton(x))), in(y, S))) by RightNot
         thenHave(() |- in(y, singleton(x)) ==> in(y, S)) by Tautology
-        val universalY = thenHave(() |- forall(y, in(y, singleton(x)) ==> in(y, S))) by RightForall
-        val singletonIsSubset = have(() |- singleton(x) ⊆ S) by Tautology.from(universalY, subsetAxiom of (z := y, y := S, x := singleton(x)))
-        have(thesis) by Tautology.from(singletonIsSubset, powerAxiom of (x := singleton(x), y := S))
+        thenHave(() |- forall(y, in(y, singleton(x)) ==> in(y, S))) by RightForall
+        have(() |- singleton(x) ⊆ S) by Tautology.from(lastStep, subsetAxiom of (z := y, y := S, x := singleton(x)))
+        have(thesis) by Tautology.from(lastStep, powerAxiom of (x := singleton(x), y := S))
       }
 
       val abExist = have((singleton(t) === pair(x, x)) /\ in(x, S) |- ∃(a, ∃(b, (singleton(t) === pair(a, b)) /\ in(a, S) /\ in(b, S)))) subproof {
@@ -48,6 +53,7 @@ object SingletonSet extends lisa.Main {
         thenHave((singleton(t) === pair(x, x)) /\ in(x, S) |- exists(a, exists(b, (singleton(t) === pair(a, b)) /\ in(a, S) /\ in(b, S)))) by RightExists
       }
 
+      // replace the cartesianProduct with its definitions using powerSet and setUnion
       val cartesianInstantiated = have(
         in(singleton(t), cartesianProduct(S, S)) <=> (in(singleton(t), powerSet(powerSet(setUnion(S, S))))
           /\ ∃(a, ∃(b, (singleton(t) === pair(a, b)) /\ in(a, S) /\ in(b, S))))
@@ -94,37 +100,39 @@ object SingletonSet extends lisa.Main {
         ) by InstantiateForall(S)
       }
 
-      val init = have(in(x, S) |- in(x, S)) by Restate
-      val inSS = have(in(x, S) |- in(x, setUnion(S, S))) by Tautology.from(init, setUnionMembership of (z := x, x := S, y := S))
-      val step1 = have(in(x, S) |- in(singleton(x), powerSet(setUnion(S, S))) /\ (singleton(singleton(x)) === pair(x, x))) by
-        Tautology.from(inSS, singletonInPowerSet of (S := setUnion(S, S)))
+      have(in(x, S) |- in(x, S)) by Restate
+      have(in(x, S) |- in(x, setUnion(S, S))) by Tautology.from(lastStep, setUnionMembership of (z := x, x := S, y := S))
+      have(in(x, S) |- in(singleton(x), powerSet(setUnion(S, S))) /\ (singleton(singleton(x)) === pair(x, x))) by
+        Tautology.from(lastStep, singletonInPowerSet of (S := setUnion(S, S)))
       thenHave((in(x, S), t === singleton(x)) |- in(t, powerSet(setUnion(S, S))) /\ (singleton(t) === pair(x, x))) by
         Substitution.ApplyRules(singleton(x) === t)
-      val introduceT = thenHave(in(x, S) /\ (t === singleton(x)) |- in(t, powerSet(setUnion(S, S))) /\ (singleton(t) === pair(x, x))) by Tautology
-      val step2 = have(in(x, S) /\ (t === singleton(x)) |- in(singleton(t), powerSet(powerSet(setUnion(S, S)))) /\ (singleton(t) === pair(x, x))) by
-        Tautology.from(introduceT, singletonInPowerSet of (x := t, S := powerSet(setUnion(S, S))))
-      val extendRHS = have(
+      thenHave(in(x, S) /\ (t === singleton(x)) |- in(t, powerSet(setUnion(S, S))) /\ (singleton(t) === pair(x, x))) by Tautology
+      have(in(x, S) /\ (t === singleton(x)) |- in(singleton(t), powerSet(powerSet(setUnion(S, S)))) /\ (singleton(t) === pair(x, x))) by
+        Tautology.from(lastStep, singletonInPowerSet of (x := t, S := powerSet(setUnion(S, S))))
+      have(
         in(x, S) /\ (t === singleton(x)) |- in(singleton(t), powerSet(powerSet(setUnion(S, S)))) /\ in(t, singleton(t))
           /\ ((singleton(t) === pair(x, x)) /\ in(x, S))
-      ) by Tautology.from(step2, elementInSingleton of (x := t))
-      val existAB = have(
+      ) by Tautology.from(lastStep, elementInSingleton of (x := t))
+      have(
         in(x, S) /\ (t === singleton(x)) |- in(singleton(t), powerSet(powerSet(setUnion(S, S)))) /\ in(t, singleton(t))
           /\ ∃(a, ∃(b, (singleton(t) === pair(a, b)) /\ in(a, S) /\ in(b, S)))
-      ) by Tautology.from(extendRHS, abExist)
-      val cartesian = have(in(x, S) /\ (t === singleton(x)) |- in(singleton(t), cartesianProduct(S, S)) /\ in(t, singleton(t))) by
-        Tautology.from(existAB, cartesianInstantiated)
-      val introduceZ = thenHave(in(x, S) /\ (t === singleton(x)) |- exists(z, in(z, cartesianProduct(S, S)) /\ in(t, z))) by RightExists
-      val unionOfProduct = have((in(x, S) /\ (t === singleton(x))) |- in(t, union(cartesianProduct(S, S)))) by
-        Tautology.from(introduceZ, unionAxiom of (y := z, x := cartesianProduct(S, S), z := t))
+      ) by Tautology.from(lastStep, abExist)
+     have(in(x, S) /\ (t === singleton(x)) |- in(singleton(t), cartesianProduct(S, S)) /\ in(t, singleton(t))) by
+        Tautology.from(lastStep, cartesianInstantiated)
+      thenHave(in(x, S) /\ (t === singleton(x)) |- exists(z, in(z, cartesianProduct(S, S)) /\ in(t, z))) by RightExists
+      have((in(x, S) /\ (t === singleton(x))) |- in(t, union(cartesianProduct(S, S)))) by
+        Tautology.from(lastStep, unionAxiom of (y := z, x := cartesianProduct(S, S), z := t))
       thenHave(exists(x, (in(x, S) /\ (t === singleton(x)))) |- in(t, union(cartesianProduct(S, S)))) by LeftExists
     }
+
+    // use unique comprehension from original set U(SxS) with the provided predicate and the membership proof
     have(() |- existsOne(z, forall(t, in(t, z) <=> exists(x, in(x, S) /\ (t === singleton(x)))))) by UniqueComprehension.fromOriginalSet(
       union(cartesianProduct(S, S)),
       lambda(t, exists(x, in(x, S) /\ (t === singleton(x)))),
       implicationProof
     )
   }
-  val singletonSets = DEF(S) --> The(z, ∀(t, in(t, z) <=> exists(x, in(x, S) /\ (t === singleton(x)))))(singletonSetsUniquenes)
+  val singletonSets = DEF(S) --> The(z, ∀(t, in(t, z) <=> exists(x, in(x, S) /\ (t === singleton(x)))))(singletonSetsUniqueness)
 
   val singletonSetsMembershipRaw = Theorem(
     in(t, singletonSets(S)) <=> exists(x, ((t === singleton(x)) /\ in(x, S)))
@@ -133,6 +141,9 @@ object SingletonSet extends lisa.Main {
     thenHave(thesis) by InstantiateForall(t)
   }
 
+  /*
+    Theorem: x is member of S iff {x} is member of singletonSets(S)
+   */
   val singletonSetsMembership = Theorem(
     in(x, S) <=> in(singleton(x), singletonSets(S))
   ) {
@@ -158,10 +169,14 @@ object SingletonSet extends lisa.Main {
     have(thesis) by Tautology.from(forward, backward)
   }
 
+  /*
+    Theorem: union of sinletonSets(S) is equivalent to S
+   */
   val unionSingletonSets = Theorem(union(singletonSets(S)) === S) {
 
     val elementInSingleton = have(in(x, singleton(x))) by Tautology.from(pairAxiom of (x := x, y := x, z := x))
 
+    // prove that all elements of the union of singletonSets(S) are in S
     val fwd = have(in(x, union(singletonSets(S))) |- in(x, S)) subproof {
       have(in(z, S) |- in(z, S)) by Restate
       thenHave((in(z, S), (x === z)) |- in(x, S)) by Substitution.ApplyRules(x === z)
@@ -175,6 +190,7 @@ object SingletonSet extends lisa.Main {
       have(thesis) by Tautology.from(lastStep, unionAxiom of (z := x, x := singletonSets(S)))
     }
 
+    // prove that all elements in S are in the union of singletonSets(S)
     val bwd = have(in(x, S) |- in(x, union(singletonSets(S)))) subproof {
       assume(in(x, S))
       have(in(x, S) /\ (singleton(x) === singleton(x))) by Restate
@@ -190,6 +206,9 @@ object SingletonSet extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (z := x, x := union(singletonSets(S)), y := S))
   }
 
+  /*
+    Theorem: a topology which contains all singleton sets of the elements of the ground set is the discrete one 
+   */
   val ifContainsSingletonIsDiscrete = Theorem(
     (topology(X, T), ∀(x, x ∈ X ==> singleton(x) ∈ T)) |- discreteTopology(X, T)
   ) {
