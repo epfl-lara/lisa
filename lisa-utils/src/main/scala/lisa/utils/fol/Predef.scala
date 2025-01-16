@@ -83,8 +83,14 @@ trait Predef extends ExprOps {
   inline def andAll(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
     forms.iterator.reduce(_ /\ _)
 
+  inline def andAllOrTrue(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
+    forms.iterator.reduceOption(_ /\ _).getOrElse(top)
+
   inline def orAll(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
     forms.iterator.reduce(_ \/ _)
+
+  inline def orAllOrFalse(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
+    forms.iterator.reduceOption(_ \/ _).getOrElse(bot)
 
   def asFrontExpression(e: K.Expression): Expr[?] = e match
     case c: K.Constant => asFrontConstant(c)
