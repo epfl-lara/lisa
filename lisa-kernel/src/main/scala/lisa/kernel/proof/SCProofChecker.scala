@@ -434,7 +434,6 @@ object SCProofChecker {
            * -----------------------------------------------------
            *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_, φ(t_) |- Δ
            * </pre>
-           * equals elements must have type ... -> ... -> Term
            */
           case LeftSubstEq(b, t1, equals, lambdaPhi) =>
             val (s_es, t_es) = equals.unzip

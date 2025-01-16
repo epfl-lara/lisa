@@ -83,6 +83,14 @@ class RunningTheory {
     else InvalidJustification("Not all imports of the proof are correctly justified.", None)
 
 
+  /**
+    * 
+    *
+    * @param cst
+    * @param expression
+    * @param vars
+    * @return
+    */
   def makeDefinition(cst: Constant, expression: Expression, vars: Seq[Variable]): RunningTheoryJudgement[this.Definition] = {
     if (cst.sort.depth == vars.length)
       if (flatTypeParameters(cst.sort) zip vars.map(_.sort) forall { case (a, b) => a == b })
@@ -102,75 +110,9 @@ class RunningTheory {
     else InvalidJustification("The arity of the label must be equal to the number of parameters in the definition.", None)
   }
 
-  /*
-
-  /**
-   * Introduce a new definition of a function in the theory. The symbol must not already exist in the theory
-   * and the formula can't contain symbols that are not in the theory. The existence and uniqueness of an element
-   * satisfying the definition's formula must first be proven. This is easy if the formula behaves as a shortcut,
-   * for example f(x,y) = 3x+2y
-   * but is much more general. The proof's conclusion must be of the form:  |- ∀args. ∃!out. phi
-   *
-   * @param proof          The proof of existence and uniqueness
-   * @param justifications The justifications of the proof.
-   * @param label          The desired label.
-   * @param expression     The functional term defining the function symbol.
-   * @param out            The variable representing the function's result in the formula
-   * @param proven         A formula possibly stronger than `expression` that the proof proves. It is always correct if it is the same as "expression", but
-   *                       if `expression` is less strong, this allows to make underspecified definitions.
-   * @return A definition object if the parameters are correct,
-   */
-  def makeFunctionDefinition(
-      proof: SCProof,
-      justifications: Seq[Justification],
-      label: ConstantFunctionLabel,
-      out: VariableLabel,
-      expression: LambdaTermFormula,
-      proven: Formula
-  ): RunningTheoryJudgement[this.FunctionDefinition] = {
-    val LambdaTermFormula(vars, body) = expression
-    if (vars.length == label.arity) {
-      if (belongsToTheory(body)) {
-        if (isAvailable(label)) {
-          if (body.freeSchematicTermLabels.subsetOf((vars appended out).toSet) && body.schematicFormulaLabels.isEmpty) {
-            if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
-              val r = SCProofChecker.checkSCProof(proof)
-              r match {
-                case SCProofCheckerJudgement.SCValidProof(_, sorry) =>
-                  proof.conclusion match {
-                    case Sequent(l, r) if l.isEmpty && r.size == 1 =>
-                      if (isImplying(proven, body)) {
-                        val subst = BinderFormula(ExistsOne, out, proven)
-                        if (isSame(r.head, subst)) {
-                          val usesSorry = sorry || justifications.exists(_ match {
-                            case Theorem(name, proposition, withSorry) => withSorry
-                            case Axiom(name, ax) => false
-                            case d: Definition =>
-                              d match {
-                                case PredicateDefinition(label, expression) => false
-                                case FunctionDefinition(label, out, expression, withSorry) => withSorry
-                              }
-                          })
-                          val newDef = FunctionDefinition(label, out, expression, usesSorry)
-                          funDefinitions.update(label, Some(newDef))
-                          knownSymbols.update(label.id, label)
-                          RunningTheoryJudgement.ValidJustification(newDef)
-                        } else InvalidJustification("The proof is correct but its conclusion does not correspond to the claimed proven property.", None)
-                      } else InvalidJustification("The proven property must be at least as strong as the desired definition, and it is not.", None)
-
-                    case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
-                  }
-                case r @ SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
-              }
-            } else InvalidJustification("Not all imports of the proof are correctly justified.", None)
-          } else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
-        } else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
-      } else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
-    } else InvalidJustification("The arity of the label must be equal to the number of parameters in the definition.", None)
-  }
-*/
 
 
+  
   def sequentFromJustification(j: Justification): Sequent = j match {
     case Theorem(name, proposition, _) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))

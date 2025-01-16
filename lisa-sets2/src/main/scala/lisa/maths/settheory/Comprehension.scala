@@ -12,6 +12,8 @@ object Comprehension extends lisa.Main:
 
   val filter = DEF(lambda(t, lambda(φ, ε(s, ∀(x, (x ∈ s) <=> (x ∈ t /\ φ(x)))))))
 
+  println(filter.definition.statement)
+
   private val comprehension: filter.type = filter
 
   extension (t: Expr[Term])
