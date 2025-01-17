@@ -128,7 +128,7 @@ object SimpleDeducedSteps {
                    */
                   val newStep = K.SCSubproof(K.SCProof(IndexedSeq(p0, p1, p2), IndexedSeq(p.conclusion)), Seq(p.length - 1))
                   (
-                    p withNewSteps IndexedSeq(newStep),
+                    p.withNewSteps(IndexedSeq(newStep)),
                     in,
                     j
                   )

@@ -1,3 +1,5 @@
+package lisa.examples
+
 object ADTExample extends lisa.Main {
   import lisa.maths.settheory.types.adt.{*, given}
 

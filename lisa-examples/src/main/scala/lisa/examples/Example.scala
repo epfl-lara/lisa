@@ -1,3 +1,5 @@
+package lisa.examples
+
 import lisa.automation.Congruence
 import lisa.automation.Substitution.{ApplyRules as Substitute}
 import lisa.automation.Tableau

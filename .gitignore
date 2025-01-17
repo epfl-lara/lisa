@@ -2,12 +2,12 @@
 .idea
 .metals
 .vscode
-project/metals.sbt
-project/project/metals.sbt
+metals.sbt
 sbt-launch.jar
 
 # build-related
 .bsp
+out/
 .bloop
 target
 *.scala.semanticdb

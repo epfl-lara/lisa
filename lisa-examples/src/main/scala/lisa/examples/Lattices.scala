@@ -1,3 +1,5 @@
+package lisa.examples
+
 object Lattices extends lisa.Main {
 
   val x = variable
