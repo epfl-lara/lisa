@@ -1,0 +1,127 @@
+package build
+
+import mill._
+import scalalib._, scalajslib._
+import publish._
+
+object Configuration {
+  val version = "0.7"
+  val scala2Version = "2.13.8"
+  val scala3Version = "3.5.2"
+}
+
+import utilities._
+
+trait LisaRootModule extends PublishModule with LisaModule with CrossScalaModule {
+  def publishVersion = Configuration.version
+
+  def pomSettings = PomSettings(
+    description = artifactName(),
+    organization = "ch.epfl.lara",
+    url = "https://github.com/epfl-lara/lisa",
+    licenses = Seq(License.`Apache-2.0`),
+    versionControl = VersionControl.github(owner = "epfl-lara", repo = "lisa"),
+    developers = Seq(
+      Developer("SimonGuilloud", "Simon Guilloud", "https://github.com/SimonGuilloud"),
+      Developer("sankalpgambhir", "Sankalp Gambhir", "https://github.com/sankalpgambhir"),
+      Developer("vkuncak", "Viktor Kuncak", "https://github.com/vkuncak"),
+      Developer("agilot", "Andrea Gilot", "https://github.com/agilot"),
+    )
+  )
+}
+
+object lisa extends Module {
+
+  def scalaVersions = Seq(Configuration.scala3Version)
+
+  object jvm extends Cross[JvmLisaModule](scalaVersions)
+  trait JvmLisaModule extends LisaRootModule with ScalaModule {
+    object test extends LisaTests with ScalaTests
+  }
+
+  object js extends Cross[JsLisaModule](scalaVersions)
+  trait JsLisaModule extends LisaRootModule with ScalaJSModule {
+    def scalaJSVersion = "1.16.0"
+    object test extends LisaTests with ScalaJSTests
+  }
+}
+
+trait LisaModule extends ScalaModule {
+
+  def jarDeps = Agg.empty[JarDep]
+  
+  override def unmanagedClasspath = Task {
+    jarDeps.map( jar => {
+        val JarDep(name, uri) = jar
+        val path = Task.dest / s"$name.jar"
+        os.write(path, requests.get.stream(uri))
+        PathRef(path)
+      }
+    )
+  }
+
+  def scalacOptions = Seq(
+    "-feature", // list all feature warnings
+    "-language:implicitConversions", // universally enable implicit conversions
+    "-Wconf:msg=.*will never be selected.*:silent", // spurious resolution warnings 
+  )
+
+  trait LisaTests extends ScalaTests with TestModule.Utest 
+}
+
+trait Scala3Module extends ScalaModule {
+  def scalaVersion = Configuration.scala3Version
+}
+
+object `lisa-kernel` extends LisaModule with Scala3Module
+
+object `lisa-utils` extends LisaModule with Scala3Module {
+
+  def moduleDeps = Seq(`lisa-kernel`)
+
+  override def jarDeps = Agg(
+    jar"ch.epfl.lara::scallion:0.6" from "https://github.com/epfl-lara/scallion/releases/download/v0.6/scallion_3-0.6.jar",
+    jar"ch.epfl.lara::silex:0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar",
+    jar"io.github.leoprover::scala-tptp-parser:0.2" from "https://github.com/SimonGuilloud/scala-tptp-parser/releases/download/v0.2/scala-tptp-parser_2.13-0.2.0.jar",
+  )
+
+  override def ivyDeps = Agg(
+    ivy"org.scalatest::scalatest:3.2.18",
+    ivy"com.lihaoyi::sourcecode:0.4.2",
+  )
+
+}
+
+object `lisa-sets` extends LisaModule with Scala3Module {
+  def moduleDeps = Seq(
+    `lisa-kernel`,
+    `lisa-utils`,
+  )
+}
+
+object `lisa-examples` extends LisaModule with Scala3Module {
+  def moduleDeps = Seq(
+    `lisa-kernel`,
+    `lisa-utils`,
+    `lisa-sets`,
+  )
+}
+
+object utilities {
+
+  case class JarDep(artifact: String, uri: String)
+
+  case class JarConstructor(artifact: String) {
+    def from(uri: String): JarDep = {
+      JarDep(artifact, uri)
+    }
+  }
+
+  implicit class JarWrapper(val sc: StringContext) {
+    def jar(parts: String*): JarConstructor = {
+      val artifactRaw = sc.s(parts: _*)
+      val artifact = artifactRaw.replace(':', '_') // ':' in jar name breaks class resolution
+      JarConstructor(artifact)
+    }
+  }
+}
