@@ -1,3 +1,5 @@
+package lisa.examples
+
 import lisa.utils.K
 
 import K.*
