@@ -5,16 +5,16 @@ import lisa.automation.Substitution
 
 object Singleton extends lisa.Main:
 
-  private val s = variable[Term]
-  private val x = variable[Term]
-  private val y = variable[Term]
-  private val z = variable[Term]
-  private val P = variable[Term >>: Formula]
-  private val Q = variable[Term >>: Term >>: Formula]
+  private val s = variable[Ind]
+  private val x = variable[Ind]
+  private val y = variable[Ind]
+  private val z = variable[Ind]
+  private val P = variable[Ind >>: Prop]
+  private val Q = variable[Ind >>: Ind >>: Prop]
 
   val singleton = DEF(lambda(x, x <> x))
 
-  extension (t: Expr[Term])
+  extension (t: Expr[Ind])
     /**
      * Prefix notation for singleton set
      */

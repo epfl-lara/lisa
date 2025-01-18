@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class ParserTest extends AnyFunSuite with TestUtils {
   /*
   test("constant") {
-    assert(FOLParser.parseTerm("x") == Term(cx, Seq()))
+    assert(FOLParser.parseTerm("x") == Ind(cx, Seq()))
   }
 
   test("variable") {
@@ -20,29 +20,29 @@ class ParserTest extends AnyFunSuite with TestUtils {
   }
 
   test("constant function application") {
-    assert(FOLParser.parseTerm("f()") == Term(f0, Seq()))
-    assert(FOLParser.parseTerm("f(x)") == Term(f1, Seq(cx)))
-    assert(FOLParser.parseTerm("f(x, y)") == Term(f2, Seq(cx, cy)))
-    assert(FOLParser.parseTerm("f(x, y, z)") == Term(f3, Seq(cx, cy, cz)))
+    assert(FOLParser.parseTerm("f()") == Ind(f0, Seq()))
+    assert(FOLParser.parseTerm("f(x)") == Ind(f1, Seq(cx)))
+    assert(FOLParser.parseTerm("f(x, y)") == Ind(f2, Seq(cx, cy)))
+    assert(FOLParser.parseTerm("f(x, y, z)") == Ind(f3, Seq(cx, cy, cz)))
 
-    assert(FOLParser.parseTerm("f('x)") == Term(f1, Seq(x)))
-    assert(FOLParser.parseTerm("f('x, 'y)") == Term(f2, Seq(x, y)))
-    assert(FOLParser.parseTerm("f('x, 'y, 'z)") == Term(f3, Seq(x, y, z)))
+    assert(FOLParser.parseTerm("f('x)") == Ind(f1, Seq(x)))
+    assert(FOLParser.parseTerm("f('x, 'y)") == Ind(f2, Seq(x, y)))
+    assert(FOLParser.parseTerm("f('x, 'y, 'z)") == Ind(f3, Seq(x, y, z)))
   }
 
   test("schematic function application") {
     // FOLParser.parseTerm("?f()") -- schematic functions of 0 arguments do not exist, those are variables
-    assert(FOLParser.parseTerm("'f(x)") == Term(sf1, Seq(cx)))
-    assert(FOLParser.parseTerm("'f(x, y)") == Term(sf2, Seq(cx, cy)))
-    assert(FOLParser.parseTerm("'f(x, y, z)") == Term(sf3, Seq(cx, cy, cz)))
+    assert(FOLParser.parseTerm("'f(x)") == Ind(sf1, Seq(cx)))
+    assert(FOLParser.parseTerm("'f(x, y)") == Ind(sf2, Seq(cx, cy)))
+    assert(FOLParser.parseTerm("'f(x, y, z)") == Ind(sf3, Seq(cx, cy, cz)))
 
-    assert(FOLParser.parseTerm("'f('x)") == Term(sf1, Seq(x)))
-    assert(FOLParser.parseTerm("'f('x, 'y)") == Term(sf2, Seq(x, y)))
-    assert(FOLParser.parseTerm("'f('x, 'y, 'z)") == Term(sf3, Seq(x, y, z)))
+    assert(FOLParser.parseTerm("'f('x)") == Ind(sf1, Seq(x)))
+    assert(FOLParser.parseTerm("'f('x, 'y)") == Ind(sf2, Seq(x, y)))
+    assert(FOLParser.parseTerm("'f('x, 'y, 'z)") == Ind(sf3, Seq(x, y, z)))
   }
 
   test("nested function application") {
-    assert(FOLParser.parseTerm("'f('f('x), 'y)") == Term(sf2, Seq(Term(sf1, Seq(x)), y)))
+    assert(FOLParser.parseTerm("'f('f('x), 'y)") == Ind(sf2, Seq(Ind(sf1, Seq(x)), y)))
   }
 
   test("0-ary predicate") {
@@ -244,17 +244,17 @@ class ParserTest extends AnyFunSuite with TestUtils {
 
   test("infix functions") {
     val parser = Parser(SynonymInfoBuilder().addSynonyms(plus.id, "+").build, Nil, ("+", Associativity.Left) :: Nil)
-    assert(parser.parseTerm("x + y") == Term(plus, Seq(cx, cy)))
-    assert(parser.parseTerm("(x + y) + z") == Term(plus, Seq(Term(plus, Seq(cx, cy)), cz)))
+    assert(parser.parseTerm("x + y") == Ind(plus, Seq(cx, cy)))
+    assert(parser.parseTerm("(x + y) + z") == Ind(plus, Seq(Ind(plus, Seq(cx, cy)), cz)))
   }
 
   test("mix of infix functions and infix predicates") {
     val parser = Parser(SynonymInfoBuilder().addSynonyms(in.id, "∊").addSynonyms(plus.id, "+").build, "∊" :: Nil, ("+", Associativity.Left) :: Nil)
-    assert(parser.parseFormula("(x + y) ∊ z") == AtomicFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
+    assert(parser.parseFormula("(x + y) ∊ z") == AtomicFormula(in, Seq(Ind(plus, Seq(cx, cy)), cz)))
     assert(
       parser.parseFormula("x ∊ y /\\ x ∊ z /\\ (x + y) ∊ z") == ConnectorFormula(
         And,
-        Seq(ConnectorFormula(And, Seq(AtomicFormula(in, Seq(cx, cy)), AtomicFormula(in, Seq(cx, cz)))), AtomicFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
+        Seq(ConnectorFormula(And, Seq(AtomicFormula(in, Seq(cx, cy)), AtomicFormula(in, Seq(cx, cz)))), AtomicFormula(in, Seq(Ind(plus, Seq(cx, cy)), cz)))
       )
     )
   }

@@ -5,20 +5,20 @@ import lisa.maths.settheory.Singleton.*
 
 object Pair extends lisa.Main:
 
-  private val s = variable[Term]
-  private val x = variable[Term]
-  private val y = variable[Term]
-  private val z = variable[Term]
-  private val p = variable[Term]
-  private val P = variable[Term >>: Formula]
-  private val Q = variable[Term >>: Term >>: Formula]
+  private val s = variable[Ind]
+  private val x = variable[Ind]
+  private val y = variable[Ind]
+  private val z = variable[Ind]
+  private val p = variable[Ind]
+  private val P = variable[Ind >>: Prop]
+  private val Q = variable[Ind >>: Ind >>: Prop]
 
   /**
    * An ordered pair.
    */
   val pair = DEF(lambda(x, lambda(y, ~x <> (x <> y))))
 
-  extension (t: Expr[Term]) infix def ::(s: Expr[Term]) = pair(t)(s)
+  extension (t: Expr[Ind]) infix def ::(s: Expr[Ind]) = pair(t)(s)
 
   // val firstMemberExists = Theorem(exists(x, exists(y, p === x :: y)) ==> exists(y, p === x :: y)):
   //   have(p === x :: y |- p === x :: y) by Restate

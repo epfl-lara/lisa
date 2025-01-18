@@ -43,8 +43,8 @@ object Serialization {
 
   def typeToString(t: Sort): String =
     t match
-      case Term => "T"
-      case Formula => "F"
+      case Ind => "T"
+      case Prop => "F"
       case Arrow(from, to) => s">${typeToString(from)}${typeToString(to)}"
   
   def constantToString(c: Constant): String = "cst_" + c.id.name + "_" + c.id.no + "_" + typeToString(c.sort)
@@ -333,8 +333,8 @@ object Serialization {
   }
 
   def typeFromString(s: String): (Sort, String) =
-    if s(0) == 'T' then (Term, s.drop(1))
-    else if s(0) == 'F' then (Formula, s.drop(1))
+    if s(0) == 'T' then (Ind, s.drop(1))
+    else if s(0) == 'F' then (Prop, s.drop(1))
     else if s(0) == '>' then
       val (from, reminder) = typeFromString(s.drop(1))
       val (to, r) = typeFromString(reminder)

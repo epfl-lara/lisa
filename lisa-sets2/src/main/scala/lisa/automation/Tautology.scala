@@ -66,7 +66,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
    */
   def solveSequent(s: Sequent): Either[SCProof, (String, Sequent)] = {
     val augSeq = augmentSequent(s)
-    val MaRvIn = Variable(freshId(augSeq.formula.freeVariables.map(_.id), "MaRvIn"), Formula) // arbitrary name that is unlikely to already exist in the formula
+    val MaRvIn = Variable(freshId(augSeq.formula.freeVariables.map(_.id), "MaRvIn"), Prop) // arbitrary name that is unlikely to already exist in the formula
 
     try {
       val steps = solveAugSequent(augSeq, 0)(using MaRvIn)

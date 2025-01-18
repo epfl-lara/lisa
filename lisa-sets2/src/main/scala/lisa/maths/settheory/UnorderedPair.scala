@@ -2,12 +2,12 @@ package lisa.maths.settheory
 
 object UnorderedPair extends lisa.Main:
 
-  private val s = variable[Term]
-  private val x = variable[Term]
-  private val y = variable[Term]
-  private val z = variable[Term]
-  private val P = variable[Term >>: Formula]
-  private val Q = variable[Term >>: Term >>: Formula]
+  private val s = variable[Ind]
+  private val x = variable[Ind]
+  private val y = variable[Ind]
+  private val z = variable[Ind]
+  private val P = variable[Ind >>: Prop]
+  private val Q = variable[Ind >>: Ind >>: Prop]
 
   /**
    * Unordered pair of sets
@@ -19,11 +19,11 @@ object UnorderedPair extends lisa.Main:
    */
   val <> = upair
 
-  extension (t: Expr[Term])
+  extension (t: Expr[Ind])
     /**
      * Infix notation for an unordered pair.
      */
-    infix def <>(s: Expr[Term]) = upair(t)(s)
+    infix def <>(s: Expr[Ind]) = upair(t)(s)
 
   val firstMember = Theorem(x ∈ (x <> y)):
     have(thesis) by Tautology.from(<>.definition of (z := x))

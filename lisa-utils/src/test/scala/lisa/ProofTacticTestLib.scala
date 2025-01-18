@@ -14,8 +14,8 @@ trait ProofTacticTestLib extends AnyFunSuite with BasicMain {
 
   export lisa.test.TestTheoryLibrary.{_, given}
 
-  private val x = variable[Term]
-  private val P = variable[Term >>: Formula]
+  private val x = variable[Ind]
+  private val P = variable[Ind >>: Prop]
 
   // generate a placeholde theorem to take ownership of proofs for test
   val placeholderTheorem: THMFromProof = Theorem(P(x) |- P(x)) { have(P(x) |- P(x)) by Hypothesis }.asInstanceOf

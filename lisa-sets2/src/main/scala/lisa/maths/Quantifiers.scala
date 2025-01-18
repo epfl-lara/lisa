@@ -13,16 +13,16 @@ import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
  */
 object Quantifiers extends lisa.Main {
 
-  private val X = variable[Formula]
-  private val Y = variable[Formula]
-  private val Z = variable[Formula]
-  private val x = variable[Term]
-  private val y = variable[Term]
-  private val z = variable[Term]
-  private val a = variable[Term]
-  private val p = variable[Formula]
-  private val P = variable[Term >>: Formula]
-  private val Q = variable[Term >>: Formula]
+  private val X = variable[Prop]
+  private val Y = variable[Prop]
+  private val Z = variable[Prop]
+  private val x = variable[Ind]
+  private val y = variable[Ind]
+  private val z = variable[Ind]
+  private val a = variable[Ind]
+  private val p = variable[Prop]
+  private val P = variable[Ind >>: Prop]
+  private val Q = variable[Ind >>: Prop]
 
   /**
    * Theorem --- A formula is equivalent to itself universally quantified if
@@ -55,7 +55,7 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tableau
   }
 
-  val ∃! = DEF(lambda(P, exists(x, forall(y, P(y) <=> (x === y))))).asBinder[Term, Formula, Formula]
+  val ∃! = DEF(lambda(P, exists(x, forall(y, P(y) <=> (x === y))))).asBinder[Ind, Prop, Prop]
   val existsOne = ∃!
   println(∃!.definition)
 
@@ -292,7 +292,7 @@ object Quantifiers extends lisa.Main {
    */
   object quantifyAll extends ProofFactSequentTactic:
     def apply(using lib: Library, proof: lib.Proof)(premiseStep: proof.Fact)(conclusion: Sequent) =
-      def isQuantifiedOf(target: Expr[Formula], pivot: Expr[Formula], vars: List[Variable[Term]] = Nil): Option[List[Variable[Term]]] =
+      def isQuantifiedOf(target: Expr[Prop], pivot: Expr[Prop], vars: List[Variable[Ind]] = Nil): Option[List[Variable[Ind]]] =
         target match
           case ∀(x, inner) =>
             val next = x :: vars

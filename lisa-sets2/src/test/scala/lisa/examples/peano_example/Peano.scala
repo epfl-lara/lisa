@@ -21,7 +21,7 @@ object Peano { /*
   def main(args: Array[String]): Unit = {}
   /////////////////////////////////////////////////////////////////////
 
-  def instantiateForallImport(proofImport: Sequent, t: Peano.Term): SCProof = {
+  def instantiateForallImport(proofImport: Sequent, t: Peano.Ind): SCProof = {
     require(proofImport.right.size == 1)
     val formula = proofImport.right.head
     require(formula.isInstanceOf[BinderFormula] && formula.asInstanceOf[BinderFormula].label == Forall)
@@ -54,7 +54,7 @@ object Peano { /*
         s"premise: ${FOLPrinter.prettyFormula(premise)}, base: ${FOLPrinter.prettyFormula(baseFormula)}, step: ${FOLPrinter.prettyFormula(stepFormula)}"
     )
 
-    val lhs: Set[Formula] = baseProof.bot.left ++ inductionStepProof.bot.left
+    val lhs: Set[Prop] = baseProof.bot.left ++ inductionStepProof.bot.left
     val base0 = baseProof
     val step1 = inductionStepProof
     val instance2 = inductionInstance

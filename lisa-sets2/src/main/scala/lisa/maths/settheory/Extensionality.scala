@@ -7,12 +7,12 @@ import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
 
 object Extensionality extends lisa.Main:
 
-  private val s = variable[Term]
-  private val x = variable[Term]
-  private val y = variable[Term]
-  private val z = variable[Term]
-  private val P = variable[Term >>: Formula]
-  private val Q = variable[Term >>: Term >>: Formula]
+  private val s = variable[Ind]
+  private val x = variable[Ind]
+  private val y = variable[Ind]
+  private val z = variable[Ind]
+  private val P = variable[Ind >>: Prop]
+  private val Q = variable[Ind >>: Ind >>: Prop]
 
   val implied = Theorem(forall(z, z ∈ x <=> z ∈ y) |- (x === y)):
     have(thesis) by Weakening(extensionalityAxiom)
@@ -27,10 +27,10 @@ object Extensionality extends lisa.Main:
   def tactic(using proof: Proof)(premiseStep: proof.Fact)(conclusion: Sequent) =
     val premise = proof.getSequent(premiseStep)
     val boundVars = premise.left.flatMap(_.freeVars)
-    inline def valid(z1: Variable[Term], z2: Variable[Term], x: Expr[Term], y: Expr[Term]) =
+    inline def valid(z1: Variable[Ind], z2: Variable[Ind], x: Expr[Ind], y: Expr[Ind]) =
       z1 == z2 && !boundVars.contains(z1) && conclusion.right.exists(isSame(_, x === y))
-    val pivot: Option[(Variable[Term], Expr[Term], Expr[Term])] = premise.right.collectFirst:
-      case (<=> #@ (∈ #@ (z1: Variable[Term]) #@ (x: Expr[Term])) #@ (∈ #@ (z2: Variable[Term]) #@ (y: Expr[Term]))) if valid(z1, z2, x, y) => (z1, x, y)
+    val pivot: Option[(Variable[Ind], Expr[Ind], Expr[Ind])] = premise.right.collectFirst:
+      case (<=> #@ (∈ #@ (z1: Variable[Ind]) #@ (x: Expr[Ind])) #@ (∈ #@ (z2: Variable[Ind]) #@ (y: Expr[Ind]))) if valid(z1, z2, x, y) => (z1, x, y)
 
     pivot match
       case None =>

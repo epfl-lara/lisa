@@ -57,7 +57,7 @@ object BasicStepTactic {
    * </pre>
    */
   object Cut extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula])(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop])(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1).underlying
       lazy val rightSequent = proof.getSequent(prem2).underlying
       val botK = bot.underlying
@@ -104,7 +104,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftAnd extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], psi: F.Expr[F.Formula])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], psi: F.Expr[F.Prop])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       val botK = bot.underlying
       val phiK = phi.underlying
@@ -153,7 +153,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftOr extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(disjuncts: F.Expr[F.Formula]*)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(disjuncts: F.Expr[F.Prop]*)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_).underlying)
       val botK = bot.underlying
       val disjunctsK = disjuncts.map(_.underlying)
@@ -201,7 +201,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftImplies extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], psi: F.Expr[F.Formula])(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], psi: F.Expr[F.Prop])(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1).underlying
       lazy val rightSequent = proof.getSequent(prem2).underlying
       val botK = bot.underlying
@@ -247,7 +247,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftIff extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], psi: F.Expr[F.Formula])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], psi: F.Expr[F.Prop])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       val botK = bot.underlying
       val phiK = phi.underlying
@@ -293,7 +293,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftNot extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       val botK = bot.underlying
       val phiK = phi.underlying
@@ -332,7 +332,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftForall extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], x: F.Variable[F.Term], t: F.Expr[F.Term])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], x: F.Variable[F.Ind], t: F.Expr[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlying
       lazy val tK = t.underlying
@@ -349,7 +349,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(bot, Seq(K.LeftForall(botK, -1, phiK, xK, tK)), Seq(premise))
     }
 
-    def withParameters(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Term])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.left.diff(premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left // .diff(botK.left)
@@ -370,8 +370,8 @@ object BasicStepTactic {
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
 
-        val in: F.Expr[F.Formula] = instantiatedPivot.head
-        val quantifiedPhi: Option[F.Expr[F.Formula]] = bot.left.find(f =>
+        val in: F.Expr[F.Prop] = instantiatedPivot.head
+        val quantifiedPhi: Option[F.Expr[F.Prop]] = bot.left.find(f =>
           f match {
             case g @ F.forall(v, e) => F.isSame(e.substitute(v := t), in)
             case _ => false
@@ -399,8 +399,8 @@ object BasicStepTactic {
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
 
-        val in: F.Expr[F.Formula] = instantiatedPivot.head
-        val quantifiedPhi: Option[(F.Expr[F.Formula], Substitution)] = pivot.collectFirstDefined(f =>
+        val in: F.Expr[F.Prop] = instantiatedPivot.head
+        val quantifiedPhi: Option[(F.Expr[F.Prop], Substitution)] = pivot.collectFirstDefined(f =>
           f match {
             case g @ F.forall(x, phi) => 
               val ctx = RewriteContext.withBound(phi.freeVars - x)
@@ -427,7 +427,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftExists extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], x: F.Variable[F.Term])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], x: F.Variable[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlying
       lazy val phiK = phi.underlying
@@ -457,8 +457,8 @@ object BasicStepTactic {
           else
             proof.InvalidProofTactic("Could not infer a pivot from premise and conclusion.")
         else if (instantiatedPivot.tail.isEmpty) {
-          val in: F.Expr[F.Formula] = instantiatedPivot.head
-          val quantifiedPhi: Option[F.Expr[F.Formula]] = bot.left.find(f =>
+          val in: F.Expr[F.Prop] = instantiatedPivot.head
+          val quantifiedPhi: Option[F.Expr[F.Prop]] = bot.left.find(f =>
             f match {
               case F.exists(_, g) => F.isSame(g, in)
               case _ => false
@@ -489,12 +489,12 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftExistsOne extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], x: F.Variable[F.T])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], x: F.Variable[F.T])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlying
       lazy val phiK = phi.underlying
       lazy val botK = bot.underlying
-      lazy val y = K.Variable(lisa.utils.KernelHelpers.freshId(phiK.freeVariables.map(_.id), x.id), K.Term)
+      lazy val y = K.Variable(lisa.utils.KernelHelpers.freshId(phiK.freeVariables.map(_.id), x.id), K.Ind)
       lazy val instantiated = K.exists(y, K.forall(xK, (xK === y) <=> phiK ))
       lazy val quantified = K.ExistsOne(xK, phiK)
 
@@ -546,7 +546,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightAnd extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(conjuncts: F.Expr[F.Formula]*)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(conjuncts: F.Expr[F.Prop]*)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_).underlying)
       lazy val botK = bot.underlying
       lazy val conjunctsK = conjuncts.map(_.underlying)
@@ -594,7 +594,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightOr extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], psi: F.Expr[F.Formula])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], psi: F.Expr[F.Prop])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val phiK = phi.underlying
       lazy val psiK = psi.underlying
@@ -642,7 +642,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightImplies extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], psi: F.Expr[F.Formula])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], psi: F.Expr[F.Prop])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val phiK = phi.underlying
       lazy val psiK = psi.underlying
@@ -680,7 +680,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightIff extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], psi: F.Expr[F.Formula])(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], psi: F.Expr[F.Prop])(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1).underlying
       lazy val rightSequent = proof.getSequent(prem2).underlying
       lazy val phiK = phi.underlying
@@ -738,7 +738,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightNot extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val phiK = phi.underlying
       lazy val botK = bot.underlying
@@ -777,7 +777,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightForall extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], x: F.Variable[F.Term])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], x: F.Variable[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlying
       lazy val phiK = phi.underlying
@@ -806,8 +806,8 @@ object BasicStepTactic {
           else
             proof.InvalidProofTactic("Could not infer a pivot from the premise and conclusion.")
         else if (instantiatedPivot.tail.isEmpty) {
-          val in: F.Expr[F.Formula] = instantiatedPivot.head
-          val quantifiedPhi: Option[F.Expr[F.Formula]] = bot.right.find(f =>
+          val in: F.Expr[F.Prop] = instantiatedPivot.head
+          val quantifiedPhi: Option[F.Expr[F.Prop]] = bot.right.find(f =>
             f match {
               case F.forall(_, g) => F.isSame(g, in)
               case _ => false
@@ -839,7 +839,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightExists extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], x: F.Variable[F.Term], t: F.Expr[F.Term])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], x: F.Variable[F.Ind], t: F.Expr[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlying
       lazy val tK = t.underlying
@@ -856,7 +856,7 @@ object BasicStepTactic {
         proof.ValidProofTactic(bot, Seq(K.RightExists(botK, -1, phiK, xK, tK)), Seq(premise))
     }
 
-    def withParameters(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Term])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
       lazy val pivot = bot.right.diff(premiseSequent.right)
       lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
@@ -877,8 +877,8 @@ object BasicStepTactic {
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
 
-        val in: F.Expr[F.Formula] = instantiatedPivot.head
-        val quantifiedPhi: Option[F.Expr[F.Formula]] = bot.right.find(f =>
+        val in: F.Expr[F.Prop] = instantiatedPivot.head
+        val quantifiedPhi: Option[F.Expr[F.Prop]] = bot.right.find(f =>
           f match {
             case g @ F.exists(v, e) => F.isSame(e.substitute(v := t), in)
             case _ => false
@@ -906,9 +906,9 @@ object BasicStepTactic {
       else if (instantiatedPivot.tail.isEmpty) {
         // go through conclusion to find a matching quantified formula
 
-        val in: F.Expr[F.Formula] = instantiatedPivot.head
+        val in: F.Expr[F.Prop] = instantiatedPivot.head
 
-        val quantifiedPhi: Option[(F.Expr[F.Formula], Substitution)] = pivot.collectFirstDefined(f =>
+        val quantifiedPhi: Option[(F.Expr[F.Prop], Substitution)] = pivot.collectFirstDefined(f =>
           f match {
             case g @ F.exists(x, phi) =>
               val ctx = RewriteContext.withBound(phi.freeVars - x)
@@ -935,7 +935,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightExistsOne extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], x: F.Variable)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], x: F.Variable)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlying
       lazy val phiK = phi.underlying
@@ -1003,10 +1003,10 @@ object BasicStepTactic {
    * fail. In that case, use [[RightEpsilon.withParameters]] instead.
    */
   object RightEpsilon extends ProofTactic with ProofFactSequentTactic {
-    def collectEpsilons(in: F.Expr[?]): Set[F.Expr[F.Term]] = 
-      in.collect { case e @ F.ε(_, _) => e.asInstanceOf[F.Expr[F.Term]] }.toSet
+    def collectEpsilons(in: F.Expr[?]): Set[F.Expr[F.Ind]] = 
+      in.collect { case e @ F.ε(_, _) => e.asInstanceOf[F.Expr[F.Ind]] }.toSet
 
-    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Formula], x: F.Variable[F.Term], t: F.Expr[F.Term])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], x: F.Variable[F.Ind], t: F.Expr[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val xK = x.underlying
       lazy val tK = t.underlying
@@ -1101,7 +1101,7 @@ object BasicStepTactic {
    * </pre>
    */
   object LeftRefl extends ProofTactic with ProofFactSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(fa: F.Expr[F.Formula])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(fa: F.Expr[F.Prop])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val faK = fa.underlying
       lazy val botK = bot.underlying
@@ -1140,7 +1140,7 @@ object BasicStepTactic {
    * </pre>
    */
   object RightRefl extends ProofTactic with ProofSequentTactic {
-    def withParameters(using lib: Library, proof: lib.Proof)(fa: F.Expr[F.Formula])(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def withParameters(using lib: Library, proof: lib.Proof)(fa: F.Expr[F.Prop])(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val faK = fa.underlying
       lazy val botK = bot.underlying
       if (!botK.right.exists(_ == faK))
@@ -1160,8 +1160,8 @@ object BasicStepTactic {
       if (bot.right.isEmpty) proof.InvalidProofTactic("Right-hand side of conclusion does not contain an instance of reflexivity.")
       else {
         // go through conclusion to see if you can find an reflexive formula
-        val pivot: Option[F.Expr[F.Formula]] = bot.right.find(f =>
-          val Eq = F.equality // (F.equality: (F.|->[F.**[F.Expr[F.Term], 2], F.Expr[F.Formula]]))
+        val pivot: Option[F.Expr[F.Prop]] = bot.right.find(f =>
+          val Eq = F.equality // (F.equality: (F.|->[F.**[F.Expr[F.Ind], 2], F.Expr[F.Prop]]))
           f match {
             case F.App(F.App(e, l), r) =>
               (F.equality) == (e) && l == r // termequality
@@ -1189,15 +1189,15 @@ object BasicStepTactic {
   object LeftSubstEq extends ProofTactic {
     @deprecated("Use withParameters instead", "0.9")
     def withParametersSimple(using lib: Library, proof: lib.Proof)(
-        equals: Seq[(F.Expr[F.Term], F.Expr[F.Term])],
-        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Formula])
+        equals: Seq[(F.Expr[F.Ind], F.Expr[F.Ind])],
+        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       withParameters(equals, lambdaPhi)(premise)(bot)
     }
 
     def withParameters(using lib: Library, proof: lib.Proof)(
         equals: Seq[(F.Expr[?], F.Expr[?])],
-        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Formula])
+        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
@@ -1216,10 +1216,10 @@ object BasicStepTactic {
         val sEqT_es = equalsK map { 
           case (s, t) => 
             val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).max+1
-            val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Term))
+            val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
             val inner1 = vars.foldLeft(s)(_(_))
             val inner2 = vars.foldLeft(t)(_(_))
-            val base = if (inner1.sort == K.Formula) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
+            val base = if (inner1.sort == K.Prop) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
             vars.foldLeft(base : K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
         }
 
@@ -1247,15 +1247,15 @@ object BasicStepTactic {
   object RightSubstEq extends ProofTactic {
     @deprecated("Use withParameters instead", "0.9")
     def withParametersSimple(using lib: Library, proof: lib.Proof)(
-        equals: Seq[(F.Expr[F.Term], F.Expr[F.Term])],
-        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Formula])
+        equals: Seq[(F.Expr[F.Ind], F.Expr[F.Ind])],
+        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       withParameters(equals, lambdaPhi)(premise)(bot)
     }
 
     def withParameters(using lib: Library, proof: lib.Proof)(
         equals: Seq[(F.Expr[?], F.Expr[?])],
-        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Formula])
+        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise).underlying
       lazy val botK = bot.underlying
@@ -1274,10 +1274,10 @@ object BasicStepTactic {
         val sEqT_es = equalsK map { 
           case (s, t) => 
             val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).max+1
-            val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Term))
+            val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
             val inner1 = vars.foldLeft(s)(_(_))
             val inner2 = vars.foldLeft(t)(_(_))
-            val base = if (inner1.sort == K.Formula) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
+            val base = if (inner1.sort == K.Prop) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
             vars.foldLeft(base : K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
         }
 

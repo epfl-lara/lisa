@@ -20,17 +20,17 @@ class ProofTests extends AnyFunSuite {
   private val z = variable
   val f = function(1)
   val f2 = function(1)
-  val g = cst("g", Term >>: Term >>: Term)
+  val g = cst("g", Ind >>: Ind >>: Ind)
   val g2 = function(2)
-  private val a = cst("A", Formula)
-  private val b = cst("A", Formula)
-  private val fp = cst("F", Term >>: Formula)
+  private val a = cst("A", Prop)
+  private val b = cst("A", Prop)
+  private val fp = cst("F", Ind >>: Prop)
   val sT = variable("t")
 
   val X = formulaVariable("X")
   val P = predicate(1)
   val P2 = predicate(1)
-  val Q = cst(Term >>: Term >>: Formula)
+  val Q = cst(Ind >>: Ind >>: Prop)
   val Q2 = predicate(2)
 
   test("Verification of Pierce law") {
@@ -298,7 +298,7 @@ class ProofTests extends AnyFunSuite {
   test("Commutativity on a random large formula") {
     val k = 9
     val r = new Random()
-    val vars = (0 until 1 << k).map(i => Constant(s"P$i", Formula))
+    val vars = (0 until 1 << k).map(i => Constant(s"P$i", Prop))
 
     val pairs = vars.grouped(2)
     val sPairs = vars.grouped(2)

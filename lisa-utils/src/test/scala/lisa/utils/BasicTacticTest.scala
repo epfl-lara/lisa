@@ -10,14 +10,14 @@ import lisa.test.ProofTacticTestLib
 class BasicTacticTest extends ProofTacticTestLib {
   
   
-  val x = variable[Term]
-  val y = variable[Term]
-  val z = variable[Term]
+  val x = variable[Ind]
+  val y = variable[Ind]
+  val z = variable[Ind]
 
-  val P = variable[Term >>: Formula]
-  val Q = variable[Term >>: Formula]
-  val R = variable[Term >>: Formula]
-  val S = variable[Term >>: Term >>: Formula]
+  val P = variable[Ind >>: Prop]
+  val Q = variable[Ind >>: Prop]
+  val R = variable[Ind >>: Prop]
+  val S = variable[Ind >>: Ind >>: Prop]
   // hypothesis
   test("Tactic Tests: Hypothesis") {
     val correct = List[lisa.utils.fol.FOL.Sequent](

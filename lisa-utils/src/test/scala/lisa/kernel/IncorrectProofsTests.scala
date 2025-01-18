@@ -19,7 +19,7 @@ class IncorrectProofsTests extends ProofCheckerSuite {
     // Shorthand
     implicit def proofStepToProof(proofStep: SCProofStep): SCProof = SCProof(proofStep)
 
-    val (f, g, h) = (Variable("f", Formula), Variable("g", Formula), Variable("h", Formula))
+    val (f, g, h) = (Variable("f", Prop), Variable("g", Prop), Variable("h", Prop))
 
     val incorrectProofs: Seq[SCProof] = List(
       SCProof(

@@ -16,17 +16,17 @@ abstract class ProofCheckerSuite extends AnyFunSuite {
   import lisa.kernel.fol.FOL.*
 
   protected val (x, y, z, w, xp, yp, zp, wp) = (
-    Variable("x", Term),
-    Variable("y", Term),
-    Variable("z", Term),
-    Variable("w", Term),
-    Variable("x1", Term),
-    Variable("y1", Term),
-    Variable("z1", Term),
-    Variable("w1", Term)
+    Variable("x", Ind),
+    Variable("y", Ind),
+    Variable("z", Ind),
+    Variable("w", Ind),
+    Variable("x1", Ind),
+    Variable("y1", Ind),
+    Variable("z1", Ind),
+    Variable("w1", Ind)
   )
 
-  protected val (s, t, u, v) = (Variable("s", Term), Variable("t", Term), Variable("u", Term), Variable("v", Term))
+  protected val (s, t, u, v) = (Variable("s", Ind), Variable("t", Ind), Variable("u", Ind), Variable("v", Ind))
 
   def checkProof(proof: SCProof): Unit = {
     val judgement = checkSCProof(proof)

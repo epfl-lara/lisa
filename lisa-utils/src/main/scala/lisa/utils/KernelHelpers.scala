@@ -14,8 +14,8 @@ import lisa.utils.unification.UnificationUtils.matchExpr
  */
 object KernelHelpers {
 
-  def predicateType(arity: Int) = Range(0, arity).foldLeft(Formula: Sort)((acc, _) => Term -> acc)
-  def functionType(arity: Int) = Range(0, arity).foldLeft(Term: Sort)((acc, _) => Term -> acc)
+  def predicateType(arity: Int) = Range(0, arity).foldLeft(Prop: Sort)((acc, _) => Ind -> acc)
+  def functionType(arity: Int) = Range(0, arity).foldLeft(Ind: Sort)((acc, _) => Ind -> acc)
 
   /////////////////
   // FOL helpers //
@@ -375,19 +375,19 @@ object KernelHelpers {
 
   // declare symbols easily: "val x = variable;"
   def HOvariable(using name: sourcecode.Name)(sort: Sort): Variable = Variable(name.value, sort)
-  def variable(using name: sourcecode.Name): Variable = Variable(name.value, Term)
-  def function(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Term: Sort)((acc, _)=> Term -> acc))
-  def formulaVariable(using name: sourcecode.Name): Variable = Variable(name.value, Formula)
-  def predicate(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Term -> acc))
-  def connector(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Formula -> acc))
+  def variable(using name: sourcecode.Name): Variable = Variable(name.value, Ind)
+  def function(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Ind: Sort)((acc, _)=> Ind -> acc))
+  def formulaVariable(using name: sourcecode.Name): Variable = Variable(name.value, Prop)
+  def predicate(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Prop: Sort)((acc, _)=> Ind -> acc))
+  def connector(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Prop: Sort)((acc, _)=> Prop -> acc))
   def cst(using name: sourcecode.Name)(sort: Sort): Constant = Constant(name.value, sort)
 
   def HOvariable(sort: Sort)(id: Identifier): Variable = Variable(id, sort)
-  def variable(id: Identifier): Variable = Variable(id, Term)
-  def function(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Term: Sort)((acc, _)=> Term -> acc))
-  def formulaVariable(id: Identifier): Variable = Variable(id, Formula)
-  def predicate(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Term -> acc))
-  def connector(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Formula: Sort)((acc, _)=> Formula -> acc))
+  def variable(id: Identifier): Variable = Variable(id, Ind)
+  def function(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Ind: Sort)((acc, _)=> Ind -> acc))
+  def formulaVariable(id: Identifier): Variable = Variable(id, Prop)
+  def predicate(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Prop: Sort)((acc, _)=> Ind -> acc))
+  def connector(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Prop: Sort)((acc, _)=> Prop -> acc))
   def cst(id: Identifier, sort:Sort): Constant = Constant(id, sort)
 
   // Conversions from String to Identifier

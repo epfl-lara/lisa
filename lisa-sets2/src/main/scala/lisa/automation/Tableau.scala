@@ -69,7 +69,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     val nextIdNow = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no + 1
     val (fnamed, nextId) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
     val nf = reducedNNFForm(fnamed)
-    val uv = Variable(Identifier("§", nextId), Term)
+    val uv = Variable(Identifier("§", nextId), Ind)
     val proof = decide(Branch.empty(nextId + 1, uv).prepended(nf))
     proof match
       case None => None
@@ -149,7 +149,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
   }
   object Branch {
-    def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, 1, Map.empty, Variable(Identifier("§uv", 0), Term))
+    def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, 1, Map.empty, Variable(Identifier("§uv", 0), Ind))
     def empty(n: Int, uv: Variable) = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, n, Map.empty, uv)
     def prettyIte(l: Iterable[Expression], head: String): String = l match
       case Nil => "Nil"
@@ -165,7 +165,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         Application(recurse(f), recurse(a))
       case Lambda(v, body) =>
         if seen.contains(v) then
-          val newV = Variable(Identifier(v.id, nextId2), Term)
+          val newV = Variable(Identifier(v.id, nextId2), Ind)
           nextId2 += 1
           Lambda(newV, substituteVariables(recurse(body), Map(v -> newV)))
         else
@@ -205,7 +205,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * Detect if two atoms can be unified, and if so, return a substitution that unifies them.
    */
   def unifyPred(pos: Expression, neg: Expression, br: Branch): Option[Substitution] = {
-    assert(pos.sort == Formula && neg.sort == Formula)
+    assert(pos.sort == Prop && neg.sort == Prop)
     unify(pos, neg, Substitution.empty, br)
 
   }
@@ -219,7 +219,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
   def close(branch: Branch): Option[(Substitution, Set[Expression])] = {
     val newMap = branch.atoms._1
       .flatMap(pred => pred.freeVariables.filter(v => branch.unifiable.contains(v)))
-      .map(v => v -> Variable(Identifier(v.id.name, v.id.no + branch.maxIndex + 1), Term))
+      .map(v => v -> Variable(Identifier(v.id.name, v.id.no + branch.maxIndex + 1), Ind))
       .toMap
     val inverseNewMap = newMap.map((k, v) => v -> k).toMap
     val pos = branch.atoms._1.map(pred => substituteVariables(pred, newMap)).iterator
@@ -326,7 +326,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     f match
       case Exists(v, body) =>
         if branch.skolemized.contains(v) then
-          val newV = Variable(Identifier(v.id.name, branch.maxIndex), Term)
+          val newV = Variable(Identifier(v.id.name, branch.maxIndex), Ind)
           val newInner = substituteVariables(body, Map(v -> newV))
           (branch.copy(delta = branch.delta.tail, maxIndex = branch.maxIndex + 1).prepended(newInner), newV, newInner)
         else (branch.copy(delta = branch.delta.tail, skolemized = branch.skolemized + v).prepended(body), v, body)
@@ -346,7 +346,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
           case None =>
             (body, v)
           case Some(value) =>
-            val newBound = Variable(Identifier(v.id.name, branch.maxIndex), Term)
+            val newBound = Variable(Identifier(v.id.name, branch.maxIndex), Ind)
             val newInner = substituteVariables(body, Map(v -> newBound))
             (newInner, newBound)
         val b1 = branch.copy(
@@ -373,7 +373,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
     val inst = f match
       case Forall(v, body) => instantiate(body, v, t)
-      case _ => throw Exception("Error: Formula in unifiable is not a Forall")
+      case _ => throw Exception("Error: Prop in unifiable is not a Forall")
     val r = branch
       .prepended(inst)
       .copy(
@@ -467,7 +467,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
           branch.unifiable(x)._1 match
             case Forall(v, body) =>
               (LeftForall(sequent, step, body, v, t) :: proof, step + 1)
-            case _ => throw Exception("Error: Formula in unifiable is not a Forall")
+            case _ => throw Exception("Error: Prop in unifiable is not a Forall")
         else (proof, step)
       )
     else None

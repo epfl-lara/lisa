@@ -25,12 +25,12 @@ object Substitution:
   /**
    * Extracts a raw substitution into a `RewriteRule`.
    */
-  def extractRule(using lib: Library, proof: lib.Proof)(rule: proof.Fact | Expr[Formula]): RewriteRule =
+  def extractRule(using lib: Library, proof: lib.Proof)(rule: proof.Fact | Expr[Prop]): RewriteRule =
     rule match
-      case f: Expr[Formula] @unchecked =>
+      case f: Expr[Prop] @unchecked =>
         (f: @unchecked) match
-          case === #@ (l: Expr[Term]) #@ (r: Expr[Term]) => TermRewriteRule(l, r)
-          case <=> #@ (l: Expr[Formula]) #@ (r: Expr[Formula]) => FormulaRewriteRule(l, r)
+          case === #@ (l: Expr[Ind]) #@ (r: Expr[Ind]) => TermRewriteRule(l, r)
+          case <=> #@ (l: Expr[Prop]) #@ (r: Expr[Prop]) => FormulaRewriteRule(l, r)
       case f: proof.Fact @unchecked => extractRule(proof.getSequent(f).right.head)
 
   /**
@@ -38,12 +38,12 @@ object Substitution:
    * creating a source map, mapping each rule to the `Fact` it was derived from,
    * for proof construction.
    */
-  def partition(using lib: Library, proof: lib.Proof)(substitutions: Seq[proof.Fact | Expr[Formula]]): (Map[RewriteRule, proof.Fact], RewriteContext) =
+  def partition(using lib: Library, proof: lib.Proof)(substitutions: Seq[proof.Fact | Expr[Prop]]): (Map[RewriteRule, proof.Fact], RewriteContext) =
     substitutions.foldLeft((Map.empty, RewriteContext.empty)):
       case ((source, ctx), rule) =>
         val erule = extractRule(rule)
         rule match
-          case f: Expr[Formula] @unchecked =>
+          case f: Expr[Prop] @unchecked =>
             (source + (erule -> erule.source) + (erule.swap -> erule.source), ctx.withConfinedRule(erule).withConfinedRule(erule.swap))
           case j: lib.JUSTIFICATION =>
             (source + (erule -> j) + (erule.swap -> j), ctx.withFreeRule(erule).withFreeRule(erule.swap))
@@ -54,10 +54,10 @@ object Substitution:
    * Checks if a raw substitution input can be used as a rewrite rule (is === or
    * <=>, basically).
    */
-  def validSubstitutionRule(using lib: lisa.utils.prooflib.Library, proof: lib.Proof)(rule: (proof.Fact | Expr[Formula])): Boolean =
+  def validSubstitutionRule(using lib: lisa.utils.prooflib.Library, proof: lib.Proof)(rule: (proof.Fact | Expr[Prop])): Boolean =
     rule match
       // as formula
-      case f: Expr[Formula] @unchecked =>
+      case f: Expr[Prop] @unchecked =>
         f match
           case === #@ l #@ r => true
           case <=> #@ l #@ r => true
@@ -68,7 +68,7 @@ object Substitution:
         sequent.right.size == 1 && validSubstitutionRule(sequent.right.head)
 
   object Apply extends ProofTactic:
-    def apply(using lib: Library, proof: lib.Proof)(substitutions: (proof.Fact | Expr[Formula])*)(premiseStep: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
+    def apply(using lib: Library, proof: lib.Proof)(substitutions: (proof.Fact | Expr[Prop])*)(premiseStep: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
 
       // are all substitution rules actually valid?
       // if not, exit early
@@ -77,7 +77,7 @@ object Substitution:
         case f: proof.Fact @unchecked if !validSubstitutionRule(f) => proof.getSequent(f)
 
       val violatingFormulas = substitutions.collect:
-        case f: Expr[Formula] @unchecked if !validSubstitutionRule(f) => f
+        case f: Expr[Prop] @unchecked if !validSubstitutionRule(f) => f
 
       if violatingFacts.nonEmpty then
         val msgBase = "Substitution rules must have a single equality or equivalence on the right-hand side. Violating sequents passed:\n"
@@ -120,7 +120,7 @@ object Substitution:
         // discover a (possibly non-injective non-surjective) mapping from one
         // formula set to another where a formula maps to another by the
         // rewrites above
-        inline def collectRewritingPairs(base: Set[Expr[Formula]], target: Set[Expr[Formula]]): Option[Seq[FormulaRewriteResult]] =
+        inline def collectRewritingPairs(base: Set[Expr[Prop]], target: Set[Expr[Prop]]): Option[Seq[FormulaRewriteResult]] =
           base.iterator
             .map: formula =>
               target.collectFirstDefined: target =>
@@ -130,7 +130,7 @@ object Substitution:
         // collect the set of formulas in `base` that rewrite to *no* formula
         // in `target`. Guaranteed to be non-empty if
         // `collectRewritingPairs(base, target)` is None.
-        inline def collectViolatingPairs(base: Set[Expr[Formula]], target: Set[Expr[Formula]]): Set[Expr[Formula]] =
+        inline def collectViolatingPairs(base: Set[Expr[Prop]], target: Set[Expr[Prop]]): Set[Expr[Prop]] =
           base.filter: formula =>
             target.forall: target =>
               rewrite(using ctx)(formula, target).isEmpty
