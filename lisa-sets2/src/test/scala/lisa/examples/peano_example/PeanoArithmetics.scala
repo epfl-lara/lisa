@@ -15,18 +15,18 @@ object PeanoArithmetics extends lisa.utils.prooflib.Library {
   final val times = ConstantFunctionLabel("*", 2)
   final val sPhi = predicate[1]
   val theory: RunningTheory = new RunningTheory()
-  final val ax1ZeroSuccessor: Formula = forall(x, !(s(x) === zero))
-  final val ax2Injectivity: Formula = forall(x, forall(y, (s(x) === s(y)) ==> (x === y)))
-  final val ax3neutral: Formula = forall(x, plus(x, zero) === x)
-  final val ax4plusSuccessor: Formula = forall(x, forall(y, plus(x, s(y)) === s(plus(x, y))))
-  final val ax5timesZero: Formula = forall(x, times(x, zero) === zero)
-  final val ax6timesDistrib: Formula = forall(x, forall(y, times(x, s(y)) === plus(times(x, y), x)))
-  final val ax7induction: Formula = (sPhi(zero) /\ forall(x, sPhi(x) ==> sPhi(s(x)))) ==> forall(x, sPhi(x))
+  final val ax1ZeroSuccessor: Prop = forall(x, !(s(x) === zero))
+  final val ax2Injectivity: Prop = forall(x, forall(y, (s(x) === s(y)) ==> (x === y)))
+  final val ax3neutral: Prop = forall(x, plus(x, zero) === x)
+  final val ax4plusSuccessor: Prop = forall(x, forall(y, plus(x, s(y)) === s(plus(x, y))))
+  final val ax5timesZero: Prop = forall(x, times(x, zero) === zero)
+  final val ax6timesDistrib: Prop = forall(x, forall(y, times(x, s(y)) === plus(times(x, y), x)))
+  final val ax7induction: Prop = (sPhi(zero) /\ forall(x, sPhi(x) ==> sPhi(s(x)))) ==> forall(x, sPhi(x))
 
   final val functions: Set[ConstantTermLabel[?]] = Set(ConstantFunctionLabel("0", 0), s, plus, times)
   functions.foreach(l => theory.addSymbol(l.underlyingLabel))
 
-  private val peanoAxioms: Set[(String, Formula)] = Set(
+  private val peanoAxioms: Set[(String, Prop)] = Set(
     ("ax1ZeroSuccessor", ax1ZeroSuccessor),
     ("ax2Injectivity", ax2Injectivity),
     ("ax3neutral", ax3neutral),

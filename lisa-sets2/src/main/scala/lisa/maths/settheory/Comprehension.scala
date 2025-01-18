@@ -4,11 +4,11 @@ import lisa.automation.Substitution
 
 object Comprehension extends lisa.Main:
 
-  val x = variable[Term]
-  val y = variable[Term]
-  val z = variable[Term]
-  val t = variable[Term]
-  val s = variable[Term]
+  val x = variable[Ind]
+  val y = variable[Ind]
+  val z = variable[Ind]
+  val t = variable[Ind]
+  val s = variable[Ind]
 
   val filter = DEF(lambda(t, lambda(φ, ε(s, ∀(x, (x ∈ s) <=> (x ∈ t /\ φ(x)))))))
 
@@ -16,8 +16,8 @@ object Comprehension extends lisa.Main:
 
   private val comprehension: filter.type = filter
 
-  extension (t: Expr[Term])
-    def filter(predicate: Expr[Term >>: Formula]): Expr[Term] =
+  extension (t: Expr[Ind])
+    def filter(predicate: Expr[Ind >>: Prop]): Expr[Ind] =
       comprehension(t)(predicate)
 
   val existence = Theorem(∃(s, ∀(x, (x ∈ s) <=> (x ∈ t /\ φ(x))))):

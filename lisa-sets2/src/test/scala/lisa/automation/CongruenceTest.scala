@@ -560,7 +560,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.merge(`2d2`, one)
     egraph.merge(ax1, a)
 
-    val base = List[Formula](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
+    val base = List[Prop](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
 
     val one_2d2 = Theorem(base |- (one === `2d2`)) {
       egraph.proveInnerTerm(one, `2d2`, base |- ())
@@ -692,7 +692,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.merge(`2d2`, onef)
     egraph.merge(ax1, af)
 
-    val base = List[Formula](ax2 <=> as1, ax2_d2 <=> ax_2d2, `2d2` <=> onef, ax1 <=> af)
+    val base = List[Prop](ax2 <=> as1, ax2_d2 <=> ax_2d2, `2d2` <=> onef, ax1 <=> af)
 
     val one_2d2 = Theorem(base |- onef <=> `2d2`) {
       egraph.proveInnerFormula(onef, `2d2`, base |- ())
@@ -814,7 +814,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val ax1 = `*`(a, one)
     val as1 = `<<`(a, one)
 
-    val base2 = List[Formula](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
+    val base2 = List[Prop](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
 
     val one_2d2 = Theorem(base2 |- (one === `2d2`)) {
       have(thesis) by Congruence

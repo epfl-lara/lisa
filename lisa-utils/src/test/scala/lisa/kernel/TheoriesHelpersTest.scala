@@ -17,7 +17,7 @@ class TheoriesHelpersTest extends AnyFunSuite {
   export TestTheory.*
 
   test("theorem with incorrect statement") {
-    val (c0, c1) = (Constant("Z", Term), Constant("S", Term))
+    val (c0, c1) = (Constant("Z", Ind), Constant("S", Ind))
     runningTestTheory.addSymbol(c0)
     runningTestTheory.addSymbol(c1)
 

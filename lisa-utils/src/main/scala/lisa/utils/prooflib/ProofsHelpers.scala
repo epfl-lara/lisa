@@ -92,7 +92,7 @@ trait ProofsHelpers {
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
    */
-  def assume(using proof: library.Proof)(f: Expr[Formula]): proof.ProofStep = {
+  def assume(using proof: library.Proof)(f: Expr[Prop]): proof.ProofStep = {
     proof.addAssumption(f)
     have(() |- f) by BasicStepTactic.Hypothesis
   }
@@ -100,7 +100,7 @@ trait ProofsHelpers {
   /**
    * Assume the given formulas in all future left hand-side of claimed sequents.
    */
-  def assume(using proof: library.Proof)(fs: Expr[Formula]*): proof.ProofStep = {
+  def assume(using proof: library.Proof)(fs: Expr[Prop]*): proof.ProofStep = {
     fs.foreach(f => proof.addAssumption(f))
     have(() |- fs.toSet) by BasicStepTactic.Hypothesis
   }
@@ -120,7 +120,7 @@ trait ProofsHelpers {
   }
 
   extension (using proof: library.Proof)(fact: proof.Fact) {
-    infix def of(insts: (F.SubstPair | F.Expr[F.Term])*): proof.InstantiatedFact = {
+    infix def of(insts: (F.SubstPair | F.Expr[F.Ind])*): proof.InstantiatedFact = {
       proof.InstantiatedFact(fact, insts)
     }
     def statement: F.Sequent = proof.sequentOfFact(fact)
@@ -230,10 +230,10 @@ trait ProofsHelpers {
     }
     val right = expr#@@(vars)
     val statement = 
-      if appliedCst.sort == K.Term then 
-        () |- (equality #@ appliedCst #@ right).asInstanceOf[Expr[Formula]]
+      if appliedCst.sort == K.Ind then 
+        () |- (equality #@ appliedCst #@ right).asInstanceOf[Expr[Prop]]
       else 
-        () |- (iff #@ appliedCst #@ right).asInstanceOf[Expr[Formula]]
+        () |- (iff #@ appliedCst #@ right).asInstanceOf[Expr[Prop]]
     library.last = Some(this)
   }
 
@@ -279,8 +279,8 @@ trait ProofsHelpers {
       val j: JUSTIFICATION
   ) extends DirectDefinition(fullName, line, file)(expr, vars) {
 
-    val body: Expr[Term] = dropAllLambdas(expr).asInstanceOf
-    override val appliedCst : Expr[Term] = (cst#@@(vars)).asInstanceOf
+    val body: Expr[Ind] = dropAllLambdas(expr).asInstanceOf
+    override val appliedCst : Expr[Ind] = (cst#@@(vars)).asInstanceOf
     val (epsilonVar, inner) = body match
       case epsilon(x, inner) => (x, inner)
       case _ => om.lisaThrow(UserInvalidDefinitionException(name, "The given expression is not an epsilon term."))
@@ -293,10 +293,10 @@ trait ProofsHelpers {
 
       def loop(expr: Expr[?], leading: List[Variable[?]]) : Unit = 
         expr match {
-          case App(lam @ Abs(vAbs, body1: Expr[Term]), _) => 
+          case App(lam @ Abs(vAbs, body1: Expr[Ind]), _) => 
             val freshX = Variable.unsafe(fresh, body1.sort)
-            val right: Expr[Term] = applyVars(leading.reverse, freshX).asInstanceOf[Expr[Term]]
-            var instRight: Expr[Term] = applyVars(leading.reverse, body1).asInstanceOf[Expr[Term]]
+            val right: Expr[Ind] = applyVars(leading.reverse, freshX).asInstanceOf[Expr[Ind]]
+            var instRight: Expr[Ind] = applyVars(leading.reverse, body1).asInstanceOf[Expr[Ind]]
             thenHave(appliedCst === instRight) by Beta
           case App(f, a: Variable[?]) => loop(expr, a :: leading)
           case _ => throw new Exception("Unreachable")

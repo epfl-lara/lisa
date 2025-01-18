@@ -5,11 +5,11 @@ import lisa.kernel.proof.RunningTheory
 import lisa.utils.KernelHelpers.{_, given}
 
 trait TestTheoryAxioms {
-  final val p1 = Constant("p1", Arrow(Term, Formula))
-  final val p2 = Constant("p2", Arrow(Term, Formula))
-  final val f1 = Constant("f1", Arrow(Term, Term))
-  final val fixedElement = Constant("fixedElement", Term)
-  final val anotherFixed = Constant("anotherElement", Term)
+  final val p1 = Constant("p1", Arrow(Ind, Prop))
+  final val p2 = Constant("p2", Arrow(Ind, Prop))
+  final val f1 = Constant("f1", Arrow(Ind, Ind))
+  final val fixedElement = Constant("fixedElement", Ind)
+  final val anotherFixed = Constant("anotherElement", Ind)
 
   val runningTestTheory = new RunningTheory()
   runningTestTheory.addSymbol(p1)
@@ -18,7 +18,7 @@ trait TestTheoryAxioms {
   runningTestTheory.addSymbol(fixedElement)
   runningTestTheory.addSymbol(anotherFixed)
 
-  private final val x = Variable("x", Term)
+  private final val x = Variable("x", Ind)
   final val p1_implies_p2_f = forall(x, p1(x) ==> p2(x))
   final val ax2_f = p1(fixedElement)
   final val same_fixed_f = fixedElement === anotherFixed

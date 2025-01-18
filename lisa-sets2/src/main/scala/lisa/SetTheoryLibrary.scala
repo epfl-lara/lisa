@@ -15,17 +15,17 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the set membership predicate.
    */
-  final val in = constant[Term >>: Term >>: Formula]("elem")
+  final val in = constant[Ind >>: Ind >>: Prop]("elem")
 
   /**
    * The symbol for the subset predicate.
    */
-  final val subset = constant[Term >>: Term >>: Formula]("subsetOf")
+  final val subset = constant[Ind >>: Ind >>: Prop]("subsetOf")
 
   /**
    * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
    */
-  final val sim = constant[Term >>: Term >>: Formula]("sameCardinality") // Equicardinality
+  final val sim = constant[Ind >>: Ind >>: Prop]("sameCardinality") // Equicardinality
   /**
    * Set Theory basic predicates
    */
@@ -36,27 +36,27 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the empty set constant.
    */
-  final val emptySet = constant[Term]("emptySet")
+  final val emptySet = constant[Ind]("emptySet")
 
   /**
    * The symbol for the unordered pair function.
    */
-  final val unorderedPair = constant[Term >>: Term >>: Term]("unorderedPair")
+  final val unorderedPair = constant[Ind >>: Ind >>: Ind]("unorderedPair")
 
   /**
    * The symbol for the powerset function.
    */
-  final val powerSet = constant[Term >>: Term]("powerSet")
+  final val powerSet = constant[Ind >>: Ind]("powerSet")
 
   /**
    * The symbol for the set union function.
    */
-  final val union = constant[Term >>: Term]("union")
+  final val union = constant[Ind >>: Ind]("union")
 
   /**
    * The symbol for the universe function. Defined in TG set theory.
    */
-  final val universe = constant[Term >>: Term]("universe")
+  final val universe = constant[Ind >>: Ind]("universe")
 
   /**
    * Set Theory basic functions.
@@ -73,13 +73,13 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   functions.foreach(s => addSymbol(s))
   addSymbol(emptySet)
 
-  private val x = variable[Term]
-  private val y = variable[Term]
-  private val z = variable[Term]
-  final val φ = variable[Term >>: Formula]
-  private val A = variable[Term]
-  private val B = variable[Term]
-  private val P = variable[Term >>: Term >>: Formula]
+  private val x = variable[Ind]
+  private val y = variable[Ind]
+  private val z = variable[Ind]
+  final val φ = variable[Ind >>: Prop]
+  private val A = variable[Ind]
+  private val B = variable[Ind]
+  private val P = variable[Ind >>: Ind >>: Prop]
 
   ////////////
   // Axioms //
@@ -245,11 +245,11 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   val ∅ = emptySet
   val ∈ = in
 
-  extension (l: Expr[Term])
-    def ∈(r: Expr[Term]): Expr[Formula] = in(l)(r)
-    def ⊆(r: Expr[Term]): Expr[Formula] = subset(l)(r)
-    def =/=(r: Expr[Term]): Expr[Formula] = !(l === r)
+  extension (l: Expr[Ind])
+    def ∈(r: Expr[Ind]): Expr[Prop] = in(l)(r)
+    def ⊆(r: Expr[Ind]): Expr[Prop] = subset(l)(r)
+    def =/=(r: Expr[Ind]): Expr[Prop] = !(l === r)
 
-  def unorderedPair(x: Expr[Term], y: Expr[Term]): Expr[Term] = App(App(unorderedPair, x), y)
+  def unorderedPair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = App(App(unorderedPair, x), y)
 
 }

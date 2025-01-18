@@ -3,7 +3,7 @@ package lisa.kernel.fol
 /** Defines the syntax of statements Lisa's kernel
   * 
   * This syntax is a (conservative) extension of first-order logic with higher order expressions.
-  * An expression in Lisa is a term of the simply typed lambda calculus with base types (called [[Sort]]) [[Term]] and [[Formula]].
+  * An expression in Lisa is a term of the simply typed lambda calculus with base types (called [[Sort]]) [[Ind]] and [[Prop]].
   * 
   */
 private[fol] trait Syntax {
@@ -69,21 +69,21 @@ private[fol] trait Syntax {
   /**
     * A `Sort` is a base type in the simply typed lambda calculus of Lisa expressions.
     * 
-    * There are two sorts: `Term` and `Formula`.
+    * There are two sorts: `Ind` and `Prop`.
     */
   sealed trait Sort {
     /** shortcut for `Assow(this, to)` */
     def ->(to: Sort): Arrow = Arrow(this, to)
 
-    /** @return true if the sort is of the form `Term -> ... -> Term -> Term` */
+    /** @return true if the sort is of the form `Ind -> ... -> Ind -> Ind` */
     val isFunctional: Boolean
 
-    /** @return true if the sort is of the form `Term -> ... -> Term -> Formula` */
+    /** @return true if the sort is of the form `Ind -> ... -> Ind -> Prop` */
     val isPredicate: Boolean
 
     /** @return the number of arguments of the type.
       * 
-      * For example, `Term` has depth 0, `Formula -> Term` has depth 1, `Term -> (Formula -> Term) -> Term` has depth 2, etc.
+      * For example, `Ind` has depth 0, `Prop -> Ind` has depth 1, `Ind -> (Prop -> Ind) -> Ind` has depth 2, etc.
       */
     val depth: Int 
   }
@@ -92,7 +92,7 @@ private[fol] trait Syntax {
     * Expressions of this type correspond to terms of first-order logic.
     * Semantically they are interpreted as elements of the universe, i.e. sets in ZFC.
     */
-  case object Term extends Sort {
+  case object Ind extends Sort {
     val isFunctional = true
     val isPredicate = false
     val depth = 0
@@ -101,7 +101,7 @@ private[fol] trait Syntax {
   /** The sort of formulas in the simply typed lambda calculus.
     * Expressions of this type correspond to formulas of first-order logic.
     */
-  case object Formula extends Sort {
+  case object Prop extends Sort {
     val isFunctional = false
     val isPredicate = true
     val depth = 0
@@ -110,13 +110,13 @@ private[fol] trait Syntax {
   /** An arrow sort, representing a function type in the simply typed lambda calculus.
     * The arrow sort is of the form `from -> to`, where `from` and `to` are sorts.
     * 
-    * Expressions of type `Term -> ... -> Term -> Term` correspond to function symbols of first-order logic.
-    * Expressions of type `Term -> ... -> Term -> Formula` correspond to predicate symbols of first-order logic.
-    * Expressions of type `(Term -> Formula) -> Formula` correspond to quantifiers (∀ and ∃) in first-order logic.
+    * Expressions of type `Ind -> ... -> Ind -> Ind` correspond to function symbols of first-order logic.
+    * Expressions of type `Ind -> ... -> Ind -> Prop` correspond to predicate symbols of first-order logic.
+    * Expressions of type `(Ind -> Prop) -> Prop` correspond to quantifiers (∀ and ∃) in first-order logic.
     */
   sealed case class Arrow(from: Sort, to: Sort) extends Sort {
-    val isFunctional = from == Term && to.isFunctional
-    val isPredicate = from == Term && to.isPredicate
+    val isFunctional = from == Ind && to.isFunctional
+    val isPredicate = from == Ind && to.isPredicate
     val depth = 1+to.depth
   }
 
@@ -143,7 +143,7 @@ private[fol] trait Syntax {
   }
 
 
-  /** Expressions are lambda-terms in the simply typed lambda calculus with base types `Term` and `Formula`.
+  /** Expressions are lambda-terms in the simply typed lambda calculus with base types `Ind` and `Prop`.
     * 
     * Expressions are the core part of Lisa's kernel and correspond to standard terms and formulas in first-order logic.
     * They are built from constants, variables, applications and abstractions though the following grammar:
@@ -162,7 +162,7 @@ private[fol] trait Syntax {
     val sort: Sort
     /** Unique number of the expression assigned by [[ExpressionCounters]]. Used for efficient reference equality. */
     val uniqueNumber: Long = ExpressionCounters.getNewId
-    /** True if the expression contains subexpressions of type `Formula`. */
+    /** True if the expression contains subexpressions of type `Prop`. */
     val containsFormulas : Boolean
     /** Creates an application of this expression to an argument. */
     def apply(arg: Expression): Application = Application(this, arg)
@@ -219,7 +219,7 @@ private[fol] trait Syntax {
     * Free variables in theorems can be instantiated by valules of the same sort.
     */
   case class Variable(id: Identifier, sort:Sort) extends Expression {
-    val containsFormulas = sort == Formula
+    val containsFormulas = sort == Prop
     def freeVariables: Set[Variable] = Set(this)
     def constants: Set[Constant] = Set()
     def allVariables: Set[Variable] = Set(this)
@@ -231,7 +231,7 @@ private[fol] trait Syntax {
     * Constants generalize function and predicate symbols of any arity in strict first-order logic.
     */
   case class Constant(id: Identifier, sort: Sort) extends Expression {
-    val containsFormulas = sort == Formula
+    val containsFormulas = sort == Prop
     def freeVariables: Set[Variable] = Set()
     def constants: Set[Constant] = Set(this)
     def allVariables: Set[Variable] = Set()
@@ -245,7 +245,7 @@ private[fol] trait Syntax {
     private val legalapp = legalApplication(f.sort, arg.sort)
     require(legalapp.isDefined, s"Application of $f to $arg is not legal")
     val sort = legalapp.get
-    val containsFormulas = sort == Formula || f.containsFormulas || arg.containsFormulas
+    val containsFormulas = sort == Prop || f.containsFormulas || arg.containsFormulas
     def freeVariables: Set[Variable] = f.freeVariables union arg.freeVariables
     def constants: Set[Constant] = f.constants union arg.constants
     def allVariables: Set[Variable] = f.allVariables union arg.allVariables
@@ -272,91 +272,91 @@ private[fol] trait Syntax {
 
   /** The constant symbol for the equality predicate.
     * 
-    * Type: `Term -> (Term -> Formula)`. 
+    * Type: `Ind -> (Ind -> Prop)`. 
     * 
     * Symbol: `=`
     */
-  val equality = Constant(Identifier("="),  Term -> (Term -> Formula))
+  val equality = Constant(Identifier("="),  Ind -> (Ind -> Prop))
 
   /** The constant symbol for the true formula. <br>
-   * Type: `Formula`.
+   * Type: `Prop`.
    * 
    * Symbol: `⊤`
    */
-  val top = Constant(Identifier("⊤"), Formula)
+  val top = Constant(Identifier("⊤"), Prop)
 
   /** The constant symbol for the false formula.
    * 
-   * Type: `Formula`.
+   * Type: `Prop`.
    * 
    * Symbol: `⊥`
    */
-  val bot = Constant(Identifier("⊥"), Formula)
+  val bot = Constant(Identifier("⊥"), Prop)
 
   /** The constant symbol for the negation connector.
    * 
-   * Type: `Formula -> Formula`.
+   * Type: `Prop -> Prop`.
    * 
    * Symbol: `¬`
    */
-  val neg = Constant(Identifier("¬"), Formula -> Formula)
+  val neg = Constant(Identifier("¬"), Prop -> Prop)
 
   /** The constant symbol for the implication connector.
    * 
-   * Type: `Formula -> (Formula -> Formula)`.
+   * Type: `Prop -> (Prop -> Prop)`.
    * 
    * Symbol: `⇒`
    */
-  val implies = Constant(Identifier("⇒"), Formula -> (Formula -> Formula))
+  val implies = Constant(Identifier("⇒"), Prop -> (Prop -> Prop))
 
   /** The constant symbol for the equivalence connector.
    * 
-   * Type: `Formula -> (Formula -> Formula)`.
+   * Type: `Prop -> (Prop -> Prop)`.
    * 
    * Symbol: `⇔`
    */
 
-  val iff = Constant(Identifier("⇔"), Formula -> (Formula -> Formula))
+  val iff = Constant(Identifier("⇔"), Prop -> (Prop -> Prop))
 
   /** The constant symbol for the conjunction connector.
    * 
-   * Type: `Formula -> (Formula -> Formula)`.
+   * Type: `Prop -> (Prop -> Prop)`.
    * 
    * Symbol: `∧`
    */
-  val and = Constant(Identifier("∧"), Formula -> (Formula -> Formula))
+  val and = Constant(Identifier("∧"), Prop -> (Prop -> Prop))
 
   /** The constant symbol for the disjunction connector.
    * 
-   * Type: `Formula -> (Formula -> Formula)`.
+   * Type: `Prop -> (Prop -> Prop)`.
    * 
    * Symbol: `∨`
    */
-  val or = Constant(Identifier("∨"), Formula -> (Formula -> Formula))
+  val or = Constant(Identifier("∨"), Prop -> (Prop -> Prop))
 
   /** The constant symbol for the universal quantifier.
    * 
-   * Type: `(Term -> Formula) -> Formula`.
+   * Type: `(Ind -> Prop) -> Prop`.
    * 
    * Symbol: `∀`
    * 
    * Usage: `forall(Lambda(x, P(x)))` corresponds to the formula in strict first-order logic ∀x.P(x).
    */
-  val forall = Constant(Identifier("∀"), (Term -> Formula) -> Formula)
+  val forall = Constant(Identifier("∀"), (Ind -> Prop) -> Prop)
 
   /** The constant symbol for the existential quantifier.
    * 
-   * Type: `(Term -> Formula) -> Formula`.
+   * Type: `(Ind -> Prop) -> Prop`.
    * 
    * Symbol: `∃`
    * 
    * Usage: `exists(Lambda(x, P(x)))` corresponds to the formula in strict first-order logic ∃x.P(x).
    */
-  val exists = Constant(Identifier("∃"), (Term -> Formula) -> Formula)
+  val exists = Constant(Identifier("∃"), (Ind -> Prop) -> Prop)
 
   /** The constant symbol for the epsilon quantifier.
    * 
-   * Type: `(Term -> Formula) -> Term`.
+   * Type: `(Ind -> Prop) -> Ind`.
    * 
    * Symbol: `ε`
    * 
@@ -364,7 +364,7 @@ private[fol] trait Syntax {
    * 
    * Denotes Hilbert's epsilon operator. `epsilon(Lambda(x, P(x)))` is some element x such that P(x) holds, or an unknown element if no such x exists.
    */
-  val epsilon = Constant(Identifier("ε"), (Term -> Formula) -> Term)
+  val epsilon = Constant(Identifier("ε"), (Ind -> Prop) -> Ind)
 
 
   /**

@@ -22,7 +22,7 @@ object SequentCalculus {
    * @param right the right side of the sequent
    */
   case class Sequent(left: Set[Expression], right: Set[Expression]){
-    require(left.forall(_.sort == Formula) && right.forall(_.sort == Formula), "Sequent can only contain formulas")
+    require(left.forall(_.sort == Prop) && right.forall(_.sort == Prop), "Sequent can only contain formulas")
   }
 
   /**
@@ -300,7 +300,7 @@ object SequentCalculus {
    * -----------------------------------------------------
    *   Γ, ∀x,...,z. (s x ... z)=(t x ... z), φ(t) |- Δ
    * }}}
-   * equals elements must have type ... -> ... -> Term
+   * equals elements must have type ... -> ... -> Ind
    */
   case class LeftSubstEq(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
 

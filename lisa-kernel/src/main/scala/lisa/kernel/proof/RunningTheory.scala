@@ -119,7 +119,7 @@ class RunningTheory {
     case Definition(cst, e, vars) =>
       val left = vars.foldLeft(cst: Expression)(_(_))
       val right = vars.foldLeft(e)(_(_))
-      if (left.sort == Formula) {
+      if (left.sort == Prop) {
         val inner = iff(left)(right)
         Sequent(Set(), Set(inner))
       } else {
@@ -137,7 +137,7 @@ class RunningTheory {
    * @return true if the axiom was added to the theory, false else.
    */
   def addAxiom(name: String, f: Expression): Option[Axiom] = {
-    if (f.sort == Formula && belongsToTheory(f)) {
+    if (f.sort == Prop && belongsToTheory(f)) {
       val ax = Axiom(name, f)
       theoryAxioms.update(name, ax)
       Some(ax)
@@ -223,12 +223,12 @@ class RunningTheory {
   /**
    * Verify if a given formula is an axiom of the theory
    */
-  def isAxiom(f: Expression): Boolean = f.sort == Formula && theoryAxioms.exists(a => isSame(a._2.ax, f))
+  def isAxiom(f: Expression): Boolean = f.sort == Prop && theoryAxioms.exists(a => isSame(a._2.ax, f))
 
   /**
    * Get the Axiom that is the same as the given formula, if it exists in the theory.
    */
-  def getAxiom(f: Expression): Option[Axiom] = if (f.sort == Formula) theoryAxioms.find(a => isSame(a._2.ax, f)).map(_._2) else None
+  def getAxiom(f: Expression): Option[Axiom] = if (f.sort == Prop) theoryAxioms.find(a => isSame(a._2.ax, f)).map(_._2) else None
 
   /**
    * Get the definition of the given label, if it is defined in the theory.

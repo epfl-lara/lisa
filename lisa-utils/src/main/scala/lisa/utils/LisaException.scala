@@ -54,7 +54,7 @@ object UserLisaException {
     def showError: String = errorMessage
   }
 
-  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.utils.fol.FOL.Expr[lisa.utils.fol.FOL.Formula], library: lisa.utils.prooflib.Library)(using sourcecode.Line, sourcecode.File)
+  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.utils.fol.FOL.Expr[lisa.utils.fol.FOL.Prop], library: lisa.utils.prooflib.Library)(using sourcecode.Line, sourcecode.File)
       extends UserLisaException(errorMessage) {
     def showError: String = s"The desired axiom \"$name\" contains symbol that are not part of the theory.\n" +
       s"The symbols {${library.theory.findUndefinedSymbols(formula.underlying)}} are undefined."

@@ -5,22 +5,22 @@ import lisa.maths.Quantifiers
 
 object Replacement extends lisa.Main:
 
-  val x = variable[Term]
-  val y = variable[Term]
-  val z = variable[Term]
-  val t = variable[Term]
-  val s = variable[Term]
-  val A = variable[Term]
-  val B = variable[Term]
-  val f = variable[Term >>: Term]
-  val P = variable[Term >>: Term >>: Formula]
+  val x = variable[Ind]
+  val y = variable[Ind]
+  val z = variable[Ind]
+  val t = variable[Ind]
+  val s = variable[Ind]
+  val A = variable[Ind]
+  val B = variable[Ind]
+  val f = variable[Ind >>: Ind]
+  val P = variable[Ind >>: Ind >>: Prop]
 
   val map = DEF(lambda(t, lambda(f, ε(s, ∀(y, (y ∈ s) <=> ∃(x, x ∈ t /\ (y === f(x))))))))
 
   private val replacement: map.type = map
 
-  extension (t: Expr[Term])
-    def map(function: Expr[Term >>: Term]): Expr[Term] =
+  extension (t: Expr[Ind])
+    def map(function: Expr[Ind >>: Ind]): Expr[Ind] =
       replacement(t)(function)
 
   /**

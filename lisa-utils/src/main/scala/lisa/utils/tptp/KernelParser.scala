@@ -190,7 +190,7 @@ object KernelParser {
 
   val mapAtom: ((String, Int) => K.Constant) = (f, n) => K.Constant(sanitize(f), predicateType(n))
   val mapTerm: ((String, Int) => K.Constant) = (f, n) => K.Constant(sanitize(f), functionType(n))
-  val mapVariable: (String => K.Variable) = f => K.Variable(sanitize(f), K.Term)
+  val mapVariable: (String => K.Variable) = f => K.Variable(sanitize(f), K.Ind)
 
   /**
    * Given a folder containing folders containing problem (typical organisation of TPTP library) and a list of spc,

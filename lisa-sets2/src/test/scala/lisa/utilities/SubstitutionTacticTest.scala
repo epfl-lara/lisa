@@ -106,12 +106,12 @@ class SubstitutionTacticTest extends ProofTacticTestLib {
 
     testTacticCases(using testProof)(correct, incorrect) { (stmt1, stmt2, premiseSequents, formSubsts) =>
       val prem = introduceSequent(using testProof)(stmt1)
-      val substPrem: Seq[testProof.Fact | Formula | RunningTheory#Justification] = premiseSequents.map(introduceSequent(using testProof)(_))
-      val substForm: Seq[testProof.Fact | Formula | RunningTheory#Justification] = formSubsts.map(parseFormula(_))
-      val substJust: Seq[testProof.Fact | Formula | RunningTheory#Justification] = Nil
+      val substPrem: Seq[testProof.Fact | Prop | RunningTheory#Justification] = premiseSequents.map(introduceSequent(using testProof)(_))
+      val substForm: Seq[testProof.Fact | Prop | RunningTheory#Justification] = formSubsts.map(parseFormula(_))
+      val substJust: Seq[testProof.Fact | Prop | RunningTheory#Justification] = Nil
       Substitution
         .ApplyRules(using lisa.test.TestTheoryLibrary, testProof)(
-          (substPrem ++ substForm ++ substJust).asInstanceOf[Seq[testProof.Fact | Formula | RunningTheory#Justification]]: _*
+          (substPrem ++ substForm ++ substJust).asInstanceOf[Seq[testProof.Fact | Prop | RunningTheory#Justification]]: _*
         )(prem)(lisa.utils.parsing.FOLParser.parseSequent(stmt2))
     }
   }

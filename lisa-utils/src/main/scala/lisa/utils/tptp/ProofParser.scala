@@ -33,8 +33,8 @@ object ProofParser {
     else if kind == 'c' then K.Constant(sanitize(id), K.functionType(n))
     else throw new Exception(s"Unknown kind of term label: $f")
   val mapVariable: (String => K.Variable) = f =>
-    if f.head == 'X' then K.Variable(f.tail, K.Term)
-    else K.Variable(f, K.Term)
+    if f.head == 'X' then K.Variable(f.tail, K.Ind)
+    else K.Variable(f, K.Ind)
 
   given maps: MapTriplet = (mapAtom, mapTerm, mapVariable)
 
@@ -85,8 +85,8 @@ object ProofParser {
 
   def termToFOFTerm(term: K.Expression): FOF.Term = {
     term match {
-      case K.Variable(id, K.Term) => FOF.Variable("X" + id)
-      case K.Constant(id, K.Term) => FOF.AtomicTerm(quoted("c" + id), Seq())
+      case K.Variable(id, K.Ind) => FOF.Variable("X" + id)
+      case K.Constant(id, K.Ind) => FOF.AtomicTerm(quoted("c" + id), Seq())
       case K.Multiapp(K.Constant(id, typ), args) =>
         FOF.AtomicTerm(quoted("c" + id), args.map(termToFOFTerm))
       case K.Multiapp(K.Variable(id, typ), args) =>
@@ -110,10 +110,10 @@ object ProofParser {
       case K.exists(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.?, Seq("X" + v.id), formulaToFOFFormula(f))
       case K.forall(p) =>
         val x = K.freshId(p.freeVariables.map(_.id), "x")
-        FOF.QuantifiedFormula(FOF.!, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Term))))
+        FOF.QuantifiedFormula(FOF.!, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind))))
       case K.exists(p) =>
         val x = K.freshId(p.freeVariables.map(_.id), "x")
-        FOF.QuantifiedFormula(FOF.?, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Term))))
+        FOF.QuantifiedFormula(FOF.?, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind))))
       case K.Multiapp(K.Constant(id, typ), args) =>
         FOF.AtomicFormula(quoted("c" + id), args.map(termToFOFTerm))
       case K.Multiapp(K.Variable(id, typ), args) =>
@@ -200,14 +200,14 @@ object ProofParser {
           case _ => None
         }
     }
-    object Term {
+    object Ind {
       def unapply(ann_seq: GeneralTerm)(using maps: MapTriplet): Option[K.Expression] =
         ann_seq match {
           case GeneralTerm(List(GeneralFormulaData(FOTData(term))), None) => Some(convertTermToKernel(term))
           case _ => None
         }
     }
-    object Formula {
+    object Prop {
       def unapply(ann_seq: GeneralTerm)(using maps: MapTriplet): Option[K.Expression] =
       ann_seq match {
         case GeneralTerm(List(GeneralFormulaData(FOFData(FOF.Logical(formula)))), None) => Some(convertToKernel(formula))
@@ -431,7 +431,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotForall", Seq(StrOrNum(n), Term(xl)), Seq(t1))) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotForall", Seq(StrOrNum(n), Ind(xl)), Seq(t1))) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
             val x = xl match
               case x: K.Variable => x
@@ -452,7 +452,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftEx", Seq(StrOrNum(n), Term(xl)), Seq(t1))) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftEx", Seq(StrOrNum(n), Ind(xl)), Seq(t1))) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
             val x = xl match
               case x:K.Variable => x
@@ -473,7 +473,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftForall", Seq(StrOrNum(n), Term(t)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftForall", Seq(StrOrNum(n), Ind(t)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val (x, phi) = convertToKernel(f) match {
               case K.Forall(x, phi) => (x, phi)
@@ -490,7 +490,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotEx", Seq(StrOrNum(n), Term(t)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotEx", Seq(StrOrNum(n), Ind(t)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val (x, phi) = convertToKernel(f) match {
               case K.Neg(K.Exists(x, phi)) => (x, phi)
@@ -536,7 +536,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstEq", Seq(StrOrNum(n), Formula(fl), Term(xl)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstEq", Seq(StrOrNum(n), Prop(fl), Ind(xl)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val x = xl match
               case x:K.Variable => x
@@ -557,7 +557,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstEq", Seq(StrOrNum(n), Formula(fl), Term(xl)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstEq", Seq(StrOrNum(n), Prop(fl), Ind(xl)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val x = xl match
               case x:K.Variable => x
@@ -577,7 +577,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstIff", Seq(StrOrNum(n), Formula(fl), Formula(xl)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstIff", Seq(StrOrNum(n), Prop(fl), Prop(xl)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val x = xl match
               case x:K.Variable => x
@@ -597,7 +597,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstIff", Seq(StrOrNum(n), Formula(fl), Formula(xl)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstIff", Seq(StrOrNum(n), Prop(fl), Prop(xl)), Seq(t1))) =>
             val f = sequent.lhs(n.toInt)
             val x = xl match
               case x:K.Variable => x

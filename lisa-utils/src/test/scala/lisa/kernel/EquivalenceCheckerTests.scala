@@ -54,7 +54,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
     val generator = nameGenerator()
     () => {
       val id = generator()
-      Constant(id, Formula)
+      Constant(id, Prop)
     }
   }
 
@@ -81,7 +81,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
             // Reuse existing name
             connectors(random.nextInt(connectors.size))
           }
-        Constant(name, Formula)
+        Constant(name, Prop)
       } else {
         // Branch
         val nextP = p * c
@@ -107,7 +107,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
           variables += name
           val binderTypes = IndexedSeq(forall, exists)
           val binderType = binderTypes(random.nextInt(binderTypes.size))
-          binderType(lambda(Variable(name, Term), generate(nextP)))
+          binderType(lambda(Variable(name, Ind), generate(nextP)))
         }
       }
     }
@@ -190,7 +190,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
   }
   def addDoubleNegations(p: Double)(random: Random)(f: Expression): Expression = {
     def transform(f: Expression): Expression =
-      if (random.nextDouble() < p && f.sort == Formula) neg(neg(transform(f)))
+      if (random.nextDouble() < p && f.sort == Prop) neg(neg(transform(f)))
       else
         f match {
           case Application(f, arg) => Application(transform(f), transform(arg))

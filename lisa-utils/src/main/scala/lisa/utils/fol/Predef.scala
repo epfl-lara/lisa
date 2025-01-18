@@ -25,71 +25,71 @@ trait Predef extends ExprOps {
   def constant(using name: sourcecode.Name)(s: K.Sort): Constant[?] = Constant.unsafe(name.value, s)
   
 
-  val equality = constant[Term >>: Term >>: Formula]("=")
+  val equality = constant[Ind >>: Ind >>: Prop]("=")
   val === = equality
   val ＝ = equality
 
-  extension (t: Expr[Term]) {
-    infix def ===(u: Expr[Term]): Expr[Formula] = equality(t)(u)
-    infix def ＝(u: Expr[Term]): Expr[Formula] = equality(t)(u)
+  extension (t: Expr[Ind]) {
+    infix def ===(u: Expr[Ind]): Expr[Prop] = equality(t)(u)
+    infix def ＝(u: Expr[Ind]): Expr[Prop] = equality(t)(u)
   }
 
-  val top = constant[Formula]("⊤")
+  val top = constant[Prop]("⊤")
   val ⊤ : top.type = top
   val True: top.type = top
 
-  val bot = constant[Formula]("⊥")
+  val bot = constant[Prop]("⊥")
   val ⊥ : bot.type = bot
   val False: bot.type = bot
 
-  val neg = constant[Formula >>: Formula]("¬")
+  val neg = constant[Prop >>: Prop]("¬")
   val ¬ : neg.type = neg
   val ! : neg.type = neg
 
-  val and = constant[Formula >>: Formula >>: Formula]("∧").printInfix()
+  val and = constant[Prop >>: Prop >>: Prop]("∧").printInfix()
   val /\ : and.type = and
   val ∧ : and.type = and
 
-  val or = constant[Formula >>: Formula >>: Formula]("∨").printInfix()
+  val or = constant[Prop >>: Prop >>: Prop]("∨").printInfix()
   val \/ : or.type = or
   val ∨ : or.type = or
 
-  val implies = constant[Formula >>: Formula >>: Formula]("⇒").printInfix()
+  val implies = constant[Prop >>: Prop >>: Prop]("⇒").printInfix()
   val ==> : implies.type = implies
 
-  val iff = constant[Formula >>: Formula >>: Formula]("⇔").printInfix()
+  val iff = constant[Prop >>: Prop >>: Prop]("⇔").printInfix()
   val <=> : iff.type = iff
   val ⇔ : iff.type = iff
 
-  val forall = binder[Term, Formula, Formula]("∀")
+  val forall = binder[Ind, Prop, Prop]("∀")
   val ∀ : forall.type = forall
 
-  val exists = binder[Term, Formula, Formula]("∃")
+  val exists = binder[Ind, Prop, Prop]("∃")
   val ∃ : exists.type = exists
 
-  val epsilon = binder[Term, Formula, Term]("ε")
+  val epsilon = binder[Ind, Prop, Ind]("ε")
   val ε : epsilon.type = epsilon
 
-  extension (f: Expr[Formula]) {
+  extension (f: Expr[Prop]) {
     def unary_! = neg(f)
-    infix inline def ==>(g: Expr[Formula]): Expr[Formula] = implies(f)(g)
-    infix inline def <=>(g: Expr[Formula]): Expr[Formula] = iff(f)(g)
-    infix inline def /\(g: Expr[Formula]): Expr[Formula] = and(f)(g)
-    infix inline def ∧(g: Expr[Formula]): Expr[Formula] = and(f)(g)
-    infix inline def \/(g: Expr[Formula]): Expr[Formula] = or(f)(g)
-    infix inline def ∨(g: Expr[Formula]): Expr[Formula] = or(f)(g)
+    infix inline def ==>(g: Expr[Prop]): Expr[Prop] = implies(f)(g)
+    infix inline def <=>(g: Expr[Prop]): Expr[Prop] = iff(f)(g)
+    infix inline def /\(g: Expr[Prop]): Expr[Prop] = and(f)(g)
+    infix inline def ∧(g: Expr[Prop]): Expr[Prop] = and(f)(g)
+    infix inline def \/(g: Expr[Prop]): Expr[Prop] = or(f)(g)
+    infix inline def ∨(g: Expr[Prop]): Expr[Prop] = or(f)(g)
   }
 
-  inline def andAll(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
+  inline def andAll(forms: IterableOnce[Expr[Prop]]): Expr[Prop] =
     forms.iterator.reduce(_ /\ _)
 
-  inline def andAllOrTrue(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
+  inline def andAllOrTrue(forms: IterableOnce[Expr[Prop]]): Expr[Prop] =
     forms.iterator.reduceOption(_ /\ _).getOrElse(top)
 
-  inline def orAll(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
+  inline def orAll(forms: IterableOnce[Expr[Prop]]): Expr[Prop] =
     forms.iterator.reduce(_ \/ _)
 
-  inline def orAllOrFalse(forms: IterableOnce[Expr[Formula]]): Expr[Formula] =
+  inline def orAllOrFalse(forms: IterableOnce[Expr[Prop]]): Expr[Prop] =
     forms.iterator.reduceOption(_ \/ _).getOrElse(bot)
 
   def asFrontExpression(e: K.Expression): Expr[?] = e match
@@ -99,10 +99,10 @@ trait Predef extends ExprOps {
     case l: K.Lambda => asFrontLambda(l)
 
   def asFrontConstant(c: K.Constant): Constant[?] = 
-    new Constant[Term](c.id)(using unsafeSortEvidence(c.sort))
+    new Constant[Ind](c.id)(using unsafeSortEvidence(c.sort))
 
   def asFrontVariable(v: K.Variable): Variable[?] =
-    new Variable[Term](v.id)(using unsafeSortEvidence(v.sort))
+    new Variable[Ind](v.id)(using unsafeSortEvidence(v.sort))
   
   def asFrontApplication(a: K.Application): App[?, ?] = 
     new App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))
@@ -151,14 +151,14 @@ trait Predef extends ExprOps {
       if s.isPredicate then Some(K.flatTypeParameters(s)) else None
 
   
-  def makeEq(s: Expr[?], t: Expr[?]): Expr[Formula] = 
+  def makeEq(s: Expr[?], t: Expr[?]): Expr[Prop] = 
     if s.sort != t.sort || !(s.sort.isFunctional || s.sort.isPredicate) then throw new IllegalArgumentException("Can only make equality between predicate and functional expressions")
     val no = ((s.freeVars ++ t.freeVars).view.map(_.id.no) ++ Seq(-1)).max+1
-    val vars = (no until no+s.sort.depth).map(i => variable[Term](K.Identifier("x", i)))
+    val vars = (no until no+s.sort.depth).map(i => variable[Ind](K.Identifier("x", i)))
     val inner1 = vars.foldLeft(s)(_ #@ _)
     val inner2 = vars.foldLeft(t)(_ #@ _)
-    val base = if (inner1.sort == K.Formula) iff #@ inner1 #@ inner2 else equality #@ inner1 #@ inner2
-    vars.foldRight(base : Expr[Formula]) { case (s_arg, acc) => forall(s_arg, acc) }
+    val base = if (inner1.sort == K.Prop) iff #@ inner1 #@ inner2 else equality #@ inner1 #@ inner2
+    vars.foldRight(base : Expr[Prop]) { case (s_arg, acc) => forall(s_arg, acc) }
 
 
 
