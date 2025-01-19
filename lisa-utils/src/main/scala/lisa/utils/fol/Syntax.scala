@@ -223,14 +223,14 @@ trait Syntax {
       *   case f #@ x => ...
       * }}}
       */
-    def unapply[T1, T2](e: Expr[T2]): Option[(Expr[Arrow[T1, T2]], Expr[T1])] = (e: @unchecked) match
-      case App[T1, T2](f, arg) => Some((f, arg))
+    def unapply[S, T](e: Expr[T]): Option[(Expr[Arrow[S, T]], Expr[S])] = (e: @unchecked) match
+      case App[S, T](f, arg) => Some((f, arg))
       case _ => None
   }
 
   /** Well-sorted application constructor. Used when sorts are known at compile time. */
-  extension [T1, T2](f: Expr[Arrow[T1, T2]]) 
-    def apply(using IsSort[T1], IsSort[T2])(arg: Expr[T1]): Expr[T2] = App(f, arg)
+  extension [S, T](f: Expr[Arrow[S, T]]) 
+    def apply(using IsSort[S], IsSort[T])(arg: Expr[S]): Expr[T] = App(f, arg)
 
 
   /** match type computing the return sort of an arrow sort. */
@@ -314,7 +314,6 @@ trait Syntax {
   object Variable {
     def unsafe(id: String, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
     /** Constructs a variable whose sort is only known at runtime. */
-      */
     def unsafe(id: Identifier, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
   }
 
@@ -364,8 +363,8 @@ trait Syntax {
         defaultMkStringSeparated(args)
 
     /** Returns the constant as a Binder. */
-    def asBinder[T1: Sort, T2: Sort, T3: Sort](using S =:= Arrow[Arrow[T1, T2], T3]): Binder[T1, T2, T3] & Constant[Arrow[Arrow[T1, T2], T3]] = 
-      new Binder[T1, T2, T3](id)
+    def asBinder[S: Sort, T: Sort, T3: Sort](using S =:= Arrow[Arrow[S, T], T3]): Binder[S, T, T3] & Constant[Arrow[Arrow[S, T], T3]] = 
+      new Binder[S, T, T3](id)
   }
 
   /** Factory object for [[Constant]] with sort unknown at compile time.*/
@@ -380,17 +379,17 @@ trait Syntax {
    * 
    * Examples: ∀ :: (Ind >>: Prop) >>: Prop, ∃ :: (Ind >>: Prop) >>: Prop, ϵ :: (Ind >>: Prop) >>: Ind
    * 
-   * @tparam T1 The sort of the variable
-   * @tparam T2 The sort of the body
+   * @tparam S The sort of the variable
+   * @tparam T The sort of the body
    * @tparam T3 The sort of the result
    */
-  class Binder[T1: Sort, T2: Sort, T3: Sort](id: K.Identifier) extends Constant[Arrow[Arrow[T1, T2], T3]](id) {
+  class Binder[S: Sort, T: Sort, T3: Sort](id: K.Identifier) extends Constant[Arrow[Arrow[S, T], T3]](id) {
     /** Binds `v` in `e`. */
-    def apply(v1: Variable[T1], e: Expr[T2]): App[Arrow[T1, T2], T3] = App(this, Abs(v1, e))
+    def apply(v1: Variable[S], e: Expr[T]): App[Arrow[S, T], T3] = App(this, Abs(v1, e))
     @targetName("unapplyBinder")
     /** Extract the variable and body of the binder. */
-    def unapply(e: Expr[?]): Option[(Variable[T1], Expr[T2])] = e match {
-      case App(f:Expr[Arrow[Arrow[T1, T2], T3]], Abs(v, e)) if f == this => Some((v, e))
+    def unapply(e: Expr[?]): Option[(Variable[S], Expr[T])] = e match {
+      case App(f:Expr[Arrow[Arrow[S, T], T3]], Abs(v, e)) if f == this => Some((v, e))
       case _ => None
     }
     mkString = (args: Seq[Expr[?]]) =>
@@ -412,17 +411,17 @@ trait Syntax {
     * 
     * The sorts must match: `f.sort` must be of the form `A >>: B` and `arg.sort` must be `A`.
     */
-  case class App[T1, T2](f: Expr[Arrow[T1, T2]], arg: Expr[T1]) extends Expr[T2] {
+  case class App[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]) extends Expr[T] {
     val sort: K.Sort = f.sort match
       case K.Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
     
     val underlying: K.Application = K.Application(f.underlying, arg.underlying)
-    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[T1, T2] = App[T1, T2](f.substituteUnsafe(m), arg.substituteUnsafe(m))
-    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): App[T1, T2] =
-      super.substituteWithCheck(m).asInstanceOf[App[T1, T2]]
-    override def substitute(pairs: SubstPair*): App[T1, T2] = 
-      super.substitute(pairs*).asInstanceOf[App[T1, T2]]
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[S, T] = App[S, T](f.substituteUnsafe(m), arg.substituteUnsafe(m))
+    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): App[S, T] =
+      super.substituteWithCheck(m).asInstanceOf[App[S, T]]
+    override def substitute(pairs: SubstPair*): App[S, T] = 
+      super.substitute(pairs*).asInstanceOf[App[S, T]]
     def freeVars: Set[Variable[?]] = f.freeVars ++ arg.freeVars
     def freeTermVars: Set[Variable[Ind]] = f.freeTermVars ++ arg.freeTermVars
     def constants: Set[Constant[?]] = f.constants ++ arg.constants
@@ -451,21 +450,21 @@ trait Syntax {
     * 
     * The sort of the variable must match the sort of the body.
     */
-  case class Abs[T1, T2](v: Variable[T1], body: Expr[T2]) extends Expr[Arrow[T1, T2]] {
+  case class Abs[S, T](v: Variable[S], body: Expr[T]) extends Expr[Arrow[S, T]] {
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
-    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] = 
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] = 
       lazy val frees = m.values.flatMap(_.freeVars).toSet
       if m.keySet.contains(v) || frees.contains(v) then
         // rename
-        val v1: Variable[T1] = Variable.unsafe(freshId(frees.map(_.id), v.id), v.sort).asInstanceOf
+        val v1: Variable[S] = Variable.unsafe(freshId(frees.map(_.id), v.id), v.sort).asInstanceOf
         new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
       else
         new Abs(v, body.substituteUnsafe(m))
-    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[T1, T2] =
-      super.substituteWithCheck(m).asInstanceOf[Abs[T1, T2]]
-    override def substitute(pairs: SubstPair*): Abs[T1, T2] = 
-      super.substitute(pairs*).asInstanceOf[Abs[T1, T2]]
+    override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
+      super.substituteWithCheck(m).asInstanceOf[Abs[S, T]]
+    override def substitute(pairs: SubstPair*): Abs[S, T] = 
+      super.substitute(pairs*).asInstanceOf[Abs[S, T]]
     def freeVars: Set[Variable[?]] = body.freeVars - v
     def freeTermVars: Set[Variable[Ind]] = body.freeTermVars.filterNot(_ == v)
     def constants: Set[Constant[?]] = body.constants
