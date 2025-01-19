@@ -6,15 +6,106 @@ Lisa provides a canonical way of writing and organizing Kernel proofs by mean of
 \autoref{fig:theoryFileExample} is a reminder from \autoref{chapt:quickguide} of the canonical way to write a theory file in Lisa.
 
 \begin{figure}
-\lisaCode{src/MyTheoryName.scala}{An example of a theory file in Lisa}{firstline=3}
-\label{fig:theoryFileExample}
+\lisaCode{src/MyTheoryName.scala}{An example of a theory file in Lisa\label{fig:theoryFileExample}}{firstline=3}
 \end{figure}
 
 In this chapter, we will describe how each of these construct is made possible and how they translate to statements in the Kernel.
 
 \section{Richer FOL}
 
+The syntax of Prooflib is similar to the syntax of Lisa's kernel, but the \textit{Sorts}, such as Ind and Prop, are reflected in Scala's type system, making well-sortedness checked at compile time and offering more detailed documentation and features. Prooflib's syntax also supports custom printing, such as infix notation, special handling for binders, and more.
 
+\subsection{Sorts and Expressions}
+
+\begin{definition}[Sorts]\phantom{.}
+  \begin{lstlisting}[language=scala]
+trait Ind
+trait Prop
+infix trait >>:[I, O]
+  \end{lstlisting}
+  
+\end{definition}
+
+\begin{definition}[Expressions]
+  Expressions in Prooflib always correspond to an underlying expression in lisa's kernel, which can bee accessed using \lstinline|myExpr.underlying|. Expressions are always \textit{sorted}, and this sort reflects in their scala type.
+  \begin{lstlisting}[language=scala]
+trait Expr[S]
+case class Variables[S](name: String) extends Expr[S]
+case class Constants[S](name: String) extends Expr[S]
+case class App[S, T](f: Expr[S >>: T], arg: Expr[S]) extends Expr[T]
+case class Abs[S, T](v: Variable[S], body: Expr[T]) extends Expr[S >>: T]
+  \end{lstlisting}
+\end{definition}
+\noindent
+Expressions are usually built with the following helpers:
+\begin{example}\phantom{.}
+
+  \begin{lstlisting}[language=scala]
+val x = variable[Ind] //the name "x" is used automatically
+val c = variable[Ind]
+val ∈ = constant[Ind >>: Ind >>: Prop]
+val f = variable[(Ind >>: Prop) >>: Ind]
+
+x ∈ c : Expr[Prop]
+lambda(x, x ∈ c) : Expr[Ind >>: Prop]
+f(lambda(x, x ∈ c)) : Expr[Ind]
+  \end{lstlisting}
+
+\end{example}
+
+Expressions also support substitutions.
+
+\begin{definition}[Substitution]\phantom{.}
+  Substitution are most often performed with \lstinline|SubstPair|s, which guarantee well-sortedness.
+  \begin{lstlisting}[language=scala]
+trait SubstPair extends Product:
+  type S
+  val _1: Variable[S]
+  val _2: Expr[S]
+
+(x := f(∅)) : SubstPair
+g(x, y).subst(x := f(∅), y := x) // == g(f(∅), x)
+  \end{lstlisting}
+\noindent
+  but can also be performed unsafely, when sorts are not necessarily known:
+  \begin{lstlisting}[language=scala]
+//if ill-sorted, may crash in unpredictable ways.
+myExpr.substituteUnsafe(Map(x -> s, y -> t)) 
+
+//with sanity runtime check for well-sortedness
+myExpr.substituteWithCheck(Map(x -> s, y -> t))
+  \end{lstlisting}
+\end{definition}
+
+\subsection{Sequents}
+
+Expressions build into sequents, which again have an underlying sequent in the kernel.
+
+
+\begin{definition}[Sequents]
+  Sequents are formally pairs of sets of \lstinline|Expr[Prop]|.
+  \begin{lstlisting}[language=scala]
+case class Sequent(left: Set[Expr[Prop]], right: Set[Expr[Prop]])
+  \end{lstlisting}
+  \noindent
+  Sequent can be built from formulas and collections of formulas:
+  \begin{lstlisting}[language=scala]
+val s1 = (x ∈ c) |- (f(x) ∈ f(c))
+val s2 = () |- (f(x) ∈ f(c))
+val s3 = (x ∈ c) |- ()
+val s4 = Set(x ∈ c, y ∈ c) |- Set(x = y, x \in y)
+val s4 = assumptions |- (x = c)
+  \end{lstlisting}
+  the logical semantics of sequents is the same as in the kernel, i.e. a sequent is valid if and only if the conjunction of its left side implies the disjunction of its right side.
+  But it is usually discouraged to have multiple formulas on the right side of a sequent in theorems and lemmas, as it is harder to understand. Using multiple formulas on the right side of a sequent is however allowed in intermediate steps of a proof and in proof tactics.
+
+  Sequents, like expressions, support substitutions:
+  \begin{lstlisting}[language=scala]
+val s = Sequent(Set(x ∈ c), Set(f(x) ∈ f(c)))
+s.substitute(x := g(∅)) 
+  // == Sequent(Set(g(∅) ∈ c), Set(f(g(∅)) ∈ f(c)))
+  \end{lstlisting}
+\end{definition}
 
 \section{Proof Builders}
 
@@ -27,20 +118,20 @@ In this chapter, we will describe how each of these construct is made possible a
 \subsection{Local Definitions}
 \label{sec:localDefinitions}
 The following line of reasoning is standard in mathematical proofs. Suppose we have already proven the following fact:
-$$\exists x. P(x)$$
+$$∃ x. P(x)$$
 And want to prove the property $\phi$.
 A proof of $\phi$ using the previous theorem would naturally be obtained the following way:
 \begin{quotation}
-  Since we have proven $\exists x. P(x)$, let $c$ be an arbitrary value such that $P(c)$ holds.
+  Since we have proven $∃ x. P(x)$, let $c$ be an arbitrary value such that $P(c)$ holds.
   Hence we prove $\phi$, using the fact that $P(c)$: (...).
 \end{quotation}
 However, introducing a definition locally corresponding to a statement of the form
-$$\exists x. P(x)$$
+$$∃ x. P(x)$$
 is not a built-in feature of first order logic.  This can however be simulated by introducing a fresh variable symbol $c$, that must stay fresh in the rest of the proof, and the assumption $P(c)$. The rest of the proof is then carried out under this assumption. When the proof is finished, the end statement should not contain $c$ free as it is a \textit{local} definition, and the assumption can be eliminated using the LeftExists and Cut rules. Such a $c$ is called a \textit{witness}. 
-Formally, the proof in (...) is a proof of $P(c) \vdash \phi$. This can be transformed into a proof of $\phi$ by mean of the following steps:
+Formally, the proof in (...) is a proof of $P(c) ⊢ \phi$. This can be transformed into a proof of $\phi$ by mean of the following steps:
 \begin{center}
-  \AxiomC{$P(c) \vdash \phi$}
-  \UnaryInfC{$\exists x. P(x) \vdash  \phi$}
+  \AxiomC{$P(c) ⊢ \phi$}
+  \UnaryInfC{$\exists x. P(x) ⊢  \phi$}
   \RightLabel{\text { LeftExists}}
   \AxiomC{$\exists x. P(x)$}
   \RightLabel{\text { Cut}}
@@ -48,7 +139,7 @@ Formally, the proof in (...) is a proof of $P(c) \vdash \phi$. This can be trans
 \end{center}
 Not that for this step to be correct, $c$ must not be free in $\phi$. This correspond to the fact that $c$ is an arbitrary free symbol.
 
-This simulation is provided by Lisa through the \lstinline|witness|{} method. It takes as argument a fact showing $\exists x. P(x)$, and introduce a new symbol with the desired property. For an example, see figure \ref{fig:localDefinitionExample}.
+This simulation is provided by Lisa through the \lstinline|witness|{} method. It takes as argument a fact showing $∃ x. P(x)$, and introduce a new symbol with the desired property. For an example, see figure \ref{fig:localDefinitionExample}.
 
 \begin{figure}
   \begin{lstlisting}[language=lisa, frame=single]
@@ -84,7 +175,7 @@ The \lstinline|of| keyword can also instantiate universally quantified formulas 
     have(thesis) by RightAnd(ax of c, ax of d)
   }
 \end{lstlisting}
-Here, \lstinline|ax of c| is a fact whose proven statement is again $P(c)$. It is possible to instantiate multiple $\forall$ quantifiers at once. For example if \lstinline|ax| is an axiom of the form $\forall x, \forall y, P(x, y)$, then \lstinline|ax of (c, d)| is a fact whose proven statement is $P(c, d)$. It is also possible to combine instantiation of free symbols and quantified variables. For example, if \lstinline|ax| is an axiom of the form $\forall x, \forall y, P(x, y)$, then \lstinline|ax of (c, y, P := ===)| is a fact whose proven statement is $(c = y)$.
+Here, \lstinline|ax of c| is a fact whose proven statement is again $P(c)$. It is possible to instantiate multiple $\forall$ quantifiers at once. For example if \lstinline|ax| is an axiom of the form $∀ x, ∀ y, P(x, y)$, then \lstinline|ax of (c, d)| is a fact whose proven statement is $P(c, d)$. It is also possible to combine instantiation of free symbols and quantified variables. For example, if \lstinline|ax| is an axiom of the form $∀ x, ∀ y, P(x, y)$, then \lstinline|ax of (c, y, P := ===)| is a fact whose proven statement is $(c = y)$.
 
 Formally, the \lstinline|of| keyword takes as argument arbitrarily many terms and substitution pairs. If there is at least one term given as argument, the base fact must have a single universally quantified formula on the right (an arbitrarily many formulas on the left). The number of given terms must be at most the number of leading universal quantifiers. Moreover, a substitution cannot instantiate any locked symbol (i.e. a symbol part of an assumption or definition). The ordering of substitution pairs does not matter, but the ordering of terms does. The resulting fact is obtained by first replacing the free symbols in the formula by the given substitution pairs, and then instantiating the quantified variables in the formula by the given terms
 

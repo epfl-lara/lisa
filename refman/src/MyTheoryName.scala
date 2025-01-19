@@ -1,10 +1,10 @@
 //> using scala 3.5.1
 //> using jar "../../../lisa/target/scala-3.5.1/lisa-assembly-0.7.jar"
 object MyTheoryName extends lisa.Main:
-  val x = variable
-  val y = variable
-  val f = function[1]
-  val P = predicate[1]
+  val x = variable[Ind]
+  val y = variable[Ind]
+  val f = function[Ind >>: Ind]
+  val P = predicate[Prop >>: Ind]
 
   val fixedPointDoubleApplication = Theorem( 
     ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
