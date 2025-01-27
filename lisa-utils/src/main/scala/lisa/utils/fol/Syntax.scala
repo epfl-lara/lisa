@@ -363,8 +363,8 @@ trait Syntax {
         defaultMkStringSeparated(args)
 
     /** Returns the constant as a Binder. */
-    def asBinder[S: Sort, T: Sort, T3: Sort](using S =:= Arrow[Arrow[S, T], T3]): Binder[S, T, T3] & Constant[Arrow[Arrow[S, T], T3]] = 
-      new Binder[S, T, T3](id)
+    def asBinder[T1: Sort, T2: Sort, T3: Sort](using S =:= Arrow[Arrow[T1, T2], T3]): Binder[T1, T2, T3] & Constant[Arrow[Arrow[T1, T2], T3]] = 
+      new Binder[T1, T2, T3](id)
   }
 
   /** Factory object for [[Constant]] with sort unknown at compile time.*/
