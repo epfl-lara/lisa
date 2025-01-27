@@ -288,7 +288,7 @@ object ProofParser {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("cut", Seq(StrOrNum(n), StrOrNum(m)), Seq(t1, t2))) =>
             val formula1 = sequentmap(t1).rhs(n.toInt)
             val formula2 = sequentmap(t2).lhs(m.toInt)
-            if (formula1 == formula2) then Some((K.Cut(convertToKernel(sequent), numbermap(t1), numbermap(t2), convertToKernel(formula1)), name))
+            if (K.isSame(convertToKernel(formula1), convertToKernel(formula2))) then Some((K.Cut(convertToKernel(sequent), numbermap(t1), numbermap(t2), convertToKernel(formula1)), name))
             else throw new Exception(s"Cut inference with different formulas given in the premises")
           case _ =>
             None
