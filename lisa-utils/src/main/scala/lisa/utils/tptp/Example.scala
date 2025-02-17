@@ -6,7 +6,7 @@ import lisa.utils.tptp.KernelParser.problemToSequent
 import lisa.utils.tptp.ProblemGatherer.getPRPproblems
 import lisa.utils.K.{repr, given}
 
-import KernelParser.{mapAtom, mapTerm, mapVariable}
+import KernelParser.{mapAtom, mapTerm, mapVariable, emptyctx}
 
 object Example {
 
@@ -27,11 +27,11 @@ object Example {
     )
 
     println("\n---Individual Fetched Formulas---")
-    axioms.foreach(a => println(parseToKernel(a)(using mapAtom, mapTerm, mapVariable).repr))
-    println(parseToKernel(conjecture)(using mapAtom, mapTerm, mapVariable).repr)
+    axioms.foreach(a => println(parseToKernel(a)(using emptyctx, (mapAtom, mapTerm, mapVariable)).repr))
+    println(parseToKernel(conjecture)(using emptyctx, (mapAtom, mapTerm, mapVariable)).repr)
 
     println("\n---Annotated Formulas---")
-    anStatements.map(annotatedStatementToKernel(_)(using mapAtom, mapTerm, mapVariable)).foreach(f => printAnnotatedStatement(f))
+    anStatements.map(annotatedStatementToKernel(_)(using emptyctx, (mapAtom, mapTerm, mapVariable))).foreach(f => printAnnotatedStatement(f))
 
     println("\n---Problems---")
 

@@ -19,4 +19,11 @@ object Tests extends lisa.Main {
   val saturation = Theorem(∅ === f(∅)):
     have(thesis) by Egg.from(rule8, rule5)
 
+    
+  val exampleThm = Theorem( forall(x, P(x) ==> P(f(x))) |- P(∅) ==> P(f(f(∅))) ):
+      val a = assume(forall(x, P(x) ==> P(f(x))))
+      have(thesis) by Tautology.from(a of ∅, a of f(∅))
+  
+  val a, b, c = variable[Prop]
+
 }

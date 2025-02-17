@@ -3,6 +3,7 @@ package lisa.utils.tptp
 import leo.datastructures.TPTP.AnnotatedFormula
 import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
+import leo.datastructures.TPTP.FOTAnnotated
 import leo.modules.input.{TPTPParser => Parser}
 import lisa.utils.K
 import K.repr
@@ -132,9 +133,23 @@ object ProofParser {
     var prems = List[K.Sequent]()
     var steps = List[K.SCProofStep]()
     var numberSteps = 0
+    var contextExpr = scala.collection.mutable.Map[String, K.Expression]()
+    given defcontext: DefContext = contextExpr.get
     problem.formulas.foreach {
+      case ft: FOTAnnotated =>
+        if ft.role == "let" then
+          val term = ft.formula
+          val defedcst = "$" + ft.name
+          contextExpr(defedcst) = convertTermToKernel(term)(using defcontext)
       case fa: FOFAnnotated =>
         if fa.role == "conjecture" then ()
+        else if fa.role == "let" then
+          val formula = fa.formula match {
+            case FOF.Logical(formula) => formula
+            case s: FOF.Sequent => throw new Exception("Sequent in let statement is incorrect")
+          }
+          val defedcst = "$" + fa.name
+          contextExpr(defedcst) = convertToKernel(formula)(using defcontext)
         else
           val fofsequent = fa.formula match {
             case FOF.Logical(formula) => FOF.Sequent(Seq(), Seq(formula))
@@ -145,7 +160,7 @@ object ProofParser {
             nameMap(fa.name) = (-prems.size - 1, fofsequent)
             prems = sequent :: prems
           else
-            annotatedStatementToProofStep(fa, e => nameMap(e)._1, e => nameMap(e)._2) match {
+            annotatedStatementToProofStep(fa, e => nameMap(e)._1, e => nameMap(e)._2, defcontext) match {
               case Some((step, name)) =>
                 nameMap(name) = (numberSteps, fofsequent)
                 numberSteps += 1
@@ -157,26 +172,28 @@ object ProofParser {
     K.SCProof(steps.reverse.toIndexedSeq, prems.reverse.toIndexedSeq)
   }
 
-  def annotatedStatementToProofStep(ann: FOFAnnotated, numbermap: String => Int, sequentmap: String => FOF.Sequent)
+  def annotatedStatementToProofStep(ann: FOFAnnotated, numbermap: String => Int, sequentmap: String => FOF.Sequent, defctx: DefContext)
       (using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): Option[(K.SCProofStep, String)] = {
     given (String => Int) = numbermap
     given (String => FOF.Sequent) = sequentmap
+    given defcontext: DefContext = defctx
     val r = ann match {
-      case Inference.Hypothesis(step, name) => Some((step, name))
+      case Inference.Hyp(step, name) => Some((step, name))
+      case Inference.LeftWeaken(step, name) => Some((step, name))
+      case Inference.RightWeaken(step, name) => Some((step, name))
       case Inference.Cut(step, name) => Some((step, name))
-      case Inference.LeftHypothesis(step, name) =>
-        Some((step, name))
+      case Inference.LeftHyp(step, name) => Some((step, name))
       case Inference.LeftNNot(step, name) => Some((step, name))
       case Inference.LeftAnd(step, name) => Some((step, name))
       case Inference.LeftNOr(step, name) => Some((step, name))
       case Inference.LeftNImp(step, name) => Some((step, name))
       case Inference.LeftNAnd(step, name) => Some((step, name))
       case Inference.LeftOr(step, name) => Some((step, name))
-      case Inference.LeftImp1(step, name) => Some((step, name))
+      case Inference.LeftImplies(step, name) => Some((step, name))
       case Inference.LeftImp2(step, name) => Some((step, name))
       case Inference.LeftNAll(step, name) => Some((step, name))
-      case Inference.LeftEx(step, name) => Some((step, name))
-      case Inference.LeftAll(step, name) => Some((step, name))
+      case Inference.LeftExists(step, name) => Some((step, name))
+      case Inference.LeftForall(step, name) => Some((step, name))
       case Inference.LeftNEx(step, name) => Some((step, name))
       case Inference.RightNot(step, name) => Some((step, name))
       case Inference.RightRefl(step, name) => Some((step, name))
@@ -201,14 +218,14 @@ object ProofParser {
         }
     }
     object Ind {
-      def unapply(ann_seq: GeneralTerm)(using maps: MapTriplet): Option[K.Expression] =
+      def unapply(ann_seq: GeneralTerm)(using defctx: DefContext, maps: MapTriplet): Option[K.Expression] =
         ann_seq match {
           case GeneralTerm(List(GeneralFormulaData(FOTData(term))), None) => Some(convertTermToKernel(term))
           case _ => None
         }
     }
     object Prop {
-      def unapply(ann_seq: GeneralTerm)(using maps: MapTriplet): Option[K.Expression] =
+      def unapply(ann_seq: GeneralTerm)(using defctx: DefContext, maps: MapTriplet): Option[K.Expression] =
       ann_seq match {
         case GeneralTerm(List(GeneralFormulaData(FOFData(FOF.Logical(formula)))), None) => Some(convertToKernel(formula))
         case _ => None
@@ -217,7 +234,9 @@ object ProofParser {
     object String {
       def unapply(ann_seq: GeneralTerm): Option[String] =
         ann_seq match {
-          case GeneralTerm(List(MetaFunctionData(string, List())), None) => Some(string)
+          case GeneralTerm(List(MetaFunctionData(string, List())), None) => 
+            if string.head == '\'' then Some(string.tail.init)
+            else Some(string)
           case _ => None
         }
     }
@@ -239,7 +258,7 @@ object ProofParser {
                       "inference",
                       List(
                         GeneralTerm(List(MetaFunctionData(stepName, List())), None), // stepnames
-                        GeneralTerm(List(MetaFunctionData("param", parameters)), None), // params
+                        GeneralTerm(List(), Some(parameters)), // params
                         GeneralTerm(List(), Some(numberTerms))
                       ) // numbers
                     )
@@ -263,13 +282,13 @@ object ProofParser {
         case _ => None
       }
 
-    object Hypothesis {
-      def unapply(ann_seq: FOFAnnotated)(using
+    object Hyp {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("hyp", Seq(StrOrNum(n), StrOrNum(m)), Seq())) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("hyp", Seq(_, StrOrNum(n), StrOrNum(m)), Seq()), origin) =>
             if (sequent.lhs(n.toInt) == sequent.rhs(m.toInt)) then
               val left = sequent.lhs.map(convertToKernel)
               val right = sequent.rhs.map(convertToKernel)
@@ -277,15 +296,15 @@ object ProofParser {
             else None
           case _ => None
         }
-    } // List(GeneralTerm(List(),Some(List(GeneralTerm(List(NumberData(Integer(6))),None), GeneralTerm(List(NumberData(Integer(5))),None)))))
+    }
 
     object Cut {
-      def unapply(ann_seq: FOFAnnotated)(using
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("cut", Seq(StrOrNum(n), StrOrNum(m)), Seq(t1, t2))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("cut", Seq(_, StrOrNum(n), StrOrNum(m)), Seq(t1, t2)), origin) =>
             val formula1 = sequentmap(t1).rhs(n.toInt)
             val formula2 = sequentmap(t2).lhs(m.toInt)
             if (K.isSame(convertToKernel(formula1), convertToKernel(formula2))) then Some((K.Cut(convertToKernel(sequent), numbermap(t1), numbermap(t2), convertToKernel(formula1)), name))
@@ -293,94 +312,51 @@ object ProofParser {
           case _ =>
             None
         }
-
     }
 
-    object LeftHypothesis {
-      def unapply(ann_seq: FOFAnnotated)(using
+    object LeftWeaken {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftHyp", Seq(StrOrNum(n), StrOrNum(m)), Seq())) =>
-            val left = sequent.lhs.map(convertToKernel)
-            val right = sequent.rhs.map(convertToKernel)
-            val formula = left(n.toInt)
-            if (formula == K.neg(left(m.toInt)) || K.neg(formula) == left(m.toInt)) then Some((K.RestateTrue(K.Sequent(left.toSet, right.toSet)), name))
-            else None
-          case _ =>
-            None
-        }
-    }
-    object LeftNNot {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotNot", Seq(StrOrNum(n)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightWeaken", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
             Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
           case _ => None
         }
     }
+
+    object RightWeaken {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightWeaken", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
+            Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
+          case _ => None
+        }
+    }
+
     object LeftAnd {
-      def unapply(ann_seq: FOFAnnotated)(using
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftAnd", Seq(StrOrNum(n)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftAnd", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
             Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
-          case _ => None
-        }
-    }
-    object LeftNOr {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotOr", Seq(StrOrNum(n)), Seq(t1))) =>
-            Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
-          case _ => None
-        }
-    }
-    object LeftNImp {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotImp", Seq(StrOrNum(n)), Seq(t1))) =>
-            Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
-          case _ => None
-        }
-    }
-
-    object LeftNAnd {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotAnd", Seq(StrOrNum(n)), Seq(t1, t2))) =>
-            val f = sequent.lhs(n.toInt)
-            val (a, b) = convertToKernel(f) match {
-              case K.Neg(K.And(x, y)) => (x, y)
-              case _ => throw new Exception(s"Expected a negated conjunction, but got $f")
-            }
-            Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(K.neg(a), K.neg(b))), name))
           case _ => None
         }
     }
 
     object LeftOr {
-      def unapply(ann_seq: FOFAnnotated)(using
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftOr", Seq(StrOrNum(n)), Seq(t1, t2))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftOr", Seq(_, StrOrNum(n)), Seq(t1, t2)), origin) =>
             val f = sequent.lhs(n.toInt)
             val (a, b) = convertToKernel(f) match {
               case K.Or(x, y) => (x, y)
@@ -391,13 +367,13 @@ object ProofParser {
         }
     }
 
-    object LeftImp1 {
-      def unapply(ann_seq: FOFAnnotated)(using
+    object LeftImplies {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftImp1", Seq(StrOrNum(n)), Seq(t1, t2))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftImplies", Seq(_, StrOrNum(n)), Seq(t1, t2)), origin) =>
             val f = sequent.lhs(n.toInt)
             val (a, b) = convertToKernel(f) match {
               case K.Implies(x, y) => (x, y)
@@ -408,13 +384,349 @@ object ProofParser {
         }
     }
 
-    object LeftImp2 {
-      def unapply(ann_seq: FOFAnnotated)(using
+    object LeftIff {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftImp2", Seq(StrOrNum(n)), Seq(t1, t2))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftIff", Seq(_, StrOrNum(n)), Seq(t1)), _) =>
+            Some(K.Restate(convertToKernel(sequent), numbermap(t1)), name)
+          case _ => None
+        }
+    }
+
+    object LeftNot {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNot", Seq(_, StrOrNum(n)), Seq(t1)), _) =>
+            Some(K.Restate(convertToKernel(sequent), numbermap(t1)), name)
+          case _ => None
+        }
+    }
+
+    object LeftExists {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftExists", Seq(_, StrOrNum(n), String(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
+            val f = sequent.lhs(n.toInt)
+            val x = K.Variable(xl, K.Ind)
+            val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
+              case K.Exists(x, phi) => (x, phi)
+              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
+            }
+            if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))
+            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(phi, Map(y -> x)), x), name))
+          case _ => None
+        }
+    }
+
+    object LeftForall {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftForall", Seq(_, StrOrNum(n), Ind(t)), Seq(t1)), origin) =>
+            val f = sequent.lhs(n.toInt)
+            val (x, phi) = convertToKernel(f) match {
+              case K.Forall(x, phi) => (x, phi)
+              case _ => throw new Exception(s"Expected a universal quantification, but got $f")
+            }
+            Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), phi, x, t), name))
+          case _ => None
+        }
+    }
+
+    object RightAnd {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightAnd", Seq(_, StrOrNum(n)), Seq(t1, t2)), _) =>
+            val f = sequent.lhs(n.toInt)
+            val (a, b) = convertToKernel(f) match {
+              case K.And(x, y) => (x, y)
+              case _ => throw new Exception(s"Expected an implication, but got $f")
+            }
+            Some((K.RightAnd(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(a, b)), name))
+          case _ => None
+        }
+    }
+
+    object RightOr {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightOr", Seq(_, StrOrNum(n)), Seq(t1)), _) =>
+            val f = sequent.lhs(n.toInt)
+            val (a, b) = convertToKernel(f) match {
+              case K.Or(x, y) => (x, y)
+              case _ => throw new Exception(s"Expected an implication, but got $f")
+            }
+            Some((K.RightOr(convertToKernel(sequent), numbermap(t1), a, b), name))
+          case _ => None
+        }
+    }
+
+    object RightImp {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightImplies", Seq(_, StrOrNum(n)), Seq(t1)), _) =>
+            val f = sequent.lhs(n.toInt)
+            val (a, b) = convertToKernel(f) match {
+              case K.Implies(x, y) => (x, y)
+              case _ => throw new Exception(s"Expected an implication, but got $f")
+            }
+            Some((K.RightImplies(convertToKernel(sequent), numbermap(t1), a, b), name))
+          case _ => None
+        }
+    }
+
+    object RightIff {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightIff", Seq(_, StrOrNum(n)), Seq(t1, t2)), _) =>
+            val f = sequent.lhs(n.toInt)
+            val (a, b) = convertToKernel(f) match {
+              case K.Iff(x, y) => (x, y)
+              case _ => throw new Exception(s"Expected an implication, but got $f")
+            }
+            Some((K.RightIff(convertToKernel(sequent), numbermap(t1), numbermap(t2), a, b), name))
+          case _ => None
+        }
+    }
+
+ 
+    object RightNot {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightNot", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
+            Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
+          case _ => None
+        }
+    }
+
+    object RightExists {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightExists", Seq(_, StrOrNum(n), Ind(t)), Seq(t1)), origin) =>
+            val f = sequent.lhs(n.toInt)
+            val (x, phi) = convertToKernel(f) match {
+              case K.Forall(x, phi) => (x, phi)
+              case _ => throw new Exception(s"Expected a universal quantification, but got $f")
+            }
+            Some((K.RightExists(convertToKernel(sequent), numbermap(t1), phi, x, t), name))
+          case _ => None
+        }
+    }
+
+    object RightForall {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightForall", Seq(_, StrOrNum(n), String(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
+            val f = sequent.rhs(n.toInt)
+            val x = K.Variable(xl, K.Ind)
+            val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
+              case K.Exists(x, phi) => (x, phi)
+              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
+            }
+            if x == y then Some((K.RightForall(convertToKernel(sequent), numbermap(t1), phi, x), name))
+            else Some((K.RightForall(convertToKernel(sequent), numbermap(t1), K.substituteVariables(phi, Map(y -> x)), x), name))
+          case _ => None
+        }
+    }
+
+    object RightRefl {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightRefl", Seq(_, StrOrNum(n)), Seq()), origin) =>
+            val left = sequent.lhs.map(convertToKernel)
+            val right = sequent.rhs.map(convertToKernel)
+            val formula = right(n.toInt)
+            formula match
+              case K.equality(s, t)  if K.isSame(s, t) => Some((K.RightRefl(K.Sequent(left.toSet, right.toSet), formula), name))
+              case _ => throw new Exception(s"Expected an equality, but got $formula")
+          case _ => None
+        }
+    }
+
+    object RightSubstEq {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstEq", Seq(_, StrOrNum(n), Prop(fl), String(xl)), Seq(t1)), origin) =>
+            val f = sequent.lhs(n.toInt)
+            val x = K.Variable(xl, K.Ind)
+            val (s, t) = convertToKernel(f) match {
+              case K.equality(s, t) => (s, t)
+              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
+            }
+            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name))
+          case _ => None
+        }
+    }
+
+    object LeftSubstEq {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstEq", Seq(_, StrOrNum(n), Prop(fl), String(xl)), Seq(t1)), origin) =>
+            val f = sequent.lhs(n.toInt)
+            val x = K.Variable(xl, K.Ind)
+            val (s, t) = convertToKernel(f) match {
+              case K.equality(s, t) => (s, t)
+              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
+            }
+            Some((K.LeftSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name)) 
+          case _ => None
+        }
+    }
+
+    object LeftSubstIff {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstIff", Seq(_, StrOrNum(n), Prop(fl), String(xl)), Seq(t1)), origin) =>
+            val f = sequent.lhs(n.toInt)
+            val x = K.Variable(xl, K.Prop)
+            val (s, t) = convertToKernel(f) match {
+              case K.iff(s, t) => (s, t)
+              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
+            }
+            Some((K.LeftSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name)) 
+          case _ => None
+        }
+    }
+
+    object RightSubstIff {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstIff", Seq(_, StrOrNum(n), Prop(fl), String(xl)), Seq(t1)), origin) =>
+            val f = sequent.lhs(n.toInt)
+            val x = K.Variable(xl, K.Ind)
+            val (s, t) = convertToKernel(f) match {
+              case K.iff(s, t) => (s, t)
+              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
+            }
+            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name)) 
+          case _ => None
+        }
+    }
+
+
+
+    object LeftHyp {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftHyp", Seq(_, StrOrNum(n), StrOrNum(m)), Seq()), origin) =>
+            val left = sequent.lhs.map(convertToKernel)
+            val right = sequent.rhs.map(convertToKernel)
+            val formula = left(n.toInt)
+            if (formula == K.neg(left(m.toInt)) || K.neg(formula) == left(m.toInt)) then Some((K.RestateTrue(K.Sequent(left.toSet, right.toSet)), name))
+            else None
+          case _ =>
+            None
+        }
+    }
+
+    object LeftNOr {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotOr", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
+            Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
+          case _ => None
+        }
+    }
+
+    object LeftNNot {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotNot", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
+            Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
+          case _ => None
+        }
+    }
+    object LeftNImp {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotImp", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
+            Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
+          case _ => None
+        }
+    }
+
+    object LeftNAnd {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotAnd", Seq(_, StrOrNum(n)), Seq(t1, t2)), origin) =>
+            val f = sequent.lhs(n.toInt)
+            val (a, b) = convertToKernel(f) match {
+              case K.Neg(K.And(x, y)) => (x, y)
+              case _ => throw new Exception(s"Expected a negated conjunction, but got $f")
+            }
+            Some((K.LeftOr(convertToKernel(sequent), Seq(numbermap(t1), numbermap(t2)), Seq(K.neg(a), K.neg(b))), name))
+          case _ => None
+        }
+    }
+    object LeftImp2 {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftImp2", Seq(_, StrOrNum(n)), Seq(t1, t2)), origin) =>
             val f = sequent.lhs(n.toInt)
             val (a, b) = convertToKernel(f) match {
               case K.Implies(x, y) => (x, y)
@@ -426,12 +738,12 @@ object ProofParser {
     }
 
     object LeftNAll {
-      def unapply(ann_seq: FOFAnnotated)(using
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotForall", Seq(StrOrNum(n), Ind(xl)), Seq(t1))) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotForall", Seq(_, StrOrNum(n), Ind(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
             val x = xl match
               case x: K.Variable => x
@@ -445,52 +757,13 @@ object ProofParser {
           case _ => None
         }
     }
-
-    object LeftEx {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftEx", Seq(StrOrNum(n), Ind(xl)), Seq(t1))) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
-            val f = sequent.lhs(n.toInt)
-            val x = xl match
-              case x:K.Variable => x
-              case _ => throw new Exception(s"Expected a variable, but got $xl")
-            val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
-              case K.Exists(x, phi) => (x, phi)
-              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
-            }
-            if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))
-            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(phi, Map(y -> xl)), x), name))
-          case _ => None
-        }
-    }
-
-    object LeftAll {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftForall", Seq(StrOrNum(n), Ind(t)), Seq(t1))) =>
-            val f = sequent.lhs(n.toInt)
-            val (x, phi) = convertToKernel(f) match {
-              case K.Forall(x, phi) => (x, phi)
-              case _ => throw new Exception(s"Expected a universal quantification, but got $f")
-            }
-            Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), phi, x, t), name))
-          case _ => None
-        }
-    }
-
     object LeftNEx {
-      def unapply(ann_seq: FOFAnnotated)(using
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotEx", Seq(StrOrNum(n), Ind(t)), Seq(t1))) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotEx", Seq(_, StrOrNum(n), Ind(t)), Seq(t1)), origin) =>
             val f = sequent.lhs(n.toInt)
             val (x, phi) = convertToKernel(f) match {
               case K.Neg(K.Exists(x, phi)) => (x, phi)
@@ -501,115 +774,6 @@ object ProofParser {
         }
     }
 
-    object RightNot {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightNot", Seq(StrOrNum(n)), Seq(t1))) =>
-            Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
-          case _ => None
-        }
-    }
-
-    object RightRefl {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightRefl", Seq(StrOrNum(n)), Seq())) =>
-            val left = sequent.lhs.map(convertToKernel)
-            val right = sequent.rhs.map(convertToKernel)
-            val formula = right(n.toInt)
-            formula match
-              case K.equality(s, t)  if K.isSame(s, t) => Some((K.RightRefl(K.Sequent(left.toSet, right.toSet), formula), name))
-              case _ => throw new Exception(s"Expected an equality, but got $formula")
-          case _ => None
-        }
-    }
-
-    object RightSubstEq {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstEq", Seq(StrOrNum(n), Prop(fl), Ind(xl)), Seq(t1))) =>
-            val f = sequent.lhs(n.toInt)
-            val x = xl match
-              case x:K.Variable => x
-              case _ => throw new Exception(s"Expected a variable, but got $xl")
-            val (s, t) = convertToKernel(f) match {
-              case K.equality(s, t) => (s, t)
-              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
-            }
-            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name))
-
-          case _ => None
-        }
-    }
-
-    object LeftSubstEq {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstEq", Seq(StrOrNum(n), Prop(fl), Ind(xl)), Seq(t1))) =>
-            val f = sequent.lhs(n.toInt)
-            val x = xl match
-              case x:K.Variable => x
-              case _ => throw new Exception(s"Expected a variable, but got $xl")
-            val (s, t) = convertToKernel(f) match {
-              case K.equality(s, t) => (s, t)
-              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
-            }
-            Some((K.LeftSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name)) 
-          case _ => None
-        }
-    }
-
-    object LeftSubstIff {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstIff", Seq(StrOrNum(n), Prop(fl), Prop(xl)), Seq(t1))) =>
-            val f = sequent.lhs(n.toInt)
-            val x = xl match
-              case x:K.Variable => x
-              case _ => throw new Exception(s"Expected a variable, but got $xl")
-            val (s, t) = convertToKernel(f) match {
-              case K.iff(s, t) => (s, t)
-              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
-            }
-            Some((K.LeftSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name)) 
-          case _ => None
-        }
-    }
-
-    object RightSubstIff {
-      def unapply(ann_seq: FOFAnnotated)(using
-          numbermap: String => Int,
-          sequentmap: String => FOF.Sequent
-      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
-        ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstIff", Seq(StrOrNum(n), Prop(fl), Prop(xl)), Seq(t1))) =>
-            val f = sequent.lhs(n.toInt)
-            val x = xl match
-              case x:K.Variable => x
-              case _ => throw new Exception(s"Expected a variable, but got $xl")
-            val (s, t) = convertToKernel(f) match {
-              case K.iff(s, t) => (s, t)
-              case _ => throw new Exception(s"Expected an existential quantification, but got $f")
-            }
-            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name)) 
-          case _ => None
-        }
-    }
 
   }
 }

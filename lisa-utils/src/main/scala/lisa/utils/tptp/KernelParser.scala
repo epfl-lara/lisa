@@ -16,6 +16,8 @@ import scala.util.matching.Regex
 import Parser.TPTPParseException
 
 object KernelParser {
+  type DefContext = (String => Option[K.Expression])
+  val emptyctx: DefContext = _ => None
 
   private case class ProblemMetadata(file: String, domain: String, problem: String, status: String, spc: Seq[String])
 
@@ -23,15 +25,15 @@ object KernelParser {
    * @param formula A formula in the tptp language
    * @return the corresponding LISA formula
    */
-  def parseToKernel(formula: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = convertToKernel(
+  def parseToKernel(formula: String)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = convertToKernel(
     Parser.fof(formula)
-  )(using mapAtom, mapTerm, mapVariable)
+  )(using defctx, (mapAtom, mapTerm, mapVariable))
 
   /**
    * @param formula a tptp formula in leo parser
    * @return the same formula in LISA
    */
-  def convertToKernel(formula: FOF.Formula)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = {
+  def convertToKernel(formula: FOF.Formula)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = {
     val (mapAtom, mapTerm, mapVariable) = maps
     formula match {
       case FOF.AtomicFormula(f, args) =>
@@ -45,6 +47,7 @@ object KernelParser {
           case FOF.! => 
             variableList.foldRight(convertToKernel(body))((s, f) => K.forall(mapVariable(s), f))
           case FOF.? => variableList.foldRight(convertToKernel(body))((s, f) => K.exists(mapVariable(s), f))
+          case FOF.Epsilon => ???
         }
       case FOF.UnaryFormula(connective, body) =>
         connective match {
@@ -66,11 +69,11 @@ object KernelParser {
     }
   }
 
-  def convertToKernel(sequent: FOF.Sequent)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Sequent = {
+  def convertToKernel(sequent: FOF.Sequent)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Sequent = {
     K.Sequent(sequent.lhs.map(convertToKernel).toSet, sequent.rhs.map(convertToKernel).toSet)
   }
 
-  def convertToKernel(formula: CNF.Formula)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = {
+  def convertToKernel(formula: CNF.Formula)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = {
     K.multior(
       formula.map {
         case CNF.PositiveAtomic(formula) => multiapply(mapAtom(formula.f, formula.args.size))(formula.args.map(convertTermToKernel).toList)
@@ -85,7 +88,7 @@ object KernelParser {
    * @param term a tptp term in leo parser
    * @return the same term in LISA
    */
-  def convertTermToKernel(term: CNF.Term)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = 
+  def convertTermToKernel(term: CNF.Term)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = 
     val (mapAtom, mapTerm, mapVariable) = maps
     term match {
       case CNF.AtomicTerm(f, args) => K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
@@ -97,7 +100,7 @@ object KernelParser {
    * @param term a tptp term in leo parser
    * @return the same term in LISA
    */
-  def convertTermToKernel(term: FOF.Term)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = 
+  def convertTermToKernel(term: FOF.Term)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = 
     val (mapAtom, mapTerm, mapVariable) = maps
     term match {
       case FOF.AtomicTerm(f, args) =>
@@ -111,10 +114,10 @@ object KernelParser {
    * @param formula an annotated tptp statement
    * @return the corresponding LISA formula augmented with name and role.
    */
-  def annotatedStatementToKernel(formula: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): AnnotatedStatement = {
+  def annotatedStatementToKernel(formula: String)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): AnnotatedStatement = {
     val i = Parser.annotatedFOF(formula)
     i match
-      case TPTP.FOFAnnotated(name, role, formula, annotations) =>
+      case TPTP.FOFAnnotated(name, role, formula, annotations, origin) =>
         formula match {
           case FOF.Logical(formula) => AnnotatedFormula(role, name, convertToKernel(formula), annotations)
           case FOF.Sequent(antecedent, succedent) =>
@@ -128,18 +131,19 @@ object KernelParser {
     val file = io.Source.fromFile(problemFile)
     val pattern = "SPC\\s*:\\s*[A-z]{3}(_[A-z]{3})*".r
     val g = file.getLines()
+    given emptyctx: DefContext = _ => None
 
     def search(): String = pattern.findFirstIn(g.next()).getOrElse(search())
 
     val i = Parser.problem(file)
     val sq = i.formulas map {
-      case TPTP.FOFAnnotated(name, role, formula, annotations) =>
+      case TPTP.FOFAnnotated(name, role, formula, annotations, origin) =>
         formula match {
           case FOF.Logical(formula) => AnnotatedFormula(role, name, convertToKernel(formula), annotations)
           case FOF.Sequent(antecedent, succedent) =>
             AnnotatedSequent(role, name, K.Sequent(antecedent.map(convertToKernel).toSet, succedent.map(convertToKernel).toSet), annotations)
         }
-      case TPTP.CNFAnnotated(name, role, formula, annotations) =>
+      case TPTP.CNFAnnotated(name, role, formula, annotations, origin) =>
         formula match {
           case CNF.Logical(formula) => AnnotatedFormula(role, name, convertToKernel(formula), annotations)
         }
@@ -226,7 +230,7 @@ object KernelParser {
 
     val r = probfiles.foldRight(List.empty[Problem])((p, current) => {
       val md = getProblemInfos(p)
-      if (md.spc.exists(spc.contains)) problemToKernel(p, md)(using mapAtom, mapTerm, mapVariable) :: current
+      if (md.spc.exists(spc.contains)) problemToKernel(p, md)(using (mapAtom, mapTerm, mapVariable)) :: current
       else current
     })
     r
