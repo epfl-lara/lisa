@@ -1,7 +1,8 @@
+
 package lisa.maths
 import lisa.automation.atp.*
 import lisa.utils.KernelHelpers.checkProof
-import lisa.utils.tptp.*
+import lisa.tptp.*
 
 
 object Tests extends lisa.Main {
