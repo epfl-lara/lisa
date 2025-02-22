@@ -61,6 +61,27 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     }
   }
 
+  /*
+  def from(premises: Seq[K.Sequent], bot: K.Sequent): Option[SCProof] = {
+    val botK = bot.underlying
+    val premsFormulas: Seq[((proof.Fact, Expression), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
+    val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
+    val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
+
+    solve(sqToProve) match {
+      case Some(value) =>
+        val subpr = SCSubproof(value)
+        val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
+          val ((prem, form), position) = cur
+          Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
+        })
+        val steps = (initProof ++ stepsList.reverse).toIndexedSeq
+        proof.ValidProofTactic(bot, steps, premises)
+      case None =>
+        proof.InvalidProofTactic("Could not prove the statement.")
+    }
+  }*/
+
   inline def solve(sequent: F.Sequent): Option[SCProof] = solve(sequent.underlying)
 
   def solve(sequent: K.Sequent): Option[SCProof] = {

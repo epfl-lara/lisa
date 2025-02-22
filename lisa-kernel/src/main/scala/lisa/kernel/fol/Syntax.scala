@@ -181,19 +181,21 @@ private[fol] trait Syntax {
 
     /** The beta-normal form of the expression and if it is in beta-normal form. */
     val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
-        case Application(f, arg) => {
-          val f1 = f.betaNormalForm
-          val a2 = arg.betaNormalForm
-          f1 match {
-            case Lambda(v, body) => (substituteVariables(body, Map(v -> a2)).betaNormalForm, false)
-            case _ if f.isBetaNormal && arg.isBetaNormal => (this, true) 
-            case _ => (Application(f1, a2), false)
+      case Application(f, arg) => {
+        val f1 = f.betaNormalForm
+        val a2 = arg.betaNormalForm
+        f1 match {
+          case Lambda(v, body) => {
+            (substituteVariables(body, Map(v -> a2)).betaNormalForm, false)
           }
+          case _ if f.isBetaNormal && arg.isBetaNormal => (this, true) 
+          case _ => (Application(f1, a2), false)
         }
-        case Lambda(v, Application(f, arg)) if v == arg => (f.betaNormalForm, false)
-        case Lambda(v, inner) if inner.isBetaNormal => (this, true)
-        case Lambda(v, inner) => (Lambda(v, inner.betaNormalForm), false)
-        case _ => (this, true)
+      }
+      case Lambda(v, Application(f, arg)) if v == arg && !f.freeVariables.contains(v) => (f.betaNormalForm, false)
+      case Lambda(v, inner) if inner.isBetaNormal => (this, true)
+      case Lambda(v, inner) => (Lambda(v, inner.betaNormalForm), false)
+      case _ => (this, true)
     }
     
     /**

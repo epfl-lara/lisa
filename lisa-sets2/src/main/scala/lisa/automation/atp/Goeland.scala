@@ -4,7 +4,6 @@ import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.OutputManager
 import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.K
-import lisa.utils.tptp.*
 
 import java.io.*
 import scala.io.Source
@@ -12,9 +11,9 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import ProofParser.*
-import KernelParser.*
 import sys.process._
+import lisa.tptp.ProofParser.*
+import lisa.tptp.KernelParser.*
 
 /**
  * Goéland is an automated theorem prover. This tactic calls the Goéland prover to solve the current sequent.
@@ -38,7 +37,7 @@ object Goeland extends ProofTactic with ProofSequentTactic {
   def apply(using lib: Library, proof: lib.Proof)(file: String)(bot: F.Sequent): proof.ProofTacticJudgement = {
     val outputname = proof.owningTheorem.fullName + "_sol"
     try {
-      val scproof = reconstructProof(new File(foldername + outputname + ".p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
+      val scproof = reconstructProof(new File(foldername + outputname + ".p"))(using mapAtom, mapTerm, mapVariable)
       proof.ValidProofTactic(bot, scproof.steps, Seq())
     } catch {
       case e: FileNotFoundException =>
@@ -103,12 +102,12 @@ object Goeland extends ProofTactic with ProofSequentTactic {
             case e: Exception =>
               throw e
           }
-        val proof = reconstructProof(new File(foldername + outputname + ".p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
+        val proof = reconstructProof(new File(foldername + outputname + ".p"))(using mapAtom, mapTerm, mapVariable)
         Success(proof)
       else if OS.contains("win") then Failure(OsNotSupportedException("The Goeland automated theorem prover is not yet supported on Windows."))
       else Failure(OsNotSupportedException("The Goeland automated theorem prover is only supported on Linux for now."))
     else if File(foldername + outputname + ".p").exists() then
-      val proof = reconstructProof(new File(foldername + outputname + ".p"))(using ProofParser.mapAtom, ProofParser.mapTerm, ProofParser.mapVariable)
+      val proof = reconstructProof(new File(foldername + outputname + ".p"))(using mapAtom, mapTerm, mapVariable)
       println(OutputManager.WARNING(s"WARNING: in ${file.value}:$line, For compatibility reasons, replace `by Goeland` with `by Goeland(\"$foldername$outputname\")`."))
       Success(proof)
     else Failure(Exception("For compatibility reasons, external provers can't be called in non-draft mode. You can enable draft mode by adding `draft()` at the top of your working file."))
