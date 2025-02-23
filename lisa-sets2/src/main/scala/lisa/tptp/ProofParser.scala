@@ -6,7 +6,7 @@ import leo.datastructures.TPTP.FOFAnnotated
 import leo.datastructures.TPTP.FOTAnnotated
 import leo.modules.input.{TPTPParser => Parser}
 import lisa.utils.K
-import K.{repr, -<<, +<<, ->>, +>>}
+import K.{repr, -<<, +<<, ->>, +>>, |-}
 
 import java.io.File
 
@@ -928,15 +928,17 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightPrenex", Seq(_, StrOrNum(n), StrOrNum(_)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightPrenex", Seq(_, StrOrNum(n), StrOrNum(m)), Seq(t1)), origin) =>
             val seq = convertToKernel(sequent)
-            /*
-            Tableau.solve(seq) match
+            val prem = sequentmap(t1)
+            val formula1 = convertToKernel(prem.rhs(n.toInt))
+            val formula2 = convertToKernel(sequent.rhs(m.toInt))
+            Tableau.solve(formula1 |- formula2) match
               case Some(proof) => 
-                Some((K.SCSubproof(proof), name))
+                val steps = proof.steps
+                val last = K.Cut(seq, -1, steps.size-1, formula1)
+                Some((K.SCSubproof(K.SCProof(steps :+ last, IndexedSeq(convertToKernel(prem))), IndexedSeq(numbermap(t1))), name))
               case None => throw new Exception(s"Failed to justify prenex inference for sequent ${seq.repr}")
-            */
-            Some((K.Sorry(seq), name))
           case _ => None
         }
     }
@@ -949,7 +951,17 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("instForall", Seq(_, StrOrNum(n), Ind(t)), Seq(t1)), origin) =>
             val seq = convertToKernel(sequent)
-            Some((K.Sorry(seq), name))
+            val prem = sequentmap(t1)
+            val formula = convertToKernel(prem.rhs(n.toInt))
+            formula match {
+              case r @ K.Application(K.forall, K.Lambda(x, f)) =>
+                val newf = K.substituteVariables(f, Map(x -> t))
+                val s0 = K.Hypothesis((newf |- newf), newf)
+                val s1 = K.LeftForall((r |- newf), 0, f, x, t)
+                val s2 = K.Cut(seq +>> newf, -1, 1, r)
+                Some((K.SCSubproof(K.SCProof(IndexedSeq(s0, s1, s2), IndexedSeq(convertToKernel(sequentmap(t1)))), Seq(numbermap(t1))), name))
+              case _ => throw new IllegalArgumentException(s"InstForall: Expected a universal quantification, but got ${formula.repr}")
+            }
           case _ => None
         }
     }
