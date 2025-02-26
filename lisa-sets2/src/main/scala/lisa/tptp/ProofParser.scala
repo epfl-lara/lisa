@@ -28,12 +28,16 @@ object ProofParser {
     if kind == 's' then
       K.Variable(sanitize(id), K.predicateType(n))
     else if kind == 'c' then K.Constant(sanitize(id), K.predicateType(n))
+    else if f(0).isUpper then
+      K.Variable(sanitize(f), K.predicateType(n))
     else throw new Exception(s"Unknown kind of atomic label: $f")
   val mapTerm: ((String, Int) => K.Expression) = (f, n) =>
     val kind = f.head
     val id = f.tail
     if kind == 's' then K.Variable(sanitize(id), K.functionType(n))
     else if kind == 'c' then K.Constant(sanitize(id), K.functionType(n))
+    else if f(0).isUpper then
+      K.Variable(sanitize(f), K.functionType(n))
     else throw new Exception(s"Unknown kind of term label: $f")
   val mapVariable: (String => K.Variable) = f =>
     if f.head == 'X' then K.Variable(sanitize(f.tail), K.Ind)
@@ -350,7 +354,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("cut", Seq(_, StrOrNum(n), StrOrNum(m)), Seq(t1, t2)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("cut", Seq(_, StrOrNum(n)), Seq(t1, t2)), origin) =>
             val formula1 = sequentmap(t1).rhs(n.toInt)
             Some((K.Cut(convertToKernel(sequent), numbermap(t1), numbermap(t2), convertToKernel(formula1)), name))
           case _ =>
@@ -628,7 +632,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubst", Seq(_, StrOrNum(n), Prop(fl), String(xl)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubst", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = sequent.lhs(n.toInt)
             val x = K.Variable(xl, K.Ind)
             val (s, t) = convertToKernel(f) match {
@@ -646,7 +650,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubst", Seq(_, StrOrNum(n), Prop(fl), String(xl)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubst", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = sequent.lhs(n.toInt)
             val x = K.Variable(xl, K.Ind)
             val (s, t) = convertToKernel(f) match {
@@ -664,7 +668,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstIff", Seq(_, StrOrNum(n), Prop(fl), String(xl)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstIff", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = sequent.lhs(n.toInt)
             val x = K.Variable(xl, K.Prop)
             val (s, t) = convertToKernel(f) match {
@@ -682,7 +686,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstIff", Seq(_, StrOrNum(n), Prop(fl), String(al)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstIff", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(al)), Seq(t1)), origin) =>
             val f = sequent.lhs(n.toInt)
             val a = K.Variable(al, K.Prop)
             val (s, t) = convertToKernel(f) match {
@@ -702,12 +706,10 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftHyp", Seq(_, StrOrNum(n), StrOrNum(m)), Seq()), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftHyp", Seq(_, StrOrNum(n)), Seq()), origin) =>
             val left = sequent.lhs.map(convertToKernel)
-            val right = sequent.rhs.map(convertToKernel)
             val formula = left(n.toInt)
-            if (formula == K.neg(left(m.toInt)) || K.neg(formula) == left(m.toInt)) then Some((K.RestateTrue(K.Sequent(left.toSet, right.toSet)), name))
-            else None
+            Some((K.RestateTrue(convertToKernel(sequent)), name))
           case _ =>
             None
         }
@@ -742,7 +744,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotImp", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotImplies", Seq(_, StrOrNum(n)), Seq(t1)), origin) =>
             Some((K.Weakening(convertToKernel(sequent), numbermap(t1)), name))
           case _ => None
         }
@@ -787,7 +789,7 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotForall", Seq(_, StrOrNum(n), Ind(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotAll", Seq(_, StrOrNum(n), Ind(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
             val x = xl match
               case x: K.Variable => x

@@ -24,6 +24,7 @@ class ATPProofs extends AnyFunSuite {
 
   private val problems = Seq[(String, String)](
     "p9_test_1.p" -> "prover9 test 1",
+    "goeland_test_1.p" -> "goeland test 1",
     
   )
 
