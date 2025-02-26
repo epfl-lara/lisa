@@ -12,6 +12,7 @@ object Tests extends lisa.Main {
   val y = variable[Ind]
   val z = variable[Ind]
   val P = variable[Ind >>: Prop]
+  val Q = variable[Ind >>: Prop]
   val f = variable[Ind >>: Ind]
 
   val rule8 = Axiom(forall(x, x === f(f(f(x)))) )
@@ -21,10 +22,12 @@ object Tests extends lisa.Main {
     have(thesis) by Egg.from(rule8, rule5)
 
     
-  val exampleThm = Theorem( forall(x, P(x) ==> P(f(x))) |- P(∅) ==> P(f(f(∅))) ):
-      val a = assume(forall(x, P(x) ==> P(f(x))))
-      have(thesis) by Tautology.from(a of ∅, a of f(∅))
+  val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))):
+      have(thesis) by Goeland
+
+
+  val example = Theorem( (forall(x, P(x)) \/ forall(y, Q(y))) ==> (P(∅) \/ Q(∅)) ):
+    have(thesis) by Prover9
   
-  val a, b, c = variable[Prop]
 
 }
