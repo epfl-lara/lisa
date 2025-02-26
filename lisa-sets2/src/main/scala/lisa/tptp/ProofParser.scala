@@ -789,17 +789,15 @@ object ProofParser {
           sequentmap: String => FOF.Sequent
       )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotAll", Seq(_, StrOrNum(n), Ind(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotAll", Seq(_, StrOrNum(n), String(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
-            val x = xl match
-              case x: K.Variable => x
-              case _ => throw new Exception(s"$name: Expected a variable, but got $xl")
+            val x = K.Variable(xl, K.Ind)
             val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
               case K.Neg(K.forall(K.Lambda(x, phi))) => (x, phi)
               case _ => throw new Exception(s"$name: Expected a universal quantification, but got $f")
             }
             if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))
-            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(K.neg(phi), Map(y -> xl)), x), name))
+            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(K.neg(phi), Map(y -> x)), x), name))
           case _ => None
         }
     }
