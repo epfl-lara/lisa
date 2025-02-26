@@ -464,7 +464,7 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftExists", Seq(_, StrOrNum(n), String(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
-            val x = K.Variable(xl, K.Ind)
+            val x = K.Variable(sanitize(xl), K.Ind)
             val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
               case K.Exists(x, phi) => (x, phi)
               case _ => throw new Exception(s"$name: Expected an existential quantification, but got $f")
@@ -598,7 +598,7 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightForall", Seq(_, StrOrNum(n), String(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.rhs(n.toInt)
-            val x = K.Variable(xl, K.Ind)
+            val x = K.Variable(sanitize(xl), K.Ind)
             val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
               case K.Forall(x, phi) => (x, phi)
               case _ => throw new Exception(s"$name: Expected a universal quantification, but got $f")
@@ -634,7 +634,7 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubst", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = sequent.lhs(n.toInt)
-            val x = K.Variable(xl, K.Ind)
+            val x = K.Variable(sanitize(xl), K.Ind)
             val (s, t) = convertToKernel(f) match {
               case K.equality(s, t) => (s, t)
               case _ => throw new Exception(s"$name: Expected an existential quantification, but got $f")
@@ -652,7 +652,7 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubst", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = sequent.lhs(n.toInt)
-            val x = K.Variable(xl, K.Ind)
+            val x = K.Variable(sanitize(xl), K.Ind)
             val (s, t) = convertToKernel(f) match {
               case K.equality(s, t) => (s, t)
               case _ => throw new Exception(s"$name: Expected an existential quantification, but got $f")
@@ -670,7 +670,7 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftSubstIff", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = sequent.lhs(n.toInt)
-            val x = K.Variable(xl, K.Prop)
+            val x = K.Variable(sanitize(xl), K.Prop)
             val (s, t) = convertToKernel(f) match {
               case K.iff(s, t) => (s, t)
               case _ => throw new Exception(s"$name: Expected an existential quantification, but got $f")
@@ -791,13 +791,16 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("leftNotAll", Seq(_, StrOrNum(n), String(xl)), Seq(t1)), origin) => // x has to be a GeneralTerm representinf a variable, i.e. $fot(x)
             val f = sequent.lhs(n.toInt)
-            val x = K.Variable(xl, K.Ind)
+            val x = K.Variable(sanitize(xl), K.Ind)
             val (y: K.Variable, phi: K.Expression) = convertToKernel(f) match {
               case K.Neg(K.forall(K.Lambda(x, phi))) => (x, phi)
               case _ => throw new Exception(s"$name: Expected a universal quantification, but got $f")
             }
-            if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), phi, x), name))
-            else Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(K.neg(phi), Map(y -> x)), x), name))
+            println(s"y: $y")
+            println(s"x: $x")
+            if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.neg(phi), x), name))
+            else 
+              Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(K.neg(phi), Map(y -> x)), x), name))
           case _ => None
         }
     }
@@ -826,7 +829,7 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("instFun", Seq(_, String(sfl), Ind(t), Sequence(varsl)), Seq(t1)), origin) =>
             val vars = varsl.map {
-              case String(xl) => K.Variable(xl, K.Ind)
+              case String(xl) => K.Variable(sanitize(xl), K.Ind)
               case _ => throw new Exception(s"$name: Expected a list of strings, but got $varsl")
             }
             val sf = K.Variable(sfl, K.functionType(vars.size))
@@ -845,7 +848,7 @@ object ProofParser {
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("instPred", Seq(_, String(sfl), Prop(phi), Sequence(varsl)), Seq(t1)), origin) =>
             val vars = varsl.map {
-              case String(xl) => K.Variable(xl, K.Ind)
+              case String(xl) => K.Variable(sanitize(xl), K.Ind)
               case _ => throw new Exception(s"$name: Expected a list of strings, but got $varsl")
             }
             val sp = K.Variable(sfl, K.predicateType(vars.size))
@@ -865,7 +868,7 @@ object ProofParser {
             val map = instantiations.map {
               case Tuple(Seq(String(sfl), expr, Sequence(varsl))) =>
                 val vars = varsl.map {
-                  case String(xl) => K.Variable(xl, K.Ind)
+                  case String(xl) => K.Variable(sanitize(xl), K.Ind)
                   case _ => throw new Exception(s"$name: Expected a list of strings, but got $varsl")
                 }
                 expr match
