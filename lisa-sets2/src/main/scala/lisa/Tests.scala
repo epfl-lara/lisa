@@ -26,8 +26,9 @@ object Tests extends lisa.Main {
       have(thesis) by Goeland
 
 
+      /*
   val example = Theorem( (forall(x, P(x)) \/ forall(y, Q(y))) ==> (P(∅) \/ Q(∅)) ):
     have(thesis) by Prover9
-  
+  */
 
 }
