@@ -84,8 +84,12 @@ object ProofParser {
 
   def sequentToFOFAnnotated(sequent: K.Sequent, name: String, role: String): FOFAnnotated = {
     val annotations = None
-    val formula = K.sequentToFormula(sequent)
-    FOFAnnotated(name, role, formulaToFOFStatement(formula), annotations)
+    if sequent.left.isEmpty && sequent.right.size == 1 then 
+      val formula = sequent.right.head
+      return FOFAnnotated(name, role, formulaToFOFStatement(formula), annotations)
+    else
+      val seq = FOF.Sequent(sequent.left.map(formulaToFOFFormula).toSeq, sequent.right.map(formulaToFOFFormula).toSeq)
+      FOFAnnotated(name, role, seq, annotations)
   }
 
   def isLowerWord(s: String): Boolean = s.head.isLower && s.tail.forall(_.isLetterOrDigit)
