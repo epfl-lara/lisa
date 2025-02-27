@@ -43,11 +43,11 @@ object Tests extends lisa.Main {
   ) |- _div(_mult(_div(t2, t3), _div(t3, t2)), t1) === t1):
     have(thesis) by Egg
 
-    /*
+    
   val saturation = Theorem(
     (forall(x, x === f(f(f(x)))), forall(x, forall(y, x === f(f(x))))) |- ∅ === f(∅)):
     have(thesis) by Egg
-*/
+
     /*
   val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))):
     have(thesis) by Goeland
