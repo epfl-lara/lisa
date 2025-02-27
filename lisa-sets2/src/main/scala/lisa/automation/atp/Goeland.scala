@@ -4,6 +4,7 @@ import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.OutputManager
 import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.K
+import lisa.utils.K.|-
 
 import java.io.*
 import scala.io.Source
@@ -87,7 +88,8 @@ object Goeland extends ProofTactic with ProofSequentTactic {
       case (x: K.Variable, xx: K.Variable) => xx -> x
       case null => throw new Exception("This should not happen")
     }
-    val r = problemToFile(foldername, filename, "question" + i, axioms, sequent, source)
+    val seq2 = () |- K.sequentToFormula(sequent)
+    val r = problemToFile(foldername, filename, "question" + i, axioms, seq2, source)
     i += 1
 
     if generateProofs then

@@ -15,18 +15,14 @@ object Tests extends lisa.Main {
   val Q = variable[Ind >>: Prop]
   val f = variable[Ind >>: Ind]
 
-  val rule8 = Axiom(forall(x, x === f(f(f(x)))) )
-  val rule5 = Axiom(forall(x, forall(y, x === f(f(x)))) )
+  val saturation = Theorem(
+    (forall(x, x === f(f(f(x)))), forall(x, forall(y, x === f(f(x))))) |- ∅ === f(∅)):
+    have(thesis) by Egg
 
-  val saturation = Theorem(∅ === f(∅)):
-    have(thesis) by Egg.from(rule8, rule5)
-
-    
+    /*
   val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))):
-      have(thesis) by Goeland
+    have(thesis) by Goeland
 
-
-      /*
   val example = Theorem( (forall(x, P(x)) \/ forall(y, Q(y))) ==> (P(∅) \/ Q(∅)) ):
     have(thesis) by Prover9
   */
