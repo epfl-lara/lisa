@@ -12,6 +12,7 @@ object Tests extends lisa.Main {
   val y = variable[Ind]
   val z = variable[Ind]
   val P = variable[Ind >>: Prop]
+  val d = variable[Ind >>: Prop]
   val Q = variable[Ind >>: Prop]
   val f = variable[Ind >>: Ind]
 
@@ -30,29 +31,32 @@ object Tests extends lisa.Main {
   addSymbol(t3)
   addSymbol(a)
 
+  extension (t: Expr[Ind]) {
+    def / (y: Expr[Ind]): Expr[Ind] = div(t)(y)
+    def * (y: Expr[Ind]): Expr[Ind] = mult(t)(y)
+  }
+
 
   def _div(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = div(x)(y)
   def _mult(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = mult(x)(y)
 
+
   val divide_mult_shift = Theorem((
-    forall(x, _div(x, t1) === x),
-    forall(x, forall(y, _div(x, y) === _div(t1, _div(y, x)))),
-    //forall(x, forall(y, forall(z, _div(x, _div(y, z)) === _div(_mult(x, z), _mult(_div(y, z), z))))),
-    forall(x, forall(y, _mult(_div(x, y), y) === x)),
-    //forall(x, _mult(x, t1) === x)
-  ) |- _div(_mult(_div(t2, t3), _div(t3, t2)), t1) === t1):
+    ∀(x, x/t1 === x),
+    ∀(x, ∀(y, x/y === t1/(y/x))),
+    ∀(x, ∀(y, (x/y)*y === x)),
+  ) |- ((t2/t3)*(t3/t2))/t1 === t1):
     have(thesis) by Egg
 
     
   val saturation = Theorem(
-    (forall(x, x === f(f(f(x)))), forall(x, forall(y, x === f(f(x))))) |- ∅ === f(∅)):
+    (∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- ∅ === f(∅)):
     have(thesis) by Egg
 
-    /*
-  val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))):
+  val drinkers2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Goeland
-
-  val example = Theorem( (forall(x, P(x)) \/ forall(y, Q(y))) ==> (P(∅) \/ Q(∅)) ):
+/*
+  val example = Theorem( (∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(∅) \/ Q(∅)) ):
     have(thesis) by Prover9
   */
 
