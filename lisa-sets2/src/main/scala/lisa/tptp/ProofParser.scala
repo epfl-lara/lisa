@@ -491,6 +491,7 @@ object ProofParser {
               case K.Forall(x, phi) => (x, phi)
               case _ => throw new Exception(s"$name: Expected a universal quantification, but got $f")
             }
+            println(s"LeftForall: x: ${x.repr}, phi: ${phi.repr}, t: $t")
             Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), phi, x, t), name))
           case _ => None
         }
@@ -898,7 +899,7 @@ object ProofParser {
             val seq = convertToKernel(sequent)
             Tautology.solveSequent(seq) match
               case Left(proof) => Some((K.SCSubproof(proof), name))
-              case Right(msg, seq) => throw new Exception(s"Failed to justify clausify inference for sequent ${seq.repr}: $msg")
+              case Right(msg, seq) => throw new Exception(s"Failed to justify clausify inference for sequent step ${name} with sequent ${seq.repr}: $msg")
           case _ => None
         }
     }

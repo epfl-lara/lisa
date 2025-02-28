@@ -112,7 +112,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
       case And(f1, f2) => findAtoms2(f1, add); findAtoms2(f2, add)
       case Neg(f1) => findAtoms2(f1, add)
       case _ if fi != top && fi != bot => add(fi)
-      case _ => throw new Exception(s"Unreachable case in findBestAtom. \ninner: ${fi.repr},\n outer: ${f.repr}")
+      case _ => ()
     }
     findAtoms2(f, a => atoms.update(a, { val g = atoms.get(a); if (g.isEmpty) 1 else g.get + 1 }))
     if (atoms.isEmpty) None else Some(atoms.toList.maxBy(_._2)._1)
