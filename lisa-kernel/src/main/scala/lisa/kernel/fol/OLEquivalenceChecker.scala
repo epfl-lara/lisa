@@ -511,7 +511,11 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             else if (l.uniqueKey >= r.uniqueKey) SimpleEquality(l, r, true)
             else SimpleEquality(r, l, true)
 
-          case SimpleForall(id, body, true) => SimpleForall(id, computeNormalForm(body), true)
+          case SimpleForall(id, body, true) => 
+            val inner = computeNormalForm(body)
+            if (inner == SimpleLiteral(true)) SimpleLiteral(true)
+            else if (inner == SimpleLiteral(false)) SimpleLiteral(false)
+            else SimpleForall(id, inner, true)
 
           case SimpleLambda(v, body) => SimpleLambda(v, computeNormalForm(body))
 

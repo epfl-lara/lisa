@@ -492,6 +492,7 @@ object ProofParser {
               case _ => throw new Exception(s"$name: Expected a universal quantification, but got $f")
             }
             println(s"LeftForall: x: ${x.repr}, phi: ${phi.repr}, t: $t")
+            
             Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), phi, x, t), name))
           case _ => None
         }
