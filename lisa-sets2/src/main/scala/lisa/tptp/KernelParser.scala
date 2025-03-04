@@ -110,6 +110,7 @@ object KernelParser {
       case FOF.Variable(name) => mapVariable(name)
       case FOF.DistinctObject(name) => ???
       case FOF.NumberTerm(value) => ???
+      case FOF.QuantifiedTerm(quantifier, Seq(x), body) => K.epsilon(mapVariable(x), convertToKernel(body))
   }
 
   /**
