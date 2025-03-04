@@ -15,6 +15,7 @@ import KernelParser.*
 import K.{given}
 import lisa.automation.Tautology
 import lisa.automation.Tableau
+import lisa.automation.Tableau.instantiate
 
 object ProofParser {
   val TPTPversion = "TPTP v8.0.0"
@@ -226,11 +227,15 @@ object ProofParser {
       case Inference.InstPred(step, name) => Some((step, name))
       case Inference.InstMult(step, name) => Some((step, name))
       case Inference.ElimIffRefl(step, name) => Some((step, name))
+      case Inference.ElimEqRefl(step, name) => Some((step, name))
       case Inference.RightNnf(step, name) => Some((step, name))
       case Inference.Clausify(step, name) => Some((step, name))
       case Inference.RightPrenex(step, name) => Some((step, name))
       case Inference.InstForall(step, name) => Some((step, name))
       case Inference.Res(step, name) => Some((step, name))
+      case Inference.ExistsIffEpsilon(step, name) => Some((step, name))
+      case Inference.RightSubstFun(step, name) => Some((step, name))
+      case Inference.RightSubstPred(step, name) => Some((step, name))
 
       case _ => None
     }
@@ -918,6 +923,19 @@ object ProofParser {
         }
     }
 
+    object ElimEqRefl {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("elimEqRefl", Seq(_, StrOrNum(_)), Seq(t1)), origin) =>
+            val seq = convertToKernel(sequent)
+            Some((K.Weakening(seq, numbermap(t1)), name))
+          case _ => None
+        }
+    }
+
     object RightNnf {
       def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
           numbermap: String => Int,
@@ -990,6 +1008,91 @@ object ProofParser {
             val subproof = K.SCProof(IndexedSeq(K.Restate(seqint, -2), K.Cut(seq, -1, 0, formula1)), IndexedSeq(seqt1, seqt2))
             val step = K.SCSubproof(subproof, IndexedSeq(numbermap(t1), numbermap(t2)))
             Some((step, name))
+          case _ => None
+        }
+    }
+
+    object ExistsIffEpsilon {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("existsIffEpsilon", Seq(_, StrOrNum(n)), Seq()), origin) =>
+            val f = convertToKernel(sequent.rhs(n.toInt))
+            def extractForall(f: K.Expression): (List[K.Variable], K.Expression, K.Expression) = f match
+              case K.Forall(x, phi) => val (xs, psi, psi1) = extractForall(phi); (x :: xs, psi, psi1)
+              case K.Iff(phi, psi) => (Nil, phi, psi)
+              case _ => throw new Exception(s"Expected an iff, but got $f")
+            val (bounds, exi, epsi) = extractForall(f)
+            val (x, inner) = K.Exists.unapply(exi).get
+            val epsiterm = K.epsilon(K.lambda(x, inner))
+            val epsiform = K.substituteVariables(inner, Map(x -> epsiterm))
+            val s0 = K.RestateTrue(inner |- inner)
+            val s1 = K.RightEpsilon(inner |- epsiform, 0, inner, x, x)
+            val s2 = K.LeftExists(exi |- epsiform, 1, inner, x)
+            val s3 = K.Restate(() |- (K.==>(exi, epsiform)), 2)
+            val s4 = K.RestateTrue(epsiform |- epsiform)
+            val s5 = K.RightExists(epsiform |- exi, 4, inner, x, epsiterm)
+            val s6 = K.Restate(() |- (K.==>(epsiform, exi)), 5)
+            val endIff = K.<=>(exi, epsiform)
+            val s7 = K.RightIff(() |- endIff, 3, 6, exi, epsiform)
+            var t1 = 6
+            var steps = List(s7, s6, s5, s4, s3, s2, s1, s0)
+            bounds.foldLeft(endIff)((acc, x) => 
+              val newf = K.forall(x, acc)
+              t1 += 1
+              steps = K.RightForall(() |- newf, t1, acc, x) :: steps
+              newf
+              )
+            val subproof = K.SCProof(steps.reverse.toIndexedSeq, IndexedSeq())
+            val step = K.SCSubproof(subproof, IndexedSeq())
+            Some((step, name))
+
+            
+          case _ => None
+        }
+    }
+
+    object RightSubstFun {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstFun", Seq(_, StrOrNum(n), StrOrNum(_), String(xl), Prop(fl) ), Seq(t1)), origin) =>
+            val f = convertToKernel(sequent.lhs(n.toInt))
+            def extractForall(f: K.Expression): (List[K.Variable], K.Expression, K.Expression) = f match
+              case K.Forall(x, phi) => val (xs, psi, psi1) = extractForall(phi); (x :: xs, psi, psi1)
+              case K.Equality(phi, psi) => (Nil, phi, psi)
+              case _ => throw new Exception(s"Expected an equality, but got $f")
+            val (bounds, left, right) = extractForall(f)
+            val hole = K.Variable(sanitize(xl), K.functionType(bounds.size))
+            val x = K.Variable(sanitize(xl), K.Ind)
+            val equals = Seq((K.lambda(bounds, left), K.lambda(bounds, right)))
+            println("equals: " + equals.map((p1, p2) => (p1.repr, p2.repr)))
+            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), equals, (Seq(hole), fl)), name))
+          case _ => None
+        }
+    }
+
+    object RightSubstPred {
+      def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext,
+          numbermap: String => Int,
+          sequentmap: String => FOF.Sequent
+      )(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
+        ann_seq match {
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstPred", Seq(_, StrOrNum(n), StrOrNum(_), String(xl), Prop(fl)), Seq(t1)), origin) =>
+            val f = convertToKernel(sequent.lhs(n.toInt))
+            def extractForall(f: K.Expression): (List[K.Variable], K.Expression, K.Expression) = f match
+              case K.Forall(x, phi) => val (xs, psi, psi1) = extractForall(phi); (x :: xs, psi, psi1)
+              case K.Iff(phi, psi) => (Nil, phi, psi)
+              case _ => throw new Exception(s"Expected an iff, but got $f")
+            val (bounds, left, right) = extractForall(f)
+            val hole = K.Variable(sanitize(xl), K.predicateType(bounds.size))
+            val x = K.Variable(sanitize(xl), K.Ind)
+            val equals = Seq((K.lambda(bounds, left), K.lambda(bounds, right)))
+            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), equals, (Seq(hole), fl)), name))
           case _ => None
         }
     }

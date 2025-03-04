@@ -48,7 +48,7 @@ def withTests(project: Project): ClasspathDependency =
 
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
-lazy val customTstpParser = githubProject("https://github.com/SC-TPTP/scala-tptp-parser.git", "e516fc24a65569ae167f2d1d6e57780585ae2a39")
+lazy val customTstpParser = githubProject("https://github.com/SC-TPTP/scala-tptp-parser.git", "851338c4175036279279835d9f58895aed2f37ba")
 
 lazy val root = Project(
     id = "lisa",
