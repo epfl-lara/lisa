@@ -16,14 +16,6 @@ object Tests extends lisa.Main {
   val Q = variable[Ind >>: Prop]
   val f = variable[Ind >>: Ind]
 
-  val ff = forall(x, P(x) <=> P(x))
-  println(s"ff: $ff")
-  val fnormal = K.reducedNNFForm(ff.underlying)
-  println("fnormal: " + fnormal)
-
-
-  /*
-
   val t0 = constant[Ind]
   val t1 = constant[Ind]
   val t2 = constant[Ind]
@@ -61,11 +53,13 @@ object Tests extends lisa.Main {
 
   val drinkers2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Goeland
-/*
+
   val example = Theorem( (∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(∅) \/ Q(∅)) ):
     have(thesis) by Prover9
-  */
 
-  */
+  val example2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
+    have(thesis) by Prover9
+
+
 
 }

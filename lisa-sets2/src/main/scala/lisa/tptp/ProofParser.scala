@@ -40,9 +40,9 @@ object ProofParser {
     else if f(0).isUpper then
       K.Variable(sanitize(f), K.functionType(n))
     else throw new Exception(s"Unknown kind of term label: $f")
-  val mapVariable: (String => K.Variable) = f =>
-    if f.head == 'X' then K.Variable(sanitize(f.tail), K.Ind)
-    else K.Variable(sanitize(f), K.Ind)
+  val mapVariable: (String => K.Variable) = f => K.Variable(sanitize(f), K.Ind)
+    //if f.head == 'X' then K.Variable(sanitize(f.tail), K.Ind)
+    //else K.Variable(sanitize(f), K.Ind)
 
 
   given maps: MapTriplet = (mapAtom, mapTerm, mapVariable)
@@ -89,54 +89,56 @@ object ProofParser {
       val formula = sequent.right.head
       return FOFAnnotated(name, role, formulaToFOFStatement(formula), annotations)
     else
-      val seq = FOF.Sequent(sequent.left.map(formulaToFOFFormula).toSeq, sequent.right.map(formulaToFOFFormula).toSeq)
+      val seq = FOF.Sequent(sequent.left.map(formulaToFOFFormula(_, Set())).toSeq, sequent.right.map(formulaToFOFFormula(_, Set())).toSeq)
       FOFAnnotated(name, role, seq, annotations)
   }
 
   def isLowerWord(s: String): Boolean = s.head.isLower && s.tail.forall(_.isLetterOrDigit)
   inline def quoted(s: String): String = if isLowerWord(s) then s else s"'$s'"
 
-  def termToFOFTerm(term: K.Expression): FOF.Term = {
+  def termToFOFTerm(term: K.Expression, bound: Set[K.Identifier]): FOF.Term = {
     term match {
-      case K.Variable(id, K.Ind) => FOF.Variable("X" + id)
+      case K.Variable(id, K.Ind) => 
+        if bound.contains(id) then FOF.Variable("X" + id)
+        else FOF.Variable(quoted("s" + id))
       case K.Constant(id, K.Ind) => FOF.AtomicTerm(quoted("c" + id), Seq())
       case K.Multiapp(K.Constant(id, typ), args) =>
-        FOF.AtomicTerm(quoted("c" + id), args.map(termToFOFTerm))
+        FOF.AtomicTerm(quoted("c" + id), args.map(termToFOFTerm(_, bound)))
       case K.Multiapp(K.Variable(id, typ), args) =>
-        FOF.AtomicTerm(quoted("s" + id), args.map(termToFOFTerm))
+        FOF.AtomicTerm(quoted("s" + id), args.map(termToFOFTerm(_, bound)))
       case K.Epsilon(v, f) => throw new Exception("Epsilon terms are not supported")
       case _ => throw new Exception("The expression is not purely first order")
     }
   }
-  def formulaToFOFFormula(formula: K.Expression): FOF.Formula = {
+  def formulaToFOFFormula(formula: K.Expression, bound: Set[K.Identifier]): FOF.Formula = {
     formula match
       case K.equality(left, right) =>
-        FOF.Equality(termToFOFTerm(left), termToFOFTerm(right))
+        FOF.Equality(termToFOFTerm(left, bound), termToFOFTerm(right, bound))
       case K.top => FOF.AtomicFormula("$true", Seq())
       case K.bot => FOF.AtomicFormula("$false", Seq())
-      case K.neg(f) => FOF.UnaryFormula(FOF.~, formulaToFOFFormula(f))
-      case K.and(f1, f2) => FOF.BinaryFormula(FOF.&, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
-      case K.or(f1, f2) => FOF.BinaryFormula(FOF.|, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
-      case K.implies(f1, f2) => FOF.BinaryFormula(FOF.Impl, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
-      case K.iff(f1, f2) => FOF.BinaryFormula(FOF.<=>, formulaToFOFFormula(f1), formulaToFOFFormula(f2))
-      case K.forall(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.!, Seq("X" + v.id), formulaToFOFFormula(f))
-      case K.exists(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.?, Seq("X" + v.id), formulaToFOFFormula(f))
+      case K.neg(f) => FOF.UnaryFormula(FOF.~, formulaToFOFFormula(f, bound))
+      case K.and(f1, f2) => FOF.BinaryFormula(FOF.&, formulaToFOFFormula(f1, bound), formulaToFOFFormula(f2, bound))
+      case K.or(f1, f2) => FOF.BinaryFormula(FOF.|, formulaToFOFFormula(f1, bound), formulaToFOFFormula(f2, bound))
+      case K.implies(f1, f2) => FOF.BinaryFormula(FOF.Impl, formulaToFOFFormula(f1, bound), formulaToFOFFormula(f2, bound))
+      case K.iff(f1, f2) => FOF.BinaryFormula(FOF.<=>, formulaToFOFFormula(f1, bound), formulaToFOFFormula(f2, bound))
+      case K.forall(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.!, Seq("X" + v.id), formulaToFOFFormula(f, bound + v.id))
+      case K.exists(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.?, Seq("X" + v.id), formulaToFOFFormula(f, bound + v.id))
       case K.forall(p) =>
         val x = K.freshId(p.freeVariables.map(_.id), "x")
-        FOF.QuantifiedFormula(FOF.!, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind))))
+        FOF.QuantifiedFormula(FOF.!, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind)), bound + x))
       case K.exists(p) =>
         val x = K.freshId(p.freeVariables.map(_.id), "x")
-        FOF.QuantifiedFormula(FOF.?, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind))))
+        FOF.QuantifiedFormula(FOF.?, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind)), bound + x))
       case K.Multiapp(K.Constant(id, typ), args) =>
-        FOF.AtomicFormula(quoted("c" + id), args.map(termToFOFTerm))
+        FOF.AtomicFormula(quoted("c" + id), args.map(termToFOFTerm(_, bound)))
       case K.Multiapp(K.Variable(id, typ), args) =>
-        FOF.AtomicFormula(quoted("s" + id), args.map(termToFOFTerm))
+        FOF.AtomicFormula(quoted("s" + id), args.map(termToFOFTerm(_, bound)))
       case _ => throw new Exception("The expression is not purely first order: " + formula)
         
   }
 
   def formulaToFOFStatement(formula: K.Expression): FOF.Statement = {
-    FOF.Logical(formulaToFOFFormula(formula))
+    FOF.Logical(formulaToFOFFormula(formula, Set()))
   }
 
   def reconstructProof(file: File)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.SCProof = {
@@ -496,7 +498,6 @@ object ProofParser {
               case K.Forall(x, phi) => (x, phi)
               case _ => throw new Exception(s"$name: Expected a universal quantification, but got $f")
             }
-            println(s"LeftForall: x: ${x.repr}, phi: ${phi.repr}, t: $t")
             
             Some((K.LeftForall(convertToKernel(sequent), numbermap(t1), phi, x, t), name))
           case _ => None
@@ -807,8 +808,6 @@ object ProofParser {
               case K.Neg(K.forall(K.Lambda(x, phi))) => (x, phi)
               case _ => throw new Exception(s"$name: Expected a universal quantification, but got $f")
             }
-            println(s"y: $y")
-            println(s"x: $x")
             if x == y then Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.neg(phi), x), name))
             else 
               Some((K.LeftExists(convertToKernel(sequent), numbermap(t1), K.substituteVariables(K.neg(phi), Map(y -> x)), x), name))
@@ -1070,7 +1069,6 @@ object ProofParser {
             val hole = K.Variable(sanitize(xl), K.functionType(bounds.size))
             val x = K.Variable(sanitize(xl), K.Ind)
             val equals = Seq((K.lambda(bounds, left), K.lambda(bounds, right)))
-            println("equals: " + equals.map((p1, p2) => (p1.repr, p2.repr)))
             Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), equals, (Seq(hole), fl)), name))
           case _ => None
         }
