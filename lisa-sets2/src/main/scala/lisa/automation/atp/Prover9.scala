@@ -24,7 +24,7 @@ import lisa.tptp.KernelParser.*
 object Prover9 extends ProofTactic with ProofSequentTactic {
   private var i: Int = 0
 
-  val prover9Exec = "../bin/p9.jar"
+  val sctptpExec = "../bin/sctptpUtils.jar"
 
   class OsNotSupportedException(msg: String) extends Exception(msg)
 
@@ -93,8 +93,8 @@ object Prover9 extends ProofTactic with ProofSequentTactic {
     if generateProofs then
       val OS = System.getProperty("os.name")
       if OS.contains("nix") || OS.contains("nux") || OS.contains("aix") then
-        val ret = s"chmod u+x \"$prover9Exec\"".!
-        val cmd = (s"java -jar $prover9Exec $foldername$filename.p $foldername$outputname.p")
+        val ret = s"chmod u+x \"$sctptpExec\"".!
+        val cmd = (s"java -jar $sctptpExec p9 --input $foldername$filename.p --output $foldername$outputname.p")
         val res =
           try {
             cmd.!!
