@@ -8,21 +8,16 @@ import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
 
 trait TestUtils {
-  val (a, b, c) = (ConstantAtomicLabel("a", 0), ConstantAtomicLabel("b", 0), ConstantAtomicLabel("c", 0))
-  val p = ConstantAtomicLabel("p", 1)
-  val (x, y, z) = (VariableLabel("x"), VariableLabel("y"), VariableLabel("z"))
-  val (x1, y1, z1) = (VariableLabel("x1"), VariableLabel("y1"), VariableLabel("z1"))
-  val (xPrime, yPrime, zPrime) = (VariableLabel("x'"), VariableLabel("y'"), VariableLabel("z'"))
-  val (cx, cy, cz) = (ConstantFunctionLabel("x", 0), ConstantFunctionLabel("y", 0), ConstantFunctionLabel("z", 0))
-  val (f0, f1, f2, f3) = (ConstantFunctionLabel("f", 0), ConstantFunctionLabel("f", 1), ConstantFunctionLabel("f", 2), ConstantFunctionLabel("f", 3))
-  val (sf1, sf2, sf3) = (SchematicFunctionLabel("f", 1), SchematicFunctionLabel("f", 2), SchematicFunctionLabel("f", 3))
-  val (sPhi1, sPhi2) = (SchematicPredicateLabel("phi", 1), SchematicPredicateLabel("phi", 2))
-  val (sc1, sc2) = (SchematicConnectorLabel("c", 1), SchematicConnectorLabel("c", 2))
-  val (in, plus) = (ConstantAtomicLabel("elem", 2), ConstantFunctionLabel("+", 2))
+  val (a, b, c) = (Constant("a", Prop), Constant("b", Prop), Constant("c", Prop))
+  val p = Constant("p", Arrow(Ind, Prop))
+  val (x, y, z) = (Variable("x", Ind), Variable("y", Ind), Variable("z", Ind))
+  val (x1, y1, z1) = (Variable("x1", Ind), Variable("y1", Ind), Variable("z1", Ind))
+  val (xPrime, yPrime, zPrime) = (Variable("x'", Ind), Variable("y'", Ind), Variable("z'", Ind))
+  val (cx, cy, cz) = (Constant("x", Ind), Constant("y", Ind), Constant("z", Ind))
+  val (f0, f1, f2, f3) = (Constant("f", Ind), Constant("f", Arrow(Ind, Ind)), Constant("f", Arrow(Ind, Arrow(Ind, Ind))), Constant("f", Arrow(Ind, Arrow(Ind, Arrow(Ind, Ind)))))
+  val (sf1, sf2, sf3) = (Variable("f", Arrow(Ind, Ind)), Variable("f", Arrow(Ind, Arrow(Ind, Ind))), Variable("f", Arrow(Ind, Arrow(Ind, Arrow(Ind, Ind)))))
+  val (sPhi1, sPhi2) = (Variable("phi", Arrow(Ind, Prop)), Variable("phi", Arrow(Ind, Arrow(Ind, Prop))))
+  val (sc1, sc2) = (Variable("c", Prop >>: Prop), Variable("c", Prop >>: Prop))
+  val (in, plus) = (Constant("elem", Prop >>: Prop >>: Ind), Constant("+", Arrow(Ind, Arrow(Ind, Ind))))
 
-  given Conversion[AtomicLabel, AtomicFormula] = AtomicFormula(_, Seq.empty)
-
-  given Conversion[ConstantFunctionLabel, Term] = Term(_, Seq())
-
-  given Conversion[VariableLabel, Term] = VariableTerm.apply
 }

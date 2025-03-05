@@ -2,7 +2,6 @@ package lisa.kernel
 
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL.*
-import lisa.utils.FOLPrinter
 import lisa.utils.KernelHelpers._
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
@@ -17,17 +16,17 @@ import scala.util.Random
 class EquivalenceCheckerTests extends AnyFunSuite {
   private val verbose = false // Turn this on to print all tested couples
 
-  def checkEquivalence(left: Formula, right: Formula): Unit = {
+  def checkEquivalence(left: Expression, right: Expression): Unit = {
     assert(
       isSame(left, right),
-      s"Couldn't prove the equivalence between ${FOLPrinter.prettyFormula(left)} and ${FOLPrinter.prettyFormula(right)}\nLeft tree: ${left}\nRight tree: ${right}"
+      s"Couldn't prove the equivalence between ${left.repr} and ${right.repr}\nLeft tree: ${left}\nRight tree: ${right}"
     )
   }
 
-  def checkNonEquivalence(left: Formula, right: Formula): Unit = {
+  def checkNonEquivalence(left: Expression, right: Expression): Unit = {
     assert(
       !isSame(left, right),
-      s"Expected the checker to not be able to show equivalence between ${FOLPrinter.prettyFormula(left)} and ${FOLPrinter.prettyFormula(right)}\nLeft tree: ${left}\nRight tree: ${right}"
+      s"Expected the checker to not be able to show equivalence between ${left.repr} and ${right.repr}\nLeft tree: ${left}\nRight tree: ${right}"
     )
   }
 
@@ -41,6 +40,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
       id
     }
   }
+
   def numbersGenerator(): () => Int = {
     var i = 1
     () => {
@@ -50,15 +50,15 @@ class EquivalenceCheckerTests extends AnyFunSuite {
     }
   }
 
-  def constantsGenerator(): () => Formula = {
+  def constantsGenerator(): () => Expression = {
     val generator = nameGenerator()
     () => {
       val id = generator()
-      AtomicFormula(ConstantAtomicLabel(id, 0), Seq.empty)
+      Constant(id, Prop)
     }
   }
 
-  def formulasGenerator(c: Double)(random: Random): () => Formula = {
+  def ExpressionsGenerator(c: Double)(random: Random): () => Expression = {
     val connectors = ArrayBuffer.empty[String]
     val variables = ArrayBuffer.empty[String]
     val nextConnectorName = nameGenerator()
@@ -66,7 +66,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
       val gen = numbersGenerator()
       () => s"v${gen()}"
     }
-    def generate(p: Double): Formula = {
+    def generate(p: Double): Expression = {
       val q = random.nextDouble()
 
       if (q >= p) {
@@ -81,7 +81,7 @@ class EquivalenceCheckerTests extends AnyFunSuite {
             // Reuse existing name
             connectors(random.nextInt(connectors.size))
           }
-        AtomicFormula(ConstantAtomicLabel(name, 0), Seq.empty)
+        Constant(name, Prop)
       } else {
         // Branch
         val nextP = p * c
@@ -105,9 +105,9 @@ class EquivalenceCheckerTests extends AnyFunSuite {
           // Binder
           val name = nextVariableName()
           variables += name
-          val binderTypes: IndexedSeq[BinderLabel] = IndexedSeq(Forall, Exists, ExistsOne)
+          val binderTypes = IndexedSeq(forall, exists)
           val binderType = binderTypes(random.nextInt(binderTypes.size))
-          BinderFormula(binderType, VariableLabel(name), generate(nextP))
+          binderType(lambda(Variable(name, Ind), generate(nextP)))
         }
       }
     }
@@ -115,10 +115,10 @@ class EquivalenceCheckerTests extends AnyFunSuite {
     () => generate(c)
   }
 
-  def testcasesAny(generatorToTestcases: (() => Formula) => Random => Seq[(Formula, Formula)], equivalent: Boolean): Unit = {
+  def testcasesAny(generatorToTestcases: (() => Expression) => Random => Seq[(Expression, Expression)], equivalent: Boolean): Unit = {
     val random: Random = new Random(1)
 
-    def testWith(generator: () => () => Formula): Unit = {
+    def testWith(generator: () => () => Expression): Unit = {
       val cases = generatorToTestcases(generator())(random)
       cases.foreach { (left, right) =>
         // For completeness we also test symmetry
@@ -126,19 +126,19 @@ class EquivalenceCheckerTests extends AnyFunSuite {
           checkEquivalence(left, right)
           checkEquivalence(right, left)
           if (verbose) {
-            println(s"${FOLPrinter.prettyFormula(left)}  <==>  ${FOLPrinter.prettyFormula(right)}")
+            println(s"${left.repr}  <==>  ${right.repr}")
           }
         } else {
           checkNonEquivalence(left, right)
           checkNonEquivalence(right, left)
           if (verbose) {
-            println(s"${FOLPrinter.prettyFormula(left)}  <!=>  ${FOLPrinter.prettyFormula(right)}")
+            println(s"${left.repr}  <!=>  ${right.repr}")
           }
         }
       }
     }
 
-    def testWithRepeat(generator: () => () => Formula, n: Int): Unit = {
+    def testWithRepeat(generator: () => () => Expression, n: Int): Unit = {
       for (i <- 0 until n) {
         testWith(generator)
       }
@@ -148,80 +148,64 @@ class EquivalenceCheckerTests extends AnyFunSuite {
 
     testWith(constantsGenerator)
 
-    // 2. Random formulas (small)
+    // 2. Random Expressions (small)
 
-    testWithRepeat(() => formulasGenerator(0.8)(random), 5)
+    testWithRepeat(() => ExpressionsGenerator(0.8)(random), 5)
 
-    // 3. Random formulas (larger)
+    // 3. Random Expressions (larger)
 
-    testWithRepeat(() => formulasGenerator(0.90)(random), 15)
+    testWithRepeat(() => ExpressionsGenerator(0.90)(random), 15)
   }
 
-  def testcases(f: Formula => Random => Seq[(Formula, Formula)], equivalent: Boolean): Unit =
+  def testcases(f: Expression => Random => Seq[(Expression, Expression)], equivalent: Boolean): Unit =
     testcasesAny(generator => r => f(generator())(r), equivalent)
-  def testcases(f: (Formula, Formula) => Random => Seq[(Formula, Formula)], equivalent: Boolean): Unit =
+  def testcases(f: (Expression, Expression) => Random => Seq[(Expression, Expression)], equivalent: Boolean): Unit =
     testcasesAny(generator => r => f(generator(), generator())(r), equivalent)
-  def testcases(f: (Formula, Formula, Formula) => Random => Seq[(Formula, Formula)], equivalent: Boolean): Unit =
+  def testcases(f: (Expression, Expression, Expression) => Random => Seq[(Expression, Expression)], equivalent: Boolean): Unit =
     testcasesAny(generator => r => f(generator(), generator(), generator())(r), equivalent)
-  def testcases(f: (Formula, Formula, Formula, Formula) => Random => Seq[(Formula, Formula)], equivalent: Boolean): Unit =
+  def testcases(f: (Expression, Expression, Expression, Expression) => Random => Seq[(Expression, Expression)], equivalent: Boolean): Unit =
     testcasesAny(generator => r => f(generator(), generator(), generator(), generator())(r), equivalent)
 
   def repeatApply[T](n: Int)(f: T => T)(initial: T): T = if (n > 0) repeatApply(n - 1)(f)(f(initial)) else initial
-  def commutativeShuffle(iterations: Int)(random: Random)(f: Formula): Formula = {
-    def transform(f: Formula): Formula = f match {
-      case AtomicFormula(label, args) => f
-      case ConnectorFormula(label, args) =>
-        val newArgs = label match {
-          case And | Or | Iff => random.shuffle(args)
-          case _ => args
-        }
-        ConnectorFormula(label, newArgs.map(transform))
-      case BinderFormula(label, bound, inner) => BinderFormula(label, bound, transform(inner))
+  def commutativeShuffle(iterations: Int)(random: Random)(f: Expression): Expression = {
+    def transform(f: Expression): Expression = f match {
+      case And(a, b) => if random.nextBoolean() then and(transform(a), transform(b)) else and(transform(b), transform(a))
+      case Or(a, b) => if random.nextBoolean() then or(transform(a), transform(b)) else or(transform(b), transform(a))
+      case Iff(a, b) => if random.nextBoolean() then iff(transform(a), transform(b)) else iff(transform(b), transform(a))
+      case Application(f, arg) => Application(transform(f), transform(arg))
+      case Lambda(v, body) => Lambda(v, transform(body))
+      case _ => f
     }
     repeatApply(iterations)(transform)(f)
   }
-  def associativeShuffle(iterations: Int)(random: Random)(f: Formula): Formula = {
-    def transform(f: Formula): Formula = f match {
-      case AtomicFormula(label, args) => f
-      // Simple for now, assume binary operations
-      case ConnectorFormula(label1 @ (And | Or), Seq(ConnectorFormula(label2, Seq(a1, a2)), a3)) if label1 == label2 =>
-        if (random.nextBoolean()) {
-          ConnectorFormula(label1, Seq(a1, ConnectorFormula(label2, Seq(a2, a3))))
-        } else {
-          f
-        }
-      case ConnectorFormula(label1 @ (And | Or), Seq(a1, ConnectorFormula(label2, Seq(a2, a3)))) if label1 == label2 =>
-        if (random.nextBoolean()) {
-          ConnectorFormula(label1, Seq(ConnectorFormula(label2, Seq(a1, a2)), a3))
-        } else {
-          f
-        }
-      case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(transform))
-      case BinderFormula(label, bound, inner) => BinderFormula(label, bound, transform(inner))
+  def associativeShuffle(iterations: Int)(random: Random)(f: Expression): Expression = {
+    def transform(f: Expression): Expression = f match {
+      case And(And(a, b), c) => if (random.nextBoolean()) and(transform(a), and(transform(b), transform(c))) else and(and(transform(a), transform(b)), transform(c))
+      case Or(Or(a, b), c) => if (random.nextBoolean()) or(transform(a), or(transform(b), transform(c))) else or(or(transform(a), transform(b)), transform(c))
+      case Application(f, arg) => Application(transform(f), transform(arg))
+      case Lambda(v, body) => Lambda(v, transform(body))
+      case _ => f
     }
     repeatApply(iterations)(transform)(f)
   }
-  def addDoubleNegations(p: Double)(random: Random)(f: Formula): Formula = {
-    def transform(f: Formula): Formula =
-      if (random.nextDouble() < p) neg(neg(transform(f)))
+  def addDoubleNegations(p: Double)(random: Random)(f: Expression): Expression = {
+    def transform(f: Expression): Expression =
+      if (random.nextDouble() < p && f.sort == Prop) neg(neg(transform(f)))
       else
         f match {
-          case _: AtomicFormula => f
-          case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(transform))
-          case BinderFormula(label, bound, inner) => BinderFormula(label, bound, transform(inner))
+          case Application(f, arg) => Application(transform(f), transform(arg))
+          case Lambda(v, body) => Lambda(v, transform(body))
+          case _ => f
         }
     transform(f)
   }
-  def addDeMorgans(p: Double)(random: Random)(f: Formula): Formula = {
-    def transform(f: Formula): Formula = f match {
-      case _: AtomicFormula => f
-      case ConnectorFormula(label, args) =>
-        val map: Map[ConnectorLabel, ConnectorLabel] = Map(And -> Or, Or -> And)
-        map.get(label) match {
-          case Some(opposite) if random.nextDouble() < p => transform(neg(ConnectorFormula(opposite, args.map(neg(_)))))
-          case _ => ConnectorFormula(label, args.map(transform))
-        }
-      case BinderFormula(label, bound, inner) => BinderFormula(label, bound, transform(inner))
+  def addDeMorgans(p: Double)(random: Random)(f: Expression): Expression = {
+    def transform(f: Expression): Expression = f match {
+      case And(a, b) => if random.nextBoolean() then !or(!transform(a), !transform(b)) else and(transform(b), transform(a))
+      case Or(a, b) => if random.nextBoolean() then !and(!transform(a), !transform(b)) else or(transform(b), transform(a))
+      case Application(f, arg) => Application(transform(f), transform(arg))
+      case Lambda(v, body) => Lambda(v, transform(body))
+      case _ => f
     }
     transform(f)
   }
@@ -364,13 +348,13 @@ class EquivalenceCheckerTests extends AnyFunSuite {
   }
 
   test("All allowed transformations") {
-    val transformations: Seq[Random => Formula => Formula] = IndexedSeq(
+    val transformations: Seq[Random => Expression => Expression] = IndexedSeq(
       r => commutativeShuffle(1)(r),
       r => associativeShuffle(1)(r),
       r => addDoubleNegations(0.02)(r),
       r => addDeMorgans(0.05)(r)
     )
-    def randomTransformations(random: Random)(f: Formula): Formula = {
+    def randomTransformations(random: Random)(f: Expression): Expression = {
       val n = random.nextInt(50)
       Seq.fill(n)(transformations(random.nextInt(transformations.size))).foldLeft(f)((acc, e) => e(random)(acc))
     }

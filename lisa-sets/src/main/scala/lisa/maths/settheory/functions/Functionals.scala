@@ -294,7 +294,7 @@ object Functionals extends lisa.Main {
   }
 
   // class SetOfFunctions(val x: Term, val y: Term) extends AppliedFunctional(setOfFunctions, Seq(x, y)) with LisaObject[SetOfFunctions] {
-  //   override def substituteUnsafe(map: Map[lisa.fol.FOL.SchematicLabel[?], lisa.fol.FOL.LisaObject[?]]): SetOfFunctions = SetOfFunctions(x.substituteUnsafe(map), y.substituteUnsafe(map))
+  //   override def substituteUnsafe(map: Map[lisa.utils.fol.FOL.SchematicLabel[?], lisa.utils.fol.FOL.LisaObject[?]]): SetOfFunctions = SetOfFunctions(x.substituteUnsafe(map), y.substituteUnsafe(map))
 
   //   override def toString(): String = x.toStringSeparated() + " |=> " + y.toStringSeparated()
   //   override def toStringSeparated(): String = toString()

@@ -1,20 +1,21 @@
 package lisa.test
 
 import lisa.kernel.proof.SequentCalculus as SC
-import lisa.prooflib.BasicMain
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.Library
-import lisa.prooflib.ProofTacticLib
+import lisa.utils.prooflib.BasicMain
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.LazyList
+import leo.datastructures.TPTP.FOF.Term
 
 trait ProofTacticTestLib extends AnyFunSuite with BasicMain {
 
   export lisa.test.TestTheoryLibrary.{_, given}
 
-  private val x: lisa.fol.FOL.Variable = variable
-  private val P = predicate[1]
+  private val x = variable[Ind]
+  private val P = variable[Ind >>: Prop]
 
   // generate a placeholde theorem to take ownership of proofs for test
   val placeholderTheorem: THMFromProof = Theorem(P(x) |- P(x)) { have(P(x) |- P(x)) by Hypothesis }.asInstanceOf

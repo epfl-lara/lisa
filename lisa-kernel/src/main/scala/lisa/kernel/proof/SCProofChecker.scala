@@ -4,6 +4,7 @@ import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SCProofCheckerJudgement._
 import lisa.kernel.proof.SequentCalculus._
 
+
 object SCProofChecker {
 
   /**
@@ -42,7 +43,7 @@ object SCProofChecker {
            *    Γ |- Γ
            */
           case RestateTrue(s) =>
-            val truth = Sequent(Set(), Set(AtomicFormula(top, Nil)))
+            val truth = Sequent(Set(), Set(top))
             if (isSameSequent(s, truth)) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The desired conclusion is not a trivial tautology")
           /*
            *
@@ -50,17 +51,22 @@ object SCProofChecker {
            *   Γ, φ |- φ, Δ
            */
           case Hypothesis(Sequent(left, right), phi) =>
-            if (contains(left, phi))
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (contains(left, phi))
               if (contains(right, phi)) SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Right-hand side does not contain formula φ")
             else SCInvalidProof(SCProof(step), Nil, s"Left-hand side does not contain formula φ")
+
           /*
            *  Γ |- Δ, φ    φ, Σ |- Π
            * ------------------------
            *       Γ, Σ |- Δ, Π
            */
           case Cut(b, t1, t2, phi) =>
-            if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left) && (!contains(ref(t1).left, phi) || contains(b.left, phi)))
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left) && (!contains(ref(t1).left, phi) || contains(b.left, phi)))
               if (isSameSet(b.right + phi, ref(t2).right union ref(t1).right) && (!contains(ref(t2).right, phi) || contains(b.right, phi)))
                 if (contains(ref(t2).left, phi))
                   if (contains(ref(t1).right, phi))
@@ -77,8 +83,12 @@ object SCProofChecker {
            *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
            */
           case LeftAnd(b, t1, phi, psi) =>
-            if (isSameSet(ref(t1).right, b.right)) {
-              val phiAndPsi = ConnectorFormula(And, Seq(phi, psi))
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+            else if (isSameSet(ref(t1).right, b.right)) {
+              val phiAndPsi = and(phi)(psi)
               if (
                 isSameSet(b.left + phi, ref(t1).left + phiAndPsi) ||
                 isSameSet(b.left + psi, ref(t1).left + phiAndPsi) ||
@@ -93,13 +103,15 @@ object SCProofChecker {
            *    Γ, Σ, φ∨ψ |- Δ, Π
            */
           case LeftOr(b, t, disjuncts) =>
-            if (isSameSet(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _))) {
-              val phiOrPsi = ConnectorFormula(Or, disjuncts)
+            if (disjuncts.exists(phi => phi.sort != Prop)){
+              val culprit = disjuncts.find(phi => phi.sort != Prop).get
+              SCInvalidProof(SCProof(step), Nil, "all φs must be a formula, but " + culprit + " is a " + culprit.sort)
+            } else if (isSameSet(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _))) {
+              val phiOrPsi = disjuncts.reduceLeft(or(_)(_))
               if (
                 t.zip(disjuncts).forall { case (s, phi) => isSubset(ref(s).left, b.left + phi) } &&
                 isSubset(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _) + phiOrPsi)
                 )
-
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
             } else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
@@ -109,30 +121,42 @@ object SCProofChecker {
            *    Γ, Σ, φ⇒ψ |- Δ, Π
            */
           case LeftImplies(b, t1, t2, phi, psi) =>
-            val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
-            if (isSameSet(b.right + phi, ref(t1).right union ref(t2).right))
-              if (isSameSet(b.left + psi, ref(t1).left union ref(t2).left + phiImpPsi))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + ψ must be identical to union of left-hand sides of premisces + φ⇒ψ.")
-            else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ must be identical to union of right-hand sides of premisces.")
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+            else {
+              val phiImpPsi = implies(phi)(psi)
+              if (isSameSet(b.right + phi, ref(t1).right union ref(t2).right))
+                if (isSameSet(b.left + psi, ref(t1).left union ref(t2).left + phiImpPsi))
+                  SCValidProof(SCProof(step))
+                else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + ψ must be identical to union of left-hand sides of premisces + φ⇒ψ.")
+              else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ must be identical to union of right-hand sides of premisces.")
+            }
           /*
            *  Γ, φ⇒ψ |- Δ               Γ, φ⇒ψ, ψ⇒φ |- Δ
            * --------------    or     ---------------
            *  Γ, φ⇔ψ |- Δ              Γ, φ⇔ψ |- Δ
            */
           case LeftIff(b, t1, phi, psi) =>
-            val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
-            val psiImpPhi = ConnectorFormula(Implies, Seq(psi, phi))
-            val phiIffPsi = ConnectorFormula(Iff, Seq(phi, psi))
-            if (isSameSet(ref(t1).right, b.right))
-              if (
-                isSameSet(b.left + phiImpPsi, ref(t1).left + phiIffPsi) ||
-                isSameSet(b.left + psiImpPhi, ref(t1).left + phiIffPsi) ||
-                isSameSet(b.left + phiImpPsi + psiImpPhi, ref(t1).left + phiIffPsi)
-              )
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ⇔ψ must be same as left-hand side of premise + either φ⇒ψ, ψ⇒φ or both.")
-            else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of premise and conclusion must be the same.")
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+            else {
+              val phiImpPsi = implies(phi)(psi)
+              val psiImpPhi = implies(psi)(phi)
+              val phiIffPsi = iff(phi)(psi)
+              if (isSameSet(ref(t1).right, b.right))
+                if (
+                  isSameSet(b.left + phiImpPsi, ref(t1).left + phiIffPsi) ||
+                  isSameSet(b.left + psiImpPhi, ref(t1).left + phiIffPsi) ||
+                  isSameSet(b.left + phiImpPsi + psiImpPhi, ref(t1).left + phiIffPsi)
+                )
+                  SCValidProof(SCProof(step))
+                else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ⇔ψ must be same as left-hand side of premise + either φ⇒ψ, ψ⇒φ or both.")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of premise and conclusion must be the same.")
+            }
 
           /*
            *   Γ |- φ, Δ
@@ -140,12 +164,16 @@ object SCProofChecker {
            *   Γ, ¬φ |- Δ
            */
           case LeftNot(b, t1, phi) =>
-            val nPhi = ConnectorFormula(Neg, Seq(phi))
-            if (isSameSet(b.left, ref(t1).left + nPhi))
-              if (isSameSet(b.right + phi, ref(t1).right))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + φ must be the same as right-hand side of premise")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion must be the same as left-hand side of premise + ¬φ")
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else {
+              val nPhi = neg(phi)
+              if (isSameSet(b.left, ref(t1).left + nPhi))
+                if (isSameSet(b.right + phi, ref(t1).right))
+                  SCValidProof(SCProof(step))
+                else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + φ must be the same as right-hand side of premise")
+              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion must be the same as left-hand side of premise + ¬φ")
+            }
 
           /*
            *   Γ, φ[t/x] |- Δ
@@ -153,8 +181,14 @@ object SCProofChecker {
            *  Γ, ∀x. φ |- Δ
            */
           case LeftForall(b, t1, phi, x, t) =>
-            if (isSameSet(b.right, ref(t1).right))
-              if (isSameSet(b.left + substituteVariablesInFormula(phi, Map(x -> t)), ref(t1).left + BinderFormula(Forall, x, phi)))
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Ind) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+            else if (t.sort != Ind) 
+              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
+            else if (isSameSet(b.right, ref(t1).right))
+              if (isSameSet(b.left + substituteVariables(phi, Map(x -> t)), ref(t1).left + forall(Lambda(x, phi))))
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ")
             else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
@@ -165,26 +199,16 @@ object SCProofChecker {
            *  Γ, ∃x. φ|- Δ
            */
           case LeftExists(b, t1, phi, x) =>
-            if (isSameSet(b.right, ref(t1).right))
-              if (isSameSet(b.left + phi, ref(t1).left + BinderFormula(Exists, x, phi)))
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Ind) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+            else if (isSameSet(b.right, ref(t1).right))
+              if (isSameSet(b.left + phi, ref(t1).left + exists(Lambda(x, phi))))
                 if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
                   SCValidProof(SCProof(step))
                 else SCInvalidProof(SCProof(step), Nil, "The variable x must not be free in the resulting sequent.")
               else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ")
-            else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
-
-          /*
-           *  Γ, ∃y.∀x. (x=y) ⇔ φ |-  Δ
-           * ---------------------------- if y is not free in φ
-           *      Γ, ∃!x. φ |- Δ
-           */
-          case LeftExistsOne(b, t1, phi, x) =>
-            val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
-            val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(AtomicFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
-            if (isSameSet(b.right, ref(t1).right))
-              if (isSameSet(b.left + temp, ref(t1).left + BinderFormula(ExistsOne, x, phi)))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + ∃y.∀x. (x=y) ⇔ φ must be the same as left-hand side of premise + ∃!x. φ")
             else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
 
           // Right rules
@@ -194,82 +218,113 @@ object SCProofChecker {
            *    Γ, Σ |- φ∧ψ, Π, Δ
            */
           case RightAnd(b, t, cunjuncts) =>
-            val phiAndPsi = ConnectorFormula(And, cunjuncts)
-            if (isSameSet(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _)))
-              if (
-                t.zip(cunjuncts).forall { case (s, phi) => isSubset(ref(s).right, b.right + phi) } &&
-                isSubset(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi)
-                //isSameSet(cunjuncts.foldLeft(b.right)(_ + _), t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi)
-                )
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises φ∧ψ.")
-            else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+            if (cunjuncts.exists(phi => phi.sort != Prop)){
+              val culprit = cunjuncts.find(phi => phi.sort != Prop).get
+              SCInvalidProof(SCProof(step), Nil, "all φs must be a formula, but " + culprit + " is a " + culprit.sort)
+            } else {
+              val phiAndPsi = cunjuncts.reduce(and(_)(_))
+              if (isSameSet(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _)))
+                if (
+                  t.zip(cunjuncts).forall { case (s, phi) => isSubset(ref(s).right, b.right + phi) } &&
+                  isSubset(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi)
+                  //isSameSet(cunjuncts.foldLeft(b.right)(_ + _), t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi)
+                  )
+                  SCValidProof(SCProof(step))
+                else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises φ∧ψ.")
+              else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+            }
           /*
            *   Γ |- φ, Δ                Γ |- φ, ψ, Δ
            * --------------    or    ---------------
            *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
            */
           case RightOr(b, t1, phi, psi) =>
-            val phiOrPsi = ConnectorFormula(Or, Seq(phi, psi))
-            if (isSameSet(ref(t1).left, b.left))
-              if (
-                isSameSet(b.right + phi, ref(t1).right + phiOrPsi) ||
-                isSameSet(b.right + psi, ref(t1).right + phiOrPsi) ||
-                isSameSet(b.right + phi + psi, ref(t1).right + phiOrPsi)
-              )
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both.")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise and the conclusion must be the same.")
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+            else {
+              val phiOrPsi = or(phi)(psi)
+              if (isSameSet(ref(t1).left, b.left))
+                if (
+                  isSameSet(b.right + phi, ref(t1).right + phiOrPsi) ||
+                  isSameSet(b.right + psi, ref(t1).right + phiOrPsi) ||
+                  isSameSet(b.right + phi + psi, ref(t1).right + phiOrPsi)
+                )
+                  SCValidProof(SCProof(step))
+                else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both.")
+              else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise and the conclusion must be the same.")
+            }
           /*
            *  Γ, φ |- ψ, Δ
            * --------------
            *  Γ |- φ⇒ψ, Δ
            */
           case RightImplies(b, t1, phi, psi) =>
-            val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
-            if (isSameSet(ref(t1).left, b.left + phi))
-              if (isSameSet(b.right + psi, ref(t1).right + phiImpPsi))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ⇒ψ.")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + psi must be same as left-hand side of premise.")
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+            else {
+              val phiImpPsi = implies(phi)(psi)
+              if (isSameSet(ref(t1).left, b.left + phi))
+                if (isSameSet(b.right + psi, ref(t1).right + phiImpPsi))
+                  SCValidProof(SCProof(step))
+                else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ⇒ψ.")
+              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + psi must be same as left-hand side of premise.")
+            }
           /*
            *  Γ |- φ⇒ψ, Δ    Σ |- ψ⇒φ, Π
            * ----------------------------
            *      Γ, Σ |- φ⇔ψ, Π, Δ
            */
           case RightIff(b, t1, t2, phi, psi) =>
-            val phiImpPsi = ConnectorFormula(Implies, Seq(phi, psi))
-            val psiImpPhi = ConnectorFormula(Implies, Seq(psi, phi))
-            val phiIffPsi = ConnectorFormula(Iff, Seq(phi, psi))
-            if (isSameSet(b.left, ref(t1).left union ref(t2).left))
-              if (
-                isSubset(ref(t1).right, b.right + phiImpPsi) &&
-                isSubset(ref(t2).right, b.right + psiImpPhi) &&
-                isSubset(b.right, ref(t1).right union ref(t2).right + phiIffPsi)
-                )
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + a⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises φ⇔b.")
-            else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (psi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+            else {
+              val phiImpPsi = implies(phi)(psi)
+              val psiImpPhi = implies(psi)(phi)
+              val phiIffPsi = iff(phi)(psi)
+              if (isSameSet(b.left, ref(t1).left union ref(t2).left))
+                if (
+                  isSubset(ref(t1).right, b.right + phiImpPsi) &&
+                  isSubset(ref(t2).right, b.right + psiImpPhi) &&
+                  isSubset(b.right, ref(t1).right union ref(t2).right + phiIffPsi)
+                  )
+                  SCValidProof(SCProof(step))
+                else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + a⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises φ⇔b.")
+              else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+            }
           /*
            *  Γ, φ |- Δ
            * --------------
            *   Γ |- ¬φ, Δ
            */
           case RightNot(b, t1, phi) =>
-            val nPhi = ConnectorFormula(Neg, Seq(phi))
-            if (isSameSet(b.right, ref(t1).right + nPhi))
-              if (isSameSet(b.left + phi, ref(t1).left))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ must be the same as left-hand side of premise")
-            else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise + ¬φ")
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else {
+              val nPhi = neg(phi)
+              if (isSameSet(b.right, ref(t1).right + nPhi))
+                if (isSameSet(b.left + phi, ref(t1).left))
+                  SCValidProof(SCProof(step))
+                else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ must be the same as left-hand side of premise")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise + ¬φ")
+            }
           /*
            *    Γ |- φ, Δ
            * ------------------- if x is not free in the resulting sequent
            *  Γ |- ∀x. φ, Δ
            */
           case RightForall(b, t1, phi, x) =>
-            if (isSameSet(b.left, ref(t1).left))
-              if (isSameSet(b.right + phi, ref(t1).right + BinderFormula(Forall, x, phi)))
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Ind) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+            else if (isSameSet(b.left, ref(t1).left))
+              if (isSameSet(b.right + phi, ref(t1).right + forall(Lambda(x, phi))))
                 if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
                   SCValidProof(SCProof(step))
                 else SCInvalidProof(SCProof(step), Nil, "The variable x must not be free in the resulting sequent.")
@@ -281,27 +336,39 @@ object SCProofChecker {
            *  Γ |- ∃x. φ, Δ
            */
           case RightExists(b, t1, phi, x, t) =>
-            if (isSameSet(b.left, ref(t1).left))
-              if (isSameSet(b.right + substituteVariablesInFormula(phi, Map(x -> t)), ref(t1).right + BinderFormula(Exists, x, phi)))
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Ind) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+            else if (t.sort != Ind) 
+              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
+            else if (isSameSet(b.left, ref(t1).left))
+              if (isSameSet(b.right + substituteVariables(phi, Map(x -> t)), ref(t1).right + exists(Lambda(x, phi))))
                 SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, "Right-hand side of the conclusion + φ[t/x] must be the same as right-hand side of the premise + ∃x. φ")
             else SCInvalidProof(SCProof(step), Nil, "Left-hand sides or conclusion and premise must be the same.")
 
           /**
            * <pre>
-           * Γ |- ∃y.∀x. (x=y) ⇔ φ, Δ
-           * ---------------------------- if y is not free in φ
-           * Γ|- ∃!x. φ,  Δ
+           *       Γ |- φ[t/x], Δ
+           * --------------------------
+           *     Γ|- φ[(εx. φ)/x], Δ
            * </pre>
            */
-          case RightExistsOne(b, t1, phi, x) =>
-            val y = VariableLabel(freshId(phi.freeVariables.map(_.id), x.id))
-            val temp = BinderFormula(Exists, y, BinderFormula(Forall, x, ConnectorFormula(Iff, List(AtomicFormula(equality, List(VariableTerm(x), VariableTerm(y))), phi))))
-            if (isSameSet(b.left, ref(t1).left))
-              if (isSameSet(b.right + temp, ref(t1).right + BinderFormula(ExistsOne, x, phi)))
+          case RightEpsilon(b, t1, phi, x, t) =>
+            if (phi.sort != Prop) 
+              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+            else if (x.sort != Ind) 
+              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+            else if (t.sort != Ind) 
+              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
+            else if (isSameSet(b.left, ref(t1).left)) {
+              val expected_top = substituteVariables(phi, Map(x -> t))
+              val expected_bot = substituteVariables(phi, Map(x -> epsilon(Lambda(x, phi))))
+              if (isSameSet(b.right + expected_top, ref(t1).right + expected_bot))
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ∃y.∀x. (x=y) ⇔ φ must be the same as right-hand side of premise + ∃!x. φ")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of conclusion and premise must be the same")
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of the conclusion + φ[t/x] must be the same as right-hand side of the premise + ∃x. φ")
+            } else SCInvalidProof(SCProof(step), Nil, "Left-hand sides or conclusion and premise must be the same.")
 
           // Structural rules
           /*
@@ -314,6 +381,18 @@ object SCProofChecker {
               SCValidProof(SCProof(step))
             else SCInvalidProof(SCProof(step), Nil, "Conclusion cannot be trivially derived from premise.")
 
+          /**
+           * <pre>
+           *    Γ, φ[(λy. e)t/x] |- Δ
+           * ---------------------------
+           *     Γ, φ[e[t/y]/x] |- Δ
+           * </pre>
+           */
+          case Beta(b, t1) => 
+            if (isSame(sequentToFormula(b).betaNormalForm, sequentToFormula(ref(t1)).betaNormalForm)) {
+              SCValidProof(SCProof(step))
+            } else SCInvalidProof(SCProof(step), Nil, "The conclusion is not beta-OL-equivalent to the premise.")
+
           // Equality Rules
           /*
            *  Γ, s=s |- Δ
@@ -322,8 +401,8 @@ object SCProofChecker {
            */
           case LeftRefl(b, t1, phi) =>
             phi match {
-              case AtomicFormula(`equality`, Seq(left, right)) =>
-                if (isSameTerm(left, right))
+              case equality(left, right) =>
+                if (isSame(left, right))
                   if (isSameSet(b.right, ref(t1).right))
                     if (isSameSet(b.left + phi, ref(t1).left))
                       SCValidProof(SCProof(step))
@@ -340,8 +419,8 @@ object SCProofChecker {
            */
           case RightRefl(b, phi) =>
             phi match {
-              case AtomicFormula(`equality`, Seq(left, right)) =>
-                if (isSameTerm(left, right))
+              case equality(left, right) =>
+                if (isSame(left, right))
                   if (contains(b.right, phi))
                     SCValidProof(SCProof(step))
                   else SCInvalidProof(SCProof(step), Nil, s"Right-Hand side of conclusion does not contain φ")
@@ -349,26 +428,31 @@ object SCProofChecker {
               case _ => SCInvalidProof(SCProof(step), Nil, s"φ is not an equality.")
             }
 
-          /*
-           *    Γ, φ(s_) |- Δ
-           * ---------------------
-           *  Γ, (s=t)_, φ(t_)|- Δ
+          /**
+           * <pre>
+           *                     Γ, φ(s_) |- Δ      
+           * -----------------------------------------------------
+           *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_, φ(t_) |- Δ
+           * </pre>
            */
           case LeftSubstEq(b, t1, equals, lambdaPhi) =>
             val (s_es, t_es) = equals.unzip
             val (phi_args, phi_body) = lambdaPhi
             if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
               SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort || !(arg.sort.isFunctional || arg.sort.isPredicate) })
               SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
             else {
-              val phi_s_for_f = instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
-              val phi_t_for_f = instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
+              val phi_s_for_f = substituteVariables(phi_body, (phi_args zip s_es).toMap)
+              val phi_t_for_f = substituteVariables(phi_body, (phi_args zip t_es).toMap)
               val sEqT_es = equals map { 
                 case (s, t) => 
-                  assert(s.vars.size == t.vars.size)
-                  val base = AtomicFormula(equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(VariableTerm))))
-                  (s.vars).foldLeft(base: Formula) { case (acc, s_arg) => BinderFormula(Forall, s_arg, acc) }
+                  val no = ((s.freeVariables ++ t.freeVariables).view.map(_.id.no) ++ Seq(-1)).max+1
+                  val vars = (no until no+s.sort.depth).map(i => Variable(Identifier("x", i), Ind))
+                  val inner1 = vars.foldLeft(s)(_(_))
+                  val inner2 = vars.foldLeft(t)(_(_))
+                  val base = if (inner1.sort == Prop) iff(inner1)(inner2) else equality(inner1)(inner2)
+                  vars.foldRight(base : Expression) { case (s_arg, acc) => forall(Lambda(s_arg, acc)) }
               }
 
               if (isSameSet(b.right, ref(t1).right))
@@ -387,117 +471,128 @@ object SCProofChecker {
             }
 
           /*
-           *    Γ |- φ(s_), Δ
-           * ---------------------
-           *  Γ, (s=t)_ |- φ(t_), Δ
+           *  Γ |- φ(s), Δ     Σ |- s=t, Π
+           * ---------------------------------
+           *         Γ, Σ |- φ(t), Δ, Π
            */
           case RightSubstEq(b, t1, equals, lambdaPhi) =>
             val (s_es, t_es) = equals.unzip
             val (phi_args, phi_body) = lambdaPhi
-            if (phi_args.size != equals.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+            if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
               SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
+            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
               SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
             else {
-              val phi_s_for_f = instantiateTermSchemas(phi_body, (phi_args zip s_es).toMap)
-              val phi_t_for_f = instantiateTermSchemas(phi_body, (phi_args zip t_es).toMap)
+              val phi_s_for_f = substituteVariables(phi_body, (phi_args zip s_es).toMap)
+              val phi_t_for_f = substituteVariables(phi_body, (phi_args zip t_es).toMap)
               val sEqT_es = equals map { 
                 case (s, t) => 
-                  assert(s.vars.size == t.vars.size)
-                  val base = AtomicFormula(equality, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(VariableTerm))))
-                  (s.vars).foldLeft(base: Formula) { case (acc, s_arg) => BinderFormula(Forall, s_arg, acc) }
+                  val no = ((s.freeVariables ++ t.freeVariables).view.map(_.id.no) ++ Seq(0)).max+1
+                  val vars = (no until no+s.sort.depth).map(i => Variable(Identifier("x", i), Ind))
+                  val inner1 = vars.foldLeft(s)(_(_))
+                  val inner2 = vars.foldLeft(t)(_(_))
+                  val base = if (inner1.sort == Prop) iff(inner1)(inner2) else equality(inner1)(inner2)
+                  vars.foldRight(base : Expression) { case (s_arg, acc) => forall(Lambda(s_arg, acc)) }
               }
-
-              if (isSameSet(ref(t1).left ++ sEqT_es, b.left))
+              if (isSameSet(b.left, ref(t1).left ++ sEqT_es))
                 if (
-                  isSameSet(b.right + phi_s_for_f, ref(t1).right + phi_t_for_f) ||
-                  isSameSet(b.right + phi_t_for_f, ref(t1).right + phi_s_for_f)
-                )
+                  isSameSet(b.right + phi_t_for_f, ref(t1).right + phi_s_for_f) ||
+                  isSameSet(b.right + phi_s_for_f, ref(t1).right + phi_t_for_f)
+                ) {
                   SCValidProof(SCProof(step))
-                else
+                }
+                else {
+                  
                   SCInvalidProof(
                     SCProof(step),
                     Nil,
                     "Right-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case."
-                  )
+                  )}
               else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the premise.")
             }
 
-          /*
-           *    Γ, φ(ψ_) |- Δ
-           * ---------------------
-           *  Γ, ψ⇔τ, φ(τ) |- Δ
-           */
-          case LeftSubstIff(b, t1, equals, lambdaPhi) =>
-            val (phi_s, tau_s) = equals.unzip
-            val (phi_args, phi_body) = lambdaPhi
-            if (phi_args.size != phi_s.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
-              SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
-              SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-            else {
-              val phi_psi_for_q = instantiatePredicateSchemas(phi_body, (phi_args zip phi_s).toMap)
-              val phi_tau_for_q = instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
-              val psiIffTau = equals map { 
-                case (s, t) => 
-                  assert(s.vars.size == t.vars.size)
-                  val base = ConnectorFormula(Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(VariableTerm))))
-                  (s.vars).foldLeft(base: Formula) { case (acc, s_arg) => BinderFormula(Forall, s_arg, acc) }
-              }
 
-              if (isSameSet(b.right, ref(t1).right))
-                if (
-                  isSameSet(b.left + phi_tau_for_q, ref(t1).left ++ psiIffTau + phi_psi_for_q) ||
-                  isSameSet(b.left + phi_psi_for_q, ref(t1).left ++ psiIffTau + phi_tau_for_q)
-                )
-                  SCValidProof(SCProof(step))
-                else
-                  SCInvalidProof(
-                    SCProof(step),
-                    Nil,
-                    "Left-hand sides of the conclusion + φ(ψ_) must be the same as left-hand side of the premise + (ψ⇔τ)_ + φ(τ_) (or with ψ and τ swapped)."
-                  )
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
-            }
-
+/*
           /*
            *    Γ |- φ[ψ/?p], Δ
            * ---------------------
            *  Γ, ψ⇔τ |- φ[τ/?p], Δ
            */
-          case RightSubstIff(b, t1, equals, lambdaPhi) =>
-            val (psi_s, tau_s) = equals.unzip
-            val (phi_args, phi_body) = lambdaPhi
-            if (phi_args.size != psi_s.size) 
-              SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.vars.size != arg.arity || t.vars.size != arg.arity })
-              SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
+          case RightSubstIff(b, t1, t2, psi, tau, vars, lambdaPhi) =>
+            val (phi_arg, phi_body) = lambdaPhi
+            if (psi.sort != phi_arg.sort || tau.sort != phi_arg.sort) 
+              SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of ψ and τ.")
+            else if (!psi.sort.isPredicate) 
+              SCInvalidProof(SCProof(step), Nil, "Can only substitute predicate-like terms (with type Ind -> ... -> Ind -> Prop)")
             else {
-              val phi_psi_for_q = instantiatePredicateSchemas(phi_body, (phi_args zip psi_s).toMap)
-              val phi_tau_for_q = instantiatePredicateSchemas(phi_body, (phi_args zip tau_s).toMap)
-              val psiIffTau = equals map { 
-                case (s, t) => 
-                  assert(s.vars.size == t.vars.size)
-                  val base = ConnectorFormula(Iff, Seq(s.body, if (s.vars == t.vars) t.body else t(s.vars.map(VariableTerm))))
-                  (s.vars).foldLeft(base: Formula) { case (acc, s_arg) => BinderFormula(Forall, s_arg, acc) }
-              }
+              val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> psi))
+              val phi_t_for_f = substituteVariables(phi_body, Map(phi_arg -> tau))
 
-              if (isSameSet(ref(t1).left ++ psiIffTau, b.left))
-                if (
-                  isSameSet(b.right + phi_tau_for_q, ref(t1).right + phi_psi_for_q) ||
-                  isSameSet(b.right + phi_psi_for_q, ref(t1).right + phi_tau_for_q)
-                )
-                  SCValidProof(SCProof(step))
-                else 
-                  SCInvalidProof(
-                    SCProof(step),
-                    Nil,
-                    "Right-hand side of the premise and the conclusion should be the same with each containing one of φ[τ/?q] and φ[ψ/?q], but it isn't the case."
-                  )
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + ψ⇔τ must be the same as left-hand side of the premise.")
+              val inner1 = vars.foldLeft(psi)(_(_))
+              val inner2 = vars.foldLeft(tau)(_(_))
+              val sEqt = iff(inner1)(inner2)
+              val varss = vars.toSet
+
+              if (
+                isSubset(ref(t1).right, b.right + phi_s_for_f) &&
+                isSubset(ref(t2).right, b.right + sEqt) &&
+                isSubset(b.right, ref(t1).right union ref(t2).right + phi_t_for_f) 
+              ) {
+                if (isSameSet(b.left, ref(t1).left union ref(t2).left)) {
+                  if ( 
+                    ref(t2).left.exists(f => f.freeVariables.intersect(varss).nonEmpty) || 
+                    ref(t2).right.exists(f => !isSame(f, sEqt) && f.freeVariables.intersect(varss).nonEmpty)
+                  ) {
+                    SCInvalidProof(SCProof(step), Nil, "The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
+                  } else SCValidProof(SCProof(step))
+                }
+                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
+              }
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
             }
 
+                                  /*
+           *   Γ, φ(ψ) |- Δ     Σ |- a⇔b, Π     
+           * --------------------------------
+           *        Γ, Σ φ(b) |- Δ, Π
+           */
+          case LeftSubstIff(b, t1, t2, psi, tau, vars, lambdaPhi) =>
+            val (phi_arg, phi_body) = lambdaPhi
+            if (psi.sort != phi_arg.sort || tau.sort != phi_arg.sort) 
+              SCInvalidProof(SCProof(step), Nil, "The types of the variable of φ must be the same as the types of ψ and τ.")
+            else /*if (!psi.sort.isPredicate) 
+              SCInvalidProof(SCProof(step), Nil, "Can only substitute predicate-like terms (with type Ind -> ... -> Ind -> Prop)")
+            else */{
+              val phi_s_for_f = substituteVariables(phi_body, Map(phi_arg -> psi))
+              val phi_t_for_f = substituteVariables(phi_body, Map(phi_arg -> tau))
 
+              val inner1 = vars.foldLeft(psi)(_(_))
+              val inner2 = vars.foldLeft(tau)(_(_))
+              val sEqt = iff(inner1)(inner2)
+              val varss = vars.toSet
+
+              if (
+                isSubset(ref(t1).right, b.right) &&
+                isSubset(ref(t2).right, b.right + sEqt) &&
+                isSubset(b.right, ref(t1).right union ref(t2).right)
+              ) {
+                if (
+                  isSubset(ref(t1).left, b.left + phi_s_for_f) &&
+                  isSubset(ref(t2).left, b.left) &&
+                  isSubset(b.left, ref(t1).left union ref(t2).left + phi_t_for_f)
+                ) {
+                  if ( 
+                    ref(t2).left.exists(f => f.freeVariables.intersect(varss).nonEmpty) || 
+                    ref(t2).right.exists(f => !isSame(f, sEqt) && f.freeVariables.intersect(varss).nonEmpty)
+                  ) {
+                    SCInvalidProof(SCProof(step), Nil, "The variable x1...xn must not be free in the second premise other than as parameters of the equality.")
+                  } else SCValidProof(SCProof(step))
+                }
+                else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_).")
+              }
+              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
+            }
+*/
 
           /**
            * <pre>
@@ -506,9 +601,9 @@ object SCProofChecker {
            * Γ[ψ/?p] |- Δ[ψ/?p]
            * </pre>
            */
-          case InstSchema(bot, t1, mCon, mPred, mTerm) =>
+          case InstSchema(bot, t1, subst) =>
             val expected =
-              (ref(t1).left.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)), ref(t1).right.map(phi => instantiateSchemas(phi, mCon, mPred, mTerm)))
+              (ref(t1).left.map(phi => substituteVariables(phi, subst)), ref(t1).right.map(phi => substituteVariables(phi, subst)))
             if (isSameSet(bot.left, expected._1))
               if (isSameSet(bot.right, expected._2))
                 SCValidProof(SCProof(step))

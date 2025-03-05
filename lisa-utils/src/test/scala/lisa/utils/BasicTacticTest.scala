@@ -1,39 +1,33 @@
 package lisa.utils
 
 //import lisa.kernel.proof.SequentCalculus as SC
-//import lisa.prooflib.BasicStepTactic.*
-//import lisa.prooflib.Library
-//import lisa.prooflib.ProofTacticLib
-//import lisa.utils.Printer
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.ProofTacticLib
 import lisa.test.ProofTacticTestLib
 //import org.scalatest.funsuite.AnyFunSuite
 
 class BasicTacticTest extends ProofTacticTestLib {
-  /*
-  given Conversion[String, Sequent] = FOLParser.parseSequent(_)
-  given Conversion[String, Formula] = FOLParser.parseFormula(_)
-  given Conversion[String, Term] = FOLParser.parseTerm(_)
-  given Conversion[String, VariableLabel] = s => VariableLabel(if (s.head == '?') s.tail else s)
-   */
-  /*
-  val x: lisa.fol.FOL.Variable = variable
-  val y = variable
-  val z = variable
+  
+  
+  val x = variable[Ind]
+  val y = variable[Ind]
+  val z = variable[Ind]
 
-  val P = predicate[1]
-  val Q = predicate[1]
-  val R = predicate[1]
-  val S = predicate[2]
+  val P = variable[Ind >>: Prop]
+  val Q = variable[Ind >>: Prop]
+  val R = variable[Ind >>: Prop]
+  val S = variable[Ind >>: Ind >>: Prop]
   // hypothesis
   test("Tactic Tests: Hypothesis") {
-    val correct = List[lisa.fol.FOL.Sequent](
+    val correct = List[lisa.utils.fol.FOL.Sequent](
       (P(x) |- P(x)),
       (P(x) |- (P(x),  Q(x))),
       ((P(x), Q(x)) |- (P(x), Q(x))),
       ((P(x), Q(x)) |- P(x))
     )
 
-    val incorrect = List[lisa.fol.FOL.Sequent](
+    val incorrect = List[lisa.utils.fol.FOL.Sequent](
       (P(x) |- ()),
       (() |- ()),
       (() |- P(x)),
@@ -41,10 +35,10 @@ class BasicTacticTest extends ProofTacticTestLib {
       (Q(x) |- ())
     )
 
-    /*testTacticCases(correct, incorrect) {
+    testTacticCases(correct, incorrect) {
       Hypothesis(_)
-    }*/
-  }*/
+    }
+  }
   /*
   // rewrite
   // TODO: make this use equivalence checker tests
@@ -1432,7 +1426,7 @@ class BasicTacticTest extends ProofTacticTestLib {
   }
 
   // instfunschema
-  test("Tactic Tests: InstFunSchema") {
+  test("Tactic Tests: InstSchema") {
     val x = variable
     val y = variable
     val f = SchematicFunctionLabel("f", 1)
@@ -1462,12 +1456,12 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2, termMap) =>
       val prem = introduceSequent(stmt1)
-      InstFunSchema(termMap)(prem)(stmt2)
+      InstSchema(termMap)(prem)(stmt2)
     }
   }
 
   // instpredschema
-  test("Tactic Tests: InstPredSchema") {
+  test("Tactic Tests: InstSchema") {
     val x = variable
     val y = variable
     val f = SchematicPredicateLabel("f", 1)
@@ -1498,7 +1492,7 @@ class BasicTacticTest extends ProofTacticTestLib {
 
     testTacticCases(correct, incorrect) { (stmt1, stmt2, termMap) =>
       val prem = introduceSequent(stmt1)
-      InstPredSchema(termMap)(prem)(stmt2)
+      InstSchema(termMap)(prem)(stmt2)
     }
   }
    */

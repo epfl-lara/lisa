@@ -16,7 +16,7 @@ ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 val scala2 = "2.13.8"
-val scala3 = "3.5.1"
+val scala3 = "3.5.2"
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
 
@@ -32,7 +32,8 @@ val commonSettings3 = commonSettings ++ Seq(
   scalacOptions ++= Seq(
     "-language:implicitConversions",
     //"-rewrite", "-source", "3.4-migration",
-    "-Wconf:msg=.*will never be selected.*:silent"
+    "-Wconf:msg=.*will never be selected.*:silent",
+    "-language:experimental.modularity"
 
   ),
   javaOptions += "-Xmx10G",
@@ -47,7 +48,7 @@ def withTests(project: Project): ClasspathDependency =
 
 def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
 
-lazy val customTstpParser = githubProject("https://github.com/SimonGuilloud/scala-tptp-parser.git", "eae9c1b7a9546f74779d77ff50fa6e8a1654cfa0")
+lazy val customTstpParser = githubProject("https://github.com/SC-TPTP/scala-tptp-parser.git", "851338c4175036279279835d9f58895aed2f37ba")
 
 lazy val root = Project(
     id = "lisa",
@@ -69,12 +70,19 @@ lazy val kernel = Project(
   )
 
 lazy val sets = Project(
-  id = "lisa-sets",
-  base = file("lisa-sets")
+  id = "lisa-sets2",
+  base = file("lisa-sets2")
 )
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils))
-
+/*
+lazy val sets2 = Project(
+  id = "lisa-sets2",
+  base = file("lisa-sets2")
+)
+  .settings(commonSettings3)
+  .dependsOn(kernel, withTests(utils))
+*/
 lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")

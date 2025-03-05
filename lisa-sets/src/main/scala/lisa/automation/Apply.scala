@@ -1,10 +1,10 @@
 package lisa.automation
 
-import lisa.fol.FOL.*
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.ProofTacticLib.*
-import lisa.prooflib.SimpleDeducedSteps.*
-import lisa.prooflib.*
+import lisa.utils.fol.FOL.*
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.ProofTacticLib.*
+import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.*
 import lisa.utils.unification.UnificationUtils.*
 
 import scala.util.boundary

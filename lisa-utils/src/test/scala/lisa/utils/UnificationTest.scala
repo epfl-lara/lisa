@@ -27,7 +27,7 @@ class UnificationTest extends ProofTacticTestLib {
 
     // TODO: Generate random terms, apply a random substitution and try to retrieve it?
 
-    val correct: List[(Term, Term, Option[Map[VariableLabel, Term]])] = List(
+    val correct: List[(Ind, Ind, Option[Map[VariableLabel, Ind]])] = List(
       (f(x, y), f(x, x), Some(Map(y -> x))),
       (f(x, y), f(x, y), Some(Map())),
       (f(x, x), f(x, x), Some(Map())),
@@ -41,7 +41,7 @@ class UnificationTest extends ProofTacticTestLib {
       (f(x, g(y, x)), f(y, g(x, y)), Some(Map(x -> y, y -> x)))
     )
 
-    val incorrect: List[(Term, Term, Option[Map[VariableLabel, Term]])] = List(
+    val incorrect: List[(Ind, Ind, Option[Map[VariableLabel, Ind]])] = List(
       (f(y, y), f(x, y), None),
       (f(x, y), g(x, y), None),
       (f(x, y), h(x), None),
@@ -51,7 +51,7 @@ class UnificationTest extends ProofTacticTestLib {
 
     for ((t1, t2, res) <- (correct ++ incorrect))
       if (matchTerm(t1, t2) == res) true
-      else fail(s"Matching test failed:\nFirst Term: $t1\nSecond Term: $t2\nExpected Result: $res\nFound: ${matchTerm(t1, t2)}\n")
+      else fail(s"Matching test failed:\nFirst Ind: $t1\nSecond Ind: $t2\nExpected Result: $res\nFound: ${matchTerm(t1, t2)}\n")
   }
 
   test("Unification Tests: First-Order Matching on Formulas") {
@@ -69,7 +69,7 @@ class UnificationTest extends ProofTacticTestLib {
     val psi = formulaVariable
     val chi = formulaVariable
 
-    val correct: List[(Formula, Formula, Option[(Map[VariableFormulaLabel, Formula], Map[VariableLabel, Term])])] = List(
+    val correct: List[(Prop, Prop, Option[(Map[VariableFormulaLabel, Prop], Map[VariableLabel, Ind])])] = List(
       (P(f(x, y)), P(f(x, x)), Some(Map(), Map(y -> x))),
       (phi, P(f(x, y)), Some(Map(phi -> P(f(x, y))), Map())),
       (phi, chi, Some(Map(phi -> chi), Map())),
@@ -79,7 +79,7 @@ class UnificationTest extends ProofTacticTestLib {
       (exists(x, P(x)), exists(y, P(y)), Some(Map(), Map()))
     )
 
-    val incorrect: List[(Formula, Formula, Option[(Map[VariableFormulaLabel, Formula], Map[VariableLabel, Term])])] = List(
+    val incorrect: List[(Prop, Prop, Option[(Map[VariableFormulaLabel, Prop], Map[VariableLabel, Ind])])] = List(
       (P(f(x, y)), P(h(x)), None),
       (exists(x, phi), exists(x, P(x)), None),
       (exists(x, P(x)), exists(x, P(y)), None)
@@ -87,7 +87,7 @@ class UnificationTest extends ProofTacticTestLib {
 
     for ((t1, t2, res) <- (correct ++ incorrect))
       if (matchFormula(t1, t2) == res) true
-      else fail(s"Matching test failed:\nFirst Formula: $t1\nSecond Formula: $t2\nExpected Result: $res\nFound: ${matchFormula(t1, t2)}\n")
+      else fail(s"Matching test failed:\nFirst Prop: $t1\nSecond Prop: $t2\nExpected Result: $res\nFound: ${matchFormula(t1, t2)}\n")
   }
 
   /**
@@ -103,7 +103,7 @@ class UnificationTest extends ProofTacticTestLib {
     val y = variable
     val z = variable
 
-    val correct: List[(Term, Term, Option[Map[VariableLabel, Term]])] = List(
+    val correct: List[(Ind, Ind, Option[Map[VariableLabel, Ind]])] = List(
       (f(x, y), f(x, x), Some(Map(y -> x))),
       (f(x, x), f(x, y), Some(Map(x -> y))),
       (f(x, g(x, z)), f(x, y), Some(Map(y -> g(x, z)))),
@@ -119,7 +119,7 @@ class UnificationTest extends ProofTacticTestLib {
       (f(x, g(y, x)), f(y, g(x, y)), Some(Map(x -> y, y -> x)))
     )
 
-    val incorrect: List[(Term, Term, Option[Map[VariableLabel, Term]])] = List(
+    val incorrect: List[(Ind, Ind, Option[Map[VariableLabel, Ind]])] = List(
       (f(y, y), f(x, y), None),
       (f(x, y), g(x, y), None),
       (f(x, y), h(x), None),
@@ -130,7 +130,7 @@ class UnificationTest extends ProofTacticTestLib {
 
     for ((t1, t2, res) <- (correct ++ incorrect))
       if (unifyTerm(t1, t2) == res) true
-      else fail(s"Unification test failed:\nFirst Term: $t1\nSecond Term: $t2\nExpected Result: $res\nFound: ${unifyTerm(t1, t2)}\n")
+      else fail(s"Unification test failed:\nFirst Ind: $t1\nSecond Ind: $t2\nExpected Result: $res\nFound: ${unifyTerm(t1, t2)}\n")
   }
 
   test("Unification Tests: First-Order Unification of Formulas") {
@@ -148,7 +148,7 @@ class UnificationTest extends ProofTacticTestLib {
     val psi = formulaVariable
     val chi = formulaVariable
 
-    val correct: List[(Formula, Formula, Option[(Map[VariableFormulaLabel, Formula], Map[VariableLabel, Term])])] = List(
+    val correct: List[(Prop, Prop, Option[(Map[VariableFormulaLabel, Prop], Map[VariableLabel, Ind])])] = List(
       (P(f(x, y)), P(f(x, x)), Some(Map(), Map(y -> x))),
       (P(f(x, x)), P(f(x, y)), Some(Map(), Map(x -> y))),
       (phi, P(f(x, y)), Some(Map(phi -> P(f(x, y))), Map())),
@@ -158,7 +158,7 @@ class UnificationTest extends ProofTacticTestLib {
       (exists(x, P(x)), exists(y, P(y)), Some(Map(), Map()))
     )
 
-    val incorrect: List[(Formula, Formula, Option[(Map[VariableFormulaLabel, Formula], Map[VariableLabel, Term])])] = List(
+    val incorrect: List[(Prop, Prop, Option[(Map[VariableFormulaLabel, Prop], Map[VariableLabel, Ind])])] = List(
       (P(f(x, y)), P(h(x)), None),
       (P(h(x)), P(f(x, y)), None),
       (exists(x, phi), exists(x, P(x)), None),
@@ -169,7 +169,7 @@ class UnificationTest extends ProofTacticTestLib {
 
     for ((t1, t2, res) <- (correct ++ incorrect))
       if (unifyFormula(t1, t2) == res) true
-      else fail(s"Unification test failed:\nFirst Formula: $t1\nSecond Formula: $t2\nExpected Result: $res\nFound: ${unifyFormula(t1, t2)}\n")
+      else fail(s"Unification test failed:\nFirst Prop: $t1\nSecond Prop: $t2\nExpected Result: $res\nFound: ${unifyFormula(t1, t2)}\n")
   }
    */
 }

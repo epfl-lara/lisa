@@ -30,7 +30,7 @@ import Helpers.*
   * @param expectedVar the variable on which the induction is performed
   * @param expectedADT the algebraic data type on which the induction is performed
   */
-class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[ADT[M]]) extends lisa.prooflib.ProofTacticLib.ProofTactic {
+class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[ADT[M]]) extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 
   /**
     * Given a proof of the claim for each case (possibly using the induction hypothesis), 

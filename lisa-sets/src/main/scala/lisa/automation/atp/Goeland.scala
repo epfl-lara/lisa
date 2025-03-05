@@ -1,8 +1,8 @@
 package lisa.automation.atp
-import lisa.fol.FOL as F
-import lisa.prooflib.Library
-import lisa.prooflib.OutputManager
-import lisa.prooflib.ProofTacticLib.*
+import lisa.utils.fol.FOL as F
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.OutputManager
+import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.K
 import lisa.utils.tptp.*
 
@@ -81,10 +81,10 @@ object Goeland extends ProofTactic with ProofSequentTactic {
     val directory = File(foldername)
     if (directory != null) && !directory.exists() then directory.mkdirs()
 
-    val freevars = (sequent.left.flatMap(_.freeVariables) ++ sequent.right.flatMap(_.freeVariables) ).toSet.map(x => x -> K.Term(K.VariableLabel(K.Identifier("X"+x.id.name, x.id.no)), Seq())).toMap
+    val freevars = (sequent.left.flatMap(_.freeVariables) ++ sequent.right.flatMap(_.freeVariables) ).toSet.map(x => x -> K.Variable(K.Identifier("X"+x.id.name, x.id.no), x.sort) ).toMap
 
     val backMap = freevars.map{
-      case (x: K.VariableLabel, K.Term(xx: K.VariableLabel, _)) => xx -> K.LambdaTermTerm(Seq(), K.Term(x, Seq()))
+      case (x: K.Variable, xx: K.Variable) => xx -> x
       case _ => throw new Exception("This should not happen")
     }
     val r = problemToFile(foldername, filename, "question"+i, axioms, sequent, source)

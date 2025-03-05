@@ -5,11 +5,11 @@ import lisa.kernel.proof.RunningTheory
 import lisa.utils.KernelHelpers.{_, given}
 
 trait TestTheoryAxioms {
-  final val p1 = ConstantAtomicLabel("p1", 1)
-  final val p2 = ConstantAtomicLabel("p2", 1)
-  final val f1 = ConstantFunctionLabel("f1", 1)
-  final val fixedElement = ConstantFunctionLabel("fixedElement", 0)
-  final val anotherFixed = ConstantFunctionLabel("anotherElement", 0)
+  final val p1 = Constant("p1", Arrow(Ind, Prop))
+  final val p2 = Constant("p2", Arrow(Ind, Prop))
+  final val f1 = Constant("f1", Arrow(Ind, Ind))
+  final val fixedElement = Constant("fixedElement", Ind)
+  final val anotherFixed = Constant("anotherElement", Ind)
 
   val runningTestTheory = new RunningTheory()
   runningTestTheory.addSymbol(p1)
@@ -18,11 +18,11 @@ trait TestTheoryAxioms {
   runningTestTheory.addSymbol(fixedElement)
   runningTestTheory.addSymbol(anotherFixed)
 
-  private final val x = VariableLabel("x")
-  final val p1_implies_p2_f: Formula = forall(x, p1(x) ==> p2(x))
-  final val ax2_f = p1(fixedElement())
-  final val same_fixed_f = fixedElement() === anotherFixed()
-  final val fixed_point_f = forall(x, (f1(x) === fixedElement()) <=> (x === fixedElement()))
+  private final val x = Variable("x", Ind)
+  final val p1_implies_p2_f = forall(x, p1(x) ==> p2(x))
+  final val ax2_f = p1(fixedElement)
+  final val same_fixed_f = fixedElement === anotherFixed
+  final val fixed_point_f = forall(x, (f1(x) === fixedElement) <=> (x === fixedElement))
 
   val p1_implies_p2 = runningTestTheory.addAxiom("p1_implies_p2", p1_implies_p2_f).get
   val A2 = runningTestTheory.addAxiom("A2", ax2_f).get

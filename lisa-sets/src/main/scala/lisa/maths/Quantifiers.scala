@@ -5,13 +5,13 @@ package lisa.maths
  */
 object Quantifiers extends lisa.Main {
 
-  private val x = variable
-  private val y = variable
-  private val z = variable
-  private val a = variable
-  private val p = formulaVariable
-  private val P = predicate[1]
-  private val Q = predicate[1]
+  private val x = variable[Term]
+  private val y = variable[Term]
+  private val z = variable[Term]
+  private val a = variable[Term]
+  private val p = variable[Formula]
+  private val P = variable[Term >>: Formula]
+  private val Q = variable[Term >>: Formula]
 
   /**
    * Theorem --- A formula is equivalent to itself universally quantified if
@@ -42,7 +42,7 @@ object Quantifiers extends lisa.Main {
   ) {
     have((x === y) <=> P(y) |- (x === y) <=> P(y)) by Hypothesis
     thenHave(∀(y, (x === y) <=> P(y)) |- (x === y) <=> P(y)) by LeftForall
-    thenHave(∀(y, (x === y) <=> P(y)) |- P(x)) by InstFunSchema(Map(y -> x))
+    thenHave(∀(y, (x === y) <=> P(y)) |- P(x)) by InstSchema(y := x)
     thenHave(∀(y, (x === y) <=> P(y)) |- ∃(x, P(x))) by RightExists
     thenHave(∃(x, ∀(y, (x === y) <=> P(y))) |- ∃(x, P(x))) by LeftExists
     thenHave(thesis) by Restate
@@ -55,7 +55,7 @@ object Quantifiers extends lisa.Main {
     (x === y) /\ (y === z) |- (x === z)
   ) {
     have((x === y) |- (x === y)) by Hypothesis
-    thenHave(((x === y), (y === z)) |- (x === z)) by RightSubstEq.withParametersSimple(List((y, z)), lambda(y, x === y))
+    thenHave(((x === y), (y === z)) |- (x === z)) by RightSubstEq.withParametersSimple(List((y, z)), (Seq(y), x === y))
     thenHave(thesis) by Restate
   }
 
@@ -95,7 +95,7 @@ object Quantifiers extends lisa.Main {
   ) {
     have(exists(x, P(x) /\ (y === x)) |- P(y)) subproof {
       have(P(x) |- P(x)) by Hypothesis
-      thenHave((P(x), y === x) |- P(y)) by RightSubstEq.withParametersSimple(List((y, x)), lambda(y, P(y)))
+      thenHave((P(x), y === x) |- P(y)) by RightSubstEq.withParametersSimple(List((y, x)), (Seq(y), P(y)))
       thenHave(P(x) /\ (y === x) |- P(y)) by Restate
       thenHave(thesis) by LeftExists
     }
@@ -104,7 +104,7 @@ object Quantifiers extends lisa.Main {
     have(P(y) |- exists(x, P(x) /\ (y === x))) subproof {
       have(P(x) /\ (y === x) |- P(x) /\ (y === x)) by Hypothesis
       thenHave(P(x) /\ (y === x) |- exists(x, P(x) /\ (y === x))) by RightExists
-      thenHave(P(y) /\ (y === y) |- exists(x, P(x) /\ (y === x))) by InstFunSchema(Map(x -> y))
+      thenHave(P(y) /\ (y === y) |- exists(x, P(x) /\ (y === x))) by InstSchema(x := y)
       thenHave(thesis) by Restate
     }
     val backward = thenHave(P(y) ==> exists(x, P(x) /\ (y === x))) by Restate
@@ -186,8 +186,8 @@ object Quantifiers extends lisa.Main {
     val fy = thenHave(forall(z, P(z) <=> Q(z)) |- forall(y, ((y === z) <=> P(y)) <=> ((y === z) <=> Q(y)))) by RightForall
 
     have(forall(y, P(y) <=> Q(y)) |- (forall(y, P(y)) <=> forall(y, Q(y)))) by Restate.from(universalEquivalenceDistribution)
-    val univy = thenHave(forall(y, ((y === z) <=> P(y)) <=> ((y === z) <=> Q(y))) |- (forall(y, ((y === z) <=> P(y))) <=> forall(y, ((y === z) <=> Q(y))))) by InstPredSchema(
-      Map((P -> lambda(y, (y === z) <=> P(y))), (Q -> lambda(y, (y === z) <=> Q(y))))
+    val univy = thenHave(forall(y, ((y === z) <=> P(y)) <=> ((y === z) <=> Q(y))) |- (forall(y, ((y === z) <=> P(y))) <=> forall(y, ((y === z) <=> Q(y))))) by InstSchema(
+      P := lambda(y, (y === z) <=> P(y)), Q := lambda(y, (y === z) <=> Q(y))
     )
 
     have(forall(z, P(z) <=> Q(z)) |- (forall(y, ((y === z) <=> P(y))) <=> forall(y, ((y === z) <=> Q(y))))) by Cut(fy, univy)
@@ -195,7 +195,7 @@ object Quantifiers extends lisa.Main {
     thenHave(forall(z, P(z) <=> Q(z)) |- forall(z, forall(y, ((y === z) <=> P(y))) <=> forall(y, ((y === z) <=> Q(y))))) by RightForall
     have(forall(z, P(z) <=> Q(z)) |- exists(z, forall(y, ((y === z) <=> P(y)))) <=> exists(z, forall(y, ((y === z) <=> Q(y))))) by Cut(
       lastStep,
-      existentialEquivalenceDistribution of (P -> lambda(z, forall(y, (y === z) <=> P(y))), Q -> lambda(z, forall(y, (y === z) <=> Q(y))))
+      existentialEquivalenceDistribution of (P := lambda(z, forall(y, (y === z) <=> P(y))), Q := lambda(z, forall(y, (y === z) <=> Q(y))))
     )
 
     thenHave(thesis) by Restate

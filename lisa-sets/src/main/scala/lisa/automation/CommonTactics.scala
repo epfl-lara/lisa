@@ -1,15 +1,15 @@
 package lisa.automation.kernel
 
 import lisa.automation.Tautology
-import lisa.fol.FOLHelpers.*
-import lisa.fol.FOL as F
-import lisa.prooflib.BasicStepTactic.*
-import lisa.prooflib.ProofTacticLib.{_, given}
-import lisa.prooflib.SimpleDeducedSteps.*
-import lisa.prooflib.*
+import lisa.utils.fol.FOL as F
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.*
 import lisa.utils.K
 
 object CommonTactics {
+  /*
 
   /**
    * <pre>
@@ -185,7 +185,7 @@ object CommonTactics {
           TacticSubproof {
             lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst*))
             lib.thenHave((y === fxs) <=> P) by InstantiateForall(y)
-            lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstFunSchema(Map(y -> fxs))
+            lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstSchema(Map(y -> fxs))
             lib.thenHave(P.substitute(y := fxs)) by Restate
           }
 
@@ -248,7 +248,7 @@ object CommonTactics {
           TacticSubproof {
             lib.have(F.∀(y, (y === fxs) <=> P)) by Tautology.from(uniqueness, definition.of(subst*))
             lib.thenHave((y === fxs) <=> P) by InstantiateForall(y)
-            lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstFunSchema(Map(y -> fxs))
+            lib.thenHave((fxs === fxs) <=> P.substitute(y := fxs)) by InstSchema(Map(y -> fxs))
             lib.thenHave(P.substitute(y := fxs)) by Restate
             lib.thenHave(phi ==> Q(fxs)) by Tautology
             lib.thenHave(phi |- Q(fxs)) by Restate
@@ -258,5 +258,5 @@ object CommonTactics {
       }
     }
   }
-
+*/
 }

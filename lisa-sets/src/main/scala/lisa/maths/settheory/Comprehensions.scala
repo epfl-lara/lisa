@@ -3,9 +3,9 @@ package lisa.maths.settheory
 import lisa.SetTheoryLibrary
 import lisa.SetTheoryLibrary.*
 import lisa.maths.settheory.functions.functional
-import lisa.prooflib.BasicStepTactic.RightForall
-import lisa.prooflib.BasicStepTactic.TacticSubproof
-import lisa.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.BasicStepTactic.TacticSubproof
+import lisa.utils.prooflib.SimpleDeducedSteps.*
 import lisa.utils.KernelHelpers.++<<
 import lisa.utils.KernelHelpers.+<<
 import lisa.utils.KernelHelpers.-<<
@@ -16,7 +16,7 @@ import lisa.utils.{_, given}
 // See also https://github.com/lampepfl/dotty/issues/18569
 
 object Comprehensions {
-  import lisa.fol.FOL.{*, given}
+  import lisa.utils.fol.FOL.{*, given}
   import lisa.maths.settheory.SetTheory2.{primReplacement, replacement, functionalIsFunctional, onePointRule}
   import lisa.automation.Tautology
   import lisa.automation.Substitution
