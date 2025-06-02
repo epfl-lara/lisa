@@ -457,7 +457,7 @@ trait WithTheorems {
     /**
      * A pretty representation of the goal of the theorem
      */
-    def prettyGoal: String = statement.underlying.repr
+    def prettyGoal: String = s"${statement}"
   }
   object THM {
 
