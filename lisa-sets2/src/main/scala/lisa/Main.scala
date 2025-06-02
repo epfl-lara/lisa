@@ -20,11 +20,11 @@ trait Main extends BasicMain {
   // export lisa.automation.Apply
   // export lisa.automation.Exact
 
-  knownDefs.update(emptySet, Some(emptySetAxiom))
+  knownDefs.update(∅, Some(emptySetAxiom))
   knownDefs.update(unorderedPair, Some(pairAxiom))
-  knownDefs.update(union, Some(unionAxiom))
-  knownDefs.update(powerSet, Some(powerAxiom))
-  knownDefs.update(subset, Some(subsetAxiom))
+  knownDefs.update(⋃, Some(unionAxiom))
+  knownDefs.update(𝒫, Some(powerAxiom))
+  knownDefs.update(⊆, Some(subsetAxiom))
 
   extension (symbol: Constant[?]) {
     def definition: JUSTIFICATION = {
