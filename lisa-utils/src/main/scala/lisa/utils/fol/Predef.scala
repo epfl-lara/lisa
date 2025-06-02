@@ -44,13 +44,15 @@ trait Predef extends ExprOps {
   def constant(using name: sourcecode.Name)(s: K.Sort): Constant[?] = Constant.unsafe(name.value, s)
   
 
-  val equality = constant[Ind >>: Ind >>: Prop]("=")
+  val equality = constant[Ind >>: Ind >>: Prop]("=").printInfix()
   val === = equality
   val ＝ = equality
 
   extension (t: Expr[Ind]) {
     infix def ===(u: Expr[Ind]): Expr[Prop] = equality(t)(u)
     infix def ＝(u: Expr[Ind]): Expr[Prop] = equality(t)(u)
+    infix def =/=(u: Expr[Ind]): Expr[Prop] = ¬(t === u)
+    infix def ≠(u: Expr[Ind]): Expr[Prop] = ¬(t === u)
   }
 
   val top = constant[Prop]("⊤")

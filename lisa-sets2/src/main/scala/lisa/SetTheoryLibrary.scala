@@ -248,7 +248,6 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   extension (l: Expr[Ind])
     def ∈(r: Expr[Ind]): Expr[Prop] = in(l)(r)
     def ⊆(r: Expr[Ind]): Expr[Prop] = subset(l)(r)
-    def =/=(r: Expr[Ind]): Expr[Prop] = !(l === r)
 
   def unorderedPair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = App(App(unorderedPair, x), y)
 
