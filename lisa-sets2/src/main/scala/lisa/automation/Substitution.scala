@@ -179,17 +179,17 @@ object Substitution:
             val discharges = leftDischarges ++ rightDischarges
 
             // start proof
-            have(andAll(premise.left) |- premise.right) by Restate.from(premiseStep)
+            have(andAllOrTrue(premise.left) |- premise.right) by Restate.from(premiseStep)
 
             // left rewrites
             val leftFormulas = leftRules.map(_.toFormula)
             val preLeft = leftRewrites.map(_.toLeft)
             val postLeft = leftRewrites.map(_.toRight)
-            val leftVars = leftRewrites.head.vars
-            val leftLambda = andAll(leftRewrites.map(_.lambda))
-            thenHave(andAll(preLeft) |- premise.right) by Restate
-            thenHave(leftFormulas + andAll(preLeft) |- premise.right) by Weakening
-            thenHave(leftFormulas + andAll(postLeft) |- premise.right) by LeftSubstEq.withParameters(leftRules.map(r => r.l -> r.r).toSeq, leftVars -> leftLambda)
+            val leftVars = leftRewrites.headOption.map(_.vars).getOrElse(Seq.empty)
+            val leftLambda = andAllOrTrue(leftRewrites.map(_.lambda))
+            thenHave(andAllOrTrue(preLeft) |- premise.right) by Restate
+            thenHave(leftFormulas + andAllOrTrue(preLeft) |- premise.right) by Weakening
+            thenHave(leftFormulas + andAllOrTrue(postLeft) |- premise.right) by LeftSubstEq.withParameters(leftRules.map(r => r.l -> r.r).toSeq, leftVars -> leftLambda)
 
             val rpremise = lastStep.bot
 
