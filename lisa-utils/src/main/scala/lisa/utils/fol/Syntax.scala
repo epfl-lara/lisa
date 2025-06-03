@@ -327,6 +327,7 @@ trait Syntax {
   case class Constant[S : Sort as sortEv](id: K.Identifier) extends Expr[S] {
     val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
+    private var customPrinter: Option[Seq[Expr[?]] => String] = None
     /** Set the variable to be printed infix. 
      * 
      * Does not affect the input syntax. To allow infix input syntax, define an `extension`.
@@ -334,6 +335,12 @@ trait Syntax {
     def printInfix(): Constant[S] = 
       infix = true
       this
+    /** Sets a custom printer for this (applied) constant.
+        Does not affect the input syntax. */
+    def printAs(printer: Seq[Expr[?]] => String): Constant[S] =
+      customPrinter = Some(printer)
+      this
+
     val underlying: K.Constant = K.Constant(id, sort)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Constant[S] = this
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Expr[S] =
@@ -352,14 +359,18 @@ trait Syntax {
         s"${args(0)} $this ${args(1)}"
       else if infix & args.size > 2 then
         s"(${args(0)} $this ${args(1)})${args.drop(2).map(_.mkStringSeparated).mkString})"
-      else 
+      else if customPrinter.isDefined then
+        customPrinter.get(args)
+      else
         defaultMkString(args)
     mkStringSeparated = (args: Seq[Expr[?]]) => 
       if infix && args.size == 2 then 
         s"${args(0)} $this ${args(1)}"
       else if infix & args.size > 2 then
         s"(${args(0)} $this ${args(1)})${args.drop(2).map(_.mkStringSeparated).mkString})"
-      else 
+      else if customPrinter.isDefined then
+        customPrinter.get(args)
+      else
         defaultMkStringSeparated(args)
 
     /** Returns the constant as a Binder. */
