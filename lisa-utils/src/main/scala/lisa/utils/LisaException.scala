@@ -68,4 +68,7 @@ object UserLisaException {
     def showError: String = s"The desired symbol \"$symbol\" is unknown and has not been defined.\n"
   }
 
+  class NoCurrentChapter()(using sourcecode.Line, sourcecode.File) extends UserLisaException("There is no current chapter open.") {
+    def showError: String = errorMessage
+  }
 }

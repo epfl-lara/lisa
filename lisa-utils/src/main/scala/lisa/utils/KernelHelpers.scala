@@ -503,10 +503,10 @@ object KernelHelpers {
 
   extension (just: RunningTheory#Justification) {
     def repr: String = just match {
-      case thm: RunningTheory#Theorem => s" Theorem ${thm.name} := ${thm.proposition.repr}${if (thm.withSorry) " (!! Relies on Sorry)" else ""}\n"
-      case axiom: RunningTheory#Axiom => s" Axiom ${axiom.name} := ${axiom.ax.repr}\n"
+      case thm: RunningTheory#Theorem => s"  Theorem ${thm.name} := ${thm.proposition.repr}${if (thm.withSorry) " (!! Relies on Sorry)" else ""}\n"
+      case axiom: RunningTheory#Axiom => s"  Axiom ${axiom.name} := ${axiom.ax.repr}\n"
       case d: RunningTheory#Definition =>
-        s" Definition of  symbol ${d.cst.id} : ${d.cst.sort} := ${d.expression}\n"
+        s"  Definition of  symbol ${d.cst.id} : ${d.cst.sort} := ${d.expression}\n"
 
     }
   }

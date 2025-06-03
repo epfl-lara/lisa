@@ -441,7 +441,7 @@ trait WithTheorems {
    */
   sealed abstract class THM extends JUSTIFICATION {
     def repr: String =
-      s" Theorem ${name} := ${statement}${if (withSorry) " (!! Relies on Sorry)" else ""}"
+      s"  Theorem ${name} := ${statement}${if (withSorry) " (!! Relies on Sorry)" else ""}"
 
     /**
      * The underlying Kernel proof [[K.SCProof]], if it is still available. Proofs are not kept in memory for efficiency.
