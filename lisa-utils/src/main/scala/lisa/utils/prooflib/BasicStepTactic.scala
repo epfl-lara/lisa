@@ -1051,8 +1051,8 @@ object BasicStepTactic {
             // match pivot with phi to discover t
             val pivotMatch = matchExpr(using RewriteContext.withBound(phi.freeVars - x))(phi, pivot)
             pivotMatch match
-              case Some(subst) if subst.contains(x) =>
-                val t = subst(x).get
+              case Some(subst) =>
+                val t = subst(x).getOrElse(x)
                 RightEpsilon.withParameters(phi, x, t)(premise)(bot)
               case _ => theFailure
           case _ => theFailure
