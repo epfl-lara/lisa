@@ -235,6 +235,12 @@ trait ProofsHelpers {
       else 
         () |- (iff #@ appliedCst #@ right).asInstanceOf[Expr[Prop]]
     library.last = Some(this)
+
+    override def repr: String =
+      s" ${if (withSorry) " Sorry" else ""} Definition of ${appliedCst} := ${dropAllLambdas(expr)}"
+
+    om.output(OutputManager.MAGENTA(repr))
+
   }
 
   def dropAllLambdas(s: Expr[?]): Expr[?] = s match {
@@ -312,8 +318,9 @@ trait ProofsHelpers {
     }
 
     override def repr: String =
-      s" ${if (withSorry) " Sorry" else ""} Definition of  symbol ${appliedCst} such that ${definingProp.statement})\n"
+      s" ${if (withSorry) " Sorry" else ""} Definition of symbol ${appliedCst} such that ${definingProp.statement})"
 
+    om.output(OutputManager.MAGENTA(repr))
   }
 
 
