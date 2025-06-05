@@ -49,8 +49,8 @@ object ProofTacticLib {
       Console.RED + proof.owningTheorem.prettyGoal + Console.RESET + "\n" +
         ProofPrinter.prettyProof(proof, 2) + "\n" +
         "  " * (1 + proof.depth) + Console.RED + textline + Console.RESET + "\n\n" +
-        s"   Proof tactic ${tactic.name} used in.(${file.value.split("/").last.split("\\\\").last}:${line.value}) did not succeed:\n" +
-        "   " + errorMessage
+        s"   Proof tactic ${tactic.name} used in (${file.value.split("/").last.split("\\\\").last}:${line.value}) did not succeed:\n" +
+        errorMessage.indent(3)
     }
   }
 
