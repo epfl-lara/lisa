@@ -494,9 +494,6 @@ trait Syntax {
 
     def apply(xs: Seq[Variable[?]], t: Expr[?]): Expr[?] = xs.foldRight(t)((x, t) => new Abs(x, t))
 
-  /** Alias for [[Abs]] */
-  val lambda = Abs
-
 
 
 

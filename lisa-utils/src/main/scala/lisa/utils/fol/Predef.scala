@@ -194,8 +194,9 @@ trait Predef extends ExprOps {
   val ε : epsilon.type = epsilon
   type ε = epsilon.type
 
-  val λ : lambda.type = lambda
-  type λ = lambda.type
+  val lambda : Abs.type = Abs
+  val λ : Abs.type = Abs
+  type λ = Abs
 
   extension (f: Expr[Prop]) {
     def unary_! = neg(f)
