@@ -4,6 +4,8 @@ import lisa.utils.fol.FOL.{_, given}
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.prooflib.Library
 
+import scala.annotation.showAsInfix
+
 /**
  * Specific implementation of [[utilities.Library]] for Set Theory, with a RunningTheory that is supposed to be used by the standard library.
  */
@@ -16,7 +18,15 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the set membership predicate.
    */
-  final val in = constant[Ind >>: Ind >>: Prop]("∈").printInfix()
+  object in extends Constant[Ind >>: Ind >>: Prop]("∈") {
+    this.printInfix()
+
+    def unapply(e: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] =
+      val ∈ = this
+      e match
+        case App(App(`∈`, x), y) => Some(x, y)
+        case _ => None
+  }
   final val ∈ = in
 
   /**

@@ -66,9 +66,9 @@ object Comprehension extends lisa.Main {
     /** Notation for `{x ∈ y | φ}`. */
     infix def | (φ: Expr[Prop]): Expr[Ind] =
       e match {
-        case In(x: Variable[?], y) =>
+        case (x: Variable[Ind]) ∈ y =>
           setComprehension(y)(λ(x, φ))
-        case In(e, y) =>
+        case x ∈ y =>
           throw new UnsupportedOperationException("Replacement schema syntax is not yet supported.")
         case _ =>
           throw new IllegalArgumentException("Invalid comprehension.")

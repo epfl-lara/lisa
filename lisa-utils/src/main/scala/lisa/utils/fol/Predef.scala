@@ -4,6 +4,8 @@ import lisa.utils.K
 import lisa.utils.fol.ExprOps
 import K.given
 
+import scala.annotation.showAsInfix
+
 trait Predef extends ExprOps {
 
   export K.{given_Conversion_String_Identifier, given_Conversion_Identifier_String}
@@ -44,7 +46,17 @@ trait Predef extends ExprOps {
   def constant(using name: sourcecode.Name)(s: K.Sort): Constant[?] = Constant.unsafe(name.value, s)
   
 
-  val equality = constant[Ind >>: Ind >>: Prop]("=").printInfix()
+  object equality extends Constant[Ind >>: Ind >>: Prop]("=") {
+    this.printInfix()
+
+    def unapply(e: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] = {
+      val === = this
+      e match {
+        case App(App(`===`, x), y) => Some(x, y)
+        case _ => None
+      }
+    }
+  }
   val === = equality
   val ＝ = equality
 
@@ -63,35 +75,127 @@ trait Predef extends ExprOps {
   val ⊥ : bot.type = bot
   val False: bot.type = bot
 
-  val neg = constant[Prop >>: Prop]("¬")
+  object neg extends Constant[Prop >>: Prop]("¬") {
+    def unapply(e: Expr[Prop]): Option[Expr[Prop]] = {
+      val ¬ = this
+      e match {
+        case App(`¬`, f) => Some(f)
+        case _ => None
+      }
+    }
+  }
+
   val ¬ : neg.type = neg
   val ! : neg.type = neg
+  type ¬ = neg.type
 
-  val and = constant[Prop >>: Prop >>: Prop]("∧").printInfix()
+  object and extends Constant[Prop >>: Prop >>: Prop]("∧") {
+    this.printInfix()
+
+    def unapply(e: Expr[Prop]): Option[(Expr[Prop], Expr[Prop])] = {
+      val conjunction = this
+      e match {
+        case App(App(`conjunction`, x), y) => Some((x, y))
+        case _ => None
+      }
+    }
+  }
   val /\ : and.type = and
   val ∧ : and.type = and
+  @showAsInfix
+  type /\ = and.type
 
-  val or = constant[Prop >>: Prop >>: Prop]("∨").printInfix()
+  object or extends Constant[Prop >>: Prop >>: Prop]("∨") {
+    this.printInfix()
+
+    def unapply(e: Expr[Prop]): Option[(Expr[Prop], Expr[Prop])] = {
+      val disjunction = this
+      e match {
+        case App(App(`disjunction`, x), y) => Some((x, y))
+        case _ => None
+      }
+    }
+  }
   val \/ : or.type = or
   val ∨ : or.type = or
+  @showAsInfix
+  type \/ = or.type
 
-  val implies = constant[Prop >>: Prop >>: Prop]("⇒").printInfix()
+  object implies extends Constant[Prop >>: Prop >>: Prop]("⇒") {
+    this.printInfix()
+
+    def unapply(e: Expr[Prop]): Option[(Expr[Prop], Expr[Prop])] = {
+      val ==> = this
+      e match {
+        case App(App(`==>`, x), y) => Some((x, y))
+        case _ => None
+      }
+    }
+  }
   val ==> : implies.type = implies
+  @showAsInfix
+  type ==> = implies.type
 
-  val iff = constant[Prop >>: Prop >>: Prop]("⇔").printInfix()
+  object iff extends Constant[Prop >>: Prop >>: Prop]("⇔") {
+    this.printInfix()
+
+    def unapply(e: Expr[Prop]): Option[(Expr[Prop], Expr[Prop])] = {
+      val <=> = this
+      e match {
+        case App(App(`<=>`, x), y) => Some((x, y))
+        case _ => None
+      }
+    }
+  }
   val <=> : iff.type = iff
   val ⇔ : iff.type = iff
+  @showAsInfix
+  type <=> = iff.type
 
-  val forall = binder[Ind, Prop, Prop]("∀")
+  object forall extends Binder[Ind, Prop, Prop]("∀") {
+    this.printInfix()
+
+    def unapply(e: Expr[Prop]): Option[(Variable[Ind], Expr[Prop])] = {
+      val ∀ = this
+      e match {
+        case App(`∀`, λ(x, body)) => Some((x, body))
+        case _ => None
+      }
+    }
+  }
   val ∀ : forall.type = forall
+  type ∀ = forall.type
 
-  val exists = binder[Ind, Prop, Prop]("∃")
+  object exists extends Binder[Ind, Prop, Prop]("∃") {
+    this.printInfix()
+
+    def unapply(e: Expr[Prop]): Option[(Variable[Ind], Expr[Prop])] = {
+      val ∃ = this
+      e match {
+        case App(`∃`, λ(x, body)) => Some((x, body))
+        case _ => None
+      }
+    }
+  }
   val ∃ : exists.type = exists
+  type ∃ = exists.type
 
-  val epsilon = binder[Ind, Prop, Ind]("ε")
+  object epsilon extends Binder[Ind, Prop, Ind]("ε") {
+    this.printInfix()
+
+    def unapply(e: Expr[Ind]): Option[(Variable[Ind], Expr[Prop])] = {
+      val ε = this
+      e match {
+        case App(`ε`, Abs(x, body)) => Some((x, body))
+        case _ => None
+      }
+    }
+  }
   val ε : epsilon.type = epsilon
+  type ε = epsilon.type
 
   val λ : lambda.type = lambda
+  type λ = lambda.type
 
   extension (f: Expr[Prop]) {
     def unary_! = neg(f)
