@@ -91,6 +91,8 @@ trait Predef extends ExprOps {
   val epsilon = binder[Ind, Prop, Ind]("ε")
   val ε : epsilon.type = epsilon
 
+  val λ : lambda.type = lambda
+
   extension (f: Expr[Prop]) {
     def unary_! = neg(f)
     infix inline def ==>(g: Expr[Prop]): Expr[Prop] = implies(f)(g)
