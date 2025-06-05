@@ -29,11 +29,19 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   }
   final val ∈ = in
 
+  extension (x: Expr[Ind]) {
+    infix def ∈(y: Expr[Ind]): Expr[Prop] = in(x)(y)
+    infix def ∉(y: Expr[Ind]): Expr[Prop] = !(x ∈ y)
+  }
+
   /**
    * The symbol for the subset predicate.
    */
   final val subset = constant[Ind >>: Ind >>: Prop]("⊆").printInfix()
   final val ⊆ = subset
+
+  extension (x: Expr[Ind])
+    def ⊆(y: Expr[Ind]): Expr[Prop] = subset(x)(y)
 
   /**
    * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
@@ -55,7 +63,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the unordered pair function.
    */
-  final val unorderedPair = constant[Ind >>: Ind >>: Ind]("unorderedPair")
+  final val unorderedPair = constant[Ind >>: Ind >>: Ind]("unorderedPair").printAs(args => s"{${args(0)}, ${args(1)}}")
 
   /**
    * The symbol for the powerset function.
@@ -106,9 +114,9 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * Extensionality Axiom --- Two sets are equal iff they have the same
    * elements.
    *
-   * `() |- (x = y) ⇔ ∀ z. z ∈ x ⇔ z ∈ y`
+   * `() |- x = y ⇔ ∀ z. z ∈ x ⇔ z ∈ y`
    */
-  final val extensionalityAxiom: this.AXIOM = Axiom(∀(z, (z ∈ x) <=> (z ∈ y)) <=> (x === y))
+  final val extensionalityAxiom: this.AXIOM = Axiom(∀(z, z ∈ x <=> z ∈ y) <=> (x === y))
 
   /**
    * Pairing Axiom --- For any sets `x` and `y`, there is a set that contains
@@ -120,26 +128,26 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * This axiom defines [[unorderedPair]] as the function symbol representing
    * this set.
    */
-  final val pairAxiom: AXIOM = Axiom(z ∈ unorderedPair(x, y) <=> (x === z) \/ (y === z))
+  final val pairAxiom: AXIOM = Axiom(z ∈ unorderedPair(x, y) <=> (z === x) \/ (z === y))
 
   /**
-   * Comprehension/Separation Schema --- For a formula `ϕ(_, _)` and a set `z`,
-   * there exists a set `y` which contains only the elements `x` of `z` that
-   * satisfy `ϕ(x, z)`. This is represented mathematically as `y = {x ∈ z | ϕ(x,
-   * z)}`.
+   * Comprehension/Separation Schema --- For a formula `ϕ(_, _)` and a set `y`,
+   * there exists a set `z` which contains only the elements `x` of `y` that
+   * satisfy `ϕ(x, y)`. This is represented mathematically as `z = {x ∈ y | ϕ(x,
+   * y)}`.
    *
-   * `() |- ∃ y. ∀ x. x ∈ y ⇔ (x ∈ z ∧ ϕ(x, z))`
+   * `() |- ∃ z. ∀ x. x ∈ z ⇔ (x ∈ y ∧ ϕ(x, y))`
    *
    * This schema represents an infinite collection of axioms, one for each
-   * formula `ϕ(x, z)`.
+   * formula `ϕ(x, y)`.
    */
-  final val comprehensionSchema: AXIOM = Axiom(∃(y, ∀(x, (x ∈ y) <=> ((x ∈ z) /\ φ(x)))))
+  final val comprehensionSchema: AXIOM = Axiom(∃(z, ∀(x, x ∈ z <=> (x ∈ y) /\ φ(x))))
 
   /**
    * Empty Set Axiom --- From the Comprehension Schema follows the existence of
    * a set containing no elements, the empty set.
    *
-   * `∅ = {x ∈ X | x != x}`.
+   * `∅ = {x ∈ X | x ≠ x}`
    *
    * This axiom defines [[emptySet]] as the constant symbol representing this set.
    *
@@ -199,9 +207,9 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * element. Equivalently, the relation `∈` on any family of sets is
    * well-founded.
    *
-   * `() |- (x ≠ ∅) ==> ∃ y ∈ x. ∀ z. z ∈ x ⇒ z ∉ y`
+   * `() |- x ≠ ∅ ==> ∃ y ∈ x. ∀ z. z ∈ x ⇒ z ∉ y`
    */
-  final val foundationAxiom: AXIOM = Axiom((x ≠ ∅) ==> ∃(y, (y ∈ x) /\ ∀(z, (z ∈ x) ==> (z ∉ y))))
+  final val foundationAxiom: AXIOM = Axiom(x ≠ ∅ ==> ∃(y, (y ∈ x) /\ ∀(z, z ∈ x ==> z ∉ y)))
 
   // ZF
   /////////
@@ -213,8 +221,8 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * satisfy `P` for each `a ∈ x`.
    */
   final val replacementSchema: AXIOM = Axiom(
-    ∀(x, (x ∈ A) ==> ∀(y, ∀(z, (P(x)(y) /\ P(x)(z)) ==> (y === z)))) ==>
-      ∃(B, ∀(y, (y ∈ B) <=> ∃(x, (x ∈ A) /\ P(x)(y))))
+    ∀(x, x ∈ A ==> ∀(y, ∀(z, P(x)(y) /\ P(x)(z) ==> (y === z)))) ==>
+      ∃(B, ∀(y, y ∈ B <=> ∃(x, (x ∈ A) /\ P(x)(y))))
   )
 
   final val tarskiAxiom: AXIOM = Axiom(
@@ -248,11 +256,6 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   ///////////////
   // Notations //
   ///////////////
-
-  extension (l: Expr[Ind])
-    def ∈(r: Expr[Ind]): Expr[Prop] = in(l)(r)
-    def ∉(r: Expr[Ind]): Expr[Prop] = !(l ∈ r)
-    def ⊆(r: Expr[Ind]): Expr[Prop] = subset(l)(r)
 
   def unorderedPair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = App(App(unorderedPair, x), y)
 
