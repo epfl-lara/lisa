@@ -261,7 +261,7 @@ trait Predef extends ExprOps {
       case e: K.Expression => e.freeVariables.map(_.id)
       case e: Expr[?] => e.freeVars.map(_.id)
       case id: K.Identifier => Seq(id)
-    }).filter(_.name == base).map(_.no).max
+    }).filter(_.name == base).map(_.no).maxOption.getOrElse(-1)
     K.Identifier(base, i + 1)
   }
 
