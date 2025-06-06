@@ -36,8 +36,8 @@ object Congruence extends ProofTactic with ProofSequentTactic {
     egraph.addAll(bot.right)
 
     bot.left.foreach {
-      case === #@ l #@ r => egraph.merge(l, r)
-      case <=> #@ l #@ r => egraph.merge(l, r)
+      case l === r => egraph.merge(l, r)
+      case l <=> r => egraph.merge(l, r)
       case _ => ()
     }
 
@@ -54,7 +54,7 @@ object Congruence extends ProofTactic with ProofSequentTactic {
           else false
         } ||
         bot.left.exists {
-          case rf2 @ neg #@ rf if egraph.idEq(lf, rf) =>
+          case rf2 @ ¬(rf) if egraph.idEq(lf, rf) =>
             val base = have((bot.left + !lf) |- bot.right) by Restate
             val eq = have(egraph.proveExpr(lf, rf.asInstanceOf, bot))
             val a = variable[Prop]
@@ -64,10 +64,10 @@ object Congruence extends ProofTactic with ProofSequentTactic {
           case _ => false
         } || {
           lf match
-            case neg #@ (=== #@ a #@ b) if egraph.idEq(a, b) =>
+            case ¬(a === b) if egraph.idEq(a, b) =>
               have(egraph.proveExpr(a, b, bot))
               true
-            case neg #@ (<=> #@ a #@ b) if egraph.idEq(a, b) =>
+            case ¬(a <=> b) if egraph.idEq(a, b) =>
               have(egraph.proveExpr(a, b, bot))
               true
             case _ => false
@@ -77,7 +77,7 @@ object Congruence extends ProofTactic with ProofSequentTactic {
     then ()
     else if bot.right.exists { rf =>
         bot.right.exists {
-          case lf2 @ neg #@ (lf) if egraph.idEq(lf, rf) =>
+          case lf2 @ ¬(lf) if egraph.idEq(lf, rf) =>
             val base = have((bot.left) |- (bot.right + !rf)) by Restate
             val eq = have(egraph.proveExpr[Prop](lf.asInstanceOf, rf, bot))
             val a = variable[Prop]
@@ -87,10 +87,10 @@ object Congruence extends ProofTactic with ProofSequentTactic {
           case _ => false
         } || {
           rf match
-            case (=== #@ a #@ b) if egraph.idEq(a, b) =>
+            case a === b if egraph.idEq(a, b) =>
               have(egraph.proveExpr(a, b, bot))
               true
-            case (<=> #@ a #@ b) if egraph.idEq(a, b) =>
+            case a <=> b if egraph.idEq(a, b) =>
               have(egraph.proveExpr(a, b, bot))
               true
             case _ => false
