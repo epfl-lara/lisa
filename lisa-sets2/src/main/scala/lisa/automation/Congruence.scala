@@ -127,15 +127,14 @@ class UnionFind[T] {
    * @return the root of x
    */
   def find(x: T): T = {
-    if parent(x) == x then x
-    else
-      var root = x
-      while parent(root) != root do root = parent(root)
-      var y = x
-      while parent(y) != root do
-        parent(y) = root
-        y = parent(y)
-      root
+    var root = x
+    while parent(root) != root do root = parent(root)
+    var y = x
+    while parent(y) != root do
+      val p = parent(y)
+      parent(y) = root
+      y = p
+    root
   }
 
   /**
@@ -259,7 +258,8 @@ class EGraphExpr() {
 
   def makeSingletonEClass(node: Expr[?]): Expr[?] = {
     UF.add(node)
-    parents(node) = mutable.Set()
+    if !parents.contains(node) then
+      parents(node) = mutable.Set()
     node
   }
 
