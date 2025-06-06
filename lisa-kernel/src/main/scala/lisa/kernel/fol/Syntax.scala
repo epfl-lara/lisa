@@ -72,7 +72,7 @@ private[fol] trait Syntax {
     * There are two sorts: `Ind` and `Prop`.
     */
   sealed trait Sort {
-    /** shortcut for `Assow(this, to)` */
+    /** shortcut for `Arrow(this, to)` */
     def ->(to: Sort): Arrow = Arrow(this, to)
 
     /** @return true if the sort is of the form `Ind -> ... -> Ind -> Ind` */

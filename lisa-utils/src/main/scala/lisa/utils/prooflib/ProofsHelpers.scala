@@ -277,7 +277,7 @@ trait ProofsHelpers {
 
   
   /**
-   * Allows to make definitions "by unique existance" of a symbol. May need debugging
+   * Allows to make definitions "by existance" of a symbol. May need debugging
    */
   class EpsilonDefinition[S: Sort](using om: OutputManager)(fullName: String, line: Int, file: String)(
       expr: Expr[S],
