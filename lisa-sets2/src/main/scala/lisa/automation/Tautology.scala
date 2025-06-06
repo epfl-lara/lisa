@@ -57,6 +57,10 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
     }
   }
 
+  /** Variant of [[from]] that also adds the last step to the premises. */
+  def fromLastStep(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(lastStep: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
+    from(using lib, proof)((lastStep +: premises.toSeq)*)(bot)
+
   /**
    * This function returns a proof of the given sequent if such a proof exists using only the rules of propositional logic and reflexivity and symmetry of equality.
    * Be aware that the runtime and size of the proof may be exponential in the number of atoms (i.e. number of non-propositional subformulas of the input).
