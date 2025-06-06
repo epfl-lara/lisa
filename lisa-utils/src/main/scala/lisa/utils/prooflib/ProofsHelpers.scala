@@ -24,7 +24,7 @@ trait ProofsHelpers {
 
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
 
-      val bot = HaveSequent.this.bot ++ (F.iterable_to_set(_proof.getAssumptions) |- ())
+      val bot = HaveSequent.this.bot ++ (F.toFormulaSet(_proof.getAssumptions) |- ())
       inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact = {
         tactic(bot).validate(line, file)
       }

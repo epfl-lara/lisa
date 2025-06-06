@@ -213,41 +213,27 @@ trait Sequents extends Predef {
   }
 
   /**
-   * Represents a converter of some object into a set.
-   * @tparam S The type of elements in that set
+   * Represents a converter of some object into a set of formulas.
    * @tparam T The type to convert from
    */
-  trait FormulaSetConverter[T] {
+  trait FormulaSetConverter[-T] {
     def apply(t: T): Set[Expr[Prop]]
   }
 
-  given FormulaSetConverter[Unit] with {
-    override def apply(u: Unit): Set[Expr[Prop]] = Set.empty
-  }
+  def toFormulaSet[T](x: T)(using converter: FormulaSetConverter[T]): Set[Expr[Prop]] = converter(x)
 
-  given FormulaSetConverter[EmptyTuple] with {
-    override def apply(t: EmptyTuple): Set[Expr[Prop]] = Set.empty
-  }
+  given FormulaSetConverter[Unit] = _ => Set()
+  given FormulaSetConverter[EmptyTuple] = _ => Set()
 
-  given [H <: Expr[Prop], T <: Tuple](using c: FormulaSetConverter[T]): FormulaSetConverter[H *: T] with {
-    override def apply(t: H *: T): Set[Expr[Prop]] = c.apply(t.tail) + t.head
-  }
+  given [H, T <: Tuple](using FormulaSetConverter[H], FormulaSetConverter[T]): FormulaSetConverter[H *: T] =
+    t => toFormulaSet(t.head) ++ toFormulaSet(t.tail)
 
-  given formula_to_set[T <: Expr[Prop]]: FormulaSetConverter[T] with {
-    override def apply(f: T): Set[Expr[Prop]] = Set(f)
-  }
+  given FormulaSetConverter[Expr[Prop]] = Set(_)
+  given FormulaSetConverter[Iterable[Expr[Prop]]] = _.toSet
 
-  given iterable_to_set[T <: Expr[Prop], I <: Iterable[T]]: FormulaSetConverter[I] with {
-    override def apply(s: I): Set[Expr[Prop]] = s.toSet
-  }
-
-  private def any2set[A, T <: A](any: T)(using c: FormulaSetConverter[T]): Set[Expr[Prop]] = c.apply(any)
-
-  extension [A, T1 <: A](left: T1)(using FormulaSetConverter[T1]) {
+  extension [L](left: L)(using FormulaSetConverter[L]) {
     /** Infix shorthand for constructing a [[Sequent]]. */
-    infix def |-[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
-    /** Infix shorthand for constructing a [[Sequent]]. */
-    infix def ⊢[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
+    infix def |-[R](right: R)(using FormulaSetConverter[R]): Sequent = Sequent(toFormulaSet(left), toFormulaSet(right))
   }
 
 }

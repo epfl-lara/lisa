@@ -269,39 +269,27 @@ object KernelHelpers {
   }
 
   /**
-   * Represents a converter of some object into a set.
-   * @tparam S The type of elements in that set
+   * Represents a converter of some object into a set of expressions.
    * @tparam T The type to convert from
    */
-  protected trait FormulaSetConverter[T] {
+  protected trait ExpressionSetConverter[-T] {
     def apply(t: T): Set[Expression]
   }
 
-  given FormulaSetConverter[Unit] with {
-    override def apply(u: Unit): Set[Expression] = Set.empty
-  }
+  def toExpressionSet[T](x: T)(using converter: ExpressionSetConverter[T]): Set[Expression] = converter(x)
 
-  given FormulaSetConverter[EmptyTuple] with {
-    override def apply(t: EmptyTuple): Set[Expression] = Set.empty
-  }
+  given ExpressionSetConverter[Unit] = _ => Set()
+  given ExpressionSetConverter[EmptyTuple] = _ => Set()
 
-  given [H <: Expression, T <: Tuple](using c: FormulaSetConverter[T]): FormulaSetConverter[H *: T] with {
-    override def apply(t: H *: T): Set[Expression] = c.apply(t.tail) + t.head
-  }
+  given [H, T <: Tuple](using ExpressionSetConverter[H], ExpressionSetConverter[T]): ExpressionSetConverter[H *: T] =
+    t => toExpressionSet(t.head) ++ toExpressionSet(t.tail)
 
-  given formula_to_set[T <: Expression]: FormulaSetConverter[T] with {
-    override def apply(f: T): Set[Expression] = Set(f)
-  }
+  given ExpressionSetConverter[Expression] = Set(_)
+  given ExpressionSetConverter[Iterable[Expression]] = _.toSet
 
-  given [T <: Expression, I <: Iterable[T]]: FormulaSetConverter[I] with {
-    override def apply(s: I): Set[Expression] = s.toSet
-  }
-
-  private def any2set[A, T <: A](any: T)(using c: FormulaSetConverter[T]): Set[Expression] = c.apply(any)
-
-  extension [A, T1 <: A](left: T1)(using FormulaSetConverter[T1]) {
-    infix def |-[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
-    infix def ⊢[B, T2 <: B](right: T2)(using FormulaSetConverter[T2]): Sequent = Sequent(any2set(left), any2set(right))
+  extension [L](left: L)(using ExpressionSetConverter[L]) {
+    /** Infix shorthand for constructing a [[K.Sequent]]. */
+    infix def |-[R](right: R)(using ExpressionSetConverter[R]): Sequent = Sequent(toExpressionSet(left), toExpressionSet(right))
   }
 
   // Instatiation functions for formulas lifted to sequents.
