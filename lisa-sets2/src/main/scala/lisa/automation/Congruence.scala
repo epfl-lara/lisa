@@ -25,7 +25,23 @@ import leo.datastructures.TPTP.AnnotatedFormula.FormulaType
  * Each edge of the path can come from an external equality, or be the consequence of congruence.
  * The tactic uses uses this path to produce needed proofs.
  */
-object Congruence extends ProofTactic with ProofSequentTactic {
+object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
+
+  def from(using lib: Library, proof: lib.Proof)(context: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement =
+    val newAssumptions = context.toSet.map(s => (orAllOrFalse(s.statement.right), s)).filter((f, s) => !bot.left.contains(f))
+    val botWithAssumptions = bot.left ++ newAssumptions.map(_._1) |- bot.right
+
+    TacticSubproof {
+      import lib.*
+
+      have(botWithAssumptions) by this
+      for ((assumption, f) <- newAssumptions) {
+        have((botWithAssumptions.left - assumption ++ f.statement.left) |- botWithAssumptions.right) by Cut(f, lastStep)
+      }
+    }
+
+  def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
+    from(premise)(bot)
 
   def apply(using lib: Library, proof: lib.Proof)(bot: Sequent): proof.ProofTacticJudgement = TacticSubproof {
 
