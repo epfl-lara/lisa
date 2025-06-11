@@ -265,7 +265,7 @@ trait Syntax {
   def unfoldAllApp(e:Expr[?]): (Expr[?], List[Expr[?]]) = 
     def rec(e: Expr[?]): (Expr[?], List[Expr[?]]) = e match
       case App(f, arg) =>
-        val (f1, args) = unfoldAllApp(f)
+        val (f1, args) = rec(f)
         (f1, arg :: args )
       case _ => (e, Nil)
     val (f, args) = rec(e)
