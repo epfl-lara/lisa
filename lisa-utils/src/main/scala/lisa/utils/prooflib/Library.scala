@@ -42,21 +42,12 @@ abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.
     else _draft = Some(file)
   def isDraft = _draft.nonEmpty
 
-  private[prooflib] var _currentChapter: Option[(String, Int)] = None
-  private[prooflib] var _currentSection: Option[(String, Int)] = None
-  def chapter(name: String)(using om: OutputManager): Unit =
-    _currentSection = None
-    val chapterIndex = _currentChapter.map(_._2).getOrElse(0) + 1
-    _currentChapter = Some((name, chapterIndex))
-    om.output(OutputManager.BLUE(s"Chapter ${chapterIndex}: ${name}"))
+  private[prooflib] var _currentSection: Map[String, (String, Int)] = Map.empty
 
-  def section(name: String)(using om: OutputManager): Unit =
-    if _currentChapter.isEmpty then throw new UserLisaException.NoCurrentChapter()
-    else
-      val chapterIndex = _currentChapter.get._2
-      val sectionIndex = _currentSection.map(_._2).getOrElse(0) + 1
-      _currentSection = Some((name, sectionIndex))
-      om.output(OutputManager.BLUE(s" Section ${chapterIndex}.${sectionIndex}: ${name}"))
+  def section(name: String)(using om: OutputManager, file: sourcecode.File): Unit =
+    val index = _currentSection.get(file.value).map(_._2).getOrElse(0) + 1
+    _currentSection = _currentSection.updated(file.value, (name, index))
+    om.output(OutputManager.BLUE(s" Section ${index}: ${name}"))
 
   val knownDefs: scala.collection.mutable.Map[F.Constant[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
   val shortDefs: scala.collection.mutable.Map[F.Constant[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
