@@ -1,6 +1,7 @@
 package lisa.utils.prooflib
 
 import lisa.utils.fol.FOL as F
+import lisa.utils.Printing
 import lisa.utils.prooflib.BasicStepTactic.*
 import lisa.utils.prooflib.ProofTacticLib.{_, given}
 import lisa.utils.prooflib.*
@@ -151,9 +152,57 @@ object SimpleDeducedSteps {
 
   }
 
-  
+  /**
+   * Quantify all variables in a formula on the right side of the premise sequent.
+   *
+   * <pre>
+   *         Γ ⊢ φ, Δ
+   * -------------------------- x, y, ..., z do not appear in Γ
+   *  Γ ⊢ ∀x.∀y. ... ∀z. φ, Δ
+   * </pre>
+   */
+  object Generalize extends ProofTactic with ProofFactSequentTactic:
+    def apply(using lib: Library, proof: lib.Proof)(premiseStep: proof.Fact)(conclusion: F.Sequent): proof.ProofTacticJudgement =
+      def isQuantifiedOf(target: F.Expr[F.Prop], pivot: F.Expr[F.Prop], vars: List[F.Variable[F.Ind]] = Nil): Option[List[F.Variable[F.Ind]]] =
+        target match
+          case F.∀(x, inner) =>
+            val next = x :: vars
+            if F.isSame(inner, pivot) then Some(next) else isQuantifiedOf(inner, pivot, next)
+          case _ => None
+      val premise = proof.getSequent(premiseStep)
+      val difference = premise.right -- conclusion.right
 
-  
+      if difference.isEmpty then Restate(using lib, proof)(premiseStep)(conclusion)
+      else if difference.size > 1 then proof.InvalidProofTactic(s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${Printing.printList(difference)}")
+      else
+        val rdifference = conclusion.right -- premise.right
+        if rdifference.size != 1 then proof.InvalidProofTactic(s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${Printing.printList(rdifference)}")
+        else
+          val pivot = difference.head
+          val target = rdifference.head
+          val varsOption = isQuantifiedOf(target, pivot)
+
+          if varsOption.isEmpty then proof.InvalidProofTactic("Could not find a formula to quantify over in the conclusion.")
+          else
+            val vars = varsOption.get
+            val conflicts = vars.toSet `intersect` premise.left.flatMap(_.freeVars)
+
+            if conflicts.nonEmpty then proof.InvalidProofTactic(s"Variable(s) ${conflicts.mkString(", ")} to be quantified appear in the LHS of the conclusion.")
+            else
+              // safe, proceed
+              TacticSubproof:
+                val vars = varsOption.get
+                lib.have(premise) by Restate.from(premiseStep)
+
+                val base = premise ->> pivot
+
+                vars.foldLeft(pivot): (pivot, v) =>
+                  val quant = F.∀(v, pivot)
+                  lib.thenHave(base +>> quant) by RightForall.withParameters(pivot, v)
+                  quant
+
+                lib.thenHave(conclusion) by Restate
+
   /*
   /**
    * Performs a cut when the formula to be used as pivot for the cut is
