@@ -1273,7 +1273,7 @@ object BasicStepTactic {
         val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
         val sEqT_es = equalsK map { 
           case (s, t) => 
-            val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).max+1
+            val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).maxOption.getOrElse(-1)+1
             val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
             val inner1 = vars.foldLeft(s)(_(_))
             val inner2 = vars.foldLeft(t)(_(_))
