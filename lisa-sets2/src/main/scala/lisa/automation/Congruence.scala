@@ -288,15 +288,14 @@ class EGraphExpr() {
   def add(node: Expr[?]): Expr[?] =
     if codes.contains(node) then node
     else codes(node) = codes.size
-    if node.sort == K.Ind || node.sort == K.Prop then
-      makeSingletonEClass(node)
-      node match
-        case Multiapp(f, args) =>
-          args.foreach(child =>
-            add(child)
-            parents(find(child)).add(node)
-          )
-      mapSigs(canSig(node)) = node
+    makeSingletonEClass(node)
+    node match
+      case Multiapp(f, args) =>
+        args.foreach(child =>
+          add(child)
+          parents(find(child)).add(node)
+        )
+    mapSigs(canSig(node)) = node
     node
 
   def addAll(nodes: Iterable[Expr[Ind] | Expr[Prop]]): Unit =
@@ -325,6 +324,7 @@ class EGraphExpr() {
 
   protected def mergeWithStep(id1: Expr[?], id2: Expr[?], step: Step): Unit = {
     if id1.sort != id2.sort then throw new IllegalArgumentException("Cannot merge nodes of different sorts")
+    if (id1.sort != K.Ind && id1.sort != K.Prop) || (id2.sort != K.Ind && id2.sort != K.Prop) then return ()
     if find(id1) == find(id2) then ()
     else
       proofMap((id1, id2)) = step
