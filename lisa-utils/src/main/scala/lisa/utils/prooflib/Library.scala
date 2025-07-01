@@ -49,8 +49,13 @@ abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.
     _currentSection = _currentSection.updated(file.value, (name, index))
     om.output(OutputManager.BLUE(s" Section ${index}: ${name}"))
 
+  private[prooflib] var contextHypotheses: Map[sourcecode.File, Set[F.Expr[F.Prop]]] = Map.empty
+  def context(e: F.Expr[F.Prop])(using file: sourcecode.File): Unit =
+    contextHypotheses = contextHypotheses.updated(file, contextHypotheses.getOrElse(file, Set.empty) + e)
+
   val knownDefs: scala.collection.mutable.Map[F.Constant[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
   val shortDefs: scala.collection.mutable.Map[F.Constant[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
+
 
   def addSymbol(s: F.Constant[?]): Unit = 
     theory.addSymbol(s.underlying)

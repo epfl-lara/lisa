@@ -613,7 +613,8 @@ trait WithTheorems {
     val kind2: String
 
     def apply(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
-      val thm = THM(statement, name.value, line.value, file.value, this)(computeProof)
+      val s = library.contextHypotheses.getOrElse(file, Set.empty).foldLeft(statement)(_ +<< _)
+      val thm = THM(s, name.value, line.value, file.value, this)(computeProof)
       if this == Theorem then show(thm)
       thm
     }
