@@ -2,9 +2,11 @@ package lisa.maths
 import lisa.automation.atp.*
 import lisa.utils.KernelHelpers.checkProof
 import lisa.tptp.*
+import lisa.utils.KernelHelpers.flattenProof
 
 object Tests extends lisa.Main {
   draft()
+  //withCache()
 
   val x = variable[Ind]
   val y = variable[Ind]
@@ -53,7 +55,18 @@ object Tests extends lisa.Main {
   val example = Theorem((∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(∅) \/ Q(∅))):
     have(thesis) by Prover9
 
+
+
   val example2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Prover9
+
+
+  val dr2proof = flattenProof(drinkers2.kernelProof.get)
+  java.lang.Thread.sleep(5)
+  checkProof(dr2proof)
+  java.lang.Thread.sleep(5)
+  val tptpproof = ProofPrinter.proofToTPTP(dr2proof, Map(), ("drinkers2", drinkers2.statement.underlying))
+  tptpproof.foreach { p => println(p.pretty)}
+
 
 }

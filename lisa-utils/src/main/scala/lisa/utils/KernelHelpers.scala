@@ -661,4 +661,65 @@ object KernelHelpers {
 
   def prettySCProof(proof: SCProof): String = prettySCProof(SCValidProof(proof), false)
 
+
+  def mapStepPremises(step: SCProofStep, mapping: Int => Int): SCProofStep = step match
+    case Beta(bot, t1) => Beta(bot, mapping(t1))
+    case Cut(bot, t1, t2, phi) => Cut(bot, mapping(t1), mapping(t2), phi)
+    case Hypothesis(bot, phi) => Hypothesis(bot, phi)
+    case InstSchema(bot, t1, subst) => InstSchema(bot, mapping(t1), subst)
+    case LeftAnd(bot, t1, phi, psi) => LeftAnd(bot, mapping(t1), phi, psi)
+    case LeftExists(bot, t1, phi, x) => LeftExists(bot, mapping(t1), phi, x)
+    case LeftForall(bot, t1, phi, x, t) => LeftForall(bot, mapping(t1), phi, x, t)
+    case LeftIff(bot, t1, phi, psi) => LeftIff(bot, mapping(t1), phi, psi)
+    case LeftImplies(bot, t1, t2, phi, psi) => LeftImplies(bot, mapping(t1), mapping(t2), phi, psi)
+    case LeftNot(bot, t1, phi) => LeftNot(bot, mapping(t1), phi)
+    case LeftOr(bot, t, disjuncts) => LeftOr(bot, t.map(mapping), disjuncts)
+    case LeftRefl(bot, t1, fa) => LeftRefl(bot, mapping(t1), fa)
+    case LeftSubstEq(bot, t1, equals, lambdaPhi) => LeftSubstEq(bot, mapping(t1), equals, lambdaPhi)
+    case Restate(bot, t1) => Restate(bot, mapping(t1))
+    case RestateTrue(bot) => RestateTrue(bot)
+    case RightAnd(bot, t, cunjuncts) => RightAnd(bot, t.map(mapping), cunjuncts)
+    case RightEpsilon(bot, t1, phi, x, t) => RightEpsilon(bot, mapping(t1), phi, x, t)
+    case RightExists(bot, t1, phi, x, t) => RightExists(bot, mapping(t1), phi, x, t)
+    case RightForall(bot, t1, phi, x) => RightForall(bot, mapping(t1), phi, x)
+    case RightIff(bot, t1, t2, phi, psi) => RightIff(bot, mapping(t1), mapping(t2), phi, psi)
+    case RightImplies(bot, t1, phi, psi) => RightImplies(bot, mapping(t1), phi, psi)
+    case RightNot(bot, t1, phi) => RightNot(bot, mapping(t1), phi)
+    case RightOr(bot, t1, phi, psi) => RightOr(bot, mapping(t1), phi, psi)
+    case RightRefl(bot, fa) => RightRefl(bot, fa)
+    case RightSubstEq(bot, t1, equals, lambdaPhi) => RightSubstEq(bot, mapping(t1), equals, lambdaPhi)
+    case SCSubproof(sp, premises) => SCSubproof(sp, premises.map(mapping))
+    case Sorry(bot) => Sorry(bot)
+    case Weakening(bot, t1) => Weakening(bot, mapping(t1))
+  
+
+  def flattenProof(proof: SCProof): SCProof = {
+    def flattenProofRecursive(steps: IndexedSeq[SCProofStep], topPremises: IndexedSeq[(Int, Sequent)], offset: Int): IndexedSeq[SCProofStep] = {
+      val (finalAcc, _) = steps.foldLeft((IndexedSeq.empty[SCProofStep], IndexedSeq.empty[(Int, Sequent)])) { case ((acc, localToGlobal), step) =>
+        def resolve(i: Int): (Int, Sequent) = if (i >= 0) localToGlobal(i) else topPremises(-i - 1)
+        val newAcc = step match {
+          case SCSubproof(subProof, subPremises) =>
+            val (rewrittenPremises, rewrittenSeq) = subPremises.zipWithIndex.flatMap { case (i, j) =>
+              val (k, sequent) = resolve(i)
+              val imported = subProof.imports(j)
+              if (sequent != imported) {
+                Some((Restate(imported, k), j -> imported))
+              } else {
+                Some((Restate(imported, k), j -> imported))
+              }
+            }.unzip
+            val rewrittenMap = rewrittenSeq.map { case (j, sequent) => j -> (offset + acc.size - j - 1 + rewrittenSeq.size, sequent) }.toMap
+            val childTopPremises = subPremises.zipWithIndex.map((i, j) => rewrittenMap(j)).toIndexedSeq
+            acc ++ rewrittenPremises.reverse ++ flattenProofRecursive(subProof.steps, childTopPremises, offset + acc.size + rewrittenPremises.size)
+          case _ =>
+            acc :+ mapStepPremises(step, i => resolve(i)._1)
+        }
+        (newAcc, localToGlobal :+ (offset + newAcc.size - 1, step.bot))
+      }
+      finalAcc
+    }
+    SCProof(flattenProofRecursive(proof.steps, proof.imports.zipWithIndex.map { case (imported, i) => (-i - 1, imported) }, 0), proof.imports)
+  }
+
+
 }
