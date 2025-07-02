@@ -28,6 +28,11 @@ object Definitions extends lisa.Main {
   }
 
 
+  /** Definition --- `f` is a function on `A` if the domain of `f` is `A`.
+    */
+  val functionOn = DEF(λ(f, λ(A, ∃(B, f :: A -> B))))
+
+
   /** Definition --- `f` is a function if there exists `A` and `B` such that `f : A -> B`.
     */
   val function = DEF(λ(f, ∃(A, ∃(B, f :: A -> B))))
@@ -45,11 +50,6 @@ object Definitions extends lisa.Main {
     * @see [[Relations.Definitions.dom]]
     */
   val range = Relations.Predef.range
-
-
-  /** Definition --- `f` is a function on `A` if the domain of `f` is `A`.
-    */
-  val functionOn = DEF(λ(f, λ(A, function(f) /\ (dom(f) === A))))
 
 
   /** Function application --- For any `x`, we denote by `f(x)` the application

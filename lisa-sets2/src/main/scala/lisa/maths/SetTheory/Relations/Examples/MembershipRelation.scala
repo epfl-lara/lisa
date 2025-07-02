@@ -1,4 +1,5 @@
-package lisa.maths.SetTheory.Relations.Examples
+package lisa.maths.SetTheory.Relations
+package Examples
 
 import lisa.maths.SetTheory.Base.Predef.{*, given}
 import lisa.maths.SetTheory.Relations.Predef.*
