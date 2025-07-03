@@ -5,6 +5,8 @@ import Union.∪
 import Intersection.{⋂, ∩}
 import Comprehension.|
 
+import lisa.maths.Quantifiers
+
 /**
   * The ordered pair `(x, y)` is a pair of elements where order matters:
   * `(x, y) = (x', y')` if and only if `x = x'` and `y = y'`.
@@ -18,6 +20,7 @@ object Pair extends lisa.Main {
   private val a, b, c, d = variable[Ind]
   private val x, y, z = variable[Ind]
   private val p = variable[Ind]
+  private val P, Q = variable[Ind >>: Prop]
 
   /**
     * Ordered Pair --- `(x, y)`. Shorthand for `{{x}, {x, y}}` (Kuratowski's definition).
@@ -54,33 +57,27 @@ object Pair extends lisa.Main {
     val `==>` = have((a, b) === (c, d) |- (a === c) /\ (b === d)) subproof {
       assume((a, b) === (c, d))
 
-      val pairEquality = have(unorderedPair(singleton(a), unorderedPair(a, b)) === unorderedPair(singleton(c), unorderedPair(c, d))) by Congruence.from(
+      // This is a work-around Tautology not using Congruence yet
+      // Remove once Tautology is powerful enough
+      val eqTransitivity = have((a === c, d === a, c === b) |- b === d) by Congruence
+
+      have(unorderedPair(singleton(a), unorderedPair(a, b)) === unorderedPair(singleton(c), unorderedPair(c, d))) by Congruence.from(
         pair.definition of (x := a, y := b),
         pair.definition of (x := c, y := d)
       )
-
-      // We consider two cases: `a = b` and `a ≠ b`
-
-      // If `a = b` then `{{a}, {a, b}} = {{a}} = {{c}, {c, d}}` and thus
-      // both `{a} = {c}` and `{a} = {c, d}`.
-      val `case a = b` = have(a === b |- (a === c) /\ (b === d)) subproof {
-        assume(a === b)
-
-        // TODO: This should be automated
-        sorry
-      }
-
-      // If `a ≠ b` then `{a} ≠ {a, b}` and thus `{a, b} = {c, d}` and `{a} = {c}`.
-      val `case a ≠ b` = have(a ≠ b |- (a === c) /\ (b === d)) subproof {
-        have((unorderedPair(a, a) === unorderedPair(a, b)) <=> (a === b)) by Tautology.from(
-          UnorderedPair.extensionality of (c := a, d := a)
-        )
-        thenHave((singleton(a) === unorderedPair(a, b)) <=> (a === b)) by Substitute(singleton.definition of (x := a))
-        thenHave(a ≠ b |- singleton(a) ≠ unorderedPair(a, b)) by Congruence
-        sorry
-      }
-
-      have(thesis) by Tautology.from(`case a = b`, `case a ≠ b`)
+      thenHave(
+        ((singleton(a) === singleton(c)) /\ (unorderedPair(a, b) === unorderedPair(c, d))) \/
+          ((singleton(a) === unorderedPair(c, d)) /\ (unorderedPair(a, b) === singleton(c)))
+      ) by Tautology.fromLastStep(
+        UnorderedPair.extensionality of (a := singleton(a), b := unorderedPair(a, b), c := singleton(c), d := unorderedPair(c, d))
+      )
+      thenHave(thesis) by Tautology.fromLastStep(
+        Singleton.extensionality of (x := a, y := c),
+        Singleton.equalsUnorderedPair of (x := a, y := c, z := d),
+        UnorderedPair.extensionality,
+        Singleton.equalsUnorderedPair of (x := c, y := a, z := b),
+        eqTransitivity
+      )
     }
 
     val `<==` =
@@ -183,15 +180,35 @@ object Pair extends lisa.Main {
   val pairSnd = Theorem(
     snd (x, y) === y
   ) {
-    have(z ∈ {z ∈ ⋃((x, y)) | ⋃((x, y)) ≠ ⋂((x, y)) ==> z ∉ ⋂((x, y))} <=> (z ∈ ⋃((x, y))) /\ (⋃((x, y)) ≠ ⋂((x, y)) ==> z ∉ ⋂((x, y)))) by Tautology.from(
-      Comprehension.membership of (x := z, y := ⋃((x, y)), φ := λ(z, ⋃((x, y)) ≠ ⋂((x, y)) ==> z ∉ ⋂((x, y)))),
+    val A = {z ∈ ⋃(x, y) | ⋃(x, y) ≠ ⋂(x, y) ==> z ∉ ⋂(x, y)}
+
+    have(z ∈ ⋃(A) <=> ∃(a, a ∈ A /\ (z ∈ a))) by Tautology.from(unionAxiom of (x := A))
+    val definition = thenHave(z ∈ snd(x, y) <=> ∃(a, a ∈ A /\ (z ∈ a))) by Substitute(snd.definition of (p := (x, y)))
+
+    have(a ∈ A <=> a ∈ ⋃(x, y) /\ (⋃(x, y) ≠ ⋂(x, y) ==> a ∉ ⋂(x, y))) by Tautology.from(
+      Comprehension.membership of (x := a, y := ⋃(x, y), φ := λ(a, ⋃(x, y) ≠ ⋂(x, y) ==> a ∉ ⋂(x, y)))
     )
-    sorry
-    /*
-    thenHave(z ∈ {z ∈ ⋃((x, y)) | ⋃((x, y)) ≠ ⋂((x, y)) ==> z ∉ ⋂((x, y))} <=> (z ∈ unorderedPair(x, y)) /\ (unorderedPair(x, y) ≠ singleton(x) ==> z ∉ singleton(x))) by Substitute(
-      union, intersection
+    have(a ∈ A <=> a ∈ unorderedPair(x, y) /\ (unorderedPair(x, y) ≠ singleton(x) ==> a ∉ singleton(x))) by Congruence.from(lastStep, union, intersection)
+    val `a ∈ A` = thenHave(a ∈ A <=> ((a === x) \/ (a === y)) /\ (x ≠ y ==> (a ≠ x))) by Tautology.fromLastStep(
+      UnorderedPair.membership of (z := a),
+      Singleton.equalsUnorderedPair of (y := x, z := y),
+      Singleton.membership of (y := a)
     )
-     */
+    thenHave(a ∈ A <=> ((a === x) \/ (a === y)) /\ ((a === x) ==> (x === y))) by Tautology
+
+    // We must treat these cases separately since Tautology does not apply Congruence
+    val case1 = have((a === x, x === y) |- a === y) by Congruence
+    val case2 = have((a === x, a === y) |- x === y) by Congruence
+
+    have(a ∈ A /\ (z ∈ a) <=> (z ∈ a) /\ (a === y)) by Tautology.from(`a ∈ A`, case1, case2)
+    thenHave(∀(a, a ∈ A /\ (z ∈ a) <=> (z ∈ a) /\ (a === y))) by RightForall
+    thenHave(∃(a, a ∈ A /\ (z ∈ a)) <=> ∃(a, (z ∈ a) /\ (a === y))) by Tautology.fromLastStep(
+      Quantifiers.existentialEquivalenceDistribution of (P := λ(a, a ∈ A /\ (z ∈ a)), Q := λ(a, z ∈ a /\ (a === y)))
+    )
+    thenHave(∃(a, a ∈ A /\ (z ∈ a)) <=> z ∈ y) by Substitute(Quantifiers.onePointRule)
+
+    have(z ∈ snd(x, y) <=> z ∈ y) by Tautology.from(lastStep, definition)
+    thenHave(thesis) by Extensionality
   }
 
 

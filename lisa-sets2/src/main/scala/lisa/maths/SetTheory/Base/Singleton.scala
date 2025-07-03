@@ -10,6 +10,7 @@ package lisa.maths.SetTheory.Base
 object Singleton extends lisa.Main {
 
   private val x, y, z = variable[Ind]
+  private val a, b, c, d = variable[Ind]
 
   /** Singleton Set --- `{x}`. Shorthand for `{x, x}`.
     *
@@ -60,6 +61,17 @@ object Singleton extends lisa.Main {
     val `<==` = have((x === y) |- (singleton(x) === singleton(y))) by Congruence
 
     have(thesis) by Tautology.from(`==>`, `<==`)
+  }
+
+  /** Theorem --- `{x} = {y, z}` if and only if `x = y` and `x = z`.
+    */
+  val equalsUnorderedPair = Theorem(
+    (singleton(x) === unorderedPair(y, z)) <=> (x === y) /\ (x === z)
+  ) {
+    have((unorderedPair(x, x) === unorderedPair(y, z)) <=> (x === y) /\ (x === z)) by Tautology.from(
+      UnorderedPair.extensionality of (a := x, b := x, c := y, d := z)
+    )
+    thenHave(thesis) by Substitute(singleton.definition)
   }
 
   /** Theorem --- Union of a singleton
