@@ -186,7 +186,7 @@ trait Predef extends ExprOps {
     def unapply(e: Expr[Ind]): Option[(Variable[Ind], Expr[Prop])] = {
       val ε = this
       e match {
-        case App(`ε`, Abs(x, body)) => Some((x, body))
+        case App(`ε`, λ(x, body)) => Some((x, body))
         case _ => None
       }
     }
@@ -342,10 +342,12 @@ trait Predef extends ExprOps {
     if s.sort != t.sort || !(s.sort.isFunctional || s.sort.isPredicate) then throw new IllegalArgumentException("Can only make equality between predicate and functional expressions")
     val no = ((s.freeVars ++ t.freeVars).view.map(_.id.no) ++ Seq(-1)).max+1
     val vars = (no until no+s.sort.depth).map(i => variable[Ind](K.Identifier("x", i)))
-    val inner1 = vars.foldLeft(s)(_ #@ _)
-    val inner2 = vars.foldLeft(t)(_ #@ _)
-    val base = if (inner1.sort == K.Prop) iff #@ inner1 #@ inner2 else equality #@ inner1 #@ inner2
-    vars.foldRight(base : Expr[Prop]) { case (s_arg, acc) => forall(s_arg, acc) }
+    val inner1 = s #@@ vars
+    val inner2 = t #@@ vars
+    val base = if (inner1.sort == K.Prop)
+      inner1.asInstanceOf[Expr[Prop]] <=> inner2.asInstanceOf[Expr[Prop]]
+    else inner1.asInstanceOf[Expr[Ind]] === inner2.asInstanceOf[Expr[Ind]]
+    vars.foldRight(base : Expr[Prop]) { case (s_arg, acc) => ∀(s_arg, acc) }
 
 
 
