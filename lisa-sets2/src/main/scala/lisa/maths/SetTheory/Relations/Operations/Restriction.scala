@@ -6,13 +6,13 @@ import lisa.maths.SetTheory.Relations.Definitions.*
 /** The restriction of a relation `ℛ` to a domain `X` is the relation `ℛ↾X`
   * consisting of pairs of elements `(x, y) ∈ ℛ` such that `x ∈ X`.
   *
-  * In other words, `ℛ↾X = ℛ ∩ (X × range(ℛ))`.
+  * In other words, `ℛ↾X = {(x, y) ∈ ℛ | x ∈ X}`.
   *
   * TODO: Finish the proofs.
   */
 object Restriction extends lisa.Main {
 
-  private val x, y = variable[Ind]
+  private val x, y, z = variable[Ind]
   private val X = variable[Ind]
   private val ℛ, 𝒬 = variable[Ind]
 
@@ -20,9 +20,9 @@ object Restriction extends lisa.Main {
     * pairs of elements in `ℛ` where the first element is in `X`. We denote it
     * by `ℛ↾X`.
     *
-    *   `ℛ↾X = ℛ ∩ (X × range(ℛ))`
+    *   `ℛ↾X = {(x, y) ∈ ℛ | x ∈ X}`
     */
-  val restriction = DEF(λ(ℛ, λ(X, ℛ ∩ (X × range(ℛ))))).printAs(args => {
+  val restriction = DEF(λ(ℛ, λ(X, { z ∈ ℛ | fst(z) ∈ X }))).printAs(args => {
     val ℛ = args(0)
     val X = args(1)
     s"${ℛ}↾${X}"
@@ -32,10 +32,43 @@ object Restriction extends lisa.Main {
     inline infix def ↾(X: set): set = restriction(ℛ)(X)
   }
 
+  /**
+    * Theorem --- We have `(x, y) ∈ ℛ ↾ X` <=> `(x, y) ∈ ℛ` and `x ∈ X`.
+    */
+  val membership = Theorem(
+    (x, y) ∈ (ℛ ↾ X) <=> (x, y) ∈ ℛ /\ (x ∈ X)
+  ) {
+    have((x, y) ∈ { z ∈ ℛ | fst(z) ∈ X } <=> (x, y) ∈ ℛ /\ (fst(x, y) ∈ X)) by Comprehension.apply
+    thenHave(thesis) by Substitute(restriction.definition, Pair.pairFst)
+  }
+
   /** Theorem --- The relation `ℛ` restricted to the empty domain is ∅.
     */
   val emptyRestriction = Theorem(
     (ℛ ↾ ∅) === ∅
+  ) {
+    have(z ∈ { z ∈ ℛ | fst(z) ∈ ∅ } <=> z ∈ ℛ /\ (fst(z) ∈ ∅)) by Comprehension.apply
+    thenHave(z ∈ (ℛ ↾ ∅) <=> z ∈ ℛ /\ (fst(z) ∈ ∅)) by Substitute(restriction.definition of (X := ∅))
+    thenHave(z ∈ (ℛ ↾ ∅) <=> z ∈ ∅) by Tautology.fromLastStep(
+      EmptySet.definition of (x := fst(z)),
+      EmptySet.definition of (x := z),
+    )
+    thenHave(thesis) by Extensionality
+  }
+
+  /** Theorem --- The relation `ℛ` restricted to its domain is `ℛ`.
+    */
+  val restrictionToDomain = Theorem(
+    (ℛ ↾ dom(ℛ)) === ℛ
+  ) {
+    sorry
+  }
+
+  /**
+    * Theorem --- Any subset `𝒬 ⊆ ℛ` of a relation `ℛ` is itself a relation.
+    */
+  val subset = Theorem(
+    (relation(ℛ), 𝒬 ⊆ ℛ) |- relation(𝒬)
   ) {
     sorry
   }
