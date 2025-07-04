@@ -14,7 +14,7 @@ trait Main extends BasicMain {
   export lisa.utils.prooflib.SimpleDeducedSteps.*
 
   export lisa.automation.Tautology
-  // export lisa.automation.Substitution
+  export lisa.automation.Substitution.{Apply as Substitute}
   export lisa.automation.Tableau
   export lisa.automation.Congruence
   // export lisa.automation.Apply
@@ -23,7 +23,7 @@ trait Main extends BasicMain {
   knownDefs.update(∅, Some(emptySetAxiom))
   knownDefs.update(unorderedPair, Some(pairAxiom))
   knownDefs.update(⋃, Some(unionAxiom))
-  knownDefs.update(𝒫, Some(powerAxiom))
+  knownDefs.update(𝒫, Some(powerSetAxiom))
   knownDefs.update(⊆, Some(subsetAxiom))
 
   extension (symbol: Constant[?]) {

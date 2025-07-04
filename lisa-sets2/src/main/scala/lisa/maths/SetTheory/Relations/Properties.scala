@@ -11,6 +11,7 @@ object Properties extends lisa.Main {
   private val a, b = variable[Ind]
   private val ℛ = variable[Ind]
   private val X, Y = variable[Ind]
+  private val A, B = variable[Ind]
 
   extension (x: set) {
     private infix def ℛ(y: set): Expr[Prop] = (x, y) ∈ Properties.ℛ
@@ -45,6 +46,24 @@ object Properties extends lisa.Main {
     */
   val relationRangeSubset = Theorem(
     relationBetween(ℛ)(X)(Y) |- range(ℛ) ⊆ Y
+  ) {
+    sorry
+  }
+
+  /**
+    * Theorem --- If `x ℛ y` then `x ∈ dom(ℛ)`.
+    */
+  val domainMembership = Theorem(
+    (x ℛ y) |- x ∈ dom(ℛ)
+  ) {
+    sorry
+  }
+
+  /**
+    * Theorem --- If `x ℛ y` then `y ∈ dom(ℛ)`.
+    */
+  val rangeMembership = Theorem(
+    (x ℛ y) |- y ∈ range(ℛ)
   ) {
     sorry
   }
@@ -173,43 +192,4 @@ object Properties extends lisa.Main {
     sorry
   }
 
-  /*
-  /**
-   * Theorem --- The union of a set of relations is a relation itself.
-   *
-   *    `∀ ℛ ∈ x. relation(ℛ, X) |- relation(⋃x, X)
-   *
-   */
-  val unionOfRelations = Theorem(
-    ∀(ℛ, ℛ ∈ x ==> relation(ℛ)(X)) |- relation(⋃(x))(X)
-  ) {
-    assume(∀(ℛ, ℛ ∈ x ==> relation(ℛ)(X)))
-    val isRelation = thenHave(y ∈ x ==> relation(y)(X)) by InstantiateForall(y)
-
-    have(z ∈ ⋃(x) |- ∃(y, (y ∈ x) /\ (z ∈ y))) by Tautology.from(unionAxiom)
-
-    thenHave((y ∈ x) /\ (z ∈ y) |- relation(y)(X) /\ (z ∈ y)) by Tautology.fromLastStep(isRelation)
-    // thenHave((y ∈ x) /\ (z ∈ y) |- relation(y)(X) /\ (z ∈ (X × X))) by Tautology.fromLastStep(isRelation)
-    sorry
-    /*
-    // union of a set of relations contains only pairs
-    have(forall(t, in(t, z) ==> relation(t)) |- forall(t, in(t, union(z)) ==> exists(a, exists(b, (t === pair(a, b)))))) subproof {
-      assume(forall(t, in(t, z) ==> relation(t)))
-      have(in(x, z) ==> relation(x)) by InstantiateForall
-      have(in(x, z) |- forall(t, in(t, x) ==> exists(a, exists(b, (t === pair(a, b)))))) by Tautology.from(lastStep, setOfPairsIsRelation of z -> x)
-      thenHave((in(x, z) /\ in(t, x)) |- exists(a, exists(b, (t === pair(a, b))))) by InstantiateForall(t)
-      thenHave(exists(x, in(x, z) /\ in(t, x)) |- exists(a, exists(b, (t === pair(a, b))))) by LeftExists
-
-      have(in(t, union(z)) ==> exists(a, exists(b, (t === pair(a, b))))) by Tautology.from(lastStep, unionAxiom of (x -> z, z -> t))
-      thenHave(thesis) by RightForall
-    }
-
-    // a set of pairs is a relation
-    have(thesis) by Tautology.from(lastStep, setOfPairsIsRelation of z -> union(z))
-   */
-  }
-
-   */
-
-  /** TODO: Add closures. */
 }
