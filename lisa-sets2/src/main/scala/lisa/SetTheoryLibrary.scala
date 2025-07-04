@@ -290,9 +290,11 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
   def unorderedPair(x: set, y: set): set = App(App(unorderedPair, x), y)
 
+  /*
   private val db = HintDatabase.empty
   given HintDatabase = db
 
   export lisa.simplifyHint
   val Simplify = lisa.automation.Simplify(using db)
+   */
 }
