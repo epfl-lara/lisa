@@ -38,9 +38,7 @@ object WellOrderedInduction extends lisa.Main {
 
     // Let S be the set of elements of `A` that do not satisfy `P`:
     val S = {x ∈ A | ¬(P(x))}
-    val `x ∈ S` = have(x ∈ S <=> (x ∈ A) /\ ¬(P(x))) by Tautology.from(
-      Comprehension.membership of (y := A, φ := λ(x, ¬(P(x))))
-    )
+    val `x ∈ S` = have(x ∈ S <=> (x ∈ A) /\ ¬(P(x))) by Comprehension.apply
 
     // By well-ordering, take `x` the `<`-least element ∈ `S`. We show that
     // `P(x)` holds, and thus there is a contradiction.

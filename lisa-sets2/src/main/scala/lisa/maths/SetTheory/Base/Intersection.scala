@@ -43,9 +43,7 @@ object Intersection extends lisa.Main {
   val membership = Theorem(
     z ∈ (x ∩ y) <=> (z ∈ x) /\ (z ∈ y)
   ) {
-    have(z ∈ { z ∈ x | z ∈ y } <=> (z ∈ x) /\ (z ∈ y)) by Restate.from(
-      Comprehension.membership of (x := z, y := x, φ := λ(z, z ∈ y))
-    )
+    have(z ∈ { z ∈ x | z ∈ y } <=> (z ∈ x) /\ (z ∈ y)) by Comprehension.apply
     thenHave(thesis) by Substitute(∩.definition)
   }
 
@@ -96,9 +94,7 @@ object Intersection extends lisa.Main {
     val LHS = have(z ∈ (x ∩ y) <=> (z ∈ x) /\ (z ∈ y)) by Restate.from(membership)
 
     val RHS = {
-      have(z ∈ { z ∈ ⋃(unorderedPair(x, y)) | ∀(a, a ∈ unorderedPair(x, y) ==> z ∈ a) } <=> (z ∈ ⋃(unorderedPair(x, y))) /\ ∀(a, a ∈ unorderedPair(x, y) ==> z ∈ a)) by Congruence.from(
-        Comprehension.membership of (x := z, y := ⋃(unorderedPair(x, y)), φ := λ(z, ∀(a, a ∈ unorderedPair(x, y) ==> z ∈ a)))
-      )
+      have(z ∈ { z ∈ ⋃(unorderedPair(x, y)) | ∀(a, a ∈ unorderedPair(x, y) ==> z ∈ a) } <=> (z ∈ ⋃(unorderedPair(x, y))) /\ ∀(a, a ∈ unorderedPair(x, y) ==> z ∈ a)) by Comprehension.apply
       thenHave(z ∈ ⋂(unorderedPair(x, y)) <=> (z ∈ (x ∪ y)) /\ ∀(a, a ∈ unorderedPair(x, y) ==> z ∈ a)) by Substitute(
         ⋂.definition of (S := unorderedPair(x, y)),
         ∪.definition

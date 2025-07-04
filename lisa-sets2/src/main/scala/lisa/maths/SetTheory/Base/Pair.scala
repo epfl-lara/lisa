@@ -185,9 +185,7 @@ object Pair extends lisa.Main {
     have(z ∈ ⋃(A) <=> ∃(a, a ∈ A /\ (z ∈ a))) by Tautology.from(unionAxiom of (x := A))
     val definition = thenHave(z ∈ snd(x, y) <=> ∃(a, a ∈ A /\ (z ∈ a))) by Substitute(snd.definition of (p := (x, y)))
 
-    have(a ∈ A <=> a ∈ ⋃(x, y) /\ (⋃(x, y) ≠ ⋂(x, y) ==> a ∉ ⋂(x, y))) by Tautology.from(
-      Comprehension.membership of (x := a, y := ⋃(x, y), φ := λ(a, ⋃(x, y) ≠ ⋂(x, y) ==> a ∉ ⋂(x, y)))
-    )
+    have(a ∈ A <=> a ∈ ⋃(x, y) /\ (⋃(x, y) ≠ ⋂(x, y) ==> a ∉ ⋂(x, y))) by Comprehension.apply
     have(a ∈ A <=> a ∈ unorderedPair(x, y) /\ (unorderedPair(x, y) ≠ singleton(x) ==> a ∉ singleton(x))) by Congruence.from(lastStep, union, intersection)
     val `a ∈ A` = thenHave(a ∈ A <=> ((a === x) \/ (a === y)) /\ (x ≠ y ==> (a ≠ x))) by Tautology.fromLastStep(
       UnorderedPair.membership of (z := a),

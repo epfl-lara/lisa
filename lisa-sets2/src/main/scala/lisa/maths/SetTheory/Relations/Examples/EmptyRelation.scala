@@ -42,7 +42,12 @@ object EmptyRelation extends lisa.Main {
   val emptyRelationRange = Theorem(
     range(∅) === ∅
   ) {
-    sorry
+    have(y ∈ { y ∈ ⋃(⋃(∅)) | ∃(x, (x, y) ∈ ∅) } <=> (y ∈ ⋃(⋃(∅))) /\ (∃(x, (x, y) ∈ ∅))) by Comprehension.apply
+    thenHave(y ∈ range(∅) <=> (y ∈ ⋃(⋃(∅))) /\ (∃(x, (x, y) ∈ ∅))) by Substitute(range.definition of (ℛ := ∅))
+    thenHave(y ∈ range(∅) <=> (y ∈ ⋃(∅) /\ (∃(x, (x, y) ∈ ∅)))) by Substitute(Union.empty)
+    thenHave(y ∈ range(∅) <=> (y ∈ ∅ /\ (∃(x, (x, y) ∈ ∅)))) by Substitute(Union.empty)
+    thenHave(y ∈ range(∅) <=> y ∈ ∅) by Tautology.fromLastStep(EmptySet.definition of (x := y))
+    thenHave(thesis) by Extensionality
   }
 
   /** Theorem --- The empty relation on the empty set is reflexive.

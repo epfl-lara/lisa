@@ -16,7 +16,7 @@ object Predef {
     surjective,
     bijective
   }
-  export lisa.maths.SetTheory.Relations.Operations.Restriction as FunctionRestriction
+  export lisa.maths.SetTheory.Functions.Operations.Restriction as FunctionRestriction
   export lisa.maths.SetTheory.Functions.Operations.Restriction.{↾}
 }
 

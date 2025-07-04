@@ -82,6 +82,27 @@ object Comprehension extends lisa.Main {
   }
 
   /**
+    * Tactic that proves `x ∈ {x ∈ y | φ(x)} <=> x ∈ y /\ φ(x)` by finding suitable `y` and `φ`
+    * from the conclusion.
+    *
+    * Essentially a thin wrapper around applying [[membership]] but without specifying the arguments.
+    *
+    * TODO: In the future, this tactic could be removed by Congruence with unification
+    */
+  def apply(using proof: lisa.SetTheoryLibrary.Proof)(conclusion: Sequent): proof.ProofTacticJudgement = {
+    if conclusion.right.size != 1 then
+      proof.InvalidProofTactic("Don't know which formula to prove by comprehension.")
+    else
+      conclusion.right.head match {
+        case v ∈ App(App(`setComprehension`, s), p) <=> _ =>
+          // Use Tautology instead of Restate to handle trivial rewrites/weakening
+          unwrapTactic(Tautology.from(membership of (x := v, y := s, φ := p))(conclusion))("Could not prove membership by comprehension.")
+
+        case _ => proof.InvalidProofTactic("Could not prove membership by comprehension.")
+      }
+  }
+
+  /**
     * Theorem --- The set `{x ∈ y | φ(x)}` is a subset of `y`.
     */
   val subset = Theorem(
