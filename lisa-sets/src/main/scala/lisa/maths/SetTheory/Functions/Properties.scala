@@ -3,11 +3,12 @@ package lisa.maths.SetTheory.Functions
 import lisa.maths.SetTheory.Base.Predef.{*, given}
 import Definitions.*
 
-/** This file contains proofs of basic properties about functions.
-  *
-  * TODO: Add constant functions
-  * TODO: Add Cantor's theorem (probably in a distinct file, when we get to cardinals).
-  */
+/**
+ * This file contains proofs of basic properties about functions.
+ *
+ * TODO: Add constant functions
+ * TODO: Add Cantor's theorem (probably in a distinct file, when we get to cardinals).
+ */
 object Properties extends lisa.Main {
 
   private val x, y, z = variable[Ind]
@@ -16,13 +17,15 @@ object Properties extends lisa.Main {
 
   extension (f: set) {
 
-    /** Syntax for `f(x)`.
-      */
+    /**
+     * Syntax for `f(x)`.
+     */
     def apply(x: set): set = app(f)(x)
   }
 
-  /** Lemma --- If `f : A -> B` then `f` is a function.
-    */
+  /**
+   * Lemma --- If `f : A -> B` then `f` is a function.
+   */
   val functionBetweenIsFunction = Lemma(
     f :: A -> B |- function(f)
   ) {
@@ -32,16 +35,18 @@ object Properties extends lisa.Main {
     thenHave(thesis) by Substitute(function.definition)
   }
 
-  /** Theorem --- If `f : A -> B` then `dom(f) = A`.
-    */
+  /**
+   * Theorem --- If `f : A -> B` then `dom(f) = A`.
+   */
   val functionDomain = Theorem(
     f :: A -> B |- dom(f) === A
   ) {
     sorry
   }
 
-  /** Theorem --- If `f : A -> B` then `range(f) ⊆ B`.
-    */
+  /**
+   * Theorem --- If `f : A -> B` then `range(f) ⊆ B`.
+   */
   val functionRange = Theorem(
     f :: A -> B |- range(f) ⊆ B
   ) {
@@ -49,26 +54,28 @@ object Properties extends lisa.Main {
   }
 
   /**
-    * Theorem --- `(x, y) ∈ f` if and only if `f(x) = y`.
-    */
+   * Theorem --- `(x, y) ∈ f` if and only if `f(x) = y`.
+   */
   val appDefinition = Theorem(
     function(f) |- (x, y) ∈ f <=> (f(x) === y)
   ) {
     sorry
   }
 
-  /** Theorem --- If `f` is a function and `x ∈ dom(f)` then `f(x) ∈ range(f)`.
-    */
+  /**
+   * Theorem --- If `f` is a function and `x ∈ dom(f)` then `f(x) ∈ range(f)`.
+   */
   val appInRange = Theorem(
     (function(f), x ∈ dom(f)) |- f(x) ∈ range(f)
   ) {
     sorry
   }
 
-  /** Theorem --- If `f : A -> B` and `x ∈ A` then `f(x) ∈ B`.
-    *
-    * Special case of [[appInRange]].
-    */
+  /**
+   * Theorem --- If `f : A -> B` and `x ∈ A` then `f(x) ∈ B`.
+   *
+   * Special case of [[appInRange]].
+   */
   val appTyping = Theorem(
     (f :: A -> B, x ∈ A) |- (f(x) ∈ B)
   ) {
@@ -85,9 +92,10 @@ object Properties extends lisa.Main {
     )
   }
 
-  /** Theorem --- If `f` and `g` are functions on `A` such that `f(x) = g(x)`
-    * for all `x ∈ A`, then `f` equals `g`.
-    */
+  /**
+   * Theorem --- If `f` and `g` are functions on `A` such that `f(x) = g(x)`
+   * for all `x ∈ A`, then `f` equals `g`.
+   */
   val extensionality = Theorem(
     (
       functionOn(f)(A),

@@ -46,7 +46,7 @@ object Serialization {
       case Ind => "T"
       case Prop => "F"
       case Arrow(from, to) => s">${typeToString(from)}${typeToString(to)}"
-  
+
   def constantToString(c: Constant): String = "cst_" + c.id.name + "_" + c.id.no + "_" + typeToString(c.sort)
   def variableToString(v: Variable): String = "var_" + v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)
 
@@ -55,7 +55,7 @@ object Serialization {
     dos.writeUTF(c.id.name)
     dos.writeInt(c.id.no)
     dos.writeUTF(typeToString(c.sort))
-  
+
   def variableToDOS(v: Variable, dos: DataOutputStream): Unit =
     dos.writeByte(1)
     dos.writeUTF(v.id.name)
@@ -90,7 +90,7 @@ object Serialization {
       case l: BinderLabel =>
         dos.writeByte(8)
         dos.writeUTF(l.id.name)
-  */
+   */
 
   /**
    * Main function that, when given a proof, will serialize it to a file. It will also serialize all the formulas appearing in it to another file.
@@ -123,7 +123,7 @@ object Serialization {
               val ni = lineOfExpr(inner)
               treesDOS.writeInt(vi)
               treesDOS.writeInt(ni)
-            case Application(f, arg) => 
+            case Application(f, arg) =>
               treesDOS.writeByte(3)
               val a1 = lineOfExpr(f)
               val a2 = lineOfExpr(arg)
@@ -139,7 +139,6 @@ object Serialization {
       sequent.left.foreach(f => proofDOS.writeInt(lineOfExpr(f)))
       proofDOS.writeShort(sequent.right.size)
       sequent.right.foreach(f => proofDOS.writeInt(lineOfExpr(f)))
-
 
     /**
      * Write a proof step to the proof file.
@@ -368,7 +367,7 @@ object Serialization {
             Constant(Identifier(name, no), typeFromString(sort)._1)
           case 2 =>
             val v = exprMap(treesDIS.readInt())
-            val body = exprMap(treesDIS.readInt()) 
+            val body = exprMap(treesDIS.readInt())
             Lambda(v.asInstanceOf[Variable], body)
           case 3 =>
             val f = exprMap(treesDIS.readInt())
@@ -379,7 +378,6 @@ object Serialization {
         ()
 
     // Terms and Formulas finished, deal with the proof now.
-
 
     def sequentFromProofDIS(): Sequent =
       val leftSize = proofDIS.readShort()
@@ -433,7 +431,7 @@ object Serialization {
           exprMap(proofDIS.readInt()).asInstanceOf[Variable],
           exprMap(proofDIS.readInt())
         )
-      else if (psType == rightEpsilon) 
+      else if (psType == rightEpsilon)
         RightEpsilon(
           sequentFromProofDIS(),
           proofDIS.readInt(),
@@ -442,10 +440,8 @@ object Serialization {
           exprMap(proofDIS.readInt())
         )
       else if (psType == weakening) Weakening(sequentFromProofDIS(), proofDIS.readInt())
-      else if (psType == beta) 
-        Beta(sequentFromProofDIS(), 
-          proofDIS.readInt()
-        )
+      else if (psType == beta)
+        Beta(sequentFromProofDIS(), proofDIS.readInt())
       else if (psType == leftRefl) LeftRefl(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
       else if (psType == rightRefl) RightRefl(sequentFromProofDIS(), exprMap(proofDIS.readInt()))
       else if (psType == leftSubstEq)
@@ -502,11 +498,11 @@ object Serialization {
         val justNames = justs.map {
           case (obj, theory.Axiom(name, ax)) => "a" + obj + "$" + name
           case (obj, theory.Theorem(name, proposition, withSorry)) => "t" + obj + "$" + name
-          case (obj, theory.Definition(label, expression, vars)) => 
-            "d" + obj + "$" + label.id.name + "_" + label.id.no + "_" + typeToString(label.sort) //+ "__" + 
-            //vars.size + vars.map(v => v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)).mkString("__")
+          case (obj, theory.Definition(label, expression, vars)) =>
+            "d" + obj + "$" + label.id.name + "_" + label.id.no + "_" + typeToString(label.sort) // + "__" +
+          // vars.size + vars.map(v => v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)).mkString("__")
         }
-        //(name, minimizeProofOnce(proof), justNames)
+        // (name, minimizeProofOnce(proof), justNames)
         (name, proof, justNames)
       )
     )

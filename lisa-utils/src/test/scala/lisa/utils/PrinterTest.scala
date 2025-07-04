@@ -12,7 +12,7 @@ import scala.language.adhocExtensions
  * TODO: Port to TPTP-based printing
  */
 class PrinterTest extends AnyFunSuite with TestUtils {
-/*
+  /*
   test("Minimal parenthesization") {
     assert((multiand(Seq(a, b))).repr == "a ∧ b")
     assert((multiand(Seq(multiand(Seq(a, b)), c))).repr == "a ∧ b ∧ c")
@@ -309,5 +309,5 @@ class PrinterTest extends AnyFunSuite with TestUtils {
 
   }*/
 
-  */
+   */
 }

@@ -1,61 +1,67 @@
 package lisa.maths.SetTheory.Base
 
-/** `{x, y}` is the unordered pair of `x` and `y`. It is written in LISA as
-  * `unorderedPair(x, y)`.
-  *
-  * The pair `{x, y}` is unordered in the sense that `{x, y} = {y, x}`, i.e., the
-  * order is irrelevant (see [[UnorderedPair.symmetry]]).
-  *
-  * The existence of unordered pairs is guaranteed by the [[pairAxiom]].
-  */
+/**
+ * `{x, y}` is the unordered pair of `x` and `y`. It is written in LISA as
+ * `unorderedPair(x, y)`.
+ *
+ * The pair `{x, y}` is unordered in the sense that `{x, y} = {y, x}`, i.e., the
+ * order is irrelevant (see [[UnorderedPair.symmetry]]).
+ *
+ * The existence of unordered pairs is guaranteed by the [[pairAxiom]].
+ */
 object UnorderedPair extends lisa.Main {
 
   private val a, b, c, d = variable[Ind]
   private val x, y, z = variable[Ind]
   private val P = variable[Ind >>: Prop]
 
-  /** Theorem --- Unordered pair membership
-    *
-    *    `z ∈ {x, y} <=> z = x \/ z = y`
-    *
-    * Also known as the [[pairAxiom]].
-    */
+  /**
+   * Theorem --- Unordered pair membership
+   *
+   *    `z ∈ {x, y} <=> z = x \/ z = y`
+   *
+   * Also known as the [[pairAxiom]].
+   */
   val membership = pairAxiom
 
-  /** Theorem --- The left element is a member of the unordered pair.
-    *
-    *    `x ∈ {x, y}`
-    */
+  /**
+   * Theorem --- The left element is a member of the unordered pair.
+   *
+   *    `x ∈ {x, y}`
+   */
   val leftInPair = Theorem(
     x ∈ unorderedPair(x, y)
   ) {
     have(thesis) by Tautology.from(membership of (z := x))
   }
 
-  /** Theorem --- The right element is a member of the unordered pair.
-    *
-    *    `y ∈ {x, y}`
-    */
+  /**
+   * Theorem --- The right element is a member of the unordered pair.
+   *
+   *    `y ∈ {x, y}`
+   */
   val rightInPair = Theorem(
     y ∈ unorderedPair(x, y)
   ) {
     have(thesis) by Tautology.from(membership of (z := y))
   }
 
-  /** Theorem --- Unordered pairs are non-empty.
-    *
-    *    `{x, y} ≠ ∅`
-    */
+  /**
+   * Theorem --- Unordered pairs are non-empty.
+   *
+   *    `{x, y} ≠ ∅`
+   */
   val nonEmpty = Theorem(
     unorderedPair(x, y) ≠ ∅
   ) {
     have(thesis) by Tautology.from(leftInPair, EmptySet.setWithElementNonEmpty of (x := x, y := unorderedPair(x, y)))
   }
 
-  /** Theorem --- The [[unorderedPair]] is, in fact, unordered.
-    *
-    *    `{x, y} = {y, x}`
-    */
+  /**
+   * Theorem --- The [[unorderedPair]] is, in fact, unordered.
+   *
+   *    `{x, y} = {y, x}`
+   */
   val symmetry = Theorem(
     unorderedPair(x, y) === unorderedPair(y, x)
   ) {
@@ -66,10 +72,11 @@ object UnorderedPair extends lisa.Main {
     thenHave(thesis) by Extensionality
   }
 
-  /** Theorem --- Two [[unorderedPair]] are equal if and only if their elements match.
-    *
-    *    `{a, b} = {c, d} <=> (a = c /\ b = d) \/ (a = d /\ b = c)`
-    */
+  /**
+   * Theorem --- Two [[unorderedPair]] are equal if and only if their elements match.
+   *
+   *    `{a, b} = {c, d} <=> (a = c /\ b = d) \/ (a = d /\ b = c)`
+   */
   val extensionality = Theorem(
     (unorderedPair(a, b) === unorderedPair(c, d)) <=> ((a === c) /\ (b === d)) \/ ((a === d) /\ (b === c))
   ) {
@@ -86,7 +93,10 @@ object UnorderedPair extends lisa.Main {
       )
 
       have(thesis) by Tautology.from(
-        lastStep of (z := a), lastStep of (z := b), lastStep of (z := c), lastStep of (z := d)
+        lastStep of (z := a),
+        lastStep of (z := b),
+        lastStep of (z := c),
+        lastStep of (z := d)
       )
     }
 
@@ -100,10 +110,11 @@ object UnorderedPair extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`)
   }
 
-  /** Universal quantifier elimination ---
-    *
-    *   `∀z ∈ {x, y} P(z)` is equivalent to `P(x) /\ P(y)`.
-    */
+  /**
+   * Universal quantifier elimination ---
+   *
+   *   `∀z ∈ {x, y} P(z)` is equivalent to `P(x) /\ P(y)`.
+   */
   val universalQuantifier = Theorem(
     ∀(z, z ∈ unorderedPair(x, y) ==> P(z)) <=> P(x) /\ P(y)
   ) {
@@ -130,10 +141,11 @@ object UnorderedPair extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`)
   }
 
-  /** Existential quantifier elimination ---
-    *
-    *   `∃z ∈ {x, y} P(z)` is equivalent to `P(x) \/ P(y)`.
-    */
+  /**
+   * Existential quantifier elimination ---
+   *
+   *   `∃z ∈ {x, y} P(z)` is equivalent to `P(x) \/ P(y)`.
+   */
   val existentialQuantifier = Theorem(
     ∃(z, z ∈ unorderedPair(x, y) /\ P(z)) <=> P(x) \/ P(y)
   ) {
@@ -142,7 +154,9 @@ object UnorderedPair extends lisa.Main {
       val yCase = have((P(z), z === y) |- P(y)) by Congruence
 
       have(z ∈ unorderedPair(x, y) /\ P(z) |- P(x) \/ P(y)) by Tautology.from(
-        xCase, yCase, membership
+        xCase,
+        yCase,
+        membership
       )
       thenHave(thesis) by LeftExists
     }

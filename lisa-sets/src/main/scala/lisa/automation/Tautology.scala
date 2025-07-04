@@ -57,7 +57,9 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
     }
   }
 
-  /** Variant of [[from]] that also adds the last step to the premises. */
+  /**
+   * Variant of [[from]] that also adds the last step to the premises.
+   */
   def fromLastStep(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(lastStep: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
     from(using lib, proof)((lastStep +: premises.toSeq)*)(bot)
 

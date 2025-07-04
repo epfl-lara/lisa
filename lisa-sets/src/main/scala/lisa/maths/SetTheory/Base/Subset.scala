@@ -4,31 +4,34 @@ import Singleton.singleton
 
 import lisa.maths.Quantifiers
 
-/** We say that `x` is a subset of `y`, denoted by `x ⊆ y`, if all elements of
-  * `x` are elements of `y`.
-  *
-  * @see [[PowerSet]]
-  */
+/**
+ * We say that `x` is a subset of `y`, denoted by `x ⊆ y`, if all elements of
+ * `x` are elements of `y`.
+ *
+ * @see [[PowerSet]]
+ */
 object Subset extends lisa.Main {
 
   private val x, y, z = variable[Ind]
   private val a, b = variable[Ind]
   private val P = variable[Ind >>: Prop]
 
-  /** Definition --- `x` is a subset of `y`, denoted `x ⊆ y`, if every element of `x` is an element of `y`.
-    *
-    *   `∀z. z ∈ x ==> z ∈ y`
-    *
-    * @see [[subsetAxiom]]
-    */
+  /**
+   * Definition --- `x` is a subset of `y`, denoted `x ⊆ y`, if every element of `x` is an element of `y`.
+   *
+   *   `∀z. z ∈ x ==> z ∈ y`
+   *
+   * @see [[subsetAxiom]]
+   */
   val definition = subsetAxiom
 
-  /** Theorem --- If `x ⊆ y` and `z ∈ x` then `z ∈ y`.
-    *
-    *   `x ⊆ y |- z ∈ x ==> z ∈ y`
-    *
-    * Reformulation of the definition.
-    */
+  /**
+   * Theorem --- If `x ⊆ y` and `z ∈ x` then `z ∈ y`.
+   *
+   *   `x ⊆ y |- z ∈ x ==> z ∈ y`
+   *
+   * Reformulation of the definition.
+   */
   val membership = Theorem(
     x ⊆ y |- z ∈ x ==> z ∈ y
   ) {
@@ -36,11 +39,12 @@ object Subset extends lisa.Main {
     thenHave(thesis) by InstantiateForall(z)
   }
 
-  /** Proper Subset --- `x ⊂ y`. Shorthand for `x ⊆ y ∧ x != y`.
-    *
-    * @param x Set
-    * @param y Set
-    */
+  /**
+   * Proper Subset --- `x ⊂ y`. Shorthand for `x ⊆ y ∧ x != y`.
+   *
+   * @param x Set
+   * @param y Set
+   */
   val ⊂ = DEF(λ(x, λ(y, x ⊆ y /\ x ≠ y))).printInfix()
   val properSubset = ⊂
 
@@ -48,11 +52,12 @@ object Subset extends lisa.Main {
     inline infix def ⊂(y: set): Expr[Prop] = properSubset(x)(y)
   }
 
-  /** Theorem --- Subset reflexivity
-    *
-    * Every set is a subset of itself. In other words, the subset
-    * predicate induces a [[reflexive]] [[relation]] on sets.
-    */
+  /**
+   * Theorem --- Subset reflexivity
+   *
+   * Every set is a subset of itself. In other words, the subset
+   * predicate induces a [[reflexive]] [[relation]] on sets.
+   */
   val reflexivity = Theorem(
     x ⊆ x
   ) {
@@ -61,10 +66,11 @@ object Subset extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
-  /** Theorem --- The subset predicate is transitive.
-    *
-    *    `x ⊆ y ∧ y ⊆ z ⊢ x ⊆ z`
-    */
+  /**
+   * Theorem --- The subset predicate is transitive.
+   *
+   *    `x ⊆ y ∧ y ⊆ z ⊢ x ⊆ z`
+   */
   val transitivity = Theorem(
     (x ⊆ y, y ⊆ z) |- x ⊆ z
   ) {
@@ -76,12 +82,13 @@ object Subset extends lisa.Main {
     thenHave(thesis) by Substitute(definition)
   }
 
-  /** Theorem --- Double inclusion: `x = y` if and only if `x ⊆ y` and `y ⊆ x`.
-    *
-    *  `x = y <=> x ⊆ y /\ y ⊆ x`
-    *
-    * In other words, `⊆` is antisymmetric.
-    */
+  /**
+   * Theorem --- Double inclusion: `x = y` if and only if `x ⊆ y` and `y ⊆ x`.
+   *
+   *  `x = y <=> x ⊆ y /\ y ⊆ x`
+   *
+   * In other words, `⊆` is antisymmetric.
+   */
   val doubleInclusion = Theorem(
     (x === y) <=> (x ⊆ y) /\ (y ⊆ x)
   ) {
@@ -106,10 +113,11 @@ object Subset extends lisa.Main {
   }
   val antisymmetry = doubleInclusion
 
-  /** Theorem --- The empty set is a subset of every set.
-    *
-    *    `∅ ⊆ x`
-    */
+  /**
+   * Theorem --- The empty set is a subset of every set.
+   *
+   *    `∅ ⊆ x`
+   */
   val leftEmpty = Theorem(
     ∅ ⊆ x
   ) {
@@ -118,10 +126,11 @@ object Subset extends lisa.Main {
     have(thesis) by Tautology.from(definition of (x := ∅, y := x), lastStep)
   }
 
-  /** Theorem --- If a set is a subset of the empty set, it is empty.
-    *
-    *    `x ⊆ ∅ <=> x = ∅`
-    */
+  /**
+   * Theorem --- If a set is a subset of the empty set, it is empty.
+   *
+   *    `x ⊆ ∅ <=> x = ∅`
+   */
   val rightEmpty = Theorem(
     x ⊆ ∅ <=> (x === ∅)
   ) {
@@ -139,10 +148,11 @@ object Subset extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`)
   }
 
-  /** Theorem --- If `{x, y}` is a subset of `z`, then both `x ∈ z` and `y ∈ z`.
-    *
-    *    `unorderedPair(x, y) ⊆ z <=> (x ∈ z) /\ (y ∈ z)`
-    */
+  /**
+   * Theorem --- If `{x, y}` is a subset of `z`, then both `x ∈ z` and `y ∈ z`.
+   *
+   *    `unorderedPair(x, y) ⊆ z <=> (x ∈ z) /\ (y ∈ z)`
+   */
   val leftUnorderedPair = Theorem(
     unorderedPair(x, y) ⊆ z <=> (x ∈ z) /\ (y ∈ z)
   ) {
@@ -152,8 +162,9 @@ object Subset extends lisa.Main {
     )
   }
 
-  /** Theorem --- `{x}` is a subset of `y` if and only `x ∈ y`.
-    */
+  /**
+   * Theorem --- `{x}` is a subset of `y` if and only `x ∈ y`.
+   */
   val leftSingleton = Theorem(
     singleton(x) ⊆ y <=> (x ∈ y)
   ) {

@@ -41,7 +41,7 @@ class SubstitutionTest extends AnyFunSuite {
   private val d1 = connector(1)
 
   private val e2 = connector(2)
-  case class $(t: Expression, m: (Variable, Expression)*){
+  case class $(t: Expression, m: (Variable, Expression)*) {
     inline infix def _VS_(t2: Expression): Assertion = {
       assert(isSame(substituteVariables(t, m.toMap).betaNormalForm, t2), "\n - " + substituteVariables(t, m.toMap).repr + " didn't match " + t2.repr)
     }
@@ -97,14 +97,13 @@ class SubstitutionTest extends AnyFunSuite {
       $(c1(c1(e2(X, Y))), X -> Z, Z -> X) _VS_ c1(c1(e2(Z, Y))),
       $(c1(c1(e2(X, Y))), X -> Y, Y -> X) _VS_ c1(c1(e2(Y, X))),
       $(c1(c1(e2(X, Y))), Z -> Y) _VS_ c1(c1(e2(X, Y))),
-      $(c1(c1(e2(X, Y))), Z -> Y) _VS_ c1(c1(e2(X, Y))),
+      $(c1(c1(e2(X, Y))), Z -> Y) _VS_ c1(c1(e2(X, Y)))
     )
   }
-  
+
   test("Higher Order Substitutions, with beta normalization") {
 
     val cases: List[Assertion] = List(
-
       $(f(f(h(x, y))), z -> y, g -> lambda(x, f(h(y, x)))) _VS_ f(f(h(x, y))),
       $(f(f(h(x, y))), f -> lambda(x, x)) _VS_ h(x, y),
       $(f(f(h(x, y))), f -> lambda(x, y)) _VS_ y,

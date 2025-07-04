@@ -3,191 +3,199 @@ package lisa.maths.SetTheory.Relations
 import lisa.maths.SetTheory.Base.Predef.{*, given}
 import Definitions.*
 
-/** This file proves basic properties about definitions given in [[Definitions]].
-  */
+/**
+ * This file proves basic properties about definitions given in [[Definitions]].
+ */
 object Properties extends lisa.Main {
 
   private val x, y, z = variable[Ind]
   private val a, b = variable[Ind]
-  private val ℛ = variable[Ind]
+  private val R = variable[Ind]
   private val X, Y = variable[Ind]
   private val A, B = variable[Ind]
 
   extension (x: set) {
-    private infix def ℛ(y: set): Expr[Prop] = (x, y) ∈ Properties.ℛ
+    private infix def R(y: set): Expr[Prop] = (x, y) ∈ Properties.R
   }
 
   //////////////////////////////////////////////////////////////////////////
   section("Basic theorems")
 
-  /** Theorem --- If `ℛ` is a relation on `X` then `ℛ` is a relation.
-    *
-    *   `relationOn(ℛ, X) |- relation(ℛ)`
-    */
+  /**
+   * Theorem --- If `R` is a relation on `X` then `R` is a relation.
+   *
+   *   `relationOn(R, X) |- relation(R)`
+   */
   val relationOnIsRelation = Theorem(
-    relationOn(ℛ)(X) |- relation(ℛ)
+    relationOn(R)(X) |- relation(R)
   ) {
-    assume(relationOn(ℛ)(X))
-    thenHave(ℛ ⊆ (X × X)) by Substitute(relationOn.definition)
-    thenHave(∃(Y, ℛ ⊆ (X × Y))) by RightExists
-    thenHave(∃(X, ∃(Y, ℛ ⊆ (X × Y)))) by RightExists
+    assume(relationOn(R)(X))
+    thenHave(R ⊆ (X × X)) by Substitute(relationOn.definition)
+    thenHave(∃(Y, R ⊆ (X × Y))) by RightExists
+    thenHave(∃(X, ∃(Y, R ⊆ (X × Y)))) by RightExists
     thenHave(thesis) by Substitute(relation.definition)
   }
 
-  /** Theorem --- If `ℛ` only contains pairs, then it is a relation.
-    */
+  /**
+   * Theorem --- If `R` only contains pairs, then it is a relation.
+   */
   val setOfPairsIsRelation = Theorem(
-    ∀(z, z ∈ ℛ ==> ∃(x, ∃(y, z === (x, y)))) |- relation(ℛ)
+    ∀(z, z ∈ R ==> ∃(x, ∃(y, z === (x, y)))) |- relation(R)
   ) {
     sorry
   }
 
-  /** Theorem --- If `ℛ` is a relation between `X` and `Y` then `dom(ℛ) ⊆ X`.
-    */
+  /**
+   * Theorem --- If `R` is a relation between `X` and `Y` then `dom(R) ⊆ X`.
+   */
   val relationDomainSubset = Theorem(
-    relationBetween(ℛ)(X)(Y) |- dom(ℛ) ⊆ X
+    relationBetween(R)(X)(Y) |- dom(R) ⊆ X
   ) {
     sorry
   }
 
-  /** Theorem --- If `ℛ` is a relation between `X` and `Y` then `range(ℛ) ⊆ Y`.
-    */
+  /**
+   * Theorem --- If `R` is a relation between `X` and `Y` then `range(R) ⊆ Y`.
+   */
   val relationRangeSubset = Theorem(
-    relationBetween(ℛ)(X)(Y) |- range(ℛ) ⊆ Y
+    relationBetween(R)(X)(Y) |- range(R) ⊆ Y
   ) {
     sorry
   }
 
   /**
-    * Theorem --- If `x ℛ y` then `x ∈ dom(ℛ)`.
-    */
+   * Theorem --- If `x R y` then `x ∈ dom(R)`.
+   */
   val domainMembership = Theorem(
-    (x ℛ y) |- x ∈ dom(ℛ)
+    (x R y) |- x ∈ dom(R)
   ) {
     sorry
   }
 
   /**
-    * Theorem --- If `x ℛ y` then `y ∈ dom(ℛ)`.
-    */
+   * Theorem --- If `x R y` then `y ∈ dom(R)`.
+   */
   val rangeMembership = Theorem(
-    (x ℛ y) |- y ∈ range(ℛ)
+    (x R y) |- y ∈ range(R)
   ) {
     sorry
   }
 
-  /** Theorem --- If `ℛ` is a relation, then `ℛ ⊆ dom(ℛ) × range(ℛ)`.
-    *
-    *   `relation(ℛ) |- ℛ ⊆ dom(ℛ) × range(ℛ)`
-    */
+  /**
+   * Theorem --- If `R` is a relation, then `R ⊆ dom(R) × range(R)`.
+   *
+   *   `relation(R) |- R ⊆ dom(R) × range(R)`
+   */
   val relationDomainRange = Theorem(
-    relation(ℛ) |- ℛ ⊆ (dom(ℛ) × range(ℛ))
+    relation(R) |- R ⊆ (dom(R) × range(R))
   ) {
     sorry
   }
 
-  /** Theorem --- If `ℛ` is a relation on `X` and `x ∉ X` or `y ∉ X`
-    * then `¬(x ℛ y)`.
-    */
+  /**
+   * Theorem --- If `R` is a relation on `X` and `x ∉ X` or `y ∉ X`
+   * then `¬(x R y)`.
+   */
   val relationOutsideDomain = Theorem(
-    (relationOn(ℛ)(X), (x ∉ X) \/ (y ∉ X)) |- ¬(x ℛ y)
+    (relationOn(R)(X), (x ∉ X) \/ (y ∉ X)) |- ¬(x R y)
   ) {
-    assume(relationOn(ℛ)(X))
-    thenHave(ℛ ⊆ (X × X)) by Substitute(relationOn.definition)
-    thenHave((x, y) ∈ ℛ ==> (x ∈ X) /\ (y ∈ X)) by Tautology.fromLastStep(
-      Subset.membership of (x := ℛ, y := (X × X), z := (x, y)),
+    assume(relationOn(R)(X))
+    thenHave(R ⊆ (X × X)) by Substitute(relationOn.definition)
+    thenHave((x, y) ∈ R ==> (x ∈ X) /\ (y ∈ X)) by Tautology.fromLastStep(
+      Subset.membership of (x := R, y := (X × X), z := (x, y)),
       CartesianProduct.pairMembership of (A := X, B := X)
     )
     thenHave(thesis) by Tautology
   }
 
-
   //////////////////////////////////////////////////////////////////////////
   section("Reformulations")
 
-  /** Theorem --- If `ℛ` is transitive, then `x ℛ y` and `y ℛ z` implies `x ℛ z`.
-    *
-    * Reformulation of the definition.
-    */
+  /**
+   * Theorem --- If `R` is transitive, then `x R y` and `y R z` implies `x R z`.
+   *
+   * Reformulation of the definition.
+   */
   val appliedTransitivity = Theorem(
-    (transitive(ℛ), x ℛ y, y ℛ z) |- (x ℛ z)
+    (transitive(R), x R y, y R z) |- (x R z)
   ) {
-    assume(transitive(ℛ))
-    have(∀(x, ∀(y, ∀(z, (x ℛ y) /\ (y ℛ z) ==> (x ℛ z))))) by Tautology.from(transitive.definition)
-    thenHave((x ℛ y) /\ (y ℛ z) ==> (x ℛ z)) by InstantiateForall(x, y, z)
+    assume(transitive(R))
+    have(∀(x, ∀(y, ∀(z, (x R y) /\ (y R z) ==> (x R z))))) by Tautology.from(transitive.definition)
+    thenHave((x R y) /\ (y R z) ==> (x R z)) by InstantiateForall(x, y, z)
     thenHave(thesis) by Restate
   }
 
-  /** Theorem --- If `ℛ` is a relation on `X`, it suffices to show transitivity on `X`
-    * to get full transitivity.
-    */
+  /**
+   * Theorem --- If `R` is a relation on `X`, it suffices to show transitivity on `X`
+   * to get full transitivity.
+   */
   val restrictedTransitivity = Theorem(
-    (relationOn(ℛ)(X), ∀(x, ∀(y, ∀(z, (x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x ℛ y) /\ (y ℛ z) ==> (x ℛ z))))) |- transitive(ℛ)
+    (relationOn(R)(X), ∀(x, ∀(y, ∀(z, (x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x R y) /\ (y R z) ==> (x R z))))) |- transitive(R)
   ) {
-    assume(relationOn(ℛ)(X))
-    assume(∀(x, ∀(y, ∀(z, (x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x ℛ y) /\ (y ℛ z) ==> (x ℛ z)))))
-    val assumption = thenHave((x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x ℛ y) /\ (y ℛ z) ==> (x ℛ z)) by InstantiateForall(x, y, z)
+    assume(relationOn(R)(X))
+    assume(∀(x, ∀(y, ∀(z, (x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x R y) /\ (y R z) ==> (x R z)))))
+    val assumption = thenHave((x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x R y) /\ (y R z) ==> (x R z)) by InstantiateForall(x, y, z)
 
-    // Since `ℛ` is a relation on `X`, it cannot be the case that `x ℛ y` if `x ∉ X` or `y ∉ X`.
-    have((x ∉ X) \/ (y ∉ X) \/ (z ∉ X) |- ¬(x ℛ y) \/ ¬(y ℛ z)) by Tautology.from(
+    // Since `R` is a relation on `X`, it cannot be the case that `x R y` if `x ∉ X` or `y ∉ X`.
+    have((x ∉ X) \/ (y ∉ X) \/ (z ∉ X) |- ¬(x R y) \/ ¬(y R z)) by Tautology.from(
       relationOutsideDomain of (x := x, y := y),
-      relationOutsideDomain of (x := y, y := z),
+      relationOutsideDomain of (x := y, y := z)
     )
-    thenHave((x ℛ y) /\ (y ℛ z) ==> (x ℛ z)) by Tautology.fromLastStep(assumption)
-    thenHave(∀(x, ∀(y, ∀(z, (x ℛ y) /\ (y ℛ z) ==> (x ℛ z))))) by Generalize
-    thenHave(relation(ℛ) /\ ∀(x, ∀(y, ∀(z, (x ℛ y) /\ (y ℛ z) ==> (x ℛ z))))) by Tautology.fromLastStep(relationOnIsRelation)
+    thenHave((x R y) /\ (y R z) ==> (x R z)) by Tautology.fromLastStep(assumption)
+    thenHave(∀(x, ∀(y, ∀(z, (x R y) /\ (y R z) ==> (x R z))))) by Generalize
+    thenHave(relation(R) /\ ∀(x, ∀(y, ∀(z, (x R y) /\ (y R z) ==> (x R z))))) by Tautology.fromLastStep(relationOnIsRelation)
     thenHave(thesis) by Substitute(transitive.definition)
   }
 
-  /** Theorem --- If `ℛ` is total on `X`, then for `x, y ∈ X`, either `x ℛ y`,
-    * `y ℛ x` or `x = y`.
-    *
-    * Reformulation of the definition.
-    */
+  /**
+   * Theorem --- If `R` is total on `X`, then for `x, y ∈ X`, either `x R y`,
+   * `y R x` or `x = y`.
+   *
+   * Reformulation of the definition.
+   */
   val appliedTotality = Theorem(
-    (total(ℛ)(X), x ∈ X, y ∈ X) |- (x ℛ y) \/ (y ℛ x) \/ (x === y)
+    (total(R)(X), x ∈ X, y ∈ X) |- (x R y) \/ (y R x) \/ (x === y)
   ) {
-    assume(total(ℛ)(X))
+    assume(total(R)(X))
 
-    have(∀(x, ∀(y, (x ∈ X) /\ (y ∈ X) ==> (x ℛ y) \/ (y ℛ x) \/ (x === y)))) by Tautology.from(total.definition)
-    thenHave((x ∈ X) /\ (y ∈ X) ==> (x ℛ y) \/ (y ℛ x) \/ (x === y)) by InstantiateForall(x, y)
+    have(∀(x, ∀(y, (x ∈ X) /\ (y ∈ X) ==> (x R y) \/ (y R x) \/ (x === y)))) by Tautology.from(total.definition)
+    thenHave((x ∈ X) /\ (y ∈ X) ==> (x R y) \/ (y R x) \/ (x === y)) by InstantiateForall(x, y)
     thenHave(thesis) by Restate
   }
-
 
   //////////////////////////////////////////////////////////////////////////
   section("Properties")
 
-
-  /** Theorem --- Any irreflexive relation is not reflexive on a non-empty set.
-    */
+  /**
+   * Theorem --- Any irreflexive relation is not reflexive on a non-empty set.
+   */
   val irreflexiveNotReflexive = Theorem(
-    (irreflexive(ℛ), X ≠ ∅) |- ¬(reflexive(ℛ)(X))
+    (irreflexive(R), X ≠ ∅) |- ¬(reflexive(R)(X))
   ) {
-    assume(irreflexive(ℛ))
+    assume(irreflexive(R))
     assume(X ≠ ∅)
 
-    have(∀(x, ¬(x ℛ x))) by Tautology.from(irreflexive.definition)
-    thenHave(¬(x ℛ x)) by InstantiateForall(x)
-    thenHave(x ∈ X |- x ∈ X /\ ¬(x ℛ x)) by Tautology
-    thenHave(x ∈ X |- ∃(x, x ∈ X /\ ¬(x ℛ x))) by RightExists
-    thenHave(∃(x, x ∈ X) |- ∃(x, x ∈ X /\ ¬(x ℛ x))) by LeftExists
+    have(∀(x, ¬(x R x))) by Tautology.from(irreflexive.definition)
+    thenHave(¬(x R x)) by InstantiateForall(x)
+    thenHave(x ∈ X |- x ∈ X /\ ¬(x R x)) by Tautology
+    thenHave(x ∈ X |- ∃(x, x ∈ X /\ ¬(x R x))) by RightExists
+    thenHave(∃(x, x ∈ X) |- ∃(x, x ∈ X /\ ¬(x R x))) by LeftExists
 
-    have(∃(x, x ∈ X /\ ¬(x ℛ x))) by Cut(EmptySet.nonEmptyHasElement of (x := X), lastStep)
+    have(∃(x, x ∈ X /\ ¬(x R x))) by Cut(EmptySet.nonEmptyHasElement of (x := X), lastStep)
     thenHave(thesis) by Tautology.fromLastStep(reflexive.definition)
   }
 
-
-  /** Theorem --- Any asymmetric relation is irreflexive.
-    */
+  /**
+   * Theorem --- Any asymmetric relation is irreflexive.
+   */
   val asymmetricIrreflexive = Theorem(
-    asymmetric(ℛ) |- irreflexive(ℛ)
+    asymmetric(R) |- irreflexive(R)
   ) {
-    assume(asymmetric(ℛ))
-    have(∀(x, ∀(y, (x ℛ y) ==> ¬(y ℛ x)))) by Tautology.from(asymmetric.definition)
-    thenHave((x ℛ x) ==> ¬(x ℛ x)) by InstantiateForall(x, x)
-    thenHave(¬(x ℛ x)) by Tautology
-    thenHave(∀(x, ¬(x ℛ x))) by RightForall
+    assume(asymmetric(R))
+    have(∀(x, ∀(y, (x R y) ==> ¬(y R x)))) by Tautology.from(asymmetric.definition)
+    thenHave((x R x) ==> ¬(x R x)) by InstantiateForall(x, x)
+    thenHave(¬(x R x)) by Tautology
+    thenHave(∀(x, ¬(x R x))) by RightForall
     thenHave(thesis) by Tautology.fromLastStep(asymmetric.definition, irreflexive.definition)
   }
 

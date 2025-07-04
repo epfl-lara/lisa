@@ -4,16 +4,18 @@ package Examples
 import lisa.maths.SetTheory.Relations.Examples.EmptyRelation
 import Definitions.*
 
-/** The empty order is the order on the empty set.
-  */
+/**
+ * The empty order is the order on the empty set.
+ */
 object EmptyOrder extends lisa.Main {
 
   private val A = variable[Ind]
   private val < = variable[Ind]
   private val X = variable[Ind]
 
-  /** Theorem --- The empty set is a partial order on the empty-set.
-    */
+  /**
+   * Theorem --- The empty set is a partial order on the empty-set.
+   */
   val emptyOrderStrictPartialOrder = Theorem(
     strictPartialOrder(∅)(∅)
   ) {
@@ -25,8 +27,9 @@ object EmptyOrder extends lisa.Main {
     )
   }
 
-  /** Theorem --- The empty set is a total order on the empty-set.
-    */
+  /**
+   * Theorem --- The empty set is a total order on the empty-set.
+   */
   val emptyOrderTotalOrder = Theorem(
     totalOrder(∅)(∅)
   ) {

@@ -1,13 +1,14 @@
 package lisa.maths.SetTheory.Base
 
-/** The union of two sets `x` and `y` is the set `x ∪ y` that contains all
-  * elements of `x`, and all elements of `y`.
-  *
-  * More generally, the union of a collection of sets `S` is the set `⋃S` that
-  * contains all sets that are in any set of `S`.
-  *
-  * The existence of `⋃S` for any `S` is guaranteed by the [[unionAxiom]].
-  */
+/**
+ * The union of two sets `x` and `y` is the set `x ∪ y` that contains all
+ * elements of `x`, and all elements of `y`.
+ *
+ * More generally, the union of a collection of sets `S` is the set `⋃S` that
+ * contains all sets that are in any set of `S`.
+ *
+ * The existence of `⋃S` for any `S` is guaranteed by the [[unionAxiom]].
+ */
 object Union extends lisa.Main {
 
   private val x, y, z = variable[Ind]
@@ -23,7 +24,10 @@ object Union extends lisa.Main {
   val setUnion = ∪
 
   extension (x: set) {
-    /** Infix notation for `x ∪ y`. */
+
+    /**
+     * Infix notation for `x ∪ y`.
+     */
     inline infix def ∪(y: set): set = setUnion(x)(y)
   }
 
@@ -57,10 +61,10 @@ object Union extends lisa.Main {
   }
 
   /**
-    * Theorem --- `∪` is associative:
-    *
-    *   `(x ∪ y) ∪ z = x ∪ (y ∪ z)`
-    */
+   * Theorem --- `∪` is associative:
+   *
+   *   `(x ∪ y) ∪ z = x ∪ (y ∪ z)`
+   */
   val associativity = Theorem(
     (x ∪ y) ∪ z === x ∪ (y ∪ z)
   ) {
@@ -74,8 +78,8 @@ object Union extends lisa.Main {
   }
 
   /**
-    * Theorem --- `∪` is idempotent, i.e. `x ∪ x = x`.
-    */
+   * Theorem --- `∪` is idempotent, i.e. `x ∪ x = x`.
+   */
   val idempotence = Theorem(
     x ∪ x === x
   ) {
@@ -142,10 +146,10 @@ object Union extends lisa.Main {
   }
 
   /**
-    * Theorem --- If `x ⊆ a` and `y ⊆ b` then `(x ∪ y) ⊆ (a ∪ b)`.
-    *
-    * Combination of [[leftMonotonic]] and [[rightMonotonic]].
-    */
+   * Theorem --- If `x ⊆ a` and `y ⊆ b` then `(x ∪ y) ⊆ (a ∪ b)`.
+   *
+   * Combination of [[leftMonotonic]] and [[rightMonotonic]].
+   */
   val monotonic = Theorem(
     (x ⊆ a, y ⊆ b) |- (x ∪ y) ⊆ (a ∪ b)
   ) {
@@ -169,15 +173,15 @@ object Union extends lisa.Main {
     have(a ∈ (x ∪ y) ==> (a ∈ x) \/ (a ∈ y)) by Tautology.from(membership of (z := a))
     thenHave(a ∈ (x ∪ y) ==> (a ∈ z)) by Tautology.fromLastStep(
       Subset.membership of (x := x, y := z, z := a),
-      Subset.membership of (x := y, y := z, z := a),
+      Subset.membership of (x := y, y := z, z := a)
     )
     thenHave(∀(a, a ∈ (x ∪ y) ==> (a ∈ z))) by RightForall
     thenHave(thesis) by Substitute(⊆.definition)
   }
 
   /**
-    * Theorem --- `⋃∅ = ∅`.
-    */
+   * Theorem --- `⋃∅ = ∅`.
+   */
   val empty = Theorem(
     ⋃(∅) === ∅
   ) {

@@ -1,9 +1,7 @@
-
 package lisa.maths
 import lisa.automation.atp.*
 import lisa.utils.KernelHelpers.checkProof
 import lisa.tptp.*
-
 
 object Tests extends lisa.Main {
   draft()
@@ -30,36 +28,32 @@ object Tests extends lisa.Main {
   addSymbol(a)
 
   extension (t: Expr[Ind]) {
-    def / (y: Expr[Ind]): Expr[Ind] = div(t)(y)
-    def * (y: Expr[Ind]): Expr[Ind] = mult(t)(y)
+    def /(y: Expr[Ind]): Expr[Ind] = div(t)(y)
+    def *(y: Expr[Ind]): Expr[Ind] = mult(t)(y)
   }
-
 
   def _div(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = div(x)(y)
   def _mult(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = mult(x)(y)
 
-
-  val divide_mult_shift = Theorem((
-    ∀(x, x/t1 === x),
-    ∀(x, ∀(y, x/y === t1/(y/x))),
-    ∀(x, ∀(y, (x/y)*y === x)),
-  ) |- ((t2/t3)*(t3/t2))/t1 === t1):
+  val divide_mult_shift = Theorem(
+    (
+      ∀(x, x / t1 === x),
+      ∀(x, ∀(y, x / y === t1 / (y / x))),
+      ∀(x, ∀(y, (x / y) * y === x)),
+    ) |- ((t2 / t3) * (t3 / t2)) / t1 === t1
+  ):
     have(thesis) by Egg
 
-    
-  val saturation = Theorem(
-    (∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- ∅ === f(∅)):
+  val saturation = Theorem((∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- ∅ === f(∅)):
     have(thesis) by Egg
 
   val drinkers2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Goeland
 
-  val example = Theorem( (∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(∅) \/ Q(∅)) ):
+  val example = Theorem((∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(∅) \/ Q(∅))):
     have(thesis) by Prover9
 
   val example2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Prover9
-
-
 
 }

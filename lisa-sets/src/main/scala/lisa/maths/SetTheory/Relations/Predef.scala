@@ -1,6 +1,8 @@
 package lisa.maths.SetTheory.Relations
 
-/** Base exports for the `Relations` package. */
+/**
+ * Base exports for the `Relations` package.
+ */
 object Predef {
   export lisa.maths.SetTheory.Relations.Definitions.{
     relationBetween,

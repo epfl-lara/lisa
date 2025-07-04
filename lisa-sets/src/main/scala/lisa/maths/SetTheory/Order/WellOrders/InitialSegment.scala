@@ -5,11 +5,12 @@ import lisa.maths.SetTheory.Base.Predef.{*, given}
 
 import WellOrder.*
 
-/** Given a well-ordering `(A, <)`, the initial segment of `A` determined by `x`
-  * is the set
-  *
-  *   `initialSegment(x, A, <) = {y ∈ A | y < x}`.
-  */
+/**
+ * Given a well-ordering `(A, <)`, the initial segment of `A` determined by `x`
+ * is the set
+ *
+ *   `initialSegment(x, A, <) = {y ∈ A | y < x}`.
+ */
 object InitialSegment extends lisa.Main {
 
   private val x, y = variable[Ind]
@@ -17,19 +18,24 @@ object InitialSegment extends lisa.Main {
   private val < = variable[Ind]
 
   extension (x: set) {
-    /** Local notation. */
+
+    /**
+     * Local notation.
+     */
     private infix def <(y: set): Expr[Prop] = (x, y) ∈ InitialSegment.<
   }
 
-  /** Definition --- The initial segment of `(A, <)` determined by `x` is the
-    * set of elements `y ∈ A` that are less than `x`.
-    */
+  /**
+   * Definition --- The initial segment of `(A, <)` determined by `x` is the
+   * set of elements `y ∈ A` that are less than `x`.
+   */
   val initialSegment = DEF(λ(x, λ(A, λ(<, { y ∈ A | y < x }))))
 
-  /** Theorem --- `y ∈ initialSegment(x, A, <)` if and only if `y ∈ A` and `y < x`.
-    *
-    * Follows from [[Comprehension.membership]].
-    */
+  /**
+   * Theorem --- `y ∈ initialSegment(x, A, <)` if and only if `y ∈ A` and `y < x`.
+   *
+   * Follows from [[Comprehension.membership]].
+   */
   val membership = Theorem(
     y ∈ initialSegment(x)(A)(<) <=> (y ∈ A) /\ (y < x)
   ) {

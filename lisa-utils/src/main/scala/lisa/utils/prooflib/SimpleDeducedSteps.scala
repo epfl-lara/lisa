@@ -1,15 +1,14 @@
 package lisa.utils.prooflib
 
-import lisa.utils.fol.FOL as F
+import lisa.utils.K
+import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printing
+import lisa.utils.fol.FOL as F
 import lisa.utils.prooflib.BasicStepTactic.*
 import lisa.utils.prooflib.ProofTacticLib.{_, given}
 import lisa.utils.prooflib.*
-import lisa.utils.K
-import lisa.utils.KernelHelpers.{_, given}
 
 object SimpleDeducedSteps {
-
 
   object Restate extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement =
@@ -87,11 +86,11 @@ object SimpleDeducedSteps {
                 case psi @ K.Forall(x, inner) =>
                   val tempVar = K.Variable(K.freshId(psi.freeVariables.map(_.id), x.id), K.Ind)
                   // instantiate the formula with input
-                  val in = K.substituteVariables(inner, Map(x -> t)) 
+                  val in = K.substituteVariables(inner, Map(x -> t))
                   val con = p.conclusion ->> f +>> in
                   // construct proof
                   val p0 = K.Hypothesis(in |- in, in)
-                  val p1 = K.LeftForall(f |- in, 0, K.substituteVariables(inner, Map(x -> tempVar)) , tempVar, t)
+                  val p1 = K.LeftForall(f |- in, 0, K.substituteVariables(inner, Map(x -> tempVar)), tempVar, t)
                   val p2 = K.Cut(con, -1, 1, f)
 
                   /**

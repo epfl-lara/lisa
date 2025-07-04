@@ -1,49 +1,49 @@
 /**
-  * Defines a set of tactics to reason on Algebraic Data Types
-  */
+ * Defines a set of tactics to reason on Algebraic Data Types
+ */
 
 package lisa.maths.settheory.types.adt
 
-  /*
+/*
 import lisa.maths.settheory.SetTheory.{*, given}
 import ADTDefinitions.*
 import Helpers.*
 
 /**
-  * Tactic performing a structural induction proof over an algebraic data type.
-  *
-  * ===Usage===
-  * {{{
-  * have(forall(x, x :: adt => P(x)) /*or*/ x :: adt |- P(x)) by Induction(x, adt) {
-  *   Case(c1, x1, ..., xn) subproof {
-  *     // proof of P(xi) /\ ... P(xj) => P(c1(x1, ..., xn))
-  *   }
-  *   ...
-  *   Case(cm, x1, ..., xk) subproof {
-  *     // proof of P(xi) /\ ... P(xj) => P(c1(x1, ..., xn'))
-  *   }
-  * }
-  * }}}
-  *
-  * x and adt are inferred from the context if not provided by the user.
-  *
-  * Supports only 1 formula on the right hand side of the sequent.
-  * @param expectedVar the variable on which the induction is performed
-  * @param expectedADT the algebraic data type on which the induction is performed
-  */
+ * Tactic performing a structural induction proof over an algebraic data type.
+ *
+ * ===Usage===
+ * {{{
+ * have(forall(x, x :: adt => P(x)) /*or*/ x :: adt |- P(x)) by Induction(x, adt) {
+ *   Case(c1, x1, ..., xn) subproof {
+ *     // proof of P(xi) /\ ... P(xj) => P(c1(x1, ..., xn))
+ *   }
+ *   ...
+ *   Case(cm, x1, ..., xk) subproof {
+ *     // proof of P(xi) /\ ... P(xj) => P(c1(x1, ..., xn'))
+ *   }
+ * }
+ * }}}
+ *
+ * x and adt are inferred from the context if not provided by the user.
+ *
+ * Supports only 1 formula on the right hand side of the sequent.
+ * @param expectedVar the variable on which the induction is performed
+ * @param expectedADT the algebraic data type on which the induction is performed
+ */
 class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[ADT[M]]) extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 
   /**
-    * Given a proof of the claim for each case (possibly using the induction hypothesis),
-    * reassemble them to generate a proof of the claim of the form
-    *   `∀x. x :: adt => P(x)`
-    *
-    * @param proof the proof in which the induction is performed
-    * @param cases the proofs of the claim for each case in addition to the variables used by the user
-    * @param inductionVariable the variable over which the induction is performed
-    * @param adt the algebraic data type to perform induction on
-    * @param prop the property to prove //TODO: Change to a lambda expression (Scala 3.4.2)
-    */
+ * Given a proof of the claim for each case (possibly using the induction hypothesis),
+ * reassemble them to generate a proof of the claim of the form
+ *   `∀x. x :: adt => P(x)`
+ *
+ * @param proof the proof in which the induction is performed
+ * @param cases the proofs of the claim for each case in addition to the variables used by the user
+ * @param inductionVariable the variable over which the induction is performed
+ * @param adt the algebraic data type to perform induction on
+ * @param prop the property to prove //TODO: Change to a lambda expression (Scala 3.4.2)
+ */
   private def proveForallPredicate[N <: Arity](using proof: lisa.SetTheoryLibrary.Proof)(cases: Map[Constructor[N], (Seq[Variable], proof.Fact)], inductionVariable: Variable, adt: ADT[N], typeVariablesSubst: Seq[Expr[Ind]], propFun: Expr[Ind] => Expr[Prop], context: Set[Expr[Prop]]): proof.Fact =
 
     val prop = λ(x, propFun(x))
@@ -80,10 +80,10 @@ class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[A
 
 
   /**
-    * Infers the variable, the ADT and the arguments of the ADT from a formula of the form `x :: ADT(T1, ..., Tn)`.
-    *
-    * @param f the formula to infer these elements from
-    */
+ * Infers the variable, the ADT and the arguments of the ADT from a formula of the form `x :: ADT(T1, ..., Tn)`.
+ *
+ * @param f the formula to infer these elements from
+ */
   def inferArguments(f: Expr[Prop]): Option[(Variable, ADT[?], Seq[Expr[Ind]])] =
     def checkFoundArguments(foundVar: Variable, foundADT: ADT[?], args: Seq[Expr[Ind]]): Option[(Variable, ADT[?], Seq[Expr[Ind]])] =
       (expectedVar, expectedADT) match
@@ -100,22 +100,22 @@ class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[A
         None
 
   /**
-    * Infers the variable, the ADT and the arguments of the ADT from a set of formula
-    * containing one is of the form `x :: ADT(T1, ..., Tn)`.
-    *
-    * @param s the set of formula to infer these elements from
-    */
+ * Infers the variable, the ADT and the arguments of the ADT from a set of formula
+ * containing one is of the form `x :: ADT(T1, ..., Tn)`.
+ *
+ * @param s the set of formula to infer these elements from
+ */
   def inferArguments(s: Set[Expr[Prop]]): Option[(Variable, ADT[?], Seq[Expr[Ind]])] =
     s.foldLeft[Option[(Variable, ADT[?], Seq[Expr[Ind]])]](None)((acc, prem) =>
       acc.orElse(inferArguments(prem))
   )
 
   /**
-    * Infers the variable, the ADT and the arguments of the ADT from a sequent whose one of the premises
-    * is of the form `x :: ADT(T1, ..., Tn)`.
-    *
-    * @param seq the sequent to infer these elements from
-    */
+ * Infers the variable, the ADT and the arguments of the ADT from a sequent whose one of the premises
+ * is of the form `x :: ADT(T1, ..., Tn)`.
+ *
+ * @param seq the sequent to infer these elements from
+ */
   def inferArguments(seq: Sequent): Option[(Variable, ADT[?], Seq[Expr[Ind]], Option[Expr[Prop]])] =
      inferArguments(seq.left).map(p => (p._1, p._2, p._3, None))
     .orElse(
@@ -126,15 +126,15 @@ class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[A
     )
 
   /**
-    * Given a proof of the claim for each case (possibly using the induction hypothesis),
-    * reassemble the subproofs to generate a proof of the claim for every element of the ADT.
-    *
-    * @tparam N the arity of the ADT
-    * @param proof the scope in which the induction is performed
-    * @param cases the cases to prove. A [[CaseBuilder]] is a mutable data structure that register every case that
-    * has been added to the tactic.
-    * @param bot the claim
-    */
+ * Given a proof of the claim for each case (possibly using the induction hypothesis),
+ * reassemble the subproofs to generate a proof of the claim for every element of the ADT.
+ *
+ * @tparam N the arity of the ADT
+ * @param proof the scope in which the induction is performed
+ * @param cases the cases to prove. A [[CaseBuilder]] is a mutable data structure that register every case that
+ * has been added to the tactic.
+ * @param bot the claim
+ */
   def apply[N <: Arity](using proof: lisa.SetTheoryLibrary.Proof)(cases: ADTSyntax.CaseBuilder[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable)] ?=> Unit)(bot: Sequent): proof.ProofTacticJudgement =
     inferArguments(bot) match
       case Some((inferedVar, inferedADT, inferedArgs, inferedProp)) =>
@@ -165,8 +165,8 @@ class Induction[M <: Arity](expectedVar: Option[Variable], expectedADT: Option[A
 }
 
 /**
-  * Companion object for the [[Induction]] tactic class.
-  */
+ * Companion object for the [[Induction]] tactic class.
+ */
 object Induction {
   def apply()(using proof: lisa.SetTheoryLibrary.Proof) = new Induction(None, None)
   def apply[N <: Arity](adt: ADT[N])(using proof: lisa.SetTheoryLibrary.Proof) = new Induction(None, Some(adt))
@@ -174,4 +174,4 @@ object Induction {
   def apply[N <: Arity](v: Variable, adt: ADT[N])(using proof: lisa.SetTheoryLibrary.Proof) = new Induction(Some(v), Some(adt))
 }
 
-   */
+ */

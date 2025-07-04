@@ -3,98 +3,104 @@ package lisa.maths.SetTheory.Relations.Operations
 import lisa.maths.SetTheory.Base.Predef.{*, given}
 import lisa.maths.SetTheory.Relations.Definitions.*
 
-/** The restriction of a relation `ℛ` to a domain `X` is the relation `ℛ↾X`
-  * consisting of pairs of elements `(x, y) ∈ ℛ` such that `x ∈ X`.
-  *
-  * In other words, `ℛ↾X = {(x, y) ∈ ℛ | x ∈ X}`.
-  *
-  * TODO: Finish the proofs.
-  */
+/**
+ * The restriction of a relation `R` to a domain `X` is the relation `R↾X`
+ * consisting of pairs of elements `(x, y) ∈ R` such that `x ∈ X`.
+ *
+ * In other words, `R↾X = {(x, y) ∈ R | x ∈ X}`.
+ *
+ * TODO: Finish the proofs.
+ */
 object Restriction extends lisa.Main {
 
   private val x, y, z = variable[Ind]
   private val X = variable[Ind]
-  private val ℛ, 𝒬 = variable[Ind]
+  private val R, Q = variable[Ind]
 
-  /** Restriction --- For a relation `ℛ`, its restriction to `X` is the set of
-    * pairs of elements in `ℛ` where the first element is in `X`. We denote it
-    * by `ℛ↾X`.
-    *
-    *   `ℛ↾X = {(x, y) ∈ ℛ | x ∈ X}`
-    */
-  val restriction = DEF(λ(ℛ, λ(X, { z ∈ ℛ | fst(z) ∈ X }))).printAs(args => {
-    val ℛ = args(0)
+  /**
+   * Restriction --- For a relation `R`, its restriction to `X` is the set of
+   * pairs of elements in `R` where the first element is in `X`. We denote it
+   * by `R↾X`.
+   *
+   *   `R↾X = {(x, y) ∈ R | x ∈ X}`
+   */
+  val restriction = DEF(λ(R, λ(X, { z ∈ R | fst(z) ∈ X }))).printAs(args => {
+    val R = args(0)
     val X = args(1)
-    s"${ℛ}↾${X}"
+    s"${R}↾${X}"
   })
 
-  extension (ℛ : set) {
-    inline infix def ↾(X: set): set = restriction(ℛ)(X)
+  extension (R: set) {
+    inline infix def ↾(X: set): set = restriction(R)(X)
   }
 
   /**
-    * Theorem --- We have `(x, y) ∈ ℛ ↾ X` <=> `(x, y) ∈ ℛ` and `x ∈ X`.
-    */
+   * Theorem --- We have `(x, y) ∈ R ↾ X` <=> `(x, y) ∈ R` and `x ∈ X`.
+   */
   val membership = Theorem(
-    (x, y) ∈ (ℛ ↾ X) <=> (x, y) ∈ ℛ /\ (x ∈ X)
+    (x, y) ∈ (R ↾ X) <=> (x, y) ∈ R /\ (x ∈ X)
   ) {
-    have((x, y) ∈ { z ∈ ℛ | fst(z) ∈ X } <=> (x, y) ∈ ℛ /\ (fst(x, y) ∈ X)) by Comprehension.apply
+    have((x, y) ∈ { z ∈ R | fst(z) ∈ X } <=> (x, y) ∈ R /\ (fst(x, y) ∈ X)) by Comprehension.apply
     thenHave(thesis) by Substitute(restriction.definition, Pair.pairFst)
   }
 
-  /** Theorem --- The relation `ℛ` restricted to the empty domain is ∅.
-    */
+  /**
+   * Theorem --- The relation `R` restricted to the empty domain is ∅.
+   */
   val emptyRestriction = Theorem(
-    (ℛ ↾ ∅) === ∅
+    (R ↾ ∅) === ∅
   ) {
-    have(z ∈ { z ∈ ℛ | fst(z) ∈ ∅ } <=> z ∈ ℛ /\ (fst(z) ∈ ∅)) by Comprehension.apply
-    thenHave(z ∈ (ℛ ↾ ∅) <=> z ∈ ℛ /\ (fst(z) ∈ ∅)) by Substitute(restriction.definition of (X := ∅))
-    thenHave(z ∈ (ℛ ↾ ∅) <=> z ∈ ∅) by Tautology.fromLastStep(
+    have(z ∈ { z ∈ R | fst(z) ∈ ∅ } <=> z ∈ R /\ (fst(z) ∈ ∅)) by Comprehension.apply
+    thenHave(z ∈ (R ↾ ∅) <=> z ∈ R /\ (fst(z) ∈ ∅)) by Substitute(restriction.definition of (X := ∅))
+    thenHave(z ∈ (R ↾ ∅) <=> z ∈ ∅) by Tautology.fromLastStep(
       EmptySet.definition of (x := fst(z)),
-      EmptySet.definition of (x := z),
+      EmptySet.definition of (x := z)
     )
     thenHave(thesis) by Extensionality
   }
 
-  /** Theorem --- The relation `ℛ` restricted to its domain is `ℛ`.
-    */
+  /**
+   * Theorem --- The relation `R` restricted to its domain is `R`.
+   */
   val restrictionToDomain = Theorem(
-    (ℛ ↾ dom(ℛ)) === ℛ
+    (R ↾ dom(R)) === R
   ) {
     sorry
   }
 
   /**
-    * Theorem --- Any subset `𝒬 ⊆ ℛ` of a relation `ℛ` is itself a relation.
-    */
+   * Theorem --- Any subset `Q ⊆ R` of a relation `R` is itself a relation.
+   */
   val subset = Theorem(
-    (relation(ℛ), 𝒬 ⊆ ℛ) |- relation(𝒬)
+    (relation(R), Q ⊆ R) |- relation(Q)
   ) {
     sorry
   }
 
-  /** Restriction domain --- The domain of the restriction `ℛ↾X` is `dom(ℛ) ∩ X`.
-    */
+  /**
+   * Restriction domain --- The domain of the restriction `R↾X` is `dom(R) ∩ X`.
+   */
   val restrictionDomain = Theorem(
-    dom(ℛ↾X) === (dom(ℛ) ∩ X)
+    dom(R ↾ X) === (dom(R) ∩ X)
   ) {
     sorry
   }
 
-  /** Restriction range --- The range of the restriction `ℛ↾X` is a subset of `range(ℛ)`.
-    */
+  /**
+   * Restriction range --- The range of the restriction `R↾X` is a subset of `range(R)`.
+   */
   val restrictionRange = Theorem(
-    range(ℛ↾X) ⊆ range(ℛ)
+    range(R ↾ X) ⊆ range(R)
   ) {
     sorry
   }
 
-  /** Extensionality --- If `x ℛ y` whenever `x 𝒬 y` for all `x ∈ X`, then `ℛ↾X = 𝒬↾X`
-    */
+  /**
+   * Extensionality --- If `x R y` whenever `x Q y` for all `x ∈ X`, then `R↾X = Q↾X`
+   */
   val extensionality = Theorem(
-    ∀(x, x ∈ X ==> ((x, y) ∈ (ℛ↾X) <=> (x, y) ∈ (𝒬↾X))) |- (ℛ↾X === 𝒬↾X)
+    ∀(x, x ∈ X ==> ((x, y) ∈ (R ↾ X) <=> (x, y) ∈ (Q ↾ X))) |- (R ↾ X === Q ↾ X)
   ) {
     sorry
   }
 }
-

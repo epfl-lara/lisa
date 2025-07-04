@@ -5,29 +5,29 @@ import lisa.maths.SetTheory.Relations.Predef.*
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation.*
 
 /**
-  * A transitive set `A` is a set such that elements of elements of `A` are also in `A`:
-  * if `x ∈ A` and `y ∈ x`, then `y ∈ A`. This can also be restated as `x ∈ A ==> x ⊆ A`.
-  *
-  * Note that this is not the same as saying that the [[membershipRelation]] on
-  * `A` is transitive, since for `x ∈ y ∈ z ∈ A` we do not necessarily have `x ∈ z`.
-  */
+ * A transitive set `A` is a set such that elements of elements of `A` are also in `A`:
+ * if `x ∈ A` and `y ∈ x`, then `y ∈ A`. This can also be restated as `x ∈ A ==> x ⊆ A`.
+ *
+ * Note that this is not the same as saying that the [[membershipRelation]] on
+ * `A` is transitive, since for `x ∈ y ∈ z ∈ A` we do not necessarily have `x ∈ z`.
+ */
 object TransitiveSet extends lisa.Main {
 
   private val x, y, z = variable[Ind]
   private val A = variable[Ind]
 
   /**
-    * Definition --- `A` is transitive if `x ∈ y` and `y ∈ A` implies `x ∈ A`.
-    *
-    *   `transitiveSet(A) <=> ∀x, y. x ∈ y /\ y ∈ A ==> x ∈ A`
-    */
+   * Definition --- `A` is transitive if `x ∈ y` and `y ∈ A` implies `x ∈ A`.
+   *
+   *   `transitiveSet(A) <=> ∀x, y. x ∈ y /\ y ∈ A ==> x ∈ A`
+   */
   val transitiveSet = DEF(λ(A, ∀(x, ∀(y, x ∈ y /\ (y ∈ A) ==> x ∈ A))))
 
   /**
-    * Theorem --- `A` is transitive if and only if `x ∈ A` implies `x ⊆ A`.
-    *
-    *   `transitiveSet(x) <=> ∀x. x ∈ A ==> x ⊆ A`
-    */
+   * Theorem --- `A` is transitive if and only if `x ∈ A` implies `x ⊆ A`.
+   *
+   *   `transitiveSet(x) <=> ∀x. x ∈ A ==> x ⊆ A`
+   */
   val alternativeDefinition = Theorem(
     transitiveSet(A) <=> ∀(x, x ∈ A ==> x ⊆ A)
   ) {
@@ -57,12 +57,12 @@ object TransitiveSet extends lisa.Main {
   }
 
   /**
-    * Theorem --- A transitive set `A` is indeed transitive.
-    *
-    *   `transitiveSet(A), x ∈ y, y ∈ A |- x ∈ A`
-    *
-    * Reformulation of the definition.
-    */
+   * Theorem --- A transitive set `A` is indeed transitive.
+   *
+   *   `transitiveSet(A), x ∈ y, y ∈ A |- x ∈ A`
+   *
+   * Reformulation of the definition.
+   */
   val transitivity = Theorem(
     (transitiveSet(A), x ∈ y, y ∈ A) |- x ∈ A
   ) {
@@ -73,8 +73,8 @@ object TransitiveSet extends lisa.Main {
   }
 
   /**
-    * Theorem --- The empty set is transitive.
-    */
+   * Theorem --- The empty set is transitive.
+   */
   val emptySet = Theorem(
     transitiveSet(∅)
   ) {
@@ -84,4 +84,3 @@ object TransitiveSet extends lisa.Main {
   }
 
 }
-

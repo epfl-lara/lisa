@@ -276,8 +276,7 @@ class EGraphExpr() {
 
   def makeSingletonEClass(node: Expr[?]): Expr[?] = {
     UF.add(node)
-    if !parents.contains(node) then
-      parents(node) = mutable.Set()
+    if !parents.contains(node) then parents(node) = mutable.Set()
     node
   }
 

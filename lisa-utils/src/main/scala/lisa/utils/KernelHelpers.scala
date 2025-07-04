@@ -6,9 +6,10 @@ import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCValidProof
 import lisa.kernel.proof.SequentCalculus.*
 import lisa.kernel.proof.*
+import lisa.utils.unification.UnificationUtils.matchExpr
 
 import scala.annotation.targetName
-import lisa.utils.unification.UnificationUtils.matchExpr
+
 /**
  * A helper file that provides various syntactic sugars for LISA's FOL and proofs at the Kernel level.
  */
@@ -24,7 +25,7 @@ object KernelHelpers {
   /* Prefix syntax */
 
   extension (s: Sort) {
-    def >>:(t: Sort) : Sort = Arrow(s, t)
+    def >>:(t: Sort): Sort = Arrow(s, t)
   }
 
   val Equality = equality
@@ -44,74 +45,69 @@ object KernelHelpers {
   val ∃ = exists
   val ε = epsilon
 
-
-
   // UnapplyMethods
 
-  object And :
-    def unapply(e: Expression): Option[(Expression, Expression)] = e match 
+  object And:
+    def unapply(e: Expression): Option[(Expression, Expression)] = e match
       case Application(Application(`and`, l), r) => Some((l, r))
       case _ => None
 
-  object Or :
+  object Or:
     def unapply(e: Expression): Option[(Expression, Expression)] = e match
       case Application(Application(`or`, l), r) => Some((l, r))
       case _ => None
 
-  object Neg :
+  object Neg:
     def unapply(e: Expression): Option[Expression] = e match
       case Application(`neg`, a) => Some(a)
       case _ => None
-      
-  object Implies :
+
+  object Implies:
     def unapply(e: Expression): Option[(Expression, Expression)] = e match
       case Application(Application(`implies`, l), r) => Some((l, r))
       case _ => None
 
-  object Iff :
+  object Iff:
     def unapply(e: Expression): Option[(Expression, Expression)] = e match
       case Application(Application(`iff`, l), r) => Some((l, r))
       case _ => None
 
-  object Forall :
+  object Forall:
     def unapply(e: Expression): Option[(Variable, Expression)] = e match
       case Application(`forall`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
 
-  object Exists :
+  object Exists:
     def unapply(e: Expression): Option[(Variable, Expression)] = e match
       case Application(`exists`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
 
-  object Epsilon :
+  object Epsilon:
     def unapply(e: Expression): Option[(Variable, Expression)] = e match
       case Application(`epsilon`, Lambda(x, inner)) => Some((x, inner))
       case _ => None
 
-  object Multiand :
+  object Multiand:
     def unapply(e: Expression): Option[Seq[Expression]] = e match
       case Application(Application(`and`, l), r) => Some(l +: unapply(r).getOrElse(Seq(r)))
       case _ => None
-  
-  object Multior :
+
+  object Multior:
     def unapply(e: Expression): Option[Seq[Expression]] = e match
       case Application(Application(`or`, l), r) => Some(l +: unapply(r).getOrElse(Seq(r)))
       case _ => None
 
-  object Multiapp :
-    def unapply(e: Expression): Option[(Expression, Seq[Expression])] = 
-      def inner(e: Expression): Option[List[Expression]] = e match 
+  object Multiapp:
+    def unapply(e: Expression): Option[(Expression, Seq[Expression])] =
+      def inner(e: Expression): Option[List[Expression]] = e match
         case Application(f, arg) => inner(f) map (l => arg :: l)
         case _ => Some(List(e))
       val r = inner(e)
       r match
-        case Some(l) if l.size > 1 => 
+        case Some(l) if l.size > 1 =>
           val rev = l.reverse
           Some(rev.head, rev.tail)
         case _ => None
-
-
-
 
   def multiand(args: Seq[Expression]): Expression = args.reduceLeft(and(_)(_))
   def multior(args: Seq[Expression]): Expression = args.reduceLeft(or(_)(_))
@@ -119,19 +115,17 @@ object KernelHelpers {
 
   /* Infix syntax */
 
-
-  extension (e: exists.type) 
+  extension (e: exists.type)
     @targetName("existsApply")
     def apply(v: Variable, inner: Expression): Expression = exists(lambda(v, inner))
 
   extension (e: forall.type)
     @targetName("forallApply")
     def apply(v: Variable, inner: Expression): Expression = forall(lambda(v, inner))
-  
+
   extension (e: epsilon.type)
     @targetName("epsilonApply")
     def apply(v: Variable, inner: Expression): Expression = epsilon(lambda(v, inner))
-  
 
   extension (f: Expression) {
     def apply(args: Expression*): Expression = multiapply(f)(args)
@@ -144,14 +138,14 @@ object KernelHelpers {
     infix def ＝(g: Expression): Expression = equality(f)(g)
 
     def maxVarId(): Int = f match {
-      case Variable(id, _) => id.no+1
+      case Variable(id, _) => id.no + 1
       case Constant(_, _) => 0
       case Application(f, arg) => f.maxVarId() max arg.maxVarId()
       case Lambda(v, inner) => v.id.no max inner.maxVarId()
     }
 
-    def leadingVars(): List[Variable] = 
-      def recurse(e:Expression) : List[Variable] = e match {
+    def leadingVars(): List[Variable] =
+      def recurse(e: Expression): List[Variable] = e match {
         case Lambda(v, inner) => v :: recurse(inner)
         case _ => Nil
       }
@@ -177,38 +171,37 @@ object KernelHelpers {
       case Application(f, arg) => s"${f.fullRepr}(${arg.fullRepr})"
       case Constant(id, sort) => s"cst(${id},${sort})"
       case Lambda(v, body) => s"λ${v.fullRepr}.${body.fullRepr}"
-      case Variable(id, sort) => s"v(${id},${sort})" 
+      case Variable(id, sort) => s"v(${id},${sort})"
   }
 
   extension (se: SimpleExpression) {
     def repr: String = se match
-      case SimpleAnd(children, polarity) => 
+      case SimpleAnd(children, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}and(${children.map(_.repr).mkString(", ")})"
-      case SimpleForall(x, inner, polarity) => 
+      case SimpleForall(x, inner, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}∀$x.${inner.repr}"
-      case SimpleLiteral(polarity) => 
+      case SimpleLiteral(polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}lit"
-      case SimpleEquality(left, right, polarity) => 
+      case SimpleEquality(left, right, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}(${left.repr} === ${right.repr})"
-      case SimpleVariable(id, sort, polarity) => 
+      case SimpleVariable(id, sort, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}${id}"
-      case SimpleBoundVariable(no, sort, polarity) => 
+      case SimpleBoundVariable(no, sort, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}bv$no"
-      case SimpleConstant(id, sort, polarity) => 
+      case SimpleConstant(id, sort, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}${id}"
-      case SimpleApplication(arg1, arg2, polarity) => 
+      case SimpleApplication(arg1, arg2, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}(${arg1.repr}(${arg2.repr}))"
-      case SimpleLambda(x, inner) => 
+      case SimpleLambda(x, inner) =>
         s"λ${x.repr}.${inner.repr}"
-
 
   }
 
@@ -216,7 +209,7 @@ object KernelHelpers {
 
   /*
   given Conversion[(Boolean, List[Int], String), Option[(List[Int], String)]] = tr => if (tr._1) None else Some(tr._2, tr._3)
-*/
+   */
   given Conversion[Expression, Sequent] = () |- _
 
   /* Sequents */
@@ -264,7 +257,7 @@ object KernelHelpers {
     infix def ++?(s1: Sequent): Sequent = s addAllIfNotExists s1
 
     def repr: String = s"${s.left.map(_.repr).mkString(", ")} |- ${s.right.map(_.repr).mkString(", ")}"
-    
+
     def fullRepr: String = s"${s.left.map(_.fullRepr).mkString(", ")} |- ${s.right.map(_.fullRepr).mkString(", ")}"
   }
 
@@ -288,7 +281,10 @@ object KernelHelpers {
   given ExpressionSetConverter[Iterable[Expression]] = _.toSet
 
   extension [L](left: L)(using ExpressionSetConverter[L]) {
-    /** Infix shorthand for constructing a [[K.Sequent]]. */
+
+    /**
+     * Infix shorthand for constructing a [[K.Sequent]].
+     */
     infix def |-[R](right: R)(using ExpressionSetConverter[R]): Sequent = Sequent(toExpressionSet(left), toExpressionSet(right))
   }
 
@@ -325,7 +321,7 @@ object KernelHelpers {
     def followPath(path: Seq[Int]): SCProofStep = SCSubproof(p, p.imports.indices).followPath(path)
   }
 
-/*
+  /*
   // Conversion from pairs (e.g. x -> f(x)) to lambdas
   given Conversion[Expression, LambdaTermTerm] = LambdaTermTerm(Seq(), _)
   given Conversion[VariableLabel, LambdaTermTerm] = a => LambdaTermTerm(Seq(), a: Expression)
@@ -340,7 +336,7 @@ object KernelHelpers {
   given Conversion[(VariableFormulaLabel, Expression), LambdaFormulaFormula] = a => LambdaFormulaFormula(Seq(a._1), a._2)
   given Conversion[(Seq[VariableFormulaLabel], Expression), LambdaFormulaFormula] = a => LambdaFormulaFormula(a._1, a._2)
 
-  def 
+  def
   // Shortcut for LambdaTermTerm, LambdaTermFormula and LambdaFormulaFormula construction
   def lambda(x: VariableLabel, t: Expression): LambdaTermTerm = LambdaTermTerm(Seq(x), t)
   def lambda(xs: Seq[VariableLabel], t: Expression): LambdaTermTerm = LambdaTermTerm(xs, t)
@@ -356,7 +352,7 @@ object KernelHelpers {
   def lambda(Xs: Seq[VariableFormulaLabel], phi: Expression): LambdaFormulaFormula = LambdaFormulaFormula(Xs, phi)
   def lambda(X: VariableFormulaLabel, l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Seq(X) ++ l.vars, l.body)
   def lambda(Xs: Seq[VariableFormulaLabel], l: LambdaFormulaFormula): LambdaFormulaFormula = LambdaFormulaFormula(Xs ++ l.vars, l.body)
-*/
+   */
   def lambda(x: Variable, t: Expression): Lambda = Lambda(x, t)
   def lambda(xs: Seq[Variable], t: Expression): Expression = xs.foldRight(t)((x, t) => Lambda(x, t))
   def reduceLambda(f: Lambda, t: Expression): Expression = substituteVariables(f.body, Map(f.v -> t))
@@ -364,19 +360,19 @@ object KernelHelpers {
   // declare symbols easily: "val x = variable;"
   def HOvariable(using name: sourcecode.Name)(sort: Sort): Variable = Variable(name.value, sort)
   def variable(using name: sourcecode.Name): Variable = Variable(name.value, Ind)
-  def function(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Ind: Sort)((acc, _)=> Ind -> acc))
+  def function(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Ind: Sort)((acc, _) => Ind -> acc))
   def formulaVariable(using name: sourcecode.Name): Variable = Variable(name.value, Prop)
-  def predicate(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Prop: Sort)((acc, _)=> Ind -> acc))
-  def connector(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Prop: Sort)((acc, _)=> Prop -> acc))
+  def predicate(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Prop: Sort)((acc, _) => Ind -> acc))
+  def connector(arity: Integer)(using name: sourcecode.Name): Variable = Variable(name.value, Range(0, arity).foldLeft(Prop: Sort)((acc, _) => Prop -> acc))
   def cst(using name: sourcecode.Name)(sort: Sort): Constant = Constant(name.value, sort)
 
   def HOvariable(sort: Sort)(id: Identifier): Variable = Variable(id, sort)
   def variable(id: Identifier): Variable = Variable(id, Ind)
-  def function(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Ind: Sort)((acc, _)=> Ind -> acc))
+  def function(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Ind: Sort)((acc, _) => Ind -> acc))
   def formulaVariable(id: Identifier): Variable = Variable(id, Prop)
-  def predicate(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Prop: Sort)((acc, _)=> Ind -> acc))
-  def connector(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Prop: Sort)((acc, _)=> Prop -> acc))
-  def cst(id: Identifier, sort:Sort): Constant = Constant(id, sort)
+  def predicate(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Prop: Sort)((acc, _) => Ind -> acc))
+  def connector(arity: Integer)(id: Identifier): Variable = Variable(id, Range(0, arity).foldLeft(Prop: Sort)((acc, _) => Prop -> acc))
+  def cst(id: Identifier, sort: Sort): Constant = Constant(id, sort)
 
   // Conversions from String to Identifier
   class InvalidIdentifierException(identifier: String, errorMessage: String) extends LisaException(errorMessage) {
@@ -451,11 +447,10 @@ object KernelHelpers {
     def definition(symbol: String, expression: Expression): RunningTheoryJudgement[theory.Definition] = {
       val label = Constant(symbol, expression.sort)
       val vars = expression.leadingVars()
-      if (vars.length == expression.sort.depth) then
-        theory.makeDefinition(label, expression, vars)
-      else 
-        var maxid = expression.maxVarId()-1
-        val newvars = flatTypeParameters(expression.sort).drop(vars.length).map(t => {maxid+=1;Variable(Identifier("x", maxid), t)})
+      if (vars.length == expression.sort.depth) then theory.makeDefinition(label, expression, vars)
+      else
+        var maxid = expression.maxVarId() - 1
+        val newvars = flatTypeParameters(expression.sort).drop(vars.length).map(t => { maxid += 1; Variable(Identifier("x", maxid), t) })
         theory.makeDefinition(label, expression, vars ++ newvars)
     }
 
@@ -518,21 +513,17 @@ object KernelHelpers {
     }
   }
 
-
   extension (judg: SCProofCheckerJudgement) {
     def repr: String = prettySCProof(judg)
   }
-
 
   /**
    * output a readable representation of a proof.
    */
   def checkProof(proof: SCProof, output: String => Unit = println): Unit = {
     val judgement = SCProofChecker.checkSCProof(proof)
-    if judgement.isValid then
-      output("Proof is valid")
-    else
-      output("Proof is invalid")
+    if judgement.isValid then output("Proof is valid")
+    else output("Proof is invalid")
     val pl = proof.totalLength
     if pl > 100 then
       output("...")
@@ -599,7 +590,7 @@ object KernelHelpers {
         val currentTree = tree :+ i
         val showErrorForLine = judgement match {
           case SCValidProof(_, _) => false
-          case SCInvalidProof(proof, position, _) => 
+          case SCInvalidProof(proof, position, _) =>
             currentTree.startsWith(position) && currentTree.drop(position.size).forall(_ == 0)
         }
         val prefix = (Seq.fill(level - topMostIndices.size)(None) ++ Seq.fill(topMostIndices.size)(None) :+ Some(i)) ++ Seq.fill(maxLevel - level)(None)
@@ -669,6 +660,5 @@ object KernelHelpers {
   }
 
   def prettySCProof(proof: SCProof): String = prettySCProof(SCValidProof(proof), false)
-
 
 }

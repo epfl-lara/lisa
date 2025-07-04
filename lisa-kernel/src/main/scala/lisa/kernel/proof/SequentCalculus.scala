@@ -21,7 +21,7 @@ object SequentCalculus {
    * @param left the left side of the sequent
    * @param right the right side of the sequent
    */
-  case class Sequent(left: Set[Expression], right: Set[Expression]){
+  case class Sequent(left: Set[Expression], right: Set[Expression]) {
     require(left.forall(_.sort == Prop) && right.forall(_.sort == Prop), "Sequent can only contain formulas")
   }
 
@@ -30,12 +30,12 @@ object SequentCalculus {
    */
   def sequentToFormula(s: Sequent): Expression = {
     val left = {
-      if  (s.left.isEmpty) top
+      if (s.left.isEmpty) top
       else if (s.left.size == 1) s.left.head
       else s.left.reduce(and(_)(_))
     }
-    val right ={
-      if  (s.right.isEmpty) bot
+    val right = {
+      if (s.right.isEmpty) bot
       else if (s.right.size == 1) s.right.head
       else s.right.reduce(or(_)(_))
     }
@@ -262,7 +262,6 @@ object SequentCalculus {
    */
   case class Weakening(bot: Sequent, t1: Int) extends SCProofStep { val premises = Seq(t1) }
 
-
   /**
    * {{{
    *    Γ |- φ[(λy. e)t/x], Δ
@@ -272,8 +271,6 @@ object SequentCalculus {
    */
   @deprecated
   case class Beta(bot: Sequent, t1: Int) extends SCProofStep { val premises = Seq(t1) }
-
-
 
   // Equality Rules
   /**
@@ -296,7 +293,7 @@ object SequentCalculus {
 
   /**
    * {{{
-   *                     Γ, φ(s) |- Δ      
+   *                     Γ, φ(s) |- Δ
    * -----------------------------------------------------
    *   Γ, ∀x,...,z. (s x ... z)=(t x ... z), φ(t) |- Δ
    * }}}
@@ -306,7 +303,7 @@ object SequentCalculus {
 
   /**
    * {{{
-   *                     Γ |- φ(s), Δ 
+   *                     Γ |- φ(s), Δ
    * ------------------------------------------------------
    *     Γ, ∀x,...,z. (s x ... z)=(t x ... z) |- φ(t), Δ
    * }}}

@@ -20,17 +20,17 @@ object Extensions:
       res
 
     /**
-      * Convert an iterable of options to an option of a sequence.
-      * `Some(Seq(...))` if every value in the iterable is defined, and `None`
-      * otherwise.
-      *
-      * Attempts to do so lazily (if your iterable is lazy).
-      */
+     * Convert an iterable of options to an option of a sequence.
+     * `Some(Seq(...))` if every value in the iterable is defined, and `None`
+     * otherwise.
+     *
+     * Attempts to do so lazily (if your iterable is lazy).
+     */
     def toOptionSeq[B](using ev: A <:< Option[B]): Option[Seq[B]] =
       val state = true
       var res = Option(Vector.newBuilder[B])
       val iter = seq.iterator
-      while (res.nonEmpty && iter.hasNext) 
+      while (res.nonEmpty && iter.hasNext)
         val next = iter.next()
         if next.isDefined then res = res.map(_ += next.get) else res = None
       res.map(_.result())

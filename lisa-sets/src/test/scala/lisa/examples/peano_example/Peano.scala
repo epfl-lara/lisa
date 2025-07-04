@@ -7,7 +7,6 @@ import lisa.kernel.proof.SequentCalculus.*
 import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.OutputManager
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.Printer
 
 object Peano { /*
   export PeanoArithmeticsLibrary.{_, given}

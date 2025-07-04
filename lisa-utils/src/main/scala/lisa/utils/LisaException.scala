@@ -1,14 +1,13 @@
 package lisa.utils
 
-import lisa.utils.fol.FOL as F
 import lisa.kernel.fol.FOL
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
-import lisa.utils.prooflib.Library
-// import lisa.utils.prooflib.ProofTacticLib.ProofTactic
-import lisa.utils.KernelHelpers.repr
 import lisa.utils.KernelHelpers.prettySCProof
+import lisa.utils.KernelHelpers.repr
+import lisa.utils.fol.FOL as F
+import lisa.utils.prooflib.Library
 
 abstract class LisaException(errorMessage: String)(using val line: sourcecode.Line, val file: sourcecode.File) extends Exception(errorMessage) {
   def showError: String
@@ -16,10 +15,9 @@ abstract class LisaException(errorMessage: String)(using val line: sourcecode.Li
 
 import lisa.utils.KernelHelpers.{_, given}
 
-
 import java.io.File
 object LisaException {
-  
+
   case class InvalidKernelJustificationComputation(errorMessage: String, underlying: RunningTheoryJudgement.InvalidJustification[?], proof: Option[Library#Proof])(using
       sourcecode.Line,
       sourcecode.File
@@ -40,8 +38,6 @@ object LisaException {
 
 }
 
-
-
 /**
  * Error made by the user, should be "explained"
  */
@@ -54,8 +50,10 @@ object UserLisaException {
     def showError: String = errorMessage
   }
 
-  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.utils.fol.FOL.Expr[lisa.utils.fol.FOL.Prop], library: lisa.utils.prooflib.Library)(using sourcecode.Line, sourcecode.File)
-      extends UserLisaException(errorMessage) {
+  class InvalidAxiomException(errorMessage: String, name: String, formula: lisa.utils.fol.FOL.Expr[lisa.utils.fol.FOL.Prop], library: lisa.utils.prooflib.Library)(using
+      sourcecode.Line,
+      sourcecode.File
+  ) extends UserLisaException(errorMessage) {
     def showError: String = s"The desired axiom \"$name\" contains symbol that are not part of the theory.\n" +
       s"The symbols {${library.theory.findUndefinedSymbols(formula.underlying)}} are undefined."
   }

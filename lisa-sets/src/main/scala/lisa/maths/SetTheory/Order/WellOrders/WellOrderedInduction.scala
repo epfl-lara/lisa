@@ -8,21 +8,21 @@ import Definitions.*
 import WellOrder.*
 
 /**
-  * Given a well-ordered set `(A, <)`, one can that a property `P` holds on `A`
-  * by proving that `P(x)` holds for any `x ∈ A`, assuming that `P(y)` holds for
-  * all `y < x`.
-  */
+ * Given a well-ordered set `(A, <)`, one can that a property `P` holds on `A`
+ * by proving that `P(x)` holds for any `x ∈ A`, assuming that `P(y)` holds for
+ * all `y < x`.
+ */
 object WellOrderedInduction extends lisa.Main {
 
   private val x, y = variable[Ind]
   private val A, B = variable[Ind]
-  private val <, ℛ = variable[Ind]
+  private val <, R = variable[Ind]
   private val P = variable[Ind >>: Prop]
 
   /**
-    * Well-ordered induction --- If `P(x)` holds for any `x ∈ A` assuming that
-    * `P(y)` holds for all `y < x`, then `P(x)` holds for all `x ∈ A`.
-    */
+   * Well-ordered induction --- If `P(x)` holds for any `x ∈ A` assuming that
+   * `P(y)` holds for all `y < x`, then `P(x)` holds for all `x ∈ A`.
+   */
   val induction = Theorem(
     (
       wellOrdering(A)(<),
@@ -37,7 +37,7 @@ object WellOrderedInduction extends lisa.Main {
     val inductionHypothesis = thenHave((x ∈ A, ∀(y, (y ∈ A) /\ ((y, x) ∈ <) ==> P(y))) |- P(x)) by Restate
 
     // Let S be the set of elements of `A` that do not satisfy `P`:
-    val S = {x ∈ A | ¬(P(x))}
+    val S = { x ∈ A | ¬(P(x)) }
     val `x ∈ S` = have(x ∈ S <=> (x ∈ A) /\ ¬(P(x))) by Comprehension.apply
 
     // By well-ordering, take `x` the `<`-least element ∈ `S`. We show that
@@ -55,7 +55,7 @@ object WellOrderedInduction extends lisa.Main {
       thenHave(∀(y, y ∈ A /\ ((y, x) ∈ <) ==> P(y))) by RightForall
       thenHave(thesis) by Tautology.fromLastStep(inductionHypothesis, `x ∈ S`)
     }
-    thenHave((x ∈ S, minimal(x)(S)(<)) |- P(x)) by Substitute(minimal.definition of (A := S, ℛ := <))
+    thenHave((x ∈ S, minimal(x)(S)(<)) |- P(x)) by Substitute(minimal.definition of (A := S, R := <))
     thenHave((x ∈ S) /\ minimal(x)(S)(<) |- ⊥) by Tautology.fromLastStep(`x ∈ S`)
     thenHave(∃(x, (x ∈ S) /\ minimal(x)(S)(<)) |- ⊥) by LeftExists
     thenHave(S === ∅) by Tautology.fromLastStep(
@@ -68,4 +68,3 @@ object WellOrderedInduction extends lisa.Main {
     thenHave(thesis) by RightForall
   }
 }
-

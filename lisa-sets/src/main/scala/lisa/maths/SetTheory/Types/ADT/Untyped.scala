@@ -1,12 +1,13 @@
-/** This file implements tactics to generate polymorphic set theoretic inductive algebraic data types (or ADT) and prove properties about them.
-  * An algebraic data type is the least set closed under introduction rules, also known as constructors.
-  * A constructor takes arguments as input that can either belong to other types (non inductive arguments)
-  * or to the ADT itself (inductive arguments).
-  *
-  * An example of algebraic data type is the type of singly linked lists:
-  *
-  *   list ::= nil() | cons(head: T, tail: list)
-  */
+/**
+ * This file implements tactics to generate polymorphic set theoretic inductive algebraic data types (or ADT) and prove properties about them.
+ * An algebraic data type is the least set closed under introduction rules, also known as constructors.
+ * A constructor takes arguments as input that can either belong to other types (non inductive arguments)
+ * or to the ADT itself (inductive arguments).
+ *
+ * An example of algebraic data type is the type of singly linked lists:
+ *
+ *   list ::= nil() | cons(head: T, tail: list)
+ */
 
 package lisa.maths.SetTheory.Types.ADT
 

@@ -8,13 +8,13 @@ import Comprehension.|
 import lisa.maths.Quantifiers
 
 /**
-  * The ordered pair `(x, y)` is a pair of elements where order matters:
-  * `(x, y) = (x', y')` if and only if `x = x'` and `y = y'`.
-  *
-  * In terms of sets, `(x, y)` is defined to be equal to `{{x}, {x, y}}`
-  * (Kuratowski's definition). This definition satisfies the extensionality
-  * property stated above (for a proof, see [[extensionality]]).
-  */
+ * The ordered pair `(x, y)` is a pair of elements where order matters:
+ * `(x, y) = (x', y')` if and only if `x = x'` and `y = y'`.
+ *
+ * In terms of sets, `(x, y)` is defined to be equal to `{{x}, {x, y}}`
+ * (Kuratowski's definition). This definition satisfies the extensionality
+ * property stated above (for a proof, see [[extensionality]]).
+ */
 object Pair extends lisa.Main {
 
   private val a, b, c, d = variable[Ind]
@@ -23,34 +23,32 @@ object Pair extends lisa.Main {
   private val P, Q = variable[Ind >>: Prop]
 
   /**
-    * Ordered Pair --- `(x, y)`. Shorthand for `{{x}, {x, y}}` (Kuratowski's definition).
-    *
-    * @param x set
-    * @param y set
-    *
-    * @see https://en.wikipedia.org/wiki/Ordered_pair#Kuratowski's_definition
-    */
+   * Ordered Pair --- `(x, y)`. Shorthand for `{{x}, {x, y}}` (Kuratowski's definition).
+   *
+   * @param x set
+   * @param y set
+   *
+   * @see https://en.wikipedia.org/wiki/Ordered_pair#Kuratowski's_definition
+   */
   val pair = DEF(λ(x, λ(y, unorderedPair(singleton(x), unorderedPair(x, y))))).printAs(args => s"(${args(0)}, ${args(1)})")
 
-
   /**
-    * Implicit conversion from Scala pairs to set-theoretic pairs, to match the
-    * printed notation.
-    *
-    * To use this notation, import it as follows:
-    * {{{
-    * import lisa.maths.SetTheory.Base.Predef.given
-    * }}}
-    */
+   * Implicit conversion from Scala pairs to set-theoretic pairs, to match the
+   * printed notation.
+   *
+   * To use this notation, import it as follows:
+   * {{{
+   * import lisa.maths.SetTheory.Base.Predef.given
+   * }}}
+   */
   given Conversion[(Expr[Ind], Expr[Ind]), Expr[Ind]] = (x, y) => pair(x)(y)
 
-
   /**
-    * Pair Extensionality --- Two ordered pairs are equal iff their elements are
-    * equal when taken in order.
-    *
-    *  `(a, b) = (c, d) <=> a = c ∧ b = d`
-    */
+   * Pair Extensionality --- Two ordered pairs are equal iff their elements are
+   * equal when taken in order.
+   *
+   *  `(a, b) = (c, d) <=> a = c ∧ b = d`
+   */
   val extensionality = Theorem(
     ((a, b) === (c, d)) <=> (a === c) /\ (b === d)
   ) {
@@ -87,39 +85,36 @@ object Pair extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`)
   }
 
-
   /**
-    * The first element of an ordered [[pair]] --- `fst(p) = ⋃(⋂(p))`
-    *
-    * If `p = (a, b) = {{a}, {a, b}}`, `⋂p = {a}`, and `⋃⋂p = a`.
-    *
-    * While the function is defined on all sets, the result on non-pairs may be
-    * uninteresting or garbage. Generally expected to be simplified via [[pairFst]].
-    */
+   * The first element of an ordered [[pair]] --- `fst(p) = ⋃(⋂(p))`
+   *
+   * If `p = (a, b) = {{a}, {a, b}}`, `⋂p = {a}`, and `⋃⋂p = a`.
+   *
+   * While the function is defined on all sets, the result on non-pairs may be
+   * uninteresting or garbage. Generally expected to be simplified via [[pairFst]].
+   */
   val fst = DEF(λ(p, ⋃(⋂(p))))
 
+  /**
+   * The second element of an ordered [[pair]] ---
+   *
+   *    `snd p = ⋃{x ∈ ⋃p | ⋃p ≠ ⋂p ⟹ x ∉ ⋂p}`
+   *
+   * There is a more naive definition: `snd p = ⋃(⋃p ∖ (fst p))`
+   * If `p = (a, b) = {{a}, {a, b}}`, `⋃ p = {a, b}`, and `⋃p ∖ (fst p)
+   * = {a, b} ∖ {a} = {b}`, the `⋃` at the top level reduces to `b`.
+   * However, this fails when `a = b`, and returns [[∅]].
+   *
+   * While the function is defined on all sets, the result on non-pairs may be
+   * uninteresting or garbage. Generally expected to be simplified via [[pairSnd]].
+   */
+  val snd = DEF(λ(p, ⋃({ x ∈ ⋃(p) | ⋃(p) ≠ ⋂(p) ==> x ∉ ⋂(p) })))
 
   /**
-    * The second element of an ordered [[pair]] ---
-    *
-    *    `snd p = ⋃{x ∈ ⋃p | ⋃p ≠ ⋂p ⟹ x ∉ ⋂p}`
-    *
-    * There is a more naive definition: `snd p = ⋃(⋃p ∖ (fst p))`
-    * If `p = (a, b) = {{a}, {a, b}}`, `⋃ p = {a, b}`, and `⋃p ∖ (fst p)
-    * = {a, b} ∖ {a} = {b}`, the `⋃` at the top level reduces to `b`.
-    * However, this fails when `a = b`, and returns [[∅]].
-    *
-    * While the function is defined on all sets, the result on non-pairs may be
-    * uninteresting or garbage. Generally expected to be simplified via [[pairSnd]].
-    */
-  val snd = DEF(λ(p, ⋃({x ∈ ⋃(p) | ⋃(p) ≠ ⋂(p) ==> x ∉ ⋂(p)})))
-
-
-  /**
-    * Theorem --- The union of an ordered pair is the corresponding unordered pair.
-    *
-    *    `⋃(x, y) = ⋃{{x}, {x, y}} = {x, y}`
-    */
+   * Theorem --- The union of an ordered pair is the corresponding unordered pair.
+   *
+   *    `⋃(x, y) = ⋃{{x}, {x, y}} = {x, y}`
+   */
   val union = Theorem(
     ⋃((x, y)) === unorderedPair(x, y)
   ) {
@@ -134,13 +129,12 @@ object Pair extends lisa.Main {
     thenHave(thesis) by Extensionality
   }
 
-
   /**
-    * Theorem --- The unary intersection of an ordered pair is the singleton
-    * containing the first element.
-    *
-    *    `⋂(x, y) = ⋂{{x}, {x, y}} = {x}`
-    */
+   * Theorem --- The unary intersection of an ordered pair is the singleton
+   * containing the first element.
+   *
+   *    `⋂(x, y) = ⋂{{x}, {x, y}} = {x}`
+   */
   val intersection = Theorem(
     ⋂((x, y)) === singleton(x)
   ) {
@@ -155,32 +149,30 @@ object Pair extends lisa.Main {
     thenHave(thesis) by Extensionality
   }
 
-
   /**
-    * Theorem --- [[fst]] produces the first element of the pair when applied to a pair.
-    *
-    *    `fst (x, y) = x`
-    */
+   * Theorem --- [[fst]] produces the first element of the pair when applied to a pair.
+   *
+   *    `fst (x, y) = x`
+   */
   val pairFst = Theorem(
-    fst (x, y) === x
+    fst(x, y) === x
   ) {
     have(thesis) by Congruence.from(
       fst.definition of (p := (x, y)),
       intersection,
-      Singleton.union,
+      Singleton.union
     )
   }
 
-
   /**
-    * Theorem --- [[snd]] produces the first element of the pair when applied to a pair.
-    *
-    *    `snd (x, y) = y`
-    */
+   * Theorem --- [[snd]] produces the first element of the pair when applied to a pair.
+   *
+   *    `snd (x, y) = y`
+   */
   val pairSnd = Theorem(
-    snd (x, y) === y
+    snd(x, y) === y
   ) {
-    val A = {z ∈ ⋃(x, y) | ⋃(x, y) ≠ ⋂(x, y) ==> z ∉ ⋂(x, y)}
+    val A = { z ∈ ⋃(x, y) | ⋃(x, y) ≠ ⋂(x, y) ==> z ∉ ⋂(x, y) }
 
     have(z ∈ ⋃(A) <=> ∃(a, a ∈ A /\ (z ∈ a))) by Tautology.from(unionAxiom of (x := A))
     val definition = thenHave(z ∈ snd(x, y) <=> ∃(a, a ∈ A /\ (z ∈ a))) by Substitute(snd.definition of (p := (x, y)))
@@ -209,12 +201,11 @@ object Pair extends lisa.Main {
     thenHave(thesis) by Extensionality
   }
 
-
   /**
-    * Theorem --- If `x` is a pair then `x = (fst(x), snd(x))`
-    *
-    *    `x = (fst(x), snd(x))`
-    */
+   * Theorem --- If `x` is a pair then `x = (fst(x), snd(x))`
+   *
+   *    `x = (fst(x), snd(x))`
+   */
   val pairReconstruction = Theorem(
     x === (a, b) |- (x === (fst(x), snd(x)))
   ) {

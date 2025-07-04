@@ -30,12 +30,12 @@ class TheoriesHelpersTest extends AnyFunSuite {
       case InvalidJustificationException(msg, None) => ()
     }
 
-
     // same theorem but with correct statement
 
-
-    assert(runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid,
-           runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).repr)
+    assert(
+      runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid,
+      runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).repr
+    )
   }
 
 }

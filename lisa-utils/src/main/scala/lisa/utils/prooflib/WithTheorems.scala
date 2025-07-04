@@ -1,13 +1,13 @@
 package lisa.utils.prooflib
 
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.prooflib.ProofTacticLib.ProofTactic
-import lisa.utils.prooflib.ProofTacticLib.UnimplementedProof
-import lisa.utils.prooflib.*
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.UserLisaException.*
+import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.prooflib.ProofTacticLib.UnimplementedProof
+import lisa.utils.prooflib.*
 
 import scala.annotation.nowarn
 import scala.collection.mutable.Buffer as mBuf
@@ -25,7 +25,7 @@ trait WithTheorems {
    * @param assump list of starting assumptions, usually propagated from outer proofs.
    */
   sealed abstract class Proof(assump: List[F.Expr[F.Prop]]) {
-    
+
     val possibleGoal: Option[F.Sequent]
     type SelfType = this.type
     type OutsideFact >: JUSTIFICATION
@@ -43,7 +43,7 @@ trait WithTheorems {
     ) {
       val baseFormula: F.Sequent = sequentOfFact(fact)
       val (result, proof) = {
-        val (terms, substPairs) = insts.partitionMap {e =>
+        val (terms, substPairs) = insts.partitionMap { e =>
           if e.isInstanceOf[F.Expr[?]] then Left(e.asInstanceOf[F.Expr[F.Ind]])
           else Right(e.asInstanceOf[F.SubstPair])
         }
@@ -333,14 +333,14 @@ trait WithTheorems {
       private val nstack = Throwable()
       val stack: Array[StackTraceElement] = nstack.getStackTrace.drop(2)
     }
-    
+
   }
 
   /**
    * Top-level instance of [[Proof]] directly proving a theorem
    */
   sealed class BaseProof(val owningTheorem: THMFromProof) extends Proof(Nil) {
-    
+
     val goal: F.Sequent = owningTheorem.goal
     val possibleGoal: Option[F.Sequent] = Some(goal)
     type OutsideFact = JUSTIFICATION
@@ -349,7 +349,7 @@ trait WithTheorems {
     override def sequentOfOutsideFact(j: JUSTIFICATION): F.Sequent = j.statement
 
     def justifications: List[JUSTIFICATION] = getImports.map(_._1)
-    
+
   }
 
   /**
@@ -586,7 +586,7 @@ trait WithTheorems {
       }
 
       if (proof.length == 0)
-        then om.lisaThrow(new UnimplementedProof(this))
+      then om.lisaThrow(new UnimplementedProof(this))
 
       val scp = proof.toSCProof
       val justifs = proof.getImports.map(e => (e._1.owner, e._1.innerJustification))
@@ -602,7 +602,7 @@ trait WithTheorems {
             )
           )
       }
-      
+
     }
 
   }

@@ -10,15 +10,15 @@ import lisa.SetTheoryLibrary.{*, given}
 import lisa.utils.fol.FOL.{*, given}
 
 /**
-  * Given the equivalence `z ∈ x <=> z ∈ y`, proves that `x = y` if `z` is free.
-  *
-  * {{{
-  *  Γ ⊢ z ∈ x <=> z ∈ y, Δ
-  * ------------------------
-  *      Γ ⊢ x === y, Δ
-  * }}}
-  * where `z` is not free in `Γ` or `Δ`.
-  */
+ * Given the equivalence `z ∈ x <=> z ∈ y`, proves that `x = y` if `z` is free.
+ *
+ * {{{
+ *  Γ ⊢ z ∈ x <=> z ∈ y, Δ
+ * ------------------------
+ *      Γ ⊢ x === y, Δ
+ * }}}
+ * where `z` is not free in `Γ` or `Δ`.
+ */
 def Extensionality(using proof: SetTheoryLibrary.Proof)(premise: proof.Fact)(conclusion: Sequent): proof.ProofTacticJudgement = {
   val x, y = variable[Ind]
 

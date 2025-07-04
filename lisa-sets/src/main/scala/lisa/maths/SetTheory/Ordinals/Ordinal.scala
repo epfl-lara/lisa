@@ -12,41 +12,45 @@ import TransitiveSet.*
 import InitialSegment.*
 import MembershipRelation.*
 
-/** An ordinal is a set that is transitive and well-ordered by the membership relation:
-  *
-  *   `ordinal(α) <=> transitiveSet(α) /\ wellOrdering(α, ∈_α)`
-  *
-  * @see [[TransitiveSet]]
-  * @see [[WellOrder.wellOrdering]]
-  * @see [[MembershipRelation]]
-  */
+/**
+ * An ordinal is a set that is transitive and well-ordered by the membership relation:
+ *
+ *   `ordinal(α) <=> transitiveSet(α) /\ wellOrdering(α, ∈_α)`
+ *
+ * @see [[TransitiveSet]]
+ * @see [[WellOrder.wellOrdering]]
+ * @see [[MembershipRelation]]
+ */
 object Ordinal extends lisa.Main {
 
   private val x, y, z = variable[Ind]
-  private val <, ℛ = variable[Ind]
+  private val <, R = variable[Ind]
   private val A, B, X = variable[Ind]
   private val α, β, γ, δ = variable[Ind]
   private val P = variable[Ind >>: Prop]
 
   extension (α: set) {
 
-    /** Local notations for ordinal ordering.
-      */
+    /**
+     * Local notations for ordinal ordering.
+     */
     infix def <(β: set): Expr[Prop] = α ∈ β
     infix def <=(β: set): Expr[Prop] = (α < β) \/ (α === β)
   }
 
-  /** Ordinal --- A set `α` is an ordinal if it is transitive and `∈_α` is a
-    * well-ordering on `α`.
-    *
-    *   `ordinal(α) <=> transitiveSet(α) /\ wellOrdering(α, ∈_α)`
-    *
-    * @see [[transitiveSet]], [[membershipRelation]]
-    */
+  /**
+   * Ordinal --- A set `α` is an ordinal if it is transitive and `∈_α` is a
+   * well-ordering on `α`.
+   *
+   *   `ordinal(α) <=> transitiveSet(α) /\ wellOrdering(α, ∈_α)`
+   *
+   * @see [[transitiveSet]], [[membershipRelation]]
+   */
   val ordinal = DEF(λ(α, transitiveSet(α) /\ wellOrdering(α)(membershipRelation(α))))
 
-  /** Theorem --- The empty set is an ordinal.
-    */
+  /**
+   * Theorem --- The empty set is an ordinal.
+   */
   val emptySet = Theorem(
     ordinal(∅)
   ) {
@@ -57,17 +61,19 @@ object Ordinal extends lisa.Main {
     )
   }
 
-  /** Zero is represented by the empty set.
-    */
+  /**
+   * Zero is represented by the empty set.
+   */
   val zero = ∅
 
   ////////////////////////////////////////////////////////////////////////////////
   section("Ordinal properties")
 
-  /** Theorem --- If `γ` is an ordinal such that `α ∈ β` and `β ∈ γ`, then `α ∈ γ`.
-    *
-    * Follows from the definition of a [[transitiveSet]].
-    */
+  /**
+   * Theorem --- If `γ` is an ordinal such that `α ∈ β` and `β ∈ γ`, then `α ∈ γ`.
+   *
+   * Follows from the definition of a [[transitiveSet]].
+   */
   val transitivity = Theorem(
     ordinal(γ) |- (α ∈ β) /\ (β ∈ γ) ==> (α ∈ γ)
   ) {
@@ -77,8 +83,9 @@ object Ordinal extends lisa.Main {
     )
   }
 
-  /** Theorem --- If `α` is an ordinal then the membership relation on `α` is transitive.
-    */
+  /**
+   * Theorem --- If `α` is an ordinal then the membership relation on `α` is transitive.
+   */
   val transitiveMembershipRelation = Theorem(
     ordinal(α) |- transitive(membershipRelation(α))
   ) {
@@ -92,8 +99,9 @@ object Ordinal extends lisa.Main {
   ////////////////////////////////////////////////////////////////////////////////
   section("Hereditary properties")
 
-  /** Ordinal are hereditarily transitive --- If `α` is an ordinal and `β ∈ α`, then `β` is transitive.
-    */
+  /**
+   * Ordinal are hereditarily transitive --- If `α` is an ordinal and `β ∈ α`, then `β` is transitive.
+   */
   val hereditarilyTransitive = Theorem(
     (ordinal(α), β ∈ α) |- transitiveSet(β)
   ) {
@@ -116,7 +124,7 @@ object Ordinal extends lisa.Main {
       // Since `(α, ∈_α)` is transitive, we get `x ∈_α β` and thus `x ∈ β` as desired
       have((x, β) ∈ membershipRelation(α)) by Tautology.from(
         transitiveMembershipRelation,
-        Relations.Properties.appliedTransitivity of (ℛ := membershipRelation(α), x := x, y := y, z := β),
+        Relations.Properties.appliedTransitivity of (R := membershipRelation(α), x := x, y := y, z := β),
         `x ∈_α y`,
         `y ∈_α β`
       )
@@ -127,8 +135,9 @@ object Ordinal extends lisa.Main {
     thenHave(thesis) by Tautology.fromLastStep(transitiveSet.definition of (A := β))
   }
 
-  /** Theorem --- If `α` is an ordinal and `β ∈ α` then `(β, ∈_β)` is a well-ordering.
-    */
+  /**
+   * Theorem --- If `α` is an ordinal and `β ∈ α` then `(β, ∈_β)` is a well-ordering.
+   */
   val hereditarilyWellOrdered = Theorem(
     (ordinal(α), β ∈ α) |- wellOrdering(β)(membershipRelation(β))
   ) {
@@ -158,7 +167,7 @@ object Ordinal extends lisa.Main {
         // Hence we can apply transitivity
         have((x, z) ∈ membershipRelation(α)) by Tautology.from(
           transitiveMembershipRelation,
-          Relations.Properties.appliedTransitivity of (ℛ := membershipRelation(α)),
+          Relations.Properties.appliedTransitivity of (R := membershipRelation(α)),
           `x ∈_α y`,
           `y ∈_α z`
         )
@@ -173,7 +182,7 @@ object Ordinal extends lisa.Main {
       thenHave((x ∈ β) /\ (y ∈ β) /\ (z ∈ β) /\ (x, y) ∈ membershipRelation(β) /\ ((y, z) ∈ membershipRelation(β)) ==> (x, z) ∈ membershipRelation(β)) by Tautology
       thenHave(∀(x, ∀(y, ∀(z, (x ∈ β) /\ (y ∈ β) /\ (z ∈ β) /\ (x, y) ∈ membershipRelation(β) /\ ((y, z) ∈ membershipRelation(β)) ==> (x, z) ∈ membershipRelation(β))))) by Generalize
       thenHave(thesis) by Tautology.fromLastStep(
-        Relations.Properties.restrictedTransitivity of (ℛ := membershipRelation(β), X := β),
+        Relations.Properties.restrictedTransitivity of (R := membershipRelation(β), X := β),
         MembershipRelation.isRelation of (A := β)
       )
     }
@@ -187,7 +196,7 @@ object Ordinal extends lisa.Main {
       thenHave((x ∈ β, y ∈ β) |- ((x, y) ∈ membershipRelation(α)) \/ ((y, x) ∈ membershipRelation(α)) \/ (x === y)) by Tautology.fromLastStep(
         ordinal.definition,
         WellOrder.totality of (< := membershipRelation(α), A := α),
-        Relations.Properties.appliedTotality of (ℛ := membershipRelation(α), X := α)
+        Relations.Properties.appliedTotality of (R := membershipRelation(α), X := α)
       )
       thenHave((x ∈ β) /\ (y ∈ β) ==> (x ∈ y) \/ (y ∈ x) \/ (x === y)) by Tautology.fromLastStep(
         MembershipRelation.membership of (x := x, y := y, A := α),
@@ -200,7 +209,7 @@ object Ordinal extends lisa.Main {
       thenHave(∀(x, ∀(y, (x ∈ β) /\ (y ∈ β) ==> (((x, y) ∈ membershipRelation(β)) \/ ((y, x) ∈ membershipRelation(β)) \/ (x === y))))) by Generalize
       thenHave(thesis) by Tautology.fromLastStep(
         MembershipRelation.isRelation of (A := β),
-        total.definition of (ℛ := membershipRelation(β), X := β)
+        total.definition of (R := membershipRelation(β), X := β)
       )
     }
 
@@ -210,8 +219,9 @@ object Ordinal extends lisa.Main {
     sorry
   }
 
-  /** Element of an ordinal --- If `α` is an ordinal and `β ∈ α` then `β` is an ordinal.
-    */
+  /**
+   * Element of an ordinal --- If `α` is an ordinal and `β ∈ α` then `β` is an ordinal.
+   */
   val elementOfOrdinal = Theorem(
     (ordinal(α), β ∈ α) |- ordinal(β)
   ) {
@@ -222,8 +232,9 @@ object Ordinal extends lisa.Main {
     )
   }
 
-  /** Theorem --- If `β ∈ α` and `α` is an ordinal then `initialSegment(β)(α)(membershipRelation(α)) = β`.
-    */
+  /**
+   * Theorem --- If `β ∈ α` and `α` is an ordinal then `initialSegment(β)(α)(membershipRelation(α)) = β`.
+   */
   val ordinalInitialSegment = Theorem(
     (ordinal(α), β ∈ α) |- initialSegment(β)(α)(membershipRelation(α)) === β
   ) {
@@ -234,31 +245,31 @@ object Ordinal extends lisa.Main {
   section("Comparison")
 
   /**
-    * Theorem --- If `(α, ∈_α)` is order-isomorphic to `(β, ∈_β)` then `α = β`
-    */
+   * Theorem --- If `(α, ∈_α)` is order-isomorphic to `(β, ∈_β)` then `α = β`
+   */
   val isomorphic = Theorem(
     (α, membershipRelation(α)) ≈ (β, membershipRelation(β)) |- α === β
   ) {
     sorry
   }
 
-  /** Theorem --- Any two ordinals `α` and `β` are comparable.
-    */
+  /**
+   * Theorem --- Any two ordinals `α` and `β` are comparable.
+   */
   val ordinalComparison = Theorem(
     (ordinal(α), ordinal(β)) |- (α === β) \/ (α < β) \/ (β < α)
   ) {
     sorry
   }
 
-
   ////////////////////////////////////////////////////////////////////////////////
   section("Minimality")
 
-
-  /** Theorem --- If `A` is a non-empty set of ordinals, then it admits a ∈-minimal element.
-    *
-    *   `∀α ∈ A. ordinal(α) /\ A ≠ ∅ ==> ∃α ∈ A. ∀β ∈ A. α <= β.
-    */
+  /**
+   * Theorem --- If `A` is a non-empty set of ordinals, then it admits a ∈-minimal element.
+   *
+   *   `∀α ∈ A. ordinal(α) /\ A ≠ ∅ ==> ∃α ∈ A. ∀β ∈ A. α <= β.
+   */
   val ordinalSetMinimalElement = Theorem(
     (∀(α, α ∈ A ==> ordinal(α)), A ≠ ∅) |- ∃(α, α ∈ A /\ ∀(β, β ∈ A ==> (α <= β)))
   ) {
@@ -282,7 +293,7 @@ object Ordinal extends lisa.Main {
       have(β < α) by Tautology.from(
         ordinalComparison,
         `α ordinal`,
-        `α ordinal` of (α := β),
+        `α ordinal` of (α := β)
       )
 
       // Therefore A ∩ α ≠ ∅.
@@ -326,10 +337,11 @@ object Ordinal extends lisa.Main {
     sorry
   }
 
-  /** Theorem --- If `P` is a non-empty class of ordinals, then it admits a ∈-minimal element.
-    *
-    *   `∃α ∈ On. P(α) ==> ∃α ∈ On. P(α) /\ ∀β < α. ¬P(β)`
-    */
+  /**
+   * Theorem --- If `P` is a non-empty class of ordinals, then it admits a ∈-minimal element.
+   *
+   *   `∃α ∈ On. P(α) ==> ∃α ∈ On. P(α) /\ ∀β < α. ¬P(β)`
+   */
   val ordinalClassMinimalElement = Theorem(
     (ordinal(α), P(α)) |- ∃(α, ordinal(α) /\ P(α) /\ ∀(β, β ∈ α ==> ¬(P(β))))
   ) {
@@ -424,14 +436,14 @@ object Ordinal extends lisa.Main {
   ////////////////////////////////////////////////////////////////////////////////
   section("Class of ordinal")
 
-
-  /** Definition --- `On` stands for the class of all ordinals.
-    */
+  /**
+   * Definition --- `On` stands for the class of all ordinals.
+   */
   val On: Expr[Class] = DEF(λ(α, ordinal(α)))
 
   /**
-    * Theorem --- `On` is a proper class.
-    */
+   * Theorem --- `On` is a proper class.
+   */
   val `On is a proper class` = Theorem(
     proper(On)
   ) {
@@ -441,12 +453,14 @@ object Ordinal extends lisa.Main {
   ////////////////////////////////////////////////////////////////////////////////
   section("Successor ordinal")
 
-  /** Successor --- Given an ordinal `α`, its sucessor is `S(α) = α ∪ {α}`.
-    */
+  /**
+   * Successor --- Given an ordinal `α`, its sucessor is `S(α) = α ∪ {α}`.
+   */
   val S = DEF(λ(α, α ∪ singleton(α)))
 
-  /** Theorem --- For every ordinal `α` we have `β < S(α)` <=> `β <= α`.
-    */
+  /**
+   * Theorem --- For every ordinal `α` we have `β < S(α)` <=> `β <= α`.
+   */
   val successorMembership = Theorem(
     ordinal(α) |- β < S(α) <=> (β <= α)
   ) {
@@ -457,16 +471,18 @@ object Ordinal extends lisa.Main {
     thenHave(thesis) by Substitute(S.definition)
   }
 
-  /** Theorem --- For every ordinal `α` we have `α < S(α)`.
-    */
+  /**
+   * Theorem --- For every ordinal `α` we have `α < S(α)`.
+   */
   val lessThanSuccessor = Theorem(
     ordinal(α) |- α < S(α)
   ) {
     have(thesis) by Tautology.from(successorMembership of (β := α))
   }
 
-  /** Theorem --- If `α` is an ordinal, so is `S(α)`.
-    */
+  /**
+   * Theorem --- If `α` is an ordinal, so is `S(α)`.
+   */
   val sucessorIsOrdinal = Theorem(
     ordinal(α) |- ordinal(S(α))
   ) {
@@ -476,24 +492,27 @@ object Ordinal extends lisa.Main {
   ////////////////////////////////////////////////////////////////////////////////
   section("Classification of ordinals")
 
-
-  /** Successor ordinals --- `α` is a successor ordinal if `α = β + 1`.
-    */
+  /**
+   * Successor ordinals --- `α` is a successor ordinal if `α = β + 1`.
+   */
   val successorOrdinal = DEF(λ(α, ∃(β, ordinal(β) /\ (α === S(β)))))
 
-  /** Limit ordinal --- `α` is a limit ordinal if `α ≠ ∅` and `α` is not successor.
-    */
+  /**
+   * Limit ordinal --- `α` is a limit ordinal if `α ≠ ∅` and `α` is not successor.
+   */
   val limitOrdinal = DEF(λ(α, ordinal(α) /\ (α ≠ ∅) /\ ¬(successorOrdinal(α))))
 
-  /** Theorem --- An ordinal `α` is either zero, successor or limit.
-    */
+  /**
+   * Theorem --- An ordinal `α` is either zero, successor or limit.
+   */
   val ordinalClassification = Theorem(
     ordinal(α) |- (α === ∅) \/ successorOrdinal(α) \/ limitOrdinal(α)
   ) {
     have(thesis) by Tautology.from(limitOrdinal.definition)
   }
 
-  /** Definition --- An ordinal `α` is an integer if and only if all its predecessors are zero or successors.
-    */
+  /**
+   * Definition --- An ordinal `α` is an integer if and only if all its predecessors are zero or successors.
+   */
   val integer = DEF(λ(α, ∀(β, β <= α ==> (β === ∅) \/ successorOrdinal(β))))
 }

@@ -4,9 +4,10 @@ import Replacement.|
 import Union.∪
 import Pair.{pair, given}
 
-/** The Cartesian product of two sets `A` and `B` is the set `A × B` containing
-  * all pairs `(x, y)` of sets where `x ∈ A` and `y ∈ B`.
-  */
+/**
+ * The Cartesian product of two sets `A` and `B` is the set `A × B` containing
+ * all pairs `(x, y)` of sets where `x ∈ A` and `y ∈ B`.
+ */
 object CartesianProduct extends lisa.Main {
 
   private val x, y, z = variable[Ind]
@@ -15,31 +16,40 @@ object CartesianProduct extends lisa.Main {
   private val S = variable[Ind]
   private val f = variable[Ind >>: Ind]
 
-  /** Cartesian Product --- Given two sets `A` and `B`, their Cartesian product
-    * is the set containing pairs with the first element in `A` and the second
-    * in `B`. The Cartesian product can be obtained by two applications of the
-    * [[replacementSchema]].
-    *
-    *     `A × B = ⋃{A × {b} | b ∈ B} = ⋃{{(a, b) | a ∈ A} | b ∈ B}`
-    *
-    * (Alternatively, it can be seen as a comprehension over `𝒫(𝒫(A ∪ B))`, but
-    *  it would be harder to manipulate in practice.)
-    *
-    * @param x set
-    * @param y set
-    */
-  val × = DEF(λ(A, λ(B, {
-    val `A × {b}` = { (a, b) | a ∈ A }
-    ⋃({ `A × {b}` | b ∈ B })
-  }))).printInfix()
+  /**
+   * Cartesian Product --- Given two sets `A` and `B`, their Cartesian product
+   * is the set containing pairs with the first element in `A` and the second
+   * in `B`. The Cartesian product can be obtained by two applications of the
+   * [[replacementSchema]].
+   *
+   *     `A × B = ⋃{A × {b} | b ∈ B} = ⋃{{(a, b) | a ∈ A} | b ∈ B}`
+   *
+   * (Alternatively, it can be seen as a comprehension over `power(power(A ∪ B))`, but
+   *  it would be harder to manipulate in practice.)
+   *
+   * @param x set
+   * @param y set
+   */
+  val × = DEF(
+    λ(
+      A,
+      λ(
+        B, {
+          val `A × {b}` = { (a, b) | a ∈ A }
+          ⋃({ `A × {b}` | b ∈ B })
+        }
+      )
+    )
+  ).printInfix()
   val cartesianProduct = ×
 
   extension (x: set) {
     inline infix def ×(y: set): set = cartesianProduct(x)(y)
   }
 
-  /** Theorem --- `z ∈ A × B` implies `z = (x, y)` such that `x ∈ A` and `y ∈ B`.
-    */
+  /**
+   * Theorem --- `z ∈ A × B` implies `z = (x, y)` such that `x ∈ A` and `y ∈ B`.
+   */
   val membershipNecessaryCondition = Lemma(
     z ∈ (A × B) |- ∃(x, ∃(y, x ∈ A /\ (y ∈ B) /\ ((x, y) === z)))
   ) {
@@ -75,8 +85,9 @@ object CartesianProduct extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, definition)
   }
 
-  /** Theorem --- If `x ∈ A` and `y ∈ B` then `(x, y) ∈ (A × B)`.
-    */
+  /**
+   * Theorem --- If `x ∈ A` and `y ∈ B` then `(x, y) ∈ (A × B)`.
+   */
   val membershipSufficientCondition = Lemma(
     (x ∈ A, y ∈ B) |- (x, y) ∈ (A × B)
   ) {
@@ -110,8 +121,9 @@ object CartesianProduct extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, definition)
   }
 
-  /** Theorem --- `z ∈ A × B` if and only if `z = (x, y)` for some `x ∈ A` and `y ∈ B`.
-    */
+  /**
+   * Theorem --- `z ∈ A × B` if and only if `z = (x, y)` for some `x ∈ A` and `y ∈ B`.
+   */
   val membership = Theorem(
     z ∈ (A × B) <=> ∃(x, ∃(y, x ∈ A /\ (y ∈ B) /\ ((x, y) === z)))
   ) {
@@ -127,12 +139,13 @@ object CartesianProduct extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`)
   }
 
-  /** Theorem --- `(x, y) ∈ A × B` if both `x ∈ A` and `y ∈ A`.
-    *
-    *  `(x, y) ∈ A × B <=> x ∈ A /\ y ∈ B`
-    *
-    * Follows from [[membership]].
-    */
+  /**
+   * Theorem --- `(x, y) ∈ A × B` if both `x ∈ A` and `y ∈ A`.
+   *
+   *  `(x, y) ∈ A × B <=> x ∈ A /\ y ∈ B`
+   *
+   * Follows from [[membership]].
+   */
   val pairMembership = Theorem(
     (x, y) ∈ (A × B) <=> x ∈ A /\ y ∈ B
   ) {
@@ -156,12 +169,13 @@ object CartesianProduct extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`, membership of (z := (x, y)))
   }
 
-  /** Theorem --- The product of any set with ∅ on the left is ∅.
-    *
-    *  `∅ × B = ∅`
-    *
-    * In other words, `∅` is left-absorbing.
-    */
+  /**
+   * Theorem --- The product of any set with ∅ on the left is ∅.
+   *
+   *  `∅ × B = ∅`
+   *
+   * In other words, `∅` is left-absorbing.
+   */
   val leftEmpty = Theorem(
     ∅ × B === ∅
   ) {
@@ -176,10 +190,11 @@ object CartesianProduct extends lisa.Main {
     thenHave(thesis) by Extensionality
   }
 
-  /** Theorem --- The product of any set with ∅ on the right is ∅.
-    *
-    *  `A × ∅ = ∅`
-    */
+  /**
+   * Theorem --- The product of any set with ∅ on the right is ∅.
+   *
+   *  `A × ∅ = ∅`
+   */
   val rightEmpty = Theorem(
     A × ∅ === ∅
   ) {
@@ -194,9 +209,10 @@ object CartesianProduct extends lisa.Main {
     thenHave(thesis) by Extensionality
   }
 
-  /** Theorem --- The union of two Cartesian products `A × B` and `C × D` is a subset
-    * of the Cartesian product of the unions.
-    */
+  /**
+   * Theorem --- The union of two Cartesian products `A × B` and `C × D` is a subset
+   * of the Cartesian product of the unions.
+   */
   val union = Theorem(
     (A × B) ∪ (C × D) ⊆ ((A ∪ C) × (B ∪ D))
   ) {

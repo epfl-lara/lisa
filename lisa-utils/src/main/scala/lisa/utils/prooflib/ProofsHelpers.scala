@@ -1,14 +1,14 @@
 package lisa.utils.prooflib
 
 import lisa.kernel.proof.SCProofChecker.checkSCProof
+import lisa.utils.K.Identifier
+import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.LisaException
+import lisa.utils.UserLisaException
 import lisa.utils.prooflib.BasicStepTactic.*
 import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.prooflib.SimpleDeducedSteps.*
 import lisa.utils.prooflib.*
-import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.K.Identifier
-import lisa.utils.LisaException
-import lisa.utils.UserLisaException
 import lisa.utils.{_, given}
 
 import scala.annotation.targetName
@@ -87,7 +87,6 @@ trait ProofsHelpers {
     }
   }
 
-
   /*
   /**
    * Assume the given formula in all future left hand-side of claimed sequents.
@@ -128,7 +127,6 @@ trait ProofsHelpers {
 
   def currentProof(using p: library.Proof): Library#Proof = p
 
-
   ////////////////////////////////////////
   //  DSL for definitions and theorems  //
   ////////////////////////////////////////
@@ -144,31 +142,27 @@ trait ProofsHelpers {
     }
   }
 
-
-  def leadingVarsAndBody(e: Expr[?]): (Seq[Variable[?]], Expr[?]) = 
+  def leadingVarsAndBody(e: Expr[?]): (Seq[Variable[?]], Expr[?]) =
     def inner(e: Expr[?]): (Seq[Variable[?]], Expr[?]) = e match
-      case Abs(v, body) => 
+      case Abs(v, body) =>
         val (vars, bodyR) = inner(body)
         (v +: vars, bodyR)
       case _ => (Seq(), e)
     val r = inner(e)
     (r._1, r._2)
 
-  def DEF[S: Sort](using name: sourcecode.FullName)(using om: OutputManager, line: sourcecode.Line, file: sourcecode.File)
-            (e: Expr[S]): Constant[S] = 
+  def DEF[S: Sort](using name: sourcecode.FullName)(using om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(e: Expr[S]): Constant[S] =
     val (vars, body) = leadingVarsAndBody(e)
-    if vars.size == e.sort.depth then 
-      DirectDefinition[S](name.value, line.value, file.value)(e, vars).cst
-    else 
+    if vars.size == e.sort.depth then DirectDefinition[S](name.value, line.value, file.value)(e, vars).cst
+    else
       val maxV: Int = vars.maxBy(_.id.no).id.no
       val maxB: Int = body.freeVars.maxBy(_.id.no).id.no
       var no = List(maxV, maxB).max
-      val newvars = K.flatTypeParameters(body.sort).map(i =>{no+=1; Variable.unsafe(K.Identifier("x", no), i)})
+      val newvars = K.flatTypeParameters(body.sort).map(i => { no += 1; Variable.unsafe(K.Identifier("x", no), i) })
       val totvars = vars ++ newvars
       DirectDefinition[S](name.value, line.value, file.value)(e, totvars)(using F.unsafeSortEvidence(e.sort)).cst
 
-  def EpsilonDEF[S: Sort](using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)
-                  (e: Expr[S], j: JUSTIFICATION): Constant[S] =
+  def EpsilonDEF[S: Sort](using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(e: Expr[S], j: JUSTIFICATION): Constant[S] =
     val (vars, body) = leadingVarsAndBody(e)
     if vars.size == e.sort.depth then
       body match
@@ -177,17 +171,13 @@ trait ProofsHelpers {
         case _ => om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term."))
     else om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term."))
 
-  
-
-  class DirectDefinition[S : Sort](using om: OutputManager)(val fullName: String, line: Int, file: String)(val expr: Expr[S], val vars: Seq[Variable[?]]) extends DEFINITION(line, file) {
+  class DirectDefinition[S: Sort](using om: OutputManager)(val fullName: String, line: Int, file: String)(val expr: Expr[S], val vars: Seq[Variable[?]]) extends DEFINITION(line, file) {
 
     val arity = vars.size
 
     lazy val cst: Constant[S] = F.Constant(name)
 
-
-    val appliedCst: Expr[?] = cst#@@(vars)
-
+    val appliedCst: Expr[?] = cst #@@ (vars)
 
     val innerJustification: theory.Definition = {
       import lisa.utils.K.{findUndefinedSymbols}
@@ -207,9 +197,8 @@ trait ProofsHelpers {
               )
             )
           }
-          if !theory.isAvailable(ucst) then 
-            om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined."))
-          if !uexpr.freeVariables.nonEmpty then 
+          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined."))
+          if !uexpr.freeVariables.nonEmpty then
             om.lisaThrow(
               UserInvalidDefinitionException(
                 name,
@@ -217,8 +206,7 @@ trait ProofsHelpers {
                   s"The variables {${(uexpr.freeVariables).mkString(", ")}} are free in the expression ${uexpr}."
               )
             )
-          if !theory.isAvailable(ucst) then 
-            om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined."))
+          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined."))
           om.lisaThrow(
             LisaException.InvalidKernelJustificationComputation(
               "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or an error in LISA.",
@@ -228,12 +216,10 @@ trait ProofsHelpers {
           )
       }
     }
-    val right = expr#@@(vars)
-    val statement = 
-      if appliedCst.sort == K.Ind then 
-        () |- (equality #@ appliedCst #@ right).asInstanceOf[Expr[Prop]]
-      else 
-        () |- (iff #@ appliedCst #@ right).asInstanceOf[Expr[Prop]]
+    val right = expr #@@ (vars)
+    val statement =
+      if appliedCst.sort == K.Ind then () |- (equality #@ appliedCst #@ right).asInstanceOf[Expr[Prop]]
+      else () |- (iff #@ appliedCst #@ right).asInstanceOf[Expr[Prop]]
     library.last = Some(this)
 
     override def repr: String =
@@ -248,12 +234,11 @@ trait ProofsHelpers {
     case _ => s
   }
 
-
   /**
    * For a list of sequence of variables x, y, z, creates the term with lambdas:
    * λx.(λy.(λz. base))
    */
-  def abstractVars(v: Seq[Variable[?]], body: Expr[?]): Expr[?] = 
+  def abstractVars(v: Seq[Variable[?]], body: Expr[?]): Expr[?] =
     def inner(v: Seq[Variable[?]], body: Expr[?]) = v match
       case Seq() => body
       case x +: xs => Abs.unsafe(x, abstractVars(xs, body))
@@ -264,18 +249,16 @@ trait ProofsHelpers {
    * λx.(λy.(λz. base))
    */
   def applyVars(v: Seq[Variable[?]], body: Expr[?]): Expr[?] = v match
-        case Seq() => body
-        case x +: xs => applyVars(xs, body#@(x))
+    case Seq() => body
+    case x +: xs => applyVars(xs, body #@ (x))
 
   /**
    * For a list of sequence of variables x, y, z, creates the term with lambdas:
    * ((((λx.(λy.(λz. base))) x) y) z)
    */
-  def betaExpand(base: Expr[?], vars: Seq[Variable[?]]): Expr[?] = 
+  def betaExpand(base: Expr[?], vars: Seq[Variable[?]]): Expr[?] =
     applyVars(vars, abstractVars(vars.reverse, base))
 
-
-  
   /**
    * Allows to make definitions "by existance" of a symbol. May need debugging
    */
@@ -286,20 +269,20 @@ trait ProofsHelpers {
   ) extends DirectDefinition(fullName, line, file)(expr, vars) {
 
     val body: Expr[Ind] = dropAllLambdas(expr).asInstanceOf
-    override val appliedCst : Expr[Ind] = (cst#@@(vars)).asInstanceOf
+    override val appliedCst: Expr[Ind] = (cst #@@ (vars)).asInstanceOf
     val (epsilonVar, inner) = body match
       case epsilon(x, inner) => (x, inner)
       case _ => om.lisaThrow(UserInvalidDefinitionException(name, "The given expression is not an epsilon term."))
-    
+
     private val propCst = inner.substitute(epsilonVar := appliedCst)
     private val propEpsilon = inner.substitute(epsilonVar := body)
     val definingProp = Theorem(propCst) {
       val fresh = freshId(vars, "x")
       have(this)
 
-      def loop(expr: Expr[?], leading: List[Variable[?]]) : Unit = 
+      def loop(expr: Expr[?], leading: List[Variable[?]]): Unit =
         expr match {
-          case App(lam @ Abs(vAbs, body1: Expr[Ind]), _) => 
+          case App(lam @ Abs(vAbs, body1: Expr[Ind]), _) =>
             val freshX = Variable.unsafe(fresh, body1.sort)
             val right: Expr[Ind] = applyVars(leading.reverse, freshX).asInstanceOf[Expr[Ind]]
             var instRight: Expr[Ind] = applyVars(leading.reverse, body1).asInstanceOf[Expr[Ind]]
@@ -307,8 +290,7 @@ trait ProofsHelpers {
           case App(f, a: Variable[?]) => loop(expr, a :: leading)
           case _ => throw new Exception("Unreachable")
         }
-      while lastStep.bot.right.head match {case App(epsilon, _) => false; case _ => true} do 
-        loop(lastStep.bot.right.head, List())
+      while lastStep.bot.right.head match { case App(epsilon, _) => false; case _ => true } do loop(lastStep.bot.right.head, List())
       val eqStep = lastStep // appliedCst === body
       // j is exists(x, prop(x))
       val existsStep = ??? // have(propEpsilon) by // prop(body)
@@ -323,8 +305,6 @@ trait ProofsHelpers {
     om.output(OutputManager.MAGENTA(repr))
   }
 
-
-
   /////////////////////////
   //  Local Definitions  //
   /////////////////////////
@@ -338,7 +318,7 @@ trait ProofsHelpers {
    * @param proof
    * @param id
    */
-  abstract class LocalyDefinedVariable[S:Sort](val proof: library.Proof, id: Identifier) extends Variable(id) {
+  abstract class LocalyDefinedVariable[S: Sort](val proof: library.Proof, id: Identifier) extends Variable(id) {
 
     val definition: proof.Fact
     lazy val definingFormula = proof.sequentOfFact(definition).right.head

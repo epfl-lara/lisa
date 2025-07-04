@@ -2,18 +2,18 @@ package lisa.maths.SetTheory.Types.ADT
 
 /*
  /**
-  * Tactic that proves every goal of the form:
-  *
-  * ` ... |- ..., ∀x1, ..., xn. P(x), ...`
-  *
-  * ` ..., ∀x1, ..., xn . P(x), ... |- ...`
-  *
-  * ` ... |- ..., ∃x1, ..., xn. P(x), ...`
-  *
-  * ` ..., ∃x1, ..., xn . P(x), ... |- ...`
-  *
-  * given a proof of the sequents without quantification.
-  */
+ * Tactic that proves every goal of the form:
+ *
+ * ` ... |- ..., ∀x1, ..., xn. P(x), ...`
+ *
+ * ` ..., ∀x1, ..., xn . P(x), ... |- ...`
+ *
+ * ` ... |- ..., ∃x1, ..., xn. P(x), ...`
+ *
+ * ` ..., ∃x1, ..., xn . P(x), ... |- ...`
+ *
+ * given a proof of the sequents without quantification.
+ */
 object QuantifiersIntro extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 
   import lisa.utils.prooflib.SimpleDeducedSteps.Restate
@@ -21,14 +21,14 @@ object QuantifiersIntro extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
   import lisa.utils.fol.FOL.*
 
   /**
-    * Executes the tactic on a specific goal.
-    *
-    * @param lib the library that is currently being used
-    * @param proof the ongoing proof in which the tactic is called
-    * @param vars the variables that needs to be quantified
-    * @param fact the proof of the sequent without quantification
-    * @param bot the statement to prove
-    */
+ * Executes the tactic on a specific goal.
+ *
+ * @param lib the library that is currently being used
+ * @param proof the ongoing proof in which the tactic is called
+ * @param vars the variables that needs to be quantified
+ * @param fact the proof of the sequent without quantification
+ * @param bot the statement to prove
+ */
   def apply(using lib: lisa.utils.prooflib.Library, proof: lib.Proof)(vars: Seq[Variable])(fact: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
     TacticSubproof { sp ?=>
       if vars.isEmpty then
@@ -88,12 +88,12 @@ private [adt] object Helpers {
   import lisa.utils.fol.FOL.{*, given}
 
   /**
-    * Benchmarks a block of code.
-    *
-    * @param name the name of the benchmark
-    * @param f the block of code to benchmark
-    * @return the result of the block of code and prints how long it took to execute
-    */
+ * Benchmarks a block of code.
+ *
+ * @param name the name of the benchmark
+ * @param f the block of code to benchmark
+ * @return the result of the block of code and prints how long it took to execute
+ */
   def benchmark[T](name: String)(f: => T): T = {
     val before = System.nanoTime
 
@@ -107,8 +107,8 @@ private [adt] object Helpers {
   }
 
   /**
-    * Exception thrown when code that should not be accessed is reached.
-    */
+ * Exception thrown when code that should not be accessed is reached.
+ */
   object UnreachableException extends Exception("This code should not be accessed. If you see this message, please report it to the library maintainers.")
 
   // *********************
@@ -149,55 +149,55 @@ private [adt] object Helpers {
   val schemPred = variable[Ind >>: Prop]
 
   /**
-   * Formula representing whether two sequences of terms are pairwise equal.
-   *
-   * @param s2 the sequence to compare with
-   */
+ * Formula representing whether two sequences of terms are pairwise equal.
+ *
+ * @param s2 the sequence to compare with
+ */
   extension (s1: Seq[Expr[Ind]]) def ===(s2: Seq[Expr[Ind]]): Expr[Prop] = /\(s1.zip(s2).map(_ === _))
 
   /**
-   * Disjunction of a sequence of formulas.
-   *
-   * @param s the formulas to which the disjunction is applied
-   */
+ * Disjunction of a sequence of formulas.
+ *
+ * @param s the formulas to which the disjunction is applied
+ */
   def \/(s: Iterable[Expr[Prop]]): Expr[Prop] =
     if s.isEmpty then False
     else s.fold(False)(_ \/ _)
 
   /**
-   * Conjunction of a sequence of formulas.
-   *
-   * @param s the formulas to which the conjunction is applied
-   */
+ * Conjunction of a sequence of formulas.
+ *
+ * @param s the formulas to which the conjunction is applied
+ */
   def /\(s: Iterable[Expr[Prop]]): Expr[Prop] =
     if s.isEmpty then True
     else s.fold(True)(_ /\ _)
 
   /**
-   * Repeats existential quantification over a sequence of variables.
-   *
-   * @param vars the variables to quantify over
-   * @param f the formula to which the quantifiers are applied
-   * @return the quantified formula
-   */
+ * Repeats existential quantification over a sequence of variables.
+ *
+ * @param vars the variables to quantify over
+ * @param f the formula to which the quantifiers are applied
+ * @return the quantified formula
+ */
   def existsSeq(vars: Seq[Variable[Ind]], f: Expr[Prop]): Expr[Prop] =
     vars.foldRight(f)(∃(_, _))
 
   /**
-   * Repeats universal quantification over a sequence of variables.
-   *
-   * @param vars the variables to quantify over
-   * @param f the formula to which the quantifiers are applied
-   * @return the quantified formula
-   */
+ * Repeats universal quantification over a sequence of variables.
+ *
+ * @param vars the variables to quantify over
+ * @param f the formula to which the quantifiers are applied
+ * @return the quantified formula
+ */
   def forallSeq(vars: Seq[Variable[Ind]], f: Expr[Prop]): Expr[Prop] =
     vars.foldRight(f)(∀(_, _))
 
   /**
-   * Simplifies a formula by removing True and False constants.
-   *
-   * @param f the formula to simplify
-   */
+ * Simplifies a formula by removing True and False constants.
+ *
+ * @param f the formula to simplify
+ */
   def simplify(f: Expr[Prop]): Expr[Prop] =
     f match
       case ⊥ \/ φ => simplify(φ)
@@ -212,8 +212,8 @@ private [adt] object Helpers {
 }
 
 /**
-  * Definitions and helper functions for ADT.
-  */
+ * Definitions and helper functions for ADT.
+ */
 private[adt] object ADTDefinitions {
 
   import lisa.maths.SetTheory.Base.Predef.*
@@ -226,15 +226,15 @@ private[adt] object ADTDefinitions {
   import Restriction.*
 
   /**
-   * The specification of a constructor can either contain terms or a self reference, i.e. a reference to the ADT itself.
-   */
+ * The specification of a constructor can either contain terms or a self reference, i.e. a reference to the ADT itself.
+ */
   trait ConstructorArgument {
     /**
-     * Returns the term associated to a constructor argument, or in case it is a self reference, returns the term associated to the ADT.
-     *
-     * @param arg the constructor argument
-     * @param adt the term representing the ADT
-     */
+ * Returns the term associated to a constructor argument, or in case it is a self reference, returns the term associated to the ADT.
+ *
+ * @param arg the constructor argument
+ * @param adt the term representing the ADT
+ */
     def getOrElse(adt: Expr[Ind]): Expr[Ind] =
       this match {
         case Self => adt
@@ -242,8 +242,8 @@ private[adt] object ADTDefinitions {
       }
 
     /**
-      * Substitutes the type variables of a constructor argument.
-      */
+ * Substitutes the type variables of a constructor argument.
+ */
     def substitute(p: SubstPair*): ConstructorArgument =
       this match
         case Self => Self
@@ -251,96 +251,96 @@ private[adt] object ADTDefinitions {
   }
 
   /**
-   * A symbol for self reference
-   */
+ * A symbol for self reference
+ */
   case object Self extends ConstructorArgument
 
   /**
-    * Syntactic represenation of a term
-    *
-    * @param t the underlying term
-    */
+ * Syntactic represenation of a term
+ *
+ * @param t the underlying term
+ */
   case class GroundType(t: Expr[Ind]) extends ConstructorArgument
 
   /**
-   * Shorthand for the union of the range of a function.
-   *
-   * @param f the function
-   */
+ * Shorthand for the union of the range of a function.
+ *
+ * @param f the function
+ */
   def unionRange(f: Expr[Ind]) = ⋃(range(f))
 
   /**
-   * Shorthand for the range of a restricted function.
-   *
-   * @param f the function
-   * @param n the domain to which the function is restricted
-   */
+ * Shorthand for the range of a restricted function.
+ *
+ * @param f the function
+ * @param n the domain to which the function is restricted
+ */
   def restrRange(f: Expr[Ind], n: Expr[Ind]) = range(f↾n)
 
   /**
-   * Applies a sequence of arguments to a function.
-   *
-   * @param f the function
-   * @param args the arguments to apply
-   */
+ * Applies a sequence of arguments to a function.
+ *
+ * @param f the function
+ * @param args the arguments to apply
+ */
   def appSeq(f: Expr[Ind])(args: Seq[Expr[Ind]]): Expr[Ind] = args.foldLeft(f)(_ * _)
 
   /**
-   * Converts an integer to the associated ordinal.
-   *
-   * @param n the integer to convert
-   */
+ * Converts an integer to the associated ordinal.
+ *
+ * @param n the integer to convert
+ */
   def toTerm(n: Int): Expr[Ind] =
     require(n >= 0, "n must be a non-negative integer")
     if n == 0 then ∅
     else Ordinal.S(toTerm(n - 1))
 
   /**
-    * Returns a sequence of formulas asserting that all terms of a sequence are well-typed.
-    *
-    * @param s the terms and their respective types
-    */
+ * Returns a sequence of formulas asserting that all terms of a sequence are well-typed.
+ *
+ * @param s the terms and their respective types
+ */
   def wellTyped(s: Seq[(Expr[Ind], Expr[Ind])]): Seq[Expr[Prop]] = s.map(_ :: _)
 
     /**
-    * Returns a sequence of formulas asserting that all terms of a sequence are well-typed with respect to the
-    * specification of a constructor.
-    *
-    * @param s the terms and their respective type
-    * @param orElse the term to use in case of a self reference
-    */
+ * Returns a sequence of formulas asserting that all terms of a sequence are well-typed with respect to the
+ * specification of a constructor.
+ *
+ * @param s the terms and their respective type
+ * @param orElse the term to use in case of a self reference
+ */
   def wellTyped(s: Seq[(Expr[Ind], ConstructorArgument)])(orElse: Expr[Ind]): Seq[Expr[Prop]] = s.map((t, arg) => t :: arg.getOrElse(orElse))
 
   /**
-   * Returns a set of formulas asserting that all terms of a sequence are well-typed.
-   *
-   * @param s the terms and their respective types
-   */
+ * Returns a set of formulas asserting that all terms of a sequence are well-typed.
+ *
+ * @param s the terms and their respective types
+ */
   def wellTypedSet(s: Seq[(Expr[Ind], Expr[Ind])]): Set[Expr[Prop]] = wellTyped(s).toSet
 
   /**
-    * Returns a set of formulas asserting that all terms of a sequence are well-typed with respect to the
-    * specification of a constructor.
-    *
-    * @param s the terms and their respective type
-    * @param orElse the term to use in case of a self reference
-    */
+ * Returns a set of formulas asserting that all terms of a sequence are well-typed with respect to the
+ * specification of a constructor.
+ *
+ * @param s the terms and their respective type
+ * @param orElse the term to use in case of a self reference
+ */
   def wellTypedSet(s: Seq[(Expr[Ind], ConstructorArgument)])(orElse: Expr[Ind]): Set[Expr[Prop]] = wellTyped(s)(orElse).toSet
 
   /**
-   * Returns a formula asserting that all terms of a sequence are well-typed.
-   *
-   * @param s the terms and their respective types
-   */
+ * Returns a formula asserting that all terms of a sequence are well-typed.
+ *
+ * @param s the terms and their respective types
+ */
   def wellTypedFormula(s: Seq[(Expr[Ind], Expr[Ind])]): Expr[Prop] = /\ (wellTyped(s))
 
   /**
-    * Returns a formula asserting that all terms of a sequence are well-typed with respect to the
-    * specification of a constructor.
-    *
-    * @param s the terms and their respective type
-    * @param orElse the term to use in case of a self reference
-    */
+ * Returns a formula asserting that all terms of a sequence are well-typed with respect to the
+ * specification of a constructor.
+ *
+ * @param s the terms and their respective type
+ * @param orElse the term to use in case of a self reference
+ */
   def wellTypedFormula(s: Seq[(Expr[Ind], ConstructorArgument)])(orElse: Expr[Ind]): Expr[Prop] = /\ (wellTyped(s)(orElse))
 
 }
@@ -365,79 +365,79 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   // *********************
 
   /**
-    * Lemma --- Alternative statement of transitivity of equality.
-    */
+ * Lemma --- Alternative statement of transitivity of equality.
+ */
   val altEqualityTransitivity = Lemma((x === y, y === z) |- x === z) {
     have(thesis) by Congruence
   }
 
   /**
-   * Lemma --- Transitivity of equivalence.
-   */
+ * Lemma --- Transitivity of equivalence.
+ */
   val equivalenceRewriting = Lemma((p1 <=> p2, p2 <=> p3) |- p1 <=> p3) {
     have(thesis) by Tautology
   }
 
   /**
-   * Lemma --- Modus ponens for equivalence.
-   */
+ * Lemma --- Modus ponens for equivalence.
+ */
   val equivalenceApply = Lemma((p1 <=> p2, p1) |- p2) {
     have(thesis) by Tautology
   }
 
   /**
-   * Lemma --- Top level existential quantifiers can be swapped.
-   */
+ * Lemma --- Top level existential quantifiers can be swapped.
+ */
   val existentialSwap = Lemma(∃(x, ∃(y, P2(x)(y))) <=> ∃(y, ∃(x, P2(x)(y)))) {
     have(thesis) by Tableau
   }
 
   /**
-   * Lemma --- Modus ponens for reversed equivalence.
-   */
+ * Lemma --- Modus ponens for reversed equivalence.
+ */
   val equivalenceRevApply = Lemma((p2 <=> p1, p1) |- p2) {
     have(thesis) by Tautology
   }
 
   /**
-   * Lemma --- If a statement is equivalent to the conjunction of two other statements, and one of them is true, then it can be removed from the equivalence.
-   */
+ * Lemma --- If a statement is equivalent to the conjunction of two other statements, and one of them is true, then it can be removed from the equivalence.
+ */
   val equivalenceAnd = Lemma((p2, p1 <=> (p2 /\ p3)) |- p1 <=> p3) {
     have(thesis) by Tautology
   }
 
   /**
-   * Lemma --- If two formulas are equivalent then adding a disjunction on their right side preserves the equivalence.
-   */
+ * Lemma --- If two formulas are equivalent then adding a disjunction on their right side preserves the equivalence.
+ */
   val rightAndEquivalence = Lemma(p1 <=> p2 |- (p1 /\ p) <=> (p2 /\ p)) {
     have(thesis) by Tautology
   }
 
   /**
-   * Lemma --- If two formulas are equivalent then adding an implication on their left side preserves the equivalence.
-   */
+ * Lemma --- If two formulas are equivalent then adding an implication on their left side preserves the equivalence.
+ */
   val impliesEquivalence = Lemma((p1 <=> p2, p3 <=> p4) |- (p1 ==> p3) <=> (p2 ==> p4)) {
     have(thesis) by Tautology
   }
 
   /**
-   * Lemma --- If two formulas are equivalent then adding an implication on their left side preserves the equivalence.
-   */
+ * Lemma --- If two formulas are equivalent then adding an implication on their left side preserves the equivalence.
+ */
   val leftImpliesEquivalenceWeak = Lemma(p1 <=> p2 |- (p ==> p1) <=> (p ==> p2)) {
     have(thesis) by Tautology
   }
 
   /**
-   * Lemma --- Implication distributes over equivalence.
-   */
+ * Lemma --- Implication distributes over equivalence.
+ */
   val leftImpliesEquivalenceStrong = Lemma(p ==> (p1 <=> p2) |- (p ==> p1) <=> (p ==> p2)) {
     have(thesis) by Tautology
   }
 
   /**
-   * Lemma --- If there exists a unique element satisfying a predicate, then all
-   * other elements satisfying the predicate are equal to it.
-   */
+ * Lemma --- If there exists a unique element satisfying a predicate, then all
+ * other elements satisfying the predicate are equal to it.
+ */
   val existsOneUniqueness = Lemma((∃!(x, P(x)), P(x), P(y)) |- x === y) {
     sorry
   }
@@ -451,55 +451,55 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   addSymbol(N)
 
   /**
-   * Lemma --- 0 is a natural number.
-   *
-   *    `0 ∈ N`
-   */
+ * Lemma --- 0 is a natural number.
+ *
+ *    `0 ∈ N`
+ */
   val zeroIsNat = Lemma(∅ ∈ N) {
     sorry
   }
 
   /**
-   * Lemma --- The natural numbers are not empty.
-   *
-   *   `N != ∅`
-   */
+ * Lemma --- The natural numbers are not empty.
+ *
+ *   `N != ∅`
+ */
   val natNotEmpty = Lemma(!(N === ∅)) {
     have(thesis) by Cut(zeroIsNat, setWithElementNonEmpty of (y := ∅, x := N))
   }
 
   /**
-   * Lemma --- There exists a natural number.
-   *
-   *  `∃n ∈ N`
-   */
+ * Lemma --- There exists a natural number.
+ *
+ *  `∃n ∈ N`
+ */
   val existsNat = Lemma(exists(n, in(n, N))) {
     have(thesis) by RightExists(zeroIsNat)
   }
 
   /**
-   * Lemma --- Successor is an injective function.
-   *
-   *   `n = m <=> n + 1 = m + 1`
-   */
+ * Lemma --- Successor is an injective function.
+ *
+ *   `n = m <=> n + 1 = m + 1`
+ */
   val successorInjectivity = Lemma((n === m) <=> (successor(n) === successor(m))) {
     sorry
   }
 
   /**
-   * Lemma --- A term is a natural number if and only if its successor is a natural number.
-   *
-   *  `n ∈ N <=> n + 1 ∈ N`
-   */
+ * Lemma --- A term is a natural number if and only if its successor is a natural number.
+ *
+ *  `n ∈ N <=> n + 1 ∈ N`
+ */
   val successorIsNat = Lemma(in(n, N) <=> in(successor(n), N)) {
     sorry
   }
 
   /**
-   * Lemma --- Any number is smaller than its successor
-   *
-   *     `∀n ∈ N. n < n + 1`
-   */
+ * Lemma --- Any number is smaller than its successor
+ *
+ *     `∀n ∈ N. n < n + 1`
+ */
   val inSuccessor = Lemma(in(n, successor(n))) {
     val uniomAxiomForward = have(exists(y, in(y, unorderedPair(n, singleton(n))) /\ in(n, y)) |- in(n, union(unorderedPair(n, singleton(n))))) by Cut(
       unionAxiom of (x := unorderedPair(n, singleton(n)), z := n),
@@ -519,55 +519,55 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   }
 
   /**
-   * Lemma --- 0 is not the successor of any natural number.
-   *
-   *     `∀n ∈ N. n + 1 != 0`
-   */
+ * Lemma --- 0 is not the successor of any natural number.
+ *
+ *     `∀n ∈ N. n + 1 != 0`
+ */
   val zeroIsNotSucc = Lemma(!(successor(n) === ∅)) {
     have(thesis) by Cut(inSuccessor, setWithElementNonEmpty of (y := n, x := successor(n)))
   }
 
   /**
-   * Lemma --- A number is smaller or equal than another number if and only if it is strictly smaller than its successor.
-   *
-   *    `m <= n <=> m < n + 1`
-   */
+ * Lemma --- A number is smaller or equal than another number if and only if it is strictly smaller than its successor.
+ *
+ *    `m <= n <=> m < n + 1`
+ */
   val natSubset = Lemma(in(n, N) |- subset(m, n) <=> in(m, successor(n))) {
     sorry
   }
 
   /**
-   * Lemma --- The intersection of a natural number with the set of natural numbers is the number itself.
-   *
-   *    `n ∩ N = n`
-   */
+ * Lemma --- The intersection of a natural number with the set of natural numbers is the number itself.
+ *
+ *    `n ∩ N = n`
+ */
   val intersectionNat = Lemma(in(n, N) |- setIntersection(n, N) === n) {
     sorry
   }
 
   /**
-   * Lemma --- If a number is smaller or equal than a natural number, then it is also a natural number.
-   *
-   *     `m <= n, n ∈ N |- m ∈ N`
-   */
+ * Lemma --- If a number is smaller or equal than a natural number, then it is also a natural number.
+ *
+ *     `m <= n, n ∈ N |- m ∈ N`
+ */
   val subsetIsNat = Lemma(subset(a, b) |- in(b, N) ==> in(a, N)) {
     sorry
   }
 
   /**
-   * Lemma --- Induction principle for natural numbers
-   *
-   *     `P(0), ∀n ∈ N. P(n) => P(n + 1) |- ∀n ∈ N. P(n)`
-   */
+ * Lemma --- Induction principle for natural numbers
+ *
+ *     `P(0), ∀n ∈ N. P(n) => P(n + 1) |- ∀n ∈ N. P(n)`
+ */
   val natInduction = Lemma((P(∅), forall(m, in(m, N) ==> (P(m) ==> P(successor(m))))) |- forall(n, in(n, N) ==> P(n))) {
     sorry
   }
 
   /**
-   * Lemma --- Every number is smaller or equal than its successor.
-   *
-   *   `n <= n + 1`
-   */
+ * Lemma --- Every number is smaller or equal than its successor.
+ *
+ *   `n <= n + 1`
+ */
   val subsetSuccessor = Lemma(subset(n, successor(n))) {
     have(setUnion(n, singleton(n)) === union(unorderedPair(n, singleton(n))) |- subset(n, union(unorderedPair(n, singleton(n))))) by RightSubstEq.withParametersSimple(
       List((setUnion(n, singleton(n)), union(unorderedPair(n, singleton(n))))),
@@ -586,28 +586,28 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   // *************
 
   /**
-   * Lemma --- Range introduction and elimination rules. If en element is in the image of a function, then it has a preimage inside its domain.
-   *
-   *     `functional(f) |- y ⊆ Im(f) <=> ∃x ∈ Dom(f). f(x) = y`
-   */
+ * Lemma --- Range introduction and elimination rules. If en element is in the image of a function, then it has a preimage inside its domain.
+ *
+ *     `functional(f) |- y ⊆ Im(f) <=> ∃x ∈ Dom(f). f(x) = y`
+ */
   val functionRangeMembership = Lemma(functional(f) |- in(y, relationRange(f)) <=> ∃(x, in(x, relationDomain(f)) /\ (app(f, x) === y))) {
     sorry
   }
 
   /**
-   * Lemma --- The restriction of a function is still a function.
-   *
-   *     `functional(f) |- functional(f|x)`
-   */
+ * Lemma --- The restriction of a function is still a function.
+ *
+ *     `functional(f) |- functional(f|x)`
+ */
   val functionalRestrictedFunction = Lemma(functional(f) |- functional(restrictedFunction(f, x))) {
     sorry
   }
 
   /**
-   * Lemma --- If an element is in the image of a restricted function, then it has a preimage inside its domain.
-   *
-   *     `functional(f) |- y ⊆ Im(f) <=> ∃x ∈ d ∩ Dom(f). f|d(x) = y`
-   */
+ * Lemma --- If an element is in the image of a restricted function, then it has a preimage inside its domain.
+ *
+ *     `functional(f) |- y ⊆ Im(f) <=> ∃x ∈ d ∩ Dom(f). f|d(x) = y`
+ */
   val restrictedFunctionRangeMembership = Lemma(functional(f) |- in(y, relationRange(restrictedFunction(f, d))) <=> ∃(x, in(x, d ∩ relationDomain(f)) /\ (app(restrictedFunction(f, d), x) === y))) {
     have(functional(f) |- in(y, relationRange(restrictedFunction(f, d))) <=> ∃(x, in(x, relationDomain(restrictedFunction(f, d))) /\ (app(restrictedFunction(f, d), x) === y))) by Cut(
       functionalRestrictedFunction of (x := d),
@@ -619,10 +619,10 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   }
 
   /**
-   * Lemma --- Characterization of the union of the range of a function.
-   *
-   *     `∪ Im(h) = {z | ∃n ∈ Dom(h). z ∈ h(n)}`
-   */
+ * Lemma --- Characterization of the union of the range of a function.
+ *
+ *     `∪ Im(h) = {z | ∃n ∈ Dom(h). z ∈ h(n)}`
+ */
   val unionRangeMembership = Lemma(functional(h) |- in(z, unionRange(h)) <=> exists(n, in(n, relationDomain(h)) /\ in(z, app(h, n)))) {
     val iffAfterAnd = have(functional(h) |- (y ∈ relationRange(h) /\ z ∈ y) <=> ∃(m, m ∈ relationDomain(h) /\ (app(h, m) === y)) /\ z ∈ y) by Cut(
       functionRangeMembership of (f := h),
@@ -698,37 +698,37 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   // *************
 
   /**
-   * Lemma --- The union of the empty set is the empty set.
-   *
-   *    `∪ ∅ = ∅`
-   */
+ * Lemma --- The union of the empty set is the empty set.
+ *
+ *    `∪ ∅ = ∅`
+ */
   val unionEmpty = Lemma(union(∅) === ∅) {
     sorry
   }
 
   /**
-   * Lemma --- Restricting the domain of a function to the empty set yields the empty set.
-   *
-   *     `h|∅ = ∅`
-   */
+ * Lemma --- Restricting the domain of a function to the empty set yields the empty set.
+ *
+ *     `h|∅ = ∅`
+ */
   val restrictedFunctionEmptyDomain = Lemma(restrictedFunction(h, ∅) === ∅) {
     sorry
   }
 
   /**
-   * Lemma --- If the domain of a function is non empty, then the function is non empty as well.
-   *
-   *     `Dom(h) != ∅ |- h != ∅`
-   */
+ * Lemma --- If the domain of a function is non empty, then the function is non empty as well.
+ *
+ *     `Dom(h) != ∅ |- h != ∅`
+ */
   val nonEmptyDomain = Lemma(!(relationDomain(h) === ∅) |- !(h === ∅)) {
     sorry
   }
 
   /**
-   * Lemma --- A superset of a non empty set is non empty.
-   *
-   *     `x ⊆ y, x != ∅ |- y != ∅`
-   */
+ * Lemma --- A superset of a non empty set is non empty.
+ *
+ *     `x ⊆ y, x != ∅ |- y != ∅`
+ */
   val subsetNotEmpty = Lemma((subset(x, y), !(x === ∅)) |- !(y === ∅)) {
     val subst = have(y === ∅ |- y === ∅) by Hypothesis
     have((subset(x, ∅), y === ∅) |- (x === ∅)) by Apply(equivalenceApply of (p1 := subset(x, ∅))).on(emptySetIsItsOwnOnlySubset.asInstanceOf)
@@ -736,11 +736,11 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   }
 
   /**
-   * Theorem --- The range of the empty relation is empty.
-   *
-   *     `range(∅) = ∅`
-   *
-   */
+ * Theorem --- The range of the empty relation is empty.
+ *
+ *     `range(∅) = ∅`
+ *
+ */
   val rangeEmpty = Theorem(relationRange(∅) === ∅) {
     import lisa.maths.settheory.SetTheory
 
@@ -760,10 +760,10 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
 
 
   /**
-   * Lemma --- The range of the empty function is empty.
-   *
-   *     `Im(∅) = ∅`
-   */
+ * Lemma --- The range of the empty function is empty.
+ *
+ *     `Im(∅) = ∅`
+ */
   val unionRangeEmpty = Lemma(unionRange(∅) === ∅) {
     have(unionRange(∅) === unionRange(∅)) by RightRefl
     thenHave(unionRange(∅) === union(∅)) by Substitution.ApplyRules(rangeEmpty)
@@ -771,11 +771,11 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   }
 
   /**
-   * Lemma --- If a function and a domain are non empty, then restricting this function to this
-   * domain yields a non empty set.
-   *
-   *    `h != ∅, d != ∅ |- h|d != ∅`
-   */
+ * Lemma --- If a function and a domain are non empty, then restricting this function to this
+ * domain yields a non empty set.
+ *
+ *    `h != ∅, d != ∅ |- h|d != ∅`
+ */
   val restrictedFunctionNotEmpty = Lemma((!(h === ∅), !(d === ∅)) |- !(restrictedFunction(h, d) === ∅)) {
     sorry
   }
@@ -785,35 +785,35 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   // ****************
 
   /**
-   * Lemma --- Union is a monotonic operation with respect to set inclusion.
-   *
-   *     `x ⊆ y |- ∪ x ⊆ ∪ y`
-   */
+ * Lemma --- Union is a monotonic operation with respect to set inclusion.
+ *
+ *     `x ⊆ y |- ∪ x ⊆ ∪ y`
+ */
   val unionMonotonic = Lemma(subset(x, y) |- subset(union(x), union(y))) {
     sorry
   }
 
   /**
-   * Lemma --- Range is a monotonic operation with respect to set inclusion.
-   *
-   *     `f ⊆ g |- Im(f) ⊆ Im(g)`
-   */
+ * Lemma --- Range is a monotonic operation with respect to set inclusion.
+ *
+ *     `f ⊆ g |- Im(f) ⊆ Im(g)`
+ */
   val rangeMonotonic = Lemma(subset(f, g) |- subset(relationRange(f), relationRange(g))) {
     sorry
   }
 
   /**
-   * Lemma --- The union of the range is a monotonic operation with respect to set inclusion.
-   *
-   *     `f ⊆ g |- ∪ Im(f) ⊆ ∪ Im(g)`
-   */
+ * Lemma --- The union of the range is a monotonic operation with respect to set inclusion.
+ *
+ *     `f ⊆ g |- ∪ Im(f) ⊆ ∪ Im(g)`
+ */
   val unionRangeMonotonic = Lemma(subset(f, g) |- subset(unionRange(f), unionRange(g))) {
     have(thesis) by Apply(unionMonotonic).on(rangeMonotonic.asInstanceOf)
   }
 
   /**
-   * Lemma --- If two implications are true then disjuncting on both sides is also a valid implication.
-   */
+ * Lemma --- If two implications are true then disjuncting on both sides is also a valid implication.
+ */
   val disjunctionsImplies = Lemma((p1 ==> p2, q1 ==> q2) |- (p1 \/ q1) ==> (p2 \/ q2)) {
 
     val right = have((p1 ==> p2, q1 ==> q2, p1) |- p2 \/ q2) by Restate
@@ -823,11 +823,11 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   }
 
   /**
-   * Lemma --- If a class function F (whose representation is P) is monotonic then with respect to set inclusion, then S -> F(S) ∪ S is also
-   * a monotonic function.
-   *
-   *      `s ⊆ t, F(s) ⊆ F(t) |- F(s) ∪ s ⊆ F(t) ∪ t`
-   */
+ * Lemma --- If a class function F (whose representation is P) is monotonic then with respect to set inclusion, then S -> F(S) ∪ S is also
+ * a monotonic function.
+ *
+ *      `s ⊆ t, F(s) ⊆ F(t) |- F(s) ∪ s ⊆ F(t) ∪ t`
+ */
   val unionPreimageMonotonic = Lemma((subset(s, t), P(s) ==> P(t)) |- (P(s) \/ in(x, s)) ==> (P(t) \/ in(x, t))) {
     have(subset(s, t) |- forall(z, in(z, s) ==> in(z, t))) by Cut(
       subsetAxiom of (x := s, y := t),
@@ -838,10 +838,10 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   }
 
   /**
-   * Lemma --- Resticting a function to a smaller domain yields a subset of the original function.
-   *
-   *     `x ⊆ y |- f|x ⊆ f|y`
-   */
+ * Lemma --- Resticting a function to a smaller domain yields a subset of the original function.
+ *
+ *     `x ⊆ y |- f|x ⊆ f|y`
+ */
   val restrictedFunctionDomainMonotonic = Lemma(subset(x, y) |- subset(restrictedFunction(f, x), restrictedFunction(f, y))) {
     sorry
   }
@@ -851,10 +851,10 @@ private [adt] object ADTHelperTheorems extends lisa.Main {
   // *******************
 
   /**
-   * Lemma --- Characterization of the union of the range of a cumulative function restricted to the successor of a natural number.
-   *
-   *     `cumulative(h) and Dom(h) = N |- ∪ Im(h|n + 1) = h(n)`
-   */
+ * Lemma --- Characterization of the union of the range of a cumulative function restricted to the successor of a natural number.
+ *
+ *     `cumulative(h) and Dom(h) = N |- ∪ Im(h|n + 1) = h(n)`
+ */
   val unionRangeCumulativeRestrictedFunction =
     Lemma((functional(h), relationDomain(h) === N, in(n, N), ∀(m, subset(m, n) ==> subset(app(h, m), app(h, n)))) |- unionRange(restrictedFunction(h, successor(n))) === app(h, n)) {
 

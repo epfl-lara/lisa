@@ -42,11 +42,23 @@ class RunningTheory {
   private[proof] val theoryAxioms: mMap[String, Axiom] = mMap.empty
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
 
-  private[proof] val definitions: mMap[Constant, Option[Definition]] = 
+  private[proof] val definitions: mMap[Constant, Option[Definition]] =
     mMap(equality -> None, top -> None, bot -> None, and -> None, or -> None, neg -> None, implies -> None, iff -> None, forall -> None, exists -> None, epsilon -> None)
 
-  private[proof] val knownSymbols: mMap[Identifier, Constant] = 
-    mMap(equality.id -> equality, top.id -> top, bot.id -> bot, and.id -> and, or.id -> or, neg.id -> neg, implies.id -> implies, iff.id -> iff, forall.id -> forall, exists.id -> exists, epsilon.id -> epsilon)
+  private[proof] val knownSymbols: mMap[Identifier, Constant] =
+    mMap(
+      equality.id -> equality,
+      top.id -> top,
+      bot.id -> bot,
+      and.id -> and,
+      or.id -> or,
+      neg.id -> neg,
+      implies.id -> implies,
+      iff.id -> iff,
+      forall.id -> forall,
+      exists.id -> exists,
+      epsilon.id -> epsilon
+    )
 
   /**
    * From a given proof, if it is true in the Running theory, add that theorem to the theory and returns it.
@@ -82,15 +94,12 @@ class RunningTheory {
       } else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
     else InvalidJustification("Not all imports of the proof are correctly justified.", None)
 
-
   /**
-    * 
-    *
-    * @param cst
-    * @param expression
-    * @param vars
-    * @return
-    */
+   * @param cst
+   * @param expression
+   * @param vars
+   * @return
+   */
   def makeDefinition(cst: Constant, expression: Expression, vars: Seq[Variable]): RunningTheoryJudgement[this.Definition] = {
     if (cst.sort.depth == vars.length)
       if (flatTypeParameters(cst.sort) zip vars.map(_.sort) forall { case (a, b) => a == b })
@@ -100,7 +109,7 @@ class RunningTheory {
               if (expression.freeVariables.isEmpty) {
                 val newDef = Definition(cst, expression, vars)
                 definitions.update(cst, Some(newDef))
-                knownSymbols.update(cst.id , cst)
+                knownSymbols.update(cst.id, cst)
                 RunningTheoryJudgement.ValidJustification(newDef)
               } else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
             else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
@@ -110,9 +119,6 @@ class RunningTheory {
     else InvalidJustification("The arity of the label must be equal to the number of parameters in the definition.", None)
   }
 
-
-
-  
   def sequentFromJustification(j: Justification): Sequent = j match {
     case Theorem(name, proposition, _) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))

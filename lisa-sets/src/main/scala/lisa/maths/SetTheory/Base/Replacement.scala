@@ -4,9 +4,10 @@ import Class.*
 
 import scala.annotation.targetName
 
-/** The replacement axiom schema states that for any class-function `f : 𝕍 -> 𝕍`
-  * and any set `S`, one can define the set `R = {f(x) | x ∈ S}`.
-  */
+/**
+ * The replacement axiom schema states that for any class-function `f : V -> V`
+ * and any set `S`, one can define the set `R = {f(x) | x ∈ S}`.
+ */
 object Replacement extends lisa.Main {
 
   private val x, y, z = variable[Ind]
@@ -15,10 +16,11 @@ object Replacement extends lisa.Main {
   private val f = variable[ClassFunction]
   private val P = variable[Ind >>: Ind >>: Prop]
 
-  /** Definition --- For any class-function `f : 𝕍 -> 𝕍` and any set `S`, defines the set
-    *
-    *   `R = {f(x) | x ∈ S}`
-    */
+  /**
+   * Definition --- For any class-function `f : V -> V` and any set `S`, defines the set
+   *
+   *   `R = {f(x) | x ∈ S}`
+   */
   private val replacement = DEF(λ(f, λ(S, ε(R, ∀(y, y ∈ R <=> ∃(x, x ∈ S /\ (f(x) === y))))))).printAs(args => {
     val λ(x, t) = (args(0).asInstanceOf[Expr[Ind >>: Ind]]: @unchecked) // always of this form when using the notation
     val S = args(1)
@@ -27,11 +29,12 @@ object Replacement extends lisa.Main {
 
   extension (body: Expr[Ind]) {
 
-    /** Notation `{f(x) | x ∈ S}`.
-      *
-      * Note: the [[scala.annotation.targetName]] annotation is required to avoid clashing
-      * with sets built by comprehension.
-      */
+    /**
+     * Notation `{f(x) | x ∈ S}`.
+     *
+     * Note: the [[scala.annotation.targetName]] annotation is required to avoid clashing
+     * with sets built by comprehension.
+     */
     @targetName("replacement_|")
     def |(e: Expr[Prop]): set = {
       e match {
@@ -41,10 +44,11 @@ object Replacement extends lisa.Main {
     }
   }
 
-  /** Existence --- For any class-function `f : 𝕍 -> 𝕍` and set `S`, the set `{f(x) | x ∈ S}` exists.
-    *
-    * Follows from the [[replacementSchema]].
-    */
+  /**
+   * Existence --- For any class-function `f : V -> V` and set `S`, the set `{f(x) | x ∈ S}` exists.
+   *
+   * Follows from the [[replacementSchema]].
+   */
   val existence = Theorem(
     ∃(R, ∀(y, y ∈ R <=> ∃(x, x ∈ S /\ (f(x) === y))))
   ) {
@@ -56,8 +60,9 @@ object Replacement extends lisa.Main {
     thenHave(thesis) by Tautology.fromLastStep(replacementSchema of (A := S, P := λ(x, λ(y, f(x) === y))))
   }
 
-  /** Membership --- `y ∈ {f(x) | x ∈ S}` if and only if there exists `x ∈ S` such that `f(x) = y`.
-    */
+  /**
+   * Membership --- `y ∈ {f(x) | x ∈ S}` if and only if there exists `x ∈ S` such that `f(x) = y`.
+   */
   val membership = Theorem(
     y ∈ { f(x) | x ∈ S } <=> ∃(x, x ∈ S /\ (f(x) === y))
   ) {
@@ -73,16 +78,15 @@ object Replacement extends lisa.Main {
   }
 
   /**
-    * Tactic that proves `y ∈ { f(x) | x ∈ S } <=> ∃(x, x ∈ S /\ (f(x) === y))` by finding suitable `S` and `f`
-    * from the conclusion.
-    *
-    * Essentially a thin wrapper around applying [[membership]] but without specifying the arguments.
-    *
-    * TODO: In the future, this tactic could be removed by Congruence with unification
-    */
+   * Tactic that proves `y ∈ { f(x) | x ∈ S } <=> ∃(x, x ∈ S /\ (f(x) === y))` by finding suitable `S` and `f`
+   * from the conclusion.
+   *
+   * Essentially a thin wrapper around applying [[membership]] but without specifying the arguments.
+   *
+   * TODO: In the future, this tactic could be removed by Congruence with unification
+   */
   def apply(using proof: lisa.SetTheoryLibrary.Proof)(conclusion: Sequent): proof.ProofTacticJudgement = {
-    if conclusion.right.size != 1 then
-      proof.InvalidProofTactic("Don't know which formula to prove by replacement.")
+    if conclusion.right.size != 1 then proof.InvalidProofTactic("Don't know which formula to prove by replacement.")
     else
       conclusion.right.head match {
         case v ∈ App(App(`replacement`, g), s) <=> _ =>
@@ -93,10 +97,11 @@ object Replacement extends lisa.Main {
       }
   }
 
-  /** Theorem --- If `x ∈ S` then `f(x) ∈ {f(x) | x ∈ S}`.
-    *
-    *   `x ∈ s |- f(x) ∈ {f(x) | x ∈ S}`
-    */
+  /**
+   * Theorem --- If `x ∈ S` then `f(x) ∈ {f(x) | x ∈ S}`.
+   *
+   *   `x ∈ s |- f(x) ∈ {f(x) | x ∈ S}`
+   */
   val map = Theorem(
     x ∈ S |- f(x) ∈ { f(x) | x ∈ S }
   ) {

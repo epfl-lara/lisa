@@ -98,7 +98,7 @@ class ProofTests extends AnyFunSuite {
         Set(
           exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(y, lambda(Seq(y, z), g(z, y))(x, z))))),
           forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(y, z)))
-          ) |- exists(x, forall(y, fp(g(y, g(x, z))))),
+        ) |- exists(x, forall(y, fp(g(y, g(x, z))))),
         0,
         Seq((g, lambda(Seq(y, z), g(z, y)))),
         (Seq(g2), exists(x, forall(y, fp(g2(y, g2(x, z))))))
@@ -158,7 +158,11 @@ class ProofTests extends AnyFunSuite {
     {
       val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, f(z)))))) |- exists(x, forall(y, fp(g(y, g(x, f(z)))))), exists(x, forall(y, fp(g(y, g(x, f(z)))))))
       val t1 = LeftSubstEq(
-        Set(exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(y, lambda(Seq(y, z), g(z, y))(x, lambda(Seq(z), g(z, z))(z)))))), forall(y, f(y) === lambda(Seq(z), g(z, z))(y)), forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(y, z)))) |- exists(x, forall(y, fp(g(y, g(x, f(z)))))),
+        Set(
+          exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(y, lambda(Seq(y, z), g(z, y))(x, lambda(Seq(z), g(z, z))(z)))))),
+          forall(y, f(y) === lambda(Seq(z), g(z, z))(y)),
+          forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(y, z)))
+        ) |- exists(x, forall(y, fp(g(y, g(x, f(z)))))),
         0,
         List((g, lambda(Seq(y, z), g(z, y))), (f, lambda(Seq(z), g(z, z)))),
         (Seq(g2, f2), exists(x, forall(y, fp(g2(y, g2(x, f2(z)))))))
@@ -194,7 +198,7 @@ class ProofTests extends AnyFunSuite {
     {
       val t0 = Hypothesis(exists(x, fp(f(x))) |- exists(x, fp(f(x))), exists(x, fp(f(x))))
       val t1 = RightSubstEq(
-        Set(exists(x, fp(f(x))), forall(y, f(y) ===  lambda(x, g(x, x))(y))) |- exists(x, fp(lambda(z, g(z, z))(x))),
+        Set(exists(x, fp(f(x))), forall(y, f(y) === lambda(x, g(x, x))(y))) |- exists(x, fp(lambda(z, g(z, z))(x))),
         0,
         Seq((f, lambda(z, g(z, z)))),
         (Seq(f2), exists(x, fp(f2(x))))
@@ -210,8 +214,8 @@ class ProofTests extends AnyFunSuite {
       val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, z))))) |- exists(x, forall(y, fp(g(y, g(x, z))))), exists(x, forall(y, fp(g(y, g(x, z))))))
       val t1 = RightSubstEq(
         Set(
-          exists(x, forall(y, fp(g(y, g(x, z))))), 
-          forall(y, forall(z, g(y, z) ===lambda(Seq(y, z), g(z, y))(y, z)))
+          exists(x, forall(y, fp(g(y, g(x, z))))),
+          forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(y, z)))
         ) |- exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(y, g(x, z))))),
         0,
         Seq((g, lambda(Seq(y, z), g(z, y)))),
@@ -224,7 +228,7 @@ class ProofTests extends AnyFunSuite {
       val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, z))))) |- exists(x, forall(y, fp(g(y, g(x, z))))), exists(x, forall(y, fp(g(y, g(x, z))))))
       val t1 = RightSubstEq(
         Set(
-          exists(x, forall(y, fp(g(y, g(x, z))))), 
+          exists(x, forall(y, fp(g(y, g(x, z))))),
           forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(y, z)))
         ) |- exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(y, lambda(Seq(y, z), g(z, y))(x, z))))),
         0,
@@ -284,7 +288,10 @@ class ProofTests extends AnyFunSuite {
     {
       val t0 = Hypothesis(exists(x, forall(y, fp(g(y, g(x, f(z)))))) |- exists(x, forall(y, fp(g(y, g(x, f(z)))))), exists(x, forall(y, fp(g(y, g(x, f(z)))))))
       val t1 = RightSubstEq(
-        Set(exists(x, forall(y, fp(g(y, g(x, f(z)))))), forall(y, f(y) === lambda(Seq(z), g(z, z))(y)), forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(y, z)))) |- exists(x, forall(y, fp(lambda(Seq(y, z), g(z, y))(y, lambda(Seq(y, z), g(z, y))(x, lambda(Seq(z), g(z, z))(z)))))),
+        Set(exists(x, forall(y, fp(g(y, g(x, f(z)))))), forall(y, f(y) === lambda(Seq(z), g(z, z))(y)), forall(y, forall(z, g(y, z) === lambda(Seq(y, z), g(z, y))(y, z)))) |- exists(
+          x,
+          forall(y, fp(lambda(Seq(y, z), g(z, y))(y, lambda(Seq(y, z), g(z, y))(x, lambda(Seq(z), g(z, z))(z)))))
+        ),
         0,
         List((g, lambda(Seq(y, z), g(z, y))), (f, lambda(Seq(z), g(z, z)))),
         (Seq(g2, f2), exists(x, forall(y, fp(g2(y, g2(x, f2(z)))))))

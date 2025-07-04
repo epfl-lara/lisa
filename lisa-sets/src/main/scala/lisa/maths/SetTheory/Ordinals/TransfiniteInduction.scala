@@ -7,9 +7,9 @@ import lisa.maths.Quantifiers
 import Ordinal.*
 
 /**
-  * This file is dedicated to proving the transfinite induction theorem, which
-  * states that a theorem can be proved by induction along the ordinals.
-  */
+ * This file is dedicated to proving the transfinite induction theorem, which
+ * states that a theorem can be proved by induction along the ordinals.
+ */
 object TransfiniteInduction extends lisa.Main {
 
   private val x = variable[Ind]
@@ -17,9 +17,9 @@ object TransfiniteInduction extends lisa.Main {
   private val P = variable[Ind >>: Prop]
 
   /**
-    * Transfinite induction --- If `P(β)` for all `β < α` implies `P(α)` for any
-    * `α`, then `P(α)` holds for any ordinal `α`.
-    */
+   * Transfinite induction --- If `P(β)` for all `β < α` implies `P(α)` for any
+   * `α`, then `P(α)` holds for any ordinal `α`.
+   */
   val transfiniteInduction = Theorem(
     ∀(α, ordinal(α) ==> (∀(β, β ∈ α ==> P(β)) ==> P(α))) |- ∀(α, ordinal(α) ==> P(α))
   ) {
@@ -46,12 +46,12 @@ object TransfiniteInduction extends lisa.Main {
   }
 
   /**
-    * Transfinite induction cases --- Breaks down [[transfiniteInduction]] into 3 cases:
-    *
-    *   - Zero case: `P(0)`
-    *   - Successor case: `P(α) ==> P(α + 1)` for all ordinals `α`
-    *   - Limit case: For any `λ` limit, if `P(β)` holds for any `β < λ`, then `P(λ)` holds
-    */
+   * Transfinite induction cases --- Breaks down [[transfiniteInduction]] into 3 cases:
+   *
+   *   - Zero case: `P(0)`
+   *   - Successor case: `P(α) ==> P(α + 1)` for all ordinals `α`
+   *   - Limit case: For any `λ` limit, if `P(β)` holds for any `β < λ`, then `P(λ)` holds
+   */
   val transfiniteInductionCases = Theorem(
     (
       P(∅), // Zero case
@@ -75,7 +75,8 @@ object TransfiniteInduction extends lisa.Main {
       thenHave(β ∈ α ==> P(β)) by InstantiateForall(β)
       thenHave(α === S(β) |- β ∈ S(β) ==> P(β)) by Congruence
       thenHave((ordinal(β), α === S(β)) |- P(S(β))) by Tautology.fromLastStep(
-        Ordinal.lessThanSuccessor of (α := β), succAssumption
+        Ordinal.lessThanSuccessor of (α := β),
+        succAssumption
       )
       thenHave((ordinal(β), α === S(β)) |- P(α)) by Congruence
       thenHave(ordinal(β) /\ (α === S(β)) |- P(α)) by Restate
@@ -88,7 +89,10 @@ object TransfiniteInduction extends lisa.Main {
     val limitCase = thenHave((limitOrdinal(α), ∀(β, β ∈ α ==> P(β))) |- P(α)) by Restate
 
     have(ordinal(α) ==> (∀(β, β ∈ α ==> P(β)) ==> P(α))) by Tautology.from(
-      zeroCase, succCase, limitCase, Ordinal.ordinalClassification
+      zeroCase,
+      succCase,
+      limitCase,
+      Ordinal.ordinalClassification
     )
     thenHave(∀(α, ordinal(α) ==> (∀(β, β ∈ α ==> P(β)) ==> P(α)))) by RightForall
 

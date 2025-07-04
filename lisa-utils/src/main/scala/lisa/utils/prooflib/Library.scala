@@ -4,7 +4,6 @@ import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
-//import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
 
@@ -56,8 +55,7 @@ abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.
   val knownDefs: scala.collection.mutable.Map[F.Constant[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
   val shortDefs: scala.collection.mutable.Map[F.Constant[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
 
-
-  def addSymbol(s: F.Constant[?]): Unit = 
+  def addSymbol(s: F.Constant[?]): Unit =
     theory.addSymbol(s.underlying)
     knownDefs.update(s, None)
 
@@ -83,7 +81,6 @@ abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.
    */
   def makeSimpleDefinition(symbol: String, expression: K.Expression): K.Judgement[theory.Definition] =
     theory.definition(symbol, expression)
-
 
   /**
    * Prints a short representation of the given theorem or definition

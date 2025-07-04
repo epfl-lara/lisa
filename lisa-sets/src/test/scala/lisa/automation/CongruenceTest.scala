@@ -4,9 +4,11 @@ import lisa.automation.Congruence.*
 import lisa.automation.Congruence
 import org.scalatest.funsuite.AnyFunSuite
 
-
 class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
+  // TODO: Port to new kernel
+
+  /*
 
   given lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
 
@@ -36,7 +38,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   val << = SchematicFunctionLabel("<<", 2)
   val / = SchematicFunctionLabel("/", 2)
 
-  
+
   val af = formulaVariable
   val bf = formulaVariable
   val cf = formulaVariable
@@ -423,7 +425,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     assert(egraph.explain(ax_2d2, ax1) == Some(List(egraph.FormulaCongruence((ax_2d2, ax1)))) )
     assert(egraph.explain(ax_2d2, af) == Some(List(egraph.FormulaCongruence((ax_2d2, ax1)), egraph.FormulaExternal((ax1, af))) ))
 
-    
+
 
 
   }
@@ -620,7 +622,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
     val base = List(ffffffffx === x, fffffx === x)
 
-  
+
     val test2 = Theorem(base |- fffx === x) {
       egraph.proveInnerTerm(fffx, x, base |- ())
     }
@@ -752,7 +754,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
     egraph.merge(ffffffffx, xf)
     egraph.merge(fffffx, xf)
-    
+
     val base = List(ffffffffx <=> xf, fffffx <=> xf)
 
     val test2 = Theorem(base |- fffx <=> xf) {
@@ -856,7 +858,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val ax_2d2_ax1 = Theorem(base2 |- (ax_2d2 === ax1)) {
       have(thesis) by Congruence
     }
-    
+
     val ax_2d2_a = Theorem(base2 |- (ax_2d2 === a)) {
       have(thesis) by Congruence
     }
@@ -897,7 +899,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       have(thesis) by Congruence
     }
 
-    
+
     val test11 = Theorem((a === b) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b))))) ) {
       have(thesis) by Congruence
     }
@@ -909,5 +911,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
   }
 
+   */
 
 }

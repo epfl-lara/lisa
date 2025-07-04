@@ -13,7 +13,9 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
   val theory = new RunningTheory()
 
-  /** Terms in set theory represent sets. */
+  /**
+   * Terms in set theory represent sets.
+   */
   type set = Expr[Ind]
 
   // Predicates
@@ -78,7 +80,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the powerset function.
    */
-  final val 𝒫 = constant[Ind >>: Ind]("𝒫")
+  final val power = constant[Ind >>: Ind]("power")
 
   /**
    * The symbol for the set union function.
@@ -93,7 +95,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * Set Theory basic functions.
    */
-  final val functions = Set(unorderedPair, 𝒫, ⋃, universe)
+  final val functions = Set(unorderedPair, power, ⋃, universe)
 
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
@@ -188,14 +190,14 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
   /**
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted
-   * `𝒫(x)` or `power(x)` which contains every subset of x.
+   * `power(x)` or `power(x)` which contains every subset of x.
    *
-   * `() |- z ∈ 𝒫(x) ⇔ z ⊆ x`
+   * `() |- z ∈ power(x) ⇔ z ⊆ x`
    *
-   * This axiom defines [[𝒫]] as the function symbol representing this
+   * This axiom defines [[power]] as the function symbol representing this
    * set.
    */
-  final val powerSetAxiom: AXIOM = Axiom(x ∈ 𝒫(y) <=> x ⊆ y)
+  final val powerSetAxiom: AXIOM = Axiom(x ∈ power(y) <=> x ⊆ y)
 
   /**
    * Infinity Axiom --- There exists an infinite set.
@@ -240,15 +242,20 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
   // TODO: Add documentation for Tarski's axiom.
   final val tarskiAxiom: AXIOM = Axiom(
-    ∀(x, (x ∈ universe(x)) /\
-      ∀(y,
-        (y ∈ universe(x)) ==> ((𝒫(y) ∈ universe(x)) /\ (𝒫(y) ⊆ universe(x))) /\
-          ∀(z, (z ⊆ universe(x)) ==> (sim(y)(universe(x)) /\ (y ∈ universe(x))))
-      )
+    ∀(
+      x,
+      (x ∈ universe(x)) /\
+        ∀(
+          y,
+          (y ∈ universe(x)) ==> ((power(y) ∈ universe(x)) /\ (power(y) ⊆ universe(x))) /\
+            ∀(z, (z ⊆ universe(x)) ==> (sim(y)(universe(x)) /\ (y ∈ universe(x))))
+        )
     )
   )
 
-  /** Zermelo set theory axioms. */
+  /**
+   * Zermelo set theory axioms.
+   */
   val Z = Set(
     emptySetAxiom,
     extensionalityAxiom,
@@ -260,10 +267,14 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
     axiomOfFoundation
   )
 
-  /** Zermelo-Frankel set theory axioms. */
+  /**
+   * Zermelo-Frankel set theory axioms.
+   */
   val ZF = Z + replacementSchema
 
-  /** ZF with the axiom of choice. */
+  /**
+   * ZF with the axiom of choice.
+   */
   // val ZFC = ZF + axiomOfChoice
 
   /**

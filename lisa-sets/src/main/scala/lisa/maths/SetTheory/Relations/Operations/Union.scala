@@ -3,27 +3,30 @@ package lisa.maths.SetTheory.Relations.Operations
 import lisa.maths.SetTheory.Base.Predef.{*, given}
 import lisa.maths.SetTheory.Relations.Definitions.*
 
-/** Given a set `S` of relations, the union `⋃S` is a relation
-  * on the union of the domains of the relations ∈ `S`.
-  */
+/**
+ * Given a set `S` of relations, the union `⋃S` is a relation
+ * on the union of the domains of the relations ∈ `S`.
+ */
 object Union extends lisa.Main {
 
-  private val ℛ = variable[Ind]
+  private val R = variable[Ind]
   private val S = variable[Ind]
 
-  /** Theorem --- If all `ℛ ∈ S` are relations, then `⋃S` is relation.
-    */
+  /**
+   * Theorem --- If all `R ∈ S` are relations, then `⋃S` is relation.
+   */
   val unionRelation = Theorem(
-    ∀(ℛ, ℛ ∈ S ==> relation(ℛ)) |- relation(⋃(S))
+    ∀(R, R ∈ S ==> relation(R)) |- relation(⋃(S))
   ) {
     sorry
   }
 
-  /** Theorem --- The domain of `⋃S` is the union of the domains of the
-    * relation in `S`.
-    */
+  /**
+   * Theorem --- The domain of `⋃S` is the union of the domains of the
+   * relation in `S`.
+   */
   val unionRelationDomain = Theorem(
-    relation(⋃(S)) |- dom(⋃(S)) === ⋃({ dom(ℛ) | ℛ ∈ S })
+    relation(⋃(S)) |- dom(⋃(S)) === ⋃({ dom(R) | R ∈ S })
   ) {
     sorry
   }
@@ -32,13 +35,13 @@ object Union extends lisa.Main {
   /**
    * Theorem --- The union of a set of relations is a relation itself.
    *
-   *    `∀ ℛ ∈ x. relation(ℛ, X) |- relation(⋃x, X)
+   *    `∀ R ∈ x. relation(R, X) |- relation(⋃x, X)
    *
    */
   val unionOfRelations = Theorem(
-    ∀(ℛ, ℛ ∈ x ==> relation(ℛ)(X)) |- relation(⋃(x))(X)
+    ∀(R, R ∈ x ==> relation(R)(X)) |- relation(⋃(x))(X)
   ) {
-    assume(∀(ℛ, ℛ ∈ x ==> relation(ℛ)(X)))
+    assume(∀(R, R ∈ x ==> relation(R)(X)))
     val isRelation = thenHave(y ∈ x ==> relation(y)(X)) by InstantiateForall(y)
 
     have(z ∈ ⋃(x) |- ∃(y, (y ∈ x) /\ (z ∈ y))) by Tautology.from(unionAxiom)

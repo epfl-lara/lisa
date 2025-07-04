@@ -1,10 +1,10 @@
 package lisa.utils.prooflib
 
 import lisa.kernel.proof.SCProofCheckerJudgement
+import lisa.utils.*
 import lisa.utils.prooflib.BasicStepTactic.SUBPROOF
 import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.*
-import lisa.utils.*
 
 object ProofPrinter {
 

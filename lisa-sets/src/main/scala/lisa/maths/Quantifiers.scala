@@ -6,12 +6,13 @@ import lisa.utils.Printing
 import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
 import lisa.automation.Substitution
 
-/** This file proves first-order logic theorems related to quantifiers. It includes:
-  * - Quantifier elimination ([[Quantifiers.closedFormulaUniversal]],
-  *   [[Quantifiers.closedFormulaExistential]])
-  * - Definition of the uniqueness quantifier ([[Quantifiers.∃!]])
-  * - Distribution of connectives over binders
-  */
+/**
+ * This file proves first-order logic theorems related to quantifiers. It includes:
+ * - Quantifier elimination ([[Quantifiers.closedFormulaUniversal]],
+ *   [[Quantifiers.closedFormulaExistential]])
+ * - Definition of the uniqueness quantifier ([[Quantifiers.∃!]])
+ * - Distribution of connectives over binders
+ */
 object Quantifiers extends lisa.Main {
 
   private val x, y, z = variable[Ind]
@@ -19,42 +20,42 @@ object Quantifiers extends lisa.Main {
   private val p = variable[Prop]
   private val P, Q = variable[Ind >>: Prop]
 
-
   ///////////////////////////////////////////////////////////////////////////
   section("Quantifier elimination")
 
-
-  /** Theorem --- A formula is equivalent to itself universally quantified if
-    * the bound variable is not free in it.
-    */
+  /**
+   * Theorem --- A formula is equivalent to itself universally quantified if
+   * the bound variable is not free in it.
+   */
   val closedFormulaUniversal = Theorem(
     ∀(x, p) <=> p
   ) {
     have(thesis) by Tableau
   }
 
-  /** Theorem --- A formula is equivalent to itself existentially quantified if
-    * the bound variable is not free in it.
-    */
+  /**
+   * Theorem --- A formula is equivalent to itself existentially quantified if
+   * the bound variable is not free in it.
+   */
   val closedFormulaExistential = Theorem(
     ∃(x, p) <=> p
   ) {
     have(thesis) by Tableau
   }
 
-
   ///////////////////////////////////////////////////////////////////////////
   section("Uniqueness quantifier (∃!)")
 
-
-  /** Definition --- The uniqueness quantifier `∃!x P(x)` asserts that there
-    * exists a single element `x` that satisfies `P(x)`.
-    */
+  /**
+   * Definition --- The uniqueness quantifier `∃!x P(x)` asserts that there
+   * exists a single element `x` that satisfies `P(x)`.
+   */
   val ∃! = DEF(λ(P, ∃(x, P(x) /\ ∀(y, P(y) ==> (y === x))))).asBinder[Ind, Prop, Prop]
 
-  /** Theorem --- If there exists a unique element satisfying a predicate,
-    * then we can say there exists an element satisfying it as well.
-    */
+  /**
+   * Theorem --- If there exists a unique element satisfying a predicate,
+   * then we can say there exists an element satisfying it as well.
+   */
   val existsOneImpliesExists = Theorem(
     ∃!(x, P(x)) |- ∃(x, P(x))
   ) {
@@ -64,9 +65,10 @@ object Quantifiers extends lisa.Main {
     thenHave(thesis) by Substitution.Apply(∃!.definition)
   }
 
-  /** Theorem --- If there exists a unique element satisfying a predicate `P`,
-    * then `εx. P` is that element.
-    */
+  /**
+   * Theorem --- If there exists a unique element satisfying a predicate `P`,
+   * then `εx. P` is that element.
+   */
   val existsOneEpsilon = Theorem(
     ∃!(x, P(x)) |- P(ε(x, P(x)))
   ) {
@@ -76,9 +78,10 @@ object Quantifiers extends lisa.Main {
     thenHave(thesis) by Substitution.Apply(∃!.definition)
   }
 
-  /** Theorem --- If there exists a unique element satisfying `P`, then whenever
-    * both `P(x)` and `P(y)` hold we have `x === y`.
-    */
+  /**
+   * Theorem --- If there exists a unique element satisfying `P`, then whenever
+   * both `P(x)` and `P(y)` hold we have `x === y`.
+   */
   val existsOneUniqueness = Theorem(
     ∃!(x, P(x)) |- ∀(x, ∀(y, P(x) /\ P(y) ==> (x === y)))
   ) {
@@ -96,13 +99,14 @@ object Quantifiers extends lisa.Main {
     thenHave(thesis) by Substitution.Apply(∃!.definition)
   }
 
-  /** Theorem --- There exists a unique `x` such that `P(x)` if and only if:
-    * - There exists some `x` such that `P(x)`
-    * - Any two `x` and `y` such that `P(x)` and `P(y)` are equal.
-    *
-    * Alternative definition of [[∃!]] that breaks down the uniqueness quantifier
-    * into existence and uniqueness.
-    */
+  /**
+   * Theorem --- There exists a unique `x` such that `P(x)` if and only if:
+   * - There exists some `x` such that `P(x)`
+   * - Any two `x` and `y` such that `P(x)` and `P(y)` are equal.
+   *
+   * Alternative definition of [[∃!]] that breaks down the uniqueness quantifier
+   * into existence and uniqueness.
+   */
   val existsOneAlternativeDefinition = Theorem(
     ∃!(x, P(x)) <=> ∃(x, P(x)) /\ ∀(x, ∀(y, P(x) /\ P(y) ==> (x === y)))
   ) {
@@ -123,40 +127,42 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`)
   }
 
-
   ///////////////////////////////////////////////////////////////////////////
   section("Commutation")
 
-
-  /** Theorem --- Conjunction and universal quantification commute.
-    */
+  /**
+   * Theorem --- Conjunction and universal quantification commute.
+   */
   val universalConjunctionCommutation = Theorem(
     ∀(x, P(x) /\ Q(x)) <=> ∀(x, P(x)) /\ ∀(x, Q(x))
   ) {
     have(thesis) by Tableau
   }
 
-  /** Theorem -- Existential quantification distributes conjunction.
-    */
+  /**
+   * Theorem -- Existential quantification distributes conjunction.
+   */
   val existentialConjunctionDistribution = Theorem(
     ∃(x, P(x) /\ Q(x)) |- ∃(x, P(x)) /\ ∃(x, Q(x))
   ) {
     have(thesis) by Tableau
   }
 
-  /** Theorem -- Existential quantification fully distributes when the
-    * conjunction involves one closed formula.
-    */
+  /**
+   * Theorem -- Existential quantification fully distributes when the
+   * conjunction involves one closed formula.
+   */
   val existentialConjunctionWithClosedFormula = Theorem(
     ∃(x, P(x) /\ p) <=> (∃(x, P(x)) /\ p)
   ) {
     have(thesis) by Tableau
   }
 
-  /** Theorem -- If there is an equality on the existential quantifier's bound
-    * variable inside its body, then we can reduce the existential quantifier to
-    * the satisfaction of the remaining body.
-    */
+  /**
+   * Theorem -- If there is an equality on the existential quantifier's bound
+   * variable inside its body, then we can reduce the existential quantifier to
+   * the satisfaction of the remaining body.
+   */
   val onePointRule = Theorem(
     ∃(x, P(x) /\ (y === x)) <=> P(y)
   ) {
@@ -178,8 +184,9 @@ object Quantifiers extends lisa.Main {
     have(thesis) by RightIff(forward, backward)
   }
 
-  /** Theorem --- Disjunction and existential quantification commute.
-    */
+  /**
+   * Theorem --- Disjunction and existential quantification commute.
+   */
   val existentialDisjunctionCommutation = Theorem(
     ∃(x, P(x) \/ Q(x)) <=> ∃(x, P(x)) \/ ∃(x, Q(x))
   ) {
@@ -188,26 +195,29 @@ object Quantifiers extends lisa.Main {
 
   section("Distribution")
 
-  /** Theorem --- Universal quantification distributes over equivalence
-    */
+  /**
+   * Theorem --- Universal quantification distributes over equivalence
+   */
   val universalEquivalenceDistribution = Theorem(
     ∀(z, P(z) <=> Q(z)) |- (∀(z, P(z)) <=> ∀(z, Q(z)))
   ) {
     have(thesis) by Tableau
   }
 
-  /** Theorem --- Universal quantification of equivalence implies equivalence
-    * of existential quantification.
-    */
+  /**
+   * Theorem --- Universal quantification of equivalence implies equivalence
+   * of existential quantification.
+   */
   val existentialEquivalenceDistribution = Theorem(
     ∀(z, P(z) <=> Q(z)) |- (∃(z, P(z)) <=> ∃(z, Q(z)))
   ) {
     have(thesis) by Tableau
   }
 
-  /** Theorem --- Universal quantification of equivalence implies equivalence of
-    * unique existential quantification.
-    */
+  /**
+   * Theorem --- Universal quantification of equivalence implies equivalence of
+   * unique existential quantification.
+   */
   val uniqueExistentialEquivalenceDistribution = Theorem(
     ∀(z, P(z) <=> Q(z)) |- (∃!(z, P(z)) <=> ∃!(z, Q(z)))
   ) {
@@ -215,25 +225,28 @@ object Quantifiers extends lisa.Main {
     thenHave(thesis) by Substitution.Apply(∃!.definition, ∃!.definition of (P := Q))
   }
 
-  /** Theorem --- Universal quantification distributes over implication
-    */
+  /**
+   * Theorem --- Universal quantification distributes over implication
+   */
   val universalImplicationDistribution = Theorem(
     ∀(z, P(z) ==> Q(z)) |- (∀(z, P(z)) ==> ∀(z, Q(z)))
   ) {
     have(thesis) by Tableau
   }
 
-  /** Theorem --- Universal quantification of implication implies implication
-    * of existential quantification.
-    */
+  /**
+   * Theorem --- Universal quantification of implication implies implication
+   * of existential quantification.
+   */
   val existentialImplicationDistribution = Theorem(
     ∀(z, P(z) ==> Q(z)) |- (∃(z, P(z)) ==> ∃(z, Q(z)))
   ) {
     have(thesis) by Tableau
   }
 
-  /** Existential substitutes for ε
-    */
+  /**
+   * Existential substitutes for ε
+   */
   val existsEpsilon = Theorem(
     ∃(x, P(x)) |- P(ε(x, P(x)))
   ) {
@@ -241,6 +254,5 @@ object Quantifiers extends lisa.Main {
     thenHave(P(x) |- P(ε(x, P(x)))) by RightEpsilon
     thenHave(thesis) by LeftExists
   }
-
 
 }

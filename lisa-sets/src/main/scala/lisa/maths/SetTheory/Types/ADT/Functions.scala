@@ -1,5 +1,6 @@
-/** Defines set theoretic functions over Algebraic Data Types
-  */
+/**
+ * Defines set theoretic functions over Algebraic Data Types
+ */
 
 package lisa.maths.SetTheory.Types.ADT
 

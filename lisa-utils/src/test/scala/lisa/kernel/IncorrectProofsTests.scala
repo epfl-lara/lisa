@@ -37,7 +37,7 @@ class IncorrectProofsTests extends ProofCheckerSuite {
 
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, Seq((x, z)),(Seq(y), x === y)) // wrong variable replaced
+        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, Seq((x, z)), (Seq(y), x === y)) // wrong variable replaced
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),

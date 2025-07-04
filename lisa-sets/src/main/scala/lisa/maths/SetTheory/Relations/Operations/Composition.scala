@@ -1,11 +1,9 @@
 package lisa.maths.SetTheory.Relations.Operations
 
-/** The composition of two relations `ℛ` and `𝒬` is the relation `ℛ; 𝒬` such
-  * that `(x, y) ∈ ℛ; 𝒬` if there exists a `z` such that `x ℛ z` and `z 𝒬 y`.
-  *
-  * TODO: Define the composition using replacement syntax.
-  */
-object Composition extends lisa.Main {
-
-}
-
+/**
+ * The composition of two relations `R` and `Q` is the relation `R; Q` such
+ * that `(x, y) ∈ R; Q` if there exists a `z` such that `x R z` and `z Q y`.
+ *
+ * TODO: Define the composition using replacement syntax.
+ */
+object Composition extends lisa.Main {}

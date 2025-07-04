@@ -144,10 +144,8 @@ object GoelandExample extends lisa.Main:
   val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))):
     have(thesis) by Goeland
 
-
-  val rule8 = Axiom(forall(x, x === f(f(f(f(f(f(f(f(x))))))))) )
-  val rule5 = Axiom(forall(x, x === f(f(f(f(f(x)))))) )
+  val rule8 = Axiom(forall(x, x === f(f(f(f(f(f(f(f(x))))))))))
+  val rule5 = Axiom(forall(x, x === f(f(f(f(f(x)))))))
 
   val saturation = Theorem(∅ === f(∅)):
     have(thesis) by Egg.from(rule8, rule5)
-  

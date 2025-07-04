@@ -112,9 +112,9 @@ object TypeSystem  {
 
 
   /**
-    * A type assumption is a pair of a variable and a type.
-    * It is also a formula, equal to the type applied to the variable.
-    */
+ * A type assumption is a pair of a variable and a type.
+ * It is also a formula, equal to the type applied to the variable.
+ */
   sealed trait TypeAssignment[A <: Class]{
     this: Expr[Prop] =>
     val t: Expr[Ind]
@@ -128,9 +128,9 @@ object TypeSystem  {
   object TypeAssignment {
 
     /**
-      * A type assumption is a pair of a variable and a type.
-      * It is also a formula, equal to the type applied to the variable.
-      */
+ * A type assumption is a pair of a variable and a type.
+ * It is also a formula, equal to the type applied to the variable.
+ */
     def apply[A <: Class](t: Expr[Ind], typ:A): TypeAssignment[A] =
       val form = typ match
         case f: Expr[Ind] => in(t, f)
@@ -159,7 +159,7 @@ object TypeSystem  {
   given [A <: Class]: FormulaSetConverter[TypeAssignment[A]] with {
       override def apply(f: TypeAssignment[A]): Set[Expr[Prop]] = Set(f.asInstanceOf[Expr[Prop]])
   }
-*/
+ */
 
 
   private class TypeAssignmentConstant[A <: Class](val t: Expr[Ind], val typ:A, formula: ConstantFormula) extends ConstantFormula(formula.id) with TypeAssignment[A]

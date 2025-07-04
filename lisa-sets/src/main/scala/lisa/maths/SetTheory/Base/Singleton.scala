@@ -1,29 +1,32 @@
 package lisa.maths.SetTheory.Base
 
-/** A singleton is a set of the form `{x}` for some set `x`. The sole element of
-  * a singleton `{x}` is `x`.
-  *
-  * Singletons are obtained from unordered pairs as `{x} = {x, x}`.
-  *
-  * @see [[UnorderedPair]]
-  */
+/**
+ * A singleton is a set of the form `{x}` for some set `x`. The sole element of
+ * a singleton `{x}` is `x`.
+ *
+ * Singletons are obtained from unordered pairs as `{x} = {x, x}`.
+ *
+ * @see [[UnorderedPair]]
+ */
 object Singleton extends lisa.Main {
 
   private val x, y, z = variable[Ind]
   private val a, b, c, d = variable[Ind]
 
-  /** Singleton Set --- `{x}`. Shorthand for `{x, x}`.
-    *
-    * @param x Set
-    */
+  /**
+   * Singleton Set --- `{x}`. Shorthand for `{x, x}`.
+   *
+   * @param x Set
+   */
   val singleton = DEF(λ(x, unorderedPair(x, x))).printAs(args => s"{${args(0)}}")
 
-  /** Theorem --- A set belongs to a [[singleton]] if and only if it is the single element.
-    *
-    *    `y ∈ {x} <=> y = x`
-    *
-    * Specializes the [[pairAxiom]] to a singleton.
-    */
+  /**
+   * Theorem --- A set belongs to a [[singleton]] if and only if it is the single element.
+   *
+   *    `y ∈ {x} <=> y = x`
+   *
+   * Specializes the [[pairAxiom]] to a singleton.
+   */
   val membership = Theorem(
     y ∈ singleton(x) <=> (y === x)
   ) {
@@ -31,10 +34,11 @@ object Singleton extends lisa.Main {
     thenHave(thesis) by Substitute(singleton.definition)
   }
 
-  /** Theorem --- A singleton set is never empty.
-    *
-    *    `{x} ≠ ∅`
-    */
+  /**
+   * Theorem --- A singleton set is never empty.
+   *
+   *    `{x} ≠ ∅`
+   */
   val nonEmpty = Theorem(
     singleton(x) ≠ ∅
   ) {
@@ -42,10 +46,11 @@ object Singleton extends lisa.Main {
     have(thesis) by Cut(lastStep, EmptySet.setWithElementNonEmpty of (y := singleton(x)))
   }
 
-  /** Theorem --- Two singletons are equal iff their elements are equal.
-    *
-    *    `{x} = {y} <=> x = y`
-    */
+  /**
+   * Theorem --- Two singletons are equal iff their elements are equal.
+   *
+   *    `{x} = {y} <=> x = y`
+   */
   val extensionality = Theorem(
     (singleton(x) === singleton(y)) <=> (x === y)
   ) {
@@ -63,8 +68,9 @@ object Singleton extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`)
   }
 
-  /** Theorem --- `{x} = {y, z}` if and only if `x = y` and `x = z`.
-    */
+  /**
+   * Theorem --- `{x} = {y, z}` if and only if `x = y` and `x = z`.
+   */
   val equalsUnorderedPair = Theorem(
     (singleton(x) === unorderedPair(y, z)) <=> (x === y) /\ (x === z)
   ) {
@@ -74,13 +80,14 @@ object Singleton extends lisa.Main {
     thenHave(thesis) by Substitute(singleton.definition)
   }
 
-  /** Theorem --- Union of a singleton
-    *
-    * The unary [[union]] operation unfolds a [[singleton]] into the single
-    * element.
-    *
-    *      `∀ x. ⋃{x} === x`
-    */
+  /**
+   * Theorem --- Union of a singleton
+   *
+   * The unary [[union]] operation unfolds a [[singleton]] into the single
+   * element.
+   *
+   *      `∀ x. ⋃{x} === x`
+   */
   val union = Theorem(
     ⋃(singleton(x)) === x
   ) {

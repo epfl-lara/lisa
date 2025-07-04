@@ -1,12 +1,11 @@
 package lisa.utils.prooflib
+import lisa.utils.K
+import lisa.utils.KernelHelpers.{|- => `K|-`, _}
+import lisa.utils.collection.Extensions.*
 import lisa.utils.fol.FOL as F
 import lisa.utils.prooflib.ProofTacticLib.{_, given}
 import lisa.utils.prooflib.*
-import lisa.utils.K
-import lisa.utils.KernelHelpers.{|- => `K|-`, _}
-//import lisa.utils.UserLisaException
 import lisa.utils.unification.UnificationUtils.*
-import lisa.utils.collection.Extensions.*
 
 object BasicStepTactic {
 
@@ -109,7 +108,7 @@ object BasicStepTactic {
       val botK = bot.underlying
       val phiK = phi.underlying
       val psiK = psi.underlying
-      lazy val phiAndPsi = phiK /\ psiK 
+      lazy val phiAndPsi = phiK /\ psiK
 
       if (!K.isSameSet(botK.right, premiseSequent.right))
         proof.InvalidProofTactic("Right-hand side of the conclusion is not the same as the right-hand side of the premise.")
@@ -402,7 +401,7 @@ object BasicStepTactic {
         val in: F.Expr[F.Prop] = instantiatedPivot.head
         val quantifiedPhi: Option[(F.Expr[F.Prop], Substitution)] = pivot.collectFirstDefined(f =>
           f match {
-            case g @ F.forall(x, phi) => 
+            case g @ F.forall(x, phi) =>
               val ctx = RewriteContext.withBound(phi.freeVars - x)
               matchExpr(using ctx)(phi, in).map(f -> _)
             case _ => None
@@ -535,7 +534,7 @@ object BasicStepTactic {
     }
   }
 
-  */
+   */
 
   // Right rules
   /**
@@ -990,7 +989,7 @@ object BasicStepTactic {
     }
   }
 
-  */
+   */
 
   /**
    * <pre>
@@ -1003,7 +1002,7 @@ object BasicStepTactic {
    * fail. In that case, use [[RightEpsilon.withParameters]] instead.
    */
   object RightEpsilon extends ProofTactic with ProofFactSequentTactic {
-    def collectEpsilons(in: F.Expr[?]): Set[F.Expr[F.Ind]] = 
+    def collectEpsilons(in: F.Expr[?]): Set[F.Expr[F.Ind]] =
       in.collect { case e @ F.ε(_, _) => e.asInstanceOf[F.Expr[F.Ind]] }.toSet
 
     def withParameters(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], x: F.Variable[F.Ind], t: F.Expr[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
@@ -1023,26 +1022,25 @@ object BasicStepTactic {
       else
         proof.ValidProofTactic(bot, Seq(K.RightEpsilon(botK, -1, phiK, xK, tK)), Seq(premise))
     }
-    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
       val premiseSequent = proof.getSequent(premise)
       val pivotSet = premiseSequent.right -- bot.right
       val targetSet = bot.right -- premiseSequent.right
 
-      inline def theFailure = 
+      inline def theFailure =
         proof.InvalidProofTactic("Could not infer an epsilon pivot from premise and conclusion.")
 
-      if pivotSet.size == 0 || targetSet.size == 0 then
-        theFailure
+      if pivotSet.size == 0 || targetSet.size == 0 then theFailure
       else if pivotSet.size == 1 && targetSet.size == 1 then
         val pivot = pivotSet.head
         val target = targetSet.head
-        
+
         // the new binding is one of these
         val epsilons = collectEpsilons(target)
 
-        val newBindingOption = epsilons.collectFirstDefined: 
+        val newBindingOption = epsilons.collectFirstDefined:
           case eps @ F.ε(x, phi) =>
-            val substituted = phi.substitute(x := eps) 
+            val substituted = phi.substitute(x := eps)
             if F.isSame(substituted, target) then Some(eps) else None
           case _ => None
 
@@ -1056,17 +1054,16 @@ object BasicStepTactic {
                 RightEpsilon.withParameters(phi, x, t)(premise)(bot)
               case _ => theFailure
           case _ => theFailure
-      else
-        theFailure
+      else theFailure
   }
 
   object Beta extends ProofTactic with ProofFactSequentTactic {
-    
+
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
       val red1 = K.sequentToFormula(botK).betaNormalForm
       val red2 = K.sequentToFormula(proof.getSequent(premise).underlying).betaNormalForm
-      if (!K.isSame(red1,red2))
+      if (!K.isSame(red1, red2))
         proof.InvalidProofTactic("The conclusion is not beta-OL-equivalent to the premise.")
       else
         proof.ValidProofTactic(bot, Seq(K.Beta(botK, -1)), Seq(premise))
@@ -1181,7 +1178,7 @@ object BasicStepTactic {
 
   /**
    * <pre>
-   *   Γ, φ(s) |- Δ     Σ |- s=t, Π     
+   *   Γ, φ(s) |- Δ     Σ |- s=t, Π
    * --------------------------------
    *        Γ, Σ φ(t) |- Δ, Π
    * </pre>
@@ -1213,14 +1210,13 @@ object BasicStepTactic {
       else {
         val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
         val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
-        val sEqT_es = equalsK map { 
-          case (s, t) => 
-            val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).max+1
-            val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
-            val inner1 = vars.foldLeft(s)(_(_))
-            val inner2 = vars.foldLeft(t)(_(_))
-            val base = if (inner1.sort == K.Prop) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
-            vars.foldLeft(base : K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
+        val sEqT_es = equalsK map { case (s, t) =>
+          val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).max + 1
+          val vars = (no until no + s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
+          val inner1 = vars.foldLeft(s)(_(_))
+          val inner2 = vars.foldLeft(t)(_(_))
+          val base = if (inner1.sort == K.Prop) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
+          vars.foldLeft(base: K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
         }
 
         if (K.isSameSet(botK.right, premiseSequent.right)) then
@@ -1235,7 +1231,6 @@ object BasicStepTactic {
       }
     }
   }
-
 
   /**
    * <pre>
@@ -1271,14 +1266,13 @@ object BasicStepTactic {
       else {
         val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
         val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
-        val sEqT_es = equalsK map { 
-          case (s, t) => 
-            val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).maxOption.getOrElse(-1)+1
-            val vars = (no until no+s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
-            val inner1 = vars.foldLeft(s)(_(_))
-            val inner2 = vars.foldLeft(t)(_(_))
-            val base = if (inner1.sort == K.Prop) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
-            vars.foldLeft(base : K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
+        val sEqT_es = equalsK map { case (s, t) =>
+          val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).maxOption.getOrElse(-1) + 1
+          val vars = (no until no + s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
+          val inner1 = vars.foldLeft(s)(_(_))
+          val inner2 = vars.foldLeft(t)(_(_))
+          val base = if (inner1.sort == K.Prop) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
+          vars.foldLeft(base: K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
         }
 
         if (K.isSameSet(botK.left, premiseSequent.left ++ sEqT_es))
@@ -1293,7 +1287,7 @@ object BasicStepTactic {
       }
     }
   }
-  
+
   @deprecated("Use LeftSubstEq instead", "0.9")
   val LeftSubstIff = LeftSubstEq
   @deprecated("Use RightSubstEq instead", "0.9")
@@ -1307,18 +1301,16 @@ object BasicStepTactic {
    * </pre>
    */
   object InstSchema extends ProofTactic {
-    def unsafe(using lib: Library, proof: lib.Proof)(map: Map[F.Variable[?], F.Expr[?]])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
+    def unsafe(using lib: Library, proof: lib.Proof)(map: Map[F.Variable[?], F.Expr[?]])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
       val premiseSequent = proof.getSequent(premise).underlying
       val mapK = map.map((v, e) => (v.underlying, e.underlying))
       val botK = K.substituteVariablesInSequent(premiseSequent, mapK)
       val res = proof.getSequent(premise).substituteUnsafe(map)
       proof.ValidProofTactic(res, Seq(K.InstSchema(botK, -1, mapK)), Seq(premise))
 
-    def apply(using lib: Library, proof: lib.Proof)(subst: F.SubstPair*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = 
+    def apply(using lib: Library, proof: lib.Proof)(subst: F.SubstPair*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
       val map = subst.map(p => (p._1, p._2)).toMap
       unsafe(using lib, proof)(map)(premise)(bot)
-
-    
 
   }
   object Subproof extends ProofTactic {
@@ -1371,6 +1363,5 @@ object BasicStepTactic {
       proof.ValidProofTactic(bot, Seq(K.Sorry(bot.underlying)), Seq())
     }
   }
-
 
 }

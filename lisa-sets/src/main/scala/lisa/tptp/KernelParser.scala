@@ -45,7 +45,7 @@ object KernelParser {
       // else throw new Exception("Unknown atomic formula kind: " + kind +" in " + f)
       case FOF.QuantifiedFormula(quantifier, variableList, body) =>
         quantifier match {
-          case FOF.! => 
+          case FOF.! =>
             variableList.foldRight(convertToKernel(body))((s, f) => K.forall(mapVariable(s), f))
           case FOF.? => variableList.foldRight(convertToKernel(body))((s, f) => K.exists(mapVariable(s), f))
           case FOF.Epsilon => ???
@@ -89,7 +89,7 @@ object KernelParser {
    * @param term a tptp term in leo parser
    * @return the same term in LISA
    */
-  def convertTermToKernel(term: CNF.Term)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = 
+  def convertTermToKernel(term: CNF.Term)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression =
     val (mapAtom, mapTerm, mapVariable) = maps
     term match {
       case CNF.AtomicTerm(f, args) => K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
@@ -101,7 +101,7 @@ object KernelParser {
    * @param term a tptp term in leo parser
    * @return the same term in LISA
    */
-  def convertTermToKernel(term: FOF.Term)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression = 
+  def convertTermToKernel(term: FOF.Term)(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression =
     val (mapAtom, mapTerm, mapVariable) = maps
     term match {
       case FOF.AtomicTerm(f, args) =>
@@ -111,7 +111,7 @@ object KernelParser {
       case FOF.DistinctObject(name) => ???
       case FOF.NumberTerm(value) => ???
       case FOF.QuantifiedTerm(quantifier, Seq(x), body) => K.epsilon(mapVariable(x), convertToKernel(body))
-  }
+    }
 
   /**
    * @param formula an annotated tptp statement
@@ -198,17 +198,14 @@ object KernelParser {
   val strictMapAtom: ((String, Int) => K.Expression) = (f, n) =>
     val kind = f.head
     val id = f.tail
-    if f(0).isUpper then
-      K.Variable(sanitize(f), K.predicateType(n))
+    if f(0).isUpper then K.Variable(sanitize(f), K.predicateType(n))
     else K.Constant(sanitize(f), K.predicateType(n))
   val strictMapTerm: ((String, Int) => K.Expression) = (f, n) =>
     val kind = f.head
     val id = f.tail
-    if f(0).isUpper then
-      K.Variable(sanitize(f), K.functionType(n))
+    if f(0).isUpper then K.Variable(sanitize(f), K.functionType(n))
     else K.Constant(sanitize(f), K.functionType(n))
-  val strictMapVariable: (String => K.Variable) = f =>
-    K.Variable(sanitize(f), K.Ind)
+  val strictMapVariable: (String => K.Variable) = f => K.Variable(sanitize(f), K.Ind)
 
   /**
    * Given a folder containing folders containing problem (typical organisation of TPTP library) and a list of spc,

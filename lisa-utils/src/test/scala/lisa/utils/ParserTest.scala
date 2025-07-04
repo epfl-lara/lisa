@@ -7,8 +7,8 @@ import lisa.utils.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
-  * TODO: Port to TPTP-based parsing
-  */
+ * TODO: Port to TPTP-based parsing
+ */
 class ParserTest extends AnyFunSuite with TestUtils {
   /*
   test("constant") {
@@ -288,5 +288,5 @@ class ParserTest extends AnyFunSuite with TestUtils {
     }
   }
 
-  */
+   */
 }

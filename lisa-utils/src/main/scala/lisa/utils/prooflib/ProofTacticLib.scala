@@ -1,15 +1,14 @@
 package lisa.utils.prooflib
 
-import lisa.utils.fol.FOL as F
-import lisa.utils.prooflib.*
 import lisa.utils.K
 import lisa.utils.UserLisaException
+import lisa.utils.fol.FOL as F
 import lisa.utils.prooflib.ProofPrinter
+import lisa.utils.prooflib.*
 
 object ProofTacticLib {
   type Arity = Int & Singleton
 
-  
   /**
    * A ProofTactic is an object that relies on a step of premises and which can be translated into pure Sequent Calculus.
    */

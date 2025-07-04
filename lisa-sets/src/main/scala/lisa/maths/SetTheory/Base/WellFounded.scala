@@ -2,22 +2,24 @@ package lisa.maths.SetTheory.Base
 
 import Singleton.singleton
 
-/** The [[axiomOfFoundation]] states that the membership (∈) relation is well-founded,
-  * meaning that there are no infinite descending chains `... ∈ x ∈ x1 ∈ x2 ∈ ...`.
-  *
-  * In particular, this axiom prohibits self inclusion: it is never the case that `x ∈ x`
-  * (see [[WellFounded.selfNonInclusion]] for a proof).
-  */
+/**
+ * The [[axiomOfFoundation]] states that the membership (∈) relation is well-founded,
+ * meaning that there are no infinite descending chains `... ∈ x ∈ x1 ∈ x2 ∈ ...`.
+ *
+ * In particular, this axiom prohibits self inclusion: it is never the case that `x ∈ x`
+ * (see [[WellFounded.selfNonInclusion]] for a proof).
+ */
 object WellFounded extends lisa.Main {
 
   private val x, y, z, t = variable[Ind]
 
-  /** Theorem --- No set is an element of itself.
-    *
-    *    `x ∉ x`
-    *
-    * This is a direct consequence of the [[axiomOfFoundation]].
-    */
+  /**
+   * Theorem --- No set is an element of itself.
+   *
+   *    `x ∉ x`
+   *
+   * This is a direct consequence of the [[axiomOfFoundation]].
+   */
   val selfNonInclusion = Theorem(
     x ∉ x
   ) {
@@ -35,14 +37,15 @@ object WellFounded extends lisa.Main {
     have(thesis) by Tautology.from(lastStep, Singleton.nonEmpty, axiomOfFoundation of (x := X))
   }
 
-  /** Theorem --- No Universal Set
-    *
-    *    `∀ z. z ∈ x ⊢ ⊥`
-    *
-    * There does not exist a set of all sets. Alternatively, its existence, with
-    * the [[comprehensionSchema]] and [[SetTheory.`Russel's paradox`]],
-    * produce a contradiction.
-    */
+  /**
+   * Theorem --- No Universal Set
+   *
+   *    `∀ z. z ∈ x ⊢ ⊥`
+   *
+   * There does not exist a set of all sets. Alternatively, its existence, with
+   * the [[comprehensionSchema]] and [[SetTheory.`Russel's paradox`]],
+   * produce a contradiction.
+   */
   val noUniversalSet = Theorem(
     ∀(z, z ∈ x) |- ()
   ) {
@@ -50,10 +53,11 @@ object WellFounded extends lisa.Main {
     thenHave(thesis) by LeftForall
   }
 
-  /** Theorem --- Membership is asymmetric.
-    *
-    *    `¬(x ∈ y /\ y ∈ x)`
-    */
+  /**
+   * Theorem --- Membership is asymmetric.
+   *
+   *    `¬(x ∈ y /\ y ∈ x)`
+   */
   val membershipAsymmetric = Theorem(
     ¬((x ∈ y) /\ (y ∈ x))
   ) {
