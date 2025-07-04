@@ -143,8 +143,8 @@ object Substitution:
 
         inline def ruleMsg = s"\nSubstitution rules given:\n$ruleList"
 
-        val leftSubsts = collectRewritingPairs(premise.left, bot.left)
-        val rightSubsts = collectRewritingPairs(premise.right, bot.right)
+        val leftSubsts = collectRewritingPairs(premise.left.map(betaReduce), bot.left.map(betaReduce))
+        val rightSubsts = collectRewritingPairs(premise.right.map(betaReduce), bot.right.map(betaReduce))
 
         if leftSubsts.isEmpty then
           // error, find formulas that failed to rewrite
@@ -185,7 +185,7 @@ object Substitution:
             val leftFormulas = leftRules.map(_.toFormula)
             val preLeft = leftRewrites.map(_.toLeft)
             val postLeft = leftRewrites.map(_.toRight)
-            val leftVars = leftRewrites.headOption.map(_.vars).getOrElse(Seq.empty)
+            val leftVars = leftRewrites.flatMap(_.vars)
             val leftLambda = andAllOrTrue(leftRewrites.map(_.lambda))
             thenHave(andAllOrTrue(preLeft) |- premise.right) by Restate
             thenHave(leftFormulas + andAllOrTrue(preLeft) |- premise.right) by Weakening
@@ -198,10 +198,10 @@ object Substitution:
             val preRight = rightRewrites.map(_.toLeft).toSet
             val postRight = rightRewrites.map(_.toRight).toSet
             val rightVars = rightRewrites.head.vars
-            val rightLambda = orAll(rightRewrites.map(_.lambda))
-            thenHave(rpremise.left |- orAll(preRight)) by Restate
-            thenHave(rightFormulas ++ rpremise.left |- orAll(preRight)) by Weakening
-            thenHave(rightFormulas ++ rpremise.left |- orAll(postRight)) by RightSubstEq.withParameters(rightRules.map(r => r.l -> r.r).toSeq, rightVars -> rightLambda)
+            val rightLambda = orAllOrFalse(rightRewrites.map(_.lambda))
+            thenHave(rpremise.left |- orAllOrFalse(preRight)) by Restate
+            thenHave(rightFormulas ++ rpremise.left |- orAllOrFalse(preRight)) by Weakening
+            thenHave(rightFormulas ++ rpremise.left |- orAllOrFalse(postRight)) by RightSubstEq.withParameters(rightRules.map(r => r.l -> r.r).toSeq, rightVars -> rightLambda)
 
             // rewrite to destruct sequent
             thenHave(postLeft ++ leftFormulas ++ rightFormulas |- postRight) by Restate

@@ -30,11 +30,14 @@ object EmptyRelation extends lisa.Main {
   val emptyRelationDomain = Theorem(
     dom(∅) === ∅
   ) {
-    have(x ∈ { x ∈ ⋃(⋃(∅)) | ∃(y, (x, y) ∈ ∅) } <=> (x ∈ ⋃(⋃(∅))) /\ (∃(y, (x, y) ∈ ∅))) by Tautology.from(
+    have(x ∈ dom(∅) <=> (x ∈ ⋃(⋃(∅))) /\ (∃(y, (x, y) ∈ ∅))) by Congruence.from(
+      dom.definition of (ℛ := ∅),
       Comprehension.membership of (y := ⋃(⋃(∅)), φ := λ(x, ∃(y, (x, y) ∈ ∅)))
     )
-    // thenHave(x ∈ dom(∅) <=> (x ∈ ⋃(⋃(∅))) /\ (∃(y, (x, y) ∈ ∅))) by Substitute(dom.definition of (ℛ := ∅))
-    sorry
+    thenHave(x ∈ dom(∅) <=> (x ∈ ⋃(∅) /\ (∃(y, (x, y) ∈ ∅)))) by Substitute(Union.empty)
+    thenHave(x ∈ dom(∅) <=> (x ∈ ∅ /\ (∃(y, (x, y) ∈ ∅)))) by Substitute(Union.empty)
+    thenHave(x ∈ dom(∅) <=> x ∈ ∅) by Tautology.fromLastStep(EmptySet.definition)
+    thenHave(thesis) by Extensionality
   }
 
   /** Theorem --- The empty relation has an empty range.

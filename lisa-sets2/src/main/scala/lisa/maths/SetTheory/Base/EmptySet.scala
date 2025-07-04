@@ -44,4 +44,14 @@ object EmptySet extends lisa.Main {
     thenHave(thesis) by Extensionality
   }
 
+  /** Theorem --- A non-empty set has an element:
+    *
+    *  `x ≠ ∅ ==> ∃y. y ∈ x`
+    */
+  val nonEmptyHasElement = Theorem(
+    x ≠ ∅ |- ∃(y, y ∈ x)
+  ) {
+    have(thesis) by Restate.from(setWithNoElementsIsEmpty)
+  }
+
 }

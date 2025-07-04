@@ -3,8 +3,7 @@ package lisa.maths.SetTheory.Functions
 import lisa.maths.SetTheory.Base.Predef.{*, given}
 import Definitions.*
 
-/**
-  * This file contains proofs of properties about functions.
+/** This file contains proofs of basic properties about functions.
   */
 object Properties extends lisa.Main {
 
@@ -13,12 +12,13 @@ object Properties extends lisa.Main {
   private val f, g = variable[Ind]
 
   extension (f: set) {
-    /** Syntax for `f(x)`. */
+
+    /** Syntax for `f(x)`.
+      */
     def apply(x: set): set = app(f)(x)
   }
 
-  /**
-    * Lemma --- If `f : A -> B` then `f` is a function.
+  /** Lemma --- If `f : A -> B` then `f` is a function.
     */
   val functionBetweenIsFunction = Lemma(
     f :: A -> B |- function(f)
@@ -29,8 +29,7 @@ object Properties extends lisa.Main {
     thenHave(thesis) by Substitute(function.definition)
   }
 
-  /**
-    * Theorem --- If `f : A -> B` then `dom(f) = A`.
+  /** Theorem --- If `f : A -> B` then `dom(f) = A`.
     */
   val functionDomain = Theorem(
     f :: A -> B |- dom(f) === A
@@ -38,8 +37,7 @@ object Properties extends lisa.Main {
     sorry
   }
 
-  /**
-    * Theorem --- If `f : A -> B` then `range(f) ⊆ B`.
+  /** Theorem --- If `f : A -> B` then `range(f) ⊆ B`.
     */
   val functionRange = Theorem(
     f :: A -> B |- range(f) ⊆ B
@@ -48,7 +46,15 @@ object Properties extends lisa.Main {
   }
 
   /**
-    * Theorem --- If `f` is a function and `x ∈ dom(f)` then `f(x) ∈ range(f)`.
+    * Theorem --- `(x, y) ∈ f` if and only if `f(x) = y`.
+    */
+  val appDefinition = Theorem(
+    function(f) |- (x, y) ∈ f <=> (f(x) === y)
+  ) {
+    sorry
+  }
+
+  /** Theorem --- If `f` is a function and `x ∈ dom(f)` then `f(x) ∈ range(f)`.
     */
   val appInRange = Theorem(
     (function(f), x ∈ dom(f)) |- f(x) ∈ range(f)
@@ -56,8 +62,7 @@ object Properties extends lisa.Main {
     sorry
   }
 
-  /**
-    * Theorem --- If `f : A -> B` and `x ∈ A` then `f(x) ∈ B`.
+  /** Theorem --- If `f : A -> B` and `x ∈ A` then `f(x) ∈ B`.
     *
     * Special case of [[appInRange]].
     */
@@ -69,7 +74,7 @@ object Properties extends lisa.Main {
     have(x ∈ dom(f)) by Congruence.from(functionDomain)
     thenHave(f(x) ∈ range(f)) by Tautology.fromLastStep(
       functionBetweenIsFunction,
-      appInRange,
+      appInRange
     )
     thenHave(thesis) by Tautology.fromLastStep(
       functionRange,
@@ -91,4 +96,3 @@ object Properties extends lisa.Main {
   }
 
 }
-

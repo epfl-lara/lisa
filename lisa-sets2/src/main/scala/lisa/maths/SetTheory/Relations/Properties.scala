@@ -59,6 +59,22 @@ object Properties extends lisa.Main {
     sorry
   }
 
+  /** Theorem --- If `ℛ` is a relation on `X` and `x ∉ X` or `y ∉ X`
+    * then `¬(x ℛ y)`.
+    */
+  val relationOutsideDomain = Theorem(
+    (relationOn(ℛ)(X), (x ∉ X) \/ (y ∉ X)) |- ¬(x ℛ y)
+  ) {
+    assume(relationOn(ℛ)(X))
+    thenHave(ℛ ⊆ (X × X)) by Substitute(relationOn.definition)
+    thenHave((x, y) ∈ ℛ ==> (x ∈ X) /\ (y ∈ X)) by Tautology.fromLastStep(
+      Subset.membership of (x := ℛ, y := (X × X), z := (x, y)),
+      CartesianProduct.pairMembership of (A := X, B := X)
+    )
+    thenHave(thesis) by Tautology
+  }
+
+
   //////////////////////////////////////////////////////////////////////////
   section("Reformulations")
 
@@ -73,6 +89,27 @@ object Properties extends lisa.Main {
     have(∀(x, ∀(y, ∀(z, (x ℛ y) /\ (y ℛ z) ==> (x ℛ z))))) by Tautology.from(transitive.definition)
     thenHave((x ℛ y) /\ (y ℛ z) ==> (x ℛ z)) by InstantiateForall(x, y, z)
     thenHave(thesis) by Restate
+  }
+
+  /** Theorem --- If `ℛ` is a relation on `X`, it suffices to show transitivity on `X`
+    * to get full transitivity.
+    */
+  val restrictedTransitivity = Theorem(
+    (relationOn(ℛ)(X), ∀(x, ∀(y, ∀(z, (x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x ℛ y) /\ (y ℛ z) ==> (x ℛ z))))) |- transitive(ℛ)
+  ) {
+    assume(relationOn(ℛ)(X))
+    assume(∀(x, ∀(y, ∀(z, (x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x ℛ y) /\ (y ℛ z) ==> (x ℛ z)))))
+    val assumption = thenHave((x ∈ X) /\ (y ∈ X) /\ (z ∈ X) /\ (x ℛ y) /\ (y ℛ z) ==> (x ℛ z)) by InstantiateForall(x, y, z)
+
+    // Since `ℛ` is a relation on `X`, it cannot be the case that `x ℛ y` if `x ∉ X` or `y ∉ X`.
+    have((x ∉ X) \/ (y ∉ X) \/ (z ∉ X) |- ¬(x ℛ y) \/ ¬(y ℛ z)) by Tautology.from(
+      relationOutsideDomain of (x := x, y := y),
+      relationOutsideDomain of (x := y, y := z),
+    )
+    thenHave((x ℛ y) /\ (y ℛ z) ==> (x ℛ z)) by Tautology.fromLastStep(assumption)
+    thenHave(∀(x, ∀(y, ∀(z, (x ℛ y) /\ (y ℛ z) ==> (x ℛ z))))) by Generalize
+    thenHave(relation(ℛ) /\ ∀(x, ∀(y, ∀(z, (x ℛ y) /\ (y ℛ z) ==> (x ℛ z))))) by Tautology.fromLastStep(relationOnIsRelation)
+    thenHave(thesis) by Substitute(transitive.definition)
   }
 
   /** Theorem --- If `ℛ` is total on `X`, then for `x, y ∈ X`, either `x ℛ y`,

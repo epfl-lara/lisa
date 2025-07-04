@@ -158,4 +158,17 @@ object Union extends lisa.Main {
     thenHave(∀(a, a ∈ (x ∪ y) ==> (a ∈ z))) by RightForall
     thenHave(thesis) by Substitute(⊆.definition)
   }
+
+  /**
+    * Theorem --- `⋃∅ = ∅`.
+    */
+  val empty = Theorem(
+    ⋃(∅) === ∅
+  ) {
+    have((y ∈ ∅) /\ (z ∈ y) |- ()) by Tautology.from(EmptySet.definition of (x := y))
+    thenHave(∃(y, (y ∈ ∅) /\ (z ∈ y)) |- ()) by LeftExists
+    thenHave(z ∈ ⋃(∅) <=> z ∈ ∅) by Tautology.fromLastStep(unionAxiom of (x := ∅), EmptySet.definition of (x := z))
+    thenHave(thesis) by Extensionality
+  }
+
 }

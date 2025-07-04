@@ -28,15 +28,17 @@ import leo.datastructures.TPTP.AnnotatedFormula.FormulaType
 object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
 
   def from(using lib: Library, proof: lib.Proof)(context: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement =
-    val newAssumptions = context.toSet.map(s => (orAllOrFalse(s.statement.right), s)).filter((f, s) => !bot.left.contains(f))
+    val newAssumptions = context.toSet.map(s => (betaReduce(orAllOrFalse(s.statement.right)), s)).filter((f, s) => !bot.left.contains(f))
     val botWithAssumptions = bot.left ++ newAssumptions.map(_._1) |- bot.right
+    var seq = botWithAssumptions
 
     TacticSubproof {
       import lib.*
 
-      have(botWithAssumptions) by this
+      have(seq) by this
       for ((assumption, f) <- newAssumptions) {
-        have((botWithAssumptions.left - assumption ++ f.statement.left) |- botWithAssumptions.right) by Cut(f, lastStep)
+        seq = (seq.left - assumption) ++ f.statement.left |- seq.right
+        have(seq) by Cut(f, lastStep)
       }
     }
 

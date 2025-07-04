@@ -224,6 +224,19 @@ trait Predef extends ExprOps {
   def orAllOrFalse(forms: IterableOnce[Expr[Prop]]): Expr[Prop] =
     forms.iterator.reduceOption(_ \/ _).getOrElse(bot)
 
+  /** Beta-reduces the given expression. */
+  def betaReduce[T](e: Expr[T]): Expr[T] = e match {
+    case App(f, arg) =>
+      val reducedArg = betaReduce(arg)
+      betaReduce(f) match {
+        case Abs(v, body) => body.substituteUnsafe(Map(v -> reducedArg))
+        case reducedF => App(reducedF, reducedArg)
+      }
+    case Abs(v, body) => Abs(v, betaReduce(body))
+    case _ => e
+  }
+
+
   /** Maps a kernel expression to a corresponding front-end expression. */
   def asFrontExpression(e: K.Expression): Expr[?] = e match
     case c: K.Constant => asFrontConstant(c)
