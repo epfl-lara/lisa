@@ -107,7 +107,7 @@ object Pair extends lisa.Main {
     * There is a more naive definition: `snd p = ⋃(⋃p ∖ (fst p))`
     * If `p = (a, b) = {{a}, {a, b}}`, `⋃ p = {a, b}`, and `⋃p ∖ (fst p)
     * = {a, b} ∖ {a} = {b}`, the `⋃` at the top level reduces to `b`.
-    * However, this fails when `a = b`, and returns the [[emptySet]].
+    * However, this fails when `a = b`, and returns [[∅]].
     *
     * While the function is defined on all sets, the result on non-pairs may be
     * uninteresting or garbage. Generally expected to be simplified via [[pairSnd]].

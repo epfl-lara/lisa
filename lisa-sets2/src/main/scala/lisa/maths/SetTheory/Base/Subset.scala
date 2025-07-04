@@ -50,13 +50,13 @@ object Subset extends lisa.Main {
 
   /** Theorem --- Subset reflexivity
     *
-    * Every set is a [[subset]] of itself. In other words, the [[subset]]
+    * Every set is a subset of itself. In other words, the subset
     * predicate induces a [[reflexive]] [[relation]] on sets.
     */
   val reflexivity = Theorem(
     x ⊆ x
   ) {
-    have(x ⊆ x <=> ∀(z, ⊤)) by Restate.from(subsetAxiom of (y -> x))
+    have(x ⊆ x <=> ∀(z, ⊤)) by Restate.from(subsetAxiom of (y := x))
     thenHave(x ⊆ x <=> ⊤) by Substitute(Quantifiers.closedFormulaUniversal)
     thenHave(thesis) by Restate
   }

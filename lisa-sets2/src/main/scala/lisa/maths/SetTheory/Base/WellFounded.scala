@@ -40,8 +40,8 @@ object WellFounded extends lisa.Main {
     *    `∀ z. z ∈ x ⊢ ⊥`
     *
     * There does not exist a set of all sets. Alternatively, its existence, with
-    * the [[comprehensionSchema]] and Russel's paradox ([[SetTheory.`Russel's paradox`]]),
-    * produces a contradiction.
+    * the [[comprehensionSchema]] and [[SetTheory.`Russel's paradox`]],
+    * produce a contradiction.
     */
   val noUniversalSet = Theorem(
     ∀(z, z ∈ x) |- ()

@@ -8,7 +8,8 @@ import lisa.maths.SetTheory.Relations.Examples.IdentityRelation.Δ
 /** The closure of a relation `ℛ` with regards to a property `P` is the smallest
   * relation `𝒬 ⊇ ℛ` that has property `P`.
   *
-  * For example, the [[Closure.reflexiveClosure]] of `ℛ` can be computed as `ℛ ∪ Δ(ℛ)`.
+  * Some closures have a closed form: for example, the
+  * [[Closure.reflexiveClosure]] of `ℛ` is `ℛ ∪ Δ(ℛ)`.
   */
 object Closure extends lisa.Main {
 
