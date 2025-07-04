@@ -13,35 +13,45 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
   val theory = new RunningTheory()
 
+  /** Terms in set theory represent sets. */
+  type set = Expr[Ind]
+
   // Predicates
 
   /**
    * The symbol for the set membership predicate.
    */
-  object in extends Constant[Ind >>: Ind >>: Prop]("∈") {
+  object ∈ extends Constant[Ind >>: Ind >>: Prop]("∈") {
     this.printInfix()
 
-    def unapply(e: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] =
+    def unapply(e: Expr[Prop]): Option[(set, set)] =
       val ∈ = this
       e match
         case App(App(`∈`, x), y) => Some(x, y)
         case _ => None
   }
-  final val ∈ = in
 
-  extension (x: Expr[Ind]) {
-    infix def ∈(y: Expr[Ind]): Expr[Prop] = in(x)(y)
-    infix def ∉(y: Expr[Ind]): Expr[Prop] = !(x ∈ y)
+  extension (x: set) {
+    inline infix def ∈(y: set): Expr[Prop] = App(App(SetTheoryLibrary.∈, x), y)
+    inline infix def ∉(y: set): Expr[Prop] = !(x ∈ y)
   }
 
   /**
    * The symbol for the subset predicate.
    */
-  final val subset = constant[Ind >>: Ind >>: Prop]("⊆").printInfix()
-  final val ⊆ = subset
+  object ⊆ extends Constant[Ind >>: Ind >>: Prop]("⊆") {
+    this.printInfix()
 
-  extension (x: Expr[Ind])
-    def ⊆(y: Expr[Ind]): Expr[Prop] = subset(x)(y)
+    def unapply(e: Expr[Prop]): Option[(set, set)] =
+      val ⊆ = this
+      e match
+        case App(App(`⊆`, x), y) => Some(x, y)
+        case _ => None
+  }
+
+  extension (x: set) {
+    inline infix def ⊆(y: set): Expr[Prop] = App(App(SetTheoryLibrary.⊆, x), y)
+  }
 
   /**
    * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
@@ -182,10 +192,10 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * `() |- z ∈ 𝒫(x) ⇔ z ⊆ x`
    *
-   * This axiom defines [[powerSet]] as the function symbol representing this
+   * This axiom defines [[𝒫]] as the function symbol representing this
    * set.
    */
-  final val powerAxiom: AXIOM = Axiom(x ∈ 𝒫(y) <=> x ⊆ y)
+  final val powerSetAxiom: AXIOM = Axiom(x ∈ 𝒫(y) <=> x ⊆ y)
 
   /**
    * Infinity Axiom --- There exists an infinite set.
@@ -209,7 +219,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * `() |- x ≠ ∅ ==> ∃ y ∈ x. ∀ z. z ∈ x ⇒ z ∉ y`
    */
-  final val foundationAxiom: AXIOM = Axiom(x ≠ ∅ ==> ∃(y, (y ∈ x) /\ ∀(z, z ∈ x ==> z ∉ y)))
+  final val axiomOfFoundation: AXIOM = Axiom(x ≠ ∅ ==> ∃(y, (y ∈ x) /\ ∀(z, z ∈ x ==> z ∉ y)))
 
   // ZF
   /////////
@@ -225,6 +235,9 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
       ∃(B, ∀(y, y ∈ B <=> ∃(x, (x ∈ A) /\ P(x)(y))))
   )
 
+  // TG
+  /////////
+
   final val tarskiAxiom: AXIOM = Axiom(
     ∀(x, (x ∈ universe(x)) /\
       ∀(y,
@@ -233,6 +246,24 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
       )
     )
   )
+
+  /** Zermelo set theory axioms. */
+  val Z = Set(
+    emptySetAxiom,
+    extensionalityAxiom,
+    comprehensionSchema,
+    pairAxiom,
+    unionAxiom,
+    infinityAxiom,
+    powerSetAxiom,
+    axiomOfFoundation
+  )
+
+  /** Zermelo-Frankel set theory axioms. */
+  val ZF = Z + replacementSchema
+
+  /** ZF with the axiom of choice. */
+  // val ZFC = ZF + axiomOfChoice
 
   /**
    * The set of all axioms of Tarski-Grothedick (TG) set theory.
@@ -245,8 +276,8 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
     ("pairAxiom", pairAxiom),
     ("unionAxiom", unionAxiom),
     ("subsetAxiom", subsetAxiom),
-    ("powerAxiom", powerAxiom),
-    ("foundationAxiom", foundationAxiom),
+    ("powerSetAxiom", powerSetAxiom),
+    ("axiomOfFoundation", axiomOfFoundation),
     ("infinityAxiom", infinityAxiom),
     ("comprehensionSchema", comprehensionSchema),
     ("replacementSchema", replacementSchema),
@@ -257,6 +288,11 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   // Notations //
   ///////////////
 
-  def unorderedPair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = App(App(unorderedPair, x), y)
+  def unorderedPair(x: set, y: set): set = App(App(unorderedPair, x), y)
 
+  private val db = HintDatabase.empty
+  given HintDatabase = db
+
+  export lisa.simplifyHint
+  val Simplify = lisa.automation.Simplify(using db)
 }
