@@ -61,6 +61,8 @@ object SetTheory extends lisa.Main {
   //////////////////////////////////////////////////////////////////////////////
   section("Inductive sets")
 
+  // TODO: This should be moved to its own file.
+
   /** Successor Function --- Maps a set to its 'successor' in the sense required
     * for an inductive set.
     *
@@ -179,91 +181,6 @@ object SetTheory extends lisa.Main {
     }
 
     have(thesis) by RightAnd(xFirst, xSecond)
-  }
-
-
-     /*
-
-  /**
-   * Theorem --- the union of subsets of two sets is a subset of their union.
-   *
-   *    `a ⊆ c ∧ b ⊆ d ⊢ a ∪ b ⊆ c ∪ d`
-   */
-  val unionOfSubsetsOfDifferentSets = Theorem(
-    subset(a, c) /\ subset(b, d) |- subset(setUnion(a, b), setUnion(c, d))
-  ) {
-    val unionDefab = have(in(z, setUnion(a, b)) <=> (in(z, a) \/ in(z, b))) by Restate.from(setUnionMembership of (x -> a, y -> b))
-    val unionDefcd = unionDefab of (a -> c, b -> d)
-
-    have(subset(a, c) |- forall(z, in(z, a) ==> in(z, c))) by Weakening(subsetAxiom of (x -> a, y -> c))
-    val ac = thenHave(subset(a, c) |- in(z, a) ==> in(z, c)) by InstantiateForall(z)
-    val bc = ac of (a -> b, c -> d)
-
-    have(subset(a, c) /\ subset(b, d) |- in(z, setUnion(a, b)) ==> (in(z, c) \/ in(z, d))) by Tautology.from(unionDefab, ac, bc)
-    thenHave(subset(a, c) /\ subset(b, d) |- in(z, setUnion(a, b)) ==> in(z, setUnion(c, d))) by Substitution.ApplyRules(unionDefcd)
-    thenHave(subset(a, c) /\ subset(b, d) |- forall(z, in(z, setUnion(a, b)) ==> in(z, setUnion(c, d)))) by RightForall
-
-    have(thesis) by Tautology.from(lastStep, subsetAxiom of (x -> setUnion(a, b), y -> setUnion(c, d)))
-  }
-
-  /**
-   * Theorem --- a set is an element of a Cartesian product iff it is a pair containing
-   * elements from the constituents of the product.
-   *
-   *    `t ∈ x * y <=> ∃ a, b. t = (a, b) ∧ a ∈ x ∧ b ∈ y`
-   *
-   * Asserts a stronger definition of the [[cartesianProduct]]. See
-   * [[elemOfPowerPowerUnion]] for the redundancy proof.
-   */
-  val elemOfCartesianProduct = Theorem(
-    in(t, cartesianProduct(x, y)) <=> ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y)))
-  ) {
-    have(forall(t, in(t, cartesianProduct(x, y)) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y)))))) by InstantiateForall(
-      cartesianProduct(x, y)
-    )(cartesianProduct.definition)
-    val defUnfold = thenHave(in(t, cartesianProduct(x, y)) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(a, ∃(b, (t === pair(a, b)) /\ in(a, x) /\ in(b, y))))) by InstantiateForall(t)
-
-    have(∃(c, ∃(d, (t === pair(c, d)) /\ in(c, x) /\ in(d, y))) <=> (in(t, powerSet(powerSet(setUnion(x, y)))) /\ ∃(c, ∃(d, (t === pair(c, d)) /\ in(c, x) /\ in(d, y))))) by Tautology.from(
-      elemOfPowerPowerUnion
-    )
-
-    have(thesis) by Tautology.from(lastStep, defUnfold)
-  }
-
-
-  /**
-   * Theorem --- if a pair is in a set `r`, then elements of the pair are in `∪ ∪ r`.
-   *
-   *    `(a, b) ∈ r ⊢ a, b ∈ ∪ ∪ r`
-   *
-   * Used to prove stronger definitions for [[relationDomain]] and [[relationRange]]
-   */
-  val pairInSetImpliesPairInUnion = Theorem(
-    in(pair(a, b), r) |- in(a, union(union(r))) /\ in(b, union(union(r)))
-  ) {
-    // a, b in {a, b} and union union r
-    // {a, b} in union r
-    // pair a b in r
-    val unionUP = have(in(pair(a, b), r) |- in(unorderedPair(a, b), union(r))) subproof {
-      val hypo = have(in(pair(a, b), r) |- in(pair(a, b), r)) by Hypothesis
-      have(in(pair(a, b), r) |- in(unorderedPair(a, b), pair(a, b)) /\ in(pair(a, b), r)) by RightAnd(hypo, firstElemInPair of (x -> unorderedPair(a, b), y -> singleton(a)))
-      thenHave(in(pair(a, b), r) |- ∃(y, in(unorderedPair(a, b), y) /\ in(y, r))) by RightExists
-      andThen(Substitution.applySubst(unionAxiom of (z -> unorderedPair(a, b), x -> r)))
-    }
-    val unionA = have(in(unorderedPair(a, b), union(r)) |- in(a, union(union(r)))) subproof {
-      val hypo = have(in(unorderedPair(a, b), union(r)) |- in(unorderedPair(a, b), union(r))) by Hypothesis
-      have(in(unorderedPair(a, b), union(r)) |- in(a, unorderedPair(a, b)) /\ in(unorderedPair(a, b), union(r))) by RightAnd(hypo, firstElemInPair of (x -> a, y -> b))
-      thenHave(in(unorderedPair(a, b), union(r)) |- ∃(y, in(a, y) /\ in(y, union(r)))) by RightExists
-      andThen(Substitution.applySubst(unionAxiom of (z -> a, x -> union(r))))
-    }
-    val unionB = have(in(unorderedPair(a, b), union(r)) |- in(b, union(union(r)))) subproof {
-      val hypo = have(in(unorderedPair(a, b), union(r)) |- in(unorderedPair(a, b), union(r))) by Hypothesis
-      have(in(unorderedPair(a, b), union(r)) |- in(b, unorderedPair(a, b)) /\ in(unorderedPair(a, b), union(r))) by RightAnd(hypo, secondElemInPair of (x -> a, y -> b))
-      thenHave(in(unorderedPair(a, b), union(r)) |- ∃(y, in(b, y) /\ in(y, union(r)))) by RightExists
-      andThen(Substitution.applySubst(unionAxiom of (z -> b, x -> union(r))))
-    }
-
-    have(thesis) by Tautology.from(unionUP, unionA, unionB)
   }
 
 
@@ -401,22 +318,6 @@ object SetTheory extends lisa.Main {
     thenHave((relation(f), relation(g)) |- relation(setUnion(f, g))) by Substitution.ApplyRules(relf, relg, relfug)
   }
 
-  /**
-   * Theorem --- Pair in Relation
-   *
-   * If a pair `(x, y)` exists in a relation `r` from `a` to `b`,
-   * then `x` and `y` are elements of `a` and `b` respectively.
-   */
-  val pairInRelation = Lemma(
-    relationBetween(r, a, b) /\ in(pair(x, y), r) |- in(x, a) /\ in(y, b)
-  ) {
-    assume(relationBetween(r, a, b))
-    assume(in(pair(x, y), r))
-    have(forall(t, in(t, r) ==> in(t, cartesianProduct(a, b)))) by Tautology.from(relationBetween.definition, subsetAxiom of (x -> r, y -> cartesianProduct(a, b)))
-    thenHave(in(pair(x, y), r) ==> in(pair(x, y), cartesianProduct(a, b))) by InstantiateForall(pair(x, y))
-    have(thesis) by Tautology.from(lastStep, pairInCartesianProduct of (x -> a, y -> b, a -> x, b -> y))
-  }
-
   // TODO: any subset of a functional is functional
   // TODO: a functional over something restricted to x is still functional
 
@@ -511,81 +412,5 @@ object SetTheory extends lisa.Main {
     have(thesis) by Tautology.from(fwd, bwd)
   }
 
-  /**
-   * Theorem --- Domain of Relational Union
-   *
-   * If the unary union of a set is relational, then its domain is defined
-   * precisely by the union of the domains of its elements.
-   *
-   *    relation(\cup z) |- \forall t. t \in dom(U z) <=> \exists y \in z. t \in
-   *    dom(y)
-   *
-   * This holds, particularly, as the elements of z must be relations
-   * themselves, which follows from the assumption.
-   */
-  val domainOfRelationalUnion = Theorem(
-    relation(union(z)) |- forall(t, in(t, relationDomain(union(z))) <=> exists(y, in(y, z) /\ in(t, relationDomain(y))))
-  ) {
-    val uz = union(z)
-
-    have(forall(t, in(t, relationDomain(uz)) <=> exists(a, in(pair(t, a), uz)))) by InstantiateForall(relationDomain(uz))(relationDomain.definition of r -> uz)
-    val inDom = thenHave(in(t, relationDomain(uz)) <=> exists(a, in(pair(t, a), uz))) by InstantiateForall(t)
-
-    assume(relation(uz)) // proof assumption
-
-    have(exists(a, in(pair(t, a), uz)) <=> exists(y, in(y, z) /\ in(t, relationDomain(y)))) subproof {
-      // we prove the directions separately
-      val fwd = have(exists(a, in(pair(t, a), uz)) |- exists(y, in(y, z) /\ in(t, relationDomain(y)))) subproof {
-        have(in(pair(t, a), uz) |- exists(y, in(y, z) /\ in(t, relationDomain(y)))) subproof {
-          assume(in(pair(t, a), uz))
-          // since \cup z is a union
-          // \exists y such that (t, a) \in y
-          // and so t \in dom y
-          val exy = have(exists(y, in(pair(t, a), y) /\ in(y, z))) by Tautology.from(unionAxiom of (z -> pair(t, a), x -> z))
-
-          have(exists(y, in(pair(t, a), y) /\ in(y, z)) |- exists(y, in(t, relationDomain(y)) /\ in(y, z))) subproof {
-            have(forall(z, (z === relationDomain(y)) <=> forall(t, in(t, z) <=> exists(a, in(pair(t, a), y))))) by Weakening(relationDomain.definition of r -> y)
-            thenHave(forall(t, in(t, relationDomain(y)) <=> exists(a, in(pair(t, a), y)))) by InstantiateForall(relationDomain(y))
-            val inDomY = thenHave(in(t, relationDomain(y)) <=> exists(a, in(pair(t, a), y))) by InstantiateForall(t)
-            have(in(pair(t, a), y) |- in(pair(t, a), y)) by Hypothesis
-            thenHave(in(pair(t, a), y) |- exists(a, in(pair(t, a), y))) by RightExists
-            have(in(pair(t, a), y) /\ in(y, z) |- in(t, relationDomain(y)) /\ in(y, z)) by Tautology.from(lastStep, inDomY)
-            thenHave(in(pair(t, a), y) /\ in(y, z) |- exists(y, in(t, relationDomain(y)) /\ in(y, z))) by RightExists
-            thenHave(thesis) by LeftExists
-          }
-
-          have(thesis) by Cut(exy, lastStep)
-        }
-
-        thenHave(thesis) by LeftExists
-      }
-      val bwd = have(exists(y, in(y, z) /\ in(t, relationDomain(y))) |- exists(a, in(pair(t, a), uz))) subproof {
-        have(in(y, z) /\ in(t, relationDomain(y)) |- exists(a, in(pair(t, a), uz))) subproof {
-          assume(in(y, z) /\ in(t, relationDomain(y)))
-          have(forall(z, (z === relationDomain(y)) <=> forall(t, in(t, z) <=> exists(a, in(pair(t, a), y))))) by Weakening(relationDomain.definition of r -> y)
-          thenHave(forall(t, in(t, relationDomain(y)) <=> exists(a, in(pair(t, a), y)))) by InstantiateForall(relationDomain(y))
-          thenHave(in(t, relationDomain(y)) <=> exists(a, in(pair(t, a), y))) by InstantiateForall(t)
-          val exA = thenHave(exists(a, in(pair(t, a), y))) by Tautology
-
-          have(exists(a, in(pair(t, a), y)) |- exists(a, in(pair(t, a), uz))) subproof {
-            have(in(pair(t, a), y) |- in(pair(t, a), y) /\ in(y, z)) by Restate
-            thenHave(in(pair(t, a), y) |- exists(y, in(pair(t, a), y) /\ in(y, z))) by RightExists
-            have(in(pair(t, a), y) |- in(pair(t, a), uz)) by Tautology.from(lastStep, unionAxiom of (z -> pair(t, a), x -> z))
-            thenHave(in(pair(t, a), y) |- exists(a, in(pair(t, a), uz))) by RightExists
-            thenHave(thesis) by LeftExists
-          }
-
-          have(exists(a, in(pair(t, a), uz))) by Cut(exA, lastStep)
-        }
-        thenHave(thesis) by LeftExists
-      }
-
-      have(thesis) by Tautology.from(fwd, bwd)
-    }
-
-    have(in(t, relationDomain(union(z))) <=> exists(y, in(y, z) /\ in(t, relationDomain(y)))) by Tautology.from(inDom, lastStep)
-    thenHave(thesis) by RightForall
-  }
-   */
    */
 }

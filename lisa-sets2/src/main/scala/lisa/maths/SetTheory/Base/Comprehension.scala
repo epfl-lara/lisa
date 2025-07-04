@@ -87,7 +87,7 @@ object Comprehension extends lisa.Main {
     *
     * Essentially a thin wrapper around applying [[membership]] but without specifying the arguments.
     *
-    * TODO: In the future, this tactic could be removed by Congruence with unification
+    * TODO: In the future, this tactic could be automated
     */
   def apply(using proof: lisa.SetTheoryLibrary.Proof)(conclusion: Sequent): proof.ProofTacticJudgement = {
     if conclusion.right.size != 1 then

@@ -23,11 +23,10 @@ object Union extends lisa.Main {
     * relation in `S`.
     */
   val unionRelationDomain = Theorem(
-    ∀(ℛ, ℛ ∈ S ==> relation(ℛ)) |- dom(⋃(S)) === ⋃({ dom(ℛ) | ℛ ∈ S })
+    relation(⋃(S)) |- dom(⋃(S)) === ⋃({ dom(ℛ) | ℛ ∈ S })
   ) {
     sorry
   }
-
 
   /*
   /**

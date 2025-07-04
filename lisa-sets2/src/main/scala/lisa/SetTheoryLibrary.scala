@@ -238,6 +238,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   // TG
   /////////
 
+  // TODO: Add documentation for Tarski's axiom.
   final val tarskiAxiom: AXIOM = Axiom(
     ∀(x, (x ∈ universe(x)) /\
       ∀(y,

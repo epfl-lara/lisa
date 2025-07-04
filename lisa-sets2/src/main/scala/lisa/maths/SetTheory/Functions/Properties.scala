@@ -4,6 +4,9 @@ import lisa.maths.SetTheory.Base.Predef.{*, given}
 import Definitions.*
 
 /** This file contains proofs of basic properties about functions.
+  *
+  * TODO: Add constant functions
+  * TODO: Add Cantor's theorem (probably in a distinct file, when we get to cardinals).
   */
 object Properties extends lisa.Main {
 

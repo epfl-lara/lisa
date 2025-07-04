@@ -61,6 +61,8 @@ object Ordinal extends lisa.Main {
     */
   val zero = ∅
 
+  ////////////////////////////////////////////////////////////////////////////////
+  section("Ordinal properties")
 
   /** Theorem --- If `γ` is an ordinal such that `α ∈ β` and `β ∈ γ`, then `α ∈ γ`.
     *
@@ -86,6 +88,9 @@ object Ordinal extends lisa.Main {
       ordinal.definition
     )
   }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  section("Hereditary properties")
 
   /** Ordinal are hereditarily transitive --- If `α` is an ordinal and `β ∈ α`, then `β` is transitive.
     */
@@ -225,6 +230,9 @@ object Ordinal extends lisa.Main {
     sorry
   }
 
+  ////////////////////////////////////////////////////////////////////////////////
+  section("Comparison")
+
   /**
     * Theorem --- If `(α, ∈_α)` is order-isomorphic to `(β, ∈_β)` then `α = β`
     */
@@ -241,6 +249,11 @@ object Ordinal extends lisa.Main {
   ) {
     sorry
   }
+
+
+  ////////////////////////////////////////////////////////////////////////////////
+  section("Minimality")
+
 
   /** Theorem --- If `A` is a non-empty set of ordinals, then it admits a ∈-minimal element.
     *
@@ -408,6 +421,10 @@ object Ordinal extends lisa.Main {
     have(thesis) by Tautology.from(`case Q = ∅`, `case Q ≠ ∅`)
   }
 
+  ////////////////////////////////////////////////////////////////////////////////
+  section("Class of ordinal")
+
+
   /** Definition --- `On` stands for the class of all ordinals.
     */
   val On: Expr[Class] = DEF(λ(α, ordinal(α)))
@@ -420,6 +437,9 @@ object Ordinal extends lisa.Main {
   ) {
     sorry
   }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  section("Successor ordinal")
 
   /** Successor --- Given an ordinal `α`, its sucessor is `S(α) = α ∪ {α}`.
     */
@@ -452,6 +472,10 @@ object Ordinal extends lisa.Main {
   ) {
     sorry
   }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  section("Classification of ordinals")
+
 
   /** Successor ordinals --- `α` is a successor ordinal if `α = β + 1`.
     */

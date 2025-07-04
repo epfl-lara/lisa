@@ -7,20 +7,22 @@ import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
 import lisa.automation.Substitution
 
 /** This file proves first-order logic theorems related to quantifiers. It includes:
-  * - Closed formulas under binders ([[Quantifiers.closedFormulaUniversal]],
+  * - Quantifier elimination ([[Quantifiers.closedFormulaUniversal]],
   *   [[Quantifiers.closedFormulaExistential]])
   * - Definition of the uniqueness quantifier ([[Quantifiers.∃!]])
+  * - Distribution of connectives over binders
   */
 object Quantifiers extends lisa.Main {
 
-  private val X, Y = variable[Prop]
   private val x, y, z = variable[Ind]
   private val a, b = variable[Ind]
   private val p = variable[Prop]
   private val P, Q = variable[Ind >>: Prop]
-  private val Phi = variable[Prop >>: Prop]
 
-  section("Closed formulas")
+
+  ///////////////////////////////////////////////////////////////////////////
+  section("Quantifier elimination")
+
 
   /** Theorem --- A formula is equivalent to itself universally quantified if
     * the bound variable is not free in it.
@@ -40,7 +42,10 @@ object Quantifiers extends lisa.Main {
     have(thesis) by Tableau
   }
 
+
+  ///////////////////////////////////////////////////////////////////////////
   section("Uniqueness quantifier (∃!)")
+
 
   /** Definition --- The uniqueness quantifier `∃!x P(x)` asserts that there
     * exists a single element `x` that satisfies `P(x)`.
@@ -91,7 +96,37 @@ object Quantifiers extends lisa.Main {
     thenHave(thesis) by Substitution.Apply(∃!.definition)
   }
 
+  /** Theorem --- There exists a unique `x` such that `P(x)` if and only if:
+    * - There exists some `x` such that `P(x)`
+    * - Any two `x` and `y` such that `P(x)` and `P(y)` are equal.
+    *
+    * Alternative definition of [[∃!]] that breaks down the uniqueness quantifier
+    * into existence and uniqueness.
+    */
+  val existsOneAlternativeDefinition = Theorem(
+    ∃!(x, P(x)) <=> ∃(x, P(x)) /\ ∀(x, ∀(y, P(x) /\ P(y) ==> (x === y)))
+  ) {
+    val `==>` = have(∃!(x, P(x)) |- ∃(x, P(x)) /\ ∀(x, ∀(y, P(x) /\ P(y) ==> (x === y)))) by Tautology.from(existsOneImpliesExists, existsOneUniqueness)
+
+    have((P(x), ∀(x, ∀(y, P(x) /\ P(y) ==> (x === y)))) |- ∃!(x, P(x))) subproof {
+      assume(P(x))
+      assume(∀(x, ∀(y, P(x) /\ P(y) ==> (x === y))))
+      thenHave(P(x) /\ P(y) ==> (x === y)) by InstantiateForall(x, y)
+      thenHave(P(y) ==> (y === x)) by Tautology
+      thenHave(∀(y, P(y) ==> (y === x))) by RightForall
+      thenHave(P(x) /\ ∀(y, P(y) ==> (y === x))) by Tautology
+      thenHave(∃(x, P(x) /\ ∀(y, P(y) ==> (y === x)))) by RightExists
+      thenHave(thesis) by Substitute(∃!.definition)
+    }
+    val `<==` = thenHave((∃(x, P(x)), ∀(x, ∀(y, P(x) /\ P(y) ==> (x === y)))) |- ∃!(x, P(x))) by LeftExists
+
+    have(thesis) by Tautology.from(`==>`, `<==`)
+  }
+
+
+  ///////////////////////////////////////////////////////////////////////////
   section("Commutation")
+
 
   /** Theorem --- Conjunction and universal quantification commute.
     */
@@ -207,58 +242,5 @@ object Quantifiers extends lisa.Main {
     thenHave(thesis) by LeftExists
   }
 
-  /*
-
-  /**
-   * Theorem --- if atleast two distinct elements exist, then there is no unique
-   * existence
-   */
-  val atleastTwoExist = Theorem(
-    (∃(x, P(x)) /\ !existsOne(x, P(x))) <=> ∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y)))
-  ) {
-    val fwd = have((∃(x, P(x)) /\ !existsOne(x, P(x))) ==> ∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y)))) subproof {
-      have((P(x), ((x === y) /\ !P(y))) |- P(x) /\ !P(y)) by Restate
-      have((P(x), ((x === y) /\ !P(y))) |- P(y) /\ !P(y)) by Sorry //Substitution.ApplyRules(x === y) // contradiction
-      val xy = thenHave((P(x), ((x === y) /\ !P(y))) |- ∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y)))) by Weakening
-
-      have((P(x), (!(x === y) /\ P(y))) |- (!(x === y) /\ P(y) /\ P(x))) by Restate
-      thenHave((P(x), (!(x === y) /\ P(y))) |- ∃(y, !(x === y) /\ P(y) /\ P(x))) by RightExists
-      val nxy = thenHave((P(x), (!(x === y) /\ P(y))) |- ∃(x, ∃(y, !(x === y) /\ P(y) /\ P(x)))) by RightExists
-
-      have((P(x), (!(x === y) /\ P(y)) \/ ((x === y) /\ !P(y))) |- ∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y)))) by Tautology.from(xy, nxy)
-      thenHave((P(x), ∃(y, (!(x === y) /\ P(y)) \/ ((x === y) /\ !P(y)))) |- ∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y)))) by LeftExists
-      thenHave((P(x), ∀(x, ∃(y, (!(x === y) /\ P(y)) \/ ((x === y) /\ !P(y))))) |- ∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y)))) by LeftForall
-      thenHave((∃(x, P(x)), ∀(x, ∃(y, (!(x === y) /\ P(y)) \/ ((x === y) /\ !P(y))))) |- ∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y)))) by LeftExists
-
-      thenHave(thesis) by Restate
-    }
-
-    val bwd = have(∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y))) ==> (∃(x, P(x)) /\ !existsOne(x, P(x)))) subproof {
-      have((P(x), P(y), !(x === y)) |- P(x)) by Restate
-      val ex = thenHave((P(x), P(y), !(x === y)) |- ∃(x, P(x))) by RightExists
-
-      have((P(x), P(y), !(x === y)) |- P(y) /\ !(y === x)) by Restate
-      have((P(x), P(y), !(x === y), (x === z)) |- P(y) /\ !(y === z)) by Sorry //Substitution.ApplyRules(x === z)
-      thenHave((P(x), P(y), !(x === y), (x === z)) |- (P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z))) by Weakening
-      val xz = thenHave((P(x), P(y), !(x === y), (x === z)) |- ∃(y, (P(y) /\ !(y === z)) \/ (!P(y) /\ (y === z)))) by RightExists
-
-      have((P(x), P(y), !(x === y), !(x === z)) |- (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z))) by Restate
-      val nxz = thenHave((P(x), P(y), !(x === y), !(x === z)) |- ∃(x, (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z)))) by RightExists
-
-      have((P(x), P(y), !(x === y)) |- ∃(x, (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z)))) by Tautology.from(xz, nxz)
-      thenHave((P(x), P(y), !(x === y)) |- ∀(z, ∃(x, (P(x) /\ !(x === z)) \/ (!P(x) /\ (x === z))))) by RightForall
-      val uex = thenHave(P(x) /\ P(y) /\ !(x === y) |- !existsOne(z, P(z))) by Restate
-
-      have(P(x) /\ P(y) /\ !(x === y) |- ∃(x, P(x)) /\ !existsOne(z, P(z))) by Tautology.from(ex, uex)
-      thenHave(∃(y, P(x) /\ P(y) /\ !(x === y)) |- ∃(x, P(x)) /\ !existsOne(z, P(z))) by LeftExists
-      thenHave(∃(x, ∃(y, P(x) /\ P(y) /\ !(x === y))) |- ∃(x, P(x)) /\ !existsOne(z, P(z))) by LeftExists
-
-      thenHave(thesis) by Restate
-    }
-
-    have(thesis) by Tautology.from(fwd, bwd)
-  }
-
-   */
 
 }

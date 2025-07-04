@@ -34,6 +34,14 @@ object Properties extends lisa.Main {
     thenHave(thesis) by Substitute(relation.definition)
   }
 
+  /** Theorem --- If `ℛ` only contains pairs, then it is a relation.
+    */
+  val setOfPairsIsRelation = Theorem(
+    ∀(z, z ∈ ℛ ==> ∃(x, ∃(y, z === (x, y)))) |- relation(ℛ)
+  ) {
+    sorry
+  }
+
   /** Theorem --- If `ℛ` is a relation between `X` and `Y` then `dom(ℛ) ⊆ X`.
     */
   val relationDomainSubset = Theorem(
@@ -181,15 +189,6 @@ object Properties extends lisa.Main {
     thenHave(¬(x ℛ x)) by Tautology
     thenHave(∀(x, ¬(x ℛ x))) by RightForall
     thenHave(thesis) by Tautology.fromLastStep(asymmetric.definition, irreflexive.definition)
-  }
-
-
-  /** Theorem --- If `ℛ` is a total relation on `X` then `ℛ` is total on `Y ⊆ X`.
-    */
-  val totalSubset = Theorem(
-    (total(ℛ)(X), Y ⊆ X) |- total(ℛ)(Y)
-  ) {
-    sorry
   }
 
 }

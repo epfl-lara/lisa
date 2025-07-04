@@ -10,7 +10,8 @@ package lisa.maths.SetTheory.Base
   */
 object Union extends lisa.Main {
 
-  private val x, y, z, a = variable[Ind]
+  private val x, y, z = variable[Ind]
+  private val a, b = variable[Ind]
 
   /**
    * Binary Set ⋃ --- `x ∪ y = ⋃{x, y}`
@@ -137,6 +138,21 @@ object Union extends lisa.Main {
       leftMonotonic,
       commutativity of (x := x, y := z),
       commutativity of (x := y, y := z)
+    )
+  }
+
+  /**
+    * Theorem --- If `x ⊆ a` and `y ⊆ b` then `(x ∪ y) ⊆ (a ∪ b)`.
+    *
+    * Combination of [[leftMonotonic]] and [[rightMonotonic]].
+    */
+  val monotonic = Theorem(
+    (x ⊆ a, y ⊆ b) |- (x ∪ y) ⊆ (a ∪ b)
+  ) {
+    have(thesis) by Tautology.from(
+      leftMonotonic of (x := x, y := a, z := y),
+      rightMonotonic of (x := y, y := b, z := a),
+      Subset.transitivity of (x := (x ∪ y), y := (a ∪ y), z := (a ∪ b))
     )
   }
 
