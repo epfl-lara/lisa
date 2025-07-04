@@ -1,4 +1,4 @@
-package lisa.maths.settheory
+package lisa.maths.SetTheory
 
 import lisa.maths.SetTheory.Base.Predef.*
 

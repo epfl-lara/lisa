@@ -70,19 +70,11 @@ lazy val kernel = Project(
   )
 
 lazy val sets = Project(
-  id = "lisa-sets2",
-  base = file("lisa-sets2")
+  id = "lisa-sets",
+  base = file("lisa-sets")
 )
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils))
-/*
-lazy val sets2 = Project(
-  id = "lisa-sets2",
-  base = file("lisa-sets2")
-)
-  .settings(commonSettings3)
-  .dependsOn(kernel, withTests(utils))
-*/
 lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")

@@ -24,7 +24,7 @@ object CommonTactics {
    * @see [[RightExistsOne]].
    */
   object ExistenceAndUniqueness extends ProofTactic {
-    def withParameters(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: F.Formula, x: F.Variable, y: F.Variable)(existence: proof.Fact, uniqueness: proof.Fact)(
+    def withParameters(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: F.Prop, x: F.Variable, y: F.Variable)(existence: proof.Fact, uniqueness: proof.Fact)(
         bot: F.Sequent
     ): proof.ProofTacticJudgement = {
       val existenceSeq = proof.getSequent(existence)
@@ -84,7 +84,7 @@ object CommonTactics {
       }
     }
 
-    def apply(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: F.Formula)(existence: proof.Fact, uniqueness: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof, om: OutputManager)(phi: F.Prop)(existence: proof.Fact, uniqueness: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val existenceSeq = proof.getSequent(existence)
       val uniquenessSeq = proof.getSequent(uniqueness)
 
@@ -136,12 +136,12 @@ object CommonTactics {
    * </pre>
    */
   object Definition extends ProofTactic {
-    def apply(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Ind*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val expr = lib.getDefinition(f) match {
         case Some(value: lib.FunctionDefinition[?]) => value
         case _ => return proof.InvalidProofTactic("Could not get definition of function.")
       }
-      val method: (F.ConstantFunctionLabel[?], proof.Fact) => Seq[F.Term] => F.Sequent => proof.ProofTacticJudgement =
+      val method: (F.ConstantFunctionLabel[?], proof.Fact) => Seq[F.Ind] => F.Sequent => proof.ProofTacticJudgement =
         expr.f.substituteUnsafe(expr.vars.zip(xs).toMap) match {
           case F.AppliedConnector(
                 F.And,
@@ -158,13 +158,13 @@ object CommonTactics {
     }
 
     /**
-     * <pre>
-     *
-     * -------------  if f(xs) = The(y, P(y)) is a function definition
-     * |- P(f(xs))
-     * </pre>
-     */
-    def unconditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+   * <pre>
+   *
+   * -------------  if f(xs) = The(y, P(y)) is a function definition
+   * |- P(f(xs))
+   * </pre>
+   */
+    def unconditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Ind*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lib.getDefinition(f) match {
         case Some(definition: lib.FunctionDefinition[?]) =>
           if (bot.right.size != 1) {
@@ -194,13 +194,13 @@ object CommonTactics {
     }
 
     /**
-     * <pre>
-     *
-     * -------------- if f(xs) = The(y, (φ ==> Q(y)) /\ (!φ ==> R(y)))
-     * φ |- Q(f(xs))
-     * </pre>
-     */
-    def conditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Term*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+   * <pre>
+   *
+   * -------------- if f(xs) = The(y, (φ ==> Q(y)) /\ (!φ ==> R(y)))
+   * φ |- Q(f(xs))
+   * </pre>
+   */
+    def conditional(using lib: Library, proof: lib.Proof)(f: F.ConstantFunctionLabel[?], uniqueness: proof.Fact)(xs: F.Ind*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lib.getDefinition(f) match {
         case Some(definition: lib.FunctionDefinition[?]) =>
           if (bot.right.size != 1) {
@@ -222,7 +222,7 @@ object CommonTactics {
 
           // Unfold the conditional definition to find Q
           val phi = F.And(bot.left.toSeq)
-          val Q: F.LambdaExpression[F.Term, F.Formula, 1] = P.body match {
+          val Q: F.LambdaExpression[F.Ind, F.Prop, 1] = P.body match {
             case F.AppliedConnector(
                   F.And,
                   Seq(
@@ -258,5 +258,5 @@ object CommonTactics {
       }
     }
   }
-*/
+   */
 }
