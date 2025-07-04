@@ -53,9 +53,8 @@ object CartesianProduct extends lisa.Main {
       unionAxiom of (x := {`A × {b}` | b ∈ B})
     )
 
-    val firstReplacement = have(y ∈ {`A × {b}` | b ∈ B} /\ (z ∈ y) <=> ∃(b, b ∈ B /\ (`A × {b}` === y)) /\ (z ∈ y)) by Tautology.from(
-      Replacement.membership of (S := B, f := λ(b, `A × {b}`))
-    )
+    have(y ∈ {`A × {b}` | b ∈ B} <=> ∃(b, b ∈ B /\ (`A × {b}` === y))) by Replacement.apply
+    val firstReplacement = thenHave(y ∈ {`A × {b}` | b ∈ B} /\ (z ∈ y) <=> ∃(b, b ∈ B /\ (`A × {b}` === y)) /\ (z ∈ y)) by Tautology
 
     have((b ∈ B, `A × {b}` === y, z ∈ y) |- z ∈ `A × {b}`) by Congruence
     val secondReplacement = thenHave((b ∈ B, `A × {b}` === y, z ∈ y) |- ∃(a, a ∈ A /\ ((a, b) === z))) by Tautology.fromLastStep(

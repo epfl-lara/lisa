@@ -72,6 +72,27 @@ object Replacement extends lisa.Main {
     have(thesis) by Cut(existence, lastStep)
   }
 
+  /**
+    * Tactic that proves `y ∈ { f(x) | x ∈ S } <=> ∃(x, x ∈ S /\ (f(x) === y))` by finding suitable `S` and `f`
+    * from the conclusion.
+    *
+    * Essentially a thin wrapper around applying [[membership]] but without specifying the arguments.
+    *
+    * TODO: In the future, this tactic could be removed by Congruence with unification
+    */
+  def apply(using proof: lisa.SetTheoryLibrary.Proof)(conclusion: Sequent): proof.ProofTacticJudgement = {
+    if conclusion.right.size != 1 then
+      proof.InvalidProofTactic("Don't know which formula to prove by replacement.")
+    else
+      conclusion.right.head match {
+        case v ∈ App(App(`replacement`, g), s) <=> _ =>
+          // Use Tautology instead of Restate to handle trivial rewrites/weakening
+          unwrapTactic(Tautology.from(membership of (y := v, S := s, f := g))(conclusion))("Could not prove membership by replacement.")
+
+        case _ => proof.InvalidProofTactic("Could not prove membership by replacement.")
+      }
+  }
+
   /** Theorem --- If `x ∈ S` then `f(x) ∈ {f(x) | x ∈ S}`.
     *
     *   `x ∈ s |- f(x) ∈ {f(x) | x ∈ S}`
