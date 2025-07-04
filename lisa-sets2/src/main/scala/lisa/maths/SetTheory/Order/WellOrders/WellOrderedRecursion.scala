@@ -11,8 +11,7 @@ import InitialSegment.*
 
 import lisa.maths.Quantifiers.∃!
 
-/**
-  * Given a well-ordering `(A, <)`, one can build a function `g` by recursion over `A`
+/** Given a well-ordering `(A, <)`, one can build a function `g` by recursion over `A`
   * that satisfies the following formula:
   *
   *   `g(x) = F(g↾initialSegment(x, A, <))` for all `x ∈ A`
@@ -38,35 +37,31 @@ object WellOrderedRecursion extends lisa.Main {
 
   context(wellOrdering(A)(<))
 
-  /**
-    * Well-ordered recursion function is unique --- If G `: A -> 𝕍` is obtained by
+  /** Well-ordered recursion function is unique --- If G `: A -> 𝕍` is obtained by
     * well-ordered recursion on a well-ordering `(A, <)`, then it is unique.
     */
   val recursionUniqueness = Theorem(
     (
       functionOn(G1)(A),
-      ∀(x, x ∈ A ==> (G1(x) === F(G1↾initialSegment(x)(<)(A)))),
+      ∀(x, x ∈ A ==> (G1(x) === F(G1 ↾ initialSegment(x)(A)(<)))),
       functionOn(G2)(A),
-      ∀(x, x ∈ A ==> (G2(x) === F(G2↾initialSegment(x)(<)(A))))
+      ∀(x, x ∈ A ==> (G2(x) === F(G2 ↾ initialSegment(x)(A)(<))))
     ) |- G1 === G2
   ) {
     assume(wellOrdering(A)(<))
 
     assume(functionOn(G1)(A))
-    assume(∀(x, x ∈ A ==> (G1(x) === F(G1↾initialSegment(x)(<)(A)))))
-    thenHave(x ∈ A ==> (G1(x) === F(G1↾initialSegment(x)(<)(A)))) by InstantiateForall(x)
-    val `G1(x)` = thenHave(x ∈ A |- G1(x) === F(G1↾initialSegment(x)(<)(A))) by Restate
+    assume(∀(x, x ∈ A ==> (G1(x) === F(G1 ↾ initialSegment(x)(A)(<)))))
+    thenHave(x ∈ A ==> (G1(x) === F(G1 ↾ initialSegment(x)(A)(<)))) by InstantiateForall(x)
+    val `G1(x)` = thenHave(x ∈ A |- G1(x) === F(G1 ↾ initialSegment(x)(A)(<))) by Restate
 
     assume(functionOn(G2)(A))
-    assume(∀(x, x ∈ A ==> (G2(x) === F(G2↾initialSegment(x)(<)(A)))))
-    thenHave(x ∈ A ==> (G2(x) === F(G2↾initialSegment(x)(<)(A)))) by InstantiateForall(x)
-    val `G2(x)` = thenHave(x ∈ A |- G2(x) === F(G2↾initialSegment(x)(<)(A))) by Restate
+    assume(∀(x, x ∈ A ==> (G2(x) === F(G2 ↾ initialSegment(x)(A)(<)))))
+    thenHave(x ∈ A ==> (G2(x) === F(G2 ↾ initialSegment(x)(A)(<)))) by InstantiateForall(x)
+    val `G2(x)` = thenHave(x ∈ A |- G2(x) === F(G2 ↾ initialSegment(x)(A)(<))) by Restate
 
     // Let `S` be the set of elements such that `G1(x) ≠ G2(x)`. If `G1 ≠ G2` then this set is non-empty.
-    val S = {x ∈ A | G1(x) ≠ G2(x)}
-    val `x ∈ S` = have(x ∈ S <=> (x ∈ A) /\ (G1(x) ≠ G2(x))) by Tautology.from(
-      Comprehension.membership of (y := A, φ := λ(x, G1(x) ≠ G2(x)))
-    )
+    val S = { x ∈ A | G1(x) ≠ G2(x) }
 
     // Assume that `S` is non-empty. Proceed by contradiction.
     have(S ≠ ∅ |- ⊥) subproof {
@@ -74,11 +69,11 @@ object WellOrderedRecursion extends lisa.Main {
 
       // `S` has an `<`-least element `x`, by well-ordering.
       have(S ⊆ A) by Tautology.from(Comprehension.subset of (y := A, φ := λ(x, G1(x) ≠ G2(x))))
-      thenHave(∃(x, x ∈ S /\ minimal(x)(S)(<))) by Tautology.fromLastStep(WellOrder.minimalElement of (B := S))
+      val `S has a minimal element` = thenHave(∃(x, x ∈ S /\ minimal(x)(S)(<))) by Tautology.fromLastStep(WellOrder.minimalElement of (B := S))
 
       // Notice that `G1` and `G2` agree on `initialSegment(x)(A)` by
       // `<`-minimality, since it is empty.
-      val agreement = have((x ∈ S, minimal(x)(S)(<)) |- G1↾initialSegment(x)(A)(<) === G2↾initialSegment(x)(A)(<)) subproof {
+      val agreement = have((x ∈ S, minimal(x)(S)(<)) |- G1 ↾ initialSegment(x)(A)(<) === G2 ↾ initialSegment(x)(A)(<)) subproof {
         assume(x ∈ S)
         assume(minimal(x)(S)(<))
 
@@ -108,11 +103,10 @@ object WellOrderedRecursion extends lisa.Main {
 
   extension (G: set) {
     private inline def `is defined by recursion until`(z: set) =
-      functionOn(G)(initialSegment(z)(A)(<)) /\ ∀(x, (x, z) ∈ < ==> (G(x) === F(G↾initialSegment(z)(A)(<))))
+      functionOn(G)(initialSegment(z)(A)(<)) /\ ∀(x, (x, z) ∈ < ==> (G(x) === F(G ↾ initialSegment(z)(A)(<))))
   }
 
-  /**
-    * Lemma --- The existence of a function `g` defined by recursion
+  /** Lemma --- The existence of a function `g` defined by recursion
     * propagates.
     */
   val recursionStep = Lemma(
@@ -131,7 +125,7 @@ object WellOrderedRecursion extends lisa.Main {
     // We can assign to each `y ∈ initialSegment(x)(A)(<)` the function defined
     // by recursion until `y`, and hence by the replacement schema we can form
     // the set of all functions defined on an initial segment of `x`.
-    val R = {ε(G, G `is defined by recursion until`(y)) | y ∈ initialSegment(x)(A)(<)}
+    val R = { ε(G, G `is defined by recursion until` (y)) | y ∈ initialSegment(x)(A)(<) }
     val Q = ⋃(R)
 
     // There are two cases to consider:
@@ -152,9 +146,7 @@ object WellOrderedRecursion extends lisa.Main {
     have(thesis) by Tautology.from(`x has a predecessor`, `x is limit`)
   }
 
-
-  /**
-    * Well-ordered recursion --- Given `F : 𝕍 -> 𝕍` and a well-order `(A, <)`
+  /** Well-ordered recursion --- Given `F : 𝕍 -> 𝕍` and a well-order `(A, <)`
     * there exists a unique `G : A -> 𝕍` such that
     *
     *   `∀x ∈ A. G(x) = F(G↾initialSegment(x, A, <))`
@@ -164,13 +156,12 @@ object WellOrderedRecursion extends lisa.Main {
     * for `β ∈ α`.
     */
   val recursionExistence = Theorem(
-    ∃(G, ∀(x, x ∈ A ==> (G(x) === F(G↾initialSegment(x)(A)(<)))))
+    ∃(G, ∀(x, x ∈ A ==> (G(x) === F(G ↾ initialSegment(x)(A)(<)))))
   ) {
     sorry
   }
 
-  /**
-    * Definition --- Returns the function obtained by applying `F` recursively on `(A, <)`.
+  /** Definition --- Returns the function obtained by applying `F` recursively on `(A, <)`.
     */
-  val recurse = DEF(λ(F, λ(A, λ(<, ε(G, ∀(x, x ∈ A ==> (G(x) === F(G↾initialSegment(x)(A)(<)))))))))
+  val recurse = DEF(λ(F, λ(A, λ(<, ε(G, ∀(x, x ∈ A ==> (G(x) === F(G ↾ initialSegment(x)(A)(<)))))))))
 }
