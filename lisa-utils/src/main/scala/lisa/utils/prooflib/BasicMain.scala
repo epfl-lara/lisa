@@ -11,7 +11,7 @@ trait BasicMain {
     def finishOutput(exception: Exception): Nothing = {
       log(exception)
       main(Array[String]())
-      sys.exit
+      sys.exit(1)
     }
     val stringWriter: java.io.StringWriter = new java.io.StringWriter()
   }
