@@ -29,8 +29,8 @@ object Substitution:
     rule match
       case f: Expr[Prop] @unchecked =>
         (f: @unchecked) match
-          case === #@ (l: Expr[Ind]) #@ (r: Expr[Ind]) => TermRewriteRule(l, r)
-          case <=> #@ (l: Expr[Prop]) #@ (r: Expr[Prop]) => FormulaRewriteRule(l, r)
+          case l === r => TermRewriteRule(l, r)
+          case l <=> r => FormulaRewriteRule(l, r)
       case f: proof.Fact @unchecked => extractRule(proof.getSequent(f).right.head)
 
   /**
@@ -59,8 +59,8 @@ object Substitution:
       // as formula
       case f: Expr[Prop] @unchecked =>
         f match
-          case === #@ l #@ r => true
-          case <=> #@ l #@ r => true
+          case l === r => true
+          case l <=> r => true
           case _ => false
       // as a justification
       case just: proof.Fact @unchecked =>
