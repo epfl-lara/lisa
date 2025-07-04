@@ -62,6 +62,7 @@ object WellOrderedRecursion extends lisa.Main {
 
     // Let `S` be the set of elements such that `G1(x) ≠ G2(x)`. If `G1 ≠ G2` then this set is non-empty.
     val S = { x ∈ A | G1(x) ≠ G2(x) }
+    val `x ∈ S` = have(x ∈ S <=> (x ∈ A) /\ (G1(x) ≠ G2(x))) by Comprehension.apply
 
     // Assume that `S` is non-empty. Proceed by contradiction.
     have(S ≠ ∅ |- ⊥) subproof {
@@ -82,16 +83,20 @@ object WellOrderedRecursion extends lisa.Main {
         thenHave(y ∈ initialSegment(x)(A)(<) ==> (G1(y) === G2(y))) by Tautology.fromLastStep(InitialSegment.membership, `x ∈ S` of (x := y))
         thenHave(∀(y, y ∈ initialSegment(x)(A)(<) ==> (G1(y) === G2(y)))) by RightForall
 
-        have(thesis) by Tautology.from(FunctionRestriction.extensionality of (f := G1, g := G2, X := initialSegment(x)(A)(<)), lastStep)
+        have(thesis) by Cut(
+          lastStep,
+          FunctionRestriction.extensionality of (f := G1, g := G2, X := initialSegment(x)(A)(<))
+        )
       }
 
       // By definition of `G1` and `G2`, it must be the case that `G1(x) = G2(x)`.
-      // TODO: Congruence does not work here for some reason
-      // have((x ∈ A, x ∈ S, minimal(x)(<)(A)) |- G1(x) === G2(x)) by Congruence.from(`G1(x)`, `G2(x)`, `agreement`)
+      thenHave((x ∈ S, minimal(x)(S)(<)) |- F(G1 ↾ initialSegment(x)(A)(<)) === F(G2 ↾ initialSegment(x)(A)(<))) by Congruence
+      thenHave((x ∈ A, x ∈ S, minimal(x)(S)(<)) |- G1(x) === G2(x)) by Substitute(`G1(x)`, `G2(x)`)
 
       // Contradiction since `x ∈ S` and thus `G1(x) ≠ G2(x)`.
-      // thenHave(thesis) by Tautology.fromLastStep(`x ∈ S`)
-      sorry
+      thenHave((x ∈ S) /\ minimal(x)(S)(<) |- ()) by Tautology.fromLastStep(`x ∈ S`)
+      thenHave(∃(x, (x ∈ S) /\ minimal(x)(S)(<)) |- ()) by LeftExists
+      thenHave(thesis) by Tautology.fromLastStep(`S has a minimal element`)
     }
     thenHave(S === ∅) by Restate
 
