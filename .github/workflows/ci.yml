@@ -27,4 +27,4 @@ jobs:
       - name: Compile examples
         run: sbt "lisa-examples / compile"
 	  - name: Run all theorems
-	    run: ./runAll.sh
+	    run: ./.github/runAll.sh
