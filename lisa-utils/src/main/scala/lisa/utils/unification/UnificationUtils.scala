@@ -1,7 +1,7 @@
 package lisa.utils.unification
 
 import lisa.utils.K
-import lisa.utils.collection.Extensions.*
+import lisa.utils.collection.Extensions._
 import lisa.utils.collection.{VecSet => Set}
 import lisa.utils.fol.FOL
 import lisa.utils.fol.FOL.{_, given}

@@ -80,7 +80,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the powerset function.
    */
-  final val power = constant[Ind >>: Ind]("power")
+  final val 𝒫 = constant[Ind >>: Ind]("𝒫")
 
   /**
    * The symbol for the set union function.
@@ -95,7 +95,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * Set Theory basic functions.
    */
-  final val functions = Set(unorderedPair, power, ⋃, universe)
+  final val functions = Set(unorderedPair, 𝒫, ⋃, universe)
 
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
@@ -190,14 +190,14 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
   /**
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted
-   * `power(x)` or `power(x)` which contains every subset of x.
+   * `𝒫(x)` which contains every subset of x.
    *
-   * `() |- z ∈ power(x) ⇔ z ⊆ x`
+   * `() |- z ∈ 𝒫(x) ⇔ z ⊆ x`
    *
-   * This axiom defines [[power]] as the function symbol representing this
+   * This axiom defines [[𝒫]] as the function symbol representing this
    * set.
    */
-  final val powerSetAxiom: AXIOM = Axiom(x ∈ power(y) <=> x ⊆ y)
+  final val powerSetAxiom: AXIOM = Axiom(x ∈ 𝒫(y) <=> x ⊆ y)
 
   /**
    * Infinity Axiom --- There exists an infinite set.
@@ -247,7 +247,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
       (x ∈ universe(x)) /\
         ∀(
           y,
-          (y ∈ universe(x)) ==> ((power(y) ∈ universe(x)) /\ (power(y) ⊆ universe(x))) /\
+          (y ∈ universe(x)) ==> ((𝒫(y) ∈ universe(x)) /\ (𝒫(y) ⊆ universe(x))) /\
             ∀(z, (z ⊆ universe(x)) ==> (sim(y)(universe(x)) /\ (y ∈ universe(x))))
         )
     )

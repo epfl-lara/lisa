@@ -1,11 +1,11 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SCProofCheckerJudgement.SCValidProof
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.kernel.proof.*
+import lisa.kernel.proof.SequentCalculus._
+import lisa.kernel.proof._
 import lisa.utils.unification.UnificationUtils.matchExpr
 
 import scala.annotation.targetName

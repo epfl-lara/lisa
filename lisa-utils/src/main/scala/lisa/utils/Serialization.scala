@@ -1,8 +1,8 @@
 package lisa.utils
 
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus._
 import lisa.utils.K.{LeftSubstEq => _, LeftSubstIff => _, RightSubstEq => _, RightSubstIff => _, _}
-import lisa.utils.ProofsShrink.*
+import lisa.utils.ProofsShrink._
 
 import java.io._
 import scala.collection.mutable.{Map => MutMap}

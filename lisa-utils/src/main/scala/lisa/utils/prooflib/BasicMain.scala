@@ -1,6 +1,6 @@
 package lisa.utils.prooflib
 
-import lisa.utils.Serialization.*
+import lisa.utils.Serialization._
 
 trait BasicMain {
   val library: Library

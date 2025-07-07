@@ -49,7 +49,7 @@ object Comprehension extends lisa.Main {
           /**
            * {x ⊆ y | φ(x)}
            */
-          setComprehension(power(y))(λ(x, φ))
+          setComprehension(𝒫(y))(λ(x, φ))
 
         case x ∈ y =>
           throw new UnsupportedOperationException("Mixing replacement and comprehension is not yet supported.")

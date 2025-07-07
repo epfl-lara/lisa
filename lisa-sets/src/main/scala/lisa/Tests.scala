@@ -39,7 +39,7 @@ object Tests extends lisa.Main {
     (
       ∀(x, x / t1 === x),
       ∀(x, ∀(y, x / y === t1 / (y / x))),
-      ∀(x, ∀(y, (x / y) * y === x)),
+      ∀(x, ∀(y, (x / y) * y === x))
     ) |- ((t2 / t3) * (t3 / t2)) / t1 === t1
   ):
     have(thesis) by Egg

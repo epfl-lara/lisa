@@ -23,7 +23,7 @@ trait Main extends BasicMain {
   knownDefs.update(∅, Some(emptySetAxiom))
   knownDefs.update(unorderedPair, Some(pairAxiom))
   knownDefs.update(⋃, Some(unionAxiom))
-  knownDefs.update(power, Some(powerSetAxiom))
+  knownDefs.update(𝒫, Some(powerSetAxiom))
   knownDefs.update(⊆, Some(subsetAxiom))
 
   extension (symbol: Constant[?]) {

@@ -24,7 +24,7 @@ object CartesianProduct extends lisa.Main {
    *
    *     `A × B = ⋃{A × {b} | b ∈ B} = ⋃{{(a, b) | a ∈ A} | b ∈ B}`
    *
-   * (Alternatively, it can be seen as a comprehension over `power(power(A ∪ B))`, but
+   * (Alternatively, it can be seen as a comprehension over `𝒫(𝒫(A ∪ B))`, but
    *  it would be harder to manipulate in practice.)
    *
    * @param x set

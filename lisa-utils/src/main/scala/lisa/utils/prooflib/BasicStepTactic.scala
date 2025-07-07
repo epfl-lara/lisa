@@ -1,11 +1,11 @@
 package lisa.utils.prooflib
 import lisa.utils.K
 import lisa.utils.KernelHelpers.{|- => `K|-`, _}
-import lisa.utils.collection.Extensions.*
-import lisa.utils.fol.FOL as F
+import lisa.utils.collection.Extensions._
+import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.ProofTacticLib.{_, given}
-import lisa.utils.prooflib.*
-import lisa.utils.unification.UnificationUtils.*
+import lisa.utils.prooflib._
+import lisa.utils.unification.UnificationUtils._
 
 object BasicStepTactic {
 
@@ -136,11 +136,11 @@ object BasicStepTactic {
           case _ => proof.InvalidProofTactic("Could not infer a conjunction as pivot from premise and conclusion.")
         }
       else
-      // try a rewrite, if it works, go ahead with it, otherwise malformed
-      if (F.isSameSequent(premiseSequent, bot))
-        unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial LeftAnd failed.")
-      else
-        proof.InvalidProofTactic("Left-hand side of premise + φ∧ψ is not the same as left-hand side of conclusion + either φ, ψ or both.")
+        // try a rewrite, if it works, go ahead with it, otherwise malformed
+        if (F.isSameSequent(premiseSequent, bot))
+          unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial LeftAnd failed.")
+        else
+          proof.InvalidProofTactic("Left-hand side of premise + φ∧ψ is not the same as left-hand side of conclusion + either φ, ψ or both.")
     }
   }
 
@@ -625,11 +625,11 @@ object BasicStepTactic {
           case _ => proof.InvalidProofTactic("Could not infer a disjunction as pivot from premise and conclusion.")
         }
       else
-      // try a rewrite, if it works, go ahead with it, otherwise malformed
-      if (F.isSameSequent(premiseSequent, bot))
-        unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for RightOr failed.")
-      else
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ∧ψ is not the same as right-hand side of premise + either φ, ψ or both.")
+        // try a rewrite, if it works, go ahead with it, otherwise malformed
+        if (F.isSameSequent(premiseSequent, bot))
+          unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite on trivial premise for RightOr failed.")
+        else
+          proof.InvalidProofTactic("Right-hand side of conclusion + φ∧ψ is not the same as right-hand side of premise + either φ, ψ or both.")
     }
   }
 
@@ -1185,14 +1185,20 @@ object BasicStepTactic {
    */
   object LeftSubstEq extends ProofTactic {
     @deprecated("Use withParameters instead", "0.9")
-    def withParametersSimple(using lib: Library, proof: lib.Proof)(
+    def withParametersSimple(using
+        lib: Library,
+        proof: lib.Proof
+    )(
         equals: Seq[(F.Expr[F.Ind], F.Expr[F.Ind])],
         lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       withParameters(equals, lambdaPhi)(premise)(bot)
     }
 
-    def withParameters(using lib: Library, proof: lib.Proof)(
+    def withParameters(using
+        lib: Library,
+        proof: lib.Proof
+    )(
         equals: Seq[(F.Expr[?], F.Expr[?])],
         lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
@@ -1241,14 +1247,20 @@ object BasicStepTactic {
    */
   object RightSubstEq extends ProofTactic {
     @deprecated("Use withParameters instead", "0.9")
-    def withParametersSimple(using lib: Library, proof: lib.Proof)(
+    def withParametersSimple(using
+        lib: Library,
+        proof: lib.Proof
+    )(
         equals: Seq[(F.Expr[F.Ind], F.Expr[F.Ind])],
         lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       withParameters(equals, lambdaPhi)(premise)(bot)
     }
 
-    def withParameters(using lib: Library, proof: lib.Proof)(
+    def withParameters(using
+        lib: Library,
+        proof: lib.Proof
+    )(
         equals: Seq[(F.Expr[?], F.Expr[?])],
         lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {

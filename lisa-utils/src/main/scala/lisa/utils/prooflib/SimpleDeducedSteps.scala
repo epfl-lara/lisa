@@ -3,10 +3,10 @@ package lisa.utils.prooflib
 import lisa.utils.K
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printing
-import lisa.utils.fol.FOL as F
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.fol.{FOL => F}
+import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.{_, given}
-import lisa.utils.prooflib.*
+import lisa.utils.prooflib._
 
 object SimpleDeducedSteps {
 

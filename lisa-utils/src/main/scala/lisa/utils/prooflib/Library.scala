@@ -7,7 +7,7 @@ import lisa.kernel.proof.SequentCalculus
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}
 
-import scala.collection.mutable.Stack as stack
+import scala.collection.mutable.{Stack => stack}
 
 /**
  * A class abstracting a [[lisa.kernel.proof.RunningTheory]] providing utility functions and a convenient syntax

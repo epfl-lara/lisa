@@ -2,9 +2,9 @@ package lisa.utils.prooflib
 
 import lisa.utils.K
 import lisa.utils.UserLisaException
-import lisa.utils.fol.FOL as F
+import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.ProofPrinter
-import lisa.utils.prooflib.*
+import lisa.utils.prooflib._
 
 object ProofTacticLib {
   type Arity = Int & Singleton

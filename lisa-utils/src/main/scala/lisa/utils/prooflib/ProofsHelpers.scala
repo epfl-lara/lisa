@@ -5,10 +5,10 @@ import lisa.utils.K.Identifier
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
-import lisa.utils.prooflib.BasicStepTactic.*
-import lisa.utils.prooflib.ProofTacticLib.*
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import lisa.utils.prooflib.*
+import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.ProofTacticLib._
+import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib._
 import lisa.utils.{_, given}
 
 import scala.annotation.targetName

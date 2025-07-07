@@ -6,7 +6,7 @@ import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.SCProof
 import lisa.utils.KernelHelpers.prettySCProof
 import lisa.utils.KernelHelpers.repr
-import lisa.utils.fol.FOL as F
+import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.Library
 
 abstract class LisaException(errorMessage: String)(using val line: sourcecode.Line, val file: sourcecode.File) extends Exception(errorMessage) {

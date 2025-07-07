@@ -4,7 +4,7 @@ import Singleton.singleton
 import Subset.⊂
 
 /**
- * The power set of a set `x` is the set `power(x)` that contains all subsets of
+ * The power set of a set `x` is the set `𝒫(x)` that contains all subsets of
  * `x`.
  *
  * Its existence is guaranteed by the [[powerSetAxiom]].
@@ -16,9 +16,9 @@ object PowerSet extends lisa.Main {
   private val x, y, z = variable[Ind]
 
   /**
-   * Definition --- The power set of `x` is the set `power(x)` containing all subsets of `x`.
+   * Definition --- The power set of `x` is the set `𝒫(x)` containing all subsets of `x`.
    *
-   *   `x ∈ power(y) <=> x ⊆ y`
+   *   `x ∈ 𝒫(y) <=> x ⊆ y`
    *
    * Its existence is guaranteed by the [[powerSetAxiom]].
    */
@@ -30,7 +30,7 @@ object PowerSet extends lisa.Main {
    *    `x ∈ power(x)`
    */
   val setInItsPowerSet = Theorem(
-    x ∈ power(x)
+    x ∈ 𝒫(x)
   ) {
     have(thesis) by Tautology.from(membership of (y := x), Subset.reflexivity)
   }
@@ -38,23 +38,23 @@ object PowerSet extends lisa.Main {
   /**
    * Theorem --- A power set is never empty.
    *
-   *    `power(x) ≠ ∅`
+   *    `𝒫(x) ≠ ∅`
    */
   val nonEmpty = Theorem(
-    power(x) ≠ ∅
+    𝒫(x) ≠ ∅
   ) {
-    have(thesis) by Cut(setInItsPowerSet, EmptySet.setWithElementNonEmpty of (y := power(x)))
+    have(thesis) by Cut(setInItsPowerSet, EmptySet.setWithElementNonEmpty of (y := 𝒫(x)))
   }
 
   /**
    * Theorem --- The power set of the empty set is `{∅}`.
    *
-   *    `power(∅) = {∅}`
+   *    `𝒫(∅) = {∅}`
    */
   val emptySet = Theorem(
-    power(∅) === singleton(∅)
+    𝒫(∅) === singleton(∅)
   ) {
-    have(x ∈ power(∅) <=> x ∈ singleton(∅)) by Tautology.from(
+    have(x ∈ 𝒫(∅) <=> x ∈ singleton(∅)) by Tautology.from(
       membership of (y := ∅),
       Subset.rightEmpty,
       Singleton.membership of (y := x, x := ∅)
@@ -63,30 +63,30 @@ object PowerSet extends lisa.Main {
   }
 
   /**
-   * Theorem --- The power set `power(x)` is not a subset of `x`.
+   * Theorem --- The power set `𝒫(x)` is not a subset of `x`.
    *
-   *    `power(x) ⊆ x ⊢ ⊥`
+   *    `𝒫(x) ⊆ x ⊢ ⊥`
    *
    * @see [[WellFounded.selfNonInclusion]]
    */
   val nonInclusion = Theorem(
-    power(x) ⊆ x |- ()
+    𝒫(x) ⊆ x |- ()
   ) {
     have(thesis) by Tautology.from(
-      membership of (x := power(x), y := x),
-      WellFounded.selfNonInclusion of (x := power(x))
+      membership of (x := 𝒫(x), y := x),
+      WellFounded.selfNonInclusion of (x := 𝒫(x))
     )
   }
 
   /**
-   * Theorem --- The unordered pair `{x, y}` is in `power(z)` if and only if both `x ∈ z` and `y ∈ z`.
+   * Theorem --- The unordered pair `{x, y}` is in `𝒫(z)` if and only if both `x ∈ z` and `y ∈ z`.
    *
-   *    `{x, y} ∈ power(z) <=> x ∈ z ∧ y ∈ z`
+   *    `{x, y} ∈ 𝒫(z) <=> x ∈ z ∧ y ∈ z`
    *
    * @see [[Subset.leftUnorderedPair]]
    */
   val unorderedPairMembership = Theorem(
-    unorderedPair(x, y) ∈ power(z) <=> (x ∈ z) /\ (y ∈ z)
+    unorderedPair(x, y) ∈ 𝒫(z) <=> (x ∈ z) /\ (y ∈ z)
   ) {
     have(thesis) by Congruence.from(
       membership of (x := unorderedPair(x, y), y := z),

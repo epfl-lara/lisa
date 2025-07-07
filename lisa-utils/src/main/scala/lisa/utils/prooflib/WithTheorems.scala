@@ -4,15 +4,15 @@ import lisa.kernel.proof.RunningTheory
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
-import lisa.utils.UserLisaException.*
+import lisa.utils.UserLisaException._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.prooflib.ProofTacticLib.UnimplementedProof
-import lisa.utils.prooflib.*
+import lisa.utils.prooflib._
 
 import scala.annotation.nowarn
-import scala.collection.mutable.Buffer as mBuf
-import scala.collection.mutable.Map as mMap
-import scala.collection.mutable.Stack as stack
+import scala.collection.mutable.{Buffer => mBuf}
+import scala.collection.mutable.{Map => mMap}
+import scala.collection.mutable.{Stack => stack}
 
 trait WithTheorems {
   library: Library =>
