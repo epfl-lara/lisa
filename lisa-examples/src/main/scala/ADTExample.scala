@@ -1,4 +1,5 @@
 object ADTExample extends lisa.Main {
+  /*
   import lisa.maths.settheory.types.adt.{*, given}
 
   // variable declarations
@@ -120,5 +121,5 @@ object ADTExample extends lisa.Main {
     thenHave(l :: list(A) |- x :: A ==> !(l === cons(A) * x * l)) by InstantiateForall(x)
     thenHave(thesis) by Tautology
   }
-
+   */
 }

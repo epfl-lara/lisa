@@ -1,34 +1,50 @@
 object Lattices extends lisa.Main {
 
-  val x = variable
-  val P = predicate[1]
-  val f = function[1]
-
-  val fixedPointDoubleApplication = Theorem(
-    ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
-  ) {
-    sorry
-  }
+  val x = variable[Ind]
+  val P = variable[Ind >>: Prop]
+  val f = variable[Ind >>: Ind]
 
   // We introduce the signature of lattices
-  val <= = ConstantPredicateLabel.infix("<=", 2)
+  object <= extends Constant[Ind >>: Ind >>: Prop]("≤") { // less than or equal to (inclusion for sets, implication in boolean algebras)
+    this.printInfix()
+    def unapply(e: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] =
+      val <= = this
+      e match
+        case App(App(`<=`, x), y) => Some(x, y)
+        case _ => None
+  }
   addSymbol(<=)
-  val u = ConstantFunctionLabel.infix("u", 2) // join (union for sets, disjunction in boolean algebras)
+  object u extends Constant[Ind >>: Ind >>: Ind]("u") { // join (union for sets, disjunction in boolean algebras)
+    this.printInfix()
+
+    def unapply(e: Expr[Ind]): Option[(Expr[Ind], Expr[Ind])] =
+      val u = this
+      e match
+        case App(App(`u`, x), y) => Some(x, y)
+        case _ => None
+  }
   addSymbol(u)
-  val n = ConstantFunctionLabel.infix("n", 2) // meet (interestion for sets, conjunction in boolean algebras)
+  object n extends Constant[Ind >>: Ind >>: Ind]("n") { // meet (intersection for sets, conjunction in boolean algebras)
+    this.printInfix()
+
+    def unapply(e: Expr[Ind]): Option[(Expr[Ind], Expr[Ind])] =
+      val n = this
+      e match
+        case App(App(`n`, x), y) => Some(x, y)
+        case _ => None
+  }
   addSymbol(n)
 
   // Enables infix notation
-  extension (left: Term) {
-    def <=(right: Term): Formula = Lattices.<=.applyUnsafe(Seq(left, right))
-    infix def u(right: Term): Term = Lattices.u.applyUnsafe(Seq(left, right))
-    infix def n(right: Term): Term = Lattices.n.applyUnsafe(Seq(left, right))
+  extension (left: Expr[Ind]) {
+    def <=(right: Expr[Ind]): Expr[Prop] = App(App(Lattices.<=, left), right)
+    infix def u(right: Expr[Ind]): Expr[Ind] = App(App(Lattices.u, left), right)
+    infix def n(right: Expr[Ind]): Expr[Ind] = App(App(Lattices.n, left), right)
   }
-
   // We now states the axioms of lattices
 
-  val y = variable
-  val z = variable
+  val y = variable[Ind]
+  val z = variable[Ind]
 
   val reflexivity = Axiom(x <= x)
   val antisymmetry = Axiom(((x <= y) /\ (y <= x)) ==> (x === y))
@@ -79,22 +95,22 @@ object Lattices extends lisa.Main {
         if goal.left.nonEmpty || goal.right.size != 1 then proof.InvalidProofTactic("Whitman can only be applied to solve goals of the form () |- s <= t")
         else
           goal.right.head match {
-            case <=(left: Term, right: Term) => {
+            case <=(left: Expr[Ind], right: Expr[Ind]) => {
               // We have different cases to consider
               (left, right) match {
                 // 1. left is a join. In that case, lub gives us the decomposition
-                case (u(a: Term, b: Term), _) =>
+                case (u(a: Expr[Ind], b: Expr[Ind]), _) =>
                   ???
 
                 // 2. right is a meet. In that case, glb gives us the decomposition
-                case (_, n(a: Term, b: Term)) =>
+                case (_, n(a: Expr[Ind], b: Expr[Ind])) =>
                   val s1 = solve(left <= a)
                   val s2 = solve(left <= b)
                   if s1.isValid & s2.isValid then have(left <= right) by Tautology.from(glb of (x := a, y := b, z := left), have(s1), have(s2))
                   else return proof.InvalidProofTactic("The inequality is not true in general ")
 
                 // 3. left is a meet, right is a join. In that case, we try all pairs.
-                case (n(a: Term, b: Term), u(c: Term, d: Term)) =>
+                case (n(a: Expr[Ind], b: Expr[Ind]), u(c: Expr[Ind], d: Expr[Ind])) =>
                   val result = LazyList(a, b)
                     .map { e => (e, solve(e <= right)) }
                     .find { _._2.isValid }
@@ -119,7 +135,7 @@ object Lattices extends lisa.Main {
                   if result.isEmpty then return proof.InvalidProofTactic("The inequality is not true in general 3")
 
                 // 4. left is a meet, right is a variable or unknown term.
-                case (n(a: Term, b: Term), _) =>
+                case (n(a: Expr[Ind], b: Expr[Ind]), _) =>
                   val result = LazyList(a, b)
                     .map { e => (e, solve(e <= right)) }
                     .find { _._2.isValid }
@@ -133,7 +149,7 @@ object Lattices extends lisa.Main {
                   if result.isEmpty then return proof.InvalidProofTactic("The inequality is not true in general")
 
                 // 5. left is a variable or unknown term, right is a join.
-                case (_, u(c: Term, d: Term)) =>
+                case (_, u(c: Expr[Ind], d: Expr[Ind])) =>
                   val result = LazyList(c, d)
                     .map { e => (e, solve(left <= e)) }
                     .find { _._2.isValid }
@@ -154,7 +170,7 @@ object Lattices extends lisa.Main {
               }
             }
 
-            case ===(left: Term, right: Term) =>
+            case ===(left: Expr[Ind], right: Expr[Ind]) =>
               val s1 = solve(left <= right)
               val s2 = solve(right <= left)
               if !(s1.isValid && s2.isValid) then return proof.InvalidProofTactic("The equality is not true in general")
