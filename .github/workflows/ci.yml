@@ -14,6 +14,8 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - name Set up sbt
+      - uses: sbt/setup-sbt@v1
       - name: Compile
         run: sbt compile
       - name: Run tests
@@ -26,3 +28,5 @@ jobs:
         run: sbt "lisa-sets / compile"
       - name: Compile examples
         run: sbt "lisa-examples / compile"
+      - name: Run all theorems
+        run: ./.github/runAll.sh
