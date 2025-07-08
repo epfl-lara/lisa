@@ -1,6 +1,6 @@
 package lisa.test.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SCProof
@@ -17,23 +17,25 @@ class TheoriesHelpersTest extends AnyFunSuite {
   export TestTheory.*
 
   test("theorem with incorrect statement") {
-    val (s0, s1) = (ConstantFunctionLabel("0", 0), ConstantFunctionLabel("1", 0))
-    runningTestTheory.addSymbol(s0)
-    runningTestTheory.addSymbol(s1)
+    val (c0, c1) = (Constant("Z", Ind), Constant("S", Ind))
+    runningTestTheory.addSymbol(c0)
+    runningTestTheory.addSymbol(c1)
 
-    val (c0, c1) = (s0(), s1())
     val judgement = runningTestTheory.theorem("False theorem", c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq())
     assert(!judgement.isValid)
     try {
       judgement.get
       fail("Shouldn't be able to get a theorem from an invalid judgement")
     } catch {
-
       case InvalidJustificationException(msg, None) => ()
     }
 
     // same theorem but with correct statement
-    assert(runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid)
+
+    assert(
+      runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).isValid,
+      runningTestTheory.theorem("True theorem", c1 === c0 |- c1 === c0, SCProof(Hypothesis((c0 === c1) |- (c0 === c1), c0 === c1)), Seq()).repr
+    )
   }
 
 }

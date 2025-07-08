@@ -1,8 +1,8 @@
 package lisa.kernel
 
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
-import lisa.kernel.proof.SequentCalculus.*
-import lisa.kernel.proof.*
+import lisa.kernel.proof.SequentCalculus._
+import lisa.kernel.proof._
 import lisa.test.ProofCheckerSuite
 import lisa.utils.KernelHelpers.{_, given}
 

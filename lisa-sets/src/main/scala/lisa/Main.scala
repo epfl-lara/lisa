@@ -1,31 +1,32 @@
 package lisa
 
 import lisa.SetTheoryLibrary
-import lisa.prooflib.BasicMain
+import lisa.utils.prooflib.BasicMain
 
 /**
  * The parent trait of all theory files containing mathematical development
  */
 trait Main extends BasicMain {
 
-  export lisa.fol.FOL.{*, given}
+  export lisa.utils.fol.FOL.{*, given}
   export SetTheoryLibrary.{given, _}
-  export lisa.prooflib.BasicStepTactic.*
-  export lisa.prooflib.SimpleDeducedSteps.*
+  export lisa.utils.prooflib.BasicStepTactic.*
+  export lisa.utils.prooflib.SimpleDeducedSteps.*
 
   export lisa.automation.Tautology
-  export lisa.automation.Substitution
+  export lisa.automation.Substitution.{Apply as Substitute}
   export lisa.automation.Tableau
-  export lisa.automation.Apply
-  export lisa.automation.Exact
+  export lisa.automation.Congruence
+  // export lisa.automation.Apply
+  // export lisa.automation.Exact
 
-  knownDefs.update(emptySet, Some(emptySetAxiom))
+  knownDefs.update(∅, Some(emptySetAxiom))
   knownDefs.update(unorderedPair, Some(pairAxiom))
-  knownDefs.update(union, Some(unionAxiom))
-  knownDefs.update(powerSet, Some(powerAxiom))
-  knownDefs.update(subset, Some(subsetAxiom))
+  knownDefs.update(⋃, Some(unionAxiom))
+  knownDefs.update(𝒫, Some(powerSetAxiom))
+  knownDefs.update(⊆, Some(subsetAxiom))
 
-  extension (symbol: ConstantLabel[?]) {
+  extension (symbol: Constant[?]) {
     def definition: JUSTIFICATION = {
       getDefinition(symbol).get
     }

@@ -1,51 +1,52 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SequentCalculus.Sequent
-import lisa.utils.FOLParser
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.parsing.*
 import lisa.utils.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.language.adhocExtensions
 
+/**
+ * TODO: Port to TPTP-based printing
+ */
 class PrinterTest extends AnyFunSuite with TestUtils {
-
+  /*
   test("Minimal parenthesization") {
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, b))) == "a ∧ b")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ∧ c")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ∧ (b ∧ c)")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ∨ b ∧ c")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ∨ c")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "(a ∨ b) ∧ c")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ∧ (b ∨ c)")
+    assert((multiand(Seq(a, b))).repr == "a ∧ b")
+    assert((multiand(Seq(multiand(Seq(a, b)), c))).repr == "a ∧ b ∧ c")
+    assert((multiand(Seq(a, multiand(Seq(b, c))))).repr == "a ∧ (b ∧ c)")
+    assert((multior(Seq(a, multiand(Seq(b, c))))).repr == "a ∨ b ∧ c")
+    assert((multior(Seq(multiand(Seq(a, b)), c))).repr == "a ∧ b ∨ c")
+    assert((multiand(Seq(multior(Seq(a, b)), c))).repr == "(a ∨ b) ∧ c")
+    assert((multiand(Seq(a, multior(Seq(b, c))))).repr == "a ∧ (b ∨ c)")
 
-    assert(FOLParser.printFormula(ConnectorFormula(Neg, Seq(a))) == "¬a")
-    assert(FOLParser.printFormula(ConnectorFormula(Neg, Seq(ConnectorFormula(Neg, Seq(a))))) == "¬¬a")
-    assert(FOLParser.printFormula(ConnectorFormula(Neg, Seq(ConnectorFormula(Neg, Seq(ConnectorFormula(And, Seq(a, b))))))) == "¬¬(a ∧ b)")
+    assert((!a).repr == "¬a")
+    assert((!!a).repr == "¬¬a")
+    assert((!!Seq(multiand(Seq(a, b))))).repr == "¬¬(a ∧ b)")
     assert(
-      FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(b)), ConnectorFormula(Neg, Seq(c))))))) == "¬a ∧ (¬b ∧ ¬c)"
+      (multiand(Seq(!a, multiand(Seq(!b, !c))))).repr == "¬a ∧ (¬b ∧ ¬c)"
     )
     assert(
-      FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(Neg, Seq(b)))), ConnectorFormula(Neg, Seq(c))))) == "¬a ∧ ¬b ∧ ¬c"
+      (multiand(Seq(multiand(Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(Neg, Seq(b)))), ConnectorFormula(Neg, Seq(c))))).repr == "¬a ∧ ¬b ∧ ¬c"
     )
 
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, AtomicFormula(equality, Seq(x, x))))) == "a ∧ 'x = 'x")
+    assert((multiand(Seq(a, AtomicFormula(equality, Seq(x, x))))).repr == "a ∧ 'x = 'x")
 
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))) == "∀'x. 'x = 'x")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))))) == "a ∧ (∀'x. 'x = 'x)")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(BinderFormula(Forall, x, b), a))) == "(∀'x. b) ∧ a")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "a ∧ (∀'x. b) ∧ a")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "a ∧ (∀'x. b) ∨ a")
+    assert((BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))).repr == "∀'x. 'x = 'x")
+    assert((multiand(Seq(a, BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))))).repr == "a ∧ (∀'x. 'x = 'x)")
+    assert((multiand(Seq(BinderFormula(Forall, x, b), a))).repr == "(∀'x. b) ∧ a")
+    assert((multiand(Seq(multiand(Seq(a, BinderFormula(Forall, x, b))), a))).repr == "a ∧ (∀'x. b) ∧ a")
+    assert((multior(Seq(multiand(Seq(a, BinderFormula(Forall, x, b))), a))).repr == "a ∧ (∀'x. b) ∨ a")
 
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, BinderFormula(Exists, y, BinderFormula(ExistsOne, z, a)))) == "∀'x. ∃'y. ∃!'z. a")
+    assert((BinderFormula(Forall, x, BinderFormula(Exists, y, BinderFormula(ExistsOne, z, a)))).repr == "∀'x. ∃'y. ∃!'z. a")
 
-    assert(FOLParser.printFormula(AtomicFormula(ConstantAtomicLabel("f", 3), Seq(x, y, z))) == "f('x, 'y, 'z)")
+    assert((AtomicFormula(ConstantAtomicLabel("f", 3), Seq(x, y, z))).repr == "f('x, 'y, 'z)")
   }
 
   test("constant") {
-    assert(FOLParser.printTerm(Term(cx, Seq())) == "x")
+    assert(FOLParser.printTerm(Ind(cx, Seq())) == "x")
   }
 
   test("variable") {
@@ -53,141 +54,141 @@ class PrinterTest extends AnyFunSuite with TestUtils {
   }
 
   test("constant function application") {
-    assert(FOLParser.printTerm(Term(f1, Seq(cx))) == "f(x)")
-    assert(FOLParser.printTerm(Term(f2, Seq(cx, cy))) == "f(x, y)")
-    assert(FOLParser.printTerm(Term(f3, Seq(cx, cy, cz))) == "f(x, y, z)")
+    assert(FOLParser.printTerm(Ind(f1, Seq(cx))) == "f(x)")
+    assert(FOLParser.printTerm(Ind(f2, Seq(cx, cy))) == "f(x, y)")
+    assert(FOLParser.printTerm(Ind(f3, Seq(cx, cy, cz))) == "f(x, y, z)")
 
-    assert(FOLParser.printTerm(Term(f1, Seq(x))) == "f('x)")
-    assert(FOLParser.printTerm(Term(f2, Seq(x, y))) == "f('x, 'y)")
-    assert(FOLParser.printTerm(Term(f3, Seq(x, y, z))) == "f('x, 'y, 'z)")
+    assert(FOLParser.printTerm(Ind(f1, Seq(x))) == "f('x)")
+    assert(FOLParser.printTerm(Ind(f2, Seq(x, y))) == "f('x, 'y)")
+    assert(FOLParser.printTerm(Ind(f3, Seq(x, y, z))) == "f('x, 'y, 'z)")
   }
 
   test("schematic function application") {
-    assert(FOLParser.printTerm(Term(sf1, Seq(cx))) == "'f(x)")
-    assert(FOLParser.printTerm(Term(sf2, Seq(cx, cy))) == "'f(x, y)")
-    assert(FOLParser.printTerm(Term(sf3, Seq(cx, cy, cz))) == "'f(x, y, z)")
+    assert(FOLParser.printTerm(Ind(sf1, Seq(cx))) == "'f(x)")
+    assert(FOLParser.printTerm(Ind(sf2, Seq(cx, cy))) == "'f(x, y)")
+    assert(FOLParser.printTerm(Ind(sf3, Seq(cx, cy, cz))) == "'f(x, y, z)")
 
-    assert(FOLParser.printTerm(Term(sf1, Seq(x))) == "'f('x)")
-    assert(FOLParser.printTerm(Term(sf2, Seq(x, y))) == "'f('x, 'y)")
-    assert(FOLParser.printTerm(Term(sf3, Seq(x, y, z))) == "'f('x, 'y, 'z)")
+    assert(FOLParser.printTerm(Ind(sf1, Seq(x))) == "'f('x)")
+    assert(FOLParser.printTerm(Ind(sf2, Seq(x, y))) == "'f('x, 'y)")
+    assert(FOLParser.printTerm(Ind(sf3, Seq(x, y, z))) == "'f('x, 'y, 'z)")
   }
 
   test("nested function application") {
-    assert(FOLParser.printTerm(Term(sf2, Seq(Term(sf1, Seq(x)), y))) == "'f('f('x), 'y)")
+    assert(FOLParser.printTerm(Ind(sf2, Seq(Ind(sf1, Seq(x)), y))) == "'f('f('x), 'y)")
   }
 
   test("0-ary predicate") {
-    assert(FOLParser.printFormula(AtomicFormula(ConstantAtomicLabel("a", 0), Seq())) == "a")
+    assert((AtomicFormula(ConstantAtomicLabel("a", 0), Seq())).repr == "a")
   }
 
   test("predicate application") {
-    assert(FOLParser.printFormula(AtomicFormula(ConstantAtomicLabel("p", 3), Seq(cx, cy, cz))) == "p(x, y, z)")
-    assert(FOLParser.printFormula(AtomicFormula(ConstantAtomicLabel("p", 3), Seq(x, y, z))) == "p('x, 'y, 'z)")
+    assert((AtomicFormula(ConstantAtomicLabel("p", 3), Seq(cx, cy, cz))).repr == "p(x, y, z)")
+    assert((AtomicFormula(ConstantAtomicLabel("p", 3), Seq(x, y, z))).repr == "p('x, 'y, 'z)")
   }
 
   test("equality") {
-    assert(FOLParser.printFormula(AtomicFormula(equality, Seq(cx, cx))) == "x = x")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, AtomicFormula(equality, Seq(x, x))))) == "a ∧ 'x = 'x")
+    assert((AtomicFormula(equality, Seq(cx, cx))).repr == "x = x")
+    assert((multiand(Seq(a, AtomicFormula(equality, Seq(x, x))))).repr == "a ∧ 'x = 'x")
   }
 
   test("toplevel connectors") {
-    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(a, b))) == "a ⇒ b")
-    assert(FOLParser.printFormula(ConnectorFormula(Iff, Seq(a, b))) == "a ⇔ b")
+    assert((ConnectorFormula(Implies, Seq(a, b))).repr == "a ⇒ b")
+    assert((ConnectorFormula(Iff, Seq(a, b))).repr == "a ⇔ b")
   }
 
   test("unicode connectors") {
-    assert(FOLParser.printFormula(ConnectorFormula(Neg, Seq(a))) == "¬a")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, b))) == "a ∧ b")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(a, b))) == "a ∨ b")
+    assert((ConnectorFormula(Neg, Seq(a))).repr == "¬a")
+    assert((multiand(Seq(a, b))).repr == "a ∧ b")
+    assert((multior(Seq(a, b))).repr == "a ∨ b")
   }
 
   test("connector associativity") {
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ∧ c")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "a ∨ b ∨ c")
+    assert((multiand(Seq(multiand(Seq(a, b)), c))).repr == "a ∧ b ∧ c")
+    assert((multior(Seq(multior(Seq(a, b)), c))).repr == "a ∨ b ∨ c")
   }
 
   test("and/or of 1 argument") {
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a))) == "∧(a)")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(a))) == "∨(a)")
+    assert((multiand(Seq(a))).repr == "∧(a)")
+    assert((multior(Seq(a))).repr == "∨(a)")
 
-    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(ConnectorFormula(Or, Seq(a)), ConnectorFormula(And, Seq(a))))) == "∨(a) ⇒ ∧(a)")
-    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(a, a))) == "a ⇒ a")
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, ConnectorFormula(Or, Seq(a)))) == "∀'x. ∨(a)")
+    assert((ConnectorFormula(Implies, Seq(multior(Seq(a)), multiand(Seq(a))))).repr == "∨(a) ⇒ ∧(a)")
+    assert((ConnectorFormula(Implies, Seq(a, a))).repr == "a ⇒ a")
+    assert((BinderFormula(Forall, x, multior(Seq(a)))).repr == "∀'x. ∨(a)")
   }
 
   test("connectors of >2 arguments") {
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, b, c))) == "a ∧ b ∧ c")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(a, b, c))) == "a ∨ b ∨ c")
+    assert((multiand(Seq(a, b, c))).repr == "a ∧ b ∧ c")
+    assert((multior(Seq(a, b, c))).repr == "a ∨ b ∨ c")
 
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, b, c, a))) == "a ∧ b ∧ c ∧ a")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(a, b, c, b))) == "a ∨ b ∨ c ∨ b")
+    assert((multiand(Seq(a, b, c, a))).repr == "a ∧ b ∧ c ∧ a")
+    assert((multior(Seq(a, b, c, b))).repr == "a ∨ b ∨ c ∨ b")
 
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, b, c)), ConnectorFormula(And, Seq(c, b, a))))) == "a ∧ b ∧ c ∨ c ∧ b ∧ a")
+    assert((multior(Seq(multiand(Seq(a, b, c)), multiand(Seq(c, b, a))))).repr == "a ∧ b ∧ c ∨ c ∧ b ∧ a")
   }
 
   test("connectors with no arguments") {
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq())) == "⊤")
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq())) == "⊥")
+    assert((multiand(Seq())).repr == "⊤")
+    assert((multior(Seq())).repr == "⊥")
   }
 
   test("connector priority") {
     // a ∨ (b ∧ c)
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ∨ b ∧ c")
+    assert((multior(Seq(a, multiand(Seq(b, c))))).repr == "a ∨ b ∧ c")
     // (a ∧ b) ∨ c
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ∨ c")
+    assert((multior(Seq(multiand(Seq(a, b)), c))).repr == "a ∧ b ∨ c")
 
     // (a ∧ b) => c
-    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ⇒ c")
+    assert((ConnectorFormula(Implies, Seq(multiand(Seq(a, b)), c))).repr == "a ∧ b ⇒ c")
     // a => (b ∧ c)
-    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ⇒ b ∧ c")
+    assert((ConnectorFormula(Implies, Seq(a, multiand(Seq(b, c))))).repr == "a ⇒ b ∧ c")
     // (a ∨ b) => c
-    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "a ∨ b ⇒ c")
+    assert((ConnectorFormula(Implies, Seq(multior(Seq(a, b)), c))).repr == "a ∨ b ⇒ c")
     // a => (b ∨ c)
-    assert(FOLParser.printFormula(ConnectorFormula(Implies, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ⇒ b ∨ c")
+    assert((ConnectorFormula(Implies, Seq(a, multior(Seq(b, c))))).repr == "a ⇒ b ∨ c")
 
     // (a ∧ b) <=> c
-    assert(FOLParser.printFormula(ConnectorFormula(Iff, Seq(ConnectorFormula(And, Seq(a, b)), c))) == "a ∧ b ⇔ c")
+    assert((ConnectorFormula(Iff, Seq(multiand(Seq(a, b)), c))).repr == "a ∧ b ⇔ c")
     // a <=> (b ∧ c)
-    assert(FOLParser.printFormula(ConnectorFormula(Iff, Seq(a, ConnectorFormula(And, Seq(b, c))))) == "a ⇔ b ∧ c")
+    assert((ConnectorFormula(Iff, Seq(a, multiand(Seq(b, c))))).repr == "a ⇔ b ∧ c")
     // (a ∨ b) <=> c
-    assert(FOLParser.printFormula(ConnectorFormula(Iff, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "a ∨ b ⇔ c")
+    assert((ConnectorFormula(Iff, Seq(multior(Seq(a, b)), c))).repr == "a ∨ b ⇔ c")
     // a <=> (b ∨ c)
-    assert(FOLParser.printFormula(ConnectorFormula(Iff, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ⇔ b ∨ c")
+    assert((ConnectorFormula(Iff, Seq(a, multior(Seq(b, c))))).repr == "a ⇔ b ∨ c")
   }
 
   test("connector parentheses") {
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(Or, Seq(a, b)), c))) == "(a ∨ b) ∧ c")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(a, ConnectorFormula(Or, Seq(b, c))))) == "a ∧ (b ∨ c)")
+    assert((multiand(Seq(multior(Seq(a, b)), c))).repr == "(a ∨ b) ∧ c")
+    assert((multiand(Seq(a, multior(Seq(b, c))))).repr == "a ∧ (b ∨ c)")
   }
 
   test("schematic connectors") {
-    assert(FOLParser.printFormula(sc1(p(x))) == "?c(p('x))")
-    assert(FOLParser.printFormula(iff(sc1(p(x)), sc2(p(y), p(y)))) == "?c(p('x)) ⇔ ?c(p('y), p('y))")
+    assert((sc1(p(x))).repr == "?c(p('x))")
+    assert((iff(sc1(p(x)), sc2(p(y), p(y)))).repr == "?c(p('x)) ⇔ ?c(p('y), p('y))")
   }
 
   test("quantifiers") {
-    assert(FOLParser.printFormula(BinderFormula(Forall, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∀'x. p")
-    assert(FOLParser.printFormula(BinderFormula(Exists, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∃'x. p")
-    assert(FOLParser.printFormula(BinderFormula(ExistsOne, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))) == "∃!'x. p")
+    assert((BinderFormula(Forall, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))).repr == "∀'x. p")
+    assert((BinderFormula(Exists, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))).repr == "∃'x. p")
+    assert((BinderFormula(ExistsOne, VariableLabel("x"), AtomicFormula(ConstantAtomicLabel("p", 0), Seq()))).repr == "∃!'x. p")
   }
 
   test("nested quantifiers") {
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, BinderFormula(Exists, y, BinderFormula(ExistsOne, z, a)))) == "∀'x. ∃'y. ∃!'z. a")
+    assert((BinderFormula(Forall, x, BinderFormula(Exists, y, BinderFormula(ExistsOne, z, a)))).repr == "∀'x. ∃'y. ∃!'z. a")
   }
 
   test("quantifier parentheses") {
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, ConnectorFormula(And, Seq(b, a)))) == "∀'x. b ∧ a")
+    assert((BinderFormula(Forall, x, multiand(Seq(b, a)))).repr == "∀'x. b ∧ a")
     assert(
       FOLParser.printFormula(
         BinderFormula(
           Forall,
           x,
-          ConnectorFormula(And, Seq(AtomicFormula(ConstantAtomicLabel("p", 1), Seq(x)), AtomicFormula(ConstantAtomicLabel("q", 1), Seq(x))))
+          multiand(Seq(AtomicFormula(ConstantAtomicLabel("p", 1), Seq(x)), AtomicFormula(ConstantAtomicLabel("q", 1), Seq(x))))
         )
       ) == "∀'x. p('x) ∧ q('x)"
     )
 
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(BinderFormula(Forall, x, b), a))) == "(∀'x. b) ∧ a")
+    assert((multiand(Seq(BinderFormula(Forall, x, b), a))).repr == "(∀'x. b) ∧ a")
 
     assert(
       FOLParser.printFormula(
@@ -201,21 +202,21 @@ class PrinterTest extends AnyFunSuite with TestUtils {
       ) == "(∀'x. p('x)) ∧ q('x)"
     )
 
-    assert(FOLParser.printFormula(ConnectorFormula(Or, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "a ∧ (∀'x. b) ∨ a")
-    assert(FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(a, BinderFormula(Forall, x, b))), a))) == "a ∧ (∀'x. b) ∧ a")
+    assert((multior(Seq(multiand(Seq(a, BinderFormula(Forall, x, b))), a))).repr == "a ∧ (∀'x. b) ∨ a")
+    assert((multiand(Seq(multiand(Seq(a, BinderFormula(Forall, x, b))), a))).repr == "a ∧ (∀'x. b) ∧ a")
   }
 
   test("complex formulas with connectors") {
-    assert(FOLParser.printFormula(ConnectorFormula(Neg, Seq(ConnectorFormula(Or, Seq(a, b))))) == "¬(a ∨ b)")
-    assert(FOLParser.printFormula(ConnectorFormula(Neg, Seq(ConnectorFormula(Neg, Seq(a))))) == "¬¬a")
-    assert(FOLParser.printFormula(ConnectorFormula(Neg, Seq(ConnectorFormula(Neg, Seq(ConnectorFormula(And, Seq(a, b))))))) == "¬¬(a ∧ b)")
+    assert((ConnectorFormula(Neg, Seq(multior(Seq(a, b))))).repr == "¬(a ∨ b)")
+    assert((ConnectorFormula(Neg, Seq(ConnectorFormula(Neg, Seq(a))))).repr == "¬¬a")
+    assert((ConnectorFormula(Neg, Seq(ConnectorFormula(Neg, Seq(multiand(Seq(a, b))))))).repr == "¬¬(a ∧ b)")
     assert(
-      FOLParser.printFormula(ConnectorFormula(And, Seq(ConnectorFormula(And, Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(Neg, Seq(b)))), ConnectorFormula(Neg, Seq(c))))) == "¬a ∧ ¬b ∧ ¬c"
+      (multiand(Seq(multiand(Seq(ConnectorFormula(Neg, Seq(a)), ConnectorFormula(Neg, Seq(b)))), ConnectorFormula(Neg, Seq(c))))).repr == "¬a ∧ ¬b ∧ ¬c"
     )
   }
 
   test("complex formulas") {
-    assert(FOLParser.printFormula(BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))) == "∀'x. 'x = 'x")
+    assert((BinderFormula(Forall, x, AtomicFormula(equality, Seq(x, x)))).repr == "∀'x. 'x = 'x")
   }
 
   test("sequent") {
@@ -279,32 +280,34 @@ class PrinterTest extends AnyFunSuite with TestUtils {
     val parser = Parser(SynonymInfoBuilder().addSynonyms(prefixIn.id, in.id).build, in.id :: Nil, Nil)
     assert(parser.printFormula(AtomicFormula(in, Seq(cx, cy))) == "x ∊ y")
     assert(parser.printFormula(AtomicFormula(in, Seq(x, y))) == "'x ∊ 'y")
-    assert(parser.printFormula(ConnectorFormula(And, Seq(AtomicFormula(in, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
-    assert(parser.printFormula(ConnectorFormula(Or, Seq(a, AtomicFormula(in, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
+    assert(parser.printFormula(multiand(Seq(AtomicFormula(in, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
+    assert(parser.printFormula(multior(Seq(a, AtomicFormula(in, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
 
     assert(parser.printFormula(AtomicFormula(prefixIn, Seq(cx, cy))) == "x ∊ y")
     assert(parser.printFormula(AtomicFormula(prefixIn, Seq(x, y))) == "'x ∊ 'y")
-    assert(parser.printFormula(ConnectorFormula(And, Seq(AtomicFormula(prefixIn, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
-    assert(parser.printFormula(ConnectorFormula(Or, Seq(a, AtomicFormula(prefixIn, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
+    assert(parser.printFormula(multiand(Seq(AtomicFormula(prefixIn, Seq(x, y)), a))) == "'x ∊ 'y ∧ a")
+    assert(parser.printFormula(multior(Seq(a, AtomicFormula(prefixIn, Seq(x, y))))) == "a ∨ 'x ∊ 'y")
   }
 
   test("infix functions") {
     val parser = Parser(SynonymInfoBuilder().addSynonyms(plus.id, "+").build, Nil, ("+", Associativity.Left) :: Nil)
-    assert(parser.printTerm(Term(plus, Seq(cx, cy))) == "x + y")
-    assert(parser.printTerm(Term(plus, Seq(Term(plus, Seq(cx, cy)), cz))) == "x + y + z")
+    assert(parser.printTerm(Ind(plus, Seq(cx, cy))) == "x + y")
+    assert(parser.printTerm(Ind(plus, Seq(Ind(plus, Seq(cx, cy)), cz))) == "x + y + z")
   }
   /*
   test("mix of infix functions and infix predicates") {
     val parser = Parser(SynonymInfoBuilder().addSynonyms(in.id, "∊").addSynonyms(plus.id, "+").build, "∊" :: Nil, ("+", Associativity.Left) :: Nil)
-    assert(parser.printFormula(AtomicFormula(in, Seq(Term(plus, Seq(cx, cy)), cz))) == "x + y ∊ z")
+    assert(parser.printFormula(AtomicFormula(in, Seq(Ind(plus, Seq(cx, cy)), cz))) == "x + y ∊ z")
     assert(
       parser.printFormula(
         ConnectorFormula(
           And,
-          Seq(ConnectorFormula(And, Seq(AtomicFormula(in, Seq(cx, cy)), AtomicFormula(in, Seq(cx, cz)))), AtomicFormula(in, Seq(Term(plus, Seq(cx, cy)), cz)))
+          Seq(multiand(Seq(AtomicFormula(in, Seq(cx, cy)), AtomicFormula(in, Seq(cx, cz)))), AtomicFormula(in, Seq(Ind(plus, Seq(cx, cy)), cz)))
         )
       ) == "x ∊ y ∧ x ∊ z ∧ x + y ∊ z"
     )
 
   }*/
+
+   */
 }

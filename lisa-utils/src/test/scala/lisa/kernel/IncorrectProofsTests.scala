@@ -1,8 +1,8 @@
 package lisa.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus._
 import lisa.test.ProofCheckerSuite
 import lisa.utils.KernelHelpers._
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
@@ -19,10 +19,7 @@ class IncorrectProofsTests extends ProofCheckerSuite {
     // Shorthand
     implicit def proofStepToProof(proofStep: SCProofStep): SCProof = SCProof(proofStep)
 
-    val (fl, gl, hl) = (VariableFormulaLabel("f"), VariableFormulaLabel("g"), VariableFormulaLabel("h"))
-    val f = AtomicFormula(fl, Seq.empty) // Some arbitrary formulas
-    val g = AtomicFormula(gl, Seq.empty)
-    val h = AtomicFormula(hl, Seq.empty)
+    val (f, g, h) = (Variable("f", Prop), Variable("g", Prop), Variable("h", Prop))
 
     val incorrectProofs: Seq[SCProof] = List(
       SCProof(
@@ -40,23 +37,23 @@ class IncorrectProofsTests extends ProofCheckerSuite {
 
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(yl), x === y)) // wrong variable replaced
+        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, Seq((x, z)), (Seq(y), x === y)) // wrong variable replaced
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(xl), x === y)) // missing hypothesis
+        RightSubstEq(emptySeq +<< (x === y) +>> (z === y), 0, Seq((x, z)), (Seq(x), x === y)) // missing hypothesis
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(xl), x === z)) // replacement mismatch
+        RightSubstEq(emptySeq +<< (x === y) +<< (x === z) +>> (z === y), 0, Seq((x, z)), (Seq(x), x === z)) // replacement mismatch
       ),
       SCProof(
         Hypothesis(emptySeq +<< (x === y) +>> (x === y), x === y),
-        LeftSubstEq(emptySeq +<< (z === y) +<< (x === z) +>> (x === y), 0, List(((LambdaTermTerm(Seq(), x), LambdaTermTerm(Seq(), z)))), (Seq(yl), x === y))
+        LeftSubstEq(emptySeq +<< (z === y) +<< (x === z) +>> (x === y), 0, Seq((x, z)), (Seq(y), x === y))
       ),
       SCProof(
         Hypothesis(emptySeq +<< (f <=> g) +>> (f <=> g), f <=> g),
-        LeftSubstIff(emptySeq +<< (h <=> g) +<< (f <=> h) +>> (f <=> g), 0, List(((LambdaTermFormula(Seq(), f), LambdaTermFormula(Seq(), h)))), (Seq(gl), f <=> g))
+        LeftSubstIff(emptySeq +<< (h <=> g) +<< (f <=> h) +>> (f <=> g), 0, Seq((f, h)), (Seq(g), f <=> g))
       ),
       SCProof(
         Hypothesis(emptySeq +<< f +>> f, f),

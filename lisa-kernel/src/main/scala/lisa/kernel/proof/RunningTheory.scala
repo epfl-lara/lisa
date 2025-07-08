@@ -32,40 +32,33 @@ class RunningTheory {
   /**
    * An axiom is any formula that is assumed and considered true within the theory. It can freely be used later in any proof.
    */
-  sealed case class Axiom private[RunningTheory] (name: String, ax: Formula) extends Justification
+  sealed case class Axiom private[RunningTheory] (name: String, ax: Expression) extends Justification
 
   /**
-   * A definition can be either a PredicateDefinition or a FunctionDefinition.
+   * A definition of a new symbol.
    */
-  sealed abstract class Definition extends Justification
-
-  /**
-   * Define a predicate symbol as a shortcut for a formula. Example : P(x,y) :=   ∃!z. (x=y+z)
-   *
-   * @param label The name and arity of the new symbol
-   * @param expression The formula, depending on terms, that define the symbol.
-   */
-  sealed case class PredicateDefinition private[RunningTheory] (label: ConstantAtomicLabel, expression: LambdaTermFormula) extends Definition
-
-  /**
-   * Define a function symbol as the unique element that has some property. The existence and uniqueness
-   * of that elements must have been proven before obtaining such a definition. Example
-   * f(x,y) := the "z" s.t. x=y+z
-   *
-   * @param label The name and arity of the new symbol
-   * @param out   The variable representing the result of the function in phi
-   * @param expression   The formula, with term parameters, defining the function.
-   * @param withSorry   Stores if Sorry was used to in the proof used to define the symbol, or one of its ancestor.
-   */
-  sealed case class FunctionDefinition private[RunningTheory] (label: ConstantFunctionLabel, out: VariableLabel, expression: LambdaTermFormula, withSorry: Boolean) extends Definition
+  sealed case class Definition private[RunningTheory] (cst: Constant, expression: Expression, vars: Seq[Variable]) extends Justification
 
   private[proof] val theoryAxioms: mMap[String, Axiom] = mMap.empty
   private[proof] val theorems: mMap[String, Theorem] = mMap.empty
 
-  private[proof] val funDefinitions: mMap[ConstantFunctionLabel, Option[FunctionDefinition]] = mMap.empty
-  private[proof] val predDefinitions: mMap[ConstantAtomicLabel, Option[PredicateDefinition]] = mMap(equality -> None, top -> None, bot -> None)
+  private[proof] val definitions: mMap[Constant, Option[Definition]] =
+    mMap(equality -> None, top -> None, bot -> None, and -> None, or -> None, neg -> None, implies -> None, iff -> None, forall -> None, exists -> None, epsilon -> None)
 
-  private[proof] val knownSymbols: mMap[Identifier, ConstantLabel] = mMap(equality.id -> equality)
+  private[proof] val knownSymbols: mMap[Identifier, Constant] =
+    mMap(
+      equality.id -> equality,
+      top.id -> top,
+      bot.id -> bot,
+      and.id -> and,
+      or.id -> or,
+      neg.id -> neg,
+      implies.id -> implies,
+      iff.id -> iff,
+      forall.id -> forall,
+      exists.id -> exists,
+      epsilon.id -> epsilon
+    )
 
   /**
    * From a given proof, if it is true in the Running theory, add that theorem to the theory and returns it.
@@ -90,11 +83,7 @@ class RunningTheory {
             val usesSorry = sorry || justifications.exists(_ match {
               case Theorem(name, proposition, withSorry) => withSorry
               case Axiom(name, ax) => false
-              case d: Definition =>
-                d match {
-                  case PredicateDefinition(label, expression) => false
-                  case FunctionDefinition(label, out, expression, withSorry) => withSorry
-                }
+              case d: Definition => false
             })
             val thm = Theorem(name, proof.conclusion, usesSorry)
             theorems.update(name, thm)
@@ -106,112 +95,43 @@ class RunningTheory {
     else InvalidJustification("Not all imports of the proof are correctly justified.", None)
 
   /**
-   * Introduce a new definition of a predicate in the theory. The symbol must not already exist in the theory
-   * and the formula can't contain symbols that are not in the theory.
-   *
-   * @param label The desired label.
-   * @param expression The functional formula defining the predicate.
-   * @return A definition object if the parameters are correct,
+   * @param cst
+   * @param expression
+   * @param vars
+   * @return
    */
-  def makePredicateDefinition(label: ConstantAtomicLabel, expression: LambdaTermFormula): RunningTheoryJudgement[this.PredicateDefinition] = {
-    val LambdaTermFormula(vars, body) = expression
-    if (belongsToTheory(body))
-      if (isAvailable(label))
-        if (body.freeSchematicTermLabels.subsetOf(vars.toSet) && body.schematicAtomicLabels.isEmpty) {
-          val newDef = PredicateDefinition(label, expression)
-          predDefinitions.update(label, Some(newDef))
-          knownSymbols.update(label.id, label)
-          RunningTheoryJudgement.ValidJustification(newDef)
-        } else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
-      else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
-    else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
-  }
-
-  /**
-   * Introduce a new definition of a function in the theory. The symbol must not already exist in the theory
-   * and the formula can't contain symbols that are not in the theory. The existence and uniqueness of an element
-   * satisfying the definition's formula must first be proven. This is easy if the formula behaves as a shortcut,
-   * for example f(x,y) = 3x+2y
-   * but is much more general. The proof's conclusion must be of the form:  |- ∀args. ∃!out. phi
-   *
-   * @param proof          The proof of existence and uniqueness
-   * @param justifications The justifications of the proof.
-   * @param label          The desired label.
-   * @param expression     The functional term defining the function symbol.
-   * @param out            The variable representing the function's result in the formula
-   * @param proven         A formula possibly stronger than `expression` that the proof proves. It is always correct if it is the same as "expression", but
-   *                       if `expression` is less strong, this allows to make underspecified definitions.
-   * @return A definition object if the parameters are correct,
-   */
-  def makeFunctionDefinition(
-      proof: SCProof,
-      justifications: Seq[Justification],
-      label: ConstantFunctionLabel,
-      out: VariableLabel,
-      expression: LambdaTermFormula,
-      proven: Formula
-  ): RunningTheoryJudgement[this.FunctionDefinition] = {
-    val LambdaTermFormula(vars, body) = expression
-    if (vars.length == label.arity) {
-      if (belongsToTheory(body)) {
-        if (isAvailable(label)) {
-          if (body.freeSchematicTermLabels.subsetOf((vars appended out).toSet) && body.schematicFormulaLabels.isEmpty) {
-            if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))) {
-              val r = SCProofChecker.checkSCProof(proof)
-              r match {
-                case SCProofCheckerJudgement.SCValidProof(_, sorry) =>
-                  proof.conclusion match {
-                    case Sequent(l, r) if l.isEmpty && r.size == 1 =>
-                      if (isImplying(proven, body)) {
-                        val subst = BinderFormula(ExistsOne, out, proven)
-                        if (isSame(r.head, subst)) {
-                          val usesSorry = sorry || justifications.exists(_ match {
-                            case Theorem(name, proposition, withSorry) => withSorry
-                            case Axiom(name, ax) => false
-                            case d: Definition =>
-                              d match {
-                                case PredicateDefinition(label, expression) => false
-                                case FunctionDefinition(label, out, expression, withSorry) => withSorry
-                              }
-                          })
-                          val newDef = FunctionDefinition(label, out, expression, usesSorry)
-                          funDefinitions.update(label, Some(newDef))
-                          knownSymbols.update(label.id, label)
-                          RunningTheoryJudgement.ValidJustification(newDef)
-                        } else InvalidJustification("The proof is correct but its conclusion does not correspond to the claimed proven property.", None)
-                      } else InvalidJustification("The proven property must be at least as strong as the desired definition, and it is not.", None)
-
-                    case _ => InvalidJustification("The conclusion of the proof must have an empty left hand side, and a single formula on the right hand side.", None)
-                  }
-                case r @ SCProofCheckerJudgement.SCInvalidProof(_, path, message) => InvalidJustification("The given proof is incorrect: " + message, Some(r))
-              }
-            } else InvalidJustification("Not all imports of the proof are correctly justified.", None)
-          } else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
-        } else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
-      } else InvalidJustification("All symbols in the conclusion of the proof must belong to the theory. You need to add missing symbols to the theory.", None)
-    } else InvalidJustification("The arity of the label must be equal to the number of parameters in the definition.", None)
+  def makeDefinition(cst: Constant, expression: Expression, vars: Seq[Variable]): RunningTheoryJudgement[this.Definition] = {
+    if (cst.sort.depth == vars.length)
+      if (flatTypeParameters(cst.sort) zip vars.map(_.sort) forall { case (a, b) => a == b })
+        if (cst.sort == expression.sort)
+          if (belongsToTheory(expression))
+            if (isAvailable(cst))
+              if (expression.freeVariables.isEmpty) {
+                val newDef = Definition(cst, expression, vars)
+                definitions.update(cst, Some(newDef))
+                knownSymbols.update(cst.id, cst)
+                RunningTheoryJudgement.ValidJustification(newDef)
+              } else InvalidJustification("The definition is not allowed to contain schematic symbols or free variables.", None)
+            else InvalidJustification("The specified symbol id is already part of the theory and can't be redefined.", None)
+          else InvalidJustification("All symbols in the definition must belong to the theory. You need to add missing symbols to the theory.", None)
+        else InvalidJustification("The type of the constant and the type of the expression must be the same.", None)
+      else InvalidJustification("The types of the variables must match the type of the constant.", None)
+    else InvalidJustification("The arity of the label must be equal to the number of parameters in the definition.", None)
   }
 
   def sequentFromJustification(j: Justification): Sequent = j match {
     case Theorem(name, proposition, _) => proposition
     case Axiom(name, ax) => Sequent(Set.empty, Set(ax))
-    case PredicateDefinition(label, LambdaTermFormula(vars, body)) =>
-      val inner = ConnectorFormula(Iff, Seq(AtomicFormula(label, vars.map(VariableTerm.apply)), body))
-      Sequent(Set(), Set(inner))
-    case FunctionDefinition(label, out, LambdaTermFormula(vars, body), _) =>
-      val inner = BinderFormula(
-        Forall,
-        out,
-        ConnectorFormula(
-          Iff,
-          Seq(
-            AtomicFormula(equality, Seq(Term(label, vars.map(VariableTerm.apply)), VariableTerm(out))),
-            body
-          )
-        )
-      )
-      Sequent(Set(), Set(inner))
-
+    case Definition(cst, e, vars) =>
+      val left = vars.foldLeft(cst: Expression)(_(_))
+      val right = vars.foldLeft(e)(_(_))
+      if (left.sort == Prop) {
+        val inner = iff(left)(right)
+        Sequent(Set(), Set(inner))
+      } else {
+        val inner = equality(left)(right)
+        Sequent(Set(), Set(inner))
+      }
   }
 
   /**
@@ -222,8 +142,8 @@ class RunningTheory {
    * @param f the new axiom to be added.
    * @return true if the axiom was added to the theory, false else.
    */
-  def addAxiom(name: String, f: Formula): Option[Axiom] = {
-    if (belongsToTheory(f)) {
+  def addAxiom(name: String, f: Expression): Option[Axiom] = {
+    if (f.sort == Prop && belongsToTheory(f)) {
       val ax = Axiom(name, f)
       theoryAxioms.update(name, ax)
       Some(ax)
@@ -237,22 +157,18 @@ class RunningTheory {
    * that it is empty can be introduced as well.
    */
 
-  def addSymbol(s: ConstantLabel): Unit = {
-    if (isAvailable(s)) {
-      knownSymbols.update(s.id, s)
-      s match {
-        case c: ConstantFunctionLabel => funDefinitions.update(c, None)
-        case c: ConstantAtomicLabel => predDefinitions.update(c, None)
-      }
+  def addSymbol(c: Constant): Unit = {
+    if (isAvailable(c)) {
+      knownSymbols.update(c.id, c)
+      definitions.update(c, None)
     } else {}
   }
 
   /**
    * Add all constant symbols in the sequent. Note that this can't be reversed and will prevent from giving them a definition later.
    */
-  def makeFormulaBelongToTheory(phi: Formula): Unit = {
-    phi.constantAtomicLabels.foreach(addSymbol)
-    phi.constantTermLabels.foreach(addSymbol)
+  def makeFormulaBelongToTheory(e: Expression): Unit = {
+    e.constants.foreach(addSymbol)
   }
 
   /**
@@ -264,34 +180,16 @@ class RunningTheory {
   }
 
   /**
-   * Verify if a given formula belongs to some language
+   * Verify if a given expression belongs to the language of the theory.
    *
-   * @param phi The formula to check
-   * @return Weather phi belongs to the specified language
-   */
-  def belongsToTheory(phi: Formula): Boolean = phi match {
-    case AtomicFormula(label, args) =>
-      label match {
-        case l: ConstantAtomicLabel => isSymbol(l) && args.forall(belongsToTheory)
-        case _ => args.forall(belongsToTheory)
-      }
-    case ConnectorFormula(label, args) => args.forall(belongsToTheory)
-    case BinderFormula(label, bound, inner) => belongsToTheory(inner)
-  }
-
-  /**
-   * Verify if a given term belongs to the language of the theory.
-   *
-   * @param t The term to check
+   * @param e The expression to check
    * @return Weather t belongs to the specified language.
    */
-  def belongsToTheory(t: Term): Boolean = t match {
-    case Term(label, args) =>
-      label match {
-        case l: ConstantFunctionLabel => isSymbol(l) && args.forall(belongsToTheory)
-        case _: SchematicTermLabel => args.forall(belongsToTheory)
-      }
-
+  def belongsToTheory(e: Expression): Boolean = e match {
+    case v: Variable => true
+    case c: Constant => isSymbol(c)
+    case Application(f, arg) => belongsToTheory(f) && belongsToTheory(arg)
+    case Lambda(v, t) => belongsToTheory(t)
   }
 
   /**
@@ -308,21 +206,18 @@ class RunningTheory {
    *
    * @return the set of symbol currently in the theory's language.
    */
-  def language(): List[(ConstantLabel, Option[Definition])] = funDefinitions.toList ++ predDefinitions.toList
+  def language(): List[(Constant, Option[Definition])] = definitions.toList
 
   /**
    * Check if a label is a symbol of the theory.
    */
-  def isSymbol(label: ConstantLabel): Boolean = label match {
-    case c: ConstantFunctionLabel => funDefinitions.contains(c)
-    case c: ConstantAtomicLabel => predDefinitions.contains(c)
-  }
+  def isSymbol(cst: Constant): Boolean = definitions.contains(cst)
 
   /**
    * Check if a label is not already used in the theory.
    * @return
    */
-  def isAvailable(label: ConstantLabel): Boolean = !knownSymbols.contains(label.id)
+  def isAvailable(label: Constant): Boolean = !knownSymbols.contains(label.id)
 
   /**
    * Public accessor to the current set of axioms of the theory
@@ -334,22 +229,17 @@ class RunningTheory {
   /**
    * Verify if a given formula is an axiom of the theory
    */
-  def isAxiom(f: Formula): Boolean = theoryAxioms.exists(a => isSame(a._2.ax, f))
+  def isAxiom(f: Expression): Boolean = f.sort == Prop && theoryAxioms.exists(a => isSame(a._2.ax, f))
 
   /**
    * Get the Axiom that is the same as the given formula, if it exists in the theory.
    */
-  def getAxiom(f: Formula): Option[Axiom] = theoryAxioms.find(a => isSame(a._2.ax, f)).map(_._2)
+  def getAxiom(f: Expression): Option[Axiom] = if (f.sort == Prop) theoryAxioms.find(a => isSame(a._2.ax, f)).map(_._2) else None
 
   /**
    * Get the definition of the given label, if it is defined in the theory.
    */
-  def getDefinition(label: ConstantAtomicLabel): Option[PredicateDefinition] = predDefinitions.get(label).flatten
-
-  /**
-   * Get the definition of the given label, if it is defined in the theory.
-   */
-  def getDefinition(label: ConstantFunctionLabel): Option[FunctionDefinition] = funDefinitions.get(label).flatten
+  def getDefinition(label: Constant): Option[Definition] = definitions.get(label).flatten
 
   /**
    * Get the Axiom with the given name, if it exists in the theory.
@@ -364,10 +254,7 @@ class RunningTheory {
   /**
    * Get the definition for the given identifier, if it is defined in the theory.
    */
-  def getDefinition(name: Identifier): Option[Definition] = knownSymbols.get(name).flatMap {
-    case f: ConstantAtomicLabel => getDefinition(f)
-    case f: ConstantFunctionLabel => getDefinition(f)
-  }
+  def getDefinition(name: Identifier): Option[Definition] = knownSymbols.get(name).flatMap(getDefinition)
 
 }
 object RunningTheory {

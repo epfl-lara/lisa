@@ -15,9 +15,8 @@ case class SCProof(steps: IndexedSeq[SCProofStep], imports: IndexedSeq[Sequent] 
   def numberedSteps: Seq[(SCProofStep, Int)] = steps.zipWithIndex
 
   /**
-   * Fetches the <code>i</code>th step of the proof.
+   * Returns the `i`th step of the proof.
    * @param i the index
-   * @return a step
    */
   def apply(i: Int): SCProofStep = {
     if (i >= 0)
@@ -31,7 +30,7 @@ case class SCProof(steps: IndexedSeq[SCProofStep], imports: IndexedSeq[Sequent] 
    * If the index is negative, return the <code>(-i-1)</code>th imported sequent.
    *
    * @param i The reference number of a sequent in the proof
-   * @return A sequent, either imported or reached during the proof.
+   * @return A sequent, either imported or proved during the proof.
    */
   def getSequent(i: Int): Sequent = {
     if (i >= 0)

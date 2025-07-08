@@ -1,14 +1,10 @@
 package lisa.automation
-import lisa.fol.FOL as F
-import lisa.prooflib.Library
-import lisa.prooflib.OutputManager.*
-import lisa.prooflib.ProofTacticLib.*
+import lisa.utils.fol.FOL as F
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.OutputManager.*
+import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-import lisa.utils.parsing.FOLPrinter.prettyFormula
-import lisa.utils.parsing.FOLPrinter.prettySCProof
-import lisa.utils.parsing.FOLPrinter.prettySequent
-import lisa.utils.parsing.FOLPrinter.prettyTerm
 
 import scala.collection.immutable.HashMap
 import scala.collection.immutable.HashSet
@@ -47,7 +43,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
   def from(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
     val botK = bot.underlying
-    val premsFormulas: Seq[((proof.Fact, Formula), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
+    val premsFormulas: Seq[((proof.Fact, Expression), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
     val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
     val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
 
@@ -65,17 +61,36 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     }
   }
 
+  /*
+  def from(premises: Seq[K.Sequent], bot: K.Sequent): Option[SCProof] = {
+    val botK = bot.underlying
+    val premsFormulas: Seq[((proof.Fact, Expression), Int)] = premises.map(p => (p, sequentToFormula(proof.getSequent(p).underlying))).zipWithIndex
+    val initProof = premsFormulas.map(s => Restate(() |- s._1._2, -(1 + s._2))).toList
+    val sqToProve = botK ++<< (premsFormulas.map(s => s._1._2).toSet |- ())
+
+    solve(sqToProve) match {
+      case Some(value) =>
+        val subpr = SCSubproof(value)
+        val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
+          val ((prem, form), position) = cur
+          Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
+        })
+        val steps = (initProof ++ stepsList.reverse).toIndexedSeq
+        proof.ValidProofTactic(bot, steps, premises)
+      case None =>
+        proof.InvalidProofTactic("Could not prove the statement.")
+    }
+  }*/
+
   inline def solve(sequent: F.Sequent): Option[SCProof] = solve(sequent.underlying)
 
   def solve(sequent: K.Sequent): Option[SCProof] = {
-
-    val f = K.ConnectorFormula(K.And, (sequent.left.toSeq ++ sequent.right.map(f => K.ConnectorFormula(K.Neg, List(f)))))
-    val taken = f.schematicTermLabels
+    val f = K.multiand(sequent.left.toSeq ++ sequent.right.map(f => K.neg(f)))
+    val taken = f.allVariables
     val nextIdNow = if taken.isEmpty then 0 else taken.maxBy(_.id.no).id.no + 1
-    val (fnamed, nextId, _) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
-
+    val (fnamed, nextId) = makeVariableNamesUnique(f, nextIdNow, f.freeVariables)
     val nf = reducedNNFForm(fnamed)
-    val uv = VariableLabel(Identifier("§", nextId))
+    val uv = Variable(Identifier("§", nextId), Ind)
     val proof = decide(Branch.empty(nextId + 1, uv).prepended(nf))
     proof match
       case None => None
@@ -101,53 +116,49 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * maxIndex stores an index that is used to generate fresh variable names.
    */
   case class Branch(
-      alpha: List[ConnectorFormula], // label = And
-      beta: List[ConnectorFormula], // label = Or
-      delta: List[BinderFormula], // Exists(...))
-      gamma: List[BinderFormula], // Forall(...)
-      atoms: (List[AtomicFormula], List[AtomicFormula]), // split into positive and negatives!
-      unifiable: Map[VariableLabel, (BinderFormula, Int)], // map between metavariables and the original formula they came from, with the penalty associated to the complexity of the formula.
-      numberInstantiated: Map[VariableLabel, Int], // map between variables and the number of times they have been instantiated
+      alpha: List[Expression], // label = And
+      beta: List[Expression], // label = Or
+      delta: List[Expression], // Exists(...))
+      gamma: List[Expression], // Forall(...)
+      atoms: (List[Expression], List[Expression]), // split into positive and negatives!
+      unifiable: Map[Variable, (Expression, Int)], // map between metavariables and the original formula they came from, with the penalty associated to the complexity of the formula.
+      numberInstantiated: Map[Variable, Int], // map between variables and the number of times they have been instantiated
 
-      skolemized: Set[VariableLabel], // set of variables that have been skolemized
-      triedInstantiation: Map[VariableLabel, Set[Term]], // map between metavariables and the term they were already instantiated with
+      skolemized: Set[Variable], // set of variables that have been skolemized
+      triedInstantiation: Map[Variable, Set[Expression]], // map between metavariables and the term they were already instantiated with
       maxIndex: Int, // the maximum index used for skolemization and metavariables
-      varsOrder: Map[VariableLabel, Int], // the order in which variables were instantiated. In particular, if the branch contained the formula ∀x. ∀y. ... then x > y.
-      unusedVar: VariableLabel // a variable the is neither free nor bound in the original formula.
+      varsOrder: Map[Variable, Int], // the order in which variables were instantiated. In particular, if the branch contained the formula ∀x. ∀y. ... then x > y.
+      unusedVar: Variable // a variable the is neither free nor bound in the original formula.
   ) {
-    def pop(f: Formula): Branch = f match
-      case f @ ConnectorFormula(Or, args) =>
+    def pop(f: Expression): Branch = f match
+      case f @ Or(l, r) =>
         if (beta.nonEmpty && beta.head.uniqueNumber == f.uniqueNumber) copy(beta = beta.tail) else throw Exception("First formula of beta is not f")
-      case f @ BinderFormula(Exists, x, inner) =>
+      case f @ Exists(x, inner) =>
         if (delta.nonEmpty && delta.head.uniqueNumber == f.uniqueNumber) copy(delta = delta.tail) else throw Exception("First formula of delta is not f")
-      case f @ BinderFormula(Forall, x, inner) =>
+      case f @ Forall(x, inner) =>
         if (gamma.nonEmpty && gamma.head.uniqueNumber == f.uniqueNumber) copy(gamma = gamma.tail) else throw Exception("First formula of gamma is not f")
-      case ConnectorFormula(And, args) =>
+      case And(left, right) =>
         if (alpha.nonEmpty && alpha.head.uniqueNumber == f.uniqueNumber) copy(alpha = alpha.tail) else throw Exception("First formula of alpha is not f")
-      case f @ AtomicFormula(id, args) =>
-        throw Exception("Should not pop Atoms")
-      case f @ ConnectorFormula(Neg, List(AtomicFormula(id, args))) =>
-        throw Exception("Should not pop Atoms")
-      case _ => ???
+      case _ =>
+        throw Exception("Should not pop Atoms: " + f.repr)
 
-    def prepended(f: Formula): Branch = f match
-      case f @ ConnectorFormula(And, args) => this.copy(alpha = f :: alpha)
-      case f @ ConnectorFormula(Or, args) => this.copy(beta = f :: beta)
-      case f @ BinderFormula(Exists, x, inner) => this.copy(delta = f :: delta)
-      case f @ BinderFormula(Forall, x, inner) => this.copy(gamma = f :: gamma)
-      case f @ AtomicFormula(id, args) =>
-        this.copy(atoms = (f :: atoms._1, atoms._2))
-      case ConnectorFormula(Neg, List(f @ AtomicFormula(id, args))) =>
+    def prepended(f: Expression): Branch = f match
+      case And(left, right) => this.copy(alpha = f :: alpha)
+      case Or(left, right) => this.copy(beta = f :: beta)
+      case Exists(x, inner) => this.copy(delta = f :: delta)
+      case Forall(x, inner) => this.copy(gamma = f :: gamma)
+      case Neg(f) =>
         this.copy(atoms = (atoms._1, f :: atoms._2))
-      case _ => ???
+      case _ =>
+        this.copy(atoms = (f :: atoms._1, atoms._2))
 
-    def prependedAll(l: Seq[Formula]): Branch = l.foldLeft(this)((a, b) => a.prepended(b))
+    def prependedAll(l: Seq[Expression]): Branch = l.foldLeft(this)((a, b) => a.prepended(b))
 
     def asSequent: Sequent = (beta ++ delta ++ gamma ++ atoms._1 ++ atoms._2.map(a => !a)).toSet |- Set() // inefficient, not used
 
     import Branch.*
     override def toString(): String =
-      val pretUnif = unifiable.map((x, f) => x.id + " -> " + prettyFormula(f._1) + " : " + f._2).mkString("Unif(", ", ", ")")
+      val pretUnif = unifiable.map((x, f) => x.id + " -> " + f._1.repr + " : " + f._2).mkString("Unif(", ", ", ")")
       // val pretTried = triedInstantiation.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Tried(", ", ", ")")
       (s"Branch(" +
         s"${RED(prettyIte(alpha, "alpha"))}, " +
@@ -159,80 +170,64 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
   }
   object Branch {
-    def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, 1, Map.empty, VariableLabel(Identifier("§uv", 0)))
-    def empty(n: Int, uv: VariableLabel) = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, n, Map.empty, uv)
-    def prettyIte(l: Iterable[Formula], head: String): String = l match
+    def empty = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, 1, Map.empty, Variable(Identifier("§uv", 0), Ind))
+    def empty(n: Int, uv: Variable) = Branch(Nil, Nil, Nil, Nil, (Nil, Nil), Map.empty, Map.empty, Set.empty, Map.empty, n, Map.empty, uv)
+    def prettyIte(l: Iterable[Expression], head: String): String = l match
       case Nil => "Nil"
-      case _ => l.map(prettyFormula(_, true)).mkString(head + "(", ", ", ")")
+      case _ => l.map(_.repr).mkString(head + "(", ", ", ")")
 
   }
 
-  def makeVariableNamesUnique(f: Formula, nextId: Int, seen: Set[VariableLabel]): (Formula, Int, Set[VariableLabel]) = f match
-    case ConnectorFormula(label, args) =>
-      val (nArgs, nnId, nSeen) = args.foldLeft((List(): Seq[Formula], nextId, seen))((prev, next) =>
-        val (l, n, s) = prev
-        val (nf, nn, ns) = makeVariableNamesUnique(next, n, s)
-        (l :+ nf, nn, ns)
-      )
-      (ConnectorFormula(label, nArgs), nnId, nSeen)
-    case pf: AtomicFormula => (pf, nextId, seen)
-    case BinderFormula(label, x, inner) =>
-      if (seen.contains(x))
-        val (nInner, nnId, nSeen) = makeVariableNamesUnique(inner, nextId + 1, seen)
-        val newX = VariableLabel(Identifier(x.id, nextId))
-        (BinderFormula(label, newX, substituteVariablesInFormula(nInner, Map(x -> newX), Seq())), nnId, nSeen)
-      else
-        val (nInner, nnId, nSeen) = makeVariableNamesUnique(inner, nextId, seen + x)
-        (BinderFormula(label, x, nInner), nnId, nSeen)
-
-  type Substitution = Map[VariableLabel, Term]
+  def makeVariableNamesUnique(f: Expression, nextId: Int, seen2: Set[Variable]): (Expression, Int) = {
+    var nextId2: Int = nextId
+    var seen = seen2
+    def recurse(f: Expression): Expression = f match
+      case Application(f, a) =>
+        Application(recurse(f), recurse(a))
+      case Lambda(v, body) =>
+        if seen.contains(v) then
+          val newV = Variable(Identifier(v.id, nextId2), Ind)
+          nextId2 += 1
+          Lambda(newV, substituteVariables(recurse(body), Map(v -> newV)))
+        else
+          seen += v
+          Lambda(v, recurse(body))
+      case _ => f
+    (recurse(f), nextId2)
+  }
+  type Substitution = Map[Variable, Expression]
   val Substitution = HashMap
-  def prettySubst(s: Substitution): String = s.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Subst(", ", ", ")")
+  def prettySubst(s: Substitution): String = s.map((x, t) => x.id + " -> " + t.repr).mkString("Subst(", ", ", ")")
 
   /**
    * Detect if two terms can be unified, and if so, return a substitution that unifies them.
    */
-  def unify(t1: Term, t2: Term, current: Substitution, br: Branch): Option[Substitution] = (t1, t2) match
-    case (VariableTerm(x), VariableTerm(y)) if (br.unifiable.contains(x) || x.id.no > br.maxIndex) && (br.unifiable.contains(y) || y.id.no > br.maxIndex) =>
+  def unify(t1: Expression, t2: Expression, current: Substitution, br: Branch): Option[Substitution] = (t1, t2) match
+    case (x: Variable, y: Variable) if (br.unifiable.contains(x) || x.id.no > br.maxIndex) && (br.unifiable.contains(y) || y.id.no > br.maxIndex) =>
       if x == y then Some(current)
       else if current.contains(x) then unify(current(x), t2, current, br)
       else if current.contains(y) then unify(t1, current(y), current, br)
       else Some(current + (x -> y))
-    case (VariableTerm(x), t2: Term) if br.unifiable.contains(x) || x.id.no > br.maxIndex =>
-      val newt2 = substituteVariablesInTerm(t2, current)
+    case (x: Variable, t2: Expression) if br.unifiable.contains(x) || x.id.no > br.maxIndex =>
+      val newt2 = substituteVariables(t2, current)
       if newt2.freeVariables.contains(x) then None
       else if (current.contains(x)) unify(current(x), newt2, current, br)
       else Some(current + (x -> newt2))
-    case (t1: Term, VariableTerm(y)) if br.unifiable.contains(y) || y.id.no > br.maxIndex =>
-      val newt1 = substituteVariablesInTerm(t1, current)
+    case (t1: Expression, y: Variable) if br.unifiable.contains(y) || y.id.no > br.maxIndex =>
+      val newt1 = substituteVariables(t1, current)
       if newt1.freeVariables.contains(y) then None
       else if (current.contains(y)) unify(newt1, current(y), current, br)
       else Some(current + (y -> newt1))
-    case (Term(label1, args1), Term(label2, args2)) =>
-      if label1 == label2 && args1.size == args2.size then
-        args1
-          .zip(args2)
-          .foldLeft(Some(current): Option[Substitution])((prev, next) =>
-            prev match
-              case None => None
-              case Some(s) => unify(next._1, next._2, s, br)
-          )
-      else None
+    case (Application(f1, a1), Application(f2, a2)) =>
+      unify(f1, f2, current, br).flatMap(s => unify(a1, a2, s, br))
+    case _ => if t1 == t2 then Some(current) else None
 
   /**
    * Detect if two atoms can be unified, and if so, return a substitution that unifies them.
    */
-  def unifyPred(pos: AtomicFormula, neg: AtomicFormula, br: Branch): Option[Substitution] = {
-    (pos, neg) match
-      case (AtomicFormula(id1, args1), AtomicFormula(id2, args2)) if (id1 == id2 && args1.size == args2.size) =>
-        args1
-          .zip(args2)
-          .foldLeft(Some(Substitution.empty): Option[Substitution])((prev, next) =>
-            prev match
-              case None => None
-              case Some(s) => unify(next._1, next._2, s, br)
-          )
-      case _ => None
+  def unifyPred(pos: Expression, neg: Expression, br: Branch): Option[Substitution] = {
+    assert(pos.sort == Prop && neg.sort == Prop)
+    unify(pos, neg, Substitution.empty, br)
 
   }
 
@@ -242,20 +237,18 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * The substitution cannot do substitutions that were already done in branch.triedInstantiation.
    * When multiple substitutions are possible, the one with the smallest size is returned. (Maybe there is a better heuristic, like distance from the root?)
    */
-  def close(branch: Branch): Option[(Substitution, Set[Formula])] = {
+  def close(branch: Branch): Option[(Substitution, Set[Expression])] = {
     val newMap = branch.atoms._1
       .flatMap(pred => pred.freeVariables.filter(v => branch.unifiable.contains(v)))
-      .map(v => v -> VariableLabel(Identifier(v.id.name, v.id.no + branch.maxIndex + 1)))
+      .map(v => v -> Variable(Identifier(v.id.name, v.id.no + branch.maxIndex + 1), Ind))
       .toMap
-    val newMapTerm = newMap.map((k, v) => k -> VariableTerm(v))
     val inverseNewMap = newMap.map((k, v) => v -> k).toMap
-    val inverseNewMapTerm = inverseNewMap.map((k, v) => k -> VariableTerm(v))
-    val pos = branch.atoms._1.map(pred => substituteVariablesInFormula(pred, newMapTerm, Seq())).asInstanceOf[List[AtomicFormula]].iterator
-    var substitutions: List[(Substitution, Set[Formula])] = Nil
+    val pos = branch.atoms._1.map(pred => substituteVariables(pred, newMap)).iterator
+    var substitutions: List[(Substitution, Set[Expression])] = Nil
 
     while (pos.hasNext) {
       val p = pos.next()
-      if (p.label == bot) return Some((Substitution.empty, Set(bot)))
+      if (p == bot) return Some((Substitution.empty, Set(bot)))
       val neg = branch.atoms._2.iterator
       while (neg.hasNext) {
         val n = neg.next()
@@ -270,12 +263,12 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       (
         sub.flatMap((v, t) =>
           if v.id.no > branch.maxIndex then
-            if t == inverseNewMapTerm(v) then None
-            else Some(inverseNewMap(v) -> substituteVariablesInTerm(t, inverseNewMapTerm.map((v, t) => v -> substituteVariablesInTerm(t, sub))))
+            if t == inverseNewMap(v) then None
+            else Some(inverseNewMap(v) -> substituteVariables(t, inverseNewMap.map((v, t) => v -> substituteVariables(t, sub))))
           else if newMap.contains(v) && t == newMap(v) then None
-          else Some(v -> substituteVariablesInTerm(t, inverseNewMapTerm))
+          else Some(v -> substituteVariables(t, inverseNewMap))
         ),
-        set.map(f => substituteVariablesInFormula(f, inverseNewMapTerm, Seq()))
+        set.map(f => substituteVariables(f, inverseNewMap))
       )
     )
 
@@ -290,7 +283,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
   }
 
-  def bestSubst(substs: List[(Substitution, Set[Formula])], branch: Branch): Option[(Substitution, Set[Formula])] = {
+  def bestSubst(substs: List[(Substitution, Set[Expression])], branch: Branch): Option[(Substitution, Set[Expression])] = {
     if substs.isEmpty then return None
     val minSize = substs.minBy(_._1.size)
     val smallSubst = substs.filter(_._1.size == minSize._1.size)
@@ -299,22 +292,22 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     val best = smallSubst.minBy(s => substitutionScore(s._1, branch))
     Some(best)
   }
-  def formulaPenalty(f: Formula, branch: Branch): Int = f match
-    case ConnectorFormula(And, args) => 10 + args.map(formulaPenalty(_, branch)).sum
-    case ConnectorFormula(Or, args) => 40 + args.map(formulaPenalty(_, branch)).sum
-    case BinderFormula(Exists, x, inner) => 30 + formulaPenalty(inner, branch)
-    case BinderFormula(Forall, x, inner) => 200 + formulaPenalty(inner, branch)
-    case AtomicFormula(id, args) => 0
-    case ConnectorFormula(Neg, List(AtomicFormula(id, args))) => 0
-    case _ => ???
+  def formulaPenalty(f: Expression, branch: Branch): Int = f match
+    case And(left, right) => 10 + formulaPenalty(left, branch) + formulaPenalty(right, branch)
+    case Or(left, right) => 40 + formulaPenalty(left, branch) + formulaPenalty(right, branch)
+    case Exists(x, inner) => 30 + formulaPenalty(inner, branch)
+    case Forall(x, inner) => 200 + formulaPenalty(inner, branch)
+    case _ => 0
 
   def substitutionScore(subst: Substitution, branch: Branch): Int = {
-    def pairPenalty(v: VariableLabel, t: Term) = {
+    def pairPenalty(v: Variable, t: Expression) = {
       val variablePenalty = branch.unifiable(v)._2 + branch.numberInstantiated(v) * 20
-      def termPenalty(t: Term): Int = t match
-        case VariableTerm(x) => if branch.unifiable.contains(x) then branch.unifiable(x)._2 * 1 else 0
-        case Term(label, args) => 100 + args.map(termPenalty).sum
-      variablePenalty + termPenalty(t)
+      def termPenalty(t: Expression): Int = t match
+        case x: Variable => if branch.unifiable.contains(x) then branch.unifiable(x)._2 * 1 else 0
+        case c: Constant => 40
+        case Application(f, a) => 100 + termPenalty(f) + termPenalty(a)
+        case Lambda(v, inner) => 100 + termPenalty(inner)
+      1 * variablePenalty + 1 * termPenalty(t)
     }
     subst.map((v, t) => pairPenalty(v, t)).sum
   }
@@ -325,7 +318,9 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    */
   def alpha(branch: Branch): Branch = {
     val f = branch.alpha.head
-    branch.copy(alpha = branch.alpha.tail).prependedAll(f.args)
+    f match
+      case And(l, r) => branch.copy(alpha = branch.alpha.tail).prepended(l).prepended(r)
+      case _ => throw Exception("Error: First formula of alpha is not an And")
   }
 
   /**
@@ -333,13 +328,13 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * Add the exploded formula to the used list, if one beta formula is found
    * The beta list of the branch must not be empty
    */
-  def beta(branch: Branch): List[(Branch, Formula)] = {
+  def beta(branch: Branch): List[(Branch, Expression)] = {
     val f = branch.beta.head
     val b1 = branch.copy(beta = branch.beta.tail)
-    val resList = f.args.toList.map(disjunct => {
-      ((b1.prepended(disjunct), disjunct))
-    })
-    resList
+    f match
+      case Or(l, r) =>
+        List((b1.prepended(l), l), (b1.prepended(r), r))
+      case _ => throw Exception("Error: First formula of beta is not an Or")
   }
 
   /**
@@ -347,13 +342,16 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * Add the unquantified formula to the branch
    * Since the bound variable is not marked as suitable for instantiation, it behaves as a constant symbol (skolem)
    */
-  def delta(branch: Branch): (Branch, VariableLabel, Formula) = {
+  def delta(branch: Branch): (Branch, Variable, Expression) = {
     val f = branch.delta.head
-    if branch.skolemized.contains(branch.delta.head.bound) then
-      val newX = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
-      val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newX), Seq())
-      (branch.copy(delta = branch.delta.tail, maxIndex = branch.maxIndex + 1).prepended(newInner), newX, newInner)
-    else (branch.copy(delta = branch.delta.tail, skolemized = branch.skolemized + f.bound).prepended(f.inner), f.bound, f.inner)
+    f match
+      case Exists(v, body) =>
+        if branch.skolemized.contains(v) then
+          val newV = Variable(Identifier(v.id.name, branch.maxIndex), Ind)
+          val newInner = substituteVariables(body, Map(v -> newV))
+          (branch.copy(delta = branch.delta.tail, maxIndex = branch.maxIndex + 1).prepended(newInner), newV, newInner)
+        else (branch.copy(delta = branch.delta.tail, skolemized = branch.skolemized + v).prepended(body), v, body)
+      case _ => throw Exception("Error: First formula of delta is not an Exists")
   }
 
   /**
@@ -361,36 +359,42 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * Add the unquantified formula to the branch and mark the bound variable as suitable for unification
    * This step will most of the time be cancelled when building the proof, unless any arbitrary instantiation is sufficient to get a proof.
    */
-  def gamma(branch: Branch): (Branch, VariableLabel, Formula) = {
+  def gamma(branch: Branch): (Branch, Variable, Expression) = {
     val f = branch.gamma.head
-    val (ni, nb) = branch.unifiable.get(f.bound) match
-      case None =>
-        (f.inner, f.bound)
-      case Some(value) =>
-        val newBound = VariableLabel(Identifier(f.bound.id.name, branch.maxIndex))
-        val newInner = substituteVariablesInFormula(f.inner, Map(f.bound -> newBound), Seq())
-        (newInner, newBound)
-    val b1 = branch.copy(
-      gamma = branch.gamma.tail,
-      unifiable = branch.unifiable + (nb -> (f, formulaPenalty(f.inner, branch))),
-      numberInstantiated = branch.numberInstantiated + (nb -> (branch.numberInstantiated.getOrElse(f.bound, 0))),
-      maxIndex = branch.maxIndex + 1,
-      varsOrder = branch.varsOrder + (nb -> branch.varsOrder.size)
-    )
-    (b1.prepended(ni), nb, ni)
+    f match
+      case Forall(v, body) =>
+        val (ni, nb) = branch.unifiable.get(v) match
+          case None =>
+            (body, v)
+          case Some(value) =>
+            val newBound = Variable(Identifier(v.id.name, branch.maxIndex), Ind)
+            val newInner = substituteVariables(body, Map(v -> newBound))
+            (newInner, newBound)
+        val b1 = branch.copy(
+          gamma = branch.gamma.tail,
+          unifiable = branch.unifiable + (nb -> (f, formulaPenalty(body, branch))),
+          numberInstantiated = branch.numberInstantiated + (nb -> (branch.numberInstantiated.getOrElse(v, 0))),
+          maxIndex = branch.maxIndex + 1,
+          varsOrder = branch.varsOrder + (nb -> branch.varsOrder.size)
+        )
+        (b1.prepended(ni), nb, ni)
+      case _ => throw Exception("Error: First formula of gamma is not a Forall")
+
   }
 
   /**
    * When a closing unification has been found, apply it to the branch
-   * This does not backtracking: The metavariable remains available if it needs further instantiation.
+   * This does not do backtracking: The metavariable remains available if it needs further instantiation.
    */
-  def applyInst(branch: Branch, x: VariableLabel, t: Term): (Branch, Formula) = {
+  def applyInst(branch: Branch, x: Variable, t: Expression): (Branch, Expression) = {
     val f = branch.unifiable(x)._1
     val newTried = branch.triedInstantiation.get(x) match
       case None => branch.triedInstantiation + (x -> Set(t))
       case Some(s) => branch.triedInstantiation + (x -> (s + t))
 
-    val inst = instantiate(f.inner, f.bound, t)
+    val inst = f match
+      case Forall(v, body) => instantiate(body, v, t)
+      case _ => throw Exception("Error: Prop in unifiable is not a Forall")
     val r = branch
       .prepended(inst)
       .copy(
@@ -414,10 +418,13 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     else if (branch.alpha.nonEmpty) // If branch contains an Alpha formula (LeftAnd)
       val rec = alpha(branch)
       decide(rec).map((proof, step) =>
-        if branch.alpha.head.args.exists(proof.head.bot.left.contains) then
-          val sequent = proof.head.bot.copy(left = (proof.head.bot.left -- branch.alpha.head.args) + branch.alpha.head)
-          (Weakening(sequent, proof.size - 1) :: proof, step + 1)
-        else (proof, step)
+        branch.alpha.head match
+          case Application(Application(and, left), right) =>
+            if proof.head.bot.left.contains(left) || proof.head.bot.left.contains(right) then
+              val sequent = proof.head.bot.copy(left = (proof.head.bot.left - left - right) + branch.alpha.head)
+              (Weakening(sequent, proof.size - 1) :: proof, step + 1)
+            else (proof, step)
+          case _ => throw Exception("Error: First formula of alpha is not an And")
       )
     else if (branch.delta.nonEmpty) // If branch contains a Delta formula (LeftExists)
       val rec = delta(branch)
@@ -452,17 +459,23 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       proof.map(proo =>
         if needed == true then
           val sequent = ((proo.reverse.zip(list).flatMap((proof, bf) => proof.bot.left - bf._2).toSet + branch.beta.head) |- ())
-          (LeftOr(sequent, treversed.reverse, branch.beta.head.args) :: proo, treversed.size)
+          branch.beta.head match
+            case Or(left, right) =>
+              (LeftOr(sequent, treversed.reverse, Seq(left, right)) :: proo, treversed.size)
+            case _ => throw Exception("Error: First formula of beta is not an Or")
         else (proo, proo.size - 1)
       )
     else if (branch.gamma.nonEmpty) // If branch contains a Gamma formula (LeftForall)
       val rec = gamma(branch)
       val upperProof = decide(rec._1)
-      // LeftForall(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel, t: Term)
+      // LeftForall(bot: Sequent, t1: Int, phi: Expression, x: Variable, t: Expression)
       upperProof.map((proof, step) =>
         if proof.head.bot.left.contains(rec._3) then
           val sequent = (proof.head.bot -<< rec._3) +<< branch.gamma.head
-          (LeftForall(sequent, step, branch.gamma.head.inner, branch.gamma.head.bound, rec._2()) :: proof, step + 1)
+          branch.gamma.head match
+            case Forall(v, body) =>
+              (LeftForall(sequent, step, body, v, rec._2()) :: proof, step + 1)
+            case _ => throw Exception("Error: First formula of gamma is not a Forall")
         else (proof, step)
       )
     else if (closeSubst.nonEmpty && closeSubst.get._1.nonEmpty) // If branch can be closed with Instantiation (LeftForall)
@@ -472,20 +485,24 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       upperProof.map((proof, step) =>
         if proof.head.bot.left.contains(instantiated) then
           val sequent = (proof.head.bot -<< instantiated) +<< branch.unifiable(x)._1
-          (LeftForall(sequent, step, branch.unifiable(x)._1.inner, branch.unifiable(x)._1.bound, t) :: proof, step + 1)
+          branch.unifiable(x)._1 match
+            case Forall(v, body) =>
+              (LeftForall(sequent, step, body, v, t) :: proof, step + 1)
+            case _ => throw Exception("Error: Prop in unifiable is not a Forall")
         else (proof, step)
       )
     else None
     // End of decide
   }
 
-  def containsAlpha(set: Set[Formula], f: Formula) = f match {
-    case ConnectorFormula(And, args) => args.exists(set.contains)
+  def containsAlpha(set: Set[Expression], f: Expression): Boolean = f match {
+    case And(left, right) => containsAlpha(set, left) || containsAlpha(set, right)
     case _ => set.contains(f)
   }
 
-  def instantiate(f: Formula, x: VariableLabel, t: Term): Formula = f match
-    case ConnectorFormula(label, args) => ConnectorFormula(label, args.map(instantiate(_, x, t)))
-    case AtomicFormula(id, args) => AtomicFormula(id, args.map(substituteVariablesInTerm(_, Substitution(x -> t))))
-    case BinderFormula(label, y, inner) => if (x == y) f else BinderFormula(label, y, instantiate(inner, x, t))
+  def instantiate(f: Expression, x: Variable, t: Expression): Expression = f match
+    case v: Variable => if v == x then t else v
+    case c: Constant => c
+    case Application(f, a) => Application(instantiate(f, x, t), instantiate(a, x, t))
+    case Lambda(v, inner) => if (v == x) f else Lambda(v, instantiate(inner, x, t))
 }

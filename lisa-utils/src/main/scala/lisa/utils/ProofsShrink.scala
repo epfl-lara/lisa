@@ -1,8 +1,8 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus._
 
 /**
  * Utilities to work with sequent-calculus proofs.
@@ -10,7 +10,7 @@ import lisa.kernel.proof.SequentCalculus.*
  * If the provided proofs are valid, then the resulting proofs will also be valid.
  */
 object ProofsShrink {
-
+  /*
   /**
    * Computes the size of a proof. Size corresponds to the number of proof steps.
    * Subproofs are count as one plus the size of their body.
@@ -300,4 +300,5 @@ object ProofsShrink {
   }
 
   def minimizeProofOnce(proof: SCProof): SCProof = deadStepsElimination(factorProof(simplifyProof(flattenProof(proof))))
+   */
 }

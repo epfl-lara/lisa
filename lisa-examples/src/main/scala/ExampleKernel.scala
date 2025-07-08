@@ -1,6 +1,6 @@
 import lisa.utils.K
 
-import K.*
+import K._
 
 /**
  * Discover some of the elements of the logical kernel of LISA.
@@ -10,8 +10,8 @@ object ExampleKernel {
   import lisa.kernel.proof.SequentCalculus.*
 
   def main(args: Array[String]): Unit = {
-    val phi = formulaVariable()
-    val psi = formulaVariable()
+    val phi = HOvariable(Prop)
+    val psi = HOvariable(Prop)
     val PierceLaw = SCProof(
       Hypothesis(phi |- phi, phi),
       Weakening(phi |- (phi, psi), 0),

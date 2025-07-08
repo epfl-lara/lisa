@@ -21,12 +21,27 @@ object SequentCalculus {
    * @param left the left side of the sequent
    * @param right the right side of the sequent
    */
-  case class Sequent(left: Set[Formula], right: Set[Formula])
+  case class Sequent(left: Set[Expression], right: Set[Expression]) {
+    require(left.forall(_.sort == Prop) && right.forall(_.sort == Prop), "Sequent can only contain formulas")
+  }
 
   /**
    * Simple method that transforms a sequent to a logically equivalent formula.
    */
-  def sequentToFormula(s: Sequent): Formula = ConnectorFormula(Implies, List(ConnectorFormula(And, s.left.toSeq), ConnectorFormula(Or, s.right.toSeq)))
+  def sequentToFormula(s: Sequent): Expression = {
+    val left = {
+      if (s.left.isEmpty) top
+      else if (s.left.size == 1) s.left.head
+      else s.left.reduce(and(_)(_))
+    }
+    val right = {
+      if (s.right.isEmpty) bot
+      else if (s.right.size == 1) s.right.head
+      else s.right.reduce(or(_)(_))
+    }
+    if (s.left.isEmpty) right
+    else implies(left)(right)
+  }
 
   /**
    * Checks whether two sequents are equivalent, with respect to [[isSameTerm]].
@@ -61,265 +76,258 @@ object SequentCalculus {
   }
 
   /**
-   * <pre>
+   * {{{
    *    Γ |- Δ
    * ------------
    *    Γ |- Δ  (OL rewrite)
-   * </pre>
+   * }}}
    */
   case class Restate(bot: Sequent, t1: Int) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *
    * ------------
    *    Γ |- Γ  (OL tautology)
-   * </pre>
+   * }}}
    */
   case class RestateTrue(bot: Sequent) extends SCProofStep { val premises = Seq() }
 
   /**
-   * <pre>
+   * {{{
    *
    * --------------
    *   Γ, φ |- φ, Δ
-   * </pre>
+   * }}}
    */
-  case class Hypothesis(bot: Sequent, phi: Formula) extends SCProofStep { val premises = Seq() }
+  case class Hypothesis(bot: Sequent, phi: Expression) extends SCProofStep { val premises = Seq() }
 
   /**
-   * <pre>
+   * {{{
    *  Γ |- Δ, φ    φ, Σ |- Π
    * ------------------------
    *       Γ, Σ |-Δ, Π
-   * </pre>
+   * }}}
    */
-  case class Cut(bot: Sequent, t1: Int, t2: Int, phi: Formula) extends SCProofStep { val premises = Seq(t1, t2) }
+  case class Cut(bot: Sequent, t1: Int, t2: Int, phi: Expression) extends SCProofStep { val premises = Seq(t1, t2) }
 
   // Left rules
   /**
-   * <pre>
+   * {{{
    *   Γ, φ |- Δ                Γ, φ, ψ |- Δ
    * --------------     or     --------------
    *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
-   * </pre>
+   * }}}
    */
-  case class LeftAnd(bot: Sequent, t1: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftAnd(bot: Sequent, t1: Int, phi: Expression, psi: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *  Γ, φ |- Δ    Σ, ψ |- Π    ...
    * --------------------------------
    *    Γ, Σ, φ∨ψ∨... |- Δ, Π
-   * </pre>
+   * }}}
    */
-  case class LeftOr(bot: Sequent, t: Seq[Int], disjuncts: Seq[Formula]) extends SCProofStep { val premises = t }
+  case class LeftOr(bot: Sequent, t: Seq[Int], disjuncts: Seq[Expression]) extends SCProofStep { val premises = t }
 
   /**
-   * <pre>
+   * {{{
    *  Γ |- φ, Δ    Σ, ψ |- Π
    * ------------------------
    *    Γ, Σ, φ⇒ψ |- Δ, Π
-   * </pre>
+   * }}}
    */
-  case class LeftImplies(bot: Sequent, t1: Int, t2: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1, t2) }
+  case class LeftImplies(bot: Sequent, t1: Int, t2: Int, phi: Expression, psi: Expression) extends SCProofStep { val premises = Seq(t1, t2) }
 
   /**
-   * <pre>
+   * {{{
    *  Γ, φ⇒ψ |- Δ               Γ, φ⇒ψ, ψ⇒φ |- Δ
    * --------------    or     --------------------
    *  Γ, φ⇔ψ |- Δ                 Γ, φ⇔ψ |- Δ
-   * </pre>
+   * }}}
    */
-  case class LeftIff(bot: Sequent, t1: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftIff(bot: Sequent, t1: Int, phi: Expression, psi: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *   Γ |- φ, Δ
    * --------------
    *   Γ, ¬φ |- Δ
-   * </pre>
+   * }}}
    */
-  case class LeftNot(bot: Sequent, t1: Int, phi: Formula) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftNot(bot: Sequent, t1: Int, phi: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *   Γ, φ[t/x] |- Δ
    * -------------------
    *  Γ, ∀ φ |- Δ
    *
-   * </pre>
+   * }}}
    */
-  case class LeftForall(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel, t: Term) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftForall(bot: Sequent, t1: Int, phi: Expression, x: Variable, t: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *    Γ, φ |- Δ
    * ------------------- if x is not free in the resulting sequent
    *  Γ, ∃x φ|- Δ
    *
-   * </pre>
+   * }}}
    */
-  case class LeftExists(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel) extends SCProofStep { val premises = Seq(t1) }
-
-  /**
-   * <pre>
-   *  Γ, ∃y.∀x. (x=y) ⇔ φ |-  Δ
-   * ---------------------------- if y is not free in φ
-   *      Γ, ∃!x. φ |- Δ
-   * </pre>
-   */
-  case class LeftExistsOne(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftExists(bot: Sequent, t1: Int, phi: Expression, x: Variable) extends SCProofStep { val premises = Seq(t1) }
 
   // Right rules
   /**
-   * <pre>
+   * {{{
    *  Γ |- φ, Δ    Σ |- ψ, Π     ...
    * ------------------------------------
    *    Γ, Σ |- φ∧ψ∧..., Π, Δ
-   * </pre>
+   * }}}
    */
-  case class RightAnd(bot: Sequent, t: Seq[Int], cunjuncts: Seq[Formula]) extends SCProofStep { val premises = t }
+  case class RightAnd(bot: Sequent, t: Seq[Int], cunjuncts: Seq[Expression]) extends SCProofStep { val premises = t }
 
   /**
-   * <pre>
+   * {{{
    *   Γ |- φ, Δ                Γ |- φ, ψ, Δ
    * --------------    or    ---------------
    *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
-   * </pre>
+   * }}}
    */
-  case class RightOr(bot: Sequent, t1: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1) }
+  case class RightOr(bot: Sequent, t1: Int, phi: Expression, psi: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *  Γ, φ |- ψ, Δ
    * --------------
    *  Γ |- φ⇒ψ, Δ
-   * </pre>
+   * }}}
    */
-  case class RightImplies(bot: Sequent, t1: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1) }
+  case class RightImplies(bot: Sequent, t1: Int, phi: Expression, psi: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *  Γ |- a⇒ψ, Δ    Σ |- ψ⇒φ, Π
    * ----------------------------
    *      Γ, Σ |- φ⇔ψ, Π, Δ
-   * </pre>
+   * }}}
    */
-  case class RightIff(bot: Sequent, t1: Int, t2: Int, phi: Formula, psi: Formula) extends SCProofStep { val premises = Seq(t1, t2) }
+  case class RightIff(bot: Sequent, t1: Int, t2: Int, phi: Expression, psi: Expression) extends SCProofStep { val premises = Seq(t1, t2) }
 
   /**
-   * <pre>
+   * {{{
    *  Γ, φ |- Δ
    * --------------
    *   Γ |- ¬φ, Δ
-   * </pre>
+   * }}}
    */
-  case class RightNot(bot: Sequent, t1: Int, phi: Formula) extends SCProofStep { val premises = Seq(t1) }
+  case class RightNot(bot: Sequent, t1: Int, phi: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *    Γ |- φ, Δ
    * ------------------- if x is not free in the resulting sequent
    *  Γ |- ∀x. φ, Δ
-   * </pre>
+   * }}}
    */
-  case class RightForall(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel) extends SCProofStep { val premises = Seq(t1) }
+  case class RightForall(bot: Sequent, t1: Int, phi: Expression, x: Variable) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *   Γ |- φ[t/x], Δ
    * -------------------
    *  Γ |- ∃x. φ, Δ
    *
    * (ln-x stands for locally nameless x)
-   * </pre>
+   * }}}
    */
-  case class RightExists(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel, t: Term) extends SCProofStep { val premises = Seq(t1) }
+  case class RightExists(bot: Sequent, t1: Int, phi: Expression, x: Variable, t: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
-   *  Γ |- ∃y.∀x. (x=y) ⇔ φ, Δ
-   * ---------------------------- if y is not free in φ
-   *      Γ|- ∃!x. φ,  Δ
-   * </pre>
+   * {{{
+   *       Γ |- φ[t/x], Δ
+   * -------------------------- if y is not free in φ
+   *    Γ|- φ[(εx. φ)/x],  Δ
+   * }}}
    */
-  case class RightExistsOne(bot: Sequent, t1: Int, phi: Formula, x: VariableLabel) extends SCProofStep { val premises = Seq(t1) }
+  case class RightEpsilon(bot: Sequent, t1: Int, phi: Expression, x: Variable, t: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   // Structural rule
   /**
-   * <pre>
+   * {{{
    *     Γ |- Δ
    * --------------
    *   Γ, Σ |- Δ, Π
-   * </pre>
+   * }}}
    */
   case class Weakening(bot: Sequent, t1: Int) extends SCProofStep { val premises = Seq(t1) }
 
+  /**
+   * {{{
+   *    Γ |- φ[(λy. e)t/x], Δ
+   * ---------------------------
+   *     Γ |- φ[e[t/y]/x], Δ
+   * }}}
+   */
+  @deprecated
+  case class Beta(bot: Sequent, t1: Int) extends SCProofStep { val premises = Seq(t1) }
+
   // Equality Rules
   /**
-   * <pre>
+   * {{{
    *  Γ, s=s |- Δ
    * --------------
    *     Γ |- Δ
-   * </pre>
+   * }}}
    */
-  case class LeftRefl(bot: Sequent, t1: Int, fa: Formula) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftRefl(bot: Sequent, t1: Int, fa: Expression) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
+   * {{{
    *
    * --------------
    *     |- s=s
-   * </pre>
+   * }}}
    */
-  case class RightRefl(bot: Sequent, fa: Formula) extends SCProofStep { val premises = Seq() }
+  case class RightRefl(bot: Sequent, fa: Expression) extends SCProofStep { val premises = Seq() }
 
   /**
-   * <pre>
-   *    Γ, φ(s1,...,sn) |- Δ
-   * ---------------------
-   *  Γ, s1=t1, ..., sn=tn, φ(t1,...tn) |- Δ
-   * </pre>
+   * {{{
+   *                     Γ, φ(s) |- Δ
+   * -----------------------------------------------------
+   *   Γ, ∀x,...,z. (s x ... z)=(t x ... z), φ(t) |- Δ
+   * }}}
+   * equals elements must have type ... -> ... -> Ind
    */
-  case class LeftSubstEq(bot: Sequent, t1: Int, equals: List[(LambdaTermTerm, LambdaTermTerm)], lambdaPhi: (Seq[SchematicTermLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
+  case class LeftSubstEq(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   * <pre>
-   *    Γ |- φ(s1,...,sn), Δ
-   * ---------------------
-   *  Γ, s1=t1, ..., sn=tn |- φ(t1,...tn), Δ
-   * </pre>
+   * {{{
+   *                     Γ |- φ(s), Δ
+   * ------------------------------------------------------
+   *     Γ, ∀x,...,z. (s x ... z)=(t x ... z) |- φ(t), Δ
+   * }}}
    */
-  case class RightSubstEq(bot: Sequent, t1: Int, equals: List[(LambdaTermTerm, LambdaTermTerm)], lambdaPhi: (Seq[SchematicTermLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
+  case class RightSubstEq(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
 
-  /**
-   * <pre>
-   *    Γ, φ(a1,...an) |- Δ
-   * ---------------------
-   *  Γ, a1⇔b1, ..., an⇔bn, φ(b1,...bn) |- Δ
-   * </pre>
-   */
-  case class LeftSubstIff(bot: Sequent, t1: Int, equals: List[(LambdaTermFormula, LambdaTermFormula)], lambdaPhi: (Seq[SchematicAtomicLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
+  object LeftSubstIff {
+    def apply(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)): LeftSubstEq = {
+      new LeftSubstEq(bot, t1, equals, lambdaPhi)
+    }
+  }
 
-  /**
-   * <pre>
-   *    Γ |- φ(a1,...an), Δ
-   * ---------------------
-   *  Γ, a1⇔b1, ..., an⇔bn |- φ(b1,...bn), Δ
-   * </pre>
-   */
-  
-  case class RightSubstIff(bot: Sequent, t1: Int, equals: List[(LambdaTermFormula, LambdaTermFormula)], lambdaPhi: (Seq[SchematicAtomicLabel], Formula)) extends SCProofStep { val premises = Seq(t1) }
+  object RightSubstIff {
+    def apply(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)): RightSubstEq = {
+      new RightSubstEq(bot, t1, equals, lambdaPhi)
+    }
+  }
 
   // Rule for schemas
 
   case class InstSchema(
       bot: Sequent,
       t1: Int,
-      mCon: Map[SchematicConnectorLabel, LambdaFormulaFormula],
-      mPred: Map[SchematicAtomicLabel, LambdaTermFormula],
-      mTerm: Map[SchematicTermLabel, LambdaTermTerm]
+      subst: Map[Variable, Expression]
   ) extends SCProofStep { val premises = Seq(t1) }
 
   // Proof Organisation rules
@@ -337,11 +345,11 @@ object SequentCalculus {
   }
 
   /**
-   * <pre>
+   * {{{
    *
    * --------------
    *   Γ  |- Δ
-   * </pre>
+   * }}}
    */
   case class Sorry(bot: Sequent) extends SCProofStep { val premises = Seq() }
 

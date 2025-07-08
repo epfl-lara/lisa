@@ -1,6 +1,6 @@
 package lisa
 
-import lisa.prooflib.*
+import lisa.utils.prooflib.*
 
 trait TestMain extends lisa.Main {
 
