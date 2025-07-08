@@ -55,4 +55,3 @@ do
 	FULLTARGET+="runMain $target; "
 done
 
-sbt "${FULLTARGET}"
