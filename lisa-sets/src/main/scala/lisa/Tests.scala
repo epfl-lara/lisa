@@ -46,13 +46,13 @@ object Tests extends lisa.Main {
   ):
     have(thesis) by Egg
 
-  val saturation = Theorem((∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- ∅ === f(∅)):
+  val saturation = Theorem((∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- a === f(a)):
     have(thesis) by Egg
 
   val drinkers2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Goeland
 
-  val example = Theorem((∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(∅) \/ Q(∅))):
+  val example = Theorem((∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(a) \/ Q(a))):
     have(thesis) by Prover9
 
 
