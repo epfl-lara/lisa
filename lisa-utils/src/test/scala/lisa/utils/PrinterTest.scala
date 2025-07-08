@@ -1,6 +1,6 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.{_, given}

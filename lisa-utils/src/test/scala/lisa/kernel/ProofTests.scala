@@ -1,12 +1,12 @@
 package lisa.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.RunningTheory.*
+import lisa.kernel.proof.RunningTheory._
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker
 import lisa.kernel.proof.SCProofChecker.checkSCProof
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus._
 import lisa.utils.KernelHelpers.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 

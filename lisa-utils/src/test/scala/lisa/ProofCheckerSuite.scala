@@ -1,7 +1,7 @@
 package lisa.test
 
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SCProofChecker.*
+import lisa.kernel.proof.SCProofChecker._
 import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.Sequent

@@ -1,8 +1,8 @@
 package lisa.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.proof.SequentCalculus._
 import lisa.test.ProofCheckerSuite
 import lisa.utils.KernelHelpers._
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String

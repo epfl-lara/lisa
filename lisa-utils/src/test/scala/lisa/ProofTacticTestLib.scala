@@ -1,9 +1,9 @@
 package lisa.test
 
 import leo.datastructures.TPTP.FOF.Term
-import lisa.kernel.proof.SequentCalculus as SC
+import lisa.kernel.proof.{SequentCalculus => SC}
 import lisa.utils.prooflib.BasicMain
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite

@@ -1,7 +1,7 @@
 package lisa.kernel
 
 import lisa.kernel.fol.FOL
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.utils.KernelHelpers._
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier

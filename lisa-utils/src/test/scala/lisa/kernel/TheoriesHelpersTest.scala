@@ -1,6 +1,6 @@
 package lisa.test.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SCProof
