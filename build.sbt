@@ -80,7 +80,8 @@ lazy val utils = Project(
   .settings(
     commonSettings3 ++ Seq(
       libraryDependencies += "ch.epfl.lara" %% "scallion" % "0.6" from "https://github.com/epfl-lara/scallion/releases/download/v0.6/scallion_3-0.6.jar",
-      libraryDependencies += "ch.epfl.lara" %% "silex" % "0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar"
+      libraryDependencies += "ch.epfl.lara" %% "silex" % "0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar",
+      libraryDependencies += "com.lihaoyi" %% "mainargs" % "0.7.6"
     )
   )
   .dependsOn(kernel)

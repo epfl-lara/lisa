@@ -206,6 +206,7 @@ object KernelParser {
     if f(0).isUpper then K.Variable(sanitize(f), K.functionType(n))
     else K.Constant(sanitize(f), K.functionType(n))
   val strictMapVariable: (String => K.Variable) = f => K.Variable(sanitize(f), K.Ind)
+  
 
   /**
    * Given a folder containing folders containing problem (typical organisation of TPTP library) and a list of spc,

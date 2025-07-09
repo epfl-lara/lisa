@@ -65,7 +65,7 @@ object Tests extends lisa.Main {
   java.lang.Thread.sleep(5)
   checkProof(dr2proof)
   java.lang.Thread.sleep(5)
-  val tptpproof = ProofPrinter.proofToTPTP(dr2proof, Map(), ("drinkers2", drinkers2.statement.underlying))
+  val tptpproof = ProofPrinter.proofToTPTP(dr2proof, Map(), ("drinkers2", drinkers2.statement.underlying), false)
   tptpproof.foreach { p => println(p.pretty)}
 
 
