@@ -21,7 +21,7 @@ object TPTP_Lisa {
   @main
   def check( @arg(doc = "Input File")
               input: String) = {
-    val proof = reconstructProof(File("../"+input))(using strictMapAtom, strictMapTerm, strictMapVariable)
+    val proof = reconstructProof(File(input))(using strictMapAtom, strictMapTerm, strictMapVariable)
     val judgement = checkSCProof(proof)
     if (judgement.isValid) {
       println("The translation of the proof in Lisa is valid.")
@@ -34,35 +34,40 @@ object TPTP_Lisa {
   @main
   def tableau(@arg(doc = "Input File")
                input: String) = {
-    val problem = problemToKernel(File("../"+input))(using strictMapAtom, strictMapTerm, strictMapVariable)
-    val sequent = problemToSequent(problem)
-    val optproof = Tableau.solve(sequent)
-    val optproof2 = Tautology.solveSequent(sequent)
-    optproof match {
-      case Some(proof) =>
-        val judgement = checkSCProof(proof)
-        if (judgement.isValid) {
-          println("% SZS status Theorem")
-          val tptp_proof = proofToTPTP(proof, Map(), ("sequent_conjecture", sequent), true)
-          val endproof = tptp_proof :+ {
-            val prob_conj = leo.datastructures.TPTP.FOF.Logical(formulaToFOFFormula(problem.conjecture.toFormula.formula, Set(), true))
-            val axioms_names = problem.axioms.map(_.name)
-            leo.datastructures.TPTP.FOFAnnotated("final", "plain", prob_conj, premisesToAnnotationsStr(axioms_names, "big_cut"))
+    try
+      val problem = problemToKernel(File(input))(using strictMapAtom, strictMapTerm, strictMapVariable)
+      val sequent = problemToSequent(problem)
+      val optproof = Tableau.solve(sequent)
+      val optproof2 = Tautology.solveSequent(sequent)
+      optproof match {
+        case Some(proof) =>
+          val judgement = checkSCProof(proof)
+          if (judgement.isValid) {
+            println("% SZS status Theorem")
+            val tptp_proof = proofToTPTP(proof, Map(), ("sequent_conjecture", sequent), true)
+            val endproof = tptp_proof :+ {
+              val prob_conj = leo.datastructures.TPTP.FOF.Logical(formulaToFOFFormula(problem.conjecture.toFormula.formula, Set(), true))
+              val axioms_names = problem.axioms.map(_.name)
+              leo.datastructures.TPTP.FOFAnnotated("final", "plain", prob_conj, premisesToAnnotationsStr(axioms_names, "big_cut"))
+            }
+            println("% TPTP proof:")
+            endproof.foreach { p => println(p.pretty) }
+          } else {
+            println("% SZS status Error")
+            println("A proof was found but rejected by the kernel checker.")
+            println(prettySCProof(judgement))
           }
-          println("TPTP proof:")
-          endproof.foreach { p => println(p.pretty) }
-        } else {
-          println("% SZS status Error")
-          println("A proof was found but rejected by the kernel checker.")
-          println(prettySCProof(judgement))
-        }
-        
-      case None =>
-          println("Cannot prove " + sequent.repr)
-          println("% SZS status GaveUp")
-        
-    }
-
+          
+        case None =>
+            println("Cannot prove " + sequent.repr)
+            println("% SZS status GaveUp")
+          
+      }
+    catch 
+      case e =>
+        println("% SZS status Error")
+        println(s"% Exception: ${e.getMessage}")
+        e.getStackTrace().foreach(s => println("% " + s.toString))
 
   }
 
