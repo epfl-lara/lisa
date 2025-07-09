@@ -192,8 +192,11 @@ object KernelParser {
     val pieces = s.split("_")
     val lead = pieces.init
     val last = pieces.last
-    if last.nonEmpty && last.forall(_.isDigit) && last.head != '0' then lead.mkString("$u") + "_" + last
-    else pieces.mkString("$u")
+    (if last.nonEmpty && last.forall(_.isDigit) && last.head != '0' then lead.mkString("$u") + "_" + last
+    else 
+      pieces
+        .mkString("$u"))
+        .replaceAllLiterally(" ", "$s")
 
   val strictMapAtom: ((String, Int) => K.Expression) = (f, n) =>
     val kind = f.head
