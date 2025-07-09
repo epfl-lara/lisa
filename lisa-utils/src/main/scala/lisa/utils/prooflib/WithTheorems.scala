@@ -567,7 +567,7 @@ trait WithTheorems {
 
           case None =>
             val (thm, scp, justifs) = prove(computeProof) // if fail, prove it
-            thmsToFile("cache/" + name, theory, List((name, scp, justifs))) // and save it to the file
+            thmsToFile("cache/" + name, theory, List((name, flattenProof(scp), justifs))) // and save it to the file
             thm
         }
       else prove(computeProof)._1

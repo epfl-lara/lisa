@@ -25,8 +25,6 @@ class LVL2Test extends AnyFunSuite {
 
   for (p <- problems) {
     test(p._2) {
-      println("###################################")
-      print(s"Parsing ${p._1} ...")
       try {
         val res = reconstructProof(File(s"$sources/${p._1}"))(using lisa.tptp.KernelParser.strictMapAtom, lisa.tptp.KernelParser.strictMapTerm, lisa.tptp.KernelParser.strictMapVariable)
         val judgement = SCProofChecker.checkSCProof(res)

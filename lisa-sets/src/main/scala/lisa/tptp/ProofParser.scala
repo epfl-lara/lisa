@@ -43,99 +43,6 @@ object ProofParser {
 
   given maps: MapTriplet = (mapAtom, mapTerm, mapVariable)
 
-  def problemToFile(fileDirectory: String, fileName: String, name: String, axioms: Seq[K.Sequent], conjecture: K.Sequent, source: String): File = {
-    // case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement])
-    val number = rand.nextInt(1000)
-    val file = new File(fileDirectory + fileName + ".p")
-    // val fileName = originFile.split("/").last
-    val header =
-      s"""%--------------------------------------------------------------------------
-% File     : $fileName : $TPTPversion.
-% Domain   : None
-% Problem  : ${name}
-% Version  : None
-% English  :
-
-% Refs     : https://github.com/epfl-lara/lisa
-%          : lisa.utils.tptp.ProofParser
-% Source   : [Lisa, $source]
-% Names    : 
-
-% Status   : Unknown
-% Rating   : ?
-% Syntax   : ?
-% SPC      : FOF_UNK_RFO_SEQ
-
-% Comments : This problem, was printed from a statement in a proof of a theorem by the Lisa theorem prover for submission to proof-producing ATPs.
-%--------------------------------------------------------------------------
-"""
-    val writer = new java.io.PrintWriter(file)
-    writer.write(header)
-    var counter = 0
-    def nextc = { counter += 1; counter }
-    axioms.foreach(s => writer.write(sequentToFOFAnnotated(s, "a" + nextc, "axiom").pretty + "\n"))
-    writer.write(sequentToFOFAnnotated(conjecture, "c" + nextc, "conjecture").pretty + "\n\n")
-    writer.close()
-    file
-  }
-
-  def sequentToFOFAnnotated(sequent: K.Sequent, name: String, role: String): FOFAnnotated = {
-    val annotations = None
-    if sequent.left.isEmpty && sequent.right.size == 1 then
-      val formula = sequent.right.head
-      return FOFAnnotated(name, role, formulaToFOFStatement(formula), annotations)
-    else
-      val seq = FOF.Sequent(sequent.left.map(formulaToFOFFormula(_, Set())).toSeq, sequent.right.map(formulaToFOFFormula(_, Set())).toSeq)
-      FOFAnnotated(name, role, seq, annotations)
-  }
-
-  def isLowerWord(s: String): Boolean = s.head.isLower && s.tail.forall(_.isLetterOrDigit)
-  inline def quoted(s: String): String = if isLowerWord(s) then s else s"'$s'"
-
-  def termToFOFTerm(term: K.Expression, bound: Set[K.Identifier]): FOF.Term = {
-    term match {
-      case K.Variable(id, K.Ind) =>
-        if bound.contains(id) then FOF.Variable("X" + id)
-        else FOF.Variable(quoted("s" + id))
-      case K.Constant(id, K.Ind) => FOF.AtomicTerm(quoted("c" + id), Seq())
-      case K.Multiapp(K.Constant(id, typ), args) =>
-        FOF.AtomicTerm(quoted("c" + id), args.map(termToFOFTerm(_, bound)))
-      case K.Multiapp(K.Variable(id, typ), args) =>
-        FOF.AtomicTerm(quoted("s" + id), args.map(termToFOFTerm(_, bound)))
-      case K.Epsilon(v, f) => throw new Exception("Epsilon terms are not supported")
-      case _ => throw new Exception("The expression is not purely first order")
-    }
-  }
-  def formulaToFOFFormula(formula: K.Expression, bound: Set[K.Identifier]): FOF.Formula = {
-    formula match
-      case K.equality(left, right) =>
-        FOF.Equality(termToFOFTerm(left, bound), termToFOFTerm(right, bound))
-      case K.top => FOF.AtomicFormula("$true", Seq())
-      case K.bot => FOF.AtomicFormula("$false", Seq())
-      case K.neg(f) => FOF.UnaryFormula(FOF.~, formulaToFOFFormula(f, bound))
-      case K.and(f1, f2) => FOF.BinaryFormula(FOF.&, formulaToFOFFormula(f1, bound), formulaToFOFFormula(f2, bound))
-      case K.or(f1, f2) => FOF.BinaryFormula(FOF.|, formulaToFOFFormula(f1, bound), formulaToFOFFormula(f2, bound))
-      case K.implies(f1, f2) => FOF.BinaryFormula(FOF.Impl, formulaToFOFFormula(f1, bound), formulaToFOFFormula(f2, bound))
-      case K.iff(f1, f2) => FOF.BinaryFormula(FOF.<=>, formulaToFOFFormula(f1, bound), formulaToFOFFormula(f2, bound))
-      case K.forall(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.!, Seq("X" + v.id), formulaToFOFFormula(f, bound + v.id))
-      case K.exists(K.Lambda(v, f)) => FOF.QuantifiedFormula(FOF.?, Seq("X" + v.id), formulaToFOFFormula(f, bound + v.id))
-      case K.forall(p) =>
-        val x = K.freshId(p.freeVariables.map(_.id), "x")
-        FOF.QuantifiedFormula(FOF.!, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind)), bound + x))
-      case K.exists(p) =>
-        val x = K.freshId(p.freeVariables.map(_.id), "x")
-        FOF.QuantifiedFormula(FOF.?, Seq("X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind)), bound + x))
-      case K.Multiapp(K.Constant(id, typ), args) =>
-        FOF.AtomicFormula(quoted("c" + id), args.map(termToFOFTerm(_, bound)))
-      case K.Multiapp(K.Variable(id, typ), args) =>
-        FOF.AtomicFormula(quoted("s" + id), args.map(termToFOFTerm(_, bound)))
-      case _ => throw new Exception("The expression is not purely first order: " + formula)
-
-  }
-
-  def formulaToFOFStatement(formula: K.Expression): FOF.Statement = {
-    FOF.Logical(formulaToFOFFormula(formula, Set()))
-  }
 
   def reconstructProof(file: File)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.SCProof = {
     val problem = Parser.problem(io.Source.fromFile(file))
@@ -259,6 +166,8 @@ object ProofParser {
           case GeneralTerm(List(NumberData(Integer(n))), None) => Some(n)
           case _ => None
         }
+      def apply(n: BigInt): GeneralTerm =
+        GeneralTerm(List(NumberData(Integer(n))), None)
     }
     object Ind {
       def unapply(ann_seq: GeneralTerm)(using defctx: DefContext, maps: MapTriplet): Option[K.Expression] =
@@ -282,6 +191,8 @@ object ProofParser {
             else Some(string)
           case _ => None
         }
+      def apply(s: String): GeneralTerm =
+        GeneralTerm(List(MetaFunctionData(s, List())), None)
     }
     object StrOrNum {
       def unapply(ann_seq: GeneralTerm): Option[String] =
@@ -936,7 +847,7 @@ object ProofParser {
     object RightSubstFun {
       def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext, numbermap: String => Int, sequentmap: String => FOF.Sequent)(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstFun", Seq(_, StrOrNum(n), StrOrNum(_), String(xl), Prop(fl)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstFun", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = convertToKernel(sequent.lhs(n.toInt))
             def extractForall(f: K.Expression): (List[K.Variable], K.Expression, K.Expression) = f match
               case K.Forall(x, phi) => val (xs, psi, psi1) = extractForall(phi); (x :: xs, psi, psi1)
@@ -954,7 +865,7 @@ object ProofParser {
     object RightSubstPred {
       def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext, numbermap: String => Int, sequentmap: String => FOF.Sequent)(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstPred", Seq(_, StrOrNum(n), StrOrNum(_), String(xl), Prop(fl)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstPred", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = convertToKernel(sequent.lhs(n.toInt))
             def extractForall(f: K.Expression): (List[K.Variable], K.Expression, K.Expression) = f match
               case K.Forall(x, phi) => val (xs, psi, psi1) = extractForall(phi); (x :: xs, psi, psi1)

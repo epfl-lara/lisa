@@ -23,6 +23,8 @@ case class AnnotatedFormula(role: String, name: String, formula: K.Expression, a
 
 case class AnnotatedSequent(role: String, name: String, sequent: K.Sequent, annotations: TPTP.Annotations) extends AnnotatedStatement
 
-case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement])
+case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement]):
+  def conjecture = formulas.find(_.role == "conjecture").getOrElse(throw new Exception("No conjecture found in the problem."))
+  def axioms = formulas.filter(_.role == "axiom")
 
 case class FileNotAcceptedException(msg: String, file: String) extends Exception(msg + " File: " + file)

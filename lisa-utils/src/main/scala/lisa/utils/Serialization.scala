@@ -580,10 +580,17 @@ object Serialization {
     if treeFile.isFile() && proofFile.isFile() then
       val treesDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(treeFile)))
       val proofDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(proofFile)))
-      val thm = thmsFromDataStream(treesDIS, proofDIS, theory, false)
+      
+      val thm = try {Some(thmsFromDataStream(treesDIS, proofDIS, theory, false))
+      } catch {
+        case e: Exception =>
+          println("Error while reading theorems from file: " + filename)
+          println(e.getMessage)
+          None
+      }
       treesDIS.close()
       proofDIS.close()
-      Some(thm.head._1)
+      thm.map(_.head._1)
     else None
   }
 

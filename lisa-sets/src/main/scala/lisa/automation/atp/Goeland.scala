@@ -14,6 +14,7 @@ import scala.util.Try
 
 import sys.process._
 import lisa.tptp.ProofParser.*
+import lisa.tptp.ProofPrinter.*
 import lisa.tptp.KernelParser.*
 
 /**

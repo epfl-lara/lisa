@@ -2,9 +2,11 @@ package lisa.maths
 import lisa.automation.atp.*
 import lisa.utils.KernelHelpers.checkProof
 import lisa.tptp.*
+import lisa.utils.KernelHelpers.flattenProof
 
 object Tests extends lisa.Main {
   draft()
+  //withCache()
 
   val x = variable[Ind]
   val y = variable[Ind]
@@ -44,16 +46,27 @@ object Tests extends lisa.Main {
   ):
     have(thesis) by Egg
 
-  val saturation = Theorem((∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- ∅ === f(∅)):
+  val saturation = Theorem((∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- a === f(a)):
     have(thesis) by Egg
 
   val drinkers2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Goeland
 
-  val example = Theorem((∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(∅) \/ Q(∅))):
+  val example = Theorem((∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(a) \/ Q(a))):
     have(thesis) by Prover9
+
+
 
   val example2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Prover9
+
+
+  val dr2proof = flattenProof(drinkers2.kernelProof.get)
+  java.lang.Thread.sleep(5)
+  checkProof(dr2proof)
+  java.lang.Thread.sleep(5)
+  val tptpproof = ProofPrinter.proofToTPTP(dr2proof, Map(), ("drinkers2", drinkers2.statement.underlying), false)
+  tptpproof.foreach { p => println(p.pretty)}
+
 
 }
