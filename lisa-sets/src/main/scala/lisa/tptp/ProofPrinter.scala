@@ -59,7 +59,6 @@ object ProofPrinter {
   }
 
   def sequentToFOFStatement(sequent: K.Sequent, strict: Boolean = false): FOF.Statement = {
-    println("strict: " + strict)
     if sequent.left.isEmpty && sequent.right.size == 1 then
       FOF.Logical(formulaToFOFFormula(sequent.right.head, Set(), strict))
     else
