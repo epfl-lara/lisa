@@ -936,7 +936,7 @@ object ProofParser {
     object RightSubstFun {
       def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext, numbermap: String => Int, sequentmap: String => FOF.Sequent)(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstFun", Seq(_, StrOrNum(n), StrOrNum(_), String(xl), Prop(fl)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstFun", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = convertToKernel(sequent.lhs(n.toInt))
             def extractForall(f: K.Expression): (List[K.Variable], K.Expression, K.Expression) = f match
               case K.Forall(x, phi) => val (xs, psi, psi1) = extractForall(phi); (x :: xs, psi, psi1)
@@ -954,7 +954,7 @@ object ProofParser {
     object RightSubstPred {
       def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext, numbermap: String => Int, sequentmap: String => FOF.Sequent)(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
-          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstPred", Seq(_, StrOrNum(n), StrOrNum(_), String(xl), Prop(fl)), Seq(t1)), origin) =>
+          case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("rightSubstPred", Seq(_, StrOrNum(n), StrOrNum(_), Prop(fl), String(xl)), Seq(t1)), origin) =>
             val f = convertToKernel(sequent.lhs(n.toInt))
             def extractForall(f: K.Expression): (List[K.Variable], K.Expression, K.Expression) = f match
               case K.Forall(x, phi) => val (xs, psi, psi1) = extractForall(phi); (x :: xs, psi, psi1)

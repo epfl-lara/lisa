@@ -97,7 +97,11 @@ object Prover9 extends ProofTactic with ProofSequentTactic {
         val cmd = (s"java -jar $sctptpExec p9 --input $foldername$filename.p --output $foldername$outputname.p")
         val res =
           try {
-            cmd.!!
+            val stdoutStream = new ByteArrayOutputStream
+            val stderrStream = new ByteArrayOutputStream
+            val stdoutWriter = new PrintWriter(stdoutStream)
+            val stderrWriter = new PrintWriter(stderrStream)
+            val exitValue = cmd.!(ProcessLogger(stdoutWriter.println, stderrWriter.println))
           } catch {
             case e: Exception =>
               throw e

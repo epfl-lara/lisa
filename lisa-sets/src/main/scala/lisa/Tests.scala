@@ -35,25 +35,36 @@ object Tests extends lisa.Main {
   def _div(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = div(x)(y)
   def _mult(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = mult(x)(y)
 
+
+
+
+
+
+
   val divide_mult_shift = Theorem(
-    (
-      ∀(x, x / t1 === x),
+    ( ∀(x, x / t1 === x),
       ∀(x, ∀(y, x / y === t1 / (y / x))),
       ∀(x, ∀(y, (x / y) * y === x))
     ) |- ((t2 / t3) * (t3 / t2)) / t1 === t1
   ):
     have(thesis) by Egg
 
-  val saturation = Theorem((∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- ∅ === f(∅)):
+
+  val saturationEGG = Theorem((∀(x, x === f(f(f(x)))), ∀(x, ∀(y, x === f(f(x))))) |- a === f(a)):
     have(thesis) by Egg
 
-  val drinkers2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
+
+  val drinkersGO = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Goeland
 
-  val example = Theorem((∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(∅) \/ Q(∅))):
+
+  val exampleP9 = Theorem((∀(x, P(x)) \/ ∀(y, Q(y))) ==> (P(a) \/ Q(a))):
     have(thesis) by Prover9
 
-  val example2 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
+
+  val drinkersP9 = Theorem(∃(x, ∀(y, d(x) ==> d(y)))):
     have(thesis) by Prover9
+
+
 
 }
