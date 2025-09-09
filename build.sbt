@@ -13,10 +13,10 @@ ThisBuild / scalacOptions ++= Seq(
 )
 ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
 ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := "4.8.9"
+ThisBuild / semanticdbVersion := "4.13.6"
 
-val scala2 = "2.13.8"
-val scala3 = "3.7.1"
+val scala2 = "2.13.16"
+val scala3 = "3.7.2"
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
   run / fork := true
@@ -30,13 +30,12 @@ val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
-    // "-rewrite", "-source", "3.4-migration",
     "-Wconf:msg=.*will never be selected.*:silent",
     "-language:experimental.modularity"
   ),
   javaOptions += "-Xmx10G",
-  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test",
-  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.1",
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test",
+  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.4",
   Test / parallelExecution := false,
   Test / fork := true
 )
