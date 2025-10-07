@@ -250,6 +250,11 @@ trait WithTheorems {
     def sequentOfOutsideFact(of: OutsideFact): F.Sequent
 
     def getSequent(f: Fact): F.Sequent = sequentOfFact(f)
+    /**
+      * Unsafely peek at the most recent step of the proof. 
+      * 
+      * @throws java.util.NoSuchElementException if the proof has no steps yet
+      */
     def mostRecentStep: ProofStep = steps.head
 
     /**
