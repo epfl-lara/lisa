@@ -403,7 +403,9 @@ trait Predef extends ExprOps {
    * }}}
    */
   def makeEq(s: Expr[?], t: Expr[?]): Expr[Prop] =
-    if s.sort != t.sort || !(s.sort.isFunctional || s.sort.isPredicate) then throw new IllegalArgumentException("Can only make equality between predicate and functional expressions")
+    require(s.sort == t.sort, s"$s and $t must have the same sort to be compared for equality")
+    require(s.sort.isPredicate || s.sort.isFunctional, s"Can only make equality between predicate or functional expressions\n\tFound: $s and $t")
+
     val no = ((s.freeVars ++ t.freeVars).view.map(_.id.no) ++ Seq(-1)).max + 1
     val vars = (no until no + s.sort.depth).map(i => variable[Ind](K.Identifier("x", i)))
     val inner1 = s #@@ vars
