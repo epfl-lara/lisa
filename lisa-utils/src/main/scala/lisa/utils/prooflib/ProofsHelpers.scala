@@ -131,7 +131,7 @@ trait ProofsHelpers {
   //  DSL for definitions and theorems  //
   ////////////////////////////////////////
 
-  class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(using line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
+  class UserInvalidDefinitionException(val symbol: String, errorMessage: String)(line: sourcecode.Line, file: sourcecode.File) extends UserLisaException(errorMessage) { // TODO refine
     val showError: String = {
       val source = scala.io.Source.fromFile(file.value)
       val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
@@ -151,27 +151,29 @@ trait ProofsHelpers {
     val r = inner(e)
     (r._1, r._2)
 
-  def DEF[S: Sort](using name: sourcecode.FullName)(using om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(e: Expr[S]): Constant[S] =
+  // NOTE: only the top level functions here should use sourcecode implicits!!
+
+  def DEF[S: Sort](using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(e: Expr[S]): Constant[S] =
     val (vars, body) = leadingVarsAndBody(e)
-    if vars.size == e.sort.depth then DirectDefinition[S](name.value, line.value, file.value)(e, vars).cst
+    if vars.size == e.sort.depth then DirectDefinition[S](name.value, line, file)(e, vars).cst
     else
       val maxV: Int = vars.map(_.id.no).maxOption.getOrElse(0)
       val maxB: Int = body.freeVars.map(_.id.no).maxOption.getOrElse(0)
       var no = List(maxV, maxB).max
       val newvars = K.flatTypeParameters(body.sort).map(i => { no += 1; Variable.unsafe(K.Identifier("x", no), i) })
       val totvars = vars ++ newvars
-      DirectDefinition[S](name.value, line.value, file.value)(e, totvars)(using F.unsafeSortEvidence(e.sort)).cst
+      DirectDefinition[S](name.value, line, file)(e, totvars)(using F.unsafeSortEvidence(e.sort)).cst
 
   def EpsilonDEF[S: Sort](using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(e: Expr[S], j: JUSTIFICATION): Constant[S] =
     val (vars, body) = leadingVarsAndBody(e)
     if vars.size == e.sort.depth then
       body match
         case epsilon(x, inner) =>
-          EpsilonDefinition[S](name.value, line.value, file.value)(e, vars, j).cst
-        case _ => om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term."))
-    else om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term."))
+          EpsilonDefinition[S](name, line, file)(e, vars, j).cst
+        case _ => om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term.")(line, file))
+    else om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term.")(line, file))
 
-  class DirectDefinition[S: Sort](using om: OutputManager)(val fullName: String, line: Int, file: String)(val expr: Expr[S], val vars: Seq[Variable[?]]) extends DEFINITION(line, file) {
+  class DirectDefinition[S: Sort](using om: OutputManager)(val fullName: String, line: sourcecode.Line, file: sourcecode.File)(val expr: Expr[S], val vars: Seq[Variable[?]]) extends DEFINITION(line, file) {
 
     val arity = vars.size
 
@@ -194,19 +196,19 @@ trait ProofsHelpers {
               UserInvalidDefinitionException(
                 name,
                 s"All symbols in the definition must belong to the theory. The symbols ${theory.findUndefinedSymbols(uexpr)} are unknown and you need to define them first."
-              )
+              )(line, file)
             )
           }
-          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined."))
+          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined.")(line, file))
           if !uexpr.freeVariables.nonEmpty then
             om.lisaThrow(
               UserInvalidDefinitionException(
                 name,
                 s"The definition is not allowed to contain schematic symbols or free variables. " +
                   s"The variables {${(uexpr.freeVariables).mkString(", ")}} are free in the expression ${uexpr}."
-              )
+              )(line, file)
             )
-          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined."))
+          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined.")(line, file))
           om.lisaThrow(
             LisaException.InvalidKernelJustificationComputation(
               "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or an error in LISA.",
@@ -262,17 +264,17 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by existance" of a symbol. May need debugging
    */
-  class EpsilonDefinition[S: Sort](using om: OutputManager)(fullName: String, line: Int, file: String)(
+  class EpsilonDefinition[S: Sort](using om: OutputManager)(fullName: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(
       expr: Expr[S],
       vars: Seq[Variable[?]],
       val j: JUSTIFICATION
-  ) extends DirectDefinition(fullName, line, file)(expr, vars) {
+  ) extends DirectDefinition(fullName.value, line, file)(expr, vars) {
 
     val body: Expr[Ind] = dropAllLambdas(expr).asInstanceOf
     override val appliedCst: Expr[Ind] = (cst #@@ (vars)).asInstanceOf
     val (epsilonVar, inner) = body match
       case epsilon(x, inner) => (x, inner)
-      case _ => om.lisaThrow(UserInvalidDefinitionException(name, "The given expression is not an epsilon term."))
+      case _ => om.lisaThrow(UserInvalidDefinitionException(name, "The given expression is not an epsilon term.")(line, file))
 
     private val propCst = inner.substitute(epsilonVar := appliedCst)
     private val propEpsilon = inner.substitute(epsilonVar := body)
