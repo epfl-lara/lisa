@@ -390,7 +390,7 @@ trait WithTheorems {
     /**
      * The "owning" object of the justification. Typically, the package/object in which it is defined.
      */
-    val owner = fullName.split("\\.").dropRight(1).mkString(".")
+    val owner: String = fullName.split("\\.").dropRight(1).mkString(".")
 
     /**
      * Returns if the statement is unconditionaly proven or if it depends on some sorry step (including in the other justifications it relies on)
