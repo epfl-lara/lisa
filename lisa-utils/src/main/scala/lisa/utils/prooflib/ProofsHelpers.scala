@@ -173,7 +173,8 @@ trait ProofsHelpers {
         case _ => om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term.")(line, file))
     else om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term.")(line, file))
 
-  class DirectDefinition[S: Sort](using om: OutputManager)(val fullName: String, line: sourcecode.Line, file: sourcecode.File)(val expr: Expr[S], val vars: Seq[Variable[?]]) extends DEFINITION(line, file) {
+  class DirectDefinition[S: Sort](using om: OutputManager)(val fullName: String, line: sourcecode.Line, file: sourcecode.File)(val expr: Expr[S], val vars: Seq[Variable[?]])
+      extends DEFINITION(line, file) {
 
     val arity = vars.size
 
