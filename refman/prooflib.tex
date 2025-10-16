@@ -1,12 +1,12 @@
 \chapter{Developping Mathematics with Prooflib}
 \label{chapt:prooflib}
-Lisa's kernel offers all the necessary tools to develops proofs, but  reading and writing proofs written directly in its language is cumbersome. 
+Lisa's kernel offers all the necessary tools to develops proofs, but  reading and writing proofs written directly in its language is cumbersome.
 To develop and maintain a library of mathematical development, Lisa offers a dedicate interface and DSL to write proofs: Prooflib
 Lisa provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features.
 \autoref{fig:theoryFileExample} is a reminder from \autoref{chapt:quickguide} of the canonical way to write a theory file in Lisa.
 
 \begin{figure}
-\lisaCode{src/MyTheoryName.scala}{An example of a theory file in Lisa\label{fig:theoryFileExample}}{firstline=3}
+  \lisaCode{src/MyTheoryName.scala}{An example of a theory file in Lisa\label{fig:theoryFileExample}}{firstline=3}
 \end{figure}
 
 In this chapter, we will describe how each of these construct is made possible and how they translate to statements in the Kernel.
@@ -23,7 +23,7 @@ trait Ind
 trait Prop
 infix trait >>:[I, O]
   \end{lstlisting}
-  
+
 \end{definition}
 
 \begin{definition}[Expressions]
@@ -66,11 +66,11 @@ trait SubstPair extends Product:
 (x := f(∅)) : SubstPair
 g(x, y).subst(x := f(∅), y := x) // == g(f(∅), x)
   \end{lstlisting}
-\noindent
+  \noindent
   but can also be performed unsafely, when sorts are not necessarily known:
   \begin{lstlisting}[language=scala]
 //if ill-sorted, may crash in unpredictable ways.
-myExpr.substituteUnsafe(Map(x -> s, y -> t)) 
+myExpr.substituteUnsafe(Map(x -> s, y -> t))
 
 //with sanity runtime check for well-sortedness
 myExpr.substituteWithCheck(Map(x -> s, y -> t))
@@ -80,7 +80,6 @@ myExpr.substituteWithCheck(Map(x -> s, y -> t))
 \subsection{Sequents}
 
 Expressions build into sequents, which again have an underlying sequent in the kernel.
-
 
 \begin{definition}[Sequents]
   Sequents are formally pairs of sets of \lstinline|Expr[Prop]|.
@@ -102,7 +101,7 @@ val s4 = assumptions |- (x = c)
   Sequents, like expressions, support substitutions:
   \begin{lstlisting}[language=scala]
 val s = Sequent(Set(x ∈ c), Set(f(x) ∈ f(c)))
-s.substitute(x := g(∅)) 
+s.substitute(x := g(∅))
   // == Sequent(Set(g(∅) ∈ c), Set(f(g(∅)) ∈ f(c)))
   \end{lstlisting}
 \end{definition}
@@ -127,7 +126,7 @@ A proof of $\phi$ using the previous theorem would naturally be obtained the fol
 \end{quotation}
 However, introducing a definition locally corresponding to a statement of the form
 $$∃ x. P(x)$$
-is not a built-in feature of first order logic.  This can however be simulated by introducing a fresh variable symbol $c$, that must stay fresh in the rest of the proof, and the assumption $P(c)$. The rest of the proof is then carried out under this assumption. When the proof is finished, the end statement should not contain $c$ free as it is a \textit{local} definition, and the assumption can be eliminated using the LeftExists and Cut rules. Such a $c$ is called a \textit{witness}. 
+is not a built-in feature of first order logic.  This can however be simulated by introducing a fresh variable symbol $c$, that must stay fresh in the rest of the proof, and the assumption $P(c)$. The rest of the proof is then carried out under this assumption. When the proof is finished, the end statement should not contain $c$ free as it is a \textit{local} definition, and the assumption can be eliminated using the LeftExists and Cut rules. Such a $c$ is called a \textit{witness}.
 Formally, the proof in (...) is a proof of $P(c) ⊢ \phi$. This can be transformed into a proof of $\phi$ by mean of the following steps:
 \begin{center}
   \AxiomC{$P(c) ⊢ \phi$}
@@ -152,8 +151,7 @@ This simulation is provided by Lisa through the \lstinline|witness|{} method. It
   \end{lstlisting}
   \caption{An example use of local definitions in Lisa}
   \label{fig:localDefinitionExample}
-  \end{figure}
-
+\end{figure}
 
 \section{DSL}
 
@@ -191,4 +189,3 @@ Lisa will produce the following inner statements:
    -1 Import 0                 (  ) ⊢  ∀(x, ∀(y, P(x, y)))
     0 SequentInstantiationRule (  ) ⊢  c === d
 \end{lstlisting}
-

@@ -3,7 +3,6 @@
 \label{chapt:kernel}
 Lisa's kernel is the starting point of Lisa, formalising the foundations of the whole theorem prover. It is the only trusted code base, meaning that if it is bug-free then no further erroneous code can violate the soundness property and prove invalid statements. Hence, the two main goals of the kernel are to be efficient and trustworthy.
 
-
 Lisa's foundations are based on traditional (in the mathematical community) foundational theory of all mathematics, but with some extensions and modifications to more closely match common mathematical practice:
 \begin{itemize}
   \item The syntax of Lisa's statement is an extension of first-order logic with lambda terms named \textbf{\lambdafol} (see \autoref{sec:FOL}).
@@ -34,13 +33,14 @@ The basic elements of Lisa are called \textit{Expressions}, generalising terms a
     \textit{ID} := & ~\text{ID(\textit{String}, \textit{Int})} \\
   \end{align}
   Identifiers cannot contain the symbols \lstinline|()[]{}?,;_| nor whitespace. The canonical representation of an identifier is
-  
-$$
-\text{ID}(\text{"foo"}, i) = \begin{cases}
+
+  $$
+  \text{ID}(\text{"foo"}, i) =
+  \begin{cases}
     \text{foo} & \text{ if } i=0\\
     \text{foo\textunderscore}i & \text{ else}
   \end{cases}
-$$
+  $$
 
 \end{definition}
 
@@ -49,7 +49,7 @@ $$
   \begin{align}
     \mathcal{S} := & ~\text{Prop} \mid \text{Ind} \mid \mathcal{S} \rightarrow \mathcal{S} \\
   \end{align}
-  
+
   $A \rightarrow B$ is the sort of expressions taking arguments of sort $A$ and returning a result of sort $B$. Note that $\rightarrow$ associates to the right, i.e. $A \rightarrow B \rightarrow C$ is the same as $A \rightarrow (B \rightarrow C)$.
 \end{definition}
 
@@ -90,7 +90,7 @@ $$
     \Leftrightarrow \quad: & \Prop \rightarrow \Prop \rightarrow \Prop \\
     \forall \quad: & (\Ind \rightarrow \Prop) \rightarrow \Prop \\
     \exists \quad: & (\Ind \rightarrow \Prop) \rightarrow \Prop \\
-    \epsilon \quad: & (\Ind \rightarrow \Prop) \rightarrow \Ind 
+    \epsilon \quad: & (\Ind \rightarrow \Prop) \rightarrow \Ind
   \end{align*}
 
   They have special meaning for the deduction system of lisa, but syntactically behave the same as user-defined constants.
@@ -124,14 +124,14 @@ $$
 \end{example}
 
 \paragraph{Convention} Throughout this document, and in the code base, we adopt the following conventions:We use $e$, $e_1$, $e_2$ to denote arbitrary expressions.
-We use $r$, $s$, $t$, $u$ to denote arbitrary terms, $a$, $b$, $c$ to denote constants of type \Ind, $x$, $y$, $z$ to denote variables of type \Ind and $f$, $g$, $h$ to denote constant or variables of type $\Ind \rightarrow ... \Ind$. 
+We use $r$, $s$, $t$, $u$ to denote arbitrary terms, $a$, $b$, $c$ to denote constants of type \Ind, $x$, $y$, $z$ to denote variables of type \Ind and $f$, $g$, $h$ to denote constant or variables of type $\Ind \rightarrow ... \Ind$.
 
 We use greek letters such as $\phi$, $\psi$, $\tau$ to denote arbitrary formulas and $X$, $Y$, $Z$ to denote variables of type \Prop. We use $P$, $Q$, $R$ to denote constants and variables of type $\Prop \rightarrow ... \rightarrow \Prop$. Sets or sequences of formulas are denoted with capital greek letters $\Pi$, $\Sigma$, $\Gamma$, $\Delta$, etc.
 
 $\equiv$ represents both $=$ and $\iff$, depending on whether the arguments are terms or formulas.
 
 \subsection{Capture-Avoiding Substitution and Beta-Reduction}
-An important operation on expressions is the substitution of variables by expressions of the same type. 
+An important operation on expressions is the substitution of variables by expressions of the same type.
 \begin{definition}[Capture-avoiding Substitution of variables]
   Given a base expression $e$, a variable $x: A$ and another expression $e_1:A$, the substitution of $x$ by $e_1$ inside $t$ is denoted by $ t[x := e] $ and is computed by replacing all occurences of $x$ by $r$.
 
@@ -147,11 +147,9 @@ An important operation on expressions is the substitution of variables by expres
   This is called \textit{capture-avoiding substitution}, because the last two lines ensure that the free variables of $e$ stay free, independently of the name of bound variables.
 \end{definition}
 
-Applications of an abstraction to an argument \textit{beta-reduce}, as usual in lambda calculus. For example, 
+Applications of an abstraction to an argument \textit{beta-reduce}, as usual in lambda calculus. For example,
 $$(\lambda x. x^2+1)(3) \leadsto 3^2+1$$
 It is a theorem of the simply typed lambda calculus, called the Church-Rosser theorem, that when we keep applying such reduction, we eventually reach a normal form that cannot be further reduced. This is called the \textit{beta normal form}. Two expressions with the same beta normal form are called \textit{alpha-equivalent} Moreover, if two expressions are identical up to renaming of bound variables, the expressions are  called \textit{alpha-equivalent}. In Lisa, expressions whose beta normal forms are alpha-equivalent are considered logicaly the same. Note however that their representation as datastructure may not be the same, and this can influence the behaviour of programs acting on them.
-
-
 
 \subsection{Substitution}
 \label{subsec:substitution}
@@ -169,18 +167,17 @@ On top of basic building blocks of terms and formulas, there is one important ty
   and for binders as
   %
   $$
-    (\forall x. \psi)[x := r] \equiv \forall x. \psi
+  (\forall x. \psi)[x := r] \equiv \forall x. \psi
   $$
   $$
-    (\forall y. \psi)[x := r] \equiv \forall y. \psi[x := r]
+  (\forall y. \psi)[x := r] \equiv \forall y. \psi[x := r]
   $$
   if $y \neq x$ and $y$ does not appear in $r$, and
   $$
-    (\forall y. \psi)[x := r] \equiv \forall z. \psi[y := z][x := r]~,
+  (\forall y. \psi)[x := r] \equiv \forall z. \psi[y := z][x := r]~,
   $$
   with any fresh variable $z$ (which is not free in $r$ and $\phi$) otherwise.
 \end{definition}
-
 
 \begin{example}[Combined substitution and beta-reduction] \phantom{ }
   \begin{center}
@@ -234,7 +231,7 @@ Orthologic is such a relation: It is a weaker theory than classical logic, becau
 
 As a special kind of lattices, ortholattices can be viewed as partially ordered sets, with the ordering relation on two elements $a$ and $b$ of an ortholattice defined as
 \(
-a\leq b \iff a \land b = a
+  a\leq b \iff a \land b = a
 \), which, by absorption (L9), is also equivalent to $a \lor b = b$. If $s$ and $t$ are propositional formulas, we denote $s \leq_\OL t $ if and only if $s \leq t$, is provable from the axioms of \autoref{tab:ortholatticeLaws}.
 We write $s\sim_\OL t$ if both $s\leq_\OL t$ and $s\geq_\OL t$ hold.
 \autoref{thm:OL} is the main result we rely on.
@@ -251,7 +248,7 @@ Lisa's kernel contains a generalization of this algorithm to \lambdafol, which a
 \begin{table}[ht]
   \centering
   \begin{tabular}{c | l | l}
-      & To decide...                                                                             & Try...                                           \\
+    & To decide...                                                                             & Try...                                           \\
     \hline
     1 & $\lbrace \land, \lor, \rightarrow, \leftrightarrow, \neg \rbrace(\vec{\phi}) \leq \psi $ & Base algorithm                                         \\
     2 & $\phi \leq \lbrace \land, \lor, \rightarrow, \leftrightarrow, \neg \rbrace(\vec{\psi}) $ & Base algorithm                                         \\
@@ -265,19 +262,16 @@ Lisa's kernel contains a generalization of this algorithm to \lambdafol, which a
   \end{tabular}
 
   \caption{Extension of OL algorithm to first-order logic. We call it the \FOLalg{} algorithm. $=$ denotes the equality predicate in FOL, while $==$ denotes syntactic equality of terms.
-    \label{tab:Olextension}}
+  \label{tab:Olextension}}
 \end{table}
 
 A more detailed discussion of extension of ortholattices to first-order logic, proof of correctness and implementation details can be found in \cite{guilloudFormulaNormalizationsVerification2023} and \cite{guilloudLISAModernProof2023}.
-
-
-
 
 \section{Proofs in Sequent Calculus for \lambdafol}
 \label{sec:proofs_lk}
 \subsection{Sequent Calculus}
 \label{subsec:lk}
-The deductive system used by Lisa is an extended version of the classical Sequent Calculus. 
+The deductive system used by Lisa is an extended version of the classical Sequent Calculus.
 %
 \begin{definition}
   A \textbf{sequent} is a pair $(\Gamma, \Sigma)$ of (possibly empty) sets of formulas, noted:
@@ -305,9 +299,8 @@ Sequents are manipulated in a proof using \emph{deduction rules}. A deduction ru
 This includes first rules of propositional logic, then rules for quantifiers, then equality rules. Moreover, we include equal-for-equal and equivalent-for-equivalent substitutions. While those substitution rules are deduced steps, and hence could technically be omitted, simulating them can sometimes take a high number of steps, so they are included as base steps for efficiency.
 Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
 
-%For proof checking, the kernel implementation of these proof steps explicitly take all required arguments, such as the formulas central to the manipulation. These are intended for internal use, and most arguments can be inferred and are automatically generated when writing proofs with the DSL (\autoref{subsec:dsl}). While user-developed deduced steps may also use the DSL, in cases where arguments are easily known, kernel steps retain their utility in that they may be directly emitted for efficiency, see \autoref{subsec:tacticDev} for discussion on this. The following is an example proof, that of Pierce's law, in sequent calculus, and its encoding utilizing kernel steps: 
+%For proof checking, the kernel implementation of these proof steps explicitly take all required arguments, such as the formulas central to the manipulation. These are intended for internal use, and most arguments can be inferred and are automatically generated when writing proofs with the DSL (\autoref{subsec:dsl}). While user-developed deduced steps may also use the DSL, in cases where arguments are easily known, kernel steps retain their utility in that they may be directly emitted for efficiency, see \autoref{subsec:tacticDev} for discussion on this. The following is an example proof, that of Pierce's law, in sequent calculus, and its encoding utilizing kernel steps:
 %Start of first set of deduction rules
-
 
 \begin{figure}
   \scalebox{.88}{
@@ -399,7 +392,7 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
           \DisplayProof
         \end{tabular}
       \end{center}
-    \end{minipage}}
+  \end{minipage}}
   \caption{Deduction rules allowed by Lisa's kernel (Part 1). These are typical rules for a sequent calculus for FOL. Different occurrences of the same symbols need not represent equal elements, but only elements with the same \FOLalg{} normal form.}
   \label{fig:deduct_rules_1}
 \end{figure}
@@ -425,7 +418,7 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
             \DisplayProof
           }
           \\[5ex]
-          
+
           \multicolumn{2}{c}{
             \AxiomC{$\Gamma \vdash \exists y \forall x. (x=y) \leftrightarrow \phi , \Delta$}
             \RightLabel{\text { RightExistsOne}}
@@ -439,14 +432,14 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
             \RightLabel{\text{ InstSchema}}
             \UnaryInfC{$\Gamma[(x:A) := (e:A)] \vdash \Delta[(x:A) := (e:A)]$}
             \DisplayProof
-          }               
+          }
           \\[5ex]
 
           \multicolumn{2}{c}{
             \AxiomC{$\Gamma, \phi[f := s] \vdash \Delta$}
             \RightLabel{\text{ LeftSubstEq}}
             \UnaryInfC{$\Gamma, \forall \vec x. s(\vec x) \equiv t(\vec x), \phi[f := t] \vdash \Delta$}
-            \DisplayProof 
+            \DisplayProof
           }
           \\[5ex]
 
@@ -549,7 +542,7 @@ a proof step can also be referred to by multiple subsequent proof steps, so that
 Note however that thanks to the $\FOLalg$ equivalence checker, Pierce's law can be proven in a single step:
 
 \begin{gather*}
-    0  ~\text{\lstinline|RestateTrue|}        \quad \vdash ((\phi \to \psi) \to \phi) \to \phi .
+  0  ~\text{\lstinline|RestateTrue|}        \quad \vdash ((\phi \to \psi) \to \phi) \to \phi .
 \end{gather*}
 
 Moreover, proofs are conditional: they can carry an explicit set of assumed sequents, named ``\lstinline|imports|'', which give some starting points to the proof. Typically, these imports will contain previously proven theorems, definitions, or axioms (More on that in section~\ref{sec:TheoremsAndTheories}). For a proof step to refer to an imported sequent, one uses negative integers. $-1$ corresponds to the first sequent of the import list of the proof, $-2$ to the second, etc.
@@ -557,7 +550,7 @@ Moreover, proofs are conditional: they can carry an explicit set of assumed sequ
 Formally, a proof is a pair made of a list of proof steps and a list of sequents:
 %
 \begin{gather*}
-    \text{\lstinline|Proof(steps:List[ProofStep], imports:List[Sequent])|}
+  \text{\lstinline|Proof(steps:List[ProofStep], imports:List[Sequent])|}
 \end{gather*}
 %
 We call the bottom-most sequent of the last proof step of the proof the ``conclusion'' of the proof.
@@ -602,7 +595,7 @@ val PierceLawProof = SCProof(IndexedSeq(
     Weakening( φ |- ( φ, ψ ), 0),
     RightImplies(() |- ( φ, φ ==> ψ ), 1,   φ, ψ)
     LeftImplies(( φ ==> ψ ) ==> φ |- φ, 2, 0,   φ ==> ψ, φ),
-    RightImplies(() |- (( φ ==> ψ ) ==> φ) ==> φ, 
+    RightImplies(() |- (( φ ==> ψ ) ==> φ) ==> φ,
                                   3, ( φ ==> ψ ) ==> φ, φ)
 ), Seq.empty /* no imports */ )
     \end{lstlisting}
@@ -629,7 +622,6 @@ In Lisa, a proof object by itself has no guarantee to be correct. It is possible
   \item Every proof step must be correctly constructed, with the bottom sequent correctly following from the premises by the deduction rule and its arguments.
 \end{enumerate}
 
-
 Given some proof $p$, the proof checker will verify these points. For most proof steps, this typically involve verifying that the premises and the conclusion match according to a transformation specific to the deduction rule.
 
 Hence, most of the proof checker's work consists in verifying that some formulas, or subformulas thereof, are identical. This is where the equivalence checker comes into play. By checking equivalence rather than strict syntactic equality, a lot of steps become redundant and can be merged. That way,  any number of consecutive {LeftAnd}, {RightOr}, {LeftNot}, {RightNot}, {LeftImplies}, {RightImplies}, {LeftIff}, {LeftRefl}, {RightRefl}, {LeftExistsOne} and  {RightExistsOne} proof steps can always be replaced by a single{Weakening} rule. This gives some intuition about how useful the equivalence checker is to simplify proof length.
@@ -649,7 +641,6 @@ or
 
 Note that there exists a proof step, called Sorry, used to  represent unimplemented proofs. The conclusion of a Sorry step will always be accepted by the proof checker. Any theorem relying on a Sorry step is not guaranteed to be correct. The usage is, however, transitively tracked and the theorem is marked as relying on Sorry.
 
-
 \section{Theorems and Theories}
 \label{sec:TheoremsAndTheories}
 
@@ -664,7 +655,6 @@ To conduct a proof inside a \lstinline|Theory|{}, using its axioms, the proof sh
 The user can also introduce definitions in the \lstinline|Theory|{}.
 Lisa's kernel allows to define two kinds of objects: Function (or Term) symbols and Predicate symbols.
 
-
 \begin{figure}
   A definition in Lisa is one of those two kinds of objects: A predicate definition or a function definition.
   \begin{lstlisting}
@@ -675,7 +665,7 @@ Lisa's kernel allows to define two kinds of objects: Function (or Term) symbols 
 \end{lstlisting}
   So that
   \begin{lstlisting}
-    PredicateDefinition(P, lambda(Seq(x1,...,x2), φ)) 
+    PredicateDefinition(P, lambda(Seq(x1,...,x2), φ))
   \end{lstlisting}
   corresponds to \\
   \hspace*{1.3em}``For any $\vec{x}$, let $P^n(\vec{x}) := \phi_{\vec{x}}$"
@@ -684,13 +674,13 @@ Lisa's kernel allows to define two kinds of objects: Function (or Term) symbols 
   \begin{lstlisting}
   FunctionDefinition(
     label: ConstantFunctionLabel,
-    out: VariableLabel, 
+    out: VariableLabel,
     expression: LambdaTermFormula
   )
 \end{lstlisting}
   So that
   \begin{lstlisting}
-    FunctionDefinition(f, y, lambda(Seq(x1,...,x2), φ)) 
+    FunctionDefinition(f, y, lambda(Seq(x1,...,x2), φ))
   \end{lstlisting}
   corresponds to \\
   \hspace*{1.3em}``For any $\vec{x}$, let $f^n(\vec{x}) \textnormal{ be the unique } y \textnormal{ such that } \varphi$ holds."
@@ -713,19 +703,17 @@ Once a definition has been introduced, future theorems can refer to those defini
 
 \autoref{fig:justifications} shows the types of justification in a theory (Theorem, Axiom, Definition). \autoref{fig:theorysetters} shows how to introduce new justifications in the theory.
 
+{
+  \def\arraystretch{4}
 
+  \begin{figure}[hp]
+    % Justifications:
+    \begin{center}
+      \begin{tabular}{l|l}
+        Explanation            & Data Type
+        \\ \hline
 
-  {
-    \def\arraystretch{4}
-
-    \begin{figure}[hp]
-      % Justifications:
-      \begin{center}
-        \begin{tabular}{l|l}
-          Explanation            & Data Type
-          \\ \hline
-
-          A proven theorem       &
+        A proven theorem       &
           \begin{lstlisting}[linewidth=19.5em]
   Theorem(
     name: String,
@@ -733,9 +721,9 @@ Once a definition has been introduced, future theorems can refer to those defini
   )
 
           \end{lstlisting}
-          \\ %\hline
+        \\ %\hline
 
-          An axiom of the theory &
+        An axiom of the theory &
           \begin{lstlisting}[linewidth=19.5em]
   Axiom(
     name: String,
@@ -743,9 +731,9 @@ Once a definition has been introduced, future theorems can refer to those defini
   )
 
           \end{lstlisting}
-          \\ %\hline
+        \\ %\hline
 
-          A predicate definition &
+        A predicate definition &
           \begin{lstlisting}[linewidth=19.5em]
   PredicateDefinition(
     label: ConstantAtomicLabel,
@@ -753,9 +741,9 @@ Once a definition has been introduced, future theorems can refer to those defini
   )
 
           \end{lstlisting}
-          \\ %\hline
+        \\ %\hline
 
-          A function definition  &
+        A function definition  &
           \begin{lstlisting}[linewidth=19.5em]
   FunctionDefinition(
     label: ConstantFunctionLabel,
@@ -764,22 +752,22 @@ Once a definition has been introduced, future theorems can refer to those defini
   )
 
           \end{lstlisting}
-          \\ %\hline
-        \end{tabular}
+        \\ %\hline
+      \end{tabular}
 
-        \caption{The different types of justification in a \lstinline|Theory|{} object.}
-        \label{fig:justifications}
-      \end{center}
-    \end{figure}
+      \caption{The different types of justification in a \lstinline|Theory|{} object.}
+      \label{fig:justifications}
+    \end{center}
+  \end{figure}
 
-    \begin{figure}[hp]
-      % Setters/Constructors:
-      \begin{center}
-        \begin{tabular}{l|l}
-          Explanation & Function
-          \\ \hline
+  \begin{figure}[hp]
+    % Setters/Constructors:
+    \begin{center}
+      \begin{tabular}{l|l}
+        Explanation & Function
+        \\ \hline
 
-          \makecell[l]{Add a new theorem \\to the theory} &
+        \makecell[l]{Add a new theorem \\to the theory} &
           \begin{lstlisting}[linewidth=19.5em]
   makeTheorem(
     name: String,
@@ -788,27 +776,27 @@ Once a definition has been introduced, future theorems can refer to those defini
     justs: Seq[Justification]
   )
           \end{lstlisting}
-          \\ %\hline
+        \\ %\hline
 
-          \makecell[l]{Add a new axiom   \\ to the theory} &
+        \makecell[l]{Add a new axiom   \\ to the theory} &
           \begin{lstlisting}[linewidth=19.5em]
   addAxiom(
     name: String,
     f: Formula
   )
           \end{lstlisting}
-          \\ %\hline
+        \\ %\hline
 
-          \makecell[l]{Make a new        \\predicate definition} &
+        \makecell[l]{Make a new        \\predicate definition} &
           \begin{lstlisting}[linewidth=19.5em]
   makePredicateDefinition(
     label: ConstantAtomicLabel,
     expression: LambdaTermFormula
   )
           \end{lstlisting}
-          \\ %\hline
+        \\ %\hline
 
-          \makecell[l]{Make a new        \\function definition} &
+        \makecell[l]{Make a new        \\function definition} &
           \begin{lstlisting}[linewidth=19.5em]
   makeFunctionDefinition(
     proof: SCProof,
@@ -818,91 +806,85 @@ Once a definition has been introduced, future theorems can refer to those defini
     expression: LambdaTermFormula
   )
           \end{lstlisting}
-          \\ %\hline
-        \end{tabular}
-        \caption{The interface of a \lstinline|Theory|{} object to introduce new theorems, axioms and definitions.}
+        \\ %\hline
+      \end{tabular}
+      \caption{The interface of a \lstinline|Theory|{} object to introduce new theorems, axioms and definitions.}
 
-        \label{fig:theorysetters}
-      \end{center}
-    \end{figure}
+      \label{fig:theorysetters}
+    \end{center}
+  \end{figure}
 
+  \iffalse
+  \begin{figure}[hp]
+    % Getters:
+    \begin{center}
+      \begin{tabular}{l|l}
+        Explanation & Function
+        \\ \hline
 
-
-
-
-
-
-    \iffalse
-      \begin{figure}[hp]
-        % Getters:
-        \begin{center}
-          \begin{tabular}{l|l}
-            Explanation & Function
-            \\ \hline
-
-            \makecell[l]{Check if all symbols in a        \\formula, term or sequent\\belong to the theory.} &
+        \makecell[l]{Check if all symbols in a        \\formula, term or sequent\\belong to the theory.} &
             \begin{lstlisting}
 belongsToTheory(phi: Formula)
 belongsToTheory(t: Term)
 belongsToTheory(s: Sequent)
 \end{lstlisting}
-            \\ %\hline
+        \\ %\hline
 
-            \makecell[l]{Return the list of symbols       \\and definitions in the theory} &
+        \makecell[l]{Return the list of symbols       \\and definitions in the theory} &
             \begin{lstlisting}
 language()
 \end{lstlisting}
-            \\ %\hline
+        \\ %\hline
 
-            \makecell[l]{Check if a label is              \\a symbol of the theory} &
+        \makecell[l]{Check if a label is              \\a symbol of the theory} &
             \begin{lstlisting}
 isSymbol(label: ConstantLabel)
 \end{lstlisting}
-            \\ %\hline
+        \\ %\hline
 
-            \makecell[l]{Check if a label is \textit{not} \\already a symbol of the theory} &
+        \makecell[l]{Check if a label is \textit{not} \\already a symbol of the theory} &
             \begin{lstlisting}
 isAvailable(label: ConstantLabel)
 \end{lstlisting}
-            \\ %\hline
+        \\ %\hline
 
-            \makecell[l]{Return the list of               \\axioms in the theory} &
+        \makecell[l]{Return the list of               \\axioms in the theory} &
             \begin{lstlisting}
 axiomsList()
 \end{lstlisting}
-            \\ %\hline
+        \\ %\hline
 
-            \makecell[l]{Check if a formula is            \\an axiom of the theory} &
+        \makecell[l]{Check if a formula is            \\an axiom of the theory} &
             \begin{lstlisting}
 isAxiom(f: Formula)
 \end{lstlisting}
-            \\ %\hline
+        \\ %\hline
 
-            \makecell[l]{Return the Axiom matching        \\ the given name or formula,\\ if it exists} &
+        \makecell[l]{Return the Axiom matching        \\ the given name or formula,\\ if it exists} &
             \begin{lstlisting}
 getAxiom(f: Formula)
 getAxiom(name: String)
 \end{lstlisting}
-            \\ %\hline
-            \makecell[l]{Return the Definition            \\of a given Label, if defined} &
+        \\ %\hline
+        \makecell[l]{Return the Definition            \\of a given Label, if defined} &
             \begin{lstlisting}
 getDefinition(label: ConstantLabel)
 \end{lstlisting}
-            \\ %\hline
+        \\ %\hline
 
-            \makecell[l]{Return the Theorem object with   \\the given name, if it is one.} &
+        \makecell[l]{Return the Theorem object with   \\the given name, if it is one.} &
             \begin{lstlisting}
 getTheorem(name: String)
 \end{lstlisting}
-            \\ %\hline
-          \end{tabular}
-          \caption{The static interface of a \lstinline|Theory|{} object.}
-          \label{fig:theorygetters}
-        \end{center}
-      \end{figure}
+        \\ %\hline
+      \end{tabular}
+      \caption{The static interface of a \lstinline|Theory|{} object.}
+      \label{fig:theorygetters}
+    \end{center}
+  \end{figure}
 
-    \fi
-  }
+  \fi
+}
 
 \section{Using Lisa's Kernel}
 \label{sec:kernelHelpers}
@@ -976,7 +958,7 @@ but thanks again to  extensions and implicit conversions, Lisa accepts
 Where \lstinline@|-@ is the ligature for { |- } or \lstinline@|@ + \lstinline@-@. More generally, the left and right sides of \lstinline@|-@ can be any of:
 \vspace*{-0.7em}
 \begin{itemize}
-  \setlength\itemsep{-0.5em}
+    \setlength\itemsep{-0.5em}
   \item \lstinline|()| --- \lstinline|Unit|, translated to an empty set
   \item a \lstinline|Formula|
   \item a \lstinline|Tuple[Formula]|
@@ -1027,5 +1009,4 @@ This can be done automatically with implicit conversions. Implicit conversion is
 %
 Now, every time a \lstinline|TermLabel| is written in a place where a \lstinline|Term| is expected, it will be converted implicitly.
 
-To learn more about Scala 3 and its capabilities, see its documentation at {\footnotesize\url{https://docs.scala-lang.org/scala3/book/introduction.html}}. 
-
+To learn more about Scala 3 and its capabilities, see its documentation at {\footnotesize\url{https://docs.scala-lang.org/scala3/book/introduction.html}}.

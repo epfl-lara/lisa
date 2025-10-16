@@ -24,7 +24,7 @@ val congruence1 = Theorem ((a === b, b === c) |- f(a) === f(c)) {
 
 \begin{lstlisting}[language=lisa, frame=single]
 val congruence2 = Theorem (
-  (F(F(F(F(F(F(F(x))))))) === x, F(F(F(F(F(x))))) === x) 
+  (F(F(F(F(F(F(F(x))))))) === x, F(F(F(F(F(x))))) === x)
   |- (F(x) === x)
 ) {
   have(thesis) by Congruence
@@ -33,13 +33,13 @@ val congruence2 = Theorem (
 
 \begin{lstlisting}[language=lisa, frame=single]
 val congruence3 = Theorem (
-  (a === b, b === c, P(f(c)) <=> Q, P(f(a))) 
+  (a === b, b === c, P(f(c)) <=> Q, P(f(a)))
   |- Q
 ) {
   have(thesis) by Congruence
 }
 \end{lstlisting}
-  
+
 \end{example}
 
 The tactic computes the congruence closure of all terms and formulas, with respect to the given equalities and equivalences, using an egraph datastructure \cite{willseyEggFastExtensible2021, nelsonFastDecisionProcedures1980}. The egraph contains two union-find datastructure which maintain equivalence classes of formulas and terms, respectively. The union-finds are equiped with an explain method, which can output a path of equalities between any two points in the same equivalence class, as in \cite{nelsonFastDecisionProcedures1980}. Each such equality can come from the left hand-side of the sequent being proven (we call those \textit{external equalities}), or be consequences of congruence. For an equality labelled by a congruence, the equalities between all children terms can recursively be explained.

@@ -6,7 +6,6 @@
 It is important to remember that in the context of Set Theory, function symbols are not the usual mathematical functions and predicate symbols are not the usual mathematical predicates. Indeed, a predicate on the natural numbers $\mathbb N$ is simply a subset of $\mathbb N$. For example a number is even if and only if it is in the set $E \subset \mathbb N$ of all even numbers. Similarly, the $\leq$ relation on natural numbers can be thought of as a subset of $\mathbb N \times \mathbb N$. There, $E$ and $\leq$ are themselves sets, and in particular terms in first order logic.
 Actual mathematical functions on the other hand, are proper sets which contains the graph of a function on some domain. Their domain must be restricted to a proper set, and it is possible to quantify over such set-like functions or to use them without applications. These set-like functions are represented by constant symbols.  For example ``$f$ is derivable'' cannot be stated about a function symbol. We will come back to this in Chapter~\ref{chapt:settheory}, but for now let us remember that (non-constant) function symbols are suitable for intersection ($\bigcap$) between sets but not for, say, the Riemann $\zeta$ function.
 
-
 Indeed, on one hand a predicate symbol defines a truth value on all possible sets, but on the other hand it is impossible to use the symbol alone, without applying it to arguments, or to quantify over function symbol.
 
 Lisa is based on set theory. More specifically, it is based on ZF with (still not decided) an axiom of choice, of global choice, or Tarski's universes.
@@ -16,8 +15,6 @@ In a more typical mathematical introduction to Set Theory, ZF would naturally on
 
 In a very traditional sense, an axiomatization is any possibly infinite semi-recursive set of axioms. Hence, in its full generality, Axioms should be any function producing possibly infinitely many formulas.
 This is however not a convenient definition. In practice, all infinite axiomatizations are schematic, meaning that they are expressible using schematic variables. Axioms \ref{axz:comprehension} (comprehension schema) and \ref{axzf:replacement} (replacement schema) are such examples of axiom schema, and motivates the use of schematic variables in Lisa.
-
-
 
 \begin{figure}
   \begin{center}
@@ -77,7 +74,6 @@ This is however not a convenient definition. In practice, all infinite axiomatiz
   \label{fig:axiomszf}
 \end{figure}
 
-
 \section{Using Comprehension and Replacement}
 
 In traditional mathematics and set theory, it is standard to use \textit{set builder notations}, to denote sets built from comprehension and replacement, for example
@@ -88,37 +84,37 @@ This also naturally corresponds to \textit{comprehensions} over collections in p
   \begin{tabular}{l|l}
     \textbf{Language} & \textbf{Comprehension} \\ \hline
     Python            & \lstinline$[-x for x in range(10) if x % 2 == 0]$ \\
-    Haskell           & \lstinline$[-x | x <- [0..9], even x]$ \\
-    Scala             & \lstinline$for (x <- 0 to 9 if x % 2 == 0) yield -x$ \\
-  \end{tabular}
-  \caption{Comprehensions in various programming languages}
-  \label{tab:comprehensionsProgramming}
-\end{table}
-Those are typically syntactic sugar for a more verbose expression. For example in scala, \lstinline|(0 to 9).filter(x => x % 2 == 0).map(x => -x)|. However this kind of expressions is not possible in first order logic: We can't built in any way a term that contains formulas as subexpressions, as in \lstinline|filter|. So if we want to use such constructions, we need to simulate it as we did for local definitions in \autoref{sec:localDefinitions}.
+      Haskell           & \lstinline$[-x | x <- [0..9], even x]$ \\
+      Scala             & \lstinline$for (x <- 0 to 9 if x % 2 == 0) yield -x$ \\
+      \end{tabular}
+      \caption{Comprehensions in various programming languages}
+      \label{tab:comprehensionsProgramming}
+    \end{table}
+    Those are typically syntactic sugar for a more verbose expression. For example in scala, \lstinline|(0 to 9).filter(x => x % 2 == 0).map(x => -x)|. However this kind of expressions is not possible in first order logic: We can't built in any way a term that contains formulas as subexpressions, as in \lstinline|filter|. So if we want to use such constructions, we need to simulate it as we did for local definitions in \autoref{sec:localDefinitions}.
 
-It turns out that the comprehension schema is a consequence of the replacement schema when the value plugged for $\psi(x, y)$ is $\phi(x) \land y = x$, i.e. when $\psi$ denotes a restriction of the diagonal relation. Hence, what follows is built only from replacement.
-Note that the replacement axiom \autoref{axzf:replacement} is conditional of the schematic symbol $\psi$ being a functional relation. It is more convenient to move this condition inside the axiom, to obtain a non-conditional equivalence. This is the approach adopted in Isabelle/ZF \cite{noelExperimentingIsabelleZF1993}. We instead can prove and use
-$$ \exists B, \forall y. y \in B \iff (\exists x. x \in A \land P(y, e) \land ∀ z. \psi(x, z) \implies z = y) $$
-Which maps elements of $A$ through the functional component of $\psi$ only. If $\psi$ is functional, those are equivalent.
+      It turns out that the comprehension schema is a consequence of the replacement schema when the value plugged for $\psi(x, y)$ is $\phi(x) \land y = x$, i.e. when $\psi$ denotes a restriction of the diagonal relation. Hence, what follows is built only from replacement.
+      Note that the replacement axiom \autoref{axzf:replacement} is conditional of the schematic symbol $\psi$ being a functional relation. It is more convenient to move this condition inside the axiom, to obtain a non-conditional equivalence. This is the approach adopted in Isabelle/ZF \cite{noelExperimentingIsabelleZF1993}. We instead can prove and use
+      $$ \exists B, \forall y. y \in B \iff (\exists x. x \in A \land P(y, e) \land ∀ z. \psi(x, z) \implies z = y) $$
+      Which maps elements of $A$ through the functional component of $\psi$ only. If $\psi$ is functional, those are equivalent.
 
-Lisa allows to write, for an arbitrary term \lstinline|t| and lambda expression \lstinline|P: (Term, Term) \mapsto Formula|,
-\begin{center}
-  \lstinline|val c = t.replace(P)|
-\end{center}
-One can then use \lstinline|c.elim(e)| to obtain the fact 
-$e \in B \iff (\exists x. x \in A \land P(x, e) \land \forall z. \psi(x, z) \implies z = y)$. As in the case of local definitions, this statement will automatically be eliminated from the context at the end of the proof.
+      Lisa allows to write, for an arbitrary term \lstinline|t| and lambda expression \lstinline|P: (Term, Term) \mapsto Formula|,
+      \begin{center}
+        \lstinline|val c = t.replace(P)|
+      \end{center}
+      One can then use \lstinline|c.elim(e)| to obtain the fact
+      $e \in B \iff (\exists x. x \in A \land P(x, e) \land \forall z. \psi(x, z) \implies z = y)$. As in the case of local definitions, this statement will automatically be eliminated from the context at the end of the proof.
 
-Moreover, we most often want to map a set by a known function. In those case, Lisa provides refined versions \lstinline|t.filter|, \lstinline|t.map| and \lstinline|t.collect|, which are detailed in table \ref{tab:comprehensions}. In particular, these versions already prove the functionality requirement of replacement.
-\begin{table}[h]
-  \begin{tabular}{l|l}
-    \textbf{\lstinline|val c = |} & \textbf{\lstinline|c.elim(e)|} \\ \hline
-    \lstinline|t.replace(P)| & $e \in c \iff (\exists x. x \in t \land P(x, e) \land ∀ z. P(x, z) \implies z = e)$ \\
-    \lstinline|t.collect(F, M)| & $e \in c \iff (\exists x. x \in t \land F(x) \land M(x) = e)$ \\
-    \lstinline|t.map(M)| & $e \in c \iff (\exists x. x \in t \land M(x) = e)$ \\
-    \lstinline|t.filter(F)| & $e \in c \iff e \in t \land F(e)$ \\   
-  \end{tabular}
-  \caption{Comprehensions in Lisa}
-  \label{tab:comprehensions}
-\end{table}
+      Moreover, we most often want to map a set by a known function. In those case, Lisa provides refined versions \lstinline|t.filter|, \lstinline|t.map| and \lstinline|t.collect|, which are detailed in table \ref{tab:comprehensions}. In particular, these versions already prove the functionality requirement of replacement.
+      \begin{table}[h]
+        \begin{tabular}{l|l}
+          \textbf{\lstinline|val c = |} & \textbf{\lstinline|c.elim(e)|} \\ \hline
+          \lstinline|t.replace(P)| & $e \in c \iff (\exists x. x \in t \land P(x, e) \land ∀ z. P(x, z) \implies z = e)$ \\
+          \lstinline|t.collect(F, M)| & $e \in c \iff (\exists x. x \in t \land F(x) \land M(x) = e)$ \\
+          \lstinline|t.map(M)| & $e \in c \iff (\exists x. x \in t \land M(x) = e)$ \\
+          \lstinline|t.filter(F)| & $e \in c \iff e \in t \land F(e)$ \\
+        \end{tabular}
+        \caption{Comprehensions in Lisa}
+        \label{tab:comprehensions}
+      \end{table}
 
-Note that each of those expressions is represented as a variable symbol in the kernel proof, and the definitions are only valid inside the current proof. They should not appear in theorem statements (in which case they should be properly introduced as defined constants).
+      Note that each of those expressions is represented as a variable symbol in the kernel proof, and the definitions are only valid inside the current proof. They should not appear in theorem statements (in which case they should be properly introduced as defined constants).

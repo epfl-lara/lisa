@@ -1,13 +1,13 @@
 \chapter{Starting with Proofs in Lisa}
 \label{chapt:quickguide}
-Lisa is a proof assistant. Proof assistants support development of formal proofs of mathematical statements. 
+Lisa is a proof assistant. Proof assistants support development of formal proofs of mathematical statements.
 
 The centerpiece of Lisa (called the \emph{kernel}) contains a mechanized implementation of first order logic (FOL), a logical framework to write mathematical statements and their proofs. This kernel is what provides correctness guarantees to the user. The kernel only accepts a small set of formal deduction rule such as ``if $a$ is true and $b$ is true then $a\land b$ is true''.
 This is in contrast to human-written proofs, which may contain a wide variety of complex or implicit arguments. If a proof is accepted as being correct by the kernel, it is expected to meet objective criteria for valid proofs according to the field of formal mathematical logic.\footnote{It is possible that the kernel itself has an implementation bug, but because it is a very small and simple program available in open source, we can build strong confidence that it is correct.}
 Lisa's kernel is described in more detail in \autoref{chapt:kernel}.
 
-Writing mathematical theories (for example, group theory, combinatorics, topology, theory of computation) directly from these primitive constructions would be tedious. Instead, we use them as building blocs that can be combined and automatized. Beyond the correctness guarantees of the kernel, Lisa's purpose is to provide tools to make writing formal proofs easier. This include automation, via search procedures that automatically prove theorems, and layers of abstraction (helpers, domain specific language), which make the presentation of formal statements and proofs closer to the traditional, human way of writing proofs. 
-This is similar to programming languages: machine language is sufficient to write any program on a computer, but high level programming languages offer many convenient features which make writing complex programs easier and which are ultimately translated into assembly automatically. 
+Writing mathematical theories (for example, group theory, combinatorics, topology, theory of computation) directly from these primitive constructions would be tedious. Instead, we use them as building blocs that can be combined and automatized. Beyond the correctness guarantees of the kernel, Lisa's purpose is to provide tools to make writing formal proofs easier. This include automation, via search procedures that automatically prove theorems, and layers of abstraction (helpers, domain specific language), which make the presentation of formal statements and proofs closer to the traditional, human way of writing proofs.
+This is similar to programming languages: machine language is sufficient to write any program on a computer, but high level programming languages offer many convenient features which make writing complex programs easier and which are ultimately translated into assembly automatically.
 \autoref{chapt:prooflib} explains how these layers of abstraction and automation work. The rest of the present chapter gives a quick guide on how to use Lisa.
 
 \section{Installation}
@@ -27,14 +27,15 @@ To test your installation, do
 \end{lstlisting}
 Wait for the Lisa codebase to be compiled and then press the number corresponding to "Example". You should obtain the result demonstrating some example theorems proven, such as the following:
 
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
 \begin{lstlisting}[language=console]
-  @*Theorem fixedPointDoubleApplication := 
+  @*Theorem fixedPointDoubleApplication :=
     ∀'x. 'P('x) ==> 'P('f('x)) |- 'P('x) ==> 'P('f('f('x)))
 
   Theorem emptySetIsASubset := |- subsetOf(emptySet, 'x)
 
-  Theorem setWithElementNonEmpty := 
+  Theorem setWithElementNonEmpty :=
     elem('y, 'x) |- ¬('x = emptySet)
 
   Theorem powerSetNonEmpty := |- ¬(powerSet('x) = emptySet)
@@ -46,7 +47,7 @@ Wait for the Lisa codebase to be compiled and then press the number correspondin
 To write Lisa proofs, you can use any text editor or IDE. We recommend using \emph{Visual Studio Code} (henceforth VSCode) with the \emph{Metals} plugin.
 
 \subsection*{A Note on Special Characters}
-Math often uses symbols beyond the Latin alphabet. Lisa usually admits both an English alphabet name and a unicode name for such symbols. By enabling \emph{font ligatures}, common character sequences, such as \lstinline|=|\lstinline|=|\lstinline|>| are rendered as \lstinline|==>|. 
+Math often uses symbols beyond the Latin alphabet. Lisa usually admits both an English alphabet name and a unicode name for such symbols. By enabling \emph{font ligatures}, common character sequences, such as \lstinline|=|\lstinline|=|\lstinline|>| are rendered as \lstinline|==>|.
 The present document also uses the font \href{https://github.com/tonsky/FiraCode}{Fira Code}. Once installed on your system, you can activate it and ligatures on VSCode the following way:
 \begin{enumerate}
   \item Press Ctrl-Shift-P
@@ -72,7 +73,7 @@ A cheat sheet of the most common symbols and how to input them is in \autoref{ta
     \lstinline| ∃   | & U+2203           & exists   \\ \hline
     \lstinline| ∈   | & U+2208           & in       \\ \hline
     \lstinline| ⊆   | & U+2286           & subseteq \\ \hline
-    \lstinline| ∅   | & U+2205           & emptyset \\ 
+    \lstinline| ∅   | & U+2205           & emptyset \\
   \end{tabular}
   \caption{Frequently used Unicode symbols and ligatures.}
   \label{tab:Unicode}
@@ -84,7 +85,8 @@ Lisa provides a canonical way of writing and organizing kernel proofs by mean of
 To prove some theorems by yourself, start by creating a file named \lstinline|MyTheoryName.scala| right next to the Example.scala file\footnote{The relative path is lisa/lisa-examples/src/main/scala}.
 Then simply write:
 
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
 \begin{lstlisting}[language=lisa, frame=single]
 object MyTheoryName extends lisa.Main {
 
@@ -93,11 +95,12 @@ object MyTheoryName extends lisa.Main {
 \end{minipage}
 and that's it! This will give you access to all the necessary Lisa features. Let see how one can use them to prove a theorem:
 $$
-  \forall x. P(x) \implies P(f(x)) \vdash P(x) \implies P(f(f(x)))
+\forall x. P(x) \implies P(f(x)) \vdash P(x) \implies P(f(f(x)))
 $$
-To state the theorem, we first need to tell Lisa that $x$ is a variable, $f$ is a function symbol and $P$ a predicate symbol. 
+To state the theorem, we first need to tell Lisa that $x$ is a variable, $f$ is a function symbol and $P$ a predicate symbol.
 
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
 \begin{lstlisting}[language=lisa, frame=single]
 object MyTheoryName extends lisa.Main {
   val x = variable
@@ -108,10 +111,11 @@ object MyTheoryName extends lisa.Main {
 \end{lstlisting}
 \end{minipage}
 
-where \lstinline|[1]| indicates that the symbol is of arity 1 (it takes a single argument). The symbols \lstinline|x, f, P| are scala identifiers that can be freely used in theorem statements and proofs, but they are also formal symbols of FOL in Lisa's kernel. 
+where \lstinline|[1]| indicates that the symbol is of arity 1 (it takes a single argument). The symbols \lstinline|x, f, P| are scala identifiers that can be freely used in theorem statements and proofs, but they are also formal symbols of FOL in Lisa's kernel.
 We now can state our theorem:
 
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
 \begin{lstlisting}[language=lisa, frame=single]
 object MyTheoryName extends lisa.Main {
   val x = variable
@@ -122,32 +126,33 @@ object MyTheoryName extends lisa.Main {
     ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
   ) {
     ???  // Proof
-  } 
+  }
 }
 \end{lstlisting}
 \end{minipage}
 The theorem will automatically be named \lstinline|fixedPointDoubleApplication|, like the name of the identifier it is assigned to, and will be available to reuse in future proofs. The proof itself is built using a sequence of proof step, which will update the status of the ongoing proof.
 
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
 \begin{lstlisting}[language=lisa, frame=single]
 object MyTheoryName extends lisa.Main {
   val x = variable
   val f = function[1]
   val P = predicate[1]
 
-  val fixedPointDoubleApplication = Theorem( 
+  val fixedPointDoubleApplication = Theorem(
     ∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))
   ) {
     assume(∀(x, P(x) ==> P(f(x))))
     val step1 = have(P(x) ==> P(f(x))) by InstantiateForall
     val step2 = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall
     have(thesis) by Tautology.from(step1, step2)
-  } 
+  }
 }
 \end{lstlisting}
 \end{minipage}
 First, we use the \lstinline|assume| construct in line 6.
-This tells to Lisa that the assumed formula is understood as being implicitly on the left hand side of every statement in the rest of the proof. 
+This tells to Lisa that the assumed formula is understood as being implicitly on the left hand side of every statement in the rest of the proof.
 
 Then, we need to instantiate the quantified formula twice using a specialized tactic. In lines 7 and 8, we use \lstinline|have| to state that a formula or sequent is true (given the assumption inside \lstinline|assume|), and that the proof of this is produced by the tactic \lstinline|InstantiateForall|.
 We'll see more about the interface of a tactic later. To be able to reuse intermediate steps at any point later, we also assign the intermediates step to a variable.
@@ -156,7 +161,8 @@ Finally, the last line says that the conclusion of the theorem itself, \lstinlin
 
 Lisa is based on set theory, so you can also use set-theoretic primitives such as in the following theorem.
 
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
 val emptySetIsASubset = Theorem(
   ∅ ⊆ x
@@ -171,7 +177,8 @@ val emptySetIsASubset = Theorem(
 \end{minipage}
 We see a number of new constructs in this example. \lstinline|RightForall| is another tactic (in fact it corresponds to a core deduction rules of the kernel) that introduces a quantifier around a formula, if the bound variable is not free somewhere else in the sequent.
 We also see in line 6 another construct: \lstinline|thenHave|. It is similar to \lstinline|have|, but it will automatically pass the previous statement to the tactic. Formally,
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
     have(X) by Tactic1
     thenHave (Y) by Tactic2
@@ -179,14 +186,16 @@ We also see in line 6 another construct: \lstinline|thenHave|. It is similar to 
 \end{minipage}
 is equivalent to
 
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
     val s1 = have(X) by Tactic1
     have (Y) by Tactic2(s1)
   \end{lstlisting}
 \end{minipage}
 \lstinline|thenHave| allows us to not give a name to every step when we're doing linear reasoning. Finally, in lines 5 and 8, we see that tactic can refer not only to steps of the current proof, but also to previously proven theorems and axioms, such as \lstinline|emptySetAxiom|. The \lstinline|of| keyword indicates the axiom (or step) is instantiated in a particular way. For example:
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
     emptySetAxiom             // ==  !(x ∈ ∅)
     emptySetAxiom of (x := y) // ==  !(y ∈ ∅)
@@ -196,7 +205,8 @@ is equivalent to
 Lisa also allows to introduce definitions. There are essentially two kind of definitions, \emph{aliases} and definition via \emph{unique existence}.
 An alias defines a constant, a function or predicate as being equal (or equivalent) to a given formula or term. For example,
 
-\noindent\begin{minipage}{\linewidth}\vspace{1em}
+\noindent
+\begin{minipage}{\linewidth}\vspace{1em}
   \begin{lstlisting}[language=lisa, frame=single]
   val succ = DEF(x) --> union(unorderedPair(x, singleton(x)))
   \end{lstlisting}
@@ -205,11 +215,10 @@ defines the function symbol \lstinline|succ| as the function taking a single arg
 
 The second way of defining an object is more complicated and involve proving the existence and uniqueness of an object. This is detailed in \autoref{chapt:kernel}.
 
-You can now try to run the theory file you just wrote and verify if you made a mistake. To do so again do \lstinline|> run| in the sbt console and select the number corresponding to your file. 
+You can now try to run the theory file you just wrote and verify if you made a mistake. To do so again do \lstinline|> run| in the sbt console and select the number corresponding to your file.
 If all the output is green, perfect! If there is an error, it can be either a syntax error reported at compilation or an error in the proof. In both case, the error message can sometimes be cryptic, but it should at least consistently indicates which line of your file is incorrect.
 
 Alternatively, if you are using IntelliJ or VS Code and Metals, you can run your theory file directly in your IDE by clicking either on the green arrow (IntelliJ) or on ``run" (VS Code) next to your main object.
-
 
 \section{Common Tactics}
 \subsubsection*{Restate}
@@ -238,19 +247,18 @@ Constructs a proof of \lstinline|statement|, if the statement is true and a proo
 \end{lstlisting}
 Construct a proof of \lstinline|statement| from the previously proven \lstinline|premise1|, \lstinline|premise2|,... using propositional reasoning.
 
-
 \subsubsection*{RightForall, InstantiateForall}
 \lstinline|RightForall| will generalize a statement by quantifying it over free variables. For example,
 \begin{lstlisting}[language=lisa]
   have(P(x)) by ???
-  thenHave(∀(x, P(x))) by RightForall 
+  thenHave(∀(x, P(x))) by RightForall
 \end{lstlisting}
 Note that if the statement inside \lstinline|have| has more than one formula, $x$ cannot appear (it cannot be \emph{free}) in any formula other than $P(x)$. It can also not appear in any assumption.
 
 \lstinline|InstantiateForall| does the opposite: given a universally quantified statement, it will specialize it. For example:
 \begin{lstlisting}[language=lisa]
   have(∀(x, P(x))) by ???
-  thenHave(P(t)) by InstantiateForall 
+  thenHave(P(t)) by InstantiateForall
 \end{lstlisting}
 for any arbitrary term \lstinline|t|.
 
@@ -280,10 +288,9 @@ If a \lstinline|subst| is a formula rather than a proven fact, then it should be
 \begin{lstlisting}[language=lisa]
   val subst = have(A |- Q(s) <=> P(s)) by ???
   have(Q(s) /\ s===f(t)) by ???
-  thenHave(A, f(t) === t |- P(s) /\ s===t) 
+  thenHave(A, f(t) === t |- P(s) /\ s===t)
       .by Substitution.ApplyRules(subst, f(t) === t)
 \end{lstlisting}
-
 
 \subsection*{File Options}
 Some options can be set at the start of a file, which will affect the behaviour of Lisa. These options are intended for use at a development stage.
@@ -293,5 +300,5 @@ Some options can be set at the start of a file, which will affect the behaviour 
   \lstinline|draft()| & Theorems outside of the current file are assumed to be true and not checked for correctness. This can speed up repetitive runs during proof drafts.
   \\[4ex]
   \lstinline|withCache()| & Kernel proofs will be stored in binary files when theorems are constructed. On future runs with the option enabled, theorems will be constructed from the stored low level proofs. This skips running tactics to construct or search for proofs.\\
-  
+
 \end{tabularx}
