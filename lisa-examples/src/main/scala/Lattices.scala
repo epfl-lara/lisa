@@ -1,3 +1,10 @@
+
+/**
+ * This file contains some example problems about lattices that serve as a good
+ * introduction of both proving and automation in Lisa
+ * 
+ * Incomplete proofs are marked with `sorry`
+ */
 object Lattices extends lisa.Main {
 
   val x = variable[Ind]

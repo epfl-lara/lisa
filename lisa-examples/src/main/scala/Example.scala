@@ -1,65 +1,75 @@
 import lisa.automation.Congruence
 import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.automation.Tableau
-import lisa.automation.atp.Egg
-import lisa.automation.atp.Goeland
 
 object Example extends lisa.Main:
+  // draft mode; only proofs from the current file are checked
   draft()
-/*
+
+  // first-order variables
   val x = variable[Ind]
   val y = variable[Ind]
+
+  // a predicate with one argument
   val P = variable[Ind >>: Prop]
+
+  // a first-order function with one argument
   val f = variable[Ind >>: Ind]
 
-  val thing : set = x
-  extension (x: Expr[Set]) {
+  // we can use scala extensions to define custom syntax
+  extension (x: Expr[Set])
     inline infix def subset(y: Expr[Set]): Expr[Prop] = App(App(⊆, x), y)
-  }
-  // Simple proof with LISA's DSL
+
+  // a simple proof with Lisa's DSL
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
     val a1 = assume(∀(x, P(x) ==> P(f(x))))
     have(thesis) by Tautology.from(a1 of x, a1 of f(x))
   }
 
   // Example of set theoretic development
-  val union = Theorem(
-    //App(App(⊆, x), y)
-    //⊆.#@(x).#@(y)
-    (thing) subset (thing)
-  ) {
-    sorry
-  }
-  
   /**
- * Theorem --- The empty set is a subset of every set.
- *
-   *    `|- ∅ ⊆ x`
- */
-  val leftEmpty = Theorem(
-    P(x) //∅ ⊆ x
+    * Theorem --- a set is a subset of itself.
+    * 
+    *  `|- x ⊆ x`
+    */
+  val union = Theorem(
+    x subset x
+    // or x ⊆ x is predefined
   ) {
-    //have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
-    //val rhs = thenHave(∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
-    //have(thesis) by Tautology.from(subsetAxiom of (x := ∅, y := x), rhs)
+    have((y ∈ x) ==> (y ∈ x)) by Restate
+    thenHave(∀(y, (y ∈ x) ==> (y ∈ x))) by RightForall
+
+    have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := x, y := x))
   }
 
   /**
- * Theorem --- If a set has an element, then it is not the empty set.
- *
-   *    `y ∈ x ⊢ ! x = ∅`
- */
+   * Theorem --- The empty set is a subset of every set.
+   * 
+   *   `|- ∅ ⊆ x`
+   */
+  val leftEmpty = Theorem(∅ ⊆ x): // braceless syntax is also fine!
+    have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
+    thenHave(∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
+    
+    have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := ∅, y := x))
+  
+  /**
+   * Theorem --- If a set has an element, then it is not the empty set.
+   * 
+   *   `y ∈ x ⊢ ! x = ∅`
+   */
   val setWithElementNonEmpty = Theorem(
     (y ∈ x) |- x =/= ∅
   ) {
     have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
+    // this statement is `Restate` equivalent to the result, so we are done!
   }
 
   /**
- * Theorem --- A power set is never empty.
- *
-   *   `|- !powerAxiom(x) = ∅`
- */
+   * Theorem --- the power set of any set is non-empty.
+   * 
+   *  `|- 𝒫(x) =/= ∅`
+   */
   val powerSetNonEmpty = Theorem(
     𝒫(x) =/= ∅
   ) {
@@ -70,27 +80,8 @@ object Example extends lisa.Main:
     )
   }
 
+  // example showing the Tableau tactic to discharge first-order tautologies
   val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
     have(thesis) by Tableau
   }
 
-
-/**
- * Example showing discharge of proofs using the Goeland theorem prover. Will
- * fail if Goeland is not available on PATH.
- */
-object ATPExample extends lisa.Main:
-  val x = variable[Ind]
-  val y = variable[Ind]
-  val P = variable[Ind >>: Prop]
-  val f = variable[Ind >>: Ind]
-
-  val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))):
-    have(thesis) by Goeland
-
-  val rule8 = Axiom(forall(x, x === f(f(f(f(f(f(f(f(x))))))))))
-  val rule5 = Axiom(forall(x, x === f(f(f(f(f(x)))))))
-
-  val saturation = Theorem(∅ === f(∅)):
-    have(thesis) by Egg.from(rule8, rule5)
- */
