@@ -23,6 +23,9 @@
 \usepackage[T1]{fontenc}
 \usepackage{newunicodechar} %To map unicode in listings to a different font than Fira Code
 \usepackage{tabularx}
+\usepackage{needspace}
+\usepackage{hyperref}
+\usepackage[nameinlink]{cleveref}
 \renewcommand\sfdefault{ua1}
 
 \sloppy % better (?) margin handling
@@ -60,7 +63,7 @@
 \usepackage{ucharclasses}
 \setmonofont[
   Contextuals={Alternate}
-]{Fira Code}
+]{Fira Code Retina}
 \newfontfamily{\fallbackfont}{DejaVuSans}
 \DeclareTextFontCommand{\textfallback}{\fallbackfont}
 \newunicodechar{∀}{\textfallback{∀}}
@@ -68,6 +71,12 @@
 \newunicodechar{∅}{\textfallback{∅}}
 \newunicodechar{⊆}{\textfallback{⊆}}
 \newunicodechar{∈}{\textfallback{∈}}
+\newunicodechar{⊢}{\textfallback{⊢}}
+\newunicodechar{→}{\textfallback{→}}
+\newunicodechar{⇒}{\textfallback{⇒}}
+\newunicodechar{↔}{\textfallback{↔}}
+\newunicodechar{≠}{\textfallback{≠}}
+\newunicodechar{𝒫}{\textfallback{𝒫}}
 
 %  Correct lstlisting parsing of unicode character. Add unicode points at the end.
 % To add: code for \vdash
@@ -107,7 +116,7 @@
   keywordstyle = {\color{blue}},
   keywordstyle = [2]{\color{blue}},
   commentstyle = \color{comments},
-  basicstyle=\footnotesize\linespread{1.15}\ttfamily,
+  basicstyle=\scriptsize\linespread{1.15}\ttfamily,
   morekeywords = [2]{abstract, case, class, def, do, Input, Output, then,
     else, extends, false, free, if, implicit, match,
     object, true, val, var, while, sealed, or,
@@ -134,7 +143,7 @@
   keywordstyle = [3]{\color{green}},
   keywordstyle = [4]{\color{teal}},
   commentstyle = \color{comments},
-  basicstyle=\footnotesize\linespread{1.15}\ttfamily,
+  basicstyle=\scriptsize\linespread{1.15}\ttfamily,
   morekeywords = [2]{abstract, case, class, def, do, Input, Output, then,
     else, extends, false, free, if, implicit, match,
     object, true, val, var, while, sealed, or,
@@ -159,7 +168,7 @@
   extendedchars = true,
   inputencoding = utf8,
   backgroundcolor = \color{bluishlightgray},
-  basicstyle=\footnotesize\linespread{1.15}\ttfamily,
+  basicstyle=\scriptsize\linespread{1.15}\ttfamily,
   mathescape,
   escapeinside={!*}{*!},
   columns=fullflexible,
@@ -173,7 +182,7 @@
   extendedchars = true,
   inputencoding = utf8,
   extendedchars = \true,
-  basicstyle=\footnotesize\linespread{1.15}\ttfamily,
+  basicstyle=\scriptsize\linespread{1.15}\ttfamily,
   mathescape,
   escapeinside={!*}{*!},
   columns=fullflexible,

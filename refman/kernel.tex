@@ -5,9 +5,9 @@ Lisa's kernel is the starting point of Lisa, formalising the foundations of the 
 
 Lisa's foundations are based on traditional (in the mathematical community) foundational theory of all mathematics, but with some extensions and modifications to more closely match common mathematical practice:
 \begin{itemize}
-  \item The syntax of Lisa's statement is an extension of first-order logic with lambda terms named \textbf{\lambdafol} (see \autoref{sec:FOL}).
+  \item The syntax of Lisa's statement is an extension of first-order logic with lambda terms named \textbf{\lambdafol} (see \Cref{sec:FOL}).
   \item The deductive system of Lisa's kernel is \textbf{Sequent Calculus}.
-  \item The axiomatic theory is \textbf{ZFC Set Theory}, but the kernel is actually theory-agnostic and is sound to use with any other set of axioms. Set theory (see \autoref{chapt:settheory}).
+  \item The axiomatic theory is \textbf{ZFC Set Theory}, but the kernel is actually theory-agnostic and is sound to use with any other set of axioms. Set theory (see \Cref{chapt:settheory}).
 \end{itemize}
 
 \section{\lambdafol: First Order Logic with Lambda Terms}
@@ -207,9 +207,9 @@ On top of basic building blocks of terms and formulas, there is one important ty
 
 While proving theorems, trivial syntactical transformations such as $p\land q \equiv q\land p$  increase the length of proofs, which is desirable neither to the user nor the machine. Moreover, the proof checker will very often have to check whether two formulas that appear in different sequents are the same. Hence, instead of using pure syntactical equality, Lisa implements an equivalence checker able to detect a class of equivalence-preserving logical transformations. For example, we would like the  formulas $p\land q$ and $q\land p$ to be naturally treated as equivalent.
 
-For soundness, the relation decided by the algorithm should be contained in the $\iff$ ``if and only if'' relation of first order logic. However, it is well known that this relationship is in general undecidable, and even the $\iff$ relation for propositional logic is coNP-complete. For practicality, we need a relation that is efficiently computable.
+For soundness, the relation decided by the algorithm should be contained in the $\iff$ ``if and only if'' relation of first-order logic. However, it is well known that this relationship is in general undecidable, and even the $\iff$ relation for propositional logic is coNP-complete. For practicality, we need a relation that is efficiently computable.
 
-Orthologic is such a relation: It is a weaker theory than classical logic, because it does not include the distributivity law of $\land$ and $\lor$, but it admits a quadratic-time normalization algorithm for propositional formulas \cite{guilloudFormulaNormalizationsVerification2023}. The structure underlying orthologic (its Lindenbaum algebra) is that of ortholattices, similar to the relationshipbetween classical logic and Boolean algebra. The laws of orthologic are shown in \autoref{tab:ortholatticeLaws}.
+Orthologic is such a relation: It is a weaker theory than classical logic, because it does not include the distributivity law of $\land$ and $\lor$, but it admits a quadratic-time normalization algorithm for propositional formulas \cite{guilloudFormulaNormalizationsVerification2023}. The structure underlying orthologic (its Lindenbaum algebra) is that of ortholattices, similar to the relationshipbetween classical logic and Boolean algebra. The laws of orthologic are shown in \Cref{tab:ortholatticeLaws}.
 
 \begin{table}[bth]
   \centering
@@ -232,9 +232,9 @@ Orthologic is such a relation: It is a weaker theory than classical logic, becau
 As a special kind of lattices, ortholattices can be viewed as partially ordered sets, with the ordering relation on two elements $a$ and $b$ of an ortholattice defined as
 \(
   a\leq b \iff a \land b = a
-\), which, by absorption (L9), is also equivalent to $a \lor b = b$. If $s$ and $t$ are propositional formulas, we denote $s \leq_\OL t $ if and only if $s \leq t$, is provable from the axioms of \autoref{tab:ortholatticeLaws}.
+\), which, by absorption (L9), is also equivalent to $a \lor b = b$. If $s$ and $t$ are propositional formulas, we denote $s \leq_\OL t $ if and only if $s \leq t$, is provable from the axioms of \Cref{tab:ortholatticeLaws}.
 We write $s\sim_\OL t$ if both $s\leq_\OL t$ and $s\geq_\OL t$ hold.
-\autoref{thm:OL} is the main result we rely on.
+\Cref{thm:OL} is the main result we rely on.
 
 \begin{theorem}[\cite{guilloudFormulaNormalizationsVerification2023}]
   \label{thm:OL}
@@ -243,7 +243,7 @@ We write $s\sim_\OL t$ if both $s\leq_\OL t$ and $s\geq_\OL t$ hold.
 \end{theorem}
 Moreover, the algorithm works with structure sharing with the same complexity, which is very relevant for example when $x \leftrightarrow y$ is expanded to $(x \land y) \lor (\neg x \land \neg y)$. It can produce a normal form in this case as well.
 
-Lisa's kernel contains a generalization of this algorithm to \lambdafol, which also includes additional reasoning rules. It first beta-normalize expressions, expresses the formula using de Bruijn indices, and desugars $\exists. \phi$ into $\neg \forall. \neg \phi$, $\phi\Leftrightarrow\psi$ into $(\phi\Rightarrow\psi)\land(\psi\Rightarrow\phi)$, and $\phi\Rightarrow\psi$ into $\neg \phi \lor \psi$. It then applies OL normalization,  with the the additional rules of \autoref{tab:Olextension}.
+Lisa's kernel contains a generalization of this algorithm to \lambdafol, which also includes additional reasoning rules. It first beta-normalize expressions, expresses the formula using de Bruijn indices, and desugars $\exists. \phi$ into $\neg \forall. \neg \phi$, $\phi\Leftrightarrow\psi$ into $(\phi\Rightarrow\psi)\land(\psi\Rightarrow\phi)$, and $\phi\Rightarrow\psi$ into $\neg \phi \lor \psi$. It then applies OL normalization,  with the the additional rules of \Cref{tab:Olextension}.
 
 \begin{table}[ht]
   \centering
@@ -295,11 +295,11 @@ The deductive system used by Lisa is an extended version of the classical Sequen
 \end{definition}
 A sequent $\phi \vdash \psi$ is logically (but not conceptually) equivalent to a sequent $\vdash \phi \rightarrow \psi$. The distinction is similar to the distinction between meta-implication and inner implication in Isabelle \cite{paulsonIsabelleNext7001993}, for example. Typically, a theorem or a lemma should have its various assumptions on the left-hand side of the sequent and a single conclusion on the right. During proofs however, there may be multiple elements on the right side. \footnote{In a strict description of Sequent Calculus, this is in particular needed to have double negation elimination.}
 
-Sequents are manipulated in a proof using \emph{deduction rules}. A deduction rule, also called a proof step, has zero or more prerequisite sequents (which we call \emph{premises} of the rule) and one conclusion sequent. All the basic deduction rules used in Lisa's kernel are shown in \autoref{fig:deduct_rules_1} and \autoref{fig:deduct_rules_2}.
+Sequents are manipulated in a proof using \emph{deduction rules}. A deduction rule, also called a proof step, has zero or more prerequisite sequents (which we call \emph{premises} of the rule) and one conclusion sequent. All the basic deduction rules used in Lisa's kernel are shown in \Cref{fig:deduct_rules_1} and \Cref{fig:deduct_rules_2}.
 This includes first rules of propositional logic, then rules for quantifiers, then equality rules. Moreover, we include equal-for-equal and equivalent-for-equivalent substitutions. While those substitution rules are deduced steps, and hence could technically be omitted, simulating them can sometimes take a high number of steps, so they are included as base steps for efficiency.
 Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
 
-%For proof checking, the kernel implementation of these proof steps explicitly take all required arguments, such as the formulas central to the manipulation. These are intended for internal use, and most arguments can be inferred and are automatically generated when writing proofs with the DSL (\autoref{subsec:dsl}). While user-developed deduced steps may also use the DSL, in cases where arguments are easily known, kernel steps retain their utility in that they may be directly emitted for efficiency, see \autoref{subsec:tacticDev} for discussion on this. The following is an example proof, that of Pierce's law, in sequent calculus, and its encoding utilizing kernel steps:
+%For proof checking, the kernel implementation of these proof steps explicitly take all required arguments, such as the formulas central to the manipulation. These are intended for internal use, and most arguments can be inferred and are automatically generated when writing proofs with the DSL (\Cref{subsec:dsl}). While user-developed deduced steps may also use the DSL, in cases where arguments are easily known, kernel steps retain their utility in that they may be directly emitted for efficiency, see \Cref{subsec:tacticDev} for discussion on this. The following is an example proof, that of Pierce's law, in sequent calculus, and its encoding utilizing kernel steps:
 %Start of first set of deduction rules
 
 \begin{figure}
@@ -498,7 +498,7 @@ Finally, the two rules Restate and Weakening leverage the $\FOLalg$ algorithm.
 
 \subsection{Proofs}
 A sequent calculus proof is a tree whose nodes are proof steps.
-The root of the proof shows the concluding statement, and the leaves are either assumptions (for example, set theoretic axioms) or proof steps taking no premise (Hypothesis, RightRefl and RestateTrue). Figure~\ref{fig:exampleProof} shows an example of a proof tree for Pierce's Law in strict Sequent Calculus.
+The root of the proof shows the concluding statement, and the leaves are either assumptions (for example, set theoretic axioms) or proof steps taking no premise (Hypothesis, RightRefl and RestateTrue). \Cref{fig:exampleProof} shows an example of a proof tree for Pierce's Law in strict Sequent Calculus.
 %
 \begin{figure}[ht]
   \centering
@@ -524,7 +524,7 @@ The root of the proof shows the concluding statement, and the leaves are either 
 
 In the Lisa kernel, proof steps are organised linearly, in a list, to form actual proofs. Each proof step refers to its premises using numbers, which indicate the place of the premise in the proof.
 a proof step can also be referred to by multiple subsequent proof steps, so that proofs are actually directed acyclic graphs (DAG) rather than trees. For the proof to be the linearization of a rooted DAG, the proof steps must only refer to numbers smaller than their own in the proof. Indeed, using topological sorting, it is always possible to order the nodes of a directed acyclic graph such that for any node, its predecessors appear earlier in the list.
-\autoref{fig:exampleProofLinear} shows the proof of Pierce's Law as linearized in Lisa's kernel.
+\Cref{fig:exampleProofLinear} shows the proof of Pierce's Law as linearized in Lisa's kernel.
 %
 \begin{figure}[ht]
   \begin{align*}
@@ -545,7 +545,7 @@ Note however that thanks to the $\FOLalg$ equivalence checker, Pierce's law can 
   0  ~\text{\lstinline|RestateTrue|}        \quad \vdash ((\phi \to \psi) \to \phi) \to \phi .
 \end{gather*}
 
-Moreover, proofs are conditional: they can carry an explicit set of assumed sequents, named ``\lstinline|imports|'', which give some starting points to the proof. Typically, these imports will contain previously proven theorems, definitions, or axioms (More on that in section~\ref{sec:TheoremsAndTheories}). For a proof step to refer to an imported sequent, one uses negative integers. $-1$ corresponds to the first sequent of the import list of the proof, $-2$ to the second, etc.
+Moreover, proofs are conditional: they can carry an explicit set of assumed sequents, named ``\lstinline|imports|'', which give some starting points to the proof. Typically, these imports will contain previously proven theorems, definitions, or axioms (More on that in \Cref{sec:TheoremsAndTheories}). For a proof step to refer to an imported sequent, one uses negative integers. $-1$ corresponds to the first sequent of the import list of the proof, $-2$ to the second, etc.
 
 Formally, a proof is a pair made of a list of proof steps and a list of sequents:
 %
@@ -556,7 +556,7 @@ Formally, a proof is a pair made of a list of proof steps and a list of sequents
 We call the bottom-most sequent of the last proof step of the proof the ``conclusion'' of the proof.
 
 \noindent
-\autoref{fig:exampleProofImports} shows a proof using an import.
+\Cref{fig:exampleProofImports} shows a proof using an import.
 %
 \begin{figure}[ht]
   \begin{align*}
@@ -570,7 +570,7 @@ We call the bottom-most sequent of the last proof step of the proof the ``conclu
 \end{figure}
 
 \noindent
-Finally, \autoref{fig:exampleProofQuantifiers} shows a proof with quantifiers.
+Finally, \Cref{fig:exampleProofQuantifiers} shows a proof with quantifiers.
 %
 \begin{figure}[ht]
   \begin{align*}
@@ -584,8 +584,8 @@ Finally, \autoref{fig:exampleProofQuantifiers} shows a proof with quantifiers.
   \label{fig:exampleProofQuantifiers}
 \end{figure}
 
-For every proof step, Lisa's kernel actually expects more than only the premises and conclusion of the rule. The proof step also contains some parameters indicating how the deduction rule is precisely applied. This makes proof checking much simpler, and hence more trustworthy. Outside the kernel, Lisa includes tactic which will infer such parameters automatically (see \autoref{chapt:tactics}), so that in practice the user never has to write them.
-\autoref{fig:ExampleProofPierceScala} shows how a kernel proof is written in scala.
+For every proof step, Lisa's kernel actually expects more than only the premises and conclusion of the rule. The proof step also contains some parameters indicating how the deduction rule is precisely applied. This makes proof checking much simpler, and hence more trustworthy. Outside the kernel, Lisa includes tactic which will infer such parameters automatically (see \Cref{chapt:tactics}), so that in practice the user never has to write them.
+\Cref{fig:ExampleProofPierceScala} shows how a kernel proof is written in scala.
 
 \begin{figure}[ht]
   \centering
@@ -599,7 +599,7 @@ val PierceLawProof = SCProof(IndexedSeq(
                                   3, ( φ ==> ψ ) ==> φ, φ)
 ), Seq.empty /* no imports */ )
     \end{lstlisting}
-  \caption{The proof from~\autoref{fig:exampleProof} written for Lisa's kernel. The second argument (empty here) is the sequence of proof imports. The symbols \lstinline|==>| and \lstinline||-| are ligatures for ==> and |- and are syntactic sugar defined outside the kernel.}
+  \caption{The proof from~\Cref{fig:exampleProof} written for Lisa's kernel. The second argument (empty here) is the sequence of proof imports. The symbols \lstinline|==>| and \lstinline||-| are ligatures for ==> and |- and are syntactic sugar defined outside the kernel.}
   \label{fig:ExampleProofPierceScala}
 \end{figure}
 
@@ -609,7 +609,7 @@ To organize proofs, Lisa's kernel also defines the Subproof proof step. A Subpro
   SCSubproof(sp: SCProof, premises: Seq[Int])
 \end{lstlisting}
 The first argument contain a sequent calculus proof, with one conclusion and arbitrarily many \textit{imports}. The second arguments must justify all the imports of the inner proof with previous steps of the outer proof.
-A Subproof only has an organizational purpose and allows to more easily write tactics (see \autoref{chapt:tactics}). In particular, the numbering of proof steps in the inner proof is independent of the location of the subproof step in the outer proof.
+A Subproof only has an organizational purpose and allows to more easily write tactics (see \Cref{chapt:tactics}). In particular, the numbering of proof steps in the inner proof is independent of the location of the subproof step in the outer proof.
 
 \paragraph*{Sorry}
 
@@ -626,7 +626,7 @@ Given some proof $p$, the proof checker will verify these points. For most proof
 
 Hence, most of the proof checker's work consists in verifying that some formulas, or subformulas thereof, are identical. This is where the equivalence checker comes into play. By checking equivalence rather than strict syntactic equality, a lot of steps become redundant and can be merged. That way,  any number of consecutive {LeftAnd}, {RightOr}, {LeftNot}, {RightNot}, {LeftImplies}, {RightImplies}, {LeftIff}, {LeftRefl}, {RightRefl}, {LeftExistsOne} and  {RightExistsOne} proof steps can always be replaced by a single{Weakening} rule. This gives some intuition about how useful the equivalence checker is to simplify proof length.
 
-While most proof steps are oblivious to formula transformations allowed by the equivalence checker, they don't allow transformations of the whole sequent: to easily rearrange sequents according to the sequent semantics (\autoref{eq:SequentSemantic}), one should use the Rewrite or Weakening steps.
+While most proof steps are oblivious to formula transformations allowed by the equivalence checker, they don't allow transformations of the whole sequent: to easily rearrange sequents according to the sequent semantics (\Cref{eq:SequentSemantic}), one should use the Rewrite or Weakening steps.
 
 Depending on wether the proof is correct or incorrect, the proof checking function will output a \textit{judgement}:
 \begin{lstlisting}
@@ -646,7 +646,7 @@ Note that there exists a proof step, called Sorry, used to  represent unimplemen
 
 In mathematics as a discipline, theorems don't exist in isolation. They depend on some agreed upon set of axioms, definitions, and previously proven theorems. Formally, theorems are developed within theories. A theory is defined by a language, which contains the symbols allowed in the theory, and by a set of axioms, which are assumed to hold true within it.
 
-In Lisa, a \lstinline|Theory|{} is a mutable object that starts as the pure theory of predicate logic: It has no known symbols and no axioms. Then we can introduce into it elements of Set Theory (symbols $\in$, $\emptyset$, $\bigcup$ and set theory axioms, see Chapter~\ref{chapt:settheory}) or of any other theory.
+In Lisa, a \lstinline|Theory|{} is a mutable object that starts as the pure theory of predicate logic: It has no known symbols and no axioms. Then we can introduce into it elements of Set Theory (symbols $\in$, $\emptyset$, $\bigcup$ and set theory axioms, see \Cref{chapt:settheory}) or of any other theory.
 
 To conduct a proof inside a \lstinline|Theory|{}, using its axioms, the proof should be normally constructed and the needed axioms specified in the imports of the proof. Then, the proof can be given to the \lstinline|Theory|{} to check, along with \textit{justifications} for all imports of the proof. A justification is either an axiom, a previously proven theorem, or a definition. The \lstinline|Theory|{} object will check that every import of the proof is properly justified by a \textit{justification} in the theory, i.e. that the proof is in fact not conditional in the theory. Then, it will pass the proof to the proof checker. If the proof is correct, it will return a \lstinline|Theorem|{} encapsulating the sequent. This theorem will be allowed to be used in all further proofs as an import, exactly like an axiom. Axioms and theorems also have a name.
 
@@ -689,19 +689,19 @@ Lisa's kernel allows to define two kinds of objects: Function (or Term) symbols 
   \label{fig:definitions}
 \end{figure}
 
-\autoref{fig:definitions} shows how to define and use new function and predicate symbols. To define a predicate on $n$ variables, we must provide a formula along with $n$ distinguished free variables. Then, this predicate can be freely used and at any time substituted by its definition. Functions are slightly more complicated: to define a function $f$, one must first prove a statement of the form
+\Cref{fig:definitions} shows how to define and use new function and predicate symbols. To define a predicate on $n$ variables, we must provide a formula along with $n$ distinguished free variables. Then, this predicate can be freely used and at any time substituted by its definition. Functions are slightly more complicated: to define a function $f$, one must first prove a statement of the form
 $$\exists ! y. \phi_{y, x_1,...,x_k}$$
 Then we obtain the defining property
 $$\forall y. (f(x_1,...,x_k)=y) \leftrightarrow \phi_{y, x_1,...,x_k}$$
 from which we can deduce in particular $\phi[f(x_1,...,x_k)/y]$.
 The special case where $n=0$ defines constant symbols. The special case where $\phi$ is of the form $y=t$, with possibly the $x$'s free in $t$ lets us recover a more simple definition \textit{by alias}, i.e. where  $f$ is simply a shortcut for a more complex term $t$.
-This definitional mechanism requiring a proof of unique existence is typically called \textit{extension by definition}, and allows us to extend the theory without changing what is or isn't provable, see \autoref{sec:definitions}.
+This definitional mechanism requiring a proof of unique existence is typically called \textit{extension by definition}, and allows us to extend the theory without changing what is or isn't provable, see \Cref{sec:definitions}.
 
 The \lstinline|Theory|{} object is responsible of keeping track of all symbols which have been defined so that it can detect and refuse conflicting definitions. As a general rule, definitions should have a unique identifier and can't contain free schematic symbols.
 
 Once a definition has been introduced, future theorems can refer to those definitional axioms by importing the corresponding sequents in their proof and providing justification for those imports when the proof is verified, just like with axioms and theorems.
 
-\autoref{fig:justifications} shows the types of justification in a theory (Theorem, Axiom, Definition). \autoref{fig:theorysetters} shows how to introduce new justifications in the theory.
+\Cref{fig:justifications} shows the types of justification in a theory (Theorem, Axiom, Definition). \Cref{fig:theorysetters} shows how to introduce new justifications in the theory.
 
 {
   \def\arraystretch{4}

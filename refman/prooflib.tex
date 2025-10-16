@@ -3,7 +3,7 @@
 Lisa's kernel offers all the necessary tools to develops proofs, but  reading and writing proofs written directly in its language is cumbersome.
 To develop and maintain a library of mathematical development, Lisa offers a dedicate interface and DSL to write proofs: Prooflib
 Lisa provides a canonical way of writing and organizing Kernel proofs by mean of a set of utilities and a DSL made possible by some of Scala 3's features.
-\autoref{fig:theoryFileExample} is a reminder from \autoref{chapt:quickguide} of the canonical way to write a theory file in Lisa.
+\Cref{fig:theoryFileExample} is a reminder from \Cref{chapt:quickguide} of the canonical way to write a theory file in Lisa.
 
 \begin{figure}
   \lisaCode{src/MyTheoryName.scala}{An example of a theory file in Lisa\label{fig:theoryFileExample}}{firstline=3}
@@ -126,7 +126,7 @@ A proof of $\phi$ using the previous theorem would naturally be obtained the fol
 \end{quotation}
 However, introducing a definition locally corresponding to a statement of the form
 $$∃ x. P(x)$$
-is not a built-in feature of first order logic.  This can however be simulated by introducing a fresh variable symbol $c$, that must stay fresh in the rest of the proof, and the assumption $P(c)$. The rest of the proof is then carried out under this assumption. When the proof is finished, the end statement should not contain $c$ free as it is a \textit{local} definition, and the assumption can be eliminated using the LeftExists and Cut rules. Such a $c$ is called a \textit{witness}.
+is not a built-in feature of first-order logic.  This can however be simulated by introducing a fresh variable symbol $c$, that must stay fresh in the rest of the proof, and the assumption $P(c)$. The rest of the proof is then carried out under this assumption. When the proof is finished, the end statement should not contain $c$ free as it is a \textit{local} definition, and the assumption can be eliminated using the LeftExists and Cut rules. Such a $c$ is called a \textit{witness}.
 Formally, the proof in (...) is a proof of $P(c) ⊢ \phi$. This can be transformed into a proof of $\phi$ by mean of the following steps:
 \begin{center}
   \AxiomC{$P(c) ⊢ \phi$}
@@ -138,7 +138,7 @@ Formally, the proof in (...) is a proof of $P(c) ⊢ \phi$. This can be transfor
 \end{center}
 Not that for this step to be correct, $c$ must not be free in $\phi$. This correspond to the fact that $c$ is an arbitrary free symbol.
 
-This simulation is provided by Lisa through the \lstinline|witness|{} method. It takes as argument a fact showing $∃ x. P(x)$, and introduce a new symbol with the desired property. For an example, see figure \ref{fig:localDefinitionExample}.
+This simulation is provided by Lisa through the \lstinline|witness|{} method. It takes as argument a fact showing $∃ x. P(x)$, and introduce a new symbol with the desired property. For an example, see \Cref{fig:localDefinitionExample}.
 
 \begin{figure}
   \begin{lstlisting}[language=lisa, frame=single]
@@ -157,7 +157,7 @@ This simulation is provided by Lisa through the \lstinline|witness|{} method. It
 
 \subsection{Instantiations with ``of''}
 
-With lisa's kernel, it is possible to instantiate a theorem proving $P(x)$ to obtain a proof of $P(t)$, for any term $t$, using the \texttt{Inst} rule from \autoref{fig:deduct_rules_1}. Lisa's DSL provides a more convenient way to do so, using the \lstinline|of| keyword. It is used like so:
+With lisa's kernel, it is possible to instantiate a theorem proving $P(x)$ to obtain a proof of $P(t)$, for any term $t$, using the \texttt{Inst} rule from \Cref{fig:deduct_rules_1}. Lisa's DSL provides a more convenient way to do so, using the \lstinline|of| keyword. It is used like so:
 \begin{lstlisting}[language=lisa, frame=single]
   val ax = Axiom(P(x))
   val falso = Theorem(P(c) /\ P(d)) {
