@@ -14,8 +14,8 @@ object Pi extends lisa.Main {
   private val f = variable[Ind]
   private val A, B = variable[Ind]
 
-  extension (f: Expr[Set]) {
-    def apply(x: Expr[Set]) = app(f)(x)
+  extension (f: Expr[Ind]) {
+    def apply(x: Expr[Ind]) = app(f)(x)
   }
 
   /**

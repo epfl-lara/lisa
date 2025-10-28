@@ -17,12 +17,12 @@ import lisa.maths.Quantifiers.∃!
  */
 object BasicTheorems extends lisa.Main {
 
-  private val S = variable[Set]
-  private val P, Q = variable[Set >>: Prop]
+  private val S = variable[Ind]
+  private val P, Q = variable[Ind >>: Prop]
 
-  extension (f: Expr[Set]) {
+  extension (f: Expr[Ind]) {
     /** Syntax for `f(x)`. */
-    def apply(x: Expr[Set]): Expr[Set] = app(f)(x)
+    def apply(x: Expr[Ind]): Expr[Ind] = app(f)(x)
   }
 
   ////////////////////////////////////////////////////////////////////////////

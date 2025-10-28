@@ -19,13 +19,13 @@ import MembershipRelation.*
  */
 object TransfiniteRecursion extends lisa.Main {
 
-  private val α, β = variable[Set]
-  private val A, < = variable[Set]
-  private val F = variable[Set >>: Set >>: Set]
-  private val G = variable[Set]
+  private val α, β = variable[Ind]
+  private val A, < = variable[Ind]
+  private val F = variable[Ind >>: Ind >>: Ind]
+  private val G = variable[Ind]
 
-  extension (f: Expr[Set]) {
-    private inline def apply(x: Expr[Set]): Expr[Set] = app(f)(x)
+  extension (f: Expr[Ind]) {
+    private inline def apply(x: Expr[Ind]): Expr[Ind] = app(f)(x)
   }
 
   /**

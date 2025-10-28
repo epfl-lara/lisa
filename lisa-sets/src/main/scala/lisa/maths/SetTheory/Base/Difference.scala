@@ -20,7 +20,7 @@ object Difference extends lisa.Main {
   val ∖ = DEF(λ(x, λ(y, { z ∈ x | z ∉ y }))).printInfix()
   val diff = ∖
 
-  extension (x: Expr[Set]) {
-    infix def ∖(y: Expr[Set]): Expr[Set] = diff(x)(y)
+  extension (x: Expr[Ind]) {
+    infix def ∖(y: Expr[Ind]): Expr[Ind] = diff(x)(y)
   }
 }

@@ -14,8 +14,8 @@ import Function.*
   */
 object Restriction extends lisa.Main {
 
-  extension (f: Expr[Set]) {
-    def apply(x: Expr[Set]): Expr[Set] = app(f)(x)
+  extension (f: Expr[Ind]) {
+    def apply(x: Expr[Ind]): Expr[Ind] = app(f)(x)
   }
 
   /**
@@ -31,9 +31,9 @@ object Restriction extends lisa.Main {
     s"${f}↾${A}"
   })
 
-  extension (f: Expr[Set]) {
+  extension (f: Expr[Ind]) {
     /** Notation `f ↾ A`. */
-    infix def ↾(A: Expr[Set]): Expr[Set] = restriction(f)(A)
+    infix def ↾(A: Expr[Ind]): Expr[Ind] = restriction(f)(A)
   }
 
   /**

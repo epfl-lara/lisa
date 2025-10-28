@@ -22,12 +22,12 @@ object Union extends lisa.Main {
   val ∪ = DEF(λ(x, λ(y, ⋃(unorderedPair(x, y))))).printInfix()
   val setUnion = ∪
 
-  extension (x: Expr[Set]) {
+  extension (x: Expr[Ind]) {
 
     /**
      * Infix notation for `x ∪ y`.
      */
-    inline infix def ∪(y: Expr[Set]): Expr[Set] = setUnion(x)(y)
+    inline infix def ∪(y: Expr[Ind]): Expr[Ind] = setUnion(x)(y)
   }
 
   /**

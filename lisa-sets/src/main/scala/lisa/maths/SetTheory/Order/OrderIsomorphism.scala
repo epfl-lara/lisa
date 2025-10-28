@@ -12,8 +12,8 @@ object OrderIsomorphism extends lisa.Main {
 
   private val `<A`, `<B` = variable[Ind]
 
-  extension (f: Expr[Set]) {
-    private def apply(x: Expr[Set]): Expr[Set] = app(f)(x)
+  extension (f: Expr[Ind]) {
+    private def apply(x: Expr[Ind]): Expr[Ind] = app(f)(x)
   }
 
   /**
@@ -38,12 +38,12 @@ object OrderIsomorphism extends lisa.Main {
     s"($A, ${`<A`}) ≈ ($B, ${`<B`})"
   })
 
-  extension (orderA: (Expr[Set], Expr[Set])) {
+  extension (orderA: (Expr[Ind], Expr[Ind])) {
 
     /**
      * Notation `(A, <A) ≈ (B, <B)`.
      */
-    inline infix def ≈(orderB: (Expr[Set], Expr[Set])): Expr[Prop] =
+    inline infix def ≈(orderB: (Expr[Ind], Expr[Ind])): Expr[Prop] =
       isomorphic(orderA._1)(orderA._2)(orderB._1)(orderB._2)
   }
 }

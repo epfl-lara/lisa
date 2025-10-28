@@ -15,9 +15,9 @@ object PartialOrder extends lisa.Main {
   /** Order symbols. */
   val <, <= = variable[Ind]
 
-  extension (x: Expr[Set]) {
-    private[Order] infix def <(y: Expr[Set]): Expr[Prop] = (x, y) ∈ PartialOrder.<
-    private[Order] infix def <=(y: Expr[Set]): Expr[Prop] = (x, y) ∈ PartialOrder.<=
+  extension (x: Expr[Ind]) {
+    private[Order] infix def <(y: Expr[Ind]): Expr[Prop] = (x, y) ∈ PartialOrder.<
+    private[Order] infix def <=(y: Expr[Ind]): Expr[Prop] = (x, y) ∈ PartialOrder.<=
   }
 
   /**

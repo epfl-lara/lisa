@@ -32,13 +32,13 @@ object Ordinal extends lisa.Main {
   private val P = variable[Ind >>: Prop]
   private val C = variable[Class]
 
-  extension (α: Expr[Set]) {
+  extension (α: Expr[Ind]) {
 
     /**
      * Local notations for ordinal ordering.
      */
-    inline infix def <(β: Expr[Set]): Expr[Prop] = α ∈ β
-    inline infix def <=(β: Expr[Set]): Expr[Prop] = (α < β) \/ (α === β)
+    inline infix def <(β: Expr[Ind]): Expr[Prop] = α ∈ β
+    inline infix def <=(β: Expr[Ind]): Expr[Prop] = (α < β) \/ (α === β)
   }
 
   /**

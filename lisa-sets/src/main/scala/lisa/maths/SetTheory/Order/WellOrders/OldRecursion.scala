@@ -28,8 +28,8 @@ object OldRecursion extends lisa.Main {
   // Well-Ordered Recursion
 
   // superficial abbreviations
-  def fun(g: Expr[Set], t: Expr[Set]): Expr[Prop] = (functionalOver(g, initialSegment(p, t)) /\ ∀(a, ∈(a, initialSegment(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
-  def prop(t: Expr[Set]): Expr[Prop] = ∈(t, A) /\ ∃!(g, fun(g, t))
+  def fun(g: Expr[Ind], t: Expr[Ind]): Expr[Prop] = (functionalOver(g, initialSegment(p, t)) /\ ∀(a, ∈(a, initialSegment(p, t)) ==> (app(g, a) === F(orderedRestriction(g, a, p)))))
+  def prop(t: Expr[Ind]): Expr[Prop] = ∈(t, A) /\ ∃!(g, fun(g, t))
 
   // Lemmas:
 
@@ -45,7 +45,7 @@ object OldRecursion extends lisa.Main {
     assume(t ∈ A)
 
     // pt is a well order over t, which is needed for induction
-    val pt: Expr[Set] = (initialSegment(p, t), initialSegmentOrder(p, t))
+    val pt: Expr[Ind] = (initialSegment(p, t), initialSegmentOrder(p, t))
     val ptWO = have(wellOrder(pt)) by Weakening(initialSegmentWellOrdered of a -> t)
 
     // suppose there exist two such distinct functions g1 and g2
@@ -396,7 +396,7 @@ object OldRecursion extends lisa.Main {
       // if t1 != t2
       val t1NEQt2 = have(!(t1 === t2) |- ⊆(t1, t2) \/ ⊆(t2, t1)) subproof {
         assume(!(t1 === t2))
-        def ytDef(y: Expr[Set], t: Expr[Set]) = ∈(y, initialSegment(p, x)) /\ fun(t, y)
+        def ytDef(y: Expr[Ind], t: Expr[Ind]) = ∈(y, initialSegment(p, x)) /\ fun(t, y)
         val y1 = variable
         val y2 = variable
 

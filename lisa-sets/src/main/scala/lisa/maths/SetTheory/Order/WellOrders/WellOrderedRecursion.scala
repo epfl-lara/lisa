@@ -25,14 +25,14 @@ import InitialSegment.*
   */
 object WellOrderedRecursion extends lisa.Main {
 
-  private val F = variable[Set >>: Set >>: Set]
-  private val G, G1, G2 = variable[Set]
-  private val S = variable[Set]
-  private val p = variable[Set]
-  private val 𝓕 = variable[Set]
+  private val F = variable[Ind >>: Ind >>: Ind]
+  private val G, G1, G2 = variable[Ind]
+  private val S = variable[Ind]
+  private val p = variable[Ind]
+  private val 𝓕 = variable[Ind]
 
-  extension (f: Expr[Set]) {
-    private def apply(x: Expr[Set]): Expr[Set] = app(f)(x)
+  extension (f: Expr[Ind]) {
+    private def apply(x: Expr[Ind]): Expr[Ind] = app(f)(x)
   }
 
   /**
@@ -190,9 +190,9 @@ object WellOrderedRecursion extends lisa.Main {
     *
     * `g` is an approximation until `x ∈ A` if `dom(g) = A_<x`.
     */
-  private def approximation(g: Expr[Set]): Expr[Prop] =
+  private def approximation(g: Expr[Ind]): Expr[Prop] =
     ∃(x, approximationUntil(g, x))
-  private def approximationUntil(g: Expr[Set], x: Expr[Set]): Expr[Prop] =
+  private def approximationUntil(g: Expr[Ind], x: Expr[Ind]): Expr[Prop] =
     (x ∈ A) /\ functionOn(g)(initialSegment(x)(A)(<)) /\ ∀(a ∈ initialSegment(x)(A)(<), g(a) === F(a)(g ↾ initialSegment(a)(A)(<)))
 
 
@@ -435,7 +435,7 @@ object WellOrderedRecursion extends lisa.Main {
     * We say that `p` is a predecessor of `x` if `p < x` and there does not
     * exists `y` such that `p < y < x`.
     */
-  def predecessor(p: Expr[Set]): Expr[Prop] =
+  def predecessor(p: Expr[Ind]): Expr[Prop] =
     (p ∈ A) /\ (p < x) /\ ¬(∃(z ∈ A, (p < z) /\ (z < x)))
 
   /**
@@ -614,7 +614,7 @@ object WellOrderedRecursion extends lisa.Main {
     val `¬predecessor(y)` = thenHave(¬(predecessor(y))) by InstantiateForall(y)
 
     /** Let `G_y` be the approximation until `y`. */
-    def G_(y: Expr[Set]): Expr[Set] = ε(G, approximationUntil(G, y))
+    def G_(y: Expr[Ind]): Expr[Ind] = ε(G, approximationUntil(G, y))
 
     assume(∀(y ∈ A, (y < x) ==> ∃!(G, approximationUntil(G, y))))
     thenHave((y ∈ A) ==> ((y < x) ==> ∃!(G, approximationUntil(G, y)))) by InstantiateForall(y)
@@ -633,7 +633,7 @@ object WellOrderedRecursion extends lisa.Main {
     val S = { G_(y) | y ∈ initialSegment(x)(A)(<) }
     val G_x = ⋃(S)
 
-    val replacement_F = Variable[Set >>: Set]("F") // Unfortunate name clash with F : Set -> Set -> Set
+    val replacement_F = Variable[Ind >>: Ind]("F") // Unfortunate name clash with F : Set -> Set -> Set
     val `G_y ∈ S` = have(y ∈ initialSegment(x)(A)(<) |- G_(y) ∈ S) by Tautology.from(
       Replacement.map of (A := initialSegment(x)(A)(<), x := y, replacement_F := λ(y, G_(y)))
     )

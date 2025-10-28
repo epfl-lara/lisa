@@ -39,9 +39,9 @@ object Relation extends lisa.Main {
    */
   val relation = DEF(λ(R, ∃(X, ∃(Y, R ⊆ (X × Y)))))
 
-  extension (x: Expr[Set]) {
+  extension (x: Expr[Ind]) {
     /** We write `x R y` instead of `(x, y) ∈ R`. */
-    private[Relations] infix def R(y: Expr[Set]): Expr[Prop] = (x, y) ∈ Relation.R
+    private[Relations] infix def R(y: Expr[Ind]): Expr[Prop] = (x, y) ∈ Relation.R
   }
 
   /**

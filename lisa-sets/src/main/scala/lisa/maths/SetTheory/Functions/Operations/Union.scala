@@ -16,10 +16,10 @@ import Restriction.*
  */
 object Union extends lisa.Main {
 
-  private val 𝓕 = variable[Set]
+  private val 𝓕 = variable[Ind]
 
-  extension (f: Expr[Set]) {
-    private def apply(x: Expr[Set]): Expr[Set] = app(f)(x)
+  extension (f: Expr[Ind]) {
+    private def apply(x: Expr[Ind]): Expr[Ind] = app(f)(x)
   }
 
   /**

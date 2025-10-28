@@ -90,8 +90,8 @@ object SetTheory extends lisa.Main {
   val inductiveSetExists = Theorem(
     ∃(x, inductive(x))
   ) {
-    def S(y: Expr[Set]) = ⋃(unorderedPair(y, unorderedPair(y, y)))
-    def infinite(x: Expr[Set]) = ∅ ∈ x /\ ∀(y, y ∈ x ==> S(y) ∈ x)
+    def S(y: Expr[Ind]) = ⋃(unorderedPair(y, unorderedPair(y, y)))
+    def infinite(x: Expr[Ind]) = ∅ ∈ x /\ ∀(y, y ∈ x ==> S(y) ∈ x)
 
     have(y ∈ x ==> successor(y) ∈ x |- y ∈ x ==> successor(y) ∈ x) by Restate
     thenHave(y ∈ x ==> (y ∪ singleton(y)) ∈ x |- y ∈ x ==> successor(y) ∈ x) by Substitute(successor.definition of (x := y))

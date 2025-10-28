@@ -11,7 +11,7 @@ import scala.annotation.targetName
 object Replacement extends lisa.Main {
   import Symbols.{P as _, *}
 
-  private val P = variable[Set >>: Set >>: Prop]
+  private val P = variable[Ind >>: Ind >>: Prop]
 
   /**
    * Definition --- For any class-function `F : V -> V` and any set `A`, defines the set
@@ -26,7 +26,7 @@ object Replacement extends lisa.Main {
     }
   })
 
-  extension (body: Expr[Set]) {
+  extension (body: Expr[Ind]) {
 
     /**
      * Notation `{F(x) | x ∈ S}`.
@@ -35,9 +35,9 @@ object Replacement extends lisa.Main {
      * with sets built by comprehension.
      */
     @targetName("replacement_|")
-    def |(e: Expr[Prop]): Expr[Set] = {
+    def |(e: Expr[Prop]): Expr[Ind] = {
       e match {
-        case (x: Variable[Set]) ∈ s => replacement(λ(x, body))(s)
+        case (x: Variable[Ind]) ∈ s => replacement(λ(x, body))(s)
         case _ => throw new IllegalArgumentException("Invalid replacement.")
       }
     }

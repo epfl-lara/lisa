@@ -28,12 +28,12 @@ object Intersection extends lisa.Main {
   val ∩ = DEF(λ(x, λ(y, { z ∈ x | z ∈ y }))).printInfix()
   val intersection = ∩
 
-  extension (x: Expr[Set]) {
+  extension (x: Expr[Ind]) {
 
     /**
      * Infix notation for set intersection.
      */
-    inline infix def ∩(y: Expr[Set]): Expr[Set] = intersection(x)(y)
+    inline infix def ∩(y: Expr[Ind]): Expr[Ind] = intersection(x)(y)
   }
 
   /**

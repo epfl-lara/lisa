@@ -20,12 +20,12 @@ object Function extends lisa.Main {
    */
   val functionBetween = DEF(λ(f, λ(A, λ(B, relationBetween(f)(A)(B) /\ ∀(x ∈ A, ∃!(y, (x, y) ∈ f))))))
 
-  extension (f: Expr[Set]) {
+  extension (f: Expr[Ind]) {
 
     /**
      * Notation `f :: A -> B`
      */
-    infix def ::(fType: (Expr[Set], Expr[Set])): Expr[Prop] =
+    infix def ::(fType: (Expr[Ind], Expr[Ind])): Expr[Prop] =
       val (a, b) = fType
       functionBetween(f)(a)(b)
   }
@@ -67,9 +67,9 @@ object Function extends lisa.Main {
     s"$f($x)"
   })
 
-  extension (f: Expr[Set]) {
+  extension (f: Expr[Ind]) {
     /** Syntax for `f(x)`. */
-    def apply(x: Expr[Set]): Expr[Set] = app(f)(x)
+    def apply(x: Expr[Ind]): Expr[Ind] = app(f)(x)
   }
 
   /**

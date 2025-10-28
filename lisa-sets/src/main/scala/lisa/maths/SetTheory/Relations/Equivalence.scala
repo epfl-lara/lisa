@@ -11,12 +11,12 @@ import Properties.*
   */
 object Equivalence extends lisa.Main {
 
-  private val ~ = variable[Set]
-  private val X = variable[Set]
+  private val ~ = variable[Ind]
+  private val X = variable[Ind]
 
-  extension (x: Expr[Set]) {
+  extension (x: Expr[Ind]) {
     // This notation only works for relation `~`, so we keep it private to this file.
-    private inline infix def ~(y: Expr[Set]): Expr[Prop] = (x, y) ∈ Equivalence.~
+    private inline infix def ~(y: Expr[Ind]): Expr[Prop] = (x, y) ∈ Equivalence.~
   }
 
   /**
@@ -43,9 +43,9 @@ object Equivalence extends lisa.Main {
     s"$x/$r"
   })
 
-  extension (X: Expr[Set]) {
+  extension (X: Expr[Ind]) {
     /** Notation `X / ~` for `quotient(X, ~)`. */
-    inline infix def /(~ : Expr[Set]): Expr[Set] = quotient(X)(~)
+    inline infix def /(~ : Expr[Ind]): Expr[Ind] = quotient(X)(~)
   }
 
 }

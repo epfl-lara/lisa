@@ -32,8 +32,8 @@ object WellFoundedRelation extends lisa.Main {
   private val F = variable[Ind >>: Ind >>: Ind]
   private val G, G1, G2 = variable[Ind]
 
-  extension (x: Expr[Set]) {
-    private inline def apply(y: Expr[Set]): Expr[Set] = app(x)(y)
+  extension (x: Expr[Ind]) {
+    private inline def apply(y: Expr[Ind]): Expr[Ind] = app(x)(y)
   }
 
   /**

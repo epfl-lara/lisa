@@ -45,8 +45,8 @@ object Subset extends lisa.Main {
   val ⊂ = DEF(λ(x, λ(y, x ⊆ y /\ x ≠ y))).printInfix()
   val properSubset = ⊂
 
-  extension (x: Expr[Set]) {
-    inline infix def ⊂(y: Expr[Set]): Expr[Prop] = properSubset(x)(y)
+  extension (x: Expr[Ind]) {
+    inline infix def ⊂(y: Expr[Ind]): Expr[Prop] = properSubset(x)(y)
   }
 
   /**

@@ -40,8 +40,8 @@ object CartesianProduct extends lisa.Main {
   ).printInfix()
   val cartesianProduct = ×
 
-  extension (x: Expr[Set]) {
-    inline infix def ×(y: Expr[Set]): Expr[Set] = cartesianProduct(x)(y)
+  extension (x: Expr[Ind]) {
+    inline infix def ×(y: Expr[Ind]): Expr[Ind] = cartesianProduct(x)(y)
   }
 
   /**

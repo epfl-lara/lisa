@@ -9,21 +9,21 @@ package lisa.maths.SetTheory.Base
 object Symbols extends lisa.Main {
 
   /** Variable symbols */
-  val x, y, z: Variable[Set] = variable[Set]
-  val a, b, c, d: Variable[Set] = variable[Set]
+  val x, y, z: Variable[Ind] = variable[Ind]
+  val a, b, c, d: Variable[Ind] = variable[Ind]
 
   /** Sets */
-  val A, B, C, D: Variable[Set] = variable[Set]
-  val X, Y: Variable[Set] = variable[Set]
+  val A, B, C, D: Variable[Ind] = variable[Ind]
+  val X, Y: Variable[Ind] = variable[Ind]
 
   /** Function symbols */
-  val f, g, h: Variable[Set] = variable[Set]
+  val f, g, h: Variable[Ind] = variable[Ind]
 
   /** Class-function symbols. Must be capitalized. */
-  val F: Variable[Set >>: Set] = variable[Set >>: Set]
+  val F: Variable[Ind >>: Ind] = variable[Ind >>: Ind]
 
   /** Predicate (class) symbols */
-  val P, φ: Variable[Set >>: Prop] = variable[Set >>: Prop]
+  val P, φ: Variable[Ind >>: Prop] = variable[Ind >>: Prop]
 
 }
 

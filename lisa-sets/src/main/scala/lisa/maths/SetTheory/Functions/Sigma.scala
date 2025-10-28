@@ -14,8 +14,8 @@ object Sigma extends lisa.Main {
   private val A = variable[Ind]
   private val B = variable[Ind]
 
-  extension (f: Expr[Set]) {
-    def apply(x: Expr[Set]) = app(f)(x)
+  extension (f: Expr[Ind]) {
+    def apply(x: Expr[Ind]) = app(f)(x)
   }
 
   /**

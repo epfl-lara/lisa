@@ -11,7 +11,7 @@ import Properties.*
  */
 object BasicTheorems extends lisa.Main {
 
-  private val S = variable[Set]
+  private val S = variable[Ind]
 
   /////////////////////////////////////////////////////////////////////////////
   section("Membership")

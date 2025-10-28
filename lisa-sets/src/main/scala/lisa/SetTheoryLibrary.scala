@@ -4,8 +4,6 @@ import lisa.utils.fol.FOL.{_, given}
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.prooflib.Library
 
-import scala.collection.immutable.Set as ScalaSet
-
 import scala.annotation.targetName
 
 /**
@@ -16,15 +14,10 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   val theory = new RunningTheory()
 
   /**
-   * Individuals in set theory represent sets.
-   */
-  type Set = Ind
-
-  /**
    * A class is nothing more than a first-order formula with a free
    * variable.
    */
-  type Class = Set >>: Prop
+  type Class = Ind >>: Prop
 
   /**
    * A class-function is a binary predicate `F` that is functional: for any `x`,
@@ -38,17 +31,17 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * Meta-functions are more convenient to use that functional predicates, and hence
    * will be used instead.
    */
-  type ClassFunction = Set >>: Set
+  type ClassFunction = Ind >>: Ind
 
   // Predicates
 
   /**
    * The symbol for the set membership predicate.
    */
-  object ∈ extends Constant[Set >>: Set >>: Prop]("∈") {
+  object ∈ extends Constant[Ind >>: Ind >>: Prop]("∈") {
     this.printInfix()
 
-    def unapply(e: Expr[Prop]): Option[(Expr[Set], Expr[Set])] =
+    def unapply(e: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] =
       val ∈ = this
       e match
         case App(App(`∈`, x), y) => Some(x, y)
@@ -58,10 +51,10 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the subset predicate.
    */
-  object ⊆ extends Constant[Set >>: Set >>: Prop]("⊆") {
+  object ⊆ extends Constant[Ind >>: Ind >>: Prop]("⊆") {
     this.printInfix()
 
-    def unapply(e: Expr[Prop]): Option[(Expr[Set], Expr[Set])] =
+    def unapply(e: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] =
       val ⊆ = this
       e match
         case App(App(`⊆`, x), y) => Some(x, y)
@@ -81,15 +74,15 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
     * - `x = C` to mean `∀y. y ∈ x <=> C(y)`
     * - `x ≠ C` to mean `¬(x = C)`
     */
-  extension (x: Expr[Set]) {
+  extension (x: Expr[Ind]) {
     /** `x ∈ y` means that `x` is a member of `y`. */
-    infix def ∈(y: Expr[Set]): Expr[Prop] = App(App(SetTheoryLibrary.∈, x), y)
+    infix def ∈(y: Expr[Ind]): Expr[Prop] = App(App(SetTheoryLibrary.∈, x), y)
 
     /** `x ∉ y` means that `x` is not a member of `y`. */
-    infix def ∉(y: Expr[Set]): Expr[Prop] = ¬(x ∈ y)
+    infix def ∉(y: Expr[Ind]): Expr[Prop] = ¬(x ∈ y)
 
     /** `x ⊆ y` means that `x` is a subset of `y`. */
-    infix def ⊆(y: Expr[Set]): Expr[Prop] = App(App(SetTheoryLibrary.⊆, x), y)
+    infix def ⊆(y: Expr[Ind]): Expr[Prop] = App(App(SetTheoryLibrary.⊆, x), y)
 
     /** `x ∈ C` abbreviates `C(x)`, for `C` a class. */
     @targetName("set_∈_class")
@@ -108,12 +101,12 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
     /** `x = y` is the regular equality between sets. We redefine it here
       * for overload resolution to work properly.
       */
-    infix def ===(y: Expr[Set]): Expr[Prop] = equality(x)(y)
+    infix def ===(y: Expr[Ind]): Expr[Prop] = equality(x)(y)
 
     /** `x ≠ y` is the regular inequality between sets. We redefine it here
       * for overload resolution to work properly.
       */
-    infix def ≠(y: Expr[Set]): Expr[Prop] = ¬(equality(x)(y))
+    infix def ≠(y: Expr[Ind]): Expr[Prop] = ¬(equality(x)(y))
 
     /** `x = C` abbreviates `∀y. y ∈ C <=> C(y)` for some variable `y ≠ x`. */
     @targetName("set_=_class")
@@ -136,7 +129,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   extension (C: Expr[Class]) {
     /** `C ⊆ x` abbreviates `∀y. C(y) ==> y ∈ x` */
     @targetName("class_⊆_set")
-    infix def ⊆(x: Expr[Set]): Expr[Prop] =
+    infix def ⊆(x: Expr[Ind]): Expr[Prop] =
       val y = variable[Ind].freshRename(x.freeTermVars)
       ∀(y, C(y) ==> y ∈ x)
 
@@ -146,11 +139,11 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
     /** `C = x` abbreviates `∀y. y ∈ x <=> C(y)` */
     @targetName("class_=_set")
-    infix def ===(y: Expr[Set]): Expr[Prop] = (y === C)
+    infix def ===(y: Expr[Ind]): Expr[Prop] = (y === C)
 
     /** `C ≠ x` abbreviates `¬(C = x)` */
     @targetName("class_≠_set")
-    infix def ≠(y: Expr[Set]): Expr[Prop] = ¬(y === C)
+    infix def ≠(y: Expr[Ind]): Expr[Prop] = ¬(y === C)
 
     /** `C = D` abbreviates `∀x. C(x) <=> D(x)` */
     @targetName("class_=_class")
@@ -164,15 +157,15 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
     * Bounded universal quantifier: `∀x ∈ S. φ` abbreviates `∀x. x ∈ S ==> φ`
     */
-  def ∀(e: Variable[Set] | Expr[Prop], φ: Expr[Prop]): Expr[Prop] =
+  def ∀(e: Variable[Ind] | Expr[Prop], φ: Expr[Prop]): Expr[Prop] =
     e match {
       // Unbounded quantifier
-      case x: Variable[Set] => forall(x, φ)
+      case x: Variable[Ind] => forall(x, φ)
 
       // Bounded quantifiers
-      case (x: Variable[Set]) ∈ s => forall(x, x ∈ s ==> φ)
-      case (x: Variable[Set]) ⊆ s => forall(x, x ⊆ s ==> φ)
-      case App(p: Expr[Set >>: Prop], x: Variable[Set]) => forall(x, p(x) ==> φ)
+      case (x: Variable[Ind]) ∈ s => forall(x, x ∈ s ==> φ)
+      case (x: Variable[Ind]) ⊆ s => forall(x, x ⊆ s ==> φ)
+      case App(p: Expr[Ind >>: Prop], x: Variable[Ind]) => forall(x, p(x) ==> φ)
 
       case _ => throw new IllegalArgumentException("Ill-formed bounded quantifier.")
     }
@@ -180,15 +173,15 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
     * Bounded existential quantifier: `∃x ∈ S. φ` abbreviates `∃x. x ∈ S /\ φ`
     */
-  def ∃(e: Variable[Set] | Expr[Prop], φ: Expr[Prop]): Expr[Prop] =
+  def ∃(e: Variable[Ind] | Expr[Prop], φ: Expr[Prop]): Expr[Prop] =
     e match {
       // Unbounded quantifier
-      case x: Variable[Set] => exists(x, φ)
+      case x: Variable[Ind] => exists(x, φ)
 
       // Bounded quantifiers
-      case (x: Variable[Set]) ∈ s => exists(x, x ∈ s /\ φ)
-      case (x: Variable[Set]) ⊆ s => exists(x, x ⊆ s /\ φ)
-      case App(p: Expr[Set >>: Prop], x: Variable[Set]) => exists(x, p(x) /\ φ)
+      case (x: Variable[Ind]) ∈ s => exists(x, x ∈ s /\ φ)
+      case (x: Variable[Ind]) ⊆ s => exists(x, x ⊆ s /\ φ)
+      case App(p: Expr[Ind >>: Prop], x: Variable[Ind]) => exists(x, p(x) /\ φ)
 
       case _ => throw new IllegalArgumentException("Ill-formed bounded quantifier.")
     }
@@ -196,7 +189,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
    */
-  final val sim = constant[Set >>: Set >>: Prop]("sameCardinality") // Equicardinality
+  final val sim = constant[Ind >>: Ind >>: Prop]("sameCardinality") // Equicardinality
 
   /**
    * Set Theory basic predicates
@@ -208,27 +201,27 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   /**
    * The symbol for the empty set constant.
    */
-  final val ∅ = constant[Set]("∅")
+  final val ∅ = constant[Ind]("∅")
 
   /**
    * The symbol for the unordered pair function.
    */
-  final val unorderedPair = constant[Set >>: Set >>: Set]("unorderedPair").printAs(args => s"{${args(0)}, ${args(1)}}")
+  final val unorderedPair = constant[Ind >>: Ind >>: Ind]("unorderedPair").printAs(args => s"{${args(0)}, ${args(1)}}")
 
   /**
    * The symbol for the powerset function.
    */
-  final val 𝒫 = constant[Set >>: Set]("𝒫")
+  final val 𝒫 = constant[Ind >>: Ind]("𝒫")
 
   /**
    * The symbol for the set union function.
    */
-  final val ⋃ = constant[Set >>: Set]("⋃")
+  final val ⋃ = constant[Ind >>: Ind]("⋃")
 
   /**
    * The symbol for the universe function. Defined in TG set theory.
    */
-  final val universe = constant[Set >>: Set]("universe")
+  final val universe = constant[Ind >>: Ind]("universe")
 
   /**
    * Set Theory basic functions.
@@ -245,10 +238,10 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   functions.foreach(s => addSymbol(s))
   addSymbol(∅)
 
-  private val x, y, z = variable[Set]
-  private val A, B = variable[Set]
-  private val φ = variable[Set >>: Prop]
-  private val P = variable[Set >>: Set >>: Prop]
+  private val x, y, z = variable[Ind]
+  private val A, B = variable[Ind]
+  private val φ = variable[Ind >>: Prop]
+  private val P = variable[Ind >>: Ind >>: Prop]
 
   ////////////
   // Axioms //
@@ -419,7 +412,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * @return
    */
-  def axioms: ScalaSet[(String, AXIOM)] = Set(
+  def axioms: Set[(String, AXIOM)] = Set(
     ("EmptySet", emptySetAxiom),
     ("extensionalityAxiom", extensionalityAxiom),
     ("pairAxiom", pairAxiom),
@@ -437,7 +430,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   // Notations //
   ///////////////
 
-  def unorderedPair(x: Expr[Set], y: Expr[Set]): Expr[Set] = App(App(unorderedPair, x), y)
+  def unorderedPair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = App(App(unorderedPair, x), y)
 
   /*
   private val db = HintDatabase.empty
