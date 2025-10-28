@@ -115,11 +115,34 @@ trait ProofsHelpers {
 
     assume(thesis.left.toSeq.flatMap(splitConjunctions)*)
 
+  /**
+    * The thesis (goal) of the current proof.
+    *
+    * @param proof the ongoing proof
+    * @throws java.util.NoSuchElementException if the proof has no goal set
+    */
   def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
+
+  /**
+    * The goal of the current proof. Alias for [[thesis]].
+    *
+    * @param proof the ongoing proof
+    * @throws java.util.NoSuchElementException if the proof has no goal set
+    */
   def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
 
+  /**
+    * The most recent step in the current proof.
+    * 
+    * @throws java.util.NoSuchElementException if the proof has no steps yet
+    * @param proof the ongoing proof
+    */
   def lastStep(using proof: library.Proof): proof.ProofStep = proof.mostRecentStep
 
+
+  /**
+   * Conclude the current proof with a "Sorry" step.
+   */
   def sorry(using proof: library.Proof): proof.ProofStep = have(thesis) by Sorry
 
   def showCurrentProof(using om: OutputManager, _proof: library.Proof)(): Unit = {
