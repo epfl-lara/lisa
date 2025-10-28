@@ -17,8 +17,8 @@ object Example extends lisa.Main:
   val f = variable[Ind >>: Ind]
 
   // we can use scala extensions to define custom syntax
-  extension (x: Expr[Set])
-    inline infix def subset(y: Expr[Set]): Expr[Prop] = App(App(⊆, x), y)
+  extension (x: Expr[Ind])
+    inline infix def subset(y: Expr[Ind]): Expr[Prop] = App(App(⊆, x), y)
 
   // a simple proof with Lisa's DSL
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
