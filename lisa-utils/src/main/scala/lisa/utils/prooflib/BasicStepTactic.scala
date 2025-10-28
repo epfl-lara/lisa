@@ -1325,26 +1325,7 @@ object BasicStepTactic {
       unsafe(using lib, proof)(map)(premise)(bot)
 
   }
-  object Subproof extends ProofTactic {
-    def apply(using proof: Library#Proof)(statement: Option[F.Sequent])(iProof: proof.InnerProof) = {
-      val bot: Option[F.Sequent] = statement
-      val botK: Option[K.Sequent] = statement map (_.underlying)
-      if (iProof.length == 0) throw (new UnimplementedProof(proof.owningTheorem))
-      val scproof: K.SCProof = iProof.toSCProof
-      val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
-      val judgement: proof.ProofTacticJudgement = {
-        if (botK.isEmpty)
-          proof.ValidProofTactic(iProof.mostRecentStep.bot, scproof.steps, premises)
-        else if (!K.isSameSequent(botK.get, scproof.conclusion))
-          proof.InvalidProofTactic(
-            s"The subproof does not prove the desired conclusion.\n\tExpected: ${botK.get.repr}\n\tObtained: ${scproof.conclusion.repr}"
-          )
-        else
-          proof.ValidProofTactic(bot.get, scproof.steps :+ K.Restate(botK.get, scproof.length - 1), premises)
-      }
-      judgement
-    }
-  }
+
   class SUBPROOF(using val proof: Library#Proof)(statement: Option[F.Sequent])(val iProof: proof.InnerProof) extends ProofTactic {
     val bot: Option[F.Sequent] = statement
     val botK: Option[K.Sequent] = statement map (_.underlying)
