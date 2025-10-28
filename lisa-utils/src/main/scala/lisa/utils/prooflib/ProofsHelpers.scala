@@ -87,22 +87,33 @@ trait ProofsHelpers {
     }
   }
 
-  /*
-  /**
-   * Assume the given formula in all future left hand-side of claimed sequents.
-   */
-  def assume(using proof: library.Proof)(f: Expr[Prop]): proof.ProofStep = {
-    proof.addAssumption(f)
-    have(() |- f) by BasicStepTactic.Hypothesis
-  }
-   */
   /**
    * Assume the given formulas in all future left hand-side of claimed sequents.
    */
-  def assume(using proof: library.Proof)(fs: Expr[Prop]*): proof.ProofStep = {
+  def assume(using proof: library.Proof)(fs: Expr[Prop]*): proof.ProofStep =
     fs.foreach(f => proof.addAssumption(f))
     have(() |- fs.toSet) by BasicStepTactic.Hypothesis
-  }
+
+  /**
+    * Assume all formulas in the left-hand side of the current thesis.
+    *
+    * @see [[assume]]
+    */
+  def assumeAll(using proof: library.Proof): proof.ProofStep =
+    assume(thesis.left.toSeq*)
+
+  /**
+   * Assume all formulas in the left-hand side of the current thesis, splitting
+   * up conjunctions into separate assumptions.
+   * 
+   * @see [[assume]], [[assumeAll]]
+   */
+  def assumeAllSplit(using proof: library.Proof): proof.ProofStep =
+    def splitConjunctions(e: Expr[Prop]): Iterator[Expr[Prop]] = e match
+      case and(a, b) => splitConjunctions(a) ++ splitConjunctions(b)
+      case _ => Iterator.single(e)
+
+    assume(thesis.left.toSeq.flatMap(splitConjunctions)*)
 
   def thesis(using proof: library.Proof): Sequent = proof.possibleGoal.get
   def goal(using proof: library.Proof): Sequent = proof.possibleGoal.get
