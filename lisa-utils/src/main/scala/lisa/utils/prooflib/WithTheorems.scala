@@ -167,7 +167,11 @@ trait WithTheorems {
     def getAssumptions: List[F.Expr[F.Prop]] = assumptions
 
     /**
-     * Produce the low level [[K.SCProof]] corresponding to the proof. Automatically eliminates any formula in the discharges that is still left of the sequent.
+     * Produce the low level [[K.SCProof]] corresponding to the proof.
+     * Automatically eliminates any formula in the discharges that is still left
+     * of the sequent.
+     *
+     * @throws NoSuchElementException if the proof has no steps
      *
      * @return
      */
@@ -256,7 +260,9 @@ trait WithTheorems {
      *
      * @throws java.util.NoSuchElementException if the proof has no steps yet
      */
-    def mostRecentStep: ProofStep = steps.head
+    def mostRecentStep: ProofStep = steps.headOption.getOrElse {
+      throw new NoSuchElementException("mostRecentStep called on empty proof.")
+    }
 
     /**
      * The number of steps in the proof. This is not the same as the number of steps in the corresponding [[K.SCProof]].
