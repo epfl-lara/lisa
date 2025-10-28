@@ -170,7 +170,7 @@ trait WithTheorems {
      * Produce the low level [[K.SCProof]] corresponding to the proof.
      * Automatically eliminates any formula in the discharges that is still left
      * of the sequent.
-     * 
+     *
      * @throws NoSuchElementException if the proof has no steps
      *
      * @return
