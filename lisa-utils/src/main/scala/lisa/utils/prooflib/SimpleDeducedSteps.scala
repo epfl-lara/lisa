@@ -7,6 +7,9 @@ import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.{_, given}
 import lisa.utils.prooflib._
+import lisa.utils.unification.UnificationUtils
+import lisa.utils.collection.Extensions.collectFirstDefined
+import lisa.automation.Tautology
 
 object SimpleDeducedSteps {
 
@@ -139,12 +142,112 @@ object SimpleDeducedSteps {
         proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
 
+    /**
+      * Conclude a sequent by instantiating any number of universally quantified
+      * formulas in the premise.
+      *
+      * Note: Can weaken the sequent freely. The result can be any number of
+      * simultaneous instantiations followed by one weakening.
+      *
+      * Note note: if the instantiated formulas are individually structurally
+      * altered by the weakening, it is likely that this tactic will fail to
+      * find the correct instantiations. Adding/moving around formulas should be
+      * fine.
+      */
+    def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      val prem = proof.getSequent(premise)
+
+      // for every formula in the RHS of the premise, there must either be a
+      // weaker formula in the conclusion, or an instantiation corresponding to
+      // it.
+
+      val contained = (f: F.Expr[F.Prop]) => bot.right.map(_.underlying).exists(bf => K.isImplying(f.underlying, bf))
+
+      /////////////////// helpers ///////////////////
+      
+      // (original formula, instantiation terms, instantiated formula)  
+      type Instantiation = (F.Expr[F.Prop], List[F.Expr[F.Ind]], F.Expr[F.Prop])
+      // (formula with foralls stripped, list of variables)
+      type InstantiationTemplate = (F.Expr[F.Prop], List[F.Variable[F.Ind]])
+
+      // count number of leading foralls;
+      // I sure hope you don't have > 2^32 - 1 nested foralls
+      @annotation.tailrec
+      def forallCount(f: F.Expr[F.Prop], acc: Int = 0): Int = f match
+        case F.∀(_, inner) => forallCount(inner, acc + 1)
+        case _             => acc
+      // strip `n` leading foralls from formula, and return the list of variables stripped
+      @annotation.tailrec
+      def stripForalls(f: F.Expr[F.Prop], n: Int, acc: List[F.Variable[F.Ind]] = Nil): InstantiationTemplate = f match
+        case F.∀(v, inner) if n > 0 => stripForalls(inner, n - 1, v :: acc)
+        case _                      => (f, acc.reverse)
+
+      ///////////////////////////////////////////////
+
+      val instantiationsOpt = prem.right
+        .foldLeft[Either[List[Instantiation], proof.InvalidProofTactic]](Left(Nil)) { (acc, f) =>
+          acc match
+            case Right(err) => Right(err) // propagate error
+            case Left(acc) =>
+              if contained(f) then
+                // no instantiation needed
+                Left(acc)
+              else
+                // must be instantiated
+                f match
+                  case pivot @ F.∀(_, _) =>
+                    // find the instantiation in the conclusion
+                    val matches =
+                      bot.right.collectFirstDefined: candidate =>
+                        // how many quantifiers to strip?
+                        val toStrip = forallCount(pivot) - forallCount(candidate)
+                        val (strippedPivot, variables) = stripForalls(pivot, toStrip)
+
+                        val rc = UnificationUtils.RewriteContext.empty
+                        UnificationUtils.matchExpr(using rc)(candidate, strippedPivot).map: subs =>
+                          val terms = variables.map(v => subs(v).getOrElse(v))
+                          (f, terms, candidate)
+
+                    matches match
+                      case None =>
+                        // no match found, fail
+                        val msg = s"Could not find instantiation for formula $f in conclusion."
+                        Right(proof.InvalidProofTactic(msg))
+                      case Some(matching) =>
+                        // add to instantiation list
+                        Left(matching :: acc)
+                  case _ =>
+                    // cannot instantiate non-quantified formula
+                    val msg = s"Formula $f is not universally quantified or present in conclusion, cannot instantiate."
+                    Right(proof.InvalidProofTactic(msg))
+          }
+
+      instantiationsOpt match
+        case Right(err) => err // propagate error
+        case Left(instantiations) =>
+          // perform all instantiations one by one
+          TacticSubproof:
+            import lib.{have, thenHave, lastStep}
+            // are there instantiations to perform?
+            instantiations.match
+              case Nil =>
+                // just weaken
+                have(bot) by Weakening(premise)
+              case (f, terms, c) :: rest =>
+                // we need to compute one earnestly
+                have(f |- f) by Restate
+                val base = thenHave(f |- c) by InstantiateForall(f, terms*)
+
+                // drop the rest in cheaply
+                val (rfs, _, rcs) = rest.unzip3
+                have(f :: rfs |- c :: rcs) by Weakening(base)
+                have(bot) by Tautology.from(lastStep, premise)
+
     }
 
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       try {
         val sp = TacticSubproof {
-          // lazy val premiseSequent = proof.getSequent(premise)
           val s1 = lib.have(bot +<< bot.right.head) by Restate
           lib.have(bot) by LeftForall(s1)
         }
