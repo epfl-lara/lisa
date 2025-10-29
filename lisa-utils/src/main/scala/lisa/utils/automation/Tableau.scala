@@ -1,10 +1,10 @@
 package lisa.automation
-import lisa.utils.fol.FOL as F
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.OutputManager.*
-import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.K
 import lisa.utils.K.{_, given}
+import lisa.utils.fol.{FOL => F}
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.OutputManager._
+import lisa.utils.prooflib.ProofTacticLib._
 
 import scala.collection.immutable.HashMap
 import scala.collection.immutable.HashSet

@@ -1,15 +1,15 @@
 package lisa.utils.prooflib
 
+import lisa.automation.Tautology
 import lisa.utils.K
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printing
+import lisa.utils.collection.Extensions.collectFirstDefined
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.{_, given}
 import lisa.utils.prooflib._
 import lisa.utils.unification.UnificationUtils
-import lisa.utils.collection.Extensions.collectFirstDefined
-import lisa.automation.Tautology
 
 object SimpleDeducedSteps {
 
@@ -130,7 +130,7 @@ object SimpleDeducedSteps {
       }
     }
 
-    /** 
+    /**
      * Instantiate a universally quantified formula in the premise with the terms `t`.
      */
     def apply(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Ind]*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
@@ -138,22 +138,21 @@ object SimpleDeducedSteps {
       if (prem.right.size == 1) then
         // well formed
         apply(using lib, proof)(prem.right.head, t*)(premise)(bot): proof.ProofTacticJudgement
-      else 
-        proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
+      else proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
     }
 
     /**
-      * Conclude a sequent by instantiating any number of universally quantified
-      * formulas in the premise.
-      *
-      * Note: Can weaken the sequent freely. The result can be any number of
-      * simultaneous instantiations followed by one weakening.
-      *
-      * Note note: if the instantiated formulas are individually structurally
-      * altered by the weakening, it is likely that this tactic will fail to
-      * find the correct instantiations. Adding/moving around formulas should be
-      * fine.
-      */
+     * Conclude a sequent by instantiating any number of universally quantified
+     * formulas in the premise.
+     *
+     * Note: Can weaken the sequent freely. The result can be any number of
+     * simultaneous instantiations followed by one weakening.
+     *
+     * Note note: if the instantiated formulas are individually structurally
+     * altered by the weakening, it is likely that this tactic will fail to
+     * find the correct instantiations. Adding/moving around formulas should be
+     * fine.
+     */
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val prem = proof.getSequent(premise)
 
@@ -164,8 +163,8 @@ object SimpleDeducedSteps {
       val contained = (f: F.Expr[F.Prop]) => bot.right.map(_.underlying).exists(bf => K.isImplying(f.underlying, bf))
 
       /////////////////// helpers ///////////////////
-      
-      // (original formula, instantiation terms, instantiated formula)  
+
+      // (original formula, instantiation terms, instantiated formula)
       type Instantiation = (F.Expr[F.Prop], List[F.Expr[F.Ind]], F.Expr[F.Prop])
       // (formula with foralls stripped, list of variables)
       type InstantiationTemplate = (F.Expr[F.Prop], List[F.Variable[F.Ind]])
@@ -175,12 +174,12 @@ object SimpleDeducedSteps {
       @annotation.tailrec
       def forallCount(f: F.Expr[F.Prop], acc: Int = 0): Int = f match
         case F.∀(_, inner) => forallCount(inner, acc + 1)
-        case _             => acc
+        case _ => acc
       // strip `n` leading foralls from formula, and return the list of variables stripped
       @annotation.tailrec
       def stripForalls(f: F.Expr[F.Prop], n: Int, acc: List[F.Variable[F.Ind]] = Nil): InstantiationTemplate = f match
         case F.∀(v, inner) if n > 0 => stripForalls(inner, n - 1, v :: acc)
-        case _                      => (f, acc.reverse)
+        case _ => (f, acc.reverse)
 
       ///////////////////////////////////////////////
 
@@ -208,9 +207,11 @@ object SimpleDeducedSteps {
                           val (strippedPivot, variables) = stripForalls(pivot, toStrip)
 
                           val rc = UnificationUtils.RewriteContext.empty
-                          UnificationUtils.matchExpr(using rc)(strippedPivot, candidate).map: subs =>
-                            val terms = variables.map(v => subs(v).getOrElse(v))
-                            (f, terms, candidate)
+                          UnificationUtils
+                            .matchExpr(using rc)(strippedPivot, candidate)
+                            .map: subs =>
+                              val terms = variables.map(v => subs(v).getOrElse(v))
+                              (f, terms, candidate)
 
                     matches match
                       case None =>
@@ -224,7 +225,7 @@ object SimpleDeducedSteps {
                     // cannot instantiate non-quantified formula
                     val msg = s"Formula $f is not universally quantified or present in conclusion, cannot instantiate."
                     Right(proof.InvalidProofTactic(msg))
-          }
+        }
 
       instantiationsOpt match
         case Right(err) => err // propagate error

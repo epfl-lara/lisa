@@ -1,9 +1,9 @@
 package lisa.automation
 
-import lisa.utils.fol.FOL as F
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.utils.K.{_, given}
+import lisa.utils.fol.{FOL => F}
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.ProofTacticLib._
 
 /**
  * A tactic object dedicated to solve any propositionaly provable sequent

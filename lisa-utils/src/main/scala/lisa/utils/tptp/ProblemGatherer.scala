@@ -1,6 +1,6 @@
 package lisa.tptp
 
-import KernelParser.*
+import KernelParser._
 
 object ProblemGatherer {
 

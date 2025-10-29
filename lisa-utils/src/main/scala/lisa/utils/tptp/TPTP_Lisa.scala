@@ -1,27 +1,29 @@
 import leo.datastructures.TPTP
-
-import lisa.kernel.proof.SCProofChecker.checkSCProof
-import lisa.utils.K
-import lisa.utils.KernelHelpers.* 
 import lisa.automation.Tableau
 import lisa.automation.Tautology
-import lisa.tptp.*
-import lisa.tptp.ProofParser.*
-import lisa.tptp.ProofPrinter.*
-import lisa.tptp.KernelParser.*
-
-
-import mainargs.{main, arg, ParserForMethods, Flag}
+import lisa.kernel.proof.SCProofChecker.checkSCProof
+import lisa.tptp.KernelParser._
+import lisa.tptp.ProofParser._
+import lisa.tptp.ProofPrinter._
+import lisa.tptp._
+import lisa.utils.K
+import lisa.utils.KernelHelpers._
+import mainargs.Flag
+import mainargs.ParserForMethods
+import mainargs.arg
+import mainargs.main
 
 import java.io.File
-import sys.process._
 
+import sys.process._
 
 object TPTP_Lisa {
 
   @main
-  def check( @arg(doc = "Input File")
-              input: String) = {
+  def check(
+      @arg(doc = "Input File")
+      input: String
+  ) = {
     val proof = reconstructProof(File(input))(using strictMapAtom, strictMapTerm, strictMapVariable)
     val judgement = checkSCProof(proof)
     if (judgement.isValid) {
@@ -33,8 +35,10 @@ object TPTP_Lisa {
   }
 
   @main
-  def tableau(@arg(doc = "Input File")
-               input: String) = {
+  def tableau(
+      @arg(doc = "Input File")
+      input: String
+  ) = {
     try
       val problem = problemToKernel(File(input))(using strictMapAtom, strictMapTerm, strictMapVariable)
       val sequent = problemToSequent(problem)
@@ -62,13 +66,13 @@ object TPTP_Lisa {
             println("A proof was found but rejected by the kernel checker.")
             println(prettySCProof(judgement))
           }
-          
+
         case None =>
-            println("Cannot prove " + sequent.repr)
-            println("% SZS status GaveUp")
-          
+          println("Cannot prove " + sequent.repr)
+          println("% SZS status GaveUp")
+
       }
-    catch 
+    catch
       case e =>
         println("% SZS status Error")
         println(s"% Exception: ${e.getMessage}")
@@ -76,8 +80,6 @@ object TPTP_Lisa {
 
   }
 
-
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrThrow(args.toIndexedSeq)
-
 
 }

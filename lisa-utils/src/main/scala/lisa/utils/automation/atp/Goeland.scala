@@ -1,21 +1,21 @@
 package lisa.automation.atp
-import lisa.utils.fol.FOL as F
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.OutputManager
-import lisa.utils.prooflib.ProofTacticLib.*
+import lisa.tptp.KernelParser._
+import lisa.tptp.ProofParser._
+import lisa.tptp.ProofPrinter._
 import lisa.utils.K
 import lisa.utils.K.|-
+import lisa.utils.fol.{FOL => F}
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.OutputManager
+import lisa.utils.prooflib.ProofTacticLib._
 
-import java.io.*
+import java.io._
 import scala.io.Source
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
 import sys.process._
-import lisa.tptp.ProofParser.*
-import lisa.tptp.ProofPrinter.*
-import lisa.tptp.KernelParser.*
 
 /**
  * Goéland is an automated theorem prover. This tactic calls the Goéland prover to solve the current sequent.

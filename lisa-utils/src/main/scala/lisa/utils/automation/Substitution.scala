@@ -1,24 +1,24 @@
 package lisa.automation
 
-import lisa.utils.fol.FOL as F
 import lisa.kernel.proof.RunningTheory
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus
-import lisa.utils.prooflib.BasicStepTactic
-import lisa.utils.prooflib.SimpleDeducedSteps
-import lisa.utils.prooflib.ProofTacticLib.{*, given}
-import lisa.utils.prooflib.*
 import lisa.utils.K
+import lisa.utils.Printing.printList
 import lisa.utils.UserLisaException
-import lisa.utils.unification.UnificationUtils.*
-import lisa.utils.collection.Extensions.*
+import lisa.utils.collection.Extensions._
+import lisa.utils.collection.VecSet
+import lisa.utils.fol.{FOL => F}
+import lisa.utils.prooflib.BasicStepTactic
+import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.SimpleDeducedSteps
+import lisa.utils.prooflib._
+import lisa.utils.unification.UnificationUtils._
 
 import scala.annotation.nowarn
-import scala.collection.mutable.{Map as MMap}
+import scala.collection.mutable.{Map => MMap}
 
-import F.{*, given}
-import lisa.utils.collection.VecSet
-import lisa.utils.Printing.printList
+import F.{_, given}
 
 object Substitution:
 

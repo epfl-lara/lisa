@@ -5,11 +5,11 @@ import lisa.kernel.proof.{SequentCalculus => SC}
 import lisa.utils.prooflib.BasicMain
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.OutputManager
 import lisa.utils.prooflib.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.LazyList
-import lisa.utils.prooflib.OutputManager
 
 trait ProofTacticTestLib extends AnyFunSuite with BasicMain {
 

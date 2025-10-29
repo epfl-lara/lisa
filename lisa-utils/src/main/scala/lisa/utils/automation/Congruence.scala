@@ -1,11 +1,11 @@
 package lisa.automation
-import lisa.utils.fol.FOL.{*, given}
-import lisa.utils.prooflib.BasicStepTactic.*
-import lisa.utils.prooflib.ProofTacticLib.*
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import lisa.utils.prooflib.*
-import lisa.utils.K
 import leo.datastructures.TPTP.AnnotatedFormula.FormulaType
+import lisa.utils.K
+import lisa.utils.fol.FOL.{_, given}
+import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.ProofTacticLib._
+import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib._
 
 /**
  * This tactic tries to prove a sequent by congruence.

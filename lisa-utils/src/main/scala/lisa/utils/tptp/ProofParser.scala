@@ -5,17 +5,17 @@ import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
 import leo.datastructures.TPTP.FOTAnnotated
 import leo.modules.input.{TPTPParser => Parser}
+import lisa.automation.Tableau
+import lisa.automation.Tableau.instantiate
+import lisa.automation.Tautology
 import lisa.utils.K
-import K.{repr, -<<, +<<, ->>, +>>, |-}
 
 import java.io.File
 
+import K.{repr, -<<, +<<, ->>, +>>, |-}
 import Parser.TPTPParseException
-import KernelParser.*
-import K.{given}
-import lisa.automation.Tautology
-import lisa.automation.Tableau
-import lisa.automation.Tableau.instantiate
+import KernelParser._
+import K.given
 
 object ProofParser {
   val TPTPversion = "TPTP v8.0.0"
@@ -42,7 +42,6 @@ object ProofParser {
   // else K.Variable(sanitize(f), K.Ind)
 
   given maps: MapTriplet = (mapAtom, mapTerm, mapVariable)
-
 
   def reconstructProof(file: File)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.SCProof = {
     val problem = Parser.problem(io.Source.fromFile(file))

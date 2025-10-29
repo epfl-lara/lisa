@@ -1,8 +1,8 @@
 package lisa.utils.prooflib
 
+import lisa.test.ProofTacticTestLib
 import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.fol.{FOL => F}
-import lisa.test.ProofTacticTestLib
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 class InstantiationTest extends ProofTacticTestLib {
@@ -34,13 +34,12 @@ class InstantiationTest extends ProofTacticTestLib {
     // incorrect instantiation term
     (() |- ∀(x, P(x)), () |- P(x), (∀(x, P(x)), Seq(y))),
     // capturing
-    (() |- ∀(x, ∀(y, P(x))), () |- ∀(y, P(y)), (∀(x, ∀(y, P(x))), Seq(y))),
+    (() |- ∀(x, ∀(y, P(x))), () |- ∀(y, P(y)), (∀(x, ∀(y, P(x))), Seq(y)))
   )
 
   test("InstantiateForall explicit") {
-    testTacticCases(correctPairs, incorrectPairs) {
-      case (premiseSeq, conclusionSeq, (phi, terms)) =>
-        InstantiateForall(phi, terms*)(introduceSequent(premiseSeq))(conclusionSeq)
+    testTacticCases(correctPairs, incorrectPairs) { case (premiseSeq, conclusionSeq, (phi, terms)) =>
+      InstantiateForall(phi, terms*)(introduceSequent(premiseSeq))(conclusionSeq)
     }
   }
 
@@ -48,10 +47,9 @@ class InstantiationTest extends ProofTacticTestLib {
     // without the explicit using somehow overload resolution fails??
     val lib = summon[Library]
     val proof = summon[lib.Proof]
-    testTacticCases(using proof)(correctPairs, incorrectPairs.take(1)) {
-      case (premiseSeq, conclusionSeq, (_, t)) =>
-        val prem = introduceSequent(using proof)(premiseSeq)
-        InstantiateForall(using lib, proof)(prem: proof.Fact)(conclusionSeq)
+    testTacticCases(using proof)(correctPairs, incorrectPairs.take(1)) { case (premiseSeq, conclusionSeq, (_, t)) =>
+      val prem = introduceSequent(using proof)(premiseSeq)
+      InstantiateForall(using lib, proof)(prem: proof.Fact)(conclusionSeq)
     }
   }
 
