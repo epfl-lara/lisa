@@ -127,12 +127,18 @@ object SimpleDeducedSteps {
       }
     }
 
+    /** 
+     * Instantiate a universally quantified formula in the premise with the terms `t`.
+     */
     def apply(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Ind]*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val prem = proof.getSequent(premise)
-      if (prem.right.tail.isEmpty) {
+      if (prem.right.size == 1) then
         // well formed
         apply(using lib, proof)(prem.right.head, t*)(premise)(bot): proof.ProofTacticJudgement
-      } else proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
+      else 
+        proof.InvalidProofTactic("RHS of premise sequent is not a singleton.")
+    }
+
     }
 
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
