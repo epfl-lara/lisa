@@ -1,6 +1,5 @@
 package lisa.test.automation
 
-import lisa.SetTheoryLibrary.{_, given}
 import lisa.automation.Substitution.*
 import lisa.automation.Tableau.*
 import lisa.utils.fol.FOL.*
