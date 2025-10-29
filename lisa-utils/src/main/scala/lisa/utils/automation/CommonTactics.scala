@@ -1,12 +1,12 @@
 package lisa.automation.kernel
 
 import lisa.automation.Tautology
-import lisa.utils.fol.FOL as F
-import lisa.utils.prooflib.BasicStepTactic.*
-import lisa.utils.prooflib.ProofTacticLib.{_, given}
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import lisa.utils.prooflib.*
 import lisa.utils.K
+import lisa.utils.fol.{FOL => F}
+import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib._
 
 object CommonTactics {
   /*

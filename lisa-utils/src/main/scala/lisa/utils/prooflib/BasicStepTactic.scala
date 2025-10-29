@@ -1352,7 +1352,7 @@ object BasicStepTactic {
     SUBPROOF(using proof)(None)(iProof).judgement.asInstanceOf[proof.ProofTacticJudgement]
 
   object Sorry extends ProofTactic with ProofSequentTactic {
-    def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
+    def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ValidProofTactic = {
       proof.ValidProofTactic(bot, Seq(K.Sorry(bot.underlying)), Seq())
     }
   }

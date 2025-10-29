@@ -1,21 +1,20 @@
 package lisa.automation.atp
-import lisa.utils.fol.FOL as F
+import lisa.tptp.KernelParser._
+import lisa.tptp.ProofParser._
+import lisa.tptp.ProofPrinter._
+import lisa.utils.K
+import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.OutputManager
-import lisa.utils.prooflib.ProofTacticLib.*
-import lisa.utils.K
-import lisa.utils.K.|-
+import lisa.utils.prooflib.ProofTacticLib._
 
-import java.io.*
+import java.io._
 import scala.io.Source
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
 import sys.process._
-import lisa.tptp.ProofParser.*
-import lisa.tptp.ProofPrinter.*
-import lisa.tptp.KernelParser.*
 
 /**
  * Goéland is an automated theorem prover. This tactic calls the Goéland prover to solve the current sequent.
@@ -23,14 +22,14 @@ import lisa.tptp.KernelParser.*
  * To ensure that proofs are published and can be replayed in any system, proofs from an ATPcan only be generated in draft mode.
  * When in non-draft mode, the proof file should be given as an argument to the tactic (the exact file is provided by Lisa upon run without draft mode).
  */
-object Goeland extends ProofTactic with ProofSequentTactic {
+object Prover9 extends ProofTactic with ProofSequentTactic {
   private var i: Int = 0
 
-  val goelandExec = "../bin/goeland_linux_release"
+  val sctptpExec = "../bin/sctptpUtils.jar"
 
   class OsNotSupportedException(msg: String) extends Exception(msg)
 
-  val foldername = "goeland/"
+  val foldername = "prover9/"
 
   /**
    * Fetch a proof of a sequent that was previously proven by Goéland.
@@ -43,7 +42,7 @@ object Goeland extends ProofTactic with ProofSequentTactic {
       proof.ValidProofTactic(bot, scproof.steps, Seq())
     } catch {
       case e: FileNotFoundException =>
-        throw FileNotFoundException("The file " + foldername + outputname + ".p was not found. To produce a proof, use `by Goeland`. ")
+        throw FileNotFoundException("The file " + foldername + outputname + ".p was not found. To produce a proof, use `by Prover9`. ")
       case e => throw e
     }
   }
@@ -51,7 +50,7 @@ object Goeland extends ProofTactic with ProofSequentTactic {
   /**
    * Solve a sequent using the Goéland automated theorem prover.
    * At the moment, this option is only available on Linux system.
-   * The proof is generated and saved in a file in the `Goeland` folder.
+   * The proof is generated and saved in a file in the `Prover9` folder.
    */
   def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
 
@@ -89,15 +88,14 @@ object Goeland extends ProofTactic with ProofSequentTactic {
       case (x: K.Variable, xx: K.Variable) => xx -> x
       case null => throw new Exception("This should not happen")
     }
-    val seq2 = () |- K.sequentToFormula(sequent)
-    val r = problemToFile(foldername, filename, "question" + i, axioms, seq2, source)
+    val r = problemToFile(foldername, filename, "question" + i, axioms, sequent, source)
     i += 1
 
     if generateProofs then
       val OS = System.getProperty("os.name")
       if OS.contains("nix") || OS.contains("nux") || OS.contains("aix") then
-        val ret = s"chmod u+x \"$goelandExec\"".!
-        val cmd = (s"$goelandExec -otptp -wlogs -no_id -quoted_pred -proof_file=$foldername$outputname $foldername$filename.p")
+        val ret = s"chmod u+x \"$sctptpExec\"".!
+        val cmd = (s"java -jar $sctptpExec p9 --input $foldername$filename.p --output $foldername$outputname.p")
         val res =
           try {
             cmd.!!
@@ -107,11 +105,11 @@ object Goeland extends ProofTactic with ProofSequentTactic {
           }
         val proof = reconstructProof(new File(foldername + outputname + ".p"))(using mapAtom, mapTerm, mapVariable)
         Success(proof)
-      else if OS.contains("win") then Failure(OsNotSupportedException("The Goeland automated theorem prover is not yet supported on Windows."))
-      else Failure(OsNotSupportedException("The Goeland automated theorem prover is only supported on Linux for now."))
+      else if OS.contains("win") then Failure(OsNotSupportedException("The Prover9 automated theorem prover is not yet supported on Windows."))
+      else Failure(OsNotSupportedException("The Prover9 automated theorem prover is only supported on Linux for now."))
     else if File(foldername + outputname + ".p").exists() then
       val proof = reconstructProof(new File(foldername + outputname + ".p"))(using mapAtom, mapTerm, mapVariable)
-      println(OutputManager.WARNING(s"WARNING: in ${file.value}:$line, For compatibility reasons, replace `by Goeland` with `by Goeland(\"$foldername$outputname\")`."))
+      println(OutputManager.WARNING(s"WARNING: in ${file.value}:$line, For compatibility reasons, replace `by Prover9` with `by Prover9(\"$foldername$outputname\")`."))
       Success(proof)
     else Failure(Exception("For compatibility reasons, external provers can't be called in non-draft mode. You can enable draft mode by adding `draft()` at the top of your working file."))
 

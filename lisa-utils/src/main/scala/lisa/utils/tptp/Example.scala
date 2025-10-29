@@ -4,7 +4,8 @@ import lisa.tptp.KernelParser.annotatedStatementToKernel
 import lisa.tptp.KernelParser.parseToKernel
 import lisa.tptp.KernelParser.problemToSequent
 import lisa.tptp.ProblemGatherer.getPRPproblems
-import lisa.utils.K.{repr, given}
+import lisa.utils.K.given
+import lisa.utils.K.repr
 
 import KernelParser.{strictMapAtom, strictMapTerm, strictMapVariable, emptyctx}
 

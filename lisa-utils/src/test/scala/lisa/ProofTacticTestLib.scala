@@ -5,6 +5,7 @@ import lisa.kernel.proof.{SequentCalculus => SC}
 import lisa.utils.prooflib.BasicMain
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.OutputManager
 import lisa.utils.prooflib.ProofTacticLib
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -17,6 +18,15 @@ trait ProofTacticTestLib extends AnyFunSuite with BasicMain {
   private val x = variable[Ind]
   private val P = variable[Ind >>: Prop]
 
+  given dummyOutputManager: OutputManager = new OutputManager {
+    val stringWriter: java.io.StringWriter = new java.io.StringWriter()
+
+    def finishOutput(exception: Exception): Nothing = throw exception
+
+    override def output(s: String): Unit = ()
+    override def output(s: String, color: String): Unit = ()
+  }
+
   // generate a placeholde theorem to take ownership of proofs for test
   val placeholderTheorem: THMFromProof = Theorem(P(x) |- P(x)) { have(P(x) |- P(x)) by Hypothesis }.asInstanceOf
 
@@ -24,16 +34,7 @@ trait ProofTacticTestLib extends AnyFunSuite with BasicMain {
   def generateTestProof() = new BaseProof(placeholderTheorem)
 
   // introduces a 'proofless' step without verification into a given proof object
-  // the step cannot be passed through the kernel for verification in any way,
-  // but does allow for using them as premise to test tactics
-  // extreme jank :)
-  def introduceSequent(using proof: Proof)(seq: Sequent) = proof.newProofStep(
-    proof.ValidProofTactic(
-      P(x),
-      Seq(SC.Hypothesis(seq.underlying, P(x).underlying)),
-      Seq()
-    )(using Hypothesis)
-  )
+  def introduceSequent(using proof: Proof)(seq: Sequent): proof.Fact = proof.newProofStep(Sorry(seq))
 
   // given a list of test cases and a function to pass them through a tactic, simply checks them
   def testTacticCases[A](using proof: Proof)(correct: List[A], incorrect: List[A])(t: A => proof.ProofTacticJudgement): Unit = {

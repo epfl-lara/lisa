@@ -3,12 +3,12 @@ package lisa.tptp
 import leo.datastructures.TPTP
 import leo.datastructures.TPTP.CNF
 import leo.datastructures.TPTP.FOF
-import leo.modules.input.TPTPParser as Parser
+import leo.modules.input.{TPTPParser => Parser}
+import lisa.tptp._
 import lisa.utils.K
-import lisa.utils.KernelHelpers.*
+import lisa.utils.KernelHelpers._
 import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
-import lisa.tptp.*
 
 import java.io.File
 import scala.util.matching.Regex
@@ -150,7 +150,7 @@ object KernelParser {
           val probFile = new File(tptpEnv, i._1)
           if (!probFile.exists) throw new Exception("File " + i._1 + " does not exist in TPTP environment variable " + tptpEnv + " nor in " + folder.getPath)
           io.Source.fromFile(probFile)
-          else io.Source.fromFile(probFile)
+        else io.Source.fromFile(probFile)
         problemToFormulas(Parser.problem(file))
       })
     }
@@ -164,12 +164,12 @@ object KernelParser {
         }
       case TPTP.CNFAnnotated(name, role, formula, annotations, origin) =>
         formula match {
-          case CNF.Logical(formula) => 
+          case CNF.Logical(formula) =>
             val inner = convertToKernel(formula)
             val closure = inner.freeVariables.foldLeft(inner)((acc, v) => K.forall(v, acc))
             AnnotatedFormula(role, name, closure, annotations)
         }
-      case _ => 
+      case _ =>
         println("Unknown statement:" + i.pretty)
         throw FileNotAcceptedException("Only FOF formulas are supported", problemFile.getPath)
     }
@@ -192,8 +192,8 @@ object KernelParser {
     problemToKernel(File(problemFile))
   }
 
-
   val axiomLikeRoles = Set("axiom", "hypothesis", "definition", "assumption", "lemma", "theorem", "corollary", "negated_conjecture")
+
   /**
    * Given a problem consisting of many axioms and a single conjecture, create a sequent with axioms on the left
    * and conjecture on the right.
@@ -216,16 +216,17 @@ object KernelParser {
     val lead = pieces.init
     val last = pieces.last
     (if last.nonEmpty && last.forall(_.isDigit) && last.head != '0' then lead.mkString("$u") + "_" + last
-    else 
-      pieces
-        .mkString("$u"))
-        .replaceAllLiterally(" ", "$s")
+     else
+       pieces
+         .mkString("$u")
+    )
+      .replaceAllLiterally(" ", "$s")
 
-  def unsanitize(s: String, no:Int): String =
+  def unsanitize(s: String, no: Int): String =
     val r1 = s.replaceAllLiterally("$u", "_").replaceAllLiterally("$s", " ")
-    //if r1.contains(" ") then s"'$r1'" else r1
+    // if r1.contains(" ") then s"'$r1'" else r1
     r1
-  def unsanitize(id:K.Identifier): String = 
+  def unsanitize(id: K.Identifier): String =
     unsanitize(id.name, id.no)
 
   val strictMapAtom: ((String, Int) => K.Expression) = (f, n) =>
@@ -239,7 +240,6 @@ object KernelParser {
     if f(0).isUpper then K.Variable(sanitize(f), K.functionType(n))
     else K.Constant(sanitize(f), K.functionType(n))
   val strictMapVariable: (String => K.Variable) = f => K.Variable(sanitize(f), K.Ind)
-  
 
   /**
    * Given a folder containing folders containing problem (typical organisation of TPTP library) and a list of spc,

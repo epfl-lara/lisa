@@ -1,31 +1,31 @@
 package lisa.tptp
 
-import org.scalatest.compatible.Assertion
-import org.scalatest.funsuite.AnyFunSuite
-import scala.io.Source
-import java.io.File
-import ProofParser.*
-import KernelParser.*
-import lisa.utils.K
-import lisa.utils.K.{>>:, repr, lambda, given}
-import K.SCProofChecker
-
 import leo.modules.input.TPTPParser
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
-import lisa.tptp.{ProofParser, KernelParser}
+import lisa.tptp.KernelParser
+import lisa.tptp.ProofParser
+import lisa.utils.K
+import lisa.utils.K.>>:
+import lisa.utils.K.given
+import lisa.utils.K.lambda
+import lisa.utils.K.repr
+import org.scalatest.compatible.Assertion
+import org.scalatest.funsuite.AnyFunSuite
 
-class ATPProofs extends AnyFunSuite {
+import java.io.File
+import scala.io.Source
 
-  private val sources = getClass.getResource("/").getPath
+import ProofParser._
+import KernelParser._
+import K.SCProofChecker
+
+class LVL2Test extends AnyFunSuite {
+
+  private val sources = getClass.getResource("/level2_steps").getPath
   println(s"Sources: $sources")
 
   private val problems = Seq[(String, String)](
-    // "p9_test_1.p" -> "prover9 test 1",
-    // "p9_test_2.p" -> "prover9 test 2",
-    "p9_test_3.p" -> "prover9 test 3"
-    // "goeland_test_1.p" -> "goeland test 1",
-    // "egg_test_1.p" -> "egg test 1",
-
+    "instMult.p" -> "instMult rule tests"
   )
 
   for (p <- problems) {

@@ -1,7 +1,7 @@
 package lisa.automation
-import lisa.utils.fol.FOL.{*, given}
-import lisa.automation.Congruence.*
 import lisa.automation.Congruence
+import lisa.automation.Congruence._
+import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 class CongruenceTest extends AnyFunSuite with lisa.TestMain {

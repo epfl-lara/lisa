@@ -1,20 +1,26 @@
 package lisa.tptp
-import KernelParser.unsanitize
 import leo.datastructures.TPTP.AnnotatedFormula
+import leo.datastructures.TPTP.Annotations
 import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
+import leo.datastructures.TPTP.FOFData
 import leo.datastructures.TPTP.FOTAnnotated
+import leo.datastructures.TPTP.FOTData
+import leo.datastructures.TPTP.GeneralFormulaData
+import leo.datastructures.TPTP.GeneralTerm
+import leo.datastructures.TPTP.Integer
+import leo.datastructures.TPTP.MetaFunctionData
+import leo.datastructures.TPTP.NumberData
 import leo.modules.input.{TPTPParser => Parser}
 import lisa.utils.K
-import K.{given}
-import K.{repr, -<<, +<<, ->>, +>>, |-}
 
 import java.io.File
 
+import KernelParser.unsanitize
+import K.given
+import K.{repr, -<<, +<<, ->>, +>>, |-}
 import Parser.TPTPParseException
-import ProofParser.*
-import leo.datastructures.TPTP.{Annotations, GeneralTerm, MetaFunctionData, NumberData, Integer, FOF, GeneralFormulaData, FOTData, FOFData}
-
+import ProofParser._
 
 object ProofPrinter {
 
@@ -59,31 +65,27 @@ object ProofPrinter {
   }
 
   def sequentToFOFStatement(sequent: K.Sequent, strict: Boolean = false): FOF.Statement = {
-    if sequent.left.isEmpty && sequent.right.size == 1 then
-      FOF.Logical(formulaToFOFFormula(sequent.right.head, Set(), strict))
-    else
-      FOF.Sequent(sequent.left.map(formulaToFOFFormula(_, Set(), strict)).toSeq, sequent.right.map(formulaToFOFFormula(_, Set(), strict)).toSeq)
+    if sequent.left.isEmpty && sequent.right.size == 1 then FOF.Logical(formulaToFOFFormula(sequent.right.head, Set(), strict))
+    else FOF.Sequent(sequent.left.map(formulaToFOFFormula(_, Set(), strict)).toSeq, sequent.right.map(formulaToFOFFormula(_, Set(), strict)).toSeq)
   }
 
   def isLowerWord(s: String): Boolean = s.head.isLower && s.tail.forall(_.isLetterOrDigit)
   inline def quoted(s: String): String = if isLowerWord(s) then s else s"'$s'"
 
   /**
-    * 
-    *
-    * @param term
-    * @param bound
-    * @param strict if true, the term is printed as-is without any transformation on names
-    */
-  def termToFOFTerm(term: K.Expression, bound: Set[K.Identifier], strict:Boolean = false): FOF.Term = {
+   * @param term
+   * @param bound
+   * @param strict if true, the term is printed as-is without any transformation on names
+   */
+  def termToFOFTerm(term: K.Expression, bound: Set[K.Identifier], strict: Boolean = false): FOF.Term = {
     term match {
-      case K.Variable(id, K.Ind) => 
+      case K.Variable(id, K.Ind) =>
         if strict then
           if id.name(0).isUpper then FOF.Variable(unsanitize(id))
-          else FOF.Variable(unsanitize("X"+id))
+          else FOF.Variable(unsanitize("X" + id))
         else if bound.contains(id) then FOF.Variable("X" + id)
         else FOF.Variable(quoted("s" + id))
-      case K.Constant(id, K.Ind) => 
+      case K.Constant(id, K.Ind) =>
         if strict then
           if id.name(0).isLower && !id.name.contains(" ") then FOF.AtomicTerm(unsanitize(id), Seq())
           else FOF.AtomicTerm(quoted(unsanitize(id)), Seq())
@@ -94,15 +96,14 @@ object ProofPrinter {
           else FOF.AtomicTerm(quoted(unsanitize(id)), args.map(termToFOFTerm(_, bound, strict)))
         else FOF.AtomicTerm(quoted("c" + id), args.map(termToFOFTerm(_, bound, strict)))
       case K.Multiapp(K.Variable(id, typ), args) =>
-        if strict then
-          FOF.AtomicTerm("`" + unsanitize(id), args.map(termToFOFTerm(_, bound, strict)))
+        if strict then FOF.AtomicTerm("`" + unsanitize(id), args.map(termToFOFTerm(_, bound, strict)))
         else FOF.AtomicTerm(quoted(unsanitize("s" + id)), args.map(termToFOFTerm(_, bound)))
       case K.Epsilon(v, f) => throw new Exception("Epsilon terms are not supported")
       case _ => throw new Exception("The expression is not purely first order:\n" + term.repr)
     }
   }
-  
-  def formulaToFOFFormula(formula: K.Expression, bound: Set[K.Identifier], strict:Boolean = false): FOF.Formula = {
+
+  def formulaToFOFFormula(formula: K.Expression, bound: Set[K.Identifier], strict: Boolean = false): FOF.Formula = {
     formula match
       case K.equality(left, right) =>
         FOF.Equality(termToFOFTerm(left, bound, strict), termToFOFTerm(right, bound, strict))
@@ -113,11 +114,11 @@ object ProofPrinter {
       case K.or(f1, f2) => FOF.BinaryFormula(FOF.|, formulaToFOFFormula(f1, bound, strict), formulaToFOFFormula(f2, bound, strict))
       case K.implies(f1, f2) => FOF.BinaryFormula(FOF.Impl, formulaToFOFFormula(f1, bound, strict), formulaToFOFFormula(f2, bound, strict))
       case K.iff(f1, f2) => FOF.BinaryFormula(FOF.<=>, formulaToFOFFormula(f1, bound, strict), formulaToFOFFormula(f2, bound, strict))
-      case K.forall(K.Lambda(v, f)) => 
-        val x = if strict then unsanitize(v.id) else unsanitize("X"+v.id)
+      case K.forall(K.Lambda(v, f)) =>
+        val x = if strict then unsanitize(v.id) else unsanitize("X" + v.id)
         FOF.QuantifiedFormula(FOF.!, Seq(x), formulaToFOFFormula(f, bound + v.id, strict))
       case K.exists(K.Lambda(v, f)) =>
-        val x = if strict then unsanitize(v.id) else unsanitize("X"+v.id)
+        val x = if strict then unsanitize(v.id) else unsanitize("X" + v.id)
         FOF.QuantifiedFormula(FOF.?, Seq(x), formulaToFOFFormula(f, bound + v.id, strict))
       case K.forall(p) =>
         val x = K.freshId(p.freeVariables.map(_.id), "x")
@@ -126,13 +127,12 @@ object ProofPrinter {
         val x = K.freshId(p.freeVariables.map(_.id), "x")
         FOF.QuantifiedFormula(FOF.?, Seq(if strict then unsanitize(x) else "X" + x), formulaToFOFFormula(K.Application(p, K.Variable(x, K.Ind)), bound + x, strict))
       case K.Multiapp(K.Constant(id, typ), args) =>
-        if strict then 
+        if strict then
           if id.name(0).isLower then FOF.AtomicFormula(unsanitize(id), args.map(termToFOFTerm(_, bound, strict)))
           else FOF.AtomicFormula(quoted(unsanitize(id)), args.map(termToFOFTerm(_, bound, strict)))
         else FOF.AtomicFormula(quoted("c" + id), args.map(termToFOFTerm(_, bound, strict)))
       case K.Multiapp(K.Variable(id, typ), args) =>
-        if strict then
-          FOF.AtomicFormula("`" + unsanitize(id), args.map(termToFOFTerm(_, bound, strict)))
+        if strict then FOF.AtomicFormula("`" + unsanitize(id), args.map(termToFOFTerm(_, bound, strict)))
         else FOF.AtomicFormula(quoted("s" + id), args.map(termToFOFTerm(_, bound, strict)))
       case K.Constant(id, typ) =>
         if strict then
@@ -140,27 +140,25 @@ object ProofPrinter {
           else FOF.AtomicFormula(unsanitize(id), Seq())
         else FOF.AtomicFormula(quoted("p" + id), Seq())
       case _ => throw new Exception("The expression is not purely first order: " + formula)
-        
+
   }
 
   def formulaToFOFStatement(formula: K.Expression): FOF.Statement = {
     FOF.Logical(formulaToFOFFormula(formula, Set()))
   }
 
-
   def proofToTPTP(proof: K.SCProof, axioms: Map[Int, (String, K.Sequent)], conj: (String, K.Sequent), strict: Boolean = false): Seq[FOFAnnotated] = {
-    val tptpaxioms = axioms.map {
-      case (i, (name, sequent)) => sequentToFOFAnnotated(sequent, name, "axiom", None, strict)
+    val tptpaxioms = axioms.map { case (i, (name, sequent)) =>
+      sequentToFOFAnnotated(sequent, name, "axiom", None, strict)
     }.toSeq
     val middle = proof.steps.zipWithIndex.map((step, no) => proofStepToTPTP(step, axioms, no, strict))
 
     val conjec = sequentToFOFAnnotated(conj._2, conj._1, "conjecture", None, strict)
 
-    (tptpaxioms /*:+ conjec*/) ++ middle 
+    (tptpaxioms /*:+ conjec*/ ) ++ middle
   }
 
-
-  def s(no:Int): String = "s" + no
+  def s(no: Int): String = "s" + no
 
   def premisesToAnnotationsStr(premises: Seq[String], stepName: String) = {
     Some(
@@ -183,21 +181,20 @@ object ProofPrinter {
     )
   }
 
-  def premisesToAnnotations(premises: Seq[Int], stepName: String): Annotations = 
+  def premisesToAnnotations(premises: Seq[Int], stepName: String): Annotations =
     premisesToAnnotationsStr(premises.map(s), stepName)
-
 
   def proofStepToTPTP(step: K.SCProofStep, axiomsMap: Map[Int, (String, K.Sequent)], no: Int, strict: Boolean): FOFAnnotated = {
     val role = "plain"
 
     step match
-      case K.Beta(bot, t1) => 
+      case K.Beta(bot, t1) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "beta"), strict)
-      case K.Cut(bot, t1, t2, phi) => 
+      case K.Cut(bot, t1, t2, phi) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1, t2), "cut"), strict)
-      case K.Hypothesis(bot, phi) => 
+      case K.Hypothesis(bot, phi) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(), "hyp"), strict)
-      case K.InstSchema(bot, t1, subst) => 
+      case K.InstSchema(bot, t1, subst) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "inst_schema"), strict)
       case K.LeftAnd(bot, t1, phi, psi) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "left_and"), strict)
