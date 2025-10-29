@@ -66,7 +66,7 @@ object SimpleDeducedSteps {
    *
    * Returns a subproof containing the instantiation steps
    */
-  object InstantiateForall extends ProofTactic with ProofSequentTactic {
+  object InstantiateForall extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], t: F.Expr[F.Ind]*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
       val phiK = phi.underlying
@@ -201,12 +201,16 @@ object SimpleDeducedSteps {
                       bot.right.collectFirstDefined: candidate =>
                         // how many quantifiers to strip?
                         val toStrip = forallCount(pivot) - forallCount(candidate)
-                        val (strippedPivot, variables) = stripForalls(pivot, toStrip)
+                        if toStrip <= 0 then
+                          // cannot match, candidate has less foralls than pivot
+                          None
+                        else
+                          val (strippedPivot, variables) = stripForalls(pivot, toStrip)
 
-                        val rc = UnificationUtils.RewriteContext.empty
-                        UnificationUtils.matchExpr(using rc)(candidate, strippedPivot).map: subs =>
-                          val terms = variables.map(v => subs(v).getOrElse(v))
-                          (f, terms, candidate)
+                          val rc = UnificationUtils.RewriteContext.empty
+                          UnificationUtils.matchExpr(using rc)(strippedPivot, candidate).map: subs =>
+                            val terms = variables.map(v => subs(v).getOrElse(v))
+                            (f, terms, candidate)
 
                     matches match
                       case None =>
