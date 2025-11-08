@@ -6,6 +6,22 @@ import lisa.automation.atp.Goeland
 
 object Example extends lisa.Main:
   draft()
+
+
+  val x = variable[Ind]
+  val y = variable[Ind]
+  val P = variable[Ind >>: Prop]
+  val Q = variable[Ind >>: Prop]
+  val f = variable[Ind >>: Ind]
+
+  val e1 = P(x) ==> P(f(y))
+  val e2 = forall(x, P(x) /\ P(f(y)))
+
+  println(e1.rewrite(P(x), Q(x)))
+  println(e1.rewrite(P(x), Q(y)))
+  println(e2.rewrite(P(f(y)), Q(x)))
+
+
 /*
   val x = variable[Ind]
   val y = variable[Ind]

@@ -266,6 +266,41 @@ trait Predef extends ExprOps {
     case _ => e
   }
 
+  def normalForm[T](e: Expr[T]): Expr[T] = 
+    asFrontExpression(K.reducedForm(e.underlying)).asInstanceOf[Expr[T]]
+  
+  extension [S](e: Expr[S]) {
+    def rewrite[T](l:Expr[T], r:Expr[T]): Expr[S] = 
+      val freevars = l.freeVars.map(_.id).toSet ++ r.freeVars.map(_.id).toSet
+      def inner[S](e: Expr[S]): Expr[S] = 
+        if e == l then r.asInstanceOf[Expr[S]] 
+        else e match
+          case App(f, arg) =>
+            val newF = inner(f)
+            val newArg = inner(arg)
+            if newF.eq(f) && newArg.eq(arg) then e
+            else
+              App(newF, newArg)
+          case Abs(v, body) => 
+            if freevars.contains(v.id) then
+              val newV = v.rename(freshId(Seq(e, l, r), v.id.name))
+              val safeBody = body.substituteUnsafe(Map(v -> newV))
+              val newBody = inner(safeBody)
+              if newBody.eq(safeBody) then e
+              else Abs(newV, newBody)
+            else
+              val newBody = inner(body)
+              if newBody.eq(body) then e
+              else
+                Abs(v, newBody)
+          case _ => e
+
+      inner(e)
+  }
+
+  
+  
+
   /**
    * Maps a kernel expression to a corresponding front-end expression.
    */

@@ -16,7 +16,7 @@ import lisa.utils.collection.Extensions.*
 import scala.annotation.nowarn
 import scala.collection.mutable.{Map as MMap}
 
-import F.{*, given}
+import F.{rewrite => _, *, given}
 import lisa.utils.collection.VecSet
 import lisa.utils.Printing.printList
 

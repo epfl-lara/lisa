@@ -11,8 +11,9 @@ import lisa.maths.SetTheory.Functions.Predef.*
 
 import annotation.nowarn
 
-/*
+
 object TypeLib extends lisa.Main {
+  /*
   // import TypeSystem.*
 
   val f = variable[Ind]
@@ -509,6 +510,6 @@ object TypeSystem  {
         }
       }
   }
+ */
 }
 
- */
