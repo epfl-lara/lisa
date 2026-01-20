@@ -11,4 +11,7 @@ object Predef {
   export lisa.maths.SetTheory.Functions.Function.{functionBetween, ::, function, functionOn, app, apply, injective, surjective, bijective}
   export lisa.maths.SetTheory.Functions.Operations.Restriction
   export lisa.maths.SetTheory.Functions.Operations.Restriction.{↾}
+  export lisa.maths.SetTheory.Functions.Operations.Composition
+  export lisa.maths.SetTheory.Functions.Operations.Composition.{∘}
+  export lisa.maths.SetTheory.Functions.Operations.Identity
 }
