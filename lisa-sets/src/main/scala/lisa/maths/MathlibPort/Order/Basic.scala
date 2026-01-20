@@ -15,7 +15,9 @@ import lisa.maths.SetTheory.Relations.Predef.{_, given}
 object Basic extends lisa.Main {
 
   val A = variable[Ind]
-  val le = variable[Ind]
+  // Reuse the same order-relation symbol as the set-theoretic development.
+  // This avoids mismatches when unfolding `PartialOrder.partialOrder.definition`.
+  val le = PartialOrder.<=
 
   extension (x: Expr[Ind]) {
     infix def ≤(y: Expr[Ind]): Expr[Prop] = (x, y) ∈ le
@@ -39,7 +41,7 @@ object Basic extends lisa.Main {
    *
    * Note: this corresponds to Lean's `LinearOrder` structure (up to encoding).
    */
-  val linearOrder = TotalOrder.totalOrder
+  val linearOrder = DEF(λ(A, λ(le, partialOrder(A)(le) /\ stronglyConnected(le)(A))))
 
   val partialOrderImpliesPreorder = Theorem(
     partialOrder(A)(le) |- preorder(A)(le)
@@ -54,8 +56,7 @@ object Basic extends lisa.Main {
     linearOrder(A)(le) |- partialOrder(A)(le)
   ) {
     have(thesis) by Tautology.from(
-      TotalOrder.totalOrder.definition,
-      PartialOrder.partialOrder.definition
+      linearOrder.definition
     )
   }
 

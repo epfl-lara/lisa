@@ -117,7 +117,7 @@ object NegMulTheoremsSetLike extends lisa.Main {
       hy
     )
     val step1 = have(((x + x.negOf) * y) === (zero * y)) by Congruence.from(xAddNeg)
-    val step2 = have((zero * y) === zero) by Tautology.from(zero_mul_of_ring, r, hy)
+    val step2 = have((zero * y) === zero) by Tautology.from(zero_mul_of_ring of (x := y), r, hy)
     val step3 = have(((x * y) + (x.negOf * y)) === zero) by Congruence.from(step0, step1, step2)
 
     have(thesis) by Tautology.from(
