@@ -325,4 +325,175 @@ object MathlibTactics {
       }
     }
   }
+
+  /**
+   * A small `eauto`-style tactic: backward chaining with lemma application.
+   *
+   * Compared to `SolveByElim`, this can also use *external* lemmas (facts /
+   * justifications) provided as arguments. A lemma is applied by matching its
+   * (singleton) conclusion against the goal, instantiating free variables, and
+   * generating subgoals for its assumptions. Those assumptions are eliminated
+   * via successive `Cut`s.
+   *
+   * This is intentionally incomplete, but tends to work well for "mathlib-like"
+   * proof scripts that consist of repeated lemma application + trivial goals.
+   */
+  object EAuto extends ProofTactic with ProofSequentTactic {
+
+    final case class Config(maxDepth: Int = 8)
+
+    def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement =
+      apply(Config())()(bot)
+
+    def apply(using lib: Library, proof: lib.Proof)(rules: lib.JUSTIFICATION*)(bot: F.Sequent): proof.ProofTacticJudgement =
+      apply(Config())(rules*)(bot)
+
+    def apply(using lib: Library, proof: lib.Proof)(config: Config)(rules: lib.JUSTIFICATION*)(bot: F.Sequent): proof.ProofTacticJudgement = {
+      if bot.right.size != 1 then
+        return proof.InvalidProofTactic("`EAuto`: goal must have a single formula on the right-hand side.")
+
+      val target = bot.right.head
+
+      TacticSubproof {
+        import lib.{have, lastStep}
+
+        type GoalKey = (Set[lisa.utils.K.Expression], lisa.utils.K.Expression)
+
+        def attempt(using p: lib.Proof)(j: p.ProofTacticJudgement, expected: F.Sequent): Option[p.Fact] =
+          j match
+            case v: p.ValidProofTactic @unchecked =>
+              if F.isSameSequent(v.bot, expected) then Some(have(v))
+              else None
+            case _: p.InvalidProofTactic @unchecked => None
+
+        def isInGamma(gamma: Set[F.Expr[F.Prop]], f: F.Expr[F.Prop]): Boolean =
+          gamma.exists(F.isSame(_, f))
+
+        def instantiateLemma(using p: lib.Proof)(
+            lemma: lib.JUSTIFICATION,
+            goal0: F.Expr[F.Prop]
+        ): Option[(p.Fact, F.Sequent)] = {
+          val lemmaSeq = p.getSequent(lemma)
+          if lemmaSeq.right.size != 1 then return None
+          val concl = lemmaSeq.right.head
+
+          val ctx = RewriteContext.empty
+          UnificationUtils.matchExpr(using ctx)(concl, goal0).flatMap { subst =>
+            val instMap: Map[F.Variable[?], F.Expr[?]] =
+              concl.freeVars.flatMap(v => subst(v).map(e => v -> e)).toMap
+
+            val instSeq = lemmaSeq.substituteUnsafe(instMap)
+            val instFact = have(instSeq) by InstSchema.unsafe(instMap)(lemma)
+            Some((instFact, instSeq))
+          }
+        }
+
+        def applyLemma(using p: lib.Proof)(
+            gamma: Set[F.Expr[F.Prop]],
+            goal0: F.Expr[F.Prop],
+            lemma: lib.JUSTIFICATION,
+            depth: Int,
+            visited: Set[GoalKey]
+        ): Option[p.Fact] = {
+          if depth < 0 then return None
+          instantiateLemma(lemma, goal0).flatMap { case (instFact0, instSeq0) =>
+            val bot0: F.Sequent = gamma |- goal0
+
+            // we must discharge *all* lemma assumptions not already in gamma
+            val needed = instSeq0.left.filterNot(a => isInGamma(gamma, a)).toList
+
+            val discharged = needed.foldLeft(Option((instFact0: p.Fact, instSeq0: F.Sequent))) { (acc, a) =>
+              acc.flatMap { case (currentFact, currentSeq) =>
+                solve(using p)(gamma, a, depth - 1, visited).map { fa =>
+                  val nextLeft = gamma ++ currentSeq.left.filterNot(F.isSame(_, a))
+                  val nextSeq: F.Sequent = nextLeft |- currentSeq.right
+                  have(nextSeq) by Cut.withParameters(a)(fa, currentFact)
+                  (lastStep, nextSeq)
+                }
+              }
+            }
+
+            discharged.map { case (currentFact, currentSeq) =>
+              if F.isSameSequent(currentSeq, bot0) then currentFact
+              else
+                have(bot0) by Restate.from(currentFact)
+                lastStep
+            }
+          }
+        }
+
+        def solve(using p: lib.Proof)(
+            gamma: Set[F.Expr[F.Prop]],
+            goal0: F.Expr[F.Prop],
+            depth: Int,
+            visited: Set[GoalKey]
+        ): Option[p.Fact] = {
+          if depth < 0 then return None
+          val key: GoalKey = (gamma.map(_.underlying), goal0.underlying)
+          if visited.contains(key) then return None
+          val visited2 = visited + key
+
+          val bot0: F.Sequent = gamma |- goal0
+
+          if isInGamma(gamma, goal0) then
+            return attempt(Hypothesis(using lib, p)(bot0), bot0)
+
+          goal0 match
+            case a /\ b =>
+              val j = TacticSubproof(using p) {
+                (solve(using summon[lib.Proof])(gamma, a, depth - 1, visited2), solve(using summon[lib.Proof])(gamma, b, depth - 1, visited2)) match
+                  case (Some(fa), Some(fb)) =>
+                    have(bot0) by RightAnd.withParameters(a, b)(fa, fb)
+                  case _ => ()
+              }
+              attempt(j, bot0).orElse {
+                // allow fallback automation for conjunctions too
+                attempt(Simp(using lib, p)(bot0), bot0)
+              }
+
+            case a ==> b =>
+              val j = TacticSubproof(using p) {
+                solve(using summon[lib.Proof])(gamma + a, b, depth - 1, visited2) match
+                  case None => ()
+                  case Some(prem) =>
+                    have(bot0) by RightImplies.withParameters(a, b)(prem)
+              }
+              attempt(j, bot0).orElse(attempt(Simp(using lib, p)(bot0), bot0))
+
+            case F.forall(x, phi) =>
+              val fresh = x.freshRename(gamma ++ Set(goal0))
+              val phiFresh = phi.substitute(x := fresh)
+              val goalFresh = F.forall(fresh, phiFresh)
+              val botFresh: F.Sequent = gamma |- goalFresh
+
+              val j = TacticSubproof(using p) {
+                solve(using summon[lib.Proof])(gamma, phiFresh, depth - 1, visited2) match
+                  case None => ()
+                  case Some(prem) =>
+                    have(botFresh) by RightForall.withParameters(phiFresh, fresh)(prem)
+              }
+              attempt(j, botFresh).map { f =>
+                have(bot0) by Restate.from(f)
+                lastStep
+              }.orElse(attempt(Simp(using lib, p)(bot0), bot0))
+
+            case _ =>
+              // try horn-style closure first
+              attempt(SolveByElim(using lib, p)(bot0), bot0).orElse {
+                // then try applying user-provided lemmas
+                rules.iterator.flatMap(lemma => applyLemma(gamma, goal0, lemma, depth - 1, visited2).iterator).toSeq.headOption
+              }.orElse {
+                // last resort
+                attempt(Simp(using lib, p)(bot0), bot0)
+              }
+        }
+
+        solve(bot.left, target, config.maxDepth, Set.empty) match
+          case Some(f) =>
+            have(bot) by Restate.from(f)
+          case None =>
+            return proof.InvalidProofTactic("`EAuto`: failed (depth limit reached or no applicable lemma).")
+      }
+    }
+  }
 }

@@ -1,6 +1,6 @@
 package lisa.maths
 
-import lisa.automation.MathlibTactics.{ByCases, ByContra, Rw, Simp, SolveByElim}
+import lisa.automation.MathlibTactics.{ByCases, ByContra, EAuto, Rw, Simp, SolveByElim}
 import lisa.utils.fol.FOL.{*, given}
 
 /**
@@ -71,5 +71,13 @@ object MathlibTacticTests extends lisa.Main {
 
   val solve_by_elim_two_premises = Theorem((P(y), Q(y), ∀(λ(x, P(x) ==> (Q(x) ==> R0(x))))) |- R0(y)) {
     have(thesis) by SolveByElim
+  }
+
+  val eauto_case_lemma = Theorem((P(x) ==> R0(x), Q(x) ==> R0(x), P(x) \/ Q(x)) |- R0(x)) {
+    have(thesis) by Simp
+  }
+
+  val eauto_applies_instantiated_lemma = Theorem((P(y) ==> R0(y), Q(y) ==> R0(y), P(y) \/ Q(y)) |- R0(y)) {
+    have(thesis) by EAuto(eauto_case_lemma)
   }
 }
