@@ -15,6 +15,7 @@ trait Main extends BasicMain {
 
   export lisa.automation.Tautology
   export lisa.automation.Substitution.{Apply as Substitute}
+  export lisa.automation.MathlibTactics
   export lisa.automation.Tableau
   export lisa.automation.Congruence
   // export lisa.automation.Apply
