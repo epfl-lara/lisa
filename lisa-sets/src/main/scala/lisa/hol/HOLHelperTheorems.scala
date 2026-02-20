@@ -70,4 +70,39 @@ object HOLHelperTheorems extends lisa.Main {
     have(thesis) by RightExists(boolNonEmpty)
   }
 
+
+  ////////////////////////////////////////////////////
+  // HOL Light axioms
+  // ETA_AX, INFINITY_AX, SELECT_AX
+
+  /**
+   * ETA_AX 
+   * 
+   * ```ocaml
+   * let ETA_AX = new_axiom
+   *   `!t:A->B. (\x. t x) = t`;;
+   * ```
+   */
+  val etaAx = ???
+
+  /**
+   * INFINITY_AX
+   * 
+   * ```ocaml
+   * let INFINITY_AX = new_axiom
+   *  `?f:ind->ind. ONE_ONE f /\ ~(ONTO f)`;;
+   * ```
+   */
+  val infinityAx = ???
+
+  /**
+   * SELECT_AX
+   * 
+   * ```ocaml
+   * let SELECT_AX = new_axiom
+   *  `!P (x:A). P x ==> P((@) P)`;;
+   * ```
+   */
+  val selectAx = ???
+
 }
