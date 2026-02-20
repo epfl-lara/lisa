@@ -60,6 +60,7 @@ object HOLHelperTheorems extends lisa.Main {
     val =:= = Constant[Ind >>: Ind]("=:=").printInfix()
     addSymbol(=:=)
     val typing_of_eq = Axiom(forall(A, =:=(A) :: (A ->: (A ->: 𝔹))))
+    
     TypedConstantFunctional[Ind >>: Ind]("=:=", FunctionalClass(List(None), List(A), (A ->: (A ->: 𝔹))), typing_of_eq)
   }
 
@@ -69,40 +70,4 @@ object HOLHelperTheorems extends lisa.Main {
   val nonEmptyTypeExists = Theorem(exists(T, exists(x, (x ∈ T)))) {
     have(thesis) by RightExists(boolNonEmpty)
   }
-
-
-  ////////////////////////////////////////////////////
-  // HOL Light axioms
-  // ETA_AX, INFINITY_AX, SELECT_AX
-
-  /**
-   * ETA_AX 
-   * 
-   * ```ocaml
-   * let ETA_AX = new_axiom
-   *   `!t:A->B. (\x. t x) = t`;;
-   * ```
-   */
-  val etaAx = ???
-
-  /**
-   * INFINITY_AX
-   * 
-   * ```ocaml
-   * let INFINITY_AX = new_axiom
-   *  `?f:ind->ind. ONE_ONE f /\ ~(ONTO f)`;;
-   * ```
-   */
-  val infinityAx = ???
-
-  /**
-   * SELECT_AX
-   * 
-   * ```ocaml
-   * let SELECT_AX = new_axiom
-   *  `!P (x:A). P x ==> P((@) P)`;;
-   * ```
-   */
-  val selectAx = ???
-
 }
