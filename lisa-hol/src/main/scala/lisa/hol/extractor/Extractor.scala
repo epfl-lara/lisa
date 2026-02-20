@@ -1,7 +1,8 @@
-package holimp
+package lisa
+package hol
 package extractor
 
-import core.*
+import lisa.hol.core.*
 import upickle.default
 import upickle.implicits.key
 import upickle.default.{ReadWriter => RW, *}
@@ -48,7 +49,9 @@ private def parseTypeInst(insts: List[List[String]]): Map[TypeVariable, Type] =
 
 // map (x |-> t)  
 // {"from": "...", "to": "..."}
-case class InstPair(from: String, to: String) derives RW
+case class InstPair(from: String, to: String) derives RW:
+  def toTermPair: (Variable, Term) = parseVar(from) -> parseTerm(to)
+  def toTypePair: (TypeVariable, Type) = parseTypeVar(from) -> parseType(to)
 
 // Use "step" as the ADT tag (instead of "$type")
 @key("step")
@@ -65,13 +68,16 @@ sealed trait RawStep derives RW:
       case ASSUME(term) => core.ASSUME(parseTerm(term))
       case EQ_MP(pred1, pred2) => core.EQ_MP(pred1, pred2)
       case DEDUCT_ANTISYM_RULE(pred1, pred2) => core.DEDUCT_ANTISYM_RULE(pred1, pred2)
-      case INST(pred, insts) => core.INST(pred, parseInst(insts.map(i => List(i.from, i.to))))
-      case INST_TYPE(pred, insts) => core.INST_TYPE(pred, parseTypeInst(insts.map(i => List(i.from, i.to))))
+      case INST(pred, insts) => core.INST(pred, insts.map(_.toTermPair).toMap)
+      case INST_TYPE(pred, insts) => core.INST_TYPE(pred, insts.map(_.toTypePair).toMap)
       case AXIOM(term) => core.AXIOM(parseTerm(term))
       case DEFINITION(term, name) => core.DEFINITION(name, parseTerm(term))
       case TYPE_DEFINITION(pred, term, name) => core.TYPE_DEFINITION(name, parseTerm(term), pred)
 
 // Step variants (JSON uses "step": "REFL", etc. for variants)
+// example: {"step": "REFL", "term": "p"}
+// example: {"step": "EQ_MP", "pred1": 1, "pred2": 2}
+// see tests for more examples
 case class REFL(term: String) extends RawStep
 case class TRANS(pred1: Long, pred2: Long) extends RawStep
 case class MK_COMB(pred1: Long, pred2: Long) extends RawStep
@@ -97,6 +103,8 @@ case class ProofLine(id: Long, @key("pr") step: RawStep) derives RW
 
 /**
   * A raw sequent as represented in the JSON output.
+  * 
+  * @example `{"hy": ["p"], "cc": "p"}`
   */
 case class RawSequent(@key("hy") hypotheses: List[String], @key("cc") conclusion: String) derives RW:
   def extract: HOLSequent =
@@ -108,6 +116,8 @@ case class RawSequent(@key("hy") hypotheses: List[String], @key("cc") conclusion
 /**
   * A theorem statement as represented in the JSON output, with a unique ID and
   * a sequent. The proof ID corresponds to the proof step of the same ID.
+  * 
+  * @example `{"id": 3, "th": {"hy": ["p"], "cc": "p"}}`
   */
 case class TheoremStatement(id: Long, @key("th") sequent: RawSequent) derives RW
 
@@ -209,7 +219,7 @@ object JSONParser:
    * Use the given reader for a type to read a list of items from the given
    * source interpreted as NDJSON.
    */
-  private def readIterated[T: Reader](src: java.io.Reader): Iterator[T] =
+  private def readIterated[T: upickle.default.Reader](src: java.io.Reader): Iterator[T] =
     readIterated(src, read[T](_, false))
 
   /**

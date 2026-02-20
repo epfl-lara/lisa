@@ -1,4 +1,5 @@
-package holimp
+package lisa
+package hol
 package core
 
 import scala.util.parsing.combinator.*
