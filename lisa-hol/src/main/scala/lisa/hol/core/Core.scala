@@ -1,4 +1,5 @@
-package holimp
+package lisa
+package hol
 package core
 
 case class ApplicationOnNonFunctionException(term: Term) extends Exception(s"Constructed a term applying to a non-function.\n\tTerm: $term")
