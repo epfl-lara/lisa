@@ -58,7 +58,7 @@ object Tactics:
     // Bidirectional type checking proof construct(infer, check, equal)
     def prove(using lib: SetTheoryLibrary.type, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement =
       import lib.*
-      if (bot.right.size != 1) return proof.InvalidProofTactic("Typecheck can only prove one theorem once upon a time")
+      if (bot.right.size != 1) return proof.InvalidProofTactic("Typecheck cannot prove a sequent with multiple disjuncts in the conclusion.")
       val premises = bot.left
       val goal = bot.right.head
       TacticSubproof {
@@ -168,7 +168,7 @@ object Tactics:
                     "computeType can only handle fully applied functions. Function " + tcf + " has arity " + tcf.arity + " but was applied to " + args.size + " arguments."
                   )
                 val subst = (tcf.typ.args zip args).map((v, a) => (v := a))
-                have(tm ∈ tcf.typ.outTyp.substitute(subst*) ++<< (() |- localContext)) by Tautology.from(tcf.justif.of(args*))
+                have(tm ∈ tcf.typ.outTyp.substitute(subst*) ++<< (localContext |- ())) by Tautology.from(tcf.justif.of(args*))
                 tcf.typ.outTyp.substitute(subst*)
 
               case _ =>
