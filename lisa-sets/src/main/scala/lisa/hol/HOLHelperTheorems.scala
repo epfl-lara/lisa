@@ -23,6 +23,7 @@ import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
 import lisa.utils.unification.UnificationUtils.Substitution
 import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.kernel.proof.SequentCalculus.RightSubstIff
 object HOLHelperTheorems extends lisa.Main {
   val f = variable[Ind]
   val x = variable[Ind]
@@ -34,6 +35,8 @@ object HOLHelperTheorems extends lisa.Main {
   val any = DEF(λ(x, ⊤))
   val G = variable[Ind >>: Ind]
   val H = variable[Ind >>: Ind]
+
+  val P = variable[Prop]
 
   val lib = summon[lisa.utils.prooflib.Library]
 
@@ -234,17 +237,40 @@ object HOLHelperTheorems extends lisa.Main {
 
     lib.have(thesis) by Tautology.from(`x = z`, eqAlign of (x := x, y := z))
 
-  val nonEmptyFuncSpace = Theorem(∃(x, x ∈ B) ==> ∃(x, x ∈ (A ->: B))):
-    val witness = { pair(x)(b) | x :: A }
+  val leibnizProperty = Theorem((x :: A, y :: A, f :: A ->: B) |- (=:=(A) * x * y === One) ==> (=:=(B) * (f * x) * (f * y) === One)):
+    assume(x :: A, y :: A, f :: A ->: B, =:=(A) * x * y === One)
 
-    val typing = lib.have(b ∈ B |- witness ∈ (A ->: B)) subproof:
-      sorry
+    val `x = y` = lib.have(x === y) by Weakening(eqAlign of (x := x, y := y))
+    
+    lib.have(f * x === f * x) by Restate
+    thenHave(x === y |- f * x === f * y) by RightSubstEq.withParameters(Seq((x, y)), (Seq(y), f * x === f * y))
+    val `f x = f y` = lib.have(f * x === f * y) by Cut(`x = y`, lastStep)
 
-    thenHave(b ∈ B |- ∃(x, x ∈ (A ->: B))) by RightExists
-    thenHave(∃(x, x ∈ B) ==> ∃(x, x ∈ (A ->: B))) by LeftExists
+    val fxType = lib.have(f * x :: B) by Typecheck.prove
+    val fyType = lib.have(f * y :: B) by Typecheck.prove
 
-  val T = variable[Ind]
-  val nonEmptyTypeExists = Theorem(exists(T, exists(x, (x ∈ T)))) {
+    have((f * x === f * y) <=> (=:=(B) * (f * x) * (f * y) === One) |- =:=(B) * (f * x) * (f * y) === One) by RightSubstEq.withParameters(Seq((f * x === f * y, =:=(B) * (f * x) * (f * y) === One)), (Seq(P), P))(`f x = f y`)
+    lib.have((f * x :: B, f * y :: B) |- =:=(B) * (f * x) * (f * y) === One) by Cut(eqAlign of (A := B, x := f * x, y := f * y), lastStep)
+    lib.have((f * x :: B) |- =:=(B) * (f * x) * (f * y) === One) by Cut(fyType, lastStep)
+    lib.have(=:=(B) * (f * x) * (f * y) === One) by Cut(fxType, lastStep)
+
+  val nonEmptyFuncSpace = Theorem(∃(x, x :: B) ==> ∃(x, x :: (A ->: B))):
+    val witness = fun(x :: A, b)
+
+    val T1 = variable[Ind]
+    val T2 = variable[Ind >>: Ind]
+    val e = variable[Ind >>: Ind]
+
+    val typing = lib.have(b :: B |- witness :: (A ->: B)) subproof:
+      assume(b :: B)
+      lib.have(x :: A ==> b :: B) by Restate
+      thenHave(∀(x :: A, b :: B)) by RightForall
+      have(witness :: (A ->: B)) by Cut(lastStep, TAbs of (T1 := A, T2 := λ(x, B), e := λ(x, b)))
+
+    thenHave(b :: B |- ∃(x, x :: (A ->: B))) by RightExists
+    thenHave(∃(b, b :: B) |- ∃(x, x :: (A ->: B))) by LeftExists
+
+  val nonEmptyTypeExists = Theorem(∃(A, ∃(x, (x :: A)))):
     have(thesis) by RightExists(boolNonEmpty)
-  }
+
 }
