@@ -256,12 +256,9 @@ object HOLSteps extends lisa._HOL {
     val typ2 = A
     val vx = typedvar(A)
     val vf = typedvar(A ->: B)
-    assume(f :: (A ->: B))
-    assume(g :: (A ->: B))
-    assume(x :: A)
-    assume(y :: A)
-    assume(f =:= g)
-    assume(x =:= y)
+    
+    assumeAll
+
     val p0 = have(HOLProofType(f * x))
     val p1 = have(f * x :: B |- f * x =:= f * x) by Tautology.from(eqRefl of (HOLSteps.x := f * x, A := B))
     val s1 = have(f * x =:= f * x) by Cut(p0, p1)
@@ -379,9 +376,9 @@ object HOLSteps extends lisa._HOL {
       (fg, xy) match {
         case (HOLSequent(left1, (=:= #@ typ1) * ff * gg), HOLSequent(left2, (=:= #@ typ2) * xx * yy)) => // equality is too strict
           typ1 match {
-            case ->:(`typ2`, b) =>
-              (f1.statement.left ++ f2.statement.left).foreach(assume(_))
-              val s1 = have((xx :: typ2, yy :: typ2, ff :: typ1, gg :: typ1, ff =:= gg, xx =:= yy) |- (ff * xx =:= gg * yy)) by Weakening(mk_comTHM of (f := ff, g := gg, x := xx, y := yy))
+            case ->:(inner, b) if isSame(typ2, inner) => // this CANNOT use equality because of alpha equivalence
+              (f1.statement.left ++ f2.statement.left).foreach(proof.addAssumption)
+              val s1 = have((xx :: typ2, yy :: typ2, ff :: typ1, gg :: typ1, ff =:= gg, xx =:= yy) |- (ff * xx =:= gg * yy)) by Weakening(mk_comTHM of (f := ff, g := gg, x := xx, y := yy, A := typ2, B := b))
               val d1 = have(Discharge(f1)(lastStep))
               val d2 = have(Discharge(f2)(d1))
               val d3 = have(Discharge(have(HOLProofType(xx)))(d2))
