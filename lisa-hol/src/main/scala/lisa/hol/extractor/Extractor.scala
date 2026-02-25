@@ -2,13 +2,15 @@ package lisa
 package hol
 package extractor
 
-import lisa.hol.core.*
+import lisa.hol.core._
 import upickle.default
+import upickle.default.{ReadWriter => RW, _}
 import upickle.implicits.key
-import upickle.default.{ReadWriter => RW, *}
-import Parser.*
+
 import java.io.File
 import scala.collection.mutable
+
+import Parser._
 
 sealed trait ExtractorException extends Exception
 case class UnknownProofStepException(name: String) extends ExtractorException

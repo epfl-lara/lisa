@@ -2,7 +2,7 @@ package lisa
 package hol
 package core
 
-import scala.util.parsing.combinator.*
+import scala.util.parsing.combinator._
 
 /**
   * A parser for the core HOL Light terms in ProofTrace export syntax.
