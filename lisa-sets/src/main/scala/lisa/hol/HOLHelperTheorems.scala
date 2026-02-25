@@ -25,20 +25,18 @@ import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.kernel.proof.SequentCalculus.RightSubstIff
 object HOLHelperTheorems extends lisa.Main {
-  val f = variable[Ind]
-  val x = variable[Ind]
-  val y = variable[Ind]
-  val z = variable[Ind]
-  val a = variable[Ind]
-  val A = variable[Ind]
-  val B = variable[Ind]
-  val any = DEF(λ(x, ⊤))
-  val G = variable[Ind >>: Ind]
-  val H = variable[Ind >>: Ind]
-
-  val P = variable[Prop]
-
-  val lib = summon[lisa.utils.prooflib.Library]
+  private val f = variable[Ind]
+  private val x = variable[Ind]
+  private val y = variable[Ind]
+  private val z = variable[Ind]
+  private val a = variable[Ind]
+  private val A = variable[Ind]
+  private val B = variable[Ind]
+  private val any = DEF(λ(x, ⊤))
+  private val G = variable[Ind >>: Ind]
+  private val H = variable[Ind >>: Ind]
+  private val P = variable[Prop]
+  private val lib = summon[lisa.utils.prooflib.Library]
 
   // A ->: B is the set of functions from A to B
   val Bool: Constant[Ind] = {
