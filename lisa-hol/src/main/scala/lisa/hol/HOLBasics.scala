@@ -130,7 +130,7 @@ object HOLBasics extends lisa.HOL {
       thenHave(thesis) by RightForall
     }
 
-    TypedConstantFunctional[Ind >>: Ind]("hforall", FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_forall)
+    TypedConstantFunctional[Ind >>: Ind](hforall.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_forall)
   }
 
   /**
@@ -149,7 +149,7 @@ object HOLBasics extends lisa.HOL {
       thenHave(thesis) by Substitute(hand.definition)
     }
 
-    TypedConstantFunctional[Ind]("hand", FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_and)
+    TypedConstantFunctional[Ind](hand.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_and)
   }
 
   val handCorrect = HOLTheorem(
@@ -275,7 +275,7 @@ object HOLBasics extends lisa.HOL {
       thenHave(thesis) by Substitute(himp.definition)
     }
 
-    TypedConstantFunctional[Ind]("himp", FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_imp)
+    TypedConstantFunctional[Ind](himp.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_imp)
   }
 
   /**
@@ -295,7 +295,7 @@ object HOLBasics extends lisa.HOL {
       thenHave(thesis) by Substitute(hnot.definition)
     }
 
-    TypedConstantFunctional[Ind]("hnot", FunctionalClass(List(), List(), (𝔹 ->: 𝔹)), typing_of_not)
+    TypedConstantFunctional[Ind](hnot.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹)), typing_of_not)
   }
 
   /**
@@ -330,7 +330,7 @@ object HOLBasics extends lisa.HOL {
       thenHave(thesis) by RightForall
     
 
-    TypedConstantFunctional[Ind >>: Ind]("hexists", FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_exists)
+    TypedConstantFunctional[Ind >>: Ind](hexists.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_exists)
   }
 
   // defining select
@@ -380,7 +380,7 @@ object HOLBasics extends lisa.HOL {
       thenHave(nonEmpty(A) ==> hselect(A) :: ((A ->: 𝔹) ->: A)) by Restate
       thenHave(thesis) by RightForall
 
-    TypedConstantFunctional[Ind >>: Ind]("hselect", FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: A)), typing_of_select)
+    TypedConstantFunctional[Ind >>: Ind](hselect.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: A)), typing_of_select)
   }
 
   // define ONE_ONE
@@ -392,7 +392,7 @@ object HOLBasics extends lisa.HOL {
     val x = typedvar(A)
     val y = typedvar(A)
 
-    val oneone = DEF(λ(A, λ(B, 
+    val hOneOne = DEF(λ(A, λ(B, 
       fun(f, 
         hforall(A) * fun(x, // ∀ x 
           hforall(A) * fun(y, // ∀ y
@@ -402,14 +402,14 @@ object HOLBasics extends lisa.HOL {
               * (x =:= y)
     ))))))
     
-    val typing_of_oneone = Theorem(∀(A, ∀(B, (nonEmpty(A) /\ nonEmpty(B)) ==> oneone(A)(B) :: ((A ->: B) ->: 𝔹)))) {
+    val typing_of_oneone = Theorem(∀(A, ∀(B, (nonEmpty(A) /\ nonEmpty(B)) ==> hOneOne(A)(B) :: ((A ->: B) ->: 𝔹)))) {
       lib.have((nonEmpty(A), nonEmpty(B)) |- fun(f, hforall(A) * fun(x, hforall(A) * fun(y, himp * ((f * x) =:= (f * y)) * (x =:= y)))) :: ((A ->: B) ->: 𝔹)) by Typecheck.prove
-      thenHave((nonEmpty(A), nonEmpty(B)) |- oneone(A)(B) :: ((A ->: B) ->: 𝔹)) by Substitute(oneone.definition)
-      thenHave((nonEmpty(A) /\ nonEmpty(B)) ==> oneone(A)(B) :: ((A ->: B) ->: 𝔹)) by Restate
+      thenHave((nonEmpty(A), nonEmpty(B)) |- hOneOne(A)(B) :: ((A ->: B) ->: 𝔹)) by Substitute(hOneOne.definition)
+      thenHave((nonEmpty(A) /\ nonEmpty(B)) ==> hOneOne(A)(B) :: ((A ->: B) ->: 𝔹)) by Restate
       thenHave(thesis) by Generalize
     }
 
-    TypedConstantFunctional[Ind >>: Ind >>: Ind]("hOneOne", FunctionalClass(List(None, None), List(A, B), ((A ->: B) ->: 𝔹)), typing_of_oneone)
+    TypedConstantFunctional[Ind >>: Ind >>: Ind](hOneOne.id, FunctionalClass(List(None, None), List(A, B), ((A ->: B) ->: 𝔹)), typing_of_oneone)
   }
 
   // define ONTO
@@ -421,7 +421,7 @@ object HOLBasics extends lisa.HOL {
     val x = typedvar(A)
     val y = typedvar(B)
 
-    val onto = DEF(λ(A, λ(B,
+    val hOnto = DEF(λ(A, λ(B,
       fun(f,
         hforall(B) * fun(y, // ∀ y
           hexists(A) * fun(x, // ∃ x
@@ -429,14 +429,14 @@ object HOLBasics extends lisa.HOL {
             y =:= (f * x) 
     ))))))
 
-    val typing_of_onto = Theorem(∀(A, ∀(B, (nonEmpty(A) /\ nonEmpty(B)) ==> onto(A)(B) :: ((A ->: B) ->: 𝔹)))) {
+    val typing_of_onto = Theorem(∀(A, ∀(B, (nonEmpty(A) /\ nonEmpty(B)) ==> hOnto(A)(B) :: ((A ->: B) ->: 𝔹)))) {
       lib.have((nonEmpty(A), nonEmpty(B)) |- fun(f, hforall(B) * fun(y, hexists(A) * fun(x, y =:= (f * x)))) :: ((A ->: B) ->: 𝔹)) by Typecheck.prove
-      thenHave((nonEmpty(A), nonEmpty(B)) |- onto(A)(B) :: ((A ->: B) ->: 𝔹)) by Substitute(onto.definition)
-      thenHave((nonEmpty(A) /\ nonEmpty(B)) ==> onto(A)(B) :: ((A ->: B) ->: 𝔹)) by Restate
+      thenHave((nonEmpty(A), nonEmpty(B)) |- hOnto(A)(B) :: ((A ->: B) ->: 𝔹)) by Substitute(hOnto.definition)
+      thenHave((nonEmpty(A) /\ nonEmpty(B)) ==> hOnto(A)(B) :: ((A ->: B) ->: 𝔹)) by Restate
       thenHave(thesis) by Generalize
     }
 
-    TypedConstantFunctional[Ind >>: Ind >>: Ind]("hOnto", FunctionalClass(List(None, None), List(A, B), ((A ->: B) ->: 𝔹)), typing_of_onto)
+    TypedConstantFunctional[Ind >>: Ind >>: Ind](hOnto.id, FunctionalClass(List(None, None), List(A, B), ((A ->: B) ->: 𝔹)), typing_of_onto)
   }
 
   def inductive(s: Expr[Ind]): Expr[Prop] = 
@@ -494,11 +494,11 @@ object HOLBasics extends lisa.HOL {
 
   val succOneOne = HOLTheorem(hOneOne(ind)(ind) * succ):
     // target: succ x = succ y ==> x = y
-    have((succ * x) =:= (succ * y) |- x =:= y) subproof:
-      sorry
+    // have((succ * x) =:= (succ * y) |- x =:= y) subproof:
+      // sorry
     sorry
 
-  val succNotOnto = Theorem(hnot * (hOnto(ind)(ind) * succ)):
+  val succNotOnto = HOLTheorem(hnot * (hOnto(ind)(ind) * succ)):
     sorry
     
   ////////////////////////////////////////////////////
