@@ -14,6 +14,12 @@ import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.ProofTacticLib._
 import lisa.utils.prooflib.SimpleDeducedSteps._
 import lisa.utils.unification.UnificationUtils.Substitution
+import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.RightAnd
+import lisa.utils.prooflib.BasicStepTactic.Weakening
+import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 
 object HOLBasics extends lisa.HOL {
 
@@ -82,11 +88,11 @@ object HOLBasics extends lisa.HOL {
       prem.statement match {
         case HOLSequent(left, *(*(=:= #@ (typ), t), u)) =>
           left.foreach(proof.addAssumption(_))
-          have((t :: typ, u :: typ, t =:= u) |- u =:= t) by Weakening(eqSym of (A := typ, x := t, y := u))
-          have(Discharge(prem)(lastStep))
-          have(Discharge(have(HOLProofType(t)))(lastStep))
-          have(Discharge(have(HOLProofType(u)))(lastStep))
-          have(Clean.all(lastStep))
+          val s1 = have((t :: typ, u :: typ, t =:= u) |- u =:= t) by Weakening(eqSym of (A := typ, x := t, y := u))
+          val s2 = have(Discharge(prem)(s1))
+          val s3 = have(Discharge(have(HOLProofType(t)))(s2))
+          val s4 = have(Discharge(have(HOLProofType(u)))(s3))
+          have(Clean.all(s4))
 
         case _ =>
           return proof.InvalidProofTactic(s"The premise is not parseable as an HOL sequent") 
@@ -97,6 +103,9 @@ object HOLBasics extends lisa.HOL {
   /** SYM: t = u |- u = t */
   def SYM(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(prem: proof.Fact) = 
     have(_SYM(prem))
+
+  val holTruth = HOLTheorem(One):
+    have(thesis) by Restate
 
   /**
     * Higher-order embedded universal quantifier.
@@ -143,12 +152,110 @@ object HOLBasics extends lisa.HOL {
     TypedConstantFunctional[Ind]("hand", FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_and)
   }
 
-  val handCorrect = Theorem(
-    (p :: 𝔹, q :: 𝔹) |- (hand * p * q === One) <=> ((p === One) /\ (q === One))
+  val handCorrect = HOLTheorem(
+    (hand * p * q === One) <=> ((p === One) /\ (q === One))
   ):
-    assume(p :: 𝔹, q :: 𝔹)
+    val f = typedvar(𝔹 ->: 𝔹 ->: 𝔹)
+    val proj1 = fun(p, fun(q, p))
+    val proj2 = fun(p, fun(q, q))
+
+    val `beta f` = BETA(fun(f, f * p * q) * f) 
+
+    val leftProjection = // proj1 * p * q = p
+      TRANS(
+        MK_COMB(BETA(proj1 * p), REFL(q)),
+        BETA(fun(q, p) * q)
+      )
+    val rightProjection = // proj2 * p * q = q
+      TRANS(
+        MK_COMB(BETA(proj2 * p), REFL(q)),
+        BETA(fun(q, q) * q)
+      )
+
+    val `beta hand` = have(
+      hand * p * q === (fun(f, f * p * q) =:= fun(f, f * One * One))
+    ) subproof {
+      val inner = fun(f, f * p * q) =:= fun(f, f * One * One)
+      val lq = fun(q, inner)
+      val lp = fun(p, lq)
+      val betaLp = // lp * p * q =:= inner
+        TRANS(
+          MK_COMB(
+            BETA_CONV(lp * p), // lp * p = lq
+            REFL(q)
+          ),
+          BETA_CONV(lq * q) // lq * q = inner
+        )
+      have(lp * p * q === inner) by Tautology.from(
+        betaLp,
+        have(HOLProofType(lp * p * q)),
+        have(HOLProofType(inner)),
+        eqAlign of (A := 𝔹, x := lp * p * q, y := inner)
+      )
+      thenHave(hand === lp |- hand * p * q === inner) by RightSubstEq.withParameters(Seq((hand, lp)), (Seq(x), x * p * q === inner))
+      have(hand * p * q === inner) by Cut(hand.definition, lastStep)
+    }
+
+    val fwd = lib.have((hand * p * q === One) ==> ((p === One) /\ (q === One))) subproof:
+      val reducedProof = have(fun(f, f * p * q) =:= fun(f, f * One * One) |- (p === One) /\ (q === One)) subproof {
+        assumeAll
+        val andEq = have(fun(f, f * p * q) =:= fun(f, f * One * One)) by Restate
+        
+        // ((\p q. f p q) f) One One = ((\p q. f p q) f) p q
+        val appliedEq =
+          have(Clean.all(
+            // f One One = f p q
+            SYM(TRANS(
+              // (\p q. f p q) f One One = f p q
+              TRANS(
+                SYM(`beta f`),
+                MK_COMB(andEq, REFL(f))
+              ),
+              have(Discharge(One.justif)(`beta f` of (p := One, q := One)))
+            ))
+          ))
+        val `p is true` = have(p) subproof:
+          // project appliedEq onto first argument
+          val proj1Eq = 
+            have(Discharge(have(HOLProofType(proj1)))(appliedEq of (f := proj1)))
+          // One =:= p
+          val oneEq = TRANS(
+            SYM(
+              have(Discharge(One.justif)(leftProjection of (p := One, q := One)))
+            ),
+            TRANS(proj1Eq, leftProjection)
+          )
+          EQ_MP(oneEq, holTruth)
+          thenHave(thesis) by Weakening
+
+        val `q is true` = have(q) subproof:
+          // project appliedEq onto second argument
+          val proj2Eq = 
+            have(Discharge(have(HOLProofType(proj2)))(appliedEq of (f := proj2)))
+          // One =:= q
+          val oneEq = TRANS(
+            SYM(
+              have(Discharge(One.justif)(rightProjection of (p := One, q := One)))
+            ),
+            TRANS(proj2Eq, rightProjection)
+          )
+          EQ_MP(oneEq, holTruth)
+          thenHave(thesis) by Weakening
+
+        have(p /\ q) by RightAnd(`p is true`, `q is true`)
+        have(Clean.all(lastStep))
+      }
+
+      have((hand * p * q === One) |- ((p === One) /\ (q === One))) by Substitute(`beta hand`)(reducedProof)
     
-    sorry
+    val bwd = have(((p === One) /\ (q === One)) ==> (hand * p * q === One)) subproof:
+      val rfl = have(fun(f, f * One * One) :: (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹 |- fun(f, f * One * One) =:= fun(f, f * One * One)) by Tautology.from(HOLHelperTheorems.eqRefl of (A := (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹, x := fun(f, f * One * One)))
+      have(fun(f, f * One * One) =:= fun(f, f * One * One)) by Cut(have(HOLProofType(fun(f, f * One * One))), rfl)
+      thenHave((p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * One * One)) by RightSubstEq.withParameters(Seq(p -> One, q -> One), (Seq(p, q), fun(f, f * p * q) =:= fun(f, f * One * One)))
+      thenHave((p === One, q === One) |- hand * p * q) by Substitute(`beta hand`)
+      have(Clean.all(lastStep))
+
+    have(thesis) by RightAnd(fwd, bwd)
 
   /**
     * Higher-order embedded implication.
@@ -433,7 +540,7 @@ object HOLBasics extends lisa.HOL {
     // val forallReduced = TRANS(forallApplied, betaReduced)
 
     // // |- (\x. t x =:= t) =:= One
-    // val baseEq = DEDUCT_ANTISYM_RULE(ETA(x, t), ASSUME(One))
+    // val baseEq = DEDUCT_ANTISYM_RULE(ETA(x, t), holTruth)
     
     // // |- pred =:= fun(t, One)
     // val absEq = ABS(t)(baseEq)

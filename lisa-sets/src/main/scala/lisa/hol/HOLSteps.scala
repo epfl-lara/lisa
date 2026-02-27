@@ -22,6 +22,8 @@ import HOLHelperTheorems.nonEmptyTypeExists
 object HOLSteps extends lisa._HOL {
   import lisa.SetTheoryLibrary.{*, given}
 
+  val lib = lisa.SetTheoryLibrary
+
   // Helper to extract typing context from a sequent
   @deprecated
   def extractContext(s: F.Sequent): Map[Variable[Ind], Typ] = ???
@@ -298,6 +300,7 @@ object HOLSteps extends lisa._HOL {
     def apply(using proof: Proof)(t1: proof.Fact, t2: proof.Fact): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
       val s1 = t1.statement
       val s2 = t2.statement
+
       (s1, s2) match {
         case (HOLSequent(left1, *(*(=:= #@ (aa), s), ta)), HOLSequent(left2, (=:= #@ (ab)) * tb * u)) => // equality is too strict
           if isSame(ta, tb) then
@@ -444,6 +447,7 @@ object HOLSteps extends lisa._HOL {
    */
   object _BETA_CONV extends ProofTactic {
     def apply(using proof: Proof)(tin: Expr[Ind]): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
+      ip.cleanAssumptions
       tin match
         case Sabs(typ1, Abs(xx, tt)) * (r: Expr[Ind]) =>
           // val betaConv = Theorem(((x :: A), tforall(x :: A, t(x)::B))|- holeq(B)*(abs(A)(t) * x) *t(x))
@@ -455,8 +459,8 @@ object HOLSteps extends lisa._HOL {
           )
           // Prove typing for tt: build tforall (may have free variable assumptions)
           val ttPre = have(HOLProofType(tt))
-          val ttImp = have(ttPre.statement.left.filterNot(isSame(_, vx :: typ1)) |- (vx :: typ1) ==> (tt :: typ2)) by Weakening(ttPre)
-          val ttypForall = have(ttImp.statement.left |- tforall(vx :: typ1, tt :: typ2)) by RightForall(ttImp)
+          val ttImp = thenHave(ttPre.statement.left.filterNot(isSame(_, vx :: typ1)) |- (vx :: typ1) ==> (tt :: typ2)) by Weakening
+          val ttypForall = thenHave(ttImp.statement.left.filterNot(isSame(_, vx :: typ1)) |- tforall(vx :: typ1, tt :: typ2)) by RightForall
           val h1 = have(Discharge(ttypForall)(s1))
           val h2 = have(Discharge(have(HOLProofType(r)))(h1))
           have(Clean.all(h2))
