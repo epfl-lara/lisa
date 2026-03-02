@@ -26,19 +26,26 @@ import lisa.utils.prooflib._
  * The tactic uses uses this path to produce needed proofs.
  */
 object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
-
   def from(using lib: Library, proof: lib.Proof)(context: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement =
-    val newAssumptions = context.toSet.map(s => (betaReduce(orAllOrFalse(s.statement.right)), s)).filter((f, s) => !bot.left.contains(f))
+    val newAssumptions: Seq[(Expr[Prop], proof.Fact)] = context.map(s => (betaReduce(orAllOrFalse(s.statement.right)), s)).filter((f, s) => !bot.left.contains(f))
     val botWithAssumptions = bot.left ++ newAssumptions.map(_._1) |- bot.right
     var seq = botWithAssumptions
 
     TacticSubproof {
       import lib.*
 
-      have(seq) by this
-      for ((assumption, f) <- newAssumptions) {
-        seq = (seq.left - assumption) ++ f.statement.left |- seq.right
-        have(seq) by Cut(f, lastStep)
+      have(botWithAssumptions) by this
+      for ((assumption, f) <- newAssumptions.reverse) {
+        val assumsOfPrem = f.statement.left
+        if lastStep.statement.left.contains(assumption) then
+          val seq = (lastStep.statement.left - assumption) ++ assumsOfPrem |- lastStep.statement.right
+          have(seq) by Cut(f, lastStep)
+          assumsOfPrem.foldLeft(lastStep) { (step, a) =>
+            if !bot.left.exists(botAssumption => isSame(a, botAssumption)) then
+              val aProof = have((step.statement.left - a) |- a) by this //TODO: catch errors
+              have(step.statement -<< a) by Cut(aProof, step)
+            else step
+          }
       }
     }
 
