@@ -24,7 +24,7 @@ object Import extends lisa.HOL:
   sealed trait ImportException extends Exception
   case class InvalidAbstractionException(term: h.Term) extends Exception(s"Invalid abstraction term: $term. Expected a variable.") with ImportException
   case class InvalidDefinitionException(name: String, term: h.Term) extends Exception(s"Invalid definition for constant $name: $term. Expected a term of the form 'name = body'.") with ImportException
-  case class MalformedConstantInstance(name: String, tpe: h.Type) extends Exception(s"Malformed instance of constant $name with type $tpe. No matching definition found.") with ImportException
+  case class MalformedConstantInstance(name: String, tpe: Expr[Ind]) extends Exception(s"Malformed instance of constant $name with type $tpe. No matching definition found.") with ImportException
   case class UnknownAxiom(expr: Expr[Ind]) extends Exception(s"Unknown axiom: $expr. No matching HOL Light axiom found.") with ImportException
 
   // logging
@@ -93,12 +93,14 @@ object Import extends lisa.HOL:
     def unapply(term: h.Term): Option[Definition] =
       term match
         case h.Combination(h.Combination(h.Constant("=", _), h.Constant(name, tt)), body) =>
+          // the constant is not defined at this point, so we have to be careful
+          // to not attempt to look it up in the current context
           val abstractType = tt.toLisaType
           Some(
             Definition(
               name = name,
               abstractType = abstractType,
-              typeArgs = abstractType.freeVars.collect { case v: Variable[?] => v.asInstanceOf }.toSeq,
+              typeArgs = abstractType.freeVars.collect { case v: Variable[?] => v.asInstanceOf[Variable[Ind]] }.toSeq,
               body = body.toLisaTerm
             )
           )
@@ -126,9 +128,12 @@ object Import extends lisa.HOL:
     def lookupTypeConstant(name: String): HOLConstantType = 
       typeDefinitions.get(name) match
         case None => throw new NoSuchElementException(s"Type constant $name is not defined.")
-        case Some(cst) => cst.cst    
+        case Some(cst) => cst.cst
+
+    def isDefinedType(name: String): Boolean = typeDefinitions.contains(name)
+    def isDefinedConstant(name: String): Boolean = constantDefinitions.contains(name)
       
-    def lookupTypedConstant(name: String, tpe: h.Type): Expr[Ind] = 
+    def lookupTypedConstant(name: String, tpe: Expr[Ind]): Expr[Ind] = 
       // translate type to lisa expr, then match against the known
       // abstract type of the constant, instantiating the definition 
       // appropriately
@@ -136,32 +141,31 @@ object Import extends lisa.HOL:
         case None => throw new NoSuchElementException(s"Constant $name is not defined.")
         case Some(DefinedConstant(cst, typeVars, cstType, definition)) =>
           // find the instantiation of type variables
-          val lisaType = tpe.toLisaType
-          matchExpr(using RewriteContext.empty)(lisaType, cstType) match
+          
+          debug(s"[Constant Lookup] Looking up constant $name with type $tpe. Known abstract type is $cstType with type variables {${typeVars.mkString(", ")}}.")
+
+          matchExpr(using RewriteContext.empty)(cstType, tpe) match
             case None => throw MalformedConstantInstance(name, tpe)
             case Some(subst) =>
+              debug(s"[Constant Lookup] Match successful with substitution: ${subst.map { case (k, v) => s"$k -> $v" }.mkString(", ")}")
               val typeArgs = typeVars.map(v => subst(v).getOrElse(v))
               val appliedCst = (cst #@@ typeArgs).asInstanceOf[Expr[Ind]]
 
               appliedCst
 
-    def lookupTypedConstantDefinition(using proof: lib.Proof)(name: String, tpe: h.Type): (Expr[Ind], proof.Fact) = 
+    /**
+      * Lookup the definition of a constant, given its name. The returned
+      * definition will possibly have free type variables, which are returned as
+      * the first element.
+      */
+    def lookupConstantDefinition(name: String): (Seq[Variable[Ind]], Justification) = 
       // translate type to lisa expr, then match against the known
       // abstract type of the constant, instantiating the definition 
       // appropriately
       constantDefinitions.get(name) match
         case None => throw new NoSuchElementException(s"Constant $name is not defined.")
         case Some(DefinedConstant(cst, typeVars, cstType, definition)) =>
-          // find the instantiation of type variables
-          val lisaType = tpe.toLisaType
-          matchExpr(using RewriteContext.empty)(lisaType, cstType) match
-            case None => throw MalformedConstantInstance(name, tpe)
-            case Some(subst) =>
-              val typeArgs = typeVars.map(v => subst(v).getOrElse(v))
-              val appliedCst = (cst #@@ typeArgs).asInstanceOf[Expr[Ind]]
-              val instantiatedDef = definition.of(subst.asSubstPair*)
-
-              (appliedCst, instantiatedDef)
+          (typeVars, definition)
 
     def register(name: String, cst: Constant[?], typeVars: Seq[Variable[Ind]], cstType: Expr[Ind], definition: Justification): Unit =
       if constantDefinitions.contains(name) then
@@ -256,7 +260,7 @@ object Import extends lisa.HOL:
     def toLisaTerm : Expr[Ind] =
       term match
         case v @ h.Variable(_, _) => v.toLisaVar 
-        case h.Constant(name, tpe) => Constants.lookupTypedConstant(name, tpe)
+        case h.Constant(name, tpe) => Constants.lookupTypedConstant(name, tpe.toLisaType)
         case h.Combination(left, right) => left.toLisaTerm @@ right.toLisaTerm
         case h.Abstraction(absVar, inner) =>
           fun(absVar.toLisaVar, inner.toLisaTerm)
@@ -279,26 +283,124 @@ object Import extends lisa.HOL:
         debug(s"Theorem with id $index not found cached. Starting reconstruction.")
         // reconstruct the step from the HOL Light proof
         val step = extractor.getTheorem(index)
-        val goal = step.statement.toLisaSequent
 
-        // give the theorem a custom qualified name
-        val sanitizedName = sanitize(name)
-        val baseName = summon[sourcecode.Name].value.stripSuffix(".")
-        val theoremName = sourcecode.FullName(s"$baseName.$sanitizedName")
+        def processGeneric(step: JustifiedTheorem): Justification =
+            val goal = step.statement.toLisaSequent
 
-        debug(s"Reconstructing theorem #$index.")
+            // give the theorem a custom qualified name
+            val sanitizedName = sanitize(name)
+            val baseName = summon[sourcecode.Name].value.stripSuffix(".")
+            val theoremName = sourcecode.FullName(s"$baseName.$sanitizedName")
 
-        val reconstructed = HOLTheorem(using 
-          summon[OutputManager],
-          theoremName, // just need to set the right name for better tracking
-          summon[sourcecode.Line],
-          summon[sourcecode.File]
-        )(goal) { reconstructStep(step) }
+            debug(s"Reconstructing theorem #$index.")
+
+            HOLTheorem(using 
+              summon[OutputManager],
+              theoremName, // just need to set the right name for better tracking
+              summon[sourcecode.Line],
+              summon[sourcecode.File]
+            )(goal) { reconstructStep(step) }
+
         
+        val reconstructed = 
+          step.proof match
+            case s: h.AXIOM => 
+              // recover a matching axiom
+              reconstructAxiom(s)
+            case s: h.DEFINITION => 
+              // deal with it as a definition
+              // where not all symbols are defined yet
+              reconstructConstantDefinition(s)
+            case s: h.TYPE_DEFINITION => 
+              reconstructTypeDefinition(s)
+            case _ =>
+              // any other step should become a theorem
+              processGeneric(step)
+          
         theoremMap(index) = reconstructed
 
         reconstructed
 
+  private def reconstructAxiom(using extractor: ExtractorContext)(step: h.AXIOM): Justification =
+    val h.AXIOM(term) = step
+    val lisaTerm = term.toLisaTerm
+    Axioms.fromHOL(lisaTerm)
+
+  private def reconstructTypeDefinition(using extractor: ExtractorContext)(step: h.TYPE_DEFINITION): Justification = 
+    ???
+
+  private def reconstructConstantDefinition(using extractor: ExtractorContext)(step: h.DEFINITION): Justification =
+    val h.DEFINITION(name, term) = step
+    // the definition is of the form `name = body`, 
+    // where `name` is not yet defined at this point;
+    // possibly with free type variables, e.g. v[A]
+
+    // we extract just the body and use it to define the constant
+    term match
+      case Definition(name, abstractType, typeArgs, body) =>
+        if Constants.isDefinedConstant(name) then
+          // just retrieve the existing definition
+          debug(s"Constant $name already defined. Retrieving existing definition.")
+          Constants
+            .lookupConstantDefinition(name)
+            ._2 // discard the free variable data
+        else
+          // actually define the constant, and register it for future lookup
+          debug(s"Defining new constant $name with abstract type $abstractType and body $body. Type variables are {${typeArgs.mkString(", ")}}.")
+
+          val definitionTerm = 
+            typeArgs.foldRight(body: Expr[?])((v, acc) => λ(v, acc))
+          
+          val cleanedName =
+            val baseName = summon[sourcecode.Name].value.stripSuffix(".")
+            val sanitized = sanitize(name)
+            sourcecode.FullName(s"$baseName.$sanitized")
+
+          val cst = DEF(using
+            summon[OutputManager],
+            cleanedName,
+            summon[sourcecode.Line],
+            summon[sourcecode.File]
+          )(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
+
+          val nonEmptyAssumptions = typeArgs.map(nonEmpty)
+          val conj = nonEmptyAssumptions.reduceOption(_ /\ _).getOrElse(⊤)
+
+          val appliedCst: Expr[Ind] = (cst #@@ typeArgs).asInstanceOf
+          val baseTyping = appliedCst :: abstractType
+
+          val fullTyping = typeArgs.foldRight(conj ==> baseTyping): (v, inner) =>
+            ∀(v, inner)
+
+          val typeJust = Lemma(fullTyping){ proof ?=>
+
+            lib.have(nonEmptyAssumptions |- body :: abstractType) by Typecheck.prove
+            thenHave(nonEmptyAssumptions |- appliedCst :: abstractType) by Substitute(cst.definition)
+
+            thenHave(conj ==> baseTyping) by Restate
+            
+            typeArgs.foldRight(lastStep: proof.Fact): (v, premise) => 
+              val prev = premise.statement.right.head // inv: always singleton
+              lib.have(∀(v, prev)) by RightForall(premise)
+          }
+
+          val funClass = FunctionalClass(
+            inTyp = typeArgs.map(_ => None),
+            args = typeArgs,
+            outTyp = abstractType
+          )
+
+          // lift this to an HOL Constant
+          val holCst = 
+            TypedConstantFunctional(cst.id, funClass, typeJust)(using unsafeSortEvidence(cst.sort))
+
+          // register this constant and definition
+          Constants.register(name, holCst, typeArgs, abstractType, cst.definition)
+          
+          cst.definition
+      case _ => 
+        throw InvalidDefinitionException(name, term)
+    
   private def reconstructStepIndex(using extractor: ExtractorContext, ctx: lib.Proof)(index: Long): ctx.Fact =
     theoremMap.get(index) match
       case Some(just) => just
@@ -366,58 +468,8 @@ object Import extends lisa.HOL:
         val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaType) }
         INST_TYPE(lisaInst.toSeq, fromFact)
       case h.AXIOM(term) => Axioms.fromHOL(term.toLisaTerm)
-      case h.DEFINITION(name, term) => 
-        // the definition is of the form ???
-        // possibly with free type variables, e.g. v[A]
-        term match
-          case Definition(name, abstractType, typeArgs, body) =>
-            val definitionTerm = 
-              typeArgs.foldRight(body: Expr[?])((v, acc) => λ(v, acc))
-            
-            val cleanedName =
-              val baseName = summon[sourcecode.Name].value.stripSuffix(".")
-              val sanitized = sanitize(name)
-              sourcecode.FullName(s"$baseName.$sanitized")
-
-            val cst = DEF(using
-              summon[OutputManager],
-              cleanedName,
-              summon[sourcecode.Line],
-              summon[sourcecode.File]
-            )(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
-
-            val nonEmptyAssumptions = typeArgs.map(nonEmpty)
-            val conj = nonEmptyAssumptions.reduceOption(_ /\ _).getOrElse(⊤)
-
-            val appliedCst: Expr[Ind] = (cst #@@ typeArgs).asInstanceOf
-            val baseTyping = appliedCst :: abstractType
-
-            val fullTyping = typeArgs.foldRight(conj ==> baseTyping): (v, inner) =>
-              ∀(v, inner)
-
-            val typeJust = Lemma(fullTyping){ proof ?=>
-
-              lib.have(nonEmptyAssumptions |- body :: abstractType) by Typecheck.prove
-              thenHave(nonEmptyAssumptions |- appliedCst :: abstractType) by Substitute(cst.definition)
-
-              thenHave(conj ==> baseTyping) by Restate
-              
-              typeArgs.foldRight(lastStep: proof.Fact): (v, premise) => 
-                val prev = premise.statement.right.head // inv: always singleton
-                lib.have(∀(v, prev)) by RightForall(premise)
-            }
-
-            // lift this to an HOL Constant
-            val holCst = HOLConstant(cst.id, abstractType, typeJust)
-
-            // register this constant and definition
-            Constants.register(name, holCst, typeArgs, abstractType, cst.definition)
-            
-            cst.definition
-          case _ => 
-            throw InvalidDefinitionException(name, term)
-        
-      case h.TYPE_DEFINITION(name, term, just) => ???
+      case s @ h.DEFINITION(name, term) => reconstructConstantDefinition(s)
+      case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(s) 
 
   end reconstructStep
 
