@@ -30,8 +30,8 @@ val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
-    //"-Wconf:msg=.*will never be selected.*:silent",
-    "-Wconf:msg=.*trait or object is defined in the compilation unit.*:silent,msg=.*not declared infix.*:silent",
+    "-Wconf:msg=.*is not declared infix*:silent",
+    "-Wconf:msg=.*trait or object is defined in the compilation unit.*:silent",
     "-language:experimental.modularity"
   ),
   javaOptions += "-Xmx10G",
@@ -101,6 +101,14 @@ ThisBuild / assemblyMergeStrategy := {
 lazy val examples = Project(
   id = "lisa-examples",
   base = file("lisa-examples")
+)
+  .settings(commonSettings)
+  .settings(commonSettings3)
+  .dependsOn(root)
+
+lazy val coc = Project(
+  id = "lisa-coc",
+  base = file("lisa-coc")
 )
   .settings(commonSettings)
   .settings(commonSettings3)

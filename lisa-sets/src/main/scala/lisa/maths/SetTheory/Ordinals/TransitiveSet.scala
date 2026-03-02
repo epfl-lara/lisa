@@ -2,7 +2,6 @@ package lisa.maths.SetTheory.Ordinals
 
 import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation._
-import lisa.maths.SetTheory.Relations.Predef._
 
 /**
  * A transitive set `A` is a set such that elements of elements of `A` are also in `A`:

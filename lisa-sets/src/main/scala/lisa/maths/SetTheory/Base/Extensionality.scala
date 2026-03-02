@@ -5,8 +5,6 @@ import lisa.SetTheoryLibrary.{_, given}
 import lisa.automation.Tautology
 import lisa.utils.fol.FOL.{_, given}
 import lisa.utils.prooflib.BasicStepTactic._
-import lisa.utils.prooflib.ProofTacticLib.ProofTactic
-import lisa.utils.prooflib.SimpleDeducedSteps._
 
 /**
  * Given the equivalence `z ∈ x <=> z ∈ y`, proves that `x = y` if `z` is free.

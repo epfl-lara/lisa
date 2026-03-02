@@ -1,7 +1,6 @@
 package lisa.maths.SetTheory.Base
 
 import Singleton.singleton
-import Subset.⊂
 import Symbols._
 
 /**

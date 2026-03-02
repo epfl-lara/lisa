@@ -1,9 +1,7 @@
 package lisa.maths.SetTheory.Ordinals
 
-import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Order.Predef._
-import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation._
 
 import Ordinal._

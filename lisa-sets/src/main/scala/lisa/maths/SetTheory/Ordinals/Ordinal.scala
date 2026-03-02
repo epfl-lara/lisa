@@ -1,6 +1,5 @@
 package lisa.maths.SetTheory.Ordinals
 
-import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Order
 import lisa.maths.SetTheory.Order.Predef._

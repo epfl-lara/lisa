@@ -1,11 +1,11 @@
 package lisa.test.automation
 
-import lisa.SetTheoryLibrary.{_, given}
-import lisa.automation.Substitution._
-import lisa.automation.Tableau._
-import lisa.utils.K.SCProofChecker.checkSCProof
-import lisa.utils.fol.FOL._
-import lisa.utils.prooflib.Exports._
+
+
+
+
+
+
 import org.scalatest.funsuite.AnyFunSuite
 
 class TableauTest extends AnyFunSuite {

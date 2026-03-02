@@ -1,11 +1,8 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL
 import lisa.kernel.proof.RunningTheoryJudgement
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
-import lisa.kernel.proof.SCProof
 import lisa.utils.KernelHelpers.prettySCProof
-import lisa.utils.KernelHelpers.repr
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.Library
 
@@ -13,9 +10,8 @@ abstract class LisaException(errorMessage: String)(using val line: sourcecode.Li
   def showError: String
 }
 
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.KernelHelpers._
 
-import java.io.File
 object LisaException {
 
   case class InvalidKernelJustificationComputation(errorMessage: String, underlying: RunningTheoryJudgement.InvalidJustification[?], proof: Option[Library#Proof])(using

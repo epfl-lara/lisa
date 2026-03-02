@@ -5,10 +5,8 @@ import lisa.utils.K.Identifier
 import lisa.utils.K.given_Conversion_String_Identifier
 import lisa.utils.KernelHelpers.freshId
 
-import scala.annotation.nowarn
 import scala.annotation.showAsInfix
 import scala.annotation.targetName
-import scala.util.Sorting
 
 trait Syntax {
 
@@ -182,7 +180,7 @@ trait Syntax {
      * The sort of the expression
      */
     val sort: K.Sort
-    private val arity = K.flatTypeParameters(sort).size
+    def arity = K.flatTypeParameters(sort).size
 
     /**
      * The underlying kernel expression
@@ -204,10 +202,10 @@ trait Syntax {
      *   case f(a, b, c) => ...
      * }}}
      */
-    def unapplySeq[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] =
+    def unapply2[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] =
       def inner[Target](e: Expr[Target]): Option[ArgsTo[S, Target]] = e match
         case App(f2, arg) if this == f2 => Some((arg *: EmptyTuple).asInstanceOf[ArgsTo[S, Target]])
-        case App(f2, arg) => inner(f2).map(value => (arg *: value).asInstanceOf[ArgsTo[S, Target]])
+        case App(f2, arg) => inner(f2).map(value => (value :* arg).asInstanceOf[ArgsTo[S, Target]])
         case _ => None
       inner[Target](e)
 
@@ -371,7 +369,7 @@ trait Syntax {
      */
     def freshRename(existing: Iterable[Expr[?]]): Variable[S] = {
       val newId = K.freshId(existing.flatMap(_.freeVars.map(_.id)), id)
-      Variable(newId)
+      rename(newId)
     }
     override def toString(): String = id.toString
 
@@ -386,6 +384,10 @@ trait Syntax {
    */
   object Variable {
     def unsafe(id: String, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
+    def fresh[S: Sort](existing: Iterable[Expr[?]], baseId: String = "v"): Variable[S] = {
+      val newId = freshId(existing.flatMap(_.freeVars.map(_.id)), baseId)
+      Variable[S](newId)
+    }
 
     /**
      * Constructs a variable whose sort is only known at runtime.
@@ -401,7 +403,7 @@ trait Syntax {
   case class Constant[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
     val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
-    private var customPrinter: Option[Seq[Expr[?]] => String] = None
+    var customPrinter: Option[Seq[Expr[?]] => String] = None
 
     /**
      * Set the variable to be printed infix.
@@ -558,7 +560,8 @@ trait Syntax {
       lazy val frees = m.values.flatMap(_.freeVars).toSet
       if m.keySet.contains(v) || frees.contains(v) then
         // rename
-        val v1: Variable[S] = Variable.unsafe(freshId(frees.map(_.id), v.id), v.sort).asInstanceOf
+        val v1 = v.freshRename(frees)
+        // val v1: Variable[S] = Variable.unsafe(freshId(frees.map(_.id), v.id), v.sort).asInstanceOf
         new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
       else new Abs(v, body.substituteUnsafe(m))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[S, T] =

@@ -1,6 +1,6 @@
 package lisa.maths.SetTheory.Relations
 
-import lisa.maths.SetTheory.Base.Predef.{_, given}
+import lisa.maths.SetTheory.Base.Predef._
 
 import Relation._
 

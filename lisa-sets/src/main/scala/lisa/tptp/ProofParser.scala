@@ -1,19 +1,16 @@
 package lisa.tptp
 
-import leo.datastructures.TPTP.AnnotatedFormula
 import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
 import leo.datastructures.TPTP.FOTAnnotated
 import leo.modules.input.{TPTPParser => Parser}
 import lisa.automation.Tableau
-import lisa.automation.Tableau.instantiate
 import lisa.automation.Tautology
 import lisa.utils.K
 
 import java.io.File
 
-import K.{repr, -<<, +<<, ->>, +>>, |-}
-import Parser.TPTPParseException
+import K.{repr, +<<, ->>, +>>, |-}
 import KernelParser._
 import K.given
 

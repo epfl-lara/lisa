@@ -1,8 +1,5 @@
 package lisa.utils.collection
 
-import scala.collection.immutable.SeqOps
-import scala.collection.immutable.VectorBuilder
-
 object Extensions:
 
   extension [A](seq: IterableOnce[A])

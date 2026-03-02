@@ -8,7 +8,6 @@ import lisa.utils.fol.FOL.{_, given}
 import lisa.utils.memoization.memoized
 import lisa.utils.prooflib.BasicStepTactic
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.SimpleDeducedSteps
 
 /**
  * General utilities for unification, substitution, and rewriting

@@ -2,8 +2,6 @@ package lisa.maths.SetTheory.Base
 
 import scala.annotation.targetName
 
-import Class._
-
 /**
  * The replacement axiom schema states that for any class-function `F : V -> V`
  * and any set `S`, one can define the set `R = {F(x) | x ∈ S}`.

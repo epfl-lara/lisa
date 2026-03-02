@@ -1,22 +1,48 @@
-package lisa.maths.SetTheory.Types.Dependent
+package lisa.maths.SetTheory.Types
 
-import lisa.utils.prooflib.*
-import lisa.utils.prooflib.ProofTacticLib.*
-import lisa.utils.prooflib.Library
-import lisa.utils.fol.{FOL => F}
-import scala.collection.Set
 import lisa.SetTheoryLibrary
-import TypingRules.{TVar, TAbs, TApp, TSort, TConvAdv}
-import lisa.maths.SetTheory.Base.Predef.∪
-import lisa.maths.SetTheory.Base.Subset.{reflexivity, transitivity, doubleInclusion}
-import lisa.maths.SetTheory.Base.Union.{commutativity, leftUnionSubset}
-import lisa.maths.SetTheory.Cardinal.Predef.{isUniverse, universeOf, universeOfIsUniverse}
+import lisa.automation._
+import lisa.maths.SetTheory.Base.Subset.doubleInclusion
+import lisa.maths.SetTheory.Base.Subset.reflexivity
+import lisa.maths.SetTheory.Base.Subset.transitivity
+import lisa.maths.SetTheory.Cardinal.Predef.isUniverse
+import lisa.maths.SetTheory.Cardinal.Predef.universeOf
+import lisa.maths.SetTheory.Cardinal.Predef.universeOfIsUniverse
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.utils.fol.{FOL => F}
+import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.ProofTacticLib._
 
-import Symbols.*
-import Helper.{unionAbsorbVariant, subsetOfUniverse, unionEqual, universeHierarchyPiClosureRight, universeHierarchyPiClosureLeft, piCovariance}
+import scala.collection.Set
+
+import F.{∀ => _, _}
+import TypingRules.{TAbs, TApp, TSort, TConvAdv}
+import TypingHelpers._
+import TypingTheorems.{universeHierarchyPiClosureLeft, universeHierarchyPiClosureRight, subsetOfUniverse, piCovariance}
 
 object Tactics:
-  val x, y, z, A, B, C = variable[Ind]
+  val x, y, z, A, B, C: Variable[Ind] = variable[Ind]
+  // Base term
+  private val e1, e2: Variable[Ind] = variable[Ind]
+
+  // Function
+  private val e = variable[Ind >>: Ind]
+
+  // Base type
+  private val T, T1: Variable[Ind] = variable[Ind]
+
+  // Dependent type
+  private val T2, T2p: Variable[Ind >>: Ind] = variable[Ind >>: Ind]
+
+  // Proposition
+  private val Q, H: Variable[Ind >>: Prop] = variable[Ind >>: Prop]
+
+  // Type Universe
+  private val U, U1, U2: Variable[Ind] = variable[Ind]
+
+  // Proposition
+  private val p: Variable[Prop] = variable[Prop]
+
   object Typecheck extends ProofTactic:
     // Helper function: get universe level
     def getDepth(e: Expr[Ind]): Int = e match
@@ -56,7 +82,8 @@ object Tactics:
     def inferProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind]): proof.ProofTacticJudgement =
       import lib.*
       // println("Infer term:" + tm.toString())
-      TacticSubproof {
+      TacticSubproof { ip ?=>
+        ip.cleanAssumptions
         tm match
           // e1: Π(x:T1).T2, e2: T1 => e1(e2): T2(e2)
           case Sapp(func: Expr[Ind], tm2: Expr[Ind]) =>
@@ -126,6 +153,24 @@ object Tactics:
             )
 
           // Other cases, like single variable
+          case tCst: TypedConstant => have(tCst.justif)
+          case Multiapp(func, args: List[Expr[Ind]] @unchecked) if args.forall(_.sort == K.Ind) =>
+            func match
+              case tcf: TypedConstantFunctional[?] =>
+                if tcf.arity != args.size then
+                  throw new IllegalArgumentException(
+                    "computeType can only handle fully applied functions. Function " + tcf + " has arity " + tcf.arity + " but was applied to " + args.size + " arguments."
+                  )
+                val subst = (tcf.typ.args zip args).map((v, a) => (v := a))
+                have(tm ∈ tcf.typ.outTyp.substitute(subst*) ++<< (() |- localContext)) by Tautology.from(tcf.justif.of(args*))
+                tcf.typ.outTyp.substitute(subst*)
+
+              case _ =>
+                val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if t1 == tm => t2 }
+                tyOpt match
+                  case Some(ty) => have(tm ∈ ty |- tm ∈ ty) by Hypothesis
+                  case None => have(tm ∈ universeOf(tm)) by Tautology.from(TSort of (U := tm))
+
           case _ =>
             val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if t1 == tm => t2 }
             tyOpt match
@@ -186,6 +231,7 @@ object Tactics:
 
     // Construct subset proof(ty1 ⊆ ty2) for the given two expressions
     def subsetProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): proof.ProofTacticJudgement =
+      import lib.*
       // println("Trying to construct subsetProof for: " + sub.toString() + " ⊆ " + sup.toString())
       TacticSubproof {
         (sub, sup) match

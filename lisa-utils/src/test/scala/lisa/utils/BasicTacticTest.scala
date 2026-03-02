@@ -3,8 +3,6 @@ package lisa.utils
 //import lisa.kernel.proof.SequentCalculus as SC
 import lisa.test.ProofTacticTestLib
 import lisa.utils.prooflib.BasicStepTactic._
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib
 //import org.scalatest.funsuite.AnyFunSuite
 
 class BasicTacticTest extends ProofTacticTestLib {

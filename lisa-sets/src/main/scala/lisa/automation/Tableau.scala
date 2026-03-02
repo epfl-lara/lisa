@@ -7,7 +7,6 @@ import lisa.utils.prooflib.OutputManager._
 import lisa.utils.prooflib.ProofTacticLib._
 
 import scala.collection.immutable.HashMap
-import scala.collection.immutable.HashSet
 
 /**
  * Now need to deal with variables unifying with terms containing themselves

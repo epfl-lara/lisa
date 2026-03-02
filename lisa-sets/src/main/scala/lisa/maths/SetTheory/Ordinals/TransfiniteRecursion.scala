@@ -1,14 +1,10 @@
 package lisa.maths.SetTheory.Ordinals
 
-import lisa.maths.Quantifiers.∃!
-import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Functions.Predef._
-import lisa.maths.SetTheory.Order.Predef._
 import lisa.maths.SetTheory.Order.WellOrders._
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
 
 import Ordinal._
-import WellOrder._
 import InitialSegment._
 import MembershipRelation._
 

@@ -1,21 +1,16 @@
-import leo.datastructures.TPTP
 import lisa.automation.Tableau
 import lisa.automation.Tautology
 import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.tptp.KernelParser._
 import lisa.tptp.ProofParser._
 import lisa.tptp.ProofPrinter._
-import lisa.tptp._
 import lisa.utils.K
 import lisa.utils.KernelHelpers._
-import mainargs.Flag
 import mainargs.ParserForMethods
 import mainargs.arg
 import mainargs.main
 
 import java.io.File
-
-import sys.process._
 
 object TPTP_Lisa {
 

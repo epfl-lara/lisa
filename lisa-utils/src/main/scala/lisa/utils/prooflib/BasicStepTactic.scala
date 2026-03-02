@@ -1,9 +1,9 @@
 package lisa.utils.prooflib
 import lisa.utils.K
-import lisa.utils.KernelHelpers.{|- => `K|-`, _}
+import lisa.utils.KernelHelpers.{|- => _, _}
 import lisa.utils.collection.Extensions._
 import lisa.utils.fol.{FOL => F}
-import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.ProofTacticLib._
 import lisa.utils.prooflib._
 import lisa.utils.unification.UnificationUtils._
 
@@ -41,7 +41,7 @@ object BasicStepTactic {
   object RestateTrue_ extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
-      if (!K.isSameSequent(botK, () `K|-` K.top))
+      if (!K.isSameSequent(botK, K.Sequent(Set(), Set(K.top))))
         proof.InvalidProofTactic("The desired conclusion is not a trivial tautology.")
       else
         proof.ValidProofTactic(bot, Seq(K.RestateTrue(botK)), Seq())
@@ -97,7 +97,7 @@ object BasicStepTactic {
       lazy val intersectedCutSet = rightSequent.left intersect leftSequent.right
 
       if (!cutSet.isEmpty)
-        if (cutSet.tail.isEmpty)
+        if (cutSet.tail.forall(F.isSame(_, cutSet.head)))
           Cut.withParameters(cutSet.head)(prem1, prem2)(bot)
         else
           proof.InvalidProofTactic("Inferred cut pivot is not a singleton set.")
@@ -799,7 +799,7 @@ object BasicStepTactic {
       lazy val quantified = K.forall(xK, phiK)
 
       if ((botK.left union botK.right).exists(_.freeVariables.contains(xK)))
-        proof.InvalidProofTactic("The variable x is free in the resulting sequent.")
+        proof.InvalidProofTactic(s"The variable `$xK` is free in the resulting sequent.")
       else if (!K.isSameSet(botK.left, premiseSequent.left))
         proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise.")
       else if (!K.isSameSet(botK.right + phiK, premiseSequent.right + quantified))
@@ -1219,7 +1219,7 @@ object BasicStepTactic {
         val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
         val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
         val sEqT_es = equalsK map { case (s, t) =>
-          val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).max + 1
+          val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).maxOption.getOrElse(0) + 1
           val vars = (no until no + s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
           val inner1 = vars.foldLeft(s)(_(_))
           val inner2 = vars.foldLeft(t)(_(_))

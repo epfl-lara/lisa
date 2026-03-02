@@ -1,15 +1,45 @@
-package lisa.maths.SetTheory.Types.Dependent
+package lisa.maths.SetTheory.Types
+import lisa.maths.Quantifiers._
+import lisa.maths.SetTheory.Base.Predef.{_, given}
+import lisa.maths.SetTheory.Functions.Predef._
 
-import Symbols.*
-import lisa.maths.SetTheory.Base.Predef.{*, given}
-import lisa.maths.SetTheory.Cardinal.Predef.{*}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.Quantifiers.*
+import TypingHelpers._
 
-/**
- * This file defines some useful helper theorem used in the typing rules
- */
-object Helper extends lisa.Main:
+object TypingTheorems extends lisa.Main:
+
+  // Base term
+  private val e1, e2 = variable[Ind]
+
+  // Function
+  private val e = variable[Ind >>: Ind]
+
+  // Base type
+  private val T, T1 = variable[Ind]
+
+  // Dependent type
+  private val T2, T2p = variable[Ind >>: Ind]
+
+  // Proposition
+  private val Q, H = variable[Ind >>: Prop]
+
+  // Type Universe
+  private val U, U1, U2 = variable[Ind]
+
+  // Proposition
+  private val p = variable[Prop]
+
+  import lisa.maths.SetTheory.Cardinal.Predef.{*}
+
+  val Next = DEF(λ(U, universeOf(U)))
+  def getUniverse(n: Int, base: Expr[Ind]): Expr[Ind] = {
+    if (n == 1) then base
+    else universeOf(getUniverse(n - 1, base))
+  }
+
+  // ============================================================================
+  // Useful Theorems and Lemmas for Typing Rules
+  // ============================================================================
+
   /**
    * Unfolds the Set Comprehension definition of the Pi type.
    *
@@ -72,18 +102,6 @@ object Helper extends lisa.Main:
     assume(y === z)
     have(x === z) by Congruence
     thenHave(thesis) by Restate
-  }
-
-  /**
-   * Transitivity of Equality (Implication form).
-   * This is friendlier for use with Tautology.from.
-   *
-   * Proves: (x = y ∧ y = z) ==> x = z
-   */
-  val equalTransitivityApplication = Theorem(
-    ((x === y) /\ (y === z)) ==> (x === z)
-  ) {
-    have(thesis) by Tautology.from(equalTransitivity)
   }
 
   /**
@@ -180,7 +198,7 @@ object Helper extends lisa.Main:
               thenHave(snd(x, T2(x)) === y) by Substitute(pairEq)
               val yEq = thenHave(y === T2(x)) by Tautology.fromLastStep(
                 Pair.pairSnd of (y := T2(x)),
-                equalTransitivityApplication of (x := y, y := snd(x, T2(x)), z := T2(x))
+                equalTransitivity of (x := y, y := snd(x, T2(x)), z := T2(x))
               )
               have(x ∈ A /\ (T2(x) === T2(x))) by Tautology
               thenHave(∃(a ∈ A, T2(a) === T2(x))) by RightExists

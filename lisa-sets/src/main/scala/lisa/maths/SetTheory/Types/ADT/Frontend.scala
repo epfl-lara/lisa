@@ -1,7 +1,5 @@
 package lisa.maths.SetTheory.Types.ADT
 
-import lisa.utils.fol.FOL._
-
 /**
  * This object provides a DSL for defining algebraic data types (ADTs) and functions over ADT in Lisa.
  * For usage examples, please refer to the documentation of the package or the reference manual.
@@ -14,7 +12,7 @@ object ADTSyntax {
 
   /** Builder for defining a constructor specification.
    *
- * @param param the parameters of the constructor
+   * @param param the parameters of the constructor
    */
   case class ConstructorBuilder(private val param: Seq[ConstructorArgument]) {
 
@@ -24,7 +22,7 @@ object ADTSyntax {
 
     /** Merges the parameters of two constructors.
    *
- * @param b the other constructor
+   * @param b the other constructor
    */
     infix def ++(b: ConstructorBuilder): ConstructorBuilder = ConstructorBuilder(param ++ b.param.toSeq)
 
@@ -34,19 +32,19 @@ object ADTSyntax {
 
     /** Combines two constructors into an ADT.
    *
- * @param b the other constructor
+   * @param b the other constructor
    */
     infix def |(b: ConstructorBuilder): ADTBuilder = this | b.toADTBuilder
 
     /** Adds this constructor to an ADT.
    *
- * @param b the ADT to which the constructor is added
+   * @param b the ADT to which the constructor is added
    */
     infix def |(b: ADTBuilder): ADTBuilder = toADTBuilder | b
 
     /** Outputs the [[UntypedConstructor]] associated with this builder.
    *
- * @param name the name of the constructor
+   * @param name the name of the constructor
    */
     def build(variables1: Seq[Variable[Ind]], variables2: Seq[Variable[Ind]]): SyntacticConstructor = SyntacticConstructor(param, variables1, variables2)
   }
@@ -69,7 +67,7 @@ object ADTSyntax {
 
   /** Converts a value into a [[ConstructorBuilder]].
    *
- * @param any the value to convert
+   * @param any the value to convert
    * @param c the converter that is used for the conversion
    */
   private def any_to_const[T](any: T)(using c: ConstructorConverter[T]): ConstructorBuilder = c(any)
@@ -123,14 +121,14 @@ object ADTSyntax {
   extension [T1](left: T1)(using c1: ConstructorConverter[T1])
     /** Converts two values into constructors and combines them into an ADT.
    *
- * @param right the other value to convert
+   * @param right the other value to convert
    * @param c2 the implicit converter for the second value
    */
     infix def |[T2](right: T2)(using c2: ConstructorConverter[T2]): ADTBuilder = any_to_const(left) | any_to_const(right)
 
   /** Builder for defining ADT specifications.
    *
- * @param constructors the builders for each constructor of the ADT.
+   * @param constructors the builders for each constructor of the ADT.
    */
   case class ADTBuilder(private val constructors: Seq[ConstructorBuilder]) {
 
@@ -140,26 +138,26 @@ object ADTSyntax {
 
     /** Combines this ADT with another one.
    *
- * @param b the other ADT
+   * @param b the other ADT
    */
     infix def |(b: ADTBuilder): ADTBuilder = ADTBuilder(constructors ++ b.constructors)
 
     /** Adds a constructor to this ADT.
    *
- * @param b the constructor to add
+   * @param b the constructor to add
    */
     infix def |(b: ConstructorBuilder): ADTBuilder = this | b.toADTBuilder
 
     /** Converts a value into a constructor and adds it to this ADT.
    *
- * @param t the value to convert
+   * @param t the value to convert
    * @param c the implicit converter
    */
     infix def |[T](t: T)(using c: ConstructorConverter[T]): ADTBuilder = this | any_to_const(t)
 
     /** Outputs the corresponding ADT and its constructors.
    *
- * @tparam N the number of type variables appearing in the specification of the ADT
+   * @tparam N the number of type variables appearing in the specification of the ADT
    * @param typeVariables the type variables of the ADT
    * @param names the names of the constructors and of the ADT
    */
@@ -196,7 +194,7 @@ object ADTSyntax {
 
   /** Builder for defining polymorphic ADT specifications.
    *
- * @tparam N the number of type variables of the ADT
+   * @tparam N the number of type variables of the ADT
    * @param typeVariable the type variables of the ADT
    * @param specification the builder for ADT
    */
@@ -204,19 +202,19 @@ object ADTSyntax {
 
     /** Outputs the corresponding ADT and its constructors.
    *
- * @param names the names of the constructors and of the ADT
+   * @param names the names of the constructors and of the ADT
    */
     def build(names: Seq[String]) = specification.build(typeVariables, names)
 
     /** Adds a constructor to the ADT specification
    *
- * @param b the builder of the constructor
+   * @param b the builder of the constructor
    */
     def |(b: ConstructorBuilder): PolymorphicADTBuilder[N] = PolymorphicADTBuilder(typeVariables, specification | b)
 
     /** Adds a constructor to the ADT specification
    *
- * @param t the value to be converted into a constructor
+   * @param t the value to be converted into a constructor
    */
     def |[T](t: T)(using ConstructorConverter[T]): PolymorphicADTBuilder[N] = |(any_to_const(t))
   }
@@ -270,13 +268,13 @@ object ADTSyntax {
 
     /** Extract all the scala identifiers defined in the same line or after an expression.
    *
- * @param e the expression around which the names are extracted
+   * @param e the expression around which the names are extracted
    */
     inline def extractNames[T](e: T): Seq[String] = ${ extractNames('{ e }) }
 
     /** Macro implementing [[this.extractNames]].
    *
- * @param e the quoted expression around which the names are extracted
+   * @param e the quoted expression around which the names are extracted
    */
     private def extractNames[T](using Quotes)(e: Expr[T]): Expr[Seq[String]] =
 
@@ -313,7 +311,7 @@ object ADTSyntax {
 
     /** Extracts the constructors from an ADT.
    *
- * @param adt the ADT
+   * @param adt the ADT
    * @return a tuple containing the ADT and its constructors
    */
     private def extractConstructors[N <: Arity](adt: ADT[N]): (ADT[N], constructors[N]) = (adt, constructors(adt.constructors*))
@@ -321,21 +319,21 @@ object ADTSyntax {
     /** Outputs a polymorphic ADT and constructors from a user specification
    * Needs to be inline in order to fetch the name of the ADT and the constructor.
    *
- * @param builder the builder user for specifying the ADT
+   * @param builder the builder user for specifying the ADT
    */
     inline def unapply[N <: Arity](builder: PolymorphicADTBuilder[N]): (ADT[N], constructors[N]) = builder.build(Macro.extractNames(builder))
 
     /** Outputs a (non polymorphic) ADT and constructors from a user specification.
    * Needs to be inline in order to fetch the name of the ADT and the constructor.
    *
- * @param builder the builder user for specifying the ADT
+   * @param builder the builder user for specifying the ADT
    */
     inline def unapply(builder: ADTBuilder): (ADT[0], constructors[0]) = unapply[0](() --> builder)
 
     /** Returns an ADT containing only one constructor out of a user specification.
    * Needs to be inline in order to fetch the name of the ADT and the constructor.
    *
- * @param builder the builder of the unique constructor of the ADT
+   * @param builder the builder of the unique constructor of the ADT
    */
     private inline def unapply(builder: ConstructorBuilder): (ADT[0], constructors[0]) = unapply(builder.toADTBuilder)
 
@@ -343,7 +341,7 @@ object ADTSyntax {
    * the provided type.
    * Needs to be inline in order to fetch the name of the ADT and the constructor.
    *
- * @param t type given by the user
+   * @param t type given by the user
    */
     inline def unapply(t: Expr[Ind]): (ADT[0], constructors[0]) = unapply(term_to_const(t))
 
@@ -351,7 +349,7 @@ object ADTSyntax {
    * constructor (non-inductive and taking no arguments).
    * Needs to be inline in order to fetch the name of the ADT and the constructor.
    *
- * @param u user specification indicating that they want to generate the unit type
+   * @param u user specification indicating that they want to generate the unit type
    */
     inline def unapply(u: Unit): (ADT[0], constructors[0]) = unapply(unit_to_const(u))
 
@@ -359,7 +357,7 @@ object ADTSyntax {
    * Generally its arguments are non inductive as the opposite would lead to the empty type.
    * Needs to be inline in order to fetch the name of the ADT and the constructor.
    *
- * @param t user specification of the tuple
+   * @param t user specification of the tuple
    */
     inline def unapply[N <: Arity, T <: Tuple](t: (ADT[N] | Expr[Ind]) *: T)(using ConstructorConverter[T]): (ADT[0], constructors[0]) =
       t.head match
@@ -381,7 +379,7 @@ object ADTSyntax {
 
   /** Mutable data structure that registers the patterns that have been filled inside a pattern matching syntax.
    *
- * @tparam N the type variables of the ADT
+   * @tparam N the type variables of the ADT
    * @param comp the complementary information stored in the builder
    */
   class CaseBuilder[N <: Arity, T, R](val comp: R) {
@@ -393,7 +391,7 @@ object ADTSyntax {
 
     /** Adds a case to the pattern matching
    *
- * @param cons the pattern / constructor
+   * @param cons the pattern / constructor
    * @param value the value next to the variables that are used for the pattern's arguments
    */
     def +=(cons: Constructor[N], value: (Seq[Variable[Ind]], T)) = underlying += (cons -> value)
@@ -403,7 +401,7 @@ object ADTSyntax {
    * - There are no extra cases
    * - The number of variables provided by the user matches the arity of the constructor
    *
- * @param adt the ADT over which the pattern matching is performed
+   * @param adt the ADT over which the pattern matching is performed
    * @return an error message if the pattern matching is invalid, None otherwise
    */
     def isValid(adt: ADT[N]): Option[String] =
@@ -431,16 +429,16 @@ object ADTSyntax {
 
   /** Case of a a pattern matching syntax
    *
- * @param cons the pattern / constructor
+   * @param cons the pattern / constructor
    * @param vars variables that are used to represent the arguments of the constructor
    */
   case class Case[N <: Arity](cons: Constructor[N], vars: Variable[Ind]*) {
 
     /** Used in the context of an induction proof. Adds the subproof corresponding to this case into a builder.
    *
- * @see [[Induction]]
+   * @see [[Induction]]
    *
- * @param proof the outer scope of the induction proof
+   * @param proof the outer scope of the induction proof
    * @param line the line at which this case is defined. Usually fetched automatically by the compiler.
    * Used for error reporting
    * @param file the file in which this case is defined. Usually fetched automatically by the compiler.
@@ -478,7 +476,7 @@ object ADTSyntax {
 
     /** Used in the context of a function definition. Adds the body of the case to a builder.
    *
- * @param body the body of this case
+   * @param body the body of this case
    * @param builder the builder for the function definition
    */
     def apply(body: Expr[Ind])(using builder: CaseBuilder[N, Expr[Ind], Unit]) = builder += (cons, (vars, body))
@@ -486,7 +484,7 @@ object ADTSyntax {
 
   /** Defines a function over an ADT
    *
- * @param adt the domain of this function
+   * @param adt the domain of this function
    * @param returnType the return type of this function
    * @param name the name of this functions
    * @param cases the definition of the function for each constructor

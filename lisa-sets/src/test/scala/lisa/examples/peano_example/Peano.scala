@@ -1,12 +1,12 @@
 package lisa.examples.peano_example
 
-import lisa.kernel.fol.FOL._
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus._
-import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.OutputManager
+
+
+
+
+
+
+
 
 object Peano { /*
   export PeanoArithmeticsLibrary.{_, given}

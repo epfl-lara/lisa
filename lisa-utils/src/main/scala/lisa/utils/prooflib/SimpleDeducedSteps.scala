@@ -5,7 +5,7 @@ import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printing
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStepTactic._
-import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.ProofTacticLib._
 import lisa.utils.prooflib._
 
 object SimpleDeducedSteps {

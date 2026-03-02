@@ -2,7 +2,6 @@ package lisa
 
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.Library
 
 import scala.annotation.targetName
 

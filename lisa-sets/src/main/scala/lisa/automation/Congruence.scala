@@ -1,10 +1,9 @@
 package lisa.automation
-import leo.datastructures.TPTP.AnnotatedFormula.FormulaType
+
 import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
 import lisa.utils.prooflib._
 
 /**

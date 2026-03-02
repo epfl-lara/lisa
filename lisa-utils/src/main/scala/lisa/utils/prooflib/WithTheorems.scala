@@ -1,18 +1,13 @@
 package lisa.utils.prooflib
 
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.KernelHelpers._
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.UserLisaException._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.prooflib.ProofTacticLib.UnimplementedProof
 import lisa.utils.prooflib._
-
-import scala.annotation.nowarn
-import scala.collection.mutable.{Buffer => mBuf}
-import scala.collection.mutable.{Map => mMap}
-import scala.collection.mutable.{Stack => stack}
 
 trait WithTheorems {
   library: Library =>
@@ -176,7 +171,6 @@ trait WithTheorems {
      * @return
      */
     def toSCProof: K.SCProof = {
-      import lisa.utils.KernelHelpers.{-<<, ->>}
       val finalSteps = eliminations.foldLeft[(List[SC.SCProofStep], F.Sequent)]((steps.map(_.scps), steps.head.bot)) { (cumul_bot, f_elim) =>
         val (cumul, bot) = cumul_bot
         val (f, elim) = f_elim

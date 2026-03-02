@@ -1,10 +1,8 @@
 package lisa.maths.SetTheory.Cardinal
 
-import lisa.maths.Quantifiers.*
-import lisa.maths.SetTheory.Ordinals.Ordinal.*
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.utils.prooflib.BasicStepTactic.Hypothesis
 import lisa.maths.SetTheory.Functions.Function.injective
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Ordinal._
 
 object Cardinal extends lisa.Main:
   private val x, y, z, a = variable[Ind]
@@ -38,7 +36,7 @@ object Cardinal extends lisa.Main:
    *
    * @see [[injective]]
    */
-  val dominates = DEF(λ(A, λ(B, ∃(f, (f :: A -> B) /\ injective(f)(A)))))
+  val dominates = DEF(λ(A, λ(B, ∃(f, functionBetween(f)(A)(B) /\ injective(f)(A)))))
 
   /**
    * Local notations for cardinality
@@ -104,7 +102,7 @@ object Cardinal extends lisa.Main:
     (α ≲ β, β ≲ α) |- α ≍ β
   ) {
     assumeAll
-    have(∃(f, (f :: α -> β) /\ injective(f)(α)) /\ ∃(g, (g :: β -> α) /\ injective(g)(β))) by Tautology.from(
+    have(∃(f, functionBetween(f)(α)(β) /\ injective(f)(α)) /\ ∃(g, functionBetween(g)(β)(α) /\ injective(g)(β))) by Tautology.from(
       dominates.definition of (A := α, B := β),
       dominates.definition of (A := β, B := α, f := g)
     )

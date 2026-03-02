@@ -1,22 +1,13 @@
 package lisa.automation
 
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus
-import lisa.utils.K
 import lisa.utils.Printing.printList
-import lisa.utils.UserLisaException
 import lisa.utils.collection.Extensions._
 import lisa.utils.collection.VecSet
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStepTactic
-import lisa.utils.prooflib.ProofTacticLib.{_, given}
-import lisa.utils.prooflib.SimpleDeducedSteps
+import lisa.utils.prooflib.ProofTacticLib._
 import lisa.utils.prooflib._
 import lisa.utils.unification.UnificationUtils._
-
-import scala.annotation.nowarn
-import scala.collection.mutable.{Map => MMap}
 
 import F.{rewrite => _, _, given}
 
@@ -196,7 +187,7 @@ object Substitution:
             val rightFormulas = rightRules.map(_.toFormula)
             val preRight = rightRewrites.map(_.toLeft).toSet
             val postRight = rightRewrites.map(_.toRight).toSet
-            val rightVars = rightRewrites.head.vars
+            val rightVars = if rightRewrites.nonEmpty then rightRewrites.head.vars else Seq.empty
             val rightLambda = orAllOrFalse(rightRewrites.map(_.lambda))
             thenHave(rpremise.left |- orAllOrFalse(preRight)) by Restate
             thenHave(rightFormulas ++ rpremise.left |- orAllOrFalse(preRight)) by Weakening

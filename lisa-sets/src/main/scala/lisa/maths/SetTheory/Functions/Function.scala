@@ -5,13 +5,14 @@ import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Relations.Predef._
 import lisa.maths.SetTheory.Relations.Relation
 
-import scala.annotation.targetName
-
 /**
  * A function `f : A -> B` is a relation `f ⊆ A × B` such that for any
  * `x ∈ A` there is a unique `y ∈ B` such that `(x, y) ∈ f`.
  */
 object Function extends lisa.Main {
+
+  private val T, T1 = variable[Ind]
+  private val e = variable[Ind >>: Ind]
 
   /**
    * Definition --- `f : A -> B` is a function between `A` and `B` if `f ⊆ A × B`
@@ -19,25 +20,15 @@ object Function extends lisa.Main {
    */
   val functionBetween = DEF(λ(f, λ(A, λ(B, relationBetween(f)(A)(B) /\ ∀(x ∈ A, ∃!(y, (x, y) ∈ f))))))
 
-  extension (f: Expr[Ind]) {
-
-    /**
-     * Notation `f :: A -> B`
-     */
-    infix def ::(fType: (Expr[Ind], Expr[Ind])): Expr[Prop] =
-      val (a, b) = fType
-      functionBetween(f)(a)(b)
-  }
-
   /**
    * Definition --- `f` is a function on `A` if the domain of `f` is `A`.
    */
-  val functionOn = DEF(λ(f, λ(A, ∃(B, f :: A -> B))))
+  val functionOn = DEF(λ(f, λ(A, ∃(B, functionBetween(f)(A)(B)))))
 
   /**
    * Definition --- `f` is a function if there exists `A` and `B` such that `f : A -> B`.
    */
-  val function = DEF(λ(f, ∃(A, ∃(B, f :: A -> B))))
+  val function = DEF(λ(f, ∃(A, ∃(B, functionBetween(f)(A)(B)))))
 
   /**
    * Function domain --- The domain of `f` is the set of elements that have a mapped value.
@@ -66,6 +57,41 @@ object Function extends lisa.Main {
     s"$f($x)"
   })
 
+  /*
+//TODO revisit later
+  /**
+   * Computes the list of consecutively applied arguments of an expression, including through the small `app`.
+   * Example:
+   * {{{
+   * unfoldAllApp(Abs(x, f(x))(a)(b)(c)) == (Abs(x, f(x)), List(a, b, c))
+   *
+   * @param e
+   * @return
+   */
+  def unfoldAllAppAndSmallapp(e: Expr[?]): (Expr[?], List[Expr[?]]) =
+    def rec(e: Expr[?]): (Expr[?], List[Expr[?]]) = e match
+      case App(App(`app`, f), g) =>
+        val (f1, args) = rec(f)
+        (f1, g :: args)
+      case App(f, arg) =>
+        val (f1, args) = rec(f)
+        (f1, arg :: args)
+      case _ => (e, Nil)
+    val (f, args) = rec(e)
+    (f, args.reverse)
+
+  {
+    def appPrint(args: Seq[Expr[?]]): String =
+      args match
+        case Nil       => ""
+        case func :: Nil => s"$this($func)"
+        case func :: rest => func.mkString(args)
+
+    app.printAs(args => appPrint(args))
+  }
+
+   */
+
   /**
    * Implicit conversion enabling the function application syntax `f(x)` for set-theoretic terms.
    *
@@ -77,9 +103,7 @@ object Function extends lisa.Main {
    * import lisa.maths.SetTheory.Functions.Predef.given
    * }}}
    */
-  class AppliableTerm(f: Expr[Ind]):
-    def apply(arg: Expr[Ind]): Expr[Ind] = app(f)(arg)
-
+  class AppliableTerm(val f: Expr[Ind]) extends AnyVal:
     def apply(arg1: Expr[Ind], args: Expr[Ind]*): Expr[Ind] =
       args.foldLeft(app(f)(arg1))((acc, arg) => app(acc)(arg))
 
@@ -101,6 +125,25 @@ object Function extends lisa.Main {
    * Bijective function --- `f : A -> B` is said to be bijective if is both injective
    * and surjective.
    */
-  val bijective = DEF(λ(f, λ(A, λ(B, (f :: A -> B) /\ injective(f)(A) /\ surjective(f)(B)))))
+  val bijective = DEF(λ(f, λ(A, λ(B, (functionBetween(f)(A)(B)) /\ injective(f)(A) /\ surjective(f)(B)))))
+
+  val abs: Constant[Ind >>: (Ind >>: Ind) >>: Ind] = DEF(λ(T, λ(e, { (x, e(x)) | x ∈ T })))
+    .printAs(args =>
+      val typ = args(0)
+      val (v, body) = args(1) match
+        case Abs(v, b) => (v, b)
+        case _ => (x, args(1))
+      s"λ($v: $typ). $body"
+    )
+
+  // Pattern extractor for the 'abs' Shallow Embedding constant.
+  // It allows matching expressions of the form abs(typ)(body) using the pattern Sabs(typ, body).
+  object Sabs:
+    def unapply(e: Expr[?]): Option[(Expr[Ind], Expr[Ind >>: Ind])] =
+      e match
+        // We match against the specific Constant 'abs' being applied twice: App(App(abs, typ), body)
+        case App(App(`abs`, typ), body) =>
+          Some((typ.asInstanceOf[Expr[Ind]], body.asInstanceOf[Expr[Ind >>: Ind]]))
+        case _ => None
 
 }

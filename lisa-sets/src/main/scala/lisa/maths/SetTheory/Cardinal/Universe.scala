@@ -1,10 +1,10 @@
 package lisa.maths.SetTheory.Cardinal
 
-import lisa.maths.SetTheory.Ordinals.Ordinal.*
-import lisa.maths.SetTheory.Base.Predef.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.Quantifiers.*
-import Cardinal.*
+import lisa.maths.Quantifiers._
+import lisa.maths.SetTheory.Base.Predef.{_, given}
+import lisa.maths.SetTheory.Functions.Predef._
+
+import Cardinal._
 
 object Universe extends lisa.Main:
   private val U, U1, G, I = variable[Ind]
@@ -44,7 +44,7 @@ object Universe extends lisa.Main:
         // 4. Union: ∀x ∈ U. ∪x ∈ U
         (∀(x, (x ∈ U) ==> (𝒫(x) ∈ U))) /\
         // 5. Replacement closure
-        (∀(A, (A ∈ U) ==> ∀(f, (f :: (A, U)) ==> (range(f) ∈ U))))
+        (∀(A, (A ∈ U) ==> ∀(f, (functionBetween(f)(A)(U)) ==> (range(f) ∈ U))))
     )
   )
 
@@ -91,10 +91,10 @@ object Universe extends lisa.Main:
    * This theorem acts as a bridge between the low-level, set-theoretic formulation of the Axiom of Replacement
    * (expressed in terms of functional graphs and raw pairs) and the high-level library abstraction of functions.
    *
-   * It establishes that if the raw Axiom holds, then for any set `A ∈ U` and any function `f :: A -> U`,
+   * It establishes that if the raw Axiom holds, then for any set `A ∈ U` and any function `functionBetween(f)(A)(U)`,
    * the range of `f` is a valid set within the universe `U`.
    *
-   * `(Raw Axiom of Replacement) |- (A ∈ U) ==> (f :: (A, U)) ==> (range(f) ∈ U)`
+   * `(Raw Axiom of Replacement) |- (A ∈ U) ==> (functionBetween(f)(A)(U)) ==> (range(f) ∈ U)`
    */
   val replacementImpliesFunctionRange = Theorem(
     (∀(
@@ -104,7 +104,7 @@ object Universe extends lisa.Main:
         ∀(a, a ∈ A ==> ∃(b, (b ∈ U) /\ (_pair(a, b) ∈ G) /\ (∀(z, ((z ∈ U) /\ (_pair(a, z) ∈ G)) ==> (z === b))))) ==>
           ∃(I, (I ∈ U) /\ ∀(b, b ∈ I <=> ∃(a, (a ∈ A) /\ (_pair(a, b) ∈ G))))
       )
-    )) |- (∀(A, (A ∈ U) ==> ∀(f, (f :: (A, U)) ==> (range(f) ∈ U))))
+    )) |- (∀(A, (A ∈ U) ==> ∀(f, (functionBetween(f)(A)(U)) ==> (range(f) ∈ U))))
   ) {
     assume(
       ∀(
@@ -122,9 +122,9 @@ object Universe extends lisa.Main:
       )
     ) by InstantiateForall(A)
     have(thesis) subproof {
-      have((A ∈ U, f :: (A, U)) |- range(f) ∈ U) subproof {
+      have((A ∈ U, functionBetween(f)(A)(U)) |- range(f) ∈ U) subproof {
         assume(A ∈ U)
-        assume(f :: (A, U))
+        assume(functionBetween(f)(A)(U))
         have(functionBetween(f)(A)(U)) by Hypothesis
         val fDef = thenHave(relationBetween(f)(A)(U) /\ ∀(x ∈ A, ∃!(y, (x, y) ∈ f))) by Substitute(functionBetween.definition of (B := U))
         have(relationBetween(f)(A)(U)) by Tautology.from(fDef)
@@ -260,9 +260,9 @@ object Universe extends lisa.Main:
         thenHave(∃(I, (I ∈ U) /\ ∀(b, b ∈ I <=> ∃(a, (a ∈ A) /\ (_pair(a, b) ∈ f)))) |- range(f) ∈ U) by LeftExists
         thenHave(thesis) by Tautology.fromLastStep(instance)
       }
-      thenHave(A ∈ U |- f :: (A, U) ==> range(f) ∈ U) by Restate
-      thenHave(A ∈ U |- ∀(f, f :: (A, U) ==> range(f) ∈ U)) by RightForall
-      thenHave(A ∈ U ==> ∀(f, f :: (A, U) ==> range(f) ∈ U)) by Restate
+      thenHave(A ∈ U |- functionBetween(f)(A)(U) ==> range(f) ∈ U) by Restate
+      thenHave(A ∈ U |- ∀(f, functionBetween(f)(A)(U) ==> range(f) ∈ U)) by RightForall
+      thenHave(A ∈ U ==> ∀(f, functionBetween(f)(A)(U) ==> range(f) ∈ U)) by Restate
       thenHave(thesis) by RightForall
     }
   }
@@ -299,7 +299,7 @@ object Universe extends lisa.Main:
           ∃(I, (I ∈ U) /\ ∀(b, b ∈ I <=> ∃(a, (a ∈ A) /\ (_pair(a, b) ∈ G))))
       )
     )
-    val shiftPart = (∀(A, (A ∈ U) ==> ∀(f, (f :: (A, U)) ==> (range(f) ∈ U))))
+    val shiftPart = (∀(A, (A ∈ U) ==> ∀(f, (functionBetween(f)(A)(U)) ==> (range(f) ∈ U))))
     have(∀(x, ∃(U, xInU /\ firstPart /\ restPart))) by Tautology.from(tarskiAxiom)
     val instance = thenHave(∃(U, xInU /\ (firstPart /\ restPart))) by InstantiateForall(x)
     have(firstPart /\ restPart |- firstPart /\ shiftPart) by Tautology.from(replacementImpliesFunctionRange)
@@ -382,12 +382,12 @@ object Universe extends lisa.Main:
    * If A ∈ U and f: A -> U, then range(f) ∈ U.
    */
   val universeReplacementClosure = Theorem(
-    isUniverse(U) |- (A ∈ U) ==> ((f :: (A, U)) ==> (range(f) ∈ U))
+    isUniverse(U) |- (A ∈ U) ==> ((functionBetween(f)(A)(U)) ==> (range(f) ∈ U))
   ) {
-    have(isUniverse(U) |- ∀(A, (A ∈ U) ==> ∀(f, (f :: (A, U)) ==> (range(f) ∈ U)))) by Tautology.from(isUniverse.definition)
-    thenHave(isUniverse(U) |- (A ∈ U) ==> ∀(f, (f :: (A, U)) ==> (range(f) ∈ U))) by InstantiateForall(A)
-    thenHave((isUniverse(U), (A ∈ U)) |- ∀(f, (f :: (A, U)) ==> (range(f) ∈ U))) by Restate
-    thenHave((isUniverse(U), (A ∈ U)) |- (f :: (A, U)) ==> (range(f) ∈ U)) by InstantiateForall(f)
+    have(isUniverse(U) |- ∀(A, (A ∈ U) ==> ∀(f, (functionBetween(f)(A)(U)) ==> (range(f) ∈ U)))) by Tautology.from(isUniverse.definition)
+    thenHave(isUniverse(U) |- (A ∈ U) ==> ∀(f, (functionBetween(f)(A)(U)) ==> (range(f) ∈ U))) by InstantiateForall(A)
+    thenHave((isUniverse(U), (A ∈ U)) |- ∀(f, (functionBetween(f)(A)(U)) ==> (range(f) ∈ U))) by Restate
+    thenHave((isUniverse(U), (A ∈ U)) |- (functionBetween(f)(A)(U)) ==> (range(f) ∈ U)) by InstantiateForall(f)
     thenHave(thesis) by Restate
   }
 

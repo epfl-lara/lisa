@@ -5,10 +5,8 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus._
 import lisa.test.ProofCheckerSuite
 import lisa.utils.KernelHelpers._
-import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
 
-import scala.collection.immutable.SortedSet
 import scala.language.implicitConversions
 
 class IncorrectProofsTests extends ProofCheckerSuite {

@@ -1,6 +1,5 @@
 package lisa.utils.prooflib
 
-import lisa.utils.K
 import lisa.utils.UserLisaException
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.ProofPrinter

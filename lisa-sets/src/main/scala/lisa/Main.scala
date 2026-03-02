@@ -26,13 +26,4 @@ trait Main extends BasicMain {
   knownDefs.update(𝒫, Some(powerSetAxiom))
   knownDefs.update(⊆, Some(subsetAxiom))
 
-  extension (symbol: Constant[?]) {
-    def definition: JUSTIFICATION = {
-      getDefinition(symbol).get
-    }
-    def shortDefinition: JUSTIFICATION = {
-      getShortDefinition(symbol).get
-    }
-  }
-
 }

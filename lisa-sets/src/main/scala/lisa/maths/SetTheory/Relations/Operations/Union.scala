@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Relations
 package Operations
 
-import lisa.maths.SetTheory.Base.Predef.{_, given}
+import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Relations.Predef._
 
 /**

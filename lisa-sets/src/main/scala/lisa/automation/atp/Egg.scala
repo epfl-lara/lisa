@@ -1,5 +1,5 @@
 package lisa.automation.atp
-import lisa.tptp.KernelParser._
+
 import lisa.tptp.ProofParser._
 import lisa.tptp.ProofPrinter._
 import lisa.utils.K
@@ -9,7 +9,6 @@ import lisa.utils.prooflib.OutputManager
 import lisa.utils.prooflib.ProofTacticLib._
 
 import java.io._
-import scala.io.Source
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try

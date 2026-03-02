@@ -1,9 +1,8 @@
 package lisa.maths.SetTheory.Cardinal
 
-import lisa.maths.SetTheory.Base.Predef.*
-import lisa.maths.SetTheory.Ordinals.Ordinal.*
+import lisa.maths.SetTheory.Ordinals.Ordinal._
 
-import Universe.*
+import Universe._
 
 object UniverseRank extends lisa.Main:
   private val x, k = variable[Ind]

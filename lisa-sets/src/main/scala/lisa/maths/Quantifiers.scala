@@ -1,10 +1,6 @@
 package lisa.maths
 
 import lisa.automation.Substitution
-import lisa.utils.K.repr
-import lisa.utils.Printing
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
 
 /**
  * This file proves first-order logic theorems related to quantifiers. It includes:

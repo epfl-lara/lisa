@@ -1,8 +1,8 @@
 package lisa.automation
 
-import lisa.automation.Substitution
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.{SequentCalculus => SC}
+
+
+
 import lisa.test.ProofTacticTestLib
 import org.scalatest.funsuite.AnyFunSuite
 

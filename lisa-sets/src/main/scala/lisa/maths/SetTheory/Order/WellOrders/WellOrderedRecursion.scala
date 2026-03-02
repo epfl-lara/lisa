@@ -7,7 +7,6 @@ import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Functions
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Relations
-import lisa.maths.SetTheory.Relations.WellFoundedRelation.wellFounded
 
 import Extrema._
 import PartialOrder._

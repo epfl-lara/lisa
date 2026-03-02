@@ -1,13 +1,38 @@
-package lisa.maths.SetTheory.Types.Dependent
+package lisa.maths.SetTheory.Types
+import lisa.maths.Quantifiers._
+import lisa.maths.SetTheory.Base.Predef.{_, given}
+import lisa.maths.SetTheory.Cardinal.Predef._
+import lisa.maths.SetTheory.Functions.Predef.{_, given}
 
-import Symbols.*
-import Helper.*
-import lisa.maths.SetTheory.Base.Predef.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.{*, given}
-import lisa.maths.SetTheory.Cardinal.Predef.{*}
-import lisa.maths.Quantifiers.*
+import TypingHelpers._
+import TypingTheorems._
 
 object TypingRules extends lisa.Main:
+  import lisa.maths.SetTheory.Functions.Predef.{app}
+  // Base term
+  private val e1, e2 = variable[Ind]
+
+  // Function
+  private val e = variable[Ind >>: Ind]
+
+  // Base type
+  private val T, T1 = variable[Ind]
+
+  // Dependent type
+  private val T2, T2p = variable[Ind >>: Ind]
+
+  // Proposition
+  private val Q, H = variable[Ind >>: Prop]
+
+  // Set functions
+  private val Gf, Hf = variable[Ind >>: Ind]
+
+  // Type Universe
+  private val U, U1, U2 = variable[Ind]
+
+  // Proposition
+  private val p = variable[Prop]
+
   /**
    *    x : T, T : U_l
    *    ─────────────── (T-Var)
@@ -83,7 +108,7 @@ object TypingRules extends lisa.Main:
       thenHave((x, y) ∈ abs(T)(e) /\ (x, z) ∈ abs(T)(e) ==> (y === z)) by Tautology.fromLastStep(
         case1,
         absApplicationMembership of (y := z, T := T),
-        equalTransitivityApplication of (x := y, y := e(x), z := z)
+        equalTransitivity of (x := y, y := e(x), z := z)
       )
       thenHave(thesis) by Generalize
     }
@@ -218,7 +243,7 @@ object TypingRules extends lisa.Main:
     )
     thenHave(thesis) by Tautology.fromLastStep(
       app.definition of (x := e2, f := abs(T)(e)),
-      equalTransitivityApplication of (x := abs(T)(e)(e2), y := ε(y, (e2, y) ∈ abs(T)(e)), z := e(e2))
+      equalTransitivity of (x := abs(T)(e)(e2), y := ε(y, (e2, y) ∈ abs(T)(e)), z := e(e2))
     )
   }
 
@@ -266,7 +291,7 @@ object TypingRules extends lisa.Main:
       val unionEq = have((U1 ∪ U2) === U1) by Tautology.from(
         unionAbsorb of (A := U2, B := U1),
         Union.commutativity of (x := U1, y := U2),
-        equalTransitivityApplication of (x := (U1 ∪ U2), y := (U2 ∪ U1), z := U1)
+        equalTransitivity of (x := (U1 ∪ U2), y := (U2 ∪ U1), z := U1)
       )
       have(piTerm ∈ U1) by Tautology.from(
         universeHierarchyPiClosureRight

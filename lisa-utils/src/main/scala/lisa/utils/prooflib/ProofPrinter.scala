@@ -1,6 +1,5 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.utils._
 import lisa.utils.prooflib.BasicStepTactic.SUBPROOF
 import lisa.utils.prooflib.Library

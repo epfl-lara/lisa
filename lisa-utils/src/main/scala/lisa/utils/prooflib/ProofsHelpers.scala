@@ -2,16 +2,13 @@ package lisa.utils.prooflib
 
 import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.utils.K.Identifier
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.KernelHelpers._
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
+import lisa.utils._
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
 import lisa.utils.prooflib._
-import lisa.utils.{_, given}
-
-import scala.annotation.targetName
 
 trait ProofsHelpers {
   library: Library & WithTheorems =>
@@ -67,7 +64,7 @@ trait ProofsHelpers {
 
   def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
     case judg: proof.ProofTacticJudgement => judg.validate(line, file)
-    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Restate(using library, proof)(fact))
+    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Weakening(using library, proof)(fact))
   }
 
   /**
@@ -344,9 +341,6 @@ trait ProofsHelpers {
   /////////////////////////
   //  Local Definitions  //
   /////////////////////////
-
-  import lisa.utils.K.prettySCProof
-  import lisa.utils.KernelHelpers.apply
 
   /**
    * A term with a definition, local to a proof.

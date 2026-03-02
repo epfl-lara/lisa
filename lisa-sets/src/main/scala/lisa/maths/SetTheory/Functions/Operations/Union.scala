@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Functions
 package Operations
 
-import lisa.maths.SetTheory.Base.Predef.{_, given}
-import lisa.maths.SetTheory.Relations.Predef.{_, given}
+import lisa.maths.SetTheory.Base.Predef._
+import lisa.maths.SetTheory.Relations.Predef._
 
 import Function._
 import Restriction._

@@ -1,22 +1,13 @@
 package lisa.tptp
 
 import leo.modules.input.TPTPParser
-import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
-import lisa.tptp.KernelParser
 import lisa.tptp.ProofParser
 import lisa.utils.K
-import lisa.utils.K.>>:
-import lisa.utils.K.given
-import lisa.utils.K.lambda
-import lisa.utils.K.repr
-import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
-import scala.io.Source
 
 import ProofParser._
-import KernelParser._
 import K.SCProofChecker
 
 class ATPProofs extends AnyFunSuite {
