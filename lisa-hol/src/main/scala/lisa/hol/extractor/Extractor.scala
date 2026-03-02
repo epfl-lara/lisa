@@ -17,6 +17,7 @@ case class UnknownProofStepException(name: String) extends ExtractorException
 case class CouldNotParseException(msg: String, next: String) extends Exception(s"Could not parse\n\tMessage: $msg\n\tNext: $next") with ExtractorException
 case object IncompleteParsingException extends ExtractorException
 case object UnreachableCaseException extends ExtractorException
+case object ExtractorEndedException extends Exception("No more proof steps or theorems to read") with ExtractorException
 
 extension [T] (res: ParseResult[T])
   def getDone =
@@ -127,7 +128,7 @@ case class TheoremStatement(id: Long, @key("th") sequent: RawSequent) derives RW
   * A theorem reference is a name assignment to a unique ID, which coresponds to
   * the "proof step" of the same ID.
   */
-case class TheoremRef(id: Long, name: String) derives RW
+case class TheoremRef(id: Long, @key("nm") name: String) derives RW
 
 case class JustifiedTheorem(statement: HOLSequent, proof: ProofStep)
 
@@ -140,8 +141,6 @@ final class ExtractorContext(
   // and allows us to read theorems lazily as we need them
   // require(proofIterator.length == theoremIterator)
   // require((0 to proofIterator.length).forall(i => proofIterator(i).id == theoremIterator(i).id))
-
-  import ExtractorContext.*
 
   private var maxRead: Long = -1L // proof indices start at 0
   private val stepMap: mutable.Map[Long, JustifiedTheorem] = mutable.Map.empty
@@ -163,7 +162,7 @@ final class ExtractorContext(
       proofLine.step.extract
     )
 
-    val maxRead = proofLine.id
+    maxRead = proofLine.id
     stepMap += proofLine.id -> thm
 
   @throws[ExtractorEndedException.type]
@@ -198,9 +197,6 @@ final class ExtractorContext(
     // read all remaining theorems
     while proofIterator.hasNext && theoremIterator.hasNext do readNext()
     stepMap.view
-
-object ExtractorContext:
-  case object ExtractorEndedException extends Exception("No more proof steps or theorems to read")
 
 object JSONParser: 
   /**
@@ -290,6 +286,31 @@ object JSONParser:
       () // ok
 
     readIterated[TheoremRef](new java.io.FileReader(reader))
+
+  /**
+    * Given a file prefix, generate an extractor context and an iterator of
+    * theorem references. The files are expected to be in the ProofTrace export
+    * format, with the proof steps in `<prefix>.proofs`, the theorem statements
+    * in `<prefix>.theorems`, and the theorem references in `<prefix>.names`.
+    *
+    * @param filePrefix the prefix path of files to read from
+    * @return an [[ExtractorContext]] to retrieve theorems and proofs, and an
+    * iterator of named theorems.
+    *
+    * @throws java.io.FileNotFoundException if any of the files do not exist
+    * @throws java.io.IOException if any of the files cannot be read
+    */
+  @throws[java.io.FileNotFoundException]
+  @throws[java.io.IOException]
+  def initializeFromPrefix(filePrefix: String): (ExtractorContext, Iterator[TheoremRef]) =
+    val proofFile = s"$filePrefix.proofs"
+    val thmFile = s"$filePrefix.theorems"
+    val namesFile = s"$filePrefix.names"
+
+    val context = toContext(proofFile, thmFile)
+    val names = namesIterator(namesFile)
+
+    (context, names)
 
   /**
    * Given a proof file, a theorem file, and a theorem reference file, generate
