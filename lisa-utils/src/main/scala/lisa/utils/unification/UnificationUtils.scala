@@ -135,7 +135,7 @@ object UnificationUtils:
   class Substitution private (
       protected val assignments: Map[Variable[?], Expr[?]],
       protected val freeVariables: Set[Variable[?]]
-  ):
+  ) extends Iterable[(Variable[?], Expr[?])]:
     // invariant:
     // require(
     //   freeVariables == assignments.keySet ++ assignments.values.flatMap(_.freeVars)
@@ -170,8 +170,17 @@ object UnificationUtils:
     def substitutes[A](v: Variable[A]): Boolean =
       freeVariables(v)
 
+    /**
+     * (Unsafely) view this substitution object as a map.
+     *
+     * The sorts are assumed to be produced correctly by the producer of this
+     * substitution (e.g. the matching function).
+     */
     def asSubstPair: Seq[SubstPair] =
       assignments.map((v, e) => v := e.asInstanceOf).toSeq
+
+    inline def iterator: Iterator[(Variable[?], Expr[?])] = 
+      assignments.iterator
 
   object Substitution:
     /**
