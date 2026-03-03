@@ -151,31 +151,57 @@ object VarsAndFunctions /*extends lisa.Main*/:
     typeAssigns.map(ta => ta.vari -> ta.typ).toMap
 
   class HOLSequent(
+    /**
+      * Pure bool premises as in HOL. Each `prem: Expr[Ind]` is equivalen to
+      * adding `prem === One: Expr[Prop]` to the sequent.
+      */
       val premises: Set[Expr[Ind]],
+      /**
+        * Premises that are not of the form `t === One` as used by HOL. Should
+        * only appear in mixed HOL/FOL proofs.
+        */
+      val folPremises: Set[Expr[Prop]],
+      /**
+        * Conclusion of the sequent. The term `conclusion: Expr[Ind]` represents
+        * a real conclusion of the form `conclusion === One: Expr[Prop]`.
+        */
       val conclusion: Expr[Ind],
+      /**
+        * Type assignments appearing in the context of this sequent.
+        */
       val typeAssigns: Set[TypeAssign[Variable[Ind]]],
+      /**
+        * Free type variables appearing in the context of this sequent, each of
+        * whose non-emptiness is to be justified.
+        */
       val typeVarsNonEmpty: Set[Expr[Prop]]
   ) extends Sequent(premises.map(_ === One) ++ typeAssigns, Set(conclusion === One)) {
 
+    /**
+      * Add a (boolean) term to the premises of this sequent. Equivalent to
+      * assuming `t === One`.
+      */
     infix def +<<(t: Expr[Ind]): HOLSequent = HOLSequent(this.premises + t, conclusion, typeAssigns)
+    /**
+      * Remove a (boolean) term from the premises of this sequent.
+      */
     infix def -<<(t: Expr[Ind]): HOLSequent = HOLSequent(this.premises - t, conclusion, typeAssigns)
 
     override infix def +<<(f: Expr[Prop]): Sequent =
       f match
         case ===(t, One) => +<<(t)
         case ===(One, t) => +<<(t)
-        case TypeAssign(v: Variable[Ind], typ) => new HOLSequent(premises, conclusion, typeAssigns + TypeAssign(v, typ), typeVarsNonEmpty)
-        case _ => super.+<<(f)
+        case TypeAssign(v: Variable[Ind], typ) => new HOLSequent(premises, folPremises, conclusion, typeAssigns + TypeAssign(v, typ), typeVarsNonEmpty)
+        case _ => new HOLSequent(premises, folPremises + f, conclusion, typeAssigns, typeVarsNonEmpty)
     override infix def -<<(f: Expr[Prop]): Sequent =
       f match
         case ===(t, One) => -<<(t)
         case ===(One, t) => -<<(t)
-        case TypeAssign(v: Variable[Ind], typ) => new HOLSequent(premises, conclusion, typeAssigns - TypeAssign(v, typ), typeVarsNonEmpty)
-        case _ => super.-<<(f)
+        case TypeAssign(v: Variable[Ind], typ) => new HOLSequent(premises, folPremises, conclusion, typeAssigns - TypeAssign(v, typ), typeVarsNonEmpty)
+        case _ => new HOLSequent(premises, folPremises - f, conclusion, typeAssigns, typeVarsNonEmpty)
 
-    infix def ++<<(s1: HOLSequent): HOLSequent = HOLSequent(this.premises ++ s1.premises, conclusion, typeAssigns ++ s1.typeAssigns)
-    infix def --<<(s1: HOLSequent): HOLSequent = HOLSequent(this.premises -- s1.premises, conclusion, typeAssigns -- s1.typeAssigns)
-
+    infix def ++<<(s1: HOLSequent): HOLSequent = new HOLSequent(this.premises ++ s1.premises, this.folPremises ++ s1.folPremises, conclusion, typeAssigns ++ s1.typeAssigns, typeVarsNonEmpty ++ s1.typeVarsNonEmpty)
+    infix def --<<(s1: HOLSequent): HOLSequent = new HOLSequent(this.premises -- s1.premises, this.folPremises -- s1.folPremises, conclusion, typeAssigns -- s1.typeAssigns, typeVarsNonEmpty -- s1.typeVarsNonEmpty)
     override infix def ++<<(s1: Sequent): Sequent =
       s1 match
         case s1: HOLSequent => ++<<(s1)
@@ -189,7 +215,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
   object HOLSequent {
 
     def apply(premises: Set[Expr[Ind]], conclusion: Expr[Ind], typeAssigns: Set[TypeAssign[Variable[Ind]]] = Set.empty, typeVarsNonEmpty: Set[Expr[Prop]] = Set.empty): HOLSequent = {
-      new HOLSequent(premises, conclusion, typeAssigns, typeVarsNonEmpty)
+      new HOLSequent(premises, Set.empty, conclusion, typeAssigns, typeVarsNonEmpty)
     }
 
     def fromFOLSequent(s: Sequent): HOLSequent =
@@ -200,26 +226,27 @@ object VarsAndFunctions /*extends lisa.Main*/:
         case eqOne(t) =>
           var vartypes = Set.empty[TypeAssign[Variable[Ind]]]
           var typeVarsNonEmpty = Set.empty[Expr[Prop]]
-          var prems = Set.empty[Expr[Ind]]
+          val prems = Set.newBuilder[Expr[Ind]]
+          val folPrems = Set.newBuilder[Expr[Prop]]
           s.left.foreach { a =>
             a match
               case TypeAssign(v: Variable[Ind], typ) => vartypes += TypeAssign(v, typ)
               case exists(v1: Variable[Ind], v2 ∈ (typ: Variable[Ind])) if v1 == v2 => typeVarsNonEmpty += a
               case eqOne(t) => prems += t
-              case _ => throw new IllegalArgumentException("Premises must be of the form t === One or be a type assignment. violating: " + a)
+              case _ => folPrems += a
           }
-          new HOLSequent(prems, t, vartypes, typeVarsNonEmpty)
+          new HOLSequent(prems.result(), folPrems.result(), t, vartypes, typeVarsNonEmpty)
         case _ =>
           throw new IllegalArgumentException("Conclusion must be of the form t === One.")
 
-    def unapply(s: Sequent): Option[(Set[Expr[Ind]], Expr[Ind])] =
+    def unapply(s: Sequent): Option[(Set[Expr[Ind]], Set[Expr[Prop]], Expr[Ind])] =
       if s.isInstanceOf[HOLSequent] then
         val s1 = s.asInstanceOf[HOLSequent]
-        Some((s1.premises, s1.conclusion))
+        Some((s1.premises, s1.folPremises, s1.conclusion))
       else
         try {
           val s1 = fromFOLSequent(s)
-          Some((s1.premises, s1.conclusion))
+          Some((s1.premises, s1.folPremises, s1.conclusion))
         } catch
           case e: IllegalArgumentException =>
             println(e.getMessage())
