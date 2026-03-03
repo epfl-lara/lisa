@@ -365,19 +365,33 @@ object VarsAndFunctions /*extends lisa.Main*/:
     }
 
   object HOLProofType extends ProofTactic {
-    def apply2(using proof: SetTheoryLibrary.Proof)(t: Expr[Ind]): proof.ProofTacticJudgement =
-      val contextAssigns: Set[Expr[Prop]] = getContext(t)
-      val r = Typecheck.inferProof(contextAssigns, t)
-      r
 
-    def apply(using proof: SetTheoryLibrary.Proof)(t: Expr[Ind]): proof.ProofTacticJudgement = TacticSubproof {
-      given SetTheoryLibrary.type = SetTheoryLibrary
+    private val cache: mutable.Map[Long, SetTheoryLibrary.JUSTIFICATION] = mutable.Map.empty  
+
+    inline def code[S: Sort](t: Expr[S]): Long = t.underlying.uniqueNumber
+
+    def apply2(t: Expr[Ind]): SetTheoryLibrary.JUSTIFICATION =
+      cache.get(code(t)) match
+        case Some(justif) => justif
+        case None =>
+          val contextAssigns: Set[Expr[Prop]] = getContext(t)
+          val just =
+            try
+              Theorem(contextAssigns |- t :: computeType(t)) {
+                have(thesis) by Typecheck.prove
+              }
+            catch
+              case e: Exception =>
+                throw LisaHOLException("Failed to compute and prove typing for term " + t + ": " + e.getMessage())
+          cache.put(code(t), just)
+          just
+
+    def apply(t: Expr[Ind]): SetTheoryLibrary.JUSTIFICATION =
       t match
         case tc: TypedConstant =>
-          have(tc.justif.statement) by Weakening(tc.justif)
+          tc.justif
         case _ =>
-          have(apply2(t))
-    }
+          apply2(t)
   }
 
   given termToSetConv[T <: Expr[Ind]]: FormulaSetConverter[T] = t => Set(eqOne(t))
