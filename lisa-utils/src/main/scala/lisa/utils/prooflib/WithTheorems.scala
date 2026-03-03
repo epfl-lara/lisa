@@ -560,7 +560,7 @@ trait WithTheorems {
    * A theorem that was produced from a kernel theorem and not from a high level proof. See [[THM.fromKernel]].
    * Those are typically theorems imported from another tool, or from serialization.
    */
-  class THMFromKernel(using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
+  final class THMFromKernel(using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
 
     val innerJustification: theory.Theorem = innerThm
     assert(innerThm.name == fullName)
@@ -575,14 +575,13 @@ trait WithTheorems {
    * A theorem that was produced from a high level proof. See [[THM.apply]].
    * Typical way to construct a theorem in the library, but serialization for example will produce a [[THMFromKernel]].
    */
-  class THMFromProof(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit) extends THM {
+  final class THMFromProof(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit) extends THM {
 
     val goal: F.Sequent = statement
 
-    val proof: BaseProof = new BaseProof(this)
     private var cachedProof: Option[K.SCProof] = None
-    def kernelProof: Option[K.SCProof] = cachedProof.orElse(Some(concludeProof(goal.underlying, proof.toSCProof)))
-    def highProof: Option[BaseProof] = if cachedProof.isDefined then None else Some(proof)
+    def kernelProof: Option[K.SCProof] = cachedProof.orElse(Some(prove(computeProof)._3))
+    def highProof: Option[BaseProof] = if cachedProof.isDefined then None else Some(prove(computeProof)._2)
 
     import lisa.utils.Serialization.*
     val innerJustification: theory.Theorem =
@@ -596,7 +595,7 @@ trait WithTheorems {
               LisaException.InvalidKernelJustificationComputation(
                 "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
                 wrongJudgement,
-                Some(proof)
+                None
               )
             )
         }
@@ -607,7 +606,7 @@ trait WithTheorems {
             thm
 
           case None =>
-            val (thm, scp, justifs) = prove(computeProof) // if fail, prove it
+            val (thm, _, scp, justifs) = prove(computeProof) // if fail, prove it
             thmsToFile("cache/" + fullName, theory, List((fullName, flattenProof(scp), justifs)))
             thm
         }
@@ -618,7 +617,8 @@ trait WithTheorems {
     /**
      * Construct the kernel theorem from the high level proof
      */
-    private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, SCProof, List[(String, theory.Justification)]) = {
+    private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, BaseProof, SCProof, List[(String, theory.Justification)]) = {
+      val proof = new BaseProof(this)
       try {
         computeProof(using proof)
       } catch {
@@ -633,7 +633,7 @@ trait WithTheorems {
       val justifs = proof.getImports.map(e => (e._1.owner, e._1.innerJustification))
       theory.theorem(fullName, goal.underlying, scp, justifs.map(_._2)) match {
         case K.Judgement.ValidJustification(just) =>
-          (just, scp, justifs)
+          (just, proof, scp, justifs)
         case wrongJudgement: K.Judgement.InvalidJustification[?] =>
           om.lisaThrow(
             LisaException.InvalidKernelJustificationComputation(
