@@ -25,19 +25,26 @@ import lisa.utils.prooflib._
  * The tactic uses uses this path to produce needed proofs.
  */
 object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
-
   def from(using lib: Library, proof: lib.Proof)(context: proof.Fact*)(bot: Sequent): proof.ProofTacticJudgement =
-    val newAssumptions = context.toSet.map(s => (betaReduce(orAllOrFalse(s.statement.right)), s)).filter((f, s) => !bot.left.contains(f))
+    val newAssumptions: Seq[(Expr[Prop], proof.Fact)] = context.map(s => (betaReduce(orAllOrFalse(s.statement.right)), s)).filter((f, s) => !bot.left.contains(f))
     val botWithAssumptions = bot.left ++ newAssumptions.map(_._1) |- bot.right
     var seq = botWithAssumptions
 
     TacticSubproof {
       import lib.*
 
-      have(seq) by this
-      for ((assumption, f) <- newAssumptions) {
-        seq = (seq.left - assumption) ++ f.statement.left |- seq.right
-        have(seq) by Cut(f, lastStep)
+      have(botWithAssumptions) by this
+      for ((assumption, f) <- newAssumptions.reverse) {
+        val assumsOfPrem = f.statement.left
+        if lastStep.statement.left.contains(assumption) then
+          val seq = (lastStep.statement.left - assumption) ++ assumsOfPrem |- lastStep.statement.right
+          have(seq) by Cut(f, lastStep)
+          assumsOfPrem.foldLeft(lastStep) { (step, a) =>
+            if !bot.left.exists(botAssumption => isSame(a, botAssumption)) then
+              val aProof = have((step.statement.left - a) |- a) by this //TODO: catch errors
+              have(step.statement -<< a) by Cut(aProof, step)
+            else step
+          }
       }
     }
 
@@ -251,7 +258,9 @@ class EGraphExpr() {
 
   def find[T](id: Expr[T]): Expr[T] = UF.find(id).asInstanceOf[Expr[T]]
 
-  trait Step
+  trait Step {
+    val between: (Expr[?], Expr[?])
+  }
   case class ExternalStep(between: (Expr[?], Expr[?])) extends Step
   case class CongruenceStep(between: (Expr[?], Expr[?])) extends Step
 
@@ -285,18 +294,19 @@ class EGraphExpr() {
     case App(f, a) => App.unsafe(canonicalize(f), find(a))
     case _ => node
 
-  def add(node: Expr[?]): Expr[?] =
+  def add[A](node: Expr[A]): Expr[A] =
     if codes.contains(node) then node
-    else codes(node) = codes.size
-    makeSingletonEClass(node)
-    node match
-      case Multiapp(f, args) =>
-        args.foreach(child =>
-          add(child)
-          parents(find(child)).add(node)
-        )
-    mapSigs(canSig(node)) = node
-    node
+    else
+      codes(node) = codes.size
+      makeSingletonEClass(node)
+      node match
+        case Multiapp(f, args) =>
+          args.foreach(child =>
+            add(child)
+            parents(find(child)).add(node)
+          )
+      mapSigs(canSig(node)) = node
+      node
 
   def addAll(nodes: Iterable[Expr[Ind] | Expr[Prop]]): Unit =
     nodes.foreach { e =>
@@ -325,22 +335,19 @@ class EGraphExpr() {
   protected def mergeWithStep(id1: Expr[?], id2: Expr[?], step: Step): Unit = {
     if id1.sort != id2.sort then throw new IllegalArgumentException("Cannot merge nodes of different sorts")
     if (id1.sort != K.Ind && id1.sort != K.Prop) || (id2.sort != K.Ind && id2.sort != K.Prop) then return ()
-    if find(id1) == find(id2) then ()
-    else
-      proofMap((id1, id2)) = step
-      val parents1 = parents(find(id1))
-      val parents2 = parents(find(id2))
 
     if find(id1) == find(id2) then return ()
 
     proofMap((id1, id2)) = step
     val (small, big) = if parents(find(id1)).size < parents(find(id2)).size then (id1, id2) else (id2, id1)
-    codes(find(small)) = codes(find(big))
+    val smallRoot = find(small)
+    val bigRoot   = find(big)
+    codes(smallRoot) = codes(bigRoot)
     UF.union(id1, id2)
     val newId = find(id1)
     var worklist = List[(Expr[?], Expr[?], Step)]()
 
-    parents(small).foreach { pExpr =>
+    parents(smallRoot).foreach { pExpr =>
       val canonicalPExpr = canSig(pExpr)
       if mapSigs.contains(canonicalPExpr) then
         val qExpr = mapSigs(canonicalPExpr)
@@ -348,8 +355,8 @@ class EGraphExpr() {
         worklist = (pExpr, qExpr, CongruenceStep((pExpr, qExpr))) :: worklist
       else mapSigs(canonicalPExpr) = pExpr
     }
-    parents(newId) = parents(big)
-    parents(newId).addAll(parents(small))
+    parents(newId) = parents(bigRoot)
+    parents(newId).addAll(parents(smallRoot))
     worklist.foreach { case (l, r, step) => mergeWithStep(l, r, step) }
   }
 
@@ -368,7 +375,7 @@ class EGraphExpr() {
             val goalSequent = base.left |- (base.right + (makeEq(id1, r)))
             if l == id1 then have(goalSequent) by Restate
             else
-              val x = variable[Ind](freshId(Seq(id1)))
+              val x = variable(freshId(Seq(id1)), id1.sort)
               have(goalSequent) by RightSubstEq.withParameters(List((l, r)), (Seq(x), makeEq(id1, x)))(lastStep)
           case CongruenceStep((l, r)) =>
             val prev = if id1 != l then lastStep else null
