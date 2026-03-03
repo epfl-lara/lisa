@@ -395,10 +395,12 @@ object HOLSteps extends lisa._HOL {
             absTHM of (t := λ(x, tt), u := λ(x, uu), A := xTyp, B := typ1)
           )
           val h2 = have(Discharge(h1)(lastStep))
-          lib.have(lastStep.statement.left.filterNot(isSame(_, x :: xTyp)) |- (x :: xTyp) ==> (tt :: typ1)) by Weakening(have(HOLProofType(tt)))
+          have(HOLProofType(tt))
+          thenHave(lastStep.statement.left.filterNot(isSame(_, x :: xTyp)) |- (x :: xTyp) ==> (tt :: typ1)) by Weakening
 
           val h3 = thenHave(lastStep.statement.left |- tforall(xta, tt :: typ1)) by RightForall
-          have(lastStep.statement.left.filterNot(isSame(_, x :: xTyp)) |- (x :: xTyp) ==> (uu :: typ1)) by Weakening(have(HOLProofType(uu)))
+          have(HOLProofType(uu))
+          thenHave(lastStep.statement.left.filterNot(isSame(_, x :: xTyp)) |- (x :: xTyp) ==> (uu :: typ1)) by Weakening
           val h4 = thenHave(lastStep.statement.left |- tforall(xta, uu :: typ1)) by RightForall
           val h5 = have(h2.statement -<? (h3.statement.right.head) ++<< h3.statement) by Cut(h3, h2)
           val h6 = if h5.statement.left.exists(isSame(_, h4.statement.right.head)) then have(h5.statement -<? (h4.statement.right.head) ++<< h4.statement) by Cut(h4, h5) else h5
