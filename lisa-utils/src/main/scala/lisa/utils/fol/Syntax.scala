@@ -212,7 +212,7 @@ trait Syntax {
     /**
      * Default String representation of the expression, with potential arguments.
      */
-    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.map(a => s"${a}").mkString(", ")})"
+    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.mkString(", ")})"
 
     /**
      * Default String representation of the expression, with potential arguments, encapsulated by parenthesis if necessary.
