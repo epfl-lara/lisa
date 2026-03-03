@@ -149,8 +149,6 @@ object HOLBasics extends lisa.HOL {
         have(HOLProofType(P =:= fun(x, holT)))
       )
 
-    println(s"beta: ${beta.statement}")
-
     val fwd = have((hforall(A) * P) ==> ∀(x :: A, P * x)) subproof: ip ?=>
       val `P x one` = 
         TRANS( // P * x =:= holT 
