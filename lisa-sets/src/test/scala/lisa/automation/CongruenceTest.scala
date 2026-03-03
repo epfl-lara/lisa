@@ -6,9 +6,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
-  // TODO: Port to new kernel
-
-
   given lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
 
   val a = variable[Ind]
