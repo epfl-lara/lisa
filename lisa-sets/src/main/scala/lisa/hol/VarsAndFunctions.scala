@@ -377,9 +377,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
           val contextAssigns: Set[Expr[Prop]] = getContext(t)
           val just =
             try
-              Theorem(contextAssigns |- t :: computeType(t)) {
-                have(thesis) by Typecheck.prove
-              }
+              Theorem.withoutStatement { have(Typecheck.inferProof(contextAssigns, t)) }
             catch
               case e: Exception =>
                 throw LisaHOLException("Failed to compute and prove typing for term " + t + ": " + e.getMessage())
