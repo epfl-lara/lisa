@@ -296,6 +296,25 @@ object CartesianProduct extends lisa.Main {
     )
   }
 
+  val R = variable[Ind]
+  val CongTest = Theorem(
+    (A × B) ∪ (C × D) ⊆ R
+  ) {
+    val left = have((A × B) ⊆ R) by Sorry
+    val right = have((C × D) ⊆ R) by Sorry
+    val s1 = Union.idempotence of (x := R)
+    val s2 = Union.monotonic of (x := (A × B), y := (C × D), a := R, b := R)
+
+    have(s1.statement) by Restate.from(s1)
+    have(s2.statement) by Restate.from(s2)
+
+    have(thesis) by Congruence.from(
+      s1,
+      s2,
+      left,
+      right
+    )
+  }
   /**
    * Theorem --- The union of two Cartesian products `A × B` and `C × D` is a subset
    * of the Cartesian product of the unions.
@@ -315,10 +334,15 @@ object CartesianProduct extends lisa.Main {
       Union.rightSubset of (x := A, y := C),
       Union.rightSubset of (x := B, y := D)
     )
+    val s1 = Union.idempotence of (x := RHS)
+    val s2 = Union.monotonic of (x := (A × B), y := (C × D), a := RHS, b := RHS)
+
+    have(s1.statement) by Restate.from(s1)
+    have(s2.statement) by Restate.from(s2)
 
     have(thesis) by Congruence.from(
-      Union.monotonic of (x := (A × B), y := (C × D), a := RHS, b := RHS),
-      Union.idempotence of (x := RHS),
+      s1,
+      s2,
       left,
       right
     )

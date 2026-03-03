@@ -145,10 +145,10 @@ object WellOrderedRecursion extends lisa.Main {
       }
 
       // By definition of G1(x) and G2(x), this means that G1(x) === G2(x)
-      have(minimal(x)(D)(<) |- G1(x) === G2(x)) by Congruence.from(
-        lastStep,
+      have((x ∈ A, minimal(x)(D)(<)) |- G1(x) === G2(x)) by Congruence.from(
         `G1(x)`,
-        `G2(x)`
+        `G2(x)`,
+        lastStep
       )
 
       // Contradiction since x ∈ D implies G1(x) ≠ G2(x)
@@ -349,7 +349,7 @@ object WellOrderedRecursion extends lisa.Main {
       }
 
       // By definition of f(x) and g(x), this means that f(x) === g(x)
-      have(minimal(x)(D)(<) |- f(x) === g(x)) by Congruence.from(
+      have((x ∈ dom(f), x ∈ dom(g), minimal(x)(D)(<)) |- f(x) === g(x)) by Congruence.from(
         lastStep,
         `f(x)`,
         `g(x)`
@@ -739,7 +739,7 @@ object WellOrderedRecursion extends lisa.Main {
         thenHave(y ∈ initialSegment(x)(A)(<) |- dom(G_(y)) ∈ D) by Substitute(`d ∈ D` of (d := dom(G_(y))))
 
       val `==>` = have(⋃(D) ⊆ initialSegment(x)(A)(<)) subproof {
-        have((y ∈ A, y < x, G_(y) === f, dom(f) === d) |- d ⊆ initialSegment(x)(A)(<)) by Congruence.from(
+        have((y ∈ initialSegment(x)(A)(<), y ∈ A, y < x, G_(y) === f, dom(f) === d) |- d ⊆ initialSegment(x)(A)(<)) by Congruence.from(
           InitialSegment.monotonic of (x := y, y := x),
           `dom(G_y)`
         )
@@ -811,7 +811,7 @@ object WellOrderedRecursion extends lisa.Main {
     have(y ∈ initialSegment(x)(A)(<) |- G_x(y) === F(y)(G_x ↾ initialSegment(y)(A)(<))) subproof {
       assume(y ∈ initialSegment(x)(A)(<))
 
-      val `y ∈ dom(G_z)` = have(y ∈ initialSegment(z)(A)(<) |- y ∈ dom(G_(z))) by Congruence.from(`dom(G_y)` of (y := z))
+      val `y ∈ dom(G_z)` = have((z ∈ initialSegment(x)(A)(<), y ∈ initialSegment(z)(A)(<)) |- y ∈ dom(G_(z))) by Congruence.from(`dom(G_y)` of (y := z))
 
       /**
        * We show that if `y < z` then `G_z(y) = F(y, G_x ↾ A_<y)`.

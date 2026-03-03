@@ -30,17 +30,24 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
     val botWithAssumptions = bot.left ++ newAssumptions.map(_._1) |- bot.right
     var seq = botWithAssumptions
 
-    TacticSubproof {
+    TacticSubproof { iProof ?=>
       import lib.*
 
       have(botWithAssumptions) by this
-      for ((assumption, f) <- newAssumptions.reverse) {
+      //println(s"Bot with assumptions: $botWithAssumptions")
+      for ((assumption, f) <- newAssumptions) {
+        //println(s"eliminating premise ${f.statement}")
         val assumsOfPrem = f.statement.left
         if lastStep.statement.left.contains(assumption) then
-          val seq = (lastStep.statement.left - assumption) ++ assumsOfPrem |- lastStep.statement.right
+          val assumptionWeWantToGet = (lastStep.statement.left - assumption)
+          val seq = assumptionWeWantToGet ++ assumsOfPrem |- lastStep.statement.right
           have(seq) by Cut(f, lastStep)
+          //println(s"seq after cutting with the premise: $seq")
           assumsOfPrem.foldLeft(lastStep) { (step, a) =>
-            if !bot.left.exists(botAssumption => isSame(a, botAssumption)) then
+            if !assumptionWeWantToGet.exists(acceptableAssum => isSame(a, acceptableAssum)) then
+              this((step.statement.left - a) |- a) match
+                case r: iProof.ValidProofTactic => r.validate
+                case iProof.InvalidProofTactic(e) => return proof.InvalidProofTactic(s"Failed to prove $a from ${step.statement.left - a} while eliminating premise ${f.statement}: $e")
               val aProof = have((step.statement.left - a) |- a) by this //TODO: catch errors
               have(step.statement -<< a) by Cut(aProof, step)
             else step
