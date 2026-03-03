@@ -24,6 +24,7 @@ import lisa.utils.unification.UnificationUtils.Substitution
 import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.kernel.proof.SequentCalculus.RightSubstIff
+
 object HOLHelperTheorems extends lisa.Main {
   private val f = variable[Ind]
   private val x = variable[Ind]
@@ -99,6 +100,19 @@ object HOLHelperTheorems extends lisa.Main {
       lib.have(thesis) by Tautology.from(zEq, oEq)
 
     have(thesis) by RightAnd(fwd, bwd)
+
+  val boolZeroXorOne = Theorem(x :: 𝔹 |- (x === Zero) <=> !(x === One)):
+    assume(x :: 𝔹)
+    val cases = have((x === Zero) \/ (x === One)) by Tautology.from(boolBivalence of (x := x))
+    val zeroCase = have(x === Zero |- (x === Zero) <=> !(x === One)) subproof:
+      have(x === Zero |- (x === Zero) <=> !(Zero === One)) by Tautology.from(`0 != 1`)
+      thenHave(x === Zero |- (x === Zero) <=> !(x === One)) by RightSubstEq.withParameters(Seq((x, Zero)), (Seq(b), (x === Zero) <=> !(b === One)))
+
+    val oneCase = have(x === One |- (x === Zero) <=> !(x === One)) subproof:
+      have(x === One |- (One === Zero) <=> !(One === One)) by Tautology.from(`0 != 1`)
+      thenHave(x === One |- (x === Zero) <=> !(x === One)) by RightSubstEq.withParameters(Seq((x, One)), (Seq(b), (b === Zero) <=> !(b === One)))
+
+    have(thesis) by Tautology.from(cases, zeroCase, oneCase)
 
   private val eqTerm = ε(b, (b :: 𝔹) /\ ((b === One) <=> (x === y)))
   private def eqProp(b: Expr[Ind]) = (b :: 𝔹) /\ ((b === One) <=> (x === y))
@@ -203,7 +217,7 @@ object HOLHelperTheorems extends lisa.Main {
 
     lib.have(thesis) by RightAnd(fwd, bwd)
 
-  val eqSymm = Theorem((x :: A, y :: A) |- =:=(A) * x * y === =:=(A) * y * x):
+  val eqSymEq = Theorem((x :: A, y :: A) |- =:=(A) * x * y === =:=(A) * y * x):
     assume(x :: A, y :: A)
 
     val eqCase = have(x === y |- =:=(A) * x * y === =:=(A) * y * x) subproof:
@@ -223,6 +237,12 @@ object HOLHelperTheorems extends lisa.Main {
       thenHave(thesis) by Substitute(xyZero, yxZero)
 
     lib.have(thesis) by LeftOr(eqCase, neqCase)
+
+  val eqSym = Theorem((x :: A, y :: A, =:=(A) * x * y === One) |- (=:=(A) * y * x === One)):
+    assumeAll
+
+    lib.have(=:=(A) * x * y === One) by Restate
+    thenHave(thesis) by Substitute(eqSymEq)
   
   val eqTrans = Theorem((x :: A, y :: A, z :: A, =:=(A) * x * y === One, =:=(A) * y * z === One) |- =:=(A) * x * z === One):
     assume(x :: A, y :: A, z :: A, =:=(A) * x * y === One, =:=(A) * y * z === One)
@@ -252,7 +272,7 @@ object HOLHelperTheorems extends lisa.Main {
     lib.have((f * x :: B) |- =:=(B) * (f * x) * (f * y) === One) by Cut(fyType, lastStep)
     lib.have(=:=(B) * (f * x) * (f * y) === One) by Cut(fxType, lastStep)
 
-  val nonEmptyFuncSpace = Theorem(∃(x, x :: B) ==> ∃(x, x :: (A ->: B))):
+  val nonEmptyFuncSpace = Theorem(∃(x, x :: B) |- ∃(x, x :: (A ->: B))):
     val witness = fun(x :: A, b)
 
     val T1 = variable[Ind]
