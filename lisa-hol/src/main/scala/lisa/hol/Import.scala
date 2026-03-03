@@ -610,19 +610,27 @@ object Import extends lisa.HOL:
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
     Initialization.initializeDefinitions()
+
+    // System.gc()
     
     var count = 0
     val startTime = System.currentTimeMillis()
     def time() = (System.currentTimeMillis() - startTime) / 1000d
+    def printProgress() = 
+      val elapsed = time()
+      val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds." 
+      val memoryLeft = Runtime.getRuntime.freeMemory() / 1e6
+      val memoryString = f"Memory left: $memoryLeft%.2f MB"
+      println(f"\r[INFO] $progressString $memoryString")
 
-    names.foreach: ref =>
+    names.take(100).foreach: ref =>
       try
         debug(s"Importing theorem ${ref.name} with id ${ref.id}")
 
         reconstructTheorem(using extractor)(ref)
         count += 1
         if true then // count % 10 == 0 then
-          println(f"[INFO] Extracted $count theorems so far in ${time()}%.2f seconds.")
+          printProgress()
       catch 
         case e: ExtractorException =>
           println(f"""
@@ -631,15 +639,37 @@ object Import extends lisa.HOL:
           | [ERROR] Error message: ${e.getMessage}
           | """.stripMargin)
     
-    println(s"[INFO] Successfully imported ${names.length} theorems in ${time()}.")
+    println(s"[INFO] Successfully imported ${theoremMap.size} theorems with ${theoremMap.keySet.max} steps in ${time()}s.")
 
   @main
   def importMain(prefix: String, logMode: String = "--silent") = 
+    val pid = ProcessHandle.current().pid()
+    println(s"Running on PID: $pid")
+
     currentLoggingMode = logMode.toLowerCase match
       case "--silent" => LoggingMode.Silent
       case "--debug" => LoggingMode.Debug
       case _ => throw new IllegalArgumentException(s"Invalid logging mode: $logMode. Expected '--silent' or '--debug'.")
 
     importFromPrefix(prefix)
+    // val innersizes = theoremMap.values.collect{case (t: THM) => t.kernelProof.get.totalLength}
+    // val constantJustSizes = Constants.
+    // println(s"Total inner proof size: $innersizes")
+
+    // dump your own heap
+    // to heap-timestamp
+    val heapDumpPath = 
+      val pwd = System.getProperty("user.dir")
+      s"$pwd/dumps/auto/heap-${System.currentTimeMillis()}.hprof"
+    println(s"Dumping heap to $heapDumpPath")
+    java.lang.management
+      .ManagementFactory
+      .getPlatformMXBean(classOf[com.sun.management.HotSpotDiagnosticMXBean])
+      .dumpHeap(heapDumpPath, true)
+
+    println(s"Dumped heap.")
+
+    // make sure we still own the theorems at this point
+    println(s"Used ${theoremMap.keySet.max} proof steps from HOL Light.")
 
 end Import
