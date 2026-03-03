@@ -15,6 +15,7 @@ import lisa.utils.collection.VecSet
 import lisa.hol.extractor.TheoremRef
 import lisa.utils.prooflib.OutputManager
 import lisa.hol.extractor.ExtractorException
+import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
 
 object Import extends lisa.HOL:
   val lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
@@ -192,18 +193,21 @@ object Import extends lisa.HOL:
 
     val definedConstants = Map(
       // equality
-      "=" -> DefinedConstant(holeq, Seq(A), holeq.typ.outTyp, holeq.definition),
+      // the definition of equality should, strictly, never be used directly
+      "=" -> DefinedConstant(holeq, Seq(A), holeq.typ.outTyp, holeqBetaReduced),
       // binders
-      "!" -> DefinedConstant(hforall, Seq(A), hforall.typ.outTyp, hforall.definition),
-      "?" -> DefinedConstant(hexists, Seq(A), hexists.typ.outTyp, hexists.definition),
-      "@" -> DefinedConstant(hselect, Seq(A), hselect.typ.outTyp, hselect.definition),
+      "!" -> DefinedConstant(hforall, Seq(A), hforall.typ.outTyp, hforall.holDefinition),
+      "?" -> DefinedConstant(hexists, Seq(A), hexists.typ.outTyp, hexists.holDefinition),
+      "@" -> DefinedConstant(hselect, Seq(A), hselect.typ.outTyp, hselect.holDefinition),
       // boolean ops
-      "/\\" -> DefinedConstant(hand, Seq.empty, hand.typ.outTyp, hand.definition),
-      "~" -> DefinedConstant(hnot, Seq.empty, hnot.typ.outTyp, hnot.definition),
-      "==>" -> DefinedConstant(himp, Seq.empty, himp.typ.outTyp, himp.definition),
+      "/\\" -> DefinedConstant(hand, Seq.empty, hand.typ.outTyp, hand.holDefinition),
+      "~" -> DefinedConstant(hnot, Seq.empty, hnot.typ.outTyp, hnot.holDefinition),
+      "==>" -> DefinedConstant(himp, Seq.empty, himp.typ.outTyp, himp.holDefinition),
+      "T" -> DefinedConstant(holT, Seq.empty, holT.typ, holT.holDefinition),
+      "F" -> DefinedConstant(holF, Seq.empty, holF.typ, holF.holDefinition),
       // complex defs
-      "ONE_ONE" -> DefinedConstant(hOneOne, Seq(A, B), hOneOne.typ.outTyp, hOneOne.definition),
-      "ONTO" -> DefinedConstant(hOnto, Seq(A, B), hOnto.typ.outTyp, hOnto.definition)
+      "ONE_ONE" -> DefinedConstant(hOneOne, Seq(A, B), hOneOne.typ.outTyp, hOneOne.holDefinition),
+      "ONTO" -> DefinedConstant(hOnto, Seq(A, B), hOnto.typ.outTyp, hOnto.holDefinition)
     )
 
     val definedTypes = Map(
@@ -272,6 +276,122 @@ object Import extends lisa.HOL:
       HOLSequent(assumptions.to(VecSet), conclusion)
 
   private val theoremMap: mutable.Map[Long, Justification] = mutable.Map.empty
+
+  /**
+    * Recursively collect all constant types / type functors appearing in a term
+    * instantiating polymorphic constants, and create a sequence of discharges
+    * to eliminate their respective non-emptiness assumptions.
+    *
+    * Non emptiness assumptions for constants are of the form
+    *
+    * ```
+    *   |- ∃ x. x ∈ C
+    * ```
+    *
+    * and for type functors of the form
+    *
+    * ```
+    * /\_i (∃x. x ∈ Ai) |- ∃x. x ∈ F(A1,...,An)
+    * ```
+    *
+    * The non-emptiness of the set of returned expressions (+ free variables)
+    * are sufficient to prove that the typing of the input term is valid.
+    *
+    */
+  private def collectInstantiatingConstants(using proof: lib.Proof)(term: Expr[?]): Seq[(Expr[Ind], proof.Fact)] =
+
+    type JMap = Map[Expr[Ind], proof.Fact]
+    type OMap = Map[Expr[Ind], Int]
+
+    /**
+      * Apply [[collectIncremental]] to a sequence of terms at a given depth.
+      */
+    inline def foldIncremental(
+      terms: Iterable[Expr[?]], 
+      depth: Int, 
+      justMap: JMap, 
+      ordMap: OMap
+    ): (JMap, OMap) =
+      terms.foldLeft((justMap, ordMap)):
+        case ((jmap, omap), nextT) => 
+          collectIncremental(nextT, depth, jmap, omap)
+
+    def collectIncremental(
+      term: Expr[?],
+      depth: Int,
+      /**
+        * Mapping from types to their non-emptiness justification
+        */
+      justMap: JMap,
+      /**
+        * Mapping from types to the MAX DEPTH we have seen them at
+        *
+        * Depth is not necessarily in the term, but rather as dependencies in
+        * proofs of non-emptiness
+        *
+        * This is effectively incrementally producing a topological ordering of
+        * the keys of justMap
+        */
+      ordMap: OMap
+    ): (JMap, OMap) = 
+      // invariant:
+      // justMap.keySet == ordMap.keySet
+
+      // shorthand for the many places when we know this is a safe cast
+      inline def tt: Expr[Ind] = term.asInstanceOf
+
+      if term.sort == K.Ind && justMap.contains(tt) then 
+        val nextOrd =
+          if ordMap(tt) < depth then ordMap.updated(tt, depth)
+          else ordMap
+        (justMap, nextOrd)
+      else
+        term match
+          case HOLConstantType(cst) => 
+            // we need to add the non-emptiness proof for this constant type, and all
+            // of its dependencies (i.e. the types appearing in its own non-emptiness proof)
+            val just = cst.nonEmptyThm
+            val nextJ = justMap + (cst -> just)
+            val nextOrd = ordMap + (cst -> depth)
+            
+            foldIncremental(just.statement.right, depth + 1, nextJ, nextOrd)
+
+          case Multiapp(f: HOLPolymorphicType[?], args) =>
+            debugAssert(args.length == f.arity, s"Polymorphic type not fully applied in $term")
+
+            val just = f.nonEmptyThm.of(f.freeTypeVars.zip(args).map{ case (v, a) => v := a.asInstanceOf }*)
+            val nextJ = justMap + (tt -> just)
+            val nextOrd = ordMap + (tt -> depth)
+
+            val preds = just.statement.right.toSeq ++ args
+
+            foldIncremental(preds, depth + 1, nextJ, nextOrd)
+
+          case a `->:` b =>
+            val just = nonEmptyFuncSpace.of(A := a, B := b)
+            val nextJ = justMap + (tt -> just)
+            val nextOrd = ordMap + (tt -> depth)
+
+            foldIncremental(Seq(a, b), depth + 1, nextJ, nextOrd)
+          
+          case App(f, arg) =>
+            foldIncremental(Seq(f, arg), depth, justMap, ordMap)
+          case Abs(v, body) =>
+            ///////////////////////////////////////////////////////////////////////
+            // NOTE ::::
+            // This is a bit shady as we completely disregard the free variable
+            // though the types here SHOULD NOT be dependent, so it should be fine.
+            // fix this nicely when you need dependent types
+            collectIncremental(body, depth, justMap, ordMap)
+          case _ => 
+            // other constants or variables
+            // should not contribute to non-emptiness assumptions
+            (justMap, ordMap)
+    end collectIncremental
+
+    val (justMap, ordMap) = collectIncremental(term, 0, Map.empty, Map.empty)
+
+    justMap.toSeq.sortBy((k, v) => ordMap(k))
 
   private def reconstructTheorem(using extractor: ExtractorContext)(ref: TheoremRef): Justification =
      val TheoremRef(index, name) = ref
@@ -374,12 +494,25 @@ object Import extends lisa.HOL:
 
           val typeJust = Lemma(fullTyping){ proof ?=>
 
-            lib.have(nonEmptyAssumptions |- body :: abstractType) by Typecheck.prove
-            thenHave(nonEmptyAssumptions |- appliedCst :: abstractType) by Substitute(cst.definition)
+            // typechecking does not account for non-emptiness of constant and
+            // function types so we will add and eliminate these manually too
+            val openTypes =
+              collectInstantiatingConstants(definitionTerm)
 
-            thenHave(conj ==> baseTyping) by Restate
+            val (insts, nonEmptyJustifs) = openTypes.unzip
+            val extraNonEmpty = insts.map(t => ∃(x, x ∈ t))
+
+            val allAssumptions = nonEmptyAssumptions ++ extraNonEmpty
+
+            lib.have(allAssumptions |- body :: abstractType) by Typecheck.prove
+            val conditional = thenHave(allAssumptions |- appliedCst :: abstractType) by Substitute(cst.definition)
+
+            // remove assumptions about non variables
+            val discharged = lib.have(Discharge(nonEmptyJustifs*)(conditional))
+
+            val implication = lib.have(conj ==> baseTyping) by Weakening(discharged)
             
-            typeArgs.foldRight(lastStep: proof.Fact): (v, premise) => 
+            typeArgs.foldRight(implication: proof.Fact): (v, premise) => 
               val prev = premise.statement.right.head // inv: always singleton
               lib.have(∀(v, prev)) by RightForall(premise)
           }
@@ -392,10 +525,10 @@ object Import extends lisa.HOL:
 
           // lift this to an HOL Constant
           val holCst = 
-            TypedConstantFunctional(cst.id, funClass, typeJust)(using unsafeSortEvidence(cst.sort))
+            HOLPolymorphicConstant(cst.id, funClass, typeJust)(using unsafeSortEvidence(cst.sort))
 
           // register this constant and definition
-          Constants.register(name, holCst, typeArgs, abstractType, cst.definition)
+          Constants.register(name, holCst, typeArgs, abstractType, holCst.holDefinition)
           
           cst.definition
       case _ => 
