@@ -168,7 +168,15 @@ object TypingHelpers:
     case Some(typ) => member is typ
     case None => top
 
-  case class FunctionalClass(inTyp: List[Option[Typ]], args: List[Variable[Ind]], outTyp: Typ) {
+  /**
+    * A class representing the typing information of a functional constant.
+    *
+    * A functional class with `inType = Seq(T)`, `args = Seq(A)`, and `outType =
+    * A -> A` represents the class of functions `Λ A : T. A -> A`.
+    *
+    * If `T` is `None`, this means `A` is an unrestricted set (like `A : Any`).
+    */
+  case class FunctionalClass(inTyp: Seq[Option[Typ]], args: Seq[Variable[Ind]], outTyp: Typ) {
     def formula(f: Expr[?]): Expr[Prop] = {
       val inner = (args.zip(inTyp).map((term, inType) => optype(inType, term)).reduceLeft[Expr[Prop]]((a, b) => a /\ b)) ==> ((f #@@ args).asInstanceOf[Expr[Ind]] `is` outTyp)
       args.foldRight(inner)((v, form) => forall(v, form))
