@@ -12,17 +12,16 @@ import lisa.utils.UserLisaException
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+import scala.collection.mutable
 
-import SetTheoryLibrary.have
-import SetTheoryLibrary.JUSTIFICATION
-import SetTheoryLibrary.thesis
-import SetTheoryLibrary.THM
-import SetTheoryLibrary.Proof
-import SetTheoryLibrary.Theorem
+import SetTheoryLibrary.{have, JUSTIFICATION, thesis, THM, Proof, Theorem}
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 
 object VarsAndFunctions /*extends lisa.Main*/:
 
-  import HOLHelperTheorems.{One, nonEmptyFuncSpace, assume}
+  import HOLHelperTheorems.{One, nonEmptyFuncSpace, assume, eqRefl}
+
+  val lib = SetTheoryLibrary
 
   // import TypeSystem.*
 
@@ -41,8 +40,56 @@ object VarsAndFunctions /*extends lisa.Main*/:
   }
   def typevar(using name: sourcecode.Name): TypeVariable = TypeVariable(K.Identifier(name.value))
 
-  class HOLConstantType(id: Identifier, val nonEmptyThm: JUSTIFICATION) extends Constant[Ind](id)
-  class HOLConstant(id: Identifier, override val typ: Expr[Ind], val thm: JUSTIFICATION) extends TypedConstant(id, typ, thm)
+  class HOLPolymorphicType[S: Sort](id: Identifier, val freeTypeVars: Seq[TypeVariable], val nonEmptyThm: JUSTIFICATION) extends Constant[S](id)
+  
+  type HOLConstantType = HOLPolymorphicType[Ind]
+  object HOLConstantType:
+    def apply(id: Identifier, nonEmptyThm: JUSTIFICATION): HOLConstantType =
+      HOLPolymorphicType(id, Seq.empty, nonEmptyThm)
+    def unapply(typ: HOLPolymorphicType[?]): Option[HOLConstantType] =
+      if typ.sort == K.Ind then Some(typ.asInstanceOf[HOLConstantType])
+      else None
+
+  class HOLConstant(id: Identifier, override val typ: Expr[Ind], val thm: JUSTIFICATION) extends TypedConstant(id, typ, thm):
+    val holDefinition = 
+      val theDefinition = this.definition
+      // we extract the definition body, and replace the raw constant by this lifted class
+      val left = this
+      val right = theDefinition.statement.right.head match
+        case ===(l, r) => r
+        case _ => throw new IllegalArgumentException("Theorem " + thm + " used to define constant " + id + " must be an equality.")
+
+      Theorem(holeq(typ) * left * right) {
+        val s1 = lib.have((left :: typ) |- holeq(typ) * left * left) by Weakening(eqRefl of (A := typ, x := left, y := left))
+        val s2 = lib.have(holeq(typ) * left * left) by Cut(thm, s1)
+        val s3 = lib.have(left === right |- holeq(typ) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(typ) * left * x))(s2)
+        val s4 = lib.have(holeq(typ) * left * right) by Cut(theDefinition, s3)
+      }
+  class HOLPolymorphicConstant[S: Sort](id: Identifier, override val typ: FunctionalClass, override val justif: JUSTIFICATION) extends TypedConstantFunctional[S](id, typ, justif):
+    /**
+     * The definition of the constant as an HOL theorem.
+     * 
+     * ```
+     *    freeTypeVars.map(nonEmpty) |- F(freeTypeVars) =:= body
+     * ```
+     * FIXME: currently does not account for type classes!
+     */
+    val holDefinition =  
+      val theDefinition = this.definition
+      // we extract the definition body, and replace the raw constant by this lifted class
+      val left = (this #@@ typ.args).asInstanceOf[Expr[Ind]]
+      val right = theDefinition.statement.right.head match
+        case ===(l, r) => betaReduce(r)
+        case _ => throw new IllegalArgumentException("Theorem " + justif + " used to define constant " + id + " must be an equality.")
+      val nonEmpties = typ.args.map(nonEmpty).toSet
+      val otyp = typ.outTyp
+      Theorem(nonEmpties |- (holeq(otyp) * left * right)) {
+        val typeJustif = have(nonEmpties |- (left :: otyp)) by Weakening(justif.of(typ.args*))
+        val s1 = lib.have((left :: otyp) |- holeq(otyp) * left * left) by Restate.from(eqRefl of (A := otyp, x := left, y := left))
+        val s2 = lib.have(nonEmpties |- holeq(otyp) * left * left) by Cut(typeJustif, s1)
+        val s3 = lib.have((nonEmpties, left === right) |- holeq(otyp) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(otyp) * left * x))(s2)
+        val s4 = lib.have(nonEmpties |- holeq(otyp) * left * right) by Cut(theDefinition, s3)
+      }
 
   class TypedVariable(id: Identifier, val typ: Expr[Ind]) extends Variable[Ind](id) {
     override def toString: String = s"${id.name}:${typ}"
