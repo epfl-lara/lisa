@@ -1189,12 +1189,12 @@ object BasicStepTactic {
       faK match {
         case K.Application(K.Application(K.equality, left), right) =>
           if (!expEq(left, right))
-            proof.InvalidProofTactic("φ is not an instance of reflexivity.")
+            proof.InvalidProofTactic(s"Conclusion is not an instance of reflexivity. Found unequal terms $left and $right instead.")
           else if (!containsEq(botK.right, faK))
             proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
           else
             proof.ValidProofTactic(bot, Seq(K.RightRefl(botK, faK)), Seq())
-        case _ => proof.InvalidProofTactic("φ is not an equality.")
+        case _ => proof.InvalidProofTactic("Conclusion is not an equality.")
       }
     }
 
