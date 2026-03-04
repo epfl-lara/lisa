@@ -530,7 +530,7 @@ object Import extends lisa.HOL:
           // register this constant and definition
           Constants.register(name, holCst, typeArgs, abstractType, holCst.holDefinition)
           
-          cst.definition
+          holCst.holDefinition
       case _ => 
         throw InvalidDefinitionException(name, term)
     
