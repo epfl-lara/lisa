@@ -12,22 +12,19 @@ object SimpleDeducedSteps {
 
   object Discharge extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(premise: proof.Fact): proof.ProofTacticJudgement = {
-      val ss = premises zip (premises map (e => proof.getSequent(e)))
-      val seqs = ss.map(_._2)
+      val seqs = premises.map(_.statement)
       if (!seqs.forall(_.right.size == 1))
         return proof.InvalidProofTactic("When discharging this way, the discharged sequent must have only a single formula on the right handside.")
-      val seqAny = ss.find((_, s) => premise.statement.left.exists(f2 => F.isSame(s.right.head, f2)))
-      if (seqAny.isEmpty)
-        Restate.from(premise)(premise.statement)
-      else
-        TacticSubproof: ip ?=>
-          ss.foldLeft(premise: ip.Fact)((prem, discharge) =>
-            val seq = discharge._2
-            if prem.statement.left.exists(f => F.isSame(f, seq.right.head)) then
-              val goal = prem.statement -<? seq.right.head ++<? (seq.left |- ())
-              lib.have(Cut(discharge._1, prem)(goal))
-            else prem
-          )
+      TacticSubproof: ip ?=>
+        val s1 = lib.have(premise)
+        premises.foldLeft(s1)((prem, discharge) =>
+          val seq = discharge.statement
+          if prem.statement.left.exists(f => F.isSame(f, seq.right.head)) then
+            val goal = prem.statement -<? seq.right.head ++<? (seq.left |- ())
+            lib.have(Cut(discharge, prem)(goal))
+          else 
+            prem
+        )
     }
 
   }
