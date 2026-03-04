@@ -146,6 +146,7 @@ private[fol] trait Syntax {
    *
    * This means, it check that an application of a term of type `typ1` to a term of type `typ2` is legal, and if so returns the resulting type.
    */
+  @inline 
   def legalApplication(typ1: Sort, typ2: Sort): Option[Sort] = {
     typ1 match {
       case Arrow(`typ2`, to) => Some(to)
