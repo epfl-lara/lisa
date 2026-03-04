@@ -60,7 +60,8 @@ case class HOLSequent(hyps: List[Term], concl: Term)
   * Any recursive steps store only the indices of their predcessors, since
   * during the import, we know these to be uniquely assigned. 
   */
-sealed trait ProofStep
+sealed trait ProofStep:
+  val dependencies: Array[Long] = Array.empty
 /**
   * --------------
   *    |- t = t
@@ -76,7 +77,8 @@ case class REFL(term: Term) extends ProofStep
   * @param left proof of Γ |- t1 = t2
   * @param right proof of Π |- t2 = t3
   */
-case class TRANS(left: Long, right: Long) extends ProofStep
+case class TRANS(left: Long, right: Long) extends ProofStep:
+  override val dependencies: Array[Long] = Array(left, right)
 /**
   *  Γ |- f = g   Π |- x = y
   * -------------------------
@@ -85,7 +87,8 @@ case class TRANS(left: Long, right: Long) extends ProofStep
   * @param left proof of Γ |- f = g
   * @param right proof of Π |- x = y
   */
-case class MK_COMB(left: Long, right: Long) extends ProofStep
+case class MK_COMB(left: Long, right: Long) extends ProofStep:
+  override val dependencies: Array[Long] = Array(left, right)
 /**
   *      Γ |- t1 = t2
   * ----------------------
@@ -94,7 +97,8 @@ case class MK_COMB(left: Long, right: Long) extends ProofStep
   * @param absVar variable to abstract over
   * @param from proof of Γ |- t1 = t2 (where x is not free in Γ)
   */
-case class ABS(absVar: Variable, from: Long) extends ProofStep
+case class ABS(absVar: Variable, from: Long) extends ProofStep:
+  override val dependencies: Array[Long] = Array(from)
 /**
   * --------------------------
   *  |- (λx. t) x = t
@@ -117,7 +121,8 @@ case class ASSUME(term: Term) extends ProofStep
   * @param left proof of Γ |- p = q
   * @param right proof of Π |- p
   */
-case class EQ_MP(left: Long, right: Long) extends ProofStep
+case class EQ_MP(left: Long, right: Long) extends ProofStep:
+  override val dependencies: Array[Long] = Array(left, right)
 /**
   *    Γ |- p   Π |- q
   * -----------------------
@@ -126,7 +131,8 @@ case class EQ_MP(left: Long, right: Long) extends ProofStep
   * @param left proof of Γ |- p
   * @param right proof of Π |- q
   */
-case class DEDUCT_ANTISYM_RULE(left: Long, right: Long) extends ProofStep
+case class DEDUCT_ANTISYM_RULE(left: Long, right: Long) extends ProofStep:
+  override val dependencies: Array[Long] = Array(left, right)
 /**
   *                   Γ |- p
   * -----------------------------------------
@@ -135,7 +141,8 @@ case class DEDUCT_ANTISYM_RULE(left: Long, right: Long) extends ProofStep
   * @param from proof of Γ |- p
   * @param insts mapping from variables to their instantiating terms
   */
-case class INST(from: Long, insts: Map[Variable, Term]) extends ProofStep
+case class INST(from: Long, insts: Map[Variable, Term]) extends ProofStep:
+  override val dependencies: Array[Long] = Array(from)
 /**
   *                   Γ |- p
   * -----------------------------------------
@@ -144,7 +151,8 @@ case class INST(from: Long, insts: Map[Variable, Term]) extends ProofStep
   * @param from proof of Γ |- p
   * @param insts mapping from type variables to their instantiating types
   */
-case class INST_TYPE(from: Long, insts: Map[TypeVariable, Type]) extends ProofStep
+case class INST_TYPE(from: Long, insts: Map[TypeVariable, Type]) extends ProofStep:
+  override val dependencies: Array[Long] = Array(from)
 /**
   * -----------
   *   |- axiom
@@ -169,7 +177,8 @@ case class DEFINITION(name: String, term: Term) extends ProofStep
   * @param term the characteristic predicate P
   * @param just proof of |- ∃x. P x (non-emptiness witness)
   */
-case class TYPE_DEFINITION(name: String, term: Term, just: Long) extends ProofStep
+case class TYPE_DEFINITION(name: String, term: Term, just: Long) extends ProofStep:
+  override val dependencies: Array[Long] = Array(just)
 
 extension (t : Type) def pretty: String =
   t match

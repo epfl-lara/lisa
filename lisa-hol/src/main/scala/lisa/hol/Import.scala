@@ -3,6 +3,7 @@ package lisa.hol
 import lisa.SetTheoryLibrary
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.VarsAndFunctions._
+import lisa.hol.HOLSteps.HOLProofType
 import lisa.hol.extractor._
 import lisa.hol.{core => h}
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
@@ -34,7 +35,7 @@ object Import extends lisa.HOL:
     enum LoggingMode:
       case Silent, Debug
 
-    def debug(using mode: LoggingMode)(msg: String): Unit =
+    def debug(using mode: LoggingMode)(msg: => String): Unit =
       mode match
         case LoggingMode.Silent => ()
         case LoggingMode.Debug => 
@@ -277,121 +278,7 @@ object Import extends lisa.HOL:
 
   private val theoremMap: mutable.Map[Long, Justification] = mutable.Map.empty
 
-  /**
-    * Recursively collect all constant types / type functors appearing in a term
-    * instantiating polymorphic constants, and create a sequence of discharges
-    * to eliminate their respective non-emptiness assumptions.
-    *
-    * Non emptiness assumptions for constants are of the form
-    *
-    * ```
-    *   |- ∃ x. x ∈ C
-    * ```
-    *
-    * and for type functors of the form
-    *
-    * ```
-    * /\_i (∃x. x ∈ Ai) |- ∃x. x ∈ F(A1,...,An)
-    * ```
-    *
-    * The non-emptiness of the set of returned expressions (+ free variables)
-    * are sufficient to prove that the typing of the input term is valid.
-    *
-    */
-  private def collectInstantiatingConstants(using proof: lib.Proof)(term: Expr[?]): Seq[(Expr[Ind], proof.Fact)] =
-
-    type JMap = Map[Expr[Ind], proof.Fact]
-    type OMap = Map[Expr[Ind], Int]
-
-    /**
-      * Apply [[collectIncremental]] to a sequence of terms at a given depth.
-      */
-    inline def foldIncremental(
-      terms: Iterable[Expr[?]], 
-      depth: Int, 
-      justMap: JMap, 
-      ordMap: OMap
-    ): (JMap, OMap) =
-      terms.foldLeft((justMap, ordMap)):
-        case ((jmap, omap), nextT) => 
-          collectIncremental(nextT, depth, jmap, omap)
-
-    def collectIncremental(
-      term: Expr[?],
-      depth: Int,
-      /**
-        * Mapping from types to their non-emptiness justification
-        */
-      justMap: JMap,
-      /**
-        * Mapping from types to the MAX DEPTH we have seen them at
-        *
-        * Depth is not necessarily in the term, but rather as dependencies in
-        * proofs of non-emptiness
-        *
-        * This is effectively incrementally producing a topological ordering of
-        * the keys of justMap
-        */
-      ordMap: OMap
-    ): (JMap, OMap) = 
-      // invariant:
-      // justMap.keySet == ordMap.keySet
-
-      // shorthand for the many places when we know this is a safe cast
-      inline def tt: Expr[Ind] = term.asInstanceOf
-
-      if term.sort == K.Ind && justMap.contains(tt) then 
-        val nextOrd =
-          if ordMap(tt) < depth then ordMap.updated(tt, depth)
-          else ordMap
-        (justMap, nextOrd)
-      else
-        term match
-          case HOLConstantType(cst) => 
-            // we need to add the non-emptiness proof for this constant type, and all
-            // of its dependencies (i.e. the types appearing in its own non-emptiness proof)
-            val just = cst.nonEmptyThm
-            val nextJ = justMap + (cst -> just)
-            val nextOrd = ordMap + (cst -> depth)
-            
-            foldIncremental(just.statement.right, depth + 1, nextJ, nextOrd)
-
-          case Multiapp(f: HOLPolymorphicType[?], args) =>
-            debugAssert(args.length == f.arity, s"Polymorphic type not fully applied in $term")
-
-            val just = f.nonEmptyThm.of(f.freeTypeVars.zip(args).map{ case (v, a) => v := a.asInstanceOf }*)
-            val nextJ = justMap + (tt -> just)
-            val nextOrd = ordMap + (tt -> depth)
-
-            val preds = just.statement.right.toSeq ++ args
-
-            foldIncremental(preds, depth + 1, nextJ, nextOrd)
-
-          case a `->:` b =>
-            val just = nonEmptyFuncSpace.of(A := a, B := b)
-            val nextJ = justMap + (tt -> just)
-            val nextOrd = ordMap + (tt -> depth)
-
-            foldIncremental(Seq(a, b), depth + 1, nextJ, nextOrd)
-          
-          case App(f, arg) =>
-            foldIncremental(Seq(f, arg), depth, justMap, ordMap)
-          case Abs(v, body) =>
-            ///////////////////////////////////////////////////////////////////////
-            // NOTE ::::
-            // This is a bit shady as we completely disregard the free variable
-            // though the types here SHOULD NOT be dependent, so it should be fine.
-            // fix this nicely when you need dependent types
-            collectIncremental(body, depth, justMap, ordMap)
-          case _ => 
-            // other constants or variables
-            // should not contribute to non-emptiness assumptions
-            (justMap, ordMap)
-    end collectIncremental
-
-    val (justMap, ordMap) = collectIncremental(term, 0, Map.empty, Map.empty)
-
-    justMap.toSeq.sortBy((k, v) => ordMap(k))
+  type StepCache[T] = mutable.Map[Long, T]
 
   private def reconstructTheorem(using extractor: ExtractorContext)(ref: TheoremRef): Justification =
      val TheoremRef(index, name) = ref
@@ -419,8 +306,17 @@ object Import extends lisa.HOL:
               theoremName, // just need to set the right name for better tracking
               summon[sourcecode.Line],
               summon[sourcecode.File]
-            )(goal) { reconstructStep(step) }
+            )(goal) { proof ?=>
+              val stepCache = mutable.Map.empty[Long, proof.Fact]
+              HOLProofType.resetCache()
+              reconstructStep(using extractor, proof, stepCache)(index, step)
 
+              debug(f"Theorem #$index%06d reconstructed with a step cache usage of ${stepCache.size} steps, and ${HOLProofType.cacheSize} typing proofs.") 
+              debug{
+              val proofSize = proof.currentSCProof.totalLength
+                f"Theorem #$index%06d required an SCProof of totalLength ${proofSize}."
+              }
+            }
         
         val reconstructed = 
           step.proof match
@@ -495,9 +391,11 @@ object Import extends lisa.HOL:
           val typeJust = Lemma(fullTyping){ proof ?=>
 
             // typechecking does not account for non-emptiness of constant and
-            // function types so we will add and eliminate these manually too
-            val openTypes =
-              collectInstantiatingConstants(definitionTerm)
+            // function types so we will add and eliminate these manually too.
+            // we need to actually collect the assumptions, so we partially
+            // unfold Clean.allComposites
+            val openTypes = HOLSteps.Clean
+                              .collectInstantiatingConstants(definitionTerm)
 
             val (insts, nonEmptyJustifs) = openTypes.unzip
             val extraNonEmpty = insts.map(t => ∃(x, x ∈ t))
@@ -533,14 +431,6 @@ object Import extends lisa.HOL:
           holCst.holDefinition
       case _ => 
         throw InvalidDefinitionException(name, term)
-    
-  private def reconstructStepIndex(using extractor: ExtractorContext, ctx: lib.Proof)(index: Long): ctx.Fact =
-    theoremMap.get(index) match
-      case Some(just) => just
-      case None =>
-        // reconstruct the step from the HOL Light proof
-        val step = extractor.getTheorem(index)
-        reconstructStep(step)
 
   /**
     * Reconstruct a single proof step from a [[JustifiedTheorem]] within the
@@ -549,60 +439,71 @@ object Import extends lisa.HOL:
     * @param ctx current proof context
     * @param step the step to reconstruct, as a [[JustifiedTheorem]]
     */
-  private def reconstructStep(using extractor: ExtractorContext, ctx: lib.Proof)(step: JustifiedTheorem): ctx.Fact =
+  private def reconstructStep(using extractor: ExtractorContext, ctx: lib.Proof, cache: StepCache[ctx.Fact])(index: Long, step: JustifiedTheorem): ctx.Fact =
     debug(s"Reconstructing step with statement ${step.statement} and proof type ${step.proof.getClass.getSimpleName}")
+    debug(s"Current cache size: ${cache.size}. Current theorem map size: ${theoremMap.size}.")
 
     def resolveFact(index: Long): ctx.Fact =
       debug(s"Resolving fact with index $index")
 
       // is this a named theorem?
       // if not, start reconstructing its tree of dependencies recursively
-      theoremMap.get(index) match
-        case Some(just) => just
-        case None =>
-          // reconstruct steps recursively
-          reconstructStepIndex(index)
+      if theoremMap.contains(index) then
+        debug(s"Fact with id $index found in theorem map.")
+        theoremMap(index)
+      else if cache.contains(index) then
+        debug(s"Fact with id $index found in step cache.")
+        cache(index)
+      else
+        debug(s"Fact with id $index not found cached. Starting reconstruction.")
+        // reconstruct steps recursively
+        reconstructStep(index, extractor.getTheorem(index))
 
     val JustifiedTheorem(stmt, proofStep) = step
 
-    proofStep match
-      case h.REFL(term) => 
-        REFL(term.toLisaTerm)
-      case h.TRANS(left, right) => 
-        val leftFact = resolveFact(left)
-        val rightFact = resolveFact(right)
-        TRANS(leftFact, rightFact)
-      case h.MK_COMB(left, right) => 
-        val leftFact = resolveFact(left)
-        val rightFact = resolveFact(right)
-        MK_COMB(leftFact, rightFact)
-      case h.ABS(absVar, from) => 
-        val lisaVar = absVar.toLisaVar
-        val fromFact = resolveFact(from)
-        ABS(lisaVar)(fromFact)
-      case h.BETA(term) => 
-        BETA(term.toLisaTerm)
-      case h.ASSUME(term) => 
-        ASSUME(term.toLisaTerm)
-      case h.EQ_MP(left, right) =>
-        val leftFact = resolveFact(left)
-        val rightFact = resolveFact(right)
-        EQ_MP(leftFact, rightFact)
-      case h.DEDUCT_ANTISYM_RULE(left, right) =>
-        val leftFact = resolveFact(left)
-        val rightFact = resolveFact(right)
-        DEDUCT_ANTISYM_RULE(leftFact, rightFact)
-      case h.INST(from, inst) => 
-        val fromFact = resolveFact(from)
-        val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaTerm) }
-        INST(lisaInst.toSeq, fromFact)
-      case h.INST_TYPE(from, inst) => 
-        val fromFact = resolveFact(from)
-        val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaType) }
-        INST_TYPE(lisaInst.toSeq, fromFact)
-      case h.AXIOM(term) => Axioms.fromHOL(term.toLisaTerm)
-      case s @ h.DEFINITION(name, term) => reconstructConstantDefinition(s)
-      case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(s) 
+    val result = {
+      proofStep match
+        case h.REFL(term) => 
+          REFL(term.toLisaTerm)
+        case h.TRANS(left, right) => 
+          val leftFact = resolveFact(left)
+          val rightFact = resolveFact(right)
+          TRANS(leftFact, rightFact)
+        case h.MK_COMB(left, right) => 
+          val leftFact = resolveFact(left)
+          val rightFact = resolveFact(right)
+          MK_COMB(leftFact, rightFact)
+        case h.ABS(absVar, from) => 
+          val lisaVar = absVar.toLisaVar
+          val fromFact = resolveFact(from)
+          ABS(lisaVar)(fromFact)
+        case h.BETA(term) => 
+          BETA(term.toLisaTerm)
+        case h.ASSUME(term) => 
+          ASSUME(term.toLisaTerm)
+        case h.EQ_MP(left, right) =>
+          val leftFact = resolveFact(left)
+          val rightFact = resolveFact(right)
+          EQ_MP(leftFact, rightFact)
+        case h.DEDUCT_ANTISYM_RULE(left, right) =>
+          val leftFact = resolveFact(left)
+          val rightFact = resolveFact(right)
+          DEDUCT_ANTISYM_RULE(leftFact, rightFact)
+        case h.INST(from, inst) => 
+          val fromFact = resolveFact(from)
+          val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaTerm) }
+          INST(lisaInst.toSeq, fromFact)
+        case h.INST_TYPE(from, inst) => 
+          val fromFact = resolveFact(from)
+          val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaType) }
+          INST_TYPE(lisaInst.toSeq, fromFact)
+        case h.AXIOM(term) => Axioms.fromHOL(term.toLisaTerm)
+        case s @ h.DEFINITION(name, term) => reconstructConstantDefinition(s)
+        case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(s) 
+    }
+
+    cache(index) = result
+    result
 
   end reconstructStep
 
@@ -619,9 +520,10 @@ object Import extends lisa.HOL:
     def printProgress() = 
       val elapsed = time()
       val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds." 
+      val usedSteps = f"Used ${theoremMap.keySet.maxOption.getOrElse(0)} proof steps from HOL Light."
       val memoryLeft = Runtime.getRuntime.freeMemory() / 1e6
       val memoryString = f"Memory left: $memoryLeft%.2f MB"
-      println(f"\r[INFO] $progressString $memoryString")
+      println(f"\r[INFO] $progressString $usedSteps $memoryString")
 
     names.take(100).foreach: ref =>
       try
