@@ -775,7 +775,7 @@ object HOLBasics extends lisa.HOL {
   val selectAx = HOLTheorem(
     hforall(A ->: 𝔹) * fun(P,
       hforall(A) * fun(x, 
-        himp * (P * x) * (P * hselect(A) * P)
+        himp * (P * x) * (P * (hselect(A) * P))
       )
     )
   ):
