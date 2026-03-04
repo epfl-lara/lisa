@@ -11,6 +11,7 @@ import lisa.maths.SetTheory.Cardinal.Predef.universeOfIsUniverse
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.SimpleDeducedSteps._
 import lisa.utils.prooflib.ProofTacticLib._
 
 import scala.collection.Set
@@ -168,8 +169,20 @@ object Tactics:
                     "computeType can only handle fully applied functions. Function " + tcf + " has arity " + tcf.arity + " but was applied to " + args.size + " arguments."
                   )
                 val subst = (tcf.typ.args zip args).map((v, a) => (v := a))
-                have(tm ∈ tcf.typ.outTyp.substitute(subst*) ++<< (localContext |- ())) by Tautology.from(tcf.justif.of(args*))
-                tcf.typ.outTyp.substitute(subst*)
+                val resultType = tcf.typ.outTyp.substitute(subst*)
+                val typing = tm ∈ resultType
+                val hyp = have((localContext ++ Set(tm ∈ resultType)) |- tm ∈ resultType) by Restate
+                // collect and preserve assumptions about types
+                val justif =
+                  val instantiated = tcf.justif.of(args*)
+                  instantiated.statement.right.headOption match
+                    case Some(a ==> b) if isSame(b, typing) => 
+                      // keep any assumptions introduced by the justification
+                      have((a |- b) ++<< instantiated.statement) by Weakening(instantiated)
+                    case _ =>
+                      // either simple or unknown form; in any case, attempt to discharge normally
+                      instantiated
+                have(Discharge(justif)(hyp))
 
               case _ =>
                 val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if t1 == tm => t2 }
