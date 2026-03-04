@@ -588,7 +588,10 @@ trait WithTheorems {
 
     val (innerJustification: theory.Theorem, provedStatement: F.Sequent) =
       if library._draft.nonEmpty && library._draft.get.value != file && possibleGoal.isDefined
-      then // if the draft option is activated, and the theorem is not in the file where the draft option is given, then we replace the proof by sorry
+      then 
+        // if the draft option is activated, the theorem is not in the file
+        // where the draft option is given, and the theorem has a defined goal
+        // statement, then we replace the proof by sorry
         val goal = possibleGoal.get
         theory.theorem(fullName, goal.underlying, SCProof(SC.Sorry(goal.underlying)), IndexedSeq.empty) match {
           case K.Judgement.ValidJustification(just) =>
