@@ -72,6 +72,12 @@ lazy val sets = Project(
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
+  .settings(
+    // Exclude old ADT folder to avoid compilation errors during migration to ADTv2
+    Compile / unmanagedSources / excludeFilter := HiddenFileFilter || new SimpleFileFilter(f =>
+      f.getAbsolutePath.contains("Types/ADT/") && !f.getAbsolutePath.contains("Types/ADTv2/")
+    )
+  )
   .dependsOn(kernel, withTests(utils))
 lazy val utils = Project(
   id = "lisa-utils",
