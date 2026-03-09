@@ -11,9 +11,9 @@ object Builders {
   def constructor(name: String, args: ConstructorArg*): ConstructorSpec =
     ConstructorSpec(name, args)
 
-  def tpe(name: String): TypeExpr = TypeRef(name)
+  def typ(name: String): TypeExpr = TypeRef(name)
 
   def self: ConstructorArg = SelfRef
 
-  def arg(tpe: TypeExpr): ConstructorArg = Ground(tpe)
+  def arg(tpe: TypeExpr): ConstructorArg = RegularArg(tpe)
 }
