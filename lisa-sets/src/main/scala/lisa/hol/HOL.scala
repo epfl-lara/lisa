@@ -24,7 +24,6 @@ trait _HOL extends BasicMain {
     tforall,
     TypedForall,
     TypedVariable,
-    HOLProofType,
     holeq,
     HOLSequent,
     =:=,

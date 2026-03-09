@@ -364,34 +364,6 @@ object VarsAndFunctions /*extends lisa.Main*/:
       have(thesis) by Typecheck.prove
     }
 
-  object HOLProofType extends ProofTactic {
-
-    private val cache: mutable.Map[Long, SetTheoryLibrary.JUSTIFICATION] = mutable.Map.empty  
-
-    inline def code[S: Sort](t: Expr[S]): Long = t.underlying.uniqueNumber
-
-    def apply2(t: Expr[Ind]): SetTheoryLibrary.JUSTIFICATION =
-      cache.get(code(t)) match
-        case Some(justif) => justif
-        case None =>
-          val contextAssigns: Set[Expr[Prop]] = getContext(t)
-          val just =
-            try
-              Theorem.withoutStatement { have(Typecheck.inferProof(contextAssigns, t)) }
-            catch
-              case e: Exception =>
-                throw LisaHOLException("Failed to compute and prove typing for term " + t + ": " + e.getMessage())
-          cache.put(code(t), just)
-          just
-
-    def apply(t: Expr[Ind]): SetTheoryLibrary.JUSTIFICATION =
-      t match
-        case tc: TypedConstant =>
-          tc.justif
-        case _ =>
-          apply2(t)
-  }
-
   given termToSetConv[T <: Expr[Ind]]: FormulaSetConverter[T] = t => Set(eqOne(t))
   given setTermToSetConv[T <: Iterable[Expr[Ind]]]: FormulaSetConverter[T] = _.map(eqOne(_)).toSet
   given Conversion[Expr[Ind], HOLSequent] = HOLSequent(Set(), _)
