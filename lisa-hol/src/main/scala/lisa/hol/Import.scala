@@ -51,6 +51,58 @@ object Import extends lisa.HOL:
   private var currentLoggingMode: LoggingMode = LoggingMode.Silent
   given LoggingMode = currentLoggingMode
 
+  private object Transformers:
+    
+    extension (typ: h.Type) 
+      def toLisaType : Expr[Ind] =
+        typ match
+          case h.BoolType => 𝔹
+          case h.FunType(in, out) => in.toLisaType ->: out.toLisaType
+          case h.TypeVariable(name) => TypeVariable(K.Identifier(name))
+          case h.TypeApplication(name, args) =>
+            if name == "fun" && args.length == 2 then
+              // since function types are defined as a shorthand for Pi types, we
+              // handle them separately instead of defining fun as a
+              // HOLConstantType layer over Pi
+              args(0).toLisaType ->: args(1).toLisaType
+            else
+              val typeConstant = Constants.lookupTypeConstant(name)
+              val typeArgs = args.map(_.toLisaType)
+
+              // expr should be fully applied
+              // this is runtime checked wherever used
+              (typeConstant #@@ typeArgs).asInstanceOf
+
+    extension (v: h.Variable)
+      def toLisaVar : TypedVariable =
+        val tpe = v.tpe.toLisaType
+        // unfortunate to double the clashes, but identifier indices are
+        // expected to be positive
+        val name = K.Identifier(v.name, v.tpe.hashCode().abs)
+        TypedVariable(name, tpe)
+
+    extension (v: h.TypeVariable)
+      def toLisaVar : TypeVariable =
+        val name = K.Identifier(v.name)
+        TypeVariable(name)
+
+    extension (term: h.Term)
+      def toLisaTerm : Expr[Ind] =
+        term match
+          case v @ h.Variable(_, _) => v.toLisaVar 
+          case h.Constant(name, tpe) => Constants.lookupTypedConstant(name, tpe.toLisaType)
+          case h.Combination(left, right) => left.toLisaTerm @@ right.toLisaTerm
+          case h.Abstraction(absVar, inner) =>
+            fun(absVar.toLisaVar, inner.toLisaTerm)
+
+    extension (seq: h.HOLSequent)
+      def toLisaSequent : Sequent =
+        val assumptions = seq.hyps.map(_.toLisaTerm)
+        val conclusion = seq.concl.toLisaTerm
+        HOLSequent(assumptions.to(VecSet), conclusion)
+
+  import Transformers.{*, given}
+
   object Axioms:
     val infinityAx = HOLBasics.infinityAx
     val etaAx = HOLBasics.etaAx
@@ -229,52 +281,6 @@ object Import extends lisa.HOL:
     def initializeDefinitions(): Unit =
       initializeConstants()
       initializeTypes()
-
-  extension (typ: h.Type) 
-    def toLisaType : Expr[Ind] =
-      typ match
-        case h.BoolType => 𝔹
-        case h.FunType(in, out) => in.toLisaType ->: out.toLisaType
-        case h.TypeVariable(name) => TypeVariable(K.Identifier(name))
-        case h.TypeApplication(name, args) =>
-          if name == "fun" && args.length == 2 then
-            // since function types are defined as a shorthand for Pi types, we
-            // handle them separately instead of defining fun as a
-            // HOLConstantType layer over Pi
-            args(0).toLisaType ->: args(1).toLisaType
-          else
-            val typeConstant = Constants.lookupTypeConstant(name)
-            val typeArgs = args.map(_.toLisaType)
-
-            // expr should be fully applied
-            // this is runtime checked wherever used
-            (typeConstant #@@ typeArgs).asInstanceOf
-
-  extension (v: h.Variable)
-    def toLisaVar : TypedVariable =
-      val name = K.Identifier(v.name)
-      val tpe = v.tpe.toLisaType
-      TypedVariable(name, tpe)
-
-  extension (v: h.TypeVariable)
-    def toLisaVar : TypeVariable =
-      val name = K.Identifier(v.name)
-      TypeVariable(name)
-
-  extension (term: h.Term)
-    def toLisaTerm : Expr[Ind] =
-      term match
-        case v @ h.Variable(_, _) => v.toLisaVar 
-        case h.Constant(name, tpe) => Constants.lookupTypedConstant(name, tpe.toLisaType)
-        case h.Combination(left, right) => left.toLisaTerm @@ right.toLisaTerm
-        case h.Abstraction(absVar, inner) =>
-          fun(absVar.toLisaVar, inner.toLisaTerm)
-
-  extension (seq: h.HOLSequent)
-    def toLisaSequent : Sequent =
-      val assumptions = seq.hyps.map(_.toLisaTerm)
-      val conclusion = seq.concl.toLisaTerm
-      HOLSequent(assumptions.to(VecSet), conclusion)
 
   private val theoremMap: mutable.Map[Long, Justification] = mutable.Map.empty
 
