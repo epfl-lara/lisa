@@ -12,7 +12,7 @@ trait Predef extends ExprOps {
   /**
    * Creates a variable with the given identifier and sort.
    */
-  def variable[S](using Sort[S])(id: K.Identifier): Variable[S] = new Variable(id)
+  def variable[S](using Sort[S])(id: K.Identifier): Variable[S] = Variable(id)
 
   /**
    *  Creates a constant with the given identifier and sort.
@@ -28,7 +28,7 @@ trait Predef extends ExprOps {
    *  Creates a variable with name equal to the scala identifier. Usage:
    * {{{val x = variable[Ind]}}}
    */
-  def variable[S](using name: sourcecode.Name, is: Sort[S]): Variable[S] = new Variable(name.value)
+  def variable[S](using name: sourcecode.Name, is: Sort[S]): Variable[S] = Variable(name.value)
 
   /**
    *  Creates a constant with name equal to the scala identifier. Usage:
@@ -321,19 +321,19 @@ trait Predef extends ExprOps {
    * Maps a kernel variable to a corresponding front-end variable.
    */
   def asFrontVariable(v: K.Variable): Variable[?] =
-    new Variable[Ind](v.id)(using unsafeSortEvidence(v.sort))
+    Variable[Ind](v.id)(using unsafeSortEvidence(v.sort))
 
   /**
    * Maps a kernel application to a corresponding front-end application.
    */
   def asFrontApplication(a: K.Application): App[?, ?] =
-    new App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))
+    App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))
 
   /**
    * Maps a kernel lambda to a corresponding front-end lambda.
    */
   def asFrontLambda(l: K.Lambda): Abs[?, ?] =
-    new Abs(asFrontVariable(l.v).asInstanceOf, asFrontExpression(l.body))
+    Abs(asFrontVariable(l.v).asInstanceOf, asFrontExpression(l.body))
 
   /**
    * Computes the greatest identifier in a sequence of expressions.

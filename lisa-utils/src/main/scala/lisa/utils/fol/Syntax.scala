@@ -336,7 +336,7 @@ trait Syntax {
    *
    * @tparam S The sort of the variable.
    */
-  case class Variable[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
+  case class Variable[S: Sort as sortEv] (id: K.Identifier) extends Expr[S] {
 
     /**
      * The runtime sort of the variable
@@ -380,6 +380,12 @@ trait Syntax {
    * Factory object for [[Variable]].
    */
   object Variable {
+    // val cache = scala.collection.mutable.Map.empty[(K.Identifier, K.Sort), Variable[?]]
+    // def apply[S: Sort as sortEv](id: K.Identifier): Variable[S] = 
+    //   cache
+    //     .getOrElseUpdate((id, sortEv.underlying), new Variable(id)(using sortEv))
+    //     .asInstanceOf[Variable[S]] // the evidence check ensures this is well sorted
+
     def unsafe(id: String, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
     def fresh[S: Sort](existing: Iterable[Expr[?]], baseId: String = "v"): Variable[S] = {
       val newId = freshId(existing.flatMap(_.freeVars.map(_.id)), baseId)
@@ -519,7 +525,7 @@ trait Syntax {
    *
    * The sorts must match: `f.sort` must be of the form `A >>: B` and `arg.sort` must be `A`.
    */
-  case class App[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]) extends Expr[T] {
+  case class App[S, T] (f: Expr[Arrow[S, T]], arg: Expr[S]) extends Expr[T] {
     val sort: K.Sort = f.sort match
       case K.Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
@@ -542,6 +548,11 @@ trait Syntax {
    * Factory object for [[App]] when the sorts are unknown at compile time.
    */
   object App {
+    // val cache = scala.collection.mutable.Map.empty[(K.Expression, K.Expression), App[?, ?]]
+    // def apply[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]): App[S, T] =
+    //   cache
+    //     .getOrElseUpdate((f.underlying, arg.underlying), new App(f, arg))
+    //     .asInstanceOf[App[S, T]]
 
     /**
      * Constructs an application of `f` to `arg`.
@@ -561,7 +572,7 @@ trait Syntax {
    *
    * The sort of the variable must match the sort of the body.
    */
-  case class Abs[S, T](v: Variable[S], body: Expr[T]) extends Expr[Arrow[S, T]] {
+  case class Abs[S, T] (v: Variable[S], body: Expr[T]) extends Expr[Arrow[S, T]] {
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
@@ -586,13 +597,17 @@ trait Syntax {
    * Factory object for [[Abs]] when the sorts are unknown at compile time.
    */
   object Abs:
+    // val cache = scala.collection.mutable.Map.empty[(K.Identifier, K.Expression), Abs[?, ?]]
+    // def apply[S, T](v: Variable[S], body: Expr[T]): Abs[S, T] =
+    //   cache
+    //     .getOrElseUpdate((v.id, body.underlying), new Abs(v, body))
+    //     .asInstanceOf[Abs[S, T]]
+
     /**
      * Constructs a lambda abstraction of `v` over `body`. Always succeeds.
      */
     def unsafe(v: Variable[?], body: Expr[?]): Expr[?] =
-      new Abs(v.asInstanceOf, body.asInstanceOf)
-
-    def apply[S1, S2](v: Variable[S1], body: Expr[S2]): Abs[S1, S2] = new Abs(v, body)
+      Abs(v.asInstanceOf[Variable[?]], body.asInstanceOf[Expr[?]])
 
     def apply(xs: Seq[Variable[?]], t: Expr[?]): Expr[?] = xs.foldRight(t)((x, t) => new Abs(x, t))
 
