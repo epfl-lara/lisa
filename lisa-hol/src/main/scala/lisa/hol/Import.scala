@@ -50,7 +50,10 @@ object Import extends lisa.HOL:
   import Logging.*
   private var currentLoggingMode: LoggingMode = LoggingMode.Silent
   given LoggingMode = currentLoggingMode
-
+  def mkTypedVar(name: String, tpe: Expr[Ind]): TypedVariable =
+      // unfortunate to double the clashes, but identifier indices are
+      // expected to be positive
+    TypedVariable(K.Identifier(name, tpe.hashCode().abs), tpe)
   private object Transformers:
     
     extension (typ: h.Type) 
@@ -73,13 +76,12 @@ object Import extends lisa.HOL:
               // this is runtime checked wherever used
               (typeConstant #@@ typeArgs).asInstanceOf
 
+    
+
     extension (v: h.Variable)
       def toLisaVar : TypedVariable =
         val tpe = v.tpe.toLisaType
-        // unfortunate to double the clashes, but identifier indices are
-        // expected to be positive
-        val name = K.Identifier(v.name, v.tpe.hashCode().abs)
-        TypedVariable(name, tpe)
+        mkTypedVar(name, tpe)
 
     extension (v: h.TypeVariable)
       def toLisaVar : TypeVariable =
