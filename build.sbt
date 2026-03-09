@@ -121,11 +121,17 @@ lazy val examples = Project(
   .settings(commonProjectSettings)
   .settings(scala3ProjectSettings)
   .dependsOn(root)
-
-lazy val coc = Project(
-  id = "lisa-coc",
-  base = file("lisa-coc")
+  
+lazy val holImport = Project(
+  id = "lisa-hol",
+  base = file("lisa-hol")
 )
   .settings(commonProjectSettings)
   .settings(scala3ProjectSettings)
-  .dependsOn(root)
+  .settings(
+    Seq(
+      libraryDependencies += "com.lihaoyi" %% "upickle" % "4.4.3",
+      libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0"
+    )
+  )
+  .dependsOn(sets, utils)
