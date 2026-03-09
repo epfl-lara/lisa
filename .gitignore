@@ -107,3 +107,9 @@ doc/api/
 # Environment
 .env
 .env.local
+
+# TPTP files
+*.p
+
+# JVM dumps
+*.hprof*
