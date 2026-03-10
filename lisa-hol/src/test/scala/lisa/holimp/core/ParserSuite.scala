@@ -1,9 +1,13 @@
 package lisa
-package holimp
+package hol
 package core
 
-class ParserSuite extends munit.FunSuite:
+import org.scalatest.funsuite.AnyFunSuite
+
+class ParserSuite extends AnyFunSuite:
   import Parser.*
+
+  inline def assertEquals[T](actual: T, expected: T) = assert(actual == expected, s"Expected: $expected, but found: $actual")
 
   test("Parse a simple variable term") {
     val input = "v(x)(c[bool][])"

@@ -4,31 +4,23 @@ import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
+import lisa.maths.SetTheory.Base.FoundationAxiom
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Base.Replacement.|
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
+import lisa.utils.prooflib.BasicStepTactic.LeftSubstEq
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.RightAnd
+import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.ProofTacticLib._
+import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
 import lisa.utils.prooflib.SimpleDeducedSteps._
 import lisa.utils.unification.UnificationUtils.Substitution
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
-import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.BasicStepTactic.RightAnd
-import lisa.utils.prooflib.BasicStepTactic.Weakening
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
-import lisa.utils.prooflib.BasicStepTactic.Weakening
-import lisa.utils.unification.UnificationUtils.Substitution
-import lisa.utils.unification.UnificationUtils.Substitution
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
-import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
-import lisa.utils.unification.UnificationUtils.Substitution
-import lisa.utils.unification.UnificationUtils.Substitution
-import lisa.utils.prooflib.BasicStepTactic.LeftSubstEq
-import lisa.maths.SetTheory.Base.FoundationAxiom
 
 object HOLBasics extends lisa.HOL {
 
