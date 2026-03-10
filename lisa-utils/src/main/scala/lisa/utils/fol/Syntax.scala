@@ -339,7 +339,7 @@ trait Syntax {
    *
    * @tparam S The sort of the variable.
    */
-  case class Variable[S: Sort as sortEv] (id: K.Identifier) extends Expr[S] {
+  case class Variable[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
 
     /**
      * The runtime sort of the variable
@@ -384,7 +384,7 @@ trait Syntax {
    */
   object Variable {
     // val cache = scala.collection.mutable.Map.empty[(K.Identifier, K.Sort), Variable[?]]
-    // def apply[S: Sort as sortEv](id: K.Identifier): Variable[S] = 
+    // def apply[S: Sort as sortEv](id: K.Identifier): Variable[S] =
     //   cache
     //     .getOrElseUpdate((id, sortEv.underlying), new Variable(id)(using sortEv))
     //     .asInstanceOf[Variable[S]] // the evidence check ensures this is well sorted
@@ -517,7 +517,7 @@ trait Syntax {
    *
    * The sorts must match: `f.sort` must be of the form `A >>: B` and `arg.sort` must be `A`.
    */
-  case class App[S, T] (f: Expr[Arrow[S, T]], arg: Expr[S]) extends Expr[T] {
+  case class App[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]) extends Expr[T] {
     val sort: K.Sort = f.sort match
       case K.Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
@@ -564,7 +564,7 @@ trait Syntax {
    *
    * The sort of the variable must match the sort of the body.
    */
-  case class Abs[S, T] (v: Variable[S], body: Expr[T]) extends Expr[Arrow[S, T]] {
+  case class Abs[S, T](v: Variable[S], body: Expr[T]) extends Expr[Arrow[S, T]] {
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
