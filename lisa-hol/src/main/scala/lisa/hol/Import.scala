@@ -17,6 +17,7 @@ import lisa.hol.extractor.TheoremRef
 import lisa.utils.prooflib.OutputManager
 import lisa.hol.extractor.ExtractorException
 import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
+import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
 
 object Import extends lisa.HOL:
   val lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
@@ -504,7 +505,7 @@ object Import extends lisa.HOL:
         case h.INST_TYPE(from, inst) => 
           val fromFact = resolveFact(from)
           val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaType) }
-          INST_TYPE(lisaInst.toSeq, fromFact)
+          have(_INST_TYPE_RENAME(lisaInst.toSeq, fromFact))
         case h.AXIOM(term) => Axioms.fromHOL(term.toLisaTerm)
         case s @ h.DEFINITION(name, term) => reconstructConstantDefinition(s)
         case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(s) 
