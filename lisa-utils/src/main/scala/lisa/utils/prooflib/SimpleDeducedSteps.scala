@@ -22,8 +22,7 @@ object SimpleDeducedSteps {
           if prem.statement.left.exists(f => F.isSame(f, seq.right.head)) then
             val goal = prem.statement -<? seq.right.head ++<? (seq.left |- ())
             lib.have(Cut(discharge, prem)(goal))
-          else 
-            prem
+          else prem
         )
     }
 

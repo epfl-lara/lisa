@@ -179,7 +179,7 @@ object UnificationUtils:
     def asSubstPair: Seq[SubstPair] =
       assignments.map((v, e) => v := e.asInstanceOf).toSeq
 
-    inline def iterator: Iterator[(Variable[?], Expr[?])] = 
+    inline def iterator: Iterator[(Variable[?], Expr[?])] =
       assignments.iterator
 
   object Substitution:

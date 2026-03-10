@@ -555,13 +555,13 @@ trait WithTheorems {
      * Construct a theorem without providing a concrete goal. Intended to be
      * used in internal tactic proofs where the exact goal of the theorem is not
      * known in advance.
-      *
-      * @param om The output manager, available in any file extending [[lisa.utils.BasicMain]]
-      * @param fullName The full name of the theorem, including the path/package.
-      * @param line The line at which the theorem is defined. Usually fetched automatically by the compiler. Used for error reporting
-      * @param file The file in which the theorem is defined. Usually fetched automatically by the compiler. Used for error reporting
-      * @param kind The kind of theorem (Theorem, Lemma, Corollary)
-      * @param computeProof The proof computation.
+     *
+     * @param om The output manager, available in any file extending [[lisa.utils.BasicMain]]
+     * @param fullName The full name of the theorem, including the path/package.
+     * @param line The line at which the theorem is defined. Usually fetched automatically by the compiler. Used for error reporting
+     * @param file The file in which the theorem is defined. Usually fetched automatically by the compiler. Used for error reporting
+     * @param kind The kind of theorem (Theorem, Lemma, Corollary)
+     * @param computeProof The proof computation.
      */
     def withoutStatement(using om: OutputManager)(fullName: String, line: Int, file: String, kind: TheoremKind)(computeProof: Proof ?=> Unit): THM =
       THMWithoutStatement(fullName, line, file, kind)(computeProof)
@@ -583,12 +583,13 @@ trait WithTheorems {
 
   }
 
-  sealed abstract class THMFromProof(using om: OutputManager)(val fullName: String, val line: Int, val file: String)(val possibleGoal: Option[F.Sequent])(val computeProof: Proof ?=> Unit) extends THM {
+  sealed abstract class THMFromProof(using om: OutputManager)(val fullName: String, val line: Int, val file: String)(val possibleGoal: Option[F.Sequent])(val computeProof: Proof ?=> Unit)
+      extends THM {
     import lisa.utils.Serialization.*
 
     val (innerJustification: theory.Theorem, provedStatement: F.Sequent) =
       if library._draft.nonEmpty && library._draft.get.value != file && possibleGoal.isDefined
-      then 
+      then
         // if the draft option is activated, the theorem is not in the file
         // where the draft option is given, and the theorem has a defined goal
         // statement, then we replace the proof by sorry
@@ -612,7 +613,7 @@ trait WithTheorems {
               // cached theorem with no known goal, lift the kernel sequent
               val K.Sequent(left, right) = thm.proposition
               F.Sequent(
-                left.map(F.asFrontExpression(_).asInstanceOf), 
+                left.map(F.asFrontExpression(_).asInstanceOf),
                 right.map(F.asFrontExpression(_).asInstanceOf)
               )
             }
@@ -623,7 +624,7 @@ trait WithTheorems {
             thmsToFile("cache/" + fullName, theory, List((fullName, flattenProof(scp), justifs)))
             (thm, proof.mostRecentStep.bot)
         }
-      else 
+      else
         val (innerThm, proof, _, _) = prove(computeProof)
 
         (innerThm, proof.mostRecentStep.bot)
@@ -672,16 +673,14 @@ trait WithTheorems {
    * A theorem that was produced from a high level proof. See [[THM.apply]].
    * Typical way to construct a theorem in the library, but serialization for example will produce a [[THMFromKernel]].
    */
-  final class THMWithStatement
-    (using val om: OutputManager)
-    (
-      val statement: F.Sequent, 
-      fullName: String, 
-      line: Int, 
-      file: String, 
+  final class THMWithStatement(using val om: OutputManager)(
+      val statement: F.Sequent,
+      fullName: String,
+      line: Int,
+      file: String,
       val kind: TheoremKind
-    )(computeProof: Proof ?=> Unit)
-       extends THMFromProof(fullName, line, file)(Some(statement))(computeProof) {
+  )(computeProof: Proof ?=> Unit)
+      extends THMFromProof(fullName, line, file)(Some(statement))(computeProof) {
 
     val goal: F.Sequent = statement
 
@@ -690,15 +689,13 @@ trait WithTheorems {
 
   }
 
-  final class THMWithoutStatement
-    (using val om: OutputManager)
-    (
-      fullName: String, 
-      line: Int, 
-      file: String, 
+  final class THMWithoutStatement(using val om: OutputManager)(
+      fullName: String,
+      line: Int,
+      file: String,
       val kind: TheoremKind
-    )(computeProof: Proof ?=> Unit)
-       extends THMFromProof(fullName, line, file)(None)(computeProof) {
+  )(computeProof: Proof ?=> Unit)
+      extends THMFromProof(fullName, line, file)(None)(computeProof) {
 
     val statement: F.Sequent = provedStatement // the statement computed from the proof
 
