@@ -60,7 +60,7 @@ class ParserSuite extends AnyFunSuite:
     "v(t)(c[bool][])",
     "C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(v(t)(c[bool][])))(C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(v(t)(c[bool][])))(c(T)(c[bool][])))",
     "C(C(c(=)(c[fun][[c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]][c[fun][[c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]][c[bool][]]]]]))(c(/\\)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]])))(A(v(p)(c[bool][]))(A(v(q)(c[bool][]))(C(C(c(=)(c[fun][[c[fun][[c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]][c[bool][]]]][c[fun][[c[fun][[c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]][c[bool][]]]][c[bool][]]]]]))(A(v(f)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(C(C(v(f)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(v(p)(c[bool][])))(v(q)(c[bool][])))))(A(v(f)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(C(C(v(f)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(c(T)(c[bool][])))(c(T)(c[bool][])))))))",
-    "C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(v(p)(c[bool][])))(v(p)(c[bool][]))",
+    "C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(v(p)(c[bool][])))(v(p)(c[bool][]))"
   )
 
   test("Parse terms extracted from HOL Light proof export") {

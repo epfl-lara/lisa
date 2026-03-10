@@ -46,24 +46,22 @@ object HOLExtStepsTests extends lisa.HOL {
 
   val lib = summon[Library]
 
-
   val holeqBetaReduced = HOLTheorem(
     holeq(A) =:= fun(x, fun(y, x =:= y))
   ):
-    SYM(TRANS(
-      ABS(x)( // fun(x, fun(y, x =:= y)) =:= fun(x, holeq(A) * x)
-        ETA(y, holeq(A) * x) // fun(y, holeq(A) * x * y) =:= holeq(A) * x
-      ),
-      ETA(x, holeq(A)) // fun(x, holeq(A) * x) =:= holeq(A)
-    ))
+    SYM(
+      TRANS(
+        ABS(x)( // fun(x, fun(y, x =:= y)) =:= fun(x, holeq(A) * x)
+          ETA(y, holeq(A) * x) // fun(y, holeq(A) * x * y) =:= holeq(A) * x
+        ),
+        ETA(x, holeq(A)) // fun(x, holeq(A) * x) =:= holeq(A)
+      )
+    )
 
   val holeqBetaReducedFull = HOLTheorem(
-    holeq(A)*z*z =:= fun(x, fun(y, x =:= y))*z*z
+    holeq(A) * z * z =:= fun(x, fun(y, x =:= y)) * z * z
   ):
     sorry
-
-
-
 
   val xb = mkTypedVar("x", B)
   val yb = mkTypedVar("y", B)
@@ -72,8 +70,6 @@ object HOLExtStepsTests extends lisa.HOL {
   ):
     have(_INST_TYPE_RENAME(Seq((A, B)), holeqBetaReduced))
 
-
-
   val xba = mkTypedVar("x", A ->: B)
   val yba = mkTypedVar("y", A ->: B)
   val instTypeTest2 = HOLTheorem(
@@ -81,20 +77,15 @@ object HOLExtStepsTests extends lisa.HOL {
   ):
     have(_INST_TYPE_RENAME(Seq((A, A ->: B)), holeqBetaReduced))
 
-
-
   val fba = mkTypedVar("f", A ->: B)
   val zba = mkTypedVar("z", A ->: B)
   val instTypeTest3 = HOLTheorem(
-    (holeq(A ->: B)*zba*zba) =:= (fun(xba, fun(yba, xba =:= yba))*zba*zba)
+    (holeq(A ->: B) * zba * zba) =:= (fun(xba, fun(yba, xba =:= yba)) * zba * zba)
   ):
     val s1 = have(_INST_TYPE_RENAME(Seq((A, A ->: B)), holeqBetaReducedFull))
 
-
-
-
   val instTypeTest4 = HOLTheorem(
-    (holeq(A ->: B)*fba*fba) =:= (fun(xba, fun(yba, xba =:= yba))*fba*fba)
+    (holeq(A ->: B) * fba * fba) =:= (fun(xba, fun(yba, xba =:= yba)) * fba * fba)
   ):
     val s1 = have(_INST_TYPE_RENAME(Seq((A, A ->: B)), holeqBetaReducedFull))
     have(_INST(Seq((zba, fba)), s1))

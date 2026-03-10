@@ -19,7 +19,7 @@ case object IncompleteParsingException extends ExtractorException
 case object UnreachableCaseException extends ExtractorException
 case object ExtractorEndedException extends Exception("No more proof steps or theorems to read") with ExtractorException
 
-extension [T] (res: ParseResult[T])
+extension [T](res: ParseResult[T])
   def getDone =
     res match
       case Success(out, next) if next.atEnd => out
@@ -31,8 +31,8 @@ private def parseTerm(str: String): Term = parse(term, str).getDone
 
 private def parseVar(str: String): Variable = parse(variable, str).getDone
 
-private def parseInst(insts: List[List[String]]): Map[Variable, Term] = 
-  insts.map { 
+private def parseInst(insts: List[List[String]]): Map[Variable, Term] =
+  insts.map {
     case List(left, right) => parseVar(left) -> parseTerm(right)
     case _ => throw UnreachableCaseException
   }.toMap
@@ -41,8 +41,8 @@ private def parseTypeVar(str: String) = parse(typeVariable, str).getDone
 
 private def parseType(str: String) = parse(typ, str).getDone
 
-private def parseTypeInst(insts: List[List[String]]): Map[TypeVariable, Type] = 
-  insts.map { 
+private def parseTypeInst(insts: List[List[String]]): Map[TypeVariable, Type] =
+  insts.map {
     case List(left, right) => parseTypeVar(left) -> parseType(right)
     case _ => throw UnreachableCaseException
   }.toMap
@@ -50,7 +50,7 @@ private def parseTypeInst(insts: List[List[String]]): Map[TypeVariable, Type] =
 // Structures as used in the HOL Light ProofTrace export
 // Reflects the JSON encoding of proof steps
 
-// map (x |-> t)  
+// map (x |-> t)
 // {"from": "...", "to": "..."}
 case class InstPair(from: String, to: String) derives RW:
   def toTermPair: (Variable, Term) = parseVar(from) -> parseTerm(to)
@@ -60,7 +60,7 @@ case class InstPair(from: String, to: String) derives RW:
 @key("step")
 sealed trait RawStep derives RW:
   private def parseTerm(str: String): Term = parseAll(term, str).getDone
-  
+
   def extract: ProofStep =
     this match
       case REFL(term) => core.REFL(parseTerm(term))
@@ -98,17 +98,17 @@ case class DEFINITION(term: String, name: String) extends RawStep
 case class TYPE_DEFINITION(pred: Long, term: String, name: String) extends RawStep
 
 /**
-  * A single line in the proof output.
-  * 
-  * @example `{"id": 3, "pr": {...}}`
-  */
+ * A single line in the proof output.
+ *
+ * @example `{"id": 3, "pr": {...}}`
+ */
 case class ProofLine(id: Long, @key("pr") step: RawStep) derives RW
 
 /**
-  * A raw sequent as represented in the JSON output.
-  * 
-  * @example `{"hy": ["p"], "cc": "p"}`
-  */
+ * A raw sequent as represented in the JSON output.
+ *
+ * @example `{"hy": ["p"], "cc": "p"}`
+ */
 case class RawSequent(@key("hy") hypotheses: List[String], @key("cc") conclusion: String) derives RW:
   def extract: HOLSequent =
     HOLSequent(
@@ -117,24 +117,24 @@ case class RawSequent(@key("hy") hypotheses: List[String], @key("cc") conclusion
     )
 
 /**
-  * A theorem statement as represented in the JSON output, with a unique ID and
-  * a sequent. The proof ID corresponds to the proof step of the same ID.
-  * 
-  * @example `{"id": 3, "th": {"hy": ["p"], "cc": "p"}}`
-  */
+ * A theorem statement as represented in the JSON output, with a unique ID and
+ * a sequent. The proof ID corresponds to the proof step of the same ID.
+ *
+ * @example `{"id": 3, "th": {"hy": ["p"], "cc": "p"}}`
+ */
 case class TheoremStatement(id: Long, @key("th") sequent: RawSequent) derives RW
 
 /**
-  * A theorem reference is a name assignment to a unique ID, which coresponds to
-  * the "proof step" of the same ID.
-  */
+ * A theorem reference is a name assignment to a unique ID, which coresponds to
+ * the "proof step" of the same ID.
+ */
 case class TheoremRef(id: Long, @key("nm") name: String) derives RW
 
 case class JustifiedTheorem(statement: HOLSequent, proof: ProofStep)
 
 final class ExtractorContext(
-  val proofIterator: Iterator[ProofLine],
-  val theoremIterator: Iterator[TheoremStatement]
+    val proofIterator: Iterator[ProofLine],
+    val theoremIterator: Iterator[TheoremStatement]
 ):
   // proofIterator and theoremIterator should be in sync
   // this is not necessary for an extraction, but is always the case for the ProofTrace output
@@ -147,9 +147,8 @@ final class ExtractorContext(
 
   @throws[ExtractorEndedException.type]
   private def readNext(): Unit =
-    if !proofIterator.hasNext || !theoremIterator.hasNext then
-      throw ExtractorEndedException
-    
+    if !proofIterator.hasNext || !theoremIterator.hasNext then throw ExtractorEndedException
+
     val proofLine = proofIterator.next()
     val theoremRef = theoremIterator.next()
 
@@ -171,21 +170,19 @@ final class ExtractorContext(
 
   /**
    * Get the theorem statement and proof for the given index, if it exists.
-   * 
+   *
    * @throws NoSuchElementException if the index does not exist
    */
   @throws[NoSuchElementException]
   def getTheorem(idx: Long): JustifiedTheorem =
     // require(idx >= 0 && idx < proofIterator.length)
 
-    if idx < 0 then 
-      throw new NoSuchElementException(s"Negative index: $idx.")
-    try 
-      readTill(idx)
-    catch 
-      case ExtractorEndedException => 
+    if idx < 0 then throw new NoSuchElementException(s"Negative index: $idx.")
+    try readTill(idx)
+    catch
+      case ExtractorEndedException =>
         throw new NoSuchElementException(s"Index $idx out of bounds, no more theorems to read.")
-    
+
     stepMap(idx)
 
   /**
@@ -198,13 +195,13 @@ final class ExtractorContext(
     while proofIterator.hasNext && theoremIterator.hasNext do readNext()
     stepMap.view
 
-object JSONParser: 
+object JSONParser:
   /**
    * Read a list of items from the given source interpreted as NDJSON, using the
    * given reader to parse each item.
    *
-   * If the file is not newline delimited (or data contains newlines :scared:), 
-   * this will fail, and the lower-level uJSON API may be used instead. 
+   * If the file is not newline delimited (or data contains newlines :scared:),
+   * this will fail, and the lower-level uJSON API may be used instead.
    */
   private def readIterated[T](src: java.io.Reader, reader: String => T): Iterator[T] =
     val buffered = new java.io.BufferedReader(src)
@@ -250,16 +247,11 @@ object JSONParser:
     val proofReader = new java.io.File(proofFile)
     val thmReader = new java.io.File(thmFile)
 
-    if !proofReader.exists() then
-      throw new java.io.FileNotFoundException(s"Proof file not found: $proofFile")
-    else if !proofReader.canRead() then
-      throw new java.io.IOException(s"Proof file cannot be read: $proofFile")
-    else if !thmReader.exists() then
-      throw new java.io.FileNotFoundException(s"Theorem file not found: $thmFile")
-    else if !thmReader.canRead() then
-      throw new java.io.IOException(s"Theorem file cannot be read: $thmFile")
-    else
-      () // ok
+    if !proofReader.exists() then throw new java.io.FileNotFoundException(s"Proof file not found: $proofFile")
+    else if !proofReader.canRead() then throw new java.io.IOException(s"Proof file cannot be read: $proofFile")
+    else if !thmReader.exists() then throw new java.io.FileNotFoundException(s"Theorem file not found: $thmFile")
+    else if !thmReader.canRead() then throw new java.io.IOException(s"Theorem file cannot be read: $thmFile")
+    else () // ok
 
     toContext(new java.io.FileReader(proofReader), new java.io.FileReader(thmReader))
 
@@ -278,28 +270,25 @@ object JSONParser:
   def namesIterator(file: String): Iterator[TheoremRef] =
     val reader = new java.io.File(file)
 
-    if !reader.exists() then
-      throw new java.io.FileNotFoundException(s"Theorem reference file not found: $file")
-    else if !reader.canRead() then
-      throw new java.io.IOException(s"Theorem reference file cannot be read: $file")
-    else
-      () // ok
+    if !reader.exists() then throw new java.io.FileNotFoundException(s"Theorem reference file not found: $file")
+    else if !reader.canRead() then throw new java.io.IOException(s"Theorem reference file cannot be read: $file")
+    else () // ok
 
     readIterated[TheoremRef](new java.io.FileReader(reader))
 
   /**
-    * Given a file prefix, generate an extractor context and an iterator of
-    * theorem references. The files are expected to be in the ProofTrace export
-    * format, with the proof steps in `<prefix>.proofs`, the theorem statements
-    * in `<prefix>.theorems`, and the theorem references in `<prefix>.names`.
-    *
-    * @param filePrefix the prefix path of files to read from
-    * @return an [[ExtractorContext]] to retrieve theorems and proofs, and an
-    * iterator of named theorems.
-    *
-    * @throws java.io.FileNotFoundException if any of the files do not exist
-    * @throws java.io.IOException if any of the files cannot be read
-    */
+   * Given a file prefix, generate an extractor context and an iterator of
+   * theorem references. The files are expected to be in the ProofTrace export
+   * format, with the proof steps in `<prefix>.proofs`, the theorem statements
+   * in `<prefix>.theorems`, and the theorem references in `<prefix>.names`.
+   *
+   * @param filePrefix the prefix path of files to read from
+   * @return an [[ExtractorContext]] to retrieve theorems and proofs, and an
+   * iterator of named theorems.
+   *
+   * @throws java.io.FileNotFoundException if any of the files do not exist
+   * @throws java.io.IOException if any of the files cannot be read
+   */
   @throws[java.io.FileNotFoundException]
   @throws[java.io.IOException]
   def initializeFromPrefix(filePrefix: String): (ExtractorContext, Iterator[TheoremRef]) =
@@ -316,7 +305,7 @@ object JSONParser:
    * Given a proof file, a theorem file, and a theorem reference file, generate
    * an iterator of theorem name and actual-theorem pairs. The theorem is a
    * sequent paired with a proof step.
-   * 
+   *
    * @throws java.io.FileNotFoundException if any file does not exist
    * @throws java.io.IOException if any file cannot be read
    * @throws ExtractorException if the proof steps cannot be parsed, or if the proof tree is malformed
@@ -328,7 +317,7 @@ object JSONParser:
     val context = toContext(proofFile, thmFile)
     val names = namesIterator(namesFile)
 
-    names.map: 
-      case TheoremRef(id, name) => 
+    names.map:
+      case TheoremRef(id, name) =>
         val thm = context.getTheorem(id)
         name -> thm

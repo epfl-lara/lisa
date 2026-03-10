@@ -39,9 +39,9 @@ object Import extends lisa.HOL:
     def debug(using mode: LoggingMode)(msg: => String): Unit =
       mode match
         case LoggingMode.Silent => ()
-        case LoggingMode.Debug => 
+        case LoggingMode.Debug =>
           msg.linesIterator.foreach(line => println(s"[DEBUG] $line"))
-      
+
     def info(using mode: LoggingMode)(msg: String): Unit =
       msg.linesIterator.foreach(line => println(s"[INFO] $line"))
 
@@ -57,9 +57,9 @@ object Import extends lisa.HOL:
       // unfortunate to double the clashes, but identifier indices are
       // expected to be positive
       TypedVariable(K.Identifier(name, tpe.hashCode().abs), tpe)
-    
-    extension (typ: h.Type) 
-      def toLisaType : Expr[Ind] =
+
+    extension (typ: h.Type)
+      def toLisaType: Expr[Ind] =
         typ match
           case h.BoolType => 𝔹
           case h.FunType(in, out) => in.toLisaType ->: out.toLisaType
@@ -79,26 +79,26 @@ object Import extends lisa.HOL:
               (typeConstant #@@ typeArgs).asInstanceOf
 
     extension (v: h.Variable)
-      def toLisaVar : TypedVariable =
+      def toLisaVar: TypedVariable =
         val tpe = v.tpe.toLisaType
         mkTypedVar(v.name, tpe)
 
     extension (v: h.TypeVariable)
-      def toLisaVar : TypeVariable =
+      def toLisaVar: TypeVariable =
         val name = K.Identifier(v.name)
         TypeVariable(name)
 
     extension (term: h.Term)
-      def toLisaTerm : Expr[Ind] =
+      def toLisaTerm: Expr[Ind] =
         term match
-          case v @ h.Variable(_, _) => v.toLisaVar 
+          case v @ h.Variable(_, _) => v.toLisaVar
           case h.Constant(name, tpe) => Constants.lookupTypedConstant(name, tpe.toLisaType)
           case h.Combination(left, right) => left.toLisaTerm @@ right.toLisaTerm
           case h.Abstraction(absVar, inner) =>
             fun(absVar.toLisaVar, inner.toLisaTerm)
 
     extension (seq: h.HOLSequent)
-      def toLisaSequent : Sequent =
+      def toLisaSequent: Sequent =
         val assumptions = seq.hyps.map(_.toLisaTerm)
         val conclusion = seq.concl.toLisaTerm
         HOLSequent(assumptions.to(VecSet), conclusion)
@@ -117,32 +117,33 @@ object Import extends lisa.HOL:
     )
 
     def fromHOL(expr: Expr[Ind]): Justification =
-      axioms.find: ax =>
-        ax.statement match
-          case HOLSequent(_, _, axiom) if isSame(expr, axiom) => true
-          case _ => false
-      .getOrElse(throw UnknownAxiom(expr))
+      axioms
+        .find: ax =>
+          ax.statement match
+            case HOLSequent(_, _, axiom) if isSame(expr, axiom) => true
+            case _ => false
+        .getOrElse(throw UnknownAxiom(expr))
 
   /**
-    * A destructed sequent corresponding to a constant definition.
-    */
+   * A destructed sequent corresponding to a constant definition.
+   */
   case class Definition(
-    name: String,
-    /**
-      * The full type of the constant, with free variables
-      */
-    abstractType: Expr[Ind],
-    /**
-      * The free type variables of the constant
-      *
-      * Order unimportant for HOL Light during generation, but our definitions
-      * order them.
-      */
-    typeArgs: Seq[Variable[Ind]],
-    /**
-      * The actual defining term
-      */
-    body: Expr[Ind]
+      name: String,
+      /**
+       * The full type of the constant, with free variables
+       */
+      abstractType: Expr[Ind],
+      /**
+       * The free type variables of the constant
+       *
+       * Order unimportant for HOL Light during generation, but our definitions
+       * order them.
+       */
+      typeArgs: Seq[Variable[Ind]],
+      /**
+       * The actual defining term
+       */
+      body: Expr[Ind]
   )
 
   private object Definition:
@@ -161,7 +162,7 @@ object Import extends lisa.HOL:
             )
           )
         case _ => None
-      
+
   private object NameHandling:
     private val illegalChars = "}]`)[{(,;?_."
     private val replacementMap: collection.MapView[Char, Char] =
@@ -177,27 +178,27 @@ object Import extends lisa.HOL:
     case class DefinedConstant(cst: Constant[?], typeVars: Seq[Variable[Ind]], typ: Expr[Ind], definition: Justification)
 
     case class DefinedType(cst: HOLConstantType, typeVars: Seq[Variable[Ind]], definition: Justification)
-    
+
     private val typeDefinitions: mutable.Map[String, DefinedType] = mutable.Map.empty
     private val constantDefinitions: mutable.Map[String, DefinedConstant] = mutable.Map.empty
 
-    def lookupTypeConstant(name: String): HOLConstantType = 
+    def lookupTypeConstant(name: String): HOLConstantType =
       typeDefinitions.get(name) match
         case None => throw new NoSuchElementException(s"Type constant $name is not defined.")
         case Some(cst) => cst.cst
 
     def isDefinedType(name: String): Boolean = typeDefinitions.contains(name)
     def isDefinedConstant(name: String): Boolean = constantDefinitions.contains(name)
-      
-    def lookupTypedConstant(name: String, tpe: Expr[Ind]): Expr[Ind] = 
+
+    def lookupTypedConstant(name: String, tpe: Expr[Ind]): Expr[Ind] =
       // translate type to lisa expr, then match against the known
-      // abstract type of the constant, instantiating the definition 
+      // abstract type of the constant, instantiating the definition
       // appropriately
       constantDefinitions.get(name) match
         case None => throw new NoSuchElementException(s"Constant $name is not defined.")
         case Some(DefinedConstant(cst, typeVars, cstType, definition)) =>
           // find the instantiation of type variables
-          
+
           debug(s"[Constant Lookup] Looking up constant $name with type $tpe. Known abstract type is $cstType with type variables {${typeVars.mkString(", ")}}.")
 
           matchExpr(using RewriteContext.empty)(cstType, tpe) match
@@ -210,13 +211,13 @@ object Import extends lisa.HOL:
               appliedCst
 
     /**
-      * Lookup the definition of a constant, given its name. The returned
-      * definition will possibly have free type variables, which are returned as
-      * the first element.
-      */
-    def lookupConstantDefinition(name: String): (Seq[Variable[Ind]], Justification) = 
+     * Lookup the definition of a constant, given its name. The returned
+     * definition will possibly have free type variables, which are returned as
+     * the first element.
+     */
+    def lookupConstantDefinition(name: String): (Seq[Variable[Ind]], Justification) =
       // translate type to lisa expr, then match against the known
-      // abstract type of the constant, instantiating the definition 
+      // abstract type of the constant, instantiating the definition
       // appropriately
       constantDefinitions.get(name) match
         case None => throw new NoSuchElementException(s"Constant $name is not defined.")
@@ -224,24 +225,20 @@ object Import extends lisa.HOL:
           (typeVars, definition)
 
     def register(name: String, cst: Constant[?], typeVars: Seq[Variable[Ind]], cstType: Expr[Ind], definition: Justification): Unit =
-      if constantDefinitions.contains(name) then
-        throw new IllegalArgumentException(s"Constant $name is already defined.")
-      else 
-        constantDefinitions(name) = DefinedConstant(cst, typeVars, cstType, definition)
+      if constantDefinitions.contains(name) then throw new IllegalArgumentException(s"Constant $name is already defined.")
+      else constantDefinitions(name) = DefinedConstant(cst, typeVars, cstType, definition)
 
     def registerType(name: String, cst: HOLConstantType, typeVars: Seq[Variable[Ind]], definition: Justification): Unit =
-      if typeDefinitions.contains(name) then
-        throw new IllegalArgumentException(s"Type constant $name is already defined.")
-      else
-        typeDefinitions(name) = DefinedType(cst, typeVars, definition)
+      if typeDefinitions.contains(name) then throw new IllegalArgumentException(s"Type constant $name is already defined.")
+      else typeDefinitions(name) = DefinedType(cst, typeVars, definition)
 
   end Constants
 
   /**
-  * Contain and register constants and types defined and justified in the
-  * preamble before the import. This includes, for example, `ind`, `bool`,
-  * equality, and some basic FOL operators.
-  */
+   * Contain and register constants and types defined and justified in the
+   * preamble before the import. This includes, for example, `ind`, `bool`,
+   * equality, and some basic FOL operators.
+   */
   private object Initialization:
     import Constants.{DefinedConstant, DefinedType, register, registerType}
     import HOLBasics.*
@@ -289,9 +286,9 @@ object Import extends lisa.HOL:
   type StepCache[T] = mutable.Map[Long, T]
 
   private def reconstructTheorem(using extractor: ExtractorContext)(ref: TheoremRef): Justification =
-     val TheoremRef(index, name) = ref
-     theoremMap.get(index) match
-      case Some(just) => 
+    val TheoremRef(index, name) = ref
+    theoremMap.get(index) match
+      case Some(just) =>
         debug(s"Theorem with id $index found cached.")
         just
       case None =>
@@ -300,47 +297,47 @@ object Import extends lisa.HOL:
         val step = extractor.getTheorem(index)
 
         def processGeneric(step: JustifiedTheorem): Justification =
-            val goal = step.statement.toLisaSequent
+          val goal = step.statement.toLisaSequent
 
-            // give the theorem a custom qualified name
-            val sanitizedName = sanitize(name)
-            val baseName = summon[sourcecode.Name].value.stripSuffix(".")
-            val theoremName = sourcecode.FullName(s"$baseName.$sanitizedName")
+          // give the theorem a custom qualified name
+          val sanitizedName = sanitize(name)
+          val baseName = summon[sourcecode.Name].value.stripSuffix(".")
+          val theoremName = sourcecode.FullName(s"$baseName.$sanitizedName")
 
-            debug(s"Reconstructing theorem #$index.")
+          debug(s"Reconstructing theorem #$index.")
 
-            HOLTheorem(using 
-              summon[OutputManager],
-              theoremName, // just need to set the right name for better tracking
-              summon[sourcecode.Line],
-              summon[sourcecode.File]
-            )(goal) { proof ?=>
-              val stepCache = mutable.Map.empty[Long, proof.Fact]
-              HOLProofType.resetCache()
-              reconstructStep(using extractor, proof, stepCache)(index, step)
+          HOLTheorem(using
+            summon[OutputManager],
+            theoremName, // just need to set the right name for better tracking
+            summon[sourcecode.Line],
+            summon[sourcecode.File]
+          )(goal) { proof ?=>
+            val stepCache = mutable.Map.empty[Long, proof.Fact]
+            HOLProofType.resetCache()
+            reconstructStep(using extractor, proof, stepCache)(index, step)
 
-              debug(f"Theorem #$index%06d reconstructed with a step cache usage of ${stepCache.size} steps, and ${HOLProofType.cacheSize} typing proofs.") 
-              debug{
+            debug(f"Theorem #$index%06d reconstructed with a step cache usage of ${stepCache.size} steps, and ${HOLProofType.cacheSize} typing proofs.")
+            debug {
               val proofSize = proof.currentSCProof.totalLength
-                f"Theorem #$index%06d required an SCProof of totalLength ${proofSize}."
-              }
+              f"Theorem #$index%06d required an SCProof of totalLength ${proofSize}."
             }
-        
-        val reconstructed = 
+          }
+
+        val reconstructed =
           step.proof match
-            case s: h.AXIOM => 
+            case s: h.AXIOM =>
               // recover a matching axiom
               reconstructAxiom(s)
-            case s: h.DEFINITION => 
+            case s: h.DEFINITION =>
               // deal with it as a definition
               // where not all symbols are defined yet
               reconstructConstantDefinition(s)
-            case s: h.TYPE_DEFINITION => 
+            case s: h.TYPE_DEFINITION =>
               reconstructTypeDefinition(s)
             case _ =>
               // any other step should become a theorem
               processGeneric(step)
-          
+
         theoremMap(index) = reconstructed
 
         reconstructed
@@ -350,12 +347,12 @@ object Import extends lisa.HOL:
     val lisaTerm = term.toLisaTerm
     Axioms.fromHOL(lisaTerm)
 
-  private def reconstructTypeDefinition(using extractor: ExtractorContext)(step: h.TYPE_DEFINITION): Justification = 
+  private def reconstructTypeDefinition(using extractor: ExtractorContext)(step: h.TYPE_DEFINITION): Justification =
     ???
 
   private def reconstructConstantDefinition(using extractor: ExtractorContext)(step: h.DEFINITION): Justification =
     val h.DEFINITION(name, term) = step
-    // the definition is of the form `name = body`, 
+    // the definition is of the form `name = body`,
     // where `name` is not yet defined at this point;
     // possibly with free type variables, e.g. v[A]
 
@@ -372,9 +369,9 @@ object Import extends lisa.HOL:
           // actually define the constant, and register it for future lookup
           debug(s"Defining new constant $name with abstract type $abstractType and body $body. Type variables are {${typeArgs.mkString(", ")}}.")
 
-          val definitionTerm = 
+          val definitionTerm =
             typeArgs.foldRight(body: Expr[?])((v, acc) => λ(v, acc))
-          
+
           val cleanedName =
             val baseName = summon[sourcecode.Name].value.stripSuffix(".")
             val sanitized = sanitize(name)
@@ -396,14 +393,14 @@ object Import extends lisa.HOL:
           val fullTyping = typeArgs.foldRight(conj ==> baseTyping): (v, inner) =>
             ∀(v, inner)
 
-          val typeJust = Lemma(fullTyping){ proof ?=>
+          val typeJust = Lemma(fullTyping) { proof ?=>
 
             // typechecking does not account for non-emptiness of constant and
             // function types so we will add and eliminate these manually too.
             // we need to actually collect the assumptions, so we partially
             // unfold Clean.allComposites
             val openTypes = HOLSteps.Clean
-                              .collectInstantiatingConstants(definitionTerm)
+              .collectInstantiatingConstants(definitionTerm)
 
             val (insts, nonEmptyJustifs) = openTypes.unzip
             val extraNonEmpty = insts.map(t => ∃(x, x ∈ t))
@@ -417,8 +414,8 @@ object Import extends lisa.HOL:
             val discharged = lib.have(Discharge(nonEmptyJustifs*)(conditional))
 
             val implication = lib.have(conj ==> baseTyping) by Weakening(discharged)
-            
-            typeArgs.foldRight(implication: proof.Fact): (v, premise) => 
+
+            typeArgs.foldRight(implication: proof.Fact): (v, premise) =>
               val prev = premise.statement.right.head // inv: always singleton
               lib.have(∀(v, prev)) by RightForall(premise)
           }
@@ -430,23 +427,23 @@ object Import extends lisa.HOL:
           )
 
           // lift this to an HOL Constant
-          val holCst = 
+          val holCst =
             HOLPolymorphicConstant(cst.id, funClass, typeJust)(using unsafeSortEvidence(cst.sort))
 
           // register this constant and definition
           Constants.register(name, holCst, typeArgs, abstractType, holCst.holDefinition)
-          
+
           holCst.holDefinition
-      case _ => 
+      case _ =>
         throw InvalidDefinitionException(name, term)
 
   /**
-    * Reconstruct a single proof step from a [[JustifiedTheorem]] within the
-    * given proof context.
-    * 
-    * @param ctx current proof context
-    * @param step the step to reconstruct, as a [[JustifiedTheorem]]
-    */
+   * Reconstruct a single proof step from a [[JustifiedTheorem]] within the
+   * given proof context.
+   *
+   * @param ctx current proof context
+   * @param step the step to reconstruct, as a [[JustifiedTheorem]]
+   */
   private def reconstructStep(using extractor: ExtractorContext, ctx: lib.Proof, cache: StepCache[ctx.Fact])(index: Long, step: JustifiedTheorem): ctx.Fact =
     debug(s"Reconstructing step with statement ${step.statement} and proof type ${step.proof.getClass.getSimpleName}")
     debug(s"Current cache size: ${cache.size}. Current theorem map size: ${theoremMap.size}.")
@@ -471,23 +468,23 @@ object Import extends lisa.HOL:
 
     val result = {
       proofStep match
-        case h.REFL(term) => 
+        case h.REFL(term) =>
           REFL(term.toLisaTerm)
-        case h.TRANS(left, right) => 
+        case h.TRANS(left, right) =>
           val leftFact = resolveFact(left)
           val rightFact = resolveFact(right)
           TRANS(leftFact, rightFact)
-        case h.MK_COMB(left, right) => 
+        case h.MK_COMB(left, right) =>
           val leftFact = resolveFact(left)
           val rightFact = resolveFact(right)
           MK_COMB(leftFact, rightFact)
-        case h.ABS(absVar, from) => 
+        case h.ABS(absVar, from) =>
           val lisaVar = absVar.toLisaVar
           val fromFact = resolveFact(from)
           ABS(lisaVar)(fromFact)
-        case h.BETA(term) => 
+        case h.BETA(term) =>
           BETA(term.toLisaTerm)
-        case h.ASSUME(term) => 
+        case h.ASSUME(term) =>
           ASSUME(term.toLisaTerm)
         case h.EQ_MP(left, right) =>
           val leftFact = resolveFact(left)
@@ -497,17 +494,17 @@ object Import extends lisa.HOL:
           val leftFact = resolveFact(left)
           val rightFact = resolveFact(right)
           DEDUCT_ANTISYM_RULE(leftFact, rightFact)
-        case h.INST(from, inst) => 
+        case h.INST(from, inst) =>
           val fromFact = resolveFact(from)
           val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaTerm) }
           INST(lisaInst.toSeq, fromFact)
-        case h.INST_TYPE(from, inst) => 
+        case h.INST_TYPE(from, inst) =>
           val fromFact = resolveFact(from)
           val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaType) }
           have(_INST_TYPE_RENAME(lisaInst.toSeq, fromFact))
         case h.AXIOM(term) => Axioms.fromHOL(term.toLisaTerm)
         case s @ h.DEFINITION(name, term) => reconstructConstantDefinition(s)
-        case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(s) 
+        case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(s)
     }
 
     cache(index) = result
@@ -521,38 +518,40 @@ object Import extends lisa.HOL:
     Initialization.initializeDefinitions()
 
     // System.gc()
-    
+
     var count = 0
     val startTime = System.currentTimeMillis()
     def time() = (System.currentTimeMillis() - startTime) / 1000d
-    def printProgress() = 
+    def printProgress() =
       val elapsed = time()
-      val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds." 
+      val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds."
       val usedSteps = f"Used ${theoremMap.keySet.maxOption.getOrElse(0)} proof steps from HOL Light."
       val memoryLeft = Runtime.getRuntime.freeMemory() / 1e6
       val memoryString = f"Memory left: $memoryLeft%.2f MB"
       println(f"\r[INFO] $progressString $usedSteps $memoryString")
 
-    names.take(100).foreach: ref =>
-      try
-        debug(s"Importing theorem ${ref.name} with id ${ref.id}")
+    names
+      .take(100)
+      .foreach: ref =>
+        try
+          debug(s"Importing theorem ${ref.name} with id ${ref.id}")
 
-        reconstructTheorem(using extractor)(ref)
-        count += 1
-        if true then // count % 10 == 0 then
-          printProgress()
-      catch 
-        case e: ExtractorException =>
-          println(f"""
-          | [INFO] Extracted $count theorems so far in ${time()}%.2f.
-          | [ERROR] Encountered an error while reconstructing further.
-          | [ERROR] Error message: ${e.getMessage}
-          | """.stripMargin)
-    
+          reconstructTheorem(using extractor)(ref)
+          count += 1
+          if true then // count % 10 == 0 then
+            printProgress()
+        catch
+          case e: ExtractorException =>
+            println(f"""
+                       | [INFO] Extracted $count theorems so far in ${time()}%.2f.
+                       | [ERROR] Encountered an error while reconstructing further.
+                       | [ERROR] Error message: ${e.getMessage}
+                       | """.stripMargin)
+
     println(s"[INFO] Successfully imported ${theoremMap.size} theorems with ${theoremMap.keySet.max} steps in ${time()}s.")
 
   @main
-  def importMain(prefix: String, logMode: String = "--silent") = 
+  def importMain(prefix: String, logMode: String = "--silent") =
     val pid = ProcessHandle.current().pid()
     println(s"Running on PID: $pid")
 
@@ -568,12 +567,11 @@ object Import extends lisa.HOL:
 
     // dump your own heap
     // to heap-timestamp
-    val heapDumpPath = 
+    val heapDumpPath =
       val pwd = System.getProperty("user.dir")
       s"$pwd/dumps/auto/heap-${System.currentTimeMillis()}.hprof"
     println(s"Dumping heap to $heapDumpPath")
-    java.lang.management
-      .ManagementFactory
+    java.lang.management.ManagementFactory
       .getPlatformMXBean(classOf[com.sun.management.HotSpotDiagnosticMXBean])
       .dumpHeap(heapDumpPath, true)
 
