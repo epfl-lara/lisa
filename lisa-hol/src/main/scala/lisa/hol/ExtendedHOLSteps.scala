@@ -16,7 +16,7 @@ import scala.collection.mutable
 import SetTheoryLibrary.{have, JUSTIFICATION, thesis, THM, Proof, Theorem}
 import lisa.utils.prooflib.BasicStepTactic.Weakening
 
-import lisa.hol.Import.mkTypedVar
+import lisa.hol.Import.Transformers.mkTypedVar
 
 
 object ExtendedHOLSteps {

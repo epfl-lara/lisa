@@ -677,12 +677,10 @@ object HOLSteps extends lisa._HOL {
           val contextAssigns: Set[Expr[Prop]] = getContext(t)
           val just =
             try
-              // println(s"[BEEPBOOP] Computing and proving typing for term $t with context $contextAssigns")
               val th = Theorem.withoutStatement { 
                 val s1 = have(Typecheck.inferProof(contextAssigns, t)) 
                 val s2 = have(Clean.all(s1))
               }
-              // println(s"[BOOPBEEP] Proved ${th.statement}")
               th
             catch
               case e: Exception =>

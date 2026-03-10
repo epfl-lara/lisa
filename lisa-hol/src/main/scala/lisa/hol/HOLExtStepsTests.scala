@@ -27,7 +27,7 @@ import lisa.utils.unification.UnificationUtils.Substitution
 import lisa.utils.prooflib.BasicStepTactic.LeftSubstEq
 
 import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
-import lisa.hol.Import.mkTypedVar
+import lisa.hol.Import.Transformers.mkTypedVar
 
 import lisa.hol.HOLBasics.{SYM}
 
