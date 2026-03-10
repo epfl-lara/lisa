@@ -9,3 +9,4 @@ import core.Parser._
 
 class ExtractorSuite extends AnyFunSuite:
   // TODO: ADD EXTRACTOR TESTS
+end ExtractorSuite
