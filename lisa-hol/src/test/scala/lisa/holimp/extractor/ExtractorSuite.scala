@@ -1,8 +1,11 @@
 package lisa
-package holimp
+package hol
 package extractor
-import core.*
-import core.Parser.*
 
-class ExtractorSuite extends munit.FunSuite:
+import org.scalatest.funsuite.AnyFunSuite
+
+import core._
+import core.Parser._
+
+class ExtractorSuite extends AnyFunSuite:
   // TODO: ADD EXTRACTOR TESTS

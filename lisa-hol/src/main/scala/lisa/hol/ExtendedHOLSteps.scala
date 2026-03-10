@@ -1,6 +1,7 @@
 package lisa.hol
 import lisa.SetTheoryLibrary
 import lisa.automation._
+import lisa.hol.Import.Transformers.mkTypedVar
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Base.Predef.∈
 import lisa.maths.SetTheory.Functions.Predef.{_, given}
@@ -9,14 +10,13 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
 import lisa.utils.UserLisaException
 import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+
 import scala.collection.mutable
 
 import SetTheoryLibrary.{have, JUSTIFICATION, thesis, THM, Proof, Theorem}
-import lisa.utils.prooflib.BasicStepTactic.Weakening
-
-import lisa.hol.Import.Transformers.mkTypedVar
 
 
 object ExtendedHOLSteps {

@@ -1,23 +1,23 @@
 package lisa.hol
 
 import lisa.SetTheoryLibrary
+import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
 import lisa.hol.HOLHelperTheorems._
-import lisa.hol.VarsAndFunctions._
 import lisa.hol.HOLSteps.HOLProofType
+import lisa.hol.VarsAndFunctions._
+import lisa.hol.extractor.ExtractorException
+import lisa.hol.extractor.TheoremRef
 import lisa.hol.extractor._
 import lisa.hol.{core => h}
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
+import lisa.utils.collection.VecSet
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.OutputManager
+import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
 import lisa.utils.unification.UnificationUtils.RewriteContext
 import lisa.utils.unification.UnificationUtils.matchExpr
 
 import scala.collection.mutable
-import lisa.utils.collection.VecSet
-import lisa.hol.extractor.TheoremRef
-import lisa.utils.prooflib.OutputManager
-import lisa.hol.extractor.ExtractorException
-import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
-import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
 
 object Import extends lisa.HOL:
   val lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
