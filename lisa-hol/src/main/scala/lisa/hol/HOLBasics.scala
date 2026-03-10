@@ -28,6 +28,7 @@ import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
 import lisa.utils.unification.UnificationUtils.Substitution
 import lisa.utils.unification.UnificationUtils.Substitution
 import lisa.utils.prooflib.BasicStepTactic.LeftSubstEq
+import lisa.maths.SetTheory.Base.FoundationAxiom
 
 object HOLBasics extends lisa.HOL {
 
@@ -527,7 +528,255 @@ object HOLBasics extends lisa.HOL {
     (hexists(A) * P) <=> ∃(x :: A, P * x)
   ):
     assumeAll
-    sorry
+
+    // Abbreviations for the body of hexists(A) * P
+    val innerImp = himp * (P * x) * q        // himp (P x) q
+    val innerPred = fun(x, innerImp)          // λx. himp (P x) q
+    val innerFA = hforall(A) * innerPred      // hforall A (λx. himp (P x) q)
+    val outerImp = himp * innerFA * q         // himp (hforall A (λx. himp (P x) q)) q
+    val outerPred = fun(q, outerImp)          // λq. himp (hforall A (λx. himp (P x) q)) q
+    val body = hforall(𝔹) * outerPred        // hforall 𝔹 (λq. ...)
+
+    // Step 1: Beta-reduce hexists(A) * P to body
+    val beta = have(hexists(A) * P === body) subproof:
+      BETA_CONV(fun(P, body) * P)
+      val betaRed = thenHave((hexists(A) * P) =:= body) by Substitute(hexists.definition)
+      have(thesis) by Tautology.from(
+        betaRed,
+        eqAlign of (A := 𝔹, x := hexists(A) * P, y := body),
+        have(HOLProofType(hexists(A) * P)),
+        have(HOLProofType(body))
+      )
+
+    // Correctness lemmas for the HOL connectives
+    // Note: these use the outer (free) variables x, q
+
+    // himp * (P * x) * q <=> (P * x ==> q)
+    val innerImpLift = have(innerImp <=> (P * x ==> q)) subproof:
+      have(thesis) by Tautology.from(
+        himpCorrect of (p := P * x, q := q),
+        have(HOLProofType(P * x)),
+        have(HOLProofType(q))
+      )
+
+    // hforall(A) * innerPred <=> ∀(x :: A, innerPred * x)
+    val innerFALift = have(innerFA <=> ∀(x :: A, innerPred * x)) subproof:
+      val typing = have(HOLProofType(innerPred))
+      val inst = have((innerPred :: (A ->: 𝔹), nonEmpty(A)) |- (innerFA <=> ∀(x :: A, innerPred * x))) by Weakening(hforallCorrect of (P := innerPred, x := x))
+      have(thesis) by Cut(typing, inst)
+
+    // himp * innerFA * q <=> (innerFA ==> q)
+    val outerImpLift = have(outerImp <=> (innerFA ==> q)) subproof:
+      have(thesis) by Tautology.from(
+        himpCorrect of (p := innerFA, q := q),
+        have(HOLProofType(innerFA)),
+        have(HOLProofType(q))
+      )
+
+    // hforall(𝔹) * outerPred <=> ∀(q :: 𝔹, outerPred * q)
+    val outerFALift = have(body <=> ∀(q :: 𝔹, outerPred * q)) subproof:
+      val typing = have(HOLProofType(outerPred))
+      have(thesis) by Tautology.from(
+        hforallCorrect of (A := 𝔹, P := outerPred, x := q),
+        typing,
+        𝔹.nonEmptyThm
+      )
+
+    // Beta reductions
+    val outerBeta = have(outerPred * q === outerImp) subproof:
+      val bc = BETA_CONV(outerPred * q)
+      have(thesis) by Tautology.from(
+        bc,
+        eqAlign of (A := 𝔹, x := outerPred * q, y := outerImp),
+        have(HOLProofType(outerPred * q)),
+        have(HOLProofType(outerImp))
+      )
+
+    val innerBeta = have(innerPred * x === innerImp) subproof:
+      val bc = BETA_CONV(innerPred * x)
+      have(thesis) by Tautology.from(
+        bc,
+        eqAlign of (A := 𝔹, x := innerPred * x, y := innerImp),
+        have(HOLProofType(innerPred * x)),
+        have(HOLProofType(innerImp))
+      )
+
+    // Forward direction: hexists(A) * P |- ∃(x :: A, P * x)
+    val fwd = have((hexists(A) * P) ==> ∃(x :: A, P * x)) subproof:
+      // Instantiate q := Zero for the forward direction
+      val innerImp0 = himp * (P * x) * Zero
+      val innerPred0 = fun(x, innerImp0)
+      val innerFA0 = hforall(A) * innerPred0
+      val outerImp0 = himp * innerFA0 * Zero
+
+      // Beta and correctness with q=Zero
+      val outerBeta0 = have(outerPred * Zero === outerImp0) subproof:
+        val bc = BETA_CONV(outerPred * Zero)
+        have(thesis) by Tautology.from(
+          bc,
+          eqAlign of (A := 𝔹, x := outerPred * Zero, y := outerImp0),
+          have(HOLProofType(outerPred * Zero)),
+          have(HOLProofType(outerImp0))
+        )
+
+      val outerImpLift0 = have(outerImp0 <=> (innerFA0 ==> Zero)) subproof:
+        have(thesis) by Tautology.from(
+          himpCorrect of (p := innerFA0, q := Zero),
+          have(HOLProofType(innerFA0)),
+          Zero.justif
+        )
+
+      val innerFALift0 = have(innerFA0 <=> ∀(x :: A, innerPred0 * x)) subproof:
+        have(thesis) by Tautology.from(
+          hforallCorrect of (P := innerPred0, x := x),
+          have(HOLProofType(innerPred0))
+        )
+
+      val innerBeta0 = have(innerPred0 * x === innerImp0) subproof:
+        val bc = BETA_CONV(innerPred0 * x)
+        have(thesis) by Tautology.from(
+          bc,
+          eqAlign of (A := 𝔹, x := innerPred0 * x, y := innerImp0),
+          have(HOLProofType(innerPred0 * x)),
+          have(HOLProofType(innerImp0))
+        )
+
+      val innerImpLift0 = have(innerImp0 <=> (P * x ==> Zero)) subproof:
+        have(thesis) by Tautology.from(
+          himpCorrect of (p := P * x, q := Zero),
+          have(HOLProofType(P * x)),
+          Zero.justif
+        )
+
+      // innerPred0 * x <=> ¬(P * x)
+      // because: innerPred0 * x === innerImp0 (by innerBeta0)
+      //          innerImp0 <=> (P * x ==> Zero) (by innerImpLift0)
+      //          (P * x ==> Zero) <=> ¬(P * x) (since 0 ≠ 1)
+      val innerPredNeg = have(innerPred0 * x <=> !(P * x)) subproof:
+        have(innerImp0 <=> !(P * x)) by Tautology.from(innerImpLift0, `0 != 1`)
+        thenHave(thesis) by Substitute(innerBeta0)
+
+      // Main argument:
+      // From hexists(A) * P, derive body, then ∀(q :: 𝔹, outerPred * q)
+      // Instantiate q := Zero: outerPred * Zero
+      // outerPred * Zero === outerImp0, so outerImp0
+      // outerImp0 <=> (innerFA0 ==> Zero), with 0 ≠ 1: ¬innerFA0
+      // innerFA0 <=> ∀(x :: A, innerPred0 * x), so ¬∀(x :: A, innerPred0 * x)
+      // innerPred0 * x <=> ¬(P * x), so ¬∀(x :: A, ¬(P * x))
+      // Classically: ∃(x :: A, P * x)
+
+      assume(hexists(A) * P)
+      // hexists(A) * P |- body, using beta: hexists(A) * P === body
+      have(hexists(A) * P) by Restate
+      thenHave(body) by Substitute(beta)
+      have(∀(q :: 𝔹, outerPred * q)) by Tautology.from(lastStep, outerFALift)
+      thenHave((Zero :: 𝔹) ==> (outerPred * Zero)) by InstantiateForall(Zero)
+      have(outerPred * Zero) by Tautology.from(lastStep, Zero.justif)
+      // outerPred * Zero |- outerImp0, using outerBeta0: outerPred * Zero === outerImp0
+      thenHave(outerImp0) by Substitute(outerBeta0)
+      have(innerFA0 ==> Zero) by Tautology.from(lastStep, outerImpLift0)
+      have(!(innerFA0)) by Tautology.from(lastStep, `0 != 1`)
+      have(!(∀(x :: A, innerPred0 * x))) by Tautology.from(lastStep, innerFALift0)
+
+      // Now: ¬∀(x :: A, innerPred0 * x) and innerPred0 * x <=> ¬(P * x)
+      // Need: ∃(x :: A, P * x)
+      // Strategy: convert ¬∀ to ∃¬ (quantifier duality via Restate),
+      // then bridge ∃(x :: A, ¬(innerPred0 * x)) to ∃(x :: A, P * x)
+      // using innerPredNeg + RightExists + LeftExists.
+
+      // Step 1: ¬∀(x :: A, innerPred0 * x) ↔ ∃(x :: A, ¬(innerPred0 * x))
+      // (Restate handles this since ∃ unfolds to ¬∀¬ in the equivalence checker)
+      val existsNotInner = have(∃(x :: A, !(innerPred0 * x))) by Restate.from(lastStep)
+
+      // Step 2: Bridge: ∃(x :: A, ¬(innerPred0 * x)) ⊢ ∃(x :: A, P * x)
+      // From innerPredNeg: innerPred0 * x <=> ¬(P * x), so ¬(innerPred0 * x) <=> P * x
+      have((x :: A, !(innerPred0 * x)) |- (x :: A) /\ (P * x)) by Tautology.from(innerPredNeg)
+      thenHave((x :: A, !(innerPred0 * x)) |- ∃(x :: A, P * x)) by RightExists
+      // Merge separate x ∈ A into the conjunction for LeftExists
+      thenHave((x :: A) /\ !(innerPred0 * x) |- ∃(x :: A, P * x)) by Restate
+      thenHave(∃(x :: A, !(innerPred0 * x)) |- ∃(x :: A, P * x)) by LeftExists
+
+      // Step 3: Combine
+      have(thesis) by Tautology.from(existsNotInner, lastStep)
+
+    // Backward direction: ∃(x :: A, P * x) |- hexists(A) * P
+    val bwd = have(∃(x :: A, P * x) ==> (hexists(A) * P)) subproof:
+      // Goal: ∃(x :: A, P * x) |- hexists(A) * P
+      // Strategy: prove FOL core ∃(x :: A, P * x) |- ∀(q :: 𝔹, ∀(x :: A, P*x ==> q) ==> q)
+      // then lift back to HOL terms.
+
+      // FOL core:
+      have((x :: A, q :: 𝔹, P * x, (x :: A) ==> ((P * x) ==> q)) |- q) by Restate
+      thenHave((x :: A, q :: 𝔹, P * x, ∀(x :: A, (P * x) ==> q)) |- q) by LeftForall
+      thenHave((x :: A) /\ (P * x) |- (q :: 𝔹) ==> (∀(x :: A, (P * x) ==> q) ==> q)) by Restate
+      thenHave(∃(x, (x :: A) /\ (P * x)) |- (q :: 𝔹) ==> (∀(x :: A, (P * x) ==> q) ==> q)) by LeftExists
+      thenHave(∃(x :: A, P * x) |- (q :: 𝔹) ==> (∀(x :: A, (P * x) ==> q) ==> q)) by Weakening
+      thenHave(∃(x :: A, P * x) |- ∀(q :: 𝔹, ∀(x :: A, (P * x) ==> q) ==> q)) by RightForall
+      val folResult = lastStep
+
+      // Lift: convert ∀(q :: 𝔹, ∀(x :: A, P*x ==> q) ==> q) to body (= hexists(A)*P via beta)
+      // Key equivalences (all carry typing assumptions on the left):
+      //   innerPred * x <=> (P * x ==> q)   [innerImpLift + innerBeta] — has x ∈ A, q ∈ 𝔹 on left
+      //   innerFA <=> ∀(x :: A, innerPred * x)  [innerFALift]
+      //   outerImp <=> (innerFA ==> q)       [outerImpLift] — has innerFA ∈ 𝔹, q ∈ 𝔹 on left
+      //   outerPred * q === outerImp         [outerBeta]
+      //   body <=> ∀(q :: 𝔹, outerPred * q) [outerFALift]
+
+      // innerPredEquiv: innerPred * x <=> (P * x ==> q)
+      val innerPredEquiv = have(innerPred * x <=> (P * x ==> q)) subproof:
+        have(innerImp <=> (P * x ==> q)) by Restate.from(innerImpLift)
+        thenHave(thesis) by Substitute(innerBeta)
+
+      // Forward: ∀(x :: A, P * x ==> q) ⊢ innerFA  (with q ∈ 𝔹 on left)
+      have(∀(x :: A, P * x ==> q) |- (x :: A) ==> (P * x ==> q)) by InstantiateForall
+      // Combine with innerPredEquiv to get innerPred * x; need x ∈ A and q ∈ 𝔹 for innerPredEquiv
+      have((∀(x :: A, P * x ==> q), x :: A, q :: 𝔹) |- innerPred * x) by Tautology.from(lastStep, innerPredEquiv)
+      // Move x ∈ A to right so RightForall can generalize over x
+      thenHave((∀(x :: A, P * x ==> q), q :: 𝔹) |- (x :: A) ==> innerPred * x) by Restate
+      thenHave((∀(x :: A, P * x ==> q), q :: 𝔹) |- ∀(x :: A, innerPred * x)) by RightForall
+      have((∀(x :: A, P * x ==> q), q :: 𝔹) |- innerFA) by Tautology.from(lastStep, innerFALift)
+      val forallToInnerFA = lastStep
+
+      // Reverse: innerFA ⊢ ∀(x :: A, P * x ==> q)  (with q ∈ 𝔹 on left)
+      have(∀(x :: A, innerPred * x) |- (x :: A) ==> innerPred * x) by InstantiateForall
+      have((∀(x :: A, innerPred * x), x :: A, q :: 𝔹) |- (P * x ==> q)) by Tautology.from(lastStep, innerPredEquiv)
+      thenHave((∀(x :: A, innerPred * x), q :: 𝔹) |- (x :: A) ==> (P * x ==> q)) by Restate
+      thenHave((∀(x :: A, innerPred * x), q :: 𝔹) |- ∀(x :: A, P * x ==> q)) by RightForall
+      have((innerFA, q :: 𝔹) |- ∀(x :: A, P * x ==> q)) by Tautology.from(lastStep, innerFALift)
+      val innerFAToForall = lastStep
+
+      // outerImp <=> (∀(x :: A, P * x ==> q) ==> q)  — with q ∈ 𝔹 on left
+      have((q :: 𝔹) |- outerImp <=> (∀(x :: A, P * x ==> q) ==> q)) by Tautology.from(
+        outerImpLift, forallToInnerFA, innerFAToForall, HOLProofType(innerFA)
+      )
+      val outerImpFOL = lastStep
+
+      // outerPred * q <=> outerImp
+      val outerPredEquiv = have(outerPred * q <=> outerImp) subproof:
+        have(outerImp <=> outerImp) by Restate
+        thenHave(thesis) by Substitute(outerBeta)
+
+      // outerPred * q <=> (∀(x :: A, P * x ==> q) ==> q) — with q ∈ 𝔹 on left
+      have((q :: 𝔹) |- outerPred * q <=> (∀(x :: A, P * x ==> q) ==> q)) by Tautology.from(outerPredEquiv, outerImpFOL)
+      val outerPredFOL = lastStep
+
+      // Convert: ∀(q :: 𝔹, ∀(x :: A, P*x ==> q) ==> q) |- ∀(q :: 𝔹, outerPred * q)
+      have(∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q) |- (q :: 𝔹) ==> (∀(x :: A, P * x ==> q) ==> q)) by InstantiateForall
+      // Combine with outerPredFOL: carry q ∈ 𝔹 explicitly
+      have((∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q), q :: 𝔹) |- outerPred * q) by Tautology.from(lastStep, outerPredFOL)
+      // Move q ∈ 𝔹 to right for RightForall
+      thenHave(∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q) |- (q :: 𝔹) ==> outerPred * q) by Restate
+      thenHave(∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q) |- ∀(q :: 𝔹, outerPred * q)) by RightForall
+
+      // body
+      have(∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q) |- body) by Tautology.from(lastStep, outerFALift)
+      thenHave(∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q) |- hexists(A) * P) by Substitute(beta)
+
+      // Cut folResult and lastStep on ∀(q :: 𝔹, ∀(x :: A, P*x ==> q) ==> q)
+      val cutResult = have(∃(x :: A, P * x) |- hexists(A) * P) by Cut(folResult, lastStep)
+      have(thesis) by Restate.from(cutResult)
+
+    have(thesis) by RightAnd(fwd, bwd)
 
   // defining select
 
@@ -696,12 +945,354 @@ object HOLBasics extends lisa.HOL {
 
   val succOneOne = HOLTheorem(hOneOne(ind)(ind) * succ):
     // target: succ x = succ y ==> x = y
-    // have((succ * x) =:= (succ * y) |- x =:= y) subproof:
-      // sorry
-    sorry
+
+    val i = typedvar(ind)
+    val x = typedvar(ind)
+    val y = typedvar(ind)
+    val f = typedvar(ind ->: ind)
+
+    def expanded(i: Expr[Ind]) = ⋃(unorderedPair(i, unorderedPair(i, i)))
+    val expandedTyping = have(expanded(i) :: ind) subproof:
+      have(∀(i :: ind, expanded(i) :: ind)) by Weakening(indIsInductive)
+      thenHave(i :: ind ==> expanded(i) :: ind) by InstantiateForall(i)
+
+    val betaSucc = have(succ * i === expanded(i)) subproof:
+      val T = variable[Ind]
+      val e = variable[Ind >>: Ind]
+      val e2 = variable[Ind]
+      have(fun(i, expanded(i)) * i === expanded(i)) by Weakening(BetaReduction of (T := ind, e2 := i, e := λ(i, expanded(i))))
+      thenHave(thesis) by Substitute(succ.definition)
+
+    val betaOneOne = have(hOneOne(ind)(ind) * succ === hforall(ind) * fun(x, hforall(ind) * fun(y, himp * ((succ * x) =:= (succ * y)) * (x =:= y)))) subproof:
+      def ooDef(f: Expr[Ind]) = hforall(ind) * fun(x, hforall(ind) * fun(y, himp * ((f * x) =:= (f * y)) * (x =:= y)))
+      val beta = BETA_CONV(fun(f, ooDef(f)) * succ)
+      have(hOneOne(ind)(ind) * succ =:= ooDef(succ)) by Substitute(hOneOne.definition of (A := ind, B := ind))(beta)
+      val cond = have(((hOneOne(ind)(ind) * succ) :: 𝔹, ooDef(succ) :: 𝔹) |- hOneOne(ind)(ind) * succ === ooDef(succ)) by Substitute(eqAlign)(lastStep)
+      have(Discharge(HOLProofType(hOneOne(ind)(ind) * succ), HOLProofType(ooDef(succ)))(cond))
+
+    val oneOneDirect = have((succ * x) === (succ * y) |- x === y) subproof:
+      assume(x :: ind, y :: ind)
+      have(expanded(x) === expanded(y) |- x === y) subproof:
+        // Abbreviations
+        val ux = unorderedPair(x, unorderedPair(x, x)) // {x, {x, x}}
+        val uy = unorderedPair(y, unorderedPair(y, y)) // {y, {y, y}}
+        val w = variable[Ind]
+
+        // Lemma: x ∈ expanded(x)
+        // Proof: x ∈ {x,x} by pairAxiom, and {x,x} ∈ {x, {x,x}} by pairAxiom,
+        //        so x ∈ ⋃{x, {x,x}} by unionAxiom
+        val xinex = have(x ∈ expanded(x)) subproof:
+          have(x ∈ unorderedPair(x, x)) by Tautology.from(pairAxiom of (z := x, x := x, y := x))
+          val xInSingleton = lastStep
+          have(unorderedPair(x, x) ∈ ux) by Tautology.from(pairAxiom of (z := unorderedPair(x, x), x := x, y := unorderedPair(x, x)))
+          have(x ∈ unorderedPair(x, x) /\ unorderedPair(x, x) ∈ ux) by Tautology.from(xInSingleton, lastStep)
+          have(∃(w, x ∈ w /\ w ∈ ux)) by RightExists.withParameters(unorderedPair(x, x))(lastStep)
+          have(x ∈ expanded(x)) by Tautology.from(lastStep, unionAxiom of (z := x, x := ux))
+
+        // Lemma: x ∈ expanded(y) ⊢ x ∈ y ∨ x = y
+        // Proof: By unionAxiom, ∃w. w ∈ {y, {y,y}} ∧ x ∈ w.
+        //   - If w = y, then x ∈ y.
+        //   - If w = {y,y}, then x ∈ {y,y}, so x = y by pairAxiom.
+        val membershipLemma = have(x ∈ ⋃(uy) |- (x ∈ y) \/ (x === y)) subproof:
+          // case w = y: x ∈ w gives x ∈ y
+          val caseY = 
+            have((x ∈ w, w === y) |- (x ∈ w) \/ (x === w)) by Restate
+            have((x ∈ w, w === y) |- (x ∈ y) \/ (x === y)) by RightSubstEq.withParameters(Seq(w -> y), (Seq(w), (x ∈ w) \/ (x === w)))(lastStep)
+          // case w = {y,y}: x ∈ w gives x ∈ {y,y}, hence x = y
+          val caseSingleton = have((x ∈ w, w === unorderedPair(y, y)) |- (x ∈ y) \/ (x === y)) subproof:
+            have((x ∈ w, w === unorderedPair(y, y)) |- x ∈ unorderedPair(y, y)) by Congruence
+            lib.have(thesis) by Tautology.from(lastStep, pairAxiom of (z := x, x := y, y := y))
+          // combine: w ∈ {y, {y,y}} means w = y ∨ w = {y,y}
+          have((x ∈ w, w ∈ uy) |- (x ∈ y) \/ (x === y)) by Tautology.from(
+            pairAxiom of (z := w, x := y, y := unorderedPair(y, y)),
+            caseY, caseSingleton
+          )
+          have((x ∈ w) /\ (w ∈ uy) |- (x ∈ y) \/ (x === y)) by Weakening(lastStep)
+          have(∃(w, (x ∈ w) /\ (w ∈ uy)) |- (x ∈ y) \/ (x === y)) by LeftExists.withParameters((x ∈ w) /\ (w ∈ uy), w)(lastStep)
+          lib.have(thesis) by Tautology.from(lastStep, unionAxiom of (z := x, x := uy))
+
+        val xToy = have(expanded(x) === expanded(y) |- (x ∈ y) \/ (x === y)) subproof:
+          have(x ∈ ⋃(ux) |- x ∈ ⋃(ux)) by Hypothesis
+          have((x ∈ ⋃(ux), ⋃(ux) === ⋃(uy)) |- x ∈ ⋃(uy)) by RightSubstEq.withParameters(
+            Seq((⋃(ux), ⋃(uy))), (Seq(w), x ∈ w)
+          )(lastStep)
+          have(expanded(x) === expanded(y) |- x ∈ ⋃(uy)) by Cut(xinex, lastStep)
+          lib.have(thesis) by Cut(lastStep, membershipLemma)
+
+        val yTox = xToy of (x := y, y := x)
+        val cycle = have(x ∈ y /\ y ∈ x |- ()) by Weakening(FoundationAxiom.membershipAsymmetric)
+        have(thesis) by Tautology.from(xToy, yTox, cycle)
+      thenHave((succ * x) === (succ * y) |- x === y) by Substitute(betaSucc)
+
+    val oneOneImp = have(himp * ((succ * x) =:= (succ * y)) * (x =:= y)) subproof:
+      have(((succ * x) :: ind, (succ * y) :: ind, (succ * x) =:= (succ * y)) |- (x =:= y)) by Substitute(eqAlign)(oneOneDirect)
+      val cond1 = have(((succ * x) :: ind, (succ * y) :: ind) |- ((succ * x) =:= (succ * y)) ==> (x =:= y)) by Weakening(lastStep)
+      have(Discharge(HOLProofType(succ * x), HOLProofType(succ * y))(cond1))
+      val cond2 = have((((succ * x) =:= (succ * y)) :: 𝔹, (x =:= y) :: 𝔹) |- himp * ((succ * x) =:= (succ * y)) * (x =:= y)) by Substitute(himpCorrect)(lastStep)
+      have(Discharge(HOLProofType((succ * x) =:= (succ * y)), HOLProofType(x =:= y))(cond2))
+
+    val oneOneForall = have(hforall(ind) * fun(x, hforall(ind) * fun(y, himp * ((succ * x) =:= (succ * y)) * (x =:= y)))) subproof:
+      val p1 = fun(y, himp * ((succ * x) =:= (succ * y)) * (x =:= y))
+      val p2 = fun(x, hforall(ind) * p1)
+      val inner1 =
+        // (\y . himp * ((succ * x) =:= (succ * y)) * (x =:= y)) * y
+        EQ_MP(
+          SYM(BETA_CONV(p1 * y)),
+          oneOneImp
+        )
+      thenHave((x :: ind, ∃(x, x :: ind)) |- (y :: ind) ==> (p1 * y)) by Weakening
+      thenHave((x :: ind, ∃(x, x :: ind)) |- ∀(y :: ind, p1 * y)) by RightForall
+      thenHave((x :: ind, ∃(x, x :: ind), p1 :: ind ->: 𝔹) |- hforall(ind) * p1) by Substitute(hforallCorrect)
+      val forall1 = have((x :: ind, ∃(x, x :: ind)) |- hforall(ind) * p1) by Cut(HOLProofType(p1), lastStep)
+      val inner2 = 
+        // (\x. hforall(ind) * fun(y, himp * ((succ * x) =:= (succ * y)) * (x =:= y))) * x
+        EQ_MP(
+          SYM(BETA_CONV(p2 * x)),
+          forall1
+        )
+      thenHave((∃(x, x :: ind)) |- (x :: ind) ==> (p2 * x)) by Weakening
+      thenHave((∃(x, x :: ind)) |- ∀(x :: ind, p2 * x)) by RightForall
+      val stmt = thenHave((∃(x, x :: ind), p2 :: ind ->: 𝔹) |- hforall(ind) * p2) by Substitute(hforallCorrect)
+      
+      lib.have(Discharge(HOLProofType(p2), ind.nonEmptyThm)(stmt))
+
+    have(hOneOne(ind)(ind) * succ) by Substitute(betaOneOne)(oneOneForall)
 
   val succNotOnto = HOLTheorem(hnot * (hOnto(ind)(ind) * succ)):
-    sorry
+    // target: ¬(∀y ∈ ind. ∃x ∈ ind. y = succ(x))
+    // witness: y = ∅ — empty set is in ind but is never a successor
+
+    val i = typedvar(ind)
+    val x = typedvar(ind)
+    val y = typedvar(ind)
+    val f = typedvar(ind ->: ind)
+    val w = variable[Ind]
+
+    def expanded(i: Expr[Ind]) = ⋃(unorderedPair(i, unorderedPair(i, i)))
+
+    // Step 1: Beta-reduce hOnto(ind)(ind) * succ
+    def ontoDef(f: Expr[Ind]) = hforall(ind) * fun(y, hexists(ind) * fun(x, y =:= (f * x)))
+    val ontoBody = ontoDef(succ)
+
+    val betaOnto = have(hOnto(ind)(ind) * succ === ontoBody) subproof:
+      val beta = BETA_CONV(fun(f, ontoDef(f)) * succ)
+      have(hOnto(ind)(ind) * succ =:= ontoBody) by Substitute(hOnto.definition of (A := ind, B := ind))(beta)
+      val cond = have(((hOnto(ind)(ind) * succ) :: 𝔹, ontoBody :: 𝔹) |- hOnto(ind)(ind) * succ === ontoBody) by Substitute(eqAlign)(lastStep)
+      have(Discharge(HOLProofType(hOnto(ind)(ind) * succ), HOLProofType(ontoBody))(cond))
+
+    // Step 2: betaSucc — succ * x === expanded(x)
+    val betaSucc = have(succ * x === expanded(x)) subproof:
+      val T = variable[Ind]
+      val e = variable[Ind >>: Ind]
+      val e2 = variable[Ind]
+      have(fun(x, expanded(x)) * x === expanded(x)) by Weakening(BetaReduction of (T := ind, e2 := x, e := λ(x, expanded(x))))
+      thenHave(thesis) by Substitute(succ.definition)
+
+    // Step 3: Core set theory — ∅ ≠ succ(x)
+    // Proof: x ∈ succ(x) = expanded(x), but x ∉ ∅, so ∅ ≠ expanded(x)
+    val emptyNotSucc = have(!(∅ === expanded(x))) subproof:
+      // x ∈ expanded(x) (same as xinex in succOneOne)
+      val ux = unorderedPair(x, unorderedPair(x, x))
+      val xinex = have(x ∈ expanded(x)) subproof:
+        have(x ∈ unorderedPair(x, x)) by Tautology.from(pairAxiom of (z := x, x := x, y := x))
+        val xInSingleton = lastStep
+        have(unorderedPair(x, x) ∈ ux) by Tautology.from(pairAxiom of (z := unorderedPair(x, x), x := x, y := unorderedPair(x, x)))
+        have(x ∈ unorderedPair(x, x) /\ unorderedPair(x, x) ∈ ux) by Tautology.from(xInSingleton, lastStep)
+        have(∃(w, x ∈ w /\ w ∈ ux)) by RightExists.withParameters(unorderedPair(x, x))(lastStep)
+        have(x ∈ expanded(x)) by Tautology.from(lastStep, unionAxiom of (z := x, x := ux))
+
+      // x ∉ ∅
+      val xNotInEmpty = have(!(x ∈ ∅)) by Weakening(emptySetAxiom of (x := x))
+
+      // If expanded(x) = ∅, then x ∈ ∅ (since x ∈ expanded(x) and expanded(x) = ∅), contradiction
+      have(x ∈ expanded(x) |- x ∈ expanded(x)) by Hypothesis
+      have((x ∈ expanded(x), expanded(x) === ∅) |- x ∈ ∅) by RightSubstEq.withParameters(
+        Seq((expanded(x), ∅)), (Seq(w), x ∈ w)
+      )(lastStep)
+      have(expanded(x) === ∅ |- x ∈ ∅) by Cut(xinex, lastStep)
+      have(!(expanded(x) === ∅)) by Tautology.from(lastStep, xNotInEmpty)
+      have(!(∅ === expanded(x))) by Restate.from(lastStep)
+
+    // Step 4: ∅ ≠ succ * x (substitute betaSucc)
+    val emptyNotSuccApp = have(!(∅ === (succ * x))) subproof:
+      have(thesis) by Substitute(betaSucc)(emptyNotSucc)
+
+    // Step 5: Lift to HOL  
+    // Strategy: prove ¬∀(y :: ind, outerPred * y) at the FOL level, then lift.
+    // outerPred = fun(y, hexists(ind) * fun(x, y =:= (succ * x)))
+    // For y = ∅: outerPred * ∅ <=> ∃(x :: ind, ∅ = succ * x) (via hexistsCorrect + beta)
+    // But ∅ ≠ succ * x for any x (emptyNotSuccApp), so outerPred * ∅ is false.
+
+    val outerPred = fun(y, hexists(ind) * fun(x, y =:= (succ * x)))
+
+    // Step 5a: hforall(ind) * outerPred <=> ∀(y :: ind, outerPred * y)
+    val forallLift = have(hforall(ind) * outerPred <=> ∀(y :: ind, outerPred * y)) subproof:
+      have(thesis) by Tautology.from(
+        hforallCorrect of (A := ind, P := outerPred, x := y),
+        have(HOLProofType(outerPred)),
+        ind.nonEmptyThm
+      )
+
+    // Step 5b: Set up inner existential for arbitrary y
+    // hexists(ind) * fun(x, y =:= (succ * x)) <=> ∃(x :: ind, fun(x, y =:= (succ * x)) * x)
+    val innerExPred = fun(x, y =:= (succ * x))
+    val innerExLift = have(hexists(ind) * innerExPred <=> ∃(x :: ind, innerExPred * x)) subproof:
+      have(thesis) by Tautology.from(
+        hexistsCorrect of (A := ind, P := innerExPred, x := x),
+        have(HOLProofType(innerExPred)),
+        ind.nonEmptyThm
+      )
+
+    // innerExPred * x === (y =:= (succ * x)) by beta reduction
+    val innerExBeta = have(innerExPred * x === (y =:= (succ * x))) subproof:
+      val bc = BETA_CONV(innerExPred * x)
+      have(thesis) by Tautology.from(
+        bc,
+        eqAlign of (A := 𝔹, x := innerExPred * x, y := y =:= (succ * x)),
+        have(HOLProofType(innerExPred * x)),
+        have(HOLProofType(y =:= (succ * x)))
+      )
+
+    // outerPred * y === hexists(ind) * innerExPred by beta reduction
+    val outerBeta = have(outerPred * y === hexists(ind) * innerExPred) subproof:
+      val bc = BETA_CONV(outerPred * y)
+      have(thesis) by Tautology.from(
+        bc,
+        eqAlign of (A := 𝔹, x := outerPred * y, y := hexists(ind) * innerExPred),
+        have(HOLProofType(outerPred * y)),
+        have(HOLProofType(hexists(ind) * innerExPred))
+      )
+
+    // Step 5c: outerPred * y <=> ∃(x :: ind, y === succ * x)
+    // Via outerBeta + innerExLift + innerExBeta + eqAlign
+    val outerPredFOL = have(outerPred * y <=> ∃(x :: ind, y === (succ * x))) subproof:
+      // eqAlign: (y =:= (succ * x) === One) <=> (y === succ * x)
+      val eqAlignInst = have((y =:= (succ * x) === One) <=> (y === (succ * x))) subproof:
+        have(((y :: ind, (succ * x) :: ind) |- (y =:= (succ * x) === One) <=> (y === (succ * x)))) by Weakening(eqAlign of (A := ind, x := y, y := succ * x))
+        have(Discharge(HOLProofType(y), HOLProofType(succ * x))(lastStep))
+      
+      // innerExPred * x <=> (y === succ * x)
+      // From innerExBeta: innerExPred * x === (y =:= (succ * x))
+      // Both are in 𝔹. If A === B and both ∈ 𝔹, then (A === One) <=> (B === One).
+      val innerEquiv = have((innerExPred * x) <=> (y === (succ * x))) subproof:
+        // innerExPred * x === (y =:= (succ * x)) means they're extensionally equal
+        // innerExPred * x ∈ 𝔹 and (y =:= (succ * x)) ∈ 𝔹
+        // so innerExPred * x <=> innerExPred * x === One
+        // and innerExPred * x === One <=> (y =:= (succ * x)) === One  (by innerExBeta)
+        // and (y =:= (succ * x)) === One <=> (y === succ * x)  (by eqAlignInst)
+        have((y =:= (succ * x)) <=> (y === (succ * x))) by Tautology.from(
+          eqAlignInst,
+          boolBivalence of (x := y =:= (succ * x)),
+          boolZeroXorOne of (x := y =:= (succ * x)),
+          have(HOLProofType(y =:= (succ * x)))
+        )
+        thenHave(thesis) by Substitute(innerExBeta)
+
+      // ∃(x :: ind, innerExPred * x) <=> ∃(x :: ind, y === succ * x)
+      have((x :: ind, y :: ind, innerExPred * x) |- (x :: ind) /\ (y === (succ * x))) by Tautology.from(innerEquiv)
+      thenHave((x :: ind, y :: ind, innerExPred * x) |- ∃(x :: ind, y === (succ * x))) by RightExists
+      thenHave((y :: ind, (x :: ind) /\ (innerExPred * x)) |- ∃(x :: ind, y === (succ * x))) by Restate
+      thenHave((y :: ind, ∃(x :: ind, innerExPred * x)) |- ∃(x :: ind, y === (succ * x))) by LeftExists
+      val fwdEx = lastStep
+
+      have((x :: ind, y :: ind, y === (succ * x)) |- (x :: ind) /\ (innerExPred * x)) by Tautology.from(innerEquiv)
+      thenHave((x :: ind, y :: ind, y === (succ * x)) |- ∃(x :: ind, innerExPred * x)) by RightExists
+      thenHave((y :: ind, (x :: ind) /\ (y === (succ * x))) |- ∃(x :: ind, innerExPred * x)) by Restate
+      thenHave((y :: ind, ∃(x :: ind, y === (succ * x))) |- ∃(x :: ind, innerExPred * x)) by LeftExists
+      val bwdEx = lastStep
+
+      have((y :: ind) |- (hexists(ind) * innerExPred <=> ∃(x :: ind, y === (succ * x)))) by Tautology.from(innerExLift, fwdEx, bwdEx)
+      have((y :: ind) |- (outerPred * y <=> ∃(x :: ind, y === (succ * x)))) by Substitute(outerBeta)(lastStep)
+
+    // Step 6: Prove ∅ has no preimage: ¬∃(x :: ind, ∅ === succ * x)
+    val emptyNoPreimage = have(!(∃(x :: ind, ∅ === (succ * x)))) subproof:
+      // emptyNotSuccApp: x ∈ ind ⊢ ¬(∅ = succ(x))
+      have((x :: ind, ∅ === (succ * x)) |- ()) by Tautology.from(emptyNotSuccApp)
+      thenHave((x :: ind) /\ (∅ === (succ * x)) |- ()) by Restate
+      thenHave(∃(x :: ind, ∅ === (succ * x)) |- ()) by LeftExists
+      have(thesis) by Restate.from(lastStep)
+
+    // Step 7: ¬(outerPred * ∅) using outerPredFOL instantiated at y = ∅
+    // But outerPredFOL has free variable y — we substitute y := ∅ to get
+    // outerPred * ∅ <=> ∃(x :: ind, ∅ === succ * x)
+    // Actually, outerPredFOL is a fact with free y, and we need to check if y appears
+    // as a typed var. The substitution of (y := ∅) won't work for `of` since ∅ is not typed.
+    // Instead, we should prove ¬∀(y :: ind, outerPred * y) directly.
+
+    // From outerPredFOL: outerPred * y <=> ∃(x :: ind, y === succ * x)
+    // From emptyNotSuccApp: ¬(∅ === succ * x)
+    // From emptyInInd: ∅ ∈ ind
+    
+    // Step 7: ¬∀(y :: ind, outerPred * y) 
+    // Assume ∀(y :: ind, outerPred * y), instantiate y = ∅ to get outerPred * ∅
+    // Use outerPredFOL of (y := ∅)... but ∅ is not a TypedVariable.
+    // Instead: from ∀(y :: ind, outerPred * y), derive (∅ ∈ ind) ==> outerPred * ∅ by InstantiateForall
+    // Then outerPred * ∅ (since ∅ ∈ ind). 
+    // Then we need outerPred * ∅ <=> ∃(x :: ind, ∅ === succ * x). But outerPredFOL has y, not ∅.
+    // We can use outerBeta of (y := ∅) but that involves ∅ in typedvar position...
+    //
+    // Alternative: show ∀(y :: ind, ∃(x :: ind, y === succ * x)) |- false, at the FOL level.
+    // Then lift everything.
+
+    // Actually outerPredFOL gives: outerPred * y <=> ∃(x :: ind, y === (succ * x))
+    // This means: ∀(y :: ind, outerPred * y) <=> ∀(y :: ind, ∃(x :: ind, y === (succ * x)))
+    // So if we show ¬∀(y :: ind, ∃(x :: ind, y === (succ * x))), we get ¬∀(y :: ind, outerPred * y)
+    // Then ¬(hforall(ind) * outerPred) via forallLift.
+
+    // Step 7: ¬∀(y :: ind, ∃(x :: ind, y === succ * x))
+    // Assume ∀(y :: ind, ∃(x :: ind, y === succ * x)).
+    // Instantiate y := ∅ (which is fine since ∅ is Expr[Ind], y in ∀ is a plain variable):
+    val emptyInInd = have(∅ ∈ ind) subproof:
+      have(thesis) by Weakening(indIsInductive)
+
+    val folNotOnto = have(!(∀(y :: ind, ∃(x :: ind, y === (succ * x))))) subproof:
+      // Assume ∀(y :: ind, ∃(x :: ind, y === succ * x)), instantiate y := ∅
+      have(∀(y :: ind, ∃(x :: ind, y === (succ * x))) |- ∀(y :: ind, ∃(x :: ind, y === (succ * x)))) by Hypothesis
+      thenHave(∀(y :: ind, ∃(x :: ind, y === (succ * x))) |- (∅ :: ind) ==> ∃(x :: ind, ∅ === (succ * x))) by InstantiateForall(∅)
+      have(∀(y :: ind, ∃(x :: ind, y === (succ * x))) |- ∃(x :: ind, ∅ === (succ * x))) by Tautology.from(lastStep, emptyInInd)
+      have(thesis) by Tautology.from(lastStep, emptyNoPreimage)
+
+    // Step 8: Bridge FOL to HOL
+    // outerPredFOL: y ∈ ind ⊢ outerPred * y <=> ∃(x :: ind, y === succ * x)
+    // Need: ∀(y :: ind, outerPred * y) ⊢ ∀(y :: ind, ∃(x :: ind, y === succ * x))
+    // Strategy: combine InstantiateForall + outerPredFOL, then move y ∈ ind to RHS for RightForall
+    
+    have(∀(y :: ind, outerPred * y) |- (y :: ind) ==> (outerPred * y)) by InstantiateForall
+    have((∀(y :: ind, outerPred * y), y :: ind) |- ∃(x :: ind, y === (succ * x))) by Tautology.from(lastStep, outerPredFOL)
+    thenHave(∀(y :: ind, outerPred * y) |- (y :: ind) ==> ∃(x :: ind, y === (succ * x))) by Restate
+    thenHave(∀(y :: ind, outerPred * y) |- ∀(y :: ind, ∃(x :: ind, y === (succ * x)))) by RightForall
+    val folFromHol = lastStep
+
+    val forallFalse = have(!(hforall(ind) * outerPred)) subproof:
+      have(∀(y :: ind, outerPred * y) |- ()) by Tautology.from(folFromHol, folNotOnto)
+      have(!(∀(y :: ind, outerPred * y))) by Restate.from(lastStep)
+      have(thesis) by Tautology.from(lastStep, forallLift)
+
+    // ¬(ontoBody) means ontoBody === Zero (since ontoBody ∈ 𝔹)
+    val ontoFalse = have(!(hOnto(ind)(ind) * succ)) subproof:
+      have(thesis) by Substitute(betaOnto)(forallFalse)
+
+    // Step 9: hnot * (hOnto(ind)(ind) * succ) using hnotCorrect
+    val result = have(hnot * (hOnto(ind)(ind) * succ)) subproof:
+      val onto = hOnto(ind)(ind) * succ
+      have(onto :: 𝔹) by Restate.from(HOLProofType(onto))
+      have(!(onto === One)) by Tautology.from(
+        lastStep,
+        boolBivalence of (x := onto),
+        boolZeroXorOne of (x := onto),
+        ontoFalse
+      )
+      have(hnot * onto === One) by Tautology.from(
+        lastStep,
+        hnotCorrect of (p := onto),
+        have(HOLProofType(onto))
+      )
+      have(hnot * onto) by Tautology.from(
+        lastStep,
+        boolBivalence of (x := hnot * onto),
+        boolZeroXorOne of (x := hnot * onto),
+        have(HOLProofType(hnot * onto))
+      )
 
   val holeqBetaReduced = HOLTheorem(
     holeq(A) =:= fun(x, fun(y, x =:= y))
