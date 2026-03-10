@@ -14,7 +14,6 @@ object ProofTacticLib {
   trait ProofTactic {
     val name: String = this.getClass.getName.split('$').last
     given ProofTactic = this
-
   }
 
   trait OnlyProofTactic {
