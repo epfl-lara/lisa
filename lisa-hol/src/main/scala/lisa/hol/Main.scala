@@ -11,4 +11,3 @@ val str =
 
 @main def main =
   println(parse(term, str).getDone.pretty)
-  

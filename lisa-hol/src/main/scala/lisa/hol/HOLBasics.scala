@@ -48,7 +48,7 @@ object HOLBasics extends lisa.HOL {
   //
   // the section defines the basic HOL Light operators so as to prove the axioms
   // from its library as theorems.
-  
+
   /**
    *     |- t = u
    *  ------------------
@@ -66,24 +66,26 @@ object HOLBasics extends lisa.HOL {
           have(Clean.all(s4))
 
         case _ =>
-          return proof.InvalidProofTactic(s"The premise is not parseable as an HOL sequent") 
+          return proof.InvalidProofTactic(s"The premise is not parseable as an HOL sequent")
       }
     }
-  } 
+  }
 
-  /** SYM: t = u |- u = t */
-  def SYM(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(prem: proof.Fact) = 
+  /**
+   * SYM: t = u |- u = t
+   */
+  def SYM(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(prem: proof.Fact) =
     have(_SYM(prem))
 
   /**
    * Truth as defined in HOL Light
-   * 
+   *
    * ```
    *  let T_DEF = new_basic_definition
    *   `T = ((\p:bool. p) = (\p:bool. p))`;;
    * ```
    */
-  val holT : HOLConstant = {
+  val holT: HOLConstant = {
     val holT = DEF(fun(p, p) =:= fun(p, p))
 
     val typing_of_T = Theorem(holT :: 𝔹) {
@@ -101,14 +103,14 @@ object HOLBasics extends lisa.HOL {
     have(thesis) by RightRefl
 
   /**
-    * Higher-order embedded universal quantifier.
-    * 
-    * ```
-    * let FORALL_DEF = new_basic_definition
-    *   `(!) = \P:A->bool. P = \x. T`;;
-    * ```
-    */
-  val hforall : HOLPolymorphicConstant[Ind >>: Ind] = {
+   * Higher-order embedded universal quantifier.
+   *
+   * ```
+   * let FORALL_DEF = new_basic_definition
+   *   `(!) = \P:A->bool. P = \x. T`;;
+   * ```
+   */
+  val hforall: HOLPolymorphicConstant[Ind >>: Ind] = {
 
     val f = typedvar(A ->: 𝔹)
     val a = typedvar(A)
@@ -128,7 +130,7 @@ object HOLBasics extends lisa.HOL {
 
   val hforallCorrect = HOLTheorem(
     (hforall(A) * P) <=> ∀(x :: A, P * x)
-  ): 
+  ):
     assumeAll
     val f = typedvar(A ->: 𝔹)
 
@@ -136,17 +138,17 @@ object HOLBasics extends lisa.HOL {
       BETA(fun(P, P =:= fun(x, holT)) * P)
       val heq = thenHave((hforall(A) * P) =:= (P =:= fun(x, holT))) by Substitute(hforall.definition)
       have(thesis) by Tautology.from(
-        heq, 
-        eqAlign of (A := 𝔹, x := hforall(A) * P, y := P =:= fun(x, holT)), 
+        heq,
+        eqAlign of (A := 𝔹, x := hforall(A) * P, y := P =:= fun(x, holT)),
         have(HOLProofType(hforall(A) * P)),
         have(HOLProofType(P =:= fun(x, holT)))
       )
 
     val fwd = have((hforall(A) * P) ==> ∀(x :: A, P * x)) subproof: ip ?=>
-      val `P x one` = 
-        TRANS( // P * x =:= holT 
+      val `P x one` =
+        TRANS( // P * x =:= holT
           MK_COMB( // P * x =:= fun(x, holT) * x
-            ASSUME(P =:= fun(x, holT)), 
+            ASSUME(P =:= fun(x, holT)),
             REFL(x)
           ),
           BETA_CONV(fun(x, holT) * x) // fun(x, holT) * x =:= holT
@@ -164,12 +166,14 @@ object HOLBasics extends lisa.HOL {
       val `P x holds` = have(∀(x :: A, P * x) |- P * x) by Weakening(lastStep)
       val `P x one` = have(∀(x :: A, P * x) |- P * x =:= One) by Tautology.from(`P x holds`, One.justif, have(HOLProofType(P * x)), eqAlign of (A := 𝔹, x := P * x, y := One))
       val `P x T` = have(∀(x :: A, P * x) |- P * x =:= holT) by Substitute(holTruth)(`P x one`)
-      val Peq = have(Clean.all( // P =:= fun(x, holT)
-        TRANS(
-          SYM(ETA(x, P)),
-          ABS(x)(`P x T`),
+      val Peq = have(
+        Clean.all( // P =:= fun(x, holT)
+          TRANS(
+            SYM(ETA(x, P)),
+            ABS(x)(`P x T`)
+          )
         )
-      ))
+      )
       have(∀(x :: A, P * x) |- hforall(A) * P) by Substitute(beta)(Peq)
       thenHave(thesis) by Weakening
 
@@ -177,13 +181,13 @@ object HOLBasics extends lisa.HOL {
 
   /**
    * False as defined in HOL Light
-   * 
+   *
    * ```
    * let F_DEF = new_basic_definition
    *  `F = (!p:bool. p)`;;
    * ```
    */
-  val holF : HOLConstant = {
+  val holF: HOLConstant = {
     val holF = DEF(hforall(𝔹) * fun(p, p))
 
     val typing_of_F = Theorem(holF :: 𝔹) {
@@ -198,7 +202,7 @@ object HOLBasics extends lisa.HOL {
   val holFalseZero = HOLTheorem(holF === Zero):
     lib.have(∀(p :: 𝔹, fun(p, p) * p) |- ()) subproof:
       val beta = have((Zero :: 𝔹) |- (fun(p, p) * Zero === Zero)) subproof:
-        BETA_CONV(fun(p, p) * Zero) 
+        BETA_CONV(fun(p, p) * Zero)
         val conditional = thenHave(((fun(p, p) * Zero) :: 𝔹, Zero :: 𝔹) |- fun(p, p) * Zero === Zero) by Substitute(eqAlign)
         have(Discharge(have(HOLProofType(fun(p, p) * Zero)))(conditional))
       have(!(Zero === One)) by Weakening(`0 != 1`)
@@ -212,12 +216,12 @@ object HOLBasics extends lisa.HOL {
     have(thesis) by Tautology.from(boolZeroXorOne of (x := holF), holF.justif, lastStep)
 
   /**
-    * Higher-order embedded conjunction.
-    * 
-    * Defined as in HOL Light:
-    * `(/\) = \p q. (\f:bool->bool->bool. f p q) = (\f. f T T)`
-    */
-  val hand : HOLPolymorphicConstant[Ind] = {
+   * Higher-order embedded conjunction.
+   *
+   * Defined as in HOL Light:
+   * `(/\) = \p q. (\f:bool->bool->bool. f p q) = (\f. f T T)`
+   */
+  val hand: HOLPolymorphicConstant[Ind] = {
     val f = typedvar(𝔹 ->: 𝔹 ->: 𝔹)
 
     val hand = DEF(fun(p, fun(q, fun(f, f * p * q) =:= fun(f, f * holT * holT))))
@@ -239,7 +243,7 @@ object HOLBasics extends lisa.HOL {
     val proj1 = fun(p, fun(q, p))
     val proj2 = fun(p, fun(q, q))
 
-    val `beta f` = BETA(fun(f, f * p * q) * f) 
+    val `beta f` = BETA(fun(f, f * p * q) * f)
 
     val leftProjection = // proj1 * p * q = p
       TRANS(
@@ -280,23 +284,27 @@ object HOLBasics extends lisa.HOL {
       val reducedProof = have(fun(f, f * p * q) =:= fun(f, f * holT * holT) |- (p === One) /\ (q === One)) subproof {
         assumeAll
         val andEq = have(fun(f, f * p * q) =:= fun(f, f * holT * holT)) by Restate
-        
+
         // ((\p q. f p q) f) holT holT = ((\p q. f p q) f) p q
         val appliedEq =
-          have(Clean.all(
-            // f holT holT = f p q
-            SYM(TRANS(
-              // (\p q. f p q) f holT holT = f p q
-              TRANS(
-                SYM(`beta f`),
-                MK_COMB(andEq, REFL(f))
-              ),
-              have(Discharge(holT.justif)(`beta f` of (p := holT, q := holT)))
-            ))
-          ))
+          have(
+            Clean.all(
+              // f holT holT = f p q
+              SYM(
+                TRANS(
+                  // (\p q. f p q) f holT holT = f p q
+                  TRANS(
+                    SYM(`beta f`),
+                    MK_COMB(andEq, REFL(f))
+                  ),
+                  have(Discharge(holT.justif)(`beta f` of (p := holT, q := holT)))
+                )
+              )
+            )
+          )
         val `p is true` = have(p) subproof:
           // project appliedEq onto first argument
-          val proj1Eq = 
+          val proj1Eq =
             have(Discharge(have(HOLProofType(proj1)))(appliedEq of (f := proj1)))
           // T =:= p
           val tEq = TRANS(
@@ -310,7 +318,7 @@ object HOLBasics extends lisa.HOL {
 
         val `q is true` = have(q) subproof:
           // project appliedEq onto second argument
-          val proj2Eq = 
+          val proj2Eq =
             have(Discharge(have(HOLProofType(proj2)))(appliedEq of (f := proj2)))
           // T =:= q
           val tEq = TRANS(
@@ -327,11 +335,16 @@ object HOLBasics extends lisa.HOL {
       }
 
       have((hand * p * q === One) |- ((p === One) /\ (q === One))) by Substitute(`beta hand`)(reducedProof)
-    
+
     val bwd = have(((p === One) /\ (q === One)) ==> (hand * p * q === One)) subproof:
-      val rfl = have(fun(f, f * holT * holT) :: (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹 |- fun(f, f * holT * holT) =:= fun(f, f * holT * holT)) by Tautology.from(HOLHelperTheorems.eqRefl of (A := (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹, x := fun(f, f * holT * holT)))
+      val rfl = have(fun(f, f * holT * holT) :: (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹 |- fun(f, f * holT * holT) =:= fun(f, f * holT * holT)) by Tautology.from(
+        HOLHelperTheorems.eqRefl of (A := (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹, x := fun(f, f * holT * holT))
+      )
       have(fun(f, f * holT * holT) =:= fun(f, f * holT * holT)) by Cut(have(HOLProofType(fun(f, f * holT * holT))), rfl)
-      thenHave((p === holT, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by RightSubstEq.withParameters(Seq(p -> holT, q -> holT), (Seq(p, q), fun(f, f * p * q) =:= fun(f, f * holT * holT)))
+      thenHave((p === holT, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by RightSubstEq.withParameters(
+        Seq(p -> holT, q -> holT),
+        (Seq(p, q), fun(f, f * p * q) =:= fun(f, f * holT * holT))
+      )
       thenHave((holT === One, p === One, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by LeftSubstEq.withParameters(Seq(holT -> One), (Seq(x), p === x))
       thenHave((holT === One, p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by LeftSubstEq.withParameters(Seq(holT -> One), (Seq(x), q === x))
       lib.have((p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by Cut(holTruth, lastStep)
@@ -341,12 +354,12 @@ object HOLBasics extends lisa.HOL {
     have(thesis) by RightAnd(fwd, bwd)
 
   /**
-    * Higher-order embedded implication.
-    * 
-    * Defined as in HOL Light:
-    * `(==>) = \p q. p /\ q <=> p`
-    */
-  val himp : HOLPolymorphicConstant[Ind] = {
+   * Higher-order embedded implication.
+   *
+   * Defined as in HOL Light:
+   * `(==>) = \p q. p /\ q <=> p`
+   */
+  val himp: HOLPolymorphicConstant[Ind] = {
 
     val p = typedvar(𝔹)
     val q = typedvar(𝔹)
@@ -402,13 +415,13 @@ object HOLBasics extends lisa.HOL {
 
       val `and false` = have(apq === Zero |- (apq === p) <=> (p ==> q)) subproof:
         have(apq === Zero |- (Zero === p) <=> (p ==> q)) by Tautology.from(
-          handCorrect, 
-          boolBivalence of (x := p), 
-          boolBivalence of (x := q), 
-          boolBivalence of (x := apq), 
+          handCorrect,
+          boolBivalence of (x := p),
+          boolBivalence of (x := q),
+          boolBivalence of (x := apq),
           boolZeroXorOne of (x := p),
           boolZeroXorOne of (x := q),
-          boolZeroXorOne of (x := apq),
+          boolZeroXorOne of (x := apq)
         )
         thenHave(apq === Zero |- (apq === p) <=> (p ==> q)) by RightSubstEq.withParameters(Seq(apq -> Zero), (Seq(x), (x === p) <=> (p ==> q)))
 
@@ -419,13 +432,13 @@ object HOLBasics extends lisa.HOL {
     have(thesis) by Cut(apqtyping, lastStep)
 
   /**
-    * Higher-order embedded negation.
-    * 
-    * Defined as in HOL Light:
-    * `(~) = \p. p ==> F`
-    * where F (HOL False) is Zero in the set-theoretic embedding.
-    */
-  val hnot : HOLPolymorphicConstant[Ind] = {
+   * Higher-order embedded negation.
+   *
+   * Defined as in HOL Light:
+   * `(~) = \p. p ==> F`
+   * where F (HOL False) is Zero in the set-theoretic embedding.
+   */
+  val hnot: HOLPolymorphicConstant[Ind] = {
     val p = typedvar(𝔹)
 
     val hnot = DEF(fun(p, himp * p * holF))
@@ -443,17 +456,17 @@ object HOLBasics extends lisa.HOL {
   ):
     assumeAll
 
-    val hnoteq = 
+    val hnoteq =
       have(hnot === fun(p, himp * p * holF)) by Weakening(hnot.definition)
       have(hnot =:= fun(p, himp * p * holF)) by Tautology.from(
-        lastStep, 
-        have(HOLProofType(hnot)), 
-        have(HOLProofType(fun(p, himp * p * holF))), 
+        lastStep,
+        have(HOLProofType(hnot)),
+        have(HOLProofType(fun(p, himp * p * holF))),
         eqAlign of (A := (𝔹 ->: 𝔹), x := hnot, y := fun(p, himp * p * holF))
       )
 
     val beta = // hnot * p = himp * p * holF
-      val betaConv = 
+      val betaConv =
         TRANS(
           MK_COMB( // hnot * p = (\p. himp * p * holF) * p
             hnoteq,
@@ -483,12 +496,12 @@ object HOLBasics extends lisa.HOL {
     thenHave((hnot * p) <=> !(p === One)) by Substitute(beta)
 
   /**
-    * Higher-order embedded existential quantifier.
-    * 
-    * Defined as in HOL Light:
-    * `(?) = \P:A->bool. !q. (!x. P x ==> q) ==> q`
-    */
-  val hexists : HOLPolymorphicConstant[Ind >>: Ind] = {
+   * Higher-order embedded existential quantifier.
+   *
+   * Defined as in HOL Light:
+   * `(?) = \P:A->bool. !q. (!x. P x ==> q) ==> q`
+   */
+  val hexists: HOLPolymorphicConstant[Ind >>: Ind] = {
 
     val P = typedvar(A ->: 𝔹)
     val q = typedvar(𝔹)
@@ -511,7 +524,6 @@ object HOLBasics extends lisa.HOL {
       thenHave((faType, fbType, impType, exists(q, q :: 𝔹), nonEmpty(A)) |- hexists(A) :: ((A ->: 𝔹) ->: 𝔹)) by Substitute(hexists.definition)
       lib.have(nonEmpty(A) ==> hexists(A) :: ((A ->: 𝔹) ->: 𝔹)) by Tautology.from(lastStep, hforall.justif of A, hforall.justif of 𝔹, himp.justif, 𝔹.nonEmptyThm)
       thenHave(thesis) by RightForall
-    
 
     HOLPolymorphicConstant[Ind >>: Ind](hexists.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_exists)
   }
@@ -522,12 +534,12 @@ object HOLBasics extends lisa.HOL {
     assumeAll
 
     // Abbreviations for the body of hexists(A) * P
-    val innerImp = himp * (P * x) * q        // himp (P x) q
-    val innerPred = fun(x, innerImp)          // λx. himp (P x) q
-    val innerFA = hforall(A) * innerPred      // hforall A (λx. himp (P x) q)
-    val outerImp = himp * innerFA * q         // himp (hforall A (λx. himp (P x) q)) q
-    val outerPred = fun(q, outerImp)          // λq. himp (hforall A (λx. himp (P x) q)) q
-    val body = hforall(𝔹) * outerPred        // hforall 𝔹 (λq. ...)
+    val innerImp = himp * (P * x) * q // himp (P x) q
+    val innerPred = fun(x, innerImp) // λx. himp (P x) q
+    val innerFA = hforall(A) * innerPred // hforall A (λx. himp (P x) q)
+    val outerImp = himp * innerFA * q // himp (hforall A (λx. himp (P x) q)) q
+    val outerPred = fun(q, outerImp) // λq. himp (hforall A (λx. himp (P x) q)) q
+    val body = hforall(𝔹) * outerPred // hforall 𝔹 (λq. ...)
 
     // Step 1: Beta-reduce hexists(A) * P to body
     val beta = have(hexists(A) * P === body) subproof:
@@ -739,7 +751,10 @@ object HOLBasics extends lisa.HOL {
 
       // outerImp <=> (∀(x :: A, P * x ==> q) ==> q)  — with q ∈ 𝔹 on left
       have((q :: 𝔹) |- outerImp <=> (∀(x :: A, P * x ==> q) ==> q)) by Tautology.from(
-        outerImpLift, forallToInnerFA, innerFAToForall, HOLProofType(innerFA)
+        outerImpLift,
+        forallToInnerFA,
+        innerFAToForall,
+        HOLProofType(innerFA)
       )
       val outerImpFOL = lastStep
 
@@ -791,23 +806,31 @@ object HOLBasics extends lisa.HOL {
 
     have(thesis) by Tautology.from(existsCase, emptyCase)
 
-
   /**
    * Higher-order embedded choice operator.
-   * 
+   *
    * Deferred to epsilon terms internally
    */
-  val hselect : HOLPolymorphicConstant[Ind >>: Ind] = {
+  val hselect: HOLPolymorphicConstant[Ind >>: Ind] = {
     val P = typedvar(A ->: 𝔹)
     val x = typedvar(A)
     val y = typedvar(A)
 
-    val hselect = DEF(λ(A, fun(P, ε(x, 
-      // the result is always in A
-      (x :: A) /\
-      // but if there is a witness, then the result satisfies P as well
-      (∃(y, (y :: A) /\ (P * y === One)) ==> (P * x === One))
-    ))))
+    val hselect = DEF(
+      λ(
+        A,
+        fun(
+          P,
+          ε(
+            x,
+            // the result is always in A
+            (x :: A) /\
+              // but if there is a witness, then the result satisfies P as well
+              (∃(y, (y :: A) /\ (P * y === One)) ==> (P * x === One))
+          )
+        )
+      )
+    )
 
     val typing_of_select = Theorem(∀(A, nonEmpty(A) ==> hselect(A) :: ((A ->: 𝔹) ->: A))):
       lib.have((nonEmpty(A), (P :: (A ->: 𝔹))) |- selectProp(selectTerm)) by Weakening(selectWellDefined)
@@ -829,22 +852,34 @@ object HOLBasics extends lisa.HOL {
   // define ONE_ONE
   // let ONE_ONE = new_definition
   //   `ONE_ONE(f:A->B) = !x1 x2. (f x1 = f x2) ==> (x1 = x2)`;;
-  val hOneOne : HOLPolymorphicConstant[Ind >>: Ind >>: Ind] = {
-    
+  val hOneOne: HOLPolymorphicConstant[Ind >>: Ind >>: Ind] = {
+
     val f = typedvar(A ->: B)
     val x = typedvar(A)
     val y = typedvar(A)
 
-    val hOneOne = DEF(λ(A, λ(B, 
-      fun(f, 
-        hforall(A) * fun(x, // ∀ x 
-          hforall(A) * fun(y, // ∀ y
-            // f x = f y ==> x = y
-            himp 
-              * (f * x =:= f * y) 
-              * (x =:= y)
-    ))))))
-    
+    val hOneOne = DEF(
+      λ(
+        A,
+        λ(
+          B,
+          fun(
+            f,
+            hforall(A) * fun(
+              x, // ∀ x
+              hforall(A) * fun(
+                y, // ∀ y
+                // f x = f y ==> x = y
+                himp
+                  * (f * x =:= f * y)
+                  * (x =:= y)
+              )
+            )
+          )
+        )
+      )
+    )
+
     val typing_of_oneone = Theorem(∀(A, ∀(B, (nonEmpty(A) /\ nonEmpty(B)) ==> hOneOne(A)(B) :: ((A ->: B) ->: 𝔹)))) {
       lib.have((nonEmpty(A), nonEmpty(B)) |- fun(f, hforall(A) * fun(x, hforall(A) * fun(y, himp * ((f * x) =:= (f * y)) * (x =:= y)))) :: ((A ->: B) ->: 𝔹)) by Typecheck.prove
       thenHave((nonEmpty(A), nonEmpty(B)) |- hOneOne(A)(B) :: ((A ->: B) ->: 𝔹)) by Substitute(hOneOne.definition)
@@ -858,19 +893,31 @@ object HOLBasics extends lisa.HOL {
   // define ONTO
   // let ONTO = new_definition
   //   `ONTO(f:A->B) = !y. ?x. y = f x`;;
-  val hOnto : HOLPolymorphicConstant[Ind >>: Ind >>: Ind] = {
+  val hOnto: HOLPolymorphicConstant[Ind >>: Ind >>: Ind] = {
 
     val f = typedvar(A ->: B)
     val x = typedvar(A)
     val y = typedvar(B)
 
-    val hOnto = DEF(λ(A, λ(B,
-      fun(f,
-        hforall(B) * fun(y, // ∀ y
-          hexists(A) * fun(x, // ∃ x
-            // y = f x
-            y =:= (f * x) 
-    ))))))
+    val hOnto = DEF(
+      λ(
+        A,
+        λ(
+          B,
+          fun(
+            f,
+            hforall(B) * fun(
+              y, // ∀ y
+              hexists(A) * fun(
+                x, // ∃ x
+                // y = f x
+                y =:= (f * x)
+              )
+            )
+          )
+        )
+      )
+    )
 
     val typing_of_onto = Theorem(∀(A, ∀(B, (nonEmpty(A) /\ nonEmpty(B)) ==> hOnto(A)(B) :: ((A ->: B) ->: 𝔹)))) {
       lib.have((nonEmpty(A), nonEmpty(B)) |- fun(f, hforall(B) * fun(y, hexists(A) * fun(x, y =:= (f * x)))) :: ((A ->: B) ->: 𝔹)) by Typecheck.prove
@@ -882,10 +929,10 @@ object HOLBasics extends lisa.HOL {
     HOLPolymorphicConstant[Ind >>: Ind >>: Ind](hOnto.id, FunctionalClass(List(None, None), List(A, B), ((A ->: B) ->: 𝔹)), typing_of_onto)
   }
 
-  def inductive(s: Expr[Ind]): Expr[Prop] = 
+  def inductive(s: Expr[Ind]): Expr[Prop] =
     (∅ ∈ s) /\ (∀(x, (x ∈ s) ==> ⋃(unorderedPair(x, unorderedPair(x, x))) ∈ s))
 
-  val ind : HOLConstantType = {
+  val ind: HOLConstantType = {
 
     // ind is the set as defined by the set-theoretic infinity axiom
     val ind = DEF(ε(z, inductive(z)))
@@ -909,16 +956,16 @@ object HOLBasics extends lisa.HOL {
   }
 
   val indIsInductive = Theorem(inductive(ind)):
-      lib.have(inductive(y) |- inductive(y)) by Restate
-      thenHave(inductive(y) |- inductive(ε(z, inductive(z)))) by RightEpsilon.withParameters(inductive(z), z, y)
+    lib.have(inductive(y) |- inductive(y)) by Restate
+    thenHave(inductive(y) |- inductive(ε(z, inductive(z)))) by RightEpsilon.withParameters(inductive(z), z, y)
 
-      thenHave((inductive(y), ind === ε(z, inductive(z))) |- inductive(ind)) by RightSubstEq.withParameters(Seq((ε(z, inductive(z)), ind)), (Seq(z), inductive(z)))
-      lib.have(inductive(y) |- inductive(ind)) by Cut(ind.definition, lastStep)
+    thenHave((inductive(y), ind === ε(z, inductive(z))) |- inductive(ind)) by RightSubstEq.withParameters(Seq((ε(z, inductive(z)), ind)), (Seq(z), inductive(z)))
+    lib.have(inductive(y) |- inductive(ind)) by Cut(ind.definition, lastStep)
 
-      thenHave(∃(y, inductive(y)) |- inductive(ind)) by LeftExists
-      lib.have(inductive(ind)) by Cut(lib.infinityAxiom, lastStep)
+    thenHave(∃(y, inductive(y)) |- inductive(ind)) by LeftExists
+    lib.have(inductive(ind)) by Cut(lib.infinityAxiom, lastStep)
 
-  val succ : TypedConstant = {
+  val succ: TypedConstant = {
     val i = typedvar(ind)
     val succ = DEF(fun(i, ⋃(unorderedPair(i, unorderedPair(i, i)))))
 
@@ -933,7 +980,7 @@ object HOLBasics extends lisa.HOL {
       thenHave(succ :: (ind ->: ind)) by Substitute(succ.definition)
 
     TypedConstant(succ.id, ind ->: ind, succType)
-  } 
+  }
 
   val succOneOne = HOLTheorem(hOneOne(ind)(ind) * succ):
     // target: succ x = succ y ==> x = y
@@ -987,7 +1034,7 @@ object HOLBasics extends lisa.HOL {
         //   - If w = {y,y}, then x ∈ {y,y}, so x = y by pairAxiom.
         val membershipLemma = have(x ∈ ⋃(uy) |- (x ∈ y) \/ (x === y)) subproof:
           // case w = y: x ∈ w gives x ∈ y
-          val caseY = 
+          val caseY =
             have((x ∈ w, w === y) |- (x ∈ w) \/ (x === w)) by Restate
             have((x ∈ w, w === y) |- (x ∈ y) \/ (x === y)) by RightSubstEq.withParameters(Seq(w -> y), (Seq(w), (x ∈ w) \/ (x === w)))(lastStep)
           // case w = {y,y}: x ∈ w gives x ∈ {y,y}, hence x = y
@@ -997,7 +1044,8 @@ object HOLBasics extends lisa.HOL {
           // combine: w ∈ {y, {y,y}} means w = y ∨ w = {y,y}
           have((x ∈ w, w ∈ uy) |- (x ∈ y) \/ (x === y)) by Tautology.from(
             pairAxiom of (z := w, x := y, y := unorderedPair(y, y)),
-            caseY, caseSingleton
+            caseY,
+            caseSingleton
           )
           have((x ∈ w) /\ (w ∈ uy) |- (x ∈ y) \/ (x === y)) by Weakening(lastStep)
           have(∃(w, (x ∈ w) /\ (w ∈ uy)) |- (x ∈ y) \/ (x === y)) by LeftExists.withParameters((x ∈ w) /\ (w ∈ uy), w)(lastStep)
@@ -1006,7 +1054,8 @@ object HOLBasics extends lisa.HOL {
         val xToy = have(expanded(x) === expanded(y) |- (x ∈ y) \/ (x === y)) subproof:
           have(x ∈ ⋃(ux) |- x ∈ ⋃(ux)) by Hypothesis
           have((x ∈ ⋃(ux), ⋃(ux) === ⋃(uy)) |- x ∈ ⋃(uy)) by RightSubstEq.withParameters(
-            Seq((⋃(ux), ⋃(uy))), (Seq(w), x ∈ w)
+            Seq((⋃(ux), ⋃(uy))),
+            (Seq(w), x ∈ w)
           )(lastStep)
           have(expanded(x) === expanded(y) |- x ∈ ⋃(uy)) by Cut(xinex, lastStep)
           lib.have(thesis) by Cut(lastStep, membershipLemma)
@@ -1036,7 +1085,7 @@ object HOLBasics extends lisa.HOL {
       thenHave((x :: ind, ∃(x, x :: ind)) |- ∀(y :: ind, p1 * y)) by RightForall
       thenHave((x :: ind, ∃(x, x :: ind), p1 :: ind ->: 𝔹) |- hforall(ind) * p1) by Substitute(hforallCorrect)
       val forall1 = have((x :: ind, ∃(x, x :: ind)) |- hforall(ind) * p1) by Cut(HOLProofType(p1), lastStep)
-      val inner2 = 
+      val inner2 =
         // (\x. hforall(ind) * fun(y, himp * ((succ * x) =:= (succ * y)) * (x =:= y))) * x
         EQ_MP(
           SYM(BETA_CONV(p2 * x)),
@@ -1045,7 +1094,7 @@ object HOLBasics extends lisa.HOL {
       thenHave((∃(x, x :: ind)) |- (x :: ind) ==> (p2 * x)) by Weakening
       thenHave((∃(x, x :: ind)) |- ∀(x :: ind, p2 * x)) by RightForall
       val stmt = thenHave((∃(x, x :: ind), p2 :: ind ->: 𝔹) |- hforall(ind) * p2) by Substitute(hforallCorrect)
-      
+
       lib.have(Discharge(HOLProofType(p2), ind.nonEmptyThm)(stmt))
 
     have(hOneOne(ind)(ind) * succ) by Substitute(betaOneOne)(oneOneForall)
@@ -1099,7 +1148,8 @@ object HOLBasics extends lisa.HOL {
       // If expanded(x) = ∅, then x ∈ ∅ (since x ∈ expanded(x) and expanded(x) = ∅), contradiction
       have(x ∈ expanded(x) |- x ∈ expanded(x)) by Hypothesis
       have((x ∈ expanded(x), expanded(x) === ∅) |- x ∈ ∅) by RightSubstEq.withParameters(
-        Seq((expanded(x), ∅)), (Seq(w), x ∈ w)
+        Seq((expanded(x), ∅)),
+        (Seq(w), x ∈ w)
       )(lastStep)
       have(expanded(x) === ∅ |- x ∈ ∅) by Cut(xinex, lastStep)
       have(!(expanded(x) === ∅)) by Tautology.from(lastStep, xNotInEmpty)
@@ -1109,7 +1159,7 @@ object HOLBasics extends lisa.HOL {
     val emptyNotSuccApp = have(!(∅ === (succ * x))) subproof:
       have(thesis) by Substitute(betaSucc)(emptyNotSucc)
 
-    // Step 5: Lift to HOL  
+    // Step 5: Lift to HOL
     // Strategy: prove ¬∀(y :: ind, outerPred * y) at the FOL level, then lift.
     // outerPred = fun(y, hexists(ind) * fun(x, y =:= (succ * x)))
     // For y = ∅: outerPred * ∅ <=> ∃(x :: ind, ∅ = succ * x) (via hexistsCorrect + beta)
@@ -1162,7 +1212,7 @@ object HOLBasics extends lisa.HOL {
       val eqAlignInst = have((y =:= (succ * x) === One) <=> (y === (succ * x))) subproof:
         have(((y :: ind, (succ * x) :: ind) |- (y =:= (succ * x) === One) <=> (y === (succ * x)))) by Weakening(eqAlign of (A := ind, x := y, y := succ * x))
         have(Discharge(HOLProofType(y), HOLProofType(succ * x))(lastStep))
-      
+
       // innerExPred * x <=> (y === succ * x)
       // From innerExBeta: innerExPred * x === (y =:= (succ * x))
       // Both are in 𝔹. If A === B and both ∈ 𝔹, then (A === One) <=> (B === One).
@@ -1214,12 +1264,12 @@ object HOLBasics extends lisa.HOL {
     // From outerPredFOL: outerPred * y <=> ∃(x :: ind, y === succ * x)
     // From emptyNotSuccApp: ¬(∅ === succ * x)
     // From emptyInInd: ∅ ∈ ind
-    
-    // Step 7: ¬∀(y :: ind, outerPred * y) 
+
+    // Step 7: ¬∀(y :: ind, outerPred * y)
     // Assume ∀(y :: ind, outerPred * y), instantiate y = ∅ to get outerPred * ∅
     // Use outerPredFOL of (y := ∅)... but ∅ is not a TypedVariable.
     // Instead: from ∀(y :: ind, outerPred * y), derive (∅ ∈ ind) ==> outerPred * ∅ by InstantiateForall
-    // Then outerPred * ∅ (since ∅ ∈ ind). 
+    // Then outerPred * ∅ (since ∅ ∈ ind).
     // Then we need outerPred * ∅ <=> ∃(x :: ind, ∅ === succ * x). But outerPredFOL has y, not ∅.
     // We can use outerBeta of (y := ∅) but that involves ∅ in typedvar position...
     //
@@ -1248,7 +1298,7 @@ object HOLBasics extends lisa.HOL {
     // outerPredFOL: y ∈ ind ⊢ outerPred * y <=> ∃(x :: ind, y === succ * x)
     // Need: ∀(y :: ind, outerPred * y) ⊢ ∀(y :: ind, ∃(x :: ind, y === succ * x))
     // Strategy: combine InstantiateForall + outerPredFOL, then move y ∈ ind to RHS for RightForall
-    
+
     have(∀(y :: ind, outerPred * y) |- (y :: ind) ==> (outerPred * y)) by InstantiateForall
     have((∀(y :: ind, outerPred * y), y :: ind) |- ∃(x :: ind, y === (succ * x))) by Tautology.from(lastStep, outerPredFOL)
     thenHave(∀(y :: ind, outerPred * y) |- (y :: ind) ==> ∃(x :: ind, y === (succ * x))) by Restate
@@ -1289,14 +1339,15 @@ object HOLBasics extends lisa.HOL {
   val holeqBetaReduced = HOLTheorem(
     holeq(A) =:= fun(x, fun(y, x =:= y))
   ):
-    SYM(TRANS(
-      ABS(x)( // fun(x, fun(y, x =:= y)) =:= fun(x, holeq(A) * x)
-        ETA(y, holeq(A) * x) // fun(y, holeq(A) * x * y) =:= holeq(A) * x
-      ),
-      ETA(x, holeq(A)) // fun(x, holeq(A) * x) =:= holeq(A)
-    ))
+    SYM(
+      TRANS(
+        ABS(x)( // fun(x, fun(y, x =:= y)) =:= fun(x, holeq(A) * x)
+          ETA(y, holeq(A) * x) // fun(y, holeq(A) * x * y) =:= holeq(A) * x
+        ),
+        ETA(x, holeq(A)) // fun(x, holeq(A) * x) =:= holeq(A)
+      )
+    )
 
-    
   ////////////////////////////////////////////////////
   // HOL Light axioms
   // ETA_AX, INFINITY_AX, SELECT_AX
@@ -1304,8 +1355,8 @@ object HOLBasics extends lisa.HOL {
   val t = typedvar(A ->: B)
 
   /**
-   * ETA_AX 
-   * 
+   * ETA_AX
+   *
    * ```ocaml
    * let ETA_AX = new_axiom
    *   `!t:A->B. (\x. t x) = t`;;
@@ -1317,7 +1368,7 @@ object HOLBasics extends lisa.HOL {
 
     // val pred = fun(t, fun(x, t * x) =:= t)
     // val predTy = pred :: ((A ->: B) ->: 𝔹)
-    
+
     // val eta = ETA(x, t)
     // val eqT = // (fun(x, t * x) =:= t) =:= T
     //   val eqOne = have(((fun(x, t * x) =:= t) :: 𝔹, One :: 𝔹) |- (fun(x, t * x) =:= t) =:= One) by Substitute(eqAlign)(eta)
@@ -1332,16 +1383,17 @@ object HOLBasics extends lisa.HOL {
 
   /**
    * INFINITY_AX
-   * 
+   *
    * ```ocaml
    * let INFINITY_AX = new_axiom
    *  `?f:ind->ind. ONE_ONE f /\ ~(ONTO f)`;;
    * ```
    */
   val infinityAx = HOLTheorem(
-    hexists(ind ->: ind) * fun(fi, 
-      hand * 
-        (hOneOne(ind)(ind) * fi) * 
+    hexists(ind ->: ind) * fun(
+      fi,
+      hand *
+        (hOneOne(ind)(ind) * fi) *
         (hnot * (hOnto(ind)(ind) * fi))
     )
   ):
@@ -1349,18 +1401,14 @@ object HOLBasics extends lisa.HOL {
 
   /**
    * SELECT_AX
-   * 
+   *
    * ```ocaml
    * let SELECT_AX = new_axiom
    *  `!P (x:A). P x ==> P((@) P)`;;
    * ```
    */
   val selectAx = HOLTheorem(
-    hforall(A ->: 𝔹) * fun(P,
-      hforall(A) * fun(x, 
-        himp * (P * x) * (P * (hselect(A) * P))
-      )
-    )
+    hforall(A ->: 𝔹) * fun(P, hforall(A) * fun(x, himp * (P * x) * (P * (hselect(A) * P))))
   ):
     sorry
 
