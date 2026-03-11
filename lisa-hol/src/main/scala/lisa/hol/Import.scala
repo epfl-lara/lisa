@@ -22,6 +22,8 @@ import scala.collection.mutable
 object Import extends lisa.HOL:
   val lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
 
+  // lib.withCache()
+
   type Justification = lib.JUSTIFICATION
 
   sealed trait ImportException extends Exception
@@ -514,17 +516,66 @@ object Import extends lisa.HOL:
 
   end reconstructStep
 
-  def importFromPrefix(prefix: String): Unit =
+  object ExportConfig:
+    val header = """
+    |//> using scala "3.7.2"
+    |//> using options -experimental
+    |//> using dep "ch.epfl.lara::lisa::0.9.3,url=https://github.com/epfl-lara/lisa/releases/download/0.9.3/lisa_3-0.9.3.jar"
+    |
+    |object ImportedHOLTheorems extends lisa.HOL { 
+    |
+    """.stripMargin
+
+    val footer = """
+    |}
+    """.stripMargin
+
+    import java.nio.file.{Files, Path, FileAlreadyExistsException}
+    import java.io.{IOException, Writer}
+
+    class OpenExport(inner: java.io.Writer, header: String, footer: String) extends java.io.Writer {
+
+      def close(): Unit = 
+        inner.write(footer)
+        inner.close()
+
+      export inner.{flush, write}
+
+      /////////////////////////////
+      // on init
+      this.write(header)
+    }
+
+    val dummyWriter = new Writer {
+      def close() = ()
+      def flush() = ()
+      def write(cs: Array[Char], x: Int, y: Int) = ()
+    }
+
+
+    def initialize(fileName: String, overwrite: Boolean): OpenExport =
+      val path = Path.of(fileName)
+      if !overwrite && Files.exists(path) then
+        throw new FileAlreadyExistsException(s"Output file already exists: $fileName")
+      else 
+        if !Files.isWritable(path) then
+          throw new IOException(s"Output file is not writable: $fileName")
+        else
+          val writer = Files.newBufferedWriter(path)
+          OpenExport(writer, header, footer)
+          
+
+  def importFromPrefix(prefix: String, limit: Int, outputPath: Option[String] = None, overwrite: Boolean = false): Unit =
+    require(limit > 0, s"Cannot read $limit theoerems. Expected positive theorem limit.")
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
     Initialization.initializeDefinitions()
 
     // System.gc()
 
-    var count = 0
     val startTime = System.currentTimeMillis()
     def time() = (System.currentTimeMillis() - startTime) / 1000d
-    def printProgress() =
+    def printProgress(count: Int) =
       val elapsed = time()
       val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds."
       val usedSteps = f"Used ${theoremMap.keySet.maxOption.getOrElse(0)} proof steps from HOL Light."
@@ -532,28 +583,32 @@ object Import extends lisa.HOL:
       val memoryString = f"Memory left: $memoryLeft%.2f MB"
       println(f"\r[INFO] $progressString $usedSteps $memoryString")
 
+    val exporter =
+      outputPath match
+        case Some(path) => ExportConfig.initialize(path, overwrite)
+        case None => ExportConfig.dummyWriter
+
     names
-      .take(100)
-      .foreach: ref =>
+      .take(limit)
+      .zipWithIndex
+      .foreach: (ref, count) =>
         try
           debug(s"Importing theorem ${ref.name} with id ${ref.id}")
 
           reconstructTheorem(using extractor)(ref)
-          count += 1
           if true then // count % 10 == 0 then
-            printProgress()
-        catch
-          case e: ExtractorException =>
-            println(f"""
-                       | [INFO] Extracted $count theorems so far in ${time()}%.2f.
-                       | [ERROR] Encountered an error while reconstructing further.
-                       | [ERROR] Error message: ${e.getMessage}
-                       | """.stripMargin)
+            printProgress(count)
+        catch e =>
+            print(f"""
+                  | [INFO] Extracted $count theorems so far in ${time()}%.2f.
+                  | [ERROR] Encountered an error while reconstructing further.
+                  | [ERROR] Error message: ${e.getMessage}
+                  | """.stripMargin)
 
     println(s"[INFO] Successfully imported ${theoremMap.size} theorems with ${theoremMap.keySet.max} steps in ${time()}s.")
 
   @main
-  def importMain(prefix: String, logMode: String = "--silent") =
+  def importMain(prefix: String, logMode: String, theoremCount: Int, output: Boolean, outputFile: String, overwrite: Boolean) =
     val pid = ProcessHandle.current().pid()
     println(s"Running on PID: $pid")
 
@@ -562,7 +617,7 @@ object Import extends lisa.HOL:
       case "--debug" => LoggingMode.Debug
       case _ => throw new IllegalArgumentException(s"Invalid logging mode: $logMode. Expected '--silent' or '--debug'.")
 
-    importFromPrefix(prefix)
+    importFromPrefix(prefix, theoremCount, if output then Some(outputFile) else None, overwrite)
     // val innersizes = theoremMap.values.collect{case (t: THM) => t.kernelProof.get.totalLength}
     // val constantJustSizes = Constants.
     // println(s"Total inner proof size: $innersizes")
