@@ -151,6 +151,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
             if isSame(argType, dom) then codom
             else throw new LisaHOLException("In application " + t + ", argument " + arg + " has type " + argType + " instead of expected " + dom + ".")
           case funcType => throw new LisaHOLException("In application " + t + ", function " + func + " expected to have function type A ->: B, but has type " + funcType + ". ")
+      case epsilon(v: TypedVariable, _) => v.typ
       case Multiapp(func, args: List[Expr[Ind]] @unchecked) =>
         func match
           case tcf: TypedConstantFunctional[?] =>
