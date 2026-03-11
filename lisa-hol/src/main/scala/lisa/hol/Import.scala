@@ -314,12 +314,14 @@ object Import extends lisa.HOL:
           )(goal) { proof ?=>
             val stepCache = mutable.Map.empty[Long, proof.Fact]
             HOLProofType.resetCache()
-            reconstructStep(using extractor, proof, stepCache)(index, step)
+            val recons = reconstructStep(using extractor, proof, stepCache)(index, step)
 
-            debug(f"Theorem #$index%06d reconstructed with a step cache usage of ${stepCache.size} steps, and ${HOLProofType.cacheSize} typing proofs.")
+            have(HOLSteps.Clean.all(recons))
+
+            debug(f"[CACHE] Theorem #$index%06d reconstructed with a step cache usage of ${stepCache.size} steps, and ${HOLProofType.cacheSize} typing proofs.")
             debug {
               val proofSize = proof.currentSCProof.totalLength
-              f"Theorem #$index%06d required an SCProof of totalLength ${proofSize}."
+              f"[INNER SIZE] Theorem #$index%06d required an SCProof of totalLength ${proofSize}."
             }
           }
 
@@ -469,31 +471,31 @@ object Import extends lisa.HOL:
     val result = {
       proofStep match
         case h.REFL(term) =>
-          REFL(term.toLisaTerm)
+          have(ExtendedHOLSteps._REFL(term.toLisaTerm))
         case h.TRANS(left, right) =>
           val leftFact = resolveFact(left)
           val rightFact = resolveFact(right)
-          TRANS(leftFact, rightFact)
+          have(ExtendedHOLSteps._TRANS(leftFact, rightFact))
         case h.MK_COMB(left, right) =>
           val leftFact = resolveFact(left)
           val rightFact = resolveFact(right)
-          MK_COMB(leftFact, rightFact)
+          have(ExtendedHOLSteps._MK_COMB(leftFact, rightFact))
         case h.ABS(absVar, from) =>
           val lisaVar = absVar.toLisaVar
           val fromFact = resolveFact(from)
-          ABS(lisaVar)(fromFact)
+          have(ExtendedHOLSteps._ABS(lisaVar)(fromFact))
         case h.BETA(term) =>
-          BETA(term.toLisaTerm)
+          have(ExtendedHOLSteps._BETA(term.toLisaTerm))
         case h.ASSUME(term) =>
-          ASSUME(term.toLisaTerm)
+          have(ExtendedHOLSteps._ASSUME(term.toLisaTerm))
         case h.EQ_MP(left, right) =>
           val leftFact = resolveFact(left)
           val rightFact = resolveFact(right)
-          EQ_MP(leftFact, rightFact)
+          have(ExtendedHOLSteps._EQ_MP(leftFact, rightFact))
         case h.DEDUCT_ANTISYM_RULE(left, right) =>
           val leftFact = resolveFact(left)
           val rightFact = resolveFact(right)
-          DEDUCT_ANTISYM_RULE(leftFact, rightFact)
+          have(ExtendedHOLSteps._DEDUCT_ANTISYM_RULE(leftFact, rightFact))
         case h.INST(from, inst) =>
           val fromFact = resolveFact(from)
           val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaTerm) }
@@ -501,7 +503,7 @@ object Import extends lisa.HOL:
         case h.INST_TYPE(from, inst) =>
           val fromFact = resolveFact(from)
           val lisaInst = inst.map { case (v, t) => (v.toLisaVar, t.toLisaType) }
-          have(_INST_TYPE_RENAME(lisaInst.toSeq, fromFact))
+          have(ExtendedHOLSteps._INST_TYPE_RENAME(lisaInst.toSeq, fromFact))
         case h.AXIOM(term) => Axioms.fromHOL(term.toLisaTerm)
         case s @ h.DEFINITION(name, term) => reconstructConstantDefinition(s)
         case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(s)
