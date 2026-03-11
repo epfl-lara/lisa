@@ -2,7 +2,7 @@ package lisa.hol
 
 import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
-import lisa.hol.HOLBasics.SYM
+import lisa.hol.basics.Truth.SYM
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.Import.Transformers.mkTypedVar
