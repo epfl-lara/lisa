@@ -308,6 +308,19 @@ object BasicTheorems extends lisa.Main {
     assume(transitive(R)(X))
     assume(irreflexive(R)(X))
 
-    sorry
+    // Unfold transitive
+    have(∀(x ∈ X, ∀(y ∈ X, ∀(z ∈ X, (x R y) /\ (y R z) ==> (x R z))))) by Tautology.from(transitive.definition)
+    thenHave(∀(x, ∀(y, ∀(z, x ∈ X /\ (y ∈ X) /\ (z ∈ X) /\ (x R y) /\ (y R z) ==> (x R z))))) by Tableau
+    val trans = thenHave(x ∈ X /\ (y ∈ X) /\ (x ∈ X) /\ (x R y) /\ (y R x) ==> (x R x)) by InstantiateForall(x, y, x)
+
+    // Unfold irreflexive
+    have(∀(x ∈ X, ¬(x R x))) by Tautology.from(irreflexive.definition)
+    val irrefl = thenHave(x ∈ X ==> ¬(x R x)) by InstantiateForall(x)
+
+    // Combine: if xRy and yRx then xRx, contradicting irreflexivity
+    have(x ∈ X /\ (y ∈ X) /\ (x R y) ==> ¬(y R x)) by Tautology.from(trans, irrefl)
+    thenHave(∀(x, ∀(y, x ∈ X /\ (y ∈ X) /\ (x R y) ==> ¬(y R x)))) by Generalize
+    thenHave(∀(x ∈ X, ∀(y ∈ X, (x R y) ==> ¬(y R x)))) by Tableau
+    thenHave(thesis) by Substitute(asymmetric.definition)
   }
 }

@@ -8,6 +8,8 @@ import lisa.maths.SetTheory.Relations.Predef._
 import PartialOrder._
 import LowerSet._
 import WellOrder._
+import TotalOrder.strictTotalOrder
+import Extrema.minimal
 
 /**
  * Given a well-order `(A, <)`, the set of all `y ∈ A` such that `y < x`
@@ -355,8 +357,91 @@ object InitialSegment extends lisa.Main {
   ) {
     assume(wellOrder(A)(<))
 
-    // Since `initialSegment(x, A, <) ⊆ A` the total order is inherited from `A`
+    val I = initialSegment(x)(A)(<)
 
-    sorry
+    // Since `initialSegment(x, A, <) ⊆ A` the order is inherited from `A`
+    val `I ⊆ A` = have(I ⊆ A) by Tautology.from(subset)
+
+    // Irreflexivity: inherited from A
+    val irr = have(irreflexive(<)(I)) subproof {
+      have(y ∈ A ==> ¬(y < y)) by Tautology.from(
+        WellOrder.irreflexivity,
+        Relations.BasicTheorems.appliedIrreflexivity of (R := <, X := A, x := y)
+      )
+      thenHave(y ∈ I ==> ¬(y < y)) by Tautology.fromLastStep(
+        Subset.membership of (x := I, y := A, z := y),
+        `I ⊆ A`
+      )
+      thenHave(∀(y ∈ I, ¬(y < y))) by RightForall
+      thenHave(thesis) by Substitute(irreflexive.definition of (R := <, X := I))
+    }
+
+    // Transitivity: inherited from A
+    val trans = have(transitive(<)(I)) subproof {
+      have((y ∈ A, z ∈ A, a ∈ A) |- (y < z) /\ (z < a) ==> (y < a)) by Tautology.from(
+        WellOrder.transitivity,
+        Relations.BasicTheorems.appliedTransitivity of (R := <, X := A, x := y, y := z, z := a)
+      )
+      thenHave((y ∈ I, z ∈ I, a ∈ I) |- (y < z) /\ (z < a) ==> (y < a)) by Tautology.fromLastStep(
+        Subset.membership of (x := I, y := A, z := y),
+        `I ⊆ A`,
+        Subset.membership of (x := I, y := A, z := z),
+        `I ⊆ A`,
+        Subset.membership of (x := I, y := A, z := a),
+        `I ⊆ A`
+      )
+      thenHave((y ∈ I) /\ (z ∈ I) /\ (a ∈ I) /\ (y < z) /\ (z < a) ==> (y < a)) by Tautology
+      thenHave(∀(y, ∀(z, ∀(a, (y ∈ I) /\ (z ∈ I) /\ (a ∈ I) /\ (y < z) /\ (z < a) ==> (y < a))))) by Generalize
+      thenHave(∀(y ∈ I, ∀(z ∈ I, ∀(a ∈ I, (y < z) /\ (z < a) ==> (y < a))))) by Tableau
+      thenHave(thesis) by Substitute(transitive.definition of (R := <, X := I))
+    }
+
+    // Totality: inherited from A
+    val tot = have(total(<)(I)) subproof {
+      have((y ∈ A, z ∈ A) |- (y < z) \/ (z < y) \/ (y === z)) by Tautology.from(
+        WellOrder.totality,
+        Relations.BasicTheorems.appliedTotality of (R := <, X := A, x := y, y := z)
+      )
+      thenHave((y ∈ I, z ∈ I) |- (y < z) \/ (z < y) \/ (y === z)) by Tautology.fromLastStep(
+        Subset.membership of (x := I, y := A, z := y),
+        `I ⊆ A`,
+        Subset.membership of (x := I, y := A, z := z),
+        `I ⊆ A`
+      )
+      thenHave((y ∈ I) /\ (z ∈ I) ==> ((y < z) \/ (z < y) \/ (y === z))) by Tautology
+      thenHave(∀(y, ∀(z, (y ∈ I) /\ (z ∈ I) ==> ((y < z) \/ (z < y) \/ (y === z))))) by Generalize
+      thenHave(∀(y ∈ I, ∀(z ∈ I, (y < z) \/ (z < y) \/ (y === z)))) by Tableau
+      thenHave(thesis) by Substitute(total.definition of (R := <, X := I))
+    }
+
+    // Well-foundedness: any non-empty subset of I is also a non-empty subset of A
+    val wf = have(wellFounded(<)(I)) subproof {
+      have((S ⊆ I, S ≠ ∅) |- ∃(y, minimal(y)(S)(<))) by Tautology.from(
+        Subset.transitivity of (x := S, y := I, z := A),
+        `I ⊆ A`,
+        WellOrder.minimalElement of (B := S)
+      )
+      thenHave((S ⊆ I) /\ (S ≠ ∅) ==> ∃(y, minimal(y)(S)(<))) by Restate
+      thenHave(∀(S, (S ⊆ I) /\ (S ≠ ∅) ==> ∃(y, minimal(y)(S)(<)))) by RightForall
+      thenHave(thesis) by Substitute(wellFounded.definition of (R := <, X := I))
+    }
+
+    // Conclude
+    val rel = have(relation(<)) by Tautology.from(
+      wellOrder.definition,
+      strictTotalOrder.definition,
+      strictPartialOrder.definition
+    )
+
+    have(thesis) by Tautology.from(
+      rel,
+      irr,
+      trans,
+      tot,
+      wf,
+      strictPartialOrder.definition of (A := I),
+      strictTotalOrder.definition of (A := I),
+      wellOrder.definition of (A := I)
+    )
   }
 }

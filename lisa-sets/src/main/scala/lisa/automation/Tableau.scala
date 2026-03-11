@@ -157,15 +157,16 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
 
     import Branch.*
     override def toString(): String =
-      val pretUnif = unifiable.map((x, f) => x.id + " -> " + f._1.repr + " : " + f._2).mkString("Unif(", ", ", ")")
+      val pretUnif = unifiable.map((x, f) => x.repr + " -> " + f._1.repr + " : " + f._2).mkString("Unif(", ", ", ")")
       // val pretTried = triedInstantiation.map((x, t) => x.id + " -> " + prettyTerm(t, true)).mkString("Tried(", ", ", ")")
       (s"Branch(" +
         s"${RED(prettyIte(alpha, "alpha"))}, " +
         s"${GREEN(prettyIte(beta, "beta"))}, " +
         s"${BLUE(prettyIte(delta, "delta"))}, " +
         s"${YELLOW(prettyIte(gamma, "gamma"))}, " +
-        s"${MAGENTA(prettyIte(atoms._1, "+"))}, ${CYAN(prettyIte(atoms._2, "-"))}, " +
-        s"$pretUnif, _, _)").split("'").mkString("").split("_").mkString("")
+        s"${MAGENTA(prettyIte(atoms._1, "+"))}, ${CYAN(prettyIte(atoms._2, "-"))}, " + ""
+        // s"$pretUnif, _, _)"
+      ).split("'").mkString("").split("_").mkString("")
 
   }
   object Branch {
@@ -196,35 +197,35 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
   }
   type Substitution = Map[Variable, Expression]
   val Substitution = HashMap
-  def prettySubst(s: Substitution): String = s.map((x, t) => x.id + " -> " + t.repr).mkString("Subst(", ", ", ")")
+  def prettySubst(s: Substitution): String = s.map((x, t) => x.repr + " -> " + t.repr).mkString("Subst(", ", ", ")")
 
   /**
    * Detect if two terms can be unified, and if so, return a substitution that unifies them.
    */
-  def unify(t1: Expression, t2: Expression, current: Substitution, br: Branch): Option[Substitution] = (t1, t2) match
+  def unify(t1: Expression, t2: Expression, current: Substitution, br: Branch): Set[Substitution] = (t1, t2) match
     case (x: Variable, y: Variable) if (br.unifiable.contains(x) || x.id.no > br.maxIndex) && (br.unifiable.contains(y) || y.id.no > br.maxIndex) =>
-      if x == y then Some(current)
+      if x == y then Set(current)
       else if current.contains(x) then unify(current(x), t2, current, br)
       else if current.contains(y) then unify(t1, current(y), current, br)
-      else Some(current + (x -> y))
+      else Set(current + (x -> y), current + (y -> x))
     case (x: Variable, t2: Expression) if br.unifiable.contains(x) || x.id.no > br.maxIndex =>
       val newt2 = substituteVariables(t2, current)
-      if newt2.freeVariables.contains(x) then None
+      if newt2.freeVariables.contains(x) then Set.empty
       else if (current.contains(x)) unify(current(x), newt2, current, br)
-      else Some(current + (x -> newt2))
+      else Set(current + (x -> newt2))
     case (t1: Expression, y: Variable) if br.unifiable.contains(y) || y.id.no > br.maxIndex =>
       val newt1 = substituteVariables(t1, current)
-      if newt1.freeVariables.contains(y) then None
+      if newt1.freeVariables.contains(y) then Set.empty
       else if (current.contains(y)) unify(newt1, current(y), current, br)
-      else Some(current + (y -> newt1))
+      else Set(current + (y -> newt1))
     case (Application(f1, a1), Application(f2, a2)) =>
       unify(f1, f2, current, br).flatMap(s => unify(a1, a2, s, br))
-    case _ => if t1 == t2 then Some(current) else None
+    case _ => if t1 == t2 then Set(current) else Set.empty
 
   /**
    * Detect if two atoms can be unified, and if so, return a substitution that unifies them.
    */
-  def unifyPred(pos: Expression, neg: Expression, br: Branch): Option[Substitution] = {
+  def unifyPred(pos: Expression, neg: Expression, br: Branch): Set[Substitution] = {
     assert(pos.sort == Prop && neg.sort == Prop)
     unify(pos, neg, Substitution.empty, br)
 
@@ -251,13 +252,9 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       val neg = branch.atoms._2.iterator
       while (neg.hasNext) {
         val n = neg.next()
-        unifyPred(p, n, branch) match
-          case None => ()
-          case Some(unif) =>
-            substitutions = (unif, Set(p, !n)) :: substitutions
+        substitutions = unifyPred(p, n, branch).map(s => (s, Set(p, !n))).toList ++ substitutions
       }
     }
-
     val cr1 = substitutions.map((sub, set) =>
       (
         sub.flatMap((v, t) =>
@@ -277,7 +274,6 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
         v
       )
     )
-
     bestSubst(cr, branch)
 
   }
@@ -287,6 +283,7 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
     val minSize = substs.minBy(_._1.size)
     val smallSubst = substs.filter(_._1.size == minSize._1.size)
     // Up to this, it is necessary for completeness. From this, it is heuristic.
+    // println("subst_with_score: " + smallSubst.map(s => prettySubst(s._1) + " using " + s._2.map(_.repr).mkString("{", ", ", "}") + " score: " + substitutionScore(s._1, branch)).mkString(" | "))
 
     val best = smallSubst.minBy(s => substitutionScore(s._1, branch))
     Some(best)
@@ -340,16 +337,15 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
    * Explodes one Exists formula
    * Add the unquantified formula to the branch
    * Since the bound variable is not marked as suitable for instantiation, it behaves as a constant symbol (skolem)
+   * Always uses a fresh variable to avoid clashes with gamma metavariables that may share the same name.
    */
   def delta(branch: Branch): (Branch, Variable, Expression) = {
     val f = branch.delta.head
     f match
       case Exists(v, body) =>
-        if branch.skolemized.contains(v) then
-          val newV = Variable(Identifier(v.id.name, branch.maxIndex), Ind)
-          val newInner = substituteVariables(body, Map(v -> newV))
-          (branch.copy(delta = branch.delta.tail, maxIndex = branch.maxIndex + 1).prepended(newInner), newV, newInner)
-        else (branch.copy(delta = branch.delta.tail, skolemized = branch.skolemized + v).prepended(body), v, body)
+        val newV = Variable(Identifier(v.id.name, branch.maxIndex), Ind)
+        val newInner = substituteVariables(body, Map(v -> newV))
+        (branch.copy(delta = branch.delta.tail, skolemized = branch.skolemized + v, maxIndex = branch.maxIndex + 1).prepended(newInner), newV, newInner)
       case _ => throw Exception("Error: First formula of delta is not an Exists")
   }
 
@@ -479,6 +475,8 @@ object Tableau extends ProofTactic with ProofSequentTactic with ProofFactSequent
       )
     else if (closeSubst.nonEmpty && closeSubst.get._1.nonEmpty) // If branch can be closed with Instantiation (LeftForall)
       val (x, t) = closeSubst.get._1.minBy((x, t) => branch.varsOrder(x))
+      // println("Instantiating " + x.id + " with " + t.repr)
+      // println("Branch before instantiation: " + branch)
       val (recBranch, instantiated) = applyInst(branch, x, t)
       val upperProof = decide(recBranch)
       upperProof.map((proof, step) =>

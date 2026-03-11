@@ -13,7 +13,6 @@ import K.SCProofChecker
 class ATPProofs extends AnyFunSuite {
 
   private val sources = getClass.getResource("/").getPath
-  println(s"Sources: $sources")
 
   private val problems = Seq[(String, String)](
     // "p9_test_1.p" -> "prover9 test 1",
@@ -30,8 +29,6 @@ class ATPProofs extends AnyFunSuite {
         val res = reconstructProof(File(s"$sources/${p._1}"))(using lisa.tptp.KernelParser.strictMapAtom, lisa.tptp.KernelParser.strictMapTerm, lisa.tptp.KernelParser.strictMapVariable)
         val judgement = SCProofChecker.checkSCProof(res)
         assert(judgement.isValid, K.prettySCProof(judgement))
-
-        println(s"Parsed ${p._1}")
       } catch {
         case e: TPTPParser.TPTPParseException =>
           println(s"Parse error at line ${e.line}:${e.offset}: ${e.getMessage}")

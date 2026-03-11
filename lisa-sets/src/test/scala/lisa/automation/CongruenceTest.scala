@@ -1019,8 +1019,8 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
       have((p(a), q(b), x === a, y === b) |- r(x)) by Congruence.from(fact1, fact2)
     }
     val t10 = Theorem((p(a), x === a) |- q(a)) {
-      val fact1 = have(p(x) |- x === y) subproof { sorry }
-      val fact2 = have(p(y) |- q(y)) subproof { sorry }
+      val fact1 = have(p(y) |- q(y)) subproof { sorry }
+      val fact2 = have(p(x) |- x === y) subproof { sorry }
       have((p(a), x === a) |- q(a)) by Congruence.from(fact1, fact2)
     }
   }

@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Ordinals
 
 import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Order.Predef._
+import lisa.maths.SetTheory.Order.WellOrders.WellOrder
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation._
 
 import Ordinal._
@@ -16,6 +17,7 @@ object TransfiniteInduction extends lisa.Main {
   private val α, β, γ, δ, λ_ = variable[Ind]
   private val A = variable[Ind]
   private val P = variable[Ind >>: Prop]
+  private val R: Variable[Ind] = lisa.maths.SetTheory.Order.PartialOrder.<
 
   /**
    * Theorem --- If `A` is a non-empty set of ordinals, then it admits a ∈-minimal element.
@@ -56,37 +58,140 @@ object TransfiniteInduction extends lisa.Main {
       )
 
       // Since α is well-ordered, we can take the ∈-minimal element of A ∩ α, call it δ.
-      // It satisfies ∀β ∈ A. δ <= β
-      have((δ ∈ (A ∩ α), minimal(δ)(A ∩ α)(membershipRelation(α))) |- ∀(β ∈ A, δ <= β)) subproof {
+      // It satisfies ∀γ ∈ A. δ <= γ, and δ ∈ A.
+      have((δ ∈ (A ∩ α), minimal(δ)(A ∩ α)(membershipRelation(α))) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) subproof {
         assume(δ ∈ (A ∩ α))
         assume(minimal(δ)(A ∩ α)(membershipRelation(α)))
 
-        /*
-        val `δ is ordinal` = have(ordinal(δ)) by Tautology.from(
-          Intersection.membership of (z := δ, x := A, y := α),
-          Ordinal.elementOfOrdinal of (β := δ)
-        )
-
-        thenHave(∀(β, β ∈ (A ∩ α) ==> (β, δ) ∉ membershipRelation(α))) by Substitute(minimal.definition)
-        thenHave(β ∈ (A ∩ α) ==> (β, δ) ∉ membershipRelation(α)) by InstantiateForall(β)
-        thenHave(β ∈ (A ∩ α) ==> ¬((β ∈ α) /\ (δ ∈ α) /\ (β ∈ δ))) by Tautology.fromLastStep(MembershipRelation.membership of (x := β, y := δ, A := α))
-        thenHave(β ∈ (A ∩ α) ==> ¬(β ∈ δ)) by Tautology.fromLastStep(
-          Intersection.membership of (z := β, x := A, y := α),
+        val `δ ∈ α` = have(δ ∈ α) by Tautology.from(
           Intersection.membership of (z := δ, x := A, y := α)
         )
-        thenHave(β ∈ (A ∩ α) ==> δ <= β) by Tautology.fromLastStep(
-          Ordinal.comparability of (α := β, β := δ),
-          Intersection.membership of (z := β, x := A, y := α),
-          Ordinal.elementOfOrdinal of (β := δ)
+        val `δ ∈ A` = have(δ ∈ A) by Tautology.from(
+          Intersection.membership of (z := δ, x := A, y := α)
         )
-         */
+        val `δ is ordinal` = have(ordinal(δ)) by Tautology.from(
+          Ordinal.elementOfOrdinal of (β := δ),
+          `α ordinal`,
+          `δ ∈ α`
+        )
 
-        sorry
+        // Minimality: ∀z. z ∈ (A ∩ α) → (z, δ) ∉ ∈_α
+        have(∀(z, z ∈ (A ∩ α) ==> ¬(pair(z)(δ) ∈ membershipRelation(α)))) by Tautology.from(
+          minimal.definition of (a := δ, A := (A ∩ α), R := membershipRelation(α))
+        )
+        thenHave(γ ∈ (A ∩ α) ==> ¬(pair(γ)(δ) ∈ membershipRelation(α))) by InstantiateForall(γ)
+        val minimality = thenHave(γ ∈ (A ∩ α) ==> ¬((γ ∈ α) /\ (δ ∈ α) /\ (γ ∈ δ))) by Tautology.fromLastStep(
+          membership of (x := γ, y := δ, A := α)
+        )
+        // Simplify: if γ ∈ A ∩ α, then γ ∈ α and δ ∈ α, so γ ∉ δ
+        val minSimple = have(γ ∈ (A ∩ α) ==> ¬(γ ∈ δ)) by Tautology.from(
+          minimality,
+          Intersection.membership of (z := γ, x := A, y := α),
+          `δ ∈ α`
+        )
+
+        // Now show γ ∈ A → δ <= γ by cases on whether γ ∈ α
+        have(γ ∈ A |- (δ <= γ)) subproof {
+          assume(γ ∈ A)
+          val `γ ordinal` = have(ordinal(γ)) by Tautology.from(`α ordinal` of (α := γ))
+
+          // Case 1: γ ∈ α. Then γ ∈ A ∩ α, so γ ∉ δ.
+          // By comparability of δ and γ, δ ∈ γ ∨ δ = γ ∨ γ ∈ δ. Since ¬(γ ∈ δ), δ <= γ.
+          val caseInAlpha = have(γ ∈ α |- (δ <= γ)) subproof {
+            assume(γ ∈ α)
+            have(γ ∈ (A ∩ α)) by Tautology.from(Intersection.membership of (z := γ, x := A, y := α))
+            have(¬(γ ∈ δ)) by Tautology.from(lastStep, minSimple)
+            have(thesis) by Tautology.from(
+              lastStep,
+              Ordinal.comparability of (α := δ, β := γ),
+              `δ is ordinal`,
+              `γ ordinal`
+            )
+          }
+
+          // Case 2: γ ∉ α. By comparability of α and γ: α ∈ γ ∨ α = γ ∨ γ ∈ α.
+          // Since ¬(γ ∈ α), we get α ∈ γ ∨ α = γ.
+          // In either case, δ ∈ α and (α ∈ γ or α = γ), so δ ∈ γ.
+          val caseNotInAlpha = have(¬(γ ∈ α) |- (δ <= γ)) subproof {
+            assume(¬(γ ∈ α))
+            val alphaLeGamma = have((α ∈ γ) \/ (α === γ)) by Tautology.from(
+              Ordinal.comparability of (β := γ),
+              `α ordinal`,
+              `γ ordinal`
+            )
+            // If α ∈ γ: since γ is ordinal (hence transitive), δ ∈ α ∧ α ∈ γ → δ ∈ γ
+            val subcase1 = have(α ∈ γ |- (δ ∈ γ)) by Tautology.from(
+              Ordinal.transitivity of (α := δ, β := α, γ := γ),
+              `γ ordinal`,
+              `δ ∈ α`
+            )
+            // If α = γ: then δ ∈ α = γ, so δ ∈ γ
+            val subcase2 = have((α === γ) |- (δ ∈ γ)) subproof {
+              assume(α === γ)
+              have(thesis) by Congruence.from(lastStep, `δ ∈ α`)
+            }
+            have(δ ∈ γ) by Tautology.from(alphaLeGamma, subcase1, subcase2)
+            thenHave(thesis) by Tautology.fromLastStep()
+          }
+
+          have(thesis) by Tautology.from(caseInAlpha, caseNotInAlpha)
+        }
+        thenHave(γ ∈ A ==> (δ <= γ)) by Restate
+        thenHave(∀(γ, γ ∈ A ==> (δ <= γ))) by RightForall
+
+        // δ ∈ A ∧ ∀(γ ∈ A, δ <= γ)
+        have(δ ∈ A /\ ∀(γ ∈ A, δ <= γ)) by Tautology.from(lastStep, `δ ∈ A`)
+        // Existentially quantify
+        thenHave(thesis) by RightExists
       }
-      sorry
+
+      // Convert to implication and generalize over δ
+      have((minimal(δ)(A ∩ α)(membershipRelation(α))) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) by Tautology.from(
+        lastStep,
+        minimal.definition of (a := δ, A := (A ∩ α), R := membershipRelation(α))
+      )
+      val fromMinimal = thenHave(∃(δ, minimal(δ)(A ∩ α)(membershipRelation(α))) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) by LeftExists
+
+      // Use existence of minimal element
+      val `A ∩ α ⊆ α` = have((A ∩ α) ⊆ α) by Weakening(Intersection.subsetRight of (x := A, y := α))
+      val minExists = have(∃(δ, minimal(δ)(A ∩ α)(membershipRelation(α)))) by Tautology.from(
+        WellOrder.minimalElement of (A := α, R := membershipRelation(α), B := (A ∩ α)),
+        ordinal.definition,
+        `α ordinal`,
+        `A ∩ α ⊆ α`,
+        `A ∩ α ≠ ∅`
+      )
+      have(thesis) by Cut(minExists, fromMinimal)
     }
 
-    sorry
+    // Combine case1 and case2
+    // case1: (α ∈ A, ∀(β, β ∈ A ==> (α <= β))) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))
+    // case2: (α ∈ A, β ∈ A, ¬(α <= β)) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))
+    // From case2 we can generalize over β: if there exists β ∈ A with ¬(α <= β), then thesis.
+    // case1 covers ∀β ∈ A, α <= β. Together with A ≠ ∅, we need α ∈ A.
+    // Actually: either ∀(β, β ∈ A ==> α <= β) or ∃(β, β ∈ A ∧ ¬(α <= β)).
+    // Combine: for any α ∈ A, thesis.
+    // Then from A ≠ ∅, get ∃α, α ∈ A, and conclude.
+
+    // From case2: (α ∈ A, β ∈ A, ¬(α <= β)) |- thesis
+    // Convert to: (α ∈ A) |- β ∈ A ∧ ¬(α <= β) ==> thesis
+    // i.e.: (α ∈ A) |- β ∈ A ==> (α <= β) ∨ thesis
+    // Generalize: (α ∈ A) |- ∀(β, β ∈ A ==> (α <= β) ∨ thesis)
+    // Hmm, this is getting complex. Let me just use Tautology directly.
+
+    have(α ∈ A |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) subproof {
+      assume(α ∈ A)
+      // Either ∀β ∈ A. α <= β, or ∃β ∈ A. ¬(α <= β)
+      // From case2: (α ∈ A, β ∈ A, ¬(α <= β)) |- thesis
+      have((β ∈ A, ¬(α <= β)) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) by Weakening(case2)
+      thenHave((β ∈ A /\ ¬(α <= β)) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) by Restate
+      val case2exists = thenHave(∃(β, β ∈ A /\ ¬(α <= β)) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) by LeftExists
+      have(thesis) by Tautology.from(case1, case2exists)
+    }
+    thenHave((α ∈ A) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) by Restate
+    val fromAny = thenHave(∃(α, α ∈ A) |- ∃(α ∈ A, ∀(β ∈ A, α <= β))) by LeftExists
+    have(∃(α, α ∈ A)) by Tautology.from(EmptySet.nonEmptyHasElement of (x := A))
+    have(thesis) by Cut(lastStep, fromAny)
   }
 
   /**
