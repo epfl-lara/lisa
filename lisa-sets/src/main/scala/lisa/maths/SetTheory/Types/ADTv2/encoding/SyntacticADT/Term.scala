@@ -25,15 +25,18 @@ private[encoding] trait SyntacticADTTerm[N <: Arity]
   }
 
   // Temporary placeholder while ADTv2 function-definition integration is finalized.
-  val polymorphicTerm: Expr[Ind] = Constant[Ind](s"${name}_poly_term")
+  private val polymorphicTermConst = Constant[Ind](s"${name}Polyterm")
+  registerConstant(polymorphicTermConst)
+  val polymorphicTerm: Expr[Ind] = polymorphicTermConst
 
-  val term: Expr[Ind] = Constant[Ind](s"${name}_term")
+  private val termConst = Constant[Ind](s"${name}Term")
+  registerConstant(termConst)
+  val term: Expr[Ind] = termConst
 
   private[encoding] val termDefinition: Expr[Prop] = termDefinitionFormula(term)
 
   private[encoding] val termSatisfiesDefinition = Lemma(termDefinition) {
     // have(thesis) by InstantiateForall(term)(polymorphicTerm.definition)
-    println(s"termDefinition: $termDefinition")
     have(thesis) by Sorry
   }
 

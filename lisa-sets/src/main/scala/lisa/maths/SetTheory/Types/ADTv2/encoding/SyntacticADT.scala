@@ -3,7 +3,8 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-type **[A, N <: Arity] = Tuple
+/** Heterogeneous tuple encoded as a Seq. N represents the arity (number of elements). */
+type **[A, N <: Arity] = Seq[A]
 
 /**
  *  Syntactic set theoretical interpretation of an algebraic data type. That is the least
@@ -35,8 +36,7 @@ class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: sourcecode.Fil
   protected final def sourceFile: sourcecode.File = file
 
   /** Sequence of type variables used in the definition of this ADT */
-  val typeVariablesSeq: Seq[Variable[Ind]] =
-    typeVariables.asInstanceOf[Product].productIterator.map(_.asInstanceOf[Variable[Ind]]).toSeq
+  val typeVariablesSeq: Seq[Variable[Ind]] = typeVariables
 
   /** Number of type variables used in the definition of this ADT */
   val typeArity: N = typeVariablesSeq.length.asInstanceOf[N]

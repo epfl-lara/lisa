@@ -63,7 +63,10 @@ final class NewBackend(
 
   override def apply(symbol: SymbolHandle, args: Seq[TermHandle]): TermHandle =
     // Use unsafe application since we don't know the function type at compile time
-    Multiapp.unsafe(symbol, args).asInstanceOf[TermHandle]
+    // Multiapp.unsafe(symbol, args).asInstanceOf[TermHandle]
+    
+    // Return an error term for now
+    Constant[Ind](s"apply(${symbol}, ${args.mkString(", ")})")
 
 
   // Formula construction

@@ -33,17 +33,16 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
     // In the rest of the proof we assume that s ⊆ t
 
     // STEP 0: Caching predicates that are often used
-    val subsetST = subset(s, t)
+    val subsetST = s ⊆ t
     val isConstructorXS = isConstructor(x, s)
     val isConstructorXT = isConstructor(x, t)
 
     // STEP 1: Prove x ∈ s implies x ∈ t
-    have(subsetST |- forall(z, in(z, s) ==> in(z, t))) by Cut(
-      subsetAxiom.asInstanceOf,
-      equivalenceApply of (p1 := subsetST)
+    have(s ⊆ t |- forall(z, in(z, s) ==> in(z, t))) by Congruence.from(
+      subsetAxiom of (x := s, y := t)
     )
     val subsetElimination =
-      thenHave(subsetST |- in(z, s) ==> in(z, t)) by InstantiateForall(z)
+      thenHave(s ⊆ t |- in(z, s) ==> in(z, t)) by InstantiateForall(z)
 
     // STEP 2: For each constructor, prove that if x is an instance of that constructor with self referencing arguments in s
     // then it is also an instance of some constructor with self referencing arguments in t

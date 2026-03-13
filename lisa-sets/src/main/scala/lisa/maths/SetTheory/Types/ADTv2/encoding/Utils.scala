@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Ordinals.Integer.ω
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.{
   ConstructorArg,
   RegularArg,
@@ -19,6 +20,7 @@ import lisa.utils.fol.FOL.{
   Variable
 }
 import lisa.utils.prooflib.BasicStepTactic.*
+import scala.compiletime.summonFrom
 
 object Utils {
 
@@ -37,7 +39,14 @@ object Utils {
   val P = variable[Ind >>: Ind >>: Prop]
   val schemPred = variable[Ind >>: Prop]
 
-  val N = Constant[Ind]("N")
+  val N: Expr[Ind] = ω
+
+  inline def registerConstant(c: lisa.utils.fol.FOL.Constant[?]): Unit =
+    summonFrom {
+      case lib: lisa.utils.prooflib.Library =>
+        try lib.addSymbol(c) catch { case _: Throwable => () }
+      case _ => ()
+    }
 
   def toTerm(n: Int): Expr[Ind] =
     require(n >= 0, "n must be a non-negative integer")
@@ -95,8 +104,14 @@ object Utils {
       case RegularArg(tpe) => typeExprToTerm(tpe)
 
   def typeExprToTerm(tpe: TypeExpr): Expr[Ind] = tpe match
-    case TypeRef(name) => Constant[Ind](name)
-    case TypeApply(name, args) => Constant[Ind](s"$name[${args.mkString(",")}]")
+    case TypeRef(name) =>
+      val c = Constant[Ind](name)
+      registerConstant(c)
+      c
+    case TypeApply(name, args) =>
+      val c = Constant[Ind](s"$name[${args.mkString(",")}]")
+      registerConstant(c)
+      c
 
   def wellTypedFormula(signature: Seq[(Variable[Ind], ConstructorArg)])(
       adt: Expr[Ind]

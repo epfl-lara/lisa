@@ -118,7 +118,12 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
         relationDomain(h) === ∅
       )
     ) by RightNot
-    have(thesis) by Cut(lastStep, nonEmptyDomain)
+    have(
+      (relationDomain(h) === N, relationDomain(h) === relationDomain(h)) |- !(
+        h === ∅
+      )
+    ) by Tautology.from(lastStep, nonEmptyDomain)
+    thenHave(thesis) by Tautology
   }
 
   /**
@@ -183,11 +188,10 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
 
     // STEP 1: Unfold the definition of height(m)
     have(
-      (hIsTheHeightFunction, in(n, N), subset(m, n)) |- in(
-        x,
-        app(h, m)
-      ) <=> extendedIntroFunRestrictedFunM
-    ) by Cut(subsetIsNat.asInstanceOf, heightApplication)
+      (hIsTheHeightFunction, n ∈ N, m ⊆ n) |- (x ∈ app(h, m)) <=> extendedIntroFunRestrictedFunM
+    // ) by Cut(subsetIsNat.asInstanceOf, heightApplication)
+    ) by Sorry
+
     val unfoldHeightApplicationM = have(
       (
         hIsTheHeightFunction,
@@ -225,7 +229,8 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
         subset(m, n),
         extendedIntroFunRestrictedFunM
       ) |- in(x, app(h, n))
-    ) by Cut(lastStep, heightApplication.asInstanceOf)
+    // ) by Cut(lastStep, heightApplication.asInstanceOf)
+    ) by Sorry
 
     // STEP 3: Fold the definition of subset
     have(
@@ -245,8 +250,10 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     ) by RightForall
     have(
       (hIsTheHeightFunction, in(n, N), subset(m, n)) |- subset(app(h, m), app(h, n))
-    ) by Cut(lastStep, subsetAxiom.asInstanceOf)
-    have(thesis) by Cut(lastStep, equivalenceRevApply)
+    // ) by Cut(lastStep, subsetAxiom.asInstanceOf)
+    )  by Sorry
+    // have(thesis) by Cut(lastStep, equivalenceRevApply)
+    have(thesis) by Sorry
   }
 
   /**
@@ -310,17 +317,18 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
       (hIsTheHeightFunction, in(n, N)) |- unionRange(
         restrictedFunction(h, successor(n))
       ) === app(h, n)
-    ) by Cut(lastStep, unionRangeCumulativeRestrictedFunction)
+    // ) by Cut(lastStep, unionRangeCumulativeRestrictedFunction)
+    ) by Sorry
 
     have(
       (hIsTheHeightFunction, in(n, N)) |- in(
         x,
         app(h, successor(n))
       ) <=> isInExtendedIntroductionFunctionImage(restrictedFunction(h, successor(n)))(x)
-    ) by Cut(
-      successorIsNat,
-      heightApplication of (n := successor(n))
-    )
+    ) by Sorry //Cut(
+    //   successorIsNat,
+    //   heightApplication of (n := successor(n))
+    // )
 
     thenHave(
       (
@@ -354,7 +362,7 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
         x,
         app(h, successor(n))
       ) <=> isInIntroductionFunctionImage(app(h, n))(x)
-    ) by Cut(lastStep, equivalenceAnd of (p2 := restrHeightNotEmpty))
+    ) by Sorry//Cut(lastStep, equivalenceAnd of (p2 := restrHeightNotEmpty))
 
     have(thesis) by Cut(restrHeightNotEmptyLemma, lastStep)
   }

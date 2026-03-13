@@ -64,13 +64,8 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
 	 *  Predicate characterizing the height function.
 	 */
 	private[encoding] def isTheHeightFunction(h: Expr[Ind]): Expr[Prop] =
-		functional(h) /\ (relationDomain(h) === N) /\ forall(
-			n,
-			in(n, N) ==> forall(
-				x,
-				in(x, app(h, n)) <=> isInExtendedIntroductionFunctionImage(
-					restrictedFunction(h, n)
-				)(x)
+		functional(h) /\ (relationDomain(h) === N) /\ forall( n, in(n, N) ==> forall( x,
+				in(x, app(h, n)) <=> isInExtendedIntroductionFunctionImage(restrictedFunction(h, n))(x)
 			)
 		)
 
