@@ -1,4 +1,4 @@
-// // package lisa.maths.SetTheory.Types.ADTv2.transation
+// // package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 // /** Semantic set theoretical interpretation of an algebraic data type. That is the least set closed under [[SemanticConstructor]].
 //  *
@@ -79,11 +79,11 @@
 
 //         val s0 = have(vars2WellTyped + (c1.appliedTerm1 === c2.appliedTerm2) |- c1.appliedTerm1 === c2.structuralTerm2) by Cut(
 //           tappTerm2Def,
-//           ADTThm.altEqualityTransitivity of (x := c1.appliedTerm1, y := c2.appliedTerm2, z := c2.structuralTerm2)
+//           altEqualityTransitivity of (x := c1.appliedTerm1, y := c2.appliedTerm2, z := c2.structuralTerm2)
 //         )
 //         have(vars1WellTyped + (c1.appliedTerm1 === c2.structuralTerm2) |- c1.structuralTerm1 === c2.structuralTerm2) by Cut(
 //           tappTerm1Def,
-//           ADTThm.altEqualityTransitivity of (x := c1.structuralTerm1, y := c1.appliedTerm1, z := c2.structuralTerm2)
+//           altEqualityTransitivity of (x := c1.structuralTerm1, y := c1.appliedTerm1, z := c2.structuralTerm2)
 //         )
 //         have(thesis) by Cut(s0, lastStep)
 //       }
@@ -134,11 +134,11 @@
 //             ty match
 //               case Self =>
 //                 val wellTypedV: Expr[Prop] = v :: term
-//                 have(wellTypedVars |- (P(v) ==> fc1) <=> (P(v) ==> fc2)) by Cut(lastStep, ADTThm.leftImpliesEquivalenceWeak of (p := P(v), p1 := fc1, p2 := fc2))
+//                 have(wellTypedVars |- (P(v) ==> fc1) <=> (P(v) ==> fc2)) by Cut(lastStep, leftImpliesEquivalenceWeak of (p := P(v), p1 := fc1, p2 := fc2))
 //                 thenHave(wellTypedVars.init |- wellTypedV ==> ((P(v) ==> fc1) <=> (P(v) ==> fc2))) by RightImplies
 //                 have(wellTypedVars.init |- (wellTypedV ==> (P(v) ==> fc1)) <=> (wellTypedV ==> (P(v) ==> fc2))) by Cut(
 //                   lastStep,
-//                   ADTThm.leftImpliesEquivalenceStrong of (p := wellTypedV, p1 := P(v) ==> fc1, p2 := P(v) ==> fc2)
+//                   leftImpliesEquivalenceStrong of (p := wellTypedV, p1 := P(v) ==> fc1, p2 := P(v) ==> fc2)
 //                 )
 //                 thenHave(wellTypedVars.init |- forall(v, (wellTypedV ==> (P(v) ==> fc1)) <=> (wellTypedV ==> (P(v) ==> fc2)))) by RightForall
 //                 have(wellTypedVars.init |- forall(v, (wellTypedV ==> (P(v) ==> fc1))) <=> forall(v, (wellTypedV ==> (P(v) ==> fc2)))) by Cut(
@@ -148,7 +148,7 @@
 //                 (forall(v, wellTypedV ==> (P(v) ==> fc1)), forall(v, wellTypedV ==> (P(v) ==> fc2)), wellTypedVars.init)
 //               case GroundType(t) =>
 //                 thenHave(wellTypedVars.init |- v :: t ==> (fc1 <=> fc2)) by RightImplies
-//                 have(wellTypedVars.init |- (in(v, t) ==> fc1) <=> (v :: t ==> fc2)) by Cut(lastStep, ADTThm.leftImpliesEquivalenceStrong of (p := in(v, t), p1 := fc1, p2 := fc2))
+//                 have(wellTypedVars.init |- (in(v, t) ==> fc1) <=> (v :: t ==> fc2)) by Cut(lastStep, leftImpliesEquivalenceStrong of (p := in(v, t), p1 := fc1, p2 := fc2))
 //                 thenHave(wellTypedVars.init |- forall(v, (in(v, t) ==> fc1) <=> (v :: t ==> fc2))) by RightForall
 //                 have(wellTypedVars.init |- forall(v, (in(v, t) ==> fc1)) <=> forall(v, (v :: t ==> fc2))) by Cut(
 //                   lastStep,
@@ -157,11 +157,11 @@
 //                 (forall(v, (in(v, t) ==> fc1)), forall(v, (v :: t ==> fc2)), wellTypedVars.init)
 //           )
 //       }
-//       (newBefore, newAfter, have(newBefore <=> newAfter) by Apply(ADTThm.impliesEquivalence).on(lastStep, fact))
+//       (newBefore, newAfter, have(newBefore <=> newAfter) by Apply(impliesEquivalence).on(lastStep, fact))
 //     )
 //     have(underlying.induction.statement.right.head |- thesis.right.head) by Cut(
 //       lastStep,
-//       ADTThm.equivalenceApply of (
+//       equivalenceApply of (
 //         p1 := underlying.induction.statement.right.head, p2 := thesis.right.head
 //       )
 //     )

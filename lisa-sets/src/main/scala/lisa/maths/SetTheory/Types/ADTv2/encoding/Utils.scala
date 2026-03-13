@@ -1,5 +1,6 @@
-package lisa.maths.SetTheory.Types.ADTv2.transation
+package lisa.maths.SetTheory.Types.ADTv2.encoding
 
+import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.{
@@ -17,7 +18,6 @@ import lisa.utils.fol.FOL.{
   Prop as FProp,
   Variable
 }
-import lisa.utils.prooflib.SimpleDeducedSteps.Restate
 import lisa.utils.prooflib.BasicStepTactic.*
 
 object Utils {
@@ -103,6 +103,8 @@ object Utils {
   ): Expr[Prop] = /\(signature.map((variable, arg) => in(variable, arg.getOrElse(adt))))
 
   def unionRange(f: Expr[Ind]): Expr[Ind] = ⋃(range(f))
+
+  def lam(v: Variable[Ind], body: Expr[Prop]): Expr[Ind >>: Prop] = λ(v, body)
 
   given FormulaSetConverter[(Expr[Prop], Expr[Prop])] with
     def apply(t: (Expr[Prop], Expr[Prop])): Set[FExpr[FProp]] = Set(t._1, t._2)

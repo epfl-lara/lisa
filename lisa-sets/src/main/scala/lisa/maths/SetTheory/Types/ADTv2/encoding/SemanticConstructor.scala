@@ -1,4 +1,4 @@
-// // package lisa.maths.SetTheory.Types.ADTv2.transation
+// // package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 // /** Semantic set theoretical interpretation of a constructor for an algebraic data type.
 //  * That is a function from the arguments' domains to the set of instances of the algebraic data type.
@@ -221,22 +221,22 @@
 
 //         val s0 = have(vars2WellTyped + (appliedTerm1 === appliedTerm2) |- appliedTerm1 === structuralTerm2) by Cut(
 //           tappTerm2Def,
-//           ADTThm.altEqualityTransitivity of (x := appliedTerm1, y := appliedTerm2, z := structuralTerm2)
+//           altEqualityTransitivity of (x := appliedTerm1, y := appliedTerm2, z := structuralTerm2)
 //         )
 //         have(vars1WellTyped + (appliedTerm1 === structuralTerm2) |- structuralTerm1 === structuralTerm2) by Cut(
 //           tappTerm1Def,
-//           ADTThm.altEqualityTransitivity of (x := structuralTerm1, y := appliedTerm1, z := structuralTerm2)
+//           altEqualityTransitivity of (x := structuralTerm1, y := appliedTerm1, z := structuralTerm2)
 //         )
 //         have((vars1WellTyped ++ vars2WellTyped) + (appliedTerm1 === appliedTerm2) |- structuralTerm1 === structuralTerm2) by Cut(s0, lastStep)
 //         val forward = thenHave(vars1WellTyped ++ vars2WellTyped |- (appliedTerm1 === appliedTerm2) ==> (structuralTerm1 === structuralTerm2)) by RightImplies
 
 //         val s1 = have(vars1WellTyped + (structuralTerm1 === structuralTerm2) |- appliedTerm1 === structuralTerm2) by Cut(
 //           tappTerm1Def,
-//           ADTThm.altEqualityTransitivity of (x := appliedTerm1, y := structuralTerm1, z := structuralTerm2)
+//           altEqualityTransitivity of (x := appliedTerm1, y := structuralTerm1, z := structuralTerm2)
 //         )
 //         have(vars2WellTyped + (appliedTerm1 === structuralTerm2) |- appliedTerm1 === appliedTerm2) by Cut(
 //           tappTerm2Def,
-//           ADTThm.altEqualityTransitivity of (x := appliedTerm1, y := structuralTerm2, z := appliedTerm2)
+//           altEqualityTransitivity of (x := appliedTerm1, y := structuralTerm2, z := appliedTerm2)
 //         )
 //         have((vars1WellTyped ++ vars2WellTyped) + (structuralTerm1 === structuralTerm2) |- appliedTerm1 === appliedTerm2) by Cut(s1, lastStep)
 //         val backward = thenHave(vars1WellTyped ++ vars2WellTyped |- (structuralTerm1 === structuralTerm2) ==> (appliedTerm1 === appliedTerm2)) by RightImplies
@@ -245,7 +245,7 @@
 //         have((appliedTerm1 === appliedTerm2) <=> (structuralTerm1 === structuralTerm2) |- (appliedTerm1 === appliedTerm2) <=> /\(variables1.zip(variables2).map(_ === _))) by Sorry
 //         Cut(
 //           underlying.injectivity,
-//           ADTThm.equivalenceRewriting of (p1 := (appliedTerm1 === appliedTerm2), p2 := (structuralTerm1 === structuralTerm2), p3 := /\(variables1.zip(variables2).map(_ === _)))
+//           equivalenceRewriting of (p1 := (appliedTerm1 === appliedTerm2), p2 := (structuralTerm1 === structuralTerm2), p3 := /\(variables1.zip(variables2).map(_ === _)))
 //         )
 //         have(thesis) by Cut(definitionUnfolding, lastStep)
 //       }
