@@ -197,7 +197,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     private[OLEquivalenceChecker] var normalForm: Option[SimpleExpression] = None
     def getNormalForm = normalForm
     private[OLEquivalenceChecker] var namelessForm: Option[SimpleExpression] = None
-    def getNamelessForm = normalForm
+    def getNamelessForm = namelessForm
 
     /**
      * Caching for the lessThan relation.
