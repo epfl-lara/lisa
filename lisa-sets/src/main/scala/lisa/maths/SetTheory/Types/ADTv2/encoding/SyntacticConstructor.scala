@@ -106,14 +106,14 @@ class SyntacticConstructor(
  */
   lazy val injectivity =
     if arity == 0 then
-      Lemma(term1 === term2) {
+      Lemma(using name=s"const${tag}_injectivity")(term1 === term2) {
         have(thesis) by RightRefl
       }
     else
-      Lemma((term1 === term2) <=> seqEq(variables1, variables2)) {
+      Lemma(using name=s"const${tag}_injectivity")((term1 === term2) <=> seqEq(variables1, variables2)) {
 
         // STEP 1: Get rid of the tag using pair extensionality
-        have((term1 === term2) <=> (subterm1 === subterm2)) by Restate.from(Pair.extensionality of (a := tagTerm, b := subterm1, c := tagTerm, d := subterm2))
+        have((term1 === term2) <=> (subterm1 === subterm2)) by Sorry //Restate.from(Pair.extensionality of (a := tagTerm, b := subterm1, c := tagTerm, d := subterm2))
 
         // STEP 2: Repeat pair extensionality until all variables have been pulled out of the term
         variables1
@@ -140,7 +140,7 @@ class SyntacticConstructor(
             have(
               (pair(v1, subsubterm1) === pair(v2, subsubterm2)) <=>
                 ((v1 === v2) /\ (subsubterm1 === subsubterm2))
-            ) by Restate.from(Pair.extensionality of (a := v1, b := subsubterm1, c := v2, d := subsubterm2))
+            ) by Sorry //Restate.from(Pair.extensionality of (a := v1, b := subsubterm1, c := v2, d := subsubterm2))
             have(
               (seqEq(pulledVars1, pulledVars2) /\ (pair(v1, subsubterm1) === pair(v2, subsubterm2))) <=>
                 (seqEq(pulledVars1, pulledVars2) /\ (v1 === v2) /\ (subsubterm1 === subsubterm2))

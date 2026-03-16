@@ -36,7 +36,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity]
     )
   ).toMap
 
-  lazy val induction = Lemma(
+  lazy val induction = Lemma(using name=s"ADT_${name}_induction")(
     constructors.foldRight[Expr[Prop]](forall(x, in(x, term) ==> Q(x)))((c, f) =>
       inductiveCase(c) ==> f
     )

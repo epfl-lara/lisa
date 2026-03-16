@@ -160,4 +160,27 @@ object UsefullTheorems {
   val existsOneUniqueness =
     Lemma((∃!(x, P(x)), P(x), P(y)) |- x === y)(have(thesis) by Sorry)
 
+
+  val altEqualityTransitivity = Lemma(
+    (x === y, y === z) |- x === z
+  ){
+    have(thesis) by Sorry
+  }
+
+  val equivalenceRewriting = Lemma((p1 <=> p2, p2 <=> p3) |- (p1 <=> p3)){
+    have(thesis) by Sorry
+  }
+
+  val impliesEquivalence = Lemma((p1 <=> p2, p3 <=> p4) |- (p1 ==> p3) <=> (p2 ==> p4)) {
+    have(thesis) by Tautology
+  }
+
+  val leftImpliesEquivalenceWeak = Lemma(p1 <=> p2 |- (p ==> p1) <=> (p ==> p2)) {
+    have(thesis) by Tautology
+  }
+
+  val leftImpliesEquivalenceStrong = Lemma(p ==> (p1 <=> p2) |- (p ==> p1) <=> (p ==> p2)) {
+    have(thesis) by Tautology
+  }
+
 }
