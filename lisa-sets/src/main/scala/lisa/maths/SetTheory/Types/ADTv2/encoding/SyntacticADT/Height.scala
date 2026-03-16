@@ -20,16 +20,16 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
   // * HEIGHT FUNCTION *
   // *******************
 
-    /**
+  /**
    *  Lemma --- The extended introduction function is monotonic with respect to set
    *  inclusion.
    *
    *  `f ⊆ g |- extendedIntroductionFunction(f) ⊆ extendedIntroductionFunction(g)`
    */
   private[encoding] val extendedIntroductionFunctionMonotonic = Lemma(
-    subset(f, g) |- isInExtendedIntroductionFunctionImage(f)(
-      x
-    ) ==> isInExtendedIntroductionFunctionImage(g)(x)
+    subset(f, g) |-
+      isInExtendedIntroductionFunctionImage(f)(x) ==>
+      isInExtendedIntroductionFunctionImage(g)(x)
   ) {
 
     // STEP 0: Caching
@@ -41,16 +41,13 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
       unionRangeMonotonic,
       introductionFunctionMononotic of (s := unionRange(f), t := unionRange(g))
     )
-    val left =
-      thenHave((subset(f, g), introFunUnionRangeF) |- introFunUnionRangeG) by Restate
+    val left = thenHave((subset(f, g), introFunUnionRangeF) |- introFunUnionRangeG) by
+      Restate
 
     // STEP 2: Conclude by applying the conjuction on both sides
     have(
-      (
-        subset(f, g),
-        !(f === ∅),
-        introFunUnionRangeF
-      ) |- isInExtendedIntroductionFunctionImage(g)(x)
+      (subset(f, g), !(f === ∅), introFunUnionRangeF) |-
+        isInExtendedIntroductionFunctionImage(g)(x)
     ) by RightAnd(left, subsetNotEmpty of (x := f, y := g))
   }
 
@@ -71,9 +68,8 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
   private[encoding] val heightFunctionExistence = Lemma(exists(h, hIsTheHeightFunction)) {
     have(thesis) by Cut(
       heightFunUniqueness.asInstanceOf,
-      lisa.maths.Quantifiers.existsOneImpliesExists of (
-        P := lam(h, isTheHeightFunction(h))
-      )
+      lisa.maths.Quantifiers.existsOneImpliesExists of
+        (P := lam(h, isTheHeightFunction(h)))
     )
   }
 
@@ -86,11 +82,7 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     Lemma((fIsTheHeightFunction, hIsTheHeightFunction) |- f === h) {
       have(thesis) by Cut(
         heightFunUniqueness,
-        existsOneUniqueness of (
-          P := lam(h, isTheHeightFunction(h)),
-          x := f,
-          y := h
-        )
+        existsOneUniqueness of (P := lam(h, isTheHeightFunction(h)), x := f, y := h)
       )
     }
 
@@ -99,32 +91,30 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
    *
    *  `height ≠ ∅`
    */
-  private[encoding] val heightFunctionNonEmpty = Lemma(hIsTheHeightFunction |- !(h === ∅)) {
-    // The proof goes by contradiction. If the height function is empty then its domain is empty as well.
-    // This would imply that the set of natural numbers is empty, which is a contradiction.
-    have(N === ∅ |- ()) by Restate.from(natNotEmpty)
-    thenHave(
-      (
-        relationDomain(h) === ∅,
-        relationDomain(h) === N,
-        relationDomain(h) === relationDomain(h)
-      ) |- ()
-    ) by LeftSubstEq.withParameters(
-      List((relationDomain(h), ∅), (relationDomain(h), N)),
-      (Seq(x, y), y === x)
-    )
-    thenHave(
-      (relationDomain(h) === N, relationDomain(h) === relationDomain(h)) |- !(
-        relationDomain(h) === ∅
+  private[encoding] val heightFunctionNonEmpty =
+    Lemma(hIsTheHeightFunction |- !(h === ∅)) {
+      // The proof goes by contradiction. If the height function is empty then its domain is empty as well.
+      // This would imply that the set of natural numbers is empty, which is a contradiction.
+      have(N === ∅ |- ()) by Restate.from(natNotEmpty)
+      thenHave(
+        (
+          relationDomain(h) === ∅,
+          relationDomain(h) === N,
+          relationDomain(h) === relationDomain(h)
+        ) |- ()
+      ) by LeftSubstEq.withParameters(
+        List((relationDomain(h), ∅), (relationDomain(h), N)),
+        (Seq(x, y), y === x)
       )
-    ) by RightNot
-    have(
-      (relationDomain(h) === N, relationDomain(h) === relationDomain(h)) |- !(
-        h === ∅
-      )
-    ) by Tautology.from(lastStep, nonEmptyDomain)
-    thenHave(thesis) by Tautology
-  }
+      thenHave(
+        (relationDomain(h) === N, relationDomain(h) === relationDomain(h)) |-
+          !(relationDomain(h) === ∅)
+      ) by RightNot
+      have(
+        (relationDomain(h) === N, relationDomain(h) === relationDomain(h)) |- !(h === ∅)
+      ) by Tautology.from(lastStep, nonEmptyDomain)
+      thenHave(thesis) by Tautology
+    }
 
   /**
    *  Lemma --- The set of elements of height n or below is the image of the extended
@@ -134,10 +124,9 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
    *  `height(n) = extendedIntroductionFunction(height | n)`
    */
   private[encoding] val heightApplication = Lemma(
-    (hIsTheHeightFunction, in(n, N)) |- in(
-      x,
-      app(h, n)
-    ) <=> isInExtendedIntroductionFunctionImage(restrictedFunction(h, n))(x)
+    (hIsTheHeightFunction, in(n, N)) |-
+      in(x, app(h, n)) <=>
+      isInExtendedIntroductionFunctionImage(restrictedFunction(h, n))(x)
   ) {
 
     // Caching
@@ -151,22 +140,16 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     // Nothing fancy, just instantiations and restates
     have(heightFunApplicationDef |- heightFunApplicationDef) by Hypothesis
     thenHave(
-      heightFunApplicationDef |- in(n, N) ==> forall(
-        x,
-        in(x, app(h, n)) <=> extendedIntroFunRestrictedFunM
-      )
+      heightFunApplicationDef |-
+        in(n, N) ==> forall(x, in(x, app(h, n)) <=> extendedIntroFunRestrictedFunM)
     ) by InstantiateForall(n)
     thenHave(
-      (heightFunApplicationDef, in(n, N)) |- forall(
-        x,
-        in(x, app(h, n)) <=> extendedIntroFunRestrictedFunM
-      )
+      (heightFunApplicationDef, in(n, N)) |-
+        forall(x, in(x, app(h, n)) <=> extendedIntroFunRestrictedFunM)
     ) by Restate
     thenHave(
-      (heightFunApplicationDef, in(n, N)) |- in(
-        x,
-        app(h, n)
-      ) <=> extendedIntroFunRestrictedFunM
+      (heightFunApplicationDef, in(n, N)) |-
+        in(x, app(h, n)) <=> extendedIntroFunRestrictedFunM
     ) by InstantiateForall(x)
     thenHave(thesis) by Weakening
   }
@@ -188,48 +171,34 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
 
     // STEP 1: Unfold the definition of height(m)
     have(
-      (hIsTheHeightFunction, n ∈ N, m ⊆ n) |- (x ∈ app(h, m)) <=> extendedIntroFunRestrictedFunM
-    // ) by Cut(subsetIsNat.asInstanceOf, heightApplication)
+      (hIsTheHeightFunction, n ∈ N, m ⊆ n) |- (x ∈ app(h, m)) <=>
+        extendedIntroFunRestrictedFunM
+        // ) by Cut(subsetIsNat.asInstanceOf, heightApplication)
     ) by Sorry
 
     val unfoldHeightApplicationM = have(
-      (
-        hIsTheHeightFunction,
-        in(n, N),
-        subset(m, n),
-        in(x, app(h, m))
-      ) |- extendedIntroFunRestrictedFunM
+      (hIsTheHeightFunction, in(n, N), subset(m, n), in(x, app(h, m))) |-
+        extendedIntroFunRestrictedFunM
     ) by Cut(
       lastStep,
-      equivalenceRevApply of (
-        p1 := in(x, app(h, m)),
-        p2 := extendedIntroFunRestrictedFunM
-      )
+      equivalenceRevApply of
+        (p1 := in(x, app(h, m)), p2 := extendedIntroFunRestrictedFunM)
     )
 
     // STEP 2: Use the monotonicity of the extended introduction function
     have(
-      subset(
-        m,
-        n
-      ) |- extendedIntroFunRestrictedFunM ==> isInExtendedIntroductionFunctionImage(
-        restrictedFunction(h, n)
-      )(x)
+      subset(m, n) |-
+        extendedIntroFunRestrictedFunM ==>
+        isInExtendedIntroductionFunctionImage(restrictedFunction(h, n))(x)
     ) by Cut(
       restrictedFunctionDomainMonotonic of (x := m, y := n, f := h),
-      extendedIntroductionFunctionMonotonic of (
-        f := restrictedFunction(h, m),
-        g := restrictedFunction(h, n)
-      )
+      extendedIntroductionFunctionMonotonic of
+        (f := restrictedFunction(h, m), g := restrictedFunction(h, n))
     )
     have(
-      (
-        hIsTheHeightFunction,
-        in(n, N),
-        subset(m, n),
-        extendedIntroFunRestrictedFunM
-      ) |- in(x, app(h, n))
-    // ) by Cut(lastStep, heightApplication.asInstanceOf)
+      (hIsTheHeightFunction, in(n, N), subset(m, n), extendedIntroFunRestrictedFunM) |-
+        in(x, app(h, n))
+        // ) by Cut(lastStep, heightApplication.asInstanceOf)
     ) by Sorry
 
     // STEP 3: Fold the definition of subset
@@ -237,21 +206,17 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
       (hIsTheHeightFunction, in(n, N), subset(m, n), in(x, app(h, m))) |- in(x, app(h, n))
     ) by Cut(unfoldHeightApplicationM, lastStep)
     thenHave(
-      (hIsTheHeightFunction, in(n, N), subset(m, n)) |- in(x, app(h, m)) ==> in(
-        x,
-        app(h, n)
-      )
+      (hIsTheHeightFunction, in(n, N), subset(m, n)) |-
+        in(x, app(h, m)) ==> in(x, app(h, n))
     ) by RightImplies
     thenHave(
-      (hIsTheHeightFunction, in(n, N), subset(m, n)) |- forall(
-        x,
-        in(x, app(h, m)) ==> in(x, app(h, n))
-      )
+      (hIsTheHeightFunction, in(n, N), subset(m, n)) |-
+        forall(x, in(x, app(h, m)) ==> in(x, app(h, n)))
     ) by RightForall
     have(
       (hIsTheHeightFunction, in(n, N), subset(m, n)) |- subset(app(h, m), app(h, n))
-    // ) by Cut(lastStep, subsetAxiom.asInstanceOf)
-    )  by Sorry
+      // ) by Cut(lastStep, subsetAxiom.asInstanceOf)
+    ) by Sorry
     // have(thesis) by Cut(lastStep, equivalenceRevApply)
     have(thesis) by Sorry
   }
@@ -266,17 +231,16 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     // This is due to the fact that the extended introduction function is the empty set when the function is empty
     // (which happens when the height is set to 0).
     have(
-      hIsTheHeightFunction |- in(x, app(h, ∅)) <=> isInExtendedIntroductionFunctionImage(
-        restrictedFunction(h, ∅)
-      )(x)
+      hIsTheHeightFunction |-
+        in(x, app(h, ∅)) <=>
+        isInExtendedIntroductionFunctionImage(restrictedFunction(h, ∅))(x)
     ) by Cut(zeroIsNat, heightApplication of (n := ∅))
     thenHave(
       (restrictedFunction(h, ∅) === ∅, hIsTheHeightFunction) |- !in(x, app(h, ∅))
-    ) by
-      RightSubstEq.withParameters(
-        List((restrictedFunction(h, ∅), ∅)),
-        (Seq(s), in(x, app(h, ∅)) <=> isInExtendedIntroductionFunctionImage(s)(x))
-      )
+    ) by RightSubstEq.withParameters(
+      List((restrictedFunction(h, ∅), ∅)),
+      (Seq(s), in(x, app(h, ∅)) <=> isInExtendedIntroductionFunctionImage(s)(x))
+    )
     have(thesis) by Cut(restrictedFunctionEmptyDomain, lastStep)
   }
 
@@ -287,45 +251,36 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
    *  `height(n + 1) = introductionFunction(height(n))`
    */
   private[encoding] val heightSuccessorWeak = Lemma(
-    (hIsTheHeightFunction, in(n, N)) |- in(
-      x,
-      app(h, successor(n))
-    ) <=> isInIntroductionFunctionImage(app(h, n))(x)
+    (hIsTheHeightFunction, in(n, N)) |-
+      in(x, app(h, successor(n))) <=> isInIntroductionFunctionImage(app(h, n))(x)
   ) {
 
     // STEP 1: Prove that the restriction of height to n + 1 is not empty
     val restrHeightNotEmpty: Expr[Prop] = !(restrictedFunction(h, successor(n)) === ∅)
-    have(!(h === ∅) |- restrHeightNotEmpty) by Cut(
-      zeroIsNotSucc,
-      restrictedFunctionNotEmpty of (d := successor(n))
-    )
-    val restrHeightNotEmptyLemma = have(
-      hIsTheHeightFunction |- restrHeightNotEmpty
-    ) by Cut(heightFunctionNonEmpty, lastStep)
+    have(!(h === ∅) |- restrHeightNotEmpty) by
+      Cut(zeroIsNotSucc, restrictedFunctionNotEmpty of (d := successor(n)))
+    val restrHeightNotEmptyLemma = have(hIsTheHeightFunction |- restrHeightNotEmpty) by
+      Cut(heightFunctionNonEmpty, lastStep)
 
     // STEP 2: Use the fact that if the function is cumulative then ∪ range(height | n + 1) = height(n) to conclude the proof
     have(
       (hIsTheHeightFunction, in(n, N)) |- subset(m, n) ==> subset(app(h, m), app(h, n))
     ) by RightImplies(heightMonotonic)
     thenHave(
-      (hIsTheHeightFunction, in(n, N)) |- forall(
-        m,
-        subset(m, n) ==> subset(app(h, m), app(h, n))
-      )
+      (hIsTheHeightFunction, in(n, N)) |-
+        forall(m, subset(m, n) ==> subset(app(h, m), app(h, n)))
     ) by RightForall
     val unionRangeRestr = have(
-      (hIsTheHeightFunction, in(n, N)) |- unionRange(
-        restrictedFunction(h, successor(n))
-      ) === app(h, n)
-    // ) by Cut(lastStep, unionRangeCumulativeRestrictedFunction)
+      (hIsTheHeightFunction, in(n, N)) |-
+        unionRange(restrictedFunction(h, successor(n))) === app(h, n)
+        // ) by Cut(lastStep, unionRangeCumulativeRestrictedFunction)
     ) by Sorry
 
     have(
-      (hIsTheHeightFunction, in(n, N)) |- in(
-        x,
-        app(h, successor(n))
-      ) <=> isInExtendedIntroductionFunctionImage(restrictedFunction(h, successor(n)))(x)
-    ) by Sorry //Cut(
+      (hIsTheHeightFunction, in(n, N)) |-
+        in(x, app(h, successor(n))) <=>
+        isInExtendedIntroductionFunctionImage(restrictedFunction(h, successor(n)))(x)
+    ) by Sorry // Cut(
     //   successorIsNat,
     //   heightApplication of (n := successor(n))
     // )
@@ -336,33 +291,27 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
         in(n, N),
         unionRange(restrictedFunction(h, successor(n))) === app(h, n)
       ) |-
-        in(
-          x,
-          app(h, successor(n))
-        ) <=> restrHeightNotEmpty /\ isInIntroductionFunctionImage(app(h, n))(x)
-    ) by
-      RightSubstEq.withParameters(
-        List((unionRange(restrictedFunction(h, successor(n))), app(h, n))),
-        (Seq(s),
-          in(x, app(h, successor(n))) <=> (
-            restrHeightNotEmpty /\ isInIntroductionFunctionImage(s)(x)
-          )
-        )
+        in(x, app(h, successor(n))) <=>
+        restrHeightNotEmpty /\ isInIntroductionFunctionImage(app(h, n))(x)
+    ) by RightSubstEq.withParameters(
+      List((unionRange(restrictedFunction(h, successor(n))), app(h, n))),
+      (
+        Seq(s),
+        in(x, app(h, successor(n))) <=>
+          (restrHeightNotEmpty /\ isInIntroductionFunctionImage(s)(x))
       )
+    )
 
     have(
-      (hIsTheHeightFunction, in(n, N)) |- in(
-        x,
-        app(h, successor(n))
-      ) <=> restrHeightNotEmpty /\ isInIntroductionFunctionImage(app(h, n))(x)
+      (hIsTheHeightFunction, in(n, N)) |-
+        in(x, app(h, successor(n))) <=>
+        restrHeightNotEmpty /\ isInIntroductionFunctionImage(app(h, n))(x)
     ) by Cut(unionRangeRestr, lastStep)
 
     have(
-      (hIsTheHeightFunction, in(n, N), restrHeightNotEmpty) |- in(
-        x,
-        app(h, successor(n))
-      ) <=> isInIntroductionFunctionImage(app(h, n))(x)
-    ) by Sorry//Cut(lastStep, equivalenceAnd of (p2 := restrHeightNotEmpty))
+      (hIsTheHeightFunction, in(n, N), restrHeightNotEmpty) |-
+        in(x, app(h, successor(n))) <=> isInIntroductionFunctionImage(app(h, n))(x)
+    ) by Sorry // Cut(lastStep, equivalenceAnd of (p2 := restrHeightNotEmpty))
 
     have(thesis) by Cut(restrHeightNotEmptyLemma, lastStep)
   }

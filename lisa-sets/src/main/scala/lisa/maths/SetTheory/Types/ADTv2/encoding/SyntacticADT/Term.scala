@@ -9,8 +9,7 @@ import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[encoding] trait SyntacticADTTerm[N <: Arity]
-    extends SyntacticADTHeight[N] {
+private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[N] {
   this: SyntacticADT[N] =>
 
   // ********
@@ -20,9 +19,8 @@ private[encoding] trait SyntacticADTTerm[N <: Arity]
   private[encoding] def termDefinitionFormula(adt: Expr[Ind]): Expr[Prop] =
     forall(t, in(t, adt) <=> forall(h, hIsTheHeightFunction ==> in(t, unionRange(h))))
 
-  private[encoding] val termExistence = Lemma(existsOne(z, termDefinitionFormula(z))) {
-    have(thesis) by Sorry
-  }
+  private[encoding] val termExistence =
+    Lemma(existsOne(z, termDefinitionFormula(z)))(have(thesis) by Sorry)
 
   // Temporary placeholder while ADTv2 function-definition integration is finalized.
   private val polymorphicTermConst = Constant[Ind](s"${name}Polyterm")
@@ -40,36 +38,29 @@ private[encoding] trait SyntacticADTTerm[N <: Arity]
     have(thesis) by Sorry
   }
 
-  private[encoding] val termHasHeight =
-    Lemma(hIsTheHeightFunction |- in(x, term) <=> ∃(n, in(n, N) /\ in(x, app(h, n)))) {
-      have(thesis) by Sorry
-    }
+  private[encoding] val termHasHeight = Lemma(
+    hIsTheHeightFunction |- in(x, term) <=> ∃(n, in(n, N) /\ in(x, app(h, n)))
+  )(have(thesis) by Sorry)
 
   private[encoding] val termsHaveHeight = constructors.map(c =>
     c -> Lemma(
-      hIsTheHeightFunction |- (constructorVarsInDomain(c, term) <=> ∃(
-        n,
-        in(n, N) /\ constructorVarsInDomain(c, app(h, n))
-      ))
-    ) {
-      have(thesis) by Sorry
-    }
+      hIsTheHeightFunction |-
+        (constructorVarsInDomain(c, term) <=>
+          ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n))))
+    )(have(thesis) by Sorry)
   ).toMap
 
   private[encoding] val heightConstructor = constructors.map(c =>
     c -> Lemma(
-      (hIsTheHeightFunction, in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(
-        c.term,
-        app(h, successor(n))
-      )
-    ) {
-      have(thesis) by Sorry
-    }
+      (hIsTheHeightFunction, in(n, N), constructorVarsInDomain(c, app(h, n))) |-
+        in(c.term, app(h, successor(n)))
+    )(have(thesis) by Sorry)
   ).toMap
 
-  val intro = constructors.map(c =>
-    c -> Lemma(simplify(constructorVarsInDomain(c, term)) |- simplify(in(c.term, term))) {
-      have(thesis) by Sorry
-    }
-  ).toMap
+  val intro = constructors
+    .map(c =>
+      c -> Lemma(
+        simplify(constructorVarsInDomain(c, term)) |- simplify(in(c.term, term))
+      )(have(thesis) by Sorry)
+    ).toMap
 }

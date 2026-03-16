@@ -8,8 +8,7 @@ import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[encoding] trait SyntacticADTInduction[N <: Arity]
-    extends SyntacticADTTerm[N] {
+private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTerm[N] {
   this: SyntacticADT[N] =>
 
   private val Q = variable[Ind >>: Prop]
@@ -19,13 +18,9 @@ private[encoding] trait SyntacticADTInduction[N <: Arity]
   // ************************
 
   private[encoding] lazy val heightSuccessorStrong = Lemma(
-    (hIsTheHeightFunction, in(n, N)) |- in(x, app(h, successor(n))) <=> isConstructor(
-      x,
-      app(h, n)
-    )
-  ) {
-    have(thesis) by Sorry
-  }
+    (hIsTheHeightFunction, in(n, N)) |-
+      in(x, app(h, successor(n))) <=> isConstructor(x, app(h, n))
+  )(have(thesis) by Sorry)
 
   lazy val inductiveCase: Map[SyntacticConstructor, Expr[Prop]] = constructors.map(c =>
     c -> c.signature.foldRight[Expr[Prop]](Q(c.term))((el, fc) =>
@@ -36,11 +31,9 @@ private[encoding] trait SyntacticADTInduction[N <: Arity]
     )
   ).toMap
 
-  lazy val induction = Lemma(using name=s"ADT_${name}_induction")(
+  lazy val induction = Lemma(using name = s"ADT_${name}_induction")(
     constructors.foldRight[Expr[Prop]](forall(x, in(x, term) ==> Q(x)))((c, f) =>
       inductiveCase(c) ==> f
     )
-  ) {
-    have(thesis) by Sorry
-  }
+  )(have(thesis) by Sorry)
 }

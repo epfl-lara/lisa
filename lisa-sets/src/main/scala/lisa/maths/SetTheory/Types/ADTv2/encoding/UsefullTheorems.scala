@@ -134,15 +134,15 @@ object UsefullTheorems {
 
   val subsetSuccessor = Lemma(subset(n, successor(n)))(have(thesis) by Sorry)
 
-  val restrictedFunctionEmptyDomain = Lemma(restrictedFunction(h, ∅) === ∅)(have(thesis) by Sorry)
+  val restrictedFunctionEmptyDomain =
+    Lemma(restrictedFunction(h, ∅) === ∅)(have(thesis) by Sorry)
 
   val restrictedFunctionNotEmpty = Lemma(
     (!(h === ∅), !(d === ∅)) |- !(restrictedFunction(h, d) === ∅)
-  ){have(thesis) by Sorry}
+  )(have(thesis) by Sorry)
 
-  val nonEmptyDomain = Lemma(!(relationDomain(h) === ∅) |- !(h === ∅)){
-    have(thesis) by Sorry
-  }
+  val nonEmptyDomain =
+    Lemma(!(relationDomain(h) === ∅) |- !(h === ∅))(have(thesis) by Sorry)
 
   val restrictedFunctionDomainMonotonic = Lemma(
     subset(x, y) |- subset(restrictedFunction(f, x), restrictedFunction(f, y))
@@ -160,27 +160,20 @@ object UsefullTheorems {
   val existsOneUniqueness =
     Lemma((∃!(x, P(x)), P(x), P(y)) |- x === y)(have(thesis) by Sorry)
 
+  val altEqualityTransitivity =
+    Lemma((x === y, y === z) |- x === z)(have(thesis) by Sorry)
 
-  val altEqualityTransitivity = Lemma(
-    (x === y, y === z) |- x === z
-  ){
-    have(thesis) by Sorry
-  }
-
-  val equivalenceRewriting = Lemma((p1 <=> p2, p2 <=> p3) |- (p1 <=> p3)){
-    have(thesis) by Sorry
-  }
+  val equivalenceRewriting =
+    Lemma((p1 <=> p2, p2 <=> p3) |- (p1 <=> p3))(have(thesis) by Sorry)
 
   val impliesEquivalence = Lemma((p1 <=> p2, p3 <=> p4) |- (p1 ==> p3) <=> (p2 ==> p4)) {
     have(thesis) by Tautology
   }
 
-  val leftImpliesEquivalenceWeak = Lemma(p1 <=> p2 |- (p ==> p1) <=> (p ==> p2)) {
-    have(thesis) by Tautology
-  }
+  val leftImpliesEquivalenceWeak =
+    Lemma(p1 <=> p2 |- (p ==> p1) <=> (p ==> p2))(have(thesis) by Tautology)
 
-  val leftImpliesEquivalenceStrong = Lemma(p ==> (p1 <=> p2) |- (p ==> p1) <=> (p ==> p2)) {
-    have(thesis) by Tautology
-  }
+  val leftImpliesEquivalenceStrong =
+    Lemma(p ==> (p1 <=> p2) |- (p ==> p1) <=> (p ==> p2))(have(thesis) by Tautology)
 
 }

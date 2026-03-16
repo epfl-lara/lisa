@@ -43,14 +43,17 @@ object Utils {
 
   val N: Expr[Ind] = ω
 
-  object UnreachableException extends Exception("This code should not be accessed. If you see this message, please report it to the library maintainers.")
+  object UnreachableException
+      extends Exception(
+        "This code should not be accessed. If you see this message, please report it to the library maintainers."
+      )
 
-  inline def registerConstant(c: lisa.utils.fol.FOL.Constant[?]): Unit =
-    summonFrom {
-      case lib: lisa.utils.prooflib.Library =>
-        try lib.addSymbol(c) catch { case _: Throwable => () }
-      case _ => ()
-    }
+  inline def registerConstant(c: lisa.utils.fol.FOL.Constant[?]): Unit = summonFrom {
+    case lib: lisa.utils.prooflib.Library =>
+      try lib.addSymbol(c)
+      catch { case _: Throwable => () }
+    case _ => ()
+  }
 
   def toTerm(n: Int): Expr[Ind] =
     require(n >= 0, "n must be a non-negative integer")
@@ -79,11 +82,11 @@ object Utils {
     def ===(s2: Seq[Expr[Ind]]): Expr[Prop] =
       /\(s1.zip(s2).map((left, right) => left === right))
 
-  def seqOr(s : Iterable[Expr[Prop]]): Expr[Prop] =
-    s.reduceOption(_ \/ _).getOrElse(False: Expr[Prop])
+  def seqOr(s: Iterable[Expr[Prop]]): Expr[Prop] = s.reduceOption(_ \/ _)
+    .getOrElse(False: Expr[Prop])
 
-  def seqAnd(s : Iterable[Expr[Prop]]): Expr[Prop] =
-    s.reduceOption(_ /\ _).getOrElse(True: Expr[Prop])
+  def seqAnd(s: Iterable[Expr[Prop]]): Expr[Prop] = s.reduceOption(_ /\ _)
+    .getOrElse(True: Expr[Prop])
 
   def \/(s: Iterable[Expr[Prop]]): Expr[Prop] =
     if s.isEmpty then False else s.fold(False)(_ \/ _)
@@ -127,29 +130,22 @@ object Utils {
 
   def lam(v: Variable[Ind], body: Expr[Prop]): Expr[Ind >>: Prop] = λ(v, body)
 
-  def appSeq(f: Expr[Ind])(args: Seq[Expr[Ind]]): Expr[Ind] = 
-    args.foldLeft(f)(_ * _)
+  def appSeq(f: Expr[Ind])(args: Seq[Expr[Ind]]): Expr[Ind] = args.foldLeft(f)(_ * _)
 
+  def wellTyped(s: Seq[(Expr[Ind], Expr[Ind])]): Seq[Expr[Prop]] = s.map(_ :: _)
 
-  def wellTyped(s: Seq[(Expr[Ind], Expr[Ind])]): Seq[Expr[Prop]] = 
-    s.map(_ :: _)
-
-  def wellTyped(s: Seq[(Expr[Ind], ConstructorArg)])(orElse: Expr[Ind]): Seq[Expr[Prop]] = 
+  def wellTyped(s: Seq[(Expr[Ind], ConstructorArg)])(orElse: Expr[Ind]): Seq[Expr[Prop]] =
     s.map((t, arg) => t :: arg.getOrElse(orElse))
 
-  def wellTypedSet(s: Seq[(Expr[Ind], Expr[Ind])]): Set[Expr[Prop]] = 
-    wellTyped(s).toSet
+  def wellTypedSet(s: Seq[(Expr[Ind], Expr[Ind])]): Set[Expr[Prop]] = wellTyped(s).toSet
 
-  def wellTypedFormula(s: Seq[(Expr[Ind], Expr[Ind])]): Expr[Prop] = 
-    /\ (wellTyped(s))
+  def wellTypedFormula(s: Seq[(Expr[Ind], Expr[Ind])]): Expr[Prop] = /\(wellTyped(s))
 
-  def wellTypedFormula(s: Seq[(Expr[Ind], ConstructorArg)])(orElse: Expr[Ind]): Expr[Prop] = 
-    /\ (wellTyped(s)(orElse))
+  def wellTypedFormula(s: Seq[(Expr[Ind], ConstructorArg)])(
+      orElse: Expr[Ind]
+  ): Expr[Prop] = /\(wellTyped(s)(orElse))
 
-
-
-  def functionSet(A : Expr[Ind], B: Expr[Ind]): Expr[Ind] = 
-    ∅ // Placeholder
+  def functionSet(A: Expr[Ind], B: Expr[Ind]): Expr[Ind] = ∅ // Placeholder
 
   given FormulaSetConverter[(Expr[Prop], Expr[Prop])] with
     def apply(t: (Expr[Prop], Expr[Prop])): Set[FExpr[FProp]] = Set(t._1, t._2)

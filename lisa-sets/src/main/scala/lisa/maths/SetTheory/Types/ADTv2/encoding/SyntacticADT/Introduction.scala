@@ -26,9 +26,8 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
    *  `s ⊆ t |- introductionFunction(s) ⊆ introductionFunction(t)`
    */
   private[encoding] val introductionFunctionMononotic = Lemma(
-    subset(s, t) |- isInIntroductionFunctionImage(s)(x) ==> isInIntroductionFunctionImage(
-      t
-    )(x)
+    subset(s, t) |-
+      isInIntroductionFunctionImage(s)(x) ==> isInIntroductionFunctionImage(t)(x)
   ) {
     // In the rest of the proof we assume that s ⊆ t
 
@@ -38,11 +37,10 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
     val isConstructorXT = isConstructor(x, t)
 
     // STEP 1: Prove x ∈ s implies x ∈ t
-    have(s ⊆ t |- forall(z, in(z, s) ==> in(z, t))) by Congruence.from(
-      subsetAxiom of (x := s, y := t)
-    )
-    val subsetElimination =
-      thenHave(s ⊆ t |- in(z, s) ==> in(z, t)) by InstantiateForall(z)
+    have(s ⊆ t |- forall(z, in(z, s) ==> in(z, t))) by
+      Congruence.from(subsetAxiom of (x := s, y := t))
+    val subsetElimination = thenHave(s ⊆ t |- in(z, s) ==> in(z, t)) by
+      InstantiateForall(z)
 
     // STEP 2: For each constructor, prove that if x is an instance of that constructor with self referencing arguments in s
     // then it is also an instance of some constructor with self referencing arguments in t
@@ -62,24 +60,20 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
           // STEP 2.1: Prove that we can expand the domain of the (quantified) variables of the constructor
           val andSeq =
             for (v, ty) <- c.signature2
-            yield have((subsetST, varsWellTypedS) |- in(v, ty.getOrElse(t))) by Weakening(
-              subsetElimination of (z := v)
-            )
-          val expandingDomain =
-            have((subsetST, varsWellTypedS) |- varsWellTypedT) by RightAnd(andSeq*)
+            yield have((subsetST, varsWellTypedS) |- in(v, ty.getOrElse(t))) by
+              Weakening(subsetElimination of (z := v))
+          val expandingDomain = have((subsetST, varsWellTypedS) |- varsWellTypedT) by
+            RightAnd(andSeq*)
           val weakeningLabelEq = have(labelEq |- labelEq) by Hypothesis
-          have(
-            (subsetST, varsWellTypedS, labelEq) |- varsWellTypedT /\ labelEq
-          ) by RightAnd(expandingDomain, weakeningLabelEq)
+          have((subsetST, varsWellTypedS, labelEq) |- varsWellTypedT /\ labelEq) by
+            RightAnd(expandingDomain, weakeningLabelEq)
 
           // STEP 2.2: Prove that x stays an instance of this constructor if we expand the domain of the variables
-          thenHave(
-            (subsetST, varsWellTypedS, labelEq) |- isConstructorCXT
-          ) by QuantifiersIntro(c.variables2)
+          thenHave((subsetST, varsWellTypedS, labelEq) |- isConstructorCXT) by
+            QuantifiersIntro(c.variables2)
           thenHave((subsetST, varsWellTypedS /\ labelEq) |- isConstructorCXT) by LeftAnd
-          thenHave((subsetST, isConstructorCXS) |- isConstructorCXT) by QuantifiersIntro(
-            c.variables2
-          )
+          thenHave((subsetST, isConstructorCXS) |- isConstructorCXT) by
+            QuantifiersIntro(c.variables2)
 
           // STEP 2.3: Weaken the conclusion to some constructor instead of a specific one
           thenHave((subsetST, isConstructorCXS) |- isConstructorXT) by Weakening
@@ -89,19 +83,15 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
     if constructors.isEmpty then
       have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
     else
-      have((subsetST, isConstructorXS) |- isConstructorXT) by LeftOr(
-        isConstructorXSImpliesT*
-      )
+      have((subsetST, isConstructorXS) |- isConstructorXT) by
+        LeftOr(isConstructorXSImpliesT*)
 
     // STEP 4: Prove the thesis by showing that making the union with the function argument does not change the monotonicity
     thenHave(subsetST |- isConstructorXS ==> isConstructorXT) by RightImplies
-    have(thesis) by Cut(
-      lastStep,
-      unionPreimageMonotonic of (P := λ(s, isConstructorXS))
-    )
+    have(thesis) by Cut(lastStep, unionPreimageMonotonic of (P := λ(s, isConstructorXS)))
   }
 
-    /**
+  /**
    *  Lemma --- Every constructor is in the image of the introduction function.
    *
    *  `For every c ∈ constructors, xi ∈ s, ..., xj ∈ s |- c(x1, ..., xn) ∈ introductionFunction(s)`
@@ -134,9 +124,8 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
         (oldVariables, newVariables)
       )
 
-      thenHave(
-        constructorVarsInDomainCS |- isInIntroductionFunctionImage(s)(c.term)
-      ) by Weakening
+      thenHave(constructorVarsInDomainCS |- isInIntroductionFunctionImage(s)(c.term)) by
+        Weakening
     }
   ).toMap
 }

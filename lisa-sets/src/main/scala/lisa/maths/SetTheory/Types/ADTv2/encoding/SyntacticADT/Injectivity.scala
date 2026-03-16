@@ -11,8 +11,7 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.*
 
-private[encoding] trait SyntacticADTInjectivity[N <: Arity]
-    extends SyntacticADTBase[N] {
+private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADTBase[N] {
   this: SyntacticADT[N] =>
 
   // ***************
@@ -29,7 +28,7 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity]
   def injectivity(c1: SyntacticConstructor, c2: SyntacticConstructor) =
     require(c1.tag != c2.tag, "The given constructors must be different.")
 
-    Lemma(using name=s"AST_${name}_disjointness")(c1.term1 =/= c2.term2) {
+    Lemma(using name = s"AST_${name}_disjointness")(c1.term1 =/= c2.term2) {
 
       // STEP 0: Caching
       val tagTerm1: Expr[Ind] = c1.tagTerm
@@ -42,8 +41,8 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity]
         val minTag: Int = Math.min(c1.tag, c2.tag)
         val maxTag: Int = Math.max(c1.tag, c2.tag)
 
-        val start =
-          have(tagTerm1 === tagTerm2 |- toTerm(maxTag) === toTerm(minTag)) by Restate
+        val start = have(tagTerm1 === tagTerm2 |- toTerm(maxTag) === toTerm(minTag)) by
+          Restate
 
         // STEP 1.2: Apply successor injectivity to both tags until one becomes 0
         (1 to minTag).foldLeft(start)((fact, i) =>
@@ -53,17 +52,18 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity]
             successor(midMaxTag) === successor(midMinTag) |- midMaxTag === midMinTag
           ) by Cut(
             successorInjectivity of (n := midMaxTag, m := midMinTag),
-            equivalenceApply of (
-              p1 := successor(midMaxTag) === successor(midMinTag),
-              p2 := midMaxTag === midMinTag
-            )
+            equivalenceApply of
+              (
+                p1 := successor(midMaxTag) === successor(midMinTag),
+                p2 := midMaxTag === midMinTag
+              )
           )
           have(tagTerm1 === tagTerm2 |- midMaxTag === midMinTag) by Cut(fact, lastStep)
         )
 
-        val chainInjectivity = thenHave(
-          !(toTerm(maxTag - minTag) === ∅) |- !(tagTerm1 === tagTerm2)
-        ) by Restate
+        val chainInjectivity =
+          thenHave(!(toTerm(maxTag - minTag) === ∅) |- !(tagTerm1 === tagTerm2)) by
+            Restate
 
         // STEP 1.3: Conclude using the fact that 0 is not the successor of any number
         have(!(toTerm(maxTag - minTag) === ∅)) by Sorry // Restate.from(zeroIsNotSucc)
@@ -87,4 +87,4 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity]
       // STEP 3: Conclude
       have(!(c1.term1 === c2.term2)) by Cut(diffTag, lastStep)
     }
-  }
+}
