@@ -34,21 +34,21 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
       import lib.*
 
       have(botWithAssumptions) by this
-      //println(s"Bot with assumptions: $botWithAssumptions")
+      // println(s"Bot with assumptions: $botWithAssumptions")
       for ((assumption, f) <- newAssumptions) {
-        //println(s"eliminating premise ${f.statement}")
+        // println(s"eliminating premise ${f.statement}")
         val assumsOfPrem = f.statement.left
         if lastStep.statement.left.contains(assumption) then
           val assumptionWeWantToGet = (lastStep.statement.left - assumption)
           val seq = assumptionWeWantToGet ++ assumsOfPrem |- lastStep.statement.right
           have(seq) by Cut(f, lastStep)
-          //println(s"seq after cutting with the premise: $seq")
+          // println(s"seq after cutting with the premise: $seq")
           assumsOfPrem.foldLeft(lastStep) { (step, a) =>
             if !assumptionWeWantToGet.exists(acceptableAssum => isSame(a, acceptableAssum)) then
               this((step.statement.left - a) |- a) match
                 case r: iProof.ValidProofTactic => r.validate
                 case iProof.InvalidProofTactic(e) => return proof.InvalidProofTactic(s"Failed to prove $a from ${step.statement.left - a} while eliminating premise ${f.statement}: $e")
-              val aProof = have((step.statement.left - a) |- a) by this //TODO: catch errors
+              val aProof = have((step.statement.left - a) |- a) by this // TODO: catch errors
               have(step.statement -<< a) by Cut(aProof, step)
             else step
           }
@@ -348,7 +348,7 @@ class EGraphExpr() {
     proofMap((id1, id2)) = step
     val (small, big) = if parents(find(id1)).size < parents(find(id2)).size then (id1, id2) else (id2, id1)
     val smallRoot = find(small)
-    val bigRoot   = find(big)
+    val bigRoot = find(big)
     codes(smallRoot) = codes(bigRoot)
     UF.union(id1, id2)
     val newId = find(id1)

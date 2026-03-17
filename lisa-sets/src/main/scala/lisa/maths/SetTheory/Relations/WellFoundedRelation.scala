@@ -1,6 +1,6 @@
 package lisa.maths.SetTheory.Relations
 
-import lisa.maths.SetTheory.Base.Predef._
+import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Order.Extrema.minimal
 

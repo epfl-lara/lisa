@@ -292,8 +292,6 @@ object HOLSteps extends lisa._HOL {
     }
   }
 
-
-
   /**
    *  |- s = t    |- t = u
    *  ---------------------
@@ -506,7 +504,7 @@ object HOLSteps extends lisa._HOL {
         case _ =>
           return proof.InvalidProofTactic(s"The Expr[Ind] should be of the form (λx. t) x")
     }
-  } 
+  }
 
 
   // λ(x, t*x) === t
