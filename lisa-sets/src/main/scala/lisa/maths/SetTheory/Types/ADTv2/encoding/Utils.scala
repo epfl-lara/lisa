@@ -5,6 +5,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Ordinals.Integer.ω
 import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.{
   ConstructorArg,
   RegularArg,
@@ -60,7 +61,7 @@ object Utils {
     if n == 0 then ∅ else successor(toTerm(n - 1))
 
   def pair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] =
-    unorderedPair(unorderedPair(x, x), unorderedPair(x, y))
+    Pair.pair(x)(y)
 
   def in(x: Expr[Ind], y: Expr[Ind]): Expr[Prop] = x ∈ y
 
