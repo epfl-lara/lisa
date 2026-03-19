@@ -17,7 +17,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *    automatically by the compiler. Used for error reporting
  *  @param semantic the set theoretic semantic constructor
  */
-class Constructor[N <: Arity] private[ADTv2] (using
+// class Constructor[N <: Arity] private[ADTv2] (using
+class Constructor[N <: Arity]  (using
     line: sourcecode.Line,
     file: sourcecode.File
 )(private[ADTv2] val semantic: SemanticConstructor[N])
@@ -51,7 +52,7 @@ class Constructor[N <: Arity] private[ADTv2] (using
    */
   val intro = THM(
     semantic.intro.statement,
-    s"${name} introduction rule",
+    s"${name}/introduction",
     line.value,
     file.value,
     Theorem
@@ -64,7 +65,7 @@ class Constructor[N <: Arity] private[ADTv2] (using
    */
   lazy val injectivity = THM(
     semantic.injectivity.statement,
-    s"${name} injectivity",
+    s"${name}/injectivity",
     line.value,
     file.value,
     Theorem

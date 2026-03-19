@@ -31,6 +31,7 @@ class SyntacticConstructor(
   Constructors.tagCounter = Constructors.tagCounter + 1
 
   /** Term representation of the tag of this constructor */
+  // val tagTerm: Constant[Ind] = DEF(using name=s"tag_$tag")(toTerm(tag))
   val tagTerm: Expr[Ind] = toTerm(tag)
 
   /** Sequence of variables used to represent the arguments of the constructor */
@@ -125,7 +126,7 @@ class SyntacticConstructor(
 
         // STEP 1: Get rid of the tag using pair extensionality
         have((term1 === term2) <=> (subterm1 === subterm2)) by
-          Sorry // Restate.from(Pair.extensionality of (a := tagTerm, b := subterm1, c := tagTerm, d := subterm2))
+          Congruence.from(Pair.extensionality of (a := tagTerm, b := subterm1, c := tagTerm, d := subterm2))
 
         // STEP 2: Repeat pair extensionality until all variables have been pulled out of the term
         variables1.zip(variables2).foldLeft(
@@ -158,7 +159,7 @@ class SyntacticConstructor(
             (pair(v1, subsubterm1) === pair(v2, subsubterm2)) <=>
               ((v1 === v2) /\ (subsubterm1 === subsubterm2))
           ) by
-            Sorry // Restate.from(Pair.extensionality of (a := v1, b := subsubterm1, c := v2, d := subsubterm2))
+            Restate.from(Pair.extensionality of (a := v1, b := subsubterm1, c := v2, d := subsubterm2))
           have(
             (seqEq(pulledVars1, pulledVars2) /\
               (pair(v1, subsubterm1) === pair(v2, subsubterm2))) <=>

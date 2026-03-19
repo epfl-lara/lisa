@@ -7,6 +7,8 @@ import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.*
 import lisa.maths.SetTheory.Base.*
 import lisa.maths.SetTheory.Base.Union.∪
+import lisa.maths.SetTheory.Ordinals.Integer.{omegaInduction, omegaPredecessor, omegaSuccessor}
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.SimpleDeducedSteps.Generalize
 import lisa.utils.prooflib.BasicStepTactic.Hypothesis
@@ -261,7 +263,42 @@ object UsefullTheorems {
   }
 
   val successorIsNat = Lemma(in(n, N) <=> in(successor(n), N)){
-    have(thesis) by Sorry
+    val α = variable[Ind]
+    val eqSucc = have(S(n) === successor(n)) by Congruence.from(
+      S.definition of (α := n),
+      successor.definition of (x := n)
+    )
+
+    val toS = have(in(n, N) |- in(S(n), N)) by Restate.from(omegaSuccessor of (α := n))
+    val fromS = have(in(S(n), N) |- in(n, N)) by Restate.from(omegaPredecessor of (α := n))
+
+    val toSuccConv = have(in(S(n), N) |- in(successor(n), N)) by Congruence.from(eqSucc)
+    val fromSuccConv = have(in(successor(n), N) |- in(S(n), N)) by Congruence.from(eqSucc)
+
+    val toSucc = have(in(n, N) |- in(successor(n), N)) by Cut(toS, toSuccConv)
+    val fromSucc = have(in(successor(n), N) |- in(n, N)) by Cut(fromSuccConv, fromS)
+
+    have(thesis) by Tautology.from(toSucc, fromSucc)
+  }
+
+  val natInduction = Lemma((P(∅), forall(m, in(m, N) ==> (P(m) ==> P(successor(m))))) |- forall(n, in(n, N) ==> P(n))) {
+    val α = variable[Ind]
+    val eqSucc = have(S(m) === successor(m)) by Congruence.from(
+      S.definition of (α := m),
+      successor.definition of (x := m)
+    )
+
+    val stepS = have(
+      forall(m, in(m, N) ==> (P(m) ==> P(successor(m)))) |-
+        forall(m, in(m, N) ==> (P(m) ==> P(S(m))))
+    ) subproof {
+      assume(forall(m, in(m, N) ==> (P(m) ==> P(successor(m)))))
+      thenHave(in(m, N) ==> (P(m) ==> P(successor(m)))) by InstantiateForall(m)
+      have(in(m, N) ==> (P(m) ==> P(S(m)))) by Congruence.from(lastStep, eqSucc)
+      thenHave(forall(m, in(m, N) ==> (P(m) ==> P(S(m))))) by RightForall
+    }
+
+    have(thesis) by Tautology.from(omegaInduction, stepS)
   }
 
   val subsetIsNat = Lemma(subset(x, y) |- in(y, N) ==> in(x, N)){
@@ -272,7 +309,17 @@ object UsefullTheorems {
   }
 
   val subsetSuccessor = Lemma(subset(n, successor(n))){
-    have(thesis) by Sorry
+    val succExpanded = ∪(n)(Singleton.singleton(n))
+
+    have(subset(n, succExpanded)) by Tautology.from(
+      Union.leftSubset of (x := n, y := Singleton.singleton(n))
+    )
+    have(subset(n, n) |- subset(n, successor(n))) by
+      Congruence.from(lastStep, successor.definition of (x := n))
+    have(thesis) by Cut(
+      Subset.reflexivity of (x := n),
+      lastStep
+    )
   }
 
   val restrictedFunctionEmptyDomain =
@@ -335,10 +382,6 @@ object UsefullTheorems {
   val leftImpliesEquivalenceStrong =
     Lemma(p ==> (p1 <=> p2) |- (p ==> p1) <=> (p ==> p2)){
     have(thesis) by Tautology
-  }
-
-  val natInduction = Lemma((P(∅), forall(m, in(m, N) ==> (P(m) ==> P(successor(m))))) |- forall(n, in(n, N) ==> P(n))) {
-    sorry
   }
 
 }

@@ -19,7 +19,8 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.typeExprToTerm
  *  @param semantic
  *  @param constructors
  */
-class ADT[N <: Arity] private[ADTv2] (using line: sourcecode.Line, file: sourcecode.File)(
+// class ADT[N <: Arity] private[ADTv2] (using line: sourcecode.Line, file: sourcecode.File)(
+class ADT[N <: Arity] (using line: sourcecode.Line, file: sourcecode.File)(
     private[ADTv2] val semantic: SemanticADT[N],
     private[ADTv2] val constructors: Seq[Constructor[N]]
 ) {
@@ -39,7 +40,7 @@ class ADT[N <: Arity] private[ADTv2] (using line: sourcecode.Line, file: sourcec
    */
   lazy val induction = THM(
     semantic.induction.statement,
-    s"${name} structural induction principle",
+    s"${name}/induction",
     line.value,
     file.value,
     Theorem
@@ -57,7 +58,7 @@ class ADT[N <: Arity] private[ADTv2] (using line: sourcecode.Line, file: sourcec
    */
   lazy val elim = THM(
     semantic.elim.statement,
-    s"${name} elimination rule",
+    s"${name}/elimination",
     line.value,
     file.value,
     Theorem
@@ -79,7 +80,7 @@ class ADT[N <: Arity] private[ADTv2] (using line: sourcecode.Line, file: sourcec
     val injectivityLemma = semantic.injectivity(c1.semantic, c2.semantic)
     THM(
       injectivityLemma.statement,
-      s"${c1.name}-${c2.name} injectivity",
+      s"${c1.name}-${c2.name}/injectivity",
       line.value,
       file.value,
       Theorem
