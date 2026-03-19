@@ -1,12 +1,250 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.FunctionSpec
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
+import lisa.maths.SetTheory.Types.ADTv2.encoding.ADT
+import lisa.maths.SetTheory.Types.ADTv2.encoding.UsefullTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.encoding.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.encoding.**
+import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
 
-/** Entry points for defining functions over ADT v2 values. */
-object FunctionDefinitions {
+import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 
-  final case class DefinedFunction(name: String)
+/**
+ *  Set theoretic interpretation of a function over an ADT.
+ *
+ *  @tparam N the number of type variables of the domain of this function
+ *  @param name the name of this function
+ *  @param adt the domain of this function
+ *  @param cases the body of this function for each constructor
+ *  @param returnType the codomain of this function
+ *  @param line the line at which this function is defined. Usually fetched automatically
+ *    by the compiler. Used for error reporting
+ *  @param file the file in which this function is defined. Usually fetched automatically
+ *    by the compiler. Used for error reporting
+ */
+class SemanticFunction[N <: Arity](
+    name: String,
+    adt: SemanticADT[N],
+    cases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])],
+    returnType: Expr[Ind]
+)(using line: sourcecode.Line, file: sourcecode.File) {
 
-  def define(spec: FunctionSpec): DefinedFunction =
-    DefinedFunction(spec.name)
+  /** Map binding each constructor to a theorem stating that the case is well typed. */
+  private val checkReturnType: Map[SemanticConstructor[N], THM] =
+    (for c <- cases.keys yield
+      val (vars, body) = cases(c)
+      c -> Lemma(wellTyped(c.semanticSignature(vars)) |- (body :: returnType)) {
+        have(thesis) by Sorry // TypeChecker.prove
+      }
+    ).toMap
+
+  /** Type variables appearing in this function's domain. */
+  val typeVariables: Variable[Ind] ** N = adt.typeVariables
+
+  /** Sequence of type variables appearing in this function's domain. */
+  val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
+
+  /** Number of type variables appearing in this function. */
+  val typeArity: N = adt.typeArity
+
+  /**
+   *  Full name of this function. That is the name of the function prefixed by the name of
+   *  the ADT.
+   */
+  val fullName = s"$name"
+  // val fullName = s"${adt.name}/$name"
+
+  val typ = functionSet(adt.term, returnType)
+
+  /**
+   *  Definition of this function.
+   *
+   *  Formally it is the only function whose domain is the ADT and such that for each
+   *  constructor c f * (c * x1 * ... * xn) = case(c, x1, ..., xn)
+   */
+  private val untypedDefinition = (f :: typ) /\ simplify(seqAnd(cases.map((c, caseDef) =>
+    val (vars, body) = caseDef
+    forallSeq(
+      vars,
+      wellTypedFormula(c.semanticSignature(vars)) ==> (f * c.appliedTerm(vars) === body)
+    )
+  )))
+
+  /** Lemma --- Uniqueness of this function. */
+  private val uniqueness = Axiom(existsOne(f, untypedDefinition))
+
+  /**
+   *  Temporary placeholder while ADTv2 function-definition integration is finalized.
+   *
+   *  private val classFunction = FunctionDefinition(fullName, line.value,
+   *  file.value)(typeVariablesSeq, f, untypedDefinition, uniqueness).label
+   */
+  private val classFunctionConst: Constant[Ind] = Constant[Ind](fullName)
+  registerConstant(classFunctionConst)
+  private val classFunction: Expr[Ind] = classFunctionConst
+
+  /** Identifier of this function. */
+  val id: Identifier = classFunctionConst.id
+
+  /** Function where type variables are instantiated with schematic symbols. */
+  val term: Expr[Ind] = appSeq(classFunction)(typeVariablesSeq)
+
+  private val classFunctionCharacterization =
+    Lemma(forall(f, (term === f) <=> untypedDefinition)) {
+      have((term === f) <=> untypedDefinition) by Sorry
+      thenHave(thesis) by RightForall
+    }
+
+  /**
+   *  Lemma --- The body of this function correpsonds to the cases provided by the user.
+   *
+   *  `for each constructor c, ∀x1, ..., xn. f * (c * x1 * ... * xn) = case(c, x1, ..., xn)`
+   */
+  val shortDefinition = cases.map((c, caseDef) =>
+    val (vars, body) = caseDef
+    c -> Lemma(
+      simplify(wellTypedFormula(c.semanticSignature(vars))) ==>
+        (term * c.appliedTerm(vars) === body)
+    ) {
+
+      have(forall(f, (term === f) <=> untypedDefinition)) by
+        Restate.from(classFunctionCharacterization)
+      thenHave(
+        (term === term) <=> (term :: typ) /\
+          (seqAnd(cases.map { (c, caseDef) =>
+            val (vars, body) = caseDef
+            forallSeq(
+              vars,
+              wellTypedFormula(c.semanticSignature(vars)) ==>
+                (term * c.appliedTerm(vars) === body)
+            )
+          }))
+      ) by InstantiateForall(term)
+      thenHave(forallSeq(
+        vars,
+        wellTypedFormula(c.semanticSignature(vars)) ==>
+          (term * c.appliedTerm(vars) === body)
+      )) by Weakening
+      vars.foldLeft(lastStep)((l, _) =>
+        lastStep.statement.right.head match
+          case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
+          case _ => throw UnreachableException
+      )
+
+    }
+  )
+
+  /**
+   *  Lemma --- Introduction rule
+   *
+   *  `f : ADT -> T`
+   *
+   *  where `T` is the return type of this function
+   */
+  val intro = Lemma(forallSeq(typeVariablesSeq, term :: typ)) {
+    have(forall(f, (term === f) <=> untypedDefinition)) by
+      Restate.from(classFunctionCharacterization)
+    thenHave(
+      (term === term) <=> (term :: typ) /\
+        (seqAnd(cases.map { (c, caseDef) =>
+          val (vars, body) = caseDef
+          forallSeq(
+            vars,
+            seqAnd(wellTyped(c.semanticSignature(vars))) ==>
+              (term * c.appliedTerm(vars) === body)
+          )
+        }))
+    ) by InstantiateForall(term)
+    thenHave(term :: typ) by Weakening
+    thenHave(thesis) by QuantifiersIntro(typeVariablesSeq)
+  }
+}
+
+/**
+ *  Type theoretic function over algebraic data types. Its definition is the direct sum of
+ *  the definitions of its constructors. Comes with introduction and elimination rules.
+ *
+ *  @constructor gives a type theoretic interpretation to a set theoretic function over an
+ *    ADT
+ *  @tparam N the number of type variables appearing in the definition of this function's
+ *    domain
+ *  @param line the line at which this ADT is defined. Usually fetched automatically by
+ *    the compiler. Used for error reporting
+ *  @param file the file in which this ADT is defined. Usually fetched automatically by
+ *    the compiler. Used for error reporting
+ *  @param semantic the semantic set theoretic function
+ *  @param adt the domain of this function
+ */
+// private 
+class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(
+    private val semantic: SemanticFunction[N],
+    private val adt: ADT[N]
+) extends TypedConstantFunctional[Ind](
+      semantic.id,
+      FunctionalClass(
+        // Seq.fill(underlying.typeArity)(any),
+        // underlying.typeVariablesSeq,
+        Nil,
+        Nil,
+        semantic.typ
+      ),
+      semantic.intro ){
+
+  /**
+   *  Name of the function
+   *
+   *  e.g. list/length
+   */
+  val name = semantic.fullName
+
+  /**
+   *  Theorem --- Elimination rules
+   *
+   *  `f * (c * x1 * ... * xn) = case(c, x1, ..., xn)`
+   *
+   *  That is, when this function is applied to a constructor, it returns the
+   *  corresponding case.
+   */
+  val elim: Map[Constructor[N], THM] = adt.constructors.map(c =>
+    (
+      c,
+      THM(
+        semantic.intro.statement,
+        s"${name}/elimination: ${c.name} case",
+        line.value,
+        file.value,
+        Theorem
+      ){have(semantic.intro)}
+    )
+  ).toMap
+
+  /** Alias for [[this.elim]] */
+  val shortDefinition: Map[Constructor[N], THM] = elim
+
+  /**
+   *  Theorem --- Introduction rule
+   *
+   *  `∀X1, ..., Xn. f(X1, ..., Xn) : ADT(X1, ..., Xn) -> T`
+   *
+   *  where `f` is this function, `ADT` the ADT it takes argument and `T` its return type.
+   */
+  val intro: THM = THM(
+    semantic.intro.statement,
+    s"${name}/introduction",
+    line.value,
+    file.value,
+    Theorem
+  ){
+    have(semantic.intro)
+  }
+
+  /** Type variables in the signature of the function */
+  val typeVariables: Variable[Ind] ** N = semantic.typeVariables
 }
