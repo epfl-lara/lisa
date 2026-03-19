@@ -7,6 +7,8 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.utils.KernelHelpers.lambda
+import lisa.utils.KernelHelpers.lambda
 
 private[encoding] trait SyntacticADTBase[N <: Arity] {
   this: SyntacticADT[N] =>
@@ -52,8 +54,11 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
       x: Expr[Ind]
   ): Expr[Prop] = !(f === ∅) /\ isInIntroductionFunctionImage(unionRange(f))(x)
 
-  /** Predicate characterizing the height function. */
-  private[encoding] def isTheHeightFunction(h: Expr[Ind]): Expr[Prop] = functional(h) /\
+
+  /** Logical predicate symbol for height-function characterization. */
+  private[encoding] val isHeight = 
+    DEF(using name=s"${name}IsHeightFunction")(λ(h, 
+    functional(h) /\
     (relationDomain(h) === N) /\ forall(
       n,
       in(n, N) ==> forall(
@@ -62,8 +67,6 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
           isInExtendedIntroductionFunctionImage(restrictedFunction(h, n))(x)
       )
     )
+  ))
 
-  private[encoding] val fIsTheHeightFunction: Expr[Prop] = isTheHeightFunction(f)
-
-  private[encoding] val hIsTheHeightFunction: Expr[Prop] = isTheHeightFunction(h)
 }

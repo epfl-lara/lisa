@@ -28,11 +28,11 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADT
   def injectivity(c1: SyntacticConstructor, c2: SyntacticConstructor) =
     require(c1.tag != c2.tag, "The given constructors must be different.")
 
-    Lemma(using name = s"AST_${name}_disjointness")(c1.term1 =/= c2.term2) {
+    Lemma(using name = s"ADT_${name}_disjointness")(c1.term1 =/= c2.term2) {
 
       // STEP 0: Caching
-      val tagTerm1: Expr[Ind] = c1.tagTerm
-      val tagTerm2: Expr[Ind] = c2.tagTerm
+      val tagTerm1 = c1.tagTerm
+      val tagTerm2 = c2.tagTerm
 
       // STEP 1: Prove that the tags are different
       val diffTag = have(!(tagTerm1 === tagTerm2)) subproof {
@@ -42,7 +42,7 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADT
         val maxTag: Int = Math.max(c1.tag, c2.tag)
 
         val start = have(tagTerm1 === tagTerm2 |- toTerm(maxTag) === toTerm(minTag)) by
-          Restate
+          Congruence //.from(tagTerm1.definition, tagTerm2.definition)
 
         // STEP 1.2: Apply successor injectivity to both tags until one becomes 0
         (1 to minTag).foldLeft(start)((fact, i) =>
@@ -66,23 +66,29 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADT
             Restate
 
         // STEP 1.3: Conclude using the fact that 0 is not the successor of any number
-        have(!(toTerm(maxTag - minTag) === ∅)) by Sorry // Restate.from(zeroIsNotSucc)
+        have(toTerm(maxTag - minTag) =/= ∅) by Restate.from(
+          zeroIsNotSucc of (n := toTerm(maxTag - minTag - 1))
+        )
         have(thesis) by Cut(lastStep, chainInjectivity)
       }
 
       // STEP 2: Prove that the terms are different if the tags are different
+
       have(
-        c1.term1 === c2.term2 |- (tagTerm1 === tagTerm2) /\ (c1.subterm1 === c2.subterm2)
-      ) by Sorry // Cut(
-      //   Pair.extensionality of (
-      //     a := tagTerm1,
-      //     b := c1.subterm1,
-      //     c := tagTerm2,
-      //     d := c2.subterm2
-      //   ),
-      //   equivalenceRevApply
-      // )
-      thenHave(!(tagTerm1 === tagTerm2) |- !(c1.term1 === c2.term2)) by Weakening
+        ((c1.tagTerm, c1.subterm) === (c2.tagTerm, c2.subterm)) |- (c1.tagTerm === c2.tagTerm) /\ (c1.subterm === c2.subterm)
+      ) by Tautology.from(
+        Pair.extensionality of (
+          a := c1.tagTerm,
+          b := c1.subterm,
+          c := c2.tagTerm,
+          d := c2.subterm2
+      ))
+      thenHave(
+        c1.term1 === c2.term2 |- tagTerm1 === tagTerm2
+      ) by Tautology
+      thenHave(
+        !(tagTerm1 === tagTerm2) |- !(c1.term1 === c2.term2)
+      ) by Tautology
 
       // STEP 3: Conclude
       have(!(c1.term1 === c2.term2)) by Cut(diffTag, lastStep)

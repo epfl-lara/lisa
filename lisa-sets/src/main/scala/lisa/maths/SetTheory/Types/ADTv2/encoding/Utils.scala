@@ -6,14 +6,7 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Ordinals.Integer.ω
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.Base.Pair
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.{
-  ConstructorArg,
-  RegularArg,
-  SelfRef,
-  TypeApply,
-  TypeExpr,
-  TypeRef
-}
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.utils.fol.FOL.{
   Expr as FExpr,
   FormulaSetConverter,
@@ -146,7 +139,12 @@ object Utils {
       orElse: Expr[Ind]
   ): Expr[Prop] = /\(wellTyped(s)(orElse))
 
-  def functionSet(A: Expr[Ind], B: Expr[Ind]): Expr[Ind] = ∅ // Placeholder
+  /**
+   * Returns the set of all functions from A to B.
+   * This is the non-dependent function type: A ->: B
+   * Equivalent to Pi(A)(λ(x, B))
+   */
+  def functionSet(A: Expr[Ind], B: Expr[Ind]): Expr[Ind] = A ->: B
 
   given FormulaSetConverter[(Expr[Prop], Expr[Prop])] with
     def apply(t: (Expr[Prop], Expr[Prop])): Set[FExpr[FProp]] = Set(t._1, t._2)
