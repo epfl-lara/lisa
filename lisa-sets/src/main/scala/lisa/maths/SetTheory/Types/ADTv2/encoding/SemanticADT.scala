@@ -6,8 +6,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.universalEquivalenceDistribution
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.UsefullTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 import lisa.utils.prooflib.BasicStepTactic.LeftForall

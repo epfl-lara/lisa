@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.encoding
+package lisa.maths.SetTheory.Types.ADTv2.support
 
 import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.SetTheory.{*, given}

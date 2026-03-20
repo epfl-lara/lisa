@@ -5,7 +5,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.typeExprToTerm
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.typeExprToTerm
 
 /**
  *  Type theoretic polymorphic inductive datatype. Comes with a structural induction

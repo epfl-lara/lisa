@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.UsefullTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair.given

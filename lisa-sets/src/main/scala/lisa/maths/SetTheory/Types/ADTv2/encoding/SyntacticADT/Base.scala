@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair.given
@@ -41,8 +41,8 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
    *  Formula describing whether an element x is an instance of one of this ADT's
    *  constructors.
    */
-  private[encoding] def isConstructor(x: Expr[Ind], s: Expr[Ind]): Expr[Prop] = Utils
-    .\/(constructors.map(c => isConstructor(c, x, s)))
+  private[encoding] def isConstructor(x: Expr[Ind], s: Expr[Ind]): Expr[Prop] = 
+    seqOr(constructors.map(c => isConstructor(c, x, s)))
 
   /** Predicate encoding the introduction function. */
   private[encoding] def isInIntroductionFunctionImage(s: Expr[Ind])(

@@ -4,7 +4,7 @@ import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.encoding.ADT
 import lisa.maths.SetTheory.Types.ADTv2.encoding.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.{appSeq, wellTypedSet}
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{appSeq, wellTypedSet}
 import lisa.maths.SetTheory.Types.ADTv2.functions.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}

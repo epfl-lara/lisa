@@ -2,8 +2,9 @@ package lisa.maths.SetTheory.Types.ADTv2.functions
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.encoding.ADT
-import lisa.maths.SetTheory.Types.ADTv2.encoding.UsefullTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.encoding.Constructor
