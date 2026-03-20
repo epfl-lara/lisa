@@ -30,6 +30,9 @@ object AST {
   final case class ConstructorSpec(name: String, args: Seq[ConstructorArg]) {
     override def toString: String =
       if (args.isEmpty) name else s"$name(${args.mkString(", ")})"
+
+    def arity(): Int = args.size
+
   }
 
   final case class ADTSpec(

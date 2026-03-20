@@ -8,6 +8,10 @@ import lisa.maths.Quantifiers.universalEquivalenceDistribution
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.encoding.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.encoding.UsefullTheorems.*
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
+import lisa.utils.prooflib.BasicStepTactic.LeftForall
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 
 /**
  *  Semantic set theoretical interpretation of an algebraic data type. That is the least
@@ -82,13 +86,13 @@ class SemanticADT[N <: Arity](
 
         c1.variables1.foldLeft(lastStep)((fact, v) =>
           fact.statement.right.head match
-            case forall(_, phi) => thenHave(phi.substitute(v := x)) by
-                InstantiateForall(x)
+            case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
             case _ => throw UnreachableException
         )
-        // val tappTerm1Def = thenHave(vars1WellTyped |- c1.structuralTerm1 === c1.appliedTerm1) by Restate
+
         val tappTerm1Def =
-          have(vars1WellTyped |- c1.structuralTerm1 === c1.appliedTerm1) by Sorry
+          thenHave(vars1WellTyped |- c1.structuralTerm1 === c1.appliedTerm1) by Restate
+          
 
         have(forallSeq(
           c2.variables2,
@@ -289,7 +293,10 @@ class SemanticADT[N <: Arity](
 
     // Induction preconditions with P(z) = z != x
     val inductionPreconditionIneq = constructors
-      .map(c => c -> c.inductiveCase.substitute(P -> lambda(z, !(x === z)))).toMap
+      .map(c =>
+        c -> betaReduce(c.inductiveCase.substitute(P -> lambda(z, !(x === z))))
+      )
+      .toMap
     val inductionPreconditionsIneq = seqAnd(inductionPreconditionIneq.map(_._2))
 
     // Weakening of the negation of the induction preconditions
@@ -315,37 +322,42 @@ class SemanticADT[N <: Arity](
               val conditionStrenghtening = have(
                 !inductionPreconditionIneq(c) |- weakNegInductionPreconditionIneq(c)
               ) subproof {
-                have(x === c.appliedTerm |- x === c.appliedTerm) by Hypothesis
 
-                c.syntacticSignature.foldRight(lastStep)((el, fact) =>
+                val baseF = !(x === c.appliedTerm)
+                val baseW = x === c.appliedTerm
+                val seed = (baseF, baseW, have(!baseF |- baseW) by Tableau)
+
+                val (_, _, finalFact) = c.syntacticSignature.foldRight(seed)((el, acc) =>
                   val (v, ty) = el
-                  val left = fact.statement.left.head
-                  val right = fact.statement.right.head
+                  val (currF, currW, currFact) = acc
+                  val argType = ty.getOrElse(term)
 
-                  ty match
-                    case SelfRef => thenHave(!(x === v) /\ left |- right) by Weakening
-                    case _ => ()
+                  have(!currF |- currW) by Restate.from(currFact)
 
-                  val weakr = thenHave(in(v, ty.getOrElse(term)) /\ left |- right) by
-                    Weakening
-                  val weakl = have(
-                    in(v, ty.getOrElse(term)) /\ left |- in(v, ty.getOrElse(term))
-                  ) by Restate
+                  val nextF = ty match
+                    case SelfRef => 
+                      thenHave(!(!(x === v) ==> currF) |- currW) by Tautology
+                      (!(x === v) ==> currF)
+                    case _ => 
+                      currF
 
-                  have(
-                    (v :: ty.getOrElse(term)) /\ left |- (v :: ty.getOrElse(term)) /\
-                      right
-                  ) by RightAnd(weakl, weakr)
-                  thenHave(
-                    (v :: ty.getOrElse(term)) /\ left |-
-                      exists(v, (v :: ty.getOrElse(term)) /\ right)
-                  ) by RightExists
-                  thenHave(
-                    exists(v, (v :: ty.getOrElse(term)) /\ left) |-
-                      exists(v, (v :: ty.getOrElse(term)) /\ right)
-                  ) by LeftExists
+                  val nextF2 = (v :: argType) ==> nextF
+                  thenHave( !nextF2 |- currW ) by Tautology
+
+                  val newW = exists(v, (v :: argType) /\ currW)
+                  thenHave(!nextF2 |- (v :: argType) /\ currW) by Restate
+                  thenHave(!nextF2 |- newW) by RightExists
+
+                  val newF = forall(v, nextF2)
+                  println(s"LeftExists with v = $v on ${lastStep.statement}")
+                  thenHave(exists(v, !(nextF2)) |- newW) by LeftExists
+                  
+                  val newFact = have(!newF |- newW) by Tautology.from(lastStep, existsNeg)
+                  
+                  (newF, newW, newFact)
                 )
-                have(thesis) by Sorry
+
+                have(thesis) by Restate.from(finalFact)
               }
 
               // STEP 1.1.2: Conclude

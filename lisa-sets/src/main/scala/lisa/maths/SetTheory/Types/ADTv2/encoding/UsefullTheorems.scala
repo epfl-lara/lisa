@@ -384,4 +384,8 @@ object UsefullTheorems {
     have(thesis) by Tautology
   }
 
+  val existsNeg = Lemma(∃(x, !P(x)) |- !(forall(x, P(x)))) {
+    have(thesis) by Tautology
+  }
+
 }

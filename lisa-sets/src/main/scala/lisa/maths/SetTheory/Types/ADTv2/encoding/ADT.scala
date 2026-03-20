@@ -118,7 +118,7 @@ class ADT[N <: Arity] (using line: sourcecode.Line, file: sourcecode.File)(
   def apply(args: TypeExpr*): Expr[Ind] = semantic.term(args.map(typeExprToTerm))
 }
 
-private object ADT {
+object ADT {
 
   /** Global map from object identifiers to ADTs */
   private val namesToADT: scala.collection.mutable.Map[String, ADT[?]] =
@@ -143,4 +143,6 @@ private object ADT {
     // case _ => None
 
   def getADT(name: String): Option[ADT[?]] = namesToADT.get(name)
+
+  def allADTs: Iterable[ADT[?]] = namesToADT.values
 }

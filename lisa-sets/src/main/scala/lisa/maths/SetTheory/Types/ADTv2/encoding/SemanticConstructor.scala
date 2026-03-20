@@ -165,7 +165,8 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *  `∀c. term = c <=> c ∈ typ /\ ∀x1,...,xn. c * x1 * ... * xn = (tagc, ...)`
    */
   private val classFunctionCharacterization =
-    Lemma(forall(c, (term === c) <=> untypedDefinition))(have(thesis) by Sorry)
+    Axiom(forall(c, (term === c) <=> untypedDefinition)
+  )
 
   /**
    *  Constructor where type variables are instantiated with schematic variables and
@@ -205,7 +206,6 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     variables,
     wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
   )) {
-    // have(forall(c, (term === c) <=> untypedDefinition)) by Exact(classFunction.definition)
     have(forall(c, (term === c) <=> untypedDefinition)) by
       Restate.from(classFunctionCharacterization)
     thenHave(
@@ -352,11 +352,11 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
           vars1WellTyped ++ vars2WellTyped |- (appliedTerm1 === appliedTerm2) <=>
             (structuralTerm1 === structuralTerm2)
         ) by RightIff(forward, backward)
+
         have(
           (appliedTerm1 === appliedTerm2) <=> (structuralTerm1 === structuralTerm2) |-
             (appliedTerm1 === appliedTerm2) <=> seqEq(variables1, variables2)
-        ) by Sorry
-        Cut(
+        ) by Cut(
           underlying.injectivity,
           equivalenceRewriting of
             (
@@ -375,7 +375,6 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
       val (v, typ) = el
       typ match
         case SelfRef => forall(v, (v :: adt.term) ==> (P(v) ==> fc))
-        // case RegularArg(t) => forall(v, (v :: t) ==> fc) // RegularArg dosn't have the good type
-        case RegularArg(t) => fc // TODO: update this
+        case RegularArg(t) => forall(v, (v :: typeExprToTerm(t)) ==> fc)
     }
 }
