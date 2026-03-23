@@ -16,6 +16,15 @@ type **[A, N <: Arity] = Seq[A]
  *  Injectivity between different constructors, introduction rules and structural
  *  induction are proved within this class.
  *
+ *  ADT encoding is split into multiple traits (ordered by dependency):
+ *    - `SyntacticADTBase`: shared logical encodings and core predicates.
+ *    - `SyntacticADTInjectivity`: disjointness/injectivity of constructors.
+ *    - `SyntacticADTIntroduction`: properties of the introduction-function image.
+ *    - `SyntacticADTHeight`: height-function characterization and monotonicity.
+ *    - `SyntacticADTTerm`: term definition from heights and introduction lemmas.
+ *    - `SyntacticADTInduction`: structural induction principle.
+ *    - `SyntacticADT`: concrete ADT class wiring those layers together.
+ *
  *  @constructor creates a new algebraic data type out of a user specification.
  *  @param line the line at which the ADT is defined. Usually fetched automatically by the
  *    compiler. Used for error reporting

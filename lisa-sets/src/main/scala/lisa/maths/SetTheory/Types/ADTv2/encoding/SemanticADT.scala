@@ -247,21 +247,17 @@ class SemanticADT[N <: Arity](
               )
               (forall(v, in(v, t) ==> fc1), forall(v, v :: t ==> fc2), wellTypedVars.init)
         )
-        have(thesis) by Sorry
+        have(thesis) by Restate.from(lastStep)
       }
-      //   (newBefore, newAfter, have(newBefore <=> newAfter) by Apply(impliesEquivalence).on(lastStep, fact))
-      (
-        newBefore,
-        newAfter,
-        have(newBefore <=> newAfter) by Tautology.from(impliesEquivalence, lastStep, fact)
+      val newFact = have(newBefore <=> newAfter) by Tautology.from(impliesEquivalence, lastStep, fact)
+      (newBefore, newAfter, newFact)
+    )
+    have(underlying.induction.statement.right.head |- thesis.right.head) by Cut(
+      lastStep,
+      equivalenceApply of (
+        p1 := underlying.induction.statement.right.head, p2 := thesis.right.head
       )
     )
-    have(underlying.induction.statement.right.head |- thesis.right.head) by Sorry // Cut(
-    //   lastStep,
-    //   equivalenceApply of (
-    //     p1 := underlying.induction.statement.right.head, p2 := thesis.right.head
-    //   )
-    // )
     have(thesis) by Cut(underlying.induction, lastStep)
   }
 
@@ -349,7 +345,6 @@ class SemanticADT[N <: Arity](
                   thenHave(!nextF2 |- newW) by RightExists
 
                   val newF = forall(v, nextF2)
-                  println(s"LeftExists with v = $v on ${lastStep.statement}")
                   thenHave(exists(v, !(nextF2)) |- newW) by LeftExists
                   
                   val newFact = have(!newF |- newW) by Tautology.from(lastStep, existsNeg)

@@ -100,7 +100,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /** Type of this constructor. */
   val typ: Expr[Ind] =
     // semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => a |=> b)
-    semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => functionSet(a, b))
+    semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => (a ->: b))
 
   /** Arity of this constructor. */
   val arity: Int = variables.size
@@ -284,8 +284,6 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         val tappTerm1Def = thenHave(vars1WellTyped |- appliedTerm1 === structuralTerm1) by
           Restate
 
-        // println(forallSeq(variables1, wellTypedFormula(semanticSignature1) ==> (appliedTerm1 === structuralTerm1)))
-        // println(forallSeq(variables2, wellTypedFormula(semanticSignature2) ==> (appliedTerm2 === structuralTerm)))
         have(forallSeq(
           variables2,
           wellTypedFormula(semanticSignature2) ==> (appliedTerm2 === structuralTerm2)

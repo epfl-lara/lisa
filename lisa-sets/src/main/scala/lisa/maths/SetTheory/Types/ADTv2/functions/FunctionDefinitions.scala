@@ -1,19 +1,16 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.ADT
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Constructor
-import lisa.maths.SetTheory.Types.ADTv2.encoding.**
+import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Functions.Pi.{->:}
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 
@@ -62,7 +59,7 @@ class SemanticFunction[N <: Arity](
   val fullName = s"$name"
   // val fullName = s"${adt.name}/$name"
 
-  val typ = functionSet(adt.term, returnType)
+  val typ = adt.term ->: returnType
 
   /**
    *  Definition of this function.

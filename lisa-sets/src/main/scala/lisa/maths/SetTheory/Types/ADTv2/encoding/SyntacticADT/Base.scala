@@ -58,8 +58,8 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
   /** Logical predicate symbol for height-function characterization. */
   private[encoding] val isHeight = 
     DEF(using name=s"${name}IsHeightFunction")(λ(h, 
-    functional(h) /\
-    (relationDomain(h) === N) /\ forall(
+    function(h) /\
+    (dom(h) === N) /\ forall(
       n,
       in(n, N) ==> forall(
         x,
