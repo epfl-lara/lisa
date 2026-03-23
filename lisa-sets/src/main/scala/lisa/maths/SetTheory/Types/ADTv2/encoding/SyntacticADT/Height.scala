@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.UnionRangeCollapse.unionRangeCollapse
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair.given
@@ -95,37 +96,37 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     Lemma(isHeight(h) |- !(h === ∅)) {
       // The proof goes by contradiction. If the height function is empty then its domain is empty as well.
       // This would imply that the set of natural numbers is empty, which is a contradiction.
-      val heightDomEqN = have(isHeight(h) |- relationDomain(h) === N) by
+      val heightDomEqN = have(isHeight(h) |- dom(h) === N) by
         Tautology.from(isHeight.definition)
-      val domRefl = have(relationDomain(h) === relationDomain(h)) by Congruence
+      val domRefl = have(dom(h) === dom(h)) by Congruence
 
       have(N === ∅ |- ()) by Restate.from(natNotEmpty)
       thenHave(
         (
-          relationDomain(h) === ∅,
-          relationDomain(h) === N,
-          relationDomain(h) === relationDomain(h)
+          dom(h) === ∅,
+          dom(h) === N,
+          dom(h) === dom(h)
         ) |- ()
       ) by LeftSubstEq.withParameters(
-        List((relationDomain(h), ∅), (relationDomain(h), N)),
+        List((dom(h), ∅), (dom(h), N)),
         (Seq(x, y), y === x)
       )
       // thenHave(
-      //   (relationDomain(h) === N, relationDomain(h) === relationDomain(h)) |-
-      //     !(relationDomain(h) === ∅)
+      //   (dom(h) === N, dom(h) === dom(h)) |-
+      //     !(dom(h) === ∅)
       // ) by Tautology
       have(
         (
           isHeight(h),
-          relationDomain(h) === ∅,
-          relationDomain(h) === relationDomain(h)
+          dom(h) === ∅,
+          dom(h) === dom(h)
         ) |- ()
       ) by Cut(heightDomEqN, lastStep)
       thenHave(
-        (isHeight(h), relationDomain(h) === relationDomain(h)) |-
-          !(relationDomain(h) === ∅)
+        (isHeight(h), dom(h) === dom(h)) |-
+          !(dom(h) === ∅)
       ) by RightNot
-      have(isHeight(h) |- !(relationDomain(h) === ∅)) by Cut(domRefl, lastStep)
+      have(isHeight(h) |- !(dom(h) === ∅)) by Cut(domRefl, lastStep)
       have(
         isHeight(h) |- !(h === ∅)
       ) by Tautology.from(lastStep, nonEmptyDomain)
@@ -307,11 +308,20 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
       (isHeight(h), in(n, N)) |-
         forall(m, subset(m, n) ==> subset(app(h, m), app(h, n)))
     ) by RightForall
+
+    have(
+      (isHeight(h), in(n, N)) |- (
+        function(h) /\
+        (dom(h) === N) /\
+        in(n, N) /\
+        forall(m, subset(m, n) ==> subset(app(h, m), app(h, n)))
+      )
+    ) by Tautology.from(isHeight.definition, lastStep)
+
     val unionRangeRestr = have(
       (isHeight(h), in(n, N)) |-
         unionRange(restrictedFunction(h, successor(n))) === app(h, n)
-    ) by Sorry //Tautology.from(lastStep, unionRangeCumulativeRestrictedFunction)
-    // TODO: update unionRangeCumulativeRestrictedFunction with isHeight(h)
+    ) by Tautology.from(lastStep, unionRangeCollapse)
 
     val succIsNatStep = have((isHeight(h), in(n, N)) |- in(successor(n), N)) by
       Tautology.from(successorIsNat)

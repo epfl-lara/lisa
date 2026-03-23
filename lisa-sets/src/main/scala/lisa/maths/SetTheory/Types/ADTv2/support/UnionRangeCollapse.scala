@@ -1,0 +1,604 @@
+package lisa.maths.SetTheory.Types.ADTv2.support
+
+import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Base.*
+import lisa.maths.SetTheory.Base.Pair.{pair, fst, snd, given_Conversion_Expr_Expr_Expr}
+import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
+import lisa.maths.Quantifiers.{
+  existentialConjunctionWithClosedFormula,
+  existentialEquivalenceDistribution,
+  onePointRule
+}
+
+import lisa.maths.SetTheory.Base.Union.∪
+import lisa.maths.SetTheory.Base.Intersection.∩
+
+import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.utils.prooflib.BasicStepTactic.Hypothesis
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.maths.SetTheory.Base.Union.membership
+import lisa.maths.SetTheory.Base.Singleton.singleton
+import lisa.maths.SetTheory.Functions.Operations.Restriction
+
+object UnionRangeCollapse {
+
+  private val n, m = variable[Ind]
+  private val s, t, d = variable[Ind]
+  private val x, y, z = variable[Ind]
+  private val f, g, h = variable[Ind]
+  private val p1, p2, p3 = variable[Prop]
+  private val q1, q2 = variable[Prop]
+  private val P = variable[Ind >>: Prop]
+
+
+  private val inSucc = Lemma(in(x, successor(n)) <=> (x === n) \/ in(x, n)) {
+    val succDef = have(successor(n) === (n ∪ singleton(n))) by Tautology.from(successor.definition of (x := n))
+    val unionMem = have(in(x, n ∪ singleton(n)) <=> (in(x, n) \/ in(x, singleton(n)))) by
+      Tautology.from(Union.membership of (x := n, y := singleton(n), z := x))
+    val singletonMem = have(in(x, singleton(n)) <=> (x === n)) by
+      Tautology.from(lisa.maths.SetTheory.Base.Singleton.membership of (x := n, y := x))
+
+    val forward = have(in(x, successor(n)) ==> ((x === n) \/ in(x, n))) subproof {
+      assume(in(x, successor(n)))
+      have(in(x, n ∪ singleton(n))) by Congruence.from(succDef)
+      have(in(x, n) \/ in(x, singleton(n))) by Tautology.from(lastStep, unionMem)
+      have((x === n) \/ in(x, n)) by Tautology.from(lastStep, singletonMem)
+      thenHave(thesis) by Tautology
+    }
+
+    val backward = have(((x === n) \/ in(x, n)) ==> in(x, successor(n))) subproof {
+      assume((x === n) \/ in(x, n))
+      have(in(x, n) \/ in(x, singleton(n))) by Tautology.from(lastStep, singletonMem)
+      have(in(x, n ∪ singleton(n))) by Tautology.from(lastStep, unionMem)
+      have(in(x, successor(n))) by Congruence.from(lastStep, succDef)
+      thenHave(thesis) by Tautology
+    }
+
+    have(thesis) by Tautology.from(forward, backward)
+  }
+
+  private val functionRangeMembership = Lemma(
+    function(f) |-
+      in(y, range(f)) <=> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))
+  ){
+    val witnessToDomainApp = have(
+      (function(f), in(z, f), snd(z) === y) |- ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))
+    ) subproof {
+      assume(function(f))
+      assume(in(z, f))
+      assume(snd(z) === y)
+
+      val zPair = have(z === (fst(z), snd(z))) by Tautology.from(
+        lisa.maths.SetTheory.Functions.BasicTheorems.inversion
+      )
+      val pairInF = have((fst(z), snd(z)) ∈ f) by Congruence.from(zPair)
+      val fstInDom = have(fst(z) ∈ dom(f)) by Tautology.from(
+        pairInF,
+        lisa.maths.SetTheory.Functions.BasicTheorems.domainMembership of (x := fst(z), y := snd(z))
+      )
+
+      val appDef = have((app(f)(fst(z)) === snd(z)) <=> ((fst(z), snd(z)) ∈ f)) by Tautology.from(
+        lisa.maths.SetTheory.Functions.BasicTheorems.appDefinition of (x := fst(z), y := snd(z)),
+        fstInDom
+      )
+      val appEqSnd = have(app(f)(fst(z)) === snd(z)) by Tautology.from(appDef, pairInF)
+      val appEqY = have(app(f)(fst(z)) === y) by Congruence.from(appEqSnd)
+
+      have(in(fst(z), dom(f)) /\ (app(f)(fst(z)) === y)) by Tautology.from(fstInDom, appEqY)
+      thenHave(∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) by RightExists
+    }
+
+    val forward = have(function(f) |- in(y, range(f)) ==> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) subproof {
+      assume(function(f))
+      assume(in(y, range(f)))
+
+      import lisa.maths.SetTheory.Base.Replacement.{|}
+
+      have(y ∈ {snd(z) | z ∈ f} <=> ∃(z ∈ f, snd(z) === y)) by Replacement.apply
+      thenHave(y ∈ range(f) <=> ∃(z, in(z, f) /\ (snd(z) === y))) by Substitute(range.definition of (R := f))
+      val exWitness = have(∃(z, in(z, f) /\ (snd(z) === y))) by Tautology.from(lastStep)
+      
+      have((in(z, f) /\ (snd(z) === y)) |- function(f) ==> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y)) ) by
+        Tautology.from(witnessToDomainApp)
+      val liftWitness = have(exists(z, in(z, f) /\ (snd(z) === y)) |- function(f) ==> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y)) ) by
+        LeftExists(lastStep)
+
+      have( in(y, range(f)) |- function(f) ==> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) by Cut(exWitness, liftWitness)
+      thenHave(thesis) by Tautology
+    }
+
+    val domainAppToRange = have(
+      (function(f), in(x, dom(f)), app(f)(x) === y) |- in(y, range(f))
+    ) subproof {
+      assume(function(f))
+      assume(in(x, dom(f)))
+      assume(app(f)(x) === y)
+
+      have(in(x, dom(f))) by Hypothesis
+      val appDef = have((app(f)(x) === y) <=> ((x, y) ∈ f)) by Tautology.from(
+        lisa.maths.SetTheory.Functions.BasicTheorems.appDefinition of (x := x, y := y),
+        lastStep
+      )
+      have(app(f)(x) === y) by Hypothesis
+      val pairInF = have((x, y) ∈ f) by Tautology.from(appDef, lastStep)
+      have(in(y, range(f))) by Tautology.from(
+        pairInF,
+        lisa.maths.SetTheory.Functions.BasicTheorems.rangeMembership of (x := x, y := y)
+      )
+    }
+
+    val backward = have(function(f) |- (∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) ==> in(y, range(f))) subproof {
+      assume(function(f))
+      assume(∃(x, in(x, dom(f)) /\ (app(f)(x) === y)))
+
+      have((function(f), in(x, dom(f)) /\ (app(f)(x) === y)) |- in(y, range(f))) by
+        Tautology.from(domainAppToRange)
+      thenHave((function(f), ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) |- in(y, range(f))) by LeftExists
+      thenHave(thesis) by Tautology
+    }
+
+    have(thesis) by Tautology.from(forward, backward)
+  }
+
+  private val natSubset = Lemma(in(n, N) |- subset(m, n) <=> in(m, successor(n))){
+    import lisa.maths.SetTheory.Base.Intersection.{subsetLeft}
+    import lisa.maths.SetTheory.Base.Subset.{rightEmpty}
+
+    val Q = lam(n, subset(m, n) <=> in(m, successor(n)))
+    
+    val zeroCase = have(Q(∅)) subproof {
+      
+      val mValue = have(subset(m, ∅) |- m === ∅) by 
+        Tautology.from(subsetLeft of (x := m, y := ∅), rightEmpty of (x := m))
+
+      val unionNull = have(∅ ∪ x === x) by Sorry //Tautology from(Union.leftEmpty of (x := x))
+      val succDef = have(successor(∅) === (∅ ∪ singleton(∅))) by Tautology.from(successor.definition of (x := ∅))
+
+      have( ∅ === ∅) by Restate
+      have(∅ ∈ successor(∅)) by Congruence.from(lastStep, succDef, unionNull of (x := singleton(∅)), Singleton.membership of (x := ∅, y := ∅))
+
+      have(subset(m, ∅) |- in(m, successor(∅))) by Congruence.from(mValue, lastStep)
+      val forward = thenHave(subset(m, ∅) ==> in(m, successor(∅))) by Restate
+
+      val backward = have(in(m, successor(∅)) ==> subset(m, ∅)) by Sorry
+
+      have(thesis) by Tautology.from(forward, backward)
+    }
+
+    val recCase = have(
+      in(n, N) /\ Q(n) |- Q(successor(n))
+    ) subproof {
+
+      assume(in(n, N) /\ Q(n))
+      val ih = have(subset(m, n) <=> in(m, successor(n))) by Tautology
+
+      val forwardBridge = have(
+        subset(m, successor(n)) ==> ((m === successor(n)) \/ subset(m, n))
+      ) by Sorry
+
+      val forward = have(
+        subset(m, successor(n)) ==> in(m, successor(successor(n)))
+      ) by Sorry
+
+      val backwardSplit = have(
+        in(m, successor(successor(n))) ==> ((m === successor(n)) \/ in(m, successor(n)))
+      ) by Sorry
+
+      val backward = have(
+        in(m, successor(successor(n))) ==> subset(m, successor(n))
+      ) by Sorry
+
+      have(thesis) by Tautology.from(forward, backward)
+    }
+
+    have(in(n, N) ==> (Q(n) ==> Q(successor(n)))) by Tautology.from(recCase)
+    thenHave(forall(n, in(n, N) ==> (Q(n) ==> Q(successor(n))))) by RightForall
+    have(Q(∅) /\ forall(n, in(n, N) ==> (Q(n) ==> Q(successor(n))))) by Tautology.from(zeroCase, lastStep)
+
+    have(forall(k, in(k, N) ==> Q(k))) by Tautology.from(lastStep, natInduction of (P := Q, m := n, n := k))
+    thenHave(in(n, N) ==> Q(n)) by InstantiateForall(n)
+    thenHave(thesis) by Tautology
+  }
+
+  private val intersectionNat = Lemma(in(n, N) |- n ∩ N === n){
+    import lisa.maths.SetTheory.Base.Intersection.{subsetLeft}
+    import lisa.maths.SetTheory.Base.Subset.rightEmpty
+    
+    val zeroCase = have(∅ ∩ N === ∅) subproof {
+      
+      have(subset(∅ ∩ N, ∅)) by Tautology.from(subsetLeft of (x := ∅, y := N))
+      have(thesis) by Tautology.from(lastStep, rightEmpty of (x := ∅ ∩ N))
+    }
+
+    val recCase = have(
+      in(n, N) /\ (n ∩ N === n) |- successor(n) ∩ N === successor(n)
+    ) subproof {
+      have(thesis) by Sorry
+    }
+
+    have(in(n, N) ==> ((n ∩ N === n) ==> (successor(n) ∩ N === successor(n)))) by Tautology.from(recCase)
+    thenHave(forall(n, in(n, N) ==> ((n ∩ N === n) ==> (successor(n) ∩ N === successor(n))))) by RightForall
+    have((∅ ∩ N === ∅) /\ forall(n, in(n, N) ==> ((n ∩ N === n) ==> (successor(n) ∩ N === successor(n))))) by 
+      Tautology.from(zeroCase, lastStep)
+
+    have(forall(k, in(k, N) ==> (k ∩ N === k))) by 
+      Tautology.from(lastStep, natInduction of (P := lam(k, k ∩ N === k), m := n, n := k))
+    thenHave(in(n, N) ==> (n ∩ N === n)) by InstantiateForall(n)
+    thenHave(thesis) by Tautology
+
+  }
+
+  private val rightAndEquivalence =
+    Lemma(p1 <=> p2 |- (p1 /\ p) <=> (p2 /\ p)){
+      have(thesis) by Tautology
+  }
+
+  private val restrictedFunctionApplication = Lemma(
+    // function(h) /\
+    // in(x, dom(h)) /\
+    in(x, d) |- app(restrictedFunction(h, d))(x) === app(h)(x)
+  ){
+
+    have(thesis) by Sorry //.from(Restriction.restrictedApp)
+  }
+
+  private val restrictedFunctionRangeMembership = Lemma(
+    function(f) |-
+      in(y, range(restrictedFunction(f, d))) <=>
+      ∃(x, in(x, d ∩ dom(f)) /\ (app(restrictedFunction(f, d))(x) === y))
+  ) {
+
+    val A = variable[Ind]
+    val restrictedDom = have(dom(f ↾ d) === d ∩ dom(f)) by Sorry
+    have(
+      function(f) |- in(y, range(restrictedFunction(f, d))) <=> ∃(
+        x,
+        in(x, dom(restrictedFunction(f, d))) /\
+          (app(restrictedFunction(f, d))(x) === y)
+      )
+    ) by Cut(
+      Restriction.isFunction of (A := d),
+      functionRangeMembership of (f := restrictedFunction(f, d))
+    )
+    thenHave(
+      (function(f), dom(f ↾ d) === d ∩ dom(f)) |-
+        in(y, range(f ↾ d)) <=>
+        ∃(x, in(x, d ∩ dom(f)) /\ (app(f ↾ d)(x) === y))
+    ) by RightSubstEq.withParameters(
+      List((dom(f ↾ d), d ∩ dom(f))),
+      (Seq(s), in(y, range(f ↾ d)) <=> ∃(x, in(x, s) /\ (app(f ↾ d)(x) === y)))
+    )
+    have(
+      function(f) |-
+        in(y, range(f ↾ d)) <=>
+        ∃(x, in(x, d ∩ dom(f)) /\ (app(f ↾ d)(x) === y))
+    ) by Cut(restrictedDom, lastStep)
+  }
+
+  val unionRangeCollapse = Lemma(
+    (
+      function(h),
+      dom(h) === N,
+      in(n, N),
+      forall(m, subset(m, n) ==> subset(app(h)(m), app(h)(n)))
+    ) |- unionRange(restrictedFunction(h, successor(n))) === app(h)(n)
+  ) {
+
+    val cumulativeAssumption = ∀(m, subset(m, n) ==> subset(app(h)(m), app(h)(n)))
+
+    val normalizeRangeMembership = have(
+      (function(h), in(n, N), dom(h) === N) |-
+        (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+          m,
+          m ∈ successor(n) /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+        ) /\ z ∈ y
+    ) subproof {
+
+      val domainSubset =
+        have(in(n, N) |- ∩(successor(n))(N) === successor(n)) by
+          Sorry // Tautology.from(intersectionNat of (n := successor(n)), equivalenceApply of (p1 := in(n, N)), successorIsNat)
+
+      have(
+        function(h) |- (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+          m,
+          m ∈ (successor(n) ∩ dom(h)) /\
+            (app(restrictedFunction(h, successor(n)))(m) === y)
+        ) /\ z ∈ y
+      ) by Cut(
+        restrictedFunctionRangeMembership of (f := h, d := successor(n)),
+        rightAndEquivalence of
+          (
+            p1 := y ∈ range(h ↾ successor(n)),
+            p2 := ∃(
+              m,
+              m ∈ (successor(n) ∩ dom(h)) /\
+                (app(restrictedFunction(h, successor(n)))(m) === y)
+            ),
+            p := z ∈ y
+          )
+      )
+
+      thenHave(
+        (function(h), dom(h) === N) |-
+          (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+            m,
+            m ∈ (successor(n) ∩ N) /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+          ) /\ z ∈ y
+      ) by RightSubstEq.withParameters(
+        List((dom(h), N)),
+        (
+          Seq(s),
+          (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+            m,
+            m ∈ (successor(n) ∩ s) /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+          ) /\ z ∈ y
+        )
+      )
+
+      thenHave(
+        (
+          function(h),
+          in(n, N),
+          dom(h) === N,
+          successor(n) ∩ N === successor(n)
+        ) |- (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+          m,
+          m ∈ (successor(n) ∩ N) /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+        ) /\ z ∈ y
+      ) by Weakening
+
+      thenHave(
+        (
+          function(h),
+          in(n, N),
+          dom(h) === N,
+          successor(n) ∩ N === successor(n)
+        ) |- (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+          m,
+          m ∈ successor(n) /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+        ) /\ z ∈ y
+      ) by RightSubstEq.withParameters(
+        List((successor(n) ∩ N, successor(n))),
+        (
+          Seq(s),
+          (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=>
+            ∃(m, m ∈ s /\ (app(restrictedFunction(h, successor(n)))(m) === y)) /\ z ∈ y
+        )
+      )
+
+      have(thesis) by Cut(domainSubset, lastStep)
+    }
+
+    val rangeWitnessToSubsetWitness = have(
+      (function(h), in(n, N), dom(h) === N) |-
+        ∃(y, y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=>
+        ∃(m, subset(m, n) /\ z ∈ app(h)(m))
+    ) subproof {
+      have(
+        (function(h), in(n, N), dom(h) === N) |-
+          (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+            m,
+            m ∈ successor(n) /\ (app(restrictedFunction(h, successor(n)))(m) === y) /\ z ∈ y
+          )
+      ) by Tautology.from(
+        equivalenceRewriting,
+        normalizeRangeMembership,
+        existentialConjunctionWithClosedFormula of
+          (
+            P :=
+              lam(m, m ∈ successor(n) /\ (app(restrictedFunction(h, successor(n)))(m) === y)),
+            p := z ∈ y
+          )
+      )
+
+      thenHave(
+        (function(h), in(n, N), dom(h) === N) |- ∀(
+          y,
+          (y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+            m,
+            m ∈ successor(n) /\ (app(restrictedFunction(h, successor(n)))(m) === y) /\ z ∈ y
+          )
+        )
+      ) by RightForall
+
+      have(
+        (function(h), in(n, N), dom(h) === N) |-
+          ∃(y, y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+            y,
+            ∃(
+              m,
+              m ∈ successor(n) /\ (app(restrictedFunction(h, successor(n)))(m) === y) /\ z ∈ y
+            )
+          )
+      ) by Cut(
+        lastStep,
+        existentialEquivalenceDistribution of
+          (
+            P := lam(y, y ∈ range(h ↾ successor(n)) /\ z ∈ y),
+            Q := lam(
+              y,
+              ∃(
+                m,
+                m ∈ successor(n) /\ (app(restrictedFunction(h, successor(n)))(m) === y) /\
+                  z ∈ y
+              )
+            )
+          )
+      )
+
+      val introM = thenHave(
+        (function(h), in(n, N), dom(h) === N) |-
+          ∃(y, y ∈ range(h ↾ successor(n)) /\ z ∈ y) <=> ∃(
+            m,
+            ∃(
+              y,
+              m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+            )
+          )
+      ) by Tableau
+
+      have(
+        (∃(
+          x,
+          lam(y, m ∈ successor(n) /\ z ∈ y)(x) /\
+            (app(restrictedFunction(h, successor(n)))(m) === x)
+        )) <=> lam(y, m ∈ successor(n) /\ z ∈ y)(app(restrictedFunction(h, successor(n)))(m))
+      ) by Tautology.from(
+        onePointRule of
+          (
+            y := app(restrictedFunction(h, successor(n)))(m),
+            P := lam(y, m ∈ successor(n) /\ z ∈ y)
+          )
+      )
+      have(
+        (∃(
+          y,
+          m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+        )) <=> (m ∈ successor(n) /\ z ∈ app(restrictedFunction(h, successor(n)))(m))
+      ) by Tautology.from(lastStep of (x := y), BetaReduction)
+
+      have(
+        m ∈ successor(n) |-
+          (∃(
+            y,
+            m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+          )) <=> (m ∈ successor(n) /\ z ∈ app(h)(m))
+      ) by
+        Congruence
+          .from(restrictedFunctionApplication of (d := successor(n), x := m), lastStep)
+      thenHave(
+        (∃(
+          y,
+          m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+        )) <=> (m ∈ successor(n) /\ z ∈ app(h)(m))
+      ) by Tableau
+
+      thenHave(
+        subset(m, n) <=> m ∈ successor(n) |-
+          (∃(
+            y,
+            m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+          )) <=> (subset(m, n) /\ z ∈ app(h)(m))
+      ) by RightSubstEq.withParameters(
+        List((m ∈ successor(n), subset(m, n))),
+        (
+          Seq(p),
+          (∃(
+            y,
+            m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+          )) <=> (p /\ z ∈ app(h)(m))
+        )
+      )
+
+      have(
+        in(n, N) |-
+          (∃(
+            y,
+            m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+          )) <=> (subset(m, n) /\ z ∈ app(h)(m))
+      ) by Cut(natSubset, lastStep)
+
+      thenHave(
+        in(n, N) |- ∀(
+          m,
+          (∃(
+            y,
+            m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+          )) <=> (subset(m, n) /\ z ∈ app(h)(m))
+        )
+      ) by RightForall
+
+      have(
+        in(n, N) |- ∃(
+          m,
+          ∃(
+            y,
+            m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
+          )
+        ) <=> ∃(m, subset(m, n) /\ z ∈ app(h)(m))
+      ) by Cut(
+        lastStep,
+        existentialEquivalenceDistribution of
+          (
+            P := lam(
+              m,
+              ∃(
+                y,
+                m ∈ successor(n) /\ z ∈ y /\
+                  (app(restrictedFunction(h, successor(n)))(m) === y)
+              )
+            ),
+            Q := lam(m, subset(m, n) /\ z ∈ app(h)(m))
+          )
+      )
+
+      have(thesis) by Tautology.from(equivalenceRewriting, introM, lastStep)
+    }
+
+    val unionIsExists = have(
+      (function(h), in(n, N), dom(h) === N) |- z ∈ unionRange(
+        restrictedFunction(h, successor(n))
+      ) <=> ∃(m, subset(m, n) /\ z ∈ app(h)(m))
+    ) by Tautology.from(
+      rangeWitnessToSubsetWitness,
+      unionAxiom of (x := range(h ↾ successor(n))),
+      equivalenceRewriting of
+        (
+          p1 := z ∈ unionRange(restrictedFunction(h, successor(n))),
+          p2 := ∃(y, y ∈ range(h ↾ successor(n)) /\ z ∈ y),
+          p3 := ∃(m, subset(m, n) /\ z ∈ app(h)(m))
+        )
+    )
+
+    val cumulativeEquivalence = have(
+      cumulativeAssumption |- ∃(m, subset(m, n) /\ z ∈ app(h)(m)) <=> z ∈ app(h)(n)
+    ) subproof {
+      val toExists = {
+        val seq1 = have(z ∈ app(h)(n) |- z ∈ app(h)(n)) by Hypothesis
+        have(z ∈ app(h)(n) |- subset(n, n) /\ z ∈ app(h)(n)) by
+          RightAnd(seq1, Subset.reflexivity of (x := n))
+        thenHave(z ∈ app(h)(n) |- ∃(m, subset(m, n) /\ z ∈ app(h)(m))) by RightExists
+        thenHave(cumulativeAssumption |- z ∈ app(h)(n) ==> ∃(m, subset(m, n) /\ z ∈ app(h)(m))) by
+          Weakening
+      }
+
+      val toValue = {
+        have(cumulativeAssumption |- cumulativeAssumption) by Hypothesis
+        thenHave(cumulativeAssumption |- subset(m, n) ==> subset(app(h)(m), app(h)(n))) by
+          InstantiateForall(m)
+        have(
+          (cumulativeAssumption, subset(m, n)) |- forall(z, z ∈ app(h)(m) ==> z ∈ app(h)(n))
+        ) by Tautology.from(lastStep, subsetAxiom of (x := app(h)(m), y := app(h)(n)))
+        thenHave((cumulativeAssumption, subset(m, n) /\ z ∈ app(h)(m)) |- z ∈ app(h)(n)) by
+          InstantiateForall(z)
+        thenHave(
+          (cumulativeAssumption, ∃(m, subset(m, n) /\ z ∈ app(h)(m))) |- z ∈ app(h)(n)
+        ) by LeftExists
+        thenHave(cumulativeAssumption |- ∃(m, subset(m, n) /\ z ∈ app(h)(m)) ==> z ∈ app(h)(n)) by
+          RightImplies
+      }
+
+      have(thesis) by RightIff(toValue, toExists)
+    }
+
+    have(
+      (function(h), in(n, N), dom(h) === N, cumulativeAssumption) |-
+        (z ∈ unionRange(restrictedFunction(h, successor(n)))) <=> z ∈ app(h)(n)
+    ) by Tautology.from(equivalenceRewriting, unionIsExists, cumulativeEquivalence)
+    thenHave(
+      (function(h), in(n, N), dom(h) === N, cumulativeAssumption) |-
+        ∀(z, z ∈ unionRange(restrictedFunction(h, successor(n))) <=> z ∈ app(h)(n))
+    ) by RightForall
+
+    have(thesis) by Tautology.from(
+      equivalenceApply,
+      lastStep,
+      extensionalityAxiom of
+        (x := unionRange(restrictedFunction(h, successor(n))), y := app(h)(n))
+    )
+
+  }
+
+}
