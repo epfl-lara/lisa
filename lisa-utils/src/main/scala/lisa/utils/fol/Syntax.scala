@@ -40,19 +40,19 @@ trait Syntax {
   /**
    * Typeclass asserting that [[Ind]] is a sort
    */
-  given given_TermType: Sort[Ind] with
+  given given_TermType: Ind is Sort with
     val underlying = K.Ind
 
   /**
    * Typeclass asserting that [[Prop]] is a sort
    */
-  given given_FormulaType: Sort[Prop] with
+  given given_FormulaType: Prop is Sort with
     val underlying = K.Prop
 
   /**
    * Typeclass asserting that [[Arrow]][_, _] is a sort
    */
-  given given_ArrowType[A: Sort as ta, B: Sort as tb]: (Sort[Arrow[A, B]]) with
+  given given_ArrowType[A: Sort as ta, B: Sort as tb]: (Arrow[A, B] is Sort) with
     val underlying = K.Arrow(ta.underlying, tb.underlying)
 
   /**
@@ -85,7 +85,7 @@ trait Syntax {
    * Used to cast expressions to a specific sort, without checking.
    * Useful when the type is not known at compile time.
    */
-  def unsafeSortEvidence[S](sort: K.Sort): Sort[S] = new Sort { type Self = S; val underlying = sort }
+  def unsafeSortEvidence[S](sort: K.Sort): (S is Sort) = new Sort { type Self = S; val underlying = sort }
 
   /**
    * Converts a (Variable, Expr) pair to a SubstPair
@@ -278,7 +278,7 @@ trait Syntax {
   /**
    * Well-sorted application constructor. Used when sorts are known at compile time.
    */
-  extension [S, T](f: Expr[Arrow[S, T]]) def apply(using Sort[S], Sort[T])(arg: Expr[S]): Expr[T] = App(f, arg)
+  extension [S: Sort, T: Sort](f: Expr[Arrow[S, T]]) def apply(arg: Expr[S]): Expr[T] = App(f, arg)
 
   /**
    * match type computing the return sort of an arrow sort.
