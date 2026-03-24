@@ -141,7 +141,7 @@ class SemanticADT[N <: Arity](
    *
    *  `base cases => inductive cases => ∀x ∈ ADT. P(x)`
    */
-  lazy val induction = Lemma(
+  val induction = Lemma(
     constructors.foldRight[Expr[Prop]](forall(x, x :: term ==> P(x)))((c, f) =>
       c.inductiveCase ==> f
     )

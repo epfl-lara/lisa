@@ -45,26 +45,27 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
     seqOr(constructors.map(c => isConstructor(c, x, s)))
 
   /** Predicate encoding the introduction function. */
-  private[encoding] def isInIntroductionFunctionImage(s: Expr[Ind])(
+  private[encoding] def inIntroImage(s: Expr[Ind])(
       y: Expr[Ind]
   ): Expr[Prop] = isConstructor(y, s) \/ in(y, s)
 
   /** Predicate encoding the extended introduction function. */
-  private[encoding] def isInExtendedIntroductionFunctionImage(f: Expr[Ind])(
+  private[encoding] def inExtIntroImage(f: Expr[Ind])(
       x: Expr[Ind]
-  ): Expr[Prop] = !(f === ∅) /\ isInIntroductionFunctionImage(unionRange(f))(x)
+  ): Expr[Prop] = !(f === ∅) /\ inIntroImage(unionRange(f))(x)
 
 
   /** Logical predicate symbol for height-function characterization. */
   private[encoding] val isHeight = 
     DEF(using name=s"${name}IsHeightFunction")(λ(h, 
     function(h) /\
-    (dom(h) === N) /\ forall(
+    (dom(h) === N) /\ 
+    forall(
       n,
       in(n, N) ==> forall(
         x,
         in(x, app(h, n)) <=>
-          isInExtendedIntroductionFunctionImage(restrictedFunction(h, n))(x)
+          inExtIntroImage(restrictedFunction(h, n))(x)
       )
     )
   ))

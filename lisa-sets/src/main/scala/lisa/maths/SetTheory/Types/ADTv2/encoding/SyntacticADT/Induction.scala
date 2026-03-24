@@ -23,7 +23,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
   // Base case used by the internal nat-induction in heightSuccessorStrong.
   private[encoding] lazy val introductionImageAtHeightZeroIsConstructor = Lemma(
     isHeight(h) |-
-      isInIntroductionFunctionImage(app(h, ∅))(x) ==> isConstructor(x, app(h, ∅))
+      inIntroImage(app(h, ∅))(x) ==> isConstructor(x, app(h, ∅))
   ) {
     val isContructorXHEmptySet = isConstructor(x, app(h, ∅))
     val baseCaseLeft = have(isContructorXHEmptySet |- isContructorXHEmptySet) by
@@ -31,12 +31,12 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     val baseCaseRight = have((isHeight(h), in(x, app(h, ∅))) |- ()) by
       Restate.from(heightZero)
     have(
-      (isHeight(h), isInIntroductionFunctionImage(app(h, ∅))(x)) |-
+      (isHeight(h), inIntroImage(app(h, ∅))(x)) |-
         isContructorXHEmptySet
     ) by LeftOr(baseCaseLeft, baseCaseRight)
     thenHave(
       isHeight(h) |-
-        isInIntroductionFunctionImage(app(h, ∅))(x) ==> isContructorXHEmptySet
+        inIntroImage(app(h, ∅))(x) ==> isContructorXHEmptySet
     ) by RightImplies
   }
 
@@ -46,11 +46,11 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
   ) {
     val forward = have(
       (isHeight(h), in(n, N)) |-
-        isInIntroductionFunctionImage(app(h, n))(x) ==> isConstructor(x, app(h, n))
+        inIntroImage(app(h, n))(x) ==> isConstructor(x, app(h, n))
     ) subproof {
 
       def inductionFormula(n: Expr[Ind]): Expr[Prop] =
-        isInIntroductionFunctionImage(app(h, n))(x) ==> isConstructor(x, app(h, n))
+        inIntroImage(app(h, n))(x) ==> isConstructor(x, app(h, n))
       val inductionFormulaN: Expr[Prop] = inductionFormula(n)
       val inductionFormulaSuccN: Expr[Prop] = inductionFormula(successor(n))
 
@@ -174,17 +174,17 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
       // with xi, ..., xj ∈ height(n + 1).
       val heightSuccessorWeakForward = have(
         (isHeight(h), in(n, N), in(x, app(h, successor(n)))) |-
-          isInIntroductionFunctionImage(app(h, n))(x)
+          inIntroImage(app(h, n))(x)
       ) by Cut(
         heightSuccessorWeak,
         equivalenceApply of
           (
             p1 := in(x, app(h, successor(n))),
-            p2 := isInIntroductionFunctionImage(app(h, n))(x)
+            p2 := inIntroImage(app(h, n))(x)
           )
       )
       have(
-        (inductionFormulaN, isInIntroductionFunctionImage(app(h, n))(x)) |-
+        (inductionFormulaN, inIntroImage(app(h, n))(x)) |-
           isConstructorXHN
       ) by Restate
       have(
@@ -209,7 +209,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
           isHeight(h),
           in(n, N),
           inductionFormulaN,
-          isInIntroductionFunctionImage(app(h, successor(n)))(x)
+          inIntroImage(app(h, successor(n)))(x)
         ) |- isConstructorXHSuccN
       ) by LeftOr(left, right)
 
@@ -236,13 +236,13 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     // STEP 2: Prove the backward implication
     val backward = have(
       (isHeight(h), in(n, N)) |-
-        isConstructor(x, app(h, n)) ==> isInIntroductionFunctionImage(app(h, n))(x)
+        isConstructor(x, app(h, n)) ==> inIntroImage(app(h, n))(x)
     ) by Restate
 
     // STEP 3: Conclude
     have(
       (isHeight(h), in(n, N)) |-
-        isInIntroductionFunctionImage(app(h, n))(x) <=> isConstructor(x, app(h, n))
+        inIntroImage(app(h, n))(x) <=> isConstructor(x, app(h, n))
     ) by RightIff(forward, backward)
     have(thesis) by Tautology.from(equivalenceRewriting, lastStep, heightSuccessorWeak)
   }
@@ -256,7 +256,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     )
   ).toMap
 
-  lazy val induction = Lemma(using name = s"ADT_${name}_induction")(
+  val induction = Lemma(using name = s"ADT_${name}_induction")(
     constructors.foldRight[Expr[Prop]](forall(x, in(x, term) ==> P(x)))((c, f) =>
       inductiveCase(c) ==> f
     )
@@ -592,7 +592,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
         P(x)
     ) by LeftExists
     have((structuralInductionPreconditions, in(x, term)) |- P(x)) by
-      Cut(heightFunctionExistence, lastStep)
+      Cut(heightExists, lastStep)
     thenHave(structuralInductionPreconditions |- in(x, term) ==> P(x)) by RightImplies
     thenHave(structuralInductionPreconditions |- forall(x, in(x, term) ==> P(x))) by
       RightForall

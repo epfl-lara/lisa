@@ -28,7 +28,7 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
    */
   private[encoding] val introductionFunctionMononotic = Lemma(
     subset(s, t) |-
-      isInIntroductionFunctionImage(s)(x) ==> isInIntroductionFunctionImage(t)(x)
+      inIntroImage(s)(x) ==> inIntroImage(t)(x)
   ) {
     // In the rest of the proof we assume that s ⊆ t
 
@@ -101,7 +101,7 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
     // Caching
     val constructorVarsInDomainCS = constructorVarsInDomain(c, s)
 
-    c -> Lemma(constructorVarsInDomainCS |- isInIntroductionFunctionImage(s)(c.term)) {
+    c -> Lemma(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) {
 
       have(
         constructorVarsInDomainCS |- constructorVarsInDomainCS /\ (c.term === c.term)
@@ -125,7 +125,7 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
         (oldVariables, newVariables)
       )
 
-      thenHave(constructorVarsInDomainCS |- isInIntroductionFunctionImage(s)(c.term)) by
+      thenHave(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) by
         Weakening
     }
   ).toMap
