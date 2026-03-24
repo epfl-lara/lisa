@@ -59,7 +59,7 @@ object UnionRangeCollapse {
     have(thesis) by Tautology.from(forward, backward)
   }
 
-  private val functionRangeMembership = Lemma(
+  val functionRangeMembership = Lemma(
     function(f) |-
       in(y, range(f)) <=> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))
   ){
@@ -230,7 +230,7 @@ object UnionRangeCollapse {
 
   }
 
-  private val rightAndEquivalence =
+  val rightAndEquivalence =
     Lemma(p1 <=> p2 |- (p1 /\ p) <=> (p2 /\ p)){
       have(thesis) by Tautology
   }

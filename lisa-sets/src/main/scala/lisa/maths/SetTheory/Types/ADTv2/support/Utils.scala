@@ -76,7 +76,8 @@ object Utils {
 
   // Syntactic sugar for sequences
 
-  def appSeq(f: Expr[Ind])(args: Seq[Expr[Ind]]): Expr[Ind] = args.foldLeft(f)(_ * _)
+  def appSeq(f: Expr[Ind])(args: Seq[Expr[Ind]]): Expr[Ind] =
+    Option(args).getOrElse(Seq.empty).foldLeft(f)(_ * _)
 
   def seqOr(s: Iterable[Expr[Prop]]): Expr[Prop] = s.reduceOption(_ \/ _)
     .getOrElse(False: Expr[Prop])

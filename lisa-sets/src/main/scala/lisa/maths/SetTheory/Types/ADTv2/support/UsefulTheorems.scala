@@ -5,15 +5,19 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.Quantifiers.∃!
 
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.ExtendedInteger.{
+  omegaInduction,
+  omegaPredecessor,
+  omegaSuccessor,
+  omegaCharacterization,
+  integerIsOrdinal
+}
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Base.*
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Base.Intersection.∩
-import lisa.maths.SetTheory.Ordinals.Integer.{
-  omegaInduction,
-  omegaPredecessor,
-  omegaSuccessor
-}
+import lisa.maths.SetTheory.Base.Subset
+import lisa.maths.SetTheory.Ordinals.*
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.utils.prooflib.SimpleDeducedSteps.Generalize
 import lisa.utils.prooflib.BasicStepTactic.*
@@ -176,7 +180,21 @@ object UsefulTheorems {
       Congruence.from(lastStep, successor.definition of (x := n))
   }
 
-  val zeroIsNat = Lemma(in(∅, N))(have(thesis) by Sorry)
+  val zeroIsNat = Lemma(in(∅, N)){
+    import Ordinal.{<=, <, successorOrdinal}
+    val α, β = variable[Ind]
+    have( (b <= ∅) |- ((b ∈ ∅) \/ (b === ∅))) by Tautology
+    have( (b ⊆ ∅) ==> (b === ∅)) by Tautology.from(Subset.rightEmpty of (x := b))
+
+    val nullCharacterization = have((∅ ∈ N) <=> Integer.integer(∅)) by 
+      InstantiateForall(∅)(omegaCharacterization)
+
+    ∀(β, β <= α ==> (β === ∅) \/ successorOrdinal(β))
+    have( forall(b, (b <= ∅) ==> (b === ∅) \/ successorOrdinal(b))) by Sorry
+    have(Integer.integer(∅)) by Tautology.from(lastStep, Integer.integer.definition of (α := ∅, β := b))
+    have(in(∅, N)) by Tautology.from(lastStep, nullCharacterization)
+    have(thesis) by Restate.from(lastStep)
+  }
 
   val natNotEmpty = Lemma(!(N === ∅))(have(thesis) by Sorry)
 
@@ -271,5 +289,94 @@ object UsefulTheorems {
     Lemma(p ==> (p1 <=> p2) |- (p ==> p1) <=> (p ==> p2))(have(thesis) by Tautology)
 
   val existsNeg = Lemma(∃(x, !P(x)) |- !forall(x, P(x)))(have(thesis) by Tautology)
+
+
+  // helper: union of two ω-members is in ω
+  val unionOfTwoNats = Lemma((in(a, N) /\ in(b, N)) |- in(a ∪ b, N)) {
+
+    import Ordinal.<
+    import TransitiveSet.transitiveSet
+    val α, β = variable[Ind]
+    val A = variable[Ind]
+
+    // get ordinals from ω-membership
+    have(in(a, N) <=> Integer.integer(a)) by InstantiateForall(a)(omegaCharacterization)
+    val aIsOrdinal = have(in(a, N) |- Ordinal.ordinal(a)) by 
+      Tautology.from(integerIsOrdinal of (α := a), lastStep)
+    have(in(b, N) <=> Integer.integer(b)) by InstantiateForall(b)(omegaCharacterization)
+    val bIsOrdinal = have(in(b, N) |- Ordinal.ordinal(b)) by 
+      Tautology.from(integerIsOrdinal of (α := b), lastStep)
+
+    // comparability: either a = b or a ∈ b or b ∈ a
+    val comp = have((Ordinal.ordinal(a), Ordinal.ordinal(b)) |- (a === b) \/ (a < b) \/ (b < a)) by
+      Tautology.from(Ordinal.comparability of (α := a, β := b))
+
+    // case analysis on the disjunction
+    // Case a === b
+    val caseEq = have((a === b, in(a, N), in(b, N)) |- in(a ∪ b, N)) subproof {
+      have((a === b, a ∪ b === b) |- a ∪ b === b) by Hypothesis
+      have((a === b, b ∪ b === b) |- a ∪ b === b) by Congruence.from(lastStep)
+      have((a === b) |- a ∪ b === b) by Congruence.from(lastStep, Union.idempotence of (x := b))
+      have((a === b, b ∈ N) |- a ∪ b ∈ N) by Congruence.from(lastStep)
+      have(thesis) by Tautology.from(lastStep)
+    }
+
+    // Case a < b  (i.e. a ∈ b)
+    val caseALtB = have((a < b, in(a, N), in(b, N)) |- in(a ∪ b, N)) subproof {
+
+      assume((a < b) /\ in(a, N) /\ in(b, N))
+
+      have(TransitiveSet.transitiveSet(b)) by 
+        Tautology.from(bIsOrdinal, Ordinal.ordinal.definition of (α := b))
+      have(a ⊆ b) by 
+        Tautology.from(lastStep, TransitiveSet.elementIsSubset of (x := a, A := b))
+      have((a ∪ b) ⊆ (b ∪ b)) by 
+        Tautology.from(lastStep, Union.leftMonotonic of (x := a, y := b, z := b))
+      val unionSubset = have(a ∪ b ⊆ b) by 
+        Congruence.from(lastStep, Union.idempotence of (x := b))
+      
+      have(b ⊆ (a ∪ b)) by 
+        Tautology.from(Union.rightSubset of (x := a, y := b))
+      have((a ∪ b) === b) by 
+        Tautology.from(unionSubset, lastStep, Subset.antisymmetry of (x := a ∪ b, y := b))
+      have(thesis) by Congruence.from(lastStep)
+    }
+
+    // Symmetric case b < a
+    val caseBLtA = have((b < a, in(a, N), in(b, N)) |- in(a ∪ b, N)) subproof {
+      have(thesis) by Congruence.from(
+        caseALtB of (a := b, b := a), 
+        Union.commutativity of (x := a, y := b)
+      )
+    }
+
+    // Combine the cases coming from comparability
+    have((in(a, N), in(b, N)) |- in(a ∪ b, N)) by 
+      Tautology.from(comp, caseEq, caseALtB, caseBLtA, aIsOrdinal, bIsOrdinal)
+    thenHave(thesis) by Restate
+  }
+
+  val subsetOfUnion = Lemma(subset(x, y) |- subset(x, y ∪ z)) {
+    have(subset(y, y ∪ z)) by Tautology.from(Union.leftSubset of (x := y, y := z))
+    have(subset(x, y) |- subset(x, y ∪ z)) by Tautology.from(lastStep, Subset.transitivity of (x := x, y := y, z := y ∪ z))
+    thenHave(thesis) by Restate
+  }
+
+  val unionNull = Lemma( ∅ ∪ x === x) {
+    have(∅ ⊆ x) by Tautology.from(Subset.leftEmpty of (x := x))
+    val incl1 = have(∅ ∪ x ⊆ x) by Tautology.from(
+      lastStep, 
+      Subset.reflexivity of (x := x),
+      Union.leftUnionSubset of (x := ∅, y := x, z := x)
+    )
+    
+    have(x ⊆ (∅ ∪ x)) by Tautology.from(Union.rightSubset of (x := ∅, y := x))
+
+    have(thesis) by Tautology.from(incl1, lastStep, Subset.antisymmetry of (x := ∅ ∪ x, y := x))
+  }
+
+  val existsNat = Lemma(exists(n, in(n, N))) {
+    have(thesis) by RightExists(zeroIsNat)
+  }
 
 }
