@@ -179,9 +179,40 @@ class Induction[M <: Arity](
           }.map(parsed => TypeApply(name, parsed))
         }
 
-  private def typeTermToTypeExpr(term: Expr[Ind]): Option[TypeExpr] = term match
-    case c: Constant[Ind] @unchecked => parseTypeExprRepr(c.id.name)
-    case _ => None
+  private def typeTermToTypeExpr(term: Expr[Ind]): Option[TypeExpr] = {
+
+    
+    def parseTypeExprArgs(args: Seq[Expr[?]]): Option[Seq[TypeExpr]] = 
+      args.foldLeft[Option[Seq[TypeExpr]]](Some(Seq.empty))((acc, arg) =>
+        acc.flatMap(parsed =>
+          typeTermToTypeExpr(arg.asInstanceOf[Expr[Ind]]).map(parsed :+ _)
+        )
+      )
+
+    val (head, args) = unfoldAllApp(term)
+    val maybeADT = ADT.allADTs.collectFirst {
+      case adt if adt.semantic.underlying.polymorphicTerm == head => adt
+    }
+
+    maybeADT
+      .flatMap(adt =>
+        parseTypeExprArgs(args).map(typeArgs =>
+          if typeArgs.isEmpty then TypeRef(adt.name) else TypeApply(adt.name, typeArgs)
+        )
+      )
+      .orElse(
+        head match
+          case c: Constant[Ind] @unchecked =>
+            parseTypeExprArgs(args).flatMap(parsedArgs =>
+              parseTypeExprRepr(c.id.name).map {
+                case TypeRef(name) if parsedArgs.nonEmpty => TypeApply(name, parsedArgs)
+                case base if parsedArgs.isEmpty => base
+                case _ => TypeApply(c.id.name, parsedArgs)
+              }
+            )
+          case _ => None
+      )
+  }
 
   private def inferADTFromTypeTerm(
       typeTerm: Expr[Ind]
