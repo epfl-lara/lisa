@@ -21,8 +21,9 @@ import lisa.maths.SetTheory.Types.ADTv2.support.Utils.typeExprToTerm
  */
 // class ADT[N <: Arity] private[ADTv2] (using line: sourcecode.Line, file: sourcecode.File)(
 class ADT[N <: Arity] (using line: sourcecode.Line, file: sourcecode.File)(
-    private[ADTv2] val semantic: SemanticADT[N],
-    private[ADTv2] val constructors: Seq[Constructor[N]]
+    // private[ADTv2] val semantic: SemanticADT[N],
+    val semantic: SemanticADT[N],
+    val constructors: Seq[Constructor[N]]
 ) {
 
   /** Name of this ADT */

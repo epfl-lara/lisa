@@ -12,6 +12,10 @@ import lisa.maths.SetTheory.Types.ADTv2.support.ExtendedInteger.{
   omegaCharacterization,
   integerIsOrdinal
 }
+
+import lisa.maths.SetTheory.Functions.Pi.{->:}
+import lisa.maths.SetTheory.Functions.BasicTheorems.{appTyping, funcBetweenEqInFuncSpace}
+import lisa.maths.SetTheory.Types.TypingHelpers.{::, *}
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Base.*
 import lisa.maths.SetTheory.Base.Union.∪
@@ -38,15 +42,17 @@ object UsefulTheorems {
   private val q1, q2 = variable[Prop]
   private val P = variable[Ind >>: Prop]
 
-  /**
-   *  ATTENTION : THE FILES IN SetTheory/Types/ADT CANNOT BE USED
-   *
-   *  ADT/ is deprecated and should not be used But the files are still here for reference
-   */
+  val equivalenceApply = Lemma((p1 <=> p2, p1) |- p2){
+    have(thesis) by Tautology
+  }
 
-  val equivalenceApply = Lemma((p1 <=> p2, p1) |- p2)(have(thesis) by Tautology)
+  val equivalenceRevApply = Lemma((p2 <=> p1, p1) |- p2){
+    have(thesis) by Tautology
+  }
 
-  val equivalenceRevApply = Lemma((p2 <=> p1, p1) |- p2)(have(thesis) by Tautology)
+  val equivalenceToRevApply = Lemma(p1 <=> p2 |- p2 ==> p1){
+    have(thesis) by Tautology
+  }
 
   val equivalenceAnd =
     Lemma((p2, p1 <=> (p2 /\ p3)) |- p1 <=> p3)(have(thesis) by Tautology)
@@ -377,6 +383,20 @@ object UsefulTheorems {
 
   val existsNat = Lemma(exists(n, in(n, N))) {
     have(thesis) by RightExists(zeroIsNat)
+  }
+
+  val funEqDef = Lemma( f :: a ->: b |- x :: a ==> (f * x) :: b ) {
+    val A,B = variable[Ind]
+    val fInArrow = assume(f :: a ->: b)
+    val fBetween = have(functionBetween(f)(a)(b)) by Tautology.from(
+      funcBetweenEqInFuncSpace of (f := f, A := a, B := b),
+      fInArrow
+    )
+    have(x :: a ==> (f * x) :: b) by Tautology.from(
+      appTyping of (f := f, A := a, B := b, x := x),
+      fBetween
+    )
+    thenHave(thesis) by Restate
   }
 
 }

@@ -233,7 +233,9 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     typeVariablesSeq,
     term :: typ
   )) {
-    // have(forall(c, (term === c) <=> untypedDefinition)) by Exact(classFunction.definition)
+    // println(s"thesis: $thesis")
+    // println(s"typeVariablesSeq: $typeVariablesSeq")
+    // println(s"term: $term :: $typ")
     have(forall(c, (term === c) <=> untypedDefinition)) by
       Restate.from(classFunctionCharacterization)
     thenHave(
@@ -245,7 +247,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     ) by InstantiateForall(term)
     thenHave(term :: typ) by Weakening
     thenHave(thesis) by QuantifiersIntro(typeVariablesSeq)
-  }
+  }    
 
   /**
    *  Theorem --- Injectivity of constructors.

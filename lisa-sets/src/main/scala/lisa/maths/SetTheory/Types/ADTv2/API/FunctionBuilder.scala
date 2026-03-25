@@ -150,3 +150,8 @@ def fun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
       )
     case Some(msg) => throw new IllegalArgumentException(msg)
 }
+
+def fun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(
+  using name: sourcecode.Name
+)(cases: CaseBuilder[N, Expr[Ind], Unit] ?=> Unit): ADTFunction[N] =
+  fun(adt, returnADT())(cases)

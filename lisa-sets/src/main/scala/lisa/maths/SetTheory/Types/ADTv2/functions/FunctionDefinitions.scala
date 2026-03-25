@@ -189,8 +189,8 @@ class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
       FunctionalClass(
         // Seq.fill(underlying.typeArity)(any),
         // underlying.typeVariablesSeq,
-        Nil,
-        Nil,
+        Nil, // As a placeholder
+        Nil, // As a placeholder
         semantic.typ
       ),
       semantic.intro ){
@@ -214,12 +214,12 @@ class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
     (
       c,
       THM(
-        semantic.intro.statement,
+        semantic.shortDefinition(c.semantic).statement,
         s"${name}/elimination: ${c.name} case",
         line.value,
         file.value,
         Theorem
-      ){have(semantic.intro)}
+      ){have(semantic.shortDefinition(c.semantic))}
     )
   ).toMap
 
