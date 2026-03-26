@@ -212,9 +212,9 @@ object ExtendedInteger extends lisa.Main {
     }
 
     val qSucc = have(∀(α, ordinal(α) /\ Q(α) ==> Q(S(α)))) subproof {
-      val h = ordinal(α) /\ Q(α)
+      val hyp = ordinal(α) /\ Q(α)
       // assume(ordinal(α) /\ Q(α))
-      have(h |- Q(α)) by Tautology
+      have(hyp |- Q(α)) by Tautology
 
       have(S(α) ∈ ω |- α ∈ ω) by Tautology.from(omegaPredecessor)
       thenHave((S(α) ∈ ω, Q(α)) |- P(α)) by Tautology
@@ -226,9 +226,9 @@ object ExtendedInteger extends lisa.Main {
         stepAlpha,
         omegaPredecessor of (α := α)
       )
-      thenHave((h, S(α) ∈ ω) |- P(S(α))) by Tautology
-      thenHave(h |- S(α) ∈ ω ==> P(S(α))) by RightImplies
-      thenHave(h ==> Q(S(α))) by Restate
+      thenHave((hyp, S(α) ∈ ω) |- P(S(α))) by Tautology
+      thenHave(hyp |- S(α) ∈ ω ==> P(S(α))) by RightImplies
+      thenHave(hyp ==> Q(S(α))) by Restate
       thenHave(thesis) by Generalize
     }
 

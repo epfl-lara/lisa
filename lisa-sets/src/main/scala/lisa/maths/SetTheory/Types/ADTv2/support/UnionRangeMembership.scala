@@ -22,16 +22,6 @@ import lisa.maths.Quantifiers.{
 
 object UnionRangeMembership {
 
-  private val n, m = variable[Ind]
-  private val s, t, d = variable[Ind]
-  private val x, y, z = variable[Ind]
-  private val f, g, h = variable[Ind]
-  private val p1, p2, p3 = variable[Prop]
-  private val q1, q2 = variable[Prop]
-  private val P = variable[Ind >>: Prop]
-  private val P2 = variable[Ind >>: Ind >>: Prop]
-
-
 
   // Synonyms for portability
 

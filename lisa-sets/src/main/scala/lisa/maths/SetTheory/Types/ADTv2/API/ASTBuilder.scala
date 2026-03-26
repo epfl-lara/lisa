@@ -2,12 +2,6 @@ package lisa.maths.SetTheory.Types.ADTv2.API
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.{ConstructorSpec, ADTSpec, ConstructorArg}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.ADT
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Constructor
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SyntacticADT
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SyntacticConstructor
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity

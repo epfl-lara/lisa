@@ -229,9 +229,17 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
         val backward = have(isHeight(h) |- ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n))) ==> constructorVarsInDomain(c, term)) subproof {
           val andSeq = for (v, ty) <- c.signature yield ty match
             case SelfRef =>
-              val termHasHeightBackward = have((isHeight(h), exists(n, in(n, N) /\ in(v, app(h, n)))) |- in(v, term)) by Cut(
+              val vInHeight = (∃(n, in(n, N) /\ in(x, app(h, n)))).substitute(x := v)
+              // TODO: generalize this substitution to avoid name conflicts
+              // Use fresh variables is hard
+              // We can try to quantify over all variables
+
+              // println(s"thesis: $thesis")
+              // println(s"goal: ${(isHeight(h), exists(n, in(n, N) /\ in(v, app(h, n)))) |- in(v, term)}")
+              // println(s"vInHeight: $vInHeight")
+              val termHasHeightBackward = have((isHeight(h), vInHeight) |- in(v, term)) by Cut(
                 termHasHeight of (x := v),
-                equivalenceRevApply of (p1 := ∃(n, in(n, N) /\ in(v, app(h, n))), p2 := in(v, term))
+                equivalenceRevApply of (p1 := vInHeight, p2 := in(v, term))
               )
 
               have((in(n, N) /\ in(v, app(h, n))) |- in(n, N) /\ in(v, app(h, n))) by Restate

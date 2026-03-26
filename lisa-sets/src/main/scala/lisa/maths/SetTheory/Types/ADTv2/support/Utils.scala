@@ -1,5 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.support
 
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueVariable
+
 import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
@@ -23,21 +25,11 @@ object Utils {
     var tagCounter = 0
   }
 
+  // export lisa.maths.SetTheory.Types.ADTv2.support.UniqueVariable
+  export lisa.maths.SetTheory.Types.ADTv2.support.MyVariables.*
+
+
   // Variables used
-
-  val a, b, c, d = variable[Ind]
-  val f, g = variable[Ind]
-  val k, n, m = variable[Ind]
-  val h = variable[Ind]
-  val r, s, t = variable[Ind]
-  val x, y, z = variable[Ind]
-
-  val p, p1, p2, p3, p4 = variable[Prop]
-
-  val P, Q = variable[Ind >>: Prop]
-  val schemPred = variable[Ind >>: Prop]
-
-  val N: Expr[Ind] = ω
 
   // Some useful constants and functions
   object UnreachableException

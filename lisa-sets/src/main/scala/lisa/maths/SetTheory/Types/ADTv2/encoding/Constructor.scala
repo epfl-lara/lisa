@@ -3,7 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional, *}
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{UnreachableException, wellTypedSet}
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.funEqDef
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -77,8 +77,6 @@ class Constructor[N <: Arity]  (using
   ) {
 
     have(semantic.intro.statement) by Restate.from(intro)
-
-    val f, a, b, x = variable[Ind]
 
     // Instantiate possible type-parameter quantifiers in intro.
     val introInstantiated = semantic.typeVariablesSeq.foldLeft(lastStep)((fact, v) =>

@@ -15,8 +15,6 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
     extends SyntacticADTInjectivity[N] {
   this: SyntacticADT[N] =>
 
-  private val P = variable[Ind >>: Prop]
-
   // *************************
   // * INTRODUCTION FUNCTION *
   // *************************

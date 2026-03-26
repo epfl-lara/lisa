@@ -34,14 +34,6 @@ import lisa.maths.Quantifiers.{
 
 object UsefulTheorems {
 
-  private val n, m = variable[Ind]
-  private val s, t, d = variable[Ind]
-  private val x, y, z = variable[Ind]
-  private val f, g, h = variable[Ind]
-  private val p1, p2, p3 = variable[Prop]
-  private val q1, q2 = variable[Prop]
-  private val P = variable[Ind >>: Prop]
-
   val equivalenceApply = Lemma((p1 <=> p2, p1) |- p2){
     have(thesis) by Tautology
   }
@@ -147,27 +139,27 @@ object UsefulTheorems {
 
     val forward = have(n === m |- successor(n) === successor(m)) by Congruence
 
-    val h = successor(n) === successor(m)
-    val eq = have(h |- successor(n) === successor(m)) by Hypothesis
+    val hyp = successor(n) === successor(m)
+    val eq = have(hyp |- successor(n) === successor(m)) by Hypothesis
 
-    have(h /\ in(z, n) |- in(z, successor(n))) by Sorry
+    have(hyp /\ in(z, n) |- in(z, successor(n))) by Sorry
     // Tautology.from(
     //   successor.definition of (n := n, m := m),
     //   UnorderedPair.leftInPair of (x := z, y := Singleton.singleton(n))
     // )
-    have(h /\ in(z, n) |- in(z, successor(m))) by Congruence.from(lastStep, eq)
+    have(hyp /\ in(z, n) |- in(z, successor(m))) by Congruence.from(lastStep, eq)
 
-    have(h /\ in(z, n) |- in(z, m)) by Sorry
-    have(h |- in(z, n) ==> in(z, m)) by Tautology.from(lastStep)
-    thenHave(h |- forall(z, in(z, n) ==> in(z, m))) by RightForall
-    val incl = have(h |- subset(n, m)) by
+    have(hyp /\ in(z, n) |- in(z, m)) by Sorry
+    have(hyp |- in(z, n) ==> in(z, m)) by Tautology.from(lastStep)
+    thenHave(hyp |- forall(z, in(z, n) ==> in(z, m))) by RightForall
+    val incl = have(hyp |- subset(n, m)) by
       Tautology.from(lastStep, subsetAxiom of (x := n, y := m))
 
-    thenHave(h ==> subset(n, m)) by Restate
-    thenHave(forall(n, forall(m, h ==> subset(n, m)))) by Generalize
-    val revIncl = thenHave(h |- subset(m, n)) by InstantiateForall(m, n)
+    thenHave(hyp ==> subset(n, m)) by Restate
+    thenHave(forall(n, forall(m, hyp ==> subset(n, m)))) by Generalize
+    val revIncl = thenHave(hyp |- subset(m, n)) by InstantiateForall(m, n)
 
-    val backward = have(h |- n === m) by
+    val backward = have(hyp |- n === m) by
       Tautology.from(Subset.doubleInclusion of (x := n, y := m), incl, revIncl)
 
     have(thesis) by Tautology.from(forward, backward)
@@ -188,7 +180,6 @@ object UsefulTheorems {
 
   val zeroIsNat = Lemma(in(∅, N)){
     import Ordinal.{<=, <, successorOrdinal}
-    val α, β = variable[Ind]
     have( (b <= ∅) |- ((b ∈ ∅) \/ (b === ∅))) by Tautology
     have( (b ⊆ ∅) ==> (b === ∅)) by Tautology.from(Subset.rightEmpty of (x := b))
 
@@ -205,7 +196,7 @@ object UsefulTheorems {
   val natNotEmpty = Lemma(!(N === ∅))(have(thesis) by Sorry)
 
   val successorIsNat = Lemma(in(n, N) <=> in(successor(n), N)) {
-    val α = variable[Ind]
+
     val eqSucc = have(S(n) === successor(n)) by
       Congruence.from(S.definition of (α := n), successor.definition of (x := n))
 
@@ -226,7 +217,6 @@ object UsefulTheorems {
     (P(∅), forall(m, in(m, N) ==> (P(m) ==> P(successor(m))))) |-
       forall(n, in(n, N) ==> P(n))
   ) {
-    val α = variable[Ind]
     val eqSucc = have(S(m) === successor(m)) by
       Congruence.from(S.definition of (α := m), successor.definition of (x := m))
 
@@ -302,8 +292,6 @@ object UsefulTheorems {
 
     import Ordinal.<
     import TransitiveSet.transitiveSet
-    val α, β = variable[Ind]
-    val A = variable[Ind]
 
     // get ordinals from ω-membership
     have(in(a, N) <=> Integer.integer(a)) by InstantiateForall(a)(omegaCharacterization)
@@ -386,7 +374,7 @@ object UsefulTheorems {
   }
 
   val funEqDef = Lemma( f :: a ->: b |- x :: a ==> (f * x) :: b ) {
-    val A,B = variable[Ind]
+
     val fInArrow = assume(f :: a ->: b)
     val fBetween = have(functionBetween(f)(a)(b)) by Tautology.from(
       funcBetweenEqInFuncSpace of (f := f, A := a, B := b),

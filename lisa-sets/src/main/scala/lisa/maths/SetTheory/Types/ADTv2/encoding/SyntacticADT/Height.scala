@@ -15,8 +15,6 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     extends SyntacticADTIntroduction[N] {
   this: SyntacticADT[N] =>
 
-  private val P = variable[Ind >>: Prop]
-
   // *******************
   // * HEIGHT FUNCTION *
   // *******************

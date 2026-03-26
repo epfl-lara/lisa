@@ -24,14 +24,6 @@ import lisa.maths.SetTheory.Functions.Operations.Restriction
 
 object UnionRangeCollapse {
 
-  private val n, m = variable[Ind]
-  private val s, t, d = variable[Ind]
-  private val x, y, z = variable[Ind]
-  private val f, g, h = variable[Ind]
-  private val p1, p2, p3 = variable[Prop]
-  private val q1, q2 = variable[Prop]
-  private val P = variable[Ind >>: Prop]
-
 
   private val inSucc = Lemma(in(x, successor(n)) <=> (x === n) \/ in(x, n)) {
     val succDef = have(successor(n) === (n ∪ singleton(n))) by Tautology.from(successor.definition of (x := n))
@@ -250,7 +242,6 @@ object UnionRangeCollapse {
       ∃(x, in(x, d ∩ dom(f)) /\ (app(restrictedFunction(f, d))(x) === y))
   ) {
 
-    val A = variable[Ind]
     val restrictedDom = have(dom(f ↾ d) === d ∩ dom(f)) by Sorry
     have(
       function(f) |- in(y, range(restrictedFunction(f, d))) <=> ∃(

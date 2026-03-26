@@ -14,8 +14,6 @@ import lisa.utils.prooflib.BasicStepTactic.Restate
 private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTerm[N] {
   this: SyntacticADT[N] =>
 
-  private val P = variable[Ind >>: Prop]
-
   // ************************
   // * STRUCTURAL INDUCTION *
   // ************************
