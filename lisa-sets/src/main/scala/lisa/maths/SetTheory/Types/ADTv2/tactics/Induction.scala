@@ -5,7 +5,7 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding.ADT
 import lisa.maths.SetTheory.Types.ADTv2.encoding.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.API.CaseBuilder
+import lisa.maths.SetTheory.Types.ADTv2.functions.CaseAccumulator
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, TypeAssign}
@@ -273,14 +273,14 @@ class Induction[M <: Arity](
    *
    *  @tparam N the arity of the ADT
    *  @param proof the scope in which the induction is performed
-   *  @param cases the cases to prove. A [[CaseBuilder]] is a mutable data structure that
+  *  @param cases the cases to prove. A [[CaseAccumulator]] is a mutable data structure that
    *    register every case that has been added to the tactic.
    *  @param bot the claim
    */
   def apply[N <: Arity](using
       proof: lisa.SetTheoryLibrary.Proof
   )(
-      cases: CaseBuilder[
+      cases: CaseAccumulator[
         N,
         proof.ProofStep,
         (Sequent, Seq[Expr[Ind]], Variable[Ind])
@@ -294,7 +294,7 @@ class Induction[M <: Arity](
       val assignment = inferedVar :: inferedADT.semantic.term(inferedArgs)
       val context = (if inferedProp.isDefined then bot else bot -<< assignment).left
       val builder =
-        CaseBuilder[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])](
+        CaseAccumulator[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])](
           (context |- prop, inferedArgs, inferedVar)
         )
       cases(using builder)

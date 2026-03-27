@@ -6,6 +6,8 @@ object BuilderAPI extends lisa.Main {
   // *   ADT Builder API   *
   // ***********************
 
+  section("ADT Builder API")
+
   // println(s"Loading ADTv2Example / list2 ADT...")
 
   val list2 = API.defineAST(
