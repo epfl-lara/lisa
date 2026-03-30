@@ -8,11 +8,9 @@ import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Base.Singleton
 import lisa.maths.SetTheory.Base.EmptySet
-import lisa.utils.prooflib.BasicStepTactic.LeftForall
-import lisa.utils.prooflib.BasicStepTactic.Hypothesis
-import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
-import lisa.utils.prooflib.SimpleDeducedSteps.Generalize
-import lisa.utils.prooflib.SimpleDeducedSteps.Generalize
+import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.maths.Quantifiers.existsEpsilon
 
 /**
  * This file defines integers as ordinals whose elements are either zero
@@ -43,9 +41,22 @@ object ExtendedInteger extends lisa.Main {
   /**
    * Bridge theorem --- Characterization of membership in `ω` by `integer`.
    */
-  val omegaCharacterization = Axiom(
-    ∀(α, α ∈ ω <=> integer(α))
-  )
+  val omegaCharacterization = Axiom(∀(α, α ∈ ω <=> integer(α)))
+  // {
+
+  //   val P = variable[Ind >>: Prop]
+  //   def Q(x: Expr[Ind]) = 
+  //     ∀(α, α ∈ x <=> integer(α))
+
+  //   val existsP = have(∃(x, Q(x))) by Sorry
+
+  //   // have(Q(ε(x, Q(x)))) by Tautology.from(existsP, existsEpsilon of (P := lambda( x, Q(x)), x := x))
+  //   // have(Q(ω)) by Congruence.from(lastStep of (α := β), Integer.ω.definition)
+  //   have(Q(x)) by Sorry // Tautology.from(existsP)
+  //   thenHave(Q(ε(x, Q(x)))) by RightEpsilon
+  //   have(Q(ω)) by Congruence.from(lastStep, Integer.ω.definition)// of (x := x))
+  //   thenHave(thesis) by Tautology
+  // }
 
   private val γ, λ_ = variable[Ind]
 

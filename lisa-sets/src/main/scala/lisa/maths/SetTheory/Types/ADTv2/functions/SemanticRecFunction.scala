@@ -46,6 +46,9 @@ class SemanticRecFunction[N <: Arity](
     caseDefinitions.map((c, caseDef) =>
       val (vars, body) = caseDef
       c -> (Lemma(wellTyped(c.semanticSignature(vars)) |- (body :: returnType)) {
+        // Proof idea: same shape as non-recursive typing check, but recursive occurrences
+        // require a typing hypothesis for `term` itself. This introduces circularity in
+        // the current pipeline, so we keep a placeholder.
         have(thesis) by Sorry
       })
     )
@@ -58,12 +61,17 @@ class SemanticRecFunction[N <: Arity](
         simplify(wellTypedFormula(c.semanticSignature(vars))) ==>
           (term * c.appliedTerm(vars) === body)
       ) {
+        // Proof idea: unlike the non-recursive case, deriving this equation from a
+        // first-order function characterization needs a recursive/fixpoint principle.
+        // We keep this as a placeholder until that principle is formalized.
         have(thesis) by Sorry
       })
     )
 
   /** Introduction rule for the recursive symbol (placeholder proof). */
   val intro: THM = Lemma(forallSeq(typeVariablesSeq, term :: typ)) {
+    // Proof idea: would follow from a recursive function-definition axiom saying the
+    // symbol is in the appropriate function space and satisfies all recursive equations.
     have(thesis) by Sorry
   }
 }

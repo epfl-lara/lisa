@@ -38,11 +38,6 @@ class Induction[M <: Arity](
     expectedADT: Option[ADT[M]]
 ) extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 
-  // TODO: substitute type parameters inside RegularArg once TypeExpr substitution is exposed.
-  private def substitute(cons: ConstructorArg, p: Any*): ConstructorArg = cons match
-    case SelfRef => SelfRef
-    case RegularArg(t) => RegularArg(t)
-
   /**
    *  Given a proof of the claim for each case (possibly using the induction hypothesis),
    *  reassemble them to generate a proof of the claim of the form `∀x. x :: adt => P(x)`
@@ -71,47 +66,46 @@ class Induction[M <: Arity](
       .map(SubstPair(_, _))
     val instTerm = adt.semantic.term(typeVariablesSubst)
 
-    adt.constructors
-      .foldLeft[proof.Fact](adt.induction.of((typeVariablesSubstPairs :+ (P := prop))*))(
-        (acc, c) =>
-          val inductiveCaseProof = cases(c)._1
-            .zip(c.semantic.underlying.specification.map(substitute(_, 
-              typeVariablesSubstPairs*
-            ))).foldRight[proof.Fact](cases(c)._2)((el, acc2) =>
-              val (v, ty) = el
-              val accRight: Expr[Prop] = acc2.statement.right.head
-              ty match
-                case SelfRef =>
-                  have((acc2.statement -<? prop(v)).left |- prop(v) ==> accRight) by
-                    Weakening(acc2)
-                  thenHave(
-                    (lastStep.statement -<? (v :: instTerm)).left |-
-                      v :: instTerm ==> (prop(v) ==> accRight)
-                  ) by Weakening
-                  thenHave(
-                    lastStep.statement.left |-
-                      forall(v, v :: instTerm ==> (prop(v) ==> accRight))
-                  ) by RightForall
-                case RegularArg(t_) =>
-                  val t = typeExprToTerm(t_)
-                  thenHave((acc2.statement -<? (v :: t)).left |- v :: t ==> accRight) by
-                    Weakening
-                  thenHave(lastStep.statement.left |- forall(v, v :: t ==> accRight)) by
-                    RightForall
-            )
-          acc.statement.right.head match
-            case implies(trueInd, rest) =>
-              // println(s"Case: ${c.fullName}")
-              // println(isSame(trueInd, inductiveCaseProof.statement.right.head))
-              // println(inductiveCaseProof.statement)
-              // println("         +          ")
-              // println(acc.statement)
-              // println("         =          ")
-              // println((acc.statement.left ++ inductiveCaseProof.statement.left) |- rest)
-              have((acc.statement.left ++ inductiveCaseProof.statement.left) |- rest) by
-                Sorry // Cut(inductiveCaseProof, acc)
-            case _ => throw UnreachableException
+    adt.constructors.foldLeft[proof.Fact](adt.induction.of(
+      (typeVariablesSubstPairs :+ (P := prop))*
+    ))((acc, c) =>
+      val inductiveCaseProof = cases(c)._1.zip(
+        c.semantic.underlying.specification
+      ).foldRight[proof.Fact](cases(c)._2)((el, acc2) =>
+        val (v, ty) = el
+        val accRight: Expr[Prop] = acc2.statement.right.head
+        ty match
+          case SelfRef =>
+            have((acc2.statement -<? prop(v)).left |- prop(v) ==> accRight) by
+              Weakening(acc2)
+            thenHave(
+              (lastStep.statement -<? (v :: instTerm)).left |-
+                v :: instTerm ==> (prop(v) ==> accRight)
+            ) by Weakening
+            thenHave(
+              lastStep.statement.left |-
+                forall(v, v :: instTerm ==> (prop(v) ==> accRight))
+            ) by RightForall
+          case RegularArg(t_) =>
+            val t = typeExprToTerm(t_)
+            thenHave((acc2.statement -<? (v :: t)).left |- v :: t ==> accRight) by
+              Weakening
+            thenHave(lastStep.statement.left |- forall(v, v :: t ==> accRight)) by
+              RightForall
       )
+      acc.statement.right.head match
+        case implies(trueInd, rest) =>
+          // println(s"Case: ${c.fullName}")
+          // println(isSame(trueInd, inductiveCaseProof.statement.right.head))
+          // println(inductiveCaseProof.statement)
+          // println("         +          ")
+          // println(acc.statement)
+          // println("         =          ")
+          // println((acc.statement.left ++ inductiveCaseProof.statement.left) |- rest)
+          have((acc.statement.left ++ inductiveCaseProof.statement.left) |- rest) by
+            Sorry // Cut(inductiveCaseProof, acc)
+        case _ => throw UnreachableException
+    )
     thenHave(
       context |- forall(
         inductionVariable,
@@ -267,14 +261,28 @@ class Induction[M <: Arity](
   )
 
   /**
+   *  Fallback when ADT typing is not explicitly present in the sequent context.
+   *
+   *  This enables calls such as `Induction(x, nat)` on goals of the form `|- P(x)`.
+   */
+  private def inferArgumentsFromExpected(
+      seq: Sequent
+  ): Option[(Variable[Ind], ADT[?], Seq[Expr[Ind]], Option[Expr[Prop]])] =
+    (expectedVar, expectedADT) match
+      case (Some(v), Some(a)) =>
+        // By default instantiate ADT type parameters with their schematic variables.
+        Some((v, a, a.typeVariables.toSeq, None))
+      case _ => None
+
+  /**
    *  Given a proof of the claim for each case (possibly using the induction hypothesis),
    *  reassemble the subproofs to generate a proof of the claim for every element of the
    *  ADT.
    *
    *  @tparam N the arity of the ADT
    *  @param proof the scope in which the induction is performed
-  *  @param cases the cases to prove. A [[CaseAccumulator]] is a mutable data structure that
-   *    register every case that has been added to the tactic.
+   *  @param cases the cases to prove. A [[CaseAccumulator]] is a mutable data structure
+   *    that register every case that has been added to the tactic.
    *  @param bot the claim
    */
   def apply[N <: Arity](using
@@ -285,39 +293,53 @@ class Induction[M <: Arity](
         proof.ProofStep,
         (Sequent, Seq[Expr[Ind]], Variable[Ind])
       ] ?=> Unit
-  )(bot: Sequent): proof.ProofTacticJudgement = inferArguments(bot) match
+  )(bot: Sequent): proof.ProofTacticJudgement = inferArguments(bot)
+    .orElse(inferArgumentsFromExpected(bot)) match
     case Some((inferedVar, inferedADT, inferedArgs, inferedProp)) =>
 
       val prop = inferedProp.getOrElse(bot.right.head)
       val propFunction = (t: Expr[Ind]) =>
         inferedProp.getOrElse(bot.right.head).substitute(inferedVar -> t)
       val assignment = inferedVar :: inferedADT.semantic.term(inferedArgs)
-      val context = (if inferedProp.isDefined then bot else bot -<< assignment).left
-      val builder =
-        CaseAccumulator[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])](
-          (context |- prop, inferedArgs, inferedVar)
+
+      val missingTypingAssumption =
+        inferedProp.isEmpty &&
+          !bot.left.contains(assignment) &&
+          bot.freeVars.contains(inferedVar)
+
+      if missingTypingAssumption then
+        proof.InvalidProofTactic(
+          s"Induction on variable '$inferedVar' over ADT '${inferedADT.name}' requires the typing assumption '$assignment' in the goal context. " +
+            s"Current goal is '$bot'. Add '( $assignment ) |- ...', or restate the goal as a universally quantified statement " +
+            s"'|- forall($inferedVar, $assignment ==> P($inferedVar))'."
         )
-      cases(using builder)
+      else
+        val context = (if inferedProp.isDefined then bot else bot -<< assignment).left
+        val builder =
+          CaseAccumulator[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])] (
+            (context |- prop, inferedArgs, inferedVar)
+          )
+        cases(using builder)
 
-      builder.isValid(inferedADT.asInstanceOf[ADT[N]]) match
-        case None => TacticSubproof { sp ?=>
-            proveForallPredicate(using sp)(
-              builder.build,
-              inferedVar,
-              inferedADT.asInstanceOf[ADT[N]],
-              inferedArgs,
-              propFunction,
-              context
-            )
-            if !inferedProp.isDefined then
-              lastStep.statement.right.head match
-                case forall(_, phi) => thenHave(context |- phi) by
-                    InstantiateForall(inferedVar)
-                case _ => throw UnreachableException
+        builder.isValid(inferedADT.asInstanceOf[ADT[N]]) match
+          case None => TacticSubproof { sp ?=>
+              proveForallPredicate(using sp)(
+                builder.build,
+                inferedVar,
+                inferedADT.asInstanceOf[ADT[N]],
+                inferedArgs,
+                propFunction,
+                context
+              )
+              if !inferedProp.isDefined then
+                lastStep.statement.right.head match
+                  case forall(_, phi) => thenHave(context |- phi) by
+                      InstantiateForall(inferedVar)
+                  case _ => throw UnreachableException
 
-            thenHave(bot) by Tautology
-          }
-        case Some(msg) => proof.InvalidProofTactic(msg)
+              thenHave(bot) by Tautology
+            }
+          case Some(msg) => proof.InvalidProofTactic(msg)
 
     case None => proof
         .InvalidProofTactic("No variable typed with the ADT found in the context.")

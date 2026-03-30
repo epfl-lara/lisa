@@ -22,33 +22,8 @@ object ADTInsights extends lisa.Main {
   // * ADTv2 Test: Syntax Tree Creation *
   // ************************************
 
-  val boolSpec = adt(
-    name = "bool",
-    typeParameters = Seq.empty,
-    constructors = Seq(constructor("tru"), constructor("fals"))
-  )
-  val natSpec = adt(
-    name = "nat",
-    typeParameters = Seq.empty,
-    constructors = Seq(constructor("zero"), constructor("succ", self))
-  )
-  val optionSpec = adt(
-    name = "option",
-    typeParameters = Seq("A"),
-    constructors = Seq(constructor("none"), constructor("some", arg(typ("A"))))
-  )
-  val treeSpec = adt(
-    name = "tree",
-    typeParameters = Seq("A", "B"),
-    constructors = Seq(
-      constructor("leaf", arg(typ("A"))),
-      constructor("node", arg(typ("B")), self, self)
-    )
-  )
-
-
   val nilSpec = constructor("nil")
-  val consSpec = constructor("cons", arg(typ("A")), self)
+  val consSpec = constructor("cons", "A", SelfRef)
   val listSpec = adt(
     name = "list",
     typeParameters = Seq("A"),

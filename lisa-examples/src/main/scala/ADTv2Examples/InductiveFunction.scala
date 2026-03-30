@@ -89,4 +89,53 @@ object InductiveFunction extends lisa.Main {
   }
 
 
+
+  val list = API.defineAST(
+    name = "list",
+    typeVars = Seq("A"),
+    constructors = Seq(
+      ("nil", Seq.empty),
+      ("cons", Seq(("head", "A"), ("tail", SelfRef)))
+    )
+  )
+  val nil = list.constructors(0)
+  val cons = list.constructors(1)
+
+  val hd, tl = variable[Ind]
+
+  val getHeadV1 = fun(list, nat):
+    Case(nil):
+      zero
+    Case(cons, hd, tl):
+      // val res = 
+      // succ * ((fun(bool, nat):
+      //   Case(tru):
+      //     succ * zero
+      //   Case(fals):
+      //     zero) * hd)
+      // succ * (res * hd)
+      zero
+
+  val getHeadV2 = fun(list, nat):
+    Case(nil):
+      zero
+    Case(cons, hd, tl):
+      succ * zero
+    // Case(cons, fals.debug_semantic.debug_class, tl):
+    //   succ * zero
+    // Case(cons, tru.debug_semantic.debug_class, tl):
+    //   succ * succ * zero
+      
+  // show(getHeadV1.intro)
+  // for (c <- getHeadV1.elim.keys) show(getHeadV1.elim(c))
+  // show(getHeadV2.intro)
+  // for (c <- getHeadV2.elim.keys) show(getHeadV2.elim(c))
+
+  // println(s"tru: ${tru.debug_semantic.term} ${tru.debug_semantic.debug_class} ${tru.debug_semantic.debug_classConst}")
+  // println(s"is tru constant ? ${tru.debug_semantic.debug_class.getClass.getName}")
+  // Return lisa.utils.fol.Syntax$Constant
+  // TODO : Case support Variable and Constant pattern-matching
+
+  // println(s"is head constant? ${hd :: Constant[Ind]}")
+
 }
