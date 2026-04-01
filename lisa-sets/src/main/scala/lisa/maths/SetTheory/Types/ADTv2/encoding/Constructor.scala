@@ -44,6 +44,8 @@ class Constructor[N <: Arity]  (using
    */
   val name = semantic.fullName
 
+  val debug_semantic: SemanticConstructor[N] = semantic
+
   /**
    *  Theorem --- Introduction rule
    *
@@ -119,4 +121,22 @@ class Constructor[N <: Arity]  (using
 
   /** Type variables appearing in the signature of this constructor */
   val typeVariables: Variable[Ind] ** N = semantic.typeVariables
+
+  /**
+   *  Instantiate constructor type parameters with expression-level type arguments.
+   *
+   *  Empty arguments keep schematic type variables (for debug/printing consistency).
+   */
+  def apply(args: Expr[Ind]*): Expr[Ind] = {
+    val expected = typeVariables.toSeq.size
+    require(
+      args.size == expected || args.isEmpty,
+      s"Constructor $name expects $expected type argument(s), got ${args.size}."
+    )
+    if args.isEmpty then semantic.term(semantic.typeVariablesSeq)
+    else semantic.term(args)
+  }
+
+  /** Backward-compatible alias for constructor specialization. */
+  def of(args: Expr[Ind]*): Expr[Ind] = apply(args*)
 }

@@ -28,7 +28,7 @@ def fun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
 def fun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(
   using name: sourcecode.Name
 )(cases: CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit): ADTFunction[N] =
-  fun[N](adt, returnADT())(cases)
+  fun[N](adt, returnADT.semantic.term(Seq.empty))(cases)
 
 /**
  * Minimal recursive-function template.
@@ -66,4 +66,4 @@ def recFun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(using
 )(
   cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
 ): RecFunction[N] =
-  recFun[N](adt, returnADT())(cases)
+  recFun[N](adt, returnADT.semantic.term(Seq.empty))(cases)

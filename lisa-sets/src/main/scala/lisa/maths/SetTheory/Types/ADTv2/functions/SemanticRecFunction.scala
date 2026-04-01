@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.functions
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -27,10 +28,12 @@ class SemanticRecFunction[N <: Arity](
   val typeArity: N = adt.typeArity
 
   val fullName = s"$name"
-  val typ = adt.term ->: returnType
+  var argType: Expr[Ind] = adt.term
+  val typ = argType ->: returnType
 
   private val classFunctionConst: Constant[Ind] = Constant[Ind](fullName)
   registerConstant(classFunctionConst)
+  classFunctionConst.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
 
   val id: Identifier = classFunctionConst.id
   val term: Expr[Ind] = appSeq(classFunctionConst)(typeVariablesSeq)
@@ -40,6 +43,23 @@ class SemanticRecFunction[N <: Arity](
       val (vars, body) = caseDef
       c -> (vars, body.substitute(selfPlaceholder := term))
     )
+
+  private val untypedDefinition = (f :: typ) /\ simplify(seqAnd(cases.map((c, caseDef) =>
+    val (vars, body) = caseDef
+    forallSeq(
+      vars,
+      wellTypedFormula(c.semanticSignature(vars)) ==> (f * c.appliedTerm(vars) === body)
+    )
+  )))
+
+  /** Lemma --- Uniqueness of this function. */
+  private val uniqueness = Axiom(existsOne(f, untypedDefinition))
+
+  private val classFunctionCharacterization =
+    Lemma(forall(f, (term === f) <=> untypedDefinition)) {
+      have((term === f) <=> untypedDefinition) by Sorry
+      thenHave(thesis) by RightForall
+    }
 
   /** Minimal typing obligations for recursive cases (placeholder proofs). */
   private val checkReturnType: Map[SemanticConstructor[N], THM] =
@@ -72,6 +92,22 @@ class SemanticRecFunction[N <: Arity](
   val intro: THM = Lemma(forallSeq(typeVariablesSeq, term :: typ)) {
     // Proof idea: would follow from a recursive function-definition axiom saying the
     // symbol is in the appropriate function space and satisfies all recursive equations.
-    have(thesis) by Sorry
+
+    have(forall(f, (term === f) <=> untypedDefinition)) by
+      Restate.from(classFunctionCharacterization)
+
+    thenHave(
+      (term === term) <=> (term :: typ) /\
+        (seqAnd(cases.map { (c, caseDef) =>
+          val (vars, body) = caseDef
+          forallSeq(
+            vars,
+            seqAnd(wellTyped(c.semanticSignature(vars))) ==>
+              (term * c.appliedTerm(vars) === body)
+          )
+        }))
+    ) by InstantiateForall(term)
+    thenHave(term :: typ) by Weakening
+    thenHave(thesis) by QuantifiersIntro(typeVariablesSeq)
   }
 }

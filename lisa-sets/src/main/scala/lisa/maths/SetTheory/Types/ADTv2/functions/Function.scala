@@ -38,6 +38,12 @@ class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
       semantic.intro
     ) {
 
+  /** Expression-level term with schematic type variables. */
+  val term: Expr[Ind] = semantic.term
+
+  /** Sequence view of type variables used for specialization helpers. */
+  private val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
+
   /** Name of the function */
   val name = semantic.fullName
 
@@ -82,4 +88,24 @@ class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
 
   /** Type variables in the signature of the function */
   val typeVariables: Variable[Ind] ** N = semantic.typeVariables
+
+  /**
+   *  Instantiate the polymorphic type parameters of this function.
+   *
+   *  Empty arguments keep schematic type variables.
+   */
+  def apply(args: Expr[Ind]*): Expr[Ind] = {
+    require(
+      args.size == typeVariablesSeq.size || args.isEmpty,
+      s"Function $name expects ${typeVariablesSeq.size} type argument(s), got ${args.size}."
+    )
+    if args.isEmpty then term
+    else {
+      val substitutions = typeVariablesSeq.zip(args).map((v, a) => v := a)
+      term.substitute(substitutions*)
+    }
+  }
+
+  /** Backward-compatible alias for polymorphic specialization. */
+  def of(args: Expr[Ind]*): Expr[Ind] = apply(args*)
 }

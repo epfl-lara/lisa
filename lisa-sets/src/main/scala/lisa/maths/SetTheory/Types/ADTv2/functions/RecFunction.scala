@@ -16,11 +16,37 @@ class RecFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
 
   val name: String = semantic.fullName
   val typeVariables: Variable[Ind] ** N = semantic.typeVariables
+  val argType: Expr[Ind] = semantic.argType
   val returnType: Expr[Ind] = semantic.returnType
   val term: Expr[Ind] = semantic.term
 
+  /** Sequence view of type variables used for specialization helpers. */
+  private val typeVariablesSeq: Seq[Variable[Ind]] = typeVariables.toSeq
+
   infix def *(arg: Expr[Ind]): Expr[Ind] = term * arg
-  def apply(arg: Expr[Ind]): Expr[Ind] = term * arg
+  def at(arg: Expr[Ind]): Expr[Ind] = term * arg
+
+  /**
+   *  Instantiate the polymorphic type parameters of this recursive function.
+   *
+   *  Empty arguments keep schematic type variables.
+   */
+  def apply(args: Expr[Ind]*): Expr[Ind] = {
+    require(
+      args.size == typeVariablesSeq.size || args.isEmpty,
+      s"Function $name expects ${typeVariablesSeq.size} type argument(s), got ${args.size}."
+    )
+    if args.isEmpty then term
+    else {
+      val substitutions = typeVariablesSeq.zip(args).map((v, a) => v := a)
+      term.substitute(substitutions*)
+    }
+  }
+
+  /** Backward-compatible alias for polymorphic specialization. */
+  def of(args: Expr[Ind]*): Expr[Ind] = apply(args*)
+
+  override def toString: String = s"$name[${typeVariablesSeq.mkString(", ")}]: $argType -> $returnType"
 
   val intro: THM = THM(
     semantic.intro.statement,

@@ -71,6 +71,13 @@ object Utils {
   def appSeq(f: Expr[Ind])(args: Seq[Expr[Ind]]): Expr[Ind] =
     Option(args).getOrElse(Seq.empty).foldLeft(f)(_ * _)
 
+  def renderAppliedSymbol(name: String, typeArgCount: Int, args: Seq[Expr[?]]): String =
+    val (typeArgs, valueArgs) = args.splitAt(typeArgCount)
+    val head =
+      if typeArgCount == 0 then name
+      else s"$name[${typeArgs.mkString(",")}]"
+    valueArgs.foldLeft(head)((acc, arg) => s"$acc($arg)")
+
   def seqOr(s: Iterable[Expr[Prop]]): Expr[Prop] = s.reduceOption(_ \/ _)
     .getOrElse(False: Expr[Prop])
 
@@ -108,13 +115,15 @@ object Utils {
   extension (arg: ConstructorArg)
     def getOrElse(adt: Expr[Ind]): Expr[Ind] = arg match
       case SelfRef => adt
-      case RegularArg(tpe) => typeExprToTerm(tpe)
+      // case RegularArg(tpe) => typeExprToTerm(tpe)
+      case TypeArg(name) => Variable[Ind](name)
+
+  def typeExprToTerm(name: String): Variable[Ind] = 
+    Variable[Ind](name)
 
   def typeExprToTerm(tpe: TypeExpr): Expr[Ind] = tpe match
     case TypeRef(name) =>
-      val c = Constant[Ind](name)
-      registerConstant(c)
-      c
+      Variable[Ind](name)
     case TypeApply(name, args) =>
       val c = Constant[Ind](s"$name[${args.mkString(",")}]")
       registerConstant(c)

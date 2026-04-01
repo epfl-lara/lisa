@@ -6,6 +6,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.typeExprToTerm
+import lisa.maths.SetTheory.Types.ADTv2.support.Printing
 
 /**
  *  Type theoretic polymorphic inductive datatype. Comes with a structural induction
@@ -25,6 +26,8 @@ class ADT[N <: Arity] (using line: sourcecode.Line, file: sourcecode.File)(
     val semantic: SemanticADT[N],
     val constructors: Seq[Constructor[N]]
 ) {
+
+  Printing.install()
 
   /** Name of this ADT */
   val name = semantic.name
@@ -90,6 +93,9 @@ class ADT[N <: Arity] (using line: sourcecode.Line, file: sourcecode.File)(
   /** Type variables appearing in the signature of this ADT */
   val typeVariables: Variable[Ind] ** N = semantic.typeVariables
 
+  /** Sequence view of type variables for runtime arity checks. */
+  private val typeVariablesSeq: Seq[Variable[Ind]] = typeVariables.toSeq
+
   /**
    *  Instantiate the type variables of this ADT with given types. Checks the arity at
    *  runtime.
@@ -116,7 +122,28 @@ class ADT[N <: Arity] (using line: sourcecode.Line, file: sourcecode.File)(
    *
    *  @param args the types to instantiate the type variables with
    */
-  def apply(args: TypeExpr*): Expr[Ind] = semantic.term(args.map(typeExprToTerm))
+  def applyType(args: TypeExpr*): Expr[Ind] = semantic.term(args.map(typeExprToTerm))
+
+  /**
+   *  Instantiate this ADT with expression-level type arguments.
+   *
+   *  This is a lightweight ergonomic helper for example-level code where concrete ADT
+   *  terms (e.g. nat()) are already available as expressions.
+   */
+  def apply(args: Expr[Ind]*): Expr[Ind] = {
+    require(
+      args.size == typeVariablesSeq.size || args.isEmpty,
+      s"ADT $name expects ${typeVariablesSeq.size} type argument(s), got ${args.size}."
+    )
+    if args.isEmpty then 
+      semantic.term(typeVariablesSeq)
+    else semantic.term(args)
+  }
+
+  /** Backward-compatible alias for previous expression-level ADT instantiation syntax. */
+  def of(args: Expr[Ind]*): Expr[Ind] = apply(args*)
+
+  override def toString: String = s"$name[${typeVariablesSeq.mkString(", ")}]"
 }
 
 object ADT {

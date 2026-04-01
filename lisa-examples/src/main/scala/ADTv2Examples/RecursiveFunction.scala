@@ -1,6 +1,6 @@
 
 import lisa.maths.SetTheory.Types.ADTv2.*
-import lisa.utils.prooflib.BasicStepTactic.Sorry
+import lisa.maths.SetTheory.Functions.BasicTheorems.{appTyping, funcBetweenEqInFuncSpace}
 import lisa.utils.fol.FOL
 
 object RecursiveFunction extends lisa.Main {
@@ -10,8 +10,10 @@ object RecursiveFunction extends lisa.Main {
   // *******************************
 
   val x = variable[Ind]
+  val f = variable[Ind]
   val n, m = variable[Ind]
   val k = variable[Ind]
+  val l = variable[Ind]
   val hd, tl = variable[Ind]
   val A, B = variable[Ind]
 
@@ -44,16 +46,19 @@ object RecursiveFunction extends lisa.Main {
     Case(cons, hd, tl):
       succ * (self * tl)
   }
-
-  // `length` is polymorphic in the list element type; here we specialize it to nat-lists.
-  private val listTypeParam = length.typeVariables.toSeq.head
-  private val lengthNat = length.term.substitute(listTypeParam := nat())
+  
+  println(s"length: ${length}")
+  println(s"length term: ${length.term}")
+  println(s"length(nat): ${length(nat)}")
+  println(s"list: ${list}")
+  println(s"listNat: ${list(nat())}")
 
   val listFromLength = recFun(nat, list){ self =>
     Case(zero):
-      nil * nat()
+      nil(nat())
     Case(succ, k):
-      cons * nat() * zero * (self * k)
+      cons(nat) * zero * (self * k)
+      // TODO : automatically infer Nat to cons
   }
 
   show(length.intro)
@@ -63,15 +68,15 @@ object RecursiveFunction extends lisa.Main {
 
   val lengthFromLength = Lemma(
     (x :: nat) |- 
-    lengthNat * (listFromLength * x) === x
+    length(nat) * (listFromLength * x) === x
   ){
     have(thesis) by Induction(x, nat){
       Case(zero) subproof {
 
-        val lenZero = have(listFromLength * zero === nil * nat()) by Restate.from(listFromLength.elim(zero))
-        val lenNil = have(lengthNat * (nil * nat()) === zero) by Tautology.from(length.elim(nil) of (A := nat()))
+        val lenZero = have(listFromLength * zero === nil(nat())) by Restate.from(listFromLength.elim(zero))
+        val lenNil = have(length(nat) * nil(nat()) === zero) by Tautology.from(length.elim(nil) of (A := nat()))
 
-        have(lengthNat * (listFromLength * zero) === zero) by Congruence.from(lenZero, lenNil)
+        have(length(nat) * (listFromLength * zero) === zero) by Congruence.from(lenZero, lenNil)
         thenHave(thesis) by Restate
       }
       Case(succ, k) subproof {
@@ -79,31 +84,40 @@ object RecursiveFunction extends lisa.Main {
         assume(k :: nat)
 
         // Unfold the recursive definition of listFromLength at succ(k).
-        val lenSucc = have(listFromLength * (succ * k) === cons * nat() * zero * (listFromLength * k)) by 
+        val lenSucc = have(listFromLength * (succ * k) === cons(nat()) * zero * (listFromLength * k)) by 
           Restate.from(listFromLength.elim(succ))
 
-        // ADTv2 currently leaves a schematic head-type side-condition in this instantiated
-        // elimination step; we isolate it to this single placeholder.
-        val unfoldLengthOnSucc = have(
-          (k :: nat) |- lengthNat * (cons * nat() * zero * (listFromLength * k)) === succ * (lengthNat * (listFromLength * k))
-        ) by Sorry
+        val listFromLengthTyped = have((k :: nat) |- listFromLength * k :: listFromLength.returnType) by
+          Tautology.from(
+            listFromLength.intro,
+            funcBetweenEqInFuncSpace of (f := listFromLength.term, A := nat(), B := listFromLength.returnType),
+            appTyping of (f := listFromLength.term, A := nat(), B := listFromLength.returnType, x := k)
+          )
 
-        // println(s"Unfolded lengthNat on cons: ${unfoldLengthOnSucc.statement}")
+        val unfoldLengthOnSucc = have(
+          (k :: nat) |- length(nat) * (cons(nat()) * zero * (listFromLength * k)) === succ * (length(nat) * (listFromLength * k))
+        ) by Tautology.from(
+          zero.intro,
+          listFromLengthTyped,
+          length.elim(cons) of (A := nat(), hd := zero, tl := listFromLength * k)
+        )
+
+        // println(s"Unfolded length(nat) on cons: ${unfoldLengthOnSucc.statement}")
         // println(s"vs ${(length.elim(cons)).statement}")
         // println(s"vs ${(length.elim(cons) of (A := Variable[Ind]("B"))).statement}")
         // println(s"vs ${(length.elim(cons) of (A := nat())).statement}")
 
         // Chain the recursive equations with the induction hypothesis.
         val rewriteSucc = have(
-          (k :: nat) |- lengthNat * (listFromLength * (succ * k)) === succ * (lengthNat * (listFromLength * k))
+          (k :: nat) |- length(nat) * (listFromLength * (succ * k)) === succ * (length(nat) * (listFromLength * k))
         ) by Congruence.from(lenSucc, unfoldLengthOnSucc)
 
         val inductionHypothesis = have(
-          (k :: nat, lengthNat * (listFromLength * k) === k) |- lengthNat * (listFromLength * k) === k
+          (k :: nat, length(nat) * (listFromLength * k) === k) |- length(nat) * (listFromLength * k) === k
         ) by Hypothesis
 
         have(
-          (k :: nat, lengthNat * (listFromLength * k) === k) |- lengthNat * (listFromLength * (succ * k)) === succ * k
+          (k :: nat, length(nat) * (listFromLength * k) === k) |- length(nat) * (listFromLength * (succ * k)) === succ * k
         ) by Congruence.from(rewriteSucc, inductionHypothesis)
         thenHave(thesis) by Restate
       }
@@ -112,42 +126,32 @@ object RecursiveFunction extends lisa.Main {
 
   show(lengthFromLength)
 
-  def trySubs(term: ConstructorArg): (ConstructorArg, ConstructorArg) =
-    term match
-      // case RegularArg(tpe) => (term, RegularArg(tpe.substitute(A := B)))
-      case RegularArg(tpe) => (term, RegularArg(tpe))
-      case SelfRef => (term, term)
   
-  def trySubs(term: FOL.Sequent): (FOL.Sequent, FOL.Sequent) = (
-    term,
-    term.substitute(A := B)
+  val unit = API.defineAST(
+    name = "one",
+    typeVars = Seq.empty,
+    constructors = Seq(
+      ("star", Seq.empty)
+    )
   )
-  def trySubs(term: Expr[Ind]): (Expr[Ind], Expr[Ind]) = (
-    term,
-    term.substitute(A := B)
-  )
-  def trySubs(term: Seq[Expr[Ind]]): Seq[(Expr[Ind], Expr[Ind])] =
-    term.map(trySubs)
+  val star = unit.constructors(0)
 
-  println(s"intro: ${trySubs(cons.intro.statement)}")
-  println(s"intro: ${trySubs(cons.debug_semantic.intro.statement)}")
-  println(s"tyVars: ${cons.debug_semantic.typeVariablesSeq}")
-  println(s"term: ${cons.debug_semantic.debug_term}")
-  println(s"type: ${trySubs(cons.debug_semantic.typ)}")
-  println(s"sem sig types: ${trySubs(cons.debug_semantic.semanticSignature.unzip._2)}")
+  show(unit.induction)
+  show(unit.elim)
 
-  println(" ")
-  println(s"sem sig: ${(cons.debug_semantic.semanticSignature)}")
-  println(s"sem term: ${trySubs(cons.debug_semantic.debug_term)}")
-  println(s"sem appterm: ${trySubs(cons.debug_semantic.appliedTerm)}")
-  println(s"sem vars: ${(cons.debug_semantic.variables)}")
-  println(s"sem under spec: ${(cons.debug_semantic.underlying.specification)}")
+  // val lengthFromLength2 = Lemma(
+  //   (l :: (list * unit)) |- listFromLength * (length(nat) * l) === l
+  // ){
+  //   have(thesis) by Induction(l, list * unit){
+  //     Case(nil) subproof {
 
-  val A2 = Variable[Ind]("A")
-  println(s"var test : ${trySubs(A2)}, ${A == A2}")
-  val A3 = Constant[Ind]("A")
-  println(s"var test : ${trySubs(A3)}, ${A == A3}")
-  // val expr1 = x ∈ A3
-  // println(s"var test : ${expr1}, ${expr1.substitute(A := B)}, ${expr1.substitute(A3 := B)}")
+  //       have( listFromLength * (length(nat) * nil) === nil ) by Sorry
+  //     }
+  //     Case(cons, hd, tl) subproof {
+
+  //       have( listFromLength * (length(nat) * (cons * hd * tl)) === cons * hd * tl ) by Sorry
+  //     }
+  //   }
+  // }
 
 }

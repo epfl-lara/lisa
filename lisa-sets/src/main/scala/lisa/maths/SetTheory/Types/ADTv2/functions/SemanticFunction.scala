@@ -86,6 +86,7 @@ class SemanticFunction[N <: Arity](
    */
   private val classFunctionConst: Constant[Ind] = Constant[Ind](fullName)
   registerConstant(classFunctionConst)
+  classFunctionConst.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
   private val classFunction: Expr[Ind] = classFunctionConst
 
   /** Identifier of this function. */
