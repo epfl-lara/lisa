@@ -10,7 +10,7 @@ def defineAST[N <: Arity](
   name: String,
   typeVars: Seq[String],
   constructors: Seq[
-    (String, Seq[(String, String | TypeExpr | ConstructorArg)])
+    (String, Seq[(String, String | ConstructorArg)])
   ]
 ) = {
 
@@ -18,8 +18,9 @@ def defineAST[N <: Arity](
   val constructorsArgs = constructors.map { case (_, args) => 
     args.map { case (argName, argType) => 
       argType match
-        case s: String => (argName, RegularArg(TypeRef(s)))
-        case t: TypeExpr => (argName, RegularArg(t))
+        case s: String => (argName, TypeArg(s))
+        // case s: String => (argName, RegularArg(TypeRef(s)))
+        // case t: TypeExpr => (argName, RegularArg(t))
         case c: ConstructorArg => (argName, c)
     }
   }

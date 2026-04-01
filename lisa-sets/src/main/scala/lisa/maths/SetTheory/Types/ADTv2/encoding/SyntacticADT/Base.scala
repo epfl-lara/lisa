@@ -52,20 +52,23 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
   /** Predicate encoding the extended introduction function. */
   private[encoding] def inExtIntroImage(f: Expr[Ind])(
       x: Expr[Ind]
-  ): Expr[Prop] = !(f === ∅) /\ inIntroImage(unionRange(f))(x)
+  ): Expr[Prop] = (f =/= ∅) /\ inIntroImage(unionRange(f))(x)
 
 
   /** Logical predicate symbol for height-function characterization. */
-  private[encoding] val isHeight = 
+  private[encoding] lazy val isHeight = 
     DEF(using name=s"${name}IsHeightFunction")(λ(h, 
-    function(h) /\
-    (dom(h) === N) /\ 
-    forall(
-      n,
-      in(n, N) ==> forall(
-        x,
-        in(x, app(h, n)) <=>
-          inExtIntroImage(restrictedFunction(h, n))(x)
+    forallSeq(
+      typeVariables,
+      function(h) /\
+      (dom(h) === N) /\ 
+      forall(
+        n,
+        in(n, N) ==> forall(
+          x,
+          in(x, app(h, n)) <=>
+            inExtIntroImage(restrictedFunction(h, n))(x)
+        )
       )
     )
   ))

@@ -10,10 +10,36 @@ import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 private[encoding] trait SyntacticADTHeight[N <: Arity]
     extends SyntacticADTIntroduction[N] {
   this: SyntacticADT[N] =>
+
+  /** Non-polymorphic body of isHeight, before quantification over type variables. */
+  private[encoding] def isHeightCore(hh: Expr[Ind]): Expr[Prop] =
+    function(hh) /\
+      (dom(hh) === N) /\
+      forall(
+        n,
+        in(n, N) ==> forall(
+          x,
+          in(x, app(hh, n)) <=>
+            inExtIntroImage(restrictedFunction(hh, n))(x)
+        )
+      )
+
+  /** Unfold isHeight(h) and instantiate all quantified type variables. */
+  private[encoding] def unfoldIsHeight(using
+      lib: lisa.utils.prooflib.Library,
+      proof: lib.Proof
+  ): proof.Fact = {
+    val coreAll = forallSeq(typeVariables, isHeightCore(h))
+    val withAllTypes = lib.have(isHeight(h) |- coreAll) by
+      Tautology.from(isHeight.definition)
+    lib.have(isHeight(h) |- isHeightCore(h)) by
+      InstantiateForall(typeVariables*)(withAllTypes)
+  }
 
   // *******************
   // * HEIGHT FUNCTION *
@@ -95,7 +121,7 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
       // The proof goes by contradiction. If the height function is empty then its domain is empty as well.
       // This would imply that the set of natural numbers is empty, which is a contradiction.
       val heightDomEqN = have(isHeight(h) |- dom(h) === N) by
-        Tautology.from(isHeight.definition)
+        Tautology.from(unfoldIsHeight)
       val domRefl = have(dom(h) === dom(h)) by Congruence
 
       have(N === ∅ |- ()) by Restate.from(natNotEmpty)
@@ -154,7 +180,7 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
 
     // Unfold the dedicated height-function predicate and instantiate the specification.
     have(isHeight(h) |- heightFunApplicationDef) by
-      Tautology.from(isHeight.definition)
+      Tautology.from(unfoldIsHeight)
     thenHave(
       (isHeight(h), in(n, N)) |- heightFunApplicationDef
     ) by Weakening
@@ -302,10 +328,18 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     have(
       (isHeight(h), in(n, N)) |- subset(m, n) ==> subset(app(h, m), app(h, n))
     ) by RightImplies(heightMonotonic)
-    thenHave(
+    val monotonicityForall = thenHave(
       (isHeight(h), in(n, N)) |-
         forall(m, subset(m, n) ==> subset(app(h, m), app(h, n)))
     ) by RightForall
+
+    val coreTyping = have(
+      (isHeight(h), in(n, N)) |- function(h) /\ (dom(h) === N)
+    ) by Tautology.from(unfoldIsHeight)
+    val nInNFact = have((isHeight(h), in(n, N)) |- in(n, N)) by Hypothesis
+    val coreTypingAndN = have(
+      (isHeight(h), in(n, N)) |- (function(h) /\ (dom(h) === N)) /\ in(n, N)
+    ) by RightAnd(coreTyping, nInNFact)
 
     have(
       (isHeight(h), in(n, N)) |- (
@@ -314,7 +348,7 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
         in(n, N) /\
         forall(m, subset(m, n) ==> subset(app(h, m), app(h, n)))
       )
-    ) by Tautology.from(isHeight.definition, lastStep)
+    ) by RightAnd(coreTypingAndN, monotonicityForall)
 
     val unionRangeRes = have(
       (isHeight(h), in(n, N)) |-

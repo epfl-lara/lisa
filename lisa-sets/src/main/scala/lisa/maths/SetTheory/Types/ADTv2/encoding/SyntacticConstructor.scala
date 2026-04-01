@@ -40,6 +40,11 @@ class SyntacticConstructor(
   /** Number of arguments that this constructor takes */
   val arity: Int = specification.length
 
+  /** Sequence of type parameters of this constructor */
+  val typeParameters: Seq[Variable[Ind]] = specification.collect {
+    case TypeArg(name) => typeExprToTerm(name)
+  }
+
   /** Sequence of variables of the constructor with their respective domains. */
   val signature1: Seq[(Variable[Ind], ConstructorArg)] = variables1.zip(specification)
 

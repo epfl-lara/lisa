@@ -86,8 +86,9 @@ class Induction[M <: Arity](
               lastStep.statement.left |-
                 forall(v, v :: instTerm ==> (prop(v) ==> accRight))
             ) by RightForall
-          case RegularArg(t_) =>
-            val t = typeExprToTerm(t_)
+          // case RegularArg(t_) =>
+          case TypeArg(typeName) =>
+            val t = typeExprToTerm(typeName)
             thenHave((acc2.statement -<? (v :: t)).left |- v :: t ==> accRight) by
               Weakening
             thenHave(lastStep.statement.left |- forall(v, v :: t ==> accRight)) by

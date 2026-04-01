@@ -145,10 +145,14 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   private val classFunctionConst: Constant[Ind] = Constant[Ind](fullName)
   registerConstant(classFunctionConst)
+  classFunctionConst.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
   private val classFunction: Expr[Ind] = classFunctionConst
 
   /** Identifier of this constructor. */
   // val id: Identifier = classFunction.id
+
+  val debug_class = classFunction
+  val debug_classConst = classFunctionConst
 
   /**
    *  This constructor in which type variables are instantiated.
@@ -159,6 +163,8 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
 
   /** Constructor where type variables are instantiated with schematic variables. */
   private val term: Expr[Ind] = term(typeVariablesSeq)
+
+  val debug_term = term
 
   /**
    *  Lemma --- Characterization of this constructor.
@@ -376,6 +382,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
       val (v, typ) = el
       typ match
         case SelfRef => forall(v, (v :: adt.term) ==> (P(v) ==> fc))
-        case RegularArg(t) => forall(v, (v :: typeExprToTerm(t)) ==> fc)
+        // case RegularArg(t) => forall(v, (v :: typeExprToTerm(t)) ==> fc)
+        case TypeArg(name) => forall(v, (v :: typeExprToTerm(name)) ==> fc)
     }
 }

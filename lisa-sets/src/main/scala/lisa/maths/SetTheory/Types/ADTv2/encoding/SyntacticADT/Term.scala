@@ -34,8 +34,12 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
   // val term: Expr[Ind] = termConst
 
   // DEF-based placeholder replacing the temporary raw Constant.
-  val polymorphicTerm = DEF(using name = s"${name}Polyterm")(
+  val polymorphicTerm = DEF(using name = s"${name}Term")(
     lisa.maths.SetTheory.SetTheory.ε(z, termDefinitionFormula(z))
+  )
+  polymorphicTerm.printAs(args =>
+    if args.isEmpty then s"${name}Term"
+    else s"${name}Term[${args.mkString(",")}]"
   )
   val term: Expr[Ind] = appSeq(polymorphicTerm)(typeVariablesSeq)
 
@@ -198,7 +202,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
       (in(x, term) <=> ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))) /\ 
       (in(x, unionRange(h)) <=> exists(n, in(n, dom(h)) /\ in(x, app(h, n))))
     ) by 
-      Tautology.from(lastStep, unionRangeMembership of (z := x), isHeight.definition)
+      Tautology.from(lastStep, unionRangeMembership of (z := x), unfoldIsHeight)
     have(isHeight(h) |- in(x, term) <=> ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))) by 
       Tautology.from(lastStep,
         equivalenceRewriting of (
@@ -212,7 +216,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
       List((dom(h), ω)),
       (Seq(z), in(x, term) <=> ∃(n, in(n, z) /\ in(x, app(h, n))))
     )
-    have(thesis) by Tautology.from(lastStep, isHeight.definition)
+    have(thesis) by Tautology.from(lastStep, unfoldIsHeight)
   }
 
   private[encoding] val termsHaveHeight = constructors.map(c =>
@@ -246,8 +250,10 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
               thenHave((in(n, N) /\ in(v, app(h, n))) |- exists(n, in(n, N) /\ in(v, app(h, n)))) by RightExists
               have((isHeight(h), in(n, N) /\ in(v, app(h, n))) |- in(v, term)) by Cut(lastStep, termHasHeightBackward)
               thenHave((isHeight(h), in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- in(v, term)) by Weakening
-            case RegularArg(t_) =>
-              val t = typeExprToTerm(t_)
+            // case RegularArg(t_) =>
+            //   val t = typeExprToTerm(t_)
+            case TypeArg(typeName) =>
+              val t = typeExprToTerm(typeName)
               have((isHeight(h), in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- in(v, t)) by Restate
 
           have((isHeight(h), in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- constructorVarsInDomain(c, term)) by RightAnd(andSeq*)
@@ -323,8 +329,10 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
                   Tautology.from(lastStep, subsetAxiom of (x := app(h, ni), y := app(h, max)))
                 thenHave((isHeight(h), seqAnd(nSeq.map(n => in(n, N)))) |- in(v, app(h, ni)) ==> in(v, app(h, max))) by InstantiateForall(v)
                 thenHave((isHeight(h), seqAnd(nSeq.map(n => in(n, N))), in(v, app(h, ni))) |- in(v, app(h, max))) by Restate
-              case RegularArg(t_) =>
-                val t = typeExprToTerm(t_)
+              // case RegularArg(t_) =>
+              //   val t = typeExprToTerm(t_)
+              case TypeArg(typeName) =>
+                val t = typeExprToTerm(typeName)
                 have((seqAnd(nSeq.map(n => in(n, N))), isHeight(h), in(v, t)) |- in(v, t)) by Restate
 
             have((seqAnd(nSeq.map(n => in(n, N))), isHeight(h), in(v, ty.getOrElse(app(h, ni)))) |- in(max, N) /\ in(v, ty.getOrElse(app(h, max)))) by RightAnd(maxInN, lastStep)

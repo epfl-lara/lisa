@@ -113,9 +113,9 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
               // Caching
               val isConstructorCXHN = isConstructor(c, x, app(h, n))
               val isConstructorCXHSuccN = isConstructor(c, x, app(h, successor(n)))
-              val constructorVarsInHN = constructorVarsInDomain(c, app(h, n))
+              val constructorVarsInHN = wellTypedFormula(c.signature2)(app(h, n))
               val constructorVarsInHSuccN =
-                constructorVarsInDomain(c, app(h, successor(n)))
+                wellTypedFormula(c.signature2)(app(h, successor(n)))
 
               if c.arity == 0 then
                 have(
@@ -124,7 +124,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                 ) by Restate
               else
                 val liftHeightAndSequence =
-                  for (v, ty) <- c.signature
+                  for (v, ty) <- c.signature2
                   yield have(
                     (isHeight(h), in(n, N), constructorVarsInHN) |-
                       in(v, ty.getOrElse(app(h, successor(n))))
@@ -134,30 +134,30 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                   (isHeight(h), in(n, N), constructorVarsInHN) |-
                     constructorVarsInHSuccN
                 ) by RightAnd(liftHeightAndSequence*)
-                val right = have(x === c.term |- x === c.term) by Hypothesis
+                val right = have(x === c.term2 |- x === c.term2) by Hypothesis
 
                 have(
-                  (isHeight(h), in(n, N), constructorVarsInHN, (x === c.term)) |-
-                    constructorVarsInHSuccN /\ (x === c.term)
+                  (isHeight(h), in(n, N), constructorVarsInHN, (x === c.term2)) |-
+                    constructorVarsInHSuccN /\ (x === c.term2)
                 ) by RightAnd(left, right)
                 thenHave(
                   (
                     isHeight(h),
                     in(n, N),
-                    constructorVarsInHN /\ (x === c.term)
-                  ) |- constructorVarsInHSuccN /\ (x === c.term)
+                    constructorVarsInHN /\ (x === c.term2)
+                  ) |- constructorVarsInHSuccN /\ (x === c.term2)
                 ) by LeftAnd
                 thenHave(
                   (
                     isHeight(h),
                     in(n, N),
-                    constructorVarsInHN /\ (x === c.term)
+                    constructorVarsInHN /\ (x === c.term2)
                   ) |- isConstructorCXHSuccN
-                ) by QuantifiersIntro(c.variables)
+                ) by QuantifiersIntro(c.variables2)
                 thenHave(
                   (isHeight(h), in(n, N), isConstructorCXHN) |-
                     isConstructorCXHSuccN
-                ) by QuantifiersIntro(c.variables)
+                ) by QuantifiersIntro(c.variables2)
 
               thenHave(
                 (isHeight(h), in(n, N), isConstructorCXHN) |-
@@ -250,7 +250,8 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
       val (v, ty) = el
       ty match
         case SelfRef => forall(v, in(v, term) ==> (P(v) ==> fc))
-        case RegularArg(tpe) => forall(v, in(v, typeExprToTerm(tpe)) ==> fc)
+        // case RegularArg(tpe) => forall(v, in(v, typeExprToTerm(tpe)) ==> fc)
+        case TypeArg(typeName) => forall(v, in(v, typeExprToTerm(typeName)) ==> fc)
     )
   ).toMap
 
@@ -302,37 +303,48 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
 
             // Caching
             val constructorPrecondition = inductiveCase(c)
-            val constructorVarsInHN = constructorVarsInDomain(c, app(h, n))
-            val constructorVarsInHNEx =
-              ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n)))
-            val constructorVarsInTerm = constructorVarsInDomain(c, term)
+            val constructorVarsInHN = wellTypedFormula(c.signature2)(app(h, n))
+            val constructorVarsInTerm = wellTypedFormula(c.signature2)(term)
 
             // STEP 2.1.1: Prove that if xi, ..., xj ∈ height(n) then xi, ..., xj ∈ ADT.
             val constructorQuantVarsInHNToTerm = have(
               (isHeight(h), in(n, N), constructorVarsInHN) |-
                 constructorVarsInTerm
             ) subproof {
-              have(
-                (isHeight(h), in(n, N), constructorVarsInHN) |-
-                  in(n, N) /\ constructorVarsInHN
-              ) by Restate
-              val consVarL = thenHave(
-                (isHeight(h), in(n, N), constructorVarsInHN) |-
-                  constructorVarsInHNEx
-              ) by RightExists
-              have(
-                (
-                  constructorVarsInTerm <=> constructorVarsInHNEx,
-                  constructorVarsInHNEx
-                ) |- constructorVarsInTerm
-              ) by Restate.from(
-                equivalenceRevApply of
-                  (p1 := constructorVarsInTerm, p2 := constructorVarsInHNEx)
+              val andSeq = c.signature2.map((v, ty) =>
+                ty match
+                  case SelfRef =>
+                    val vInHeight =
+                      (∃(n, in(n, N) /\ in(x, app(h, n)))).substitute(x := v)
+                    val nInN = have(
+                      (isHeight(h), in(n, N), in(v, app(h, n))) |- in(n, N)
+                    ) by Restate
+                    val vInHN = have(
+                      (isHeight(h), in(n, N), in(v, app(h, n))) |-
+                        in(v, app(h, n))
+                    ) by Restate
+                    have(
+                      (isHeight(h), in(n, N), in(v, app(h, n))) |-
+                        in(n, N) /\ in(v, app(h, n))
+                    ) by RightAnd(nInN, vInHN)
+                    thenHave(
+                      (isHeight(h), in(n, N), in(v, app(h, n))) |- vInHeight
+                    ) by RightExists
+                    have(
+                      (isHeight(h), in(n, N), in(v, app(h, n))) |- in(v, term)
+                    ) by Tautology.from(termHasHeight of (x := v), lastStep)
+                    thenHave(
+                      (isHeight(h), in(n, N), constructorVarsInHN) |- in(v, term)
+                    ) by Weakening
+                  case TypeArg(typeName) =>
+                    val t = typeExprToTerm(typeName)
+                    have(
+                      (isHeight(h), in(n, N), constructorVarsInHN) |- in(v, t)
+                    ) by Restate
               )
-              have(
-                (isHeight(h), constructorVarsInHNEx) |- constructorVarsInTerm
-              ) by Cut(termsHaveHeight(c), lastStep)
-              have(thesis) by Cut(consVarL, lastStep)
+
+              if andSeq.isEmpty then have(thesis) by Restate
+              else have(thesis) by RightAnd(andSeq*)
             }
 
             // STEP 2.1.2: Prove that if xi, ..., xj ∈ height(n) then P(c(x1, ..., xn)).
@@ -343,7 +355,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                 in(n, N),
                 inductionFormulaN,
                 constructorVarsInHN
-              ) |- P(c.term)
+              ) |- P(c.term2)
             ) subproof {
               have(
                 (
@@ -355,11 +367,13 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                 ) |- constructorPrecondition
               ) by Restate
 
-              c.signature.foldLeft(lastStep)((fact, el) =>
+              c.signature2.foldLeft(lastStep)((fact, el) =>
                 val (v, ty) = el
 
                 fact.statement.right.head match
-                  case forall(_, factCclWithoutForall) =>
+                  case forall(boundVar, factCclWithoutForall) =>
+                    val factCclInstantiated =
+                      factCclWithoutForall.substitute(boundVar := v)
                     thenHave(
                       (
                         isHeight(h),
@@ -367,10 +381,10 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                         in(n, N),
                         inductionFormulaN,
                         constructorVarsInHN
-                      ) |- factCclWithoutForall
+                      ) |- factCclInstantiated
                     ) by InstantiateForall(v)
 
-                    factCclWithoutForall match
+                    factCclInstantiated match
                       case implies(membership, subformula) => ty match
                           case SelfRef => subformula match
                               case implies(hypothesis, subSubFormula) =>
@@ -416,7 +430,8 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
 
                               case _ => throw UnreachableException
 
-                          case RegularArg(_) => thenHave(
+                          // case RegularArg(_) => thenHave(
+                          case TypeArg(_) => thenHave(
                               (
                                 isHeight(h),
                                 constructorPrecondition,
@@ -439,7 +454,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                 in(n, N),
                 inductionFormulaN,
                 constructorVarsInHN
-              ) |- P(c.term)
+              ) |- P(c.term2)
             ) by Restate.from(constructorVarsInHNImpliesPCTerm)
 
             // STEP 2.1.3: Prove that if xi, ..., xj ∈ height(n) then P(x).
@@ -450,9 +465,9 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                 in(n, N),
                 inductionFormulaN,
                 constructorVarsInHN,
-                x === c.term
+                x === c.term2
               ) |- P(x)
-            ) by RightSubstEq.withParameters(List((x, c.term)), (Seq(x), P(x)))
+            ) by RightSubstEq.withParameters(List((x, c.term2)), (Seq(x), P(x)))
 
             thenHave(
               (
@@ -460,7 +475,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                 constructorPrecondition,
                 in(n, N),
                 inductionFormulaN,
-                constructorVarsInHN /\ (x === c.term)
+                constructorVarsInHN /\ (x === c.term2)
               ) |- P(x)
             ) by LeftAnd
 
@@ -472,7 +487,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                 inductionFormulaN,
                 isConstructor(c, x, app(h, n))
               ) |- P(x)
-            ) by QuantifiersIntro(c.variables)
+            ) by QuantifiersIntro(c.variables2)
             thenHave(
               (
                 isHeight(h),

@@ -67,14 +67,19 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
           have((subsetST, varsWellTypedS, labelEq) |- varsWellTypedT /\ labelEq) by
             RightAnd(expandingDomain, weakeningLabelEq)
 
-          // STEP 2.2: Prove that x stays an instance of this constructor if we expand the domain of the variables
-          thenHave((subsetST, varsWellTypedS, labelEq) |- isConstructorCXT) by
+          // STEP 2.2: First introduce existential quantifiers over constructor arguments.
+          val existsCXS = existsSeq(c.variables2, varsWellTypedS /\ labelEq)
+          val existsCXT = existsSeq(c.variables2, varsWellTypedT /\ labelEq)
+
+          thenHave((subsetST, varsWellTypedS, labelEq) |- existsCXT) by
             QuantifiersIntro(c.variables2)
-          thenHave((subsetST, varsWellTypedS /\ labelEq) |- isConstructorCXT) by LeftAnd
-          thenHave((subsetST, isConstructorCXS) |- isConstructorCXT) by
+          thenHave((subsetST, varsWellTypedS /\ labelEq) |- existsCXT) by LeftAnd
+
+          // STEP 2.3: Move from concrete witnesses to the existential premise.
+          thenHave((subsetST, existsCXS) |- existsCXT) by
             QuantifiersIntro(c.variables2)
 
-          // STEP 2.3: Weaken the conclusion to some constructor instead of a specific one
+          // STEP 2.4: Weaken the conclusion to some constructor instead of a specific one
           thenHave((subsetST, isConstructorCXS) |- isConstructorXT) by Weakening
 
     // STEP 3: Prove that this holds for any constructor
@@ -105,10 +110,9 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
         constructorVarsInDomainCS |- constructorVarsInDomainCS /\ (c.term === c.term)
       ) by Restate
 
-      // Replace each variable on the LHS of the equality by a quantified variable and then introduce an existential quantifier
+      // Replace constructor arguments one by one, switching from variables1 to variables2
+      // while introducing existential quantifiers on the right.
       c.variables2.foldRight((c.variables1, List[Variable[Ind]]()))((v, acc) =>
-
-        // At each step remove a variable and add a quantified one
         val oldVariables = acc._1.init
         val newVariables = v :: acc._2
         val vars = oldVariables ++ newVariables
@@ -116,7 +120,7 @@ private[encoding] trait SyntacticADTIntroduction[N <: Arity]
         thenHave(
           constructorVarsInDomainCS |- existsSeq(
             newVariables,
-            wellTypedFormula(vars.zip(c.specification))(s) /\ (c.term(vars) === c.term)
+            wellTypedFormula(vars.zip(c.specification))(s) /\ (c.term === c.term(vars))
           )
         ) by RightExists
 

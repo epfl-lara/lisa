@@ -227,8 +227,9 @@ class SemanticADT[N <: Arity](
                 forall(v, wellTypedV ==> (P(v) ==> fc2)),
                 wellTypedVars.init
               )
-            case RegularArg(t_) =>
-              val t = typeExprToTerm(t_)
+            // case RegularArg(t_) =>
+            case TypeArg(typeName) =>
+              val t = typeExprToTerm(typeName)
               thenHave(wellTypedVars.init |- v :: t ==> (fc1 <=> fc2)) by RightImplies
               have(wellTypedVars.init |- (in(v, t) ==> fc1) <=> (v :: t ==> fc2)) by Cut(
                 lastStep,
@@ -268,8 +269,8 @@ class SemanticADT[N <: Arity](
   private lazy val isConstructorMap: Map[SemanticConstructor[N], Expr[Prop]] =
     constructors.map(c =>
       c -> existsSeq(
-        c.variables,
-        wellTypedFormula(c.semanticSignature) /\ (x === c.appliedTerm)
+        c.variables2,
+        wellTypedFormula(c.semanticSignature2) /\ (x === c.appliedTerm2)
       )
     ).toMap
 
@@ -298,7 +299,7 @@ class SemanticADT[N <: Arity](
     // Weakening of the negation of the induction preconditions
     val weakNegInductionPreconditionIneq: Map[SemanticConstructor[N], Expr[Prop]] =
       constructors.map(c =>
-        c -> c.semanticSignature.foldRight[Expr[Prop]](x === c.appliedTerm)((el, fc) =>
+        c -> c.semanticSignature2.foldRight[Expr[Prop]](x === c.appliedTerm2)((el, fc) =>
           val (v, t) = el
           exists(v, (v :: t) /\ fc)
         )
@@ -319,11 +320,11 @@ class SemanticADT[N <: Arity](
                 !inductionPreconditionIneq(c) |- weakNegInductionPreconditionIneq(c)
               ) subproof {
 
-                val baseF = !(x === c.appliedTerm)
-                val baseW = x === c.appliedTerm
+                val baseF = !(x === c.appliedTerm2)
+                val baseW = x === c.appliedTerm2
                 val seed = (baseF, baseW, have(!baseF |- baseW) by Tableau)
 
-                val (_, _, finalFact) = c.syntacticSignature.foldRight(seed)((el, acc) =>
+                val (_, _, finalFact) = c.syntacticSignature(c.variables2).foldRight(seed)((el, acc) =>
                   val (v, ty) = el
                   val (currF, currW, currFact) = acc
                   val argType = ty.getOrElse(term)
