@@ -95,16 +95,9 @@ class Induction[M <: Arity](
               RightForall
       )
       acc.statement.right.head match
-        case implies(trueInd, rest) =>
-          // println(s"Case: ${c.fullName}")
-          // println(isSame(trueInd, inductiveCaseProof.statement.right.head))
-          // println(inductiveCaseProof.statement)
-          // println("         +          ")
-          // println(acc.statement)
-          // println("         =          ")
-          // println((acc.statement.left ++ inductiveCaseProof.statement.left) |- rest)
+        case implies(_, rest) =>
           have((acc.statement.left ++ inductiveCaseProof.statement.left) |- rest) by
-            Sorry // Cut(inductiveCaseProof, acc)
+            Tautology.from(acc, inductiveCaseProof)
         case _ => throw UnreachableException
     )
     thenHave(

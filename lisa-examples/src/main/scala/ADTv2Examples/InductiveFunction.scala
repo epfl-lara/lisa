@@ -10,6 +10,7 @@ object InductiveFunction extends lisa.Main {
   val x = variable[Ind]
   val n, m = variable[Ind]
   val N = variable[Ind]
+  val f,g = variable[Ind]
 
 
   val bool = API.defineAST(
