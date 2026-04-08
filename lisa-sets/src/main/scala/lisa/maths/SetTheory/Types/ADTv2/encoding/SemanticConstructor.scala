@@ -2,8 +2,9 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
@@ -143,28 +144,27 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *  FunctionDefinition[N](fullName, ...)(typeVariablesSeq, c, untypedDefinition,
    *  uniqueness).label
    */
-  private val classFunctionConst: Constant[Ind] = Constant[Ind](fullName)
-  registerConstant(classFunctionConst)
-  classFunctionConst.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
-  private val classFunction: Expr[Ind] = classFunctionConst
-
-  /** Identifier of this constructor. */
-  // val id: Identifier = classFunction.id
-
-  val debug_class = classFunction
-  val debug_classConst = classFunctionConst
+  private val classFunction: Constant[?] = {
+    val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
+      xs = typeVariablesSeq, 
+      t = ε(c, untypedDefinition)
+    )
+    type S
+    given lisa.utils.fol.FOL.IsSort[S] =
+      lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
+    DEF(using name = fullName)(classFunctionExpr.asInstanceOf[Expr[S]])
+  }
+  classFunction.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
 
   /**
    *  This constructor in which type variables are instantiated.
    *
    *  @param args the instances of this constructor's type variables
    */
-  def term(args: Seq[Expr[Ind]]): Expr[Ind] = appSeq(classFunction)(args)
+  def term(args: Seq[Expr[Ind]]): Expr[Ind] = (classFunction #@@ args).asInstanceOf[Expr[Ind]]
 
   /** Constructor where type variables are instantiated with schematic variables. */
   private val term: Expr[Ind] = term(typeVariablesSeq)
-
-  val debug_term = term
 
   /**
    *  Lemma --- Characterization of this constructor.
@@ -172,8 +172,48 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *  `∀c. term = c <=> c ∈ typ /\ ∀x1,...,xn. c * x1 * ... * xn = (tagc, ...)`
    */
   private val classFunctionCharacterization =
-    Axiom(forall(c, (term === c) <=> untypedDefinition)
-  )
+    Lemma(forall(c, (term === c) <=> untypedDefinition)
+  ) {
+      val epsilonWitness = ε(c, untypedDefinition)
+      
+      val epsilonCharacterization = have(
+        untypedDefinition <=> (c === epsilonWitness)
+      ) by Tautology.from(
+        uniqueness,
+        existsOneEpsilonUniqueness of (
+          x := c,
+          y := c,
+          P := λ(c, untypedDefinition)
+        )
+      )
+
+      val classTermIsEpsilon =
+        have(term === epsilonWitness) by Congruence.from(classFunction.definition)
+
+      val toRight = have((term === c) ==> (c === epsilonWitness)) subproof {
+        assume(term === c)
+        val termEqC = have(term === c) by Hypothesis
+        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEpsilon)
+        have(c === epsilonWitness) by Congruence.from(termEqC, termEqEpsilon)
+        thenHave(thesis) by Restate
+      }
+
+      val toLeft = have((c === epsilonWitness) ==> (term === c)) subproof {
+        assume(c === epsilonWitness)
+        val cEqEpsilon = have(c === epsilonWitness) by Hypothesis
+        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEpsilon)
+        have(term === c) by Congruence.from(termEqEpsilon, cEqEpsilon)
+        thenHave(thesis) by Restate
+      }
+
+      val equalityRewriting = have((term === c) <=> (c === epsilonWitness)) by
+        Tautology.from(toRight, toLeft)
+
+      have((term === c) <=> untypedDefinition) by
+        Tautology.from(equalityRewriting, epsilonCharacterization)
+
+      thenHave(thesis) by RightForall
+    }
 
   /**
    *  Constructor where type variables are instantiated with schematic variables and

@@ -125,13 +125,35 @@ class SemanticRecFunction[N <: Arity](
     caseDefinitions.map((c, caseDef) =>
       val (vars, body) = caseDef
       c -> (Lemma(
-        simplify(wellTypedFormula(c.semanticSignature(vars))) ==>
-          (term * c.appliedTerm(vars) === body)
+        simplify(wellTypedFormula(c.semanticSignature(vars)) ==>
+          (term * c.appliedTerm(vars) === body))
       ) {
-        // Proof idea: unlike the non-recursive case, deriving this equation from a
-        // first-order function characterization needs a recursive/fixpoint principle.
-        // We keep this as a placeholder until that principle is formalized.
-        have(thesis) by Sorry
+
+        have(forall(f, (term === f) <=> untypedDefinition)) by
+          Restate.from(classFunctionCharacterization)
+
+        thenHave(
+          (term === term) <=> (term :: typ) /\
+            (seqAnd(caseDefinitions.map { (c, caseDef) =>
+              val (vars, body) = caseDef
+              forallSeq(
+                vars,
+                wellTypedFormula(c.semanticSignature(vars)) ==>
+                  (term * c.appliedTerm(vars) === body)
+              )
+            }))
+        ) by InstantiateForall(term)
+        thenHave(forallSeq(
+          vars,
+          wellTypedFormula(c.semanticSignature(vars)) ==>
+            (term * c.appliedTerm(vars) === body)
+        )) by Weakening
+        vars.foldLeft(lastStep)((l, _) =>
+          lastStep.statement.right.head match
+            case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
+            case _ => throw UnreachableException
+        )
+        thenHave(thesis) by Tautology
       })
     )
 
