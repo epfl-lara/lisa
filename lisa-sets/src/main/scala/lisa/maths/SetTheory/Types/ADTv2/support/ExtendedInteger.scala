@@ -8,6 +8,7 @@ import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Base.Singleton
 import lisa.maths.SetTheory.Base.EmptySet
+import lisa.maths.SetTheory.SetTheory
 import lisa.utils.prooflib.BasicStepTactic.*
 import lisa.utils.prooflib.SimpleDeducedSteps.*
 import lisa.maths.Quantifiers.existsEpsilon
@@ -24,6 +25,7 @@ object ExtendedInteger extends lisa.Main {
   private val x = variable[Ind]
   private val α, β = variable[Ind]
   private val y, z = variable[Ind]
+  private val φ = variable[Ind >>: Prop]
   private val P = variable[Ind >>: Prop]
 
   /**
@@ -41,23 +43,6 @@ object ExtendedInteger extends lisa.Main {
   /**
    * Bridge theorem --- Characterization of membership in `ω` by `integer`.
    */
-  val omegaCharacterization = Axiom(∀(α, α ∈ ω <=> integer(α)))
-  // {
-
-  //   val P = variable[Ind >>: Prop]
-  //   def Q(x: Expr[Ind]) = 
-  //     ∀(α, α ∈ x <=> integer(α))
-
-  //   val existsP = have(∃(x, Q(x))) by Sorry
-
-  //   // have(Q(ε(x, Q(x)))) by Tautology.from(existsP, existsEpsilon of (P := lambda( x, Q(x)), x := x))
-  //   // have(Q(ω)) by Congruence.from(lastStep of (α := β), Integer.ω.definition)
-  //   have(Q(x)) by Sorry // Tautology.from(existsP)
-  //   thenHave(Q(ε(x, Q(x)))) by RightEpsilon
-  //   have(Q(ω)) by Congruence.from(lastStep, Integer.ω.definition)// of (x := x))
-  //   thenHave(thesis) by Tautology
-  // }
-
   private val γ, λ_ = variable[Ind]
 
   private val zeroIsInteger = Theorem(
@@ -84,15 +69,18 @@ object ExtendedInteger extends lisa.Main {
 
     val succCase = have(successorOrdinal(α) |- ordinal(α)) subproof {
       assume(successorOrdinal(α))
-      thenHave(∃(γ, ordinal(γ) /\ (α === S(γ)))) by Substitute(successorOrdinal.definition)
+      val succWitness =
+        thenHave(∃(γ, ordinal(γ) /\ (α === S(γ)))) by
+          Substitute(successorOrdinal.definition)
       have( (α === S(γ)) |- ordinal(γ) ==> ordinal(S(γ))) by Tautology.from(
         Ordinal.sucessorIsOrdinal of (α := γ)
       )
       have( α === S(γ) |- ordinal(γ) ==>  ordinal(α)) by Congruence.from(lastStep)
       thenHave(ordinal(γ) /\ (α === S(γ)) |- ordinal(α)) by Tautology
-      thenHave(∃(γ, ordinal(γ) /\ (α === S(γ))) |- ordinal(α)) by LeftExists
+      val ordFromWitness =
+        thenHave(∃(γ, ordinal(γ) /\ (α === S(γ))) |- ordinal(α)) by LeftExists
 
-      have(thesis) by Sorry
+      have(thesis) by Cut(succWitness, ordFromWitness)
     }
 
     have(thesis) by LeftOr(zeroCase, succCase)
@@ -106,48 +94,50 @@ object ExtendedInteger extends lisa.Main {
     have(β <= S(α) |- (β ∈ α) \/ (β === α) \/ (β === S(α))) subproof {
       assume(β <= S(α))
       thenHave(β ∈ S(α) \/ (β === S(α))) by Tautology
-      thenHave(β ∈ Union.∪(α)(Singleton.singleton(α)) \/ (β === S(α))) by Substitute(S.definition)
-      have(β ∈ Union.∪(α)(Singleton.singleton(α)) ==> (β ∈ α) \/ (β === α)) by Tautology.from(
+      val inSuccSplit = thenHave(β ∈ Union.∪(α)(Singleton.singleton(α)) \/ (β === S(α))) by Substitute(S.definition)
+      val inUnionToLeft = have(β ∈ Union.∪(α)(Singleton.singleton(α)) ==> (β ∈ α) \/ (β === α)) by Tautology.from(
         Union.membership of (x := α, y := Singleton.singleton(α), z := β),
         Singleton.membership of (x := α, y := β)
       )
-      have(thesis) by Sorry //.from(lastStep)
+      have(thesis) by Tautology.from(inSuccSplit, inUnionToLeft)
     }
 
-    // val inAlphaCase = have(β ∈ α |- (β === ∅) \/ successorOrdinal(β)) by Tautology.from(
-    //   integer.definition of (α := α)
-    // )
+    val splitCases = lastStep
 
-    // val eqAlphaCase = have((β === α) |- (β === ∅) \/ successorOrdinal(β)) by Congruence.from(
-    //   {
-    //     have((α === ∅) \/ successorOrdinal(α)) by Tautology.from(
-    //       integer.definition of (α := α),
-    //       integerIsOrdinal,
-    //       Ordinal.ordinalClassification
-    //     )
-    //     lastStep
-    //   }
-    // )
+    val intAll = have(∀(β, β <= α ==> (β === ∅) \/ successorOrdinal(β))) by
+      Tautology.from(integer.definition)
+    val intAtBeta = have(β <= α ==> (β === ∅) \/ successorOrdinal(β)) by InstantiateForall(β)(intAll)
 
-    // val eqSuccCase = have((β === S(α)) |- (β === ∅) \/ successorOrdinal(β)) subproof {
-    //   assume(β === S(α))
-    //   have(ordinal(α)) by Tautology.from(integerIsOrdinal)
-    //   have(successorOrdinal(S(α))) by Tautology.from(
-    //     successorOrdinal.definition of (α := S(α), β := α)
-    //   )
-    //   thenHave((β === S(α)) |- successorOrdinal(β)) by Congruence
-    //   have(thesis) by Tautology.from(lastStep)
-    // }
+    val inAlphaCase = have(β ∈ α |- (β === ∅) \/ successorOrdinal(β)) by
+      Tautology.from(intAtBeta)
 
-    // have(β <= S(α) |- (β === ∅) \/ successorOrdinal(β)) by Tautology.from(
-    //   lastStep,
-    //   inAlphaCase,
-    //   eqAlphaCase,
-    //   eqSuccCase
-    // )
-    // thenHave(∀(β, β <= S(α) ==> (β === ∅) \/ successorOrdinal(β))) by RightForall
-    // thenHave(thesis) by Substitute(integer.definition of (α := S(α)))
-    thenHave(thesis) by Sorry
+    val intAtAlpha = have(α <= α ==> (α === ∅) \/ successorOrdinal(α)) by InstantiateForall(α)(intAll)
+    have((α === ∅) \/ successorOrdinal(α)) by Tautology.from(intAtAlpha)
+    val eqAlphaCase = have((β === α) |- (β === ∅) \/ successorOrdinal(β)) by
+      Congruence.from(lastStep)
+
+    val eqSuccCase = have((β === S(α)) |- (β === ∅) \/ successorOrdinal(β)) subproof {
+      assume(β === S(α))
+      val ordAlpha = have(ordinal(α)) by Tautology.from(integerIsOrdinal)
+      have(S(α) === S(α)) by Restate
+      have(ordinal(α) /\ (S(α) === S(α))) by Tautology.from(ordAlpha, lastStep)
+      thenHave(∃(γ, ordinal(γ) /\ (S(α) === S(γ)))) by RightExists
+      have(successorOrdinal(S(α))) by Tautology.from(
+        lastStep,
+        successorOrdinal.definition of (α := S(α))
+      )
+      thenHave((β === S(α)) |- successorOrdinal(β)) by Congruence
+      have(thesis) by Tautology.from(lastStep)
+    }
+
+    val splitToGoal = have(
+      (β ∈ α) \/ (β === α) \/ (β === S(α)) |- (β === ∅) \/ successorOrdinal(β)
+    ) by Tautology.from(inAlphaCase, eqAlphaCase, eqSuccCase)
+
+    have(β <= S(α) |- (β === ∅) \/ successorOrdinal(β)) by Cut(splitCases, splitToGoal)
+    thenHave((β <= S(α)) ==> (β === ∅) \/ successorOrdinal(β)) by RightImplies
+    thenHave(∀(β, (β <= S(α)) ==> (β === ∅) \/ successorOrdinal(β))) by RightForall
+    thenHave(thesis) by Substitute(integer.definition of (α := S(α)))
   }
 
   private val integerPredecessor = Theorem(
@@ -166,14 +156,182 @@ object ExtendedInteger extends lisa.Main {
     }
 
 
-    have(β <= α |- α <= S(α)) by Tautology.from(alphaInSucc)
-    // have(β <= α |- β <= S(α)) by Tautology.from(lastStep, Ordinal.transitivity)
-    // have(β <= S(α) |- (β === ∅) \/ successorOrdinal(β)) by Tautology.from(
-    //   integer.definition of (α := S(α))
-    // )
-    // have(β <= α |- (β === ∅) \/ successorOrdinal(β)) by Cut(lastStep, lastStep)
-    // thenHave(∀(β, β <= α ==> (β === ∅) \/ successorOrdinal(β))) by RightForall
-    thenHave(thesis) by Sorry // Substitute(integer.definition)
+    val inAlphaToLeqSucc = have(β ∈ α |- β <= S(α)) subproof {
+      assume(β ∈ α)
+      have(β ∈ Union.∪(α)(Singleton.singleton(α))) by Tautology.from(
+        lastStep,
+        Union.membership of (x := α, y := Singleton.singleton(α), z := β)
+      )
+      have(β ∈ S(α)) by Congruence.from(lastStep, S.definition)
+      have(thesis) by Tautology.from(lastStep)
+    }
+
+    val eqAlphaToLeqSucc = have((β === α) |- β <= S(α)) subproof {
+      assume(β === α)
+      have(β ∈ S(α)) by Congruence.from(alphaInSucc)
+      have(thesis) by Tautology.from(lastStep)
+    }
+    val betaLeqSucc = have(β <= α |- β <= S(α)) by Tautology.from(inAlphaToLeqSucc, eqAlphaToLeqSucc)
+
+    have(∀(β, β <= S(α) ==> (β === ∅) \/ successorOrdinal(β))) by
+      Tautology.from(integer.definition of (α := S(α)))
+    thenHave(β <= S(α) ==> (β === ∅) \/ successorOrdinal(β)) by InstantiateForall(β)
+    val predAtBeta = lastStep
+
+    have(β <= α |- (β === ∅) \/ successorOrdinal(β)) by Tautology.from(betaLeqSucc, predAtBeta)
+    thenHave((β <= α) ==> (β === ∅) \/ successorOrdinal(β)) by RightImplies
+    thenHave(∀(β, (β <= α) ==> (β === ∅) \/ successorOrdinal(β))) by RightForall
+    thenHave(thesis) by Substitute(integer.definition)
+  }
+
+  private val integerInInductive = Lemma(
+    (SetTheory.inductive(y), integer(α)) |- α ∈ y
+  ) {
+    def PInt(t: Expr[Ind]): Expr[Prop] = integer(t) ==> t ∈ y
+
+    val zeroCase = have(SetTheory.inductive(y) |- PInt(∅)) subproof {
+      assume(SetTheory.inductive(y))
+      have(∅ ∈ y) by Tautology.from(SetTheory.inductive.definition of (x := y))
+      have(integer(∅) ==> (∅ ∈ y)) by Tautology.from(lastStep)
+      have(thesis) by Tautology.from(lastStep)
+    }
+
+    val succEq = have(S(β) === SetTheory.successor(β)) by
+      Congruence.from(S.definition of (α := β), SetTheory.successor.definition of (x := β))
+
+    val succCase = have(
+      SetTheory.inductive(y) |- ∀(β, ordinal(β) /\ PInt(β) ==> PInt(S(β)))
+    ) subproof {
+      assume(SetTheory.inductive(y))
+      have(ordinal(β) /\ PInt(β) |- PInt(S(β))) subproof {
+        assume(ordinal(β) /\ PInt(β))
+        val ih = have(PInt(β)) by Tautology
+        assume(integer(S(β)))
+        val predInt = have(integer(β)) by Tautology.from(integerPredecessor of (α := β))
+        val betaInY = have(β ∈ y) by Tautology.from(ih, predInt)
+        have(∀(γ, γ ∈ y ==> SetTheory.successor(γ) ∈ y)) by
+          Tautology.from(SetTheory.inductive.definition of (x := y))
+        val succClosure = thenHave((β ∈ y) ==> (SetTheory.successor(β) ∈ y)) by
+          InstantiateForall(β)
+        val succInY = have(SetTheory.successor(β) ∈ y) by Tautology.from(succClosure, betaInY)
+        have(S(β) ∈ y) by Congruence.from(succInY, succEq)
+        have((SetTheory.inductive(y), ordinal(β) /\ PInt(β)) |- integer(S(β)) ==> (S(β) ∈ y)) by
+          Tautology.from(lastStep)
+        have(thesis) by Tautology.from(lastStep)
+      }
+      thenHave(ordinal(β) /\ PInt(β) ==> PInt(S(β))) by Restate
+      thenHave(thesis) by RightForall
+    }
+
+    val limitCase = have(
+      SetTheory.inductive(y) |- ∀(λ_, limitOrdinal(λ_) ==> (∀(β ∈ λ_, PInt(β)) ==> PInt(λ_)))
+    ) subproof {
+      assume(SetTheory.inductive(y))
+      have(limitOrdinal(λ_) ==> (∀(β ∈ λ_, PInt(β)) ==> PInt(λ_))) subproof {
+        val hLimit = assume(limitOrdinal(λ_))
+        val hPrev = assume(∀(β ∈ λ_, PInt(β)))
+        val hInt = assume(integer(λ_))
+
+        have(integer(λ_) |- integer(λ_)) by Restate
+        thenHave(integer(λ_) |- ∀(β, β <= λ_ ==> (β === ∅) \/ successorOrdinal(β))) by
+          Substitute(integer.definition of (α := λ_))
+        val intAtSelf = thenHave(integer(λ_) |- λ_ <= λ_ ==> (λ_ === ∅) \/ successorOrdinal(λ_)) by
+          InstantiateForall(λ_)
+
+        val selfLeq = have((λ_ ∈ λ_) \/ (λ_ === λ_)) by Tautology
+        val intSplit = have(
+          (limitOrdinal(λ_), ∀(β ∈ λ_, PInt(β)), integer(λ_), SetTheory.inductive(y)) |-
+            (λ_ === ∅) \/ successorOrdinal(λ_)
+        ) by
+          Tautology.from(intAtSelf, selfLeq)
+
+        val notSplit = have(limitOrdinal(λ_) |- ¬((λ_ === ∅) \/ successorOrdinal(λ_))) by
+          Tautology.from(limitOrdinal.definition of (α := λ_))
+
+        have((limitOrdinal(λ_), ∀(β ∈ λ_, PInt(β)), integer(λ_), SetTheory.inductive(y)) |- ()) by
+          Tautology.from(intSplit, notSplit)
+        have((limitOrdinal(λ_), ∀(β ∈ λ_, PInt(β)), integer(λ_)) |- λ_ ∈ y) by Tautology.from(lastStep)
+        have((limitOrdinal(λ_), ∀(β ∈ λ_, PInt(β))) |- integer(λ_) ==> (λ_ ∈ y)) by
+          Tautology.from(lastStep)
+        have(thesis) by Tautology.from(lastStep)
+      }
+      thenHave(thesis) by RightForall
+    }
+
+    val ordCases = have(SetTheory.inductive(y) |- ∀(β, ordinal(β) ==> PInt(β))) by
+      Tautology.from(
+        zeroCase,
+        succCase,
+        limitCase,
+        transfiniteInductionCases of (P := λ(β, PInt(β)))
+      )
+
+    val atAlpha = have(SetTheory.inductive(y) |- ordinal(α) ==> PInt(α)) by
+      InstantiateForall(α)(ordCases)
+
+    val alphaOrd = have((SetTheory.inductive(y), integer(α)) |- ordinal(α)) by
+      Tautology.from(integerIsOrdinal)
+
+    val alphaP = have((SetTheory.inductive(y), integer(α)) |- PInt(α)) by
+      Tautology.from(alphaOrd, atAlpha)
+
+    have(thesis) by Tautology.from(alphaP)
+  }
+
+  val omegaCharacterization = Lemma(∀(α, α ∈ ω <=> integer(α))) {
+    def Q(s: Expr[Ind]): Expr[Prop] = ∀(α, α ∈ s <=> integer(α))
+    def R(i: Expr[Ind], s: Expr[Ind]): Expr[Prop] = ∀(β, β ∈ s <=> (β ∈ i) /\ integer(β))
+
+    val i = variable[Ind]
+    val s = variable[Ind]
+
+    val existsQFromInductive = have(SetTheory.inductive(i) |- ∃(x, Q(x))) subproof {
+      assume(SetTheory.inductive(i))
+
+      val existsR = have(∃(s, R(i, s))) by
+        Weakening(lisa.maths.SetTheory.Base.Comprehension.existence of (y := i, φ := λ(β, integer(β))))
+
+      val epsSet: Expr[Ind] = ε(s, R(i, s))
+      val rAtEps = have(R(i, epsSet)) by
+        Tautology.from(existsR, existsEpsilon of (x := s, P := λ(s, R(i, s))))
+
+      val rAtBeta = have(β ∈ epsSet <=> (β ∈ i) /\ integer(β)) by
+        InstantiateForall(β)(rAtEps)
+
+      val forward = have(β ∈ epsSet ==> integer(β)) by Tautology.from(
+        rAtBeta
+      )
+
+      val inInductive = have(integer(β) ==> β ∈ i) by
+        Tautology.from(integerInInductive of (y := i, α := β))
+
+      val backward = have(integer(β) ==> β ∈ epsSet) by Tautology.from(
+        rAtBeta,
+        inInductive
+      )
+
+      have(β ∈ epsSet <=> integer(β)) by Tautology.from(forward, backward)
+      thenHave(∀(β, β ∈ epsSet <=> integer(β))) by RightForall
+      thenHave(∃(x, Q(x))) by RightExists
+      have(thesis) by Tautology.from(lastStep)
+    }
+
+    val existsQ = have(∃(x, Q(x))) by Cut(
+      SetTheory.inductiveSetExists,
+      {
+        have(∃(i, SetTheory.inductive(i)) |- ∃(x, Q(x))) by LeftExists(existsQFromInductive)
+        lastStep
+      }
+    )
+
+    val qAtEpsilon = have(Q(ε(x, Q(x)))) by
+      Tautology.from(existsQ, existsEpsilon of (x := x, P := λ(x, Q(x))))
+
+    val omegaEqEpsilon = have(ω === ε(x, Q(x))) by Congruence.from(Integer.ω.definition)
+    have(Q(ε(x, Q(x)))) by Restate.from(qAtEpsilon)
+    val qAtOmega = thenHave(Q(ω)) by Substitute(omegaEqEpsilon)
+
+    have(thesis) by Tautology.from(qAtOmega)
   }
 
   private val omegaOrdinal = Theorem(
@@ -214,15 +372,21 @@ object ExtendedInteger extends lisa.Main {
     (P(∅), ∀(α, α ∈ ω ==> (P(α) ==> P(S(α))))) |- ∀(α, α ∈ ω ==> P(α))
   ) {
     def Q(t: Expr[Ind]): Expr[Prop] = t ∈ ω ==> P(t)
+    val succStepAssumption = ∀(γ, γ ∈ ω ==> (P(γ) ==> P(S(γ))))
 
-    val qZero = have(Q(∅)) subproof {
-      // have(integer(∅) |- ∅ ∈ ω) by InstantiateForall(∅)(omegaCharacterization)
-      // have(∅ ∈ ω) by Tautology.from(lastStep, zeroIsInteger)
-      // have(∅ ∈ ω /\ P(∅)) by Tautology.from(lastStep)
-      have(Q(∅)) by Sorry
+    assume(P(∅))
+    assume(succStepAssumption)
+
+    val qZero = have(P(∅) |- Q(∅)) subproof {
+      val zeroChar = have(∅ ∈ ω <=> integer(∅)) by InstantiateForall(∅)(omegaCharacterization)
+      val zeroInOmega = have(∅ ∈ ω) by Tautology.from(
+        zeroIsInteger,
+        zeroChar
+      )
+      have(thesis) by Tautology.from(zeroInOmega)
     }
 
-    val qSucc = have(∀(α, ordinal(α) /\ Q(α) ==> Q(S(α)))) subproof {
+    val qSucc = have(succStepAssumption |- ∀(α, ordinal(α) /\ Q(α) ==> Q(S(α)))) subproof {
       val hyp = ordinal(α) /\ Q(α)
       // assume(ordinal(α) /\ Q(α))
       have(hyp |- Q(α)) by Tautology
@@ -230,24 +394,31 @@ object ExtendedInteger extends lisa.Main {
       have(S(α) ∈ ω |- α ∈ ω) by Tautology.from(omegaPredecessor)
       thenHave((S(α) ∈ ω, Q(α)) |- P(α)) by Tautology
 
-      have(∀(γ, γ ∈ ω ==> (P(γ) ==> P(S(γ))))) by Sorry //Restate.from(omegaSuccessor)
-      thenHave(α ∈ ω ==> (P(α) ==> P(S(α)))) by InstantiateForall(α)
+      have(succStepAssumption |- succStepAssumption) by Hypothesis
+      thenHave(succStepAssumption |- α ∈ ω ==> (P(α) ==> P(S(α)))) by InstantiateForall(α)
       val stepAlpha = lastStep
-      have((S(α) ∈ ω, Q(α)) |- P(S(α))) by Tautology.from(
+      have((succStepAssumption, S(α) ∈ ω, Q(α)) |- P(S(α))) by Tautology.from(
         stepAlpha,
         omegaPredecessor of (α := α)
       )
-      thenHave((hyp, S(α) ∈ ω) |- P(S(α))) by Tautology
-      thenHave(hyp |- S(α) ∈ ω ==> P(S(α))) by RightImplies
-      thenHave(hyp ==> Q(S(α))) by Restate
+      thenHave((succStepAssumption, hyp, S(α) ∈ ω) |- P(S(α))) by Tautology
+      have((succStepAssumption, hyp) |- S(α) ∈ ω ==> P(S(α))) by Tautology.from(lastStep)
+      thenHave((succStepAssumption, hyp) |- Q(S(α))) by Restate
+      have(succStepAssumption |- hyp ==> Q(S(α))) by Tautology.from(lastStep)
       thenHave(thesis) by Generalize
     }
+
+    val qZeroFact = have(Q(∅)) by Tautology.from(qZero)
+    val qSuccFact = have(∀(α, ordinal(α) /\ Q(α) ==> Q(S(α)))) by Tautology.from(qSucc)
 
     val qLimit = have(∀(λ_, limitOrdinal(λ_) ==> (∀(β ∈ λ_, Q(β)) ==> Q(λ_)))) subproof {
       val h1 = limitOrdinal(λ_)
       val h2 = ∀(β ∈ λ_, Q(β))
 
-      have((λ_ ∈ ω) |- integer(λ_)) by Sorry //Tautology.from(omegaCharacterization)
+      val lambdaChar = have(λ_ ∈ ω <=> integer(λ_)) by InstantiateForall(λ_)(omegaCharacterization)
+      have((λ_ ∈ ω) |- integer(λ_)) by Tautology.from(
+        lambdaChar
+      )
       thenHave((λ_ ∈ ω) |- ∀(β, β <= λ_ ==> (β === ∅) \/ successorOrdinal(β))) by 
         Substitute(integer.definition of (α := λ_))
       thenHave(λ_ ∈ ω |- λ_ <= λ_ ==> (λ_ === ∅) \/ successorOrdinal(λ_)) by InstantiateForall(λ_)
@@ -268,8 +439,8 @@ object ExtendedInteger extends lisa.Main {
 
     have(∀(α, ordinal(α) ==> Q(α))) by Tautology.from(
       transfiniteInductionCases of (P := λ(α, Q(α))),
-      qZero,
-      qSucc,
+      qZeroFact,
+      qSuccFact,
       qLimit
     )
 

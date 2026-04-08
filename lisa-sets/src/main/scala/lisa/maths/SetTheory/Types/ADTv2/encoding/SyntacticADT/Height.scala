@@ -207,7 +207,7 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
    *  TODO: Try to pull out
    */
   private[encoding] val heightMonotonic = Lemma(
-    (isHeight(h), in(n, N), subset(m, n)) |- subset(app(h, m), app(h, n))
+    (isHeight(h), in(n, N), in(m, N), subset(m, n)) |- subset(app(h, m), app(h, n))
   ) {
 
     // STEP 0: Caching
@@ -217,14 +217,13 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
       inExtIntroImage(restrictedFunction(h, n))(x)
 
     // STEP 1: Unfold the definition of height(m)
-    have((n ∈ N, m ⊆ n) |- m ∈ N) by Tautology.from(subsetIsNat of (x := m, y := n))
     have(
-      (isHeight(h), n ∈ N, m ⊆ n) |- (x ∈ app(h, m)) <=>
+      (isHeight(h), n ∈ N, m ∈ N, m ⊆ n) |- (x ∈ app(h, m)) <=>
         extIntroResM
-    ) by Cut(lastStep, heightApplication of (n := m))
+    ) by Tautology.from(heightApplication of (n := m))
 
     val unfoldHeightApplicationM = have(
-      (isHeight(h), in(n, N), subset(m, n), in(x, app(h, m))) |-
+      (isHeight(h), in(n, N), in(m, N), subset(m, n), in(x, app(h, m))) |-
         extIntroResM
     ) by Cut(
       lastStep,
@@ -243,7 +242,7 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
         (f := restrictedFunction(h, m), g := restrictedFunction(h, n))
     )
     val extNFromMonotonic = have(
-      (isHeight(h), in(n, N), subset(m, n), extIntroResM) |-
+      (isHeight(h), in(n, N), in(m, N), subset(m, n), extIntroResM) |-
         extIntroResN
     ) by Tautology.from(lastStep)
 
@@ -257,20 +256,20 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     )
 
     have(
-      (isHeight(h), in(n, N), subset(m, n), extIntroResM) |-
+      (isHeight(h), in(n, N), in(m, N), subset(m, n), extIntroResM) |-
         in(x, app(h, n))
     ) by Cut(extNFromMonotonic, inHnFromExtended)
 
     // STEP 3: Fold the definition of subset
     have(
-      (isHeight(h), in(n, N), subset(m, n), in(x, app(h, m))) |- in(x, app(h, n))
+      (isHeight(h), in(n, N), in(m, N), subset(m, n), in(x, app(h, m))) |- in(x, app(h, n))
     ) by Cut(unfoldHeightApplicationM, lastStep)
     thenHave(
-      (isHeight(h), in(n, N), subset(m, n)) |-
+      (isHeight(h), in(n, N), in(m, N), subset(m, n)) |-
         in(x, app(h, m)) ==> in(x, app(h, n))
     ) by RightImplies
     thenHave(
-      (isHeight(h), in(n, N), subset(m, n)) |-
+      (isHeight(h), in(n, N), in(m, N), subset(m, n)) |-
         forall(x, in(x, app(h, m)) ==> in(x, app(h, n)))
     ) by RightForall
 
@@ -319,24 +318,35 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
 
     // STEP 1: Prove that the restriction of height to n + 1 is not empty
     val heightResNonEmpty: Expr[Prop] = !(restrictedFunction(h, successor(n)) === ∅)
-    have(!(h === ∅) |- heightResNonEmpty) by
-      Cut(zeroIsNotSucc, restrictedFunctionNotEmpty of (d := successor(n)))
-    val heightResNonEmptyLemma = have(isHeight(h) |- heightResNonEmpty) by
-      Cut(heightFunctionNonEmpty, lastStep)
-
-    // STEP 2: Use the fact that if the function is cumulative then ∪ range(height | n + 1) = height(n) to conclude the proof
-    have(
-      (isHeight(h), in(n, N)) |- subset(m, n) ==> subset(app(h, m), app(h, n))
-    ) by RightImplies(heightMonotonic)
-    val monotonicityForall = thenHave(
-      (isHeight(h), in(n, N)) |-
-        forall(m, subset(m, n) ==> subset(app(h, m), app(h, n)))
-    ) by RightForall
 
     val coreTyping = have(
       (isHeight(h), in(n, N)) |- function(h) /\ (dom(h) === N)
     ) by Tautology.from(unfoldIsHeight)
     val nInNFact = have((isHeight(h), in(n, N)) |- in(n, N)) by Hypothesis
+    val domEq = have((isHeight(h), in(n, N)) |- dom(h) === N) by Tautology.from(coreTyping)
+    val nInDomH = have((isHeight(h), in(n, N)) |- in(n, dom(h))) by Congruence.from(nInNFact, domEq)
+    val nInSucc = have((isHeight(h), in(n, N)) |- in(n, successor(n))) by Tautology.from(nInSuccN of (n := n))
+
+    val heightResNonEmptyLemma = have((isHeight(h), in(n, N)) |- heightResNonEmpty) by
+      Tautology.from(
+        coreTyping,
+        nInDomH,
+        nInSucc,
+        restrictedFunctionNotEmpty of (x := n, d := successor(n))
+      )
+
+    // STEP 2: Use the fact that if the function is cumulative then ∪ range(height | n + 1) = height(n) to conclude the proof
+    have(
+      (isHeight(h), in(n, N), in(m, N)) |- subset(m, n) ==> subset(app(h, m), app(h, n))
+    ) by RightImplies(heightMonotonic)
+    thenHave(
+      (isHeight(h), in(n, N)) |- in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n)))
+    ) by RightImplies
+    val monotonicityForall = thenHave(
+      (isHeight(h), in(n, N)) |-
+        forall(m, in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n))))
+    ) by RightForall
+
     val coreTypingAndN = have(
       (isHeight(h), in(n, N)) |- (function(h) /\ (dom(h) === N)) /\ in(n, N)
     ) by RightAnd(coreTyping, nInNFact)
@@ -346,7 +356,7 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
         function(h) /\
         (dom(h) === N) /\
         in(n, N) /\
-        forall(m, subset(m, n) ==> subset(app(h, m), app(h, n)))
+        forall(m, in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n))))
       )
     ) by RightAnd(coreTypingAndN, monotonicityForall)
 
