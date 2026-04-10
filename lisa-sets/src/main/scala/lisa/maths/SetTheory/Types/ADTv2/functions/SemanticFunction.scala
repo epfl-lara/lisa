@@ -4,11 +4,11 @@ import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
+import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Types.Tactics.Typecheck
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.Functions.Pi.{->:}
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
@@ -39,7 +39,7 @@ class SemanticFunction[N <: Arity](
     (for c <- cases.keys yield
       val (vars, body) = cases(c)
       c -> Lemma(wellTyped(c.semanticSignature(vars)) |- (body :: returnType)) {
-        have(thesis) by Sorry // TypeChecker.prove
+        have(thesis) by Typecheck.prove
       }
     ).toMap
 
@@ -57,33 +57,27 @@ class SemanticFunction[N <: Arity](
    *  the ADT.
    */
   val fullName = s"$name"
-  // val fullName = s"${adt.name}/$name"
+  val typ: Expr[Ind] = adt.term ->: returnType
 
-  val typ = adt.term ->: returnType
+  /** Internal proof stack for existence and uniqueness internals. */
+  private val proofInternals = new SemanticFunctionProofInternals[N](
+    adt = adt,
+    cases = cases,
+    returnType = returnType,
+    checkReturnType = checkReturnType,
+    typ = typ
+  )
 
-  /**
-   *  Definition of this function.
-   *
-   *  Formally it is the only function whose domain is the ADT and such that for each
-   *  constructor c f * (c * x1 * ... * xn) = case(c, x1, ..., xn)
-   */
-  private val untypedDefinition = (f :: typ) /\ simplify(seqAnd(cases.map((c, caseDef) =>
-    val (vars, body) = caseDef
-    forallSeq(
-      vars,
-      wellTypedFormula(c.semanticSignature(vars)) ==> (f * c.appliedTerm(vars) === body)
-    )
-  )))
+  /** Definition of this function. */
+  private val untypedDefinition = proofInternals.untypedDefinition
 
   /** Lemma --- Uniqueness of this function. */
-  private val uniqueness = Axiom(existsOne(f, untypedDefinition))
-
+  private val uniqueness = proofInternals.uniqueness
 
   /** Class function corresponding to this semantic function. */
-
   private val classFunction: Constant[?] = {
     val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq, 
+      xs = typeVariablesSeq,
       t = ε(f, untypedDefinition)
     )
     type S
@@ -99,11 +93,10 @@ class SemanticFunction[N <: Arity](
   /** Function where type variables are instantiated with schematic symbols. */
   val term: Expr[Ind] = (classFunction #@@ typeVariablesSeq).asInstanceOf[Expr[Ind]]
 
-
   private val classFunctionCharacterization =
     Lemma(forall(f, (term === f) <=> untypedDefinition)) {
       val epsilonWitness = ε(f, untypedDefinition)
-      
+
       val epsilonCharacterization = have(
         untypedDefinition <=> (f === epsilonWitness)
       ) by Tautology.from(
@@ -144,7 +137,7 @@ class SemanticFunction[N <: Arity](
     }
 
   /**
-   *  Lemma --- The body of this function correpsonds to the cases provided by the user.
+   *  Lemma --- The body of this function corresponds to the cases provided by the user.
    *
    *  `for each constructor c, ∀x1, ..., xn. f * (c * x1 * ... * xn) = case(c, x1, ..., xn)`
    */
