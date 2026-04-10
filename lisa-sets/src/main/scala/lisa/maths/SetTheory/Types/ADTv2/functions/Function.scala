@@ -5,7 +5,6 @@ import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantF
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.*
 
 /**
  *  Type theoretic function over algebraic data types. Its definition is the direct sum of

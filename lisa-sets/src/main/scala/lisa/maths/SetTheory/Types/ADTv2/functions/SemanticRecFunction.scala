@@ -6,6 +6,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
@@ -41,8 +42,7 @@ class SemanticRecFunction[N <: Arity](
     )
   )))
 
-  /** Lemma --- Uniqueness of this function. */
-  private val uniqueness = Axiom(existsOne(f, untypedDefinition))
+  // Definition of the function symbol
 
   private val classFunction: Constant[?] = {
     val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
@@ -58,6 +58,44 @@ class SemanticRecFunction[N <: Arity](
 
   val id: Identifier = classFunction.id
   val term: Expr[Ind] = (classFunction #@@ typeVariablesSeq).asInstanceOf[Expr[Ind]]
+
+  /** cases with selfPlaceholder substituted by the function term. */
+  val caseDefinitions: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
+    cases.map((c, caseDef) =>
+      val (vars, body) = caseDef
+      c -> (vars, body.substitute(selfPlaceholder := term))
+    )
+
+
+  // Lemmas
+  
+  /** Minimal typing obligations for recursive cases (placeholder proofs). */
+  private val checkReturnType: Map[SemanticConstructor[N], JUSTIFICATION] =
+    caseDefinitions.map((c, caseDef) =>
+      val (vars, body) = caseDef
+      c -> (Lemma(wellTyped(c.semanticSignature(vars)) |- (body :: returnType)) {
+        // Proof idea: same shape as non-recursive typing check, but recursive occurrences
+        // require a typing hypothesis for `term` itself. This introduces circularity in
+        // the current pipeline, so we keep a placeholder.
+
+        println(s"checking return type for $c ($body :: $returnType)")
+        println(s"thesis: ${thesis}")
+        // have(thesis) by Typecheck.prove
+        have(thesis) by Sorry
+      })
+    )
+
+  /** Internal proof stack for uniqueness internals. */
+  private val proofInternals = new SemanticRecFunctionInternals[N](
+    functionName = fullName,
+    adt = adt,
+    untypedDefinition = untypedDefinition,
+    cases = caseDefinitions,
+    returnType = returnType,
+    checkReturnType = checkReturnType,
+    typ = typ
+  )
+  private val uniqueness = proofInternals.uniqueness
 
   private val classFunctionCharacterization =
     Lemma(forall(f, (term === f) <=> untypedDefinition)) {
@@ -102,25 +140,8 @@ class SemanticRecFunction[N <: Arity](
       thenHave(thesis) by RightForall
     }
 
-  val caseDefinitions: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
-    cases.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      c -> (vars, body.substitute(selfPlaceholder := term))
-    )
 
-  /** Minimal typing obligations for recursive cases (placeholder proofs). */
-  private val checkReturnType: Map[SemanticConstructor[N], THM] =
-    caseDefinitions.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      c -> (Lemma(wellTyped(c.semanticSignature(vars)) |- (body :: returnType)) {
-        // Proof idea: same shape as non-recursive typing check, but recursive occurrences
-        // require a typing hypothesis for `term` itself. This introduces circularity in
-        // the current pipeline, so we keep a placeholder.
-        have(thesis) by Sorry
-      })
-    )
-
-  /** Case equations as lemmas (placeholder proofs). */
+  /** Case equations as lemmas */
   val shortDefinition: Map[SemanticConstructor[N], THM] =
     caseDefinitions.map((c, caseDef) =>
       val (vars, body) = caseDef
@@ -157,11 +178,9 @@ class SemanticRecFunction[N <: Arity](
       })
     )
 
-  /** Introduction rule for the recursive symbol (placeholder proof). */
+  /** Introduction rule for the recursive symbol */
   val intro: THM = Lemma(forallSeq(typeVariablesSeq, term :: typ)) {
-    // Proof idea: would follow from a recursive function-definition axiom saying the
-    // symbol is in the appropriate function space and satisfies all recursive equations.
-
+    
     have(forall(f, (term === f) <=> untypedDefinition)) by
       Restate.from(classFunctionCharacterization)
 

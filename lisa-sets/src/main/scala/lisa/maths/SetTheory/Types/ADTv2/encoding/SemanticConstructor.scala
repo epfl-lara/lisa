@@ -48,6 +48,8 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   val fullName: String = s"${adt.name}/${name}"
 
+  override def toString: String = fullName
+
   /** Type variables that may appear in the signature of this constructor. */
   val typeVariables: Variable[Ind] ** N = adt.typeVariables
 

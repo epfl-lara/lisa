@@ -34,7 +34,15 @@ class SemanticFunction[N <: Arity](
     returnType: Expr[Ind]
 )(using line: sourcecode.Line, file: sourcecode.File) {
 
-  /** Map binding each constructor to a theorem stating that the case is well typed. */
+
+  val typeVariables: Variable[Ind] ** N = adt.typeVariables
+  val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
+  val typeArity: N = adt.typeArity
+
+  val fullName = s"$name"
+  val typ: Expr[Ind] = adt.term ->: returnType
+
+
   private val checkReturnType: Map[SemanticConstructor[N], THM] =
     (for c <- cases.keys yield
       val (vars, body) = cases(c)
@@ -43,24 +51,9 @@ class SemanticFunction[N <: Arity](
       }
     ).toMap
 
-  /** Type variables appearing in this function's domain. */
-  val typeVariables: Variable[Ind] ** N = adt.typeVariables
-
-  /** Sequence of type variables appearing in this function's domain. */
-  val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
-
-  /** Number of type variables appearing in this function. */
-  val typeArity: N = adt.typeArity
-
-  /**
-   *  Full name of this function. That is the name of the function prefixed by the name of
-   *  the ADT.
-   */
-  val fullName = s"$name"
-  val typ: Expr[Ind] = adt.term ->: returnType
-
-  /** Internal proof stack for existence and uniqueness internals. */
-  private val proofInternals = new SemanticFunctionProofInternals[N](
+  /** Internal proof stack for uniqueness internals. */
+  private val proofInternals = new SemanticFunctionInternals[N](
+    functionName = fullName,
     adt = adt,
     cases = cases,
     returnType = returnType,
@@ -68,11 +61,11 @@ class SemanticFunction[N <: Arity](
     typ = typ
   )
 
-  /** Definition of this function. */
-  private val untypedDefinition = proofInternals.untypedDefinition
 
-  /** Lemma --- Uniqueness of this function. */
+  private val untypedDefinition = proofInternals.untypedDefinition
   private val uniqueness = proofInternals.uniqueness
+
+  // Definition of the function symbol
 
   /** Class function corresponding to this semantic function. */
   private val classFunction: Constant[?] = {
@@ -87,11 +80,10 @@ class SemanticFunction[N <: Arity](
   }
   classFunction.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
 
-  /** Identifier of this function. */
   val id: Identifier = classFunction.id
-
-  /** Function where type variables are instantiated with schematic symbols. */
   val term: Expr[Ind] = (classFunction #@@ typeVariablesSeq).asInstanceOf[Expr[Ind]]
+
+  // Lemmas
 
   private val classFunctionCharacterization =
     Lemma(forall(f, (term === f) <=> untypedDefinition)) {

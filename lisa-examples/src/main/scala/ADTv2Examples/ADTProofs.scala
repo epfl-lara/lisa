@@ -1,6 +1,5 @@
 
 import lisa.maths.SetTheory.Types.ADTv2.*
-import lisa.utils.prooflib.BasicStepTactic.Sorry
 import lisa.utils.fol.FOL
 
 object ADTProofs extends lisa.Main {

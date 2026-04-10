@@ -8,18 +8,24 @@ import lisa.maths.SetTheory.Types.TypingHelpers.*
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.{Comprehension, CartesianProduct}
+import lisa.maths.SetTheory.Base.Comprehension.|
+import lisa.maths.SetTheory.Base.{Comprehension, CartesianProduct, Pair}
+import lisa.maths.SetTheory.Base.Symbols.{φ, X, Y}
 import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
+import lisa.maths.SetTheory.Relations.Relation.{relationBetween, R}
+import lisa.maths.Quantifiers.∃!
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 
-private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
+
+private[functions] final class WitnessTyping[N <: Arity](
     adt: SemanticADT[N],
     cases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])],
     returnType: Expr[Ind],
-    checkReturnType: Map[SemanticConstructor[N], THM],
+    checkReturnType: Map[SemanticConstructor[N], JUSTIFICATION],
     typ: Expr[Ind],
     witness: Expr[Ind],
+    witnessDef: JUSTIFICATION,
     witnessBound: Expr[Ind],
     pairWitness: Variable[Ind],
     caseMembership: Expr[Ind] => Expr[Prop],
@@ -27,7 +33,12 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
     constructorTagDisequalities: Map[(SemanticConstructor[N], SemanticConstructor[N]), THM]
 ) {
 
-  lazy val witnessMembershipByConstructor: Map[SemanticConstructor[N], THM] =
+  private val inputTerm = variable[Ind]
+  private val outputTerm = variable[Ind]
+  private val alternateOutputTerm = variable[Ind]
+  private val witnessBody = { pairWitness ∈ witnessBound | caseMembership(pairWitness) }
+
+  val witnessMembershipByConstructor: Map[SemanticConstructor[N], THM] =
     (for c <- cases.keys yield
       val (vars, body) = cases(c)
       c -> Lemma(
@@ -36,6 +47,7 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
           wellTypedFormula(c.semanticSignature(vars)) ==> pair(c.appliedTerm(vars), body) ∈ witness
         )
       ) {
+        
         val wellTypedArgs = wellTypedFormula(c.semanticSignature(vars))
         val pairTerm = pair(c.appliedTerm(vars), body)
 
@@ -87,15 +99,20 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
         val inOwnCaseBranch = have(wellTypedArgs |- ownCaseBranch) by Tautology.from(inOwnCaseBranchRaw)
         val rawCaseMembership = have(wellTypedArgs |- caseMembership(pairTerm)) by Tautology.from(inOwnCaseBranch)
 
-        val witnessMembershipEq = have(
-          wellTypedArgs |- pairTerm ∈ witness <=> (pairTerm ∈ witnessBound /\ caseMembership(pairTerm))
+
+        have(
+          pairTerm ∈ witnessBody <=> (pairTerm ∈ witnessBound /\ caseMembership(pairTerm))
         ) by Tautology.from(
           Comprehension.membership of (
             x := pairTerm,
             y := witnessBound,
-            lisa.maths.SetTheory.Base.Symbols.φ := λ(pairWitness, caseMembership(pairWitness))
+            φ := λ(pairWitness, caseMembership(pairWitness))
           )
         )
+
+        val witnessMembershipEq = have(
+          wellTypedArgs |- pairTerm ∈ witness <=> (pairTerm ∈ witnessBound /\ caseMembership(pairTerm))
+        ) by Congruence.from(witnessDef, lastStep)
 
         val pairInBoundAndCase = have(wellTypedArgs |- pairTerm ∈ witnessBound /\ caseMembership(pairTerm)) by
           Tautology.from(pairInBound, rawCaseMembership)
@@ -109,38 +126,37 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
       }
     ).toMap
 
-  val witnessHasType: THM = Lemma(witness :: typ) {
-    val inputTerm = variable[Ind]
-    val outputTerm = variable[Ind]
-    val alternateOutputTerm = variable[Ind]
-
-    val witnessRelationBetween =
-      have(lisa.maths.SetTheory.Relations.Relation.relationBetween(witness)(adt.term)(returnType)) subproof {
-        val subsetBound = have(witness ⊆ witnessBound) by Tautology.from(
-          lisa.maths.SetTheory.Base.Comprehension.subset of (
+  private val witnessRelationBetween: THM = Lemma(relationBetween(witness)(adt.term)(returnType)) {
+        have(witnessBody ⊆ witnessBound) by Tautology.from(
+          Comprehension.subset of (
             y := witnessBound,
-            lisa.maths.SetTheory.Base.Symbols.φ := λ(pairWitness, caseMembership(pairWitness))
+            φ := λ(pairWitness, caseMembership(pairWitness))
           )
         )
+        val subsetBound = have(witness ⊆ witnessBound) by Congruence.from(
+          lastStep,
+          witnessDef
+        )
         val relationFromSubset = have(
-          lisa.maths.SetTheory.Relations.Relation.relationBetween(witness)(adt.term)(returnType)
+          relationBetween(witness)(adt.term)(returnType)
         ) by Tautology.from(
           subsetBound,
-          lisa.maths.SetTheory.Relations.Relation.relationBetween.definition of (
-            lisa.maths.SetTheory.Relations.Relation.R := witness,
-            lisa.maths.SetTheory.Base.Symbols.X := adt.term,
-            lisa.maths.SetTheory.Base.Symbols.Y := returnType
+          relationBetween.definition of (
+            R := witness,
+            X := adt.term,
+            Y := returnType
           )
         )
         have(thesis) by Restate.from(relationFromSubset)
       }
 
-    val witnessTotality = have(
+
+  private val witnessTotality: THM = Lemma(
       ∀(
         inputTerm,
         (inputTerm ∈ adt.term) ==> ∃(outputTerm, in(pair(inputTerm, outputTerm), witness))
       )
-    ) subproof {
+    ) {
       val totalityAtInput = ∃(outputTerm, in(pair(inputTerm, outputTerm), witness))
       val constructorBranch = adt.constructors.map(c =>
         c -> simplify(
@@ -229,7 +245,8 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
       thenHave(thesis) by Restate
     }
 
-    val witnessSingleValued = have(
+
+  private val witnessSingleValued: THM = Lemma(
       ∀(
         inputTerm,
         (inputTerm ∈ adt.term) ==> ∀(
@@ -241,7 +258,7 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
           )
         )
       )
-    ) subproof {
+    ) {
       val pairAtOutput = pair(inputTerm, outputTerm)
       val pairAtAlternateOutput = pair(inputTerm, alternateOutputTerm)
 
@@ -274,25 +291,36 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
 
       val outputCaseRenaming = have(caseMembership(pairAtOutput) |- caseDisjunctionAtOutputWithVars1) by Tableau
 
-      val outputMembershipEq = have(
-        pairAtOutput ∈ witness <=> (pairAtOutput ∈ witnessBound /\ caseMembership(pairAtOutput))
+
+      val outputMembershipEqBody = have(
+        pairAtOutput ∈ witnessBody <=> (pairAtOutput ∈ witnessBound /\ caseMembership(pairAtOutput))
       ) by Tautology.from(
         Comprehension.membership of (
           x := pairAtOutput,
           y := witnessBound,
-          lisa.maths.SetTheory.Base.Symbols.φ := λ(pairWitness, caseMembership(pairWitness))
+          φ := λ(pairWitness, caseMembership(pairWitness))
         )
       )
 
-      val alternateMembershipEq = have(
-        pairAtAlternateOutput ∈ witness <=> (pairAtAlternateOutput ∈ witnessBound /\ caseMembership(pairAtAlternateOutput))
+      
+      val outputMembershipEq = have(
+        pairAtOutput ∈ witness <=> (pairAtOutput ∈ witnessBound /\ caseMembership(pairAtOutput))
+      ) by Congruence.from(witnessDef, outputMembershipEqBody)
+
+      have(
+        pairAtAlternateOutput ∈ witnessBody <=>
+          (pairAtAlternateOutput ∈ witnessBound /\ caseMembership(pairAtAlternateOutput))
       ) by Tautology.from(
         Comprehension.membership of (
           x := pairAtAlternateOutput,
           y := witnessBound,
-          lisa.maths.SetTheory.Base.Symbols.φ := λ(pairWitness, caseMembership(pairWitness))
+          φ := λ(pairWitness, caseMembership(pairWitness))
         )
       )
+      val alternateMembershipEq = have(
+        pairAtAlternateOutput ∈ witness <=>
+          (pairAtAlternateOutput ∈ witnessBound /\ caseMembership(pairAtAlternateOutput))
+      ) by Congruence.from(witnessDef, lastStep)
 
       val singleValuedAtInput = have(
         (inputTerm ∈ adt.term, in(pairAtOutput, witness), in(pairAtAlternateOutput, witness)) |- (outputTerm === alternateOutputTerm)
@@ -355,7 +383,7 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
               val outputPairDecomposition = have(
                 pairAtOutput === pair(c1.appliedTerm1, bodyAtVars1) |- (inputTerm === c1.appliedTerm1) /\ (outputTerm === bodyAtVars1)
               ) by Tautology.from(
-                lisa.maths.SetTheory.Base.Pair.extensionality of (
+                Pair.extensionality of (
                   a := inputTerm,
                   b := outputTerm,
                   c := c1.appliedTerm1,
@@ -370,7 +398,7 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
               val alternatePairDecomposition = have(
                 pairAtAlternateOutput === pair(c2.appliedTerm2, bodyAtVars2) |- (inputTerm === c2.appliedTerm2) /\ (alternateOutputTerm === bodyAtVars2)
               ) by Tautology.from(
-                lisa.maths.SetTheory.Base.Pair.extensionality of (
+                Pair.extensionality of (
                   a := inputTerm,
                   b := alternateOutputTerm,
                   c := c2.appliedTerm2,
@@ -481,7 +509,7 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
                     (c1.underlying.tagTerm === c2.underlying.tagTerm) /\
                     (c1.underlying.subterm1 === c2.underlying.subterm2)
                 ) by Tautology.from(
-                  lisa.maths.SetTheory.Base.Pair.extensionality of (
+                  Pair.extensionality of (
                     a := c1.underlying.tagTerm,
                     b := c1.underlying.subterm1,
                     c := c2.underlying.tagTerm,
@@ -589,12 +617,13 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
       thenHave(thesis) by Restate
     }
 
-    val witnessUniqueValue = have(
+
+  private val witnessUniqueValue: THM = Lemma(
       ∀(
         inputTerm ∈ adt.term,
         existsOne(outputTerm, in(pair(inputTerm, outputTerm), witness))
       )
-    ) subproof {
+    ) {
       val pointwisePredicate = (out: Expr[Ind]) => in(pair(inputTerm, out), witness)
 
       val totalityAtInput = have(
@@ -709,7 +738,7 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
           ) by RightExists
           thenHave(existsOne(outputTerm, pointwisePredicate(outputTerm))) by
             Substitute(
-              lisa.maths.Quantifiers.∃!.definition of (
+              ∃!.definition of (
                 P := λ(outputTerm, pointwisePredicate(outputTerm))
               )
             )
@@ -746,10 +775,12 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
       thenHave(thesis) by Restate
     }
 
+
+  val witnessHasType: THM = Lemma(witness :: typ) {
     val witnessFunctionBetween = have(
-      lisa.maths.SetTheory.Functions.Function.functionBetween(witness)(adt.term)(returnType)
+      Function.functionBetween(witness)(adt.term)(returnType)
     ) by Tautology.from(
-        lisa.maths.SetTheory.Functions.Function.functionBetween.definition of (
+        Function.functionBetween.definition of (
           f := witness,
           A := adt.term,
           B := returnType
@@ -759,7 +790,7 @@ private[functions] final class SemanticFunctionWitnessHasType[N <: Arity](
       )
 
     have(thesis) by Tautology.from(
-      lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace of (
+      BasicTheorems.funcBetweenEqInFuncSpace of (
         f := witness,
         A := adt.term,
         B := returnType

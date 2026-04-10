@@ -55,11 +55,11 @@ object RecursiveFunction extends lisa.Main {
       cons(unit) * star * (self * k)
   }
 
-  println(s"length: ${length}")
-  println(s"length term: ${length.term}")
-  println(s"length(nat): ${length(nat)}")
-  println(s"list: ${list}")
-  println(s"listNat: ${list(nat)}")
+  // println(s"length: ${length}")
+  // println(s"length term: ${length.term}")
+  // println(s"length(nat): ${length(nat)}")
+  // println(s"list: ${list}")
+  // println(s"listNat: ${list(nat)}")
 
   show(length.intro)
   for (cons <- list.constructors) show(length.elim(cons))

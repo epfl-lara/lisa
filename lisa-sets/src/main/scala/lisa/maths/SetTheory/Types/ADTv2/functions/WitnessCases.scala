@@ -11,13 +11,13 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
 import lisa.utils.prooflib.BasicStepTactic.Restate
 
-private[functions] final class SemanticFunctionWitnessCaseByConstructor[N <: Arity](
+private[functions] final class WitnessCases[N <: Arity](
     adt: SemanticADT[N],
     cases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])],
     returnType: Expr[Ind],
     witness: Expr[Ind],
-    witnessHasType: THM,
-    witnessMembershipByConstructor: Map[SemanticConstructor[N], THM],
+    witnessHasType: JUSTIFICATION,
+    witnessMembershipByConstructor: Map[SemanticConstructor[N], JUSTIFICATION],
     constructorApplicationTyping: (SemanticConstructor[N], Seq[Variable[Ind]]) => THM
 ) {
 
