@@ -601,7 +601,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     var remaining: Seq[SimpleExpression] = Nil
     def treatChild(i: SimpleExpression): Seq[SimpleExpression] = {
       val r: Seq[SimpleExpression] = i match {
-        case SimpleAnd(ch, true) => ch
+        case SimpleAnd(ch, true) => ch.flatMap(treatChild)
         case SimpleAnd(ch, false) =>
           if (polarity) {
             val trCh = ch map getInversePolar
