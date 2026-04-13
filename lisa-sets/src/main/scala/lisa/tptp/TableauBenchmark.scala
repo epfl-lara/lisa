@@ -78,7 +78,13 @@ object TableauBenchmark {
   def main(args: Array[String]): Unit = {
     val config = ParserForClass[Config].constructOrThrow(args.toIndexedSeq)
     Tableau.debug = false
-    val result = runBenchmark(File(config.input), config.timeout, config.verify)
+    val inputFile = File(config.input)
+    // When run via sbt fork, the cwd is the subproject dir; resolve relative paths from the repo root
+    val resolvedFile = if (inputFile.isAbsolute || inputFile.exists()) inputFile
+      else File(sys.props.getOrElse("user.dir", ".")).getParentFile match
+        case null => inputFile
+        case parent => val candidate = File(parent, config.input); if candidate.exists() then candidate else inputFile
+    val result = runBenchmark(resolvedFile, config.timeout, config.verify)
     config.format match {
       case "csv" =>
         println(result.toCSVHeader)

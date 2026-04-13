@@ -14,19 +14,19 @@ export TPTP=/path/to/TPTP-v9.2.1
 
 ```bash
 # Default text output
-sbt "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p"
+sbtn "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p"
 
 # Verbose output
-sbt "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p --format verbose"
+sbtn "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p --format verbose"
 
 # CSV output
-sbt "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p --format csv"
+sbtn "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p --format csv"
 
 # Custom timeout (ms, default 60000, 0 = no timeout)
-sbt "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p --timeout 30000"
+sbtn "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p --timeout 30000"
 
 # Skip proof verification
-sbt "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p --verify false"
+sbtn "lisa-sets/runMain lisa.tptp.TableauBenchmark --input tptp-pure-fol/SYN/SYN048+1.p --verify false"
 ```
 
 ## From Scala
