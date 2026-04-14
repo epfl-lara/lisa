@@ -185,12 +185,17 @@ class RunningTheory {
    * @param e The expression to check
    * @return Weather t belongs to the specified language.
    */
-  def belongsToTheory(e: Expression): Boolean = e match {
-    case v: Variable => true
-    case c: Constant => isSymbol(c)
-    case Application(f, arg) => belongsToTheory(f) && belongsToTheory(arg)
-    case Lambda(v, t) => belongsToTheory(t)
+  def belongsToTheory(e: Expression): Boolean = {
+    val res = e match {
+      case v: Variable => true
+      case c: Constant => isSymbol(c)
+      case Application(f, arg) => belongsToTheory(f) && belongsToTheory(arg)
+      case Lambda(v, t) => belongsToTheory(t)
+    }
+    if (!res) println(s"[WARN] Expression $e does not belong to the theory.")
+    res
   }
+    
 
   /**
    * Verify if a given sequent belongs to the language of the theory.
