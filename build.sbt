@@ -73,6 +73,15 @@ lazy val sets = Project(
 )
   .settings(commonSettings3)
   .dependsOn(kernel, withTests(utils))
+
+lazy val bench = Project(
+  id = "bench",
+  base = file("bench")
+)
+  .settings(commonSettings3)
+  .enablePlugins(JmhPlugin)
+  .dependsOn(sets)
+
 lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")
