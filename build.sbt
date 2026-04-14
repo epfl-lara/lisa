@@ -89,6 +89,15 @@ lazy val sets = Project(
   )
   .dependsOn(kernel, withTests(utils))
 
+lazy val bench = Project(
+  id = "bench",
+  base = file("bench")
+)
+  .settings(commonProjectSettings)
+  .settings(scala3ProjectSettings)
+  .enablePlugins(JmhPlugin)
+  .dependsOn(sets)
+
 lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")
