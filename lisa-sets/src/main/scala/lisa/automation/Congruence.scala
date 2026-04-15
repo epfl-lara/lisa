@@ -29,13 +29,16 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
     val newAssumptions: Seq[(Expr[Prop], proof.Fact)] = context.map(s => (betaReduce(orAllOrFalse(s.statement.right)), s)).filter((f, s) => !bot.left.contains(f))
     val botWithAssumptions = bot.left ++ newAssumptions.map(_._1) |- bot.right
     var seq = botWithAssumptions
+    var earlyReturn: Option[proof.ProofTacticJudgement] = None
 
-    TacticSubproof { iProof ?=>
+    val subResult = TacticSubproof { iProof ?=>
       import lib.*
 
       have(botWithAssumptions) by this
       // println(s"Bot with assumptions: $botWithAssumptions")
-      for ((assumption, f) <- newAssumptions) {
+      val outerIter = newAssumptions.iterator
+      while outerIter.hasNext && earlyReturn.isEmpty do
+        val (assumption, f) = outerIter.next()
         // println(s"eliminating premise ${f.statement}")
         val assumsOfPrem = f.statement.left
         if lastStep.statement.left.contains(assumption) then
@@ -43,17 +46,21 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
           val seq = assumptionWeWantToGet ++ assumsOfPrem |- lastStep.statement.right
           have(seq) by Cut(f, lastStep)
           // println(s"seq after cutting with the premise: $seq")
-          assumsOfPrem.foldLeft(lastStep) { (step, a) =>
+          var currentStep = lastStep
+          val innerIter = assumsOfPrem.iterator
+          while innerIter.hasNext && earlyReturn.isEmpty do
+            val a = innerIter.next()
             if !assumptionWeWantToGet.exists(acceptableAssum => isSame(a, acceptableAssum)) then
-              this((step.statement.left - a) |- a) match
+              this((currentStep.statement.left - a) |- a) match
                 case r: iProof.ValidProofTactic => r.validate
-                case iProof.InvalidProofTactic(e) => return proof.InvalidProofTactic(s"Failed to prove $a from ${step.statement.left - a} while eliminating premise ${f.statement}: $e")
-              val aProof = have((step.statement.left - a) |- a) by this // TODO: catch errors
-              have(step.statement -<< a) by Cut(aProof, step)
-            else step
-          }
-      }
+                case iProof.InvalidProofTactic(e) =>
+                  earlyReturn = Some(proof.InvalidProofTactic(s"Failed to prove $a from ${currentStep.statement.left - a} while eliminating premise ${f.statement}: $e"))
+              if earlyReturn.isEmpty then
+                val aProof = have((currentStep.statement.left - a) |- a) by this // TODO: catch errors
+                currentStep = have(currentStep.statement -<< a) by Cut(aProof, currentStep)
     }
+
+    earlyReturn.getOrElse(subResult)
 
   def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
     from(premise)(bot)

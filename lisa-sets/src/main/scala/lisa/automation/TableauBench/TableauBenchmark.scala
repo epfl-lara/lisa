@@ -1,4 +1,4 @@
-package lisa.tptp
+package lisa.automation.TableauBench
 
 import lisa.automation.Tableau
 import lisa.kernel.proof.SCProofChecker.checkSCProof
@@ -67,17 +67,19 @@ object TableauBenchmark {
   case class Config(
       @arg(doc = "Path to a TPTP problem file (.p)")
       input: String,
-      @arg(doc = "Timeout in milliseconds (0 = no timeout, default: 60000)")
+      @arg(doc = "Timeout in milliseconds (0 = no timeout, default: 60000 = 1 minute)")
       timeout: Long = 60000,
       @arg(doc = "Whether to verify the proof with the kernel checker (default: true)")
       verify: Boolean = true,
       @arg(doc = "Output format: text (default), csv, verbose")
-      format: String = "text"
+      format: String = "text",
+      @arg(doc = "Enable debug output (default: false)")
+      debug: Boolean = false
   )
 
   def main(args: Array[String]): Unit = {
     val config = ParserForClass[Config].constructOrThrow(args.toIndexedSeq)
-    Tableau.debug = false
+    Tableau.debug = config.debug
     val inputFile = File(config.input)
     // When run via sbt fork, the cwd is the subproject dir; resolve relative paths from the repo root
     val resolvedFile = if (inputFile.isAbsolute || inputFile.exists()) inputFile
@@ -108,13 +110,70 @@ object TableauBenchmark {
     }
   }
 
+  /**
+   * Ensure the TPTP environment variable is set so that include directives can be resolved.
+   * Looks for TPTP-v*.* directories in the workspace root.
+   */
+  private lazy val tptpRoot: Option[File] = {
+    if (sys.env.get("TPTP").exists(_.nonEmpty)) Some(new File(sys.env("TPTP")))
+    else {
+      // Try to find TPTP distribution relative to likely working directories
+      val cwd = new File(sys.props.getOrElse("user.dir", "."))
+      val candidates = Seq(
+        new File(cwd, "TPTP-v9.2.1"),
+        new File(cwd.getParentFile, "TPTP-v9.2.1"),
+        Option(cwd.getParentFile).flatMap(p => Option(p.getParentFile)).map(p => new File(p, "TPTP-v9.2.1")).orNull
+      ).filterNot(_ == null)
+      candidates.find(f => f.exists() && f.isDirectory && new File(f, "Axioms").exists())
+    }
+  }
+
+  /**
+   * Resolve a TPTP problem file by inlining all include directives.
+   * Returns a temporary file with all formulas inlined, or the original file if no includes.
+   */
+  private def resolveIncludes(problemFile: File): File = {
+    val content = scala.io.Source.fromFile(problemFile).mkString
+    val includePattern = """^include\('([^']+)'\)\.\s*$""".r
+    val hasIncludes = content.linesIterator.exists(line => includePattern.findFirstIn(line.trim).isDefined)
+    if (!hasIncludes) return problemFile
+
+    tptpRoot match {
+      case None => problemFile // can't resolve, will fail downstream with clear error
+      case Some(root) =>
+        val resolved = new StringBuilder()
+        def processFile(f: File): Unit = {
+          val src = scala.io.Source.fromFile(f)
+          try {
+            for (line <- src.getLines()) {
+              line.trim match {
+                case includePattern(path) =>
+                  val axiomFile = new File(root, path)
+                  if (axiomFile.exists()) processFile(axiomFile)
+                  else resolved.append(line).append('\n') // keep original, will fail in parser
+                case _ => resolved.append(line).append('\n')
+              }
+            }
+          } finally src.close()
+        }
+        processFile(problemFile)
+        val tmpFile = File.createTempFile("tptp_resolved_", ".p")
+        tmpFile.deleteOnExit()
+        val writer = new java.io.PrintWriter(tmpFile)
+        writer.print(resolved.toString())
+        writer.close()
+        tmpFile
+    }
+  }
+
   def runBenchmark(problemFile: File, timeoutMs: Long, verify: Boolean): BenchmarkResult = {
     val totalStart = System.currentTimeMillis()
 
-    // Phase 1: Parse the TPTP file
+    // Phase 1: Parse the TPTP file (resolve includes if needed)
     val parseStart = System.currentTimeMillis()
+    val resolvedProblemFile = resolveIncludes(problemFile)
     val (problem, sequent, parseError) = try {
-      val prob = problemToKernel(problemFile)(using strictMapAtom, strictMapTerm, strictMapVariable)
+      val prob = problemToKernel(resolvedProblemFile)(using strictMapAtom, strictMapTerm, strictMapVariable)
       val seq = problemToSequent(prob)
       (Some(prob), Some(seq), None)
     } catch {
@@ -149,14 +208,15 @@ object TableauBenchmark {
         // Run with timeout using a separate thread
         val resultHolder = new java.util.concurrent.atomic.AtomicReference[Option[K.SCProof]](None)
         val errorHolder = new java.util.concurrent.atomic.AtomicReference[Option[String]](None)
-        val thread = new Thread(() => {
+        val thread = new Thread(null, () => {
           try {
             resultHolder.set(Tableau.solve(seq))
           } catch {
             case e: Exception =>
+              e.printStackTrace(System.err)
               errorHolder.set(Some(s"Solve error: ${e.getMessage}"))
           }
-        })
+        }, "tableau-solver", 64 * 1024 * 1024) // 64 MB stack
         thread.setDaemon(true)
         thread.start()
         thread.join(timeoutMs)
@@ -180,6 +240,17 @@ object TableauBenchmark {
     val (proofValid, proofSteps) = optProof match {
       case Some(proof) if verify =>
         val judgement = checkSCProof(proof)
+        if (!judgement.isValid) {
+          // Print detailed error info for debugging
+          proof.steps.zipWithIndex.foreach { case (step, i) =>
+            val stepJudgement = checkSCProof(K.SCProof(proof.steps.take(i + 1), proof.imports))
+            if (!stepJudgement.isValid) {
+              System.err.println(s"Step $i INVALID: ${step.getClass.getSimpleName}")
+              System.err.println(s"  bot: ${step.bot}")
+              System.err.println(s"  error: $stepJudgement")
+            }
+          }
+        }
         (Some(judgement.isValid), Some(proof.steps.size))
       case Some(proof) =>
         (None, Some(proof.steps.size))
