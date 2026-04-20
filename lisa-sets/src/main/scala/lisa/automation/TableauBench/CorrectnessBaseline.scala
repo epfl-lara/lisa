@@ -52,9 +52,11 @@ object CorrectnessBaseline {
     ("tptp-pure-fol/PUZ/PUZ031+1.p", 15000),   // Schubert's Steamroller
     ("tptp-pure-fol/PUZ/PUZ060+1.p", 2000),   // Food problem
     ("tptp-pure-fol/PUZ/PUZ061+1.p", 2000),   // Food problem
-    ("tptp-pure-fol/MGT/MGT002+1.p", 5000),   // Management
+    ("tptp-pure-fol/MGT/MGT002+1.p", 10000),  // Management (may need warmup)
     ("tptp-pure-fol/MGT/MGT003+1.p", 5000),   // Management
     ("tptp-pure-fol/NLP/NLP001+1.p", 2000),   // NLP
+    ("tptp-pure-fol/PUZ/PUZ047+1.p", 5000),   // Wolf/goat/cabbage
+    ("tptp-pure-fol/SEU/SEU167+3.p", 5000),   // Set theory theorem 119
   )
 
   def main(args: Array[String]): Unit = {

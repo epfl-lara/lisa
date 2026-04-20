@@ -210,6 +210,7 @@ object TableauBenchmark {
         val errorHolder = new java.util.concurrent.atomic.AtomicReference[Option[String]](None)
         val thread = new Thread(null, () => {
           try {
+            Tableau.setDeadline(System.currentTimeMillis() + timeoutMs)
             resultHolder.set(Tableau.solve(seq))
           } catch {
             case e: Exception =>
