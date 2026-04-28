@@ -49,4 +49,11 @@ class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: sourcecode.Fil
 
   /** Number of type variables used in the definition of this ADT */
   val typeArity: N = typeVariablesSeq.length.asInstanceOf[N]
+
+
+  val externalHeight = isHeight
+  val externalHeightMonotonic = heightMonotonic
+  val externalHeightSuccessorStrong = heightSuccessorStrong
+  val externalTermHasHeight = termHasHeight
+  val externalTermsHaveHeight = termsHaveHeight
 }

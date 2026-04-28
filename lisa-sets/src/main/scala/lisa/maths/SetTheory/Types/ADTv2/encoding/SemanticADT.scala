@@ -375,4 +375,12 @@ class SemanticADT[N <: Arity](
     have(x :: term |- isConstructor) by
       Cut(lastStep, strengtheningOfInductionPreconditions)
   }
+
+  def externalHeight = underlying.isHeight
+  val externalHeightExists = underlying.heightExists
+  val externalHeightMonotonic = underlying.heightMonotonic
+  val externalHeightZero = underlying.heightZero
+  val externalHeightSuccessorStrong = underlying.heightSuccessorStrong
+  val externalTermHasHeight = underlying.termHasHeight
+  val externalTermsHaveHeight = underlying.termsHaveHeight
 }
