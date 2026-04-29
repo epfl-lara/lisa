@@ -61,7 +61,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
    *
    * selfPlaceholder is free — W is parametric in the self-reference.
    */
-  val caseMembership: Expr[Ind] => Expr[Prop] = (p: Expr[Ind]) =>
+  private val caseMembership: Expr[Ind] => Expr[Prop] = (p: Expr[Ind]) =>
     seqOr(spec.rawCases.map((c, caseDef) =>
       val (vars, body) = caseDef
       val bodyWithSelf = body.substitute(selfPlaceholder := selfPlaceholder)
@@ -142,7 +142,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     }
   }
 
-  private lazy val constructorTagDisequalities
+  private val constructorTagDisequalities
       : Map[(SemanticConstructor[N], SemanticConstructor[N]), THM] =
     (for
       c1 <- spec.adt.constructors
@@ -198,6 +198,12 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
       c -> (Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
 
         val allAssumptions = witnessAssumptions + c.intro.statement.right.head
+
+        println(s"In ${spec.functionName}, case $c:")
+        println(s"   assumptions: $allAssumptions")
+        println(s"   goal: ${bodyWithSelf :: spec.returnType}")
+        println(s"   intro: ${c.intro}")
+
         have(allAssumptions |- (bodyWithSelf :: spec.returnType)) by Typecheck.prove
         have(thesis) by Tautology.from(lastStep, c.intro)
       })
@@ -358,14 +364,13 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     }
 
   private val witnessTotality: THM = Lemma(
-    typingPremise ==> ∀(
-      inputTerm,
-      (inputTerm ∈ spec.adt.term) ==> ∃(outputTerm, in(pair(inputTerm, outputTerm), witness))
+    typingPremise ==> ∀(inputTerm ∈ spec.adt.term, 
+      ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness)
     )
   ) {
     assume(typingPremise)
 
-    val totalityAtInput = ∃(outputTerm, in(pair(inputTerm, outputTerm), witness))
+    val totalityAtInput = ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness)
     val constructorBranch = spec.adt.constructors.map(c =>
       c -> simplify(
         existsSeq(
@@ -414,25 +419,25 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
           case _ => throw UnreachableException
 
         val existsAtCtorInput =
-          have(∃(outputTerm, in(pair(c.appliedTerm2, outputTerm), witness))) by
+          have(∃(outputTerm, pair(c.appliedTerm2, outputTerm) ∈ witness)) by
             RightExists(pairInWitnessAtCtor)
 
         val transferAtWitness = have(
-          (inputTerm === c.appliedTerm2, in(pair(c.appliedTerm2, outputTerm), witness)) |- totalityAtInput
+          (inputTerm === c.appliedTerm2, pair(c.appliedTerm2, outputTerm) ∈ witness) |- totalityAtInput
         ) subproof {
           assume(inputTerm === c.appliedTerm2)
           val eqInput = have(inputTerm === c.appliedTerm2) by Hypothesis
-          assume(in(pair(c.appliedTerm2, outputTerm), witness))
-          val pairAtCtorInput = have(in(pair(c.appliedTerm2, outputTerm), witness)) by Hypothesis
+          assume(pair(c.appliedTerm2, outputTerm) ∈ witness)
+          val pairAtCtorInput = have(pair(c.appliedTerm2, outputTerm) ∈ witness) by Hypothesis
           val pairAtInput =
-            have(in(pair(inputTerm, outputTerm), witness)) by Congruence.from(pairAtCtorInput, eqInput)
+            have(pair(inputTerm, outputTerm) ∈ witness) by Congruence.from(pairAtCtorInput, eqInput)
           have(totalityAtInput) by RightExists(pairAtInput)
         }
 
         val transferExistential = have(
           (
             inputTerm === c.appliedTerm2,
-            ∃(outputTerm, in(pair(c.appliedTerm2, outputTerm), witness))
+            ∃(outputTerm, pair(c.appliedTerm2, outputTerm) ∈ witness)
           ) |- totalityAtInput
         ) by LeftExists(transferAtWitness)
 
@@ -464,14 +469,11 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   }
 
   private val witnessSingleValued: THM = Lemma(
-    ∀(
-      inputTerm,
-      (inputTerm ∈ spec.adt.term) ==> ∀(
-        outputTerm,
-        ∀(
-          alternateOutputTerm,
-          (in(pair(inputTerm, outputTerm), witness) /\
-            in(pair(inputTerm, alternateOutputTerm), witness)) ==>
+    ∀(inputTerm ∈ spec.adt.term, 
+      ∀(outputTerm,
+        ∀(alternateOutputTerm,
+          (pair(inputTerm, outputTerm) ∈ witness /\
+            pair(inputTerm, alternateOutputTerm) ∈ witness) ==>
             (outputTerm === alternateOutputTerm)
         )
       )
@@ -545,16 +547,16 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     val singleValuedAtInput = have(
       (
         inputTerm ∈ spec.adt.term,
-        in(pairAtOutput, witness),
-        in(pairAtAlternateOutput, witness)
+        pairAtOutput ∈ witness,
+        pairAtAlternateOutput ∈ witness
       ) |- (outputTerm === alternateOutputTerm)
     ) subproof {
       assume(inputTerm ∈ spec.adt.term)
       val inputInAdt = have(inputTerm ∈ spec.adt.term) by Hypothesis
-      assume(in(pairAtOutput, witness))
-      val pairOutputInWitness = have(in(pairAtOutput, witness)) by Hypothesis
-      assume(in(pairAtAlternateOutput, witness))
-      val pairAlternateInWitness = have(in(pairAtAlternateOutput, witness)) by Hypothesis
+      assume(pairAtOutput ∈ witness)
+      val pairOutputInWitness = have(pairAtOutput ∈ witness) by Hypothesis
+      assume(pairAtAlternateOutput ∈ witness)
+      val pairAlternateInWitness = have(pairAtAlternateOutput ∈ witness) by Hypothesis
 
       val outputCaseRaw = have(caseMembership(pairAtOutput)) by
         Tautology.from(pairOutputInWitness, outputMembershipEq)
@@ -836,7 +838,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     }
 
     val pairMembershipConjunction =
-      in(pairAtOutput, witness) /\ in(pairAtAlternateOutput, witness)
+      pairAtOutput ∈ witness /\ pairAtAlternateOutput ∈ witness
     have(
       (inputTerm ∈ spec.adt.term) |- pairMembershipConjunction ==> (outputTerm === alternateOutputTerm)
     ) by Tautology.from(singleValuedAtInput)
@@ -880,13 +882,12 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   }
 
   private val witnessUniqueValue: THM = Lemma(
-    typingPremise ==> ∀(
-      inputTerm ∈ spec.adt.term,
-      existsOne(outputTerm, in(pair(inputTerm, outputTerm), witness))
+    typingPremise ==> ∀(inputTerm ∈ spec.adt.term,
+      existsOne(outputTerm, pair(inputTerm, outputTerm) ∈ witness)
     )
   ) {
     assume(typingPremise)
-    val pointwisePredicate = (out: Expr[Ind]) => in(pair(inputTerm, out), witness)
+    val pointwisePredicate = (out: Expr[Ind]) => pair(inputTerm, out) ∈ witness
     have(
       ∀(inputTerm, (inputTerm ∈ spec.adt.term) ==> ∃(outputTerm, pointwisePredicate(outputTerm)))
     ) by Tautology.from(witnessTotality)
@@ -1022,7 +1023,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   val witnessHasType: THM = Lemma(typingPremise ==> (witness :: spec.typ)) {
     assume(typingPremise)
     have(
-      ∀(inputTerm ∈ spec.adt.term, existsOne(outputTerm, in(pair(inputTerm, outputTerm), witness)))
+      ∀(inputTerm ∈ spec.adt.term, existsOne(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
     ) by Tautology.from(witnessUniqueValue)
     val witnessFunctionBetween = have(
       Function.functionBetween(witness)(spec.adt.term)(spec.returnType)

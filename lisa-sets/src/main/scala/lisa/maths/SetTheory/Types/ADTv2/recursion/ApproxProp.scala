@@ -3,7 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.{altEqualityTransitivity, equivalenceApply, unionOfTwoNats}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.recursion.Nums.{Zero, Succ}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.NatFacts.{Zero, Succ}
 
 import lisa.maths.SetTheory.Base.{Union, Comprehension,FoundationAxiom,Subset}
 import lisa.maths.SetTheory.Base.Comprehension.{|}
@@ -108,7 +108,7 @@ private[recursion] final class ApproxProp[N <: Arity](
         val ih     = assume(P(nVar))
 
         val succEq = have(Succ(nVar) === successor(nVar)) by
-          Tautology.from(Nums.Succ.definition of (x := nVar))
+          Tautology.from(Succ.definition of (x := nVar))
 
         val pointwiseAtSucc = have(
           (a ∈ app(heightFun)(Succ(nVar))) ==> (app(G(Succ(nVar)))(a) === app(G(Succ(Succ(nVar))))(a))
@@ -140,7 +140,7 @@ private[recursion] final class ApproxProp[N <: Arity](
           )
 
           val succInN = have(Succ(nVar) ∈ N) by
-            Tautology.from(nInN, Nums.succIntro.of(n := nVar))
+            Tautology.from(nInN, NatFacts.succIntro.of(n := nVar))
 
           val approxSuccAtN = have(nVar ∈ N ==> (G(Succ(nVar)) === recWitness(G(nVar)))) by
             InstantiateForall(nVar)(approx.approxSucc)
@@ -379,7 +379,7 @@ private[recursion] final class ApproxProp[N <: Arity](
     }
 
     val all = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
-      Tautology.from(Nums.induction of (Pred := P), base, step)
+      Tautology.from(NatFacts.induction of (Pred := P), base, step)
     thenHave(thesis) by Restate
   }
 
@@ -395,14 +395,14 @@ private[recursion] final class ApproxProp[N <: Arity](
     val nSubSk = assume(nVar ⊆ Succ(kVar))
 
     val SkInN = have(Succ(kVar) ∈ N) by
-      Tautology.from(kInN, Nums.succIntro.of(n := kVar))
+      Tautology.from(kInN, NatFacts.succIntro.of(n := kVar))
 
     val cmp = have(
       (nVar === Succ(kVar)) \/ (nVar ∈ Succ(kVar)) \/ (Succ(kVar) ∈ nVar)
     ) by Tautology.from(
       nInN,
       SkInN,
-      Nums.comparability of (m := nVar, n := Succ(kVar))
+      NatFacts.comparability of (m := nVar, n := Succ(kVar))
     )
 
     val caseEq = have(
@@ -415,13 +415,13 @@ private[recursion] final class ApproxProp[N <: Arity](
       val nInSk = assume(nVar ∈ Succ(kVar))
       val split = have((nVar ∈ kVar) \/ (nVar === kVar)) by Tautology.from(
         nInSk,
-        Nums.succMembership.of(k := nVar, n := kVar)
+        NatFacts.succMembership.of(k := nVar, n := kVar)
       )
 
       val fromIn = have(nVar ∈ kVar |- nVar ⊆ kVar) subproof {
         val nInK = assume(nVar ∈ kVar)
         val kTrans = have(TransitiveSet.transitiveSet(kVar)) by
-          Tautology.from(kInN, Nums.elementsTransitive.of(n := kVar))
+          Tautology.from(kInN, NatFacts.elementsTransitive.of(n := kVar))
         have(nVar ⊆ kVar) by Tautology.from(
           nInK,
           kTrans,
@@ -589,7 +589,7 @@ private[recursion] final class ApproxProp[N <: Arity](
     val indInst = have(
       (propM(Zero), ∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(Succ(uVar))))) |-
         ∀(uVar, (uVar ∈ N) ==> propM(uVar))
-    ) by Weakening(Nums.induction of (Pred := propM))
+    ) by Weakening(NatFacts.induction of (Pred := propM))
     val all = have(∀(uVar, (uVar ∈ N) ==> propM(uVar))) by
       Tautology.from(base, step, indInst)
     val atM = have(mVar ∈ N ==> propM(mVar)) by InstantiateForall(mVar)(all)
@@ -649,42 +649,9 @@ private[recursion] final class ApproxProp[N <: Arity](
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Helpers
+  // Helper
   // ─────────────────────────────────────────────────────────────────────────
 
-  val e = variable[Ind >>: Ind]
-  val T, T1 = variable[Ind]
-  val T2 = variable[Ind >>: Ind]
-
-  private val constCodomainMembership = Lemma(e(x) ∈ T <=> e(x) ∈ λ(y, T)(x)) {
-    have(thesis) by Tautology
-  }
-
-  /**
-   * Specialized abstraction rule for non-dependent codomain.
-   *
-   *    ∀(x ∈ T1, e(x) ∈ T)
-   *    ─────────────────────────────
-   *    abs(T1)(e) ∈ Π(x: T1). T
-   */
-  val TAbsConst = Theorem(
-    ∀(x ∈ T1, e(x) ∈ T) |- abs(T1)(e) ∈ Pi(T1)(λ(y, T))
-  ) {
-    assume(∀(x ∈ T1, e(x) ∈ T))
-    val premiseAtX = have(x ∈ T1 ==> e(x) ∈ T) by InstantiateForall
-    have(x ∈ T1 ==> e(x) ∈ λ(y, T)(x)) by
-      Tautology.from(premiseAtX, constCodomainMembership)
-    thenHave(∀(x ∈ T1, e(x) ∈ λ(y, T)(x))) by RightForall
-    have(abs(T1)(e) ∈ Pi(T1)(λ(y, T))) by
-      Tautology.from(lastStep, TAbs of (T2 := λ(y, T)))
-    thenHave(thesis) by Restate
-  }
-
-  /**
-   * Instantiated constant-codomain abstraction typing helper.
-   *
-   * This avoids exposing TypingRules internal schematic variables to callers.
-   */
   def TAbsConstOn(
       domain: Expr[Ind],
       codomain: Expr[Ind],
@@ -692,9 +659,18 @@ private[recursion] final class ApproxProp[N <: Arity](
   ): THM = Lemma(
     ∀(x ∈ domain, body(x) ∈ codomain) |- abs(domain)(body) ∈ Pi(domain)(λ(y, codomain))
   ) {
-    have(thesis) by Tautology.from(
-      TAbsConst of (T1 := domain, T := codomain, e := body)
-    )
+    val e = variable[Ind >>: Ind]
+    val T1 = variable[Ind]
+    val T2 = variable[Ind >>: Ind]
+
+    assume(∀(x ∈ domain, body(x) ∈ codomain))
+    val premiseAtX = have(x ∈ domain ==> body(x) ∈ codomain) by InstantiateForall
+    have(x ∈ domain ==> body(x) ∈ λ(y, codomain)(x)) by
+      Tautology.from(premiseAtX)
+    thenHave(∀(x ∈ domain, body(x) ∈ λ(y, codomain)(x))) by RightForall
+    have(abs(domain)(body) ∈ Pi(domain)(λ(y, codomain))) by
+      Tautology.from(lastStep, TAbs of (T1 := domain, T2 := λ(y, codomain), e := body))
+    thenHave(thesis) by Restate
   }
 
   // ─────────────────────────────────────────────────────────────────────────

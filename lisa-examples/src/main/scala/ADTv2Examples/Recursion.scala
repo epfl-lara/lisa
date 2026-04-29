@@ -51,9 +51,15 @@ object Recursion extends lisa.Main {
       succ * (succ * (self * k))
   }
 
+  section("Recursive functions")
   show(double.intro)
   show(double.elim)
   show(length.intro)
   show(length.elim)
+
+  section("Internals")
+  show(length.debug_uniqueness)
+  // show(length.debug_existence)
+  show(length.debug_classDefinitionFact)
 
 }

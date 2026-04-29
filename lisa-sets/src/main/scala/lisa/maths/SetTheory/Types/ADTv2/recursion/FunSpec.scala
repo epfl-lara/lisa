@@ -19,7 +19,7 @@ import lisa.maths.SetTheory.Types.TypingHelpers.*
  * Layers that depend on this class:
  *   - [[Witness]]    (Layer 2)
  *   - [[Existence]]  (Layer 3)
- *   - [[Uniqueness]] (Layer 4)
+ *   - [[RecFunSemantics]] (Layer 4)
  */
 class FunSpec[N <: Arity](
     val functionName: String,
@@ -38,7 +38,7 @@ class FunSpec[N <: Arity](
    *
    * The [[selfPlaceholder]] in raw case bodies is replaced by [[fVar]].
    */
-  def untypedDefinition(fVar: Variable[Ind]): Expr[Prop] =
+  def untypedDefinition(fVar: Expr[Ind]): Expr[Prop] =
     (fVar :: typ) /\ simplify(seqAnd(rawCases.map((c, caseDef) =>
       val (vars, body) = caseDef
       val bodyWithSelf = body.substitute(selfPlaceholder := fVar)

@@ -3,7 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.{altEqualityTransitivity, equivalenceRevApply, equivalenceApply}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.recursion.Nums.Succ
+import lisa.maths.SetTheory.Types.ADTv2.recursion.NatFacts.Succ
 
 import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Functions.BasicTheorems.{funcBetweenEqInFuncSpace, functionalExtentionality}
@@ -100,14 +100,14 @@ private[recursion] final class Existence[N <: Arity](
       val indexInN   = have(n0 ∈ N)   by Tautology.from(indexWitness)
       val aInHeightN0 = have(a ∈ app(heightFun)(n0)) by Tautology.from(indexWitness)
 
-      val succN0InN   = have(Succ(n0) ∈ N)   by Tautology.from(indexInN, Nums.succIntro.of(n := n0))
+      val succN0InN   = have(Succ(n0) ∈ N)   by Tautology.from(indexInN, NatFacts.succIntro.of(n := n0))
       val succEqN0    = have(Succ(n0) === successor(n0)) by
-        Tautology.from(Nums.Succ.definition of (x := n0))
+        Tautology.from(Succ.definition of (x := n0))
 
       // n0 ⊆ Succ(n0)  (n0 ∈ Succ(n0) + Succ(n0) is transitive)
-      val n0InSuccN0 = have(n0 ∈ Succ(n0)) by Weakening(Nums.nInSucc.of(n := n0))
+      val n0InSuccN0 = have(n0 ∈ Succ(n0)) by Weakening(NatFacts.nInSucc.of(n := n0))
       val succN0Trans = have(TransitiveSet.transitiveSet(Succ(n0))) by
-        Tautology.from(succN0InN, Nums.elementsTransitive.of(n := Succ(n0)))
+        Tautology.from(succN0InN, NatFacts.elementsTransitive.of(n := Succ(n0)))
       val n0SubSuccN0 = have(n0 ⊆ Succ(n0)) by Tautology.from(
         n0InSuccN0,
         succN0Trans,

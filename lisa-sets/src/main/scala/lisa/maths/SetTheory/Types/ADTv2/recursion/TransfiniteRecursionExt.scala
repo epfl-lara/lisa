@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.support
+package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Functions.Predef._

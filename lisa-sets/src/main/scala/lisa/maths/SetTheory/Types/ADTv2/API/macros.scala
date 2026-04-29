@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.{ADT, Constructor}
-import lisa.maths.SetTheory.Types.ADTv2.functions.{ADTFunction, RecFunction}
+import lisa.maths.SetTheory.Types.ADTv2.functions.ADTFunction
+import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunction
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
