@@ -25,6 +25,7 @@ object ExtendedInteger extends lisa.Main {
   private val x = variable[Ind]
   private val α, β = variable[Ind]
   private val y, z = variable[Ind]
+  private val γ, λ_ = variable[Ind]
   private val φ = variable[Ind >>: Prop]
   private val P = variable[Ind >>: Prop]
 
@@ -43,7 +44,6 @@ object ExtendedInteger extends lisa.Main {
   /**
    * Bridge theorem --- Characterization of membership in `ω` by `integer`.
    */
-  private val γ, λ_ = variable[Ind]
 
   private val zeroIsInteger = Theorem(
     integer(∅)
@@ -85,6 +85,7 @@ object ExtendedInteger extends lisa.Main {
 
     have(thesis) by LeftOr(zeroCase, succCase)
   }
+
 
   private val integerSuccessor = Theorem(
     integer(α) |- integer(S(α))
@@ -334,9 +335,7 @@ object ExtendedInteger extends lisa.Main {
     have(thesis) by Tautology.from(qAtOmega)
   }
 
-  private val omegaOrdinal = Theorem(
-    α ∈ ω |- ordinal(α)
-  ) {
+  val omegaOrdinal = Theorem(α ∈ ω |- ordinal(α)) {
     have(α ∈ ω |- integer(α)) by InstantiateForall(α)(omegaCharacterization)
     have(thesis) by Tautology.from(lastStep, integerIsOrdinal)
   }

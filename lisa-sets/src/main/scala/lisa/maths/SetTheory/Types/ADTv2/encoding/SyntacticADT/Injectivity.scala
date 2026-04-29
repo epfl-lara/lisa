@@ -75,7 +75,7 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADT
       // STEP 2: Prove that the terms are different if the tags are different
 
       have(
-        ((c1.tagTerm, c1.subterm) === (c2.tagTerm, c2.subterm)) |- (c1.tagTerm === c2.tagTerm) /\ (c1.subterm === c2.subterm)
+        ((c1.tagTerm, c1.subterm) === (c2.tagTerm, c2.subterm2)) |- (c1.tagTerm === c2.tagTerm) /\ (c1.subterm === c2.subterm2)
       ) by Tautology.from(
         Pair.extensionality of (
           a := c1.tagTerm,
