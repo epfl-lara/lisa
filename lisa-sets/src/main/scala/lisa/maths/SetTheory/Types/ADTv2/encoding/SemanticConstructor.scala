@@ -25,7 +25,10 @@ import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
  *
  *  `c(X1, ..., Xn) : T1(X1, ..., Xn) -> ... -> Tn(X1, ..., Xn) -> ADT(X1, ..., Xn)`
  *
- *  Injectivity and introduction rule are proven within this class.
+ *  Injectivity, constructor equations, and typing are proven within this class.
+ *
+ *  Exported semantic lemmas are kept in formula form. Type variables remain schematic,
+ *  while constructor arguments are explicitly quantified.
  *
  *  @constructor generates a class function for this constructor
  *  @param line the line at which this constructor is defined. Usually fetched
@@ -270,20 +273,11 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /**
    *  Lemma --- Introduction rule for this constructor.
    *
-   *  `∀A1, ..., Am. c(X1, ..., Xm) ∈ T1(X1, ..., Xm) -> ... -> Tn(X1, ..., Xm) -> ADT(X1, ..., Xm)`
+   *  `c(X1, ..., Xm) ∈ T1(X1, ..., Xm) -> ... -> Tn(X1, ..., Xm) -> ADT(X1, ..., Xm)`
    *
-   *  where Ai are the type variables of the ADT and Ti are domains of this constructor
-   *  arguments.
-   *
-   *  e.g. `∀T. nil(T) ∈ list(T)` and `∀T. cons(T) ∈ T -> list(T) -> list(T)`
+   *  Type variables remain schematic at the semantic layer.
    */
-  val intro = Lemma(using name = sourcecode.FullName(s"${fullName}/intro"))(forallSeq(
-    typeVariablesSeq,
-    term :: typ
-  )) {
-    // println(s"thesis: $thesis")
-    // println(s"typeVariablesSeq: $typeVariablesSeq")
-    // println(s"term: $term :: $typ")
+  val intro = Lemma(using name = sourcecode.FullName(s"${fullName}/intro"))(term :: typ) {
     have(forall(c, (term === c) <=> untypedDefinition)) by
       Restate.from(classFunctionCharacterization)
     thenHave(
@@ -294,7 +288,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         ))
     ) by InstantiateForall(term)
     thenHave(term :: typ) by Weakening
-    thenHave(thesis) by QuantifiersIntro(typeVariablesSeq)
+    thenHave(thesis) by Restate
   }    
 
   /**
@@ -316,10 +310,12 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         have(thesis) by RightRefl
       }
     } else
-      Lemma(using name = lemmaName)(
-        vars1WellTyped ++ vars2WellTyped |-
-          simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))
-      ) {
+      val typedAssumption =
+        simplify(wellTypedFormula(semanticSignature1 ++ semanticSignature2))
+      Lemma(using name = lemmaName)(forallSeq(
+        variables1 ++ variables2,
+        typedAssumption ==> simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))
+      )) {
 
         have(forallSeq(
           variables1,
@@ -414,7 +410,18 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
               p3 := seqEq(variables1, variables2)
             )
         )
-        have(thesis) by Cut(definitionUnfolding, lastStep)
+        val equalityCharacterization = have(
+          vars1WellTyped ++ vars2WellTyped |-
+            simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))
+        ) by Cut(definitionUnfolding, lastStep)
+
+        have(typedAssumption ==> simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))) subproof {
+          assume(typedAssumption)
+          val typed = have(typedAssumption) by Hypothesis
+          have(simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))) by
+            Tautology.from(equalityCharacterization, typed)
+        }
+        thenHave(thesis) by QuantifiersIntro(variables1 ++ variables2)
       }
   }
 

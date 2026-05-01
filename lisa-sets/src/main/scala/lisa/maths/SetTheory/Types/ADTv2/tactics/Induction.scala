@@ -1,8 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.tactics
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.ADT
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.functions.CaseAccumulator
@@ -66,9 +65,11 @@ class Induction[M <: Arity](
       .map(SubstPair(_, _))
     val instTerm = adt.semantic.term(typeVariablesSubst)
 
-    adt.constructors.foldLeft[proof.Fact](adt.induction.of(
-      (typeVariablesSubstPairs :+ (P := prop))*
-    ))((acc, c) =>
+    val instantiatedInduction = have(
+      adt.semantic.induction.statement.substitute((typeVariablesSubstPairs :+ (P := prop))*)
+    ) by Restate.from(adt.semantic.induction.of((typeVariablesSubstPairs :+ (P := prop))*))
+
+    adt.constructors.foldLeft[proof.Fact](instantiatedInduction)((acc, c) =>
       val inductiveCaseProof = cases(c)._1.zip(
         c.semantic.underlying.specification
       ).foldRight[proof.Fact](cases(c)._2)((el, acc2) =>

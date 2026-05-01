@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.API
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -68,7 +69,5 @@ def defineAST[N <: Arity](
   }
   val adtSemantic = SemanticADT[N](adtSyntactic, constructorsSemantic)
 
-  val constructorsFinal = constructorsSemantic.map(Constructor[N](_))
-
-  new ADT[N](adtSemantic, constructorsFinal)
+  new ADT[N](adtSemantic)
 }

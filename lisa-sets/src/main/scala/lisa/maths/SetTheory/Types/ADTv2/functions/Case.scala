@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{appSeq, wellTypedSet}
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -71,4 +71,3 @@ case class Case[N <: Arity](cons: Constructor[N], vars: Variable[Ind]*) {
   def apply(body: Expr[Ind])(using builder: CaseAccumulator[N, Expr[Ind], Unit]) = builder +=
     (cons, (vars, body))
 }
-

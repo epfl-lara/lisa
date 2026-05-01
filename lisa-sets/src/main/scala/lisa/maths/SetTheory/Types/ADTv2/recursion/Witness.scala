@@ -20,6 +20,7 @@ import lisa.maths.SetTheory.Relations.Relation.{relationBetween, R}
 import lisa.maths.Quantifiers.∃!
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 /**
  * Layer 2 — Witness construction.
@@ -156,12 +157,8 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   ): THM = Lemma(
     wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: spec.adt.term)
   ) {
-    have(forallSeq(typeVariablesSeq, c.term(typeVariablesSeq) :: c.typ)) by Restate.from(c.intro)
-    val introAtTypeVars = typeVariablesSeq.foldLeft(lastStep)((fact, typeVariable) =>
-      fact.statement.right.head match
-        case forall(_, phi) => thenHave(phi) by InstantiateForall(typeVariable)
-        case _ => fact
-    )
+    have(c.term(typeVariablesSeq) :: c.typ) by Restate.from(c.intro)
+    val introAtTypeVars = lastStep
     val argsWellTyped = assume(wellTypedFormula(c.semanticSignature(args)))
     val finalTyping = args.foldLeft(
       (introAtTypeVars, c.term(typeVariablesSeq): Expr[Ind], c.typ: Expr[Ind])
@@ -198,11 +195,6 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
       c -> (Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
 
         val allAssumptions = witnessAssumptions + c.intro.statement.right.head
-
-        println(s"In ${spec.functionName}, case $c:")
-        println(s"   assumptions: $allAssumptions")
-        println(s"   goal: ${bodyWithSelf :: spec.returnType}")
-        println(s"   intro: ${c.intro}")
 
         have(allAssumptions |- (bodyWithSelf :: spec.returnType)) by Typecheck.prove
         have(thesis) by Tautology.from(lastStep, c.intro)
@@ -382,8 +374,11 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     val constructorDisjunction =
       simplify(seqOr(spec.adt.constructors.map(c => constructorBranch(c))))
 
-    val decompositionAtInput = have(inputTerm ∈ spec.adt.term |- constructorDisjunction) by
-      Tautology.from(spec.adt.elim of (x := inputTerm))
+    have(spec.adt.elim.statement.right.head) by Tautology.from(spec.adt.elim)
+    thenHave(inputTerm ∈ spec.adt.term ==> constructorDisjunction) by
+      InstantiateForall(inputTerm)
+    val decompositionAtInput = thenHave(inputTerm ∈ spec.adt.term |- constructorDisjunction) by
+      Restate
 
     val branchToWitness = spec.adt.constructors.map(c =>
       val (caseVars, rawCaseBody) = spec.rawCases(c)
@@ -655,10 +650,23 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
               val bodyEq =
                 if c1.arity == 0 then have(bodyAtVars1 === bodyAtVars2) by RightRefl
                 else
-                  val argsEqConjunction = have(c1.variables1 === c1.variables2) by Tautology.from(
-                    c1.injectivity,
+                  val injectivityBase =
+                    have(c1.injectivity.statement.right.head) by Tautology.from(c1.injectivity)
+                  val injectivityAtVars =
+                    (c1.variables1 ++ c1.variables2).foldLeft(injectivityBase)((_, v) =>
+                      lastStep.statement.right.head match
+                        case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
+                        case _ => throw UnreachableException
+                    )
+                  val argsEqEquivalence = have(
+                    simplify((c1.appliedTerm1 === c1.appliedTerm2) <=> (c1.variables1 === c1.variables2))
+                  ) by Tautology.from(
+                    injectivityAtVars,
                     branchOutputTyped,
-                    branchAlternateTyped,
+                    branchAlternateTyped
+                  )
+                  val argsEqConjunction = have(c1.variables1 === c1.variables2) by Tautology.from(
+                    argsEqEquivalence,
                     c1EqC2
                   )
                   val argumentEqualities = c1.variables1.zip(c1.variables2).map((u, v) =>

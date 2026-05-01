@@ -10,7 +10,8 @@ object ADTInsights extends lisa.Main {
   import lisa.maths.SetTheory.Types.ADTv2
   import lisa.maths.SetTheory.Types.ADTv2.{*, given}
   import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.ADTSpec
-  import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+  import lisa.maths.SetTheory.Types.ADTv2.encoding.{**, SemanticADT, SemanticConstructor, SyntacticADT, SyntacticConstructor}
+  import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
   import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.funEqDef
 
   import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -110,7 +111,7 @@ object ADTInsights extends lisa.Main {
 
   val nil = Constructor(nilSemantic)
   val cons = Constructor(consSemantic)
-  val list = ADT(listSemantic, Seq(cons, nil))
+  val list = ADT(listSemantic)
 
   // show(cons.injectivity)
   // show(nil.injectivity)
