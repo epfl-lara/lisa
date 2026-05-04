@@ -36,7 +36,7 @@ object Polymorphism extends lisa.Main {
 
   val hd, tl = variable[Ind]
 
-  val length = recFun2(list, nat) { self =>
+  val length = recFun(list, nat) { self =>
     Case(nil):
       zero
     Case(cons, hd, tl):

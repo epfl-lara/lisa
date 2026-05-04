@@ -20,7 +20,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *
  * This class itself contains no proofs: it only wires the layers together
  * and re-exports the public members needed by [[RecFunction]] and by
- * [[API.FunctionBuilder.recFun2]].
+ * [[API.FunctionBuilder.recFun]].
  */
 class RecFunction[N <: Arity](
     val name: String,

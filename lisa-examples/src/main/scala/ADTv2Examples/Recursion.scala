@@ -37,14 +37,14 @@ object Recursion extends lisa.Main {
   val succ = nat.constructors(1)
 
  
-  val length = recFun2(list, nat) { self =>
+  val length = recFun(list, nat) { self =>
     Case(nil):
       zero
     Case(cons, hd, tl):
       succ * (self * tl)
   }
 
-  val double = recFun2(nat, nat) { self =>
+  val double = recFun(nat, nat) { self =>
     Case(zero):
       zero
     Case(succ, k):

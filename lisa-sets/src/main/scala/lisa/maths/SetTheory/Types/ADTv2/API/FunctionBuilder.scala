@@ -31,10 +31,10 @@ def fun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(
 )(cases: CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit): ADTFunction[N] =
   fun[N](adt, returnADT.semantic.term(Seq.empty))(cases)
 
-/** Second version of REC ------------------------------------------------- */
-
-def recFun2[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
-    name: sourcecode.Name
+def recFun[N <: Arity](
+  using name: sourcecode.Name
+)(
+  adt: ADT[N], returnType: Expr[Ind]
 )(
     cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
 ): recursion.RecFunction[N] = {
@@ -54,8 +54,8 @@ def recFun2[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
     case Some(msg) => throw new IllegalArgumentException(msg)
 }
 
-def recFun2[N <: Arity](adt: ADT[N], returnADT: ADT[N])(using name: sourcecode.Name
+def recFun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(using name: sourcecode.Name
 )(
   cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
 ): recursion.RecFunction[N] =
-  recFun2[N](adt, returnADT.semantic.term(Seq.empty))(cases)
+  recFun[N](adt, returnADT.semantic.term(Seq.empty))(cases)

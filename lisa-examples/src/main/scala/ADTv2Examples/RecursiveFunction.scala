@@ -83,14 +83,14 @@ object RecursiveFunction extends lisa.Main {
   
 
   // Minimal recursive template: no additional recursion lemmas, only case equations.
-  // val length = recFun2(list, nat) { self =>
+  // val length = recFun(list, nat) { self =>
   //   Case(nil):
   //     zero
   //   Case(cons, hd, tl):
   //     succ * (self * tl)
   // }
 
-  val listFromLength = recFun2(nat, list_unit) { self =>
+  val listFromLength = recFun(nat, list_unit) { self =>
     Case(zero):
       nil_unit
     Case(succ, k):

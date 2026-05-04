@@ -199,11 +199,6 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
 
         val allAssumptions = witnessAssumptions + c.intro.statement.right.head
 
-        println(s"In ${spec.functionName}, case $c:")
-        println(s"   assumptions: $allAssumptions")
-        println(s"   goal: ${bodyWithSelf :: spec.returnType}")
-        println(s"   intro: ${c.intro}")
-
         have(allAssumptions |- (bodyWithSelf :: spec.returnType)) by Typecheck.prove
         have(thesis) by Tautology.from(lastStep, c.intro)
       })

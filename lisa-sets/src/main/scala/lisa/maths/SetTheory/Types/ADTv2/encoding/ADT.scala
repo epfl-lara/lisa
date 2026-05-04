@@ -32,6 +32,8 @@ class ADT[N <: Arity] (using line: sourcecode.Line, file: sourcecode.File)(
   /** Name of this ADT */
   val name = semantic.name
 
+  val term = semantic.term
+
   /** Identifier of this ADT. */
   // val id: Identifier = semantic.id
   ADT.namesToADT.addOne(name -> this)
