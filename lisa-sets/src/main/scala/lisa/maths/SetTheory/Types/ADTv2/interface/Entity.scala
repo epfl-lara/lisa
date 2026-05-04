@@ -12,13 +12,16 @@ trait Entity[N <: Arity, Self <: Entity[N, Self]] {
   // ── Fields ────────────────────────────────────────────────────────────────
 
   protected def ownerKind: String
+
   def name: String
+  val id: Identifier 
   def term: Expr[Ind]
   def typeVariables: Variable[Ind] ** N
   def typeVariablesSeq: Seq[Variable[Ind]]
-  protected def rawSubstitutions: Seq[TypeSubstitution]
+
   protected def line: sourcecode.Line
   protected def file: sourcecode.File
+  protected def rawSubstitutions: Seq[TypeSubstitution]
   protected def rebuild(substitutions: Seq[TypeSubstitution]): Self
 
   final lazy val fullName: String = renderAppliedSymbol(

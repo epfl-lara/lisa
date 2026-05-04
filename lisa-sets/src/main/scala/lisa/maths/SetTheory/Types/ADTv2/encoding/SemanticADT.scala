@@ -39,7 +39,7 @@ class SemanticADT[N <: Arity](
   val name: String = underlying.name
 
   /** Identifier of this ADT. */
-//   val id: Identifier = underlying.polymorphicTerm.id
+  val id: Identifier = underlying.polymorphicTerm.id
 
   /** Type variables of this ADT. */
   val typeVariables: Variable[Ind] ** N = underlying.typeVariables

@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.functions
 import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
 import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.**
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.renderAppliedSymbol
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -60,7 +61,7 @@ class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
       c,
       THM(
         semantic.shortDefinition(c.semantic).statement,
-        s"${name}/elimination: ${c.name} case",
+        s"${name}/elimination/${renderAppliedSymbol(c.semantic.name, c.typeVariables.toSeq.size, c.typeVariables.toSeq)}",
         line.value,
         file.value,
         Theorem

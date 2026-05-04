@@ -21,6 +21,8 @@ class ADT[N <: Arity](using protected val line: sourcecode.Line, protected val f
 
   final val name: String = semantic.name
 
+  final val id: Identifier = semantic.id
+
   final val typeVariables: Variable[Ind] ** N = semantic.typeVariables
 
   final val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq

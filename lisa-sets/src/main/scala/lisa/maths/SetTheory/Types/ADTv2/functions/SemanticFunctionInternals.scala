@@ -114,7 +114,7 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
   ): THM = Lemma(
     wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: adt.term)
   ) {
-    have(forallSeq(typeVariablesSeq, c.term(typeVariablesSeq) :: c.typ)) by Restate.from(c.intro)
+    have(c.term(typeVariablesSeq) :: c.typ) by Restate.from(c.intro)
 
     val introAtTypeVars = typeVariablesSeq.foldLeft(lastStep)((fact, typeVariable) =>
       fact.statement.right.head match

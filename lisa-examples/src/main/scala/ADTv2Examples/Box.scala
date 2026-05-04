@@ -19,9 +19,13 @@ object Box extends lisa.Main {
   )
   val pack = box.constructors(0)
 
-  val get = fun(box, A):
+  // val get = fun(box, A):
+  //   Case(pack, content):
+  //     content
+  val get = recFun(box, A) { self =>
     Case(pack, content):
       content
+  }
 
   val unit = API.defineAST(
     name = "unit",
@@ -49,47 +53,10 @@ object Box extends lisa.Main {
   show(get.elim(pack))
 
   section("Instantiation of ADT theorems")
-
-  // The generic introduction theorem specializes the head symbol correctly.
-  // However, the codomain remains the schematic ADT term `boxTerm`, not `box(unit)`.
-  val packTypingAtUnitSchematic = Lemma(boxedStar :: box.semantic.term) {
-    val starTyped = have(star :: unit) by Tautology.from(star.intro)
-    have(thesis) by Tautology.from(
-      pack.introApp of (A := unit, content := star),
-      starTyped
-    )
-  }
-
-  // Same phenomenon for polymorphic functions: specialization fixes the return type,
-  // but the domain remains the schematic ADT term.
-  val getTypingAtUnitSchematic = Lemma(get(unit) :: box.semantic.term ->: unit) {
-    have(thesis) by InstantiateForall(unit)(get.intro)
-  }
-
-  // For instantiated function application, use the generic function-space lemmas.
-  val getAppliedTyping = Lemma(get(unit) * boxedStar :: unit) {
-    val getInFuncSpace = have(get(unit) :: box.semantic.term ->: unit) by Tautology.from(
-      getTypingAtUnitSchematic
-    )
-    val argTyped = have(boxedStar :: box.semantic.term) by Tautology.from(
-      packTypingAtUnitSchematic
-    )
-    have(thesis) by Tautology.from(
-      getInFuncSpace,
-      funcBetweenEqInFuncSpace of (f := get(unit), A := box.semantic.term, B := unit),
-      appTyping of (f := get(unit), A := box.semantic.term, B := unit, x := boxedStar),
-      argTyped
-    )
-  }
-
-  // Elimination theorems specialize cleanly as well.
-  val getOnPackedStar = Lemma(get(unit) * boxedStar === star) {
-    val starTyped = have(star :: unit) by Tautology.from(star.intro)
-    have(thesis) by Tautology.from(
-      get.elim(pack) of (A := unit, content := star),
-      starTyped
-    )
-  }
+  show(pack(unit).intro)
+  show(pack(unit).introApp)
+  show(get(unit).intro)
+  show(get.elim(pack))
 
   // Allowed:
   //   - define a polymorphic ADT family box[A]

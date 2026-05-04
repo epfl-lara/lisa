@@ -6,6 +6,7 @@ import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.ADTv2.encoding.**
 import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunSemantics
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.*
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.renderAppliedSymbol
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 class RecFunction[N <: Arity](using protected val line: sourcecode.Line, protected val file: sourcecode.File)(
@@ -19,6 +20,8 @@ class RecFunction[N <: Arity](using protected val line: sourcecode.Line, protect
   protected final val ownerKind: String = "RecFunction"
 
   final val name: String = semantic.name
+
+  final val id = semantic.id
 
   final val typeVariables: Variable[Ind] ** N = semantic.typeVariables
 
@@ -67,7 +70,7 @@ class RecFunction[N <: Arity](using protected val line: sourcecode.Line, protect
   final lazy val elim: Map[Constructor[N], THM] = specializedADT.constructors.map(c =>
     c -> specializeTheorem(
       semantic.shortDefinition(c.semantic),
-      s"elimination: ${c.fullName} case"
+      s"elimination/${renderAppliedSymbol(c.semantic.name, c.typeVariablesSeq.size, resolvedTypeArguments(c.typeVariablesSeq, c.substitutions))}"
     )
   ).toMap
 

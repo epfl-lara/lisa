@@ -161,6 +161,8 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   }
   classFunction.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
 
+  val id = classFunction.id
+
   /**
    *  This constructor in which type variables are instantiated.
    *

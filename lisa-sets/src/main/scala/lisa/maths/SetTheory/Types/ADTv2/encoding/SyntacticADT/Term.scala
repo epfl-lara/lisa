@@ -25,13 +25,13 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
   // ********
 
   // The ADT term symbol is defined as the epsilon witness of its characterization.
-  val polymorphicTerm = DEF(using name = s"${name}Term")(
+  val polymorphicTerm = DEF(using name = s"${name}/term")(
     lisa.maths.SetTheory.SetTheory.ε(z, termDefinitionFormula(z))
   )
 
   polymorphicTerm.printAs(args =>
-    if args.isEmpty then s"${name}Term"
-    else s"${name}Term[${args.mkString(",")}]"
+    if args.isEmpty then s"${name}/term[${typeVariablesSeq.mkString(",")}]"
+    else s"${name}/term[${args.mkString(",")}]"
   )
 
   val term: Expr[Ind] = appSeq(polymorphicTerm)(typeVariablesSeq)

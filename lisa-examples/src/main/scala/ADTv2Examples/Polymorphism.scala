@@ -3,6 +3,8 @@ import lisa.maths.SetTheory.Types.ADTv2.basics.Box.*
 import lisa.maths.SetTheory.Types.ADTv2.basics.Unit.*
 import lisa.maths.SetTheory.Types.ADTv2.basics.List.*
 import lisa.maths.SetTheory.Types.ADTv2.basics.Nat.*
+import lisa.maths.SetTheory.Types.ADTv2.basics.Union.*
+import lisa.maths.SetTheory.Types.ADTv2.basics.Option.*
 import lisa.maths.SetTheory.Functions.Pi.{->:}
 
 object Polymorphism extends lisa.Main {
@@ -36,7 +38,7 @@ object Polymorphism extends lisa.Main {
 
   val hd, tl = variable[Ind]
 
-  val length = recFun2(list, nat) { self =>
+  val length = recFun(list, nat) { self =>
     Case(nil):
       zero
     Case(cons, hd, tl):
@@ -48,11 +50,17 @@ object Polymorphism extends lisa.Main {
   show(unit_list_length.intro)
   show(length.introApp)
   show(unit_list_length.introApp)
-  // show(length(box).intro)
-  show(length(box(unit)).intro)
 
   // section("Recursion elimination theorems")
   // for (c <- length.elimination.keys) show(length.elimination(c))
   // for (c <- unit_list_length.elimination.keys) show(unit_list_length.elimination(c))
+
+  section("Complex instanciations")
+
+  val A, T = variable[Ind]
+
+  show(box(box(unit)).induction)
+  show(union.substitute(A := unit).induction)
+  // show(option(box).induction)
 
 }
