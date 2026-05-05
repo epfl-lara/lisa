@@ -17,7 +17,7 @@ import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 
 import lisa.maths.Quantifiers
-import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut, RightForall}
+import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -241,8 +241,7 @@ private[recursion] final class ApproxProp[N <: Arity](
               }
 
               val bodyEq =
-                if selfArgEqualities.isEmpty then have(bodyAtGn === bodyAtGSucc) by RightRefl
-                else have(bodyAtGn === bodyAtGSucc) by Congruence.from(selfArgEqualities*)
+                LambdaBodyEquality.prove(bodyAtGn, bodyAtGSucc, selfArgEqualities)
 
               val witnessCaseNSchema = recWitness.witnessCaseByConstructor(c).of(spec.selfPlaceholder := G(nVar))
               val witnessCaseNBase = witnessCaseNSchema.statement.right.head match

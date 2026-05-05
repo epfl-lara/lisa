@@ -12,10 +12,10 @@ class Constructor[N <: Arity](using protected val line: sourcecode.Line, protect
     val semantic: SemanticConstructor[N],
     protected val rawSubstitutions: Seq[TypeSubstitution] = Nil
 ) extends TypedConstantFunctional[Ind](
-      semantic.fullName,
+      semantic.id,
       FunctionalClass(
-        Nil,
-        Nil,
+        Nil, // Seq.fill(underlying.typeArity)(any)
+        Nil, // underlying.typeVariablesSeq
         semantic.typ.substitute(
           normalizeTypeSubstitutions(
             ownerKind = "Constructor",

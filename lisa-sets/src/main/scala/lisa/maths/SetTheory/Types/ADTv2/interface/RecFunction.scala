@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.**
 import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunSemantics
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.*
@@ -13,15 +14,28 @@ class RecFunction[N <: Arity](using protected val line: sourcecode.Line, protect
     val semantic: RecFunSemantics[N],
     private val adt: ADT[N],
     protected val rawSubstitutions: Seq[TypeSubstitution] = Nil
-) extends Entity[N, RecFunction[N]] {
+) extends TypedConstantFunctional[Ind](
+      semantic.id,
+      FunctionalClass(
+        Nil,
+        Nil,
+        semantic.typ.substitute(
+          normalizeTypeSubstitutions(
+            ownerKind = "RecFunction",
+            ownerName = semantic.name,
+            typeVariables = semantic.typeVariablesSeq,
+            substitutions = rawSubstitutions
+          )*
+        )
+      ),
+      semantic.intro
+    ) with Entity[N, RecFunction[N]] {
 
   // ── Fields ────────────────────────────────────────────────────────────────
 
   protected final val ownerKind: String = "RecFunction"
 
   final val name: String = semantic.name
-
-  final val id = semantic.id
 
   final val typeVariables: Variable[Ind] ** N = semantic.typeVariables
 
@@ -34,7 +48,7 @@ class RecFunction[N <: Arity](using protected val line: sourcecode.Line, protect
 
   final lazy val returnType: Expr[Ind] = semantic.returnType.substitute(substitutions*)
 
-  final lazy val typ: Expr[Ind] = semantic.typ.substitute(substitutions*)
+  final lazy val functionType: Expr[Ind] = semantic.typ.substitute(substitutions*)
 
   private lazy val specializedADT =
     if adt.substitutions == substitutions then adt
@@ -59,7 +73,7 @@ class RecFunction[N <: Arity](using protected val line: sourcecode.Line, protect
     val appliedTyping = proveAppliedTyping(
       headTyping = lastStep,
       headTerm = term,
-      headType = typ,
+      headType = functionType,
       args = Seq(RecFunction.introAppVariable -> argType)
     )
 

@@ -193,11 +193,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
         wellTypedSet(c.semanticSignature(vars)) + typingPremise
 
       c -> (Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
-
-        val allAssumptions = witnessAssumptions + c.intro.statement.right.head
-
-        have(allAssumptions |- (bodyWithSelf :: spec.returnType)) by Typecheck.prove
-        have(thesis) by Tautology.from(lastStep, c.intro)
+        have(thesis) by Typecheck.prove
       })
     )
 
@@ -672,7 +668,25 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
                   val argumentEqualities = c1.variables1.zip(c1.variables2).map((u, v) =>
                     have(u === v) by Tautology.from(argsEqConjunction)
                   )
-                  have(bodyAtVars1 === bodyAtVars2) by Congruence.from(argumentEqualities*)
+                  val bodyTemplateVars = caseVars1.map(_ => variable[Ind])
+                  val bodyAtTemplateVars = caseBody1
+                    .substitute(caseVars1.zip(bodyTemplateVars).map((from, to) => from := to)*)
+                    .asInstanceOf[Expr[Ind]]
+                  val bodyRefl = have(bodyAtVars1 === bodyAtVars1) by
+                    RightRefl.withParameters(bodyAtVars1 === bodyAtVars1)
+                  val bodyEqWithEqualities = have(
+                    (bodyRefl.bot.left ++ argumentEqualities.map(_.statement.right.head)) |- (bodyAtVars1 === bodyAtVars2)
+                  ) by RightSubstEq.withParameters(
+                    c1.variables1.zip(c1.variables2).toList,
+                    (bodyTemplateVars, bodyAtVars1 === bodyAtTemplateVars)
+                  )(bodyRefl)
+                  argumentEqualities.foreach { equalityFact =>
+                    have(
+                      if equalityFact.bot.left.contains(equalityFact.statement.right.head) then lastStep.bot
+                      else lastStep.bot -<< equalityFact.statement.right.head
+                    ) by Cut(equalityFact, lastStep)
+                  }
+                  have(bodyAtVars1 === bodyAtVars2) by Restate.from(lastStep)
 
               val body2EqAlternate = have(bodyAtVars2 === alternateOutputTerm) by
                 Congruence.from(alternateEqToBody)

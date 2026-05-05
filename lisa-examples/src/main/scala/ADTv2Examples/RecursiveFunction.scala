@@ -41,56 +41,25 @@ object RecursiveFunction extends lisa.Main {
   )
   val star = unit.constructors(0)
 
-
-  val listU = API.defineAST(
-    name = "listU",
-    typeVars = Seq("unit"),
-    constructors =
-      Seq(("nilU", Seq.empty), ("consU", Seq(("head", "unit"), ("tail", SelfRef))))
-  )
-  val nilU = listU.constructors(0)
-  val consU = listU.constructors(1)
-
+  val list_unit = list(unit)
   val nil_unit = nil(unit)
   val cons_unit = cons(unit)
-  val list_unit = list(unit)
-  println(s"nil : ${nil}")
-  println(s"nil(unit) : ${nil_unit}")
-  println(s"nilU : ${nilU}")
-  println(s"nil intro : ${nil.intro}")
-  println(s"nilU intro : ${nilU.intro}")
-  // println(s"cons : ${cons}")
-  // println(s"cons(unit) : ${cons_unit}")
-  // println(s"cons intro : ${cons.intro}")
-  println(s"unit : ${unit}")
-  println(s"list : ${list}")
-  println(s"list(unit) : ${list_unit}")
-  println(s"listU : ${listU}")
 
-
-  // Typing lemmas
-
-  val nilU_typing = Lemma(nilU :: listU) {
-    have(thesis) by Typecheck.prove
-  }
-
-  val nil_typing = Lemma(nil_unit :: list_unit) {
-    have(thesis) by Sorry
-  }
-  val nil_base = Lemma(nil() :: list) {
-    have(thesis) by Typecheck.prove
-  }
-  
+  println(s"${nil.intro.statement}")
+  println(s"${nil_unit.intro.statement}")
+  println(s"${cons.intro.statement}")
+  println(s"${cons_unit.intro.statement}")
+  println(s"${list.term}")
+  println(s"${list(unit).term}")
 
   // Minimal recursive template: no additional recursion lemmas, only case equations.
-  // val length = recFun2(list, nat) { self =>
-  //   Case(nil):
-  //     zero
-  //   Case(cons, hd, tl):
-  //     succ * (self * tl)
-  // }
-
-  val listFromLength = recFun2(nat, list_unit) { self =>
+  val length = recFun(list, nat) { self =>
+    Case(nil):
+      zero
+    Case(cons, hd, tl):
+      succ * (self * tl)
+  }
+  val listFromLength = recFun(nat, list_unit) { self =>
     Case(zero):
       nil_unit
     Case(succ, k):
@@ -98,33 +67,8 @@ object RecursiveFunction extends lisa.Main {
       // cons(unit) * star * (self * k)
   }
 
-  /* ERROR LOGS : 
-  [info] nil : list/nil
-  [info] nil(unit) : list/nil[oneTerm]
-  [info] nil intro :  ⊢ ∀(A, list/nil[A] ∈ listTerm)
-  [info] list : list[A]
-  [info] list(unit) : listTerm[oneTerm]
-  [info] In listFromLength, case nat/zero:
-  [info]    assumptions: Set(listFromLengthRecSelf ∈ natTerm ->: listTerm[oneTerm], nat/zero ∈ natTerm)
-  [info]    goal: list/nil[oneTerm] ∈ listTerm[oneTerm]
-  [info]    intro:  ⊢ nat/zero ∈ natTerm
-  [info] listFromLengthRecSelf ∈ natTerm ->: listTerm[oneTerm] ⊢ list/nil[oneTerm] ∈ listTerm[oneTerm]
-  [info]
-  [info]     val stmt = have(innerProof)
-  [info]    Proof tactic Typecheck used in (Tactics.scala:62) did not succeed:
-  [info]    Failed to construct the equivalence proof for universeOf(list/nil[oneTerm]) and listTerm[oneTerm]
-  [info] [Error] lisa.utils.prooflib.ProofTacticLib$UnapplicableProofTactic: Failed to construct the equivalence proof for universeOf(list/nil[oneTerm]) and listTerm[oneTerm]
-  [info] 	at lisa.maths.SetTheory.Types.Tactics$Typecheck$.checkProof(Tactics.scala:218)
-  [info] 	at lisa.maths.SetTheory.Types.Tactics$Typecheck$.prove(Tactics.scala:61)
-  [info] 	at lisa.maths.SetTheory.Types.ADTv2.recursion.Witness.$anonfun$2(Witness.scala:207)
-  [info]
-  [error] Nonzero exit code returned from runner: 1
-  */
-
-  // show(length.intro)
-  // for (cons <- list.constructors) show(length.elim(cons))
-  show(listFromLength.intro)
-  for (succ <- nat.constructors) show(listFromLength.elim(succ))
+  show(length.intro)
+  for (cons <- list.constructors) show(length.elim(cons))
 
   // val lengthFromLength = Lemma((x :: nat) |- length(unit) * (listFromLength * x) === x) {
   //   have(thesis) by Induction(x, nat) {
