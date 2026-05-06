@@ -34,7 +34,8 @@ def fun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(
 /** Second version of REC ------------------------------------------------- */
 
 def recFun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
-    name: sourcecode.Name
+    name: sourcecode.Name,
+    valueOfN: ValueOf[N]
 )(
     cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
 ): RecFunction[N] = {
@@ -56,6 +57,8 @@ def recFun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
 }
 
 def recFun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(using name: sourcecode.Name
+,
+    valueOfN: ValueOf[N]
 )(
   cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
 ): RecFunction[N] =

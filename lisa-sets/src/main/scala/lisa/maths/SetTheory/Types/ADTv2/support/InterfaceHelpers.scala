@@ -142,4 +142,94 @@ object InterfaceHelpers {
             (nextFact, app(accTerm)(argument), codomainType)
           case _ => throw UnreachableException
     }._1
+
+  def theoremAt(using
+      line: sourcecode.Line,
+      file: sourcecode.File
+  )(
+      displayName: String,
+      typeVariables: Seq[Variable[Ind]],
+      typeArgs: Seq[Expr[Ind]],
+      suffix: String,
+      baseTheorem: THM
+  ): THM = {
+    require(
+      typeArgs.isEmpty || typeArgs.size == typeVariables.size,
+      s"$displayName expects ${typeVariables.size} type argument(s), got ${typeArgs.size}."
+    )
+    val substitutions =
+      if typeArgs.isEmpty then Seq.empty
+      else typeVariables.zip(typeArgs).map((variable, arg) => variable := arg)
+    val theoremOwner =
+      if typeArgs.isEmpty then displayName
+      else Utils.renderAppliedSymbol(displayName, typeVariables.size, typeArgs)
+    val theoremName = s"$theoremOwner/$suffix"
+
+    THM(
+      quantifiedTypeStatement(
+        baseTheorem.statement,
+        typeVariables,
+        substitutions,
+        theoremName
+      ),
+      theoremName,
+      line.value,
+      file.value,
+      Theorem
+    ) {
+      have(baseTheorem.statement.substitute(substitutions*)) by
+        Restate.from(baseTheorem.of(substitutions*))
+      thenHave(thesis) by QuantifiersIntro(getRemainingTypeVariables(typeVariables, substitutions))
+    }
+  }
+
+  def introAppAt(using
+      line: sourcecode.Line,
+      file: sourcecode.File
+  )(
+      displayName: String,
+      typeVariables: Seq[Variable[Ind]],
+      typeArgs: Seq[Expr[Ind]],
+      baseTheorem: THM,
+      headTermAt: Seq[Expr[Ind]] => Expr[Ind],
+      headTypeAt: Seq[TypeSubstitution] => Expr[Ind],
+      assumptionsAt: Seq[TypeSubstitution] => Set[Expr[Prop]],
+      typingArgsAt: Seq[TypeSubstitution] => Seq[(Variable[Ind], Expr[Ind])],
+      conclusionAt: Seq[TypeSubstitution] => Expr[Prop]
+  ): THM = {
+    require(
+      typeArgs.isEmpty || typeArgs.size == typeVariables.size,
+      s"$displayName expects ${typeVariables.size} type argument(s), got ${typeArgs.size}."
+    )
+    val substitutions =
+      if typeArgs.isEmpty then Seq.empty
+      else typeVariables.zip(typeArgs).map((variable, arg) => variable := arg)
+    val theoremOwner =
+      if typeArgs.isEmpty then displayName
+      else Utils.renderAppliedSymbol(displayName, typeVariables.size, typeArgs)
+    val theoremName = s"$theoremOwner/introApp"
+    val headTerm = headTermAt(typeArgs)
+    val headType = headTypeAt(substitutions)
+    val typingArgs = typingArgsAt(substitutions)
+
+    THM(
+      assumptionsAt(substitutions) |- conclusionAt(substitutions),
+      theoremName,
+      line.value,
+      file.value,
+      Theorem
+    ) {
+      have(baseTheorem.statement.substitute(substitutions*)) by
+        Restate.from(baseTheorem.of(substitutions*))
+
+      val appliedTyping = proveAppliedTyping(
+        headTyping = lastStep,
+        headTerm = headTerm,
+        headType = headType,
+        args = typingArgs
+      )
+
+      have(thesis) by Tautology.from(appliedTyping)
+    }
+  }
 }

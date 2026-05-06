@@ -6,7 +6,7 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.SetTheory.Types.ADTv2.support.{**, toSeq}
+import lisa.maths.SetTheory.Types.ADTv2.support.{**, Time, toSeq}
 
 private def ADTBuilder[N <: Arity](
   name: String,
@@ -14,7 +14,9 @@ private def ADTBuilder[N <: Arity](
   constructors: Seq[
     (String, Seq[(String, String | ConstructorArg)])
   ]
-) = {
+)(using ValueOf[N]) = {
+  val t0 = Time.get()
+
   require(
     typeVars.distinct.size == typeVars.size,
     s"ADT $name has duplicate type variables: ${typeVars.mkString(", ")}."
@@ -56,11 +58,13 @@ private def ADTBuilder[N <: Arity](
       args.map(arg => Variable[Ind](s"${arg._1}2"))
     )
   )
+  val t1 = Time.get()
   val adtSyntactic = SyntacticADT[N](
     name,
     constructorsSyntactic,
     **.fromSeq[Variable[Ind], N](typeVars.map(Variable[Ind](_)))
   )
+  val t2 = Time.get()
 
   val constructorsSemantic = constructorsSyntactic.zip(constructorsName).map {
     case (ctor, name) =>
@@ -70,9 +74,19 @@ private def ADTBuilder[N <: Arity](
         adtSyntactic
       )
   }
+  val t3 = Time.get()
   val adtSemantic = SemanticADT[N](adtSyntactic, constructorsSemantic)
+  val t4 = Time.get()
 
-  new ADT[N](adtSemantic)
+  val res = new ADT[N](adtSemantic)
+  // val t5 = Time.get()
+  // val consSyn = t1 - t0
+  // val adtSyn = t2 - t1
+  // val consSem = t3 - t2
+  // val adtSem = t4 - t3
+  // val buildADT = t5 - t4
+  // println(s"Building ADT $name took ${t5 - t0} (consSyn: $consSyn, adtSyn: $adtSyn, consSem: $consSem, adtSem: $adtSem, buildADT: $buildADT)")
+  res
 }
 
 def adt[N <: Arity](
@@ -81,7 +95,7 @@ def adt[N <: Arity](
   constructors: Seq[
     (String, Seq[(String, String | ConstructorArg)])
   ]
-) : ADT[N] =
+)(using ValueOf[N]) : ADT[N] =
   ADTBuilder[N](name, typeVars.toSeq, constructors)
 
 def adt(

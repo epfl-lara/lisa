@@ -2,98 +2,95 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
-import lisa.maths.SetTheory.Types.TypingHelpers.{::,FunctionalClass, TypedConstantFunctional}
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
+import lisa.maths.SetTheory.Types.ADTv2.support.{**, toSeq}
 import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunSemantics
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.*
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt as buildIntroAppAt, theoremAt}
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.renderAppliedSymbol
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-class RecFunction[N <: Arity](using protected val line: sourcecode.Line, protected val file: sourcecode.File)(
+final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
     val semantic: RecFunSemantics[N],
-    private val adt: ADT[N],
-    protected val rawSubstitutions: Seq[TypeSubstitution] = Nil
+    val adt: ADT[N]
 ) extends TypedConstantFunctional[Ind](
       semantic.id,
-      FunctionalClass(
-        Nil,
-        Nil,
-        semantic.typ.substitute(
-          normalizeTypeSubstitutions(
-            ownerKind = "RecFunction",
-            ownerName = semantic.name,
-            typeVariables = semantic.typeVariablesSeq,
-            substitutions = rawSubstitutions
-          )*
-        )
-      ),
+      FunctionalClass(Nil, Nil, semantic.typ),
       semantic.intro
-    ) with Entity[N, RecFunction[N]] {
+    ) {
 
-  // ── Fields ────────────────────────────────────────────────────────────────
+  printAs(args => renderAppliedSymbol(semantic.name, semantic.typeVariablesSeq.size, args))
 
-  protected final val ownerKind: String = "RecFunction"
+  val name: String = semantic.name
+  val typeVariables: Variable[Ind] ** N = semantic.typeVariables
+  val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
+  val get_arity: Int = valueOfN.value
+  val term: Expr[Ind] = termAt(typeVariablesSeq)
 
-  final val name: String = semantic.name
+  lazy val argType: Expr[Ind] = semantic.argType
+  lazy val returnType: Expr[Ind] = semantic.returnType
+  lazy val functionType: Expr[Ind] = semantic.typ
 
-  final val typeVariables: Variable[Ind] ** N = semantic.typeVariables
+  lazy val intro: THM = theoremAt(
+    displayName = name,
+    typeVariables = typeVariablesSeq,
+    typeArgs = Seq.empty,
+    suffix = "introduction",
+    baseTheorem = semantic.intro
+  )
 
-  final val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
+  lazy val introApp: THM = introAppAt()
 
-  final lazy val term: Expr[Ind] =
-    semantic.term(resolvedTypeArguments(typeVariablesSeq, substitutions))
+  lazy val elim: Map[Constructor[N], THM] =
+    adt.constructors.map(c =>
+      c -> theoremAt(
+        displayName = name,
+        typeVariables = typeVariablesSeq,
+        typeArgs = Seq.empty,
+        suffix = s"elimination/${c.semantic.name}",
+        baseTheorem = semantic.shortDefinition(c.semantic)
+      )
+    ).toMap
 
-  final lazy val argType: Expr[Ind] = semantic.argType.substitute(substitutions*)
+  def introAt(typeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, typeArgs, "introduction", semantic.intro)
 
-  final lazy val returnType: Expr[Ind] = semantic.returnType.substitute(substitutions*)
+  def introAppAt(typeArgs: Expr[Ind]*): THM = buildIntroAppAt(
+    displayName = name,
+    typeVariables = typeVariablesSeq,
+    typeArgs = typeArgs,
+    baseTheorem = semantic.intro,
+    headTermAt = termAt,
+    headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
+    assumptionsAt = substitutions =>
+      Set(RecFunction.introAppVariable :: semantic.argType.substitute(substitutions*)),
+    typingArgsAt = substitutions =>
+      Seq(RecFunction.introAppVariable -> semantic.argType.substitute(substitutions*)),
+    conclusionAt = substitutions =>
+      app(termAt(if typeArgs.isEmpty then typeVariablesSeq else typeArgs))(RecFunction.introAppVariable) ::
+        semantic.returnType.substitute(substitutions*)
+  )
 
-  final lazy val functionType: Expr[Ind] = semantic.typ.substitute(substitutions*)
+  def elimAt(typeArgs: Expr[Ind]*): Map[Constructor[N], THM] =
+    adt.constructors.map(c =>
+      c -> theoremAt(
+        displayName = name,
+        typeVariables = typeVariablesSeq,
+        typeArgs = typeArgs,
+        suffix = s"elimination/${c.semantic.name}",
+        baseTheorem = semantic.shortDefinition(c.semantic)
+      )
+    ).toMap
 
-  private lazy val specializedADT =
-    if adt.substitutions == substitutions then adt
-    else new ADT[N](adt.semantic, substitutions)
+  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] = semantic.term(args)
 
-  final infix def *(arg: Expr[Ind]): Expr[Ind] = app(term)(arg)
+  def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)
 
-  // ── Lemmas ────────────────────────────────────────────────────────────────
+  def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
 
-  /** Lemma - typing of the recursive-function head specialized with the current type substitutions. */
-  final lazy val intro: THM = specializeTheorem(semantic.intro, "introduction")
+  def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
 
-  /** Lemma - applied recursive-function typing rule in sequent form for the current type substitutions. */
-  final lazy val introApp: THM = Theorem(using name = sourcecode.FullName(s"$fullName/introApp"))(
-    Set(RecFunction.introAppVariable :: argType) |- (
-      app(term)(RecFunction.introAppVariable) :: returnType
-    )
-  ) {
-    have(semantic.intro.statement.substitute(substitutions*)) by
-      Restate.from(semantic.intro.of(substitutions*))
-
-    val appliedTyping = proveAppliedTyping(
-      headTyping = lastStep,
-      headTerm = term,
-      headType = functionType,
-      args = Seq(RecFunction.introAppVariable -> argType)
-    )
-
-    have(thesis) by Tautology.from(appliedTyping)
-  }
-
-  /** Lemma - recursive equations specialized with the current type substitutions, one per constructor case. */
-  final lazy val elim: Map[Constructor[N], THM] = specializedADT.constructors.map(c =>
-    c -> specializeTheorem(
-      semantic.shortDefinition(c.semantic),
-      s"elimination/${renderAppliedSymbol(c.semantic.name, c.typeVariablesSeq.size, resolvedTypeArguments(c.typeVariablesSeq, c.substitutions))}"
-    )
-  ).toMap
-
-  // ── Apply ─────────────────────────────────────────────────────────────────
-
-  protected final def rebuild(substitutions: Seq[TypeSubstitution]): RecFunction[N] =
-    new RecFunction[N](semantic, adt, substitutions)
-
-  final lazy val debug_uniqueness: THM = semantic.uniqueness
-  final lazy val debug_classDefinitionFact: THM = semantic.classDefinitionFact
+  lazy val debug_uniqueness: THM = semantic.uniqueness
+  lazy val debug_classDefinitionFact: THM = semantic.classDefinitionFact
 }
 
 object RecFunction {

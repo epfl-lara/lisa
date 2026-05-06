@@ -17,10 +17,8 @@ class RecFunctionTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("polymorphic list recursion specializes to nat lists") {
-    val lengthNat = length.specialize(nat)
-    val nilNat = nil.specialize(nat)
-    assert(lengthNat.intro.statement != null)
-    assert(lengthNat.elim.contains(nilNat))
+    assert(length.introAt(nat).statement != null)
+    assert(length.elimAt(nat).contains(nil))
   }
 
   test("higher-order recursive add is usable with typecheck") {

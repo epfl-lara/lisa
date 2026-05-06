@@ -2,80 +2,74 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.ADTv2.support.{**, toSeq}
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.wellTypedSet
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{instantiatedSemanticSignature, introAppAt as buildIntroAppAt, theoremAt}
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{renderAppliedSymbol, wellTypedSet}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-class Constructor[N <: Arity](using protected val line: sourcecode.Line, protected val file: sourcecode.File)(
-    val semantic: SemanticConstructor[N],
-    protected val rawSubstitutions: Seq[TypeSubstitution] = Nil
+final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
+    val semantic: SemanticConstructor[N]
 ) extends TypedConstantFunctional[Ind](
       semantic.id,
-      FunctionalClass(
-        Nil, // Seq.fill(underlying.typeArity)(any)
-        Nil, // underlying.typeVariablesSeq
-        semantic.typ.substitute(
-          normalizeTypeSubstitutions(
-            ownerKind = "Constructor",
-            ownerName = semantic.fullName,
-            typeVariables = semantic.typeVariablesSeq,
-            substitutions = rawSubstitutions
-          )*
-        )
-      ),
+      FunctionalClass(Nil, Nil, semantic.typ),
       semantic.intro
-    ) with Entity[N, Constructor[N]] {
+    ) {
 
-  // ── Fields ────────────────────────────────────────────────────────────────
+  printAs(args => renderAppliedSymbol(semantic.fullName, semantic.typeVariablesSeq.size, args))
 
-  protected final val ownerKind: String = "Constructor"
+  val name: String = semantic.fullName
+  val typeVariables: Variable[Ind] ** N = semantic.typeVariables
+  val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
+  val get_arity: Int = valueOfN.value
+  val term: Expr[Ind] = termAt(typeVariablesSeq)
 
-  final val name: String = semantic.fullName
+  lazy val intro: THM = theoremAt(
+    displayName = name,
+    typeVariables = typeVariablesSeq,
+    typeArgs = Seq.empty,
+    suffix = "introduction",
+    baseTheorem = semantic.intro
+  )
 
-  final val typeVariables: Variable[Ind] ** N = semantic.typeVariables
+  lazy val introApp: THM = introAppAt()
 
-  final val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
+  lazy val injectivity: THM = theoremAt(
+    displayName = name,
+    typeVariables = typeVariablesSeq,
+    typeArgs = Seq.empty,
+    suffix = "injectivity",
+    baseTheorem = semantic.injectivity
+  )
 
-  final lazy val term: Expr[Ind] =
-    semantic.term(resolvedTypeArguments(typeVariablesSeq, substitutions))
+  def introAt(typeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, typeArgs, "introduction", semantic.intro)
 
-  private lazy val specializedHeadType: Expr[Ind] = semantic.typ.substitute(substitutions*)
+  def introAppAt(typeArgs: Expr[Ind]*): THM = buildIntroAppAt(
+    displayName = name,
+    typeVariables = typeVariablesSeq,
+    typeArgs = typeArgs,
+    baseTheorem = semantic.intro,
+    headTermAt = termAt,
+    headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
+    assumptionsAt = substitutions =>
+      wellTypedSet(instantiatedSemanticSignature(semantic.semanticSignature, substitutions)),
+    typingArgsAt = substitutions =>
+      instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
+    conclusionAt = substitutions =>
+      semantic.appliedTerm.substitute(substitutions*) ::
+        semantic.adt.term.substitute(substitutions*)
+  )
 
-  // ── Lemmas ────────────────────────────────────────────────────────────────
+  def injectivityAt(typeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, typeArgs, "injectivity", semantic.injectivity)
 
-  /** Lemma - typing of the constructor head specialized with the current type substitutions. */
-  final lazy val intro: THM = specializeTheorem(semantic.intro, "introduction")
+  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] = semantic.term(args)
 
-  /** Lemma - applied constructor typing rule in sequent form for the current type substitutions. */
-  final lazy val introApp: THM = Theorem(using name = sourcecode.FullName(s"$fullName/introApp"))(
-    wellTypedSet(
-      instantiatedSemanticSignature(semantic.semanticSignature, substitutions)
-    ) |- (
-      specializeTerm(semantic.appliedTerm, substitutions) ::
-        specializeTerm(semantic.adt.term, substitutions)
-    )
-  ) {
-    have(semantic.intro.statement.substitute(substitutions*)) by
-      Restate.from(semantic.intro.of(substitutions*))
+  def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)
 
-    val appliedTyping = proveAppliedTyping(
-      headTyping = lastStep,
-      headTerm = term,
-      headType = specializedHeadType,
-      args = instantiatedSemanticSignature(semantic.semanticSignature, substitutions)
-    )
+  def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
 
-    have(thesis) by Tautology.from(appliedTyping)
-  }
-
-  /** Lemma - injectivity of the constructor specialized with the current type substitutions. */
-  final lazy val injectivity: THM = specializeTheorem(semantic.injectivity, "injectivity")
-
-  // ── Apply ─────────────────────────────────────────────────────────────────
-
-  protected final def rebuild(substitutions: Seq[TypeSubstitution]): Constructor[N] =
-    new Constructor[N](semantic, substitutions)
+  def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
 }

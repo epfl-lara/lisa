@@ -11,19 +11,17 @@ class BasicsSmokeTest extends AnyFunSuite with lisa.TestMain {
   import lisa.maths.SetTheory.Types.ADTv2.library.*
 
   test("basic library functions expose core equations") {
-    val lengthNat = length.specialize(nat)
-    val nilNat = nil.specialize(nat)
     assert(not.elim.contains(tru))
     assert(not.elim.contains(fals))
     assert(double.elim.contains(zero))
     assert(double.elim.contains(succ))
-    assert(lengthNat.elim.contains(nilNat))
+    assert(length.elimAt(nat).contains(nil))
   }
 
   test("package wildcard import keeps library terms directly usable") {
     assert(add.intro.statement != null)
     assert(add.introApp.statement != null)
     assert(unit.term != null)
-    assert(list.specialize(nat).term != null)
+    assert(list(nat) != null)
   }
 }
