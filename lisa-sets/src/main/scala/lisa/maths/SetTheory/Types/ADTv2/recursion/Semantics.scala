@@ -8,6 +8,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.{existsEpsilon, existsOneAlternativeDefinition, existsOneEpsilonUniqueness}
 import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.maths.SetTheory.Types.ADTv2.support.**
 
 /**
  * Semantic set-theoretic interpretation of a recursive function over an ADT.

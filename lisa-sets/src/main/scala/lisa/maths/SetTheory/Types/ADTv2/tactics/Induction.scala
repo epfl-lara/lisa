@@ -61,7 +61,7 @@ class Induction[M <: Arity](
   ): proof.Fact =
 
     val prop = λ(x, propFun(x))
-    val typeVariablesSubstPairs = adt.typeVariables.toSeq.zip(typeVariablesSubst)
+    val typeVariablesSubstPairs = adt.typeVariablesSeq.zip(typeVariablesSubst)
       .map(SubstPair(_, _))
     val instTerm = adt.semantic.term(typeVariablesSubst)
 
@@ -266,7 +266,7 @@ class Induction[M <: Arity](
     (expectedVar, expectedADT) match
       case (Some(v), Some(a)) =>
         // By default instantiate ADT type parameters with their schematic variables.
-        Some((v, a, a.typeVariables.toSeq, None))
+        Some((v, a, a.typeVariablesSeq, None))
       case _ => None
 
   /**

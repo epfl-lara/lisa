@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.{**, SemanticConstructor}
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.support.**
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.*

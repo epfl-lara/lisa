@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.{**, SemanticADT}
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
+import lisa.maths.SetTheory.Types.ADTv2.support.**
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Printing
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.typeExprToTerm
@@ -12,6 +13,7 @@ class ADT[N <: Arity](using protected val line: sourcecode.Line, protected val f
     val semantic: SemanticADT[N],
     protected val rawSubstitutions: Seq[TypeSubstitution] = Nil
 ) extends Entity[N, ADT[N]] {
+  // TODO: Extend Constant[Ind] (subclass)
 
   Printing.install()
 
@@ -56,7 +58,7 @@ class ADT[N <: Arity](using protected val line: sourcecode.Line, protected val f
     new ADT[N](semantic, substitutions)
 
   final def applyType(args: TypeExpr*): ADT[N] =
-    apply(args.map(typeExprToTerm)*)
+    applySeq(args.map(typeExprToTerm))
 }
 
 object ADT {

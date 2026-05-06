@@ -34,11 +34,11 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
       lib: lisa.utils.prooflib.Library,
       proof: lib.Proof
   ): proof.Fact = {
-    val coreAll = forallSeq(typeVariables, isHeightCore(h))
+    val coreAll = forallSeq(typeVariablesSeq, isHeightCore(h))
     val withAllTypes = lib.have(isHeight(h) |- coreAll) by
       Tautology.from(isHeight.definition)
     lib.have(isHeight(h) |- isHeightCore(h)) by
-      InstantiateForall(typeVariables*)(withAllTypes)
+      InstantiateForall(typeVariablesSeq*)(withAllTypes)
   }
 
   // *******************

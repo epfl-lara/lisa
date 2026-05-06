@@ -2,9 +2,8 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
-import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.**
+import lisa.maths.SetTheory.Types.TypingHelpers.{::,FunctionalClass, TypedConstantFunctional}
+import lisa.maths.SetTheory.Types.ADTv2.support.**
 import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunSemantics
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.renderAppliedSymbol

@@ -34,7 +34,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
     else s"${name}/term[${args.mkString(",")}]"
   )
 
-  val term: Expr[Ind] = appSeq(polymorphicTerm)(typeVariablesSeq)
+  val term: Expr[Ind] = polymorphicTerm
 
   private[encoding] def termDefinitionFormula(adt: Expr[Ind]): Expr[Prop] =
     forall(t, t ∈ adt <=> forall(h, isHeight(h) ==> t ∈ unionRange(h)))

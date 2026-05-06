@@ -10,6 +10,7 @@ import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.**
 
 /**
  *  Semantic set theoretical interpretation of a constructor for an algebraic data type.

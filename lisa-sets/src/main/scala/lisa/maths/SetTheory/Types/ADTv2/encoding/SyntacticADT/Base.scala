@@ -59,7 +59,7 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
   private[encoding] lazy val isHeight = 
     DEF(using name=s"${name}IsHeightFunction")(λ(h, 
     forallSeq(
-      typeVariables,
+      typeVariablesSeq,
       function(h) /\
       (dom(h) === N) /\ 
       forall(

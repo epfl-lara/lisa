@@ -13,6 +13,7 @@ import lisa.maths.SetTheory.Functions.Pi.{->:}
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
+import lisa.maths.SetTheory.Types.ADTv2.support.**
 
 /**
  *  Set theoretic interpretation of a function over an ADT.
