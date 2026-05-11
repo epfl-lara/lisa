@@ -21,6 +21,6 @@ object NatAndListLibrary extends lisa.Main {
 
   section("Library theorems")
   show(double.intro)
-  show(length.introAt(nat))
+  show(length.intro(nat))
   show(add.elim(zero))
 }

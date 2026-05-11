@@ -15,7 +15,7 @@ class BasicsSmokeTest extends AnyFunSuite with lisa.TestMain {
     assert(not.elim.contains(fals))
     assert(double.elim.contains(zero))
     assert(double.elim.contains(succ))
-    assert(length.elimAt(nat).contains(nil))
+    assert(length.elim(nat).contains(nil))
   }
 
   test("package wildcard import keeps library terms directly usable") {

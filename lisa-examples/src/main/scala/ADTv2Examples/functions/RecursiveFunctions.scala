@@ -15,7 +15,7 @@ object RecursiveFunctions extends lisa.Main {
   show(double.elim(succ))
 
   section("Polymorphic list recursion")
-  show(length.intro)
-  show(length.elim(nil))
-  show(length.elim(cons))
+  show(length.intro(nat))
+  show(length.elim(nat)(nil))
+  show(length.elim(nat)(cons))
 }

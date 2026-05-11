@@ -11,18 +11,18 @@ class SpecializationTest extends AnyFunSuite with lisa.TestMain {
   import lisa.maths.SetTheory.Types.ADTv2.library.*
 
   test("specialized constructors stay usable") {
-    assert(pack.introAt(unit).statement != null)
-    assert(pack.introAppAt(unit).statement != null)
+    assert(pack.intro(unit).statement != null)
+    assert(pack.introApp(unit).statement != null)
   }
 
   test("specialized recursive functions expose expected eliminations") {
-    val lengthNatElim = length.elimAt(nat)
-    assert(length.introAt(nat).statement != null)
+    val lengthNatElim = length.elim(nat)
+    assert(length.intro(nat).statement != null)
     assert(lengthNatElim.contains(nil))
   }
 
   test("term application and theorem specialization agree") {
     assert(box(unit) != null)
-    assert(box.inductionAt(unit).statement != null)
+    assert(box.induction(unit).statement != null)
   }
 }

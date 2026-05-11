@@ -112,6 +112,12 @@ object InterfaceHelpers {
   ): Expr[Prop] =
     quantifiedTypeFormula(formulaOf(statement, owner), typeVariables, substitutions)
 
+  def requireMonomorphicAccess(ownerKind: String, ownerName: String, typeVariables: Seq[Variable[Ind]]): Unit =
+    require(
+      typeVariables.isEmpty,
+      s"$ownerKind $ownerName expects ${typeVariables.size} type argument(s)."
+    )
+
   def instantiatedSemanticSignature(
       signature: Seq[(Variable[Ind], Expr[Ind])],
       substitutions: Seq[TypeSubstitution]

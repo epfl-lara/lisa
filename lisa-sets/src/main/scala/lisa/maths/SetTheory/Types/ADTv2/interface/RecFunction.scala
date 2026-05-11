@@ -5,7 +5,7 @@ import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.support.{**, toSeq}
 import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunSemantics
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt as buildIntroAppAt, theoremAt}
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt as buildIntroAppAt, requireMonomorphicAccess, theoremAt}
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.renderAppliedSymbol
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -30,17 +30,54 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
   lazy val returnType: Expr[Ind] = semantic.returnType
   lazy val functionType: Expr[Ind] = semantic.typ
 
-  lazy val intro: THM = theoremAt(
-    displayName = name,
-    typeVariables = typeVariablesSeq,
-    typeArgs = Seq.empty,
-    suffix = "introduction",
-    baseTheorem = semantic.intro
-  )
+  def intro: THM = {
+    requireMonomorphicAccess("recursive function", name, typeVariablesSeq)
+    theoremAt(name, typeVariablesSeq, Seq.empty, "introduction", semantic.intro)
+  }
 
-  lazy val introApp: THM = introAppAt()
+  def intro(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "introduction", semantic.intro)
 
-  lazy val elim: Map[Constructor[N], THM] =
+  def introApp: THM = {
+    requireMonomorphicAccess("recursive function", name, typeVariablesSeq)
+    buildIntroAppAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = Seq.empty,
+      baseTheorem = semantic.intro,
+      headTermAt = termAt,
+      headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
+      assumptionsAt = substitutions =>
+        Set(RecFunction.introAppVariable :: semantic.argType.substitute(substitutions*)),
+      typingArgsAt = substitutions =>
+        Seq(RecFunction.introAppVariable -> semantic.argType.substitute(substitutions*)),
+      conclusionAt = substitutions =>
+        app(termAt(typeVariablesSeq))(RecFunction.introAppVariable) ::
+          semantic.returnType.substitute(substitutions*)
+    )
+  }
+
+  def introApp(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM = {
+    val typeArgs = firstTypeArg +: otherTypeArgs
+    buildIntroAppAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = typeArgs,
+      baseTheorem = semantic.intro,
+      headTermAt = termAt,
+      headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
+      assumptionsAt = substitutions =>
+        Set(RecFunction.introAppVariable :: semantic.argType.substitute(substitutions*)),
+      typingArgsAt = substitutions =>
+        Seq(RecFunction.introAppVariable -> semantic.argType.substitute(substitutions*)),
+      conclusionAt = substitutions =>
+        app(termAt(typeArgs))(RecFunction.introAppVariable) ::
+          semantic.returnType.substitute(substitutions*)
+    )
+  }
+
+  def elim: Map[Constructor[N], THM] = {
+    requireMonomorphicAccess("recursive function", name, typeVariablesSeq)
     adt.constructors.map(c =>
       c -> theoremAt(
         displayName = name,
@@ -50,27 +87,10 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
         baseTheorem = semantic.shortDefinition(c.semantic)
       )
     ).toMap
+  }
 
-  def introAt(typeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, typeArgs, "introduction", semantic.intro)
-
-  def introAppAt(typeArgs: Expr[Ind]*): THM = buildIntroAppAt(
-    displayName = name,
-    typeVariables = typeVariablesSeq,
-    typeArgs = typeArgs,
-    baseTheorem = semantic.intro,
-    headTermAt = termAt,
-    headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-    assumptionsAt = substitutions =>
-      Set(RecFunction.introAppVariable :: semantic.argType.substitute(substitutions*)),
-    typingArgsAt = substitutions =>
-      Seq(RecFunction.introAppVariable -> semantic.argType.substitute(substitutions*)),
-    conclusionAt = substitutions =>
-      app(termAt(if typeArgs.isEmpty then typeVariablesSeq else typeArgs))(RecFunction.introAppVariable) ::
-        semantic.returnType.substitute(substitutions*)
-  )
-
-  def elimAt(typeArgs: Expr[Ind]*): Map[Constructor[N], THM] =
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): Map[Constructor[N], THM] = {
+    val typeArgs = firstTypeArg +: otherTypeArgs
     adt.constructors.map(c =>
       c -> theoremAt(
         displayName = name,
@@ -80,6 +100,7 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
         baseTheorem = semantic.shortDefinition(c.semantic)
       )
     ).toMap
+  }
 
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] = semantic.term(args)
 

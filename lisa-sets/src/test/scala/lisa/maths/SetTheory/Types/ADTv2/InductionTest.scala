@@ -41,8 +41,8 @@ class InductionTest extends AnyFunSuite with lisa.TestMain {
     val nilLocal = listLocal.constructors(0)
     val consLocal = listLocal.constructors(1)
 
-    assert(listLocal.induction.statement != null)
-    assert(listLocal.elim.statement != null)
-    assert(listLocal.injectivity(consLocal, nilLocal).statement != null)
+    assert(listLocal.induction(bool).statement != null)
+    assert(listLocal.elim(bool).statement != null)
+    assert(listLocal.injectivity(consLocal, nilLocal, bool).statement != null)
   }
 }

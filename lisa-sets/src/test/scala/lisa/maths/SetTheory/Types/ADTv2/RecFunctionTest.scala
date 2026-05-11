@@ -17,8 +17,8 @@ class RecFunctionTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("polymorphic list recursion specializes to nat lists") {
-    assert(length.introAt(nat).statement != null)
-    assert(length.elimAt(nat).contains(nil))
+    assert(length.intro(nat).statement != null)
+    assert(length.elim(nat).contains(nil))
   }
 
   test("higher-order recursive add is usable with typecheck") {

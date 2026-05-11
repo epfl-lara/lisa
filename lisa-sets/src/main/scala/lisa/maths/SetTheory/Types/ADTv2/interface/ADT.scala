@@ -3,7 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
 import lisa.maths.SetTheory.Types.ADTv2.support.{**, toSeq}
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{requireMonomorphicAccess, theoremAt}
 import lisa.maths.SetTheory.Types.ADTv2.support.Printing
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{renderAppliedSymbol, typeExprToTerm}
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
@@ -28,23 +28,24 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
   lazy val constructors: Seq[Constructor[N]] =
     semantic.constructors.map(c => new Constructor[N](c))
 
-  lazy val induction: THM = theoremAt(
-    displayName = name,
-    typeVariables = typeVariablesSeq,
-    typeArgs = Seq.empty,
-    suffix = "induction",
-    baseTheorem = semantic.induction
-  )
+  def induction: THM = {
+    requireMonomorphicAccess("ADT", name, typeVariablesSeq)
+    theoremAt(name, typeVariablesSeq, Seq.empty, "induction", semantic.induction)
+  }
 
-  lazy val elim: THM = theoremAt(
-    displayName = name,
-    typeVariables = typeVariablesSeq,
-    typeArgs = Seq.empty,
-    suffix = "elimination",
-    baseTheorem = semantic.elim
-  )
+  def induction(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "induction", semantic.induction)
 
-  def injectivity(c1: Constructor[N], c2: Constructor[N]): THM =
+  def elim: THM = {
+    requireMonomorphicAccess("ADT", name, typeVariablesSeq)
+    theoremAt(name, typeVariablesSeq, Seq.empty, "elimination", semantic.elim)
+  }
+
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "elimination", semantic.elim)
+
+  def injectivity(c1: Constructor[N], c2: Constructor[N]): THM = {
+    requireMonomorphicAccess("ADT", name, typeVariablesSeq)
     theoremAt(
       displayName = name,
       typeVariables = typeVariablesSeq,
@@ -52,22 +53,18 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
       suffix = s"${c1.semantic.name}-${c2.semantic.name}/injectivity",
       baseTheorem = semantic.injectivity(c1.semantic, c2.semantic)
     )
+  }
 
-  def inductionAt(typeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, typeArgs, "induction", semantic.induction)
-
-  def elimAt(typeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, typeArgs, "elimination", semantic.elim)
-
-  def injectivityAt(
+  def injectivity(
       c1: Constructor[N],
       c2: Constructor[N],
-      typeArgs: Expr[Ind]*
+      firstTypeArg: Expr[Ind],
+      otherTypeArgs: Expr[Ind]*
   ): THM =
     theoremAt(
       name,
       typeVariablesSeq,
-      typeArgs,
+      firstTypeArg +: otherTypeArgs,
       s"${c1.semantic.name}-${c2.semantic.name}/injectivity",
       semantic.injectivity(c1.semantic, c2.semantic)
     )

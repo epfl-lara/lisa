@@ -1,9 +1,9 @@
 package ADTv2Examples.builder
 
 import lisa.maths.SetTheory.Types.ADTv2.*
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
+import lisa.maths.SetTheory.Types.ADTv2.library.*
 
-object DefineMonomorphicADTs extends lisa.Main {
+object MonomorphicADTs extends lisa.Main {
 
   val boolDemo = adt(
     name = "boolDemo",

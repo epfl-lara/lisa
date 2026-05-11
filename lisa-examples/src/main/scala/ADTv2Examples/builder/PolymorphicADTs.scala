@@ -1,9 +1,9 @@
 package ADTv2Examples.builder
 
 import lisa.maths.SetTheory.Types.ADTv2.*
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
+import lisa.maths.SetTheory.Types.ADTv2.library.*
 
-object DefinePolymorphicADTs extends lisa.Main {
+object PolymorphicADTs extends lisa.Main {
 
   val boxDemo = adt(
     name = "boxDemo",
@@ -37,16 +37,16 @@ object DefinePolymorphicADTs extends lisa.Main {
   val inrDemo = unionDemo.constructors(1)
 
   section("ADT theorems")
-  show(boxDemo.induction)
-  show(listDemo.induction)
-  show(listDemo.elim)
-  show(unionDemo.induction)
-  show(unionDemo.injectivity(inlDemo, inrDemo))
+  show(boxDemo.induction(unit))
+  show(listDemo.induction(unit))
+  show(listDemo.elim(unit))
+  show(unionDemo.induction(unit, nat))
+  show(unionDemo.injectivity(inlDemo, inrDemo, unit, nat))
 
   section("Constructor theorems")
-  show(packDemo.intro)
-  show(packDemo.introApp)
-  show(consDemo.intro)
-  show(consDemo.introApp)
-  show(nilDemo.intro)
+  show(packDemo.intro(unit))
+  show(packDemo.introApp(unit))
+  show(consDemo.intro(unit))
+  show(consDemo.introApp(unit))
+  show(nilDemo.intro(unit))
 }

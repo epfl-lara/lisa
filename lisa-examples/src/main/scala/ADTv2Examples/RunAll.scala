@@ -1,6 +1,6 @@
 package ADTv2Examples
 
-import ADTv2Examples.builder.{DefineMonomorphicADTs, DefinePolymorphicADTs, Specialization}
+import ADTv2Examples.builder.{MonomorphicADTs, PolymorphicADTs, Specialization}
 import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions}
 import ADTv2Examples.proofs.{InductionOnBool, InductionOnNat, TypecheckIntegration}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
@@ -9,8 +9,8 @@ object RunAll {
 
 
   private val entries: Seq[(String, (Array[String] => Unit) | String)] = Seq(
-    "ADTv2Examples.builder.DefineMonomorphicADTs" -> DefineMonomorphicADTs.main,
-    "ADTv2Examples.builder.DefinePolymorphicADTs" -> "Crash for now", //DefinePolymorphicADTs.main,
+    "ADTv2Examples.builder.MonomorphicADTs" -> MonomorphicADTs.main,
+    "ADTv2Examples.builder.PolymorphicADTs" -> PolymorphicADTs.main,
     "ADTv2Examples.builder.Specialization" -> Specialization.main,
     "ADTv2Examples.functions.SimpleFunctions" -> "positive fun(...) examples are currently unstable in the ADTv2 runtime.",
     "ADTv2Examples.functions.RecursiveFunctions" -> RecursiveFunctions.main,
