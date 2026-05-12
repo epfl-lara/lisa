@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.{ADT, Constructor}
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor, RecFunction}
 import lisa.maths.SetTheory.Types.ADTv2.functions.ADTFunction
-import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunction
+import lisa.maths.SetTheory.Types.ADTv2.support.toSeq
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -12,7 +12,6 @@ import lisa.maths.SetTheory.Functions.Function.app
 private val T = variable[Ind]
 
 extension [T <: Expr[Ind], N <: Arity](t: T) {
-  infix def ::(adt: ADT[N]) = TypeAssign[T](t, adt())
   infix def ::(e: Expr[Ind]) = TypeAssign[T](t, e)
 }
 
@@ -31,16 +30,17 @@ object Implicits {
     )
     term
 
-  implicit def adtToTerm(adt: ADT[?]): Expr[Ind] =
-    asMonomorphicTerm("ADT", adt.name, adt.typeVariables.toSeq.size)(adt())
+  // implicit def adtToTerm(adt: ADT[?]): Expr[Ind] =
+  //   println(s"Converting ADT ${adt.name} to term") // Debug print
+  //   asMonomorphicTerm("ADT", adt.name, adt.typeVariablesSeq.size)(adt.term)
 
-  implicit def constructorToTerm(c: Constructor[?]): Expr[Ind] =
-    asMonomorphicTerm("Constructor", c.name, c.typeVariables.toSeq.size)(c())
+  // implicit def constructorToTerm(c: Constructor[?]): Expr[Ind] =
+  //   asMonomorphicTerm("Constructor", c.name, c.typeVariablesSeq.size)(c.term)
 
   implicit def functionToTerm(f: ADTFunction[?]): Expr[Ind] =
-    asMonomorphicTerm("Function", f.name, f.typeVariables.toSeq.size)(f())
+    asMonomorphicTerm("Function", f.name, f.typeVariables.toSeq.size)(f.term)
 
-  implicit def recFunctionToTerm(f: RecFunction[?]): Expr[Ind] =
-    asMonomorphicTerm("RecFunction", f.name, f.typeVariables.toSeq.size)(f())
+  // implicit def recFunctionToTerm(f: RecFunction[?]): Expr[Ind] =
+  //   asMonomorphicTerm("RecFunction", f.name, f.typeVariablesSeq.size)(f.term)
 
 }

@@ -93,15 +93,12 @@ private[recursion] object RecFunctionInduction {
       constructorName: String,
       contextLabel: String
   ): proof.Fact = {
-    if leftBody == rightBody then
-      val refl = have(leftBody === rightBody) by RightRefl
-      have(localAssumptions |- leftBody === rightBody) by Weakening(refl)
-    else if recursiveFacts.nonEmpty then
-      have(localAssumptions |- leftBody === rightBody) by Congruence.from(recursiveFacts*)
-    else
-      throw IllegalArgumentException(
-        s"$contextLabel: constructor $constructorName has mismatching bodies without recursive arguments: $leftBody vs $rightBody."
-      )
+    try LambdaBodyEquality.proveUnder(localAssumptions, leftBody, rightBody, recursiveFacts)
+    catch
+      case _: IllegalArgumentException =>
+        throw IllegalArgumentException(
+          s"$contextLabel: constructor $constructorName has mismatching bodies without recursive arguments: $leftBody vs $rightBody."
+        )
   }
 
   private def liftBranchToInductiveCase[N <: Arity](using proof: lisa.SetTheoryLibrary.Proof)(

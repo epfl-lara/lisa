@@ -1,7 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
 import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
+import lisa.maths.SetTheory.Types.ADTv2.support.{**,toSeq}
+import lisa.maths.SetTheory.Types.ADTv2.support.Utils.renderAppliedSymbol
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -59,7 +61,7 @@ class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
       c,
       THM(
         semantic.shortDefinition(c.semantic).statement,
-        s"${name}/elimination: ${c.name} case",
+        s"${name}/elimination/${renderAppliedSymbol(c.semantic.name, c.typeVariablesSeq.size, c.typeVariablesSeq)}",
         line.value,
         file.value,
         Theorem
@@ -93,7 +95,7 @@ class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
    *
    *  Empty arguments keep schematic type variables.
    */
-  def apply(args: Expr[Ind]*): Expr[Ind] = {
+  def applyUnsafe(args: Expr[Ind]*): Expr[Ind] = {
     require(
       args.size == typeVariablesSeq.size || args.isEmpty,
       s"Function $name expects ${typeVariablesSeq.size} type argument(s), got ${args.size}."
@@ -106,5 +108,12 @@ class ADTFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File
   }
 
   /** Backward-compatible alias for polymorphic specialization. */
-  def of(args: Expr[Ind]*): Expr[Ind] = apply(args*)
+  def ofUnsafe(args: Expr[Ind]*): Expr[Ind] = applyUnsafe(args*)
+
+  private def applyExact(args: Expr[Ind] ** N): Expr[Ind] =
+    if args.toSeq.isEmpty then term
+    else {
+      val substitutions = typeVariablesSeq.zip(args.toSeq).map((v, a) => v := a)
+      term.substitute(substitutions*)
+    }
 }

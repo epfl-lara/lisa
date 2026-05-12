@@ -1,6 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.ADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, RecFunction}
 import lisa.maths.SetTheory.Types.ADTv2.functions.*
 import lisa.maths.SetTheory.Types.ADTv2.recursion
 
@@ -26,36 +26,27 @@ def fun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
     case Some(msg) => throw new IllegalArgumentException(msg)
 }
 
-def fun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(
-  using name: sourcecode.Name
-)(cases: CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit): ADTFunction[N] =
-  fun[N](adt, returnADT.semantic.term(Seq.empty))(cases)
+/** Second version of REC ------------------------------------------------- */
 
-def recFun[N <: Arity](
-  using name: sourcecode.Name
-)(
-  adt: ADT[N], returnType: Expr[Ind]
+def recFun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
+    name: sourcecode.Name,
+    valueOfN: ValueOf[N]
 )(
     cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
-): recursion.RecFunction[N] = {
+): RecFunction[N] = {
   val builder = CaseAccumulator[N, Expr[Ind], Unit](())
-  val self = recursion.RecFunction.selfPlaceholder(name.value)
+  val self = RecFunction.selfPlaceholder(name.value)
   cases(self)(using builder)
 
   builder.isValid(adt) match
     case None =>
-      recursion.RecFunction[N](
+      val semantic = recursion.RecFunSemantics[N](
         name.value,
-        adt,
+        adt.semantic,
         self,
         builder.build.map((k, v) => (k.semantic, v)),
         returnType
       )
+      new RecFunction[N](semantic, adt)
     case Some(msg) => throw new IllegalArgumentException(msg)
 }
-
-def recFun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(using name: sourcecode.Name
-)(
-  cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
-): recursion.RecFunction[N] =
-  recFun[N](adt, returnADT.semantic.term(Seq.empty))(cases)

@@ -6,8 +6,10 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.universalEquivalenceDistribution
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
+import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.**
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 import lisa.utils.prooflib.BasicStepTactic.LeftForall
@@ -22,6 +24,9 @@ import lisa.utils.prooflib.BasicStepTactic.RightForall
  *  Injectivity between different constructors, structural induction and elimination rule
  *  are proved within this class.
  *
+ *  Exported semantic lemmas are kept in formula form. Type variables and the induction
+ *  predicate remain schematic, while value arguments are explicitly quantified.
+ *
  *  @constructor generates a semantic interpretation for this ADT out of a syntactic one
  *  @param underlying the syntactic representation of this ADT
  *  @param constructors constructors of this ADT
@@ -35,7 +40,7 @@ class SemanticADT[N <: Arity](
   val name: String = underlying.name
 
   /** Identifier of this ADT. */
-//   val id: Identifier = underlying.polymorphicTerm.id
+  val id: Identifier = underlying.polymorphicTerm.id
 
   /** Type variables of this ADT. */
   val typeVariables: Variable[Ind] ** N = underlying.typeVariables
@@ -52,7 +57,7 @@ class SemanticADT[N <: Arity](
    *
    *  @param args the instances of this ADT type variables
    */
-  def term(args: Seq[Expr[Ind]]) = appSeq(underlying.polymorphicTerm)(args)
+  def term(args: Seq[Expr[Ind]]) = underlying.termAt(args)
 
   /**
    *  Term representing this ADT where type variables are instantiated with schematic
@@ -71,8 +76,13 @@ class SemanticADT[N <: Arity](
 
     val vars1WellTyped: Set[Expr[Prop]] = wellTypedSet(c1.semanticSignature1)
     val vars2WellTyped: Set[Expr[Prop]] = wellTypedSet(c2.semanticSignature2)
+    val typedAssumption =
+      simplify(wellTypedFormula(c1.semanticSignature1 ++ c2.semanticSignature2))
 
-    Lemma(vars1WellTyped ++ vars2WellTyped |- !(c1.appliedTerm1 === c2.appliedTerm2)) {
+    Lemma(forallSeq(
+      c1.variables1 ++ c2.variables2,
+      typedAssumption ==> !(c1.appliedTerm1 === c2.appliedTerm2)
+    )) {
 
       val defUnfolding = have(
         (vars1WellTyped ++ vars2WellTyped) + (c1.appliedTerm1 === c2.appliedTerm2) |-
@@ -131,9 +141,20 @@ class SemanticADT[N <: Arity](
         Restate.from(underlying.injectivity(c1.underlying, c2.underlying))
       thenHave(c1.structuralTerm1 === c2.structuralTerm2 |- ()) by Restate
 
-      have(
+      val contradiction = have(
         (vars1WellTyped ++ vars2WellTyped) + (c1.appliedTerm1 === c2.appliedTerm2) |- ()
       ) by Cut(defUnfolding, lastStep)
+
+      val disjointness = thenHave(
+        vars1WellTyped ++ vars2WellTyped |- !(c1.appliedTerm1 === c2.appliedTerm2)
+      ) by Restate
+
+      have(typedAssumption ==> !(c1.appliedTerm1 === c2.appliedTerm2)) subproof {
+        assume(typedAssumption)
+        val typed = have(typedAssumption) by Hypothesis
+        have(!(c1.appliedTerm1 === c2.appliedTerm2)) by Tautology.from(disjointness, typed)
+      }
+      thenHave(thesis) by QuantifiersIntro(c1.variables1 ++ c2.variables2)
     }
 
   /**
@@ -284,9 +305,9 @@ class SemanticADT[N <: Arity](
    *  Theorem --- Pattern matching principle (also known as elimination rule) for this
    *  ADT.
    *
-   *  `x ∈ ADT |- x = c * x1 * ... * xn for some constructor c and xi, ..., xj ∈ ADT`
+   *  `∀x. x ∈ ADT ==> x = c * x1 * ... * xn for some constructor c and xi, ..., xj ∈ ADT`
    */
-  lazy val elim = Lemma(x :: term |- simplify(isConstructor)) {
+  lazy val elim = Lemma(forall(x, x :: term ==> simplify(isConstructor))) {
 
     // Induction preconditions with P(z) = z != x
     val inductionPreconditionIneq = constructors
@@ -372,8 +393,15 @@ class SemanticADT[N <: Arity](
     thenHave(inductionPreconditionsIneq |- x :: term ==> !(x === x)) by
       InstantiateForall(x)
     val ind = thenHave(x :: term |- !inductionPreconditionsIneq) by Restate
-    have(x :: term |- isConstructor) by
+    val eliminationCase = have(x :: term |- isConstructor) by
       Cut(lastStep, strengtheningOfInductionPreconditions)
+
+    have(x :: term ==> simplify(isConstructor)) subproof {
+      assume(x :: term)
+      val xTyped = have(x :: term) by Hypothesis
+      have(simplify(isConstructor)) by Tautology.from(eliminationCase, xTyped)
+    }
+    thenHave(thesis) by RightForall
   }
 
   def externalHeight = underlying.isHeight

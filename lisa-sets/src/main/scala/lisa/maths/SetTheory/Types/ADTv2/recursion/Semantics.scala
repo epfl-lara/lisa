@@ -2,43 +2,74 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.Quantifiers.{existsEpsilon, existsOneEpsilonUniqueness, existsOneAlternativeDefinition}
+import lisa.maths.Quantifiers.{existsEpsilon, existsOneAlternativeDefinition, existsOneEpsilonUniqueness}
 import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.maths.SetTheory.Types.ADTv2.support.**
 
 /**
- * Layer 4 — Class term, uniqueness, and public case equations.
+ * Semantic set-theoretic interpretation of a recursive function over an ADT.
  *
- * Given [[Existence.witnessExists]] (∃f, Def(f)) and extensional uniqueness
- * (from [[Uniqueness]]), this layer:
+ * This class is the recursive-function analogue of [[SemanticADT]] and
+ * [[SemanticConstructor]]. It owns the full semantic construction:
  *
- *   1. Proves ∃!f, Def(f)   ([[uniqueness]])
- *   2. Defines term := ε(f, Def(f))
- *   3. Proves Def(term)      ([[classDefinitionFact]])
- *   4. Proves ∀f, (term=f) ↔ Def(f)   ([[classFunctionCharacterization]])
- *   5. Derives case equations ([[shortDefinition]]) and typing ([[intro]])
+ *   1. function specification ([[FunSpec]])
+ *   2. witness construction ([[Witness]])
+ *   3. existence proof ([[Existence]])
+ *   4. extensional uniqueness ([[Uniqueness]])
+ *   5. class term, typing, and case equations
  *
- * Exported:
- *   - [[term]]            — the class-level function constant
- *   - [[uniqueness]]      — ∃!f, Def(f)
- *   - [[intro]]           — term :: A→T
- *   - [[shortDefinition]] — WT(c(x̄)) ⊢ term(c(x̄)) = body_c[term]
- *   - [[caseDefinitions]] — raw (vars, body[term]) pairs for external use
- *   - [[id]]              — the Identifier of the class constant
+ * The public [[RecFunction]] wrapper is intentionally thin and only re-exports the
+ * semantic facts with user-facing theorem names.
  */
-private[recursion] final class RecFunSemantics[N <: Arity](
-    spec: FunSpec[N],
-    existence: Existence[N],
-    functionUniquenessProof: Uniqueness[N]
+final class RecFunSemantics[N <: Arity](
+    val name: String,
+    val adt: SemanticADT[N],
+    selfPlaceholder: Variable[Ind],
+    rawCases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])],
+    val returnType: Expr[Ind]
 ) {
 
-  private val typeVariablesSeq: Seq[Variable[Ind]] = spec.typeVariablesSeq
+  // ─────────────────────────────────────────────────────────────────────────
+  // Layer 1: specification
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private val spec = FunSpec[N](
+    functionName = name,
+    adt = adt,
+    selfPlaceholder = selfPlaceholder,
+    rawCases = rawCases,
+    returnType = returnType
+  )
+
+  val typeVariables: Variable[Ind] ** N = adt.typeVariables
+  val typeVariablesSeq: Seq[Variable[Ind]] = spec.typeVariablesSeq
+  val typeArity: N = spec.typeArity
+  val argType: Expr[Ind] = spec.argType
+  val typ: Expr[Ind] = spec.typ
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Layer 2: witness
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private val witness: Witness[N] = new Witness[N](spec)
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Layer 3: existence
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private val approx = new Approx[N](spec, witness)
+  private val approxProp = new ApproxProp[N](spec, witness, approx)
+  val existence: Existence[N] = new Existence[N](spec, witness, approx, approxProp)
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Layer 3b: extensional uniqueness
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private val functionUniquenessProof = new Uniqueness[N](spec)
 
   // ─────────────────────────────────────────────────────────────────────────
   // untypedDef — spec.untypedDefinition(f) with the canonical free variable f
@@ -61,7 +92,7 @@ private[recursion] final class RecFunSemantics[N <: Arity](
     have(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)) by
       Restate.from(functionUniquenessProof.recursivePointwisePlan)
     thenHave(∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y))) by RightForall
-    
+
     val uniquenessAll = thenHave(
       ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
     ) by RightForall
@@ -89,14 +120,21 @@ private[recursion] final class RecFunSemantics[N <: Arity](
     type S
     given lisa.utils.fol.FOL.IsSort[S] =
       lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
-    DEF(using name = spec.functionName)(classFunctionExpr.asInstanceOf[Expr[S]])
+    DEF(using name = name)(classFunctionExpr.asInstanceOf[Expr[S]])
   }
-  classFunction.printAs(args => renderAppliedSymbol(spec.functionName, typeVariablesSeq.size, args))
+  classFunction.printAs(args => renderAppliedSymbol(name, typeVariablesSeq.size, args))
 
   val id: Identifier = classFunction.id
 
-  /** The class-level function term. */
-  val term: Expr[Ind] = (classFunction #@@ typeVariablesSeq).asInstanceOf[Expr[Ind]]
+  /**
+   * The class-level function term specialized to concrete type arguments.
+   *
+   * @param args instances of the recursive function's type variables
+   */
+  def term(args: Seq[Expr[Ind]]): Expr[Ind] = (classFunction #@@ args).asInstanceOf[Expr[Ind]]
+
+  /** The class-level function term with schematic type variables. */
+  val term: Expr[Ind] = term(typeVariablesSeq)
 
   private val classTermIsEpsilon: THM = Lemma(term === ε(f, untypedDef)) {
     have(thesis) by Congruence.from(classFunction.definition)
@@ -106,11 +144,6 @@ private[recursion] final class RecFunSemantics[N <: Arity](
   // classDefinitionFact: Def(term)
   // ─────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Def(term) — derived from uniqueness via epsilon.
-   * In the new architecture this no longer requires a sorry: ∃!f,Def(f) is
-   * proved first, so epsilon transport is cycle-free.
-   */
   val classDefinitionFact: THM = Lemma(definitionFormula(term)) {
     val epsilonWitness = ε(f, untypedDef)
 
@@ -195,7 +228,7 @@ private[recursion] final class RecFunSemantics[N <: Arity](
     )
 
   // ─────────────────────────────────────────────────────────────────────────
-  // shortDefinition: WT(c(x̄)) ⊢ term(c(x̄)) = body_c[term]
+  // shortDefinition: ∀x̄. WT(x̄) ==> term(c(x̄)) = body_c[term]
   // ─────────────────────────────────────────────────────────────────────────
 
   val shortDefinition: Map[SemanticConstructor[N], THM] =
@@ -244,7 +277,7 @@ private[recursion] final class RecFunSemantics[N <: Arity](
   // intro: term :: A→T
   // ─────────────────────────────────────────────────────────────────────────
 
-  val intro: THM = Lemma(forallSeq(typeVariablesSeq, term :: spec.typ)) {
+  val intro: THM = Lemma(term :: spec.typ) {
 
     have(forall(f, (term === f) <=> untypedDef)) by
       Restate.from(classFunctionCharacterization)
@@ -262,6 +295,6 @@ private[recursion] final class RecFunSemantics[N <: Arity](
         }))
     ) by InstantiateForall(term)
     thenHave(term :: spec.typ) by Weakening
-    thenHave(thesis) by QuantifiersIntro(typeVariablesSeq)
+    thenHave(thesis) by Restate
   }
 }

@@ -42,7 +42,6 @@ private[recursion] final class Existence[N <: Arity](
   val nVar = variable[Ind]
   val mVar = variable[Ind]
   val kVar = variable[Ind]
-
   private val heightSuccStrong = spec.adt.externalHeightSuccessorStrong
   private val heightMonotonic  = spec.adt.externalHeightMonotonic
   private val termHasHeight    = spec.adt.externalTermHasHeight
@@ -294,8 +293,7 @@ private[recursion] final class Existence[N <: Arity](
 
           // body_c[limitFun] = body_c[G(n0)]  (Congruence from recursive arg equalities)
           val bodyEq =
-            if selfArgEqualities.isEmpty then have(bodyAtLimitFun === bodyAtGN0) by RightRefl
-            else have(bodyAtLimitFun === bodyAtGN0) by Congruence.from(selfArgEqualities*)
+            LambdaBodyEquality.prove(bodyAtLimitFun, bodyAtGN0, selfArgEqualities)
 
           // recWitness(limitFun)(c(x̄)) = bodyAtLimitFun
           val witnessCaseLimitSchema = recWitness.witnessCaseByConstructor(c).of(spec.selfPlaceholder := limitFun)
