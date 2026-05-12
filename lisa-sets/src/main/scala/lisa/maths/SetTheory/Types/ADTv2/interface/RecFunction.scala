@@ -12,10 +12,14 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
     val semantic: RecFunSemantics[N],
     val adt: ADT[N]
-) extends TypedConstantFunctional[Ind](
+) extends TypedConstantFunctional[IndOf[N]](
       semantic.id,
-      FunctionalClass(Nil, Nil, semantic.typ),
-      semantic.intro
+      FunctionalClass(
+        List.fill(semantic.typeVariablesSeq.size)(None),
+        semantic.typeVariablesSeq.toList,
+        semantic.typ
+      ),
+      RecFunction.typingJustification(semantic)
     ) {
 
   printAs(args => renderAppliedSymbol(semantic.name, semantic.typeVariablesSeq.size, args))
@@ -102,7 +106,8 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
     ).toMap
   }
 
-  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] = semantic.term(args)
+  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
+    (this #@@ args).asInstanceOf[Expr[Ind]]
 
   def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)
 
@@ -122,4 +127,16 @@ object RecFunction {
 
   private[ADTv2] val introAppVariable: Variable[Ind] =
     Variable[Ind]("recFunctionArg")
+
+  private def typingJustification[N <: Arity](using
+      line: sourcecode.Line,
+      file: sourcecode.File
+  )(semantic: RecFunSemantics[N]): THM =
+    theoremAt(
+      displayName = semantic.name,
+      typeVariables = semantic.typeVariablesSeq,
+      typeArgs = Seq.empty,
+      suffix = "introduction",
+      baseTheorem = semantic.intro
+    )
 }

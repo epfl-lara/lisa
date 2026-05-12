@@ -6,21 +6,33 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 
 object NatAndListLibrary extends lisa.Main {
 
-  val natList = list(nat)
-  val nilNat = nil(nat)
-  val consNat = cons(nat)
-  val singletonZero = consNat * zero * nilNat
+  val list1 = cons(nat) * zero * nil(nat)
+  val list2 = cons(nat) * (succ * zero) * list1
 
-  val singletonZeroTyping = Theorem(singletonZero :: natList) {
+  section("Introduction rules")
+  show(nil.intro(nat))
+  show(cons.intro(nat))
+  show(length.intro(nat))
+
+  section("Type checking")
+
+  val nilTyping = Theorem(nil(nat) :: list(nat)) {
     have(thesis) by Typecheck.prove
   }
 
-  val singletonLengthTyping = Theorem(length(nat) * singletonZero :: nat) {
+  val nilLengthTyping = 
+    Theorem(length(nat) * nil(nat) :: nat) {
+    have(thesis) by Typecheck.prove
+  }
+  val list1LengthTyping = Theorem(length(nat) * list1 :: nat) {
+    have(thesis) by Typecheck.prove
+  }
+  val list2LengthTyping = Theorem(length(nat) * list2 :: nat) {
     have(thesis) by Typecheck.prove
   }
 
   section("Library theorems")
   show(double.intro)
-  show(length.intro(nat))
   show(add.elim(zero))
+  show(add.elim(succ))
 }

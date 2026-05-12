@@ -26,11 +26,6 @@ def fun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
     case Some(msg) => throw new IllegalArgumentException(msg)
 }
 
-def fun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(
-  using name: sourcecode.Name
-)(cases: CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit): ADTFunction[N] =
-  fun[N](adt, returnADT.term)(cases)
-
 /** Second version of REC ------------------------------------------------- */
 
 def recFun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
@@ -55,11 +50,3 @@ def recFun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
       new RecFunction[N](semantic, adt)
     case Some(msg) => throw new IllegalArgumentException(msg)
 }
-
-def recFun[N <: Arity](adt: ADT[N], returnADT: ADT[N])(using name: sourcecode.Name
-,
-    valueOfN: ValueOf[N]
-)(
-  cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
-): RecFunction[N] =
-  recFun[N](adt, returnADT.term)(cases)

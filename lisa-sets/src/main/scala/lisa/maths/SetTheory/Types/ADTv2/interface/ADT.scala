@@ -11,7 +11,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
     val semantic: SemanticADT[N]
-) extends Constant[Ind](semantic.id) {
+) extends Constant[IndOf[N]](semantic.id) {
 
   Printing.install()
   printAs(args => renderAppliedSymbol(semantic.name, semantic.typeVariablesSeq.size, args))
@@ -20,6 +20,9 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
   val typeVariables: Variable[Ind] ** N = semantic.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
   val get_arity: Int = valueOfN.value
+
+  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
+    (this #@@ args).asInstanceOf[Expr[Ind]]
 
   val term: Expr[Ind] = termAt(typeVariablesSeq)
 
@@ -69,8 +72,6 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
       semantic.injectivity(c1.semantic, c2.semantic)
     )
 
-  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] = semantic.term(args)
-
   def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)
 
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
@@ -101,11 +102,11 @@ object ADT {
 
   def unapply(obj: Expr[Ind]): Option[(ADT[?], Seq[Expr[Ind]])] =
     obj match
-      case c: Constant[Ind] @unchecked =>
+      case c: Constant[?] @unchecked =>
         getADT(c.id).map((_, Seq.empty))
       case Multiapp(head, args) =>
         head match
-          case c: Constant[Ind] @unchecked => getADT(c.id).map((_, args.asInstanceOf[Seq[Expr[Ind]]]))
+          case c: Constant[?] @unchecked => getADT(c.id).map((_, args.asInstanceOf[Seq[Expr[Ind]]]))
           case _ => None
 
   def getADT(name: String): Option[ADT[?]] = namesToADT.get(name)

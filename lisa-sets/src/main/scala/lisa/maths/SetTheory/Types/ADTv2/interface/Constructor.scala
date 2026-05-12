@@ -11,10 +11,14 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
     val semantic: SemanticConstructor[N]
-) extends TypedConstantFunctional[Ind](
+) extends TypedConstantFunctional[IndOf[N]](
       semantic.id,
-      FunctionalClass(Nil, Nil, semantic.typ),
-      semantic.intro
+      FunctionalClass(
+        List.fill(semantic.typeVariablesSeq.size)(None), 
+        semantic.typeVariablesSeq.toList,
+        semantic.typ
+      ),
+      Constructor.typingJustification(semantic)
     ) {
 
   printAs(args => renderAppliedSymbol(semantic.fullName, semantic.typeVariablesSeq.size, args))
@@ -76,11 +80,26 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
   def injectivity(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
     theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "injectivity", semantic.injectivity)
 
-  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] = semantic.term(args)
+  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
+    (this #@@ args).asInstanceOf[Expr[Ind]]
 
   def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)
 
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
 
   def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
+}
+
+object Constructor {
+  private def typingJustification[N <: Arity](using
+      line: sourcecode.Line,
+      file: sourcecode.File
+  )(semantic: SemanticConstructor[N]): THM =
+    theoremAt(
+      displayName = semantic.fullName,
+      typeVariables = semantic.typeVariablesSeq,
+      typeArgs = Seq.empty,
+      suffix = "introduction",
+      baseTheorem = semantic.intro
+    )
 }

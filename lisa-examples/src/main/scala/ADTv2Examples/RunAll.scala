@@ -3,6 +3,7 @@ package ADTv2Examples
 import ADTv2Examples.builder.{MonomorphicADTs, PolymorphicADTs, Specialization}
 import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions}
 import ADTv2Examples.proofs.{InductionOnBool, InductionOnNat, TypecheckIntegration}
+import ADTv2Examples.endtoend.NatAndListLibrary
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
 object RunAll {
@@ -18,7 +19,7 @@ object RunAll {
     "ADTv2Examples.proofs.InductionOnBool" -> InductionOnBool.main,
     "ADTv2Examples.proofs.InductionOnNat" -> InductionOnNat.main,
     "ADTv2Examples.proofs.TypecheckIntegration" -> TypecheckIntegration.main,
-    "ADTv2Examples.endtoend.NatAndListLibrary" -> "specialized constructor typechecking is currently unstable in standalone runs."
+    "ADTv2Examples.endtoend.NatAndListLibrary" -> NatAndListLibrary.main
   )
 
   def main(args: Array[String]): Unit = {
