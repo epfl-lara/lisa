@@ -24,17 +24,28 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
   // * TERM *
   // ********
 
-  // The ADT term symbol is defined as the epsilon witness of its characterization.
-  val polymorphicTerm = DEF(using name = s"${name}/term")(
-    lisa.maths.SetTheory.SetTheory.ε(z, termDefinitionFormula(z))
-  )
+  // The ADT term symbol is a class function over type variables, matching the
+  // representation already used for constructors and semantic functions.
+  val polymorphicTerm: Constant[?] = {
+    val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
+      xs = typeVariablesSeq,
+      t = lisa.maths.SetTheory.SetTheory.ε(z, termDefinitionFormula(z))
+    )
+    type S
+    given lisa.utils.fol.FOL.IsSort[S] =
+      lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
+    DEF(using name = s"${name}/term")(classFunctionExpr.asInstanceOf[Expr[S]])
+  }
 
   polymorphicTerm.printAs(args =>
     if args.isEmpty then s"${name}/term[${typeVariablesSeq.mkString(",")}]"
     else s"${name}/term[${args.mkString(",")}]"
   )
 
-  val term: Expr[Ind] = polymorphicTerm
+  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
+    (polymorphicTerm #@@ args).asInstanceOf[Expr[Ind]]
+
+  val term: Expr[Ind] = termAt(typeVariablesSeq)
 
   private[encoding] def termDefinitionFormula(adt: Expr[Ind]): Expr[Prop] =
     forall(t, t ∈ adt <=> forall(h, isHeight(h) ==> t ∈ unionRange(h)))

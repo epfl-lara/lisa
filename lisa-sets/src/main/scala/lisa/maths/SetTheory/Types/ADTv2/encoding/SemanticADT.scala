@@ -57,7 +57,7 @@ class SemanticADT[N <: Arity](
    *
    *  @param args the instances of this ADT type variables
    */
-  def term(args: Seq[Expr[Ind]]) = appSeq(underlying.polymorphicTerm)(args)
+  def term(args: Seq[Expr[Ind]]) = underlying.termAt(args)
 
   /**
    *  Term representing this ADT where type variables are instantiated with schematic
