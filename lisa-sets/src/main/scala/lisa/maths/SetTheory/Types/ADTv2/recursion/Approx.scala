@@ -325,31 +325,8 @@ private[recursion] final class Approx[N <: Arity](
                     yVar === recWitness(app(hSk)(jVar))
                 ) by Tautology
 
-                val inj = have(Succ(kVar) === Succ(jVar) |- kVar === jVar) subproof {
-                  assume(Succ(kVar) === Succ(jVar))
-
-                  val kInSj = have(kVar ∈ Succ(jVar)) by
-                    Congruence.from(NatFacts.nInSucc.of(n := kVar))
-                  val kCase = have(kVar ∈ jVar \/ (kVar === jVar)) by
-                    Tautology.from(NatFacts.succMembership.of(k := kVar, n := jVar), kInSj)
-                  val jInSk = have(jVar ∈ Succ(kVar)) by
-                    Congruence.from(NatFacts.nInSucc.of(n := jVar))
-                  val jCase = have(jVar ∈ kVar \/ (jVar === kVar)) by
-                    Tautology.from(NatFacts.succMembership.of(k := jVar, n := kVar), jInSk)
-
-                  val fromKInJ = have(kVar ∈ jVar |- kVar === jVar) subproof {
-                    assume(kVar ∈ jVar)
-                    val notJInK = have(¬(jVar ∈ kVar)) by Tautology.from(
-                      FoundationAxiom.membershipAsymmetric of (x := kVar, y := jVar),
-                      have(kVar ∈ jVar) by Tautology
-                    )
-                    val jEqK = have(jVar === kVar) by Tautology.from(jCase, notJInK)
-                    have(thesis) by Congruence.from(jEqK)
-                  }
-
-                  val fromKEqJ = have(kVar === jVar |- kVar === jVar) by Restate
-                  have(thesis) by Tautology.from(kCase, fromKInJ, fromKEqJ)
-                }
+                val inj = have(Succ(kVar) === Succ(jVar) |- kVar === jVar) by
+                  Tautology.from(NatFacts.succInjective.of(n := kVar, m := jVar))
 
                 val kEqJ = have(
                   (jVar ∈ N) /\ (Succ(kVar) === Succ(jVar)) /\

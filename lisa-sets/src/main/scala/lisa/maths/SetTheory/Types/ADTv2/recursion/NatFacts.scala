@@ -102,6 +102,32 @@ object NatFacts {
     have(thesis) by Tautology.from(mem, refl)
   }
 
+  val succInjective = Theorem(Succ(n) === Succ(m) |- n === m) {
+    assume(Succ(n) === Succ(m))
+
+    val nInSm = have(n ∈ Succ(m)) by
+      Congruence.from(NatFacts.nInSucc.of(n := n))
+    val nCase = have(n ∈ m \/ (n === m)) by
+      Tautology.from(NatFacts.succMembership.of(k := n, n := m), nInSm)
+    val mInSn = have(m ∈ Succ(n)) by
+      Congruence.from(NatFacts.nInSucc.of(n := m))
+    val mCase = have(m ∈ n \/ (m === n)) by
+      Tautology.from(NatFacts.succMembership.of(k := m, n := n), mInSn)
+
+    val fromNInM = have(n ∈ m |- n === m) subproof {
+      assume(n ∈ m)
+      val notMInN = have(¬(m ∈ n)) by Tautology.from(
+        FoundationAxiom.membershipAsymmetric of (x := n, y := m),
+        have(n ∈ m) by Tautology
+      )
+      val mEqN = have(m === n) by Tautology.from(mCase, notMInN)
+      have(thesis) by Congruence.from(mEqN)
+    }
+
+    val fromNEqM = have(n === m |- n === m) by Restate
+    have(thesis) by Tautology.from(nCase, fromNInM, fromNEqM)
+  }
+
   val elementsTransitive = Theorem((n ∈ N) |- TransitiveSet.transitiveSet(n)) {
     val ordN = have(n ∈ N |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
     have(thesis) by Tautology.from(ordN, ordinal.definition of (α := n))

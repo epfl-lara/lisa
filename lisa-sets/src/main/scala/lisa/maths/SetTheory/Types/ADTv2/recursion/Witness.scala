@@ -114,33 +114,14 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
       c2: SemanticConstructor[N]
   ): THM = {
     require(c1 != c2, "constructorTagDisequality requires two distinct constructors.")
-    val tagTerm1 = c1.underlying.tagTerm
-    val tagTerm2 = c2.underlying.tagTerm
     val minTag: Int = Math.min(c1.underlying.tag, c2.underlying.tag)
     val maxTag: Int = Math.max(c1.underlying.tag, c2.underlying.tag)
-    Lemma(!(tagTerm1 === tagTerm2)) {
-      val start = have(tagTerm1 === tagTerm2 |- toTerm(maxTag) === toTerm(minTag)) by Congruence
-      (1 to minTag).foldLeft(start)((fact, i) =>
-        val midMaxTag = toTerm(maxTag - i)
-        val midMinTag = toTerm(minTag - i)
-        have(
-          successor(midMaxTag) === successor(midMinTag) |- midMaxTag === midMinTag
-        ) by Cut(
-          successorInjectivity of (n := midMaxTag, m := midMinTag),
-          equivalenceApply of (
-            p1 := successor(midMaxTag) === successor(midMinTag),
-            p2 := midMaxTag === midMinTag
-          )
-        )
-        have(tagTerm1 === tagTerm2 |- midMaxTag === midMinTag) by Cut(fact, lastStep)
-      )
-      val chainInjectivity =
-        thenHave(!(toTerm(maxTag - minTag) === ∅) |- !(tagTerm1 === tagTerm2)) by Restate
-      have(toTerm(maxTag - minTag) =/= ∅) by Restate.from(
-        zeroIsNotSucc of (n := toTerm(maxTag - minTag - 1))
-      )
-      have(thesis) by Cut(lastStep, chainInjectivity)
-    }
+    lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.constructorTagDisequality(
+      c1.underlying.tagTerm,
+      c2.underlying.tagTerm,
+      minTag,
+      maxTag
+    )
   }
 
   private val constructorTagDisequalities

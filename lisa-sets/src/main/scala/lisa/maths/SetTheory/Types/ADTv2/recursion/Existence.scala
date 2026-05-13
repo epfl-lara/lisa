@@ -17,6 +17,7 @@ import lisa.maths.Quantifiers
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut, RightForall}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
+import ApproxPropShared.{constructorBranchesAtHeight, constructorDisjunctionAtHeight, substitutedCaseBody}
 
 /**
  * Layer 3 — Existence without circularity.
@@ -42,9 +43,10 @@ private[recursion] final class Existence[N <: Arity](
   val nVar = variable[Ind]
   val mVar = variable[Ind]
   val kVar = variable[Ind]
-  private val heightSuccStrong = spec.adt.externalHeightSuccessorStrong
-  private val heightMonotonic  = spec.adt.externalHeightMonotonic
-  private val termHasHeight    = spec.adt.externalTermHasHeight
+  private val adtSupport = ADTRecursionSupport(spec.adt)
+  private val heightSuccStrong = adtSupport.heightSuccStrong
+  private val heightMonotonic  = adtSupport.heightMonotonic
+  private val termHasHeight    = adtSupport.termHasHeight
   
   import approx.G
   import approxProp.{
@@ -132,13 +134,10 @@ private[recursion] final class Existence[N <: Arity](
         Congruence.from(aInHeightSuccN0, succEqN0)
 
       // ── Decompose a into constructor form ───────────────────────────────────
-      val constructorBranch = spec.adt.constructors.map(c =>
-        c -> existsSeq(
-          c.variables2,
-          wellTypedFormula(c.underlying.signature2)(app(heightFun)(n0)) /\ (a === c.structuralTerm2)
-        )
-      ).toMap
-      val constructorDisjunction = seqOr(spec.adt.constructors.map(c => constructorBranch(c)))
+      val constructorBranch =
+        constructorBranchesAtHeight(spec.adt.constructors, app(heightFun)(n0), a)
+      val constructorDisjunction =
+        constructorDisjunctionAtHeight(spec.adt.constructors, app(heightFun)(n0), a)
 
       val decomposeAtA = have(constructorDisjunction) by Tautology.from(
         hValid,
@@ -176,15 +175,8 @@ private[recursion] final class Existence[N <: Arity](
 
       // ── Per-constructor branches ────────────────────────────────────────────
       val branchEqualities = spec.adt.constructors.map(c =>
-        val (caseVars, rawBody) = spec.rawCases(c)
-        val bodyAtLimitFun = rawBody
-          .substitute(spec.selfPlaceholder := limitFun)
-          .substitute(caseVars.zip(c.variables2).map((from, to) => from := to)*)
-          .asInstanceOf[Expr[Ind]]
-        val bodyAtGN0 = rawBody
-          .substitute(spec.selfPlaceholder := G(n0))
-          .substitute(caseVars.zip(c.variables2).map((from, to) => from := to)*)
-          .asInstanceOf[Expr[Ind]]
+        val bodyAtLimitFun = substitutedCaseBody(spec, c, limitFun)
+        val bodyAtGN0 = substitutedCaseBody(spec, c, G(n0))
 
         val directBranch = have(
           wellTypedFormula(c.underlying.signature2)(app(heightFun)(n0)) /\ (a === c.structuralTerm2) |- pointwiseGoal
