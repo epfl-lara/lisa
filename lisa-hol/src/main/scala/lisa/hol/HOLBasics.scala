@@ -27,6 +27,9 @@ import lisa.utils.prooflib.SimpleDeducedSteps._
  * and re-exported here.
  */
 object HOLBasics extends lisa.HOL {
+  
+  val lib = summon[Library]
+  lib.withCache()
 
   val A = typevar
   val B = typevar
@@ -34,8 +37,6 @@ object HOLBasics extends lisa.HOL {
   val x = typedvar(A)
   val y = typedvar(A)
   val P = typedvar(A ->: 𝔹)
-
-  val lib = summon[Library]
 
   // Re-export all definitions from basics sub-objects
   export lisa.hol.basics.Truth.{holT, holTruth, SYM, _SYM}

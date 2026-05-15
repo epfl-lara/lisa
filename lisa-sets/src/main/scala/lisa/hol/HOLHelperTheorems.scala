@@ -11,7 +11,6 @@ import lisa.maths.SetTheory.Base.Predef.*
 import lisa.automation.Substitution.{Apply => Substitute}
 
 import VarsAndFunctions.HOLConstantType
-import lisa.utils.Serialization.sorry
 import lisa.utils.prooflib.BasicStepTactic.LeftOr
 import lisa.utils.prooflib.BasicStepTactic.RightAnd
 import lisa.utils.KernelHelpers.lambda
