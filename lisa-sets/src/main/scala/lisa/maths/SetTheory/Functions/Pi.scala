@@ -48,7 +48,7 @@ object Pi extends lisa.Main {
     ty2 match
       case Abs(v, body) =>
         if body.freeVars.contains(v) then s"Π($v: $ty1). $body"
-        else s"$ty1 ->: $body"
+        else s"($ty1 ->: $body)"
       case _ => s"Π(_: $ty1). $ty2(_)"
   )
 

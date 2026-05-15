@@ -4,7 +4,7 @@ import lisa.utils.KernelHelpers._
 import lisa.utils._
 
 import java.io.PrintWriter
-import java.io.StringWriter
+import java.io.Writer
 
 abstract class OutputManager {
 
@@ -12,7 +12,7 @@ abstract class OutputManager {
 
   def output(s: String): Unit = stringWriter.write(s + "\n")
   def output(s: String, color: String): Unit = stringWriter.write(Console.RESET + color + s + "\n" + Console.RESET)
-  val stringWriter: StringWriter
+  val stringWriter: Writer
 
   def finishOutput(exception: Exception): Nothing
 

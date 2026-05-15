@@ -97,3 +97,13 @@ doc/api/
 # Environment
 .env
 .env.local
+
+# TPTP files
+*.p
+
+# JVM dumps
+*.hprof*
+
+# metals auto gen files
+# can be nested inside /project
+project/**/metals.sbt

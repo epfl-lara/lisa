@@ -1150,8 +1150,8 @@ object BasicStepTactic {
             if (K.isSame(left, right))
               proof.ValidProofTactic(bot, Seq(K.RightRefl(botK, faK)), Seq())
             else
-              proof.InvalidProofTactic("φ is not an instance of reflexivity.")
-          case _ => proof.InvalidProofTactic("φ is not an equality.")
+              proof.InvalidProofTactic(s"Conclusion is not an instance of reflexivity. Found unequal terms $left and $right instead.")
+          case _ => proof.InvalidProofTactic("Conclusion is not an equality.")
         }
     }
 
@@ -1235,7 +1235,7 @@ object BasicStepTactic {
             proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
           else
             proof.InvalidProofTactic("Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped).")
-        else proof.InvalidProofTactic("Right-hand sides of the premise and the conclusion aren't the same.")
+        else proof.InvalidProofTactic("Right-hand sides of the premise and the conclusion must be the same.")
       }
     }
   }
@@ -1297,7 +1297,7 @@ object BasicStepTactic {
             proof.ValidProofTactic(bot, Seq(K.RightSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
           else
             proof.InvalidProofTactic("Right-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case.")
-        else proof.InvalidProofTactic("Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the premise.")
+        else proof.InvalidProofTactic("Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the conclusion.")
       }
     }
   }

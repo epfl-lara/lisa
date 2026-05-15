@@ -30,7 +30,9 @@ trait ExprOps extends Syntax {
      * order.
      */
     def subexpressions: Iterator[Expr[?]] =
-      e match
+      (e: Expr[A] @unchecked) match
+        // the unchecked prevents a redundant match warning
+        // despite the fact that the cases are necessary
         case Abs(v, body) => Iterator(e) ++ body.subexpressions
         case Variable(id) => Iterator(e)
         case Constant(id) => Iterator(e)

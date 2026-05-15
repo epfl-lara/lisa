@@ -24,7 +24,6 @@ trait _HOL extends BasicMain {
     tforall,
     TypedForall,
     TypedVariable,
-    HOLProofType,
     holeq,
     HOLSequent,
     =:=,
@@ -39,7 +38,9 @@ trait _HOL extends BasicMain {
   }
   export lisa.hol.HOLHelperTheorems.{𝔹, Zero, One, =:=}
   export lisa.maths.SetTheory.Types.Tactics.Typecheck.*
+  
   val library: SetTheoryLibrary.type = SetTheoryLibrary
+  given SetTheoryLibrary.type = library
 
   // def assume(using proof: library.Proof)(t: Expr[Ind]): proof.ProofStep =
   //  library.assume(eqOne(t))
@@ -50,7 +51,7 @@ trait _HOL extends BasicMain {
   // HOLTheorem is now just an alias for regular Theorem since types are managed externally
   def HOLTheorem(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM =
     val ctx = getContext(statement)
-    SetTheoryLibrary.Theorem(statement ++<< (ctx |- ()))(computeProof)
+    SetTheoryLibrary.Theorem(using om, name, line, file)(statement ++<< (ctx |- ()))(computeProof)
 
 }
 

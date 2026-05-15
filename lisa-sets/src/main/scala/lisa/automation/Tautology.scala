@@ -47,7 +47,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
         val subpr = SCSubproof(value)
         val stepsList = premsFormulas.foldLeft[List[SCProofStep]](List(subpr))((prev: List[SCProofStep], cur) => {
           val ((prem, form), position) = cur
-          if prev.head.bot.left.contains(form) then Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
+          if prev.head.bot.left.contains(form) && !botK.left.contains(form) then Cut(prev.head.bot -<< form, position, initProof.length + prev.length - 1, form) :: prev
           else prev
         })
         val steps = (initProof ++ stepsList.reverse).toIndexedSeq

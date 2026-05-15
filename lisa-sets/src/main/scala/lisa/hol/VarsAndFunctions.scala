@@ -12,12 +12,16 @@ import lisa.utils.UserLisaException
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+import scala.collection.mutable
 
 import SetTheoryLibrary.{have, JUSTIFICATION, thesis, THM, Proof, Theorem}
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 
 object VarsAndFunctions /*extends lisa.Main*/:
 
-  import HOLHelperTheorems.{One, nonEmptyFuncSpace, assume}
+  import HOLHelperTheorems.{One, nonEmptyFuncSpace, assume, eqRefl}
+
+  val lib = SetTheoryLibrary
 
   // import TypeSystem.*
 
@@ -36,8 +40,56 @@ object VarsAndFunctions /*extends lisa.Main*/:
   }
   def typevar(using name: sourcecode.Name): TypeVariable = TypeVariable(K.Identifier(name.value))
 
-  class HOLConstantType(id: Identifier, val nonEmptyThm: JUSTIFICATION) extends Constant[Ind](id)
-  class HOLConstant(id: Identifier, override val typ: Expr[Ind], val thm: JUSTIFICATION) extends TypedConstant(id, typ, thm)
+  class HOLPolymorphicType[S: Sort](id: Identifier, val freeTypeVars: Seq[TypeVariable], val nonEmptyThm: JUSTIFICATION) extends Constant[S](id)
+  
+  type HOLConstantType = HOLPolymorphicType[Ind]
+  object HOLConstantType:
+    def apply(id: Identifier, nonEmptyThm: JUSTIFICATION): HOLConstantType =
+      HOLPolymorphicType(id, Seq.empty, nonEmptyThm)
+    def unapply(typ: HOLPolymorphicType[?]): Option[HOLConstantType] =
+      if typ.sort == K.Ind then Some(typ.asInstanceOf[HOLConstantType])
+      else None
+
+  class HOLConstant(id: Identifier, override val typ: Expr[Ind], val thm: JUSTIFICATION) extends TypedConstant(id, typ, thm):
+    val holDefinition = 
+      val theDefinition = this.definition
+      // we extract the definition body, and replace the raw constant by this lifted class
+      val left = this
+      val right = theDefinition.statement.right.head match
+        case ===(l, r) => r
+        case _ => throw new IllegalArgumentException("Theorem " + thm + " used to define constant " + id + " must be an equality.")
+
+      Theorem(holeq(typ) * left * right) {
+        val s1 = lib.have((left :: typ) |- holeq(typ) * left * left) by Weakening(eqRefl of (A := typ, x := left, y := left))
+        val s2 = lib.have(holeq(typ) * left * left) by Cut(thm, s1)
+        val s3 = lib.have(left === right |- holeq(typ) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(typ) * left * x))(s2)
+        val s4 = lib.have(holeq(typ) * left * right) by Cut(theDefinition, s3)
+      }
+  class HOLPolymorphicConstant[S: Sort](id: Identifier, override val typ: FunctionalClass, override val justif: JUSTIFICATION) extends TypedConstantFunctional[S](id, typ, justif):
+    /**
+     * The definition of the constant as an HOL theorem.
+     * 
+     * ```
+     *    freeTypeVars.map(nonEmpty) |- F(freeTypeVars) =:= body
+     * ```
+     * FIXME: currently does not account for type classes!
+     */
+    val holDefinition =  
+      val theDefinition = this.definition
+      // we extract the definition body, and replace the raw constant by this lifted class
+      val left = (this #@@ typ.args).asInstanceOf[Expr[Ind]]
+      val right = theDefinition.statement.right.head match
+        case ===(l, r) => betaReduce(r)
+        case _ => throw new IllegalArgumentException("Theorem " + justif + " used to define constant " + id + " must be an equality.")
+      val nonEmpties = typ.args.map(nonEmpty).toSet
+      val otyp = typ.outTyp
+      Theorem(nonEmpties |- (holeq(otyp) * left * right)) {
+        val typeJustif = have(nonEmpties |- (left :: otyp)) by Weakening(justif.of(typ.args*))
+        val s1 = lib.have((left :: otyp) |- holeq(otyp) * left * left) by Restate.from(eqRefl of (A := otyp, x := left, y := left))
+        val s2 = lib.have(nonEmpties |- holeq(otyp) * left * left) by Cut(typeJustif, s1)
+        val s3 = lib.have((nonEmpties, left === right) |- holeq(otyp) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(otyp) * left * x))(s2)
+        val s4 = lib.have(nonEmpties |- holeq(otyp) * left * right) by Cut(theDefinition, s3)
+      }
 
   class TypedVariable(id: Identifier, val typ: Expr[Ind]) extends Variable[Ind](id) {
     override def toString: String = s"${id.name}:${typ}"
@@ -99,6 +151,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
             if isSame(argType, dom) then codom
             else throw new LisaHOLException("In application " + t + ", argument " + arg + " has type " + argType + " instead of expected " + dom + ".")
           case funcType => throw new LisaHOLException("In application " + t + ", function " + func + " expected to have function type A ->: B, but has type " + funcType + ". ")
+      case epsilon(v: TypedVariable, _) => v.typ
       case Multiapp(func, args: List[Expr[Ind]] @unchecked) =>
         func match
           case tcf: TypedConstantFunctional[?] =>
@@ -146,31 +199,57 @@ object VarsAndFunctions /*extends lisa.Main*/:
     typeAssigns.map(ta => ta.vari -> ta.typ).toMap
 
   class HOLSequent(
+    /**
+      * Pure bool premises as in HOL. Each `prem: Expr[Ind]` is equivalen to
+      * adding `prem === One: Expr[Prop]` to the sequent.
+      */
       val premises: Set[Expr[Ind]],
+      /**
+        * Premises that are not of the form `t === One` as used by HOL. Should
+        * only appear in mixed HOL/FOL proofs.
+        */
+      val folPremises: Set[Expr[Prop]],
+      /**
+        * Conclusion of the sequent. The term `conclusion: Expr[Ind]` represents
+        * a real conclusion of the form `conclusion === One: Expr[Prop]`.
+        */
       val conclusion: Expr[Ind],
+      /**
+        * Type assignments appearing in the context of this sequent.
+        */
       val typeAssigns: Set[TypeAssign[Variable[Ind]]],
+      /**
+        * Free type variables appearing in the context of this sequent, each of
+        * whose non-emptiness is to be justified.
+        */
       val typeVarsNonEmpty: Set[Expr[Prop]]
   ) extends Sequent(premises.map(_ === One) ++ typeAssigns, Set(conclusion === One)) {
 
+    /**
+      * Add a (boolean) term to the premises of this sequent. Equivalent to
+      * assuming `t === One`.
+      */
     infix def +<<(t: Expr[Ind]): HOLSequent = HOLSequent(this.premises + t, conclusion, typeAssigns)
+    /**
+      * Remove a (boolean) term from the premises of this sequent.
+      */
     infix def -<<(t: Expr[Ind]): HOLSequent = HOLSequent(this.premises - t, conclusion, typeAssigns)
 
     override infix def +<<(f: Expr[Prop]): Sequent =
       f match
         case ===(t, One) => +<<(t)
         case ===(One, t) => +<<(t)
-        case TypeAssign(v: Variable[Ind], typ) => new HOLSequent(premises, conclusion, typeAssigns + TypeAssign(v, typ), typeVarsNonEmpty)
-        case _ => super.+<<(f)
+        case TypeAssign(v: Variable[Ind], typ) => new HOLSequent(premises, folPremises, conclusion, typeAssigns + TypeAssign(v, typ), typeVarsNonEmpty)
+        case _ => new HOLSequent(premises, folPremises + f, conclusion, typeAssigns, typeVarsNonEmpty)
     override infix def -<<(f: Expr[Prop]): Sequent =
       f match
         case ===(t, One) => -<<(t)
         case ===(One, t) => -<<(t)
-        case TypeAssign(v: Variable[Ind], typ) => new HOLSequent(premises, conclusion, typeAssigns - TypeAssign(v, typ), typeVarsNonEmpty)
-        case _ => super.-<<(f)
+        case TypeAssign(v: Variable[Ind], typ) => new HOLSequent(premises, folPremises, conclusion, typeAssigns - TypeAssign(v, typ), typeVarsNonEmpty)
+        case _ => new HOLSequent(premises, folPremises - f, conclusion, typeAssigns, typeVarsNonEmpty)
 
-    infix def ++<<(s1: HOLSequent): HOLSequent = HOLSequent(this.premises ++ s1.premises, conclusion, typeAssigns ++ s1.typeAssigns)
-    infix def --<<(s1: HOLSequent): HOLSequent = HOLSequent(this.premises -- s1.premises, conclusion, typeAssigns -- s1.typeAssigns)
-
+    infix def ++<<(s1: HOLSequent): HOLSequent = new HOLSequent(this.premises ++ s1.premises, this.folPremises ++ s1.folPremises, conclusion, typeAssigns ++ s1.typeAssigns, typeVarsNonEmpty ++ s1.typeVarsNonEmpty)
+    infix def --<<(s1: HOLSequent): HOLSequent = new HOLSequent(this.premises -- s1.premises, this.folPremises -- s1.folPremises, conclusion, typeAssigns -- s1.typeAssigns, typeVarsNonEmpty -- s1.typeVarsNonEmpty)
     override infix def ++<<(s1: Sequent): Sequent =
       s1 match
         case s1: HOLSequent => ++<<(s1)
@@ -184,7 +263,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
   object HOLSequent {
 
     def apply(premises: Set[Expr[Ind]], conclusion: Expr[Ind], typeAssigns: Set[TypeAssign[Variable[Ind]]] = Set.empty, typeVarsNonEmpty: Set[Expr[Prop]] = Set.empty): HOLSequent = {
-      new HOLSequent(premises, conclusion, typeAssigns, typeVarsNonEmpty)
+      new HOLSequent(premises, Set.empty, conclusion, typeAssigns, typeVarsNonEmpty)
     }
 
     def fromFOLSequent(s: Sequent): HOLSequent =
@@ -195,26 +274,27 @@ object VarsAndFunctions /*extends lisa.Main*/:
         case eqOne(t) =>
           var vartypes = Set.empty[TypeAssign[Variable[Ind]]]
           var typeVarsNonEmpty = Set.empty[Expr[Prop]]
-          var prems = Set.empty[Expr[Ind]]
+          val prems = Set.newBuilder[Expr[Ind]]
+          val folPrems = Set.newBuilder[Expr[Prop]]
           s.left.foreach { a =>
             a match
               case TypeAssign(v: Variable[Ind], typ) => vartypes += TypeAssign(v, typ)
               case exists(v1: Variable[Ind], v2 ∈ (typ: Variable[Ind])) if v1 == v2 => typeVarsNonEmpty += a
               case eqOne(t) => prems += t
-              case _ => throw new IllegalArgumentException("Premises must be of the form t === One or be a type assignment. violating: " + a)
+              case _ => folPrems += a
           }
-          new HOLSequent(prems, t, vartypes, typeVarsNonEmpty)
+          new HOLSequent(prems.result(), folPrems.result(), t, vartypes, typeVarsNonEmpty)
         case _ =>
           throw new IllegalArgumentException("Conclusion must be of the form t === One.")
 
-    def unapply(s: Sequent): Option[(Set[Expr[Ind]], Expr[Ind])] =
+    def unapply(s: Sequent): Option[(Set[Expr[Ind]], Set[Expr[Prop]], Expr[Ind])] =
       if s.isInstanceOf[HOLSequent] then
         val s1 = s.asInstanceOf[HOLSequent]
-        Some((s1.premises, s1.conclusion))
+        Some((s1.premises, s1.folPremises, s1.conclusion))
       else
         try {
           val s1 = fromFOLSequent(s)
-          Some((s1.premises, s1.conclusion))
+          Some((s1.premises, s1.folPremises, s1.conclusion))
         } catch
           case e: IllegalArgumentException =>
             println(e.getMessage())
@@ -284,22 +364,6 @@ object VarsAndFunctions /*extends lisa.Main*/:
     Theorem(using om, name)(contextAssigns |- assignment) {
       have(thesis) by Typecheck.prove
     }
-
-  object HOLProofType extends ProofTactic {
-    def apply2(using proof: SetTheoryLibrary.Proof)(t: Expr[Ind]): proof.ProofTacticJudgement =
-      val contextAssigns: Set[Expr[Prop]] = getContext(t)
-      val r = Typecheck.inferProof(contextAssigns, t)
-      r
-
-    def apply(using proof: SetTheoryLibrary.Proof)(t: Expr[Ind]): proof.ProofTacticJudgement = TacticSubproof {
-      given SetTheoryLibrary.type = SetTheoryLibrary
-      t match
-        case tc: TypedConstant =>
-          have(tc.justif.statement) by Weakening(tc.justif)
-        case _ =>
-          have(apply2(t))
-    }
-  }
 
   given termToSetConv[T <: Expr[Ind]]: FormulaSetConverter[T] = t => Set(eqOne(t))
   given setTermToSetConv[T <: Iterable[Expr[Ind]]]: FormulaSetConverter[T] = _.map(eqOne(_)).toSet

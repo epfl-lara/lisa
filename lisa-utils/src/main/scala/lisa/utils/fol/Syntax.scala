@@ -10,8 +10,6 @@ import scala.annotation.targetName
 
 trait Syntax {
 
-  type IsSort[T] = Sort { type Self = T }
-
   @showAsInfix
   infix type >>:[I, O] = Arrow[I, O]
 
@@ -43,19 +41,19 @@ trait Syntax {
   /**
    * Typeclass asserting that [[Ind]] is a sort
    */
-  given given_TermType: IsSort[Ind] with
+  given given_TermType: Ind is Sort with
     val underlying = K.Ind
 
   /**
    * Typeclass asserting that [[Prop]] is a sort
    */
-  given given_FormulaType: IsSort[Prop] with
+  given given_FormulaType: Prop is Sort with
     val underlying = K.Prop
 
   /**
    * Typeclass asserting that [[Arrow]][_, _] is a sort
    */
-  given given_ArrowType[A: Sort as ta, B: Sort as tb]: (IsSort[Arrow[A, B]]) with
+  given given_ArrowType[A: Sort as ta, B: Sort as tb]: (Arrow[A, B] is Sort) with
     val underlying = K.Arrow(ta.underlying, tb.underlying)
 
   /**
@@ -88,7 +86,7 @@ trait Syntax {
    * Used to cast expressions to a specific sort, without checking.
    * Useful when the type is not known at compile time.
    */
-  def unsafeSortEvidence[S](sort: K.Sort): IsSort[S] = new Sort { type Self = S; val underlying = sort }
+  def unsafeSortEvidence[S](sort: K.Sort): (S is Sort) = new Sort { type Self = S; val underlying = sort }
 
   /**
    * Converts a (Variable, Expr) pair to a SubstPair
@@ -215,7 +213,7 @@ trait Syntax {
     /**
      * Default String representation of the expression, with potential arguments.
      */
-    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.map(a => s"${a}").mkString(", ")})"
+    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.mkString(", ")})"
 
     /**
      * Default String representation of the expression, with potential arguments, encapsulated by parenthesis if necessary.
@@ -281,7 +279,7 @@ trait Syntax {
   /**
    * Well-sorted application constructor. Used when sorts are known at compile time.
    */
-  extension [S, T](f: Expr[Arrow[S, T]]) def apply(using IsSort[S], IsSort[T])(arg: Expr[S]): Expr[T] = App(f, arg)
+  extension [S: Sort, T: Sort](f: Expr[Arrow[S, T]]) def apply(arg: Expr[S]): Expr[T] = App(f, arg)
 
   /**
    * match type computing the return sort of an arrow sort.
@@ -383,6 +381,12 @@ trait Syntax {
    * Factory object for [[Variable]].
    */
   object Variable {
+    // val cache = scala.collection.mutable.Map.empty[(K.Identifier, K.Sort), Variable[?]]
+    // def apply[S: Sort as sortEv](id: K.Identifier): Variable[S] =
+    //   cache
+    //     .getOrElseUpdate((id, sortEv.underlying), new Variable(id)(using sortEv))
+    //     .asInstanceOf[Variable[S]] // the evidence check ensures this is well sorted
+
     def unsafe(id: String, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
     def fresh[S: Sort](existing: Iterable[Expr[?]], baseId: String = "v"): Variable[S] = {
       val newId = freshId(existing.flatMap(_.freeVars.map(_.id)), baseId)
@@ -534,6 +538,11 @@ trait Syntax {
    * Factory object for [[App]] when the sorts are unknown at compile time.
    */
   object App {
+    // val cache = scala.collection.mutable.Map.empty[(K.Expression, K.Expression), App[?, ?]]
+    // def apply[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]): App[S, T] =
+    //   cache
+    //     .getOrElseUpdate((f.underlying, arg.underlying), new App(f, arg))
+    //     .asInstanceOf[App[S, T]]
 
     /**
      * Constructs an application of `f` to `arg`.
@@ -578,13 +587,17 @@ trait Syntax {
    * Factory object for [[Abs]] when the sorts are unknown at compile time.
    */
   object Abs:
+    // val cache = scala.collection.mutable.Map.empty[(K.Identifier, K.Expression), Abs[?, ?]]
+    // def apply[S, T](v: Variable[S], body: Expr[T]): Abs[S, T] =
+    //   cache
+    //     .getOrElseUpdate((v.id, body.underlying), new Abs(v, body))
+    //     .asInstanceOf[Abs[S, T]]
+
     /**
      * Constructs a lambda abstraction of `v` over `body`. Always succeeds.
      */
     def unsafe(v: Variable[?], body: Expr[?]): Expr[?] =
-      new Abs(v.asInstanceOf, body.asInstanceOf)
-
-    def apply[S1, S2](v: Variable[S1], body: Expr[S2]): Abs[S1, S2] = new Abs(v, body)
+      Abs(v.asInstanceOf[Variable[?]], body.asInstanceOf[Expr[?]])
 
     def apply(xs: Seq[Variable[?]], t: Expr[?]): Expr[?] = xs.foldRight(t)((x, t) => new Abs(x, t))
 
