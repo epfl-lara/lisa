@@ -14,39 +14,39 @@ object Serialization {
 
   object Tag:
     // proof step tags
-    inline val restate      = 0
-    inline val restateTrue  = 1
-    inline val hypothesis   = 2
-    inline val cut          = 3
-    inline val leftAnd      = 4
-    inline val leftOr       = 5
-    inline val leftImplies  = 6
-    inline val leftIff      = 7
-    inline val leftNot      = 8
-    inline val leftForall   = 9
-    inline val leftExists   = 10
-    inline val rightAnd     = 12
-    inline val rightOr      = 13
+    inline val restate = 0
+    inline val restateTrue = 1
+    inline val hypothesis = 2
+    inline val cut = 3
+    inline val leftAnd = 4
+    inline val leftOr = 5
+    inline val leftImplies = 6
+    inline val leftIff = 7
+    inline val leftNot = 8
+    inline val leftForall = 9
+    inline val leftExists = 10
+    inline val rightAnd = 12
+    inline val rightOr = 13
     inline val rightImplies = 14
-    inline val rightIff     = 15
-    inline val rightNot     = 16
-    inline val rightForall  = 17
-    inline val rightExists  = 18
+    inline val rightIff = 15
+    inline val rightNot = 16
+    inline val rightForall = 17
+    inline val rightExists = 18
     inline val rightEpsilon = 19
-    inline val weakening    = 20
-    inline val beta         = 21
-    inline val leftRefl     = 22
-    inline val rightRefl    = 23
-    inline val leftSubstEq  = 24
+    inline val weakening = 20
+    inline val beta = 21
+    inline val leftRefl = 22
+    inline val rightRefl = 23
+    inline val leftSubstEq = 24
     inline val rightSubstEq = 25
-    inline val instSchema   = 26
-    inline val scSubproof   = 27
-    inline val sorry        = 28
+    inline val instSchema = 26
+    inline val scSubproof = 27
+    inline val sorry = 28
 
     // tree tags
-    inline val variable    = 0
-    inline val constant    = 1
-    inline val lambda      = 2
+    inline val variable = 0
+    inline val constant = 1
+    inline val lambda = 2
     inline val application = 3
 
   type Line = Int
@@ -80,9 +80,9 @@ object Serialization {
     dos.writeInt(exprMap(a.arg.uniqueNumber))
 
   /**
-    * Read a variable from a [[DataInputStream]], given that the tag has already
-    * been read and is [[Tag.variable]].
-    */
+   * Read a variable from a [[DataInputStream]], given that the tag has already
+   * been read and is [[Tag.variable]].
+   */
   inline def variableFromDIS(tag: Tag.variable.type, dis: DataInputStream): Variable =
     val name = dis.readUTF()
     val no = dis.readInt()
@@ -90,15 +90,14 @@ object Serialization {
     Variable(Identifier(name, no), typeFromString(sort)._1)
 
   /**
-    * Read a constant from a [[DataInputStream]], given that the tag has already
-    * been read and is [[Tag.constant]].
-    */
+   * Read a constant from a [[DataInputStream]], given that the tag has already
+   * been read and is [[Tag.constant]].
+   */
   inline def constantFromDIS(tag: Tag.constant.type, dis: DataInputStream): Constant =
     val name = dis.readUTF()
     val no = dis.readInt()
     val sort = dis.readUTF()
     Constant(Identifier(name, no), typeFromString(sort)._1)
-
 
   /**
    * Read a lambda from a [[DataInputStream]], given that the tag has already
@@ -125,22 +124,24 @@ object Serialization {
    * Returns the line number assigned to e. Subexpressions are written first.
    */
   def lineOfExpr(e: Expression, dos: DataOutputStream, exprMap: MutMap[Long, Line]): Line =
-    exprMap.getOrElse(e.uniqueNumber, {
-      e match
-        case v: Variable => variableToDOS(v, dos)
-        case c: Constant => constantToDOS(c, dos)
-        case l: Lambda =>
-          lineOfExpr(l.v, dos, exprMap)
-          lineOfExpr(l.body, dos, exprMap)
-          lamdbaToDOS(l, dos, exprMap)
-        case a: Application =>
-          lineOfExpr(a.f, dos, exprMap)
-          lineOfExpr(a.arg, dos, exprMap)
-          applicationToDOS(a, dos, exprMap)
-      val newLine = exprMap.size
-      exprMap(e.uniqueNumber) = newLine
-      newLine
-    })
+    exprMap.getOrElse(
+      e.uniqueNumber, {
+        e match
+          case v: Variable => variableToDOS(v, dos)
+          case c: Constant => constantToDOS(c, dos)
+          case l: Lambda =>
+            lineOfExpr(l.v, dos, exprMap)
+            lineOfExpr(l.body, dos, exprMap)
+            lamdbaToDOS(l, dos, exprMap)
+          case a: Application =>
+            lineOfExpr(a.f, dos, exprMap)
+            lineOfExpr(a.arg, dos, exprMap)
+            applicationToDOS(a, dos, exprMap)
+        val newLine = exprMap.size
+        exprMap(e.uniqueNumber) = newLine
+        newLine
+      }
+    )
 
   /**
    * Read a single expression entry from a DataInputStream, dispatching on tag.
@@ -190,7 +191,6 @@ object Serialization {
       val tag = dis.readByte()
       val expr = exprFromDIS(tag, dis, exprMap)
       exprMap(lineNo) = expr
-
 
   /**
    * Main function that, when given a proof, will serialize it to a file. It will also serialize all the formulas appearing in it to another file.
@@ -438,11 +438,11 @@ object Serialization {
     // Read a proof step from the proof file. Inverse of proofStepToProofDOS
     def proofStepFromProofDIS(): SCProofStep =
       proofDIS.readByte() match
-        case Tag.restate     => Restate(sequentFromProofDIS(), proofDIS.readInt())
+        case Tag.restate => Restate(sequentFromProofDIS(), proofDIS.readInt())
         case Tag.restateTrue => RestateTrue(sequentFromProofDIS())
-        case Tag.hypothesis  => Hypothesis(sequentFromProofDIS(), exprMap(proofDIS.readInt()))
-        case Tag.cut         => Cut(sequentFromProofDIS(), proofDIS.readInt(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
-        case Tag.leftAnd     => LeftAnd(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
+        case Tag.hypothesis => Hypothesis(sequentFromProofDIS(), exprMap(proofDIS.readInt()))
+        case Tag.cut => Cut(sequentFromProofDIS(), proofDIS.readInt(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
+        case Tag.leftAnd => LeftAnd(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
         case Tag.leftOr =>
           LeftOr(
             sequentFromProofDIS(),
@@ -450,8 +450,8 @@ object Serialization {
             (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt())).toSeq
           )
         case Tag.leftImplies => LeftImplies(sequentFromProofDIS(), proofDIS.readInt(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-        case Tag.leftIff     => LeftIff(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-        case Tag.leftNot     => LeftNot(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
+        case Tag.leftIff => LeftIff(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
+        case Tag.leftNot => LeftNot(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
         case Tag.leftForall =>
           LeftForall(
             sequentFromProofDIS(),
@@ -460,18 +460,18 @@ object Serialization {
             exprMap(proofDIS.readInt()).asInstanceOf[Variable],
             exprMap(proofDIS.readInt())
           )
-        case Tag.leftExists  => LeftExists(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()).asInstanceOf[Variable])
+        case Tag.leftExists => LeftExists(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()).asInstanceOf[Variable])
         case Tag.rightAnd =>
           RightAnd(
             sequentFromProofDIS(),
             (1 to proofDIS.readShort()).map(_ => proofDIS.readInt()).toSeq,
             (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt())).toSeq
           )
-        case Tag.rightOr      => RightOr(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
+        case Tag.rightOr => RightOr(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
         case Tag.rightImplies => RightImplies(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-        case Tag.rightIff     => RightIff(sequentFromProofDIS(), proofDIS.readInt(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-        case Tag.rightNot     => RightNot(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
-        case Tag.rightForall  => RightForall(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()).asInstanceOf[Variable])
+        case Tag.rightIff => RightIff(sequentFromProofDIS(), proofDIS.readInt(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
+        case Tag.rightNot => RightNot(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
+        case Tag.rightForall => RightForall(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()).asInstanceOf[Variable])
         case Tag.rightExists =>
           RightExists(
             sequentFromProofDIS(),
@@ -488,9 +488,9 @@ object Serialization {
             exprMap(proofDIS.readInt()).asInstanceOf[Variable],
             exprMap(proofDIS.readInt())
           )
-        case Tag.weakening  => Weakening(sequentFromProofDIS(), proofDIS.readInt())
-        case Tag.leftRefl   => LeftRefl(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
-        case Tag.rightRefl  => RightRefl(sequentFromProofDIS(), exprMap(proofDIS.readInt()))
+        case Tag.weakening => Weakening(sequentFromProofDIS(), proofDIS.readInt())
+        case Tag.leftRefl => LeftRefl(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
+        case Tag.rightRefl => RightRefl(sequentFromProofDIS(), exprMap(proofDIS.readInt()))
         case Tag.leftSubstEq =>
           LeftSubstEq(
             sequentFromProofDIS(),
@@ -512,7 +512,7 @@ object Serialization {
             (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable] -> exprMap(proofDIS.readInt())).toMap
           )
         case Tag.sorry => Sorry(sequentFromProofDIS())
-        case psType    => throw new Exception("Unknown proof step tag: " + psType)
+        case psType => throw new Exception("Unknown proof step tag: " + psType)
 
     // for each given theorem, write it to the file.
     val numberThm = proofDIS.readShort()
@@ -572,9 +572,9 @@ object Serialization {
             val cst = Constant(Identifier(id, no.toInt), typeFromString(sort)._1)
             theory.getDefinition(cst).get
       }
-      val verdict = if debug then
-        theory.makeTheorem(name + "_test", proof.conclusion, proof, justs)
-      else theory.makeTheorem(name, proof.conclusion, proof, justs)
+      val verdict =
+        if debug then theory.makeTheorem(name + "_test", proof.conclusion, proof, justs)
+        else theory.makeTheorem(name, proof.conclusion, proof, justs)
       (verdict.get, proof)
     }
 
