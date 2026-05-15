@@ -181,9 +181,9 @@ object Serialization {
     val exprMap = MutMap[Line, Expression]()
     readTreeEntries(dis, nodeCount, exprMap)
     val leftSize = dis.readShort()
-    val left = (1 to leftSize).map(_ => exprMap(dis.readInt())).to(SSet)
+    val left = (1 to leftSize).map(_ => exprMap(dis.readInt())).to(Set)
     val rightSize = dis.readShort()
-    val right = (1 to rightSize).map(_ => exprMap(dis.readInt())).to(SSet)
+    val right = (1 to rightSize).map(_ => exprMap(dis.readInt())).to(Set)
     Sequent(left, right)
 
   def readTreeEntries(dis: DataInputStream, count: Int, exprMap: MutMap[Line, Expression]): Unit =
@@ -430,9 +430,9 @@ object Serialization {
 
     def sequentFromProofDIS(): Sequent =
       val leftSize = proofDIS.readShort()
-      val left = (1 to leftSize).map(_ => exprMap(proofDIS.readInt())).to(SSet)
+      val left = (1 to leftSize).map(_ => exprMap(proofDIS.readInt())).to(Set)
       val rightSize = proofDIS.readShort()
-      val right = (1 to rightSize).map(_ => exprMap(proofDIS.readInt())).to(SSet)
+      val right = (1 to rightSize).map(_ => exprMap(proofDIS.readInt())).to(Set)
       Sequent(left, right)
 
     // Read a proof step from the proof file. Inverse of proofStepToProofDOS

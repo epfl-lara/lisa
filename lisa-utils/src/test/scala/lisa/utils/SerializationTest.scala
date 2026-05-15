@@ -18,8 +18,6 @@ import scala.collection.mutable.{Map => MutMap}
  */
 class SerializationTest extends AnyFunSuite with TestUtils {
 
-  import scala.collection.immutable.{SortedSet => SSet}
-
   ///////////////////////////////////////////////////////
   // Testing utilities
 
@@ -155,16 +153,16 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     dis => sequentFromDIS(dis)
   )
 
-  seqRT("empty sequent", Sequent(SSet.empty, SSet.empty))
-  seqRT("hypothesis-like P |- P", Sequent(SSet(a), SSet(a)))
-  seqRT("multi-formula left", Sequent(SSet(a, b, c), SSet.empty))
-  seqRT("multi-formula right", Sequent(SSet.empty, SSet(a, b, c)))
-  seqRT("both sides", Sequent(SSet(a, b), SSet(c)))
-  seqRT("with applications", Sequent(SSet(Application(p, x)), SSet(Application(p, y))))
+  seqRT("empty sequent", Sequent(Set.empty, Set.empty))
+  seqRT("hypothesis-like P |- P", Sequent(Set(a), Set(a)))
+  seqRT("multi-formula left", Sequent(Set(a, b, c), Set.empty))
+  seqRT("multi-formula right", Sequent(Set.empty, Set(a, b, c)))
+  seqRT("both sides", Sequent(Set(a, b), Set(c)))
+  seqRT("with applications", Sequent(Set(Application(p, x)), Set(Application(p, y))))
   seqRT(
     "with quantifiers", {
       val phi = Application(forall, Lambda(x, Application(p, x)))
-      Sequent(SSet(phi), SSet(phi))
+      Sequent(Set(phi), Set(phi))
     }
   )
 
@@ -193,7 +191,7 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "Hypothesis proof",
     new SCProof(
-      IndexedSeq(Hypothesis(Sequent(SSet(a), SSet(a)), a)),
+      IndexedSeq(Hypothesis(Sequent(Set(a), Set(a)), a)),
       IndexedSeq.empty
     )
   )
@@ -202,7 +200,7 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "RestateTrue proof",
     new SCProof(
-      IndexedSeq(RestateTrue(Sequent(SSet.empty, SSet(top)))),
+      IndexedSeq(RestateTrue(Sequent(Set.empty, Set(top)))),
       IndexedSeq.empty
     )
   )
@@ -211,17 +209,17 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "Weakening with import",
     new SCProof(
-      IndexedSeq(Weakening(Sequent(SSet(a, b), SSet(a)), -1)),
-      IndexedSeq(Sequent(SSet(a), SSet(a)))
+      IndexedSeq(Weakening(Sequent(Set(a, b), Set(a)), -1)),
+      IndexedSeq(Sequent(Set(a), Set(a)))
     )
   )
 
   // Cut proof
   proofRT(
     "Cut proof", {
-      val s1 = Sequent(SSet(a), SSet(a, b))
-      val s2 = Sequent(SSet(a, b), SSet(b))
-      val bot = Sequent(SSet(a), SSet(b))
+      val s1 = Sequent(Set(a), Set(a, b))
+      val s2 = Sequent(Set(a, b), Set(b))
+      val bot = Sequent(Set(a), Set(b))
       new SCProof(
         IndexedSeq(
           Hypothesis(s1, a),
@@ -237,8 +235,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "LeftAnd proof", {
       val phi = a; val psi = b
-      val premise = Sequent(SSet(phi, psi), SSet(phi))
-      val bot = Sequent(SSet(Application(Application(and, phi), psi)), SSet(phi))
+      val premise = Sequent(Set(phi, psi), Set(phi))
+      val bot = Sequent(Set(Application(Application(and, phi), psi)), Set(phi))
       new SCProof(
         IndexedSeq(
           Hypothesis(premise, phi),
@@ -253,8 +251,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "RightOr proof", {
       val phi = a; val psi = b
-      val premise = Sequent(SSet(phi), SSet(phi, psi))
-      val bot = Sequent(SSet(phi), SSet(Application(Application(or, phi), psi)))
+      val premise = Sequent(Set(phi), Set(phi, psi))
+      val bot = Sequent(Set(phi), Set(Application(Application(or, phi), psi)))
       new SCProof(
         IndexedSeq(
           Hypothesis(premise, phi),
@@ -269,9 +267,9 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "LeftNot proof", {
       val phi = a
-      val premise = Sequent(SSet.empty, SSet(phi))
+      val premise = Sequent(Set.empty, Set(phi))
       val notPhi = Application(neg, phi)
-      val bot = Sequent(SSet(notPhi), SSet(phi))
+      val bot = Sequent(Set(notPhi), Set(phi))
       new SCProof(
         IndexedSeq(
           RestateTrue(premise),
@@ -286,9 +284,9 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "RightNot proof", {
       val phi = a
-      val premise = Sequent(SSet(phi), SSet.empty)
+      val premise = Sequent(Set(phi), Set.empty)
       val notPhi = Application(neg, phi)
-      val bot = Sequent(SSet(phi), SSet(notPhi))
+      val bot = Sequent(Set(phi), Set(notPhi))
       new SCProof(
         IndexedSeq(
           RestateTrue(premise),
@@ -303,15 +301,15 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "RightImplies proof", {
       val phi = a; val psi = b
-      val premise = Sequent(SSet(phi), SSet(psi))
+      val premise = Sequent(Set(phi), Set(psi))
       val impl = Application(Application(implies, phi), psi)
-      val bot = Sequent(SSet.empty, SSet(impl))
+      val bot = Sequent(Set.empty, Set(impl))
       new SCProof(
         IndexedSeq(
           Weakening(premise, -1),
           RightImplies(bot, 0, phi, psi)
         ),
-        IndexedSeq(Sequent(SSet(phi), SSet(psi)))
+        IndexedSeq(Sequent(Set(phi), Set(psi)))
       )
     }
   )
@@ -320,10 +318,10 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "LeftImplies proof", {
       val phi = a; val psi = b
-      val s1 = Sequent(SSet(phi), SSet(phi))
-      val s2 = Sequent(SSet(psi), SSet(psi))
+      val s1 = Sequent(Set(phi), Set(phi))
+      val s2 = Sequent(Set(psi), Set(psi))
       val impl = Application(Application(implies, phi), psi)
-      val bot = Sequent(SSet(phi, impl), SSet(phi, psi))
+      val bot = Sequent(Set(phi, impl), Set(phi, psi))
       new SCProof(
         IndexedSeq(
           Hypothesis(s1, phi),
@@ -339,7 +337,7 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "Sorry proof",
     new SCProof(
-      IndexedSeq(Sorry(Sequent(SSet(a), SSet(b)))),
+      IndexedSeq(Sorry(Sequent(Set(a), Set(b)))),
       IndexedSeq.empty
     )
   )
@@ -349,8 +347,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     "Restate proof",
     new SCProof(
       IndexedSeq(
-        Hypothesis(Sequent(SSet(a), SSet(a)), a),
-        Restate(Sequent(SSet(a), SSet(a)), 0)
+        Hypothesis(Sequent(Set(a), Set(a)), a),
+        Restate(Sequent(Set(a), Set(a)), 0)
       ),
       IndexedSeq.empty
     )
@@ -362,8 +360,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
       val phi = a; val psi = b
       val iffPhi = Application(Application(iff, phi), psi)
       val implPhi = Application(Application(implies, phi), psi)
-      val premise = Sequent(SSet(implPhi), SSet(phi))
-      val bot = Sequent(SSet(iffPhi), SSet(phi))
+      val premise = Sequent(Set(implPhi), Set(phi))
+      val bot = Sequent(Set(iffPhi), Set(phi))
       new SCProof(
         IndexedSeq(
           Weakening(premise, -1),
@@ -381,9 +379,9 @@ class SerializationTest extends AnyFunSuite with TestUtils {
       val iffExpr = Application(Application(iff, phi), psi)
       val impl1 = Application(Application(implies, phi), psi)
       val impl2 = Application(Application(implies, psi), phi)
-      val s1 = Sequent(SSet.empty, SSet(impl1))
-      val s2 = Sequent(SSet.empty, SSet(impl2))
-      val bot = Sequent(SSet.empty, SSet(iffExpr))
+      val s1 = Sequent(Set.empty, Set(impl1))
+      val s2 = Sequent(Set.empty, Set(impl2))
+      val bot = Sequent(Set.empty, Set(iffExpr))
       new SCProof(
         IndexedSeq(
           Weakening(s1, -1),
@@ -400,9 +398,9 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     "LeftOr proof", {
       val phi = a; val psi = b
       val orExpr = Application(Application(or, phi), psi)
-      val s1 = Sequent(SSet(phi), SSet(c))
-      val s2 = Sequent(SSet(psi), SSet(c))
-      val bot = Sequent(SSet(orExpr), SSet(c))
+      val s1 = Sequent(Set(phi), Set(c))
+      val s2 = Sequent(Set(psi), Set(c))
+      val bot = Sequent(Set(orExpr), Set(c))
       new SCProof(
         IndexedSeq(
           Weakening(s1, -1),
@@ -419,9 +417,9 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     "RightAnd proof", {
       val phi = a; val psi = b
       val andExpr = Application(Application(and, phi), psi)
-      val s1 = Sequent(SSet(c), SSet(phi))
-      val s2 = Sequent(SSet(c), SSet(psi))
-      val bot = Sequent(SSet(c), SSet(andExpr))
+      val s1 = Sequent(Set(c), Set(phi))
+      val s2 = Sequent(Set(c), Set(psi))
+      val bot = Sequent(Set(c), Set(andExpr))
       new SCProof(
         IndexedSeq(
           Weakening(s1, -1),
@@ -438,7 +436,7 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     "RightRefl proof", {
       val eq = Application(Application(equality, x), x)
       new SCProof(
-        IndexedSeq(RightRefl(Sequent(SSet.empty, SSet(eq)), eq)),
+        IndexedSeq(RightRefl(Sequent(Set.empty, Set(eq)), eq)),
         IndexedSeq.empty
       )
     }
@@ -450,8 +448,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
       val px = Application(p, x)
       val py = Application(p, y)
       val forallPx = Application(forall, Lambda(x, px))
-      val premise = Sequent(SSet(py), SSet(py))
-      val bot = Sequent(SSet(forallPx), SSet(py))
+      val premise = Sequent(Set(py), Set(py))
+      val bot = Sequent(Set(forallPx), Set(py))
       new SCProof(
         IndexedSeq(
           Hypothesis(premise, py),
@@ -468,8 +466,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
       val px = Application(p, x)
       val py = Application(p, y)
       val existsPx = Application(exists, Lambda(x, px))
-      val premise = Sequent(SSet(py), SSet(py))
-      val bot = Sequent(SSet(py), SSet(existsPx))
+      val premise = Sequent(Set(py), Set(py))
+      val bot = Sequent(Set(py), Set(existsPx))
       new SCProof(
         IndexedSeq(
           Hypothesis(premise, py),
@@ -485,8 +483,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     "RightForall proof", {
       val px = Application(p, x)
       val forallPx = Application(forall, Lambda(x, px))
-      val premise = Sequent(SSet.empty, SSet(px))
-      val bot = Sequent(SSet.empty, SSet(forallPx))
+      val premise = Sequent(Set.empty, Set(px))
+      val bot = Sequent(Set.empty, Set(forallPx))
       new SCProof(
         IndexedSeq(
           Weakening(premise, -1),
@@ -502,8 +500,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     "LeftExists proof", {
       val px = Application(p, x)
       val existsPx = Application(exists, Lambda(x, px))
-      val premise = Sequent(SSet(px), SSet.empty)
-      val bot = Sequent(SSet(existsPx), SSet.empty)
+      val premise = Sequent(Set(px), Set.empty)
+      val bot = Sequent(Set(existsPx), Set.empty)
       new SCProof(
         IndexedSeq(
           Weakening(premise, -1),
@@ -518,8 +516,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   proofRT(
     "InstSchema proof", {
       val xv = Variable("X", Prop)
-      val premise = Sequent(SSet(xv), SSet(xv))
-      val bot = Sequent(SSet(a), SSet(a))
+      val premise = Sequent(Set(xv), Set(xv))
+      val bot = Sequent(Set(a), Set(a))
       new SCProof(
         IndexedSeq(
           Hypothesis(premise, xv),
@@ -537,9 +535,9 @@ class SerializationTest extends AnyFunSuite with TestUtils {
   test("Serialization: proofsToDataStream/proofsFromDataStream round-trip") {
     val proof = new SCProof(
       IndexedSeq(
-        Hypothesis(Sequent(SSet(a), SSet(a)), a),
-        Hypothesis(Sequent(SSet(b), SSet(b)), b),
-        Cut(Sequent(SSet(a), SSet(b)), 0, 1, a)
+        Hypothesis(Sequent(Set(a), Set(a)), a),
+        Hypothesis(Sequent(Set(b), Set(b)), b),
+        Cut(Sequent(Set(a), Set(b)), 0, 1, a)
       ),
       IndexedSeq.empty
     )
@@ -565,11 +563,11 @@ class SerializationTest extends AnyFunSuite with TestUtils {
 
   test("Serialization: proofsToDataStream with multiple theorems") {
     val proof1 = new SCProof(
-      IndexedSeq(Hypothesis(Sequent(SSet(a), SSet(a)), a)),
+      IndexedSeq(Hypothesis(Sequent(Set(a), Set(a)), a)),
       IndexedSeq.empty
     )
     val proof2 = new SCProof(
-      IndexedSeq(Hypothesis(Sequent(SSet(b), SSet(b)), b)),
+      IndexedSeq(Hypothesis(Sequent(Set(b), Set(b)), b)),
       IndexedSeq.empty
     )
 
@@ -606,8 +604,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     val py = Application(p, y)
     val v = Variable("v", Ind)
     val lambdaPhi = (Seq(v), Application(p, v): Expression)
-    val premise = Sequent(SSet(px), SSet(px))
-    val bot = Sequent(SSet(feq, py), SSet(px))
+    val premise = Sequent(Set(px), Set(px))
+    val bot = Sequent(Set(feq, py), Set(px))
     val proof = new SCProof(
       IndexedSeq(
         Hypothesis(premise, px),
@@ -633,8 +631,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     val py = Application(p, y)
     val v = Variable("v", Ind)
     val lambdaPhi = (Seq(v), Application(p, v): Expression)
-    val premise = Sequent(SSet.empty, SSet(px))
-    val bot = Sequent(SSet(feq), SSet(py))
+    val premise = Sequent(Set.empty, Set(px))
+    val bot = Sequent(Set(feq), Set(py))
     val proof = new SCProof(
       IndexedSeq(
         Weakening(premise, -1),
