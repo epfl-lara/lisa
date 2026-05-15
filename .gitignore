@@ -113,3 +113,7 @@ doc/api/
 
 # JVM dumps
 *.hprof*
+
+# metals auto gen files
+# can be nested inside /project
+project/**/metals.sbt
