@@ -50,8 +50,6 @@ class SerializationTest extends AnyFunSuite with TestUtils {
       )
     }
   }
-  import scala.collection.immutable.{SortedSet => SSet}
-
   ///////////////////////////////////////////////////////
   // Testing utilities
 
@@ -187,16 +185,16 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     dis => sequentFromDIS(dis)
   )
 
-  seqRT("empty sequent", Sequent(SSet.empty, SSet.empty))
-  seqRT("hypothesis-like P |- P", Sequent(SSet(a), SSet(a)))
-  seqRT("multi-formula left", Sequent(SSet(a, b, c), SSet.empty))
-  seqRT("multi-formula right", Sequent(SSet.empty, SSet(a, b, c)))
-  seqRT("both sides", Sequent(SSet(a, b), SSet(c)))
-  seqRT("with applications", Sequent(SSet(Application(p, x)), SSet(Application(p, y))))
+  seqRT("empty sequent", Sequent(Set.empty, Set.empty))
+  seqRT("hypothesis-like P |- P", Sequent(Set(a), Set(a)))
+  seqRT("multi-formula left", Sequent(Set(a, b, c), Set.empty))
+  seqRT("multi-formula right", Sequent(Set.empty, Set(a, b, c)))
+  seqRT("both sides", Sequent(Set(a, b), Set(c)))
+  seqRT("with applications", Sequent(Set(Application(p, x)), Set(Application(p, y))))
   seqRT(
     "with quantifiers", {
       val phi = Application(forall, Lambda(x, Application(p, x)))
-      Sequent(SSet(phi), SSet(phi))
+      Sequent(Set(phi), Set(phi))
     }
   )
 
