@@ -6,12 +6,29 @@ import lisa.kernel.proof.SequentCalculus._
 
 object SCProofChecker {
 
+  private def sortMismatch(
+    expected: Sort,
+    actual: Sort,
+    step: SCProofStep
+  ): SCInvalidProof = {
+    val expectedString = expected match {
+      case Prop => "a formula (of sort Prop)"
+      case Ind => "a term (of sort Ind)"
+      case s => s"an expression of sort ($s)"
+    }
+    SCInvalidProof(SCProof(step), Nil, s"Expected $expectedString, but found sort ($actual).")
+  }
+
+  private def error(step: SCProofStep, message: String): SCInvalidProof = {
+    SCInvalidProof(SCProof(step), Nil, message)
+  }
+
   /**
    * This function verifies that a single SCProofStep is correctly applied. It verifies that the step only refers to sequents with a lower number,
    * and that the type, premises and parameters of the proof step correspond to the claimed conclusion.
    *
-   * @param no         The number of the given proof step. Needed to vewrify that the proof step doesn't refer to posterior sequents.
-   * @param step       The proof step whose correctness needs to be checked
+   * @param no         The number of the given proof step. Needed to verify that the proof step doesn't refer to steps occuring later in the proof.
+   * @param step       The proof step (object) whose correctness needs to be checked.
    * @param references A function that associates sequents to a range of positive and negative integers that the proof step may refer to. Typically,
    *                   a proof's [[SCProof.getSequent]] function.
    * @return           A Judgement about the correctness of the proof step.
@@ -23,9 +40,9 @@ object SCProofChecker {
 
     val r: SCProofCheckerJudgement =
       if (false_premise.nonEmpty)
-        SCInvalidProof(SCProof(step), Nil, s"Step no $no can't refer to higher number ${false_premise.get} as a premise.")
+        SCInvalidProof(SCProof(step), Nil, s"Step #$no can't refer to a higher number #${false_premise.get} as a premise.")
       else if (false_premise2.nonEmpty)
-        SCInvalidProof(SCProof(step), Nil, s"A step can't refer to step ${false_premise2.get}, imports only contains ${importsSize} elements.")
+        SCInvalidProof(SCProof(step), Nil, s"A step can't refer to step #${false_premise2.get}, imports only contains ${importsSize} elements.")
       else
         step match {
           /*
@@ -50,8 +67,10 @@ object SCProofChecker {
            *   Γ, φ |- φ, Δ
            */
           case Hypothesis(Sequent(left, right), phi) =>
+            // sort check
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
+            // logical checks
             else if (contains(left, phi))
               if (contains(right, phi)) SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Right-hand side does not contain formula φ")
@@ -63,17 +82,26 @@ object SCProofChecker {
            *       Γ, Σ |- Δ, Π
            */
           case Cut(b, t1, t2, phi) =>
+            // sort check
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
-            else if (isSameSet(b.left + phi, ref(t1).left union ref(t2).left) && (!contains(ref(t1).left, phi) || contains(b.left, phi)))
-              if (isSameSet(b.right + phi, ref(t2).right union ref(t1).right) && (!contains(ref(t2).right, phi) || contains(b.right, phi)))
-                if (contains(ref(t2).left, phi))
-                  if (contains(ref(t1).right, phi))
-                    SCValidProof(SCProof(step))
-                  else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of first premise does not contain φ as claimed.")
-                else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of second premise does not contain φ as claimed.")
-              else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
-            else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
+              sortMismatch(Prop, phi.sort, step)
+            // logical checks
+            else {
+              val prem1 = ref(t1)
+              val prem2 = ref(t2)
+
+              if (!prem1.right.contains(phi)) 
+                error(step, s"First premise does not contain the cut pivot on the right-hand side.")
+              else if (!prem2.left.contains(phi))
+                error(step, s"Second premise does not contain the cut pivot on the left-hand side.")
+              else if (b.left + phi != (prem1.left union prem2.left))
+                error(step, s"Left-hand side of conclusion + cut pivot is not the union of the left-hand sides of the premises.")
+              else if (b.right + phi != (prem1.right union prem2.right))
+                error(step, s"Right-hand side of conclusion + cut pivot is not the union of the right-hand sides of the premises.")
+              else {
+                SCValidProof(SCProof(step))
+              }
+            }
 
           // Left rules
           /*
@@ -82,56 +110,104 @@ object SCProofChecker {
            *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
            */
           case LeftAnd(b, t1, phi, psi) =>
+            // sort checks
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (psi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
-            else if (isSameSet(ref(t1).right, b.right)) {
+              sortMismatch(Prop, psi.sort, step)
+            // logical checks
+            else {
+              val prem1 = ref(t1)
               val phiAndPsi = and(phi)(psi)
-              if (
-                isSameSet(b.left + phi, ref(t1).left + phiAndPsi) ||
-                isSameSet(b.left + psi, ref(t1).left + phiAndPsi) ||
-                isSameSet(b.left + phi + psi, ref(t1).left + phiAndPsi)
-              )
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ∧ψ must be same as left-hand side of premise + either φ, ψ or both.")
-            } else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion must be the same.")
+              if (prem1.right != b.right) {
+                error(step, "Right-hand sides of the premise and the conclusion are not the same.")
+              }
+              else {
+                val targetSet = (b.left + phiAndPsi).diff(prem1.left)
+                if (targetSet != Set(phi) && targetSet != Set(psi) && targetSet != Set(phi, psi)) {
+                  error(step, "Left-hand side of conclusion + the conjunction φ ∧ ψ must be same as left-hand side of premise + either φ, ψ, or both.")
+                }
+                else {
+                  SCValidProof(SCProof(step))
+                }
+              }
+            }
           /*
            *  Γ, φ |- Δ    Σ, ψ |- Π
            * ------------------------
            *    Γ, Σ, φ∨ψ |- Δ, Π
            */
-          case LeftOr(b, t, disjuncts) =>
+          case LeftOr(b, ts, disjuncts) =>
+            // sort checks
             if (disjuncts.exists(phi => phi.sort != Prop)) {
               val culprit = disjuncts.find(phi => phi.sort != Prop).get
-              SCInvalidProof(SCProof(step), Nil, "all φs must be a formula, but " + culprit + " is a " + culprit.sort)
-            } else if (isSameSet(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _))) {
-              val phiOrPsi = disjuncts.reduceLeft(or(_)(_))
-              if (
-                t.zip(disjuncts).forall { case (s, phi) => isSubset(ref(s).left, b.left + phi) } &&
-                isSubset(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _) + phiOrPsi)
-              )
+              sortMismatch(Prop, culprit.sort, step)
+            }
+            // logical checks
+            else {
+              val prems = ts.map(ref(_))
+              val premsLefts = prems.map(_.left).reduce(_ union _)
+              val premsRights = prems.map(_.right).reduce(_ union _)
+              val newDisjunct = disjuncts.reduce(or(_)(_))
+
+              // a disjunct which is NOT in the claimed premise
+              lazy val violatingDisjunct = prems.zipWithIndex.find({ case (prem, i) =>
+                val disjunct = disjuncts(i)
+                !prem.left.contains(disjunct)
+              }).map(_._2)
+
+              // A premise which is NOT contained in the conclusion
+              lazy val violatingSet = prems.zipWithIndex.find({ case (prem, i) =>
+                val disjunct = disjuncts(i)
+                !prem.left.subsetOf(b.left + disjunct)
+              }).map(_._2)
+
+              if (premsRights != b.right) {
+                error(step, "Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
+              }
+              else if (violatingDisjunct.nonEmpty) {
+                val idx = violatingDisjunct.get
+                error(step, s"Premise #$idx does not contain the corresponding disjunct on the left-hand side.")
+              }
+              else if (violatingSet.nonEmpty) {
+                val idx = violatingSet.get
+                error(step, s"Premise #$idx left-hand side is not a subset of the conclusion left-hand side + the corresponding disjunct.")
+              }
+              else if (b.left.subsetOf(premsLefts + newDisjunct)) {
+                error(step, "Left-hand side of conclusion + disjuncts is not a subset of the union of the left-hand sides of the premises.")
+              }
+              else {
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
-            } else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
+              }
+            }
           /*
            *  Γ |- φ, Δ    Σ, ψ |- Π
            * ------------------------
            *    Γ, Σ, φ⇒ψ |- Δ, Π
            */
           case LeftImplies(b, t1, t2, phi, psi) =>
+            // sort checks
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (psi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, psi.sort, step)
+            // logical checks
             else {
+              val prem1 = ref(t1)
+              val prem2 = ref(t2)
               val phiImpPsi = implies(phi)(psi)
-              if (isSameSet(b.right + phi, ref(t1).right union ref(t2).right))
-                if (isSameSet(b.left + psi, ref(t1).left union ref(t2).left + phiImpPsi))
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion + ψ must be identical to union of left-hand sides of premisces + φ⇒ψ.")
-              else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ must be identical to union of right-hand sides of premisces.")
+
+              if ((prem1.right union prem2.right) != (b.right + phi)) {
+                error(step, "Right-hand side of conclusion + φ is not the same as the union of the right-hand sides of the premises.")
+              }
+              else if ((prem1.left union prem2.left) + phiImpPsi != (b.left + psi)) {
+                error(step, "Left-hand side of conclusion + ψ is not the same as union of left-hand sides of premises + φ⇒ψ.")
+              }
+              else {
+                SCValidProof(SCProof(step))
+              }
             }
+
           /*
            *  Γ, φ⇒ψ |- Δ               Γ, φ⇒ψ, ψ⇒φ |- Δ
            * --------------    or     ---------------
