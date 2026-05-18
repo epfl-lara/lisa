@@ -168,8 +168,11 @@ private[functions] final class WitnessTyping[N <: Arity](
       ).toMap
       val constructorDisjunction = simplify(seqOr(adt.constructors.map(c => constructorBranch(c))))
 
-      val decompositionAtInput = have(inputTerm ∈ adt.term |- constructorDisjunction) by
-        Tautology.from(adt.elim of (x := inputTerm))
+      val decompositionAtInput = have(inputTerm ∈ adt.term |- constructorDisjunction) subproof {
+        have(inputTerm ∈ adt.term ==> constructorDisjunction) by
+          InstantiateForall(inputTerm)(adt.elim)
+        thenHave(thesis) by Restate
+      }
 
       val branchToWitness = adt.constructors.map(c =>
         val (caseVars, caseBody) = cases(c)

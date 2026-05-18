@@ -12,11 +12,43 @@ object SimpleFunctions extends lisa.Main {
   )
   val starDemo = unitDemo.constructors(0)
 
+  val boolDemo = adt(
+    name = "boolFunDemo",
+    constructors = Seq(
+      ("tru", Seq.empty),
+      ("fals", Seq.empty)
+    )
+  )
+  val truDemo = boolDemo.constructors(0)
+  val falsDemo = boolDemo.constructors(1)
+
   val idUnit = fun(unitDemo, unitDemo):
     Case(starDemo):
       starDemo
 
-  section("Simple pattern-defined function")
+  val flipBool = fun(boolDemo, boolDemo):
+    Case(truDemo):
+      falsDemo
+    Case(falsDemo):
+      truDemo
+
+  val squashBoolToUnit = fun(boolDemo, unitDemo):
+    Case(truDemo):
+      starDemo
+    Case(falsDemo):
+      starDemo
+
+  section("Unit function")
   show(idUnit.intro)
   show(idUnit.elim(starDemo))
+
+  section("Boolean endomorphism")
+  show(flipBool.intro)
+  show(flipBool.elim(truDemo))
+  show(flipBool.elim(falsDemo))
+
+  section("Boolean to unit")
+  show(squashBoolToUnit.intro)
+  show(squashBoolToUnit.elim(truDemo))
+  show(squashBoolToUnit.elim(falsDemo))
 }

@@ -75,8 +75,11 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
       ).toMap
       val constructorDisjunction = simplify(seqOr(adt.constructors.map(c => constructorBranch(c))))
 
-      val decompositionAtInput = have(pointInput ∈ adt.term |- constructorDisjunction) by
-        Tautology.from(adt.elim of (x := pointInput))
+      val decompositionAtInput = have(pointInput ∈ adt.term |- constructorDisjunction) subproof {
+        have(pointInput ∈ adt.term ==> constructorDisjunction) by
+          InstantiateForall(pointInput)(adt.elim)
+        thenHave(thesis) by Restate
+      }
 
       val branchEqualities = adt.constructors.map(c =>
         val (caseVars, caseBody) = cases(c)

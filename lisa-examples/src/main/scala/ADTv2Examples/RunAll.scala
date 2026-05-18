@@ -1,7 +1,7 @@
 package ADTv2Examples
 
 import ADTv2Examples.builder.{DebugADTs, MonomorphicADTs, PolymorphicADTs, Specialization}
-import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions}
+import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions, SimpleFunctions}
 import ADTv2Examples.proofs.{InductionOnBool, InductionOnNat, TypecheckIntegration}
 import ADTv2Examples.endtoend.NatAndListLibrary
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
@@ -14,7 +14,7 @@ object RunAll {
     "ADTv2Examples.builder.PolymorphicADTs" -> PolymorphicADTs.main,
     "ADTv2Examples.builder.Specialization" -> Specialization.main,
     "ADTv2Examples.builder.DebugADTs" -> DebugADTs.main,
-    "ADTv2Examples.functions.SimpleFunctions" -> "positive fun(...) examples are currently unstable in the ADTv2 runtime.",
+    "ADTv2Examples.functions.SimpleFunctions" -> SimpleFunctions.main,
     "ADTv2Examples.functions.RecursiveFunctions" -> RecursiveFunctions.main,
     "ADTv2Examples.functions.HigherOrderRecursion" -> HigherOrderRecursion.main,
     "ADTv2Examples.proofs.InductionOnBool" -> InductionOnBool.main,
