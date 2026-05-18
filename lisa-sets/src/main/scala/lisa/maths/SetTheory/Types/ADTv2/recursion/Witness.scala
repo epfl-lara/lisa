@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
@@ -116,7 +116,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     require(c1 != c2, "constructorTagDisequality requires two distinct constructors.")
     val minTag: Int = Math.min(c1.underlying.tag, c2.underlying.tag)
     val maxTag: Int = Math.max(c1.underlying.tag, c2.underlying.tag)
-    lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.constructorTagDisequality(
+    lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.constructorTagDisequality(
       c1.underlying.tagTerm,
       c2.underlying.tagTerm,
       minTag,

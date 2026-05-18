@@ -8,9 +8,9 @@ import lisa.maths.Quantifiers
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 import lisa.utils.prooflib.BasicStepTactic.LeftForall

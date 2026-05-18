@@ -1,12 +1,12 @@
-package lisa.maths.SetTheory.Types.ADTv2.recursion
+package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.{
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{
   natInduction,
   successorIsNat,
   zeroIsNotSucc
 }
-import lisa.maths.SetTheory.Types.ADTv2.support.ExtendedInteger.omegaOrdinal
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
 
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Base.Union.∪

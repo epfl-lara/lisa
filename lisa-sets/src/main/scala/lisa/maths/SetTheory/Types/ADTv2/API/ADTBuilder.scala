@@ -6,7 +6,8 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.SetTheory.Types.ADTv2.support.{**, Time, toSeq}
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.{**, toSeq}
 
 private def ADTBuilder[N <: Arity](
   name: String,

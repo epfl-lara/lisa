@@ -1,9 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.{altEqualityTransitivity, equivalenceApply, unionOfTwoNats}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, equivalenceApply, unionOfTwoNats}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.recursion.NatFacts.{Zero, Succ}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Zero, Succ}
 
 import lisa.maths.SetTheory.Base.{Union, Comprehension,FoundationAxiom,Subset}
 import lisa.maths.SetTheory.Base.Comprehension.{|}

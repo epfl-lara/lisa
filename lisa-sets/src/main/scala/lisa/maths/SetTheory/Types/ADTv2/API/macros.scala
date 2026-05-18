@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
 import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, Constructor, RecFunction}
-import lisa.maths.SetTheory.Types.ADTv2.support.toSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}

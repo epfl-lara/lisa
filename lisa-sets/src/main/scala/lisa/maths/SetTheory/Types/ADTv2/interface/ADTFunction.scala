@@ -3,10 +3,11 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
-import lisa.maths.SetTheory.Types.ADTv2.support.{**, toSeq}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
+import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt as buildIntroAppAt, requireMonomorphicAccess, theoremAt}
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.renderAppliedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**

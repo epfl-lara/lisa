@@ -2,11 +2,12 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.support.{**, toSeq}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
+import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{instantiatedSemanticSignature, introAppAt as buildIntroAppAt, requireMonomorphicAccess, theoremAt}
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{renderAppliedSymbol, wellTypedSet}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{renderAppliedSymbol, wellTypedSet}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(

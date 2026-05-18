@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{appSeq, wellTypedSet}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{appSeq, wellTypedSet}
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity

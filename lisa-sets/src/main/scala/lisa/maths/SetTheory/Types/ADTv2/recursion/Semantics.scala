@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedClassFunction
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
@@ -9,7 +9,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 
 /**
  * Semantic set-theoretic interpretation of a recursive function over an ADT.

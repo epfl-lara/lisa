@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.recursion.NatFacts.Succ
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
 import lisa.maths.SetTheory.Base.{FoundationAxiom, Subset}
 import lisa.maths.SetTheory.Functions.Function.abs
 import lisa.maths.SetTheory.Functions.Predef.*
@@ -10,6 +10,7 @@ import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 
 object ApproxPropShared {
   private val nVar = variable[Ind]

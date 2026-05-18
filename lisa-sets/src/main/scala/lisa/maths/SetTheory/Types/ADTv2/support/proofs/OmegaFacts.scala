@@ -1,9 +1,9 @@
-package lisa.maths.SetTheory.Types.ADTv2.recursion
+package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.recursion.NatFacts.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.subsetIsNat
-import lisa.maths.SetTheory.Types.ADTv2.support.ExtendedInteger.omegaOrdinal
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.subsetIsNat
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
 
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Base.{FoundationAxiom, Subset}

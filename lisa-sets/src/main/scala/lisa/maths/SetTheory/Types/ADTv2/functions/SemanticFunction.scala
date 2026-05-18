@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -13,7 +13,7 @@ import lisa.maths.SetTheory.Functions.Pi.{->:}
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 
 /**
  *  Set theoretic interpretation of a function over an ADT.

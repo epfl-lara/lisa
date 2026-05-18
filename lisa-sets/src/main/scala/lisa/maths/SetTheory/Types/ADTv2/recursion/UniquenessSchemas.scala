@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.fol.FOL.App

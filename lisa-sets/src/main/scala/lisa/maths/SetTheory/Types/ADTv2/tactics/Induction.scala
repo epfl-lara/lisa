@@ -2,8 +2,8 @@ package lisa.maths.SetTheory.Types.ADTv2.tactics
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, CaseAccumulator, Constructor}
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, TypeAssign}

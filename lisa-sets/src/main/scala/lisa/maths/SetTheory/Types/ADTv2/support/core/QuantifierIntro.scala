@@ -1,8 +1,8 @@
-package lisa.maths.SetTheory.Types.ADTv2.support
+package lisa.maths.SetTheory.Types.ADTv2.support.core
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 
 object QuantifiersIntro extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 

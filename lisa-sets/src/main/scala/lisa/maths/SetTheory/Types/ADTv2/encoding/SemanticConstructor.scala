@@ -4,13 +4,13 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedClassFunction
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 
 /**
  *  Semantic set theoretical interpretation of a constructor for an algebraic data type.
@@ -138,104 +138,47 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   val structuralTerm2: Expr[Ind] = underlying.term2
 
+  private val internals = new ConstructorInternals[N](
+    adt = adt,
+    semanticSignature = semanticSignature,
+    variables = variables,
+    structuralTerm = structuralTerm,
+    typ = typ
+  )
+
   /**
    *  Definition of this constructor.
    *
    *  Formally it is the only function whose codomain is the ADT such that for all
    *  variables x1 :: S1, ...,xn :: Sn c * x1 * ... * xn = (tagc, (x1, (..., (xn, ∅)...))
    */
-  private val untypedDefinition = (c :: typ) /\ forallSeq(
-    variables,
-    wellTypedFormula(semanticSignature) ==> (appSeq(c)(variables) === structuralTerm)
-  )
+  private val untypedDefinition = internals.untypedDefinition
 
-  /**
-   *  Lemma --- Uniqueness of this constructor.
-   *
-   *  ` ∃!c. c ∈ T1 -> ... -> Tn -> ADT /\ ∀x1, ..., xn. c * x1 * ...* xn = (tagc, (x1, (..., (xn, ∅)...))`
-   */
-  private val uniqueness = Axiom(existsOne(c, untypedDefinition))
+  private val definedClassFunction = UniqueDefinedClassFunction(
+    name = fullName,
+    typeVariablesSeq = typeVariablesSeq,
+    witnessVar = c,
+    definitionAt = c0 => internals.untypedDefinition.substitute(c := c0)
+  )(internals.uniqueness)
 
-  /**
-   *  Temporary placeholder while ADTv2 function-definition integration is finalized.
-   *  classFunction represents the constructor as a set-theoretic function: classFunction
-   *  * X1 * ... * Xm * x1 * ... * xn = (tagc, (x1, (..., (xn, ∅)...)) where Xi are type
-   *  variables and xi are constructor arguments. Formerly defined via:
-   *  FunctionDefinition[N](fullName, ...)(typeVariablesSeq, c, untypedDefinition,
-   *  uniqueness).label
-   */
-  private val classFunction: Constant[?] = {
-    val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq, 
-      t = ε(c, untypedDefinition)
-    )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
-      lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
-    DEF(using name = fullName)(classFunctionExpr.asInstanceOf[Expr[S]])
-  }
-  classFunction.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
-
-  val id = classFunction.id
+  val id = definedClassFunction.id
 
   /**
    *  This constructor in which type variables are instantiated.
    *
    *  @param args the instances of this constructor's type variables
    */
-  def term(args: Seq[Expr[Ind]]): Expr[Ind] = (classFunction #@@ args).asInstanceOf[Expr[Ind]]
+  def term(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
 
   /** Constructor where type variables are instantiated with schematic variables. */
-  private val term: Expr[Ind] = term(typeVariablesSeq)
+  private val term: Expr[Ind] = definedClassFunction.term
 
   /**
    *  Lemma --- Characterization of this constructor.
    *
    *  `∀c. term = c <=> c ∈ typ /\ ∀x1,...,xn. c * x1 * ... * xn = (tagc, ...)`
    */
-  private val classFunctionCharacterization =
-    Lemma(forall(c, (term === c) <=> untypedDefinition)
-  ) {
-      val epsilonWitness = ε(c, untypedDefinition)
-      
-      val epsilonCharacterization = have(
-        untypedDefinition <=> (c === epsilonWitness)
-      ) by Tautology.from(
-        uniqueness,
-        existsOneEpsilonUniqueness of (
-          x := c,
-          y := c,
-          P := λ(c, untypedDefinition)
-        )
-      )
-
-      val classTermIsEpsilon =
-        have(term === epsilonWitness) by Congruence.from(classFunction.definition)
-
-      val toRight = have((term === c) ==> (c === epsilonWitness)) subproof {
-        assume(term === c)
-        val termEqC = have(term === c) by Hypothesis
-        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEpsilon)
-        have(c === epsilonWitness) by Congruence.from(termEqC, termEqEpsilon)
-        thenHave(thesis) by Restate
-      }
-
-      val toLeft = have((c === epsilonWitness) ==> (term === c)) subproof {
-        assume(c === epsilonWitness)
-        val cEqEpsilon = have(c === epsilonWitness) by Hypothesis
-        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEpsilon)
-        have(term === c) by Congruence.from(termEqEpsilon, cEqEpsilon)
-        thenHave(thesis) by Restate
-      }
-
-      val equalityRewriting = have((term === c) <=> (c === epsilonWitness)) by
-        Tautology.from(toRight, toLeft)
-
-      have((term === c) <=> untypedDefinition) by
-        Tautology.from(equalityRewriting, epsilonCharacterization)
-
-      thenHave(thesis) by RightForall
-    }
+  private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
   /**
    *  Constructor where type variables are instantiated with schematic variables and
