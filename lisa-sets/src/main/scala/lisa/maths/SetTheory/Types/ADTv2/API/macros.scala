@@ -1,7 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor, RecFunction}
-import lisa.maths.SetTheory.Types.ADTv2.functions.ADTFunction
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, Constructor, RecFunction}
 import lisa.maths.SetTheory.Types.ADTv2.support.toSeq
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -37,8 +36,8 @@ object Implicits {
   // implicit def constructorToTerm(c: Constructor[?]): Expr[Ind] =
   //   asMonomorphicTerm("Constructor", c.name, c.typeVariablesSeq.size)(c.term)
 
-  implicit def functionToTerm(f: ADTFunction[?]): Expr[Ind] =
-    asMonomorphicTerm("Function", f.name, f.typeVariables.toSeq.size)(f.term)
+  // implicit def functionToTerm(f: ADTFunction[?]): Expr[Ind] =
+  //   asMonomorphicTerm("Function", f.name, f.typeVariables.toSeq.size)(f.term)
 
   // implicit def recFunctionToTerm(f: RecFunction[?]): Expr[Ind] =
   //   asMonomorphicTerm("RecFunction", f.name, f.typeVariablesSeq.size)(f.term)

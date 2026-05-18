@@ -39,6 +39,8 @@ class SemanticFunction[N <: Arity](
   val typeVariables: Variable[Ind] ** N = adt.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
   val typeArity: N = adt.typeArity
+  val adtDomain: SemanticADT[N] = adt
+  val returnTypeExpr: Expr[Ind] = returnType
 
   val fullName = s"$name"
   val typ: Expr[Ind] = adt.term ->: returnType
