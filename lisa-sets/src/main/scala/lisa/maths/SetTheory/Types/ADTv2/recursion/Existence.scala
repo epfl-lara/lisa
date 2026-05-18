@@ -43,10 +43,9 @@ private[recursion] final class Existence[N <: Arity](
   val nVar = variable[Ind]
   val mVar = variable[Ind]
   val kVar = variable[Ind]
-  private val adtSupport = ADTRecursionSupport(spec.adt)
-  private val heightSuccStrong = adtSupport.heightSuccStrong
-  private val heightMonotonic  = adtSupport.heightMonotonic
-  private val termHasHeight    = adtSupport.termHasHeight
+  private val heightSuccStrong = spec.adt.height.successorStrong
+  private val heightMonotonic  = spec.adt.height.monotonic
+  private val termHasHeight    = spec.adt.height.termHasHeight
   
   import approx.G
   import approxProp.{
@@ -179,57 +178,29 @@ private[recursion] final class Existence[N <: Arity](
         val bodyAtGN0 = substitutedCaseBody(spec, c, G(n0))
 
         val directBranch = have(
-          wellTypedFormula(c.underlying.signature2)(app(heightFun)(n0)) /\ (a === c.structuralTerm2) |- pointwiseGoal
+          c.branchPremiseAtHeight(app(heightFun)(n0), a) |- pointwiseGoal
         ) subproof {
-          assume(wellTypedFormula(c.underlying.signature2)(app(heightFun)(n0)) /\ (a === c.structuralTerm2))
+          assume(c.branchPremiseAtHeight(app(heightFun)(n0), a))
+          val branchPremise = have(c.branchPremiseAtHeight(app(heightFun)(n0), a)) by Hypothesis
           val argsTypedAtHeight =
-            have(wellTypedFormula(c.underlying.signature2)(app(heightFun)(n0))) by Tautology
-          val aEqStructural = have(a === c.structuralTerm2) by Tautology
-
-          // Upgrade typing to term/semantic level
-          val exTypedAtHeight = have(
-            ∃(kVar, (kVar ∈ N) /\ wellTypedFormula(c.underlying.signature2)(app(heightFun)(kVar)))
-          ) subproof {
-            have((n0 ∈ N) /\ wellTypedFormula(c.underlying.signature2)(app(heightFun)(n0))) by
-              Tautology.from(indexInN, argsTypedAtHeight)
-            thenHave(thesis) by RightExists
-          }
-          val termsHaveHeightAtH = have(
-            wellTypedFormula(c.underlying.signature2)(spec.adt.term) <=>
-              ∃(kVar, (kVar ∈ N) /\ wellTypedFormula(c.underlying.signature2)(app(heightFun)(kVar)))
-          ) by Tautology.from(
-            hValid,
-            spec.adt.externalTermsHaveHeight(c.underlying).of(h := heightFun)
-              .of(c.underlying.variables.zip(c.underlying.variables2).map((from, to) => from := to)*)
-          )
-          val argsTypedAtTerm = have(wellTypedFormula(c.underlying.signature2)(spec.adt.term)) by
-            Tautology.from(termsHaveHeightAtH, exTypedAtHeight)
+            have(c.heightTypingFormula(app(heightFun)(n0))) by Tautology
           val argsTypedSemantic = have(wellTypedFormula(c.semanticSignature2)) by
-            Restate.from(argsTypedAtTerm)
-
-          // a = c.appliedTerm2
-          val shortBase = have(c.shortDefinition.statement.right.head) by Tautology.from(c.shortDefinition)
-          val shortAtVars2 = c.variables2.foldLeft(shortBase)((_, v2) =>
-            lastStep.statement.right.head match
-              case forall(v, phi) =>
-                thenHave(phi.substituteUnsafe(Map(v -> v2)).asInstanceOf[Expr[Prop]]) by InstantiateForall(v2)
-              case _ => throw UnreachableException
-          )
-          val appliedEqStructural = shortAtVars2.statement.right.head match
-            case _ ==> consequent =>
-              have(consequent) by Tautology.from(shortAtVars2, argsTypedSemantic)
-            case _ => throw UnreachableException
-          val structuralEqApplied = have(c.structuralTerm2 === c.appliedTerm2) by
-            Congruence.from(appliedEqStructural)
-          val aEqApplied = have(a === c.appliedTerm2) by Tautology.from(
-            altEqualityTransitivity of (x := a, y := c.structuralTerm2, z := c.appliedTerm2),
-            aEqStructural,
-            structuralEqApplied
-          )
+            Tautology.from(
+              hValid,
+              indexInN,
+              argsTypedAtHeight,
+              c.semanticTypingFromHeight(heightFun, n0)
+            )
+          val aEqApplied = have(a === c.appliedTerm2) by
+            Tautology.from(
+              hValid,
+              indexInN,
+              branchPremise,
+              c.appliedEqualityFromStructural(heightFun, n0, a)
+            )
 
           // Recursive arg equalities: app(limitFun)(v) = app(G(n0))(v) for each SelfRef v
-          val selfArgEqualities = c.syntacticSignature(c.variables2).collect {
-            case (v, lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef) =>
+          val selfArgEqualities = c.selfRefVariables2.map(v =>
               val vInHn0 = have(v ∈ app(heightFun)(n0)) by Tautology.from(argsTypedAtHeight)
 
               // v ∈ spec.argType
@@ -281,7 +252,7 @@ private[recursion] final class Existence[N <: Arity](
                 limitAtVEqGLV,
                 agreeGLVGN0
               )
-          }
+          )
 
           // body_c[limitFun] = body_c[G(n0)]  (Congruence from recursive arg equalities)
           val bodyEq =

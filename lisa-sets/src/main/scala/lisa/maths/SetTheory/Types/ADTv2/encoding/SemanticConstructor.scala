@@ -104,6 +104,20 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /** Alternative set of variables of this constructor with their respective domain. */
   val semanticSignature2: Seq[(Variable[Ind], Expr[Ind])] = semanticSignature(variables2)
 
+  def heightTypingFormula(heightSet: Expr[Ind]): Expr[Prop] =
+    wellTypedFormula(underlying.signature2)(heightSet)
+
+  def branchPremiseAtHeight(heightSet: Expr[Ind], term: Expr[Ind]): Expr[Prop] =
+    heightTypingFormula(heightSet) /\ (term === structuralTerm2)
+
+  def branchAtHeight(heightSet: Expr[Ind], term: Expr[Ind]): Expr[Prop] =
+    existsSeq(variables2, branchPremiseAtHeight(heightSet, term))
+
+  def selfRefVariables2: Seq[Variable[Ind]] =
+    syntacticSignature(variables2).collect {
+      case (v, lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef) => v
+    }
+
   /** Type of this constructor. */
   val typ: Expr[Ind] =
     // semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => a |=> b)
@@ -293,6 +307,70 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     thenHave(term :: typ) by Weakening
     thenHave(thesis) by Restate
   }    
+
+  def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind]): THM = Lemma(
+    (adt.isHeight(heightFun), n ∈ N, heightTypingFormula(app(heightFun)(n))) |-
+      wellTypedFormula(semanticSignature2)
+  ) {
+    val hValid = assume(adt.isHeight(heightFun))
+    val nInN = assume(n ∈ N)
+    val argsTypedAtHeight = assume(heightTypingFormula(app(heightFun)(n)))
+
+    val exTypedAtHeight = have(
+      ∃(k, (k ∈ N) /\ heightTypingFormula(app(heightFun)(k)))
+    ) subproof {
+      have((n ∈ N) /\ heightTypingFormula(app(heightFun)(n))) by
+        Tautology.from(nInN, argsTypedAtHeight)
+      thenHave(thesis) by RightExists
+    }
+
+    val termsHaveHeightAtH = have(
+      heightTypingFormula(adt.term) <=>
+        ∃(k, (k ∈ N) /\ heightTypingFormula(app(heightFun)(k)))
+    ) by Tautology.from(
+      hValid,
+      adt.termsHaveHeight(underlying)
+        .of(h := heightFun)
+        .of(underlying.variables.zip(underlying.variables2).map((from, to) => from := to)*)
+    )
+
+    val argsTypedAtTerm = have(heightTypingFormula(adt.term)) by
+      Tautology.from(termsHaveHeightAtH, exTypedAtHeight)
+    have(wellTypedFormula(semanticSignature2)) by Restate.from(argsTypedAtTerm)
+  }
+
+  def appliedEqualityFromStructural(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind]): THM =
+    Lemma(
+      (adt.isHeight(heightFun), n ∈ N, branchPremiseAtHeight(app(heightFun)(n), term0)) |-
+        (term0 === appliedTerm2)
+    ) {
+      assume(adt.isHeight(heightFun))
+      assume(n ∈ N)
+      assume(branchPremiseAtHeight(app(heightFun)(n), term0))
+      val argsTypedAtHeight = have(heightTypingFormula(app(heightFun)(n))) by Tautology
+      val termEqStructural = have(term0 === structuralTerm2) by Tautology
+
+      val argsTypedSemantic = have(wellTypedFormula(semanticSignature2)) by
+        Cut(argsTypedAtHeight, semanticTypingFromHeight(heightFun, n))
+
+      val shortBase = have(shortDefinition.statement.right.head) by Tautology.from(shortDefinition)
+      val shortAtVars2 = variables2.foldLeft(shortBase)((_, v2) =>
+        lastStep.statement.right.head match
+          case forall(v, phi) =>
+            thenHave(phi.substituteUnsafe(Map(v -> v2)).asInstanceOf[Expr[Prop]]) by
+              InstantiateForall(v2)
+          case _ => throw UnreachableException
+      )
+      val appliedEqStructural = shortAtVars2.statement.right.head match
+        case _ ==> consequent =>
+          have(consequent) by Tautology.from(shortAtVars2, argsTypedSemantic)
+        case _ => throw UnreachableException
+      have(term0 === appliedTerm2) by Tautology.from(
+        altEqualityTransitivity of (x := term0, y := structuralTerm2, z := appliedTerm2),
+        termEqStructural,
+        appliedEqStructural
+      )
+    }
 
   /**
    *  Theorem --- Injectivity of constructors.

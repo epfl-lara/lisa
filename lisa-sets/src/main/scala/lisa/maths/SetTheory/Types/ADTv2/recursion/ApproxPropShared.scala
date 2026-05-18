@@ -20,10 +20,7 @@ object ApproxPropShared {
       heightSet: Expr[Ind],
       term: Expr[Ind]
   ): Expr[Prop] =
-    existsSeq(
-      c.variables2,
-      wellTypedFormula(c.underlying.signature2)(heightSet) /\ (term === c.structuralTerm2)
-    )
+    c.branchAtHeight(heightSet, term)
 
   def constructorBranchesAtHeight[N <: Arity](
       constructors: Seq[SemanticConstructor[N]],

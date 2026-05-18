@@ -4,6 +4,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.universalEquivalenceDistribution
+import lisa.maths.Quantifiers
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
@@ -35,6 +36,33 @@ class SemanticADT[N <: Arity](
     val underlying: SyntacticADT[N],
     val constructors: Seq[SemanticConstructor[N]]
 ) {
+
+  final class HeightAdapter private[SemanticADT] () {
+    private val heightFunVar = Variable[Ind](s"${underlying.name}/height")
+
+    def predicate(h: Expr[Ind]): Expr[Prop] = underlying.isHeight(h)
+    lazy val function: Expr[Ind] = ε(heightFunVar, predicate(heightFunVar))
+    lazy val valid: THM = Lemma(predicate(function)) {
+      val epsStep = have(
+        ∃(heightFunVar, predicate(heightFunVar)) |- predicate(function)
+      ) by Restate.from(
+        Quantifiers.existsEpsilon of (
+          x := heightFunVar,
+          P := λ(heightFunVar, predicate(heightFunVar))
+        )
+      )
+      have(thesis) by Cut(exists, epsStep)
+    }
+    val exists: THM = underlying.heightExists
+    val monotonic: THM = underlying.heightMonotonic
+    val zero: THM = underlying.heightZero
+    val successorStrong: THM = underlying.heightSuccessorStrong
+    val termHasHeight: THM = underlying.termHasHeight
+    def termsHaveHeight(c: SyntacticConstructor): THM = underlying.termsHaveHeight(c)
+    def termsHaveHeight(c: SemanticConstructor[N]): THM = underlying.termsHaveHeight(c.underlying)
+  }
+
+  val height = HeightAdapter()
 
   /** Name of this ADT. */
   val name: String = underlying.name
@@ -404,11 +432,4 @@ class SemanticADT[N <: Arity](
     thenHave(thesis) by RightForall
   }
 
-  def externalHeight = underlying.isHeight
-  val externalHeightExists = underlying.heightExists
-  val externalHeightMonotonic = underlying.heightMonotonic
-  val externalHeightZero = underlying.heightZero
-  val externalHeightSuccessorStrong = underlying.heightSuccessorStrong
-  val externalTermHasHeight = underlying.termHasHeight
-  val externalTermsHaveHeight = underlying.termsHaveHeight
 }
