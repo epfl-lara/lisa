@@ -1,7 +1,8 @@
 package lisa.kernel.fol
 
-import scala.collection.mutable
 import lisa.kernel.fol.Syntax
+
+import scala.collection.mutable
 
 private[fol] trait OLEquivalenceChecker extends Syntax {
 

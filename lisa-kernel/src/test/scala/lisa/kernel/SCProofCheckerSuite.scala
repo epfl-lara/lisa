@@ -1,12 +1,11 @@
 package lisa.kernel
 
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalactic.source.Position
-
 import lisa.kernel.fol.FOL._
-import lisa.kernel.proof.SequentCalculus._
 import lisa.kernel.proof.SCProofChecker._
 import lisa.kernel.proof.SCProofCheckerJudgement._
+import lisa.kernel.proof.SequentCalculus._
+import org.scalactic.source.Position
+import org.scalatest.funsuite.AnyFunSuite
 
 class SCProofCheckerSuite extends AnyFunSuite {
 
