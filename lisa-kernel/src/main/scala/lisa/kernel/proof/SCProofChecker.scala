@@ -76,6 +76,7 @@ object SCProofChecker {
         SCInvalidProof(SCProof(step), Nil, s"Steps cannot refer to step #${false_premise2.get}, imports only contains ${importsSize} elements.")
       else
         step match {
+
           /*
            *    Γ |- Δ
            * ------------
@@ -92,6 +93,7 @@ object SCProofChecker {
           case RestateTrue(s) =>
             val truth = Sequent(Set(), Set(top))
             if (isSameSequent(s, truth)) SCValidProof(SCProof(step)) else SCInvalidProof(SCProof(step), Nil, s"The desired conclusion is not a trivial tautology")
+
           /*
            *
            * --------------
@@ -161,6 +163,7 @@ object SCProofChecker {
                 }
               }
             }
+
           /*
            *  Γ, φ |- Δ    Σ, ψ |- Π
            * ------------------------
@@ -211,6 +214,7 @@ object SCProofChecker {
                 SCValidProof(SCProof(step))
               }
             }
+
           /*
            *  Γ |- φ, Δ    Σ, ψ |- Π
            * ------------------------
@@ -377,6 +381,7 @@ object SCProofChecker {
               else
                 SCValidProof(SCProof(step))
             }
+
           /*
            *   Γ |- φ, Δ                Γ |- φ, ψ, Δ
            * --------------    or    ---------------
@@ -401,6 +406,7 @@ object SCProofChecker {
                   SCValidProof(SCProof(step))
               }
             }
+
           /*
            *  Γ, φ |- ψ, Δ
            * --------------
@@ -422,6 +428,7 @@ object SCProofChecker {
               else
                 SCValidProof(SCProof(step))
             }
+
           /*
            *  Γ |- φ⇒ψ, Δ    Σ |- ψ⇒φ, Π
            * ----------------------------
@@ -450,6 +457,7 @@ object SCProofChecker {
               else
                 SCValidProof(SCProof(step))
             }
+
           /*
            *  Γ, φ |- Δ
            * --------------
@@ -469,6 +477,7 @@ object SCProofChecker {
               else
                 SCValidProof(SCProof(step))
             }
+
           /*
            *    Γ |- φ, Δ
            * ------------------- if x is not free in the resulting sequent
@@ -492,6 +501,7 @@ object SCProofChecker {
               else
                 SCValidProof(SCProof(step))
             }
+
           /*
            *   Γ |- φ[t/x], Δ
            * -------------------
@@ -517,7 +527,7 @@ object SCProofChecker {
                 SCValidProof(SCProof(step))
             }
 
-          /**
+          /*
            *       Γ |- φ[t/x], Δ
            * --------------------------
            *     Γ|- φ[(εx. φ)/x], Δ
@@ -593,7 +603,7 @@ object SCProofChecker {
               case _ => error(step, "Given formula is not an equality.")
             }
 
-          /**
+          /*
            *                     Γ, φ(s_) |- Δ
            * -----------------------------------------------------
            *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_, φ(t_) |- Δ
@@ -643,7 +653,7 @@ object SCProofChecker {
                 SCValidProof(SCProof(step))
             }
 
-          /**
+          /*
            *                     Γ |- φ(s_), Δ
            * -------------------------------------------------------
            *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_ |- φ(t_), Δ
@@ -693,7 +703,7 @@ object SCProofChecker {
                 SCValidProof(SCProof(step))
             }
 
-          /**
+          /*
            *         Γ |- Δ
            * --------------------------
            *     Γ[ψ/?p] |- Δ[ψ/?p]
