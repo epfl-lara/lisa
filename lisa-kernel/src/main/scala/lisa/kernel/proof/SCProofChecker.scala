@@ -205,7 +205,7 @@ object SCProofChecker {
               } else if (violatingSet.nonEmpty) {
                 val idx = violatingSet.get
                 error(step, s"Premise #$idx left-hand side is not a subset of the conclusion left-hand side + the corresponding disjunct.")
-              } else if (b.left.subsetOf(premsLefts + newDisjunct)) {
+              } else if (!(b.left ++ disjuncts).subsetOf(premsLefts + newDisjunct)) {
                 error(step, "Left-hand side of conclusion + disjuncts is not a subset of the union of the left-hand sides of the premises.")
               } else {
                 SCValidProof(SCProof(step))
@@ -372,8 +372,8 @@ object SCProofChecker {
               } else if (violatingPremise.nonEmpty) {
                 val idx = violatingPremise.get._2
                 error(step, s"Premise #$idx right-hand side is not a subset of conclusion right-hand side + the corresponding conjunct.")
-              } else if (!b.right.subsetOf(premiseRightUnion + conjunction))
-                error(step, "Right-hand side of conclusion is not a subset of the union of the right-hand sides of the premises + the conjunction.")
+              } else if (!(b.right ++ conjuncts).subsetOf(premiseRightUnion + conjunction))
+                error(step, "Right-hand side of conclusion + conjuncts is not a subset of the union of the right-hand sides of the premises + the conjunction.")
               else
                 SCValidProof(SCProof(step))
             }
