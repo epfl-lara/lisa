@@ -23,10 +23,6 @@ object SCProofChecker {
     SCInvalidProof(SCProof(step), Nil, message)
   }
 
-  private def matchesOneOf[A](actual: A)(candidates: A*): Boolean = {
-    candidates.contains(actual)
-  }
-
   private def variableIsFreeInSequent(sequent: Sequent, variable: Variable): Boolean = {
     (sequent.left union sequent.right).exists(_.freeVariables.contains(variable))
   }
@@ -132,7 +128,8 @@ object SCProofChecker {
                 error(step, "Right-hand sides of the premise and the conclusion are not the same.")
               }
               else {
-                if (!matchesOneOf(prem1.left + phiAndPsi)(b.left + phi, b.left + psi, b.left + phiAndPsi)) {
+                val targetSet = prem1.left + phiAndPsi
+                if (!(targetSet == b.left + phi || targetSet == b.left + psi || targetSet == b.left + phiAndPsi)) {
                   error(step, "Left-hand side of conclusion + the conjunction φ ∧ ψ must be same as left-hand side of premise + either φ, ψ, or both.")
                 }
                 else {
@@ -237,16 +234,13 @@ object SCProofChecker {
 
               if (prem1.right != b.right)
                 error(step, "Right-hand side of premise is not the same as right-hand side of conclusion.")
-              else if (
-                !matchesOneOf(prem1.left + phiIffPsi)(
-                  b.left + phiImpPsi,
-                  b.left + psiImpPhi,
-                  b.left + phiImpPsi + psiImpPhi
-                )
-              )
-                error(step, "Left-hand side of premise + φ⇔ψ is not the same as left-hand side of conclusion + either φ⇒ψ, ψ⇒φ, or both.")
-              else
-                SCValidProof(SCProof(step))
+              else {
+                val targetSet = prem1.left + phiIffPsi
+                if (!(targetSet == b.left + phiImpPsi || targetSet == b.left + psiImpPhi || targetSet == b.left + phiImpPsi + psiImpPhi))
+                  error(step, "Left-hand side of premise + φ⇔ψ is not the same as left-hand side of conclusion + either φ⇒ψ, ψ⇒φ, or both.")
+                else
+                  SCValidProof(SCProof(step))
+              }
             }
 
           /*
