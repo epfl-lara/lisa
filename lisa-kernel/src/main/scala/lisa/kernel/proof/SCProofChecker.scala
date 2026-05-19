@@ -151,6 +151,9 @@ object SCProofChecker {
               val culprit = disjuncts.find(phi => phi.sort != Prop).get
               sortMismatch(Prop, culprit.sort, step)
             }
+            else if  (ts.size != disjuncts.size) {
+              error(step, s"Number of premises (${ts.size}) is not the same as number of disjuncts (${disjuncts.size}).")
+            }
             // logical checks
             else {
               val prems = ts.map(ref(_))
@@ -164,7 +167,7 @@ object SCProofChecker {
                 !prem.left.contains(disjunct)
               }).map(_._2)
 
-              // A premise which is NOT contained in the conclusion
+              // a premise which is NOT contained in the conclusion
               lazy val violatingSet = prems.zipWithIndex.find({ case (prem, i) =>
                 val disjunct = disjuncts(i)
                 !prem.left.subsetOf(b.left + disjunct)
@@ -321,21 +324,43 @@ object SCProofChecker {
            * ------------------------
            *    Γ, Σ |- φ∧ψ, Π, Δ
            */
-          case RightAnd(b, t, cunjuncts) =>
-            if (cunjuncts.exists(phi => phi.sort != Prop)) {
-              val culprit = cunjuncts.find(phi => phi.sort != Prop).get
-              SCInvalidProof(SCProof(step), Nil, "all φs must be a formula, but " + culprit + " is a " + culprit.sort)
+          case RightAnd(b, ts, conjuncts) =>
+            if (conjuncts.exists(_.sort != Prop)) {
+              val culprit = conjuncts.find(_.sort != Prop).get
+              sortMismatch(Prop, culprit.sort, step)
+            } else if (ts.size != conjuncts.size) {
+              error(step, s"Number of premises (${ts.size}) is not the same as number of conjuncts (${conjuncts.size}).")
             } else {
-              val phiAndPsi = cunjuncts.reduce(and(_)(_))
-              if (isSameSet(b.left, t.map(ref(_).left).fold(Set.empty)(_ union _)))
-                if (
-                  t.zip(cunjuncts).forall { case (s, phi) => isSubset(ref(s).right, b.right + phi) } &&
-                  isSubset(b.right, t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi)
-                  // isSameSet(cunjuncts.foldLeft(b.right)(_ + _), t.map(ref(_).right).fold(Set.empty)(_ union _) + phiAndPsi)
-                )
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + φ + ψ is not the same as the union of the right-hand sides of the premises φ∧ψ.")
-              else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+              val prems = ts.map(ref(_))
+              val premiseLeftUnion = prems.map(_.left).reduce(_ union _)
+              val premiseRightUnion = prems.map(_.right).reduce(_ union _)
+              val conjunction = conjuncts.reduce(and(_)(_))
+
+              // a conjunct which is NOT in the claimed premise
+              lazy val violatingConjunct = prems.zipWithIndex.find { case (prem, i) =>
+                val conjunct = conjuncts(i)
+                !prem.right.contains(conjunct)
+              }.map(_._2)
+
+              // a premise which is NOT contained in the conclusion
+              val violatingPremise = prems.zipWithIndex.find { case (prem, idx) =>
+                !prem.right.subsetOf(b.right + conjuncts(idx))
+              }
+
+              if (b.left != premiseLeftUnion)
+                error(step, "Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+              else if (violatingConjunct.nonEmpty) {
+                val idx = violatingConjunct.get
+                error(step, s"Premise #$idx does not contain the corresponding conjunct on the right-hand side.")
+              }
+              else if (violatingPremise.nonEmpty) {
+                val idx = violatingPremise.get._2
+                error(step, s"Premise #$idx right-hand side is not a subset of conclusion right-hand side + the corresponding conjunct.")
+              }
+              else if (!b.right.subsetOf(premiseRightUnion + conjunction))
+                error(step, "Right-hand side of conclusion is not a subset of the union of the right-hand sides of the premises + the conjunction.")
+              else
+                SCValidProof(SCProof(step))
             }
           /*
            *   Γ |- φ, Δ                Γ |- φ, ψ, Δ
