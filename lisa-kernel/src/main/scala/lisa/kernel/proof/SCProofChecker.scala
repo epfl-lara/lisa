@@ -27,6 +27,32 @@ object SCProofChecker {
     (sequent.left union sequent.right).exists(_.freeVariables.contains(variable))
   }
 
+  /**
+   * For a given list of equalities s1=t1, ..., sn=tn, produce "lifted"
+   * equalities of the form ∀x1...xn. s1[x1,...,xn] = t1[x1,...,xn] based on the
+   * expected sorts of the terms.
+   * 
+   * See [[checkSingleSCStep]] at LeftSubstEq and RightSubstEq.
+   */
+  private def liftedEqualities(equalities: Seq[(Expression, Expression)]): Seq[Expression] = {
+    def liftEquality(s: Expression, t: Expression): Expression = {
+      val maxId = (s.freeVariables ++ t.freeVariables).map(_.id.no).maxOption.getOrElse(0) + 1
+      val vars = (maxId until (maxId + s.sort.depth)).map(i => Variable(Identifier("x", i), Ind))
+
+      val sApplied = vars.foldLeft(s)(_ apply _)
+      val tApplied = vars.foldLeft(t)(_ apply _)
+      
+      val base = 
+        if (sApplied.sort == Prop) 
+          iff(sApplied)(tApplied) 
+        else 
+          equality(sApplied)(tApplied)
+          
+      vars.foldRight(base) { case (arg, acc) => forall(Lambda(arg, acc)) }
+    }
+
+    equalities.map { case (s, t) => liftEquality(s, t) }
+  }
 
   /**
    * This function verifies that a single SCProofStep is correctly applied. It verifies that the step only refers to sequents with a lower number,
@@ -45,9 +71,9 @@ object SCProofChecker {
 
     val r: SCProofCheckerJudgement =
       if (false_premise.nonEmpty)
-        SCInvalidProof(SCProof(step), Nil, s"Step #$no can't refer to a higher number #${false_premise.get} as a premise.")
+        SCInvalidProof(SCProof(step), Nil, s"Step #$no cannot refer to a higher number #${false_premise.get} as a premise.")
       else if (false_premise2.nonEmpty)
-        SCInvalidProof(SCProof(step), Nil, s"A step can't refer to step #${false_premise2.get}, imports only contains ${importsSize} elements.")
+        SCInvalidProof(SCProof(step), Nil, s"Steps cannot refer to step #${false_premise2.get}, imports only contains ${importsSize} elements.")
       else
         step match {
           /*
@@ -497,11 +523,9 @@ object SCProofChecker {
             }
 
           /**
-           * <pre>
            *       Γ |- φ[t/x], Δ
            * --------------------------
            *     Γ|- φ[(εx. φ)/x], Δ
-           * </pre>
            */
           case RightEpsilon(b, t1, phi, x, t) =>
             if (phi.sort != Prop)
@@ -575,113 +599,144 @@ object SCProofChecker {
             }
 
           /**
-           * <pre>
            *                     Γ, φ(s_) |- Δ
            * -----------------------------------------------------
            *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_, φ(t_) |- Δ
-           * </pre>
            */
           case LeftSubstEq(b, t1, equals, lambdaPhi) =>
-            val (s_es, t_es) = equals.unzip
-            val (phi_args, phi_body) = lambdaPhi
-            if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
-              SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort || !(arg.sort.isFunctional || arg.sort.isPredicate) })
-              SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
+            val (sList, tList) = equals.unzip
+            val (phiArgs, phiBody) = lambdaPhi
+            val violatingEquality = equals.zip(phiArgs).find { case ((s, t), arg) => 
+                // sorts mismatch
+                s.sort != arg.sort ||
+                t.sort != arg.sort ||
+                // sorts disallowed for substitution
+                (!arg.sort.isFunctional && !arg.sort.isPredicate)
+            }
+            // sort checks
+            if (phiArgs.size != sList.size)
+              error(step, "The number of arguments of φ is not the same as number of equalities.")
+            else if (violatingEquality.nonEmpty) {
+              // triage to find and report the problem
+              val ((s, t), arg) = violatingEquality.get
+              if (s.sort != arg.sort)
+                error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
+              else if (t.sort != arg.sort)
+                error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
+              else 
+                assert(!arg.sort.isFunctional && !arg.sort.isPredicate)
+                error(step, s"An argument of φ has sort (${arg.sort}) which is not a functional or predicate sort, and thus cannot be substituted for.")
+            }
+            // logical checks
             else {
-              val phi_s_for_f = substituteVariables(phi_body, (phi_args zip s_es).toMap)
-              val phi_t_for_f = substituteVariables(phi_body, (phi_args zip t_es).toMap)
-              val sEqT_es = equals map { case (s, t) =>
-                val no = ((s.freeVariables ++ t.freeVariables).view.map(_.id.no) ++ Seq(-1)).max + 1
-                val vars = (no until no + s.sort.depth).map(i => Variable(Identifier("x", i), Ind))
-                val inner1 = vars.foldLeft(s)(_(_))
-                val inner2 = vars.foldLeft(t)(_(_))
-                val base = if (inner1.sort == Prop) iff(inner1)(inner2) else equality(inner1)(inner2)
-                vars.foldRight(base: Expression) { case (s_arg, acc) => forall(Lambda(s_arg, acc)) }
-              }
+              val prem1 = ref(t1)
+              val `φ(s_)` = substituteVariables(phiBody, (phiArgs zip sList).toMap)
+              val `φ(t_)` = substituteVariables(phiBody, (phiArgs zip tList).toMap)
+              val equalities = liftedEqualities(equals)
 
-              if (isSameSet(b.right, ref(t1).right))
-                if (
-                  isSameSet(b.left + phi_t_for_f, ref(t1).left ++ sEqT_es + phi_s_for_f) ||
-                  isSameSet(b.left + phi_s_for_f, ref(t1).left ++ sEqT_es + phi_t_for_f)
+              // these checks need to retain OL (at least α-eq)
+              // as substitution may rename binders deep in the term
+
+              if (!isSameSet(b.right, prem1.right))
+                error(step, "Right-hand side of premise is not the same as right-hand side of conclusion.")
+              else if (
+                !(
+                  isSameSet(b.left + `φ(t_)`, prem1.left ++ equalities + `φ(s_)`) ||
+                  isSameSet(b.left + `φ(s_)`, prem1.left ++ equalities + `φ(t_)`)
                 )
-                  SCValidProof(SCProof(step))
-                else
-                  SCInvalidProof(
-                    SCProof(step),
-                    Nil,
-                    "Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped)."
-                  )
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of the premise and the conclusion aren't the same.")
+              )
+                error(step, "Left-hand side of conclusion + one instance of φ is not the same as left-hand side of premise + equalities + the other instance of φ.")
+              else
+                SCValidProof(SCProof(step))
             }
 
-          /*
-           *  Γ |- φ(s), Δ     Σ |- s=t, Π
-           * ---------------------------------
-           *         Γ, Σ |- φ(t), Δ, Π
+          /**
+           *                     Γ |- φ(s_), Δ
+           * -------------------------------------------------------
+           *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_ |- φ(t_), Δ
            */
           case RightSubstEq(b, t1, equals, lambdaPhi) =>
-            val (s_es, t_es) = equals.unzip
-            val (phi_args, phi_body) = lambdaPhi
-            if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
-              SCInvalidProof(SCProof(step), Nil, "The number of arguments of φ must be the same as the number of equalities.")
-            else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
-              SCInvalidProof(SCProof(step), Nil, "The arities of symbols in φ must be the same as the arities of equalities.")
-            else {
-              val phi_s_for_f = substituteVariables(phi_body, (phi_args zip s_es).toMap)
-              val phi_t_for_f = substituteVariables(phi_body, (phi_args zip t_es).toMap)
-              val sEqT_es = equals map { case (s, t) =>
-                val no = ((s.freeVariables ++ t.freeVariables).view.map(_.id.no) ++ Seq(0)).max + 1
-                val vars = (no until no + s.sort.depth).map(i => Variable(Identifier("x", i), Ind))
-                val inner1 = vars.foldLeft(s)(_(_))
-                val inner2 = vars.foldLeft(t)(_(_))
-                val base = if (inner1.sort == Prop) iff(inner1)(inner2) else equality(inner1)(inner2)
-                vars.foldRight(base: Expression) { case (s_arg, acc) => forall(Lambda(s_arg, acc)) }
-              }
-              if (isSameSet(b.left, ref(t1).left ++ sEqT_es))
-                if (
-                  isSameSet(b.right + phi_t_for_f, ref(t1).right + phi_s_for_f) ||
-                  isSameSet(b.right + phi_s_for_f, ref(t1).right + phi_t_for_f)
-                ) {
-                  SCValidProof(SCProof(step))
-                } else {
-
-                  SCInvalidProof(
-                    SCProof(step),
-                    Nil,
-                    "Right-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case."
-                  )
-                }
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the premise.")
+            val (sList, tList) = equals.unzip
+            val (phiArgs, phiBody) = lambdaPhi
+            val violatingEquality = equals.zip(phiArgs).find { case ((s, t), arg) =>
+              // sorts mismatch
+              s.sort != arg.sort ||
+              t.sort != arg.sort ||
+              // sorts disallowed for substitution
+              (!arg.sort.isFunctional && !arg.sort.isPredicate)
             }
+            // sort checks
+            if (phiArgs.size != sList.size)
+              error(step, "The number of arguments of φ is not the same as number of equalities.")
+            else if (violatingEquality.nonEmpty) {
+              // triage to find and report the problem
+              val ((s, t), arg) = violatingEquality.get
+              if (s.sort != arg.sort)
+                error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
+              else if (t.sort != arg.sort)
+                error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
+              else
+                assert(!arg.sort.isFunctional && !arg.sort.isPredicate)
+                error(step, s"An argument of φ has sort (${arg.sort}) which is not a functional or predicate sort, and thus cannot be substituted for.")
+            }
+            // logical checks
+            else {
+              val prem1 = ref(t1)
+              val `φ(s_)` = substituteVariables(phiBody, (phiArgs zip sList).toMap)
+              val `φ(t_)` = substituteVariables(phiBody, (phiArgs zip tList).toMap)
+              val equalities = liftedEqualities(equals)
+
+              // these checks need to retain OL (at least α-eq)
+              // as substitution may rename binders deep in the term
+
+              if (!isSameSet(b.left, prem1.left ++ equalities))
+                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise + equalities.")
+              else if (
+                !(
+                  isSameSet(b.right + `φ(t_)`, prem1.right + `φ(s_)`) ||
+                  isSameSet(b.right + `φ(s_)`, prem1.right + `φ(t_)`)
+                )
+              )
+                error(step, "Right-hand side of conclusion + one instance of φ is not the same as right-hand side of premise + the other instance of φ.")
+              else
+                SCValidProof(SCProof(step))
+            }
+
           /**
-           * <pre>
-           * Γ |- Δ
+           *         Γ |- Δ
            * --------------------------
-           * Γ[ψ/?p] |- Δ[ψ/?p]
-           * </pre>
+           *     Γ[ψ/?p] |- Δ[ψ/?p]
            */
           case InstSchema(bot, t1, subst) =>
-            val expected =
-              (ref(t1).left.map(phi => substituteVariables(phi, subst)), ref(t1).right.map(phi => substituteVariables(phi, subst)))
-            if (isSameSet(bot.left, expected._1))
-              if (isSameSet(bot.right, expected._2))
-                SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of premise instantiated with the given maps must be the same as right-hand side of conclusion.")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand side of premise instantiated with the given maps must be the same as left-hand side of conclusion.")
+            val prem = ref(t1)
+            val expectedLeft = prem.left.map(substituteVariables(_, subst))
+            val expectedRight = prem.right.map(substituteVariables(_, subst))
+
+            // needs to retain OL (at least α-eq) 
+            // as substitution may rename binders deep in the term
+
+            if (!isSameSet(bot.left, expectedLeft))
+              error(step, "Left-hand side of premise after instantiation is not the same as left-hand side of conclusion.")
+            else if (!isSameSet(bot.right, expectedRight))
+              error(step, "Right-hand side of premise after instantiation is not the same as right-hand side of conclusion.")
+            else
+              SCValidProof(SCProof(step))
 
           case SCSubproof(sp, premises) =>
-            if (premises.size == sp.imports.size) {
-              val invalid = premises.zipWithIndex.find { case (no, p) => !isSameSequent(ref(no), sp.imports(p)) }
-              if (invalid.isEmpty) {
+            if (premises.size != sp.imports.size)
+              error(step, s"Number of premises (${premises.size}) is not the same as number of imports (${sp.imports.size}).")
+            else {
+              val invalid = premises.zipWithIndex.find { case (premiseNo, importIndex) => 
+                !isSameSequent(ref(premiseNo), sp.imports(importIndex)) 
+              }
+
+              if (invalid.nonEmpty) {
+                val (premiseNo, importIndex) = invalid.get
+                error(step, s"Premise step #$premiseNo is not the same as import #$importIndex of the subproof.")
+              }
+              else
                 checkSCProof(sp)
-              } else
-                SCInvalidProof(
-                  SCProof(step),
-                  Nil,
-                  s"Premise number ${invalid.get._1} (refering to step ${invalid.get}) is not the same as import number ${invalid.get._1} of the subproof."
-                )
-            } else SCInvalidProof(SCProof(step), Nil, "Number of premises and imports don't match: " + premises.size + " " + sp.imports.size)
+            }
 
           /*
            *
