@@ -363,20 +363,22 @@ object SCProofChecker {
            */
           case RightOr(b, t1, phi, psi) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (psi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, psi.sort, step)
             else {
+              val prem1 = ref(t1)
               val phiOrPsi = or(phi)(psi)
-              if (isSameSet(ref(t1).left, b.left))
-                if (
-                  isSameSet(b.right + phi, ref(t1).right + phiOrPsi) ||
-                  isSameSet(b.right + psi, ref(t1).right + phiOrPsi) ||
-                  isSameSet(b.right + phi + psi, ref(t1).right + phiOrPsi)
-                )
+
+              if (prem1.left != b.left)
+                error(step, "Left-hand side of premise is not the same as left-hand side of conclusion.")
+              else {
+                val targetSet = prem1.right + phiOrPsi
+                if (!(targetSet == b.right + phi || targetSet == b.right + psi || targetSet == b.right + phi + psi))
+                error(step, "Right-hand side of premise + φ∨ψ is not the same as right-hand side of conclusion + either φ, ψ, or both.")
+                else
                   SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + φ∧ψ must be same as right-hand side of premise + either φ, ψ or both.")
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of the premise and the conclusion must be the same.")
+              }
             }
           /*
            *  Γ, φ |- ψ, Δ
@@ -385,16 +387,19 @@ object SCProofChecker {
            */
           case RightImplies(b, t1, phi, psi) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (psi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, psi.sort, step)
             else {
+              val prem1 = ref(t1)
               val phiImpPsi = implies(phi)(psi)
-              if (isSameSet(ref(t1).left, b.left + phi))
-                if (isSameSet(b.right + psi, ref(t1).right + phiImpPsi))
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + ψ must be same as right-hand side of premise + φ⇒ψ.")
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + psi must be same as left-hand side of premise.")
+
+              if (b.left + phi != prem1.left)
+                error(step, "Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
+              else if (b.right + psi != prem1.right + phiImpPsi)
+                error(step, "Right-hand side of conclusion + ψ is not the same as right-hand side of premise + φ⇒ψ.")
+              else
+                SCValidProof(SCProof(step))
             }
           /*
            *  Γ |- φ⇒ψ, Δ    Σ |- ψ⇒φ, Π
@@ -403,22 +408,26 @@ object SCProofChecker {
            */
           case RightIff(b, t1, t2, phi, psi) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (psi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, psi.sort, step)
             else {
+              val prem1 = ref(t1)
+              val prem2 = ref(t2)
               val phiImpPsi = implies(phi)(psi)
               val psiImpPhi = implies(psi)(phi)
               val phiIffPsi = iff(phi)(psi)
-              if (isSameSet(b.left, ref(t1).left union ref(t2).left))
-                if (
-                  isSubset(ref(t1).right, b.right + phiImpPsi) &&
-                  isSubset(ref(t2).right, b.right + psiImpPhi) &&
-                  isSubset(b.right, ref(t1).right union ref(t2).right + phiIffPsi)
-                )
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, s"Right-hand side of conclusion + a⇒ψ + ψ⇒φ is not the same as the union of the right-hand sides of the premises φ⇔b.")
-              else SCInvalidProof(SCProof(step), Nil, s"Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+
+              if (b.left != (prem1.left union prem2.left))
+                error(step, "Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
+              else if (!prem1.right.subsetOf(b.right + phiImpPsi))
+                error(step, "Right-hand side of first premise is not a subset of conclusion right-hand side + φ⇒ψ.")
+              else if (!prem2.right.subsetOf(b.right + psiImpPhi))
+                error(step, "Right-hand side of second premise is not a subset of conclusion right-hand side + ψ⇒φ.")
+              else if (!b.right.subsetOf((prem1.right union prem2.right) + phiIffPsi))
+                error(step, "Right-hand side of conclusion is not a subset of the union of the right-hand sides of the premises + φ⇔ψ.")
+              else
+                SCValidProof(SCProof(step))
             }
           /*
            *  Γ, φ |- Δ
@@ -427,14 +436,17 @@ object SCProofChecker {
            */
           case RightNot(b, t1, phi) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else {
+              val prem1 = ref(t1)
               val nPhi = neg(phi)
-              if (isSameSet(b.right, ref(t1).right + nPhi))
-                if (isSameSet(b.left + phi, ref(t1).left))
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ must be the same as left-hand side of premise")
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise + ¬φ")
+
+              if (b.right != prem1.right + nPhi)
+                error(step, "Right-hand side of conclusion is not the same as right-hand side of premise + ¬φ.")
+              else if (b.left + phi != prem1.left)
+                error(step, "Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
+              else
+                SCValidProof(SCProof(step))
             }
           /*
            *    Γ |- φ, Δ
@@ -443,16 +455,22 @@ object SCProofChecker {
            */
           case RightForall(b, t1, phi, x) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (x.sort != Ind)
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
-            else if (isSameSet(b.left, ref(t1).left))
-              if (isSameSet(b.right + phi, ref(t1).right + forall(Lambda(x, phi))))
-                if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, "The variable x must not be free in the resulting sequent.")
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + φ must be the same as right-hand side of premise + ∀x. φ")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand sides of conclusion and premise must be the same.")
+              sortMismatch(Ind, x.sort, step)
+            else {
+              val prem1 = ref(t1)
+              val quantified = forall(Lambda(x, phi))
+
+              if (b.left != prem1.left)
+                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise.")
+              else if (b.right + phi != prem1.right + quantified)
+                error(step, "Right-hand side of conclusion + φ is not the same as right-hand side of premise + ∀x. φ.")
+              else if (variableIsFreeInSequent(b, x))
+                error(step, "Variable x is free in the resulting sequent.")
+              else
+                SCValidProof(SCProof(step))
+            }
           /*
            *   Γ |- φ[t/x], Δ
            * -------------------
@@ -460,16 +478,23 @@ object SCProofChecker {
            */
           case RightExists(b, t1, phi, x, t) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (x.sort != Ind)
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+              sortMismatch(Ind, x.sort, step)
             else if (t.sort != Ind)
-              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
-            else if (isSameSet(b.left, ref(t1).left))
-              if (isSameSet(b.right + substituteVariables(phi, Map(x -> t)), ref(t1).right + exists(Lambda(x, phi))))
+              sortMismatch(Ind, t.sort, step)
+            else {
+              val prem1 = ref(t1)
+              val quantified = exists(Lambda(x, phi))
+              val instantiated = substituteVariables(phi, Map(x -> t))
+
+              if (b.left != prem1.left)
+                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise.")
+              else if (b.right + instantiated != prem1.right + quantified)
+                error(step, "Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
+              else
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of the conclusion + φ[t/x] must be the same as right-hand side of the premise + ∃x. φ")
-            else SCInvalidProof(SCProof(step), Nil, "Left-hand sides or conclusion and premise must be the same.")
+            }
 
           /**
            * <pre>
@@ -480,18 +505,24 @@ object SCProofChecker {
            */
           case RightEpsilon(b, t1, phi, x, t) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (x.sort != Ind)
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+              sortMismatch(Ind, x.sort, step)
             else if (t.sort != Ind)
-              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
-            else if (isSameSet(b.left, ref(t1).left)) {
-              val expected_top = substituteVariables(phi, Map(x -> t))
-              val expected_bot = substituteVariables(phi, Map(x -> epsilon(Lambda(x, phi))))
-              if (isSameSet(b.right + expected_top, ref(t1).right + expected_bot))
+              sortMismatch(Ind, t.sort, step)
+            else {
+              val prem1 = ref(t1)
+              val epsilonTerm = epsilon(Lambda(x, phi))
+              val expectedTop = substituteVariables(phi, Map(x -> t))
+              val expectedBot = substituteVariables(phi, Map(x -> epsilonTerm))
+
+              if (b.left != prem1.left)
+                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise.")
+              else if (b.right + expectedTop != prem1.right + expectedBot)
+                error(step, "Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + φ[(εx. φ)/x].")
+              else
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand side of the conclusion + φ[t/x] must be the same as right-hand side of the premise + ∃x. φ")
-            } else SCInvalidProof(SCProof(step), Nil, "Left-hand sides or conclusion and premise must be the same.")
+            }
 
           // Structural rules
           /*
