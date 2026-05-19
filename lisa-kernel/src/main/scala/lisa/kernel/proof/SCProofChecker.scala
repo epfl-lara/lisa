@@ -7,9 +7,9 @@ import lisa.kernel.proof.SequentCalculus._
 object SCProofChecker {
 
   private def sortMismatch(
-    expected: Sort,
-    actual: Sort,
-    step: SCProofStep
+      expected: Sort,
+      actual: Sort,
+      step: SCProofStep
   ): SCInvalidProof = {
     val expectedString = expected match {
       case Prop => "a formula (of sort Prop)"
@@ -31,7 +31,7 @@ object SCProofChecker {
    * For a given list of equalities s1=t1, ..., sn=tn, produce "lifted"
    * equalities of the form ∀x1...xn. s1[x1,...,xn] = t1[x1,...,xn] based on the
    * expected sorts of the terms.
-   * 
+   *
    * See [[checkSingleSCStep]] at LeftSubstEq and RightSubstEq.
    */
   private def liftedEqualities(equalities: Seq[(Expression, Expression)]): Seq[Expression] = {
@@ -41,13 +41,13 @@ object SCProofChecker {
 
       val sApplied = vars.foldLeft(s)(_ apply _)
       val tApplied = vars.foldLeft(t)(_ apply _)
-      
-      val base = 
-        if (sApplied.sort == Prop) 
-          iff(sApplied)(tApplied) 
-        else 
+
+      val base =
+        if (sApplied.sort == Prop)
+          iff(sApplied)(tApplied)
+        else
           equality(sApplied)(tApplied)
-          
+
       vars.foldRight(base) { case (arg, acc) => forall(Lambda(arg, acc)) }
     }
 
@@ -121,7 +121,7 @@ object SCProofChecker {
               val prem1 = ref(t1)
               val prem2 = ref(t2)
 
-              if (!prem1.right.contains(phi)) 
+              if (!prem1.right.contains(phi))
                 error(step, s"First premise does not contain the cut pivot on the right-hand side.")
               else if (!prem2.left.contains(phi))
                 error(step, s"Second premise does not contain the cut pivot on the left-hand side.")
@@ -152,13 +152,11 @@ object SCProofChecker {
               val phiAndPsi = and(phi)(psi)
               if (prem1.right != b.right) {
                 error(step, "Right-hand sides of the premise and the conclusion are not the same.")
-              }
-              else {
+              } else {
                 val targetSet = prem1.left + phiAndPsi
                 if (!(targetSet == b.left + phi || targetSet == b.left + psi || targetSet == b.left + phiAndPsi)) {
                   error(step, "Left-hand side of conclusion + the conjunction φ ∧ ψ must be same as left-hand side of premise + either φ, ψ, or both.")
-                }
-                else {
+                } else {
                   SCValidProof(SCProof(step))
                 }
               }
@@ -173,8 +171,7 @@ object SCProofChecker {
             if (disjuncts.exists(phi => phi.sort != Prop)) {
               val culprit = disjuncts.find(phi => phi.sort != Prop).get
               sortMismatch(Prop, culprit.sort, step)
-            }
-            else if  (ts.size != disjuncts.size) {
+            } else if (ts.size != disjuncts.size) {
               error(step, s"Number of premises (${ts.size}) is not the same as number of disjuncts (${disjuncts.size}).")
             }
             // logical checks
@@ -185,32 +182,32 @@ object SCProofChecker {
               val newDisjunct = disjuncts.reduce(or(_)(_))
 
               // a disjunct which is NOT in the claimed premise
-              lazy val violatingDisjunct = prems.zipWithIndex.find({ case (prem, i) =>
-                val disjunct = disjuncts(i)
-                !prem.left.contains(disjunct)
-              }).map(_._2)
+              lazy val violatingDisjunct = prems.zipWithIndex
+                .find({ case (prem, i) =>
+                  val disjunct = disjuncts(i)
+                  !prem.left.contains(disjunct)
+                })
+                .map(_._2)
 
               // a premise which is NOT contained in the conclusion
-              lazy val violatingSet = prems.zipWithIndex.find({ case (prem, i) =>
-                val disjunct = disjuncts(i)
-                !prem.left.subsetOf(b.left + disjunct)
-              }).map(_._2)
+              lazy val violatingSet = prems.zipWithIndex
+                .find({ case (prem, i) =>
+                  val disjunct = disjuncts(i)
+                  !prem.left.subsetOf(b.left + disjunct)
+                })
+                .map(_._2)
 
               if (premsRights != b.right) {
                 error(step, "Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
-              }
-              else if (violatingDisjunct.nonEmpty) {
+              } else if (violatingDisjunct.nonEmpty) {
                 val idx = violatingDisjunct.get
                 error(step, s"Premise #$idx does not contain the corresponding disjunct on the left-hand side.")
-              }
-              else if (violatingSet.nonEmpty) {
+              } else if (violatingSet.nonEmpty) {
                 val idx = violatingSet.get
                 error(step, s"Premise #$idx left-hand side is not a subset of the conclusion left-hand side + the corresponding disjunct.")
-              }
-              else if (b.left.subsetOf(premsLefts + newDisjunct)) {
+              } else if (b.left.subsetOf(premsLefts + newDisjunct)) {
                 error(step, "Left-hand side of conclusion + disjuncts is not a subset of the union of the left-hand sides of the premises.")
-              }
-              else {
+              } else {
                 SCValidProof(SCProof(step))
               }
             }
@@ -233,11 +230,9 @@ object SCProofChecker {
 
               if ((prem1.right union prem2.right) != (b.right + phi)) {
                 error(step, "Right-hand side of conclusion + φ is not the same as the union of the right-hand sides of the premises.")
-              }
-              else if ((prem1.left union prem2.left) + phiImpPsi != (b.left + psi)) {
+              } else if ((prem1.left union prem2.left) + phiImpPsi != (b.left + psi)) {
                 error(step, "Left-hand side of conclusion + ψ is not the same as union of left-hand sides of premises + φ⇒ψ.")
-              }
-              else {
+              } else {
                 SCValidProof(SCProof(step))
               }
             }
@@ -357,10 +352,12 @@ object SCProofChecker {
               val conjunction = conjuncts.reduce(and(_)(_))
 
               // a conjunct which is NOT in the claimed premise
-              lazy val violatingConjunct = prems.zipWithIndex.find { case (prem, i) =>
-                val conjunct = conjuncts(i)
-                !prem.right.contains(conjunct)
-              }.map(_._2)
+              lazy val violatingConjunct = prems.zipWithIndex
+                .find { case (prem, i) =>
+                  val conjunct = conjuncts(i)
+                  !prem.right.contains(conjunct)
+                }
+                .map(_._2)
 
               // a premise which is NOT contained in the conclusion
               val violatingPremise = prems.zipWithIndex.find { case (prem, idx) =>
@@ -372,12 +369,10 @@ object SCProofChecker {
               else if (violatingConjunct.nonEmpty) {
                 val idx = violatingConjunct.get
                 error(step, s"Premise #$idx does not contain the corresponding conjunct on the right-hand side.")
-              }
-              else if (violatingPremise.nonEmpty) {
+              } else if (violatingPremise.nonEmpty) {
                 val idx = violatingPremise.get._2
                 error(step, s"Premise #$idx right-hand side is not a subset of conclusion right-hand side + the corresponding conjunct.")
-              }
-              else if (!b.right.subsetOf(premiseRightUnion + conjunction))
+              } else if (!b.right.subsetOf(premiseRightUnion + conjunction))
                 error(step, "Right-hand side of conclusion is not a subset of the union of the right-hand sides of the premises + the conjunction.")
               else
                 SCValidProof(SCProof(step))
@@ -401,7 +396,7 @@ object SCProofChecker {
               else {
                 val targetSet = prem1.right + phiOrPsi
                 if (!(targetSet == b.right + phi || targetSet == b.right + psi || targetSet == b.right + phi + psi))
-                error(step, "Right-hand side of premise + φ∨ψ is not the same as right-hand side of conclusion + either φ, ψ, or both.")
+                  error(step, "Right-hand side of premise + φ∨ψ is not the same as right-hand side of conclusion + either φ, ψ, or both.")
                 else
                   SCValidProof(SCProof(step))
               }
@@ -606,12 +601,12 @@ object SCProofChecker {
           case LeftSubstEq(b, t1, equals, lambdaPhi) =>
             val (sList, tList) = equals.unzip
             val (phiArgs, phiBody) = lambdaPhi
-            val violatingEquality = equals.zip(phiArgs).find { case ((s, t), arg) => 
-                // sorts mismatch
-                s.sort != arg.sort ||
-                t.sort != arg.sort ||
-                // sorts disallowed for substitution
-                (!arg.sort.isFunctional && !arg.sort.isPredicate)
+            val violatingEquality = equals.zip(phiArgs).find { case ((s, t), arg) =>
+              // sorts mismatch
+              s.sort != arg.sort ||
+              t.sort != arg.sort ||
+              // sorts disallowed for substitution
+              (!arg.sort.isFunctional && !arg.sort.isPredicate)
             }
             // sort checks
             if (phiArgs.size != sList.size)
@@ -619,11 +614,9 @@ object SCProofChecker {
             else if (violatingEquality.nonEmpty) {
               // triage to find and report the problem
               val ((s, t), arg) = violatingEquality.get
-              if (s.sort != arg.sort)
-                error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
-              else if (t.sort != arg.sort)
-                error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
-              else 
+              if (s.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
+              else if (t.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
+              else
                 assert(!arg.sort.isFunctional && !arg.sort.isPredicate)
                 error(step, s"An argument of φ has sort (${arg.sort}) which is not a functional or predicate sort, and thus cannot be substituted for.")
             }
@@ -642,7 +635,7 @@ object SCProofChecker {
               else if (
                 !(
                   isSameSet(b.left + `φ(t_)`, prem1.left ++ equalities + `φ(s_)`) ||
-                  isSameSet(b.left + `φ(s_)`, prem1.left ++ equalities + `φ(t_)`)
+                    isSameSet(b.left + `φ(s_)`, prem1.left ++ equalities + `φ(t_)`)
                 )
               )
                 error(step, "Left-hand side of conclusion + one instance of φ is not the same as left-hand side of premise + equalities + the other instance of φ.")
@@ -671,10 +664,8 @@ object SCProofChecker {
             else if (violatingEquality.nonEmpty) {
               // triage to find and report the problem
               val ((s, t), arg) = violatingEquality.get
-              if (s.sort != arg.sort)
-                error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
-              else if (t.sort != arg.sort)
-                error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
+              if (s.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
+              else if (t.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
               else
                 assert(!arg.sort.isFunctional && !arg.sort.isPredicate)
                 error(step, s"An argument of φ has sort (${arg.sort}) which is not a functional or predicate sort, and thus cannot be substituted for.")
@@ -694,7 +685,7 @@ object SCProofChecker {
               else if (
                 !(
                   isSameSet(b.right + `φ(t_)`, prem1.right + `φ(s_)`) ||
-                  isSameSet(b.right + `φ(s_)`, prem1.right + `φ(t_)`)
+                    isSameSet(b.right + `φ(s_)`, prem1.right + `φ(t_)`)
                 )
               )
                 error(step, "Right-hand side of conclusion + one instance of φ is not the same as right-hand side of premise + the other instance of φ.")
@@ -712,7 +703,7 @@ object SCProofChecker {
             val expectedLeft = prem.left.map(substituteVariables(_, subst))
             val expectedRight = prem.right.map(substituteVariables(_, subst))
 
-            // needs to retain OL (at least α-eq) 
+            // needs to retain OL (at least α-eq)
             // as substitution may rename binders deep in the term
 
             if (!isSameSet(bot.left, expectedLeft))
@@ -726,15 +717,14 @@ object SCProofChecker {
             if (premises.size != sp.imports.size)
               error(step, s"Number of premises (${premises.size}) is not the same as number of imports (${sp.imports.size}).")
             else {
-              val invalid = premises.zipWithIndex.find { case (premiseNo, importIndex) => 
-                !isSameSequent(ref(premiseNo), sp.imports(importIndex)) 
+              val invalid = premises.zipWithIndex.find { case (premiseNo, importIndex) =>
+                !isSameSequent(ref(premiseNo), sp.imports(importIndex))
               }
 
               if (invalid.nonEmpty) {
                 val (premiseNo, importIndex) = invalid.get
                 error(step, s"Premise step #$premiseNo is not the same as import #$importIndex of the subproof.")
-              }
-              else
+              } else
                 checkSCProof(sp)
             }
 

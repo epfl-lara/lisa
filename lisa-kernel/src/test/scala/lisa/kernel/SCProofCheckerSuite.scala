@@ -9,20 +9,19 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class SCProofCheckerSuite extends AnyFunSuite {
 
-  def singleStepTest
-  (failing: Boolean)
-  (
-    name: String,
-    premises: Seq[Sequent],
-    step: SCProofStep,
-  )
-  (implicit pos: Position) // take the position from the call site
-  : Unit = {
+  def singleStepTest(failing: Boolean)(
+      name: String,
+      premises: Seq[Sequent],
+      step: SCProofStep
+  )(implicit
+      pos: Position
+  ) // take the position from the call site
+      : Unit = {
     // the premises are the entire proof context
     val references = premises.apply(_)
-    
+
     test(name) {
-      val judgement = 
+      val judgement =
         checkSingleSCStep(
           premises.length,
           step,
@@ -30,10 +29,10 @@ class SCProofCheckerSuite extends AnyFunSuite {
           0 // no imports
         )
       judgement match {
-        case SCValidProof(_, _) => 
+        case SCValidProof(_, _) =>
           if (failing) fail(s"Expected the proof step to be invalid, but it was valid.")
           else ()
-        case SCInvalidProof(_, _, message) => 
+        case SCInvalidProof(_, _, message) =>
           if (!failing) fail(s"Expected the proof step to be valid, but it was invalid, with message: $message")
           else ()
       }
@@ -41,17 +40,17 @@ class SCProofCheckerSuite extends AnyFunSuite {
   }
 
   def posTest(
-    name: String,
-    premises: Seq[Sequent],
-    step: SCProofStep,
-  )(implicit pos: Position): Unit = 
+      name: String,
+      premises: Seq[Sequent],
+      step: SCProofStep
+  )(implicit pos: Position): Unit =
     singleStepTest(failing = false)(name, premises, step)(using pos)
 
   def negTest(
-    name: String,
-    premises: Seq[Sequent],
-    step: SCProofStep,
-  )(implicit pos: Position): Unit = 
+      name: String,
+      premises: Seq[Sequent],
+      step: SCProofStep
+  )(implicit pos: Position): Unit =
     singleStepTest(failing = true)(name, premises, step)(using pos)
 
   // ## all steps to check
@@ -150,20 +149,20 @@ class SCProofCheckerSuite extends AnyFunSuite {
 
     for (((prem, bot), i) <- positivePairs.zipWithIndex) {
       posTest(
-        name = s"Restate: positive pair #${i+1}",
+        name = s"Restate: positive pair #${i + 1}",
         premises = Seq(prem),
         step = Restate(bot, 0)
       )
     }
     for (((prem, bot), i) <- negativePairs.zipWithIndex) {
       negTest(
-        name = s"Restate: negative pair #${i+1}",
+        name = s"Restate: negative pair #${i + 1}",
         premises = Seq(prem),
         step = Restate(bot, 0)
       )
     }
   }
-  
+
   // ## case RestateTrue(s) =>
 
   val restateTrueTests = {
@@ -189,20 +188,20 @@ class SCProofCheckerSuite extends AnyFunSuite {
 
     for ((bot, i) <- positiveSequents.zipWithIndex) {
       posTest(
-        name = s"RestateTrue: positive case #${i+1}",
+        name = s"RestateTrue: positive case #${i + 1}",
         premises = Seq.empty,
         step = RestateTrue(bot)
       )
     }
     for ((bot, i) <- negativeSequents.zipWithIndex) {
       negTest(
-        name = s"RestateTrue: negative case #${i+1}",
+        name = s"RestateTrue: negative case #${i + 1}",
         premises = Seq.empty,
         step = RestateTrue(bot)
       )
     }
   }
-  
+
   // ## case Hypothesis(Sequent(left, right), phi) =>
 
   val hypothesisTests = {
@@ -230,14 +229,14 @@ class SCProofCheckerSuite extends AnyFunSuite {
 
     for (((bot, phi), i) <- positiveCases.zipWithIndex) {
       posTest(
-        name = s"Hypothesis: positive case #${i+1}",
+        name = s"Hypothesis: positive case #${i + 1}",
         premises = Seq.empty,
         step = Hypothesis(bot, phi)
       )
     }
     for (((bot, phi), i) <- negativeCases.zipWithIndex) {
       negTest(
-        name = s"Hypothesis: negative case #${i+1}",
+        name = s"Hypothesis: negative case #${i + 1}",
         premises = Seq.empty,
         step = Hypothesis(bot, phi)
       )
@@ -318,63 +317,62 @@ class SCProofCheckerSuite extends AnyFunSuite {
 
     for (((premises, step), i) <- positiveCases.zipWithIndex) {
       posTest(
-        name = s"Cut: positive case #${i+1}",
+        name = s"Cut: positive case #${i + 1}",
         premises = premises,
         step = step
       )
     }
     for (((premises, step), i) <- negativeCases.zipWithIndex) {
       negTest(
-        name = s"Cut: negative case #${i+1}",
+        name = s"Cut: negative case #${i + 1}",
         premises = premises,
         step = step
       )
     }
   }
-  
-  // ## case LeftAnd(b, t1, phi, psi) =>
-  
-  // ## case LeftOr(b, t, disjuncts) =>
-  
-  // ## case LeftImplies(b, t1, t2, phi, psi) =>
-  
-  // ## case LeftIff(b, t1, phi, psi) =>
-  
-  // ## case LeftNot(b, t1, phi) =>
-  
-  // ## case LeftForall(b, t1, phi, x, t) =>
-  
-  // ## case LeftExists(b, t1, phi, x) =>
-  
-  // ## case RightAnd(b, t, cunjuncts) =>
-  
-  // ## case RightOr(b, t1, phi, psi) =>
-  
-  // ## case RightImplies(b, t1, phi, psi) =>
-  
-  // ## case RightIff(b, t1, t2, phi, psi) =>
-  
-  // ## case RightNot(b, t1, phi) =>
-  
-  // ## case RightForall(b, t1, phi, x) =>
-  
-  // ## case RightExists(b, t1, phi, x, t) =>
-  
-  // ## case RightEpsilon(b, t1, phi, x, t) =>
-  
-  // ## case Weakening(b, t1) =>
-  
-  // ## case LeftRefl(b, t1, phi) =>
-  
-  // ## case RightRefl(b, phi) =>
-  
-  // ## case LeftSubstEq(b, t1, equals, lambdaPhi) =>
-  
-  // ## case RightSubstEq(b, t1, equals, lambdaPhi) =>
-  
-  // ## case InstSchema(bot, t1, subst) =>
-  
-  // ## case Sorry(b) =>
 
+  // ## case LeftAnd(b, t1, phi, psi) =>
+
+  // ## case LeftOr(b, t, disjuncts) =>
+
+  // ## case LeftImplies(b, t1, t2, phi, psi) =>
+
+  // ## case LeftIff(b, t1, phi, psi) =>
+
+  // ## case LeftNot(b, t1, phi) =>
+
+  // ## case LeftForall(b, t1, phi, x, t) =>
+
+  // ## case LeftExists(b, t1, phi, x) =>
+
+  // ## case RightAnd(b, t, cunjuncts) =>
+
+  // ## case RightOr(b, t1, phi, psi) =>
+
+  // ## case RightImplies(b, t1, phi, psi) =>
+
+  // ## case RightIff(b, t1, t2, phi, psi) =>
+
+  // ## case RightNot(b, t1, phi) =>
+
+  // ## case RightForall(b, t1, phi, x) =>
+
+  // ## case RightExists(b, t1, phi, x, t) =>
+
+  // ## case RightEpsilon(b, t1, phi, x, t) =>
+
+  // ## case Weakening(b, t1) =>
+
+  // ## case LeftRefl(b, t1, phi) =>
+
+  // ## case RightRefl(b, phi) =>
+
+  // ## case LeftSubstEq(b, t1, equals, lambdaPhi) =>
+
+  // ## case RightSubstEq(b, t1, equals, lambdaPhi) =>
+
+  // ## case InstSchema(bot, t1, subst) =>
+
+  // ## case Sorry(b) =>
 
 }
