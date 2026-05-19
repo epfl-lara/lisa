@@ -544,30 +544,34 @@ object SCProofChecker {
           case LeftRefl(b, t1, phi) =>
             phi match {
               case equality(left, right) =>
-                if (isSame(left, right))
-                  if (isSameSet(b.right, ref(t1).right))
-                    if (isSameSet(b.left + phi, ref(t1).left))
-                      SCValidProof(SCProof(step))
-                    else SCInvalidProof(SCProof(step), Nil, s"Left-hand sides of the conclusion + φ must be the same as left-hand side of the premise.")
-                  else SCInvalidProof(SCProof(step), Nil, s"Right-hand sides of the premise and the conclusion aren't the same.")
-                else SCInvalidProof(SCProof(step), Nil, s"φ is not an instance of reflexivity.")
-              case _ => SCInvalidProof(SCProof(step), Nil, "φ is not an equality")
+                val prem1 = ref(t1)
+
+                if (left != right)
+                  error(step, "Given equality is not reflexive.")
+                else if (b.right != prem1.right)
+                  error(step, "Right-hand side of premise is not the same as right-hand side of conclusion.")
+                else if (b.left + phi != prem1.left)
+                  error(step, "Left-hand side of conclusion + given equality is not the same as left-hand side of premise.")
+                else
+                  SCValidProof(SCProof(step))
+              case _ => error(step, "Given formula is not an equality.")
             }
 
           /*
            *
-           * --------------
-           *     |- s=s
+           * ---------------
+           *   Γ |- s=s, Δ
            */
           case RightRefl(b, phi) =>
             phi match {
               case equality(left, right) =>
-                if (isSame(left, right))
-                  if (contains(b.right, phi))
-                    SCValidProof(SCProof(step))
-                  else SCInvalidProof(SCProof(step), Nil, s"Right-Hand side of conclusion does not contain φ")
-                else SCInvalidProof(SCProof(step), Nil, s"φ is not an instance of reflexivity.")
-              case _ => SCInvalidProof(SCProof(step), Nil, s"φ is not an equality.")
+                if (left != right)
+                  error(step, "Given equality is not reflexive.")
+                else if (!b.right.contains(phi))
+                  error(step, "Right-hand side of conclusion does not contain the reflexive equality.")
+                else
+                  SCValidProof(SCProof(step))
+              case _ => error(step, "Given formula is not an equality.")
             }
 
           /**
