@@ -23,6 +23,15 @@ object SCProofChecker {
     SCInvalidProof(SCProof(step), Nil, message)
   }
 
+  private def matchesOneOf[A](actual: A)(candidates: A*): Boolean = {
+    candidates.contains(actual)
+  }
+
+  private def variableIsFreeInSequent(sequent: Sequent, variable: Variable): Boolean = {
+    (sequent.left union sequent.right).exists(_.freeVariables.contains(variable))
+  }
+
+
   /**
    * This function verifies that a single SCProofStep is correctly applied. It verifies that the step only refers to sequents with a lower number,
    * and that the type, premises and parameters of the proof step correspond to the claimed conclusion.
@@ -123,8 +132,7 @@ object SCProofChecker {
                 error(step, "Right-hand sides of the premise and the conclusion are not the same.")
               }
               else {
-                val targetSet = (b.left + phiAndPsi).diff(prem1.left)
-                if (targetSet != Set(phi) && targetSet != Set(psi) && targetSet != Set(phi, psi)) {
+                if (!matchesOneOf(prem1.left + phiAndPsi)(b.left + phi, b.left + psi, b.left + phiAndPsi)) {
                   error(step, "Left-hand side of conclusion + the conjunction φ ∧ ψ must be same as left-hand side of premise + either φ, ψ, or both.")
                 }
                 else {
@@ -215,22 +223,27 @@ object SCProofChecker {
            */
           case LeftIff(b, t1, phi, psi) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (psi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "ψ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, psi.sort, step)
             else {
+              val prem1 = ref(t1)
               val phiImpPsi = implies(phi)(psi)
               val psiImpPhi = implies(psi)(phi)
               val phiIffPsi = iff(phi)(psi)
-              if (isSameSet(ref(t1).right, b.right))
-                if (
-                  isSameSet(b.left + phiImpPsi, ref(t1).left + phiIffPsi) ||
-                  isSameSet(b.left + psiImpPhi, ref(t1).left + phiIffPsi) ||
-                  isSameSet(b.left + phiImpPsi + psiImpPhi, ref(t1).left + phiIffPsi)
+
+              if (prem1.right != b.right)
+                error(step, "Right-hand side of premise is not the same as right-hand side of conclusion.")
+              else if (
+                !matchesOneOf(prem1.left + phiIffPsi)(
+                  b.left + phiImpPsi,
+                  b.left + psiImpPhi,
+                  b.left + phiImpPsi + psiImpPhi
                 )
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ⇔ψ must be same as left-hand side of premise + either φ⇒ψ, ψ⇒φ or both.")
-              else SCInvalidProof(SCProof(step), Nil, "Right-hand sides of premise and conclusion must be the same.")
+              )
+                error(step, "Left-hand side of premise + φ⇔ψ is not the same as left-hand side of conclusion + either φ⇒ψ, ψ⇒φ, or both.")
+              else
+                SCValidProof(SCProof(step))
             }
 
           /*
@@ -240,14 +253,17 @@ object SCProofChecker {
            */
           case LeftNot(b, t1, phi) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else {
+              val prem1 = ref(t1)
               val nPhi = neg(phi)
-              if (isSameSet(b.left, ref(t1).left + nPhi))
-                if (isSameSet(b.right + phi, ref(t1).right))
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion + φ must be the same as right-hand side of premise")
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion must be the same as left-hand side of premise + ¬φ")
+
+              if (b.left != prem1.left + nPhi)
+                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise + ¬φ.")
+              else if (b.right + phi != prem1.right)
+                error(step, "Right-hand side of conclusion + φ is not the same as right-hand side of premise.")
+              else
+                SCValidProof(SCProof(step))
             }
 
           /*
@@ -257,34 +273,47 @@ object SCProofChecker {
            */
           case LeftForall(b, t1, phi, x, t) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (x.sort != Ind)
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
+              sortMismatch(Ind, x.sort, step)
             else if (t.sort != Ind)
-              SCInvalidProof(SCProof(step), Nil, "t must be a term , but it is a " + t.sort)
-            else if (isSameSet(b.right, ref(t1).right))
-              if (isSameSet(b.left + substituteVariables(phi, Map(x -> t)), ref(t1).left + forall(Lambda(x, phi))))
+              sortMismatch(Ind, t.sort, step)
+            else {
+              val prem1 = ref(t1)
+              val quantified = forall(Lambda(x, phi))
+              val instantiated = substituteVariables(phi, Map(x -> t))
+
+              if (b.right != prem1.right)
+                error(step, "Right-hand side of conclusion is not the same as right-hand side of premise.")
+              else if (b.left + instantiated != prem1.left + quantified)
+                error(step, "Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ.")
+              else
                 SCValidProof(SCProof(step))
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ[t/x] must be the same as left-hand side of premise + ∀x. φ")
-            else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
+            }
 
           /*
            *    Γ, φ |- Δ
            * ------------------- if x is not free in the resulting sequent
-           *  Γ, ∃x. φ|- Δ
+           *  Γ, ∃x. φ |- Δ
            */
           case LeftExists(b, t1, phi, x) =>
             if (phi.sort != Prop)
-              SCInvalidProof(SCProof(step), Nil, "φ must be a formula, but it is a " + phi.sort)
+              sortMismatch(Prop, phi.sort, step)
             else if (x.sort != Ind)
-              SCInvalidProof(SCProof(step), Nil, "x must be a term variable, but it is a " + x.sort)
-            else if (isSameSet(b.right, ref(t1).right))
-              if (isSameSet(b.left + phi, ref(t1).left + exists(Lambda(x, phi))))
-                if ((b.left union b.right).forall(f => !f.freeVariables.contains(x)))
-                  SCValidProof(SCProof(step))
-                else SCInvalidProof(SCProof(step), Nil, "The variable x must not be free in the resulting sequent.")
-              else SCInvalidProof(SCProof(step), Nil, "Left-hand side of conclusion + φ must be the same as left-hand side of premise + ∃x. φ")
-            else SCInvalidProof(SCProof(step), Nil, "Right-hand side of conclusion must be the same as right-hand side of premise")
+              sortMismatch(Ind, x.sort, step)
+            else {
+              val prem1 = ref(t1)
+              val quantified = exists(Lambda(x, phi))
+
+              if (b.right != prem1.right)
+                error(step, "Right-hand side of conclusion is not the same as right-hand side of premise.")
+              else if (b.left + phi != prem1.left + quantified)
+                error(step, "Left-hand side of conclusion + φ is not the same as left-hand side of premise + ∃x. φ.")
+              else if (variableIsFreeInSequent(b, x))
+                error(step, "Variable x is free in the resulting sequent.")
+              else
+                SCValidProof(SCProof(step))
+            }
 
           // Right rules
           /*
