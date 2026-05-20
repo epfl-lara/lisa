@@ -4,10 +4,11 @@ import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Base.CartesianProduct.×
+import lisa.maths.SetTheory.Base.Comprehension.|
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.utils.KernelHelpers.lambda
 import lisa.utils.KernelHelpers.lambda
 
 private[encoding] trait SyntacticADTBase[N <: Arity] {
@@ -42,35 +43,16 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
    *  constructors.
    */
   private[encoding] def isConstructor(x: Expr[Ind], s: Expr[Ind]): Expr[Prop] = 
-    seqOr(constructors.map(c => isConstructor(c, x, s)))
+    seqOr(constructors.map(c => 
+      isConstructor(c, x, s)
+      // existsSeq(c.variables2, 
+      //   wellTypedFormula(c.signature2)(s) /\ (x === c.term2)
+      // )
+    ))
 
-  /** Predicate encoding the introduction function. */
-  private[encoding] def inIntroImage(s: Expr[Ind])(
-      y: Expr[Ind]
-  ): Expr[Prop] = isConstructor(y, s) \/ in(y, s)
+  val isConstructor: Expr[Ind >>: Ind >>: Prop] = λ(x, λ(s, isConstructor(x, s)))
 
-  /** Predicate encoding the extended introduction function. */
-  private[encoding] def inExtIntroImage(f: Expr[Ind])(
-      x: Expr[Ind]
-  ): Expr[Prop] = (f =/= ∅) /\ inIntroImage(unionRange(f))(x)
-
-
-  /** Logical predicate symbol for height-function characterization. */
-  private[encoding] lazy val isHeight = 
-    DEF(using name=s"${name}IsHeightFunction")(λ(h, 
-    forallSeq(
-      typeVariablesSeq,
-      function(h) /\
-      (dom(h) === N) /\ 
-      forall(
-        n,
-        in(n, N) ==> forall(
-          x,
-          in(x, app(h, n)) <=>
-            inExtIntroImage(restrictedFunction(h, n))(x)
-        )
-      )
-    )
-  ))
+  def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] = 
+    isConstructor(y, s) \/ in(y, s)
 
 }
