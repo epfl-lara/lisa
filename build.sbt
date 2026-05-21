@@ -72,6 +72,9 @@ lazy val sets = Project(
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
+  .settings(
+    libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1"
+  )
   .dependsOn(kernel, withTests(utils))
 lazy val utils = Project(
   id = "lisa-utils",
