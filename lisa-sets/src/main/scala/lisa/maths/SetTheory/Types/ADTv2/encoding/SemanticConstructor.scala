@@ -140,6 +140,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
 
   private val internals = new ConstructorInternals[N](
     adt = adt,
+    underlying = underlying,
     semanticSignature = semanticSignature,
     variables = variables,
     structuralTerm = structuralTerm,

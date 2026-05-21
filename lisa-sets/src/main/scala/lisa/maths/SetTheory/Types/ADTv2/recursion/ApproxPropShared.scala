@@ -2,19 +2,28 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions.TAbsConstOn
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
 import lisa.maths.SetTheory.Base.{FoundationAxiom, Subset}
-import lisa.maths.SetTheory.Functions.Function.abs
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 
 object ApproxPropShared {
   private val nVar = variable[Ind]
   private val kVar = variable[Ind]
+
+  def TAbsConstOn(
+      domain: Expr[Ind],
+      codomain: Expr[Ind],
+      body: Expr[Ind >>: Ind]
+  ): THM = lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions.TAbsConstOn(
+    domain,
+    codomain,
+    body
+  )
 
   def constructorBranchAtHeight[N <: Arity](
       c: SemanticConstructor[N],
@@ -114,26 +123,5 @@ object ApproxPropShared {
     }
 
     have(thesis) by Tautology.from(cmp, caseEq, caseIn, caseGt)
-  }
-
-  def TAbsConstOn(
-      domain: Expr[Ind],
-      codomain: Expr[Ind],
-      body: Expr[Ind >>: Ind]
-  ): THM = Lemma(
-    ∀(x ∈ domain, body(x) ∈ codomain) |- abs(domain)(body) ∈ Pi(domain)(λ(y, codomain))
-  ) {
-    val e = variable[Ind >>: Ind]
-    val T1 = variable[Ind]
-    val T2 = variable[Ind >>: Ind]
-
-    assume(∀(x ∈ domain, body(x) ∈ codomain))
-    val premiseAtX = have(x ∈ domain ==> body(x) ∈ codomain) by InstantiateForall
-    have(x ∈ domain ==> body(x) ∈ λ(y, codomain)(x)) by
-      Tautology.from(premiseAtX)
-    thenHave(∀(x ∈ domain, body(x) ∈ λ(y, codomain)(x))) by RightForall
-    have(abs(domain)(body) ∈ Pi(domain)(λ(y, codomain))) by
-      Tautology.from(lastStep, TAbs of (T1 := domain, T2 := λ(y, codomain), e := body))
-    thenHave(thesis) by Restate
   }
 }
