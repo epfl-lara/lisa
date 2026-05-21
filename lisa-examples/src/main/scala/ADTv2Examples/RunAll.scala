@@ -1,7 +1,7 @@
 package ADTv2Examples
 
-import ADTv2Examples.builder.{MonomorphicADTs, PolymorphicADTs, Specialization}
-import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions}
+import ADTv2Examples.builder.{DebugADTs, MonomorphicADTs, PolymorphicADTs, Specialization}
+import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions, SimpleFunctions}
 import ADTv2Examples.proofs.{InductionOnBool, InductionOnNat, TypecheckIntegration}
 import ADTv2Examples.endtoend.NatAndListLibrary
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
@@ -13,7 +13,9 @@ object RunAll {
     "ADTv2Examples.builder.MonomorphicADTs" -> MonomorphicADTs.main,
     "ADTv2Examples.builder.PolymorphicADTs" -> PolymorphicADTs.main,
     "ADTv2Examples.builder.Specialization" -> Specialization.main,
-    "ADTv2Examples.functions.SimpleFunctions" -> "positive fun(...) examples are currently unstable in the ADTv2 runtime.",
+    "ADTv2Examples.builder.DebugADTs" -> "debugs ADTs crash for now",
+      //DebugADTs.main,
+    "ADTv2Examples.functions.SimpleFunctions" -> SimpleFunctions.main,
     "ADTv2Examples.functions.RecursiveFunctions" -> RecursiveFunctions.main,
     "ADTv2Examples.functions.HigherOrderRecursion" -> HigherOrderRecursion.main,
     "ADTv2Examples.proofs.InductionOnBool" -> InductionOnBool.main,
@@ -23,6 +25,9 @@ object RunAll {
   )
 
   def main(args: Array[String]): Unit = {
+
+    Time.reset()
+    
     entries.foreach { (name, action) =>
       println(s"===== $name =====")
       action match
@@ -30,10 +35,14 @@ object RunAll {
           val startedAt = Time.get()
           run(Array.empty)
           val finishedAt = Time.get()
-          println(s"Execution time: ${finishedAt - startedAt}")
+          println(s"Execution of $name: ${finishedAt - startedAt}")
+          Time.register(s"Execution of $name", finishedAt - startedAt)
         case reason: String =>
           println("Skipped: " + reason)
       println()
     }
+    
+    Time.printSummary()
+
   }
 }

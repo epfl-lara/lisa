@@ -1,6 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.functions
-
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
+package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity

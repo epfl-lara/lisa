@@ -1,9 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UnionRangeMembership.unionRangeMembership
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeMembership.unionRangeMembership
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.*
@@ -11,7 +12,7 @@ import lisa.maths.SetTheory.Base.Pair.given_Conversion_Expr_Expr_Expr
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Ordinals.Integer.ω
-import lisa.maths.Quantifiers.{existsEpsilon, existsOneEpsilonUniqueness}
+import lisa.maths.Quantifiers.existsEpsilon
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import scala.annotation.alpha
@@ -23,54 +24,6 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
   // ********
   // * TERM *
   // ********
-
-  // The ADT term symbol is a class function over type variables, matching the
-  // representation already used for constructors and semantic functions.
-  val polymorphicTerm: Constant[?] = {
-    val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq,
-      t = lisa.maths.SetTheory.SetTheory.ε(z, termDefinitionFormula(z))
-    )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
-      lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
-    DEF(using name = s"${name}/term")(classFunctionExpr.asInstanceOf[Expr[S]])
-  }
-
-  polymorphicTerm.printAs(args =>
-    if args.isEmpty then s"${name}/term[${typeVariablesSeq.mkString(",")}]"
-    else s"${name}/term[${args.mkString(",")}]"
-  )
-
-  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
-    (polymorphicTerm #@@ args).asInstanceOf[Expr[Ind]]
-
-  val term: Expr[Ind] = termAt(typeVariablesSeq)
-
-  private[encoding] def termDefinitionFormula(adt: Expr[Ind]): Expr[Prop] =
-    forall(t, t ∈ adt <=> forall(h, isHeight(h) ==> t ∈ unionRange(h)))
-
-  private[encoding] val termDefinition: Expr[Prop] = termDefinitionFormula(term)
-
-  private[encoding] lazy val termSatisfiesDefinition = Lemma(termDefinition) {
-    val epsilonWitness = ε(z, termDefinitionFormula(z))
-
-    val epsilonCharacterizationAtTerm = have(
-      termDefinitionFormula(term) <=> (term === epsilonWitness)
-    ) by Tautology.from(
-      termExistence,
-      existsOneEpsilonUniqueness of (
-        x := z,
-        y := term,
-        P := lam(z, termDefinitionFormula(z))
-      )
-    )
-
-    val termIsEpsilon = have(term === epsilonWitness) by Congruence.from(polymorphicTerm.definition)
-
-    have(thesis) by Tautology.from(epsilonCharacterizationAtTerm, termIsEpsilon)
-  }
-  
 
   private[encoding] val termExistence = Lemma(existsOne(z, termDefinitionFormula(z))) {
 
@@ -177,6 +130,33 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
         (x := z, P := lam(z, termDefinitionFormula(z)))
     )
   }
+
+  private val definedClassFunction = UniqueDefinedSymbol(
+    name = s"${name}/term",
+    typeVariablesSeq = typeVariablesSeq,
+    witnessVar = z,
+    definitionAt = termDefinitionFormula
+  )(termExistence)
+
+  // The ADT term symbol is a class function over type variables, matching the
+  // representation already used for constructors and semantic functions.
+  val polymorphicTerm: Constant[?] = definedClassFunction.symbol
+
+  polymorphicTerm.printAs(args =>
+    if args.isEmpty then s"${name}/term[${typeVariablesSeq.mkString(",")}]"
+    else s"${name}/term[${args.mkString(",")}]"
+  )
+
+  def termAt(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
+
+  val term: Expr[Ind] = termAt(typeVariablesSeq)
+
+  private[encoding] def termDefinitionFormula(adt: Expr[Ind]): Expr[Prop] =
+    forall(t, t ∈ adt <=> forall(h, isHeight(h) ==> t ∈ unionRange(h)))
+
+  private[encoding] val termDefinition: Expr[Prop] = termDefinitionFormula(term)
+
+  private[encoding] lazy val termSatisfiesDefinition: THM = definedClassFunction.definitionFact
 
   private[encoding] val termHasHeight = Lemma(
     isHeight(h) |- in(x, term) <=> ∃(n, in(n, N) /\ in(x, app(h, n)))

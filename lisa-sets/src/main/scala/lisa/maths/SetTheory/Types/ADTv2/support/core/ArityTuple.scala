@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.support
+package lisa.maths.SetTheory.Types.ADTv2.support.core
 
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import scala.compiletime.ops.int.S

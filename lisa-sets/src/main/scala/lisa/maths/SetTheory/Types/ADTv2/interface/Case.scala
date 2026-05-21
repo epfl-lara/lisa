@@ -1,8 +1,7 @@
-package lisa.maths.SetTheory.Types.ADTv2.functions
+package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{appSeq, wellTypedSet}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{appSeq, wellTypedSet}
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -13,7 +12,7 @@ case class Case[N <: Arity](cons: Constructor[N], vars: Variable[Ind]*) {
    *  Used in the context of an induction proof. Adds the subproof corresponding to this
    *  case into a builder.
    *
-   *  @see [[Induction]]
+   *  @see [[lisa.maths.SetTheory.Types.ADTv2.tactics.Induction]]
    *
    *  @param proof the outer scope of the induction proof
    *  @param line the line at which this case is defined. Usually fetched automatically by
@@ -42,7 +41,6 @@ case class Case[N <: Arity](cons: Constructor[N], vars: Variable[Ind]*) {
     )) ++ cons.semantic.syntacticSignature(vars).filter(_._2 == SelfRef)
       .map((v, _) => prop.substitute(adtVar -> v))
 
-    // val botWithAssumptions = bot.substitute(subst) ++ ((assumptions ++ proof.getAssumptions) |- ())
     val botWithAssumptions = bot.substitute(subst) ++ (assumptions |- ())
 
     val iProof: proof.InnerProof = new proof.InnerProof(Some(botWithAssumptions))

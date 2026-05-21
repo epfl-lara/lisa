@@ -4,8 +4,9 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{forallSeq, UnreachableException, f, a, b, x}
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.funEqDef
+import lisa.maths.SetTheory.Types.ADTv2.support.core.{QuantifiersIntro, Utils}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{forallSeq, UnreachableException, f, a, b, x}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.funEqDef
 import lisa.utils.fol.FOL.SubstPair
 
 object InterfaceHelpers {

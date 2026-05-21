@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, RecFunction}
-import lisa.maths.SetTheory.Types.ADTv2.functions.*
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, CaseAccumulator, RecFunction}
+import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
 import lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -9,20 +9,23 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 
 
 def fun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
-    name: sourcecode.Name
-)(cases: CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit): ADTFunction[N] = {
+    name: sourcecode.Name,
+    valueOfN: ValueOf[N]
+)(
+  cases: CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit
+): ADTFunction[N] = {
   val builder = CaseAccumulator[N, Expr[Ind], Unit](())
   cases(using builder)
+
   builder.isValid(adt) match
-    case None => ADTFunction(
-        SemanticFunction[N](
-          name.value,
-          adt.semantic,
-          builder.build.map((k, v) => (k.semantic, v)),
-          returnType
-        ),
-        adt
+    case None =>
+      val semantic = SemanticFunction[N](
+        name.value,
+        adt.semantic,
+        builder.build.map((k, v) => (k.semantic, v)),
+        returnType
       )
+      new ADTFunction[N](semantic, adt)
     case Some(msg) => throw new IllegalArgumentException(msg)
 }
 

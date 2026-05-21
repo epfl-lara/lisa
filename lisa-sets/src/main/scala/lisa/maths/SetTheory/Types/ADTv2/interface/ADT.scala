@@ -2,10 +2,11 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
-import lisa.maths.SetTheory.Types.ADTv2.support.{**, toSeq}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
+import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{requireMonomorphicAccess, theoremAt}
 import lisa.maths.SetTheory.Types.ADTv2.support.Printing
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.{renderAppliedSymbol, typeExprToTerm}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{renderAppliedSymbol, typeExprToTerm}
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 

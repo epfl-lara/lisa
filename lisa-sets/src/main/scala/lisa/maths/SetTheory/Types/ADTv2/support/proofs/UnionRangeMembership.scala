@@ -1,12 +1,12 @@
-package lisa.maths.SetTheory.Types.ADTv2.support
+package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.Quantifiers.∃!
 
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UnionRangeCollapse.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse.*
 
 import lisa.maths.SetTheory.Base.*
 import lisa.maths.SetTheory.Base.Union.∪

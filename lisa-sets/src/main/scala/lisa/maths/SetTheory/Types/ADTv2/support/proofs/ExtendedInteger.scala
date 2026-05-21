@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.support
+package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
 import lisa.maths.SetTheory.Ordinals.Ordinal
 import lisa.maths.SetTheory.Ordinals.Ordinal.{<, <=, successorOrdinal, ordinal, S, limitOrdinal}

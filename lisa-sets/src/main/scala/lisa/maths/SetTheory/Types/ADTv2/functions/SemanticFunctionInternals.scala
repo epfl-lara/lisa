@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
@@ -49,19 +50,13 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
   private val witnessBody = { pairWitness ∈ (adt.term × returnType) | caseMembership(pairWitness) }
 
   // Keep the witness as a polymorphic DEF-backed symbol (same pattern as recursive internals).
-  private val witnessClass: Constant[?] = {
-    val witnessExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq,
-      t = witnessBody
-    )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
-      lisa.utils.fol.FOL.unsafeSortEvidence(witnessExpr.sort)
-    DEF(using name = s"${functionName}/witness")(witnessExpr.asInstanceOf[Expr[S]])
-  }
+  private val witnessClass = new DefinedSymbol(
+    name = s"${functionName}/witness",
+    parametersSeq = typeVariablesSeq,
+    body = witnessBody
+  )
 
-  private val witness: Expr[Ind] =
-    (witnessClass #@@ typeVariablesSeq).asInstanceOf[Expr[Ind]]
+  private val witness: Expr[Ind] = witnessClass.term
 
   private def constructorTagDisequality(c1: SemanticConstructor[N], c2: SemanticConstructor[N]): THM = {
     require(c1 != c2, "constructorTagDisequality requires two distinct constructors.")

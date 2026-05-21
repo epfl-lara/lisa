@@ -1,8 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
@@ -11,9 +12,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Pi.{->:}
 import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 
 /**
  *  Set theoretic interpretation of a function over an ADT.
@@ -39,6 +38,8 @@ class SemanticFunction[N <: Arity](
   val typeVariables: Variable[Ind] ** N = adt.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
   val typeArity: N = adt.typeArity
+  val adtDomain: SemanticADT[N] = adt
+  val returnTypeExpr: Expr[Ind] = returnType
 
   val fullName = s"$name"
   val typ: Expr[Ind] = adt.term ->: returnType
@@ -66,68 +67,17 @@ class SemanticFunction[N <: Arity](
   private val untypedDefinition = proofInternals.untypedDefinition
   private val uniqueness = proofInternals.uniqueness
 
-  // Definition of the function symbol
+  private val definedClassFunction = UniqueCharacterizedSymbol(
+    name = fullName,
+    typeVariablesSeq = typeVariablesSeq,
+    witnessVar = f,
+    definitionAt = f0 => untypedDefinition.substitute(f := f0)
+  )(uniqueness)
 
-  /** Class function corresponding to this semantic function. */
-  private val classFunction: Constant[?] = {
-    val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq,
-      t = ε(f, untypedDefinition)
-    )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
-      lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
-    DEF(using name = fullName)(classFunctionExpr.asInstanceOf[Expr[S]])
-  }
-  classFunction.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
+  val id: Identifier = definedClassFunction.id
+  val term: Expr[Ind] = definedClassFunction.term
 
-  val id: Identifier = classFunction.id
-  val term: Expr[Ind] = (classFunction #@@ typeVariablesSeq).asInstanceOf[Expr[Ind]]
-
-  // Lemmas
-
-  private val classFunctionCharacterization =
-    Lemma(forall(f, (term === f) <=> untypedDefinition)) {
-      val epsilonWitness = ε(f, untypedDefinition)
-
-      val epsilonCharacterization = have(
-        untypedDefinition <=> (f === epsilonWitness)
-      ) by Tautology.from(
-        uniqueness,
-        existsOneEpsilonUniqueness of (
-          x := f,
-          y := f,
-          P := λ(f, untypedDefinition)
-        )
-      )
-
-      val classTermIsEpsilon =
-        have(term === epsilonWitness) by Congruence.from(classFunction.definition)
-
-      val toRight = have((term === f) ==> (f === epsilonWitness)) subproof {
-        assume(term === f)
-        val termEqF = have(term === f) by Hypothesis
-        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEpsilon)
-        have(f === epsilonWitness) by Congruence.from(termEqF, termEqEpsilon)
-        thenHave(thesis) by Restate
-      }
-
-      val toLeft = have((f === epsilonWitness) ==> (term === f)) subproof {
-        assume(f === epsilonWitness)
-        val fEqEpsilon = have(f === epsilonWitness) by Hypothesis
-        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEpsilon)
-        have(term === f) by Congruence.from(termEqEpsilon, fEqEpsilon)
-        thenHave(thesis) by Restate
-      }
-
-      val equalityRewriting = have((term === f) <=> (f === epsilonWitness)) by
-        Tautology.from(toRight, toLeft)
-
-      have((term === f) <=> untypedDefinition) by
-        Tautology.from(equalityRewriting, epsilonCharacterization)
-
-      thenHave(thesis) by RightForall
-    }
+  private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
   /**
    *  Lemma --- The body of this function corresponds to the cases provided by the user.

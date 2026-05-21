@@ -1,8 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -80,20 +81,14 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   // Witness DEF — abstracts over typeVariablesSeq AND selfPlaceholder
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val witnessClass: Constant[?] = {
-    val witnessExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq :+ selfPlaceholder,
-      t = { pairWitness ∈ (spec.adt.term × spec.returnType) | caseMembership(pairWitness) }
-    )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
-      lisa.utils.fol.FOL.unsafeSortEvidence(witnessExpr.sort)
-    DEF(using name = s"${spec.functionName}/witness")(witnessExpr.asInstanceOf[Expr[S]])
-  }
+  private val witnessClass = new DefinedSymbol(
+    name = s"${spec.functionName}/witness",
+    parametersSeq = typeVariablesSeq :+ selfPlaceholder,
+    body = { pairWitness ∈ (spec.adt.term × spec.returnType) | caseMembership(pairWitness) }
+  )
 
   /** The witness set W(selfPlaceholder) — has selfPlaceholder free. */
-  val witness: Expr[Ind] =
-    (witnessClass #@@ (typeVariablesSeq :+ selfPlaceholder)).asInstanceOf[Expr[Ind]]
+  val witness: Expr[Ind] = witnessClass.term
 
   private val witnessBound: Expr[Ind] = spec.adt.term × spec.returnType
   private val witnessBody: Expr[Ind] =
@@ -114,33 +109,14 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
       c2: SemanticConstructor[N]
   ): THM = {
     require(c1 != c2, "constructorTagDisequality requires two distinct constructors.")
-    val tagTerm1 = c1.underlying.tagTerm
-    val tagTerm2 = c2.underlying.tagTerm
     val minTag: Int = Math.min(c1.underlying.tag, c2.underlying.tag)
     val maxTag: Int = Math.max(c1.underlying.tag, c2.underlying.tag)
-    Lemma(!(tagTerm1 === tagTerm2)) {
-      val start = have(tagTerm1 === tagTerm2 |- toTerm(maxTag) === toTerm(minTag)) by Congruence
-      (1 to minTag).foldLeft(start)((fact, i) =>
-        val midMaxTag = toTerm(maxTag - i)
-        val midMinTag = toTerm(minTag - i)
-        have(
-          successor(midMaxTag) === successor(midMinTag) |- midMaxTag === midMinTag
-        ) by Cut(
-          successorInjectivity of (n := midMaxTag, m := midMinTag),
-          equivalenceApply of (
-            p1 := successor(midMaxTag) === successor(midMinTag),
-            p2 := midMaxTag === midMinTag
-          )
-        )
-        have(tagTerm1 === tagTerm2 |- midMaxTag === midMinTag) by Cut(fact, lastStep)
-      )
-      val chainInjectivity =
-        thenHave(!(toTerm(maxTag - minTag) === ∅) |- !(tagTerm1 === tagTerm2)) by Restate
-      have(toTerm(maxTag - minTag) =/= ∅) by Restate.from(
-        zeroIsNotSucc of (n := toTerm(maxTag - minTag - 1))
-      )
-      have(thesis) by Cut(lastStep, chainInjectivity)
-    }
+    lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.constructorTagDisequality(
+      c1.underlying.tagTerm,
+      c2.underlying.tagTerm,
+      minTag,
+      maxTag
+    )
   }
 
   private val constructorTagDisequalities

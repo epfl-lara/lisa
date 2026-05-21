@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -168,8 +168,11 @@ private[functions] final class WitnessTyping[N <: Arity](
       ).toMap
       val constructorDisjunction = simplify(seqOr(adt.constructors.map(c => constructorBranch(c))))
 
-      val decompositionAtInput = have(inputTerm ∈ adt.term |- constructorDisjunction) by
-        Tautology.from(adt.elim of (x := inputTerm))
+      val decompositionAtInput = have(inputTerm ∈ adt.term |- constructorDisjunction) subproof {
+        have(inputTerm ∈ adt.term ==> constructorDisjunction) by
+          InstantiateForall(inputTerm)(adt.elim)
+        thenHave(thesis) by Restate
+      }
 
       val branchToWitness = adt.constructors.map(c =>
         val (caseVars, caseBody) = cases(c)

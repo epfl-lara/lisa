@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.recursion
+package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
 import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Functions.Predef._
@@ -8,7 +8,7 @@ import lisa.maths.SetTheory.Ordinals.Ordinal
 import lisa.maths.SetTheory.Ordinals.Ordinal.{ordinal, ordinalInitialSegment}
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation.membershipRelation
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.utils.prooflib.BasicStepTactic.*
 
 /**

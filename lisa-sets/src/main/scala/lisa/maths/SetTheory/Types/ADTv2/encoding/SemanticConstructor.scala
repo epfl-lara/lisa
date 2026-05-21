@@ -4,13 +4,13 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 
 /**
  *  Semantic set theoretical interpretation of a constructor for an algebraic data type.
@@ -104,6 +104,20 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /** Alternative set of variables of this constructor with their respective domain. */
   val semanticSignature2: Seq[(Variable[Ind], Expr[Ind])] = semanticSignature(variables2)
 
+  def heightTypingFormula(heightSet: Expr[Ind]): Expr[Prop] =
+    wellTypedFormula(underlying.signature2)(heightSet)
+
+  def branchPremiseAtHeight(heightSet: Expr[Ind], term: Expr[Ind]): Expr[Prop] =
+    heightTypingFormula(heightSet) /\ (term === structuralTerm2)
+
+  def branchAtHeight(heightSet: Expr[Ind], term: Expr[Ind]): Expr[Prop] =
+    existsSeq(variables2, branchPremiseAtHeight(heightSet, term))
+
+  def selfRefVariables2: Seq[Variable[Ind]] =
+    syntacticSignature(variables2).collect {
+      case (v, lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef) => v
+    }
+
   /** Type of this constructor. */
   val typ: Expr[Ind] =
     // semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => a |=> b)
@@ -124,104 +138,47 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   val structuralTerm2: Expr[Ind] = underlying.term2
 
+  private val internals = new ConstructorInternals[N](
+    adt = adt,
+    semanticSignature = semanticSignature,
+    variables = variables,
+    structuralTerm = structuralTerm,
+    typ = typ
+  )
+
   /**
    *  Definition of this constructor.
    *
    *  Formally it is the only function whose codomain is the ADT such that for all
    *  variables x1 :: S1, ...,xn :: Sn c * x1 * ... * xn = (tagc, (x1, (..., (xn, ∅)...))
    */
-  private val untypedDefinition = (c :: typ) /\ forallSeq(
-    variables,
-    wellTypedFormula(semanticSignature) ==> (appSeq(c)(variables) === structuralTerm)
-  )
+  private val untypedDefinition = internals.untypedDefinition
 
-  /**
-   *  Lemma --- Uniqueness of this constructor.
-   *
-   *  ` ∃!c. c ∈ T1 -> ... -> Tn -> ADT /\ ∀x1, ..., xn. c * x1 * ...* xn = (tagc, (x1, (..., (xn, ∅)...))`
-   */
-  private val uniqueness = Axiom(existsOne(c, untypedDefinition))
+  private val definedClassFunction = UniqueCharacterizedSymbol(
+    name = fullName,
+    typeVariablesSeq = typeVariablesSeq,
+    witnessVar = c,
+    definitionAt = c0 => internals.untypedDefinition.substitute(c := c0)
+  )(internals.uniqueness)
 
-  /**
-   *  Temporary placeholder while ADTv2 function-definition integration is finalized.
-   *  classFunction represents the constructor as a set-theoretic function: classFunction
-   *  * X1 * ... * Xm * x1 * ... * xn = (tagc, (x1, (..., (xn, ∅)...)) where Xi are type
-   *  variables and xi are constructor arguments. Formerly defined via:
-   *  FunctionDefinition[N](fullName, ...)(typeVariablesSeq, c, untypedDefinition,
-   *  uniqueness).label
-   */
-  private val classFunction: Constant[?] = {
-    val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq, 
-      t = ε(c, untypedDefinition)
-    )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
-      lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
-    DEF(using name = fullName)(classFunctionExpr.asInstanceOf[Expr[S]])
-  }
-  classFunction.printAs(args => renderAppliedSymbol(fullName, typeVariablesSeq.size, args))
-
-  val id = classFunction.id
+  val id = definedClassFunction.id
 
   /**
    *  This constructor in which type variables are instantiated.
    *
    *  @param args the instances of this constructor's type variables
    */
-  def term(args: Seq[Expr[Ind]]): Expr[Ind] = (classFunction #@@ args).asInstanceOf[Expr[Ind]]
+  def term(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
 
   /** Constructor where type variables are instantiated with schematic variables. */
-  private val term: Expr[Ind] = term(typeVariablesSeq)
+  private val term: Expr[Ind] = definedClassFunction.term
 
   /**
    *  Lemma --- Characterization of this constructor.
    *
    *  `∀c. term = c <=> c ∈ typ /\ ∀x1,...,xn. c * x1 * ... * xn = (tagc, ...)`
    */
-  private val classFunctionCharacterization =
-    Lemma(forall(c, (term === c) <=> untypedDefinition)
-  ) {
-      val epsilonWitness = ε(c, untypedDefinition)
-      
-      val epsilonCharacterization = have(
-        untypedDefinition <=> (c === epsilonWitness)
-      ) by Tautology.from(
-        uniqueness,
-        existsOneEpsilonUniqueness of (
-          x := c,
-          y := c,
-          P := λ(c, untypedDefinition)
-        )
-      )
-
-      val classTermIsEpsilon =
-        have(term === epsilonWitness) by Congruence.from(classFunction.definition)
-
-      val toRight = have((term === c) ==> (c === epsilonWitness)) subproof {
-        assume(term === c)
-        val termEqC = have(term === c) by Hypothesis
-        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEpsilon)
-        have(c === epsilonWitness) by Congruence.from(termEqC, termEqEpsilon)
-        thenHave(thesis) by Restate
-      }
-
-      val toLeft = have((c === epsilonWitness) ==> (term === c)) subproof {
-        assume(c === epsilonWitness)
-        val cEqEpsilon = have(c === epsilonWitness) by Hypothesis
-        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEpsilon)
-        have(term === c) by Congruence.from(termEqEpsilon, cEqEpsilon)
-        thenHave(thesis) by Restate
-      }
-
-      val equalityRewriting = have((term === c) <=> (c === epsilonWitness)) by
-        Tautology.from(toRight, toLeft)
-
-      have((term === c) <=> untypedDefinition) by
-        Tautology.from(equalityRewriting, epsilonCharacterization)
-
-      thenHave(thesis) by RightForall
-    }
+  private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
   /**
    *  Constructor where type variables are instantiated with schematic variables and
@@ -293,6 +250,70 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     thenHave(term :: typ) by Weakening
     thenHave(thesis) by Restate
   }    
+
+  def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind]): THM = Lemma(
+    (adt.isHeight(heightFun), n ∈ N, heightTypingFormula(app(heightFun)(n))) |-
+      wellTypedFormula(semanticSignature2)
+  ) {
+    val hValid = assume(adt.isHeight(heightFun))
+    val nInN = assume(n ∈ N)
+    val argsTypedAtHeight = assume(heightTypingFormula(app(heightFun)(n)))
+
+    val exTypedAtHeight = have(
+      ∃(k, (k ∈ N) /\ heightTypingFormula(app(heightFun)(k)))
+    ) subproof {
+      have((n ∈ N) /\ heightTypingFormula(app(heightFun)(n))) by
+        Tautology.from(nInN, argsTypedAtHeight)
+      thenHave(thesis) by RightExists
+    }
+
+    val termsHaveHeightAtH = have(
+      heightTypingFormula(adt.term) <=>
+        ∃(k, (k ∈ N) /\ heightTypingFormula(app(heightFun)(k)))
+    ) by Tautology.from(
+      hValid,
+      adt.termsHaveHeight(underlying)
+        .of(h := heightFun)
+        .of(underlying.variables.zip(underlying.variables2).map((from, to) => from := to)*)
+    )
+
+    val argsTypedAtTerm = have(heightTypingFormula(adt.term)) by
+      Tautology.from(termsHaveHeightAtH, exTypedAtHeight)
+    have(wellTypedFormula(semanticSignature2)) by Restate.from(argsTypedAtTerm)
+  }
+
+  def appliedEqualityFromStructural(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind]): THM =
+    Lemma(
+      (adt.isHeight(heightFun), n ∈ N, branchPremiseAtHeight(app(heightFun)(n), term0)) |-
+        (term0 === appliedTerm2)
+    ) {
+      assume(adt.isHeight(heightFun))
+      assume(n ∈ N)
+      assume(branchPremiseAtHeight(app(heightFun)(n), term0))
+      val argsTypedAtHeight = have(heightTypingFormula(app(heightFun)(n))) by Tautology
+      val termEqStructural = have(term0 === structuralTerm2) by Tautology
+
+      val argsTypedSemantic = have(wellTypedFormula(semanticSignature2)) by
+        Cut(argsTypedAtHeight, semanticTypingFromHeight(heightFun, n))
+
+      val shortBase = have(shortDefinition.statement.right.head) by Tautology.from(shortDefinition)
+      val shortAtVars2 = variables2.foldLeft(shortBase)((_, v2) =>
+        lastStep.statement.right.head match
+          case forall(v, phi) =>
+            thenHave(phi.substituteUnsafe(Map(v -> v2)).asInstanceOf[Expr[Prop]]) by
+              InstantiateForall(v2)
+          case _ => throw UnreachableException
+      )
+      val appliedEqStructural = shortAtVars2.statement.right.head match
+        case _ ==> consequent =>
+          have(consequent) by Tautology.from(shortAtVars2, argsTypedSemantic)
+        case _ => throw UnreachableException
+      have(term0 === appliedTerm2) by Tautology.from(
+        altEqualityTransitivity of (x := term0, y := structuralTerm2, z := appliedTerm2),
+        termEqStructural,
+        appliedEqStructural
+      )
+    }
 
   /**
    *  Theorem --- Injectivity of constructors.

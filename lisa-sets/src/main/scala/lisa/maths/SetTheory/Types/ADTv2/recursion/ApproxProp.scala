@@ -1,9 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UsefulTheorems.{altEqualityTransitivity, equivalenceApply, unionOfTwoNats}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, equivalenceApply, unionOfTwoNats}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.recursion.NatFacts.{Zero, Succ}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Zero, Succ}
 
 import lisa.maths.SetTheory.Base.{Union, Comprehension,FoundationAxiom,Subset}
 import lisa.maths.SetTheory.Base.Comprehension.{|}
@@ -19,6 +20,8 @@ import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.maths.Quantifiers
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut}
 import lisa.utils.prooflib.ProofTacticLib.Arity
+
+import ApproxPropShared.{TAbsConstOn, constructorBranchesAtHeight, constructorDisjunctionAtHeight, subsetBelowSuccN, substitutedCaseBody}
 
 /**
  * Approximant properties.
@@ -49,24 +52,15 @@ private[recursion] final class ApproxProp[N <: Arity](
   // Height function — ε-chosen concrete height function
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val hFunVar = variable[Ind]
+  def isHeightPred(hh: Expr[Ind]): Expr[Prop] = spec.adt.height.predicate(hh)
 
-  def isHeightPred(hh: Expr[Ind]): Expr[Prop] = spec.adt.externalHeight(hh)
+  val heightFun: Expr[Ind] = spec.adt.height.function
 
-  val heightFun: Expr[Ind] = ε(hFunVar, isHeightPred(hFunVar))
+  val heightFunValid: THM = spec.adt.height.valid
 
-  val heightFunValid: THM = Lemma(isHeightPred(heightFun)) {
-    val epsStep = have(
-      ∃(hFunVar, isHeightPred(hFunVar)) |- isHeightPred(heightFun)
-    ) by Restate.from(
-      lisa.maths.Quantifiers.existsEpsilon of (x := hFunVar, P := λ(hFunVar, isHeightPred(hFunVar)))
-    )
-    have(thesis) by Cut(spec.adt.externalHeightExists, epsStep)
-  }
-
-  private val heightSuccStrong = spec.adt.externalHeightSuccessorStrong
-  private val heightMonotonic  = spec.adt.externalHeightMonotonic
-  private val termHasHeight    = spec.adt.externalTermHasHeight
+  private val heightSuccStrong = spec.adt.height.successorStrong
+  private val heightMonotonic  = spec.adt.height.monotonic
+  private val termHasHeight    = spec.adt.height.termHasHeight
 
   private val predVar = variable[Ind >>: Prop]
 
@@ -86,7 +80,7 @@ private[recursion] final class ApproxProp[N <: Arity](
     val zeroDef = have(Zero === ∅) by Restate.from(Zero.definition)
     val noElemAtEmpty = have(!in(a, app(heightFun)(∅))) by Cut(
       hValid,
-      spec.adt.externalHeightZero of (h := heightFun, x := a)
+      spec.adt.height.zero of (h := heightFun, x := a)
     )
     val noElemAtZero = have(!in(a, app(heightFun)(Zero))) by Congruence.from(noElemAtEmpty, zeroDef)
 
@@ -119,14 +113,11 @@ private[recursion] final class ApproxProp[N <: Arity](
           val aInHeightOrd = have(a ∈ app(heightFun)(successor(nVar))) by
             Congruence.from(aInHeightSucc, succEq)
 
-          val constructorBranch = spec.adt.constructors.map(c =>
-            c -> existsSeq(
-              c.variables2,
-              wellTypedFormula(c.underlying.signature2)(app(heightFun)(nVar)) /\ (a === c.structuralTerm2)
-            )
-          ).toMap
+          val constructorBranch =
+            constructorBranchesAtHeight(spec.adt.constructors, app(heightFun)(nVar), a)
 
-          val constructorDisjunction = seqOr(spec.adt.constructors.map(c => constructorBranch(c)))
+          val constructorDisjunction =
+            constructorDisjunctionAtHeight(spec.adt.constructors, app(heightFun)(nVar), a)
 
           val decomposeAtA = have(constructorDisjunction) by Tautology.from(
             hValid,
@@ -164,72 +155,31 @@ private[recursion] final class ApproxProp[N <: Arity](
           )
 
           val branchEqualities = spec.adt.constructors.map(c =>
-            val (caseVars, rawBody) = spec.rawCases(c)
-            val bodyAtGn = rawBody
-              .substitute(spec.selfPlaceholder := G(nVar))
-              .substitute(caseVars.zip(c.variables2).map((from, to) => from := to)*)
-              .asInstanceOf[Expr[Ind]]
-            val bodyAtGSucc = rawBody
-              .substitute(spec.selfPlaceholder := G(Succ(nVar)))
-              .substitute(caseVars.zip(c.variables2).map((from, to) => from := to)*)
-              .asInstanceOf[Expr[Ind]]
+            val bodyAtGn = substitutedCaseBody(spec, c, G(nVar))
+            val bodyAtGSucc = substitutedCaseBody(spec, c, G(Succ(nVar)))
 
             val directBranch = have(
-              wellTypedFormula(c.underlying.signature2)(app(heightFun)(nVar)) /\ (a === c.structuralTerm2) |- goalAtA
+              c.branchPremiseAtHeight(app(heightFun)(nVar), a) |- goalAtA
             ) subproof {
-              assume(wellTypedFormula(c.underlying.signature2)(app(heightFun)(nVar)) /\ (a === c.structuralTerm2))
-              val argsTypedAtHeight = have(wellTypedFormula(c.underlying.signature2)(app(heightFun)(nVar))) by Tautology
-              val aEqStructural = have(a === c.structuralTerm2) by Tautology
-
-              val exTypedAtHeight = have(
-                ∃(kVar, (kVar ∈ N) /\ wellTypedFormula(c.underlying.signature2)(app(heightFun)(kVar)))
-              ) subproof {
-                have((nVar ∈ N) /\ wellTypedFormula(c.underlying.signature2)(app(heightFun)(nVar))) by
-                  Tautology.from(nInN, argsTypedAtHeight)
-                thenHave(thesis) by RightExists
-              }
-
-              val termsHaveHeightAtH = have(
-                wellTypedFormula(c.underlying.signature2)(spec.adt.term) <=>
-                  ∃(kVar, (kVar ∈ N) /\ wellTypedFormula(c.underlying.signature2)(app(heightFun)(kVar)))
-              ) by Tautology.from(
-                hValid,
-                spec.adt.externalTermsHaveHeight(c.underlying)
-                  .of(h := heightFun)
-                  .of(c.underlying.variables.zip(c.underlying.variables2).map((from, to) => from := to)*)
-              )
-              val argsTypedAtTerm = have(wellTypedFormula(c.underlying.signature2)(spec.adt.term)) by
-                Tautology.from(termsHaveHeightAtH, exTypedAtHeight)
+              assume(c.branchPremiseAtHeight(app(heightFun)(nVar), a))
+              val branchPremise = have(c.branchPremiseAtHeight(app(heightFun)(nVar), a)) by Hypothesis
+              val argsTypedAtHeight = have(c.heightTypingFormula(app(heightFun)(nVar))) by Tautology
               val argsTypedSemantic = have(wellTypedFormula(c.semanticSignature2)) by
-                Restate.from(argsTypedAtTerm)
+                Tautology.from(
+                  hValid,
+                  nInN,
+                  argsTypedAtHeight,
+                  c.semanticTypingFromHeight(heightFun, nVar)
+                )
+              val aEqApplied = have(a === c.appliedTerm2) by
+                Tautology.from(
+                  hValid,
+                  nInN,
+                  branchPremise,
+                  c.appliedEqualityFromStructural(heightFun, nVar, a)
+                )
 
-              val shortBase = have(c.shortDefinition.statement.right.head) by
-                Tautology.from(c.shortDefinition)
-              val shortAtVars2 = c.variables2.foldLeft(shortBase)((_, v2) =>
-                lastStep.statement.right.head match
-                  case forall(v, phi) =>
-                    thenHave(phi.substituteUnsafe(Map(v -> v2)).asInstanceOf[Expr[Prop]]) by
-                      InstantiateForall(v2)
-                  case _ => throw UnreachableException
-              )
-              val appliedEqStructural = shortAtVars2.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(shortAtVars2, argsTypedSemantic)
-                case _ => throw UnreachableException
-              val structuralEqApplied = have(c.structuralTerm2 === c.appliedTerm2) by
-                Congruence.from(appliedEqStructural)
-              val aEqApplied = have(a === c.appliedTerm2) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := a,
-                  y := c.structuralTerm2,
-                  z := c.appliedTerm2
-                ),
-                aEqStructural,
-                structuralEqApplied
-              )
-
-              val selfArgEqualities = c.syntacticSignature(c.variables2).collect {
-                case (v, lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef) =>
+              val selfArgEqualities = c.selfRefVariables2.map(v =>
                   val ihAtN = have(
                     ∀(a, (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Succ(nVar)))(a)))
                   ) by Restate.from(ih)
@@ -238,7 +188,7 @@ private[recursion] final class ApproxProp[N <: Arity](
                   ) by InstantiateForall(v)(ihAtN)
                   have(app(G(nVar))(v) === app(G(Succ(nVar)))(v)) by
                     Tautology.from(argsTypedAtHeight, ihAtV)
-              }
+              )
 
               val bodyEq =
                 LambdaBodyEquality.prove(bodyAtGn, bodyAtGSucc, selfArgEqualities)
@@ -385,73 +335,6 @@ private[recursion] final class ApproxProp[N <: Arity](
   // ─────────────────────────────────────────────────────────────────────────
   // subsetBelowSuccN, approximantsAgreeFromSubset, approximantsAgreeAcrossHeights
   // ─────────────────────────────────────────────────────────────────────────
-
-  private val subsetBelowSuccN: THM = Lemma(
-    (nVar ∈ N, kVar ∈ N, nVar ⊆ Succ(kVar)) |- (nVar === Succ(kVar)) \/ (nVar ⊆ kVar)
-  ) {
-    val nInN = assume(nVar ∈ N)
-    val kInN = assume(kVar ∈ N)
-    val nSubSk = assume(nVar ⊆ Succ(kVar))
-
-    val SkInN = have(Succ(kVar) ∈ N) by
-      Tautology.from(kInN, NatFacts.succIntro.of(n := kVar))
-
-    val cmp = have(
-      (nVar === Succ(kVar)) \/ (nVar ∈ Succ(kVar)) \/ (Succ(kVar) ∈ nVar)
-    ) by Tautology.from(
-      nInN,
-      SkInN,
-      NatFacts.comparability of (m := nVar, n := Succ(kVar))
-    )
-
-    val caseEq = have(
-      nVar === Succ(kVar) |- (nVar === Succ(kVar)) \/ (nVar ⊆ kVar)
-    ) by Tautology
-
-    val caseIn = have(
-      nVar ∈ Succ(kVar) |- (nVar === Succ(kVar)) \/ (nVar ⊆ kVar)
-    ) subproof {
-      val nInSk = assume(nVar ∈ Succ(kVar))
-      val split = have((nVar ∈ kVar) \/ (nVar === kVar)) by Tautology.from(
-        nInSk,
-        NatFacts.succMembership.of(k := nVar, n := kVar)
-      )
-
-      val fromIn = have(nVar ∈ kVar |- nVar ⊆ kVar) subproof {
-        val nInK = assume(nVar ∈ kVar)
-        val kTrans = have(TransitiveSet.transitiveSet(kVar)) by
-          Tautology.from(kInN, NatFacts.elementsTransitive.of(n := kVar))
-        have(nVar ⊆ kVar) by Tautology.from(
-          nInK,
-          kTrans,
-          TransitiveSet.elementIsSubset.of(A := kVar, x := nVar)
-        )
-      }
-
-      val fromEq = have(nVar === kVar |- nVar ⊆ kVar) by
-        Congruence.from(Subset.reflexivity of (x := kVar))
-
-      have(nVar ⊆ kVar) by Tautology.from(split, fromIn, fromEq)
-      thenHave(thesis) by Tautology
-    }
-
-    val caseGt = have(
-      Succ(kVar) ∈ nVar |- (nVar === Succ(kVar)) \/ (nVar ⊆ kVar)
-    ) subproof {
-      val SkInN = assume(Succ(kVar) ∈ nVar)
-      val SkInSk = have(Succ(kVar) ∈ Succ(kVar)) by Tautology.from(
-        nSubSk,
-        SkInN,
-        Subset.membership of (x := nVar, y := Succ(kVar), z := Succ(kVar))
-      )
-      have(thesis) by Tautology.from(
-        SkInSk,
-        FoundationAxiom.selfNonInclusion of (x := Succ(kVar))
-      )
-    }
-
-    have(thesis) by Tautology.from(cmp, caseEq, caseIn, caseGt)
-  }
 
   val approximantsAgreeFromSubset: THM = Lemma(
     (nVar ∈ N, mVar ∈ N, nVar ⊆ mVar, a ∈ app(heightFun)(nVar)) |-
@@ -650,27 +533,6 @@ private[recursion] final class ApproxProp[N <: Arity](
   // ─────────────────────────────────────────────────────────────────────────
   // Helper
   // ─────────────────────────────────────────────────────────────────────────
-
-  def TAbsConstOn(
-      domain: Expr[Ind],
-      codomain: Expr[Ind],
-      body: Expr[Ind >>: Ind]
-  ): THM = Lemma(
-    ∀(x ∈ domain, body(x) ∈ codomain) |- abs(domain)(body) ∈ Pi(domain)(λ(y, codomain))
-  ) {
-    val e = variable[Ind >>: Ind]
-    val T1 = variable[Ind]
-    val T2 = variable[Ind >>: Ind]
-
-    assume(∀(x ∈ domain, body(x) ∈ codomain))
-    val premiseAtX = have(x ∈ domain ==> body(x) ∈ codomain) by InstantiateForall
-    have(x ∈ domain ==> body(x) ∈ λ(y, codomain)(x)) by
-      Tautology.from(premiseAtX)
-    thenHave(∀(x ∈ domain, body(x) ∈ λ(y, codomain)(x))) by RightForall
-    have(abs(domain)(body) ∈ Pi(domain)(λ(y, codomain))) by
-      Tautology.from(lastStep, TAbs of (T1 := domain, T2 := λ(y, codomain), e := body))
-    thenHave(thesis) by Restate
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma E — limit function

@@ -1,14 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.Quantifiers.{existsEpsilon, existsOneAlternativeDefinition, existsOneEpsilonUniqueness}
+import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.maths.SetTheory.Types.ADTv2.support.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 
 /**
  * Semantic set-theoretic interpretation of a recursive function over an ADT.
@@ -112,109 +113,36 @@ final class RecFunSemantics[N <: Arity](
   // Class function DEF — term := ε(f, Def(f))
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val classFunction: Constant[?] = {
-    val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq,
-      t = ε(f, untypedDef)
-    )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
-      lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
-    DEF(using name = name)(classFunctionExpr.asInstanceOf[Expr[S]])
-  }
-  classFunction.printAs(args => renderAppliedSymbol(name, typeVariablesSeq.size, args))
+  private val definedClassFunction = UniqueCharacterizedSymbol(
+    name = name,
+    typeVariablesSeq = typeVariablesSeq,
+    witnessVar = f,
+    definitionAt = definitionFormula
+  )(uniqueness)
 
-  val id: Identifier = classFunction.id
+  val id: Identifier = definedClassFunction.id
 
   /**
    * The class-level function term specialized to concrete type arguments.
    *
    * @param args instances of the recursive function's type variables
    */
-  def term(args: Seq[Expr[Ind]]): Expr[Ind] = (classFunction #@@ args).asInstanceOf[Expr[Ind]]
+  def term(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
 
   /** The class-level function term with schematic type variables. */
-  val term: Expr[Ind] = term(typeVariablesSeq)
-
-  private val classTermIsEpsilon: THM = Lemma(term === ε(f, untypedDef)) {
-    have(thesis) by Congruence.from(classFunction.definition)
-  }
+  val term: Expr[Ind] = definedClassFunction.term
 
   // ─────────────────────────────────────────────────────────────────────────
   // classDefinitionFact: Def(term)
   // ─────────────────────────────────────────────────────────────────────────
 
-  val classDefinitionFact: THM = Lemma(definitionFormula(term)) {
-    val epsilonWitness = ε(f, untypedDef)
-
-    val classDefinitionAtEpsilon = have(definitionFormula(epsilonWitness)) by Tautology.from(
-      existence.witnessExists,
-      existsEpsilon of (x := f, P := λ(f, untypedDef))
-    )
-    val epsilonEqClassTerm =
-      have(epsilonWitness === term) by Congruence.from(classTermIsEpsilon)
-
-    val definitionAtEpsilonWithEq =
-      have((epsilonWitness === term) |- definitionFormula(epsilonWitness)) by
-        Weakening(classDefinitionAtEpsilon)
-
-    val replacementVar = variable[Ind]
-    val definitionAtClassTerm =
-      have((epsilonWitness === term) |- definitionFormula(term)) by
-        RightSubstEq.withParameters(
-          List((epsilonWitness, term)),
-          (Seq(replacementVar), definitionFormula(replacementVar))
-        )(definitionAtEpsilonWithEq)
-
-    have(thesis) by Tautology.from(epsilonEqClassTerm, definitionAtClassTerm)
-  }
+  val classDefinitionFact: THM = definedClassFunction.definitionFact
 
   // ─────────────────────────────────────────────────────────────────────────
   // classFunctionCharacterization: ∀f, (term = f) ↔ Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val classFunctionCharacterization: THM =
-    Lemma(forall(f, (term === f) <=> untypedDef)) {
-      val epsilonWitness = ε(f, untypedDef)
-
-      val epsilonCharacterization = have(
-        untypedDef <=> (f === epsilonWitness)
-      ) by Tautology.from(
-        uniqueness,
-        existsOneEpsilonUniqueness of (
-          x := f,
-          y := f,
-          P := λ(f, untypedDef)
-        )
-      )
-
-      val classTermIsEps = have(term === epsilonWitness) by
-        Congruence.from(classFunction.definition)
-
-      val toRight = have((term === f) ==> (f === epsilonWitness)) subproof {
-        assume(term === f)
-        val termEqF = have(term === f) by Hypothesis
-        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEps)
-        have(f === epsilonWitness) by Congruence.from(termEqF, termEqEpsilon)
-        thenHave(thesis) by Restate
-      }
-
-      val toLeft = have((f === epsilonWitness) ==> (term === f)) subproof {
-        assume(f === epsilonWitness)
-        val fEqEpsilon = have(f === epsilonWitness) by Hypothesis
-        val termEqEpsilon = have(term === epsilonWitness) by Tautology.from(classTermIsEps)
-        have(term === f) by Congruence.from(termEqEpsilon, fEqEpsilon)
-        thenHave(thesis) by Restate
-      }
-
-      val equalityRewriting = have((term === f) <=> (f === epsilonWitness)) by
-        Tautology.from(toRight, toLeft)
-
-      have((term === f) <=> untypedDef) by
-        Tautology.from(equalityRewriting, epsilonCharacterization)
-
-      thenHave(thesis) by RightForall
-    }
+  private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
   // ─────────────────────────────────────────────────────────────────────────
   // caseDefinitions — bodies with selfPlaceholder := term
