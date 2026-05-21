@@ -17,8 +17,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.{**, toSeq}
  *  ADT encoding is split into multiple traits (ordered by dependency):
  *    - `SyntacticADTBase`: shared logical encodings and core predicates.
  *    - `SyntacticADTInjectivity`: disjointness/injectivity of constructors.
- *    - `SyntacticADTIntroduction`: properties of the introduction-function image.
- *    - `SyntacticADTHeight`: height-function characterization and monotonicity.
+ *    - `SyntacticADTHeight`: introduction-image lemmas plus height-function characterization and monotonicity.
  *    - `SyntacticADTTerm`: term definition from heights and introduction lemmas.
  *    - `SyntacticADTInduction`: structural induction principle.
  *    - `SyntacticADT`: concrete ADT class wiring those layers together.
