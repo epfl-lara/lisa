@@ -1,8 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.height
 
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -17,8 +15,6 @@ final class HeightADT[N <: Arity](
   protected inline final def app(f: Expr[Ind], x: Expr[Ind]): Expr[Ind] =
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
 
-  val arityTheory = new HeightArity[N]()
-
   def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] =
     isConstructor(y)(s) \/ in(y, s)
 
@@ -30,59 +26,19 @@ final class HeightADT[N <: Arity](
       (dom(h) === N) /\
       ∀(n ∈ N, ∀(x, in(x, app(h, n)) <=> inExtIntroImage(h ↾ n)(x)))
 
-  lazy val isHeight =
-    DEF(using name = s"${name}/height")(
-      λ(h, forallSeq(typeVariablesSeq, isHeightCore(h)))
-    )
+  def isHeight(h: Expr[Ind]): Expr[Prop] = isHeightCore(h)
 
-  /** Unfold isHeight(h) and instantiate all quantified type variables. */
+  /** Unfold isHeight(h). */
   def unfoldIsHeight(using
       lib: lisa.utils.prooflib.Library,
       proof: lib.Proof
   ): proof.Fact = {
-    val coreAll = forallSeq(typeVariablesSeq, isHeightCore(h))
-    val withAllTypes = lib.have(isHeight(h) |- coreAll) by
-      Tautology.from(isHeight.definition)
     lib.have(isHeight(h) |- isHeightCore(h)) by
-      InstantiateForall(typeVariablesSeq*)(withAllTypes)
+      Restate
   }
 
   private[ADTv2] val heightIsCore = Lemma(isHeight(h) |- isHeightCore(h)) {
     have(thesis) by Restate.from(unfoldIsHeight)
-  }
-
-  /**
-   *  Lemma --- There exists a unique height function for this ADT.
-   *
-   *  `∃!h. h = height`
-   *
-   *  TODO: Prove this using transfinite recursion
-   */
-  val heightFunUnique = Axiom(existsOne(h, isHeight(h)))
-
-  /**
-   *  Lemma --- The height function exists.
-   *
-   *  `∃h. h = height`
-   */
-  val heightExists = Lemma(exists(h, isHeight(h))) {
-    have(thesis) by Cut(
-      heightFunUnique.asInstanceOf,
-      lisa.maths.Quantifiers.existsOneImpliesExists of
-        (P := lam(h, isHeight(h)))
-    )
-  }
-
-  /**
-   *  Lemma --- If two functions are the height function then they are the same.
-   *
-   *  `f = height /\ h = height => f = h`
-   */
-  val heightFunUniqueEq = Lemma((isHeight(f), isHeight(h)) |- f === h) {
-    have(thesis) by Cut(
-      heightFunUnique,
-      existsOneUniqueness of (P := lam(h, isHeight(h)), x := f, y := h)
-    )
   }
 
   /**
@@ -119,7 +75,7 @@ final class HeightADT[N <: Arity](
   val heightZero = Lemma(isHeight(h) |- !in(x, app(h, ∅))) {
     have(thesis) by Tautology.from(
       heightIsCore,
-      HeightKernel.heightZero of (HeightKernel.isConstructor := isConstructor)
+      HeightKernelSuccessor.heightZero of (HeightKernel.isConstructor := isConstructor)
     )
   }
 }

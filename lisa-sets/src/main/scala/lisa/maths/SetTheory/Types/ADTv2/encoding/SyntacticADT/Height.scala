@@ -2,6 +2,8 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightADT
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructors
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
+import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[encoding] trait SyntacticADTHeight[N <: Arity]
@@ -20,10 +22,24 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     isConstructor
   )
 
-  val isHeight = heightTHY.isHeight
-  val heightExists = heightTHY.heightExists
+  def isHeight(h: Expr[Ind]): Expr[Prop] = heightTHY.isHeight(h)
+  val heightExists = heightConstructorsTHY.heightExists
+  val heightUniqueness = heightConstructorsTHY.heightUniqueness
+  val heightExistsOne = heightConstructorsTHY.heightExistsOne
+
+  private val heightVar = variable[Ind](s"${name}/height") 
+  private val definedClassFunction = UniqueDefinedSymbol(
+    name = s"${name}/heightFun",
+    typeVariablesSeq = typeVariablesSeq,
+    witnessVar = heightVar,
+    definitionAt = isHeight
+  )(heightExistsOne)
+
+  def polymorphicHeight(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
+  def heightAt(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
+  val height: Expr[Ind] = definedClassFunction.term
+  val heightValid = definedClassFunction.definitionFact
   val heightZero = heightTHY.heightZero
-  val heightFunUniqueEq = heightTHY.heightFunUniqueEq
   val heightMonotonic = heightConstructorsTHY.heightMonotonic
   val heightSuccessorWeak = heightConstructorsTHY.heightSuccessorWeak
   val heightSuccessorStrong = heightConstructorsTHY.heightSuccessorStrong

@@ -90,7 +90,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
       have(
         (isHeight(f), isHeight(h), inUnionRangeF) |-
           in(t, unionRange(h))
-      ) by Cut(heightFunUniqueEq, lastStep)
+      ) by Cut(heightUniqueness, lastStep)
       thenHave(
         (isHeight(f), inUnionRangeF) |-
           isHeight(h) ==> in(t, unionRange(h))

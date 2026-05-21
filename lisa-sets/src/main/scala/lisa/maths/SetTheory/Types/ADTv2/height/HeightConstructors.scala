@@ -8,6 +8,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.*
 
@@ -30,12 +31,58 @@ final class HeightConstructors[N <: Arity](
   ): Expr[Prop] =
     existsSeq(c.variables2, wellTypedFormula(c.signature2)(s) /\ (x === c.term2))
 
+  private val heightStageSet = HeightStageSet[N](base, constructors, isConstructor)
+    
+  val heightExists = Lemma(exists(h, base.isHeight(h))) {
+    have(thesis) by Restate.from(heightStageSet.heightExists)
+  }
+
+  /**
+   *  Lemma --- If two functions are the height function then they are the same.
+   *
+   *  `f = height /\ h = height => f = h`
+   */
+  val heightUniqueness = Lemma((base.isHeight(f), base.isHeight(h)) |- f === h) {
+
+    have(thesis) by Tautology.from(
+      HeightKernelUniqueness.uniqueness.of(g := h, HeightKernel.isConstructor := isConstructor),
+      introFunctionMonoHyp,
+      base.heightIsCore of (h := f),
+      base.heightIsCore of (h := h)
+    )
+  }
+
+  val heightExistsOne = Lemma(existsOne(h, base.isHeight(h))) {
+    
+    val existencePart = have(∃(h, base.isHeight(h))) by
+      Restate.from(heightExists of (h := h))
+
+    have(base.isHeight(f) /\ base.isHeight(h) ==> (f === h)) by
+      Restate.from(heightUniqueness)
+    thenHave(
+      ∀(h, base.isHeight(f) /\ base.isHeight(h) ==> (f === h))
+    ) by RightForall
+    val uniquenessAll = thenHave(
+      ∀(f, ∀(h, base.isHeight(f) /\ base.isHeight(h) ==> (f === h)))
+    ) by RightForall
+
+    have(
+      ∃(h, base.isHeight(h)) /\
+        ∀(f, ∀(h, base.isHeight(f) /\ base.isHeight(h) ==> (f === h)))
+    ) by Tautology.from(existencePart, uniquenessAll)
+
+    have(thesis) by Tautology.from(
+      lastStep,
+      existsOneAlternativeDefinition of (x := h, P := λ(h, base.isHeight(h)))
+    )
+  }
+
   /**
    *  Lemma --- The introduction function is monotonic with respect to set inclusion.
    *
    *  `s ⊆ t |- introductionFunction(s) ⊆ introductionFunction(t)`
    */
-  private[ADTv2] val introductionFunctionMononotic = Lemma(
+  private[ADTv2] lazy val introductionFunctionMononotic = Lemma(
     subset(s, t) |-
       inIntroImage(s)(x) ==> inIntroImage(t)(x)
   ) {
@@ -100,11 +147,8 @@ final class HeightConstructors[N <: Arity](
     thenHave(thesis) by RightImplies
   }
 
-  private val introFunctionMonoHyp: THM = Lemma(
-    forall(
-      s,
-      forall(t, subset(s, t) ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x)))
-    )
+  private lazy val introFunctionMonoHyp: THM = Lemma(
+    HeightKernel.introFunctionMono.substitute(HeightKernel.isConstructor := isConstructor)
   ) {
     have(introductionFunctionMononotic.statement) by
       Restate.from(introductionFunctionMononotic)
@@ -115,6 +159,64 @@ final class HeightConstructors[N <: Arity](
     thenHave(
       forall(t, subset(s, t) ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x)))
     ) by RightForall
+    thenHave(thesis) by RightForall
+  }
+
+  private lazy val isConstructorMonoHyp: THM = Lemma(
+    HeightKernel.isConstructorMono.substitute(HeightKernel.isConstructor := isConstructor)
+  ) {
+    val subsetST = s ⊆ t
+    val isConstructorXS = isConstructor(x)(s)
+    val isConstructorXT = isConstructor(x)(t)
+
+    val isConstructorXSImpliesT =
+      for c <- constructors yield
+        val labelEq = x === c.term2
+        val isConstructorCXS = constructorPredicate(c, x, s)
+        val isConstructorCXT = constructorPredicate(c, x, t)
+        val varsWellTypedS = wellTypedFormula(c.signature2)(s)
+        val varsWellTypedT = wellTypedFormula(c.signature2)(t)
+
+        if c.arity == 0 then
+          have((subsetST, isConstructorCXS) |- isConstructorCXT) by Restate
+          thenHave((subsetST, isConstructorCXS) |- isConstructorXT) by Weakening
+        else
+          have(s ⊆ t |- forall(z, in(z, s) ==> in(z, t))) by
+            Congruence.from(subsetAxiom of (x := s, y := t))
+          val subsetElimination = thenHave(s ⊆ t |- in(z, s) ==> in(z, t)) by
+            InstantiateForall(z)
+          val andSeq =
+            for (v, ty) <- c.signature2
+            yield have((subsetST, varsWellTypedS) |- in(v, ty.getOrElse(t))) by
+              Weakening(subsetElimination of (z := v))
+          val expandingDomain = have((subsetST, varsWellTypedS) |- varsWellTypedT) by
+            RightAnd(andSeq*)
+          val weakeningLabelEq = have(labelEq |- labelEq) by Hypothesis
+          have((subsetST, varsWellTypedS, labelEq) |- varsWellTypedT /\ labelEq) by
+            RightAnd(expandingDomain, weakeningLabelEq)
+
+          thenHave((subsetST, varsWellTypedS, labelEq) |- isConstructorCXT) by
+            QuantifiersIntro(c.variables2)
+          thenHave((subsetST, varsWellTypedS /\ labelEq) |- isConstructorCXT) by LeftAnd
+          thenHave((subsetST, isConstructorCXS) |- isConstructorCXT) by
+            QuantifiersIntro(c.variables2)
+          thenHave((subsetST, isConstructorCXS) |- isConstructorXT) by Weakening
+
+    val constructorBranch =
+      if constructors.isEmpty then
+        have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
+      else
+        have((subsetST, isConstructorXS) |- isConstructorXT) by LeftOr(
+          isConstructorXSImpliesT*
+        )
+
+    have((subsetST, isConstructorXS) |- isConstructorXT) by Restate.from(constructorBranch)
+    thenHave(subsetST |- isConstructorXS ==> isConstructorXT) by RightImplies
+    thenHave(subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t))) by Restate
+    thenHave(forall(x, subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t)))) by
+      RightForall
+    thenHave(forall(t, forall(x, subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t))))) by
+      RightForall
     thenHave(thesis) by RightForall
   }
 
@@ -156,7 +258,7 @@ final class HeightConstructors[N <: Arity](
     have(thesis) by Tautology.from(
       base.heightIsCore,
       introFunctionMonoHyp,
-      HeightKernel.heightSuccessorWeak of (HeightKernel.isConstructor := isConstructor)
+      HeightKernelSuccessor.heightSuccessorWeak of (HeightKernel.isConstructor := isConstructor)
     )
   }
 
@@ -214,188 +316,11 @@ final class HeightConstructors[N <: Arity](
     (base.isHeight(h), in(n, N)) |-
       in(x, app(h, successor(n))) <=> isConstructor(x)(app(h, n))
   ) {
-    val forward = have(
-      (base.isHeight(h), in(n, N)) |-
-        inIntroImage(app(h, n))(x) ==> isConstructor(x)(app(h, n))
-    ) subproof {
-
-      def inductionFormula(n: Expr[Ind]): Expr[Prop] =
-        inIntroImage(app(h, n))(x) ==> isConstructor(x)(app(h, n))
-      val inductionFormulaN: Expr[Prop] = inductionFormula(n)
-      val inductionFormulaSuccN: Expr[Prop] = inductionFormula(successor(n))
-
-      have(base.isHeight(h) |- inductionFormula(∅)) by
-        Restate.from(introductionImageAtHeightZeroIsConstructor)
-      val inductiveCaseRemaining = have(
-        (
-          base.isHeight(h),
-          forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormulaSuccN))
-        ) |- forall(n, in(n, N) ==> inductionFormulaN)
-      ) by Cut(lastStep, natInduction of (P := lambda(n, inductionFormulaN)))
-
-      have(
-        subset(app(h, n), app(h, successor(n))) |-
-          forall(z, in(z, app(h, n)) ==> in(z, app(h, successor(n))))
-      ) by Cut(
-        subsetAxiom of (x := app(h, n), y := app(h, successor(n))),
-        equivalenceApply of
-          (
-            p1 := subset(app(h, n), app(h, successor(n))),
-            p2 := forall(z, in(z, app(h, n)) ==> in(z, app(h, successor(n))))
-          )
-      )
-      val subsetElimination = thenHave(
-        subset(app(h, n), app(h, successor(n))) |-
-          in(y, app(h, n)) ==> in(y, app(h, successor(n)))
-      ) by InstantiateForall(y)
-
-      have(in(n, N) |- in(successor(n), N)) by Cut(
-        successorIsNat,
-        equivalenceApply of (p1 := in(n, N), p2 := in(successor(n), N))
-      )
-      have(
-        (base.isHeight(h), in(n, N), subset(n, successor(n))) |-
-          subset(app(h, n), app(h, successor(n)))
-      ) by Cut(lastStep, heightMonotonic of (n := successor(n), m := n))
-      have((base.isHeight(h), in(n, N)) |- subset(app(h, n), app(h, successor(n)))) by
-        Cut(subsetSuccessor, lastStep)
-      val liftHeight = have(
-        (base.isHeight(h), in(n, N)) |-
-          in(y, app(h, n)) ==> in(y, app(h, successor(n)))
-      ) by Cut(lastStep, subsetElimination)
-
-      val isConstructorXHN0 = isConstructor(x)(app(h, n))
-      val isConstructorXHSuccN = isConstructor(x)(app(h, successor(n)))
-      val liftConstructorHeight =
-        if constructors.isEmpty then
-          have((base.isHeight(h), in(n, N), isConstructorXHN0) |- isConstructorXHSuccN) by
-            Restate
-        else
-          val liftConstructorHeightOrSequence =
-            for c <- constructors yield
-              val isConstructorCXHN = constructorPredicate(c, x, app(h, n))
-              val isConstructorCXHSuccN = constructorPredicate(c, x, app(h, successor(n)))
-              val constructorVarsInHN = wellTypedFormula(c.signature2)(app(h, n))
-              val constructorVarsInHSuccN =
-                wellTypedFormula(c.signature2)(app(h, successor(n)))
-
-              if c.arity == 0 then
-                have(
-                  (base.isHeight(h), in(n, N), isConstructorCXHN) |-
-                    isConstructorCXHSuccN
-                ) by Restate
-              else
-                val liftHeightAndSequence =
-                  for (v, ty) <- c.signature2
-                  yield have(
-                    (base.isHeight(h), in(n, N), constructorVarsInHN) |-
-                      in(v, ty.getOrElse(app(h, successor(n))))
-                  ) by Weakening(liftHeight of (y := v))
-
-                val left = have(
-                  (base.isHeight(h), in(n, N), constructorVarsInHN) |-
-                    constructorVarsInHSuccN
-                ) by RightAnd(liftHeightAndSequence*)
-                val right = have(x === c.term2 |- x === c.term2) by Hypothesis
-
-                have(
-                  (base.isHeight(h), in(n, N), constructorVarsInHN, (x === c.term2)) |-
-                    constructorVarsInHSuccN /\ (x === c.term2)
-                ) by RightAnd(left, right)
-                thenHave(
-                  (
-                    base.isHeight(h),
-                    in(n, N),
-                    constructorVarsInHN /\ (x === c.term2)
-                  ) |- constructorVarsInHSuccN /\ (x === c.term2)
-                ) by LeftAnd
-                thenHave(
-                  (
-                    base.isHeight(h),
-                    in(n, N),
-                    constructorVarsInHN /\ (x === c.term2)
-                  ) |- isConstructorCXHSuccN
-                ) by QuantifiersIntro(c.variables2)
-                thenHave(
-                  (base.isHeight(h), in(n, N), isConstructorCXHN) |-
-                    isConstructorCXHSuccN
-                ) by QuantifiersIntro(c.variables2)
-
-              thenHave(
-                (base.isHeight(h), in(n, N), isConstructorCXHN) |-
-                  isConstructorXHSuccN
-              ) by Weakening
-
-          have(
-            (base.isHeight(h), in(n, N), isConstructorXHN0) |- isConstructorXHSuccN
-          ) by LeftOr(liftConstructorHeightOrSequence*)
-
-      val heightSuccessorWeakForward = have(
-        (base.isHeight(h), in(n, N), in(x, app(h, successor(n)))) |-
-          inIntroImage(app(h, n))(x)
-      ) by Cut(
-        heightSuccessorWeak,
-        equivalenceApply of
-          (
-            p1 := in(x, app(h, successor(n))),
-            p2 := inIntroImage(app(h, n))(x)
-          )
-      )
-      have((inductionFormulaN, inIntroImage(app(h, n))(x)) |- isConstructorXHN0) by Restate
-      have(
-        (
-          base.isHeight(h),
-          in(n, N),
-          in(x, app(h, successor(n))),
-          inductionFormulaN
-        ) |- isConstructorXHN0
-      ) by Cut(heightSuccessorWeakForward, lastStep)
-      val right = have(
-        (
-          base.isHeight(h),
-          in(n, N),
-          in(x, app(h, successor(n))),
-          inductionFormulaN
-        ) |- isConstructorXHSuccN
-      ) by Cut(lastStep, liftConstructorHeight)
-      val left = have(isConstructorXHSuccN |- isConstructorXHSuccN) by Hypothesis
-      have(
-        (
-          base.isHeight(h),
-          in(n, N),
-          inductionFormulaN,
-          inIntroImage(app(h, successor(n)))(x)
-        ) |- isConstructorXHSuccN
-      ) by LeftOr(left, right)
-
-      thenHave(
-        (base.isHeight(h), in(n, N), inductionFormulaN) |- inductionFormulaSuccN
-      ) by RightImplies
-      thenHave(
-        (base.isHeight(h), in(n, N)) |- inductionFormulaN ==> inductionFormulaSuccN
-      ) by RightImplies
-      thenHave(
-        base.isHeight(h) |- in(n, N) ==> (inductionFormulaN ==> inductionFormulaSuccN)
-      ) by RightImplies
-      thenHave(
-        base.isHeight(h) |-
-          forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormulaSuccN))
-      ) by RightForall
-      have(base.isHeight(h) |- forall(n, in(n, N) ==> inductionFormulaN)) by
-        Cut(lastStep, inductiveCaseRemaining)
-      thenHave(base.isHeight(h) |- in(n, N) ==> inductionFormulaN) by
-        InstantiateForall(n)
-    }
-
-    val backward = have(
-      (base.isHeight(h), in(n, N)) |-
-        isConstructor(x)(app(h, n)) ==> inIntroImage(app(h, n))(x)
-    ) by Restate
-
-    have(
-      (base.isHeight(h), in(n, N)) |-
-        inIntroImage(app(h, n))(x) <=> isConstructor(x)(app(h, n))
-    ) by RightIff(forward, backward)
-    have(thesis) by Tautology.from(equivalenceRewriting, lastStep, heightSuccessorWeak)
+    have(thesis) by Tautology.from(
+      base.heightIsCore,
+      introFunctionMonoHyp,
+      isConstructorMonoHyp,
+      HeightKernelSuccessor.heightSuccessorStrong of (HeightKernel.isConstructor := isConstructor)
+    )
   }
 }

@@ -3,9 +3,13 @@ package lisa.maths.SetTheory.Types.ADTv2.height
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse.unionRangeCollapse
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.OmegaFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.TransfiniteRecursionExt
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Base.Extensionality
 import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Functions.BasicTheorems.{functionOnDomain, functionOnIsFunction}
 
 object HeightKernel {
 
@@ -13,6 +17,7 @@ object HeightKernel {
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
 
   val isConstructor = variable[Ind >>: Ind >>: Prop]
+  val stageSet = variable[Ind >>: Ind]
 
   def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] =
     isConstructor(y)(s) \/ in(y, s)
@@ -26,15 +31,132 @@ object HeightKernel {
     ∀(n ∈ N, ∀(x, in(x, app(h, n)) <=> inExtIntroImage(h ↾ n)(x)))
 
   val introFunctionMono: Expr[Prop] =
+    // proven by introFunctionMonoHyp in HeightConstructors
     forall(s, forall(t, subset(s, t) ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))))
 
   val isConstructorMono: Expr[Prop] =
     forall(s, forall(t, forall(x, subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t)))))
 
+  /**
+   * Assumption witnessing that the stage predicate is represented by a
+   * set-valued operator.
+   */
+  val stageSetSpec: Expr[Prop] =
+    forall(f, forall(x, in(x, stageSet(f)) <=> inExtIntroImage(f)(x)))
+
   // ––––––––––––––––––––––––––––––––––––––––––––––––
 
-  val introductionFunctionMononotic = Lemma(
-    (isConstructorMono, subset(s, t)) |- inIntroImage(s)(x) ==> inIntroImage(t)(x)
+  val stageSetExists = Lemma(
+    stageSetSpec |- exists(s, forall(x, in(x, s) <=> inExtIntroImage(f)(x)))
+  ) {
+    assume(stageSetSpec)
+    have(stageSetSpec |- stageSetSpec) by Hypothesis
+    thenHave(stageSetSpec |- forall(x, in(x, stageSet(f)) <=> inExtIntroImage(f)(x))) by
+      InstantiateForall(f)
+    thenHave(stageSetSpec |- exists(s, forall(x, in(x, s) <=> inExtIntroImage(f)(x)))) by
+      RightExists
+    thenHave(thesis) by Restate
+  }
+
+  /**
+   * Generic existence of a height-core function from a set-valued stage
+   * operator.
+   */
+  val heightExists = Lemma(stageSetSpec |- exists(h, isHeightCore(h))) {
+    val Func = variable[Ind >>: Ind >>: Ind]
+    val stepFunc: Expr[Ind >>: Ind >>: Ind] = λ(n, stageSet)
+    val recFun = TransfiniteRecursionExt.transfiniteRecursionFunction(stepFunc)(N)
+
+    val recSpec0 = have(
+      functionOn(recFun)(N) /\
+        ∀(n ∈ N, app(recFun, n) === stepFunc(n)(recFun ↾ n))
+    ) by Tautology.from(
+      OmegaFacts.isOrdinal,
+      TransfiniteRecursionExt.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
+    )
+    val recSpec = have(
+      stageSetSpec |-
+        functionOn(recFun)(N) /\
+          ∀(n ∈ N, app(recFun, n) === stepFunc(n)(recFun ↾ n))
+    ) by Weakening(recSpec0)
+
+    val funOnRec = have(stageSetSpec |- functionOn(recFun)(N)) by Tautology.from(recSpec)
+    val recIsFun = have(stageSetSpec |- function(recFun)) by Tautology.from(
+      funOnRec,
+      functionOnIsFunction of (f := recFun, A := N)
+    )
+    val recDom = have(stageSetSpec |- dom(recFun) === N) by Tautology.from(
+      funOnRec,
+      functionOnDomain of (f := recFun, A := N)
+    )
+
+    val stageEqAll = have(
+      stageSetSpec |-
+        ∀(n ∈ N, app(recFun, n) === stepFunc(n)(recFun ↾ n))
+    ) by Tautology.from(recSpec)
+
+    val stageChar = have(
+      (stageSetSpec, in(n, N)) |-
+        ∀(x, in(x, app(recFun, n)) <=> inExtIntroImage(recFun ↾ n)(x))
+    ) subproof {
+      val recEq0 = have(
+        (stageSetSpec, in(n, N)) |-
+          app(recFun, n) === stepFunc(n)(recFun ↾ n)
+      ) by InstantiateForall(n)(stageEqAll)
+      val stepEq = have(
+        stepFunc(n)(recFun ↾ n) === stageSet(recFun ↾ n)
+      ) by Restate
+      val recEq = have(
+        (stageSetSpec, in(n, N)) |-
+          app(recFun, n) === stageSet(recFun ↾ n)
+      ) by Congruence.from(recEq0, stepEq)
+
+      val stageSetSpecFact = have(stageSetSpec |- stageSetSpec) by Hypothesis
+      val stageSpecAtRec = have(
+        stageSetSpec |-
+          ∀(x, in(x, stageSet(recFun ↾ n)) <=> inExtIntroImage(recFun ↾ n)(x))
+      ) by InstantiateForall(recFun ↾ n)(stageSetSpecFact)
+
+      val stageMemEq = have(
+        stageSetSpec |-
+          in(x, stageSet(recFun ↾ n)) <=> inExtIntroImage(recFun ↾ n)(x)
+      ) by InstantiateForall(x)(stageSpecAtRec)
+
+      have(
+        (stageSetSpec, in(n, N)) |-
+          in(x, app(recFun, n)) <=> inExtIntroImage(recFun ↾ n)(x)
+      ) by Congruence.from(recEq, stageMemEq)
+      thenHave(
+        (stageSetSpec, in(n, N)) |-
+          ∀(x, in(x, app(recFun, n)) <=> inExtIntroImage(recFun ↾ n)(x))
+      ) by RightForall
+    }
+
+    val stageAll = have(
+      stageSetSpec |-
+        ∀(n ∈ N, ∀(x, in(x, app(recFun, n)) <=> inExtIntroImage(recFun ↾ n)(x)))
+    ) subproof {
+      have(
+        (stageSetSpec, in(n, N)) |-
+          ∀(x, in(x, app(recFun, n)) <=> inExtIntroImage(recFun ↾ n)(x))
+      ) by Restate.from(stageChar)
+      thenHave(
+        stageSetSpec |- in(n, N) ==> ∀(x, in(x, app(recFun, n)) <=> inExtIntroImage(recFun ↾ n)(x))
+      ) by RightImplies
+      thenHave(
+        stageSetSpec |-
+          ∀(n, in(n, N) ==> ∀(x, in(x, app(recFun, n)) <=> inExtIntroImage(recFun ↾ n)(x)))
+      ) by RightForall
+      thenHave(thesis) by Restate
+    }
+
+    have(stageSetSpec |- isHeightCore(recFun)) by Tautology.from(recIsFun, recDom, stageAll)
+    thenHave(stageSetSpec |- exists(h, isHeightCore(h))) by RightExists
+    thenHave(thesis) by Restate
+  }
+
+  val isConstructorMonotonic = Lemma(
+    (isConstructorMono, subset(s, t)) |- isConstructor(x)(s) ==> isConstructor(x)(t)
   ) {
     val constMono = have(isConstructorMono |- isConstructorMono) by Hypothesis
     have(isConstructorMono |- forall(t, forall(x, subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t))))) by
@@ -43,9 +165,16 @@ object HeightKernel {
       InstantiateForall(t)
     thenHave(isConstructorMono |- subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t))) by
       InstantiateForall(x)
-    have((isConstructorMono, subset(s, t)) |- isConstructor(x)(s) ==> isConstructor(x)(t)) by
-      Tautology.from(lastStep)
-    have(thesis) by Cut(lastStep, unionPreimageMonotonic of (P := lam(s, isConstructor(x)(s))))
+    have(thesis) by Tautology.from(lastStep)
+  }
+
+  val introductionFunctionMononotic = Lemma(
+    (isConstructorMono, subset(s, t)) |- inIntroImage(s)(x) ==> inIntroImage(t)(x)
+  ) {
+    have(thesis) by Cut(
+      isConstructorMonotonic,
+      unionPreimageMonotonic of (P := lam(s, isConstructor(x)(s)))
+    )
   }
 
   val domNImpliesNonEmpty = Lemma(dom(h) === N |- !(h === ∅)) {
@@ -173,118 +302,6 @@ object HeightKernel {
       ),
       lastStep
     )
-  }
-
-  val heightZero = Lemma(isHeightCore(h) |- !in(x, app(h, ∅))) {
-    have(
-      isHeightCore(h) |-
-        in(x, app(h, ∅)) <=>
-        inExtIntroImage(h ↾ ∅)(x)
-    ) by Cut(zeroIsNat, heightApplication of (n := ∅))
-    thenHave(
-      (h ↾ ∅ === ∅, isHeightCore(h)) |- !in(x, app(h, ∅))
-    ) by RightSubstEq.withParameters(
-      List((h ↾ ∅, ∅)),
-      (Seq(s), in(x, app(h, ∅)) <=> inExtIntroImage(s)(x))
-    )
-    have(thesis) by Cut(restrictedFunctionEmptyDomain, lastStep)
-  }
-
-  val heightSuccessorWeak = Lemma(
-    (introFunctionMono, isHeightCore(h), in(n, N)) |-
-      in(x, app(h, successor(n))) <=> inIntroImage(app(h, n))(x)
-  ) {
-    val heightResNonEmpty: Expr[Prop] = !(h ↾ successor(n) === ∅)
-
-    val coreTyping = have(
-      (isHeightCore(h), in(n, N)) |- function(h) /\ (dom(h) === N)
-    ) by Tautology
-    val nInNFact = have((isHeightCore(h), in(n, N)) |- in(n, N)) by Hypothesis
-    val domEq = have((isHeightCore(h), in(n, N)) |- dom(h) === N) by Tautology.from(coreTyping)
-    val nInDomH = have((isHeightCore(h), in(n, N)) |- in(n, dom(h))) by Congruence.from(nInNFact, domEq)
-    val nInSucc = have((isHeightCore(h), in(n, N)) |- in(n, successor(n))) by
-      Tautology.from(nInSuccN of (n := n))
-
-    val heightResNonEmptyLemma = have((isHeightCore(h), in(n, N)) |- heightResNonEmpty) by
-      Tautology.from(
-        coreTyping,
-        nInDomH,
-        nInSucc,
-        restrictedFunctionNotEmpty of (x := n, d := successor(n))
-      )
-
-    have(
-      (introFunctionMono, isHeightCore(h), in(n, N), in(m, N)) |-
-        subset(m, n) ==> subset(app(h, m), app(h, n))
-    ) by RightImplies(heightMonotonic)
-    thenHave(
-      (introFunctionMono, isHeightCore(h), in(n, N)) |-
-        in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n)))
-    ) by RightImplies
-    val monotonicityForall = thenHave(
-      (introFunctionMono, isHeightCore(h), in(n, N)) |-
-        forall(m, in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n))))
-    ) by RightForall
-
-    val coreTypingAndN = have(
-      (isHeightCore(h), in(n, N)) |- (function(h) /\ (dom(h) === N)) /\ in(n, N)
-    ) by RightAnd(coreTyping, nInNFact)
-
-    have(
-      (introFunctionMono, isHeightCore(h), in(n, N)) |- (
-        function(h) /\
-        (dom(h) === N) /\
-        in(n, N) /\
-        forall(m, in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n))))
-      )
-    ) by RightAnd(coreTypingAndN, monotonicityForall)
-
-    val unionRangeRes = have(
-      (introFunctionMono, isHeightCore(h), in(n, N)) |-
-        unionRange(h ↾ successor(n)) === app(h, n)
-    ) by Tautology.from(lastStep, unionRangeCollapse)
-
-    val succIsNatStep = have((isHeightCore(h), in(n, N)) |- in(successor(n), N)) by
-      Tautology.from(successorIsNat)
-
-    have(
-      (isHeightCore(h), in(n, N)) |-
-        in(x, app(h, successor(n))) <=>
-        inExtIntroImage(h ↾ successor(n))(x)
-    ) by Cut(succIsNatStep, heightApplication of (n := successor(n)))
-
-    thenHave(
-      (
-        isHeightCore(h),
-        in(n, N),
-        unionRange(h ↾ successor(n)) === app(h, n)
-      ) |-
-        in(x, app(h, successor(n))) <=>
-        heightResNonEmpty /\ inIntroImage(app(h, n))(x)
-    ) by RightSubstEq.withParameters(
-      List((unionRange(h ↾ successor(n)), app(h, n))),
-      (
-        Seq(s),
-        in(x, app(h, successor(n))) <=>
-          (heightResNonEmpty /\ inIntroImage(s)(x))
-      )
-    )
-
-    have(
-      (introFunctionMono, isHeightCore(h), in(n, N)) |-
-        in(x, app(h, successor(n))) <=> heightResNonEmpty /\ inIntroImage(app(h, n))(x)
-    ) by Cut(unionRangeRes, lastStep)
-
-    have(
-      (introFunctionMono, isHeightCore(h), in(n, N), heightResNonEmpty) |-
-        in(x, app(h, successor(n))) <=> inIntroImage(app(h, n))(x)
-    ) by Cut(lastStep, equivalenceAnd of (
-      p1 := in(x, app(h, successor(n))),
-      p2 := heightResNonEmpty,
-      p3 := inIntroImage(app(h, n))(x)
-    ))
-
-    have(thesis) by Cut(heightResNonEmptyLemma, lastStep)
   }
 
 }

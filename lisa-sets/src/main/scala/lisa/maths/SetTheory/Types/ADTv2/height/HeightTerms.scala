@@ -72,7 +72,7 @@ final class HeightTerms[N <: Arity](
         RightSubstEq.withParameters(List((f, h)), (Seq(h), in(x, unionRange(h))))
       have(
         (base.isHeight(f), base.isHeight(h), in(x, unionRange(h))) |- in(x, unionRange(f))
-      ) by Cut(base.heightFunUniqueEq, lastStep)
+      ) by Cut(constructorsTheory.heightUniqueness, lastStep)
       thenHave((base.isHeight(h), in(x, unionRange(h))) |- base.isHeight(f) ==> in(x, unionRange(f))) by
         RightImplies
       thenHave((base.isHeight(h), in(x, unionRange(h))) |- forall(f, base.isHeight(f) ==> in(x, unionRange(f)))) by
@@ -302,7 +302,7 @@ final class HeightTerms[N <: Arity](
     }
   ).toMap
 
-  private[ADTv2] val heightConstructor = constructors.map(c =>
+  val heightConstructor = constructors.map(c =>
     c -> Lemma(
       (base.isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |-
         in(c.term, app(h, successor(n)))
