@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -80,20 +81,14 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   // Witness DEF — abstracts over typeVariablesSeq AND selfPlaceholder
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val witnessClass: Constant[?] = {
-    val witnessExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
-      xs = typeVariablesSeq :+ selfPlaceholder,
-      t = { pairWitness ∈ (spec.adt.term × spec.returnType) | caseMembership(pairWitness) }
-    )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
-      lisa.utils.fol.FOL.unsafeSortEvidence(witnessExpr.sort)
-    DEF(using name = s"${spec.functionName}/witness")(witnessExpr.asInstanceOf[Expr[S]])
-  }
+  private val witnessClass = new DefinedSymbol(
+    name = s"${spec.functionName}/witness",
+    parametersSeq = typeVariablesSeq :+ selfPlaceholder,
+    body = { pairWitness ∈ (spec.adt.term × spec.returnType) | caseMembership(pairWitness) }
+  )
 
   /** The witness set W(selfPlaceholder) — has selfPlaceholder free. */
-  val witness: Expr[Ind] =
-    (witnessClass #@@ (typeVariablesSeq :+ selfPlaceholder)).asInstanceOf[Expr[Ind]]
+  val witness: Expr[Ind] = witnessClass.term
 
   private val witnessBound: Expr[Ind] = spec.adt.term × spec.returnType
   private val witnessBody: Expr[Ind] =

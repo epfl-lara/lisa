@@ -2,7 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedClassFunction
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -113,7 +113,7 @@ final class RecFunSemantics[N <: Arity](
   // Class function DEF — term := ε(f, Def(f))
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val definedClassFunction = UniqueDefinedClassFunction(
+  private val definedClassFunction = UniqueCharacterizedSymbol(
     name = name,
     typeVariablesSeq = typeVariablesSeq,
     witnessVar = f,

@@ -189,15 +189,4 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
       thenHave(thesis) by Tautology
     }
 
-  lazy val recursivePointwisePlan: JUSTIFICATION =
-    Lemma(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)){
-      // Placeholder plan for recursive uniqueness:
-      // 1) Assume two recursive candidates satisfy the same recursive equations.
-      // 2) Prove pointwise equality by ADT induction on inputs.
-      // 3) At each constructor branch, use induction hypotheses for recursive calls.
-      // 4) Rebuild equality of branch results from recursive-case equations.
-      // 5) Conclude x === y by function extensionality.
-
-      have(thesis) by Sorry
-    }
 }
