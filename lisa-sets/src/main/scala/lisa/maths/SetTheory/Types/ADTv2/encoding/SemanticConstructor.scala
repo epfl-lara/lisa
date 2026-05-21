@@ -6,7 +6,7 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedClassFunction
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
@@ -154,7 +154,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   private val untypedDefinition = internals.untypedDefinition
 
-  private val definedClassFunction = UniqueDefinedClassFunction(
+  private val definedClassFunction = UniqueCharacterizedSymbol(
     name = fullName,
     typeVariablesSeq = typeVariablesSeq,
     witnessVar = c,

@@ -6,18 +6,18 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 
-final class UniqueDefinedClassFunction(
-    name: String,
-    typeVariablesSeq: Seq[Variable[Ind]],
-    witnessVar: Variable[Ind],
-    definitionAt: Expr[Ind] => Expr[Prop]
+class UniqueDefinedSymbol(
+    protected val name: String,
+    protected val typeVariablesSeq: Seq[Variable[Ind]],
+    protected val witnessVar: Variable[Ind],
+    protected val definitionAt: Expr[Ind] => Expr[Prop]
 )(
-    uniqueness: THM
+    protected val uniqueness: THM
 ) {
 
-  private val witnessDefinition: Expr[Prop] = definitionAt(witnessVar)
+  protected val witnessDefinition: Expr[Prop] = definitionAt(witnessVar)
 
-  private val classFunction: Constant[?] = {
+  protected val classFunction: Constant[?] = {
     val classFunctionExpr: Expr[?] = lisa.utils.fol.FOL.Abs.apply(
       xs = typeVariablesSeq,
       t = ε(witnessVar, witnessDefinition)
@@ -35,7 +35,7 @@ final class UniqueDefinedClassFunction(
 
   val term: Expr[Ind] = term(typeVariablesSeq)
 
-  private val classTermIsEpsilon: THM = Lemma(term === ε(witnessVar, witnessDefinition)) {
+  protected val classTermIsEpsilon: THM = Lemma(term === ε(witnessVar, witnessDefinition)) {
     have(thesis) by Congruence.from(classFunction.definition)
   }
 
@@ -62,6 +62,17 @@ final class UniqueDefinedClassFunction(
 
     have(thesis) by Tautology.from(epsilonEqTerm, definitionAtTerm)
   }
+}
+
+
+final class UniqueCharacterizedSymbol(
+    name: String,
+    typeVariablesSeq: Seq[Variable[Ind]],
+    witnessVar: Variable[Ind],
+    definitionAt: Expr[Ind] => Expr[Prop]
+)(
+    uniqueness: THM
+) extends UniqueDefinedSymbol(name, typeVariablesSeq, witnessVar, definitionAt)(uniqueness) {
 
   val characterization: THM =
     Lemma(forall(witnessVar, (term === witnessVar) <=> witnessDefinition)) {
@@ -105,4 +116,5 @@ final class UniqueDefinedClassFunction(
 
       thenHave(thesis) by RightForall
     }
+
 }

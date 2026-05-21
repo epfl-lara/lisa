@@ -67,7 +67,8 @@ private[recursion] final class Approx[N <: Arity](
         have(seed :: spec.typ) by Typecheck.prove
         thenHave(thesis) by RightExists
 
-      case None => have(thesis) by Sorry
+      case None =>
+        throw new IllegalArgumentException("Cannot construct seed function for approximant sequence: no nullary constructor case found.")
     }
   }
 
