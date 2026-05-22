@@ -4,6 +4,7 @@ import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
 import lisa.maths.SetTheory.Functions.Function.abs
 import lisa.maths.SetTheory.Functions.Pi.{Pi, ->:}
 import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, funEqDef}
@@ -18,6 +19,10 @@ object FunctionAbstractions {
   private val codomainVar = variable[Ind]("codomain")
   private val bodyVar = variable[Ind >>: Ind]("body")
   private val pointVar = variable[Ind]("point")
+  private val tailTypeVar = variable[Ind]("tailType")
+  private val currentFunVar = variable[Ind]("currentFun")
+  private val leftFunVar = variable[Ind]("leftFun")
+  private val rightFunVar = variable[Ind]("rightFun")
 
   def nestedAbstraction(
       signature: Seq[(Variable[Ind], Expr[Ind])],
@@ -60,6 +65,30 @@ object FunctionAbstractions {
         bodyVar := body
       )
     )
+  }
+
+  def instantiateForallSeq(
+      quantifiedFormula: Expr[Prop],
+      args: Seq[Expr[Ind]]
+  ): THM = {
+    val instantiated = args.foldLeft(quantifiedFormula) { (current, arg) =>
+      current match
+        case forall(v, phi) =>
+          phi.substitute(v := arg).asInstanceOf[Expr[Prop]]
+        case _ => current
+    }
+
+    Lemma(quantifiedFormula |- instantiated) {
+      var current = assume(quantifiedFormula)
+
+      for arg <- args do
+        current.statement.right.head match
+          case forall(v, phi) =>
+            current = have(phi.substitute(v := arg).asInstanceOf[Expr[Prop]]) by InstantiateForall(arg)(current)
+          case _ =>
+
+      have(thesis) by Restate.from(current)
+    }
   }
 
   private def betaAtHead(
@@ -116,64 +145,53 @@ object FunctionAbstractions {
       have(thesis) by Tautology.from(allTyped)
   }
 
-  private def applicationTypingFromFunctionTyping(
-      current: Expr[Ind],
-      currentType: Expr[Ind],
-      domain: Expr[Ind],
-      tailType: Expr[Ind],
-      pointArg: Variable[Ind]
-  ): THM = Lemma((current :: currentType, pointArg ∈ domain) |- ((current * pointArg) :: tailType)) {
-    val typedCurrent = assume(current :: currentType)
-    val argTyped = assume(pointArg ∈ domain)
-    have(thesis) by Tautology.from(
-      typedCurrent,
-      argTyped,
-      funEqDef of (f := current, a := domain, b := tailType, x := pointArg)
-    )
-  }
+  lazy val applicationTypingFromFunctionTypingGeneral: THM =
+    Lemma((currentFunVar :: (domainVar ->: tailTypeVar), pointVar ∈ domainVar) |- ((currentFunVar * pointVar) :: tailTypeVar)) {
+      val typedCurrent = assume(currentFunVar :: (domainVar ->: tailTypeVar))
+      val argTyped = assume(pointVar ∈ domainVar)
+      have(thesis) by Tautology.from(
+        typedCurrent,
+        argTyped,
+        funEqDef of (f := currentFunVar, a := domainVar, b := tailTypeVar, x := pointVar)
+      )
+    }
 
-  private def functionBetweenFromTyping(
-      current: Expr[Ind],
-      domain: Expr[Ind],
-      tailType: Expr[Ind],
-      currentType: Expr[Ind]
-  ): THM = Lemma((current :: currentType) |- Function.functionBetween(current)(domain)(tailType)) {
-    val typedCurrent = assume(current :: currentType)
-    have(thesis) by Tautology.from(
-      BasicTheorems.funcBetweenEqInFuncSpace of (
-        f := current,
-        A := domain,
-        B := tailType
-      ),
-      typedCurrent
-    )
-  }
+  lazy val functionBetweenFromTypingGeneral: THM =
+    Lemma((currentFunVar :: (domainVar ->: tailTypeVar)) |- Function.functionBetween(currentFunVar)(domainVar)(tailTypeVar)) {
+      val typedCurrent = assume(currentFunVar :: (domainVar ->: tailTypeVar))
+      have(thesis) by Tautology.from(
+        BasicTheorems.funcBetweenEqInFuncSpace of (
+          f := currentFunVar,
+          A := domainVar,
+          B := tailTypeVar
+        ),
+        typedCurrent
+      )
+    }
 
-  private def extensionalityStep(
-      currentLeft: Expr[Ind],
-      currentRight: Expr[Ind],
-      domain: Expr[Ind],
-      tailType: Expr[Ind],
-      currentType: Expr[Ind],
-      pointwiseFormula: Expr[Prop]
-  ): THM = Lemma(
-    (currentLeft :: currentType, currentRight :: currentType, pointwiseFormula) |- (currentLeft === currentRight)
+  lazy val extensionalityStepGeneral: THM = Lemma(
+    (
+      leftFunVar :: (domainVar ->: tailTypeVar),
+      rightFunVar :: (domainVar ->: tailTypeVar),
+      ∀(pointVar, pointVar ∈ domainVar ==> ((leftFunVar * pointVar) === (rightFunVar * pointVar)))
+    ) |- (leftFunVar === rightFunVar)
   ) {
-    val leftTyped = assume(currentLeft :: currentType)
-    val rightTyped = assume(currentRight :: currentType)
-    val pointwiseForall = assume(pointwiseFormula)
-    val leftBetween = have(Function.functionBetween(currentLeft)(domain)(tailType)) by Weakening(
-      functionBetweenFromTyping(currentLeft, domain, tailType, currentType)
+    val leftTyped = assume(leftFunVar :: (domainVar ->: tailTypeVar))
+    val rightTyped = assume(rightFunVar :: (domainVar ->: tailTypeVar))
+    val pointwiseForall =
+      assume(∀(pointVar, pointVar ∈ domainVar ==> ((leftFunVar * pointVar) === (rightFunVar * pointVar))))
+    val leftBetween = have(Function.functionBetween(leftFunVar)(domainVar)(tailTypeVar)) by Weakening(
+      functionBetweenFromTypingGeneral.of(currentFunVar := leftFunVar)
     )
-    val rightBetween = have(Function.functionBetween(currentRight)(domain)(tailType)) by Weakening(
-      functionBetweenFromTyping(currentRight, domain, tailType, currentType)
+    val rightBetween = have(Function.functionBetween(rightFunVar)(domainVar)(tailTypeVar)) by Weakening(
+      functionBetweenFromTypingGeneral.of(currentFunVar := rightFunVar)
     )
     have(thesis) by Tautology.from(
       BasicTheorems.functionalExtentionality of (
-        f := currentLeft,
-        g := currentRight,
-        A := domain,
-        B := tailType
+        f := leftFunVar,
+        g := rightFunVar,
+        A := domainVar,
+        B := tailTypeVar
       ),
       leftBetween,
       rightBetween,
@@ -282,10 +300,20 @@ object FunctionAbstractions {
               val argTyped = assume(pointArg ∈ domain)
 
               val leftAppTyped = have((currentLeft * pointArg) :: tailType) by Weakening(
-                applicationTypingFromFunctionTyping(currentLeft, currentType, domain, tailType, pointArg)
+                applicationTypingFromFunctionTypingGeneral.of(
+                  currentFunVar := currentLeft,
+                  domainVar := domain,
+                  tailTypeVar := tailType,
+                  pointVar := pointArg
+                )
               )
               val rightAppTyped = have((currentRight * pointArg) :: tailType) by Weakening(
-                applicationTypingFromFunctionTyping(currentRight, currentType, domain, tailType, pointArg)
+                applicationTypingFromFunctionTypingGeneral.of(
+                  currentFunVar := currentRight,
+                  domainVar := domain,
+                  tailTypeVar := tailType,
+                  pointVar := pointArg
+                )
               )
 
               val schemaAtHead = schema.statement.right.head match
@@ -293,12 +321,11 @@ object FunctionAbstractions {
                   have(phi.substitute(v := pointArg).asInstanceOf[Expr[Prop]]) by InstantiateForall(pointArg)(schema)
                 case _ => throw UnreachableException
 
-              val schemaAtAllVars = tailVars.foldLeft(schemaAtHead) { (fact, arg) =>
-                fact.statement.right.head match
-                  case forall(v, phi) =>
-                    have(phi.substitute(v := arg).asInstanceOf[Expr[Prop]]) by InstantiateForall(arg)(fact)
-                  case _ => fact
-              }
+              val schemaAtAllVars = have(
+                wellTypedFormula(tailSig) ==> (
+                  appSeq(currentLeft * pointArg)(tailVars) === appSeq(currentRight * pointArg)(tailVars)
+                )
+              ) by InstantiateForallSeq(tailVars)(schemaAtHead)
 
               val tailSchema =
                 if tailVars.isEmpty then
@@ -342,13 +369,11 @@ object FunctionAbstractions {
 
             have(thesis) by Cut(
               pointwiseForall,
-              extensionalityStep(
-                currentLeft,
-                currentRight,
-                domain,
-                tailType,
-                currentType,
-                pointwiseForall.statement.right.head
+              extensionalityStepGeneral.of(
+                leftFunVar := currentLeft,
+                rightFunVar := currentRight,
+                domainVar := domain,
+                tailTypeVar := tailType
               )
             )
           }

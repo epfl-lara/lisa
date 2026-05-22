@@ -9,6 +9,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 
 import lisa.maths.SetTheory.Types.ADTv2.support.ExistsOneBuilder
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
@@ -161,35 +162,19 @@ private[encoding] final class ConstructorInternals[N <: Arity](
       ) subproof {
         val xSchemaLocal = have(xSchema.statement.right.head) by Tautology.from(xSchema)
         val ySchemaLocal = have(ySchema.statement.right.head) by Tautology.from(ySchema)
-        val xAtVars = {
-          var current = xSchemaLocal
-          for arg <- pointwiseVars do
-            current.statement.right.head match
-              case forall(v, phi) =>
-                current = have(phi.substitute(v := arg).asInstanceOf[Expr[Prop]]) by InstantiateForall(arg)(current)
-              case _ =>
-          current
-        }
-        val yAtVars = {
-          var current = ySchemaLocal
-          for arg <- pointwiseVars do
-            current.statement.right.head match
-              case forall(v, phi) =>
-                current = have(phi.substitute(v := arg).asInstanceOf[Expr[Prop]]) by InstantiateForall(arg)(current)
-              case _ =>
-          current
-        }
+        val xAtVars = have(
+          wellTypedFormula(pointwiseSignature) ==> (appSeq(x)(pointwiseVars) === instantiatedStructuralTerm)
+        ) by InstantiateForallSeq(pointwiseVars)(xSchemaLocal)
+        val yAtVars = have(
+          wellTypedFormula(pointwiseSignature) ==> (appSeq(y)(pointwiseVars) === instantiatedStructuralTerm)
+        ) by InstantiateForallSeq(pointwiseVars)(ySchemaLocal)
 
         have(wellTypedFormula(pointwiseSignature) |- (appSeq(x)(pointwiseVars) === appSeq(y)(pointwiseVars))) subproof {
           val varsTyped = assume(wellTypedFormula(pointwiseSignature))
-          val xAtBody = xAtVars.statement.right.head match
-            case _ ==> consequent =>
-              have(consequent) by Tautology.from(xAtVars, varsTyped)
-            case _ => throw UnreachableException
-          val yAtBody = yAtVars.statement.right.head match
-            case _ ==> consequent =>
-              have(consequent) by Tautology.from(yAtVars, varsTyped)
-            case _ => throw UnreachableException
+          val xAtBody = have(appSeq(x)(pointwiseVars) === instantiatedStructuralTerm) by
+            Tautology.from(xAtVars, varsTyped)
+          val yAtBody = have(appSeq(y)(pointwiseVars) === instantiatedStructuralTerm) by
+            Tautology.from(yAtVars, varsTyped)
           val yAtBodyRev = have(instantiatedStructuralTerm === appSeq(y)(pointwiseVars)) by Congruence.from(yAtBody)
           have(appSeq(x)(pointwiseVars) === appSeq(y)(pointwiseVars)) by Tautology.from(
             altEqualityTransitivity of (
