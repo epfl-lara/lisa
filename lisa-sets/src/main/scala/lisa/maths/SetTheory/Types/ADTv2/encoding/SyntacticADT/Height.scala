@@ -1,7 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightADT
+import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructorData
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructors
+import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageConstructorData
+import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageSet
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -10,15 +13,39 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     extends SyntacticADTInjectivity[N] {
   this: SyntacticADT[N] =>
 
-  val heightTHY = HeightADT[N](
+  protected val heightConstructorData = constructors.map(c =>
+    HeightConstructorData(
+      variables = c.variables2,
+      signature = c.signature2,
+      term = c.term2
+    )
+  )
+
+  protected val heightStageConstructorData = constructors.map(c =>
+    HeightStageConstructorData(
+      variables = c.variables2,
+      signature = c.signature2,
+      subterm = c.subterm2,
+      tagTerm = c.tagTerm
+    )
+  )
+
+  protected val heightTHY = HeightADT[N](
     name,
     typeVariablesSeq,
     isConstructor
   )
 
-  val heightConstructorsTHY = HeightConstructors[N](
+  protected val heightStageSet = HeightStageSet[N](
+    heightTHY, 
+    heightStageConstructorData, 
+    isConstructor
+  )
+
+  protected val heightConstructorsTHY = HeightConstructors[N](
     heightTHY,
-    constructors,
+    heightConstructorData,
+    heightStageSet,
     isConstructor
   )
 

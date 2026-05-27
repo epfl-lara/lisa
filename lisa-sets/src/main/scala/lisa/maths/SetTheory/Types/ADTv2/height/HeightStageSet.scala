@@ -1,6 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.height
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SyntacticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
@@ -19,18 +18,18 @@ import lisa.utils.prooflib.SimpleDeducedSteps.*
 
 final class HeightStageSet[N <: Arity](
   base: HeightADT[N],
-  constructors: Seq[SyntacticConstructor],
+  constructors: Seq[HeightStageConstructorData],
   isConstructor: Expr[Ind >>: Ind >>: Prop]
 ) {
   private val U = variable[Ind]
   private val φ = variable[Ind >>: Prop]
 
   private def constructorPredicate(
-      c: SyntacticConstructor,
+      c: HeightStageConstructorData,
       x: Expr[Ind],
       s: Expr[Ind]
   ): Expr[Prop] =
-    existsSeq(c.variables2, wellTypedFormula(c.signature2)(s) /\ (x === c.term2))
+    existsSeq(c.variables, wellTypedFormula(c.signature)(s) /\ (x === c.term))
 
   private val stageSetExistsCtor = Lemma(
     exists(s, ∀(x, in(x, s) <=> base.inExtIntroImage(f)(x)))
@@ -74,7 +73,7 @@ final class HeightStageSet[N <: Arity](
 
     val seedElems =
       unionRangeF +: (
-        constructors.flatMap(_.signature2.map(_._2.getOrElse(unionRangeF))) ++
+        constructors.flatMap(_.signature.map(_._2.getOrElse(unionRangeF))) ++
           constructors.map(_.tagTerm)
       )
     val seed = finiteSet(seedElems)
@@ -160,9 +159,9 @@ final class HeightStageSet[N <: Arity](
       thenHave(thesis) by Substitute(lisa.maths.SetTheory.Base.Pair.pair.definition of (x := a0, y := b0))
     }
 
-    def constructorTermInUniverse(c: SyntacticConstructor): THM = {
-      val typedArgs = wellTypedFormula(c.signature2)(unionRangeF)
-      Lemma((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.term2, stageBound)) {
+    def constructorTermInUniverse(c: HeightStageConstructorData): THM = {
+      val typedArgs = wellTypedFormula(c.signature)(unionRangeF)
+      Lemma((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.term, stageBound)) {
         val typedHyp = have(typedArgs |- typedArgs) by Hypothesis
 
         def domainInUniverse(d: Expr[Ind]): THM = Lemma(
@@ -201,7 +200,7 @@ final class HeightStageSet[N <: Arity](
         val initialSubtermFact = have((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(∅, stageBound)) by
           Tautology.from(universeBound, seedBound, emptyInUniverse)
         val emptySet: Expr[Ind] = ∅
-        val subtermBuild = c.signature2.reverse.foldLeft((emptySet, initialSubtermFact)) { (acc, sig) =>
+        val subtermBuild = c.signature.reverse.foldLeft((emptySet, initialSubtermFact)) { (acc, sig) =>
           val (currentSubterm, currentFact) = acc
           val (v, ty) = sig
           val d = ty.getOrElse(unionRangeF)
@@ -215,7 +214,7 @@ final class HeightStageSet[N <: Arity](
             )
           (pair(v, currentSubterm), pairInU)
         }
-        val subtermInUniverse = have((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.subterm2, stageBound)) by
+        val subtermInUniverse = have((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.subterm, stageBound)) by
           Restate.from(subtermBuild._2)
 
         val tagInUniverse = have(
@@ -229,7 +228,7 @@ final class HeightStageSet[N <: Arity](
         have(thesis) by Tautology.from(
           lastStep,
           subtermInUniverse,
-          orderedPairInUniverse(c.tagTerm, c.subterm2)
+          orderedPairInUniverse(c.tagTerm, c.subterm)
         )
       }
     }
@@ -243,21 +242,21 @@ final class HeightStageSet[N <: Arity](
         have(isConstructor(x)(unionRangeF) |- in(x, stageBound)) by Tautology
       else
         val branches = constructors.map(c =>
-          val typedEq = wellTypedFormula(c.signature2)(unionRangeF) /\ (x === c.term2)
+          val typedEq = wellTypedFormula(c.signature)(unionRangeF) /\ (x === c.term)
           val termInU = constructorTermInUniverse(c)
           val branch = have(typedEq |- in(x, stageBound)) subproof {
-            val xEqTerm = have(typedEq |- x === c.term2) by Tautology
-            val termInUFact = have(typedEq |- in(c.term2, stageBound)) by Tautology.from(
+            val xEqTerm = have(typedEq |- x === c.term) by Tautology
+            val termInUFact = have(typedEq |- in(c.term, stageBound)) by Tautology.from(
               termInU,
-              have(typedEq |- wellTypedFormula(c.signature2)(unionRangeF)) by Tautology,
+              have(typedEq |- wellTypedFormula(c.signature)(unionRangeF)) by Tautology,
               isUniverseBound,
               seedInBound
             )
-            have(typedEq |- in(x, stageBound) <=> in(c.term2, stageBound)) by Congruence.from(xEqTerm)
+            have(typedEq |- in(x, stageBound) <=> in(c.term, stageBound)) by Congruence.from(xEqTerm)
             have(thesis) by Tautology.from(lastStep, termInUFact)
           }
           have(constructorPredicate(c, x, unionRangeF) |- in(x, stageBound)) by
-            QuantifiersIntro(c.variables2)(branch)
+            QuantifiersIntro(c.variables)(branch)
         )
         have(isConstructor(x)(unionRangeF) |- in(x, stageBound)) by
           LeftOr(branches*)

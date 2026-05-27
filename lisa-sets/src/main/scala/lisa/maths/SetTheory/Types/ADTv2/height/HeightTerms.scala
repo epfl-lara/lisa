@@ -1,6 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.height
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SyntacticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
@@ -8,7 +7,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeMembership.unio
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.*
-import lisa.maths.SetTheory.Base.Pair.given_Conversion_Expr_Expr_Expr
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Ordinals.Integer.ω
@@ -19,7 +17,7 @@ import lisa.utils.prooflib.BasicStepTactic.Restate
 final class HeightTerms[N <: Arity](
   base: HeightADT[N],
   constructorsTheory: HeightConstructors[N],
-  constructors: Seq[SyntacticConstructor],
+  constructors: Seq[HeightConstructorData],
   term: Expr[Ind],
   termSatisfiesDefinition: THM
 ) {
@@ -28,7 +26,7 @@ final class HeightTerms[N <: Arity](
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
 
   private def constructorVarsInDomain(
-      c: SyntacticConstructor,
+      c: HeightConstructorData,
       s: Expr[Ind]
   ): Expr[Prop] = wellTypedFormula(c.signature)(s)
 
@@ -114,7 +112,7 @@ final class HeightTerms[N <: Arity](
         (constructorVarsInDomain(c, term) <=>
           ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n))))
     ) {
-      if c.variables.isEmpty then have(thesis) by Tautology.from(existsNat)
+      if c.arity == 0 then have(thesis) by Tautology.from(existsNat)
       else
         val backward = have(
           base.isHeight(h) |- ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n))) ==> constructorVarsInDomain(c, term)
@@ -302,19 +300,4 @@ final class HeightTerms[N <: Arity](
     }
   ).toMap
 
-  val heightConstructor = constructors.map(c =>
-    c -> Lemma(
-      (base.isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |-
-        in(c.term, app(h, successor(n)))
-    ) {
-      val constructorInIntroFunHeight = base.inIntroImage(app(h, n))(c.term)
-
-      have((base.isHeight(h), in(n, N), constructorInIntroFunHeight) |- in(c.term, app(h, successor(n)))) by Cut(
-        constructorsTheory.heightSuccessorWeak of (x := c.term),
-        equivalenceRevApply of (p1 := constructorInIntroFunHeight, p2 := in(c.term, app(h, successor(n))))
-      )
-      have((base.isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(c.term, app(h, successor(n)))) by
-        Cut(constructorsTheory.constructorIsInIntroductionFunction(c) of (s := app(h, n)), lastStep)
-    }
-  ).toMap
 }

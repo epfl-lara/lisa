@@ -116,8 +116,6 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
 
   def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
 
-  lazy val debug_uniqueness: THM = semantic.uniqueness
-  lazy val debug_classDefinitionFact: THM = semantic.classDefinitionFact
 }
 
 object RecFunction {

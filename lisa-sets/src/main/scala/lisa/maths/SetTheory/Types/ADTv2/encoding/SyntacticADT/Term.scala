@@ -139,8 +139,6 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
     definitionAt = termDefinitionFormula
   )(termExistence)
 
-  // The ADT term symbol is a class function over type variables, matching the
-  // representation already used for constructors and semantic functions.
   val polymorphicTerm: Constant[?] = definedClassFunction.symbol
 
   polymorphicTerm.printAs(args =>
@@ -159,17 +157,68 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
 
   private[encoding] lazy val termSatisfiesDefinition: THM = definedClassFunction.definitionFact
 
+  private val constructorInIntroductionFunction = constructors.map(c =>
+    val constructorVarsInDomainCS = constructorVarsInDomain(c, s)
+
+    c -> Lemma(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) {
+      have(constructorVarsInDomainCS |- constructorVarsInDomainCS /\ (c.term === c.term)) by Restate
+
+      c.variables2.foldRight((c.variables1, List[Variable[Ind]]()))((v, acc) =>
+        val oldVariables = acc._1.init
+        val newVariables = v :: acc._2
+        val vars = oldVariables ++ newVariables
+
+        thenHave(
+          constructorVarsInDomainCS |- existsSeq(
+            newVariables,
+            wellTypedFormula(vars.zip(c.specification))(s) /\ (c.term(vars) === c.term)
+          )
+        ) by RightExists
+
+        (oldVariables, newVariables)
+      )
+
+      thenHave(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) by Weakening
+    }
+  ).toMap
+
   private val heightTermsTHY = HeightTerms[N](
     heightTHY,
     heightConstructorsTHY,
-    constructors,
+    heightConstructorData,
     term,
     termSatisfiesDefinition
   )
 
-  private[encoding] val termHasHeight = heightTermsTHY.termHasHeight
-  private[encoding] val termsHaveHeight = heightTermsTHY.termsHaveHeight
-  private val heightConstructor = heightTermsTHY.heightConstructor
+  val termHasHeight = heightTermsTHY.termHasHeight
+  val termsHaveHeight =
+    constructors.zip(heightConstructorData).map((c, d) =>
+      c -> {
+        val substitution = c.variables2.zip(c.variables).map((from, to) => from := to)
+        val fact = heightTermsTHY.termsHaveHeight(d)
+        Lemma(fact.statement.substitute(substitution*)) {
+          have(thesis) by Restate.from(fact.of(substitution*))
+        }
+      }
+    ).toMap
+    
+  private val heightConstructor = constructors.map(c =>
+    c -> Lemma(
+      (isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |-
+        in(c.term, app(h, successor(n)))
+    ) {
+      val constructorInIntroFunHeight = inIntroImage(app(h, n))(c.term)
+
+      have((isHeight(h), in(n, N), constructorInIntroFunHeight) |- in(c.term, app(h, successor(n)))) by Cut(
+        heightSuccessorWeak of (x := c.term),
+        equivalenceRevApply of (p1 := constructorInIntroFunHeight, p2 := in(c.term, app(h, successor(n))))
+      )
+      have((isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(c.term, app(h, successor(n)))) by Cut(
+        constructorInIntroductionFunction(c) of (s := app(h, n)),
+        lastStep
+      )
+    }
+  ).toMap
 
   val intro = constructors
     .map(c =>

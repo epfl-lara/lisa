@@ -1,6 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.height
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.SyntacticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
@@ -14,7 +13,8 @@ import lisa.utils.prooflib.SimpleDeducedSteps.*
 
 final class HeightConstructors[N <: Arity](
   base: HeightADT[N],
-  constructors: Seq[SyntacticConstructor],
+  constructors: Seq[HeightConstructorData],
+  heightStageSet: HeightStageSet[N],
   isConstructor: Expr[Ind >>: Ind >>: Prop]
 ) {
 
@@ -25,13 +25,11 @@ final class HeightConstructors[N <: Arity](
     base.inIntroImage(s)(y)
 
   private def constructorPredicate(
-      c: SyntacticConstructor,
+      c: HeightConstructorData,
       x: Expr[Ind],
       s: Expr[Ind]
   ): Expr[Prop] =
-    existsSeq(c.variables2, wellTypedFormula(c.signature2)(s) /\ (x === c.term2))
-
-  private val heightStageSet = HeightStageSet[N](base, constructors, isConstructor)
+    existsSeq(c.variables, wellTypedFormula(c.signature)(s) /\ (x === c.term))
     
   val heightExists = Lemma(exists(h, base.isHeight(h))) {
     have(thesis) by Restate.from(heightStageSet.heightExists)
@@ -97,17 +95,17 @@ final class HeightConstructors[N <: Arity](
 
     val isConstructorXSImpliesT =
       for c <- constructors yield
-        val labelEq = x === c.term2
+        val labelEq = x === c.term
         val isConstructorCXS = constructorPredicate(c, x, s)
         val isConstructorCXT = constructorPredicate(c, x, t)
-        val varsWellTypedS = wellTypedFormula(c.signature2)(s)
-        val varsWellTypedT = wellTypedFormula(c.signature2)(t)
+        val varsWellTypedS = wellTypedFormula(c.signature)(s)
+        val varsWellTypedT = wellTypedFormula(c.signature)(t)
 
         if c.arity == 0 then
           have((subsetST, isConstructorCXS) |- isConstructorXT) by Restate
         else
           val andSeq =
-            for (v, ty) <- c.signature2
+            for (v, ty) <- c.signature
             yield have((subsetST, varsWellTypedS) |- in(v, ty.getOrElse(t))) by
               Weakening(subsetElimination of (z := v))
           val expandingDomain = have((subsetST, varsWellTypedS) |- varsWellTypedT) by
@@ -116,14 +114,14 @@ final class HeightConstructors[N <: Arity](
           have((subsetST, varsWellTypedS, labelEq) |- varsWellTypedT /\ labelEq) by
             RightAnd(expandingDomain, weakeningLabelEq)
 
-          val existsCXS = existsSeq(c.variables2, varsWellTypedS /\ labelEq)
-          val existsCXT = existsSeq(c.variables2, varsWellTypedT /\ labelEq)
+          val existsCXS = existsSeq(c.variables, varsWellTypedS /\ labelEq)
+          val existsCXT = existsSeq(c.variables, varsWellTypedT /\ labelEq)
 
           thenHave((subsetST, varsWellTypedS, labelEq) |- existsCXT) by
-            QuantifiersIntro(c.variables2)
+            QuantifiersIntro(c.variables)
           thenHave((subsetST, varsWellTypedS /\ labelEq) |- existsCXT) by LeftAnd
-          thenHave((subsetST, existsCXS) |- existsCXT) by QuantifiersIntro(c.variables2)
-          thenHave((subsetST, isConstructorCXS) |- isConstructorXT) by Weakening
+          thenHave((subsetST, existsCXS) |- existsCXT) by QuantifiersIntro(c.variables)
+          have((subsetST, isConstructorCXS) |- isConstructorXT) by Tautology.from(lastStep)
 
     val constructorBranch =
       if constructors.isEmpty then
@@ -133,14 +131,14 @@ final class HeightConstructors[N <: Arity](
           isConstructorXSImpliesT*
         )
 
-    val constructorCase = thenHave((subsetST, isConstructorXS) |- inIntroImage(t)(x)) by
-      Weakening
+    val constructorCase = have((subsetST, isConstructorXS) |- inIntroImage(t)(x)) by
+      Tautology.from(constructorBranch)
 
     val subsetEliminationX = have(s ⊆ t |- in(x, s) ==> in(x, t)) by
       Restate.from(subsetElimination of (z := x))
     have((subsetST, in(x, s)) |- in(x, t)) by Tautology.from(subsetEliminationX)
-    val membershipCase = thenHave((subsetST, in(x, s)) |- inIntroImage(t)(x)) by
-      Weakening
+    val membershipCase = have((subsetST, in(x, s)) |- inIntroImage(t)(x)) by
+      Tautology.from(lastStep)
 
     have((subsetST, inIntroImage(s)(x)) |- inIntroImage(t)(x)) by
       Tautology.from(constructorCase, membershipCase)
@@ -171,22 +169,22 @@ final class HeightConstructors[N <: Arity](
 
     val isConstructorXSImpliesT =
       for c <- constructors yield
-        val labelEq = x === c.term2
+        val labelEq = x === c.term
         val isConstructorCXS = constructorPredicate(c, x, s)
         val isConstructorCXT = constructorPredicate(c, x, t)
-        val varsWellTypedS = wellTypedFormula(c.signature2)(s)
-        val varsWellTypedT = wellTypedFormula(c.signature2)(t)
+        val varsWellTypedS = wellTypedFormula(c.signature)(s)
+        val varsWellTypedT = wellTypedFormula(c.signature)(t)
 
         if c.arity == 0 then
           have((subsetST, isConstructorCXS) |- isConstructorCXT) by Restate
-          thenHave((subsetST, isConstructorCXS) |- isConstructorXT) by Weakening
+          have((subsetST, isConstructorCXS) |- isConstructorXT) by Tautology.from(lastStep)
         else
           have(s ⊆ t |- forall(z, in(z, s) ==> in(z, t))) by
             Congruence.from(subsetAxiom of (x := s, y := t))
           val subsetElimination = thenHave(s ⊆ t |- in(z, s) ==> in(z, t)) by
             InstantiateForall(z)
           val andSeq =
-            for (v, ty) <- c.signature2
+            for (v, ty) <- c.signature
             yield have((subsetST, varsWellTypedS) |- in(v, ty.getOrElse(t))) by
               Weakening(subsetElimination of (z := v))
           val expandingDomain = have((subsetST, varsWellTypedS) |- varsWellTypedT) by
@@ -196,10 +194,10 @@ final class HeightConstructors[N <: Arity](
             RightAnd(expandingDomain, weakeningLabelEq)
 
           thenHave((subsetST, varsWellTypedS, labelEq) |- isConstructorCXT) by
-            QuantifiersIntro(c.variables2)
+            QuantifiersIntro(c.variables)
           thenHave((subsetST, varsWellTypedS /\ labelEq) |- isConstructorCXT) by LeftAnd
           thenHave((subsetST, isConstructorCXS) |- isConstructorCXT) by
-            QuantifiersIntro(c.variables2)
+            QuantifiersIntro(c.variables)
           thenHave((subsetST, isConstructorCXS) |- isConstructorXT) by Weakening
 
     val constructorBranch =
@@ -261,36 +259,6 @@ final class HeightConstructors[N <: Arity](
       HeightKernelSuccessor.heightSuccessorWeak of (HeightKernel.isConstructor := isConstructor)
     )
   }
-
-  /**
-   *  Lemma --- Every constructor is in the image of the introduction function.
-   */
-  private[ADTv2] val constructorIsInIntroductionFunction = constructors.map(c =>
-    val constructorVarsInDomainCS = wellTypedFormula(c.signature)(s)
-
-    c -> Lemma(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) {
-      have(
-        constructorVarsInDomainCS |- constructorVarsInDomainCS /\ (c.term === c.term)
-      ) by Restate
-
-      c.variables2.foldRight((c.variables1, List[Variable[Ind]]()))((v, acc) =>
-        val oldVariables = acc._1.init
-        val newVariables = v :: acc._2
-        val vars = oldVariables ++ newVariables
-
-        thenHave(
-          constructorVarsInDomainCS |- existsSeq(
-            newVariables,
-            wellTypedFormula(vars.zip(c.specification))(s) /\ (c.term === c.term(vars))
-          )
-        ) by RightExists
-
-        (oldVariables, newVariables)
-      )
-
-      thenHave(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) by Weakening
-    }
-  ).toMap
 
   /**
    *  Base case used by the internal nat induction in heightSuccessorStrong.
