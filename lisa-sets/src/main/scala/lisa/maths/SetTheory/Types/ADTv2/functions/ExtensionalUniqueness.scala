@@ -1,7 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
@@ -110,27 +112,17 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
           val instantiatedCaseBody: Expr[Ind] =
             caseBody.substitute(substitutions*).asInstanceOf[Expr[Ind]]
 
-          val xCaseAtVars2 = caseVars.zip(c.variables2).foldLeft(xCaseSchema)((fact, varsPair) =>
-            fact.statement.right.head match
-              case forall(v, phi) =>
-                have(phi.substitute(v := varsPair._2).asInstanceOf[Expr[Prop]]) by InstantiateForall(varsPair._2)(fact)
-              case _ => fact
-          )
-          val xAtCtor = xCaseAtVars2.statement.right.head match
-            case _ ==> consequent =>
-              have(consequent) by Tautology.from(xCaseAtVars2, argsTyped)
-            case _ => throw UnreachableException
+          val xCaseAtVars2 = have(
+            wellTypedFormula(c.semanticSignature2) ==> (x * c.appliedTerm2 === instantiatedCaseBody)
+          ) by InstantiateForallSeq(c.variables2)(xCaseSchema)
+          val xAtCtor = have(x * c.appliedTerm2 === instantiatedCaseBody) by
+            Tautology.from(xCaseAtVars2, argsTyped)
 
-          val yCaseAtVars2 = caseVars.zip(c.variables2).foldLeft(yCaseSchema)((fact, varsPair) =>
-            fact.statement.right.head match
-              case forall(v, phi) =>
-                have(phi.substitute(v := varsPair._2).asInstanceOf[Expr[Prop]]) by InstantiateForall(varsPair._2)(fact)
-              case _ => fact
-          )
-          val yAtCtor = yCaseAtVars2.statement.right.head match
-            case _ ==> consequent =>
-              have(consequent) by Tautology.from(yCaseAtVars2, argsTyped)
-            case _ => throw UnreachableException
+          val yCaseAtVars2 = have(
+            wellTypedFormula(c.semanticSignature2) ==> (y * c.appliedTerm2 === instantiatedCaseBody)
+          ) by InstantiateForallSeq(c.variables2)(yCaseSchema)
+          val yAtCtor = have(y * c.appliedTerm2 === instantiatedCaseBody) by
+            Tautology.from(yCaseAtVars2, argsTyped)
 
           val xAtInputArg = have(x * pointInput === x * c.appliedTerm2) by Congruence.from(pointEqCtor)
           val xAtInput = have(x * pointInput === instantiatedCaseBody) by

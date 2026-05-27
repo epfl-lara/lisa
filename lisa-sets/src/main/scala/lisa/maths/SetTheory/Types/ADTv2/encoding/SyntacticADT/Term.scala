@@ -1,5 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
+import lisa.maths.SetTheory.Types.ADTv2.height.HeightTerms
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
@@ -42,7 +43,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
       have(
         (isHeight(f), isHeight(h), inUnionRangeF) |-
           in(t, unionRange(h))
-      ) by Cut(heightFunUniqueEq, lastStep)
+      ) by Cut(heightUniqueness, lastStep)
       thenHave(
         (isHeight(f), inUnionRangeF) |-
           isHeight(h) ==> in(t, unionRange(h))
@@ -138,8 +139,6 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
     definitionAt = termDefinitionFormula
   )(termExistence)
 
-  // The ADT term symbol is a class function over type variables, matching the
-  // representation already used for constructors and semantic functions.
   val polymorphicTerm: Constant[?] = definedClassFunction.symbol
 
   polymorphicTerm.printAs(args =>
@@ -158,278 +157,66 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
 
   private[encoding] lazy val termSatisfiesDefinition: THM = definedClassFunction.definitionFact
 
-  private[encoding] val termHasHeight = Lemma(
-    isHeight(h) |- in(x, term) <=> ∃(n, in(n, N) /\ in(x, app(h, n)))
-  ){
-    // STEP 0 : Instantiate the definition of this ADT and recover the forward and backward implications
-    val termDefinition = have(in(x, term) <=> forall(h, isHeight(h) ==> in(x, unionRange(h)))) by InstantiateForall(x)(termSatisfiesDefinition)
-    val termDefinitionForward = have(in(x, term) |- forall(h, isHeight(h) ==> in(x, unionRange(h)))) by Cut(
-      termDefinition,
-      equivalenceApply of (p1 := in(x, term), p2 := forall(h, isHeight(h) ==> in(x, unionRange(h))))
-    )
-    val termDefinitionBackward = have(forall(h, isHeight(h) ==> in(x, unionRange(h))) |- in(x, term)) by Cut(
-      termDefinition,
-      equivalenceRevApply of (p2 := in(x, term), p1 := forall(h, isHeight(h) ==> in(x, unionRange(h))))
-    )
+  private val constructorInIntroductionFunction = constructors.map(c =>
+    val constructorVarsInDomainCS = constructorVarsInDomain(c, s)
 
-    // STEP 1 : Prove that an element is in this ADT if and only if it is in one of the images of the height function.
-    have(isHeight(h) |- in(x, term) <=> in(x, unionRange(h))) subproof {
+    c -> Lemma(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) {
+      have(constructorVarsInDomainCS |- constructorVarsInDomainCS /\ (c.term === c.term)) by Restate
 
-      // STEP 1.1 : Forward implication
-      have(forall(h, isHeight(h) ==> in(x, unionRange(h))) |- forall(h, isHeight(h) ==> in(x, unionRange(h)))) by Hypothesis
-      thenHave(forall(h, isHeight(h) ==> in(x, unionRange(h))) |- isHeight(h) ==> in(x, unionRange(h))) by InstantiateForall(h)
-      thenHave((forall(h, isHeight(h) ==> in(x, unionRange(h))), isHeight(h)) |- in(x, unionRange(h))) by Restate
+      c.variables2.foldRight((c.variables1, List[Variable[Ind]]()))((v, acc) =>
+        val oldVariables = acc._1.init
+        val newVariables = v :: acc._2
+        val vars = oldVariables ++ newVariables
 
-      val forward = have(isHeight(h) |- in(x, term) ==> in(x, unionRange(h))) by Tautology.from(lastStep,termDefinitionForward)
+        thenHave(
+          constructorVarsInDomainCS |- existsSeq(
+            newVariables,
+            wellTypedFormula(vars.zip(c.specification))(s) /\ (c.term(vars) === c.term)
+          )
+        ) by RightExists
 
-      // STEP 1.2 : Backward implication, follows from uniqueness of the height function
-      have(in(x, unionRange(h)) |- in(x, unionRange(h))) by Hypothesis
-      thenHave((f === h, in(x, unionRange(h))) |- in(x, unionRange(f))) by RightSubstEq.withParameters(List((f, h)), (Seq(h), in(x, unionRange(h))))
-      have((isHeight(f), isHeight(h), in(x, unionRange(h))) |- in(x, unionRange(f))) by Cut(heightFunUniqueEq, lastStep)
-      thenHave((isHeight(h), in(x, unionRange(h))) |- isHeight(f) ==> in(x, unionRange(f))) by RightImplies
-      thenHave((isHeight(h), in(x, unionRange(h))) |- forall(f, isHeight(f) ==> in(x, unionRange(f)))) by RightForall
-      have((isHeight(h), in(x, unionRange(h))) |- in(x, term)) by Cut(lastStep, termDefinitionBackward)
-      val backward = thenHave(isHeight(h) |- in(x, unionRange(h)) ==> in(x, term)) by RightImplies
-
-      have(thesis) by RightIff(forward, backward)
-    }
-
-    // STEP 2: Conclude by instantiating the union range membership lemma
-    have( isHeight(h) |- 
-      (in(x, term) <=> ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))) /\ 
-      (in(x, unionRange(h)) <=> exists(n, in(n, dom(h)) /\ in(x, app(h, n))))
-    ) by 
-      Tautology.from(lastStep, unionRangeMembership of (z := x), unfoldIsHeight)
-    have(isHeight(h) |- in(x, term) <=> ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))) by 
-      Tautology.from(lastStep,
-        equivalenceRewriting of (
-          p1 := in(x, term), 
-          p2 := in(x, unionRange(h)), 
-          p3 := ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))
-        )
+        (oldVariables, newVariables)
       )
 
-    thenHave((isHeight(h), dom(h) === ω) |- in(x, term) <=> ∃(n, in(n, ω) /\ in(x, app(h, n)))) by RightSubstEq.withParameters(
-      List((dom(h), ω)),
-      (Seq(z), in(x, term) <=> ∃(n, in(n, z) /\ in(x, app(h, n))))
-    )
-    have(thesis) by Tautology.from(lastStep, unfoldIsHeight)
-  }
-
-  private[encoding] val termsHaveHeight = constructors.map(c =>
-    c -> Lemma(
-      isHeight(h) |-
-        (constructorVarsInDomain(c, term) <=>
-          ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n))))
-    ){
-      if c.variables.isEmpty then have(thesis) by Tautology.from(existsNat)
-      else
-
-        // STEP 1: Backward implication
-
-        val backward = have(isHeight(h) |- ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n))) ==> constructorVarsInDomain(c, term)) subproof {
-          val andSeq = for (v, ty) <- c.signature yield ty match
-            case SelfRef =>
-              val vInHeight = (∃(n, in(n, N) /\ in(x, app(h, n)))).substitute(x := v)
-              // TODO: generalize this substitution to avoid name conflicts
-              // Use fresh variables is hard
-              // We can try to quantify over all variables
-
-              // println(s"thesis: $thesis")
-              // println(s"goal: ${(isHeight(h), exists(n, in(n, N) /\ in(v, app(h, n)))) |- in(v, term)}")
-              // println(s"vInHeight: $vInHeight")
-              val termHasHeightBackward = have((isHeight(h), vInHeight) |- in(v, term)) by Cut(
-                termHasHeight of (x := v),
-                equivalenceRevApply of (p1 := vInHeight, p2 := in(v, term))
-              )
-
-              have((in(n, N) /\ in(v, app(h, n))) |- in(n, N) /\ in(v, app(h, n))) by Restate
-              thenHave((in(n, N) /\ in(v, app(h, n))) |- exists(n, in(n, N) /\ in(v, app(h, n)))) by RightExists
-              have((isHeight(h), in(n, N) /\ in(v, app(h, n))) |- in(v, term)) by Cut(lastStep, termHasHeightBackward)
-              thenHave((isHeight(h), in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- in(v, term)) by Weakening
-            // case RegularArg(t_) =>
-            //   val t = typeExprToTerm(t_)
-            case TypeArg(typeName) =>
-              val t = typeExprToTerm(typeName)
-              have((isHeight(h), in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- in(v, t)) by Restate
-
-          have((isHeight(h), in(n, N) /\ constructorVarsInDomain(c, app(h, n))) |- constructorVarsInDomain(c, term)) by RightAnd(andSeq*)
-          thenHave((isHeight(h), exists(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n)))) |- constructorVarsInDomain(c, term)) by LeftExists
-        }
-
-        // STEP 2: Forward implication
-
-        val forward = have(isHeight(h) |- constructorVarsInDomain(c, term) ==> ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n)))) subproof {
-          val constructorVarsInTerm = have((isHeight(h), constructorVarsInDomain(c, term)) |- constructorVarsInDomain(c, term)) by Hypothesis
-
-          val witnesses = c.signature.map((v, ty) =>
-            ty match
-              case SelfRef =>
-                val inTerm = have((isHeight(h), constructorVarsInDomain(c, term)) |- in(v, term)) by
-                  Tautology.from(constructorVarsInTerm)
-
-                val hasSomeHeight = have(
-                  (isHeight(h), constructorVarsInDomain(c, term)) |- ∃(n, in(n, N) /\ in(v, app(h, n)))
-                ) by Tautology.from(
-                  inTerm,
-                  termHasHeight of (x := v),
-                  equivalenceApply of (p1 := in(v, term), p2 := ∃(n, in(n, N) /\ in(v, app(h, n))))
-                )
-
-                val witnessHeight = ε(n, in(n, N) /\ in(v, app(h, n)))
-
-                val witnessProperty = have(
-                  ∃(n, in(n, N) /\ in(v, app(h, n))) |- in(witnessHeight, N) /\ in(v, app(h, witnessHeight))
-                ) by Tautology.from(
-                  existsEpsilon of (
-                    x := n,
-                    P := lam(n, in(n, N) /\ in(v, app(h, n)))
-                  )
-                )
-
-                val inNatAndAtHeight = have(
-                  (isHeight(h), constructorVarsInDomain(c, term)) |- in(witnessHeight, N) /\ in(v, app(h, witnessHeight))
-                ) by Cut(hasSomeHeight, witnessProperty)
-
-                val inNatWitness = have((isHeight(h), constructorVarsInDomain(c, term)) |- in(witnessHeight, N)) by
-                  Tautology.from(inNatAndAtHeight)
-                val inAtWitness = have((isHeight(h), constructorVarsInDomain(c, term)) |- in(v, app(h, witnessHeight))) by
-                  Tautology.from(inNatAndAtHeight)
-
-                (v, ty, witnessHeight, inNatWitness, inAtWitness)
-
-              case TypeArg(typeName) =>
-                val t = typeExprToTerm(typeName)
-                val inTypeArg = have((isHeight(h), constructorVarsInDomain(c, term)) |- in(v, t)) by
-                  Tautology.from(constructorVarsInTerm)
-                val inZeroNat = have((isHeight(h), constructorVarsInDomain(c, term)) |- in(∅, N)) by
-                  Tautology.from(zeroIsNat)
-                val zeroHeight: Expr[Ind] = ∅
-
-                (v, ty, zeroHeight, inZeroNat, inTypeArg)
-          )
-
-          val witnessHeights = witnesses.map(_._3)
-          val max = witnessHeights.foldLeft[Expr[Ind]](∅)((u, nh) =>
-            if u == ∅ then nh else u ∪ nh
-          )
-
-          val maxInNatFromSequence = have(
-            seqAnd(witnessHeights.map(nh => in(nh, N))) |- in(max, N)
-          ) subproof {
-            have(True |- in(∅, N)) by Tautology.from(zeroIsNat)
-            val u0: Expr[Ind] = ∅
-            witnessHeights.foldLeft((lastStep, u0))((acc, nh) =>
-              val (thm, u) = acc
-              val hyp = thm.statement.left.head
-
-              val newHyp = if hyp == True then in(nh, N) else hyp /\ in(nh, N)
-              val newU = if u == ∅ then nh else u ∪ nh
-
-              val newThm = have(newHyp |- in(newU, N)) by
-                Tautology.from(thm, unionOfTwoNats of (a := u, b := nh))
-
-              (newThm, newU)
-            )
-            have(thesis) by Tautology.from(lastStep)
-          }
-
-          val allHeightsInNat = have(
-            (isHeight(h), constructorVarsInDomain(c, term)) |- seqAnd(witnessHeights.map(nh => in(nh, N)))
-          ) by Tautology.from(witnesses.map(_._4)*)
-
-          val maxInNat = have((isHeight(h), constructorVarsInDomain(c, term)) |- in(max, N)) by
-            Cut(allHeightsInNat, maxInNatFromSequence)
-
-          val constructorVarsAtMax = witnesses.map { case (v, ty, ni, niInNat, inAtHeight) =>
-            val niInMax = have(subset(ni, max)) subproof {
-              have(True |- True) by Tautology
-              val u0: Expr[Ind] = ∅
-              val n0: Expr[Ind] = ∅
-
-              witnessHeights.foldLeft((lastStep, u0, n0)) { (acc, nj) =>
-                val (thmAcc, u, lastN) = acc
-                val curHyp = thmAcc.statement.left.head
-
-                val newU = if u == ∅ then nj else u ∪ nj
-                val newN = if nj == ni then nj else lastN
-
-                val stepThm =
-                  if u == ∅ && nj == ni then
-                    have(curHyp |- subset(newN, newU)) by
-                      Tautology.from(thmAcc, Subset.reflexivity of (x := ni))
-                  else if nj == ni then
-                    have(curHyp |- subset(∅ ∪ ni, newU)) by
-                      Tautology.from(thmAcc, Union.leftMonotonic of (x := ∅, y := u, z := ni))
-                    have(curHyp |- subset(newN, newU)) by
-                      Congruence.from(lastStep, unionNull of (x := ni))
-                  else
-                    have(curHyp |- subset(newN, newU)) by
-                      Tautology.from(
-                        thmAcc,
-                        subsetOfUnion of (x := newN, y := u, z := nj),
-                        Subset.leftEmpty of (x := newU)
-                      )
-
-                (stepThm, newU, newN)
-              }
-
-              have(thesis) by Tautology.from(lastStep)
-            }
-
-            ty match
-              case SelfRef =>
-                have((isHeight(h), in(max, N), in(ni, N), subset(ni, max)) |- subset(app(h, ni), app(h, max))) by
-                  Tautology.from(heightMonotonic of (m := ni, n := max))
-
-                have((isHeight(h), constructorVarsInDomain(c, term)) |- subset(app(h, ni), app(h, max))) by
-                  Tautology.from(lastStep, maxInNat, niInNat, niInMax)
-
-                have((isHeight(h), constructorVarsInDomain(c, term)) |- forall(z, in(z, app(h, ni)) ==> in(z, app(h, max)))) by
-                  Tautology.from(lastStep, subsetAxiom of (x := app(h, ni), y := app(h, max)))
-
-                thenHave((isHeight(h), constructorVarsInDomain(c, term)) |- in(v, app(h, ni)) ==> in(v, app(h, max))) by
-                  InstantiateForall(v)
-
-                have((isHeight(h), constructorVarsInDomain(c, term)) |- in(v, app(h, max))) by
-                  Tautology.from(lastStep, inAtHeight)
-
-              case TypeArg(_) =>
-                have((isHeight(h), constructorVarsInDomain(c, term)) |- in(v, ty.getOrElse(app(h, max)))) by
-                  Restate.from(inAtHeight)
-          }
-
-          val typedAtMax = have((isHeight(h), constructorVarsInDomain(c, term)) |- constructorVarsInDomain(c, app(h, max))) by
-            Tautology.from(constructorVarsAtMax*)
-
-          have((isHeight(h), constructorVarsInDomain(c, term)) |- in(max, N) /\ constructorVarsInDomain(c, app(h, max))) by
-            RightAnd(maxInNat, typedAtMax)
-
-          thenHave((isHeight(h), constructorVarsInDomain(c, term)) |- ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n)))) by
-            RightExists
-
-          have(thesis) by Tautology.from(lastStep)
-        }
-
-        // STEP 3: Conclude
-        have(thesis) by RightIff(forward, backward)
+      thenHave(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) by Weakening
     }
   ).toMap
 
-  private[encoding] val heightConstructor = constructors.map(c =>
+  private val heightTermsTHY = HeightTerms[N](
+    heightTHY,
+    heightConstructorsTHY,
+    heightConstructorData,
+    term,
+    termSatisfiesDefinition
+  )
+
+  val termHasHeight = heightTermsTHY.termHasHeight
+  val termsHaveHeight =
+    constructors.zip(heightConstructorData).map((c, d) =>
+      c -> {
+        val substitution = c.variables2.zip(c.variables).map((from, to) => from := to)
+        val fact = heightTermsTHY.termsHaveHeight(d)
+        Lemma(fact.statement.substitute(substitution*)) {
+          have(thesis) by Restate.from(fact.of(substitution*))
+        }
+      }
+    ).toMap
+    
+  private val heightConstructor = constructors.map(c =>
     c -> Lemma(
       (isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |-
         in(c.term, app(h, successor(n)))
-    ){
-      // Caching
+    ) {
       val constructorInIntroFunHeight = inIntroImage(app(h, n))(c.term)
 
-      // Chaining the lemma on the elements of height n + 1 and the one on constructors being in the image of the introduction function
       have((isHeight(h), in(n, N), constructorInIntroFunHeight) |- in(c.term, app(h, successor(n)))) by Cut(
         heightSuccessorWeak of (x := c.term),
         equivalenceRevApply of (p1 := constructorInIntroFunHeight, p2 := in(c.term, app(h, successor(n))))
       )
-      have((isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(c.term, app(h, successor(n)))) by Cut(constructorIsInIntroductionFunction(c) of (s := app(h, n)), lastStep)
+      have((isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(c.term, app(h, successor(n)))) by Cut(
+        constructorInIntroductionFunction(c) of (s := app(h, n)),
+        lastStep
+      )
     }
   ).toMap
 

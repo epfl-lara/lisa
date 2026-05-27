@@ -38,21 +38,9 @@ class SemanticADT[N <: Arity](
 ) {
 
   final class HeightAdapter private[SemanticADT] () {
-    private val heightFunVar = Variable[Ind](s"${underlying.name}/height")
-
     def predicate(h: Expr[Ind]): Expr[Prop] = underlying.isHeight(h)
-    lazy val function: Expr[Ind] = ε(heightFunVar, predicate(heightFunVar))
-    lazy val valid: THM = Lemma(predicate(function)) {
-      val epsStep = have(
-        ∃(heightFunVar, predicate(heightFunVar)) |- predicate(function)
-      ) by Restate.from(
-        Quantifiers.existsEpsilon of (
-          x := heightFunVar,
-          P := λ(heightFunVar, predicate(heightFunVar))
-        )
-      )
-      have(thesis) by Cut(exists, epsStep)
-    }
+    lazy val function: Expr[Ind] = underlying.height
+    lazy val valid: THM = underlying.heightValid
     val exists: THM = underlying.heightExists
     val monotonic: THM = underlying.heightMonotonic
     val zero: THM = underlying.heightZero

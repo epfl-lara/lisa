@@ -1,8 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ConstructorTyping
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.{CaseDefinedWitness, DefinedSymbol}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
@@ -103,43 +104,6 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
       if c1 != c2
     yield (c1, c2) -> constructorTagDisequality(c1, c2)).toMap
 
-  private def constructorApplicationTyping(
-      c: SemanticConstructor[N],
-      args: Seq[Variable[Ind]]
-  ): THM = Lemma(
-    wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: adt.term)
-  ) {
-    have(c.term(typeVariablesSeq) :: c.typ) by Restate.from(c.intro)
-
-    val introAtTypeVars = typeVariablesSeq.foldLeft(lastStep)((fact, typeVariable) =>
-      fact.statement.right.head match
-        case forall(_, phi) => thenHave(phi) by InstantiateForall(typeVariable)
-        case _ => fact
-    )
-
-    val argsWellTyped = assume(wellTypedFormula(c.semanticSignature(args)))
-
-    val finalTyping = args.foldLeft(
-      (introAtTypeVars, c.term(typeVariablesSeq): Expr[Ind], c.typ: Expr[Ind])
-    ) { case ((accFact, accTerm, accType), argument) =>
-      accType match
-        case domainTy ->: codomainTy =>
-          val argumentTyping = have(wellTypedFormula(c.semanticSignature(args)) |- argument :: domainTy) by
-            Tautology.from(argsWellTyped)
-          val nextTyping = have(
-            wellTypedFormula(c.semanticSignature(args)) |- (accTerm * argument) :: codomainTy
-          ) by Tautology.from(
-            accFact,
-            funEqDef of (f := accTerm, a := domainTy, b := codomainTy, x := argument),
-            argumentTyping
-          )
-          (nextTyping, accTerm * argument, codomainTy)
-        case _ => throw UnreachableException
-    }._1
-
-    have(thesis) by Restate.from(finalTyping)
-  }
-
   private val witnessDefinition = untypedDefinition.substitute(f := witness)
 
   private val witnessCases = simplify(seqAnd(cases.map((c, caseDef) =>
@@ -150,38 +114,27 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
     )
   )))
 
-  private val witnessHasTypeProof = new WitnessTyping[N](
+  private val witnessSemantics = new CaseDefinedWitness[N](
     adt = adt,
     cases = cases,
     returnType = returnType,
-    checkReturnType = checkReturnType,
     typ = typ,
     witness = witness,
     witnessDef = witnessClass.definition,
     witnessBound = adt.term × returnType,
     pairWitness = pairWitness,
     caseMembership = caseMembership,
-    constructorApplicationTyping = (c, args) => constructorApplicationTyping(c, args),
+    checkReturnType = checkReturnType,
     constructorTagDisequalities = constructorTagDisequalities
   )
 
   private lazy val witnessMembershipByConstructor: Map[SemanticConstructor[N], THM] =
-    witnessHasTypeProof.witnessMembershipByConstructor
+    witnessSemantics.witnessMembershipByConstructor
 
-  private val witnessHasType: THM = witnessHasTypeProof.witnessHasType
-
-  private val witnessCaseByConstructorProof = new WitnessCases[N](
-    adt = adt,
-    cases = cases,
-    returnType = returnType,
-    witness = witness,
-    witnessHasType = witnessHasType,
-    witnessMembershipByConstructor = witnessMembershipByConstructor,
-    constructorApplicationTyping = (c, args) => constructorApplicationTyping(c, args)
-  )
+  private val witnessHasType: THM = witnessSemantics.witnessHasType
 
   private lazy val witnessCaseByConstructor: Map[SemanticConstructor[N], THM] =
-    witnessCaseByConstructorProof.witnessCaseByConstructor
+    witnessSemantics.witnessCaseByConstructor
 
   private val extensionalUniqueness = new ExtensionalUniqueness[N](
     adt = adt,
