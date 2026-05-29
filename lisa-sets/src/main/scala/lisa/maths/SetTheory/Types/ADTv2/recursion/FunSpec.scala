@@ -1,5 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
@@ -8,43 +9,30 @@ import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
-/**
- * Pure specification of a recursive ADT function.
- *
- * Stores the ADT, return type, and raw case bodies with [[selfPlaceholder]] free
- * (i.e. bodies are NOT yet substituted with any concrete function term).
- *
- * No proofs live here.  All proof obligations are discharged in the layers above.
- *
- * Layers that depend on this class:
- *   - [[Witness]]    (Layer 2)
- *   - [[Existence]]  (Layer 3)
- *   - [[RecFunSemantics]] (Layer 4)
- */
 class FunSpec[N <: Arity](
     val functionName: String,
     val adt: SemanticADT[N],
     val selfPlaceholder: Variable[Ind],
-    val rawCases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])],
+    val patternMatching: PatternSystem[N],
     val returnType: Expr[Ind]
 ) {
+  val cases: Seq[Pattern[N]] = patternMatching.patterns
+  val rawCases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
+    patternMatching.constructors.map(c =>
+      val pattern = patternMatching.patternFor(c)
+      c -> (pattern.binders, pattern.body)
+    ).toMap
   val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
   val typeArity: N = adt.typeArity
   val argType: Expr[Ind] = adt.term
   val typ: Expr[Ind] = argType ->: returnType
 
-  /**
-   * Def(fVar) ≡ (fVar ∈ A→T) ∧ ∧_c ∀x̄. WT(c(x̄)) ⟹ fVar(c(x̄)) = body_c[fVar]
-   *
-   * The [[selfPlaceholder]] in raw case bodies is replaced by [[fVar]].
-   */
   def untypedDefinition(fVar: Expr[Ind]): Expr[Prop] =
-    (fVar :: typ) /\ simplify(seqAnd(rawCases.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      val bodyWithSelf = body.substitute(selfPlaceholder := fVar)
+    (fVar :: typ) /\ simplify(seqAnd(cases.map(pattern =>
+      val bodyWithSelf = pattern.body.substitute(selfPlaceholder := fVar)
       forallSeq(
-        vars,
-        wellTypedFormula(c.semanticSignature(vars)) ==> (fVar * c.appliedTerm(vars) === bodyWithSelf)
+        pattern.binders,
+        pattern.branchPremise ==> (fVar * pattern.inputTerm === bodyWithSelf)
       )
     )))
 }

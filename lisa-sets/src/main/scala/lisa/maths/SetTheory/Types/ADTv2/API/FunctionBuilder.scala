@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
 import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, RecFunction}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
 import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
 import lisa.maths.SetTheory.Types.ADTv2.recursion
@@ -20,10 +21,11 @@ def fun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
 
   builder.isValid(adt) match
     case None =>
+      val patternSystem: PatternSystem[N] = builder.buildPatternSystem
       val semantic = SemanticFunction[N](
         name.value,
         adt.semantic,
-        builder.build.map((k, v) => (k.semantic, v)),
+        patternSystem,
         returnType
       )
       new ADTFunction[N](semantic, adt)
@@ -44,11 +46,12 @@ def recFun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
 
   builder.isValid(adt) match
     case None =>
+      val patternSystem: PatternSystem[N] = builder.buildPatternSystem
       val semantic = recursion.RecFunSemantics[N](
         name.value,
         adt.semantic,
         self,
-        builder.build.map((k, v) => (k.semantic, v)),
+        patternSystem,
         returnType
       )
       new RecFunction[N](semantic, adt)

@@ -1,5 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
@@ -14,7 +15,7 @@ import lisa.utils.prooflib.BasicStepTactic.Restate
 
 private[functions] final class ExtensionalUniqueness[N <: Arity](
     adt: SemanticADT[N],
-    cases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])],
+    patternMatching: PatternSystem[N],
     returnType: Expr[Ind],
     typ: Expr[Ind],
     untypedDefinition: Expr[Prop]
@@ -75,16 +76,18 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
           )
         )
       ).toMap
-      val constructorDisjunction = simplify(seqOr(adt.constructors.map(c => constructorBranch(c))))
+      val constructorDisjunction = simplify(patternMatching.caseCoverage(pointInput))
 
       val decompositionAtInput = have(pointInput ∈ adt.term |- constructorDisjunction) subproof {
         have(pointInput ∈ adt.term ==> constructorDisjunction) by
-          InstantiateForall(pointInput)(adt.elim)
+          InstantiateForall(pointInput)(patternMatching.coverage(adt))
         thenHave(thesis) by Restate
       }
 
       val branchEqualities = adt.constructors.map(c =>
-        val (caseVars, caseBody) = cases(c)
+        val pattern = patternMatching.patternFor(c)
+        val caseVars = pattern.binders
+        val caseBody = pattern.body
 
         val directBranch = have(
           wellTypedFormula(c.semanticSignature2) /\ (pointInput === c.appliedTerm2) |- (x * pointInput === y * pointInput)
@@ -96,13 +99,13 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
           val xCaseSchema = have(
             forallSeq(
               caseVars,
-              wellTypedFormula(c.semanticSignature(caseVars)) ==> (x * c.appliedTerm(caseVars) === caseBody)
+              pattern.branchPremise ==> (x * pattern.inputTerm === caseBody)
             )
           ) by Tautology.from(xDefinition)
           val yCaseSchema = have(
             forallSeq(
               caseVars,
-              wellTypedFormula(c.semanticSignature(caseVars)) ==> (y * c.appliedTerm(caseVars) === caseBody)
+              pattern.branchPremise ==> (y * pattern.inputTerm === caseBody)
             )
           ) by Tautology.from(yDefinition)
 

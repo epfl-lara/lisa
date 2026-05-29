@@ -1,5 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ConstructorTyping
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
@@ -16,41 +17,32 @@ import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.utils.prooflib.BasicStepTactic.Restate
 
 private[functions] final class SemanticFunctionInternals[N <: Arity](
-  functionName: String,
+    functionName: String,
     adt: SemanticADT[N],
-    cases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])],
+    patternMatching: PatternSystem[N],
     returnType: Expr[Ind],
-    checkReturnType: Map[SemanticConstructor[N], THM],
+    checkReturnType: Map[Pattern[N], THM],
     typ: Expr[Ind]
 ) {
+  private val cases: Seq[Pattern[N]] = patternMatching.patterns
+  private val patternByConstructor: Map[SemanticConstructor[N], Pattern[N]] =
+    patternMatching.constructors.map(c => c -> patternMatching.patternFor(c)).toMap
 
   private val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
 
-  val untypedDefinition = (f :: typ) /\ simplify(seqAnd(cases.map((c, caseDef) =>
-    val (vars, body) = caseDef
+  val untypedDefinition = (f :: typ) /\ simplify(seqAnd(cases.map(pattern =>
     forallSeq(
-      vars,
-      wellTypedFormula(c.semanticSignature(vars)) ==> (f * c.appliedTerm(vars) === body)
+      pattern.binders,
+      pattern.branchPremise ==> (f * pattern.inputTerm === pattern.body)
     )
   )))
 
   private val pairWitness = variable[Ind]
 
-  private val caseMembership = (p: Expr[Ind]) => seqOr(cases.map((c, caseDef) =>
-    val (vars, body) = caseDef
-    val freshVars = c.variables2
-    val freshBody = body
-      .substitute(vars.zip(freshVars).map((from, to) => from := to)*)
-      .asInstanceOf[Expr[Ind]]
-    existsSeq(
-      freshVars,
-      wellTypedFormula(c.semanticSignature2) /\ (p === pair(c.appliedTerm2, freshBody))
-    )
-  ))
+  private val caseMembership = (p: Expr[Ind]) => patternMatching.caseMembership(p)
 
   private val witnessBody = { pairWitness ∈ (adt.term × returnType) | caseMembership(pairWitness) }
 
-  // Keep the witness as a polymorphic DEF-backed symbol (same pattern as recursive internals).
   private val witnessClass = new DefinedSymbol(
     name = s"${functionName}/witness",
     parametersSeq = typeVariablesSeq,
@@ -106,17 +98,26 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
 
   private val witnessDefinition = untypedDefinition.substitute(f := witness)
 
-  private val witnessCases = simplify(seqAnd(cases.map((c, caseDef) =>
-    val (vars, body) = caseDef
+  private val witnessCases = simplify(seqAnd(cases.map(pattern =>
     forallSeq(
-      vars,
-      wellTypedFormula(c.semanticSignature(vars)) ==> (witness * c.appliedTerm(vars) === body)
+      pattern.binders,
+      pattern.branchPremise ==> (witness * pattern.inputTerm === pattern.body)
     )
   )))
 
+  private val caseDefinitions: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
+    patternByConstructor.map((constructor, pattern) =>
+      constructor -> (pattern.binders, pattern.body)
+    )
+
+  private val constructorCheckReturnType: Map[SemanticConstructor[N], THM] =
+    patternByConstructor.map((constructor, pattern) =>
+      constructor -> checkReturnType(pattern)
+    )
+
   private val witnessSemantics = new CaseDefinedWitness[N](
     adt = adt,
-    cases = cases,
+    cases = caseDefinitions,
     returnType = returnType,
     typ = typ,
     witness = witness,
@@ -124,12 +125,9 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
     witnessBound = adt.term × returnType,
     pairWitness = pairWitness,
     caseMembership = caseMembership,
-    checkReturnType = checkReturnType,
+    checkReturnType = constructorCheckReturnType,
     constructorTagDisequalities = constructorTagDisequalities
   )
-
-  private lazy val witnessMembershipByConstructor: Map[SemanticConstructor[N], THM] =
-    witnessSemantics.witnessMembershipByConstructor
 
   private val witnessHasType: THM = witnessSemantics.witnessHasType
 
@@ -138,7 +136,7 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
 
   private val extensionalUniqueness = new ExtensionalUniqueness[N](
     adt = adt,
-    cases = cases,
+    patternMatching = patternMatching,
     returnType = returnType,
     typ = typ,
     untypedDefinition = untypedDefinition
@@ -147,7 +145,7 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
   val uniqueness = Lemma(existsOne(f, untypedDefinition)) {
     val definitionFormula = (v: Variable[Ind]) => untypedDefinition.substitute(f := v)
 
-    val constructorCaseFacts = cases.keys.toSeq.map(c => witnessCaseByConstructor(c))
+    val constructorCaseFacts = patternMatching.constructors.map(c => witnessCaseByConstructor(c))
     have(witnessCases) by Tautology.from(constructorCaseFacts*)
 
     have(witnessDefinition) by Tautology.from(lastStep, witnessHasType)

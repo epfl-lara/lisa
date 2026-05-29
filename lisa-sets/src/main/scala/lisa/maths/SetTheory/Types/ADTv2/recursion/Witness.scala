@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.support.{CaseDefinedWitness, DefinedSymbol}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
@@ -34,24 +35,17 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   /** typingPremise = selfPlaceholder :: A→T (the induction hypothesis on the self-reference). */
   val typingPremise: Expr[Prop] = selfPlaceholder :: spec.typ
 
+  private val patterns: Seq[Pattern[N]] = spec.cases
+  private val patternByConstructor: Map[SemanticConstructor[N], Pattern[N]] =
+    spec.patternMatching.constructors.map(c => c -> spec.patternMatching.patternFor(c)).toMap
+
   /**
    * caseMembership(p) ≡ ∨_c ∃x̄. WT(c(x̄)) ∧ p = (c(x̄), body_c[selfPlaceholder]).
    *
    * selfPlaceholder is free — W is parametric in the self-reference.
    */
   private val caseMembership: Expr[Ind] => Expr[Prop] = (p: Expr[Ind]) =>
-    seqOr(spec.rawCases.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      val bodyWithSelf = body.substitute(selfPlaceholder := selfPlaceholder)
-      val freshVars = c.variables2
-      val freshBody = bodyWithSelf
-        .substitute(vars.zip(freshVars).map((from, to) => from := to)*)
-        .asInstanceOf[Expr[Ind]]
-      existsSeq(
-        freshVars,
-        wellTypedFormula(c.semanticSignature2) /\ (p === pair(c.appliedTerm2, freshBody))
-      )
-    ))
+    spec.patternMatching.caseMembership(p)
 
   private val witnessClass = new DefinedSymbol(
     name = s"${spec.functionName}/witness",
@@ -93,19 +87,20 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     yield (c1, c2) -> constructorTagDisequality(c1, c2)).toMap
 
   private val checkReturnType: Map[SemanticConstructor[N], JUSTIFICATION] =
-    spec.rawCases.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      val bodyWithSelf = body.substitute(selfPlaceholder := selfPlaceholder)
-      val witnessAssumptions = wellTypedSet(c.semanticSignature(vars)) + typingPremise
-      c -> Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
+    patternByConstructor.map((constructor, pattern) =>
+      val bodyWithSelf = pattern.body.substitute(selfPlaceholder := selfPlaceholder)
+      val witnessAssumptions = pattern.typingPremises + typingPremise
+      constructor -> Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
         have(thesis) by Typecheck.prove
       }
     )
 
   private val caseDefinitions: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
-    spec.rawCases.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      c -> (vars, body.substitute(selfPlaceholder := selfPlaceholder))
+    patternByConstructor.map((constructor, pattern) =>
+      constructor -> (
+        pattern.binders,
+        pattern.body.substitute(selfPlaceholder := selfPlaceholder)
+      )
     )
 
   private val witnessSemantics = new CaseDefinedWitness[N](

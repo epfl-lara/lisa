@@ -1,5 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorPatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -37,6 +38,11 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       )
 
   def build: Map[Constructor[N], (Seq[Variable[Ind]], T)] = underlying.toMap
+
+  def buildPatternSystem(using ev: T =:= Expr[Ind]): ConstructorPatternSystem[N] =
+    ConstructorPatternSystem(
+      underlying.toMap.map((constructor, value) => constructor.semantic -> (value._1, ev(value._2)))
+    )
 }
 
 @deprecated("Use CaseAccumulator", "ADTv2")
