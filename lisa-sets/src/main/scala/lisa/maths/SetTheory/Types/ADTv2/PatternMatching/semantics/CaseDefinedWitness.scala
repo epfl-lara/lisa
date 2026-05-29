@@ -22,15 +22,15 @@ import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 /**
  * Shared semantic witness construction for ADTv2 functions.
  *
- * A case-defined witness is a relation `W ⊆ A × T` described by constructor-indexed
- * branches. This class factors the common proof layer used by ordinary semantic
+ * A case-defined witness is a relation `W ⊆ A × T` described by semantic branches.
+ * This class factors the common proof layer used by ordinary semantic
  * functions and recursive witness relations:
- *   - constructor-wise witness membership
+ *   - branch-wise witness membership
  *   - relation-betweenness
  *   - totality and single-valuedness
  *   - uniqueness of outputs
  *   - function typing
- *   - witness application equations on constructor inputs
+ *   - witness application equations on branch inputs
  *
  * Clients provide the ADT-specific ingredients:
  *   - the witness term and its `DEF` equation
@@ -62,9 +62,6 @@ final class CaseDefinedWitness[N <: Arity](
 
   private val witnessBody = { pairWitness ∈ witnessBound | caseMembership(pairWitness) }
   private val contextPremise: Expr[Prop] = simplify(seqAnd(contextPremises))
-
-  private def patternFor(c: SemanticConstructor[N]): Pattern[N] =
-    patternMatching.patternFor(c)
 
   private def contextualize(formula: Expr[Prop]): Expr[Prop] =
     if contextPremises.isEmpty then formula else contextPremise ==> formula
@@ -207,9 +204,6 @@ final class CaseDefinedWitness[N <: Arity](
   def witnessMembership(pattern: Pattern[N]): THM =
     witnessMembershipByPattern(pattern)
 
-  def witnessMembership(constructor: SemanticConstructor[N]): THM =
-    witnessMembership(patternFor(constructor))
-
   val witnessRelationBetween: THM =
     Lemma(relationBetween(witness)(adt.term)(returnType)) {
       have(witnessBody ⊆ witnessBound) by Tautology.from(
@@ -256,8 +250,8 @@ final class CaseDefinedWitness[N <: Arity](
       thenHave(thesis) by Restate
     }
 
-    val branchToWitness = adt.constructors.map(c =>
-      val pattern = patternFor(c)
+    val branchToWitness = patternMatching.patterns.map(pattern =>
+      val c = pattern.semanticConstructor
       val caseVars = pattern.binders
       val caseBody = pattern.body
 
@@ -270,12 +264,12 @@ final class CaseDefinedWitness[N <: Arity](
 
         val membershipSchema =
           if contextPremises.isEmpty then
-            have(witnessMembership(c).statement.right.head) by Tautology.from(witnessMembership(c))
+            have(witnessMembership(pattern).statement.right.head) by Tautology.from(witnessMembership(pattern))
             lastStep
           else
-            witnessMembership(c).statement.right.head match
+            witnessMembership(pattern).statement.right.head match
               case _ ==> consequent =>
-                have(consequent) by Tautology.from(witnessMembership(c), contextHyp.get)
+                have(consequent) by Tautology.from(witnessMembership(pattern), contextHyp.get)
                 lastStep
               case _ => throw UnreachableException
         val instantiatedCaseBody =
@@ -353,8 +347,8 @@ final class CaseDefinedWitness[N <: Arity](
     val pairAtOutput = pair(inputTerm, outputTerm)
     val pairAtAlternateOutput = pair(inputTerm, alternateOutputTerm)
 
-    def caseBranchAtOutputWithVars1(c: SemanticConstructor[N]): Expr[Prop] = {
-      val pattern = patternFor(c)
+    def caseBranchAtOutputWithVars1(pattern: Pattern[N]): Expr[Prop] = {
+      val c = pattern.semanticConstructor
       val caseVars = pattern.binders
       val caseBody = pattern.body
       val bodyAtVars1 = caseBody
@@ -367,8 +361,8 @@ final class CaseDefinedWitness[N <: Arity](
       )
     }
 
-    def caseBranchAtAlternateOutput(c: SemanticConstructor[N]): Expr[Prop] = {
-      val pattern = patternFor(c)
+    def caseBranchAtAlternateOutput(pattern: Pattern[N]): Expr[Prop] = {
+      val c = pattern.semanticConstructor
       val caseVars = pattern.binders
       val caseBody = pattern.body
       val bodyAtVars2 = caseBody
@@ -382,9 +376,9 @@ final class CaseDefinedWitness[N <: Arity](
     }
 
     val caseDisjunctionAtOutputWithVars1 =
-      seqOr(adt.constructors.map(c => caseBranchAtOutputWithVars1(c)))
+      seqOr(patternMatching.patterns.map(pattern => caseBranchAtOutputWithVars1(pattern)))
     val caseDisjunctionAtAlternateOutput =
-      seqOr(adt.constructors.map(c => caseBranchAtAlternateOutput(c)))
+      seqOr(patternMatching.patterns.map(pattern => caseBranchAtAlternateOutput(pattern)))
 
     val outputCaseRenaming =
       have(caseMembership(pairAtOutput) |- caseDisjunctionAtOutputWithVars1) by Tableau
@@ -439,8 +433,8 @@ final class CaseDefinedWitness[N <: Arity](
         Tautology.from(pairAlternateInWitness, alternateMembershipEq)
       val alternateCase = have(caseDisjunctionAtAlternateOutput) by Restate.from(alternateCaseRaw)
 
-      val branchByOutputConstructor = adt.constructors.map(c1 =>
-        val pattern1 = patternFor(c1)
+      val branchByOutputConstructor = patternMatching.patterns.map(pattern1 =>
+        val c1 = pattern1.semanticConstructor
         val caseVars1 = pattern1.binders
         val caseBody1 = pattern1.body
         val bodyAtVars1 = caseBody1
@@ -450,8 +444,8 @@ final class CaseDefinedWitness[N <: Arity](
           wellTypedFormula(c1.semanticSignature1) /\
             (pairAtOutput === pair(c1.appliedTerm1, bodyAtVars1))
 
-        val branchByAlternateConstructor = adt.constructors.map(c2 =>
-          val pattern2 = patternFor(c2)
+        val branchByAlternateConstructor = patternMatching.patterns.map(pattern2 =>
+          val c2 = pattern2.semanticConstructor
           val caseVars2 = pattern2.binders
           val caseBody2 = pattern2.body
           val bodyAtVars2 = caseBody2
@@ -668,7 +662,7 @@ final class CaseDefinedWitness[N <: Arity](
           have(
             (
               branchAtOutputWithVars1,
-              caseBranchAtAlternateOutput(c2),
+              caseBranchAtAlternateOutput(pattern2),
               inputTerm ∈ adt.term
             ) |- (outputTerm === alternateOutputTerm)
           ) by Restate.from(liftedAcrossAlternate)
@@ -704,7 +698,7 @@ final class CaseDefinedWitness[N <: Arity](
           )._1
         have(
           (
-            caseBranchAtOutputWithVars1(c1),
+            caseBranchAtOutputWithVars1(pattern1),
             caseDisjunctionAtAlternateOutput,
             inputTerm ∈ adt.term
           ) |- (outputTerm === alternateOutputTerm)
@@ -979,12 +973,12 @@ final class CaseDefinedWitness[N <: Arity](
 
         val membershipSchema =
           if contextPremises.isEmpty then
-            have(witnessMembership(c).statement.right.head) by Tautology.from(witnessMembership(c))
+            have(witnessMembership(pattern).statement.right.head) by Tautology.from(witnessMembership(pattern))
             lastStep
           else
-            witnessMembership(c).statement.right.head match
+            witnessMembership(pattern).statement.right.head match
               case _ ==> consequent =>
-                have(consequent) by Tautology.from(witnessMembership(c), contextHyp.get)
+                have(consequent) by Tautology.from(witnessMembership(pattern), contextHyp.get)
                 lastStep
               case _ => throw UnreachableException
         val instantiatedMembership = have(
@@ -1063,13 +1057,4 @@ final class CaseDefinedWitness[N <: Arity](
 
   def witnessCase(pattern: Pattern[N]): THM =
     witnessCaseByPattern(pattern)
-
-  def witnessCase(constructor: SemanticConstructor[N]): THM =
-    witnessCase(patternFor(constructor))
-
-  val witnessMembershipByConstructor: Map[SemanticConstructor[N], THM] =
-    patternMatching.constructors.map(c => c -> witnessMembership(c)).toMap
-
-  val witnessCaseByConstructor: Map[SemanticConstructor[N], THM] =
-    patternMatching.constructors.map(c => c -> witnessCase(c)).toMap
 }

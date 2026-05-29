@@ -22,7 +22,8 @@ class SemanticFunction[N <: Arity](
     returnType: Expr[Ind]
 )(using line: sourcecode.Line, file: sourcecode.File) {
 
-  val cases: Seq[Pattern[N]] = patternMatching.patterns
+  val patterns: Seq[Pattern[N]] = patternMatching.patterns
+  val cases: Seq[Pattern[N]] = patterns
 
   val typeVariables: Variable[Ind] ** N = adt.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
@@ -34,7 +35,7 @@ class SemanticFunction[N <: Arity](
   val typ: Expr[Ind] = adt.term ->: returnType
 
   private val checkReturnType: Map[Pattern[N], THM] =
-    cases.map(pattern =>
+    patterns.map(pattern =>
       pattern -> Lemma(pattern.typingPremises |- (pattern.body :: returnType)) {
         have(thesis) by Typecheck.prove
       }
@@ -64,7 +65,7 @@ class SemanticFunction[N <: Arity](
 
   private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
-  private val shortDefinitionByPattern = cases.map(pattern =>
+  private val shortDefinitionByPattern = patterns.map(pattern =>
     pattern -> Lemma(
       simplify(pattern.branchPremise) ==> (term * pattern.inputTerm === pattern.body)
     ) {
@@ -72,7 +73,7 @@ class SemanticFunction[N <: Arity](
         Restate.from(classFunctionCharacterization)
       thenHave(
         (term === term) <=> (term :: typ) /\
-          (seqAnd(cases.map { branch =>
+          (seqAnd(patterns.map { branch =>
             forallSeq(
               branch.binders,
               branch.branchPremise ==> (term * branch.inputTerm === branch.body)
@@ -94,15 +95,43 @@ class SemanticFunction[N <: Arity](
   def shortDefinition(pattern: Pattern[N]): THM =
     shortDefinitionByPattern(pattern)
 
-  def shortDefinition(constructor: SemanticConstructor[N]): THM =
+  def elimByPattern(pattern: Pattern[N]): THM =
+    shortDefinition(pattern)
+
+  def elimByConst(constructor: SemanticConstructor[N]): THM =
     shortDefinitionByPattern(patternMatching.patternFor(constructor))
+
+  def elim(pattern: Pattern[N]): THM =
+    elimByPattern(pattern)
+
+  def elim(constructor: SemanticConstructor[N]): THM =
+    elimByConst(constructor)
+
+  def shortDefinition(constructor: SemanticConstructor[N]): THM =
+    elimByConst(constructor)
+
+  val elimTotal: THM = Lemma(
+    seqAnd(patterns.map(pattern =>
+      (simplify(pattern.branchPremise) /\ (x === pattern.inputTerm)) ==> (term * x === pattern.body)
+    ))
+  ) {
+    val subcases = patterns.map(pattern =>
+      have(
+        x === pattern.inputTerm |- simplify(pattern.branchPremise) ==> (term * x === pattern.body)
+      ) by Congruence.from(shortDefinitionByPattern(pattern))
+      thenHave(
+        (simplify(pattern.branchPremise) /\ (x === pattern.inputTerm)) ==> (term * x === pattern.body)
+      ) by Restate
+    )
+    have(thesis) by Tautology.from(subcases*)
+  }
 
   val intro = Lemma(forallSeq(typeVariablesSeq, term :: typ)) {
     have(forall(f, (term === f) <=> untypedDefinition)) by
       Restate.from(classFunctionCharacterization)
     thenHave(
       (term === term) <=> (term :: typ) /\
-        (seqAnd(cases.map { pattern =>
+        (seqAnd(patterns.map { pattern =>
           forallSeq(
             pattern.binders,
             pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body)

@@ -33,7 +33,7 @@ final class RecFunSemantics[N <: Arity](
   val typeArity: N = spec.typeArity
   val argType: Expr[Ind] = spec.argType
   val typ: Expr[Ind] = spec.typ
-  val cases: Seq[Pattern[N]] = spec.cases
+  val rawPatterns: Seq[Pattern[N]] = spec.cases
 
   private val witness: Witness[N] = new Witness[N](spec)
 
@@ -90,9 +90,12 @@ final class RecFunSemantics[N <: Arity](
   private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
   private val compiledCases: Seq[Pattern[N]] =
-    cases.map(pattern =>
+    rawPatterns.map(pattern =>
       pattern.withBody(pattern.body.substitute(spec.selfPlaceholder := term))
     )
+
+  val patterns: Seq[Pattern[N]] = compiledCases
+  val cases: Seq[Pattern[N]] = patterns
 
   private def compiledPatternFor(constructor: SemanticConstructor[N]): Pattern[N] =
     compiledCases.find(_.correspondsTo(constructor)).getOrElse(
@@ -100,7 +103,7 @@ final class RecFunSemantics[N <: Arity](
     )
 
   private val shortDefinitionByPattern: Map[Pattern[N], THM] =
-    compiledCases.map(pattern =>
+    patterns.map(pattern =>
       pattern -> Lemma(
         simplify(
           pattern.branchPremise ==>
@@ -142,8 +145,28 @@ final class RecFunSemantics[N <: Arity](
   def shortDefinition(pattern: Pattern[N]): THM =
     shortDefinitionByPattern(pattern)
 
-  def shortDefinition(constructor: SemanticConstructor[N]): THM =
+  def elimByPattern(pattern: Pattern[N]): THM =
+    shortDefinition(pattern)
+
+  def elimByConst(constructor: SemanticConstructor[N]): THM =
     shortDefinitionByPattern(compiledPatternFor(constructor))
+
+  def elim(pattern: Pattern[N]): THM =
+    elimByPattern(pattern)
+
+  def elim(constructor: SemanticConstructor[N]): THM =
+    elimByConst(constructor)
+
+  def shortDefinition(constructor: SemanticConstructor[N]): THM =
+    elimByConst(constructor)
+
+  val elimTotal: THM = Lemma(
+    seqAnd(patterns.map(pattern =>
+      simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))
+    ))
+  ) {
+    have(thesis) by Tautology.from(patterns.map(pattern => shortDefinitionByPattern(pattern))*)
+  }
 
   val intro: THM = Lemma(term :: spec.typ) {
 
@@ -153,7 +176,7 @@ final class RecFunSemantics[N <: Arity](
     thenHave(
       (term === term) <=>
         (term :: spec.typ) /\
-        (seqAnd(compiledCases.map { pattern =>
+        (seqAnd(patterns.map { pattern =>
           forallSeq(
             pattern.binders,
             pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body)

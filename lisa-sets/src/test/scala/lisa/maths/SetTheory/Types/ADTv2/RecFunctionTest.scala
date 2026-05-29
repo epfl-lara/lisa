@@ -12,20 +12,20 @@ class RecFunctionTest extends AnyFunSuite with lisa.TestMain {
 
   test("double recursion exposes succ equation") {
     assert(double.intro.statement != null)
-    assert(double.elim.contains(zero))
-    assert(double.elim.contains(succ))
+    assert(double.elim(zero).statement != null)
+    assert(double.elim(succ).statement != null)
   }
 
   test("polymorphic list recursion specializes to nat lists") {
     assert(length.intro(nat).statement != null)
-    assert(length.elim(nat).contains(nil))
+    assert(length.elim(nat)(nil).statement != null)
   }
 
   test("higher-order recursive add is usable with typecheck") {
     assert(add.intro.statement != null)
     assert(add.introApp.statement != null)
-    assert(add.elim.contains(zero))
-    assert(add.elim.contains(succ))
+    assert(add.elim(zero).statement != null)
+    assert(add.elim(succ).statement != null)
   }
 
   test("recursive definitions require exhaustive cases") {

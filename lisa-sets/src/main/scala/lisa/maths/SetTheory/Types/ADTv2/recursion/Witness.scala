@@ -119,10 +119,4 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
 
   def witnessCase(pattern: Pattern[N]): THM =
     witnessSemantics.witnessCase(pattern)
-
-  def witnessCase(constructor: SemanticConstructor[N]): THM =
-    witnessSemantics.witnessCase(constructor)
-
-  val witnessCaseByConstructor: Map[SemanticConstructor[N], THM] =
-    witnessSemantics.witnessCaseByConstructor
 }
