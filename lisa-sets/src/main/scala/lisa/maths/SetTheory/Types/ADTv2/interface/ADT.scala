@@ -81,6 +81,9 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
 
   def applyType(args: TypeExpr*): Expr[Ind] =
     applySeq(args.map(typeExprToTerm))
+
+  def specialize(args: Expr[Ind]*): SpecializedADT[N] =
+    new SpecializedADT[N](this, args)
 }
 
 object ADT {

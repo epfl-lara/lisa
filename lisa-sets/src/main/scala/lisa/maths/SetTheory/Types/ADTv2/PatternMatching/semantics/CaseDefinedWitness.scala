@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.support.semantics
+package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ConstructorTyping

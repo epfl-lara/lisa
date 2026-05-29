@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, CaseAccumulator, RecFunction}
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, RecFunction}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
 import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
 import lisa.maths.SetTheory.Types.ADTv2.recursion
 

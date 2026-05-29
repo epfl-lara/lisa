@@ -1,5 +1,6 @@
-package lisa.maths.SetTheory.Types.ADTv2.interface
+package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{appSeq, wellTypedSet}
 

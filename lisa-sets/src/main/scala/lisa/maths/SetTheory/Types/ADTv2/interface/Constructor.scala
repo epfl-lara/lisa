@@ -89,6 +89,9 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
 
   def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
+
+  def specialize(args: Expr[Ind]*): SpecializedConstructor[N] =
+    new SpecializedConstructor[N](this, args)
 }
 
 object Constructor {
