@@ -155,6 +155,7 @@ private[recursion] final class ApproxProp[N <: Arity](
           )
 
           val branchEqualities = spec.adt.constructors.map(c =>
+            val pattern = spec.patternMatching.patternFor(c)
             val bodyAtGn = substitutedCaseBody(spec, c, G(nVar))
             val bodyAtGSucc = substitutedCaseBody(spec, c, G(Succ(nVar)))
 
@@ -193,7 +194,7 @@ private[recursion] final class ApproxProp[N <: Arity](
               val bodyEq =
                 LambdaBodyEquality.prove(bodyAtGn, bodyAtGSucc, selfArgEqualities)
 
-              val witnessCaseNSchema = recWitness.witnessCaseByConstructor(c).of(spec.selfPlaceholder := G(nVar))
+              val witnessCaseNSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := G(nVar))
               val witnessCaseNBase = witnessCaseNSchema.statement.right.head match
                 case _ ==> consequent =>
                   have(consequent) by Tautology.from(witnessCaseNSchema, gNHasType)
@@ -210,7 +211,7 @@ private[recursion] final class ApproxProp[N <: Arity](
                   have(consequent) by Tautology.from(witnessCaseNAtVars2, argsTypedSemantic)
                 case _ => throw UnreachableException
 
-              val witnessCaseSuccSchema = recWitness.witnessCaseByConstructor(c).of(spec.selfPlaceholder := G(Succ(nVar)))
+              val witnessCaseSuccSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := G(Succ(nVar)))
               val witnessCaseSuccBase = witnessCaseSuccSchema.statement.right.head match
                 case _ ==> consequent =>
                   have(consequent) by Tautology.from(witnessCaseSuccSchema, gSuccHasType)

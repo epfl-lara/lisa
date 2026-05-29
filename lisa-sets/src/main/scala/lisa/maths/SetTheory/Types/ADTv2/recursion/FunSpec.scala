@@ -17,11 +17,6 @@ class FunSpec[N <: Arity](
     val returnType: Expr[Ind]
 ) {
   val cases: Seq[Pattern[N]] = patternMatching.patterns
-  val rawCases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
-    patternMatching.constructors.map(c =>
-      val pattern = patternMatching.patternFor(c)
-      c -> (pattern.binders, pattern.body)
-    ).toMap
   val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
   val typeArity: N = adt.typeArity
   val argType: Expr[Ind] = adt.term

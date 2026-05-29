@@ -51,10 +51,10 @@ object ApproxPropShared {
       c: SemanticConstructor[N],
       selfTerm: Expr[Ind]
   ): Expr[Ind] = {
-    val (caseVars, rawBody) = spec.rawCases(c)
-    rawBody
+    val pattern = spec.patternMatching.patternFor(c)
+    pattern.body
       .substitute(spec.selfPlaceholder := selfTerm)
-      .substitute(caseVars.zip(c.variables2).map((from, to) => from := to)*)
+      .substitute(pattern.binders.zip(c.variables2).map((from, to) => from := to)*)
       .asInstanceOf[Expr[Ind]]
   }
 

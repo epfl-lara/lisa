@@ -260,7 +260,8 @@ private[recursion] final class Existence[N <: Arity](
             LambdaBodyEquality.prove(bodyAtLimitFun, bodyAtGN0, selfArgEqualities)
 
           // recWitness(limitFun)(c(x̄)) = bodyAtLimitFun
-          val witnessCaseLimitSchema = recWitness.witnessCaseByConstructor(c).of(spec.selfPlaceholder := limitFun)
+          val pattern = spec.patternMatching.patternFor(c)
+          val witnessCaseLimitSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := limitFun)
           val witnessCaseLimitBase = witnessCaseLimitSchema.statement.right.head match
             case _ ==> consequent =>
               have(consequent) by Tautology.from(witnessCaseLimitSchema, limitHasType)
@@ -278,7 +279,7 @@ private[recursion] final class Existence[N <: Arity](
           // witnessAtLimitAtCtor: app(recWitness(limitFun))(c.appliedTerm2) === bodyAtLimitFun
 
           // recWitness(G(n0))(c(x̄)) = bodyAtGN0
-          val witnessCaseGN0Schema = recWitness.witnessCaseByConstructor(c).of(spec.selfPlaceholder := G(n0))
+          val witnessCaseGN0Schema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := G(n0))
           val witnessCaseGN0Base = witnessCaseGN0Schema.statement.right.head match
             case _ ==> consequent =>
               have(consequent) by Tautology.from(witnessCaseGN0Schema, gN0HasType)
@@ -402,9 +403,10 @@ private[recursion] final class Existence[N <: Arity](
     val wfEqF = have(recWitness(f) === f) by Tautology
 
     val caseFacts = spec.adt.constructors.map(c =>
-      val (vars, rawBody) = spec.rawCases(c)
-      val body = rawBody.substitute(spec.selfPlaceholder := f).asInstanceOf[Expr[Ind]]
-      val witnessCaseSchema = recWitness.witnessCaseByConstructor(c).of(spec.selfPlaceholder := f)
+      val pattern = spec.patternMatching.patternFor(c)
+      val vars = pattern.binders
+      val body = pattern.body.substitute(spec.selfPlaceholder := f).asInstanceOf[Expr[Ind]]
+      val witnessCaseSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := f)
 
       val allForalls = have(
         forallSeq(vars, wellTypedFormula(c.semanticSignature(vars)) ==> (recWitness(f) * c.appliedTerm(vars) === body))

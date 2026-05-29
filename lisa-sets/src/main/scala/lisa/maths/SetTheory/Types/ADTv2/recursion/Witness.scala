@@ -36,8 +36,6 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   val typingPremise: Expr[Prop] = selfPlaceholder :: spec.typ
 
   private val patterns: Seq[Pattern[N]] = spec.cases
-  private val patternByConstructor: Map[SemanticConstructor[N], Pattern[N]] =
-    spec.patternMatching.constructors.map(c => c -> spec.patternMatching.patternFor(c)).toMap
 
   /**
    * caseMembership(p) ≡ ∨_c ∃x̄. WT(c(x̄)) ∧ p = (c(x̄), body_c[selfPlaceholder]).
@@ -86,26 +84,18 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
       if c1 != c2
     yield (c1, c2) -> constructorTagDisequality(c1, c2)).toMap
 
-  private val checkReturnType: Map[SemanticConstructor[N], JUSTIFICATION] =
-    patternByConstructor.map((constructor, pattern) =>
+  private val checkReturnType: Map[Pattern[N], JUSTIFICATION] =
+    patterns.map(pattern =>
       val bodyWithSelf = pattern.body.substitute(selfPlaceholder := selfPlaceholder)
       val witnessAssumptions = pattern.typingPremises + typingPremise
-      constructor -> Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
+      pattern -> Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
         have(thesis) by Typecheck.prove
       }
-    )
-
-  private val caseDefinitions: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
-    patternByConstructor.map((constructor, pattern) =>
-      constructor -> (
-        pattern.binders,
-        pattern.body.substitute(selfPlaceholder := selfPlaceholder)
-      )
-    )
+    ).toMap
 
   private val witnessSemantics = new CaseDefinedWitness[N](
     adt = spec.adt,
-    cases = caseDefinitions,
+    patternMatching = spec.patternMatching,
     returnType = spec.returnType,
     typ = spec.typ,
     witness = witness,
@@ -124,6 +114,15 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   /**
    * selfPlaceholder :: A→T ⊢ W(selfPlaceholder)(c(x̄)) = body_c[selfPlaceholder]
    */
+  val witnessCaseByPattern: Map[Pattern[N], THM] =
+    witnessSemantics.witnessCaseByPattern
+
+  def witnessCase(pattern: Pattern[N]): THM =
+    witnessSemantics.witnessCase(pattern)
+
+  def witnessCase(constructor: SemanticConstructor[N]): THM =
+    witnessSemantics.witnessCase(constructor)
+
   val witnessCaseByConstructor: Map[SemanticConstructor[N], THM] =
     witnessSemantics.witnessCaseByConstructor
 }

@@ -89,13 +89,18 @@ final class RecFunSemantics[N <: Arity](
 
   private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
-  private val caseDefinitions: Map[SemanticConstructor[N], Pattern[N]] =
+  private val compiledCases: Seq[Pattern[N]] =
     cases.map(pattern =>
-      pattern.semanticConstructor -> pattern.withBody(pattern.body.substitute(spec.selfPlaceholder := term))
-    ).toMap
+      pattern.withBody(pattern.body.substitute(spec.selfPlaceholder := term))
+    )
+
+  private def compiledPatternFor(constructor: SemanticConstructor[N]): Pattern[N] =
+    compiledCases.find(_.correspondsTo(constructor)).getOrElse(
+      throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
+    )
 
   private val shortDefinitionByPattern: Map[Pattern[N], THM] =
-    caseDefinitions.values.map(pattern =>
+    compiledCases.map(pattern =>
       pattern -> Lemma(
         simplify(
           pattern.branchPremise ==>
@@ -108,7 +113,7 @@ final class RecFunSemantics[N <: Arity](
         thenHave(
           (term === term) <=>
             (term :: spec.typ) /\
-            (seqAnd(caseDefinitions.values.map { branch =>
+            (seqAnd(compiledCases.map { branch =>
               forallSeq(
                 branch.binders,
                 branch.branchPremise ==>
@@ -138,7 +143,7 @@ final class RecFunSemantics[N <: Arity](
     shortDefinitionByPattern(pattern)
 
   def shortDefinition(constructor: SemanticConstructor[N]): THM =
-    shortDefinitionByPattern(caseDefinitions(constructor))
+    shortDefinitionByPattern(compiledPatternFor(constructor))
 
   val intro: THM = Lemma(term :: spec.typ) {
 
@@ -148,7 +153,7 @@ final class RecFunSemantics[N <: Arity](
     thenHave(
       (term === term) <=>
         (term :: spec.typ) /\
-        (seqAnd(caseDefinitions.values.map { pattern =>
+        (seqAnd(compiledCases.map { pattern =>
           forallSeq(
             pattern.binders,
             pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body)

@@ -25,8 +25,6 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
     typ: Expr[Ind]
 ) {
   private val cases: Seq[Pattern[N]] = patternMatching.patterns
-  private val patternByConstructor: Map[SemanticConstructor[N], Pattern[N]] =
-    patternMatching.constructors.map(c => c -> patternMatching.patternFor(c)).toMap
 
   private val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
 
@@ -105,19 +103,9 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
     )
   )))
 
-  private val caseDefinitions: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
-    patternByConstructor.map((constructor, pattern) =>
-      constructor -> (pattern.binders, pattern.body)
-    )
-
-  private val constructorCheckReturnType: Map[SemanticConstructor[N], THM] =
-    patternByConstructor.map((constructor, pattern) =>
-      constructor -> checkReturnType(pattern)
-    )
-
   private val witnessSemantics = new CaseDefinedWitness[N](
     adt = adt,
-    cases = caseDefinitions,
+    patternMatching = patternMatching,
     returnType = returnType,
     typ = typ,
     witness = witness,
@@ -125,14 +113,14 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
     witnessBound = adt.term × returnType,
     pairWitness = pairWitness,
     caseMembership = caseMembership,
-    checkReturnType = constructorCheckReturnType,
+    checkReturnType = checkReturnType,
     constructorTagDisequalities = constructorTagDisequalities
   )
 
   private val witnessHasType: THM = witnessSemantics.witnessHasType
 
-  private lazy val witnessCaseByConstructor: Map[SemanticConstructor[N], THM] =
-    witnessSemantics.witnessCaseByConstructor
+  private lazy val witnessCaseByPattern: Map[Pattern[N], THM] =
+    witnessSemantics.witnessCaseByPattern
 
   private val extensionalUniqueness = new ExtensionalUniqueness[N](
     adt = adt,
@@ -145,8 +133,8 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
   val uniqueness = Lemma(existsOne(f, untypedDefinition)) {
     val definitionFormula = (v: Variable[Ind]) => untypedDefinition.substitute(f := v)
 
-    val constructorCaseFacts = patternMatching.constructors.map(c => witnessCaseByConstructor(c))
-    have(witnessCases) by Tautology.from(constructorCaseFacts*)
+    val patternCaseFacts = cases.map(pattern => witnessCaseByPattern(pattern))
+    have(witnessCases) by Tautology.from(patternCaseFacts*)
 
     have(witnessDefinition) by Tautology.from(lastStep, witnessHasType)
     val existence = thenHave(∃(f, untypedDefinition)) by RightExists

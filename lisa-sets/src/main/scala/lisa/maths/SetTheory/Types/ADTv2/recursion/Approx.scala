@@ -59,9 +59,10 @@ private[recursion] final class Approx[N <: Arity](
   // ─────────────────────────────────────────────────────────────────────────
 
   private val seedExists: THM = Lemma(∃(f0, f0 :: spec.typ)) {
-    spec.rawCases.find { case (_, (vars, _)) => vars.isEmpty } match {
+    spec.cases.find(_.binders.isEmpty) match {
 
-      case Some((_, (_, body))) =>
+      case Some(pattern) =>
+        val body = pattern.body
         val seedArg = variable[Ind]
         val seed = abs(spec.argType)(λ(seedArg, body))
         have(seed :: spec.typ) by Typecheck.prove
