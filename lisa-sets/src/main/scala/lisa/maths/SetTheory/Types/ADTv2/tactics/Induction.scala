@@ -316,10 +316,10 @@ class Induction[M <: Arity](
           )
         cases(using builder)
 
-        builder.isValid(inferedADT.asInstanceOf[ADT[N]]) match
-          case None => TacticSubproof { sp ?=>
+        builder.validateAndBuild(inferedADT.asInstanceOf[ADT[N]]) match
+          case Right(cases) => TacticSubproof { sp ?=>
               proveForallPredicate(using sp)(
-                builder.build,
+                cases,
                 inferedVar,
                 inferedADT.asInstanceOf[ADT[N]],
                 inferedArgs,
@@ -334,7 +334,7 @@ class Induction[M <: Arity](
 
               thenHave(bot) by Tautology
             }
-          case Some(msg) => proof.InvalidProofTactic(msg)
+          case Left(msg) => proof.InvalidProofTactic(msg)
 
     case None => proof
         .InvalidProofTactic("No variable typed with the ADT found in the context.")

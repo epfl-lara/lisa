@@ -1,16 +1,18 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, RecFunction}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, RecFunction, SpecializedADT}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{PatternSystem, SpecializedPatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
 import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
 import lisa.maths.SetTheory.Types.ADTv2.recursion
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 
-def fun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
+def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
     name: sourcecode.Name,
     valueOfN: ValueOf[N]
 )(
@@ -19,22 +21,33 @@ def fun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
   val builder = CaseAccumulator[N, Expr[Ind], Unit](())
   cases(using builder)
 
-  builder.isValid(adt) match
-    case None =>
-      val patternSystem: PatternSystem[N] = builder.buildPatternSystem
+  val effectiveTypeSubstitutions =
+    substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
+      .filter(substitution =>
+        substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]]
+      )
+
+  builder.compile(adt.base) match
+    case Right(patternSystem) =>
+      val specializedPatternSystem = SpecializedPatternSystem(
+        underlying = patternSystem,
+        domain = adt.base.semantic,
+        typeSubstitutions = effectiveTypeSubstitutions,
+        specializedAdtTerm = adt.term
+      )
       val semantic = SemanticFunction[N](
         name.value,
-        adt.semantic,
-        patternSystem,
+        adt.base.semantic,
+        specializedPatternSystem,
         returnType
       )
-      new ADTFunction[N](semantic, adt)
-    case Some(msg) => throw new IllegalArgumentException(msg)
+      new ADTFunction[N](semantic, adt.base)
+    case Left(msg) => throw new IllegalArgumentException(msg)
 }
 
 /** Second version of REC ------------------------------------------------- */
 
-def recFun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
+def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
     name: sourcecode.Name,
     valueOfN: ValueOf[N]
 )(
@@ -44,16 +57,27 @@ def recFun[N <: Arity](adt: ADT[N], returnType: Expr[Ind])(using
   val self = RecFunction.selfPlaceholder(name.value)
   cases(self)(using builder)
 
-  builder.isValid(adt) match
-    case None =>
-      val patternSystem: PatternSystem[N] = builder.buildPatternSystem
+  val effectiveTypeSubstitutions =
+    substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
+      .filter(substitution =>
+        substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]]
+      )
+
+  builder.compile(adt.base) match
+    case Right(patternSystem) =>
+      val specializedPatternSystem = SpecializedPatternSystem(
+        underlying = patternSystem,
+        domain = adt.base.semantic,
+        typeSubstitutions = effectiveTypeSubstitutions,
+        specializedAdtTerm = adt.term
+      )
       val semantic = recursion.RecFunSemantics[N](
         name.value,
-        adt.semantic,
+        adt.base.semantic,
         self,
-        patternSystem,
+        specializedPatternSystem,
         returnType
       )
-      new RecFunction[N](semantic, adt)
-    case Some(msg) => throw new IllegalArgumentException(msg)
+      new RecFunction[N](semantic, adt.base)
+    case Left(msg) => throw new IllegalArgumentException(msg)
 }

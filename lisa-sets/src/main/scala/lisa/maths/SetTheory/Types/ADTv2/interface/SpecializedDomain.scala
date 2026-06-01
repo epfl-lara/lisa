@@ -11,6 +11,11 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{appSeq, renderApplie
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
+object SpecializedADT {
+  given adtToSpecialized[N <: Arity](using ValueOf[N], sourcecode.Line, sourcecode.File): Conversion[ADT[N], SpecializedADT[N]] =
+    adt => new SpecializedADT[N](adt, adt.typeVariablesSeq)
+}
+
 /**
  * User-facing instantiated view of a constructor.
  *
