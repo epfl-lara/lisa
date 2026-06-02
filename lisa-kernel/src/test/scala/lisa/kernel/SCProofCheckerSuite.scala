@@ -783,8 +783,8 @@ class SCProofCheckerSuite extends AnyFunSuite {
   // ## case LeftSubstEq(b, t1, equals, lambdaPhi) =>
 
   val leftSubstEqTests = {
-    val p = Constant(Identifier("p"), Prop)
-    val q = Constant(Identifier("q"), Prop)
+    val p = Variable(Identifier("p"), Prop)
+    val q = Variable(Identifier("q"), Prop)
     val (x, y, z) = (
       Variable(Identifier("x"), Ind),
       Variable(Identifier("y"), Ind),
@@ -803,7 +803,8 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(P(x)), Set(p))), LeftSubstEq(Sequent(Set(P(y), equality(x)(y)), Set(p)), 0, Seq((x, y)), (Seq(T), P(T)))),
       (Seq(Sequent(Set(P(x), p), Set(p))), LeftSubstEq(Sequent(Set(P(y), p, equality(x)(y)), Set(p)), 0, Seq((x, y)), (Seq(T), P(T)))),
       (Seq(Sequent(Set(or(p)(equality(z)(z))), Set(p))), LeftSubstEq(Sequent(Set(or(q)(equality(z)(z)), iff(p)(q)), Set(p)), 0, Seq((p, q)), (Seq(X), or(X)(equality(z)(z))))),
-      (Seq(Sequent(Set(P(f(x))), Set(p))), LeftSubstEq(Sequent(Set(P(g(x)), forall(Lambda(z, equality(f(z))(g(z))))), Set(p)), 0, Seq((f, g)), (Seq(F), P(F(x)))))
+      (Seq(Sequent(Set(P(f(x))), Set(p))), LeftSubstEq(Sequent(Set(P(g(x)), forall(Lambda(z, equality(f(z))(g(z))))), Set(p)), 0, Seq((f, g)), (Seq(F), P(F(x))))),
+      (Seq(Sequent(Set(top), Set(p))), LeftSubstEq(Sequent(Set(p), Set(p)), 0, Seq((top, p)), (Seq(q), q)))
     )
     val negativeCases = Seq(
       (Seq(Sequent(Set(P(x)), Set(p))), LeftSubstEq(Sequent(Set(P(y)), Set(p)), 0, Seq((x, y)), (Seq(T), P(T)))),
@@ -811,7 +812,8 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(P(x)), Set(p))), LeftSubstEq(Sequent(Set(P(y), equality(x)(y)), Set.empty), 0, Seq((x, y)), (Seq(T), P(T)))),
       (Seq(Sequent(Set(P(x)), Set(p))), LeftSubstEq(Sequent(Set(P(y), equality(x)(y)), Set(p)), 0, Seq((x, y)), (Seq(T, z), P(T)))),
       (Seq(Sequent(Set(or(p)(equality(z)(z))), Set(p))), LeftSubstEq(Sequent(Set(or(q)(equality(z)(z))), Set(p)), 0, Seq((p, q)), (Seq(X), or(X)(equality(z)(z))))),
-      (Seq(Sequent(Set(P(f(x))), Set(p))), LeftSubstEq(Sequent(Set(P(g(x)), equality(f(x))(g(x))), Set(p)), 0, Seq((f, g)), (Seq(F), P(F(x)))))
+      (Seq(Sequent(Set(P(f(x))), Set(p))), LeftSubstEq(Sequent(Set(P(g(x)), equality(f(x))(g(x))), Set(p)), 0, Seq((f, g)), (Seq(F), P(F(x))))),
+      (Seq(Sequent(Set(top), Set(p))), LeftSubstEq(Sequent(Set(p), Set(p)), 0, Seq((p, top)), (Seq(q), q)))
     )
 
     stepTests("LeftSubstEq", positiveCases, negativeCases)
@@ -820,8 +822,8 @@ class SCProofCheckerSuite extends AnyFunSuite {
   // ## case RightSubstEq(b, t1, equals, lambdaPhi) =>
 
   val rightSubstEqTests = {
-    val p = Constant(Identifier("p"), Prop)
-    val q = Constant(Identifier("q"), Prop)
+    val p = Variable(Identifier("p"), Prop)
+    val q = Variable(Identifier("q"), Prop)
     val (x, y, z) = (
       Variable(Identifier("x"), Ind),
       Variable(Identifier("y"), Ind),
@@ -840,7 +842,8 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(P(x)))), RightSubstEq(Sequent(Set(p, equality(x)(y)), Set(P(y))), 0, Seq((x, y)), (Seq(T), P(T)))),
       (Seq(Sequent(Set(p), Set(P(x), p))), RightSubstEq(Sequent(Set(p, equality(x)(y)), Set(P(y), p)), 0, Seq((x, y)), (Seq(T), P(T)))),
       (Seq(Sequent(Set(p), Set(or(p)(equality(z)(z))))), RightSubstEq(Sequent(Set(p, iff(p)(q)), Set(or(q)(equality(z)(z)))), 0, Seq((p, q)), (Seq(X), or(X)(equality(z)(z))))),
-      (Seq(Sequent(Set(p), Set(P(f(x))))), RightSubstEq(Sequent(Set(p, forall(Lambda(z, equality(f(z))(g(z))))), Set(P(g(x)))), 0, Seq((f, g)), (Seq(F), P(F(x)))))
+      (Seq(Sequent(Set(p), Set(P(f(x))))), RightSubstEq(Sequent(Set(p, forall(Lambda(z, equality(f(z))(g(z))))), Set(P(g(x)))), 0, Seq((f, g)), (Seq(F), P(F(x))))),
+      (Seq(Sequent(Set(p), Set(top))), RightSubstEq(Sequent(Set(p), Set(p)), 0, Seq((top, p)), (Seq(q), q)))
     )
     val negativeCases = Seq(
       (Seq(Sequent(Set(p), Set(P(x)))), RightSubstEq(Sequent(Set(p), Set(P(y))), 0, Seq((x, y)), (Seq(T), P(T)))),
@@ -848,7 +851,8 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(P(x)))), RightSubstEq(Sequent(Set(equality(x)(y)), Set(P(y))), 0, Seq((x, y)), (Seq(T), P(T)))),
       (Seq(Sequent(Set(p), Set(P(x)))), RightSubstEq(Sequent(Set(p, equality(x)(y)), Set(P(y))), 0, Seq((x, y)), (Seq(T, z), P(T)))),
       (Seq(Sequent(Set(p), Set(or(p)(equality(z)(z))))), RightSubstEq(Sequent(Set(p), Set(or(q)(equality(z)(z)))), 0, Seq((p, q)), (Seq(X), or(X)(equality(z)(z))))),
-      (Seq(Sequent(Set(p), Set(P(f(x))))), RightSubstEq(Sequent(Set(p, equality(f(x))(g(x))), Set(P(g(x)))), 0, Seq((f, g)), (Seq(F), P(F(x)))))
+      (Seq(Sequent(Set(p), Set(P(f(x))))), RightSubstEq(Sequent(Set(p, equality(f(x))(g(x))), Set(P(g(x)))), 0, Seq((f, g)), (Seq(F), P(F(x))))),
+      (Seq(Sequent(Set(p), Set(top))), RightSubstEq(Sequent(Set(p), Set(p)), 0, Seq((p, top)), (Seq(q), q)))
     )
 
     stepTests("RightSubstEq", positiveCases, negativeCases)
