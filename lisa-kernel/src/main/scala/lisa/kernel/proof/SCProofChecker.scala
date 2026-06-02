@@ -43,9 +43,10 @@ object SCProofChecker {
    * removing a formula `expEq` to `exception``.
    */
   @inline
-  private def allContainedExcept(set: Set[Expression], target: Set[Expression], exception: Expression): Boolean ={
+  private def allContainedExcept(set: Set[Expression], target: Set[Expression], exception: Expression): Boolean = {
     val simplifiedTarget = target.map(simpleReducedForm)
-    set.forall(formula => containsAsSimple(simplifiedTarget)(formula) || expEq(formula, exception))}
+    set.forall(formula => containsAsSimple(simplifiedTarget)(formula) || expEq(formula, exception))
+  }
 
   /**
    * Checks whether `set` is contained in `target` *syntactically* except for
