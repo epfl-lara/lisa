@@ -664,16 +664,19 @@ object SCProofChecker {
               (!arg.sort.isFunctional && !arg.sort.isPredicate)
             }
             // sort checks
-            if (phiArgs.size != sList.size)
+            if (phiBody.sort != Prop)
+              sortMismatch(Prop, phiBody.sort, step)
+            else if (phiArgs.size != sList.size)
               error(step, "The number of arguments of φ is not the same as number of equalities.")
             else if (violatingEquality.nonEmpty) {
               // triage to find and report the problem
               val ((s, t), arg) = violatingEquality.get
               if (s.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
               else if (t.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
-              else
+              else {
                 assert(!arg.sort.isFunctional && !arg.sort.isPredicate)
                 error(step, s"An argument of φ has sort (${arg.sort}) which is not a functional or predicate sort, and thus cannot be substituted for.")
+              }
             }
             // logical checks
             else {
@@ -685,15 +688,14 @@ object SCProofChecker {
               // these checks need to retain OL (at least α-eq)
               // as substitution may rename binders deep in the term
 
-              if (!isSameSet(b.right, prem1.right))
-                error(step, "Right-hand side of premise is not the same as right-hand side of conclusion.")
-              else if (
-                !(
-                  isSameSet(b.left + `φ(t_)`, prem1.left ++ equalities + `φ(s_)`) ||
-                    isSameSet(b.left + `φ(s_)`, prem1.left ++ equalities + `φ(t_)`)
-                )
-              )
-                error(step, "Left-hand side of conclusion + one instance of φ is not the same as left-hand side of premise + equalities + the other instance of φ.")
+              if (!subset(prem1.right, b.right))
+                error(step, "Right-hand side of premise is not contained in the conclusion.")
+              else if (!allContainedExcept(prem1.left, b.left, `φ(s_)`))
+                error(step, "Left-hand side of premise contains a formula absent from the conclusion other than φ(s_).")
+              else if (!equalities.forall(containsEq(b.left, _)))
+                error(step, "Left-hand side of conclusion does not contain all lifted equalities.")
+              else if (!containsEq(b.left, `φ(t_)`))
+                error(step, "Left-hand side of conclusion does not contain φ(t_).")
               else
                 SCValidProof(SCProof(step))
             }
@@ -714,16 +716,19 @@ object SCProofChecker {
               (!arg.sort.isFunctional && !arg.sort.isPredicate)
             }
             // sort checks
-            if (phiArgs.size != sList.size)
+            if (phiBody.sort != Prop)
+              sortMismatch(Prop, phiBody.sort, step)
+            else if (phiArgs.size != sList.size)
               error(step, "The number of arguments of φ is not the same as number of equalities.")
             else if (violatingEquality.nonEmpty) {
               // triage to find and report the problem
               val ((s, t), arg) = violatingEquality.get
               if (s.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
               else if (t.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
-              else
+              else {
                 assert(!arg.sort.isFunctional && !arg.sort.isPredicate)
                 error(step, s"An argument of φ has sort (${arg.sort}) which is not a functional or predicate sort, and thus cannot be substituted for.")
+              }
             }
             // logical checks
             else {
@@ -735,15 +740,14 @@ object SCProofChecker {
               // these checks need to retain OL (at least α-eq)
               // as substitution may rename binders deep in the term
 
-              if (!isSameSet(b.left, prem1.left ++ equalities))
-                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise + equalities.")
-              else if (
-                !(
-                  isSameSet(b.right + `φ(t_)`, prem1.right + `φ(s_)`) ||
-                    isSameSet(b.right + `φ(s_)`, prem1.right + `φ(t_)`)
-                )
-              )
-                error(step, "Right-hand side of conclusion + one instance of φ is not the same as right-hand side of premise + the other instance of φ.")
+              if (!subset(prem1.left, b.left))
+                error(step, "Left-hand side of premise is not contained in the conclusion.")
+              else if (!equalities.forall(containsEq(b.left, _)))
+                error(step, "Left-hand side of conclusion does not contain all lifted equalities.")
+              else if (!allContainedExcept(prem1.right, b.right, `φ(s_)`))
+                error(step, "Right-hand side of premise contains a formula absent from the conclusion other than φ(s_).")
+              else if (!containsEq(b.right, `φ(t_)`))
+                error(step, "Right-hand side of conclusion does not contain φ(t_).")
               else
                 SCValidProof(SCProof(step))
             }
@@ -754,19 +758,22 @@ object SCProofChecker {
            *     Γ[ψ/?p] |- Δ[ψ/?p]
            */
           case InstSchema(bot, t1, subst) =>
-            val prem = ref(t1)
-            val expectedLeft = prem.left.map(substituteVariables(_, subst))
-            val expectedRight = prem.right.map(substituteVariables(_, subst))
+            val sortMismatchSubstitution = subst.find { case (v, e) => e.sort != v.sort }
 
-            // needs to retain OL (at least α-eq)
-            // as substitution may rename binders deep in the term
+            if (sortMismatchSubstitution.nonEmpty) {
+              val (v, e) = sortMismatchSubstitution.get
+              sortMismatch(v.sort, e.sort, step)
+            } else {
+              val prem = ref(t1)
 
-            if (!isSameSet(bot.left, expectedLeft))
-              error(step, "Left-hand side of premise after instantiation is not the same as left-hand side of conclusion.")
-            else if (!isSameSet(bot.right, expectedRight))
-              error(step, "Right-hand side of premise after instantiation is not the same as right-hand side of conclusion.")
-            else
-              SCValidProof(SCProof(step))
+              // These checks need to retain OL (at least α-eq), as substitution may rename binders deep in the term.
+              if (!prem.left.forall(formula => containsEq(bot.left, substituteVariables(formula, subst))))
+                error(step, "Left-hand side of premise after instantiation is not contained in left-hand side of conclusion.")
+              else if (!prem.right.forall(formula => containsEq(bot.right, substituteVariables(formula, subst))))
+                error(step, "Right-hand side of premise after instantiation is not contained in right-hand side of conclusion.")
+              else
+                SCValidProof(SCProof(step))
+            }
 
           case SCSubproof(sp, premises) =>
             if (premises.size != sp.imports.size)
