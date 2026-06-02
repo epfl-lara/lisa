@@ -620,12 +620,12 @@ object SCProofChecker {
               case equality(left, right) =>
                 val prem1 = ref(t1)
 
-                if (left != right)
+                if (!expEq(left, right))
                   error(step, "Given equality is not reflexive.")
-                else if (b.right != prem1.right)
-                  error(step, "Right-hand side of premise is not the same as right-hand side of conclusion.")
-                else if (b.left + phi != prem1.left)
-                  error(step, "Left-hand side of conclusion + given equality is not the same as left-hand side of premise.")
+                else if (!subset(prem1.right, b.right))
+                  error(step, "Right-hand side of premise is not contained in the conclusion.")
+                else if (!allContainedExcept(prem1.left, b.left, phi))
+                  error(step, "Left-hand side of premise contains a formula absent from the conclusion other than the given equality.")
                 else
                   SCValidProof(SCProof(step))
               case _ => error(step, "Given formula is not an equality.")
@@ -639,9 +639,9 @@ object SCProofChecker {
           case RightRefl(b, phi) =>
             phi match {
               case equality(left, right) =>
-                if (left != right)
+                if (!expEq(left, right))
                   error(step, "Given equality is not reflexive.")
-                else if (!b.right.contains(phi))
+                else if (!containsEq(b.right, phi))
                   error(step, "Right-hand side of conclusion does not contain the reflexive equality.")
                 else
                   SCValidProof(SCProof(step))
