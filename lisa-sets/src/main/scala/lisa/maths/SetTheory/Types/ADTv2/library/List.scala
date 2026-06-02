@@ -16,7 +16,7 @@ val list = adt(
 val nil = list.constructors(0)
 val cons = list.constructors(1)
 
-val length = recFun(list, nat) { self =>
+lazy val length = recFun(list, nat) { self =>
   Case(nil):
     zero
   Case(cons, listLengthHead, listLengthTail):
