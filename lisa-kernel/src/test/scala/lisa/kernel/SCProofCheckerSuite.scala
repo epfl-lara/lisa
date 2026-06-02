@@ -264,6 +264,13 @@ class SCProofCheckerSuite extends AnyFunSuite {
       ),
       (
         Seq(
+          Sequent(Set(p), Set(q)),
+          Sequent(Set(r), Set(s))
+        ),
+        Cut(Sequent(Set(p, r), Set(s)), 0, 1, q)
+      ),
+      (
+        Seq(
           Sequent(Set(p, r), Set(q, s)),
           Sequent(Set(q, s), Set(r))
         ),
@@ -284,13 +291,6 @@ class SCProofCheckerSuite extends AnyFunSuite {
           Sequent(Set(q), Set(r))
         ),
         Cut(Sequent(Set(p), Set(r)), 0, 1, p)
-      ),
-      (
-        Seq(
-          Sequent(Set(p), Set(q)),
-          Sequent(Set(r), Set(s))
-        ),
-        Cut(Sequent(Set(p, r), Set(s)), 0, 1, q)
       ),
       (
         Seq(
