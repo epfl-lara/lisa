@@ -78,7 +78,7 @@ class IncorrectProofsTests extends ProofCheckerSuite {
       ),
       SCProof(
         Hypothesis(emptySeq +<< f +>> f, f),
-        RightOr(emptySeq +<< f +>> f +>> g, 0, f, g) // f \/ g not explicitly present 
+        RightOr(emptySeq +<< f +>> f +>> g, 0, f, g) // f \/ g not explicitly present
       )
     )
 
